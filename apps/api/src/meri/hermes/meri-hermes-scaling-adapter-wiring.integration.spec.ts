@@ -286,7 +286,56 @@ describe('S-1/S-2 wired into the real turn path (real local Postgres)', () => {
     expect(['failed', 'cancelled', 'interrupted', 'expired', 'completed']).toContain(finished!.status);
   });
 
-  test('5. two conversations of one user both run: the per-scope allowance of 2 is a real allowance, not a formality', async () => {
+  test('5. disconnect while queued detaches delivery but preserves admission, and an identical retry reattaches', async () => {
+    const conversationId = await makeConversation('wiring: queued disconnect and retry');
+    const { adapter, admission } = makeAdapter({
+      MERI_HERMES_MAX_CONCURRENT_RUNS_SCOPE: '1',
+      MERI_HERMES_TENANT_QUEUE_DEPTH: '4',
+      MERI_HERMES_QUEUE_WAIT_MS: '10000',
+      MERI_HERMES_QUEUE_POLL_MS: '25',
+    });
+    const occupying = randomUUID();
+    await admission.admit({ runId: occupying, tenantId, scopeId, conversationId: randomUUID() });
+
+    const body = 'a queued turn that survives the phone going away';
+    const first = collector();
+    const disconnect = new AbortController();
+    const accepted = adapter.streamMessage(ctx, conversationId, body, first.sse, disconnect.signal);
+
+    let queuedRunId: string | null = null;
+    for (let attempt = 0; attempt < 80 && !queuedRunId; attempt += 1) {
+      const [candidate] = await runs.listForConversation(tenantId, userId, conversationId);
+      if (candidate && (await admission.slotState(candidate.runId))?.state === 'queued') queuedRunId = candidate.runId;
+      if (!queuedRunId) await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    expect(queuedRunId).not.toBeNull();
+
+    disconnect.abort();
+    await new Promise((resolve) => setTimeout(resolve, 75));
+    await expect(admission.slotState(queuedRunId!)).resolves.toMatchObject({ state: 'queued' });
+
+    // Same request fingerprint: no second user message and no second run.
+    const retry = collector();
+    const reattached = adapter.streamMessage(ctx, conversationId, body, retry.sse);
+    await admission.release(occupying);
+    await Promise.all([accepted, reattached]);
+
+    const conversationRuns = await runs.listForConversation(tenantId, userId, conversationId);
+    expect(conversationRuns).toHaveLength(1);
+    const finished = conversationRuns[0]!;
+    expect(finished.runId).toBe(queuedRunId);
+    expect(finished.detached).toBe(true);
+    expect(['failed', 'cancelled', 'interrupted', 'expired', 'completed']).toContain(finished.status);
+    const events = await runs.eventsAfter(finished.runId, 0, 'all');
+    expect(events.filter((event) => event.kind === 'client.detached')).toHaveLength(1);
+    await expect(
+      prisma.withTenant(tenantId, (tx) =>
+        tx.clioMessage.count({ where: { tenantId, userId, conversationId, role: 'user' } }),
+      ),
+    ).resolves.toBe(1);
+  });
+
+  test('6. two conversations of one user both run: the per-scope allowance of 2 is a real allowance, not a formality', async () => {
     const conversationOne = await makeConversation('wiring: parallel one');
     const conversationTwo = await makeConversation('wiring: parallel two');
     const { adapter, admission } = makeAdapter({ MERI_HERMES_MAX_CONCURRENT_RUNS_SCOPE: '2' });

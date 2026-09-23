@@ -399,6 +399,32 @@ export class MeriHermesRuntimeAdapter {
     }
 
     /**
+     * The run is durably accepted at this point. From here on a browser
+     * disconnect detaches delivery only; it must never withdraw a queue slot
+     * or cancel dispatch. Start recording that distinction before the capacity
+     * wait, because a phone can background while this run is still queued.
+     */
+    const persistPreDispatchDetach = async () => {
+      clientGone = true;
+      const current = await this.runs.get(run.runId);
+      if (!current || current.detached || MERI_HERMES_TERMINAL_STATUSES.has(current.status)) return;
+      await this.runs.update(run.runId, { detached: true });
+      await this.runs.append(
+        run.runId,
+        'client.detached',
+        { at: new Date().toISOString(), phase: current.status, frames: [] },
+        'internal',
+      );
+    };
+    const onPreDispatchAbort = () => {
+      void persistPreDispatchDetach().catch((error) =>
+        this.logger.error(`pre-dispatch detach for run ${run.runId} failed: ${String(error)}`),
+      );
+    };
+    if (clientSignal?.aborted) onPreDispatchAbort();
+    else clientSignal?.addEventListener('abort', onPreDispatchAbort, { once: true });
+
+    /**
      * S-2 FAIRNESS. Capacity is taken AFTER `runs.create()`, deliberately:
      *
      *   • the one-active-run-per-conversation invariant is enforced by
@@ -449,8 +475,7 @@ export class MeriHermesRuntimeAdapter {
         };
         await announce(slot.queuePosition, false);
         let lastAnnounced = slot.queuePosition;
-        await this.admission.awaitActivation(run.runId, {
-          signal: clientSignal,
+        const activation = await this.admission.awaitActivation(run.runId, {
           onWait: (position) => {
             if (position !== lastAnnounced) {
               lastAnnounced = position;
@@ -458,6 +483,15 @@ export class MeriHermesRuntimeAdapter {
             }
           },
         });
+        // A missing slot means an explicit Stop (or an operator drain) released
+        // this queued run. Do not dispatch after Stop. Replay the durable
+        // terminal receipt to a still-connected caller and end this request.
+        if (!activation.activated) {
+          clientSignal?.removeEventListener('abort', onPreDispatchAbort);
+          const stopped = (await this.runs.get(run.runId)) ?? run;
+          await this.attach(stopped, writeFrame, clientSignal, 0);
+          return;
+        }
         await announce(null, true);
       }
     } catch (error) {
@@ -472,9 +506,11 @@ export class MeriHermesRuntimeAdapter {
           output: null,
           error: error.message,
         });
+        clientSignal?.removeEventListener('abort', onPreDispatchAbort);
         writeFrame({ type: 'done', runtime: 'hermes', finishReason: 'error', partial: true });
         return;
       }
+      clientSignal?.removeEventListener('abort', onPreDispatchAbort);
       throw error;
     }
 
@@ -495,6 +531,7 @@ export class MeriHermesRuntimeAdapter {
       frames: [{ type: 'start', intent: 'general_question', tier: 'deep', runtime: 'hermes', runId: run.runId }],
     });
 
+    clientSignal?.removeEventListener('abort', onPreDispatchAbort);
     const writer = this.attachWriter(run, writeFrame, clientSignal, 0, () => {
       clientGone = true;
     });
@@ -1051,7 +1088,7 @@ export class MeriHermesRuntimeAdapter {
     };
     const onAbort = async () => {
       const current = await this.runs.get(run.runId);
-      if (current && !MERI_HERMES_TERMINAL_STATUSES.has(current.status)) {
+      if (current && !current.detached && !MERI_HERMES_TERMINAL_STATUSES.has(current.status)) {
         await this.runs.update(run.runId, { detached: true });
         await this.runs.append(run.runId, 'client.detached', { at: new Date().toISOString(), frames: [] }, 'internal');
       }
