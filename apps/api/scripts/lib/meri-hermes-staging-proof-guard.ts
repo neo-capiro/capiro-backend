@@ -65,6 +65,24 @@ export function assertMeriHermesStagingProofGuards(env: NodeJS.ProcessEnv): void
   }
 }
 
+export function parseMeriHermesProofReattachArgs(argv: string[]): {
+  runId: string;
+  tenantId: string;
+  userId: string;
+  afterSeq: number;
+} {
+  const [, , mode, runId, tenantId, userId, rawAfterSeq] = argv;
+  if (mode !== '--reattach' || !runId || !tenantId || !userId) {
+    throw new Error('Missing fresh-process reconnect arguments');
+  }
+  assertUuid(runId, 'reattach.runId');
+  assertUuid(tenantId, 'reattach.tenantId');
+  assertUuid(userId, 'reattach.userId');
+  const afterSeq = Number(rawAfterSeq ?? 0);
+  if (!Number.isSafeInteger(afterSeq) || afterSeq < 0) throw new Error('Invalid reattach.afterSeq');
+  return { runId, tenantId, userId, afterSeq };
+}
+
 function assertIso(value: unknown, field: string): void {
   if (typeof value !== 'string' || !Number.isFinite(Date.parse(value))) {
     throw new Error(`Invalid ${field}`);

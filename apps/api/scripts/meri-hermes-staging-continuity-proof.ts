@@ -22,6 +22,7 @@ import {
   MERI_HERMES_STAGING_PROOF_TENANT_SLUG,
   assertMeriHermesStagingProofEvidence,
   assertMeriHermesStagingProofGuards,
+  parseMeriHermesProofReattachArgs,
   type MeriHermesStagingProofEvidence,
 } from './lib/meri-hermes-staging-proof-guard.js';
 
@@ -318,8 +319,7 @@ async function reconnectInFreshProcess(runId: string, tenantId: string, userId: 
 
 async function reattachChild(): Promise<void> {
   assertMeriHermesStagingProofGuards(process.env);
-  const [, , runId, tenantId, userId, rawAfterSeq] = process.argv;
-  if (!runId || !tenantId || !userId) throw new Error('Missing fresh-process reconnect arguments');
+  const { runId, tenantId, userId, afterSeq } = parseMeriHermesProofReattachArgs(process.argv);
   const prisma = new PrismaService();
   await prisma.$connect();
   try {
@@ -339,7 +339,7 @@ async function reattachChild(): Promise<void> {
       maintenance,
     );
     let frames = 0;
-    await adapter.attach(run, () => { frames += 1; }, undefined, Number(rawAfterSeq ?? 0));
+    await adapter.attach(run, () => { frames += 1; }, undefined, afterSeq);
     const terminal = await runs.requireOwned(runId, tenantId, userId);
     process.stdout.write(`${CHILD_MARKER}${JSON.stringify({ runId, frames, terminal: Boolean(terminal && MERI_HERMES_TERMINAL_STATUSES.has(terminal.status)) })}\n`);
   } finally {

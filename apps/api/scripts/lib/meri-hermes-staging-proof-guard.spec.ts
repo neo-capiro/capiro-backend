@@ -2,6 +2,7 @@ import {
   MERI_HERMES_STAGING_PROOF_TENANT_ID,
   assertMeriHermesStagingProofEvidence,
   assertMeriHermesStagingProofGuards,
+  parseMeriHermesProofReattachArgs,
   type MeriHermesStagingProofEvidence,
 } from './meri-hermes-staging-proof-guard.js';
 
@@ -57,5 +58,20 @@ describe('Meri Hermes staging continuity proof safety', () => {
     expect(() =>
       assertMeriHermesStagingProofEvidence(contentBearing as MeriHermesStagingProofEvidence),
     ).toThrow(/Forbidden content-bearing/);
+  });
+
+  test('parses the fresh-process mode without shifting opaque ids', () => {
+    expect(parseMeriHermesProofReattachArgs([
+      '/usr/bin/node', '/app/proof.ts', '--reattach',
+      '10000000-0000-4000-8000-000000000001',
+      MERI_HERMES_STAGING_PROOF_TENANT_ID,
+      '10000000-0000-4000-8000-000000000002',
+      '7',
+    ])).toEqual({
+      runId: '10000000-0000-4000-8000-000000000001',
+      tenantId: MERI_HERMES_STAGING_PROOF_TENANT_ID,
+      userId: '10000000-0000-4000-8000-000000000002',
+      afterSeq: 7,
+    });
   });
 });
