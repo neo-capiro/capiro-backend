@@ -20,7 +20,8 @@ inline in `templates/pages/solutions.html`, not in the shared `main.js`.
 ## Build
 
 ```
-node build.mjs            # regenerates index.html + <page>.html + sitemap.xml in this dir
+pnpm marketing:build       # from the repository root
+pnpm marketing:test        # build + support-route contract checks
 ```
 
 The generated `*.html` files **are committed** (so you can diff rendered output
@@ -45,3 +46,21 @@ resolves to `platform.html`, unknown paths 404. See `nginx/nginx.conf`.
 `./deploy.sh` builds the arm64 image, pushes to ECR, and force-deploys ECS
 service `capiro-dev-marketing`. **This serves the live capiro.ai domain** — build
 and verify locally first.
+
+### Support page / App Store release gate
+
+The `/support` source is checked by `support.contract.test.mjs`, but a checked-in
+`support.html` does not prove that the public URL is deployed. After this change
+is merged, the release owner must use the approved marketing deployment flow
+and verify the live artifact before using it in App Store metadata:
+
+```sh
+curl --fail --silent --show-error https://capiro.ai/support
+curl --fail --silent --show-error https://capiro.ai/sitemap.xml
+```
+
+Confirm the support response is HTTPS/200, has the canonical
+`https://capiro.ai/support`, links to `https://capiro.ai/privacy`, and exposes
+`info@capiro.ai` without redirecting to another organization. Only then replace
+`REQUIRED_PUBLISHED_HTTPS_SUPPORT_URL` in the Meri release inputs. This repository
+change does not deploy the page.

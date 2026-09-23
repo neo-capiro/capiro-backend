@@ -17,6 +17,8 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "marketing:build": "node marketing/build.mjs",
+    "marketing:test": "pnpm marketing:build && node --test marketing/support.contract.test.mjs",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
     "db:logs": "docker compose logs -f postgres",
