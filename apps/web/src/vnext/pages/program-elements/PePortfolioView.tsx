@@ -22,11 +22,13 @@ import { CapiroEmptyState } from '../../components/feedback/index.js';
 import { FilterControl, PeSkeletonBlock } from './pe-primitives.js';
 import { familyById, serviceToApiParam, useDefenseBudgetContext } from './defense-budget-context.js';
 import { DefenseBudgetFamilyCoverageNote } from './defense-budget-coverage.js';
+import { useMe } from '../../../lib/me.js';
 
 const SORT_OPTIONS = ['MOVEMENT', 'CURRENT', 'CODE'];
 const CLOSED = new Set(['dismissed', 'archived']);
 
 export function PePortfolioView() {
+  const me = useMe();
   const api = useApi();
   const navigate = useNavigate();
   const ctx = useDefenseBudgetContext();
@@ -130,7 +132,9 @@ export function PePortfolioView() {
       </div>
 
       <div className="pe-ws-body">
-        {family.id !== 'All' ? <DefenseBudgetFamilyCoverageNote familyId={family.id} fy={ctx.fy} /> : null}
+        {me.data?.tenant.slug === 'capiro-internal' && family.id !== 'All' ? (
+          <DefenseBudgetFamilyCoverageNote familyId={family.id} fy={ctx.fy} />
+        ) : null}
 
         <section className="pe-v2-card pe-ws-metrics">
           {metrics.map((m) => (

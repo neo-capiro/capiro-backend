@@ -50,6 +50,7 @@ import { useWatchToggle } from './pe-watch-toggle.js';
 import { EvMark, FilterControl, PeSkeletonBlock, Segmented } from './pe-primitives.js';
 import { familyById, serviceToApiParam, useDefenseBudgetContext } from './defense-budget-context.js';
 import { DefenseBudgetFamilyCoverageNote } from './defense-budget-coverage.js';
+import { useMe } from '../../../lib/me.js';
 
 const PAGE_SIZE = 50;
 
@@ -89,6 +90,7 @@ function railStyle(rail: ReturnType<typeof railGeometry>, pct: number | null): C
 }
 
 export function PeExploreView() {
+  const me = useMe();
   const api = useApi();
   const navigate = useNavigate();
   const ctx = useDefenseBudgetContext();
@@ -215,7 +217,9 @@ export function PeExploreView() {
       </div>
 
       <div className="pe-ws-body">
-        {family.id !== 'All' ? <DefenseBudgetFamilyCoverageNote familyId={family.id} fy={ctx.fy} /> : null}
+        {me.data?.tenant.slug === 'capiro-internal' && family.id !== 'All' ? (
+          <DefenseBudgetFamilyCoverageNote familyId={family.id} fy={ctx.fy} />
+        ) : null}
 
         {/* Toolbar — movement chip + density (search/family/service/watched live in the shared context bar above) */}
         <section className="pe-v2-card" aria-label="Filters">

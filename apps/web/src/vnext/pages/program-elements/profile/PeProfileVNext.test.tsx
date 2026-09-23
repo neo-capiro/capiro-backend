@@ -20,9 +20,14 @@ import type { ProgramElementDetail } from '../../../../pages/program-element/typ
 
 const apiGet = vi.fn();
 const apiPost = vi.fn();
+let tenantSlug = 'capiro-internal';
 
 vi.mock('../../../../lib/use-api.js', () => ({
   useApi: () => ({ get: apiGet, post: apiPost }),
+}));
+
+vi.mock('../../../../lib/me.js', () => ({
+  useMe: () => ({ data: { tenant: { slug: tenantSlug } }, isLoading: false }),
 }));
 
 const DETAIL: ProgramElementDetail = {
@@ -99,6 +104,7 @@ describe('PeProfileVNext', () => {
   beforeEach(() => {
     apiGet.mockReset();
     apiPost.mockReset();
+    tenantSlug = 'capiro-internal';
   });
 
   test('parses the PE code from the pathname (useParams is empty under VNextRouter) and renders real derived figures', async () => {
@@ -167,6 +173,15 @@ describe('PeProfileVNext', () => {
     // Back to Overview clears the param (canonical behavior).
     fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
     expect(screen.getByTestId('location-probe')).toHaveTextContent(/\/program-elements\/0601102A$/);
+  });
+
+  test('external tenants do not call the internal lifecycle coverage endpoint from Sources & proof', async () => {
+    tenantSlug = 'maven';
+    mockEndpoints();
+    renderProfile('/program-elements/0601102A?tab=sources');
+
+    expect(await screen.findByText(/evidence coverage/)).toBeInTheDocument();
+    expect(apiGet).not.toHaveBeenCalledWith('/api/budget-lifecycle/cycles/2027/health');
   });
 
   test('Monitor toggles the watch state through the canonical endpoint', async () => {

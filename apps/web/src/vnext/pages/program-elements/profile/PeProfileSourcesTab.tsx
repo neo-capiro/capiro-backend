@@ -13,6 +13,7 @@ import type { V2StageId } from '../../../../pages/program-element/v2/pe-v2-model
 import { PfCard } from './pe-profile-primitives.js';
 import { PeProfileSourceInspector, type InspectorTarget } from './PeProfileSourceInspector.js';
 import { DefenseBudgetCoverageMeter } from '../defense-budget-coverage.js';
+import { useMe } from '../../../../lib/me.js';
 
 const COVER_GROUPS: Array<{ name: string; cells: Array<{ stage: V2StageId; label: string }> }> = [
   {
@@ -35,6 +36,7 @@ const COVER_GROUPS: Array<{ name: string; cells: Array<{ stage: V2StageId; label
 ];
 
 export function PeProfileSourcesTab({ vm }: { vm: ProgramElementProfileFinalVm }) {
+  const me = useMe();
   const { detail, latest, sourcesQuery, deltasQuery, setDataIssueOpen } = vm;
   const [inspector, setInspector] = useState<InspectorTarget | null>(null);
 
@@ -91,7 +93,9 @@ export function PeProfileSourcesTab({ vm }: { vm: ProgramElementProfileFinalVm }
     <div style={{ padding: '20px 24px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Defense Budget lifecycle source coverage — Phase 8 Session 11 read, now
           served live from apps/api (see defense-budget-coverage.tsx header). */}
-      <DefenseBudgetCoverageMeter fiscalYear={fiscalYear} />
+      {me.data?.tenant.slug === 'capiro-internal' ? (
+        <DefenseBudgetCoverageMeter fiscalYear={fiscalYear} />
+      ) : null}
 
       {/* Coverage map */}
       <section>
