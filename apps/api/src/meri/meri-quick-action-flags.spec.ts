@@ -2,6 +2,8 @@ jest.mock('../prisma/prisma.service.js', () => ({
   PrismaService: class PrismaService {},
 }));
 
+import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
+import type { PrismaService } from '../prisma/prisma.service.js';
 import {
   meriQuickActionSkillsEnvironmentEnabled,
   meriQuickActionSkillsTenantEnabled,
@@ -50,5 +52,28 @@ describe('Meri Quick Action rollout helpers', () => {
     const cohort = new Set(['capiro-internal', 'maven']);
     expect(meriQuickActionSkillsTenantEnabled('MAVEN', cohort)).toBe(true);
     expect(meriQuickActionSkillsTenantEnabled('revere', cohort)).toBe(false);
+  });
+
+  test('the service fails closed when tenant settings cannot be read', async () => {
+    const priorEnabled = process.env.MERI_QUICK_ACTION_SKILLS_ENABLED;
+    const priorTenants = process.env.MERI_QUICK_ACTION_SKILLS_TENANTS;
+    process.env.MERI_QUICK_ACTION_SKILLS_ENABLED = 'true';
+    process.env.MERI_QUICK_ACTION_SKILLS_TENANTS = '*';
+    const prisma = {
+      withTenant: async () => {
+        throw new Error('database unavailable');
+      },
+    } as unknown as PrismaService;
+
+    try {
+      await expect(
+        new MeriFeatureFlagsService(prisma).isMeriQuickActionSkillsEnabled('tenant-1', 'maven'),
+      ).resolves.toBe(false);
+    } finally {
+      if (priorEnabled === undefined) delete process.env.MERI_QUICK_ACTION_SKILLS_ENABLED;
+      else process.env.MERI_QUICK_ACTION_SKILLS_ENABLED = priorEnabled;
+      if (priorTenants === undefined) delete process.env.MERI_QUICK_ACTION_SKILLS_TENANTS;
+      else process.env.MERI_QUICK_ACTION_SKILLS_TENANTS = priorTenants;
+    }
   });
 });

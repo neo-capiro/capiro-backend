@@ -26,7 +26,7 @@ All flags are server-side and default off unless stated otherwise.
 | Flag | Service | Purpose |
 | --- | --- | --- |
 | `MERI_QUICK_ACTION_SKILLS_ENABLED` | API | Global emergency switch for the Quick Actions catalog. |
-| `MERI_QUICK_ACTION_SKILLS_TENANTS` | API | Comma-separated tenant-slug allowlist. Defaults to `capiro-internal`. |
+| `MERI_QUICK_ACTION_SKILLS_TENANTS` | API | Optional comma-separated tenant-slug rollback cohort. Defaults to `*` (all tenants). |
 | tenant setting `meriv3.quickActionSkills` | API | Per-tenant carve-out; explicit `false` disables the surface. |
 | `MERI_SEMANTIC_TOOL_GATEWAY_SHADOW` | orchestrator | Computes the proposed semantic tool set while preserving legacy schema exposure. |
 | `MERI_SEMANTIC_TOOL_GATEWAY_ENABLED` | orchestrator | Exposes the reduced semantic tool set for allowlisted tenants. |
@@ -48,10 +48,10 @@ Deploy `packages/shared`, `apps/api` and `apps/web` with every new flag off. Ena
 
 ```text
 MERI_QUICK_ACTION_SKILLS_ENABLED=true
-MERI_QUICK_ACTION_SKILLS_TENANTS=capiro-internal
+MERI_QUICK_ACTION_SKILLS_TENANTS=*
 ```
 
-Set tenant setting `meriv3.quickActionSkills=true` for the internal tenant if it is not already inheriting the default.
+Tenants inherit enabled by default. Set tenant setting `meriv3.quickActionSkills=false` only for an explicit rollback carve-out.
 
 Verify:
 

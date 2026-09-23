@@ -117,6 +117,20 @@ export class MeriFeatureFlagsService {
     if (!meriQuickActionSkillsTenantEnabled(tenantSlug, meriQuickActionSkillsTenantSlugs())) {
       return false;
     }
-    return this.isEnabled(tenantId, MERI_QUICK_ACTION_SKILLS_FLAG, true);
+
+    const cached = this.cache.get(tenantId);
+    if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
+      return tenantFeatureEnabled(cached.settings, MERI_QUICK_ACTION_SKILLS_FLAG, true);
+    }
+    try {
+      const tenant = (await this.prisma.withTenant(tenantId, (tx) =>
+        tx.tenant.findFirst({ where: { id: tenantId }, select: { settings: true } }),
+      )) as { settings: unknown } | null;
+      if (!tenant) return false;
+      this.cache.set(tenantId, { settings: tenant.settings ?? {}, fetchedAt: Date.now() });
+      return tenantFeatureEnabled(tenant.settings, MERI_QUICK_ACTION_SKILLS_FLAG, true);
+    } catch {
+      return false;
+    }
   }
 }
