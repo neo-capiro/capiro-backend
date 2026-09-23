@@ -1,12 +1,9 @@
 /**
- * Module-router branch contract: the capiro-internal tenant gate (reproduced
- * from App.tsx's ProgramElementFinderGate/ProgramElementWatchGate, INCLUDING
- * its no-loading-branch semantics), the two native static segments (never
- * tenant-gated), and — post PE-FALLBACK swap — every branch mounting a NATIVE
- * page inside the `.pe-vnext-root` wrapper (non-internal tenants get the
- * native fallback finder/watch, no canonical/antd mounts remain).
+ * Module-router branch contract: every tenant gets the same native Program
+ * Elements workspace/profile, while the two native static segments remain
+ * available during the /me loading transition.
  *
- * All six page bodies are stubbed: this file tests only the branch logic.
+ * All page bodies are stubbed: this file tests only the branch logic.
  */
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -28,12 +25,6 @@ vi.mock('./PePersonCandidatesPage.js', () => ({
 vi.mock('./profile/index.js', () => ({
   PeProfileVNext: () => <div data-testid="native-profile" />,
 }));
-vi.mock('./fallback/PeFinderFallbackVNext.js', () => ({
-  PeFinderFallbackVNext: () => <div data-testid="fallback-finder" />,
-}));
-vi.mock('./fallback/PeWatchFallbackVNext.js', () => ({
-  PeWatchFallbackVNext: () => <div data-testid="fallback-watch" />,
-}));
 
 const INTERNAL = { isLoading: false, data: { tenant: { slug: 'capiro-internal' } } };
 const OTHER_TENANT = { isLoading: false, data: { tenant: { slug: 'acme-federal' } } };
@@ -47,25 +38,24 @@ function renderAt(path: string) {
   );
 }
 
-describe('VNextProgramElementsRoutes — tenant gate + branch contract', () => {
+describe('VNextProgramElementsRoutes — all-tenant parity', () => {
   it('renders the NATIVE workspace for capiro-internal at the root', async () => {
     useMeMock.mockReturnValue(INTERNAL);
     renderAt('/program-elements');
     expect(await screen.findByTestId('native-workspace')).toBeInTheDocument();
   });
 
-  it('renders the NATIVE fallback finder for a non-internal tenant at the root — inside the pe-vnext-root wrapper', async () => {
+  it('renders the native workspace for a non-internal tenant at the root', async () => {
     useMeMock.mockReturnValue(OTHER_TENANT);
     const { container } = renderAt('/program-elements');
-    expect(await screen.findByTestId('fallback-finder')).toBeInTheDocument();
-    expect(screen.queryByTestId('native-workspace')).not.toBeInTheDocument();
+    expect(await screen.findByTestId('native-workspace')).toBeInTheDocument();
     expect(container.querySelector('.pe-vnext-root')).not.toBeNull();
   });
 
-  it('renders the fallback finder while /me is still loading — canonical gate parity (no loading branch)', async () => {
+  it('renders the native workspace while /me is still loading', async () => {
     useMeMock.mockReturnValue(LOADING);
     renderAt('/program-elements');
-    expect(await screen.findByTestId('fallback-finder')).toBeInTheDocument();
+    expect(await screen.findByTestId('native-workspace')).toBeInTheDocument();
   });
 
   it('renders the NATIVE profile (PeProfileVNext) for capiro-internal at :peCode — inside the pe-vnext-root wrapper', async () => {
@@ -75,11 +65,10 @@ describe('VNextProgramElementsRoutes — tenant gate + branch contract', () => {
     expect(container.querySelector('.pe-vnext-root')).not.toBeNull();
   });
 
-  it('renders the NATIVE fallback watch page for a non-internal tenant at :peCode — inside the wrapper', async () => {
+  it('renders the native profile for a non-internal tenant at :peCode', async () => {
     useMeMock.mockReturnValue(OTHER_TENANT);
     const { container } = renderAt('/program-elements/0604201A');
-    expect(await screen.findByTestId('fallback-watch')).toBeInTheDocument();
-    expect(screen.queryByTestId('native-profile')).not.toBeInTheDocument();
+    expect(await screen.findByTestId('native-profile')).toBeInTheDocument();
     expect(container.querySelector('.pe-vnext-root')).not.toBeNull();
   });
 

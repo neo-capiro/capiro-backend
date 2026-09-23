@@ -11,11 +11,7 @@ export interface VNextRouteDefinition {
   meFeature?: string;
   /**
    * Per-tenant-slug label override. Presentation only — the route id and
-   * path never change, so this never invents a new URL or a second gate;
-   * it exists because `program-elements` is `Defense Budget` for
-   * `capiro-internal` and `Program Elements` for everyone else, and the
-   * underlying route/component branch (`VNextProgramElementsRoutes.tsx`)
-   * already reuses that exact tenant-slug check.
+   * path never change, so this never invents a new URL or a feature gate.
    */
   tenantLabels?: Readonly<Record<string, string>>;
   children?: VNextRouteDefinition[];
@@ -43,10 +39,9 @@ export const VNEXT_ROUTE_MANIFEST: VNextRouteDefinition[] = [
       { id: 'portfolio-clients', label: 'Clients', path: '/clients', availability: 'existing' },
       {
         id: 'portfolio-program-elements',
-        label: 'Program elements',
+        label: 'Defense Budget',
         path: '/program-elements',
         availability: 'existing',
-        tenantLabels: { 'capiro-internal': 'Defense Budget' },
       },
       {
         id: 'portfolio-coalitions',
@@ -157,13 +152,9 @@ export const VNEXT_ROUTE_MANIFEST: VNextRouteDefinition[] = [
       { id: 'legiwatch', label: 'LegiWatch', path: '/legiwatch', availability: 'existing' },
       {
         id: 'program-elements',
-        label: 'Program Elements',
+        label: 'Defense Budget',
         path: '/program-elements',
         availability: 'existing',
-        // The underlying page already renders the Defense Budget vNext
-        // experience for capiro-internal only (VNextProgramElementsRoutes.tsx
-        // `isInternal` branch) — this makes the nav label agree with it.
-        tenantLabels: { 'capiro-internal': 'Defense Budget' },
       },
       {
         id: 'funding-opportunities',
