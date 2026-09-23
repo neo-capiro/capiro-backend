@@ -25,6 +25,7 @@ describe('Jev task registry', () => {
       modelVersion: 'jev-1.13.0', fallback: 'legacy_judge', rolloutCapability: 'CLAIM_ASSESSMENT',
       cascade: { escalateBelowConfidence: 0.5, auditSampleRate: 0.1, escalateCompound: true,
         highImpactCategories: [] },
+      shadowBudget: { maxClaims: 12, maxInputTokens: 60_000, deadlineMs: 6_000 },
     });
     expect(JEV_TASK_REGISTRY.claim_support.calibration.status).toBe('provisional');
     expect(JEV_TASK_REGISTRY.passage_relevance).toMatchObject({
@@ -66,9 +67,21 @@ describe('Jev task registry', () => {
       (claim as JevMutable).cascade = originalCascade;
     }
   });
+
+  it('rejects an invalid shadow budget', () => {
+    const claim = JEV_TASK_REGISTRY.claim_support;
+    const original = claim.shadowBudget;
+    try {
+      (claim as JevMutable).shadowBudget = { maxClaims: 12, maxInputTokens: 60_000, deadlineMs: 0 };
+      expect(validateJevTaskRegistry(liveConfig()).issues).toContain('invalid_shadow_budget:claim_support');
+    } finally {
+      (claim as JevMutable).shadowBudget = original;
+    }
+  });
 });
 
 type JevMutable = {
   thresholds: Readonly<Record<string, number>>;
   cascade?: typeof JEV_TASK_REGISTRY.claim_support.cascade;
+  shadowBudget?: typeof JEV_TASK_REGISTRY.claim_support.shadowBudget;
 };

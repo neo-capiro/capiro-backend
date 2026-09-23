@@ -1476,9 +1476,9 @@ export class MeriV3AssistantService {
             conversationId: dto.conversationId,
             turnId: undefined,
             asOf,
-            providers,
+            providers: { jev: providers.jev, legacy: providers.legacyBaseline },
             routing: resolveJevConfig(process.env).routing,
-            budget: { maxClaims: 12, maxInputTokens: 60_000, deadlineMs: 6_000 },
+            budget: JEV_TASK_REGISTRY.claim_support.shadowBudget!,
             signal: opts.requestSignal ?? opts.signal,
             logger: this.structuredLogger,
           });

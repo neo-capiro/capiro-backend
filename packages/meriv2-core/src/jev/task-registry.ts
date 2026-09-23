@@ -24,6 +24,12 @@ export interface JevTaskRegistration {
     escalateCompound: boolean;
     highImpactCategories: readonly ClaimCategory[];
   };
+  /** Post-release comparison budget. It cannot affect the released answer. */
+  shadowBudget?: {
+    maxClaims: number;
+    maxInputTokens: number;
+    deadlineMs: number;
+  };
 }
 
 export const JEV_TASK_REGISTRY: Readonly<Record<JevTask, JevTaskRegistration>> = {
@@ -46,6 +52,7 @@ export const JEV_TASK_REGISTRY: Readonly<Record<JevTask, JevTaskRegistration>> =
       escalateCompound: true,
       highImpactCategories: [],
     },
+    shadowBudget: { maxClaims: 12, maxInputTokens: 60_000, deadlineMs: 6_000 },
   },
   citation_support: {
     task: 'citation_support',
@@ -121,6 +128,12 @@ export function validateJevTaskRegistry(config: JevConfig): { ok: boolean; issue
     const confidence = registration.cascade?.escalateBelowConfidence;
     if (confidence !== undefined && (!Number.isFinite(confidence) || confidence < 0 || confidence > 1)) {
       issues.push(`cascade_confidence_out_of_range:${task}`);
+    }
+    const budget = registration.shadowBudget;
+    if (budget && (!Number.isInteger(budget.maxClaims) || budget.maxClaims < 1
+      || !Number.isInteger(budget.maxInputTokens) || budget.maxInputTokens < 1
+      || !Number.isFinite(budget.deadlineMs) || budget.deadlineMs < 1)) {
+      issues.push(`invalid_shadow_budget:${task}`);
     }
   }
   return { ok: issues.length === 0, issues };

@@ -1,5 +1,8 @@
 import {
   buildAssuredClaimLedger,
+  createLlmSkepticJudge,
+  createSkepticDecisionProvider,
+  LEGACY_SKEPTIC_BASELINE_ADAPTER_VERSION,
   type DecisionProvider,
   type EvidenceDecision,
   type EvidenceEnvelope,
@@ -54,6 +57,7 @@ describe('assessReleasedClaims', () => {
       claimCategory: 'grant_award', envelopeHash: expect.any(String), eligibility: { eligible: true, reason: 'ok' },
       jev: expect.objectContaining({ kind: 'outcome', outcome: 'supported', confidence: 1, inputTokens: 20 }),
       legacy: expect.objectContaining({ kind: 'outcome', outcome: 'supported', confidence: 1, inputTokens: 20 }),
+      legacyAdapterVersion: 'legacy-skeptic-adapter.v2',
       agreement: true,
       freshness: { state: 'fresh', ageDays: null, basis: 'none' },
       exact: { result: 'match', kind: 'amount' },
@@ -80,6 +84,24 @@ describe('assessReleasedClaims', () => {
     expect(explicitEvent?.[1]).not.toHaveProperty('escalationReasons');
     expect(jev.assess).toHaveBeenCalledTimes(1);
     expect(legacy.assess).toHaveBeenCalledTimes(1);
+  });
+
+  it('logs real request-scoped legacy usage end to end', async () => {
+    const legacy = createSkepticDecisionProvider(createLlmSkepticJudge({
+      completeJson: jest.fn(),
+      completeWithSchema: jest.fn(async () => ({
+        input: { refuted: true, confidence: 'low', reason: 'Could not confirm.' },
+        usage: { inputTokens: 137, outputTokens: 9 },
+      })),
+    }), 'request-scoped-llm', LEGACY_SKEPTIC_BASELINE_ADAPTER_VERSION);
+    const args = input({ providers: { jev: provider('jev'), legacy } });
+    await assessReleasedClaims(args);
+    expect(args.logger.log).toHaveBeenCalledWith('meri.evidence_shadow', expect.objectContaining({
+      legacyAdapterVersion: 'legacy-skeptic-adapter.v2',
+      legacy: expect.objectContaining({
+        model: 'request-scoped-llm', inputTokens: 137, reasonCodes: ['legacy_refuted'],
+      }),
+    }));
   });
 
   it('runs the calibrated cascade only under cascade routing and logs its reasons', async () => {

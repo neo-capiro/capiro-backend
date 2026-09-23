@@ -101,6 +101,14 @@ function assertCrossProviderQuestionVersion(rows: readonly JoinedShadowRow[]): v
   }
 }
 
+function assertSingleLegacyAdapterVersion(rows: readonly JoinedShadowRow[]): string | null {
+  const versions = [...new Set(rows.map((row) => row.legacyAdapterVersion))].sort();
+  if (versions.length > 1) {
+    throw new Error(`legacy report cannot mix adapter versions [${versions.join(', ')}]`);
+  }
+  return versions[0] ?? null;
+}
+
 function turnKey(row: { conversationId: string | null; turnId: string | null }): string {
   return `${row.conversationId ?? ''}:${row.turnId ?? ''}`;
 }
@@ -158,7 +166,10 @@ function buildReportPayload(input: ShadowReportInput, rows: JoinedShadowRow[], t
       unlabeled: rows.filter((row) => row.humanLabel === null).length,
       rejectedLines: input.rejectedLines ?? 0,
     },
-    providers: { jev: providerReport(rows, 'jev'), legacy: providerReport(rows, 'legacy') },
+    providers: {
+      jev: providerReport(rows, 'jev'),
+      legacy: { ...providerReport(rows, 'legacy'), adapterVersion: assertSingleLegacyAdapterVersion(rows) },
+    },
     byTaskQuestionVersion: Object.fromEntries(['jev', 'legacy'].map((provider) => {
       const typed = provider as ProviderName;
       const key = `claim_support:${rows[0]?.[typed].questionVersion ?? 'none'}`;

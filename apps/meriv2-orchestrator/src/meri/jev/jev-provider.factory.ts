@@ -6,6 +6,7 @@ import {
   createLlmSkepticJudge,
   createRecordingDecisionProvider,
   createSkepticDecisionProvider,
+  LEGACY_SKEPTIC_BASELINE_ADAPTER_VERSION,
   resolveJevConfig,
   resolveJevProviderMode,
   resolveJevTaskRegistration,
@@ -53,7 +54,9 @@ export interface CreateChatDecisionProvidersInput {
 
 export interface ChatDecisionProviders {
   jev: DecisionProvider | null;
+  /** V1 is retained for live repair; v2 is comparison-only and maps absence truthfully. */
   legacy: DecisionProvider;
+  legacyBaseline: DecisionProvider;
   routing: JevRouting;
 }
 
@@ -106,6 +109,11 @@ export function createChatDecisionProviders(
     createLlmSkepticJudge(input.llm, { maxTokens: 512 }),
     'request-scoped-llm',
   );
+  const legacyBaselineLive = createSkepticDecisionProvider(
+    createLlmSkepticJudge(input.llm, { maxTokens: 512 }),
+    'request-scoped-llm',
+    LEGACY_SKEPTIC_BASELINE_ADAPTER_VERSION,
+  );
   const recordingPath = input.env.MERI_JEV_RECORDING_PATH?.trim();
   const store = recordingPath ? new RecordedDecisionStore(recordingPath) : null;
   const legacy = store
@@ -116,6 +124,14 @@ export function createChatDecisionProviders(
         provider: 'legacy-skeptic',
       })
     : legacyLive;
+  const legacyBaseline = store
+    ? createRecordingDecisionProvider({
+        live: legacyBaselineLive,
+        store,
+        model: 'request-scoped-llm',
+        provider: 'legacy-skeptic',
+      })
+    : legacyBaselineLive;
 
   const providerMode = resolveJevProviderMode(input.env, input.tenantId, input.surface);
   let unavailableReason: string | null = null;
@@ -131,7 +147,7 @@ export function createChatDecisionProviders(
 
   if (unavailableReason) {
     logUnavailableOnce(logger, unavailableReason);
-    return { jev: null, legacy, routing: config.routing };
+    return { jev: null, legacy, legacyBaseline, routing: config.routing };
   }
 
   const client = createJevClient({
@@ -150,7 +166,7 @@ export function createChatDecisionProviders(
   const jev = store
     ? createRecordingDecisionProvider({ live: jevLive, store, model: config.model, provider: 'jev' })
     : jevLive;
-  return { jev, legacy, routing: config.routing };
+  return { jev, legacy, legacyBaseline, routing: config.routing };
 }
 
 /** Tests only: preserves production once-per-process rate limiting. */

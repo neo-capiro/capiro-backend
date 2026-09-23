@@ -132,4 +132,19 @@ describe('createChatDecisionProviders', () => {
     await expect(pending).resolves.toMatchObject({ kind: 'failure', state: 'cancelled' });
     expect(transportSignal?.aborted).toBe(true);
   });
+
+  it('carries request-scoped LLM usage through the legacy baseline provider', async () => {
+    const providers = createChatDecisionProviders({
+      env: baseEnv, tenantId: TENANT, surface: 'chat', llm,
+    });
+    const decision = await providers.legacyBaseline.assess({
+      envelopeVersion: 'meri-evidence-envelope-v1', claimId: 'c1', claimText: 'Claim.',
+      claimKind: 'fact', claimCategory: 'unclassified', tenantId: TENANT, clientId: null,
+      scopeQualifiers: [], asOf: null, sources: [],
+    }, { state: { claim: 'Claim.' }, questions: {} });
+    expect(decision).toMatchObject({
+      kind: 'outcome', outcome: 'insufficient_evidence',
+      usage: { inputTokens: 10, outputTokens: 3 },
+    });
+  });
 });

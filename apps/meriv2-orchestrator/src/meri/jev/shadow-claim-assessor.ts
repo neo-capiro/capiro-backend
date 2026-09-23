@@ -7,6 +7,7 @@ import {
   checkExactSourceEligibility,
   isDocumentSpecificClaim,
   JEV_TASK_REGISTRY,
+  LEGACY_SKEPTIC_BASELINE_ADAPTER_VERSION,
   runCalibratedCascade,
   type ClaimLedger,
   type DecisionProvider,
@@ -251,6 +252,7 @@ export async function assessReleasedClaims(input: AssessReleasedClaimsInput): Pr
         conversationId: input.conversationId ?? null, turnId: input.turnId ?? null,
         claimId: claim.id, claimKind: claim.kind, claimCategory: claim.category,
         envelopeHash: hash, eligibility, jev: loggedDecision(jev), legacy: loggedDecision(legacy),
+        legacyAdapterVersion: LEGACY_SKEPTIC_BASELINE_ADAPTER_VERSION,
         agreement: resultKey(jev) === resultKey(legacy),
         freshness: {
           state: deterministic.freshness.state,

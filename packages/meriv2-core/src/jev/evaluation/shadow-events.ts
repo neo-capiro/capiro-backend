@@ -52,6 +52,10 @@ export const evidenceShadowEventSchema = z.object({
   jev: shadowLoggedDecisionSchema,
   legacy: shadowLoggedDecisionSchema,
   agreement: z.boolean(),
+  legacyAdapterVersion: z.enum([
+    'legacy-skeptic-adapter.v1',
+    'legacy-skeptic-adapter.v2',
+  ]).default('legacy-skeptic-adapter.v1'),
   proposedAction: z.object({ jev: z.string(), legacy: z.string() }),
   escalated: z.boolean().optional(),
   escalationReasons: z.array(z.enum([

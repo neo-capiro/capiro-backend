@@ -13,7 +13,7 @@ function event(): EvidenceShadowEvent {
     probabilities: { supported: 0.9, contradicted: 0.05, insufficient_evidence: 0.03, conflicting_evidence: 0.02 },
     reasonCodes: [], model: 'model-v1', questionVersion: 'claim_support.v1', latencyMs: 1, inputTokens: 4,
   });
-  return { event: 'meri.evidence_shadow', conversationId: 'c', turnId: 't', claimId: 'claim-1', claimKind: 'fact', claimCategory: 'amount', envelopeHash: 'hash-1', eligibility: { eligible: true, reason: 'ok' }, jev: outcome('supported'), legacy: outcome('contradicted'), agreement: false, proposedAction: { jev: 'retain', legacy: 'qualify' }, source: 'live' };
+  return { event: 'meri.evidence_shadow', conversationId: 'c', turnId: 't', claimId: 'claim-1', claimKind: 'fact', claimCategory: 'amount', envelopeHash: 'hash-1', eligibility: { eligible: true, reason: 'ok' }, jev: outcome('supported'), legacy: outcome('contradicted'), agreement: false, legacyAdapterVersion: 'legacy-skeptic-adapter.v1', proposedAction: { jev: 'retain', legacy: 'qualify' }, source: 'live' };
 }
 
 describe('shadow event ingestion', () => {
@@ -47,6 +47,16 @@ describe('shadow event ingestion', () => {
       escalated: true, escalationReasons: ['low_confidence', 'audit_sample'],
       audited: true, auditDisagreement: true,
     });
+  });
+
+  it('defaults old events to legacy adapter v1', () => {
+    const old = { ...event() } as Partial<EvidenceShadowEvent>;
+    delete old.legacyAdapterVersion;
+    const directory = mkdtempSync(path.join(tmpdir(), 'jev-old-events-'));
+    directories.push(directory);
+    const file = path.join(directory, 'events.jsonl');
+    writeFileSync(file, JSON.stringify({ message: 'meri.evidence_shadow', fields: old }));
+    expect(readShadowEvents(file).events[0]).toMatchObject({ legacyAdapterVersion: 'legacy-skeptic-adapter.v1' });
   });
 
   it('prefers approved override labels and ignores proposed labels', () => {
