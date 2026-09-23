@@ -145,12 +145,46 @@ describe('coverage requirements', () => {
     expect(appendClaimTiedCoverageDisclosure('Answer.', gaps, requirements)).toBe('Answer.');
   });
 
-  it('creates an essential routed requirement for a selected document id even without a manifest', () => {
+  it('treats a selected document id with no candidate manifest as a non-essential hint, not a routed fetch', () => {
+    // apps/api's only producer for selectedDocumentIds (meri.service.ts) forwards every attachment on the
+    // current message; that content is already inlined into the turn's prompt, and the id lives in the
+    // chat-attachment table, not the client-document space read_client_documents queries. Without a
+    // candidate manifest to confirm the id names a real, separately fetchable document, requiring a
+    // tool-based re-read is a guaranteed 404 (see the end-to-end case below) — so it must not be essential
+    // or carry a route that would send planFollowUp after it.
     const requirements = buildCoverageRequirements({
       plan: plan(),
       request: 'Summarize it.',
       frame,
       selectedDocumentIds: ['doc-9'],
+      clientId: 'client-1',
+    });
+    const docRequirements = requirements.filter((item) => item.template === 'transcript_summary');
+    expect(docRequirements).toEqual([
+      expect.objectContaining({ essential: false, requirementId: 'document-content.doc-9.hint' }),
+    ]);
+    expect(docRequirements[0]?.route).toBeUndefined();
+    // Never called (nothing in this fixture calls read_client_documents), but non-essential — so it must
+    // never be planned as a follow-up and never reach the reply as a disclosure.
+    const gaps = compareCoverage({ requirements: docRequirements, toolsUsed: [], receipts: [], ledgerEntries: [], citations: [] });
+    expect(gaps).toEqual([expect.objectContaining({ essential: false, status: 'never_called' })]);
+    expect(planFollowUp({
+      gaps,
+      requirements: docRequirements,
+      request: 'Summarize it.',
+      frame,
+      toolSchemas: [{ name: 'read_client_documents', readOnly: true, input_schema: { properties: { clientId: {}, documentId: {} }, required: ['clientId'] } }],
+    })).toBeNull();
+    expect(appendClaimTiedCoverageDisclosure('Answer.', gaps, docRequirements)).toBe('Answer.');
+  });
+
+  it('still creates an essential routed requirement for a selected id once a manifest confirms it names a real document', () => {
+    const requirements = buildCoverageRequirements({
+      plan: plan(),
+      request: 'Summarize it.',
+      frame,
+      selectedDocumentIds: ['doc-9'],
+      attachments: [{ id: 'doc-9', filename: 'memo.pdf', contentState: 'metadata_only', readable: false, kind: 'client_document' }],
       clientId: 'client-1',
     });
     expect(requirements.filter((item) => item.template === 'transcript_summary')).toEqual([

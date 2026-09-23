@@ -297,7 +297,30 @@ export function buildCoverageRequirements(input: {
   const concrete = references.filter((item) => item.resolution !== 'pronoun_heuristic');
   const heuristic = references.filter((item) => item.resolution === 'pronoun_heuristic');
   for (const reference of concrete) add(output, documentRequirement(reference, true, input.clientId));
+  // A selected id that resolves against no candidate manifest is not a confirmed,
+  // fetchable client document — apps/api's only current producer for
+  // `selectedDocumentIds` is the message's own chat attachments (their content is
+  // already inlined into the turn's prompt by meri.service.ts), which live in a
+  // different id space than `read_client_documents` reads from. Treating an
+  // unresolvable id as essential+routed guarantees a follow-up 404, which forces
+  // a re-synthesis and appends a false "evidence limitation" footer to an answer
+  // that already used the real content. Only promote it to essential+routed when
+  // an actual manifest entry confirms it names a real document; otherwise it is a
+  // non-essential hint, same treatment as an unresolved keyword mention.
   for (const id of selectedIds.filter((selected) => !references.some((item) => item.id === selected))) {
+    if (!attachments.length) {
+      add(output, {
+        id: `template:transcript_summary:${id}`,
+        requirementId: `document-content.${id}.hint`,
+        claimCategory: 'report_language',
+        toolFamilies: ['read_client_documents'],
+        essential: false,
+        rationale:
+          'A document was attached to this turn; its content was already provided in context and is not confirmed as a separately fetchable client document.',
+        template: 'transcript_summary',
+      });
+      continue;
+    }
     add(output, {
       id: `template:transcript_summary:${id}`,
       requirementId: `document-content.${id}`,
