@@ -188,6 +188,7 @@ export interface OpportunityRef {
 
 export type MeriSamSourceFreshness = OpportunitySourceFreshnessV2 & { countsUnavailable: boolean; neverSynced: boolean; lastRunStatus: OpportunitySourceFreshnessV2['state']; lastRunDegraded: boolean; hoursSinceLastSuccess: number | null };
 
+@Injectable()
 export class MeriOpportunityToolsAdapter {
   private readonly logger = new Logger(MeriOpportunityToolsAdapter.name);
 

@@ -918,17 +918,71 @@ describe('P37 — output is bounded, and a shortened result says so', () => {
 
 describe('government-affairs funding evidence contract', () => {
   it('resolves the canonical matching and requirement providers through Nest injection', async () => {
+    // Regression test for a real production incident (2026-09-17..2026-09-23): the
+    // "feat(funding): launch Funding Opportunities v2" refactor (d1c784a4b) moved a type
+    // declaration to where `@Injectable()` sat directly above this class and silently
+    // dropped the decorator. Without it, TypeScript emits NO constructor parameter-type
+    // metadata for this class at all, so Nest's injector falls back to an empty
+    // dependency list and constructs the adapter with `new MeriOpportunityToolsAdapter()`
+    // — every one of its five fields silently `undefined`. `toBeInstanceOf` alone does
+    // NOT catch this (a zero-arg construction is still `instanceof`), which is exactly
+    // how this shipped unnoticed for six days despite this file's other 50+ tests: they
+    // all hand-construct the adapter via `new MeriOpportunityToolsAdapter(...)` directly,
+    // bypassing Nest's DI container entirely. This test uses DISTINCT, non-empty marker
+    // objects for every dependency and asserts each one is the SAME object reference on
+    // the constructed instance — the only way to actually prove real injection occurred.
+    const markers = {
+      prisma: { marker: 'prisma' },
+      opportunities: { marker: 'opportunities' },
+      landscape: { marker: 'landscape' },
+      requirements: { marker: 'requirements' },
+      opportunityDetails: { marker: 'opportunityDetails' },
+    };
+    const module = await Test.createTestingModule({
+      providers: [
+        MeriOpportunityToolsAdapter,
+        { provide: PrismaService, useValue: markers.prisma },
+        { provide: FundingOpportunityV2SearchService, useValue: markers.opportunities },
+        { provide: GovernmentLandscapeService, useValue: markers.landscape },
+        { provide: OpportunityRequirementService, useValue: markers.requirements },
+        { provide: FundingOpportunityV2DetailService, useValue: markers.opportunityDetails },
+      ],
+    }).compile();
+    const adapter = module.get(MeriOpportunityToolsAdapter);
+    expect(adapter).toBeInstanceOf(MeriOpportunityToolsAdapter);
+    const injected = adapter as unknown as Record<keyof typeof markers, unknown>;
+    for (const key of Object.keys(markers) as (keyof typeof markers)[]) {
+      expect(injected[key]).toBe(markers[key]);
+    }
+    await module.close();
+  });
+
+  it('readSamSourceFreshness resolves through the real FundingOpportunityV2SearchService, not a stand-in', async () => {
+    // `readSamSourceFreshness` (the legacy `search_sam_opportunities` tool's dependency)
+    // had zero test coverage before this incident — it is not exercised by `makeAdapter()`
+    // or `invokeAll()` above. Constructed through real Nest DI end to end so a future
+    // regression in either the decorator or this specific method surfaces here.
+    const health = {
+      sources: [
+        { source: 'sam_gov' as const, state: 'current' as const, recordCount: 5000, activeRecordCount: 4000, lastSyncedAt: '2026-09-23T00:00:00.000Z', latestAttemptAt: '2026-09-23T00:00:00.000Z', lastSuccessAt: '2026-09-23T00:00:00.000Z' },
+        { source: 'grants_gov' as const, state: 'current' as const, recordCount: 100, activeRecordCount: 80, lastSyncedAt: '2026-09-23T00:00:00.000Z', latestAttemptAt: '2026-09-23T00:00:00.000Z', lastSuccessAt: '2026-09-23T00:00:00.000Z' },
+      ],
+      generatedAt: '2026-09-23T00:00:00.000Z',
+    };
     const module = await Test.createTestingModule({
       providers: [
         MeriOpportunityToolsAdapter,
         { provide: PrismaService, useValue: {} },
-        { provide: FundingOpportunityV2SearchService, useValue: {} },
+        { provide: FundingOpportunityV2SearchService, useValue: { readSourceHealth: jest.fn(async () => health) } },
         { provide: GovernmentLandscapeService, useValue: {} },
         { provide: OpportunityRequirementService, useValue: {} },
         { provide: FundingOpportunityV2DetailService, useValue: {} },
       ],
     }).compile();
-    expect(module.get(MeriOpportunityToolsAdapter)).toBeInstanceOf(MeriOpportunityToolsAdapter);
+    const adapter = module.get(MeriOpportunityToolsAdapter);
+    const result = await adapter.readSamSourceFreshness({ tenantId: TENANT, userId: USER });
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ source: 'sam_gov', recordCount: 5000, neverSynced: false, lastRunDegraded: false });
     await module.close();
   });
 
