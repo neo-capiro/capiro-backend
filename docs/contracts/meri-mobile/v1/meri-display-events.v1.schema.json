@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://capiro.example/contracts/meri-mobile/v1/meri-display-events.v1.schema.json",
+  "title": "Meri durable display event v1",
+  "description": "Public SSE frame derived from one durable run event. Clients de-duplicate by (runId, seq), render outputSnapshot through outputSeq before replay, ignore unknown fields and types, and advance the cursor only after applying the full frame.",
+  "type": "object",
+  "required": ["schemaVersion", "type", "kind", "runId", "seq", "at"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "type": { "type": "string", "minLength": 1 },
+    "kind": {
+      "enum": [
+        "run.accepted", "run.status", "message.delta", "tool.started", "tool.completed",
+        "subagent.started", "subagent.completed", "approval.requested", "approval.resolved",
+        "clarification.requested", "clarification.answered", "artifact.published",
+        "memory.recalled", "memory.proposed", "steer.accepted", "usage", "run.completed",
+        "run.failed", "run.cancelled", "run.interrupted", "error"
+      ]
+    },
+    "runId": { "type": "string", "format": "uuid" },
+    "seq": { "type": "integer", "minimum": 1 },
+    "at": { "type": "string", "format": "date-time" },
+    "status": { "type": "string" },
+    "text": { "type": "string" },
+    "message": { "type": "string" },
+    "code": { "type": "string" },
+    "requestId": { "type": "string" },
+    "choices": { "type": "array", "items": { "type": "string" } },
+    "partial": { "type": "boolean" },
+    "finishReason": { "type": ["string", "null"] }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "run_accepted" } }, "required": ["type"] },
+      "then": { "properties": { "kind": { "const": "run.accepted" }, "seq": { "const": 1 } } }
+    }
+  ],
+  "additionalProperties": true
+}

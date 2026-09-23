@@ -240,6 +240,7 @@ export class MeriHermesRuntimeAdapter {
     attachmentIds: string[] = [],
     _bearerToken?: string,
     _impersonateTenantId?: string,
+    requestIdempotencyKey?: string,
   ): Promise<void> {
     let clientGone = clientSignal?.aborted ?? false;
     const writeFrame = (frame: MeriSseFrame) => {
@@ -277,7 +278,14 @@ export class MeriHermesRuntimeAdapter {
     // `prepareTurn`, because prepareTurn is what mints the user message. A
     // retried HTTP submission must reattach to the run already in flight
     // instead of creating a second user message AND a second run.
-    const resolved = await this.resolveIdempotencyKey(ctx, conversation, body, mode, attachmentIds);
+    const resolved = await this.resolveIdempotencyKey(
+      ctx,
+      conversation,
+      body,
+      mode,
+      attachmentIds,
+      requestIdempotencyKey,
+    );
     if (resolved.reattachTo) {
       const existing = resolved.reattachTo;
       writeFrame({
@@ -379,6 +387,20 @@ export class MeriHermesRuntimeAdapter {
       }
       throw error;
     }
+    // The public run.accepted event is already committed at seq=1 by
+    // runs.create(). Surface that durable identity immediately: a phone that
+    // backgrounds while still in the capacity queue must already know the run
+    // id it can resume. A later replay may deliver this same seq again; mobile
+    // consumers de-duplicate by (runId, seq).
+    writeFrame({
+      schemaVersion: '1.0.0',
+      type: 'run_accepted',
+      kind: 'run.accepted',
+      runId: run.runId,
+      status: run.status,
+      seq: 1,
+      at: run.createdAt,
+    });
     if (run.runId !== envelope.runId) {
       // Retry of an already-admitted turn: reconnect to the existing run instead
       // of creating duplicate work.
@@ -1020,26 +1042,40 @@ export class MeriHermesRuntimeAdapter {
     body: string,
     mode: RerunMode,
     attachmentIds: string[],
+    requestIdempotencyKey?: string,
   ): Promise<{ key: string; reattachTo: MeriHermesRunRecord | null }> {
     const executionScopeId = privateExecutionScopeId(ctx.tenantId, ctx.userId);
     const normalizedBody = String(body ?? '')
       .replace(/(^|\s)#trace\b/gi, ' ')
       .replace(/\s+/g, ' ')
       .trim();
-    const material = JSON.stringify([
-      'meri-hermes-request-v1',
-      ctx.tenantId,
-      ctx.userId,
-      conversation.id,
-      mode,
-      normalizedBody,
-      [...new Set(attachmentIds)].sort(),
-    ]);
+    const material = requestIdempotencyKey
+      ? JSON.stringify([
+          'meri-hermes-client-idempotency-v1',
+          ctx.tenantId,
+          ctx.userId,
+          conversation.id,
+          requestIdempotencyKey,
+        ])
+      : JSON.stringify([
+          'meri-hermes-request-v1',
+          ctx.tenantId,
+          ctx.userId,
+          conversation.id,
+          mode,
+          normalizedBody,
+          [...new Set(attachmentIds)].sort(),
+        ]);
     const base = `meri:${createHash('sha256').update(material).digest('hex').slice(0, 32)}`;
     let key = base;
     for (let generation = 0; generation < MAX_IDEMPOTENCY_GENERATIONS; generation += 1) {
       const existing = await this.runs.findByIdempotencyKey(executionScopeId, key);
       if (!existing) return { key, reattachTo: null };
+      // A caller-supplied key is a durable request identity, not a body
+      // fingerprint generation. It stays bound to the first run even after
+      // that run is terminal, so a delayed network retry can never create a
+      // second user message/run. Legitimate repeated prompts use a new key.
+      if (requestIdempotencyKey) return { key, reattachTo: existing };
       if (!MERI_HERMES_TERMINAL_STATUSES.has(existing.status)) return { key, reattachTo: existing };
       key = `${base}:r${generation + 1}`;
     }
@@ -1074,7 +1110,16 @@ export class MeriHermesRuntimeAdapter {
     const forward = (event: MeriHermesRunEvent) => {
       if (event.visibility !== 'public') return;
       const frames = Array.isArray(event.payload.frames) ? (event.payload.frames as MeriSseFrame[]) : [];
-      for (const frame of frames) write(frame);
+      for (const frame of frames) {
+        write({
+          ...frame,
+          schemaVersion: '1.0.0',
+          runId: event.runId,
+          seq: event.seq,
+          at: event.at,
+          kind: event.kind,
+        });
+      }
     };
     const abort = new AbortController();
     const finished = this.runs

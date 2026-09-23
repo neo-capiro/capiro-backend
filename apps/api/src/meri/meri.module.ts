@@ -313,6 +313,12 @@ import { MERI_HERMES_SECURITY_ENVELOPE } from './hermes/meri-hermes-security.por
       ],
     },
   ],
-  exports: [MeriToolsService, MeriFeatureFlagsService],
+  exports: [
+    MeriToolsService,
+    MeriFeatureFlagsService,
+    MeriHermesRuntimeAdapter,
+    MERI_HERMES_RUN_REPOSITORY,
+    MERI_HERMES_SECURITY_ENVELOPE,
+  ],
 })
 export class MeriModule {}

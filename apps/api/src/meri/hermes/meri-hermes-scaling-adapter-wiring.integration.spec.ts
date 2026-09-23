@@ -298,9 +298,21 @@ describe('S-1/S-2 wired into the real turn path (real local Postgres)', () => {
     await admission.admit({ runId: occupying, tenantId, scopeId, conversationId: randomUUID() });
 
     const body = 'a queued turn that survives the phone going away';
+    const clientIdempotencyKey = randomUUID();
     const first = collector();
     const disconnect = new AbortController();
-    const accepted = adapter.streamMessage(ctx, conversationId, body, first.sse, disconnect.signal);
+    const accepted = adapter.streamMessage(
+      ctx,
+      conversationId,
+      body,
+      first.sse,
+      disconnect.signal,
+      'new',
+      [],
+      undefined,
+      undefined,
+      clientIdempotencyKey,
+    );
 
     let queuedRunId: string | null = null;
     for (let attempt = 0; attempt < 80 && !queuedRunId; attempt += 1) {
@@ -316,7 +328,18 @@ describe('S-1/S-2 wired into the real turn path (real local Postgres)', () => {
 
     // Same request fingerprint: no second user message and no second run.
     const retry = collector();
-    const reattached = adapter.streamMessage(ctx, conversationId, body, retry.sse);
+    const reattached = adapter.streamMessage(
+      ctx,
+      conversationId,
+      body,
+      retry.sse,
+      undefined,
+      'new',
+      [],
+      undefined,
+      undefined,
+      clientIdempotencyKey,
+    );
     await admission.release(occupying);
     await Promise.all([accepted, reattached]);
 
@@ -328,6 +351,24 @@ describe('S-1/S-2 wired into the real turn path (real local Postgres)', () => {
     expect(['failed', 'cancelled', 'interrupted', 'expired', 'completed']).toContain(finished.status);
     const events = await runs.eventsAfter(finished.runId, 0, 'all');
     expect(events.filter((event) => event.kind === 'client.detached')).toHaveLength(1);
+
+    // A delayed retry after terminal completion remains bound to the same
+    // durable request. Explicit client keys never roll to a new generation.
+    const terminalRetry = collector();
+    await adapter.streamMessage(
+      ctx,
+      conversationId,
+      body,
+      terminalRetry.sse,
+      undefined,
+      'new',
+      [],
+      undefined,
+      undefined,
+      clientIdempotencyKey,
+    );
+    expect((await runs.listForConversation(tenantId, userId, conversationId))).toHaveLength(1);
+    expect(terminalRetry.frames.some((frame) => frame.runId === finished.runId && frame.seq === 1)).toBe(true);
     await expect(
       prisma.withTenant(tenantId, (tx) =>
         tx.clioMessage.count({ where: { tenantId, userId, conversationId, role: 'user' } }),

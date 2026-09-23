@@ -11,6 +11,13 @@ import {
   meriHermesEnvironmentEnabled,
   meriHermesPilotTenantIds,
 } from '../common/meri-hermes-flags.js';
+import {
+  MERI_MOBILE_API_FLAG,
+  MERI_MOBILE_CAPABILITY_FLAGS,
+  meriMobileCapabilityEnvironmentEnabled,
+  meriMobileTenantAllowed,
+  type MeriMobileCapability,
+} from '../common/meri-mobile-flags.js';
 
 const CACHE_TTL_MS = 60_000;
 
@@ -104,6 +111,22 @@ export class MeriFeatureFlagsService {
     if (!meriHermesEnvironmentEnabled()) return false;
     if (!meriHermesPilotTenantIds().has(tenantId.trim().toLowerCase())) return false;
     return this.isEnabled(tenantId, MERI_HERMES_RUNTIME_FLAG, false);
+  }
+
+  /** Strict, server-resolved gate for every /mobile/v1 route. */
+  async isMeriMobileApiEnabled(tenantId: string): Promise<boolean> {
+    if (!meriMobileTenantAllowed(tenantId)) return false;
+    return this.isEnabled(tenantId, MERI_MOBILE_API_FLAG, false);
+  }
+
+  /** Independent mobile capability switch; never grants authorization itself. */
+  async isMeriMobileCapabilityEnabled(
+    tenantId: string,
+    capability: MeriMobileCapability,
+  ): Promise<boolean> {
+    if (!(await this.isMeriMobileApiEnabled(tenantId))) return false;
+    if (!meriMobileCapabilityEnvironmentEnabled(capability)) return false;
+    return this.isEnabled(tenantId, MERI_MOBILE_CAPABILITY_FLAGS[capability], false);
   }
 
   /**

@@ -197,6 +197,8 @@ export interface UpdateMeetingInput {
   startsAt?: string;
   endsAt?: string;
   status?: string;
+  /** Mobile optimistic-concurrency token (ISO updatedAt); omitted by legacy web callers. */
+  expectedRevision?: string;
 }
 
 export interface CreateTaskInput {
@@ -225,6 +227,8 @@ export interface UpdateMeetingPrepInput {
   risks?: string[];
   followUps?: string[];
   emailEvidence?: string[];
+  /** Mobile optimistic-concurrency token (ISO updatedAt); omitted by legacy web callers. */
+  expectedRevision?: string;
 }
 
 export interface AssociationOverrideInput {
@@ -1341,21 +1345,40 @@ export class EngagementService {
 
   listMeetings(
     ctx: TenantContext,
-    query: { clientId?: string; from?: string; to?: string; recipientEmails?: string[] },
+    query: {
+      clientId?: string;
+      from?: string;
+      to?: string;
+      recipientEmails?: string[];
+      limit?: number;
+      cursor?: { startsAt: string; id: string };
+    },
   ) {
     const { from, to } = toDateWindow(query);
+    const cursorStartsAt = query.cursor ? parseDate(query.cursor.startsAt, 'cursor') : null;
+    const cursorWhere: Prisma.MeetingWhereInput = cursorStartsAt
+      ? {
+          OR: [
+            { startsAt: { gt: cursorStartsAt } },
+            { startsAt: cursorStartsAt, id: { gt: query.cursor!.id } },
+          ],
+        }
+      : {};
+    const take = query.limit ? Math.max(1, Math.min(101, query.limit)) : undefined;
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const baseWhere: Prisma.MeetingWhereInput = {
         tenantId: ctx.tenantId,
         ...ownMeetingWhere(ctx.userId),
         startsAt: { gte: from, lt: to },
+        ...(cursorStartsAt ? { AND: [cursorWhere] } : {}),
       };
 
       if (!query.clientId) {
         const rows = await tx.meeting.findMany({
           where: baseWhere,
           include: meetingInclude(),
-          orderBy: { startsAt: 'asc' },
+          orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
+          ...(take ? { take } : {}),
         });
         return this.decorateMeetings(tx, ctx, rows);
       }
@@ -1371,7 +1394,8 @@ export class EngagementService {
       const rows = await tx.meeting.findMany({
         where,
         include: meetingInclude(),
-        orderBy: { startsAt: 'asc' },
+        orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
+        ...(take ? { take } : {}),
       });
       return this.decorateMeetings(tx, ctx, rows);
     });
@@ -1466,11 +1490,17 @@ export class EngagementService {
   async updateMeeting(ctx: TenantContext, id: string, input: UpdateMeetingInput) {
     const attachmentIds: string[] = [];
     const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      if ('clientId' in input) await this.lockMeetingClientAssignment(tx, ctx, id);
+      if ('clientId' in input || input.expectedRevision) await this.lockMeetingClientAssignment(tx, ctx, id);
       const existing = await tx.meeting.findFirst({
         where: { id, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
       });
       if (!existing) throw new NotFoundException('Meeting not found');
+      assertExpectedRevision(input.expectedRevision, existing.updatedAt, 'meeting', id, {
+        id: existing.id,
+        subject: existing.subject,
+        status: existing.status,
+        clientId: existing.clientId,
+      });
 
       if ('clientId' in input) {
         attachmentIds.push(
@@ -5352,19 +5382,25 @@ export class EngagementService {
     ctx: TenantContext,
     meetingId: string,
     noteId: string,
-    input: { body: string; confidential?: boolean; accessLevel?: string },
+    input: { body: string; confidential?: boolean; accessLevel?: string; expectedRevision?: string },
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.ensureOwnMeeting(tx, ctx, meetingId);
       const note = await tx.meetingNote.findFirst({
         where: { id: noteId, tenantId: ctx.tenantId, meetingId },
-        select: { id: true, authorUserId: true },
+        select: { id: true, authorUserId: true, updatedAt: true, status: true, confidential: true, accessLevel: true },
       });
       if (!note) throw new NotFoundException('Meeting note not found');
       if (!canEditEncryptedEntry(ctx, note)) {
         throw new ForbiddenException('You can only edit your own meeting notes');
       }
+      assertExpectedRevision(input.expectedRevision, note.updatedAt, 'meeting_note', noteId, {
+        id: note.id,
+        status: note.status,
+        confidential: note.confidential,
+        accessLevel: note.accessLevel,
+      });
 
       return tx.meetingNote.update({
         where: { id: noteId },
@@ -5426,19 +5462,25 @@ export class EngagementService {
     ctx: TenantContext,
     meetingId: string,
     debriefId: string,
-    input: { body: string; confidential?: boolean; accessLevel?: string },
+    input: { body: string; confidential?: boolean; accessLevel?: string; expectedRevision?: string },
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.ensureOwnMeeting(tx, ctx, meetingId);
       const debrief = await tx.meetingDebrief.findFirst({
         where: { id: debriefId, tenantId: ctx.tenantId, meetingId },
-        select: { id: true, authorUserId: true },
+        select: { id: true, authorUserId: true, updatedAt: true, status: true, confidential: true, accessLevel: true },
       });
       if (!debrief) throw new NotFoundException('Meeting debrief not found');
       if (!canEditEncryptedEntry(ctx, debrief)) {
         throw new ForbiddenException('You can only edit your own meeting debriefs');
       }
+      assertExpectedRevision(input.expectedRevision, debrief.updatedAt, 'meeting_debrief', debriefId, {
+        id: debrief.id,
+        status: debrief.status,
+        confidential: debrief.confidential,
+        accessLevel: debrief.accessLevel,
+      });
 
       return tx.meetingDebrief.update({
         where: { id: debriefId },
@@ -6373,11 +6415,16 @@ export class EngagementService {
     const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const prep = await tx.meetingPrep.findFirst({
         where: { id: prepId, tenantId: ctx.tenantId },
-        select: { id: true, meetingId: true, generatedFrom: true },
+        select: { id: true, meetingId: true, generatedFrom: true, updatedAt: true, status: true, clientId: true },
       });
       if (!prep) throw new NotFoundException('Meeting prep not found');
       await this.ensureOwnMeeting(tx, ctx, prep.meetingId);
       await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
+      assertExpectedRevision(input.expectedRevision, prep.updatedAt, 'meeting_prep', prepId, {
+        id: prep.id,
+        status: prep.status,
+        clientId: prep.clientId,
+      });
       const generatedFrom =
         prep.generatedFrom &&
         typeof prep.generatedFrom === 'object' &&
@@ -6918,7 +6965,35 @@ export class EngagementService {
     const scanClean = initialScan === 'clean';
 
     const attachment = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // Confirm is a retry boundary. Serialize by the opaque S3 key, then
+      // return the caller's existing row for an exact replay instead of
+      // duplicating one uploaded object into several attachment records.
+      await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${input.s3Key}))`);
       const clientId = await this.attachmentClientAtWrite(tx, ctx, input);
+      const replay = await tx.engagementAttachment.findFirst({
+        where: { tenantId: ctx.tenantId, s3Key: input.s3Key },
+      });
+      if (replay) {
+        const exactReplay =
+          replay.uploadedByUserId === ctx.userId &&
+          replay.clientId === clientId &&
+          replay.meetingId === (input.meetingId ?? null) &&
+          replay.mailMessageId === (input.mailMessageId ?? null) &&
+          replay.fileName === input.fileName &&
+          replay.contentType === input.contentType;
+        if (!exactReplay) {
+          throw new HttpException(
+            {
+              statusCode: HttpStatus.CONFLICT,
+              error: 'Conflict',
+              code: 'attachment_confirm_conflict',
+              message: 'This upload key was already confirmed with different metadata.',
+            },
+            HttpStatus.CONFLICT,
+          );
+        }
+        return replay;
+      }
       return tx.engagementAttachment.create({
         data: {
           tenantId: ctx.tenantId,
@@ -10088,6 +10163,33 @@ function debriefMetadataSelect() {
     createdAt: true,
     updatedAt: true,
   };
+}
+
+/**
+ * Additive optimistic concurrency for native clients. Legacy web callers omit
+ * expectedRevision and keep their existing behavior. Conflict responses expose
+ * only non-sensitive current metadata; encrypted bodies are never reflected.
+ */
+function assertExpectedRevision(
+  expected: string | undefined,
+  updatedAt: Date,
+  resource: string,
+  id: string,
+  current: Record<string, unknown>,
+): void {
+  if (!expected) return;
+  const revision = updatedAt.toISOString();
+  if (expected === revision) return;
+  throw new HttpException(
+    {
+      statusCode: HttpStatus.CONFLICT,
+      error: 'Conflict',
+      code: 'stale_revision',
+      message: `The ${resource} changed after this device loaded it.`,
+      current: { ...current, id, revision },
+    },
+    HttpStatus.CONFLICT,
+  );
 }
 
 // canReadEncryptedEntry / canEditEncryptedEntry / ownMeetingWhere /
