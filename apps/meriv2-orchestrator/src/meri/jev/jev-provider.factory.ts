@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import {
   RecordedDecisionStore,
+  createClientFitProvider,
   createJevClient,
   createJevDecisionProvider,
   createLlmSkepticJudge,
@@ -9,11 +10,14 @@ import {
   resolveJevConfig,
   resolveJevProviderMode,
   resolveJevTaskRegistration,
+  resolveMatchLabelMode,
   type CapabilityRolloutEnvironment,
+  type ClientFitProvider,
   type DecisionProvider,
   type JevClient,
   type JevRouting,
   type LlmClient,
+  type AssuranceSurface,
 } from '@capiro/meriv2-core';
 
 const loggedReasons = new Set<string>();
@@ -33,7 +37,7 @@ export interface ChatDecisionProviderLogger {
 
 function logRegistryMismatchOnce(
   logger: ChatDecisionProviderLogger,
-  task: 'claim_support' | 'passage_relevance',
+  task: 'claim_support' | 'passage_relevance' | 'client_fit',
   configuredModel: string,
   registeredModel: string,
 ): void {
@@ -55,6 +59,14 @@ export interface ChatDecisionProviders {
   jev: DecisionProvider | null;
   legacy: DecisionProvider;
   routing: JevRouting;
+}
+
+export interface CreateClientFitClientInput {
+  env: CapabilityRolloutEnvironment;
+  tenantId: string;
+  surface: AssuranceSurface;
+  logger?: ChatDecisionProviderLogger;
+  fetchImpl?: typeof fetch;
 }
 
 export function createPassageSelectionClient(input: Omit<CreateChatDecisionProvidersInput, 'llm'>): {
@@ -84,6 +96,43 @@ export function createPassageSelectionClient(input: Omit<CreateChatDecisionProvi
       apiKey: input.env.TYPESAFE_API_KEY!, model: config.model, baseUrl: config.baseUrl,
       timeoutMs: config.timeoutMs, maxAttempts: config.maxAttempts,
       ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
+    }),
+    model: config.model,
+    reason: null,
+  };
+}
+
+export function createClientFitClient(input: CreateClientFitClientInput): {
+  client: ClientFitProvider | null;
+  model: string;
+  reason: string | null;
+} {
+  const config = resolveJevConfig(input.env);
+  const logger = input.logger ?? defaultLogger;
+  const registry = resolveJevTaskRegistration('client_fit', config);
+  const mode = resolveMatchLabelMode(input.env, input.tenantId, input.surface);
+  const reason = !config.available
+    ? config.reasons.join(',') || 'config_unavailable'
+    : mode === 'off'
+      ? 'rollout_off'
+      : !config.tasks.includes('client_fit')
+        ? 'task_not_enabled:client_fit'
+        : !registry.modelMatches
+          ? 'registry_model_mismatch'
+          : null;
+  if (!registry.modelMatches && config.tasks.includes('client_fit')) {
+    logRegistryMismatchOnce(logger, 'client_fit', config.model, registry.registration.modelVersion);
+  }
+  if (reason) return { client: null, model: config.model, reason };
+  const transport = createJevClient({
+    apiKey: input.env.TYPESAFE_API_KEY!, model: config.model, baseUrl: config.baseUrl,
+    timeoutMs: config.timeoutMs, maxAttempts: config.maxAttempts,
+    ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
+  });
+  return {
+    client: createClientFitProvider({
+      client: transport, model: config.model,
+      scope: { tenantId: input.tenantId, surface: input.surface },
     }),
     model: config.model,
     reason: null,

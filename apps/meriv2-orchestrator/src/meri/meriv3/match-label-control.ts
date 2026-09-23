@@ -2,11 +2,14 @@ import type { MeriCitation } from '@capiro/shared';
 import {
   JEV_TASK_REGISTRY_VERSION,
   MATCH_LABEL_DISPLAY,
+  buildClientFitQuestion,
   deriveMatchLabel,
   establishedRelationshipSentence,
   extractMatchFindings,
   type AssuredEvidence,
+  type ClientFitProvider,
   type DerivedMatchLabel,
+  type EvidenceEnvelope,
   type MatchLabel,
 } from '@capiro/meriv2-core';
 
@@ -26,6 +29,56 @@ export interface MatchLabelControlInput {
     evidence: AssuredEvidence[];
     citations: MeriCitation[];
   }) => Promise<MatchLabelEvaluation>;
+}
+
+export interface ClientFitEvaluatorInput {
+  provider: ClientFitProvider;
+  tenantId: string;
+  clientId?: string | null;
+  deadlineAt: number;
+  signal?: AbortSignal;
+}
+
+export function createClientFitEvaluator(input: ClientFitEvaluatorInput): NonNullable<MatchLabelControlInput['evaluate']> {
+  return async ({ findingText, evidence, citations }) => {
+    const citationById = new Map(citations.flatMap((citation) =>
+      [citation.id, citation.stableId].filter(Boolean).map((id) => [id as string, citation] as const)));
+    const envelope: EvidenceEnvelope = {
+      envelopeVersion: 'meri-evidence-envelope-v1',
+      claimId: `client-fit-${evidence.map((item) => item.id).sort().join('-') || 'unresolved'}`,
+      claimText: findingText,
+      claimKind: 'recommendation',
+      claimCategory: 'client_fit',
+      tenantId: input.tenantId,
+      clientId: input.clientId ?? null,
+      scopeQualifiers: [],
+      asOf: null,
+      sources: evidence.map((item) => {
+        const citation = citationById.get(item.id) ?? citationById.get(item.sourceId);
+        return {
+          evidenceId: item.id, sourceType: item.sourceType, sourceId: item.sourceId,
+          documentId: citation?.documentEvidence?.documentId ?? null,
+          version: citation?.source?.version ?? null,
+          locator: citation?.source?.section ?? null,
+          passage: citation?.snippet ?? '', sourceDate: item.asOf ?? null,
+          publishedAt: item.publishedAt ?? null, effectiveAt: item.effectiveAt ?? null,
+          retrievedAt: item.retrievedAt ?? citation?.source?.observedAt ?? null,
+          provenance: { evidenceClass: item.evidenceClass, primary: item.primary, authoritative: item.authoritative },
+        };
+      }),
+    };
+    const question = buildClientFitQuestion(envelope, {
+      client: { clientId: input.clientId ?? null },
+      opportunity: { citations: citations.map((citation) => citation.n) },
+      finding: { text: findingText },
+    });
+    const decision = await input.provider.assess(envelope, question, {
+      deadlineAt: input.deadlineAt,
+      ...(input.signal ? { signal: input.signal } : {}),
+    });
+    if (decision.kind === 'failure') return { category: null, confidence: null, jevUsed: false };
+    return { category: decision.category.value, confidence: decision.category.confidence, jevUsed: true };
+  };
 }
 
 export interface MatchLabelControlResult {

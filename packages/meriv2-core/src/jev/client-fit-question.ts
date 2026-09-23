@@ -6,6 +6,13 @@ import { JEV_TASK_REGISTRY } from './task-registry';
 export const CLIENT_FIT_QUESTION_VERSION = JEV_TASK_REGISTRY.client_fit.questionVersion;
 export const CLIENT_FIT_QUESTION_ID = JEV_TASK_REGISTRY.client_fit.questionId!;
 export const CLIENT_FIT_ALIGNMENT_QUESTION_ID = 'client_fit_alignment';
+export const CLIENT_FIT_ALIGNMENT_LEVELS = [
+  'no_overlap',
+  'related_domain',
+  'same_class',
+  'directly_comparable',
+] as const;
+export type ClientFitAlignmentLevel = (typeof CLIENT_FIT_ALIGNMENT_LEVELS)[number];
 const MAX_STATE_ESTIMATED_TOKENS = 32_000;
 
 export interface ClientFitQuestionContext {

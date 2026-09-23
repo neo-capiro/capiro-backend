@@ -102,9 +102,9 @@ import type {
 } from './meriv3.types.js';
 import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
 import { scheduleClaimInventoryShadow } from './meriv3-claim-inventory-shadow.js';
-import { createChatDecisionProviders, createPassageSelectionClient } from '../jev/jev-provider.factory.js';
+import { createChatDecisionProviders, createClientFitClient, createPassageSelectionClient } from '../jev/jev-provider.factory.js';
 import { assessReleasedClaims } from '../jev/shadow-claim-assessor.js';
-import { applyMatchLabelControl, matchLabelEvent } from './match-label-control.js';
+import { applyMatchLabelControl, createClientFitEvaluator, matchLabelEvent } from './match-label-control.js';
 import {
   appendClaimTiedCoverageDisclosure,
   buildCoverageRequirements,
@@ -593,6 +593,12 @@ export class MeriV3AssistantService {
     );
     const claimAssessmentMode = resolveClaimAssessmentMode(process.env, ctx.tenantId, surface);
     const matchLabelMode = resolveMatchLabelMode(process.env, ctx.tenantId, surface);
+    const clientFit = createClientFitClient({
+      env: process.env,
+      tenantId: ctx.tenantId,
+      surface,
+      logger: { warn: (event, fields) => this.logStructured('warn', event, fields ?? {}) },
+    });
     const buildEvidenceLedger = (
       input: Omit<Parameters<typeof buildControlledClaimLedger>[0], 'env' | 'tenantId' | 'surface' | 'callSite' | 'logShadow'>,
       callSite: string,
@@ -1438,6 +1444,10 @@ export class MeriV3AssistantService {
         reply: released.reply,
         citations: released.citations,
         evidence: matchLedger.evidence,
+        ...(clientFit.client ? { evaluate: createClientFitEvaluator({
+          provider: clientFit.client, tenantId: ctx.tenantId, deadlineAt: started + 8_000,
+          signal: opts.signal,
+        }) } : {}),
       });
       released = { ...released, reply: matchResult.reply };
       if (matchResult.failureReason) {
@@ -1466,6 +1476,10 @@ export class MeriV3AssistantService {
           }, 'matchLabelShadow');
           const result = await applyMatchLabelControl({
             mode: 'shadow', reply, citations: releasedCitations, evidence: matchLedger.evidence,
+            ...(clientFit.client ? { evaluate: createClientFitEvaluator({
+              provider: clientFit.client, tenantId: ctx.tenantId, deadlineAt: started + 8_000,
+              signal: opts.signal,
+            }) } : {}),
           });
           if (result.findings > 0) {
             this.logStructured('log', 'meri.match_label.shadow', matchLabelEvent(result, Date.now() - started));
