@@ -164,6 +164,16 @@ describe('repair safety primitives', () => {
     expect(assembled.reply).toBe('Old.');
     expect(assembled.trace[0]?.type).toBe('stale_revision_rejected');
   });
+
+  it('does not expand $-sequences from replacement text into the reply', () => {
+    const revision = { claimId: 'c', originalText: 'The official total is 20.', replacementText: 'The official total is 25 (see $& and $1 and $`).', sourceIds: [], ledgerVersion: ledger().version, dependentSentences: [], outcome: 'corrected' as const };
+    const assembled = assembleAnswer({
+      baseReply: 'The official total is 20. Other supported context remains unchanged.',
+      ledgerVersion: ledger(), revisions: [revision],
+    });
+    expect(assembled.reply).toBe('The official total is 25 (see $& and $1 and $`). Other supported context remains unchanged.');
+    expect(assembled.applied).toEqual([revision]);
+  });
 });
 
 describe('repair correctness fixes', () => {

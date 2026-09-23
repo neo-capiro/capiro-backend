@@ -7,6 +7,8 @@ const count = z.number().int().nonnegative();
 export const canaryTurnEventSchema = z.object({
   event: z.literal('meri.canary.turn'), conversationId: z.string().nullable(), tenantId: z.string(),
   surface: z.string(), modes: z.record(z.string()),
+  registryVersion: z.string().optional(),
+  jevTasks: z.record(z.object({ questionVersion: z.string(), modelVersion: z.string() })).optional(),
   outcome: z.enum(['released', 'held', 'error', 'aborted']), clarificationRequested: z.boolean(),
   heldReason: z.string().nullable(),
   coverage: z.object({ gaps: count, followUps: count, residual: count }),

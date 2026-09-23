@@ -37,7 +37,8 @@ export function assembleAnswer(input: AssembleAnswerInput): AssembledAnswer {
     }
     const affected = [revision.originalText, ...revision.dependentSentences].join(' ');
     if (!reply.includes(affected)) continue;
-    reply = reply.replace(affected, revision.replacementText);
+    // A replacer function keeps `$&`, `$1`, `$'` in source text literal.
+    reply = reply.replace(affected, () => revision.replacementText);
     revision.sourceIds.forEach((id) => citations.add(id));
     applied.push(revision);
   }

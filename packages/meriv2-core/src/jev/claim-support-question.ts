@@ -1,9 +1,10 @@
 import { JevRequestError } from './jev-client';
 import type { EvidenceEnvelope, EvidenceQuestion } from './decision-contract';
 import { envelopeSourcesForJev } from './evidence-envelope';
+import { JEV_TASK_REGISTRY } from './task-registry';
 
-export const CLAIM_SUPPORT_QUESTION_VERSION = 'claim_support.v1' as const;
-export const CLAIM_SUPPORT_QUESTION_ID = 'claim_support' as const;
+export const CLAIM_SUPPORT_QUESTION_VERSION = JEV_TASK_REGISTRY.claim_support.questionVersion;
+export const CLAIM_SUPPORT_QUESTION_ID = JEV_TASK_REGISTRY.claim_support.questionId!;
 const MAX_STATE_ESTIMATED_TOKENS = 32_000;
 
 export function buildClaimSupportQuestion(envelope: EvidenceEnvelope): EvidenceQuestion {

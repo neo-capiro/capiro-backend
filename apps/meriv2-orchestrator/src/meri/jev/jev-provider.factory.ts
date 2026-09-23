@@ -8,6 +8,7 @@ import {
   createSkepticDecisionProvider,
   resolveJevConfig,
   resolveJevProviderMode,
+  resolveJevTaskRegistration,
   type CapabilityRolloutEnvironment,
   type DecisionProvider,
   type JevClient,
@@ -16,6 +17,7 @@ import {
 } from '@capiro/meriv2-core';
 
 const loggedReasons = new Set<string>();
+const loggedRegistryMismatches = new Set<string>();
 const nestLogger = new Logger('JevProviderFactory');
 // One JSON object per line, the shape the orchestrator's structured logger
 // produces: a caller that omits `logger` must never hand the event name and
@@ -27,6 +29,17 @@ const defaultLogger: ChatDecisionProviderLogger = {
 
 export interface ChatDecisionProviderLogger {
   warn(message: string, context?: Record<string, unknown>): unknown;
+}
+
+function logRegistryMismatchOnce(
+  logger: ChatDecisionProviderLogger,
+  task: 'claim_support' | 'passage_relevance',
+  configuredModel: string,
+  registeredModel: string,
+): void {
+  if (loggedRegistryMismatches.has(task)) return;
+  loggedRegistryMismatches.add(task);
+  logger.warn('meri.jev.registry_mismatch', { task, configuredModel, registeredModel });
 }
 
 export interface CreateChatDecisionProvidersInput {
@@ -50,6 +63,8 @@ export function createPassageSelectionClient(input: Omit<CreateChatDecisionProvi
   reason: string | null;
 } {
   const config = resolveJevConfig(input.env);
+  const logger = input.logger ?? defaultLogger;
+  const registry = resolveJevTaskRegistration('passage_relevance', config);
   const providerMode = resolveJevProviderMode(input.env, input.tenantId, input.surface);
   const reason = !config.available
     ? config.reasons.join(',') || 'config_unavailable'
@@ -57,7 +72,12 @@ export function createPassageSelectionClient(input: Omit<CreateChatDecisionProvi
       ? 'rollout_off'
       : !config.tasks.includes('passage_relevance')
         ? 'task_not_enabled:passage_relevance'
-        : null;
+        : !registry.modelMatches
+          ? 'registry_model_mismatch'
+          : null;
+  if (!registry.modelMatches && config.tasks.includes('passage_relevance')) {
+    logRegistryMismatchOnce(logger, 'passage_relevance', config.model, registry.registration.modelVersion);
+  }
   if (reason) return { client: null, model: config.model, reason };
   return {
     client: createJevClient({
@@ -81,6 +101,7 @@ export function createChatDecisionProviders(
 ): ChatDecisionProviders {
   const config = resolveJevConfig(input.env);
   const logger = input.logger ?? defaultLogger;
+  const registry = resolveJevTaskRegistration('claim_support', config);
   const legacyLive = createSkepticDecisionProvider(
     createLlmSkepticJudge(input.llm, { maxTokens: 512 }),
     'request-scoped-llm',
@@ -102,6 +123,11 @@ export function createChatDecisionProviders(
   else if (providerMode === 'off') unavailableReason = 'rollout_off';
   else if (!['paired', 'jev', 'cascade'].includes(config.routing)) unavailableReason = `routing:${config.routing}`;
   else if (!config.tasks.includes('claim_support')) unavailableReason = 'task_not_enabled:claim_support';
+  else if (!registry.modelMatches && config.routing !== 'paired') unavailableReason = 'registry_model_mismatch';
+
+  if (!registry.modelMatches && config.tasks.includes('claim_support')) {
+    logRegistryMismatchOnce(logger, 'claim_support', config.model, registry.registration.modelVersion);
+  }
 
   if (unavailableReason) {
     logUnavailableOnce(logger, unavailableReason);
@@ -130,4 +156,5 @@ export function createChatDecisionProviders(
 /** Tests only: preserves production once-per-process rate limiting. */
 export function resetJevProviderFactoryWarningsForTest(): void {
   loggedReasons.clear();
+  loggedRegistryMismatches.clear();
 }
