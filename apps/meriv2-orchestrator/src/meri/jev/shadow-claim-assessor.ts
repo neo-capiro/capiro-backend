@@ -184,7 +184,12 @@ export async function assessReleasedClaims(input: AssessReleasedClaimsInput): Pr
         asOf: input.asOf, includeProvenance: true,
       });
       const question = buildClaimSupportQuestion(envelope);
-      const claimTokens = Math.ceil(JSON.stringify(question.state).length / 4);
+      // Admission uses the envelope's size, not the (narrower, provenance-stripped) question
+      // state actually sent to Jev below: this must stay byte-identical to the pre-Stage-3
+      // admission estimate (R5 finding 1) so live claim selection near the budget boundary is
+      // unchanged. The envelope is always at least as large as its own question projection, so
+      // this remains a conservative (over-, never under-) estimate of the real request size.
+      const claimTokens = Math.ceil(JSON.stringify(envelope).length / 4);
       if (estimatedInputTokens + claimTokens > input.budget.maxInputTokens) {
         budgetExhausted = true;
         break;
