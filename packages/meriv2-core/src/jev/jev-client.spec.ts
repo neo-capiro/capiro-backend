@@ -265,3 +265,64 @@ describe('question and provider', () => {
     }
   });
 });
+
+// Stage 4a/4b design (docs/meri/grounding/stage-4/) needs an ordered-levels question type
+// alongside choice/noul. No production caller sends `score` yet; this exercises the wire
+// contract and validation in isolation.
+describe('score question type', () => {
+  const scoreQuestion = {
+    state: { subject: 'client-1', opportunity: 'opp-1' },
+    questions: {
+      capability_class_alignment: {
+        type: 'score' as const,
+        instructions: 'How closely does the capability class align?',
+        levels: {
+          no_overlap: 'No overlap between capability and requirement classes.',
+          related_domain: 'Related domain, no class match.',
+          same_class: 'Same capability class.',
+          directly_comparable: 'Directly comparable capability and requirement.',
+        },
+      },
+    },
+  };
+  const validScoreAnswer = (overrides: Record<string, unknown> = {}) => ({
+    model: 'jev-1.13.0',
+    answers: {
+      capability_class_alignment: {
+        type: 'score',
+        level: 'same_class',
+        probabilities: { no_overlap: 0.05, related_domain: 0.15, same_class: 0.6, directly_comparable: 0.2 },
+        confidence: 0.55,
+        ...overrides,
+      },
+    },
+    usage: { input_tokens: 8, output_tokens: 2 },
+  });
+
+  it('accepts a valid score answer and preserves the declared level order', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse(validScoreAnswer())) as unknown as JevFetch;
+    const result = await client(fetchImpl).systemOne(scoreQuestion);
+    expect(result.response.answers.capability_class_alignment).toMatchObject({ type: 'score', level: 'same_class' });
+  });
+
+  it('rejects a level not present in the declared levels', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse(validScoreAnswer({ level: 'off_scale' }))) as unknown as JevFetch;
+    await expect(client(fetchImpl).systemOne(scoreQuestion)).rejects.toMatchObject({ code: 'malformed_response' });
+  });
+
+  it('rejects probabilities that do not sum to 1 across every declared level', async () => {
+    const fetchImpl = jest.fn(async () =>
+      jsonResponse(validScoreAnswer({ probabilities: { no_overlap: 0.9, related_domain: 0.9, same_class: 0.9, directly_comparable: 0.9 } })),
+    ) as unknown as JevFetch;
+    await expect(client(fetchImpl).systemOne(scoreQuestion)).rejects.toMatchObject({ code: 'malformed_response' });
+  });
+
+  it('rejects probabilities missing a declared level', async () => {
+    const fetchImpl = jest.fn(async () => {
+      const body = validScoreAnswer();
+      delete (body.answers.capability_class_alignment.probabilities as Record<string, number>).directly_comparable;
+      return jsonResponse(body);
+    }) as unknown as JevFetch;
+    await expect(client(fetchImpl).systemOne(scoreQuestion)).rejects.toMatchObject({ code: 'malformed_response' });
+  });
+});

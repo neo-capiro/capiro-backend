@@ -138,6 +138,19 @@ export type JevQuestion =
   | {
       type: 'noul';
       instructions: string | object | unknown[];
+    }
+  | {
+      /**
+       * A probability-weighted position on ORDERED levels (e.g. no_overlap < related_domain <
+       * same_class < directly_comparable), for graded ranking rather than an unordered category.
+       * `levels` must be given low-to-high; the client validates a probability distribution over
+       * these keys the same way `choice` validates over `criteria`, but preserves the declared
+       * order so a caller can compute an expected position. Added for Stage 4a/4b (design docs
+       * under docs/meri/grounding/stage-4/); no production caller sends this type yet.
+       */
+      type: 'score';
+      instructions: string | object | unknown[];
+      levels: Record<string, string | object | unknown[] | null>;
     };
 
 export interface DecisionProviderOptions {

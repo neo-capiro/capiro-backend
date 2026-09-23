@@ -444,9 +444,13 @@ export const PREDICATE_REGISTRY: Readonly<Record<string, PredicateSpec>> = {
     evidenceFields: ['amount', 'fiscalYear'],
     checker: 'skeptic-only',
   },
+  // Stage 4a target vocabulary (docs/meri/grounding/stage-4/4a-match-labels.md): reconciles the
+  // chat/research-director prose tiers (Direct match / Conditional niche / Adjacency) with the
+  // plan's five-category ask. No caller creates a client_fit claim yet.
   client_fit: {
     predicate: 'client_fit',
-    objectSchema: "{ fit: 'direct_match'|'conditional_niche'|'adjacency' }",
+    objectSchema:
+      "{ fit: 'explicit_linkage'|'conditional_linkage'|'capability_class_alignment'|'adjacency'|'insufficient_evidence' }",
     evidenceFields: ['status'],
     checker: 'skeptic-only',
   },
