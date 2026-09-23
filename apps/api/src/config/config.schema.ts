@@ -804,6 +804,11 @@ export const configSchema = z.object({
   MERI_STATUS_PROVENANCE_TENANTS: z.string().optional(),
   MERI_STATUS_PROVENANCE_SURFACES: z.string().optional(),
 
+  // Stage 3c Jev decision cache (live-repair claim-support only). Dark unless independently enrolled.
+  MERI_JEV_CACHE_MODE: rolloutModeSwitch(),
+  MERI_JEV_CACHE_TENANTS: z.string().optional(),
+  MERI_JEV_CACHE_SURFACES: z.string().optional(),
+
   // Stage 0e Jev provider foundation. Validation-only until an app-side factory exists.
   TYPESAFE_API_KEY: z.preprocess(blankToUndefined, z.string().min(1).optional()),
   MERI_JEV_MODEL: z.string().optional(),
