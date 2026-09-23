@@ -28,15 +28,15 @@ vi.mock('../../../../lib/use-api.js', () => ({
   useApi: () => ({
     get: async (url: string) => {
       calls.push({ method: 'get', url });
-      return { data: handlers.get(url) };
+      return { data: await handlers.get(url) };
     },
     post: async (url: string, body?: unknown) => {
       calls.push({ method: 'post', url, body });
-      return { data: handlers.post(url, body) };
+      return { data: await handlers.post(url, body) };
     },
     patch: async (url: string, body?: unknown) => {
       calls.push({ method: 'patch', url, body });
-      return { data: handlers.patch(url, body) };
+      return { data: await handlers.patch(url, body) };
     },
   }),
 }));
@@ -232,6 +232,85 @@ describe('CreateBriefDialog', () => {
       docTitle: BRIEF.title,
       client: 'Aperture Defense',
     });
+  });
+
+  it('downloads the reviewed brief as a Word document', async () => {
+    const EXPORT_URL = `/api/legiwatch/live-hearings/events/${HEARING_ID}/actions/brief/export`;
+    handlers.post.mockImplementation((url: string) => {
+      if (url === GENERATE_URL) return BRIEF;
+      if (url === EXPORT_URL) return new ArrayBuffer(8);
+      return {};
+    });
+    renderDialog();
+    await generate();
+    fireEvent.click(screen.getByRole('button', { name: 'Download .docx' }));
+
+    await waitFor(() => expect(calls.some((c) => c.url === EXPORT_URL)).toBe(true));
+    const exportCall = calls.find((c) => c.url === EXPORT_URL)!.body as {
+      title: string;
+      mode: string;
+      sections: Array<{ name: string; content: string }>;
+      clientName: string;
+    };
+    expect(exportCall.title).toBe(BRIEF.title);
+    expect(exportCall.mode).toBe(BRIEF.mode);
+    expect(exportCall.clientName).toBe('Aperture Defense');
+    expect(exportCall.sections.map((s) => s.name)).toEqual(['Executive summary', 'Key exchanges']);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('saves the reviewed brief to the client profile and reports success', async () => {
+    const SAVE_URL = `/api/legiwatch/live-hearings/events/${HEARING_ID}/actions/brief/save-to-client`;
+    handlers.post.mockImplementation((url: string) => {
+      if (url === GENERATE_URL) return BRIEF;
+      if (url === SAVE_URL) return { attachmentId: 'attach-1', fileName: 'hearing-brief.docx' };
+      return {};
+    });
+    renderDialog();
+    await generate();
+    fireEvent.click(screen.getByRole('button', { name: 'Save to client profile' }));
+
+    await screen.findByText("Saved to Aperture Defense's Documents.");
+    const saveCall = calls.find((c) => c.url === SAVE_URL)!.body as { clientId: string };
+    expect(saveCall.clientId).toBe(CLIENT_A);
+  });
+
+  it('keeps the dialog open while a client-profile save is in flight, and closes normally once it settles', async () => {
+    const SAVE_URL = `/api/legiwatch/live-hearings/events/${HEARING_ID}/actions/brief/save-to-client`;
+    let resolveSave: (value: unknown) => void = () => {};
+    handlers.post.mockImplementation((url: string) => {
+      if (url === GENERATE_URL) return BRIEF;
+      if (url === SAVE_URL) return new Promise((resolve) => { resolveSave = resolve; });
+      return {};
+    });
+    const { onClose } = renderDialog();
+    await generate();
+    fireEvent.click(screen.getByRole('button', { name: 'Save to client profile' }));
+    await screen.findByText(/Saving to Aperture Defense.s Documents/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onClose).not.toHaveBeenCalled();
+
+    resolveSave({ attachmentId: 'attach-1', fileName: 'hearing-brief.docx' });
+    await screen.findByText("Saved to Aperture Defense's Documents.");
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a client-save failure without saving to Workspace as a side effect', async () => {
+    const SAVE_URL = `/api/legiwatch/live-hearings/events/${HEARING_ID}/actions/brief/save-to-client`;
+    handlers.post.mockImplementation((url: string) => {
+      if (url === GENERATE_URL) return BRIEF;
+      if (url === SAVE_URL) throw { response: { data: { message: 'Attachment storage unavailable' } } };
+      return {};
+    });
+    renderDialog();
+    await generate();
+    fireEvent.click(screen.getByRole('button', { name: 'Save to client profile' }));
+
+    expect(await screen.findByText('Attachment storage unavailable')).toBeTruthy();
+    expect(calls.some((c) => c.url.startsWith('/workspace-api/'))).toBe(false);
   });
 
   it('never reports success when saving fails', async () => {

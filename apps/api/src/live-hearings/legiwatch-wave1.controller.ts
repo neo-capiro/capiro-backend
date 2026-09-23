@@ -43,14 +43,18 @@ class CalendarReminderDto {
 class CalendarExportSelectionDto extends CalendarQueryDto {
   @IsOptional() @IsBoolean() dateOnlyReminder?: boolean;
 }
+import { DOCX_MIME } from '../intelligence/alert-memo/alert-memo-docx.js';
+import { HearingBriefExportService } from './hearing-brief-export.service.js';
 import { HearingBriefGenerationService } from './hearing-brief-generation.service.js';
 import { HearingSpeakerAttributionService } from './hearing-speaker-attribution.service.js';
 import {
   ArchiveSearchQueryDto,
   AskMeriDto,
   AttendanceRequestDto,
+  BriefExportDto,
   BriefGenerateDto,
   BriefPrefillDto,
+  BriefSaveToClientDto,
   SpeakerRenameDto,
   ClientRelevanceQueryDto,
   CommitteeEmailPreferenceDto,
@@ -72,6 +76,7 @@ export class LegiWatchWave1Controller {
     private readonly wave1: LegiWatchWave1Service,
     private readonly config: ConfigService<AppConfig, true>,
     private readonly briefs: HearingBriefGenerationService,
+    private readonly briefExport: HearingBriefExportService,
     private readonly speakers: HearingSpeakerAttributionService,
   ) {}
 
@@ -228,6 +233,34 @@ export class LegiWatchWave1Controller {
     @Body() body: BriefGenerateDto,
   ) {
     return this.briefs.generate(ctx, id, body);
+  }
+
+  /**
+   * Download the reviewed brief (as shown in CreateBriefDialog, after any Meri
+   * chat edits) as a Word document. Stateless — the client sends what it has
+   * on screen; nothing is read back from the server.
+   */
+  @Post('events/:id/actions/brief/export')
+  @Header('Cache-Control', 'no-store')
+  async exportBrief(@Body() body: BriefExportDto, @Res() response: Response) {
+    const file = await this.briefExport.exportDocx(body);
+    response.setHeader('Content-Type', DOCX_MIME);
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    );
+    response.send(file.buffer);
+  }
+
+  /** Renders the same Word document and auto-files it to the client's Documents. */
+  @Post('events/:id/actions/brief/save-to-client')
+  @Header('Cache-Control', 'no-store')
+  saveBriefToClient(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id', CanonicalHearingIdPipe) id: string,
+    @Body() body: BriefSaveToClientDto,
+  ) {
+    return this.briefExport.saveToClient(ctx, id, body);
   }
 
   @Post('events/:id/speakers/resolve')

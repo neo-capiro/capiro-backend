@@ -27,7 +27,15 @@ import {
   briefToWorkspaceConfig,
   timecode,
 } from '../lib/brief-workspace.js';
-import { useCreateBrief, useGenerateBrief, w1Error, type HearingBrief } from '../lib/wave1-api.js';
+import {
+  useCreateBrief,
+  useExportBriefDocx,
+  useGenerateBrief,
+  useSaveBriefToClient,
+  w1Error,
+  type BriefExportInput,
+  type HearingBrief,
+} from '../lib/wave1-api.js';
 
 const QUICK_PROMPTS = [
   'Tighten the executive summary',
@@ -77,6 +85,8 @@ export function CreateBriefDialog({
   const generate = useGenerateBrief(hearingId);
   const assistant = useWorkspaceAssistant();
   const create = useCreateBrief(hearingId);
+  const exportDocx = useExportBriefDocx(hearingId);
+  const saveToClient = useSaveBriefToClient(hearingId);
 
   const [phase, setPhase] = useState<'setup' | 'review'>('setup');
   const [clientId, setClientId] = useState(initialClientId);
@@ -89,6 +99,9 @@ export function CreateBriefDialog({
   const [notes, setNotes] = useState<string[]>([]);
   const [chatError, setChatError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [clientSaveNotice, setClientSaveNotice] = useState<string | null>(null);
+  const [clientSaveError, setClientSaveError] = useState<string | null>(null);
   const logRef = useRef<HTMLDivElement | null>(null);
 
   const client = activeClients.find((c) => c.id === clientId);
@@ -172,6 +185,34 @@ export function CreateBriefDialog({
     setUndo(null);
   };
 
+  const exportInput = (): BriefExportInput => ({
+    title: brief!.title,
+    mode: brief!.mode,
+    sections: state!.sections.map((name) => ({ name, content: state!.content[name] ?? '' })),
+    sources: brief!.sources,
+    ...(clientName ? { clientName } : {}),
+  });
+
+  const downloadDocx = () => {
+    if (!brief || !state || exportDocx.isPending) return;
+    setExportError(null);
+    exportDocx.mutate(exportInput(), { onError: (err) => setExportError(w1Error(err)) });
+  };
+
+  const saveToClientProfile = () => {
+    if (!brief || !state || !clientId || saveToClient.isPending) return;
+    setClientSaveNotice(null);
+    setClientSaveError(null);
+    saveToClient.mutate(
+      { ...exportInput(), clientId },
+      {
+        onSuccess: () =>
+          setClientSaveNotice(`Saved to ${clientName ?? 'the client'}'s Documents.`),
+        onError: (err) => setClientSaveError(w1Error(err)),
+      },
+    );
+  };
+
   const save = async () => {
     if (!brief || !state || !clientId || create.isPending) return;
     setSaveError(null);
@@ -192,6 +233,13 @@ export function CreateBriefDialog({
     } catch (err) {
       setSaveError(w1Error(err));
     }
+  };
+
+  /** Saving to the client's Documents is a real write in flight; closing the
+   *  dialog mid-save would discard the only place its outcome is reported. */
+  const closeGuarded = () => {
+    if (saveToClient.isPending) return;
+    onClose();
   };
 
   const onComposerKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -235,7 +283,7 @@ export function CreateBriefDialog({
       secondaryLabel={reviewing ? 'Back' : undefined}
       onSecondary={reviewing ? () => setPhase('setup') : undefined}
       secondaryDisabled={create.isPending}
-      onClose={onClose}
+      onClose={closeGuarded}
       dirty={brief !== null && !create.isPending}
     >
       {phase === 'review' && brief && state ? (
@@ -253,6 +301,38 @@ export function CreateBriefDialog({
                 <p role="status" className="lw-card__meta">
                   Meri flagged this draft as low confidence. Check its claims against the
                   transcript and sources before sharing.
+                </p>
+              ) : null}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '10px 0' }}>
+                <LwButton disabled={exportDocx.isPending} onClick={downloadDocx}>
+                  {exportDocx.isPending ? 'Preparing download…' : 'Download .docx'}
+                </LwButton>
+                <LwButton disabled={saveToClient.isPending} onClick={saveToClientProfile}>
+                  {saveToClient.isPending ? 'Saving…' : 'Save to client profile'}
+                </LwButton>
+              </div>
+              {exportDocx.isPending ? (
+                <p role="status" className="lw-card__meta" style={{ margin: '0 0 8px' }}>
+                  Preparing your download…
+                </p>
+              ) : null}
+              {exportError ? (
+                <p role="alert" className="lw-card__meta" style={{ margin: '0 0 8px', ...DANGER }}>
+                  {exportError}
+                </p>
+              ) : null}
+              {saveToClient.isPending ? (
+                <p role="status" className="lw-card__meta" style={{ margin: '0 0 8px' }}>
+                  Saving to {clientName ?? 'the client'}'s Documents…
+                </p>
+              ) : null}
+              {clientSaveError ? (
+                <p role="alert" className="lw-card__meta" style={{ margin: '0 0 8px', ...DANGER }}>
+                  {clientSaveError}
+                </p>
+              ) : clientSaveNotice ? (
+                <p role="status" className="lw-card__meta" style={{ margin: '0 0 8px' }}>
+                  {clientSaveNotice}
                 </p>
               ) : null}
               {state.sections.map((name) => (

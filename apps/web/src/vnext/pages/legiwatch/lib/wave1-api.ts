@@ -953,6 +953,71 @@ export function useCreateBrief(hearingId: string) {
   });
 }
 
+export interface BriefExportInput {
+  title: string;
+  mode: 'preparation' | 'recap';
+  sections: Array<{ name: string; content: string }>;
+  sources?: Array<Record<string, unknown>>;
+  clientName?: string;
+}
+
+/** Save the docx buffer the server just rendered as a real file download. */
+function downloadDocx(buffer: ArrayBuffer, fileName: string): void {
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+/** Parse the `Content-Disposition` filename the export route sets; falls back
+ *  to a title-derived name so a download never surfaces a raw UUID/path. */
+function filenameFromDisposition(disposition: unknown, fallbackTitle: string): string {
+  const match = typeof disposition === 'string' ? /filename\*=UTF-8''([^;]+)/i.exec(disposition) : null;
+  if (match?.[1]) {
+    try {
+      return decodeURIComponent(match[1]);
+    } catch {
+      /* fall through to the derived name below */
+    }
+  }
+  const safe = fallbackTitle.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase();
+  return `${safe || 'hearing-brief'}.docx`;
+}
+
+/** Download the reviewed brief as a Word document. */
+export function useExportBriefDocx(hearingId: string) {
+  const api = useApi();
+  return useMutation<void, Error, BriefExportInput>({
+    mutationFn: async (input) => {
+      const res = await api.post<ArrayBuffer>(`${BASE}/events/${enc(hearingId)}/actions/brief/export`, input, {
+        responseType: 'arraybuffer',
+      });
+      downloadDocx(res.data, filenameFromDisposition(res.headers?.['content-disposition'], input.title));
+    },
+  });
+}
+
+/** Render the reviewed brief as a Word document and file it to the client's Documents. */
+export function useSaveBriefToClient(hearingId: string) {
+  const api = useApi();
+  return useMutation<{ attachmentId: string; fileName: string }, Error, BriefExportInput & { clientId: string }>({
+    mutationFn: async (input) =>
+      (
+        await api.post<{ attachmentId: string; fileName: string }>(
+          `${BASE}/events/${enc(hearingId)}/actions/brief/save-to-client`,
+          input,
+        )
+      ).data,
+  });
+}
+
 export interface SpeakerRename {
   speakerLabel: string;
   displayName: string;

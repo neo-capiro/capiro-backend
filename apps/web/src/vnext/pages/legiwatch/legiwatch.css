@@ -2556,6 +2556,30 @@
   padding: 0 24px 32px;
 }
 
+/* Tab column + a persistent Actions rail — same two-column/sticky pattern as
+   .lw-feed-cols/.lw-rail, so a long transcript never pushes Create brief /
+   Save to client / Stage outreach below the fold. */
+.capiro-vnext-root .lw .lw-detail__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  align-items: start;
+  min-width: 0;
+}
+@media (max-width: 1179px) {
+  .capiro-vnext-root .lw .lw-detail__layout { grid-template-columns: minmax(0, 1fr); }
+  /* Collapsing to one column would otherwise fall back to DOM order (tab
+     content, then Actions) and reintroduce Actions-below-a-long-transcript —
+     the exact bug this layout exists to fix. Same `order: -1` already used by
+     .lw-archive__rail for the identical collapse. */
+  .capiro-vnext-root .lw .lw-detail__actions-rail { order: -1; }
+}
+
+.capiro-vnext-root .lw .lw-detail__main-col { min-width: 0; }
+
+.capiro-vnext-root .lw .lw-detail__actions-rail { position: sticky; top: 96px; min-width: 0; }
+@media (max-width: 1179px) { .capiro-vnext-root .lw .lw-detail__actions-rail { position: static; } }
+
 .capiro-vnext-root .lw .lw-detail__head {
   background: var(--lw-surface);
   border-bottom: 1px solid var(--lw-line);
@@ -2599,6 +2623,12 @@
   padding: 0 24px;
   overflow-x: auto;
 }
+/* .lw-detail__tabs now sits one level deeper, inside .lw-detail__main-col —
+   its right-edge bleed only needs to reach the 16px column gap, not the full
+   24px .lw-detail padding, while the Actions rail is showing alongside it. */
+@media (min-width: 1180px) {
+  .capiro-vnext-root .lw .lw-detail__tabs { margin-right: -16px; }
+}
 
 .capiro-vnext-root .lw .lw-detail__tab {
   height: 42px;
@@ -2633,6 +2663,18 @@
 }
 
 @media (max-width: 1023px) {
+  .capiro-vnext-root .lw .lw-detail__overview {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* .lw-detail__overview now nests inside .lw-detail__main-col, which loses
+   320px+16px to the Actions rail whenever it is showing (viewport > 1179px)
+   — and .lw-detail's own 1144px cap means that content width never grows
+   back, so this inner 1fr+340px split would stay squeezed to ~395px at every
+   ordinary desktop width instead of just collapsing like it already does
+   below 1023px. Collapse it here too, precisely while the rail is active. */
+@media (min-width: 1180px) {
   .capiro-vnext-root .lw .lw-detail__overview {
     grid-template-columns: 1fr;
   }

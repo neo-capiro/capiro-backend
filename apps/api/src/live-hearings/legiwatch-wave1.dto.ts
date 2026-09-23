@@ -8,6 +8,7 @@
  */
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsIn,
@@ -18,6 +19,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 
 /** Coerce the several shapes a boolean arrives in. */
@@ -363,6 +365,50 @@ export class SpeakerRenameDto {
   @IsString()
   @MaxLength(120)
   displayName!: string;
+}
+
+// ── W1-7b · brief export / save-to-client ──────────────────────────────────
+
+export class BriefExportSectionDto {
+  @IsString()
+  @MaxLength(200)
+  name!: string;
+
+  /** Sanitized Workspace section HTML, as reviewed in CreateBriefDialog. */
+  @IsString()
+  @MaxLength(50_000)
+  content!: string;
+}
+
+export class BriefExportDto {
+  @IsString()
+  @MaxLength(300)
+  title!: string;
+
+  @IsIn(['preparation', 'recap'])
+  mode!: 'preparation' | 'recap';
+
+  @IsArray()
+  @ArrayMaxSize(30)
+  @ValidateNested({ each: true })
+  @Type(() => BriefExportSectionDto)
+  sections!: BriefExportSectionDto[];
+
+  /** Heterogeneous kind-tagged records (hearing/official_page/model_cited/…). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(300)
+  sources?: Array<Record<string, unknown>>;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  clientName?: string;
+}
+
+export class BriefSaveToClientDto extends BriefExportDto {
+  @IsUUID()
+  clientId!: string;
 }
 
 export class OutreachPrefillDto {

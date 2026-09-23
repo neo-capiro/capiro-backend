@@ -360,6 +360,12 @@ export function HearingDetailRoute() {
         </div>
       </div>
 
+      {/* Tab column + a persistent right-hand Actions rail (sticky, so a long
+          transcript never pushes Create brief / Save to client / Stage
+          outreach below the fold) — collapses to one column on narrow
+          viewports, same breakpoint as every other LegiWatch rail. */}
+      <div className="lw-detail__layout">
+      <div className="lw-detail__main-col">
       {/* 42px tab strip — reference hearing-overview.png. Panels below stay
           mounted and are hidden with the `hidden` attribute so player
           position, review drafts, folder selections and transcript filters
@@ -815,17 +821,22 @@ export function HearingDetailRoute() {
       >
           <SourcesAndDocumentsSection hearingId={hearingId} />
       </div>
+      </div>
 
-      {/* Actions — always mounted so pendingAction state and dialogs survive tab switches */}
-      <HearingActions
-        hearingId={hearingId}
-        hearingTitle={e.title}
-        clientId={clientId}
-        hasTranscript={availability.available && segments.length > 0}
-        canSaveMoment={availability.available && segments.length > 0}
-        pendingAction={pendingAction}
-        onPendingHandled={() => setPendingAction(null)}
-      />
+      {/* Actions — always mounted so pendingAction state and dialogs survive tab
+          switches; sticky in its own rail column (see .lw-detail__layout above). */}
+      <aside className="lw-detail__actions-rail">
+        <HearingActions
+          hearingId={hearingId}
+          hearingTitle={e.title}
+          clientId={clientId}
+          hasTranscript={availability.available && segments.length > 0}
+          canSaveMoment={availability.available && segments.length > 0}
+          pendingAction={pendingAction}
+          onPendingHandled={() => setPendingAction(null)}
+        />
+      </aside>
+      </div>
 
       {dialog === 'follow' ? (
         <FollowDialog

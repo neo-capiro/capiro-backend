@@ -11,7 +11,9 @@ import { Module } from '@nestjs/common';
 import { CanonicalHearingIdPipe } from './canonical-hearing-id.pipe.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module.js';
+import { ClientDocumentsModule } from '../client-documents/client-documents.module.js';
 import { LlmCompletionService } from '../engagement/llm-completion.service.js';
+import { HearingBriefExportService } from './hearing-brief-export.service.js';
 import { HearingBriefGenerationService } from './hearing-brief-generation.service.js';
 import { HearingSpeakerAttributionService } from './hearing-speaker-attribution.service.js';
 import { TrackerEmailService } from '../tracker/notifications/tracker-email.service.js';
@@ -50,7 +52,7 @@ import { LegiWatchPhase9ReadinessService } from './phase9/legiwatch-phase9-readi
 import { LegiWatchPhase9RuntimeService } from './phase9/legiwatch-phase9-runtime.service.js';
 
 @Module({
-  imports: [PrismaModule, AiCredentialsModule],
+  imports: [PrismaModule, AiCredentialsModule, ClientDocumentsModule],
   controllers: [
     LiveHearingsController,
     LiveHearingsPhase7Controller,
@@ -91,6 +93,7 @@ import { LegiWatchPhase9RuntimeService } from './phase9/legiwatch-phase9-runtime
     { provide: LlmCompletionService, useFactory: () => new LlmCompletionService() },
     HearingSpeakerAttributionService,
     HearingBriefGenerationService,
+    HearingBriefExportService,
   ],
   exports: [
     LiveHearingsService,
