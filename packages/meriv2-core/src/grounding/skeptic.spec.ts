@@ -113,7 +113,10 @@ describe('createLlmSkepticJudge', () => {
     const llm = fakeLlm({ refuted: true, confidence: 'high', reason: 'not stated in evidence' });
     const judge = createLlmSkepticJudge(llm);
     const v = await runSkeptic({ claim: 'x', evidence: 'y' }, judge);
-    expect(v).toEqual({ refuted: true, confidence: 'high', reason: 'not stated in evidence' });
+    expect(v).toEqual({
+      refuted: true, confidence: 'high', reason: 'not stated in evidence',
+      usage: { inputTokens: 10, outputTokens: 5 },
+    });
   });
 
   it('adapts a schema-forced LlmClient into a working SkepticJudge (supported)', async () => {
