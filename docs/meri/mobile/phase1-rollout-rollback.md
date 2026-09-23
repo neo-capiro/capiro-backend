@@ -21,6 +21,8 @@ Mobile run admission also requires the existing Hermes fleet, canonical-tenant, 
 4. Run the queued and active disconnect proof from a fresh process. Capture timestamps and opaque run/event IDs only.
 5. Enable internal TestFlight users only after the proof passes. Expand one capability and tenant at a time.
 
+The Phase 1 staging proof completed on 2026-09-23 with task definition `capiro-staging-meri-hermes-continuity-proof:4` and exit 0. It used an isolated synthetic tenant that was deleted in cleanup; it did not leave any persistent tenant enabled. See `phase1-verification.md` for the opaque identifiers and assertion matrix.
+
 ## Rollback
 
 - Close the affected capability, tenant flag, allowlist entry, or fleet switch to refuse new work.
@@ -31,9 +33,17 @@ Mobile run admission also requires the existing Hermes fleet, canonical-tenant, 
 
 Hermes event retention remains the existing bounded repository policy: sequence 1 plus the newest configured event window are retained, while `outputSnapshot` through `outputSeq` is authoritative. Recovery renders the snapshot then requests `events?after=outputSeq`; clients must not assume `after=0` retains every old delta.
 
+## Verified rollback behavior
+
+- Admission refused the wrong tenant and the pilot tenant while its flag was off.
+- Closing the tenant gate while an active run was in flight immediately refused new work but did not strand the admitted run; authorized observation/replay continued until terminal completion.
+- Stop remained owner-authorized after gate closure, produced terminal `cancelled`, and no success event followed Stop.
+- The staging service configuration contains no Meri mobile/Hermes opt-in environment or secret overrides, so the deployed default state is closed.
+- The device-token migration is additive; old web/app health remained green after migration and rollback does not require dropping the table.
+
 ## Environment-dependent gates not claimed here
 
-- No development/staging deployment was performed by this change.
-- No queued or active staging disconnect proof has been run against an enabled dedicated pilot tenant.
 - No APNs key, Apple team, bundle identifier, physical-device send, signing, TestFlight, or App Store proof is claimed.
-- No production deployment is authorized by this plan.
+- ECR critical/high findings must be resolved or accepted through the security release process before any production promotion.
+- Product-only/Figma decisions remain deferred as recorded in `phase1-decisions.md`.
+- No production deployment is authorized by this plan, and none was performed.

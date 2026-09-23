@@ -46,9 +46,12 @@ describe('Meri mobile v1 published contracts', () => {
 
   it('keeps rollout and deferred product claims explicit', () => {
     const rollout = readFileSync(repoFile('docs/meri/mobile/phase1-rollout-rollback.md'), 'utf8');
+    const verification = readFileSync(repoFile('docs/meri/mobile/phase1-verification.md'), 'utf8');
     const decisions = readFileSync(repoFile('docs/meri/mobile/phase1-decisions.md'), 'utf8');
-    expect(rollout).toContain('No queued or active staging disconnect proof has been run');
+    expect(verification).toContain('Queued and active continuity acceptance proof');
+    expect(verification).toContain('syntheticTenantDeleted');
     expect(rollout).toContain('No APNs key');
+    expect(rollout).toContain('No production deployment is authorized');
     expect(decisions).toContain('Post-creation attendee editing');
     expect(decisions).toContain('Voice memos');
   });
