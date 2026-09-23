@@ -80,7 +80,7 @@ const footer = read('templates', 'footer.html');
 // The 'home' chrome is the light theme: assets/home.css, the Untitled UI type and
 // colour scale, and a nav that is transparent over a dark hero and solid elsewhere
 // (main.js decides from the presence of .hero). /, /platform and /insights use it.
-// /solutions, /pricing, /privacy and /terms still use the older dark-theme chrome
+// /solutions, /pricing, /privacy, /support and /terms still use the older dark-theme chrome
 // and assets/styles.css. Selected per page via `chrome: 'home'` below.
 const CHROME = {
   default: { header, footer },
@@ -121,6 +121,11 @@ const PAGES = [
     slug: 'privacy', out: 'privacy.html', body: 'privacy.html',
     title: 'Privacy Policy | Capiro',
     description: 'How Capiro collects, uses, and protects your information.',
+  },
+  {
+    slug: 'support', out: 'support.html', body: 'support.html', lastmod: '2026-09-23',
+    title: 'Support for Capiro and Meri | Capiro',
+    description: 'Get help with Capiro and Meri account access, app issues, and privacy or data requests.',
   },
   {
     slug: 'terms', out: 'terms.html', body: 'terms.html',
@@ -212,7 +217,7 @@ const sitemap =
   '<?xml version="1.0" encoding="UTF-8"?>\n' +
   '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
   PAGES.map((p) =>
-    '  <url>\n    <loc>' + canonicalFor(p.slug) + '</loc>\n    <lastmod>' + LASTMOD + '</lastmod>\n  </url>'
+    '  <url>\n    <loc>' + canonicalFor(p.slug) + '</loc>\n    <lastmod>' + (p.lastmod || LASTMOD) + '</lastmod>\n  </url>'
   ).join('\n') +
   '\n</urlset>\n';
 writeFileSync(join(OUT, 'sitemap.xml'), sitemap);

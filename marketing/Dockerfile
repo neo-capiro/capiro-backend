@@ -6,7 +6,7 @@
 ARG NGINX_VERSION=1.27.1-alpine
 ARG NODE_VERSION=20-alpine
 
-# ---- build stage: render the 7 pages + sitemap.xml from templates ----
+# ---- build stage: render the 8 pages + sitemap.xml from templates ----
 FROM node:${NODE_VERSION} AS build
 WORKDIR /build
 COPY marketing/build.mjs ./build.mjs
