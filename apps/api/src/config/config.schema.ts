@@ -789,6 +789,21 @@ export const configSchema = z.object({
   MERI_PASSAGE_SELECTION_TENANTS: z.string().optional(),
   MERI_PASSAGE_SELECTION_SURFACES: z.string().optional(),
 
+  // Stage 3d explicit evidence classification. Dark unless independently enrolled.
+  MERI_EVIDENCE_PROFILES_MODE: rolloutModeSwitch(),
+  MERI_EVIDENCE_PROFILES_TENANTS: z.string().optional(),
+  MERI_EVIDENCE_PROFILES_SURFACES: z.string().optional(),
+
+  // Stage 4a deterministic opportunity-match labels. Dark unless independently enrolled.
+  MERI_MATCH_LABEL_MODE: rolloutModeSwitch(),
+  MERI_MATCH_LABEL_TENANTS: z.string().optional(),
+  MERI_MATCH_LABEL_SURFACES: z.string().optional(),
+
+  // Stage 4b exact certification-status provenance. Dark unless independently enrolled.
+  MERI_STATUS_PROVENANCE_MODE: rolloutModeSwitch(),
+  MERI_STATUS_PROVENANCE_TENANTS: z.string().optional(),
+  MERI_STATUS_PROVENANCE_SURFACES: z.string().optional(),
+
   // Stage 0e Jev provider foundation. Validation-only until an app-side factory exists.
   TYPESAFE_API_KEY: z.preprocess(blankToUndefined, z.string().min(1).optional()),
   MERI_JEV_MODEL: z.string().optional(),
