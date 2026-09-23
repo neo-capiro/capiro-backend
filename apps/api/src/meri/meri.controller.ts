@@ -50,6 +50,7 @@ import { renderReportToBrowserHtml, renderReportToWordHtml } from './meri-resear
 import { runMeriStreamWithSetupGuard } from './meri-stream-preflight.helpers.js';
 import { withMeriToolRequestControl } from './meri-tool-request-control.js';
 import { MeriPdfRenderError } from './meri-docgen-pdf.js';
+import type { AssuranceSurface } from '@capiro/meriv2-core';
 
 class CreateMeriConversationDto {
   @IsOptional()
@@ -358,8 +359,12 @@ export class MeriController {
    * in the orchestrator. Read-only; tenant-guarded like every /api/clio route.
    */
   @Get('tool-schemas')
-  toolSchemas() {
-    return { schemas: this.tools.anthropicToolSchemas() };
+  toolSchemas(
+    @CurrentTenant() ctx: TenantContext,
+    @Query('surface') requestedSurface?: string,
+  ) {
+    const surface: AssuranceSurface = requestedSurface === 'in-editor' ? 'in-editor' : 'chat';
+    return { schemas: this.tools.anthropicToolSchemas({ tenantId: ctx.tenantId, surface }) };
   }
 
   // ToolServiceSecretGuard: this endpoint runs write tools with no compliance

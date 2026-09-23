@@ -82,6 +82,7 @@ const EXPECTED_TOOLS = [
   'search_congress_bills',
   // Vote/status truth layer (LegiWatch A5)
   'get_bill_status',
+  'get_certification_status',
   'search_floor_votes',
   // Budget-score spine (Bucket-#3 C4.F1, SC2.4)
   'search_cbo_cost_estimates',
@@ -266,6 +267,7 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   query_global_data: ['dataset', 'select'],
   resolve_entity: ['query'],
   get_bill_status: ['billId'],
+  get_certification_status: ['program', 'query'],
   get_state_bill_status: ['billId'],
   get_state_legislator: ['query'],
   get_committee_roster: ['committee', 'jurisdiction'],
@@ -301,7 +303,15 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
 // uninitialized prototype instance is enough to read the schema surface.
 function schemas() {
   const service = Object.create(MeriToolsService.prototype) as MeriToolsService;
-  return service.anthropicToolSchemas();
+  return service.anthropicToolSchemas({
+    tenantId: '11111111-1111-4111-8111-111111111111',
+    surface: 'chat',
+    env: {
+      MERI_STATUS_PROVENANCE_MODE: 'enforce',
+      MERI_STATUS_PROVENANCE_TENANTS: 'all',
+      MERI_STATUS_PROVENANCE_SURFACES: 'chat',
+    },
+  });
 }
 
 describe('Meri tool registration', () => {
@@ -479,6 +489,18 @@ describe('Meri tool registration', () => {
     expect(toolSchemas.map((schema) => schema.name)).toEqual(
       TOOL_DEFINITIONS.map((tool) => tool.name),
     );
+  });
+
+  it('keeps the baseline schema list identical while status provenance is off', () => {
+    const service = Object.create(MeriToolsService.prototype) as MeriToolsService;
+    const enabled = schemas();
+    const baseline = enabled.filter((schema) => schema.name !== 'get_certification_status');
+    expect(service.anthropicToolSchemas({ tenantId: 'tenant-1', surface: 'chat', env: {} })).toEqual(
+      baseline,
+    );
+    expect(enabled.filter((schema) => !baseline.some((item) => item.name === schema.name))).toEqual([
+      expect.objectContaining({ name: 'get_certification_status' }),
+    ]);
   });
 
   it('legacy read-only chat excludes every side-effecting (write) tool from the model surface', () => {

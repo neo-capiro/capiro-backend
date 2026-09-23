@@ -43,6 +43,26 @@ certification_status: {
 }
 ```
 
+## FedRAMP source (verified 2026-09-23)
+
+The old `https://marketplace.fedramp.gov/` Svelte shell now redirects to the official
+`https://fedramp.gov/marketplace/products/` page. No `/api/products` endpoint exists. The new page is a roughly
+5 MB server-prerendered Svelte document. Its hydration payload contains one JavaScript assignment object per
+product (616 observed), rather than a separately published JSON/CSV endpoint. The adapter fetches that official
+page and parses assignments without executing JavaScript. This is structured public-web data, but the embedding
+inside framework output is more fragile than a documented API; the parser fails closed if required fields move.
+
+Observed fields are `id`, `csp`, `cso`, `status`, `cert_date`, `impact_level`, and
+`agency_authorizations`. `status_date` and numerous additional marketplace fields are present but are not part of
+this record contract. `cert_date` is used as authorization date when present; observation time is the fetch time.
+The source page states no update cadence.
+
+Exact status strings observed across the full payload: `Agency Authorization In Process`, `FedRAMP Certified`,
+`FedRAMP In Process`, `Initial Implementation`, `Legacy FedRAMP Ready`, and `Unknown`. Exact impact-level strings:
+`High`, `LI-SaaS`, `Low`, `Moderate`, and `Unknown`. These are retained byte-for-byte, not normalized to older
+labels such as “FedRAMP Authorized.” A reduced public-record fixture with four status variants is at
+`apps/api/src/external/fedramp/__fixtures__/marketplace-products.fixture.html`.
+
 `entityId` is deliberately generic (a company, a product, a specific system) since a status program is not always
 about the same kind of entity, unlike a bill. `sourceUrl` is mandatory when the checker is `deterministic` and
 absent only when a source genuinely has no stable URL.

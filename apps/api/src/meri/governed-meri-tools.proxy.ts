@@ -157,7 +157,10 @@ export function createGovernedMeriToolsService(
         };
       }
       if (property === 'anthropicToolSchemas') {
-        return () => [...target.anthropicToolSchemas(), ...federalMarketTools.anthropicSchemas()];
+        return (...args: Parameters<MeriToolsService['anthropicToolSchemas']>) => [
+          ...target.anthropicToolSchemas(...args),
+          ...federalMarketTools.anthropicSchemas(),
+        ];
       }
       if (property === 'isConcurrencySafe') {
         return (name: string) =>
