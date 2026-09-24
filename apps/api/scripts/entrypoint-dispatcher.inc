@@ -203,6 +203,10 @@ case "${1:-serve}" in
     echo "Running diag-ingestion-health (read-only ingestion counts + freshness report)"
     exec ./node_modules/.bin/tsx scripts/diag-ingestion-health.ts
     ;;
+  diag-district-nexus-source-matrix)
+    echo "Running diag-district-nexus-source-matrix (read-only source matrix: ACS/CBP/LODES/GSA/CPF-CDS/SAM/Tango)"
+    exec ./node_modules/.bin/tsx scripts/diag-district-nexus-source-matrix.ts
+    ;;
   diag-lda-identity)
     echo "Running diag-lda-identity (read-only: LDA client_id stability vs name variation)"
     exec ./node_modules/.bin/tsx scripts/diag-lda-identity.ts
