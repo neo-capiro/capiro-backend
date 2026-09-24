@@ -57,9 +57,13 @@ export function ClientBudgetWatches({ clientId }: { clientId: string }) {
           <time dateTime={event.createdAt}>{new Date(event.createdAt).toLocaleString()}</time> · {event.eventType.replaceAll('_', ' ')}{event.materialReason ? ` — ${event.materialReason}` : ''}
           {event.eventType === 'material_update' ? <div className="cap-budget-watches__actions">
             {(['acknowledged', 'dismissed'] as const).map((decision) => {
-              const existing = watch.events.find((candidate) => candidate.updateEventId === event.id && candidate.eventType === decision);
+              const existing = watch.events.find((candidate) =>
+                candidate.updateEventId === event.id &&
+                (candidate.eventType === 'acknowledged' || candidate.eventType === 'dismissed'),
+              );
               const label = decision === 'acknowledged' ? 'Acknowledge' : 'Dismiss';
-              return <button type="button" key={decision} disabled={Boolean(existing) || decide.isPending} aria-label={`${label} update ${event.id}`} onClick={() => decide.mutate({ watch, event, decision })}>{existing ? decision === 'acknowledged' ? 'Acknowledged' : 'Dismissed' : label}</button>;
+              const selected = existing?.eventType === decision;
+              return <button type="button" key={decision} disabled={Boolean(existing) || decide.isPending} aria-label={`${label} update ${event.id}`} onClick={() => decide.mutate({ watch, event, decision })}>{selected ? decision === 'acknowledged' ? 'Acknowledged' : 'Dismissed' : label}</button>;
             })}
           </div> : null}
         </li>)}</ol>}
