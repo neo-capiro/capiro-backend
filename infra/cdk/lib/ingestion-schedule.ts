@@ -65,6 +65,69 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     tier: 'daily',
     description: 'Congress bills/actions (daily, incremental)',
   },
+  // Package 4 federal legislative evidence. These rules intentionally ship
+  // disabled while Package 3's authoritative congressional input gate remains
+  // unresolved. The worker also requires FEDERAL_LEGISLATIVE_EVIDENCE_ENABLED=true
+  // for --commit, so an accidental rule enablement still fails closed. Before
+  // activation, run each collection once with --full --historical to establish
+  // a no-alert baseline, then remove --historical for recurring reconciliation.
+  {
+    id: 'SyncFederalLegislativeBills',
+    command: ['sync-federal-legislative-evidence', '--commit', '--collection', 'BILLS'],
+    cron: { minute: '7', hour: '*' },
+    tier: 'daily',
+    description: 'Versioned GovInfo BILLS discovery (hourly; Package 4 ships dark)',
+    enabled: false,
+  },
+  {
+    id: 'ReconcileFederalLegislativeBills',
+    command: ['sync-federal-legislative-evidence', '--commit', '--collection', 'BILLS', '--full'],
+    cron: { minute: '17', hour: '2' },
+    tier: 'daily',
+    description: 'Complete BILLS inventory and removal reconciliation (daily; Package 4 ships dark)',
+    enabled: false,
+  },
+  {
+    id: 'ReconcileFederalLegislativeReports',
+    command: ['sync-federal-legislative-evidence', '--commit', '--collection', 'CRPT', '--full'],
+    cron: { minute: '27', hour: '2' },
+    tier: 'daily',
+    description: 'Complete committee-report inventory (daily; Package 4 ships dark)',
+    enabled: false,
+  },
+  {
+    id: 'ReconcileFederalLegislativePrints',
+    command: ['sync-federal-legislative-evidence', '--commit', '--collection', 'CPRT', '--full'],
+    cron: { minute: '37', hour: '2' },
+    tier: 'daily',
+    description: 'Complete committee-print inventory (daily; Package 4 ships dark)',
+    enabled: false,
+  },
+  {
+    id: 'ReconcileFederalPublicLaws',
+    command: ['sync-federal-legislative-evidence', '--commit', '--collection', 'PLAW', '--full'],
+    cron: { minute: '47', hour: '2' },
+    tier: 'daily',
+    description: 'Complete public-law inventory (daily; Package 4 ships dark)',
+    enabled: false,
+  },
+  {
+    id: 'ReconcileFederalCongressionalRecord',
+    command: ['sync-federal-legislative-evidence', '--commit', '--collection', 'CREC', '--full'],
+    cron: { minute: '57', hour: '2' },
+    tier: 'daily',
+    description: 'Complete Congressional Record inventory (daily; Package 4 ships dark)',
+    enabled: false,
+  },
+  {
+    id: 'DrainFederalEvidenceOutbox',
+    command: ['drain-federal-evidence-outbox', '--commit', '--limit', '100'],
+    cron: { minute: '0', hour: '*' },
+    rateMinutes: 10,
+    tier: 'derived',
+    description: 'Retry-safe federal legislative material-change delivery (Package 4 ships dark)',
+    enabled: false,
+  },
   {
     id: 'SyncCbo',
     command: ['sync-cbo'],

@@ -1,6 +1,7 @@
 import {
   aggregateMentionsByPe,
   buildNameBank,
+  capProgramAliasFanout,
   extractDesignatorTerms,
   extractSnippet,
   findMentions,
@@ -362,6 +363,43 @@ describe('pe-mention-matcher', () => {
       });
       expect(candidates[0]!.evidence).toContain('"Collaborative Combat Aircraft"');
       expect(candidates[0]!.evidence).toContain('To accelerate procurement');
+    });
+
+    it('matches qualified program aliases as lower-confidence candidates', () => {
+      const aliasBank = buildNameBank([
+        { peCode: '0207820F', term: 'CCA', tier: 'program_alias' },
+        { peCode: '0207820F', term: 'Collaborative Combat Aircraft', tier: 'program_name' },
+      ]);
+      const candidates = matchBillTitles(
+        [{ billId: '119-hr-8110', title: 'CCA Readiness Improvement Act' }],
+        aliasBank,
+      );
+
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0]).toMatchObject({
+        peCode: '0207820F',
+        term: 'CCA',
+        tier: 'program_alias',
+        confidence: TIER_CONFIDENCE.program_alias,
+      });
+      expect(candidates[0]!.evidence).toContain('program alias "CCA"');
+    });
+
+    it('fan-caps shared program aliases and rejects weak acronym spellings', () => {
+      const capped = capProgramAliasFanout(
+        [
+          { peCode: '0207820F', term: 'CCA', tier: 'program_alias' },
+          { peCode: '0207110F', term: 'CCA', tier: 'program_alias' },
+          { peCode: '0604182A', term: 'LRHW', tier: 'program_alias' },
+          { peCode: '0207820F', term: 'AI', tier: 'program_alias' },
+        ],
+        1,
+      );
+
+      expect(capped.entries).toEqual([
+        { peCode: '0604182A', term: 'LRHW', tier: 'program_alias' },
+      ]);
+      expect(capped.dropped).toEqual(['CCA(2)']);
     });
 
     it('excludes the pe_title tier from bill matching', () => {

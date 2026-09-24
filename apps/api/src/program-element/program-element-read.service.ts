@@ -1317,8 +1317,14 @@ export class ProgramElementReadService {
     });
     if (!exists) throw new NotFoundException(`Program element ${peCode} not found`);
 
+    const versionedBillIds = await this.getVersionedFederalBillIds(peCode);
     const bills = await this.prisma.congressBill.findMany({
-      where: { peCodes: { has: peCode } },
+      where: {
+        OR: [
+          { peCodes: { has: peCode } },
+          ...(versionedBillIds.length ? [{ id: { in: versionedBillIds } }] : []),
+        ],
+      },
       orderBy: [{ latestActionDate: 'desc' }, { introducedDate: 'desc' }],
       take: 100,
       select: {
@@ -1362,6 +1368,34 @@ export class ProgramElementReadService {
       select: { billId: true, linkType: true, confidence: true, evidence: true, status: true },
     });
     const linkByBill = new Map(links.map((l) => [l.billId, l]));
+    const versionedLinks = bills.length
+      ? await this.prisma.$queryRaw<
+          Array<{
+            billId: string;
+            linkType: string;
+            confidence: number;
+            evidence: string;
+            status: string;
+          }>
+        >`
+          SELECT DISTINCT ON (c.bill_id)
+                 c.bill_id AS "billId", m.match_type AS "linkType", m.confidence,
+                 m.evidence, 'qualified' AS status
+            FROM federal_evidence_current c
+            JOIN federal_evidence_mention m ON m.revision_id = c.revision_id
+            LEFT JOIN LATERAL (
+              SELECT e.canonical_pe_code
+                FROM federal_evidence_mention_event e
+               WHERE e.event_type = 'resolved' AND e.current_revision_id = m.revision_id
+                 AND e.candidate_key = m.candidate_key
+               ORDER BY e.created_at DESC LIMIT 1
+            ) resolved ON TRUE
+           WHERE c.state = 'present' AND c.bill_id = ANY(${bills.map((bill) => bill.id)})
+             AND COALESCE(m.canonical_pe_code, resolved.canonical_pe_code) = ${peCode}
+             AND (m.qualification_state = 'qualified' OR resolved.canonical_pe_code IS NOT NULL)
+           ORDER BY c.bill_id, m.confidence DESC, m.created_at DESC`
+      : [];
+    for (const link of versionedLinks) if (!linkByBill.has(link.billId)) linkByBill.set(link.billId, link);
 
     // R4 §4.2: the budget package each bill rides in, so the PE panel can label the
     // legislative vehicle's cycle ("FY27 Defense Budget · authorization · house").
@@ -1431,8 +1465,14 @@ export class ProgramElementReadService {
     });
     if (!exists) throw new NotFoundException(`Program element ${peCode} not found`);
 
+    const versionedBillIds = await this.getVersionedFederalBillIds(peCode);
     const bills = await this.prisma.congressBill.findMany({
-      where: { peCodes: { has: peCode } },
+      where: {
+        OR: [
+          { peCodes: { has: peCode } },
+          ...(versionedBillIds.length ? [{ id: { in: versionedBillIds } }] : []),
+        ],
+      },
       orderBy: [{ latestActionDate: 'desc' }],
       take: 40,
       select: {
@@ -1473,6 +1513,26 @@ export class ProgramElementReadService {
     );
     events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     return { data: events.slice(0, 200), billCount: bills.length };
+  }
+
+  /** Qualified, current, version-aware bill projection. Never reads stale/removed mentions. */
+  private async getVersionedFederalBillIds(peCode: string): Promise<string[]> {
+    const rows = await this.prisma.$queryRaw<Array<{ billId: string }>>`
+      SELECT DISTINCT c.bill_id AS "billId"
+        FROM federal_evidence_current c
+        JOIN federal_evidence_mention m ON m.revision_id = c.revision_id
+        LEFT JOIN LATERAL (
+          SELECT e.canonical_pe_code
+            FROM federal_evidence_mention_event e
+           WHERE e.event_type = 'resolved' AND e.current_revision_id = m.revision_id
+             AND e.candidate_key = m.candidate_key
+           ORDER BY e.created_at DESC LIMIT 1
+        ) resolved ON TRUE
+       WHERE c.state = 'present' AND c.bill_id IS NOT NULL
+         AND COALESCE(m.canonical_pe_code, resolved.canonical_pe_code) = ${peCode}
+         AND (m.qualification_state = 'qualified' OR resolved.canonical_pe_code IS NOT NULL)
+       ORDER BY c.bill_id`;
+    return rows.map((row) => row.billId);
   }
 
   async getContractors(peCode: string) {

@@ -1,0 +1,146 @@
+{
+  "run": "f75f81cf",
+  "database": "capiro_package4_20260924",
+  "scenarios": {
+    "unknownCodeReplay": {
+      "first": {
+        "sourceKey": "govinfo:BILLS-119hr9597ih",
+        "revisionId": "6cf2962a-8c8d-4f62-86ec-7440d10bb3ae",
+        "observationInserted": true,
+        "revisionInserted": true,
+        "eventTypes": [],
+        "pendingUnknownCodes": [
+          "0604379F"
+        ]
+      },
+      "replay": {
+        "scanned": 1,
+        "resolved": 1
+      },
+      "historicalDrain": {
+        "claimed": 1,
+        "processed": 1,
+        "failed": 0,
+        "alertsInserted": 0,
+        "suppressedHistorical": 1
+      }
+    },
+    "sameCodeChangedLanguage": {
+      "changed": {
+        "sourceKey": "govinfo:BILLS-119hr9597ih",
+        "revisionId": "cde10ebb-f937-46ef-97db-7495c0a2b42f",
+        "observationInserted": true,
+        "revisionInserted": true,
+        "eventTypes": [
+          "changed",
+          "text_changed"
+        ],
+        "pendingUnknownCodes": []
+      },
+      "changedDrain": {
+        "claimed": 2,
+        "processed": 2,
+        "failed": 0,
+        "alertsInserted": 2,
+        "suppressedHistorical": 0
+      },
+      "retry": {
+        "sourceKey": "govinfo:BILLS-119hr9597ih",
+        "revisionId": "cde10ebb-f937-46ef-97db-7495c0a2b42f",
+        "observationInserted": false,
+        "revisionInserted": false,
+        "eventTypes": [],
+        "pendingUnknownCodes": []
+      },
+      "uncertainRetry": {
+        "claimed": 1,
+        "processed": 1,
+        "failed": 0,
+        "alertsInserted": 0,
+        "suppressedHistorical": 0
+      }
+    },
+    "partialSafety": {
+      "partial": {
+        "sourceKey": "govinfo:BILLS-119hr9597ih",
+        "revisionId": "0f366d7b-813b-4559-b298-cfcf30ea4b08",
+        "observationInserted": true,
+        "revisionInserted": true,
+        "eventTypes": [],
+        "pendingUnknownCodes": []
+      },
+      "currentRevisionId": "cde10ebb-f937-46ef-97db-7495c0a2b42f"
+    },
+    "removalAndReinstatement": {
+      "removed": {
+        "sourceKey": "govinfo:BILLS-119hr9597ih",
+        "revisionId": null,
+        "observationInserted": true,
+        "revisionInserted": false,
+        "eventTypes": [
+          "removed"
+        ],
+        "pendingUnknownCodes": []
+      },
+      "removalDrain": {
+        "claimed": 1,
+        "processed": 1,
+        "failed": 0,
+        "alertsInserted": 1,
+        "suppressedHistorical": 0
+      },
+      "reinstated": {
+        "sourceKey": "govinfo:BILLS-119hr9597ih",
+        "revisionId": "cde10ebb-f937-46ef-97db-7495c0a2b42f",
+        "observationInserted": true,
+        "revisionInserted": false,
+        "eventTypes": [
+          "reinstated"
+        ],
+        "pendingUnknownCodes": []
+      },
+      "reinstatementDrain": {
+        "claimed": 1,
+        "processed": 1,
+        "failed": 0,
+        "alertsInserted": 1,
+        "suppressedHistorical": 0
+      }
+    },
+    "actionOutbox": {
+      "actionDrain": {
+        "claimed": 1,
+        "processed": 1,
+        "failed": 0,
+        "alertsInserted": 1,
+        "suppressedHistorical": 0
+      }
+    },
+    "qualifiedReads": {
+      "currentCount": 1,
+      "peEventTypes": [
+        "reinstated",
+        "removed",
+        "changed",
+        "resolved"
+      ],
+      "billEventTypes": [
+        "action_added",
+        "reinstated",
+        "removed",
+        "changed",
+        "text_changed",
+        "resolved"
+      ]
+    }
+  },
+  "counts": {
+    "revisions": 3,
+    "observations": 5,
+    "mentions": 2,
+    "events": 6,
+    "outboxProcessed": 6,
+    "alerts": 5
+  },
+  "result": "PASS"
+}

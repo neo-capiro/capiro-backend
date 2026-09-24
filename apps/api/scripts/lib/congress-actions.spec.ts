@@ -7,11 +7,18 @@ import {
 function prismaMock() {
   const deleteOperation = { operation: 'delete' };
   const createOperation = { operation: 'create' };
+  const baselineOperation = { operation: 'baseline' };
   const raw = {
     congressBillAction: {
       deleteMany: jest.fn(() => deleteOperation),
       createMany: jest.fn(() => createOperation),
+      findMany: jest.fn(async () => []),
     },
+    federalEvidenceCheckpoint: {
+      findUnique: jest.fn(async (): Promise<{ status: string } | null> => null),
+      upsert: jest.fn(() => baselineOperation),
+    },
+    $executeRaw: jest.fn(() => ({ operation: 'raw' })),
     $transaction: jest.fn(async () => undefined),
   };
 
@@ -20,6 +27,7 @@ function prismaMock() {
     prisma: raw as unknown as CongressActionPrisma,
     deleteOperation,
     createOperation,
+    baselineOperation,
   };
 }
 
@@ -101,7 +109,11 @@ describe('Congress bill action ingestion', () => {
         },
       ],
     });
-    expect(db.raw.$transaction).toHaveBeenCalledWith([db.deleteOperation, db.createOperation]);
+    expect(db.raw.$transaction).toHaveBeenCalledWith([
+      db.deleteOperation,
+      db.createOperation,
+      db.baselineOperation,
+    ]);
   });
 
   it('treats a successful empty response as an authoritative empty history', async () => {
@@ -115,7 +127,29 @@ describe('Congress bill action ingestion', () => {
 
     expect(result).toEqual({ ok: true, actions: [] });
     expect(db.raw.congressBillAction.createMany).not.toHaveBeenCalled();
-    expect(db.raw.$transaction).toHaveBeenCalledWith([db.deleteOperation]);
+    expect(db.raw.$transaction).toHaveBeenCalledWith([db.deleteOperation, db.baselineOperation]);
+  });
+
+  it('emits the first later action after an authoritative empty baseline', async () => {
+    const db = prismaMock();
+    db.raw.federalEvidenceCheckpoint.findUnique.mockResolvedValueOnce({ status: 'completed' });
+
+    const result = await syncCongressBillActions({
+      prisma: db.prisma,
+      billId: '119-hres-215',
+      fetchPage: async () => ({
+        actions: [{ actionDate: '2025-03-06', text: 'Introduced in House' }],
+      }),
+    });
+
+    expect(result).toMatchObject({ ok: true, actions: [{ text: 'Introduced in House' }] });
+    expect(db.raw.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(db.raw.$transaction).toHaveBeenCalledWith([
+      db.deleteOperation,
+      db.createOperation,
+      db.baselineOperation,
+      { operation: 'raw' },
+    ]);
   });
 
   it('uses a trimmed actionCode when Congress returns a valid action with null text', async () => {

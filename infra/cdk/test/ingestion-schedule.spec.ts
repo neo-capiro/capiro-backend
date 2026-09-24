@@ -38,6 +38,44 @@ describe('Funding Opportunities production ingestion schedules', () => {
   });
 });
 
+describe('Package 4 federal legislative evidence schedules', () => {
+  const ids = [
+    'SyncFederalLegislativeBills',
+    'ReconcileFederalLegislativeBills',
+    'ReconcileFederalLegislativeReports',
+    'ReconcileFederalLegislativePrints',
+    'ReconcileFederalPublicLaws',
+    'ReconcileFederalCongressionalRecord',
+    'DrainFederalEvidenceOutbox',
+  ];
+
+  test('registers the complete collection and delivery matrix but ships every rule dark', () => {
+    for (const id of ids) {
+      const job = INGESTION_JOBS.find((candidate) => candidate.id === id);
+      expect(job).toBeDefined();
+      expect(job!.enabled).toBe(false);
+    }
+    expect(
+      ids
+        .map((id) => INGESTION_JOBS.find((candidate) => candidate.id === id)!)
+        .filter((job) => job.command[0] === 'sync-federal-legislative-evidence')
+        .map((job) => job.command[job.command.indexOf('--collection') + 1]),
+    ).toEqual(['BILLS', 'BILLS', 'CRPT', 'CPRT', 'PLAW', 'CREC']);
+  });
+
+  test('dispatches both Package 4 worker verbs through the API image entrypoint', () => {
+    const dispatcher = readFileSync(
+      resolve(__dirname, '../../../apps/api/scripts/entrypoint-dispatcher.inc'),
+      'utf8',
+    );
+    for (const command of ['sync-federal-legislative-evidence', 'drain-federal-evidence-outbox']) {
+      expect(dispatcher).toContain(
+        `${command}) shift; exec ./node_modules/.bin/tsx scripts/${command}.ts`,
+      );
+    }
+  });
+});
+
 describe('Florida OpenStates committee-event coverage', () => {
   test('runs daily after the Monday roster normalization and has a real dispatcher verb', () => {
     const roster = INGESTION_JOBS.find((job) => job.id === 'NormalizeStateCommittees')!;

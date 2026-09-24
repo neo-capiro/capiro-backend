@@ -4595,6 +4595,159 @@ model BillText {
   @@map("bill_text")
 }
 
+/// Immutable publisher bytes plus normalized text for one federal legislative
+/// package/version. The mutable BillText row is only a compatibility projection.
+model FederalEvidenceRevision {
+  id               String   @id @default(uuid()) @db.Uuid
+  sourceKey        String   @map("source_key")
+  provider         String   @db.VarChar(24)
+  collection       String   @db.VarChar(16)
+  packageId        String   @map("package_id")
+  billId           String?  @map("bill_id")
+  versionCode      String?  @map("version_code") @db.VarChar(32)
+  lineageKey       String   @map("lineage_key")
+  contentHash      String   @map("content_hash") @db.Char(64)
+  extractionHash   String   @map("extraction_hash") @db.Char(64)
+  parserVersion    String   @map("parser_version") @db.VarChar(64)
+  sourceUrl        String   @map("source_url")
+  sourceModifiedAt DateTime? @map("source_modified_at") @db.Timestamptz(6)
+  publishedAt      DateTime? @map("published_at") @db.Timestamptz(6)
+  fetchedAt        DateTime @default(now()) @map("fetched_at") @db.Timestamptz(6)
+  rawContent       String   @map("raw_content") @db.Text
+  extractedText    String   @map("extracted_text") @db.Text
+  completeness     String   @db.VarChar(16)
+  metadata         Json     @default("{}") @map("metadata_jsonb")
+
+  @@unique([sourceKey, contentHash, extractionHash, parserVersion], map: "federal_evidence_revision_identity_key")
+  @@index([billId, fetchedAt(sort: Desc)], map: "federal_evidence_revision_bill_idx")
+  @@index([packageId, fetchedAt(sort: Desc)], map: "federal_evidence_revision_package_idx")
+  @@map("federal_evidence_revision")
+}
+
+/// Append-only publisher observations. A removed row is written only after a
+/// complete inventory; failed/partial fetches leave the prior current row live.
+model FederalEvidenceObservation {
+  id                 BigInt   @id @default(autoincrement())
+  observationKey     String   @unique(map: "federal_evidence_observation_key_key") @map("observation_key")
+  sourceKey          String   @map("source_key")
+  revisionId         String?  @map("revision_id") @db.Uuid
+  state              String   @db.VarChar(16)
+  observedAt         DateTime @default(now()) @map("observed_at") @db.Timestamptz(6)
+  sourceModifiedAt   DateTime? @map("source_modified_at") @db.Timestamptz(6)
+  inventoryWindowEnd DateTime @map("inventory_window_end") @db.Timestamptz(6)
+  historical         Boolean  @default(false)
+  metadata           Json     @default("{}") @map("metadata_jsonb")
+
+  @@index([sourceKey, id(sort: Desc)], map: "federal_evidence_observation_current_idx")
+  @@map("federal_evidence_observation")
+}
+
+/// Immutable exact/alias/Jev candidate captured against a single revision.
+model FederalEvidenceMention {
+  id                 String   @id @default(uuid()) @db.Uuid
+  revisionId         String   @map("revision_id") @db.Uuid
+  candidateKey       String   @map("candidate_key")
+  rawMention         String   @map("raw_mention")
+  canonicalPeCode    String?  @map("canonical_pe_code") @db.VarChar(16)
+  matchType          String   @map("match_type") @db.VarChar(24)
+  qualificationState String   @map("qualification_state") @db.VarChar(16)
+  confidence         Float
+  locator            String
+  evidence           String   @db.Text
+  languageHash       String   @map("language_hash") @db.Char(64)
+  matcherVersion     String   @map("matcher_version") @db.VarChar(64)
+  qualifiedBy        String?  @map("qualified_by") @db.VarChar(64)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  metadata           Json     @default("{}") @map("metadata_jsonb")
+
+  @@unique([revisionId, candidateKey, matcherVersion], map: "federal_evidence_mention_revision_candidate_key")
+  @@index([qualificationState, rawMention], map: "federal_evidence_mention_pending_idx")
+  @@index([canonicalPeCode, createdAt(sort: Desc)], map: "federal_evidence_mention_pe_idx")
+  @@map("federal_evidence_mention")
+}
+
+/// Append-only semantic lifecycle. Stable eventKey is also the delivery identity.
+model FederalEvidenceMentionEvent {
+  id                 String   @id @default(uuid()) @db.Uuid
+  eventKey           String   @unique(map: "federal_evidence_mention_event_key_key") @map("event_key")
+  sourceKey          String   @map("source_key")
+  billId             String?  @map("bill_id")
+  eventType          String   @map("event_type") @db.VarChar(24)
+  candidateKey       String   @map("candidate_key")
+  rawMention         String   @map("raw_mention")
+  canonicalPeCode    String?  @map("canonical_pe_code") @db.VarChar(16)
+  previousRevisionId String?  @map("previous_revision_id") @db.Uuid
+  currentRevisionId  String?  @map("current_revision_id") @db.Uuid
+  before             Json?    @map("before_jsonb")
+  after              Json?    @map("after_jsonb")
+  historical         Boolean  @default(false)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([sourceKey, createdAt(sort: Desc)], map: "federal_evidence_mention_event_source_idx")
+  @@index([canonicalPeCode, createdAt(sort: Desc)], map: "federal_evidence_mention_event_pe_idx")
+  @@map("federal_evidence_mention_event")
+}
+
+model FederalEvidenceChangeOutbox {
+  id          String    @id @default(uuid()) @db.Uuid
+  eventId     String    @unique(map: "federal_evidence_change_outbox_event_key") @map("event_id") @db.Uuid
+  dedupeKey   String    @unique(map: "federal_evidence_change_outbox_dedupe_key") @map("dedupe_key")
+  payload     Json      @map("payload_jsonb")
+  status      String    @default("pending") @db.VarChar(16)
+  attempts    Int       @default(0)
+  availableAt DateTime  @default(now()) @map("available_at") @db.Timestamptz(6)
+  leaseToken  String?   @map("lease_token") @db.Uuid
+  leaseUntil  DateTime? @map("lease_until") @db.Timestamptz(6)
+  lastError   String?   @map("last_error") @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(6)
+
+  @@index([status, availableAt, createdAt], map: "federal_evidence_change_outbox_ready_idx")
+  @@map("federal_evidence_change_outbox")
+}
+
+model FederalEvidenceCheckpoint {
+  source      String    @id
+  cursor      Json?     @map("cursor_jsonb")
+  windowStart DateTime? @map("window_start") @db.Timestamptz(6)
+  windowEnd   DateTime? @map("window_end") @db.Timestamptz(6)
+  status      String    @default("idle") @db.VarChar(16)
+  leaseToken  String?   @map("lease_token") @db.Uuid
+  leaseUntil  DateTime? @map("lease_until") @db.Timestamptz(6)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
+  lastError   String?   @map("last_error") @db.Text
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("federal_evidence_checkpoint")
+}
+
+model FederalEvidenceInventoryMember {
+  inventorySource   String   @map("inventory_source")
+  sourceKey         String   @map("source_key")
+  packageId         String   @map("package_id")
+  lastSeenWindowEnd DateTime @map("last_seen_window_end") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@id([inventorySource, sourceKey])
+  @@index([inventorySource, lastSeenWindowEnd], map: "federal_evidence_inventory_member_last_seen_idx")
+  @@map("federal_evidence_inventory_member")
+}
+
+model FederalEvidenceCoverageGap {
+  sourceKey       String    @map("source_key")
+  packageId       String    @map("package_id")
+  collection      String    @db.VarChar(16)
+  reason          String    @db.VarChar(64)
+  detail          String?   @db.Text
+  firstObservedAt DateTime  @default(now()) @map("first_observed_at") @db.Timestamptz(6)
+  lastObservedAt  DateTime  @default(now()) @map("last_observed_at") @db.Timestamptz(6)
+  resolvedAt      DateTime? @map("resolved_at") @db.Timestamptz(6)
+
+  @@id([sourceKey, reason])
+  @@index([collection, resolvedAt, lastObservedAt(sort: Desc)], map: "federal_evidence_coverage_gap_open_idx")
+  @@map("federal_evidence_coverage_gap")
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Expanded Congress bill data (normalized)
 // GLOBAL tables, no tenant_id, no RLS.

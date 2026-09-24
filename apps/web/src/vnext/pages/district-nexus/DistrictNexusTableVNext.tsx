@@ -116,13 +116,24 @@ export function DistrictNexusTableVNext({ districts, selectedDistrictKey, onSele
                   key={record.districtKey}
                   className={record.districtKey === selectedDistrictKey ? 'dnx-row-selected' : undefined}
                   onClick={() => onSelectDistrict(record.districtKey)}
+                  aria-selected={record.districtKey === selectedDistrictKey}
                   style={{ cursor: 'pointer' }}
                 >
                   <CapiroTableCell>
-                    <span className="dnx-num" style={{ fontWeight: 700 }}>
-                      {record.districtKey}
-                    </span>
-                    {record.status === 'F' ? <CapiroBadge tone="info">future</CapiroBadge> : null}
+                    <button
+                      type="button"
+                      className="dnx-row-btn"
+                      aria-label={`Select district ${record.districtKey}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectDistrict(record.districtKey);
+                      }}
+                    >
+                      <span className="dnx-num" style={{ fontWeight: 700 }}>
+                        {record.districtKey}
+                      </span>
+                      {record.status === 'F' ? <CapiroBadge tone="info">future</CapiroBadge> : null}
+                    </button>
                   </CapiroTableCell>
                   <CapiroTableCell className="dnx-ellipsis">
                     {record.name ?? <span className="dnx-muted">—</span>}

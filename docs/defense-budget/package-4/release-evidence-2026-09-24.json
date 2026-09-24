@@ -1,0 +1,66 @@
+{
+  "package": 4,
+  "releasedAt": "2026-09-24T19:26:11Z",
+  "sourceControl": {
+    "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1776",
+    "mergeCommit": "a57150eaa973b93b8871bdcd8c03b1994230dcfe",
+    "githubMain": "a57150eaa973b93b8871bdcd8c03b1994230dcfe",
+    "localMain": "a57150eaa973b93b8871bdcd8c03b1994230dcfe",
+    "githubHostedChecks": {
+      "result": "infrastructure_failure",
+      "runnerAssigned": false,
+      "stepsStarted": 0,
+      "reason": "repository billing/spending-limit outage"
+    }
+  },
+  "aws": {
+    "account": "967807252336",
+    "region": "us-east-1",
+    "cluster": "capiro-dev",
+    "codeBuild": {
+      "id": "capiro-build-intel-api:183f0e1f-d92c-4165-b292-ff69f4d5d79e",
+      "resolvedSourceVersion": "a57150eaa973b93b8871bdcd8c03b1994230dcfe",
+      "status": "SUCCEEDED"
+    },
+    "apiImage": {
+      "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
+      "digest": "sha256:f50d5f796534596a6d1c3581381c51fbcfca3d0caa84a48bfb488ec4451f1934",
+      "tags": [
+        "a57150eaa973b93b8871bdcd8c03b1994230dcfe",
+        "package4-20260924-api"
+      ]
+    },
+    "migration": {
+      "taskDefinition": "capiro-dev-api-migrate:132",
+      "taskId": "dbb54ed4b0304c5b9e301df6ab3b7f86",
+      "migration": "20280924030000_federal_legislative_evidence",
+      "exitCode": 0
+    },
+    "apiService": {
+      "service": "capiro-dev-api",
+      "taskDefinition": "capiro-dev-api:446",
+      "rolloutState": "COMPLETED",
+      "desired": 2,
+      "running": 2,
+      "pending": 0,
+      "healthyTasks": 2,
+      "healthyReplacementTargets": 2
+    },
+    "syncRuntime": {
+      "taskDefinition": "capiro-dev-api-sync-jobs:32",
+      "activationFlag": false,
+      "outboxDryRunTaskId": "4d3f5992705147d6b56846eb85b71bf8",
+      "syncDryRunTaskId": "a505c1759b874255a5ac65ab755b0402",
+      "dryRunExitCodes": [0, 0],
+      "pendingOutboxRows": 0,
+      "eventBridgeRules": []
+    }
+  },
+  "activation": {
+    "status": "dark",
+    "sourcePollingActive": false,
+    "alertDeliveryActive": false,
+    "canonicalFinancialWrites": false,
+    "blocker": "Package 3 governed congressional input/proof gate remains unresolved"
+  }
+}
