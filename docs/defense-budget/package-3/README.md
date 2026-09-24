@@ -1,6 +1,6 @@
 # Defense-budget Package 3 — durable semantic extraction and scoped publication
 
-Package 3 extends the durable extraction path to procurement, O&M and MILCON while retaining the RDT&E path. It adds a versioned substantive qualification hash and a pure plan for explicitly reviewed, scoped PE totals. This release does not activate canonical publication.
+Package 3 extends the durable extraction path to procurement, O&M and MILCON while retaining the RDT&E path. It adds a versioned substantive qualification hash and a pure plan for explicitly reviewed, scoped PE totals. The API release is deployed from merge commit `f3c0bb74ba97541aba2676552a77539e97bd02d6`; canonical publication remains deliberately inactive.
 
 ## Delivered scope
 
@@ -25,13 +25,14 @@ Congressional semantic production requires governed structured-table material pl
 
 - [Operator runbook](./operator-runbook.md)
 - [Validation and runtime evidence](./validation-evidence-2026-09-24.md)
+- [Machine-readable release evidence](./release-evidence-2026-09-24.json)
 
-The live rollback baseline below is the supplied read-only audit snapshot for account `967807252336`, region `us-east-1`, cluster `capiro-dev`. It is a rollback reference, not evidence that Package 3 was deployed or qualified.
+Release scope: account `967807252336`, region `us-east-1`, cluster `capiro-dev`.
 
-| Runtime                             | State               | Image digest       |
-| ----------------------------------- | ------------------- | ------------------ |
-| API task definition `:443`          | Desired/running 2/2 | `sha256:445a9515…` |
-| Drain task definition `:27`         | Parked; no service  | `sha256:8ac22557…` |
-| Qualification task definition `:33` | Same drain image    | `sha256:8ac22557…` |
+| Runtime                             | Released state                                                 | Image digest                                                              |
+| ----------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| API task definition `:445`          | ECS steady; desired/running/pending `2/2/0`; two healthy tasks | `sha256:99db81bbd38cfdd21c046f038c05d96a85b6fffe95da975e1aac63282e8bf6c6` |
+| Drain task definition `:28`         | Parked; no running or pending tasks; default command is no-op  | `sha256:5b6739e35336845668e3731bbb77e1babc0a4e0f53e3fc58f743ff381dba521e` |
+| Qualification task definition `:34` | Two isolated one-off runs passed the formal release verifier   | `sha256:5b6739e35336845668e3731bbb77e1babc0a4e0f53e3fc58f743ff381dba521e` |
 
-No canonical snapshot activation or production deployment is part of this release documentation.
+No production manifest, drain execution, canonical snapshot write or activation was performed. Congressional semantic production remains a Package 3 exit blocker, so Package 4 must not begin under the completion plan until that governed input/proof gap is resolved.

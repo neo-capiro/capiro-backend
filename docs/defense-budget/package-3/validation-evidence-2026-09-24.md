@@ -28,14 +28,35 @@ Repository inspection confirms the following contracts in the Package 3 working 
 
 Congressional semantic production remains quarantined/blocked because governed structured-table inputs and the persisted proof inputs needed for production qualification are absent. This release makes no claim of production qualification for congressional tables or publication from congressional semantic artifacts.
 
-## Supplied read-only AWS rollback baseline
+## Source control and build release
+
+- Pull request [#1774](https://github.com/neo-capiro/capirov2/pull/1774) merged to GitHub `main` at `f3c0bb74ba97541aba2676552a77539e97bd02d6`; local `main` was fast-forwarded to the same commit.
+- GitHub-hosted checks did not start because the repository account reported a billing/spending-limit problem. This is recorded as CI infrastructure failure, not a passing CI signal. The locally executed gates above and the isolated AWS qualification below are the release evidence.
+- AWS CodeBuild `capiro-build-intel-api:d4a8af42-9d81-49d9-95c1-2e331c02deb7` resolved the exact merge commit and succeeded.
+- The native ARM64 API image is `sha256:99db81bbd38cfdd21c046f038c05d96a85b6fffe95da975e1aac63282e8bf6c6`; the drain/qualification image is `sha256:5b6739e35336845668e3731bbb77e1babc0a4e0f53e3fc58f743ff381dba521e`. The API's 32 layers are an exact prefix of the drain image's 51 layers.
+
+## Isolated release qualification
+
+Both one-off tasks used qualification task definition `capiro-dev-defense-budget-qualification:34`, local Postgres and local MinIO sidecars, and the exact official FY2024 source. Neither task used production Aurora or canonical publication paths. Both qualification containers exited zero.
+
+| Run                      | Formal verifier                    | Decision                     | Assertions | Omissions              | Exact artifact SHA-256                                             | Substantive SHA-256                                                |
+| ------------------------ | ---------------------------------- | ---------------------------- | ---------- | ---------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| `package3-f3c0bb74-run1` | `RELEASE_IMAGE_QUALIFICATION_PASS` | `REVIEW` / `TERMINAL_REVIEW` | 522        | 417 `ambiguous_layout` | `07e834a4a91b84cd1b60d629b578aaee0df4d91af2784906964e53ad5f2573f1` | `7cac359b01ae245d713f633345a2e0a9a3138b07ca62d3fa3762942205e71a0b` |
+| `package3-f3c0bb74-run2` | `RELEASE_IMAGE_QUALIFICATION_PASS` | `REVIEW` / `TERMINAL_REVIEW` | 522        | 417 `ambiguous_layout` | `7aa6b14ac538ca6da59c3c26dd2f241fc69e26483bc7378a7d4259590c526e41` | `7cac359b01ae245d713f633345a2e0a9a3138b07ca62d3fa3762942205e71a0b` |
+
+The exact byte hashes differ because run-scoped identities remain part of the exact artifact. The versioned substantive hashes match, which is the cross-run determinism gate. Both reports had `dbverifyOk: true`, DB decision `REVIEW`, target PE `0601102A`, and FY2024 total `296.67` million.
+
+## AWS deployment evidence
 
 Audit scope: account `967807252336`, region `us-east-1`, cluster `capiro-dev`.
 
-| Task definition     | State               | Digest             |
-| ------------------- | ------------------- | ------------------ |
-| API `:443`          | Desired/running 2/2 | `sha256:445a9515…` |
-| Drain `:27`         | Parked; no service  | `sha256:8ac22557…` |
-| Qualification `:33` | Same drain digest   | `sha256:8ac22557…` |
+| Runtime        | Result                                                                                                                                                                                                    |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API service    | Task definition `:445`; rollout `COMPLETED`; desired/running/pending `2/2/0`; deployment count 1; zero failed tasks.                                                                                      |
+| API identity   | Both running tasks report `HEALTHY`, exact API digest `sha256:99db81bbd38cfdd21c046f038c05d96a85b6fffe95da975e1aac63282e8bf6c6`, and task-definition `GIT_SHA` / `RELEASE_SHA` equal to the merge commit. |
+| Load balancer  | Both replacement targets reached `healthy`; ECS reached steady state.                                                                                                                                     |
+| Drain          | Task definition `:28` points at the qualified drain digest, keeps `echo no-op-default-command`, and has zero running or pending tasks.                                                                    |
+| Qualification  | Task definition `:34`; both one-off tasks stopped normally with qualification-container exit code 0; zero running or pending tasks remain.                                                                |
+| Canonical data | No production manifest, replay, drain, canonical write or snapshot activation was started.                                                                                                                |
 
-These runtime facts are supplied as the current live read-only audit baseline. They do not establish a Package 3 rollout, canonical activation or congressional qualification. Refresh the read-only audit before any later operational change.
+Machine-readable identifiers and hashes are in `release-evidence-2026-09-24.json`.
