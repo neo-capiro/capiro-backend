@@ -16,6 +16,7 @@ import { RecordDrawer } from './RecordDrawer.js';
 import { ManageAccountTeamModal } from './ManageAccountTeamModal.js';
 import { clientTeamKey, getClientTeam, teamMemberLabel } from './client-team-api.js';
 import { ClientNotetakerAction } from './ClientNotetakerAction.js';
+import { ClientBudgetWatches } from './ClientBudgetWatches.js';
 import './client-profile-shell.css';
 
 /**
@@ -257,6 +258,7 @@ export function ClientProfileShell({
           <ClientRecordDirectory tab={tab} view={view} onNavigate={onNavigate} />
           <div className="cap-pf-client-sections">{children}</div>
         </div>
+        <ClientBudgetWatches clientId={client.id} />
       </div>
 
       {drawerContent != null ? (

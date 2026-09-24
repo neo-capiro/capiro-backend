@@ -8,17 +8,10 @@
  * on the profile route, which carries its own FY control instead (§3: "Two FY
  * controls in one viewport would be two sources of truth").
  *
- * Honesty note on FY scope: `getProgramElementsList` / `getMovement` /
- * `getMarkupMonitor` have no `fy` parameter — they return each line's own
- * latest asserted position, not an arbitrary historical/future year (see
- * `docs/defense-budget/defense-budget-vnext-implementation-map.md`). The
- * fiscal year selected here therefore scopes what IS genuinely FY-addressable
- * today — the lifecycle source-coverage read and the default year a profile
- * deep-link opens to — while the catalog continues to disclose each line's
- * own actual FY next to its figures, exactly as it already did. Family and
- * service DO map onto real, supported query parameters
- * (`line_type` / `service`), so those two dimensions genuinely re-scope every
- * destination that reads them.
+ * FY is a real server-side filter for the Explore catalog and scopes lifecycle
+ * source coverage plus profile deep-links. Movement and markup-monitor retain
+ * their own latest-cycle semantics, so those views continue to print the
+ * actual FY alongside every figure rather than implying the context year.
  */
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';

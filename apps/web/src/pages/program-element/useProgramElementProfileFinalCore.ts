@@ -39,6 +39,7 @@ import type { DescriptionSource } from './DescriptionPanel.js';
 import type { PdocDetail } from './PdocDetailPanel.js';
 import type {
   ProgramElementBill,
+  ProgramElementDetail,
   ProgramElementHistoryRow,
   ProgramElementYearPoint,
 } from './types.js';
@@ -82,6 +83,17 @@ function numberOrNull(value: string | number | null | undefined): number | null 
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function rawStringRecord(raw: unknown, key: string): Record<string, string> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const value = (raw as Record<string, unknown>)[key];
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).filter(
+      (entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].trim() !== '',
+    ),
+  );
+}
+
 export function toProgramElementHistoryRows(
   years: ProgramElementYearPoint[],
 ): ProgramElementHistoryRow[] {
@@ -99,8 +111,71 @@ export function toProgramElementHistoryRows(
       ndaaConference: numberOrNull(year.ndaaConference),
       enacted: numberOrNull(year.enacted),
       projectedEnacted: false,
-      sourceAttribution: {},
+      sourceAttribution: rawStringRecord(year.raw, 'sourceAttribution'),
     }));
+}
+
+const PROFILE_EXPORT_STAGES = [
+  { key: 'request', label: 'President budget request', track: 'executive proposal' },
+  { key: 'hascMark', label: 'HASC mark', track: 'authorization' },
+  { key: 'sascMark', label: 'SASC mark', track: 'authorization' },
+  { key: 'ndaaConference', label: 'NDAA conference', track: 'authorization' },
+  { key: 'hacDMark', label: 'HAC-D mark', track: 'appropriations' },
+  { key: 'sacDMark', label: 'SAC-D mark', track: 'appropriations' },
+  { key: 'conference', label: 'Appropriations conference', track: 'appropriations' },
+  { key: 'enacted', label: 'Enacted', track: 'appropriations' },
+] as const;
+
+/**
+ * Reproducible, stage-preserving PE export. Missing marks are emitted rather
+ * than dropped so an empty cell cannot be mistaken for a zero-dollar fact.
+ */
+export function buildProgramElementProfileCsvRows(
+  detail: ProgramElementDetail,
+  generatedAt: string,
+): Array<Array<string | number | null | undefined>> {
+  const rows: Array<Array<string | number | null | undefined>> = [
+    ['Export schema', 'program-element-profile-v2'],
+    ['Generated at', generatedAt],
+    ['Data as of', detail.lastSyncedAt],
+    ['Program Element', detail.peCode],
+    ['Title', detail.title],
+    ['Service', detail.service],
+    ['Appropriation', detail.appropriationType],
+    ['Budget activity', detail.budgetActivity],
+    [],
+    [
+      'Fiscal year',
+      'Track',
+      'Stage',
+      'Amount',
+      'Unit',
+      'As of',
+      'Attribution status',
+      'Source attribution',
+    ],
+  ];
+
+  for (const year of [...(detail.years ?? [])].sort((left, right) => left.fy - right.fy)) {
+    const sourceAttribution = rawStringRecord(year.raw, 'sourceAttribution');
+    const datesAdded = rawStringRecord(year.raw, 'datesAdded');
+    for (const stage of PROFILE_EXPORT_STAGES) {
+      const amount = numberOrNull(year[stage.key]);
+      const source = sourceAttribution[stage.key] ?? null;
+      rows.push([
+        year.fy,
+        stage.track,
+        stage.label,
+        amount,
+        'USD millions',
+        datesAdded[stage.key] ?? detail.lastSyncedAt,
+        amount == null ? 'not reported' : source ? 'source-attributed' : 'unattributed',
+        source,
+      ]);
+    }
+  }
+
+  return rows;
 }
 
 function downloadCsv(
@@ -443,23 +518,10 @@ export function useProgramElementProfileFinalCore({
 
   const exportProfile = () => {
     if (!detail) return;
-    downloadCsv(`${detail.peCode}-profile.csv`, [
-      ['Field', 'Value'],
-      ['Program Element', detail.peCode],
-      ['Title', detail.title],
-      ['Service', detail.service],
-      ['Appropriation', detail.appropriationType],
-      ['Budget activity', detail.budgetActivity],
-      ['Current FY', latest?.fy],
-      ['Current stage', latest ? STAGE_LABEL[latest.current.stage] : null],
-      ['Current amount ($M)', current],
-      ['Request ($M)', request],
-      ['Delta vs request (%)', deltaPct],
-      ['Bills touching', detail.billCount ?? bills.length],
-      ['Sources', detail.sourceCount],
-      ['Projects', detail.projectCount],
-      ['Verified', detail.lastSyncedAt],
-    ]);
+    downloadCsv(
+      `${detail.peCode}-profile.csv`,
+      buildProgramElementProfileCsvRows(detail, new Date().toISOString()),
+    );
   };
 
   return {

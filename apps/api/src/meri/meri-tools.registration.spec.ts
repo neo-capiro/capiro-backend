@@ -44,6 +44,31 @@ jest.mock('./meri-defense-budget-tool.helpers.js', () => ({}));
 
 import { MeriToolsService, TOOL_DEFINITIONS } from './meri-tools.service.js';
 
+describe('buyer workspace Meri tool', () => {
+  it('passes a pinned read through without changing coverage or unsupported gaps', async () => {
+    const payload = {
+      subject: { type: 'pe', id: '0603851F' }, asOfFy: 2027,
+      knownAt: '2026-09-24T00:00:00.000Z',
+      budget: { state: 'unsupported', data: null, coverage: { unresolvedReasons: [{ code: 'gap' }] }, freshness: null },
+      federalEvidence: { state: 'unsupported', data: null },
+      acquisition: { state: 'partial', data: { events: [1] } },
+      fundingExecution: { state: 'complete', data: { publications: [2] } },
+    };
+    const read = jest.fn(async () => payload);
+    const service = Object.assign(Object.create(MeriToolsService.prototype), {
+      buyerWorkspace: { read },
+    }) as MeriToolsService;
+    const input = { peCode: '0603851F', asOfFy: 2027, knownAt: '2026-09-24T00:00:00Z' };
+    await expect(service.execute({} as never, 'get_pe_buyer_workspace', input)).resolves.toEqual({
+      tool: 'get_pe_buyer_workspace', ...payload,
+    });
+    expect(read).toHaveBeenCalledWith(input);
+    await expect(service.execute({} as never, 'get_pe_buyer_workspace', { ...input, asOfFy: '2027' }))
+      .rejects.toThrow('asOfFy');
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+});
+
 /**
  * Tool-registration regression spec. Guards the whole Meri tool surface so a
  * future change cannot silently drop a tool, orphan a schema, or lose a
@@ -136,6 +161,7 @@ const EXPECTED_TOOLS = [
   'search_program_elements',
   'get_program_element',
   'get_pe_budget_timeline',
+  'get_pe_buyer_workspace',
   'get_pe_contractors',
   'get_pe_bills',
   'get_pe_report_language',
@@ -258,6 +284,7 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   forget_memory: ['memoryItemId'],
   get_program_element: ['peCode'],
   get_pe_budget_timeline: ['peCode'],
+  get_pe_buyer_workspace: ['peCode', 'asOfFy', 'knownAt'],
   get_pe_contractors: ['peCode'],
   get_pe_bills: ['peCode'],
   get_pe_report_language: ['peCode'],

@@ -2647,6 +2647,11 @@ Template: "$112.9M (FY27 HAC-D mark — appropriations; +$40.8M above the $72.1M
   "the request" / "the current ask". An outyear value is a FYDP projection — label it as such.
 - Never narrate the spark field (a bare number array with no FYs and no stages) — it is
   uninterpretable by design; use get_pe_budget_timeline instead.
+- For a buyer workspace question, call get_pe_buyer_workspace with the budget-line code, fiscal year,
+  and explicit knowledge timestamp. Explain the supported change, amount and accounting stage,
+  affected scope, client implication, and a next step justified by retrieved evidence. Cite the
+  relevant underlying sources. A section marked unsupported is an explicit gap: say what is
+  unavailable, repair or omit only that portion, and retain supported sections and citations.
 </money>
 
 <identifiers>
@@ -4274,6 +4279,14 @@ export const MERI_CAPABILITY_REGISTRY = [
     name: 'get_pe_budget_timeline',
     description:
       "Get a budget line's fiscal-year timeline by code. Returns `budgetExhibitType`, `currentCycleFy` (the live budget-cycle FY), and per-FY: president's request, HASC/SASC/HAC-D/SAC-D marks, conference, enacted, PLUS a `cycle` label ('current' = the live request/markup year; 'outyear' = an FYDP projection you must NOT quote as 'the request'; 'historical' = a prior year) and `current`/`currentStageLabel` (the authoritative value for that FY and which stage it came from). Always cite the 'current'-cycle FY as the request; never present an 'outyear' figure as the current ask.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'get_pe_buyer_workspace',
+    description:
+      'Read a DoD budget line buyer workspace for an explicit fiscal year and knowledge timestamp. Returns pinned federal legislative evidence plus source-backed acquisition continuity and funding/execution sections, their coverage and freshness, and an explicit unsupported canonical-budget gap. Explain what changed, amount and stage, affected scope, client implication, justified next step, and cite the underlying evidence. Preserve supported sections when another section is unsupported.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat', 'in_editor'],
