@@ -82,7 +82,11 @@ function key(input: {
 }
 
 const KEYS = {
-  pb: key({ authorityTrack: 'request', stage: 'president_budget_request', sourceFamily: 'pb_overview' }),
+  pb: key({
+    authorityTrack: 'request',
+    stage: 'president_budget_request',
+    sourceFamily: 'pb_overview',
+  }),
   hascReport: key({
     authorityTrack: 'authorization',
     stage: 'hasc_report',
@@ -158,7 +162,11 @@ async function run(
   });
 }
 
-function candidate(source: FixtureSource, expectedKey: string, extra: Partial<FixtureCandidate> = {}): FixtureCandidate {
+function candidate(
+  source: FixtureSource,
+  expectedKey: string,
+  extra: Partial<FixtureCandidate> = {},
+): FixtureCandidate {
   return { source, expectedSourceDedupKey: expectedKey, ...extra };
 }
 
@@ -251,6 +259,143 @@ describe('Session 7 — missing sources are never zero', () => {
 });
 
 describe('Session 7 — discovery, fingerprinting and versioning', () => {
+  it('bootstraps an unseen FY from first discovery and writes to its exact template identity', async () => {
+    const h = harness();
+    await h.controller.ensureFiscalYear({ fiscalYear: 2023 });
+    load(h, [candidate(FY2024_HASC_REPORT, KEYS.hascReport)]);
+
+    const result = await run(h, 'govinfo-committee-reports', 'unseen-fy-run');
+
+    assert.equal(result.status, 'succeeded');
+    assert.equal(result.changed, 1);
+    assert.equal(result.queued, 1);
+    assert.equal(result.outcomes[0]!.expectedSourceDedupKey, KEYS.hascReport);
+    assert.equal(h.store.expectedState(KEYS.hascReport), 'published');
+
+    const expected = h.store
+      .expectedSources()
+      .find((source) => source.dedupKey === KEYS.hascReport)!;
+    assert.equal(expected.fiscalYear, 2024);
+    assert.notEqual(
+      expected.cycleId,
+      h.store.expectedSources().find((s) => s.fiscalYear === 2023)!.cycleId,
+    );
+    const [observation] = h.store.observationsFor(KEYS.hascReport);
+    assert.ok(observation);
+    assert.equal(observation.expectedSourceId, expected.id);
+    assert.equal(observation.cycleId, expected.cycleId);
+    assert.equal(result.outcomes[0]!.classifiedFiscalYear, 2024);
+    assert.equal(
+      h.store
+        .expectedSources()
+        .filter((s) => s.fiscalYear === 2023)
+        .some((s) => s.id === observation.expectedSourceId),
+      false,
+    );
+
+    const [outbox] = h.store.outboxEntries();
+    assert.equal(h.store.outboxSize(), 1);
+    assert.equal(outbox!.observationId, observation.id);
+  });
+
+  it('dry-run of an unseen FY classifies without bootstrapping or writing', async () => {
+    const h = harness();
+    load(h, [candidate(FY2024_HASC_REPORT, KEYS.hascReport)]);
+
+    const result = await run(h, 'govinfo-committee-reports', 'unseen-fy-dry-run', {
+      commit: false,
+    });
+
+    assert.equal(result.status, 'succeeded');
+    assert.equal(result.changed, 1);
+    assert.equal(result.queued, 0);
+    assert.equal(h.store.expectedSources().length, 0);
+    assert.equal(h.store.allObservations().length, 0);
+    assert.equal(h.store.outboxSize(), 0);
+    assert.match(result.outcomes[0]!.reasons.join(' '), /dry run/);
+  });
+
+  it('replays official-source bytes across two coexisting prior-year cycles without identity collision', async () => {
+    const h = harness();
+    await h.controller.ensureFiscalYear({ fiscalYear: 2023 });
+    await h.controller.ensureFiscalYear({ fiscalYear: 2024 });
+    const priorYear = h.store.expectedSources().filter((source) => source.fiscalYear === 2023);
+    const priorHascKey = key({
+      authorityTrack: 'authorization',
+      stage: 'hasc_report',
+      sourceFamily: 'auth_committee_report',
+      chamber: 'house',
+      committee: 'HASC',
+      fiscalYear: 2023,
+    });
+    const priorHasc = priorYear.find((source) => source.dedupKey === priorHascKey)!;
+    const priorObservation = await h.store.recordObservation({
+      expectedSourceId: priorHasc.id,
+      cycleId: priorHasc.cycleId,
+      adapterId: FY2024_HASC_REPORT.adapterId,
+      discoveredUrl: FY2024_HASC_REPORT.url,
+      contentSha256: sha(FY2024_HASC_REPORT.shaSeed),
+      byteSize: null,
+      httpEtag: null,
+      httpLastModified: null,
+      observationState: 'changed',
+      revisionKind: 'first_discovery',
+      classifiedFiscalYear: 2023,
+      classifiedAuthorityTrack: 'authorization',
+      classifiedStage: 'hasc_report',
+      classifiedSourceFamily: 'auth_committee_report',
+      classificationConfidence: 1,
+      reviewReasons: [],
+      versionRank: null,
+      dedupKey: observationDedupKey({
+        expectedSourceDedupKey: priorHascKey,
+        contentSha256: sha(FY2024_HASC_REPORT.shaSeed),
+      }),
+      observedAt: NOW,
+    });
+    await h.store.setExpectedSourceState({
+      expectedSourceId: priorHasc.id,
+      expectedState: 'published',
+      reviewReason: null,
+    });
+    const priorYearHistory = h.store
+      .expectedSources()
+      .filter((source) => source.fiscalYear === 2023)
+      .map((source) => [source.id, source.dedupKey, source.expectedState]);
+    load(h, [candidate(FY2024_HASC_REPORT, KEYS.hascReport)]);
+
+    const first = await run(h, 'govinfo-committee-reports', 'annual-replay-1');
+    assert.equal(first.changed, 1);
+    assert.equal(first.queued, 1);
+    const observationsAfterFirst = h.store.allObservations().length;
+    const outboxAfterFirst = h.store.outboxSize();
+    const fy2024Expected = h.store
+      .expectedSources()
+      .find((source) => source.dedupKey === KEYS.hascReport)!;
+    assert.equal(fy2024Expected.fiscalYear, 2024);
+    assert.equal(
+      priorYear.some((source) => source.dedupKey === fy2024Expected.dedupKey),
+      false,
+    );
+
+    const replay = await run(h, 'govinfo-committee-reports', 'annual-replay-2');
+    assert.equal(replay.unchanged, 1);
+    assert.equal(replay.changed, 0);
+    assert.equal(replay.queued, 0);
+    assert.equal(h.store.allObservations().length, observationsAfterFirst);
+    assert.equal(h.store.outboxSize(), outboxAfterFirst);
+    assert.deepEqual(
+      h.store
+        .expectedSources()
+        .filter((source) => source.fiscalYear === 2023)
+        .map((source) => [source.id, source.dedupKey, source.expectedState]),
+      priorYearHistory,
+      'replay of newer-year bytes leaves the older year history intact',
+    );
+    assert.equal(h.store.observationsFor(priorHascKey)[0]!.id, priorObservation.observation.id);
+    assert.equal(h.store.observationsFor(KEYS.hascReport).length, 1);
+  });
+
   it('discovers, classifies and versions a first official source', async () => {
     const h = harness();
     await bootstrap(h);
@@ -316,7 +461,8 @@ describe('Session 7 — discovery, fingerprinting and versioning', () => {
 
     load(h, [
       candidate(FY2024_HASC_REPORT, KEYS.hascReport, {
-        urlOverride: 'https://www.govinfo.gov/content/pkg/CRPT-118hrpt125/pdf/CRPT-118hrpt125-v2.pdf',
+        urlOverride:
+          'https://www.govinfo.gov/content/pkg/CRPT-118hrpt125/pdf/CRPT-118hrpt125-v2.pdf',
       }),
     ]);
     const second = await run(h, 'govinfo-committee-reports', 'run-2');
@@ -333,7 +479,9 @@ describe('Session 7 — discovery, fingerprinting and versioning', () => {
     const firstId = h.store.observationsFor(KEYS.hascReport)[0]!.id;
 
     load(h, [
-      candidate(FY2024_HASC_REPORT, KEYS.hascReport, { shaSeedOverride: 'crpt-118hrpt125-corrected' }),
+      candidate(FY2024_HASC_REPORT, KEYS.hascReport, {
+        shaSeedOverride: 'crpt-118hrpt125-corrected',
+      }),
     ]);
     const second = await run(h, 'govinfo-committee-reports', 'run-2');
     assert.equal(second.outcomes[0]!.outcome, 'changed');
@@ -593,7 +741,10 @@ describe('Session 7 — historical lifecycle replay (real FY2024 sources)', () =
 
     load(h, [candidate(FY2024_NDAA_ENACTED, KEYS.authEnacted)]);
     await run(h, 'govinfo-public-laws', 'auth-enacted');
-    load(h, [candidate(FY2024_HACD_REPORT, KEYS.hacdReport), candidate(FY2024_SACD_REPORT, KEYS.sacdReport)]);
+    load(h, [
+      candidate(FY2024_HACD_REPORT, KEYS.hacdReport),
+      candidate(FY2024_SACD_REPORT, KEYS.sacdReport),
+    ]);
     await run(h, 'govinfo-committee-reports', 'appr-marks');
 
     // An enacted authorization did not advance, close or overwrite the
@@ -601,23 +752,35 @@ describe('Session 7 — historical lifecycle replay (real FY2024 sources)', () =
     assert.equal(h.store.expectedState(KEYS.authEnacted), 'published');
     assert.equal(h.store.expectedState(KEYS.hacdReport), 'published');
     assert.equal(h.store.expectedState(KEYS.sacdReport), 'published');
-    assert.equal(h.store.expectedState(KEYS.apprEnacted), 'expected', 'appropriations not enacted yet');
+    assert.equal(
+      h.store.expectedState(KEYS.apprEnacted),
+      'expected',
+      'appropriations not enacted yet',
+    );
   });
 
   it('recomputes only the affected lineage when a corrected source arrives', async () => {
     const h = harness();
     await bootstrap(h);
 
-    load(h, [candidate(FY2024_HASC_REPORT, KEYS.hascReport), candidate(FY2024_SASC_REPORT, KEYS.sascReport)]);
+    load(h, [
+      candidate(FY2024_HASC_REPORT, KEYS.hascReport),
+      candidate(FY2024_SASC_REPORT, KEYS.sascReport),
+    ]);
     await run(h, 'govinfo-committee-reports', 'marks');
     load(h, [candidate(FY2024_NDAA_ENACTED, KEYS.authEnacted)]);
     await run(h, 'govinfo-public-laws', 'enacted');
 
-    const beforeShas = h.store.allObservations().map((o) => o.contentSha256).sort();
+    const beforeShas = h.store
+      .allObservations()
+      .map((o) => o.contentSha256)
+      .sort();
 
     // An authoritative corrected SASC report supersedes only its own version.
     load(h, [
-      candidate(FY2024_SASC_REPORT, KEYS.sascReport, { shaSeedOverride: 'crpt-118srpt58-corrected' }),
+      candidate(FY2024_SASC_REPORT, KEYS.sascReport, {
+        shaSeedOverride: 'crpt-118srpt58-corrected',
+      }),
     ]);
     const correction = await run(h, 'govinfo-committee-reports', 'correction');
     assert.equal(correction.outcomes[0]!.outcome, 'changed');
@@ -633,8 +796,12 @@ describe('Session 7 — historical lifecycle replay (real FY2024 sources)', () =
     assert.deepEqual(scope.untouchedOtherTracks, ['appropriations']);
 
     // Prior evidence is still present and unmodified.
-    const afterShas = h.store.allObservations().map((o) => o.contentSha256).sort();
-    for (const before of beforeShas) assert.ok(afterShas.includes(before), 'prior evidence immutable');
+    const afterShas = h.store
+      .allObservations()
+      .map((o) => o.contentSha256)
+      .sort();
+    for (const before of beforeShas)
+      assert.ok(afterShas.includes(before), 'prior evidence immutable');
   });
 
   it('emits source-backed signals without any funding amount', async () => {
@@ -642,7 +809,10 @@ describe('Session 7 — historical lifecycle replay (real FY2024 sources)', () =
     await bootstrap(h);
     load(h, [candidate(FY2024_PB, KEYS.pb)]);
     await run(h, 'dod-comptroller', 's-pb');
-    load(h, [candidate(FY2024_HASC_REPORT, KEYS.hascReport), candidate(FY2024_SASC_REPORT, KEYS.sascReport)]);
+    load(h, [
+      candidate(FY2024_HASC_REPORT, KEYS.hascReport),
+      candidate(FY2024_SASC_REPORT, KEYS.sascReport),
+    ]);
     await run(h, 'govinfo-committee-reports', 's-marks');
 
     const signals = deriveLifecycleSignals([
@@ -675,7 +845,10 @@ describe('Session 7 — historical lifecycle replay (real FY2024 sources)', () =
     const kinds = signals.map((signal) => signal.signalKind).sort();
     assert.deepEqual(kinds, ['house_to_senate', 'pb_to_hasc', 'pb_to_sasc']);
     for (const signal of signals) {
-      assert.ok(!Object.keys(signal).some((k) => /amount|usd/i.test(k)), 'no money field on a signal');
+      assert.ok(
+        !Object.keys(signal).some((k) => /amount|usd/i.test(k)),
+        'no money field on a signal',
+      );
     }
   });
 });
