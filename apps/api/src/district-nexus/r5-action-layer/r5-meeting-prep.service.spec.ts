@@ -51,7 +51,7 @@ describe('R5 meeting prep', () => {
     expect(tx.meetingPrep.create).not.toHaveBeenCalled();
     const hidden = setup('client-one', false);
     await expect(hidden.service.generate(ctx, input)).rejects.toBeInstanceOf(NotFoundException);
-    expect(hidden.tx.meeting.findFirst.mock.calls[0][0].where.OR).toEqual([
+    expect(hidden.tx.meeting.findFirst.mock.calls[0]?.[0].where.OR).toEqual([
       { createdByUserId: ctx.userId }, { connection: { createdByUserId: ctx.userId } },
     ]);
   });
@@ -70,9 +70,8 @@ describe('R5 meeting prep', () => {
     expect(tx.meetingPrep.create).toHaveBeenCalledTimes(1);
     expect(preps).toHaveLength(2);
     expect(notes).toEqual([{ id: 'note' }]); expect(debriefs).toEqual([{ id: 'debrief' }]);
-    expect(first.generatedFrom.factIds).toContain(fact.id);
-    expect(first.agenda[1].factIds).toEqual([fact.id]);
-    expect(first.generatedFrom.evidence).toEqual([fact]);
+    expect(first.generatedFrom).toMatchObject({ factIds: [fact.id], evidence: [fact] });
+    expect(first.agenda).toContainEqual({ text: expect.stringContaining('Site'), factIds: [fact.id] });
     expect(first.provider).toBeNull(); expect(first.model).toBeNull();
   });
   it('edits only district preps, retains fact refs, and marks reviewed', async () => {
@@ -81,7 +80,7 @@ describe('R5 meeting prep', () => {
     const created = await service.generate(ctx, input);
     const result = await service.edit(ctx, created.id, { agenda: [{ text: 'Edited', factIds: [fact.id] }], reviewed: true });
     expect(result.status).toBe('reviewed'); expect(result.editedByUserId).toBe(ctx.userId);
-    expect(result.generatedFrom.factIds).toContain(fact.id);
+    expect(result.generatedFrom).toMatchObject({ factIds: [fact.id] });
     expect(preps[0]).toEqual({ id: 'classic', generatedFrom: { kind: 'classic' } });
   });
 });
