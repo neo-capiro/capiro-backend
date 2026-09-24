@@ -78,11 +78,21 @@ function integerEnv(name: string, fallback: number): number {
   return Number.isInteger(parsed) ? parsed : fallback;
 }
 
-function finite(value: unknown): number | null {
+/**
+ * Census APIs encode unavailable, suppressed, and annotation-only numeric
+ * values as negative special values. ACS estimates are non-negative, so no
+ * negative source value may cross into storage; a real zero remains zero.
+ */
+export function normalizeAcsValue(value: unknown): number | null {
   const text = String(value ?? '').trim();
-  if (!text || text.startsWith('-666') || text.startsWith('-888')) return null;
+  if (!text) return null;
   const parsed = Number(text);
-  return Number.isFinite(parsed) ? parsed : null;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function positiveMarginOfError(value: unknown): number | null {
+  const normalized = normalizeAcsValue(value);
+  return normalized != null && normalized > 0 ? normalized : null;
 }
 
 async function run(prisma: PrismaClient): Promise<EconomicSourceRunResult> {
@@ -110,6 +120,8 @@ async function run(prisma: PrismaClient): Promise<EconomicSourceRunResult> {
     const districtCode = row[index.get('congressional district') ?? -1];
     if (!state || !districtCode) continue;
     for (const [metricKey, estimateVariable, marginVariable, unit] of METRICS) {
+      const rawEstimate = row[index.get(estimateVariable) ?? -1] ?? null;
+      const rawMarginOfError = row[index.get(marginVariable) ?? -1] ?? null;
       facts.push({
         source: 'acs',
         dataset,
@@ -118,8 +130,8 @@ async function run(prisma: PrismaClient): Promise<EconomicSourceRunResult> {
         districtCode,
         boundaryCongress,
         metricKey,
-        metricValue: finite(row[index.get(estimateVariable) ?? -1]),
-        marginOfError: finite(row[index.get(marginVariable) ?? -1]),
+        metricValue: normalizeAcsValue(rawEstimate),
+        marginOfError: positiveMarginOfError(rawMarginOfError),
         unit,
         sourceRecordId: `${stateFips}:${districtCode}:${estimateVariable}`,
         sourceUrl: url.toString(),
@@ -128,12 +140,14 @@ async function run(prisma: PrismaClient): Promise<EconomicSourceRunResult> {
           censusName: row[index.get('NAME') ?? -1] ?? null,
           estimateVariable,
           marginVariable,
+          rawEstimate,
+          rawMarginOfError,
           annualDataset: true,
         },
       });
     }
-    const labor = finite(row[index.get('B23025_003E') ?? -1]);
-    const unemployed = finite(row[index.get('B23025_005E') ?? -1]);
+    const labor = normalizeAcsValue(row[index.get('B23025_003E') ?? -1]);
+    const unemployed = normalizeAcsValue(row[index.get('B23025_005E') ?? -1]);
     facts.push({
       source: 'acs',
       dataset,

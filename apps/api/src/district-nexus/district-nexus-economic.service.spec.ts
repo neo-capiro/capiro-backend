@@ -346,6 +346,52 @@ describe('DistrictNexusEconomicService', () => {
     expect(result.warnings.join(' ')).not.toContain('cannot yet be placed');
   });
 
+  it('normalizes historical nonpositive Census margins of error to unavailable', async () => {
+    const { prisma } = tenantHarness({ evidence: [] });
+    prisma.$queryRaw
+      .mockResolvedValueOnce([
+        {
+          source: 'acs',
+          dataset: 'acs/acs5',
+          source_year: 2024,
+          boundary_congress: 119,
+          metric_key: 'total_population',
+          metric_value: 576_851,
+          unit: 'people',
+          margin_of_error: -555_555_555,
+          naics_code: null,
+          source_record_id: '56:00:B01003_001E',
+          source_url: 'https://api.census.gov/',
+          observed_at: now,
+          last_synced_at: now,
+          metadata_jsonb: {},
+        },
+        {
+          source: 'acs',
+          dataset: 'acs/acs5',
+          source_year: 2024,
+          boundary_congress: 119,
+          metric_key: 'median_household_income_usd',
+          metric_value: 72_495,
+          unit: 'USD',
+          margin_of_error: 1_234,
+          naics_code: null,
+          source_record_id: '56:00:B19013_001E',
+          source_url: 'https://api.census.gov/',
+          observed_at: now,
+          last_synced_at: now,
+          metadata_jsonb: {},
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    const service = new DistrictNexusEconomicService(prisma as never);
+
+    const context = await service.getDistrictContext('wy', '00');
+
+    expect(context.metrics[0]).toMatchObject({ value: 576_851, marginOfError: null });
+    expect(context.metrics[1]).toMatchObject({ value: 72_495, marginOfError: 1_234 });
+  });
+
   it('does not count public district context as client-owned economic evidence', async () => {
     const { prisma } = tenantHarness({ evidence: [] });
     prisma.$queryRaw
