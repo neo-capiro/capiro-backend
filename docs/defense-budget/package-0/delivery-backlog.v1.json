@@ -169,6 +169,21 @@
       "targetDate": "2026-11-27"
     },
     {
+      "id": "P3-QUALIFICATION-HASH-NORMALIZATION",
+      "package": 3,
+      "status": "confirmed_gap",
+      "ownerRole": "ingestion lead",
+      "summary": "Make the cross-container normalized qualification artifact hash exclude every run-derived field, or replace it with an explicit stable substantive projection contract.",
+      "sourceSeam": "qualify-defense-budget-drain-image-v1 stripRunIdentity and parser runtime result hashing",
+      "writerSeam": "qualification report only; no production data writer",
+      "readerSeam": "release-image qualification verifier and evidence packet",
+      "migrationOrBackfill": "No database migration; retain the two Package 0 reports as the regression fixture.",
+      "acceptanceFixtures": ["two fresh isolated containers", "identical source bytes", "different execution/job IDs", "byte-identical stable projection hash", "matching assertion counts and PE totals"],
+      "deploymentDependencies": ["reviewed hash-domain contract", "exact-image qualification harness"],
+      "effortPersonDays": 2,
+      "targetDate": "2026-10-06"
+    },
+    {
       "id": "P9-QUALIFICATION-OPERATIONS",
       "package": 9,
       "status": "confirmed_gap",

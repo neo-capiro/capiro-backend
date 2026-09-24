@@ -1,9 +1,9 @@
 # Package E code-based gap list
 
-Snapshot: `codex/package-e-batch-ingestion`, 2026-09-20. Source
-implementation, unit/regression checks, fresh migration replay, real PostgreSQL
-recovery tests, and one real parser/versioned-storage path have passed. No merge,
-final image, AWS qualification, deployment, or production batch is claimed.
+Initial snapshot: `codex/package-e-batch-ingestion`, 2026-09-20. Updated by
+Package 0 on 2026-09-24. Source implementation, migration rehearsal, final-image
+release qualification and dormant AWS deployment have passed. No production
+batch is claimed or authorized.
 
 ## Blocking release and authorization gates
 
@@ -11,10 +11,10 @@ final image, AWS qualification, deployment, or production batch is claimed.
 | --- | --- | --- |
 | Gate | No authorized runnable production manifest exists. The current proposal is qualification-only, has `executionAuthorized: false`, and has no runnable members. | Qualify eligible sources on the exact final image, create their lifecycle/observation/outbox rows through the governed path, freeze one exact manifest and independent S3 object hash, review it, and obtain one explicit batch authorization. |
 | P1 | The three proposed non-Air-Force documents are archive-proven but are not current-image-qualified and do not have eligible existing lifecycle/outbox rows. | Qualify Army FY27 RDT&E Vol 1 BA1, Central DoD FY27 R-1, and Army FY27 Missile Procurement independently. Reconcile Central DoD's stale family classification and exercise OCR for the image-only missile document. Admit only rows that then pass exact preview. |
-| P1 | No Package E merge commit or final API/drain image exists. | Merge only with actual merge authorization. Build Linux/ARM64 images from that exact merged revision, pin immutable digests, prove the drain base is the exact API digest, and retain provenance. |
+| Closed | Package E merge and final API/drain image provenance were absent. | Resolved through PR #1759 plus release fixes #1762/#1763. Final Linux/ARM64 digests are recorded in `../package-0/release-evidence-2026-09-24.json`; the drain's API-layer prefix is exact. |
 | P1 | No audited Package E CodeBuild override or sanitized ECS task-definition payload generator is committed. The old Package A artifact is identity-specific and the project default builds/deploys a different service. | Before release, review a fail-closed buildspec and task-definition cloning/sanitizing procedure against current AWS state. It must not expose secrets, use mutable tags, or activate the drain. |
-| P1 | The exact final drain digest has not been qualified twice through the real production verification path. | Register a digest-pinned isolated qualification revision; run every admitted format profile twice plus a deterministic negative isolation control; retain task/image/log/report/artifact identities. BA4A and the Package D digest do not qualify a new Package E image. |
-| P1 | Dormant deployment has not occurred. | After merge and exact-image qualification, use AWS CLI against `capiro-dev` only: run the additive migration, update the API to the qualified digest, register the same drain digest with `echo no-op-default-command`, wait healthy, and re-audit all automatic consumers. Do not launch the manifest command. |
+| Closed for release smoke | The exact final drain digest lacked repeat runtime qualification. | Two independent isolated runs of the representative immutable FY2024 Army R-2 source and a missing-credential negative control completed on qualification revision 33. Both positive reports passed the formal release verifier. The three proposed future first-batch members remain unqualified and unadmitted. |
+| Closed | Dormant deployment had not occurred. | AWS CLI applied the additive migration, stabilized API revision 439, registered parked drain revision 27, and confirmed no automatic drain/manifest consumer. The manifest command was not launched. |
 
 ## Remaining engineering limitations
 
@@ -58,7 +58,9 @@ final image, AWS qualification, deployment, or production batch is claimed.
 ## No-go rule
 
 Do not claim `ENGINEERING_COMPLETE_PILOT_AWAITING_AUTHORIZATION` or run a
-production task until the merge, final-image build/provenance, repeat
-qualification, dormant deployment, exact runnable preview, protected-state
-baseline, and explicit manifest authorization gates above are closed. Air Force
-FY27 RDT&E Volume I remains outside this package.
+production task until the proposed batch members have exact-source
+qualification and lifecycle/outbox bindings, an exact runnable preview exists,
+the protected-state baseline is reconfirmed, and explicit manifest
+authorization is recorded. Package 0 closed the merge, image, representative
+release-smoke and dormant-deployment gates only. Air Force FY27 RDT&E Volume I
+remains outside this package.
