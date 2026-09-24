@@ -112,9 +112,9 @@ export const SNAPSHOT_QUERY_SPECS: readonly SnapshotQuerySpec[] = [
   },
   {
     key: 'governedManifests',
-    table: 'governed_ingestion_manifest_v1',
+    table: 'defense_budget_ingestion_manifest_v1',
     sql: `SELECT status, COUNT(*)::int AS count, MAX(updated_at) AS latest_updated_at
-          FROM governed_ingestion_manifest_v1 GROUP BY 1 ORDER BY 1`,
+          FROM defense_budget_ingestion_manifest_v1 GROUP BY 1 ORDER BY 1`,
   },
 ] as const;
 
