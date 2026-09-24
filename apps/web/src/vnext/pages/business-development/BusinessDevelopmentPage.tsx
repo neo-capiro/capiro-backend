@@ -1448,6 +1448,7 @@ function PreferencesPanel({ tenantId, isAdmin }: { tenantId: string; isAdmin: bo
     return (
       <CapiroErrorState
         title="Preferences are unavailable right now"
+        description={bizdevErrorMessage(prefs.error)}
         onRetry={() =>
           void queryClient.resetQueries({
             queryKey: bizdevKeys.preferences(tenantId),
@@ -1611,7 +1612,7 @@ function Pipeline({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean })
           <div style={{ padding: 24 }}>
             <CapiroErrorState
               title="The pipeline could not be loaded"
-              description="This is likely temporary — nothing was changed. Try again."
+              description={bizdevErrorMessage(list.error)}
               onRetry={() => void list.refetch()}
               retryLabel="Retry"
             />
