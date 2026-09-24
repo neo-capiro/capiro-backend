@@ -1,0 +1,130 @@
+{
+  "schemaVersion": "defense_budget_package_3_release_evidence_v1",
+  "capturedAt": "2026-09-24T18:07:22.7104458Z",
+  "sourceControl": {
+    "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1774",
+    "mergeCommit": "f3c0bb74ba97541aba2676552a77539e97bd02d6",
+    "localMainMatchesGitHubMain": true,
+    "githubActions": {
+      "started": false,
+      "reason": "repository billing or spending limit prevented runner assignment"
+    }
+  },
+  "aws": {
+    "accountId": "967807252336",
+    "region": "us-east-1",
+    "cluster": "capiro-dev",
+    "preReleaseRollbackReference": {
+      "observedImmediatelyBeforeDeployment": true,
+      "apiTaskDefinition": "capiro-dev-api:444",
+      "apiImageDigest": "sha256:11c97bae758709ea9becaa392e5b81e6805cc91395e1a813dad2833951bf6a7b",
+      "desiredCount": 2,
+      "runningCount": 2,
+      "pendingCount": 0,
+      "drainTaskDefinition": "capiro-dev-defense-budget-ingestion-drain:27",
+      "qualificationTaskDefinition": "capiro-dev-defense-budget-qualification:33"
+    },
+    "codeBuild": {
+      "id": "capiro-build-intel-api:d4a8af42-9d81-49d9-95c1-2e331c02deb7",
+      "status": "SUCCEEDED",
+      "sourceVersion": "f3c0bb74ba97541aba2676552a77539e97bd02d6",
+      "resolvedSourceVersion": "f3c0bb74ba97541aba2676552a77539e97bd02d6",
+      "startTime": "2026-09-24T17:34:23.8830000Z",
+      "endTime": "2026-09-24T17:41:14.7180000Z"
+    },
+    "images": {
+      "api": {
+        "digest": "sha256:99db81bbd38cfdd21c046f038c05d96a85b6fffe95da975e1aac63282e8bf6c6",
+        "tags": ["f3c0bb74ba97541aba2676552a77539e97bd02d6", "package3-20260924-api"],
+        "compressedSizeBytes": 292179645
+      },
+      "drain": {
+        "digest": "sha256:5b6739e35336845668e3731bbb77e1babc0a4e0f53e3fc58f743ff381dba521e",
+        "tags": [
+          "f3c0bb74ba97541aba2676552a77539e97bd02d6-defense-drain",
+          "package3-20260924-drain"
+        ],
+        "compressedSizeBytes": 766008878
+      },
+      "apiLayerCount": 32,
+      "drainLayerCount": 51,
+      "apiLayersAreExactDrainPrefix": true
+    },
+    "qualification": {
+      "taskDefinition": "capiro-dev-defense-budget-qualification:34",
+      "isolatedPostgres": true,
+      "isolatedMinio": true,
+      "productionAuroraUsed": false,
+      "formalVerifier": "RELEASE_IMAGE_QUALIFICATION_PASS",
+      "normalizedHashesMatch": true,
+      "runs": [
+        {
+          "taskId": "ed310ccdd6334a1a840ef0b9deb78346",
+          "runId": "package3-f3c0bb74-run1",
+          "containerExitCode": 0,
+          "decision": "REVIEW",
+          "finalState": "TERMINAL_REVIEW",
+          "targetPeCode": "0601102A",
+          "fiscalYear": 2024,
+          "targetPeFiscalYearTotalMillions": "296.67",
+          "totalAssertions": 522,
+          "omissions": 417,
+          "omissionsByKind": {
+            "ambiguous_layout": 417
+          },
+          "artifactSha256": "07e834a4a91b84cd1b60d629b578aaee0df4d91af2784906964e53ad5f2573f1",
+          "normalizedArtifactSha256": "7cac359b01ae245d713f633345a2e0a9a3138b07ca62d3fa3762942205e71a0b",
+          "dbverifyOk": true,
+          "dbRunDecision": "REVIEW"
+        },
+        {
+          "taskId": "f0a6ef17aeb849c88a3f604a79857994",
+          "runId": "package3-f3c0bb74-run2",
+          "containerExitCode": 0,
+          "decision": "REVIEW",
+          "finalState": "TERMINAL_REVIEW",
+          "targetPeCode": "0601102A",
+          "fiscalYear": 2024,
+          "targetPeFiscalYearTotalMillions": "296.67",
+          "totalAssertions": 522,
+          "omissions": 417,
+          "omissionsByKind": {
+            "ambiguous_layout": 417
+          },
+          "artifactSha256": "7aa6b14ac538ca6da59c3c26dd2f241fc69e26483bc7378a7d4259590c526e41",
+          "normalizedArtifactSha256": "7cac359b01ae245d713f633345a2e0a9a3138b07ca62d3fa3762942205e71a0b",
+          "dbverifyOk": true,
+          "dbRunDecision": "REVIEW"
+        }
+      ]
+    },
+    "apiService": {
+      "taskDefinition": "capiro-dev-api:445",
+      "desiredCount": 2,
+      "runningCount": 2,
+      "pendingCount": 0,
+      "deploymentCount": 1,
+      "rolloutState": "COMPLETED",
+      "runningTasksHealthy": 2,
+      "gitSha": "f3c0bb74ba97541aba2676552a77539e97bd02d6",
+      "releaseSha": "f3c0bb74ba97541aba2676552a77539e97bd02d6"
+    },
+    "drain": {
+      "taskDefinition": "capiro-dev-defense-budget-ingestion-drain:28",
+      "defaultCommand": "echo no-op-default-command",
+      "runningTaskCount": 0,
+      "pendingTaskCount": 0,
+      "productionManifestStarted": false
+    }
+  },
+  "canonicalPublication": {
+    "writeExecuted": false,
+    "snapshotActivated": false
+  },
+  "remainingBlocker": {
+    "area": "congressional semantic production",
+    "reason": "governed structured-table inputs and persisted source-profile, vehicle, enactment, and line-resolution proof inputs are absent",
+    "package3ExitSatisfied": false,
+    "package4Started": false
+  }
+}

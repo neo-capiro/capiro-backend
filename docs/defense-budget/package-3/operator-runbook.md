@@ -2,7 +2,8 @@
 
 ## Runtime and publication boundary
 
-- Treat this package as a code and qualification capability. It does not authorize or perform a production rollout, queue replay, drain, manifest creation or canonical activation.
+- The API capability is deployed on ECS task definition `capiro-dev-api:445` from merge commit `f3c0bb74ba97541aba2676552a77539e97bd02d6` and immutable API image digest `sha256:99db81bbd38cfdd21c046f038c05d96a85b6fffe95da975e1aac63282e8bf6c6`.
+- Deployment does not authorize a queue replay, drain, manifest creation, canonical write or snapshot activation. The registered drain task definition `:28` remains parked with a no-op default command.
 - Keep congressional semantic production quarantined until both governed structured-table source inputs and exact persisted proof inputs are available and independently qualified.
 - A generic component-wide book is not family-qualified evidence. Do not use it to infer complete procurement, O&M or MILCON coverage.
 - The scoped-fact publication plan is read-only planning output. Rows are always labeled `reviewed_partial` and `partial`; executing or activating a canonical snapshot is outside this package.
@@ -27,4 +28,6 @@
 
 The next bounded manifest may contain at most one exact source document, after read-only eligibility and format qualification confirm its immutable source/archive identity and readable bytes. Zero eligible sources is an acceptable result. No replay or drain is implied.
 
-Supplied audit rollback reference (account `967807252336`, `us-east-1`, cluster `capiro-dev`): API task definition `:443`, desired/running `2/2`, digest `sha256:445a9515…`; drain `:27` parked with no service, digest `sha256:8ac22557…`; qualification `:33` uses the same drain digest. This records the supplied baseline only; confirm current state through a fresh read-only audit before any separately authorized runtime operation.
+Pre-release rollback reference (account `967807252336`, `us-east-1`, cluster `capiro-dev`): API task definition `:444`, desired/running `2/2`, digest `sha256:11c97bae758709ea9becaa392e5b81e6805cc91395e1a813dad2833951bf6a7b`; drain `:27` parked with no service, digest `sha256:8ac22557…`; qualification `:33` used the same drain digest. Refresh live state before any rollback. A rollback changes only the API service task definition; it does not authorize running the drain or publishing canonical data.
+
+Post-release reference: API `:445` is steady at desired/running/pending `2/2/0`, with both tasks and load-balancer targets healthy on digest `sha256:99db81bbd38cfdd21c046f038c05d96a85b6fffe95da975e1aac63282e8bf6c6`. Qualification `:34` completed two isolated runs with exit code zero and matching substantive hash `7cac359b01ae245d713f633345a2e0a9a3138b07ca62d3fa3762942205e71a0b`.
