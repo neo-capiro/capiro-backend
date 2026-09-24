@@ -204,6 +204,7 @@ export class CandidateCorrectionV1Service {
         sourceDocumentId: newCandidate.sourceDocumentId,
         sourceSha256: newCandidate.sourceSha256,
       },
+      newCandidateAlreadyCorrectedIntoAnotherCandidate: newCandidateExistingOldLink != null,
     });
 
     const existingLinkForOldCandidate = await this.corrections.readByOldCandidateId(oldCandidate.id);

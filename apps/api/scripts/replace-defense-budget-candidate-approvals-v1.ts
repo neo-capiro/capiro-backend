@@ -446,6 +446,7 @@ export async function reconcileCommittedApprovalsV1(
 const EXIT_OK = 0;
 const EXIT_USAGE_OR_STEP1_ERROR = 1;
 const EXIT_PARTIAL = 2;
+const EXIT_RECONCILIATION_FAILED = 3;
 
 const KNOWN_FLAGS = new Set([
   '--old-candidate-id',
@@ -595,6 +596,7 @@ function parseArgs(argv: string[]): Args {
     reviewerId: need('--reviewer-id'),
     correctionReasonFile: need('--correction-reason-file'),
     commit: raw['--commit'] === true,
+    acknowledgedRevokedScopes,
   };
 }
 
