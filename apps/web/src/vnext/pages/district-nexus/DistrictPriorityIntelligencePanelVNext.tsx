@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CapiroSkeleton } from '../../components/feedback/index.js';
 import { useApi } from '../../../lib/use-api.js';
@@ -38,6 +39,7 @@ export function DistrictPriorityIntelligencePanelVNext({
     ? splitDistrictKey(districtKey)
     : { state: '', districtNo: '' };
   const enabled = Boolean(clientId && state && districtNo);
+  const [showAllDistrictRequests, setShowAllDistrictRequests] = useState(false);
 
   const query = useQuery<ClientPriorityIntelligenceResponse>({
     queryKey: ['district-nexus', 'priority-intelligence', clientId, state, districtNo],
@@ -166,13 +168,24 @@ export function DistrictPriorityIntelligencePanelVNext({
         </div>
       ) : (
         <div style={{ marginBottom: 10 }}>
-          {cpf.districtRequests.slice(0, 8).map((r) => (
+          {(showAllDistrictRequests
+            ? cpf.districtRequests
+            : cpf.districtRequests.slice(0, 8)
+          ).map((r) => (
             <CpfCdsRow key={r.requestId} request={r} clientLinked={r.clientAttribution != null} />
           ))}
           {cpf.districtRequests.length > 8 ? (
-            <div className="dnx-muted" style={{ fontSize: 12 }}>
-              +{cpf.districtRequests.length - 8} more
-            </div>
+            <button
+              type="button"
+              className="dnx-link-btn"
+              aria-expanded={showAllDistrictRequests}
+              onClick={() => setShowAllDistrictRequests((v) => !v)}
+              style={{ fontSize: 12 }}
+            >
+              {showAllDistrictRequests
+                ? 'Show fewer'
+                : `Show all ${cpf.districtRequests.length} requests`}
+            </button>
           ) : null}
         </div>
       )}
