@@ -11,6 +11,21 @@
 | Orchestrator Jev/canary regression | PASS | Provider factory, passage selector, shadow assessor and canary collector passed 53 tests after their intentional registry/envelope expectations were updated to v4 metadata. |
 | Offline paired replay | PASS | Ten cases produced deterministic hash `b44905cc1820bd0c`; no provider endpoint or credential was used. |
 
+GitHub Actions did not schedule any workflow steps for PR #1770 because GitHub reported an account billing/spending-limit failure. The PR was merged only after the repository-local gates above passed; the platform failure is recorded rather than represented as a code-validation pass.
+
+## Release gates
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Git identity | PASS | PR #1770 merged at `9e4466c676c89ff1ad338f4b4abc100f057e538c`; local and GitHub `main` matched that revision before the image build. |
+| ARM64 image | PASS | Exact-SHA ECR tag resolves to Linux ARM64 digest `sha256:3d744a27653097deb0c7a774ff2cc3141e2a58ec2464c93568f65cb1b41a723f`. |
+| Narrow task definition | PASS | Revision 81 differs from rollback revision 80 only in the orchestrator image digest, `GIT_SHA` and `RELEASE_SHA`. |
+| Runtime invariants | PASS | Existing Jev task allowlist, model, timeout, retry, tenant, surface and rollout-mode settings were preserved; Package 2 tasks remain disabled. |
+| ECS stability | PASS | Service and its only deployment are completed at desired/running/pending 1/1/0; running task and container are healthy on the expected digest. |
+| Public health | PASS | `https://app.capiro.ai/meri-api/health` returned `{"ok":true,"service":"meriv2-orchestrator"}`. |
+
+The machine-readable release record is [release-evidence-2026-09-24.json](./release-evidence-2026-09-24.json).
+
 ## Acceptance mapping
 
 | Package 0 fixture | Proof |

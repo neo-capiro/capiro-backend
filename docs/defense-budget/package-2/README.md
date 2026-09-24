@@ -24,4 +24,11 @@ The acceptance corpus is proposed, synthetic contract evidence—not an independ
 - [Paired replay and task-cost report](./paired-replay-report-2026-09-24.md)
 - [Validation evidence](./validation-evidence-2026-09-24.md)
 - [Runtime baseline](./runtime-baseline-2026-09-24.json)
+- [Release evidence](./release-evidence-2026-09-24.json)
 - [Operator runbook](./operator-runbook.md)
+
+## Completed release
+
+Package 2 merged through PR #1770 at `9e4466c676c89ff1ad338f4b4abc100f057e538c`. That exact revision was built as a Linux ARM64 orchestrator image, pushed at digest `sha256:3d744a27653097deb0c7a774ff2cc3141e2a58ec2464c93568f65cb1b41a723f`, and deployed only to `capiro-dev-meriv2-orchestrator` on task definition revision 81. The service reached steady state at desired/running/pending 1/1/0, the running task and container reported healthy, and the public health endpoint returned `ok: true`.
+
+The rollout preserved the existing Jev model, timeout, retry, tenant, surface and mode settings. The live task allowlist remains `claim_support,passage_relevance`, so the new Package 2 tasks are shipped but not activated and no paid Package 2 qualification call was made. Revision 80 remains the tested rollback target.

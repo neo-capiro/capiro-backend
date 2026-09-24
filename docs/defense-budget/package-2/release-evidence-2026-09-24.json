@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "evidenceCapturedAt": "2026-09-24T16:42:58Z",
+  "releaseStatus": "PACKAGE_2_COMPLETE",
+  "environment": {
+    "accountId": "967807252336",
+    "region": "us-east-1",
+    "cluster": "capiro-dev",
+    "service": "capiro-dev-meriv2-orchestrator"
+  },
+  "git": {
+    "repository": "neo-capiro/capirov2",
+    "pullRequest": 1770,
+    "featureCommit": "ab196dffa47eb1a86e53d8ad4c20fd959312a5a4",
+    "mergeCommit": "9e4466c676c89ff1ad338f4b4abc100f057e538c",
+    "localMainMatchedMergeBeforeBuild": true,
+    "githubMainMatchedMergeBeforeBuild": true,
+    "mergeCommitIsAncestorOfCurrentMain": true,
+    "githubActions": {
+      "result": "infrastructure_failure_before_scheduling",
+      "annotation": "The job was not started because recent account payments have failed or the spending limit needs to be increased.",
+      "stepsExecuted": 0,
+      "substituteEvidence": "Local typecheck, builds, focused regressions and full Jev core suite passed."
+    }
+  },
+  "validation": {
+    "coreTypecheck": "PASS",
+    "coreBuild": "PASS",
+    "coreSuitesPassed": 100,
+    "coreTestsPassed": 1180,
+    "coreTestsTodo": 2,
+    "orchestratorBuild": "PASS",
+    "orchestratorFocusedSuitesPassed": 4,
+    "orchestratorFocusedTestsPassed": 53,
+    "pairedReplayCases": 10,
+    "pairedReplayHash": "b44905cc1820bd0c",
+    "paidProviderCalls": 0
+  },
+  "image": {
+    "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator",
+    "tag": "9e4466c676c89ff1ad338f4b4abc100f057e538c",
+    "digest": "sha256:3d744a27653097deb0c7a774ff2cc3141e2a58ec2464c93568f65cb1b41a723f",
+    "operatingSystem": "linux",
+    "architecture": "arm64",
+    "sizeBytes": 181335956,
+    "pushedAt": "2026-09-24T16:37:05.701Z"
+  },
+  "deployment": {
+    "previousTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:80",
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:81",
+    "deploymentId": "ecs-svc/6490520359085121127",
+    "runningTaskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/656b7a40c78c48ee98ba95bca8deea89",
+    "desiredCount": 1,
+    "runningCount": 1,
+    "pendingCount": 0,
+    "rolloutState": "COMPLETED",
+    "taskHealth": "HEALTHY",
+    "containerHealth": "HEALTHY",
+    "runningImageDigestMatched": true,
+    "gitSha": "9e4466c676c89ff1ad338f4b4abc100f057e538c",
+    "releaseSha": "9e4466c676c89ff1ad338f4b4abc100f057e538c",
+    "publicHealthUrl": "https://app.capiro.ai/meri-api/health",
+    "publicHealthResponse": {
+      "ok": true,
+      "service": "meriv2-orchestrator"
+    }
+  },
+  "jevRuntimeInvariants": {
+    "model": "jev-1.13.0",
+    "tasks": [
+      "claim_support",
+      "passage_relevance"
+    ],
+    "newPackage2TasksEnabled": false,
+    "providerMode": "enforce",
+    "claimAssessmentMode": "shadow",
+    "passageSelectionMode": "enforce",
+    "providerTenants": "all",
+    "providerSurfaces": "chat",
+    "passageSelectionTenants": "all",
+    "passageSelectionSurfaces": "chat",
+    "timeoutMs": 8000,
+    "maxAttempts": 2,
+    "paidPackage2QualificationCalls": 0
+  },
+  "changeBoundary": {
+    "deployedServices": [
+      "capiro-dev-meriv2-orchestrator"
+    ],
+    "apiDeployed": false,
+    "defenseApiDeployed": false,
+    "taskDefinitionChanges": [
+      "container image digest",
+      "GIT_SHA",
+      "RELEASE_SHA"
+    ]
+  },
+  "rollback": {
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:80",
+    "imageDigest": "sha256:fa3e6aa90e4e9f7ddbc88b2167303e233638c2454c201dfd7c01b0729788ffa9"
+  }
+}
