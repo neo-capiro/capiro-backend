@@ -1,6 +1,6 @@
 # Defense-budget Package 6 — funding and execution
 
-Package 6 adds source-qualified alternative-funding and execution accounting without collapsing distinct financial stages or treating unsupported associations as allocations. The release remains dark by default: the scheduled certification worker is disabled, committed worker publication requires `FUNDING_EXECUTION_PUBLICATION_ENABLED=true`, and canonical annual promotion remains unsupported for these source families.
+Package 6 adds source-qualified alternative-funding and execution accounting without collapsing distinct financial stages or treating unsupported associations as allocations. It is deployed from merge commit `d31604f6e489fdd76b5175241c6eeb547d2fcf0c`. The release remains dark by default: the scheduled certification worker is disabled, committed worker publication requires `FUNDING_EXECUTION_PUBLICATION_ENABLED=true`, and canonical annual promotion remains unsupported for these source families.
 
 ## Delivered scope
 
@@ -24,3 +24,13 @@ Do not enable the Package 6 schedule or set `FUNDING_EXECUTION_PUBLICATION_ENABL
 
 - [Validation evidence](./validation-evidence-2026-09-24.md)
 - [Machine-readable qualification](./qualification-2026-09-24.json)
+- [Machine-readable release evidence](./release-evidence-2026-09-24.json)
+
+Release scope: account `967807252336`, region `us-east-1`, cluster `capiro-dev`.
+
+| Runtime | Released state |
+| --- | --- |
+| API task definition `:449` | ECS steady; desired/running/pending `2/2/0`; both tasks and replacement load-balancer targets healthy |
+| Migration task definition `:134` | Package 6 accounting migration applied; one-off task exited 0 |
+| Sync task definition `:34` | Exact release image registered; both Package 6 write flags false; proof run stayed in `DRY_RUN` and did not advance the checkpoint |
+| Package 6 schedule | No live EventBridge rule; recurring certification/publication inactive |

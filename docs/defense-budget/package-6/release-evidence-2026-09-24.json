@@ -1,0 +1,77 @@
+{
+  "package": 6,
+  "releasedAt": "2026-09-24T23:07:23Z",
+  "sourceControl": {
+    "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1786",
+    "mergeCommit": "d31604f6e489fdd76b5175241c6eeb547d2fcf0c",
+    "githubMain": "d31604f6e489fdd76b5175241c6eeb547d2fcf0c",
+    "localMain": "d31604f6e489fdd76b5175241c6eeb547d2fcf0c",
+    "githubHostedChecks": {
+      "result": "infrastructure_failure",
+      "runnerAssigned": false,
+      "stepsStarted": 0,
+      "reason": "repository billing/spending-limit outage"
+    }
+  },
+  "aws": {
+    "account": "967807252336",
+    "region": "us-east-1",
+    "cluster": "capiro-dev",
+    "codeBuild": {
+      "id": "capiro-build-intel-api:666c29d1-f43c-4002-9a41-6a2bd0405052",
+      "resolvedSourceVersion": "d31604f6e489fdd76b5175241c6eeb547d2fcf0c",
+      "status": "SUCCEEDED",
+      "platform": "linux/arm64"
+    },
+    "apiImage": {
+      "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
+      "digest": "sha256:c9a6287725c5b36262833c45d7629bf9ad27dd855ae423e0f59826c370fe2993",
+      "tags": [
+        "d31604f6e489fdd76b5175241c6eeb547d2fcf0c",
+        "package6-20260924-api"
+      ]
+    },
+    "migration": {
+      "taskDefinition": "capiro-dev-api-migrate:134",
+      "taskId": "4508f5972a05429897290f76bd558ede",
+      "migrations": [
+        "20280924060000_package6_funding_execution_accounting"
+      ],
+      "exitCode": 0
+    },
+    "apiService": {
+      "service": "capiro-dev-api",
+      "taskDefinition": "capiro-dev-api:449",
+      "rolloutState": "COMPLETED",
+      "desired": 2,
+      "running": 2,
+      "pending": 0,
+      "healthyTasks": 2,
+      "healthyReplacementTargets": 2,
+      "replacementTargetIps": [
+        "10.40.9.7",
+        "10.40.15.150"
+      ]
+    },
+    "syncRuntime": {
+      "taskDefinition": "capiro-dev-api-sync-jobs:34",
+      "publicationFlag": false,
+      "sourceAdapterFlag": false,
+      "dryRunTaskId": "4e513fcd836b43b28c605ca0fe5cae86",
+      "dryRunExitCode": 0,
+      "mode": "DRY_RUN",
+      "examined": 0,
+      "publishable": 0,
+      "published": 0,
+      "checkpointAdvanced": false,
+      "eventBridgeRules": []
+    }
+  },
+  "activation": {
+    "status": "dark",
+    "sourceAdapterActive": false,
+    "publicationActive": false,
+    "canonicalAnnualPromotionActive": false,
+    "blocker": "Operator approval of governed source coverage and the initial residual queue, plus Package 3 governed financial inputs"
+  }
+}

@@ -39,4 +39,14 @@ Hermes’s final review found and the release fixed five additional gaps before 
 
 The Package 6 EventBridge schedule is disabled. The publication worker additionally requires both `--commit` and `FUNDING_EXECUTION_PUBLICATION_ENABLED=true`; the source adapter separately requires `--commit` and `FUNDING_EXECUTION_SOURCE_ADAPTER_ENABLED=true`. Missing either condition keeps its path read-only. Alternative-funding and execution source families remain ineligible for canonical annual promotion.
 
-Production source-control and AWS deployment identifiers are recorded after the exact merged commit is released.
+## Production release
+
+- PR [#1786](https://github.com/neo-capiro/capirov2/pull/1786) merged as `d31604f6e489fdd76b5175241c6eeb547d2fcf0c`; local and GitHub `main` matched before the build.
+- GitHub-hosted jobs failed before runner assignment with zero executed steps. The complete affected local gates passed after integrating the then-current `main` tip.
+- Native ARM64 CodeBuild `capiro-build-intel-api:666c29d1-f43c-4002-9a41-6a2bd0405052` resolved the exact merge commit and succeeded. It pushed API digest `sha256:c9a6287725c5b36262833c45d7629bf9ad27dd855ae423e0f59826c370fe2993` under immutable SHA and Package 6 tags; the image configuration reports `linux/arm64`.
+- Migration task `4508f5972a05429897290f76bd558ede` used `capiro-dev-api-migrate:134`, applied `20280924060000_package6_funding_execution_accounting`, and exited 0 before the API service changed.
+- API task definition `capiro-dev-api:449` reached `COMPLETED` at desired/running/pending `2/2/0`; both replacement tasks and target-group entries were healthy on the exact digest.
+- Sync task definition `capiro-dev-api-sync-jobs:34` pins the same digest with both Package 6 write flags false. Task `4e513fcd836b43b28c605ca0fe5cae86` exited 0 in `DRY_RUN`, examined and published zero facts, and did not advance the checkpoint.
+- No live funding-execution EventBridge rule exists. Package 6 remains dark pending operator approval of governed source coverage and the initial residual queue.
+
+Exact identifiers are in [release-evidence-2026-09-24.json](./release-evidence-2026-09-24.json).
