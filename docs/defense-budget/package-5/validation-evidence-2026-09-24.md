@@ -32,3 +32,13 @@ The final Hermes review found and the release fixed four gaps before merge:
 The Package 5 schedule ships with `enabled: false`. The projector additionally requires both `--commit` and `PROGRAM_ACQUISITION_CONTINUITY_ENABLED=true`; either condition missing leaves it in dry-run. The projector reads already-ingested local SAM and federal-award rows and performs no network fetch.
 
 Reviewed associations, inferred relevance, negative/corrected transactions, and unresolved relationships cannot publish authoritative allocated dollars. Only evidenced source-stated or deterministic financial allocations can do so. The release therefore preserves unsupported joins as visible gaps instead of inventing allocation values.
+
+## Source control and AWS deployment
+
+- Pull request [#1782](https://github.com/neo-capiro/capirov2/pull/1782) merged to GitHub `main` at `fd1c1c2903aad6d051e79cfb6a764255aea0ac23`; local `main` was fast-forwarded to the same commit before deployment.
+- GitHub-hosted checks failed before acquiring a runner: the inspected job had an empty runner name and zero steps. This matches the repository billing/spending-limit outage and is CI infrastructure failure, not a passing signal; the executed local and AWS gates remain the release evidence.
+- Native ARM64 CodeBuild `capiro-build-intel-api:a86971e7-b662-4cf7-a6f7-29142a160671` resolved the exact merge commit and succeeded. It pushed API digest `sha256:8356ac90a0ae8753f312906203fc4eeab0d3225a59b0644e3c335423380d1f8b` under the immutable SHA and Package 5 tags; the pushed manifest reports `linux/arm64`.
+- Migration task `652a50cc39354d81b9cb71074b6f795f` used task definition `capiro-dev-api-migrate:133`, applied `20280924040000_program_identity_continuity` and `20280924050000_acquisition_continuity_ledger`, and exited 0 before the API service changed.
+- API task definition `capiro-dev-api:447` binds the exact digest and merge identity with `PROGRAM_ACQUISITION_CONTINUITY_ENABLED=false`. ECS completed the rollout at 2026-09-24T20:50:18Z with desired/running/pending `2/2/0`; both tasks and both replacement load-balancer targets are healthy.
+- Sync task definition `capiro-dev-api-sync-jobs:33` binds the same digest and dark flag. Read-only proof task `7152595ced6b4858aefe05c790532094` exited 0 in `DRY_RUN`, examined one real SAM row and one real award row, and returned bounded continuation evidence without writing.
+- Live EventBridge inventory returned no Package 5 projection rule. No production acquisition relationship, coverage gap, transaction, or financial allocation was written during deployment.

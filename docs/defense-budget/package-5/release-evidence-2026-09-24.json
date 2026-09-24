@@ -1,0 +1,74 @@
+{
+  "package": 5,
+  "releasedAt": "2026-09-24T20:50:18Z",
+  "sourceControl": {
+    "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1782",
+    "mergeCommit": "fd1c1c2903aad6d051e79cfb6a764255aea0ac23",
+    "githubMain": "fd1c1c2903aad6d051e79cfb6a764255aea0ac23",
+    "localMain": "fd1c1c2903aad6d051e79cfb6a764255aea0ac23",
+    "githubHostedChecks": {
+      "result": "infrastructure_failure",
+      "runnerAssigned": false,
+      "stepsStarted": 0,
+      "reason": "repository billing/spending-limit outage"
+    }
+  },
+  "aws": {
+    "account": "967807252336",
+    "region": "us-east-1",
+    "cluster": "capiro-dev",
+    "codeBuild": {
+      "id": "capiro-build-intel-api:a86971e7-b662-4cf7-a6f7-29142a160671",
+      "resolvedSourceVersion": "fd1c1c2903aad6d051e79cfb6a764255aea0ac23",
+      "status": "SUCCEEDED",
+      "platform": "linux/arm64"
+    },
+    "apiImage": {
+      "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
+      "digest": "sha256:8356ac90a0ae8753f312906203fc4eeab0d3225a59b0644e3c335423380d1f8b",
+      "tags": [
+        "fd1c1c2903aad6d051e79cfb6a764255aea0ac23",
+        "package5-20260924-api"
+      ]
+    },
+    "migration": {
+      "taskDefinition": "capiro-dev-api-migrate:133",
+      "taskId": "652a50cc39354d81b9cb71074b6f795f",
+      "migrations": [
+        "20280924040000_program_identity_continuity",
+        "20280924050000_acquisition_continuity_ledger"
+      ],
+      "exitCode": 0
+    },
+    "apiService": {
+      "service": "capiro-dev-api",
+      "taskDefinition": "capiro-dev-api:447",
+      "rolloutState": "COMPLETED",
+      "desired": 2,
+      "running": 2,
+      "pending": 0,
+      "healthyTasks": 2,
+      "healthyReplacementTargets": 2,
+      "replacementTargetIps": ["10.40.4.175", "10.40.12.199"]
+    },
+    "syncRuntime": {
+      "taskDefinition": "capiro-dev-api-sync-jobs:33",
+      "activationFlag": false,
+      "dryRunTaskId": "7152595ced6b4858aefe05c790532094",
+      "dryRunExitCode": 0,
+      "mode": "DRY_RUN",
+      "samExamined": 1,
+      "awardsExamined": 1,
+      "samHasMore": true,
+      "awardsHasMore": true,
+      "eventBridgeRules": []
+    }
+  },
+  "activation": {
+    "status": "dark",
+    "sourceProjectionActive": false,
+    "networkCollectionActive": false,
+    "canonicalFinancialWrites": false,
+    "blocker": "Operator approval of initial source coverage, unresolved-allocation policy and Package 3 governed financial inputs"
+  }
+}
