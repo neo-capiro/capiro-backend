@@ -1,0 +1,127 @@
+{
+  "version": "jev_task_evaluation_fixture_v1",
+  "model": "jev-1.13.0",
+  "registryVersion": "jev-task-registry.v4",
+  "cases": [
+    {
+      "id": "program-ambiguous-aegis-alias",
+      "task": "program_identity",
+      "category": "ambiguous_alias",
+      "input": { "mention": "AEGIS", "candidateProgramId": "program-aegis-combat-system", "evidenceIds": ["e-alias"] },
+      "expected": { "kind": "outcome", "outcome": "insufficient_evidence" },
+      "humanReview": { "status": "proposed" },
+      "replay": {
+        "jev": { "kind": "outcome", "outcome": "insufficient_evidence", "confidence": 0.91, "action": "abstain", "latencyMs": 18, "usage": { "inputTokens": 160, "outputTokens": 24 } },
+        "baseline": { "kind": "outcome", "outcome": "same_entity", "confidence": 0.72, "action": "propose", "latencyMs": 33, "usage": { "inputTokens": 210, "outputTokens": 31 } }
+      }
+    },
+    {
+      "id": "program-exact-pe-code",
+      "task": "program_identity",
+      "category": "exact_identifier_control",
+      "input": { "mention": "PE 0604759F", "candidateProgramId": "pe-0604759f", "evidenceIds": ["e-pe"] },
+      "expected": { "kind": "outcome", "outcome": "same_entity" },
+      "humanReview": { "status": "proposed" },
+      "replay": {
+        "jev": { "kind": "outcome", "outcome": "same_entity", "confidence": 1, "action": "propose", "latencyMs": 14, "usage": { "inputTokens": 140, "outputTokens": 20 } },
+        "baseline": { "kind": "outcome", "outcome": "same_entity", "confidence": 1, "action": "propose", "latencyMs": 22, "usage": { "inputTokens": 180, "outputTokens": 25 } }
+      }
+    },
+    {
+      "id": "program-provider-malformed",
+      "task": "program_identity",
+      "category": "malformed_response",
+      "input": { "mention": "Next Generation Interceptor", "candidateProgramId": "ngi", "evidenceIds": ["e-ngi"] },
+      "expected": { "kind": "failure", "state": "malformed_response" },
+      "humanReview": { "status": "proposed" },
+      "replay": {
+        "jev": { "kind": "failure", "state": "malformed_response", "latencyMs": 9 },
+        "baseline": { "kind": "failure", "state": "malformed_response", "latencyMs": 10 }
+      }
+    },
+    {
+      "id": "program-provider-timeout",
+      "task": "program_identity",
+      "category": "provider_timeout",
+      "input": { "mention": "Long Range Hypersonic Weapon", "candidateProgramId": "lrhw", "evidenceIds": ["e-lrhw"] },
+      "expected": { "kind": "failure", "state": "timeout" },
+      "humanReview": { "status": "proposed" },
+      "replay": {
+        "jev": { "kind": "failure", "state": "timeout", "latencyMs": 8000 },
+        "baseline": { "kind": "failure", "state": "timeout", "latencyMs": 8000 }
+      }
+    },
+    {
+      "id": "scope-pe-specific-with-provenance",
+      "task": "mention_scope",
+      "category": "provenance_survival",
+      "input": { "mention": "within PE 0604759F", "evidenceIds": ["e-scope"], "authority": "Congress", "documentCompleteness": "complete", "relationScope": "pe_specific", "financialStage": "authorization", "provenance": { "evidenceClass": "primary_legislative_legal_text", "primary": true, "authoritative": true } },
+      "expected": { "kind": "outcome", "outcome": "pe_specific" },
+      "humanReview": { "status": "proposed" },
+      "replay": {
+        "jev": { "kind": "outcome", "outcome": "pe_specific", "confidence": 0.99, "action": "propose", "latencyMs": 17, "usage": { "inputTokens": 190, "outputTokens": 22 } },
+        "baseline": { "kind": "outcome", "outcome": "pe_specific", "confidence": 0.95, "action": "propose", "latencyMs": 29, "usage": { "inputTokens": 240, "outputTokens": 30 } }
+      }
+    },
+    {
+      "id": "scope-adjacent-capability-only",
+      "task": "mention_scope",
+      "category": "adjacent_capability",
+      "input": { "mention": "integrated air defense", "evidenceIds": ["e-capability"] },
+      "expected": { "kind": "outcome", "outcome": "capability_only" },
+      "humanReview": { "status": "proposed" },
+      "replay": {
+        "jev": { "kind": "outcome", "outcome": "capability_only", "confidence": 0.97, "action": "propose", "latencyMs": 16, "usage": { "inputTokens": 170, "outputTokens": 22 } },
+        "baseline": { "kind": "outcome", "outcome": "program_wide", "confidence": 0.7, "action": "abstain", "latencyMs": 27, "usage": { "inputTokens": 220, "outputTokens": 29 } }
+      }
+    },
+    {
+      "id": "scope-insufficient-wrong-organization",
+      "task": "mention_scope",
+      "category": "wrong_organization",
+      "input": { "mention": "adjacent bullet names a different program", "evidenceIds": ["e-wrong"] },
+      "expected": { "kind": "outcome", "outcome": "insufficient_evidence" },
+      "humanReview": { "status": "proposed" },
+      "replay": {
+        "jev": { "kind": "outcome", "outcome": "insufficient_evidence", "confidence": 0.96, "action": "abstain", "latencyMs": 15, "usage": { "inputTokens": 165, "outputTokens": 21 } },
+        "baseline": { "kind": "outcome", "outcome": "incidental", "confidence": 0.75, "action": "abstain", "latencyMs": 24, "usage": { "inputTokens": 205, "outputTokens": 27 } }
+      }
+    },
+    {
+      "id": "evidence-select-exact-span",
+      "task": "evidence_selection",
+      "category": "candidate_selection",
+      "input": { "question": "Which span states the FY2027 request?", "selectedCandidateId": "candidate-2", "candidateIds": ["candidate-1", "candidate-2"] },
+      "expected": { "kind": "outcome", "outcome": "candidate-2" },
+      "humanReview": { "status": "proposed" },
+      "replay": {
+        "jev": { "kind": "outcome", "outcome": "candidate-2", "confidence": 0.99, "action": "propose", "latencyMs": 13, "usage": { "inputTokens": 150, "outputTokens": 18 } },
+        "baseline": { "kind": "outcome", "outcome": "candidate-2", "confidence": 0.93, "action": "propose", "latencyMs": 21, "usage": { "inputTokens": 190, "outputTokens": 24 } }
+      }
+    },
+    {
+      "id": "evidence-select-none",
+      "task": "evidence_selection",
+      "category": "none_outcome",
+      "input": { "question": "Which span states an enacted amount?", "candidateIds": ["candidate-request", "candidate-authorization"] },
+      "expected": { "kind": "outcome", "outcome": "none" },
+      "humanReview": { "status": "proposed" },
+      "replay": {
+        "jev": { "kind": "outcome", "outcome": "none", "confidence": 1, "action": "abstain", "latencyMs": 12, "usage": { "inputTokens": 145, "outputTokens": 17 } },
+        "baseline": { "kind": "outcome", "outcome": "candidate-request", "confidence": 0.62, "action": "abstain", "latencyMs": 20, "usage": { "inputTokens": 185, "outputTokens": 23 } }
+      }
+    },
+    {
+      "id": "evidence-select-ambiguous",
+      "task": "evidence_selection",
+      "category": "ambiguous_candidates",
+      "input": { "question": "Which span identifies the current program name?", "candidateIds": ["candidate-a", "candidate-b"] },
+      "expected": { "kind": "outcome", "outcome": "ambiguous" },
+      "humanReview": { "status": "proposed" },
+      "replay": {
+        "jev": { "kind": "outcome", "outcome": "ambiguous", "confidence": 0.98, "action": "abstain", "latencyMs": 11, "usage": { "inputTokens": 155, "outputTokens": 19 } },
+        "baseline": { "kind": "outcome", "outcome": "ambiguous", "confidence": 0.8, "action": "abstain", "latencyMs": 19, "usage": { "inputTokens": 195, "outputTokens": 25 } }
+      }
+    }
+  ]
+}

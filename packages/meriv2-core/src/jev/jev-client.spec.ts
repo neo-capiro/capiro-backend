@@ -96,6 +96,15 @@ describe('Jev client', () => {
     expect(sleep).toHaveBeenCalledWith(30000);
   });
 
+  it('allows a caller to lower the retry ceiling', async () => {
+    const sleep = jest.fn(async () => undefined);
+    const fetchImpl = jest.fn(async () => jsonResponse({}, 429)) as unknown as JevFetch;
+    await expect(client(fetchImpl, { sleepImpl: sleep }).systemOne(question, { maxAttempts: 1 }))
+      .rejects.toMatchObject({ code: 'rate_limited' });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
   it('fails after two 529 attempts', async () => {
     const fetchImpl = jest.fn(async () => jsonResponse({}, 529)) as unknown as JevFetch;
     await expect(client(fetchImpl).systemOne(question)).rejects.toMatchObject({ code: 'overloaded' });

@@ -3,7 +3,9 @@ import type { AssuredClaim, ClaimLedger } from '../assurance/claim-ledger';
 import {
   evidenceEnvelopeSchema,
   hashEvidenceEnvelope,
+  type DocumentCompleteness,
   type EvidenceEnvelope,
+  type EvidenceRelationScope,
 } from './decision-contract';
 
 const MAX_PASSAGE_CHARS = 2_000;
@@ -18,6 +20,10 @@ export interface EvidencePassage {
   publishedAt?: string;
   effectiveAt?: string;
   retrievedAt?: string;
+  authority?: { sourceAuthority: string; publisher?: string | null; jurisdiction?: string | null };
+  documentCompleteness?: DocumentCompleteness;
+  relationScope?: EvidenceRelationScope;
+  financialStage?: string | null;
 }
 
 export interface BuildEvidenceEnvelopeInput {
@@ -43,7 +49,13 @@ export type JevEvidenceSource = Pick<
   | 'locator'
   | 'passage'
   | 'sourceDate'
+  | 'publishedAt'
+  | 'effectiveAt'
   | 'retrievedAt'
+  | 'authority'
+  | 'documentCompleteness'
+  | 'relationScope'
+  | 'financialStage'
 > & {
   provenance?: EvidenceEnvelope['sources'][number]['provenance'];
 };
@@ -61,7 +73,13 @@ export function envelopeSourcesForJev(
     locator: source.locator,
     passage: source.passage,
     sourceDate: source.sourceDate,
+    publishedAt: source.publishedAt,
+    effectiveAt: source.effectiveAt,
     retrievedAt: source.retrievedAt,
+    ...(source.authority ? { authority: source.authority } : {}),
+    ...(source.documentCompleteness ? { documentCompleteness: source.documentCompleteness } : {}),
+    ...(source.relationScope ? { relationScope: source.relationScope } : {}),
+    ...(source.financialStage !== undefined ? { financialStage: source.financialStage } : {}),
     ...(options.includeProvenance && source.provenance ? { provenance: source.provenance } : {}),
   }));
 }
@@ -127,6 +145,13 @@ export function buildEvidenceEnvelope(
       effectiveAt: passage?.effectiveAt ?? evidence.effectiveAt ?? null,
       retrievedAt: passage?.retrievedAt ?? evidence.retrievedAt ?? citation?.source?.observedAt
         ?? citation?.documentEvidence?.observedAt ?? null,
+      ...(passage?.authority
+        ? { authority: { sourceAuthority: passage.authority.sourceAuthority,
+            publisher: passage.authority.publisher ?? null, jurisdiction: passage.authority.jurisdiction ?? null } }
+        : {}),
+      ...(passage?.documentCompleteness ? { documentCompleteness: passage.documentCompleteness } : {}),
+      ...(passage?.relationScope ? { relationScope: passage.relationScope } : {}),
+      ...(passage?.financialStage !== undefined ? { financialStage: passage.financialStage } : {}),
       ...(input.includeProvenance
         ? {
             provenance: {

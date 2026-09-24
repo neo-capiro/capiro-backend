@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import type { EvidenceDecision, EvidenceEnvelope } from './decision-contract';
-import { assessWithJevCache, decisionsAgree, JevDecisionCache, jevDecisionCacheKey } from './decision-cache';
+import { assessWithJevCache, decisionsAgree, JevDecisionCache, jevDecisionCacheKey,
+  type JevOutcomeDecision } from './decision-cache';
 
 const envelope: EvidenceEnvelope = {
   envelopeVersion: 'meri-evidence-envelope-v1', claimId: 'claim', claimText: 'Claim', claimKind: 'fact',
@@ -8,28 +9,45 @@ const envelope: EvidenceEnvelope = {
   sources: [{ evidenceId: 'e', sourceType: 'document', sourceId: 's', documentId: 'd', version: 'v1',
     locator: null, passage: 'Evidence', sourceDate: null, publishedAt: null, effectiveAt: null, retrievedAt: null }],
 };
-const outcome = (value: 'supported' | 'contradicted' = 'supported'): EvidenceDecision => ({
+const outcome = (value: 'supported' | 'contradicted' = 'supported'): JevOutcomeDecision => ({
   kind: 'outcome', outcome: value, probabilities: { supported: value === 'supported' ? 1 : 0,
     contradicted: value === 'contradicted' ? 1 : 0, insufficient_evidence: 0, conflicting_evidence: 0 },
   confidence: 1, reasonCodes: [], evidenceIds: ['e'],
   provider: { name: 'jev', model: 'jev-1.13.0', questionVersion: 'claim_support.v1' }, latencyMs: 1,
 });
+const question = { state: { claim: 'Claim' }, questions: { claim_support: {
+  type: 'choice' as const, instructions: 'Judge.', criteria: { supported: 'yes', contradicted: 'no' },
+} } };
 const key = (overrides: Partial<Parameters<typeof jevDecisionCacheKey>[0]> = {}) => jevDecisionCacheKey({
-  tenantId: 'tenant', clientId: 'client', envelope, claim: { id: 'claim', text: 'Claim' },
-  questionVersion: 'claim_support.v1', modelVersion: 'jev-1.13.0', ...overrides,
+  task: 'claim_support', tenantId: 'tenant', clientId: 'client', envelope,
+  claim: { id: 'claim', text: 'Claim' }, questionVersion: 'claim_support.v1', question,
+  modelVersion: 'jev-1.13.0', cacheIdentityVersion: 'claim_support-cache.v1', ...overrides,
 });
 
 describe('JevDecisionCache', () => {
-  it('isolates tenant, client, envelope, claim, question, model and registry versions', () => {
+  it('isolates task, tenant, client, envelope, claim, question, model, cache and registry versions', () => {
     const base = key();
     expect(new Set([
       base,
+      key({ task: 'citation_support' }),
       key({ tenantId: 'other' }), key({ clientId: 'other' }),
       key({ envelope: { ...envelope, sources: [{ ...envelope.sources[0]!, version: 'v2' }] } }),
       key({ claim: { id: 'other', text: 'Claim' } }), key({ claim: { id: 'claim', text: 'Other' } }),
       key({ questionVersion: 'claim_support.v2' }), key({ modelVersion: 'jev-next' }),
+      key({ question: { ...question, state: { claim: 'Other' } } }),
+      key({ cacheIdentityVersion: 'claim_support-cache.v2' }), key({ candidateIdentity: ['other'] }),
       key({ registryVersion: 'registry-next' }),
-    ]).size).toBe(9);
+    ]).size).toBe(13);
+  });
+
+  it('changes identity when provenance changes for provenance-consuming tasks', () => {
+    const withProvenance = { ...envelope, sources: envelope.sources.map((source) => ({ ...source,
+      provenance: { evidenceClass: 'official_government_data' as const, primary: true, authoritative: true } })) };
+    const changed = { ...withProvenance, sources: withProvenance.sources.map((source) => ({ ...source,
+      provenance: { ...source.provenance, authoritative: false } })) };
+    expect(key({ task: 'program_identity', envelope: withProvenance })).not.toBe(
+      key({ task: 'program_identity', envelope: changed }),
+    );
   });
 
   it('expires by TTL and evicts the least recently used entry at the size bound', () => {
