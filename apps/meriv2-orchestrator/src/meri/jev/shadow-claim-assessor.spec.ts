@@ -1,13 +1,21 @@
 import {
   buildAssuredClaimLedger,
+  createLlmSkepticJudge,
+  createSkepticDecisionProvider,
+  LEGACY_SKEPTIC_BASELINE_ADAPTER_VERSION,
   type DecisionProvider,
   type EvidenceDecision,
+  type EvidenceEnvelope,
+  type EvidenceQuestion,
   type MaterialClaim,
 } from '@capiro/meriv2-core';
 import { assessReleasedClaims } from './shadow-claim-assessor';
 
 const TENANT = '17b63099-bc0f-4ac5-b596-496161e9481e';
-const outcome = (name: string, value: EvidenceDecision extends infer _ ? 'supported' : never = 'supported'): EvidenceDecision => ({
+const outcome = (
+  name: string,
+  value: 'supported' | 'contradicted' | 'insufficient_evidence' | 'conflicting_evidence' = 'supported',
+): EvidenceDecision => ({
   kind: 'outcome', outcome: value,
   probabilities: { supported: 1, contradicted: 0, insufficient_evidence: 0, conflicting_evidence: 0 },
   confidence: 1, reasonCodes: [], evidenceIds: ['e1'],
@@ -49,6 +57,7 @@ describe('assessReleasedClaims', () => {
       claimCategory: 'grant_award', envelopeHash: expect.any(String), eligibility: { eligible: true, reason: 'ok' },
       jev: expect.objectContaining({ kind: 'outcome', outcome: 'supported', confidence: 1, inputTokens: 20 }),
       legacy: expect.objectContaining({ kind: 'outcome', outcome: 'supported', confidence: 1, inputTokens: 20 }),
+      legacyAdapterVersion: 'legacy-skeptic-adapter.v2',
       agreement: true,
       freshness: { state: 'fresh', ageDays: null, basis: 'none' },
       exact: { result: 'match', kind: 'amount' },
@@ -59,6 +68,85 @@ describe('assessReleasedClaims', () => {
       budgetExhausted: false, durationMs: expect.any(Number), inputTokens: expect.any(Number),
       estimatedCostUsd: expect.any(Number), sampled: expect.any(Boolean),
     });
+  });
+
+  it('keeps paired routing byte-identical to the existing event and calls both providers', async () => {
+    const jev = provider('jev');
+    const legacy = provider('legacy');
+    const implicit = input({ providers: { jev, legacy } });
+    await assessReleasedClaims(implicit);
+    const implicitEvent = (implicit.logger.log as jest.Mock).mock.calls[0];
+
+    const explicit = input({ providers: { jev: provider('jev'), legacy: provider('legacy') }, routing: 'paired' });
+    await assessReleasedClaims(explicit);
+    const explicitEvent = (explicit.logger.log as jest.Mock).mock.calls[0];
+    expect(explicitEvent).toEqual(implicitEvent);
+    expect(explicitEvent?.[1]).not.toHaveProperty('escalationReasons');
+    expect(jev.assess).toHaveBeenCalledTimes(1);
+    expect(legacy.assess).toHaveBeenCalledTimes(1);
+  });
+
+  it('logs real request-scoped legacy usage end to end', async () => {
+    const legacy = createSkepticDecisionProvider(createLlmSkepticJudge({
+      completeJson: jest.fn(),
+      completeWithSchema: jest.fn(async () => ({
+        input: { refuted: true, confidence: 'low', reason: 'Could not confirm.' },
+        usage: { inputTokens: 137, outputTokens: 9 },
+      })),
+    }), 'request-scoped-llm', LEGACY_SKEPTIC_BASELINE_ADAPTER_VERSION);
+    const args = input({ providers: { jev: provider('jev'), legacy } });
+    await assessReleasedClaims(args);
+    expect(args.logger.log).toHaveBeenCalledWith('meri.evidence_shadow', expect.objectContaining({
+      legacyAdapterVersion: 'legacy-skeptic-adapter.v2',
+      legacy: expect.objectContaining({
+        model: 'request-scoped-llm', inputTokens: 137, reasonCodes: ['legacy_refuted'],
+      }),
+    }));
+  });
+
+  it('runs the calibrated cascade only under cascade routing and logs its reasons', async () => {
+    const jevAssess = jest.fn(async () => outcome('jev'));
+    const legacyAssess = jest.fn(async () => outcome('legacy', 'contradicted'));
+    const args = input({
+      routing: 'cascade',
+      providers: { jev: provider('jev', jevAssess), legacy: provider('legacy', legacyAssess) },
+      claims: [materialClaim('c1', { category: 'general_background', compound: true })],
+    });
+    await assessReleasedClaims(args);
+    expect(jevAssess).toHaveBeenCalledTimes(1);
+    expect(legacyAssess).toHaveBeenCalledTimes(1);
+    expect(args.logger.log).toHaveBeenCalledWith('meri.evidence_shadow', expect.objectContaining({
+      escalated: true, escalationReasons: ['compound_claim'], audited: false, auditDisagreement: false,
+    }));
+  });
+
+  it('keeps the claim_support Jev request state unchanged while carrying provenance', async () => {
+    const assess = jest.fn<Promise<EvidenceDecision>, [EvidenceEnvelope, EvidenceQuestion]>(
+      async () => outcome('jev'),
+    );
+    const args = input({ providers: { jev: provider('jev', assess), legacy: provider('legacy', assess) } });
+    await assessReleasedClaims(args);
+
+    expect(assess).toHaveBeenCalledTimes(2);
+    const [sentEnvelope, sentQuestion] = assess.mock.calls[0]!;
+    expect(sentEnvelope.sources[0]?.provenance).toEqual({
+      evidenceClass: 'official_government_data', primary: true, authoritative: true,
+    });
+    expect(sentQuestion.state).toEqual({
+      claim: {
+        id: 'c1', text: 'The award was $42.', kind: 'fact', category: 'grant_award',
+        asOf: '2026-09-22T00:00:00.000Z',
+      },
+      scope: {
+        qualifiers: ['as-of:2026-09-22T00:00:00.000Z', 'category:grant_award'],
+        tenantId: TENANT, clientId: null,
+      },
+      sources: [{
+        evidenceId: 'e1', sourceType: 'search_grants', sourceId: 'record-1', documentId: null,
+        version: null, locator: null, passage: 'The award was $42.', sourceDate: null, retrievedAt: null,
+      }],
+    });
+    expect((sentQuestion.state as { sources: unknown[] }).sources[0]).not.toHaveProperty('provenance');
   });
 
   it('short-circuits unavailable document evidence without provider calls', async () => {

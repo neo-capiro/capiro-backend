@@ -1,4 +1,4 @@
-import { createJevClient, type LedgerEntry, type MeriGovernedTurnContext } from '@capiro/meriv2-core';
+import { createJevClient, JEV_TASK_REGISTRY, type LedgerEntry, type MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { formatCitationsForPrompt, type MeriCitation } from '@capiro/shared';
 import { seedMeriContextEvidence } from '../meriv3/meriv3-context-evidence';
 import { wrapMeriToolEvidence } from '../meriv3/meriv3-tool-evidence';
@@ -149,6 +149,26 @@ function expectValidResponsesInput(input: readonly Record<string, unknown>[]): v
 }
 
 describe('passage selector', () => {
+  it('uses registry values for the live model without changing selection', () => {
+    expect(JEV_TASK_REGISTRY.passage_relevance).toMatchObject({
+      modelVersion: 'jev-1.13.0', questionVersion: 'passage_selection.v1',
+      thresholds: { relevant: 0.35, usable: 0.5, contradicts: 0.5 },
+    });
+    const passage = candidate('p0');
+    const assessed = answers([passage], 0.35);
+    expect(selectPassages({ candidates: [passage], answers: assessed }).kept).toEqual([passage]);
+  });
+
+  it('returns the registry model-mismatch reason with an unfiltered fallback', async () => {
+    const passage = candidate('p0');
+    await expect(askPassageQuestions({
+      question: 'Question?', candidates: [passage], provider: null,
+      providerUnavailableReason: 'registry_model_mismatch',
+    })).resolves.toMatchObject({
+      fallback: true, fallbackReason: 'registry_model_mismatch', probabilities: {},
+    });
+  });
+
   it('retains required, selected and deterministic/Jev contradictory passages under aggressive drops', () => {
     const candidates = [candidate('p0', { required: true }), candidate('p1', { userSelected: true }),
       candidate('p2', { deterministicConflict: true }), candidate('p3'), candidate('p4')];
@@ -157,6 +177,10 @@ describe('passage selector', () => {
     const result = selectPassages({ candidates, answers: assessed });
     expect(result.kept.map(({ id }) => id)).toEqual(['p0', 'p1', 'p2', 'p3']);
     expect(result.dropped.map(({ id }) => id)).toEqual(['p4']);
+    expect(result.safetyIntervention).toEqual({
+      intervened: true,
+      reasons: ['contradictory_candidate_restored', 'required_candidate_restored'],
+    });
     expect(result.retainedRequired).toBe(1); // Required evidence recall is exactly 1/1.
     expect(result.retainedUserSelected).toBe(1);
     expect(result.retainedContradictory).toBe(2);
@@ -262,7 +286,11 @@ describe('passage selector', () => {
   it('falls back unfiltered for unavailable provider and budget overflow', async () => {
     const candidates = [candidate('p0'), candidate('p1')];
     const unavailable = await askPassageQuestions({ question: 'q', candidates, provider: null });
-    expect(selectPassages({ candidates, answers: unavailable })).toMatchObject({ fallback: true, kept: candidates });
+    expect(selectPassages({ candidates, answers: unavailable })).toMatchObject({
+      fallback: true,
+      kept: candidates,
+      safetyIntervention: { intervened: true, reasons: ['fallback_unfiltered:provider_unavailable'] },
+    });
     const provider = createJevClient({ apiKey: 'test', model: 'jev-1.13.0', timeoutMs: 100,
       maxAttempts: 1, fetchImpl: jest.fn() as typeof fetch });
     const budget = await askPassageQuestions({ question: 'q', candidates, provider,
@@ -306,6 +334,25 @@ describe('passage selector', () => {
     expect(result.inputTokens).toBe(20);
     expect(result.model).toBe('jev-1.13.0');
     expect(selectPassages({ candidates, answers: result }).kept).toEqual(candidates);
+  });
+
+  it('does not start a pending passage batch after the request aborts', async () => {
+    const candidates = [candidate('p0'), candidate('p1'), candidate('p2')];
+    const controller = new AbortController();
+    const fetchImpl = jest.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      controller.abort();
+      const request = JSON.parse(String(init?.body)) as { questions: Record<string, unknown> };
+      return new Response(JSON.stringify({ model: 'jev-1.13.0',
+        answers: Object.fromEntries(Object.keys(request.questions).map((id) => [id, { type: 'noul', noul: 0.8 }])),
+        usage: { input_tokens: 20, output_tokens: 0 } }),
+      { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    const provider = createJevClient({ apiKey: 'test-key', model: 'jev-1.13.0', timeoutMs: 100,
+      maxAttempts: 2, fetchImpl: fetchImpl as typeof fetch });
+    const result = await askPassageQuestions({ question: 'q', candidates, provider, signal: controller.signal,
+      budget: { maxPassages: 4, maxRequests: 2, maxInputTokens: 60_000, deadlineMs: 1_000 } });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ fallback: true, fallbackReason: 'AbortError' });
   });
 
   it('removes a dropped passage as a function_call/function_call_output pair and leaves reasoning and messages alone', () => {

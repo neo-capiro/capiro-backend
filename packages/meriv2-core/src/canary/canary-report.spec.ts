@@ -72,7 +72,31 @@ describe('canary report', () => {
     expect(report.current.repair.successRate.value).toBe(1);
     expect(report.current.latencyMs.timeToText).toEqual({ p50: 100, p95: 300 });
     expect(report.current.costPerReleasedTurn).toBe(2);
+    expect(report.current.costPerCompletedTask.estimatedCostUsd).toEqual({
+      total: 4, perCompletedTask: 2, p50: 1, p95: 3,
+    });
+    expect(report.current.costPerCorrectCompletedTask).toEqual({
+      value: null, correctCompleted: 0, reason: 'human_labels_not_supplied',
+    });
     expect(report.current.passage.requiredRetention.value).toBe(1);
+  });
+
+  it('reports component cost distributions and only computes correctness from supplied human labels', () => {
+    const first = event({ conversationId: 'correct', estimatedCostUsd: 2,
+      cost: { retrievalToolCalls: 2, retrievalLatencyMs: 20, coverageFollowUpTokens: 30,
+        jevCalls: 1, legacyCalls: 0, repairLoops: 1 } });
+    const second = event({ conversationId: 'incorrect', estimatedCostUsd: 6,
+      cost: { retrievalToolCalls: 4, retrievalLatencyMs: 40, coverageFollowUpTokens: 50,
+        jevCalls: 2, legacyCalls: 1, repairLoops: 2 } });
+    const old = event({ conversationId: 'old', estimatedCostUsd: 1 });
+    const report = buildCanaryReport([first, second, old], [], {
+      humanLabels: { correct: true, incorrect: false },
+    });
+    expect(report.current.costPerCompletedTask.components.retrievalToolCalls).toEqual({
+      total: 6, perCompletedTask: 2, p50: 2, p95: 4,
+    });
+    expect(report.current.costPerCorrectCompletedTask).toEqual({ value: 2, correctCompleted: 1, reason: null });
+    expect(canaryTurnEventSchema.safeParse(old).success).toBe(true);
   });
 
   it('evaluates pass, fail and insufficient data', () => {
@@ -88,7 +112,13 @@ describe('canary report', () => {
   });
 
   it('fails passageRequiredRetention from a collector-shaped event read back through readCanaryEvents', () => {
-    const dropped = collectorEvent(droppedRequired);
+    const dropped = collectorEvent(droppedRequired, {
+      registryVersion: 'jev-task-registry.v3',
+      jevTasks: {
+        claim_support: { questionVersion: 'claim_support.v1', modelVersion: 'jev-1.13.0' },
+        passage_relevance: { questionVersion: 'passage_selection.v1', modelVersion: 'jev-1.13.0' },
+      },
+    });
     expect(canaryTurnEventSchema.safeParse(dropped).success).toBe(true);
     const directory = mkdtempSync(path.join(tmpdir(), 'canary-report-'));
     try {
@@ -119,7 +149,7 @@ describe('canary report', () => {
     expect(report.limits.repairLatencyP50Ms).toEqual({ status: 'fail', observed: 12_000, threshold: 3_000 });
     expect(report.limits.repairLatencyP95Ms).toEqual({ status: 'fail', observed: 12_000, threshold: 8_000 });
     expect(report.current.latencyMs.timeToText).toEqual({ p50: 100, p95: 100 });
-    expect(report.markdown).toContain('5 turn(s) with an attempted repair');
+    expect(report.markdown).toContain('5 turn(s) with an attempted repair or outer-fence timeout');
   });
 
   it('reports insufficient data, never pass, for repair latency when no turn attempted a repair', () => {
@@ -147,5 +177,31 @@ describe('canary report', () => {
     const inconsistent = buildCanaryReport([event({ repair: repair({ attempted: 1, corrected: 1, qualified: 1 }) })]);
     expect(inconsistent.current.repair).toMatchObject({ successful: 1, unresolved: 0 });
     expect(inconsistent.current.repair.successRate.value).toBe(1);
+  });
+
+  it('applies V2 completion, failure and passage-intervention limits while V1 remains unchanged', () => {
+    const intervention = event({ passageSelection: {
+      ...event().passageSelection,
+      safetyIntervention: { evaluated: true, intervened: true, reasons: ['required_candidate_restored'] },
+    } });
+    const incomplete = event({ outcome: 'incomplete' });
+    const report = buildCanaryReport([intervention, incomplete], [event(), event()], { limitsVersion: 'v2' });
+    expect(report.limitsVersion).toBe('stage2-canary-limits-v2');
+    expect(report.current.outcomes.incomplete).toBe(1);
+    expect(report.current.passage.selectionsEvaluated).toBe(1);
+    expect(report.current.passage.safetyInterventionReasons).toEqual({ required_candidate_restored: 1 });
+    expect(report.limits.passageSafetyInterventionRate.status).toBe('fail');
+    expect(report.limits.completionRateDropPp.status).toBe('fail');
+    expect(report.limits.incompleteRateDeltaPp.status).toBe('fail');
+    expect(buildCanaryReport([intervention], [event()]).limits).not.toHaveProperty('passageSafetyInterventionRate');
+  });
+
+  it('keeps an outer-fence timeout in the repair latency sample without claiming an attempted claim', () => {
+    const timedOut = event({ repair: repair({ timedOut: true, budgetExhausted: 1 }),
+      latencyMs: latency({ repair: 8_000 }) });
+    const report = buildCanaryReport([timedOut], [], { limitsVersion: 'v2' });
+    expect(report.current.repair.turnsAttempted).toBe(0);
+    expect(report.current.latencyMs.repair).toEqual({ p50: 8_000, p95: 8_000 });
+    expect(report.limits.repairLatencyP50Ms.status).toBe('fail');
   });
 });

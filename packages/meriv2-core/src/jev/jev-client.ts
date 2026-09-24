@@ -25,7 +25,15 @@ export interface JevNoulAnswer {
   noul: number;
 }
 
-export type JevAnswer = JevChoiceAnswer | JevNoulAnswer;
+export interface JevScoreAnswer {
+  type: 'score';
+  /** One of the question's declared `levels` keys. */
+  level: string;
+  probabilities: Record<string, number>;
+  confidence: number;
+}
+
+export type JevAnswer = JevChoiceAnswer | JevNoulAnswer | JevScoreAnswer;
 
 export interface JevSystemOneResponse {
   model: string;
@@ -141,6 +149,27 @@ function validateResponse(
         noul: z.number().finite().min(0).max(1),
       }).safeParse(root.data.answers[id]);
       if (!parsed.success) throw new JevMalformedResponseError();
+      answers[id] = parsed.data;
+      continue;
+    }
+    if (question.type === 'score') {
+      const levels = Object.keys(question.levels).sort();
+      const parsed = z
+        .object({
+          type: z.literal('score'),
+          level: z.string(),
+          probabilities: z.record(z.number().finite().min(0).max(1)),
+          confidence: z.number().finite().min(0).max(1),
+        })
+        .safeParse(root.data.answers[id]);
+      if (!parsed.success || !levels.includes(parsed.data.level)) {
+        throw new JevMalformedResponseError();
+      }
+      const levelKeys = Object.keys(parsed.data.probabilities).sort();
+      const levelSum = Object.values(parsed.data.probabilities).reduce((total, value) => total + value, 0);
+      if (JSON.stringify(levelKeys) !== JSON.stringify(levels) || Math.abs(levelSum - 1) > 0.02) {
+        throw new JevMalformedResponseError();
+      }
       answers[id] = parsed.data;
       continue;
     }

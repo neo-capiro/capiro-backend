@@ -169,6 +169,9 @@ describe('configSchema — Meri rollout mode switches fail closed on blank', () 
     'MERI_CLAIM_ASSESSMENT_MODE',
     'MERI_AUTO_CORRECTION_MODE',
     'MERI_PASSAGE_SELECTION_MODE',
+    'MERI_EVIDENCE_PROFILES_MODE',
+    'MERI_MATCH_LABEL_MODE',
+    'MERI_STATUS_PROVENANCE_MODE',
     'MERI_JEV_PROVIDER_MODE',
     'MERI_CHAT_EVIDENCE_JUDGE',
   ] as const;
@@ -197,6 +200,22 @@ describe('configSchema — Meri rollout mode switches fail closed on blank', () 
     expect(configSchema.shape.MERI_CHAT_EVIDENCE_JUDGE.parse('cascade')).toBe('cascade');
   });
 
+  test('valid switches normalize surrounding whitespace and case', () => {
+    expect(configSchema.shape.MERI_COVERAGE_RETRIEVAL_MODE.parse(' Off ')).toBe('off');
+    expect(configSchema.shape.MERI_EVIDENCE_PROFILES_MODE.parse(' Shadow ')).toBe('shadow');
+    expect(configSchema.shape.MERI_MATCH_LABEL_MODE.parse(' ENFORCE ')).toBe('enforce');
+    expect(configSchema.shape.MERI_STATUS_PROVENANCE_MODE.parse(' OFF ')).toBe('off');
+    expect(configSchema.shape.MERI_JEV_PROVIDER_MODE.parse(' ENFORCE ')).toBe('enforce');
+    expect(configSchema.shape.MERI_CHAT_EVIDENCE_JUDGE.parse(' Paired ')).toBe('paired');
+  });
+
+  test('an explicitly empty TYPESAFE_API_KEY is treated as absent', () => {
+    expect(configSchema.shape.TYPESAFE_API_KEY.parse(undefined)).toBeUndefined();
+    expect(configSchema.shape.TYPESAFE_API_KEY.parse('')).toBeUndefined();
+    expect(configSchema.shape.TYPESAFE_API_KEY.parse('   ')).toBeUndefined();
+    expect(configSchema.shape.TYPESAFE_API_KEY.parse('configured')).toBe('configured');
+  });
+
   test('the full schema boots with every switch blank, as a hand-edited task definition sets it', () => {
     const result = configSchema.safeParse({
       ...requiredCore,
@@ -211,5 +230,19 @@ describe('configSchema — Meri rollout mode switches fail closed on blank', () 
   test('the full schema still refuses a typo in a switch', () => {
     const result = configSchema.safeParse({ ...requiredCore, MERI_AUTO_CORRECTION_MODE: 'enabled' });
     expect(result.success).toBe(false);
+  });
+
+  test('new capability tenant and surface selectors remain optional strings', () => {
+    for (const key of [
+      'MERI_EVIDENCE_PROFILES_TENANTS',
+      'MERI_EVIDENCE_PROFILES_SURFACES',
+      'MERI_MATCH_LABEL_TENANTS',
+      'MERI_MATCH_LABEL_SURFACES',
+      'MERI_STATUS_PROVENANCE_TENANTS',
+      'MERI_STATUS_PROVENANCE_SURFACES',
+    ] as const) {
+      expect(configSchema.shape[key].parse(undefined)).toBeUndefined();
+      expect(configSchema.shape[key].parse('all')).toBe('all');
+    }
   });
 });

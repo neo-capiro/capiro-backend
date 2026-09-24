@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   assuranceMetric,
-  buildClaimLedgerFromToolResults,
+  buildControlledClaimLedger,
   classifyAssuranceRisk,
   collectPeStructuralWarnings,
   confidenceLevel,
@@ -217,6 +217,7 @@ export class InEditorAssistantService {
               ledgerEntries,
               assurance,
               assuranceMode,
+              ctx.tenantId,
               ctx.contextPacket?.persisted ? (ctx.contextPacket.packetId ?? null) : null,
             )
           : null;
@@ -304,6 +305,7 @@ export class InEditorAssistantService {
     ledgerEntries: readonly LedgerEntry[],
     assurance: ReturnType<typeof resolveInEditorAssurance>,
     mode: AssuranceRolloutMode,
+    tenantId: string,
     contextPacketId: string | null,
   ): string | null {
     const editText = edits
@@ -314,10 +316,15 @@ export class InEditorAssistantService {
       .trim();
     if (!editText) return null;
     try {
-      const ledger = buildClaimLedgerFromToolResults({
+      const ledger = buildControlledClaimLedger({
         output: editText,
         ledgerEntries,
         plan: assurance.plan,
+        env: process.env,
+        tenantId,
+        surface: 'in-editor',
+        callSite: 'holdUnverifiedEdits',
+        logShadow: (event, fields) => this.logger.log(JSON.stringify({ event, ...fields })),
       });
       const grounding = runAuditor({
         output: editText,
@@ -405,7 +412,7 @@ export class InEditorAssistantService {
       return [];
     }
     try {
-      const res = await fetch(`${this.apiBaseUrl}/api/clio/tool-schemas`, {
+      const res = await fetch(`${this.apiBaseUrl}/api/clio/tool-schemas?surface=in-editor`, {
         headers: { authorization: `Bearer ${bearer}`, accept: 'application/json' },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

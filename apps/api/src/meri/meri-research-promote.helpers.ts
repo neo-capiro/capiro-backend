@@ -52,7 +52,7 @@ const BUILD_REPORT_ADJACENCY = new RegExp(
 
 /** Comprehensiveness qualifier — signals a real deliverable, not a one-liner. */
 const SCOPE_QUALIFIER =
-  /\b(full|detailed|comprehensive|in-?depth|thorough|complete|end-to-end|multi-(?:section|part)|exhaustive|robust)\b/i;
+  /\b(full|detailed|comprehensive|in-?depth|thorough|complete|end-to-end|multi-(?:section|part)|exhaustive|robust|certification-status|authorization-status)\b/i;
 
 /** Multi-entity / survey shape — "every X", "all the Ys", "across …", "compare …". */
 const MULTI_ENTITY = /\b(all|every|each|any and all|across|compare|landscape|survey of)\b/i;

@@ -55,17 +55,61 @@ async function main() {
     "MERI_PASSAGE_SELECTION_MODE: 'off'",
     "MERI_PASSAGE_SELECTION_TENANTS: ''",
     "MERI_PASSAGE_SELECTION_SURFACES: ''",
+    "MERI_EVIDENCE_PROFILES_MODE: 'off'",
+    "MERI_EVIDENCE_PROFILES_TENANTS: ''",
+    "MERI_EVIDENCE_PROFILES_SURFACES: ''",
+    "MERI_MATCH_LABEL_MODE: 'off'",
+    "MERI_MATCH_LABEL_TENANTS: ''",
+    "MERI_MATCH_LABEL_SURFACES: ''",
+    "MERI_STATUS_PROVENANCE_MODE: 'off'",
+    "MERI_STATUS_PROVENANCE_TENANTS: ''",
+    "MERI_STATUS_PROVENANCE_SURFACES: ''",
+    "MERI_JEV_CACHE_MODE: 'off'",
+    "MERI_JEV_CACHE_TENANTS: ''",
+    "MERI_JEV_CACHE_SURFACES: ''",
     "MERI_JEV_PROVIDER_MODE: 'off'",
     "MERI_JEV_PROVIDER_TENANTS: ''",
     "MERI_JEV_PROVIDER_SURFACES: ''",
     "MERI_JEV_MODEL: 'jev-1.13.0'",
+    "MERI_JEV_TIMEOUT_MS: '8000'",
+    "MERI_JEV_MAX_ATTEMPTS: '2'",
     "MERI_CHAT_EVIDENCE_JUDGE: 'llm'",
     "MERI_JEV_TASKS: ''",
     "MEMORY_AUTOLEARN_GOVERNED: 'false'",
   ]) {
     assert.ok(prepare.includes(fragment), `Dark task preparation is missing ${fragment}.`);
   }
+  for (const fragment of [
+    "MERI_EVIDENCE_PROFILES_MODE: 'off'",
+    "MERI_EVIDENCE_PROFILES_TENANTS: ''",
+    "MERI_EVIDENCE_PROFILES_SURFACES: ''",
+    "MERI_MATCH_LABEL_MODE: 'off'",
+    "MERI_MATCH_LABEL_TENANTS: ''",
+    "MERI_MATCH_LABEL_SURFACES: ''",
+    "MERI_STATUS_PROVENANCE_MODE: 'off'",
+    "MERI_STATUS_PROVENANCE_TENANTS: ''",
+    "MERI_STATUS_PROVENANCE_SURFACES: ''",
+    "MERI_JEV_CACHE_MODE: 'off'",
+    "MERI_JEV_CACHE_TENANTS: ''",
+    "MERI_JEV_CACHE_SURFACES: ''",
+    "MERI_JEV_TIMEOUT_MS: '8000'",
+    "MERI_JEV_MAX_ATTEMPTS: '2'",
+  ]) {
+    assert.ok(
+      prepare.split(fragment).length - 1 >= 2,
+      `Both dark-default objects must contain ${fragment}.`,
+    );
+  }
   assert.doesNotMatch(code(prepare), /register-task-definition|update-service|run-task/);
+  for (const fragment of [
+    'preserve-live-controls',
+    'reset-controls',
+    'controlPolicy',
+    'controlChanges',
+    'resolveControlPolicy',
+  ]) {
+    assert.ok(prepare.includes(fragment), `Release control guard is missing ${fragment}.`);
+  }
 
   const execute = await text('scripts/execute-meriv2-ecs-release.mjs');
   for (const fragment of [
@@ -75,12 +119,29 @@ async function main() {
     'rollbackServices',
     'DEPLOY_CAPIRO_',
     'additiveMigrationsRetained',
+    'validateLiveControlPolicy',
+    'assertPreservedControlsStillLive',
+    'assertServiceControlsStillLive',
   ]) {
     assert.ok(execute.includes(fragment), `Dark ECS executor is missing ${fragment}.`);
   }
   assert.ok(
     execute.indexOf('runMigration') < execute.indexOf("'update-service'"),
     'Migration execution must precede service updates.',
+  );
+  // R6 finding 1: a single upfront preserve-live check cannot catch drift introduced while six
+  // registrations and a migration run. assertServiceControlsStillLive must be called both once
+  // up front (fail fast) AND again immediately before EACH service's own update-service call, so
+  // exactly 3 occurrences are expected: the definition plus two call sites.
+  assert.strictEqual(
+    execute.split('assertServiceControlsStillLive').length - 1,
+    3,
+    'assertServiceControlsStillLive must be called once up front and once per service immediately before update-service (plus its definition).',
+  );
+  assert.ok(
+    execute.indexOf('assertServiceControlsStillLive(manifest, service)')
+      < execute.indexOf("'update-service'", execute.indexOf('for (const key of SERVICE_ORDER)')),
+    'The per-service control re-check must run before that service\'s update-service call.',
   );
 
   const operations = await text('scripts/deploy-meriv2-operations-dark.mjs');

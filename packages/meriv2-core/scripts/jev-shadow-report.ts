@@ -82,18 +82,22 @@ async function main(): Promise<void> {
   const out = argument('--out');
   if (!out) throw new Error('--out <dir> is required');
   const eventsPath = argument('--events');
-  const recordingsPath = path.resolve(argument('--recordings') ?? path.join(out, 'empty-recordings.jsonl'));
-  if (!argument('--recordings')) {
-    mkdirSync(path.dirname(recordingsPath), { recursive: true });
-    writeFileSync(recordingsPath, '');
-  }
   const read = eventsPath ? readShadowEvents(path.resolve(eventsPath)) : { events: [], rejected: 0, unrelated: 0 };
-  const replay = await replayEvents(recordingsPath);
+  const includeFixtures = process.argv.includes('--include-fixtures');
+  let replay: Awaited<ReturnType<typeof replayEvents>> | undefined;
+  if (includeFixtures) {
+    const recordingsPath = path.resolve(argument('--recordings') ?? path.join(out, 'empty-recordings.jsonl'));
+    if (!argument('--recordings')) {
+      mkdirSync(path.dirname(recordingsPath), { recursive: true });
+      writeFileSync(recordingsPath, '');
+    }
+    replay = await replayEvents(recordingsPath);
+  }
   let labels: HumanLabels | undefined;
   const labelsPath = argument('--labels');
   if (labelsPath) labels = humanLabelsSchema.parse(JSON.parse(readFileSync(path.resolve(labelsPath), 'utf8')));
   const report = buildShadowReport({
-    events: [...read.events, ...replay.events], fixtures: replay.fixture, labels,
+    events: [...read.events, ...(replay?.events ?? [])], fixtures: replay?.fixture, labels,
     split: 'all', rejectedLines: read.rejected,
   });
   const outputDir = path.resolve(out);

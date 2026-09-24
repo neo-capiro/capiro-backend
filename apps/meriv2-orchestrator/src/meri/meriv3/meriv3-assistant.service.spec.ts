@@ -1880,6 +1880,9 @@ describe('Stage 2 orchestrator hardening', () => {
       recheckInputTokens: 0,
       estimatedCostUsd: 0,
       sampled: false,
+      jevCalls: 0,
+      legacyCalls: 1,
+      repairLoops: 0,
     },
     ...overrides,
   });
@@ -2116,6 +2119,20 @@ describe('Stage 2 orchestrator hardening', () => {
       const canary = firstEvent(spies.log, 'meri.canary.turn');
       const latency = canary.latencyMs as { timeToText: number; total: number };
       expect(latency.timeToText).toBeLessThanOrEqual(latency.total);
+    });
+
+    test('classifies a deadline-exceeded time-limit reply as incomplete', async () => {
+      const complete = jest.fn();
+      const assistant = build(registry([]), complete);
+      const spies = logSpies(assistant);
+      const events: MeriV3ChatStreamEvent[] = [];
+      await assistant.run(context, {
+        conversationId: 'deadline-incomplete', toolPolicy: 'none',
+        messages: [{ role: 'user', text: 'Summarize the evidence.' }],
+      }, { deadlineAt: Date.now() - 1, onEvent: (event) => events.push(event) });
+      expect(complete).not.toHaveBeenCalled();
+      expect(textFrames(events)).toHaveLength(1);
+      expect(firstEvent(spies.log, 'meri.canary.turn')).toMatchObject({ outcome: 'incomplete' });
     });
 
     test('records the tenant-resolved Jev provider mode and the resolved routing', async () => {
@@ -2423,7 +2440,7 @@ describe('Stage 2 orchestrator hardening', () => {
         expect.objectContaining({ mode: 'shadow', reason: 'deadline' }),
       ]);
       const canary = firstEvent(spies.log, 'meri.canary.turn');
-      expect(canary.repair).toMatchObject({ budgetExhausted: 1 });
+      expect(canary.repair).toMatchObject({ attempted: 0, budgetExhausted: 1, timedOut: true });
       expect((canary.latencyMs as { timeToText: number }).timeToText).toBeGreaterThanOrEqual(8_000);
       expect((canary.latencyMs as { timeToText: number }).timeToText).toBeLessThan(9_000);
     });

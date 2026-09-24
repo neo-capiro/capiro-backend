@@ -37,6 +37,8 @@ export interface SkepticVerdict {
   refuted: boolean;
   confidence: SkepticConfidence;
   reason: string;
+  /** Usage from a schema-forced model call, when the injected judge reports it. */
+  usage?: { inputTokens: number; outputTokens: number };
 }
 
 /**
@@ -47,7 +49,12 @@ export interface SkepticVerdict {
  */
 export type SkepticJudge = (
   prompt: string,
-) => Promise<{ refuted?: unknown; confidence?: unknown; reason?: unknown }>;
+) => Promise<{
+  refuted?: unknown;
+  confidence?: unknown;
+  reason?: unknown;
+  usage?: { inputTokens: number; outputTokens: number };
+}>;
 
 /** Build the adversarial prompt. Pure — no I/O. */
 export function buildSkepticPrompt(input: SkepticInput): string {
@@ -100,6 +107,7 @@ export async function runSkeptic(
         typeof raw.reason === 'string' && raw.reason.trim()
           ? raw.reason.trim()
           : 'No reason given.',
+      ...(raw.usage ? { usage: raw.usage } : {}),
     };
   } catch (err) {
     return {
@@ -180,6 +188,9 @@ export function createLlmSkepticJudge(llm: LlmClient, opts?: { maxTokens?: numbe
       inputSchema: SKEPTIC_INPUT_SCHEMA,
       maxTokens: opts?.maxTokens ?? 512,
     });
-    return res.input as { refuted?: unknown; confidence?: unknown; reason?: unknown };
+    return {
+      ...(res.input as { refuted?: unknown; confidence?: unknown; reason?: unknown }),
+      usage: res.usage,
+    };
   };
 }

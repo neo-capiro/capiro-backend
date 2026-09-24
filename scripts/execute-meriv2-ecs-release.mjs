@@ -19,6 +19,11 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { resolveAwsCli } from './lib/resolve-aws-cli.mjs';
+import {
+  assertPreservedControlsStillLive,
+  controlledEnvironment,
+  validateControlPolicy,
+} from './lib/meriv2-release-controls.mjs';
 
 const execFileAsync = promisify(execFile);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -60,6 +65,8 @@ async function main() {
     );
   }
 
+  await validateLiveControlPolicy(manifest);
+
   await mkdir(evidenceDir, { recursive: true });
   const baseline = Object.fromEntries(
     manifest.services.map((service) => [service.key, service.currentTaskDefinitionArn]),
@@ -92,7 +99,7 @@ async function main() {
     const digest = await imageDigest(entry.repository, sha);
     const source = JSON.parse(await readFile(path.resolve(ROOT, entry.file), 'utf8'));
     const pinned = pinTaskImages(source, entry.repository, sha, digest);
-    assertDarkTaskDefinition(entry.key, pinned);
+    assertTaskDefinitionPolicy(entry.key, pinned, manifest);
     const pinnedFile = path.join(evidenceDir, `${entry.key}.digest-pinned.task-definition.json`);
     await writeFile(pinnedFile, `${JSON.stringify(pinned, null, 2)}\n`, 'utf8');
     const registered = await awsJson([
@@ -120,6 +127,7 @@ async function main() {
     for (const key of SERVICE_ORDER) {
       const service = serviceByKey(manifest, key);
       const taskDefinitionArn = registrations[key].arn;
+      await assertServiceControlsStillLive(manifest, service);
       await awsJson([
         'ecs',
         'update-service',
@@ -159,7 +167,8 @@ async function main() {
     migrationTaskArn,
     registrations,
     updatedServices: SERVICE_ORDER,
-    controlsDark: true,
+    controlPolicy: manifest.controlPolicy,
+    controlsDark: manifest.controlPolicy !== 'preserve-live',
     workerScheduleChanged: false,
     controlMonitorChanged: false,
     backfillExecuted: false,
@@ -349,6 +358,18 @@ function pinTaskImages(taskDefinition, repository, imageTag, digest) {
   return taskDefinition;
 }
 
+function assertTaskDefinitionPolicy(key, taskDefinition, manifest) {
+  const service = key === 'api-migrate' ? manifest.migration : serviceByKey(manifest, key);
+  validateControlPolicy({
+    policy: manifest.controlPolicy,
+    liveControls: service.liveControls,
+    intendedControls: service.darkEnvironment,
+    proposedControls: controlledTaskEnvironment(taskDefinition, service.containerNames),
+  });
+  if (manifest.controlPolicy === 'preserve-live') return;
+  assertDarkTaskDefinition(key, taskDefinition);
+}
+
 function assertDarkTaskDefinition(key, taskDefinition) {
   const controlled = new Map();
   for (const container of taskDefinition.containerDefinitions ?? []) {
@@ -406,6 +427,55 @@ function assertDarkTaskDefinition(key, taskDefinition) {
   }
 }
 
+async function validateLiveControlPolicy(manifest) {
+  for (const service of manifest.services) {
+    const proposed = JSON.parse(await readFile(path.resolve(ROOT, service.proposedFile), 'utf8'));
+    validateControlPolicy({
+      policy: manifest.controlPolicy,
+      liveControls: service.liveControls,
+      intendedControls: service.darkEnvironment,
+      proposedControls: controlledTaskEnvironment(proposed, service.containerNames),
+    });
+    await assertServiceControlsStillLive(manifest, service);
+  }
+}
+
+// Re-reads ONE service's current live controls and compares them against what the manifest
+// recorded at prepare time. Called once up front (fail fast before any mutation) AND again
+// immediately before that service's own update-service call: registering six task definitions
+// plus running a migration can take minutes, during which an operator can legitimately change a
+// live control (R6 finding 1) — a single upfront check cannot catch that later drift.
+async function assertServiceControlsStillLive(manifest, service) {
+  if (manifest.controlPolicy !== 'preserve-live' || service.key === 'web') return;
+  const liveService = await describeService(manifest.cluster, service.service);
+  const liveTask = await describeTaskDefinition(liveService.taskDefinition);
+  assertPreservedControlsStillLive(
+    service.liveControls,
+    controlledTaskEnvironment(liveTask, service.containerNames),
+  );
+}
+
+function controlledTaskEnvironment(taskDefinition, containerNames) {
+  const containers = taskDefinition.containerDefinitions ?? [];
+  const target =
+    containers.find((container) => containerNames.includes(container.name)) ??
+    containers.find((container) => container.essential) ??
+    containers[0];
+  if (!target) throw new Error('Task definition has no container for control validation.');
+  return controlledEnvironment(target.environment ?? []);
+}
+
+async function describeTaskDefinition(taskDefinition) {
+  const response = await awsJson([
+    'ecs',
+    'describe-task-definition',
+    '--task-definition',
+    taskDefinition,
+  ]);
+  if (!response.taskDefinition) throw new Error(`Task definition ${taskDefinition} was not found.`);
+  return response.taskDefinition;
+}
+
 async function imageDigest(repository, imageTag) {
   const response = await awsJson([
     'ecr',
@@ -444,9 +514,30 @@ function validateManifest(manifest) {
   if (!manifest.cluster || !manifest.account || !Array.isArray(manifest.services)) {
     throw new Error('Manifest is missing cluster, account, or service data.');
   }
-  for (const key of SERVICE_ORDER) serviceByKey(manifest, key);
+  if (!['dark', 'reset', 'preserve-live'].includes(manifest.controlPolicy)) {
+    throw new Error('Manifest is missing a valid controlPolicy.');
+  }
+  for (const key of SERVICE_ORDER) {
+    const service = serviceByKey(manifest, key);
+    if (
+      !Array.isArray(service.containerNames) ||
+      !service.darkEnvironment ||
+      !service.liveControls ||
+      !Array.isArray(service.controlChanges)
+    ) {
+      throw new Error(`Manifest service ${key} is missing control-policy data.`);
+    }
+  }
   if (!manifest.migration?.proposedFile || !manifest.migration?.networkConfiguration) {
     throw new Error('Manifest is missing migration task or network configuration.');
+  }
+  if (
+    !Array.isArray(manifest.migration.containerNames) ||
+    !manifest.migration.darkEnvironment ||
+    !manifest.migration.liveControls ||
+    !Array.isArray(manifest.migration.controlChanges)
+  ) {
+    throw new Error('Manifest migration is missing control-policy data.');
   }
 }
 

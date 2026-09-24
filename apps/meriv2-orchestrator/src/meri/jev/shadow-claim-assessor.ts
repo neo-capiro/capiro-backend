@@ -6,6 +6,9 @@ import {
   evaluateClaimDeterministically,
   checkExactSourceEligibility,
   isDocumentSpecificClaim,
+  JEV_TASK_REGISTRY,
+  LEGACY_SKEPTIC_BASELINE_ADAPTER_VERSION,
+  runCalibratedCascade,
   type ClaimLedger,
   type DecisionProvider,
   type DocumentReference,
@@ -14,6 +17,7 @@ import {
   type EvidencePassage,
   type ExactSourceEligibility,
   type MaterialClaim,
+  type JevRouting,
 } from '@capiro/meriv2-core';
 
 export interface EvidenceShadowLogger {
@@ -38,6 +42,7 @@ export interface AssessReleasedClaimsInput {
   turnId?: string;
   asOf: string;
   providers: { jev: DecisionProvider | null; legacy: DecisionProvider };
+  routing?: JevRouting;
   budget: ShadowAssessmentBudget;
   signal?: AbortSignal;
   logger: EvidenceShadowLogger;
@@ -76,7 +81,8 @@ function priority(claim: MaterialClaim, ledger: ClaimLedger): number {
 function failure(provider: string, model: string, state: EvidenceOperationalState, reason: string): EvidenceDecision {
   return {
     kind: 'failure', state, reasonCodes: [reason],
-    provider: { name: provider, model, questionVersion: 'claim_support.v1' }, latencyMs: 0,
+    provider: { name: provider, model,
+      questionVersion: JEV_TASK_REGISTRY.claim_support.questionVersion }, latencyMs: 0,
   };
 }
 
@@ -175,8 +181,14 @@ export async function assessReleasedClaims(input: AssessReleasedClaimsInput): Pr
       const { envelope, hash } = buildEvidenceEnvelope({
         claim: assuredClaim, ledger: input.ledger, citations: [...input.citations],
         passages: input.passages, tenantId: input.tenantId, clientId: input.clientId,
-        asOf: input.asOf,
+        asOf: input.asOf, includeProvenance: true,
       });
+      const question = buildClaimSupportQuestion(envelope);
+      // Admission uses the envelope's size, not the (narrower, provenance-stripped) question
+      // state actually sent to Jev below: this must stay byte-identical to the pre-Stage-3
+      // admission estimate (R5 finding 1) so live claim selection near the budget boundary is
+      // unchanged. The envelope is always at least as large as its own question projection, so
+      // this remains a conservative (over-, never under-) estimate of the real request size.
       const claimTokens = Math.ceil(JSON.stringify(envelope).length / 4);
       if (estimatedInputTokens + claimTokens > input.budget.maxInputTokens) {
         budgetExhausted = true;
@@ -187,22 +199,49 @@ export async function assessReleasedClaims(input: AssessReleasedClaimsInput): Pr
       const eligibility: ExactSourceEligibility = checkExactSourceEligibility(claim, references, input.ledger);
       let jev: EvidenceDecision;
       let legacy: EvidenceDecision;
+      let cascadeFields: Record<string, unknown> = {};
       if (!eligibility.eligible) {
         jev = failure('jev', 'not-called', 'document_unavailable', eligibility.reason);
         legacy = failure('legacy-skeptic', 'not-called', 'document_unavailable', eligibility.reason);
       } else {
-        const question = buildClaimSupportQuestion(envelope);
-        const calls = [
-          input.providers.jev?.assess(envelope, question, { signal: linked.signal, deadlineAt }),
-          input.providers.legacy.assess(envelope, question, { signal: linked.signal, deadlineAt }),
-        ].filter((call): call is Promise<EvidenceDecision> => Boolean(call));
-        const settled = await Promise.allSettled(calls.map((call) => settleBeforeAbort(call, linked.signal)));
-        if (input.providers.jev) {
-          jev = normalizeSettled(settled[0], input.providers.jev);
-          legacy = normalizeSettled(settled[1], input.providers.legacy);
+        if (input.routing === 'cascade') {
+          const result = await runCalibratedCascade({
+            claim: {
+              id: claim.id,
+              category: claim.category,
+              compound: claim.compound,
+              materialHighImpact: DEFAULT_HIGH_RISK_CATEGORIES.has(claim.category),
+            },
+            jev: input.providers.jev,
+            legacy: input.providers.legacy,
+            envelope,
+            question,
+            registration: JEV_TASK_REGISTRY.claim_support,
+            sampleKey: `${input.conversationId ?? ''}:${claim.id}`,
+            signal: linked.signal,
+            deadlineAt,
+          });
+          jev = result.jev ?? failure('jev', 'unavailable', 'judge_unavailable', 'provider_disabled');
+          legacy = result.legacy ?? failure('legacy-skeptic', 'not-called', 'not_checked', 'cascade_not_escalated');
+          cascadeFields = {
+            escalated: result.escalated,
+            escalationReasons: result.escalationReasons,
+            audited: result.audited,
+            auditDisagreement: result.auditDisagreement,
+          };
         } else {
-          jev = normalizeSettled(undefined, null);
-          legacy = normalizeSettled(settled[0], input.providers.legacy);
+          const calls = [
+            input.providers.jev?.assess(envelope, question, { signal: linked.signal, deadlineAt }),
+            input.providers.legacy.assess(envelope, question, { signal: linked.signal, deadlineAt }),
+          ].filter((call): call is Promise<EvidenceDecision> => Boolean(call));
+          const settled = await Promise.allSettled(calls.map((call) => settleBeforeAbort(call, linked.signal)));
+          if (input.providers.jev) {
+            jev = normalizeSettled(settled[0], input.providers.jev);
+            legacy = normalizeSettled(settled[1], input.providers.legacy);
+          } else {
+            jev = normalizeSettled(undefined, null);
+            legacy = normalizeSettled(settled[0], input.providers.legacy);
+          }
         }
       }
       const actualTokens = (jev.kind === 'outcome' ? jev.usage?.inputTokens ?? 0 : 0)
@@ -218,6 +257,7 @@ export async function assessReleasedClaims(input: AssessReleasedClaimsInput): Pr
         conversationId: input.conversationId ?? null, turnId: input.turnId ?? null,
         claimId: claim.id, claimKind: claim.kind, claimCategory: claim.category,
         envelopeHash: hash, eligibility, jev: loggedDecision(jev), legacy: loggedDecision(legacy),
+        legacyAdapterVersion: LEGACY_SKEPTIC_BASELINE_ADAPTER_VERSION,
         agreement: resultKey(jev) === resultKey(legacy),
         freshness: {
           state: deterministic.freshness.state,
@@ -226,6 +266,7 @@ export async function assessReleasedClaims(input: AssessReleasedClaimsInput): Pr
         },
         exact: { result: deterministic.exact.result, kind: deterministic.exact.kind },
         proposedAction: { jev: proposedAction(jev, claim), legacy: proposedAction(legacy, claim) },
+        ...cascadeFields,
       });
     }
   } finally {

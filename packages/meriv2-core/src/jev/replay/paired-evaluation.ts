@@ -1,7 +1,11 @@
 import { hashEvidenceContent } from '../../grounding/evidence';
 import { runSkeptic, type SkepticJudge } from '../../grounding/skeptic';
 import { CLAIM_SUPPORT_QUESTION_VERSION } from '../claim-support-question';
-import { decisionFromSkepticVerdict } from '../skeptic-adapter';
+import {
+  decisionFromSkepticVerdict,
+  LEGACY_SKEPTIC_ADAPTER_V1,
+  type LegacySkepticAdapterVersion,
+} from '../skeptic-adapter';
 import type { DecisionProvider, EvidenceDecision, EvidenceEnvelope, EvidenceOutcome, EvidenceQuestion } from '../decision-contract';
 
 export interface PairedEvaluationCase {
@@ -26,7 +30,11 @@ interface PairedResult {
   legacyMatchesExpected: boolean;
 }
 
-export function createSkepticDecisionProvider(judge: SkepticJudge, model = 'deterministic-stub'): DecisionProvider {
+export function createSkepticDecisionProvider(
+  judge: SkepticJudge,
+  model = 'deterministic-stub',
+  adapterVersion: LegacySkepticAdapterVersion = LEGACY_SKEPTIC_ADAPTER_V1,
+): DecisionProvider {
   return {
     name: 'legacy-skeptic', available: () => true,
     async assess(envelope) {
@@ -34,7 +42,10 @@ export function createSkepticDecisionProvider(judge: SkepticJudge, model = 'dete
       const verdict = await runSkeptic({ claim: envelope.claimText, evidence: envelope.sources.map((source) => source.passage).join('\n') }, judge);
       return decisionFromSkepticVerdict(verdict, {
         provider: { name: 'legacy-skeptic', model, questionVersion: CLAIM_SUPPORT_QUESTION_VERSION },
-        latencyMs: Math.max(0, Date.now() - started), evidenceIds: envelope.sources.map((source) => source.evidenceId),
+        latencyMs: Math.max(0, Date.now() - started),
+        evidenceIds: envelope.sources.map((source) => source.evidenceId),
+        hasBoundEvidence: envelope.sources.some((source) => source.passage.trim().length > 0),
+        adapterVersion,
       });
     },
   };

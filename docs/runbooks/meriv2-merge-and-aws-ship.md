@@ -270,15 +270,25 @@ Do not reuse or move `latest` as the release identity.
 
 ---
 
-# 7. Prepare dark task definitions with read-only AWS calls
+# 7. Prepare task definitions without silently changing controls
 
 ```bash
 pnpm prepare:meriv2-ecs-release -- \
   --sha "$RELEASE_SHA" \
   --env dev \
   --profile "$AWS_PROFILE" \
-  --region "$AWS_REGION"
+  --region "$AWS_REGION" \
+  --preserve-live-controls
 ```
+
+The preparer compares every controlled environment value in the live task definitions with the dark defaults. If any value differs, it refuses unless exactly one policy is explicit:
+
+- `--preserve-live-controls` carries every live controlled value into the new task definitions; use this for a routine image/SHA release.
+- `--reset-controls` replaces every controlled value with the dark defaults.
+
+> **PRODUCTION CONTROL RESET:** `--reset-controls` turns off production controls and clears their tenant/surface selections. It is not a routine release option. Use it only with explicit rollback/reset authorization and review every change listed in the manifest.
+
+If a service is already genuinely dark, no policy flag is needed. The manifest records `controlPolicy`, every `{ name, live, intended }` change, and the values preserved for each service. The executor rejects a preserve manifest if live controls drift after preparation; rerun preparation instead of bypassing the guard.
 
 This produces task-definition JSON and a manifest under:
 
@@ -286,7 +296,7 @@ This produces task-definition JSON and a manifest under:
 .deploy-logs/meriv2-ecs-release/<release-sha>/
 ```
 
-It does not mutate AWS. Review the generated environment values. The initial deployment must contain:
+It does not mutate AWS. Review the generated environment values. An explicitly authorized dark/reset deployment must contain:
 
 ```text
 MEMORY_GOVERNANCE_TENANTS=
@@ -302,6 +312,18 @@ MERI_POLICY_PACK_TENANTS=
 MERI_RELEASE_GATE=off
 MERI_RELEASE_GATE_TENANTS=
 MERI_RELEASE_GATE_SURFACES=
+MERI_EVIDENCE_PROFILES_MODE=off
+MERI_EVIDENCE_PROFILES_TENANTS=
+MERI_EVIDENCE_PROFILES_SURFACES=
+MERI_MATCH_LABEL_MODE=off
+MERI_MATCH_LABEL_TENANTS=
+MERI_MATCH_LABEL_SURFACES=
+MERI_STATUS_PROVENANCE_MODE=off
+MERI_STATUS_PROVENANCE_TENANTS=
+MERI_STATUS_PROVENANCE_SURFACES=
+MERI_JEV_CACHE_MODE=off
+MERI_JEV_CACHE_TENANTS=
+MERI_JEV_CACHE_SURFACES=
 ```
 
 A stale broad tenant allowlist is a release blocker even when another switch appears off.

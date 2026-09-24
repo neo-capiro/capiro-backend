@@ -22,8 +22,10 @@ import {
   AUTO_CORRECTION_CAPABILITY,
   COVERAGE_RETRIEVAL_CAPABILITY,
   PASSAGE_SELECTION_CAPABILITY,
+  JEV_TASK_REGISTRY,
+  JEV_TASK_REGISTRY_VERSION,
   buildAssurancePromptBlock,
-  buildClaimLedgerFromToolResults,
+  buildControlledClaimLedger,
   extractMaterialClaims,
   classifyAssuranceRisk,
   evaluateAssuranceRelease,
@@ -36,6 +38,10 @@ import {
   resolveEvidenceAccuracyMode,
   resolveJevConfig,
   resolveJevProviderMode,
+  resolveJevCacheMode,
+  JevDecisionCache,
+  resolveMatchLabelMode,
+  resolveStatusProvenanceMode,
   resolveGovernmentAffairsOperatingFrame,
   runAuditor,
   runGovernmentAffairsChecks,
@@ -104,8 +110,10 @@ import {
   buildLiteralAuditContext,
   validateLiteralAuditCorrections,
 } from './meriv3-audit-contract.js';
-import { createChatDecisionProviders, createPassageSelectionClient } from '../jev/jev-provider.factory.js';
+import { runStatusProvenance } from './status-provenance-runtime.js';
+import { createChatDecisionProviders, createClientFitClient, createPassageSelectionClient } from '../jev/jev-provider.factory.js';
 import { assessReleasedClaims } from '../jev/shadow-claim-assessor.js';
+import { applyMatchLabelControl, createClientFitEvaluator, matchLabelEvent } from './match-label-control.js';
 import {
   appendClaimTiedCoverageDisclosure,
   buildCoverageRequirements,
@@ -122,6 +130,7 @@ import {
   applyPassageSelectionToSynthesis,
   buildPassageCandidates,
   PASSAGE_SELECTION_MODEL_PRICE_PER_INPUT_TOKEN,
+  PASSAGE_SELECTION_QUESTION_VERSION,
   rebuildSynthesisEvidence,
   selectPassages,
 } from '../jev/passage-selector.js';
@@ -443,6 +452,12 @@ export class MeriV3AssistantService {
   private readonly registry: ToolRegistry;
   private readonly llm: MeriRegistryService['llm'];
   private readonly apiBaseUrl: string;
+  private readonly jevDecisionCache = new JevDecisionCache();
+
+  private liveRepairCache(tenantId: string) {
+    const mode = resolveJevCacheMode(process.env, tenantId, 'chat');
+    return mode === 'off' ? undefined : { mode, instance: this.jevDecisionCache };
+  }
 
   constructor(
     registryService: MeriRegistryService,
@@ -593,6 +608,26 @@ export class MeriV3AssistantService {
       surface,
     );
     const claimAssessmentMode = resolveClaimAssessmentMode(process.env, ctx.tenantId, surface);
+    const matchLabelMode = resolveMatchLabelMode(process.env, ctx.tenantId, surface);
+    const clientFit = createClientFitClient({
+      env: process.env,
+      tenantId: ctx.tenantId,
+      surface,
+      logger: { warn: (event, fields) => this.logStructured('warn', event, fields ?? {}) },
+    });
+    const buildEvidenceLedger = (
+      input: Omit<Parameters<typeof buildControlledClaimLedger>[0], 'env' | 'tenantId' | 'surface' | 'callSite' | 'logShadow'>,
+      callSite: string,
+      ledgerSurface: AssuranceSurface = surface,
+    ) => buildControlledClaimLedger({
+      ...input,
+      env: process.env,
+      tenantId: ctx.tenantId,
+      surface: ledgerSurface,
+      callSite,
+      logShadow: (event, fields) => this.logStructured('log', event, { ...fields }),
+    });
+    const statusProvenanceMode = resolveStatusProvenanceMode(process.env, ctx.tenantId, surface);
     const canary = new CanaryTurnCollector({
       conversationId: dto.conversationId ?? null,
       tenantId: ctx.tenantId,
@@ -720,12 +755,12 @@ export class MeriV3AssistantService {
       const body = typeof toolInput[field] === 'string' ? String(toolInput[field]).trim() : '';
       if (!body) return null;
       try {
-        const claimLedger = buildClaimLedgerFromToolResults({
+        const claimLedger = buildEvidenceLedger({
           output: body,
           ledgerEntries,
           citations,
           plan: evidencePlan,
-        });
+        }, 'prePersistRefusal', 'memo');
         const grounding = runAuditor({
           output: body,
           ledger: { entries: ledgerEntries },
@@ -893,6 +928,7 @@ export class MeriV3AssistantService {
         });
         const provider = createPassageSelectionClient({
           env: process.env, tenantId: ctx.tenantId, surface: 'chat',
+          logger: this.structuredLogger,
         });
         const remainingMs = turnDeadlineAt() - selectionStartedAt;
         const answers = await askPassageQuestions({
@@ -900,6 +936,7 @@ export class MeriV3AssistantService {
           clientId: dto.clientId,
           candidates,
           provider: provider.client,
+          providerUnavailableReason: provider.reason,
           signal: opts.signal,
           // Observe the turn deadline and keep a synthesis floor free of selection.
           deadlineAt: Math.min(
@@ -953,6 +990,9 @@ export class MeriV3AssistantService {
           latencyMs,
           inputTokens: answers.inputTokens,
           estimatedCostUsd: costUsd,
+          registryVersion: JEV_TASK_REGISTRY_VERSION,
+          task: { questionVersion: PASSAGE_SELECTION_QUESTION_VERSION,
+            modelVersion: JEV_TASK_REGISTRY.passage_relevance.modelVersion },
           questionVersion: answers.questionVersion,
           model: answers.model || provider.model,
         });
@@ -964,6 +1004,12 @@ export class MeriV3AssistantService {
           requiredRetained,
           contradictoryRetained: selection.retainedContradictory,
           fallback,
+          safetyIntervention: {
+            evaluated: true,
+            intervened: selection.safetyIntervention.intervened || rebuilt.fallback,
+            reasons: [...selection.safetyIntervention.reasons,
+              ...(rebuilt.fallback ? [`fallback_unfiltered:${rebuilt.fallbackReason ?? 'rebuild_failed'}`] : [])],
+          },
           latencyMs,
           tokens: answers.inputTokens,
           costUsd,
@@ -1221,6 +1267,7 @@ export class MeriV3AssistantService {
           followUps: executed,
           residual: essentialResiduals.length,
           latencyMs: Date.now() - coverageStartedAt,
+          retrievalToolCalls: executed,
         });
         this.logStructured('log', 'meri.coverage.turn', {
           conversationId: dto.conversationId ?? null,
@@ -1456,13 +1503,85 @@ export class MeriV3AssistantService {
       }
     }
 
+    if (matchLabelMode === 'enforce' && released.reply) {
+      const started = Date.now();
+      const matchLedger = buildEvidenceLedger({
+        output: released.reply,
+        ledgerEntries,
+        citations: released.citations,
+        plan: evidencePlan,
+      }, 'matchLabelEnforce');
+      const matchResult = await applyMatchLabelControl({
+        mode: 'enforce',
+        reply: released.reply,
+        citations: released.citations,
+        evidence: matchLedger.evidence,
+        ...(clientFit.client ? { evaluate: createClientFitEvaluator({
+          provider: clientFit.client, tenantId: ctx.tenantId, deadlineAt: started + 8_000,
+          signal: opts.signal,
+        }) } : {}),
+      });
+      released = { ...released, reply: matchResult.reply };
+      if (matchResult.failureReason) {
+        this.logStructured('warn', 'meri.match_label.failed', {
+          reason: matchResult.failureReason,
+          latencyMs: Date.now() - started,
+        });
+      }
+    }
+
+    // Enforce is pre-release and bounded. Any lookup/deadline failure returns the original reply.
+    if (statusProvenanceMode === 'enforce' && released.reply) {
+      const statusResult = await runStatusProvenance({
+        reply: released.reply,
+        mode: 'enforce',
+        registry: this.registry,
+        ctx,
+        deadlineAt: Math.min(opts.deadlineAt ?? Date.now() + 8_000, Date.now() + 8_000),
+        signal: opts.signal,
+      });
+      released = { ...released, reply: statusResult.reply };
+      if (!statusResult.lookupOk) {
+        this.logStructured('warn', 'meri.status_provenance.failed', {
+          reason: statusResult.failureReason,
+          latencyMs: statusResult.latencyMs,
+        });
+      }
+    }
+
     if (emitText && released.reply) {
       emit({ type: 'text', text: released.reply });
       canary.noteTextEmitted();
     }
+    if (matchLabelMode === 'shadow' && released.reply) {
+      const reply = released.reply;
+      const releasedCitations = released.citations;
+      const started = Date.now();
+      queueMicrotask(() => {
+        void Promise.resolve().then(async () => {
+          const matchLedger = buildEvidenceLedger({
+            output: reply,
+            ledgerEntries,
+            citations: releasedCitations,
+            plan: evidencePlan,
+          }, 'matchLabelShadow');
+          const result = await applyMatchLabelControl({
+            mode: 'shadow', reply, citations: releasedCitations, evidence: matchLedger.evidence,
+            ...(clientFit.client ? { evaluate: createClientFitEvaluator({
+              provider: clientFit.client, tenantId: ctx.tenantId, deadlineAt: started + 8_000,
+              signal: opts.signal,
+            }) } : {}),
+          });
+          if (result.findings > 0) {
+            this.logStructured('log', 'meri.match_label.shadow', matchLabelEvent(result, Date.now() - started));
+          }
+        }).catch(() => undefined);
+      });
+    }
     const canaryEvent = canary.build({
-      outcome: opts.signal?.aborted ? 'aborted' : released.held ? 'held'
-        : telemetry.finishReason === 'runtime_error' ? 'error' : 'released',
+      outcome: opts.signal?.aborted && telemetry.finishReason !== 'deadline_exceeded' ? 'aborted'
+        : released.held ? 'held' : telemetry.finishReason === 'runtime_error' ? 'error'
+          : telemetry.finishReason === 'deadline_exceeded' ? 'incomplete' : 'released',
       clarificationRequested: replyRequestsClarification(released.reply, documentRequests),
       heldReason: released.held ? complianceOutcome ?? 'release_gate' : null,
     });
@@ -1481,12 +1600,12 @@ export class MeriV3AssistantService {
         asOf,
         logger: this.structuredLogger,
         afterInventory: async () => {
-          const claimLedger = buildClaimLedgerFromToolResults({
+          const claimLedger = buildEvidenceLedger({
             output: released.reply,
             ledgerEntries,
             citations: released.citations,
             plan: evidencePlan,
-          });
+          }, 'claimInventory');
           const claims = extractMaterialClaims({
             replyText: released.reply,
             citations: released.citations,
@@ -1515,13 +1634,32 @@ export class MeriV3AssistantService {
             conversationId: dto.conversationId,
             turnId: undefined,
             asOf,
-            providers,
-            budget: { maxClaims: 12, maxInputTokens: 60_000, deadlineMs: 6_000 },
+            providers: { jev: providers.jev, legacy: providers.legacyBaseline },
+            routing: resolveJevConfig(process.env).routing,
+            budget: JEV_TASK_REGISTRY.claim_support.shadowBudget!,
             signal: opts.requestSignal ?? opts.signal,
             logger: this.structuredLogger,
           });
         },
       });
+    }
+    // Shadow starts only after text emission and is deliberately not awaited.
+    if (statusProvenanceMode === 'shadow' && released.reply) {
+      void runStatusProvenance({
+        reply: released.reply,
+        mode: 'shadow',
+        registry: this.registry,
+        ctx,
+        deadlineAt: Date.now() + 8_000,
+        signal: opts.requestSignal ?? opts.signal,
+      }).then((result) => {
+        if (!result.detected) return;
+        this.logStructured('log', 'meri.status_provenance.shadow', {
+          counts: result.outcomes,
+          lookupOk: result.lookupOk,
+          latencyMs: result.latencyMs,
+        });
+      }).catch(() => undefined);
     }
     if (dto.pageWrite && pageWriteState.payload && !released.held && !opts.signal?.aborted) {
       const pageWrite = this.validateCitationText(
@@ -1742,6 +1880,7 @@ export class MeriV3AssistantService {
         omitted: 0,
         documentRequested: 0,
         budgetExhausted: reason === 'deadline' ? 1 : 0,
+        timedOut: reason === 'deadline',
         assessmentMs: 0,
         repairMs: Date.now() - startedAt,
         tokens: 0,
@@ -1751,11 +1890,16 @@ export class MeriV3AssistantService {
     };
     try {
       const asOf = new Date().toISOString();
-      const claimLedger = buildClaimLedgerFromToolResults({
+      const claimLedger = buildControlledClaimLedger({
         output: released.reply,
         ledgerEntries: args.ledgerEntries,
         citations: released.citations,
         plan: args.evidencePlan,
+        env: process.env,
+        tenantId: ctx.tenantId,
+        surface: turnSurface(dto),
+        callSite: 'autoCorrection',
+        logShadow: (event, fields) => this.logStructured('log', event, { ...fields }),
       });
       const promoted = extractMaterialClaims({
         replyText: released.reply,
@@ -1852,6 +1996,7 @@ export class MeriV3AssistantService {
         // Real read-only classification for remedy planning; unknown tools fail closed.
         toolRegistry: this.registry,
         pricing: { llmModel: args.synthesisModel },
+        cache: this.liveRepairCache(ctx.tenantId),
       });
       const settled = await settleWithinBudget(work, { deadlineAt, signal: controller.signal });
       if (settled.kind !== 'settled') {
@@ -1863,11 +2008,16 @@ export class MeriV3AssistantService {
       // reports (corrected + qualified + omitted + unresolved === attempted).
       args.canary.noteRepair({
         ...repair.metrics.repairs,
+        timedOut: false,
         assessmentMs: repair.metrics.assessmentMs,
         repairMs: repair.metrics.repairMs,
         tokens: repair.metrics.inputTokens,
         costUsd: repair.metrics.estimatedCostUsd,
         sampled: repair.metrics.sampled,
+        jevCalls: repair.metrics.jevCalls,
+        legacyCalls: repair.metrics.legacyCalls,
+        repairLoops: repair.metrics.repairLoops,
+        cache: repair.metrics.cache,
       });
       args.canary.noteLegacy(repair.metrics.legacyInputTokens);
       this.logStructured('log', 'meri.auto_correction.stage', {
@@ -1911,6 +2061,8 @@ export class MeriV3AssistantService {
         assuranceMode: args.assuranceMode,
         complianceOutcome: args.complianceOutcome,
         verificationAvailable: args.verificationAvailable,
+        tenantId: ctx.tenantId,
+        surface: turnSurface(dto),
       });
       if (gate.held) {
         this.logStructured('warn', 'meri.auto_correction.rewrite_rejected', {
@@ -2420,6 +2572,8 @@ export class MeriV3AssistantService {
       assuranceMode: args.assuranceMode,
       complianceOutcome: args.complianceOutcome,
       verificationAvailable: args.verificationAvailable,
+      tenantId: args.ctx.tenantId,
+      surface: turnSurface(args.dto),
     });
     released = gate.released;
     held = gate.held;
@@ -2449,6 +2603,8 @@ export class MeriV3AssistantService {
     assuranceMode: ReturnType<typeof resolveAssuranceRolloutMode>;
     complianceOutcome?: 'PASS' | 'WARN' | 'BLOCK';
     verificationAvailable: boolean;
+    tenantId: string;
+    surface: AssuranceSurface;
   }): { released: string; held: boolean } {
     let released = args.released;
     let held = false;
@@ -2458,11 +2614,16 @@ export class MeriV3AssistantService {
       released.trim()
     ) {
       try {
-        const claimLedger = buildClaimLedgerFromToolResults({
+        const claimLedger = buildControlledClaimLedger({
           output: released,
           ledgerEntries: args.ledgerEntries,
           citations: args.citations,
           plan: args.evidencePlan,
+          env: process.env,
+          tenantId: args.tenantId,
+          surface: args.surface,
+          callSite: 'evaluateReleaseGate',
+          logShadow: (event, fields) => this.logStructured('log', event, { ...fields }),
         });
         const grounding = runAuditor({
           output: released,

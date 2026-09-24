@@ -152,6 +152,12 @@ import { buildDocumentReadPage, parseDocumentReadInput } from './meri-document-r
 import { MeriClientFilingService } from './meri-client-filing.service.js';
 import { MeetingPrepJobService } from '../engagement/meeting-prep-job.service.js';
 import { meetingPrepEnabled } from '../engagement/meeting-prep-policy.js';
+import { fetchFedrampProducts } from '../external/fedramp/fedramp.client.js';
+import {
+  resolveStatusProvenanceMode,
+  type AssuranceSurface,
+  type CapabilityRolloutEnvironment,
+} from '@capiro/meriv2-core';
 
 const PRODUCT_NAME = 'Meri';
 const LINEAGE_NOTE =
@@ -191,6 +197,12 @@ function toolActor(ctx: TenantContext): {
 export const TOOL_DEFINITIONS = MERI_CORE_TOOL_DEFINITIONS;
 
 type MeriToolName = (typeof TOOL_DEFINITIONS)[number]['name'];
+
+export interface MeriToolSchemaRolloutContext {
+  tenantId: string | null | undefined;
+  surface: AssuranceSurface;
+  env?: CapabilityRolloutEnvironment;
+}
 
 /**
  * Side-effecting (write) tools. These are serialized within a single agentic
@@ -280,7 +292,7 @@ export class MeriToolsService {
    * Schema; descriptions come from TOOL_DEFINITIONS so the manifest and the
    * tool-use schemas never drift apart.
    */
-  anthropicToolSchemas(): Array<{
+  anthropicToolSchemas(rollout?: MeriToolSchemaRolloutContext): Array<{
     name: string;
     description: string;
     input_schema: Record<string, unknown>;
@@ -732,6 +744,13 @@ export class MeriToolsService {
           billId: str('Bill id ("119-hr-8800") or designation ("H.R. 8800")'),
         },
         ['billId'],
+      ),
+      get_certification_status: obj(
+        {
+          program: { type: 'string', enum: ['fedramp'] },
+          query: str('FedRAMP product id, cloud service offering name, or CSP name'),
+        },
+        ['program', 'query'],
       ),
       search_floor_votes: obj({
         billId: str('Bill id/designation to scope votes to'),
@@ -1562,7 +1581,16 @@ export class MeriToolsService {
       ),
     };
 
-    return TOOL_DEFINITIONS.map((tool) => ({
+    const statusProvenanceEnabled =
+      rollout != null &&
+      resolveStatusProvenanceMode(
+        rollout.env ?? process.env,
+        rollout.tenantId,
+        rollout.surface,
+      ) === 'enforce';
+    return TOOL_DEFINITIONS.filter(
+      (tool) => tool.name !== 'get_certification_status' || statusProvenanceEnabled,
+    ).map((tool) => ({
       name: tool.name,
       description: tool.description,
       input_schema: requiredToolSchema(tool.name, schemas),
@@ -1943,6 +1971,8 @@ export class MeriToolsService {
         return this.searchCongressBills(input);
       case 'get_bill_status':
         return this.getBillStatus(input);
+      case 'get_certification_status':
+        return this.getCertificationStatus(input);
       case 'search_floor_votes':
         return this.searchFloorVotes(input);
       case 'search_cbo_cost_estimates':
@@ -3057,6 +3087,62 @@ export class MeriToolsService {
    * the bill (tallies + party splits), and the outcome of any RULE governing its
    * floor consideration. Explicit no-vote honesty note; never infers passage.
    */
+  private async getCertificationStatus(input: Record<string, unknown>) {
+    if (input.program !== 'fedramp') throw new BadRequestException('program must be fedramp');
+    const query = typeof input.query === 'string' ? input.query.trim() : '';
+    if (!query) throw new BadRequestException('query is required');
+    const normalized = query.toLocaleLowerCase();
+    const records = await fetchFedrampProducts();
+    const exactId = records.find(
+      (record) => record.productId.toLocaleLowerCase() === normalized,
+    );
+    const matches = exactId
+      ? [exactId]
+      : records.filter(
+          (record) =>
+            record.csoName.toLocaleLowerCase().includes(normalized) ||
+            record.cspName.toLocaleLowerCase().includes(normalized),
+        );
+    const candidates = matches.slice(0, 10);
+    const searchedEntireDataset = true;
+    if (!matches.length) {
+      return {
+        tool: 'get_certification_status',
+        program: 'fedramp',
+        found: false,
+        searchedEntireDataset,
+        evidenceOfAbsence: true,
+        note: 'No matching product or CSP name was found in the complete fetched FedRAMP Marketplace dataset.',
+        sourceUrl: records[0]?.sourceUrl,
+        observedAt: records[0]?.observedAt,
+      };
+    }
+    const result = candidates.map((record) => ({
+      ...record,
+      program: 'fedramp' as const,
+    }));
+    if (matches.length > 1) {
+      return {
+        tool: 'get_certification_status',
+        program: 'fedramp',
+        found: true,
+        ambiguous: true,
+        searchedEntireDataset,
+        candidateCount: matches.length,
+        candidates: result,
+        note: 'Several products match. No product was selected; disambiguation is required.',
+      };
+    }
+    return {
+      tool: 'get_certification_status',
+      program: 'fedramp',
+      found: true,
+      ambiguous: false,
+      searchedEntireDataset,
+      record: result[0],
+    };
+  }
+
   private async getBillStatus(input: Record<string, unknown>) {
     const raw = optionalString(input, 'billId', 60) ?? optionalString(input, 'query', 60);
     const billId = this.resolveBillId(raw);

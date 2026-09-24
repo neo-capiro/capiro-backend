@@ -1,8 +1,10 @@
 import { JevRequestError } from './jev-client';
 import type { EvidenceEnvelope, EvidenceQuestion } from './decision-contract';
+import { envelopeSourcesForJev } from './evidence-envelope';
+import { JEV_TASK_REGISTRY } from './task-registry';
 
-export const CLAIM_SUPPORT_QUESTION_VERSION = 'claim_support.v1' as const;
-export const CLAIM_SUPPORT_QUESTION_ID = 'claim_support' as const;
+export const CLAIM_SUPPORT_QUESTION_VERSION = JEV_TASK_REGISTRY.claim_support.questionVersion;
+export const CLAIM_SUPPORT_QUESTION_ID = JEV_TASK_REGISTRY.claim_support.questionId!;
 const MAX_STATE_ESTIMATED_TOKENS = 32_000;
 
 export function buildClaimSupportQuestion(envelope: EvidenceEnvelope): EvidenceQuestion {
@@ -19,17 +21,7 @@ export function buildClaimSupportQuestion(envelope: EvidenceEnvelope): EvidenceQ
       tenantId: envelope.tenantId,
       clientId: envelope.clientId,
     },
-    sources: envelope.sources.map((source) => ({
-      evidenceId: source.evidenceId,
-      sourceType: source.sourceType,
-      sourceId: source.sourceId,
-      documentId: source.documentId,
-      version: source.version,
-      locator: source.locator,
-      passage: source.passage,
-      sourceDate: source.sourceDate,
-      retrievedAt: source.retrievedAt,
-    })),
+    sources: envelopeSourcesForJev(envelope, { includeProvenance: false }),
   };
   if (JSON.stringify(state).length / 4 > MAX_STATE_ESTIMATED_TOKENS) {
     throw new JevRequestError('Jev request state exceeds the 32k-token pre-flight limit');

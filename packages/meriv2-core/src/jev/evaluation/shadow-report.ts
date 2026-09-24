@@ -101,6 +101,14 @@ function assertCrossProviderQuestionVersion(rows: readonly JoinedShadowRow[]): v
   }
 }
 
+function assertSingleLegacyAdapterVersion(rows: readonly JoinedShadowRow[]): string | null {
+  const versions = [...new Set(rows.map((row) => row.legacyAdapterVersion))].sort();
+  if (versions.length > 1) {
+    throw new Error(`legacy report cannot mix adapter versions [${versions.join(', ')}]`);
+  }
+  return versions[0] ?? null;
+}
+
 function turnKey(row: { conversationId: string | null; turnId: string | null }): string {
   return `${row.conversationId ?? ''}:${row.turnId ?? ''}`;
 }
@@ -122,7 +130,7 @@ function providerReport(rows: readonly JoinedShadowRow[], provider: ProviderName
 
 export interface ShadowReportInput {
   events: readonly ShadowEvent[];
-  fixtures?: JevClaimEvidenceFixture;
+  fixtures?: JevClaimEvidenceFixture | readonly [];
   labels?: HumanLabels;
   split: 'tuning' | 'heldout' | 'all';
   rejectedLines?: number;
@@ -158,7 +166,10 @@ function buildReportPayload(input: ShadowReportInput, rows: JoinedShadowRow[], t
       unlabeled: rows.filter((row) => row.humanLabel === null).length,
       rejectedLines: input.rejectedLines ?? 0,
     },
-    providers: { jev: providerReport(rows, 'jev'), legacy: providerReport(rows, 'legacy') },
+    providers: {
+      jev: providerReport(rows, 'jev'),
+      legacy: { ...providerReport(rows, 'legacy'), adapterVersion: assertSingleLegacyAdapterVersion(rows) },
+    },
     byTaskQuestionVersion: Object.fromEntries(['jev', 'legacy'].map((provider) => {
       const typed = provider as ProviderName;
       const key = `claim_support:${rows[0]?.[typed].questionVersion ?? 'none'}`;
@@ -181,7 +192,8 @@ function buildReportPayload(input: ShadowReportInput, rows: JoinedShadowRow[], t
 export function buildShadowReport(input: ShadowReportInput): ShadowReport {
   const claims = input.events.filter((event): event is EvidenceShadowEvent => event.event === 'meri.evidence_shadow');
   const turns = input.events.filter((event): event is EvidenceShadowTurnEvent => event.event === 'meri.evidence_shadow.turn');
-  const joined = joinWithLabels(claims, input.fixtures, input.labels);
+  const fixtures = Array.isArray(input.fixtures) ? undefined : input.fixtures as JevClaimEvidenceFixture | undefined;
+  const joined = joinWithLabels(claims, fixtures, input.labels);
   const rows = input.split === 'all' ? joined : joined.filter((row) => row.split === input.split);
   assertCrossProviderQuestionVersion(rows);
   const payload = buildReportPayload(input, rows, turns);

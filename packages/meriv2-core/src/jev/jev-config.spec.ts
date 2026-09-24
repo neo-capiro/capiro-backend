@@ -46,9 +46,21 @@ describe('Jev configuration', () => {
     expect(resolveJevProviderMode(env, TENANT, 'memo')).toBe('off');
   });
 
+  it('recognizes client_fit without enabling it in the live task list', () => {
+    expect(resolveJevConfig({ TYPESAFE_API_KEY: 'secret', MERI_JEV_TASKS: 'client_fit' }))
+      .toMatchObject({ available: true, tasks: ['client_fit'], reasons: [] });
+    expect(resolveJevConfig({ TYPESAFE_API_KEY: 'secret', MERI_JEV_TASKS: 'claim_support,passage_relevance' }).tasks)
+      .toEqual(['claim_support', 'passage_relevance']);
+  });
+
   it('logs issue codes without key material', () => {
     const warn = jest.fn();
     logJevConfigIssues({ warn }, { TYPESAFE_API_KEY: 'super-secret' });
     expect(JSON.stringify(warn.mock.calls)).not.toContain('super-secret');
+  });
+
+  it('recognizes the provisional status-selection task', () => {
+    expect(resolveJevConfig({ TYPESAFE_API_KEY: 'secret', MERI_JEV_TASKS: 'status_selection' }))
+      .toMatchObject({ available: true, tasks: ['status_selection'] });
   });
 });

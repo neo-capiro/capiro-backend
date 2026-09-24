@@ -1,4 +1,12 @@
-import type { DecisionProvider, EvidenceDecision, LedgerEntry } from '@capiro/meriv2-core';
+import {
+  JEV_TASK_REGISTRY,
+  runCalibratedCascade,
+  type DecisionProvider,
+  type EvidenceDecision,
+  type EvidenceEnvelope,
+  type EvidenceQuestion,
+  type LedgerEntry,
+} from '@capiro/meriv2-core';
 import { computeAiCostUsd } from '@capiro/shared';
 import {
   applyLiveRepair,
@@ -21,6 +29,11 @@ const failed: EvidenceDecision = {
   kind: 'failure', state: 'judge_unavailable', reasonCodes: ['failed'],
   provider: { name: 'fake', model: 'fake', questionVersion: 'claim_support.v1' }, latencyMs: 1,
 };
+const cascadeEnvelope: EvidenceEnvelope = {
+  envelopeVersion: 'meri-evidence-envelope-v1', claimId: 'claim', claimText: 'Claim', claimKind: 'fact',
+  claimCategory: 'general_background', tenantId: 'tenant', clientId: null, scopeQualifiers: [], asOf: null, sources: [],
+};
+const cascadeQuestion: EvidenceQuestion = { state: {}, questions: {} };
 function provider(decision: EvidenceDecision): DecisionProvider {
   return { name: 'fake', available: () => true, assess: jest.fn(async () => decision) };
 }
@@ -97,6 +110,38 @@ const listing = entry('read_client_documents', {
 });
 
 describe('live bounded repair', () => {
+  it.each([
+    ['Jev outcome without escalation', supported, null, supported],
+    ['historically non-escalated conflict', { ...insufficient, outcome: 'conflicting_evidence' as const }, null,
+      { ...insufficient, outcome: 'conflicting_evidence' as const }],
+    ['legacy outcome wins', supported, insufficient, insufficient],
+    ['legacy failure falls back to Jev outcome', supported, failed, supported],
+    ['both providers fail returns legacy failure', failed, failed, failed],
+    ['unavailable Jev returns legacy outcome', null, supported, supported],
+  ])('preserves the original live-repair decision rule: %s', async (_label, jevDecision, legacyDecision, expected) => {
+    // Independent copy of the original selectDecision removed by the refactor.
+    const oldSelectDecision = (jev: EvidenceDecision | null, legacy: EvidenceDecision | null): EvidenceDecision => {
+      if (legacy?.kind === 'outcome') return legacy;
+      if (jev?.kind === 'outcome') return jev;
+      return legacy ?? jev ?? failed;
+    };
+    const result = await runCalibratedCascade({
+      claim: { id: 'claim', category: 'general_background', compound: legacyDecision !== null },
+      jev: jevDecision === null ? null : provider(jevDecision),
+      legacy: provider(legacyDecision ?? failed),
+      envelope: cascadeEnvelope,
+      question: cascadeQuestion,
+      registration: {
+        ...JEV_TASK_REGISTRY.claim_support,
+        cascade: { ...JEV_TASK_REGISTRY.claim_support.cascade!, auditSampleRate: 0 },
+      },
+      sampleKey: 'equivalence',
+      legacyLiveRepairCompatibility: true,
+    });
+    expect(result.decision).toEqual(oldSelectDecision(jevDecision, legacyDecision));
+    expect(result.decision).toEqual(expected);
+  });
+
   it('assesses only promoted categories and preserves unrelated text byte-identically', async () => {
     const result = await applyLiveRepair(base());
     expect(result.reply).toContain('Unrelated content remains.');
@@ -311,6 +356,16 @@ describe('live bounded repair', () => {
     const result = await applyLiveRepair(base({ signal: controller.signal }));
     expect(result.reply).toBe('TITAN is not in production. Unrelated content remains.');
     expect(result.toolCalls).toBe(0);
+  });
+
+  it('starts neither Jev nor legacy when already aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const jev = provider(insufficient);
+    const legacy = provider(supported);
+    await applyLiveRepair(base({ signal: controller.signal, providers: { jev, legacy } }));
+    expect(jev.assess).not.toHaveBeenCalled();
+    expect(legacy.assess).not.toHaveBeenCalled();
   });
 
   it('never retrieves or changes the reply in shadow mode and reports no attempt', async () => {

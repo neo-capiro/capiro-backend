@@ -20,6 +20,14 @@ describe('detectDeliverableReportRequest', () => {
       ).not.toBeNull();
     });
 
+    it('treats certification-status prose as a scoped report qualifier', () => {
+      expect(
+        detectDeliverableReportRequest(
+          'build a certification-status report on FedRAMP marketplace records for this client',
+        ),
+      ).not.toBeNull();
+    });
+
     it('fires on a multi-entity survey framed as a brief', () => {
       expect(
         detectDeliverableReportRequest(
