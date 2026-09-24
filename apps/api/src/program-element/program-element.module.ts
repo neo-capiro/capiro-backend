@@ -52,6 +52,8 @@ import {
 } from './funding-execution/funding-execution-read.service.js';
 import { FundingExecutionStore } from '../funding-execution/funding-execution.store.js';
 import { FundingExecutionSourceAdapterService } from '../funding-execution/funding-execution-source-adapter.service.js';
+import { BuyerWorkspaceController } from './buyer-workspace/buyer-workspace.controller.js';
+import { BuyerWorkspaceService } from './buyer-workspace/buyer-workspace.service.js';
 
 // Step 2.3 — the delta writer (DeltaEngineService) and the needs-attention read path
 // (ProgramElementReadService) inject ClientPeRelevanceService, exported by IntelligenceModule.
@@ -68,6 +70,7 @@ import { FundingExecutionSourceAdapterService } from '../funding-execution/fundi
     ProgramContinuityController,
     AcquisitionContinuityController,
     FundingExecutionController,
+    BuyerWorkspaceController,
   ],
   providers: [
     BudgetLinesReadService,
@@ -88,6 +91,7 @@ import { FundingExecutionSourceAdapterService } from '../funding-execution/fundi
     AcquisitionContinuityStore,
     AcquisitionContinuityReadService,
     FundingExecutionReadService,
+    BuyerWorkspaceService,
     FundingExecutionStore,
     {
       provide: FundingExecutionSourceAdapterService,
@@ -165,6 +169,7 @@ import { FundingExecutionSourceAdapterService } from '../funding-execution/fundi
     AcquisitionContinuityReadService,
     FundingExecutionReadService,
     FundingExecutionSourceAdapterService,
+    BuyerWorkspaceService,
   ],
 })
 export class ProgramElementModule {}

@@ -89,6 +89,7 @@ import {
 import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
 import { ProgramElementReadService } from '../program-element/program-element-read.service.js';
+import { BuyerWorkspaceService } from '../program-element/buyer-workspace/buyer-workspace.service.js';
 import {
   listBudgetLineLineage,
   type BudgetLineLineage,
@@ -277,6 +278,7 @@ export class MeriToolsService {
     @Optional() private readonly clientAdvocacy?: ClientAdvocacyMatterService,
     @Optional() private readonly clientFiling?: MeriClientFilingService,
     @Optional() private readonly meetingPrepJobs?: MeetingPrepJobService,
+    @Optional() private readonly buyerWorkspace?: BuyerWorkspaceService,
   ) {}
 
   manifest() {
@@ -1145,6 +1147,14 @@ export class MeriToolsService {
       get_pe_budget_timeline: obj(
         { peCode: str('Program Element or procurement budget-line code') },
         ['peCode'],
+      ),
+      get_pe_buyer_workspace: obj(
+        {
+          peCode: str('Program Element or procurement budget-line code'),
+          asOfFy: int('Four-digit fiscal year to inspect'),
+          knownAt: str('ISO 8601 timestamp limiting what was known'),
+        },
+        ['peCode', 'asOfFy', 'knownAt'],
       ),
       get_pe_contractors: obj({ peCode: str('Program Element code') }, ['peCode']),
       get_pe_bills: obj({ peCode: str('Program Element code') }, ['peCode']),
@@ -2057,6 +2067,8 @@ export class MeriToolsService {
         return this.getProgramElementDetail(ctx, input);
       case 'get_pe_budget_timeline':
         return this.getPeBudgetTimeline(input, ctx);
+      case 'get_pe_buyer_workspace':
+        return this.getPeBuyerWorkspace(input);
       case 'get_pe_contractors':
         return this.getPeContractors(input);
       case 'get_pe_bills':
@@ -4261,6 +4273,22 @@ export class MeriToolsService {
       currentFundingClaim: claims.currentFundingClaim,
       years: claims.years,
       ...(accuracyMode === 'enforce' ? { lineage: this.lineageForOutput(lineageRows) } : {}),
+    };
+  }
+
+  private async getPeBuyerWorkspace(input: Record<string, unknown>) {
+    if (!this.buyerWorkspace) {
+      throw new BadGatewayException('Buyer workspace read is unavailable.');
+    }
+    const peCode = requiredString(input, 'peCode', 32);
+    const asOfFy = input.asOfFy;
+    if (typeof asOfFy !== 'number' || !Number.isInteger(asOfFy) || asOfFy < 1900 || asOfFy > 2200) {
+      throw new BadRequestException('asOfFy must be a four-digit fiscal year.');
+    }
+    const knownAt = requiredString(input, 'knownAt', 40);
+    return {
+      tool: 'get_pe_buyer_workspace',
+      ...(await this.buyerWorkspace.read({ peCode, asOfFy, knownAt })),
     };
   }
 

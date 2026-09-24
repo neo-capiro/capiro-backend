@@ -302,6 +302,8 @@ export async function getProgramElementsList(
     line_type?: string;
     /** BL-1: capability slug facet. */
     capability?: string;
+    /** Exact fiscal year for the returned funding positions. */
+    fy?: number;
   },
 ): Promise<ProgramElementListResponse> {
   return (await api.get<ProgramElementListResponse>('/api/program-elements', { params })).data;

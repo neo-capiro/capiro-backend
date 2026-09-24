@@ -5698,6 +5698,44 @@ model ProgramElementWatch {
   @@map("program_element_watch")
 }
 
+/// Package 7 client-facing defense budget watch. The subscription row is immutable;
+/// activation and decisions are represented by append-only events.
+model DefenseBudgetClientWatch {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  clientId        String   @map("client_id") @db.Uuid
+  targetType      String   @map("target_type") @db.VarChar(20)
+  targetKey       String   @map("target_key") @db.VarChar(160)
+  clientReason    String   @map("client_reason") @db.Text
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  events          DefenseBudgetClientWatchEvent[]
+
+  @@unique([tenantId, clientId, targetType, targetKey], map: "defense_budget_client_watch_target_key")
+  @@index([tenantId, clientId, createdAt(sort: Desc)], map: "defense_budget_client_watch_client_idx")
+  @@map("defense_budget_client_watch")
+}
+
+model DefenseBudgetClientWatchEvent {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  clientId        String   @map("client_id") @db.Uuid
+  watchId         String   @map("watch_id") @db.Uuid
+  eventType       String   @map("event_type") @db.VarChar(24)
+  logicalEventKey String   @map("logical_event_key") @db.VarChar(200)
+  updateEventId   String?  @map("update_event_id") @db.Uuid
+  actorUserId     String?  @map("actor_user_id") @db.Uuid
+  materialReason  String?  @map("material_reason") @db.Text
+  evidence        Json?
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  watch           DefenseBudgetClientWatch @relation(fields: [watchId], references: [id], onDelete: Restrict)
+
+  @@unique([watchId, logicalEventKey], map: "defense_budget_client_watch_event_logical_key")
+  @@index([tenantId, clientId, createdAt(sort: Desc)], map: "defense_budget_client_watch_event_client_idx")
+  @@index([tenantId, clientId, updateEventId], map: "defense_budget_client_watch_event_update_idx")
+  @@map("defense_budget_client_watch_event")
+}
+
 /// Per-user PE Watch email-alert preference (PE Watch plan Phase 2; configured
 /// from the /program-elements surface — Ninja decision 2026-07-06). Absence of
 /// a row means 'daily' for users with >=1 program_element_watch (opt-out model).

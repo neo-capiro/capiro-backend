@@ -74,9 +74,9 @@ export function PeProfileSourceInspector({
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 12, flexWrap: 'wrap' }}>
             <EvMark
-              state={conflict ? 'CONFLICT' : value != null ? 'VERIFIED' : 'ABSENT'}
-              label={conflict ? '⚠ CONFLICT' : value != null ? '■ VERIFIED' : '⊘ NOT FILED'}
-              quiet={!conflict && value != null}
+              state={conflict ? 'CONFLICT' : value != null ? 'PARTIAL' : 'ABSENT'}
+              label={conflict ? '⚠ CONFLICT' : value != null ? '■ POSITION PRESENT · EVIDENCE REVIEW REQUIRED' : '⊘ NOT FILED'}
+              quiet={!conflict && value == null}
             />
             <span className="pe-pf-mono" style={{ fontSize: 11, letterSpacing: '0.06em', color: 'var(--pepf-secondary)' }}>
               {delta == null ? 'NO DELTA AVAILABLE' : delta === 0 ? 'NO CHANGE FROM REQUEST' : `${sgn(delta)} VS REQUEST`}
@@ -112,7 +112,7 @@ export function PeProfileSourceInspector({
               className="pe-pf-mono"
               style={{ fontSize: 12.5, fontWeight: 600, color: conflict ? 'var(--pepf-warning)' : 'var(--pepf-ink)' }}
             >
-              {conflict ? 'BLOCKED' : value != null ? 'PASSED' : 'NOT APPLICABLE'}
+              {conflict ? 'BLOCKED BY RECONCILIATION' : value != null ? 'POSITION PRESENT · STAGE SOURCE NOT ESTABLISHED' : 'NOT FILED'}
             </span>
             <span className="pe-pf-eyebrow-quiet" style={{ letterSpacing: '0.06em' }}>SOURCES ON LINE</span>
             <span className="pe-pf-mono" style={{ fontSize: 12.5, color: 'var(--pepf-ink)' }}>
@@ -133,19 +133,28 @@ export function PeProfileSourceInspector({
           <div className="pe-pf-eyebrow-quiet" style={{ letterSpacing: '0.1em' }}>
             {value != null || sources.length ? 'Source' : 'Why there is no figure'}
           </div>
-          {value == null && !sources.length ? (
+          {sourcesQuery.isError ? (
+            <div role="alert" style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--pepf-warning)', marginTop: 9 }}>
+              Source records could not be loaded. This stage’s evidence status is unknown until the lookup succeeds.
+            </div>
+          ) : sourcesQuery.isLoading ? (
+            <div role="status" style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--pepf-body)', marginTop: 9 }}>
+              Loading source records…
+            </div>
+          ) : value == null && !sources.length ? (
             <div style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--pepf-heading)', marginTop: 9 }}>
               The {target.stage} position does not exist in the active snapshot. This is not a zero and not a
               confirmation of the request.
             </div>
           ) : sources.length === 0 ? (
             <div style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--pepf-heading)', marginTop: 9 }}>
-              {sourcesQuery.isLoading
-                ? 'Loading sources…'
-                : 'No page-level sources are attached to this line yet.'}
+              No page-level sources are attached to this line yet.
             </div>
           ) : (
             <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="pe-pf-eyebrow-quiet">
+                Line-level sources are shown for review; association to this stage is not established here.
+              </div>
               {sources.map((s) => (
                 <div key={s.id} style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
                   <span className="pe-pf-mono" style={{ fontSize: 12, color: 'var(--pepf-ink)', flex: 1, minWidth: 180 }}>
