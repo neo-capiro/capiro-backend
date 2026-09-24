@@ -1,8 +1,8 @@
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type { AssuredClaim } from '../assurance/claim-ledger';
 import { EVIDENCE_CLASSES, type EvidenceClass } from '../assurance/evidence-plan';
 import type { AssuranceSurface } from '../assurance/risk-gate';
-import { hashEvidenceContent } from '../grounding/evidence';
 
 export const EVIDENCE_OUTCOMES = [
   'supported',
@@ -11,6 +11,13 @@ export const EVIDENCE_OUTCOMES = [
   'conflicting_evidence',
 ] as const;
 export type EvidenceOutcome = (typeof EVIDENCE_OUTCOMES)[number];
+
+export const DOCUMENT_COMPLETENESS = ['complete', 'partial', 'excerpt', 'unavailable', 'unknown'] as const;
+export type DocumentCompleteness = (typeof DOCUMENT_COMPLETENESS)[number];
+export const EVIDENCE_RELATION_SCOPES = [
+  'pe_specific', 'project_specific', 'program_wide', 'capability_only', 'incidental', 'unknown',
+] as const;
+export type EvidenceRelationScope = (typeof EVIDENCE_RELATION_SCOPES)[number];
 
 export type EvidenceOperationalState =
   | 'not_checked'
@@ -62,6 +69,14 @@ const evidenceSourceSchema = z.object({
   publishedAt: z.string().nullable(),
   effectiveAt: z.string().nullable(),
   retrievedAt: z.string().nullable(),
+  authority: z.object({
+    sourceAuthority: z.string().min(1),
+    publisher: z.string().min(1).nullable(),
+    jurisdiction: z.string().min(1).nullable(),
+  }).optional(),
+  documentCompleteness: z.enum(DOCUMENT_COMPLETENESS).optional(),
+  relationScope: z.enum(EVIDENCE_RELATION_SCOPES).optional(),
+  financialStage: z.string().min(1).nullable().optional(),
   provenance: z
     .object({
       evidenceClass: z.enum(EVIDENCE_CLASSES),
@@ -117,6 +132,14 @@ export interface EvidenceEnvelope {
     publishedAt: string | null;
     effectiveAt: string | null;
     retrievedAt: string | null;
+    authority?: {
+      sourceAuthority: string;
+      publisher: string | null;
+      jurisdiction: string | null;
+    };
+    documentCompleteness?: DocumentCompleteness;
+    relationScope?: EvidenceRelationScope;
+    financialStage?: string | null;
     provenance?: {
       evidenceClass: EvidenceClass;
       primary: boolean;
@@ -134,12 +157,21 @@ export interface EvidenceEnvelope {
   };
 }
 
+function canonicalJevJson(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
+  if (Array.isArray(value)) return `[${value.map(canonicalJevJson).join(',')}]`;
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record).sort().map((key) =>
+    `${JSON.stringify(key)}:${canonicalJevJson(record[key])}`).join(',')}}`;
+}
+
+/** SHA-256 over canonical JSON for security-sensitive Jev boundary bindings. */
+export function hashJevBoundaryValue(value: unknown): string {
+  return `sha256:${createHash('sha256').update(canonicalJevJson(value), 'utf8').digest('hex')}`;
+}
+
 export function hashEvidenceEnvelope(envelope: EvidenceEnvelope): string {
-  const parsed = evidenceEnvelopeSchema.parse(envelope);
-  return hashEvidenceContent({
-    ...parsed,
-    sources: parsed.sources.map(({ provenance: _provenance, ...source }) => source),
-  });
+  return hashJevBoundaryValue(evidenceEnvelopeSchema.parse(envelope));
 }
 
 export interface EvidenceQuestion {

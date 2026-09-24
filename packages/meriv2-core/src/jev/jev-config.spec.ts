@@ -63,4 +63,11 @@ describe('Jev configuration', () => {
     expect(resolveJevConfig({ TYPESAFE_API_KEY: 'secret', MERI_JEV_TASKS: 'status_selection' }))
       .toMatchObject({ available: true, tasks: ['status_selection'] });
   });
+
+  it('recognizes the Package 2 task names without enabling them by default', () => {
+    expect(resolveJevConfig({ TYPESAFE_API_KEY: 'secret',
+      MERI_JEV_TASKS: 'program_identity,mention_scope,evidence_selection' })).toMatchObject({
+      available: true, tasks: ['program_identity', 'mention_scope', 'evidence_selection'], reasons: [],
+    });
+  });
 });

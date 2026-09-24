@@ -1,5 +1,7 @@
 import { CLAIM_SUPPORT_QUESTION_ID, CLAIM_SUPPORT_QUESTION_VERSION } from '../claim-support-question';
 import { EVIDENCE_OUTCOMES, hashEvidenceEnvelope, type DecisionProvider, type EvidenceOutcome } from '../decision-contract';
+import { hashEvidenceContent } from '../../grounding/evidence';
+import { JEV_TASK_REGISTRY_VERSION } from '../task-registry';
 import { RecordedDecisionStore } from './recorded-decision-store';
 
 export function createReplayDecisionProvider(options: {
@@ -11,8 +13,11 @@ export function createReplayDecisionProvider(options: {
   return {
     name: `replay:${provider}`,
     available: () => true,
-    async assess(envelope) {
+    async assess(envelope, question) {
       const recording = options.store.get({
+        task: 'claim_support',
+        registryVersion: JEV_TASK_REGISTRY_VERSION,
+        questionHash: hashEvidenceContent(question),
         envelopeHash: hashEvidenceEnvelope(envelope),
         questionVersion: CLAIM_SUPPORT_QUESTION_VERSION,
         model: options.model,

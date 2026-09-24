@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import type { AssuredClaim, ClaimLedger } from '../assurance/claim-ledger';
-import { evidenceEnvelopeSchema, hashEvidenceEnvelope } from './decision-contract';
+import { evidenceEnvelopeSchema, hashEvidenceEnvelope, hashJevBoundaryValue } from './decision-contract';
 import { buildEvidenceEnvelope, envelopeSourcesForJev } from './evidence-envelope';
 
 const claim: AssuredClaim = { id: 'claim-1', text: 'The amount is 42.', type: 'fact', category: 'budget_amount', sourceIds: ['e1'], primarySourcePresent: true, confidence: 'high', asOf: '2026-01-01' };
@@ -13,9 +13,11 @@ describe('buildEvidenceEnvelope', () => {
     expect(first.envelope.sources.map((source) => source.evidenceId)).toEqual(['e1']);
     expect(buildEvidenceEnvelope(input).hash).toBe(first.hash);
     expect(buildEvidenceEnvelope({ ...input, passages: { e1: { text: 'The amount is 43.' } } }).hash).not.toBe(first.hash);
+    expect(first.hash).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(hashJevBoundaryValue({ b: 1, a: 2 })).toBe(hashJevBoundaryValue({ a: 2, b: 1 }));
   });
 
-  it('accepts legacy and provenance-bearing envelopes without changing the content hash', () => {
+  it('accepts legacy and provenance-bearing envelopes and identities provenance changes', () => {
     const input = { claim, ledger, citations: [], passages: { e1: { text: 'The amount is 42.' } }, tenantId: 'tenant-1' };
     const legacy = buildEvidenceEnvelope(input).envelope;
     const withProvenance = buildEvidenceEnvelope({ ...input, includeProvenance: true }).envelope;
@@ -25,7 +27,7 @@ describe('buildEvidenceEnvelope', () => {
     expect(withProvenance.sources[0]?.provenance).toEqual({
       evidenceClass: 'official_government_data', primary: true, authoritative: true,
     });
-    expect(hashEvidenceEnvelope(withProvenance)).toBe(hashEvidenceEnvelope(legacy));
+    expect(hashEvidenceEnvelope(withProvenance)).not.toBe(hashEvidenceEnvelope(legacy));
     expect(hashEvidenceEnvelope({
       ...withProvenance,
       sources: withProvenance.sources.map((source) => ({ ...source, passage: 'The amount is 43.' })),
@@ -40,7 +42,8 @@ describe('buildEvidenceEnvelope', () => {
 
     expect(envelopeSourcesForJev(envelope, { includeProvenance: false })[0]).toEqual({
       evidenceId: 'e1', sourceType: 'record', sourceId: 'r1', documentId: null, version: null,
-      locator: null, passage: 'The amount is 42.', sourceDate: null, retrievedAt: null,
+      locator: null, passage: 'The amount is 42.', sourceDate: null, publishedAt: null,
+      effectiveAt: null, retrievedAt: null,
     });
     expect(envelopeSourcesForJev(envelope, { includeProvenance: true })[0]?.provenance).toEqual({
       evidenceClass: 'official_government_data', primary: true, authoritative: true,
@@ -60,5 +63,20 @@ describe('buildEvidenceEnvelope', () => {
     expect(result.envelope.sources[0]).toEqual(expect.objectContaining({
       publishedAt: '2026-01-01', effectiveAt: '2026-02-01', retrievedAt: '2026-02-02',
     }));
+  });
+
+  it('preserves authority, completeness, relation scope and financial stage through the Jev projection', () => {
+    const result = buildEvidenceEnvelope({ claim, ledger, citations: [], tenantId: 'tenant-1',
+      includeProvenance: true, passages: { e1: {
+        text: 'The amount is 42.', locator: 'p. 9',
+        authority: { sourceAuthority: 'DoD Comptroller', publisher: 'Department of Defense', jurisdiction: 'US' },
+        documentCompleteness: 'complete', relationScope: 'pe_specific', financialStage: 'request',
+      } } });
+    expect(envelopeSourcesForJev(result.envelope, { includeProvenance: true })[0]).toEqual(expect.objectContaining({
+      authority: { sourceAuthority: 'DoD Comptroller', publisher: 'Department of Defense', jurisdiction: 'US' },
+      documentCompleteness: 'complete', relationScope: 'pe_specific', financialStage: 'request',
+      provenance: { evidenceClass: 'official_government_data', primary: true, authoritative: true },
+    }));
+    expect(evidenceEnvelopeSchema.parse(result.envelope)).toEqual(result.envelope);
   });
 });

@@ -3,6 +3,9 @@ import { dirname } from 'node:path';
 import { z } from 'zod';
 
 export interface RecordingKey {
+  task?: string;
+  registryVersion?: string;
+  questionHash?: string;
   envelopeHash: string;
   questionVersion: string;
   model: string;
@@ -18,6 +21,9 @@ export interface RecordedDecision extends RecordingKey {
 }
 
 const recordingSchema = z.object({
+  task: z.string().min(1).optional(),
+  registryVersion: z.string().min(1).optional(),
+  questionHash: z.string().min(1).optional(),
   envelopeHash: z.string().min(1),
   questionVersion: z.string().min(1),
   model: z.string().min(1),
@@ -30,7 +36,9 @@ const recordingSchema = z.object({
 }).strict();
 
 function key(value: RecordingKey): string {
-  return [value.envelopeHash, value.questionVersion, value.model, value.provider].join('\u0000');
+  return [value.task ?? 'claim_support', value.registryVersion ?? 'legacy-registry',
+    value.questionHash ?? 'legacy-question', value.envelopeHash, value.questionVersion,
+    value.model, value.provider].join('\u0000');
 }
 
 function rejectSecrets(value: unknown): void {
@@ -52,7 +60,13 @@ export class RecordedDecisionStore {
   }
 
   get(recordingKey: RecordingKey): RecordedDecision | undefined {
-    return this.index.get(key(recordingKey));
+    const exact = this.index.get(key(recordingKey));
+    if (exact) return exact;
+    if (recordingKey.task || recordingKey.registryVersion || recordingKey.questionHash) {
+      const { task: _task, registryVersion: _registryVersion, questionHash: _questionHash, ...legacy } = recordingKey;
+      return this.index.get(key(legacy));
+    }
+    return undefined;
   }
 
   append(recording: RecordedDecision): void {

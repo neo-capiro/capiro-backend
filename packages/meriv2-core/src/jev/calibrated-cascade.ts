@@ -68,9 +68,12 @@ export async function runCalibratedCascade(input: CalibratedCascadeInput): Promi
       const assessed = await assessWithJevCache({
         mode: input.cache.mode,
         cache: input.cache.instance,
-        key: jevDecisionCacheKey({ tenantId: input.envelope.tenantId, clientId: input.envelope.clientId,
+        key: jevDecisionCacheKey({ task: input.registration.task,
+          tenantId: input.envelope.tenantId, clientId: input.envelope.clientId,
           envelope: input.envelope, claim: { id: input.claim.id, text: input.envelope.claimText },
-          questionVersion: input.registration.questionVersion, modelVersion: input.registration.modelVersion }),
+          questionVersion: input.registration.questionVersion, question: input.question,
+          modelVersion: input.registration.modelVersion,
+          cacheIdentityVersion: input.registration.cacheIdentity.version }),
         assess: () => safeAssess(input.jev!, input),
       });
       jev = assessed.decision;

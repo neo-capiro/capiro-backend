@@ -143,7 +143,8 @@ describe('assessReleasedClaims', () => {
       },
       sources: [{
         evidenceId: 'e1', sourceType: 'search_grants', sourceId: 'record-1', documentId: null,
-        version: null, locator: null, passage: 'The award was $42.', sourceDate: null, retrievedAt: null,
+        version: null, locator: null, passage: 'The award was $42.', sourceDate: null,
+        publishedAt: null, effectiveAt: null, retrievedAt: null,
       }],
     });
     expect((sentQuestion.state as { sources: unknown[] }).sources[0]).not.toHaveProperty('provenance');

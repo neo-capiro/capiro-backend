@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "capturedDate": "2026-09-24",
+  "accountId": "967807252336",
+  "region": "us-east-1",
+  "runtimeOwner": {
+    "cluster": "capiro-dev",
+    "service": "capiro-dev-meriv2-orchestrator",
+    "taskDefinition": "capiro-dev-meriv2-orchestrator:80",
+    "desiredCount": 1,
+    "runningCount": 1,
+    "imageDigest": "sha256:fa3e6aa90e4e9f7ddbc88b2167303e233638c2454c201dfd7c01b0729788ffa9",
+    "releaseSha": "5a4419e740053be60df8c6dcfc506e93dbecffff"
+  },
+  "jev": {
+    "model": "jev-1.13.0",
+    "tasks": ["claim_support", "passage_relevance"],
+    "timeoutMs": 8000,
+    "maxAttempts": 2,
+    "providerMode": "enforce",
+    "claimAssessmentMode": "shadow",
+    "passageSelectionMode": "enforce",
+    "tenantEnrollment": "all-dev-tenants",
+    "surfaceEnrollment": ["chat"],
+    "newPackage2TasksEnabled": false
+  },
+  "otherEnvironments": {
+    "stagingOrchestratorPresent": false,
+    "productionOrchestratorPresent": false,
+    "stagingJevConfigured": false,
+    "productionJevConfigured": false
+  },
+  "rollbackTaskDefinition": "capiro-dev-meriv2-orchestrator:80",
+  "notes": [
+    "Secret reference names were inventoried but secret values were not retrieved.",
+    "The API service is not the Jev runtime owner and does not require a Package 2 deployment.",
+    "No Jev-specific CloudWatch metric filters or alarms existed at capture time."
+  ]
+}

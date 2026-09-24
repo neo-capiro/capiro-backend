@@ -4,6 +4,8 @@ import {
   JEV_TASK_REGISTRY,
   JEV_TASK_REGISTRY_VERSION,
   resolveJevTaskRegistration,
+  resolveJevTaskRollout,
+  validateJevTaskEvidence,
   validateJevTaskRegistry,
 } from './task-registry';
 
@@ -18,7 +20,7 @@ const liveConfig = () => resolveJevConfig({
 
 describe('Jev task registry', () => {
   it('covers every configured task and preserves the live constants', () => {
-    expect(JEV_TASK_REGISTRY_VERSION).toBe('jev-task-registry.v3');
+    expect(JEV_TASK_REGISTRY_VERSION).toBe('jev-task-registry.v4');
     expect(Object.keys(JEV_TASK_REGISTRY).sort()).toEqual([...JEV_TASKS].sort());
     expect(JEV_TASK_REGISTRY.claim_support).toMatchObject({
       questionVersion: 'claim_support.v1', questionId: 'claim_support', primitive: 'choice',
@@ -38,6 +40,36 @@ describe('Jev task registry', () => {
       modelVersion: 'jev-1.13.0', fallback: 'no_change', rolloutCapability: 'MATCH_LABEL',
       calibration: { status: 'provisional' },
     });
+    expect(JEV_TASK_REGISTRY.program_identity).toMatchObject({
+      ownerRole: 'model/evaluation lead', lifecycle: 'shadow_only', questionVersion: 'program_identity.v1',
+      allowedOutcomes: ['same_entity', 'related_entity', 'different_entity', 'insufficient_evidence'],
+      thresholdsByAction: { propose_same_entity: 0.99, abstain_below: 0.99 },
+      permittedEffect: { kind: 'advisory_only', canonicalFinancialWrite: false, requiresHumanReview: true },
+      evaluationSet: { id: 'package2_program_identity_v1', status: 'proposed' },
+      costBudget: { maxCalls: 1, maxInputTokens: 16_000, maxEstimatedCostUsd: null },
+    });
+    expect(JEV_TASK_REGISTRY.mention_scope.maxRolloutMode).toBe('shadow');
+    expect(JEV_TASK_REGISTRY.evidence_selection.cacheIdentity.fields).toEqual(expect.arrayContaining([
+      'task', 'question_hash', 'provenance', 'candidates',
+    ]));
+  });
+
+  it('applies task enablement and the registered shadow ceiling', () => {
+    const config = resolveJevConfig({ TYPESAFE_API_KEY: 'test-key', MERI_JEV_MODEL: 'jev-1.13.0',
+      MERI_JEV_TASKS: 'program_identity,claim_support' });
+    expect(resolveJevTaskRollout('program_identity', config, 'enforce')).toBe('shadow');
+    expect(resolveJevTaskRollout('claim_support', config, 'enforce')).toBe('enforce');
+    expect(resolveJevTaskRollout('mention_scope', config, 'shadow')).toBe('off');
+  });
+
+  it('refuses a Package 2 task envelope that drops required provenance metadata', () => {
+    expect(validateJevTaskEvidence('program_identity', {
+      envelopeVersion: 'meri-evidence-envelope-v1', claimId: 'c', claimText: 'alias', claimKind: 'fact',
+      claimCategory: 'program_identity', tenantId: 'tenant', clientId: null, scopeQualifiers: [], asOf: null,
+      sources: [{ evidenceId: 'e', sourceType: 'document', sourceId: 's', documentId: 'd', version: 'v1',
+        locator: 'section 1', passage: 'alias', sourceDate: null, publishedAt: null, effectiveAt: null,
+        retrievedAt: null }],
+    })).toEqual(['missing_authority', 'missing_provenance', 'missing_document_completeness', 'missing_relation_scope']);
   });
 
   it('is identity-compatible with the exact live Jev environment', () => {

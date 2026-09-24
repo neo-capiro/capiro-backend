@@ -68,6 +68,8 @@ export interface JevCallOptions {
   signal?: AbortSignal;
   /** Absolute time (same clock as `now`) after which no attempt or backoff may run. */
   deadlineAt?: number;
+  /** Hard per-call attempt ceiling; it can only reduce the client's configured maximum. */
+  maxAttempts?: number;
 }
 
 export class JevError extends Error {
@@ -296,8 +298,13 @@ export function createJevClient(options: JevClientOptions): {
       if (Buffer.byteLength(body, 'utf8') > MAX_REQUEST_BYTES) {
         throw new JevRequestError('Jev request exceeds the byte limit');
       }
+      if (callOptions.maxAttempts !== undefined
+        && (!Number.isInteger(callOptions.maxAttempts) || callOptions.maxAttempts < 1)) {
+        throw new JevRequestError('Jev call maxAttempts must be a positive integer');
+      }
+      const maxAttempts = Math.min(options.maxAttempts, callOptions.maxAttempts ?? options.maxAttempts);
       const remainingMs = () => (callOptions.deadlineAt == null ? Infinity : callOptions.deadlineAt - now());
-      for (let attempt = 1; attempt <= options.maxAttempts; attempt += 1) {
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
         if (callOptions.signal?.aborted) throw new JevCancelledError();
         const remaining = remainingMs();
         if (remaining <= 0) throw new JevTimeoutError();
@@ -335,7 +342,7 @@ export function createJevClient(options: JevClientOptions): {
               attempts: attempt,
             };
           }
-          if (!RETRYABLE_STATUS.has(response.status) || attempt >= options.maxAttempts) {
+          if (!RETRYABLE_STATUS.has(response.status) || attempt >= maxAttempts) {
             throw httpError(response.status);
           }
           retry = { status: response.status, delayMs: retryAfterMs(response, attempt, now()) };
