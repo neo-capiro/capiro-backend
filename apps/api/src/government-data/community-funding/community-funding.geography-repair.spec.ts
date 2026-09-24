@@ -175,30 +175,33 @@ describe('classifyGeographyRepair', () => {
 
   // ── Edge cases: normalizer resolves via projectState ──────────────────
 
-  it('classifies a row with a malformed token (FL8) but projectState=FL as eligible', () => {
-    // FL8 cannot be parsed as STDD, but projectState 'FL' provides
-    // a resolvable state via the normalizer's fallback.
+  it('classifies a row with a malformed token (FL8) but projectState=FL as invalid (no source-backed token)', () => {
+    // FL8 cannot be parsed as STDD. Even though projectState 'FL' provides
+    // a state via the normalizer's fallback, product rules forbid inventing
+    // attribution — the token itself must resolve.
     const result = classifyGeographyRepair({
       chamber: 'house',
       requesterState: null,
       requesterDistrict: 'FL8',
       projectState: 'FL',
     });
-    expect(result.classification).toBe('eligible');
-    expect(result.resolvedState).toBe('FL');
-    expect(result.resolvedDistrict).toBeNull();
+    expect(result.classification).toBe('invalid');
+    expect(result.resolvedState).toBeNull();
+    expect(result.reason).toContain('No source-backed district token');
   });
 
-  it('classifies a row with null token but projectState=CA as eligible', () => {
+  it('classifies a row with null token but projectState=CA as invalid (no source-backed token)', () => {
+    // No district token at all — projectState alone is not a valid source-backed
+    // geography. Product rules forbid inventing attribution.
     const result = classifyGeographyRepair({
       chamber: 'house',
       requesterState: null,
       requesterDistrict: null,
       projectState: 'CA',
     });
-    expect(result.classification).toBe('eligible');
-    expect(result.resolvedState).toBe('CA');
-    expect(result.resolvedDistrict).toBeNull();
+    expect(result.classification).toBe('invalid');
+    expect(result.resolvedState).toBeNull();
+    expect(result.reason).toContain('No source-backed district token');
   });
 
   it('classifies a row with empty token but requesterState set as already_normalized', () => {
@@ -214,19 +217,18 @@ describe('classifyGeographyRepair', () => {
 
   // ── FL00 sentinel (multi-seat state) ──────────────────────────────────
 
-  it('classifies FL00 in a multi-seat state with projectState=FL as eligible (state-only)', () => {
+  it('classifies FL00 in a multi-seat state with projectState=FL as invalid (no source-backed token)', () => {
     // FL has 28 seats; FL00 is out of range, so parseCommunityFundingStdd returns null.
-    // The normalizer fallback: numericDistrict='00', numeric=0, seats=28,
-    // 0 < 1 → validLegacyDistrict=false. Returns {state:'FL', district:null}.
-    // requesterState is null, state non-null → eligible.
+    // Even though the normalizer fallback can derive state=FL from projectState,
+    // the token itself does not resolve — must be invalid.
     const result = classifyGeographyRepair({
       chamber: 'house',
       requesterState: null,
       requesterDistrict: 'FL00',
       projectState: 'FL',
     });
-    expect(result.classification).toBe('eligible');
-    expect(result.resolvedState).toBe('FL');
-    expect(result.resolvedDistrict).toBeNull();
+    expect(result.classification).toBe('invalid');
+    expect(result.resolvedState).toBeNull();
+    expect(result.reason).toContain('No source-backed district token');
   });
 });

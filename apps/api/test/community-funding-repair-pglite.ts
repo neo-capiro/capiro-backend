@@ -214,12 +214,39 @@ async function main() {
     });
     await insertSource(h7Id, sourceDoc1, 7);
 
+    // h8: FL8 token, null state, projectState=FL — invalid (token doesn't parse; projectState alone not sufficient)
+    const h8Id = await insertRequest({
+      chamber: 'house', identityHash: 'house-repair-8', fiscalYear: 2026,
+      requesterName: 'Rep FL8', requesterState: null, requesterDistrict: 'FL8',
+      projectState: 'FL',
+      requestedAmountUsd: '12000', amountStageRaw: 'amount_requested',
+    });
+    await insertSource(h8Id, sourceDoc1, 8);
+
+    // h9: no district token, projectState=CA — invalid (no source-backed district token)
+    const h9Id = await insertRequest({
+      chamber: 'house', identityHash: 'house-repair-9', fiscalYear: 2026,
+      requesterName: 'Rep NoTok', requesterState: null, requesterDistrict: null,
+      projectState: 'CA',
+      requestedAmountUsd: '13000', amountStageRaw: 'amount_requested',
+    });
+    await insertSource(h9Id, sourceDoc1, 9);
+
+    // h10: FL00 sentinel, projectState=FL — invalid (token out of range; doesn't parse)
+    const h10Id = await insertRequest({
+      chamber: 'house', identityHash: 'house-repair-10', fiscalYear: 2026,
+      requesterName: 'Rep FL00', requesterState: null, requesterDistrict: 'FL00',
+      projectState: 'FL',
+      requestedAmountUsd: '14000', amountStageRaw: 'amount_requested',
+    });
+    await insertSource(h10Id, sourceDoc1, 10);
+
     const houseCount = (await query('SELECT COUNT(*) AS c FROM community_funding_request WHERE chamber = $1', ['house']))[0].c;
-    assert.equal(houseCount, 7);
+    assert.equal(houseCount, 10);
     pass('seeded ' + houseCount + ' House rows');
 
     const totalCount = (await query('SELECT COUNT(*) AS c FROM community_funding_request'))[0].c;
-    assert.equal(totalCount, 427);
+    assert.equal(totalCount, 430);
     pass('total seeded rows ' + totalCount);
 
     // Snapshot amounts before repair
@@ -256,7 +283,7 @@ async function main() {
     assert.equal(eligible, 3, 'exactly 3 eligible rows (FL08, fl08, AKAL)');
     assert.equal(already, 1, '1 already_normalized (FL/08)');
     assert.equal(conflicting, 1, '1 conflicting (GA/FL08)');
-    assert.equal(invalid, 2, '2 invalid (FL8-noproject, null token)');
+    assert.equal(invalid, 5, '5 invalid (FL8-noproject, null token, FL8+project, null+project, FL00 sentinel)');
     pass('dry-run classifcation counts exact');
 
     // Test 1b: Verify district tokens stay untouched before repair
@@ -338,6 +365,12 @@ async function main() {
     await checkRepairedRow(h6Id, null, 'FL8');
     // h7: unchanged no token
     await checkRepairedRow(h7Id, null, null);
+    // h8: unchanged — invalid (FL8+projectState not a source-backed token)
+    await checkRepairedRow(h8Id, null, 'FL8');
+    // h9: unchanged — invalid (null token + projectState not a source-backed token)
+    await checkRepairedRow(h9Id, null, null);
+    // h10: unchanged — invalid (FL00 sentinel not a source-backed token)
+    await checkRepairedRow(h10Id, null, 'FL00');
 
     pass('repaired rows: state filled, district byte-identical (untouched)');
 
@@ -444,6 +477,9 @@ async function main() {
           'conflicting skipped',
           'malformed token invalid (FL8 without projectState)',
           'null token invalid',
+          'FL8+projectState invalid (projectState alone not sufficient)',
+          'null token+projectState invalid (no source-backed district token)',
+          'FL00 sentinel invalid (out-of-range token not source-backed)',
           'wrong expected count refuses',
           'correct expected count commits (state only)',
           'district tokens byte-identical before/after',

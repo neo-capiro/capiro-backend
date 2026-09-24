@@ -12,6 +12,7 @@
 import type { Chamber } from './community-funding.types.js';
 import {
   normalizeCommunityFundingGeography,
+  parseCommunityFundingStdd,
   type NormalizedCommunityFundingGeography,
 } from './community-funding.geography.js';
 
@@ -109,18 +110,30 @@ export function classifyGeographyRepair(
   const state = normalized.state;
   const district = normalized.district;
 
-  // requester_state is null —fill it in
+  // requester_state is null — verify the STDD token itself resolves
   if (requesterState == null) {
+    const parsed = parseCommunityFundingStdd(requesterDistrict);
+    if (parsed == null) {
+      return {
+        classification: 'invalid',
+        resolvedState: null,
+        resolvedDistrict: null,
+        reason: 'No source-backed district token'
+                  + (requesterDistrict != null && requesterDistrict.trim() !== ''
+                    ? ' \'' + requesterDistrict.trim().toUpperCase() + '\''
+                    : '')
+          + (projectState != null ? ' (project state ' + projectState + ' is not a valid source-backed geography)' : ''),
+      };
+    }
+    // STDD parses; use its state (byte-identical to what parseHouseXlsxRows produces).
     return {
       classification: 'eligible',
-      resolvedState: state,
-      resolvedDistrict: district,
-      reason: 'requester_state is null; normalizer resolves to ' + state
-              + (district != null ? '-' + district : '')
-              + (district != null
-                ? ' (only state will be written; district stays as '
-                  + (requesterDistrict?.trim().toUpperCase() ?? 'null') + ')'
-                : ''),
+      resolvedState: parsed.state,
+      resolvedDistrict: parsed.district,
+      reason: 'requester_state is null; STDD token resolves to ' + parsed.state
+              + (parsed.district != null ? '-' + parsed.district : '')
+              + ' (only state will be written; district stays as '
+              + (requesterDistrict?.trim().toUpperCase() ?? 'null') + ')',
     };
   }
 
