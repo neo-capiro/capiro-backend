@@ -3,8 +3,8 @@
  * auto-update plan, Phase 3; docs/plans/2026-07-06-pe-watch-auto-update-plan.md).
  *
  * Turns hearing-transcript text into PE mention candidates and bill titles into
- * candidate bill ↔ PE links, using a name bank built from three curated
- * sources (program canonical names, capability names/aliases, PE titles).
+ * candidate bill ↔ PE links, using a name bank built from program names,
+ * qualified program aliases, capability aliases, and PE titles.
  * NOTHING here auto-accepts: every hit is a candidate with a tier-derived
  * confidence + render-safe evidence, per the plan's ambiguity rules (§1.3).
  *
@@ -13,11 +13,19 @@
  * Prisma wiring (bank loading, dedupe against intelligence_change, upserts).
  */
 
-export type NameBankTier = 'program_name' | 'platform_designator' | 'capability_alias' | 'pe_title';
+export type NameBankTier =
+  | 'program_name'
+  | 'program_alias'
+  | 'platform_designator'
+  | 'capability_alias'
+  | 'pe_title';
 
 /** Tier → candidate confidence (plan Phase 3: fuzzy tiers, never 1.0). */
 export const TIER_CONFIDENCE: Record<NameBankTier, number> = {
   program_name: 0.9,
+  // Curated aliases tied to accepted PE→program mappings are useful candidate
+  // evidence, but remain below the canonical program name tier.
+  program_alias: 0.8,
   // A bare weapon-system designator ("F-35", "CH-53K") extracted from a PE title
   // is a strong per-PE signal — an unambiguous platform token — but below the
   // curated program_name bar, since it can fan to every PE that funds the platform.
@@ -33,6 +41,7 @@ export const TIER_CONFIDENCE: Record<NameBankTier, number> = {
  */
 export const BILL_MATCH_TIERS: ReadonlySet<NameBankTier> = new Set<NameBankTier>([
   'program_name',
+  'program_alias',
   'platform_designator',
   'capability_alias',
 ]);
@@ -238,7 +247,42 @@ export function isTermAcceptable(term: string, tier: NameBankTier): boolean {
   if (tier === 'program_name' && term.length >= 5 && (multiWord || DESIGNATOR_RE.test(term))) {
     return true;
   }
+  // Program aliases are separately qualified in the loader by alias type,
+  // confidence, and accepted PE→program linkage. Preserve curated acronyms,
+  // while requiring uppercase spelling and at least three characters; fan-cap
+  // and candidate-only persistence limit the cost of short forms like CCA.
+  if (tier === 'program_alias' && /^[A-Z0-9]{3,}$/.test(term)) return true;
   return false;
+}
+
+/** Fan-cap curated program aliases by distinct PE before they enter the bank. */
+export function capProgramAliasFanout(
+  inputs: NameBankEntryInput[],
+  maxFan: number,
+): { entries: NameBankEntryInput[]; dropped: string[] } {
+  const aliases = buildNameBank(inputs.filter((entry) => entry.tier === 'program_alias'));
+  const peCodesByAlias = new Map<string, Set<string>>();
+  for (const entry of aliases.entries) {
+    const key = entry.term.toLowerCase();
+    const codes = peCodesByAlias.get(key) ?? new Set<string>();
+    codes.add(entry.peCode);
+    peCodesByAlias.set(key, codes);
+  }
+  const admitted = new Set(
+    [...peCodesByAlias.entries()]
+      .filter(([, peCodes]) => peCodes.size <= maxFan)
+      .map(([key]) => key),
+  );
+  const dropped = [...peCodesByAlias.entries()]
+    .filter(([, peCodes]) => peCodes.size > maxFan)
+    .map(([key, peCodes]) => `${key.toUpperCase()}(${peCodes.size})`)
+    .sort();
+  return {
+    entries: aliases.entries
+      .filter((entry) => admitted.has(entry.term.toLowerCase()))
+      .map(({ term, peCode }) => ({ term, peCode, tier: 'program_alias' as const })),
+    dropped,
+  };
 }
 
 /**
@@ -450,6 +494,7 @@ export interface BillLinkCandidate {
 
 const TIER_LABEL: Record<NameBankTier, string> = {
   program_name: 'program name',
+  program_alias: 'program alias',
   platform_designator: 'platform designator',
   capability_alias: 'capability alias',
   pe_title: 'PE title',
