@@ -26,3 +26,7 @@ The public health target is `https://app.capiro.ai/meri-api/health`.
 The pre-change rollback point is task definition `capiro-dev-meriv2-orchestrator:80`, digest `sha256:fa3e6aa90e4e9f7ddbc88b2167303e233638c2454c201dfd7c01b0729788ffa9`.
 
 If service health, startup or configuration checks fail, update the service back to revision 80 with AWS CLI and wait for stability. A later flag-only containment revision may set Jev provider and passage selection modes to `off`, but Package 2 itself does not change those flags.
+
+## Released state
+
+The qualified Package 2 runtime is task definition revision 81 at digest `sha256:3d744a27653097deb0c7a774ff2cc3141e2a58ec2464c93568f65cb1b41a723f`, built from merge SHA `9e4466c676c89ff1ad338f4b4abc100f057e538c`. Keep revision 80 active as the immediate rollback point until the normal retention policy supersedes it.
