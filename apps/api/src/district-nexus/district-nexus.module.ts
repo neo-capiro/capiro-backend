@@ -23,6 +23,7 @@ import { DistrictNexusStrategicFlagGuard } from './district-nexus-strategic-flag
 import { DistrictNexusEconomicFlagGuard } from './district-nexus-economic-flag.guard.js';
 import { DistrictNexusPriorityIntelligenceFlagGuard } from './priority-intelligence/priority-intelligence-flag.guard.js';
 import { R5FlagGuard } from './r5-action-layer/r5-flag.guard.js';
+import { R5MeriDistrictTools } from './r5-action-layer/r5-meri-district-tools.js';
 
 /**
  * District Nexus v2.
@@ -53,6 +54,7 @@ import { R5FlagGuard } from './r5-action-layer/r5-flag.guard.js';
     DistrictNexusChangeWriter,
     R5DistrictContextService,
     R5DistrictBriefService,
+    R5MeriDistrictTools,
     ClientDocumentWriterService,
     DistrictNexusFlagGuard,
     DistrictNexusStrategicFlagGuard,
@@ -67,6 +69,7 @@ import { R5FlagGuard } from './r5-action-layer/r5-flag.guard.js';
     DistrictNexusEconomicService,
     DistrictNexusPriorityIntelligenceService,
     R5DistrictContextService,
+    R5MeriDistrictTools,
   ],
 })
 export class DistrictNexusModule {}
