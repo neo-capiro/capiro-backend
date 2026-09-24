@@ -55,6 +55,20 @@ function first(...values: unknown[]): string | null {
   return null;
 }
 
+/**
+ * tango_subaward's pop_country/pop_state/pop_congressional_district columns
+ * are narrow (VARCHAR(3)/(8)/(8)) on the assumption the source sends codes,
+ * not full names. Tango's actual payload shape for these fields is
+ * undocumented per-row (it may send "CALIFORNIA" instead of "CA" for some
+ * records), and a value that overflows the column fails the whole batch's
+ * raw INSERT — 2026-09-24, first bounded --commit run after the R4 repair.
+ * Null out anything that doesn't fit rather than truncate it: a truncated
+ * "CALIFORN" is a fabricated-looking value; missing is honestly missing.
+ */
+function boundedText(value: string | null, maxLength: number): string | null {
+  return value != null && value.length <= maxLength ? value : null;
+}
+
 function stable(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stable);
   if (value && typeof value === 'object') {
@@ -109,15 +123,21 @@ export function mapTangoSubaward(
   // district only if a future/source-specific payload explicitly supplies one;
   // never derive it from ZIP or the prime award's geography here.
   const placeOfPerformance = {
-    country: first(pop.country_code, pop.country, raw.pop_country),
-    state: first(pop.state, pop.state_code, raw.pop_state)?.toUpperCase() ?? null,
+    country: boundedText(first(pop.country_code, pop.country, raw.pop_country), 3),
+    state: boundedText(
+      first(pop.state, pop.state_code, raw.pop_state)?.toUpperCase() ?? null,
+      8,
+    ),
     city: first(pop.city, pop.city_name, raw.pop_city),
     zip: first(pop.zip, pop.zip_code, pop.postal_code, raw.pop_zip),
-    congressionalDistrict: first(
-      pop.congressional_district,
-      pop.congressional_code,
-      pop.district,
-      raw.pop_congressional_district,
+    congressionalDistrict: boundedText(
+      first(
+        pop.congressional_district,
+        pop.congressional_code,
+        pop.district,
+        raw.pop_congressional_district,
+      ),
+      8,
     ),
   };
 

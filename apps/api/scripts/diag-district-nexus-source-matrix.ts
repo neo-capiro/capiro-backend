@@ -96,7 +96,7 @@ async function main() {
 
   report['tango_subaward'] = {
     rowCount: await scalar(`SELECT COUNT(*) FROM tango_subaward`),
-    maxRetrievedAt: await scalar(`SELECT MAX(retrieved_at) FROM tango_subaward`),
+    maxLastSyncedAt: await scalar(`SELECT MAX(last_synced_at) FROM tango_subaward`),
   };
   report['tango_subaward_sync_checkpoint'] = {
     checkpoints: await rows(
@@ -115,7 +115,7 @@ async function main() {
           AND recipient_uei IS NULL`,
     ),
     sampleRows: await rows(
-      `SELECT id::text, contractor_name, amount::float8, action_date, last_synced_at, recipient_uei
+      `SELECT id::text, award_unique_id, piid, contractor_name, amount::float8, action_date, last_synced_at, recipient_uei
          FROM federal_award
         WHERE (contractor_name ILIKE '%L3HARRIS%' OR contractor_name ILIKE '%L3 HARRIS%')
           AND pop_state = 'FL' AND pop_congressional_district = '08'
