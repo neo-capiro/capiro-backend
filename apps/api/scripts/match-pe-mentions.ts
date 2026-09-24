@@ -11,6 +11,8 @@
  *
  * Name bank — HIGH-PRECISION, LOW-FAN tiers only:
  *   program_name        (0.90) — Program.canonicalName via ACCEPTED pe_program_match rows
+ *   program_alias       (0.80) — high-confidence canonical/acronym/MDAP/congressional
+ *     aliases on programs reached through ACCEPTED pe_program_match rows; fan-capped.
  *   platform_designator (0.75) — bare weapon-system designators ("F-35", "B-21",
  *     "CH-53K") pulled from live ProgramElement.title via extractDesignatorTerms.
  *     Curated program names are formal ("F-35 Lightning II Joint Strike Fighter")
@@ -20,7 +22,7 @@
  *     PEs, so `--max-fan` drops any that blanket the graph (kept generous — a
  *     marquee platform legitimately touches ~a dozen PEs).
  *
- * Two tiers stay DELIBERATELY EXCLUDED, both proven noisy by prod dry-runs:
+ * Capability aliases and raw PE titles stay DELIBERATELY EXCLUDED, both proven noisy by prod dry-runs:
  *   - pe_title (raw ProgramElement.title): generic titles ("Aircraft
  *     Modifications", "Base Support") match transcript prose everywhere
  *     (~136 mentions/transcript).
@@ -47,6 +49,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import {
   aggregateMentionsByPe,
   buildNameBank,
+  capProgramAliasFanout,
   extractDesignatorTerms,
   findMentions,
   matchBillTitles,
@@ -89,11 +92,14 @@ interface DesignatorStats {
 interface BankLoad {
   entries: NameBankEntryInput[];
   designatorStats: DesignatorStats;
+  aliasesDroppedHighFan: string[];
 }
 
 /**
  * Bank rows — high-precision, low-fan tiers only (see the header note):
  *   program_name        — canonicalName of ACCEPTED pe_program_match rows.
+ *   program_alias       — qualified ProgramAlias values on those accepted
+ *                         mappings, fan-capped by distinct PE.
  *   platform_designator — bare designators from LIVE PE titles, fan-capped.
  * capability_alias and pe_title stay omitted: a single thematic word fans to
  * every PE tagged with that capability — capability-level, not per-PE, interest.
@@ -103,11 +109,35 @@ async function loadNameBankEntries(prisma: PrismaClient, maxFan: number): Promis
 
   const programMatches = await prisma.peProgramMatch.findMany({
     where: { status: 'accepted' },
-    select: { peCode: true, program: { select: { canonicalName: true } } },
+    select: {
+      peCode: true,
+      program: {
+        select: {
+          canonicalName: true,
+          aliases: {
+            where: {
+              aliasType: { in: ['canonical', 'acronym', 'mdap_name', 'congressional'] },
+              confidence: { gte: 0.85 },
+            },
+            select: { alias: true, aliasType: true },
+          },
+        },
+      },
+    },
   });
+  const aliasInputs: NameBankEntryInput[] = [];
   for (const m of programMatches) {
     entries.push({ peCode: m.peCode, term: m.program.canonicalName, tier: 'program_name' });
+    for (const alias of m.program.aliases) {
+      aliasInputs.push({
+        peCode: m.peCode,
+        term: alias.aliasType === 'acronym' ? alias.alias.toUpperCase() : alias.alias,
+        tier: 'program_alias',
+      });
+    }
   }
+  const cappedAliases = capProgramAliasFanout(aliasInputs, maxFan);
+  entries.push(...cappedAliases.entries);
 
   // platform_designator — extract bare designators from LIVE (non-retired) PE
   // titles, then fan-cap. One designator (e.g. "F-35") legitimately funds many
@@ -144,6 +174,7 @@ async function loadNameBankEntries(prisma: PrismaClient, maxFan: number): Promis
 
   return {
     entries,
+    aliasesDroppedHighFan: cappedAliases.dropped,
     designatorStats: {
       admitted: fanSizes.length,
       droppedHighFan,
@@ -424,7 +455,8 @@ async function main(): Promise<void> {
   try {
     const run = async (): Promise<RunCounts> => {
       // ── name bank ────────────────────────────────────────────────────
-      const { entries: bankInputs, designatorStats } = await loadNameBankEntries(prisma, maxFan);
+      const { entries: bankInputs, designatorStats, aliasesDroppedHighFan } =
+        await loadNameBankEntries(prisma, maxFan);
       const bank = buildNameBank(bankInputs);
 
       // ── hearing-transcript mentions ──────────────────────────────────
@@ -462,6 +494,7 @@ async function main(): Promise<void> {
         designators_admitted: designatorStats.admitted,
         designators_dropped_high_fan: designatorStats.droppedHighFan,
         designator_top_fan: designatorStats.topFan,
+        program_aliases_dropped_high_fan: aliasesDroppedHighFan,
         transcripts_scanned: transcriptsScanned,
         mentions_found: rawMentions,
         pe_mention_rows: rows.length,

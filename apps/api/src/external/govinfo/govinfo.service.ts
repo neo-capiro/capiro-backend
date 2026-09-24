@@ -90,7 +90,7 @@ interface GovInfoCollectionResponse {
   packages?: GovInfoPackageRow[];
 }
 
-interface GovInfoPackageRow {
+export interface GovInfoPackageRow {
   packageId: string;
   title?: string;
   congress?: string | number;
@@ -98,6 +98,20 @@ interface GovInfoPackageRow {
   lastModified?: string;
   packageLink?: string;
   docClass?: string;
+}
+
+export type FederalEvidenceCollection = 'BILLS' | 'CRPT' | 'CPRT' | 'PLAW' | 'CREC';
+
+export interface FederalEvidencePackageText {
+  packageId: string;
+  raw: string;
+  text: string;
+  format: 'xml' | 'txt' | 'htm';
+  sourceUrl: string;
+  title: string | null;
+  dateIssued: string | null;
+  lastModified: string | null;
+  collection: string | null;
 }
 
 interface GovInfoDownloadLinks {
@@ -231,6 +245,87 @@ export class GovInfoService {
     return { url: pdfLink, pdfBuffer };
   }
 
+  // ── Versioned federal evidence (Package 4) ────────────────────────────────
+
+  /**
+   * One frozen, continuation-qualified collection page. Callers persist their
+   * cursor only after every package on the page has durable work registered.
+   */
+  async listFederalEvidencePage(
+    collection: FederalEvidenceCollection,
+    congress: number,
+    since: string,
+    until: string,
+    next?: string | null,
+  ): Promise<{
+    packages: GovInfoPackageRow[];
+    nextPage: string | null;
+    count: number | null;
+    window: { since: string; until: string };
+  }> {
+    const start = since.replace(/\.\d+Z$/, 'Z');
+    const end = until.replace(/\.\d+Z$/, 'Z');
+    const initial = new URL(
+      `collections/${collection}/${encodeURIComponent(start)}/${encodeURIComponent(end)}`,
+      GOVINFO_API_ROOT,
+    );
+    initial.searchParams.set('congress', String(congress));
+    initial.searchParams.set('pageSize', '100');
+    initial.searchParams.set('offsetMark', '*');
+    const qualify = (value: string): URL => {
+      const url = new URL(value, GOVINFO_API_ROOT);
+      if (
+        url.origin !== new URL(GOVINFO_API_ROOT).origin ||
+        decodeURIComponent(url.pathname) !== decodeURIComponent(initial.pathname) ||
+        url.username ||
+        url.password ||
+        (url.searchParams.has('congress') && url.searchParams.get('congress') !== String(congress))
+      )
+        throw new ServiceUnavailableException('GOVINFO_CONTINUATION_SCOPE_MISMATCH');
+      url.pathname = initial.pathname;
+      url.searchParams.delete('api_key');
+      url.searchParams.set('congress', String(congress));
+      url.searchParams.set('pageSize', '100');
+      return url;
+    };
+    const page = qualify(next ?? initial.href);
+    const data = await this.getJsonCached<GovInfoCollectionResponse>(page.href, {});
+    return {
+      packages: data.packages ?? [],
+      nextPage: data.nextPage ? qualify(data.nextPage).href : null,
+      count: data.count ?? null,
+      window: { since: start, until: end },
+    };
+  }
+
+  /** Qualified XML/TXT/HTML snapshot; PDF-only packages become coverage gaps. */
+  async getFederalPackageText(packageId: string): Promise<FederalEvidencePackageText> {
+    const summary = await this.getPackageSummary(packageId);
+    const selected = summary.download?.xmlLink
+      ? { format: 'xml' as const, url: summary.download.xmlLink }
+      : summary.download?.txtLink
+        ? { format: 'txt' as const, url: summary.download.txtLink }
+        : summary.download?.htmLink
+          ? { format: 'htm' as const, url: summary.download.htmLink }
+          : null;
+    if (!selected)
+      throw new ServiceUnavailableException(`No qualified text available for ${packageId}`);
+    const raw = await this.fetchText(selected.url);
+    const text = selected.format === 'htm' ? stripHtmlTags(raw) : raw;
+    if (!text.trim()) throw new ServiceUnavailableException(`Empty federal text for ${packageId}`);
+    return {
+      packageId,
+      raw,
+      text,
+      format: selected.format,
+      sourceUrl: selected.url,
+      title: summary.title ?? null,
+      dateIssued: summary.dateIssued ?? null,
+      lastModified: summary.lastModified ?? null,
+      collection: summary.collectionCode ?? null,
+    };
+  }
+
   // ── Congressional hearings (CHRG) — Track B official transcripts (H2) ─────────
 
   /** List CHRG (Congressional Hearings) packages for a congress. */
@@ -358,8 +453,20 @@ export class GovInfoService {
     };
     if (opts.docClass) params.docClass = opts.docClass;
 
-    const data = await this.getJsonCached<GovInfoCollectionResponse>(path, params);
-    return data.packages ?? [];
+    const rows: GovInfoPackageRow[] = [];
+    let next: string | null = new URL(path, GOVINFO_API_ROOT).toString();
+    for (let page = 0; next && page < 10_000; page += 1) {
+      const data: GovInfoCollectionResponse =
+        await this.getJsonCached<GovInfoCollectionResponse>(next, params);
+      rows.push(...(data.packages ?? []));
+      next = data.nextPage ?? null;
+      // Only the first request owns the initial query parameters. GovInfo's
+      // continuation contains its own offset marker and is scope-checked by
+      // listFederalEvidencePage in durable ingestion paths.
+      for (const key of Object.keys(params)) delete params[key];
+    }
+    if (next) throw new ServiceUnavailableException('GovInfo pagination safety limit reached');
+    return rows;
   }
 
   private async getPackageSummary(packageId: string): Promise<GovInfoPackageSummary> {
