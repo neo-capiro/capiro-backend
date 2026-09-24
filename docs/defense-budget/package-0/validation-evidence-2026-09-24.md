@@ -6,7 +6,8 @@ This record separates repository checks from live-environment proof. No skipped 
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Combined Package C, Package E, observation bridge and Package 0 snapshot suites | PASS | 12 suites passed, 1 suite skipped; 148 tests passed, 14 skipped. |
+| Initial combined Package C, Package E, observation bridge and Package 0 snapshot suites | PASS | 12 suites passed, 1 database-gated suite skipped; 148 tests passed, 14 skipped. |
+| Exact post-rebase merge candidate focused regression | PASS | 12 suites and 133 tests passed with no skipped suite. |
 | Package C disposable PostgreSQL 16 pre-migration upgrade | PASS | A real legacy scoped review and correction were migrated; 4 of 4 upgrade checks passed. |
 | Package C disposable PostgreSQL replacement/reconciliation | PASS after repair | 74 of 74 tests passed. The first run found that `--acknowledge-revoked-scope` was implemented but missing from the CLI allow-list; Package 0 added the flag and the complete rehearsal then passed. |
 | Prisma schema | PASS | `prisma format`, `prisma validate` and client generation completed. |
