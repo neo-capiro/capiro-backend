@@ -2988,6 +2988,8 @@ export function NewOutreachWizard({
                 Context is optional. Add supporting details, or continue with your main idea.
               </div>
               <StepContextBuilder
+                clients={clients}
+                selectedClientId={state.clientId}
                 recipients={state.recipients}
                 targets={state.targets}
                 selected={state.contextItems}
@@ -3060,6 +3062,7 @@ export function NewOutreachWizard({
               regenerating={generateMutation.isPending}
               generatingKey={generatingKey}
               clientId={state.clientId}
+              clients={clients}
               docs={docsQuery.data?.items ?? []}
               attachmentIds={state.attachmentIds}
               onToggleAttachment={toggleAttachment}
