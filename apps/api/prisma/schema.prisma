@@ -5443,6 +5443,8 @@ model SourceDocument {
   federalFundingMeasures           FederalFundingMeasure[]
   federalFundingProvisions         FederalFundingProvision[]
   federalFundingAllocationEvidence FederalFundingAllocation[]              @relation("FederalFundingAllocationEvidence")
+  federalFundingSourceEvents       FederalFundingSourceEvent[]
+  federalFundingResidualEvidence   FederalFundingReconciliationResidual[] @relation("FederalFundingResidualEvidence")
   // Phase 8 Session 7 — lifecycle watcher observations bound to immutable source identity.
   defenseBudgetObservations        DefenseBudgetSourceObservation[]        @relation("DefenseBudgetObservationSource")
   // Phase 10B-18 — source-bundle member bindings (Army R-2 multi-volume corpus).
@@ -13651,6 +13653,8 @@ model FederalFundingMeasure {
 
   sourceDocument SourceDocument            @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   provisions     FederalFundingProvision[]
+  sourceEvents   FederalFundingSourceEvent[]
+  certifications FederalFundingCertification[]
 
   // measure_type / status / authority_type value sets and the availability
   // start<=end check are SQL CHECK constraints (federal_funding_measure_*_chk)
@@ -13730,13 +13734,26 @@ model FederalFundingAllocation {
   // allocationStage = 'obligated'.
   obligationReference      String?  @map("obligation_reference")
   executionReference       String?  @map("execution_reference")
+  sourceEventId            String?  @map("source_event_id") @db.Uuid
+  amountBasis              String   @default("legacy_unspecified") @map("amount_basis")
+  asOfDate                 DateTime? @map("as_of_date") @db.Date
+  periodStart              DateTime? @map("period_start") @db.Date
+  periodEnd                DateTime? @map("period_end") @db.Date
+  executionMetric           String?  @map("execution_metric")
+  correctionOfAllocationId String?  @map("correction_of_allocation_id") @db.Uuid
+  transferPairKey          String?  @map("transfer_pair_key")
+  transferSide             String?  @map("transfer_side")
   dedupKey                 String   @map("dedup_key") @db.Char(64)
   metadata                 Json     @default("{}") @map("metadata_jsonb")
-  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt                DateTime @default(dbgenerated("clock_timestamp()")) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   provision              FederalFundingProvision @relation(fields: [provisionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   evidenceSourceDocument SourceDocument          @relation("FederalFundingAllocationEvidence", fields: [evidenceSourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceEvent            FederalFundingSourceEvent? @relation(fields: [sourceEventId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  correctionOf           FederalFundingAllocation? @relation("FederalFundingAllocationCorrection", fields: [correctionOfAllocationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  corrections            FederalFundingAllocation[] @relation("FederalFundingAllocationCorrection")
+  publicationSnapshots   FederalFundingPublication[]
 
   // target_type / allocation_stage / mapping_maturity / review_state /
   // base_request_status / funding_posture value sets, confidence 0..1,
@@ -13751,10 +13768,133 @@ model FederalFundingAllocation {
   @@index([targetType, targetId, targetNativeKey], map: "federal_funding_allocation_target_idx")
   @@index([reviewState, mappingMaturity], map: "federal_funding_allocation_review_idx")
   @@index([evidenceSourceDocumentId], map: "federal_funding_allocation_evidence_document_idx")
+  @@index([sourceEventId], map: "federal_funding_allocation_source_event_idx")
+  @@index([correctionOfAllocationId], map: "federal_funding_allocation_correction_idx")
+  @@index([executionMetric, asOfDate], map: "federal_funding_allocation_execution_time_idx")
   // Partial index (WHERE potential_double_count = TRUE) is created by the SQL
   // migration; Prisma cannot express the WHERE predicate without changing
   // index semantics, so it is intentionally omitted here (SQL-owned).
   @@map("federal_funding_allocation")
+}
+
+// Immutable source occurrence/revision rail. Mutable current-state funding rows
+// are not sufficient to audit corrections, source revisions, or transfer legs.
+model FederalFundingSourceEvent {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sourceEventKey       String    @map("source_event_key")
+  sourceSystem         String    @map("source_system")
+  sourceRecordId       String    @map("source_record_id")
+  revision             Int       @default(1)
+  eventType            String    @map("event_type")
+  measureId            String?   @map("measure_id") @db.Uuid
+  sourceDocumentId     String    @map("source_document_id") @db.Uuid
+  occurredAt           DateTime? @map("occurred_at") @db.Timestamptz(6)
+  sourceObservedAt     DateTime? @map("source_observed_at") @db.Timestamptz(6)
+  sourceUrl            String?   @map("source_url")
+  sourceVersion        String?   @map("source_version")
+  amountBasis          String?   @map("amount_basis")
+  executionMetric      String?   @map("execution_metric")
+  asOfDate             DateTime? @map("as_of_date") @db.Date
+  periodStart          DateTime? @map("period_start") @db.Date
+  periodEnd            DateTime? @map("period_end") @db.Date
+  sourceAmountUsd      Decimal?  @map("source_amount_usd") @db.Decimal(20, 2)
+  signedObligationDelta Decimal? @map("signed_obligation_delta") @db.Decimal(20, 2)
+  signedOutlayDelta    Decimal?  @map("signed_outlay_delta") @db.Decimal(20, 2)
+  correctionOfEventId  String?   @map("correction_of_event_id") @db.Uuid
+  transferPairKey      String?   @map("transfer_pair_key")
+  transferSide         String?   @map("transfer_side")
+  contentSha256        String    @map("content_sha256") @db.Char(64)
+  raw                   Json      @default("{}") @map("raw_jsonb")
+  recordedAt            DateTime  @default(now()) @map("recorded_at") @db.Timestamptz(6)
+
+  measure       FederalFundingMeasure?      @relation(fields: [measureId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceDocument SourceDocument              @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  correctionOf  FederalFundingSourceEvent?   @relation("FederalFundingSourceEventCorrection", fields: [correctionOfEventId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  corrections   FederalFundingSourceEvent[] @relation("FederalFundingSourceEventCorrection")
+  allocations   FederalFundingAllocation[]
+
+  @@unique([sourceEventKey, contentSha256], map: "federal_funding_source_event_content_key")
+  @@unique([sourceEventKey, revision], map: "federal_funding_source_event_revision_key")
+  @@index([sourceSystem, sourceRecordId, recordedAt(sort: Desc)], map: "federal_funding_source_event_source_time_idx")
+  @@index([measureId, recordedAt(sort: Desc)], map: "federal_funding_source_event_measure_time_idx")
+  @@map("federal_funding_source_event")
+}
+
+// Certification is immutable; its publication rows hold the exact allocation
+// snapshot that was reviewed, so later source corrections cannot rewrite history.
+model FederalFundingCertification {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  certificationKey      String   @map("certification_key")
+  revision              Int      @default(1)
+  measureId             String   @map("measure_id") @db.Uuid
+  measureStatus         String   @map("measure_status")
+  sourceEventWatermark  DateTime? @map("source_event_watermark") @db.Timestamptz(6)
+  sourceEventCount      Int      @map("source_event_count")
+  scope                 Json     @default("{}") @map("scope_jsonb")
+  status                String   @default("certified")
+  certifiedBy           String?  @map("certified_by")
+  certifiedAt           DateTime @default(now()) @map("certified_at") @db.Timestamptz(6)
+  contentSha256         String   @map("content_sha256") @db.Char(64)
+
+  measure       FederalFundingMeasure        @relation(fields: [measureId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  publications  FederalFundingPublication[]
+  residuals     FederalFundingReconciliationResidual[]
+
+  @@unique([certificationKey, revision], map: "federal_funding_certification_revision_key")
+  @@index([measureId, certifiedAt(sort: Desc)], map: "federal_funding_certification_measure_time_idx")
+  @@map("federal_funding_certification")
+}
+
+model FederalFundingPublication {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  certificationId   String   @map("certification_id") @db.Uuid
+  allocationId      String   @map("allocation_id") @db.Uuid
+  allocationSnapshot Json     @map("allocation_snapshot_jsonb")
+  contentSha256      String   @map("content_sha256") @db.Char(64)
+  publishedAt        DateTime @default(now()) @map("published_at") @db.Timestamptz(6)
+
+  certification FederalFundingCertification @relation(fields: [certificationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  allocation    FederalFundingAllocation     @relation(fields: [allocationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([certificationId, allocationId], map: "federal_funding_publication_allocation_key")
+  @@index([allocationId, publishedAt(sort: Desc)], map: "federal_funding_publication_allocation_time_idx")
+  @@map("federal_funding_publication")
+}
+
+// Residuals intentionally have no target/allocation foreign key or target ID.
+// They record an unreconciled amount and scope without inventing an allocation.
+model FederalFundingReconciliationResidual {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  certificationId String   @map("certification_id") @db.Uuid
+  scopeKey        String   @map("scope_key")
+  scope            Json     @map("scope_jsonb")
+  basis            String
+  residualAmountUsd Decimal @map("residual_amount_usd") @db.Decimal(20, 2)
+  reason           String
+  coverageState    String   @map("coverage_state")
+  freshness        Json     @default("{}") @map("freshness_jsonb")
+  evidenceSourceDocumentId String? @map("evidence_source_document_id") @db.Uuid
+  evidenceSha256   String?  @map("evidence_sha256") @db.Char(64)
+  contentSha256    String   @map("content_sha256") @db.Char(64)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  certification FederalFundingCertification @relation(fields: [certificationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  evidenceSourceDocument SourceDocument? @relation("FederalFundingResidualEvidence", fields: [evidenceSourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([certificationId, scopeKey, contentSha256], map: "federal_funding_residual_content_key")
+  @@index([scopeKey, createdAt(sort: Desc)], map: "federal_funding_residual_scope_time_idx")
+  @@map("federal_funding_reconciliation_residual")
+}
+
+model FederalFundingPublicationCheckpoint {
+  checkpointKey String   @id @map("checkpoint_key")
+  version       Int
+  cursor        String?
+  throughId     String?  @map("through_id")
+  complete      Boolean  @default(false)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("federal_funding_publication_checkpoint")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

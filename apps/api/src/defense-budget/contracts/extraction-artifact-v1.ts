@@ -70,6 +70,8 @@ export const BUDGET_FAMILY_V1_VALUES = [
   'milcon',
   'milpers',
   'committee',
+  'alternative_funding',
+  'execution',
   'public_law',
   'overview',
   'unknown',

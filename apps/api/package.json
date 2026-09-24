@@ -246,6 +246,12 @@
     "replay:pe-budget-phase-10b31-recovered-artifact": "tsx scripts/phase10b31-replay-recovered-artifact.ts",
     "reextract:defense-budget-candidate-v1": "tsx scripts/reextract-defense-budget-candidate-v1.ts",
     "run:defense-budget-ingestion-manifest-v1": "tsx scripts/run-defense-budget-ingestion-manifest-v1.ts",
+    "funding-execution-certification": "tsx scripts/funding-execution-certification-worker.ts",
+    "funding-execution-source-adapter": "tsx scripts/funding-execution-source-adapter.ts",
+    "test:funding-execution-source-adapter": "jest --runInBand --forceExit src/funding-execution/funding-execution-source-adapter.service.spec.ts",
+    "test:funding-execution": "jest --runInBand --forceExit src/program-element/funding-execution scripts/funding-execution-certification-worker.spec.ts",
+    "qualify:package6-funding-execution": "tsx scripts/qualify-package6-funding-execution.ts",
+    "typecheck:package6": "tsc -p tsconfig.package6.json --noEmit",
     "typecheck:defense-budget-ingestion-manifest-v1": "tsc -p tsconfig.defense-budget-ingestion-manifest-v1.json --noEmit",
     "verify:defense-budget-ingestion-manifest-v1": "jest --runInBand --forceExit src/defense-budget/governed-ingestion-manifest scripts/run-defense-budget-ingestion-manifest-v1.spec.ts"
   },
