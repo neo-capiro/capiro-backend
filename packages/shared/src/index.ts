@@ -3295,8 +3295,22 @@ export function formatCitationsForPrompt(citations: MeriCitation[]): string {
   if (citations.length === 0) return '';
   const lines = citations.map((c) => {
     const bits = [c.title];
-    if (c.snippet) bits.push(c.snippet);
-    if (c.url) bits.push(c.url);
+    if (c.snippet) bits.push(`Passage: ${c.snippet}`);
+    const locator = c.source
+      ? [
+          c.source.kind,
+          c.source.recordId,
+          c.source.clientId ? `client ${c.source.clientId}` : null,
+          c.source.threadId ? `thread ${c.source.threadId}` : null,
+          c.source.section ? `section ${c.source.section}` : null,
+          c.source.version ? `version ${c.source.version}` : null,
+          c.source.observedAt ? `observed ${c.source.observedAt}` : null,
+        ].filter(Boolean).join(' / ')
+      : null;
+    const target = c.url ?? (c.id || c.stableId
+      ? `${c.type} record ${c.id || c.stableId}`
+      : `tool ${c.tool}`);
+    bits.push(`Source: ${target}${locator ? ` (${locator})` : ''}`);
     return `[${c.n}] ${bits.join(' — ')}`;
   });
   return `Citable sources (cite these in prose as [N] when you use them):\n${lines.join('\n')}`;

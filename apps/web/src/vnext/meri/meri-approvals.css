@@ -22,6 +22,20 @@
   gap: 12px;
 }
 
+.capiro-vnext-root .vnext-meri__pending-approvals-scope {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 18px;
+  color: #667085;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approvals-empty-scope {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 16px;
+  color: #667085;
+}
+
 /* The card class is retained on the per-approval element for tests/hooks, but
    the reference non-empty state is NOT a white card — neutralize the generic
    card chrome from vnext-meri.css. */
@@ -98,6 +112,12 @@
   letter-spacing: -0.01em;
   color: #101828;
   text-wrap: pretty;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approval-origin {
+  margin-top: 8px;
+  font-size: 10.5px;
+  color: #667085;
 }
 
 /* ── Flags (external / irreversible) ─────────────────────────────────── */

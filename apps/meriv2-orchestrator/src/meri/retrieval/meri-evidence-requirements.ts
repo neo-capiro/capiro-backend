@@ -162,6 +162,89 @@ function safeJson(value: unknown): string {
   }
 }
 
+/** Explicit metadata on a payload can signal that this read needs continuation. */
+function payloadReadIncomplete(value: unknown): boolean {
+  const record = object(value);
+  if (!record) return false;
+  const coverage = object(record.coverage);
+  const pagination = object(record.pagination) ?? object(coverage?.pagination);
+  const continuation = object(record.continuation) ?? object(coverage?.continuation);
+  return [record, coverage].some((metadata) =>
+    Boolean(
+      metadata &&
+        (metadata.truncated === true ||
+          metadata.contentTruncated === true ||
+          metadata.truncatedByProjection === true ||
+          metadata.hasMore === true ||
+          metadata.nextCursor != null ||
+          metadata.paginationComplete === false ||
+          metadata.complete === false ||
+          metadata.partial === true),
+    ),
+  ) || Boolean(
+    pagination &&
+      (pagination.hasMore === true || pagination.nextCursor != null || pagination.complete === false),
+  ) || Boolean(
+    continuation &&
+      (continuation.blocked === true || continuation.complete === false || continuation.incomplete === true),
+  );
+}
+
+function receiptIsIncomplete(receipt: MeriToolCoverageReceipt): boolean {
+  // `status: partial` is also the observer's legacy default when a source does
+  // not publish completion metadata. Preserve those otherwise usable reads;
+  // only explicit truncation/pagination signals hold the gap open.
+  return receipt.truncated || receipt.paginationComplete === false;
+}
+
+function receiptIsComplete(receipt: MeriToolCoverageReceipt): boolean {
+  return receipt.status === 'complete' && !receipt.truncated && receipt.paginationComplete !== false;
+}
+
+/** An incomplete read closes only after a later terminal receipt for that source. */
+function hasOpenIncompleteRead(
+  tool: string,
+  entries: readonly LedgerEntry[],
+  receipts: readonly MeriToolCoverageReceipt[],
+  requirement: CoverageRequirement,
+): boolean {
+  const relevant = receipts
+    .map((receipt, index) => ({ receipt, index }))
+    .filter(({ receipt }) => receipt.tool === tool)
+    .filter(({ receipt }) => {
+      const route = requirement.route ?? {};
+      const comparable = Object.entries(route).filter(
+        ([key, value]) =>
+          receipt.requestRoute?.[key] !== undefined &&
+          (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'),
+      );
+      if (comparable.length) {
+        return comparable.every(([key, value]) => receipt.requestRoute?.[key] === value);
+      }
+      const documentId = route.documentId;
+      return typeof documentId !== 'string' || !receipt.documentPage || receipt.documentPage.documentId === documentId;
+    });
+  const openReceipts = relevant.some(({ receipt, index }) => {
+    if (!receiptIsIncomplete(receipt)) return false;
+    return !relevant.some(
+      (candidate) =>
+        candidate.index > index &&
+        candidate.receipt.source === receipt.source &&
+        receiptIsComplete(candidate.receipt),
+    );
+  });
+  const routedEntries = entries.filter(
+    (entry) =>
+      entry.tool === tool &&
+      (requirement.route ? entryProvidesEvidence(entry, requirement) : true),
+  );
+  const incompletePayload = routedEntries.some((entry) => payloadReadIncomplete(entry.result));
+  // Payload metadata has no source identity; a later complete receipt from the
+  // same tool is the strongest available closure signal for these legacy reads.
+  const payloadClosed = relevant.some(({ receipt }) => receiptIsComplete(receipt));
+  return openReceipts || (incompletePayload && !payloadClosed);
+}
+
 function idsForTool(
   tool: string,
   ledgerEntries: readonly LedgerEntry[],
@@ -383,24 +466,23 @@ export function compareCoverage(input: {
       const result = object(entry.result);
       return Boolean(result?.error || result?.blocked);
     });
-    const truncated = receipts.some(
-      (receipt) => receipt.truncated || receipt.paginationComplete === false,
+    const openIncomplete = called.some((tool) =>
+      hasOpenIncompleteRead(tool, entries, receipts, requirement),
     );
-    // Any usable result satisfies the requirement. Failed, unavailable or
-    // truncated reads classify the gap only when nothing usable was retrieved,
-    // so one paginated listing or one retried error never pins the status.
+    // Usable content and a completed read are separate facts. A partial page
+    // can contain evidence while still leaving the required read unresolved.
     const status: CoverageGapStatus =
       called.length === 0
         ? 'never_called'
-        : usable.length
+        : usable.length && !openIncomplete
           ? 'satisfied'
+          : openIncomplete
+            ? 'truncated'
           : unavailable
             ? 'unavailable'
-            : failed
-              ? 'extraction_failed'
-              : truncated
-                ? 'truncated'
-                : 'called_no_usable_content';
+          : failed
+            ? 'extraction_failed'
+            : 'called_no_usable_content';
     return {
       requirementId: requirement.requirementId,
       essential: requirement.essential,
@@ -426,12 +508,53 @@ function requestIdentities(request: string): Record<string, unknown> {
   };
 }
 
+function continuationArguments(
+  tool: string,
+  ledgerEntries: readonly LedgerEntry[],
+  properties: ReadonlySet<string>,
+  requirement: CoverageRequirement,
+): Record<string, unknown> {
+  let result: Record<string, unknown> | null = null;
+  for (let index = ledgerEntries.length - 1; index >= 0; index -= 1) {
+    const entry = ledgerEntries[index];
+    if (entry?.tool !== tool) continue;
+    if (requirement.route && !entryProvidesEvidence(entry, requirement)) continue;
+    result = object(entry.result);
+    if (result) break;
+  }
+  if (!result) return {};
+  const coverage = object(result.coverage);
+  const pagination = object(result.pagination) ?? object(coverage?.pagination);
+  const continuation = object(result.continuation) ?? object(coverage?.continuation);
+  const containers = [result, coverage, pagination, continuation].filter(
+    (value): value is Record<string, unknown> => Boolean(value),
+  );
+  const first = (...keys: string[]): unknown => {
+    for (const container of containers) {
+      for (const key of keys) {
+        if (container[key] !== undefined && container[key] !== null) return container[key];
+      }
+    }
+    return undefined;
+  };
+  const args: Record<string, unknown> = {};
+  const cursor = first('nextCursor', 'next_cursor');
+  const pageToken = first('nextPageToken', 'next_page_token');
+  const offset = first('nextOffset', 'next_offset');
+  if (properties.has('cursor') && cursor !== undefined) args.cursor = cursor;
+  else if (properties.has('pageToken') && pageToken !== undefined) args.pageToken = pageToken;
+  else if (properties.has('page_token') && pageToken !== undefined) args.page_token = pageToken;
+  if (properties.has('offset') && offset !== undefined) args.offset = offset;
+  return args;
+}
+
 export function planFollowUp(input: {
   gaps: readonly CoverageGap[];
   requirements?: readonly CoverageRequirement[];
   toolSchemas: readonly CoverageToolSchema[];
   request: string;
   frame: GovernmentAffairsOperatingFrame;
+  ledgerEntries?: readonly LedgerEntry[];
 }): CoverageFollowUpPlan | null {
   const calls: CoverageFollowUpCall[] = [];
   const identity = { ...requestIdentities(input.request), clientId: input.frame.clientId ?? undefined };
@@ -443,7 +566,11 @@ export function planFollowUp(input: {
       const schema = input.toolSchemas.find((item) => item.name === name && item.readOnly !== false);
       if (!schema) continue;
       const properties = requestedProperties(schema);
-      const candidates = { ...identity, ...requirement.route };
+      const candidates = {
+        ...identity,
+        ...requirement.route,
+        ...continuationArguments(name, input.ledgerEntries ?? [], properties, requirement),
+      };
       const args = Object.fromEntries(
         Object.entries(candidates).filter(
           ([key, value]) => properties.has(key) && value !== undefined && value !== null,
@@ -463,7 +590,7 @@ export function planFollowUp(input: {
       calls.push({ name, arguments: args, requirementId: gap.requirementId });
       break;
     }
-    if (calls.length >= 2) break;
+    if (calls.length >= 8) break;
   }
   return calls.length ? { calls, reason: 'essential_coverage_gap' } : null;
 }

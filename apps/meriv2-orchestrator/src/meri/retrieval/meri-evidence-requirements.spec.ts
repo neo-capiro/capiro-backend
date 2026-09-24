@@ -247,22 +247,45 @@ describe('coverage comparison', () => {
     })[0]?.status).toBe(status);
   });
 
-  it('is satisfied by one usable result even when another call failed or was truncated', () => {
+  it('keeps usable evidence open while the matching read is incomplete, then closes on a later complete receipt', () => {
+    const usable = entry('read_source', { records: [{ id: 'a', text: 'usable rows' }] });
+    const partial = receipt({ status: 'partial', source: 'report', paginationComplete: false, truncated: true });
+    const open = compareCoverage({
+      requirements: [requirement],
+      toolsUsed: ['read_source'],
+      receipts: [partial],
+      ledgerEntries: [usable],
+      citations: [],
+    });
+    expect(open[0]).toMatchObject({ status: 'truncated', evidenceIds: ['a'] });
+
     const gaps = compareCoverage({
       requirements: [requirement],
       toolsUsed: ['read_source'],
       receipts: [
+        partial,
+        receipt({ source: 'other-source' }),
+        receipt({ source: 'report' }),
         receipt({ status: 'error', recordsReturned: 0, paginationComplete: null }),
-        receipt({ status: 'partial', paginationComplete: false, truncated: true }),
-        receipt(),
       ],
-      ledgerEntries: [
-        entry('read_source', { error: 'bad argument' }),
-        entry('read_source', { records: [{ id: 'a', text: 'usable rows' }] }),
-      ],
+      ledgerEntries: [usable],
       citations: [],
     });
     expect(gaps[0]).toMatchObject({ status: 'satisfied', evidenceIds: ['a'] });
+  });
+
+  it('keeps explicit payload continuation metadata unresolved without a matching completion receipt', () => {
+    const gaps = compareCoverage({
+      requirements: [requirement],
+      toolsUsed: ['read_source'],
+      receipts: [],
+      ledgerEntries: [entry('read_source', {
+        records: [{ id: 'a', text: 'usable rows' }],
+        coverage: { complete: false, hasMore: true, nextCursor: 'cursor-2' },
+      })],
+      citations: [],
+    });
+    expect(gaps[0]).toMatchObject({ status: 'truncated', evidenceIds: ['a'] });
   });
 
   it('treats a transcript filename without content as unusable', () => {
@@ -309,7 +332,7 @@ describe('coverage comparison', () => {
       citations: [],
     });
     expect(gaps[0]).toMatchObject({ status: 'satisfied', evidenceIds: ['doc-1:abc:1:0-40'] });
-    expect(gaps[1]?.status).toBe('truncated');
+    expect(gaps[1]?.status).toBe('called_no_usable_content');
   });
 
   it('matches chamber routes against the evidence actually retrieved', () => {
@@ -330,14 +353,14 @@ describe('coverage follow-up and disclosure', () => {
   const documentSchema = {
     name: 'read_client_documents',
     readOnly: true,
-    input_schema: { type: 'object', properties: { clientId: { type: 'string' }, documentId: { type: 'string' }, query: {} }, required: ['clientId'] },
+    input_schema: { type: 'object', properties: { clientId: { type: 'string' }, documentId: { type: 'string' }, query: {}, cursor: { type: 'string' } }, required: ['clientId'] },
   };
   function gap(requirementId: string, essential = true): CoverageGap {
     return { requirementId, essential, status: 'never_called', materiality: essential ? 'changes_answer' : 'supplementary', evidenceIds: [] };
   }
 
-  it('plans at most two concrete essential read-only calls', () => {
-    const gaps = [gap('house'), gap('senate'), gap('extra', false)];
+  it('plans every concrete essential read-only call up to the caller safety ceiling', () => {
+    const gaps = [gap('house'), gap('senate'), gap('conference')];
     const requirements = gaps.map((item) => ({
       ...requirement,
       id: item.requirementId,
@@ -356,7 +379,7 @@ describe('coverage follow-up and disclosure', () => {
       request: 'Compare House vs Senate for PE 0603851F',
       frame,
     });
-    expect(followUp?.calls).toHaveLength(2);
+    expect(followUp?.calls).toHaveLength(3);
     expect(followUp?.calls.every((call) => call.arguments.peCode === '0603851F')).toBe(true);
   });
 
@@ -394,6 +417,51 @@ describe('coverage follow-up and disclosure', () => {
       arguments: { clientId: 'client-1', documentId: 'doc-1' },
       requirementId: 'document-content.doc-1',
     }]);
+  });
+
+  it('retains the concrete route when planning continuation for an incomplete read', () => {
+    const routed: CoverageRequirement = {
+      ...requirement,
+      requirementId: 'document-content.doc-1',
+      toolFamilies: ['read_client_documents'],
+      template: 'transcript_summary',
+      route: { documentId: 'doc-1', clientId: 'client-1' },
+    };
+    const followUp = planFollowUp({
+      gaps: [{ ...gap(routed.requirementId), status: 'truncated' }],
+      requirements: [routed],
+      toolSchemas: [documentSchema],
+      request: 'Summarize transcript.txt',
+      frame,
+    });
+    expect(followUp?.calls[0]?.arguments).toEqual({ clientId: 'client-1', documentId: 'doc-1' });
+  });
+
+  it('adds the latest concrete continuation cursor to a routed follow-up', () => {
+    const routed: CoverageRequirement = {
+      ...requirement,
+      requirementId: 'document-content.doc-1',
+      toolFamilies: ['read_client_documents'],
+      template: 'transcript_summary',
+      route: { documentId: 'doc-1', clientId: 'client-1' },
+    };
+    const followUp = planFollowUp({
+      gaps: [{ ...gap(routed.requirementId), status: 'truncated' }],
+      requirements: [routed],
+      toolSchemas: [documentSchema],
+      request: 'Summarize transcript.txt',
+      frame,
+      ledgerEntries: [entry('read_client_documents', {
+        document: { id: 'doc-1' },
+        coverage: { complete: false, nextCursor: 'page:5000' },
+        records: [{ recordId: 'doc-1:0-5000', payload: { text: 'partial' } }],
+      })],
+    });
+    expect(followUp?.calls[0]?.arguments).toEqual({
+      clientId: 'client-1',
+      documentId: 'doc-1',
+      cursor: 'page:5000',
+    });
   });
 
   it('adds one marker-free claim-tied limitation only for essential residual gaps', () => {

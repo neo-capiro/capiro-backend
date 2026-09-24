@@ -1,4 +1,4 @@
-import { buildChatSystemPrompt, composeChatSystemPrompt } from './chat-prompt';
+import { buildChatDateGrounding, buildChatSystemPrompt, composeChatSystemPrompt } from './chat-prompt';
 import { KeywordIntentRouter, MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT } from '@capiro/meriv2-core';
 import type { MeriContext } from '@capiro/meriv2-core';
 
@@ -8,6 +8,33 @@ const ctx: MeriContext = {
   clerkUserId: 'cu1',
   role: 'member' as never,
 };
+
+describe('chat date grounding', () => {
+  it('keeps the local day stable on both sides of UTC midnight', () => {
+    const beforeUtcMidnight = buildChatDateGrounding(
+      'America/New_York',
+      new Date('2025-12-31T23:30:00.000Z'),
+    );
+    const afterUtcMidnight = buildChatDateGrounding(
+      'America/New_York',
+      new Date('2026-01-01T00:30:00.000Z'),
+    );
+    expect(beforeUtcMidnight).toContain('Timezone: America/New_York.');
+    expect(beforeUtcMidnight).toContain("Today's date is 2025-12-31.");
+    expect(afterUtcMidnight).toContain("Today's date is 2025-12-31.");
+  });
+
+  it('preserves explicit UTC and falls back safely for an invalid timezone', () => {
+    const instant = new Date('2026-01-01T00:30:00.000Z');
+    const utc = buildChatDateGrounding('UTC', instant);
+    expect(utc).toContain('Timezone: UTC.');
+    expect(utc).toContain("Today's date is 2026-01-01.");
+
+    const invalid = buildChatDateGrounding('Not/A_Real_Zone', instant);
+    expect(invalid).toContain('Timezone: America/New_York.');
+    expect(invalid).toContain("Today's date is 2025-12-31.");
+  });
+});
 
 describe('buildChatSystemPrompt', () => {
   it('gives both chat runtimes the shared professional contract in the cached base', () => {
@@ -239,7 +266,11 @@ describe('held-write honesty (the "submitted for processing" fabrication)', () =
 
   it('points the user at the approve card rather than leaving approval implicit', () => {
     const prompt = buildChatSystemPrompt({}, ctx);
-    expect(prompt).toContain('its own approve card');
+    expect(prompt).toContain('proposal card in chat');
+    expect(prompt).toContain('originating conversation');
+    expect(prompt).toContain('conversation’s Approvals tab');
+    expect(prompt).toContain('separate run-bound requests');
+    expect(prompt).toContain('Do not imply there is one cross-conversation approval registry');
     expect(prompt).toContain('Approve all');
   });
 

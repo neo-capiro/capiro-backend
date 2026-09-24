@@ -32,6 +32,8 @@ export interface MeriToolCoverageReceipt {
   truncated: boolean;
   lastSyncAt?: string;
   detail?: string;
+  /** Bounded primitive route keys used to keep parallel reads distinct. */
+  requestRoute?: Record<string, string | number | boolean>;
   mailPage?: MeriMailPageReceipt;
   documentPage?: DocumentPageReceipt;
 }

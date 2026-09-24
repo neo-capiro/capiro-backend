@@ -145,6 +145,8 @@ export class MeriV2ChatClient {
       skillAddendum?: string;
       /** Rolling-compaction summary of earlier turns (1A.6), from the proxy. */
       conversationSummary?: string;
+      /** User's preferred IANA timezone for local-date grounding. */
+      timeZone?: string;
       /** Always-on client KB snapshot (1B.4), built + forwarded by the proxy. */
       clientKbSnapshot?: string;
       /** Page-write mode (2.1): apply a produced draft to the open page. */

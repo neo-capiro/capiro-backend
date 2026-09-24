@@ -351,7 +351,7 @@ describe('ChatAssistantService.run', () => {
     });
 
     const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
-      makeService(executor).run(ctx, { messages: [{ role: 'user', text: 'email them' }] }),
+      makeService(executor).run(ctx, { messages: [{ role: 'user', text: 'send an email to them' }] }),
     );
 
     // The delegated executor was NEVER called (gate held the write).
@@ -370,6 +370,34 @@ describe('ChatAssistantService.run', () => {
     expect(actionProposalsRepo.create).toHaveBeenCalledWith(
       expect.objectContaining({ tool: 'send_email', input: emailInput, surface: 'chat' }),
     );
+  });
+
+  it('blocks a legacy write proposal when the current request does not explicitly authorize it', async () => {
+    (actionProposalsRepo.create as jest.Mock).mockClear();
+    const executeSpy = jest.fn(async () => ({ ok: true }));
+    const executor = { execute: executeSpy } as unknown as ApiToolExecutorRepo;
+    let call = 0;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      if (url.includes('/api/clio/tool-schemas')) return schemasResponse(['send_email']);
+      call += 1;
+      if (call === 1)
+        return anthropic(
+          [{ type: 'tool_use', id: 't1', name: 'send_email', input: { to: 'a@b.com' } }],
+          'tool_use',
+        );
+      return anthropic([{ type: 'text', text: 'I can prepare that if you ask me to send it.' }], 'end_turn');
+    });
+
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      makeService(executor).run(ctx, {
+        messages: [{ role: 'user', text: 'What should I say in an email to them?' }],
+      }),
+    );
+
+    expect(actionProposalsRepo.create).not.toHaveBeenCalled();
+    expect(executeSpy).not.toHaveBeenCalled();
+    expect(out.steps?.find((step) => step.tool === 'send_email')?.status).toBe('blocked');
+    expect(out.pendingApprovals).toBeUndefined();
   });
 
   it("audits a PASS write directly, but leaves a held WARN to apps/api's durable proposal transaction (no duplicate row)", async () => {
@@ -454,7 +482,7 @@ describe('ChatAssistantService.run', () => {
       makeService(executor).run(
         ctx,
         {
-          messages: [{ role: 'user', text: 'update the client profile' }],
+          messages: [{ role: 'user', text: 'create a Word document for the client profile' }],
           clientId: 'client-9', // conversation focus — the authoritative id
           conversationId: 'conv-9',
         },
@@ -511,7 +539,7 @@ describe('ChatAssistantService.run', () => {
       makeService(executor).run(
         ctx,
         {
-          messages: [{ role: 'user', text: 'update every client profile' }],
+          messages: [{ role: 'user', text: 'create a Word document for every client profile' }],
           clientId: 'client-9',
           conversationId: 'conv-9',
         },
@@ -570,7 +598,7 @@ describe('ChatAssistantService.run', () => {
       makeService(executor).run(
         ctx,
         {
-          messages: [{ role: 'user', text: 'make me a word doc' }],
+          messages: [{ role: 'user', text: 'create a Word document' }],
           clientId: 'client-9',
           conversationId: 'conv-9',
         },
@@ -667,7 +695,7 @@ describe('ChatAssistantService.run', () => {
       makeService(executor).run(
         ctx,
         {
-          messages: [{ role: 'user', text: 'outreach to Rep Smith' }],
+          messages: [{ role: 'user', text: 'create a policy memo for outreach to Rep Smith' }],
           conversationId: 'conv-1',
           pageWrite: true,
         },
@@ -707,7 +735,7 @@ describe('ChatAssistantService.run', () => {
     await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
       makeService(executor).run(
         ctx,
-        { messages: [{ role: 'user', text: 'draft a memo' }], conversationId: 'conv-2' },
+        { messages: [{ role: 'user', text: 'create a policy memo' }], conversationId: 'conv-2' },
         { onEvent: (e) => events.push(e as never) },
       ),
     );
@@ -859,7 +887,7 @@ describe('ChatAssistantService.run', () => {
     await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
       makeService(executor).run(
         ctx,
-        { messages: [{ role: 'user', text: 'email them' }], conversationId: 'conv-9' },
+        { messages: [{ role: 'user', text: 'send an email to them' }], conversationId: 'conv-9' },
         { onEvent: (e) => events.push(e as never) },
       ),
     );
@@ -921,7 +949,7 @@ describe('ChatAssistantService.run', () => {
     const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
       makeService(executor).run(
         ctx,
-        { messages: [{ role: 'user', text: 'email them' }] },
+        { messages: [{ role: 'user', text: 'send an email to them' }] },
         { onEvent: (e) => events.push(e as never) },
       ),
     );
@@ -1135,7 +1163,7 @@ describe('ChatAssistantService.run', () => {
 describe('ChatAssistantService pre-persistence hold', () => {
   const FABRICATED_BODY =
     '<p>PE 0604270F received $412.5 million in FY27, a 22% increase, and H.R. 1234 was enacted on July 1.</p>';
-  const HIGH_RISK_REQUEST = 'draft a memo on the FY27 budget amount for PE 0604270F';
+  const HIGH_RISK_REQUEST = 'create a policy memo on the FY27 budget amount for PE 0604270F';
 
   function driveMemoDraft(executeSpy: jest.Mock) {
     let call = 0;
