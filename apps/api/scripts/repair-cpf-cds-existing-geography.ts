@@ -1,27 +1,25 @@
 /**
  * Idempotent existing-row geography repair for CPF/CDS canonical rows ingested
- * before the strict STDD normalizer (#1724). Re-derives requester_state and
- * requester_district from the stored raw district token using the SAME
- * `parseCommunityFundingStdd` normalizer used by ingest.
+ * before the strict STDD normalizer (#1724). Re-derives `requester_state` via
+ * `normalizeCommunityFundingGeography` — the SAME normalizer used by ingest.
  *
  *   tsx scripts/repair-cpf-cds-existing-geography.ts                  # dry run
  *   tsx scripts/repair-cpf-cds-existing-geography.ts --commit --expected-eligible <n>
  *   tsx scripts/repair-cpf-cds-existing-geography.ts --fiscal-year 2026 --limit 100
  *   tsx scripts/repair-cpf-cds-existing-geography.ts --manifest /tmp/cpf-repair.json
  *
- * SAFE: only fills NULL requester_state/requester_district with values resolved
- * from the SAME STDD normalizer used by ingest. Never overwrites non-null
- * geography, never creates/duplicates rows, never touches amounts, never
- * assigns Senate requests a district. Dry-run by default; commit guarded by
- * --expected-eligible exact-count gate. Idempotent: a second run reports 0
- * eligible rows.
+ * SAFE: only fills NULL `requester_state` (never touches `requester_district` —
+ * it must stay byte-identical to what `parseHouseXlsxRows` persisted, the raw
+ * uppercased STDD token). Never overwrites non-null geography, never creates/
+ * duplicates rows, never touches amounts, never assigns Senate requests a
+ * district. Dry-run by default; commit guarded by --expected-eligible
+ * exact-count gate. Idempotent: a second run reports 0 eligible rows.
  */
 import { PrismaClient } from '@prisma/client';
 import * as fs from 'node:fs';
-import { classifyDbRow, buildRepairPlan, type RepairClassification } from '../src/government-data/community-funding/community-funding.geography-repair.js';
+import { buildRepairPlan } from '../src/government-data/community-funding/community-funding.geography-repair.js';
 
 const SOURCE = 'repair-cpf-cds-existing-geography';
-const PAGE_SIZE = 500;
 
 // ---- argument parsing (matching precedent scripts) ----
 
@@ -70,6 +68,7 @@ async function main(): Promise<void> {
         fiscalYear: true,
         requesterState: true,
         requesterDistrict: true,
+        state: true,
       },
       orderBy: { id: 'asc' },
       ...(limit != null ? { take: limit } : {}),
@@ -95,6 +94,7 @@ async function main(): Promise<void> {
         fiscalYear: true,
         requesterState: true,
         requesterDistrict: true,
+        state: true,
       },
       orderBy: { id: 'asc' },
       ...(limit != null ? { take: limit } : {}),
@@ -133,6 +133,7 @@ async function main(): Promise<void> {
           fiscalYear: r.fiscalYear,
           requesterState: r.requesterState,
           requesterDistrict: r.requesterDistrict,
+          state: r.state,
           sourceOccurrenceIds: src.ids,
           sourceDocumentIds: src.docIds,
         };
@@ -146,6 +147,7 @@ async function main(): Promise<void> {
           fiscalYear: r.fiscalYear,
           requesterState: r.requesterState,
           requesterDistrict: r.requesterDistrict,
+          state: r.state,
           sourceOccurrenceIds: src.ids,
           sourceDocumentIds: src.docIds,
         };
@@ -161,6 +163,7 @@ async function main(): Promise<void> {
       mode: commit ? 'COMMIT' : 'DRY RUN',
       summary: plan.summary,
       beforeAfterByGroup: plan.beforeAfterByGroup,
+      eligibleByFiscalYear: plan.eligibleByFiscalYear,
       rows: plan.rows.map((r) => ({
         requestId: r.requestId,
         identityHash: r.identityHash,
@@ -195,6 +198,13 @@ async function main(): Promise<void> {
     console.log(`  senate_statewide:    ${plan.summary.senate_statewide}`);
     console.log(`  total:               ${plan.summary.total}`);
 
+    if (plan.eligibleByFiscalYear.length > 0) {
+      console.log(`\n[${SOURCE}] Eligible by fiscal year:`);
+      for (const fy of plan.eligibleByFiscalYear) {
+        console.log(`  FY${fy.fiscalYear}: ${fy.count}`);
+      }
+    }
+
     // Print eligible rows
     if (plan.summary.eligible > 0) {
       console.log(`\n[${SOURCE}] Eligible rows:`);
@@ -203,7 +213,8 @@ async function main(): Promise<void> {
         console.log(
           `  ${row.requestId} | ${row.identityHash.slice(0, 8)}... | ` +
             `before: (${row.beforeState ?? 'null'}, ${row.beforeDistrict ?? 'null'}) -> ` +
-            `after: (${row.afterState}, ${row.afterDistrict}) | ${row.originalRawToken}`,
+            `after: (${row.afterState}, ${row.afterDistrict}) | ` +
+            `raw token: ${row.originalRawToken} (district untouched)`,
         );
       }
     }
@@ -215,7 +226,7 @@ async function main(): Promise<void> {
         if (row.classification !== 'conflicting') continue;
         console.log(
           `  ${row.requestId} | existing: (${row.beforeState ?? 'null'}, ${row.beforeDistrict ?? 'null'}) | ` +
-            `resolved: (${row.afterState}, ${row.afterDistrict}) | ${row.reason}`,
+            `${row.reason}`,
         );
       }
     }
@@ -236,23 +247,26 @@ async function main(): Promise<void> {
       for (const row of plan.rows) {
         if (row.classification !== 'eligible') continue;
 
-        // Optimistic concurrency: WHERE guards the "before" values still match.
+        // Optimistic concurrency: WHERE id = $1 AND requester_state IS NULL
+        // AND requester_district = row.beforeDistrict (raw token, unchanged).
+        // Only requester_state is written; requester_district stays untouched.
         const result = await prisma.communityFundingRequest.updateMany({
           where: {
             id: row.requestId,
-            requesterState: row.beforeState,
+            requesterState: null,
             requesterDistrict: row.beforeDistrict,
           },
           data: {
             requesterState: row.afterState,
-            requesterDistrict: row.afterDistrict,
+            // NOTE: requesterDistrict is intentionally NOT written — it must
+            // stay byte-identical (the raw uppercased STDD token).
           },
         });
 
         if (result.count === 0) {
           console.error(
-            `[${SOURCE}] ROLLBACK: row ${row.requestId} changed since dry-run — ` +
-              `expected (${row.beforeState ?? 'null'}, ${row.beforeDistrict ?? 'null'}), aborting`,
+            `[${SOURCE}] FAILED: row ${row.requestId} changed since dry-run — ` +
+              `expected requester_state IS NULL AND requester_district = '${row.beforeDistrict}', aborting`,
           );
           process.exit(1);
         }
@@ -267,16 +281,16 @@ async function main(): Promise<void> {
     } else {
       console.log(
         `\n[${SOURCE}] DRY RUN — pass --commit --expected-eligible ${plan.summary.eligible} to persist`,
-      );
-    }
-  } finally {
-    await prisma.$disconnect();
-  }
+     );
+   }
+ } finally {
+   await prisma.$disconnect();
+ }
 }
 
 // Direct execution guard (matches precedent: repair-facility-district-codes.ts)
-const direct = /repair-cpf-cds-existing-geography(\.[cm]?[tj]s)?$/.test(
-  (process.argv[1] ?? '').replace(/\\/g, '/'),
+const direct = /repair-cpf-cds-existing-geography(\\.[cm]?[tj]s)?$/.test(
+  (process.argv[1] ?? '').replace(/\\\\/g, '/'),
 );
 if (direct) {
   void main().catch((error) => {

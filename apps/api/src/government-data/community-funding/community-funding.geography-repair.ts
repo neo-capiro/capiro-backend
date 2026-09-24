@@ -1,17 +1,27 @@
 /**
  * Community Funding geography repair — pure planning logic, testable without
- * a database. Takes a canonical row's raw `requesterDistrict` token and
- * re-derives geography via the SAME `parseCommunityFundingStdd` normalizer
- * used by ingest (#1724), classifying each row for the repair script.
+ * a database. Takes a canonical row's stored geography and re-derives the
+ * correct `requester_state` via `normalizeCommunityFundingGeography` (the
+ * SAME normalizer used by ingest #1724), classfying each row.
+ *
+ * CRITICAL: The repair ONLY writes `requester_state` (when null and
+ * resolvable). `requester_district` is NEVER rewritten — it must remain
+ * byte-identical to what `parseHouseXlsxRows` persisted (the raw uppercased
+ * SIDD token, e.g. 'F08', NOT '08').
  */
 import type { Chamber } from './community-funding.types.js';
-import { parseCommunityFundingStdd } from './community-funding.geography.js';
+import {
+  normalizeCommunityFundingGeography,
+  type NormalizedCommunityFundingGeography,
+} from './community-funding.geography.js';
 
 /** One canonical row's geography as stored (may be null for pre-#1724 rows). */
 export interface ExistingGeography {
   chamber: Chamber;
   requesterState: string | null;
   requesterDistrict: string | null;
+ ﻿ /** The canonical `state` column value (used as projectState for the normalizer). */
+  projectState: string | null;
 }
 
 export type RepairClassification =
@@ -23,9 +33,9 @@ export type RepairClassification =
 
 export interface ClassifiedRow {
   classification: RepairClassification;
-  /** The STDD-parsed state if the raw token resolved, otherwise null. */
+  /** The resolved state (from normalizer) — only written when eligible. */
   resolvedState: string | null;
-  /** The STDD-parsed (zero-padded) district if the raw token resolved, otherwise null. */
+  /** The normalizer-resolved district (for classification/groping only, never written). */
   resolvedDistrict: string | null;
   /** Human-readable reason for the classification. */
   reason: string;
@@ -34,20 +44,28 @@ export interface ClassifiedRow {
 /**
  * Classify a single canonical row for geography repair.
  *
- * Re-derives geography from the stored `requesterDistrict` token (the raw
- * STDD value as ingested from the source document) using the same
- * `parseCommunityFundingStdd` normalizer that #1724 added to the ingest path.
+ * Uses `normalizeCommunityFundingGeography` — the SAME normalzer the ingst
+ * path uses — so an SIDD-vs-state disagreement is `conflicting` (conflictReason)
+ * and never written.
  *
- * Senate rows are always `senate_statewide` — a Senate CDS is never assigned a
- * district unless an independently source-backed numeric district exists
- * outside the STDD token, which this repair does not touch.
+ * Classification rules (post-fix):
+ * - `senate_statewide` — Senate, never assigned a district.
+ * - `eligible` — House, `requester_state` is null, normalizer returns a
+ *   non-null state with no conflictReason. The repir writes ONLY
+ *   `requester_state`; `requester_district` stays untouched.
+ * - `already_normalized` — House, non-null `requester_state` equals the
+ *   normalizer's state.
+ * - `conflicting` — conflictReeson, OR non-null `requester_state` ≠ the
+ *   normalizer's state.
+ * - `invalid` — House, no resolvable state fom the normalizer (null r
+ *   unparsable token). Includes the reason.
  */
 export function classifyGeographyRepair(
   geography: ExistingGeography,
 ): ClassifiedRow {
-  const { chamber, requesterState, requesterDistrict } = geography;
+  const { chamber, requesterState, requesterDistrict, projectState } = geography;
 
-  // Senate rows stay statewide — never assign a district.
+  // Senate rows stay statewide —never assign a district.
   if (chamber === 'senate') {
     return {
       classification: 'senate_statewide',
@@ -57,78 +75,73 @@ export function classifyGeographyRepair(
     };
   }
 
-  // No raw district token at all — nothing to resolve.
-  if (requesterDistrict == null || requesterDistrict.trim() === '') {
+  const normalized = normalizeCommunityFundingGeography({
+    chamber: 'house',
+    requesterState,
+    requesterDistrict,
+    projectState,
+  });
+
+  // conflictReason → conflicting (never write)
+  if (normalized.conflictReason) {
+    return {
+      classification: 'conflicting',
+      resolvedState: null,
+      resolvedDistrict: null,
+      reason: normalized.conflictReason,
+    };
+  }
+
+  // No resolvable state →invalid
+  if (normalized.state == null) {
     return {
       classification: 'invalid',
       resolvedState: null,
       resolvedDistrict: null,
-      reason: 'No source district token available (likely a PDF-parsed row)',
+      reason: requesterDistrict == null || requesterDistrict.trim() === ''
+        ? 'No source district token available and no project state; cannot derive geography'
+        : 'District token \'' + requesterDistrict.trim().toUpperCase() + '\' cannot be resolved to a geography'
+          + (projectState ? ' (project state: ' + projectState + ')' : ''),
     };
   }
 
-  // Parse the stored token through the STDD normalizer.
-  const parsed = parseCommunityFundingStdd(requesterDistrict);
+  // We have a resolvable state from the normalizer.
+  const state = normalized.state;
+  const district = normalized.district;
 
-  if (parsed != null) {
-    // The token resolved to a valid state+district pair.
-    const { state: resolvedState, district: resolvedDistrict } = parsed;
-
-    // If requesterState is null — fill it in from the STDD token.
-    if (requesterState == null) {
-      return {
-        classification: 'eligible',
-        resolvedState,
-        resolvedDistrict,
-        reason: `requester_state is null; STDD token '${requesterDistrict.trim().toUpperCase()}' resolves to ${resolvedState}-${resolvedDistrict}`,
-      };
-    }
-
-    // Both state and district exist — check if they already match.
-    const stateMatches = requesterState.toUpperCase() === resolvedState;
-    const rawUpper = requesterDistrict.trim().toUpperCase();
-    const districtMatches =
-      rawUpper === resolvedDistrict ||
-      // Allow unpadded forms: '8' should match resolved '08'
-      rawUpper === String(Number(resolvedDistrict)) ||
-      // Allow STDD form: stored as 'FL08' should match resolved district '08'
-      rawUpper === `${resolvedState}${resolvedDistrict}`;
-
-    if (stateMatches && districtMatches) {
-      return {
-        classification: 'already_normalized',
-        resolvedState,
-        resolvedDistrict,
-        reason: `Geography already matches resolved STDD: ${resolvedState}-${resolvedDistrict}`,
-      };
-    }
-
-    // Geography exists but doesn't match the normalizer's output.
+  // requester_state is null —fill it in
+  if (requesterState == null) {
     return {
-      classification: 'conflicting',
-      resolvedState,
-      resolvedDistrict,
-      reason: `Existing geography (${requesterState}, ${requesterDistrict}) conflicts with STDD-resolved ${resolvedState}-${resolvedDistrict}`,
+      classification: 'eligible',
+      resolvedState: state,
+      resolvedDistrict: district,
+      reason: 'requester_state is null; normalizer resolves to ' + state
+              + (district != null ? '-' + district : '')
+              + (district != null
+                ? ' (only state will be written; district stays as '
+                  + (requesterDistrict?.trim().toUpperCase() ?? 'null') + ')'
+                : ''),
     };
   }
 
-  // Token did NOT parse as STDD (e.g. plain '08' without state prefix).
-  // If requesterState is already set, the row has complete geography — already_normalized.
-  if (requesterState != null) {
+  // requester_state is non-null —compare
+  if (requesterState.toUpperCase() === state) {
     return {
       classification: 'already_normalized',
-      resolvedState: null,
-      resolvedDistrict: null,
-      reason: `District token '${requesterDistrict.trim().toUpperCase()}' is not STDD-formatted, but requester_state is already set (${requesterState})`,
+      resolvedState: state,
+      resolvedDistrict: district,
+      reason: 'Geography already normalized: requester_state=' + state
+        + (district != null ? ', district=' + district : ''),
     };
   }
 
-  // No STDD parse and no state — unrepairable.
+  // non-null requester_state ≠ normalizer state →conflicting
   return {
-    classification: 'invalid',
+    classification: 'conflicting',
     resolvedState: null,
     resolvedDistrict: null,
-    reason: `District token '${requesterDistrict.trim().toUpperCase()}' is not STDD-formatted and requester_state is null; cannot derive geography`,
+    reason: 'Existing requester_state \'' + requesterState.toUpperCase()
+      + '\' differs from normalizer-resolved state \'' + state + '\'',
   };
 }
 
@@ -157,6 +170,7 @@ export interface RepairPlan {
     conflicting: number;
     senate_statewide: number;
   };
+  /** Per (state, normalized district, FY) before/after counts. */
   beforeAfterByGroup: Array<{
     state: string;
     district: string;
@@ -164,6 +178,8 @@ export interface RepairPlan {
     beforeCount: number;
     afterCount: number;
   }>;
+  /** Per-FY eligible totals. */
+  eligibleByFiscalYear: Array<{ fiscalYear: number; count: number }>;
 }
 
 /**
@@ -176,12 +192,15 @@ export function classifyDbRow(row: {
   chamber: Chamber;
   fiscalYear: number;
   requesterState: string | null;
-  requesterDistrict: string | null;
+ ﻿ requesterDistrict: string | null;
+  /** The canonical `state` column (used as projectState). */
+  state: string | null;
 }): ClassifiedRow & { requestId: string; identityHash: string; fiscalYear: number } {
   const result = classifyGeographyRepair({
     chamber: row.chamber,
     requesterState: row.requesterState,
     requesterDistrict: row.requesterDistrict,
+    projectState: row.state,
   });
   return {
     ...result,
@@ -192,8 +211,13 @@ export function classifyDbRow(row: {
 }
 
 /**
- * Build counts grouped by (state, district, fiscal year) for eligible rows
- * in their before and after states.
+ * Build counts grouped by (state, normalized district, fiscal year).
+ *
+ * 'before' = House rows with non-null requester_state that would be
+ * attributed to this group today.
+ * 'after' = before + eligible rows in this group.
+ *
+ * Also computes per-FY eligible totals.
  */
 export function buildRepairPlan(
   rows: Array<{
@@ -203,6 +227,8 @@ export function buildRepairPlan(
     fiscalYear: number;
     requesterState: string | null;
     requesterDistrict: string | null;
+    /** The canonical `state` column. */
+    state: string | null;
     sourceOccurrenceIds: string[];
     sourceDocumentIds: string[];
   }>,
@@ -212,6 +238,7 @@ export function buildRepairPlan(
       chamber: row.chamber,
       requesterState: row.requesterState,
       requesterDistrict: row.requesterDistrict,
+      projectState: row.state,
     });
     return {
       requestId: row.id,
@@ -239,30 +266,51 @@ export function buildRepairPlan(
     senate_statewide: classified.filter((r) => r.classification === 'senate_statewide').length,
   };
 
+  // Book before/after groups fr House rows only
   const byGroup = new Map<string, { state: string; district: string; fiscalYear: number; beforeCount: number; afterCount: number }>();
+
+  for (const row of classified) {
+    if (row.chamber !== 'house' || row.classification === 'senate_statewide') continue;
+
+    const normalizedDistrict = row.afterDistrict ?? null;
+    const groupState = row.afterState ?? row.beforeState;
+    if (groupState == null) continue;
+
+    const districtKey = normalizedDistrict ?? '__null__';
+    const key = groupState + '|' + districtKey + '|' + row.fiscalYear;
+    let entry = byGroup.get(key);
+    if (!entry) {
+      entry = {
+        state: groupState,
+        district: normalizedDistrict ?? '',
+        fiscalYear: row.fiscalYear,
+        beforeCount: (row.classification !== 'eligible' && row.beforeState != null) ? 1 : 0,
+        afterCount: 1,
+      };
+      byGroup.set(key, entry);
+    } else {
+      if (row.classification !== 'eligible' && row.beforeState != null) {
+        entry.beforeCount++;
+      }
+      entry.afterCount++;
+    }
+  }
+
+  // Per-FY eligible totals
+  const eligibleByFY = new Map<number, number>();
   for (const row of classified) {
     if (row.classification !== 'eligible') continue;
-    const key = `${row.afterState}|${row.afterDistrict}|${row.fiscalYear}`;
-    const existing = byGroup.get(key);
-    if (existing) {
-      existing.beforeCount++;
-      existing.afterCount++;
-    } else {
-      byGroup.set(key, {
-        state: row.afterState!,
-        district: row.afterDistrict!,
-        fiscalYear: row.fiscalYear,
-        beforeCount: 1,
-        afterCount: 1,
-      });
-    }
+    eligibleByFY.set(row.fiscalYear, (eligibleByFY.get(row.fiscalYear) ?? 0) + 1);
   }
 
   return {
     rows: classified,
     summary,
     beforeAfterByGroup: [...byGroup.values()].sort((a, b) =>
-      a.state.localeCompare(b.state) || a.district.localeCompare(b.district) || a.fiscalYear - b.fiscalYear,
+      a.state.localeCompare(b.state) || a.district.localeCompare(b.district) || a.fiscalYear - b.fiscalYear
     ),
+    eligibleByFiscalYear: [...eligibleByFY.entries()]
+      .map(([ fiscalYear, cnt ]) => ({ fiscalYear, count: cnt }))
+      .sort((a, b) => a.fiscalYear - b.fiscalYear),
   };
 }
