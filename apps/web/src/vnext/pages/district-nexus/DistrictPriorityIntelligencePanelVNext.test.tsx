@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
@@ -552,6 +552,107 @@ describe('DistrictPriorityIntelligencePanelVNext', () => {
     // Other rails still render their own honest states.
     expect(screen.getByText(/GSA FRPP data not ingested/i)).toBeTruthy();
     expect(screen.getByText(/Public economic metrics not ingested/i)).toBeTruthy();
+  });
+
+  test('shows a toggle button when district requests exceed 8', async () => {
+    const d = baseResponse();
+    d.priorityIntelligence.cpfCds.districtRequests = Array.from({ length: 30 }, (_, i) => ({
+      requestId: `req-${i}`,
+      chamber: 'house' as const,
+      requestType: 'cpf' as const,
+      fiscalYear: 2026,
+      requesterName: `Rep. Member ${i}`,
+      recipientName: `Recipient ${i}`,
+      projectTitle: `Project ${i}`,
+      districtKey: 'VA-10',
+      geography: { basis: 'house_district' as const, state: 'VA', district: '10' },
+      requestedAmountUsd: 100000 + i * 1000,
+      finalAmountUsd: null,
+      amountStageRaw: 'house_requested',
+      appropriationsAccountRaw: null,
+      sourceOccurrenceCount: 1,
+      occurrences: [],
+      clientAttribution: null,
+    }));
+    apiGetMock.mockResolvedValue({ data: d });
+    renderPanel();
+    await waitFor(() => {
+      expect(screen.getByText(/CPF \/ CDS requests/)).toBeTruthy();
+    });
+    const toggle = screen.getByRole('button', { name: /Show all 30 requests/ });
+    expect(toggle).toBeTruthy();
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  test('toggle aria-expanded is true when expanded', async () => {
+    const d = baseResponse();
+    d.priorityIntelligence.cpfCds.districtRequests = Array.from({ length: 10 }, (_, i) => ({
+      requestId: `req-${i}`,
+      chamber: 'house' as const,
+      requestType: 'cpf' as const,
+      fiscalYear: 2026,
+      requesterName: `Rep. Member ${i}`,
+      recipientName: `Recipient ${i}`,
+      projectTitle: `Project ${i}`,
+      districtKey: 'VA-10',
+      geography: { basis: 'house_district' as const, state: 'VA', district: '10' },
+      requestedAmountUsd: 100000 + i * 1000,
+      finalAmountUsd: null,
+      amountStageRaw: 'house_requested',
+      appropriationsAccountRaw: null,
+      sourceOccurrenceCount: 1,
+      occurrences: [],
+      clientAttribution: null,
+    }));
+    apiGetMock.mockResolvedValue({ data: d });
+    renderPanel();
+    await waitFor(() => {
+      expect(screen.getByText(/CPF \/ CDS requests/)).toBeTruthy();
+    });
+    const toggle = screen.getByRole('button', { name: /Show all 10 requests/ });
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Show fewer' })).toBeTruthy();
+  });
+
+  test('all 30 requests visible after expanding; collapsed again with Show fewer', async () => {
+    const d = baseResponse();
+    d.priorityIntelligence.cpfCds.districtRequests = Array.from({ length: 30 }, (_, i) => ({
+      requestId: `req-${i}`,
+      chamber: 'house' as const,
+      requestType: 'cpf' as const,
+      fiscalYear: 2026,
+      requesterName: `Rep. Member ${i}`,
+      recipientName: `Recipient ${i}`,
+      projectTitle: `Project ${i}`,
+      districtKey: 'VA-10',
+      geography: { basis: 'house_district' as const, state: 'VA', district: '10' },
+      requestedAmountUsd: 100000 + i * 1000,
+      finalAmountUsd: null,
+      amountStageRaw: 'house_requested',
+      appropriationsAccountRaw: null,
+      sourceOccurrenceCount: 1,
+      occurrences: [],
+      clientAttribution: null,
+    }));
+    apiGetMock.mockResolvedValue({ data: d });
+    renderPanel();
+    await waitFor(() => {
+      expect(screen.getByText(/CPF \/ CDS requests/)).toBeTruthy();
+    });
+    // Initially 8 rows visible
+    const initialRows = screen.getAllByText(/House CPF/);
+    expect(initialRows.length).toBe(8);
+
+    // Expand
+    fireEvent.click(screen.getByRole('button', { name: /Show all 30 requests/ }));
+    const expandedRows = screen.getAllByText(/House CPF/);
+    expect(expandedRows.length).toBe(30);
+
+    // Collapse again
+    fireEvent.click(screen.getByRole('button', { name: 'Show fewer' }));
+    const collapsedRows = screen.getAllByText(/House CPF/);
+    expect(collapsedRows.length).toBe(8);
   });
 });
 

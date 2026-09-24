@@ -449,6 +449,22 @@
   display: inline-block;
   min-width: 1em;
 }
+.capiro-vnext-root .dnx-row-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
 .capiro-vnext-root .dnx-right {
   text-align: right;
 }
