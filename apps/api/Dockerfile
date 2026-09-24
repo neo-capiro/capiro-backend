@@ -15,7 +15,9 @@
 ARG NODE_VERSION=20.16.0
 
 # -------- base ----------------------------------------------------------------
-FROM node:${NODE_VERSION}-bookworm-slim AS base
+# Use the ECR Public mirror so release builds are not coupled to Docker Hub's
+# anonymous pull limits.
+FROM public.ecr.aws/docker/library/node:${NODE_VERSION}-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
@@ -76,7 +78,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --prod --filter=@capiro/api... --filter=@capiro/shared... --filter=@capiro/meriv2-core... --filter=@capiro/defense-contracts... --filter=@capiro/defense-domain...
 
 # -------- runtime -------------------------------------------------------------
-FROM node:${NODE_VERSION}-bookworm-slim AS runtime
+FROM public.ecr.aws/docker/library/node:${NODE_VERSION}-bookworm-slim AS runtime
 ENV NODE_ENV=production
 ENV NODE_OPTIONS=--enable-source-maps
 RUN groupadd --system --gid 1001 capiro \
