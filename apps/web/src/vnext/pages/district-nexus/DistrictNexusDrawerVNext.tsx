@@ -36,7 +36,9 @@ import {
 } from '../../../pages/intelligence/district-nexus/district-nexus-format.js';
 import { DistrictFederalMarketPanelVNext } from './DistrictFederalMarketPanelVNext.js';
 import { DistrictPriorityIntelligencePanelVNext } from './DistrictPriorityIntelligencePanelVNext.js';
+import { DistrictBriefPanelVNext } from './r5/DistrictBriefPanelVNext.js';
 import { DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE } from '../../../pages/intelligence/district-nexus/priority-intelligence-api.js';
+import { DISTRICT_NEXUS_R5_BRIEF_FEATURE } from './r5/r5-api.js';
 import { DnxChevronDownIcon, DnxInfoIcon, DnxWarningIcon } from './icons.js';
 import { useIntelFeatureEnabled } from '../../../lib/intel-feature-flags.js';
 
@@ -76,6 +78,7 @@ export function DistrictNexusDrawerVNext({
   const api = useApi();
   const strategicEnabled = useIntelFeatureEnabled(DISTRICT_NEXUS_STRATEGIC_FEATURE);
   const priorityEnabled = useIntelFeatureEnabled(DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE);
+  const r5BriefEnabled = useIntelFeatureEnabled(DISTRICT_NEXUS_R5_BRIEF_FEATURE);
   const { state, districtNo } = districtKey
     ? splitDistrictKey(districtKey)
     : { state: '', districtNo: '' };
@@ -236,6 +239,18 @@ export function DistrictNexusDrawerVNext({
                     districtKey={districtKey}
                   />
                 ) : null}
+              </DnxSection>
+            ) : null}
+            {r5BriefEnabled && clientId && districtKey ? (
+              <DnxSection
+                title="District Brief (R5)"
+                meta="draft · export · save"
+              >
+                <DistrictBriefPanelVNext
+                  clientId={clientId}
+                  state={state}
+                  district={districtNo}
+                />
               </DnxSection>
             ) : null}
             <DnxSection title="Representation" meta="">

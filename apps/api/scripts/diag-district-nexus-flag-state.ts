@@ -14,6 +14,11 @@ const FEATURES = [
   'district_nexus_strategic_relevance',
   'district_nexus_priority_intelligence',
   'district_nexus_supplier_footprint',
+  'district_nexus_r5_brief',
+  'district_nexus_r5_meeting_prep',
+  'district_nexus_r5_actions',
+  'district_nexus_r5_meri_tools',
+  'district_nexus_r5_alerts',
 ];
 
 async function main() {
