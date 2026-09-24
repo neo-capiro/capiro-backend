@@ -5451,6 +5451,7 @@ model SourceDocument {
   ingestionManifestItems           DefenseBudgetIngestionManifestItemV1[]
   // Canonical procurement line citations (procurement_line_source).
   procurementLineSources           ProcurementLineSource[]
+  programIdentityCrosswalks        ProgramIdentityCrosswalk[]
 
   @@unique([sourceKey, sha256], map: "source_document_source_key_sha256_key")
   @@index([documentType, fiscalYear, budgetCycle, component], map: "source_document_type_fy_cycle_component_idx")
@@ -10332,12 +10333,13 @@ model Program {
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  aliases        ProgramAlias[]
-  matches        PeProgramMatch[]
-  samMatches     SamOpportunityMatch[]
-  personRoles    PersonRole[]
-  officeLinks    ProgramOfficeProgramLink[]
-  provisionLinks ProvisionPeLink[]
+  aliases            ProgramAlias[]
+  identityCrosswalks ProgramIdentityCrosswalk[]
+  matches            PeProgramMatch[]
+  samMatches         SamOpportunityMatch[]
+  personRoles        PersonRole[]
+  officeLinks        ProgramOfficeProgramLink[]
+  provisionLinks     ProvisionPeLink[]
 
   @@index([mdapCode], map: "program_mdap_code_idx")
   @@index([component], map: "program_component_idx")
@@ -10372,6 +10374,178 @@ model ProgramAlias {
   // NOTE: the pg_trgm GIN index on alias_normalized is created in raw SQL in the
   // migration (Prisma cannot express `USING gin (... gin_trgm_ops)`).
   @@map("program_alias")
+}
+
+/// Immutable, bitemporal evidence linking one source identity to one Program.
+/// Multiple rows may share a source identity (including split/merge fanout); each
+/// logical edge has a linear revision chain through supersedesId. recordedAt is
+/// system time and validFromFy/validToFy are source-world fiscal-year validity.
+/// These rows express identity/relationship evidence only, never dollars/allocation.
+model ProgramIdentityCrosswalk {
+  id               String    @id @default(uuid()) @db.Uuid
+  programId        String    @map("program_id") @db.Uuid
+  identityKind     String    @map("identity_kind") @db.VarChar(32)
+  sourceSystem     String    @map("source_system") @db.VarChar(64)
+  sourceIdentifier String    @map("source_identifier") @db.VarChar(256)
+  relationshipKind String    @map("relationship_kind") @db.VarChar(24)
+  validFromFy      Int?      @map("valid_from_fy")
+  validToFy        Int?      @map("valid_to_fy")
+  recordedAt       DateTime  @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  supersedesId     String?   @map("supersedes_id") @db.Uuid
+  source           String    @db.VarChar(128)
+  sourceUrl        String?   @map("source_url")
+  sourceDocumentId String?   @map("source_document_id") @db.Uuid
+  evidence         Json      @default("{}") @map("evidence_jsonb")
+  confidence       Float     @default(0.5)
+  /// candidate | accepted | rejected | quarantined
+  reviewStatus     String    @default("candidate") @map("review_status") @db.VarChar(20)
+  reviewedBy       String?   @map("reviewed_by") @db.Uuid
+  reviewedAt       DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  program        Program                    @relation(fields: [programId], references: [id], onDelete: Restrict)
+  sourceDocument SourceDocument?            @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  supersedes     ProgramIdentityCrosswalk?  @relation("ProgramIdentityCrosswalkRevision", fields: [supersedesId], references: [id], onDelete: Restrict)
+  revisions      ProgramIdentityCrosswalk[] @relation("ProgramIdentityCrosswalkRevision")
+
+  @@index([identityKind, sourceSystem, sourceIdentifier, recordedAt], map: "program_identity_crosswalk_identity_time_idx")
+  @@index([programId, validFromFy, validToFy], map: "program_identity_crosswalk_program_fy_idx")
+  @@index([sourceDocumentId], map: "program_identity_crosswalk_source_document_idx")
+  @@index([reviewStatus, recordedAt], map: "program_identity_crosswalk_review_idx")
+  @@map("program_identity_crosswalk")
+}
+
+/// Immutable source revision for a procurement notice, solicitation, vehicle,
+/// order, award, or modification. identityKey is source-qualified and must be
+/// constructed from the provider's authoritative identifier; PIID alone is not
+/// an identity. Repeated bytes are idempotent while changed source content
+/// appends a new revision.
+model AcquisitionRecordRevision {
+  id                String    @id @default(uuid()) @db.Uuid
+  identityKey       String    @map("identity_key")
+  sourceSystem      String    @map("source_system") @db.VarChar(64)
+  sourceRecordId    String    @map("source_record_id")
+  recordKind        String    @map("record_kind") @db.VarChar(24)
+  parentIdentityKey String?   @map("parent_identity_key")
+  title             String?
+  status            String?   @db.VarChar(64)
+  buyerOffice       String?   @map("buyer_office")
+  postedAt          DateTime? @map("posted_at") @db.Timestamptz(6)
+  responseDeadline  DateTime? @map("response_deadline") @db.Timestamptz(6)
+  validFrom         DateTime? @map("valid_from") @db.Date
+  validTo           DateTime? @map("valid_to") @db.Date
+  contentHash       String    @map("content_hash") @db.Char(64)
+  sourceUrl         String?   @map("source_url")
+  sourceVersion     String?   @map("source_version") @db.VarChar(128)
+  sourceObservedAt  DateTime? @map("source_observed_at") @db.Timestamptz(6)
+  recordedAt        DateTime  @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  raw               Json      @default("{}") @map("raw_jsonb")
+
+  @@unique([identityKey, contentHash], map: "acquisition_record_revision_identity_content_key")
+  @@index([identityKey, recordedAt], map: "acquisition_record_revision_identity_time_idx")
+  @@index([sourceSystem, recordKind, recordedAt], map: "acquisition_record_revision_source_kind_idx")
+  @@index([parentIdentityKey], map: "acquisition_record_revision_parent_idx")
+  @@map("acquisition_record_revision")
+}
+
+/// Append-only award action history. One source transaction may be corrected by
+/// a later immutable revision; signed amounts preserve deobligations/reversals.
+/// Account totals are deliberately not stored here and are never added to these
+/// transaction deltas by the Package 5 portfolio projector.
+model AcquisitionAwardTransactionRevision {
+  id                     String    @id @default(uuid()) @db.Uuid
+  transactionIdentityKey String    @map("transaction_identity_key")
+  awardIdentityKey       String    @map("award_identity_key")
+  parentAwardIdentityKey String?   @map("parent_award_identity_key")
+  sourceSystem           String    @map("source_system") @db.VarChar(64)
+  sourceTransactionId    String    @map("source_transaction_id")
+  piid                   String?
+  modificationNumber     String?   @map("modification_number")
+  actionDate             DateTime? @map("action_date") @db.Date
+  signedObligationDelta  Decimal?  @map("signed_obligation_delta") @db.Decimal(20, 2)
+  signedOutlayDelta      Decimal?  @map("signed_outlay_delta") @db.Decimal(20, 2)
+  correctsIdentityKey    String?   @map("corrects_identity_key")
+  revision               Int       @default(1)
+  contentHash            String    @map("content_hash") @db.Char(64)
+  supersedesId           String?   @map("supersedes_id") @db.Uuid
+  sourceUrl              String?   @map("source_url")
+  sourceObservedAt       DateTime? @map("source_observed_at") @db.Timestamptz(6)
+  recordedAt             DateTime  @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  raw                    Json      @default("{}") @map("raw_jsonb")
+
+  supersedes AcquisitionAwardTransactionRevision?  @relation("AcquisitionTransactionRevision", fields: [supersedesId], references: [id], onDelete: Restrict)
+  revisions  AcquisitionAwardTransactionRevision[] @relation("AcquisitionTransactionRevision")
+
+  @@unique([transactionIdentityKey, contentHash], map: "acquisition_transaction_identity_content_key")
+  @@unique([supersedesId], map: "acquisition_transaction_supersedes_key")
+  @@index([awardIdentityKey, actionDate], map: "acquisition_transaction_award_action_idx")
+  @@index([parentAwardIdentityKey], map: "acquisition_transaction_parent_idx")
+  @@index([sourceSystem, sourceTransactionId], map: "acquisition_transaction_source_id_idx")
+  @@map("acquisition_award_transaction_revision")
+}
+
+/// Immutable, revisioned relationship from a program/PE/project/procurement
+/// identity to one acquisition identity. Monetary attribution is legal only for
+/// the two explicit allocation classes; association/relevance/unresolved edges
+/// cannot carry an amount.
+model ProgramAcquisitionRelationship {
+  id                     String    @id @default(uuid()) @db.Uuid
+  logicalKey             String    @map("logical_key") @db.Char(64)
+  subjectKind            String    @map("subject_kind") @db.VarChar(32)
+  subjectKey             String    @map("subject_key")
+  acquisitionIdentityKey String    @map("acquisition_identity_key")
+  relationshipClass      String    @map("relationship_class") @db.VarChar(48)
+  validFromFy            Int?      @map("valid_from_fy")
+  validToFy              Int?      @map("valid_to_fy")
+  recordedAt             DateTime  @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  supersedesId           String?   @map("supersedes_id") @db.Uuid
+  reviewStatus           String    @default("candidate") @map("review_status") @db.VarChar(20)
+  reviewedBy             String?   @map("reviewed_by") @db.Uuid
+  reviewedAt             DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  sourceSystem           String    @map("source_system") @db.VarChar(64)
+  sourceRecordId         String    @map("source_record_id")
+  sourceUrl              String?   @map("source_url")
+  sourceVersion          String?   @map("source_version") @db.VarChar(128)
+  sourceObservedAt       DateTime? @map("source_observed_at") @db.Timestamptz(6)
+  evidence               Json      @default("{}") @map("evidence_jsonb")
+  confidence             Float     @default(0.5)
+  allocatedAmountUsd     Decimal?  @map("allocated_amount_usd") @db.Decimal(20, 2)
+  unresolvedReason       String?   @map("unresolved_reason")
+  coverageState          String    @default("unknown") @map("coverage_state") @db.VarChar(16)
+  contentHash            String    @map("content_hash") @db.Char(64)
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  supersedes ProgramAcquisitionRelationship?  @relation("ProgramAcquisitionRelationshipRevision", fields: [supersedesId], references: [id], onDelete: Restrict)
+  revisions  ProgramAcquisitionRelationship[] @relation("ProgramAcquisitionRelationshipRevision")
+
+  @@unique([logicalKey, contentHash], map: "program_acquisition_relationship_logical_content_key")
+  @@unique([supersedesId], map: "program_acquisition_relationship_supersedes_key")
+  @@index([subjectKind, subjectKey, recordedAt], map: "program_acquisition_relationship_subject_time_idx")
+  @@index([acquisitionIdentityKey, recordedAt], map: "program_acquisition_relationship_acquisition_time_idx")
+  @@index([reviewStatus, relationshipClass], map: "program_acquisition_relationship_review_class_idx")
+  @@map("program_acquisition_relationship")
+}
+
+/// Mutable coverage ledger for missing, delayed, ambiguous, or unsupported
+/// acquisition joins. Resolving a gap closes it; it never fabricates a zero.
+model AcquisitionCoverageGap {
+  id               String    @id @default(uuid()) @db.Uuid
+  subjectKind      String    @map("subject_kind") @db.VarChar(32)
+  subjectKey       String    @map("subject_key")
+  sourceSystem     String    @map("source_system") @db.VarChar(64)
+  relationshipKind String    @map("relationship_kind") @db.VarChar(64)
+  reason           String    @db.VarChar(64)
+  detail           String?
+  coverageState    String    @map("coverage_state") @db.VarChar(16)
+  sourceAsOf       DateTime? @map("source_as_of") @db.Timestamptz(6)
+  firstObservedAt  DateTime  @default(now()) @map("first_observed_at") @db.Timestamptz(6)
+  lastObservedAt   DateTime  @default(now()) @map("last_observed_at") @db.Timestamptz(6)
+  resolvedAt       DateTime? @map("resolved_at") @db.Timestamptz(6)
+
+  @@unique([subjectKind, subjectKey, sourceSystem, relationshipKind, reason], map: "acquisition_coverage_gap_identity_key")
+  @@index([subjectKind, subjectKey, resolvedAt], map: "acquisition_coverage_gap_subject_open_idx")
+  @@index([sourceSystem, resolvedAt, lastObservedAt], map: "acquisition_coverage_gap_source_open_idx")
+  @@map("acquisition_coverage_gap")
 }
 
 /// PE (and optionally a project within it) -> Program link, with evidence and a
