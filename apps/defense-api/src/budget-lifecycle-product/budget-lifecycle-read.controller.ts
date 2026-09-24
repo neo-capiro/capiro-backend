@@ -60,6 +60,12 @@ export class BudgetLifecycleReadController {
     return this.query.listExpectedSources(fiscalYear, { authorityTrack, expectedState });
   }
 
+  @Get('cycles/:fiscalYear/coverage-inventory')
+  async coverageInventory(@Param('fiscalYear', ParseIntPipe) fiscalYear: number) {
+    assertFiscalYearInRange(fiscalYear);
+    return this.query.getCoverageInventory(fiscalYear);
+  }
+
   @Get('expected-sources/:id')
   async expectedSourceDetail(@Param('id') id: string) {
     return this.query.getExpectedSourceDetail(id);

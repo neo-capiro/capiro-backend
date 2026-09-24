@@ -19,3 +19,4 @@ export * from './health.js';
 export * from './discovery/index.js';
 export * from './schedule.js';
 export * from './bundle/bundle-completeness.js';
+export * from './coverage-inventory.js';

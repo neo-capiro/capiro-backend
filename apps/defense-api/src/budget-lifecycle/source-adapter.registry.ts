@@ -17,6 +17,9 @@ export type AdapterDiscoveryMode = 'api' | 'feed' | 'index_page' | 'conditional_
 
 export interface OfficialSourceAdapter {
   readonly adapterId: string;
+  /** Accountable business role and runtime that owns this publisher integration. */
+  readonly ownerRole: string;
+  readonly runtimeOwner: string;
   readonly publisher: string;
   /** Hosts whose bytes may become authoritative funding evidence. */
   readonly officialHosts: readonly string[];
@@ -51,7 +54,26 @@ export interface OfficialSourceAdapter {
   readonly notes: string;
 }
 
-const ADAPTERS: readonly OfficialSourceAdapter[] = Object.freeze([
+type AdapterDefinition = Omit<OfficialSourceAdapter, 'ownerRole' | 'runtimeOwner'>;
+
+const OWNER_METADATA: Readonly<Record<string, { readonly ownerRole: string; readonly runtimeOwner: string }>> = Object.freeze({
+  'dod-comptroller': { ownerRole: 'DoD budget source steward', runtimeOwner: 'budget-lifecycle-watcher' },
+  'army-budget': { ownerRole: 'Army budget source steward', runtimeOwner: 'budget-lifecycle-watcher' },
+  'navy-budget': { ownerRole: 'Navy budget source steward', runtimeOwner: 'budget-lifecycle-watcher' },
+  'saf-fm-budget': { ownerRole: 'Air Force budget source steward', runtimeOwner: 'budget-lifecycle-watcher' },
+  'govinfo-committee-reports': { ownerRole: 'Legislative publication source steward', runtimeOwner: 'budget-lifecycle-watcher' },
+  'govinfo-bills': { ownerRole: 'Legislative publication source steward', runtimeOwner: 'budget-lifecycle-watcher' },
+  'govinfo-public-laws': { ownerRole: 'Legislative publication source steward', runtimeOwner: 'budget-lifecycle-watcher' },
+  'congress-gov': { ownerRole: 'Legislative status source steward', runtimeOwner: 'budget-lifecycle-watcher' },
+  hasc: { ownerRole: 'House Armed Services source steward', runtimeOwner: 'budget-lifecycle-watcher' },
+  sasc: { ownerRole: 'Senate Armed Services source steward', runtimeOwner: 'budget-lifecycle-watcher' },
+  'house-appropriations': { ownerRole: 'House appropriations source steward', runtimeOwner: 'budget-lifecycle-watcher' },
+  'senate-appropriations': { ownerRole: 'Senate appropriations source steward', runtimeOwner: 'budget-lifecycle-watcher' },
+  'dod-comptroller-reprogramming': { ownerRole: 'DoD budget source steward', runtimeOwner: 'budget-lifecycle-watcher' },
+  'dod-contract-announcements': { ownerRole: 'DoD award signal source steward', runtimeOwner: 'budget-lifecycle-watcher' },
+});
+
+const ADAPTERS: readonly AdapterDefinition[] = Object.freeze([
   {
     adapterId: 'dod-comptroller',
     publisher: 'Office of the Under Secretary of Defense (Comptroller)',
@@ -249,10 +271,13 @@ export class NonOfficialSourceHostError extends Error {
 
 @Injectable()
 export class SourceAdapterRegistry {
-  private readonly byId = new Map(ADAPTERS.map((adapter) => [adapter.adapterId, adapter]));
+  private readonly byId = new Map(ADAPTERS.map((adapter) => [adapter.adapterId, {
+    ...adapter,
+    ...(OWNER_METADATA[adapter.adapterId] ?? (() => { throw new Error(`Missing owner metadata for ${adapter.adapterId}`); })()),
+  }]));
 
   list(): readonly OfficialSourceAdapter[] {
-    return ADAPTERS;
+    return [...this.byId.values()];
   }
 
   get(adapterId: string): OfficialSourceAdapter {

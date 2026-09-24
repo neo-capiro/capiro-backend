@@ -71,6 +71,18 @@ export interface ReviewQueueEntry {
   readonly observation: ReadObservation;
 }
 
+export interface ReadBundleMember {
+  readonly id: string;
+  readonly expectedSourceId: string;
+  readonly memberKey: string;
+  readonly volume: string | null;
+  readonly budgetActivity: string | null;
+  readonly title: string;
+  readonly memberStatus: 'missing' | 'observed' | 'verified';
+  readonly sourceDocumentId: string | null;
+  readonly observationId: string | null;
+}
+
 export interface ReadWatcherRun {
   readonly adapterId: string;
   readonly status: 'running' | 'succeeded' | 'failed' | 'partial';
@@ -108,6 +120,9 @@ export interface BudgetLifecycleReadStore {
   ): Promise<readonly ReadObservation[]>;
 
   listObservationsByFiscalYear(fiscalYear: number): Promise<readonly ReadObservation[]>;
+
+  /** Physical source units from the existing bundle-member manifest, when available. */
+  listBundleMembersByFiscalYear?(fiscalYear: number): Promise<readonly ReadBundleMember[]>;
 
   /**
    * Single-observation lookup by immutable id. Additive to this read-only
