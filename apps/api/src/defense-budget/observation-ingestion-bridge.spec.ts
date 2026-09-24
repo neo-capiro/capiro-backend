@@ -277,14 +277,17 @@ function makeParserHandoff(script: ScriptedHandoffResult[] = []): {
 function makeArchiveReader(): {
   port: SourceDocumentArchiveReadPort;
   calls: SourceDocumentArchiveLocator[];
+  signals: Array<AbortSignal | undefined>;
   put: (locator: SourceDocumentArchiveLocator, bytes: Buffer) => void;
 } {
   const objects = new Map<string, Buffer>();
   const calls: SourceDocumentArchiveLocator[] = [];
+  const signals: Array<AbortSignal | undefined> = [];
   const keyOf = (locator: SourceDocumentArchiveLocator) => `${locator.bucket}/${locator.key}`;
   const port: SourceDocumentArchiveReadPort = {
-    async readMaterializedBytes(locator) {
+    async readMaterializedBytes(locator, options) {
       calls.push(locator);
+      signals.push(options?.abortSignal);
       const bytes = objects.get(keyOf(locator));
       if (!bytes) throw new Error(`no archived object at ${keyOf(locator)}`);
       return { bytes, contentSha256: createHash('sha256').update(bytes).digest('hex') } satisfies ArchivedSourceBytes;
@@ -293,6 +296,7 @@ function makeArchiveReader(): {
   return {
     port,
     calls,
+    signals,
     put: (locator, bytes) => objects.set(keyOf(locator), bytes),
   };
 }
@@ -315,7 +319,12 @@ function buildBridge(input: {
   const { port: parserHandoff, calls: handoffCalls, enqueue: enqueueHandoffResults } = makeParserHandoff(
     input.parserHandoffScript,
   );
-  const { port: archiveReader, calls: archiveReadCalls, put: putArchivedBytes } = makeArchiveReader();
+  const {
+    port: archiveReader,
+    calls: archiveReadCalls,
+    signals: archiveReadSignals,
+    put: putArchivedBytes,
+  } = makeArchiveReader();
   const bridge = new ObservationIngestionBridgeService(store, fetcher, registrar, parserHandoff, archiveReader);
   return {
     bridge,
@@ -328,6 +337,7 @@ function buildBridge(input: {
     handoffCalls,
     enqueueHandoffResults,
     archiveReadCalls,
+    archiveReadSignals,
     putArchivedBytes,
   };
 }
@@ -550,6 +560,36 @@ describe('ObservationIngestionBridgeService', () => {
     // the handoff too, not just the lifecycle-classification fields above.
     expect(ctx.handoffCalls[0]!.sourceKey).toBe('defense-budget-observation-dedup-obs-1');
     expect(ctx.handoffCalls[0]!.component).toBe('AF');
+  });
+
+  it('forwards the optional governed execution object to parser handoff unchanged on first ingestion and replay', async () => {
+    const observation = makeObservation();
+    const ctx = buildBridge({
+      observation,
+      urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
+    });
+    const abortController = new AbortController();
+    const governedExecution: NonNullable<ParserHandoffInput['governedExecution']> = {
+      executionId: 'manifest-operation-item',
+      abortSignal: abortController.signal,
+      verificationPersistenceFence: jest.fn(async () => undefined),
+      onTerminal: jest.fn(async () => undefined),
+    };
+
+    const first = await ctx.bridge.bridge(observation.id, { governedExecution });
+    registerSourceDocumentArchive(ctx, first.sourceDocumentId!, OFFICIAL_BYTES);
+    await ctx.bridge.bridge(observation.id, { governedExecution });
+
+    expect(ctx.handoffCalls).toHaveLength(2);
+    for (const handoff of ctx.handoffCalls) {
+      expect(handoff.governedExecution).toBe(governedExecution);
+      expect(handoff.governedExecution!.verificationPersistenceFence).toBe(
+        governedExecution.verificationPersistenceFence,
+      );
+      expect(handoff.governedExecution!.onTerminal).toBe(governedExecution.onTerminal);
+      expect(handoff.governedExecution!.abortSignal).toBe(abortController.signal);
+    }
+    expect(ctx.archiveReadSignals).toEqual([abortController.signal]);
   });
 
   /* ------------------------------------------------------------------ */

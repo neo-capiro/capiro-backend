@@ -157,6 +157,7 @@
     "verify:phase10b35c-candidate-correction-e2e:db": "bash scripts/phase10b35c-candidate-correction-e2e-rehearsal.sh",
     "verify:qualify-defense-budget-drain-image-v1:db": "bash scripts/qualify-defense-budget-drain-image-v1-rehearsal.sh",
     "report:defense-budget-verification-cycle-v1": "tsx scripts/report-defense-budget-verification-cycle-v1.ts",
+    "snapshot:defense-budget-package0-v1": "tsx scripts/snapshot-defense-budget-package0-v1.ts",
     "backfill:source-documents": "tsx scripts/backfill-source-documents.ts",
     "verify:budget-reconciliation": "tsx scripts/verify-budget-reconciliation.ts",
     "load:defense-budget-package": "tsx scripts/load-defense-budget-package.ts",
@@ -237,7 +238,10 @@
     "probe:pe-phase-10-staging": "bash scripts/pe-phase-10-staging-probe.sh",
     "ingest:cpf-cds:campaign": "tsx scripts/run-cpf-cds-campaign.ts",
     "replay:pe-budget-phase-10b31-recovered-artifact": "tsx scripts/phase10b31-replay-recovered-artifact.ts",
-    "reextract:defense-budget-candidate-v1": "tsx scripts/reextract-defense-budget-candidate-v1.ts"
+    "reextract:defense-budget-candidate-v1": "tsx scripts/reextract-defense-budget-candidate-v1.ts",
+    "run:defense-budget-ingestion-manifest-v1": "tsx scripts/run-defense-budget-ingestion-manifest-v1.ts",
+    "typecheck:defense-budget-ingestion-manifest-v1": "tsc -p tsconfig.defense-budget-ingestion-manifest-v1.json --noEmit",
+    "verify:defense-budget-ingestion-manifest-v1": "jest --runInBand --forceExit src/defense-budget/governed-ingestion-manifest scripts/run-defense-budget-ingestion-manifest-v1.spec.ts"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1132.0",

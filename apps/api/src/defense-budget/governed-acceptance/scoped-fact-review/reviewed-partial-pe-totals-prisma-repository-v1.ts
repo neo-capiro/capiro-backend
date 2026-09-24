@@ -79,11 +79,15 @@ function toRow(r: {
   reviewerId: string;
   rationale: string;
   decisionHash: string;
+  reviewGeneration: bigint;
+  eligibilityStateVersion: string | null;
+  eligibilityStateSha256: string | null;
   status: string;
   revokedAt: Date | null;
   revokedBy: string | null;
   revocationReason: string | null;
   supersededById: string | null;
+  acknowledgedRevokedReviewId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }): ScopedFactReviewRowV1 {
@@ -111,11 +115,15 @@ function toRow(r: {
     reviewerId: r.reviewerId,
     rationale: r.rationale,
     decisionHash: r.decisionHash,
+    reviewGeneration: r.reviewGeneration.toString(),
+    eligibilityStateVersion: r.eligibilityStateVersion,
+    eligibilityStateSha256: r.eligibilityStateSha256,
     status: r.status as ScopedFactReviewRowV1['status'],
     revokedAt: r.revokedAt?.toISOString() ?? null,
     revokedBy: r.revokedBy,
     revocationReason: r.revocationReason,
     supersededById: r.supersededById,
+    acknowledgedRevokedReviewId: r.acknowledgedRevokedReviewId,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
   };
@@ -149,12 +157,15 @@ export class PrismaReviewedPartialPeTotalsRepositoryV1 implements ReviewedPartia
           { candidate: { is: { correctedBy: { is: null } } } },
         ],
       },
-      include: { candidate: { select: { status: true, correctedBy: { select: { id: true } } } } },
+      include: { candidate: { select: { status: true, currentRunId: true, correctedBy: { select: { id: true } } } } },
       orderBy: { createdAt: 'desc' },
     });
     const eligible = rows.filter((r) => {
-      const candidate = (r as unknown as { candidate: { status: string; correctedBy: { id: string } | null } }).candidate;
-      return isReviewableCandidateStatus(candidate.status) && candidate.correctedBy == null;
+      const candidate = (r as unknown as {
+        runId: string;
+        candidate: { status: string; currentRunId: string | null; correctedBy: { id: string } | null };
+      }).candidate;
+      return isReviewableCandidateStatus(candidate.status) && candidate.correctedBy == null && candidate.currentRunId === r.runId;
     });
     const typed = eligible.map((r) => toRow(r as unknown as PrismaRow));
     return filter.component != null

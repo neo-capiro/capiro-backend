@@ -22,6 +22,8 @@ import type {
   ObservationState,
   SourceFamily,
 } from '@capiro/defense-domain';
+import type { ParserRouterTerminalOutputV1 } from './parser-router/parser-router-v1.service.js';
+import type { VerificationPersistenceFenceV1 } from './verification/persistence/verification-persistence-fence-v1.js';
 
 /** The exact, immutable fields the bridge needs from one lifecycle observation. */
 export interface BridgeObservationRecord {
@@ -175,7 +177,10 @@ export interface ArchivedSourceBytes {
  * a replay can trust without re-verifying against a moving target.
  */
 export interface SourceDocumentArchiveReadPort {
-  readMaterializedBytes(locator: SourceDocumentArchiveLocator): Promise<ArchivedSourceBytes>;
+  readMaterializedBytes(
+    locator: SourceDocumentArchiveLocator,
+    options?: { readonly abortSignal?: AbortSignal },
+  ): Promise<ArchivedSourceBytes>;
 }
 
 /**
@@ -242,6 +247,19 @@ export interface ParserHandoffInput {
    * silent coercion to `'UNKNOWN'`).
    */
   readonly component: string | null;
+  /**
+   * Optional caller-owned durable execution identity and persistence fence.
+   * Ordinary lifecycle drains omit this and retain their historical behavior.
+   * A governed manifest controller supplies it so retries reuse one stable
+   * parser identity and the exact candidate/run is checkpointed atomically
+   * with verification persistence.
+   */
+  readonly governedExecution?: {
+    readonly executionId: string;
+    readonly abortSignal?: AbortSignal;
+    readonly verificationPersistenceFence: VerificationPersistenceFenceV1;
+    readonly onTerminal: (output: ParserRouterTerminalOutputV1) => Promise<void>;
+  };
 }
 
 /**
@@ -275,6 +293,11 @@ export interface ParserHandoffResult {
   readonly decision: VerifierDecision;
   readonly finalState: string;
   readonly artifactLocator: string;
+  readonly candidateId?: string;
+  readonly verificationRunId?: string;
+  readonly artifactId?: string;
+  readonly artifactContentSha256?: string;
+  readonly artifactByteSha256?: string;
 }
 
 /**

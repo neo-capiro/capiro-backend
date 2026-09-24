@@ -26,6 +26,8 @@
  *     by the DB trigger `check_budget_candidate_correction_v1_binding`).
  *   - The NEW candidate must not itself be REJECTED (correcting a tainted
  *     candidate with a still-broken one would defeat the purpose).
+ *   - The NEW candidate must not already be the OLD side of another link;
+ *     that would reverse or cycle the append-only correction graph.
  *
  * What this policy does NOT decide:
  *   - Whether the OLD candidate already has a correction on file (that is a
@@ -33,6 +35,9 @@
  *     `CandidateCorrectionV1Service`'s idempotency/refusal logic, not a
  *     policy question -- the DB state can change between a dry-run preview
  *     and a commit, and the unique index is the authority of record).
+ *   - Whether the NEW candidate already starts another link. The service
+ *     supplies that current graph fact to this policy after a read, and the
+ *     transactional repository repeats the check under its graph lock.
  *   - Whether to call `supersedeAllForCandidate()` (always attempted by the
  *     service on commit, harmless/no-op when there is nothing active).
  */
@@ -57,6 +62,7 @@ export interface CandidateCorrectionCandidateSnapshotV1 {
 export type CandidateCorrectionRefusalCodeV1 =
   | 'old_candidate_status_not_correctable'
   | 'new_candidate_status_ineligible'
+  | 'reverse_correction_of_already_corrected_candidate'
   | 'old_equals_new'
   | 'source_identity_mismatch';
 
@@ -74,6 +80,7 @@ export interface CandidateCorrectionEligibilityResultV1 {
 export function evaluateCandidateCorrectionEligibilityV1(input: {
   oldCandidate: CandidateCorrectionCandidateSnapshotV1;
   newCandidate: CandidateCorrectionCandidateSnapshotV1;
+  newCandidateAlreadyCorrectedIntoAnotherCandidate?: boolean;
 }): CandidateCorrectionEligibilityResultV1 {
   const refusalReasons: CandidateCorrectionRefusalV1[] = [];
   const { oldCandidate, newCandidate } = input;
@@ -96,6 +103,13 @@ export function evaluateCandidateCorrectionEligibilityV1(input: {
     refusalReasons.push({
       code: 'new_candidate_status_ineligible',
       detail: `new candidate ${newCandidate.id} is ${newCandidate.status}; a correction cannot itself be a rejected extraction`,
+    });
+  }
+
+  if (input.newCandidateAlreadyCorrectedIntoAnotherCandidate) {
+    refusalReasons.push({
+      code: 'reverse_correction_of_already_corrected_candidate',
+      detail: `new candidate ${newCandidate.id} already corrects an earlier candidate; continue from the latest candidate instead of reversing or cycling the correction graph`,
     });
   }
 

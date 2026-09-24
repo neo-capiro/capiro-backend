@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "effectiveDate": "2026-09-24",
+  "scope": "initial defense-budget annual-corpus and release-day limits until Package 9 replaces them with measured gates",
+  "basis": {
+    "logicalSourceSlotsObserved": 82,
+    "pendingOutboxRowsObserved": 9,
+    "deadLetterRowsObserved": 4,
+    "activeScopedApprovalsObserved": 43,
+    "canonicalRowsObserved": 0,
+    "awsAccountWideEcsCostLast30DaysUsd": 0.9749544242,
+    "costAttributionWarning": "AWS costs are account-wide and not resource-tag attributable to defense-budget; limits below are policy caps, not a forecast.",
+    "paidProviderBenchmark": {
+      "cohortPages": 10,
+      "targetUsd": 50,
+      "hardCapUsd": 150,
+      "maxConcurrentJobs": 1,
+      "maxEndpointLifetimeSeconds": 1800,
+      "decision": "not_adopted"
+    }
+  },
+  "annualCorpus": {
+    "incrementalAwsHardCapUsd": 1000,
+    "paidProviderHardCapUsd": 500,
+    "totalIncrementalHardCapUsd": 1500,
+    "maxPrimarySemanticDecisions": 20000,
+    "maxAttemptsPerDecision": 2,
+    "defaultPaidProviderBudgetUsdUntilTaskQualification": 0,
+    "stopCondition": "Stop new paid or worker admission before a hard cap is exceeded; preserve durable queued work."
+  },
+  "peakReleaseDay": {
+    "maxPendingOutboxRows": 100,
+    "maxDeadLetterRows": 10,
+    "maxOldestPendingAgeMinutes": 60,
+    "maxConcurrentDrainTasks": 4,
+    "maxDrainTaskRuntimeMinutes": 30,
+    "verifiedProgramUpdateP95Minutes": 60,
+    "commonInteractiveQueryP95Milliseconds": 2000
+  },
+  "humanReview": {
+    "maxNewReviewItemsPerFiscalYear": 250,
+    "maxNewReviewItemsPerWeek": 50,
+    "maxReviewerHoursPerFiscalYear": 80,
+    "automaticPublicationWhenCapExceeded": false
+  },
+  "qualificationRuns": {
+    "paidRunRequiresNamedManifest": true,
+    "paidRunRequiresExactImageDigest": true,
+    "paidRunRequiresBeforeAndAfterCostReport": true,
+    "historicalBackfillNotificationsDefault": "suppressed"
+  }
+}

@@ -99,6 +99,11 @@ import type {
   SourceDocumentArchiveReadPort,
   VerifierDecision,
 } from './observation-ingestion-bridge.ports.js';
+import type { ParserHandoffInput } from './observation-ingestion-bridge.ports.js';
+
+export interface ObservationIngestionBridgeExecutionV1 {
+  readonly governedExecution: NonNullable<ParserHandoffInput['governedExecution']>;
+}
 
 export type ObservationIngestionBridgeStatus =
   | 'ingested'
@@ -173,8 +178,14 @@ export class ObservationIngestionBridgeService {
     private readonly archiveReader: SourceDocumentArchiveReadPort,
   ) {}
 
-  async bridge(observationId: string): Promise<ObservationIngestionBridgeResult> {
+  async bridge(
+    observationId: string,
+    execution?: ObservationIngestionBridgeExecutionV1,
+  ): Promise<ObservationIngestionBridgeResult> {
+    const abortSignal = execution?.governedExecution.abortSignal;
+    abortSignal?.throwIfAborted();
     const loaded = await this.store.loadForBridge(observationId);
+    abortSignal?.throwIfAborted();
     if (!loaded) {
       return this.result('rejected', observationId, null, `observation ${observationId} not found`, {
         sourceDocumentBound: false,
@@ -220,6 +231,7 @@ export class ObservationIngestionBridgeService {
       const materialized = await this.materializeArchivedBytes({
         sourceDocumentId: observation.sourceDocumentId,
         expectedSha256: observation.contentSha256,
+        abortSignal,
       });
       if ('error' in materialized) {
         return this.result(
@@ -240,6 +252,7 @@ export class ObservationIngestionBridgeService {
           localPath: materialized.localPath,
           sourceKey,
           component: materialized.component,
+          governedExecution: execution?.governedExecution,
         });
         return this.result(
           this.deriveStatus(downstream, { isReplay: true }),
@@ -256,7 +269,9 @@ export class ObservationIngestionBridgeService {
     // eligible: fetch, verify, archive, register, persist, hand off. The
     // live URL is used HERE ONLY — every later replay of this observation
     // reads the immutable archive instead (see materializeArchivedBytes).
+    abortSignal?.throwIfAborted();
     const fetched = await this.fetcher.fetchFullBytes({ url: observation.discoveredUrl });
+    abortSignal?.throwIfAborted();
     if ('blocked' in fetched) {
       return this.result('blocked', observationId, observation.sourceDocumentId, fetched.reason, {
         sourceDocumentBound: false,
@@ -311,6 +326,7 @@ export class ObservationIngestionBridgeService {
       // so replaying the same observation resolves to the SAME sourceKey and
       // therefore the SAME logical SourceDocument, never a second immutable
       // copy for identical bytes.
+      abortSignal?.throwIfAborted();
       const registered = await this.registrar.register({
         sourceKey,
         fiscalYear: observation.classifiedFiscalYear,
@@ -337,6 +353,7 @@ export class ObservationIngestionBridgeService {
           },
         },
       });
+      abortSignal?.throwIfAborted();
 
       // Never attach a SourceDocument whose SHA does not match the
       // observation SHA — re-verified here even though DocumentRegistrar's
@@ -355,6 +372,7 @@ export class ObservationIngestionBridgeService {
         sourceDocumentId: registered.registry.document.id,
         sourceDocumentSha256: documentSha256,
       });
+      abortSignal?.throwIfAborted();
 
       // From here on the SourceDocument is durably bound to this
       // observation. Everything below is downstream work whose failure must
@@ -378,6 +396,7 @@ export class ObservationIngestionBridgeService {
         localPath,
         sourceKey,
         component: (registered.registry.document.component as string | null | undefined) ?? null,
+        governedExecution: execution?.governedExecution,
       });
 
       const reason =
@@ -407,11 +426,14 @@ export class ObservationIngestionBridgeService {
   private async materializeArchivedBytes(input: {
     sourceDocumentId: string;
     expectedSha256: string;
+    abortSignal?: AbortSignal;
   }): Promise<
     | { localPath: string; component: string | null; dispose: () => void }
     | { error: string }
   > {
+    input.abortSignal?.throwIfAborted();
     const record = await this.store.loadSourceDocumentArchive(input.sourceDocumentId);
+    input.abortSignal?.throwIfAborted();
     if (!record) {
       return {
         error: `SourceDocument ${input.sourceDocumentId} not found while materializing archived bytes ` +
@@ -427,11 +449,15 @@ export class ObservationIngestionBridgeService {
 
     let archived: { bytes: Buffer; contentSha256: string };
     try {
-      archived = await this.archiveReader.readMaterializedBytes({
+      const locator = {
         bucket: record.archiveBucket,
         key: record.archiveS3Key,
         versionId: record.archiveVersionId,
-      });
+      };
+      archived = input.abortSignal
+        ? await this.archiveReader.readMaterializedBytes(locator, { abortSignal: input.abortSignal })
+        : await this.archiveReader.readMaterializedBytes(locator);
+      input.abortSignal?.throwIfAborted();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return { error: `failed to read archived bytes for SourceDocument ${input.sourceDocumentId}: ${message}` };
@@ -451,7 +477,9 @@ export class ObservationIngestionBridgeService {
 
     const tempDir = mkdtempSync(join(tmpdir(), 'phase10b1-obs-bridge-replay-'));
     const localPath = join(tempDir, `${randomUUID()}.bin`);
+    input.abortSignal?.throwIfAborted();
     writeFileSync(localPath, archived.bytes);
+    input.abortSignal?.throwIfAborted();
     return {
       localPath,
       // Phase 10B-31: the authoritative, persisted component from the SAME
@@ -496,8 +524,10 @@ export class ObservationIngestionBridgeService {
      * persisted values instead of an absent field or a locally re-derived one. */
     sourceKey: string;
     component: string | null;
+    governedExecution?: NonNullable<ParserHandoffInput['governedExecution']>;
   }): Promise<DownstreamOutcome> {
     const { observation } = input;
+    input.governedExecution?.abortSignal?.throwIfAborted();
     if (
       !observation.classifiedFiscalYear ||
       !observation.classifiedAuthorityTrack ||
@@ -535,6 +565,7 @@ export class ObservationIngestionBridgeService {
         // silently default away.
         sourceKey: input.sourceKey,
         component: input.component,
+        ...(input.governedExecution ? { governedExecution: input.governedExecution } : {}),
       });
     } catch (error) {
       parserHandoffError = error instanceof Error ? error.message : String(error);

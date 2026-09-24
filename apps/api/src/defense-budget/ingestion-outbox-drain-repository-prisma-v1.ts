@@ -99,6 +99,11 @@ export function ingestionOutboxClaimSqlV1(
  SELECT o."id" FROM "defense_budget_ingestion_outbox" o
  WHERE ((o."state" IN ('pending','failed') AND o."available_at" <= $1::timestamptz)
     OR (o."state" = 'leased' AND o."leased_until" <= $1::timestamptz))
+   AND NOT EXISTS (
+     SELECT 1 FROM "defense_budget_ingestion_manifest_item_v1" mi
+     WHERE mi."outbox_row_id"=o."id"
+       AND mi."status" IN ('pending','running','retry_wait','evidence_ready','uncertain')
+   )
  ORDER BY o."created_at", o."id" LIMIT $2 FOR UPDATE OF o SKIP LOCKED
 ) UPDATE "defense_budget_ingestion_outbox" t
  SET "state"='leased', "leased_by"=$3, "leased_until"=$1::timestamptz + (${leaseMs} * INTERVAL '1 millisecond'), "updated_at"=$1::timestamptz
@@ -123,6 +128,11 @@ export function ingestionOutboxClaimByIdSqlV1(
  WHERE o."id"=$4::uuid
    AND ((o."state" IN ('pending','failed') AND o."available_at" <= $1::timestamptz)
     OR (o."state" = 'leased' AND o."leased_until" <= $1::timestamptz))
+   AND NOT EXISTS (
+     SELECT 1 FROM "defense_budget_ingestion_manifest_item_v1" mi
+     WHERE mi."outbox_row_id"=o."id"
+       AND mi."status" IN ('pending','running','retry_wait','evidence_ready','uncertain')
+   )
  ORDER BY o."created_at", o."id" LIMIT $2 FOR UPDATE OF o SKIP LOCKED
 ) UPDATE "defense_budget_ingestion_outbox" t
  SET "state"='leased', "leased_by"=$3, "leased_until"=$1::timestamptz + (${leaseMs} * INTERVAL '1 millisecond'), "updated_at"=$1::timestamptz

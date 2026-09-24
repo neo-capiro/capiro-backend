@@ -86,7 +86,8 @@ export class DefaultParserHandoffAdapter implements ParserHandoffPort {
   async handoff(input: ParserHandoffInput): Promise<ParserHandoffResult> {
     const routing = routingForSourceFamily(input.sourceFamily);
     const terminal = await runParserHandoffForSourceDocument({
-      executionId: `phase10b1-bridge-${input.sourceDocumentId}-${randomUUID().slice(0, 8)}`,
+      executionId: input.governedExecution?.executionId ??
+        `phase10b1-bridge-${input.sourceDocumentId}-${randomUUID().slice(0, 8)}`,
       cycleId: input.cycleId,
       sourceDocumentId: input.sourceDocumentId,
       sourcePath: input.sourcePath,
@@ -116,12 +117,22 @@ export class DefaultParserHandoffAdapter implements ParserHandoffPort {
       // Always durable: see the file header for why this must never be false
       // on the governed bridge's production path.
       persistVerificationAudit: true,
+      verificationPersistenceFence: input.governedExecution?.verificationPersistenceFence,
+      onTerminal: input.governedExecution?.onTerminal,
+      ...(input.governedExecution?.abortSignal
+        ? { abortSignal: input.governedExecution.abortSignal }
+        : {}),
     });
     return {
       invoked: true,
       decision: toVerifierDecision(terminal.decision),
       finalState: terminal.finalState,
       artifactLocator: terminal.artifactLocator,
+      candidateId: terminal.candidateId,
+      verificationRunId: terminal.verificationRunId,
+      artifactId: terminal.artifactId,
+      artifactContentSha256: terminal.artifactContentSha256,
+      artifactByteSha256: terminal.artifactByteSha256,
     };
   }
 }

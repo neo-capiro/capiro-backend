@@ -118,6 +118,12 @@ case "${1:-serve}" in
     echo "Running diag-pe-trust (SELECT-only Program Elements trust baseline)"
     exec ./node_modules/.bin/tsx scripts/diag-program-element-trust-baseline.ts "$@"
     ;;
+  snapshot-defense-budget-package0-v1)
+    shift
+    compose_database_url
+    echo "Running snapshot-defense-budget-package0-v1 (SELECT-only Package 0 inventory)"
+    exec ./node_modules/.bin/tsx scripts/snapshot-defense-budget-package0-v1.ts "$@"
+    ;;
   audit-llamaparse-pe-units)
     shift
     compose_database_url
@@ -260,6 +266,12 @@ case "${1:-serve}" in
     compose_database_url
     echo "Running reextract-defense-budget-candidate-v1 (app role; preview unless --commit --confirm <env>; --status reads one operation)"
     exec ./node_modules/.bin/tsx scripts/reextract-defense-budget-candidate-v1.ts "$@"
+    ;;
+  run-defense-budget-ingestion-manifest-v1)
+    shift
+    compose_database_url
+    echo "Running run-defense-budget-ingestion-manifest-v1 (preview by default; exact immutable manifest only)"
+    exec ./node_modules/.bin/tsx scripts/run-defense-budget-ingestion-manifest-v1.ts "$@"
     ;;
   # Phase 10B-18/19. Governed operator-attested import for an expected
   # source/bundle member whose official publisher host blocks production

@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-09-24T11:05:05.768Z",
+  "environment": "capiro-dev",
+  "sourceGitSha": "950072f477055ec8bdf3b7a377e371c4caf1a9aa",
+  "evidence": {
+    "ecsTaskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/5055a48296364d78bba241ac9e431a2d",
+    "cloudWatchLogStream": "diag/db-inspect/5055a48296364d78bba241ac9e431a2d",
+    "transactionMode": "READ ONLY",
+    "exitCode": 0
+  },
+  "coverage": {
+    "logicalExpectedSourceSlots": 82,
+    "expectedStateCounts": {
+      "expected": 76,
+      "published": 5,
+      "partially_published": 1
+    },
+    "fiscalYears": [2024],
+    "authorityTrackCounts": {
+      "request": 56,
+      "authorization": 8,
+      "appropriations": 8,
+      "alternative_funding": 7,
+      "execution": 3
+    },
+    "warning": "These are logical requirement slots, not a physical-document or exhibit-unit denominator."
+  },
+  "observations": {
+    "total": 13,
+    "ingested": 5,
+    "changed": 4,
+    "superseded": 4,
+    "latestSeenAt": "2026-09-17T11:02:59.796Z"
+  },
+  "ingestionOutbox": {
+    "pending": 9,
+    "deadLetter": 4,
+    "pendingByKind": {
+      "governed_alternative_funding_ingestion": 6,
+      "governed_source_ingestion": 3
+    },
+    "oldestPendingAvailableAt": "2026-08-23T06:01:47.790Z"
+  },
+  "verificationCandidates": {
+    "total": 11,
+    "byFamily": {
+      "rdte": 11
+    },
+    "byStatus": {
+      "NEEDS_REVIEW": 6,
+      "REJECTED": 5
+    }
+  },
+  "approvedScopedFacts": {
+    "activeApprovals": 43,
+    "scopeKind": "rdte_r2_pe_total_request_fy",
+    "latestUpdatedAt": "2026-09-17T03:21:51.238Z"
+  },
+  "candidateCorrections": {
+    "count": 1,
+    "latestCreatedAt": "2026-09-15T23:47:21.264Z"
+  },
+  "canonicalPublication": {
+    "snapshots": 0,
+    "activeSnapshots": 0,
+    "canonicalRows": 0
+  },
+  "scheduleCoordinator": {
+    "ticks": 0
+  },
+  "providerInvocationsLast30Days": 0,
+  "packageReconciliationStateAtCapture": {
+    "approvalReplacementCommitGuardsMigrationApplied": false,
+    "governedIngestionManifestMigrationApplied": false,
+    "governedManifestTableAvailable": false
+  }
+}

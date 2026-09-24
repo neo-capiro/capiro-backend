@@ -5276,6 +5276,7 @@ model SourceDocument {
   // Phase 10B-18 — source-bundle member bindings (Army R-2 multi-volume corpus).
   bundleMemberBindings             DefenseBudgetSourceBundleMember[]
   reextractionOperations           BudgetReextractionOperationV1[]
+  ingestionManifestItems           DefenseBudgetIngestionManifestItemV1[]
   // Canonical procurement line citations (procurement_line_source).
   procurementLineSources           ProcurementLineSource[]
 
@@ -7415,40 +7416,40 @@ model HearingStreamCandidate {
 // PublicHearingCaptureAttempt, never a second PublicHearingCapture. GLOBAL, no
 // tenant_id, no RLS.
 model PublicHearingCapture {
-  id                        String    @id @default(uuid())
-  hearingId                 String    @unique @map("hearing_id") // soft ref → committee_hearing.id; UNIQUE enforces "one canonical capture per hearing"
-  selectedStreamCandidateId String?   @map("selected_stream_candidate_id") // soft ref → hearing_stream_candidate.id
+  id                              String    @id @default(uuid())
+  hearingId                       String    @unique @map("hearing_id") // soft ref → committee_hearing.id; UNIQUE enforces "one canonical capture per hearing"
+  selectedStreamCandidateId       String?   @map("selected_stream_candidate_id") // soft ref → hearing_stream_candidate.id
   /// 'scheduled' | 'leased' | 'capturing' | 'paused' | 'ended' | 'failed' | 'no_stream'
-  status                    String    @default("scheduled")
-  scheduledStart            DateTime? @map("scheduled_start") @db.Timestamptz(6)
-  actualStart               DateTime? @map("actual_start") @db.Timestamptz(6)
-  actualEnd                 DateTime? @map("actual_end") @db.Timestamptz(6)
-  workerLeaseOwner          String?   @map("worker_lease_owner")
-  leaseExpiresAt            DateTime? @map("lease_expires_at") @db.Timestamptz(6)
-  deepgramSessionRef        String?   @map("deepgram_session_ref")
-  reconnectCount            Int       @default(0) @map("reconnect_count")
-  capturedSeconds           Int       @default(0) @map("captured_seconds")
-  transcriptGapSeconds      Int       @default(0) @map("transcript_gap_seconds")
-  version                   Int       @default(1)
-  fencingToken              Int       @default(0) @map("fencing_token")
-  leaseAcquiredAt           DateTime? @map("lease_acquired_at")
+  status                          String    @default("scheduled")
+  scheduledStart                  DateTime? @map("scheduled_start") @db.Timestamptz(6)
+  actualStart                     DateTime? @map("actual_start") @db.Timestamptz(6)
+  actualEnd                       DateTime? @map("actual_end") @db.Timestamptz(6)
+  workerLeaseOwner                String?   @map("worker_lease_owner")
+  leaseExpiresAt                  DateTime? @map("lease_expires_at") @db.Timestamptz(6)
+  deepgramSessionRef              String?   @map("deepgram_session_ref")
+  reconnectCount                  Int       @default(0) @map("reconnect_count")
+  capturedSeconds                 Int       @default(0) @map("captured_seconds")
+  transcriptGapSeconds            Int       @default(0) @map("transcript_gap_seconds")
+  version                         Int       @default(1)
+  fencingToken                    Int       @default(0) @map("fencing_token")
+  leaseAcquiredAt                 DateTime? @map("lease_acquired_at")
   /// Mirrors StreamResolutionState from stream-resolution-policy.ts
-  resolutionState           String    @default("NOT_CHECKED") @map("resolution_state")
-  lastResolutionAt          DateTime? @map("last_resolution_at")
-  consecutiveSourceErrors   Int       @default(0) @map("consecutive_source_errors")
-  nextPreflightAt           DateTime? @map("next_preflight_at")
+  resolutionState                 String    @default("NOT_CHECKED") @map("resolution_state")
+  lastResolutionAt                DateTime? @map("last_resolution_at")
+  consecutiveSourceErrors         Int       @default(0) @map("consecutive_source_errors")
+  nextPreflightAt                 DateTime? @map("next_preflight_at")
   /// Millisecond-precision capture progress; capturedSeconds stays for any
   /// existing consumer, capturedMs is authoritative for the Phase 4 runtime.
-  capturedMs                Int       @default(0) @map("captured_ms")
+  capturedMs                      Int       @default(0) @map("captured_ms")
   /// Serialized CaptureGap[] (startMs/endMs/reason) — small, bounded, no
   /// separate gap table needed for Phase 4's exit proof.
-  gaps                      Json      @default("[]")
-  failureCode               String?   @map("failure_code")
-  failureDetail             String?   @map("failure_detail") @db.Text
+  gaps                            Json      @default("[]")
+  failureCode                     String?   @map("failure_code")
+  failureDetail                   String?   @map("failure_detail") @db.Text
   speakersResolvedAt              DateTime? @map("speakers_resolved_at") @db.Timestamptz(6)
   speakersResolvedThroughSequence Int?      @map("speakers_resolved_through_sequence")
-  createdAt                 DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                 DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt                       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   attempts PublicHearingCaptureAttempt[]
   segments PublicHearingTranscriptSegment[]
@@ -11463,22 +11464,22 @@ model BudgetAction {
 /// 'candidate' edges render dashed + labeled and are NEVER silently promoted;
 /// acceptance is a human review action (mirrors PeProgramMatch discipline).
 model BudgetLineRelationship {
-  id           String   @id @default(uuid()) @db.Uuid
-  fromPeCode   String   @map("from_pe_code") @db.VarChar(16)
-  toPeCode     String   @map("to_pe_code") @db.VarChar(16)
+  id               String   @id @default(uuid()) @db.Uuid
+  fromPeCode       String   @map("from_pe_code") @db.VarChar(16)
+  toPeCode         String   @map("to_pe_code") @db.VarChar(16)
   /// related_pe_exhibit|same_program|rdte_to_procurement|procurement_to_om|
   /// predecessor_successor|same_capability
-  relType      String   @map("rel_type") @db.VarChar(40)
-  confidence   String   @db.VarChar(8) // high|med|low
-  status       String   @default("accepted") @db.VarChar(12) // accepted|candidate
+  relType          String   @map("rel_type") @db.VarChar(40)
+  confidence       String   @db.VarChar(8) // high|med|low
+  status           String   @default("accepted") @db.VarChar(12) // accepted|candidate
   /// Human-readable evidence ("P-40 'Related PEs' lists 0604011A").
-  evidence     String   @db.Text
-  evidenceJson Json     @default("{}") @map("evidence_jsonb")
-  transitionFyFrom Int? @map("transition_fy_from")
-  transitionFyTo   Int? @map("transition_fy_to")
-  derivedBy    String   @map("derived_by") @db.VarChar(48)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  evidence         String   @db.Text
+  evidenceJson     Json     @default("{}") @map("evidence_jsonb")
+  transitionFyFrom Int?     @map("transition_fy_from")
+  transitionFyTo   Int?     @map("transition_fy_to")
+  derivedBy        String   @map("derived_by") @db.VarChar(48)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@unique([fromPeCode, toPeCode, relType], map: "budget_line_relationship_natural_key")
   @@index([fromPeCode], map: "budget_line_relationship_from_idx")
@@ -12108,12 +12109,13 @@ model BudgetExtractionCandidateV1 {
   scopedFactReviews            BudgetScopedFactReviewV1[]
   /// Phase 10B-35c: present when a LATER candidate was recorded as this one's
   /// correction (at most one, enforced by a unique index on the link table).
-  correctedBy                  BudgetCandidateCorrectionV1?      @relation("CandidateCorrectionOld")
+  correctedBy                  BudgetCandidateCorrectionV1?           @relation("CandidateCorrectionOld")
   /// Phase 10B-35c: present when this candidate IS the correction of an
   /// earlier one (at most one, enforced by a unique index on the link table).
-  corrects                     BudgetCandidateCorrectionV1?      @relation("CandidateCorrectionNew")
-  reextractionSourceOperations BudgetReextractionOperationV1[]   @relation("ReextractionOldCandidate")
-  reextractionResultOperations BudgetReextractionOperationV1[]   @relation("ReextractionResultCandidate")
+  corrects                     BudgetCandidateCorrectionV1?           @relation("CandidateCorrectionNew")
+  reextractionSourceOperations BudgetReextractionOperationV1[]        @relation("ReextractionOldCandidate")
+  reextractionResultOperations BudgetReextractionOperationV1[]        @relation("ReextractionResultCandidate")
+  ingestionManifestItems       DefenseBudgetIngestionManifestItemV1[]
 
   @@unique([cycleId, manifestContentSha256, manifestDocumentKey, sourceDocumentId, sourceSha256, extractionArtifactId, extractionArtifactSha256, verifierVersion, policyVersion, policySha256], map: "budget_v1_candidate_identity_key")
   @@index([sourceDocumentId], map: "budget_v1_candidate_source_document_idx")
@@ -12144,14 +12146,15 @@ model BudgetVerificationRunV1 {
   resultSnapshot           Json     @map("result_snapshot_jsonb")
   createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  candidate                    BudgetExtractionCandidateV1       @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  candidate                    BudgetExtractionCandidateV1            @relation(fields: [candidateId], references: [id], onDelete: Restrict)
   checks                       BudgetVerificationCheckV1[]
   proofSnapshots               BudgetVerificationProofV1[]
   discrepancies                BudgetVerificationDiscrepancyV1[]
   reviewDecisions              BudgetReviewDecisionV1[]
   scopedFactReviews            BudgetScopedFactReviewV1[]
-  reextractionSourceOperations BudgetReextractionOperationV1[]   @relation("ReextractionOldRun")
-  reextractionResultOperations BudgetReextractionOperationV1[]   @relation("ReextractionResultRun")
+  reextractionSourceOperations BudgetReextractionOperationV1[]        @relation("ReextractionOldRun")
+  reextractionResultOperations BudgetReextractionOperationV1[]        @relation("ReextractionResultRun")
+  ingestionManifestItems       DefenseBudgetIngestionManifestItemV1[]
 
   @@index([candidateId, createdAt], map: "budget_v1_run_candidate_idx")
   @@map("budget_verification_run_v1")
@@ -12259,44 +12262,58 @@ model BudgetReviewDecisionV1 {
 /// decision='approve'` -- the bounded partial "reviewed source totals" class,
 /// never the canonical snapshot tables.
 model BudgetScopedFactReviewV1 {
-  id                       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  candidateId              String    @map("candidate_id") @db.Uuid
-  runId                    String    @map("run_id") @db.Uuid
-  sourceDocumentId         String    @map("source_document_id") @db.Uuid
-  sourceSha256             String    @map("source_sha256") @db.Char(64)
-  extractionArtifactId     String    @map("extraction_artifact_id")
-  extractionArtifactSha256 String    @map("extraction_artifact_sha256") @db.Char(64)
-  manifestContentSha256    String    @map("manifest_content_sha256") @db.Char(64)
-  policyId                 String    @map("policy_id")
-  policyVersion            String    @map("policy_version")
-  policySha256             String    @map("policy_sha256") @db.Char(64)
-  scopeKind                String    @map("scope_kind") @db.VarChar(64)
-  scopeKey                 String    @map("scope_key")
-  scope                    Json      @map("scope_jsonb")
-  assertionIds             Json      @map("assertion_ids_jsonb")
-  evidenceIds              Json      @map("evidence_ids_jsonb")
-  projection               Json      @map("projection_jsonb")
-  independence             Json      @map("independence_jsonb")
-  limitations              Json      @map("limitations_jsonb")
-  decision                 String    @db.VarChar(16)
-  reviewerId               String    @map("reviewer_id")
-  rationale                String
-  decisionHash             String    @map("decision_hash") @db.Char(64)
-  status                   String    @default("active") @db.VarChar(16)
-  revokedAt                DateTime? @map("revoked_at") @db.Timestamptz(6)
-  revokedBy                String?   @map("revoked_by")
-  revocationReason         String?   @map("revocation_reason")
-  supersededById           String?   @map("superseded_by_id") @db.Uuid
-  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  id                          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  candidateId                 String    @map("candidate_id") @db.Uuid
+  runId                       String    @map("run_id") @db.Uuid
+  sourceDocumentId            String    @map("source_document_id") @db.Uuid
+  sourceSha256                String    @map("source_sha256") @db.Char(64)
+  extractionArtifactId        String    @map("extraction_artifact_id")
+  extractionArtifactSha256    String    @map("extraction_artifact_sha256") @db.Char(64)
+  manifestContentSha256       String    @map("manifest_content_sha256") @db.Char(64)
+  policyId                    String    @map("policy_id")
+  policyVersion               String    @map("policy_version")
+  policySha256                String    @map("policy_sha256") @db.Char(64)
+  scopeKind                   String    @map("scope_kind") @db.VarChar(64)
+  scopeKey                    String    @map("scope_key")
+  scope                       Json      @map("scope_jsonb")
+  assertionIds                Json      @map("assertion_ids_jsonb")
+  evidenceIds                 Json      @map("evidence_ids_jsonb")
+  projection                  Json      @map("projection_jsonb")
+  independence                Json      @map("independence_jsonb")
+  limitations                 Json      @map("limitations_jsonb")
+  decision                    String    @db.VarChar(16)
+  reviewerId                  String    @map("reviewer_id")
+  rationale                   String
+  decisionHash                String    @map("decision_hash") @db.Char(64)
+  /// Database-owned monotonic review generation. Unlike revokedAt, this is
+  /// not supplied by a caller clock and therefore orders revocation history.
+  reviewGeneration            BigInt    @unique(map: "budget_scoped_fact_review_v1_review_generation_unique") @default(autoincrement()) @map("review_generation")
+  /// Canonical run/check/discrepancy/proof state evaluated for this decision.
+  /// NULL only for legacy rows created before Package C sealed eligibility.
+  eligibilityStateVersion     String?   @map("eligibility_state_version")
+  eligibilityStateSha256      String?   @map("eligibility_state_sha256") @db.Char(64)
+  status                      String    @default("active") @db.VarChar(16)
+  revokedAt                   DateTime? @map("revoked_at") @db.Timestamptz(6)
+  revokedBy                   String?   @map("revoked_by")
+  revocationReason            String?   @map("revocation_reason")
+  supersededById              String?   @map("superseded_by_id") @db.Uuid
+  /// Exact revoked decision explicitly reviewed before an intentional
+  /// reapproval. NULL for an initial decision. Append-only audit evidence;
+  /// never a blanket acknowledgement of "some revocation on this scope".
+  acknowledgedRevokedReviewId String?   @map("acknowledged_revoked_review_id") @db.Uuid
+  createdAt                   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                   DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
 
-  candidate    BudgetExtractionCandidateV1 @relation(fields: [candidateId], references: [id], onDelete: Restrict)
-  run          BudgetVerificationRunV1     @relation(fields: [runId], references: [id], onDelete: Restrict)
-  supersededBy BudgetScopedFactReviewV1?   @relation("ScopedFactReviewSupersession", fields: [supersededById], references: [id], onDelete: Restrict)
-  supersedes   BudgetScopedFactReviewV1[]  @relation("ScopedFactReviewSupersession")
+  candidate                 BudgetExtractionCandidateV1 @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  run                       BudgetVerificationRunV1     @relation(fields: [runId], references: [id], onDelete: Restrict)
+  supersededBy              BudgetScopedFactReviewV1?   @relation("ScopedFactReviewSupersession", fields: [supersededById], references: [id], onDelete: Restrict)
+  supersedes                BudgetScopedFactReviewV1[]  @relation("ScopedFactReviewSupersession")
+  acknowledgedRevokedReview BudgetScopedFactReviewV1?   @relation("ScopedFactReviewRevocationAcknowledgement", fields: [acknowledgedRevokedReviewId], references: [id], onDelete: Restrict)
+  acknowledgedByReapprovals BudgetScopedFactReviewV1[]  @relation("ScopedFactReviewRevocationAcknowledgement")
 
   @@index([candidateId, createdAt], map: "budget_scoped_fact_review_v1_candidate_idx")
   @@index([scopeKind, scopeKey, status], map: "budget_scoped_fact_review_v1_scope_idx")
+  @@index([acknowledgedRevokedReviewId], map: "budget_scoped_fact_review_v1_ack_revoked_idx")
   @@map("budget_scoped_fact_review_v1")
 }
 
@@ -12315,6 +12332,16 @@ model BudgetCandidateCorrectionV1 {
   oldCandidateSourceSha256       String   @map("old_candidate_source_sha256") @db.Char(64)
   newCandidateSourceDocumentId   String   @map("new_candidate_source_document_id") @db.Uuid
   newCandidateSourceSha256       String   @map("new_candidate_source_sha256") @db.Char(64)
+  /// Versioned, immutable operator-reviewed operation intent. Version 1
+  /// contains exact old/new candidate+run+source/artifact/manifest identity
+  /// and every selected scope. Nullable only for rows written before Package
+  /// C added durable intent binding.
+  reviewedIntentVersion          Int?     @map("reviewed_intent_version")
+  reviewedIntent                 Json?    @map("reviewed_intent_jsonb")
+  /// Database-owned SHA-256 of PostgreSQL's stored `reviewed_intent_jsonb::text`.
+  /// The insert trigger overwrites caller input; application canonical hashes
+  /// are used only for semantic replay comparison and are not persisted here.
+  reviewedIntentSha256           String?  @map("reviewed_intent_sha256") @db.Char(64)
   supersededScopedFactReviewIds  Json     @default("[]") @map("superseded_scoped_fact_review_ids_jsonb")
   actor                          String
   reason                         String
@@ -13415,6 +13442,7 @@ model DefenseBudgetCycle {
   outbox                 DefenseBudgetIngestionOutbox[]
   signals                DefenseBudgetLifecycleSignal[]
   reextractionOperations BudgetReextractionOperationV1[]
+  ingestionManifestItems DefenseBudgetIngestionManifestItemV1[]
 
   // Cycle identity is (fiscalYear, authorityTrack). This unique constraint is
   // what makes "authorization and appropriations never overwrite each other"
@@ -13591,10 +13619,11 @@ model DefenseBudgetSourceObservation {
   supersededBy DefenseBudgetSourceObservation?  @relation("DefenseBudgetObservationVersion", fields: [supersededByObservationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   supersedes   DefenseBudgetSourceObservation[] @relation("DefenseBudgetObservationVersion")
 
-  outbox               DefenseBudgetIngestionOutbox[]
-  signalsFrom          DefenseBudgetLifecycleSignal[]    @relation("DefenseBudgetSignalFrom")
-  signalsTo            DefenseBudgetLifecycleSignal[]    @relation("DefenseBudgetSignalTo")
-  bundleMemberBindings DefenseBudgetSourceBundleMember[]
+  outbox                 DefenseBudgetIngestionOutbox[]
+  ingestionManifestItems DefenseBudgetIngestionManifestItemV1[]
+  signalsFrom            DefenseBudgetLifecycleSignal[]         @relation("DefenseBudgetSignalFrom")
+  signalsTo              DefenseBudgetLifecycleSignal[]         @relation("DefenseBudgetSignalTo")
+  bundleMemberBindings   DefenseBudgetSourceBundleMember[]
 
   // Idempotency: the same bytes for the same expected source are ONE
   // observation, so two watcher runs seeing the same source cannot diverge.
@@ -13684,9 +13713,10 @@ model DefenseBudgetIngestionOutbox {
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  observation            DefenseBudgetSourceObservation  @relation(fields: [observationId, observationState], references: [id, observationState], onDelete: Restrict, onUpdate: Cascade)
-  cycle                  DefenseBudgetCycle              @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  observation            DefenseBudgetSourceObservation         @relation(fields: [observationId, observationState], references: [id, observationState], onDelete: Restrict, onUpdate: Cascade)
+  cycle                  DefenseBudgetCycle                     @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   reextractionOperations BudgetReextractionOperationV1[]
+  ingestionManifestItems DefenseBudgetIngestionManifestItemV1[]
 
   // A changed source queues EXACTLY ONE job; a repeated observation or a
   // concurrent worker collides here instead of double-enqueueing.
@@ -13734,6 +13764,84 @@ model BudgetReextractionOperationV1 {
 
   @@index([status, leasedUntil], map: "budget_reextraction_operation_v1_claim_idx")
   @@map("budget_reextraction_operation_v1")
+}
+
+/// Package E immutable batch header. SQL owns immutability, the dev-only
+/// environment boundary, and completion invariants. This is orchestration
+/// evidence only and never represents approval or publication.
+model DefenseBudgetIngestionManifestV1 {
+  id                  String    @id @db.Uuid
+  schemaVersion       String    @map("schema_version")
+  manifestSha256      String    @unique @map("manifest_sha256") @db.Char(64)
+  manifest            Json      @map("manifest_jsonb")
+  owner               String
+  environment         String
+  releaseRevision     String    @map("release_revision") @db.Char(40)
+  runtimeImageDigest  String    @map("runtime_image_digest")
+  taskDefinitionArn   String    @map("task_definition_arn")
+  runtimeConfigSha256 String    @map("runtime_config_sha256") @db.Char(64)
+  status              String    @default("running")
+  stopRequestedAt     DateTime? @map("stop_requested_at") @db.Timestamptz(6)
+  startedAt           DateTime  @default(dbgenerated("clock_timestamp()")) @map("started_at") @db.Timestamptz(6)
+  deadlineAt          DateTime  @map("deadline_at") @db.Timestamptz(6)
+  completedAt         DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt           DateTime  @default(dbgenerated("clock_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @default(dbgenerated("clock_timestamp()")) @map("updated_at") @db.Timestamptz(6)
+
+  items DefenseBudgetIngestionManifestItemV1[]
+
+  @@map("defense_budget_ingestion_manifest_v1")
+}
+
+/// One exact existing lifecycle outbox row reserved by a Package E manifest.
+/// Partial active outbox/source uniqueness and append-only histories are
+/// SQL-owned because Prisma cannot express those constraints.
+model DefenseBudgetIngestionManifestItemV1 {
+  id                       String    @id @db.Uuid
+  manifestId               String    @map("manifest_id") @db.Uuid
+  ordinal                  Int
+  outboxRowId              String    @map("outbox_row_id") @db.Uuid
+  observationId            String    @map("observation_id") @db.Uuid
+  cycleId                  String    @map("cycle_id") @db.Uuid
+  sourceDocumentId         String    @map("source_document_id") @db.Uuid
+  sourceSha256             String    @map("source_sha256") @db.Char(64)
+  sourceByteSize           Int       @map("source_byte_size")
+  expectedOutboxState      String    @map("expected_outbox_state")
+  member                   Json      @map("member_jsonb")
+  status                   String    @default("pending")
+  leaseToken               String?   @map("lease_token") @db.Uuid
+  leaseGeneration          Int       @default(0) @map("lease_generation")
+  leasedUntil              DateTime? @map("leased_until") @db.Timestamptz(6)
+  lastHeartbeatAt          DateTime? @map("last_heartbeat_at") @db.Timestamptz(6)
+  taskJobId                String?   @map("task_job_id")
+  attempts                 Int       @default(0)
+  nextAttemptAt            DateTime  @default(dbgenerated("clock_timestamp()")) @map("next_attempt_at") @db.Timestamptz(6)
+  executionHistory         Json      @default("[]") @map("execution_history_jsonb")
+  verificationCorrelations Json      @default("[]") @map("verification_correlations_jsonb")
+  reconciliations          Json      @default("[]") @map("reconciliations_jsonb")
+  terminal                 Json?     @map("terminal_jsonb")
+  candidateId              String?   @map("candidate_id") @db.Uuid
+  verificationRunId        String?   @map("verification_run_id") @db.Uuid
+  parserDisposition        String?   @map("parser_disposition")
+  lastErrorClass           String?   @map("last_error_class")
+  lastErrorMessage         String?   @map("last_error_message")
+  startedAt                DateTime? @map("started_at") @db.Timestamptz(6)
+  finishedAt               DateTime? @map("finished_at") @db.Timestamptz(6)
+  createdAt                DateTime  @default(dbgenerated("clock_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime  @default(dbgenerated("clock_timestamp()")) @map("updated_at") @db.Timestamptz(6)
+
+  manifest       DefenseBudgetIngestionManifestV1 @relation(fields: [manifestId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  outbox         DefenseBudgetIngestionOutbox     @relation(fields: [outboxRowId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  observation    DefenseBudgetSourceObservation   @relation(fields: [observationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  cycle          DefenseBudgetCycle               @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceDocument SourceDocument                   @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  candidate      BudgetExtractionCandidateV1?     @relation(fields: [candidateId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  run            BudgetVerificationRunV1?         @relation(fields: [verificationRunId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([manifestId, ordinal], map: "defense_budget_ingestion_manifest_item_v1_manifest_ordinal_key")
+  @@unique([manifestId, outboxRowId], map: "defense_budget_ingestion_manifest_item_v1_manifest_outbox_key")
+  @@index([manifestId, status, nextAttemptAt, ordinal], map: "defense_budget_ingestion_manifest_item_v1_claim_idx")
+  @@map("defense_budget_ingestion_manifest_item_v1")
 }
 
 model DefenseBudgetLifecycleSignal {

@@ -1,0 +1,64 @@
+# Package E code-based gap list
+
+Snapshot: `codex/package-e-batch-ingestion`, 2026-09-20. Source
+implementation, unit/regression checks, fresh migration replay, real PostgreSQL
+recovery tests, and one real parser/versioned-storage path have passed. No merge,
+final image, AWS qualification, deployment, or production batch is claimed.
+
+## Blocking release and authorization gates
+
+| Priority | Gap | Required closure |
+| --- | --- | --- |
+| Gate | No authorized runnable production manifest exists. The current proposal is qualification-only, has `executionAuthorized: false`, and has no runnable members. | Qualify eligible sources on the exact final image, create their lifecycle/observation/outbox rows through the governed path, freeze one exact manifest and independent S3 object hash, review it, and obtain one explicit batch authorization. |
+| P1 | The three proposed non-Air-Force documents are archive-proven but are not current-image-qualified and do not have eligible existing lifecycle/outbox rows. | Qualify Army FY27 RDT&E Vol 1 BA1, Central DoD FY27 R-1, and Army FY27 Missile Procurement independently. Reconcile Central DoD's stale family classification and exercise OCR for the image-only missile document. Admit only rows that then pass exact preview. |
+| P1 | No Package E merge commit or final API/drain image exists. | Merge only with actual merge authorization. Build Linux/ARM64 images from that exact merged revision, pin immutable digests, prove the drain base is the exact API digest, and retain provenance. |
+| P1 | No audited Package E CodeBuild override or sanitized ECS task-definition payload generator is committed. The old Package A artifact is identity-specific and the project default builds/deploys a different service. | Before release, review a fail-closed buildspec and task-definition cloning/sanitizing procedure against current AWS state. It must not expose secrets, use mutable tags, or activate the drain. |
+| P1 | The exact final drain digest has not been qualified twice through the real production verification path. | Register a digest-pinned isolated qualification revision; run every admitted format profile twice plus a deterministic negative isolation control; retain task/image/log/report/artifact identities. BA4A and the Package D digest do not qualify a new Package E image. |
+| P1 | Dormant deployment has not occurred. | After merge and exact-image qualification, use AWS CLI against `capiro-dev` only: run the additive migration, update the API to the qualified digest, register the same drain digest with `echo no-op-default-command`, wait healthy, and re-audit all automatic consumers. Do not launch the manifest command. |
+
+## Remaining engineering limitations
+
+| Priority | Limitation | Current mitigation / next proof |
+| --- | --- | --- |
+| P1 | Qualification references and hashes are manifest assertions; the runtime does not independently fetch each qualification-evidence object. | Release review must verify each immutable evidence object/hash/profile before authorizing the manifest. Consider a signed/immutable qualification registry in a later schema version rather than widening v1 during release. |
+| P1 | Uncertain-task reconciliation does not call AWS automatically. | Every start/resume now derives and stores the exact ECS TaskARN from metadata and verifies task-definition revision, container image digest, and CPU/memory. The runbook requires a read-only `describe-tasks` check before exact-ID reconciliation. Exercise this during final-image qualification. |
+| P2 | Some human-readable member fields (agency, exhibit, volume, format-profile label) are not authoritative database columns. | Exact source document, observation, outbox, source/archive hashes/bytes/version, candidate/approval/correction counts, runtime, and ordered membership are enforced. Review descriptive fields against qualification evidence before authorization. |
+| P2 | The real parser proof was source-tree/local-infrastructure proof, not a container image run, and did not span the production two-minute lease. | Final-image qualification must retain heartbeat/task telemetry during a representative parse. The controller timer already passed a slow-bridge test beyond its test lease. |
+| P2 | Immutable artifact writes made immediately before a crash can remain orphaned even though stale workers cannot make them authoritative. | Correlation IDs and persistence fences prevent adoption without the exact operation/item/generation. Retain orphan identifiers and clean them only through a separately reviewed maintenance operation. |
+| P2 | Old registered drain revisions remain manually runnable and do not contain the reservation exclusion. | Re-audit services, schedules, rules, and running tasks before deployment and before an authorized batch; prohibit old drain launches while any active manifest reservation exists. |
+
+## Closed gaps in this change
+
+- Resume fails closed unless the exact operation and manifest hash already exist.
+- Active candidate, scoped approval, and correction counts are checked at
+  preflight and claim time.
+- Start/resume require a version-pinned S3 manifest plus an independent object
+  SHA-256; mutable/local write input is refused.
+- Start/resume attest the live ECS task definition, container image digest,
+  TaskARN, exact `capiro-dev` cluster/account/`us-east-1` region, and resource
+  shape instead of trusting only injected variables. Conflicting region aliases
+  fail closed before an S3-backed manifest read.
+- Document/operation deadlines abort the parser and version-pinned archive
+  request, race rather than await a non-cooperative bridge, stop new claims,
+  fence late verification persistence/checkpointing, and leave durable
+  uncertainty for exact reconciliation unless exact evidence was already
+  checkpointed before the boundary.
+- Absolute, protocol-relative, and relative durable references are all scanned
+  for URL userinfo and presigned credential fields.
+- Candidate-before-ack recovery adopts the exact persisted correlation without a
+  second parse; stale generations are fenced.
+- The controller heartbeats both item and outbox leases and refuses uncertain
+  ownership loss.
+- The real archive/bridge/parser/persistence path demonstrated ingestion-only
+  behavior with protected state unchanged.
+- Transient and deterministic failure isolation, later-member continuation,
+  stop-new-work, overlap exclusion, legacy-drain reservation exclusion, and
+  unknown-operation resume refusal have executable tests.
+
+## No-go rule
+
+Do not claim `ENGINEERING_COMPLETE_PILOT_AWAITING_AUTHORIZATION` or run a
+production task until the merge, final-image build/provenance, repeat
+qualification, dormant deployment, exact runnable preview, protected-state
+baseline, and explicit manifest authorization gates above are closed. Air Force
+FY27 RDT&E Volume I remains outside this package.

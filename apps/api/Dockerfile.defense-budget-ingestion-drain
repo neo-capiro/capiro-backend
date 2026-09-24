@@ -35,13 +35,19 @@ USER root
 # onto an older API base: doing so can omit its migration or transactional
 # verification changes. GIT_SHA is checked again by the operator CLI.
 RUN test -f /app/apps/api/scripts/reextract-defense-budget-candidate-v1.ts \
+ && test -f /app/apps/api/scripts/run-defense-budget-ingestion-manifest-v1.ts \
+ && test -f /app/apps/api/src/defense-budget/governed-ingestion-manifest/ingestion-manifest-contract-v1.ts \
+ && test -f /app/apps/api/src/defense-budget/governed-ingestion-manifest/ingestion-manifest-repository-v1.ts \
+ && test -f /app/apps/api/src/defense-budget/governed-ingestion-manifest/run-ingestion-manifest-v1.ts \
  && test -f /app/apps/api/src/defense-budget/governed-reextraction/reextract-review-candidate-v1.ts \
  && test -f /app/apps/api/src/defense-budget/governed-reextraction/reextraction-repository-v1.ts \
  && test -f /app/apps/api/src/defense-budget/governed-reextraction/reextraction-target-v1.ts \
  && test -f /app/apps/api/src/defense-budget/verification/persistence/verification-persistence-fence-v1.ts \
  && test -f /app/apps/api/prisma/migrations/20280913010000_governed_review_reextraction/migration.sql \
+ && test -f /app/apps/api/prisma/migrations/20280920060000_governed_ingestion_manifest_v1/migration.sql \
  && grep -q 'verificationPersistenceFence' /app/apps/api/src/defense-budget/verification/persistence/prisma-budget-verification.repository.ts \
- && grep -q 'reextract-defense-budget-candidate-v1)' /usr/local/bin/entrypoint.sh
+ && grep -q 'reextract-defense-budget-candidate-v1)' /usr/local/bin/entrypoint.sh \
+ && grep -q 'run-defense-budget-ingestion-manifest-v1)' /usr/local/bin/entrypoint.sh
 
 # Phase 10B-23A: table-target (pdfplumber) PLUS the `ocr` extra (PaddleOCR +
 # PaddlePaddle CPU). Camelot's transitive pdftopng still has no manylinux
