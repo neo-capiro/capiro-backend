@@ -661,14 +661,24 @@ describe('Priority Intelligence requester attribution at the public service boun
           where: expect.objectContaining({
             chamber: 'house',
             requesterDistrict: { in: ['08', '8', 'FL08'], mode: 'insensitive' },
-            OR: expect.arrayContaining([{ requesterDistrict: 'FL08' }]),
+            OR: expect.arrayContaining([
+              { requesterDistrict: { equals: 'FL08', mode: 'insensitive' } },
+            ]),
           }),
         }),
         expect.objectContaining({
           take: 400,
           where: {
             chamber: 'senate',
-            OR: [{ requesterState: 'FL' }, { state: 'FL' }],
+            OR: [
+              { requesterState: { equals: 'FL', mode: 'insensitive' } },
+              {
+                AND: [
+                  { requesterState: null },
+                  { state: { equals: 'FL', mode: 'insensitive' } },
+                ],
+              },
+            ],
           },
         }),
       ]),
