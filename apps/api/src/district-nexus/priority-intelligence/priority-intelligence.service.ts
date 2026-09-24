@@ -408,9 +408,9 @@ export class DistrictNexusPriorityIntelligenceService {
           chamber: 'house',
           requesterDistrict: { in: districtKeys, mode: 'insensitive' },
           OR: [
-            { requesterState: stateCode },
-            { state: stateCode },
-            { requesterDistrict: sourceStdd },
+            { requesterState: { equals: stateCode, mode: 'insensitive' } },
+            { AND: [ { requesterState: null }, { state: { equals: stateCode, mode: 'insensitive' } } ] },
+            { requesterDistrict: { equals: sourceStdd, mode: 'insensitive' } },
           ],
         },
         orderBy,
@@ -420,7 +420,10 @@ export class DistrictNexusPriorityIntelligenceService {
       this.prisma.communityFundingRequest.findMany({
         where: {
           chamber: 'senate',
-          OR: [{ requesterState: stateCode }, { state: stateCode }],
+          OR: [
+            { requesterState: { equals: stateCode, mode: 'insensitive' } },
+            { AND: [ { requesterState: null }, { state: { equals: stateCode, mode: 'insensitive' } } ] },
+          ],
         },
         orderBy,
         take: 400,
@@ -522,7 +525,7 @@ export class DistrictNexusPriorityIntelligenceService {
       );
       this.logEchoFailure('member requester identities', error);
     }
-    if (requestRows.length === 400) {
+    if (houseRows.length === 400 || senateRows.length === 400) {
       warnings.push(
         'This view is limited to the 400 most recent state requests; member totals cover those records only.',
       );
