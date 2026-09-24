@@ -100,6 +100,7 @@ import type {
   VerifierDecision,
 } from './observation-ingestion-bridge.ports.js';
 import type { ParserHandoffInput } from './observation-ingestion-bridge.ports.js';
+import { appropriationAccountMetadataV1 } from './appropriation-account-metadata-v1.js';
 
 export interface ObservationIngestionBridgeExecutionV1 {
   readonly governedExecution: NonNullable<ParserHandoffInput['governedExecution']>;
@@ -187,9 +188,15 @@ export class ObservationIngestionBridgeService {
     const loaded = await this.store.loadForBridge(observationId);
     abortSignal?.throwIfAborted();
     if (!loaded) {
-      return this.result('rejected', observationId, null, `observation ${observationId} not found`, {
-        sourceDocumentBound: false,
-      });
+      return this.result(
+        'rejected',
+        observationId,
+        null,
+        `observation ${observationId} not found`,
+        {
+          sourceDocumentBound: false,
+        },
+      );
     }
     const { observation, expectedSource, cycle } = loaded;
 
@@ -205,9 +212,15 @@ export class ObservationIngestionBridgeService {
     const eligibility = evaluateBridgeEligibility(observation.observationState);
 
     if (eligibility.kind === 'ineligible') {
-      return this.result('rejected', observationId, observation.sourceDocumentId, eligibility.reason, {
-        sourceDocumentBound: observation.sourceDocumentId != null,
-      });
+      return this.result(
+        'rejected',
+        observationId,
+        observation.sourceDocumentId,
+        eligibility.reason,
+        {
+          sourceDocumentBound: observation.sourceDocumentId != null,
+        },
+      );
     }
 
     // Idempotent replay: this observation was already bridged by a prior run
@@ -252,6 +265,7 @@ export class ObservationIngestionBridgeService {
           localPath: materialized.localPath,
           sourceKey,
           component: materialized.component,
+          account: materialized.account,
           governedExecution: execution?.governedExecution,
         });
         return this.result(
@@ -302,7 +316,12 @@ export class ObservationIngestionBridgeService {
     const routing = observation.classifiedSourceFamily
       ? routingForSourceFamily(observation.classifiedSourceFamily)
       : null;
-    if (!routing || !observation.classifiedFiscalYear || !observation.classifiedAuthorityTrack || !observation.classifiedStage) {
+    if (
+      !routing ||
+      !observation.classifiedFiscalYear ||
+      !observation.classifiedAuthorityTrack ||
+      !observation.classifiedStage
+    ) {
       // A 'changed' observation is only ever recorded WITH a resolved
       // classification (the watcher's ambiguous path stops at
       // 'review_required', never 'changed') — this branch defends against a
@@ -332,6 +351,7 @@ export class ObservationIngestionBridgeService {
         fiscalYear: observation.classifiedFiscalYear,
         budgetCycle: routing.budgetCycle,
         component: expectedSource.component,
+        metadata: appropriationAccountMetadataV1(expectedSource.account),
         documentType: routing.documentType,
         title: expectedSource.label,
         sourceUrl: observation.discoveredUrl,
@@ -396,6 +416,7 @@ export class ObservationIngestionBridgeService {
         localPath,
         sourceKey,
         component: (registered.registry.document.component as string | null | undefined) ?? null,
+        account: expectedSource.account ?? null,
         governedExecution: execution?.governedExecution,
       });
 
@@ -428,7 +449,7 @@ export class ObservationIngestionBridgeService {
     expectedSha256: string;
     abortSignal?: AbortSignal;
   }): Promise<
-    | { localPath: string; component: string | null; dispose: () => void }
+    | { localPath: string; component: string | null; account: string | null; dispose: () => void }
     | { error: string }
   > {
     input.abortSignal?.throwIfAborted();
@@ -436,13 +457,15 @@ export class ObservationIngestionBridgeService {
     input.abortSignal?.throwIfAborted();
     if (!record) {
       return {
-        error: `SourceDocument ${input.sourceDocumentId} not found while materializing archived bytes ` +
+        error:
+          `SourceDocument ${input.sourceDocumentId} not found while materializing archived bytes ` +
           '(schema invariant violated: observation.source_document_id names a row that does not exist)',
       };
     }
     if (!record.archiveBucket || !record.archiveS3Key) {
       return {
-        error: `SourceDocument ${input.sourceDocumentId} carries no archive locator; refusing to trust ` +
+        error:
+          `SourceDocument ${input.sourceDocumentId} carries no archive locator; refusing to trust ` +
           'observation.discoveredUrl as a substitute for the immutable archive on a replay',
       };
     }
@@ -455,12 +478,16 @@ export class ObservationIngestionBridgeService {
         versionId: record.archiveVersionId,
       };
       archived = input.abortSignal
-        ? await this.archiveReader.readMaterializedBytes(locator, { abortSignal: input.abortSignal })
+        ? await this.archiveReader.readMaterializedBytes(locator, {
+            abortSignal: input.abortSignal,
+          })
         : await this.archiveReader.readMaterializedBytes(locator);
       input.abortSignal?.throwIfAborted();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      return { error: `failed to read archived bytes for SourceDocument ${input.sourceDocumentId}: ${message}` };
+      return {
+        error: `failed to read archived bytes for SourceDocument ${input.sourceDocumentId}: ${message}`,
+      };
     }
 
     // Keep the existing SHA rule on the replay path too: never hand archived
@@ -488,6 +515,7 @@ export class ObservationIngestionBridgeService {
       // parser the real value that is actually on the row, never a value
       // that could have drifted since first registration.
       component: record.component,
+      account: record.account ?? null,
       dispose: () => rmSync(tempDir, { recursive: true, force: true }),
     };
   }
@@ -524,6 +552,7 @@ export class ObservationIngestionBridgeService {
      * persisted values instead of an absent field or a locally re-derived one. */
     sourceKey: string;
     component: string | null;
+    account: string | null;
     governedExecution?: NonNullable<ParserHandoffInput['governedExecution']>;
   }): Promise<DownstreamOutcome> {
     const { observation } = input;
@@ -565,11 +594,14 @@ export class ObservationIngestionBridgeService {
         // silently default away.
         sourceKey: input.sourceKey,
         component: input.component,
+        account: input.account,
         ...(input.governedExecution ? { governedExecution: input.governedExecution } : {}),
       });
     } catch (error) {
       parserHandoffError = error instanceof Error ? error.message : String(error);
-      this.logger.warn(`parser handoff failed for ${input.sourceDocumentId}: ${parserHandoffError}`);
+      this.logger.warn(
+        `parser handoff failed for ${input.sourceDocumentId}: ${parserHandoffError}`,
+      );
     }
 
     if (!parserHandoffResult) {
@@ -674,7 +706,8 @@ export class ObservationIngestionBridgeService {
       sourceDocumentBound: input.sourceDocumentBound,
       parserVerificationSucceeded,
       durableEvidencePersisted,
-      ingestionSucceeded: input.sourceDocumentBound && parserVerificationSucceeded && durableEvidencePersisted,
+      ingestionSucceeded:
+        input.sourceDocumentBound && parserVerificationSucceeded && durableEvidencePersisted,
       parserHandoffInvoked: downstream?.parserHandoffInvoked ?? false,
       parserHandoffError: downstream?.parserHandoffError ?? null,
       verifierDecision: downstream?.verifierDecision ?? null,

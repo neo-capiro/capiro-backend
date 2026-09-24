@@ -74,7 +74,9 @@ const OFFICIAL_BYTES = Buffer.from('%PDF-1.7 official FY2024 R-2 exhibit bytes')
 const OFFICIAL_SHA256 = createHash('sha256').update(OFFICIAL_BYTES).digest('hex');
 const CHANGED_BYTES = Buffer.from('%PDF-1.7 a DIFFERENT document entirely');
 
-function makeObservation(overrides: Partial<BridgeObservationRecord> = {}): BridgeObservationRecord {
+function makeObservation(
+  overrides: Partial<BridgeObservationRecord> = {},
+): BridgeObservationRecord {
   return {
     id: 'obs-1',
     expectedSourceId: 'exp-1',
@@ -93,7 +95,9 @@ function makeObservation(overrides: Partial<BridgeObservationRecord> = {}): Brid
   };
 }
 
-function makeExpectedSource(overrides: Partial<BridgeExpectedSourceRecord> = {}): BridgeExpectedSourceRecord {
+function makeExpectedSource(
+  overrides: Partial<BridgeExpectedSourceRecord> = {},
+): BridgeExpectedSourceRecord {
   return {
     id: 'exp-1',
     adapterId: 'govinfo',
@@ -129,7 +133,11 @@ function makeStore(initial: LoadedBridgeObservation) {
   } = {
     async loadForBridge(observationId) {
       if (observationId !== current.id) return null;
-      return { observation: { ...current }, expectedSource: initial.expectedSource, cycle: initial.cycle };
+      return {
+        observation: { ...current },
+        expectedSource: initial.expectedSource,
+        cycle: initial.cycle,
+      };
     },
     async loadSourceDocumentArchive(sourceDocumentId) {
       return archives.get(sourceDocumentId) ?? null;
@@ -143,7 +151,10 @@ function makeStore(initial: LoadedBridgeObservation) {
       if (input.sourceDocumentSha256 !== input.expectedContentSha256) {
         throw new Error('refusing to attach: SHA mismatch');
       }
-      if (current.observationState === 'ingested' && current.sourceDocumentId === input.sourceDocumentId) {
+      if (
+        current.observationState === 'ingested' &&
+        current.sourceDocumentId === input.sourceDocumentId
+      ) {
         return { applied: false, alreadyApplied: true };
       }
       if (current.observationState !== 'changed') {
@@ -152,7 +163,11 @@ function makeStore(initial: LoadedBridgeObservation) {
       if (current.contentSha256 !== input.expectedContentSha256) {
         throw new Error('content_sha256 changed since load; refusing to attach');
       }
-      current = { ...current, sourceDocumentId: input.sourceDocumentId, observationState: 'ingested' };
+      current = {
+        ...current,
+        sourceDocumentId: input.sourceDocumentId,
+        observationState: 'ingested',
+      };
       return { applied: true, alreadyApplied: false };
     },
     __registerArchive(record) {
@@ -165,7 +180,10 @@ function makeStore(initial: LoadedBridgeObservation) {
   return { store, attachCalls, getCurrent: () => current };
 }
 
-function makeFetcher(byUrl: Map<string, Buffer | ObservationByteFetchFailure>, calls: { n: number }): ObservationByteFetchPort {
+function makeFetcher(
+  byUrl: Map<string, Buffer | ObservationByteFetchFailure>,
+  calls: { n: number },
+): ObservationByteFetchPort {
   return {
     async fetchFullBytes({ url }) {
       calls.n += 1;
@@ -190,11 +208,17 @@ function makeRealRegistrar() {
     sourceDocument: {
       async findFirst({ where }) {
         return (
-          rows.find((r) => Object.entries(where).every(([k, v]) => (r as Record<string, unknown>)[k] === v)) ?? null
+          rows.find((r) =>
+            Object.entries(where).every(([k, v]) => (r as Record<string, unknown>)[k] === v),
+          ) ?? null
         );
       },
       async create({ data }) {
-        const row = { id: `sd-${rows.length + 1}`, supersededByDocumentId: null, ...data } as SourceDocumentRow;
+        const row = {
+          id: `sd-${rows.length + 1}`,
+          supersededByDocumentId: null,
+          ...data,
+        } as SourceDocumentRow;
         rows.push(row);
         return row;
       },
@@ -224,7 +248,11 @@ function makeRealRegistrar() {
       } satisfies ArchiveResult;
     },
   } as unknown as RawArchiveService;
-  const registrar = new DocumentRegistrar(archiveSvc, client, () => new Date('2026-08-23T00:00:00Z'));
+  const registrar = new DocumentRegistrar(
+    archiveSvc,
+    client,
+    () => new Date('2026-08-23T00:00:00Z'),
+  );
   return { registrar, rows, archiveCalls };
 }
 
@@ -238,7 +266,9 @@ function makeRealRegistrar() {
  * throws. A `decision` entry models a RESOLVED, durably-persisted terminal
  * verifier outcome (PASS / REVIEW / REJECT / the defensive UNKNOWN corner).
  */
-type ScriptedHandoffResult = { readonly kind: 'throw'; readonly message: string } | { readonly kind: 'decision'; readonly decision: VerifierDecision };
+type ScriptedHandoffResult =
+  | { readonly kind: 'throw'; readonly message: string }
+  | { readonly kind: 'decision'; readonly decision: VerifierDecision };
 
 function makeParserHandoff(script: ScriptedHandoffResult[] = []): {
   port: ParserHandoffPort;
@@ -277,22 +307,29 @@ function makeParserHandoff(script: ScriptedHandoffResult[] = []): {
 function makeArchiveReader(): {
   port: SourceDocumentArchiveReadPort;
   calls: SourceDocumentArchiveLocator[];
+  signals: Array<AbortSignal | undefined>;
   put: (locator: SourceDocumentArchiveLocator, bytes: Buffer) => void;
 } {
   const objects = new Map<string, Buffer>();
   const calls: SourceDocumentArchiveLocator[] = [];
+  const signals: Array<AbortSignal | undefined> = [];
   const keyOf = (locator: SourceDocumentArchiveLocator) => `${locator.bucket}/${locator.key}`;
   const port: SourceDocumentArchiveReadPort = {
-    async readMaterializedBytes(locator) {
+    async readMaterializedBytes(locator, options) {
       calls.push(locator);
+      signals.push(options?.abortSignal);
       const bytes = objects.get(keyOf(locator));
       if (!bytes) throw new Error(`no archived object at ${keyOf(locator)}`);
-      return { bytes, contentSha256: createHash('sha256').update(bytes).digest('hex') } satisfies ArchivedSourceBytes;
+      return {
+        bytes,
+        contentSha256: createHash('sha256').update(bytes).digest('hex'),
+      } satisfies ArchivedSourceBytes;
     },
   };
   return {
     port,
     calls,
+    signals,
     put: (locator, bytes) => objects.set(keyOf(locator), bytes),
   };
 }
@@ -312,11 +349,24 @@ function buildBridge(input: {
   const fetchCalls = { n: 0 };
   const fetcher = makeFetcher(input.urlBytes, fetchCalls);
   const { registrar, rows: sourceDocumentRows, archiveCalls } = makeRealRegistrar();
-  const { port: parserHandoff, calls: handoffCalls, enqueue: enqueueHandoffResults } = makeParserHandoff(
-    input.parserHandoffScript,
+  const {
+    port: parserHandoff,
+    calls: handoffCalls,
+    enqueue: enqueueHandoffResults,
+  } = makeParserHandoff(input.parserHandoffScript);
+  const {
+    port: archiveReader,
+    calls: archiveReadCalls,
+    signals: archiveReadSignals,
+    put: putArchivedBytes,
+  } = makeArchiveReader();
+  const bridge = new ObservationIngestionBridgeService(
+    store,
+    fetcher,
+    registrar,
+    parserHandoff,
+    archiveReader,
   );
-  const { port: archiveReader, calls: archiveReadCalls, put: putArchivedBytes } = makeArchiveReader();
-  const bridge = new ObservationIngestionBridgeService(store, fetcher, registrar, parserHandoff, archiveReader);
   return {
     bridge,
     store,
@@ -328,6 +378,7 @@ function buildBridge(input: {
     handoffCalls,
     enqueueHandoffResults,
     archiveReadCalls,
+    archiveReadSignals,
     putArchivedBytes,
   };
 }
@@ -355,6 +406,10 @@ function registerSourceDocumentArchive(
     // already-registered row's actual component -- a replay must see the
     // real persisted value, never an absent/undefined one.
     component: row.component as string | null,
+    account:
+      typeof (row.metadata as Record<string, unknown>).appropriationAccount === 'string'
+        ? ((row.metadata as Record<string, unknown>).appropriationAccount as string)
+        : null,
   });
   ctx.putArchivedBytes(locator, bytes);
 }
@@ -454,7 +509,10 @@ describe('ObservationIngestionBridgeService', () => {
 
   it('review_required observation is rejected, never reaches ingestion', async () => {
     const observation = makeObservation({ observationState: 'review_required' });
-    const ctx = buildBridge({ observation, urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]) });
+    const ctx = buildBridge({
+      observation,
+      urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
+    });
 
     const result = await ctx.bridge.bridge(observation.id);
 
@@ -466,7 +524,10 @@ describe('ObservationIngestionBridgeService', () => {
 
   it('blocked observation is rejected, never reaches ingestion', async () => {
     const observation = makeObservation({ observationState: 'blocked' });
-    const ctx = buildBridge({ observation, urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]) });
+    const ctx = buildBridge({
+      observation,
+      urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
+    });
 
     const result = await ctx.bridge.bridge(observation.id);
 
@@ -477,7 +538,10 @@ describe('ObservationIngestionBridgeService', () => {
 
   it('withdrawn observation is rejected, never reaches ingestion', async () => {
     const observation = makeObservation({ observationState: 'withdrawn' });
-    const ctx = buildBridge({ observation, urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]) });
+    const ctx = buildBridge({
+      observation,
+      urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
+    });
 
     const result = await ctx.bridge.bridge(observation.id);
 
@@ -512,7 +576,11 @@ describe('ObservationIngestionBridgeService', () => {
     async (track) => {
       const observation = makeObservation({ classifiedAuthorityTrack: track });
       const cycle = makeCycle({ authorityTrack: track });
-      const ctx = buildBridge({ observation, cycle, urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]) });
+      const ctx = buildBridge({
+        observation,
+        cycle,
+        urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
+      });
 
       const result = await ctx.bridge.bridge(observation.id);
 
@@ -525,19 +593,27 @@ describe('ObservationIngestionBridgeService', () => {
 
   it('source_document_id is only ever bound when the registered document sha256 matches the observation sha256', async () => {
     const observation = makeObservation();
-    const ctx = buildBridge({ observation, urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]) });
+    const ctx = buildBridge({
+      observation,
+      urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
+    });
 
     const result = await ctx.bridge.bridge(observation.id);
 
     expect(result.sourceDocumentBound).toBe(true);
     expect(ctx.attachCalls).toHaveLength(1);
-    expect(ctx.attachCalls[0]!.sourceDocumentSha256).toBe(ctx.attachCalls[0]!.expectedContentSha256);
+    expect(ctx.attachCalls[0]!.sourceDocumentSha256).toBe(
+      ctx.attachCalls[0]!.expectedContentSha256,
+    );
     expect(ctx.attachCalls[0]!.expectedContentSha256).toBe(OFFICIAL_SHA256);
   });
 
   it('existing parser/verification handoff is invoked with the registered SourceDocument id and matching SHA (Phase 1-7 gates still execute)', async () => {
     const observation = makeObservation();
-    const ctx = buildBridge({ observation, urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]) });
+    const ctx = buildBridge({
+      observation,
+      urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
+    });
 
     const result = await ctx.bridge.bridge(observation.id);
 
@@ -550,6 +626,36 @@ describe('ObservationIngestionBridgeService', () => {
     // the handoff too, not just the lifecycle-classification fields above.
     expect(ctx.handoffCalls[0]!.sourceKey).toBe('defense-budget-observation-dedup-obs-1');
     expect(ctx.handoffCalls[0]!.component).toBe('AF');
+  });
+
+  it('forwards the optional governed execution object to parser handoff unchanged on first ingestion and replay', async () => {
+    const observation = makeObservation();
+    const ctx = buildBridge({
+      observation,
+      urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
+    });
+    const abortController = new AbortController();
+    const governedExecution: NonNullable<ParserHandoffInput['governedExecution']> = {
+      executionId: 'manifest-operation-item',
+      abortSignal: abortController.signal,
+      verificationPersistenceFence: jest.fn(async () => undefined),
+      onTerminal: jest.fn(async () => undefined),
+    };
+
+    const first = await ctx.bridge.bridge(observation.id, { governedExecution });
+    registerSourceDocumentArchive(ctx, first.sourceDocumentId!, OFFICIAL_BYTES);
+    await ctx.bridge.bridge(observation.id, { governedExecution });
+
+    expect(ctx.handoffCalls).toHaveLength(2);
+    for (const handoff of ctx.handoffCalls) {
+      expect(handoff.governedExecution).toBe(governedExecution);
+      expect(handoff.governedExecution!.verificationPersistenceFence).toBe(
+        governedExecution.verificationPersistenceFence,
+      );
+      expect(handoff.governedExecution!.onTerminal).toBe(governedExecution.onTerminal);
+      expect(handoff.governedExecution!.abortSignal).toBe(abortController.signal);
+    }
+    expect(ctx.archiveReadSignals).toEqual([abortController.signal]);
   });
 
   /* ------------------------------------------------------------------ */
@@ -585,6 +691,30 @@ describe('ObservationIngestionBridgeService', () => {
     expect(ctx.handoffCalls[1]!.sourceKey).toBe(ctx.handoffCalls[0]!.sourceKey);
   });
 
+  it('[Package 3] preserves an explicit appropriation account through first ingestion and replay', async () => {
+    const observation = makeObservation();
+    const expectedSource = makeExpectedSource({
+      component: 'ARMY',
+      account: '2031A: Aircraft Procurement, Army',
+    });
+    const ctx = buildBridge({
+      observation,
+      expectedSource,
+      urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
+      parserHandoffScript: [{ kind: 'throw', message: 'simulated parser runtime crash' }],
+    });
+
+    const first = await ctx.bridge.bridge(observation.id);
+    expect(ctx.handoffCalls[0]!.account).toBe('2031A: Aircraft Procurement, Army');
+    expect(
+      (ctx.sourceDocumentRows[0]!.metadata as Record<string, unknown>).appropriationAccount,
+    ).toBe('2031A: Aircraft Procurement, Army');
+
+    registerSourceDocumentArchive(ctx, first.sourceDocumentId!, OFFICIAL_BYTES);
+    await ctx.bridge.bridge(observation.id);
+    expect(ctx.handoffCalls[1]!.account).toBe('2031A: Aircraft Procurement, Army');
+  });
+
   it('[10B-31] a null component (all-component/committee document) is forwarded as an explicit null, never silently substituted', async () => {
     const observation = makeObservation();
     const expectedSource = makeExpectedSource({ component: null });
@@ -603,18 +733,26 @@ describe('ObservationIngestionBridgeService', () => {
 
   it('[10B-31] sourceKey reaching the handoff is always the exact "defense-budget-observation-<dedupKey>" identity, matching what was actually registered', async () => {
     const observation = makeObservation({ dedupKey: 'a-very-specific-dedup-key-123' });
-    const ctx = buildBridge({ observation, urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]) });
+    const ctx = buildBridge({
+      observation,
+      urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
+    });
 
     const result = await ctx.bridge.bridge(observation.id);
 
     expect(result.sourceDocumentBound).toBe(true);
-    expect(ctx.handoffCalls[0]!.sourceKey).toBe('defense-budget-observation-a-very-specific-dedup-key-123');
+    expect(ctx.handoffCalls[0]!.sourceKey).toBe(
+      'defense-budget-observation-a-very-specific-dedup-key-123',
+    );
     expect(ctx.handoffCalls[0]!.sourceKey).toBe(ctx.sourceDocumentRows[0]!.sourceKey);
   });
 
   it('unknown observation id is rejected without any side effects', async () => {
     const observation = makeObservation();
-    const ctx = buildBridge({ observation, urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]) });
+    const ctx = buildBridge({
+      observation,
+      urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
+    });
 
     const result = await ctx.bridge.bridge('does-not-exist');
 
@@ -629,7 +767,10 @@ describe('ObservationIngestionBridgeService', () => {
 
   it('[repair] archive/register succeeds, then observation attach throws (simulated crash): retry converges to the same SourceDocument, no duplicate archive', async () => {
     const observation = makeObservation();
-    const ctx = buildBridge({ observation, urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]) });
+    const ctx = buildBridge({
+      observation,
+      urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
+    });
 
     // Force the FIRST attach call to throw, simulating a crash after
     // DocumentRegistrar succeeded but before the observation row was updated.
@@ -870,7 +1011,9 @@ describe('ObservationIngestionBridgeService', () => {
     const retry = await ctx.bridge.bridge(observation.id);
     expect(retry.status).toBe('downstream_failed');
     expect(retry.sourceDocumentBound).toBe(true); // still bound — the SourceDocument itself is fine
-    expect(retry.reason).toMatch(/does not match the observation's content_sha256|refusing to parse/);
+    expect(retry.reason).toMatch(
+      /does not match the observation's content_sha256|refusing to parse/,
+    );
     // The corrupted bytes were never handed to the parser.
     expect(ctx.handoffCalls).toHaveLength(1); // only the first attempt's (failed) call
   });
@@ -891,9 +1034,7 @@ describe('ObservationIngestionBridgeService', () => {
     ];
     for (const file of sourceFiles) {
       const contents = fs.readFileSync(path.join(__dirname, file), 'utf8');
-      const codeLines = contents
-        .split('\n')
-        .filter((line) => !/^\s*(\/\*|\*|\/\/)/.test(line)); // strip comment-only lines
+      const codeLines = contents.split('\n').filter((line) => !/^\s*(\/\*|\*|\/\/)/.test(line)); // strip comment-only lines
       const code = codeLines.join('\n');
       // No import/require of canonical-promotion machinery.
       expect(code).not.toMatch(/from ['"].*promotion/);
@@ -914,7 +1055,9 @@ describe('ObservationIngestionBridgeService', () => {
     // The old boundary-missing adapter file must not exist in the active
     // ingestion path at all — deleted, not merely unreferenced.
     expect(
-      fs.existsSync(path.join(__dirname, 'phase10b1-canonical-projection-boundary-missing.adapter.ts')),
+      fs.existsSync(
+        path.join(__dirname, 'phase10b1-canonical-projection-boundary-missing.adapter.ts'),
+      ),
     ).toBe(false);
   });
 });

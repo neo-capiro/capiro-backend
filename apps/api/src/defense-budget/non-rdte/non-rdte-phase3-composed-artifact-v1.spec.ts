@@ -1,6 +1,10 @@
 import { describe, expect, it } from '@jest/globals';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { BudgetCycleManifestDocumentV1 } from '../contracts/budget-cycle-manifest-v1.js';
 import type { ExtractionSourceV1 } from '../contracts/extraction-artifact-v1.js';
+import { canonicalJsonStringify, type JsonValue } from '../contracts/canonical-json.js';
 import {
   composePageResults,
   type ParserRunResultEntry,
@@ -12,6 +16,13 @@ import {
   type ParserRuntimeResultV1,
 } from '../parser-router/parser-runtime-contract-v1.js';
 import { buildProofBoundNonRdteArtifactFromComposedOutput } from './non-rdte-phase3-composed-artifact-v1.js';
+import { FilesystemExtractionArtifactStore } from '../parser-router/extraction-artifact-store.js';
+import {
+  createNonRdteDurableSemanticArtifactFactoryV1,
+  persistProofBoundNonRdteArtifactFromComposedOutputV1,
+} from '../parser-router/non-rdte-durable-semantic-artifact-factory-v1.js';
+import { FilesystemParserArtifactStore } from '../parser-router/parser-artifact-store.js';
+import { buildParserRunIdentityV1 } from '../parser-router/parser-run-identity-v1.js';
 
 const SOURCE_SHA = 'a'.repeat(64);
 const CONFIG_SHA_1 = 'b'.repeat(64);
@@ -222,5 +233,139 @@ describe('Phase 3 composed output -> Phase 5 artifact', () => {
         parserResultProofs: fixture.proofs,
       }),
     ).toThrow(/invalid content SHA/);
+  });
+
+  it('persists proof-bound semantic artifact bytes through the durable immutable store', async () => {
+    const fixture = twoRunFixture();
+    const storeRoot = await mkdtemp(join(tmpdir(), 'capiro-test-non-rdte-durable-'));
+    try {
+      const store = new FilesystemExtractionArtifactStore(storeRoot);
+      const output = await persistProofBoundNonRdteArtifactFromComposedOutputV1({
+        document: document(),
+        source: source(),
+        composedOutput: fixture.composedOutput,
+        parserResultProofs: fixture.proofs,
+        store,
+      });
+
+      expect(output.assertionCount).toBeGreaterThan(0);
+      expect(output.artifactLocator.startsWith(storeRoot)).toBe(true);
+      const persisted = await store.readVerified({
+        locator: output.artifactLocator,
+        expectedByteSha256: output.artifactByteSha256,
+      });
+      expect(JSON.parse(persisted.toString('utf8'))).toEqual(output.artifact);
+    } finally {
+      await rm(storeRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('loads exact parser-result byte proofs from the persisted parser artifact store', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'capiro-test-non-rdte-router-factory-'));
+    try {
+      const parserStore = new FilesystemParserArtifactStore(join(root, 'parser'));
+      const extractionStore = new FilesystemExtractionArtifactStore(join(root, 'extraction'));
+      const parsed = result({
+        jobId: 'persisted-p1-page-1',
+        configSha: CONFIG_SHA_1,
+        page: p1Page(1, 'WTCVAA', '1250'),
+      });
+      const identity = buildParserRunIdentityV1({
+        sourceSha256: parsed.inputSourceSha256,
+        method: parsed.engine,
+        parserVersion: parsed.parserVersion,
+        parserConfigSha256: parsed.parserConfigSha256,
+        requestedPages: parsed.requestedPages,
+      });
+      const descriptor = await parserStore.putVerified({
+        identity,
+        result: parsed,
+        resultJson: canonicalJsonStringify(parsed as unknown as JsonValue),
+      });
+      const parserEntry: ParserRunResultEntry = {
+        parserRunId: descriptor.parserRunId,
+        result: parsed,
+        method: parsed.engine,
+        parserVersion: parsed.parserVersion,
+        parserConfigSha256: parsed.parserConfigSha256,
+        sourceSha256: parsed.inputSourceSha256,
+        outputArtifactSha256: parsed.contentSha256,
+      };
+      const composedOutput = composePageResults({
+        executionId: 'production-shaped-non-rdte-factory',
+        sourceSha256: SOURCE_SHA,
+        requestedPages: [1],
+        parserRunEntries: [parserEntry],
+      });
+      const factory = createNonRdteDurableSemanticArtifactFactoryV1({
+        document: document(),
+        source: source(),
+        parserArtifactStore: parserStore,
+      });
+      const output = await factory(
+        {
+          executionId: composedOutput.executionId,
+          cycleId: 'fy2027-test',
+          manifestDocumentKey: document().documentKey,
+          sourceDocumentId: source().sourceDocumentId,
+          sourceSha256: SOURCE_SHA,
+          sourceLocator: source().sourceLocator,
+          composedOutput,
+          exhibitType: 'P-1',
+          budgetFamily: 'procurement',
+          fiscalYear: 2027,
+          authority: 'dod-comptroller',
+          component: 'ARMY',
+        },
+        extractionStore,
+      );
+
+      expect(output.assertionCount).toBeGreaterThan(0);
+      expect(output.parserRuns.map((run) => run.parserRunId)).toEqual([descriptor.parserRunId]);
+      expect(output.artifactLocator).toContain(join(root, 'extraction'));
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('fails closed before persistence when any exact parser-result byte proof is missing', async () => {
+    const fixture = twoRunFixture();
+    const putImmutable = jest.fn(async () => ({
+      locator: 'test://artifact',
+      byteSha256: 'a'.repeat(64),
+    }));
+    const store = {
+      putImmutable,
+      readVerified: jest.fn(),
+      materializeForLocalConsumer: jest.fn(),
+    };
+    await expect(
+      persistProofBoundNonRdteArtifactFromComposedOutputV1({
+        document: document(),
+        source: source(),
+        composedOutput: fixture.composedOutput,
+        parserResultProofs: fixture.proofs.slice(0, 1),
+        store,
+      }),
+    ).rejects.toThrow(/missing persisted parser-result proof/);
+    expect(putImmutable).not.toHaveBeenCalled();
+  });
+
+  it('rejects a durable store response whose byte hash differs from the submitted artifact bytes', async () => {
+    const fixture = twoRunFixture();
+    const store = {
+      putImmutable: async () => ({ locator: 'test://artifact', byteSha256: 'f'.repeat(64) }),
+      readVerified: jest.fn(),
+      materializeForLocalConsumer: jest.fn(),
+    };
+    await expect(
+      persistProofBoundNonRdteArtifactFromComposedOutputV1({
+        document: document(),
+        source: source(),
+        composedOutput: fixture.composedOutput,
+        parserResultProofs: fixture.proofs,
+        store,
+      }),
+    ).rejects.toThrow(/byte SHA changed across durable persistence/);
   });
 });

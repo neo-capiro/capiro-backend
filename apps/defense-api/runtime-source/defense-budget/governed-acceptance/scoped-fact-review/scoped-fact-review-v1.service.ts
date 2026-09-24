@@ -35,9 +35,12 @@ import {
   type ScopedFactReviewEligibilityResultV1,
   type ScopedFactReviewScopeV1,
 } from './scoped-fact-review-policy-v1.js';
-import type {
-  ScopedFactReviewRepositoryV1,
-  ScopedFactReviewRowV1,
+import {
+  computeScopedFactReviewVerificationStateHashV1,
+  SCOPED_FACT_REVIEW_ELIGIBILITY_STATE_VERSION_V1,
+  ScopedFactReviewWriteConflictV1,
+  type ScopedFactReviewRepositoryV1,
+  type ScopedFactReviewRowV1,
 } from './scoped-fact-review-repository-v1.js';
 
 /* ------------------------------------------------------------------ */
@@ -94,13 +97,19 @@ export type ScopedFactReviewErrorCodeV1 =
   | 'candidate_not_found'
   | 'run_not_found'
   | 'run_candidate_mismatch'
+  | 'run_not_current_for_candidate'
   | 'expected_hash_mismatch'
   | 'artifact_locator_missing'
   | 'artifact_locator_unsupported'
   | 'artifact_unreadable'
   | 'artifact_hash_mismatch'
+  | 'reviewed_fact_mismatch'
   | 'blank_rationale'
   | 'scope_already_decided_on_candidate'
+  | 'revocation_state_changed'
+  | 'scope_state_changed'
+  | 'eligibility_state_changed'
+  | 'candidate_corrected_away'
   | 'ineligible'
   | 'not_active';
 
@@ -131,6 +140,29 @@ export interface ScopedFactReviewInputV1 {
   expectedSourceSha256: string;
   expectedExtractionArtifactSha256: string;
   expectedManifestContentSha256: string;
+  /** Exact revoked review deliberately acknowledged by this decision. Omit
+   * (or null) for an initial approval; a stale/scope-only acknowledgement is
+   * refused again inside the repository transaction. */
+  acknowledgedRevokedReviewId?: string | null;
+  /** Optional operator-reviewed fact intent. The service compares this to the
+   * freshly loaded artifact projection before any repository write, so a
+   * preflight-to-commit fact/citation change cannot silently authorize a
+   * different value. */
+  expectedReviewedFact?: ScopedFactReviewExpectedReviewedFactV1;
+}
+
+export interface ScopedFactReviewExpectedReviewedFactV1 {
+  totalMillions: string;
+  physicalPage: number;
+  assertionIds: string[];
+  evidenceIds: string[];
+}
+
+/** Decimal strings are reviewed as numeric values, not formatting tokens. */
+export function scopedFactReviewDecimalValuesEqualV1(left: string, right: string): boolean {
+  const leftNumber = Number(left);
+  const rightNumber = Number(right);
+  return Number.isFinite(leftNumber) && Number.isFinite(rightNumber) && Math.abs(leftNumber - rightNumber) <= 1e-9;
 }
 
 export interface ScopedFactReviewPreviewV1 {
@@ -142,6 +174,8 @@ export interface ScopedFactReviewPreviewV1 {
   scopeKey: string;
   decision: 'approve' | 'reject';
   eligibility: ScopedFactReviewEligibilityResultV1;
+  eligibilityStateVersion: typeof SCOPED_FACT_REVIEW_ELIGIBILITY_STATE_VERSION_V1;
+  eligibilityStateSha256: string;
   existingActiveDecisionsForScope: Array<{ id: string; candidateId: string; decision: string; createdAt: string }>;
   persisted: { id: string; decisionHash: string; supersededIds: string[] } | null;
 }
@@ -162,14 +196,31 @@ export function computeScopedFactReviewDecisionHashV1(input: {
   decision: 'approve' | 'reject';
   reviewerId: string;
   rationale: string;
+  acknowledgedRevokedReviewId: string | null;
+  eligibilityStateVersion?: string | null;
+  eligibilityStateSha256?: string | null;
 }): string {
   // `rationale` itself is deliberately excluded from the hashed payload (free
   // text shouldn't gate the decision's identity hash byte-for-byte) -- but
   // `sha256CanonicalJson` refuses any `undefined` value as not JSON-safe, so
   // the key must be OMITTED, never set to `undefined`.
-  const { rationale, ...rest } = input;
+  const {
+    rationale,
+    acknowledgedRevokedReviewId,
+    eligibilityStateVersion,
+    eligibilityStateSha256,
+    ...rest
+  } = input;
   return sha256CanonicalJson({
     ...rest,
+    // Backward-compatible hash-v1 semantics: every row created before the
+    // exact-revocation-ack column existed omitted this key entirely. NULL
+    // acknowledgements must continue to hash identically; only an intentional
+    // reapproval binds the new key/value into its immutable decision hash.
+    ...(acknowledgedRevokedReviewId == null ? {} : { acknowledgedRevokedReviewId }),
+    ...(eligibilityStateVersion == null || eligibilityStateSha256 == null
+      ? {}
+      : { eligibilityStateVersion, eligibilityStateSha256 }),
     assertionIds: [...input.assertionIds].sort(),
     rationaleSha256: createHash('sha256').update(rationale, 'utf8').digest('hex'),
   } as unknown as JsonValue);
@@ -197,8 +248,14 @@ export class ScopedFactReviewV1Service {
     if (candidate == null) throw new ScopedFactReviewError('candidate_not_found', `candidate ${input.candidateId} not found`);
     const run = await this.verification.readRun(input.runId);
     if (run == null) throw new ScopedFactReviewError('run_not_found', `run ${input.runId} not found`);
-    if (run.candidateId !== candidate.id) {
-      throw new ScopedFactReviewError('run_candidate_mismatch', `run ${run.id} belongs to candidate ${run.candidateId}`);
+  if (run.candidateId !== candidate.id) {
+    throw new ScopedFactReviewError('run_candidate_mismatch', `run ${run.id} belongs to candidate ${run.candidateId}`);
+  }
+    if (candidate.currentRunId == null || candidate.currentRunId !== run.id) {
+      throw new ScopedFactReviewError(
+        'run_not_current_for_candidate',
+        `run ${run.id} is not candidate ${candidate.id}'s exact current run (${candidate.currentRunId ?? 'none'})`,
+      );
     }
     if (
       input.expectedSourceSha256 !== candidate.sourceSha256 ||
@@ -233,6 +290,12 @@ export class ScopedFactReviewV1Service {
       this.verification.readDiscrepancies(run.id),
       this.verification.readProofSnapshots(run.id),
     ]);
+    const eligibilityStateSha256 = computeScopedFactReviewVerificationStateHashV1({
+      run,
+      checks,
+      discrepancies,
+      proofSnapshots,
+    });
 
     const eligibility = evaluateScopedFactReviewEligibilityV1({
       candidate,
@@ -243,6 +306,45 @@ export class ScopedFactReviewV1Service {
       artifact,
       scope: input.scope,
     });
+    if (input.expectedReviewedFact != null) {
+      const expected = input.expectedReviewedFact;
+      const differences: string[] = [];
+      if (eligibility.projection == null) {
+        differences.push('projection is unavailable');
+      } else {
+        if (!scopedFactReviewDecimalValuesEqualV1(eligibility.projection.totalMillions, expected.totalMillions)) {
+          differences.push(
+            `totalMillions=${eligibility.projection.totalMillions} expected ${expected.totalMillions}`,
+          );
+        }
+        if (eligibility.projection.source.physicalPage !== expected.physicalPage) {
+          differences.push(
+            `physicalPage=${eligibility.projection.source.physicalPage} expected ${expected.physicalPage}`,
+          );
+        }
+      }
+      const observedAssertionIds = [...eligibility.assertionIds].sort();
+      const expectedAssertionIds = [...expected.assertionIds].sort();
+      if (JSON.stringify(observedAssertionIds) !== JSON.stringify(expectedAssertionIds)) {
+        differences.push(
+          `assertionIds=${JSON.stringify(observedAssertionIds)} expected ${JSON.stringify(expectedAssertionIds)}`,
+        );
+      }
+      const observedEvidenceIds = [...eligibility.evidenceIds].sort();
+      const expectedEvidenceIds = [...expected.evidenceIds].sort();
+      if (JSON.stringify(observedEvidenceIds) !== JSON.stringify(expectedEvidenceIds)) {
+        differences.push(
+          `evidenceIds=${JSON.stringify(observedEvidenceIds)} expected ${JSON.stringify(expectedEvidenceIds)}`,
+        );
+      }
+      if (differences.length > 0) {
+        throw new ScopedFactReviewError(
+          'reviewed_fact_mismatch',
+          `reviewed fact intent no longer matches ${scopedFactReviewScopeKeyV1(input.scope)}: ${differences.join(', ')}`,
+          eligibility,
+        );
+      }
+    }
     const scopeKey = scopedFactReviewScopeKeyV1(input.scope);
     const existing = await this.reviews.listActiveByScopeKey(input.scope.scopeKind, scopeKey);
     const existingForCandidate = existing.filter((r) => r.candidateId === candidate.id);
@@ -256,6 +358,8 @@ export class ScopedFactReviewV1Service {
       scopeKey,
       decision: input.decision,
       eligibility,
+      eligibilityStateVersion: SCOPED_FACT_REVIEW_ELIGIBILITY_STATE_VERSION_V1,
+      eligibilityStateSha256,
       existingActiveDecisionsForScope: existing.map((r) => ({ id: r.id, candidateId: r.candidateId, decision: r.decision, createdAt: r.createdAt })),
       persisted: null,
     };
@@ -292,32 +396,56 @@ export class ScopedFactReviewV1Service {
       decision: input.decision,
       reviewerId: input.reviewerId,
       rationale: input.rationale,
+      acknowledgedRevokedReviewId: input.acknowledgedRevokedReviewId ?? null,
+      eligibilityStateVersion: SCOPED_FACT_REVIEW_ELIGIBILITY_STATE_VERSION_V1,
+      eligibilityStateSha256,
     });
-    const persisted = await this.reviews.insertDecision({
-      candidateId: candidate.id,
-      runId: run.id,
-      sourceDocumentId: candidate.sourceDocumentId,
-      sourceSha256: candidate.sourceSha256,
-      extractionArtifactId: candidate.extractionArtifactId,
-      extractionArtifactSha256: candidate.extractionArtifactSha256,
-      manifestContentSha256: candidate.manifestContentSha256,
-      policyId: eligibility.policy.id,
-      policyVersion: eligibility.policy.version,
-      policySha256: eligibility.policy.sha256,
-      scopeKind: input.scope.scopeKind,
-      scopeKey,
-      scope: input.scope,
-      assertionIds: eligibility.assertionIds,
-      evidenceIds: eligibility.evidenceIds,
-      projection: eligibility.projection,
-      independence: eligibility.independence,
-      limitations,
-      decision: input.decision,
-      reviewerId: input.reviewerId,
-      rationale: input.rationale,
-      decisionHash,
-      now: this.clock(),
-    });
+    let persisted;
+    try {
+      persisted = await this.reviews.insertDecision({
+        candidateId: candidate.id,
+        runId: run.id,
+        sourceDocumentId: candidate.sourceDocumentId,
+        sourceSha256: candidate.sourceSha256,
+        extractionArtifactId: candidate.extractionArtifactId,
+        extractionArtifactSha256: candidate.extractionArtifactSha256,
+        manifestContentSha256: candidate.manifestContentSha256,
+        policyId: eligibility.policy.id,
+        policyVersion: eligibility.policy.version,
+        policySha256: eligibility.policy.sha256,
+        scopeKind: input.scope.scopeKind,
+        scopeKey,
+        scope: input.scope,
+        assertionIds: eligibility.assertionIds,
+        evidenceIds: eligibility.evidenceIds,
+        projection: eligibility.projection,
+        independence: eligibility.independence,
+        limitations,
+        decision: input.decision,
+        reviewerId: input.reviewerId,
+        rationale: input.rationale,
+        decisionHash,
+        eligibilityStateVersion: SCOPED_FACT_REVIEW_ELIGIBILITY_STATE_VERSION_V1,
+        eligibilityStateSha256,
+        acknowledgedRevokedReviewId: input.acknowledgedRevokedReviewId ?? null,
+        now: this.clock(),
+      });
+    } catch (error) {
+      if (error instanceof ScopedFactReviewWriteConflictV1) {
+        const code =
+          error.code === 'revocation_precondition_changed'
+            ? 'revocation_state_changed'
+            : error.code === 'active_decision_changed'
+              ? 'scope_state_changed'
+              : error.code === 'eligibility_state_changed'
+                ? 'eligibility_state_changed'
+              : error.code === 'candidate_corrected_away'
+                ? 'candidate_corrected_away'
+                : 'expected_hash_mismatch';
+        throw new ScopedFactReviewError(code, error.message, eligibility);
+      }
+      throw error;
+    }
     return {
       ...preview,
       mode: 'committed',

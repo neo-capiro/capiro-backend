@@ -23,7 +23,12 @@
 import { describe, expect, it } from '@jest/globals';
 import { PrismaReviewedPartialPeTotalsRepositoryV1 } from './reviewed-partial-pe-totals-prisma-repository-v1.js';
 
-function baseRow(overrides: { id: string; candidateStatus: string; component?: string; fiscalYear?: number }) {
+function baseRow(overrides: {
+  id: string;
+  candidateStatus: string;
+  component?: string;
+  fiscalYear?: number;
+}) {
   return {
     id: overrides.id,
     candidateId: `candidate-${overrides.id}`,
@@ -38,7 +43,12 @@ function baseRow(overrides: { id: string; candidateStatus: string; component?: s
     policySha256: 'd'.repeat(64),
     scopeKind: 'rdte_r2_pe_total_request_fy',
     scopeKey: `0601102A:${overrides.fiscalYear ?? 2024}:request`,
-    scope: { peCode: '0601102A', fiscalYear: overrides.fiscalYear ?? 2024, fundingField: 'request', component: overrides.component ?? 'ARMY' },
+    scope: {
+      peCode: '0601102A',
+      fiscalYear: overrides.fiscalYear ?? 2024,
+      fundingField: 'request',
+      component: overrides.component ?? 'ARMY',
+    },
     assertionIds: ['assertion-1'],
     evidenceIds: ['evidence-1'],
     projection: {},
@@ -48,16 +58,24 @@ function baseRow(overrides: { id: string; candidateStatus: string; component?: s
     reviewerId: 'neo@capiro.ai',
     rationale: 'test row',
     decisionHash: 'e'.repeat(64),
+    reviewGeneration: 1n,
+    eligibilityStateVersion: null,
+    eligibilityStateSha256: null,
     status: 'active',
     revokedAt: null,
     revokedBy: null,
     revocationReason: null,
     supersededById: null,
+    acknowledgedRevokedReviewId: null,
     createdAt: new Date('2026-09-01T00:00:00.000Z'),
     updatedAt: new Date('2026-09-01T00:00:00.000Z'),
     // Present only because `include: { candidate: { select: { status } } }`
     // asks Prisma to nest it -- exactly what the real query returns.
-    candidate: { status: overrides.candidateStatus, correctedBy: null as { id: string } | null },
+    candidate: {
+      status: overrides.candidateStatus,
+      currentRunId: `run-${overrides.id}`,
+      correctedBy: null as { id: string } | null,
+    },
   };
 }
 
@@ -97,7 +115,9 @@ describe('PrismaReviewedPartialPeTotalsRepositoryV1 -- read-time candidate eligi
     const prisma = new FakeCapturingPrisma(rows);
     const repo = new PrismaReviewedPartialPeTotalsRepositoryV1(prisma as never);
 
-    const result = await repo.listActiveApprovedByScopeKind('rdte_r2_pe_total_request_fy', { fiscalYear: 2024 });
+    const result = await repo.listActiveApprovedByScopeKind('rdte_r2_pe_total_request_fy', {
+      fiscalYear: 2024,
+    });
 
     expect(result.map((r) => r.id)).toEqual(['still-eligible']);
   });
@@ -107,9 +127,25 @@ describe('PrismaReviewedPartialPeTotalsRepositoryV1 -- read-time candidate eligi
     const prisma = new FakeCapturingPrisma(rows);
     const repo = new PrismaReviewedPartialPeTotalsRepositoryV1(prisma as never);
 
-    const result = await repo.listActiveApprovedByScopeKind('rdte_r2_pe_total_request_fy', { fiscalYear: 2024 });
+    const result = await repo.listActiveApprovedByScopeKind('rdte_r2_pe_total_request_fy', {
+      fiscalYear: 2024,
+    });
 
     expect(result.map((r) => r.id)).toEqual(['accepted']);
+  });
+
+  it('does not serve an active review after the candidate switches to a different current verification run', async () => {
+    const stale = baseRow({ id: 'stale-run', candidateStatus: 'NEEDS_REVIEW' });
+    stale.candidate.currentRunId = 'run-newer';
+    const current = baseRow({ id: 'current-run', candidateStatus: 'NEEDS_REVIEW' });
+    const prisma = new FakeCapturingPrisma([stale, current]);
+    const repo = new PrismaReviewedPartialPeTotalsRepositoryV1(prisma as never);
+
+    const result = await repo.listActiveApprovedByScopeKind('rdte_r2_pe_total_request_fy', {
+      fiscalYear: 2024,
+    });
+
+    expect(result.map((row) => row.id)).toEqual(['current-run']);
   });
 
   it('asks the DB layer itself to filter by candidate status (NEEDS_REVIEW/REVIEW_ACCEPTED only) -- not merely an in-process filter', async () => {
@@ -125,7 +161,9 @@ describe('PrismaReviewedPartialPeTotalsRepositoryV1 -- read-time candidate eligi
         typeof c === 'object' && c !== null && 'candidate' in (c as Record<string, unknown>),
     );
     expect(candidateClause).toBeDefined();
-    expect(new Set(candidateClause!.candidate.status.in)).toEqual(new Set(['NEEDS_REVIEW', 'REVIEW_ACCEPTED']));
+    expect(new Set(candidateClause!.candidate.status.in)).toEqual(
+      new Set(['NEEDS_REVIEW', 'REVIEW_ACCEPTED']),
+    );
   });
 
   it('Phase 10B-35c: excludes a row whose candidate has since been formally corrected, even though the candidate status column itself is still reviewable', async () => {
@@ -135,7 +173,9 @@ describe('PrismaReviewedPartialPeTotalsRepositoryV1 -- read-time candidate eligi
     const prisma = new FakeCapturingPrisma([stillEligible, correctedAway]);
     const repo = new PrismaReviewedPartialPeTotalsRepositoryV1(prisma as never);
 
-    const result = await repo.listActiveApprovedByScopeKind('rdte_r2_pe_total_request_fy', { fiscalYear: 2024 });
+    const result = await repo.listActiveApprovedByScopeKind('rdte_r2_pe_total_request_fy', {
+      fiscalYear: 2024,
+    });
 
     expect(result.map((r) => r.id)).toEqual(['still-eligible']);
   });
@@ -148,7 +188,9 @@ describe('PrismaReviewedPartialPeTotalsRepositoryV1 -- read-time candidate eligi
     };
     const repo = new PrismaReviewedPartialPeTotalsRepositoryV1(leakyPrisma as never);
 
-    const result = await repo.listActiveApprovedByScopeKind('rdte_r2_pe_total_request_fy', { fiscalYear: 2024 });
+    const result = await repo.listActiveApprovedByScopeKind('rdte_r2_pe_total_request_fy', {
+      fiscalYear: 2024,
+    });
 
     expect(result).toEqual([]);
   });
@@ -163,7 +205,9 @@ describe('PrismaReviewedPartialPeTotalsRepositoryV1 -- read-time candidate eligi
     };
     const repo = new PrismaReviewedPartialPeTotalsRepositoryV1(leakyPrisma as never);
 
-    const result = await repo.listActiveApprovedByScopeKind('rdte_r2_pe_total_request_fy', { fiscalYear: 2024 });
+    const result = await repo.listActiveApprovedByScopeKind('rdte_r2_pe_total_request_fy', {
+      fiscalYear: 2024,
+    });
 
     expect(result).toEqual([]);
   });

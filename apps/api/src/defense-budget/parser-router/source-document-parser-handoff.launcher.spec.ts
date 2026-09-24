@@ -50,8 +50,12 @@ describe('Phase 10B-28R -- lifecycle-bridge parser runtime launcher never syncs 
     // shared launcher constant rather than an inline argv.
     expect(stripped.match(/new LocalParserRuntimeClient\(/g)).toHaveLength(1);
     expect(stripped).toContain('command: LIFECYCLE_BRIDGE_PARSER_RUNTIME_COMMAND_V1.command');
-    expect(stripped).toContain('commandArgs: [...LIFECYCLE_BRIDGE_PARSER_RUNTIME_COMMAND_V1.commandArgs]');
-    expect(stripped).not.toMatch(/commandArgs:\s*\[\s*'run'\s*,\s*'capiro-defense-budget-parser'\s*\]/);
+    expect(stripped).toContain(
+      'commandArgs: [...LIFECYCLE_BRIDGE_PARSER_RUNTIME_COMMAND_V1.commandArgs]',
+    );
+    expect(stripped).not.toMatch(
+      /commandArgs:\s*\[\s*'run'\s*,\s*'capiro-defense-budget-parser'\s*\]/,
+    );
   });
 
   it('drain image declares UV_NO_SYNC=1 and UV_OFFLINE=1 after the build-time uv sync', () => {
@@ -64,7 +68,9 @@ describe('Phase 10B-28R -- lifecycle-bridge parser runtime launcher never syncs 
     expect(offlineIndex).toBeGreaterThan(syncIndex);
     // Both live in the same ENV instruction as the existing uv settings so a
     // task definition inherits them without restating them.
-    const envBlock = dockerfile.slice(dockerfile.lastIndexOf('ENV DEFENSE_BUDGET_PARSER_PROJECT_DIR'));
+    const envBlock = dockerfile.slice(
+      dockerfile.lastIndexOf('ENV DEFENSE_BUDGET_PARSER_PROJECT_DIR'),
+    );
     expect(envBlock).toMatch(/UV_CACHE_DIR=\/tmp\/uv-cache/);
     expect(envBlock).toMatch(/UV_NO_SYNC=1/);
     expect(envBlock).toMatch(/UV_OFFLINE=1/);
@@ -83,9 +89,11 @@ describe('Phase 10B-28R -- buildLifecycleBridgeSyntheticManifestV1 (extracted pr
     sourceDocumentId: 'a99fbf5b-5eb4-45f3-87e4-96c40c2c0bb0',
     title: 'FY2024 ARMY RDT&E R-2 exhibits',
     sourcePath: '/tmp/defense-budget-parser-scratch/a99fbf5b/source.pdf',
-    sourceUrl: 'https://www.asafm.army.mil/Portals/72/Documents/BudgetMaterial/2024/Base%20Budget/rdte/RDTE-Vol%201-Budget%20Activity%201.pdf',
+    sourceUrl:
+      'https://www.asafm.army.mil/Portals/72/Documents/BudgetMaterial/2024/Base%20Budget/rdte/RDTE-Vol%201-Budget%20Activity%201.pdf',
     sourceSha256: '1fb7402152d0ec6ca536e20ac8d3ed8e7da61951ee691d1d05388abb4c462ab6',
-    sourceKey: 'defense-budget-observation-cf5b34c86b34b7e75d9c5be7d18f4dc5a8bbea08aec23611bc2020efce6f74c4',
+    sourceKey:
+      'defense-budget-observation-cf5b34c86b34b7e75d9c5be7d18f4dc5a8bbea08aec23611bc2020efce6f74c4',
     budgetFamily: 'rdte' as const,
     exhibitType: 'R-2' as const,
     authority: 'dod-comptroller' as const,
@@ -116,13 +124,40 @@ describe('Phase 10B-28R -- buildLifecycleBridgeSyntheticManifestV1 (extracted pr
 
   it('validates under the unchanged manifest validator with zero error findings', () => {
     const parsed = parseBudgetCycleManifestV1(buildLifecycleBridgeSyntheticManifestV1(input));
-    const errors = validateBudgetCycleManifestV1(parsed).filter((finding) => finding.severity === 'error');
+    const errors = validateBudgetCycleManifestV1(parsed).filter(
+      (finding) => finding.severity === 'error',
+    );
     expect(errors).toEqual([]);
+  });
+
+  it('preserves explicit non-RDT&E account context and never invents one', () => {
+    const withAccount = buildLifecycleBridgeSyntheticManifestV1({
+      ...input,
+      budgetFamily: 'procurement',
+      exhibitType: 'P-1',
+      documentType: 'p1',
+      account: '2031A: Aircraft Procurement, Army',
+    });
+    expect(withAccount.documents[0]!.account).toBe('2031A: Aircraft Procurement, Army');
+
+    const withoutAccount = buildLifecycleBridgeSyntheticManifestV1({
+      ...input,
+      budgetFamily: 'procurement',
+      exhibitType: 'P-1',
+      documentType: 'p1',
+    });
+    expect(withoutAccount.documents[0]!.account).toBeUndefined();
   });
 
   it('preserves the exact serialized key order the handoff has always written (manifest hash stability)', () => {
     const manifest = buildLifecycleBridgeSyntheticManifestV1(input);
-    expect(Object.keys(manifest)).toEqual(['schemaVersion', 'cycleId', 'fiscalYear', 'domain', 'documents']);
+    expect(Object.keys(manifest)).toEqual([
+      'schemaVersion',
+      'cycleId',
+      'fiscalYear',
+      'domain',
+      'documents',
+    ]);
     expect(Object.keys(manifest.documents[0]!)).toEqual([
       'documentKey',
       'required',

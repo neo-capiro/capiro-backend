@@ -17,17 +17,33 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { ParserPolicyV1 } from '../contracts/budget-cycle-manifest-v1.js';
-import type { BudgetAuthorityV1, BudgetComponentV1, BudgetFamilyV1, ExhibitV1 } from '../contracts/extraction-artifact-v1.js';
-import { DEFAULT_PROFILING_THRESHOLDS, computeProfilingConfigSha256, parseDocumentProfileResultV1 } from './page-profiler.js';
+import type {
+  BudgetAuthorityV1,
+  BudgetComponentV1,
+  BudgetFamilyV1,
+  ExhibitV1,
+} from '../contracts/extraction-artifact-v1.js';
+import {
+  DEFAULT_PROFILING_THRESHOLDS,
+  computeProfilingConfigSha256,
+  parseDocumentProfileResultV1,
+} from './page-profiler.js';
 import { LocalParserRuntimeClient } from './local-parser-runtime-client.js';
-import { ParserRouterV1Service, type ParserRouterDependencies, type ParserRouterTerminalOutputV1 } from './parser-router-v1.service.js';
+import {
+  ParserRouterV1Service,
+  type ParserRouterDependencies,
+  type ParserRouterTerminalOutputV1,
+} from './parser-router-v1.service.js';
 import type { ParserArtifactStoreV1, ParserRunRecorderV1 } from './parser-artifact-store.js';
 import { FilesystemParserArtifactStore } from './filesystem-parser-artifact-store.js';
 import { FilesystemProofResolver } from '../verification/trusted-proof/filesystem-proof-resolver.js';
 import { FilesystemParserArtifactProofResolver } from '../verification/trusted-proof/filesystem-parser-artifact-proof-resolver.js';
 import { BudgetVerificationV1Service } from '../verification/services/budget-verification-v1.service.js';
 import { createProductionParserVerificationContext } from './production-parser-verification-context.js';
-import { FilesystemExtractionArtifactStore, type ExtractionArtifactStoreV1 } from './extraction-artifact-store.js';
+import {
+  FilesystemExtractionArtifactStore,
+  type ExtractionArtifactStoreV1,
+} from './extraction-artifact-store.js';
 import { resolveArtifactFactoryForFamilyV1 } from './rdte-durable-semantic-artifact-factory-v1.js';
 import { lifecycleBridgeManifestCycleIdV1 } from './lifecycle-bridge-manifest-cycle-id-v1.js';
 import type { VerificationPersistenceFenceV1 } from '../verification/persistence/verification-persistence-fence-v1.js';
@@ -47,6 +63,8 @@ export interface SourceDocumentParserHandoffInput {
   readonly authority: BudgetAuthorityV1;
   /** Defaults to 'UNKNOWN' when omitted — the bridge doesn't always know a service component. */
   readonly component?: BudgetComponentV1;
+  /** Account identity for account-scoped procurement, O&M, and MILCON documents. */
+  readonly account?: string;
   /**
    * Phase 10B-31: the SourceDocument.sourceKey this document is registered
    * under. Required (not defaulted) -- every caller of this function already
@@ -126,6 +144,7 @@ export type LifecycleBridgeSyntheticManifestInputV1 = Pick<
   | 'exhibitType'
   | 'authority'
   | 'component'
+  | 'account'
   | 'budgetCycle'
   | 'documentType'
   | 'parserPolicy'
@@ -143,7 +162,9 @@ export type LifecycleBridgeSyntheticManifestInputV1 = Pick<
  * `runParserHandoffForSourceDocument` so persistence/readiness tests can
  * exercise the exact production manifest shape without running the parser.
  */
-export function buildLifecycleBridgeSyntheticManifestV1(input: LifecycleBridgeSyntheticManifestInputV1) {
+export function buildLifecycleBridgeSyntheticManifestV1(
+  input: LifecycleBridgeSyntheticManifestInputV1,
+) {
   const component = (input.component ?? 'UNKNOWN') as
     | 'ARMY'
     | 'NAVY'
@@ -194,6 +215,7 @@ export function buildLifecycleBridgeSyntheticManifestV1(input: LifecycleBridgeSy
         exhibit: input.exhibitType,
         authority: input.authority,
         component,
+        ...(input.account?.trim() ? { account: input.account.trim() } : {}),
         budgetCycle: input.budgetCycle,
         documentType: input.documentType,
         parserPolicy: input.parserPolicy,
@@ -252,7 +274,9 @@ async function createVerificationContext(input: {
         null,
       ),
       artifactStore,
-      extractionArtifactStore: new FilesystemExtractionArtifactStore(path.join(input.parserArtifactRoot, 'extraction-artifacts')),
+      extractionArtifactStore: new FilesystemExtractionArtifactStore(
+        path.join(input.parserArtifactRoot, 'extraction-artifacts'),
+      ),
       dispose: async () => undefined,
     };
   }
@@ -270,10 +294,7 @@ async function createVerificationContext(input: {
   };
 }
 
-function parserArtifactRoot(input: {
-  persistVerificationAudit: boolean;
-  workDir: string;
-}): string {
+function parserArtifactRoot(input: { persistVerificationAudit: boolean; workDir: string }): string {
   if (!input.persistVerificationAudit) {
     return path.join(input.workDir, 'parser-artifacts');
   }
@@ -354,7 +375,9 @@ export async function runParserHandoffForSourceDocument(
   if (profileRun.exitCode !== 0) {
     throw new Error(`profile failed: ${profileRun.stderr || `exit ${profileRun.exitCode}`}`);
   }
-  const profile = parseDocumentProfileResultV1(JSON.parse(fs.readFileSync(profileResultPath, 'utf8')));
+  const profile = parseDocumentProfileResultV1(
+    JSON.parse(fs.readFileSync(profileResultPath, 'utf8')),
+  );
   if (profile.sourceSha256 !== input.sourceSha256) {
     throw new Error('profile source SHA does not match supplied source bytes');
   }
@@ -384,9 +407,9 @@ export async function runParserHandoffForSourceDocument(
     // is always the caller-supplied `ExtractionArtifactStoreV1`'s (S3-backed
     // in production), never the underlying factory's local scratch path. See
     // `rdte-durable-semantic-artifact-factory-v1.ts` for why the raw factory
-    // cannot be assigned here directly. Unrelated (non-RDT&E) families are
-    // untouched -- they keep falling back to the generic builder exactly as
-    // before this change.
+    // cannot be assigned here directly. Procurement, O&M and MILCON resolve
+    // to their proof-bound durable factory below; unsupported families still
+    // fall back to the generic lineage builder.
     const artifactFactory = resolveArtifactFactoryForFamilyV1(input.budgetFamily, {
       document: syntheticManifest.documents[0]!,
       source: {
@@ -405,6 +428,7 @@ export async function runParserHandoffForSourceDocument(
         ...(input.title ? { title: input.title } : {}),
       },
       fiscalYear: Number(input.fiscalYear),
+      parserArtifactStore: verification.artifactStore,
     });
 
     const dependencies: ParserRouterDependencies = {
@@ -412,7 +436,9 @@ export async function runParserHandoffForSourceDocument(
       runtimeClient,
       verificationService: verification.service,
       extractionArtifactStore: verification.extractionArtifactStore,
-      ...(verification.parserRunRecorder ? { parserRunRecorder: verification.parserRunRecorder } : {}),
+      ...(verification.parserRunRecorder
+        ? { parserRunRecorder: verification.parserRunRecorder }
+        : {}),
       ...(artifactFactory ? { artifactFactory } : {}),
     };
     const router = new ParserRouterV1Service(
@@ -452,7 +478,11 @@ export async function runParserHandoffForSourceDocument(
       locator: terminal.artifactLocator,
       expectedByteSha256: terminal.artifactByteSha256,
     });
-    try { fs.copyFileSync(scratch.localPath, outputPath); } finally { await scratch.cleanup(); }
+    try {
+      fs.copyFileSync(scratch.localPath, outputPath);
+    } finally {
+      await scratch.cleanup();
+    }
     fs.writeFileSync(
       path.join(documentWorkDir, 'execution-report.json'),
       `${JSON.stringify(terminal, null, 2)}\n`,

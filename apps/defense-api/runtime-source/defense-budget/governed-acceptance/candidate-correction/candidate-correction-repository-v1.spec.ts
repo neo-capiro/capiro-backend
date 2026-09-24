@@ -25,6 +25,9 @@ interface FakeRow {
   oldCandidateSourceSha256: string;
   newCandidateSourceDocumentId: string;
   newCandidateSourceSha256: string;
+  reviewedIntentVersion: number | null;
+  reviewedIntent: unknown;
+  reviewedIntentSha256: string | null;
   supersededScopedFactReviewIds: string[];
   actor: string;
   reason: string;
@@ -42,17 +45,24 @@ interface FakeScopedReviewRow {
 
 class PrismaLikeUniqueViolation extends Error {
   code = PRISMA_UNIQUE_VIOLATION_CODE;
+  meta: { target: string[] };
   constructor(field: string) {
     super(`Unique constraint failed on the fields: (${field})`);
+    this.meta = { target: [field] };
   }
 }
 
 /** A model-delegate pair bound to a specific backing store -- either the
  * fake's real, committed state, or a transaction's private working copy. */
 function buildDelegates(rows: FakeRow[], scopedReviews: FakeScopedReviewRow[], seqRef: { n: number }) {
-  return {
+  const delegates = {
     budgetCandidateCorrectionV1: {
-      create: async (args: { data: Omit<FakeRow, 'id' | 'createdAt' | 'supersededScopedFactReviewIds'> & { supersededScopedFactReviewIds: unknown } }) => {
+      create: async (args: {
+        data: Omit<FakeRow, 'id' | 'createdAt' | 'supersededScopedFactReviewIds' | 'reviewedIntentSha256'> & {
+          supersededScopedFactReviewIds: unknown;
+          reviewedIntentSha256?: string | null;
+        };
+      }) => {
         if (rows.some((r) => r.oldCandidateId === args.data.oldCandidateId)) {
           throw new PrismaLikeUniqueViolation('old_candidate_id');
         }
@@ -63,6 +73,8 @@ function buildDelegates(rows: FakeRow[], scopedReviews: FakeScopedReviewRow[], s
           id: `link-${++seqRef.n}`,
           createdAt: new Date('2026-09-09T00:00:00.000Z'),
           ...args.data,
+          // Real Postgres owns this value in its BEFORE INSERT trigger.
+          reviewedIntentSha256: args.data.reviewedIntentSha256 ?? 'f'.repeat(64),
           supersededScopedFactReviewIds: args.data.supersededScopedFactReviewIds as string[],
         };
         rows.push(row);
@@ -87,6 +99,37 @@ function buildDelegates(rows: FakeRow[], scopedReviews: FakeScopedReviewRow[], s
       },
     },
   };
+  return {
+    ...delegates,
+    $queryRaw: async (query: { strings?: string[]; sql?: string; values?: unknown[] }) => {
+      const sql = query.sql ?? query.strings?.join('?') ?? '';
+      const values = query.values ?? [];
+      if (sql.includes('pg_advisory_xact_lock')) return [{ pg_advisory_xact_lock: null }];
+      if (sql.includes('budget_extraction_candidate_v1')) {
+        return values
+          .filter((value): value is string => typeof value === 'string')
+          .slice(0, 2)
+          .map((id) => ({
+            id,
+            status: id.startsWith('old-') ? 'NEEDS_REVIEW' : 'VERIFIED',
+            currentRunId: id.startsWith('old-') ? 'run-old-1' : 'run-new-1',
+            sourceDocumentId: 'doc-1',
+            sourceSha256: 'a'.repeat(64),
+            extractionArtifactId: id.startsWith('old-') ? 'artifact-old-1' : 'artifact-new-1',
+            extractionArtifactSha256: id.startsWith('old-') ? 'b'.repeat(64) : 'c'.repeat(64),
+            manifestContentSha256: id.startsWith('old-') ? 'd'.repeat(64) : 'e'.repeat(64),
+          }));
+      }
+      if (sql.includes('budget_scoped_fact_review_v1')) {
+        const candidateId = values.find((value): value is string => typeof value === 'string');
+        return scopedReviews
+          .filter((row) => row.candidateId === candidateId && row.status === 'active')
+          .sort((a, b) => a.id.localeCompare(b.id))
+          .map((row) => ({ id: row.id }));
+      }
+      throw new Error(`unexpected fake raw query: ${sql}`);
+    },
+  };
 }
 
 /** Minimal fake satisfying only the Prisma surface this repository touches,
@@ -97,6 +140,7 @@ class FakeCandidateCorrectionPrisma {
   private rows: FakeRow[] = [];
   private scopedReviews: FakeScopedReviewRow[] = [];
   private seqRef = { n: 0 };
+  private transactionalCreateConflict: { field: string; winner: FakeRow } | null = null;
 
   private delegates = buildDelegates(this.rows, this.scopedReviews, this.seqRef);
   budgetCandidateCorrectionV1 = this.delegates.budgetCandidateCorrectionV1;
@@ -110,6 +154,17 @@ class FakeCandidateCorrectionPrisma {
     const txRows = this.rows.map((r) => ({ ...r }));
     const txScopedReviews = this.scopedReviews.map((r) => ({ ...r }));
     const tx = buildDelegates(txRows, txScopedReviews, this.seqRef);
+    if (this.transactionalCreateConflict != null) {
+      const injected = this.transactionalCreateConflict;
+      this.transactionalCreateConflict = null;
+      tx.budgetCandidateCorrectionV1.create = async () => {
+        // Simulate a mixed-version/direct writer committing after our early
+        // reads but before our final INSERT. This external winner is durable;
+        // the current transaction's scoped-review mutations must roll back.
+        this.rows.push({ ...injected.winner });
+        throw new PrismaLikeUniqueViolation(injected.field);
+      };
+    }
     const result = await fn(tx);
     this.rows.length = 0;
     this.rows.push(...txRows);
@@ -130,6 +185,10 @@ class FakeCandidateCorrectionPrisma {
   scopedReviewById(id: string): FakeScopedReviewRow | undefined {
     return this.scopedReviews.find((r) => r.id === id);
   }
+
+  injectTransactionalCreateConflict(field: string, winner: FakeRow): void {
+    this.transactionalCreateConflict = { field, winner };
+  }
 }
 
 function baseInput(overrides: Partial<Parameters<PrismaCandidateCorrectionRepositoryV1['insertLink']>[0]> = {}) {
@@ -141,6 +200,15 @@ function baseInput(overrides: Partial<Parameters<PrismaCandidateCorrectionReposi
     oldCandidateSourceSha256: 'a'.repeat(64),
     newCandidateSourceDocumentId: 'doc-1',
     newCandidateSourceSha256: 'a'.repeat(64),
+    oldCandidateCurrentRunId: 'run-old-1',
+    oldCandidateExtractionArtifactId: 'artifact-old-1',
+    oldCandidateExtractionArtifactSha256: 'b'.repeat(64),
+    oldCandidateManifestContentSha256: 'd'.repeat(64),
+    newCandidateCurrentRunId: 'run-new-1',
+    newCandidateExtractionArtifactId: 'artifact-new-1',
+    newCandidateExtractionArtifactSha256: 'c'.repeat(64),
+    newCandidateManifestContentSha256: 'e'.repeat(64),
+    selectedScopes: [],
     supersededScopedFactReviewIds: [],
     actor: 'neo@capiro.ai',
     reason: 'test correction',
@@ -209,6 +277,14 @@ describe('PrismaCandidateCorrectionRepositoryV1', () => {
 function baseCommitInput(overrides: Partial<Parameters<PrismaCandidateCorrectionRepositoryV1['commitCorrection']>[0]> = {}) {
   return {
     ...baseInput(),
+    oldCandidateCurrentRunId: 'run-old-1',
+    oldCandidateExtractionArtifactId: 'artifact-old-1',
+    oldCandidateExtractionArtifactSha256: 'b'.repeat(64),
+    oldCandidateManifestContentSha256: 'd'.repeat(64),
+    newCandidateCurrentRunId: 'run-new-1',
+    newCandidateExtractionArtifactId: 'artifact-new-1',
+    newCandidateExtractionArtifactSha256: 'c'.repeat(64),
+    newCandidateManifestContentSha256: 'e'.repeat(64),
     supersessionReason: 'superseded by correction',
     now: '2026-09-09T12:00:00.000Z',
     ...overrides,
@@ -223,6 +299,18 @@ describe('PrismaCandidateCorrectionRepositoryV1.commitCorrection (atomic superse
     const result = await repo.commitCorrection(baseCommitInput());
     expect(result.outcome).toBe('inserted');
     expect((result as { outcome: 'inserted'; supersededScopedFactReviewIds: string[] }).supersededScopedFactReviewIds).toEqual([]);
+  });
+
+  it('rechecks exact run/artifact/manifest intent under the candidate locks and refuses stale input with zero writes', async () => {
+    const prisma = new FakeCandidateCorrectionPrisma();
+    const repo = new PrismaCandidateCorrectionRepositoryV1(prisma as never);
+
+    const result = await repo.commitCorrection(
+      baseCommitInput({ newCandidateManifestContentSha256: 'f'.repeat(64) }),
+    );
+
+    expect(result).toMatchObject({ outcome: 'stale_eligibility' });
+    expect(prisma.allRows()).toHaveLength(0);
   });
 
   it('the active-approval case: supersedes the active row in the SAME operation that inserts the link', async () => {
@@ -254,7 +342,11 @@ describe('PrismaCandidateCorrectionRepositoryV1.commitCorrection (atomic superse
 
     const result = await repo.commitCorrection(baseCommitInput({ oldCandidateId: 'old-1', newCandidateId: 'new-1' }));
 
-    expect(result).toEqual({ outcome: 'conflict' });
+    expect(result).toMatchObject({
+      outcome: 'conflict',
+      conflictOn: 'old_candidate',
+      existingLink: { oldCandidateId: 'old-1', newCandidateId: 'new-existing' },
+    });
     // THE regression assertion: the supersession attempt made INSIDE the
     // same failed transaction must not have persisted.
     const reviewRow = prisma.scopedReviewById('review-a')!;
@@ -262,6 +354,48 @@ describe('PrismaCandidateCorrectionRepositoryV1.commitCorrection (atomic superse
     expect(reviewRow.revokedAt).toBeNull();
     expect(reviewRow.revokedBy).toBeNull();
     // And exactly the one pre-existing link exists -- no partial insert either.
+    expect(prisma.allRows()).toHaveLength(1);
+  });
+
+  it('classifies a narrow P2002 at the final INSERT after rollback and preserves the old active review', async () => {
+    const prisma = new FakeCandidateCorrectionPrisma();
+    prisma.seedActiveScopedReview({
+      id: 'review-final-insert-race',
+      candidateId: 'old-1',
+      status: 'active',
+      revokedAt: null,
+      revokedBy: null,
+      revocationReason: null,
+    });
+    prisma.injectTransactionalCreateConflict('old_candidate_id', {
+      id: 'external-winner',
+      oldCandidateId: 'old-1',
+      newCandidateId: 'new-external',
+      oldCandidateStatusAtCorrection: 'NEEDS_REVIEW',
+      oldCandidateSourceDocumentId: 'doc-1',
+      oldCandidateSourceSha256: 'a'.repeat(64),
+      newCandidateSourceDocumentId: 'doc-1',
+      newCandidateSourceSha256: 'a'.repeat(64),
+      reviewedIntentVersion: null,
+      reviewedIntent: null,
+      reviewedIntentSha256: null,
+      supersededScopedFactReviewIds: [],
+      actor: 'external-writer',
+      reason: 'mixed-version final insert winner',
+      createdAt: new Date('2026-09-09T11:59:59.000Z'),
+    });
+    const repo = new PrismaCandidateCorrectionRepositoryV1(prisma as never);
+
+    await expect(repo.commitCorrection(baseCommitInput())).resolves.toMatchObject({
+      outcome: 'conflict',
+      conflictOn: 'old_candidate',
+      existingLink: { id: 'external-winner', newCandidateId: 'new-external' },
+    });
+    expect(prisma.scopedReviewById('review-final-insert-race')).toMatchObject({
+      status: 'active',
+      revokedAt: null,
+      revokedBy: null,
+    });
     expect(prisma.allRows()).toHaveLength(1);
   });
 });

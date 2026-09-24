@@ -304,6 +304,78 @@ describe('rdte-unit-resolver', () => {
     });
     expect(result.status).toBe('missing');
   });
+
+  /* Phase 10B-41 regression -- real FY2024 Army RDT&E Vol 2 BA4A document,
+   * PE 0604017A: the real production warning was "R-2 unit resolution
+   * conflict for PE 0604017A: conflicting unit labels detected: millions,
+   * dollars" (confirmed against the real extraction artifact, S3
+   * capiro-dev-defense-budget-extraction-artifacts-967807252336, key
+   * phase10/parser-artifacts/78e64ba4031de833cec9c16fc0477ff26307e9f3f6f616193310ddf066af671e).
+   * Root cause: extractR2PeFunding's unit candidates include each page's
+   * full body text (up to 2000 chars), and ordinary Army justification
+   * narrative routinely uses the bare word "dollars" with no scaling
+   * meaning ("then year dollars", "constant dollars", ...) -- the pre-fix
+   * bare `\bdollars\b` fallback in DOLLARS_RE treated that as a second,
+   * conflicting explicit unit label, dropping every numeric cell for the
+   * whole PE as a blocking `missing_unit` omission. */
+  describe('Phase 10B-41 -- bare "dollars" mention in narrative text is not a unit label', () => {
+    it('RED/GREEN: a genuine "$ in Millions" cost-table caption resolves cleanly even when a SEPARATE narrative candidate on the same PE incidentally says "dollars"', () => {
+      const result = resolveRdteUnit({
+        candidates: [
+          {
+            rawText:
+              'This Program Element funds development of ground robotic systems, expressed in then year dollars for planning purposes.',
+            page: 358,
+          },
+          { rawText: 'COST ($ in Millions)', page: 359 },
+        ],
+      });
+      expect(result.status).toBe('resolved');
+      if (result.status === 'resolved') expect(result.unit).toBe('millions');
+    });
+
+    it('RED/GREEN: the same false-positive shape is fixed regardless of candidate order', () => {
+      const result = resolveRdteUnit({
+        candidates: [
+          { rawText: 'COST ($ in Millions)', page: 359 },
+          { rawText: "Total dollars requested reflects the FY2024 President's Budget.", page: 359 },
+        ],
+      });
+      expect(result.status).toBe('resolved');
+      if (result.status === 'resolved') expect(result.unit).toBe('millions');
+    });
+
+    it('negative control: a genuinely ambiguous/conflicting-unit case (two DIFFERENT explicit scale captions) is still correctly flagged blocking', () => {
+      const result = resolveRdteUnit({
+        candidates: [
+          { rawText: 'COST ($ in Millions)', page: 1 },
+          { rawText: 'COST ($ in Thousands)', page: 2 },
+        ],
+      });
+      expect(result.status).toBe('conflict');
+      if (result.status === 'conflict') {
+        expect([...result.units].sort()).toEqual(['millions', 'thousands']);
+      }
+    });
+
+    it('negative control: a deliberate, explicit "$ in Dollars" unit caption is still recognized as a real unit (not silently dropped by removing the bare fallback)', () => {
+      const result = resolveRdteUnit({
+        candidates: [{ rawText: '$ in Dollars', page: 1 }],
+      });
+      expect(result.status).toBe('resolved');
+      if (result.status === 'resolved') expect(result.unit).toBe('dollars');
+    });
+
+    it('negative control: an explicit "reported in dollars" caption still resolves as dollars, and still conflicts with a genuinely different explicit scale', () => {
+      const conflict = resolveRdteUnit({
+        candidates: [
+          { rawText: 'Figures reported in dollars.', page: 1 },
+          { rawText: 'COST ($ in Millions)', page: 2 },
+        ],
+      });
+      expect(conflict.status).toBe('conflict');
+    });
+  });
 });
 
 describe('rdte-rounding exact-decimal tolerance', () => {

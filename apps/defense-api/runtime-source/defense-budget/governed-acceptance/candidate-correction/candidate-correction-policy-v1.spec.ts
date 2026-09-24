@@ -46,6 +46,16 @@ describe('evaluateCandidateCorrectionEligibilityV1', () => {
     expect(result.refusalReasons.map((r) => r.code)).toEqual(['new_candidate_status_ineligible']);
   });
 
+  it('refuses when the new candidate already corrects another candidate', () => {
+    const result = evaluateCandidateCorrectionEligibilityV1({
+      oldCandidate: BASE_OLD,
+      newCandidate: BASE_NEW,
+      newCandidateAlreadyCorrectedIntoAnotherCandidate: true,
+    });
+    expect(result.eligible).toBe(false);
+    expect(result.refusalReasons.map((r) => r.code)).toEqual(['reverse_correction_of_already_corrected_candidate']);
+  });
+
   it('refuses when old and new are the same candidate id', () => {
     const result = evaluateCandidateCorrectionEligibilityV1({
       oldCandidate: BASE_OLD,
