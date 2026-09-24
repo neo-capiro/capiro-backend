@@ -215,6 +215,11 @@ case "${1:-serve}" in
     echo "Running enable-district-nexus-for-all-tenants (dry-run unless --commit)"
     exec ./node_modules/.bin/tsx scripts/enable-district-nexus-for-all-tenants.ts "$@"
     ;;
+  enrich-federal-award-recipient-uei)
+    shift
+    echo "Running enrich-federal-award-recipient-uei (dry-run unless --commit; verifies each row against live USASpending before writing)"
+    exec ./node_modules/.bin/tsx scripts/enrich-federal-award-recipient-uei.ts "$@"
+    ;;
   diag-lda-identity)
     echo "Running diag-lda-identity (read-only: LDA client_id stability vs name variation)"
     exec ./node_modules/.bin/tsx scripts/diag-lda-identity.ts
