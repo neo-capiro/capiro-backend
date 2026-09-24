@@ -16,6 +16,8 @@ import { DistrictNexusFlagGuard } from './district-nexus-flag.guard.js';
 import { DistrictNexusStrategicFlagGuard } from './district-nexus-strategic-flag.guard.js';
 import { DistrictNexusEconomicFlagGuard } from './district-nexus-economic-flag.guard.js';
 import { DistrictNexusPriorityIntelligenceFlagGuard } from './priority-intelligence/priority-intelligence-flag.guard.js';
+import { R5DistrictAlertsService } from './r5-action-layer/r5-alerts.service.js';
+import { R5DistrictAlertsController } from './r5-action-layer/r5-alerts.controller.js';
 
 /**
  * District Nexus v2.
@@ -34,6 +36,7 @@ import { DistrictNexusPriorityIntelligenceFlagGuard } from './priority-intellige
     DistrictNexusRelationshipsController,
     DistrictNexusEconomicController,
     DistrictNexusPriorityIntelligenceController,
+    R5DistrictAlertsController,
   ],
   providers: [
     DistrictNexusService,
@@ -47,6 +50,7 @@ import { DistrictNexusPriorityIntelligenceFlagGuard } from './priority-intellige
     DistrictNexusStrategicFlagGuard,
     DistrictNexusEconomicFlagGuard,
     DistrictNexusPriorityIntelligenceFlagGuard,
+    R5DistrictAlertsService,
   ],
   exports: [
     DistrictNexusService,

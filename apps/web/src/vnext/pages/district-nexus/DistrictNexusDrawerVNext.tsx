@@ -39,6 +39,7 @@ import { DistrictPriorityIntelligencePanelVNext } from './DistrictPriorityIntell
 import { DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE } from '../../../pages/intelligence/district-nexus/priority-intelligence-api.js';
 import { DnxChevronDownIcon, DnxInfoIcon, DnxWarningIcon } from './icons.js';
 import { useIntelFeatureEnabled } from '../../../lib/intel-feature-flags.js';
+import { DistrictAlertsPanelVNext } from './r5/DistrictAlertsPanelVNext.js';
 
 export const DISTRICT_NEXUS_STRATEGIC_FEATURE = 'district_nexus_strategic_relevance';
 
@@ -330,6 +331,13 @@ export function DistrictNexusDrawerVNext({
             <DnxSection title="Evidence and sources" meta={`${d.evidence.length} records`}>
               <EvidenceSection evidence={d.evidence} freshness={d.freshness} />
             </DnxSection>
+            {clientId ? (
+              <DistrictAlertsPanelVNext
+                clientId={clientId}
+                state={state}
+                districtNo={districtNo}
+              />
+            ) : null}
           </>
         ) : null}
       </div>
