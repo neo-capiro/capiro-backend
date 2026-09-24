@@ -118,6 +118,12 @@ case "${1:-serve}" in
     echo "Running diag-pe-trust (SELECT-only Program Elements trust baseline)"
     exec ./node_modules/.bin/tsx scripts/diag-program-element-trust-baseline.ts "$@"
     ;;
+  snapshot-defense-budget-package0-v1)
+    shift
+    compose_database_url
+    echo "Running snapshot-defense-budget-package0-v1 (SELECT-only Package 0 inventory)"
+    exec ./node_modules/.bin/tsx scripts/snapshot-defense-budget-package0-v1.ts "$@"
+    ;;
   audit-llamaparse-pe-units)
     shift
     compose_database_url

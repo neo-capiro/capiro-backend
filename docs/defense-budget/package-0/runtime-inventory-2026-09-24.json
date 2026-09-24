@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-09-24T11:05:30.376Z",
+  "repository": {
+    "url": "https://github.com/neo-capiro/capirov2",
+    "inspectedMainSha": "950072f477055ec8bdf3b7a377e371c4caf1a9aa",
+    "planBaselineSha": "0f477343d9fd273fb9ed919b1bb65ed2d6958c83",
+    "repositoryNameMismatch": "resolved_to_neo-capiro/capirov2"
+  },
+  "aws": {
+    "accountId": "967807252336",
+    "region": "us-east-1",
+    "deploymentTarget": "capiro-dev",
+    "api": {
+      "service": "capiro-dev-api",
+      "taskDefinition": "capiro-dev-api:432",
+      "desiredCount": 2,
+      "runningCount": 2,
+      "rolloutState": "COMPLETED",
+      "imageDigest": "sha256:e01a5dc71157b236680f377290477a034ed0415fe215e2d2c79ad4b307483070",
+      "imageTagGitSha": "47e5611dd19ca4672269704a2cc84a478f11a20f"
+    },
+    "defenseApi": {
+      "ecrRepository": "capiro/dev/defense-api",
+      "ecsService": null,
+      "taskDefinition": null,
+      "classification": "missing_deployment"
+    },
+    "legacyBudgetWatcher": {
+      "rule": "capiro-dev-watch-budget-docs",
+      "state": "ENABLED",
+      "schedule": "cron(0 12 * * ? *)",
+      "command": ["watch-budget-docs", "--commit"],
+      "targetTaskDefinition": "capiro-dev-api-migrate:125",
+      "targetImageDigest": "sha256:460efb52ac5adb83b4e66d234988416c72969cc0cb767fc8b64259cfc02daa7d",
+      "observedInvocationsLast31Days": 31,
+      "observedFailedInvocationsLast31Days": 0,
+      "classification": "live_legacy_watcher_not_lifecycle_coordinator"
+    },
+    "ingestionDrain": {
+      "latestTaskDefinition": "capiro-dev-defense-budget-ingestion-drain:25",
+      "imageDigest": "sha256:d51af69f66f61b6ee5ca59b4cc90e25a99ba43daaab2618ec8486ac9d3ccc704",
+      "imageGitSha": "884297998c48ce141e1f4958a4a7b1ea31f04e41",
+      "cpuUnits": 4096,
+      "memoryMiB": 8192,
+      "defaultCommand": ["echo no-op-default-command"],
+      "runningTasksObserved": 0,
+      "schedule": null,
+      "classification": "manual_finite_task_parked"
+    },
+    "cloudFormationDrift": {
+      "stack": "Capiro-dev-DefenseBudgetOperations",
+      "stackStatus": "UPDATE_COMPLETE",
+      "stackOutputTaskDefinition": "capiro-dev-defense-budget-ingestion-drain:14",
+      "stackOutputImageDigest": "sha256:5ed035026057d6a961e3db279c16ec7af744206c0a73635ac3d49c9100821257",
+      "latestRegisteredTaskDefinition": "capiro-dev-defense-budget-ingestion-drain:25",
+      "classification": "drift_confirmed"
+    },
+    "storage": {
+      "rawArchive": {
+        "bucket": "capiro-defense-budget-raw-dev-967807252336",
+        "versioning": "Enabled",
+        "objectLock": "GOVERNANCE",
+        "defaultRetentionDays": 2555,
+        "encryption": "aws:kms"
+      },
+      "extractionArtifacts": {
+        "bucket": "capiro-dev-defense-budget-extraction-artifacts-967807252336",
+        "versioning": "Enabled",
+        "encryption": "aws:kms",
+        "noncurrentVersionExpirationDays": 365
+      },
+      "audit": {
+        "bucket": "capiro-defense-budget-audit-dev-967807252336"
+      }
+    }
+  },
+  "runtimeOwnership": {
+    "sourceAndMigrations": "apps/api",
+    "lifecycleControlPlane": "apps/defense-api/src/budget-lifecycle",
+    "runtimeSourceMirror": "apps/defense-api/runtime-source",
+    "productReadModules": [
+      "apps/api/src/defense-budget-lifecycle",
+      "apps/defense-api/src/budget-lifecycle-product"
+    ],
+    "worker": "apps/api/src/defense-budget/ingestion-outbox-drain-worker-v1.ts",
+    "artifactStorage": "Capiro-dev-DefenseBudgetOperations"
+  },
+  "activation": {
+    "lifecycleCoordinatorHasTimer": false,
+    "liveDiscoveryGate": "PHASE8_SESSION8_LIVE_DISCOVERY",
+    "liveDiscoveryGateObservedOnApiService": false,
+    "broadDefenseBudgetFeatureFlagFound": false,
+    "internalReadGuard": "capiro-internal tenant guard",
+    "canonicalPromotionRegisteredInDefenseApi": false
+  },
+  "familySupport": {
+    "rdteDurableSemanticFactory": "wired",
+    "procurementDurableSemanticFactory": "present_not_wired",
+    "omDurableSemanticFactory": "present_not_wired",
+    "milconDurableSemanticFactory": "present_not_wired",
+    "alternativeFundingCertification": "unsupported",
+    "executionCertification": "unsupported"
+  }
+}

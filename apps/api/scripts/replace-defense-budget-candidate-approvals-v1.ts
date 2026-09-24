@@ -456,6 +456,7 @@ const KNOWN_FLAGS = new Set([
   '--reviewer-id',
   '--correction-reason-file',
   '--commit',
+  '--acknowledge-revoked-scope',
 ]);
 
 export interface ManifestEntryV1 {
