@@ -41,7 +41,11 @@ const SECTION_DEFS: Array<{ key: string; title: string }> = [
 ];
 
 function factsBySection(facts: R5Fact[], section: string): R5Fact[] {
-  return facts.filter((f) => f.section === section);
+  const rails: Record<string, R5Fact['section'][]> = {
+    verified_footprint: ['footprint'], economic_context: ['economic'], opportunities: ['opportunities'],
+    representation_and_requests: ['representation', 'cpf_cds'], recent_changes: ['changes'],
+  };
+  return facts.filter((f) => rails[section]?.includes(f.section));
 }
 
 function formatFact(f: R5Fact): string {
@@ -199,23 +203,23 @@ export class R5DistrictBriefService {
 function buildParagraphs(
   sectionKey: string,
   facts: R5Fact[],
-  ctx: R5Brief['facts'] extends (infer F)[] ? { facts: F[]; gaps: R5Brief['gaps'] } : never,
+  ctx: { facts: R5Fact[]; gaps: R5Brief['gaps'] },
 ): string[] {
   switch (sectionKey) {
     case 'verified_footprint':
-      return buildVerifiedFootprint(facts as R5Fact[]);
+      return buildVerifiedFootprint(facts);
     case 'economic_context':
-      return buildEconomicContext(facts as R5Fact[]);
+      return buildEconomicContext(facts);
     case 'opportunities':
-      return buildOpportunities(facts as R5Fact[]);
+      return buildOpportunities(facts);
     case 'representation_and_requests':
-      return buildRepresentation(facts as R5Fact[]);
+      return buildRepresentation(facts);
     case 'recent_changes':
-      return buildChanges(facts as R5Fact[]);
+      return buildChanges(facts);
     case 'next_steps':
-      return buildNextSteps((ctx as { gaps: R5Brief['gaps'] }).gaps);
+      return buildNextSteps(ctx.gaps);
     case 'missing_information':
-      return buildMissingInfo((ctx as { gaps: R5Brief['gaps'] }).gaps);
+      return buildMissingInfo(ctx.gaps);
     default:
       return ['No information available for this section.'];
   }
@@ -240,12 +244,7 @@ function buildVerifiedFootprint(facts: R5Fact[]): string[] {
   }
 
   if (evidence.length > 0) {
-    const totalAwarded = evidence.reduce((sum, f) => {
-      return sum + (typeof f.value === 'number' && f.amountStage !== 'forecast' ? f.value : 0);
-    }, 0);
-    if (totalAwarded > 0) {
-      paragraphs.push(`Total identified federal obligations: ${formatCurrency(totalAwarded)}.`);
-    }
+    // Evidence rows overlap the district's aggregate obligation total. Never add them.
     for (const e of evidence) {
       paragraphs.push(`- ${formatFact(e)} [${e.basis === 'verified_client_nexus' ? 'verified' : 'public'}, ${e.coverage}]`);
     }
@@ -283,8 +282,7 @@ function buildOpportunities(facts: R5Fact[]): string[] {
     return paragraphs;
   }
 
-  const totalForecast = opps.reduce((sum, f) => sum + (typeof f.value === 'number' ? f.value : 0), 0);
-  paragraphs.push(`${opps.length} opportunity sources identified, with ${formatCurrency(totalForecast)} in estimated funding.`);
+  paragraphs.push(`${opps.length} opportunity source(s) identified; forecast amounts are not awarded funds.`);
   for (const o of opps) {
     paragraphs.push(`- ${formatFact(o)}`);
   }
@@ -367,7 +365,7 @@ function buildNextSteps(gaps: R5Brief['gaps']): string[] {
 
 function buildMissingInfo(gaps: R5Brief['gaps']): string[] {
   if (gaps.length === 0) {
-    return ['All data rails loaded successfully.'];
+    return ['No rail failures reported; source coverage may still be unknown or partial.'];
   }
 
   const paragraphs: string[] = ['The following data sources are unavailable or incomplete:'];

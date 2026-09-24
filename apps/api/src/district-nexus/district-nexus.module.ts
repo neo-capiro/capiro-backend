@@ -3,6 +3,7 @@ import { RepresentationModule } from '../clients/representation.module.js';
 import { IntelligenceModule } from '../intelligence/intelligence.module.js';
 import { ClientDocumentWriterService } from '../client-documents/client-document-writer.service.js';
 import { EngagementModule } from '../engagement/engagement.module.js';
+import { FederalSpendingModule } from '../federal-spending/federal-spending.module.js';
 import { DistrictNexusController } from './district-nexus.controller.js';
 import { DistrictNexusRelationshipsController } from './district-nexus-relationships.controller.js';
 import { DistrictNexusEconomicController } from './district-nexus-economic.controller.js';
@@ -34,7 +35,7 @@ import { R5FlagGuard } from './r5-action-layer/r5-flag.guard.js';
  * independently scored — no parallel map or blended master score.
  */
 @Module({
-  imports: [RepresentationModule, IntelligenceModule, EngagementModule],
+  imports: [RepresentationModule, IntelligenceModule, EngagementModule, FederalSpendingModule],
   controllers: [
     DistrictNexusController,
     DistrictNexusRelationshipsController,

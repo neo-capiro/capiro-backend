@@ -241,7 +241,7 @@ export function DistrictNexusDrawerVNext({
                 ) : null}
               </DnxSection>
             ) : null}
-            {r5BriefEnabled && r5BriefEnabled.enabled && clientId && districtKey ? (
+            {r5BriefEnabled && clientId && districtKey ? (
               <DnxSection
                 title="District Brief (R5)"
                 meta="draft · export · save"

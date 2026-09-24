@@ -1,33 +1,34 @@
-/**
- * R5 Action Layer — single source of district facts (contract §Fact shape).
- *
- * Composes the EXISTING services the drawer uses; never queries a source a
- * second way. Every R5 consumer (Brief, Meeting prep, Actions, Meri tools)
- * calls getContext() — this is THE source of district facts.
- */
-
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { DistrictNexusService } from '../district-nexus.service.js';
 import { DistrictNexusPriorityIntelligenceService } from '../priority-intelligence/priority-intelligence.service.js';
 import { DistrictNexusStrategicService } from '../district-nexus-strategic.service.js';
 import { DistrictNexusEconomicService } from '../district-nexus-economic.service.js';
-import { stateFipsForAbbr } from '../../common/us-states.js';
-import type {
-  R5DistrictContext,
-  R5Fact,
-  R5Gap,
-  R5FactSection,
-  R5FactBasis,
-} from './r5-types.js';
+import { DistrictNexusStrategicFlagGuard } from '../district-nexus-strategic-flag.guard.js';
+import { DistrictNexusEconomicFlagGuard } from '../district-nexus-economic-flag.guard.js';
+import { DistrictNexusPriorityIntelligenceFlagGuard } from '../priority-intelligence/priority-intelligence-flag.guard.js';
+import { DISTRICT_NEXUS_EXTERNAL_CONTEXT_FEATURE, DISTRICT_NEXUS_SUPPLIER_FOOTPRINT_FEATURE } from '../district-nexus-economic.types.js';
+import { FederalMarketGeographyService } from '../../federal-spending/federal-market-geography.service.js';
+import type { DataQualityWarning, SourceFreshness } from '../district-nexus.types.js';
+import type { ProjectedCpfCdsSignal } from '../priority-intelligence/priority-intelligence-cpf-cds.js';
+import type { ClientPriorityIntelligenceResponse, RecentChangeRecord } from '../priority-intelligence/priority-intelligence.types.js';
+import type { R5DistrictContext, R5Fact, R5FactSection, R5Gap } from './r5-types.js';
 
-function factId(section: R5FactSection, sourceType: string, sourceRecordId: string | null): string {
-  const id = sourceRecordId ?? `${section}:${sourceType}`;
-  return `${section}:${sourceType}:${id}`;
+function factId(section: R5FactSection, source: string, id: string): string {
+  return `${section}:${source}:${id}`;
 }
 
-function gsaDistrictKey(paddedDistrict: string): string {
-  return String(Number(paddedDistrict));
+function freshnessFor(source: string, health: SourceFreshness[], stale = false): R5Fact['freshness'] {
+  const entry = health.find((item) => item.source === source);
+  return {
+    lastSyncedAt: entry?.lastSyncedAt ?? null,
+    stale: stale || Boolean(entry?.neverSynced),
+    unavailable: !entry || Boolean(entry.freshnessUnavailable),
+  };
+}
+
+function warningCodes(warnings: DataQualityWarning[], districtKey: string): string[] {
+  return warnings.filter((w) => !w.districtKey || w.districtKey === districtKey).map((w) => w.code);
 }
 
 @Injectable()
@@ -40,477 +41,292 @@ export class R5DistrictContextService {
     private readonly priorityIntelligence: DistrictNexusPriorityIntelligenceService,
     private readonly strategic: DistrictNexusStrategicService,
     private readonly economic: DistrictNexusEconomicService,
+    private readonly strategicFlag: DistrictNexusStrategicFlagGuard,
+    private readonly economicFlag: DistrictNexusEconomicFlagGuard,
+    private readonly market: FederalMarketGeographyService,
+    private readonly priorityFlag: DistrictNexusPriorityIntelligenceFlagGuard,
   ) {}
 
-  /**
-   * Build the full R5DistrictContext for one client + district.
-   *
-   * Verifies client ∈ tenant first (404 if not). Each sub-source runs inside a
-   * try/catch — a failed rail becomes an R5Gap, never throws the whole context
-   * away. A real zero stays zero; missing data stays null.
-   */
-  async getContext(
-    tenantId: string,
-    clientId: string,
-    state: string,
-    district: string,
-  ): Promise<R5DistrictContext> {
-    // 1) Verify client ∈ tenant
-    const client = await this.prisma.withTenant(tenantId, async (tx) => {
-      return tx.client.findFirst({
-        where: { id: clientId, tenantId },
-        select: { id: true, name: true, status: true },
-      });
-    });
-    if (!client || client.status === 'archived') {
-      throw new NotFoundException('Client not found');
-    }
+  async getContext(tenantId: string, clientId: string, state: string, district: string): Promise<R5DistrictContext> {
+    const client = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.client.findFirst({ where: { id: clientId, tenantId }, select: { id: true, name: true, status: true } }),
+    );
+    if (!client || client.status === 'archived') throw new NotFoundException('Client not found');
 
     const stateCode = state.trim().toUpperCase();
     const facts: R5Fact[] = [];
     const gaps: R5Gap[] = [];
-
-    // ── Rail 1: District detail
-    await this.collectDistrictDetail(tenantId, clientId, stateCode, district, facts, gaps);
-
-    // ── Rail 2: Priority Intelligence (CPF/CDS)
-    await this.collectPriorityIntelligence(tenantId, clientId, stateCode, district, facts, gaps);
-
-    // ── Rail 3: Strategic relevance
-    await this.collectStrategic(tenantId, clientId, stateCode, district, facts, gaps);
-
-    // ── Rail 4: Economic footprint (public context)
-    await this.collectEconomic(stateCode, district, facts, gaps);
-
-    // ── Rail 5: Change ledger
-    await this.collectChanges(stateCode, district, facts, gaps);
-
-    // Build sourceHealth from DistrictNexusService freshness
-    let sourceHealth: R5DistrictContext['sourceHealth'] = [];
+    let sourceHealth: SourceFreshness[] = [];
     try {
-      const map = await this.districtNexus.getFirmDistrictNexusMap(tenantId, { state: stateCode });
-      sourceHealth = map.freshness ?? [];
-    } catch (err) {
-      this.logger.error('Failed to load source freshness', err);
+      sourceHealth = (await this.districtNexus.getFirmDistrictNexusMap(tenantId, { state: stateCode })).freshness;
+    } catch (error) {
+      this.logger.error('Source freshness unavailable', error);
       gaps.push({ section: 'footprint', reason: 'Source freshness unavailable', source: null });
     }
 
-    return {
-      clientId,
-      clientName: client.name,
-      state: stateCode,
-      district,
-      facts,
-      gaps,
-      sourceHealth,
-      generatedAt: new Date().toISOString(),
-    };
+    await this.collectDetail(tenantId, clientId, stateCode, district, sourceHealth, facts, gaps);
+    let priority: ClientPriorityIntelligenceResponse | null = null;
+    let priorityEnabled = false;
+    try {
+      await this.priorityFlag.assertEnabledForTenant(tenantId);
+      priorityEnabled = true;
+    } catch (error) {
+      if (!(error instanceof NotFoundException)) gaps.push({ section: 'cpf_cds', reason: 'Priority flag unavailable', source: 'priority-intelligence' });
+    }
+    if (priorityEnabled) priority = await this.collectPriority(tenantId, clientId, stateCode, district, sourceHealth, facts, gaps);
+    if (priority) this.collectChanges(priority.priorityIntelligence.recentChanges, stateCode, district, sourceHealth, facts);
+
+    let strategicEnabled = false;
+    try {
+      await this.strategicFlag.assertEnabledForTenant(tenantId);
+      strategicEnabled = true;
+    } catch (error) {
+      if (!(error instanceof NotFoundException)) gaps.push({ section: 'economic', reason: 'Strategic flag unavailable', source: 'strategic-relevance' });
+    }
+    if (strategicEnabled) {
+      try {
+        const result = await this.strategic.getDistrictStrategic(tenantId, stateCode, district, clientId);
+        if (result.strategic?.score != null) facts.push({
+          id: factId('economic', 'strategic_relevance', `${stateCode}-${district}`), section: 'economic',
+          label: 'Strategic relevance score', value: result.strategic.score, unit: 'score', amountStage: null,
+          basis: 'verified_client_nexus',
+          source: { type: 'strategic_relevance', label: 'Strategic relevance', recordId: null, url: null },
+          asOf: { date: null, fiscalYear: null, sourceYear: null },
+          geography: { state: stateCode, district, scope: 'district', basis: null, boundaryCongress: null },
+          freshness: freshnessFor('strategic_relevance', sourceHealth), coverage: 'unknown', caveats: [],
+        });
+      } catch (error) {
+        this.logger.error('Strategic rail failed', error);
+        gaps.push({ section: 'economic', reason: 'Strategic relevance service failed', source: 'strategic-relevance' });
+      }
+    }
+
+    let economicEnabled = false;
+    try {
+      await this.economicFlag.assertEnabledForTenant(tenantId, DISTRICT_NEXUS_EXTERNAL_CONTEXT_FEATURE);
+      economicEnabled = true;
+    } catch (error) {
+      if (!(error instanceof NotFoundException)) gaps.push({ section: 'economic', reason: 'Economic flag unavailable', source: 'district-economic' });
+    }
+    if (economicEnabled) await this.collectEconomic(stateCode, district, sourceHealth, facts, gaps);
+    await this.collectMarket(tenantId, clientId, stateCode, district, sourceHealth, facts, gaps);
+    return { clientId, clientName: client.name, state: stateCode, district, facts, gaps, sourceHealth, generatedAt: new Date().toISOString() };
   }
 
-  // ── Collectors ────────────────────────────────────────────────────────────
-
-  private async collectDistrictDetail(
-    tenantId: string,
-    clientId: string,
-    state: string,
-    district: string,
-    facts: R5Fact[],
-    gaps: R5Gap[],
-  ) {
+  private async collectDetail(tenantId: string, clientId: string, state: string, district: string,
+    health: SourceFreshness[], facts: R5Fact[], gaps: R5Gap[]): Promise<void> {
     try {
-      const detail = await this.districtNexus.getDistrictDetail(tenantId, state, district, {
-        clientId,
-      });
-
+      const detail = await this.districtNexus.getDistrictDetail(tenantId, state, district, { clientId });
       if (!detail) {
         gaps.push({ section: 'footprint', reason: 'District not found', source: 'district-nexus' });
         return;
       }
-
-      // Facilities → footprint facts
-      for (const f of detail.facilities ?? []) {
+      const caveats = warningCodes(detail.warnings, `${state}-${district}`);
+      const stale = caveats.includes('stale_source');
+      facts.push({
+        id: factId('footprint', 'contract_obligations', `${state}-${district}`), section: 'footprint',
+        label: 'District contract obligations (public awards)', value: detail.awarded.contractObligations,
+        unit: 'USD', amountStage: 'obligated', basis: 'public_context',
+        source: { type: 'federal_award', label: 'Federal contract awards', recordId: null, url: null },
+        asOf: { date: null, fiscalYear: null, sourceYear: null },
+        geography: { state, district, scope: 'district', basis: null, boundaryCongress: null },
+        freshness: freshnessFor('sync-federal-award', health, stale), coverage: 'unknown', caveats,
+      });
+      for (const facility of detail.facilities) {
+        // The district drawer lists all clients' facilities: do not claim another client's site.
+        if (facility.clientId !== clientId) continue;
         facts.push({
-          id: factId('footprint', 'facility', f.id),
-          section: 'footprint',
-          label: f.name,
-          value: f.employeeCount,
-          unit: 'people',
-          amountStage: null,
-          basis: 'verified_client_nexus',
-          source: { type: 'facility', label: 'Client facility', recordId: f.id, url: null },
+          id: factId('footprint', 'facility', facility.id), section: 'footprint', label: facility.name,
+          value: facility.employeeCount, unit: 'people', amountStage: null, basis: 'verified_client_nexus',
+          source: { type: 'facility', label: 'Client facility', recordId: facility.id, url: null },
           asOf: { date: null, fiscalYear: null, sourceYear: null },
           geography: { state, district, scope: 'district', basis: 'facility', boundaryCongress: null },
-          freshness: { lastSyncedAt: null, stale: false, unavailable: false },
-          coverage: 'complete',
-          caveats: [],
+          freshness: freshnessFor('client_facility', health), coverage: 'unknown', caveats: [],
         });
       }
-
-      // Evidence rows → footprint / opportunities facts
-      for (const e of detail.evidence ?? []) {
-        const section: R5FactSection =
-          e.component === 'grant' || e.component === 'opportunity' ? 'opportunities' : 'footprint';
-        const basis: R5FactBasis =
-          e.verificationStatus === 'source_verified' || e.verificationStatus === 'geocode_verified'
-            ? 'verified_client_nexus'
-            : 'public_context';
-
+      for (const e of detail.evidence) {
+        const basis: R5Fact['basis'] = e.verificationStatus === 'source_verified' || e.verificationStatus === 'geocode_verified'
+          ? 'verified_client_nexus' : 'public_context';
         facts.push({
-          id: factId(section, e.component, e.sourceRecordId),
-          section,
-          label: e.label ?? `${e.component} evidence`,
-          value: e.amount,
-          unit: 'USD',
-          amountStage:
-            e.component === 'opportunity'
-              ? 'forecast'
-              : e.component === 'grant'
-                ? 'awarded'
-                : 'obligated',
-          basis,
-          source: {
-            type: e.sourceType ?? e.component,
-            label: e.label ?? e.component,
-            recordId: e.sourceRecordId,
-            url: null,
-          },
-          asOf: {
-            date: e.observedAt ?? e.sourceUpdatedAt ?? null,
-            fiscalYear: null,
-            sourceYear: null,
-          },
-          geography: {
-            state,
-            district,
-            scope: e.geographyBasis === 'statewide' ? 'statewide' : 'district',
-            basis: e.geographyBasis ?? null,
-            boundaryCongress: null,
-          },
-          freshness: { lastSyncedAt: e.sourceUpdatedAt ?? null, stale: false, unavailable: false },
-          coverage: e.verificationStatus === 'inferred' ? 'partial' : 'complete',
-          caveats: [],
+          id: factId('footprint', e.sourceType, e.sourceRecordId ?? `${state}-${district}-${e.component}`),
+          section: 'footprint', label: e.label, value: e.amount, unit: e.amount == null ? null : 'USD',
+          amountStage: e.component === 'grant' ? 'awarded' : e.component === 'contract' ? 'obligated' : null,
+          basis, source: { type: e.sourceType, label: e.label, recordId: e.sourceRecordId, url: null },
+          asOf: { date: e.observedAt, fiscalYear: null, sourceYear: null },
+          geography: { state, district, scope: e.geographyBasis === 'statewide' ? 'statewide' : 'district',
+            basis: e.geographyBasis, boundaryCongress: e.boundaryCongress },
+          freshness: freshnessFor(e.sourceType === 'federal_award' ? 'sync-federal-award' : e.sourceType, health, stale),
+          coverage: 'unknown',
+          caveats: [...caveats, ...(e.verificationStatus === 'inferred' ? ['inferred_entity_match'] : []),
+            ...(e.geographyBasis === 'recipient_location' ? ['recipient_location_fallback'] : []),
+            ...(e.boundaryVintage !== 'unknown' ? [`boundary_vintage:${e.boundaryVintage}`] : [])],
         });
       }
-
-      // Representatives → representation facts
-      for (const rep of detail.representatives?.federal?.house ?? []) {
+      const members = [
+        ...(detail.representatives?.house ? [detail.representatives.house] : []),
+        ...(detail.representatives?.senate ?? []),
+      ];
+      for (const rep of members) {
+        const senate = rep.chamber.toLowerCase() === 'senate';
         facts.push({
-          id: factId('representation', 'house_member', rep.bioguideId),
-          section: 'representation',
-          label: `${rep.fullName} (${rep.party ?? '?'})`,
-          value: null,
-          unit: null,
-          amountStage: null,
-          basis: 'public_context',
-          source: {
-            type: 'congress_member',
-            label: 'US House member',
-            recordId: rep.bioguideId,
-            url: null,
-          },
+          id: factId('representation', 'congress_member', rep.bioguideId), section: 'representation',
+          label: `${rep.fullName} (${rep.party ?? '?'})${senate ? ' — Senate (statewide)' : ''}`,
+          value: null, unit: null, amountStage: null, basis: 'public_context',
+          source: { type: 'congress_member', label: senate ? 'US Senator' : 'US House member', recordId: rep.bioguideId, url: null },
           asOf: { date: null, fiscalYear: null, sourceYear: null },
-          geography: {
-            state,
-            district: rep.district != null ? String(rep.district) : null,
-            scope: 'district',
-            basis: null,
-            boundaryCongress: null,
-          },
-          freshness: { lastSyncedAt: null, stale: false, unavailable: false },
-          coverage: 'complete',
-          caveats: [],
+          geography: { state, district: senate ? null : district, scope: senate ? 'statewide' : 'district',
+            basis: null, boundaryCongress: null },
+          freshness: freshnessFor('congress_member', health), coverage: 'unknown',
+          caveats: senate ? ['statewide_attribution'] : [],
         });
       }
-      for (const sen of detail.representatives?.federal?.senate ?? []) {
-        facts.push({
-          id: factId('representation', 'senator', sen.bioguideId),
-          section: 'representation',
-          label: `${sen.fullName} (${sen.party ?? '?'}) — Senate (statewide)`,
-          value: null,
-          unit: null,
-          amountStage: null,
-          basis: 'public_context',
-          source: {
-            type: 'congress_member',
-            label: 'US Senator',
-            recordId: sen.bioguideId,
-            url: null,
-          },
-          asOf: { date: null, fiscalYear: null, sourceYear: null },
-          geography: {
-            state,
-            district: null,
-            scope: 'statewide',
-            basis: null,
-            boundaryCongress: null,
-          },
-          freshness: { lastSyncedAt: null, stale: false, unavailable: false },
-          coverage: 'complete',
-          caveats: ['statewide_attribution'],
-        });
-      }
-    } catch (err) {
-      this.logger.error('District detail rail failed', err);
-      gaps.push({
-        section: 'footprint',
-        reason: 'District detail service failed',
-        source: 'district-nexus',
-      });
+    } catch (error) {
+      this.logger.error('District detail rail failed', error);
+      gaps.push({ section: 'footprint', reason: 'District detail service failed', source: 'district-nexus' });
     }
   }
 
-  private async collectPriorityIntelligence(
-    tenantId: string,
-    clientId: string,
-    state: string,
-    district: string,
-    facts: R5Fact[],
-    gaps: R5Gap[],
-  ) {
+  private async collectPriority(tenantId: string, clientId: string, state: string, district: string,
+    health: SourceFreshness[], facts: R5Fact[], gaps: R5Gap[]): Promise<ClientPriorityIntelligenceResponse | null> {
     try {
-      const pi = await this.priorityIntelligence.getClientDistrictPriorityIntelligence(
-        tenantId,
-        clientId,
-        state,
-        district,
-      );
-
-      // CPF/CDS district requests
-      for (const req of pi.priorityIntelligence.cpfCds.districtRequests ?? []) {
-        facts.push({
-          id: factId('cpf_cds', 'cpf_request', req.sourceRecordId ?? null),
-          section: 'cpf_cds',
-          label: req.label ?? req.projectTitle ?? 'CPF/CDS request',
-          value: req.requestedAmount ?? null,
-          unit: 'USD',
-          amountStage: 'requested',
-          basis: 'public_context',
-          source: {
-            type: 'cpf_cds',
-            label: 'CPF/CDS',
-            recordId: req.sourceRecordId ?? null,
-            url: req.sourceUrl ?? null,
-          },
-          asOf: { date: null, fiscalYear: req.fiscalYear ?? null, sourceYear: req.sourceYear ?? null },
-          geography: { state, district, scope: 'district', basis: null, boundaryCongress: null },
-          freshness: { lastSyncedAt: null, stale: false, unavailable: false },
-          coverage: 'complete',
-          caveats: [],
-        });
+      const pi = await this.priorityIntelligence.getClientDistrictPriorityIntelligence(tenantId, clientId, state, district);
+      const cpf = pi.priorityIntelligence.cpfCds;
+      if (cpf.availability.status === 'unavailable') {
+        gaps.push({ section: 'cpf_cds', reason: 'CPF/CDS corpus unavailable', source: 'cpf_cds' });
       }
-
-      // Client-attributed CPF/CDS requests
-      for (const req of pi.priorityIntelligence.cpfCds.clientRequests ?? []) {
-        facts.push({
-          id: factId('cpf_cds', 'cpf_client_request', req.sourceRecordId ?? null),
-          section: 'cpf_cds',
-          label: req.label ?? req.projectTitle ?? 'Client CPF/CDS request',
-          value: req.requestedAmount ?? null,
-          unit: 'USD',
-          amountStage: 'requested',
-          basis: 'verified_client_nexus',
-          source: {
-            type: 'cpf_cds',
-            label: 'CPF/CDS (client-attributed)',
-            recordId: req.sourceRecordId ?? null,
-            url: req.sourceUrl ?? null,
-          },
-          asOf: { date: null, fiscalYear: req.fiscalYear ?? null, sourceYear: req.sourceYear ?? null },
-          geography: { state, district, scope: 'district', basis: null, boundaryCongress: null },
-          freshness: { lastSyncedAt: null, stale: false, unavailable: false },
-          coverage: 'complete',
-          caveats: [],
-        });
+      const stale = pi.freshness.find((entry) => entry.rail === 'cpf_cds');
+      const seen = new Set<string>();
+      for (const req of [...cpf.districtRequests, ...cpf.clientRequests]) {
+        if (seen.has(req.requestId)) continue;
+        seen.add(req.requestId);
+        this.addRequest(req, state, district, health, Boolean(stale?.stale), facts);
       }
-
-      // Separate enacted amounts
-      for (const req of pi.priorityIntelligence.cpfCds.districtRequests ?? []) {
-        if (req.enactedAmount != null) {
-          facts.push({
-            id: factId('cpf_cds', 'cpf_enacted', req.sourceRecordId ?? null),
-            section: 'cpf_cds',
-            label: `(Enacted) ${req.label ?? req.projectTitle ?? 'CPF/CDS'}`,
-            value: req.enactedAmount,
-            unit: 'USD',
-            amountStage: 'enacted',
-            basis: 'public_context',
-            source: {
-              type: 'cpf_cds',
-              label: 'CPF/CDS enacted',
-              recordId: req.sourceRecordId ?? null,
-              url: req.sourceUrl ?? null,
-            },
-            asOf: { date: null, fiscalYear: req.fiscalYear ?? null, sourceYear: req.sourceYear ?? null },
-            geography: { state, district, scope: 'district', basis: null, boundaryCongress: null },
-            freshness: { lastSyncedAt: null, stale: false, unavailable: false },
-            coverage: 'complete',
-            caveats: [],
-          });
-        }
-      }
-    } catch (err) {
-      this.logger.error('Priority intelligence rail failed', err);
-      gaps.push({
-        section: 'cpf_cds',
-        reason: 'Priority intelligence service failed',
-        source: 'priority-intelligence',
-      });
+      return pi;
+    } catch (error) {
+      this.logger.error('Priority intelligence rail failed', error);
+      gaps.push({ section: 'cpf_cds', reason: 'Priority intelligence service failed', source: 'priority-intelligence' });
+      gaps.push({ section: 'changes', reason: 'Priority intelligence change reader failed', source: 'priority-intelligence' });
+      return null;
     }
   }
 
-  private async collectStrategic(
-    tenantId: string,
-    clientId: string,
-    state: string,
-    district: string,
-    facts: R5Fact[],
-    gaps: R5Gap[],
-  ) {
-    try {
-      const strat = await this.strategic.getDistrictStrategic(tenantId, state, district, clientId);
-
-      if (strat.strategic?.score != null) {
-        facts.push({
-          id: factId('economic', 'strategic_relevance', `strategic-${district}`),
-          section: 'economic',
-          label: 'Strategic relevance score',
-          value: strat.strategic.score,
-          unit: 'score',
-          amountStage: null,
-          basis: 'verified_client_nexus',
-          source: {
-            type: 'strategic_relevance',
-            label: 'Strategic relevance',
-            recordId: `strategic-${district}`,
-            url: null,
-          },
-          asOf: { date: null, fiscalYear: null, sourceYear: null },
-          geography: { state, district, scope: 'district', basis: null, boundaryCongress: null },
-          freshness: { lastSyncedAt: null, stale: false, unavailable: false },
-          coverage: 'complete',
-          caveats: [],
-        });
-      }
-    } catch (err) {
-      this.logger.error('Strategic relevance rail failed', err);
-      gaps.push({
-        section: 'economic',
-        reason: 'Strategic relevance service failed',
-        source: 'strategic-relevance',
-      });
-    }
+  private addRequest(req: ProjectedCpfCdsSignal, state: string, district: string,
+    health: SourceFreshness[], stale: boolean, facts: R5Fact[]): void {
+    const statewide = req.geography.basis === 'senate_statewide';
+    const source = { type: 'cpf_cds', label: req.chamber === 'senate' ? 'Senate CDS' : 'House CPF',
+      recordId: req.requestId, url: null };
+    const geography: R5Fact['geography'] = { state, district: statewide ? null : district,
+      scope: statewide ? 'statewide' : 'district', basis: req.geography.basis, boundaryCongress: null };
+    const shared = { section: 'cpf_cds' as const, unit: 'USD',
+      basis: req.clientAttribution ? 'verified_client_nexus' as const : 'public_context' as const,
+      source, asOf: { date: null, fiscalYear: req.fiscalYear, sourceYear: null }, geography,
+      freshness: freshnessFor('cpf_cds', health, stale), coverage: 'unknown' as const,
+      caveats: [...(statewide ? ['statewide_attribution'] : []),
+        ...(stale ? ['stale_source'] : []), `source_stage:${req.amountStageRaw}`],
+    };
+    facts.push({ ...shared, id: factId('cpf_cds', 'requested', req.requestId),
+      label: `${req.projectTitle} (${req.chamber} ${req.requestType}) — requested`,
+      value: req.requestedAmountUsd, amountStage: 'requested' });
+    if (req.finalAmountUsd != null) facts.push({ ...shared,
+      id: factId('cpf_cds', 'enacted', req.requestId), label: `${req.projectTitle} (${req.chamber} ${req.requestType}) — final/enacted`,
+      value: req.finalAmountUsd, amountStage: 'enacted' });
   }
 
-  private async collectEconomic(
-    state: string,
-    district: string,
-    facts: R5Fact[],
-    gaps: R5Gap[],
-  ) {
+  private async collectEconomic(state: string, district: string, health: SourceFreshness[],
+    facts: R5Fact[], gaps: R5Gap[]): Promise<void> {
     try {
       const econ = await this.economic.getDistrictContext(state, district);
-
-      for (const m of econ.metrics ?? []) {
-        facts.push({
-          id: factId('economic', m.source, m.sourceRecordId ?? `${m.source}:${m.metricKey}`),
-          section: 'economic',
-          label: m.metricKey ?? m.dataset ?? 'Economic metric',
-          value: m.value,
-          unit: m.unit,
-          amountStage: null,
-          basis: 'public_context',
-          source: {
-            type: m.source,
-            label: m.dataset ?? m.source,
-            recordId: m.sourceRecordId ?? null,
-            url: m.sourceUrl ?? null,
-          },
-          asOf: {
-            date: m.lastSyncedAt ?? null,
-            fiscalYear: null,
-            sourceYear: m.sourceYear,
-          },
-          geography: {
-            state,
-            district,
-            scope: 'district',
-            basis: null,
-            boundaryCongress: m.boundaryCongress,
-          },
-          freshness: { lastSyncedAt: m.lastSyncedAt ?? null, stale: false, unavailable: false },
-          coverage: 'complete',
-          caveats: [],
+      for (const source of econ.sources) {
+        if (source.status === 'unavailable' || source.status === 'failed') gaps.push({
+          section: 'economic', reason: `${source.source} economic source ${source.status}`, source: source.source,
         });
       }
-    } catch (err) {
-      this.logger.error('Economic rail failed', err);
-      gaps.push({
-        section: 'economic',
-        reason: 'Economic footprint service failed',
-        source: 'district-economic',
-      });
+      for (const metric of econ.metrics) {
+        const status = econ.sources.find((s) => s.source === metric.source && s.dataset === metric.dataset);
+        const moeUnavailable = metric.marginOfError == null || metric.marginOfError <= 0;
+        facts.push({
+          id: factId('economic', metric.source, metric.sourceRecordId ?? `${metric.metricKey}-${metric.sourceYear}`),
+          section: 'economic', label: metric.metricKey.replaceAll('_', ' '), value: metric.value, unit: metric.unit,
+          amountStage: null, basis: 'public_context',
+          source: { type: metric.source, label: metric.dataset, recordId: metric.sourceRecordId, url: metric.sourceUrl },
+          asOf: { date: metric.observedAt, fiscalYear: null, sourceYear: metric.sourceYear },
+          geography: { state, district, scope: 'district', basis: null, boundaryCongress: metric.boundaryCongress },
+          freshness: freshnessFor(metric.source, health, status?.status === 'failed'),
+          coverage: status?.status === 'success_with_errors' ? 'partial' : 'unknown',
+          caveats: [...(moeUnavailable ? ['MOE unavailable'] : []), ...econ.warnings],
+        });
+      }
+    } catch (error) {
+      this.logger.error('Economic rail failed', error);
+      gaps.push({ section: 'economic', reason: 'Economic footprint service failed', source: 'district-economic' });
     }
   }
 
-  private async collectChanges(
-    state: string,
-    district: string,
-    facts: R5Fact[],
-    gaps: R5Gap[],
-  ) {
-    try {
-      const stateFips = stateFipsForAbbr(state);
-      const rows = await this.prisma.districtNexusChange.findMany({
-        where: {
-          observationKind: 'change',
-          OR: [
-            { source: 'gsa', stateCode: stateFips, districtCode: gsaDistrictKey(district) },
-            { source: { not: 'gsa' }, stateCode: state, districtCode: district },
-          ],
-        },
-        orderBy: { observedAt: 'desc' },
-        take: 30,
-      });
+  private collectChanges(rows: RecentChangeRecord[], state: string, district: string,
+    health: SourceFreshness[], facts: R5Fact[]): void {
+    for (const row of rows) facts.push({
+      id: factId('changes', row.source, `${row.sourceRecordId}-${row.changeKind}-${row.observedAt}`),
+      section: 'changes', label: `${row.changeKind} (${row.source})`,
+      value: row.newValue == null ? null : JSON.stringify(row.newValue), unit: null, amountStage: null,
+      basis: 'public_context',
+      source: { type: row.source, label: row.source, recordId: row.sourceRecordId, url: null },
+      asOf: { date: row.observedAt, fiscalYear: null, sourceYear: row.sourceYear },
+      geography: { state, district, scope: 'district', basis: row.geographyVintage, boundaryCongress: row.boundaryCongress },
+      freshness: freshnessFor(row.source, health), coverage: 'unknown', caveats: [],
+    });
+  }
 
-      for (const c of rows) {
+  private async collectMarket(tenantId: string, clientId: string, state: string, district: string,
+    health: SourceFreshness[], facts: R5Fact[], gaps: R5Gap[]): Promise<void> {
+    try {
+      const market = await this.market.geography(tenantId, { clientId, state, district });
+      const key = `${state}-${district}`;
+      if (market.futureSignalsAvailability === 'unavailable') gaps.push({
+        section: 'opportunities', reason: 'Future signals unavailable', source: 'federal-market',
+      });
+      for (const signal of market.futureSignals.filter((s) => s.districtKey === key || (!s.districtKey && s.state === state)).slice(0, 5)) {
+        const statewide = signal.districtKey !== key;
         facts.push({
-          id: factId('changes', c.source, c.sourceRecordId),
-          section: 'changes',
-          label: `${c.changeKind} (${c.source})`,
-          value: c.newValue != null ? JSON.stringify(c.newValue) : null,
-          unit: null,
-          amountStage: null,
-          basis: 'public_context',
-          source: {
-            type: c.source,
-            label: c.source,
-            recordId: c.sourceRecordId,
-            url: null,
-          },
-          asOf: {
-            date: c.observedAt.toISOString(),
-            fiscalYear: null,
-            sourceYear: c.sourceYear,
-          },
-          geography: {
-            state,
-            district,
-            scope: 'district',
-            basis: null,
-            boundaryCongress: c.boundaryCongress,
-          },
-          freshness: { lastSyncedAt: null, stale: false, unavailable: false },
-          coverage: 'complete',
-          caveats: [],
+          id: factId('opportunities', signal.source, signal.id), section: 'opportunities', label: signal.title,
+          value: null, unit: null, amountStage: 'forecast', basis: 'public_context',
+          source: { type: signal.source, label: signal.source === 'sam_gov' ? 'SAM opportunity' : 'Agency forecast',
+            recordId: signal.id, url: signal.sourceUrl },
+          asOf: { date: signal.date, fiscalYear: null, sourceYear: null },
+          geography: { state, district: statewide ? null : district, scope: statewide ? 'statewide' : 'district',
+            basis: signal.geographyBasis, boundaryCongress: null },
+          freshness: freshnessFor(signal.source, health), coverage: 'unknown',
+          caveats: statewide ? ['statewide_attribution', 'opportunity_only'] : ['opportunity_only'],
         });
       }
-    } catch (err) {
-      this.logger.error('Change ledger rail failed', err);
-      gaps.push({
-        section: 'changes',
-        reason: 'Change ledger query failed',
-        source: 'district_nexus_change',
-      });
+      // Supplier is separately gated in the drawer. The corpus checkpoint, not match count,
+      // determines coverage. State-only subawards must never be added to a district figure.
+      let supplierEnabled = false;
+      try {
+        await this.economicFlag.assertEnabledForTenant(tenantId, DISTRICT_NEXUS_SUPPLIER_FOOTPRINT_FEATURE);
+        supplierEnabled = true;
+      } catch (error) {
+        if (!(error instanceof NotFoundException)) gaps.push({ section: 'footprint', reason: 'Supplier flag unavailable', source: 'tango_subaward' });
+      }
+      if (supplierEnabled) try {
+        const supplier = await this.economic.getSupplierFootprintStatus(tenantId, clientId);
+        const row = market.districts.find((d) => d.districtKey === key);
+        if (row && supplier.status === 'available') facts.push({
+          id: factId('footprint', 'tango_subaward', key), section: 'footprint',
+          label: 'District-resolved subawards (supplier corpus)', value: row.subawardAmount,
+          unit: 'USD', amountStage: 'awarded', basis: 'public_context',
+          source: { type: 'tango_subaward', label: 'Tango subawards', recordId: null, url: null },
+          asOf: { date: null, fiscalYear: null, sourceYear: null },
+          geography: { state, district, scope: 'district', basis: 'source_place_of_performance', boundaryCongress: null },
+          freshness: freshnessFor('tango_subaward', health),
+          coverage: supplier.sourceCompleteness === 'complete' ? 'complete' : 'partial',
+          caveats: supplier.sourceCompleteness === 'complete' ? [] : [supplier.sourceCoverageNote],
+        });
+      } catch (error) {
+        gaps.push({ section: 'footprint', reason: 'Supplier corpus unavailable', source: 'tango_subaward' });
+      }
+    } catch (error) {
+      this.logger.error('Federal market rail failed', error);
+      gaps.push({ section: 'opportunities', reason: 'Federal market service failed', source: 'federal-market' });
     }
   }
 }
