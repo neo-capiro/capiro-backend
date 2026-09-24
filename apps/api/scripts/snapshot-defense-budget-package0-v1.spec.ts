@@ -29,7 +29,11 @@ describe('snapshot-defense-budget-package0-v1', () => {
       }),
       $queryRawUnsafe: jest.fn(async (query: string, relation?: string) => {
         if (query.includes('to_regclass')) {
-          return [{ relation: relation?.endsWith('governed_ingestion_manifest_v1') ? null : relation }];
+          return [
+            {
+              relation: relation?.endsWith('defense_budget_ingestion_manifest_v1') ? null : relation,
+            },
+          ];
         }
         return [];
       }),
@@ -44,10 +48,10 @@ describe('snapshot-defense-budget-package0-v1', () => {
     expect(tables.governedManifests).toEqual({
       unavailable: true,
       reason: 'relation_missing',
-      table: 'governed_ingestion_manifest_v1',
+      table: 'defense_budget_ingestion_manifest_v1',
     });
     expect(client.$queryRawUnsafe).not.toHaveBeenCalledWith(
-      expect.stringContaining('FROM governed_ingestion_manifest_v1'),
+      expect.stringContaining('FROM defense_budget_ingestion_manifest_v1'),
     );
   });
 });
