@@ -46,6 +46,28 @@ describe('mapTangoSubaward', () => {
     expect(mapTangoSubaward({ subaward_details: { amount: 10 } })).toBeNull();
   });
 
+  it('nulls place-of-performance fields too long for their columns instead of crashing the write', () => {
+    const mapped = mapTangoSubaward({
+      key: 'sub-overflow',
+      place_of_performance: {
+        country: 'UNITED STATES', // pop_country is VARCHAR(3)
+        state: 'CALIFORNIA', // pop_state is VARCHAR(8)
+        congressional_district: 'AT-LARGE-99', // pop_congressional_district is VARCHAR(8)
+        city: 'Sacramento',
+        zip: '95814',
+      },
+    });
+
+    expect(mapped).not.toBeNull();
+    expect(mapped?.placeOfPerformance).toEqual({
+      country: null,
+      state: null,
+      city: 'Sacramento',
+      zip: '95814',
+      congressionalDistrict: null,
+    });
+  });
+
   it('hashes semantic content independently of input key order and fetch time', () => {
     const a = mapTangoSubaward(
       { key: 'x', subaward_details: { amount: '1,200', description: 'Work' } },
