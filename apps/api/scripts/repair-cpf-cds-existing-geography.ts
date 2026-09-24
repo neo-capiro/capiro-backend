@@ -101,10 +101,7 @@ async function main(): Promise<void> {
     });
 
     // ---- Fetch source occurrence data for each candidate ----
-    const allCandidateIds = [
-      ...candidates.map((r) => r.id),
-      ...senateRows.map((r) => r.id),
-    ];
+    const allCandidateIds = [...candidates.map((r) => r.id), ...senateRows.map((r) => r.id)];
 
     const sourceRows =
       allCandidateIds.length > 0
@@ -198,6 +195,19 @@ async function main(): Promise<void> {
     console.log(`  senate_statewide:    ${plan.summary.senate_statewide}`);
     console.log(`  total:               ${plan.summary.total}`);
 
+    // Audit trail for ECS runs: the manifest file lives in the container's tmpfs and is lost when the
+    // task stops, so the summary, per-group counts and every eligible/conflicting row go to stdout
+    // (CloudWatch) as single-line JSON.
+    console.log(
+      `AUDIT_SUMMARY ${JSON.stringify({ mode: manifest.mode, summary: plan.summary, eligibleByFiscalYear: plan.eligibleByFiscalYear })}`,
+    );
+    for (const g of plan.beforeAfterByGroup) console.log(`AUDIT_GROUP ${JSON.stringify(g)}`);
+    for (const r of manifest.rows) {
+      if (r.classification === 'eligible' || r.classification === 'conflicting') {
+        console.log(`AUDIT_ROW ${JSON.stringify(r)}`);
+      }
+    }
+
     if (plan.eligibleByFiscalYear.length > 0) {
       console.log(`\n[${SOURCE}] Eligible by fiscal year:`);
       for (const fy of plan.eligibleByFiscalYear) {
@@ -243,36 +253,42 @@ async function main(): Promise<void> {
 
       console.log(`\n[${SOURCE}] Committing ${eligibleCount} eligible repair(s)...`);
 
-      let repaired = 0;
-      for (const row of plan.rows) {
-        if (row.classification !== 'eligible') continue;
+      // One interactive transaction: any guarded update that hits 0 rows throws and rolls back
+      // every earlier update, so a partial repair can never be left behind.
+      const eligibleRows = plan.rows.filter((row) => row.classification === 'eligible');
+      const repaired = await prisma.$transaction(
+        async (tx) => {
+          let count = 0;
+          for (const row of eligibleRows) {
+            // Optimistic concurrency: WHERE id = $1 AND requester_state IS NULL
+            // AND requester_district = row.beforeDistrict (raw token, unchanged).
+            // Only requester_state is written; requester_district stays untouched.
+            const result = await tx.communityFundingRequest.updateMany({
+              where: {
+                id: row.requestId,
+                requesterState: null,
+                requesterDistrict: row.beforeDistrict,
+              },
+              data: {
+                requesterState: row.afterState,
+                // NOTE: requesterDistrict is intentionally NOT written — it must
+                // stay byte-identical (the raw uppercased STDD token).
+              },
+            });
 
-        // Optimistic concurrency: WHERE id = $1 AND requester_state IS NULL
-        // AND requester_district = row.beforeDistrict (raw token, unchanged).
-        // Only requester_state is written; requester_district stays untouched.
-        const result = await prisma.communityFundingRequest.updateMany({
-          where: {
-            id: row.requestId,
-            requesterState: null,
-            requesterDistrict: row.beforeDistrict,
-          },
-          data: {
-            requesterState: row.afterState,
-            // NOTE: requesterDistrict is intentionally NOT written — it must
-            // stay byte-identical (the raw uppercased STDD token).
-          },
-        });
+            if (result.count === 0) {
+              throw new Error(
+                `row ${row.requestId} changed since planning — expected requester_state IS NULL AND ` +
+                  `requester_district = '${row.beforeDistrict}'; transaction rolled back, nothing written`,
+              );
+            }
 
-        if (result.count === 0) {
-          console.error(
-            `[${SOURCE}] FAILED: row ${row.requestId} changed since dry-run — ` +
-              `expected requester_state IS NULL AND requester_district = '${row.beforeDistrict}', aborting`,
-          );
-          process.exit(1);
-        }
-
-        repaired++;
-      }
+            count++;
+          }
+          return count;
+        },
+        { timeout: 10 * 60 * 1000, maxWait: 60 * 1000 },
+      );
 
       console.log(`[${SOURCE}] Repaired ${repaired} row(s).`);
       console.log(
@@ -281,11 +297,11 @@ async function main(): Promise<void> {
     } else {
       console.log(
         `\n[${SOURCE}] DRY RUN — pass --commit --expected-eligible ${plan.summary.eligible} to persist`,
-     );
-   }
- } finally {
-   await prisma.$disconnect();
- }
+      );
+    }
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 // Direct execution guard (matches precedent: repair-facility-district-codes.ts)
