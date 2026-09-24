@@ -65,6 +65,13 @@ export class R5DistrictContextService {
     }
 
     await this.collectDetail(tenantId, clientId, stateCode, district, sourceHealth, facts, gaps);
+    // Grants.gov client grant candidates are a separate, client-level pipeline that is not yet
+    // projected into district facts; say so rather than letting the opportunities section look complete.
+    gaps.push({
+      section: 'opportunities',
+      reason: 'Grants.gov client grant candidates are not included in this district context yet',
+      source: 'grant-opportunity-candidates',
+    });
     let priority: ClientPriorityIntelligenceResponse | null = null;
     let priorityEnabled = false;
     try {
