@@ -1,6 +1,6 @@
 # Defense-budget Package 4 — versioned federal legislative updates
 
-Package 4 adds an immutable, version-aware federal legislative evidence path and a retry-safe material-change delivery path. The release is intentionally dark: recurring collection and outbox rules are registered but disabled, and committed collection also requires `FEDERAL_LEGISLATIVE_EVIDENCE_ENABLED=true`. This preserves the unresolved Package 3 congressional-input gate while allowing the schema, readers, and runtime code to ship safely.
+Package 4 adds an immutable, version-aware federal legislative evidence path and a retry-safe material-change delivery path. It is deployed from merge commit `a57150eaa973b93b8871bdcd8c03b1994230dcfe`. The release is intentionally dark: recurring collection and outbox rules are not activated, and committed collection also requires `FEDERAL_LEGISLATIVE_EVIDENCE_ENABLED=true`. This preserves the unresolved Package 3 congressional-input gate while allowing the schema, readers, and runtime code to ship safely.
 
 ## Delivered scope
 
@@ -23,3 +23,13 @@ The release does not enable canonical defense-budget financial writes, infer fun
 
 - [Validation evidence](./validation-evidence-2026-09-24.md)
 - [Machine-readable qualification](./qualification-2026-09-24.json)
+- [Machine-readable release evidence](./release-evidence-2026-09-24.json)
+
+Release scope: account `967807252336`, region `us-east-1`, cluster `capiro-dev`.
+
+| Runtime | Released state |
+| --- | --- |
+| API task definition `:446` | ECS steady; desired/running/pending `2/2/0`; both tasks and load-balancer targets healthy |
+| Migration task definition `:132` | Package 4 migration applied; one-off task exited 0 |
+| Sync task definition `:32` | Exact release image registered; `FEDERAL_LEGISLATIVE_EVIDENCE_ENABLED=false` |
+| Package 4 schedules | No live EventBridge rules; polling and alert delivery inactive |
