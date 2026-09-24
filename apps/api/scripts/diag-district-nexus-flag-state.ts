@@ -1,0 +1,58 @@
+/**
+ * Read-only DISTRICT NEXUS FLAG STATE report. Lists every tenant and the
+ * current intel_feature_flag row (if any) for each of the four District
+ * Nexus feature keys. SAFE: SELECT only, no writes. Mirrors the
+ * app.bypass_rls pattern used by set-tenant-flag.ts / the guards themselves,
+ * since tenants and intel_feature_flag are both RLS-FORCE-protected.
+ */
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+const FEATURES = [
+  'district_nexus_v2',
+  'district_nexus_strategic_relevance',
+  'district_nexus_priority_intelligence',
+  'district_nexus_supplier_footprint',
+];
+
+async function main() {
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
+
+    const tenants = await tx.$queryRawUnsafe<
+      Array<{ id: string; slug: string; name: string; status: string }>
+    >('SELECT id::text AS id, slug, name, status FROM tenants ORDER BY slug');
+
+    const flags = await tx.$queryRawUnsafe<
+      Array<{ feature: string; tenant_id: string; enabled: boolean }>
+    >(
+      `SELECT feature, tenant_id, enabled FROM intel_feature_flag WHERE feature = ANY($1::text[])`,
+      FEATURES,
+    );
+
+    const byTenant: Record<string, Record<string, boolean>> = {};
+    for (const f of flags) {
+      byTenant[f.tenant_id] ??= {};
+      byTenant[f.tenant_id][f.feature] = f.enabled;
+    }
+
+    const report = tenants.map((t) => ({
+      slug: t.slug,
+      name: t.name,
+      status: t.status,
+      flags: Object.fromEntries(
+        FEATURES.map((f) => [f, byTenant[t.id]?.[f] ?? 'no row (dark unless internal-canary)']),
+      ),
+    }));
+
+    console.log(JSON.stringify({ tenantCount: tenants.length, report }, null, 2));
+  });
+}
+
+main()
+  .catch((e) => {
+    console.error('FATAL', e);
+    process.exitCode = 1;
+  })
+  .finally(() => prisma.$disconnect());

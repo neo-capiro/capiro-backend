@@ -207,6 +207,14 @@ case "${1:-serve}" in
     echo "Running diag-district-nexus-source-matrix (read-only source matrix: ACS/CBP/LODES/GSA/CPF-CDS/SAM/Tango)"
     exec ./node_modules/.bin/tsx scripts/diag-district-nexus-source-matrix.ts
     ;;
+  diag-district-nexus-flag-state)
+    echo "Running diag-district-nexus-flag-state (read-only: per-tenant state of all 4 district_nexus_* flags)"
+    exec ./node_modules/.bin/tsx scripts/diag-district-nexus-flag-state.ts
+    ;;
+  enable-district-nexus-for-all-tenants)
+    echo "Running enable-district-nexus-for-all-tenants (dry-run unless --commit)"
+    exec ./node_modules/.bin/tsx scripts/enable-district-nexus-for-all-tenants.ts "$@"
+    ;;
   diag-lda-identity)
     echo "Running diag-lda-identity (read-only: LDA client_id stability vs name variation)"
     exec ./node_modules/.bin/tsx scripts/diag-lda-identity.ts
