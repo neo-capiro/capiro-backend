@@ -44,7 +44,11 @@ describe('MeriV2ChatClient.streamChat', () => {
     const events: MeriV2ChatStreamEvent[] = [];
     await makeClient().streamChat({
       bearerToken: 'jwt-123',
-      input: { messages: [{ role: 'user', text: 'hi' }], conversationId: 'c1' },
+      input: {
+        messages: [{ role: 'user', text: 'hi' }],
+        conversationId: 'c1',
+        timeZone: 'America/Los_Angeles',
+      },
       aiProvider: {
         provider: 'anthropic',
         apiKey: 'sk-tenant',
@@ -67,7 +71,10 @@ describe('MeriV2ChatClient.streamChat', () => {
       provider: 'anthropic',
       usedTenantKey: true,
     });
-    expect(JSON.parse(String(init.body))).toMatchObject({ conversationId: 'c1' });
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      conversationId: 'c1',
+      timeZone: 'America/Los_Angeles',
+    });
   });
 
   it('omits the BYOK header when no credential resolved (global-key fallback downstream)', async () => {

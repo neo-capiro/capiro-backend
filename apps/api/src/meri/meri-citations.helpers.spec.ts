@@ -89,7 +89,7 @@ describe('formatCitationsForPrompt', () => {
     expect(formatCitationsForPrompt([])).toBe('');
   });
 
-  it('renders [N] lines with title, snippet, and url', () => {
+  it('renders [N] lines with title, passage, and a reader-usable source target', () => {
     const cites: MeriCitation[] = [
       {
         n: 1,
@@ -103,9 +103,20 @@ describe('formatCitationsForPrompt', () => {
       { n: 2, type: 'bill', id: 's2', title: 'Budget Act', url: null, snippet: null, tool: 't' },
     ];
     const out = formatCitationsForPrompt(cites);
-    expect(out).toContain('[1] Defense Act — summary — https://x');
-    expect(out).toContain('[2] Budget Act');
+    expect(out).toContain('[1] Defense Act — Passage: summary — Source: https://x');
+    expect(out).toContain('[2] Budget Act — Source: bill record s2');
     expect(out.startsWith('Citable sources')).toBe(true);
+  });
+
+  it('includes source owner locator details alongside the returned passage', () => {
+    const citation: MeriCitation = {
+      n: 3, type: 'memory', id: 'memory-42', title: 'Policy note', url: null,
+      snippet: 'The policy requires review.', tool: 'search_memory',
+      source: { kind: 'memory', recordId: 'memory-42', section: 'approval', version: 'content:abc' },
+    };
+    expect(formatCitationsForPrompt([citation])).toContain(
+      '[3] Policy note — Passage: The policy requires review. — Source: memory record memory-42 (memory / memory-42 / section approval / version content:abc)',
+    );
   });
 });
 

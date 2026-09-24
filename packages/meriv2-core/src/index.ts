@@ -15,6 +15,7 @@ export * from './alerts/alert';
 export * from './ids/canonical-ids';
 export * from './scoping/scoping-wrapper';
 export * from './intent/intent-router';
+export * from './intent/action-intent';
 export * from './grounding/claim-map';
 export * from './grounding/grounded-json';
 export * from './grounding/auditor';

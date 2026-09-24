@@ -74,6 +74,29 @@ describe('canonical authenticated Meri downloads', () => {
     }));
   });
 
+  test('gets fresh auth for each download and accepts only non-empty document content', async () => {
+    const getFreshAuth = vi.fn()
+      .mockResolvedValueOnce({ Authorization: 'Bearer token-1' })
+      .mockResolvedValueOnce({ Authorization: 'Bearer token-2' });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response(docxMime, undefined, 'PK-first-document'))
+      .mockResolvedValueOnce(response(docxMime, undefined, 'PK-second-document'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const first = await fetchMeriArtifactDownload({ ...input(), getAuthHeaders: getFreshAuth });
+    const second = await fetchMeriArtifactDownload({ ...input(), getAuthHeaders: getFreshAuth });
+
+    expect(getFreshAuth).toHaveBeenCalledTimes(2);
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).headers).toEqual({
+      Authorization: 'Bearer token-1',
+    });
+    expect((fetchMock.mock.calls[1]![1] as RequestInit).headers).toEqual({
+      Authorization: 'Bearer token-2',
+    });
+    expect(first.blob.size).toBeGreaterThan(0);
+    expect(second.blob.size).toBeGreaterThan(0);
+  });
+
   test.each(['html', '', 'pdf&token=secret'])('rejects unsupported format %s before authenticating or fetching', async (format) => {
     const auth = vi.fn();
     const fetchMock = vi.fn();

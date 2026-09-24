@@ -203,7 +203,12 @@ export function MeriApprovalsTab({
     return (
       <div className="vnext-meri__evidence-tab-body">
         <MeriPanelState tone="empty">
-          Nothing is awaiting your approval for this conversation.
+          <div>Nothing is awaiting your approval for this conversation.</div>
+          <div className="vnext-meri__pending-approvals-empty-scope">
+            This tab shows only business actions proposed here. Business actions from other
+            conversations stay with those conversations; Hermes command approvals stay on their
+            run card in chat.
+          </div>
         </MeriPanelState>
       </div>
     );
@@ -211,6 +216,10 @@ export function MeriApprovalsTab({
 
   return (
     <div className="vnext-meri__evidence-tab-body">
+      <p className="vnext-meri__pending-approvals-scope">
+        Business action proposals for this conversation. Review their current state here; native
+        Hermes command approvals remain on the run card in chat.
+      </p>
       <div className="vnext-meri__pending-approvals">
         {approvals.map((proposal) => {
           const canApprove =
@@ -279,6 +288,10 @@ export function MeriApprovalsTab({
                     {`RISK · ${String(riskTier).toUpperCase()}`}
                   </span>
                 ) : null}
+              </div>
+
+              <div className="vnext-meri__pending-approval-origin">
+                Business action · Origin: this conversation
               </div>
 
               <div className="vnext-meri__pending-approval-title">{preview?.label}</div>

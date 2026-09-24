@@ -12,6 +12,7 @@ import {
   buildAssurancePromptBlock,
   buildClaimLedgerFromToolResults,
   classifyAssuranceRisk,
+  classifyActionIntent,
   evaluateAssuranceRelease,
   assurePreToolPersist,
   resolveAssuranceRolloutMode,
@@ -516,6 +517,7 @@ export class ChatAssistantService {
             prePersistRefusal,
             noteComplianceOutcome,
             dto.clientId,
+            lastUserText,
           ),
         })),
       );
@@ -705,10 +707,17 @@ export class ChatAssistantService {
     prePersistRefusal: (name: string, input: Record<string, unknown>) => string | null = () => null,
     noteComplianceOutcome: (outcome: 'PASS' | 'WARN' | 'BLOCK') => void = () => {},
     scopeClientId?: string,
+    userRequest = '',
   ): Promise<unknown> {
     const label = toolLabel(name);
     const isWrite = this.registry.get(name)?.readOnly === false;
     emit({ type: 'tool_call', tool: name, label });
+    if (isWrite && !classifyActionIntent(userRequest, name).authorized) {
+      const detail = 'I did not create an action because this request did not explicitly ask me to.';
+      steps.push({ tool: name, label, status: 'blocked', detail });
+      emit({ type: 'tool_done', tool: name, label, status: 'blocked', detail });
+      return { blocked: true, persisted: false, message: detail };
+    }
     const suppliedClient = typeof input.clientId === 'string' ? input.clientId.trim() : '';
     if (
       isMeriMailReadTool(name) &&

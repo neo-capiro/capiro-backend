@@ -2231,6 +2231,22 @@ export class MeriService implements MeriTurnMaintenance {
       m.key.startsWith('graph:') ? m.value : `${m.key}: ${m.value}`,
     );
 
+    // Reuse the existing per-user LegiWatch timezone preference as the user's
+    // display timezone for relative-date grounding in chat.
+    const userPrefs = await this.prisma
+      .withTenant(ctx.tenantId, (tx) =>
+        tx.user.findUnique({
+          where: { id: ctx.userId },
+          select: { legiwatchPrefs: true },
+        }),
+      )
+      .catch(() => null);
+    const rawUserPrefs = userPrefs?.legiwatchPrefs;
+    const preferredTimeZone =
+      rawUserPrefs && typeof rawUserPrefs === 'object' && !Array.isArray(rawUserPrefs)
+        ? rawUserPrefs['timezone']
+        : undefined;
+
     // Client KB snapshot (1B.4): the proxy owns clientKb, so build the same
     // always-on snapshot the legacy path injects (profile/people/facilities/
     // recent docs) and forward it like memoryContext. Best-effort.
@@ -2416,6 +2432,7 @@ export class MeriService implements MeriTurnMaintenance {
           ...(args.conversation.clientId ? { clientId: args.conversation.clientId } : {}),
           conversationId: args.conversationId,
           ...(memoryContext.length ? { memoryContext } : {}),
+          ...(typeof preferredTimeZone === 'string' ? { timeZone: preferredTimeZone } : {}),
           ...(skillAddendum ? { skillAddendum } : {}),
           ...(args.conversationSummary ? { conversationSummary: args.conversationSummary } : {}),
           ...(clientKbSnapshot ? { clientKbSnapshot } : {}),

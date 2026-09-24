@@ -119,6 +119,12 @@ describe('MeriApprovalsTab', () => {
     expect(
       screen.getByText('Nothing is awaiting your approval for this conversation.'),
     ).toBeTruthy();
+    expect(
+      screen.getByText(/Business actions from other conversations stay with those conversations/),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/Hermes command approvals stay on their run card in chat/),
+    ).toBeTruthy();
   });
 
   test('a proposed action can be approved after the informed-consent dialog is confirmed', () => {
@@ -134,12 +140,28 @@ describe('MeriApprovalsTab', () => {
     );
 
     expect(screen.getByText('AWAITING YOUR APPROVAL')).toBeTruthy();
+    expect(screen.getByText(/Business action · Origin: this conversation/)).toBeTruthy();
+    expect(screen.getByText(/native Hermes command approvals remain on the run card in chat/i)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
     // MeriActionConfirm's own informed-consent gate: the confirm button stays
     // disabled until the acknowledgement checkbox is checked.
     fireEvent.click(screen.getByRole('checkbox', { name: /I have reviewed this action/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Confirm & run' }));
     expect(onApprove).toHaveBeenCalledWith('proposal-1');
+  });
+
+  test('shows the client attached to a business action proposal', () => {
+    render(
+      <MeriApprovalsTab
+        approvals={[approval({ preview: { ...approval().preview, client: { id: 'client-1', name: 'Acme' } } })]}
+        approvingProposalId={null}
+        onApprove={vi.fn()}
+        onApproveAll={vi.fn()}
+        onDismiss={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('CLIENT')).toBeTruthy();
+    expect(screen.getByText('Acme')).toBeTruthy();
   });
 
   test('dismiss calls onDismiss directly, without a confirm dialog', () => {

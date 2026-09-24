@@ -258,6 +258,27 @@ describe('MeriV3AssistantService', () => {
     expect(claimLog.mock.calls.map(([message]) => eventNameOf(message))).not.toContain('meri.claim_inventory');
   });
 
+  test('blocks an audit that retracts text absent from the literal preceding answer', async () => {
+    const complete = jest.fn().mockResolvedValue(response({
+      outputText:
+        'I retract "No document-generation receipt existed." A receipt was visible after all.',
+    }));
+    const assistant = build(registry([]), complete);
+    const prior = 'The House passed the bill 220-210. A generation receipt is visible below.';
+    const result = await assistant.run(context, {
+      toolPolicy: 'none',
+      messages: [
+        { role: 'user', text: 'What happened?' },
+        { role: 'assistant', text: prior },
+        { role: 'user', text: 'Recheck the answer you just gave against the documents.' },
+      ],
+    });
+
+    expect(complete.mock.calls[0]?.[0]?.instructions).toContain(prior);
+    expect(result.reply).toContain('does not appear literally in the preceding answer');
+    expect(result.held).toBe(true);
+  });
+
   test('emits the reply before legacy-only shadow provider work begins', async () => {
     const tenantId = '17b63099-bc0f-4ac5-b596-496161e9481e';
     process.env.MERI_CLAIM_ASSESSMENT_MODE = 'shadow';
@@ -892,7 +913,7 @@ describe('MeriV3AssistantService', () => {
     description: 'Read budget marks',
     input_schema: {
       type: 'object',
-      properties: { peCode: { type: 'string' }, chamber: { type: 'string' } },
+      properties: { peCode: { type: 'string' }, chamber: { type: 'string' }, cursor: { type: 'string' } },
       required: ['peCode'],
     },
   };
@@ -963,6 +984,43 @@ describe('MeriV3AssistantService', () => {
     expect(String(outputs[1]!.output)).toContain('0603851F-senate');
     expect(result.reply).toBe('House [1] and Senate [2] marks compared.');
     expect(result.citations?.map((citation) => citation.id)).toEqual(['0603851F-house', '0603851F-senate']);
+  });
+
+  test('coverage enforce follows a concrete continuation cursor until the routed source closes', async () => {
+    process.env.MERI_COVERAGE_RETRIEVAL_MODE = 'enforce';
+    process.env.MERI_COVERAGE_RETRIEVAL_TENANTS = '11111111-1111-4111-8111-111111111111';
+    process.env.MERI_COVERAGE_RETRIEVAL_SURFACES = 'chat';
+    const complete = jest.fn()
+      .mockResolvedValueOnce(response({ outputText: 'Partial comparison.' }))
+      .mockResolvedValueOnce(response({ outputText: 'Complete comparison.' }));
+    const invoke = jest.fn(async (_name: string, args: Record<string, unknown>) => {
+      if (args.chamber === 'house' && !args.cursor) {
+        return {
+          data: [{ id: '0603851F-house-1', title: 'House page one' }],
+          coverage: { complete: false, truncated: true, paginationComplete: false, nextCursor: 'house:2' },
+        };
+      }
+      return {
+        ...chamberMark(args.chamber),
+        coverage: { complete: true, truncated: false, paginationComplete: true, nextCursor: null },
+      };
+    });
+    const assistant = build(registry([{ name: 'get_pe_budget_timeline', readOnly: true }], invoke), complete);
+    global.fetch = jest.fn(async () => new Response(JSON.stringify({ schemas: [chamberBudgetSchema] }), { status: 200 })) as typeof fetch;
+
+    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () => assistant.run(
+      { ...context, tenantId: '11111111-1111-4111-8111-111111111111' },
+      { conversationId: 'coverage-cursor', messages: [{ role: 'user', text: 'Compare House vs Senate positions on PE 0603851F.' }] },
+    ));
+
+    expect(invoke.mock.calls.map(([, args]) => args)).toEqual([
+      { peCode: '0603851F', chamber: 'house' },
+      { peCode: '0603851F', chamber: 'senate' },
+      { peCode: '0603851F', chamber: 'house', cursor: 'house:2' },
+    ]);
+    expect(complete).toHaveBeenCalledTimes(2);
+    expect(result.reply).toBe('Complete comparison.');
+    expect(result.toolCoverage?.filter((receipt) => receipt.requestRoute?.chamber === 'house')).toHaveLength(2);
   });
 
   test.each([
@@ -1079,6 +1137,32 @@ describe('MeriV3AssistantService', () => {
     expect(result.pendingApprovals).toEqual([
       expect.objectContaining({ proposalId: 'proposal-opaque-1', tool: 'send_email' }),
     ]);
+  });
+
+  test('does not create a proposal for a draft-only email request', async () => {
+    const call = {
+      type: 'function_call',
+      call_id: 'call-draft-email',
+      name: 'send_email',
+      arguments: '{"to":"person@example.com","subject":"Hello","body":"Draft"}',
+    };
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(response({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(response({ outputText: 'Here is a draft.' }));
+    const invoke = jest.fn();
+    const createProposal = jest.fn();
+    const assistant = build(registry([{ name: 'send_email', readOnly: false }], invoke), complete, createProposal);
+    global.fetch = jest.fn(async () => new Response(JSON.stringify({ schemas: [{
+      name: 'send_email', description: 'Send email', input_schema: { type: 'object', properties: {} },
+    }] }), { status: 200 })) as typeof fetch;
+
+    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      assistant.run(context, { messages: [{ role: 'user', text: 'Draft an email to Alex.' }] }),
+    );
+    expect(createProposal).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalled();
+    expect(result.pendingApprovals ?? []).toEqual([]);
   });
 
   test('blocks a tool request that attempts to escape the pinned client', async () => {
