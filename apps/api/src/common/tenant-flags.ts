@@ -393,6 +393,18 @@ export function engagementVNextEnabled(settings: unknown): boolean {
 }
 
 /**
+ * Business Development Phase 1 (Portfolio → Business Development). Gates the
+ * new firm-pipeline module behind a per-tenant flag. It has no external
+ * processor or provider dependency, defaults OFF, and is enforced by the API
+ * guard as well as hidden in the web application.
+ */
+export const BUSINESS_DEVELOPMENT_FLAG = 'businessDevelopment.enabled' as const;
+
+export function businessDevelopmentEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_FLAG, false);
+}
+
+/**
  * Effective feature entitlements for a tenant (Phase 5, §5.1). The tier map
  * (resolveEntitlements) sets the baseline; a per-tenant boolean override at
  * settings_jsonb.clioFeatureFlags['entitlement.<feature>'] can flip a single

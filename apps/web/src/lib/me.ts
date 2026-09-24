@@ -48,6 +48,13 @@ export interface MeResponse {
      * (or a still-loading query) fails back to the canonical EngagementPage.
      */
     engagementVNext?: boolean;
+    /**
+     * Business Development Phase 1 pipeline (Portfolio → Business Development).
+     * Optional so an older cached /me shape (or a still-loading query) fails
+     * closed: the entry, the page and its queries only render when this is
+     * exactly true. The API independently guards every route server-side.
+     */
+    businessDevelopment?: boolean;
   };
 }
 

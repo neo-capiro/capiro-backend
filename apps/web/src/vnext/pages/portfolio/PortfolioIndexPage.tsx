@@ -415,6 +415,17 @@ export function PortfolioIndexPage() {
     retry: false,
   });
   const canCreateClients = Boolean(me.data && hasAtLeast(me.data.role, 'standard_user'));
+  // Portfolio sub-navigation (Business Development Phase 1): the switcher is
+  // visible only when the tenant flag is exactly true. Missing/loading/error
+  // /me responses preserve the ordinary Portfolio surface.
+  const bizDevEnabled = me.data?.features.businessDevelopment === true;
+  const isBizDevView = searchParams.get('view') === 'business-development';
+  const switchView = (view: 'clients' | 'business-development') => {
+    const next = new URLSearchParams(searchParams);
+    if (view === 'business-development') next.set('view', 'business-development');
+    else next.delete('view');
+    setSearchParams(next);
+  };
 
   const openCreate = () => {
     if (!canCreateClients) return;
@@ -487,6 +498,12 @@ export function PortfolioIndexPage() {
     <div className="capiro-portfolio capiro-page">
       <header className="capiro-portfolio__head">
         <div><h1 className="capiro-portfolio__title">Portfolio</h1><p className="capiro-portfolio__sub">Every client account, the work in flight, and the outside signals moving against them.</p></div>
+        {bizDevEnabled ? (
+          <div className="capiro-portfolio__filters" role="tablist" aria-label="Portfolio views" style={{ padding: 0 }}>
+            <button type="button" role="tab" aria-selected={!isBizDevView} className={`capiro-portfolio__filter${!isBizDevView ? ' is-active' : ''}`} onClick={() => switchView('clients')}>Clients</button>
+            <button type="button" role="tab" aria-selected={isBizDevView} className={`capiro-portfolio__filter${isBizDevView ? ' is-active' : ''}`} onClick={() => switchView('business-development')}>Business Development</button>
+          </div>
+        ) : null}
         <span className="capiro-portfolio__head-spacer" />
         <CapiroButton variant="secondary" size="standard" onClick={refresh}>Refresh</CapiroButton>
         <CapiroButton variant="secondary" size="standard" onClick={() => openImport(true)}>Import with LDA</CapiroButton>

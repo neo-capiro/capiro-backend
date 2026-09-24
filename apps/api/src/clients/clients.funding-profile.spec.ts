@@ -73,7 +73,10 @@ describe('client funding profile API writers', () => {
     await expect(
       service.create(ctx, { name: 'Bad', intakeData: { fundingPriorities: 'not a list' } }),
     ).rejects.toBeInstanceOf(BadRequestException);
-    expect(prisma.withTenant).not.toHaveBeenCalled();
+    // Repair (bizdev Phase 1): funding-profile validation now lives inside
+    // ClientsService.createInTransaction, so the transaction DOES open — but
+    // the invalid profile must still abort before ANY client row is written.
+    expect(tx.client.create).not.toHaveBeenCalled();
     await service.create(ctx, {
       name: 'Example',
       applicantTypes: [smallBusiness],

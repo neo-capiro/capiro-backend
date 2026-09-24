@@ -38,6 +38,14 @@ export const VNEXT_ROUTE_MANIFEST: VNextRouteDefinition[] = [
     children: [
       { id: 'portfolio-clients', label: 'Clients', path: '/clients', availability: 'existing' },
       {
+        id: 'portfolio-business-development',
+        label: 'Business Development',
+        path: '/clients?view=business-development',
+        availability: 'existing',
+        // Navigation visibility only; the page and API independently fail closed.
+        meFeature: 'businessDevelopment',
+      },
+      {
         id: 'portfolio-program-elements',
         label: 'Defense Budget',
         path: '/program-elements',

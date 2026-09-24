@@ -1,0 +1,430 @@
+/* Business Development Phase 1 (Portfolio → Business Development).
+   Consumes the shared vNext token layer exactly like portfolio.css — every
+   value is a token or an inherited Portfolio convention. No hex literals. */
+
+.capiro-vnext-root .capiro-vnext-uui .uui-content:has(.capiro-bizdev) {
+  max-width: none;
+  padding: 0;
+  margin: 0;
+}
+
+.capiro-bizdev {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  --capiro-page-block-start: 32px;
+  --capiro-page-block-end: 48px;
+  --capiro-page-block-end-mobile: 32px;
+  --capiro-page-gutter: 32px;
+}
+.capiro-vnext-root .capiro-page.capiro-bizdev {
+  max-width: 1440px;
+  margin: 0 auto;
+}
+@media (max-width: 779px) {
+  .capiro-bizdev {
+    --capiro-page-gutter: 16px;
+  }
+}
+
+.capiro-bizdev__surface {
+  background: var(--capiro-color-bg-surface);
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 1px var(--capiro-color-border-quiet),
+    0 1px 3px rgba(16, 24, 40, 0.1),
+    0 1px 2px rgba(16, 24, 40, 0.06);
+  overflow: hidden;
+}
+.capiro-bizdev__eyebrow {
+  color: var(--capiro-color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.capiro-bizdev__title {
+  font-size: 30px;
+  line-height: 38px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--capiro-color-text-heading);
+  margin: 0;
+}
+.capiro-bizdev__sub {
+  font-size: 16px;
+  line-height: 20px;
+  color: var(--capiro-color-text-muted);
+  margin: 4px 0 0;
+}
+.capiro-bizdev__meta {
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--capiro-color-text-muted);
+}
+
+/* ── header ─────────────────────────────────────────────────────────── */
+.capiro-bizdev__head {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.capiro-bizdev__head-spacer {
+  flex: 1;
+}
+.capiro-bizdev__section-title {
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: 600;
+  color: var(--capiro-color-text-heading);
+  margin: 0;
+}
+.capiro-bizdev__count {
+  color: var(--capiro-color-text-muted);
+  font-size: 13px;
+}
+
+/* ── toolbar / filters ──────────────────────────────────────────────── */
+.capiro-bizdev__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 20px 24px 16px;
+}
+.capiro-bizdev__toolbar-spacer {
+  flex: 1;
+}
+.capiro-bizdev__search {
+  height: 36px;
+  min-width: 200px;
+  flex: 1 1 200px;
+  max-width: 320px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--capiro-color-border-control);
+  background: var(--capiro-color-bg-surface);
+  font-size: 14px;
+  color: var(--capiro-color-text-primary);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+}
+.capiro-bizdev__search:focus {
+  outline: none;
+  border-color: var(--capiro-color-action-accent-default);
+  box-shadow: 0 0 0 2px var(--capiro-color-bg-accent-soft);
+}
+.capiro-bizdev__filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.capiro-bizdev__filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: 8px;
+  background: transparent;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--capiro-color-text-muted);
+  cursor: pointer;
+}
+.capiro-bizdev__filter.is-active {
+  background: var(--capiro-color-bg-surface-2);
+  color: var(--capiro-color-text-primary);
+  border-color: var(--capiro-color-border-control);
+}
+.capiro-bizdev__filter-count {
+  font-size: 12px;
+  color: var(--capiro-color-text-faint);
+}
+.capiro-bizdev__select {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--capiro-color-border-control);
+  background: var(--capiro-color-bg-surface);
+  font-size: 14px;
+  color: var(--capiro-color-text-primary);
+  max-width: 100%;
+}
+
+/* ── table ──────────────────────────────────────────────────────────── */
+.capiro-bizdev__table-wrap {
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: 12px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  min-width: 0;
+  background: var(--capiro-color-bg-surface);
+}
+.capiro-bizdev__table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 960px;
+}
+.capiro-bizdev__table thead th {
+  text-align: left;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--capiro-color-text-muted);
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+  background: var(--capiro-color-bg-surface-2);
+}
+.capiro-bizdev__table tbody td {
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+  font-size: 14px;
+  color: var(--capiro-color-text-primary);
+  vertical-align: middle;
+}
+.capiro-bizdev__table tbody tr:last-child td {
+  border-bottom: none;
+}
+.capiro-bizdev__tr {
+  cursor: pointer;
+}
+.capiro-bizdev__tr:hover {
+  background: var(--capiro-color-bg-surface-2);
+}
+.capiro-bizdev__tr:focus-within {
+  outline: 2px solid var(--capiro-color-action-accent-default);
+  outline-offset: -2px;
+}
+.capiro-bizdev__name-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.capiro-bizdev__name-btn:focus {
+  outline: none;
+}
+.capiro-bizdev__stage {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--capiro-color-bg-surface-2);
+  border: 1px solid var(--capiro-color-border-quiet);
+  color: var(--capiro-color-text-secondary);
+  white-space: nowrap;
+}
+.capiro-bizdev__stage--won {
+  color: var(--capiro-color-text-success);
+}
+.capiro-bizdev__stage--lost {
+  color: var(--capiro-color-text-muted);
+}
+.capiro-bizdev__flag {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.capiro-bizdev__flag--conflict {
+  background: var(--capiro-color-bg-subtle);
+  border: 1px solid var(--capiro-color-border-warning, var(--capiro-color-border-control));
+  color: var(--capiro-color-text-secondary);
+}
+.capiro-bizdev__flag--client {
+  background: var(--capiro-color-bg-accent-soft);
+  border: 1px solid transparent;
+  color: var(--capiro-color-action-accent-default);
+}
+.capiro-bizdev__meta-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.capiro-bizdev__footer {
+  padding: 14px 24px;
+  border-top: 1px solid var(--capiro-color-border-quiet);
+  background: var(--capiro-color-bg-surface-2);
+  color: var(--capiro-color-text-secondary);
+  font-size: 14px;
+}
+
+/* ── detail drawer body ─────────────────────────────────────────────── */
+.capiro-bizdev__drawer {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.capiro-bizdev__field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+.capiro-bizdev__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.capiro-bizdev__field--full {
+  grid-column: 1 / -1;
+}
+.capiro-bizdev__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--capiro-color-text-muted);
+}
+.capiro-bizdev__input,
+.capiro-bizdev__textarea {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--capiro-color-border-control);
+  background: var(--capiro-color-bg-surface);
+  font-size: 14px;
+  color: var(--capiro-color-text-primary);
+  width: 100%;
+}
+.capiro-bizdev__textarea {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+.capiro-bizdev__input:focus,
+.capiro-bizdev__textarea:focus,
+.capiro-bizdev__select:focus {
+  outline: none;
+  border-color: var(--capiro-color-action-accent-default);
+  box-shadow: 0 0 0 2px var(--capiro-color-bg-accent-soft);
+}
+.capiro-bizdev__input:read-only:not(select) {
+  color: var(--capiro-color-text-muted);
+}
+.capiro-bizdev__statusnote {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--capiro-color-bg-subtle);
+  color: var(--capiro-color-text-secondary);
+  font-size: 13px;
+  line-height: 19px;
+}
+.capiro-bizdev__statusnote--warn {
+  border-left: 3px solid var(--capiro-color-warning);
+}
+.capiro-bizdev__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.capiro-bizdev__history {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.capiro-bizdev__history-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+  font-size: 13px;
+}
+.capiro-bizdev__history-item:last-child {
+  border-bottom: none;
+}
+.capiro-bizdev__history-meta {
+  color: var(--capiro-color-text-faint);
+  font-size: 12px;
+}
+.capiro-bizdev__history-kind {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--capiro-color-text-muted);
+}
+
+/* ── inline search lists (org/client pickers) ────────────────────────── */
+.capiro-bizdev__picker-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: 10px;
+}
+.capiro-bizdev__picker-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+}
+.capiro-bizdev__picker-list li:last-child .capiro-bizdev__picker-row {
+  border-bottom: none;
+}
+.capiro-bizdev__picker-name {
+  font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.capiro-bizdev__picker-meta {
+  font-size: 12px;
+  color: var(--capiro-color-text-faint);
+}
+
+/* ── preferences ─────────────────────────────────────────────────────── */
+.capiro-bizdev__pref-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.capiro-bizdev__pref-tag {
+  font-size: 13px;
+  padding: 2px 10px;
+  border-radius: 6px;
+  background: var(--capiro-color-bg-surface-2);
+  border: 1px solid var(--capiro-color-border-quiet);
+  color: var(--capiro-color-text-secondary);
+}
+
+/* ── responsive ──────────────────────────────────────────────────────── */
+@media (max-width: 1179px) {
+  .capiro-bizdev {
+    --capiro-page-block-start: 20px;
+    --capiro-page-block-end: 40px;
+  }
+  .capiro-bizdev__search {
+    height: var(--capiro-hit-size, 44px);
+  }
+  .capiro-bizdev__filter {
+    height: var(--capiro-hit-size, 44px);
+  }
+  .capiro-bizdev__select {
+    height: var(--capiro-hit-size, 44px);
+  }
+  .capiro-bizdev__field-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -321,6 +321,10 @@ model Tenant {
   canonicalEntityBackfillCheckpoints CanonicalEntityBackfillCheckpoint[]
   tenantHearingRelevance             TenantHearingRelevance[]
   tenantHearingRelevanceJobs         TenantHearingRelevanceJob[]
+  // Business Development Phase 1 back-relations.
+  bizdevProspects                    BusinessDevelopmentProspect[]
+  bizdevProspectActivity             BusinessDevelopmentProspectActivity[]
+  bizdevPreferences                  BusinessDevelopmentPreference?
 
   @@map("tenants")
 }
@@ -344,15 +348,17 @@ model CanonicalEntity {
   createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant              Tenant?                  @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "canonical_entities_tenant_fkey")
-  mergedInto          CanonicalEntity?         @relation("CanonicalEntityMergeTarget", fields: [mergedIntoEntityId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "canonical_entities_merged_into_fkey")
-  mergedSources       CanonicalEntity[]        @relation("CanonicalEntityMergeTarget")
+  tenant              Tenant?                       @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "canonical_entities_tenant_fkey")
+  mergedInto          CanonicalEntity?              @relation("CanonicalEntityMergeTarget", fields: [mergedIntoEntityId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "canonical_entities_merged_into_fkey")
+  mergedSources       CanonicalEntity[]             @relation("CanonicalEntityMergeTarget")
   aliases             EntityAlias[]
   identifiers         EntityIdentifier[]
-  selectedResolutions EntityResolution[]       @relation("EntityResolutionSelectedEntity")
-  mergeSources        CanonicalEntityMerge?    @relation("CanonicalEntityMergeSource")
-  mergeTargets        CanonicalEntityMerge[]   @relation("CanonicalEntityMergeTarget")
+  selectedResolutions EntityResolution[]            @relation("EntityResolutionSelectedEntity")
+  mergeSources        CanonicalEntityMerge?         @relation("CanonicalEntityMergeSource")
+  mergeTargets        CanonicalEntityMerge[]        @relation("CanonicalEntityMergeTarget")
   episodeMemberships  KnowledgeEpisodeEntity[]
+  bizdevProspects     BusinessDevelopmentProspect[]
+  confirmedClients    Client[]                      @relation("ClientCanonicalEntity")
 
   @@index([entityType, normalizedName, identityScope, tenantId, status], map: "canonical_entities_visible_name_idx")
   // SQL-owned partial index: tenant_id IS NOT NULL.
@@ -578,6 +584,10 @@ model User {
   outreachDraftVersions            OutreachDraftVersion[]         @relation("OutreachDraftVersionAuthor")
   outreachSendIntents              OutreachSendIntent[]           @relation("OutreachSendIntentOwner")
   savedOpportunitySearches         SavedOpportunitySearch[]       @relation("SavedOpportunitySearchOwner")
+  // Business Development Phase 1 adds NO User back-relations: prospect
+  // owner/created-by and activity actor are plain UUID columns with no DB
+  // foreign key (mirroring Client.createdByUserId), so a departed user never
+  // breaks reads and Prisma must not imply an FK.
 
   @@map("users")
 }
@@ -912,6 +922,15 @@ model Client {
   hearingRelevance         TenantHearingRelevance[]
   savedOpportunitySearches SavedOpportunitySearch[]
   opportunityBookmarks     OpportunityBookmark[]
+  // Business Development Phase 1 — confirmed canonical-identity link. Additive
+  // and nullable; at most one client per (tenant, canonical entity) when set
+  // (SQL partial unique index clients_tenant_canonical_entity_key). Set ONLY
+  // on explicit firm confirmation (prospect conversion or client identity
+  // review) — never auto-created from a manual prospect.
+  canonicalEntityId        String?                             @map("canonical_entity_id") @db.Uuid
+  canonicalEntity          CanonicalEntity?                    @relation("ClientCanonicalEntity", fields: [canonicalEntityId], references: [id], onDelete: Restrict, map: "clients_canonical_entity_fkey")
+  // Business Development Phase 1 back-relation.
+  bizdevProspects          BusinessDevelopmentProspect[]       @relation("BizDevProspectLinkedClient")
 
   @@index([tenantId], map: "clients_tenant_idx")
   @@index([tenantId, name], map: "clients_tenant_name_idx")
@@ -14246,4 +14265,94 @@ model DistrictNexusChange {
   // modifying it, so the existing index is never dropped/rebuilt.
   @@index([stateCode, districtCode, observationKind, observedAt(sort: Desc)], map: "district_nexus_change_district_kind_idx")
   @@map("district_nexus_change")
+}
+
+/// Business Development Phase 1 — a firm's private business-development
+/// prospect. SQL migrations remain the source of truth for RLS, the
+/// (tenant, canonical entity) partial unique (INCLUDING dismissed rows), the
+/// one-prospect-per-linked-client partial unique, and stage/status checks.
+/// Unresolved rows (canonical_entity_id NULL) have NO name/domain uniqueness:
+/// two same-name research records coexist by design.
+model BusinessDevelopmentProspect {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  canonicalEntityId String?   @map("canonical_entity_id") @db.Uuid
+  displayName       String    @map("display_name")
+  domain            String?
+  website           String?
+  description       String?
+  serviceHypothesis String?   @map("service_hypothesis")
+  geography         String?
+  ownerUserId       String?   @map("owner_user_id") @db.Uuid
+  stage             String    @default("researching") @db.VarChar(16)
+  status            String    @default("active") @db.VarChar(16)
+  dismissedAt       DateTime? @map("dismissed_at") @db.Timestamptz(6)
+  conflictExcluded  Boolean   @default(false) @map("conflict_excluded")
+  conflictReason    String?   @map("conflict_reason")
+  nextAction        String?   @map("next_action")
+  nextActionDueAt   DateTime? @map("next_action_due_at") @db.Timestamptz(6)
+  linkedClientId    String?   @map("linked_client_id") @db.Uuid
+  convertedAt       DateTime? @map("converted_at") @db.Timestamptz(6)
+  watchRequested    Boolean   @default(false) @map("watch_requested")
+  createdByUserId   String?   @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant          Tenant                                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  canonicalEntity CanonicalEntity?                      @relation(fields: [canonicalEntityId], references: [id], onDelete: Restrict, map: "business_development_prospects_canonical_fkey")
+  linkedClient    Client?                               @relation("BizDevProspectLinkedClient", fields: [linkedClientId], references: [id], onDelete: Restrict, map: "business_development_prospects_client_fkey")
+  // ownerUserId / createdByUserId are PLAIN UUIDs with no DB foreign key
+  // (mirroring Client.createdByUserId): a departed owner or creator never
+  // breaks reads, and history stays intact. Membership is validated in the
+  // service against an ACTIVE TenantMembership of the same tenant.
+  activity        BusinessDevelopmentProspectActivity[]
+
+  @@index([tenantId, status, stage], map: "business_development_prospects_tenant_status_stage_idx")
+  @@index([tenantId, updatedAt(sort: Desc)], map: "business_development_prospects_tenant_updated_idx")
+  @@index([tenantId, ownerUserId], map: "business_development_prospects_tenant_owner_idx")
+  @@index([tenantId, linkedClientId], map: "business_development_prospects_tenant_client_idx")
+  @@index([tenantId, displayName], map: "business_development_prospects_tenant_name_idx")
+  // SQL-owned partial uniques: (tenant_id, canonical_entity_id) WHERE NOT NULL
+  // and linked_client_id WHERE NOT NULL.
+  @@map("business_development_prospects")
+}
+
+/// Business Development Phase 1 — prospect activity / note history.
+/// Survives dismissal and conversion (both are only column updates on the
+/// prospect); deleted with the prospect (Cascade). Private note bodies and
+/// conflict reasons NEVER go to shared canonical rows.
+model BusinessDevelopmentProspectActivity {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  prospectId  String   @map("prospect_id") @db.Uuid
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  kind        String   @default("note") @db.VarChar(24)
+  body        String
+  beforeJsonb Json?    @map("before_jsonb")
+  afterJsonb  Json?    @map("after_jsonb")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant   Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  prospect BusinessDevelopmentProspect @relation(fields: [prospectId], references: [id], onDelete: Cascade, map: "business_development_prospect_activity_prospect_fkey")
+  // actorUserId is a PLAIN UUID with no DB foreign key (same rationale as
+  // prospect owner/created-by): activity history survives user departure.
+
+  @@index([tenantId, prospectId, createdAt(sort: Desc)], map: "business_development_prospect_activity_prospect_idx")
+  @@map("business_development_prospect_activity")
+}
+
+/// Business Development Phase 1 — firm-owned preferences (one row per
+/// tenant, tenant_id UNIQUE in SQL). Small arrays only.
+model BusinessDevelopmentPreference {
+  id                   String   @id @default(uuid()) @db.Uuid
+  tenantId             String   @unique @map("tenant_id") @db.Uuid
+  practiceServiceAreas String[] @default([]) @map("practice_service_areas")
+  agenciesIssues       String[] @default([]) @map("agencies_issues")
+  geographies          String[] @default([])
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("business_development_preferences")
 }
