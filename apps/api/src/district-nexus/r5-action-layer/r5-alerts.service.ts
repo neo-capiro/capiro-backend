@@ -22,7 +22,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { isR5AlertsEnabled } from './r5-alerts-flag.js';
+import { isR5FeatureEnabled, DISTRCT_NEXUS_R5_ALERTS } from './r5-flag.guard.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -106,7 +106,7 @@ export class R5DistrictAlertsService {
 
   /** Check if the tenant has the R5 alerts flag enabled. */
   async isEnabled(tenantId: string): Promise<boolean> {
-    return isR5AlertsEnabled(this.prisma, tenantId);
+    return isR5FeatureEnabled(this.prisma, tenantId, DISTRCT_NEXUS_R5_ALERTS);
   }
 
   // -----------------------------------------------------------------------

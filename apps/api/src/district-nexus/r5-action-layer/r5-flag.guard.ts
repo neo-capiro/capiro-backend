@@ -2,7 +2,6 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
-  Logger,
   NotFoundException,
   SetMetadata,
 } from '@nestjs/common';
@@ -12,7 +11,6 @@ import type { Request } from 'express';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
-  CAPIRO_INTERNAL_TENANT_SLUG,
   DISTRICT_NEXUS_FEATURE,
 } from '../district-nexus-flag.guard.js';
 
@@ -34,6 +32,30 @@ export const R5_FEATURE_KEYS = [
 ] as const;
 
 export type R5FeatureKey = (typeof R5_FEATURE_KEYS)[number];
+
+/** Same fail-closed, explicit dual-flag rule for HTTP and non-HTTP callers. */
+export async function isR5FeatureEnabled(
+  prisma: PrismaService,
+  tenantId: string | undefined,
+  feature: R5FeatureKey,
+): Promise<boolean> {
+  if (!tenantId) return false;
+  try {
+    const rows = await prisma.withSystem((tx) => tx.$queryRaw<Array<{ ok: number }>>`
+      SELECT 1 AS ok
+      WHERE EXISTS (
+        SELECT 1 FROM intel_feature_flag
+        WHERE feature = ${feature} AND tenant_id = ${tenantId} AND enabled = true
+      ) AND EXISTS (
+        SELECT 1 FROM intel_feature_flag
+        WHERE feature = ${DISTRICT_NEXUS_FEATURE} AND tenant_id = ${tenantId} AND enabled = true
+      ) LIMIT 1
+    `);
+    return rows.length > 0;
+  } catch {
+    return false;
+  }
+}
 
 // ── Decorator ────────────────────────────────────────────────────────────────
 
@@ -59,7 +81,6 @@ export const RequireR5Feature = (feature: R5FeatureKey) =>
  */
 @Injectable()
 export class R5FlagGuard implements CanActivate {
-  private readonly logger = new Logger(R5FlagGuard.name);
   private readonly internalTenantId?: string;
 
   constructor(
@@ -90,41 +111,7 @@ export class R5FlagGuard implements CanActivate {
     tenantId: string | undefined,
     feature: R5FeatureKey,
   ): Promise<boolean> {
-    if (!tenantId) throw new NotFoundException();
-
-    let enabled = false;
-    try {
-      // Must have an explicit enabled row for this R5 key AND the master
-      // district_nexus_v2 must also be enabled. No internal-canary fallback.
-      const rows = await this.prisma.withSystem(
-        (tx) =>
-          tx.$queryRaw<Array<{ ok: number }>>`
-          SELECT 1 AS ok
-          WHERE EXISTS (
-            SELECT 1 FROM intel_feature_flag
-            WHERE feature = ${feature}
-              AND tenant_id = ${tenantId}
-              AND enabled = true
-          )
-          AND EXISTS (
-            SELECT 1 FROM intel_feature_flag
-            WHERE feature = ${DISTRICT_NEXUS_FEATURE}
-              AND tenant_id = ${tenantId}
-              AND enabled = true
-          )
-          LIMIT 1
-        `,
-      );
-      enabled = rows.length > 0;
-    } catch (error) {
-      this.logger.error(
-        `${feature} flag read failed for tenant ${tenantId}; failing closed`,
-        error instanceof Error ? error.stack : String(error),
-      );
-      throw new NotFoundException();
-    }
-
-    if (!enabled) throw new NotFoundException();
+    if (!await isR5FeatureEnabled(this.prisma, tenantId, feature)) throw new NotFoundException();
     return true;
   }
 }

@@ -13,6 +13,7 @@ import { RolesGuard } from '../../auth/roles.guard.js';
 import { Roles } from '../../auth/roles.decorator.js';
 import { CurrentTenant } from '../../tenant/current-tenant.decorator.js';
 import { DistrictNexusFlagGuard } from '../district-nexus-flag.guard.js';
+import { R5FlagGuard, RequireR5Feature, DISTRCT_NEXUS_R5_ALERTS } from './r5-flag.guard.js';
 import { R5DistrictAlertsService, type DistrictAlertPayload } from './r5-alerts.service.js';
 
 class AlertPreferenceDto {
@@ -24,7 +25,8 @@ class AlertPreferenceDto {
 }
 
 @Controller('intelligence')
-@UseGuards(RolesGuard, DistrictNexusFlagGuard)
+@UseGuards(RolesGuard, DistrictNexusFlagGuard, R5FlagGuard)
+@RequireR5Feature(DISTRCT_NEXUS_R5_ALERTS)
 @Roles('standard_user')
 export class R5DistrictAlertsController {
   constructor(
@@ -48,10 +50,6 @@ export class R5DistrictAlertsController {
       throw new NotFoundException('clientId is required');
     }
 
-    // Check R5 alerts flag
-    const enabled = await this.alerts.isEnabled(ct.tenantId);
-    if (!enabled) throw new NotFoundException();
-
     // Verify client belongs to this tenant
     try {
       await this.alerts.verifyClientAccess(ct.tenantId, clientId.trim());
@@ -69,7 +67,7 @@ export class R5DistrictAlertsController {
 
   @Get('district-nexus/r5/alerts/preference')
   async getPreference(@CurrentTenant() ct: TenantContext, @Query('clientId') clientId: string) {
-    if (!await this.alerts.isEnabled(ct.tenantId) || !clientId) throw new NotFoundException();
+    if (!clientId) throw new NotFoundException();
     try {
       return { enabled: await this.alerts.getPreference(ct.tenantId, clientId, ct.userId) };
     } catch {
@@ -79,7 +77,6 @@ export class R5DistrictAlertsController {
 
   @Put('district-nexus/r5/alerts/preference')
   async putPreference(@CurrentTenant() ct: TenantContext, @Body() body: AlertPreferenceDto) {
-    if (!await this.alerts.isEnabled(ct.tenantId)) throw new NotFoundException();
     try {
       return { enabled: await this.alerts.setPreference(ct.tenantId, body.clientId, ct.userId, body.enabled) };
     } catch {

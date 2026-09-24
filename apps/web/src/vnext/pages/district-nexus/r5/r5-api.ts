@@ -182,21 +182,21 @@ export async function getDistrictNexusAlerts(
   if (state) params.set('state', state);
   if (district) params.set('district', district);
   const { data } = await api.get<DistrictAlertPayload[]>(
-    '/intelligence/district-nexus/r5/alerts?' + params.toString(),
+    '/api/intelligence/district-nexus/r5/alerts?' + params.toString(),
   );
   return data;
 }
 
 export async function getDistrictAlertPreference(api: AxiosInstance, clientId: string): Promise<boolean> {
   const { data } = await api.get<{ enabled: boolean }>(
-    '/intelligence/district-nexus/r5/alerts/preference', { params: { clientId } },
+    '/api/intelligence/district-nexus/r5/alerts/preference', { params: { clientId } },
   );
   return data.enabled;
 }
 
 export async function putDistrictAlertPreference(api: AxiosInstance, clientId: string, enabled: boolean): Promise<boolean> {
   const { data } = await api.put<{ enabled: boolean }>(
-    '/intelligence/district-nexus/r5/alerts/preference', { clientId, enabled },
+    '/api/intelligence/district-nexus/r5/alerts/preference', { clientId, enabled },
   );
   return data.enabled;
 }
