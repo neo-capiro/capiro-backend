@@ -1,4 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
+import { PATH_METADATA } from '@nestjs/common/constants.js';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import type { TenantContext, TenantRole } from '@capiro/shared';
@@ -48,6 +49,12 @@ const guardAllows = (handlerName: string, role: TenantRole | undefined): boolean
 };
 
 describe('route role metadata', () => {
+  test('controller path composes once with the application /api global prefix', () => {
+    expect(Reflect.getMetadata(PATH_METADATA, BusinessDevelopmentController)).toBe(
+      'business-development',
+    );
+  });
+
   test('controller-level floor is standard_user and above', () => {
     expect(requiredRolesFor('list')).toEqual(['standard_user', 'user_admin', 'capiro_admin']);
   });

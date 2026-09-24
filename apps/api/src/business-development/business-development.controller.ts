@@ -49,7 +49,7 @@ class ProspectIdParam {
   prospectId!: string;
 }
 
-@Controller('api/business-development')
+@Controller('business-development')
 @UseGuards(RolesGuard, BusinessDevelopmentFlagGuard)
 @Roles('standard_user', 'user_admin', 'capiro_admin')
 export class BusinessDevelopmentController {
