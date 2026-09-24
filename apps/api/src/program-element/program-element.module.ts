@@ -45,6 +45,13 @@ import {
   AcquisitionContinuityReadService,
 } from './acquisition-continuity/acquisition-continuity-read.service.js';
 import { AcquisitionContinuityStore } from './acquisition-continuity/acquisition-continuity.store.js';
+import { FundingExecutionController } from './funding-execution/funding-execution.controller.js';
+import {
+  FUNDING_EXECUTION_READ_REPOSITORY,
+  FundingExecutionReadService,
+} from './funding-execution/funding-execution-read.service.js';
+import { FundingExecutionStore } from '../funding-execution/funding-execution.store.js';
+import { FundingExecutionSourceAdapterService } from '../funding-execution/funding-execution-source-adapter.service.js';
 
 // Step 2.3 — the delta writer (DeltaEngineService) and the needs-attention read path
 // (ProgramElementReadService) inject ClientPeRelevanceService, exported by IntelligenceModule.
@@ -60,6 +67,7 @@ import { AcquisitionContinuityStore } from './acquisition-continuity/acquisition
     FederalEvidenceController,
     ProgramContinuityController,
     AcquisitionContinuityController,
+    FundingExecutionController,
   ],
   providers: [
     BudgetLinesReadService,
@@ -79,6 +87,17 @@ import { AcquisitionContinuityStore } from './acquisition-continuity/acquisition
     ProgramContinuityService,
     AcquisitionContinuityStore,
     AcquisitionContinuityReadService,
+    FundingExecutionReadService,
+    FundingExecutionStore,
+    {
+      provide: FundingExecutionSourceAdapterService,
+      inject: [FundingExecutionStore],
+      useFactory: (store: FundingExecutionStore) => new FundingExecutionSourceAdapterService(store),
+    },
+    {
+      provide: FUNDING_EXECUTION_READ_REPOSITORY,
+      useExisting: FundingExecutionStore,
+    },
     {
       provide: ACQUISITION_CONTINUITY_READ_REPOSITORY,
       useExisting: AcquisitionContinuityStore,
@@ -144,6 +163,8 @@ import { AcquisitionContinuityStore } from './acquisition-continuity/acquisition
     ProgramContinuityService,
     AcquisitionContinuityStore,
     AcquisitionContinuityReadService,
+    FundingExecutionReadService,
+    FundingExecutionSourceAdapterService,
   ],
 })
 export class ProgramElementModule {}

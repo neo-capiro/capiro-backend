@@ -511,6 +511,15 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     enabled: false,
   },
   {
+    id: 'CertifyFundingExecution',
+    command: ['funding-execution-certification', '--commit', '--limit', '100'],
+    cron: { minute: '10', hour: '10' },
+    tier: 'derived',
+    description: 'Funding/execution certification worker ships dark pending financial policy and source activation',
+    environment: { FUNDING_EXECUTION_PUBLICATION_ENABLED: 'false' },
+    enabled: false,
+  },
+  {
     id: 'SyncSamOpportunities',
     command: ['sync-sam-opportunities'],
     cron: { minute: '50', hour: '7' },

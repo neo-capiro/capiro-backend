@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "src/prisma/prisma.service.ts",
+    "src/defense-budget/funding-execution/**/*.ts",
+    "src/defense-budget/parser-router/source-family-routing.ts",
+    "src/defense-budget/parser-router/source-family-routing-funding-execution-v1.spec.ts",
+    "src/defense-budget/promotion/readiness/cycle-family-readiness-v1.ts",
+    "src/funding-execution/**/*.ts",
+    "src/program-element/funding-execution/**/*.ts",
+    "scripts/funding-execution-certification-worker.ts",
+    "scripts/funding-execution-certification-worker.spec.ts",
+    "scripts/funding-execution-source-adapter.ts",
+    "scripts/package6-qualification-safety.ts",
+    "scripts/package6-qualification-safety.spec.ts",
+    "scripts/qualify-package6-funding-execution.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

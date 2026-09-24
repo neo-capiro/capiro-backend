@@ -19,6 +19,24 @@ describe('Package 5 program/acquisition continuity schedule', () => {
   });
 });
 
+describe('Package 6 funding/execution certification schedule', () => {
+  test('ships disabled with the independent publication gate explicitly false', () => {
+    const job = INGESTION_JOBS.find((candidate) => candidate.id === 'CertifyFundingExecution');
+    expect(job).toMatchObject({
+      command: ['funding-execution-certification', '--commit', '--limit', '100'],
+      enabled: false,
+      environment: { FUNDING_EXECUTION_PUBLICATION_ENABLED: 'false' },
+      tier: 'derived',
+    });
+    expect(job?.description).toContain('ships dark pending financial policy and source activation');
+    const dispatcher = readFileSync(
+      resolve(__dirname, '../../../apps/api/scripts/entrypoint-dispatcher.inc'),
+      'utf8',
+    );
+    expect(dispatcher).toContain('funding-execution-certification)');
+  });
+});
+
 describe('Funding Opportunities production ingestion schedules', () => {
   test('SAM, DIBBS, SBIR, and forecast schedules use the quota-safe daily matrix', () => {
     const samDod = INGESTION_JOBS.find((job) => job.id === 'SyncSamOpportunities')!;
