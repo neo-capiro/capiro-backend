@@ -12,6 +12,7 @@
 
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
+  buildDefenseCoverageInventory,
   buildScheduleTickHealth,
   deriveLifecycleSignals,
   type LifecycleObservationRef,
@@ -133,6 +134,71 @@ export class BudgetLifecycleQueryService {
       .filter((source) => !filters.authorityTrack || source.authorityTrack === filters.authorityTrack)
       .filter((source) => !filters.expectedState || source.expectedState === filters.expectedState)
       .map(toExpectedSourceListItem);
+  }
+
+  /** Read-only inventory of logical slots and known physical-document identities. */
+  async getCoverageInventory(fiscalYear: number) {
+    const [sources, observations, bundleMembers] = await Promise.all([
+      this.store.listExpectedSourcesByFiscalYear(fiscalYear),
+      this.store.listObservationsByFiscalYear(fiscalYear),
+      this.store.listBundleMembersByFiscalYear?.(fiscalYear) ?? Promise.resolve([]),
+    ]);
+    return buildDefenseCoverageInventory({
+      fiscalYear,
+      // The store records source observations, but does not yet assert that its
+      // physical-unit catalog is complete. Keep absent volume/section detail unknown.
+      inventoryKnowledge: 'unknown',
+      expectedSlots: sources.map((source) => ({
+        slotId: source.id,
+        fiscalYear: source.fiscalYear,
+        sourceFamily: source.sourceFamily,
+        adapterId: source.adapterId,
+        label: source.label,
+        optional: source.optional,
+      })),
+      observations: observations.map((observation) => ({
+        observationId: observation.id,
+        slotId: observation.expectedSourceId,
+        sourceDocumentId: observation.sourceDocumentId,
+        discoveredUrl: observation.discoveredUrl,
+        observationState: observation.observationState,
+        supersededByObservationId: observation.supersededByObservationId,
+        classification: observation.observationState === 'review_required'
+          ? 'review_required'
+          : observation.classificationConfidence === null || observation.sourceDocumentId === null
+            ? 'unavailable'
+            : 'classified',
+      })),
+      inventoriedUnits: bundleMembers.flatMap((member) => [
+        ...(member.volume ? [{
+          slotId: member.expectedSourceId,
+          unitId: `${member.id}:volume`,
+          kind: 'volume' as const,
+          label: `Volume ${member.volume}`,
+          sourceDocumentId: member.sourceDocumentId,
+          observationId: member.observationId,
+          memberStatus: member.memberStatus,
+        }] : []),
+        ...(member.budgetActivity ? [{
+          slotId: member.expectedSourceId,
+          unitId: `${member.id}:section`,
+          kind: 'section' as const,
+          label: `Budget Activity ${member.budgetActivity}`,
+          sourceDocumentId: member.sourceDocumentId,
+          observationId: member.observationId,
+          memberStatus: member.memberStatus,
+        }] : []),
+        {
+          slotId: member.expectedSourceId,
+          unitId: member.id,
+          kind: 'exhibit' as const,
+          label: member.title,
+          sourceDocumentId: member.sourceDocumentId,
+          observationId: member.observationId,
+          memberStatus: member.memberStatus,
+        },
+      ]),
+    });
   }
 
   async getExpectedSourceDetail(id: string): Promise<DefenseExpectedSourceDetailDto> {

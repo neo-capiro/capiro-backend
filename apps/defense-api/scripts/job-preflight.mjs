@@ -118,10 +118,7 @@ export function assertCommitAuthorised({ mode, commit, env = process.env }) {
     throw new JobPreflightError(`mode ${mode} does not support --commit`, 64);
   }
   if (env[varName] !== 'true') {
-    throw new JobPreflightError(
-      `refusing ${mode} database mutation without ${varName}=true`,
-      77,
-    );
+    throw new JobPreflightError(`refusing ${mode} database mutation without ${varName}=true`, 77);
   }
 }
 
@@ -339,6 +336,56 @@ export function parseBound(raw, fallback, name) {
     throw new JobPreflightError(`${name} must be a positive integer`, 64);
   }
   return parsed;
+}
+
+/**
+ * The live crawler's own default is intentionally generous for an explicit
+ * operator backfill. A recurring schedule needs a substantially smaller,
+ * reviewed ceiling so a cold start cannot fan out into thousands of publisher
+ * requests in one Fargate task. The cursor makes the remaining work resumable.
+ */
+export const MAX_DISCOVERY_REQUEST_BUDGET = 250;
+export const DEFAULT_SCHEDULE_DISCOVERY_REQUEST_BUDGET = 25;
+
+export function parseDiscoveryRequestBudget(
+  raw,
+  fallback = DEFAULT_SCHEDULE_DISCOVERY_REQUEST_BUDGET,
+) {
+  const parsed = parseBound(raw, fallback, 'discovery request budget');
+  if (parsed > MAX_DISCOVERY_REQUEST_BUDGET) {
+    throw new JobPreflightError(
+      `discovery request budget must not exceed ${MAX_DISCOVERY_REQUEST_BUDGET}`,
+      64,
+    );
+  }
+  return parsed;
+}
+
+/** Keep a scheduled task's lease alive beyond one hourly delivery window. */
+export const DEFAULT_SCHEDULE_LEASE_SECONDS = 4_500;
+export const MAX_WATCHER_LEASE_SECONDS = 21_600;
+
+export function parseWatcherLeaseSeconds(raw, fallback = DEFAULT_SCHEDULE_LEASE_SECONDS) {
+  const parsed = parseBound(raw, fallback, 'watcher lease seconds');
+  if (parsed > MAX_WATCHER_LEASE_SECONDS) {
+    throw new JobPreflightError(
+      `watcher lease seconds must not exceed ${MAX_WATCHER_LEASE_SECONDS}`,
+      64,
+    );
+  }
+  return parsed;
+}
+
+/**
+ * PID alone is not a distributed worker identity: PID 1 repeats in every ECS
+ * container and would make concurrent tasks look like the same lease owner.
+ * ECS/Docker provides a per-container hostname, which keeps separate tasks
+ * fenced while remaining stable for the lifetime of one task.
+ */
+export function runtimeWorkerId(env = process.env, pid = process.pid) {
+  const rawHost = env.HOSTNAME?.trim() || env.COMPUTERNAME?.trim() || 'unknown-host';
+  const host = rawHost.replace(/[^A-Za-z0-9._:-]/g, '_').slice(0, 128);
+  return `phase9-job:${host}:${pid}`;
 }
 
 /**

@@ -54,6 +54,10 @@ Start/resume also require exact `GIT_SHA`, `API_IMAGE_DIGEST`,
 `DEFENSE_BUDGET_DRAIN_IMAGE_DIGEST`, and `ECS_TASK_DEFINITION_ARN` environment
 bindings. Non-secret `BUDGET_*` and `DEFENSE_BUDGET_*` settings plus region
 must hash to `runtimeConfigSha256`.
+Start/resume also require `BUDGET_VERIFICATION_EXTRACTION_ARTIFACT_BUCKET`;
+that bucket must have versioning enabled because the production extraction
+artifact store refuses writes without an S3 VersionId. The bucket setting is
+part of the reviewed runtime configuration hash.
 
 The process reads the ECS v4 task metadata endpoint and independently verifies
 the full task-definition family/revision, `ingestion-drain` container image

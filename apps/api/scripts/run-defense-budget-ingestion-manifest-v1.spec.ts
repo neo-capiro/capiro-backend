@@ -98,6 +98,29 @@ describe('Package E manifest CLI ECS runtime attestation', () => {
     })) as unknown as typeof fetch;
   }
 
+  it('requires version-pinned S3 extraction artifact storage for start and resume, but not preview', () => {
+    const common = { APP_ENV: 'capiro-dev', AWS_REGION: 'us-east-1' };
+    const start = {
+      mode: 'start' as const,
+      manifestS3Uri: 's3://bucket/manifest.json?versionId=v1',
+      manifestObjectSha256: 'd'.repeat(64),
+      confirm: 'capiro-dev',
+    };
+    const resume = { ...start, mode: 'resume' as const };
+
+    expect(() => assertIngestionManifestRuntimeV1(start, null, common)).toThrow(
+      'BUDGET_VERIFICATION_EXTRACTION_ARTIFACT_BUCKET for version-pinned S3 extraction artifacts',
+    );
+    expect(() => assertIngestionManifestRuntimeV1(resume, null, common)).toThrow(
+      'BUDGET_VERIFICATION_EXTRACTION_ARTIFACT_BUCKET',
+    );
+    expect(() => assertIngestionManifestRuntimeV1({ mode: 'preview', manifestPath: 'review.json' }, null, common)).not.toThrow();
+    expect(() => assertIngestionManifestRuntimeV1(start, null, {
+      ...common,
+      BUDGET_VERIFICATION_EXTRACTION_ARTIFACT_BUCKET: 'capiro-dev-parser-artifacts',
+    })).not.toThrow();
+  });
+
   it('returns the exact task ARN only when task definition, image, and resources match', async () => {
     const fetchFn = metadataFetch();
     await expect(attestIngestionManifestEcsRuntimeV1(
@@ -147,6 +170,7 @@ describe('Package E manifest CLI ECS runtime attestation', () => {
         'arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-defense-budget-ingestion-drain:26',
       DEFENSE_BUDGET_RAW_BUCKET: 'capiro-defense-budget-raw-dev-967807252336',
       BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT: '/work/artifacts',
+      BUDGET_VERIFICATION_EXTRACTION_ARTIFACT_BUCKET: 'capiro-dev-parser-artifacts',
       AWS_REGION: 'us-east-1',
     };
     const boundManifest = {

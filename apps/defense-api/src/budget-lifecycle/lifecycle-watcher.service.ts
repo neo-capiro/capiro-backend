@@ -292,7 +292,10 @@ export class DefenseBudgetLifecycleWatcher {
       ...tally,
       nextCheckAt: resolvedNextCheckAt,
       outcomes: Object.freeze(outcomes),
-      gpu: Object.freeze({ requiresGpu: gpu.requiresGpu, activeGpuCapacity: gpu.activeGpuCapacity }),
+      gpu: Object.freeze({
+        requiresGpu: gpu.requiresGpu,
+        activeGpuCapacity: gpu.activeGpuCapacity,
+      }),
     });
   }
 
@@ -303,21 +306,12 @@ export class DefenseBudgetLifecycleWatcher {
     // 1. Official host. A non-official host can never satisfy an expected source.
     this.adapters.assertAuthoritativeHost(candidate.adapterId, candidate.url);
 
-    const expected = await this.store.findExpectedSourceByDedupKey(
-      candidate.expectedSourceDedupKey,
-    );
-    if (!expected) {
-      throw new Error(
-        `No expected source registered for dedup key ${candidate.expectedSourceDedupKey}; ` +
-          'run the cycle controller before the watcher',
-      );
-    }
-
-    const previous = await this.store.findLatestObservation(expected.id);
+    let expected = await this.store.findExpectedSourceByDedupKey(candidate.expectedSourceDedupKey);
+    let previous = expected ? await this.store.findLatestObservation(expected.id) : null;
 
     // 2. A publisher-reported withdrawal is recorded as a fact. It is not zero.
     if (candidate.withdrawn) {
-      if (options.commit) {
+      if (options.commit && expected) {
         await this.store.setExpectedSourceState({
           expectedSourceId: expected.id,
           expectedState: 'withdrawn',
@@ -438,14 +432,14 @@ export class DefenseBudgetLifecycleWatcher {
 
     const observedAt = options.nowIso;
     const dedupKey = observationDedupKey({
-      expectedSourceDedupKey: expected.dedupKey,
+      expectedSourceDedupKey: expected?.dedupKey ?? candidate.expectedSourceDedupKey,
       contentSha256: fetched.contentSha256,
     });
 
     // 6. Ambiguity stops here. The row is recorded so the backlog is visible,
     // with no resolved FY/track/stage and no queue entry.
     if (ambiguous) {
-      if (options.commit) {
+      if (options.commit && expected) {
         await this.store.recordObservation({
           expectedSourceId: expected.id,
           cycleId: expected.cycleId,
@@ -484,15 +478,49 @@ export class DefenseBudgetLifecycleWatcher {
     const classification = classified.classification!;
 
     // 7. An unseen fiscal year bootstraps itself rather than failing.
-    if (classification.fiscalYear !== expected.fiscalYear && options.commit) {
+    if ((!expected || classification.fiscalYear !== expected.fiscalYear) && options.commit) {
       await this.controller.ensureFromFirstDiscovery({
         fiscalYear: classification.fiscalYear,
         authorityTrack: classification.authorityTrack,
       });
+      expected = await this.store.findExpectedSourceByDedupKey(candidate.expectedSourceDedupKey);
+      if (
+        !expected ||
+        expected.fiscalYear !== classification.fiscalYear ||
+        expected.authorityTrack !== classification.authorityTrack ||
+        expected.stage !== classification.stage ||
+        expected.sourceFamily !== classification.sourceFamily
+      ) {
+        throw new Error(
+          `First discovery did not resolve to its exact template expected source ` +
+            `${candidate.expectedSourceDedupKey}`,
+        );
+      }
+      previous = await this.store.findLatestObservation(expected.id);
       reasons.push(
         `bootstrapped FY${classification.fiscalYear} ${classification.authorityTrack} from this discovery`,
       );
     }
+
+    if (!expected && !options.commit) {
+      return this.outcome(
+        candidate,
+        revision.kind === 'first_discovery' ? 'first_discovery' : 'changed',
+        {
+          contentSha256: fetched.contentSha256,
+          revisionKind: revision.kind,
+          observationState: 'changed',
+          classification,
+          queuedJobKind: revision.queuesIngestion ? this.jobKindFor(classification) : null,
+          queued: false,
+          reasons: [...reasons, revision.reason, 'dry run: nothing persisted or enqueued'],
+        },
+      );
+    }
+    if (!expected)
+      throw new Error(
+        `No expected source registered for dedup key ${candidate.expectedSourceDedupKey}`,
+      );
 
     const observationState: ObservationState = 'changed';
     assertObservationQueueable(observationState);
@@ -540,7 +568,10 @@ export class DefenseBudgetLifecycleWatcher {
 
     // 8. Supersede the prior version. It is marked, never deleted.
     if (revision.supersedesPrevious && previous && recorded.created) {
-      await this.store.supersedeObservation({ previousId: previous.id, nextId: recorded.observation.id });
+      await this.store.supersedeObservation({
+        previousId: previous.id,
+        nextId: recorded.observation.id,
+      });
     }
 
     // Phase 10B-18 Part D: a document arriving for an expected source that
@@ -662,7 +693,10 @@ export class DefenseBudgetLifecycleWatcher {
       blocked: 0,
       nextCheckAt,
       outcomes: Object.freeze([]),
-      gpu: Object.freeze({ requiresGpu: gpu.requiresGpu, activeGpuCapacity: gpu.activeGpuCapacity }),
+      gpu: Object.freeze({
+        requiresGpu: gpu.requiresGpu,
+        activeGpuCapacity: gpu.activeGpuCapacity,
+      }),
     });
   }
 }

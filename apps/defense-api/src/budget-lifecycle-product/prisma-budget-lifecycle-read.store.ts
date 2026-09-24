@@ -18,6 +18,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import type {
   BudgetLifecycleReadStore,
   ReadExpectedSource,
+  ReadBundleMember,
   ReadObservation,
   ReadOutboxState,
   ReadScheduleTick,
@@ -216,6 +217,42 @@ export class PrismaBudgetLifecycleReadStore implements BudgetLifecycleReadStore 
       ),
     );
     return Object.freeze(result.map(mapObservation));
+  }
+
+  async listBundleMembersByFiscalYear(fiscalYear: number): Promise<readonly ReadBundleMember[]> {
+    interface RawBundleMember {
+      id: string;
+      expected_source_id: string;
+      member_key: string;
+      volume: string | null;
+      budget_activity: string | null;
+      title: string;
+      member_status: string;
+      source_document_id: string | null;
+      observation_id: string | null;
+    }
+    const result = rows<RawBundleMember>(
+      await this.prisma.$queryRawUnsafe(
+        `SELECT bm.id, bm.expected_source_id, bm.member_key, bm.volume, bm.budget_activity,
+                bm.title, bm.member_status, bm.source_document_id, bm.observation_id
+           FROM defense_budget_source_bundle_member bm
+           JOIN defense_budget_expected_source es ON es.id = bm.expected_source_id
+          WHERE es.fiscal_year = $1::int
+          ORDER BY bm.expected_source_id, bm.member_key`,
+        fiscalYear,
+      ),
+    );
+    return Object.freeze(result.map((raw) => ({
+      id: raw.id,
+      expectedSourceId: raw.expected_source_id,
+      memberKey: raw.member_key,
+      volume: raw.volume,
+      budgetActivity: raw.budget_activity,
+      title: raw.title,
+      memberStatus: raw.member_status as ReadBundleMember['memberStatus'],
+      sourceDocumentId: raw.source_document_id,
+      observationId: raw.observation_id,
+    })));
   }
 
   async listReviewQueue(fiscalYear: number): Promise<readonly ReviewQueueEntry[]> {

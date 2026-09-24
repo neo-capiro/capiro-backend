@@ -49,6 +49,12 @@ batch is claimed or authorized.
   second parse; stale generations are fenced.
 - The controller heartbeats both item and outbox leases and refuses uncertain
   ownership loss.
+- Item-row inserts are now SQL-checked against exactly one complete member in
+  the immutable parent manifest, serialized on the parent row, and capped at
+  five even when a writer bypasses the TypeScript repository.
+- Start/resume fail before parser setup unless the runtime has a configured
+  version-pinned S3 extraction-artifact bucket; filesystem-only extraction
+  storage remains available to local preview/development paths.
 - The real archive/bridge/parser/persistence path demonstrated ingestion-only
   behavior with protected state unchanged.
 - Transient and deterministic failure isolation, later-member continuation,

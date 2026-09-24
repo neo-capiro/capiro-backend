@@ -124,6 +124,12 @@ case "${1:-serve}" in
     echo "Running snapshot-defense-budget-package0-v1 (SELECT-only Package 0 inventory)"
     exec ./node_modules/.bin/tsx scripts/snapshot-defense-budget-package0-v1.ts "$@"
     ;;
+  snapshot-defense-budget-package1-v1)
+    shift
+    compose_database_url
+    echo "Running snapshot-defense-budget-package1-v1 (SELECT-only exact recovery inventory)"
+    exec ./node_modules/.bin/tsx scripts/snapshot-defense-budget-package1-v1.ts "$@"
+    ;;
   audit-llamaparse-pe-units)
     shift
     compose_database_url
