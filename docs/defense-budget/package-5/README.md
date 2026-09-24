@@ -1,6 +1,6 @@
 # Defense-budget Package 5 — program and acquisition continuity
 
-Package 5 adds effective-dated program identity continuity and evidence-qualified acquisition relationships without implying unsupported financial allocation. The release is intentionally dark: the projector schedule is disabled, committed projection requires `PROGRAM_ACQUISITION_CONTINUITY_ENABLED=true`, and existing source records are not fetched or modified by this package.
+Package 5 adds effective-dated program identity continuity and evidence-qualified acquisition relationships without implying unsupported financial allocation. It is deployed from merge commit `fd1c1c2903aad6d051e79cfb6a764255aea0ac23`. The release is intentionally dark: the projector schedule is disabled, committed projection requires `PROGRAM_ACQUISITION_CONTINUITY_ENABLED=true`, and existing source records are not fetched or modified by this package.
 
 ## Delivered scope
 
@@ -24,3 +24,13 @@ Do not enable the Package 5 schedule or set `PROGRAM_ACQUISITION_CONTINUITY_ENAB
 
 - [Validation evidence](./validation-evidence-2026-09-24.md)
 - [Machine-readable qualification](./qualification-2026-09-24.json)
+- [Machine-readable release evidence](./release-evidence-2026-09-24.json)
+
+Release scope: account `967807252336`, region `us-east-1`, cluster `capiro-dev`.
+
+| Runtime | Released state |
+| --- | --- |
+| API task definition `:447` | ECS steady; desired/running/pending `2/2/0`; both tasks and replacement load-balancer targets healthy |
+| Migration task definition `:133` | Both Package 5 migrations applied; one-off task exited 0 |
+| Sync task definition `:33` | Exact release image registered; `PROGRAM_ACQUISITION_CONTINUITY_ENABLED=false`; AWS proof stayed in `DRY_RUN` |
+| Package 5 schedule | No live EventBridge rule; recurring projection inactive |
