@@ -502,6 +502,15 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     description: 'USAspending federal awards (daily)',
   },
   {
+    id: 'ProjectProgramAcquisitionContinuity',
+    command: ['sync-program-acquisition-continuity', '--commit', '--cap', '1000'],
+    cron: { minute: '40', hour: '9' },
+    tier: 'derived',
+    description: 'Evidence-qualified program/acquisition continuity projection (Package 5 ships dark)',
+    environment: { PROGRAM_ACQUISITION_CONTINUITY_ENABLED: 'false' },
+    enabled: false,
+  },
+  {
     id: 'SyncSamOpportunities',
     command: ['sync-sam-opportunities'],
     cron: { minute: '50', hour: '7' },

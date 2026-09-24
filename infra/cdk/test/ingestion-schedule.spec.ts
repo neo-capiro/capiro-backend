@@ -7,6 +7,18 @@ import { resolve } from 'node:path';
 import { ScheduledIngestionJobs } from '../lib/constructs/scheduled-ingestion-jobs';
 import { INGESTION_JOBS } from '../lib/ingestion-schedule';
 
+describe('Package 5 program/acquisition continuity schedule', () => {
+  test('ships dark with its independent writer gate explicit', () => {
+    const job = INGESTION_JOBS.find((candidate) => candidate.id === 'ProjectProgramAcquisitionContinuity');
+    expect(job).toMatchObject({
+      command: ['sync-program-acquisition-continuity', '--commit', '--cap', '1000'],
+      enabled: false,
+      environment: { PROGRAM_ACQUISITION_CONTINUITY_ENABLED: 'false' },
+      tier: 'derived',
+    });
+  });
+});
+
 describe('Funding Opportunities production ingestion schedules', () => {
   test('SAM, DIBBS, SBIR, and forecast schedules use the quota-safe daily matrix', () => {
     const samDod = INGESTION_JOBS.find((job) => job.id === 'SyncSamOpportunities')!;

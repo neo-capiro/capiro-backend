@@ -37,6 +37,14 @@ import { ProcurementLineReadService } from '../defense-budget/procurement/procur
 import { ProcurementLineWriterService } from '../defense-budget/procurement/procurement-line-writer.service.js';
 import { FederalEvidenceController } from './federal-evidence/federal-evidence.controller.js';
 import { FederalEvidenceReadService } from './federal-evidence/federal-evidence-read.service.js';
+import { ProgramContinuityController } from './programs/program-continuity.controller.js';
+import { ProgramContinuityService } from './programs/program-continuity.service.js';
+import { AcquisitionContinuityController } from './acquisition-continuity/acquisition-continuity.controller.js';
+import {
+  ACQUISITION_CONTINUITY_READ_REPOSITORY,
+  AcquisitionContinuityReadService,
+} from './acquisition-continuity/acquisition-continuity-read.service.js';
+import { AcquisitionContinuityStore } from './acquisition-continuity/acquisition-continuity.store.js';
 
 // Step 2.3 — the delta writer (DeltaEngineService) and the needs-attention read path
 // (ProgramElementReadService) inject ClientPeRelevanceService, exported by IntelligenceModule.
@@ -50,6 +58,8 @@ import { FederalEvidenceReadService } from './federal-evidence/federal-evidence-
     ProgramsController,
     ProcurementLineController,
     FederalEvidenceController,
+    ProgramContinuityController,
+    AcquisitionContinuityController,
   ],
   providers: [
     BudgetLinesReadService,
@@ -66,6 +76,13 @@ import { FederalEvidenceReadService } from './federal-evidence/federal-evidence-
     DeltaEngineService,
     ProgramElementDataIssueService,
     FederalEvidenceReadService,
+    ProgramContinuityService,
+    AcquisitionContinuityStore,
+    AcquisitionContinuityReadService,
+    {
+      provide: ACQUISITION_CONTINUITY_READ_REPOSITORY,
+      useExisting: AcquisitionContinuityStore,
+    },
     // Phase 7 Workstream K. A factory rather than an @Injectable so the
     // override service and its port stay Nest-free — the Phase 8 handoff moves
     // them into their own service, and a port that imports @nestjs/common would
@@ -124,6 +141,9 @@ import { FederalEvidenceReadService } from './federal-evidence/federal-evidence-
     ProgramsService,
     ProgramElementDataIssueService,
     FederalEvidenceReadService,
+    ProgramContinuityService,
+    AcquisitionContinuityStore,
+    AcquisitionContinuityReadService,
   ],
 })
 export class ProgramElementModule {}

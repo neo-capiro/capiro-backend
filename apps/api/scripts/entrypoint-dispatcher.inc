@@ -383,6 +383,7 @@ case "${1:-serve}" in
   sync-congress)          exec ./node_modules/.bin/tsx scripts/sync-congress.ts ;;
   sync-federal-legislative-evidence) shift; exec ./node_modules/.bin/tsx scripts/sync-federal-legislative-evidence.ts "$@" ;;
   drain-federal-evidence-outbox) shift; exec ./node_modules/.bin/tsx scripts/drain-federal-evidence-outbox.ts "$@" ;;
+  sync-program-acquisition-continuity) shift; exec ./node_modules/.bin/tsx scripts/sync-program-acquisition-continuity.ts "$@" ;;
   sync-congress-members)  exec ./node_modules/.bin/tsx scripts/sync-congress-members.ts ;;
   sync-cbo)               exec ./node_modules/.bin/tsx scripts/sync-cbo.ts ;;
   sync-committees)        exec ./node_modules/.bin/tsx scripts/sync-committees.ts ;;
