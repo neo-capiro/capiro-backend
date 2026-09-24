@@ -39,4 +39,25 @@ describe('client defense budget watches', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
     expect(await screen.findByText(/No defense budget watches/)).toBeInTheDocument();
   });
+
+  it('locks both choices after one append-only decision is recorded', async () => {
+    api.get.mockResolvedValue({
+      data: [{
+        ...watch,
+        events: [
+          ...watch.events,
+          {
+            id: 'decision-1',
+            eventType: 'acknowledged',
+            updateEventId: 'update-1',
+            createdAt: '2026-09-24T12:05:00Z',
+          },
+        ],
+      }],
+    });
+    renderPanel();
+
+    expect(await screen.findByRole('button', { name: 'Acknowledge update update-1' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Dismiss update update-1' })).toBeDisabled();
+  });
 });
