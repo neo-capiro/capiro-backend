@@ -2,7 +2,7 @@
 
 Date: 2026-09-24
 
-Status: implemented and locally qualified on `feat/business-development-phase2-20260924`; AWS release evidence is added after the merged-main rollout.
+Status: implemented, merged in [PR #1785](https://github.com/neo-capiro/capirov2/pull/1785), deployed to the development ECS services, and enabled for `capiro-internal`. The Phase 2 implementation commit is `99c59f25bd02699d52248e082bcbbee1681f253e`; GitHub merged it as `9c98505884770a3fc781ab2cbbb4d59bc2d02d95`.
 
 ## Scope and user path
 
@@ -44,7 +44,16 @@ All Phase 2 flags default off and are evaluated server-side:
 - `businessDevelopment.provider.pdlCompany.enabled`
 - `businessDevelopment.provider.pdlPeople.enabled`
 
-The Phase 1 `businessDevelopment.enabled` gate remains required. The planned internal rollout enables the dossier/public-source path for `capiro-internal`; PDL flags remain false.
+The Phase 1 `businessDevelopment.enabled` gate remains required. The internal development rollout uses the following exact state for `capiro-internal`:
+
+- `businessDevelopment.enabled=true`
+- `businessDevelopment.dossier.enabled=true`
+- `businessDevelopment.provider.sam.enabled=true`
+- `businessDevelopment.provider.lda.enabled=false` (the already-governed LDA projection remains readable; no live LDA fetch is performed)
+- `businessDevelopment.provider.pdlCompany.enabled=false`
+- `businessDevelopment.provider.pdlPeople.enabled=false`
+
+The committed flag task was `b2823a030a1240b19474cef474da631e` (exit 0). SAM was then turned off and restored with successful one-off tasks during the fail-soft smoke; the final state is true.
 
 ## Security and tenancy
 
@@ -74,14 +83,24 @@ Direct evidence is visually distinct. Conditional/thematic evidence is grouped a
 - Two-tenant database/RLS proof: `business-development-phase2-tenant-markers.sql` passed against disposable PostgreSQL as restricted `capiro_app`. Tenant A and tenant B saw only their own prospect/client/activity markers on the same global candidate; a cross-tenant update affected zero rows; an unset tenant saw zero private rows; the rehearsal rolled back. The Phase 1 RLS and real-Postgres transaction acceptance (confirm race, identity preservation, exactly-once conversion, structured duplicate conflict) also passed.
 - Provider fixture/error/quota proof: the API suite verifies SAM disabled, no-key/failure/429-style error, no-match, exact UEI/CAGE and non-identity zero-call behavior. LDA reads the governed projection only. PDL has no adapter/client and reports `callsMade: 0`.
 - Hermes delegation: reconnaissance, backend implementation/verification, and frontend implementation/verification used `z-ai/glm-5.3` at low reasoning. Peak observed session context was 11.9%, below the 50% stop limit.
-- Browser desktop/narrow/keyboard proof: recorded after the merged-main AWS rollout.
+- Browser desktop/narrow/keyboard proof: passed against `https://app.capiro.ai/clients?view=business-development` on the deployed images. The authenticated journey covered desktop and a 390×844 viewport, Tab/Enter search submission, URL-backed back/forward navigation, reload persistence, progressive sections, source inspectors, save/open-existing, and partial-data rendering.
 - Live permitted source checks:
   - USAspending, retrieved `2026-09-24T17:59:55.0465815Z`: bounded `spending_by_award` search (`limit=1`, contracts, Lockheed Martin, FY2026 interval) returned generated award id `CONT_AWD_Z61H_9700_FA822408G0001_9700`, recipient `LOCKHEED MARTIN CORPORATION`, amount `16416.33`, Department of Defense, start `2012-11-08`, end `2026-07-20`. This validates endpoint/field semantics only; it is not an exhaustive coverage claim.
   - Senate LDA, retrieved `2026-09-24T18:00:03.6420432Z`: bounded 2026 filing search (`page_size=1`) returned filing `dedc9bd7-5168-4cad-8973-aece07645b9f`, client id `196195`, Q1 2026, posted `2026-04-02`, including BUD/DEF/TAX issue records. The Senate Office of Public Records cannot vouch for data or analysis after retrieval; the product preserves filing id, period, retrieval date, and the source locator.
-  - SAM exact-identifier check:
-- Candidate/dossier p95 and calls per search/open: candidate search makes zero external calls; a progressive open makes at most one exact-ID SAM call and zero PDL calls. Live latency is recorded after rollout.
-- Development image digests/task-definition revisions: recorded after rollout.
-- Smoke results: recorded after rollout.
+  - SAM exact-identifier check, retrieved `2026-09-24T23:42Z`: UEI `FM1QY7CA5VD5` returned `SATCOM DIRECT GOVERNMENT, LLC`, active registration, CAGE `68G21`, expiration `2026-10-30`, and exact-UEI match basis. The source inspector preserved the SAM record id, scope, source update time, Capiro fetch time, relationship strength, and source link.
+- Candidate/dossier latency and call budget, from `Capiro/ApiLatency` events captured `2026-09-24T23:35Z`–`23:46Z`:
+  - Candidate search: `n=7`, p50 `219 ms`, p95/max `450 ms`; zero external provider calls.
+  - Company dossier progressive section requests: `n=12`, p50 `343 ms`, p95/max `2,506 ms`; the maximum was the exact-UEI live SAM identity request. A progressive open makes at most one SAM call and zero PDL calls.
+  - Saved-prospect dossier progressive section requests: `n=6`, p50 `205 ms`, p95/max `283 ms`.
+- Development release identifiers:
+  - API task definition `capiro-dev-api:450`, image `capiro/dev/api@sha256:c9a6287725c5b36262833c45d7629bf9ad27dd855ae423e0f59826c370fe2993`, release SHA `d31604f6e489fdd76b5175241c6eeb547d2fcf0c`. That later main commit contains the Phase 2 merge and preserves the subsequent Package 6 API release. The SAM key is injected from Secrets Manager only in the API runtime.
+  - Web task definition `capiro-dev-web:135`, image `capiro/dev/web@sha256:5a39de54764dc626c3101c20df1aa9211e6ec3d8bd21b6c1e543fb5c9348ee3a`, build SHA `1182543bbe95f55d6640ea6b1b478ca5a9c609ed`.
+  - Migration task definition `capiro-dev-api-admin-migrate:68`, task `922739b064314c269a8e6fc735861216`, exit 0: 427 migrations found and no pending migrations.
+  - Both services reached ECS steady state with zero failed tasks. The two production API streams emitted 2,608 events during the QA window with zero `error`, `exception`, `fatal`, or Prisma-failure matches.
+- Smoke result: passed `search → open dossier → inspect SAM and USAspending source records → disable SAM and verify internal sections stay available → restore SAM → save prospect → reopen existing prospect → attempt ambiguous identity correction and verify duplicate conflict opens the existing prospect without merging histories`.
+  - The development account initially had zero canonical organizations, so an idempotent, tenant-private release-evidence organization was created only for `capiro-internal`: entity `d6cc5c1f-949e-418e-bfc5-707b5606d994`, UEI `FM1QY7CA5VD5`, marked `business-development-phase2-20260924` in metadata. It joins 292 existing governed award records by exact UEI.
+  - Saved prospect: `88b1875d-e047-44ff-a7ab-1870dbe47407`.
+  - Ambiguous/duplicate-review prospect: `b009f2bd-c260-4d3e-81b6-39a4b7015912`; the attempted correction was refused because the saved prospect already held the canonical organization, and the UI opened the existing prospect instead.
 
 ## Rollback
 
@@ -91,6 +110,8 @@ Direct evidence is visually distinct. Conditional/thematic evidence is grouped a
 4. Do not delete or rewrite Phase 1 prospects, history, audit records, or reviewed identity state.
 
 PDL remains disabled through every rollback and re-enable path until rights are documented.
+
+The immediate service rollback references for this release are API `capiro-dev-api:449` and web `capiro-dev-web:134`. The fastest functional rollback is to set `businessDevelopment.provider.sam.enabled=false`; for a dossier regression, set `businessDevelopment.dossier.enabled=false`. Neither action deletes Phase 1/2 prospect, identity-review, or audit history.
 
 ## Later phases
 
