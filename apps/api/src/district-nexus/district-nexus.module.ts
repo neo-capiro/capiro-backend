@@ -1,10 +1,13 @@
 import { Module } from '@nestjs/common';
 import { RepresentationModule } from '../clients/representation.module.js';
 import { IntelligenceModule } from '../intelligence/intelligence.module.js';
+import { ClientDocumentWriterService } from '../client-documents/client-document-writer.service.js';
+import { EngagementModule } from '../engagement/engagement.module.js';
 import { DistrictNexusController } from './district-nexus.controller.js';
 import { DistrictNexusRelationshipsController } from './district-nexus-relationships.controller.js';
 import { DistrictNexusEconomicController } from './district-nexus-economic.controller.js';
 import { DistrictNexusPriorityIntelligenceController } from './priority-intelligence/priority-intelligence.controller.js';
+import { R5DistrictBriefController } from './r5-action-layer/r5-district-brief.controller.js';
 import { DistrictNexusService } from './district-nexus.service.js';
 import { DistrictNexusRelationshipsService } from './district-nexus-relationships.service.js';
 import { DistrictNexusStrategicService } from './district-nexus-strategic.service.js';
@@ -12,10 +15,13 @@ import { DistrictNexusEconomicService } from './district-nexus-economic.service.
 import { DistrictNexusPriorityIntelligenceService } from './priority-intelligence/priority-intelligence.service.js';
 import { GsaRealPropertyIngestService } from './priority-intelligence/priority-intelligence-gsa-ingest.service.js';
 import { DistrictNexusChangeWriter } from './priority-intelligence/priority-intelligence-changes.js';
+import { R5DistrictContextService } from './r5-action-layer/r5-district-context.service.js';
+import { R5DistrictBriefService } from './r5-action-layer/r5-district-brief.service.js';
 import { DistrictNexusFlagGuard } from './district-nexus-flag.guard.js';
 import { DistrictNexusStrategicFlagGuard } from './district-nexus-strategic-flag.guard.js';
 import { DistrictNexusEconomicFlagGuard } from './district-nexus-economic-flag.guard.js';
 import { DistrictNexusPriorityIntelligenceFlagGuard } from './priority-intelligence/priority-intelligence-flag.guard.js';
+import { R5FlagGuard } from './r5-action-layer/r5-flag.guard.js';
 
 /**
  * District Nexus v2.
@@ -28,12 +34,13 @@ import { DistrictNexusPriorityIntelligenceFlagGuard } from './priority-intellige
  * independently scored — no parallel map or blended master score.
  */
 @Module({
-  imports: [RepresentationModule, IntelligenceModule],
+  imports: [RepresentationModule, IntelligenceModule, EngagementModule],
   controllers: [
     DistrictNexusController,
     DistrictNexusRelationshipsController,
     DistrictNexusEconomicController,
     DistrictNexusPriorityIntelligenceController,
+    R5DistrictBriefController,
   ],
   providers: [
     DistrictNexusService,
@@ -43,10 +50,14 @@ import { DistrictNexusPriorityIntelligenceFlagGuard } from './priority-intellige
     DistrictNexusPriorityIntelligenceService,
     GsaRealPropertyIngestService,
     DistrictNexusChangeWriter,
+    R5DistrictContextService,
+    R5DistrictBriefService,
+    ClientDocumentWriterService,
     DistrictNexusFlagGuard,
     DistrictNexusStrategicFlagGuard,
     DistrictNexusEconomicFlagGuard,
     DistrictNexusPriorityIntelligenceFlagGuard,
+    R5FlagGuard,
   ],
   exports: [
     DistrictNexusService,
@@ -54,6 +65,7 @@ import { DistrictNexusPriorityIntelligenceFlagGuard } from './priority-intellige
     DistrictNexusStrategicService,
     DistrictNexusEconomicService,
     DistrictNexusPriorityIntelligenceService,
+    R5DistrictContextService,
   ],
 })
 export class DistrictNexusModule {}
