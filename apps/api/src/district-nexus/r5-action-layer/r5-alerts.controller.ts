@@ -6,13 +6,22 @@
  * `/intelligence/...` so it is served by capiro-dev-api.
  */
 
-import { Controller, Get, NotFoundException, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Put, Query, UseGuards } from '@nestjs/common';
+import { IsBoolean, IsUUID } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import { RolesGuard } from '../../auth/roles.guard.js';
 import { Roles } from '../../auth/roles.decorator.js';
 import { CurrentTenant } from '../../tenant/current-tenant.decorator.js';
 import { DistrictNexusFlagGuard } from '../district-nexus-flag.guard.js';
 import { R5DistrictAlertsService, type DistrictAlertPayload } from './r5-alerts.service.js';
+
+class AlertPreferenceDto {
+  @IsUUID()
+  clientId!: string;
+
+  @IsBoolean()
+  enabled!: boolean;
+}
 
 @Controller('intelligence')
 @UseGuards(RolesGuard, DistrictNexusFlagGuard)
@@ -28,7 +37,7 @@ export class R5DistrictAlertsController {
    * Flag-guarded (district_nexus_r5_alerts must be ON for the tenant).
    * Returns the client's recent district alerts.
    */
- ​@Get('district-nexus/r5/alerts')
+  @Get('district-nexus/r5/alerts')
   async listAlerts(
     @CurrentTenant() ct: TenantContext,
     @Query('clientId') clientId?: string,
@@ -56,5 +65,25 @@ export class R5DistrictAlertsController {
       state?.trim(),
       district?.trim(),
     );
+  }
+
+  @Get('district-nexus/r5/alerts/preference')
+  async getPreference(@CurrentTenant() ct: TenantContext, @Query('clientId') clientId: string) {
+    if (!await this.alerts.isEnabled(ct.tenantId) || !clientId) throw new NotFoundException();
+    try {
+      return { enabled: await this.alerts.getPreference(ct.tenantId, clientId, ct.userId) };
+    } catch {
+      throw new NotFoundException();
+    }
+  }
+
+  @Put('district-nexus/r5/alerts/preference')
+  async putPreference(@CurrentTenant() ct: TenantContext, @Body() body: AlertPreferenceDto) {
+    if (!await this.alerts.isEnabled(ct.tenantId)) throw new NotFoundException();
+    try {
+      return { enabled: await this.alerts.setPreference(ct.tenantId, body.clientId, ct.userId, body.enabled) };
+    } catch {
+      throw new NotFoundException();
+    }
   }
 }

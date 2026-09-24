@@ -33,3 +33,17 @@ export async function getDistrictNexusAlerts(
   );
   return data;
 }
+
+export async function getDistrictAlertPreference(api: AxiosInstance, clientId: string): Promise<boolean> {
+  const { data } = await api.get<{ enabled: boolean }>(
+    '/intelligence/district-nexus/r5/alerts/preference', { params: { clientId } },
+  );
+  return data.enabled;
+}
+
+export async function putDistrictAlertPreference(api: AxiosInstance, clientId: string, enabled: boolean): Promise<boolean> {
+  const { data } = await api.put<{ enabled: boolean }>(
+    '/intelligence/district-nexus/r5/alerts/preference', { clientId, enabled },
+  );
+  return data.enabled;
+}

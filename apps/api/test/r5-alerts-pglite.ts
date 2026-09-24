@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 
-const requireTestModule = createRequire(resolve('package.json'));
+const requireTestModule = createRequire(resolve('apps/api/package.json'));
 const { PGlite } = requireTestModule(process.env.LEGIWATCH_PGLITE_MODULE ?? '@electric-sql/pglite');
 
 // ---------------------------------------------------------------------------

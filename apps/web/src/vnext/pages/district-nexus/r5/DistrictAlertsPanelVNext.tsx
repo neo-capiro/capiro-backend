@@ -4,13 +4,15 @@
  * Hidden when district_nexus_r5_alerts flag is off.
  */
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
 import { useIntelFeatureEnabled } from '../../../../lib/intel-feature-flags.js';
-import { CapiroErrorState, CapiroSkeleton } from '../../../../components/feedback/index.js';
+import { CapiroErrorState, CapiroSkeleton } from '../../../components/feedback/index.js';
 import { DnxWarningIcon } from '../icons.js';
 import {
   getDistrictNexusAlerts,
+  getDistrictAlertPreference,
+  putDistrictAlertPreference,
   DISTRICT_NEXUS_R5_ALERTS_FEATURE,
   type DistrictAlertPayload,
 } from './r5-api.js';
@@ -48,6 +50,18 @@ interface Props {
 export function DistrictAlertsPanelVNext({ clientId, state, districtNo }: Props) {
   const api = useApi();
   const alertsEnabled = useIntelFeatureEnabled(DISTRICT_NEXUS_R5_ALERTS_FEATURE);
+  const queryClient = useQueryClient();
+  const preferenceKey = ['district-nexus', 'r5', 'alerts-preference', clientId];
+  const preference = useQuery({
+    queryKey: preferenceKey,
+    queryFn: () => getDistrictAlertPreference(api, clientId),
+    enabled: alertsEnabled && Boolean(clientId),
+    retry: false,
+  });
+  const updatePreference = useMutation({
+    mutationFn: (enabled: boolean) => putDistrictAlertPreference(api, clientId, enabled),
+    onSuccess: (enabled) => queryClient.setQueryData(preferenceKey, enabled),
+  });
 
   const alerts = useQuery<DistrictAlertPayload[]>({
     queryKey: ['district-nexus', 'r5', 'alerts', clientId, state, districtNo],
@@ -62,8 +76,18 @@ export function DistrictAlertsPanelVNext({ clientId, state, districtNo }: Props)
     <div className="dnx-panel">
       <div className="dnx-section-header">
         <h3 className="dnx-section-title">District Alerts</h3>
+        {preference.isSuccess && (
+          <label>
+            <input type="checkbox" checked={preference.data}
+              disabled={updatePreference.isPending}
+              onChange={(event) => updatePreference.mutate(event.target.checked)} />
+            Receive district alerts
+          </label>
+        )}
       </div>
       <div className="dnx-section-body">
+        {preference.isError && <div role="alert">Alert preference could not load.</div>}
+        {updatePreference.isError && <div role="alert">Alert preference could not be saved.</div>}
         {alerts.isPending ? (
           <div className="dnx-skel-rows" aria-busy="true">
             <CapiroSkeleton height={14} />

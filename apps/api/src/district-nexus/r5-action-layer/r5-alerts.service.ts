@@ -11,23 +11,18 @@
  *   - An event is relevant to (tenant, client) only when the event's
  *     state/district is in that client's VERIFIED District Nexus footprint.
  *   - Statewide events match any footprint district in that state.
- *   - No fuzzy matching. No SMS. Email only if the recipient's existing
- *     preference opts into it.
+ *   - No fuzzy matching. In-app only; no SMS or email.
  *   - Idempotency key = (tenant, client, recipient, channel, change dedupe_key)
  *     through NotificationLog's @@unique([alertId, userId, channel]).
  *   - Replaying the same window sends nothing new.
  *   - Opt-out via new trigger key 'district_nexus_change' on AlertPreference.
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import {
-  DISTRICT_NEXUS_FEATURE,
-  DISTRICT_NEXUS_R5_ALERTS_FEATURE,
-  CAPIRO_INTERNAL_TENANT_SLUG,
-} from './r5-alerts-flag.js';
+import { isR5AlertsEnabled } from './r5-alerts-flag.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -94,15 +89,14 @@ export interface EmitResult {
 
 @Injectable()
 export class R5DistrictAlertsService {
-  private readonly logger = new Logger(R5DistrictAlertsService.name);
-  private readonly internalTenantId?: string;
+
   private readonly appBaseUrl: string;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
   ) {
-    this.internalTenantId = config.get<string>('CAPIRO_INTERNAL_TENANT_ID')?.trim() || undefined;
+
     this.appBaseUrl = (config.get<string>('APP_BASE_URL') || 'https://os.capiro.ai').replace(/\/$/, '');
   }
 
@@ -112,60 +106,7 @@ export class R5DistrictAlertsService {
 
   /** Check if the tenant has the R5 alerts flag enabled. */
   async isEnabled(tenantId: string): Promise<boolean> {
-    if (!tenantId) return false;
-
-    const isConfiguredInternalTenant = Boolean(
-      this.internalTenantId && tenantId === this.internalTenantId,
-    );
-
-    try {
-      const rows = await this.prisma.withSystem(
-        (tx) =>
-          tx.$queryRaw<Array<{ ok: number }>>`
-          SELECT 1 AS ok
-          WHERE (
-            (
-              (
-                ${isConfiguredInternalTenant}
-                OR EXISTS (
-                  SELECT 1 FROM tenants
-                  WHERE id::text = ${tenantId}
-                    AND slug = ${CAPIRO_INTERNAL_TENANT_SLUG}
-                )
-              )
-              AND NOT EXISTS (
-                SELECT 1 FROM intel_feature_flag
-                WHERE feature = ${DISTRICT_NEXUS_R5_ALERTS_FEATURE}
-                  AND tenant_id = ${tenantId}
-                  AND enabled = false
-              )
-            )
-            OR (
-              EXISTS (
-                SELECT 1 FROM intel_feature_flag
-                WHERE feature = ${DISTRICT_NEXUS_R5_ALERTS_FEATURE}
-                  AND tenant_id = ${tenantId}
-                  AND enabled = true
-              )
-              AND EXISTS (
-                SELECT 1 FROM intel_feature_flag
-                WHERE feature = ${DISTRICT_NEXUS_FEATURE}
-                  AND tenant_id = ${tenantId}
-                  AND enabled = true
-              )
-            )
-          )
-          LIMIT 1
-        `,
-      );
-      return rows.length > 0;
-    } catch (error) {
-      this.logger.error(
-        `R5 alerts flag read failed for tenant ${tenantId}; failing closed`,
-        error instanceof Error ? error.stack : String(error),
-      );
-      return false;
-    }
+    return isR5AlertsEnabled(this.prisma, tenantId);
   }
 
   // -----------------------------------------------------------------------
@@ -220,7 +161,7 @@ export class R5DistrictAlertsService {
       observationKind: r.observationKind,
       title: buildChangeTitle(r.changeKind, r.source, r.stateCode, r.districtCode),
       districtLabel: r.stateCode
-        ? r.districtCode
+        ? r.districtCode && r.districtCode !== '00'
           ? `${r.stateCode}-${r.districtCode.padStart(2, '0')}`
           : `${r.stateCode} (statewide)`
         : 'Unknown',
@@ -241,34 +182,27 @@ export class R5DistrictAlertsService {
     tenantId: string,
     event: DistrictAlertEvent,
   ): Promise<Array<{ clientId: string; clientName: string }>> {
-    if (event.isStatewide) {
-      // Statewide: match any client with a facility in this state
-      const rows = await this.prisma.withTenant(tenantId, (tx) =>
-        tx.$queryRaw<Array<{ client_id: string; client_name: string }>>`
-          SELECT DISTINCT cf.client_id, c.name AS client_name
-          FROM client_facilities cf
-          JOIN clients c ON c.id = cf.client_id AND c.tenant_id::text = ${tenantId}
-          WHERE cf.state = ${event.stateCode}
-            AND cf.congressional_district IS NOT NULL
-          LIMIT 200
-        `,
-      );
-      return rows.map((r) => ({ clientId: r.client_id, clientName: r.client_name }));
-    }
-
-    // District-scoped: exact district match
-    const districtCode = event.districtCode.padStart(2, '0');
+    if (!/^[A-Z]{2}$/.test(event.stateCode)) return [];
+    // DN aggregate uses these facility trust fields. Only matched Census
+    // geocodes with geocoded districts establish verified alert relevance.
     const rows = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.$queryRaw<Array<{ client_id: string; client_name: string }>>`
-        SELECT DISTINCT cf.client_id, c.name AS client_name
-        FROM client_facilities cf
-        JOIN clients c ON c.id = cf.client_id AND c.tenant_id::text = ${tenantId}
-        WHERE cf.state = ${event.stateCode}
-          AND cf.congressional_district = ${districtCode}
-        LIMIT 200
-      `,
+      tx.clientFacility.findMany({
+        where: {
+          tenantId,
+          state: event.stateCode,
+          geocodeStatus: 'matched',
+          districtSource: 'geocoded',
+          congressionalDistrict: event.isStatewide
+            ? { not: null }
+            : event.districtCode.padStart(2, '0'),
+          client: { status: { not: 'archived' }, profileStatus: 'ACTIVE' },
+        },
+        select: { clientId: true, client: { select: { name: true } } },
+      }),
     );
-    return rows.map((r) => ({ clientId: r.client_id, clientName: r.client_name }));
+    return [...new Map(rows.map((r) => [r.clientId, {
+      clientId: r.clientId, clientName: r.client.name,
+    }])).values()];
   }
 
   // -----------------------------------------------------------------------
@@ -291,9 +225,7 @@ export class R5DistrictAlertsService {
         id: string;
         triggers: string[];
         materiality: string;
-        emailEnabled: boolean;
-        emailAddress: string | null;
-        emailCadence: string;
+
       };
     }>
   > {
@@ -305,9 +237,7 @@ export class R5DistrictAlertsService {
           userId: true,
           triggers: true,
           materiality: true,
-          emailEnabled: true,
-          emailAddress: true,
-          emailCadence: true,
+
         },
       }),
     );
@@ -326,9 +256,7 @@ export class R5DistrictAlertsService {
           id: p.id,
           triggers: p.triggers,
           materiality: p.materiality,
-          emailEnabled: p.emailEnabled,
-          emailAddress: p.emailAddress,
-          emailCadence: p.emailCadence,
+
         },
       }));
   }
@@ -345,30 +273,72 @@ export class R5DistrictAlertsService {
     return `district-nexus-change:${tenantId}:${clientId}:${changeDedupeKey}`;
   }
 
-  /**
-   * Claim a NotificationLog row for (alertId, userId, channel).
-   * Returns the log id on success, null if already exists (dedup → skip).
-   */
-  private async claim(
+  /** Persist the in-app event and mark sent in the same tenant transaction. */
+  private async deliver(
     tenantId: string,
     clientId: string,
     userId: string,
     alertId: string,
-    channel: 'in_app' | 'email',
-    status: string,
-  ): Promise<string | null> {
+    event: DistrictAlertEvent,
+    payload: DistrictAlertPayload,
+  ): Promise<boolean> {
+    const key = { alertId_userId_channel: { alertId, userId, channel: 'in_app' } };
     try {
-      const row = await this.prisma.withTenant(tenantId, (tx) =>
-        tx.notificationLog.create({
-          data: { tenantId, clientId, userId, alertId, channel, status },
-          select: { id: true },
-        }),
-      );
-      return row.id;
-    } catch (e) {
-      if ((e as { code?: string }).code === 'P2002') return null; // already handled
-      throw e;
+      return await this.prisma.withTenant(tenantId, async (tx) => {
+        const prior = await tx.notificationLog.findUnique({ where: key });
+        if (prior && prior.status !== 'failed') return false;
+        if (prior) {
+          const claimed = await tx.notificationLog.updateMany({
+            where: { id: prior.id, tenantId, clientId, status: 'failed' },
+            data: { status: 'queued', error: null },
+          });
+          if (!claimed.count) return false;
+        }
+        const row = prior ?? await tx.notificationLog.create({
+          data: { tenantId, clientId, userId, alertId, channel: 'in_app', status: 'queued' },
+        });
+        await tx.$executeRaw`
+          INSERT INTO district_nexus_alert_payload
+            (notification_log_id, tenant_id, client_id, state_code, district_code, payload)
+          VALUES (${row.id}::uuid, ${tenantId}::uuid, ${clientId}::uuid,
+                  ${event.stateCode}, ${event.districtCode || null}, ${JSON.stringify(payload)}::jsonb)
+          ON CONFLICT (notification_log_id) DO UPDATE SET payload = EXCLUDED.payload
+        `;
+        await tx.notificationLog.update({ where: { id: row.id }, data: { status: 'sent' } });
+        return true;
+      });
+    } catch (error) {
+      // A rollback leaves no sent row. A failed row is retryable next run.
+      const message = error instanceof Error ? error.message : String(error);
+      await this.prisma.withTenant(tenantId, async (tx) => {
+        const prior = await tx.notificationLog.findUnique({ where: key });
+        if (prior) {
+          if (prior.status !== 'sent') await tx.notificationLog.updateMany({
+            where: { id: prior.id, tenantId, clientId, status: { not: 'sent' } },
+            data: { status: 'failed', error: message.slice(0, 1000) },
+          });
+        } else {
+          try {
+            await tx.notificationLog.create({
+              data: { tenantId, clientId, userId, alertId, channel: 'in_app', status: 'failed', error: message.slice(0, 1000) },
+            });
+          } catch (claimError) {
+            if ((claimError as { code?: string }).code !== 'P2002') throw claimError;
+          }
+        }
+      });
+      return false;
     }
+  }
+
+  private async alreadySent(tenantId: string, userId: string, alertId: string): Promise<boolean> {
+    const row = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.notificationLog.findUnique({
+        where: { alertId_userId_channel: { alertId, userId, channel: 'in_app' } },
+        select: { status: true },
+      }),
+    );
+    return row !== null && row.status !== 'failed';
   }
 
   /** Deep link to the District Nexus drawer for this district+client. */
@@ -441,7 +411,7 @@ export class R5DistrictAlertsService {
     if (!enabled) return result;
 
     // Find changes since the window — material only, notable on opt-in
-    const changes = await this.findAlertableChanges(since, undefined, undefined, undefined, 'material');
+    const changes = await this.findAlertableChanges(since, undefined, undefined, undefined, 'notable');
     result.eventsConsidered = changes.length;
 
     for (const change of changes) {
@@ -468,40 +438,18 @@ export class R5DistrictAlertsService {
         );
 
         for (const recipient of recipients) {
-          // ── In-app delivery (always) ──
-          const inAppLogId = await this.claim(
-            tenantId,
-            client.clientId,
-            recipient.userId,
-            alertId,
-            'in_app',
-            commit ? 'sent' : 'dry_run',
-          );
-
-          if (inAppLogId) {
+          const payload = this.buildPayload(change, client.clientId);
+          // Dry-run performs only reads; a failed row is eligible for one retry.
+          const sent = commit
+            ? await this.deliver(tenantId, client.clientId, recipient.userId, alertId, change, payload)
+            : !await this.alreadySent(tenantId, recipient.userId, alertId);
+          if (sent) {
             result.delivered++;
             if (result.samples.length < 3) {
-              result.samples.push(this.buildPayload(change, client.clientId));
+              result.samples.push(payload);
             }
           } else {
             result.skippedDuplicate++;
-          }
-
-          // ── Email (only if opted in) ──
-          if (recipient.pref.emailEnabled && recipient.pref.emailAddress) {
-            const emailLogId = await this.claim(
-              tenantId,
-              client.clientId,
-              recipient.userId,
-              alertId,
-              'email',
-              commit ? 'sent' : 'dry_run',
-            );
-            if (emailLogId) {
-              // Email body would be rendered here in a full implementation
-              // with TrackerEmailService. For this slice: claim the row.
-              // The orchestrator will wire actual email sending.
-            }
           }
         }
       }
@@ -525,8 +473,9 @@ export class R5DistrictAlertsService {
           source,
         ),
       );
-      if (!row.length) return 'unknown';
-      const { status, attempted_at } = row[0];
+      const latest = row[0];
+      if (!latest) return 'unknown';
+      const { status, attempted_at } = latest;
       if (status === 'failed') return 'failed';
       // Stale: last run > 7 days ago
       const ageMs = Date.now() - new Date(attempted_at).getTime();
@@ -544,8 +493,35 @@ export class R5DistrictAlertsService {
   /** Verify a client belongs to the given tenant (throws if not found). */
   async verifyClientAccess(tenantId: string, clientId: string): Promise<void> {
     await this.prisma.withTenant(tenantId, (tx) =>
-      tx.client.findUniqueOrThrow({ where: { id: clientId } }),
+      tx.client.findFirstOrThrow({
+        where: { id: clientId, tenantId, status: { not: 'archived' }, profileStatus: 'ACTIVE' },
+      }),
     );
+  }
+
+  /** Mutate only the DN trigger for the authenticated user and client. */
+  async setPreference(tenantId: string, clientId: string, userId: string, enabled: boolean): Promise<boolean> {
+    await this.verifyClientAccess(tenantId, clientId);
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      const key = { userId_clientId: { userId, clientId } };
+      const existing = await tx.alertPreference.findUnique({ where: key });
+      const triggers = existing?.triggers.filter((trigger) => trigger !== 'district_nexus_change') ?? [];
+      if (enabled) triggers.push('district_nexus_change');
+      await tx.alertPreference.upsert({
+        where: key,
+        create: { tenantId, clientId, userId, triggers },
+        update: { triggers },
+      });
+      return enabled;
+    });
+  }
+
+  async getPreference(tenantId: string, clientId: string, userId: string): Promise<boolean> {
+    await this.verifyClientAccess(tenantId, clientId);
+    const row = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.alertPreference.findUnique({ where: { userId_clientId: { userId, clientId } }, select: { triggers: true } }),
+    );
+    return row?.triggers.includes('district_nexus_change') ?? false;
   }
 
   // -----------------------------------------------------------------------
@@ -562,64 +538,28 @@ export class R5DistrictAlertsService {
     state?: string,
     district?: string,
   ): Promise<DistrictAlertPayload[]> {
-    const logs = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.notificationLog.findMany({
-        where: {
-          clientId,
-          channel: 'in_app',
-          alertId: { startsWith: 'district-nexus-change:' },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 100,
-        select: { alertId: true, createdAt: true },
-      }),
-    );
-
-    // Extract dedupe keys from alertIds
-    const dedupeKeys = logs
-      .map((l) => {
-        // Format: district-nexus-change:<tenantId>:<clientId>:<dedupeKey>
-        const parts = l.alertId.split(':');
-        return parts.length >= 4 ? parts.slice(3).join(':') : null;
-      })
-      .filter(Boolean) as string[];
-
-    if (!dedupeKeys.length) return [];
-
-    // Fetch the underlying change rows
-    const where: Prisma.DistrictNexusChangeWhereInput = {
-      dedupeKey: { in: dedupeKeys },
-    };
-    if (state) where.stateCode = state;
-    if (district) where.districtCode = district;
-
-    const changes = await this.prisma.withSystem((tx) =>
-      tx.districtNexusChange.findMany({
-        where,
-        orderBy: { observedAt: 'desc' },
-        take: 100,
-      }),
-    );
-
-    return changes.map((r) => ({
-      changeId: r.id,
-      title: buildChangeTitle(r.changeKind, r.source, r.stateCode, r.districtCode),
-      districtLabel: r.stateCode
-        ? r.districtCode
-          ? `${r.stateCode}-${r.districtCode.padStart(2, '0')}`
-          : `${r.stateCode} (statewide)`
-        : 'Unknown',
-      sourceLabel: sourceToLabel(r.source),
-      eventTime: r.observedAt instanceof Date ? r.observedAt.toISOString() : String(r.observedAt),
-      detectedTime: r.detectedAt instanceof Date ? r.detectedAt.toISOString() : String(r.detectedAt),
-      severity: r.severity,
-      freshness: 'unknown',
-      caveats: [],
-      deepLink: this.deepLink(r.stateCode ?? '', r.districtCode ?? '', clientId),
-      changeKind: r.changeKind,
-      oldState: r.oldState,
-      newState: r.newState,
-    }));
+    const rows = await this.prisma.withTenant(tenantId, (tx) => tx.$queryRaw<
+      Array<{ payload: DistrictAlertPayload; change_id: string | null }>
+    >`
+      SELECT p.payload, c.id::text AS change_id
+      FROM district_nexus_alert_payload p
+      JOIN notification_log n ON n.id = p.notification_log_id
+      LEFT JOIN district_nexus_change c ON c.id::text = p.payload->>'changeId'
+      WHERE p.tenant_id = ${tenantId}::uuid AND p.client_id = ${clientId}::uuid
+        AND n.tenant_id = ${tenantId}::uuid AND n.client_id = ${clientId}::uuid
+        AND n.channel = 'in_app' AND n.status = 'sent'
+        AND n.alert_id LIKE 'district-nexus-change:%'
+        AND (${state ?? null}::text IS NULL OR p.state_code = ${state ?? null})
+        AND (${district ?? null}::text IS NULL OR p.district_code = ${district ?? null})
+      ORDER BY n.created_at DESC LIMIT 100
+    `);
+    // Never re-derive an event from a mutable dedupe key. Preserve the snapshot,
+    // or explicitly label a deleted ledger event as unavailable.
+    return rows.map((r) => r.change_id ? r.payload : {
+      ...r.payload,
+      title: 'Event no longer available',
+      caveats: [...r.payload.caveats, 'Event no longer available in the change ledger'],
+    });
   }
 }
 
