@@ -392,6 +392,7 @@ describe('pipeline states', () => {
       </QueryClientProvider>,
     );
     expect(await screen.findByText(/The pipeline could not be loaded/)).toBeInTheDocument();
+    expect(screen.getByText('boom')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Retry'));
     const listCalls = () =>
       (broken.get as ReturnType<typeof vi.fn>).mock.calls.filter(
