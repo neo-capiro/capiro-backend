@@ -27,7 +27,12 @@ import type { RawSqlExecutor } from '../budget-lifecycle/discovery/prisma-discov
 import { InMemoryDiscoveryAuditStore } from '../budget-lifecycle/discovery/testing/discovery-test-doubles.js';
 import type { NewDiscoveryCrawl } from '../budget-lifecycle/discovery/discovery-audit.port.js';
 // @ts-expect-error — plain ESM script, no type declarations.
-import { buildLiveDiscoveryOptions } from '../../scripts/job-preflight.mjs';
+import {
+  buildLiveDiscoveryOptions,
+  parseDiscoveryRequestBudget,
+  parseWatcherLeaseSeconds,
+  runtimeWorkerId,
+} from '../../scripts/job-preflight.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(here, '..', '..');
@@ -101,6 +106,36 @@ const CRAWL: NewDiscoveryCrawl = Object.freeze({
   startedAt: '2026-08-22T00:00:00.000Z',
   finishedAt: '2026-08-22T00:00:01.000Z',
   failureReason: null,
+});
+
+describe('Package 1 scheduled-runtime bounds and distributed worker identity', () => {
+  it('caps each adapter crawl and rejects an unbounded scheduled request budget', () => {
+    assert.equal(parseDiscoveryRequestBudget(undefined), 25);
+    assert.equal(parseDiscoveryRequestBudget('250'), 250);
+    assert.throws(() => parseDiscoveryRequestBudget('251'), /must not exceed 250/);
+  });
+
+  it('keeps the lease beyond one hourly delivery and refuses excessive leases', () => {
+    assert.equal(parseWatcherLeaseSeconds(undefined), 4_500);
+    assert.equal(parseWatcherLeaseSeconds('3600'), 3_600);
+    assert.throws(() => parseWatcherLeaseSeconds('21601'), /must not exceed 21600/);
+  });
+
+  it('does not collapse every ECS container into the repeating PID-1 owner', () => {
+    assert.equal(runtimeWorkerId({ HOSTNAME: 'task-a' }, 1), 'phase9-job:task-a:1');
+    assert.equal(runtimeWorkerId({ HOSTNAME: 'task-b' }, 1), 'phase9-job:task-b:1');
+    assert.notEqual(
+      runtimeWorkerId({ HOSTNAME: 'task-a' }, 1),
+      runtimeWorkerId({ HOSTNAME: 'task-b' }, 1),
+    );
+  });
+
+  it('emits the alarm marker when a scheduled tick fails before the coordinator runs', () => {
+    const result = run(JOB, ['schedule-tick', '--commit']);
+    assert.equal(result.status, 77);
+    assert.match(result.stderr, /PHASE9_SCHEDULE_TICK_FAILED/);
+    assert.doesNotMatch(result.stdout, /PHASE9_SCHEDULE_TICK_COMMITTED/);
+  });
 });
 
 describe('Phase 9 job runtime — property 1: dry-run performs zero DB writes', () => {
@@ -484,8 +519,8 @@ describe('Phase 10 historical-discovery horizon fix — job composes discovery w
 
     assert.match(
       stripped,
-      /new LiveSourceDiscoveryAdapter\(\s*registry,\s*new GovInfoSitemapCrawler\(http\),\s*new IndexPageCrawler\(http\),\s*discoveryAudit,\s*buildLiveDiscoveryOptions\(fiscalYears\),?\s*\)/,
-      'the live-discovery construction site must pass buildLiveDiscoveryOptions(fiscalYears) as its options argument — this is what previously let the adapter silently fall back to a wall-clock horizon',
+      /new LiveSourceDiscoveryAdapter\(\s*registry,\s*new GovInfoSitemapCrawler\(http\),\s*new IndexPageCrawler\(http\),\s*discoveryAudit,\s*\{\s*\.\.\.buildLiveDiscoveryOptions\(fiscalYears\),\s*requestBudget\s*\},?\s*\)/,
+      'the live-discovery construction site must preserve the explicit fiscal-year scope while adding the bounded request budget',
     );
   });
 

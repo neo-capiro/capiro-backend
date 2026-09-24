@@ -50,9 +50,12 @@ import {
   evaluateCapabilityProof,
   resolveCapabilityRole,
   parseBound,
+  parseDiscoveryRequestBudget,
   parseFiscalYears,
+  parseWatcherLeaseSeconds,
   printTargetIdentity,
   resolveDatabaseIdentity,
+  runtimeWorkerId,
 } from './job-preflight.mjs';
 
 const require = createRequire(import.meta.url);
@@ -267,7 +270,9 @@ function buildInventory(fiscalYears) {
 function tally(rows, key) {
   const map = new Map();
   for (const row of rows) map.set(row[key], (map.get(row[key]) ?? 0) + 1);
-  return Object.fromEntries([...map.entries()].sort((a, b) => String(a[0]).localeCompare(String(b[0]))));
+  return Object.fromEntries(
+    [...map.entries()].sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+  );
 }
 
 function runInventory() {
@@ -307,7 +312,11 @@ function runInventory() {
           fiscalYears,
           authorityTracks: domain.AUTHORITY_TRACKS,
           adapters: registry.list().map((a) => a.adapterId),
-          totals: { rows: rows.length, byState: tally(rows, 'state'), byTrack: tally(rows, 'authorityTrack') },
+          totals: {
+            rows: rows.length,
+            byState: tally(rows, 'state'),
+            byTrack: tally(rows, 'authorityTrack'),
+          },
           byFiscalYear: Object.fromEntries(
             fiscalYears.map((fy) => {
               const sub = rows.filter((r) => r.fiscalYear === fy);
@@ -333,7 +342,10 @@ function runInventory() {
 async function runEgressCheck() {
   const explicit = value('hosts');
   const hosts = explicit
-    ? explicit.split(',').map((host) => host.trim()).filter(Boolean)
+    ? explicit
+        .split(',')
+        .map((host) => host.trim())
+        .filter(Boolean)
     : [...new Set(registry.list().flatMap((adapter) => adapter.officialHosts))].sort();
 
   const timeoutMs = parseBound(value('timeout-ms'), 15_000, '--timeout-ms');
@@ -459,7 +471,9 @@ async function runDbCheck() {
       'current_database()::text AS database, version() AS version',
   );
   const row = actual[0] ?? {};
-  console.log(`[phase9-db] connected current_user=${row.current_user} session_user=${row.session_user}`);
+  console.log(
+    `[phase9-db] connected current_user=${row.current_user} session_user=${row.session_user}`,
+  );
   console.log(`[phase9-db] database=${row.database}`);
   console.log(`[phase9-db] server=${String(row.version ?? '').split(',')[0]}`);
 
@@ -521,7 +535,10 @@ function selectAdapters() {
   const requested = value('adapters');
   const all = registry.list().map((adapter) => adapter.adapterId);
   if (!requested) return all;
-  const chosen = requested.split(',').map((id) => id.trim()).filter(Boolean);
+  const chosen = requested
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
   for (const id of chosen) {
     if (!registry.has(id)) {
       throw new JobPreflightError(`--adapters contains unknown adapter "${id}"`, 64);
@@ -536,7 +553,9 @@ async function runBackfillPlan() {
   const { templateVersion, rows } = buildInventory(fiscalYears);
 
   console.log(`[phase9-backfill-plan] templateVersion=${templateVersion}`);
-  console.log(`[phase9-backfill-plan] fiscalYears=${fiscalYears.join(',')} (explicit, not date-inferred)`);
+  console.log(
+    `[phase9-backfill-plan] fiscalYears=${fiscalYears.join(',')} (explicit, not date-inferred)`,
+  );
   console.log(`[phase9-backfill-plan] adapters=${adapterIds.length}`);
 
   for (const fiscalYear of fiscalYears) {
@@ -573,7 +592,9 @@ async function runBackfillPlan() {
     }
   } catch (error) {
     if (error instanceof JobPreflightError) {
-      console.log(`[phase9-backfill-plan] no database configured; skipping live due-state (${error.message})`);
+      console.log(
+        `[phase9-backfill-plan] no database configured; skipping live due-state (${error.message})`,
+      );
     } else {
       throw error;
     }
@@ -588,6 +609,11 @@ async function runBackfillRun() {
   const adapterIds = selectAdapters();
   const maxAdapters = parseBound(value('max-adapters'), adapterIds.length, '--max-adapters');
   const bounded = adapterIds.slice(0, maxAdapters);
+  const requestBudget = parseDiscoveryRequestBudget(
+    value('budget', process.env.DEFENSE_BUDGET_DISCOVERY_REQUEST_BUDGET),
+    250,
+  );
+  const leaseSeconds = parseWatcherLeaseSeconds(process.env.DEFENSE_BUDGET_WATCHER_LEASE_SECONDS);
 
   assertCommitAuthorised({ mode, commit });
 
@@ -599,7 +625,9 @@ async function runBackfillRun() {
   const { IndexPageCrawler } = dist('discovery/index-page.crawler.js');
   const { HttpsPublisherHttpAdapter } = dist('discovery/https-publisher-http.adapter.js');
   const { PrismaDiscoveryAuditStore } = dist('discovery/prisma-discovery-audit.store.js');
-  const { HttpsSourceFetchAdapter, govinfoTextRenditionUrl } = dist('https-source-fetch.adapter.js');
+  const { HttpsSourceFetchAdapter, govinfoTextRenditionUrl } = dist(
+    'https-source-fetch.adapter.js',
+  );
   const { PrismaLifecycleStore } = dist('prisma-lifecycle.store.js');
   const { InMemoryLifecycleStore } = dist('testing/in-memory-lifecycle.store.js');
 
@@ -637,7 +665,7 @@ async function runBackfillRun() {
         new GovInfoSitemapCrawler(http),
         new IndexPageCrawler(http),
         discoveryAudit,
-        buildLiveDiscoveryOptions(fiscalYears),
+        { ...buildLiveDiscoveryOptions(fiscalYears), requestBudget },
       );
     } else {
       console.log(
@@ -648,7 +676,9 @@ async function runBackfillRun() {
     }
   } else {
     // A dry run must be side-effect-free regardless of ambient environment.
-    console.log('[phase9-backfill] DRY RUN: in-memory store + manifest discovery. No writes, no crawl.');
+    console.log(
+      '[phase9-backfill] DRY RUN: in-memory store + manifest discovery. No writes, no crawl.',
+    );
     lifecycleStore = new InMemoryLifecycleStore();
     discovery = new ManifestSourceDiscoveryAdapter(registry);
   }
@@ -685,8 +715,9 @@ async function runBackfillRun() {
       const result = await watcher.runAdapter({
         adapterId,
         nowIso,
-        leaseOwner: value('lease-owner', `phase9-job-${process.pid}`),
+        leaseOwner: value('lease-owner', runtimeWorkerId()),
         runKey: `${value('run-key', nowIso)}:${adapterId}`,
+        leaseSeconds,
         commit,
       });
       for (const key of Object.keys(totals)) totals[key] += result[key] ?? 0;
@@ -760,7 +791,10 @@ async function runLifecycleWatch() {
       64,
     );
   }
-  if (expectedSourceId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(expectedSourceId)) {
+  if (
+    expectedSourceId &&
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(expectedSourceId)
+  ) {
     throw new JobPreflightError(
       `--expected-source-id must be a UUID, got "${expectedSourceId}"`,
       64,
@@ -771,7 +805,9 @@ async function runLifecycleWatch() {
   const { AnnualDefenseBudgetCycleController } = dist('annual-cycle-controller.service.js');
   const { DefenseBudgetLifecycleWatcher } = dist('lifecycle-watcher.service.js');
   const { ManifestSourceDiscoveryAdapter } = dist('manifest-source-discovery.adapter.js');
-  const { HttpsSourceFetchAdapter, govinfoTextRenditionUrl } = dist('https-source-fetch.adapter.js');
+  const { HttpsSourceFetchAdapter, govinfoTextRenditionUrl } = dist(
+    'https-source-fetch.adapter.js',
+  );
   const { PrismaLifecycleStore } = dist('prisma-lifecycle.store.js');
   const { InMemoryLifecycleStore } = dist('testing/in-memory-lifecycle.store.js');
 
@@ -855,8 +891,9 @@ async function runLifecycleWatch() {
   const result = await watcher.runAdapter({
     adapterId,
     nowIso,
-    leaseOwner: value('lease-owner', `phase9-job-${process.pid}`),
+    leaseOwner: value('lease-owner', runtimeWorkerId()),
     runKey: value('run-key', `${nowIso}:${adapterId}`),
+    leaseSeconds: parseWatcherLeaseSeconds(process.env.DEFENSE_BUDGET_WATCHER_LEASE_SECONDS),
     commit,
   });
 
@@ -883,6 +920,10 @@ async function runLifecycleWatch() {
 // ---------------------------------------------------------------------------
 async function runScheduleTick() {
   assertCommitAuthorised({ mode, commit });
+  const requestBudget = parseDiscoveryRequestBudget(
+    value('budget', process.env.DEFENSE_BUDGET_DISCOVERY_REQUEST_BUDGET),
+  );
+  const leaseSeconds = parseWatcherLeaseSeconds(process.env.DEFENSE_BUDGET_WATCHER_LEASE_SECONDS);
 
   const { AnnualDefenseBudgetCycleController } = dist('annual-cycle-controller.service.js');
   const { DefenseBudgetLifecycleWatcher } = dist('lifecycle-watcher.service.js');
@@ -892,7 +933,9 @@ async function runScheduleTick() {
   const { IndexPageCrawler } = dist('discovery/index-page.crawler.js');
   const { HttpsPublisherHttpAdapter } = dist('discovery/https-publisher-http.adapter.js');
   const { PrismaDiscoveryAuditStore } = dist('discovery/prisma-discovery-audit.store.js');
-  const { HttpsSourceFetchAdapter, govinfoTextRenditionUrl } = dist('https-source-fetch.adapter.js');
+  const { HttpsSourceFetchAdapter, govinfoTextRenditionUrl } = dist(
+    'https-source-fetch.adapter.js',
+  );
   const { PrismaLifecycleStore } = dist('prisma-lifecycle.store.js');
   const { InMemoryLifecycleStore } = dist('testing/in-memory-lifecycle.store.js');
   const { PrismaScheduleAuditStore } = dist('schedule/prisma-schedule-audit.store.js');
@@ -921,6 +964,7 @@ async function runScheduleTick() {
         new GovInfoSitemapCrawler(http),
         new IndexPageCrawler(http),
         discoveryAudit,
+        { requestBudget },
       );
     } else {
       discovery = new ManifestSourceDiscoveryAdapter(registry);
@@ -947,11 +991,12 @@ async function runScheduleTick() {
     scheduleAuditStore,
   );
 
-  const workerId = value('worker-id', `phase9-job-${process.pid}`);
+  const workerId = value('worker-id', runtimeWorkerId());
   const result = await coordinator.tick({
     nowIso,
     workerId,
     tickKey: value('tick-key', `${nowIso}:${workerId}`),
+    leaseSeconds,
     commit,
   });
 
@@ -961,11 +1006,15 @@ async function runScheduleTick() {
       `succeeded=${result.summary.adaptersSucceeded} failed=${result.summary.adaptersFailed}`,
   );
   for (const attempt of result.attempts) {
-    console.log(`  ${attempt.outcome.padEnd(20)} ${attempt.adapterId.padEnd(32)} ${attempt.detail}`);
+    console.log(
+      `  ${attempt.outcome.padEnd(20)} ${attempt.adapterId.padEnd(32)} ${attempt.detail}`,
+    );
   }
 
   if (result.summary.adaptersFailed > 0 || result.summary.outcome === 'failed') {
-    console.log(`[phase9-schedule-tick] failureReason=${result.summary.failureReason ?? 'unknown'}`);
+    console.log(
+      `[phase9-schedule-tick] failureReason=${result.summary.failureReason ?? 'unknown'}`,
+    );
     console.log('PHASE9_SCHEDULE_TICK_FAILED');
     return 1;
   }
@@ -984,6 +1033,13 @@ try {
   } else {
     console.error(`[phase9-job] fatal: ${error?.stack ?? error}`);
     exitCode = 1;
+  }
+  // EventBridge's DLQ covers failure to launch the ECS target, not a task
+  // that starts and exits non-zero. Keep every schedule-tick failure visible
+  // to the log metric, including preflight and startup failures that happen
+  // before the coordinator can build its normal summary.
+  if (mode === 'schedule-tick') {
+    console.error('PHASE9_SCHEDULE_TICK_FAILED');
   }
 } finally {
   if (prisma) {
