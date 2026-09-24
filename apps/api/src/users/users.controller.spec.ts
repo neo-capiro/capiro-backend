@@ -85,3 +85,78 @@ describe('UsersController — /me features.engagementVNext', () => {
     expect(result.features.engagementVNext).toBe(true);
   });
 });
+
+describe('UsersController — /me features.businessDevelopmentDossier', () => {
+  const ctx = {
+    tenantId: 't1',
+    tenantSlug: 'capiro-internal',
+    userId: 'u1',
+    clerkUserId: 'clerk_1',
+    role: 'standard_user',
+  } as unknown as TenantContext;
+
+  const USER_ROW = {
+    email: 'neo@capiro.ai',
+    firstName: 'Neo',
+    lastName: 'M',
+    title: null,
+    emailSignatureHtml: null,
+    emailSignatureEnabled: false,
+    tourCompletedAt: null,
+    legiwatchIntroSeenAt: null,
+  };
+
+  function make(settings: unknown) {
+    const tx = {
+      user: {
+        findUnique: jest.fn(async () => USER_ROW),
+        update: jest.fn(async () => USER_ROW),
+      },
+      tenant: {
+        findUnique: jest.fn(async () => ({
+          name: 'Capiro Internal',
+          settings,
+          planTier: 'starter',
+        })),
+      },
+      tenantMembership: {
+        findUnique: jest.fn(async () => ({ billingAdmin: false })),
+      },
+    };
+    const prisma = {
+      withTenant: jest.fn(async (_tenantId: string, fn: (value: typeof tx) => unknown) => fn(tx)),
+    } as unknown as PrismaService;
+    const config = { get: jest.fn(() => false) } as unknown as ConfigService<AppConfig, true>;
+    const controller = new UsersController(prisma, config);
+    return { controller, tx };
+  }
+
+  it('GET /me reports businessDevelopmentDossier=true when the tenant flag is set', async () => {
+    const { controller } = make({
+      clioFeatureFlags: { 'businessDevelopment.dossier.enabled': true },
+    });
+    const result = await controller.me(ctx);
+    expect(result.features.businessDevelopmentDossier).toBe(true);
+  });
+
+  it('GET /me defaults businessDevelopmentDossier to false (no flag at all)', async () => {
+    const { controller } = make({});
+    const result = await controller.me(ctx);
+    expect(result.features.businessDevelopmentDossier).toBe(false);
+  });
+
+  it('GET /me keeps businessDevelopmentDossier false when explicitly false', async () => {
+    const { controller } = make({
+      clioFeatureFlags: { 'businessDevelopment.dossier.enabled': false },
+    });
+    const result = await controller.me(ctx);
+    expect(result.features.businessDevelopmentDossier).toBe(false);
+  });
+
+  it('PATCH /me reports the same businessDevelopmentDossier value as GET /me', async () => {
+    const on = make({ clioFeatureFlags: { 'businessDevelopment.dossier.enabled': true } });
+    expect((await on.controller.updateMe(ctx, { title: 'VP' })).features.businessDevelopmentDossier).toBe(true);
+    const off = make({});
+    expect((await off.controller.updateMe(ctx, { title: 'VP' })).features.businessDevelopmentDossier).toBe(false);
+  });
+});

@@ -55,6 +55,14 @@ export interface MeResponse {
      * exactly true. The API independently guards every route server-side.
      */
     businessDevelopment?: boolean;
+    /**
+     * Business Development Phase 2 discover/dossier surface (Portfolio →
+     * Business Development → Discover). Optional so an older cached /me shape
+     * (or a still-loading query) fails closed: Discover, the dossier drawer
+     * and their queries only render when this is exactly true. The API
+     * independently guards every Phase 2 route server-side.
+     */
+    businessDevelopmentDossier?: boolean;
   };
 }
 

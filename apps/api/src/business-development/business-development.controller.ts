@@ -19,18 +19,25 @@ import { BusinessDevelopmentFlagGuard } from './business-development-flag.guard.
 import { BusinessDevelopmentService } from './business-development.service.js';
 import {
   AddNoteDto,
+  CanonicalEntityIdParam,
+  CompanyDossierQueryDto,
   ConvertProspectDto,
   CreateProspectDto,
   DismissProspectDto,
   ListProspectsQueryDto,
   PreviewDuplicateHintsDto,
+  ProspectDossierQueryDto,
   SavePreferencesDto,
+  SearchCandidatesQueryDto,
   SearchCanonicalQueryDto,
   SearchClientsQueryDto,
   ResolveProspectIdentityDto,
   UpdateConflictDto,
   UpdateProspectDto,
 } from './business-development.dto.js';
+import { BusinessDevelopmentDossierFlagGuard } from './bizdev-dossier.flag.guard.js';
+import { BizDevDossierService } from './bizdev-dossier.service.js';
+import type { DossierSectionKind } from './bizdev-evidence.types.js';
 
 /**
  * Business Development Phase 1 routes.
@@ -53,7 +60,10 @@ class ProspectIdParam {
 @UseGuards(RolesGuard, BusinessDevelopmentFlagGuard)
 @Roles('standard_user', 'user_admin', 'capiro_admin')
 export class BusinessDevelopmentController {
-  constructor(private readonly bizdev: BusinessDevelopmentService) {}
+  constructor(
+    private readonly bizdev: BusinessDevelopmentService,
+    private readonly dossier: BizDevDossierService,
+  ) {}
 
   /** List/filter prospects + stage counts. */
   @Get('prospects')
@@ -198,5 +208,55 @@ export class BusinessDevelopmentController {
   @Get('search/clients')
   searchClients(@CurrentTenant() ctx: TenantContext, @Query() query: SearchClientsQueryDto) {
     return this.bizdev.searchClients(ctx, query.q, query.limit);
+  }
+
+  // ── Phase 2 — read-only dossier surface (additional flag guard) ──────────
+
+  /**
+   * Candidate discovery search. Page-level bounded reads, deterministic
+   * ordering, stable offset paging, no live provider calls.
+   */
+  @Get('search/candidates')
+  @UseGuards(BusinessDevelopmentDossierFlagGuard)
+  searchCandidates(@CurrentTenant() ctx: TenantContext, @Query() query: SearchCandidatesQueryDto) {
+    return this.dossier.searchCandidates(ctx, {
+      q: query.q,
+      agency: query.agency,
+      issue: query.issue,
+      geography: query.geography,
+      limit: query.limit,
+      offset: query.offset,
+    });
+  }
+
+  /** Canonical company dossier (global_public or caller-tenant rows only). */
+  @Get('dossier/companies/:canonicalEntityId')
+  @UseGuards(BusinessDevelopmentDossierFlagGuard)
+  companyDossier(
+    @CurrentTenant() ctx: TenantContext,
+    @Param() params: CanonicalEntityIdParam,
+    @Query() query: CompanyDossierQueryDto,
+  ) {
+    return this.dossier.companyDossier(
+      ctx,
+      params.canonicalEntityId,
+      query.section as DossierSectionKind | undefined,
+    );
+  }
+
+  /** Prospect dossier — full dossier for resolved prospects; honest
+   * unresolved/ambiguous identity options otherwise. Tenant-owned only. */
+  @Get(`prospects/:${UUID_PARAM}/dossier`)
+  @UseGuards(BusinessDevelopmentDossierFlagGuard)
+  prospectDossier(
+    @CurrentTenant() ctx: TenantContext,
+    @Param() params: ProspectIdParam,
+    @Query() query: ProspectDossierQueryDto,
+  ) {
+    return this.dossier.prospectDossier(
+      ctx,
+      params.prospectId,
+      query.section as DossierSectionKind | undefined,
+    );
   }
 }

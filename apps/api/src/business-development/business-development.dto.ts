@@ -9,7 +9,9 @@ import {
   IsString,
   IsUUID,
   MaxLength,
+  Max,
   Min,
+  MinLength,
   IsDateString,
 } from 'class-validator';
 
@@ -308,6 +310,71 @@ export class SearchClientsQueryDto {
   @Min(1)
   @Type(() => Number)
   limit?: number;
+}
+
+// ── Phase 2 — candidate search + dossier DTOs ──────────────────────────────
+
+/** Section kinds mirror DOSSIER_SECTION_KINDS (bizdev-evidence.types.ts). */
+export const BIZDEV_DOSSIER_SECTIONS = [
+  'identity',
+  'government_exposure',
+  'relevant_signals',
+  'footprint',
+  'lobbying',
+  'people',
+] as const;
+
+export class SearchCandidatesQueryDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(200)
+  q!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  agency?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  issue?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  geography?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(25)
+  @Type(() => Number)
+  limit?: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(500)
+  @IsOptional()
+  @Type(() => Number)
+  offset?: number;
+}
+
+export class CompanyDossierQueryDto {
+  @IsOptional()
+  @IsIn(BIZDEV_DOSSIER_SECTIONS)
+  section?: (typeof BIZDEV_DOSSIER_SECTIONS)[number];
+}
+
+export class ProspectDossierQueryDto {
+  @IsOptional()
+  @IsIn(BIZDEV_DOSSIER_SECTIONS)
+  section?: (typeof BIZDEV_DOSSIER_SECTIONS)[number];
+}
+
+export class CanonicalEntityIdParam {
+  @IsUUID()
+  canonicalEntityId!: string;
 }
 
 export class DismissProspectDto {

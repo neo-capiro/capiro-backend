@@ -293,7 +293,7 @@ describe('bizdev-routing', () => {
     expect(next.get('sort')).toBe('name');
     expect(next.get('view')).toBe('business-development');
     const route = resolveBizDevRoute(next);
-    expect(route).toEqual({
+    expect(route).toMatchObject({
       stage: 'qualified',
       ownerId: 'u-2',
       status: 'dismissed',

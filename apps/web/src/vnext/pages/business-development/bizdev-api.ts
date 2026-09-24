@@ -328,7 +328,244 @@ export const bizdevKeys = {
     ['business-development', tenantId, 'prospect', id, 'duplicate-hints'] as const,
   members: (tenantId: string) => ['business-development', tenantId, 'member-options'] as const,
   preferences: (tenantId: string) => ['business-development', tenantId, 'preferences'] as const,
+  /** Phase 2 candidate search — keyed by tenant + full search identity. */
+  candidates: (tenantId: string, query: { q: string; limit: number; offset: number }) =>
+    ['business-development', tenantId, 'candidates', query] as const,
+  /** Phase 2 company dossier header (section=identity). */
+  companyDossierIdentity: (tenantId: string, canonicalEntityId: string) =>
+    ['business-development', tenantId, 'dossier', 'company', canonicalEntityId, 'identity'] as const,
+  /** Phase 2 company dossier single section. */
+  companyDossierSection: (
+    tenantId: string,
+    canonicalEntityId: string,
+    section: BizDevDossierSectionKind,
+  ) =>
+    [
+      'business-development',
+      tenantId,
+      'dossier',
+      'company',
+      canonicalEntityId,
+      'section',
+      section,
+    ] as const,
+  /** Phase 2 prospect dossier header (section=identity). */
+  prospectDossierIdentity: (tenantId: string, prospectId: string) =>
+    ['business-development', tenantId, 'dossier', 'prospect', prospectId, 'identity'] as const,
+  /** Phase 2 prospect dossier single section. */
+  prospectDossierSection: (tenantId: string, prospectId: string, section: BizDevDossierSectionKind) =>
+    [
+      'business-development',
+      tenantId,
+      'dossier',
+      'prospect',
+      prospectId,
+      'section',
+      section,
+    ] as const,
 };
+
+// ── Phase 2 — candidate search + dossier (exact backend contract) ───────
+
+/** Section kinds mirror the backend DOSSIER_SECTION_KINDS exactly. */
+export const BIZDEV_DOSSIER_SECTION_KINDS = [
+  'identity',
+  'government_exposure',
+  'relevant_signals',
+  'footprint',
+  'lobbying',
+  'people',
+] as const;
+export type BizDevDossierSectionKind = (typeof BIZDEV_DOSSIER_SECTION_KINDS)[number];
+
+export type BizDevEvidenceSourceFamily =
+  | 'capiro_canonical_identity'
+  | 'capiro_prospect_state'
+  | 'usaspending_contract'
+  | 'usaspending_assistance'
+  | 'sam_entity'
+  | 'sam_opportunity'
+  | 'tango_vehicle'
+  | 'lda_filing'
+  | 'pdl_company'
+  | 'pdl_people';
+
+export type BizDevEvidenceRelationshipStrength = 'direct' | 'conditional' | 'thematic' | 'unresolved';
+
+export type BizDevEvidenceStatus =
+  | 'available'
+  | 'empty_in_queried_scope'
+  | 'ambiguous'
+  | 'stale'
+  | 'partial'
+  | 'error';
+
+export type BizDevEvidenceStage =
+  | 'requested'
+  | 'authorized'
+  | 'obligated'
+  | 'awarded'
+  | 'ceiling'
+  | 'forecast';
+
+/** Human labels for honest section/evidence status rendering. */
+export const BIZDEV_EVIDENCE_STATUS_LABELS: Record<BizDevEvidenceStatus, string> = {
+  available: 'Available',
+  empty_in_queried_scope: 'No records in the scope checked',
+  ambiguous: 'Ambiguous — identity not confirmed',
+  stale: 'Possibly out of date',
+  partial: 'Partial — some sources could not be confirmed',
+  error: 'Could not be checked',
+};
+
+/** Direct vs potential relevance labels (never collapsed). */
+export const BIZDEV_RELATIONSHIP_LABELS: Record<BizDevEvidenceRelationshipStrength, string> = {
+  direct: 'Direct — matched on an exact identifier',
+  conditional: 'Potential — exact name match, not identifier-verified',
+  thematic: 'Potential — contextual, not evidence about this company',
+  unresolved: 'Unresolved — identity ambiguous',
+};
+
+/**
+ * Normalized source-evidence envelope (mirrors backend EvidenceItem).
+ * `detail` is a structured, section-specific payload — never render it as a
+ * raw object; the source inspector shows selected key/value rows.
+ */
+export interface BizDevEvidenceItem {
+  sourceFamily: BizDevEvidenceSourceFamily;
+  recordId: string | null;
+  locator: string | null;
+  originalSourceName: string | null;
+  originalSourceId: string | null;
+  claimType: string;
+  relationshipStrength: BizDevEvidenceRelationshipStrength;
+  eventDate: string | null;
+  effectiveDate: string | null;
+  fiscalYear: number | null;
+  stage: BizDevEvidenceStage | null;
+  sourceUpdatedAt: string | null;
+  fetchedAt: string | null;
+  scopeChecked: string | null;
+  status: BizDevEvidenceStatus;
+  title: string;
+  detail: Record<string, unknown>;
+}
+
+export interface BizDevDossierSectionState {
+  section: BizDevDossierSectionKind;
+  status: BizDevEvidenceStatus;
+  statusText: string;
+}
+
+export interface BizDevDossierSection {
+  section: BizDevDossierSectionKind;
+  status: BizDevEvidenceStatus;
+  statusText: string;
+  evidence: BizDevEvidenceItem[];
+  detail: Record<string, unknown>;
+}
+
+/** Exact dossier response envelope (finalizeDossier shape). */
+export interface BizDevDossier {
+  canonicalEntityId: string | null;
+  canonicalName: string | null;
+  identityScope: 'global_public' | 'tenant_private' | null;
+  identityBasis: 'exact_uei' | 'exact_name' | 'unresolved_prospect';
+  generatedAt: string;
+  sections: Partial<Record<BizDevDossierSectionKind, BizDevDossierSection>>;
+  sectionStates: BizDevDossierSectionState[];
+  prospect: { id: string; displayName: string } | null;
+}
+
+/** Structured, source-backed reason to inspect a candidate (or null). */
+export interface BizDevWhyInspectReason {
+  title: string;
+  eventDate: string | null;
+  sourceFamily: 'usaspending_contract';
+  originalSourceName: string;
+  recordId: string;
+  locator: string;
+  fetchedAt: string | null;
+  relationshipStrength: 'direct';
+  status: 'available';
+}
+
+/**
+ * Candidate row (searchCandidates). Deliberately carries NO conflictReason
+ * or note bodies: markers are safe booleans only.
+ */
+export interface BizDevCandidate {
+  canonicalEntityId: string;
+  canonicalName: string;
+  identityScope: 'global_public' | 'tenant_private';
+  identifiers: Array<{ type: string; value: string }>;
+  whyInspect: BizDevWhyInspectReason | null;
+  markerCoverage: 'complete' | 'partial';
+  marker: {
+    prospectActive: boolean;
+    prospectDismissed: boolean;
+    client: boolean;
+    excluded: boolean;
+  };
+  clientWithoutProspect: boolean;
+  prospectId?: string;
+  linkedClientId?: string | null;
+  stage?: string | null;
+}
+
+/** Exact candidate-search response: { results, coverage } — no cursor. */
+export interface BizDevCandidateSearchResult {
+  results: BizDevCandidate[];
+  coverage: {
+    agencyFilterApplied: boolean;
+    issueFilterApplied: boolean;
+    geographyFilterApplied: boolean;
+    unsupportedFilters: string[];
+    more: boolean;
+    offset: number;
+    limit: number;
+  };
+}
+
+/** GET /api/business-development/search/candidates (q 2..200, limit 1..25, offset 0..500). */
+export function searchBizDevCandidates(
+  api: AxiosInstance,
+  query: { q: string; limit: number; offset: number },
+) {
+  return api
+    .get<BizDevCandidateSearchResult>('/api/business-development/search/candidates', {
+      params: query,
+    })
+    .then((r) => r.data);
+}
+
+/** GET /api/business-development/dossier/companies/:canonicalEntityId (optional ?section=). */
+export function getBizDevCompanyDossier(
+  api: AxiosInstance,
+  canonicalEntityId: string,
+  section?: BizDevDossierSectionKind,
+) {
+  return api
+    .get<BizDevDossier>(
+      `/api/business-development/dossier/companies/${encodeURIComponent(canonicalEntityId)}`,
+      { params: section ? { section } : {} },
+    )
+    .then((r) => r.data);
+}
+
+/** GET /api/business-development/prospects/:prospectId/dossier (optional ?section=). */
+export function getBizDevProspectDossier(
+  api: AxiosInstance,
+  prospectId: string,
+  section?: BizDevDossierSectionKind,
+) {
+  return api
+    .get<BizDevDossier>(
+      `/api/business-development/prospects/${encodeURIComponent(prospectId)}/dossier`,
+      { params: section ? { section } : {} },
+    )
+    .then((r) => r.data);
+}
 
 /** Human API-error text; Nest ValidationPipe arrays joined, never raw ids. */
 export function bizdevErrorMessage(error: unknown): string {

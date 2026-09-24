@@ -6174,6 +6174,19 @@ model NotificationLog {
   @@map("notification_log")
 }
 
+// Immutable event snapshot for an in-app District Nexus alert delivery.
+model DistrictNexusAlertPayload {
+  notificationLogId String @id @map("notification_log_id") @db.Uuid
+  tenantId          String @map("tenant_id") @db.Uuid
+  clientId          String @map("client_id") @db.Uuid
+  stateCode         String @map("state_code") @db.VarChar(2)
+  districtCode      String? @map("district_code") @db.VarChar(8)
+  payload           Json
+
+  @@index([tenantId, clientId], map: "district_nexus_alert_payload_tenant_client_idx")
+  @@map("district_nexus_alert_payload")
+}
+
 // Queued alerts awaiting a digest flush (email daily/weekly, sms daily). The
 // flush-tracker-digests job drains this per user+channel+cadence.
 model AlertDigestQueue {

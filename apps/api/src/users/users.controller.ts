@@ -16,6 +16,7 @@ import {
   contextStewardActive,
   strategyWatcherActive,
   engagementVNextEnabled,
+  businessDevelopmentDossierEnabled,
   businessDevelopmentEnabled,
   entitlementsForTenant,
 } from '../common/tenant-flags.js';
@@ -166,6 +167,9 @@ export class UsersController {
         contextSteward: contextStewardActive(profile.tenant?.settings),
         strategyWatcher: strategyWatcherActive(profile.tenant?.settings),
         businessDevelopment: businessDevelopmentEnabled(profile.tenant?.settings),
+        businessDevelopmentDossier: businessDevelopmentDossierEnabled(
+          profile.tenant?.settings,
+        ),
       },
     };
   }
@@ -280,6 +284,9 @@ export class UsersController {
         contextSteward: contextStewardActive(profile.tenant?.settings),
         strategyWatcher: strategyWatcherActive(profile.tenant?.settings),
         businessDevelopment: businessDevelopmentEnabled(profile.tenant?.settings),
+        businessDevelopmentDossier: businessDevelopmentDossierEnabled(
+          profile.tenant?.settings,
+        ),
       },
     };
   }
