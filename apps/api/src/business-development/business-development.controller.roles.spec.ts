@@ -1,11 +1,14 @@
 import { ForbiddenException } from '@nestjs/common';
 import { PATH_METADATA } from '@nestjs/common/constants.js';
+import { GUARDS_METADATA } from '@nestjs/common/constants.js';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import type { TenantContext, TenantRole } from '@capiro/shared';
 import { ROLES_KEY } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { BusinessDevelopmentController } from './business-development.controller.js';
+import { BusinessDevelopmentFlagGuard } from './business-development-flag.guard.js';
+import { BusinessDevelopmentDossierFlagGuard } from './bizdev-dossier.flag.guard.js';
 
 /**
  * Role authorization contract: route metadata (which routes demand what) plus
@@ -149,5 +152,76 @@ describe('real RolesGuard decisions', () => {
     }
     expect(thrown).toBeInstanceOf(ForbiddenException);
     expect((thrown as ForbiddenException).message).toContain('standard_user');
+  });
+});
+
+// ── Phase 2 — dossier surface routes ───────────────────────────────────────
+
+describe('Phase 2 dossier route contract', () => {
+  /** Resolve the effective guard list for a handler: Nest composes
+   * [...global, ...class, ...method] (ContextCreator.createContext), so a
+   * method-level @UseGuards ADDS to the class-level guards. */
+  const guardsFor = (name: string): Array<unknown> => {
+    const handler = handlerFor(name);
+    const classGuards = (Reflect.getMetadata(GUARDS_METADATA, BusinessDevelopmentController) ??
+      []) as Array<unknown>;
+    const methodGuards = (Reflect.getMetadata(GUARDS_METADATA, handler) ?? []) as Array<unknown>;
+    return [...classGuards, ...methodGuards];
+  };
+
+  const PHASE2_ROUTES = ['searchCandidates', 'companyDossier', 'prospectDossier'] as const;
+
+  test('all three new routes exist and inherit the standard_user role floor', () => {
+    for (const route of PHASE2_ROUTES) {
+      expect(requiredRolesFor(route)).toEqual(['standard_user', 'user_admin', 'capiro_admin']);
+    }
+  });
+
+  test('each dossier route carries RolesGuard + Phase 1 flag guard + dossier guard', () => {
+    for (const route of PHASE2_ROUTES) {
+      const guards = guardsFor(route);
+      expect(guards).toContain(RolesGuard);
+      expect(guards).toContain(BusinessDevelopmentFlagGuard);
+      expect(guards).toContain(BusinessDevelopmentDossierFlagGuard);
+    }
+  });
+
+  test('standard_user passes the role floor on the dossier routes (guard metadata + real RolesGuard)', () => {
+    for (const route of PHASE2_ROUTES) {
+      expect(guardAllows(route, 'standard_user')).toBe(true);
+    }
+  });
+
+  test('Phase 1 routes do NOT carry the extra dossier guard', () => {
+    for (const route of ['list', 'get', 'create', 'update', 'convert', 'resolveIdentity']) {
+      expect(guardsFor(route)).not.toContain(BusinessDevelopmentDossierFlagGuard);
+    }
+  });
+
+  test('Phase 1 route set is intact (no regressions or renames)', () => {
+    for (const route of [
+      'list',
+      'get',
+      'create',
+      'previewDuplicateHints',
+      'duplicateHints',
+      'update',
+      'addNote',
+      'history',
+      'updateConflict',
+      'dismiss',
+      'restore',
+      'convert',
+      'resolveIdentity',
+      'getPreferences',
+      'savePreferences',
+      'memberOptions',
+      'searchCanonical',
+      'searchClients',
+    ]) {
+      expect(typeof handlerFor(route)).toBe('function');
+    }
+    expect(requiredRolesFor('updateConflict')).toEqual(['user_admin', 'capiro_admin']);
+    expect(requiredRolesFor('savePreferences')).toEqual(['user_admin', 'capiro_admin']);
   });
 });

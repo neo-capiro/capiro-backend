@@ -10,6 +10,8 @@ import { CapiroEmptyState, CapiroErrorState } from '../../components/feedback/in
 import { useCapiroToast } from '../../components/feedback/toast.js';
 import { formatDateShort } from '../../lib/labels.js';
 import { PortfolioIndexPage } from '../portfolio/PortfolioIndexPage.js';
+import { DiscoverPanel } from './BizDevDiscover.js';
+import { DossierDrawer } from './BizDevDossier.js';
 import {
   applyBizDevRoute,
   BIZDEV_CONFLICT_FILTERS,
@@ -77,6 +79,92 @@ function StatusNote({ text, warn }: { text: string; warn?: boolean }) {
     >
       {text}
     </p>
+  );
+}
+
+/**
+ * Reusable identity review/correction controls (Phase 1 canonical search +
+ * resolveBizDevIdentity, reused for already-resolved prospects when the
+ * dossier feature is on). Duplicate outcome = review/open-existing, never a
+ * merge claim.
+ */
+function IdentityReviewControls({
+  identityState,
+}: {
+  identityState: {
+    orgQuery: string;
+    setOrgQuery: (v: string) => void;
+    orgResults: Array<{ id: string; canonicalName: string; identityScope?: string }> | null;
+    setOrgResults: (v: Array<{ id: string; canonicalName: string; identityScope?: string }> | null) => void;
+    orgSearch: import('@tanstack/react-query').UseMutationResult<
+      import('./bizdev-api.js').BizDevCanonicalOrganization[],
+      Error,
+      void,
+      unknown
+    >;
+    resolveIdentity: import('@tanstack/react-query').UseMutationResult<
+      import('./bizdev-api.js').BizDevResolveIdentityResult,
+      Error,
+      string,
+      unknown
+    >;
+    duplicateNotice: { prospectId: string; displayName: string; status: string } | null;
+    hints: import('./bizdev-api.js').BizDevDuplicateHint[];
+  };
+}) {
+  return (
+    <div className="capiro-bizdev__actions">
+      <input
+        className="capiro-bizdev__input capiro-bizdev__input--grow"
+        aria-label="Search confirmed organizations"
+        value={identityState.orgQuery}
+        onChange={(e) => identityState.setOrgQuery(e.target.value)}
+        placeholder="Search confirmed organizations by name"
+        maxLength={200}
+      />
+      <CapiroButton
+        size="compact"
+        loading={identityState.orgSearch.isPending}
+        disabled={!identityState.orgQuery.trim()}
+        onClick={() => identityState.orgSearch.mutate()}
+      >
+        Search
+      </CapiroButton>
+      {identityState.orgResults ? (
+        identityState.orgResults.length === 0 ? (
+          <StatusNote text="No confirmed organizations matched." />
+        ) : (
+          <ul className="capiro-bizdev__picker-list">
+            {identityState.orgResults.map((org) => (
+              <li key={org.id}>
+                <div className="capiro-bizdev__picker-row">
+                  <span className="capiro-bizdev__picker-name">
+                    {org.canonicalName}
+                    {org.identityScope ? (
+                      <span className="capiro-bizdev__picker-meta">
+                        {' '}
+                        ·{' '}
+                        {org.identityScope === 'tenant_private'
+                          ? 'private to your firm'
+                          : 'public shared record'}
+                      </span>
+                    ) : null}
+                  </span>
+                  <CapiroButton
+                    size="compact"
+                    variant="primary"
+                    loading={identityState.resolveIdentity.isPending}
+                    onClick={() => identityState.resolveIdentity.mutate(org.id)}
+                  >
+                    Confirm identity
+                  </CapiroButton>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )
+      ) : null}
+    </div>
   );
 }
 
@@ -510,12 +598,14 @@ function ProspectDrawer({
   prospectId,
   members,
   isAdmin,
+  dossierEnabled,
   onClose,
 }: {
   tenantId: string;
   prospectId: string;
   members: BizDevMemberOption[];
   isAdmin: boolean;
+  dossierEnabled: boolean;
   onClose: () => void;
 }) {
   const api = useApi();
@@ -692,6 +782,7 @@ function ProspectDrawer({
         prospect={prospect}
         members={members}
         isAdmin={isAdmin}
+        dossierEnabled={dossierEnabled}
         api={api}
         invalidate={invalidate}
         history={history.data ?? []}
@@ -748,6 +839,7 @@ function ProspectDrawerBody({
   prospect,
   members,
   isAdmin,
+  dossierEnabled,
   api,
   invalidate,
   history,
@@ -760,6 +852,7 @@ function ProspectDrawerBody({
   prospect: BizDevProspect;
   members: BizDevMemberOption[];
   isAdmin: boolean;
+  dossierEnabled: boolean;
   api: ReturnType<typeof useApi>;
   invalidate: () => void;
   history: import('./bizdev-api.js').BizDevActivity[];
@@ -1182,7 +1275,7 @@ function ProspectDrawerBody({
         <DrawerSection title="Organization identity">
           <StatusNote
             warn
-            text="This is a manual, unresolved prospect. Confirming an organization below links your record to the shared confirmed organization — it never creates or merges one, and history is preserved."
+            text="This is a manual, unresolved prospect. Confirming an organization below links your record to the shared confirmed organization — it never creates or merges one, and history is preserved. The prospect keeps its id, stage, owner, notes, watch setting and client linkage."
           />
           {identityState.hints.length > 0 ? (
             <div>
@@ -1205,7 +1298,7 @@ function ProspectDrawerBody({
             <div>
               <StatusNote
                 warn
-                text={`“${identityState.duplicateNotice.displayName}” already holds that organization in your firm.`}
+                text={`“${identityState.duplicateNotice.displayName}” already holds that organization in your firm. This is a review result — nothing was merged.`}
               />
               <CapiroButton
                 size="compact"
@@ -1217,8 +1310,7 @@ function ProspectDrawerBody({
           ) : null}
           <div className="capiro-bizdev__actions">
             <input
-              className="capiro-bizdev__input"
-              style={{ flex: '1 1 200px' }}
+              className="capiro-bizdev__input capiro-bizdev__input--grow"
               aria-label="Search confirmed organizations"
               value={identityState.orgQuery}
               onChange={(e) => identityState.setOrgQuery(e.target.value)}
@@ -1242,7 +1334,18 @@ function ProspectDrawerBody({
                 {identityState.orgResults.map((org) => (
                   <li key={org.id}>
                     <div className="capiro-bizdev__picker-row">
-                      <span className="capiro-bizdev__picker-name">{org.canonicalName}</span>
+                      <span className="capiro-bizdev__picker-name">
+                        {org.canonicalName}
+                        {'identityScope' in org && org.identityScope ? (
+                          <span className="capiro-bizdev__picker-meta">
+                            {' '}
+                            ·{' '}
+                            {org.identityScope === 'tenant_private'
+                              ? 'private to your firm'
+                              : 'public shared record'}
+                          </span>
+                        ) : null}
+                      </span>
                       <CapiroButton
                         size="compact"
                         variant="primary"
@@ -1261,8 +1364,39 @@ function ProspectDrawerBody({
       ) : (
         <DrawerSection title="Organization identity">
           <StatusNote
-            text={`Confirmed organization: ${prospect.canonicalEntity?.canonicalName ?? 'linked record'}`}
+            text={`Confirmed organization: ${prospect.canonicalEntity?.canonicalName ?? 'linked record'}. Its identifiers and source names come from the shared confirmed record.`}
           />
+          {dossierEnabled ? (
+            <>
+              <StatusNote text="If this is the wrong organization, review or correct the identity below. The prospect keeps its id, stage, owner, notes, watch setting and client linkage; histories are never merged." />
+              {identityState.duplicateNotice ? (
+                <div>
+                  <StatusNote
+                    warn
+                    text={`“${identityState.duplicateNotice.displayName}” already holds that organization in your firm. This is a review result — nothing was merged. Open it to compare instead.`}
+                  />
+                  <CapiroButton
+                    size="compact"
+                    onClick={() => openHint(identityState.duplicateNotice!.prospectId)}
+                  >
+                    Open that prospect
+                  </CapiroButton>
+                </div>
+              ) : (
+                <IdentityReviewControls identityState={identityState} />
+              )}
+              <CapiroButton
+                size="compact"
+                onClick={() =>
+                  setSearchParams(
+                    applyBizDevRoute(searchParams, { dossierProspectId: prospect.id }),
+                  )
+                }
+              >
+                View evidence dossier
+              </CapiroButton>
+            </>
+          ) : null}
         </DrawerSection>
       )}
 
@@ -1531,7 +1665,15 @@ function PreferencesPanel({ tenantId, isAdmin }: { tenantId: string; isAdmin: bo
 
 /* ── pipeline (list) ─────────────────────────────────────────────────── */
 
-function Pipeline({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean }) {
+function Pipeline({
+  tenantId,
+  isAdmin,
+  dossierEnabled,
+}: {
+  tenantId: string;
+  isAdmin: boolean;
+  dossierEnabled: boolean;
+}) {
   const api = useApi();
   const [searchParams, setSearchParams] = useSearchParams();
   const route = resolveBizDevRoute(searchParams);
@@ -1556,6 +1698,30 @@ function Pipeline({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean })
   const rows = list.data?.prospects ?? [];
   const hasData = Boolean(list.data) && (list.data?.counts.total ?? 0) > 0;
 
+  // Phase 2 Discover replaces the pipeline table when bdDiscover=open; the
+  // pipeline itself (Phase 1) stays fully available when the panel is closed.
+  if (route.discover === 'open' && dossierEnabled) {
+    return (
+      <div className="capiro-bizdev capiro-page">
+        <DiscoverPanel tenantId={tenantId} />
+        <PreferencesPanel tenantId={tenantId} isAdmin={isAdmin} />
+        {route.prospectId ? (
+          <ProspectDrawer
+            tenantId={tenantId}
+            prospectId={route.prospectId}
+            members={members_}
+            isAdmin={isAdmin}
+            dossierEnabled={dossierEnabled}
+            onClose={() => void list.refetch()}
+          />
+        ) : null}
+        {route.dossierEntityId || route.dossierProspectId ? (
+          <DossierDrawer tenantId={tenantId} />
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="capiro-bizdev capiro-page">
       <header className="capiro-bizdev__head">
@@ -1566,6 +1732,14 @@ function Pipeline({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean })
           </p>
         </div>
         <span className="capiro-bizdev__head-spacer" />
+        {dossierEnabled ? (
+          <CapiroButton
+            size="standard"
+            onClick={() => setRoute({ discover: 'open', discoverOffset: 0 })}
+          >
+            Discover companies
+          </CapiroButton>
+        ) : null}
         <CapiroButton variant="primary" size="standard" onClick={() => setCreateOpen(true)}>
           Add prospect
         </CapiroButton>
@@ -1780,8 +1954,12 @@ function Pipeline({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean })
           prospectId={route.prospectId}
           members={members_}
           isAdmin={isAdmin}
+          dossierEnabled={dossierEnabled}
           onClose={() => void list.refetch()}
         />
+      ) : null}
+      {route.dossierEntityId || route.dossierProspectId ? (
+        <DossierDrawer tenantId={tenantId} />
       ) : null}
     </div>
   );
@@ -1801,7 +1979,11 @@ export function BusinessDevelopmentPage() {
   const me = useMe();
   if (me.data?.features.businessDevelopment === true) {
     return (
-      <Pipeline tenantId={me.data.tenant.id} isAdmin={hasAtLeast(me.data.role, 'user_admin')} />
+      <Pipeline
+        tenantId={me.data.tenant.id}
+        isAdmin={hasAtLeast(me.data.role, 'user_admin')}
+        dossierEnabled={me.data.features.businessDevelopmentDossier === true}
+      />
     );
   }
   return <PortfolioIndexPage />;

@@ -405,6 +405,52 @@ export function businessDevelopmentEnabled(settings: unknown): boolean {
 }
 
 /**
+ * Business Development Phase 2 — dossier/candidate-search surface. Gates the
+ * three GET dossier routes (candidate search, canonical company dossier,
+ * prospect dossier) behind an additional per-tenant flag, default OFF, so the
+ * Phase 2 read surface can be canaried independently of the Phase 1 pipeline.
+ */
+export const BUSINESS_DEVELOPMENT_DOSSIER_FLAG = 'businessDevelopment.dossier.enabled' as const;
+
+export function businessDevelopmentDossierEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_DOSSIER_FLAG, false);
+}
+
+/**
+ * Phase 2 live-provider gates. Each defaults OFF. They gate ONLY live adapter
+ * calls (SAM entity lookup in the identity section; LDA remains an
+ * already-ingested projection so this flag controls live fetch behavior, not
+ * the readability of ingested rows); already-ingested FederalAward /
+ * FederalAssistanceAward / SamOpportunity / LdaFiling projections stay
+ * readable regardless. PDL has no client in the repo — its flags render a
+ * deferred section and never issue a call.
+ */
+export const BUSINESS_DEVELOPMENT_SAM_FLAG =
+  'businessDevelopment.provider.sam.enabled' as const;
+export const BUSINESS_DEVELOPMENT_LDA_FLAG =
+  'businessDevelopment.provider.lda.enabled' as const;
+export const BUSINESS_DEVELOPMENT_PDL_COMPANY_FLAG =
+  'businessDevelopment.provider.pdlCompany.enabled' as const;
+export const BUSINESS_DEVELOPMENT_PDL_PEOPLE_FLAG =
+  'businessDevelopment.provider.pdlPeople.enabled' as const;
+
+export function businessDevelopmentSamEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_SAM_FLAG, false);
+}
+
+export function businessDevelopmentLdaEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_LDA_FLAG, false);
+}
+
+export function businessDevelopmentPdlCompanyEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_PDL_COMPANY_FLAG, false);
+}
+
+export function businessDevelopmentPdlPeopleEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_PDL_PEOPLE_FLAG, false);
+}
+
+/**
  * Effective feature entitlements for a tenant (Phase 5, §5.1). The tier map
  * (resolveEntitlements) sets the baseline; a per-tenant boolean override at
  * settings_jsonb.clioFeatureFlags['entitlement.<feature>'] can flip a single

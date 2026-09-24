@@ -779,6 +779,92 @@ describe('resolveIdentity (unresolved → confirmed)', () => {
     expect(h.tx.client.create).not.toHaveBeenCalled();
   });
 
+  test('canonical A→B correction keeps the same prospect id/stage/owner/watch/client linkage and writes before/after activity + audit', async () => {
+    const h = makeHarness(baseFx());
+    // A workflow-bearing prospect confirmed against canonical A first.
+    const clientId = randomUUID();
+    const created = (await h.service.create(ctx, {
+      displayName: 'Acme',
+      stage: 'qualified',
+      ownerUserId: userId,
+    })) as never as Record<string, unknown>;
+    await h.service.update(ctx, created.id as string, { watchRequested: true });
+    await h.service.resolveIdentity(ctx, created.id as string, {
+      canonicalEntityId: 'canon-private-ours',
+    });
+    const row = h.fx.rows.get(created.id as string)!;
+    row.linkedClientId = clientId;
+    row.convertedAt = new Date();
+
+    // Correction: canonical A → canonical B on the SAME prospect row.
+    const res = (await h.service.resolveIdentity(ctx, created.id as string, {
+      canonicalEntityId: 'canon-public',
+    })) as {
+      outcome: string;
+      prospect: Record<string, unknown>;
+    };
+    expect(res.outcome).toBe('resolved');
+    expect(res.prospect.id).toBe(created.id);
+    expect(res.prospect.canonicalEntityId).toBe('canon-public');
+
+    // Same prospect id/stage/owner/watch/client linkage preserved — no new
+    // prospect row, no merge, no conversion reset.
+    const after = h.fx.rows.get(created.id as string)!;
+    expect([...h.fx.rows.keys()]).toHaveLength(1);
+    expect(after.stage).toBe('qualified');
+    expect(after.ownerUserId).toBe(userId);
+    expect(after.watchRequested).toBe(true);
+    expect(after.linkedClientId).toBe(clientId);
+    expect(after.convertedAt).toBeTruthy();
+    expect(h.tx.client.create).not.toHaveBeenCalled();
+
+    // The identity activity records the before/after canonical ids, and an
+    // audit row exists for the correction.
+    const identityActivities = h.fx.activities.filter((a) => a.kind === 'identity');
+    expect(identityActivities).toHaveLength(2);
+    const correction = identityActivities[1]! as { beforeJsonb?: unknown; afterJsonb?: unknown };
+    expect((correction.beforeJsonb as { canonicalEntityId: unknown }).canonicalEntityId).toBe(
+      'canon-private-ours',
+    );
+    expect((correction.afterJsonb as { canonicalEntityId: unknown }).canonicalEntityId).toBe(
+      'canon-public',
+    );
+    expect(h.fx.audits.filter((a) => a.action === 'bizdev.prospect.identity')).toHaveLength(2);
+  });
+
+  test('duplicate target returns the review outcome and never merges or mutates either prospect', async () => {
+    const h = makeHarness(baseFx());
+    const mine = (await h.service.create(ctx, {
+      displayName: 'Acme',
+      stage: 'qualified',
+    })) as never as Record<string, unknown>;
+    await h.service.resolveIdentity(ctx, mine.id as string, { canonicalEntityId: 'canon-public' });
+
+    const other = (await h.service.create(ctx, {
+      displayName: 'Other',
+      stage: 'researching',
+    })) as never as Record<string, unknown>;
+    const res = (await h.service.resolveIdentity(ctx, other.id as string, {
+      canonicalEntityId: 'canon-public',
+    })) as {
+      outcome: string;
+      duplicate: { prospectId: string; status: string };
+    };
+    expect(res.outcome).toBe('duplicate');
+    expect(res.duplicate.prospectId).toBe(mine.id);
+
+    // Neither row was merged or mutated by the rejected resolution.
+    const mineAfter = h.fx.rows.get(mine.id as string)!;
+    const otherAfter = h.fx.rows.get(other.id as string)!;
+    expect(mineAfter.canonicalEntityId).toBe('canon-public');
+    expect(mineAfter.stage).toBe('qualified');
+    expect(otherAfter.canonicalEntityId).toBeNull();
+    expect(otherAfter.stage).toBe('researching');
+    expect([...h.fx.rows.keys()]).toHaveLength(2);
+    // No correction activity/audit was written for the rejected attempt.
+    expect(h.fx.activities.filter((a) => a.kind === 'identity')).toHaveLength(1);
+  });
+
   test('same-tenant duplicate owner → structured duplicate-review, not a raw unique error', async () => {
     const h = makeHarness(baseFx());
     const mine = (await h.service.create(ctx, { displayName: 'Acme' })) as never as Record<
