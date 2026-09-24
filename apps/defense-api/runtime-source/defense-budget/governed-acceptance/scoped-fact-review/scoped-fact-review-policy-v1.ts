@@ -285,8 +285,8 @@ export function evaluateScopedFactReviewEligibilityV1(
   if (run.candidateId !== candidate.id) {
     refuse('candidate_not_reviewable', `run ${run.id} belongs to candidate ${run.candidateId}, not ${candidate.id}`);
   }
-  if (candidate.currentRunId != null && candidate.currentRunId !== run.id) {
-    refuse('candidate_not_reviewable', `run ${run.id} is not the candidate's current run (${candidate.currentRunId})`);
+  if (candidate.currentRunId == null || candidate.currentRunId !== run.id) {
+    refuse('candidate_not_reviewable', `run ${run.id} is not the candidate's exact current run (${candidate.currentRunId ?? 'none'})`);
   }
   if (candidate.status !== 'NEEDS_REVIEW' && candidate.status !== 'REVIEW_ACCEPTED') {
     refuse('candidate_not_reviewable', `candidate ${candidate.id} status is ${candidate.status}`);

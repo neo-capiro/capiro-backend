@@ -33,11 +33,14 @@ import type {
   ExtractionArtifactBridgeOutput,
 } from './extraction-artifact-bridge.js';
 import type { ExtractionArtifactStoreV1 } from './extraction-artifact-store.js';
+import { createNonRdteDurableSemanticArtifactFactoryV1 } from './non-rdte-durable-semantic-artifact-factory-v1.js';
+import type { ParserArtifactStoreV1 } from './parser-artifact-store.js';
 
 export interface RdteDurableSemanticArtifactFactoryInputV1 {
   document: BudgetCycleManifestDocumentV1;
   source: ExtractionSourceV1 & { sourceDocumentId: string };
   fiscalYear: number;
+  parserArtifactStore?: ParserArtifactStoreV1;
 }
 
 export type ArtifactFactoryV1 = (
@@ -110,6 +113,16 @@ export function resolveArtifactFactoryForFamilyV1(
   budgetFamily: string,
   input: RdteDurableSemanticArtifactFactoryInputV1,
 ): ArtifactFactoryV1 | undefined {
-  if (budgetFamily !== 'rdte') return undefined;
-  return createRdteDurableSemanticArtifactFactoryV1(input);
+  if (budgetFamily === 'rdte') return createRdteDurableSemanticArtifactFactoryV1(input);
+  if (budgetFamily === 'procurement' || budgetFamily === 'om' || budgetFamily === 'milcon') {
+    if (input.parserArtifactStore == null) {
+      throw new Error(`${budgetFamily} semantic artifact factory requires a parser artifact store`);
+    }
+    return createNonRdteDurableSemanticArtifactFactoryV1({
+      document: input.document,
+      source: input.source,
+      parserArtifactStore: input.parserArtifactStore,
+    });
+  }
+  return undefined;
 }

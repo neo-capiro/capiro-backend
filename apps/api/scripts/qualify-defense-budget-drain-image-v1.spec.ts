@@ -17,7 +17,9 @@ import {
   canonicalize,
   checkSourceIdentity,
   encodeChunkedPayload,
+  hashQualificationArtifactProjectionV1,
   jsonSafe,
+  projectQualificationArtifactV1,
   resolveQualificationConfig,
   stripRunIdentity,
   UsageError,
@@ -32,7 +34,9 @@ describe('resolveQualificationConfig', () => {
 
   test('defaults to the real Phase 10B-28/10B-32 FY2024 Army R-2 fixture identity', () => {
     const config = resolveQualificationConfig(baseEnv);
-    expect(config.sourceSha256).toBe('1fb7402152d0ec6ca536e20ac8d3ed8e7da61951ee691d1d05388abb4c462ab6');
+    expect(config.sourceSha256).toBe(
+      '1fb7402152d0ec6ca536e20ac8d3ed8e7da61951ee691d1d05388abb4c462ab6',
+    );
     expect(config.sourceBytes).toBe(7227604);
     expect(config.targetPeCode).toBe('0601102A');
     expect(config.fiscalYear).toBe(2024);
@@ -56,6 +60,7 @@ describe('resolveQualificationConfig', () => {
       QUAL_SOURCE_KEY: 'custom-key',
       QUAL_ARCHIVE_BUCKET: 'custom-bucket',
       QUAL_COMPONENT: 'NAVY',
+      QUAL_ACCOUNT: '1506N: Aircraft Procurement, Navy',
       QUAL_BUDGET_FAMILY: 'procurement',
     });
     expect(config.runId).toBe('run2');
@@ -69,6 +74,7 @@ describe('resolveQualificationConfig', () => {
     expect(config.sourceKey).toBe('custom-key');
     expect(config.archiveBucket).toBe('custom-bucket');
     expect(config.component).toBe('NAVY');
+    expect(config.account).toBe('1506N: Aircraft Procurement, Navy');
     expect(config.budgetFamily).toBe('procurement');
   });
 
@@ -97,7 +103,10 @@ describe('resolveQualificationConfig', () => {
     const sourceUrl =
       'https://www.saffm.hq.af.mil/LinkClick.aspx?fileticket=k4ghOMooM40%3D&portalid=84';
     expect(() =>
-      assertCanonicalSourceUrl(sourceUrl, 'https://archive.example/presigned?X-Amz-Signature=secret'),
+      assertCanonicalSourceUrl(
+        sourceUrl,
+        'https://archive.example/presigned?X-Amz-Signature=secret',
+      ),
     ).not.toThrow();
   });
 
@@ -174,7 +183,11 @@ describe('checkSourceIdentity', () => {
 
 describe('jsonSafe / canonicalize / stripRunIdentity', () => {
   test('jsonSafe converts Date to ISO string and bigint to string, recursively', () => {
-    const input = { at: new Date('2026-01-01T00:00:00.000Z'), big: BigInt(42), nested: [{ at: new Date('2026-01-02T00:00:00.000Z') }] };
+    const input = {
+      at: new Date('2026-01-01T00:00:00.000Z'),
+      big: BigInt(42),
+      nested: [{ at: new Date('2026-01-02T00:00:00.000Z') }],
+    };
     const out = jsonSafe(input) as Record<string, unknown>;
     expect(out.at).toBe('2026-01-01T00:00:00.000Z');
     expect(out.big).toBe('42');
@@ -205,6 +218,220 @@ describe('jsonSafe / canonicalize / stripRunIdentity', () => {
   });
 });
 
+describe('versioned substantive qualification projection', () => {
+  const artifact = {
+    schemaVersion: 'defense_budget_extraction_v1',
+    artifactId: 'artifact-a',
+    contentSha256: 'a'.repeat(64),
+    source: {
+      manifestDocumentKey: 'doc-a',
+      sourceDocumentId: 'source-a',
+      sourcePdfSha256: 'b'.repeat(64),
+      sourceLocator: 's3://bucket/a.pdf',
+      sourceUrl: 'https://example.invalid/a',
+      fiscalYear: 2024,
+      family: 'rdte',
+      exhibit: 'R-2',
+      authority: 'dod-comptroller',
+      component: 'ARMY',
+      budgetCycle: 'cycle-a',
+      documentType: 'budget',
+      pageCount: 12,
+      title: 'Army R-2',
+    },
+    parserRuns: [
+      {
+        parserRunId: 'parser-a',
+        providerJobId: 'job-a',
+        method: 'native_pdf_text',
+        parserVersion: 'v1',
+        parserConfigSha256: 'c'.repeat(64),
+        inputSourceSha256: 'b'.repeat(64),
+        outputArtifactSha256: 'd'.repeat(64),
+        pageRanges: [{ startPage: 1, endPage: 2 }],
+      },
+    ],
+    evidence: [
+      {
+        evidenceId: 'evidence-a',
+        parserRunId: 'parser-a',
+        sourcePdfSha256: 'b'.repeat(64),
+        granularity: 'page_only',
+        page: 1,
+        excerpt: 'research aircraft',
+      },
+    ],
+    sourceFacts: [
+      {
+        factId: 'fact-a',
+        sourcePath: 'r2/pe/0601102A',
+        category: 'money',
+        requiredForCompleteness: true,
+        rawValue: '296.67',
+        evidenceIds: ['evidence-a'],
+      },
+    ],
+    assertions: [
+      {
+        assertionId: 'assertion-a',
+        sourceFactIds: ['fact-a'],
+        evidenceIds: ['evidence-a'],
+        assertionKind: 'document_fact',
+        confidence: 0.98,
+        fieldName: 'r2_total_component',
+        value: { peCode: '0601102A', fiscalYear: 2024, valueMillions: '296.67' },
+        metadata: { exhibit: 'R-2', physicalPage: 1, generatedAt: '2026-01-01T00:00:00.000Z' },
+      },
+    ],
+    warnings: [
+      {
+        warningId: 'warning-a',
+        code: 'review_hint',
+        severity: 'review',
+        message: 'Check table heading',
+        sourceFactIds: ['fact-a'],
+        evidenceIds: ['evidence-a'],
+      },
+    ],
+    omissions: [
+      {
+        omissionId: 'omission-a',
+        sourceFactId: 'fact-a',
+        reason: 'unsupported_field',
+        severity: 'review',
+        message: 'No enacted column',
+      },
+    ],
+    summary: {
+      assertionCount: 1,
+      warningCount: 1,
+      omissionCount: 1,
+      completenessStatus: 'complete_with_omissions',
+    },
+  };
+
+  test('run IDs, generated locators and ordering do not change the projection hash', () => {
+    const changedRun = {
+      ...artifact,
+      artifactId: 'artifact-b',
+      contentSha256: 'e'.repeat(64),
+      source: {
+        ...artifact.source,
+        manifestDocumentKey: 'doc-b',
+        sourceDocumentId: 'source-b',
+        sourceLocator: 's3://other/b.pdf',
+        sourceUrl: 'https://other.invalid/b',
+      },
+      parserRuns: [
+        {
+          ...artifact.parserRuns[0],
+          parserRunId: 'parser-b',
+          providerJobId: 'job-b',
+          outputArtifactSha256: 'f'.repeat(64),
+        },
+      ],
+      evidence: [{ ...artifact.evidence[0], evidenceId: 'evidence-b', parserRunId: 'parser-b' }],
+      sourceFacts: [{ ...artifact.sourceFacts[0], factId: 'fact-b', evidenceIds: ['evidence-b'] }],
+      assertions: [
+        {
+          ...artifact.assertions[0],
+          assertionId: 'assertion-b',
+          sourceFactIds: ['fact-b'],
+          evidenceIds: ['evidence-b'],
+        },
+      ],
+      warnings: [
+        {
+          ...artifact.warnings[0],
+          warningId: 'warning-b',
+          sourceFactIds: ['fact-b'],
+          evidenceIds: ['evidence-b'],
+        },
+      ],
+      omissions: [{ ...artifact.omissions[0], omissionId: 'omission-b', sourceFactId: 'fact-b' }],
+    };
+    const additionalAssertion = {
+      ...artifact.assertions[0],
+      assertionId: 'assertion-c',
+      fieldName: 'other_fact',
+      value: { peCode: '0601103A', fiscalYear: 2024, valueMillions: '12.00' },
+    };
+    const additionalParserRun = {
+      ...artifact.parserRuns[0],
+      parserRunId: 'parser-c',
+      providerJobId: 'job-c',
+    };
+    const additionalOmission = {
+      ...artifact.omissions[0],
+      omissionId: 'omission-c',
+      message: 'Another unsupported field',
+    };
+    const multiItem = {
+      ...artifact,
+      assertions: [...artifact.assertions, additionalAssertion],
+      parserRuns: [...artifact.parserRuns, additionalParserRun],
+      omissions: [...artifact.omissions, additionalOmission],
+    };
+    const reordered = {
+      ...multiItem,
+      assertions: [...multiItem.assertions].reverse(),
+      parserRuns: [...multiItem.parserRuns].reverse(),
+      omissions: [...multiItem.omissions].reverse(),
+    };
+    expect(hashQualificationArtifactProjectionV1(changedRun)).toBe(
+      hashQualificationArtifactProjectionV1(artifact),
+    );
+    expect(hashQualificationArtifactProjectionV1(reordered)).toBe(
+      hashQualificationArtifactProjectionV1(multiItem),
+    );
+    expect(projectQualificationArtifactV1(artifact)).toMatchObject({
+      projectionVersion: 'qualification_artifact_projection_v1',
+    });
+  });
+
+  test('substantive assertion changes alter the projection hash', () => {
+    const firstAssertion = artifact.assertions[0]!;
+    const changedValue = {
+      ...artifact,
+      assertions: [
+        { ...firstAssertion, value: { ...firstAssertion.value, valueMillions: '296.68' } },
+      ],
+    };
+    expect(hashQualificationArtifactProjectionV1(changedValue)).not.toBe(
+      hashQualificationArtifactProjectionV1(artifact),
+    );
+    const changedConfig = {
+      ...artifact,
+      parserRuns: [{ ...artifact.parserRuns[0], parserConfigSha256: '9'.repeat(64) }],
+    };
+    expect(hashQualificationArtifactProjectionV1(changedConfig)).not.toBe(
+      hashQualificationArtifactProjectionV1(artifact),
+    );
+  });
+
+  test('preserves semantic tuple order while normalizing top-level collection order', () => {
+    const withBox = {
+      ...artifact,
+      evidence: [
+        { ...artifact.evidence[0], evidenceId: 'evidence-b', boundingBox: [10, 20, 30, 40] },
+        { ...artifact.evidence[0], evidenceId: 'evidence-c', page: 2, excerpt: 'second item' },
+      ],
+    };
+    const reorderedCollection = { ...withBox, evidence: [...withBox.evidence].reverse() };
+    const reorderedTuple = {
+      ...withBox,
+      evidence: [{ ...withBox.evidence[0], boundingBox: [20, 10, 30, 40] }, withBox.evidence[1]],
+    };
+
+    expect(hashQualificationArtifactProjectionV1(reorderedCollection)).toBe(
+      hashQualificationArtifactProjectionV1(withBox),
+    );
+    expect(hashQualificationArtifactProjectionV1(reorderedTuple)).not.toBe(
+      hashQualificationArtifactProjectionV1(withBox),
+    );
+  });
+});
+
 describe('buildQualificationReport', () => {
   const artifactRawBytes = Buffer.from(
     JSON.stringify({
@@ -220,7 +447,12 @@ describe('buildQualificationReport', () => {
           fieldName: 'r2_total_component',
           // valueMillions is a canonical decimal STRING
           // (canonicalDecimalStringSchema), never a JS number.
-          value: { peCode: '0601102A', fiscalYear: 2024, rowKind: 'pe_total', valueMillions: '296.67' },
+          value: {
+            peCode: '0601102A',
+            fiscalYear: 2024,
+            rowKind: 'pe_total',
+            valueMillions: '296.67',
+          },
         },
       ],
       omissions: [{ omissionKind: 'ambiguous_layout' }, { omissionKind: 'ambiguous_layout' }],
@@ -281,7 +513,15 @@ describe('buildQualificationReport', () => {
       fiscalYear: 2024,
       dbverify: {
         candidate: { id: 'cand-1', cycleId: 'x', status: 'EXTRACTED', currentRunId: 'run-row-1' },
-        run: { id: 'run-row-1', decision: 'REVIEW', status: 'NEEDS_REVIEW', riskScore: 10, route: 'none', verifierVersion: 'v1', policyVersion: 'p1' },
+        run: {
+          id: 'run-row-1',
+          decision: 'REVIEW',
+          status: 'NEEDS_REVIEW',
+          riskScore: 10,
+          route: 'none',
+          verifierVersion: 'v1',
+          policyVersion: 'p1',
+        },
         checks: [],
         discrepancies: [],
         proofSnapshots: [],

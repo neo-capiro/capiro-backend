@@ -50,6 +50,8 @@ export interface BridgeExpectedSourceRecord {
   readonly chamber: 'house' | 'senate' | 'joint' | null;
   readonly committee: string | null;
   readonly component: string | null;
+  /** Account-scoped families read this from expected-source metadata. */
+  readonly account?: string | null;
 }
 
 export interface BridgeCycleRecord {
@@ -83,7 +85,9 @@ export interface ObservationBridgeStore {
    * the observation's own `source_document_id` foreign key and is treated as
    * a schema-invariant violation by the caller.
    */
-  loadSourceDocumentArchive(sourceDocumentId: string): Promise<StoredSourceDocumentArchiveRecord | null>;
+  loadSourceDocumentArchive(
+    sourceDocumentId: string,
+  ): Promise<StoredSourceDocumentArchiveRecord | null>;
 
   /**
    * Guarded, transactional write: persists `source_document_id` on the
@@ -141,7 +145,9 @@ export interface ObservationByteFetchFailure {
  * observation is `ingested` — see `SourceDocumentArchiveReadPort` below.
  */
 export interface ObservationByteFetchPort {
-  fetchFullBytes(input: { url: string }): Promise<FetchedObservationBytes | ObservationByteFetchFailure>;
+  fetchFullBytes(input: {
+    url: string;
+  }): Promise<FetchedObservationBytes | ObservationByteFetchFailure>;
 }
 
 /**
@@ -204,6 +210,8 @@ export interface StoredSourceDocumentArchiveRecord {
   readonly archiveS3Key: string | null;
   readonly archiveVersionId: string | null;
   readonly component: string | null;
+  /** Preserved SourceDocument metadata.appropriationAccount, when qualified. */
+  readonly account?: string | null;
 }
 
 /** What the parser-handoff adapter needs to identify and route a registered document. */
@@ -247,6 +255,8 @@ export interface ParserHandoffInput {
    * silent coercion to `'UNKNOWN'`).
    */
   readonly component: string | null;
+  /** Explicit account identity; null means the source is not account-qualified. */
+  readonly account?: string | null;
   /**
    * Optional caller-owned durable execution identity and persistence fence.
    * Ordinary lifecycle drains omit this and retain their historical behavior.

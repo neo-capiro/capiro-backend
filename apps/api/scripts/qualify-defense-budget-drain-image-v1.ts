@@ -135,13 +135,14 @@ import { createBudgetVerificationS3Client } from '../src/defense-budget/verifica
 // a strict release gate can compare a run's full artifact against all five,
 // not only whichever single `targetPeCode` this run's config happens to be
 // pointed at.
-export const KNOWN_FY2024_ARMY_R2_PE_TOTALS_MILLIONS: Readonly<Record<string, string>> = Object.freeze({
-  '0601102A': '296.670',
-  '0601103A': '75.672',
-  '0601104A': '108.946',
-  '0601121A': '5.459',
-  '0601601A': '10.708',
-});
+export const KNOWN_FY2024_ARMY_R2_PE_TOTALS_MILLIONS: Readonly<Record<string, string>> =
+  Object.freeze({
+    '0601102A': '296.670',
+    '0601103A': '75.672',
+    '0601104A': '108.946',
+    '0601121A': '5.459',
+    '0601601A': '10.708',
+  });
 
 const REAL_FIXTURE_DEFAULTS = Object.freeze({
   sourceSha256: '1fb7402152d0ec6ca536e20ac8d3ed8e7da61951ee691d1d05388abb4c462ab6',
@@ -186,6 +187,7 @@ export interface QualificationConfig {
   readonly archiveBucket: string;
   readonly archiveKey: string;
   readonly component: string;
+  readonly account?: string;
   readonly documentType: string;
   readonly title: string;
   readonly budgetFamily: 'rdte' | 'procurement' | 'om' | 'milcon';
@@ -197,7 +199,8 @@ export interface QualificationConfig {
   readonly appsApiDir: string;
 }
 
-const SIGNED_SOURCE_QUERY_KEY_RE = /^(?:x-amz-|x-goog-|awsaccesskeyid$|signature$|expires$|key-pair-id$|policy$)/i;
+const SIGNED_SOURCE_QUERY_KEY_RE =
+  /^(?:x-amz-|x-goog-|awsaccesskeyid$|signature$|expires$|key-pair-id$|policy$)/i;
 
 /** A durable source locator must never be a short-lived signed fetch credential. */
 export function assertCanonicalSourceUrl(sourceUrl: string, presignedGetUrl: string): void {
@@ -210,8 +213,13 @@ export function assertCanonicalSourceUrl(sourceUrl: string, presignedGetUrl: str
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
     throw new UsageError('QUAL_SOURCE_URL must use http(s)');
   }
-  if (sourceUrl === presignedGetUrl || [...parsed.searchParams.keys()].some((key) => SIGNED_SOURCE_QUERY_KEY_RE.test(key))) {
-    throw new UsageError('QUAL_SOURCE_URL must be a canonical public locator, not a signed fetch URL');
+  if (
+    sourceUrl === presignedGetUrl ||
+    [...parsed.searchParams.keys()].some((key) => SIGNED_SOURCE_QUERY_KEY_RE.test(key))
+  ) {
+    throw new UsageError(
+      'QUAL_SOURCE_URL must be a canonical public locator, not a signed fetch URL',
+    );
   }
 }
 
@@ -219,7 +227,9 @@ export function assertCanonicalSourceUrl(sourceUrl: string, presignedGetUrl: str
 export function resolveQualificationConfig(env: NodeJS.ProcessEnv): QualificationConfig {
   const presignedGetUrl = env.QUAL_PRESIGNED_GET?.trim();
   if (!presignedGetUrl) {
-    throw new UsageError('QUAL_PRESIGNED_GET is required (a short-lived presigned GET URL for the real archived source bytes)');
+    throw new UsageError(
+      'QUAL_PRESIGNED_GET is required (a short-lived presigned GET URL for the real archived source bytes)',
+    );
   }
   const runId = env.QUAL_RUN_ID?.trim() || 'run1';
   const outRoot = env.QUAL_OUT_ROOT?.trim() || '/tmp/qual';
@@ -250,14 +260,20 @@ export function resolveQualificationConfig(env: NodeJS.ProcessEnv): Qualificatio
     archiveBucket: env.QUAL_ARCHIVE_BUCKET?.trim() || REAL_FIXTURE_DEFAULTS.archiveBucket,
     archiveKey: env.QUAL_ARCHIVE_KEY?.trim() || REAL_FIXTURE_DEFAULTS.archiveKey,
     component: env.QUAL_COMPONENT?.trim() || REAL_FIXTURE_DEFAULTS.component,
+    ...(env.QUAL_ACCOUNT?.trim() ? { account: env.QUAL_ACCOUNT.trim() } : {}),
     documentType: env.QUAL_DOCUMENT_TYPE?.trim() || REAL_FIXTURE_DEFAULTS.documentType,
     title: env.QUAL_TITLE?.trim() || REAL_FIXTURE_DEFAULTS.title,
-    budgetFamily: (env.QUAL_BUDGET_FAMILY?.trim() as QualificationConfig['budgetFamily']) || REAL_FIXTURE_DEFAULTS.budgetFamily,
+    budgetFamily:
+      (env.QUAL_BUDGET_FAMILY?.trim() as QualificationConfig['budgetFamily']) ||
+      REAL_FIXTURE_DEFAULTS.budgetFamily,
     exhibitType: env.QUAL_EXHIBIT_TYPE?.trim() || REAL_FIXTURE_DEFAULTS.exhibitType,
     authority: env.QUAL_AUTHORITY?.trim() || REAL_FIXTURE_DEFAULTS.authority,
     budgetCycle: env.QUAL_BUDGET_CYCLE?.trim() || REAL_FIXTURE_DEFAULTS.budgetCycle,
     parserPolicy: env.QUAL_PARSER_POLICY?.trim() || REAL_FIXTURE_DEFAULTS.parserPolicy,
-    parserProjectDir: env.QUAL_PARSER_PROJECT_DIR?.trim() || env.DEFENSE_BUDGET_PARSER_PROJECT_DIR?.trim() || '/defense-budget-parser',
+    parserProjectDir:
+      env.QUAL_PARSER_PROJECT_DIR?.trim() ||
+      env.DEFENSE_BUDGET_PARSER_PROJECT_DIR?.trim() ||
+      '/defense-budget-parser',
     appsApiDir,
   };
 }
@@ -282,7 +298,10 @@ export class SourceIdentityError extends QualificationError {
   readonly exitCode = 3;
 }
 export class SidecarUnavailableError extends QualificationError {
-  constructor(message: string, readonly exitCode: number) {
+  constructor(
+    message: string,
+    readonly exitCode: number,
+  ) {
     super(message);
   }
 }
@@ -319,13 +338,14 @@ export function canonicalize(v: unknown): unknown {
   if (Array.isArray(v)) return v.map(canonicalize);
   if (v && typeof v === 'object') {
     const out: Record<string, unknown> = {};
-    for (const k of Object.keys(v as Record<string, unknown>).sort()) out[k] = canonicalize((v as Record<string, unknown>)[k]);
+    for (const k of Object.keys(v as Record<string, unknown>).sort())
+      out[k] = canonicalize((v as Record<string, unknown>)[k]);
     return out;
   }
   return v;
 }
 
-/** Strip fields that vary purely because of this run's identity (jobId etc.), so a normalized SHA-256 proves content determinism across qualifying runs. */
+/** @deprecated Compatibility helper for callers pinned to the pre-v1 normalizer. */
 export function stripRunIdentity(v: unknown): unknown {
   if (Array.isArray(v)) return v.map(stripRunIdentity);
   if (v && typeof v === 'object') {
@@ -337,6 +357,212 @@ export function stripRunIdentity(v: unknown): unknown {
     return out;
   }
   return v;
+}
+
+/**
+ * Stable projection contract for comparing substantive qualification output.
+ * Bump this version whenever the allowlist changes. This is deliberately
+ * separate from artifactSha256, which always binds the exact persisted bytes.
+ */
+export const QUALIFICATION_ARTIFACT_PROJECTION_VERSION_V1 =
+  'qualification_artifact_projection_v1' as const;
+
+const ASSERTION_SEMANTIC_FIELDS_V1 = [
+  'assertionKind',
+  'confidence',
+  'identity',
+  'title',
+  'component',
+  'serviceCode',
+  'appropriation',
+  'appropriationType',
+  'budgetActivity',
+  'budgetActivityName',
+  'lineNumber',
+  'firstSeenFy',
+  'fiscalYear',
+  'field',
+  'money',
+  'narrativeType',
+  'text',
+  'parentPeCode',
+  'projectCode',
+  'mission',
+  'performerName',
+  'performerNormalized',
+  'performerRole',
+  'location',
+  'contractMethod',
+  'costCategory',
+  'totalCost',
+  'parentIdentity',
+  'description',
+  'quantity',
+  'dollars',
+  'unitCostDollars',
+  'unitLabel',
+  'omLine',
+  'activityGroup',
+  'subActivityGroup',
+  'scope',
+  'authorizationAmount',
+  'appropriationAmount',
+  'milestoneType',
+  'plannedDate',
+  'actualDate',
+  'status',
+  'notes',
+  'from',
+  'to',
+  'relationshipType',
+  'explicitInSource',
+  'fieldName',
+  'value',
+  'metadata',
+] as const;
+
+const RUN_DERIVED_KEY_V1 = /(?:Id|ID)$|(?:Sha256|Hash)$/i;
+const RUN_DERIVED_NAMES_V1 = new Set([
+  'executionid',
+  'jobid',
+  'providerrunid',
+  'parserunid',
+  'artifactid',
+  'evidenceid',
+  'sourcefactid',
+  'sourcedocumentid',
+  'manifestdocumentkey',
+  'createdat',
+  'updatedat',
+  'generatedat',
+  'timestamp',
+  'sourceurl',
+  'sourcelocator',
+  'locator',
+  'url',
+  'uri',
+  'outputartifactsha256',
+  'contentsha256',
+]);
+
+function stableProjectionValueV1(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    // Nested arrays may be semantic tuples (for example a bounding box), so
+    // their order is preserved. Only explicitly set-like collections are
+    // normalized with stableProjectionSetV1 below.
+    return value.map(stableProjectionValueV1);
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+      const normalizedKey = key.toLowerCase().replace(/[_-]/g, '');
+      const stableDigest =
+        normalizedKey === 'sourcepdfsha256' || normalizedKey === 'parserconfigsha256';
+      if (
+        (!stableDigest && RUN_DERIVED_KEY_V1.test(key)) ||
+        RUN_DERIVED_NAMES_V1.has(normalizedKey)
+      )
+        continue;
+      out[key] = stableProjectionValueV1(nested);
+    }
+    return out;
+  }
+  return value;
+}
+
+function stableProjectionSetV1(values: readonly unknown[]): unknown[] {
+  return values.map(stableProjectionValueV1).sort((a, b) => {
+    const left = JSON.stringify(canonicalize(a));
+    const right = JSON.stringify(canonicalize(b));
+    return left < right ? -1 : left > right ? 1 : 0;
+  });
+}
+
+function pickStableFieldsV1(value: unknown, fields: readonly string[]): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const record = value as Record<string, unknown>;
+  const picked: Record<string, unknown> = {};
+  for (const field of fields) {
+    if (Object.prototype.hasOwnProperty.call(record, field))
+      picked[field] = stableProjectionValueV1(record[field]);
+  }
+  return picked;
+}
+
+/** Project the allowlisted, run-independent substance of an extraction artifact. */
+export function projectQualificationArtifactV1(value: unknown): unknown {
+  const artifact = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  const assertions = Array.isArray(artifact.assertions) ? artifact.assertions : [];
+  const warnings = Array.isArray(artifact.warnings) ? artifact.warnings : [];
+  const omissions = Array.isArray(artifact.omissions) ? artifact.omissions : [];
+  const parserRuns = Array.isArray(artifact.parserRuns) ? artifact.parserRuns : [];
+  const evidence = Array.isArray(artifact.evidence) ? artifact.evidence : [];
+  const sourceFacts = Array.isArray(artifact.sourceFacts) ? artifact.sourceFacts : [];
+  return canonicalize({
+    projectionVersion: QUALIFICATION_ARTIFACT_PROJECTION_VERSION_V1,
+    schemaVersion: artifact.schemaVersion,
+    source: pickStableFieldsV1(artifact.source, [
+      'sourcePdfSha256',
+      'fiscalYear',
+      'family',
+      'exhibit',
+      'authority',
+      'component',
+      'budgetCycle',
+      'documentType',
+      'pageCount',
+      'title',
+    ]),
+    parserRuns: stableProjectionSetV1(
+      parserRuns.map((run) =>
+        pickStableFieldsV1(run, [
+          'method',
+          'parserVersion',
+          'parserConfigSha256',
+          'pageRanges',
+          'requestedPages',
+          'succeededPages',
+          'failedPages',
+        ]),
+      ),
+    ),
+    evidence: stableProjectionSetV1(
+      evidence.map((item) =>
+        pickStableFieldsV1(item, [
+          'granularity',
+          'page',
+          'printedPage',
+          'boundingBox',
+          'textSpan',
+          'tableLabel',
+          'rowLabel',
+          'columnLabel',
+          'excerpt',
+        ]),
+      ),
+    ),
+    sourceFacts: stableProjectionSetV1(
+      sourceFacts.map((fact) =>
+        pickStableFieldsV1(fact, ['sourcePath', 'category', 'requiredForCompleteness', 'rawValue']),
+      ),
+    ),
+    assertions: stableProjectionSetV1(
+      assertions.map((assertion) => pickStableFieldsV1(assertion, ASSERTION_SEMANTIC_FIELDS_V1)),
+    ),
+    warnings: stableProjectionSetV1(
+      warnings.map((warning) => pickStableFieldsV1(warning, ['code', 'severity', 'message'])),
+    ),
+    omissions: stableProjectionSetV1(
+      omissions.map((omission) => pickStableFieldsV1(omission, ['reason', 'severity', 'message'])),
+    ),
+    summary: stableProjectionValueV1(artifact.summary ?? null),
+  });
+}
+
+export function hashQualificationArtifactProjectionV1(value: unknown): string {
+  return createHash('sha256')
+    .update(JSON.stringify(projectQualificationArtifactV1(value)))
+    .digest('hex');
 }
 
 // Large payloads (artifact bytes, discrepancy/proof-snapshot lists) get
@@ -401,10 +627,16 @@ export function checkSourceIdentity(
   expected: { readonly bytes: number; readonly sha256: string },
 ): { ok: true } | { ok: false; reason: string } {
   if (actual.bytes !== expected.bytes) {
-    return { ok: false, reason: `byte size mismatch: expected ${expected.bytes}, got ${actual.bytes}` };
+    return {
+      ok: false,
+      reason: `byte size mismatch: expected ${expected.bytes}, got ${actual.bytes}`,
+    };
   }
   if (actual.sha256 !== expected.sha256) {
-    return { ok: false, reason: `sha256 mismatch: expected ${expected.sha256}, got ${actual.sha256}` };
+    return {
+      ok: false,
+      reason: `sha256 mismatch: expected ${expected.sha256}, got ${actual.sha256}`,
+    };
   }
   return { ok: true };
 }
@@ -425,7 +657,9 @@ export async function fetchAndVerifySource(
   const out = createWriteStream(destPath);
   // Node's global fetch Response.body is a WHATWG ReadableStream; Readable.fromWeb
   // bridges it to an async-iterable Node stream.
-  const reader = Readable.fromWeb(res.body as unknown as import('node:stream/web').ReadableStream<Uint8Array>);
+  const reader = Readable.fromWeb(
+    res.body as unknown as import('node:stream/web').ReadableStream<Uint8Array>,
+  );
   for await (const chunk of reader) {
     const buf = chunk as Buffer;
     hash.update(buf);
@@ -444,7 +678,12 @@ export async function fetchAndVerifySource(
 // ── Sidecar readiness ───────────────────────────────────────────────────
 
 /** Throws SidecarUnavailableError(exitCode=4) if the port never opens within the attempt budget. */
-async function waitForTcpPort(host: string, port: number, attempts: number, delayMs: number): Promise<void> {
+async function waitForTcpPort(
+  host: string,
+  port: number,
+  attempts: number,
+  delayMs: number,
+): Promise<void> {
   const net = await import('node:net');
   for (let i = 0; i < attempts; i++) {
     const reachable = await new Promise<boolean>((resolvePromise) => {
@@ -457,7 +696,10 @@ async function waitForTcpPort(host: string, port: number, attempts: number, dela
     if (reachable) return;
     await new Promise((r) => setTimeout(r, delayMs));
   }
-  throw new SidecarUnavailableError(`isolated Postgres sidecar never became reachable at ${host}:${port}`, 4);
+  throw new SidecarUnavailableError(
+    `isolated Postgres sidecar never became reachable at ${host}:${port}`,
+    4,
+  );
 }
 
 /** Throws SidecarUnavailableError(exitCode=5) if the health endpoint never returns ok within the attempt budget. */
@@ -494,7 +736,9 @@ async function runPrismaMigrateDeploy(cwd: string, attempts = 3, delayMs = 3000)
     });
     if (result.status === 0) return;
     if (attempt === attempts) {
-      throw new MigrationError(`prisma migrate deploy exited ${result.status ?? 'null'} (signal ${result.signal ?? 'none'}) after ${attempts} attempts`);
+      throw new MigrationError(
+        `prisma migrate deploy exited ${result.status ?? 'null'} (signal ${result.signal ?? 'none'}) after ${attempts} attempts`,
+      );
     }
     console.error(
       `[qualify-defense-budget-drain-image-v1] prisma migrate deploy failed (attempt ${attempt}/${attempts}, likely a Postgres startup race) -- retrying in ${delayMs}ms...`,
@@ -529,14 +773,22 @@ export async function seedIsolatedFixtures(
     );
     const sourceBytes = readFileSync(config.sourcePath);
     const put = await s3.send(
-      new PutObjectCommand({ Bucket: config.archiveBucket, Key: config.archiveKey, Body: sourceBytes }),
+      new PutObjectCommand({
+        Bucket: config.archiveBucket,
+        Key: config.archiveKey,
+        Body: sourceBytes,
+      }),
     );
     const archiveVersionId = put.VersionId;
     if (!archiveVersionId) {
-      throw new SeedError('isolated MinIO PutObject did not return a VersionId -- bucket versioning did not take effect');
+      throw new SeedError(
+        'isolated MinIO PutObject did not return a VersionId -- bucket versioning did not take effect',
+      );
     }
 
-    const cycleDedupKey = createHash('sha256').update(`defense-budget-qualification-fy${config.fiscalYear}-request-cycle`).digest('hex');
+    const cycleDedupKey = createHash('sha256')
+      .update(`defense-budget-qualification-fy${config.fiscalYear}-request-cycle`)
+      .digest('hex');
     await prisma.defenseBudgetCycle.upsert({
       where: { id: config.cycleId },
       create: {
@@ -570,7 +822,11 @@ export async function seedIsolatedFixtures(
         archiveS3Key: config.archiveKey,
         archiveVersionId,
         archivedAt: new Date(),
-        metadata: { purpose: 'isolated-qualification', runId: config.runId },
+        metadata: {
+          purpose: 'isolated-qualification',
+          runId: config.runId,
+          ...(config.account ? { appropriationAccount: config.account } : {}),
+        },
       },
       update: {
         sourceKey: config.sourceKey,
@@ -579,13 +835,20 @@ export async function seedIsolatedFixtures(
         archiveS3Key: config.archiveKey,
         archiveVersionId,
         archivedAt: new Date(),
+        metadata: {
+          purpose: 'isolated-qualification',
+          runId: config.runId,
+          ...(config.account ? { appropriationAccount: config.account } : {}),
+        },
       },
     });
 
     return { archiveVersionId };
   } catch (error) {
     if (error instanceof SeedError) throw error;
-    throw new SeedError(`isolated fixture seeding failed: ${error instanceof Error ? error.message : String(error)}`);
+    throw new SeedError(
+      `isolated fixture seeding failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
   } finally {
     await s3.destroy();
   }
@@ -594,7 +857,12 @@ export async function seedIsolatedFixtures(
 // ── dbverify: read back the REAL persisted rows ─────────────────────────
 
 export interface DbverifyResult {
-  readonly candidate: { id: string; cycleId: string; status: string; currentRunId: string | null } | null;
+  readonly candidate: {
+    id: string;
+    cycleId: string;
+    status: string;
+    currentRunId: string | null;
+  } | null;
   readonly run: {
     id: string;
     decision: string;
@@ -627,16 +895,33 @@ export async function dbverifyCandidate(
     orderBy: { createdAt: 'desc' },
   });
   if (!candidate || !candidate.currentRunId) {
-    return { candidate: candidate ?? null, run: null, checks: [], discrepancies: [], proofSnapshots: [] };
+    return {
+      candidate: candidate ?? null,
+      run: null,
+      checks: [],
+      discrepancies: [],
+      proofSnapshots: [],
+    };
   }
-  const run = await prisma.budgetVerificationRunV1.findFirst({ where: { id: candidate.currentRunId } });
+  const run = await prisma.budgetVerificationRunV1.findFirst({
+    where: { id: candidate.currentRunId },
+  });
   if (!run) {
     return { candidate, run: null, checks: [], discrepancies: [], proofSnapshots: [] };
   }
   const [checks, discrepancies, proofSnapshots] = await Promise.all([
-    prisma.budgetVerificationCheckV1.findMany({ where: { runId: run.id }, orderBy: { code: 'asc' } }),
-    prisma.budgetVerificationDiscrepancyV1.findMany({ where: { runId: run.id }, orderBy: { code: 'asc' } }),
-    prisma.budgetVerificationProofV1.findMany({ where: { runId: run.id }, orderBy: { proofKind: 'asc' } }),
+    prisma.budgetVerificationCheckV1.findMany({
+      where: { runId: run.id },
+      orderBy: { code: 'asc' },
+    }),
+    prisma.budgetVerificationDiscrepancyV1.findMany({
+      where: { runId: run.id },
+      orderBy: { code: 'asc' },
+    }),
+    prisma.budgetVerificationProofV1.findMany({
+      where: { runId: run.id },
+      orderBy: { proofKind: 'asc' },
+    }),
   ]);
   return { candidate, run, checks, discrepancies, proofSnapshots };
 }
@@ -734,7 +1019,8 @@ export function buildQualificationReport(input: {
 }): QualificationReport {
   const { artifact } = input;
   const assertionsByKind: Record<string, number> = {};
-  for (const a of artifact.assertions) assertionsByKind[a.assertionKind] = (assertionsByKind[a.assertionKind] ?? 0) + 1;
+  for (const a of artifact.assertions)
+    assertionsByKind[a.assertionKind] = (assertionsByKind[a.assertionKind] ?? 0) + 1;
 
   const omissionsByKind: Record<string, number> = {};
   for (const o of artifact.omissions) {
@@ -742,7 +1028,9 @@ export function buildQualificationReport(input: {
     omissionsByKind[k] = (omissionsByKind[k] ?? 0) + 1;
   }
 
-  const identities = artifact.assertions.filter((a) => a.assertionKind === 'program_element_identity') as Array<{
+  const identities = artifact.assertions.filter(
+    (a) => a.assertionKind === 'program_element_identity',
+  ) as Array<{
     assertionKind: string;
     identity?: { peCode?: string };
   }>;
@@ -762,9 +1050,9 @@ export function buildQualificationReport(input: {
   }
 
   const rawSha256 = createHash('sha256').update(input.artifactRawBytes).digest('hex');
-  const normalizedSha256 = createHash('sha256')
-    .update(JSON.stringify(canonicalize(stripRunIdentity(JSON.parse(input.artifactRawBytes.toString('utf8'))))))
-    .digest('hex');
+  const normalizedSha256 = hashQualificationArtifactProjectionV1(
+    JSON.parse(input.artifactRawBytes.toString('utf8')),
+  );
 
   const targetR3Performers = artifact.assertions
     .filter(
@@ -806,7 +1094,10 @@ export function buildQualificationReport(input: {
     totalAssertions: artifact.assertions.length,
     assertionsByKind,
     identityCount: identities.length,
-    identityPeCodes: identities.map((a) => a.identity?.peCode).filter((v): v is string => Boolean(v)).sort(),
+    identityPeCodes: identities
+      .map((a) => a.identity?.peCode)
+      .filter((v): v is string => Boolean(v))
+      .sort(),
     omissions: artifact.omissions.length,
     omissionsByKind,
     targetPeFiscalYearTotalMillions: findPeTotal(input.targetPeCode),
@@ -839,13 +1130,19 @@ async function main(): Promise<void> {
   process.env.XDG_CACHE_HOME ||= '/tmp';
   process.env.TMPDIR ||= '/tmp';
 
-  console.error(`[qualify-defense-budget-drain-image-v1] waiting for isolated Postgres sidecar (127.0.0.1:5432)...`);
+  console.error(
+    `[qualify-defense-budget-drain-image-v1] waiting for isolated Postgres sidecar (127.0.0.1:5432)...`,
+  );
   await waitForTcpPort('127.0.0.1', 5432, 60, 2000);
 
-  console.error(`[qualify-defense-budget-drain-image-v1] waiting for isolated MinIO sidecar (127.0.0.1:9000)...`);
+  console.error(
+    `[qualify-defense-budget-drain-image-v1] waiting for isolated MinIO sidecar (127.0.0.1:9000)...`,
+  );
   await waitForHttpHealth('http://127.0.0.1:9000/minio/health/live', 60, 2000);
 
-  console.error('[qualify-defense-budget-drain-image-v1] applying isolated qualification DB migrations...');
+  console.error(
+    '[qualify-defense-budget-drain-image-v1] applying isolated qualification DB migrations...',
+  );
   await runPrismaMigrateDeploy(config.appsApiDir);
 
   marker('QUAL_FETCH_START', { run: config.runId, source: 'presigned_get' });
@@ -859,12 +1156,18 @@ async function main(): Promise<void> {
     marker('QUAL_FETCH_IDENTITY_FAIL', { run: config.runId, error: (error as Error).message });
     throw error;
   }
-  marker('QUAL_SOURCE_VERIFIED', { run: config.runId, bytes: identity.bytes, sha256: identity.sha256 });
+  marker('QUAL_SOURCE_VERIFIED', {
+    run: config.runId,
+    bytes: identity.bytes,
+    sha256: identity.sha256,
+  });
 
   const prisma = new PrismaClient();
   const s3 = createBudgetVerificationS3Client(process.env);
   try {
-    console.error('[qualify-defense-budget-drain-image-v1] seeding isolated Postgres + MinIO fixtures...');
+    console.error(
+      '[qualify-defense-budget-drain-image-v1] seeding isolated Postgres + MinIO fixtures...',
+    );
     let seed: SeedResult;
     try {
       seed = await seedIsolatedFixtures(prisma, s3, config);
@@ -884,7 +1187,9 @@ async function main(): Promise<void> {
 
     mkdirSync(config.workDir, { recursive: true });
 
-    console.error('[qualify-defense-budget-drain-image-v1] calling the real production parser handoff...');
+    console.error(
+      '[qualify-defense-budget-drain-image-v1] calling the real production parser handoff...',
+    );
     let result: Awaited<ReturnType<typeof runParserHandoffForSourceDocument>>;
     try {
       result = await runParserHandoffForSourceDocument({
@@ -895,12 +1200,21 @@ async function main(): Promise<void> {
         sourceSha256: config.sourceSha256,
         sourceLocator: config.sourceUrl,
         sourceUrl: config.sourceUrl,
-        parserPolicy: config.parserPolicy as Parameters<typeof runParserHandoffForSourceDocument>[0]['parserPolicy'],
-        exhibitType: config.exhibitType as Parameters<typeof runParserHandoffForSourceDocument>[0]['exhibitType'],
+        parserPolicy: config.parserPolicy as Parameters<
+          typeof runParserHandoffForSourceDocument
+        >[0]['parserPolicy'],
+        exhibitType: config.exhibitType as Parameters<
+          typeof runParserHandoffForSourceDocument
+        >[0]['exhibitType'],
         budgetFamily: config.budgetFamily,
         fiscalYear: config.fiscalYear,
-        authority: config.authority as Parameters<typeof runParserHandoffForSourceDocument>[0]['authority'],
-        component: config.component as Parameters<typeof runParserHandoffForSourceDocument>[0]['component'],
+        authority: config.authority as Parameters<
+          typeof runParserHandoffForSourceDocument
+        >[0]['authority'],
+        component: config.component as Parameters<
+          typeof runParserHandoffForSourceDocument
+        >[0]['component'],
+        ...(config.account ? { account: config.account } : {}),
         budgetCycle: config.budgetCycle,
         // Required by SourceDocumentParserHandoffInput: the same value seeded
         // onto the SourceDocument row above, so the synthetic manifest's
@@ -933,7 +1247,9 @@ async function main(): Promise<void> {
     const manifestPath = join(dirname(result.outputPath), 'lifecycle-bridge-manifest.json');
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { cycleId: string };
 
-    console.error('[qualify-defense-budget-drain-image-v1] reading back the real persisted verification rows...');
+    console.error(
+      '[qualify-defense-budget-drain-image-v1] reading back the real persisted verification rows...',
+    );
     const dbverify = await dbverifyCandidate(prisma, config.cycleId, config.sourceDocumentId);
     marker('QUAL_CANDIDATE_LOOKUP', {
       run: config.runId,
@@ -947,7 +1263,8 @@ async function main(): Promise<void> {
     if (!dbverify.run) {
       marker('QUAL_DBVERIFY_ERROR', {
         run: config.runId,
-        error: 'no persisted budget_verification_run_v1 row found for this candidate -- persist-audit did not write through',
+        error:
+          'no persisted budget_verification_run_v1 row found for this candidate -- persist-audit did not write through',
       });
     } else {
       dumpJsonChunked(
@@ -962,7 +1279,11 @@ async function main(): Promise<void> {
         },
         config.runId,
       );
-      dumpJsonChunked('QUAL_DISCREPANCIES', { run: config.runId, discrepancies: dbverify.discrepancies }, config.runId);
+      dumpJsonChunked(
+        'QUAL_DISCREPANCIES',
+        { run: config.runId, discrepancies: dbverify.discrepancies },
+        config.runId,
+      );
       const proofFindingsRow = dbverify.proofSnapshots.find(
         (s) => (s as { proofKind?: string }).proofKind === 'proof_findings',
       ) as { evidenceJson?: { findings?: unknown[] } } | undefined;

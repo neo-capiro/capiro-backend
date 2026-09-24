@@ -59,7 +59,11 @@ import {
   type ScopedFactReviewArtifactLoaderV1,
   type ScopedFactReviewCandidateLocatorReaderV1,
 } from '../scoped-fact-review/scoped-fact-review-v1.service.js';
-import { PrismaScopedFactReviewRepositoryV1 } from '../scoped-fact-review/scoped-fact-review-repository-v1.js';
+import {
+  computeScopedFactReviewVerificationStateHashV1,
+  PrismaScopedFactReviewRepositoryV1,
+  SCOPED_FACT_REVIEW_ELIGIBILITY_STATE_VERSION_V1,
+} from '../scoped-fact-review/scoped-fact-review-repository-v1.js';
 import { PrismaReviewedPartialPeTotalsRepositoryV1 } from '../scoped-fact-review/reviewed-partial-pe-totals-prisma-repository-v1.js';
 import { ReviewedPartialPeTotalsReadServiceV1 } from '../scoped-fact-review/reviewed-partial-pe-totals-read.service.js';
 import { SCOPED_FACT_REVIEW_SCOPE_KIND_PE_TOTAL_V1, scopedFactReviewScopeKeyV1 } from '../scoped-fact-review/scoped-fact-review-policy-v1.js';
@@ -284,6 +288,10 @@ describeE2E('Phase 10B-35c -- candidate correction: real link, real supersession
         resultSnapshot: {},
       },
     });
+    await prisma.budgetExtractionCandidateV1.update({
+      where: { id: candidateId },
+      data: { currentRunId: id },
+    });
     return id;
   }
 
@@ -327,9 +335,23 @@ describeE2E('Phase 10B-35c -- candidate correction: real link, real supersession
       reviewerId: input.reviewerId,
       rationale: 'phase10b35c e2e regression: real active approval seeded directly for the different-old-candidates-same-new-candidate race',
       decisionHash: fakeHash(`decision:${input.candidateId}:${input.peCode}`),
+      eligibilityStateVersion: SCOPED_FACT_REVIEW_ELIGIBILITY_STATE_VERSION_V1,
+      eligibilityStateSha256: await eligibilityStateHashForRun(input.runId),
       now: new Date().toISOString(),
     });
     return result.row.id;
+  }
+
+  async function eligibilityStateHashForRun(runId: string): Promise<string> {
+    const verificationRepository = createPrismaBudgetVerificationRepository(prisma);
+    const [run, checks, discrepancies, proofSnapshots] = await Promise.all([
+      verificationRepository.readRun(runId),
+      verificationRepository.readChecks(runId),
+      verificationRepository.readDiscrepancies(runId),
+      verificationRepository.readProofSnapshots(runId),
+    ]);
+    if (run == null) throw new Error(`test run ${runId} not found`);
+    return computeScopedFactReviewVerificationStateHashV1({ run, checks, discrepancies, proofSnapshots });
   }
 
   describe('core + sweep: real corrected candidate, real link, real supersession of a real active approval, real serving boundary', () => {
@@ -736,7 +758,7 @@ describeE2E('Phase 10B-35c -- candidate correction: real link, real supersession
 
       const loserError = (rejected[0] as PromiseRejectedResult).reason;
       expect(loserError).toBeInstanceOf(CandidateCorrectionError);
-      expect((loserError as CandidateCorrectionError).code).toBe('already_corrected_by_different_candidate');
+      expect((loserError as CandidateCorrectionError).code).toBe('new_candidate_already_claimed');
     });
   });
 });

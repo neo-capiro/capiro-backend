@@ -86,7 +86,8 @@ export class DefaultParserHandoffAdapter implements ParserHandoffPort {
   async handoff(input: ParserHandoffInput): Promise<ParserHandoffResult> {
     const routing = routingForSourceFamily(input.sourceFamily);
     const terminal = await runParserHandoffForSourceDocument({
-      executionId: input.governedExecution?.executionId ??
+      executionId:
+        input.governedExecution?.executionId ??
         `phase10b1-bridge-${input.sourceDocumentId}-${randomUUID().slice(0, 8)}`,
       cycleId: input.cycleId,
       sourceDocumentId: input.sourceDocumentId,
@@ -107,6 +108,7 @@ export class DefaultParserHandoffAdapter implements ParserHandoffPort {
       // 'UNKNOWN' or comparing sourceKey against an unrelated scratch path.
       sourceKey: input.sourceKey,
       component: toBudgetComponentOrThrow(input.component),
+      ...(input.account?.trim() ? { account: input.account.trim() } : {}),
       budgetCycle: routing.budgetCycle,
       documentType: routing.documentType,
       title: input.title,

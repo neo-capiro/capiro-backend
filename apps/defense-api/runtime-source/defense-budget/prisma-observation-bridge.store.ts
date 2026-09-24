@@ -14,7 +14,12 @@
  */
 import { Injectable } from '@nestjs/common';
 import type { Prisma, PrismaClient } from '@prisma/client';
-import type { AuthorityTrack, LifecycleStage, ObservationState, SourceFamily } from '@capiro/defense-domain';
+import type {
+  AuthorityTrack,
+  LifecycleStage,
+  ObservationState,
+  SourceFamily,
+} from '@capiro/defense-domain';
 import { NON_QUEUEABLE_OBSERVATION_STATES } from '@capiro/defense-domain';
 
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -23,6 +28,7 @@ import type {
   ObservationBridgeStore,
   StoredSourceDocumentArchiveRecord,
 } from './observation-ingestion-bridge.ports.js';
+import { readAppropriationAccountMetadataV1 } from './appropriation-account-metadata-v1.js';
 
 type PrismaLike = PrismaService | PrismaClient;
 
@@ -60,6 +66,7 @@ export class PrismaObservationBridgeStore implements ObservationBridgeStore {
         chamber: observation.expectedSource.chamber as 'house' | 'senate' | 'joint' | null,
         committee: observation.expectedSource.committee,
         component: observation.expectedSource.component,
+        account: readAppropriationAccountMetadataV1(observation.expectedSource.metadata) ?? null,
       },
       cycle: {
         id: observation.cycle.id,
@@ -69,7 +76,9 @@ export class PrismaObservationBridgeStore implements ObservationBridgeStore {
     };
   }
 
-  async loadSourceDocumentArchive(sourceDocumentId: string): Promise<StoredSourceDocumentArchiveRecord | null> {
+  async loadSourceDocumentArchive(
+    sourceDocumentId: string,
+  ): Promise<StoredSourceDocumentArchiveRecord | null> {
     const document = await this.prisma.sourceDocument.findUnique({
       where: { id: sourceDocumentId },
     });
@@ -83,6 +92,7 @@ export class PrismaObservationBridgeStore implements ObservationBridgeStore {
       // Phase 10B-31: same already-loaded row, one more of its columns --
       // lets a replay hand the parser the real, persisted component.
       component: document.component,
+      account: readAppropriationAccountMetadataV1(document.metadata) ?? null,
     };
   }
 

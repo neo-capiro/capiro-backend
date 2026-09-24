@@ -13,12 +13,16 @@
  * whose revoke() already handles both correctly. This spec pins that
  * behavior directly (it was previously untested at the service layer).
  */
+import { createHash } from 'node:crypto';
 import { describe, expect, it, jest } from '@jest/globals';
 import {
+  computeScopedFactReviewDecisionHashV1,
+  scopedFactReviewDecimalValuesEqualV1,
   ScopedFactReviewV1Service,
   ScopedFactReviewError,
   TrustedByteLocatorScopedFactReviewArtifactLoaderV1,
 } from './scoped-fact-review-v1.service.js';
+import { sha256CanonicalJson } from '../../contracts/canonical-json.js';
 import type { ScopedFactReviewRepositoryV1, ScopedFactReviewRowV1 } from './scoped-fact-review-repository-v1.js';
 import type { TrustedByteLocatorReader, TrustedLocatedBytes } from '../../verification/trusted-proof/trusted-byte-locator-reader.js';
 
@@ -123,6 +127,53 @@ describe('ScopedFactReviewV1Service.revoke', () => {
     await expect(svc.revoke({ id: 'row-1', actor: 'operator-b', reason: 'second, too late' })).rejects.toMatchObject({
       code: 'not_active',
     });
+  });
+});
+
+describe('computeScopedFactReviewDecisionHashV1 migration compatibility', () => {
+  const input = {
+    candidateId: 'candidate-1',
+    runId: 'run-1',
+    sourceSha256: 'a'.repeat(64),
+    extractionArtifactSha256: 'b'.repeat(64),
+    manifestContentSha256: 'c'.repeat(64),
+    policyId: 'policy-1',
+    policyVersion: '1',
+    policySha256: 'd'.repeat(64),
+    scopeKind: 'rdte_r2_pe_total_request_fy',
+    scopeKey: '0601102A|2024|ARMY',
+    assertionIds: ['z', 'a'],
+    decision: 'approve' as const,
+    reviewerId: 'reviewer@example.com',
+    rationale: 'reviewed legacy rationale',
+  };
+
+  it('omits a null acknowledgement so migrated legacy rows retain their immutable hash-v1 identity', () => {
+    const { rationale, ...legacyFields } = input;
+    const legacyHash = sha256CanonicalJson({
+      ...legacyFields,
+      assertionIds: ['a', 'z'],
+      rationaleSha256: createHash('sha256').update(rationale, 'utf8').digest('hex'),
+    });
+    expect(computeScopedFactReviewDecisionHashV1({ ...input, acknowledgedRevokedReviewId: null })).toBe(legacyHash);
+  });
+
+  it('binds the exact reviewed revocation id for an intentional reapproval', () => {
+    const withoutAck = computeScopedFactReviewDecisionHashV1({ ...input, acknowledgedRevokedReviewId: null });
+    const withAck = computeScopedFactReviewDecisionHashV1({
+      ...input,
+      acknowledgedRevokedReviewId: '11111111-1111-4111-8111-111111111111',
+    });
+    expect(withAck).not.toBe(withoutAck);
+  });
+});
+
+describe('scopedFactReviewDecimalValuesEqualV1', () => {
+  it('treats equivalent decimal formatting as the same reviewed amount', () => {
+    expect(scopedFactReviewDecimalValuesEqualV1('10.50', '10.5')).toBe(true);
+    expect(scopedFactReviewDecimalValuesEqualV1('10.5000000001', '10.5')).toBe(true);
+    expect(scopedFactReviewDecimalValuesEqualV1('10.51', '10.5')).toBe(false);
+    expect(scopedFactReviewDecimalValuesEqualV1('not-a-decimal', '10.5')).toBe(false);
   });
 });
 

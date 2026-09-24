@@ -39,7 +39,9 @@ const SOURCE_DOCUMENT_ID = '62e8a102-4f01-471b-9cb6-eab58cb41270';
 const CYCLE_ID = 'cff02efd-45e7-4ae4-8f7f-dacd12bdb84c';
 const FY = 2024;
 
-function makeTable(cells: Array<{ rowIndex: number; columnIndex: number; text: string }>): ParsedTableV1 {
+function makeTable(
+  cells: Array<{ rowIndex: number; columnIndex: number; text: string }>,
+): ParsedTableV1 {
   return {
     tableIndex: 0,
     rowCount: Math.max(...cells.map((c) => c.rowIndex)) + 1,
@@ -76,7 +78,7 @@ function realArmyR1Table(): ParsedTableV1 {
 function emptyR1Page(page: number): ParserPageResultV1 {
   return {
     page,
-    text: 'UNCLASSIFIED\nDepartment of the Army\nFY 2024 President\'s Budget',
+    text: "UNCLASSIFIED\nDepartment of the Army\nFY 2024 President's Budget",
     blocks: [],
     tables: [],
     images: [],
@@ -97,7 +99,10 @@ function pageWithTable(page: number, table: ParsedTableV1): ParserPageResultV1 {
   };
 }
 
-function composedOutputForPages(pages: ParserPageResultV1[], sourceSha256 = SOURCE_SHA): ComposedPageOutputV1 {
+function composedOutputForPages(
+  pages: ParserPageResultV1[],
+  sourceSha256 = SOURCE_SHA,
+): ComposedPageOutputV1 {
   const lineages: PageLineageEntry[] = pages.map((p) => ({
     parserRunId: 'pr1_' + 'a'.repeat(64),
     method: 'deterministic_pdfplumber',
@@ -132,7 +137,8 @@ function bridgeInputFor(composedOutput: ComposedPageOutputV1): ExtractionArtifac
     manifestDocumentKey: SOURCE_DOCUMENT_ID,
     sourceDocumentId: SOURCE_DOCUMENT_ID,
     sourceSha256: SOURCE_SHA,
-    sourceLocator: 'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
+    sourceLocator:
+      'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
     sourceUrl: 'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
     composedOutput,
     exhibitType: 'R-1',
@@ -152,7 +158,8 @@ function factoryInput(): RdteDurableSemanticArtifactFactoryInputV1 {
       documentKey: SOURCE_DOCUMENT_ID,
       required: true,
       title: 'r1',
-      sourceLocator: 'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
+      sourceLocator:
+        'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
       sourceUrl: 'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
       expectedSourceSha256: SOURCE_SHA,
       family: 'rdte',
@@ -171,7 +178,8 @@ function factoryInput(): RdteDurableSemanticArtifactFactoryInputV1 {
       manifestDocumentKey: SOURCE_DOCUMENT_ID,
       sourceDocumentId: SOURCE_DOCUMENT_ID,
       sourcePdfSha256: SOURCE_SHA,
-      sourceLocator: 'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
+      sourceLocator:
+        'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
       sourceUrl: 'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
       fiscalYear: FY,
       family: 'rdte',
@@ -188,7 +196,9 @@ function factoryInput(): RdteDurableSemanticArtifactFactoryInputV1 {
 
 describe('Phase 10B-10 Part D -- durable RDT&E semantic artifact contains real extracted assertions', () => {
   it('extracts PE 0601102A / Defense Research Sciences / FY2024 request 296670 through the REAL extractor', async () => {
-    const store = new FilesystemExtractionArtifactStore(await mkdtemp(join(tmpdir(), 'capiro-test-durable-store-')));
+    const store = new FilesystemExtractionArtifactStore(
+      await mkdtemp(join(tmpdir(), 'capiro-test-durable-store-')),
+    );
     const artifactFactory = createRdteDurableSemanticArtifactFactoryV1(factoryInput());
     const composed = composedOutputForPages([pageWithTable(9, realArmyR1Table())]);
     const output = await artifactFactory(bridgeInputFor(composed), store);
@@ -203,16 +213,21 @@ describe('Phase 10B-10 Part D -- durable RDT&E semantic artifact contains real e
 
     const funding = output.artifact.assertions.find(
       (a) => a.assertionKind === 'funding' && a.field === 'request',
-    ) as { fiscalYear?: number; money?: { originalValue: string; originalUnit: string; valueMillions: string } } | undefined;
+    ) as
+      | {
+          fiscalYear?: number;
+          money?: { originalValue: string; originalUnit: string; valueMillions: string };
+        }
+      | undefined;
     expect(funding).toBeDefined();
     expect(funding?.fiscalYear).toBe(2024);
     expect(funding?.money?.originalValue).toBe('296670');
     expect(funding?.money?.originalUnit).toBe('thousands');
     expect(funding?.money?.valueMillions).toBe('296.67');
 
-    expect(output.artifact.warnings.some((w) => w.code === 'router_family_assertion_mapping_deferred')).toBe(
-      false,
-    );
+    expect(
+      output.artifact.warnings.some((w) => w.code === 'router_family_assertion_mapping_deferred'),
+    ).toBe(false);
   });
 
   it('persists through the durable store, never exposes the local scratch path', async () => {
@@ -237,8 +252,14 @@ describe('Phase 10B-10 Part F -- durability negative controls', () => {
     const storeRoot = await mkdtemp(join(tmpdir(), 'capiro-test-durable-store-'));
     const store = new FilesystemExtractionArtifactStore(storeRoot);
     const composed = composedOutputForPages([pageWithTable(9, realArmyR1Table())]);
-    const first = await createRdteDurableSemanticArtifactFactoryV1(factoryInput())(bridgeInputFor(composed), store);
-    const second = await createRdteDurableSemanticArtifactFactoryV1(factoryInput())(bridgeInputFor(composed), store);
+    const first = await createRdteDurableSemanticArtifactFactoryV1(factoryInput())(
+      bridgeInputFor(composed),
+      store,
+    );
+    const second = await createRdteDurableSemanticArtifactFactoryV1(factoryInput())(
+      bridgeInputFor(composed),
+      store,
+    );
     expect(second.artifactLocator).toBe(first.artifactLocator);
     expect(second.artifactByteSha256).toBe(first.artifactByteSha256);
   });
@@ -247,7 +268,10 @@ describe('Phase 10B-10 Part F -- durability negative controls', () => {
     const storeRoot = await mkdtemp(join(tmpdir(), 'capiro-test-durable-store-'));
     const writingStore = new FilesystemExtractionArtifactStore(storeRoot);
     const composed = composedOutputForPages([pageWithTable(9, realArmyR1Table())]);
-    const output = await createRdteDurableSemanticArtifactFactoryV1(factoryInput())(bridgeInputFor(composed), writingStore);
+    const output = await createRdteDurableSemanticArtifactFactoryV1(factoryInput())(
+      bridgeInputFor(composed),
+      writingStore,
+    );
 
     // A brand-new store instance pointed at the same root -- no shared
     // in-memory state -- must still resolve the durable, content-addressed
@@ -265,7 +289,10 @@ describe('Phase 10B-10 Part F -- durability negative controls', () => {
     const storeRoot = await mkdtemp(join(tmpdir(), 'capiro-test-durable-store-'));
     const store = new FilesystemExtractionArtifactStore(storeRoot);
     const composed = composedOutputForPages([pageWithTable(9, realArmyR1Table())]);
-    const output = await createRdteDurableSemanticArtifactFactoryV1(factoryInput())(bridgeInputFor(composed), store);
+    const output = await createRdteDurableSemanticArtifactFactoryV1(factoryInput())(
+      bridgeInputFor(composed),
+      store,
+    );
     await expect(
       store.readVerified({ locator: output.artifactLocator, expectedByteSha256: 'f'.repeat(64) }),
     ).rejects.toThrow(/byte SHA mismatch/);
@@ -274,9 +301,15 @@ describe('Phase 10B-10 Part F -- durability negative controls', () => {
   it('a composed-output source SHA that does not match the declared source SHA fails closed (never silently mismatched)', async () => {
     const storeRoot = await mkdtemp(join(tmpdir(), 'capiro-test-durable-store-'));
     const store = new FilesystemExtractionArtifactStore(storeRoot);
-    const wrongComposed = composedOutputForPages([pageWithTable(9, realArmyR1Table())], 'f'.repeat(64));
+    const wrongComposed = composedOutputForPages(
+      [pageWithTable(9, realArmyR1Table())],
+      'f'.repeat(64),
+    );
     await expect(
-      createRdteDurableSemanticArtifactFactoryV1(factoryInput())(bridgeInputFor(wrongComposed), store),
+      createRdteDurableSemanticArtifactFactoryV1(factoryInput())(
+        bridgeInputFor(wrongComposed),
+        store,
+      ),
     ).rejects.toThrow(/source SHA mismatch/);
   });
 
@@ -292,18 +325,36 @@ describe('Phase 10B-10 Part F -- durability negative controls', () => {
       { rowIndex: 1, columnIndex: 2, text: '1,000' },
     ]);
     const composed = composedOutputForPages([pageWithTable(9, garbledTable)]);
-    const output = await createRdteDurableSemanticArtifactFactoryV1(factoryInput())(bridgeInputFor(composed), store);
+    const output = await createRdteDurableSemanticArtifactFactoryV1(factoryInput())(
+      bridgeInputFor(composed),
+      store,
+    );
     expect(
       output.artifact.assertions.filter((a) => a.assertionKind === 'program_element_identity'),
     ).toHaveLength(0);
   });
 
-  it('non-RDT&E families are untouched -- resolveArtifactFactoryForFamilyV1 returns undefined, unchanged from before this PR', () => {
+  it('resolves proof-bound durable factories for the three supported non-RDT&E families', () => {
     const input = factoryInput();
-    expect(resolveArtifactFactoryForFamilyV1('procurement', input)).toBeUndefined();
-    expect(resolveArtifactFactoryForFamilyV1('om', input)).toBeUndefined();
-    expect(resolveArtifactFactoryForFamilyV1('milcon', input)).toBeUndefined();
+    expect(() => resolveArtifactFactoryForFamilyV1('procurement', input)).toThrow(
+      /requires a parser artifact store/,
+    );
+    const parserArtifactStore = {
+      findExact: jest.fn(),
+      readVerified: jest.fn(),
+      putVerified: jest.fn(),
+    } as never;
+    expect(
+      resolveArtifactFactoryForFamilyV1('procurement', { ...input, parserArtifactStore }),
+    ).toBeDefined();
+    expect(
+      resolveArtifactFactoryForFamilyV1('om', { ...input, parserArtifactStore }),
+    ).toBeDefined();
+    expect(
+      resolveArtifactFactoryForFamilyV1('milcon', { ...input, parserArtifactStore }),
+    ).toBeDefined();
     expect(resolveArtifactFactoryForFamilyV1('rdte', input)).toBeDefined();
+    expect(resolveArtifactFactoryForFamilyV1('committee', input)).toBeUndefined();
   });
 });
 
@@ -314,7 +365,8 @@ class RepairedCanaryResolver implements TrustedVerificationProofResolverV1 {
       documentKey: SOURCE_DOCUMENT_ID,
       required: true,
       title: 'r1',
-      sourceLocator: 'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
+      sourceLocator:
+        'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
       expectedSourceSha256: SOURCE_SHA,
       family: 'rdte',
       exhibit: 'R-1',
@@ -355,7 +407,11 @@ class RepairedCanaryResolver implements TrustedVerificationProofResolverV1 {
           contentSha256: this.artifact.contentSha256,
           byteSha256: this.artifact.contentSha256,
         },
-        sourceDocument: { id: SOURCE_DOCUMENT_ID, sourceKey: SOURCE_DOCUMENT_ID, sourceSha256: SOURCE_SHA },
+        sourceDocument: {
+          id: SOURCE_DOCUMENT_ID,
+          sourceKey: SOURCE_DOCUMENT_ID,
+          sourceSha256: SOURCE_SHA,
+        },
         archive: { status: 'not_applicable' },
         // Mirrors what the real production proof-resolution pipeline
         // records for each parser run this artifact actually cites --
@@ -383,7 +439,10 @@ describe('Phase 10B-10 Part E -- repaired artifact resolves the two production b
     const storeRoot = await mkdtemp(join(tmpdir(), 'capiro-test-durable-store-'));
     const store = new FilesystemExtractionArtifactStore(storeRoot);
     const composed = composedOutputForPages([pageWithTable(9, realArmyR1Table())]);
-    const output = await createRdteDurableSemanticArtifactFactoryV1(factoryInput())(bridgeInputFor(composed), store);
+    const output = await createRdteDurableSemanticArtifactFactoryV1(factoryInput())(
+      bridgeInputFor(composed),
+      store,
+    );
     expect(output.assertionCount).toBeGreaterThan(0);
 
     const service = new BudgetVerificationV1Service(
