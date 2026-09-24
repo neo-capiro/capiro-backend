@@ -2,20 +2,20 @@
 
 ## Scope and evidence boundary
 
-This snapshot records source-tree and disposable-infrastructure proof executed on
-2026-09-20 from branch `codex/package-e-batch-ingestion`. It does not claim a
-merged revision, a final container image, an AWS qualification, a deployment, or
-a production ingestion.
+This document retains the source-tree and disposable-infrastructure proof from
+2026-09-20 and adds the Package 0 release disposition from 2026-09-24. Package E
+is merged and deployed dormant; no production ingestion is claimed or
+authorized.
 
-Package D remains the production baseline only: merge
-`884297998c48ce141e1f4958a4a7b1ea31f04e41`, API task definition
-`capiro-dev-api:392`, API digest
-`sha256:237ee19420d25760da8246cfa75db0ba4ed3bef1f372753d24b7e53fd536d594`,
-drain task definition `capiro-dev-defense-budget-ingestion-drain:25`, and drain
-digest
-`sha256:d51af69f66f61b6ee5ca59b4cc90e25a99ba43daaab2618ec8486ac9d3ccc704`.
-That image does not contain Package E. Air Force FY27 RDT&E Volume I remains
-excluded after two deterministic Package D qualification failures.
+The current release-code baseline is
+`4b118bc148df9ae168585ebd8ad0dd595cb6a230`: API task definition
+`capiro-dev-api:439`, API digest
+`sha256:2ac7524cde4e4dcdf01f0dcebda177a2c777a44bb313e2e28112205e27383e67`,
+parked drain task definition `capiro-dev-defense-budget-ingestion-drain:27`, and
+drain digest
+`sha256:8ac2255706e08a74baa3e7cb7ec3021ba9f34841a76e52134aee9344b27be461`.
+The drain manifest contains all 32 API layers as its exact prefix. Air Force
+FY27 RDT&E Volume I remains excluded after its earlier deterministic failures.
 
 ## Executed source-tree and disposable-infrastructure proof
 
@@ -63,17 +63,18 @@ future image digest or production source.
 
 | Gate | Status |
 | --- | --- |
-| Reviewed merge commit | Open. A draft PR is required; there is no merge authorization in the current scope. |
-| Post-merge ARM64 API/drain images and provenance | Open. Build only from the merged commit, pin both digests, and prove the drain base equals the exact API digest. |
-| Final-image isolated qualification | Open. Run the exact drain image twice through the real path for every admitted format profile, with a negative isolation control. Package D/BA4A evidence cannot qualify a new Package E digest. |
-| Dormant `capiro-dev` deployment | Open. After merge and qualification, apply the migration and deploy through AWS CLI only; keep the drain command parked and re-audit automatic consumers. |
+| Reviewed merge commit | Complete. Package E was reconciled through PR #1759; superseded PR #1716 is closed. Release hardening landed through PRs #1762 and #1763. |
+| Post-merge ARM64 API/drain images and provenance | Complete for Package 0. Both images were built from exact release SHA `4b118bc148df9ae168585ebd8ad0dd595cb6a230`, pinned by digest, and the drain's API-layer prefix was verified. |
+| Final-image isolated qualification | Release smoke complete for the representative immutable FY2024 Army R-2 source. Two independent revision-33 tasks plus the missing-credential negative control ran on the exact final drain digest; both positive reports passed the formal release verifier with identical substantive projections. This does not qualify the three proposed future first-batch members. |
+| Dormant `capiro-dev` deployment | Complete. Both additive migrations applied, API revision 439 is stable, drain revision 27 is parked at `echo no-op-default-command`, and the ECS/EventBridge/Scheduler consumer audit found no drain or manifest activation. |
 | Runnable manifest | Not available. The proposal has `qualificationOnly: true`, `executionAuthorized: false`, and no runnable members. The three proposed non-Air-Force sources still lack current-image qualification and existing lifecycle/outbox bindings. |
 | Production pilot | Not authorized. No production batch task may be launched. |
 
 ## Truthful status
 
-The current state is **source implementation and disposable proof complete;
-final-image/release gates open; pilot not authorized**. It is not yet eligible
-for `ENGINEERING_COMPLETE_PILOT_AWAITING_AUTHORIZATION` because the reviewed
-merge, exact-image build, repeat qualification, and dormant deployment have not
-occurred.
+The current state is **engineering merged, exact images built, representative
+release qualification passed, and dormant deployment complete; production
+pilot not authorized**. The proposed first-batch sources still need their own
+exact-source qualifications, lifecycle/outbox bindings, reviewed manifest and
+explicit authorization before `ENGINEERING_COMPLETE_PILOT_AWAITING_AUTHORIZATION`
+can be claimed.

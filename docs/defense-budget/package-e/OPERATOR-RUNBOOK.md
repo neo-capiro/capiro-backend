@@ -10,10 +10,15 @@ authorization record.
   and has `runnableProductionManifest: null`.
 - Air Force FY27 RDT&E Volume I is excluded after two deterministic Package D
   qualification failures.
-- Package D is the production baseline. Its image does not contain Package E.
-- A Package E release may occur only from a reviewed merged commit, through AWS
-  CLI, after exact-image qualification. Deployment must leave the drain parked
-  at `echo no-op-default-command` and must not launch a batch.
+- Package E is merged in the Package 0 release-code baseline
+  `4b118bc148df9ae168585ebd8ad0dd595cb6a230`. API task definition
+  `capiro-dev-api:439` is stable on digest
+  `sha256:2ac7524cde4e4dcdf01f0dcebda177a2c777a44bb313e2e28112205e27383e67`.
+- Drain task definition `capiro-dev-defense-budget-ingestion-drain:27` is parked
+  at `echo no-op-default-command` on digest
+  `sha256:8ac2255706e08a74baa3e7cb7ec3021ba9f34841a76e52134aee9344b27be461`.
+  The representative exact-image release smoke passed twice, but the proposed
+  future first-batch sources remain unqualified and no batch was launched.
 
 ## Command and immutable-input contract
 

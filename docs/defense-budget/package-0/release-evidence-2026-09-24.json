@@ -1,0 +1,205 @@
+{
+  "schemaVersion": 1,
+  "completedAt": "2026-09-24T13:36:59.310Z",
+  "environment": {
+    "awsAccountId": "967807252336",
+    "region": "us-east-1",
+    "ecsCluster": "capiro-dev",
+    "selectionReason": "Only inventoried environment with the defense-budget archive, extraction-artifact and drain topology."
+  },
+  "repository": {
+    "repository": "neo-capiro/capirov2",
+    "releaseCodeSha": "4b118bc148df9ae168585ebd8ad0dd595cb6a230",
+    "package0Merge": {
+      "pullRequest": 1759,
+      "mergeSha": "a731c776389e16cc93c57bc09c481e7c5f8c7006"
+    },
+    "releaseFixes": [
+      {
+        "pullRequest": 1762,
+        "mergeSha": "dcfda93757e5b6b59517d2f7bcd327a434323c12",
+        "purpose": "Correct the SELECT-only snapshot physical manifest relation."
+      },
+      {
+        "pullRequest": 1763,
+        "mergeSha": "4b118bc148df9ae168585ebd8ad0dd595cb6a230",
+        "purpose": "Use the ECR Public Node base and remove anonymous Docker Hub release-build dependence."
+      }
+    ],
+    "supersededPullRequestsClosed": [1704, 1716]
+  },
+  "images": {
+    "api": {
+      "codeBuildArn": "arn:aws:codebuild:us-east-1:967807252336:build/capiro-build-intel-api:825c6d24-04d0-4dc5-9815-5c5e06f8e8fa",
+      "resolvedSourceVersion": "4b118bc148df9ae168585ebd8ad0dd595cb6a230",
+      "digest": "sha256:2ac7524cde4e4dcdf01f0dcebda177a2c777a44bb313e2e28112205e27383e67",
+      "tags": [
+        "4b118bc148df9ae168585ebd8ad0dd595cb6a230",
+        "package0-20260924-api-final"
+      ],
+      "architecture": "arm64",
+      "os": "linux",
+      "compressedBytes": 292005109
+    },
+    "drain": {
+      "codeBuildArn": "arn:aws:codebuild:us-east-1:967807252336:build/capiro-build-intel-api:3fc1afce-3aa4-40a4-9cd3-1fe874d21d48",
+      "resolvedSourceVersion": "4b118bc148df9ae168585ebd8ad0dd595cb6a230",
+      "digest": "sha256:8ac2255706e08a74baa3e7cb7ec3021ba9f34841a76e52134aee9344b27be461",
+      "tags": [
+        "4b118bc148df9ae168585ebd8ad0dd595cb6a230-defense-drain",
+        "package0-20260924-drain-final"
+      ],
+      "architecture": "arm64",
+      "os": "linux",
+      "compressedBytes": 765833442,
+      "apiLayerPrefix": {
+        "apiLayerCount": 32,
+        "drainLayerCount": 51,
+        "exactPrefix": true
+      }
+    }
+  },
+  "migration": {
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:129",
+    "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/583f09a60f9a4ce09fcf03feb1cd95f8",
+    "imageDigest": "sha256:e6559a6bc95c035285752798b1aad07971bc4cf4c5cfc876c367463158a2921a",
+    "exitCode": 0,
+    "applied": [
+      "20280919020000_approval_replacement_commit_guards",
+      "20280920060000_governed_ingestion_manifest_v1"
+    ]
+  },
+  "apiDeployment": {
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:439",
+    "desiredCount": 2,
+    "runningCount": 2,
+    "rolloutState": "COMPLETED",
+    "imageDigest": "sha256:2ac7524cde4e4dcdf01f0dcebda177a2c777a44bb313e2e28112205e27383e67",
+    "healthyTasks": [
+      "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/77a13561530748bcb375583d0090b7e5",
+      "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/c769a0260a5b4fcd9d628a7cde33c2a4"
+    ]
+  },
+  "drainDeployment": {
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-defense-budget-ingestion-drain:27",
+    "imageDigest": "sha256:8ac2255706e08a74baa3e7cb7ec3021ba9f34841a76e52134aee9344b27be461",
+    "defaultCommand": ["echo no-op-default-command"],
+    "runningTasks": 0,
+    "pendingTasks": 0,
+    "ecsServiceExists": false,
+    "eventBridgeTargetExists": false,
+    "schedulerTargetExists": false,
+    "productionManifestStarted": false
+  },
+  "qualification": {
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-defense-budget-qualification:33",
+    "imageDigest": "sha256:8ac2255706e08a74baa3e7cb7ec3021ba9f34841a76e52134aee9344b27be461",
+    "isolatedDatabaseEndpoint": "127.0.0.1:5432",
+    "isolatedObjectStoreEndpoint": "127.0.0.1:9000",
+    "source": {
+      "bucket": "capiro-defense-budget-raw-dev-967807252336",
+      "key": "raw/public/dod-budget/fiscal_year=2024/source_authority=dod-comptroller/family=rdte/document_id=defense-budget-observation-cf5b34c86b34b7e75d9c5be7d18f4dc5a8bbea08aec23611bc2020efce6f74c4/sha256=1fb7402152d0ec6ca536e20ac8d3ed8e7da61951ee691d1d05388abb4c462ab6/original.bin",
+      "versionId": "QN5S2.UB7ez8f6E4xrZxYoBrtW7Nf14s",
+      "sha256": "1fb7402152d0ec6ca536e20ac8d3ed8e7da61951ee691d1d05388abb4c462ab6",
+      "bytes": 7227604,
+      "objectLockMode": "GOVERNANCE",
+      "retainUntilDate": "2033-09-01"
+    },
+    "negativeIsolationControl": {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/9920752109c746d08972da5cf87fbb7d",
+      "expectedExitCode": 2,
+      "observedError": "QUAL_PRESIGNED_GET is required"
+    },
+    "runs": [
+      {
+        "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/784429653dfd456ab76a0a4ec5488fb8",
+        "runId": "package0-4b118bc14-final-run1",
+        "exitCode": 0,
+        "releaseGate": "RELEASE_IMAGE_QUALIFICATION_PASS",
+        "decision": "REVIEW",
+        "dbverifyOk": true,
+        "artifactSha256": "60f9e9e8109dda2f93039b5c938c05935dd9c7bf3455d8a67ec907b1ddd76674",
+        "normalizedArtifactSha256": "cec346e117331024d500aa44d90ab377b4b1e531e8cfac4b492ea3d8bb012b2f"
+      },
+      {
+        "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/7e8595e947574e179d3a4d2ecba5a101",
+        "runId": "package0-4b118bc14-final-run2",
+        "exitCode": 0,
+        "releaseGate": "RELEASE_IMAGE_QUALIFICATION_PASS",
+        "decision": "REVIEW",
+        "dbverifyOk": true,
+        "artifactSha256": "c25718ece2bb9346da74a12c5a81f66906dad6479f5b7afeb4c3a48fcafd76db",
+        "normalizedArtifactSha256": "1a294499b8b4dd0ef2e046c77e1c9ac48e664f4a9f840c23d99bb9d69fa25a2a"
+      }
+    ],
+    "matchingSubstantiveProjection": {
+      "totalAssertions": 522,
+      "assertionsByKind": {
+        "document_fact": 409,
+        "narrative": 10,
+        "program_element_identity": 5,
+        "project": 22,
+        "project_funding": 76
+      },
+      "omissions": 417,
+      "omissionsByKind": {"ambiguous_layout": 417},
+      "identityPeCodes": ["0601102A", "0601103A", "0601104A", "0601121A", "0601601A"],
+      "fy2024TotalsMillions": {
+        "0601102A": "296.67",
+        "0601103A": "75.672",
+        "0601104A": "108.946",
+        "0601121A": "5.459",
+        "0601601A": "10.708"
+      },
+      "r3DuplicateNaturalKeyConflictCount": 0
+    }
+  },
+  "postDeployReadOnlySnapshot": {
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:130",
+    "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/90e471a5d5324338b56925150bb123aa",
+    "imageDigest": "sha256:2ac7524cde4e4dcdf01f0dcebda177a2c777a44bb313e2e28112205e27383e67",
+    "capturedAt": "2026-09-24T13:09:46.133Z",
+    "transactionMode": "READ ONLY",
+    "exitCode": 0,
+    "activeScopedApprovals": 43,
+    "governedManifests": 0,
+    "canonicalSnapshots": 0,
+    "activeCanonicalSnapshots": 0,
+    "canonicalRows": 0,
+    "pendingOutboxRows": 9,
+    "deadLetterOutboxRows": 4,
+    "scheduleTicks": 0,
+    "providerInvocationsLast30Days": 0
+  },
+  "consumerAudit": {
+    "ecsServicesInspected": 11,
+    "matchingDrainOrManifestServices": 0,
+    "eventBridgeRulesInspected": 119,
+    "matchingDrainOrManifestTargets": 0,
+    "eventBridgeSchedulerGroupsInspected": 1,
+    "eventBridgeSchedulerSchedulesInspected": 0,
+    "legacyBudgetWatcher": {
+      "rule": "capiro-dev-watch-budget-docs",
+      "state": "ENABLED",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:125",
+      "command": ["watch-budget-docs", "--commit"],
+      "disposition": "Pre-existing lifecycle gap assigned to Package 1; it is not a governed-manifest consumer."
+    }
+  },
+  "ciInfrastructure": {
+    "githubActionsDisposition": "Jobs failed before runner assignment; runner_id was 0 and steps were empty.",
+    "countedAsTestFailure": false
+  },
+  "knownLimitations": [
+    {
+      "id": "P3-QUALIFICATION-HASH-NORMALIZATION",
+      "description": "Fresh-container parser job identity and derived hashes remain in the current normalized artifact hash domain, so the two normalized hashes differ although every release-gated substantive field matches.",
+      "releaseImpact": "Disclosed instrumentation gap; does not alter the formal verifier result or authorize production ingestion."
+    },
+    {
+      "id": "PACKAGE-E-FIRST-BATCH",
+      "description": "No runnable manifest or production pilot is authorized. Proposed future source members still require exact-source qualification and lifecycle/outbox registration.",
+      "releaseImpact": "Drain remains parked and productionManifestStarted is false."
+    }
+  ]
+}
