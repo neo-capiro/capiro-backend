@@ -48,14 +48,25 @@ describe('routeManifest — Portfolio inline navigation', () => {
     const portfolio = VNEXT_ROUTE_MANIFEST.find((route) => route.id === 'portfolio');
     expect(portfolio?.children?.map((child) => child.label)).toEqual([
       'Clients',
+      'Business Development',
       'Defense Budget',
       'Coalitions',
     ]);
     expect(portfolio?.children?.map((child) => child.path)).toEqual([
       '/clients',
+      '/clients?view=business-development',
       '/program-elements',
       null,
     ]);
-    expect(portfolio?.children?.[2]?.availability).toBe('gap');
+    expect(portfolio?.children?.[3]?.availability).toBe('gap');
+  });
+
+  it('hides Business Development until the tenant flag is on', () => {
+    const portfolio = VNEXT_ROUTE_MANIFEST.find((route) => route.id === 'portfolio');
+    const children = portfolio?.children ?? [];
+    expect(visibleVNextRoutes(children, {}).map((child) => child.id)).not.toContain('portfolio-business-development');
+    const visible = visibleVNextRoutes(children, { meFeatures: { businessDevelopment: true } });
+    expect(visible.map((child) => child.id)).toContain('portfolio-business-development');
+    expect(visible.map((child) => child.path)).toContain('/clients?view=business-development');
   });
 });

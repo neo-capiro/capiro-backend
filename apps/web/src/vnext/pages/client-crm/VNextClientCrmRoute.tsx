@@ -7,6 +7,7 @@ import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroErrorState } from '../../components/feedback/index.js';
 import { ClientCrmPage } from './ClientCrmPage.js';
 import { PortfolioIndexPage } from '../portfolio/PortfolioIndexPage.js';
+import { BusinessDevelopmentPage } from '../business-development/BusinessDevelopmentPage.js';
 import './client-crm.css';
 
 /**
@@ -69,6 +70,7 @@ export function VNextClientCrmRoute() {
   const api = useApi();
   const queryClient = useQueryClient();
   const clientId = searchParams.get('clientId');
+  const isBizDevView = searchParams.get('view') === 'business-development';
 
   // Same query key as ClientWorkspacePage, so switching between the canonical
   // and vNext surfaces is a cache hit and an edit invalidates both.
@@ -91,6 +93,7 @@ export function VNextClientCrmRoute() {
   // replaces the engineering-derived picker with the design-grounded all-clients
   // surface. Placed after the hooks above so hook order never changes between
   // the index and the profile.
+  if (!clientId && isBizDevView) return <BusinessDevelopmentPage />;
   if (!clientId) return <PortfolioIndexPage />;
 
   // `isPending` (no data yet) covers both fetching AND paused — a paused query

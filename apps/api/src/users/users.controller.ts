@@ -16,6 +16,7 @@ import {
   contextStewardActive,
   strategyWatcherActive,
   engagementVNextEnabled,
+  businessDevelopmentEnabled,
   entitlementsForTenant,
 } from '../common/tenant-flags.js';
 import { meriV3ChatActive } from '../common/meriv3-flags.js';
@@ -164,6 +165,7 @@ export class UsersController {
         agenticMeri: agenticMeriActive(profile.tenant?.settings),
         contextSteward: contextStewardActive(profile.tenant?.settings),
         strategyWatcher: strategyWatcherActive(profile.tenant?.settings),
+        businessDevelopment: businessDevelopmentEnabled(profile.tenant?.settings),
       },
     };
   }
@@ -277,6 +279,7 @@ export class UsersController {
         agenticMeri: agenticMeriActive(profile.tenant?.settings),
         contextSteward: contextStewardActive(profile.tenant?.settings),
         strategyWatcher: strategyWatcherActive(profile.tenant?.settings),
+        businessDevelopment: businessDevelopmentEnabled(profile.tenant?.settings),
       },
     };
   }

@@ -61,6 +61,7 @@ import { GovInfoModule } from './external/govinfo/govinfo.module.js';
 import { TangoModule } from './external/tango/tango.module.js';
 import { AdminBroadcastsModule } from './admin-broadcasts/admin-broadcasts.module.js';
 import { VendorReferenceModule } from './vendor-reference/vendor-reference.module.js';
+import { BusinessDevelopmentModule } from './business-development/business-development.module.js';
 import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js';
 
 @Module({
@@ -130,6 +131,7 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     BudgetPackagesModule,
     LiveHearingsModule,
     VendorReferenceModule,
+    BusinessDevelopmentModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

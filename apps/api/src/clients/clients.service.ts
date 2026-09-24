@@ -21,6 +21,7 @@ import { decode as decodeJpeg } from 'jpeg-js';
 import sanitizeHtml from 'sanitize-html';
 import type { TenantContext } from '@capiro/shared';
 import { CLIENT_SLOT_LIMIT_CODE, effectiveClientSlots } from '@capiro/shared';
+import type { Client, Prisma } from '@prisma/client';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EntityResolutionService } from '../intelligence/entity-resolution.service.js';
@@ -58,6 +59,10 @@ export interface CreateClientInput {
   // still runs and merges additional ids, but must not be the only carrier of
   // an identity the user explicitly confirmed.
   ldaClientIds?: number[];
+  // Business Development Phase 1: confirmed canonical identity stamped at
+  // conversion-time client creation (see ClientsService.createInTransaction).
+  // Never set by the ordinary Add Client flow.
+  canonicalEntityId?: string;
 }
 
 export type UpdateClientInput = Partial<CreateClientInput> & {
@@ -1118,76 +1123,8 @@ export class ClientsService {
   }
 
   async create(ctx: TenantContext, input: CreateClientInput) {
-    input = { ...input, ...validateClientFundingProfile(input) };
-    const { client, ldaRegistrantId } = await this.prisma.withTenant(
-      ctx.tenantId,
-      async (tx) => {
-        // Billing slot enforcement: a client may not be created beyond the
-        // purchased client_slots. 'comped' tenants (Capiro staff / promo) bypass.
-        // Runs inside the transaction so the check + insert are atomic. Throws 402
-        // with a structured CLIENT_SLOT_LIMIT code the UI turns into an upgrade CTA.
-        const tenant = await tx.tenant.findUnique({
-          where: { id: ctx.tenantId },
-          select: {
-            ldaRegistrantId: true,
-            clientSlots: true,
-            billingStatus: true,
-          },
-        });
-        if (
-          this.billingEnforced &&
-          tenant &&
-          tenant.billingStatus !== 'comped'
-        ) {
-          // Trials get at least the 10-profile allowance regardless of the
-          // stamped clientSlots (shared with the LDA import + setup dashboard).
-          const slotLimit = effectiveClientSlots(
-            tenant.billingStatus,
-            tenant.clientSlots,
-          );
-          const current = await tx.client.count({
-            where: { tenantId: ctx.tenantId, status: { not: 'archived' } },
-          });
-          if (current >= slotLimit) {
-            throw new HttpException(
-              {
-                code: CLIENT_SLOT_LIMIT_CODE,
-                message: `You've used all ${slotLimit} client slots on your plan. Add more slots to create another client.`,
-                limit: slotLimit,
-                current,
-              },
-              HttpStatus.PAYMENT_REQUIRED,
-            );
-          }
-        }
-        const client = await tx.client.create({
-          data: {
-            tenantId: ctx.tenantId,
-            name: input.name,
-            website: input.website ?? null,
-            description: input.description ?? null,
-            productDescription: input.productDescription ?? null,
-            primaryContactName: input.primaryContactName ?? null,
-            primaryContactEmail: input.primaryContactEmail ?? null,
-            primaryContactPhone: input.primaryContactPhone ?? null,
-            intakeData: (input.intakeData ?? {}) as object,
-            profileType: input.profileType ?? null,
-            sectorTag: input.sectorTag ?? null,
-            submissionTracks: input.submissionTracks ?? [],
-            issueCodes: input.issueCodes ?? [],
-            profileStatus: input.profileStatus ?? 'ACTIVE',
-            uei: input.uei ?? null,
-            cageCode: input.cageCode ?? null,
-            naicsCodes: input.naicsCodes ?? [],
-            pscCodes: input.pscCodes ?? [],
-            applicantTypes: input.applicantTypes ?? [],
-            setAsideCertifications: input.setAsideCertifications ?? [],
-            ldaClientIds: input.ldaClientIds ?? [],
-            createdByUserId: ctx.userId,
-          },
-        });
-        return { client, ldaRegistrantId: tenant?.ldaRegistrantId ?? null };
-      },
+    const { client, ldaRegistrantId } = await this.prisma.withTenant(ctx.tenantId, async (tx) =>
+      this.createInTransaction(ctx, tx, input),
     );
 
     // Resolve-on-create: registrant-anchored entity resolution, fire-and-forget.
@@ -1221,6 +1158,93 @@ export class ClientsService {
       );
 
     return this.withLogoUrl(client);
+  }
+
+  /**
+   * Transaction-aware core of {@link create}. Runs the ENTIRE authoritative
+   * client-creation rule set — funding-profile validation, billing slot
+   * entitlement check, and the insert — inside a caller-supplied Prisma
+   * transactional client, so
+   * Business Development prospect conversion can compose client creation
+   * into its OWN single transaction (client + prospect link commit or roll
+   * back together) without duplicating a weaker insert. A slot is consumed
+   * ONLY when this actually creates a client row. The public create()
+   * behavior is unchanged: same checks, same errors, same insert.
+   */
+  async createInTransaction(
+    ctx: Pick<TenantContext, 'tenantId' | 'userId'>,
+    tx: Prisma.TransactionClient,
+    input: CreateClientInput,
+  ): Promise<{ client: Client; ldaRegistrantId: number | null }> {
+    // Funding-profile validation lives HERE so the transaction core is
+    // authoritative for every caller (create, bizdev conversion, any future
+    // composer) — a caller can no longer bypass it. create() behavior is
+    // unchanged: the same validated fields reach the same insert.
+    const validated = { ...input, ...validateClientFundingProfile(input) };
+
+    // Billing slot enforcement: a client may not be created beyond the
+    // purchased client_slots. 'comped' tenants (Capiro staff / promo) bypass.
+    // Runs inside the transaction so the check + insert are atomic. Throws 402
+    // with a structured CLIENT_SLOT_LIMIT code the UI turns into an upgrade CTA.
+    const tenant = await tx.tenant.findUnique({
+      where: { id: ctx.tenantId },
+      select: {
+        ldaRegistrantId: true,
+        clientSlots: true,
+        billingStatus: true,
+      },
+    });
+    if (this.billingEnforced && tenant && tenant.billingStatus !== 'comped') {
+      // Trials get at least the 10-profile allowance regardless of the
+      // stamped clientSlots (shared with the LDA import + setup dashboard).
+      const slotLimit = effectiveClientSlots(tenant.billingStatus, tenant.clientSlots);
+      const current = await tx.client.count({
+        where: { tenantId: ctx.tenantId, status: { not: 'archived' } },
+      });
+      if (current >= slotLimit) {
+        throw new HttpException(
+          {
+            code: CLIENT_SLOT_LIMIT_CODE,
+            message: `You've used all ${slotLimit} client slots on your plan. Add more slots to create another client.`,
+            limit: slotLimit,
+            current,
+          },
+          HttpStatus.PAYMENT_REQUIRED,
+        );
+      }
+    }
+    const client = await tx.client.create({
+      data: {
+        tenantId: ctx.tenantId,
+        name: validated.name,
+        website: validated.website ?? null,
+        description: validated.description ?? null,
+        productDescription: validated.productDescription ?? null,
+        primaryContactName: validated.primaryContactName ?? null,
+        primaryContactEmail: validated.primaryContactEmail ?? null,
+        primaryContactPhone: validated.primaryContactPhone ?? null,
+        intakeData: (validated.intakeData ?? {}) as object,
+        profileType: validated.profileType ?? null,
+        sectorTag: validated.sectorTag ?? null,
+        submissionTracks: validated.submissionTracks ?? [],
+        issueCodes: validated.issueCodes ?? [],
+        profileStatus: input.profileStatus ?? 'ACTIVE',
+        uei: validated.uei ?? null,
+        cageCode: validated.cageCode ?? null,
+        naicsCodes: validated.naicsCodes ?? [],
+        pscCodes: validated.pscCodes ?? [],
+        applicantTypes: validated.applicantTypes ?? [],
+        setAsideCertifications: validated.setAsideCertifications ?? [],
+        ldaClientIds: validated.ldaClientIds ?? [],
+        createdByUserId: ctx.userId,
+        // Business Development Phase 1: when conversion creates the client
+        // from a CONFIRMED canonical identity, stamp the link so the
+        // (tenant, canonical) partial unique holds and future conversions
+        // find this client. Null for ordinary creates (additive column).
+        canonicalEntityId: input.canonicalEntityId ?? null,
+      },
+    });
+    return { client, ldaRegistrantId: tenant?.ldaRegistrantId ?? null };
   }
 
   /**
