@@ -212,6 +212,40 @@ integration('Package E manifest controller: real PostgreSQL', () => {
     });
   }
 
+  async function insertManifestMemberDirectly(
+    operationId: string,
+    item: IngestionManifestV1['members'][number],
+  ): Promise<void> {
+    await insert('defense_budget_ingestion_manifest_item_v1', {
+      id: item.memberId, manifest_id: operationId, ordinal: item.ordinal,
+      outbox_row_id: item.lifecycle.outboxRowId, observation_id: item.lifecycle.observationId,
+      cycle_id: item.lifecycle.cycleId, source_document_id: item.lifecycle.sourceDocumentId,
+      source_sha256: item.source.sha256, source_byte_size: item.source.byteSize,
+      expected_outbox_state: item.lifecycle.expectedOutboxState, member_jsonb: item,
+      attempts: item.lifecycle.expectedOutboxAttempts,
+    });
+  }
+
+  it('rejects direct item inserts outside the immutable member list and above the five-item cap', async () => {
+    const selected = await fixtureMember(`member-selected-${randomUUID()}`);
+    const outside = await fixtureMember(`member-outside-${randomUUID()}`);
+    const selectedPlan = manifest([selected]);
+    expect((await createIngestionManifestRepositoryV1(prisma).register(selectedPlan)).outcome).toBe('registered');
+    const outsideMember = manifest([outside]).members[0]!;
+    await expect(insertManifestMemberDirectly(selectedPlan.operationId, outsideMember)).rejects.toThrow(
+      'manifest item does not correspond exactly to one immutable manifest member',
+    );
+
+    const cappedFixtures: FixtureMember[] = [];
+    for (let index = 0; index < 5; index++) cappedFixtures.push(await fixtureMember(`member-cap-${index}-${randomUUID()}`));
+    const cappedPlan = manifest(cappedFixtures);
+    expect((await createIngestionManifestRepositoryV1(prisma).register(cappedPlan)).outcome).toBe('registered');
+    const overLimit = await fixtureMember(`member-over-limit-${randomUUID()}`);
+    await expect(insertManifestMemberDirectly(cappedPlan.operationId, manifest([overLimit]).members[0]!)).rejects.toThrow(
+      'a manifest cannot have more than five item rows',
+    );
+  });
+
   function verification(identity: CandidateIdentityV1, decision: 'PASS' | 'REVIEW' = 'REVIEW'): PersistCompletedVerificationInputV1 {
     const checks = [{
       checkId: `check-${identity.extractionArtifactId}`, code: decision === 'PASS' ? 'fixture_pass' : 'fixture_review',

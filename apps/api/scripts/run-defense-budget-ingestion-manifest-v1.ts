@@ -145,6 +145,12 @@ export function assertIngestionManifestRuntimeV1(
   if ('confirm' in options && options.mode !== 'preview' && options.confirm !== environment) {
     throw new IngestionManifestUsageErrorV1('write actions require --confirm matching APP_ENV');
   }
+  if ((options.mode === 'start' || options.mode === 'resume') &&
+    !env.BUDGET_VERIFICATION_EXTRACTION_ARTIFACT_BUCKET?.trim()) {
+    throw new IngestionManifestUsageErrorV1(
+      'start/resume require BUDGET_VERIFICATION_EXTRACTION_ARTIFACT_BUCKET for version-pinned S3 extraction artifacts',
+    );
+  }
   if (!manifest) return;
   if (manifest.environment !== environment) throw new IngestionManifestUsageErrorV1('manifest environment does not match APP_ENV');
   if (options.mode === 'preview') return;
