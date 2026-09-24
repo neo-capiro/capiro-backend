@@ -68,6 +68,19 @@ export interface BizDevRoute {
   linkedClient: BizDevClientFilter;
   q: string;
   prospectId: string;
+  // ── Phase 2 (discover/dossier) ────────────────────────────────────────
+  /** 'open' shows the Discover panel; '' (default) keeps the pipeline only. */
+  discover: 'open' | '';
+  /** Submitted discover search text (2..200 chars; only sent on explicit submit). */
+  discoverQuery: string;
+  /** Stable numeric offset for discover paging (0..500). */
+  discoverOffset: number;
+  /** Dossier subject: canonical entity id (company dossier) when set. */
+  dossierEntityId: string;
+  /** Dossier subject: prospect id (prospect dossier) when set. */
+  dossierProspectId: string;
+  /** Selected dossier section ('' = all/none selected). */
+  dossierSection: BizDevDossierSection | '';
 }
 
 const DEFAULTS: BizDevRoute = {
@@ -78,11 +91,48 @@ const DEFAULTS: BizDevRoute = {
   linkedClient: '',
   q: '',
   prospectId: '',
+  discover: '',
+  discoverQuery: '',
+  discoverOffset: 0,
+  dossierEntityId: '',
+  dossierProspectId: '',
+  dossierSection: '',
 };
+
+/** Exact dossier section kinds from the backend DTO contract. */
+export const BIZDEV_DOSSIER_SECTIONS = [
+  'identity',
+  'government_exposure',
+  'relevant_signals',
+  'footprint',
+  'lobbying',
+  'people',
+] as const;
+export type BizDevDossierSection = (typeof BIZDEV_DOSSIER_SECTIONS)[number];
+
+export const BIZDEV_DOSSIER_SECTION_LABELS: Record<BizDevDossierSection, string> = {
+  identity: 'Identity',
+  government_exposure: 'Government exposure',
+  relevant_signals: 'Relevant signals',
+  footprint: 'Footprint',
+  lobbying: 'Lobbying',
+  people: 'People',
+};
+
+/** Discover page size options (backend caps limit at 25). */
+export const BIZDEV_DISCOVER_LIMIT_OPTIONS = [10, 20, 25] as const;
+export const BIZDEV_DISCOVER_LIMIT_DEFAULT = 20;
 
 function oneOf<T extends string>(raw: string | null, allowed: readonly T[]): T | '' {
   const value = raw?.trim() ?? '';
   return (allowed as readonly string[]).includes(value) ? (value as T) : '';
+}
+
+/** Clamp a numeric URL param into [min, max]; NaN → fallback. */
+function clampInt(raw: string | null, min: number, max: number, fallback: number): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(Math.max(Math.trunc(n), min), max);
 }
 
 /** True when the Portfolio index URL selects the Business Development view. */
@@ -100,7 +150,27 @@ export function resolveBizDevRoute(params: URLSearchParams | null | undefined): 
   const ownerId = params.get('bdOwner')?.trim() ?? '';
   const q = (params.get('bdQ') ?? '').trim();
   const prospectId = params.get('bdProspect')?.trim() ?? '';
-  return { stage, ownerId, status, conflict, linkedClient, q, prospectId };
+  const discover = params.get('bdDiscover') === 'open' ? 'open' : '';
+  const discoverQuery = (params.get('bdDq') ?? '').trim().slice(0, 200);
+  const discoverOffset = clampInt(params.get('bdOffset'), 0, 500, 0);
+  const dossierEntityId = params.get('bdDossier')?.trim() ?? '';
+  const dossierProspectId = params.get('bdDossierProspect')?.trim() ?? '';
+  const dossierSection = oneOf(params.get('bdSection'), BIZDEV_DOSSIER_SECTIONS);
+  return {
+    stage,
+    ownerId,
+    status,
+    conflict,
+    linkedClient,
+    q,
+    prospectId,
+    discover,
+    discoverQuery,
+    discoverOffset,
+    dossierEntityId,
+    dossierProspectId,
+    dossierSection,
+  };
 }
 
 /** Canonical query params for the route, preserving unrelated params. */
@@ -123,6 +193,18 @@ export function applyBizDevRoute(
   if (route.linkedClient !== undefined) set('bdClient', route.linkedClient);
   if (route.q !== undefined) set('bdQ', route.q);
   if (route.prospectId !== undefined) set('bdProspect', route.prospectId);
+  if (route.discover !== undefined) {
+    if (route.discover === 'open') next.set('bdDiscover', 'open');
+    else next.delete('bdDiscover');
+  }
+  if (route.discoverQuery !== undefined) set('bdDq', route.discoverQuery);
+  if (route.discoverOffset !== undefined) {
+    if (route.discoverOffset > 0) next.set('bdOffset', String(route.discoverOffset));
+    else next.delete('bdOffset');
+  }
+  if (route.dossierEntityId !== undefined) set('bdDossier', route.dossierEntityId);
+  if (route.dossierProspectId !== undefined) set('bdDossierProspect', route.dossierProspectId);
+  if (route.dossierSection !== undefined) set('bdSection', route.dossierSection);
   return next;
 }
 
@@ -150,10 +232,30 @@ export function bizDevListQuery(route: BizDevRoute): {
 export function hasBizDevFilters(route: BizDevRoute): boolean {
   return Boolean(
     route.stage ||
-    route.ownerId ||
-    route.status !== 'active' ||
-    route.conflict ||
-    route.linkedClient ||
-    route.q,
+      route.ownerId ||
+      route.status !== 'active' ||
+      route.conflict ||
+      route.linkedClient ||
+      route.q,
   );
+}
+
+/**
+ * The bounded candidate-search query object for a resolved route.
+ *
+ * agency/issue/geography are deliberately absent: the backend reports them
+ * as unsupported filters (coverage.unsupportedFilters) and the UI must never
+ * present them as working filters. q is only ever non-empty after an explicit
+ * submit (min 2 chars); offset is the stable numeric page anchor (0..500).
+ */
+export function bizDevDiscoverQuery(route: BizDevRoute): {
+  q: string;
+  limit: number;
+  offset: number;
+} {
+  return {
+    q: route.discoverQuery,
+    limit: BIZDEV_DISCOVER_LIMIT_DEFAULT,
+    offset: route.discoverOffset,
+  };
 }
