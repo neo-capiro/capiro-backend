@@ -76,11 +76,11 @@ export function mergeCanonicalNonIdentityFields(
 
   const fields: CanonicalNonIdentityFields = {
     requesterName: current.requesterName,
-    requesterState: current.requesterState,
-    requesterDistrict: current.requesterDistrict,
+    requesterState: current.requesterState ?? candidate.requesterState ?? null,
+    requesterDistrict: current.requesterDistrict ?? candidate.requesterDistrict ?? null,
     recipientAddress: current.recipientAddress,
     city: current.city,
-    state: current.state,
+    state: current.state ?? candidate.state ?? null,
     zip: current.zip,
     projectDescription: current.projectDescription,
     requestedAmountUsd,
@@ -91,6 +91,9 @@ export function mergeCanonicalNonIdentityFields(
   };
 
   const changed =
+    fields.requesterState !== current.requesterState ||
+    fields.requesterDistrict !== current.requesterDistrict ||
+    fields.state !== current.state ||
     fields.finalAmountUsd !== current.finalAmountUsd ||
     fields.requestedAmountUsd !== current.requestedAmountUsd ||
     fields.amountStageRaw !== current.amountStageRaw;

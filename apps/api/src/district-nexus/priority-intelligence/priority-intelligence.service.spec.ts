@@ -639,6 +639,52 @@ describe('DistrictNexusPriorityIntelligenceService — member-rail failure isola
 });
 
 describe('Priority Intelligence requester attribution at the public service boundary', () => {
+  test('queries STDD district identity before applying the display limit', async () => {
+    const { prisma } = makePrisma({ congressMemberBehavior: 'empty' });
+    const findMany = jest.mocked(prisma.communityFundingRequest.findMany);
+    findMany.mockImplementation((async (args: { distinct?: unknown }) =>
+      args.distinct ? [{ fiscalYear: 2026 }] : []) as never);
+
+    await new DistrictNexusPriorityIntelligenceService(
+      prisma,
+      makeNexusStub(),
+    ).getClientDistrictPriorityIntelligence(TENANT, CLIENT, 'FL', '08');
+
+    const requestCalls = findMany.mock.calls
+      .filter(([args]) => !args?.distinct)
+      .map(([args]) => args);
+    expect(requestCalls).toHaveLength(2);
+    expect(requestCalls).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          take: 400,
+          where: expect.objectContaining({
+            chamber: 'house',
+            requesterDistrict: { in: ['08', '8', 'FL08'], mode: 'insensitive' },
+            OR: expect.arrayContaining([
+              { requesterDistrict: { equals: 'FL08', mode: 'insensitive' } },
+            ]),
+          }),
+        }),
+        expect.objectContaining({
+          take: 400,
+          where: {
+            chamber: 'senate',
+            OR: [
+              { requesterState: { equals: 'FL', mode: 'insensitive' } },
+              {
+                AND: [
+                  { requesterState: null },
+                  { state: { equals: 'FL', mode: 'insensitive' } },
+                ],
+              },
+            ],
+          },
+        }),
+      ]),
+    );
+  });
+
   test('keeps statewide requests public, credits named current members and deduplicates the combined signal', async () => {
     const { prisma } = makePrisma({
       congressMemberBehavior: (sql) =>

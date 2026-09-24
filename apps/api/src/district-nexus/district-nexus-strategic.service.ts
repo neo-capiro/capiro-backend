@@ -628,18 +628,39 @@ export class DistrictNexusStrategicService {
         recipientName: true,
         requestedAmountUsd: true,
       } as const;
-      const [houseRows, senateRows] = await Promise.all(
-        (['house', 'senate'] as const).map((chamber) =>
-          this.prisma.communityFundingRequest
-            .findMany({
-              where: { chamber, requesterState: state },
-              orderBy: [{ fiscalYear: 'desc' }, { requesterName: 'asc' }, { id: 'asc' }],
-              take: 5000,
-              select,
-            })
-            .then((rows) => rows.map((row) => ({ ...row, chamber }))),
-        ),
-      );
+      const sourceStdd = `${state}${district ?? ''}`;
+      const districtKeys =
+        district === '00'
+          ? ['00', '0', sourceStdd, 'AL', 'AT LARGE', `${state}AL`]
+          : district
+            ? [district, String(Number(district)), sourceStdd]
+            : [];
+      const [houseRows, senateRows] = await Promise.all([
+        this.prisma.communityFundingRequest
+          .findMany({
+            where: {
+              chamber: 'house',
+              requesterDistrict: { in: districtKeys, mode: 'insensitive' },
+              OR: [
+                { requesterState: state },
+                { state },
+                ...(sourceStdd ? [{ requesterDistrict: sourceStdd }] : []),
+              ],
+            },
+            orderBy: [{ fiscalYear: 'desc' }, { requesterName: 'asc' }, { id: 'asc' }],
+            take: 5000,
+            select,
+          })
+          .then((rows) => rows.map((row) => ({ ...row, chamber: 'house' as const }))),
+        this.prisma.communityFundingRequest
+          .findMany({
+            where: { chamber: 'senate', OR: [{ requesterState: state }, { state }] },
+            orderBy: [{ fiscalYear: 'desc' }, { requesterName: 'asc' }, { id: 'asc' }],
+            take: 5000,
+            select,
+          })
+          .then((rows) => rows.map((row) => ({ ...row, chamber: 'senate' as const }))),
+      ]);
       const evidence: StrategicEvidence[] = [];
       const seen = new Set<string>();
       const scanLimited = houseRows!.length === 5000 || senateRows!.length === 5000;

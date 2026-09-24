@@ -39,6 +39,12 @@ describe('normalizeCpfCdsDistrict', () => {
     expect(normalizeCpfCdsDistrict('00')).toBe('00');
   });
 
+  it('accepts strict source STDD codes without losing the state-backed district', () => {
+    expect(normalizeCpfCdsDistrict('FL08')).toBe('08');
+    expect(normalizeCpfCdsDistrict('AK00')).toBe('00');
+    expect(normalizeCpfCdsDistrict('FL8')).toBeNull();
+  });
+
   it('rejects sentinel/invalid codes as non-districts (CD119/CD120 mixing guard)', () => {
     expect(normalizeCpfCdsDistrict('90')).toBeNull();
     expect(normalizeCpfCdsDistrict('98')).toBeNull();
@@ -53,6 +59,9 @@ describe('attributeGeography — house vs senate semantics', () => {
   it('house: requires BOTH source-backed state and district', () => {
     const ok = attributeGeography(row({ requesterState: 'AL', requesterDistrict: '2' }));
     expect(ok).toEqual({ basis: 'house_district', state: 'AL', district: '02' });
+    expect(
+      attributeGeography(row({ requesterState: null, state: null, requesterDistrict: 'FL08' })),
+    ).toEqual({ basis: 'house_district', state: 'FL', district: '08' });
 
     const noDistrict = attributeGeography(row({ requesterDistrict: null }));
     expect(noDistrict).toEqual({
@@ -79,8 +88,8 @@ describe('attributeGeography — house vs senate semantics', () => {
     const withDistrict = attributeGeography(
       row({ chamber: 'senate', requesterState: 'VT', requesterDistrict: '3' }),
     );
-    expect(withDistrict).toEqual({ basis: 'senate_project_district', state: 'VT', district: '03' });
-    expect(districtKeyOf(withDistrict)).toBe('VT-03');
+    expect(withDistrict).toEqual({ basis: 'senate_statewide', state: 'VT' });
+    expect(districtKeyOf(withDistrict)).toBeNull();
   });
 });
 
