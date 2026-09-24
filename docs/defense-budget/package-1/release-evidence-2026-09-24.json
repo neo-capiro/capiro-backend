@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "releasedAt": "2026-09-24T15:22:49Z",
+  "environment": {
+    "account": "967807252336",
+    "region": "us-east-1",
+    "cluster": "capiro-dev"
+  },
+  "git": {
+    "repository": "neo-capiro/capirov2",
+    "pullRequest": 1767,
+    "mergeCommit": "a31e0dc0a4bc5b673725ed346554d631340b68f6",
+    "localMainMatched": true,
+    "githubMainMatched": true,
+    "githubActions": "infrastructure_failure_before_scheduling"
+  },
+  "build": {
+    "codeBuildId": "capiro-build-intel-api:2910dab9-3a00-4c40-be42-6aeda54b15de",
+    "resolvedSourceVersion": "a31e0dc0a4bc5b673725ed346554d631340b68f6",
+    "status": "SUCCEEDED",
+    "startedAt": "2026-09-24T14:59:11.644Z",
+    "endedAt": "2026-09-24T15:05:19.671Z",
+    "images": {
+      "api": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:6062b5b6a52ecd23c365e0c59a52d102048834fd7ef977a56615641c616455aa",
+      "defenseApi": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/defense-api@sha256:9911d9aa17548b47bb70c00cef35032c7a403b75e94bcc396c934820ab1a934e"
+    }
+  },
+  "databaseMigration": {
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:131",
+    "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/38f63b5cfa794d18af35d2d7605ee1f8",
+    "exitCode": 0,
+    "migration": "20280924020000_governed_ingestion_manifest_member_guard_v1",
+    "appliedBeforeRuntimeRollout": true
+  },
+  "apiService": {
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:441",
+    "desiredCount": 2,
+    "runningCount": 2,
+    "pendingCount": 0,
+    "rolloutState": "COMPLETED"
+  },
+  "queueInventory": {
+    "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/29813070efe74d92bdc6e9f664c1bf9e",
+    "exitCode": 0,
+    "transactionMode": "READ ONLY",
+    "rowCount": 13,
+    "manifestEligible": 0,
+    "dispositionOnlyReplayEligible": 1,
+    "writesPerformed": false
+  },
+  "annualCoordinator": {
+    "stack": "Capiro-dev-DefenseBudgetAnnualOperations",
+    "stackStatus": "UPDATE_COMPLETE",
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-defense-budget-lifecycle-coordinator:1",
+    "imageDigest": "sha256:9911d9aa17548b47bb70c00cef35032c7a403b75e94bcc396c934820ab1a934e",
+    "requestBudget": 25,
+    "leaseSeconds": 4500,
+    "dryTaskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/0248c6fd58c5449fb1581af6441b8d99",
+    "dryExitCode": 0,
+    "dryOutcome": {
+      "considered": 14,
+      "succeeded": 14,
+      "failed": 0
+    },
+    "commitTaskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/a907514e472a4b5bbfa9d185bb631c14",
+    "commitExitCode": 0,
+    "commitOutcome": {
+      "considered": 14,
+      "succeeded": 14,
+      "failed": 0,
+      "discovered": 1,
+      "changed": 0,
+      "queued": 0,
+      "blocked": 1
+    }
+  },
+  "schedulerOwnership": {
+    "legacyRule": {
+      "name": "capiro-dev-watch-budget-docs",
+      "state": "DISABLED",
+      "schedule": "cron(0 12 * * ? *)"
+    },
+    "package1Rule": {
+      "name": "capiro-dev-defense-budget-lifecycle-coordinator",
+      "state": "ENABLED",
+      "schedule": "rate(1 hour)",
+      "targetCount": 1,
+      "maximumRetryAttempts": 0,
+      "maximumEventAgeSeconds": 1800
+    }
+  },
+  "monitoring": {
+    "taskFailureAlarm": "OK",
+    "deliveryFailureAlarm": "OK",
+    "deadLetterQueueVisible": 0,
+    "deadLetterQueueInFlight": 0,
+    "deadLetterQueueDelayed": 0
+  },
+  "releaseStatus": "PACKAGE_1_COMPLETE"
+}

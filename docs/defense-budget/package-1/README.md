@@ -12,9 +12,9 @@ Package 1 extends the existing `budget-lifecycle` implementation. It does not in
 - Package E manifests are constrained to one to five immutable, reviewed members. A database trigger rejects out-of-manifest rows, over-cap rows and member-identity drift while a manifest is running.
 - A SELECT-only Package 1 queue inventory reports exact immutable identities and live approval/correction/reservation gates without exposing parser errors or source bytes.
 
-## Release gates
+## Completed release gates
 
-The coordinator stack must be deployed dark. Package 1 is not operationally complete until all of these are captured in the release evidence:
+Package 1 merged through PR #1767 at `a31e0dc0a4bc5b673725ed346554d631340b68f6`. The coordinator was deployed dark, qualified manually, and then made the exclusive schedule owner. All release gates are captured in [the release evidence](./release-evidence-2026-09-24.json):
 
 1. the additive database migration completes before either updated API runtime is deployed;
 2. the exact merged GitHub `main` SHA is used for both digest-pinned images;
@@ -23,7 +23,7 @@ The coordinator stack must be deployed dark. Package 1 is not operationally comp
 5. the legacy `capiro-dev-watch-budget-docs` rule is disabled before the new rule is enabled;
 6. the new rule has exactly one target bound to the qualified task definition and image digest.
 
-See [the operator runbook](./OPERATOR-RUNBOOK.md) and [validation evidence](./validation-evidence-2026-09-24.md).
+GitHub and local `main` were both fast-forwarded to the merge commit before the images were built. The legacy watcher is disabled, the Package 1 hourly rule is enabled, both alarms are `OK`, and the delivery DLQ is empty. See [the operator runbook](./OPERATOR-RUNBOOK.md), [validation evidence](./validation-evidence-2026-09-24.md), and [the live queue decision](./queue-recovery-summary-2026-09-24.json).
 
 ## Coverage interpretation
 
@@ -44,3 +44,4 @@ Package 1 can report discovered physical units and their current/superseded clas
 - Alternative-funding and execution certification remain Package 6 work.
 - Canonical publication remains empty at the Package 0 baseline and is not implied by lifecycle discovery.
 - The next governed manifest, if any, is selected only from the live Package 1 inventory after exact source-format qualification. It is limited to one row for the first canary. An empty eligible set is a valid and safer result.
+- The 2026-09-24 read-only inventory found no manifest-eligible row. One verification-rejected dead letter met the disposition-only replay predicate but was not qualified on the exact parked drain digest, so Package 1 performed no replay, drain or manifest write.

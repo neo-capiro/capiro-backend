@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-09-24T15:11:27.955Z",
+  "environment": "capiro-dev",
+  "releaseSha": "a31e0dc0a4bc5b673725ed346554d631340b68f6",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/29813070efe74d92bdc6e9f664c1bf9e",
+  "transactionMode": "READ ONLY",
+  "rowCount": 13,
+  "states": {
+    "pending": 9,
+    "failed": 0,
+    "deadLetter": 4
+  },
+  "jobKinds": {
+    "governedSourceIngestion": 7,
+    "governedAlternativeFundingIngestion": 6
+  },
+  "protection": {
+    "rowsWithCandidates": 5,
+    "candidateCount": 11,
+    "rowsWithActiveApprovals": 3,
+    "activeApprovalCount": 43,
+    "rowsWithCorrections": 1,
+    "correctionCount": 1,
+    "rowsWithManifestReservation": 0
+  },
+  "eligibility": {
+    "manifestEligibleNow": 0,
+    "dispositionOnlyReplayEligibleNow": 1,
+    "admittedToManifest": 0,
+    "replayed": 0
+  },
+  "decision": "NO_QUEUE_WRITE",
+  "reason": "No row satisfied the complete exact-manifest gate. The sole verification-rejected dead letter satisfied the disposition-only replay predicate but lacked exact-format qualification on the parked drain digest.",
+  "parkedDrainDigest": "sha256:8ac2255706e08a74baa3e7cb7ec3021ba9f34841a76e52134aee9344b27be461"
+}
