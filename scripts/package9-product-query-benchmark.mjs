@@ -22,7 +22,7 @@ const image = 'pgvector/pgvector:pg16';
 const durationIndex = process.argv.indexOf('--duration-seconds');
 const outputIndex = process.argv.indexOf('--output');
 const durationSeconds = durationIndex >= 0 ? Number(process.argv[durationIndex + 1]) : manifest.durationSecondsDefault;
-const requestedOutputPath = outputIndex >= 0 ? path.resolve(process.argv[outputIndex + 1]) : null;
+const requestedOutputPath = outputIndex >= 0 ? path.resolve(repoRoot, process.argv[outputIndex + 1]) : null;
 if (!Number.isInteger(durationSeconds) || durationSeconds < 1 || durationSeconds > 1800) {
   throw new Error('--duration-seconds must be an integer from 1 through 1800.');
 }
@@ -184,7 +184,10 @@ async function main() {
         } catch (error) {
           samples.push({ client: clientIndex + 1, sequence, operation, method: 'service-read',
             wallStartedAt: wallStarted, durationMs: Number((performance.now() - started).toFixed(3)),
-            outcome: 'error', errorName: error instanceof Error ? error.name : 'UnknownError', responseBytes: null, resultCount: null });
+            outcome: 'error', errorName: error instanceof Error ? error.name : 'UnknownError',
+            errorCode: error?.code ?? error?.meta?.code ?? null,
+            errorMessage: error instanceof Error ? error.message.slice(0, 400) : 'Unknown failure',
+            responseBytes: null, resultCount: null });
         }
         sequence++;
         const now = performance.now();
