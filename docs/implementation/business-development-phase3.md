@@ -2,7 +2,7 @@
 
 Date: 2026-09-25
 
-Status: implementation candidate. This document is updated after the reviewed commit is merged and the exact merged revision is deployed. The development rollout is limited to paired shadow for `capiro-internal`; visible canary is blocked and remains off.
+Status: complete and deployed for the authorized Phase 3 paired-shadow scope. The development rollout is limited to `capiro-internal`; visible canary remains mechanically blocked and off because no approved human-labeled evaluation set exists.
 
 ## Scope and authority boundary
 
@@ -96,21 +96,59 @@ These presentation paths are tested with mocks only and are not enabled in devel
 
 ## Verification
 
-- Shared Jev/core suite: 105 suites passed, 1,217 tests passed, 2 todo; core typecheck passed.
+- Shared Jev/core suite: 108 suites passed, 1,246 tests passed, 2 todo; core typecheck passed.
 - Package 2 replay compatibility remains readable under registry v4 fixtures while new output emits registry v5.
 - `report-bizdev-jev-shadow` is a read-only production-image command that emits aggregate task/status/outcome, Phase 2 agreement, review share, p50/p95 latency, tokens, and cost. It does not read subject, source, prospect, person, or firm-configuration fields.
-- Focused API, web, migration/RLS, release-control, build, and deployed-shadow results are recorded below after the final candidate completes verification.
-- Hermes delegation uses `z-ai/glm-5.3` with low reasoning, an 8,192-token response cap, a 40% warning, and a hard stop at 48% context so every session remains below the requested 50% ceiling.
+- API verification passed 8 focused suites / 176 tests plus typecheck; the shadow-null hotfix passed 2 focused suites / 73 tests plus typecheck.
+- Web verification passed 30 focused tests and the full web typecheck. CDK typecheck, 7 release-control tests, and release-script verification passed.
+- The disposable PostgreSQL rehearsal applied the Phase 3 migrations and passed forced-RLS tenant isolation, shadow-invisibility, and database-invariant checks.
+- Hermes delegation used `z-ai/glm-5.3` with low reasoning, an 8,192-token response cap, a 40% warning, and a hard stop at 48% context. The observed peak was 7.5592%; the hotfix session peaked at 4.1666% and cost $0.7737846. No Hermes session approached the requested 50% ceiling.
+- GitHub Actions did not execute because the repository account reported failed payments or an exceeded spending limit. This is an infrastructure/billing block, not a test failure; merge approval used the independently completed local gates above.
 
 ## Release evidence
 
-Pending reviewed merge and direct AWS CLI deployment. This section will record the PR/commits, local and GitHub `main` proof, immutable API/web image digests, migration/API/web task definitions, tenant UUID and final flags, shadow decision counts/outcomes/failures/latency/tokens/cost, logs, browser parity, and exact rollback targets. Until those values are present, the implementation must not be described as deployed or tenant-enabled.
+### Merge and immutable artifacts
+
+- Phase 3 implementation: [PR #1797](https://github.com/neo-capiro/capirov2/pull/1797), merge commit `bf8936001fe326d0d93a8e185be356b46fbfe560`.
+- Shadow SQL-null recovery: [PR #1801](https://github.com/neo-capiro/capirov2/pull/1801), GitHub/local `main` merge commit `3bf895a45ee600e9a63e3c0e03f6af2832d7ef87`.
+- API image built from the hotfix merge: `sha256:d971e26f72ae292eeb9c0ba2bc4cd428203b0b799d8e60ebdd4a4fb4c73b1b02`.
+- Web image: `sha256:de182c3535b2dc21bb56bb7fece187b59031eedb88b4c39fa822fdc8d7e84b51`.
+
+### Direct AWS CLI deployment
+
+- Account/region/cluster: `967807252336` / `us-east-1` / `capiro-dev`.
+- Original Phase 3 migration task definition `capiro-dev-api-admin-migrate:69` applied `20280925010000_business_development_phase3_jev` successfully.
+- Recovery migration task definition `capiro-dev-api-admin-migrate:70` applied `20280926010000_business_development_phase3_shadow_null_recovery` successfully; the database then reported 430 applied migrations.
+- API service task definition `capiro-dev-api:456` is `COMPLETED`, with 2/2 tasks healthy on the exact API digest above.
+- Web service task definition `capiro-dev-web:139` is `COMPLETED`, with 1/1 task healthy on the exact web digest above.
+
+### Tenant controls
+
+The only enabled tenant is `capiro-internal` (`17b63099-bc0f-4ac5-b596-496161e9481e`). Final flags are:
+
+- `businessDevelopment.jev.task.bdEntity.shadow.enabled=true`
+- `businessDevelopment.jev.task.bdSignal.shadow.enabled=true`
+- `businessDevelopment.jev.task.bdEntity.internalCanary.enabled=false`
+- `businessDevelopment.jev.task.bdSignal.internalCanary.enabled=false`
+
+The service allowlists only the `research` surface and the `bd_entity,bd_signal` tasks for this tenant. PDL remains disabled/deferred. Registry `jev-task-registry.v5` still caps both tasks at shadow, so tenant flags alone cannot enable visible output.
+
+The deployed task definition sets `MERI_JEV_PROVIDER_MODE=shadow`, `MERI_JEV_PROVIDER_TENANTS=17b63099-bc0f-4ac5-b596-496161e9481e`, `MERI_JEV_PROVIDER_SURFACES=research`, `MERI_JEV_TASKS=bd_entity,bd_signal`, `MERI_JEV_MODEL=jev-1.13.0`, `BIZDEV_JEV_ENABLED=true`, and both task modes to `shadow`. The TypeSafe credential is injected through the existing secret reference; it is not present in the task environment or this evidence record.
+
+### Production acceptance and telemetry
+
+- Signed-in browser QA confirmed that the resolved SATCOM dossier still renders the Phase 2 evidence and no Jev-only label or action. BD-SIGNAL recorded `explicit_link` in 321 ms without changing the response.
+- A clearly labeled manual QA prospect, `1da7f223-6e38-4dd6-8c71-111a9d0966e1` (`SATCOM DIRECT`), remains unresolved. Opening its identity dossier returned the deterministic SATCOM DIRECT GOVERNMENT candidate and recorded BD-ENTITY `insufficient_evidence` in 276 ms; Jev did not resolve, merge, or reorder the prospect.
+- The aggregate report since `2026-09-25T03:18:00Z`, generated at `2026-09-25T04:41:38.014Z`, contains one completed BD-ENTITY observation (970 input / 63 output tokens, estimated $0.000040740) and two BD-SIGNAL observations (one completed and one recovered failure; 1,180 input / 66 output tokens, estimated $0.000049560).
+- The single failed BD-SIGNAL row is the initial deployment's trace-persistence defect: JavaScript `null` was encoded as JSON null instead of SQL NULL and violated the shadow-invisibility check. The recovery migration only marked shadow rows still pending for more than 10 minutes as failed/not-checked and moved their idempotency keys to a recovery namespace. The live post-hotfix invocation completed normally.
+- No `trace completion failed` log exists after the hotfix deployment boundary (`2026-09-25T04:31:00Z`). Browser console errors/warnings were empty during acceptance.
+- Telemetry `agreement` means equality with the stored deterministic Phase 2 outcome. Each task currently has zero agreements / one disagreement; those counters are **not human accuracy**, and all rows are unreviewed. They do not satisfy or bypass the visible-canary evaluation gate.
 
 ## Rollback
 
 1. Disable the affected per-task tenant shadow flag.
 2. Set the affected `BIZDEV_JEV_TASK_*_MODE=off`, or set `BIZDEV_JEV_ENABLED=false` to stop both tasks.
-3. If the shared provider is implicated, restore the previous schema-compatible API/web task definitions and immutable image digests.
+3. If the shared provider or Phase 3 application code is implicated, restore API task definition `capiro-dev-api:454` (`sha256:a10007952f6bce99c8646de1c8e13963934234a01c2efeb406bb00ffe312ff0d`). If the web release must also be reverted, restore `capiro-dev-web:138` (`sha256:368cd7370731caf4f16c36c3aa44d37a28e631201def81d0a641ed841c63933d`). Do not roll back to API `:455`, which contains the shadow-persistence defect corrected in `:456`.
 4. Keep the additive trace and existing Phase 1/2 prospect, identity-review, source, and audit records; do not rewrite or delete them during rollback.
 
 Phase 1 prospect workflow and Phase 2 evidence dossiers remain available through every task-level rollback.
