@@ -21,4 +21,9 @@ describe('Business Development Phase 5 RLS rehearsal fixtures', () => {
       expect(part).toMatch(/^[0-9a-f]+$/);
     }
   });
+
+  test('PL/pgSQL session setup discards set_config results explicitly', () => {
+    expect(rehearsal).toContain("PERFORM set_config('app.current_tenant'");
+    expect(rehearsal).not.toContain("SELECT set_config('app.current_tenant'");
+  });
 });

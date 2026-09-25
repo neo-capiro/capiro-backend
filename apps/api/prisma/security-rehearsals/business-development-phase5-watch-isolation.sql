@@ -381,7 +381,7 @@ BEGIN
     RAISE EXCEPTION 'rehearsal must run as non-superuser/non-BYPASSRLS capiro_app';
   END IF;
 
-  SELECT set_config('app.current_tenant',
+  PERFORM set_config('app.current_tenant',
     'ea000000-0000-0000-0000-000000000001', true);
 
   -- Tenant-scoped visibility: exactly own rows, zero foreign rows.
