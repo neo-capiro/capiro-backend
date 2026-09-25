@@ -881,6 +881,20 @@ async function runQualification() {
     const detailId = /"FY2029_AUTH_EXPECTED_SOURCE_ID":\s*"([^"]+)"/.exec(corpusSeedOutput)?.[1];
     if (!detailId)
       throw new Error('Session 12 corpus seed did not report its FY2029 authorization ID.');
+    pool = new Pool({ connectionString: databaseUrl, max: 8 });
+    const removedCorpusSetupOutbox = await queryRows<{ id: string; family: string | null }>(
+      pool,
+      samples,
+      `DELETE FROM "defense_budget_ingestion_outbox"
+       RETURNING "id"::text AS "id", "family"`,
+      [],
+      'remove Session 12 corpus setup outbox before Package 9 workload',
+    );
+    if (removedCorpusSetupOutbox.length !== 5) {
+      throw new Error(
+        `Session 12 corpus setup created ${removedCorpusSetupOutbox.length} outbox rows; expected exactly 5 before the Package 9 workload.`,
+      );
+    }
     docker([
       'exec',
       containerId,
@@ -897,6 +911,9 @@ async function runQualification() {
     (rawEvidence.environment as Record<string, unknown>).queryCorpusSeed = {
       script: 'scripts/seed-phase8-session12-corpus.mjs',
       detailId,
+      setupOutboxRowsRemovedBeforeWorkload: removedCorpusSetupOutbox,
+      setupIsolationReason:
+        'The fresh Session 12 query corpus emits five fixture-setup outbox rows. They are removed before the independently identified 100-row Package 9 workload so they cannot inflate its queue cap or reconciliation denominator.',
     };
     (rawEvidence.environment as Record<string, unknown>).productQueryReader = {
       role: 'p9q_reader',
@@ -911,7 +928,6 @@ async function runQualification() {
       grantedPrivilege: 'SELECT only',
       tables: PRODUCT_QUERY_READ_TABLES,
     };
-    pool = new Pool({ connectionString: databaseUrl, max: 8 });
     const { prismaLike } = createDatabaseAdapter(pool, samples);
     const repository = createIngestionOutboxDrainRepositoryPrismaV1(prismaLike, {
       leaseMs: LEASE_MS,
