@@ -7,7 +7,7 @@
  */
 import { createHash, randomBytes } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -125,9 +125,14 @@ async function main() {
     execute('pnpm', ['--filter', '@capiro/api', 'exec', 'prisma', 'migrate', 'deploy', '--schema', 'prisma/schema.prisma'], { env: dbEnv });
     docker(['exec', containerId, 'psql', '-v', 'ON_ERROR_STOP=1', '-q', '-U', 'capiro', '-d', 'capiro', '-c',
       `CREATE ROLE p9q_reader LOGIN PASSWORD '${readerPassword}' IN ROLE capiro_defense_serve`]);
+    const defenseApiRoot = path.join(repoRoot, 'apps/defense-api');
     execute('pnpm', ['turbo', 'run', 'build', "--filter=@capiro/defense-api^..."], { timeout: 15 * 60 * 1000 });
     execute('pnpm', ['--filter', '@capiro/defense-api', 'exec', 'prisma', 'generate', '--schema', 'prisma/schema.prisma']);
+    rmSync(path.join(defenseApiRoot, 'dist'), { recursive: true, force: true });
+    rmSync(path.join(defenseApiRoot, 'tsconfig.tsbuildinfo'), { force: true });
     execute('pnpm', ['--filter', '@capiro/defense-api', 'exec', 'nest', 'build']);
+    if (!existsSync(path.join(defenseApiRoot, 'dist/budget-lifecycle/annual-cycle-controller.service.js')))
+      throw new Error('Defense API build reported success but did not emit the Session 12 reader/runtime artifact.');
     execute(process.execPath, [path.join(repoRoot, 'scripts/seed-phase8-session12-corpus.mjs')], { env: dbEnv });
 
     const require = createRequire(import.meta.url);
