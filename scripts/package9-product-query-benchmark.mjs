@@ -197,6 +197,7 @@ async function main() {
   let runError;
   let savedDist;
   let savedBuildInfo;
+  let savedPrismaClient;
   const defenseApiRoot = path.join(repoRoot, 'apps/defense-api');
   const inputFiles = [
     fileURLToPath(import.meta.url),
@@ -326,6 +327,12 @@ async function main() {
       throw new Error(
         `Benchmark role has effective table write privileges on ${privilegeCheck} public tables.`,
       );
+    savedDist = preserveForBuild(path.join(defenseApiRoot, 'dist'), runId);
+    savedBuildInfo = preserveForBuild(path.join(defenseApiRoot, 'tsconfig.tsbuildinfo'), runId);
+    savedPrismaClient = preserveForBuild(
+      path.join(defenseApiRoot, 'generated/prisma-client'),
+      runId,
+    );
     execute('pnpm', ['turbo', 'run', 'build', '--filter=@capiro/defense-api^...'], {
       timeout: 15 * 60 * 1000,
     });
@@ -338,8 +345,6 @@ async function main() {
       '--schema',
       'prisma/schema.prisma',
     ]);
-    savedDist = preserveForBuild(path.join(defenseApiRoot, 'dist'), runId);
-    savedBuildInfo = preserveForBuild(path.join(defenseApiRoot, 'tsconfig.tsbuildinfo'), runId);
     execute('pnpm', ['--filter', '@capiro/defense-api', 'exec', 'nest', 'build']);
     if (
       !existsSync(
@@ -467,6 +472,7 @@ async function main() {
           const operation =
             cycle[(sequence + clientIndex * Math.ceil(cycle.length / clientCount)) % cycle.length];
           const started = performance.now();
+          const requestStartOffsetMs = Number((started - schedulingStartedAt).toFixed(3));
           const wallStarted = new Date().toISOString();
           try {
             const value = await dispatch[operation]();
@@ -476,6 +482,7 @@ async function main() {
               sequence,
               operation,
               method: 'service-read',
+              requestStartOffsetMs,
               wallStartedAt: wallStarted,
               durationMs: Number((performance.now() - started).toFixed(3)),
               outcome: 'success',
@@ -488,6 +495,7 @@ async function main() {
               sequence,
               operation,
               method: 'service-read',
+              requestStartOffsetMs,
               wallStartedAt: wallStarted,
               durationMs: Number((performance.now() - started).toFixed(3)),
               outcome: 'error',
@@ -517,6 +525,30 @@ async function main() {
     const durations = samples.map((sample) => sample.durationMs);
     const tailCompletionSeconds = Number(((performance.now() - endAt) / 1000).toFixed(3));
     const errors = samples.filter((sample) => sample.outcome !== 'success');
+    const observedClients = new Set(samples.map((sample) => sample.client));
+    const observedOperations = new Set(samples.map((sample) => sample.operation));
+    const declaredOperations = [
+      ...new Set(manifest.operationCycle.map(({ operation }) => operation)),
+    ].sort();
+    const observedOffsets = samples.map((sample) => sample.requestStartOffsetMs);
+    const firstRequestStartOffsetMs = observedOffsets.length ? Math.min(...observedOffsets) : null;
+    const finalRequestStartOffsetMs = observedOffsets.length ? Math.max(...observedOffsets) : null;
+    const observedRequestStartSpanMs =
+      firstRequestStartOffsetMs === null || finalRequestStartOffsetMs === null
+        ? null
+        : Number((finalRequestStartOffsetMs - firstRequestStartOffsetMs).toFixed(3));
+    const finalRequestStartTailMs =
+      finalRequestStartOffsetMs === null
+        ? null
+        : Number((durationSeconds * 1000 - finalRequestStartOffsetMs).toFixed(3));
+    const allClientsObserved = observedClients.size === clientCount;
+    const missingOperations = declaredOperations.filter(
+      (operation) => !observedOperations.has(operation),
+    );
+    const completeClientIntervalCoverage =
+      finalRequestStartTailMs !== null &&
+      finalRequestStartTailMs >= 0 &&
+      finalRequestStartTailMs <= interval;
     const counts = Object.fromEntries(
       [...new Set(samples.map((sample) => sample.operation))]
         .sort()
@@ -526,9 +558,33 @@ async function main() {
         ]),
     );
     report.finishedAt = new Date().toISOString();
-    report.status = errors.length === 0 ? 'PASS_LOCAL_SYNTHETIC_SCOPE' : 'FAIL';
+    report.status =
+      errors.length === 0 &&
+      allClientsObserved &&
+      missingOperations.length === 0 &&
+      completeClientIntervalCoverage
+        ? 'PASS_LOCAL_SYNTHETIC_SCOPE'
+        : 'FAIL';
     report.metrics = {
-      requestStartSchedulingWindowSeconds: durationSeconds,
+      requestedRequestStartSchedulingWindowSeconds: durationSeconds,
+      observedRequestStartSpanSeconds:
+        observedRequestStartSpanMs === null
+          ? null
+          : Number((observedRequestStartSpanMs / 1000).toFixed(3)),
+      requestStartWindowCoveragePercent:
+        observedRequestStartSpanMs === null
+          ? null
+          : Number(((observedRequestStartSpanMs / (durationSeconds * 1000)) * 100).toFixed(2)),
+      firstRequestStartOffsetMs,
+      finalRequestStartOffsetMs,
+      finalRequestStartTailMs,
+      configuredClientIntervalMilliseconds: interval,
+      allClientsObserved,
+      observedClientCount: observedClients.size,
+      declaredOperationCount: declaredOperations.length,
+      observedOperationCount: observedOperations.size,
+      missingOperations,
+      requestStartWindowCoveredToDeadline: completeClientIntervalCoverage,
       tailCompletionSeconds,
       requestedDurationSeconds: durationSeconds,
       concurrentClients: clientCount,
@@ -558,6 +614,10 @@ async function main() {
         samples: samples.length,
         p95Ms: report.metrics.latencyMs.p95,
         errors: errors.length,
+        observedSpanSeconds: report.metrics.observedRequestStartSpanSeconds,
+        finalStartTailMs: finalRequestStartTailMs,
+        observedClients: observedClients.size,
+        observedOperations: observedOperations.size,
       })}\n`,
     );
     if (report.status !== 'PASS_LOCAL_SYNTHETIC_SCOPE') process.exitCode = 1;
@@ -583,6 +643,7 @@ async function main() {
         });
       else runError = cleanupError;
     } finally {
+      restoreAfterBuild(savedPrismaClient);
       restoreAfterBuild(savedBuildInfo);
       restoreAfterBuild(savedDist);
     }
