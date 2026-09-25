@@ -42,6 +42,7 @@ import { PrismaObservationBridgeStore } from '../prisma-observation-bridge.store
 import { DocumentRegistrar } from '../document-registrar.js';
 import { RawArchiveService, type S3CommandFactory, type S3Like } from '../raw-archive.service.js';
 import { DefaultParserHandoffAdapter } from '../default-parser-handoff.adapter.js';
+import { congressionalPacketResolverConfigFromEnv, createCongressionalPacketResolverV1 } from '../parser-router/congressional-packet-resolver-v1.js';
 import { S3SourceDocumentArchiveReadAdapter } from '../s3-source-document-archive-read.adapter.js';
 import { OperatorAttestedByteFetchPort } from './operator-attested-byte-fetch.adapter.js';
 import {
@@ -206,7 +207,12 @@ export class GovernedSourceImportService {
             }),
             this.prisma,
           ),
-          new DefaultParserHandoffAdapter({ workDir: this.infra.parserArtifactRoot }),
+          new DefaultParserHandoffAdapter({
+            workDir: this.infra.parserArtifactRoot,
+            resolveCongressionalPacket: createCongressionalPacketResolverV1(
+              congressionalPacketResolverConfigFromEnv(process.env, this.infra.parserArtifactRoot),
+            ),
+          }),
           archiveReader,
         );
         bridgeOutcome = await bridge.bridge(recorded.observationId);

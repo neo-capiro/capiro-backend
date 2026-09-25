@@ -23,6 +23,7 @@ import { PrismaObservationBridgeStore } from '../src/defense-budget/prisma-obser
 import { HttpsObservationByteFetchAdapter } from '../src/defense-budget/https-observation-byte-fetch.adapter.js';
 import { S3SourceDocumentArchiveReadAdapter } from '../src/defense-budget/s3-source-document-archive-read.adapter.js';
 import { DefaultParserHandoffAdapter } from '../src/defense-budget/default-parser-handoff.adapter.js';
+import { congressionalPacketResolverConfigFromEnv, createCongressionalPacketResolverV1 } from '../src/defense-budget/parser-router/congressional-packet-resolver-v1.js';
 import {
   ObservationIngestionBridgeService,
   type ObservationIngestionBridgeStatus,
@@ -88,7 +89,12 @@ async function main(): Promise<void> {
       new PrismaObservationBridgeStore(prisma),
       new HttpsObservationByteFetchAdapter(),
       registrar,
-      new DefaultParserHandoffAdapter({ workDir: artifactRoot }),
+      new DefaultParserHandoffAdapter({
+        workDir: artifactRoot,
+        resolveCongressionalPacket: createCongressionalPacketResolverV1(
+          congressionalPacketResolverConfigFromEnv(process.env, artifactRoot),
+        ),
+      }),
       archiveReader,
     );
     const readinessPorts = buildCycleFamilyReadinessPorts(prisma, { domain, environment });
