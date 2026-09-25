@@ -1,7 +1,7 @@
 {
   "package": 9,
   "releasedAt": "2026-09-25T01:52:34.3761012Z",
-  "updatedAt": "2026-09-25T05:03:37.9957141Z",
+  "updatedAt": "2026-09-25T11:16:40.8069757Z",
   "sourceControl": {
     "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1794",
     "mergeCommit": "f8a9079c5fb149952c450bf050d9678494884c26",
@@ -193,22 +193,86 @@
     "account": "967807252336",
     "region": "us-east-1",
     "cluster": "capiro-dev",
-    "pendingPackage9ProductQueryDeployment": {
-      "status": "DEFERRED_ACTIVE_COORDINATED_RELEASE_HOLD",
-      "mergedRevision": "daef1dddc4093bbdf3a15bc569c0d5ed96cc83e4",
-      "reason": "A separate authorized B1-B6 release owns the API and Meriv2 orchestrator deployment window. Package 9 must not overwrite either service until that task reports its final stable baseline and clears the hold.",
-      "readOnlyBaselineObservedAt": "2026-09-25T05:03:37.9957141Z",
-      "api": {
-        "service": "capiro-dev-api",
+    "package9ProductQueryDeployment": {
+      "status": "DEPLOYED_VALIDATED",
+      "holdLiftedByUser": true,
+      "deployedAt": "2026-09-25T11:14:12.753Z",
+      "deployedSourceRevision": "30a9ab33458fe3b2d6b76b73c00c773979b8cebb",
+      "package9ProductQueryMergeCommit": "daef1dddc4093bbdf3a15bc569c0d5ed96cc83e4",
+      "preDeploymentBaseline": {
         "taskDefinition": "capiro-dev-api:456",
         "desired": 2,
         "running": 2,
         "pending": 0,
         "rolloutState": "COMPLETED",
-        "imageDigest": "sha256:d971e26f72ae292eeb9c0ba2bc4cd428203b0b799d8e60ebdd4a4fb4c73b1b02",
-        "imageTags": ["3bf895a45ee600e9a63e3c0e03f6af2832d7ef87", "phase3-hotfix-20260925-api"],
-        "taskDefinitionGitSha": "8d50b9671f01fc034ec712dc7696e9fe3b1c08d0",
-        "gitShaDriftObserved": true
+        "failedTasks": 0,
+        "imageDigest": "sha256:d971e26f72ae292eeb9c0ba2bc4cd428203b0b799d8e60ebdd4a4fb4c73b1b02"
+      },
+      "codeBuild": {
+        "id": "capiro-build-intel-api:6fec612f-8138-41a7-8f0b-959c0ac5ca85",
+        "resolvedSourceVersion": "30a9ab33458fe3b2d6b76b73c00c773979b8cebb",
+        "status": "SUCCEEDED",
+        "startedAt": "2026-09-25T11:02:03.119Z",
+        "endedAt": "2026-09-25T11:05:33.732Z"
+      },
+      "image": {
+        "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
+        "digest": "sha256:d0894ee693ba7cae7199c924af2544ac1577f84232f489d46e622800329ed9dc",
+        "tags": [
+          "30a9ab33458fe3b2d6b76b73c00c773979b8cebb",
+          "package9-final-20260925-30a9ab33"
+        ]
+      },
+      "migration": {
+        "taskDefinition": "capiro-dev-api-admin-migrate:71",
+        "taskId": "c49e063fc34946149e96a9d40f932b58",
+        "imageDigest": "sha256:d0894ee693ba7cae7199c924af2544ac1577f84232f489d46e622800329ed9dc",
+        "startedAt": "2026-09-25T11:09:34.388Z",
+        "stoppedAt": "2026-09-25T11:10:07.084Z",
+        "exitCode": 0,
+        "allMigrationsSuccessfullyApplied": true,
+        "applied": [
+          "20280925020000_package9_source_bundle_reader_grant",
+          "20280927010000_business_development_phase4_brief"
+        ],
+        "logStream": "api/api-admin-migrate/c49e063fc34946149e96a9d40f932b58"
+      },
+      "service": {
+        "name": "capiro-dev-api",
+        "taskDefinition": "capiro-dev-api:457",
+        "rolloutState": "COMPLETED",
+        "desired": 2,
+        "running": 2,
+        "pending": 0,
+        "failedTasks": 0,
+        "runningTasks": [
+          {
+            "taskId": "36d9f13fe2d8441c8fd92cf9019501af",
+            "privateIp": "10.40.6.111",
+            "health": "HEALTHY",
+            "targetHealth": "healthy"
+          },
+          {
+            "taskId": "552d21d3b399470d848014e23a70e32f",
+            "privateIp": "10.40.15.250",
+            "health": "HEALTHY",
+            "targetHealth": "healthy"
+          }
+        ]
+      },
+      "runtime": {
+        "gitSha": "30a9ab33458fe3b2d6b76b73c00c773979b8cebb",
+        "taskDefinitionPreservedExceptImageAndGitSha": true,
+        "federalLegislativeEvidenceEnabled": false,
+        "programAcquisitionContinuityEnabled": false,
+        "fundingExecutionSourceAdapterEnabled": false,
+        "fundingExecutionPublicationEnabled": false,
+        "newTaskLogErrorCount": 0,
+        "smoke": {
+          "appHealthStatus": 200,
+          "appApiHealthStatus": 401,
+          "authenticatedRouteInterpretation": "Expected unauthenticated authorization wall; no 5xx response observed."
+        }
       },
       "orchestrator": {
         "service": "capiro-dev-meriv2-orchestrator",
@@ -216,9 +280,9 @@
         "desired": 1,
         "running": 1,
         "pending": 0,
-        "rolloutState": "COMPLETED"
-      },
-      "mutationPerformed": false
+        "rolloutState": "COMPLETED",
+        "modifiedByThisDeployment": false
+      }
     },
     "codeBuild": {
       "api": {
