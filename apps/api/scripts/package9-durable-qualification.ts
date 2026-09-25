@@ -671,24 +671,23 @@ async function runProductQueryMix(
   const requestStartWindowMs = PRODUCT_QUERY_MIX.durationSecondsSmoke * 1000;
   const requestStartDeadlineMs = startedMonotonicMs + requestStartWindowMs;
   const clientIntervalMs = PRODUCT_QUERY_MIX.clientIntervalMilliseconds;
+  const requestStartsPerClient = Math.ceil(requestStartWindowMs / clientIntervalMs);
   try {
     await Promise.all(
       clients.map(async (client, clientIndex) => {
-        let sequence = 0;
         const offset = clientIndex * Math.ceil(cycle.length / PRODUCT_QUERY_MIX.concurrentClients);
-        while (performance.now() < requestStartDeadlineMs) {
+        for (let sequence = 0; sequence < requestStartsPerClient; sequence++) {
+          const scheduledStartMs = startedMonotonicMs + sequence * clientIntervalMs;
+          while (performance.now() < scheduledStartMs) {
+            const remaining = scheduledStartMs - performance.now();
+            await new Promise((resolvePromise) =>
+              setTimeout(resolvePromise, Math.max(1, Math.ceil(remaining))),
+            );
+          }
+          if (performance.now() >= requestStartDeadlineMs) break;
           const operation = cycle[(sequence + offset) % cycle.length]!;
           const started = performance.now();
           await runOperation(client, operation, Number((started - startedMonotonicMs).toFixed(3)));
-          sequence++;
-          const remaining = clientIntervalMs - (performance.now() - started);
-          if (remaining > 0) {
-            const untilDeadline = requestStartDeadlineMs - performance.now();
-            if (untilDeadline > 0)
-              await new Promise((resolvePromise) =>
-                setTimeout(resolvePromise, Math.min(remaining, untilDeadline)),
-              );
-          }
         }
       }),
     );
