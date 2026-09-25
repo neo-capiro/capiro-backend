@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "package8_official_xml_candidate_v1",
+  "status": "QUALIFICATION_ONLY",
+  "eligibleForProductionManifest": false,
+  "source": {
+    "fiscalYear": 2026,
+    "budgetCycle": "PB",
+    "agency": "Defense Technical Information Center",
+    "appropriationCode": "0400",
+    "appropriationName": "Research, Development, Test &amp; Evaluation, Defense-Wide",
+    "programElementIds": ["0605801KA", "0605998KA"],
+    "programElementCount": 2,
+    "duplicateProgramElementOccurrences": 0,
+    "sourceFamily": "pb_r2",
+    "stage": "rdte"
+  },
+  "officialXml": {
+    "url": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2026/budget_justification/pdfs/03_RDT_and_E/RDTE_DTIC_PB_2026.xml",
+    "httpStatus": 200,
+    "contentType": "text/xml",
+    "byteLength": 67578,
+    "sha256": "02479cd6e67dfee10bb1029d9413dbc35e81174384b25319fedfb9589d4aac6a"
+  },
+  "handrissMirror": {
+    "repository": "handriss/defense-budget-justification-data",
+    "commit": "5c6310d9845cd75360bf4c39a220f9d6699b65df",
+    "path": "fy2026/RDTE_DTIC_PB_2026.xml",
+    "sha256": "02479cd6e67dfee10bb1029d9413dbc35e81174384b25319fedfb9589d4aac6a",
+    "officialByteMatch": true
+  },
+  "officialPdf": {
+    "url": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2026/budget_justification/pdfs/03_RDT_and_E/RDTE_DTIC_PB_2026.pdf",
+    "sha256": "08c867d61816f7b5ebb82924a33d4003ee03c7880984ac6dc9bc91363b6f2d63",
+    "byteEquivalentToXml": false
+  },
+  "inspector": {
+    "schemaVersion": "dtic_jdocs_xml_source_inspection_v1",
+    "status": "candidate_only",
+    "promotable": false,
+    "limitations": [
+      "catalog_metadata_only_no_semantic_extraction_or_verification",
+      "does_not_establish_annual_family_or_component_completeness",
+      "not_promotable_and_not_authorized_for_production_import"
+    ]
+  },
+  "nextQualificationGates": [
+    "register an exact expected-source identity through governed review",
+    "implement and qualify stable XML element-path semantic extraction",
+    "reconcile XML semantics against the official PDF",
+    "establish completeness denominator and human review record",
+    "persist parser/proof artifacts before any historical replay"
+  ]
+}
