@@ -172,4 +172,37 @@ describe('generateBatchEmails — group per-member enrichment suppression (W0.3)
     // …and its thunk still resolves the exact text (invoke it, don't trust the label).
     expect(await additional!.load()).toBe('Shared coalition ask: fund directed-energy in FY27 NDAA.');
   });
+
+  test('a group-scoped personalized note remains addressable by its one shared draft', async () => {
+    const { service, captured } = serviceCapturingEnrichment();
+    await service.generateBatchEmails(ctx, {
+      templateId: 'system-outreach-message',
+      recipients: [{
+        id: 'group:G1',
+        name: 'HASC offices',
+        generationKeys: ['group:G1'],
+        groupMembers: [
+          { email: 'dana@mail.house.gov', name: 'Dana Reed' },
+          { email: 'lee@mail.house.gov', name: 'Lee Smith' },
+        ],
+      }],
+      audienceKind: 'group',
+      contextItems: [{
+        id: 'ctx-note-g1',
+        kind: 'note',
+        scope: 'group:G1',
+        customNoteText: 'Address the shared markup timeline.',
+        noteUse: 'instruction',
+      }],
+    });
+
+    const request = captured[0]!.request;
+    const recipient = request.recipient as { scopeKeys: string[] };
+    expect(recipient.scopeKeys).toContain('group:G1');
+    expect(request.items).toEqual([expect.objectContaining({
+      id: 'ctx-note-g1',
+      scope: 'group:G1',
+      customNoteText: 'Address the shared markup timeline.',
+    })]);
+  });
 });

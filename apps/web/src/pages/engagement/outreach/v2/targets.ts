@@ -446,9 +446,10 @@ export function collisionsFingerprint(collisions: RecipientCollision[]): string 
  *   'group:<targetKey>'  — a group (the group's one shared email)
  *
  * The generate/send backend routes context by matching scope to a recipient's
- * key, so list/group scopes must be EXPANDED into per-member-keyed copies
- * before they're sent. 'all' and bare-recipientKey scopes pass through
- * unchanged; an item scoped to a list/group that no longer exists is dropped.
+ * key, so list scopes are EXPANDED into per-member-keyed copies before they're
+ * sent. A group is one shared email, so its group scope stays intact and matches
+ * that single generated recipient. 'all' and bare-recipientKey scopes pass
+ * unchanged; an item scoped to a removed list/group is dropped.
  * Generic so it works on both the wizard's SelectedContextItem and the saved
  * contextPool projection.
  */
@@ -459,18 +460,19 @@ export function expandContextItemScopes<T extends { scope: 'all' | string }>(
   const out: T[] = [];
   for (const item of items) {
     const s = item.scope;
-    const type: TargetType | null = s.startsWith('list:')
-      ? 'list'
-      : s.startsWith('group:')
-        ? 'group'
-        : null;
+    const type: TargetType | null = s.startsWith('list:') ? 'list' : null;
+    if (s.startsWith('group:')) {
+      const key = s.slice('group:'.length);
+      if (targets.some((t) => t.type === 'group' && t.key === key)) out.push(item);
+      continue;
+    }
     if (!type) {
       out.push(item); // 'all' or an individual recipientKey — unchanged
       continue;
     }
     const key = s.slice(s.indexOf(':') + 1);
     const target = targets.find((t) => t.type === type && t.key === key);
-    if (!target) continue; // scoped to a removed list/group — drop the orphan
+    if (!target) continue; // scoped to a removed list — drop the orphan
     for (const r of target.recipients) out.push({ ...item, scope: recipientKey(r) });
   }
   return out;

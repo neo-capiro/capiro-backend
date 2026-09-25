@@ -6,7 +6,12 @@
  */
 import { describe, expect, jest, test } from '@jest/globals';
 import type { TenantContext } from '@capiro/shared';
-import { MessagePlanService, MESSAGE_PLAN_MAX_OUTPUT_TOKENS, supportsStrictJson } from './message-plan.service.js';
+import {
+  MessagePlanService,
+  MESSAGE_PLAN_MAX_OUTPUT_TOKENS,
+  supportsStrictJson,
+  type BuildPlanRequest,
+} from './message-plan.service.js';
 import { MessagePlanInvalidError, messagePlanSchema, type MessagePlan } from './message-plan.schema.js';
 import type { EvidencePacketV2 } from './evidence-packet.types.js';
 
@@ -112,6 +117,45 @@ function issueCodes(fn: () => void): string[] {
 describe('a valid plan passes', () => {
   test('no issues for a well-formed plan', () => {
     expect(() => validate(plan())).not.toThrow();
+  });
+});
+
+describe('recipient-specific context reaches the planner after evidence', () => {
+  test('the plan prompt includes selected evidence and places the mandatory scoped note after it', () => {
+    const selectedText = 'The client expects the procurement review in October.';
+    const noteText = 'Mention the review only when it helps the ask.';
+    const request: BuildPlanRequest = {
+      packet: packet({
+        evidence: [{
+          ref: {
+            sourceType: 'document', sourceId: 'doc-brief', title: 'Client brief',
+            trust: 'external_untrusted', retrievedAt: NOW.toISOString(),
+          },
+          evidenceText: selectedText,
+          scope: 'dana',
+        }],
+        directives: [{
+          id: 'note:dana', kind: 'custom_note', text: noteText,
+          scope: 'dana', authenticatedUserId: 'u1',
+        }],
+      }),
+      creds: [],
+      recipientBrief: 'Name: Dana Reed',
+      audienceKind: 'individual',
+      clientName: 'Aperture Defense Systems',
+      tone: 'professional',
+      recipientScopeKeys: ['dana'],
+    };
+    const renderer = service() as unknown as {
+      renderPlanPrompt(input: BuildPlanRequest): { system: string; userVolatile: string };
+    };
+
+    const prompt = renderer.renderPlanPrompt(request);
+    expect(prompt.userVolatile).toContain(selectedText);
+    expect(prompt.userVolatile).toContain(noteText);
+    expect(prompt.userVolatile.indexOf(noteText)).toBeGreaterThan(prompt.userVolatile.indexOf(selectedText));
+    expect(prompt.system).toContain('mandatory for their matching recipient/group');
+    expect(prompt.system).toContain('do not silently ignore selected sources');
   });
 });
 
@@ -695,4 +739,3 @@ describe('string-overlength-only repair', () => {
     expect(result.usage).toEqual({ inputTokens: 10, outputTokens: 5 });
   });
 });
-

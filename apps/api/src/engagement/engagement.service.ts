@@ -3994,6 +3994,9 @@ export class EngagementService {
         state: recipient.state ?? null,
         district: recipient.district ?? null,
         chamber: match?.member?.chamber ?? recipient.chamber ?? null,
+        ...(!o.isGroup && recipient.personalNote?.trim()
+          ? { personalNote: recipient.personalNote.trim().slice(0, 500) }
+          : {}),
         // Server-resolved committee context — reaches the recipient brief so
         // even a bioguide-less staffer hands the planner a committee hook.
         ...(match?.member?.committees?.length ? { committees: match.member.committees } : {}),
