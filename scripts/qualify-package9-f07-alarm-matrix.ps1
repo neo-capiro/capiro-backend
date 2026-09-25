@@ -132,6 +132,21 @@ function Invoke-AwsCli([string[]]$Arguments) {
   if ($LASTEXITCODE -ne 0) { throw "aws $($Arguments -join ' ') failed: $($output -join "`n")" }
   return ($output -join "`n")
 }
+function Invoke-AwsCliProbe([string[]]$Arguments) {
+  # Windows PowerShell turns redirected native stderr into an ErrorRecord. These
+  # probes expect a nonzero AWS CLI exit, so capture it without allowing the
+  # script-wide Stop preference to abort before LASTEXITCODE can be inspected.
+  $priorPreference = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = 'Continue'
+    $output = & aws.exe @Arguments 2>&1
+    $exitCode = $LASTEXITCODE
+  }
+  finally {
+    $ErrorActionPreference = $priorPreference
+  }
+  return [pscustomobject]@{ exitCode = $exitCode; output = ($output -join "`n") }
+}
 function Add-Observation([string]$Phase, [string]$State, [string]$Detail, [object]$Extra = $null) {
   $row = [ordered]@{ at = (Get-Date).ToUniversalTime().ToString('o'); phase = $Phase; state = $State; detail = $Detail }
   if ($null -ne $Extra) { foreach ($property in $Extra.PSObject.Properties) { $row[$property.Name] = $property.Value } }
@@ -259,10 +274,10 @@ try {
   if ($existing.Trim() -ne '0') { throw 'Generated alarm prefix already exists' }
   $existingTopics = Invoke-AwsCli @('sns','list-topics','--region',$Region,'--query',"length(Topics[?ends_with(TopicArn, ':$topicName')])",'--output','text')
   if ($existingTopics.Trim() -ne '0') { throw 'Generated SNS topic name already exists' }
-  $queuePreflight = & aws.exe sqs get-queue-url --region $Region --queue-name $queueName --output json 2>&1
-  $queuePreflightCode = $LASTEXITCODE
+  $queuePreflight = Invoke-AwsCliProbe @('sqs','get-queue-url','--region',$Region,'--queue-name',$queueName,'--output','json')
+  $queuePreflightCode = $queuePreflight.exitCode
   if ($queuePreflightCode -eq 0) { throw 'Generated SQS queue name already exists' }
-  if (($queuePreflight -join "`n") -notmatch 'NonExistentQueue') { throw "Could not prove generated queue name absent: $($queuePreflight -join "`n")" }
+  if ($queuePreflight.output -notmatch 'NonExistentQueue') { throw "Could not prove generated queue name absent: $($queuePreflight.output)" }
   $topicArn = (Invoke-AwsCli @('sns','create-topic','--region',$Region,'--name',$topicName,'--query','TopicArn','--output','text')).Trim()
   $queueUrl = (Invoke-AwsCli @('sqs','create-queue','--region',$Region,'--queue-name',$queueName,'--attributes','SqsManagedSseEnabled=true','--query','QueueUrl','--output','text')).Trim()
   $queueAttributesReadback = Invoke-AwsCli @('sqs','get-queue-attributes','--region',$Region,'--queue-url',$queueUrl,'--attribute-names','QueueArn','SqsManagedSseEnabled','--output','json') | ConvertFrom-Json
@@ -355,9 +370,9 @@ finally {
       catch { $cleanupErrors.Add($_.Exception.Message); $result.cleanup.alarmsAbsent = $false }
     } else { $result.cleanup.alarmsAbsent = $true }
     try { $remaining = (Invoke-AwsCli @('sns','list-topics','--region',$Region,'--query',"length(Topics[?ends_with(TopicArn, ':$topicName')])",'--output','text')).Trim(); $result.cleanup.topicAbsent = $remaining -eq '0' } catch { $cleanupErrors.Add($_.Exception.Message); $result.cleanup.topicAbsent = $false }
-    $queueLookup = & aws.exe sqs get-queue-url --region $Region --queue-name $queueName --output json 2>&1
-    $queueLookupCode = $LASTEXITCODE
-    $queueLookupText = $queueLookup -join "`n"
+    $queueLookup = Invoke-AwsCliProbe @('sqs','get-queue-url','--region',$Region,'--queue-name',$queueName,'--output','json')
+    $queueLookupCode = $queueLookup.exitCode
+    $queueLookupText = $queueLookup.output
     $result.cleanup.queueAbsent = $queueLookupCode -ne 0 -and $queueLookupText -match 'NonExistentQueue'
     if ($queueLookupCode -ne 0 -and -not $result.cleanup.queueAbsent) {
       $cleanupErrors.Add("Could not verify queue absence: $queueLookupText")
