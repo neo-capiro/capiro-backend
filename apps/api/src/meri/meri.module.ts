@@ -6,6 +6,9 @@ import { EngagementModule } from '../engagement/engagement.module.js';
 import { ClientDocumentsModule } from '../client-documents/client-documents.module.js';
 import { MeriClientFilingService } from './meri-client-filing.service.js';
 import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module.js';
+// Phase 4 server-only slice: one-way import. BD exports the scope service;
+// BD itself must NEVER import MeriModule (no reverse dependency).
+import { BusinessDevelopmentModule } from '../business-development/business-development.module.js';
 import { AiCredentialResolverService } from '../ai-credentials/ai-credential-resolver.service.js';
 import { LdaIntelModule } from '../lda-intel/lda-intel.module.js';
 import { LobbyIntelModule } from '../lobby-intel/lobby-intel.module.js';
@@ -126,6 +129,9 @@ import { MERI_HERMES_SECURITY_ENVELOPE } from './hermes/meri-hermes-security.por
     RetrievalModule,
     ReviewsModule,
     FundingOpportunitiesModule,
+    // Phase 4 server-only slice: provides BizDevMeriScopeService for Meri
+    // prospect conversation creation (one-way; BD never imports Meri).
+    BusinessDevelopmentModule,
   ],
   controllers: [
     MeriController,

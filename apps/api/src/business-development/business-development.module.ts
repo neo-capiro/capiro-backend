@@ -16,6 +16,7 @@ import {
   BIZDEV_JEV_SERVICE,
 } from './bizdev-jev.service.js';
 import { BizDevJevProviderFactory } from './bizdev-jev.factory.js';
+import { BizDevMeriScopeService } from './bizdev-meri-scope.service.js';
 
 /**
  * Business Development Phase 1 — firm-private prospect pipeline.
@@ -53,6 +54,9 @@ import { BizDevJevProviderFactory } from './bizdev-jev.factory.js';
     BizDevJevService,
     { provide: BIZDEV_JEV_SERVICE, useExisting: BizDevJevService },
     { provide: BIZDEV_JEV_REVIEW_HOOK, useExisting: BizDevJevService },
+    // Phase 4 server-only slice: bounded Meri prospect-conversation scope
+    // resolution (exported for MeriModule; BD must never import Meri).
+    BizDevMeriScopeService,
   ],
   exports: [
     BusinessDevelopmentService,
@@ -62,6 +66,7 @@ import { BizDevJevProviderFactory } from './bizdev-jev.factory.js';
     BizDevBriefService,
     BusinessDevelopmentBriefFlagGuard,
     BizDevJevService,
+    BizDevMeriScopeService,
   ],
 })
 export class BusinessDevelopmentModule {}

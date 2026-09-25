@@ -8,6 +8,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
@@ -33,6 +34,15 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { LearningSignalCaptureService } from '../learning/learning-signal-capture.service.js';
 import { buildMeriFeedbackSignal } from '../learning/adapters/meri-feedback.adapter.js';
 import { QualityTelemetryCaptureService } from '../quality-telemetry/quality-telemetry-capture.service.js';
+// Phase 4 server-only slice: BD prospect scope for prospect-scoped Meri
+// conversation creation. Optional so existing direct-construction specs keep
+// compiling; runtime Nest wiring (MeriModule ← BusinessDevelopmentModule)
+// always provides it, and a prospect request without it fails closed.
+import {
+  BizDevMeriScopeService,
+  MERI_PROSPECT_SCOPE_METADATA_KEY,
+  type MeriProspectScope,
+} from '../business-development/bizdev-meri-scope.service.js';
 import { buildMeriFeedbackTelemetryEvent } from '../quality-telemetry/adapters/meri-feedback.telemetry-adapter.js';
 import {
   applyRecallScoreFloor,
@@ -189,6 +199,10 @@ import { shouldRouteMeriV2FullChat } from './meriv2-routing.helpers.js';
 interface CreateConversationInput {
   clientId?: string;
   title?: string;
+  // Phase 4 server-only slice: BD prospect the conversation is scoped to.
+  // The server resolves the full bounded scope; the client may supply ONLY
+  // this id — never any other prospect scope field.
+  prospectId?: string;
 }
 
 interface UpdateConversationInput {
@@ -309,6 +323,11 @@ export class MeriService implements MeriTurnMaintenance {
     // learningSignals above: absent means no event recorded, no other
     // behavior change to the feedback write itself.
     private readonly qualityTelemetry?: QualityTelemetryCaptureService,
+    // Phase 4 server-only slice: @Optional() so existing direct-construction
+    // tests don't all break; Nest runtime wiring provides it via
+    // BusinessDevelopmentModule. A prospect request with it unavailable
+    // fails closed in createConversation.
+    @Optional() private readonly bizdevScope?: BizDevMeriScopeService,
   ) {}
 
   async status(ctx: TenantContext) {
@@ -353,8 +372,34 @@ export class MeriService implements MeriTurnMaintenance {
 
   async createConversation(ctx: TenantContext, input: CreateConversationInput) {
     const title = input.title?.trim() || 'New Meri session';
-    if (input.clientId) {
-      await this.ensureClientVisible(ctx, input.clientId);
+    let resolvedClientId = input.clientId ?? null;
+    // ── Phase 4 server-only slice: prospect-scoped conversation creation ──
+    // Resolve the bounded prospect scope SERVER-side before any write. A
+    // prospect request with the optional scope service unavailable fails
+    // closed (the feature does not exist for this caller).
+    let prospectScope: MeriProspectScope | null = null;
+    if (input.prospectId) {
+      if (!this.bizdevScope) throw new NotFoundException();
+      prospectScope = await this.bizdevScope.resolve(ctx, input.prospectId);
+      if (prospectScope.linkedClientId) {
+        if (resolvedClientId && resolvedClientId !== prospectScope.linkedClientId) {
+          throw new BadRequestException(
+            'This prospect is already linked to a different client.',
+          );
+        }
+        resolvedClientId = prospectScope.linkedClientId;
+      } else if (resolvedClientId) {
+        // No confirmed linked client on the prospect: the caller may not
+        // select an arbitrary client to attach a prospect conversation to.
+        throw new BadRequestException(
+          'This prospect has no linked client, so a client cannot be selected for it.',
+        );
+      }
+    }
+    if (resolvedClientId) {
+      // Linked and directly selected clients use the same visibility check,
+      // exactly once, before the conversation is written.
+      await this.ensureClientVisible(ctx, resolvedClientId);
     }
     const profile = await this.currentProfile(ctx);
 
@@ -363,14 +408,21 @@ export class MeriService implements MeriTurnMaintenance {
         data: {
           tenantId: ctx.tenantId,
           userId: ctx.userId,
-          clientId: input.clientId ?? null,
+          clientId: resolvedClientId,
           title,
           workspaceKey: 'workspace',
           metadata: {
             brand: PRODUCT_NAME,
             runtime: RUNTIME_NAME,
             userEmail: profile.email,
-          },
+            ...(prospectScope
+              ? {
+                  [MERI_PROSPECT_SCOPE_METADATA_KEY]: JSON.parse(
+                    JSON.stringify(prospectScope),
+                  ) as Prisma.InputJsonValue,
+                }
+              : {}),
+          } satisfies Prisma.InputJsonValue,
         },
       }),
     );
