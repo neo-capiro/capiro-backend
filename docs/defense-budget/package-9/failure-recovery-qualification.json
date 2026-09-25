@@ -4,13 +4,21 @@
   "qualification": "operations-load-failure-recovery",
   "decision": "NO_GO",
   "activationAllowed": "shadow-only",
-  "measurementStatus": "PARTIAL_PASS_LIMITED_LOCAL_POSTGRES",
+  "measurementStatus": "PARTIAL_PASS_LIMITED_LOCAL_POSTGRES_AND_ISOLATED_AWS_ALARM_PATH",
   "retainedRun": {
     "report": "./evidence/durable-run-p9-20260925024117927-2c727e.json",
     "sha256": "2b6adbffe6cfb4ee048901e30314d313cb31121aa77388418337e1bf01f6aeeb",
     "sourceRevision": "8d50b9671f01fc034ec712dc7696e9fe3b1c08d0",
     "status": "PASS_LIMITED_SCOPE",
     "scope": "Disposable local PostgreSQL repository/worker, synthetic append-only evidence and notification ledgers, deterministic source/provider stubs, and four-worker 100-row reconciliation only."
+  },
+  "retainedAlarmRun": {
+    "report": "./evidence/alarm-delivery-run-p9-f07-20260925T030858Z-5d9b39.json",
+    "sha256": "e32c7fc51979a831e1cc61ebc3977d04d5e39dd8de30e9fd638a0c25fb32bf10",
+    "sourceRevision": "f691689c63cb40941e15fad25e4b6f264a4ddba5",
+    "harnessSha256": "fcf3ffb35af4875ad90f0d758356fe5afd043130e6f9502faf9d6ab864377541",
+    "status": "PASS_LIMITED_SCOPE",
+    "scope": "One uniquely named synthetic CloudWatch alarm delivered ALARM and recovery OK through an exact ephemeral SNS topic to an encrypted SQS receiver; both messages were acknowledged and every ephemeral resource was verified absent after cleanup."
   },
   "budgetSource": "../package-0/operating-budgets.v1.json",
   "hardLimits": {
@@ -207,7 +215,13 @@
     },
     {
       "id": "P9-F07-ALARM-DELIVERY",
-      "status": "NOT_RUN",
+      "status": "PARTIAL_PASS_ISOLATED_DELIVERY_ONLY",
+      "retainedEvidence": {
+        "report": "./evidence/alarm-delivery-run-p9-f07-20260925T030858Z-5d9b39.json",
+        "sha256": "e32c7fc51979a831e1cc61ebc3977d04d5e39dd8de30e9fd638a0c25fb32bf10",
+        "harness": "../../../scripts/qualify-package9-f07-isolated.ps1",
+        "harnessSha256": "fcf3ffb35af4875ad90f0d758356fe5afd043130e6f9502faf9d6ab864377541"
+      },
       "failure": "Cross each warning and stop threshold in an isolated run and verify delivery to the named receiver without affecting production workloads.",
       "procedure": [
         "Bind named alarm receivers and record exact alarm/rule identities before injection.",
@@ -218,6 +232,18 @@
         "Every required alarm transitions and reaches its named receiver within the declared delivery window.",
         "Each stop threshold prevents new admission while preserving queued and immutable evidence.",
         "Missing, delayed, misrouted, or unacknowledged alarm delivery fails qualification."
+      ],
+      "executedAssertions": [
+        "A synthetic alarm transitioned from INSUFFICIENT_DATA to ALARM and delivered through its exact ephemeral SNS topic to the isolated encrypted SQS receiver.",
+        "The ALARM notification was acknowledged and deleted.",
+        "The same alarm recovered from ALARM to OK, delivered recovery, and the recovery notification was acknowledged and deleted.",
+        "Two consecutive empty receives followed acknowledgement; the alarm, subscription, topic, and queue were deleted and verified absent."
+      ],
+      "unqualifiedAssertions": [
+        "The remaining required Package 9 warning and stop thresholds were not crossed.",
+        "No named human or production receiver participated.",
+        "Stop-admission and queued or immutable evidence preservation were not exercised.",
+        "The full P9-F07 scenario therefore is not PASS and cannot authorize activation."
       ],
       "primaryOwner": "platform lead",
       "coOwners": [
