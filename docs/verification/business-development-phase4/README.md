@@ -8,3 +8,5 @@ The two JSON files in this directory are redacted, contract-shaped brief example
 These are review fixtures, not production database exports and not claims of exhaustive provider coverage. `snapshotHash` and `sectionsHash` are labeled fixture values rather than production digests. Each factual statement cites an index in the same immutable version, and each cited record appears in that version's `sourceSnapshot.evidence` array.
 
 Public source locators may redirect or require the source site's normal browser behavior. If a source becomes inaccessible, the product preserves the captured record identity and reports the limitation rather than rewriting the saved version.
+
+The database release gate is `apps/api/prisma/security-rehearsals/business-development-phase4-brief-isolation.sql`. Run it only against a disposable database after applying all Prisma migrations. It uses two synthetic tenants under the non-superuser `capiro_app` role, proves RLS and append-only version grants, and rolls the entire fixture transaction back.

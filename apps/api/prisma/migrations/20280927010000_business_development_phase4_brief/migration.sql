@@ -203,6 +203,10 @@ DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'capiro_app') THEN
     GRANT SELECT, INSERT, UPDATE, DELETE ON "business_development_briefs" TO capiro_app;
+    -- The role-wide default privileges grant UPDATE/DELETE on every newly
+    -- created table. Remove those inherited capabilities explicitly so saved
+    -- brief versions are append-only at the database boundary.
+    REVOKE UPDATE, DELETE, TRUNCATE ON "business_development_brief_versions" FROM capiro_app;
     GRANT SELECT, INSERT ON "business_development_brief_versions" TO capiro_app;
   END IF;
 END

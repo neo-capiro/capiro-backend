@@ -118,6 +118,7 @@ Completed gates:
 - Meri orchestrator prompt plus read/write tool catalogs: 3 suites / 38 tests passed.
 - Web Phase 4 launch/editor/scope tests and existing Phase 1–3 Business Development regressions: 7 files / 84 tests passed. The run emitted existing React `act(...)` and React Router future-flag warnings only; there were no failed assertions.
 - API TypeScript compile (`tsc --noEmit -p tsconfig.json`), full web typecheck, orchestrator typecheck, and shared-contract typecheck passed.
+- A disposable PostgreSQL 16 database applied all 432 repository migrations from an empty schema, including the Phase 4 migration. The rollback-only two-tenant rehearsal then passed tenant-isolated reads/writes, fail-closed unset tenant context, cross-tenant insert/update denial, append-only version grants, idempotency uniqueness, and same-brief current-version foreign-key enforcement.
 - Prettier check and `git diff --check` passed after the final implementation/documentation changes.
 - Both redacted JSON examples parsed successfully.
 
