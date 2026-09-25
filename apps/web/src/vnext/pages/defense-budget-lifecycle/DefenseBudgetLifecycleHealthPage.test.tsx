@@ -164,6 +164,7 @@ describe('DefenseBudgetLifecycleHealthPage', () => {
     expect(screen.getByText('Failed downloads')).toBeInTheDocument();
     expect(screen.getByText('authorization')).toBeInTheDocument();
     expect(screen.getByText('disabled — DETERMINISTIC_PRIMARY')).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'FY2024' })).toBeInTheDocument();
   });
 
   it('shows an empty state when no expected sources are registered for the fiscal year', async () => {

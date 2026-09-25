@@ -22,7 +22,7 @@ import {
 } from './defense-budget-lifecycle-api.js';
 import './defense-budget-lifecycle-vnext.css';
 
-const FISCAL_YEAR_OPTIONS = [2029, 2028, 2027, 2026, 2025].map((year) => ({
+const FISCAL_YEAR_OPTIONS = [2029, 2028, 2027, 2026, 2025, 2024, 2023].map((year) => ({
   label: `FY${year}`,
   value: String(year),
 }));
