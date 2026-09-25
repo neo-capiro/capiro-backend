@@ -13,7 +13,7 @@ import { PortfolioIndexPage } from '../portfolio/PortfolioIndexPage.js';
 import { DiscoverPanel } from './BizDevDiscover.js';
 import { DossierDrawer } from './BizDevDossier.js';
 import { BizDevBrief } from './BizDevBrief.js';
-import { requestMeriContextPrompt } from '../../../components/chat/meri-prompt.js';
+import { openVNextMeriWorkspaceWindow } from '../../../components/chat/meri-window.js';
 import {
   applyBizDevRoute,
   BIZDEV_CONFLICT_FILTERS,
@@ -145,7 +145,7 @@ async function draftBriefWithMeri(
     toast.error(bizdevErrorMessage(error));
     return;
   }
-  requestMeriContextPrompt({
+  openVNextMeriWorkspaceWindow(window, window.location.origin, {
     prompt: BIZDEV_DRAFT_WITH_MERI_PROMPT,
     prospectId: prospect.id,
   });
