@@ -254,7 +254,8 @@
     "typecheck:package6": "tsc -p tsconfig.package6.json --noEmit",
     "typecheck:defense-budget-ingestion-manifest-v1": "tsc -p tsconfig.defense-budget-ingestion-manifest-v1.json --noEmit",
     "verify:defense-budget-ingestion-manifest-v1": "jest --runInBand --forceExit src/defense-budget/governed-ingestion-manifest scripts/run-defense-budget-ingestion-manifest-v1.spec.ts",
-    "qualify:package9:durable": "tsx scripts/package9-durable-qualification.ts"
+    "qualify:package9:durable": "tsx scripts/package9-durable-qualification.ts",
+    "qualify:package9:product-query": "node ../../scripts/package9-product-query-benchmark.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1132.0",

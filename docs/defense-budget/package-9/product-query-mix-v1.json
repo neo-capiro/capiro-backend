@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "package9-local-synthetic-product-query-mix-v1",
+  "classification": "synthetic-local-only-not-production-or-buyer-evidence",
+  "reader": "BudgetLifecycleQueryService backed by PrismaBudgetLifecycleReadStore",
+  "corpus": "scripts/seed-phase8-session12-corpus.mjs",
+  "durationSecondsDefault": 1800,
+  "durationSecondsSmoke": 5,
+  "concurrentClients": 4,
+  "clientIntervalMilliseconds": 1000,
+  "schedule": "Each client runs one query per second, choosing by a deterministic round-robin through the weighted operation cycle, offset by client number.",
+  "operationCycle": [
+    { "operation": "cycle-health-fy2029", "weight": 4 },
+    { "operation": "cycle-health-fy2030", "weight": 2 },
+    { "operation": "expected-sources-fy2029-authorization", "weight": 3 },
+    { "operation": "coverage-inventory-fy2029", "weight": 3 },
+    { "operation": "review-required-detail-fy2029", "weight": 2 },
+    { "operation": "review-queue-fy2029", "weight": 3 },
+    { "operation": "lifecycle-signals-fy2029", "weight": 2 },
+    { "operation": "schedule-tick-health", "weight": 1 }
+  ],
+  "limitations": [
+    "The mix and rate are explicit synthetic choices, not derived from tenant request telemetry.",
+    "Calls exercise the production compiled query service and Prisma read store directly, not HTTP routing, authentication, browser behavior, or network latency.",
+    "The Session 12 corpus has two fiscal years and a small synthetic record set; it is not a representative production-size database.",
+    "No source-change-to-verified-buyer-visible update latency, model cost, buyer workflow outcome, or production/AWS latency is measured."
+  ]
+}
