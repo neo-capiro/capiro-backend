@@ -4,7 +4,7 @@
   "qualification": "operations-load-failure-recovery",
   "decision": "NO_GO",
   "activationAllowed": "shadow-only",
-  "measurementStatus": "PARTIAL_PASS_LIMITED_LOCAL_COMPOSITE_ROLLBACK_AND_ISOLATED_AWS_ALARM_PATH",
+  "measurementStatus": "PARTIAL_PASS_LIMITED_LOCAL_COMPONENTS_AND_ISOLATED_AWS_ALARM_PATH",
   "retainedRun": {
     "report": "./evidence/durable-run-p9-20260925024117927-2c727e.json",
     "sha256": "2b6adbffe6cfb4ee048901e30314d313cb31121aa77388418337e1bf01f6aeeb",
@@ -28,6 +28,15 @@
     "migrationHarnessSha256": "5d48fae19758ca986aa73c180145e2f36d9f87f0a34b056a765da6281937d727",
     "status": "PASS_LIMITED_LOCAL_COMPOSITE",
     "scope": "Disposable local PostgreSQL plus the shipped ProgramElementReadService and PeSnapshotGateService: tenant-canary pointer route, emergency legacy process switch, real authorized pointer rollback, restored canary route, immutable-snapshot preservation, drain pause, outbox suppression, and durable audit assertions. Canonical route content was an empty synthetic result, not a populated buyer response."
+  },
+  "retainedProductQueryRun": {
+    "report": "./evidence/product-query-p9q-20260925042812623-c66b14bb.json",
+    "sha256": "8513d52ec88ed2c700b5fea171e0d6d116f31eba8487b31e82a7b72e28b9a82b",
+    "sourceRevision": "f948d23cc984cd356b042caa555e3a642f3ca039",
+    "harnessSha256": "2eb70cc0ba95831730669ff5a1a6de59b205fa654a930a94f785ff0615fb971a",
+    "mixSha256": "85ad5e9bee922b0a471734ae10a4c707f92eb7164058950a9bc11b7c6535fc35",
+    "status": "PASS_LOCAL_SYNTHETIC_SCOPE",
+    "scope": "A 1,800-second request-start window against compiled BudgetLifecycleQueryService and PrismaBudgetLifecycleReadStore with a small synthetic Session 12 corpus in disposable local PostgreSQL. It bypassed HTTP, authentication, network hops, AWS topology, production data, buyer traffic, concurrent outbox drain, and update-latency measurement."
   },
   "budgetSource": "../package-0/operating-budgets.v1.json",
   "hardLimits": {
@@ -189,7 +198,15 @@
     },
     {
       "id": "P9-L01-PEAK-LOAD-AND-QUERY",
-      "status": "PARTIAL_PASS_LOCAL_POSTGRES",
+      "status": "PARTIAL_PASS_LIMITED_LOCAL_COMPONENTS",
+      "retainedEvidence": {
+        "productQueryReport": "./evidence/product-query-p9q-20260925042812623-c66b14bb.json",
+        "productQuerySha256": "8513d52ec88ed2c700b5fea171e0d6d116f31eba8487b31e82a7b72e28b9a82b",
+        "productQueryHarness": "../../../scripts/package9-product-query-benchmark.mjs",
+        "productQueryHarnessSha256": "2eb70cc0ba95831730669ff5a1a6de59b205fa654a930a94f785ff0615fb971a",
+        "durableRecoveryReport": "./evidence/durable-run-p9-20260925024117927-2c727e.json",
+        "durableRecoverySha256": "2b6adbffe6cfb4ee048901e30314d313cb31121aa77388418337e1bf01f6aeeb"
+      },
       "failure": "Sustain the 100-item baseline while four drain tasks run and common reads execute concurrently.",
       "procedure": [
         "Load the stable seeded workload to a peak of 100 pending rows.",
@@ -201,6 +218,18 @@
         "Common interactive query p95 <=2,000 ms.",
         "Verified program update p95 <=60 minutes.",
         "Measured annualized AWS projection is <=$1,000 with assumptions disclosed; provider paid spend is $0 in this lane."
+      ],
+      "executedAssertions": [
+        "The local synthetic product reader sustained a 1,800-second request-start window across four closed-loop clients and all eight declared operations: 7,176 samples, zero errors, 1,799.597 seconds first-to-last request-start span, and a final start 402.546 milliseconds before the deadline.",
+        "Direct compiled service/read-store latency was p50 3.834 milliseconds, p95 7.067 milliseconds, and maximum 101.305 milliseconds, below the 2,000-millisecond limit in this limited local synthetic environment.",
+        "The benchmark login was NOINHERIT with no memberships and zero effective table-write privileges across 494 public tables.",
+        "The separate durable recovery run observed a 100-row pending peak and at most four concurrent workers with no missing evidence or duplicate logical notification keys."
+      ],
+      "unqualifiedAssertions": [
+        "The 100-row/four-worker drain and the sustained product-query window were separate runs, not the required concurrent peak-load scenario.",
+        "The query run bypassed HTTP, authentication, browser and network latency, used a small synthetic corpus, and was not production or buyer traffic.",
+        "Verified source-change-to-buyer-visible update p95 and annualized AWS cost were not measured.",
+        "This limited component evidence does not make the full P9-L01 scenario PASS or authorize activation."
       ],
       "primaryOwner": "platform lead",
       "coOwners": ["model/evaluation lead for cost report", "ingestion lead"]
