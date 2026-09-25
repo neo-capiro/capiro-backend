@@ -21,11 +21,15 @@ import {
   BIZDEV_STAGE_LABELS,
   BIZDEV_STATUSES,
   BIZDEV_STATUS_LABELS,
+  BIZDEV_VIEW_LABELS,
   bizDevListQuery,
   hasBizDevFilters,
+  isBizDevOverdue,
   resolveBizDevRoute,
   type BizDevStage,
+  type BizDevView,
 } from './bizdev-routing.js';
+import { BizDevWatchlist } from './BizDevWatchlist.js';
 import {
   addBizDevNote,
   bizdevErrorMessage,
@@ -2333,6 +2337,86 @@ function PreferencesPanel({ tenantId, isAdmin }: { tenantId: string; isAdmin: bo
 
 /* ── pipeline (list) ─────────────────────────────────────────────────── */
 
+/** v5 view tab bar: Discover / Pipeline / Watchlist, URL-deep-linked. */
+function BizDevViewTabs({
+  view,
+  counts,
+  onSelect,
+  discoverEnabled,
+  watchAlertsEnabled,
+}: {
+  view: BizDevView;
+  counts: { active: number; dismissed: number };
+  onSelect: (view: BizDevView) => void;
+  discoverEnabled: boolean;
+  watchAlertsEnabled: boolean;
+}) {
+  const tabs: Array<{ view: BizDevView; count: string | null }> = [
+    { view: 'discover', count: null },
+    { view: 'pipeline', count: String(counts.active) },
+    { view: 'watchlist', count: null },
+  ];
+  return (
+    <div className="capiro-bizdev__viewtabs" role="tablist" aria-label="Business Development views">
+      {tabs
+        .filter((t) => t.view !== 'discover' || discoverEnabled)
+        .filter((t) => t.view !== 'watchlist' || watchAlertsEnabled)
+        .map((t) => (
+          <button
+            key={t.view}
+            type="button"
+            role="tab"
+            id={`bizdev-view-${t.view}`}
+            aria-selected={view === t.view}
+            aria-controls="bizdev-viewpanel"
+            className={`capiro-bizdev__viewtab${view === t.view ? ' is-active' : ''}`}
+            onClick={() => onSelect(t.view)}
+          >
+            {BIZDEV_VIEW_LABELS[t.view]}
+            {t.count != null ? (
+              <span className="capiro-bizdev__viewtab-count" aria-label={`${t.count} prospects`}>
+                {t.count}
+              </span>
+            ) : null}
+          </button>
+        ))}
+    </div>
+  );
+}
+
+/** v5 stage summary/histogram from the real list counts.byStage. */
+function BizDevStageHistogram({
+  byStage,
+  selectedStage,
+  onSelect,
+}: {
+  byStage: Record<string, number>;
+  selectedStage: BizDevStage | '';
+  onSelect: (stage: BizDevStage | '') => void;
+}) {
+  return (
+    <div className="capiro-bizdev__stagebar" aria-label="Prospects by stage">
+      {BIZDEV_STAGES.map((stage) => {
+        const count = byStage[stage] ?? 0;
+        const selected = selectedStage === stage;
+        return (
+          <button
+            key={stage}
+            type="button"
+            className={`capiro-bizdev__stagecell${selected ? ' is-active' : ''}${stage === 'won' ? ' capiro-bizdev__stagecell--won' : ''}`}
+            aria-pressed={selected}
+            onClick={() => onSelect(selected ? '' : stage)}
+            title={`${BIZDEV_STAGE_LABELS[stage]}: ${count}`}
+          >
+            <span className="capiro-bizdev__stagecell-count">{count}</span>
+            <span className="capiro-bizdev__stagecell-label">{BIZDEV_STAGE_LABELS[stage]}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function Pipeline({
   tenantId,
   isAdmin,
@@ -2369,59 +2453,95 @@ function Pipeline({
 
   const openProspect = (id: string) => setRoute({ prospectId: id });
 
-  const rows = list.data?.prospects ?? [];
+  const rowsAll = list.data?.prospects ?? [];
+  // Derived overdue-only toggle: pure client-side filter over the loaded
+  // nextActionDueAt values. There is no overdue/priority field in the API.
+  const rows = route.overdueOnly
+    ? rowsAll.filter((p) => isBizDevOverdue(p.nextActionDueAt))
+    : rowsAll;
   const hasData = Boolean(list.data) && (list.data?.counts.total ?? 0) > 0;
 
-  // Phase 2 Discover replaces the pipeline table when bdDiscover=open; the
-  // pipeline itself (Phase 1) stays fully available when the panel is closed.
-  if (route.discover === 'open' && dossierEnabled) {
-    return (
-      <div className="capiro-bizdev capiro-page">
-        <DiscoverPanel tenantId={tenantId} />
-        <PreferencesPanel tenantId={tenantId} isAdmin={isAdmin} />
-        {route.prospectId ? (
-          <ProspectDrawer
-            tenantId={tenantId}
-            prospectId={route.prospectId}
-            members={members_}
-            isAdmin={isAdmin}
-            dossierEnabled={dossierEnabled}
-            briefEnabled={briefEnabled}
-            meriProspectToolsEnabled={meriProspectToolsEnabled}
-            watchAlertsEnabled={watchAlertsEnabled}
-            onClose={() => void list.refetch()}
-          />
-        ) : null}
-        {route.dossierEntityId || route.dossierProspectId ? (
-          <DossierDrawer tenantId={tenantId} />
-        ) : null}
-      </div>
-    );
-  }
+  const setView = (view: BizDevView) =>
+    // Switching views keeps filters/params; Discover keeps its legacy param
+    // in sync so old links and new links are interchangeable.
+    setRoute({
+      view,
+      ...(view === 'discover'
+        ? { discover: 'open' as const }
+        : { discover: '' as const }),
+    });
+
+  const drawer = route.prospectId ? (
+    <ProspectDrawer
+      tenantId={tenantId}
+      prospectId={route.prospectId}
+      members={members_}
+      isAdmin={isAdmin}
+      dossierEnabled={dossierEnabled}
+      briefEnabled={briefEnabled}
+      meriProspectToolsEnabled={meriProspectToolsEnabled}
+      watchAlertsEnabled={watchAlertsEnabled}
+      onClose={() => void list.refetch()}
+    />
+  ) : null;
+  const dossierDrawer =
+    route.dossierEntityId || route.dossierProspectId ? (
+      <DossierDrawer tenantId={tenantId} />
+    ) : null;
+
+  const countsActive = list.data?.counts.active ?? 0;
+  const countsDismissed = list.data?.counts.dismissed ?? 0;
+  const requestedView: BizDevView = route.discover === 'open' ? 'discover' : route.view;
+  // View feature gates fail closed even for direct/deep-linked URLs. The API
+  // independently applies the same gates; this keeps the tablist and panel in
+  // a truthful, accessible state without mounting a disabled surface.
+  const view: BizDevView =
+    (requestedView === 'discover' && !dossierEnabled) ||
+    (requestedView === 'watchlist' && !watchAlertsEnabled)
+      ? 'pipeline'
+      : requestedView;
 
   return (
     <div className="capiro-bizdev capiro-page">
       <header className="capiro-bizdev__head">
         <div>
+          <p className="capiro-bizdev__eyebrow">Portfolio</p>
           <h1 className="capiro-bizdev__title">Business Development</h1>
           <p className="capiro-bizdev__sub">
             Your firm's private prospect pipeline — research to won.
           </p>
         </div>
         <span className="capiro-bizdev__head-spacer" />
-        {dossierEnabled ? (
-          <CapiroButton
-            size="standard"
-            onClick={() => setRoute({ discover: 'open', discoverOffset: 0 })}
-          >
-            Discover companies
-          </CapiroButton>
-        ) : null}
         <CapiroButton variant="primary" size="standard" onClick={() => setCreateOpen(true)}>
           Add prospect
         </CapiroButton>
       </header>
 
+      <BizDevViewTabs
+        view={view}
+        counts={{ active: countsActive, dismissed: countsDismissed }}
+        onSelect={setView}
+        discoverEnabled={dossierEnabled}
+        watchAlertsEnabled={watchAlertsEnabled}
+      />
+
+      <div id="bizdev-viewpanel" role="tabpanel" aria-label="Business Development view">
+      {view === 'watchlist' ? (
+        <>
+          <BizDevWatchlist
+            tenantId={tenantId}
+            members={members_}
+            watchAlertsEnabled={watchAlertsEnabled}
+          />
+          <PreferencesPanel tenantId={tenantId} isAdmin={isAdmin} />
+        </>
+      ) : view === 'discover' ? (
+        <>
+          <DiscoverPanel tenantId={tenantId} />
+          <PreferencesPanel tenantId={tenantId} isAdmin={isAdmin} />
+        </>
+      ) : (
+      <>
       <section className="capiro-bizdev__surface" aria-labelledby="bizdev-pipeline">
         <div className="capiro-bizdev__toolbar">
           <div className="capiro-bizdev__title-row">
@@ -2447,6 +2567,7 @@ function Pipeline({
                   conflict: '',
                   linkedClient: '',
                   q: '',
+                  overdueOnly: false,
                 })
               }
             >
@@ -2454,6 +2575,50 @@ function Pipeline({
             </CapiroButton>
           ) : null}
         </div>
+
+        {/* Active/Dismissed segment + derived overdue toggle */}
+        <div className="capiro-bizdev__segment-row">
+          <div
+            className="capiro-bizdev__filters"
+            role="group"
+            aria-label="Pipeline segment"
+          >
+            <button
+              type="button"
+              className={`capiro-bizdev__filter${route.status === 'active' ? ' is-active' : ''}`}
+              aria-pressed={route.status === 'active'}
+              onClick={() => setRoute({ status: 'active' })}
+            >
+              Active
+            </button>
+            <button
+              type="button"
+              className={`capiro-bizdev__filter${route.status === 'dismissed' ? ' is-active' : ''}`}
+              aria-pressed={route.status === 'dismissed'}
+              onClick={() => setRoute({ status: 'dismissed' })}
+            >
+              Dismissed
+            </button>
+          </div>
+          <label className="capiro-bizdev__toggle">
+            <input
+              type="checkbox"
+              checked={route.overdueOnly}
+              onChange={(e) => setRoute({ overdueOnly: e.target.checked })}
+            />
+            <span>Overdue only (derived from next-action due dates)</span>
+          </label>
+        </div>
+
+        {!list.isPending && list.data ? (
+          <div className="capiro-bizdev__stagebar-wrap">
+            <BizDevStageHistogram
+              byStage={list.data.counts.byStage}
+              selectedStage={route.stage}
+              onSelect={(stage) => setRoute({ stage })}
+            />
+          </div>
+        ) : null}
 
         {list.isPending ? (
           <div style={{ padding: 24 }} aria-busy="true">
@@ -2497,6 +2662,7 @@ function Pipeline({
                       conflict: '',
                       linkedClient: '',
                       q: '',
+                      overdueOnly: false,
                     })
                   }
                 >
@@ -2608,6 +2774,9 @@ function Pipeline({
       </section>
 
       <PreferencesPanel tenantId={tenantId} isAdmin={isAdmin} />
+      </>
+      )}
+      </div>
 
       {createOpen ? (
         <CreateProspectModal
@@ -2625,22 +2794,8 @@ function Pipeline({
         />
       ) : null}
 
-      {route.prospectId ? (
-        <ProspectDrawer
-          tenantId={tenantId}
-          prospectId={route.prospectId}
-          members={members_}
-          isAdmin={isAdmin}
-          dossierEnabled={dossierEnabled}
-          briefEnabled={briefEnabled}
-          meriProspectToolsEnabled={meriProspectToolsEnabled}
-          watchAlertsEnabled={watchAlertsEnabled}
-          onClose={() => void list.refetch()}
-        />
-      ) : null}
-      {route.dossierEntityId || route.dossierProspectId ? (
-        <DossierDrawer tenantId={tenantId} />
-      ) : null}
+      {drawer}
+      {dossierDrawer}
     </div>
   );
 }

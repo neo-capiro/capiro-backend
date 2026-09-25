@@ -52,6 +52,20 @@ export const BIZDEV_STATUS_LABELS: Record<BizDevStatus, string> = {
   all: 'All',
 };
 
+/**
+ * v5 in-page views. `bdView` is the canonical URL param; the legacy
+ * `bdDiscover=open` URL keeps resolving to the Discover view (below), so
+ * every existing shared link still restores exactly what it did before.
+ */
+export const BIZDEV_VIEWS = ['pipeline', 'discover', 'watchlist'] as const;
+export type BizDevView = (typeof BIZDEV_VIEWS)[number];
+
+export const BIZDEV_VIEW_LABELS: Record<BizDevView, string> = {
+  pipeline: 'Pipeline',
+  discover: 'Discover',
+  watchlist: 'Watchlist',
+};
+
 /** Conflict/exclusion filter tri-state: '' any · 'excl' excluded · 'none' not excluded. */
 export const BIZDEV_CONFLICT_FILTERS = ['', 'excl', 'none'] as const;
 export type BizDevConflictFilter = (typeof BIZDEV_CONFLICT_FILTERS)[number];
@@ -68,8 +82,12 @@ export interface BizDevRoute {
   linkedClient: BizDevClientFilter;
   q: string;
   prospectId: string;
+  /** In-page view (v5): 'pipeline' (default) | 'discover' | 'watchlist'. */
+  view: BizDevView;
+  /** Overdue-only derived toggle (client-side from nextActionDueAt). */
+  overdueOnly: boolean;
   // ── Phase 2 (discover/dossier) ────────────────────────────────────────
-  /** 'open' shows the Discover panel; '' (default) keeps the pipeline only. */
+  /** Legacy param ('open' = discover view); kept writable for compatibility. */
   discover: 'open' | '';
   /** Submitted discover search text (2..200 chars; only sent on explicit submit). */
   discoverQuery: string;
@@ -91,6 +109,8 @@ const DEFAULTS: BizDevRoute = {
   linkedClient: '',
   q: '',
   prospectId: '',
+  view: 'pipeline',
+  overdueOnly: false,
   discover: '',
   discoverQuery: '',
   discoverOffset: 0,
@@ -156,6 +176,10 @@ export function resolveBizDevRoute(params: URLSearchParams | null | undefined): 
   const dossierEntityId = params.get('bdDossier')?.trim() ?? '';
   const dossierProspectId = params.get('bdDossierProspect')?.trim() ?? '';
   const dossierSection = oneOf(params.get('bdSection'), BIZDEV_DOSSIER_SECTIONS);
+  // v5 view: bdView is canonical; bdDiscover=open (legacy) maps to Discover.
+  const viewParam = oneOf(params.get('bdView'), BIZDEV_VIEWS);
+  const view: BizDevView = viewParam || (discover === 'open' ? 'discover' : 'pipeline');
+  const overdueOnly = params.get('bdOverdue') === '1';
   return {
     stage,
     ownerId,
@@ -164,6 +188,8 @@ export function resolveBizDevRoute(params: URLSearchParams | null | undefined): 
     linkedClient,
     q,
     prospectId,
+    view,
+    overdueOnly,
     discover,
     discoverQuery,
     discoverOffset,
@@ -193,6 +219,14 @@ export function applyBizDevRoute(
   if (route.linkedClient !== undefined) set('bdClient', route.linkedClient);
   if (route.q !== undefined) set('bdQ', route.q);
   if (route.prospectId !== undefined) set('bdProspect', route.prospectId);
+  if (route.view !== undefined) {
+    if (route.view === 'pipeline') next.delete('bdView');
+    else next.set('bdView', route.view);
+  }
+  if (route.overdueOnly !== undefined) {
+    if (route.overdueOnly) next.set('bdOverdue', '1');
+    else next.delete('bdOverdue');
+  }
   if (route.discover !== undefined) {
     if (route.discover === 'open') next.set('bdDiscover', 'open');
     else next.delete('bdDiscover');
@@ -236,8 +270,20 @@ export function hasBizDevFilters(route: BizDevRoute): boolean {
       route.status !== 'active' ||
       route.conflict ||
       route.linkedClient ||
-      route.q,
+      route.q ||
+      route.overdueOnly,
   );
+}
+
+/**
+ * Derived overdue check: a prospect with a next-action due date in the past
+ * is overdue. Purely computed from the already-loaded nextActionDueAt value —
+ * there is no priority or overdue field in the API.
+ */
+export function isBizDevOverdue(nextActionDueAt: string | null | undefined, now = Date.now()): boolean {
+  if (!nextActionDueAt) return false;
+  const due = new Date(nextActionDueAt).getTime();
+  return Number.isFinite(due) && due < now;
 }
 
 /**
