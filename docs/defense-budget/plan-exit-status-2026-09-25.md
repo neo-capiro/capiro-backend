@@ -57,8 +57,10 @@ production-style provider and semantic-factory proof passed with 926 rows and
 zero parser failures; the reproducible summary is
 `docs/defense-budget/package-3/qualification/parser-proof-result-2026-09-25.json`.
 This strengthens the parser/proof seam but does not change the production
-decision because the test used a synthetic `SourceDocument` UUID and did not
-register a manifest or write the database.
+decision. A separate read-only ECS database probe returned zero rows for the
+pinned SHA, `CRPT-119hrpt698` source key, and GovInfo URL, confirming that no
+production `SourceDocument` registration exists to bind. The proof used a
+synthetic UUID and did not register a manifest or write the database.
 
 Package 8 discovery hardening then merged as PR `#1821` at
 `5314441e03abe1cfc04e5297296fb7b74703bd0d`. The defense-api image was built

@@ -118,7 +118,8 @@
       "succeededPages": 48,
       "failedPages": 0,
       "productionRegistration": false,
-      "syntheticSourceDocumentId": true
+      "syntheticSourceDocumentId": true,
+      "productionSourceDocumentProbe": "NO_MATCH (read-only ECS task; zero rows for pinned SHA/source key/URL)"
     },
     "package5NoWriteDryRun": {
       "status": "PASS_LIMITED_SCOPE",
