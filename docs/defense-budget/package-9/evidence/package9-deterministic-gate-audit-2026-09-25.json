@@ -1,0 +1,52 @@
+{
+  "observedAt": "2026-09-25T20:49:51Z",
+  "status": "NO_GO_SHADOW_ONLY",
+  "scorecard": {
+    "command": "pnpm --filter @capiro/defense-domain eval:package9-scorecard",
+    "reportSha256": "1ae10e1995e9b0f0436c9b11b157cb02e9e41a690657a0d53690a59141364ae4",
+    "status": "NO_GO",
+    "activation": "shadow_only",
+    "evaluatedReleaseRevision": "48e117e2887d128d1fc539e606e274e516237b64",
+    "evidenceHash": "e6690f38f1de1907345c0cf7af5dc3b8b21d5024558ce471f8f52f09bca65ddf",
+    "blockingReasons": [
+      "manifest_hash_missing_or_invalid",
+      "manifest_approval_record_missing",
+      "manifest_approver_missing",
+      "expected_marketed_families_missing_or_invalid",
+      "expected_mandatory_sources_missing_or_invalid",
+      "evidence_unreviewed",
+      "coverage_denominator_incomplete",
+      "qualified_mandatory_source_ids_missing_or_invalid",
+      "marketed_family_coverage_missing",
+      "evidence_release_revision_mismatch",
+      "oldest_pending_age_minutes_over_budget_or_unknown",
+      "verified_program_update_p95_minutes_over_budget_or_unknown",
+      "ownership_not_accepted",
+      "ownership_acceptance_record_missing",
+      "task_activation_scope_missing",
+      "family_activation_scope_missing",
+      "tenant_activation_scope_missing",
+      "question_model_policy_not_frozen",
+      "evaluation_run_manifest_missing",
+      "release_authorization_missing"
+    ]
+  },
+  "jevEconomics": {
+    "command": "pnpm --filter @capiro/meriv2-core eval:jev-package9-economics",
+    "reportSha256": "7d3dde83486699e62ffc86495ca4fb8360b01d469ac6e856fade111b6b04578d",
+    "status": "NO_GO",
+    "reportHash": "0bf2374559471cbf3333c93e05343099fce793ea660fb45acb8d7970652a1fa9",
+    "blockers": [
+      "evaluation_set_not_approved",
+      "evaluation_set_not_frozen",
+      "independent_adjudication_incomplete",
+      "evaluation_set_hash_mismatch",
+      "price_schedule_not_approved",
+      "price_schedule_approval_binding_missing",
+      "work_cost_unpriced",
+      "baseline_total_cost_not_positive",
+      "total_cost_reduction_below_30_percent"
+    ]
+  },
+  "interpretation": "The evaluators are deterministic gate checks, not a buyer or paid-provider qualification run. Their fail-closed result confirms that activation cannot be authorized from the currently supplied evidence."
+}

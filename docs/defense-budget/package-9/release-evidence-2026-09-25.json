@@ -171,6 +171,16 @@
       "expectedSourceKey": null,
       "promotable": false,
       "limitation": "HEAD and GET disagree for the official XML endpoint; no authoritative XML bytes/hash or deterministic FY2026 DARPA expected-source identity exists. The PDF is not inferred byte-equivalent to the mirror XML."
+    },
+    "package9DeterministicGateAudit": {
+      "status": "NO_GO_SHADOW_ONLY",
+      "report": "docs/defense-budget/package-9/evidence/package9-deterministic-gate-audit-2026-09-25.json",
+      "scorecardReportSha256": "1ae10e1995e9b0f0436c9b11b157cb02e9e41a690657a0d53690a59141364ae4",
+      "jevEconomicsReportSha256": "7d3dde83486699e62ffc86495ca4fb8360b01d469ac6e856fade111b6b04578d",
+      "scorecardStatus": "NO_GO",
+      "jevEconomicsStatus": "NO_GO",
+      "activation": "shadow_only",
+      "limitation": "Deterministic gate checks confirm missing manifest, review, coverage, ownership, latency, pricing, cost, and authorization evidence; they do not substitute for buyer or paid-provider qualification."
     }
   },
   "qualification": {
