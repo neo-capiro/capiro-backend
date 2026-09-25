@@ -6,6 +6,8 @@ export const DTIC_JDOCS_XML_ROOT_NAMESPACE_V1 =
   'http://www.dtic.mil/comptroller/xml/schema/022009/jb' as const;
 export const DTIC_JDOCS_R2_NAMESPACE_V1 =
   'http://www.dtic.mil/comptroller/xml/schema/022009/r2' as const;
+export const DTIC_JDOCS_XML_LOCATOR_INVENTORY_SCHEMA_V1 =
+  'dtic_jdocs_xml_locator_inventory_v1' as const;
 
 export const DTIC_FY2026_DTIC_CANDIDATE_PROVENANCE_V1 = {
   mirrorCommit: '5c6310d9845cd75360bf4c39a220f9d6699b65df',
@@ -76,6 +78,27 @@ export interface DticJdocsXmlCandidateV1 {
   promotable: false;
   scope: DticJdocsXmlCandidateScopeV1;
   inspection: DticJdocsXmlSourceInspectionV1;
+}
+
+export interface DticJdocsXmlElementPathSegmentV1 {
+  namespace: string;
+  localName: string;
+  siblingIndex: number;
+}
+
+export interface DticJdocsXmlProgramElementLocatorV1 {
+  elementPath: string;
+  path: DticJdocsXmlElementPathSegmentV1[];
+  value: string;
+}
+
+export interface DticJdocsXmlLocatorInventoryV1 {
+  schemaVersion: typeof DTIC_JDOCS_XML_LOCATOR_INVENTORY_SCHEMA_V1;
+  status: 'candidate_only';
+  promotable: false;
+  originalBytesSha256: string;
+  programElementLocators: DticJdocsXmlProgramElementLocatorV1[];
+  limitations: readonly string[];
 }
 
 const parser = new XMLParser({
@@ -155,6 +178,40 @@ function elementNamespace(name: string, bindings: NamespaceBindings): string | n
   const prefix = colon >= 0 ? name.slice(0, colon) : '';
   if (colon >= 0 && (!prefix || name.indexOf(':', colon + 1) >= 0)) return null;
   return bindings[prefix] ?? (prefix === '' ? '' : null);
+}
+
+function expandedPathSegment(
+  name: string,
+  bindings: NamespaceBindings,
+  siblingIndex: number,
+): DticJdocsXmlElementPathSegmentV1 {
+  const namespace = elementNamespace(name, bindings);
+  if (!namespace) fail(`cannot resolve namespace for ${name}`);
+  return { namespace, localName: localName(name), siblingIndex };
+}
+
+function expandedPathString(path: readonly DticJdocsXmlElementPathSegmentV1[]): string {
+  return path
+    .map(
+      (segment) =>
+        `{${segment.namespace}}${segment.localName}[${segment.siblingIndex}]`,
+    )
+    .join('/');
+}
+
+function directNamedChildren(
+  value: unknown,
+  wanted: string,
+): Array<{ name: string; value: unknown; siblingIndex: number }> {
+  const record = asRecord(value);
+  if (!record) return [];
+  const matches: Array<{ name: string; value: unknown; siblingIndex: number }> = [];
+  for (const [key, child] of Object.entries(record)) {
+    if (key.startsWith('@_') || localName(key) !== wanted) continue;
+    const values = Array.isArray(child) ? child : [child];
+    values.forEach((entry, siblingIndex) => matches.push({ name: key, value: entry, siblingIndex }));
+  }
+  return matches;
 }
 
 function requireElementNamespace(
@@ -389,5 +446,99 @@ export function qualifyDticJdocsXmlCandidateV1(
       appropriationCode: expectedScope.appropriationCode.trim(),
     },
     inspection,
+  };
+}
+
+/**
+ * Produce stable, prefix-independent XML element locators for the R2 PE
+ * identities in a pinned DTIC document. This is deliberately an evidence
+ * primitive only: it does not interpret funding values, claim PDF equivalence,
+ * register a source, or authorize import/publication.
+ */
+export function inventoryDticJdocsXmlProgramElementLocatorsV1(
+  bytes: Uint8Array,
+  provenance: DticJdocsXmlSourceProvenanceV1,
+): DticJdocsXmlLocatorInventoryV1 {
+  validateProvenance(provenance);
+  const originalBytesSha256 = createHash('sha256').update(bytes).digest('hex');
+  if (provenance.expectedMirrorSha256 && originalBytesSha256 !== provenance.expectedMirrorSha256) {
+    fail('original byte SHA-256 does not match expectedMirrorSha256');
+  }
+
+  const xml = Buffer.from(bytes).toString('utf8');
+  const validation = XMLValidator.validate(xml);
+  if (validation !== true) fail('XML is not well formed');
+  let document: unknown;
+  try {
+    document = parser.parse(xml);
+  } catch {
+    fail('XML parser could not read the document');
+  }
+  const topLevel = topLevelDocumentElement(document);
+  if (!topLevel || localName(topLevel.name) !== 'JustificationBook') {
+    fail('expected JustificationBook as the single top-level document element');
+  }
+  const rootBindings = namespaceBindings(topLevel.node);
+  requireElementNamespace(
+    topLevel.name,
+    rootBindings,
+    'JustificationBook',
+    DTIC_JDOCS_XML_ROOT_NAMESPACE_V1,
+  );
+  const r2ListElement = directNamedChild(topLevel.node, 'ProgramElementList');
+  const r2List = asRecord(r2ListElement?.value);
+  if (!r2ListElement || !r2List) fail('expected ProgramElementList in the DTIC R2 namespace');
+  const r2ListBindings = namespaceBindings(r2List, rootBindings);
+  requireElementNamespace(
+    r2ListElement.name,
+    r2ListBindings,
+    'ProgramElementList',
+    DTIC_JDOCS_R2_NAMESPACE_V1,
+  );
+
+  const listPath = [expandedPathSegment(r2ListElement.name, r2ListBindings, 0)];
+  const locators: DticJdocsXmlProgramElementLocatorV1[] = [];
+  for (const programElement of directNamedChildren(r2List, 'ProgramElement')) {
+    const programRecord = asRecord(programElement.value);
+    if (!programRecord) fail('R2 ProgramElement must be an object');
+    const programBindings = namespaceBindings(programRecord, r2ListBindings);
+    requireElementNamespace(
+      programElement.name,
+      programBindings,
+      'ProgramElement',
+      DTIC_JDOCS_R2_NAMESPACE_V1,
+    );
+    const numberChildren = directNamedChildren(programRecord, 'ProgramElementNumber');
+    if (numberChildren.length === 0) fail('R2 ProgramElement has no ProgramElementNumber');
+    numberChildren.forEach((numberChild) => {
+      requireElementNamespace(
+        numberChild.name,
+        programBindings,
+        'ProgramElementNumber',
+        DTIC_JDOCS_R2_NAMESPACE_V1,
+      );
+      const value = scalar(numberChild.value, 'ProgramElementNumber');
+      const path = [
+        ...listPath,
+        expandedPathSegment(programElement.name, programBindings, programElement.siblingIndex),
+        expandedPathSegment(numberChild.name, programBindings, numberChild.siblingIndex),
+      ];
+      locators.push({ elementPath: expandedPathString(path), path, value });
+    });
+  }
+  if (locators.length === 0) fail('R2 candidate contains no ProgramElementNumber identities');
+
+  return {
+    schemaVersion: DTIC_JDOCS_XML_LOCATOR_INVENTORY_SCHEMA_V1,
+    status: 'candidate_only',
+    promotable: false,
+    originalBytesSha256,
+    programElementLocators: locators,
+    limitations: [
+      'element_locators_only_no_funding_semantic_extraction',
+      'does_not_establish_annual_family_or_component_completeness',
+      'prefix_independent_paths_are_bound_to_the_original_source_sha256',
+      'not_promotable_and_not_authorized_for_production_import',
+    ],
   };
 }

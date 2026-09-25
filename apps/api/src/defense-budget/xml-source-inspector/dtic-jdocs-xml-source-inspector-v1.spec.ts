@@ -4,6 +4,7 @@ import {
   DTIC_JDOCS_R2_NAMESPACE_V1,
   DTIC_JDOCS_XML_ROOT_NAMESPACE_V1,
   inspectDticJdocsXmlSourceV1,
+  inventoryDticJdocsXmlProgramElementLocatorsV1,
   qualifyDticJdocsXmlCandidateV1,
   type DticJdocsXmlSourceProvenanceV1,
 } from './dtic-jdocs-xml-source-inspector-v1.js';
@@ -152,6 +153,63 @@ describe('inspectDticJdocsXmlSourceV1', () => {
       },
     });
     expect(candidate.inspection.programElementIds).toEqual(['0605801KA', '0605804D8Z']);
+  });
+
+  it('emits distinct expanded-QName locators for repeated PE identities', () => {
+    const inventory = inventoryDticJdocsXmlProgramElementLocatorsV1(
+      Buffer.from(FIXTURE),
+      PROVENANCE,
+    );
+    expect(inventory).toMatchObject({
+      schemaVersion: 'dtic_jdocs_xml_locator_inventory_v1',
+      status: 'candidate_only',
+      promotable: false,
+      originalBytesSha256: createHash('sha256').update(Buffer.from(FIXTURE)).digest('hex'),
+    });
+    expect(inventory.programElementLocators.map((locator) => locator.value)).toEqual([
+      '0605801KA',
+      '0605801KA',
+      '0605804D8Z',
+    ]);
+    expect(new Set(inventory.programElementLocators.map((locator) => locator.elementPath)).size).toBe(3);
+    expect(inventory.programElementLocators[0]?.elementPath).toContain(
+      `{${DTIC_JDOCS_R2_NAMESPACE_V1}}ProgramElement[0]`,
+    );
+    expect(inventory.programElementLocators[1]?.elementPath).toContain(
+      `{${DTIC_JDOCS_R2_NAMESPACE_V1}}ProgramElement[1]`,
+    );
+    expect(inventory.programElementLocators[0]?.path.every((segment) => segment.namespace.length > 0)).toBe(true);
+  });
+
+  it('keeps locator inventory stable when namespace prefixes are renamed', () => {
+    const aliased = FIXTURE
+      .replaceAll('jb:', 'root:')
+      .replaceAll('r2:', 'data:')
+      .replace('xmlns:jb=', 'xmlns:root=')
+      .replace('xmlns:r2=', 'xmlns:data=');
+    const original = inventoryDticJdocsXmlProgramElementLocatorsV1(
+      Buffer.from(FIXTURE),
+      PROVENANCE,
+    );
+    const renamed = inventoryDticJdocsXmlProgramElementLocatorsV1(
+      Buffer.from(aliased),
+      PROVENANCE,
+    );
+    expect(renamed.programElementLocators).toEqual(original.programElementLocators);
+    expect(renamed.originalBytesSha256).not.toBe(original.originalBytesSha256);
+  });
+
+  it('binds locator inventory to changed source bytes', () => {
+    const original = inventoryDticJdocsXmlProgramElementLocatorsV1(
+      Buffer.from(FIXTURE),
+      PROVENANCE,
+    );
+    const changed = inventoryDticJdocsXmlProgramElementLocatorsV1(
+      Buffer.from(FIXTURE.replace('0605804D8Z', '0605805D8Z')),
+      PROVENANCE,
+    );
+    expect(changed.originalBytesSha256).not.toBe(original.originalBytesSha256);
+    expect(changed.programElementLocators.at(-1)?.value).toBe('0605805D8Z');
   });
 
   it('refuses a candidate whose inspected scope differs from the declared scope', () => {

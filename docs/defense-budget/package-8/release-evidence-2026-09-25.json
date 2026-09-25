@@ -37,6 +37,14 @@
       "matchedRecords": 5,
       "records": 5,
       "promotable": false
+    },
+    "dticXmlLocatorInventory": {
+      "status": "PASS_QUALIFICATION_ONLY",
+      "report": "docs/defense-budget/package-8/qualification/dtic-fy2026-xml-locator-inventory-2026-09-25.json",
+      "programElementLocatorCount": 2,
+      "sourceHashBound": true,
+      "namespacePrefixIndependent": true,
+      "promotable": false
     }
   },
   "aws": {

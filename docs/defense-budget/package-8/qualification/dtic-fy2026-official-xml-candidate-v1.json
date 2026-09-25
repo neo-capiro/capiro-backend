@@ -60,6 +60,14 @@
     "recordCount": 5,
     "promotable": false
   },
+  "xmlLocatorInventory": {
+    "report": "docs/defense-budget/package-8/qualification/dtic-fy2026-xml-locator-inventory-2026-09-25.json",
+    "status": "PASS_QUALIFICATION_ONLY",
+    "programElementLocatorCount": 2,
+    "sourceHashBound": true,
+    "namespacePrefixIndependent": true,
+    "promotable": false
+  },
   "nextQualificationGates": [
     "register an exact expected-source identity through governed review",
     "implement and qualify stable XML element-path semantic extraction",
