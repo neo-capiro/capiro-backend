@@ -4,7 +4,7 @@
   "qualification": "operations-load-failure-recovery",
   "decision": "NO_GO",
   "activationAllowed": "shadow-only",
-  "measurementStatus": "PARTIAL_PASS_LIMITED_POSTGRES_ROLLBACK_AND_ISOLATED_AWS_ALARM_PATH",
+  "measurementStatus": "PARTIAL_PASS_LIMITED_LOCAL_COMPOSITE_ROLLBACK_AND_ISOLATED_AWS_ALARM_PATH",
   "retainedRun": {
     "report": "./evidence/durable-run-p9-20260925024117927-2c727e.json",
     "sha256": "2b6adbffe6cfb4ee048901e30314d313cb31121aa77388418337e1bf01f6aeeb",
@@ -21,12 +21,13 @@
     "scope": "One uniquely named synthetic CloudWatch alarm delivered ALARM and recovery OK through an exact ephemeral SNS topic to an encrypted SQS receiver; both messages were acknowledged and every ephemeral resource was verified absent after cleanup."
   },
   "retainedRollbackRun": {
-    "report": "./evidence/rollback-run-p9-f06-20260925T033034Z.json",
-    "sha256": "fa01f56c29016abadf3af2626180b773b9c63891d8618cf10b69cfc2fe8d5779",
-    "sourceRevision": "fc85728579b477eece2dfecd285657b6f81c971b",
-    "harnessSha256": "74b714a6111025ee4c725195a55e53ca5e53e4df763c9acd3b29a1180d579bbd",
-    "status": "PASS_LIMITED_SCOPE",
-    "scope": "Disposable local PostgreSQL migration, promotion-engine, active-pointer rollback, immutable-snapshot preservation, drain-pause, outbox-suppression, and snapshot-reader assertions only; the combined tenant canary and emergency process-routing path was not run."
+    "report": "./evidence/rollback-composite-run-p9-f06-20260925T035806Z.json",
+    "sha256": "45a46a522338cc1ae956cb274d8ca7466583e0dd39792dcf46478672bbffce34",
+    "sourceRevision": "70236246b719dc8c08be02c1f78d24a904db4692",
+    "engineHarnessSha256": "99a4447c04ac8d2d7708910dd816d6da5338cb8df0d5cd47f31c302f37d4704f",
+    "migrationHarnessSha256": "5d48fae19758ca986aa73c180145e2f36d9f87f0a34b056a765da6281937d727",
+    "status": "PASS_LIMITED_LOCAL_COMPOSITE",
+    "scope": "Disposable local PostgreSQL plus the shipped ProgramElementReadService and PeSnapshotGateService: tenant-canary pointer route, emergency legacy process switch, real authorized pointer rollback, restored canary route, immutable-snapshot preservation, drain pause, outbox suppression, and durable audit assertions. Canonical route content was an empty synthetic result, not a populated buyer response."
   },
   "budgetSource": "../package-0/operating-budgets.v1.json",
   "hardLimits": {
@@ -206,12 +207,14 @@
     },
     {
       "id": "P9-F06-PROJECTION-AND-ROUTING-ROLLBACK",
-      "status": "PARTIAL_PASS_LOCAL_POINTER_AND_LEDGER_ONLY",
+      "status": "PASS_LIMITED_LOCAL_COMPOSITE",
       "retainedEvidence": {
-        "report": "./evidence/rollback-run-p9-f06-20260925T033034Z.json",
-        "sha256": "fa01f56c29016abadf3af2626180b773b9c63891d8618cf10b69cfc2fe8d5779",
-        "harness": "../../../apps/api/scripts/pe-budget-phase7-migration-rehearsal.sh",
-        "harnessSha256": "74b714a6111025ee4c725195a55e53ca5e53e4df763c9acd3b29a1180d579bbd"
+        "report": "./evidence/rollback-composite-run-p9-f06-20260925T035806Z.json",
+        "sha256": "45a46a522338cc1ae956cb274d8ca7466583e0dd39792dcf46478672bbffce34",
+        "engineHarness": "../../../apps/api/scripts/pe-budget-phase7-engine-rehearsal.ts",
+        "engineHarnessSha256": "99a4447c04ac8d2d7708910dd816d6da5338cb8df0d5cd47f31c302f37d4704f",
+        "migrationHarness": "../../../apps/api/scripts/pe-budget-phase7-migration-rehearsal.sh",
+        "migrationHarnessSha256": "5d48fae19758ca986aa73c180145e2f36d9f87f0a34b056a765da6281937d727"
       },
       "failure": "Inject a post-canary defect and roll routing plus the active read projection back to the last qualified revision.",
       "procedure": [
@@ -225,15 +228,16 @@
         "No unqualified canary fact remains current and no accepted historical fact is lost."
       ],
       "executedAssertions": [
-        "The real promotion engine activated a synthetic snapshot and an authorized rollback returned the active database pointer to the prior synthetic snapshot.",
+        "The shipped ProgramElementReadService and PeSnapshotGateService routed a synthetic tenant canary through the active snapshot pointer; the emergency process switch returned the explicit legacy sentinel without snapshot row reads.",
+        "The real promotion engine activated a synthetic snapshot and an authorized rollback returned the active database pointer to the prior synthetic snapshot; the post-rollback canary followed that restored pointer.",
         "Both snapshots, the rolled-back snapshot's canonical rows, and append-only activation and rollback audit records remained present and immutable.",
         "Rollback wrote a side-effect drain pause; a paused drain claimed no rows; rollback produced no unsuppressed alert-eligible output.",
         "The general serve role could not move the pointer or mutate canonical rows, and active-snapshot reads did not mix snapshots."
       ],
       "unqualifiedAssertions": [
-        "The tenant-scoped ProgramElementReadService canary route and emergency PE_SNAPSHOT_CANARY_ROLLBACK process switch were not combined with pointer rollback in this run.",
-        "No authenticated HTTP canary request, production deployment rollback, real source byte, or customer notification participated.",
-        "The full P9-F06 scenario therefore is not PASS and cannot authorize activation."
+        "The synthetic canonical snapshots contained no RDTE PE rows, so the route distinction was an empty canonical response versus an explicit legacy sentinel rather than populated equivalent results.",
+        "No authenticated HTTP request, restarted deployed API, production database, real source byte, or delivered customer notification participated.",
+        "This limited local composite pass does not authorize production or paid activation."
       ],
       "primaryOwner": "platform lead",
       "coOwners": ["ingestion lead", "product lead"]
