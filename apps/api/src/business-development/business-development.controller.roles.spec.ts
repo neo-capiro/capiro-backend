@@ -10,6 +10,7 @@ import { BusinessDevelopmentController } from './business-development.controller
 import { BusinessDevelopmentFlagGuard } from './business-development-flag.guard.js';
 import { BusinessDevelopmentDossierFlagGuard } from './bizdev-dossier.flag.guard.js';
 import { BusinessDevelopmentBriefFlagGuard } from './bizdev-brief.flag.guard.js';
+import { BusinessDevelopmentClaimValidationFlagGuard } from './bizdev-claim-validation.flag.guard.js';
 
 /**
  * Role authorization contract: route metadata (which routes demand what) plus
@@ -261,6 +262,13 @@ describe('Phase 4 brief route contract', () => {
       expect(guards).toContain(RolesGuard);
       expect(guards).toContain(BusinessDevelopmentFlagGuard);
       expect(guards).toContain(BusinessDevelopmentBriefFlagGuard);
+    }
+  });
+
+  test('only claim checking additionally requires the independent claim-validation flag', () => {
+    expect(guardsFor('checkBriefClaim')).toContain(BusinessDevelopmentClaimValidationFlagGuard);
+    for (const route of PHASE4_ROUTES.filter((route) => route !== 'checkBriefClaim')) {
+      expect(guardsFor(route)).not.toContain(BusinessDevelopmentClaimValidationFlagGuard);
     }
   });
 

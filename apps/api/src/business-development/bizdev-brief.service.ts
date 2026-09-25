@@ -11,6 +11,13 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { BizDevDossierService } from './bizdev-dossier.service.js';
 import type { EvidenceItem } from './bizdev-evidence.types.js';
 import {
+  bizdevBriefMetric,
+  bizdevBriefMetricSummary,
+  classifyBriefError,
+  type BizDevBriefOperation,
+  type BizDevBriefOutcome,
+} from './bizdev-brief.telemetry.js';
+import {
   BRIEF_CITATION_CAP,
   BRIEF_MAX_VERSIONS,
   BRIEF_TITLE_MAX,
@@ -116,6 +123,43 @@ export class BizDevBriefService {
   ) {}
 
   // ── helpers ──────────────────────────────────────────────────────────────
+
+  /**
+   * Phase 4 telemetry wrapper. Emits one single-line CloudWatch EMF metric
+   * per operation attempt — operation/outcome/latency/count ONLY (privacy
+   * contract in bizdev-brief.telemetry.ts; no ids, names, or content ever
+   * reach the log). The `brief.create` latency of an ok sample is exactly
+   * the time-to-usable-brief (create returns the first saved, usable
+   * version). Failures are classified from the stable public error shape,
+   * never the message. Telemetry never alters the result or the thrown
+   * error, and rethrows untouched.
+   */
+  private async observed<R>(
+    operation: BizDevBriefOperation,
+    run: () => Promise<R>,
+    outcomeOf: (result: R) => BizDevBriefOutcome,
+  ): Promise<R> {
+    const startedAt = Date.now();
+    try {
+      const result = await run();
+      this.emitBriefMetric(operation, outcomeOf(result), Date.now() - startedAt);
+      return result;
+    } catch (error) {
+      this.emitBriefMetric(operation, classifyBriefError(error), Date.now() - startedAt);
+      throw error;
+    }
+  }
+
+  private emitBriefMetric(
+    operation: BizDevBriefOperation,
+    outcome: BizDevBriefOutcome,
+    latencyMs: number,
+  ): void {
+    this.logger.log(
+      JSON.stringify(bizdevBriefMetric(operation, outcome, latencyMs, new Date().toISOString())),
+    );
+    this.logger.debug(bizdevBriefMetricSummary(operation, outcome, latencyMs));
+  }
 
   private toSummary(row: {
     id: string;
@@ -268,7 +312,10 @@ export class BizDevBriefService {
 
   // ── 1. get current brief for a prospect ────────────────────────────────────
 
-  async getCurrentBrief(ctx: TenantContext, prospectId: string): Promise<{
+  async getCurrentBrief(
+    ctx: TenantContext,
+    prospectId: string,
+  ): Promise<{
     brief: BriefSummary | null;
     currentVersion: BriefVersionDetail | null;
   }> {
@@ -284,9 +331,7 @@ export class BizDevBriefService {
     );
     if (!row) return { brief: null, currentVersion: null };
     const summary = this.toSummary(row);
-    const detail = row.currentVersion
-      ? this.toVersionDetail(row.currentVersion)
-      : null;
+    const detail = row.currentVersion ? this.toVersionDetail(row.currentVersion) : null;
     return {
       brief: { ...summary, currentVersionNumber: detail?.versionNumber ?? null },
       currentVersion: detail,
@@ -296,6 +341,22 @@ export class BizDevBriefService {
   // ── 2. create/generate an initial saved version (idempotent) ───────────────
 
   async createInitialVersion(
+    ctx: TenantContext,
+    prospectId: string,
+    input: { idempotencyKey: string; title?: string },
+  ): Promise<{
+    brief: BriefSummary;
+    version: BriefVersionDetail;
+    created: boolean;
+  }> {
+    return this.observed(
+      'brief.create',
+      () => this.createInitialVersionInternal(ctx, prospectId, input),
+      (r) => (r.created ? 'created' : 'replay'),
+    );
+  }
+
+  private async createInitialVersionInternal(
     ctx: TenantContext,
     prospectId: string,
     input: { idempotencyKey: string; title?: string },
@@ -406,7 +467,8 @@ export class BizDevBriefService {
       } else if (root.currentVersionId) {
         throw new ConflictException({
           code: 'BIZDEV_BRIEF_ALREADY_EXISTS',
-          message: 'This prospect already has a brief. Open the current brief or save a new version.',
+          message:
+            'This prospect already has a brief. Open the current brief or save a new version.',
           briefId: root.id,
           currentVersionId: root.currentVersionId,
         });
@@ -447,10 +509,7 @@ export class BizDevBriefService {
           created: true,
         };
       } catch (error) {
-        if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === 'P2002'
-        ) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
           const raced = await tx.businessDevelopmentBriefVersion.findFirst({
             where: {
               tenantId: ctx.tenantId,
@@ -489,6 +548,23 @@ export class BizDevBriefService {
   // ── 3. save an edited version (expected version + idempotency) ─────────────
 
   async saveEditedVersion(
+    ctx: TenantContext,
+    prospectId: string,
+    input: {
+      idempotencyKey: string;
+      expectedVersionNumber: number;
+      sections: unknown;
+      title?: string;
+    },
+  ): Promise<{ brief: BriefSummary; version: BriefVersionDetail; created: boolean }> {
+    return this.observed(
+      'brief.edit',
+      () => this.saveEditedVersionInternal(ctx, prospectId, input),
+      (r) => (r.created ? 'saved' : 'replay'),
+    );
+  }
+
+  private async saveEditedVersionInternal(
     ctx: TenantContext,
     prospectId: string,
     input: {
@@ -566,7 +642,9 @@ export class BizDevBriefService {
       // Citations are validated against it AND the current dossier; the
       // stricter set is what the user may cite.
       const basis = await tx.businessDevelopmentBriefVersion.findUnique({
-        where: { briefId_versionNumber: { briefId: root.id, versionNumber: input.expectedVersionNumber } },
+        where: {
+          briefId_versionNumber: { briefId: root.id, versionNumber: input.expectedVersionNumber },
+        },
         select: versionDetailSelect,
       });
       if (!basis) throw new NotFoundException('Base version not found');
@@ -633,8 +711,7 @@ export class BizDevBriefService {
           },
           select: versionDetailSelect,
         });
-        const title =
-          input.title?.trim().slice(0, BRIEF_TITLE_MAX) ?? root.title;
+        const title = input.title?.trim().slice(0, BRIEF_TITLE_MAX) ?? root.title;
         const updatedRoot = await tx.businessDevelopmentBrief.update({
           where: { id: root.id },
           data: { currentVersionId: created.id, title, updatedAt: new Date() },
@@ -646,10 +723,7 @@ export class BizDevBriefService {
           created: true,
         };
       } catch (error) {
-        if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === 'P2002'
-        ) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
           const raced = await tx.businessDevelopmentBriefVersion.findFirst({
             where: {
               tenantId: ctx.tenantId,
@@ -674,7 +748,10 @@ export class BizDevBriefService {
   /** Authorized citations = saved citations ∪ citations derivable from the
    * saved snapshot's evidence. The union keeps refresh-accepted versions able
    * to re-cite anything the dossier originally authorized. */
-  private unionAuthorized(savedCitations: BriefCitation[], evidence: EvidenceItem[]): BriefCitation[] {
+  private unionAuthorized(
+    savedCitations: BriefCitation[],
+    evidence: EvidenceItem[],
+  ): BriefCitation[] {
     const fromEvidence = citationsFromEvidence(evidence);
     const seen = new Set<string>();
     const out: BriefCitation[] = [];
@@ -748,6 +825,18 @@ export class BizDevBriefService {
     ctx: TenantContext,
     prospectId: string,
   ): Promise<BriefRefreshProposal> {
+    return this.observed(
+      'brief.refresh_proposal',
+      () => this.buildRefreshProposalInternalPublic(ctx, prospectId),
+      () => 'built',
+    );
+  }
+
+  /** Read-only public proposal builder body (telemetry-free). */
+  private async buildRefreshProposalInternalPublic(
+    ctx: TenantContext,
+    prospectId: string,
+  ): Promise<BriefRefreshProposal> {
     const prospect = await this.requireProspect(ctx, prospectId);
     const current = await this.currentVersionRowFor(ctx, prospect.id);
     if (!current?.currentVersion) {
@@ -801,6 +890,22 @@ export class BizDevBriefService {
   // ── 5. explicitly accept/save a refresh proposal as a new version ─────────
 
   async acceptRefreshProposal(
+    ctx: TenantContext,
+    prospectId: string,
+    input: {
+      idempotencyKey: string;
+      expectedVersionNumber: number;
+      keepUserEdits?: boolean;
+    },
+  ): Promise<{ brief: BriefSummary; version: BriefVersionDetail; created: boolean }> {
+    return this.observed(
+      'brief.refresh_accept',
+      () => this.acceptRefreshProposalInternal(ctx, prospectId, input),
+      (r) => (r.created ? 'accepted' : 'replay'),
+    );
+  }
+
+  private async acceptRefreshProposalInternal(
     ctx: TenantContext,
     prospectId: string,
     input: {
@@ -902,10 +1007,7 @@ export class BizDevBriefService {
           created: true,
         };
       } catch (error) {
-        if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === 'P2002'
-        ) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
           const raced = await tx.businessDevelopmentBriefVersion.findFirst({
             where: {
               tenantId: ctx.tenantId,
@@ -998,9 +1100,8 @@ export class BizDevBriefService {
     );
     if (!root) throw new NotFoundException('Brief not found');
     const versions = root.versions.map((v) => this.toVersionSummary(v));
-    const currentNumber = versions.find(
-      (v) => v.id === root.currentVersionId,
-    )?.versionNumber ?? null;
+    const currentNumber =
+      versions.find((v) => v.id === root.currentVersionId)?.versionNumber ?? null;
     return {
       brief: { ...this.toSummary(root), currentVersionNumber: currentNumber },
       versions,
@@ -1042,10 +1143,32 @@ export class BizDevBriefService {
       }
     | {
         resolvable: false;
-        limitation:
-          | 'citation_index_out_of_range'
-          | 'brief_not_found'
-          | 'source_changed';
+        limitation: 'citation_index_out_of_range' | 'brief_not_found' | 'source_changed';
+        message: string;
+        citation: BriefCitation | null;
+      }
+  > {
+    return this.observed(
+      'brief.citation_resolve',
+      () => this.resolveCitationInternal(ctx, prospectId, citationIndex),
+      (r) => (r.resolvable ? 'resolved' : r.limitation),
+    );
+  }
+
+  private async resolveCitationInternal(
+    ctx: TenantContext,
+    prospectId: string,
+    citationIndex: number,
+  ): Promise<
+    | {
+        resolvable: true;
+        citation: BriefCitation;
+        sourceSnapshotEvidence: EvidenceItem | null;
+        currentDossierEvidence: EvidenceItem | null;
+      }
+    | {
+        resolvable: false;
+        limitation: 'citation_index_out_of_range' | 'brief_not_found' | 'source_changed';
         message: string;
         citation: BriefCitation | null;
       }
@@ -1113,6 +1236,23 @@ export class BizDevBriefService {
   // ── deterministic claim check (BD-CLAIM Jev stays DARK) ───────────────────
 
   async checkClaim(
+    ctx: TenantContext,
+    input: {
+      prospectId: string;
+      versionNumber: number;
+      citationIndex: number;
+      claimType: 'identity' | 'citation' | 'exact_amount' | 'date' | 'stage';
+      expected?: string;
+    },
+  ): Promise<BriefClaimCheck> {
+    return this.observed(
+      'brief.claim_check',
+      () => this.checkClaimInternal(ctx, input),
+      (r) => r.outcome.kind,
+    );
+  }
+
+  private async checkClaimInternal(
     ctx: TenantContext,
     input: {
       prospectId: string;

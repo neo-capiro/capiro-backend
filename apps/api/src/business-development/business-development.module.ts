@@ -9,6 +9,7 @@ import { BizDevDossierService } from './bizdev-dossier.service.js';
 import { BusinessDevelopmentDossierFlagGuard } from './bizdev-dossier.flag.guard.js';
 import { BizDevBriefService } from './bizdev-brief.service.js';
 import { BusinessDevelopmentBriefFlagGuard } from './bizdev-brief.flag.guard.js';
+import { BusinessDevelopmentClaimValidationFlagGuard } from './bizdev-claim-validation.flag.guard.js';
 import {
   BizDevJevService,
   BIZDEV_JEV_FACTORY,
@@ -49,6 +50,7 @@ import { BizDevMeriScopeService } from './bizdev-meri-scope.service.js';
     BusinessDevelopmentDossierFlagGuard,
     BizDevBriefService,
     BusinessDevelopmentBriefFlagGuard,
+    BusinessDevelopmentClaimValidationFlagGuard,
     BizDevJevProviderFactory,
     { provide: BIZDEV_JEV_FACTORY, useExisting: BizDevJevProviderFactory },
     BizDevJevService,
@@ -65,6 +67,7 @@ import { BizDevMeriScopeService } from './bizdev-meri-scope.service.js';
     BusinessDevelopmentDossierFlagGuard,
     BizDevBriefService,
     BusinessDevelopmentBriefFlagGuard,
+    BusinessDevelopmentClaimValidationFlagGuard,
     BizDevJevService,
     BizDevMeriScopeService,
   ],

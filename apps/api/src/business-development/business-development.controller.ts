@@ -37,6 +37,7 @@ import {
 } from './business-development.dto.js';
 import { BusinessDevelopmentDossierFlagGuard } from './bizdev-dossier.flag.guard.js';
 import { BusinessDevelopmentBriefFlagGuard } from './bizdev-brief.flag.guard.js';
+import { BusinessDevelopmentClaimValidationFlagGuard } from './bizdev-claim-validation.flag.guard.js';
 import { BizDevDossierService } from './bizdev-dossier.service.js';
 import { BizDevBriefService } from './bizdev-brief.service.js';
 import type { DossierSectionKind } from './bizdev-evidence.types.js';
@@ -313,10 +314,7 @@ export class BusinessDevelopmentController {
   /** Build a refresh proposal/diff — never writes. */
   @Get(`prospects/:${UUID_PARAM}/brief/refresh-proposal`)
   @UseGuards(BusinessDevelopmentBriefFlagGuard)
-  buildRefreshProposal(
-    @CurrentTenant() ctx: TenantContext,
-    @Param() params: ProspectIdParam,
-  ) {
+  buildRefreshProposal(@CurrentTenant() ctx: TenantContext, @Param() params: ProspectIdParam) {
     return this.brief.buildRefreshProposal(ctx, params.prospectId);
   }
 
@@ -346,10 +344,7 @@ export class BusinessDevelopmentController {
   /** Get one specific saved version (immutable history stays readable). */
   @Get(`prospects/:${UUID_PARAM}/brief/versions/:versionNumber`)
   @UseGuards(BusinessDevelopmentBriefFlagGuard)
-  getBriefVersion(
-    @CurrentTenant() ctx: TenantContext,
-    @Param() params: BriefVersionParam,
-  ) {
+  getBriefVersion(@CurrentTenant() ctx: TenantContext, @Param() params: BriefVersionParam) {
     return this.brief.getVersion(ctx, params.prospectId, params.versionNumber);
   }
 
@@ -369,7 +364,7 @@ export class BusinessDevelopmentController {
    * stage). BD-CLAIM Jev semantic validation remains dark. */
   @Post('brief/claim-check')
   @HttpCode(200)
-  @UseGuards(BusinessDevelopmentBriefFlagGuard)
+  @UseGuards(BusinessDevelopmentBriefFlagGuard, BusinessDevelopmentClaimValidationFlagGuard)
   checkBriefClaim(@CurrentTenant() ctx: TenantContext, @Body() body: CheckBriefClaimDto) {
     return this.brief.checkClaim(ctx, {
       prospectId: body.prospectId,
