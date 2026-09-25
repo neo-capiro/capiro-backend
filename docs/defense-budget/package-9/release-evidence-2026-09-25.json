@@ -1,39 +1,54 @@
 {
+  "schemaVersion": 2,
   "package": 9,
-  "releasedAt": "2026-09-25T01:52:34.3761012Z",
-  "updatedAt": "2026-09-25T11:29:29.4386596Z",
+  "evidenceType": "package-9-technical-completion-and-aws-deployment",
+  "updatedAt": "2026-09-25T14:04:36.774Z",
   "sourceControl": {
-    "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1794",
-    "mergeCommit": "f8a9079c5fb149952c450bf050d9678494884c26",
-    "localMainBeforeBuild": "f8a9079c5fb149952c450bf050d9678494884c26",
-    "githubMainBeforeBuild": "f8a9079c5fb149952c450bf050d9678494884c26",
+    "repository": "neo-capiro/capirov2",
+    "runtimeSourceRevision": "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
+    "localMainAtBuild": "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
+    "githubMainAtBuild": "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
+    "package9PullRequests": [
+      {
+        "number": 1794,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1794",
+        "mergeCommit": "f8a9079c5fb149952c450bf050d9678494884c26"
+      },
+      {
+        "number": 1796,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1796",
+        "mergeCommit": "8d50b9671f01fc034ec712dc7696e9fe3b1c08d0"
+      },
+      {
+        "number": 1804,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1804",
+        "mergeCommit": "daef1dddc4093bbdf3a15bc569c0d5ed96cc83e4"
+      },
+      {
+        "number": 1812,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1812",
+        "mergeCommit": "a552cb15779c9866c8011223253fdffd63f8d699",
+        "scope": "corrected concurrent drain and compiled product-query qualification"
+      },
+      {
+        "number": 1813,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1813",
+        "mergeCommit": "ad17d0a47607ba69e2fdaf5c966c71caffe64771",
+        "scope": "populated Program Element routing and pointer rollback qualification"
+      },
+      {
+        "number": 1810,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1810",
+        "mergeCommit": "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
+        "scope": "complete isolated 18-threshold warning and stop alarm matrix"
+      }
+    ],
     "githubHostedChecks": {
-      "result": "infrastructure_failure",
+      "result": "INFRASTRUCTURE_FAILURE_BEFORE_STEPS",
+      "representativeRuns": [36138334795, 36141894234],
       "runnerAssigned": false,
       "stepsStarted": 0,
-      "sampleJobId": 107908157537
-    },
-    "durableQualification": {
-      "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1796",
-      "mergeCommit": "8d50b9671f01fc034ec712dc7696e9fe3b1c08d0",
-      "githubHostedChecks": {
-        "result": "infrastructure_failure",
-        "runnerAssigned": false,
-        "stepsStarted": 0,
-        "sampleJobId": 107919553655
-      }
-    },
-    "productQueryQualification": {
-      "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1804",
-      "mergeCommit": "daef1dddc4093bbdf3a15bc569c0d5ed96cc83e4",
-      "benchmarkSourceRevision": "f948d23cc984cd356b042caa555e3a642f3ca039",
-      "reportSha256": "8513d52ec88ed2c700b5fea171e0d6d116f31eba8487b31e82a7b72e28b9a82b",
-      "githubHostedChecks": {
-        "result": "infrastructure_failure",
-        "runnerAssigned": false,
-        "stepsStarted": 0,
-        "sampleJobId": 107950774578
-      }
+      "interpretation": "Repository-wide GitHub jobs failed before executing steps. Local, disposable-database, isolated-AWS, CodeBuild, migration, and live ECS validations are retained below."
     }
   },
   "validation": {
@@ -47,281 +62,220 @@
     "apiBuild": "PASS",
     "productionWorkerComponentAssertions": 3,
     "jsonArtifactValidation": "PASS",
-    "independentAudit": "PASS_AFTER_REPAIR",
-    "currentReleaseScorecardHash": "00936cf7186b212db94b37442fe32ef500ad718fe8f9ca2a95301d144ab22d09",
-    "currentJevEconomicsHash": "0bf2374559471cbf3333c93e05343099fce793ea660fb45acb8d7970652a1fa9",
-    "currentReleaseDecision": "NO_GO",
-    "maximumActivation": "shadow_only",
-    "durableDatabaseLoadAndFailureRecovery": "PASS_LIMITED_SCOPE",
-    "isolatedSyntheticAlarmDelivery": "PASS_LIMITED_SCOPE",
-    "localCompositeRoutingAndPointerRollback": "PASS_LIMITED_LOCAL_COMPOSITE",
-    "localSyntheticSustainedProductQuery": "PASS_LOCAL_SYNTHETIC_SCOPE",
-    "awsCostObservation": "SUPPORTING_ONLY_NOT_ATTRIBUTABLE",
-    "blindIndependentAccuracyReview": "NOT_RUN",
-    "buyerBenchmark": "NOT_RUN",
-    "matchedWorkCostQualification": "NOT_RUN",
-    "rollbackAndAlarmDeliveryRehearsal": "PARTIAL_PASS_LOCAL_COMPOSITE_AND_ISOLATED_ALARM_PATHS"
+    "independentTechnicalAudit": "PASS_AFTER_REPAIR"
   },
-  "durableQualification": {
-    "report": "docs/defense-budget/package-9/evidence/durable-run-p9-20260925024117927-2c727e.json",
-    "sha256": "2b6adbffe6cfb4ee048901e30314d313cb31121aa77388418337e1bf01f6aeeb",
-    "sourceRevision": "8d50b9671f01fc034ec712dc7696e9fe3b1c08d0",
-    "environment": "disposable-local-postgresql",
-    "status": "PASS_LIMITED_SCOPE",
-    "scenarioPasses": 8,
-    "scenarioTotal": 8,
-    "measuredCheckPasses": 4,
-    "measuredCheckTotal": 4,
-    "acceptedFacts": 100,
-    "durableLogicalNotifications": 100,
-    "duplicateLogicalNotificationKeys": 0,
-    "missingFactEvidence": 0,
-    "missingLogicalNotifications": 0,
-    "peakQueueRows": 100,
-    "maxConcurrentWorkers": 4,
-    "syntheticDrainElapsedMilliseconds": 580.825,
-    "databaseQuerySamples": 651,
-    "databaseQueryP95Milliseconds": 9.535,
-    "databaseQueryMaximumMilliseconds": 35.372,
-    "databaseTimingIsCommonProductQueryLatency": false,
-    "notRun": [
-      "alarmDelivery",
-      "rollback",
-      "sustainedLatency",
-      "commonQueryP95",
-      "awsCost",
-      "paidProviderEconomics",
-      "buyerBenchmark",
-      "independentAccuracy"
-    ]
-  },
-  "isolatedAlarmQualification": {
-    "report": "docs/defense-budget/package-9/evidence/alarm-delivery-run-p9-f07-20260925T030858Z-5d9b39.json",
-    "sha256": "e32c7fc51979a831e1cc61ebc3977d04d5e39dd8de30e9fd638a0c25fb32bf10",
-    "sourceRevision": "f691689c63cb40941e15fad25e4b6f264a4ddba5",
-    "harness": "scripts/qualify-package9-f07-isolated.ps1",
-    "harnessSha256": "fcf3ffb35af4875ad90f0d758356fe5afd043130e6f9502faf9d6ab864377541",
-    "environment": "isolated-ephemeral-aws-cloudwatch-sns-sqs",
-    "status": "PASS_LIMITED_SCOPE",
-    "runKey": "p9-f07-20260925T030858Z-5d9b39",
-    "alarmTransitions": ["INSUFFICIENT_DATA_TO_ALARM", "ALARM_TO_OK"],
-    "expectedNotificationsReceived": 2,
-    "expectedNotificationsAcknowledged": 2,
-    "additionalAtLeastOnceDeliveries": 0,
-    "ephemeralResourceCleanupVerified": true,
-    "notRun": [
-      "allRequiredWarningAndStopThresholds",
-      "namedHumanOrProductionReceiver",
-      "stopAdmission",
-      "queuedAndImmutableEvidencePreservation",
-      "projectionAndRoutingRollback"
-    ]
-  },
-  "localRollbackQualification": {
-    "report": "docs/defense-budget/package-9/evidence/rollback-composite-run-p9-f06-20260925T035806Z.json",
-    "sha256": "45a46a522338cc1ae956cb274d8ca7466583e0dd39792dcf46478672bbffce34",
-    "sourceRevision": "70236246b719dc8c08be02c1f78d24a904db4692",
-    "engineHarness": "apps/api/scripts/pe-budget-phase7-engine-rehearsal.ts",
-    "engineHarnessSha256": "99a4447c04ac8d2d7708910dd816d6da5338cb8df0d5cd47f31c302f37d4704f",
-    "migrationHarness": "apps/api/scripts/pe-budget-phase7-migration-rehearsal.sh",
-    "migrationHarnessSha256": "5d48fae19758ca986aa73c180145e2f36d9f87f0a34b056a765da6281937d727",
-    "environment": "disposable-local-postgresql",
-    "status": "PASS_LIMITED_LOCAL_COMPOSITE",
-    "topLevelChecks": 125,
-    "promotionEngineChecks": 35,
-    "outboxDrainChecks": 39,
-    "snapshotReadChecks": 33,
-    "planAndValidateChecks": 36,
-    "authorizationChecks": 13,
-    "tenantCanaryUsedActiveSnapshotPointer": true,
-    "emergencySwitchReturnedLegacyWithoutSnapshotRowRead": true,
-    "activePointerReturnedToPriorSnapshot": true,
-    "postRollbackCanaryFollowedRestoredPointer": true,
-    "bothSnapshotsAndRolledBackRowsPreserved": true,
-    "rollbackDrainPauseVerified": true,
-    "rollbackUnsuppressedAlerts": 0,
-    "acceptedRollbackDurableAuditRows": 1,
-    "ephemeralResourceCleanupVerified": true,
-    "notRun": [
-      "authenticatedHttpCanaryRequest",
-      "populatedCanonicalAndLegacyResponseEquivalence",
-      "restartedDeployedApiProcess",
-      "productionDeploymentRollback",
-      "realSourceAndCustomerNotificationPreservation"
-    ]
-  },
-  "localProductQueryQualification": {
-    "report": "docs/defense-budget/package-9/evidence/product-query-p9q-20260925042812623-c66b14bb.json",
-    "sha256": "8513d52ec88ed2c700b5fea171e0d6d116f31eba8487b31e82a7b72e28b9a82b",
-    "sourceRevision": "f948d23cc984cd356b042caa555e3a642f3ca039",
-    "harness": "scripts/package9-product-query-benchmark.mjs",
-    "harnessSha256": "2eb70cc0ba95831730669ff5a1a6de59b205fa654a930a94f785ff0615fb971a",
-    "mix": "docs/defense-budget/package-9/product-query-mix-v1.json",
-    "mixSha256": "85ad5e9bee922b0a471734ae10a4c707f92eb7164058950a9bc11b7c6535fc35",
-    "environment": "disposable-local-postgresql",
-    "status": "PASS_LOCAL_SYNTHETIC_SCOPE",
-    "requestStartSchedulingWindowSeconds": 1800,
-    "observedRequestStartSpanSeconds": 1799.597,
-    "finalRequestStartTailMilliseconds": 402.546,
-    "concurrentClients": 4,
-    "declaredOperations": 8,
-    "observedOperations": 8,
-    "samples": 7176,
-    "errors": 0,
-    "latencyMilliseconds": {
-      "p50": 3.834,
-      "p95": 7.067,
-      "maximum": 101.305
+  "qualification": {
+    "concurrentDurableDrainAndQuery": {
+      "status": "PASS_LIMITED_SCOPE",
+      "report": "docs/defense-budget/package-9/evidence/durable-run-p9-20260925125747227-ef8fac.json",
+      "sha256": "d46f3b21043d87fbc21cba0c6859f72e6cf7ce2d911d2841f46ba58e0ef3b50a",
+      "runId": "p9-20260925125747227-ef8fac",
+      "sourceRevision": "38ca3ca96ab4615c70f943b82b10224e91b9db73",
+      "environment": "disposable-local-postgresql",
+      "startedAt": "2026-09-25T12:57:48.728Z",
+      "finishedAt": "2026-09-25T12:59:07.844Z",
+      "scenarioPasses": 8,
+      "scenarioTotal": 8,
+      "measuredCheckPasses": 6,
+      "measuredCheckTotal": 6,
+      "peakQueueRows": 100,
+      "terminalQueue": {
+        "pending": 0,
+        "leased": 0,
+        "deadLetter": 0
+      },
+      "durableReconciliation": {
+        "acceptedFacts": 100,
+        "evidenceRows": 100,
+        "logicalNotifications": 100,
+        "duplicateLogicalNotificationKeys": 0,
+        "missingFactEvidence": 0,
+        "missingLogicalNotifications": 0
+      },
+      "sourceFamilyRows": {
+        "pb_r1": 25,
+        "pb_p1": 25,
+        "pb_o1": 25,
+        "pb_milcon_c1": 25
+      },
+      "concurrentCompiledQuery": {
+        "clients": 4,
+        "declaredOperations": 8,
+        "observedOperations": 8,
+        "samples": 20,
+        "errors": 0,
+        "p95Milliseconds": 172.174,
+        "maximumMilliseconds": 191.079,
+        "monotonicOverlapMilliseconds": 4069.4863,
+        "perClientCadencePass": true
+      },
+      "retainedFailedObservation": {
+        "report": "docs/defense-budget/package-9/evidence/durable-run-p9-20260925125435029-f669a3.json",
+        "sha256": "1ae31724f509d9f9b7e265ed1565459a9fcd73adc921b233a00dec7bc490f886",
+        "reason": "Cold-client query p95 was 4350.512 milliseconds across 13 samples and exceeded the 2000 millisecond harness limit. This observation is retained for audit and is not presented as a pass."
+      },
+      "limitations": [
+        "synthetic local workload",
+        "no authenticated HTTP or network latency",
+        "no production or buyer traffic",
+        "no source-change-to-verified-update p95 measurement"
+      ]
     },
-    "rawSamplesSha256": "0d98e8a3907da488022734c5cb71a9dca44bbb1cf87afb94338fee325a517f8c",
-    "readerRole": {
-      "noInherit": true,
-      "directMemberships": 0,
-      "publicTablesChecked": 494,
-      "effectiveTableWritePrivileges": 0
+    "populatedRollback": {
+      "status": "PASS_LIMITED_LOCAL_COMPOSITE",
+      "report": "docs/defense-budget/package-9/evidence/rollback-composite-run-p9-f06-20260925T130219Z.json",
+      "sha256": "c60688cf3ed9f5401cef2c355f4e71ed2e6745992593074884d1c66705e7006d",
+      "sourceRevision": "4b210e50f6b377124d27ebd7507241fc420098eb",
+      "environment": "disposable-local-postgresql",
+      "command": "P7_REHEARSAL_PG_PORT=55449 pnpm --filter @capiro/api verify:pe-budget-phase-7:db",
+      "checkGroups": {
+        "topLevelDatabaseRehearsal": 125,
+        "promotionEngine": 40,
+        "outboxDrain": 39,
+        "snapshotReader": 33,
+        "planAndValidate": 36,
+        "authorization": 13
+      },
+      "candidateResponse": {
+        "totalAmount": "999",
+        "quantity": "12"
+      },
+      "restoredPriorResponse": {
+        "totalAmount": "250",
+        "quantity": "12"
+      },
+      "verified": [
+        "candidate response visible through ProgramElementReadService",
+        "authorized pointer rollback restored the exact prior response",
+        "candidate row hashes remained unchanged",
+        "both snapshots and durable rollback audit were preserved",
+        "outbox drain remained paused",
+        "zero unsuppressed rollback notifications",
+        "ephemeral database cleanup completed without touching the separate acceptance container"
+      ],
+      "limitations": [
+        "no authenticated HTTP canary",
+        "no restarted deployed API process",
+        "no production or AWS database rollback",
+        "synthetic data only"
+      ]
     },
-    "migrationFileCount": 431,
-    "migrationLedgerSha256": "4682d11ba34eb483f6b3b7a838116760c175b03069d813df93c8afcebe73ec4f",
-    "notRun": [
-      "concurrentOneHundredRowFourWorkerDrainAndQueryLoad",
-      "authenticatedHttpAndNetworkLatency",
-      "productionOrBuyerTraffic",
-      "sourceChangeToVerifiedBuyerVisibleUpdateLatency",
-      "awsTopologyAndCost"
-    ]
+    "alarmMatrix": {
+      "status": "PASS_LIMITED_SCOPE",
+      "report": "docs/defense-budget/package-9/evidence/alarm-matrix-run-p9-f07-20260925T124316Z-08d62a.json",
+      "sha256": "454aa1d1f0fbf46bece2d307b52886a659297bc3edc106dee594124c8e928be7",
+      "sourceRevision": "14e012c172a76122356530e8d8700f7485943069",
+      "harness": "scripts/qualify-package9-f07-alarm-matrix.ps1",
+      "harnessSha256": "6d0ace77dab50489375899ab09fa43cff0d2691b14ef2c54607ea83d3302fcab",
+      "runKey": "p9-f07-matrix-20260925T124316Z-08d62a",
+      "startedAt": "2026-09-25T12:43:16.179593Z",
+      "completedAt": "2026-09-25T13:29:21.2081332Z",
+      "warningThresholds": 9,
+      "stopThresholds": 9,
+      "initialActionsDisabledOkStates": 18,
+      "initialEmptyLongPolls": 2,
+      "alarmDeliveries": 18,
+      "recoveryDeliveries": 18,
+      "duplicateDeliveries": 0,
+      "deliverySeconds": {
+        "minimum": 4.586,
+        "maximum": 16.652,
+        "harnessLimit": 600
+      },
+      "allHistoriesContainedAlarmAndOk": true,
+      "ephemeralResourcesDeleted": true,
+      "limitations": {
+        "humanAcknowledgement": "NOT_RUN",
+        "stopAdmission": "NOT_RUN",
+        "queuedAndImmutableEvidencePreservation": "NOT_RUN"
+      }
+    },
+    "sustainedLocalProductQuery": {
+      "status": "PASS_LOCAL_SYNTHETIC_SCOPE",
+      "report": "docs/defense-budget/package-9/evidence/product-query-p9q-20260925042812623-c66b14bb.json",
+      "sha256": "8513d52ec88ed2c700b5fea171e0d6d116f31eba8487b31e82a7b72e28b9a82b",
+      "sourceRevision": "f948d23cc984cd356b042caa555e3a642f3ca039",
+      "durationSeconds": 1800,
+      "clients": 4,
+      "operations": 8,
+      "samples": 7176,
+      "errors": 0,
+      "p95Milliseconds": 7.067,
+      "readerEffectiveTableWritePrivileges": 0,
+      "limitations": [
+        "synthetic local workload",
+        "no authenticated HTTP or network latency",
+        "no production or buyer traffic"
+      ]
+    },
+    "awsCostObservation": {
+      "status": "SUPPORTING_ONLY_NOT_ATTRIBUTABLE",
+      "report": "docs/defense-budget/package-9/evidence/aws-cost-observation-p9-20260925T112754Z.json",
+      "sha256": "89f2ae24fd00a1ddb8b3d051705ed101785d38d0ba91b2dad5279748a3cffa88",
+      "accountWideRelevantServicesThirtyDaySumUsd": 6.1100983972,
+      "simpleAnnualizedAccountWideRunRateUsd": 74.33953049926667,
+      "package9IncrementalAwsAnnualHardCapUsd": 1000,
+      "package9IncrementalCostGatePassed": false,
+      "reason": "The account does not expose a Package 9-specific cost-allocation boundary; account-wide observations cannot qualify incremental Package 9 spend."
+    }
   },
-  "awsCostObservation": {
-    "report": "docs/defense-budget/package-9/evidence/aws-cost-observation-p9-20260925T112754Z.json",
-    "sha256": "89f2ae24fd00a1ddb8b3d051705ed101785d38d0ba91b2dad5279748a3cffa88",
-    "sourceRevision": "c8379b2c35bb58f3505577fd1c5b11217763dd04",
-    "status": "SUPPORTING_ONLY_NOT_ATTRIBUTABLE",
-    "windowStartInclusive": "2026-08-26",
-    "windowEndExclusive": "2026-09-25",
-    "accountWideRelevantServicesThirtyDaySumUsd": 6.1100983972,
-    "simpleAnnualizedAccountWideRunRateUsd": 74.33953049926667,
-    "package9IncrementalAwsAnnualHardCapUsd": 1000,
-    "package9IncrementalCostGatePassed": false,
-    "reason": "The AWS account has no Package 9-specific cost-allocation boundary in this query; account-wide totals and a simple annualized projection cannot qualify incremental Package 9 spend."
-  },
-  "aws": {
+  "awsDeployment": {
     "account": "967807252336",
     "region": "us-east-1",
     "cluster": "capiro-dev",
-    "package9ProductQueryDeployment": {
-      "status": "DEPLOYED_VALIDATED",
-      "holdLiftedByUser": true,
-      "deployedAt": "2026-09-25T11:14:12.753Z",
-      "deployedSourceRevision": "30a9ab33458fe3b2d6b76b73c00c773979b8cebb",
-      "package9ProductQueryMergeCommit": "daef1dddc4093bbdf3a15bc569c0d5ed96cc83e4",
-      "preDeploymentBaseline": {
-        "taskDefinition": "capiro-dev-api:456",
-        "desired": 2,
-        "running": 2,
-        "pending": 0,
-        "rolloutState": "COMPLETED",
-        "failedTasks": 0,
-        "imageDigest": "sha256:d971e26f72ae292eeb9c0ba2bc4cd428203b0b799d8e60ebdd4a4fb4c73b1b02"
-      },
-      "codeBuild": {
-        "id": "capiro-build-intel-api:6fec612f-8138-41a7-8f0b-959c0ac5ca85",
-        "resolvedSourceVersion": "30a9ab33458fe3b2d6b76b73c00c773979b8cebb",
-        "status": "SUCCEEDED",
-        "startedAt": "2026-09-25T11:02:03.119Z",
-        "endedAt": "2026-09-25T11:05:33.732Z"
-      },
-      "image": {
-        "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
-        "digest": "sha256:d0894ee693ba7cae7199c924af2544ac1577f84232f489d46e622800329ed9dc",
-        "tagsAtBuildCompletion": [
-          "30a9ab33458fe3b2d6b76b73c00c773979b8cebb",
-          "package9-final-20260925-30a9ab33"
-        ],
-        "currentRetainedTag": "package9-final-20260925-30a9ab33",
-        "postDeploymentMutableTagObservation": {
-          "observedAt": "2026-09-25T11:21:14.2051996Z",
-          "fullSourceShaTag": "30a9ab33458fe3b2d6b76b73c00c773979b8cebb",
-          "fullSourceShaTagCurrentDigest": "sha256:3e74f297b95bd2fa37ba8cbe42523241a42fc774260b1c357e60e13f01fb9c19",
-          "dedicatedPackage9TagCurrentDigest": "sha256:d0894ee693ba7cae7199c924af2544ac1577f84232f489d46e622800329ed9dc",
-          "serviceTaskDefinitionStillPinsDeployedDigest": true,
-          "interpretation": "A later build moved the mutable full-source-SHA tag. The dedicated Package 9 tag and ECS task definition remain bound to the deployed immutable digest."
-        }
-      },
-      "migration": {
-        "taskDefinition": "capiro-dev-api-admin-migrate:71",
-        "taskId": "c49e063fc34946149e96a9d40f932b58",
-        "imageDigest": "sha256:d0894ee693ba7cae7199c924af2544ac1577f84232f489d46e622800329ed9dc",
-        "startedAt": "2026-09-25T11:09:34.388Z",
-        "stoppedAt": "2026-09-25T11:10:07.084Z",
-        "exitCode": 0,
-        "allMigrationsSuccessfullyApplied": true,
-        "applied": [
-          "20280925020000_package9_source_bundle_reader_grant",
-          "20280927010000_business_development_phase4_brief"
-        ],
-        "logStream": "api/api-admin-migrate/c49e063fc34946149e96a9d40f932b58"
-      },
-      "service": {
-        "name": "capiro-dev-api",
-        "taskDefinition": "capiro-dev-api:457",
-        "rolloutState": "COMPLETED",
-        "desired": 2,
-        "running": 2,
-        "pending": 0,
-        "failedTasks": 0,
-        "runningTasks": [
-          {
-            "taskId": "36d9f13fe2d8441c8fd92cf9019501af",
-            "privateIp": "10.40.6.111",
-            "health": "HEALTHY",
-            "targetHealth": "healthy"
-          },
-          {
-            "taskId": "552d21d3b399470d848014e23a70e32f",
-            "privateIp": "10.40.15.250",
-            "health": "HEALTHY",
-            "targetHealth": "healthy"
-          }
-        ]
-      },
-      "runtime": {
-        "gitSha": "30a9ab33458fe3b2d6b76b73c00c773979b8cebb",
-        "taskDefinitionPreservedExceptImageAndGitSha": true,
-        "federalLegislativeEvidenceEnabled": false,
-        "programAcquisitionContinuityEnabled": false,
-        "fundingExecutionSourceAdapterEnabled": false,
-        "fundingExecutionPublicationEnabled": false,
-        "newTaskLogErrorCount": 0,
-        "smoke": {
-          "appHealthStatus": 200,
-          "appApiHealthStatus": 401,
-          "authenticatedRouteInterpretation": "Expected unauthenticated authorization wall; no 5xx response observed."
-        }
-      },
-      "orchestrator": {
-        "service": "capiro-dev-meriv2-orchestrator",
-        "taskDefinition": "capiro-dev-meriv2-orchestrator:81",
-        "desired": 1,
-        "running": 1,
-        "pending": 0,
-        "rolloutState": "COMPLETED",
-        "modifiedByThisDeployment": false
-      }
-    },
+    "holdLiftedByUser": true,
+    "runtimeSourceRevision": "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
     "codeBuild": {
-      "api": {
-        "id": "capiro-build-intel-api:7289c9df-6b4c-4e15-8f37-9cf726aa4f27",
-        "resolvedSourceVersion": "f8a9079c5fb149952c450bf050d9678494884c26",
-        "status": "SUCCEEDED"
+      "failedSafeAttempt": {
+        "id": "capiro-build-intel-api:f4a13e9c-cd66-47b0-bf24-1a3c0b997d7f",
+        "status": "FAILED",
+        "phase": "PRE_BUILD",
+        "sourceRevision": "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
+        "imageLoginBuildOrPushStarted": false
+      },
+      "successfulAttempt": {
+        "id": "capiro-build-intel-api:ab55b95c-0dc4-48e8-8a78-0c64f4e8c261",
+        "status": "SUCCEEDED",
+        "sourceRevision": "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
+        "resolvedSourceRevision": "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
+        "startedAt": "2026-09-25T13:37:43.013Z",
+        "endedAt": "2026-09-25T13:41:20.344Z",
+        "buildPhaseSeconds": 161,
+        "postBuildPhaseSeconds": 25
       }
     },
     "image": {
       "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
-      "digest": "sha256:ef9c9cb0865f7c4e969d75d0af05958ef265af75c0f9804cfd870592b48aedc7",
-      "tags": ["f8a9079c5fb149952c450bf050d9678494884c26", "package9-20260925-api"]
+      "digest": "sha256:9ab624b946dfa795d09cc087164b894701156c721ce3ec4fca86ea1171111a20",
+      "tags": [
+        "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
+        "package9-complete-20260925-88d44ec6"
+      ],
+      "pushedAt": "2026-09-25T13:41:19.091Z",
+      "sizeBytes": 293022425
+    },
+    "migration": {
+      "taskDefinition": "capiro-dev-api-admin-migrate:73",
+      "taskId": "c2bc73fb6559465da3c50fcda59cbf88",
+      "imageDigest": "sha256:9ab624b946dfa795d09cc087164b894701156c721ce3ec4fca86ea1171111a20",
+      "startedAt": "2026-09-25T13:43:27.204Z",
+      "stoppedAt": "2026-09-25T13:43:57.458Z",
+      "exitCode": 0,
+      "migrationsFound": 432,
+      "pendingMigrations": 0,
+      "logGroup": "/capiro/dev/api",
+      "logStream": "api/api-admin-migrate/c2bc73fb6559465da3c50fcda59cbf88"
+    },
+    "deploymentRaceControl": {
+      "initialPackage9TaskDefinition": "capiro-dev-api:459",
+      "concurrentObservedTaskDefinition": "capiro-dev-api:460",
+      "concurrentObservedSourceRevision": "15bdcea3ab7706022d999090b1dcc9b4908e253a",
+      "concurrentRevisionRelationship": "ancestor of runtimeSourceRevision",
+      "resolution": "Waited for revision 460 to stabilize, cloned its live configuration, changed only the API image and GIT_SHA/RELEASE_SHA, rechecked protected flags, and deployed revision 461 after an exact task-definition race check."
     },
     "service": {
       "name": "capiro-dev-api",
-      "taskDefinition": "capiro-dev-api:453",
+      "taskDefinition": "capiro-dev-api:461",
       "rolloutState": "COMPLETED",
       "desired": 2,
       "running": 2,
@@ -329,145 +283,85 @@
       "failedTasks": 0,
       "runningTasks": [
         {
-          "taskId": "693bf03acf0c464ba68caf39eee30c8d",
-          "privateIp": "10.40.10.228",
+          "taskId": "85ba359877534fd49461ce7db9a975c2",
+          "privateIp": "10.40.15.209",
           "health": "HEALTHY",
-          "targetHealth": "healthy"
+          "imageDigest": "sha256:9ab624b946dfa795d09cc087164b894701156c721ce3ec4fca86ea1171111a20",
+          "logEventsInspected": 1253,
+          "errorLikeLogMatches": 0
         },
         {
-          "taskId": "c861357330744204aad8f5938fa966b4",
-          "privateIp": "10.40.7.102",
+          "taskId": "8cbe9c471f7f46e5b5eef546d3752aaf",
+          "privateIp": "10.40.8.203",
           "health": "HEALTHY",
-          "targetHealth": "healthy"
+          "imageDigest": "sha256:9ab624b946dfa795d09cc087164b894701156c721ce3ec4fca86ea1171111a20",
+          "logEventsInspected": 1252,
+          "errorLikeLogMatches": 0
         }
       ]
     },
+    "targetGroup": {
+      "arn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-api-tg/3343fe60b1395f62",
+      "expectedHealthyTargets": 2,
+      "finalHealthyTargets": 2,
+      "finalNonHealthyTargets": 0
+    },
     "runtime": {
-      "gitSha": "f8a9079c5fb149952c450bf050d9678494884c26",
+      "gitSha": "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
+      "releaseSha": "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
+      "taskDefinitionPreservedExceptImageAndGitShaReleaseSha": true,
       "federalLegislativeEvidenceEnabled": false,
       "programAcquisitionContinuityEnabled": false,
       "fundingExecutionSourceAdapterEnabled": false,
       "fundingExecutionPublicationEnabled": false,
+      "newTaskLogEventsInspected": 2505,
+      "newTaskLogErrorLikeCount": 0,
       "smoke": {
-        "appDevHealthStatus": 200,
         "appHealthStatus": 200,
-        "appDevApiHealthStatus": 401,
-        "appDevCoverageStatus": 401,
+        "appApiHealthStatus": 401,
         "authenticatedRouteInterpretation": "Expected unauthenticated authorization wall; no 5xx response observed."
       }
     },
-    "durableQualificationDeployment": {
-      "codeBuild": {
-        "id": "capiro-build-intel-api:811dddc5-e6dc-4d37-b1cb-118c28a08323",
-        "resolvedSourceVersion": "8d50b9671f01fc034ec712dc7696e9fe3b1c08d0",
-        "status": "SUCCEEDED"
-      },
-      "image": {
-        "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
-        "digest": "sha256:a10007952f6bce99c8646de1c8e13963934234a01c2efeb406bb00ffe312ff0d",
-        "tags": ["8d50b9671f01fc034ec712dc7696e9fe3b1c08d0", "package9-durable-20260925-api"]
-      },
-      "service": {
-        "taskDefinition": "capiro-dev-api:454",
-        "rolloutState": "COMPLETED",
-        "desired": 2,
-        "running": 2,
-        "pending": 0,
-        "failedTasks": 0,
-        "runningTasks": [
-          {
-            "taskId": "9ec940367dbc4a228a26ba3ae218d447",
-            "privateIp": "10.40.4.108",
-            "health": "HEALTHY",
-            "targetHealth": "healthy"
-          },
-          {
-            "taskId": "f22e271af1684f5aa4261dabe74465ac",
-            "privateIp": "10.40.15.120",
-            "health": "HEALTHY",
-            "targetHealth": "healthy"
-          }
-        ]
-      },
-      "runtime": {
-        "gitSha": "8d50b9671f01fc034ec712dc7696e9fe3b1c08d0",
-        "taskDefinitionPreservedExceptImageAndGitSha": true,
-        "federalLegislativeEvidenceEnabled": false,
-        "programAcquisitionContinuityEnabled": false,
-        "fundingExecutionSourceAdapterEnabled": false,
-        "fundingExecutionPublicationEnabled": false,
-        "newTaskLogErrorCount": 0,
-        "smoke": {
-          "appDevHealthStatus": 200,
-          "appHealthStatus": 200,
-          "appDevApiHealthStatus": 401,
-          "appDevCoverageStatus": 401,
-          "authenticatedRouteInterpretation": "Expected unauthenticated authorization wall; no 5xx response observed."
-        }
-      }
+    "orchestrator": {
+      "service": "capiro-dev-meriv2-orchestrator",
+      "taskDefinition": "capiro-dev-meriv2-orchestrator:82",
+      "desired": 1,
+      "running": 1,
+      "pending": 0,
+      "rolloutState": "COMPLETED",
+      "modifiedByThisDeployment": false
     }
   },
-  "postDeployReadOnlyInventory": {
-    "package0TaskId": "bbebe75b762e4d09a107ba175346d12f",
-    "package1TaskId": "8ca4c36fae2e4ad09a87b9d2b00d323a",
-    "exitCodes": [0, 0],
-    "transactionMode": "READ ONLY",
-    "sourceGitSha": "f8a9079c5fb149952c450bf050d9678494884c26",
-    "logicalSlotsByFiscalYear": {
-      "2024": 82,
-      "2025": 82,
-      "2026": 82,
-      "2027": 82
-    },
-    "observations": 14,
-    "ingestionOutboxRows": 13,
-    "verificationCandidates": 11,
-    "activeScopedApprovals": 43,
-    "corrections": 1,
-    "snapshots": 0,
-    "activeSnapshots": 0,
-    "canonicalRows": 0,
-    "governedManifests": 0,
-    "queuePending": 9,
-    "queueDeadLetter": 4,
-    "manifestEligible": 0,
-    "replayEligibleButNotQualified": 1
-  },
-  "operations": {
-    "alarms": [
-      {
-        "name": "capiro-dev-defense-budget-lifecycle-coordinator-failed",
-        "state": "OK"
-      },
-      {
-        "name": "capiro-dev-defense-budget-lifecycle-delivery-failed",
-        "state": "OK"
-      }
-    ],
-    "schedules": [
-      {
-        "name": "capiro-dev-defense-budget-lifecycle-coordinator",
-        "state": "ENABLED",
-        "schedule": "rate(1 hour)"
-      }
-    ],
-    "federalLegislativeSchedulePresent": false,
-    "fundingExecutionSchedulePresent": false
+  "releaseScorecard": {
+    "path": "docs/defense-budget/package-9/current-release-scorecard-2026-09-25.json",
+    "sha256": "1ae10e1995e9b0f0436c9b11b157cb02e9e41a690657a0d53690a59141364ae4",
+    "evidenceHash": "e6690f38f1de1907345c0cf7af5dc3b8b21d5024558ce471f8f52f09bca65ddf",
+    "status": "NO_GO",
+    "maximumActivation": "shadow_only",
+    "jevEconomics": {
+      "path": "docs/defense-budget/package-9/jev-economics-current-2026-09-25.json",
+      "sha256": "d6f80f4564829bf3f0bd610f2eed9bc8c1084178a9b185d4874360b5d90bc302"
+    }
   },
   "activationDecision": {
     "status": "NO_GO",
     "maximum": "shadow_only",
-    "reasons": [
-      "The qualification manifest, exact marketed-family cohort, mandatory-source denominator and release authorization are not approved and bound to the deployed revision.",
-      "The required blind independent semantic adjudication and confidence intervals have not been produced.",
-      "The disposable PostgreSQL recovery harness, 30-minute local synthetic compiled-service query benchmark, and limited local composite tenant-canary, emergency-routing and active-pointer rollback rehearsal passed their declared scopes, and one isolated synthetic AWS alarm path passed delivery and recovery; concurrent peak drain/query load, authenticated HTTP/network and verified-update latency, real adapter/provider SDK behavior, the full required alarm set, stop-admission, populated response equivalence, and authenticated deployed rollback remain unqualified.",
-      "Matched completed-work cost evidence does not establish the required 30 percent Jev savings at maintained completion, accuracy and coverage.",
-      "The six predeclared buyer workflows have not been completed by the required buyer cohorts and independently adjudicated.",
-      "Named operational ownership and acceptance records are not present."
-    ],
+    "technicalImplementationAndDeclaredLimitedScopeRehearsalsComplete": true,
     "paidProviderRunStarted": false,
     "historicalReplayStarted": false,
     "historicalNotificationsSent": false,
-    "productionOrPaidActivationAuthorized": false
+    "productionOrPaidActivationAuthorized": false,
+    "remainingExternalGates": [
+      "approved qualification manifest with exact marketed-family cohort and mandatory-source denominator",
+      "blind independent semantic adjudication and confidence intervals",
+      "six predeclared buyer workflows with required cohorts and at least 30 independently adjudicated cases per workflow",
+      "matched completed-work cost evidence proving the required Jev savings at maintained completion, accuracy, and coverage",
+      "named operational owner acceptance record",
+      "named human alarm receiver acknowledgement",
+      "stop-admission and queued immutable-evidence preservation rehearsal",
+      "release-bound oldest-pending-age and verified-program-update p95 measurements",
+      "Package 9-specific AWS and provider cost attribution",
+      "explicit activation scopes, frozen question-model policy, evaluation-run manifest, and release authorization"
+    ]
   }
 }
