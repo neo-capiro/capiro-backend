@@ -878,6 +878,7 @@ export function NewOutreachWizard({
             .filter(Boolean)
             .join(' · ') || undefined,
       })),
+      clientOverview: [],
     };
 
     // ---- Docs & Notes, Debriefs, Preps: one tenant-wide library, per client ----

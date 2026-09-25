@@ -1,7 +1,7 @@
 // Step 5, Context Builder — the second half of what used to be the single
 // "Build Context" step (StepContext.tsx). This is the OLD step's LEFT "pool
-// browser" pane, now full-width and its own step: browse bills, intel, past
-// emails/meetings, docs & notes, debriefs, preps, plus a "Custom note" tab.
+// browser" pane, now full-width and its own step: browse each client's profile
+// context alongside bills, emails, debriefs, preps, and custom notes.
 // Tick anything a draft should draw on — it lands in the context plan (step
 // 4), where it's scoped and given an instruction. Presentation rebuilt onto
 // Tailwind + React Aria per the real migration (handover §0, §6.8); every
@@ -51,6 +51,15 @@ interface StateBillSearchRow {
   status: string | null;
 }
 
+interface PortfolioCapabilityRow {
+  id: string;
+  name: string;
+  type?: string | null;
+  sector?: string | null;
+  serviceBranch?: string | null;
+  trl?: number | null;
+}
+
 interface Props {
   clients?: Client[];
   selectedClientId?: string | null;
@@ -72,23 +81,36 @@ interface Props {
   loading?: boolean;
 }
 
-// Bills / emails / meeting preps / debriefs / docs / custom note. (Past
-// meetings was replaced by Meeting preps; Intel tab was removed earlier.)
+// Sources outside the client-profile browser. Client capabilities and Docs &
+// Notes live under the owning client instead of being duplicated here.
 const TABS: Array<{ id: ContextKind; label: string; icon: typeof Icon.Bill }> = [
   { id: 'bill', label: 'Bills', icon: Icon.Bill },
   { id: 'stateBill', label: 'State Bills', icon: Icon.StateBill },
   { id: 'programElement', label: 'Program Elements', icon: Icon.ProgramElement },
-  { id: 'capability', label: 'Client capabilities', icon: Icon.Capability },
   { id: 'email', label: 'Past emails', icon: Icon.Email },
   { id: 'prep', label: 'Meeting preps', icon: Icon.Prep },
   { id: 'debrief', label: 'Debriefs', icon: Icon.Debrief },
-  { id: 'document', label: 'Docs & Notes', icon: Icon.Document },
   { id: 'note', label: 'Custom note', icon: Icon.Plus },
 ];
 
-// These tabs draw from the tenant-wide library and group their pool by client
-// (a client sub-tab row inside the tab). Debriefs/preps also sort newest-first.
-const CLIENT_GROUPED_KINDS: ContextKind[] = ['document', 'debrief', 'prep'];
+const PROFILE_SOURCE_META: Record<ContextKind, { label: string; icon: typeof Icon.Bill }> = {
+  clientOverview: { label: 'Client overview', icon: Icon.User01 },
+  bill: { label: 'Bills', icon: Icon.Bill },
+  stateBill: { label: 'State Bills', icon: Icon.StateBill },
+  programElement: { label: 'Program Elements', icon: Icon.ProgramElement },
+  capability: { label: 'Client capabilities', icon: Icon.Capability },
+  intel: { label: 'Client intelligence', icon: Icon.Document },
+  email: { label: 'Past emails', icon: Icon.Email },
+  meeting: { label: 'Past meetings', icon: Icon.Document },
+  document: { label: 'Docs & Notes', icon: Icon.Document },
+  debrief: { label: 'Debriefs', icon: Icon.Debrief },
+  prep: { label: 'Meeting preps', icon: Icon.Prep },
+  note: { label: 'Custom note', icon: Icon.Plus },
+};
+
+// These source tabs draw from the tenant-wide library and group their pool by
+// client. Docs & Notes are not listed here because they are profile-only.
+const CLIENT_GROUPED_KINDS: ContextKind[] = ['debrief', 'prep'];
 
 export function StepContextBuilder({
   clients = [],
@@ -212,7 +234,7 @@ export function StepContextBuilder({
     peSearch.data,
   ]);
 
-  // ---- Client sub-tabs (Docs & Notes / Debriefs / Preps) ----
+  // ---- Client sub-tabs (Debriefs / Preps) ----
   // These tabs group their pool by client and show a sub-tab per client; the
   // pool is tenant-wide (no recipient/client gating). 'all' = every client.
   const isClientGrouped = tab !== 'clientPortfolio' && CLIENT_GROUPED_KINDS.includes(tab) && !billSearchActive;
@@ -264,16 +286,56 @@ export function StepContextBuilder({
     selected,
   ]);
 
+  // The campaign client's capabilities are already in `pool`. Load other
+  // clients' capability records only while their portfolio profile is open.
+  const portfolioCapabilitiesQuery = useQuery<PortfolioCapabilityRow[]>({
+    enabled: tab === 'clientPortfolio' && !!portfolioClientId && portfolioClientId !== selectedClientId,
+    queryKey: ['outreach-portfolio-capabilities', portfolioClientId],
+    queryFn: async () =>
+      (await api.get<PortfolioCapabilityRow[]>(`/api/clients/${portfolioClientId}/capabilities`)).data,
+    retry: false,
+    staleTime: 60_000,
+  });
+
   const portfolioItems = useMemo(() => {
     if (!portfolioClientId) return [];
-    const campaignClientKinds: ContextKind[] = ['bill', 'intel', 'capability'];
-    return (Object.keys(pool) as ContextKind[]).flatMap((kind) =>
+    const campaignClientKinds: ContextKind[] = ['bill', 'intel'];
+    const items = (Object.keys(pool) as ContextKind[]).flatMap((kind) =>
+      kind === 'capability' ? [] :
       (pool[kind] ?? []).filter(
         (item) => item.clientId === portfolioClientId ||
           (campaignClientKinds.includes(kind) && selectedClientId === portfolioClientId),
       ),
     );
-  }, [pool, portfolioClientId, selectedClientId]);
+    const client = clients.find((candidate) => candidate.id === portfolioClientId);
+    const capabilityRows = portfolioClientId === selectedClientId
+      ? (pool.capability ?? []).map((item) => ({ ...item, clientId: portfolioClientId, clientName: client?.name }))
+      : (portfolioCapabilitiesQuery.data ?? []).map((capability) => ({
+          id: `capability-${capability.id}`,
+          kind: 'capability' as const,
+          title: capability.name,
+          tag: capability.type ?? undefined,
+          sub: [capability.sector, capability.serviceBranch, capability.trl != null ? `TRL ${capability.trl}` : null]
+            .filter(Boolean)
+            .join(' · ') || undefined,
+          clientId: portfolioClientId,
+          clientName: client?.name,
+        }));
+    items.push(...capabilityRows);
+    if (client) {
+      const summary = [client.description, client.productDescription].filter(Boolean).join('\n\n').trim();
+      items.unshift({
+        id: `client-overview-${client.id}`,
+        kind: 'clientOverview',
+        title: `${client.name} overview`,
+        body: summary || undefined,
+        sub: [client.sectorTag, client.profileType, client.website].filter(Boolean).join(' · ') || undefined,
+        clientId: client.id,
+        clientName: client.name,
+      });
+    }
+    return items;
+  }, [clients, pool, portfolioCapabilitiesQuery.data, portfolioClientId, selectedClientId]);
   const visiblePortfolioItems = useMemo(() => {
     const query = portfolioSearch.trim().toLocaleLowerCase();
     return query
@@ -282,18 +344,13 @@ export function StepContextBuilder({
   }, [portfolioItems, portfolioSearch]);
   const visiblePortfolioGroups = useMemo(() => {
     const portfolioKinds: ContextKind[] = [
-      ...TABS.map((source) => source.id),
-      'intel',
-      'meeting',
+      'clientOverview', 'bill', 'stateBill', 'programElement', 'capability', 'intel',
+      'email', 'meeting', 'document', 'debrief', 'prep', 'note',
     ];
     return portfolioKinds.flatMap((kind) => {
       const items = visiblePortfolioItems.filter((item) => item.kind === kind);
       if (!items.length) return [];
-      const source = TABS.find((candidate) => candidate.id === kind) ?? {
-        id: kind,
-        label: kind === 'intel' ? 'Client intelligence' : 'Past meetings',
-        icon: Icon.Document,
-      };
+      const source = { id: kind, ...PROFILE_SOURCE_META[kind] };
       return [{ source, items }];
     });
   }, [visiblePortfolioItems]);
@@ -306,13 +363,16 @@ export function StepContextBuilder({
       }
     }
     if (selectedClientId) {
-      const scopedCount = ['bill', 'intel', 'capability'].reduce(
-        (total, kind) => total + (pool[kind as ContextKind]?.length ?? 0), 0,
-      );
+      const scopedCount = ['bill', 'intel', 'capability'].reduce((total, kind) =>
+        total + (pool[kind as ContextKind] ?? []).filter((item) => !item.clientId).length, 0);
       counts.set(selectedClientId, (counts.get(selectedClientId) ?? 0) + scopedCount);
     }
+    if (portfolioClientId && portfolioClientId !== selectedClientId) {
+      counts.set(portfolioClientId, (counts.get(portfolioClientId) ?? 0) + (portfolioCapabilitiesQuery.data?.length ?? 0));
+    }
+    for (const client of clients) counts.set(client.id, (counts.get(client.id) ?? 0) + 1);
     return counts;
-  }, [pool, selectedClientId]);
+  }, [clients, pool, portfolioCapabilitiesQuery.data, portfolioClientId, selectedClientId]);
 
   const searchPlaceholder =
     tab === 'bill'
@@ -380,7 +440,7 @@ export function StepContextBuilder({
                       </div>
                       {items.map((item) => <PoolRow key={`${item.kind}:${item.id}`} item={item} selectedOn={isOn(item.id)} hint={matchHint(item)} onToggle={() => toggle(item)} />)}
                     </section>;
-                  })}</div> : <div className="rounded-lg border border-dashed border-line-control p-8 text-center text-[12.5px] text-ink-tertiary">{portfolioItems.length ? 'No profile context matches your search.' : 'No saved profile context is available for this client yet.'}</div>}
+                  })}</div> : <div className="rounded-lg border border-dashed border-line-control p-8 text-center text-[12.5px] text-ink-tertiary">{portfolioCapabilitiesQuery.isFetching ? 'Loading client capabilities…' : portfolioCapabilitiesQuery.isError ? 'Client capabilities could not be loaded.' : portfolioItems.length ? 'No profile context matches your search.' : 'No saved profile context is available for this client yet.'}</div>}
                 </>
               ) : <div className="p-8 text-center text-sm text-ink-tertiary">Choose a client to review its profile and select context.</div>}
             </section>

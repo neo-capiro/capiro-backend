@@ -22,7 +22,8 @@ export type ContextKind =
   | 'debrief'
   | 'prep'
   | 'programElement'
-  | 'capability';
+  | 'capability'
+  | 'clientOverview';
 
 export interface ContextPoolItem {
   id: string;
@@ -35,9 +36,9 @@ export interface ContextPoolItem {
   // this for smart routing: when the user selects an item, we auto-set scope
   // to the matching recipient if there's exactly one match, else 'all'.
   matches?: string[];
-  // Owning client (for the Docs/Notes, Debriefs, Preps tabs, which group their
-  // pool by client). `clientId` null = unassigned; `clientName` is the resolved
-  // display label. `date` (ISO) drives most-recent-first ordering.
+  // Owning client for client-profile context and client-grouped sources.
+  // `clientId` null = unassigned; `clientName` is the resolved display label.
+  // `date` (ISO) drives most-recent-first ordering.
   clientId?: string | null;
   clientName?: string;
   date?: string;
