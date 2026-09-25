@@ -11,11 +11,14 @@ import type {
   ParserRunV1,
 } from '../contracts/extraction-artifact-v1.js';
 import {
-  computeParserRunId,
   parseParserRuntimeResultV1,
   verifyResultContentSha256,
   type ParserRuntimeResultV1,
 } from '../parser-router/parser-runtime-contract-v1.js';
+import {
+  parserRunIdV1,
+  validateParserRunCoverageV1,
+} from '../parser-router/parser-run-identity-v1.js';
 
 export interface Phase5ParserResultProofV1 {
   parserRunId: string;
@@ -69,13 +72,18 @@ function assertRunMatchesResult(run: ParserRunV1, result: ParserRuntimeResultV1)
       'parser_result_content_sha_mismatch',
     );
   }
-  const expectedRunId = computeParserRunId({
+  if (run.requestedPages == null || run.succeededPages == null || run.failedPages == null) {
+    throw new Phase5ArtifactProofError(
+      `parser run ${run.parserRunId} is missing requested/succeeded/failed page coverage`,
+      'parser_run_page_coverage_missing',
+    );
+  }
+  const expectedRunId = parserRunIdV1({
     sourceSha256: result.inputSourceSha256,
     method: result.engine,
     parserVersion: result.parserVersion,
     parserConfigSha256: result.parserConfigSha256,
-    pages: result.succeededPages,
-    runtimeContractVersion: result.schemaVersion,
+    requestedPages: result.requestedPages,
   });
   if (run.parserRunId !== expectedRunId) {
     throw new Phase5ArtifactProofError(
@@ -111,6 +119,36 @@ function assertRunMatchesResult(run: ParserRunV1, result: ParserRuntimeResultV1)
     throw new Phase5ArtifactProofError(
       `parser run ${run.parserRunId} output SHA does not match the exact persisted parser result`,
       'parser_result_output_sha_mismatch',
+    );
+  }
+
+  const sortedNumbers = (pages: readonly number[]) => [...pages].sort((a, b) => a - b);
+  const sortedFailures = (failures: readonly { page: number; code: string; message: string }[]) =>
+    failures
+      .map((failure) => ({ ...failure }))
+      .sort((left, right) => left.page - right.page || left.code.localeCompare(right.code));
+  const coverageMatches =
+    JSON.stringify(sortedNumbers(run.requestedPages)) ===
+      JSON.stringify(sortedNumbers(result.requestedPages)) &&
+    JSON.stringify(sortedNumbers(run.succeededPages)) ===
+      JSON.stringify(sortedNumbers(result.succeededPages)) &&
+    JSON.stringify(sortedFailures(run.failedPages)) ===
+      JSON.stringify(sortedFailures(result.failedPages));
+  if (!coverageMatches) {
+    throw new Phase5ArtifactProofError(
+      `parser run ${run.parserRunId} requested/succeeded/failed page coverage does not match its persisted result`,
+      'parser_run_page_coverage_mismatch',
+    );
+  }
+  const coverage = validateParserRunCoverageV1({
+    requestedPages: run.requestedPages,
+    succeededPages: run.succeededPages,
+    failedPages: run.failedPages,
+  });
+  if (!coverage.ok) {
+    throw new Phase5ArtifactProofError(
+      `parser run ${run.parserRunId} has invalid page coverage: ${coverage.findings.join('; ')}`,
+      'parser_run_page_coverage_invalid',
     );
   }
 

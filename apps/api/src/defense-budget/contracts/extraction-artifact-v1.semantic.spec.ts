@@ -78,6 +78,62 @@ describe('validateDefenseBudgetExtractionArtifactV1', () => {
     expect(errorCodes(tampered)).toContain('parser_run_input_sha_mismatch');
   });
 
+  it('binds XML companion provenance to the official PDF SHA', () => {
+    const artifact = buildMinimalArtifact();
+    const tampered: DefenseBudgetExtractionArtifactV1 = {
+      ...artifact,
+      source: {
+        ...artifact.source,
+        xmlCompanion: {
+          locator: 'https://example.test/r1.xml',
+          officialPdfSha256: 'f'.repeat(64),
+          companionByteSha256: 'b'.repeat(64),
+        },
+      },
+    };
+    expect(errorCodes(tampered)).toContain('xml_companion_official_pdf_sha_mismatch');
+  });
+
+  it('binds native parser input digests and structured element locators to XML bytes', () => {
+    const artifact = buildMinimalArtifact();
+    const xmlSha = 'b'.repeat(64);
+    const tampered: DefenseBudgetExtractionArtifactV1 = {
+      ...artifact,
+      source: {
+        ...artifact.source,
+        xmlCompanion: {
+          locator: 'https://example.test/r1.xml',
+          officialPdfSha256: artifact.source.sourcePdfSha256,
+          companionByteSha256: xmlSha,
+        },
+      },
+      parserRuns: [
+        {
+          ...artifact.parserRuns[0]!,
+          method: 'native_structured',
+          inputCompanionSha256: 'c'.repeat(64),
+        },
+      ],
+      evidence: [
+        {
+          ...artifact.evidence[0]!,
+          structuredElement: {
+            companionByteSha256: xmlSha,
+            elementPath: '/JustificationBook/ProgramElementList/ProgramElement[1]',
+            elementId: '0602308A',
+          },
+        },
+      ],
+    };
+    expect(errorCodes(tampered)).toEqual(
+      expect.arrayContaining([
+        'xml_companion_parser_input_sha_mismatch',
+        'structured_element_parser_run_mismatch',
+        'structured_element_claims_pdf_location',
+      ]),
+    );
+  });
+
   it('rejects content-hash tampering', () => {
     const artifact = buildMinimalArtifact();
     const identityAssertion = artifact.assertions[0]!;

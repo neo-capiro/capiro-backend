@@ -3,10 +3,10 @@ import type {
   ParserRunV1,
 } from '../contracts/extraction-artifact-v1.js';
 import {
-  computeParserRunId,
   sealParserRuntimeResult,
   type ParserRuntimeResultV1,
 } from '../parser-router/parser-runtime-contract-v1.js';
+import { parserRunIdV1 } from '../parser-router/parser-run-identity-v1.js';
 import {
   assertPhase5ArtifactProofBound,
   Phase5ArtifactProofError,
@@ -16,7 +16,11 @@ const SOURCE_SHA = 'a'.repeat(64);
 const CONFIG_SHA = 'b'.repeat(64);
 const ARTIFACT_SHA = 'c'.repeat(64);
 
-function parserResult(pages: number[] = [1]): ParserRuntimeResultV1 {
+function parserResult(
+  pages: number[] = [1],
+  requestedPages: number[] = pages,
+  failedPages: ParserRuntimeResultV1['failedPages'] = [],
+): ParserRuntimeResultV1 {
   return sealParserRuntimeResult({
     schemaVersion: 'defense_budget_parser_result_v1',
     jobId: 'phase5-test-job',
@@ -24,9 +28,9 @@ function parserResult(pages: number[] = [1]): ParserRuntimeResultV1 {
     parserVersion: 'pdfplumber-test',
     parserConfigSha256: CONFIG_SHA,
     inputSourceSha256: SOURCE_SHA,
-    requestedPages: pages,
+    requestedPages,
     succeededPages: pages,
-    failedPages: [],
+    failedPages,
     pages: pages.map((page) => ({
       page,
       text: `P-1 test page ${page}`,
@@ -39,22 +43,21 @@ function parserResult(pages: number[] = [1]): ParserRuntimeResultV1 {
     warnings: [],
     metrics: {
       durationMillis: 1,
-      pagesProcessed: pages.length,
+      pagesProcessed: requestedPages.length,
       pagesSucceeded: pages.length,
-      pagesFailed: 0,
+      pagesFailed: failedPages.length,
       engineVersion: 'test',
     },
   });
 }
 
 function runId(result: ParserRuntimeResultV1): string {
-  return computeParserRunId({
+  return parserRunIdV1({
     sourceSha256: result.inputSourceSha256,
     method: result.engine,
     parserVersion: result.parserVersion,
     parserConfigSha256: result.parserConfigSha256,
-    pages: result.succeededPages,
-    runtimeContractVersion: result.schemaVersion,
+    requestedPages: result.requestedPages,
   });
 }
 
@@ -68,6 +71,9 @@ function artifact(result = parserResult()): DefenseBudgetExtractionArtifactV1 {
     inputSourceSha256: result.inputSourceSha256,
     outputArtifactSha256: result.contentSha256,
     pageRanges: result.succeededPages.map((page) => ({ startPage: page, endPage: page })),
+    requestedPages: result.requestedPages,
+    succeededPages: result.succeededPages,
+    failedPages: result.failedPages.map(({ page, code, message }) => ({ page, code, message })),
   };
   return {
     schemaVersion: 'defense_budget_extraction_v1',
@@ -156,6 +162,37 @@ describe('assertPhase5ArtifactProofBound', () => {
         requireResultByteSha256: true,
       }),
     ).not.toThrow();
+  });
+
+  it('uses all requested pages for identity and accepts a legitimately blank requested page', () => {
+    const result = parserResult(
+      [1],
+      [1, 2],
+      [{ page: 2, code: 'no_embedded_text', message: 'blank page' }],
+    );
+    const run = artifact(result).parserRuns[0]!;
+    expect(run.parserRunId).toBe(runId(result));
+    expect(run.requestedPages).toEqual([1, 2]);
+    expect(run.succeededPages).toEqual([1]);
+    expect(run.failedPages).toEqual([{ page: 2, code: 'no_embedded_text', message: 'blank page' }]);
+    expect(() =>
+      assertPhase5ArtifactProofBound({
+        artifact: artifact(result),
+        parserResultProofs: proof(result),
+        requireResultByteSha256: true,
+      }),
+    ).not.toThrow();
+
+    const mismatchedCoverage = artifact(result);
+    mismatchedCoverage.parserRuns[0]!.failedPages = [];
+    expectCode(
+      () =>
+        assertPhase5ArtifactProofBound({
+          artifact: mismatchedCoverage,
+          parserResultProofs: proof(result),
+        }),
+      'parser_run_page_coverage_mismatch',
+    );
   });
 
   it('rejects empty and synthetic parser ledgers', () => {
