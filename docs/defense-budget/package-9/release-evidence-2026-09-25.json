@@ -1,7 +1,7 @@
 {
   "package": 9,
   "releasedAt": "2026-09-25T01:52:34.3761012Z",
-  "updatedAt": "2026-09-25T04:58:46.430Z",
+  "updatedAt": "2026-09-25T05:03:37.9957141Z",
   "sourceControl": {
     "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1794",
     "mergeCommit": "f8a9079c5fb149952c450bf050d9678494884c26",
@@ -21,6 +21,18 @@
         "runnerAssigned": false,
         "stepsStarted": 0,
         "sampleJobId": 107919553655
+      }
+    },
+    "productQueryQualification": {
+      "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1804",
+      "mergeCommit": "daef1dddc4093bbdf3a15bc569c0d5ed96cc83e4",
+      "benchmarkSourceRevision": "f948d23cc984cd356b042caa555e3a642f3ca039",
+      "reportSha256": "8513d52ec88ed2c700b5fea171e0d6d116f31eba8487b31e82a7b72e28b9a82b",
+      "githubHostedChecks": {
+        "result": "infrastructure_failure",
+        "runnerAssigned": false,
+        "stepsStarted": 0,
+        "sampleJobId": 107950774578
       }
     }
   },
@@ -181,6 +193,33 @@
     "account": "967807252336",
     "region": "us-east-1",
     "cluster": "capiro-dev",
+    "pendingPackage9ProductQueryDeployment": {
+      "status": "DEFERRED_ACTIVE_COORDINATED_RELEASE_HOLD",
+      "mergedRevision": "daef1dddc4093bbdf3a15bc569c0d5ed96cc83e4",
+      "reason": "A separate authorized B1-B6 release owns the API and Meriv2 orchestrator deployment window. Package 9 must not overwrite either service until that task reports its final stable baseline and clears the hold.",
+      "readOnlyBaselineObservedAt": "2026-09-25T05:03:37.9957141Z",
+      "api": {
+        "service": "capiro-dev-api",
+        "taskDefinition": "capiro-dev-api:456",
+        "desired": 2,
+        "running": 2,
+        "pending": 0,
+        "rolloutState": "COMPLETED",
+        "imageDigest": "sha256:d971e26f72ae292eeb9c0ba2bc4cd428203b0b799d8e60ebdd4a4fb4c73b1b02",
+        "imageTags": ["3bf895a45ee600e9a63e3c0e03f6af2832d7ef87", "phase3-hotfix-20260925-api"],
+        "taskDefinitionGitSha": "8d50b9671f01fc034ec712dc7696e9fe3b1c08d0",
+        "gitShaDriftObserved": true
+      },
+      "orchestrator": {
+        "service": "capiro-dev-meriv2-orchestrator",
+        "taskDefinition": "capiro-dev-meriv2-orchestrator:81",
+        "desired": 1,
+        "running": 1,
+        "pending": 0,
+        "rolloutState": "COMPLETED"
+      },
+      "mutationPerformed": false
+    },
     "codeBuild": {
       "api": {
         "id": "capiro-build-intel-api:7289c9df-6b4c-4e15-8f37-9cf726aa4f27",
