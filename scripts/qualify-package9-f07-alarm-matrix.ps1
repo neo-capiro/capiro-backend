@@ -99,6 +99,7 @@ $topicArn = $null
 $queueUrl = $null
 $queueArn = $null
 $subscriptionArn = $null
+$attributesFile = $null
 $identity = $null
 $alarms = @{}
 $createdAlarmNames = [System.Collections.Generic.List[string]]::new()
@@ -286,7 +287,10 @@ try {
   if ($sseManagedEnabled -ne 'true') { throw "SQS receiver did not report SqsManagedSseEnabled=true (reported '$sseManagedEnabled')" }
   $policy = [ordered]@{ Version = '2012-10-17'; Statement = @([ordered]@{ Sid = 'AllowExactQualificationTopic'; Effect = 'Allow'; Principal = [ordered]@{ Service = 'sns.amazonaws.com' }; Action = 'sqs:SendMessage'; Resource = $queueArn; Condition = [ordered]@{ ArnEquals = [ordered]@{ 'aws:SourceArn' = $topicArn } } }) } | ConvertTo-Json -Depth 8 -Compress
   $attrs = @{ Policy = $policy } | ConvertTo-Json -Compress
-  Invoke-AwsCli @('sqs','set-queue-attributes','--region',$Region,'--queue-url',$queueUrl,'--attributes',$attrs) | Out-Null
+  $attributesFile = Join-Path ([IO.Path]::GetTempPath()) "$runKey-sqs-attributes.json"
+  [IO.File]::WriteAllText($attributesFile, $attrs, [Text.UTF8Encoding]::new($false))
+  $attributesFileUri = 'file://' + ($attributesFile -replace '\\','/')
+  Invoke-AwsCli @('sqs','set-queue-attributes','--region',$Region,'--queue-url',$queueUrl,'--attributes',$attributesFileUri) | Out-Null
   $subscriptionArn = (Invoke-AwsCli @('sns','subscribe','--region',$Region,'--topic-arn',$topicArn,'--protocol','sqs','--notification-endpoint',$queueArn,'--return-subscription-arn','--query','SubscriptionArn','--output','text')).Trim()
   $result.resources = [ordered]@{ topicArn = $topicArn; queueUrl = $queueUrl; queueArn = $queueArn; queueEncryption = 'SSE-SQS'; SqsManagedSseEnabled = $sseManagedEnabled; subscriptionArn = $subscriptionArn }
   Add-Observation 'resource-create' 'PASS' 'Created one ephemeral topic and SSE-SQS receiver with exact-source policy'
@@ -366,6 +370,10 @@ finally {
     }
     if ($topicArn) { try { Invoke-AwsCli @('sns','delete-topic','--region',$Region,'--topic-arn',$topicArn) | Out-Null; $result.cleanup.topicDeleted = $true } catch { $cleanupErrors.Add($_.Exception.Message); $result.cleanup.topicDeleted = $false } }
     if ($queueUrl) { try { Invoke-AwsCli @('sqs','delete-queue','--region',$Region,'--queue-url',$queueUrl) | Out-Null; $result.cleanup.queueDeleted = $true } catch { $cleanupErrors.Add($_.Exception.Message); $result.cleanup.queueDeleted = $false } }
+    if ($attributesFile) {
+      try { [IO.File]::Delete($attributesFile); $result.cleanup.localAttributesFileDeleted = -not [IO.File]::Exists($attributesFile) }
+      catch { $cleanupErrors.Add($_.Exception.Message); $result.cleanup.localAttributesFileDeleted = $false }
+    }
     Start-Sleep -Seconds 2
     if ($createdAlarmNames.Count -gt 0) {
       try { $remaining = (Invoke-AwsCli @('cloudwatch','describe-alarms','--region',$Region,'--alarm-names',@($createdAlarmNames),'--query','length(MetricAlarms)','--output','text')).Trim(); $result.cleanup.alarmsAbsent = $remaining -eq '0' }
@@ -382,7 +390,7 @@ finally {
   }
   $result.cleanup.errors = @($cleanupErrors)
   $result.completedAt = (Get-Date).ToUniversalTime().ToString('o')
-  if ($cleanupErrors.Count -gt 0 -or $result.cleanup.alarmsAbsent -ne $true -or $result.cleanup.topicAbsent -ne $true -or $result.cleanup.queueAbsent -ne $true -or $result.cleanup.subscriptionsAbsent -ne $true) {
+  if ($cleanupErrors.Count -gt 0 -or $result.cleanup.alarmsAbsent -ne $true -or $result.cleanup.topicAbsent -ne $true -or $result.cleanup.queueAbsent -ne $true -or $result.cleanup.subscriptionsAbsent -ne $true -or ($attributesFile -and $result.cleanup.localAttributesFileDeleted -ne $true)) {
     if ($result.result -eq 'PASS_LIMITED_SCOPE') { $result.result = 'FAIL_CLEANUP' }
   }
   Write-Output 'P9_F07_MATRIX_FINAL_JSON_BEGIN'
