@@ -18,11 +18,12 @@ import {
   BusinessDevelopmentPage,
   BIZDEV_DRAFT_WITH_MERI_PROMPT,
 } from './BusinessDevelopmentPage.js';
-import {
-  MERI_CONTEXT_PROMPT_EVENT,
-  requestMeriContextPrompt,
-} from '../../../components/chat/meri-prompt.js';
 import type { BizDevBriefVersionDetail, BizDevProspect } from './bizdev-api.js';
+
+const meriWindowMocks = vi.hoisted(() => ({ open: vi.fn() }));
+vi.mock('../../../components/chat/meri-window.js', () => ({
+  openVNextMeriWorkspaceWindow: meriWindowMocks.open,
+}));
 
 // ── fixtures ───────────────────────────────────────────────────────────
 
@@ -242,19 +243,6 @@ function renderAt(search: string, cfg: MockConfig = {}) {
   );
 }
 
-// The real chat controller listens for the same window event; spying here
-// keeps these page-level tests deterministic without mounting the chat.
-function captureContextEvents() {
-  const events: Array<Record<string, unknown>> = [];
-  const listener = (event: Event) =>
-    events.push((event as CustomEvent<Record<string, unknown>>).detail as Record<string, unknown>);
-  window.addEventListener(MERI_CONTEXT_PROMPT_EVENT, listener);
-  return {
-    events,
-    stop: () => window.removeEventListener(MERI_CONTEXT_PROMPT_EVENT, listener),
-  };
-}
-
 afterEach(() => {
   vi.clearAllMocks();
 });
@@ -306,7 +294,6 @@ describe('Phase 4 flag gating', () => {
 
 describe('Draft with Meri', () => {
   it('awaits initial brief creation, then launches Meri with only prospectId + the bounded prompt', async () => {
-    const capture = captureContextEvents();
     renderAt('?view=business-development&bdProspect=' + PROSPECT_UUID, {
       meFeatures: {
         businessDevelopment: true,
@@ -320,8 +307,7 @@ describe('Draft with Meri', () => {
     const draftButton = await screen.findByRole('button', { name: 'Draft with Meri' });
     fireEvent.click(draftButton);
 
-    await waitFor(() => expect(capture.events).toHaveLength(1));
-    capture.stop();
+    await waitFor(() => expect(meriWindowMocks.open).toHaveBeenCalledTimes(1));
 
     // The deterministic initial brief was created FIRST (Meri save tool
     // needs a current version/citation set)…
@@ -330,11 +316,10 @@ describe('Draft with Meri', () => {
       path: `/api/business-development/prospects/${PROSPECT_UUID}/brief/versions`,
     });
     // …and the launch carried only prospectId plus the bounded prompt.
-    const detail = capture.events[0]!;
-    expect(detail.prompt).toBe(BIZDEV_DRAFT_WITH_MERI_PROMPT);
-    expect(detail.prospectId).toBe(PROSPECT_UUID);
-    expect(detail.clientId).toBeUndefined();
-    expect(detail).toEqual({ prompt: BIZDEV_DRAFT_WITH_MERI_PROMPT, prospectId: PROSPECT_UUID });
+    expect(meriWindowMocks.open).toHaveBeenCalledWith(window, window.location.origin, {
+      prompt: BIZDEV_DRAFT_WITH_MERI_PROMPT,
+      prospectId: PROSPECT_UUID,
+    });
     // The bounded prompt smuggles no firm/prospect/provider facts.
     expect(BIZDEV_DRAFT_WITH_MERI_PROMPT).not.toContain('Overland');
     // No external outreach/send endpoint was called anywhere.
@@ -342,7 +327,6 @@ describe('Draft with Meri', () => {
   });
 
   it('does not launch Meri when the initial brief creation fails', async () => {
-    const capture = captureContextEvents();
     renderAt('?view=business-development&bdProspect=' + PROSPECT_UUID, {
       meFeatures: {
         businessDevelopment: true,
@@ -365,8 +349,7 @@ describe('Draft with Meri', () => {
     );
     // …but no Meri event ever fired.
     await act(async () => {});
-    expect(capture.events).toHaveLength(0);
-    capture.stop();
+    expect(meriWindowMocks.open).not.toHaveBeenCalled();
   });
 });
 
@@ -390,15 +373,4 @@ describe('bounded prompt', () => {
       expect(p.toLowerCase()).toContain(word.toLowerCase());
     }
   });
-});
-
-it('requestMeriContextPrompt dispatches only the prompt and UUID prospectId', async () => {
-  vi.useFakeTimers();
-  const capture = captureContextEvents();
-  requestMeriContextPrompt({ prompt: 'x', prospectId: PROSPECT_UUID });
-  vi.runAllTimers();
-  expect(capture.events).toHaveLength(1);
-  expect(capture.events[0]).toEqual({ prompt: 'x', prospectId: PROSPECT_UUID });
-  capture.stop();
-  vi.useRealTimers();
 });

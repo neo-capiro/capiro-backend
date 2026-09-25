@@ -2,7 +2,7 @@
 
 Date: 2026-09-25
 
-Status: implementation complete and locally verified. Merge, staging walkthrough, screenshots, and direct AWS CLI deployment are pending the active repository deployment hold. All Phase 4 flags remain default-off. This record must be updated with immutable release evidence before the phase is declared deployed.
+Status: deployed to the authorized `capiro-internal` cohort on the AWS `capiro-dev` cluster. The brief and prospect-scoped Meri flags are enabled for that tenant; deterministic claim validation remains disabled and semantic Phase 3 `BD-CLAIM` Jev remains dark. The final deployed application SHA is `4e30ad8f05ff4afcd0a983b46b424dda05d6d505`.
 
 ## Dependency map and delivered scope
 
@@ -23,7 +23,7 @@ The principal implementation lives in:
 - `apps/api/src/meri/meri-bizdev-tools.service.ts` — four bounded read tools and one approval-classified brief write tool.
 - `apps/api/src/meri/meri-prospect-scope.helpers.ts` plus the legacy, V2, V3, and Hermes runtime adapters — no-retarget directive, pre-dispatch reauthorization, and persisted receipts.
 - `apps/web/src/vnext/pages/business-development/BizDevBrief.tsx` and `BusinessDevelopmentPage.tsx` — five-section editor, citation inspector, refresh preview, immutable version history, and Draft with Meri.
-- `apps/web/src/components/chat/meri-prompt.ts` and `useMeriChatController.ts` — one-shot fail-closed launch of a fresh prospect-scoped durable conversation.
+- `apps/web/src/components/chat/meri-window.ts`, `apps/web/src/vnext/meri/meri-route-state.ts`, and `VNextMeriWorkspace.tsx` — one-shot fail-closed launch of a fresh prospect-scoped durable conversation through an addressable VNext handoff. Only the prospect UUID crosses the browser boundary; the server resolves and persists the authority-bearing scope.
 
 ## Brief schema and persistence review
 
@@ -74,7 +74,7 @@ The persisted scope contains prospect ID/name, optional canonical-organization I
 - Phase 4 telemetry is restricted to low-cardinality operation/outcome/count/latency fields and does not log brief text, prompts, source passages, names, tenant/user/prospect identifiers, notes, or contacts.
 - The brief workflow never initiates external communication. Existing email/outreach tools still require an explicit user request, the existing account/permission checks, and the existing approval path.
 
-Review owner: repository implementation review. Final release approval owner and timestamp will be recorded after the deployment hold is released.
+Review owner: repository implementation review. The repository deployment hold was explicitly released by the task owner on 2026-09-25; direct AWS CLI rollout completed at 2026-09-25T12:22:58.713Z and the VNext handoff hotfix completed at 2026-09-25T13:04:07.202Z.
 
 ## Feature flags and rollout order
 
@@ -117,6 +117,7 @@ Completed gates:
 - API brief, telemetry, flag, scope, permission, persistence, Meri tool, conversation, and registration contracts: 12 suites / 245 tests passed.
 - Meri orchestrator prompt plus read/write tool catalogs: 3 suites / 38 tests passed.
 - Web Phase 4 launch/editor/scope tests and existing Phase 1–3 Business Development regressions: 7 files / 84 tests passed. The run emitted existing React `act(...)` and React Router future-flag warnings only; there were no failed assertions.
+- The post-walkthrough VNext prospect-handoff hardening passed 48 targeted assertions across the window launch, route-state, Business Development, and Meri identity suites; the full web typecheck also passed.
 - API TypeScript compile (`tsc --noEmit -p tsconfig.json`), full web typecheck, orchestrator typecheck, and shared-contract typecheck passed.
 - A disposable PostgreSQL 16 database applied all 432 repository migrations from an empty schema, including the Phase 4 migration. The rollback-only two-tenant rehearsal then passed tenant-isolated reads/writes, fail-closed unset tenant context, cross-tenant insert/update denial, append-only version grants, idempotency uniqueness, and same-brief current-version foreign-key enforcement.
 - Prettier check and `git diff --check` passed after the final implementation/documentation changes.
@@ -131,31 +132,31 @@ Two redacted, contract-shaped example briefs with resolvable public source trace
 
 They are release-review fixtures based on public records already exercised during the authorized Phase 2 acceptance, not production exports or assertions of exhaustive provider coverage.
 
-## Staging walkthrough and screenshots
+## Signed-in walkthrough and captured evidence
 
-Pending the active deployment hold. After release, record the signed-in walkthrough for:
+The signed-in AWS walkthrough was completed after the deployment hold was released. Browser captures were retained inline with the release task rather than written into the repository; the durable observed values and infrastructure evidence are recorded here and in `docs/verification/business-development-phase4/release-evidence-2026-09-25.json`.
 
-1. open an authorized prospect and its dossier;
-2. draft with Meri and confirm the visible prospect receipt;
-3. inspect a citation with separate event/source-update/retrieval dates;
-4. edit and save, inspect immutable history, and preview/accept a refresh without losing edits;
-5. ask a grounded follow-up in the same scope;
-6. create/link an allowed action for a confirmed linked client;
-7. request an outreach draft and confirm no send occurs without the existing approval;
-8. exercise missing source, ambiguous identity, disabled Jev, stale prospect scope, stale version, double-save, and cross-tenant denial.
+- On unresolved synthetic prospect `1da7f223-6e38-4dd6-8c71-111a9d0966e1` (`SATCOM DIRECT`), the workflow created an honest five-section Version 1 with missing evidence represented as missing and no fabricated citations.
+- Draft with Meri created durable conversation `9002db18-ef61-4370-84c9-b8c6a81bfb04`, visibly resolved the receipt to `PROSPECT · SATCOM DIRECT`, called the bounded context/evidence/brief tools, and proposed the approval-gated brief save. The proposal was not approved and no outreach was sent.
+- An edited title was saved as immutable Version 2 while Version 1 remained in history. Refresh Preview then reported no evidence-backed text change and offered explicit Replace/Keep-my-edits choices; cancelling left the saved edit untouched.
+- On exact-UEI prospect `88b1875d-e047-44ff-a7ab-1870dbe47407` (`SATCOM DIRECT GOVERNMENT, LLC`), the initial brief used 12 exact-identifier dossier items. Citation 3 resolved to USAspending award `HC101323FF361`, with event, publication/update, and retrieval dates represented separately and the publication/update date honestly shown as not supplied.
+- Missing evidence and ambiguous identity were exercised live. The claim-validation flag stayed false. Stale version, double-save, cross-tenant, immutability, and fail-closed tenant-context cases were covered by automated tests plus the two-tenant PostgreSQL rehearsal.
+- No verified walkthrough prospect had a confirmed linked client, so the linked-client action step remained intentionally unavailable. No arbitrary link/client was fabricated. This is the documented Phase 1 prerequisite, not a failed Phase 4 capability.
+- No external communication was sent. Meri explicitly preserved the approval gate, and the live proposal was left unapproved.
 
-Screenshot paths, observed values, API/task-definition revisions, image digests, migration result, flag state, and CloudWatch/log checks will be added here after the direct AWS CLI deployment.
+The walkthrough exposed one real VNext navigation defect: Draft with Meri dispatched the legacy in-page event even though the listener exists on `/meri`. Pull request 1811 replaced that path with an addressable, UUID-validated prospect handoff, added the targeted regression coverage, and was deployed before final acceptance.
 
 ## Rollout and rollback
 
-Rollout:
+Completed rollout:
 
-1. Apply the additive migration with the API admin-migrate task.
-2. Deploy API and web images built from the merged GitHub `main` SHA using AWS CLI.
-3. Leave all three Phase 4 flags off; verify service health and migration state.
-4. Enable `businessDevelopment.brief.enabled` for `capiro-internal` and complete the brief/source/edit/history walkthrough.
-5. Enable `businessDevelopment.meriProspectTools.enabled` for the same tenant and complete scope/follow-up/action checks.
-6. Keep `businessDevelopment.claimValidation.enabled=false` until reviewed; keep Phase 3 `BD-CLAIM` Jev dark.
+1. The additive migration ran with `capiro-dev-api-admin-migrate:72`; task `b72bf0c40dd7490b83c4c6102ead4b84` exited 0 after confirming all 432 migrations and no pending migration.
+2. Pull request 1806 merged as `30a9ab33458fe3b2d6b76b73c00c773979b8cebb`. AWS CLI deployed API `:458`, Meri orchestrator `:82`, and web `:140` by immutable ECR digest.
+3. Service health, task-definition environment SHAs, running-task digests, and the migration result were verified before flags changed.
+4. `businessDevelopment.brief.enabled=true` and `businessDevelopment.meriProspectTools.enabled=true` were committed only for `capiro-internal`; `businessDevelopment.claimValidation.enabled=false` was re-read and retained.
+5. The signed-in brief/source/edit/history/Meri walkthrough ran. Its navigation finding was fixed in pull request 1811, merged as `4e30ad8f05ff4afcd0a983b46b424dda05d6d505`, and the exact ARM64 web image was deployed by digest as `capiro-dev-web:141`.
+6. Post-hotfix health showed API 2/2, orchestrator 1/1, and web 1/1 healthy with completed ECS rollouts. `/healthz` returned 200 `ok`, and the web runtime configuration reported the final release SHA.
+7. Semantic Phase 3 `BD-CLAIM` Jev remained dark and no external communication was sent.
 
 Rollback:
 
@@ -164,7 +165,20 @@ Rollback:
 3. Retain the additive brief tables, immutable saved versions, evidence snapshots, and audit history. Do not destructively reverse user-authored data.
 4. Phase 1 prospects, Phase 2 dossiers, and Phase 3 shadow traces remain intact and independently flag-controlled.
 
-Release owner, merged SHA, PR, task definitions, image digests, and exact rollback revisions remain pending the deployment-hold release.
+Release evidence:
+
+| Item                                | Released value                                                                                                                                                                                                                                       |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Initial Phase 4 PR / SHA            | [#1806](https://github.com/neo-capiro/capirov2/pull/1806) / `30a9ab33458fe3b2d6b76b73c00c773979b8cebb`                                                                                                                                               |
+| VNext handoff hotfix PR / final SHA | [#1811](https://github.com/neo-capiro/capirov2/pull/1811) / `4e30ad8f05ff4afcd0a983b46b424dda05d6d505`                                                                                                                                               |
+| Current task definitions            | API `capiro-dev-api:458`; orchestrator `capiro-dev-meriv2-orchestrator:82`; web `capiro-dev-web:141`; migration `capiro-dev-api-admin-migrate:72`                                                                                                    |
+| Current image digests               | API `sha256:3e74f297b95bd2fa37ba8cbe42523241a42fc774260b1c357e60e13f01fb9c19`; orchestrator `sha256:f394484708b633f4bacee9361486bbad50190f616b0cdae3b84e3ad7c118d4cb`; web `sha256:5760d0c87fe979bc02fd9c3409ecc7870c945653736540f065a6c8c4d64cb230` |
+| Immediate rollback revisions        | API `:457`; orchestrator `:81`; web `:140` (the pre-Phase-4 web baseline remains `:139`)                                                                                                                                                             |
+| Migration                           | Task `b72bf0c40dd7490b83c4c6102ead4b84`, exit code 0                                                                                                                                                                                                 |
+| Flags                               | brief `true`; Meri prospect tools `true`; claim validation `false`, tenant `capiro-internal`                                                                                                                                                         |
+| Deployment timestamps               | Initial rollout `2026-09-25T12:22:58.713Z`; final web hotfix `2026-09-25T13:04:07.202Z`                                                                                                                                                              |
+
+CloudWatch contained no error-level API, orchestrator, or web events after the final hotfix completed. Between the initial rollout and hotfix, two isolated API errors occurred under unrelated concurrent tool/scrape traffic: one expired Prisma transaction and one upstream `fetch failed`; neither involved a Phase 4 route or left a continuing service-health issue. GitHub-hosted Actions could not start because of the repository account's billing/spending-limit block, so the documented local test, typecheck, migration rehearsal, and AWS health gates were used.
 
 ## Explicitly deferred integrations
 
