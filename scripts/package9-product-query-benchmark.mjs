@@ -208,7 +208,7 @@ async function main() {
   ) {
     throw new Error('The benchmark child requires its parent-owned isolated OS temp directory.');
   }
-  const isolatedSchemaPath = path.join(runtimeTempRoot, 'schema.prisma');
+  const isolatedSchemaPath = path.join(repoRoot, 'tmp', `${runId}-defense-api-schema.prisma`);
   const isolatedPrismaClientRoot = path.join(runtimeTempRoot, 'prisma-client');
   const inputFiles = [
     fileURLToPath(import.meta.url),
@@ -349,10 +349,11 @@ async function main() {
     );
     const isolatedSchema = sourceSchema.replace(
       /output\s*=\s*"\.\.\/generated\/prisma-client"/,
-      'output          = "./prisma-client"',
+      `output          = "${isolatedPrismaClientRoot.replaceAll('\\', '/')}"`,
     );
     if (isolatedSchema === sourceSchema)
       throw new Error('Could not redirect the Prisma client generator to isolated OS temp.');
+    mkdirSync(path.dirname(isolatedSchemaPath), { recursive: true });
     writeFileSync(isolatedSchemaPath, isolatedSchema, { encoding: 'utf8', flag: 'wx' });
     execute('pnpm', [
       '--filter',
@@ -363,6 +364,7 @@ async function main() {
       '--schema',
       isolatedSchemaPath,
     ]);
+    rmSync(isolatedSchemaPath, { force: true });
     execute('pnpm', ['--filter', '@capiro/defense-api', 'exec', 'nest', 'build']);
     if (
       !existsSync(
@@ -666,6 +668,7 @@ async function main() {
         });
       else runError = cleanupError;
     } finally {
+      rmSync(isolatedSchemaPath, { force: true });
       restoreAfterBuild(savedBuildInfo);
       restoreAfterBuild(savedDist);
     }
