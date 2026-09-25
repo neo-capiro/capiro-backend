@@ -208,7 +208,11 @@ async function main() {
   ) {
     throw new Error('The benchmark child requires its parent-owned isolated OS temp directory.');
   }
-  const isolatedSchemaPath = path.join(repoRoot, 'tmp', `${runId}-defense-api-schema.prisma`);
+  const isolatedSchemaPath = path.join(
+    defenseApiRoot,
+    'prisma',
+    `.package9-${runId}-schema.prisma`,
+  );
   const isolatedPrismaClientRoot = path.join(runtimeTempRoot, 'prisma-client');
   const inputFiles = [
     fileURLToPath(import.meta.url),
