@@ -33,6 +33,7 @@ describe('physical coverage reconciliation', () => {
     assert.equal(report.rows[0]?.units[0]?.account, null);
     assert.equal(report.rows[0]?.units[0]?.budgetActivity, '1');
     assert.equal(report.rows[0]?.units[0]?.kind, 'volume');
+    assert.equal(report.rows[0]?.units[0]?.sourceSha256, 'sha-a');
   });
 
   it('requires candidate/run/source SHA lineage on the active snapshot', () => {
@@ -90,5 +91,34 @@ describe('physical coverage reconciliation', () => {
       { ...base.units[0]!, unavailable: true },
     ] });
     assert.ok(report.rows[0]?.units[0]?.exceptions.includes('source_unavailable'));
+    assert.equal(report.rows[0]?.units[0]?.published, false);
+    assert.ok(!report.rows[0]?.units[0]?.exceptions.includes('publication_missing'));
+  });
+
+  it('never reports a publication as current when the matching row has a non-PASS run or no accepted review', () => {
+    for (const candidate of [
+      { ...base.candidates[0]!, verificationDecision: 'REVIEW' as const, reviewAccepted: true },
+      { ...base.candidates[0]!, verificationDecision: 'PASS' as const, reviewAccepted: false },
+    ]) {
+      const report = buildCoverageReconciliation({ ...base, candidates: [candidate] });
+      expectUnbound(report.rows[0]?.units[0]);
+    }
+  });
+
+  it('keeps superseded source history visible without treating it as current publication coverage', () => {
+    const report = buildCoverageReconciliation({ ...base, units: [
+      { ...base.units[0]!, superseded: true },
+    ] });
+    const unit = report.rows[0]?.units[0];
+    assert.equal(unit?.sourceDocumentId, 'doc-a');
+    assert.equal(unit?.sourceSha256, 'sha-a');
+    assert.equal(unit?.published, false);
+    assert.ok(unit?.exceptions.includes('source_superseded'));
+    assert.ok(!unit?.exceptions.includes('physical_source_missing'));
   });
 });
+
+function expectUnbound(unit: ReturnType<typeof buildCoverageReconciliation>['rows'][number]['units'][number] | undefined) {
+  assert.equal(unit?.published, false);
+  assert.ok(unit?.exceptions.includes('publication_lineage_unbound'));
+}

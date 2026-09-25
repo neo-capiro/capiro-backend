@@ -141,23 +141,23 @@ export class DefenseBudgetLifecycleReadService {
         select: { snapshotId: true },
       }) : Promise.resolve(null),
     ]);
-    const currentObservation = new Map(observations.filter((row) =>
-      row.supersededByObservationId === null).map((row) => [row.id, row]));
-    const memberSlotIds = new Set(members.map((member) => member.expectedSourceId));
+    const observationById = new Map(observations.map((row) => [row.id, row]));
+    const linkedObservationIds = new Set(members.flatMap((member) => member.observationId ? [member.observationId] : []));
     const units: ReconciliationUnit[] = members.map((member) => {
-      const observation = member.observationId ? currentObservation.get(member.observationId) : null;
+      const observation = member.observationId ? observationById.get(member.observationId) : null;
       return { unitId: member.id, slotId: member.expectedSourceId, kind: 'volume',
         required: member.required, account: null, budgetActivity: member.budgetActivity,
         volume: member.volume,
-        sourceDocumentId: observation?.sourceDocumentId === member.sourceDocumentId
-          ? member.sourceDocumentId : null,
+        sourceDocumentId: member.sourceDocumentId,
         sourceSha256: observation?.sourceDocumentId === member.sourceDocumentId
           ? observation?.contentSha256 ?? null : null,
-        superseded: false, unavailable: false };
+        superseded: observation?.supersededByObservationId !== null && observation !== undefined,
+        unavailable: observation?.observationState === 'blocked'
+          || observation?.observationState === 'withdrawn' };
     });
     const seenDocumentKeys = new Set<string>();
     for (const observation of observations) {
-      if (memberSlotIds.has(observation.expectedSourceId)) continue;
+      if (linkedObservationIds.has(observation.id)) continue;
       const identity = `${observation.expectedSourceId}:${observation.sourceDocumentId ?? observation.id}:${observation.contentSha256}`;
       if (observation.supersededByObservationId === null && seenDocumentKeys.has(identity)) continue;
       if (observation.supersededByObservationId === null) seenDocumentKeys.add(identity);

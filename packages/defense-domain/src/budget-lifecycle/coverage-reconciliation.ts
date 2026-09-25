@@ -84,13 +84,15 @@ export function buildCoverageReconciliation(input: CoverageReconciliationInput) 
       const parsed = candidates.length > 0;
       const verified = candidates.some((candidate) => candidate.verificationDecision === 'PASS');
       const reviewed = candidates.some((candidate) => candidate.reviewAccepted);
-      const published = input.activeSnapshotId !== null && candidates.some((candidate) =>
-        candidate.runId !== null && publicationKeys.has(
-          `${unit.sourceDocumentId}:${unit.sourceSha256}:${candidate.candidateId}:${candidate.runId}`));
+      const eligibleCurrentSource = !unit.unavailable && !unit.superseded;
+      const published = eligibleCurrentSource && input.activeSnapshotId !== null && candidates.some((candidate) =>
+        candidate.runId !== null && candidate.verificationDecision === 'PASS' && candidate.reviewAccepted
+          && publicationKeys.has(
+            `${unit.sourceDocumentId}:${unit.sourceSha256}:${candidate.candidateId}:${candidate.runId}`));
       if (!parsed && unit.sourceDocumentId) exceptions.push('extraction_missing');
       if (parsed && !verified) exceptions.push('verification_not_passed');
       if (parsed && !reviewed) exceptions.push('review_missing');
-      if (!published) {
+      if (!published && eligibleCurrentSource) {
         const exactSourcePublication = input.publications.some((row) =>
           row.sourceDocumentId === unit.sourceDocumentId && row.sourceSha256 === unit.sourceSha256);
         exceptions.push(exactSourcePublication ? 'publication_lineage_unbound' : 'publication_missing');
@@ -99,7 +101,8 @@ export function buildCoverageReconciliation(input: CoverageReconciliationInput) 
         superseded: unit.superseded,
         account: unit.account,
         budgetActivity: unit.budgetActivity, volume: unit.volume,
-        sourceDocumentId: unit.sourceDocumentId, parsed, verified, reviewed, published, exceptions };
+        sourceDocumentId: unit.sourceDocumentId, sourceSha256: unit.sourceSha256,
+        parsed, verified, reviewed, published, exceptions };
     });
     const exceptions: CoverageException[] = [];
     if (!slot.catalogComplete) exceptions.push('catalog_completeness_unknown');
