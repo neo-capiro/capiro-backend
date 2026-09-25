@@ -7,6 +7,14 @@ implementation progress into a production-qualification claim. The release
 candidate code commit is
 `4547c28de1ccedd170f497421194a2d2bc0b25f3`.
 
+Pull request `#1815` merged to GitHub and local `main` at
+`2290d4c3dd3d2b9a4d5ad656ea0077f9fceddc57`. That exact revision was built by
+AWS CodeBuild, migrated with 432 migrations found and none pending, and
+deployed as `capiro-dev-api:462` on pinned image digest
+`sha256:cbecc9043392842447e1d988e4ff55f3cab83d779c3b3b9fbfd1a819d1aef877`.
+The service reached 2/2 healthy tasks and final load-balancer targets; the four
+protected ingestion/publication flags remain false.
+
 ## Hardened seams in this release candidate
 
 - Package 3 now has a guarded congressional semantic-artifact factory for the
