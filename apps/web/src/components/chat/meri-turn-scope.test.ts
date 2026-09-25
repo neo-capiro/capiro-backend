@@ -2,6 +2,42 @@ import { describe, expect, test } from 'vitest';
 import { persistedMeriTurnScope, messageMeriTurnScope, meriTurnScopeLabel, meriPacketScopeLabel, readMeriTurnScope } from './meri-turn-scope.js';
 
 describe('Meri historical scope hydration', () => {
+  test('parses and labels a valid prospect receipt', () => {
+    const scope = readMeriTurnScope({
+      kind: 'prospect',
+      clientId: null,
+      clientName: null,
+      targetHint: null,
+      prospectId: '11111111-1111-4111-8111-111111111111',
+      prospectName: 'Acme LLC',
+      canonicalOrganizationId: null,
+      linkedClientId: '22222222-2222-4222-8222-222222222222',
+      scopeVersion: 'a'.repeat(64),
+    });
+    expect(scope?.kind).toBe('prospect');
+    expect(scope?.linkedClientId).toBe('22222222-2222-4222-8222-222222222222');
+    expect(meriTurnScopeLabel(scope)).toBe('Prospect · Acme LLC');
+  });
+
+  test.each([
+    ['bad prospect id', { prospectId: 'not-a-uuid' }],
+    ['empty name', { prospectName: ' ' }],
+    ['oversized name', { prospectName: 'x'.repeat(201) }],
+    ['bad scope version', { scopeVersion: 'a'.repeat(63) }],
+    ['bad canonical id', { canonicalOrganizationId: 'wrong' }],
+    ['bad linked client id', { linkedClientId: 'wrong' }],
+  ])('rejects malformed prospect receipt: %s', (_label, override) => {
+    expect(readMeriTurnScope({
+      kind: 'prospect',
+      prospectId: '11111111-1111-4111-8111-111111111111',
+      prospectName: 'Acme LLC',
+      canonicalOrganizationId: null,
+      linkedClientId: null,
+      scopeVersion: 'a'.repeat(64),
+      ...override,
+    })).toBeUndefined();
+  });
+
   test('restores a named server scope receipt, ignoring changed message/client metadata', () => {
     const turnScope = { kind: 'client', clientId: 'l3', clientName: 'L3 Harris', targetHint: null };
     const restored = persistedMeriTurnScope(JSON.parse(JSON.stringify({ clientId: 'anduril', metadata: { turnScope } })));

@@ -145,6 +145,8 @@ export class MeriV2ChatClient {
       skillAddendum?: string;
       /** Rolling-compaction summary of earlier turns (1A.6), from the proxy. */
       conversationSummary?: string;
+      /** Phase 4: server-authored active-prospect directive (bounded fields only). */
+      prospectDirective?: string;
       /** User's preferred IANA timezone for local-date grounding. */
       timeZone?: string;
       /** Always-on client KB snapshot (1B.4), built + forwarded by the proxy. */

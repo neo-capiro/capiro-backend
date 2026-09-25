@@ -245,7 +245,14 @@ describe('BizDevBrief', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save new version' }));
 
     await waitFor(() => expect(h.put).toHaveBeenCalledTimes(1));
-    const [, body] = h.put.mock.calls[0]!;
+    const [, body] = h.put.mock.calls[0]! as unknown as [
+      string,
+      {
+        expectedVersionNumber: number;
+        idempotencyKey: string;
+        sections: Record<string, { text: string; provenance: string; citationIndexes: number[] }>;
+      },
+    ];
     expect(body.expectedVersionNumber).toBe(1);
     expect(body.idempotencyKey).toMatch(/^bizdev-brief:edit:/);
     expect(body.sections.judgment).toMatchObject({
@@ -253,7 +260,7 @@ describe('BizDevBrief', () => {
       provenance: 'edited',
       citationIndexes: [0],
     });
-    expect(body.sections.verifiedEvidence.provenance).toBe('generated');
+    expect(body.sections.verifiedEvidence!.provenance).toBe('generated');
   });
 
   it('previews refresh differences without writing or replacing edits', async () => {
