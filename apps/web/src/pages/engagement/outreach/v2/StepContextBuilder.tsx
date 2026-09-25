@@ -393,7 +393,7 @@ export function StepContextBuilder({
         items as you need. Everything you pick is listed under Selected, and Meri draws only on those.
       </div>
 
-      <div className="grid items-start gap-3 xl:grid-cols-[220px_minmax(0,1fr)_270px]">
+      <div className="grid items-start gap-3 xl:grid-cols-[220px_minmax(0,1fr)] 2xl:grid-cols-[220px_minmax(0,1fr)_270px]">
         <aside className="rounded-lg border border-line-hairline bg-surface p-3" aria-label="Context sources">
           <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-wide text-ink-tertiary">Client portfolio</div>
           <Input value={portfolioQuery} onChange={setPortfolioQuery} placeholder="Search clients…" leadingIcon={<Icon.SearchLg size={14} />} />
@@ -603,7 +603,7 @@ export function StepContextBuilder({
         )}
         </div>
 
-        <aside className="rounded-lg border border-line-hairline bg-surface p-3 xl:sticky xl:top-4" aria-label="Selected context">
+        <aside className="rounded-lg border border-line-hairline bg-surface p-3 xl:col-span-2 2xl:col-span-1 2xl:sticky 2xl:top-4" aria-label="Selected context">
           <div className="flex items-center justify-between border-b border-line-hairline pb-3">
             <div><div className="text-[13px] font-semibold text-ink-primary">Selected</div><div className="mt-0.5 text-[11px] text-ink-tertiary">Items drafts may draw on</div></div>
             <span className="rounded-full bg-neutral-bg px-2 py-0.5 font-mono text-[11px] text-ink-secondary">{selected.length}</span>
