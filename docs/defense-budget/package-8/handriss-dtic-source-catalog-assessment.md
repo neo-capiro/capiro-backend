@@ -107,6 +107,21 @@ The qualification-only manifest is retained at
 It is not a production expected-source registration and does not authorize a
 historical replay.
 
+## Official XML/PDF qualification check
+
+On 2026-09-25, the pinned official XML and PDF were fetched independently and
+re-hashed. A deterministic, read-only check extracted PDF page text and
+located each XML PE/project identity, title, and FY2026 amount. All five
+records (two PEs and three projects) had an identity/title/amount match in the
+official PDF; the report records the physical PDF pages and both source
+SHA-256 values:
+`qualification/dtic-official-xml-pdf-reconciliation-v1.json`.
+
+This is deliberately a qualification-only spot reconciliation. It does not
+prove every XML field, establish a family/year denominator, create a
+`SourceDocument`, persist parser or verification proof, or authorize import,
+publication, or historical replay.
+
 ## Second Handriss lead — FY2026 DARPA RDT&E (NO-GO)
 
 The same pinned mirror commit also contains

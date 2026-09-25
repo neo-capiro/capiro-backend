@@ -53,10 +53,17 @@
     "productionRegistration": false,
     "persisted": false
   },
+  "officialXmlPdfQualification": {
+    "report": "docs/defense-budget/package-8/qualification/dtic-official-xml-pdf-reconciliation-v1.json",
+    "status": "PASS_QUALIFICATION_ONLY",
+    "matchedRecordCount": 5,
+    "recordCount": 5,
+    "promotable": false
+  },
   "nextQualificationGates": [
     "register an exact expected-source identity through governed review",
     "implement and qualify stable XML element-path semantic extraction",
-    "reconcile XML semantics against the official PDF",
+    "complete field-by-field XML/PDF funding and narrative semantic reconciliation beyond page-text presence",
     "establish completeness denominator and human review record",
     "persist parser/proof artifacts before any historical replay"
   ]
