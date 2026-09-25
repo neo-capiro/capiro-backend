@@ -144,6 +144,40 @@
   font-size: 12px;
   color: var(--capiro-color-text-faint);
 }
+/* ── Phase 4: prospect detail tabs ──────────────────────────────────── */
+.capiro-bizdev__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+  padding-bottom: 10px;
+}
+.capiro-bizdev__tab {
+  appearance: none;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--capiro-color-text-muted);
+  cursor: pointer;
+}
+.capiro-bizdev__tab:hover {
+  color: var(--capiro-color-text-primary);
+}
+.capiro-bizdev__tab:focus-visible {
+  outline: 2px solid var(--capiro-color-action-accent-default);
+  outline-offset: 2px;
+}
+.capiro-bizdev__tab.is-active {
+  background: var(--capiro-color-bg-surface-2);
+  color: var(--capiro-color-text-primary);
+  border-color: var(--capiro-color-border-control);
+}
+
 .capiro-bizdev__select {
   height: 36px;
   padding: 0 10px;
@@ -700,11 +734,11 @@
 }
 .capiro-bizdev__brief-conflict,
 .capiro-bizdev__brief-limitation {
-  border-color: var(--capiro-color-status-warning-border, #e4b640);
+  border-color: var(--capiro-color-border-warning);
 }
 .capiro-bizdev__brief-limitation {
   padding-left: 10px;
-  border-left: 3px solid var(--capiro-color-status-warning-border, #e4b640);
+  border-left: 3px solid var(--capiro-color-border-warning);
 }
 .capiro-bizdev__brief-savebar {
   position: sticky;
@@ -781,6 +815,9 @@
     height: var(--capiro-hit-size, 44px);
   }
   .capiro-bizdev__filter {
+    height: var(--capiro-hit-size, 44px);
+  }
+  .capiro-bizdev__tab {
     height: var(--capiro-hit-size, 44px);
   }
   .capiro-bizdev__select {

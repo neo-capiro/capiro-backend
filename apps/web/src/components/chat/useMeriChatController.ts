@@ -60,7 +60,12 @@ import {
   useChatStore,
 } from './chat-store.js';
 import { readMeriSavedDocumentArtifact } from './meri-artifact-download.js';
-import { MERI_CONTEXT_PROMPT_EVENT, type MeriContextPromptRequest } from './meri-prompt.js';
+import {
+  MERI_CONTEXT_PROMPT_EVENT,
+  MERI_PROSPECT_LAUNCH_TITLE,
+  normalizeMeriProspectId,
+  type MeriContextPromptRequest,
+} from './meri-prompt.js';
 import {
   mayApplyApprovalResult,
   mayApplyIdentityResult,
@@ -504,6 +509,17 @@ export function useMeriChatController({
   const routeEpochRef = useRef(0);
   const currentSessionRef = useRef<string | null>(sessionId);
   currentSessionRef.current = sessionId;
+  // Deduplicates concurrent doCreateSession calls (drawer-open effect racing
+  // a contextual-prompt send). Holds the in-flight creation promise only.
+  const createSessionInFlightRef = useRef<Promise<string | null> | null>(null);
+  // Prospect scope is owned by this controller and consumed by exactly the
+  // next conversation creation. It never survives success, failure, close,
+  // manual new-session, or a superseding contextual launch.
+  const pendingProspectLaunchRef = useRef<{ prospectId: string; title: string } | null>(null);
+  // Superseding launches invalidate late conversation-create responses. The
+  // request may still complete server-side, but it cannot replace current UI
+  // state or receive a prompt after cancellation.
+  const createSessionEpochRef = useRef(0);
   const previousIdentityKeyRef = useRef<string | null>(null);
   // Always points to the identity currently rendering; asynchronous responses
   // compare their captured request identity to this before writing UI state.
@@ -696,7 +712,17 @@ export function useMeriChatController({
 
   // Create session on first open
   useEffect(() => {
-    if (!isOpen || sessionId) return;
+    // Use the live store as well as the render snapshot: a synchronous
+    // contextual launch can finish between this render and the effect, and
+    // must not be followed by a duplicate ordinary conversation.
+    if (
+      !isOpen ||
+      sessionId ||
+      getChatStateSnapshot().sessionId ||
+      createSessionInFlightRef.current
+    ) {
+      return;
+    }
     void doCreateSession();
   }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1052,60 +1078,104 @@ export function useMeriChatController({
   }, [activeConversationId, authHeaders]);
 
   const doCreateSession = useCallback(async (): Promise<string | null> => {
+    // One creation at a time: the contextual-prompt open path can race the
+    // create-session-on-open effect (both fire around the same drawer-open
+    // commit). Deduplicating in-flight creations guarantees exactly one
+    // durable conversation per launch instead of a dangling duplicate.
+    if (createSessionInFlightRef.current) return createSessionInFlightRef.current;
     const requestIdentityKey = identityKeyRef.current;
-    // The body carries the globally selected client id. Capture it with the
-    // identity so a switch during authHeaders() cannot post one tenant's client
-    // scope into a conversation created for the next one.
-    const requestClientId = selectedClientId || undefined;
-    try {
-      const headers = await authHeaders();
-      if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return null;
-      const res = await fetch(`${config.apiBaseUrl}/api/clio/conversations`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          clientId: requestClientId,
-          title: 'Chat session',
-        }),
-      });
-      if (res.ok) {
-        const data = (await res.json()) as {
-          id: string;
-          title?: string;
-          clientId?: string | null;
-          updatedAt?: string;
-        };
-        if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return null;
-        // Register the row so the header's scope selector reads the session's
-        // REAL assignment. Previously nothing was stored, so the selector fell
-        // back to the global client filter and could name a client the
-        // conversation did not have — the display that made the leak invisible.
-        // The POST response carries no `client` relation; resolve the name from
-        // the loaded roster so the history rail groups it correctly too.
-        const createdClientId = data.clientId ?? null;
-        const createdClient = createdClientId
-          ? (clients.find((client) => client.id === createdClientId) ?? null)
-          : null;
-        upsertConversation({
-          id: data.id,
-          title: typeof data.title === 'string' ? data.title : 'Chat session',
-          clientId: createdClientId,
-          client: createdClient,
-          latestMessage: null,
-          updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : new Date().toISOString(),
+    // Phase 4 prospect launch: the one-time pending id is claimed by the
+    // FIRST conversation creation after the contextual event staged it. The
+    // claim is atomic and single-use — success, failure or a superseding
+    // launch all clear it, so no later ordinary chat can inherit the scope.
+    const prospectLaunch = pendingProspectLaunchRef.current;
+    pendingProspectLaunchRef.current = null;
+    const creationEpoch = createSessionEpochRef.current;
+    const creation = (async (): Promise<string | null> => {
+      // The body carries the globally selected client id. Capture it with the
+      // identity so a switch during authHeaders() cannot post one tenant's client
+      // scope into a conversation created for the next one. A prospect-scoped
+      // launch deliberately sends ONLY { prospectId, title } — never a client
+      // scope; the server resolves/authorizes any confirmed linked client.
+      const requestClientId = prospectLaunch ? undefined : selectedClientId || undefined;
+      try {
+        const headers = await authHeaders();
+        if (
+          creationEpoch !== createSessionEpochRef.current ||
+          !mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)
+        ) {
+          return null;
+        }
+        const res = await fetch(`${config.apiBaseUrl}/api/clio/conversations`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(
+            prospectLaunch
+              ? { prospectId: prospectLaunch.prospectId, title: prospectLaunch.title }
+              : { clientId: requestClientId, title: 'Chat session' },
+          ),
         });
-        setChatSession(data.id);
-        setActiveConversation(data.id);
-        return data.id;
+        if (res.ok) {
+          const data = (await res.json()) as {
+            id: string;
+            title?: string;
+            clientId?: string | null;
+            updatedAt?: string;
+          };
+          if (
+            creationEpoch !== createSessionEpochRef.current ||
+            !mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)
+          ) {
+            return null;
+          }
+          // Register the row so the header's scope selector reads the session's
+          // REAL assignment. Previously nothing was stored, so the selector fell
+          // back to the global client filter and could name a client the
+          // conversation did not have — the display that made the leak invisible.
+          // The POST response carries no `client` relation; resolve the name from
+          // the loaded roster so the history rail groups it correctly too.
+          const createdClientId = data.clientId ?? null;
+          const createdClient = createdClientId
+            ? (clients.find((client) => client.id === createdClientId) ?? null)
+            : null;
+          upsertConversation({
+            id: data.id,
+            title:
+              typeof data.title === 'string'
+                ? data.title
+                : prospectLaunch
+                  ? prospectLaunch.title
+                  : 'Chat session',
+            clientId: createdClientId,
+            client: createdClient,
+            latestMessage: null,
+            updatedAt:
+              typeof data.updatedAt === 'string' ? data.updatedAt : new Date().toISOString(),
+          });
+          setChatSession(data.id);
+          setActiveConversation(data.id);
+          return data.id;
+        }
+      } catch {
+        // fallback
       }
-    } catch {
-      // fallback
+      return null;
+    })();
+    createSessionInFlightRef.current = creation;
+    try {
+      return await creation;
+    } finally {
+      if (createSessionInFlightRef.current === creation) createSessionInFlightRef.current = null;
     }
-    return null;
   }, [authHeaders, selectedClientId, clients]);
 
   const handleNewSession = useCallback(async () => {
     abortRef.current?.abort();
+    // A manual new-session click is an ordinary chat. Invalidate any pending
+    // or already in-flight contextual creation before starting it.
+    pendingProspectLaunchRef.current = null;
+    createSessionEpochRef.current += 1;
+    createSessionInFlightRef.current = null;
     clearChatSession();
     setTrustSteps([]);
     setOrchestratorIntent(null);
@@ -1976,7 +2046,10 @@ export function useMeriChatController({
   );
 
   const sendMessage = useCallback(
-    async (content: string, opts?: { mode?: 'regenerate' | 'resend' }): Promise<boolean> => {
+    async (
+      content: string,
+      opts?: { mode?: 'regenerate' | 'resend'; conversationId?: string },
+    ): Promise<boolean> => {
       if (isStreaming) return false;
       // Every server call this turn makes belongs to the identity that typed it.
       const requestIdentityKey = identityKeyRef.current;
@@ -2036,7 +2109,10 @@ export function useMeriChatController({
       const outgoing = mode ? content : writeMode ? `${writePrefix} ${content}` : content;
 
       // Ensure we have a session ID (create one if missing)
-      let sid = sessionId;
+      // Contextual launches may create a conversation and send within the
+      // same render tick. Their explicit id avoids a second creation from the
+      // still-stale `sessionId` closure.
+      let sid = opts?.conversationId ?? sessionId;
       if (!sid) {
         sid = await doCreateSession();
       }
@@ -2607,17 +2683,56 @@ export function useMeriChatController({
   useEffect(() => {
     contextualPromptSenderRef.current = sendMessage;
   }, [sendMessage]);
+  const contextualCreateAndSendRef = useRef<(prompt?: string) => Promise<void>>(async () => {});
+
   useEffect(() => {
     const onContextPrompt = (event: Event) => {
       const detail = (event as CustomEvent<MeriContextPromptRequest>).detail;
       const prompt = detail?.prompt?.trim();
       if (!prompt) return;
       setChatOpen(true);
+      if (detail?.prospectId !== undefined) {
+        const prospectId = normalizeMeriProspectId(detail.prospectId);
+        if (!prospectId) return;
+        // Supersede an ordinary or older scoped creation, then bind the
+        // validated UUID to this controller's next creation only.
+        createSessionEpochRef.current += 1;
+        createSessionInFlightRef.current = null;
+        pendingProspectLaunchRef.current = {
+          prospectId,
+          title: MERI_PROSPECT_LAUNCH_TITLE,
+        };
+        void contextualCreateAndSendRef.current(prompt);
+        return;
+      }
+      // A fresh non-prospect contextual launch also supersedes any stale
+      // scoped creation before sendMessage creates its requested session.
+      if (detail?.newSession !== false) {
+        pendingProspectLaunchRef.current = null;
+        createSessionEpochRef.current += 1;
+        createSessionInFlightRef.current = null;
+      }
       void contextualPromptSenderRef.current(prompt);
     };
     window.addEventListener(MERI_CONTEXT_PROMPT_EVENT, onContextPrompt);
     return () => window.removeEventListener(MERI_CONTEXT_PROMPT_EVENT, onContextPrompt);
   }, []);
+
+  // Creates (or joins the in-flight creation of) the fresh session, then sends
+  // the prompt. The launch id itself was already staged and claimed by
+  // doCreateSession; this closure only sequences send AFTER creation.
+  useEffect(() => {
+    contextualCreateAndSendRef.current = async (prompt?: string) => {
+      const promptText = prompt?.trim();
+      if (!promptText) return;
+      const conversationId = (await doCreateSession()) ?? null;
+      // The prompt is only ever sent into the conversation that exists now.
+      // If creation failed, or a different thread became active first, the
+      // bounded prompt is dropped rather than leaked into another session.
+      if (!conversationId || getChatStateSnapshot().sessionId !== conversationId) return;
+      await contextualPromptSenderRef.current(promptText, { conversationId });
+    };
+  }, [doCreateSession]);
 
   // ── Hermes reconnect (Phase 1 backlog ticket 4) ────────────────────────
   // Reattaches this tab to an in-flight Hermes run.
@@ -3012,6 +3127,9 @@ export function useMeriChatController({
 
   const handleClose = useCallback(() => {
     abortRef.current?.abort();
+    pendingProspectLaunchRef.current = null;
+    createSessionEpochRef.current += 1;
+    createSessionInFlightRef.current = null;
     setStreaming(false);
     setChatOpen(false);
   }, []);
