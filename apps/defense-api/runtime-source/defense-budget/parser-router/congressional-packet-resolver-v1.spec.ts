@@ -1,10 +1,13 @@
 import { createHash } from 'node:crypto';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { adapterTestContext, ADAPTER_TEST_CONFIG_SHA, ADAPTER_TEST_SOURCE_SHA } from '../contracts/adapters/testing-helpers.js';
 import { createHascSourceProfileV1 } from '../stages/authorization/hasc-source-profile-v1.js';
 import { congressionalPacketResolverConfigFromEnv, createCongressionalPacketResolverV1, LIFECYCLE_TO_STAGE_V1, resolveCongressionalPacketLocator } from './congressional-packet-resolver-v1.js';
+import { FilesystemParserArtifactStore } from './parser-artifact-store.js';
+import { buildParserRunIdentityV1 } from './parser-run-identity-v1.js';
+import { parseParserRuntimeResultV1 } from './parser-runtime-contract-v1.js';
 
 describe('production congressional packet resolver', () => {
   let root: string;
@@ -77,6 +80,127 @@ describe('production congressional packet resolver', () => {
     });
     const resolver = await resolverFor(manifest);
     await expect(resolver!(request)).resolves.toEqual({ kind: 'missing' });
+  });
+
+  it('resolves an exact packet and persisted parser proof from offline fixtures', async () => {
+    const sourceKey = 'resolver-success-fixture';
+    const sourceUrl = 'https://example.test/resolver-success.pdf';
+    const parserFixturePath = join(
+      process.cwd(),
+      'src/defense-budget/rdte/cycle/__fixtures__/production-fy2024-r1-raw-parser-output-114pages.json',
+    );
+    const parserResultBytes = await readFile(parserFixturePath);
+    const parserResult = parseParserRuntimeResultV1(JSON.parse(parserResultBytes.toString('utf8')));
+    const profile = createHascSourceProfileV1({
+      fiscalYear: 2024,
+      reportNumber: 'H. Rept. resolver fixture',
+      sourceDocumentKeys: [sourceKey],
+    });
+    const packet = {
+      schemaVersion: 'congressional_structured_packet_v1' as const,
+      documentKey: sourceKey,
+      stage: 'hasc' as const,
+      fiscalYear: 2024,
+      declaredUnit: 'thousands' as const,
+      profileId: profile.profileId,
+      sourcePdfSha256: parserResult.inputSourceSha256,
+      artifact: {
+        chamber: 'HASC',
+        fy: 2024,
+        source: 'offline-resolver-fixture',
+        rows: [
+          {
+            peCode: '0601102A',
+            fy: 2024,
+            mark: 123,
+            markUnit: 'thousands' as const,
+            page: 1,
+            rowLabel: '001',
+          },
+        ],
+      },
+    };
+    const packetBytes = Buffer.from(JSON.stringify(packet), 'utf8');
+    const context = adapterTestContext({
+      manifestDocumentKey: sourceKey,
+      sourceDocumentId: request.sourceDocumentId,
+      sourcePdfSha256: parserResult.inputSourceSha256,
+      sourceLocator: sourceUrl,
+      sourceUrl,
+      fiscalYear: 2024,
+      family: 'committee',
+      exhibit: 'committee_report',
+      authority: 'hasc',
+      component: 'UNKNOWN',
+      budgetCycle: 'hasc',
+      documentType: 'committee_mark',
+      parser: {
+        method: parserResult.engine,
+        parserVersion: parserResult.parserVersion,
+        parserConfigSha256: parserResult.parserConfigSha256,
+        outputArtifactSha256: parserResult.contentSha256,
+        pageRanges: [{ startPage: 1, endPage: 114 }],
+      },
+    });
+    const manifest = JSON.stringify({
+      schemaVersion: 'congressional_packet_manifest_v1',
+      documents: [
+        {
+          documentKey: sourceKey,
+          stage: 'hasc',
+          fiscalYear: 2024,
+          declaredUnit: 'thousands',
+          sourcePdfSha256: parserResult.inputSourceSha256,
+          sourceLocator: sourceUrl,
+          packetLocator: 'packet.json',
+          packetByteSha256: createHash('sha256').update(packetBytes).digest('hex'),
+          profile,
+          context,
+          parserRuns: [
+            {
+              sourceSha256: parserResult.inputSourceSha256,
+              method: parserResult.engine,
+              parserVersion: parserResult.parserVersion,
+              parserConfigSha256: parserResult.parserConfigSha256,
+              requestedPages: parserResult.requestedPages,
+              runtimeContractVersion: 'defense_budget_parser_job_v1',
+            },
+          ],
+        },
+      ],
+    });
+    await writeFile(join(root, 'packet.json'), packetBytes);
+    const resolver = await resolverFor(manifest);
+    const parserStore = new FilesystemParserArtifactStore(join(root, 'parser-artifacts'));
+    const identity = buildParserRunIdentityV1({
+      sourceSha256: parserResult.inputSourceSha256,
+      method: parserResult.engine,
+      parserVersion: parserResult.parserVersion,
+      parserConfigSha256: parserResult.parserConfigSha256,
+      requestedPages: parserResult.requestedPages,
+    });
+    await parserStore.putVerified({
+      identity,
+      result: parserResult,
+      resultJson: parserResultBytes.toString('utf8'),
+    });
+
+    const resolved = await resolver!({
+      ...request,
+      sourceKey,
+      sourceSha256: parserResult.inputSourceSha256,
+      sourceUrl,
+      fiscalYear: 2024,
+    });
+    expect(resolved.kind).toBe('matched');
+    if (resolved.kind !== 'matched') return;
+    expect(resolved.factoryInputs.input.rows).toHaveLength(1);
+    expect(resolved.factoryInputs.input.rows[0]?.peCode).toBe('0601102A');
+    expect(resolved.factoryInputs.parserResultProofs).toHaveLength(1);
+    expect(
+      (resolved.factoryInputs.parserResultProofs[0]?.result as { inputSourceSha256: string })
+        .inputSourceSha256,
+    ).toBe(parserResult.inputSourceSha256);
   });
 
   it('propagates malformed and digest-mismatched manifests', async () => {
