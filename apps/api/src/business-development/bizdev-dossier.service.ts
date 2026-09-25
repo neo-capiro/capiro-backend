@@ -2,6 +2,8 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { normalizeCompanyName } from '../vendor-reference/vendor-name.util.js';
+import { Inject, Optional } from '@nestjs/common';
+import { BIZDEV_JEV_SERVICE, BizDevJevService } from './bizdev-jev.service.js';
 import {
   VendorReferenceSamClient,
   type SamEntityRecord,
@@ -221,6 +223,13 @@ interface IdentityAnchor {
   detail: IdentityDetail;
 }
 
+/** Shape of an unresolved-identity candidate as rendered in section detail. */
+interface BdCandidateLike {
+  canonicalEntityId: string;
+  canonicalName: string;
+  identityScope: string;
+}
+
 @Injectable()
 export class BizDevDossierService {
   private readonly logger = new Logger(BizDevDossierService.name);
@@ -228,6 +237,10 @@ export class BizDevDossierService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly samClient: VendorReferenceSamClient,
+    /** Phase 3 Jev shadow/canary service — optional (token-injected) so legacy
+     * tests constructing the service without it get exact Phase 2 behavior. */
+    @Optional() @Inject(BIZDEV_JEV_SERVICE)
+    private readonly jev?: BizDevJevService,
   ) {}
 
   /**
@@ -515,7 +528,19 @@ export class BizDevDossierService {
     const org = await this.findVisibleCanonicalOrganization(ctx, canonicalEntityId);
     if (!org) throw new NotFoundException('Canonical entity not found');
     const policy = await this.resolveProviderPolicy(ctx.tenantId);
-    return this.buildDossier(ctx, org, policy, sectionFilter);
+    const dossier = await this.buildDossier(ctx, org, policy, sectionFilter);
+    // Phase 3: candidate discovery opens company dossiers directly — schedule
+    // the same fully detached BD-SIGNAL shadow chain from a company dossier
+    // open (never from search itself, which stays zero-call).
+    this.scheduleJevForOpenedDossier(ctx, {
+      subjectType: 'company',
+      subjectId: canonicalEntityId,
+      prospectId: null,
+      prospectCanonicalEntityId: canonicalEntityId,
+      dossier,
+      sectionFilter,
+    });
+    return dossier;
   }
 
   /**
@@ -567,7 +592,7 @@ export class BizDevDossierService {
       if (wants('footprint')) sections.footprint = unresolved('footprint', 'footprint');
       if (wants('lobbying')) sections.lobbying = unresolved('lobbying', 'lobbying');
       if (wants('people')) sections.people = this.peopleSection(policy);
-      return finalizeDossier(
+      const dossier = finalizeDossier(
         {
           canonicalEntityId: null,
           canonicalName: null,
@@ -579,13 +604,122 @@ export class BizDevDossierService {
         },
         sectionFilter,
       );
+      // Phase 3 Jev (BD-ENTITY): the unresolved branch finalizes the
+      // dossier FIRST, synchronously schedules the fully detached
+      // launchForSubject chain, and then returns the UNCHANGED dossier.
+      // Fire-and-forget internals: no response field or latency dependency.
+      this.scheduleJevForOpenedDossier(ctx, {
+        subjectType: 'prospect',
+        subjectId: prospect.id,
+        prospectId: prospect.id,
+        prospectDisplayName: prospect.displayName,
+        prospectCanonicalEntityId: null,
+        dossier,
+        sectionFilter,
+      });
+      return dossier;
     }
 
     const org = await this.findVisibleCanonicalOrganization(ctx, prospect.canonicalEntityId);
     if (!org) throw new NotFoundException('Canonical entity not found');
     const policy = await this.resolveProviderPolicy(ctx.tenantId);
     const dossier = await this.buildDossier(ctx, org, policy, sectionFilter);
-    return { ...dossier, prospect: { id: prospect.id, displayName: prospect.displayName } };
+    const out = { ...dossier, prospect: { id: prospect.id, displayName: prospect.displayName } };
+    // Phase 3 Jev: AFTER the deterministic dossier exists, schedule the fully
+    // detached mode-resolution + evaluation chain (shadow/canary). Off mode →
+    // nothing is even resolved on the response path; the dossier above is
+    // returned byte-for-byte unchanged with zero added latency.
+    this.scheduleJevForOpenedDossier(ctx, {
+      subjectType: 'prospect',
+      subjectId: prospect.id,
+      prospectId: prospect.id,
+      prospectDisplayName: prospect.displayName,
+      prospectCanonicalEntityId: prospect.canonicalEntityId,
+      dossier: out,
+      sectionFilter,
+    });
+    return out;
+  }
+
+  /**
+   * Phase 3 — schedule the fully detached Jev chain for one opened dossier
+   * (prospect OR company). Synchronous, non-awaiting: the ENTIRE chain —
+   * tenant mode resolution and the budgeted evaluation — is fire-and-forget
+   * inside BizDevJevService.launchForSubject with an internal catch, so
+   * shadow adds no dossier latency and no visible field. Candidate SEARCH
+   * never calls this (only an explicit dossier open does).
+   */
+  private scheduleJevForOpenedDossier(
+    ctx: TenantContext,
+    input: {
+      subjectType: 'prospect' | 'company';
+      subjectId: string;
+      prospectId: string | null;
+      prospectDisplayName?: string;
+      prospectCanonicalEntityId: string | null;
+      dossier: BizDevDossier;
+      sectionFilter: DossierSectionKind | undefined;
+    },
+  ): void {
+    const jev = this.jev;
+    if (!jev) return; // Phase 3 wiring absent (legacy tests) → exact Phase 2 behavior
+    try {
+      const wants = (kind: DossierSectionKind) => !input.sectionFilter || input.sectionFilter === kind;
+      const dossier = input.dossier;
+      if (wants('identity') && !input.prospectCanonicalEntityId && input.prospectDisplayName) {
+        const identity = dossier.sections.identity;
+        const candidates = (identity?.detail as { candidates?: BdCandidateLike[] } | undefined)
+          ?.candidates;
+        const candidate = candidates?.[0];
+        if (candidate) {
+          // One bounded candidate per opened identity section (deterministic
+          // Phase 2 ordering); the evaluated candidate UUID goes in the trace.
+          jev.launchForSubject({
+            ctx,
+            task: 'bd_entity',
+            mode: 'shadow', // advisory-only; the effective mode is resolved inside
+            subjectType: input.subjectType,
+            subjectId: input.subjectId,
+            prospectId: input.prospectId,
+            canonicalEntityId: candidate.canonicalEntityId,
+            candidate: {
+              canonicalEntityId: candidate.canonicalEntityId,
+              canonicalName: candidate.canonicalName,
+              identityScope: candidate.identityScope,
+              identifiers: [],
+            },
+            prospectDisplayName: input.prospectDisplayName,
+            evidence: [],
+            deterministicOutcome: 'identity_unresolved',
+            companyName: input.prospectDisplayName,
+          });
+        }
+      }
+      if (dossier.canonicalEntityId && wants('relevant_signals')) {
+        const signals = dossier.sections.relevant_signals;
+        // BD-SIGNAL is one company + ONE staged signal: the service bounds the
+        // provider packet to the first deterministically ordered staged item
+        // and derives the Phase 2 baseline mapping itself. No generic section
+        // availability status is ever persisted as the baseline.
+        jev.launchForSubject({
+          ctx,
+          task: 'bd_signal',
+          mode: 'shadow', // label-only; the effective mode is resolved inside
+          subjectType: input.subjectType,
+          subjectId: input.subjectId,
+          prospectId: input.prospectId,
+          canonicalEntityId: dossier.canonicalEntityId,
+          evidence: signals?.evidence ?? [],
+          deterministicOutcome: null,
+          companyName: dossier.canonicalName ?? input.prospectDisplayName ?? '',
+        });
+      }
+    } catch (error) {
+      // Scheduling must never break a dossier read.
+      this.logger.warn(
+        `bizdev jev scheduling failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   // ── dossier composition ──────────────────────────────────────────────────

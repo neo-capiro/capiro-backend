@@ -492,6 +492,11 @@
 }
 
 /* ── Phase 2: dossier drawer ─────────────────────────────────────────── */
+
+/* Phase 3: modest, accessible wrapper for the optional Jev suggestion note. */
+.capiro-bizdev__jev-note {
+  margin: 6px 0 0;
+}
 .capiro-bizdev__dossier {
   gap: 20px;
 }

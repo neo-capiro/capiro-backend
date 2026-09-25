@@ -7,6 +7,13 @@ import { BusinessDevelopmentService } from './business-development.service.js';
 import { BusinessDevelopmentFlagGuard } from './business-development-flag.guard.js';
 import { BizDevDossierService } from './bizdev-dossier.service.js';
 import { BusinessDevelopmentDossierFlagGuard } from './bizdev-dossier.flag.guard.js';
+import {
+  BizDevJevService,
+  BIZDEV_JEV_FACTORY,
+  BIZDEV_JEV_REVIEW_HOOK,
+  BIZDEV_JEV_SERVICE,
+} from './bizdev-jev.service.js';
+import { BizDevJevProviderFactory } from './bizdev-jev.factory.js';
 
 /**
  * Business Development Phase 1 — firm-private prospect pipeline.
@@ -21,6 +28,13 @@ import { BusinessDevelopmentDossierFlagGuard } from './bizdev-dossier.flag.guard
  * additional guard (businessDevelopment.dossier.enabled, default OFF). The
  * VendorReferenceModule import brings in the exported VendorReferenceSamClient
  * for the dossier's at-most-one exact UEI/CAGE identity lookup.
+ *
+ * Phase 3 adds the BizDevJevService (shadow/canary evaluation + redacted
+ * decision traces) and the BizDevJevProviderFactory (shared @capiro/
+ * meriv2-core config/client/provider reuse). Both are DARK by default:
+ * nothing runs unless the env kill switch, per-task env mode, tenant
+ * enrollment flags AND the shared task registry all allow it. No new route is
+ * exposed; the trace table is service-internal.
  */
 @Module({
   imports: [ClientsModule, IntelligenceModule, VendorReferenceModule],
@@ -30,12 +44,18 @@ import { BusinessDevelopmentDossierFlagGuard } from './bizdev-dossier.flag.guard
     BusinessDevelopmentFlagGuard,
     BizDevDossierService,
     BusinessDevelopmentDossierFlagGuard,
+    BizDevJevProviderFactory,
+    { provide: BIZDEV_JEV_FACTORY, useExisting: BizDevJevProviderFactory },
+    BizDevJevService,
+    { provide: BIZDEV_JEV_SERVICE, useExisting: BizDevJevService },
+    { provide: BIZDEV_JEV_REVIEW_HOOK, useExisting: BizDevJevService },
   ],
   exports: [
     BusinessDevelopmentService,
     BusinessDevelopmentFlagGuard,
     BizDevDossierService,
     BusinessDevelopmentDossierFlagGuard,
+    BizDevJevService,
   ],
 })
 export class BusinessDevelopmentModule {}

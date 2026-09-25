@@ -823,6 +823,23 @@ export const configSchema = z.object({
   ),
   MERI_JEV_TASKS: z.string().optional(),
 
+  // Business Development Phase 3 — BD Jev task-mode controls. All dark by
+  // default: the global kill switch must be explicitly truthy AND a per-task
+  // mode must be explicitly configured AND the tenant must be enrolled (see
+  // tenant-flags.ts) before any BD Jev evaluation runs. `internal_canary` is
+  // additionally refused while the shared meriv2-core registry caps the task
+  // at shadow or its evaluation set is not approved — see
+  // business-development/bizdev-jev-mode.ts.
+  BIZDEV_JEV_ENABLED: z.preprocess(blankToUndefined, z.string().default('false')),
+  BIZDEV_JEV_TASK_BD_ENTITY_MODE: z.preprocess(
+    normalizeOptionalSwitch,
+    z.enum(['off', 'shadow', 'internal_canary']).default('off'),
+  ),
+  BIZDEV_JEV_TASK_BD_SIGNAL_MODE: z.preprocess(
+    normalizeOptionalSwitch,
+    z.enum(['off', 'shadow', 'internal_canary']).default('off'),
+  ),
+
   // Recall.ai meeting-notetaker bot (docs/plans/meeting-notetaker-bot-plan.md).
   // RECALL_API_KEY authenticates outbound bot dispatch/poll calls (sent as the
   // `Authorization: Token <key>` scheme, NOT Bearer). RECALL_WEBHOOK_SECRET

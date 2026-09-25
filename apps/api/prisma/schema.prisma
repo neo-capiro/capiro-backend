@@ -325,6 +325,7 @@ model Tenant {
   bizdevProspects                    BusinessDevelopmentProspect[]
   bizdevProspectActivity             BusinessDevelopmentProspectActivity[]
   bizdevPreferences                  BusinessDevelopmentPreference?
+  bizdevJevDecisions                 BusinessDevelopmentJevDecision[]
 
   @@map("tenants")
 }
@@ -14873,4 +14874,56 @@ model BusinessDevelopmentPreference {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("business_development_preferences")
+}
+
+/// Business Development Phase 3 — redacted Jev decision trace. This table
+/// deliberately stores hashes, typed outcomes, public source ids and usage,
+/// never the prompt, source passage, firm notes, conflicts, contacts or PDL.
+/// SQL owns the closed vocabularies and tenant RLS policy.
+model BusinessDevelopmentJevDecision {
+  id                     String    @id @default(uuid()) @db.Uuid
+  tenantId               String    @map("tenant_id") @db.Uuid
+  subjectType            String    @map("subject_type") @db.VarChar(24)
+  subjectId              String    @map("subject_id") @db.VarChar(160)
+  prospectId             String?   @map("prospect_id") @db.Uuid
+  canonicalEntityId      String?   @map("canonical_entity_id") @db.Uuid
+  task                   String    @db.VarChar(32)
+  mode                   String    @db.VarChar(24)
+  status                 String    @db.VarChar(24)
+  operationalState       String?   @map("operational_state") @db.VarChar(40)
+  providerName           String    @map("provider_name") @db.VarChar(64)
+  modelVersion           String    @map("model_version") @db.VarChar(40)
+  registryVersion        String    @map("registry_version") @db.VarChar(64)
+  questionVersion        String    @map("question_version") @db.VarChar(64)
+  envelopeHash           String    @map("envelope_hash") @db.VarChar(80)
+  candidateInventoryHash String?   @map("candidate_inventory_hash") @db.VarChar(80)
+  sourceIds              String[]  @default([]) @map("source_ids")
+  sourceHashesJsonb      Json      @default("[]") @map("source_hashes_jsonb")
+  deterministicOutcome   String?   @map("deterministic_outcome") @db.VarChar(64)
+  outcome                String?   @db.VarChar(64)
+  probabilitiesJsonb     Json?     @map("probabilities_jsonb")
+  confidence             Decimal?  @db.Decimal(6, 5)
+  reasonCodes            String[]  @default([]) @map("reason_codes")
+  inputTokens            Int?      @map("input_tokens")
+  outputTokens           Int?      @map("output_tokens")
+  estimatedCostUsd       Decimal? @map("estimated_cost_usd") @db.Decimal(12, 9)
+  latencyMs              Int?      @map("latency_ms")
+  visibleEffectJsonb     Json?     @map("visible_effect_jsonb")
+  reviewStatus           String    @default("unreviewed") @map("review_status") @db.VarChar(24)
+  reviewedOutcome        String?   @map("reviewed_outcome") @db.VarChar(64)
+  reviewedByUserId       String?   @map("reviewed_by_user_id") @db.Uuid
+  reviewedAt             DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  idempotencyKey         String    @map("idempotency_key") @db.VarChar(400)
+  requestedAt            DateTime  @default(now()) @map("requested_at") @db.Timestamptz(6)
+  completedAt            DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, idempotencyKey], map: "business_development_jev_decisions_tenant_idempotency_key")
+  @@index([tenantId, task, mode, requestedAt(sort: Desc)], map: "business_development_jev_decisions_tenant_task_mode_idx")
+  @@index([tenantId, subjectType, subjectId, requestedAt(sort: Desc)], map: "business_development_jev_decisions_tenant_subject_idx")
+  @@index([tenantId, reviewStatus, requestedAt(sort: Desc)], map: "business_development_jev_decisions_tenant_review_idx")
+  @@map("business_development_jev_decisions")
 }

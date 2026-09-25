@@ -1,8 +1,8 @@
 import { hashEvidenceContent } from '../../grounding/evidence';
 import type { EvidenceOperationalState } from '../decision-contract';
 import type { JevTask } from '../jev-config';
-import { JEV_TASK_REGISTRY } from '../task-registry';
 import type { JevChoiceTaskDecision } from '../task-choice-provider';
+import { JEV_TASK_REGISTRY, JEV_TASK_REGISTRY_VERSION } from '../task-registry';
 
 export interface JevTaskEvaluationCase {
   id: string;
@@ -99,6 +99,6 @@ export async function runJevTaskPairedEvaluation(input: {
       agreement: taskRows.filter((row) => row.agreement).length,
       providers: { jev: providerMetrics('jev'), baseline: providerMetrics('baseline') } }];
   }));
-  const output = { registryVersion: 'jev-task-registry.v4', totalCases: results.length, results, perTask };
+  const output = { registryVersion: JEV_TASK_REGISTRY_VERSION, totalCases: results.length, results, perTask };
   return { ...output, hash: hashEvidenceContent(output) };
 }

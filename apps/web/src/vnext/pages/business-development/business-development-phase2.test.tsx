@@ -17,7 +17,7 @@
  * identity correction affordance + duplicate-review behavior, and
  * tenant+identity query keys.
  */
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -900,6 +900,261 @@ describe('Phase 2 URL state and query keys', () => {
       dossierEntityId: '',
       dossierProspectId: '',
       dossierSection: '',
+    });
+  });
+});
+
+// ── 6. Phase 3 — optional Jev suggestion rendering (server-gated) ───────
+
+describe('Phase 3 optional Jev suggestions', () => {
+  function dossierWithJev(input: {
+    identity?: Record<string, unknown>;
+    signals?: Record<string, unknown>;
+  }): BizDevDossier {
+    const base = dossier();
+    return {
+      ...base,
+      sections: {
+        ...base.sections,
+        identity: {
+          ...base.sections.identity!,
+          detail: { ...base.sections.identity!.detail, ...input.identity },
+        },
+        relevant_signals: {
+          ...base.sections.relevant_signals!,
+          detail: { ...input.signals },
+          evidence: [
+            evidence({
+              recordId: 'SIG-9',
+              title: 'Thematic budget line',
+              relationshipStrength: 'thematic',
+              claimType: 'relevant_signal',
+            }),
+          ],
+        },
+      },
+    };
+  }
+
+  function openCompanyDossier(cfg: Cfg) {
+    renderAt('?view=business-development&bdDiscover=open&bdDq=overland&bdDossier=ce-1', cfg);
+    return screen.findByRole('dialog', { name: /Evidence dossier — Overland AI/ });
+  }
+
+  it('renders EXACT Phase 2 output when the optional fields are absent (off/shadow parity)', async () => {
+    const drawer = await openCompanyDossier({ ...DOSSIER_ON });
+    // Phase 2 content intact…
+    expect(await within(drawer).findByText(/Direct contract — Army SBIR/)).toBeInTheDocument();
+    expect(within(drawer).getByText('Potential relevance')).toBeInTheDocument();
+    expect(within(drawer).getByText(/matched on an exact UEI identifier/)).toBeInTheDocument();
+    // …and no Phase 3 suggestion text anywhere.
+    expect(within(drawer).queryByText(/Jev/i)).not.toBeInTheDocument();
+    expect(within(drawer).queryByText('Possible fit')).not.toBeInTheDocument();
+    expect(within(drawer).queryByText('Direct fit')).not.toBeInTheDocument();
+    expect(within(drawer).queryByText(/Not evaluated/)).not.toBeInTheDocument();
+    // The Phase 2 Direct badge (from relationshipStrength) still renders —
+    // the browser did not learn to hide it.
+    expect(within(drawer).getAllByText('Direct').length).toBeGreaterThan(0);
+  });
+
+  it('shows the exact identity review-required label and keeps the manual review workflow (no auto-save)', async () => {
+    const drawer = await openCompanyDossier({
+      ...DOSSIER_ON,
+      dossier: dossierWithJev({
+        identity: { jevSuggestion: 'identity_review_required', jevSuggestionRequiresReview: true },
+      }),
+    });
+    expect(
+      await within(drawer).findByText('Jev suggestion — review required'),
+    ).toBeInTheDocument();
+    // Competing candidates/identity evidence still render…
+    expect(within(drawer).getByText(/matched on an exact UEI identifier/)).toBeInTheDocument();
+    // …and viewing never writes: no create/identity/merge calls at all.
+    expect(postCalls().length).toBe(0);
+    // No raw Jev detail keys leak into the generic detail rows.
+    expect(within(drawer).queryByText(/jev suggestion requires review/i)).not.toBeInTheDocument();
+  });
+
+  it('renders Possible fit for possible_fit in relevant signals', async () => {
+    const drawer = await openCompanyDossier({
+      ...DOSSIER_ON,
+      dossier: dossierWithJev({
+        signals: { jevSuggestion: 'possible_fit', jevSuggestionRequiresReview: true },
+      }),
+    });
+    expect(await within(drawer).findByText('Possible fit')).toBeInTheDocument();
+    // Signals evidence is untouched by the label.
+    expect(within(drawer).getByText('Thematic budget line')).toBeInTheDocument();
+    expect(within(drawer).getAllByText('Potential relevance').length).toBeGreaterThan(0);
+  });
+
+  it('renders Direct fit ONLY from the exact direct_fit server token — never inferred', async () => {
+    // Exact token → label. Isolated render (cleanup before the second one).
+    const withToken = await openCompanyDossier({
+      ...DOSSIER_ON,
+      dossier: dossierWithJev({ signals: { jevSuggestion: 'direct_fit' } }),
+    });
+    expect(await within(withToken).findByText('Direct fit')).toBeInTheDocument();
+
+    // Direct-looking evidence WITHOUT the token → no Direct fit inference.
+    cleanup();
+    const withoutToken = await openCompanyDossier({
+      ...DOSSIER_ON,
+      dossier: dossierWithJev({
+        signals: {
+          jevSuggestion: 'possible_fit',
+          jevConfidence: 0.99,
+          jevProbabilities: { direct_fit: 0.99 },
+        },
+      }),
+    });
+    expect(await within(withoutToken).findByText('Possible fit')).toBeInTheDocument();
+    expect(within(withoutToken).queryByText('Direct fit')).not.toBeInTheDocument();
+    // Confidence/probability detail keys never render through the detail table.
+    expect(within(withoutToken).queryByText(/jev confidence/i)).not.toBeInTheDocument();
+    expect(within(withoutToken).queryByText(/jev probabilities/i)).not.toBeInTheDocument();
+  });
+
+  it('identity review-required on an UNRESOLVED prospect dossier keeps competing candidates and manual confirmation', async () => {
+    // Unresolved prospect: identityBasis unresolved_prospect, identity detail
+    // carries competing candidates (Phase 2 identity-correction shape).
+    const base = dossier();
+    const unresolved: BizDevDossier = {
+      ...base,
+      canonicalEntityId: null,
+      canonicalName: null,
+      identityScope: null,
+      identityBasis: 'unresolved_prospect',
+      prospect: { id: 'p-1', displayName: 'Overland AI' },
+      sections: {
+        ...base.sections,
+        identity: {
+          ...base.sections.identity!,
+          statusText: 'Identity is not confirmed yet.',
+          evidence: [],
+          detail: {
+            candidates: [
+              {
+                canonicalEntityId: 'ce-2',
+                canonicalName: 'Overland AI Holdings',
+                identifiers: [{ type: 'UEI', value: 'UEI999' }],
+              },
+              {
+                canonicalEntityId: 'ce-1',
+                canonicalName: 'Overland AI',
+                identifiers: [{ type: 'UEI', value: 'UEI123' }],
+              },
+            ],
+            jevSuggestion: 'identity_review_required',
+            jevSuggestionRequiresReview: true,
+          },
+        },
+      },
+    };
+    renderAt('?view=business-development&bdProspect=p-1&bdDossierProspect=p-1', {
+      meFeatures: { businessDevelopment: true, businessDevelopmentDossier: true },
+      dossier: unresolved,
+      canonicalOrgs: [
+        {
+          id: 'ce-1',
+          canonicalName: 'Overland AI',
+          normalizedName: 'overland ai',
+          identityScope: 'global_public',
+          tenantId: null,
+        },
+      ],
+    });
+    const drawer = await screen.findByRole('dialog', { name: /Evidence dossier/ });
+    // The exact review-required label renders…
+    expect(
+      await within(drawer).findByText('Jev suggestion — review required'),
+    ).toBeInTheDocument();
+    // …competing candidates still render via the detail rows (no
+    // removal/reorder by the browser)…
+    expect(within(drawer).getAllByText(/Overland AI Holdings/).length).toBeGreaterThan(0);
+    expect(within(drawer).getAllByText(/UEI999/).length).toBeGreaterThan(0);
+    // …and the manual confirmation workflow is intact: close the dossier
+    // (view-only) and drive search + Confirm identity through the Phase 1
+    // resolve route (no auto-confirm from the suggestion).
+    fireEvent.click(within(drawer).getByRole('button', { name: /close/i }));
+    const prospectDrawer = await screen.findByRole('dialog', { name: /Prospect — Overland AI/ });
+    fireEvent.change(
+      within(prospectDrawer).getAllByLabelText(/Search confirmed organizations/)[0]!,
+      { target: { value: 'over' } },
+    );
+    fireEvent.click(within(prospectDrawer).getAllByRole('button', { name: 'Search' })[0]!);
+    await waitFor(() =>
+      expect(
+        getCalls().some(([p]) => p === '/api/business-development/search/canonical-organizations'),
+      ).toBe(true),
+    );
+    fireEvent.click(within(prospectDrawer).getAllByRole('button', { name: 'Confirm identity' })[0]!);
+    await waitFor(() =>
+      expect(
+        postCalls().some(([p]) => p === '/api/business-development/prospects/p-1/identity'),
+      ).toBe(true),
+    );
+  });
+
+  it('ignores unknown and malformed suggestion values as if absent', async () => {
+    for (const bad of [
+      'review_required_candidate_match',
+      'DIRECT_FIT',
+      '',
+      { suggestion: 'direct_fit' },
+      42,
+      null,
+    ]) {
+      const drawer = await openCompanyDossier({
+        ...DOSSIER_ON,
+        dossier: dossierWithJev({ signals: { jevSuggestion: bad } }),
+      });
+      await within(drawer).findByText(/Signals retrieved/);
+      expect(within(drawer).queryByText('Possible fit')).not.toBeInTheDocument();
+      expect(within(drawer).queryByText('Direct fit')).not.toBeInTheDocument();
+      expect(within(drawer).queryByText(/Jev suggestion — review required/)).not.toBeInTheDocument();
+      cleanup();
+    }
+  });
+
+  it('renders not_evaluated truthfully and unobtrusively with evidence/source inspection intact', async () => {
+    const drawer = await openCompanyDossier({
+      ...DOSSIER_ON,
+      dossier: dossierWithJev({
+        signals: { jevSuggestion: 'not_evaluated', jevSuggestionRequiresReview: true },
+      }),
+    });
+    expect(
+      await within(drawer).findByText(/Not evaluated — no automated suggestion/),
+    ).toBeInTheDocument();
+    // Phase 2 cards and the source inspector are untouched.
+    expect(within(drawer).getByText('Thematic budget line')).toBeInTheDocument();
+    const card = within(drawer).getByText('Thematic budget line').closest('li')!;
+    fireEvent.click(within(card).getByText('Source details'));
+    expect(within(card).getByRole('link', { name: 'Open source record' })).toBeInTheDocument();
+  });
+
+  it('a failed signals section keeps its independent retry and never mimics a suggestion', async () => {
+    const drawer = await openCompanyDossier({
+      ...DOSSIER_ON,
+      dossier: dossierWithJev({ signals: { jevSuggestion: 'not_evaluated' } }),
+      dossierErrorSections: ['relevant_signals'],
+    });
+    // Section-level error + retry, no suggestion text invented for it…
+    expect(await within(drawer).findByText(/This section could not be loaded/)).toBeInTheDocument();
+    expect(within(drawer).queryByText(/Not evaluated — no automated suggestion/)).not.toBeInTheDocument();
+    // …while the identity header (and its exact-token label) still loads.
+    expect(within(drawer).getByText(/matched on an exact UEI identifier/)).toBeInTheDocument();
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Retry this section' }));
+    await waitFor(() => {
+      expect(
+        getCalls().filter(
+          ([p, c]) =>
+            p.includes('/dossier/companies/ce-1') &&
+            (c as { params?: { section?: string } } | undefined)?.params?.section ===
+              'relevant_signals',
+        ).length,
+      ).toBe(2);
     });
   });
 });

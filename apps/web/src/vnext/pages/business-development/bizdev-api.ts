@@ -465,6 +465,43 @@ export interface BizDevDossierSection {
   detail: Record<string, unknown>;
 }
 
+/**
+ * Phase 3 — narrow optional Jev projection contract carried in section
+ * `detail`. The server (apps/api bizdev-jev.service) only ever emits these
+ * stable enum-like values under `jevSuggestion`, with
+ * `jevSuggestionRequiresReview: true`. The browser recognizes EXACTLY these
+ * values and treats anything unknown/malformed as absent — no inference, no
+ * fallback guessing. Absent fields = exact Phase 2 rendering.
+ */
+export type BizDevJevSuggestion =
+  | 'identity_review_required'
+  | 'possible_fit'
+  | 'direct_fit'
+  | 'not_evaluated';
+
+const BIZDEV_JEV_SUGGESTIONS: readonly BizDevJevSuggestion[] = [
+  'identity_review_required',
+  'possible_fit',
+  'direct_fit',
+  'not_evaluated',
+];
+
+/**
+ * Read the optional Phase 3 projection from a section detail object.
+ * Whitelist-strict: unknown, malformed or missing values all resolve to
+ * null (rendered as if the field never existed). Never reads any other
+ * Jev-related key; raw internal detail keys stay invisible to the UI.
+ */
+export function readBizDevJevSuggestion(
+  detail: Record<string, unknown> | null | undefined,
+): BizDevJevSuggestion | null {
+  const value = detail?.jevSuggestion;
+  return typeof value === 'string' &&
+    (BIZDEV_JEV_SUGGESTIONS as readonly string[]).includes(value)
+    ? (value as BizDevJevSuggestion)
+    : null;
+}
+
 /** Exact dossier response envelope (finalizeDossier shape). */
 export interface BizDevDossier {
   canonicalEntityId: string | null;

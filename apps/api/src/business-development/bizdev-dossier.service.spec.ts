@@ -1359,3 +1359,200 @@ describe('people section', () => {
     }
   });
 });
+
+// ── Phase 3 Jev scheduling: search zero-call; opened dossier BD-ENTITY/BD-SIGNAL ──
+
+describe('Phase 3 Jev scheduling (dossier service)', () => {
+  const stagedEvidence = () => ({
+    sourceFamily: 'usaspending_contract',
+    recordId: 'AWARD_1',
+    locator: 'https://usaspending.gov/award/1',
+    originalSourceName: 'USAspending',
+    originalSourceId: 'AWARD_1',
+    claimType: 'relevant_signal',
+    relationshipStrength: 'direct',
+    eventDate: '2026-06-15',
+    effectiveDate: null,
+    fiscalYear: 2026,
+    stage: 'awarded',
+    sourceUpdatedAt: '2026-06-20T00:00:00Z',
+    fetchedAt: '2026-06-21T00:00:00Z',
+    scopeChecked: 'award',
+    status: 'available',
+    title: 'Contract award',
+    detail: {},
+  }) as never;
+
+  const makeJevHarness = (fx: Fixture) => {
+    const h = makeHarness(fx);
+    const launches: Array<Record<string, unknown>> = [];
+    const jev = {
+      launchForSubject: jest.fn((input: Record<string, unknown>) => {
+        launches.push(input);
+      }),
+    };
+    // Re-construct the service WITH the optional Phase 3 wiring.
+    const serviceWithJev: BizDevDossierService = new (
+      h.service.constructor as never as new (
+        prisma: unknown,
+        samClient: unknown,
+        jev?: unknown,
+      ) => BizDevDossierService
+    )(
+      (h as unknown as { prisma: unknown }).prisma,
+      (h as unknown as { samClient: unknown }).samClient,
+      jev,
+    );
+    return { ...h, service: serviceWithJev, jev, launches };
+  };
+
+  test('candidate search NEVER schedules a Jev call', async () => {
+    const acme = org({ canonicalName: 'Acme Aerospace', normalizedName: 'acme aerospace' });
+    const h = makeJevHarness(
+      baseFixture({
+        canonical: [acme],
+        identifiers: [],
+        awards: [],
+      }),
+    );
+    await h.service.searchCandidates(ctx, { q: 'acme' });
+    expect(h.jev.launchForSubject).not.toHaveBeenCalled();
+    expect(h.launches).toHaveLength(0);
+  });
+
+  test('opened UNRESOLVED prospect schedules EXACTLY ONE bd_entity (first candidate)', async () => {
+    const prospectId = randomUUID();
+    const candA = org({ canonicalName: 'Acme Alpha' });
+    const candB = org({ canonicalName: 'Acme Beta' });
+    const h = makeJevHarness(
+      baseFixture({
+        canonical: [candA, candB],
+        prospects: [
+          { id: prospectId, tenantId, displayName: 'Acme', canonicalEntityId: null },
+        ],
+      }),
+    );
+    await h.service.prospectDossier(ctx, prospectId);
+    expect(h.launches).toHaveLength(1);
+    const launch = h.launches[0]!;
+    expect(launch.task).toBe('bd_entity');
+    expect(launch.subjectType).toBe('prospect');
+    expect(launch.subjectId).toBe(prospectId);
+    expect(launch.prospectId).toBe(prospectId);
+    // The FIRST deterministically ordered candidate is the evaluated one.
+    expect(launch.canonicalEntityId).toBe(candA.id);
+    expect((launch.candidate as { canonicalEntityId: string }).canonicalEntityId).toBe(
+      candA.id,
+    );
+    // Phase 2 baseline for the unresolved identity section.
+    expect(launch.deterministicOutcome).toBe('identity_unresolved');
+    // No bd_signal was scheduled: the identity is unresolved (no canonicalEntityId).
+    expect(h.launches.filter((l) => l.task === 'bd_signal')).toHaveLength(0);
+  });
+
+  test('opened UNRESOLVED prospect with NO candidates schedules NOTHING', async () => {
+    const prospectId = randomUUID();
+    const h = makeJevHarness(
+      baseFixture({
+        prospects: [
+          { id: prospectId, tenantId, displayName: 'Acme', canonicalEntityId: null },
+        ],
+      }),
+    );
+    await h.service.prospectDossier(ctx, prospectId);
+    expect(h.launches).toHaveLength(0);
+  });
+
+  test('opened RESOLVED prospect schedules EXACTLY ONE bd_signal for the first staged signal', async () => {
+    const acme = org();
+    const prospectId = randomUUID();
+    const h = makeJevHarness(
+      baseFixture({
+        canonical: [acme],
+        identifiers: [
+          {
+            entityId: acme.id,
+            identifierType: 'uei',
+            identifierValue: UEI_A,
+            identityScope: 'global_public',
+            tenantId: null,
+            status: 'active',
+          },
+        ],
+        awards: [award({ recipientUei: UEI_A })],
+        prospects: [
+          { id: prospectId, tenantId, displayName: 'Acme', canonicalEntityId: acme.id },
+        ],
+      }),
+    );
+    const dossier = await h.service.prospectDossier(ctx, prospectId);
+    // Phase 2 response unchanged: the returned dossier still has its sections
+    // and carries no Jev-visible field.
+    expect(dossier.canonicalEntityId).toBe(acme.id);
+    expect(JSON.stringify(dossier)).not.toContain('jevSuggestion');
+    expect(h.launches).toHaveLength(1);
+    const launch = h.launches[0]!;
+    expect(launch.task).toBe('bd_signal');
+    expect(launch.canonicalEntityId).toBe(acme.id);
+    // The scheduler passes the SECTION EVIDENCE list and null baseline; the
+    // service bounds the packet to the ONE staged item itself.
+    expect(launch.deterministicOutcome).toBeNull();
+    expect(Array.isArray(launch.evidence)).toBe(true);
+    // No bd_entity was scheduled: the identity is already resolved.
+    expect(h.launches.filter((l) => l.task === 'bd_entity')).toHaveLength(0);
+  });
+
+  test('Jev wiring ABSENT (legacy construction) → exact Phase 2 behavior, zero launches', async () => {
+    const acme = org();
+    const prospectId = randomUUID();
+    const h = makeHarness(
+      baseFixture({
+        canonical: [acme],
+        identifiers: [
+          {
+            entityId: acme.id,
+            identifierType: 'uei',
+            identifierValue: UEI_A,
+            identityScope: 'global_public',
+            tenantId: null,
+            status: 'active',
+          },
+        ],
+        awards: [award({ recipientUei: UEI_A })],
+        prospects: [
+          { id: prospectId, tenantId, displayName: 'Acme', canonicalEntityId: acme.id },
+        ],
+      }),
+    );
+    // No jev double at all — the original two-arg construction.
+    const dossier = await h.service.prospectDossier(ctx, prospectId);
+    expect(dossier.canonicalEntityId).toBe(acme.id);
+  });
+
+  test('section filter: identity-only open of a resolved prospect schedules NOTHING for bd_signal', async () => {
+    const acme = org();
+    const prospectId = randomUUID();
+    const h = makeJevHarness(
+      baseFixture({
+        canonical: [acme],
+        identifiers: [
+          {
+            entityId: acme.id,
+            identifierType: 'uei',
+            identifierValue: UEI_A,
+            identityScope: 'global_public',
+            tenantId: null,
+            status: 'active',
+          },
+        ],
+        awards: [award({ recipientUei: UEI_A })],
+        prospects: [
+          { id: prospectId, tenantId, displayName: 'Acme', canonicalEntityId: acme.id },
+        ],
+      }),
+    );
+    await h.service.prospectDossier(ctx, prospectId, 'identity');
+    // wants('relevant_signals') is false for an identity-only request.
+    expect(h.launches.filter((l) => l.task === 'bd_signal')).toHaveLength(0);
+  });
+});

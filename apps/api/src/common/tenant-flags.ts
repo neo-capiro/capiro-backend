@@ -450,6 +450,44 @@ export function businessDevelopmentPdlPeopleEnabled(settings: unknown): boolean 
   return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_PDL_PEOPLE_FLAG, false);
 }
 
+// ── Business Development Phase 3 — Jev task-mode enrollment flags ──────────
+
+/**
+ * Per-tenant enrollment booleans for each BD Jev task AND each mode. Each
+ * defaults OFF; a tenant must be explicitly enrolled in BOTH a task and a
+ * mode before any BD Jev evaluation runs for it (see bizdev-jev-mode.ts for
+ * how these combine with env modes and the shared registry ceiling).
+ */
+export const BIZDEV_JEV_TASK_MODE_FLAGS: Readonly<
+  Record<'bd_entity' | 'bd_signal', Record<'shadow' | 'internal_canary', string>>
+> = {
+  bd_entity: {
+    shadow: 'businessDevelopment.jev.task.bdEntity.shadow.enabled',
+    internal_canary: 'businessDevelopment.jev.task.bdEntity.internalCanary.enabled',
+  },
+  bd_signal: {
+    shadow: 'businessDevelopment.jev.task.bdSignal.shadow.enabled',
+    internal_canary: 'businessDevelopment.jev.task.bdSignal.internalCanary.enabled',
+  },
+} as const;
+
+export type BizDevJevTenantMode = 'off' | 'shadow' | 'internal_canary';
+export type BizDevJevTenantModes = Readonly<
+  Record<'bd_entity' | 'bd_signal', BizDevJevTenantMode>
+>;
+
+/** The highest mode the tenant explicitly enrolled for a task (least permissive wins upstream). */
+export function bizdevJevTaskModes(settings: unknown): BizDevJevTenantModes {
+  const flag = (name: string): boolean => tenantFeatureEnabled(settings, name, false);
+  const forTask = (task: 'bd_entity' | 'bd_signal'): BizDevJevTenantMode => {
+    const flags = BIZDEV_JEV_TASK_MODE_FLAGS[task];
+    if (flag(flags.internal_canary)) return 'internal_canary';
+    if (flag(flags.shadow)) return 'shadow';
+    return 'off';
+  };
+  return { bd_entity: forTask('bd_entity'), bd_signal: forTask('bd_signal') };
+}
+
 /**
  * Effective feature entitlements for a tenant (Phase 5, §5.1). The tier map
  * (resolveEntitlements) sets the baseline; a per-tenant boolean override at
