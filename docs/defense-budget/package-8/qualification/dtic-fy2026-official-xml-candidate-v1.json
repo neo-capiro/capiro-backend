@@ -37,6 +37,7 @@
     "schemaVersion": "dtic_jdocs_xml_source_inspection_v1",
     "status": "candidate_only",
     "promotable": false,
+    "focusedTest": "PASS (1 Jest suite / 5 tests)",
     "limitations": [
       "catalog_metadata_only_no_semantic_extraction_or_verification",
       "does_not_establish_annual_family_or_component_completeness",
