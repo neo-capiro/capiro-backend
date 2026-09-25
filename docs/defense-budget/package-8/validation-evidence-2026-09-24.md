@@ -29,6 +29,12 @@ Repository: `neo-capiro/capirov2`
 - The DTIC mirror candidate cannot be promoted or imported by the inspector.
 - No feature flag, schedule, production manifest, canonical snapshot, or historical notification channel is activated by the code change.
 
-## Production release gates
+## Production release proof
 
-The code PR must merge to GitHub `main`, local `main` must fast-forward to the exact merge, and the API/web images must be built from that merge. Deployment must preserve the existing ingestion/publication flags. Post-deploy evidence must record ECS stability, exact image digests, runtime SHA, `APP_ENV`, the current coverage report, the exact manifest-eligibility decision, and notification counts before/after any permitted read-only qualification.
+- Code PR `#1792` merged as `56ccee8b05e75b0db17bea3bc1cd3e64546d5c2a`; local `main` fast-forwarded to that exact merge before the release builds.
+- GitHub-hosted checks failed in two to four seconds with no assigned runner and zero steps. The admin merge followed the complete local gate matrix and independent repair audit.
+- Native ARM64 API and web CodeBuild jobs resolved the exact merge and succeeded. The API and both web repositories carry immutable SHA tags plus Package 8 release tags.
+- API task definition `capiro-dev-api:452`, web `:138`, and web-vNext `:356` reached completed steady deployments. Replacement targets were healthy.
+- `APP_ENV=capiro-dev` and `GIT_SHA=56ccee8b…` are present on the API task. The four ingestion/publication flags remain false.
+- Both public runtime-config endpoints report the Package 8 merge SHA. An unauthenticated reconciliation request returns `401 Missing bearer token`, preserving the internal-only boundary.
+- Post-deploy SELECT-only tasks exited zero on the exact API image. They report 82 logical slots in each FY2024–FY2027, 14 observations, 11 candidates, 43 active approvals, zero active/canonical snapshots, zero governed manifests, and zero manifest-eligible rows. No historical write or notification-producing run occurred.
