@@ -1,5 +1,4 @@
-// Global app shell v2 — a faithful build of "Capiro App Shell v2 (standalone).html"
-// gated to the capiro-internal tenant only. Two persistent bands (54px global nav
+// Global app shell v2 — the fleet product shell. Two persistent bands (54px global nav
 // + 40px tenant/client/data context) replace the legacy left sider. The page
 // region below scrolls. All controls wire to real app behaviour; decorative
 // mockup-only affordances are omitted, never faked.

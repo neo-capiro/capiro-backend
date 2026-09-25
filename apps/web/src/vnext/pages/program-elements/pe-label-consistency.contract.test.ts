@@ -25,12 +25,11 @@ describe('LW-QA-009 — /program-elements has one product name across tenants', 
   const routeManifest = repo('../../adapters/routes/routeManifest.ts');
   const peWorkspace = repo('../program-elements/PeWorkspacePage.tsx');
 
-  it('legacy shell: internal tenant gets Defense Budget for nav + page title', () => {
-    expect(appShell).toMatch(/isInternalTenant \? 'Defense Budget' : 'Program Elements'/);
-    // Nav leaf label is resolved per-tenant inside the items builder; the page-
-    // title map routes through the same tenant-aware value.
+  it('legacy shell: every tenant gets Defense Budget for nav + page title', () => {
+    expect(appShell).toContain("const peNavLabel = 'Defense Budget'");
+    expect(appShell).not.toMatch(/isInternalTenant \? 'Defense Budget' : 'Program Elements'/);
     expect(appShell).toContain("n.key === 'program-elements' ? peNavLabel : n.label");
-    expect(appShell).toContain("'program-elements': isInternalTenant ? 'Defense Budget' : 'Program Elements'");
+    expect(appShell).toContain("'program-elements': 'Defense Budget'");
   });
 
   it('legacy shell: the static "Program Elements" nav literal is gone', () => {
@@ -38,9 +37,7 @@ describe('LW-QA-009 — /program-elements has one product name across tenants', 
     expect(appShell).not.toMatch(/key: 'program-elements',\s*\n\s*label: 'Program Elements'/);
   });
 
-  it('internal-only shell (AppShellV2): Defense Budget unconditionally', () => {
-    // AppShellV2 renders ONLY for capiro-internal (AppShell tenant branch),
-    // so its label is Defense Budget without tenant branching.
+  it('fleet shell (AppShellV2): Defense Budget unconditionally', () => {
     expect(appShellV2).toContain("{ key: 'program-elements', label: 'Defense Budget', path: '/program-elements' }");
     expect(appShellV2).toContain('Open Defense Budget →');
     expect(appShellV2).not.toContain("label: 'Program Elements'");
