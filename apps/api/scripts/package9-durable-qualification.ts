@@ -66,7 +66,7 @@ function execute(
     env: options.env ?? process.env,
     encoding: 'utf8',
     windowsHide: true,
-    shell: process.platform === 'win32',
+    shell: process.platform === 'win32' && command !== 'docker',
     timeout: 15 * 60 * 1000,
   });
   if (result.error) throw result.error;
@@ -424,7 +424,6 @@ async function waitForPostgres(containerId: string) {
       {
         encoding: 'utf8',
         windowsHide: true,
-        shell: process.platform === 'win32',
       },
     );
     if (result.status === 0 && result.stdout.trim() === '1') return;
