@@ -1,8 +1,9 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import { performance } from 'node:perf_hooks';
 import { Pool, type PoolClient, type QueryResult } from 'pg';
 import {
@@ -42,7 +43,30 @@ type FaultName = keyof typeof SCENARIO_ROWS;
 interface QuerySample {
   elapsedMs: number;
   operation: string;
+  clientId?: string;
+  error?: boolean;
 }
+
+interface ProductQuerySample {
+  operation: string;
+  clientId: string;
+  elapsedMs: number;
+  error: boolean;
+  errorDetail: string | null;
+}
+
+const PRODUCT_QUERY_OPERATIONS = [
+  { operation: 'cycle-health-fy2027', weight: 4 },
+  { operation: 'cycle-health-fy2028', weight: 2 },
+  { operation: 'expected-sources-fy2027-request', weight: 3 },
+  { operation: 'coverage-inventory-fy2027', weight: 3 },
+  { operation: 'review-required-detail-fy2027', weight: 2 },
+  { operation: 'review-queue-fy2027', weight: 3 },
+  { operation: 'lifecycle-signals-fy2027', weight: 2 },
+  { operation: 'schedule-tick-health', weight: 1 },
+] as const;
+const PRODUCT_QUERY_CLIENTS = 4;
+const PRODUCT_QUERY_P95_LIMIT_MS = 2_000;
 
 function sha(value: string): string {
   return createHash('sha256').update(value).digest('hex');
@@ -446,6 +470,133 @@ function percentile(values: number[], p: number): number | null {
   return Number(sorted[Math.min(sorted.length - 1, Math.ceil(p * sorted.length) - 1)]!.toFixed(3));
 }
 
+function weightedProductQueryCycle(): string[] {
+  return PRODUCT_QUERY_OPERATIONS.flatMap(({ operation, weight }) =>
+    Array.from({ length: weight }, () => operation),
+  );
+}
+
+async function runProductQueryMix(databaseUrl: string): Promise<{
+  startedAt: string;
+  finishedAt: string;
+  startedMonotonicMs: number;
+  finishedMonotonicMs: number;
+  samples: ProductQuerySample[];
+  observedOperations: string[];
+  observedClients: string[];
+}> {
+  const require = createRequire(import.meta.url);
+  const { PrismaClient } = require(
+    resolve(REPO_ROOT, 'apps/defense-api/generated/prisma-client/index.js'),
+  ) as {
+    PrismaClient: new (
+      options: unknown,
+    ) => Record<string, unknown> & { $disconnect(): Promise<void> };
+  };
+  const { PrismaBudgetLifecycleReadStore } = require(
+    resolve(
+      REPO_ROOT,
+      'apps/defense-api/dist/budget-lifecycle-product/prisma-budget-lifecycle-read.store.js',
+    ),
+  ) as { PrismaBudgetLifecycleReadStore: new (client: unknown) => unknown };
+  const { BudgetLifecycleQueryService } = require(
+    resolve(
+      REPO_ROOT,
+      'apps/defense-api/dist/budget-lifecycle-product/budget-lifecycle-query.service.js',
+    ),
+  ) as {
+    BudgetLifecycleQueryService: new (
+      store: unknown,
+      health: unknown,
+    ) => Record<string, (...args: unknown[]) => Promise<unknown>>;
+  };
+  const { CycleHealthService } = require(
+    resolve(REPO_ROOT, 'apps/defense-api/dist/budget-lifecycle/cycle-health.service.js'),
+  ) as { CycleHealthService: new () => unknown };
+  const clients = Array.from({ length: PRODUCT_QUERY_CLIENTS }, (_, index) => {
+    const prisma = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
+    return {
+      id: `client-${index + 1}`,
+      prisma,
+      service: new BudgetLifecycleQueryService(
+        new PrismaBudgetLifecycleReadStore(prisma),
+        new CycleHealthService(),
+      ),
+    };
+  });
+  const samples: ProductQuerySample[] = [];
+  const cycle = weightedProductQueryCycle();
+  const startedMonotonicMs = performance.now();
+  const startedAt = new Date().toISOString();
+  const runOperation = async (client: (typeof clients)[number], operation: string) => {
+    const started = performance.now();
+    let failed = false;
+    let errorDetail: string | null = null;
+    try {
+      switch (operation) {
+        case 'cycle-health-fy2027':
+          await client.service.getCycleHealth(2027);
+          break;
+        case 'cycle-health-fy2028':
+          await client.service.getCycleHealth(2028);
+          break;
+        case 'expected-sources-fy2027-request':
+          await client.service.listExpectedSources(2027, { authorityTrack: 'request' });
+          break;
+        case 'coverage-inventory-fy2027':
+          await client.service.getCoverageInventory(2027);
+          break;
+        case 'review-required-detail-fy2027':
+          await client.service.getExpectedSourceDetail(expectedSourceId(0));
+          break;
+        case 'review-queue-fy2027':
+          await client.service.listReviewQueue(2027);
+          break;
+        case 'lifecycle-signals-fy2027':
+          await client.service.listSignals(2027);
+          break;
+        case 'schedule-tick-health':
+          await client.service.getScheduleTickHealth();
+          break;
+        default:
+          throw new Error(`Unknown Package 9 product-query operation ${operation}`);
+      }
+    } catch (error) {
+      failed = true;
+      errorDetail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    } finally {
+      samples.push({
+        operation,
+        clientId: client.id,
+        elapsedMs: performance.now() - started,
+        error: failed,
+        errorDetail,
+      });
+    }
+  };
+  try {
+    await Promise.all(
+      clients.map(async (client, clientIndex) => {
+        const offset = clientIndex % cycle.length;
+        for (let index = 0; index < cycle.length; index++) {
+          await runOperation(client, cycle[(index + offset) % cycle.length]!);
+        }
+      }),
+    );
+  } finally {
+    await Promise.all(clients.map((client) => client.prisma.$disconnect()));
+  }
+  return {
+    startedAt,
+    finishedAt: new Date().toISOString(),
+    startedMonotonicMs,
+    finishedMonotonicMs: performance.now(),
+    samples,
+    observedOperations: [...new Set(samples.map((sample) => sample.operation))].sort(),
+    observedClients: [...new Set(samples.map((sample) => sample.clientId))].sort(),
+  };
+}
+
 async function crashChild() {
   const runId = process.env.P9_QUAL_RUN_ID!;
   const crashObservationId = process.env.P9_QUAL_CRASH_OBSERVATION_ID!;
@@ -528,6 +679,17 @@ async function runQualification() {
     environment: {
       kind: 'disposable-local-postgresql',
       sourceRevision,
+      harnessSha256: sha(readFileSync(fileURLToPath(import.meta.url), 'utf8')),
+      supportingCommonQueryMixSha256: sha(
+        readFileSync(resolve(QUALIFICATION_DIR, 'product-query-mix-v1.json'), 'utf8'),
+      ),
+      executedCommonQueryMixSha256: sha(
+        JSON.stringify({
+          mixId: 'package9-local-synthetic-product-query-mix-v1',
+          clients: PRODUCT_QUERY_CLIENTS,
+          operationCycle: PRODUCT_QUERY_OPERATIONS,
+        }),
+      ),
       image: POSTGRES_IMAGE,
       containerId,
       containerName,
@@ -552,11 +714,15 @@ async function runQualification() {
       alarmDelivery: 'NOT_RUN',
       rollback: 'NOT_RUN',
       sustainedLatency: 'NOT_RUN',
-      commonQueryP95: 'NOT_RUN',
       awsCost: 'NOT_RUN',
       paidProviderEconomics: 'NOT_RUN',
       buyerBenchmark: 'NOT_RUN',
       independentAccuracy: 'NOT_RUN',
+      httpLatency: 'NOT_RUN',
+      authentication: 'NOT_RUN',
+      networkLatency: 'NOT_RUN',
+      updateLatency: 'NOT_RUN',
+      commercialGates: 'NOT_RUN',
     },
   };
   try {
@@ -583,6 +749,7 @@ async function runQualification() {
       ],
       { env },
     );
+    execute('pnpm', ['--filter', '@capiro/defense-api', 'build']);
     pool = new Pool({ connectionString: databaseUrl, max: 8 });
     const { prismaLike } = createDatabaseAdapter(pool, samples);
     const repository = createIngestionOutboxDrainRepositoryPrismaV1(prismaLike, {
@@ -718,12 +885,14 @@ async function runQualification() {
         ['provider_429', SCENARIO_ROWS.provider_429],
         ['provider_malformed', SCENARIO_ROWS.provider_malformed],
         ['provider_5xx', SCENARIO_ROWS.provider_5xx],
-      ].map(([name, ordinal]) => [observationId(ordinal), name as FaultName]),
+      ].map(([name, ordinal]) => [observationId(Number(ordinal)), name as FaultName]),
     );
     for (const [observation, fault] of faultByObservation) {
-      const ordinal = Object.values(SCENARIO_ROWS).find(
-        (row) => observationId(row) === observation,
-      )!;
+      const ordinal = Number(
+        Object.entries(SCENARIO_ROWS).find(
+          ([, row]) => observationId(Number(row)) === observation,
+        )?.[1],
+      );
       const faultStarted = performance.now();
       const first = await drainIngestionOutboxRowV1(
         {
@@ -754,25 +923,64 @@ async function runQualification() {
     let activeWorkers = 0;
     let maxConcurrentWorkers = 0;
     const workerStarted = performance.now();
-    const workerResults = await Promise.all(
-      Array.from({ length: 4 }, async (_, worker) => {
-        activeWorkers++;
-        maxConcurrentWorkers = Math.max(maxConcurrentWorkers, activeWorkers);
-        try {
-          return await drainIngestionOutboxBatchV1(
-            {
-              leaseOwner: `p9-load-worker-${worker}`,
-              now: new Date(recoveryTime.getTime() + 10_000),
-              batchSize: 25,
-            },
-            makePorts({ pool, samples, repository, runId }),
-          );
-        } finally {
-          activeWorkers--;
-        }
-      }),
-    );
+    const workerStartedMonotonicMs = workerStarted;
+    const workerStartedAt = new Date().toISOString();
+    const [workerResults, productQuery] = await Promise.all([
+      Promise.all(
+        Array.from({ length: 4 }, async (_, worker) => {
+          activeWorkers++;
+          maxConcurrentWorkers = Math.max(maxConcurrentWorkers, activeWorkers);
+          try {
+            return await drainIngestionOutboxBatchV1(
+              {
+                leaseOwner: `p9-load-worker-${worker}`,
+                now: new Date(recoveryTime.getTime() + 10_000),
+                batchSize: 25,
+              },
+              makePorts({ pool: pool!, samples, repository, runId }),
+            );
+          } finally {
+            activeWorkers--;
+          }
+        }),
+      ),
+      runProductQueryMix(databaseUrl),
+    ]);
     const loadElapsedMs = performance.now() - workerStarted;
+    const workerFinishedMonotonicMs = performance.now();
+    const workerFinishedAt = new Date().toISOString();
+    const overlapStartedAt = new Date(
+      Math.max(Date.parse(workerStartedAt), Date.parse(productQuery.startedAt)),
+    );
+    const overlapFinishedAt = new Date(
+      Math.min(Date.parse(workerFinishedAt), Date.parse(productQuery.finishedAt)),
+    );
+    const overlapMonotonicStartedMs = Math.max(
+      workerStartedMonotonicMs,
+      productQuery.startedMonotonicMs,
+    );
+    const overlapMonotonicFinishedMs = Math.min(
+      workerFinishedMonotonicMs,
+      productQuery.finishedMonotonicMs,
+    );
+    const overlapDurationMs = Math.max(0, overlapMonotonicFinishedMs - overlapMonotonicStartedMs);
+    const expectedOperations = PRODUCT_QUERY_OPERATIONS.map(({ operation }) => operation).sort();
+    const expectedClients = Array.from(
+      { length: PRODUCT_QUERY_CLIENTS },
+      (_, index) => `client-${index + 1}`,
+    ).sort();
+    const queryP95Ms = percentile(
+      productQuery.samples.map((sample) => sample.elapsedMs),
+      0.95,
+    );
+    const productQueryPass =
+      productQuery.samples.length > 0 &&
+      productQuery.samples.every((sample) => !sample.error) &&
+      JSON.stringify(productQuery.observedOperations) === JSON.stringify(expectedOperations) &&
+      JSON.stringify(productQuery.observedClients) === JSON.stringify(expectedClients) &&
+      overlapDurationMs > 0 &&
+      queryP95Ms !== null &&
+      queryP95Ms <= PRODUCT_QUERY_P95_LIMIT_MS;
     queueSamples.push(await queueSnapshot(pool, samples, 'drained'));
     const ledgers = await queryRows<{
       evidence: string;
@@ -832,6 +1040,25 @@ async function runQualification() {
         elapsedMs: loadElapsedMs,
       },
       {
+        id: 'concurrent-compiled-common-query-mix',
+        status: productQueryPass ? 'PASS' : 'FAIL',
+        reader: 'compiled BudgetLifecycleQueryService backed by PrismaBudgetLifecycleReadStore',
+        sampleCount: productQuery.samples.length,
+        errors: productQuery.samples.filter((sample) => sample.error).length,
+        observedOperations: productQuery.observedOperations,
+        expectedOperations,
+        observedClients: productQuery.observedClients,
+        expectedClients,
+        p95Ms: queryP95Ms,
+        p95LimitMs: PRODUCT_QUERY_P95_LIMIT_MS,
+        overlap: {
+          startedAt: overlapStartedAt.toISOString(),
+          finishedAt: overlapFinishedAt.toISOString(),
+          durationMs: overlapDurationMs,
+          monotonicDurationMs: overlapDurationMs,
+        },
+      },
+      {
         id: 'zero-lost-facts-zero-duplicate-logical-notifications',
         status: workloadPass ? 'PASS' : 'FAIL',
         ledgerCounts: finalLedger,
@@ -882,6 +1109,53 @@ async function runQualification() {
         ),
       },
       rawDatabaseQuerySamples: samples,
+      concurrentCommonQuery: {
+        mixId: 'package9-local-synthetic-product-query-mix-v1',
+        reader: 'compiled BudgetLifecycleQueryService backed by PrismaBudgetLifecycleReadStore',
+        startedAt: productQuery.startedAt,
+        finishedAt: productQuery.finishedAt,
+        sampleCount: productQuery.samples.length,
+        errors: productQuery.samples.filter((sample) => sample.error).length,
+        operationCoverage: Object.fromEntries(
+          PRODUCT_QUERY_OPERATIONS.map(({ operation }) => [
+            operation,
+            productQuery.samples.filter((sample) => sample.operation === operation).length,
+          ]),
+        ),
+        clientCoverage: Object.fromEntries(
+          expectedClients.map((clientId) => [
+            clientId,
+            productQuery.samples.filter((sample) => sample.clientId === clientId).length,
+          ]),
+        ),
+        latencyMs: {
+          p50: percentile(
+            productQuery.samples.map((sample) => sample.elapsedMs),
+            0.5,
+          ),
+          p95: queryP95Ms,
+          max: percentile(
+            productQuery.samples.map((sample) => sample.elapsedMs),
+            1,
+          ),
+          p95LimitMs: PRODUCT_QUERY_P95_LIMIT_MS,
+        },
+        drainInterval: { startedAt: workerStartedAt, finishedAt: workerFinishedAt },
+        overlap: {
+          startedAt: overlapStartedAt.toISOString(),
+          finishedAt: overlapFinishedAt.toISOString(),
+          durationMs: overlapDurationMs,
+          monotonicDurationMs: overlapDurationMs,
+        },
+        mixSha256: sha(
+          JSON.stringify({
+            mixId: 'package9-local-synthetic-product-query-mix-v1',
+            clients: PRODUCT_QUERY_CLIENTS,
+            operationCycle: PRODUCT_QUERY_OPERATIONS,
+          }),
+        ),
+        rawSamples: productQuery.samples,
+      },
     };
     rawEvidence.measuredChecks = measuredChecks;
     const output = resolve(EVIDENCE_DIR, `durable-run-${runId}.json`);
