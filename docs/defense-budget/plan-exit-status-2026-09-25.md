@@ -15,6 +15,14 @@ deployed as `capiro-dev-api:462` on pinned image digest
 The service reached 2/2 healthy tasks and final load-balancer targets; the four
 protected ingestion/publication flags remain false.
 
+The authoritative `main` advanced afterward through the FY2027 HASC
+qualification and business-development Phase 5 merge
+(`c2bc41a86ef087e4b163c556595507ec08b396cf`). That exact current-main
+revision is now deployed as API task definition `:464`; migration `:77` found
+433 migrations and exited successfully, with two healthy tasks and two final
+healthy target-group members. The feature remains fail-closed and Package 9
+remains `NO_GO`/`shadow_only`.
+
 ## Hardened seams in this release candidate
 
 - Package 3 now has a guarded congressional semantic-artifact factory for the
