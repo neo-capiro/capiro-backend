@@ -63,6 +63,12 @@ export interface MeResponse {
      * independently guards every Phase 2 route server-side.
      */
     businessDevelopmentDossier?: boolean;
+    /** Phase 4 editable, versioned prospect-brief surface. Default-off. */
+    businessDevelopmentBrief?: boolean;
+    /** Phase 4 prospect-scoped Meri conversations and tools. Default-off. */
+    businessDevelopmentMeriProspectTools?: boolean;
+    /** Phase 4 assisted semantic validation. Default-off; deterministic checks remain available. */
+    businessDevelopmentClaimValidation?: boolean;
   };
 }
 
