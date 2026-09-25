@@ -1,7 +1,7 @@
 {
   "package": 9,
   "releasedAt": "2026-09-25T01:52:34.3761012Z",
-  "updatedAt": "2026-09-25T03:11:36.0516079Z",
+  "updatedAt": "2026-09-25T03:35:40.9571924Z",
   "sourceControl": {
     "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1794",
     "mergeCommit": "f8a9079c5fb149952c450bf050d9678494884c26",
@@ -42,10 +42,11 @@
     "maximumActivation": "shadow_only",
     "durableDatabaseLoadAndFailureRecovery": "PASS_LIMITED_SCOPE",
     "isolatedSyntheticAlarmDelivery": "PASS_LIMITED_SCOPE",
+    "localProjectionPointerRollback": "PASS_LIMITED_SCOPE",
     "blindIndependentAccuracyReview": "NOT_RUN",
     "buyerBenchmark": "NOT_RUN",
     "matchedWorkCostQualification": "NOT_RUN",
-    "rollbackAndAlarmDeliveryRehearsal": "PARTIAL_PASS_ALARM_PATH_ONLY"
+    "rollbackAndAlarmDeliveryRehearsal": "PARTIAL_PASS_LOCAL_POINTER_AND_ISOLATED_ALARM_PATHS"
   },
   "durableQualification": {
     "report": "docs/defense-budget/package-9/evidence/durable-run-p9-20260925024117927-2c727e.json",
@@ -100,6 +101,32 @@
       "stopAdmission",
       "queuedAndImmutableEvidencePreservation",
       "projectionAndRoutingRollback"
+    ]
+  },
+  "localRollbackQualification": {
+    "report": "docs/defense-budget/package-9/evidence/rollback-run-p9-f06-20260925T033034Z.json",
+    "sha256": "fa01f56c29016abadf3af2626180b773b9c63891d8618cf10b69cfc2fe8d5779",
+    "sourceRevision": "fc85728579b477eece2dfecd285657b6f81c971b",
+    "harness": "apps/api/scripts/pe-budget-phase7-migration-rehearsal.sh",
+    "harnessSha256": "74b714a6111025ee4c725195a55e53ca5e53e4df763c9acd3b29a1180d579bbd",
+    "environment": "disposable-local-postgresql",
+    "status": "PASS_LIMITED_SCOPE",
+    "topLevelChecks": 125,
+    "promotionEngineChecks": 24,
+    "outboxDrainChecks": 39,
+    "snapshotReadChecks": 33,
+    "planAndValidateChecks": 36,
+    "authorizationChecks": 13,
+    "activePointerReturnedToPriorSnapshot": true,
+    "bothSnapshotsAndRolledBackRowsPreserved": true,
+    "rollbackDrainPauseVerified": true,
+    "rollbackUnsuppressedAlerts": 0,
+    "ephemeralResourceCleanupVerified": true,
+    "notRun": [
+      "combinedTenantCanaryAndEmergencyProcessRouting",
+      "authenticatedHttpCanaryRequest",
+      "productionDeploymentRollback",
+      "realSourceAndCustomerNotificationPreservation"
     ]
   },
   "aws": {
@@ -259,7 +286,7 @@
     "reasons": [
       "The qualification manifest, exact marketed-family cohort, mandatory-source denominator and release authorization are not approved and bound to the deployed revision.",
       "The required blind independent semantic adjudication and confidence intervals have not been produced.",
-      "The disposable PostgreSQL crash, lease, retry, source/provider-failure and 100-row reconciliation harness passed only its declared local scope; one isolated synthetic AWS alarm path also passed delivery and recovery, but sustained product latency, real adapter/provider SDK behavior, the full required alarm set, stop-admission and routing/projection rollback remain unqualified.",
+      "The disposable PostgreSQL recovery harness and a local active-pointer rollback rehearsal passed their declared scopes, and one isolated synthetic AWS alarm path passed delivery and recovery; sustained product latency, real adapter/provider SDK behavior, the full required alarm set, stop-admission, and the combined tenant-canary plus emergency process-routing rollback path remain unqualified.",
       "Matched completed-work cost evidence does not establish the required 30 percent Jev savings at maintained completion, accuracy and coverage.",
       "The six predeclared buyer workflows have not been completed by the required buyer cohorts and independently adjudicated.",
       "Named operational ownership and acceptance records are not present."

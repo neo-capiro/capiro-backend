@@ -1,6 +1,6 @@
 # Defense-budget Package 9 — operations, load, and recovery qualification
 
-Package 9 defines the evidence required before any defense-budget workload can move beyond shadow processing. This package contributes executable fail-closed gates and reproducible qualification protocols. The retained evidence now includes a limited disposable-PostgreSQL outbox/recovery run and one limited isolated AWS CloudWatch-to-SNS-to-SQS alarm-delivery/recovery run. Those runs do not prove sustained product load or latency, every required warning and stop alarm, stop-admission, projection/routing rollback, cost, independent accuracy, buyer outcomes, or commercial economics. The decision remains `NO_GO`, and no new activation beyond the already authorized shadow posture is allowed.
+Package 9 defines the evidence required before any defense-budget workload can move beyond shadow processing. This package contributes executable fail-closed gates and reproducible qualification protocols. The retained evidence now includes a limited disposable-PostgreSQL outbox/recovery run, a limited local active-projection-pointer rollback run, and one limited isolated AWS CloudWatch-to-SNS-to-SQS alarm-delivery/recovery run. Those runs do not prove sustained product load or latency, every required warning and stop alarm, stop-admission, the combined tenant-canary/emergency process-routing rollback path, cost, independent accuracy, buyer outcomes, or commercial economics. The decision remains `NO_GO`, and no new activation beyond the already authorized shadow posture is allowed.
 
 ## Governing limits
 
@@ -30,6 +30,7 @@ These are limits, not forecasts or results. Do not admit work that would cross a
 - [Release and deployment evidence](./release-evidence-2026-09-25.json) binds the Package 9 merge to the AWS build, image digest, healthy ECS rollout, read-only inventory, alarms, and the retained `NO_GO` activation decision.
 - [Disposable durable-database harness](./durable-harness.md) exercises the production outbox repository and worker against isolated PostgreSQL while keeping alarm, rollback, buyer, accuracy, and economics gates explicitly unqualified.
 - [Isolated alarm-delivery evidence](./evidence/alarm-delivery-run-p9-f07-20260925T030858Z-5d9b39.json) records the limited synthetic AWS alarm and recovery path. The reusable harness is `scripts/qualify-package9-f07-isolated.ps1`; it creates only uniquely named ephemeral resources, never uses the production alarm topic, and verifies cleanup.
+- [Local projection-pointer rollback evidence](./evidence/rollback-run-p9-f06-20260925T033034Z.json) records the real promotion engine's authorized rollback, immutable-snapshot preservation, drain pause, and suppressed rollback side effect against disposable PostgreSQL. The API-level tenant canary and emergency process-routing path remains unrun.
 
 ## Decision
 
