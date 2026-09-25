@@ -1,4 +1,4 @@
-import type { BudgetFamilyV1 } from '../contracts/extraction-artifact-v1.js';
+import type { BudgetComponentV1, BudgetFamilyV1 } from '../contracts/extraction-artifact-v1.js';
 import { persistProofBoundCongressionalArtifactV1 } from './congressional-durable-semantic-artifact-factory-v1.js';
 import { loadCongressionalFactoryInputsV1 } from './congressional-manifest-packet-provider-v1.js';
 import type { ArtifactFactoryV1 } from './rdte-durable-semantic-artifact-factory-v1.js';
@@ -16,6 +16,7 @@ export function resolveSourceDocumentArtifactFactoryV1(input: {
   sourceSha256: string;
   sourceLocator: string;
   fiscalYear: number;
+  component?: BudgetComponentV1;
   congressionalFactoryInputs?: CongressionalFactoryInputsV1;
 }): ArtifactFactoryV1 | undefined {
   const bundle = input.congressionalFactoryInputs;
@@ -33,6 +34,7 @@ export function resolveSourceDocumentArtifactFactoryV1(input: {
     context.sourcePdfSha256 !== input.sourceSha256 ||
     context.sourceLocator !== input.sourceLocator ||
     context.fiscalYear !== input.fiscalYear ||
+    context.component !== (input.component ?? 'UNKNOWN') ||
     bundle.factoryContext.profile.fiscalYear !== input.fiscalYear ||
     !bundle.factoryContext.profile.sourceDocumentKeys.includes(input.sourceKey) ||
     bundle.input.fy !== input.fiscalYear ||

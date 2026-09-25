@@ -19,6 +19,7 @@ import { defenseBudgetStageSourceProfileV1Schema } from '../stages/stage-source-
 import type { CongressionalSemanticFactoryContextV1 } from '../stages/congressional-semantic-artifact-factory-v1.js';
 import type { CommitteeArtifactV1Input } from '../contracts/adapters/committee-artifact-v1.adapter.js';
 import { stageV1Schema, type StageV1 } from '../stages/stage-vocabulary-v1.js';
+import type { SourceFamilyRouting } from './source-family-routing.js';
 
 const sha = z.string().regex(/^[a-f0-9]{64}$/);
 const parserBindingSchema = z
@@ -59,8 +60,16 @@ export type CongressionalPacketManifestV1 = z.infer<typeof congressionalPacketMa
 
 export interface CongressionalPacketRequestV1 {
   documentKey: string;
+  sourceDocumentId: string;
   profileId: string;
   stage: StageV1;
+  fiscalYear: number;
+  sourceSha256: string;
+  sourceLocator: string;
+  routing: Pick<
+    SourceFamilyRouting,
+    'family' | 'exhibit' | 'authority' | 'budgetCycle' | 'documentType'
+  >;
 }
 
 /** Loads immutable packet bytes and exact persisted Phase 3 proofs for one manifest member. */
@@ -83,6 +92,7 @@ export async function loadCongressionalFactoryInputsV1(input: {
   if (
     doc.profile.profileId !== input.request.profileId ||
     doc.stage !== input.request.stage ||
+    doc.fiscalYear !== input.request.fiscalYear ||
     doc.profile.stage !== doc.stage
   )
     throw new Error(
@@ -90,11 +100,26 @@ export async function loadCongressionalFactoryInputsV1(input: {
     );
   if (doc.profile.fiscalYear !== doc.fiscalYear || doc.context.fiscalYear !== doc.fiscalYear)
     throw new Error('manifest profile/context fiscal year binding mismatch');
+  if (
+    doc.sourcePdfSha256 !== input.request.sourceSha256 ||
+    doc.sourceLocator !== input.request.sourceLocator
+  )
+    throw new Error('requested congressional source identity does not match manifest');
+  if (
+    doc.context.family !== input.request.routing.family ||
+    doc.context.exhibit !== input.request.routing.exhibit ||
+    doc.context.authority !== input.request.routing.authority ||
+    doc.context.budgetCycle !== input.request.routing.budgetCycle ||
+    doc.context.documentType !== input.request.routing.documentType
+  )
+    throw new Error('manifest context does not match requested congressional lifecycle routing');
   if (!doc.profile.declaredUnits.includes(doc.declaredUnit))
     throw new Error('manifest unit is not declared by stage profile');
   if (
     !doc.profile.sourceDocumentKeys.includes(doc.documentKey) ||
-    doc.context.manifestDocumentKey !== doc.documentKey
+    doc.context.manifestDocumentKey !== doc.documentKey ||
+    (doc.context.sourceDocumentId != null &&
+      doc.context.sourceDocumentId !== input.request.sourceDocumentId)
   )
     throw new Error('manifest document is outside its stage profile or context');
   if (
@@ -198,6 +223,11 @@ export async function loadCongressionalFactoryInputsV1(input: {
   const result = first.result as import('./parser-runtime-contract-v1.js').ParserRuntimeResultV1;
   const context = extractionAdapterContextV1Schema.parse({
     ...doc.context,
+    // SourceDocument IDs are database identities assigned during archive
+    // registration. A manifest may pre-pin one for replay, but first-time
+    // ingestion binds the freshly registered ID after all immutable source
+    // identity checks above have passed.
+    sourceDocumentId: input.request.sourceDocumentId,
     parser: {
       method: result.engine,
       parserVersion: result.parserVersion,

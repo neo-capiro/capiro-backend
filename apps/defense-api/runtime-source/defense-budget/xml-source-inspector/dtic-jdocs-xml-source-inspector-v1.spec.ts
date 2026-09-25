@@ -4,6 +4,7 @@ import {
   DTIC_JDOCS_R2_NAMESPACE_V1,
   DTIC_JDOCS_XML_ROOT_NAMESPACE_V1,
   inspectDticJdocsXmlSourceV1,
+  qualifyDticJdocsXmlCandidateV1,
   type DticJdocsXmlSourceProvenanceV1,
 } from './dtic-jdocs-xml-source-inspector-v1.js';
 
@@ -38,7 +39,8 @@ describe('inspectDticJdocsXmlSourceV1', () => {
       mirrorPath: 'fy2026/RDTE_DTIC_PB_2026.xml',
       expectedMirrorSha256: '02479cd6e67dfee10bb1029d9413dbc35e81174384b25319fedfb9589d4aac6a',
       officialPdfSha256: '08c867d61816f7b5ebb82924a33d4003ee03c7880984ac6dc9bc91363b6f2d63',
-      officialPdfUrl: 'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2026/budget_justification/pdfs/03_RDT_and_E/RDTE_DTIC_PB_2026.pdf',
+      officialPdfUrl:
+        'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2026/budget_justification/pdfs/03_RDT_and_E/RDTE_DTIC_PB_2026.pdf',
     });
     expect(DTIC_FY2026_DTIC_CANDIDATE_PROVENANCE_V1.expectedMirrorSha256).toMatch(/^[a-f0-9]{64}$/);
   });
@@ -69,49 +71,97 @@ describe('inspectDticJdocsXmlSourceV1', () => {
         sha256: PROVENANCE.officialPdfSha256,
       },
     });
-    expect(inspected.limitations).toContain('not_promotable_and_not_authorized_for_production_import');
+    expect(inspected.limitations).toContain(
+      'not_promotable_and_not_authorized_for_production_import',
+    );
   });
 
   it('rejects wrong namespaces, malformed XML, and mirror digest drift', () => {
-    expect(() => inspectDticJdocsXmlSourceV1(Buffer.from('<wrong/>'), PROVENANCE))
-      .toThrow(/JustificationBook as the single top-level/);
-    expect(() => inspectDticJdocsXmlSourceV1(Buffer.from(FIXTURE.replace(DTIC_JDOCS_R2_NAMESPACE_V1, 'urn:wrong')), PROVENANCE))
-      .toThrow(/ProgramElementList must resolve to the expected DTIC namespace/);
-    expect(() => inspectDticJdocsXmlSourceV1(Buffer.from('<broken>'), PROVENANCE))
-      .toThrow(/not well formed/);
-    expect(() => inspectDticJdocsXmlSourceV1(Buffer.from(FIXTURE), {
-      ...PROVENANCE,
-      expectedMirrorSha256: '0'.repeat(64),
-    })).toThrow(/does not match expectedMirrorSha256/);
+    expect(() => inspectDticJdocsXmlSourceV1(Buffer.from('<wrong/>'), PROVENANCE)).toThrow(
+      /JustificationBook as the single top-level/,
+    );
+    expect(() =>
+      inspectDticJdocsXmlSourceV1(
+        Buffer.from(FIXTURE.replace(DTIC_JDOCS_R2_NAMESPACE_V1, 'urn:wrong')),
+        PROVENANCE,
+      ),
+    ).toThrow(/ProgramElementList must resolve to the expected DTIC namespace/);
+    expect(() => inspectDticJdocsXmlSourceV1(Buffer.from('<broken>'), PROVENANCE)).toThrow(
+      /not well formed/,
+    );
+    expect(() =>
+      inspectDticJdocsXmlSourceV1(Buffer.from(FIXTURE), {
+        ...PROVENANCE,
+        expectedMirrorSha256: '0'.repeat(64),
+      }),
+    ).toThrow(/does not match expectedMirrorSha256/);
   });
 
   it('rejects nested root lookalikes and R2 XML with no PE identities', () => {
-    expect(() => inspectDticJdocsXmlSourceV1(
-      Buffer.from(`<wrapper>${FIXTURE}</wrapper>`),
-      PROVENANCE,
-    )).toThrow(/single top-level document element/);
+    expect(() =>
+      inspectDticJdocsXmlSourceV1(Buffer.from(`<wrapper>${FIXTURE}</wrapper>`), PROVENANCE),
+    ).toThrow(/single top-level document element/);
     const noPes = FIXTURE.replace(/\s*<r2:ProgramElement>[\s\S]*?<\/r2:ProgramElement>/g, '');
-    expect(() => inspectDticJdocsXmlSourceV1(Buffer.from(noPes), PROVENANCE))
-      .toThrow(/no ProgramElementNumber identities/);
+    expect(() => inspectDticJdocsXmlSourceV1(Buffer.from(noPes), PROVENANCE)).toThrow(
+      /no ProgramElementNumber identities/,
+    );
   });
 
   it('rejects namespace declarations that do not bind the actual element QNames', () => {
-    const wrongRootPrefix = FIXTURE
-      .replace('<jb:JustificationBook xmlns:jb=', '<x:JustificationBook xmlns:x="urn:wrong" xmlns:jb=')
-      .replace('</jb:JustificationBook>', '</x:JustificationBook>');
-    expect(() => inspectDticJdocsXmlSourceV1(Buffer.from(wrongRootPrefix), PROVENANCE))
-      .toThrow(/JustificationBook must resolve to the expected DTIC namespace/);
+    const wrongRootPrefix = FIXTURE.replace(
+      '<jb:JustificationBook xmlns:jb=',
+      '<x:JustificationBook xmlns:x="urn:wrong" xmlns:jb=',
+    ).replace('</jb:JustificationBook>', '</x:JustificationBook>');
+    expect(() => inspectDticJdocsXmlSourceV1(Buffer.from(wrongRootPrefix), PROVENANCE)).toThrow(
+      /JustificationBook must resolve to the expected DTIC namespace/,
+    );
 
-    const wrongListPrefix = FIXTURE
-      .replace('<r2:ProgramElementList xmlns:r2=', '<x:ProgramElementList xmlns:x="urn:wrong" xmlns:r2=')
-      .replace('</r2:ProgramElementList>', '</x:ProgramElementList>');
-    expect(() => inspectDticJdocsXmlSourceV1(Buffer.from(wrongListPrefix), PROVENANCE))
-      .toThrow(/ProgramElementList must resolve to the expected DTIC namespace/);
+    const wrongListPrefix = FIXTURE.replace(
+      '<r2:ProgramElementList xmlns:r2=',
+      '<x:ProgramElementList xmlns:x="urn:wrong" xmlns:r2=',
+    ).replace('</r2:ProgramElementList>', '</x:ProgramElementList>');
+    expect(() => inspectDticJdocsXmlSourceV1(Buffer.from(wrongListPrefix), PROVENANCE)).toThrow(
+      /ProgramElementList must resolve to the expected DTIC namespace/,
+    );
 
-    const wrongIdentityPrefix = FIXTURE
-      .replace('<r2:ProgramElementList xmlns:r2=', '<r2:ProgramElementList xmlns:x="urn:wrong" xmlns:r2=')
-      .replaceAll('r2:ProgramElementNumber', 'x:ProgramElementNumber');
-    expect(() => inspectDticJdocsXmlSourceV1(Buffer.from(wrongIdentityPrefix), PROVENANCE))
-      .toThrow(/ProgramElementNumber must resolve to the expected DTIC namespace/);
+    const wrongIdentityPrefix = FIXTURE.replace(
+      '<r2:ProgramElementList xmlns:r2=',
+      '<r2:ProgramElementList xmlns:x="urn:wrong" xmlns:r2=',
+    ).replaceAll('r2:ProgramElementNumber', 'x:ProgramElementNumber');
+    expect(() => inspectDticJdocsXmlSourceV1(Buffer.from(wrongIdentityPrefix), PROVENANCE)).toThrow(
+      /ProgramElementNumber must resolve to the expected DTIC namespace/,
+    );
+  });
+
+  it('returns a non-promotable candidate only after exact scope qualification', () => {
+    const candidate = qualifyDticJdocsXmlCandidateV1(Buffer.from(FIXTURE), PROVENANCE, {
+      fiscalYear: 2026,
+      budgetCycle: 'pb',
+      agency: 'defense technical information center',
+      appropriationCode: '0400',
+    });
+    expect(candidate).toMatchObject({
+      schemaVersion: 'dtic_jdocs_xml_candidate_v1',
+      status: 'candidate_only',
+      promotable: false,
+      scope: {
+        fiscalYear: 2026,
+        budgetCycle: 'pb',
+        agency: 'defense technical information center',
+        appropriationCode: '0400',
+      },
+    });
+    expect(candidate.inspection.programElementIds).toEqual(['0605801KA', '0605804D8Z']);
+  });
+
+  it('refuses a candidate whose inspected scope differs from the declared scope', () => {
+    expect(() =>
+      qualifyDticJdocsXmlCandidateV1(Buffer.from(FIXTURE), PROVENANCE, {
+        fiscalYear: 2025,
+        budgetCycle: 'PB',
+        agency: 'Defense Technical Information Center',
+        appropriationCode: '0400',
+      }),
+    ).toThrow(/candidate scope mismatch: fiscalYear=2026 expected 2025/);
   });
 });
