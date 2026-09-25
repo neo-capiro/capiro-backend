@@ -1,7 +1,7 @@
 {
   "package": 9,
   "releasedAt": "2026-09-25T01:52:34.3761012Z",
-  "updatedAt": "2026-09-25T11:21:14.2051996Z",
+  "updatedAt": "2026-09-25T11:29:29.4386596Z",
   "sourceControl": {
     "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1794",
     "mergeCommit": "f8a9079c5fb149952c450bf050d9678494884c26",
@@ -56,6 +56,7 @@
     "isolatedSyntheticAlarmDelivery": "PASS_LIMITED_SCOPE",
     "localCompositeRoutingAndPointerRollback": "PASS_LIMITED_LOCAL_COMPOSITE",
     "localSyntheticSustainedProductQuery": "PASS_LOCAL_SYNTHETIC_SCOPE",
+    "awsCostObservation": "SUPPORTING_ONLY_NOT_ATTRIBUTABLE",
     "blindIndependentAccuracyReview": "NOT_RUN",
     "buyerBenchmark": "NOT_RUN",
     "matchedWorkCostQualification": "NOT_RUN",
@@ -188,6 +189,19 @@
       "sourceChangeToVerifiedBuyerVisibleUpdateLatency",
       "awsTopologyAndCost"
     ]
+  },
+  "awsCostObservation": {
+    "report": "docs/defense-budget/package-9/evidence/aws-cost-observation-p9-20260925T112754Z.json",
+    "sha256": "89f2ae24fd00a1ddb8b3d051705ed101785d38d0ba91b2dad5279748a3cffa88",
+    "sourceRevision": "c8379b2c35bb58f3505577fd1c5b11217763dd04",
+    "status": "SUPPORTING_ONLY_NOT_ATTRIBUTABLE",
+    "windowStartInclusive": "2026-08-26",
+    "windowEndExclusive": "2026-09-25",
+    "accountWideRelevantServicesThirtyDaySumUsd": 6.1100983972,
+    "simpleAnnualizedAccountWideRunRateUsd": 74.33953049926667,
+    "package9IncrementalAwsAnnualHardCapUsd": 1000,
+    "package9IncrementalCostGatePassed": false,
+    "reason": "The AWS account has no Package 9-specific cost-allocation boundary in this query; account-wide totals and a simple annualized projection cannot qualify incremental Package 9 spend."
   },
   "aws": {
     "account": "967807252336",

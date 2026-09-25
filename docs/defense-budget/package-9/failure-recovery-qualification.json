@@ -38,6 +38,13 @@
     "status": "PASS_LOCAL_SYNTHETIC_SCOPE",
     "scope": "A 1,800-second request-start window against compiled BudgetLifecycleQueryService and PrismaBudgetLifecycleReadStore with a small synthetic Session 12 corpus in disposable local PostgreSQL. It bypassed HTTP, authentication, network hops, AWS topology, production data, buyer traffic, concurrent outbox drain, and update-latency measurement."
   },
+  "retainedAwsCostObservation": {
+    "report": "./evidence/aws-cost-observation-p9-20260925T112754Z.json",
+    "sha256": "89f2ae24fd00a1ddb8b3d051705ed101785d38d0ba91b2dad5279748a3cffa88",
+    "sourceRevision": "c8379b2c35bb58f3505577fd1c5b11217763dd04",
+    "status": "SUPPORTING_ONLY_NOT_ATTRIBUTABLE",
+    "scope": "A read-only Cost Explorer observation of nine account-wide AWS services over the 30-day window ending 2026-09-25. The simple annualized account-wide run rate is numerically below the Package 9 cap, but no defense-budget or Package 9 cost-allocation boundary is present, so the incremental cost gate remains unqualified."
+  },
   "budgetSource": "../package-0/operating-budgets.v1.json",
   "hardLimits": {
     "peakPendingOutboxRows": 100,
@@ -223,12 +230,13 @@
         "The local synthetic product reader sustained a 1,800-second request-start window across four closed-loop clients and all eight declared operations: 7,176 samples, zero errors, 1,799.597 seconds first-to-last request-start span, and a final start 402.546 milliseconds before the deadline.",
         "Direct compiled service/read-store latency was p50 3.834 milliseconds, p95 7.067 milliseconds, and maximum 101.305 milliseconds, below the 2,000-millisecond limit in this limited local synthetic environment.",
         "The benchmark login was NOINHERIT with no memberships and zero effective table-write privileges across 494 public tables.",
-        "The separate durable recovery run observed a 100-row pending peak and at most four concurrent workers with no missing evidence or duplicate logical notification keys."
+        "The separate durable recovery run observed a 100-row pending peak and at most four concurrent workers with no missing evidence or duplicate logical notification keys.",
+        "A read-only 30-day Cost Explorer observation found $6.1100983972 across nine relevant account-wide service totals and a simple $74.33953049926667 annualized account-wide run rate. This is supporting context only because the account has no Package 9-specific cost-allocation boundary."
       ],
       "unqualifiedAssertions": [
         "The 100-row/four-worker drain and the sustained product-query window were separate runs, not the required concurrent peak-load scenario.",
         "The query run bypassed HTTP, authentication, browser and network latency, used a small synthetic corpus, and was not production or buyer traffic.",
-        "Verified source-change-to-buyer-visible update p95 and annualized AWS cost were not measured.",
+        "Verified source-change-to-buyer-visible update p95 was not measured, and the AWS observation cannot attribute account-wide cost to Package 9 incremental spend.",
         "This limited component evidence does not make the full P9-L01 scenario PASS or authorize activation."
       ],
       "primaryOwner": "platform lead",
