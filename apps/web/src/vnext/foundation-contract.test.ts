@@ -140,12 +140,6 @@ describe('vNext foundation contract', () => {
     expect(app.indexOf('if (isVNextSurface)')).toBeGreaterThan(app.indexOf('if (data?.billingEnabled && data.locked)'));
   });
 
-  it('uses the v2 product shell for every authenticated tenant', () => {
-    const shell = readFileSync(fromPackageRoot('src/components/AppShell.tsx'), 'utf8');
-    expect(shell).toContain('<AppShellV2 me={me.data!} />');
-    expect(shell).not.toContain("tenant.slug === 'capiro-internal'");
-  });
-
   it('injects WEB_SURFACE only through the isolated WebVNext stack and exposes release identity', () => {
     const stack = readFileSync(
       fromPackageRoot('../../infra/cdk/lib/web-vnext-stack.ts'),

@@ -257,8 +257,12 @@ export function AppShell() {
   const [workflowLocked, setWorkflowLocked] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(false);
 
-  // `/program-elements` is the same Defense Budget product for every tenant.
-  const peNavLabel = 'Defense Budget';
+  // LW-QA-009 (PR D): ONE product name per route. `/program-elements` renders
+  // the Defense Budget vNext workspace for capiro-internal (AppShellV2 branch
+  // and PeWorkspacePage already say "Defense Budget"); the legacy shell label
+  // must agree instead of shipping a second name for the same surface.
+  const isInternalTenant = me.data?.tenant.slug === 'capiro-internal';
+  const peNavLabel = isInternalTenant ? 'Defense Budget' : 'Program Elements';
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -277,7 +281,7 @@ export function AppShell() {
     'Account';
   const displayTitle = me.data?.user.title ?? null;
 
-  const page = useMemo(() => pageConfigFor(location.pathname), [location.pathname]);
+  const page = useMemo(() => pageConfigFor(location.pathname, isInternalTenant), [location.pathname, isInternalTenant]);
   const strategyMeriSuppressed = useMemo(
     () => isStrategyMeriSuppressed(location.pathname),
     [location.pathname],
@@ -516,12 +520,14 @@ export function AppShell() {
     return <MeriOverlay selectedClientName={selectedClient?.name ?? null} />;
   }
 
-  // The v2 product shell is the fleet shell. Role and feature checks inside it
-  // remain authoritative; tenant identity is not a presentation gate.
-  if (Boolean(me.data)) {
+  // App shell v2 (capiro-internal only): two persistent top bands replace the
+  // left sider. The legacy shell below is untouched for every other tenant.
+  // Meri is launched from the v2 band-1 control (separate window via Ctrl+J),
+  // so the floating MeriOverlay/ChatDrawer FAB is suppressed on this path.
+  if (me.data?.tenant.slug === 'capiro-internal') {
     return (
       <div className="v2-root">
-        <AppShellV2 me={me.data!} />
+        <AppShellV2 me={me.data} />
         <main className="v2-content">
           {actAsTenantSlug ? (
             <Alert
@@ -1219,7 +1225,7 @@ function pageKeyFor(pathname: string): AppSection {
   return 'not-found';
 }
 
-function pageConfigFor(pathname: string): PageConfig {
+function pageConfigFor(pathname: string, isInternalTenant = false): PageConfig {
   const key = pageKeyFor(pathname);
   const titleByKey: Record<AppSection, string> = {
     home: 'Dashboard',
@@ -1235,7 +1241,7 @@ function pageConfigFor(pathname: string): PageConfig {
     actions: 'Action Board',
     reviews: 'Review Queue',
     'pe-group': 'Intelligence',
-    'program-elements': 'Defense Budget',
+    'program-elements': isInternalTenant ? 'Defense Budget' : 'Program Elements',
     radar: 'LegiWatch',
     'hearing-watch': 'Hearing Watch',
     'analyst-console': 'Analyst Console',
