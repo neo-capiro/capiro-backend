@@ -79,8 +79,8 @@ describe('sanitizeEdits', () => {
 });
 
 describe('ASSISTANT_TOOLS + PROPOSE_EDITS_TOOL', () => {
-  it('is the 24-tool read-only allowlist and never includes a write tool', () => {
-    expect(ASSISTANT_TOOLS.size).toBe(24);
+  it('is the 25-tool read-only allowlist and never includes a write tool', () => {
+    expect(ASSISTANT_TOOLS.size).toBe(25);
     for (const w of ['send_email', 'update_client_profile', 'create_task', 'save_memory']) {
       expect(ASSISTANT_TOOLS.has(w)).toBe(false);
     }

@@ -40,6 +40,8 @@ import { BusinessDevelopmentBriefFlagGuard } from './bizdev-brief.flag.guard.js'
 import { BusinessDevelopmentClaimValidationFlagGuard } from './bizdev-claim-validation.flag.guard.js';
 import { BizDevDossierService } from './bizdev-dossier.service.js';
 import { BizDevBriefService } from './bizdev-brief.service.js';
+import { BizDevWatchService } from './bizdev-watch.service.js';
+import { BusinessDevelopmentWatchFlagGuard } from './bizdev-watch.flag.guard.js';
 import type { DossierSectionKind } from './bizdev-evidence.types.js';
 import {
   AcceptBriefRefreshDto,
@@ -49,6 +51,11 @@ import {
   CreateBriefVersionDto,
   ResolveBriefCitationQueryDto,
   SaveBriefVersionDto,
+  ActivateBizDevWatchDto,
+  UpdateBizDevWatchDto,
+  ListProspectAlertsQueryDto,
+  ListTenantAlertsQueryDto,
+  AlertIdParam,
 } from './business-development.dto.js';
 
 /**
@@ -76,6 +83,7 @@ export class BusinessDevelopmentController {
     private readonly bizdev: BusinessDevelopmentService,
     private readonly dossier: BizDevDossierService,
     private readonly brief: BizDevBriefService,
+    private readonly watchSvc: BizDevWatchService,
   ) {}
 
   /** List/filter prospects + stage counts. */
@@ -373,5 +381,100 @@ export class BusinessDevelopmentController {
       claimType: body.claimType,
       expected: body.expected,
     });
+  }
+
+  // ── Phase 5 — prospect watch & alerts ─────────────────────────────────────
+  // Every route carries the ADDITIONAL BusinessDevelopmentWatchFlagGuard on
+  // top of the class-level RolesGuard + BusinessDevelopmentFlagGuard: the
+  // watch flag is off by default and a disabled surface 404s identically to
+  // a missing route.
+
+  /** Activate (or re-activate) the prospect's watch. */
+  @Post(`prospects/:${UUID_PARAM}/watch`)
+  @UseGuards(BusinessDevelopmentWatchFlagGuard)
+  activateBizDevWatch(
+    @CurrentTenant() ctx: TenantContext,
+    @Param() params: ProspectIdParam,
+    @Body() body: ActivateBizDevWatchDto,
+  ) {
+    return this.watchSvc.activateWatch(ctx, params.prospectId, {
+      categories: body.categories,
+      ownerUserId: body.ownerUserId,
+    });
+  }
+
+  /** Current watch state incl. per-source health. */
+  @Get(`prospects/:${UUID_PARAM}/watch`)
+  @UseGuards(BusinessDevelopmentWatchFlagGuard)
+  getBizDevWatch(@CurrentTenant() ctx: TenantContext, @Param() params: ProspectIdParam) {
+    return this.watchSvc.getWatch(ctx, params.prospectId);
+  }
+
+  /** Pause/resume/end, mute, category and owner preferences. */
+  @Patch(`prospects/:${UUID_PARAM}/watch`)
+  @UseGuards(BusinessDevelopmentWatchFlagGuard)
+  updateBizDevWatch(
+    @CurrentTenant() ctx: TenantContext,
+    @Param() params: ProspectIdParam,
+    @Body() body: UpdateBizDevWatchDto,
+  ) {
+    return this.watchSvc.updateWatch(ctx, params.prospectId, {
+      status: body.status,
+      mutedUntil: body.mutedUntil,
+      categories: body.categories,
+      ownerUserId: body.ownerUserId,
+    });
+  }
+
+  /** Prospect-local alert inbox (newest first, keyset paginated). */
+  @Get(`prospects/:${UUID_PARAM}/alerts`)
+  @UseGuards(BusinessDevelopmentWatchFlagGuard)
+  listBizDevProspectAlerts(
+    @CurrentTenant() ctx: TenantContext,
+    @Param() params: ProspectIdParam,
+    @Query() query: ListProspectAlertsQueryDto,
+  ) {
+    return this.watchSvc.listProspectAlerts(ctx, params.prospectId, {
+      limit: query.limit,
+      cursor: query.cursor,
+    });
+  }
+
+  /** Mark one alert read (idempotent, per-recipient delivery row). */
+  @Post(`prospects/:${UUID_PARAM}/alerts/:alertId/read`)
+  @HttpCode(200)
+  @UseGuards(BusinessDevelopmentWatchFlagGuard)
+  markBizDevAlertRead(@CurrentTenant() ctx: TenantContext, @Param() params: AlertIdParam) {
+    return this.watchSvc.markAlertRead(ctx, params.prospectId, params.alertId);
+  }
+
+  /** Dismiss one alert (idempotent; implies read). */
+  @Post(`prospects/:${UUID_PARAM}/alerts/:alertId/dismiss`)
+  @HttpCode(200)
+  @UseGuards(BusinessDevelopmentWatchFlagGuard)
+  dismissBizDevAlert(@CurrentTenant() ctx: TenantContext, @Param() params: AlertIdParam) {
+    return this.watchSvc.dismissAlert(ctx, params.prospectId, params.alertId);
+  }
+
+  /** Tenant top-bar notification center: current owner's alerts. */
+  @Get('alerts')
+  @UseGuards(BusinessDevelopmentWatchFlagGuard)
+  listBizDevAlerts(
+    @CurrentTenant() ctx: TenantContext,
+    @Query() query: ListTenantAlertsQueryDto,
+  ) {
+    return this.watchSvc.listTenantAlerts(ctx, {
+      limit: query.limit,
+      cursor: query.cursor,
+      unreadOnly: query.unreadOnly,
+    });
+  }
+
+  /** Mark every owned alert read (idempotent). */
+  @Post('alerts/read-all')
+  @HttpCode(200)
+  @UseGuards(BusinessDevelopmentWatchFlagGuard)
+  markAllBizDevAlertsRead(@CurrentTenant() ctx: TenantContext) {
+    return this.watchSvc.markAllAlertsRead(ctx);
   }
 }

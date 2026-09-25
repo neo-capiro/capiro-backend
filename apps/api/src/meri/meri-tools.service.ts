@@ -1616,6 +1616,15 @@ export class MeriToolsService {
       get_business_development_evidence: obj({
         conversationId: str('Exact current prospect chat conversation UUID'),
       }),
+      get_business_development_recent_changes: obj({
+        conversationId: str('Exact current prospect chat conversation UUID'),
+        limit: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 25,
+          description: 'Optional page size, 1 to 25 alerts (default 10), newest first',
+        },
+      }),
       get_business_development_brief: obj({
         conversationId: str('Exact current prospect chat conversation UUID'),
       }),
@@ -2291,6 +2300,8 @@ export class MeriToolsService {
         return this.requireBizDevTools().getContext(ctx, input);
       case 'get_business_development_evidence':
         return this.requireBizDevTools().getEvidence(ctx, input);
+      case 'get_business_development_recent_changes':
+        return this.requireBizDevTools().getRecentChanges(ctx, input);
       case 'get_business_development_brief':
         return this.requireBizDevTools().getBrief(ctx, input);
       case 'resolve_business_development_source':

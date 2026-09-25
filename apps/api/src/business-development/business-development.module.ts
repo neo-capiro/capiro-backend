@@ -18,6 +18,8 @@ import {
 } from './bizdev-jev.service.js';
 import { BizDevJevProviderFactory } from './bizdev-jev.factory.js';
 import { BizDevMeriScopeService } from './bizdev-meri-scope.service.js';
+import { BizDevWatchService } from './bizdev-watch.service.js';
+import { BusinessDevelopmentWatchFlagGuard } from './bizdev-watch.flag.guard.js';
 
 /**
  * Business Development Phase 1 — firm-private prospect pipeline.
@@ -59,6 +61,10 @@ import { BizDevMeriScopeService } from './bizdev-meri-scope.service.js';
     // Phase 4 server-only slice: bounded Meri prospect-conversation scope
     // resolution (exported for MeriModule; BD must never import Meri).
     BizDevMeriScopeService,
+    // Phase 5: HTTP watch lifecycle + alert inbox (DB-only evaluator lives in
+    // bizdev-watch-runner.ts, invoked exclusively by the scheduled verb).
+    BizDevWatchService,
+    BusinessDevelopmentWatchFlagGuard,
   ],
   exports: [
     BusinessDevelopmentService,
@@ -70,6 +76,8 @@ import { BizDevMeriScopeService } from './bizdev-meri-scope.service.js';
     BusinessDevelopmentClaimValidationFlagGuard,
     BizDevJevService,
     BizDevMeriScopeService,
+    BizDevWatchService,
+    BusinessDevelopmentWatchFlagGuard,
   ],
 })
 export class BusinessDevelopmentModule {}

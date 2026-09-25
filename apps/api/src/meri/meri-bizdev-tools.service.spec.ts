@@ -51,6 +51,8 @@ function harness(overrides: {
   bizdev?: Record<string, jest.Mock>;
   dossier?: Partial<BizDevDossier>;
   brief?: Record<string, jest.Mock>;
+  watch?: Record<string, jest.Mock>;
+  watchFlagGuard?: Record<string, jest.Mock>;
 }) {
   const assertCurrent = jest.fn();
   if (overrides.scopeThrow) assertCurrent.mockRejectedValue(overrides.scopeThrow);
@@ -120,14 +122,39 @@ function harness(overrides: {
     ...overrides.brief,
   };
 
+  const watchService = {
+    listProspectAlerts: jest.fn(async () => ({
+      items: [],
+      nextCursor: null,
+      unreadCount: 0,
+    })),
+    ...(overrides.watch ?? {}),
+  };
+
+  const watchFlagGuard = {
+    assertEnabledForTenant: jest.fn(async () => true),
+    ...(overrides.watchFlagGuard ?? {}),
+  };
+
   const service = new MeriBizDevToolsService(
     prisma,
     scopeService,
     bizdev as never,
     dossierService as never,
     briefService as never,
+    watchService as never,
+    watchFlagGuard as never,
   );
-  return { service, withTenant, assertCurrent, bizdev, dossierService, briefService };
+  return {
+    service,
+    withTenant,
+    assertCurrent,
+    bizdev,
+    dossierService,
+    briefService,
+    watchService,
+    watchFlagGuard,
+  };
 }
 
 /** Run a handler inside the cooperative tool-execution control (required gate). */
@@ -147,6 +174,7 @@ describe('MeriBizDevToolsService fail-closed gate', () => {
     ['getBrief', (s, i) => s.getBrief(ctx, i)],
     ['resolveSource', (s, i) => s.resolveSource(ctx, i)],
     ['saveBrief', (s, i) => s.saveBrief(ctx, i)],
+    ['getRecentChanges', (s, i) => s.getRecentChanges(ctx, i)],
   ];
 
   it.each(handlers)('%s rejects every authority-like key before any read or write', async (_name, handler) => {
@@ -157,6 +185,8 @@ describe('MeriBizDevToolsService fail-closed gate', () => {
       'canonicalOrganizationId',
       'linkedClientId',
       'scopeVersion',
+      'alertId',
+      'watchId',
     ]) {
       const { service, withTenant, assertCurrent, briefService } = harness({});
       await expect(run(handler, service, { ...validInput(), [key]: 'spoofed' })).rejects.toThrow(
@@ -720,5 +750,210 @@ describe('save_business_development_brief', () => {
     await run((s, i) => s.saveBrief(ctx, i), service, input({ title: '  Acme brief v5  ' }));
     const call = (briefService.saveEditedVersion as jest.Mock).mock.calls[0]!;
     expect((call[2] as { title: string }).title).toBe('Acme brief v5');
+  });
+});
+
+// ── get_business_development_recent_changes ─────────────────────────────────
+
+describe('get_business_development_recent_changes', () => {
+  const ALERT_ID = '66666666-6666-4666-8666-666666666666';
+
+  /** One BizDevAlertRow as listProspectAlerts returns it. */
+  const alertRow = () => ({
+    id: ALERT_ID,
+    title: 'SAM opportunity updated',
+    summary: 'Record opp-1 from sam_gov changed (material_update).',
+    materiality: 'high',
+    materialityLevel: 'high',
+    company: 'Acme Aerospace LLC',
+    sourceFamily: 'sam_gov',
+    category: 'funding',
+    eventAt: '2026-09-20T00:00:00.000Z',
+    effectiveAt: '2026-10-01T00:00:00.000Z',
+    publishedAt: '2026-09-19T00:00:00.000Z',
+    firstObservedAt: '2026-09-21T00:00:00.000Z',
+    sourceLocator: 'https://sam.gov/opp-1',
+    implication: 'May signal a nearing solicitation window; worth tracking.',
+    readAt: null,
+    dismissedAt: null,
+    prospectId: PROSPECT_ID,
+  });
+
+  /** Harness whose prisma also serves the changed-fields read. */
+  function alertsHarness(
+    page: { items: unknown[]; nextCursor: string | null; unreadCount: number },
+    changesJsonb: unknown = [
+      { field: 'amount', before: 1_000_000, after: 2_000_000 },
+    ],
+  ) {
+    const base = harness({
+      watch: {
+        listProspectAlerts: jest.fn(async () => page),
+      },
+    });
+    // Extend the existing withTenant stub: keep conversation lookup, add
+    // the businessDevelopmentAlert read for the changed fields.
+    const withTenant = jest.fn(async (_t: string, fn: (tx: unknown) => Promise<unknown>) =>
+      fn({
+        clioConversation: {
+          findFirst: async () => ({
+            id: CONVERSATION_ID,
+            metadata: { [MERI_PROSPECT_SCOPE_METADATA_KEY]: scope() },
+          }),
+        },
+        businessDevelopmentAlert: {
+          findMany: async () =>
+            page.items.map((item) => ({ id: (item as { id: string }).id, changesJsonb })),
+        },
+      }),
+    );
+    const service = new MeriBizDevToolsService(
+      { withTenant } as never,
+      { assertCurrent: base.assertCurrent } as never,
+      {} as never,
+      {} as never,
+      { saveEditedVersion: jest.fn() } as never,
+      base.watchService as never,
+      base.watchFlagGuard as never,
+    );
+    return { ...base, service, withTenant };
+  }
+
+  it('returns a bounded, correctly-shaped page for the authorized prospect', async () => {
+    const { service, watchService } = alertsHarness({ items: [alertRow()], nextCursor: null, unreadCount: 2 });
+    const result = await run((s, i) => s.getRecentChanges(ctx, i), service, validInput());
+    expect(watchService.listProspectAlerts).toHaveBeenCalledWith(ctx, PROSPECT_ID, { limit: 10 });
+    expect(result).toMatchObject({
+      tool: 'get_business_development_recent_changes',
+      prospect: { id: PROSPECT_ID, name: 'Acme Aerospace LLC' },
+      alerts: { returned: 1, unreadCount: 2, truncated: false, limit: 10 },
+    });
+    const item = (result.alerts as { items: Array<Record<string, unknown>> }).items[0]!;
+    expect(item).toMatchObject({
+      id: ALERT_ID,
+      sourceFamily: 'sam_gov',
+      category: 'funding',
+      title: 'SAM opportunity updated',
+      sourceLocator: 'https://sam.gov/opp-1',
+      dates: {
+        eventAt: '2026-09-20T00:00:00.000Z',
+        effectiveAt: '2026-10-01T00:00:00.000Z',
+        publishedAt: '2026-09-19T00:00:00.000Z',
+        firstObservedAt: '2026-09-21T00:00:00.000Z',
+      },
+      changedFields: [{ field: 'amount', before: 1_000_000, after: 2_000_000 }],
+    });
+    // Inference label is explicit and the conditional language is verbatim.
+    expect(item.implication).toEqual({
+      text: 'May signal a nearing solicitation window; worth tracking.',
+      inference: true,
+      note: expect.any(String),
+    });
+    // Raw baseline/payload fields are never exposed.
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain('beforeState');
+    expect(serialized).not.toContain('afterState');
+    expect(serialized).not.toContain('changesJsonb');
+  });
+
+  it('reports truncated truthfully when a next cursor exists', async () => {
+    const { service } = alertsHarness({ items: [alertRow()], nextCursor: 'cursor-1', unreadCount: 5 });
+    const result = await run((s, i) => s.getRecentChanges(ctx, i), service, validInput());
+    expect((result.alerts as Record<string, unknown>).truncated).toBe(true);
+  });
+
+  it('defaults to limit 10 and accepts the bounded max 25', async () => {
+    const { service, watchService } = alertsHarness({ items: [], nextCursor: null, unreadCount: 0 });
+    await run((s, i) => s.getRecentChanges(ctx, i), service, validInput());
+    expect(watchService.listProspectAlerts).toHaveBeenLastCalledWith(ctx, PROSPECT_ID, { limit: 10 });
+    await run((s, i) => s.getRecentChanges(ctx, i), service, { ...validInput(), limit: 25 });
+    expect(watchService.listProspectAlerts).toHaveBeenLastCalledWith(ctx, PROSPECT_ID, { limit: 25 });
+  });
+
+  it('rejects out-of-bound and non-integer limits before any alert read', async () => {
+    const { service, watchService } = alertsHarness({ items: [], nextCursor: null, unreadCount: 0 });
+    for (const limit of [0, -1, 26, 1.5, '10', null]) {
+      await expect(
+        run((s, i) => s.getRecentChanges(ctx, i), service, { ...validInput(), limit }),
+      ).rejects.toThrow('limit must be an integer between 1 and 25');
+    }
+    expect(watchService.listProspectAlerts).not.toHaveBeenCalled();
+  });
+
+  it('rejects any unknown extra input key before any read', async () => {
+    const { service, withTenant, watchService } = alertsHarness({ items: [], nextCursor: null, unreadCount: 0 });
+    await expect(
+      run((s, i) => s.getRecentChanges(ctx, i), service, {
+        ...validInput(),
+        prospectId: PROSPECT_ID,
+      }),
+    ).rejects.toThrow('Unknown input key');
+    // Even a benign unknown key fails closed.
+    await expect(
+      run((s, i) => s.getRecentChanges(ctx, i), service, { ...validInput(), foo: 'bar' }),
+    ).rejects.toThrow('Unknown input key');
+    expect(watchService.listProspectAlerts).not.toHaveBeenCalled();
+    expect(withTenant).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when the per-tenant watch flag is disabled', async () => {
+    const { NotFoundException: NotFound } = await import('@nestjs/common');
+    const notFound = new NotFound();
+    const guard = { assertEnabledForTenant: jest.fn(async () => { throw notFound; }) };
+    const watchService = { listProspectAlerts: jest.fn(async () => ({ items: [], nextCursor: null, unreadCount: 0 })) };
+    const withTenant = jest.fn(async (_t: string, fn: (tx: unknown) => Promise<unknown>) =>
+      fn({
+        clioConversation: {
+          findFirst: async () => ({
+            id: CONVERSATION_ID,
+            metadata: { [MERI_PROSPECT_SCOPE_METADATA_KEY]: scope() },
+          }),
+        },
+      }),
+    );
+    const service = new MeriBizDevToolsService(
+      { withTenant } as never,
+      { assertCurrent: jest.fn(async () => scope()) } as never,
+      {} as never,
+      {} as never,
+      { saveEditedVersion: jest.fn() } as never,
+      watchService as never,
+      guard as never,
+    );
+    await expect(run((s, i) => s.getRecentChanges(ctx, i), service, validInput())).rejects.toThrow(notFound);
+    expect(watchService.listProspectAlerts).not.toHaveBeenCalled();
+  });
+
+  it('is read-only: never calls markAlertRead/dismissAlert or any provider', async () => {
+    const { service, watchService } = alertsHarness({ items: [alertRow()], nextCursor: null, unreadCount: 1 });
+    await run((s, i) => s.getRecentChanges(ctx, i), service, validInput());
+    const calls = Object.keys(watchService);
+    expect(calls).toEqual(['listProspectAlerts']);
+    expect((watchService as Record<string, jest.Mock>).markAlertRead).toBeUndefined();
+    expect((watchService as Record<string, jest.Mock>).dismissAlert).toBeUndefined();
+  });
+
+  it('fails closed when watchService or watchFlagGuard is not wired', async () => {
+    const prisma = { withTenant: jest.fn() };
+    const scopeSvc = { assertCurrent: jest.fn(async () => scope()) };
+    const bare = new MeriBizDevToolsService(
+      prisma as never,
+      scopeSvc as never,
+      {} as never,
+      {} as never,
+      { saveEditedVersion: jest.fn() } as never,
+      undefined,
+      undefined,
+    );
+    await expect(run((s, i) => s.getRecentChanges(ctx, i), bare, validInput())).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it('omits changedFields cleanly when the alert carries none', async () => {
+    const { service } = alertsHarness({ items: [alertRow()], nextCursor: null, unreadCount: 0 }, []);
+    const result = await run((s, i) => s.getRecentChanges(ctx, i), service, validInput());
+    const item = (result.alerts as { items: Array<Record<string, unknown>> }).items[0]!;
+    expect(item.changedFields).toEqual([]);
   });
 });

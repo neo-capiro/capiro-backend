@@ -36,6 +36,109 @@ export type BizDevStage = (typeof BIZDEV_STAGES)[number];
 /** Stage values that mean a firm won or lost the engagement. */
 export const BIZDEV_STAGE = { WON: 'won', LOST: 'lost' } as const;
 
+// ── Phase 5 — watch & alerts ────────────────────────────────────────────────
+
+/** Watch lifecycle statuses (SQL CHECK on business_development_watches). */
+export const BIZDEV_WATCH_STATUSES = ['active', 'paused', 'ended'] as const;
+export type BizDevWatchStatusValue = (typeof BIZDEV_WATCH_STATUSES)[number];
+
+/** Alert categories stored per alert (SQL CHECK on business_development_alerts). */
+export const BIZDEV_ALERT_CATEGORIES = [
+  'contract_award',
+  'assistance_award',
+  'opportunity',
+  'lobbying',
+  'acquisition',
+  'entity_change',
+  'other',
+] as const;
+export type BizDevAlertCategoryValue = (typeof BIZDEV_ALERT_CATEGORIES)[number];
+
+/** POST .../prospects/:prospectId/watch body. All fields optional. */
+export class ActivateBizDevWatchDto {
+  /** Alert categories the owner wants surfaced (subset of the Phase 5
+   * category vocabulary; empty/absent = all categories). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsIn(BIZDEV_ALERT_CATEGORIES as unknown as string[], { each: true })
+  categories?: string[];
+
+  /** Owner override; validated as an ACTIVE member of this tenant. */
+  @IsOptional()
+  @IsUUID()
+  ownerUserId?: string;
+}
+
+/** PATCH .../prospects/:prospectId/watch body. At least one field required. */
+export class UpdateBizDevWatchDto {
+  /** Lifecycle transition. Every change bumps preferenceVersion. */
+  @IsOptional()
+  @IsIn(BIZDEV_WATCH_STATUSES as unknown as string[])
+  status?: BizDevWatchStatusValue;
+
+  /** ISO-8601 mute-until timestamp; null clears the mute. */
+  @IsOptional()
+  @IsDateString()
+  mutedUntil?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsIn(BIZDEV_ALERT_CATEGORIES as unknown as string[], { each: true })
+  categories?: string[];
+
+  @IsOptional()
+  @IsUUID()
+  ownerUserId?: string | null;
+}
+
+/** GET .../prospects/:prospectId/alerts query. */
+export class ListProspectAlertsQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number = 25;
+
+  /** Opaque cursor from a previous page (firstObservedAt + id keyset). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  cursor?: string;
+}
+
+/** GET /business-development/alerts query (top-bar notification center). */
+export class ListTenantAlertsQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number = 25;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  cursor?: string;
+
+  /** true = only unread-for-current-user alerts. */
+  @IsOptional()
+  @IsBoolean()
+  @Transform(transformQueryBoolean)
+  unreadOnly?: boolean;
+}
+
+/** Route params for alert-scoped routes. */
+export class AlertIdParam {
+  @IsUUID()
+  prospectId!: string;
+
+  @IsUUID()
+  alertId!: string;
+}
+
 /**
  * URL query strings arrive as text: class-transformer's `@Type(() => Boolean)`
  * coerces the literal STRING 'false' to boolean TRUE, so query booleans use

@@ -17,6 +17,9 @@ import {
   BizDevMeriScopeService,
   type MeriProspectScope,
 } from '../business-development/bizdev-meri-scope.service.js';
+import { BizDevWatchService } from '../business-development/bizdev-watch.service.js';
+import { BusinessDevelopmentWatchFlagGuard } from '../business-development/bizdev-watch.flag.guard.js';
+import type { BizDevMaterialFieldChange } from '../business-development/bizdev-watch.types.js';
 import { authorizeMeriProspectScope } from './meri-prospect-scope.helpers.js';
 import { assertMeriToolRequestActive } from './meri-tool-request-control.js';
 
@@ -47,6 +50,8 @@ const AUTHORITY_LIKE_KEYS = [
   'canonicalOrganizationId',
   'linkedClientId',
   'scopeVersion',
+  'alertId',
+  'watchId',
 ] as const;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -57,6 +62,9 @@ const CONTEXT_HISTORY_LIMIT = 20;
 const EVIDENCE_RECORD_CAP = 24;
 /** Idempotency key bound (BRIEF_IDEMPOTENCY_KEY_MAX). */
 const IDEMPOTENCY_KEY_MAX = 400;
+/** Default/max alert page for get_business_development_recent_changes. */
+const RECENT_CHANGES_LIMIT_DEFAULT = 10;
+const RECENT_CHANGES_LIMIT_MAX = 25;
 
 /** Bounded normalized dossier fields needed to reason about claims. */
 const EVIDENCE_DETAIL_KEYS = new Set([
@@ -134,6 +142,12 @@ export class MeriBizDevToolsService {
     private readonly businessDevelopment: BusinessDevelopmentService,
     private readonly dossierService: BizDevDossierService,
     private readonly briefService: BizDevBriefService,
+    // Phase 5 — read-only alert inbox access (one-way Meri → BD import).
+    // Optional so non-DI consumers (specs) keep constructing positionally;
+    // an actual recent-changes call without them wired is a server
+    // misconfiguration, not a silent no-op (see getRecentChanges).
+    private readonly watchService?: BizDevWatchService,
+    private readonly watchFlagGuard?: BusinessDevelopmentWatchFlagGuard,
   ) {}
 
   /**
@@ -365,6 +379,138 @@ export class MeriBizDevToolsService {
       tool: 'resolve_business_development_source',
       generatedAt: new Date().toISOString(),
       ...resolved,
+    };
+  }
+
+  // ── get_business_development_recent_changes ───────────────────────────────
+
+  /**
+   * Phase 5 — read-only summary of already-ingested prospect alerts.
+   *
+   * The ONLY authority source is the persisted conversation scope
+   * (authorizeScope); no model-provided prospect/alert/watch id is ever
+   * trusted. Reads the tenant alert inbox through BizDevWatchService
+   * .listProspectAlerts (a read-only tenant-scoped query; it never mutates
+   * read/dismiss state and never touches a provider) and then reads the
+   * structured changed fields already persisted on the alert rows. Raw
+   * before/after state payloads, private notes and conflict reasons are
+   * never exposed; `implication` is passed through verbatim with an
+   * inference label so the model cannot sharpen its conditional language.
+   */
+  async getRecentChanges(
+    ctx: TenantContext,
+    input: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    assertMeriToolRequestActive();
+    // Input contract: ONLY conversationId and optional limit. Unknown extra
+    // keys are rejected before any read so direct dispatch cannot smuggle
+    // ignored fields past the schema.
+    const allowedKeys = new Set(['conversationId', 'limit']);
+    for (const key of Object.keys(input)) {
+      if (!allowedKeys.has(key)) {
+        throw new BadRequestException(
+          `Unknown input key "${key}"; only conversationId and limit are accepted`,
+        );
+      }
+    }
+    const { prospectId, scope } = await this.authorizeScope(ctx, input);
+
+    let limit = RECENT_CHANGES_LIMIT_DEFAULT;
+    if (input.limit !== undefined) {
+      if (
+        typeof input.limit !== 'number' ||
+        !Number.isInteger(input.limit) ||
+        input.limit < 1 ||
+        input.limit > RECENT_CHANGES_LIMIT_MAX
+      ) {
+        throw new BadRequestException(
+          `limit must be an integer between 1 and ${RECENT_CHANGES_LIMIT_MAX}`,
+        );
+      }
+      limit = input.limit;
+    }
+
+    if (!this.watchService || !this.watchFlagGuard) {
+      // Server misconfiguration, not a silent no-op — same policy as
+      // MeriToolsService.requireBizDevTools. BOTH the read service and the
+      // watch flag gate are required: missing either fails closed.
+      throw new NotFoundException('Meri tool not found');
+    }
+    // Fail closed on the per-tenant watch flag (global + tenant settings
+    // check inside assertEnabledForTenant).
+    await this.watchFlagGuard.assertEnabledForTenant(ctx.tenantId);
+
+    const page = await this.watchService.listProspectAlerts(ctx, prospectId, {
+      limit,
+    });
+
+    // Structured changed fields are persisted per alert (changes_jsonb,
+    // already allowlisted to material fields by the pure diff). Fetch them
+    // for exactly the returned page — read-only, tenant-scoped.
+    const changedFieldsById = new Map<string, Array<{ field: string; before: unknown; after: unknown }>>();
+    if (page.items.length > 0) {
+      await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        const rows = await tx.businessDevelopmentAlert.findMany({
+          where: {
+            tenantId: ctx.tenantId,
+            id: { in: page.items.map((item) => item.id) },
+          },
+          select: { id: true, changesJsonb: true },
+        });
+        for (const row of rows) {
+          const raw = row.changesJsonb;
+          if (Array.isArray(raw) && raw.length > 0) {
+            changedFieldsById.set(
+              row.id,
+              (raw as unknown as BizDevMaterialFieldChange[]).map((change) => ({
+                field: change.field,
+                before: change.before ?? null,
+                after: change.after ?? null,
+              })),
+            );
+          }
+        }
+      });
+    }
+
+    const alerts = page.items.map((row) => ({
+      id: row.id,
+      sourceFamily: row.sourceFamily,
+      category: row.category,
+      title: row.title,
+      summary: row.summary,
+      materiality: row.materiality,
+      dates: {
+        eventAt: row.eventAt,
+        effectiveAt: row.effectiveAt,
+        publishedAt: row.publishedAt,
+        firstObservedAt: row.firstObservedAt,
+      },
+      sourceLocator: row.sourceLocator,
+      implication: {
+        text: row.implication,
+        inference: true,
+        note: 'Inference drawn from the ingested change diff, not a source fact. Preserve any conditional or thematic wording.',
+      },
+      changedFields: changedFieldsById.get(row.id) ?? [],
+    }));
+
+    return {
+      tool: 'get_business_development_recent_changes',
+      generatedAt: new Date().toISOString(),
+      prospect: {
+        id: prospectId,
+        name: scope.prospectName,
+      },
+      alerts: {
+        items: alerts,
+        returned: alerts.length,
+        unreadCount: page.unreadCount,
+        truncated: page.nextCursor !== null,
+        limit,
+        note:
+          'These are already-ingested change alerts for this prospect. Reading them does not mark them read. This summary never proves bid or win intent.',
+      },
     };
   }
 

@@ -4627,6 +4627,14 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat'],
   },
   {
+    name: 'get_business_development_recent_changes',
+    description:
+      "Summarize the already-ingested change alerts for the business-development prospect this chat is scoped to: up to 25 recent alerts, newest first, each with source family, category, title, summary, materiality, separated event/effective/publication/first-observed dates, the exact source locator, and the change diff's implication. The implication is an inference produced from the ingested diff — never a source fact — and its conditional or thematic language must be preserved, not sharpened. Read-only over locally synchronized data: never calls a source provider and never proves bid or win intent.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
     name: 'get_district_federal_market',
     description:
       'Get source-backed federal-market activity for a congressional geography. Contract obligations and explicitly district-resolved subawards are separate awarded-money rails. State-backed subawards that lack a district are returned separately and never attributed to the requested district. SAM opportunities and agency forecasts are future signals and never included in awarded totals. Optionally pass clientId to scope awarded activity to that client’s reviewed federal identities.',
