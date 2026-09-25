@@ -27,6 +27,19 @@
   "semanticArtifact": {
     "artifactId": "dbx1_d597dc11901b9a1a89c5113963bdada9ab3168153085279265ed0a60188519c2"
   },
+  "productionSourceDocumentProbe": {
+    "status": "NO_MATCH",
+    "taskDefinition": "capiro-dev-api-source-probe-20260925:2",
+    "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/c753498a1b9f4087bf7b08df2b5bc645",
+    "exitCode": 0,
+    "matchedRows": 0,
+    "queryScope": [
+      "sha256=6587d1cec52d8d3eda3551648f50e4bc15371ea9167da2999e263e8c8e14480a",
+      "sourceKey=CRPT-119hrpt698",
+      "sourceUrl contains CRPT-119hrpt698"
+    ],
+    "writes": false
+  },
   "limitations": [
     "The provider and semantic factory were exercised locally against exact parser bytes and the reviewed 926-row packet.",
     "The SourceDocument id used for this local proof was a synthetic UUID; no production SourceDocument registration, manifest admission, database write, publication, or notification occurred.",
