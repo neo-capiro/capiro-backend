@@ -34,7 +34,9 @@ export interface ExtractedReportRow {
   peCode?: string | null;
   fy?: number | string | null;
   request?: number | string | null;
+  requestUnit?: 'dollars' | 'thousands' | 'millions' | null;
   mark?: number | string | null;
+  markUnit?: 'dollars' | 'thousands' | 'millions' | null;
   explanation?: string | null;
   [key: string]: unknown;
 }
@@ -56,13 +58,7 @@ export interface LoadResult {
 // 'conference' = appropriations-track conference (RESERVED — no loader writes it yet).
 // 'ndaaConference' = NDAA authorization conference report (written by the NDAA loader).
 export type MarkField =
-  | 'hascMark'
-  | 'sascMark'
-  | 'hacDMark'
-  | 'sacDMark'
-  | 'conference'
-  | 'ndaaConference'
-  | 'enacted';
+  'hascMark' | 'sascMark' | 'hacDMark' | 'sacDMark' | 'conference' | 'ndaaConference' | 'enacted';
 
 // PE code: 7 digits + service letter (+ optional suffix). Same canon as jbook.
 const PE_TOKEN = /\b([0-9]{7}[A-Z][A-Z0-9]*)\b/;
@@ -81,6 +77,22 @@ export function parseAmount(token: string | number | null | undefined): number |
   const n = Number(cleaned);
   if (!Number.isFinite(n)) return null;
   return negative ? -n : n;
+}
+
+/** Convert an explicitly declared report-table value to dollars. */
+function amountInDollars(
+  token: string | number | null | undefined,
+  unit: ExtractedReportRow['requestUnit'],
+): number | null {
+  const amount = parseAmount(token);
+  if (amount === null) return null;
+  if (unit === 'thousands') return amount * 1_000;
+  if (unit === 'millions') return amount * 1_000_000;
+  if (unit === 'dollars' || unit === null || unit === undefined) {
+    // Legacy committed artifacts already store dollars and carry no unit.
+    return amount;
+  }
+  throw new Error(`Unsupported committee-report money unit: ${String(unit)}`);
 }
 
 /**
@@ -133,8 +145,8 @@ export function parseExtractedRows(
     out.push({
       peCode,
       fy: Number.isFinite(fy) ? fy : opts.fy,
-      request: parseAmount(r.request ?? null),
-      mark: parseAmount(r.mark ?? null),
+      request: amountInDollars(r.request ?? null, r.requestUnit),
+      mark: amountInDollars(r.mark ?? null, r.markUnit),
       explanation: r.explanation ? String(r.explanation) : null,
     });
   }

@@ -101,6 +101,7 @@
     "sync:congress": "tsx scripts/sync-congress.ts",
     "sync:federal-legislative-evidence": "tsx scripts/sync-federal-legislative-evidence.ts",
     "drain:federal-evidence-outbox": "tsx scripts/drain-federal-evidence-outbox.ts",
+    "qualify:package3-congressional": "tsx scripts/qualify-package3-congressional-artifact.ts",
     "qualify:package4-legislative-updates": "tsx scripts/qualify-package4-legislative-updates.ts",
     "sync:program-acquisition-continuity": "tsx scripts/sync-program-acquisition-continuity.ts",
     "qualify:package5-program-acquisition": "tsx scripts/qualify-package5-program-acquisition.ts",

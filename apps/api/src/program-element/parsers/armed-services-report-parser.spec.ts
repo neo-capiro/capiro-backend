@@ -38,11 +38,43 @@ describe('reportSource', () => {
 
 describe('parseExtractedRows — fixture matches golden', () => {
   test('HRPT-119-NDAA-sample rows parse to the golden records', () => {
-    const fixture = readJson('HRPT-119-NDAA-sample.rows.json') as { fy: number; rows: Record<string, unknown>[] };
-    const golden = readJson('HRPT-119-NDAA-sample.golden.json') as { records: ArmedServicesMarkRecord[] };
+    const fixture = readJson('HRPT-119-NDAA-sample.rows.json') as {
+      fy: number;
+      rows: Record<string, unknown>[];
+    };
+    const golden = readJson('HRPT-119-NDAA-sample.golden.json') as {
+      records: ArmedServicesMarkRecord[];
+    };
 
     const parsed = parseExtractedRows(fixture.rows as never, { fy: fixture.fy });
     expect(parsed).toEqual(golden.records);
+  });
+
+  test('converts declared thousands and millions to dollars while preserving legacy dollars', () => {
+    const parsed = parseExtractedRows(
+      [
+        {
+          peCode: '0601102A',
+          request: 215322,
+          requestUnit: 'thousands',
+          mark: 225.322,
+          markUnit: 'millions',
+        },
+        { peCode: '0601103A', mark: 83102000 },
+      ],
+      { fy: 2027 },
+    );
+
+    expect(parsed[0]).toMatchObject({ request: 215322000, mark: 225322000 });
+    expect(parsed[1]).toMatchObject({ request: null, mark: 83102000 });
+  });
+
+  test('fails closed for an undeclared money unit', () => {
+    expect(() =>
+      parseExtractedRows([{ peCode: '0601102A', mark: 225322, markUnit: 'hundreds' }] as never, {
+        fy: 2027,
+      }),
+    ).toThrow('Unsupported committee-report money unit: hundreds');
   });
 });
 
@@ -94,7 +126,9 @@ function makeService(opts?: { changedPeCodes?: string[] }) {
   return { svc, writer, upserts, quarantines };
 }
 
-const goldenRecords = (readJson('HRPT-119-NDAA-sample.golden.json') as { records: ArmedServicesMarkRecord[] }).records;
+const goldenRecords = (
+  readJson('HRPT-119-NDAA-sample.golden.json') as { records: ArmedServicesMarkRecord[] }
+).records;
 
 describe('ArmedServicesReportParserService.load', () => {
   test('calls writer with the correct source + mark field, quarantines bad pe_code', async () => {

@@ -1,0 +1,47 @@
+{
+  "schema": "package3_congressional_qualification_result_v1",
+  "decision": "QUALIFIED_ISOLATED_PILOT",
+  "qualificationOnly": true,
+  "productionRegistration": false,
+  "databaseWritten": false,
+  "backfill": false,
+  "publication": false,
+  "notificationsSent": false,
+  "source": {
+    "documentKey": "CRPT-119hrpt698",
+    "sha256": "6587d1cec52d8d3eda3551648f50e4bc15371ea9167da2999e263e8c8e14480a",
+    "retainedUri": "s3://capiro-defense-budget-raw-dev-967807252336/incoming/fy2027/H._Rept._119-698_-_FY2027_NDAA.pdf",
+    "retainedVersionId": "MKREMzqkucbbM4ZYaTic432fWf_Ctnwi",
+    "pages": [
+      618,
+      665
+    ]
+  },
+  "governedPacket": {
+    "path": "docs/defense-budget/package-3/qualification/hasc-fy2027-rdte-mark-only.json",
+    "byteSha256": "7deb7d1dcb47d97651d8ba43c2e8bc1bdf15b23c4b35fdd956cca852036fa57e",
+    "rowCount": 926,
+    "markTotalDollars": 160628729000,
+    "requestAssertionCount": 0,
+    "markAssertionCount": 926
+  },
+  "persistedProof": {
+    "stageProfileSha256": "6145db933201c1d7d5cfaad63d69626e3bef7a0cd9a2bd3c761ec4c269c3ad5a",
+    "parserResultByteSha256": "9976a0c5a3aa4c584f936f782d249ef7d1e56284abac4cc7bd3fb13257cf0c18",
+    "parserResultByteLength": 10940,
+    "semanticArtifactId": "dbx1_35cb7a1fc66c1c42a55688042e558d48e64f407c74fb0c59a6521275f4c0d9a7",
+    "semanticArtifactByteSha256": "9d7864ee9f760c668f6ec7ff60e2598fe8f57c2a4273d2a270f6bc7c2d7a3848",
+    "sourceFactCount": 2778,
+    "assertionCount": 2778,
+    "evidenceCount": 927,
+    "warningCount": 0,
+    "omissionCount": 0,
+    "completenessStatus": "complete",
+    "storageScope": "disposable_local_directory_removed_after_run"
+  },
+  "limitations": [
+    "RDT&E-only HASC qualification cohort; not the mixed-family production HASC profile.",
+    "The proof represents the governed reviewed row packet and pypdf provenance; it does not rerun the production lifecycle worker.",
+    "No production manifest admission, database write, historical backfill, publication, notification, or feature-flag activation occurred."
+  ]
+}
