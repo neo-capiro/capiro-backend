@@ -1,0 +1,77 @@
+{
+  "phase": 4,
+  "status": "deployed",
+  "environment": {
+    "awsAccount": "967807252336",
+    "region": "us-east-1",
+    "cluster": "capiro-dev",
+    "tenantSlug": "capiro-internal"
+  },
+  "release": {
+    "initialPullRequest": "https://github.com/neo-capiro/capirov2/pull/1806",
+    "initialSha": "30a9ab33458fe3b2d6b76b73c00c773979b8cebb",
+    "finalPullRequest": "https://github.com/neo-capiro/capirov2/pull/1811",
+    "finalSha": "4e30ad8f05ff4afcd0a983b46b424dda05d6d505",
+    "initialDeploymentCompletedAt": "2026-09-25T12:22:58.713Z",
+    "finalDeploymentCompletedAt": "2026-09-25T13:04:07.202Z"
+  },
+  "services": {
+    "api": {
+      "taskDefinition": "capiro-dev-api:458",
+      "rollbackTaskDefinition": "capiro-dev-api:457",
+      "imageDigest": "sha256:3e74f297b95bd2fa37ba8cbe42523241a42fc774260b1c357e60e13f01fb9c19",
+      "healthyTasks": "2/2"
+    },
+    "orchestrator": {
+      "taskDefinition": "capiro-dev-meriv2-orchestrator:82",
+      "rollbackTaskDefinition": "capiro-dev-meriv2-orchestrator:81",
+      "imageDigest": "sha256:f394484708b633f4bacee9361486bbad50190f616b0cdae3b84e3ad7c118d4cb",
+      "healthyTasks": "1/1"
+    },
+    "web": {
+      "taskDefinition": "capiro-dev-web:141",
+      "rollbackTaskDefinition": "capiro-dev-web:140",
+      "originalBaselineTaskDefinition": "capiro-dev-web:139",
+      "imageDigest": "sha256:5760d0c87fe979bc02fd9c3409ecc7870c945653736540f065a6c8c4d64cb230",
+      "healthyTasks": "1/1"
+    }
+  },
+  "migration": {
+    "taskDefinition": "capiro-dev-api-admin-migrate:72",
+    "rollbackTaskDefinition": "capiro-dev-api-admin-migrate:71",
+    "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/b72bf0c40dd7490b83c4c6102ead4b84",
+    "exitCode": 0,
+    "repositoryMigrationCount": 432,
+    "pendingMigrations": 0
+  },
+  "featureFlags": {
+    "businessDevelopment.brief.enabled": true,
+    "businessDevelopment.meriProspectTools.enabled": true,
+    "businessDevelopment.claimValidation.enabled": false,
+    "semanticBdClaimJev": "dark"
+  },
+  "verification": {
+    "healthUrl": "https://app-dev.capiro.ai/healthz",
+    "healthResponse": "200 ok",
+    "webRuntimeReleaseSha": "4e30ad8f05ff4afcd0a983b46b424dda05d6d505",
+    "errorsAfterFinalDeployment": 0,
+    "browserCaptures": {
+      "storage": "inline release-task captures",
+      "repositoryFilePaths": []
+    },
+    "externalCommunicationSent": false
+  },
+  "liveWalkthrough": {
+    "unresolvedProspectId": "1da7f223-6e38-4dd6-8c71-111a9d0966e1",
+    "confirmedOrganizationProspectId": "88b1875d-e047-44ff-a7ab-1870dbe47407",
+    "meriConversationId": "9002db18-ef61-4370-84c9-b8c6a81bfb04",
+    "citationProvider": "USAspending",
+    "citationRecord": "HC101323FF361",
+    "linkedClientActionExecuted": false,
+    "linkedClientActionReason": "No verified walkthrough prospect had a confirmed linked client; the Phase 1 link-or-convert prerequisite was preserved."
+  },
+  "localEvidenceDirectories": [
+    "C:\\dev\\main\\.orchestration\\business-development-phase4\\deploy-30a9ab33458fe3b2d6b76b73c00c773979b8cebb",
+    "C:\\dev\\main\\.orchestration\\business-development-phase4\\web-hotfix-4e30ad8f05ff4afcd0a983b46b424dda05d6d505"
+  ]
+}
