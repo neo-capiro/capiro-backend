@@ -130,14 +130,23 @@ function migrationFiles(directory) {
     })
     .sort();
 }
-function assertCleanExceptTmp() {
+function assertCleanExceptTmp(ownedTemporaryPaths = []) {
+  const allowed = ownedTemporaryPaths.map((item) =>
+    path.relative(repoRoot, item).replaceAll('\\', '/'),
+  );
   const entries = execute('git', ['status', '--porcelain', '--untracked-files=all'])
     .split(/\r?\n/)
     .filter(Boolean);
   const unexpected = entries.filter((entry) => {
     const status = entry.slice(0, 2);
     const filePath = entry.slice(3).replace(/^"|"$/g, '').replaceAll('\\', '/');
-    return status !== '??' || !(filePath === 'tmp' || filePath.startsWith('tmp/'));
+    const ownedTemporaryPath = allowed.some(
+      (prefix) => filePath === prefix || filePath.startsWith(`${prefix}/`),
+    );
+    return (
+      status !== '??' ||
+      (!(filePath === 'tmp' || filePath.startsWith('tmp/')) && !ownedTemporaryPath)
+    );
   });
   if (unexpected.length)
     throw new Error(
@@ -537,7 +546,7 @@ async function main() {
     };
     report.samples = samples;
     mkdirSync(path.dirname(outputPath), { recursive: true });
-    assertCleanExceptTmp();
+    assertCleanExceptTmp([savedDist?.backup, savedBuildInfo?.backup].filter(Boolean));
     writeFileSync(outputPath, `${JSON.stringify(report, null, 2)}\n`, {
       encoding: 'utf8',
       flag: 'wx',
