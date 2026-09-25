@@ -20,7 +20,7 @@
  * gets an `error` frame and a persisted failure receipt. There is NO fallback
  * to MeriV3/legacy — rollback is the flag.
  */
-import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { createHash, randomUUID } from 'node:crypto';
@@ -79,6 +79,16 @@ import {
 import { MeriHermesDbGovernor, meriHermesSharedDbGovernor } from './meri-hermes-db-governor.js';
 import { resolveEvidenceAccuracyModeForTenant } from '../../common/meri-evidence-accuracy-flags.js';
 import { describeAttachmentContentState } from '../meri-attachment-content-state.js';
+import {
+  authorizeMeriProspectScope,
+  prospectScopeDirective,
+  prospectTurnScopeReceipt,
+} from '../meri-prospect-scope.helpers.js';
+import {
+  BizDevMeriScopeService,
+  parsePersistedMeriProspectScope,
+  type MeriProspectScope,
+} from '../../business-development/bizdev-meri-scope.service.js';
 
 interface SseWriter {
   write(data: string): void;
@@ -170,6 +180,13 @@ export class MeriHermesRuntimeAdapter {
     @Inject(MERI_HERMES_RUN_REPOSITORY) private readonly runs: MeriHermesRunRepository,
     @Inject(MERI_HERMES_SECURITY_ENVELOPE) private readonly security: MeriHermesSecurityEnvelopePort,
     @Inject(MERI_TURN_MAINTENANCE) private readonly maintenance: MeriTurnMaintenance,
+    // Phase 4 prospect dispatch: @Optional() trailing param so the existing
+    // positional spec constructions keep compiling; Nest wiring provides it
+    // via BusinessDevelopmentModule (MeriModule's one-way import). A
+    // prospect-scoped conversation with it unavailable fails closed below.
+    @Optional()
+    @Inject(BizDevMeriScopeService)
+    private readonly bizdevScope?: BizDevMeriScopeService,
   ) {}
 
   /**
@@ -262,6 +279,17 @@ export class MeriHermesRuntimeAdapter {
 
     const conversation = await this.ensureConversation(ctx, conversationId);
 
+    // Phase 4 prospect-scope authorization re-check: BEFORE the user-message
+    // write (prepareTurn) or the isolated Hermes runtime dispatch for a
+    // prospect-scoped conversation, re-assert the server-persisted scope is
+    // current. Fail closed on missing/malformed/stale scope; ordinary
+    // unscoped conversations proceed unchanged. A reattached idempotent retry
+    // re-runs this too — no dispatch without the re-check.
+    const prospectScope = await authorizeMeriProspectScope(
+      this.bizdevScope,
+      ctx,
+      conversation.metadata,
+    );
     // P1-07 reachability: reconcile ambiguous startups BEFORE anything else
     // starts work for this conversation. A run whose admission committed but
     // whose dispatch to Hermes was never confirmed (the replica died in
@@ -542,7 +570,7 @@ export class MeriHermesRuntimeAdapter {
 
     const pendingAnswers = await this.resolvePendingClarifications(ctx, conversationId, turn.content);
     const governed = currentMeriGovernedRuntime();
-    const instructions = this.composeInstructions(governed?.context.prompt ?? null, envelope);
+    const instructions = this.composeInstructions(governed?.context.prompt ?? null, envelope, prospectScope);
     const input = await this.composeInput(ctx, conversation.id, turn.sourceMessageId,
       turn.content, turn.attachments, pendingAnswers);
     const boundSessionId = this.boundSessionId(conversation);
@@ -1549,6 +1577,14 @@ export class MeriHermesRuntimeAdapter {
     const unresolved = current.pendingInteractions.filter((i) => !i.resolution);
     const governed = currentMeriGovernedRuntime();
     const cfg = meriHermesRuntimeConfig(this.env);
+    // Phase 4: prospect-scoped turn receipt, derived from the immutable server
+    // conversation snapshot (the same persisted scope the pre-dispatch
+    // authorization re-check asserted) — never from model output. A malformed
+    // scope yields no receipt (the turn could not have been dispatched with it).
+    const persistedProspect = parsePersistedMeriProspectScope(
+      target?.metadata ?? null,
+    );
+    const turnScope = persistedProspect ? prospectTurnScopeReceipt(persistedProspect) : null;
 
     const buildFrames = (messageId: string | null): MeriSseFrame[] => {
       const doneFrame: MeriSseFrame = {
@@ -1565,6 +1601,7 @@ export class MeriHermesRuntimeAdapter {
         ...(unresolved.length
           ? { pendingInteractions: unresolved.map((i) => ({ requestId: i.requestId, kind: i.kind, continuation: i.continuation })) }
           : {}),
+        ...(turnScope ? { turnScope } : {}),
       };
       const tail: MeriSseFrame[] =
         terminal.error && terminal.finishReason !== 'error'
@@ -1636,6 +1673,7 @@ export class MeriHermesRuntimeAdapter {
                     contextPacket: governed.context.contextPacket,
                   }
                 : {}),
+              ...(turnScope ? { turnScope: turnScope as unknown as Prisma.InputJsonValue } : {}),
             } as unknown as Prisma.InputJsonValue,
           },
           select: { id: true },
@@ -2066,7 +2104,11 @@ export class MeriHermesRuntimeAdapter {
     return parts.join('\n');
   }
 
-  private composeInstructions(governedPrompt: string | null, envelope: MeriHermesAuthorizationEnvelope): string {
+  private composeInstructions(
+    governedPrompt: string | null,
+    envelope: MeriHermesAuthorizationEnvelope,
+    prospectScope: MeriProspectScope | null = null,
+  ): string {
     const meriNote = [
       'You are Meri, running on the Hermes runtime inside the Capiro application for one authorized user.',
       `Execution scope: ${envelope.executionScopeId} (audience: ${envelope.audience}).`,
@@ -2074,7 +2116,8 @@ export class MeriHermesRuntimeAdapter {
       'Use meri_request_clarification when you need the user to decide something; then end your turn.',
       'Never claim access to data a tool did not return. Report coverage and uncertainty honestly.',
     ].join('\n');
-    return governedPrompt ? `${meriNote}\n\n${governedPrompt}` : meriNote;
+    const prospectNote = prospectScope ? `\n\n${prospectScopeDirective(prospectScope)}` : '';
+    return governedPrompt ? `${meriNote}${prospectNote}\n\n${governedPrompt}` : `${meriNote}${prospectNote}`;
   }
 
   private async persistAssistantMessage(

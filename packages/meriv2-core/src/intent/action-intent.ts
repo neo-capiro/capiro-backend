@@ -8,6 +8,7 @@ export type ActionIntentCategory =
   | 'client_change'
   | 'research_save'
   | 'legiwatch_change'
+  | 'brief_save'
   | 'unknown_write_tool';
 
 export interface ActionIntentDecision {
@@ -53,6 +54,7 @@ const ACTIONS: Record<
   create_task: { category: 'task_change', verbs: /\b(create|add)\b/i, nouns: /\b(task|todo|follow-up)\b/i },
   update_task: { category: 'task_change', verbs: /\b(update|change|edit|complete)\b/i, nouns: /\b(task|todo|follow-up)\b/i },
   update_client_profile: { category: 'client_change', verbs: /\b(update|change|edit)\b/i, nouns: /\b(client|profile|client profile)\b/i },
+  save_business_development_brief: { category: 'brief_save', verbs: /\b(save|store|update)\b/i, nouns: /\b(brief)\b/i },
 };
 
 /** Deterministic authorization for a specific write tool from the current user request. */

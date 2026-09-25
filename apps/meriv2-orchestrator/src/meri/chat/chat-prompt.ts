@@ -49,6 +49,8 @@ export interface ChatInput {
    * context is lost on long threads. Absent for short/un-compacted threads.
    */
   conversationSummary?: string;
+  /** Server-authored active-prospect constraint from apps/api. */
+  prospectDirective?: string;
   /**
    * Always-on client knowledge-base snapshot (profile digest, key people,
    * facility footprint, recent documents) for the focused client (1B.4),
@@ -421,6 +423,9 @@ export function composeChatSystemPrompt(
     voice ? `\n# The user's writing voice (mirror it when you draft)\n${voice}` : '',
     dto.conversationSummary
       ? `\n# Conversation so far (summary of EARLIER turns — the message history below carries only the most recent turns)\n${dto.conversationSummary}`
+      : '',
+    dto.prospectDirective
+      ? `\n# Active business-development prospect scope\n${dto.prospectDirective}`
       : '',
     dto.memoryContext?.length
       ? `\n# What you remember (firm + this user)\nThese are stored memories relevant to this conversation — use them directly when they answer the question:\n${dto.memoryContext.map((m) => `- ${m}`).join('\n')}`

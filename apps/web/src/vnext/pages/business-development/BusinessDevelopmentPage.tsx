@@ -12,6 +12,8 @@ import { formatDateShort } from '../../lib/labels.js';
 import { PortfolioIndexPage } from '../portfolio/PortfolioIndexPage.js';
 import { DiscoverPanel } from './BizDevDiscover.js';
 import { DossierDrawer } from './BizDevDossier.js';
+import { BizDevBrief } from './BizDevBrief.js';
+import { requestMeriContextPrompt } from '../../../components/chat/meri-prompt.js';
 import {
   applyBizDevRoute,
   BIZDEV_CONFLICT_FILTERS,
@@ -29,14 +31,17 @@ import {
   bizdevErrorMessage,
   bizdevKeys,
   convertBizDevProspect,
+  createBizDevBrief,
   createBizDevProspect,
   dismissBizDevProspect,
+  getBizDevCurrentBrief,
   getBizDevDuplicateHints,
   getBizDevHistory,
   getBizDevMemberOptions,
   getBizDevPreferences,
   getBizDevProspect,
   listBizDevProspects,
+  newBizDevIdempotencyKey,
   previewBizDevDuplicateHints,
   restoreBizDevProspect,
   saveBizDevPreferences,
@@ -79,6 +84,100 @@ function StatusNote({ text, warn }: { text: string; warn?: boolean }) {
     >
       {text}
     </p>
+  );
+}
+
+/* ── Phase 4: tabs + Draft with Meri launch ──────────────────────────── */
+
+/** Detail-drawer tabs. Evidence/Brief render only when their flag is on. */
+type ProspectTab = 'overview' | 'evidence' | 'brief';
+
+const PROSPECT_TAB_LABELS: Record<ProspectTab, string> = {
+  overview: 'Overview',
+  evidence: 'Evidence',
+  brief: 'Brief',
+};
+
+/**
+ * The bounded Draft-with-Meri prompt. Deliberately carries NO firm, prospect,
+ * provider or scope facts: the conversation's server-resolved prospect scope
+ * and its tools are the only authority for who/what/where. It asks for the
+ * exact five-section grounded brief, evidence inspection, uncertainty and
+ * citation preservation, and forbids outreach unless explicitly asked.
+ */
+export const BIZDEV_DRAFT_WITH_MERI_PROMPT =
+  'Prepare or update the grounded opportunity brief for the active prospect. ' +
+  'Inspect only the authorized evidence available to you and keep exactly these five sections: ' +
+  'Company and firm implication, Verified evidence, Judgment, Practical action, and Missing information. ' +
+  'Preserve uncertainty and keep every claim tied to its citation. ' +
+  'Do not draft or send any outreach unless I explicitly ask for it.';
+
+/**
+ * One-click Draft with Meri: if the prospect has no saved brief yet, first
+ * await creation of the deterministic initial brief (so the approval-gated
+ * Meri save tool has a current version/citation set), then open the existing
+ * docked Meri chat with a fresh prospect-scoped session and the bounded
+ * prompt. A create failure must NOT launch Meri — surface the error instead.
+ */
+async function draftBriefWithMeri(
+  api: ReturnType<typeof useApi>,
+  queryClient: ReturnType<typeof useQueryClient>,
+  tenantId: string,
+  prospect: BizDevProspect,
+  toast: ReturnType<typeof useCapiroToast>,
+): Promise<void> {
+  try {
+    const current = await getBizDevCurrentBrief(api, prospect.id);
+    if (!current.brief) {
+      await createBizDevBrief(api, prospect.id, {
+        idempotencyKey: newBizDevIdempotencyKey('create'),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: bizdevKeys.brief(tenantId, prospect.id),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: bizdevKeys.briefVersions(tenantId, prospect.id),
+      });
+    }
+  } catch (error) {
+    // No brief existed and the deterministic initial brief could not be
+    // created: launching Meri would give the save tool nothing to cite.
+    toast.error(bizdevErrorMessage(error));
+    return;
+  }
+  requestMeriContextPrompt({
+    prompt: BIZDEV_DRAFT_WITH_MERI_PROMPT,
+    prospectId: prospect.id,
+  });
+}
+
+/** Keyboard-native tab strip; hidden panels stay mounted-free (no queries). */
+function ProspectTabBar({
+  tabs,
+  active,
+  onSelect,
+}: {
+  tabs: ProspectTab[];
+  active: ProspectTab;
+  onSelect: (tab: ProspectTab) => void;
+}) {
+  return (
+    <div className="capiro-bizdev__tabs" role="tablist" aria-label="Prospect detail">
+      {tabs.map((tab) => (
+        <button
+          key={tab}
+          type="button"
+          role="tab"
+          id={`bizdev-tab-${tab}`}
+          aria-selected={active === tab}
+          aria-controls={`bizdev-tabpanel-${tab}`}
+          className={`capiro-bizdev__tab${active === tab ? ' is-active' : ''}`}
+          onClick={() => onSelect(tab)}
+        >
+          {PROSPECT_TAB_LABELS[tab]}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -599,6 +698,8 @@ function ProspectDrawer({
   members,
   isAdmin,
   dossierEnabled,
+  briefEnabled,
+  meriProspectToolsEnabled,
   onClose,
 }: {
   tenantId: string;
@@ -606,6 +707,8 @@ function ProspectDrawer({
   members: BizDevMemberOption[];
   isAdmin: boolean;
   dossierEnabled: boolean;
+  briefEnabled: boolean;
+  meriProspectToolsEnabled: boolean;
   onClose: () => void;
 }) {
   const api = useApi();
@@ -747,6 +850,16 @@ function ProspectDrawer({
     onError: (e) => toast.error(bizdevErrorMessage(e)),
   });
 
+  // Phase 4 tabs: Overview always; Evidence only with the dossier flag;
+  // Brief only with the brief flag. Unmounted tabs run no queries.
+  const availableTabs: ProspectTab[] = [
+    'overview',
+    ...(dossierEnabled ? (['evidence'] as const) : []),
+    ...(briefEnabled ? (['brief'] as const) : []),
+  ];
+  const [activeTab, setActiveTab] = useState<ProspectTab>('overview');
+  const activePanel = availableTabs.includes(activeTab) ? activeTab : 'overview';
+
   if (detail.isPending) {
     return (
       <CapiroDrawer open title="Prospect" onClose={close}>
@@ -775,49 +888,109 @@ function ProspectDrawer({
   }
   const prospect = detail.data;
 
+  // Wider drawer for the Brief tab: five editable sections + the source
+  // inspector need more than the default; the Overview keeps 560 so its
+  // existing layout is untouched. min() keeps small screens responsive.
+  const drawerWidth = activePanel === 'brief' ? 1040 : 560;
+
   return (
-    <CapiroDrawer open title={`Prospect — ${prospect.displayName}`} onClose={close} width={560}>
-      <ProspectDrawerBody
-        key={prospect.id + prospect.updatedAt}
-        prospect={prospect}
-        members={members}
-        isAdmin={isAdmin}
-        dossierEnabled={dossierEnabled}
-        api={api}
-        invalidate={invalidate}
-        history={history.data ?? []}
-        noteState={{ noteBody, setNoteBody, addNote }}
-        dismissState={{ confirmDismiss, setConfirmDismiss, dismiss, restore }}
-        convertState={{
-          convertMode,
-          setConvertMode,
-          clientQuery,
-          setClientQuery,
-          clientResults,
-          setClientResults,
-          clientSearch,
-          selectedClientId,
-          setSelectedClientId,
-          convert,
-        }}
-        identityState={{
-          orgQuery,
-          setOrgQuery,
-          orgResults,
-          setOrgResults,
-          orgSearch,
-          resolveIdentity,
-          duplicateNotice,
-          hints: hints.data?.hints ?? [],
-        }}
-        conflictState={{
-          conflictExcluded,
-          setConflictExcluded,
-          conflictReason,
-          setConflictReason,
-          saveConflict,
-        }}
+    <CapiroDrawer
+      open
+      title={`Prospect — ${prospect.displayName}`}
+      onClose={close}
+      width={drawerWidth}
+    >
+      <ProspectTabBar
+        tabs={availableTabs}
+        active={activePanel}
+        onSelect={(tab) => setActiveTab(tab)}
       />
+      {activePanel === 'brief' ? (
+        <div
+          className="capiro-bizdev__drawer"
+          style={{ gap: 24 }}
+          role="tabpanel"
+          id="bizdev-tabpanel-brief"
+          aria-labelledby="bizdev-tab-brief"
+        >
+          <BizDevBrief
+            api={api}
+            tenantId={tenantId}
+            prospect={prospect}
+            meriEnabled={briefEnabled && meriProspectToolsEnabled}
+            onDraftWithMeri={() =>
+              void draftBriefWithMeri(api, queryClient, tenantId, prospect, toast)
+            }
+          />
+        </div>
+      ) : activePanel === 'evidence' ? (
+        <div
+          className="capiro-bizdev__drawer"
+          style={{ gap: 24 }}
+          role="tabpanel"
+          id="bizdev-tabpanel-evidence"
+          aria-labelledby="bizdev-tab-evidence"
+        >
+          {/* Evidence reuses the existing dossier surface for THIS prospect —
+              no duplicated source-inspector logic; the drawer below is keyed
+              to the same prospect id and stays visibly associated with it. */}
+          <StatusNote
+            text={`Evidence dossier for ${prospect.displayName}. Sources are the same authorized dossier records; nothing here is duplicated or editable outside the dossier surface.`}
+          />
+          <CapiroButton
+            size="compact"
+            onClick={() =>
+              setSearchParams(applyBizDevRoute(searchParams, { dossierProspectId: prospect.id }))
+            }
+          >
+            Open evidence dossier
+          </CapiroButton>
+        </div>
+      ) : (
+        <div role="tabpanel" id="bizdev-tabpanel-overview" aria-labelledby="bizdev-tab-overview">
+          <ProspectDrawerBody
+            key={prospect.id + prospect.updatedAt}
+            prospect={prospect}
+            members={members}
+            isAdmin={isAdmin}
+            dossierEnabled={dossierEnabled}
+            api={api}
+            invalidate={invalidate}
+            history={history.data ?? []}
+            noteState={{ noteBody, setNoteBody, addNote }}
+            dismissState={{ confirmDismiss, setConfirmDismiss, dismiss, restore }}
+            convertState={{
+              convertMode,
+              setConvertMode,
+              clientQuery,
+              setClientQuery,
+              clientResults,
+              setClientResults,
+              clientSearch,
+              selectedClientId,
+              setSelectedClientId,
+              convert,
+            }}
+            identityState={{
+              orgQuery,
+              setOrgQuery,
+              orgResults,
+              setOrgResults,
+              orgSearch,
+              resolveIdentity,
+              duplicateNotice,
+              hints: hints.data?.hints ?? [],
+            }}
+            conflictState={{
+              conflictExcluded,
+              setConflictExcluded,
+              conflictReason,
+              setConflictReason,
+              saveConflict,
+            }}
+          />
+        </div>
+      )}
     </CapiroDrawer>
   );
 }
@@ -1669,10 +1842,14 @@ function Pipeline({
   tenantId,
   isAdmin,
   dossierEnabled,
+  briefEnabled,
+  meriProspectToolsEnabled,
 }: {
   tenantId: string;
   isAdmin: boolean;
   dossierEnabled: boolean;
+  briefEnabled: boolean;
+  meriProspectToolsEnabled: boolean;
 }) {
   const api = useApi();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1712,6 +1889,8 @@ function Pipeline({
             members={members_}
             isAdmin={isAdmin}
             dossierEnabled={dossierEnabled}
+            briefEnabled={briefEnabled}
+            meriProspectToolsEnabled={meriProspectToolsEnabled}
             onClose={() => void list.refetch()}
           />
         ) : null}
@@ -1955,6 +2134,8 @@ function Pipeline({
           members={members_}
           isAdmin={isAdmin}
           dossierEnabled={dossierEnabled}
+          briefEnabled={briefEnabled}
+          meriProspectToolsEnabled={meriProspectToolsEnabled}
           onClose={() => void list.refetch()}
         />
       ) : null}
@@ -1983,6 +2164,8 @@ export function BusinessDevelopmentPage() {
         tenantId={me.data.tenant.id}
         isAdmin={hasAtLeast(me.data.role, 'user_admin')}
         dossierEnabled={me.data.features.businessDevelopmentDossier === true}
+        briefEnabled={me.data.features.businessDevelopmentBrief === true}
+        meriProspectToolsEnabled={me.data.features.businessDevelopmentMeriProspectTools === true}
       />
     );
   }

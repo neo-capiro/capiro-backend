@@ -450,6 +450,44 @@ export function businessDevelopmentPdlPeopleEnabled(settings: unknown): boolean 
   return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_PDL_PEOPLE_FLAG, false);
 }
 
+// ── Business Development Phase 4 — brief surface + Meri tool flags ──────────
+
+/**
+ * Phase 4 — the brief UI/API surface. Gates every brief route (an additional
+ * guard on top of Phase 1/2 flags, exactly like the dossier flag). Default
+ * OFF; fail-closed 404 when off.
+ */
+export const BUSINESS_DEVELOPMENT_BRIEF_FLAG = 'businessDevelopment.brief.enabled' as const;
+
+export function businessDevelopmentBriefEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_BRIEF_FLAG, false);
+}
+
+/**
+ * Phase 4 — Meri prospect tools (brief generation/editing through Meri).
+ * Independent of the brief UI flag so the API surface can be canaried
+ * separately from assistant-driven use. Default OFF.
+ */
+export const BUSINESS_DEVELOPMENT_MERI_PROSPECT_TOOLS_FLAG =
+  'businessDevelopment.meriProspectTools.enabled' as const;
+
+export function businessDevelopmentMeriProspectToolsEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_MERI_PROSPECT_TOOLS_FLAG, false);
+}
+
+/**
+ * Phase 4 — assisted deterministic claim validation inside briefs (identity /
+ * citation / exact amount / date / stage checks). BD-CLAIM Jev semantic
+ * validation stays DARK regardless; this flag only exposes the deterministic
+ * checker endpoints. Default OFF.
+ */
+export const BUSINESS_DEVELOPMENT_CLAIM_VALIDATION_FLAG =
+  'businessDevelopment.claimValidation.enabled' as const;
+
+export function businessDevelopmentClaimValidationEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_CLAIM_VALIDATION_FLAG, false);
+}
+
 // ── Business Development Phase 3 — Jev task-mode enrollment flags ──────────
 
 /**

@@ -4587,6 +4587,46 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat'],
   },
   {
+    name: 'get_business_development_context',
+    description:
+      "Read the minimum safe context for the business-development prospect this chat is scoped to: identity (id, display name, stage, owner, service hypothesis, geography, next action, confirmed canonical organization and linked client), the firm's business-development preferences, and the 20 most recent activity history entries. Never returns conflict data, contact/provider payloads, or unrelated tenant settings. Requires a prospect-scoped conversation.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_business_development_evidence',
+    description:
+      "Read the locally synchronized dossier evidence for the prospect this chat is scoped to: identity basis, per-section source status, and up to 24 flattened evidence records with stable source ids, locators, relationship strength, factual fields and event/effective/source-update/retrieval dates. Truthfully reports total, truncated and partial coverage; an absent or partial section is not proof of absence. Reads local data only — never calls an external provider.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_business_development_brief',
+    description:
+      "Read the current versioned prospect brief for the prospect this chat is scoped to: title, version number, the five sections (companyAndFirmImplication, verifiedEvidence, judgment, practicalAction, missingInformation) with text, provenance and citation indexes, plus the citation records. A missing brief is reported as missing; it never fabricates one.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'resolve_business_development_source',
+    description:
+      "Resolve one citation index of the prospect brief this chat is scoped to back to its inspectable source: the citation record, the evidence item it rests on, and whether the source still matches the current dossier. Source limitations (index out of range, no brief, source changed) are reported truthfully, never papered over.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'save_business_development_brief',
+    description:
+      'Save a new version of the prospect brief this chat is scoped to, from the current version. Accepts the expected version number, an optional bounded title, and exactly five sections (companyAndFirmImplication, verifiedEvidence, judgment, practicalAction, missingInformation), each with text and existing citation indexes only — section provenance is forced to generated and citation records cannot be submitted. Deterministically idempotent per conversation, version and content; a stale version number conflicts rather than overwriting. Requires user approval. Never sends email or outreach.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
     name: 'get_district_federal_market',
     description:
       'Get source-backed federal-market activity for a congressional geography. Contract obligations and explicitly district-resolved subawards are separate awarded-money rails. State-backed subawards that lack a district are returned separately and never attributed to the requested district. SAM opportunities and agency forecasts are future signals and never included in awarded totals. Optionally pass clientId to scope awarded activity to that client’s reviewed federal identities.',

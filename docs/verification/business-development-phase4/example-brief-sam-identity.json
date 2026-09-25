@@ -1,0 +1,99 @@
+{
+  "artifactKind": "business-development-brief-example",
+  "redaction": "Tenant, user, conversation, internal relationship, and contact identifiers removed.",
+  "brief": {
+    "id": "00000000-0000-4000-8000-000000000041",
+    "tenantId": "00000000-0000-4000-8000-000000000001",
+    "prospectId": "00000000-0000-4000-8000-000000000011",
+    "title": "SATCOM Direct Government opportunity brief",
+    "status": "draft",
+    "currentVersionNumber": 2,
+    "currentVersionId": "00000000-0000-4000-8000-000000000042",
+    "createdByUserId": null,
+    "createdAt": "2026-09-25T12:00:00.000Z",
+    "updatedAt": "2026-09-25T12:15:00.000Z"
+  },
+  "version": {
+    "id": "00000000-0000-4000-8000-000000000042",
+    "versionNumber": 2,
+    "createdAt": "2026-09-25T12:15:00.000Z",
+    "createdByUserId": null,
+    "sectionsHash": "fixture-sha256-sam-identity-v2",
+    "snapshotHash": "fixture-sha256-sam-identity-snapshot",
+    "sections": {
+      "companyAndFirmImplication": {
+        "text": "SAM.gov verifies the prospect's legal entity by exact UEI and reports an active registration. Whether the entity fits the firm's practices is an inference that still requires the firm's stated priorities.",
+        "provenance": "generated",
+        "citationIndexes": [0]
+      },
+      "verifiedEvidence": {
+        "text": "The exact-UEI SAM.gov record identifies SATCOM DIRECT GOVERNMENT, LLC, UEI FM1QY7CA5VD5, CAGE 68G21, with an active registration and a reported expiration date of 2026-10-30.",
+        "provenance": "generated",
+        "citationIndexes": [0]
+      },
+      "judgment": {
+        "text": "This record is strong identity evidence. It does not establish a contract award, procurement intent, buyer relationship, lobbying activity, or a particular program-office role.",
+        "provenance": "generated",
+        "citationIndexes": [0]
+      },
+      "practicalAction": {
+        "text": "Confirm the firm's relevant practice area and inspect authorized award and opportunity records before requesting any outreach draft.",
+        "provenance": "edited",
+        "citationIndexes": [0]
+      },
+      "missingInformation": {
+        "text": "No specific award, solicitation, buyer, internal relationship, or meeting path is established by this identity record. Event and publication dates were not supplied; only the retrieval time and registration expiration field were available.",
+        "provenance": "generated",
+        "citationIndexes": [0]
+      }
+    },
+    "citations": [
+      {
+        "sourceFamily": "sam_entity",
+        "recordId": "FM1QY7CA5VD5",
+        "locator": "https://sam.gov/entity-registration/FM1QY7CA5VD5",
+        "originalSourceName": "SAM.gov",
+        "originalSourceId": "FM1QY7CA5VD5",
+        "eventDate": null,
+        "sourceUpdatedAt": null,
+        "retrievedAt": "2026-09-24T23:42:00.000Z",
+        "title": "Exact UEI registration match for SATCOM DIRECT GOVERNMENT, LLC",
+        "relationshipStrength": "direct",
+        "stage": null
+      }
+    ],
+    "sourceSnapshot": {
+      "generatedAt": "2026-09-25T12:00:00.000Z",
+      "identityBasis": "confirmed_canonical_entity",
+      "canonicalEntityId": "00000000-0000-4000-8000-000000000021",
+      "canonicalName": "SATCOM DIRECT GOVERNMENT, LLC",
+      "evidence": [
+        {
+          "sourceFamily": "sam_entity",
+          "recordId": "FM1QY7CA5VD5",
+          "locator": "https://sam.gov/entity-registration/FM1QY7CA5VD5",
+          "originalSourceName": "SAM.gov",
+          "originalSourceId": "FM1QY7CA5VD5",
+          "claimType": "identity",
+          "relationshipStrength": "direct",
+          "eventDate": null,
+          "effectiveDate": "2026-10-30",
+          "fiscalYear": null,
+          "stage": null,
+          "sourceUpdatedAt": null,
+          "fetchedAt": "2026-09-24T23:42:00.000Z",
+          "scopeChecked": "uei=FM1QY7CA5VD5",
+          "status": "available",
+          "title": "Exact UEI registration match for SATCOM DIRECT GOVERNMENT, LLC",
+          "detail": {
+            "legalBusinessName": "SATCOM DIRECT GOVERNMENT, LLC",
+            "uei": "FM1QY7CA5VD5",
+            "cageCode": "68G21",
+            "registrationStatus": "Active",
+            "registrationExpirationDate": "2026-10-30"
+          }
+        }
+      ]
+    }
+  }
+}

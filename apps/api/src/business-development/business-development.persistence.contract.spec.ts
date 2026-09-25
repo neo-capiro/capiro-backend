@@ -30,6 +30,12 @@ const recoveryMigrationPath = join(
 );
 const recoveryMigration = readFileSync(recoveryMigrationPath, 'utf8');
 
+const phase4MigrationPath = join(
+  __dirname,
+  '../../prisma/migrations/20280927010000_business_development_phase4_brief/migration.sql',
+);
+const phase4Migration = readFileSync(phase4MigrationPath, 'utf8');
+
 describe('migration: three new tenant tables', () => {
   for (const table of [
     'business_development_prospects',
@@ -254,9 +260,7 @@ describe('migration: shadow SQL-NULL recovery scope is narrow', () => {
   test('idempotency keys move to a deterministic unique recovery namespace under 400 chars', () => {
     // Deterministic (depends only on the row id), unique, and namespace-
     // prefixed so a post-hotfix open can insert a fresh decision row.
-    expect(recoveryMigration).toMatch(
-      /"idempotency_key"\s*=\s*'[^']*'\s*\|\|\s*"id"::text/,
-    );
+    expect(recoveryMigration).toMatch(/"idempotency_key"\s*=\s*'[^']*'\s*\|\|\s*"id"::text/);
     // Recovery namespace prefix must differ from the live-key format
     // (tenant|task|mode|versions|hashes joined by '|', no fixed prefix).
     const prefixMatch = recoveryMigration.match(/'(shadow-null-completion-recovery-[0-9]+)\|'/);
@@ -269,15 +273,71 @@ describe('migration: shadow SQL-NULL recovery scope is narrow', () => {
     // Re-run is a no-op: recovered rows no longer match status = 'pending'.
     expect(recoveryMigration).toMatch(/WHERE "mode" = 'shadow'\s+AND "status" = 'pending'/);
     // Guarded by pg_tables/pg_constraint existence checks like the parent migration.
-    expect(recoveryMigration).toMatch(/pg_tables WHERE tablename = 'business_development_jev_decisions'/);
-    expect(recoveryMigration).toMatch(/pg_constraint[\s\S]*?business_development_jev_decisions_shadow_invisible_check/);
+    expect(recoveryMigration).toMatch(
+      /pg_tables WHERE tablename = 'business_development_jev_decisions'/,
+    );
+    expect(recoveryMigration).toMatch(
+      /pg_constraint[\s\S]*?business_development_jev_decisions_shadow_invisible_check/,
+    );
     expect(recoveryMigration).not.toMatch(/DELETE|DROP|TRUNCATE|INSERT|CREATE TABLE/i);
   });
 
   test('recovery never mutates prompts/source text (redaction invariant untouched)', () => {
     // The trace table stores only hashes/ids; the recovery must not widen it.
-    for (const banned of ['envelope_hash', 'source_ids', 'source_hashes_jsonb', 'candidate_inventory_hash']) {
+    for (const banned of [
+      'envelope_hash',
+      'source_ids',
+      'source_hashes_jsonb',
+      'candidate_inventory_hash',
+    ]) {
       expect(recoveryMigration).not.toContain(`"${banned}"`);
     }
+  });
+});
+
+describe('migration: Phase 4 versioned prospect briefs', () => {
+  for (const table of ['business_development_briefs', 'business_development_brief_versions']) {
+    test(`${table} is tenant isolated with forced RLS`, () => {
+      expect(phase4Migration).toContain(`CREATE TABLE "${table}"`);
+      expect(phase4Migration).toContain(`ALTER TABLE "${table}" ENABLE ROW LEVEL SECURITY`);
+      expect(phase4Migration).toContain(`ALTER TABLE "${table}" FORCE ROW LEVEL SECURITY`);
+      expect(phase4Migration).toContain(`CREATE POLICY "${table}_isolation" ON "${table}"`);
+    });
+  }
+
+  test('prospect and version relationships are tenant-safe', () => {
+    expect(phase4Migration).toMatch(
+      /FOREIGN KEY \("tenant_id", "prospect_id"\)[\s\S]*?REFERENCES "business_development_prospects"\("tenant_id", "id"\)/,
+    );
+    expect(phase4Migration).toMatch(
+      /FOREIGN KEY \("tenant_id", "brief_id"\)[\s\S]*?REFERENCES "business_development_briefs"\("tenant_id", "id"\)/,
+    );
+  });
+
+  test('current version must belong to the same brief', () => {
+    expect(phase4Migration).toContain('UNIQUE ("tenant_id", "id", "brief_id")');
+    expect(phase4Migration).toMatch(
+      /FOREIGN KEY \("tenant_id", "current_version_id", "id"\)[\s\S]*?REFERENCES "business_development_brief_versions"\("tenant_id", "id", "brief_id"\)/,
+    );
+  });
+
+  test('versions are insert-only for the application role and idempotent', () => {
+    expect(phase4Migration).toContain(
+      'GRANT SELECT, INSERT ON "business_development_brief_versions" TO capiro_app',
+    );
+    expect(phase4Migration).toContain(
+      'REVOKE UPDATE, DELETE, TRUNCATE ON "business_development_brief_versions" FROM capiro_app',
+    );
+    expect(phase4Migration).toContain(
+      'ON "business_development_brief_versions"("tenant_id", "brief_id", "idempotency_key")',
+    );
+    expect(phase4Migration).toMatch(/CHECK \("idempotency_op" IN \('create', 'edit', 'accept'\)\)/);
+  });
+
+  test('Prisma schema maps the stable root and immutable versions', () => {
+    expect(schema).toContain('model BusinessDevelopmentBrief {');
+    expect(schema).toContain('model BusinessDevelopmentBriefVersion {');
+    expect(schema).toContain('@@unique([tenantId, id, briefId]');
+    expect(schema).toContain('idempotencyFingerprint');
   });
 });

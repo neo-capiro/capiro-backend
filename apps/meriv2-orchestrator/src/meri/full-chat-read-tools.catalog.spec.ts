@@ -45,6 +45,7 @@ describe('FULL_CHAT_READ_TOOLS catalog', () => {
       'search_cbo_cost_estimates',
       'resolve_entity',
       'get_bill_status',
+      'get_certification_status',
       'search_floor_votes',
       'search_public_web',
       'scrape_web_page',
@@ -77,9 +78,13 @@ describe('FULL_CHAT_READ_TOOLS catalog', () => {
       'search_contract_vehicles',
       'search_procurement_forecasts',
       'get_district_federal_market',
+      'get_business_development_context',
+      'get_business_development_evidence',
+      'get_business_development_brief',
+      'resolve_business_development_source',
     ].sort();
     expect(FULL_CHAT_READ_TOOLS.map((t) => t.name).sort()).toEqual(expected);
-    expect(FULL_CHAT_READ_TOOLS).toHaveLength(57);
+    expect(FULL_CHAT_READ_TOOLS).toHaveLength(62);
     expect(FULL_CHAT_READ_TOOLS.every((t) => t.readOnly === true)).toBe(true);
   });
 
@@ -99,7 +104,7 @@ describe('Combined delegated-tool coverage (in-editor + write + full-chat-read)'
     ].sort();
     expect(combined).toEqual(ALL_APPS_API_TOOLS);
     expect(new Set(combined).size).toBe(combined.length); // no tool double-registered
-    expect(combined).toHaveLength(104);
+    expect(combined).toHaveLength(111);
   });
 
   it('W4.6 / D-13: the three catalogs match the canonical MERI_TOOL_MANIFEST VERBATIM (name AND description) — catches description drift the name-only check missed', () => {

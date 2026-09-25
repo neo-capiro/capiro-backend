@@ -8,6 +8,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
@@ -33,6 +34,20 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { LearningSignalCaptureService } from '../learning/learning-signal-capture.service.js';
 import { buildMeriFeedbackSignal } from '../learning/adapters/meri-feedback.adapter.js';
 import { QualityTelemetryCaptureService } from '../quality-telemetry/quality-telemetry-capture.service.js';
+// Phase 4 server-only slice: BD prospect scope for prospect-scoped Meri
+// conversation creation. Optional so existing direct-construction specs keep
+// compiling; runtime Nest wiring (MeriModule ← BusinessDevelopmentModule)
+// always provides it, and a prospect request without it fails closed.
+import {
+  BizDevMeriScopeService,
+  MERI_PROSPECT_SCOPE_METADATA_KEY,
+  type MeriProspectScope,
+} from '../business-development/bizdev-meri-scope.service.js';
+import {
+  authorizeMeriProspectScope,
+  prospectScopeDirective,
+  prospectTurnScopeReceipt,
+} from './meri-prospect-scope.helpers.js';
 import { buildMeriFeedbackTelemetryEvent } from '../quality-telemetry/adapters/meri-feedback.telemetry-adapter.js';
 import {
   applyRecallScoreFloor,
@@ -189,6 +204,10 @@ import { shouldRouteMeriV2FullChat } from './meriv2-routing.helpers.js';
 interface CreateConversationInput {
   clientId?: string;
   title?: string;
+  // Phase 4 server-only slice: BD prospect the conversation is scoped to.
+  // The server resolves the full bounded scope; the client may supply ONLY
+  // this id — never any other prospect scope field.
+  prospectId?: string;
 }
 
 interface UpdateConversationInput {
@@ -309,6 +328,11 @@ export class MeriService implements MeriTurnMaintenance {
     // learningSignals above: absent means no event recorded, no other
     // behavior change to the feedback write itself.
     private readonly qualityTelemetry?: QualityTelemetryCaptureService,
+    // Phase 4 server-only slice: @Optional() so existing direct-construction
+    // tests don't all break; Nest runtime wiring provides it via
+    // BusinessDevelopmentModule. A prospect request with it unavailable
+    // fails closed in createConversation.
+    @Optional() private readonly bizdevScope?: BizDevMeriScopeService,
   ) {}
 
   async status(ctx: TenantContext) {
@@ -353,8 +377,34 @@ export class MeriService implements MeriTurnMaintenance {
 
   async createConversation(ctx: TenantContext, input: CreateConversationInput) {
     const title = input.title?.trim() || 'New Meri session';
-    if (input.clientId) {
-      await this.ensureClientVisible(ctx, input.clientId);
+    let resolvedClientId = input.clientId ?? null;
+    // ── Phase 4 server-only slice: prospect-scoped conversation creation ──
+    // Resolve the bounded prospect scope SERVER-side before any write. A
+    // prospect request with the optional scope service unavailable fails
+    // closed (the feature does not exist for this caller).
+    let prospectScope: MeriProspectScope | null = null;
+    if (input.prospectId) {
+      if (!this.bizdevScope) throw new NotFoundException();
+      prospectScope = await this.bizdevScope.resolve(ctx, input.prospectId);
+      if (prospectScope.linkedClientId) {
+        if (resolvedClientId && resolvedClientId !== prospectScope.linkedClientId) {
+          throw new BadRequestException(
+            'This prospect is already linked to a different client.',
+          );
+        }
+        resolvedClientId = prospectScope.linkedClientId;
+      } else if (resolvedClientId) {
+        // No confirmed linked client on the prospect: the caller may not
+        // select an arbitrary client to attach a prospect conversation to.
+        throw new BadRequestException(
+          'This prospect has no linked client, so a client cannot be selected for it.',
+        );
+      }
+    }
+    if (resolvedClientId) {
+      // Linked and directly selected clients use the same visibility check,
+      // exactly once, before the conversation is written.
+      await this.ensureClientVisible(ctx, resolvedClientId);
     }
     const profile = await this.currentProfile(ctx);
 
@@ -363,14 +413,21 @@ export class MeriService implements MeriTurnMaintenance {
         data: {
           tenantId: ctx.tenantId,
           userId: ctx.userId,
-          clientId: input.clientId ?? null,
+          clientId: resolvedClientId,
           title,
           workspaceKey: 'workspace',
           metadata: {
             brand: PRODUCT_NAME,
             runtime: RUNTIME_NAME,
             userEmail: profile.email,
-          },
+            ...(prospectScope
+              ? {
+                  [MERI_PROSPECT_SCOPE_METADATA_KEY]: JSON.parse(
+                    JSON.stringify(prospectScope),
+                  ) as Prisma.InputJsonValue,
+                }
+              : {}),
+          } satisfies Prisma.InputJsonValue,
         },
       }),
     );
@@ -606,6 +663,16 @@ export class MeriService implements MeriTurnMaintenance {
     impersonateTenantId?: string,
   ) {
     const conversation = await this.ensureConversation(ctx, conversationId);
+    // Phase 4 prospect-scope authorization re-check: BEFORE any user-message
+    // write, model dispatch, native tool dispatch, or isolated MeriV2/Hermes
+    // runtime dispatch for a prospect-scoped conversation, re-assert the
+    // server-persisted scope is current. Fail closed on missing/malformed/
+    // stale scope; ordinary unscoped conversations proceed unchanged.
+    const prospectScope = await authorizeMeriProspectScope(
+      this.bizdevScope,
+      ctx,
+      conversation.metadata,
+    );
     const streamControl = this.extractStreamControl(body);
 
     // Compliance pre-screen (P1-7): audit-log clearly high-risk asks. Does not
@@ -1038,6 +1105,9 @@ export class MeriService implements MeriTurnMaintenance {
         // apps/api calls; apps/api re-validates the impersonation authz (2.5).
         ...(impersonateTenantId ? { impersonateTenantId } : {}),
         conversationSummary,
+        // Phase 4: the re-asserted prospect scope rides the proxy branch so it
+        // can bind the directive and receipt on that path too.
+        prospectScope,
         ...(clientSignal ? { clientSignal } : {}),
       });
       return;
@@ -1074,6 +1144,10 @@ export class MeriService implements MeriTurnMaintenance {
       conversationSummary,
       firmSkill,
       orchestration.activeClient,
+      // Phase 4: the server-authored prospect directive binds the selected
+      // prospect into the legacy system prompt (dynamic tail, never the
+      // cached base — same rule as the client-scope directive).
+      prospectScope,
     );
 
     sse.write(
@@ -2071,6 +2145,11 @@ export class MeriService implements MeriTurnMaintenance {
             // `trace` above, which already means a different shape on this path.
             plan: planStepsForTurn,
             trustSteps: trustStepsForHistory as unknown as Prisma.InputJsonValue,
+            // Phase 4: prospect-scoped turn receipt, captured from the
+            // re-asserted server scope — never retrieval plans/model output.
+            ...(prospectScope
+              ? { turnScope: prospectTurnScopeReceipt(prospectScope) as unknown as Prisma.InputJsonValue }
+              : {}),
             ...(complianceScreen.flagged
               ? { compliance: { flagged: true, category: complianceScreen.category } }
               : {}),
@@ -2165,7 +2244,13 @@ export class MeriService implements MeriTurnMaintenance {
     if (assistantMessageId) this.scheduleAfterTurnMaintenance(ctx, conversationId);
 
     sse.write(
-      `data: ${JSON.stringify({ type: 'done', finishReason, partial, ...(assistantMessageId ? { messageId: assistantMessageId } : {}) })}\n\n`,
+      `data: ${JSON.stringify({
+        type: 'done',
+        finishReason,
+        partial,
+        ...(assistantMessageId ? { messageId: assistantMessageId } : {}),
+        ...(prospectScope ? { turnScope: prospectTurnScopeReceipt(prospectScope) } : {}),
+      })}\n\n`,
     );
   }
 
@@ -2199,6 +2284,7 @@ export class MeriService implements MeriTurnMaintenance {
     selectedDocumentIds: string[];
     impersonateTenantId?: string;
     conversationSummary: string | null;
+    prospectScope: MeriProspectScope | null;
   }): Promise<void> {
     const { ctx, sse } = args;
     const emit = (event: Record<string, unknown>) =>
@@ -2435,6 +2521,10 @@ export class MeriService implements MeriTurnMaintenance {
           ...(typeof preferredTimeZone === 'string' ? { timeZone: preferredTimeZone } : {}),
           ...(skillAddendum ? { skillAddendum } : {}),
           ...(args.conversationSummary ? { conversationSummary: args.conversationSummary } : {}),
+          // Phase 4: server-authored active-prospect directive (bounded fields).
+          ...(args.prospectScope
+            ? { prospectDirective: prospectScopeDirective(args.prospectScope) }
+            : {}),
           ...(clientKbSnapshot ? { clientKbSnapshot } : {}),
           ...(args.pageWriteEnabled ? { pageWrite: true } : {}),
           ...(args.currentTurnImages.length
@@ -2599,6 +2689,11 @@ export class MeriService implements MeriTurnMaintenance {
               // on this path — there's no plan concept in the MeriV2 orchestrator
               // loop, a pre-existing product gap, not something to invent here.
               trustSteps: steps as unknown as Prisma.InputJsonValue,
+              // Phase 4: prospect-scoped turn receipt, captured from the
+              // re-asserted server scope — never retrieval plans/model output.
+              ...(args.prospectScope
+                ? { turnScope: prospectTurnScopeReceipt(args.prospectScope) as unknown as Prisma.InputJsonValue }
+                : {}),
               actions: steps
                 .filter((s) => s.status === 'done' && isSideEffectingTool(s.tool))
                 .map((s) => ({ tool: s.tool, kind: classifyToolAction(s.tool), ok: true })),
@@ -2652,7 +2747,11 @@ export class MeriService implements MeriTurnMaintenance {
       emit({ type: 'error', message: errorMessage });
       return;
     }
-    emit({ type: 'done', ...(assistantMessageId ? { messageId: assistantMessageId } : {}) });
+    emit({
+      type: 'done',
+      ...(assistantMessageId ? { messageId: assistantMessageId } : {}),
+      ...(args.prospectScope ? { turnScope: prospectTurnScopeReceipt(args.prospectScope) } : {}),
+    });
   }
 
   /** PNG bytes for an analysis-chart artifact (F4 chat/docgen rendering). */
@@ -3594,6 +3693,7 @@ export class MeriService implements MeriTurnMaintenance {
     conversationSummary: string | null = null,
     firmSkill: MeriSkill | null = null,
     activeClient: { id: string; name: string } | null = null,
+    prospectScope: MeriProspectScope | null = null,
   ): { base: string; dynamic: string } {
     const base = [
       'You are Meri, an elite AI chief of staff designed exclusively for government affairs professionals.',
@@ -3668,6 +3768,10 @@ export class MeriService implements MeriTurnMaintenance {
     // client that survives in a tool result. Per-conversation, so it belongs in
     // the uncached tail — never the shared cached base.
     if (activeClient) tail.push(clientScopeDirective(activeClient.name));
+    // Phase 4 prospect scope goes beside the client scope: it constrains
+    // everything that follows and must sit in the per-conversation dynamic
+    // tail, never the shared cached base.
+    if (prospectScope) tail.push(prospectScopeDirective(prospectScope));
     if (guidance) tail.push(guidance);
     if (template) {
       tail.push(`Output template: ${template.heading}`);
@@ -3692,6 +3796,7 @@ export class MeriService implements MeriTurnMaintenance {
     conversationSummary: string | null = null,
     firmSkill: MeriSkill | null = null,
     activeClient: { id: string; name: string } | null = null,
+    prospectScope: MeriProspectScope | null = null,
   ): SystemTextBlock[] {
     const { base, dynamic } = this.composeSystemParts(
       intent,
@@ -3700,6 +3805,7 @@ export class MeriService implements MeriTurnMaintenance {
       conversationSummary,
       firmSkill,
       activeClient,
+      prospectScope,
     );
     return buildMeriSystemBlocks({ base, dynamic, cacheEnabled });
   }

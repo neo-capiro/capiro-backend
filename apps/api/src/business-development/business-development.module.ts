@@ -7,6 +7,9 @@ import { BusinessDevelopmentService } from './business-development.service.js';
 import { BusinessDevelopmentFlagGuard } from './business-development-flag.guard.js';
 import { BizDevDossierService } from './bizdev-dossier.service.js';
 import { BusinessDevelopmentDossierFlagGuard } from './bizdev-dossier.flag.guard.js';
+import { BizDevBriefService } from './bizdev-brief.service.js';
+import { BusinessDevelopmentBriefFlagGuard } from './bizdev-brief.flag.guard.js';
+import { BusinessDevelopmentClaimValidationFlagGuard } from './bizdev-claim-validation.flag.guard.js';
 import {
   BizDevJevService,
   BIZDEV_JEV_FACTORY,
@@ -14,6 +17,7 @@ import {
   BIZDEV_JEV_SERVICE,
 } from './bizdev-jev.service.js';
 import { BizDevJevProviderFactory } from './bizdev-jev.factory.js';
+import { BizDevMeriScopeService } from './bizdev-meri-scope.service.js';
 
 /**
  * Business Development Phase 1 — firm-private prospect pipeline.
@@ -44,18 +48,28 @@ import { BizDevJevProviderFactory } from './bizdev-jev.factory.js';
     BusinessDevelopmentFlagGuard,
     BizDevDossierService,
     BusinessDevelopmentDossierFlagGuard,
+    BizDevBriefService,
+    BusinessDevelopmentBriefFlagGuard,
+    BusinessDevelopmentClaimValidationFlagGuard,
     BizDevJevProviderFactory,
     { provide: BIZDEV_JEV_FACTORY, useExisting: BizDevJevProviderFactory },
     BizDevJevService,
     { provide: BIZDEV_JEV_SERVICE, useExisting: BizDevJevService },
     { provide: BIZDEV_JEV_REVIEW_HOOK, useExisting: BizDevJevService },
+    // Phase 4 server-only slice: bounded Meri prospect-conversation scope
+    // resolution (exported for MeriModule; BD must never import Meri).
+    BizDevMeriScopeService,
   ],
   exports: [
     BusinessDevelopmentService,
     BusinessDevelopmentFlagGuard,
     BizDevDossierService,
     BusinessDevelopmentDossierFlagGuard,
+    BizDevBriefService,
+    BusinessDevelopmentBriefFlagGuard,
+    BusinessDevelopmentClaimValidationFlagGuard,
     BizDevJevService,
+    BizDevMeriScopeService,
   ],
 })
 export class BusinessDevelopmentModule {}

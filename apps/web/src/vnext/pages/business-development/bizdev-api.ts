@@ -363,6 +363,10 @@ export const bizdevKeys = {
       'section',
       section,
     ] as const,
+  brief: (tenantId: string, prospectId: string) =>
+    ['business-development', tenantId, 'prospect', prospectId, 'brief'] as const,
+  briefVersions: (tenantId: string, prospectId: string) =>
+    ['business-development', tenantId, 'prospect', prospectId, 'brief', 'versions'] as const,
 };
 
 // ── Phase 2 — candidate search + dossier (exact backend contract) ───────
@@ -602,6 +606,215 @@ export function getBizDevProspectDossier(
       { params: section ? { section } : {} },
     )
     .then((r) => r.data);
+}
+
+// ── Phase 4 — editable, versioned prospect briefs ─────────────────────
+
+export const BIZDEV_BRIEF_SECTION_KEYS = [
+  'companyAndFirmImplication',
+  'verifiedEvidence',
+  'judgment',
+  'practicalAction',
+  'missingInformation',
+] as const;
+export type BizDevBriefSectionKey = (typeof BIZDEV_BRIEF_SECTION_KEYS)[number];
+
+export interface BizDevBriefSectionContent {
+  text: string;
+  provenance: 'generated' | 'edited';
+  citationIndexes: number[];
+}
+
+export type BizDevBriefSections = Record<BizDevBriefSectionKey, BizDevBriefSectionContent>;
+
+export interface BizDevBriefCitation {
+  sourceFamily: string;
+  recordId: string;
+  locator: string | null;
+  originalSourceName: string | null;
+  originalSourceId: string | null;
+  eventDate: string | null;
+  sourceUpdatedAt: string | null;
+  retrievedAt: string | null;
+  title: string;
+  relationshipStrength: string;
+  stage: string | null;
+}
+
+export interface BizDevBriefSourceSnapshot {
+  generatedAt: string;
+  identityBasis: string;
+  canonicalEntityId: string | null;
+  canonicalName: string | null;
+  evidence: BizDevEvidenceItem[];
+}
+
+export interface BizDevBriefVersionSummary {
+  id: string;
+  versionNumber: number;
+  createdAt: string;
+  createdByUserId: string | null;
+  sectionsHash: string;
+  citationCount: number;
+}
+
+export interface BizDevBriefVersionDetail extends BizDevBriefVersionSummary {
+  sections: BizDevBriefSections;
+  citations: BizDevBriefCitation[];
+  sourceSnapshot: BizDevBriefSourceSnapshot;
+  snapshotHash: string;
+}
+
+export interface BizDevBriefSummary {
+  id: string;
+  tenantId: string;
+  prospectId: string;
+  title: string;
+  status: 'draft' | 'archived';
+  currentVersionNumber: number | null;
+  currentVersionId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdByUserId: string | null;
+}
+
+export interface BizDevCurrentBriefResult {
+  brief: BizDevBriefSummary | null;
+  currentVersion: BizDevBriefVersionDetail | null;
+}
+
+export interface BizDevBriefWriteResult {
+  brief: BizDevBriefSummary;
+  version: BizDevBriefVersionDetail;
+  created: boolean;
+}
+
+export interface BizDevBriefRefreshProposal {
+  baseVersionNumber: number;
+  proposed: BizDevBriefSections;
+  diff: Array<{
+    section: BizDevBriefSectionKey;
+    changed: boolean;
+    baseText: string;
+    proposedText: string;
+  }>;
+  sourceSnapshot: BizDevBriefSourceSnapshot;
+  snapshotHash: string;
+}
+
+export type BizDevBriefCitationResolution =
+  | {
+      resolvable: true;
+      citation: BizDevBriefCitation;
+      sourceSnapshotEvidence: BizDevEvidenceItem | null;
+      currentDossierEvidence: BizDevEvidenceItem | null;
+    }
+  | {
+      resolvable: false;
+      limitation: 'citation_index_out_of_range' | 'brief_not_found' | 'source_changed';
+      message: string;
+      citation: BizDevBriefCitation | null;
+    };
+
+export function getBizDevCurrentBrief(api: AxiosInstance, prospectId: string) {
+  return api
+    .get<BizDevCurrentBriefResult>(
+      `/api/business-development/prospects/${encodeURIComponent(prospectId)}/brief`,
+    )
+    .then((response) => response.data);
+}
+
+export function createBizDevBrief(
+  api: AxiosInstance,
+  prospectId: string,
+  input: { idempotencyKey: string; title?: string },
+) {
+  return api
+    .post<BizDevBriefWriteResult>(
+      `/api/business-development/prospects/${encodeURIComponent(prospectId)}/brief/versions`,
+      input,
+    )
+    .then((response) => response.data);
+}
+
+export function saveBizDevBrief(
+  api: AxiosInstance,
+  prospectId: string,
+  input: {
+    idempotencyKey: string;
+    expectedVersionNumber: number;
+    sections: BizDevBriefSections;
+    title?: string;
+  },
+) {
+  return api
+    .put<BizDevBriefWriteResult>(
+      `/api/business-development/prospects/${encodeURIComponent(prospectId)}/brief/versions`,
+      input,
+    )
+    .then((response) => response.data);
+}
+
+export function getBizDevBriefRefreshProposal(api: AxiosInstance, prospectId: string) {
+  return api
+    .get<BizDevBriefRefreshProposal>(
+      `/api/business-development/prospects/${encodeURIComponent(prospectId)}/brief/refresh-proposal`,
+    )
+    .then((response) => response.data);
+}
+
+export function acceptBizDevBriefRefresh(
+  api: AxiosInstance,
+  prospectId: string,
+  input: {
+    idempotencyKey: string;
+    expectedVersionNumber: number;
+    keepUserEdits: boolean;
+  },
+) {
+  return api
+    .post<BizDevBriefWriteResult>(
+      `/api/business-development/prospects/${encodeURIComponent(prospectId)}/brief/refresh-accept`,
+      input,
+    )
+    .then((response) => response.data);
+}
+
+export function listBizDevBriefVersions(api: AxiosInstance, prospectId: string) {
+  return api
+    .get<{ brief: BizDevBriefSummary; versions: BizDevBriefVersionSummary[] }>(
+      `/api/business-development/prospects/${encodeURIComponent(prospectId)}/brief/versions`,
+    )
+    .then((response) => response.data);
+}
+
+export function getBizDevBriefVersion(
+  api: AxiosInstance,
+  prospectId: string,
+  versionNumber: number,
+) {
+  return api
+    .get<BizDevBriefVersionDetail>(
+      `/api/business-development/prospects/${encodeURIComponent(prospectId)}/brief/versions/${versionNumber}`,
+    )
+    .then((response) => response.data);
+}
+
+export function resolveBizDevBriefCitation(
+  api: AxiosInstance,
+  prospectId: string,
+  citationIndex: number,
+) {
+  return api
+    .get<BizDevBriefCitationResolution>(
+      `/api/business-development/prospects/${encodeURIComponent(prospectId)}/brief/citations`,
+      { params: { index: citationIndex } },
+    )
+    .then((response) => response.data);
+}
+
+export function newBizDevIdempotencyKey(operation: string): string {
+  return `bizdev-brief:${operation}:${crypto.randomUUID()}`;
 }
 
 /** Human API-error text; Nest ValidationPipe arrays joined, never raw ids. */

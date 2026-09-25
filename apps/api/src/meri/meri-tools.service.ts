@@ -151,6 +151,7 @@ import { projectMemoryContent } from './meri-memory-content.helpers.js';
 import { getResearchEvidence } from './meri-research-evidence.helpers.js';
 import { buildDocumentReadPage, parseDocumentReadInput } from './meri-document-read.helpers.js';
 import { MeriClientFilingService } from './meri-client-filing.service.js';
+import { MeriBizDevToolsService } from './meri-bizdev-tools.service.js';
 import { MeetingPrepJobService } from '../engagement/meeting-prep-job.service.js';
 import { meetingPrepEnabled } from '../engagement/meeting-prep-policy.js';
 import { fetchFedrampProducts } from '../external/fedramp/fedramp.client.js';
@@ -279,6 +280,9 @@ export class MeriToolsService {
     @Optional() private readonly clientFiling?: MeriClientFilingService,
     @Optional() private readonly meetingPrepJobs?: MeetingPrepJobService,
     @Optional() private readonly buyerWorkspace?: BuyerWorkspaceService,
+    // Phase 4 — business-development prospect tools. Optional: every handler
+    // lives in MeriBizDevToolsService (one place), the switch below delegates.
+    @Optional() private readonly bizDevTools?: MeriBizDevToolsService,
   ) {}
 
   manifest() {
@@ -286,6 +290,17 @@ export class MeriToolsService {
       brand: PRODUCT_NAME,
       tools: TOOL_DEFINITIONS,
     };
+  }
+
+  /**
+   * Phase 4 bizdev delegation guard. The constructor param is optional so
+   * non-DI consumers (specs) keep constructing MeriToolsService without it;
+   * an actual bizdev tool call without the service wired is a server
+   * misconfiguration, not a silent no-op.
+   */
+  private requireBizDevTools(): MeriBizDevToolsService {
+    if (!this.bizDevTools) throw new NotFoundException('Meri tool not found');
+    return this.bizDevTools;
   }
 
   /**
@@ -1589,6 +1604,88 @@ export class MeriToolsService {
         },
         ['clientId', 'source', 'sourceRecordId'],
       ),
+      // ── Business Development Phase 4 (prospect-scoped) ─────────────────
+      // Schemas enumerate ONLY the actual inputs. conversationId is optional
+      // in the schema (server-injected where applicable) but REQUIRED at
+      // handler level; the bizdev handlers fail closed without it. Authority
+      // fields (tenantId/userId/prospectId/canonical id/linked client/scope
+      // version) are not inputs at all.
+      get_business_development_context: obj({
+        conversationId: str('Exact current prospect chat conversation UUID'),
+      }),
+      get_business_development_evidence: obj({
+        conversationId: str('Exact current prospect chat conversation UUID'),
+      }),
+      get_business_development_brief: obj({
+        conversationId: str('Exact current prospect chat conversation UUID'),
+      }),
+      resolve_business_development_source: obj(
+        {
+          conversationId: str('Exact current prospect chat conversation UUID'),
+          citationIndex: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Citation index into the current brief version',
+          },
+        },
+        ['citationIndex'],
+      ),
+      save_business_development_brief: obj(
+        {
+          conversationId: str('Exact current prospect chat conversation UUID'),
+          expectedVersionNumber: {
+            type: 'integer',
+            minimum: 1,
+            description: 'The brief version number this edit is based on',
+          },
+          title: {
+            type: 'string',
+            maxLength: 300,
+            description: 'Optional brief title, at most 300 characters',
+          },
+          sections: {
+            type: 'object',
+            description:
+              'Exactly the five brief sections; each value carries only text and citationIndexes',
+            properties: Object.fromEntries(
+              [
+                'companyAndFirmImplication',
+                'verifiedEvidence',
+                'judgment',
+                'practicalAction',
+                'missingInformation',
+              ].map((key) => [
+                key,
+                {
+                  type: 'object',
+                  properties: {
+                    text: {
+                      type: 'string',
+                      maxLength: 4000,
+                      description: 'Section text, at most 4000 characters',
+                    },
+                    citationIndexes: {
+                      type: 'array',
+                      items: { type: 'integer', minimum: 0 },
+                      description:
+                        'Indexes into the current brief version citations; existing citations only',
+                    },
+                  },
+                  required: ['text', 'citationIndexes'],
+                },
+              ]),
+            ),
+            required: [
+              'companyAndFirmImplication',
+              'verifiedEvidence',
+              'judgment',
+              'practicalAction',
+              'missingInformation',
+            ],
+          },
+        },
+        ['expectedVersionNumber', 'sections'],
+      ),
     };
 
     const statusProvenanceEnabled =
@@ -2184,6 +2281,22 @@ export class MeriToolsService {
           source: String(input.source ?? ''),
           sourceRecordId: String(input.sourceRecordId ?? ''),
         });
+      // ── Business Development Phase 4 ───────────────────────────────────
+      // Pure delegation: every handler (including the fail-closed prospect
+      // scope gate) lives in MeriBizDevToolsService. The registry's
+      // readOnly:false on save_business_development_brief automatically
+      // places it in SIDE_EFFECTING_TOOLS and the existing
+      // proposal/approval flow; no handler logic is duplicated here.
+      case 'get_business_development_context':
+        return this.requireBizDevTools().getContext(ctx, input);
+      case 'get_business_development_evidence':
+        return this.requireBizDevTools().getEvidence(ctx, input);
+      case 'get_business_development_brief':
+        return this.requireBizDevTools().getBrief(ctx, input);
+      case 'resolve_business_development_source':
+        return this.requireBizDevTools().resolveSource(ctx, input);
+      case 'save_business_development_brief':
+        return this.requireBizDevTools().saveBrief(ctx, input);
       default:
         assertNever(name);
     }
