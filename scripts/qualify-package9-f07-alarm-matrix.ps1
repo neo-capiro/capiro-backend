@@ -128,9 +128,21 @@ $result = [ordered]@{
 }
 
 function Invoke-AwsCli([string[]]$Arguments) {
-  $output = & aws.exe @Arguments 2>&1
-  if ($LASTEXITCODE -ne 0) { throw "aws $($Arguments -join ' ') failed: $($output -join "`n")" }
-  return ($output -join "`n")
+  $priorPreference = $ErrorActionPreference
+  try {
+    # Windows PowerShell represents native stderr as ErrorRecord objects. Keep
+    # those in the captured output so LASTEXITCODE, not stream type, determines
+    # success and the caller receives the complete AWS error on failure.
+    $ErrorActionPreference = 'Continue'
+    $output = & aws.exe @Arguments 2>&1
+    $exitCode = $LASTEXITCODE
+  }
+  finally {
+    $ErrorActionPreference = $priorPreference
+  }
+  $text = $output -join "`n"
+  if ($exitCode -ne 0) { throw "aws $($Arguments -join ' ') failed (exit $exitCode): $text" }
+  return $text
 }
 function Add-Observation([string]$Phase, [string]$State, [string]$Detail, [object]$Extra = $null) {
   $row = [ordered]@{ at = (Get-Date).ToUniversalTime().ToString('o'); phase = $Phase; state = $State; detail = $Detail }
@@ -337,7 +349,9 @@ try {
 }
 catch {
   $result.result = 'FAIL'
-  Add-Observation 'failure' 'FAIL' $_.Exception.Message
+  $failureDetail = $_.Exception.Message
+  if ([string]::IsNullOrWhiteSpace($failureDetail)) { $failureDetail = ($_ | Out-String).Trim() }
+  Add-Observation 'failure' 'FAIL' $failureDetail ([pscustomobject]@{ errorType = $_.Exception.GetType().FullName; position = $_.InvocationInfo.PositionMessage })
 }
 finally {
   if ($null -ne $identity) {
