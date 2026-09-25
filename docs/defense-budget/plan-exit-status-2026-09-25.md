@@ -36,6 +36,21 @@ digest `sha256:eff8632487f7d390de7d7d4294605ab304ae481113bd0e0a5ea95fb30141d014`
 The bounded coordinator is task definition `:3`; both releases retain all
 protected activation flags false.
 
+A fresh bounded P5 dry-run on `capiro-dev-api-sync-jobs:34` exited 0 without
+`--commit`, examined five SAM rows and five awards, and reported no writes with
+all P5/P6 flags false. Both capped streams returned `hasMore=true`; the worker
+does not emit row-level relationships or residual records, so this is a safety
+check rather than the reviewed cohort required for Package 5/6 exit.
+
+A read-only Package 3 source audit identified the official GovInfo HASC FY2027
+report `CRPT-119hrpt698` at
+`https://www.govinfo.gov/content/pkg/CRPT-119hrpt698/pdf/CRPT-119hrpt698.pdf`
+with SHA-256
+`6587d1cec52d8d3eda3551648f50e4bc15371ea9167da2999e263e8c8e14480a`. It is
+still `NO_GO` for production admission: the exact persisted `SourceDocument`
+identity, supported parser-run proof in the durable artifact store, and the
+`congressional_structured_packet_v1` envelope are not yet established.
+
 Package 8 discovery hardening then merged as PR `#1821` at
 `5314441e03abe1cfc04e5297296fb7b74703bd0d`. The defense-api image was built
 by CodeBuild and pinned into the active hourly lifecycle coordinator as task

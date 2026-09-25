@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "package": 9,
   "evidenceType": "package-9-technical-completion-and-aws-deployment",
-  "updatedAt": "2026-09-25T20:12:00.000Z",
+  "updatedAt": "2026-09-25T20:23:00.000Z",
   "sourceControl": {
     "repository": "neo-capiro/capirov2",
     "runtimeSourceRevision": "72a9d6ac85fcbb1cc87426b3908854ac9b76e461",
@@ -106,7 +106,37 @@
     "trustedRuntimeSourceParity": "711/711 files; zero byte differences",
     "manifestAvailabilityTimestampRegression": "PASS (2/2 tests)",
     "package4FederalOutboxSafety": "PASS (7 focused tests)",
-    "package3CongressionalResolver": "PASS (7 focused suites / 86 tests)"
+    "package3CongressionalResolver": "PASS (7 focused suites / 86 tests)",
+    "package5NoWriteDryRun": {
+      "status": "PASS_LIMITED_SCOPE",
+      "taskDefinition": "capiro-dev-api-sync-jobs:34",
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/f3496c2934cc42d3a796def215d66a47",
+      "imageDigest": "sha256:c9a6287725c5b36262833c45d7629bf9ad27dd855ae423e0f59826c370fe2993",
+      "releaseSha": "d31604f6e489fdd76b5175241c6eeb547d2fcf0c",
+      "command": "sync-program-acquisition-continuity --cap 5",
+      "exitCode": 0,
+      "commit": false,
+      "flags": {
+        "programAcquisitionContinuityEnabled": false,
+        "fundingExecutionSourceAdapterEnabled": false,
+        "fundingExecutionPublicationEnabled": false
+      },
+      "sam": {
+        "examined": 5,
+        "records": 5,
+        "relationships": 0,
+        "hasMore": true
+      },
+      "awards": {
+        "examined": 5,
+        "records": 5,
+        "relationships": 0,
+        "coverageGaps": 0,
+        "hasMore": true
+      },
+      "writes": false,
+      "limitation": "Capped aggregate counters and cursors only; not a cohort-complete row or unresolved-allocation review packet."
+    }
   },
   "qualification": {
     "concurrentDurableDrainAndQuery": {
