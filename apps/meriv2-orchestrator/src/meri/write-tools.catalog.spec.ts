@@ -29,13 +29,14 @@ const EXPECTED_WRITE_TOOLS = [
   'create_task',
   'update_task',
   'update_client_profile',
+  'save_business_development_brief',
 ].sort();
 
 describe('WRITE_DELEGATED_TOOLS catalog', () => {
-  it('matches apps/api SIDE_EFFECTING_TOOLS exactly (23 tools)', () => {
+  it('matches apps/api SIDE_EFFECTING_TOOLS exactly (24 tools)', () => {
     const names = WRITE_DELEGATED_TOOLS.map((t) => t.name).sort();
     expect(names).toEqual(EXPECTED_WRITE_TOOLS);
-    expect(WRITE_DELEGATED_TOOLS).toHaveLength(23);
+    expect(WRITE_DELEGATED_TOOLS).toHaveLength(24);
   });
 
   it('is ALL write (readOnly:false) — the gate must fire for every one', () => {

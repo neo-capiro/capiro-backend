@@ -49,6 +49,7 @@ import { MeriFeedbackFixtureService } from './meri-feedback-fixture.service.js';
 import { MeriService } from './meri.service.js';
 import { MERI_TURN_MAINTENANCE } from './meri-turn-maintenance.js';
 import { MeriToolsService } from './meri-tools.service.js';
+import { MeriBizDevToolsService } from './meri-bizdev-tools.service.js';
 import { AnalyticsDbService } from './analytics/analytics-db.service.js';
 import {
   createGovernedMeriToolsService,
@@ -218,6 +219,10 @@ import { MERI_HERMES_SECURITY_ENVELOPE } from './hermes/meri-hermes-security.por
       ],
     },
     AnalyticsDbService,
+    // Phase 4 — Meri business-development prospect tools. Optional in
+    // MeriToolsService (one optional constructor param) so non-DI specs keep
+    // constructing the tools service positionally without it.
+    MeriBizDevToolsService,
     { provide: RAW_MERI_TOOLS_SERVICE, useClass: MeriToolsService },
     {
       provide: MeriToolsService,

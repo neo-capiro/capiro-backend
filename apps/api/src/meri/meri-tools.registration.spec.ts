@@ -192,6 +192,12 @@ const EXPECTED_TOOLS = [
   'create_task',
   'update_task',
   'update_client_profile',
+  // Business Development Phase 4 — prospect-scoped reads + approved save
+  'get_business_development_context',
+  'get_business_development_evidence',
+  'get_business_development_brief',
+  'resolve_business_development_source',
+  'save_business_development_brief',
   // Funding Opportunities (P37) — READ-ONLY local tools. None is
   // side-effecting, so all survive the read-only chat surface below.
   'get_funding_opportunity',
@@ -313,6 +319,8 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   create_task: ['title'],
   update_task: ['taskId'],
   update_client_profile: ['clientId'],
+  resolve_business_development_source: ['citationIndex'],
+  save_business_development_brief: ['expectedVersionNumber', 'sections'],
   // P37. `clientId` is required on every funding tool — see the schema block's own note:
   // the chat loop's client-scope refusal keys on that field, so a tool without
   // it would read straight past a scoped session's boundary.
@@ -478,6 +486,30 @@ describe('Meri tool registration', () => {
             },
           );
         }
+        if (property === 'requireBizDevTools') {
+          return () => ({
+            getContext: () => {
+              calls.push('getContext');
+              return sentinel;
+            },
+            getEvidence: () => {
+              calls.push('getEvidence');
+              return sentinel;
+            },
+            getBrief: () => {
+              calls.push('getBrief');
+              return sentinel;
+            },
+            resolveSource: () => {
+              calls.push('resolveSource');
+              return sentinel;
+            },
+            saveBrief: () => {
+              calls.push('saveBrief');
+              return sentinel;
+            },
+          });
+        }
         const actual = Reflect.get(target, property);
         if (typeof actual !== 'function') return actual;
         return () => {
@@ -567,6 +599,7 @@ describe('Meri tool registration', () => {
       'update_task',
       'create_meeting_brief',
       'draft_policy_memo',
+      'save_business_development_brief',
     ];
     // isSideEffecting flags exactly the write tools — and not read/compute tools.
     for (const t of writeTools) expect(svc.isSideEffecting(t)).toBe(true);
@@ -575,6 +608,10 @@ describe('Meri tool registration', () => {
       'search_congress_bills',
       'run_analysis',
       'query_intelligence',
+      'get_business_development_context',
+      'get_business_development_evidence',
+      'get_business_development_brief',
+      'resolve_business_development_source',
     ]) {
       expect(svc.isSideEffecting(t)).toBe(false);
     }
@@ -639,6 +676,21 @@ describe('Meri tool registration', () => {
       if (!(schema.name in REQUIRED_INPUTS)) {
         expect(schema.input_schema.required).toEqual([]);
       }
+    }
+  });
+
+  it('declares conversation scope without asking the model to supply it for business-development tools', () => {
+    const byName = new Map(schemas().map((schema) => [schema.name, schema]));
+    for (const name of [
+      'get_business_development_context',
+      'get_business_development_evidence',
+      'get_business_development_brief',
+      'resolve_business_development_source',
+      'save_business_development_brief',
+    ]) {
+      const schema = byName.get(name)!;
+      expect(schema.input_schema.properties).toHaveProperty('conversationId');
+      expect(schema.input_schema.required).not.toContain('conversationId');
     }
   });
 

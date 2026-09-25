@@ -9,8 +9,9 @@ describe('classifyActionIntent', () => {
       'correct_memory', 'forget_memory', 'create_word', 'create_excel', 'create_powerpoint',
       'schedule_task', 'cancel_scheduled_task', 'create_client', 'create_task', 'update_task',
       'update_client_profile',
+      'save_business_development_brief',
     ];
-    expect(writeTools).toHaveLength(23);
+    expect(writeTools).toHaveLength(24);
     for (const tool of writeTools) {
       expect(classifyActionIntent('', tool).reason).toBe('missing_explicit_action_intent');
     }
@@ -39,6 +40,7 @@ describe('classifyActionIntent', () => {
     ['Could you email Alex the approved response?', 'send_email'],
     ['Make me a Word doc with the analysis.', 'create_word'],
     ['Remember that Project Falcon means the radar modernization effort.', 'save_memory'],
+    ['Save the updated prospect brief.', 'save_business_development_brief'],
   ])('allows explicit request: %s', (prompt, tool) => {
     expect(classifyActionIntent(prompt, tool)).toMatchObject({ authorized: true, reason: 'explicit_action_intent' });
   });
