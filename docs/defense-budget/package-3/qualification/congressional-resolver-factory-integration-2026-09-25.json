@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "package3_congressional_resolver_factory_integration_v1",
+  "status": "PASS_LOCAL_QUALIFICATION_ONLY",
+  "test": {
+    "path": "apps/api/src/defense-budget/parser-router/congressional-packet-resolver-v1.spec.ts",
+    "command": "pnpm --filter @capiro/api exec -- jest --runInBand --forceExit src/defense-budget/parser-router/congressional-packet-resolver-v1.spec.ts",
+    "suiteCount": 1,
+    "passedTests": 8,
+    "totalTests": 8,
+    "integrationCase": "resolver -> resolveSourceDocumentArtifactFactoryV1 -> persistProofBoundCongressionalArtifactV1 -> immutable store readback",
+    "result": "PASS"
+  },
+  "fixture": {
+    "sourceKey": "resolver-artifact-integration-fixture",
+    "fiscalYear": 2024,
+    "stage": "hasc",
+    "profileLineFamilies": ["rdte_pe"],
+    "sourceIdentity": "offline parser fixture with exact persisted parser proof",
+    "profileScopeNote": "The fixture intentionally exercises the legacy RDT&E-only adapter; the live mixed-family HASC profile remains fail-closed."
+  },
+  "runtimeSourceMirror": {
+    "apiSpecSha256": "d7cfd53620983897443342764b2f5e289e45dc7726f9670b20602b5db4b088ad",
+    "trustedMirrorMatches": true
+  },
+  "assertions": [
+    "exact manifest/source/profile/routing identity resolves to matched",
+    "persisted parser proof is rebound and accepted by the factory",
+    "stage-owned hascMark assertion is present",
+    "artifact bytes are stored and re-read with the returned SHA-256",
+    "no database write, source registration, backfill, publication, notification, or AWS call occurred"
+  ],
+  "remainingGates": [
+    "governed production SourceDocument and manifest registration",
+    "native mixed-family HASC/SASC/HAC-D/SAC-D/conference composition",
+    "independent review and production operational approval"
+  ]
+}
