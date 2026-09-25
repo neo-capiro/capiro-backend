@@ -518,10 +518,10 @@ export function AppShell() {
 
   // The v2 product shell is the fleet shell. Role and feature checks inside it
   // remain authoritative; tenant identity is not a presentation gate.
-  if (me.data) {
+  if (Boolean(me.data)) {
     return (
       <div className="v2-root">
-        <AppShellV2 me={me.data} />
+        <AppShellV2 me={me.data!} />
         <main className="v2-content">
           {actAsTenantSlug ? (
             <Alert

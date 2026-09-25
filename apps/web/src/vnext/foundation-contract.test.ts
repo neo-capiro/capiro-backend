@@ -142,7 +142,7 @@ describe('vNext foundation contract', () => {
 
   it('uses the v2 product shell for every authenticated tenant', () => {
     const shell = readFileSync(fromPackageRoot('src/components/AppShell.tsx'), 'utf8');
-    expect(shell).toContain('<AppShellV2 me={me.data} />');
+    expect(shell).toContain('<AppShellV2 me={me.data!} />');
     expect(shell).not.toContain("tenant.slug === 'capiro-internal'");
   });
 

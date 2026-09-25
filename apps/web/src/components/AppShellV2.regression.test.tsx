@@ -16,7 +16,7 @@ const theme = readFileSync(resolve(COMPONENTS, '../theme.css'), 'utf8');
 describe('P0 — Meri workspace popup bypasses the app shell', () => {
   it('AppShell returns MeriOverlay for ?meriWindow=1 before the fleet v2 shell', () => {
     const meriIdx = appShell.indexOf('if (isMeriWorkspaceWindow())');
-    const v2Idx = appShell.indexOf('<AppShellV2 me={me.data} />');
+    const v2Idx = appShell.indexOf('<AppShellV2 me={me.data!} />');
     expect(meriIdx).toBeGreaterThan(-1);
     expect(v2Idx).toBeGreaterThan(-1);
     // The Meri early-return must precede the AppShellV2 gate in source order.
@@ -26,7 +26,7 @@ describe('P0 — Meri workspace popup bypasses the app shell', () => {
 
   it('does not tenant-gate the product shell or Defense Budget presentation', () => {
     expect(appShell).not.toContain("tenant.slug === 'capiro-internal'");
-    expect(appShell).toContain('<AppShellV2 me={me.data} />');
+    expect(appShell).toContain('<AppShellV2 me={me.data!} />');
     expect(appShell).toContain("const peNavLabel = 'Defense Budget'");
   });
 
