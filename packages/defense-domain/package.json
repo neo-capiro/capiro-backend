@@ -76,6 +76,12 @@
       "require": "./dist/budget-lifecycle/index.js",
       "import": "./dist/budget-lifecycle/index.js",
       "default": "./dist/budget-lifecycle/index.js"
+    },
+    "./qualification": {
+      "types": "./dist/qualification/index.d.ts",
+      "require": "./dist/qualification/index.js",
+      "import": "./dist/qualification/index.js",
+      "default": "./dist/qualification/index.js"
     }
   },
   "files": [
