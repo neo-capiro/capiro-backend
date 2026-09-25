@@ -18,6 +18,18 @@ const migration = readFileSync(migrationPath, 'utf8');
 const schemaPath = join(__dirname, '../../prisma/schema.prisma');
 const schema = readFileSync(schemaPath, 'utf8');
 
+const phase3MigrationPath = join(
+  __dirname,
+  '../../prisma/migrations/20280925010000_business_development_phase3_jev/migration.sql',
+);
+const phase3Migration = readFileSync(phase3MigrationPath, 'utf8');
+
+const recoveryMigrationPath = join(
+  __dirname,
+  '../../prisma/migrations/20280926010000_business_development_phase3_shadow_null_recovery/migration.sql',
+);
+const recoveryMigration = readFileSync(recoveryMigrationPath, 'utf8');
+
 describe('migration: three new tenant tables', () => {
   for (const table of [
     'business_development_prospects',
@@ -191,6 +203,81 @@ describe('schema: model/FK consistency with the migration', () => {
     ]) {
       expect(schema).toContain(`@map("${col}")`);
       expect(migration).toContain(`"${col}"`);
+    }
+  });
+});
+
+// ── Phase 3 shadow SQL-NULL hotfix (20260926010000) ──────────────────────────
+
+describe('migration: Phase 3 shadow invisibility CHECK is unchanged', () => {
+  test('shadow_invisible_check still requires database NULL (mode=shadow ⇒ visible_effect_jsonb IS NULL)', () => {
+    expect(phase3Migration).toContain(
+      'CONSTRAINT "business_development_jev_decisions_shadow_invisible_check"',
+    );
+    expect(phase3Migration).toMatch(
+      /business_development_jev_decisions_shadow_invisible_check"\s*CHECK \("mode" <> 'shadow' OR "visible_effect_jsonb" IS NULL\)/,
+    );
+  });
+});
+
+describe('migration: shadow SQL-NULL recovery scope is narrow', () => {
+  test('recovery UPDATE targets ONLY the Jev decision trace table', () => {
+    // Exactly one UPDATE statement, on the trace table, and no other table is
+    // read or written (no FROM/JOIN against a user table, no second UPDATE;
+    // catalog guards against pg_tables/pg_constraint are allowed).
+    expect(recoveryMigration.match(/UPDATE "/g)).toHaveLength(1);
+    expect(recoveryMigration).toContain('UPDATE "business_development_jev_decisions"');
+    expect(recoveryMigration).not.toMatch(/\bFROM\s+"/);
+    expect(recoveryMigration).not.toMatch(/\bJOIN\b/i);
+    expect(recoveryMigration).not.toMatch(/\bINSERT INTO\b|\bDELETE FROM\b|\bTRUNCATE\b/i);
+  });
+
+  test('recovers ONLY sufficiently old shadow + pending rows', () => {
+    expect(recoveryMigration).toMatch(/"mode" = 'shadow'/);
+    expect(recoveryMigration).toMatch(/"status" = 'pending'/);
+    // Sufficiently old guard: 10 minutes is far beyond the 8s provider
+    // timeout plus the in-process completion write, so any older pending
+    // shadow row is stranded, not in-flight.
+    expect(recoveryMigration).toMatch(/"requested_at" < now\(\) - INTERVAL '10 minutes'/);
+    // No status/mode value other than shadow/pending is targeted or written.
+    expect(recoveryMigration).not.toMatch(/'internal_canary'/);
+    expect(recoveryMigration).not.toMatch(/'completed'/);
+  });
+
+  test('recovery marks rows failed with an honest reason and stamps completion', () => {
+    expect(recoveryMigration).toMatch(/"status"\s*=\s*'failed'/);
+    expect(recoveryMigration).toMatch(/'completion_write_failed_shadow_sql_null'/);
+    expect(recoveryMigration).toMatch(/"completed_at"\s*=\s*now\(\)/);
+    expect(recoveryMigration).toMatch(/"updated_at"\s*=\s*now\(\)/);
+  });
+
+  test('idempotency keys move to a deterministic unique recovery namespace under 400 chars', () => {
+    // Deterministic (depends only on the row id), unique, and namespace-
+    // prefixed so a post-hotfix open can insert a fresh decision row.
+    expect(recoveryMigration).toMatch(
+      /"idempotency_key"\s*=\s*'[^']*'\s*\|\|\s*"id"::text/,
+    );
+    // Recovery namespace prefix must differ from the live-key format
+    // (tenant|task|mode|versions|hashes joined by '|', no fixed prefix).
+    const prefixMatch = recoveryMigration.match(/'(shadow-null-completion-recovery-[0-9]+)\|'/);
+    expect(prefixMatch).toBeTruthy();
+    // prefix + '|' + uuid(36) stays far under VARCHAR(400).
+    expect((prefixMatch?.[1]?.length ?? 400) + 1 + 36).toBeLessThan(400);
+  });
+
+  test('recovery is idempotent and guarded', () => {
+    // Re-run is a no-op: recovered rows no longer match status = 'pending'.
+    expect(recoveryMigration).toMatch(/WHERE "mode" = 'shadow'\s+AND "status" = 'pending'/);
+    // Guarded by pg_tables/pg_constraint existence checks like the parent migration.
+    expect(recoveryMigration).toMatch(/pg_tables WHERE tablename = 'business_development_jev_decisions'/);
+    expect(recoveryMigration).toMatch(/pg_constraint[\s\S]*?business_development_jev_decisions_shadow_invisible_check/);
+    expect(recoveryMigration).not.toMatch(/DELETE|DROP|TRUNCATE|INSERT|CREATE TABLE/i);
+  });
+
+  test('recovery never mutates prompts/source text (redaction invariant untouched)', () => {
+    // The trace table stores only hashes/ids; the recovery must not widen it.
+    for (const banned of ['envelope_hash', 'source_ids', 'source_hashes_jsonb', 'candidate_inventory_hash']) {
+      expect(recoveryMigration).not.toContain(`"${banned}"`);
     }
   });
 });

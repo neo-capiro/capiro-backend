@@ -539,9 +539,13 @@ export class BizDevJevService {
         ? new Prisma.Decimal(inputTokens * BD_JEV_INPUT_TOKEN_PRICE_USD)
         : null,
       latencyMs: decision.latencyMs,
+      // Shadow rows must hold DATABASE NULL (Prisma.DbNull), not JavaScript
+      // null: Prisma encodes JS null on a Json column as JSON null, which
+      // violates business_development_jev_decisions_shadow_invisible_check
+      // (SQLSTATE 23514) and strands the trace in `pending`.
       visibleEffectJsonb: mode === 'internal_canary'
         ? (JSON.parse(JSON.stringify(projection ?? null)) as Prisma.InputJsonValue)
-        : null,
+        : Prisma.DbNull,
     };
   }
 
