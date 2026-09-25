@@ -30,6 +30,12 @@ const recoveryMigrationPath = join(
 );
 const recoveryMigration = readFileSync(recoveryMigrationPath, 'utf8');
 
+const phase4MigrationPath = join(
+  __dirname,
+  '../../prisma/migrations/20280927010000_business_development_phase4_brief/migration.sql',
+);
+const phase4Migration = readFileSync(phase4MigrationPath, 'utf8');
+
 describe('migration: three new tenant tables', () => {
   for (const table of [
     'business_development_prospects',
@@ -279,5 +285,54 @@ describe('migration: shadow SQL-NULL recovery scope is narrow', () => {
     for (const banned of ['envelope_hash', 'source_ids', 'source_hashes_jsonb', 'candidate_inventory_hash']) {
       expect(recoveryMigration).not.toContain(`"${banned}"`);
     }
+  });
+});
+
+describe('migration: Phase 4 versioned prospect briefs', () => {
+  for (const table of [
+    'business_development_briefs',
+    'business_development_brief_versions',
+  ]) {
+    test(`${table} is tenant isolated with forced RLS`, () => {
+      expect(phase4Migration).toContain(`CREATE TABLE "${table}"`);
+      expect(phase4Migration).toContain(`ALTER TABLE "${table}" ENABLE ROW LEVEL SECURITY`);
+      expect(phase4Migration).toContain(`ALTER TABLE "${table}" FORCE ROW LEVEL SECURITY`);
+      expect(phase4Migration).toContain(`CREATE POLICY "${table}_isolation" ON "${table}"`);
+    });
+  }
+
+  test('prospect and version relationships are tenant-safe', () => {
+    expect(phase4Migration).toMatch(
+      /FOREIGN KEY \("tenant_id", "prospect_id"\)[\s\S]*?REFERENCES "business_development_prospects"\("tenant_id", "id"\)/,
+    );
+    expect(phase4Migration).toMatch(
+      /FOREIGN KEY \("tenant_id", "brief_id"\)[\s\S]*?REFERENCES "business_development_briefs"\("tenant_id", "id"\)/,
+    );
+  });
+
+  test('current version must belong to the same brief', () => {
+    expect(phase4Migration).toContain(
+      'UNIQUE ("tenant_id", "id", "brief_id")',
+    );
+    expect(phase4Migration).toMatch(
+      /FOREIGN KEY \("tenant_id", "current_version_id", "id"\)[\s\S]*?REFERENCES "business_development_brief_versions"\("tenant_id", "id", "brief_id"\)/,
+    );
+  });
+
+  test('versions are insert-only for the application role and idempotent', () => {
+    expect(phase4Migration).toContain(
+      'GRANT SELECT, INSERT ON "business_development_brief_versions" TO capiro_app',
+    );
+    expect(phase4Migration).toContain(
+      'ON "business_development_brief_versions"("tenant_id", "brief_id", "idempotency_key")',
+    );
+    expect(phase4Migration).toMatch(/CHECK \("idempotency_op" IN \('create', 'edit', 'accept'\)\)/);
+  });
+
+  test('Prisma schema maps the stable root and immutable versions', () => {
+    expect(schema).toContain('model BusinessDevelopmentBrief {');
+    expect(schema).toContain('model BusinessDevelopmentBriefVersion {');
+    expect(schema).toContain('@@unique([tenantId, id, briefId]');
+    expect(schema).toContain('idempotencyFingerprint');
   });
 });

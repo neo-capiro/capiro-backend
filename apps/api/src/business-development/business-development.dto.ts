@@ -13,6 +13,7 @@ import {
   Min,
   MinLength,
   IsDateString,
+  ValidateNested,
 } from 'class-validator';
 
 /**
@@ -382,4 +383,150 @@ export class DismissProspectDto {
   @IsString()
   @MaxLength(4000)
   reason?: string;
+}
+
+// ── Phase 4 — prospect brief DTOs ──────────────────────────────────────────
+
+/** Section keys mirror BRIEF_SECTION_KEYS (bizdev-brief.types.ts). */
+export const BIZDEV_BRIEF_SECTION_KEYS = [
+  'companyAndFirmImplication',
+  'verifiedEvidence',
+  'judgment',
+  'practicalAction',
+  'missingInformation',
+] as const;
+
+export const BIZDEV_BRIEF_PROVENANCES = ['generated', 'edited'] as const;
+
+/** Every brief write is idempotent: a required client-supplied key. */
+export class BriefIdempotencyDto {
+  @IsString()
+  @MinLength(8)
+  @MaxLength(400)
+  idempotencyKey!: string;
+}
+
+export class BriefSectionContentDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(4000)
+  text!: string;
+
+  @IsIn(BIZDEV_BRIEF_PROVENANCES)
+  provenance!: 'generated' | 'edited';
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(12)
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  citationIndexes?: number[];
+}
+
+class BriefSectionsDto {
+  @Type(() => BriefSectionContentDto)
+  @ValidateNested({ each: true })
+  companyAndFirmImplication!: BriefSectionContentDto;
+
+  @Type(() => BriefSectionContentDto)
+  @ValidateNested({ each: true })
+  verifiedEvidence!: BriefSectionContentDto;
+
+  @Type(() => BriefSectionContentDto)
+  @ValidateNested({ each: true })
+  judgment!: BriefSectionContentDto;
+
+  @Type(() => BriefSectionContentDto)
+  @ValidateNested({ each: true })
+  practicalAction!: BriefSectionContentDto;
+
+  @Type(() => BriefSectionContentDto)
+  @ValidateNested({ each: true })
+  missingInformation!: BriefSectionContentDto;
+}
+
+export class CreateBriefVersionDto extends BriefIdempotencyDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  title?: string;
+}
+
+export class SaveBriefVersionDto extends BriefIdempotencyDto {
+  /** Optimistic concurrency: the version the caller expects to build on.
+   * Required — concurrent edits must never silently overwrite. */
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  expectedVersionNumber!: number;
+
+  @Type(() => BriefSectionsDto)
+  @ValidateNested()
+  sections!: BriefSectionsDto;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  title?: string;
+}
+
+export class AcceptBriefRefreshDto extends BriefIdempotencyDto {
+  /** The version the proposal was built from; the accepted proposal becomes
+   * that version's successor only if it is still current. */
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  expectedVersionNumber!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  keepUserEdits?: boolean;
+}
+
+export class BriefCitationParam {
+  @IsUUID()
+  prospectId!: string;
+}
+
+export class BriefVersionParam {
+  @IsUUID()
+  prospectId!: string;
+
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  versionNumber!: number;
+}
+
+export class ResolveBriefCitationQueryDto {
+  /** 0-based index into the CURRENT version's citation list. */
+  @IsInt()
+  @Min(0)
+  @Max(11)
+  @Type(() => Number)
+  index!: number;
+}
+
+export class CheckBriefClaimDto {
+  @IsUUID()
+  prospectId!: string;
+
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  versionNumber!: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(11)
+  @Type(() => Number)
+  citationIndex!: number;
+
+  @IsIn(['identity', 'citation', 'exact_amount', 'date', 'stage'])
+  claimType!: 'identity' | 'citation' | 'exact_amount' | 'date' | 'stage';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  expected?: string;
 }

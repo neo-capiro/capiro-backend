@@ -18,6 +18,9 @@ import {
   engagementVNextEnabled,
   businessDevelopmentDossierEnabled,
   businessDevelopmentEnabled,
+  businessDevelopmentBriefEnabled,
+  businessDevelopmentMeriProspectToolsEnabled,
+  businessDevelopmentClaimValidationEnabled,
   entitlementsForTenant,
 } from '../common/tenant-flags.js';
 import { meriV3ChatActive } from '../common/meriv3-flags.js';
@@ -170,6 +173,15 @@ export class UsersController {
         businessDevelopmentDossier: businessDevelopmentDossierEnabled(
           profile.tenant?.settings,
         ),
+        businessDevelopmentBrief: businessDevelopmentBriefEnabled(
+          profile.tenant?.settings,
+        ),
+        businessDevelopmentMeriProspectTools: businessDevelopmentMeriProspectToolsEnabled(
+          profile.tenant?.settings,
+        ),
+        businessDevelopmentClaimValidation: businessDevelopmentClaimValidationEnabled(
+          profile.tenant?.settings,
+        ),
       },
     };
   }
@@ -285,6 +297,15 @@ export class UsersController {
         strategyWatcher: strategyWatcherActive(profile.tenant?.settings),
         businessDevelopment: businessDevelopmentEnabled(profile.tenant?.settings),
         businessDevelopmentDossier: businessDevelopmentDossierEnabled(
+          profile.tenant?.settings,
+        ),
+        businessDevelopmentBrief: businessDevelopmentBriefEnabled(
+          profile.tenant?.settings,
+        ),
+        businessDevelopmentMeriProspectTools: businessDevelopmentMeriProspectToolsEnabled(
+          profile.tenant?.settings,
+        ),
+        businessDevelopmentClaimValidation: businessDevelopmentClaimValidationEnabled(
           profile.tenant?.settings,
         ),
       },

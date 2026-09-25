@@ -554,6 +554,11 @@ export class BizDevDossierService {
     ctx: TenantContext,
     prospectId: string,
     sectionFilter?: DossierSectionKind,
+    /** Phase 4 brief service opt-out: skip the detached Jev scheduling when
+     * the dossier is read as an internal evidence source (brief generation,
+     * refresh proposals, citation resolution) rather than opened by a user.
+     * Undefined/Phase-2 callers get exact previous behavior. */
+    suppressJev?: boolean,
   ): Promise<BizDevDossier> {
     const prospect = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.businessDevelopmentProspect.findFirst({
@@ -608,15 +613,17 @@ export class BizDevDossierService {
       // dossier FIRST, synchronously schedules the fully detached
       // launchForSubject chain, and then returns the UNCHANGED dossier.
       // Fire-and-forget internals: no response field or latency dependency.
-      this.scheduleJevForOpenedDossier(ctx, {
-        subjectType: 'prospect',
-        subjectId: prospect.id,
-        prospectId: prospect.id,
-        prospectDisplayName: prospect.displayName,
-        prospectCanonicalEntityId: null,
-        dossier,
-        sectionFilter,
-      });
+      if (!suppressJev) {
+        this.scheduleJevForOpenedDossier(ctx, {
+          subjectType: 'prospect',
+          subjectId: prospect.id,
+          prospectId: prospect.id,
+          prospectDisplayName: prospect.displayName,
+          prospectCanonicalEntityId: null,
+          dossier,
+          sectionFilter,
+        });
+      }
       return dossier;
     }
 
@@ -629,15 +636,17 @@ export class BizDevDossierService {
     // detached mode-resolution + evaluation chain (shadow/canary). Off mode →
     // nothing is even resolved on the response path; the dossier above is
     // returned byte-for-byte unchanged with zero added latency.
-    this.scheduleJevForOpenedDossier(ctx, {
-      subjectType: 'prospect',
-      subjectId: prospect.id,
-      prospectId: prospect.id,
-      prospectDisplayName: prospect.displayName,
-      prospectCanonicalEntityId: prospect.canonicalEntityId,
-      dossier: out,
-      sectionFilter,
-    });
+    if (!suppressJev) {
+      this.scheduleJevForOpenedDossier(ctx, {
+        subjectType: 'prospect',
+        subjectId: prospect.id,
+        prospectId: prospect.id,
+        prospectDisplayName: prospect.displayName,
+        prospectCanonicalEntityId: prospect.canonicalEntityId,
+        dossier: out,
+        sectionFilter,
+      });
+    }
     return out;
   }
 

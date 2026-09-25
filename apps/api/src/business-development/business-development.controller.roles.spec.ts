@@ -9,6 +9,7 @@ import { RolesGuard } from '../auth/roles.guard.js';
 import { BusinessDevelopmentController } from './business-development.controller.js';
 import { BusinessDevelopmentFlagGuard } from './business-development-flag.guard.js';
 import { BusinessDevelopmentDossierFlagGuard } from './bizdev-dossier.flag.guard.js';
+import { BusinessDevelopmentBriefFlagGuard } from './bizdev-brief.flag.guard.js';
 
 /**
  * Role authorization contract: route metadata (which routes demand what) plus
@@ -223,5 +224,49 @@ describe('Phase 2 dossier route contract', () => {
     }
     expect(requiredRolesFor('updateConflict')).toEqual(['user_admin', 'capiro_admin']);
     expect(requiredRolesFor('savePreferences')).toEqual(['user_admin', 'capiro_admin']);
+  });
+});
+
+describe('Phase 4 brief route contract', () => {
+  const guardsFor = (name: string): Array<unknown> => {
+    const handler = handlerFor(name);
+    const classGuards = (Reflect.getMetadata(GUARDS_METADATA, BusinessDevelopmentController) ??
+      []) as Array<unknown>;
+    const methodGuards = (Reflect.getMetadata(GUARDS_METADATA, handler) ?? []) as Array<unknown>;
+    return [...classGuards, ...methodGuards];
+  };
+
+  const PHASE4_ROUTES = [
+    'getCurrentBrief',
+    'createBriefVersion',
+    'saveBriefVersion',
+    'buildRefreshProposal',
+    'acceptRefreshProposal',
+    'listBriefVersions',
+    'getBriefVersion',
+    'resolveBriefCitation',
+    'checkBriefClaim',
+  ] as const;
+
+  test('all brief routes inherit the member role floor', () => {
+    for (const route of PHASE4_ROUTES) {
+      expect(requiredRolesFor(route)).toEqual(['standard_user', 'user_admin', 'capiro_admin']);
+      expect(guardAllows(route, 'standard_user')).toBe(true);
+    }
+  });
+
+  test('all brief routes compose role, Phase 1, and brief feature guards', () => {
+    for (const route of PHASE4_ROUTES) {
+      const guards = guardsFor(route);
+      expect(guards).toContain(RolesGuard);
+      expect(guards).toContain(BusinessDevelopmentFlagGuard);
+      expect(guards).toContain(BusinessDevelopmentBriefFlagGuard);
+    }
+  });
+
+  test('older Phase 1 and Phase 2 routes do not acquire the brief guard', () => {
+    for (const route of ['list', 'get', 'create', 'prospectDossier']) {
+      expect(guardsFor(route)).not.toContain(BusinessDevelopmentBriefFlagGuard);
+    }
   });
 });

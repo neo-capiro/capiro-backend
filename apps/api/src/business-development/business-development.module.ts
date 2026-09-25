@@ -7,6 +7,8 @@ import { BusinessDevelopmentService } from './business-development.service.js';
 import { BusinessDevelopmentFlagGuard } from './business-development-flag.guard.js';
 import { BizDevDossierService } from './bizdev-dossier.service.js';
 import { BusinessDevelopmentDossierFlagGuard } from './bizdev-dossier.flag.guard.js';
+import { BizDevBriefService } from './bizdev-brief.service.js';
+import { BusinessDevelopmentBriefFlagGuard } from './bizdev-brief.flag.guard.js';
 import {
   BizDevJevService,
   BIZDEV_JEV_FACTORY,
@@ -44,6 +46,8 @@ import { BizDevJevProviderFactory } from './bizdev-jev.factory.js';
     BusinessDevelopmentFlagGuard,
     BizDevDossierService,
     BusinessDevelopmentDossierFlagGuard,
+    BizDevBriefService,
+    BusinessDevelopmentBriefFlagGuard,
     BizDevJevProviderFactory,
     { provide: BIZDEV_JEV_FACTORY, useExisting: BizDevJevProviderFactory },
     BizDevJevService,
@@ -55,6 +59,8 @@ import { BizDevJevProviderFactory } from './bizdev-jev.factory.js';
     BusinessDevelopmentFlagGuard,
     BizDevDossierService,
     BusinessDevelopmentDossierFlagGuard,
+    BizDevBriefService,
+    BusinessDevelopmentBriefFlagGuard,
     BizDevJevService,
   ],
 })

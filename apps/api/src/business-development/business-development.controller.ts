@@ -36,8 +36,19 @@ import {
   UpdateProspectDto,
 } from './business-development.dto.js';
 import { BusinessDevelopmentDossierFlagGuard } from './bizdev-dossier.flag.guard.js';
+import { BusinessDevelopmentBriefFlagGuard } from './bizdev-brief.flag.guard.js';
 import { BizDevDossierService } from './bizdev-dossier.service.js';
+import { BizDevBriefService } from './bizdev-brief.service.js';
 import type { DossierSectionKind } from './bizdev-evidence.types.js';
+import {
+  AcceptBriefRefreshDto,
+  BriefCitationParam,
+  BriefVersionParam,
+  CheckBriefClaimDto,
+  CreateBriefVersionDto,
+  ResolveBriefCitationQueryDto,
+  SaveBriefVersionDto,
+} from './business-development.dto.js';
 
 /**
  * Business Development Phase 1 routes.
@@ -63,6 +74,7 @@ export class BusinessDevelopmentController {
   constructor(
     private readonly bizdev: BusinessDevelopmentService,
     private readonly dossier: BizDevDossierService,
+    private readonly brief: BizDevBriefService,
   ) {}
 
   /** List/filter prospects + stage counts. */
@@ -258,5 +270,113 @@ export class BusinessDevelopmentController {
       params.prospectId,
       query.section as DossierSectionKind | undefined,
     );
+  }
+
+  // ── Phase 4 — prospect brief surface (additional brief flag guard) ────────
+
+  /** Get the current brief (root + current version) for a prospect.
+   * `{ brief: null }` when none exists yet. */
+  @Get(`prospects/:${UUID_PARAM}/brief`)
+  @UseGuards(BusinessDevelopmentBriefFlagGuard)
+  getCurrentBrief(@CurrentTenant() ctx: TenantContext, @Param() params: ProspectIdParam) {
+    return this.brief.getCurrentBrief(ctx, params.prospectId);
+  }
+
+  /** Create/generate the initial saved version. Idempotent on the key. */
+  @Post(`prospects/:${UUID_PARAM}/brief/versions`)
+  @HttpCode(200)
+  @UseGuards(BusinessDevelopmentBriefFlagGuard)
+  createBriefVersion(
+    @CurrentTenant() ctx: TenantContext,
+    @Param() params: ProspectIdParam,
+    @Body() body: CreateBriefVersionDto,
+  ) {
+    return this.brief.createInitialVersion(ctx, params.prospectId, body);
+  }
+
+  /** Save an edited version. Version-checked + idempotent. */
+  @Put(`prospects/:${UUID_PARAM}/brief/versions`)
+  @UseGuards(BusinessDevelopmentBriefFlagGuard)
+  saveBriefVersion(
+    @CurrentTenant() ctx: TenantContext,
+    @Param() params: ProspectIdParam,
+    @Body() body: SaveBriefVersionDto,
+  ) {
+    return this.brief.saveEditedVersion(ctx, params.prospectId, {
+      idempotencyKey: body.idempotencyKey,
+      expectedVersionNumber: body.expectedVersionNumber,
+      sections: body.sections,
+      title: body.title,
+    });
+  }
+
+  /** Build a refresh proposal/diff — never writes. */
+  @Get(`prospects/:${UUID_PARAM}/brief/refresh-proposal`)
+  @UseGuards(BusinessDevelopmentBriefFlagGuard)
+  buildRefreshProposal(
+    @CurrentTenant() ctx: TenantContext,
+    @Param() params: ProspectIdParam,
+  ) {
+    return this.brief.buildRefreshProposal(ctx, params.prospectId);
+  }
+
+  /** Explicitly accept a refresh proposal as a new saved version. */
+  @Post(`prospects/:${UUID_PARAM}/brief/refresh-accept`)
+  @HttpCode(200)
+  @UseGuards(BusinessDevelopmentBriefFlagGuard)
+  acceptRefreshProposal(
+    @CurrentTenant() ctx: TenantContext,
+    @Param() params: ProspectIdParam,
+    @Body() body: AcceptBriefRefreshDto,
+  ) {
+    return this.brief.acceptRefreshProposal(ctx, params.prospectId, {
+      idempotencyKey: body.idempotencyKey,
+      expectedVersionNumber: body.expectedVersionNumber,
+      keepUserEdits: body.keepUserEdits,
+    });
+  }
+
+  /** List version summaries (oldest → newest). */
+  @Get(`prospects/:${UUID_PARAM}/brief/versions`)
+  @UseGuards(BusinessDevelopmentBriefFlagGuard)
+  listBriefVersions(@CurrentTenant() ctx: TenantContext, @Param() params: ProspectIdParam) {
+    return this.brief.listVersions(ctx, params.prospectId);
+  }
+
+  /** Get one specific saved version (immutable history stays readable). */
+  @Get(`prospects/:${UUID_PARAM}/brief/versions/:versionNumber`)
+  @UseGuards(BusinessDevelopmentBriefFlagGuard)
+  getBriefVersion(
+    @CurrentTenant() ctx: TenantContext,
+    @Param() params: BriefVersionParam,
+  ) {
+    return this.brief.getVersion(ctx, params.prospectId, params.versionNumber);
+  }
+
+  /** Resolve a saved citation to an inspectable dossier source, or an
+   * explicit unavailable/changed limitation. */
+  @Get(`prospects/:${UUID_PARAM}/brief/citations`)
+  @UseGuards(BusinessDevelopmentBriefFlagGuard)
+  resolveBriefCitation(
+    @CurrentTenant() ctx: TenantContext,
+    @Param() params: BriefCitationParam,
+    @Query() query: ResolveBriefCitationQueryDto,
+  ) {
+    return this.brief.resolveCitation(ctx, params.prospectId, query.index);
+  }
+
+  /** Deterministic claim validation (identity/citation/exact amount/date/
+   * stage). BD-CLAIM Jev semantic validation remains dark. */
+  @Post('brief/claim-check')
+  @HttpCode(200)
+  @UseGuards(BusinessDevelopmentBriefFlagGuard)
+  checkBriefClaim(@CurrentTenant() ctx: TenantContext, @Body() body: CheckBriefClaimDto) {
+    return this.brief.checkClaim(ctx, {
+      prospectId: body.prospectId,
+      versionNumber: body.versionNumber,
+      citationIndex: body.citationIndex,
+      claimType: body.claimType,
+      expected: body.expected,
+    });
   }
 }
