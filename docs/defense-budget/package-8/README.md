@@ -11,12 +11,20 @@ Package 8 adds a fail-closed physical-source reconciliation surface and the safe
 - The first committed full federal-legislative inventory must run in historical mode. Historical additions and full-inventory removals are retained for reads but consumed without client alerts.
 - The existing historical FY selector now includes FY2023 and FY2024, including the only year present in the Package 0 production baseline.
 - A read-only DTIC/JDOCS XML inspector evaluates a single pinned FY2026 mirror candidate. It validates actual QName namespace bindings, byte SHA-256, metadata, and PE identities, but always returns `candidate_only` and `promotable: false`.
+- A qualification-only reconciliation binds the pinned official DTIC XML to the official PDF by SHA-256 and checks all two PE and three project FY2026 funding identities against extracted PDF page text. It is evidence, not a production parser proof or publication approval.
 
 ## Historical source decision
 
 The `handriss/defense-budget-justification-data` repository is useful as a discovery and structured-companion lead for Defense-Wide RDT&E and procurement material from FY2023–FY2026. It is not an authoritative completeness denominator: it excludes the military services and several marketed budget families, has no declared repository license, and its XML bytes are not proof of equivalence to the official Comptroller PDFs.
 
 The pinned DTIC candidate and official PDF are therefore recorded as separate byte identities. No mirror data was imported, published, or used to widen a coverage claim in Package 8. A future governed adapter must independently reconcile official-source provenance, stable XML element identity, semantic extraction, review, and publication.
+
+The read-only reconciliation report is retained at
+`qualification/dtic-official-xml-pdf-reconciliation-v1.json`. It found five of
+five identity/title/FY2026-amount spot matches (PEs `0605801KA` and `0605998KA`
+and their three projects) on physical PDF pages 15, 19, 25–30. Page-text
+presence is intentionally weaker than field-by-field semantic reconciliation;
+the report remains `PASS_QUALIFICATION_ONLY`, with `promotable: false`.
 
 ## Controlled-backfill boundary
 

@@ -28,7 +28,16 @@
     "prismaGenerate": "PASS",
     "apiBuild": "PASS",
     "webBuild": "PASS",
-    "independentAudit": "PASS_AFTER_REPAIR"
+    "independentAudit": "PASS_AFTER_REPAIR",
+    "dticOfficialXmlPdfQualification": {
+      "status": "PASS_QUALIFICATION_ONLY",
+      "report": "docs/defense-budget/package-8/qualification/dtic-official-xml-pdf-reconciliation-v1.json",
+      "officialXmlSha256": "02479cd6e67dfee10bb1029d9413dbc35e81174384b25319fedfb9589d4aac6a",
+      "officialPdfSha256": "08c867d61816f7b5ebb82924a33d4003ee03c7880984ac6dc9bc91363b6f2d63",
+      "matchedRecords": 5,
+      "records": 5,
+      "promotable": false
+    }
   },
   "aws": {
     "account": "967807252336",

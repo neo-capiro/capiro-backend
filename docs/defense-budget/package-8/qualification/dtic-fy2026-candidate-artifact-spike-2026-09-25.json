@@ -32,7 +32,7 @@
   },
   "remainingGates": [
     "bind to a real registered SourceDocument and governed expected-source row",
-    "reconcile XML funding and narrative semantics against the official PDF",
+    "complete field-by-field XML/PDF funding and narrative semantic reconciliation beyond page-text presence",
     "qualify the funding-field mapping instead of warning-only behavior",
     "complete family/year coverage denominator and human review",
     "persist parser and verification proof before any historical replay"

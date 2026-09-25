@@ -9,6 +9,7 @@ Repository: `neo-capiro/capirov2`
 | --- | --- | --- |
 | Physical reconciliation reducer | PASS | 8/8 cases: unknown denominator, exact active lineage, duplicate/superseded handling, optional units, staged counts, unavailable sources, malformed publication lineage, and superseded history. |
 | Lifecycle API and XML inspector | PASS | 4 focused suites / 25 assertions. The API preserves bundle history and current-run lineage; the XML inspector rejects wrong/unused namespace-prefix bindings. |
+| Official DTIC XML/PDF qualification reconciliation | PASS (qualification-only) | Pinned official XML/PDF hashes; 2 PE records + 3 project records; 5/5 identity/title/FY2026-amount page-text matches. Report: `qualification/dtic-official-xml-pdf-reconciliation-v1.json`. |
 | Historical notification qualification | PASS | Fresh PostgreSQL database after all 428 migrations. Historical baseline and removal drains each inserted zero alerts and incremented `suppressedHistorical`; complete scenario result `PASS`. |
 | Internal web surface | PASS | 6/6 focused Vitest assertions. Null denominator, active snapshot, source document/SHA, exception codes, and historical FY options are visible. |
 | CDK environment identity | PASS | 12/12 focused synth assertions; the serve task carries `APP_ENV=capiro-dev`, matching the active-snapshot environment key. |
@@ -27,6 +28,7 @@ Repository: `neo-capiro/capirov2`
 - A first full federal evidence reconciliation fails before provider calls or writes unless `--historical` is explicit.
 - Historical additions and removals remain queryable while their outbox rows are consumed without client notifications.
 - The DTIC mirror candidate cannot be promoted or imported by the inspector.
+- The DTIC XML/PDF reconciliation is a page-text qualification check only; it does not establish field-complete semantics, completeness, review, persistence, or publication.
 - No feature flag, schedule, production manifest, canonical snapshot, or historical notification channel is activated by the code change.
 
 ## Production release proof
