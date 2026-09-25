@@ -252,7 +252,7 @@ export function DefenseBudgetLifecycleHealthPage() {
             ) : reconciliationQuery.data ? (
               <>
                 <div className="dbl-vnext-reconciliation-meta">
-                  FY{reconciliationQuery.data.fiscalYear} · {reconciliationQuery.data.logicalSlotCount} logical slots · environment {reconciliationQuery.data.environment}
+                  FY{reconciliationQuery.data.fiscalYear} · {reconciliationQuery.data.logicalSlotCount} logical slots · environment {reconciliationQuery.data.environment} · active snapshot <span data-testid="active-snapshot-id">{reconciliationQuery.data.activeSnapshotId ?? 'unknown'}</span>
                 </div>
                 {reconciliationQuery.data.rows.length === 0 ? (
                   <div style={{ padding: '24px' }}>
@@ -314,6 +314,8 @@ export function DefenseBudgetLifecycleHealthPage() {
                           <CapiroTableHeaderCell>Unit</CapiroTableHeaderCell>
                           <CapiroTableHeaderCell>Requirement / account</CapiroTableHeaderCell>
                           <CapiroTableHeaderCell>Budget activity / volume</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Source document ID</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Source SHA-256</CapiroTableHeaderCell>
                           <CapiroTableHeaderCell>Parsed</CapiroTableHeaderCell>
                           <CapiroTableHeaderCell>Verified</CapiroTableHeaderCell>
                           <CapiroTableHeaderCell>Reviewed</CapiroTableHeaderCell>
@@ -330,6 +332,8 @@ export function DefenseBudgetLifecycleHealthPage() {
                             <CapiroTableCell>{unit.kind} · <span className="dbl-vnext-mono">{unit.unitId}</span></CapiroTableCell>
                             <CapiroTableCell>{unit.required ? 'required' : 'optional'} · {unit.account ?? 'account unknown'}</CapiroTableCell>
                             <CapiroTableCell>{unit.budgetActivity ?? 'unknown'} / {unit.volume ?? 'unknown'}</CapiroTableCell>
+                            <CapiroTableCell><span data-testid={`source-document-id-${unit.unitId}`} className="dbl-vnext-mono">{unit.sourceDocumentId ?? 'unknown'}</span></CapiroTableCell>
+                            <CapiroTableCell><span data-testid={`source-sha256-${unit.unitId}`} className="dbl-vnext-mono">{unit.sourceSha256 ?? 'unknown'}</span></CapiroTableCell>
                             <CapiroTableCell>{unit.parsed ? 'yes' : 'no'}</CapiroTableCell>
                             <CapiroTableCell>{unit.verified ? 'yes' : 'no'}</CapiroTableCell>
                             <CapiroTableCell>{unit.reviewed ? 'yes' : 'no'}</CapiroTableCell>

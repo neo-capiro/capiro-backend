@@ -92,6 +92,7 @@ export interface PhysicalSourceUnitReconciliation {
   budgetActivity: string | null;
   volume: string | null;
   sourceDocumentId: string | null;
+  sourceSha256: string | null;
   parsed: boolean;
   verified: boolean;
   reviewed: boolean;
