@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "package": 9,
+  "scenario": "P9-F07-ALARM-DELIVERY",
+  "qualification": "isolated-aws-alarm-delivery-and-recovery",
+  "status": "PASS_LIMITED_SCOPE",
+  "runKey": "p9-f07-20260925T030858Z-5d9b39",
+  "startedAt": "2026-09-25T03:08:58.6639588Z",
+  "completedAt": "2026-09-25T03:11:36.0516079Z",
+  "sourceRevision": "f691689c63cb40941e15fad25e4b6f264a4ddba5",
+  "harness": {
+    "path": "scripts/qualify-package9-f07-isolated.ps1",
+    "sha256": "fcf3ffb35af4875ad90f0d758356fe5afd043130e6f9502faf9d6ab864377541"
+  },
+  "aws": {
+    "account": "967807252336",
+    "region": "us-east-1",
+    "callerArn": "arn:aws:iam::967807252336:user/capirocli",
+    "alarmName": "p9-f07-20260925T030858Z-5d9b39-alarm",
+    "namespace": "Capiro/Package9/F07/p9-f07-20260925T030858Z-5d9b39",
+    "metricName": "QualificationPulse",
+    "topicArn": "arn:aws:sns:us-east-1:967807252336:p9-f07-20260925T030858Z-5d9b39-topic",
+    "queueUrl": "https://sqs.us-east-1.amazonaws.com/967807252336/p9-f07-20260925T030858Z-5d9b39-receiver",
+    "queueArn": "arn:aws:sqs:us-east-1:967807252336:p9-f07-20260925T030858Z-5d9b39-receiver",
+    "subscriptionArn": "arn:aws:sns:us-east-1:967807252336:p9-f07-20260925T030858Z-5d9b39-topic:bc8e1686-f1d0-4ba1-a4da-172f94e6d189"
+  },
+  "configuration": {
+    "periodSeconds": 60,
+    "evaluationPeriods": 1,
+    "datapointsToAlarm": 1,
+    "threshold": 0.5,
+    "comparisonOperator": "GreaterThanThreshold",
+    "treatMissingData": "notBreaching",
+    "queueEncryption": "SSE-SQS",
+    "queuePolicySourceArnRestrictedToExactEphemeralTopic": true,
+    "alarmAndOkActionsRestrictedToExactEphemeralTopic": true
+  },
+  "observations": [
+    {
+      "at": "2026-09-25T03:09:00.4091382Z",
+      "phase": "preflight",
+      "status": "PASS",
+      "detail": "AWS caller identity recorded."
+    },
+    {
+      "at": "2026-09-25T03:09:04.2025673Z",
+      "phase": "preflight",
+      "status": "PASS",
+      "detail": "Exact ephemeral alarm, topic, and queue names were absent before creation."
+    },
+    {
+      "at": "2026-09-25T03:10:14.0994657Z",
+      "phase": "delivery",
+      "status": "ALARM",
+      "snsMessageId": "682ae53a-f9ca-5dbe-8641-86151184dbe2",
+      "sqsMessageId": "e2b7f31a-399a-46cc-974a-b005ea595c04",
+      "oldState": "INSUFFICIENT_DATA",
+      "newState": "ALARM",
+      "stateChangeTime": "2026-09-24T23:10:06.917-04:00",
+      "metricValue": 1.0,
+      "acknowledgedAndDeleted": true
+    },
+    {
+      "at": "2026-09-25T03:11:17.5527259Z",
+      "phase": "delivery",
+      "status": "OK",
+      "snsMessageId": "e4c952bc-d91e-5d32-9ed6-31933194896e",
+      "sqsMessageId": "264be9be-594c-410a-82b3-7414076aceed",
+      "oldState": "ALARM",
+      "newState": "OK",
+      "stateChangeTime": "2026-09-24T23:11:06.918-04:00",
+      "metricValue": 0.0,
+      "acknowledgedAndDeleted": true
+    },
+    {
+      "at": "2026-09-25T03:11:24.1959811Z",
+      "phase": "ack-verification",
+      "status": "PASS",
+      "consecutiveEmptyReceives": 2,
+      "additionalAtLeastOnceDeliveries": 0
+    },
+    {
+      "at": "2026-09-25T03:11:25.5990589Z",
+      "phase": "history-verification",
+      "status": "PASS",
+      "statesPresent": ["ALARM", "OK"]
+    }
+  ],
+  "alarmHistory": [
+    {
+      "timestamp": "2026-09-24T23:10:06.917-04:00",
+      "summary": "Alarm updated from INSUFFICIENT_DATA to ALARM",
+      "oldState": "INSUFFICIENT_DATA",
+      "newState": "ALARM",
+      "evaluatedTimestamp": "2026-09-24T23:09:00-04:00",
+      "evaluatedValue": 1.0
+    },
+    {
+      "timestamp": "2026-09-24T23:11:06.918-04:00",
+      "summary": "Alarm updated from ALARM to OK",
+      "oldState": "ALARM",
+      "newState": "OK",
+      "evaluatedTimestamp": "2026-09-24T23:10:00-04:00",
+      "evaluatedValue": 0.0
+    }
+  ],
+  "cleanup": {
+    "alarmDeleted": true,
+    "subscriptionDeleted": true,
+    "topicDeleted": true,
+    "queueDeleted": true,
+    "alarmAbsentAfterCleanup": true,
+    "topicAbsentAfterCleanup": true,
+    "queueAbsentAfterCleanup": true,
+    "errors": []
+  },
+  "proves": [
+    "A uniquely named synthetic CloudWatch alarm can transition to ALARM and deliver through an exact ephemeral SNS topic to an SSE-SQS receiver.",
+    "The receiver can acknowledge and delete the ALARM notification.",
+    "The alarm can recover to OK and deliver a second acknowledged notification.",
+    "The ephemeral alarm, subscription, topic, and queue can be removed and verified absent without touching the production alarm topic."
+  ],
+  "doesNotProve": [
+    "Delivery for every required Package 9 warning and stop threshold.",
+    "Delivery to a named human or production receiver.",
+    "Stop-admission behavior or preservation of queued and immutable evidence after a stop threshold.",
+    "Projection or routing rollback.",
+    "Production workload, latency, cost, buyer, accuracy, or economics qualification."
+  ]
+}

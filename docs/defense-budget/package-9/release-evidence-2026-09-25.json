@@ -1,7 +1,7 @@
 {
   "package": 9,
   "releasedAt": "2026-09-25T01:52:34.3761012Z",
-  "updatedAt": "2026-09-25T02:41:57.738Z",
+  "updatedAt": "2026-09-25T03:11:36.0516079Z",
   "sourceControl": {
     "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1794",
     "mergeCommit": "f8a9079c5fb149952c450bf050d9678494884c26",
@@ -41,10 +41,11 @@
     "currentReleaseDecision": "NO_GO",
     "maximumActivation": "shadow_only",
     "durableDatabaseLoadAndFailureRecovery": "PASS_LIMITED_SCOPE",
+    "isolatedSyntheticAlarmDelivery": "PASS_LIMITED_SCOPE",
     "blindIndependentAccuracyReview": "NOT_RUN",
     "buyerBenchmark": "NOT_RUN",
     "matchedWorkCostQualification": "NOT_RUN",
-    "rollbackAndAlarmDeliveryRehearsal": "NOT_RUN"
+    "rollbackAndAlarmDeliveryRehearsal": "PARTIAL_PASS_ALARM_PATH_ONLY"
   },
   "durableQualification": {
     "report": "docs/defense-budget/package-9/evidence/durable-run-p9-20260925024117927-2c727e.json",
@@ -77,6 +78,28 @@
       "paidProviderEconomics",
       "buyerBenchmark",
       "independentAccuracy"
+    ]
+  },
+  "isolatedAlarmQualification": {
+    "report": "docs/defense-budget/package-9/evidence/alarm-delivery-run-p9-f07-20260925T030858Z-5d9b39.json",
+    "sha256": "e32c7fc51979a831e1cc61ebc3977d04d5e39dd8de30e9fd638a0c25fb32bf10",
+    "sourceRevision": "f691689c63cb40941e15fad25e4b6f264a4ddba5",
+    "harness": "scripts/qualify-package9-f07-isolated.ps1",
+    "harnessSha256": "fcf3ffb35af4875ad90f0d758356fe5afd043130e6f9502faf9d6ab864377541",
+    "environment": "isolated-ephemeral-aws-cloudwatch-sns-sqs",
+    "status": "PASS_LIMITED_SCOPE",
+    "runKey": "p9-f07-20260925T030858Z-5d9b39",
+    "alarmTransitions": ["INSUFFICIENT_DATA_TO_ALARM", "ALARM_TO_OK"],
+    "expectedNotificationsReceived": 2,
+    "expectedNotificationsAcknowledged": 2,
+    "additionalAtLeastOnceDeliveries": 0,
+    "ephemeralResourceCleanupVerified": true,
+    "notRun": [
+      "allRequiredWarningAndStopThresholds",
+      "namedHumanOrProductionReceiver",
+      "stopAdmission",
+      "queuedAndImmutableEvidencePreservation",
+      "projectionAndRoutingRollback"
     ]
   },
   "aws": {
@@ -236,7 +259,7 @@
     "reasons": [
       "The qualification manifest, exact marketed-family cohort, mandatory-source denominator and release authorization are not approved and bound to the deployed revision.",
       "The required blind independent semantic adjudication and confidence intervals have not been produced.",
-      "The disposable PostgreSQL crash, lease, retry, source/provider-failure and 100-row reconciliation harness passed only its declared local scope; sustained product latency, real adapter/provider SDK behavior, alarm delivery and routing/projection rollback remain unqualified.",
+      "The disposable PostgreSQL crash, lease, retry, source/provider-failure and 100-row reconciliation harness passed only its declared local scope; one isolated synthetic AWS alarm path also passed delivery and recovery, but sustained product latency, real adapter/provider SDK behavior, the full required alarm set, stop-admission and routing/projection rollback remain unqualified.",
       "Matched completed-work cost evidence does not establish the required 30 percent Jev savings at maintained completion, accuracy and coverage.",
       "The six predeclared buyer workflows have not been completed by the required buyer cohorts and independently adjudicated.",
       "Named operational ownership and acceptance records are not present."
