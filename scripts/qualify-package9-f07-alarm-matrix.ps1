@@ -193,7 +193,7 @@ function Assert-MessageIdentity($AlarmMessage) {
   if ($AlarmMessage.Trigger.Namespace -ne $namespace -or $AlarmMessage.Trigger.MetricName -ne "P9F07_$($entry.id)" -or $dims.Count -ne 1 -or $dims[0].Name -ne 'ThresholdId' -or $dims[0].Value -ne $entry.id) {
     throw "Notification metric identity mismatch for $($AlarmMessage.AlarmName)"
   }
-  if ($AlarmMessage.AlarmArn -ne $alarms[$entry.id].Arn) { throw "Notification ARN mismatch for $($entry.id)" }
+  if ($AlarmMessage.AlarmArn -ne $alarms[$entry.id].AlarmArn) { throw "Notification ARN mismatch for $($entry.id)" }
   return $entry
 }
 function Receive-OneState($Entry, [string]$DesiredState, [DateTimeOffset]$TransitionTime) {
@@ -317,11 +317,12 @@ try {
   foreach ($entry in $matrix) {
     $name = Get-AlarmName $entry
     $initialTransitionTime = Wait-AlarmState $name 'OK'
-    Add-Observation 'alarm-baseline' 'OK' "Confirmed initial OK state for $($entry.id) while actions were disabled" ([pscustomobject]@{ alarmName = $name; alarmArn = $alarms[$entry.id].Arn; cloudWatchTransitionAt = $initialTransitionTime.ToString('o'); actionsEnabled = $false })
+    Add-Observation 'alarm-baseline' 'OK' "Confirmed initial OK state for $($entry.id) while actions were disabled" ([pscustomobject]@{ alarmName = $name; alarmArn = $alarms[$entry.id].AlarmArn; cloudWatchTransitionAt = $initialTransitionTime.ToString('o'); actionsEnabled = $false })
   }
   Prove-BaselineQueueEmpty
 
-  Invoke-AwsCli @('cloudwatch','enable-alarm-actions','--region',$Region,'--alarm-names',@($createdAlarmNames)) | Out-Null
+  $enableArguments = @('cloudwatch','enable-alarm-actions','--region',$Region,'--alarm-names') + [string[]]$createdAlarmNames
+  Invoke-AwsCli $enableArguments | Out-Null
   $enabledReadback = Invoke-AwsCli @('cloudwatch','describe-alarms','--region',$Region,'--alarm-name-prefix',$runKey,'--output','json') | ConvertFrom-Json
   foreach ($entry in $matrix) {
     $name = Get-AlarmName $entry
@@ -360,7 +361,11 @@ catch {
 finally {
   if ($null -ne $identity) {
     if ($createdAlarmNames.Count -gt 0) {
-      try { Invoke-AwsCli @('cloudwatch','delete-alarms','--region',$Region,'--alarm-names',@($createdAlarmNames)) | Out-Null; $result.cleanup.alarmsDeleted = $true }
+      try {
+        $deleteArguments = @('cloudwatch','delete-alarms','--region',$Region,'--alarm-names') + [string[]]$createdAlarmNames
+        Invoke-AwsCli $deleteArguments | Out-Null
+        $result.cleanup.alarmsDeleted = $true
+      }
       catch { $cleanupErrors.Add($_.Exception.Message); $result.cleanup.alarmsDeleted = $false }
     } else { $result.cleanup.alarmsDeleted = $true }
     if ($subscriptionArn) { try { Invoke-AwsCli @('sns','unsubscribe','--region',$Region,'--subscription-arn',$subscriptionArn) | Out-Null; $result.cleanup.subscriptionDeleted = $true } catch { $cleanupErrors.Add($_.Exception.Message); $result.cleanup.subscriptionDeleted = $false } }
@@ -376,7 +381,11 @@ finally {
     }
     Start-Sleep -Seconds 2
     if ($createdAlarmNames.Count -gt 0) {
-      try { $remaining = (Invoke-AwsCli @('cloudwatch','describe-alarms','--region',$Region,'--alarm-names',@($createdAlarmNames),'--query','length(MetricAlarms)','--output','text')).Trim(); $result.cleanup.alarmsAbsent = $remaining -eq '0' }
+      try {
+        $describeArguments = @('cloudwatch','describe-alarms','--region',$Region,'--alarm-names') + [string[]]$createdAlarmNames + @('--query','length(MetricAlarms)','--output','text')
+        $remaining = (Invoke-AwsCli $describeArguments).Trim()
+        $result.cleanup.alarmsAbsent = $remaining -eq '0'
+      }
       catch { $cleanupErrors.Add($_.Exception.Message); $result.cleanup.alarmsAbsent = $false }
     } else { $result.cleanup.alarmsAbsent = $true }
     try { $remaining = (Invoke-AwsCli @('sns','list-topics','--region',$Region,'--query',"length(Topics[?ends_with(TopicArn, ':$topicName')])",'--output','text')).Trim(); $result.cleanup.topicAbsent = $remaining -eq '0' } catch { $cleanupErrors.Add($_.Exception.Message); $result.cleanup.topicAbsent = $false }
