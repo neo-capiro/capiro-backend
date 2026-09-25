@@ -214,13 +214,14 @@ async function main(): Promise<void> {
     // reads but consumed by the outbox without creating a client alert.
     const historicalPackageId = `${packageId}-historical-${run}`;
     const historicalSourceKey = `govinfo:${historicalPackageId}`;
+    const historicalBillId = `${billId}-historical`;
     await persistFederalEvidenceSnapshot(prisma, {
       provider: 'govinfo',
       collection: 'BILLS',
       packageId: historicalPackageId,
-      billId,
+      billId: historicalBillId,
       versionCode: 'historical',
-      lineageKey: `${billId}:house`,
+      lineageKey: `${historicalBillId}:house`,
       sourceUrl: `https://www.govinfo.gov/content/pkg/${historicalPackageId}/xml/${historicalPackageId}.xml`,
       rawContent: `<bill><section>Historical mention of ${peCode}.</section></bill>`,
       extractedText: `Historical mention of ${peCode}.`,
