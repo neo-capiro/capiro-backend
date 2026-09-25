@@ -699,12 +699,10 @@ async function entrypoint() {
           CAPIRO_P9Q_CHILD: '1',
           CAPIRO_P9Q_TEMP_ROOT: runtimeTempRoot,
         },
-        encoding: 'utf8',
+        stdio: 'inherit',
         windowsHide: true,
       },
     );
-    if (child.stdout) process.stdout.write(child.stdout);
-    if (child.stderr) process.stderr.write(child.stderr);
   } finally {
     try {
       rmSync(runtimeTempRoot, { recursive: true, force: true });
