@@ -61,12 +61,20 @@ function execute(
   args: string[],
   options: { cwd?: string; env?: NodeJS.ProcessEnv } = {},
 ) {
-  const result = spawnSync(command, args, {
+  let executable = command;
+  let executableArgs = args;
+  if (process.platform === 'win32' && command === 'pnpm') {
+    const pnpmCli = process.env.npm_execpath;
+    if (!pnpmCli) throw new Error('npm_execpath is required to invoke pnpm safely on Windows.');
+    executable = process.execPath;
+    executableArgs = [pnpmCli, ...args];
+  }
+  const result = spawnSync(executable, executableArgs, {
     cwd: options.cwd ?? REPO_ROOT,
     env: options.env ?? process.env,
     encoding: 'utf8',
     windowsHide: true,
-    shell: process.platform === 'win32' && command !== 'docker',
+    shell: false,
     timeout: 15 * 60 * 1000,
   });
   if (result.error) throw result.error;
@@ -341,8 +349,8 @@ function makePorts(input: {
           throw new Error(`injected local ${fault}`);
         }
         await persistAcceptedFact(input.pool, input.samples, input.runId, observation);
+        if (input.onEvidenceCommitted) await input.onEvidenceCommitted(observation);
         if (observation === input.crashAfterCommitObservationId) {
-          if (input.onEvidenceCommitted) await input.onEvidenceCommitted(observation);
           process.exit(73);
         }
         return bridgeResult(observation);
@@ -480,6 +488,13 @@ async function removeContainer(containerId: string | undefined, runId: string) {
 }
 
 async function runQualification() {
+  const sourceRevision = execute('git', ['rev-parse', 'HEAD']);
+  const trackedChanges = execute('git', ['status', '--porcelain', '--untracked-files=no']);
+  if (trackedChanges) {
+    throw new Error(
+      `Package 9 durable qualification requires a clean tracked tree; commit or revert:\n${trackedChanges}`,
+    );
+  }
   const runId = `p9-${new Date().toISOString().replace(/[-:.TZ]/g, '')}-${randomBytes(3).toString('hex')}`;
   const containerName = `${runId}-pg`;
   const password = randomBytes(24).toString('base64url');
@@ -512,6 +527,7 @@ async function runQualification() {
     startedAt: new Date().toISOString(),
     environment: {
       kind: 'disposable-local-postgresql',
+      sourceRevision,
       image: POSTGRES_IMAGE,
       containerId,
       containerName,
