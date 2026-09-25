@@ -204,7 +204,7 @@ BEGIN
     'ea200000-0000-0000-0000-000000000001',
     'eb100000-0000-0000-0000-000000000002',
     'federal_award', 'contract_award', 'new_record', 'low',
-    'PROSPECT_X', repeat('g', 64), 'federal_award:PROSPECT_X:' || repeat('g', 64),
+    'PROSPECT_X', repeat('7', 64), 'federal_award:PROSPECT_X:' || repeat('7', 64),
     '{}'::jsonb, 'X', 'X', 'X', 'X'
   );
   RAISE EXCEPTION 'cross-tenant alert prospect was accepted';
