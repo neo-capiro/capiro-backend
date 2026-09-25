@@ -16,6 +16,13 @@
  *   * a repeated execution recovers the existing activation rather than
  *     activating twice, verified by counting ledger rows;
  *   * rollback is a forward pointer transition that deletes nothing.
+ *   * populated synthetic Program Element reads visibly change to the
+ *     candidate's defective value, then exactly return to the prior response
+ *     after authorized pointer rollback.
+ *
+ * Explicitly NOT_RUN: authenticated HTTP, deployed API restart, AWS or
+ * production database rollback, real customer/source/notification activity,
+ * and commercial activation. This rehearsal uses disposable PostgreSQL only.
  *
  * Seeding runs as the database owner. The promotion itself runs as the
  * promoter, so a missing grant fails the rehearsal rather than hiding.
@@ -35,6 +42,7 @@ import {
 } from '../src/defense-budget/promotion/canonical-promotion-repository-prisma-v1.js';
 import {
   projectOmCandidatesV1,
+  projectRdteCandidatesV1,
   type ProjectionCandidateInputV1,
 } from '../src/defense-budget/promotion/canonical-projectors-v1.js';
 import {
@@ -68,6 +76,10 @@ const SNAPSHOT_ID = '99999999-9999-9999-9999-999999999999';
 const PRIOR_SNAPSHOT_ID = '99999999-9999-9999-9999-999999999998';
 const F06_PE_CODE = 'P9-F06-SYNTHETIC-PE';
 const F06_CANARY_TENANT = 'p9-f06-synthetic-canary-tenant';
+const F06_PRIOR_FY2027 = 'P9-F06-SYNTHETIC-PE|pb_fy2027|2027|total';
+const F06_CANDIDATE_FY2027 = 'P9-F06-SYNTHETIC-PE|pb_fy2027|2027|total';
+const F06_PRIOR_QUANTITY_FY2027 = 'P9-F06-SYNTHETIC-PE|pb_fy2027|2027|quantity';
+const F06_CANDIDATE_QUANTITY_FY2027 = 'P9-F06-SYNTHETIC-PE|pb_fy2027|2027|quantity';
 const SHA = (c: string) => c.repeat(64);
 
 let passed = 0;
@@ -93,7 +105,11 @@ function required(name: string): string {
 async function readSyntheticPe(
   app: PrismaClient,
   options: { rollbackOn: boolean; tenantId: string },
-): Promise<{ rows: Awaited<ReturnType<ProgramElementReadService['getBudgetPositions']>>; snapshotIds: string[]; legacyReads: number }> {
+): Promise<{
+  rows: Awaited<ReturnType<ProgramElementReadService['getBudgetPositions']>>;
+  snapshotIds: string[];
+  legacyReads: number;
+}> {
   const source = createSnapshotReadPortPrismaV1(app);
   const snapshotIds: string[] = [];
   let legacyReads = 0;
@@ -125,15 +141,17 @@ async function readSyntheticPe(
     programElementBudgetPosition: {
       findMany: async () => {
         legacyReads += 1;
-        return [{
-          positionCycle: 'legacy-only-fy2027',
-          assertedFy: 2027,
-          amount: { toString: () => '999' },
-          quantity: null,
-          valueKind: 'total',
-          sourceUrl: 'fixture://package9-f06/legacy',
-          pageNumber: 1,
-        }];
+        return [
+          {
+            positionCycle: 'legacy-only-fy2027',
+            assertedFy: 2027,
+            amount: { toString: () => '777' },
+            quantity: null,
+            valueKind: 'total',
+            sourceUrl: 'fixture://package9-f06/legacy',
+            pageNumber: 1,
+          },
+        ];
       },
     },
   };
@@ -150,10 +168,18 @@ async function readSyntheticPe(
     clerkUserId: 'p9-f06-synthetic-clerk-user',
     role: 'member',
   } as unknown as TenantContext;
-  const rows = await tenantStore.run(tenantContext, () =>
-    reader.getBudgetPositions(F06_PE_CODE),
-  );
+  const rows = await tenantStore.run(tenantContext, () => reader.getBudgetPositions(F06_PE_CODE));
   return { rows, snapshotIds, legacyReads };
+}
+
+type SyntheticPeRows = Awaited<ReturnType<ProgramElementReadService['getBudgetPositions']>>;
+function canonicalizePeResponse(rows: SyntheticPeRows): SyntheticPeRows {
+  return [...rows].sort(
+    (a, b) =>
+      a.assertedFy - b.assertedFy ||
+      a.positionCycle.localeCompare(b.positionCycle) ||
+      a.valueKind.localeCompare(b.valueKind),
+  );
 }
 
 /** Reads the verified O&M projection tables and runs the Workstream H projector. */
@@ -315,7 +341,75 @@ async function main(): Promise<void> {
 
     const source = new OmProjectionSource(admin);
     const projections = await source.loadForPlan();
-    check(projections.length === 2, `projector produced ${projections.length} projections`);
+    check(projections.length === 2, `projector produced ${projections.length} O&M projections`);
+
+    // The rollback rehearsal exercises the real PE read service against both
+    // snapshots. Seed two deterministic synthetic budget positions per
+    // snapshot; the candidate deliberately carries a conspicuous bad FY2027
+    // amount so pointer rollback has a visible response-level effect.
+    const peCandidates: ProjectionCandidateInputV1[] = [
+      { key: 'total', valueKind: 'total', valueMillions: '999', originalValue: '999' },
+      { key: 'quantity', valueKind: 'quantity', valueMillions: '12', originalValue: '12' },
+    ].map((row) => ({
+      candidateId: `p9-f06:${row.key}`,
+      target: 'ProgramElementBudgetPosition',
+      naturalKey: row.key === 'total' ? F06_CANDIDATE_FY2027 : F06_CANDIDATE_QUANTITY_FY2027,
+      operation: 'insert',
+      reason: 'synthetic populated rollback rehearsal',
+      artifactId: `artifact-p9-f06-${row.key}`,
+      artifactContentSha256: SHA('f'),
+      verificationCandidateId: `candidate-p9-f06-${row.key}`,
+      verificationRunId: `run-p9-f06-${row.key}`,
+      verificationDecisionId: `decision-p9-f06-${row.key}`,
+      sourceDocumentKey: '00000000-0000-0000-0000-000000000001',
+      sourcePdfSha256: SHA('d'),
+      assertionIds: [`assert-p9-f06-${row.key}`],
+      evidenceIds: [`evidence-p9-f06-${row.key}`],
+      values: {
+        peCode: F06_PE_CODE,
+        fiscalYear: 2027,
+        positionCycle: 'pb_fy2027',
+        valueKind: row.valueKind,
+        amount: row.valueMillions,
+        originalValue: row.originalValue,
+        originalUnit: 'millions',
+      },
+    }));
+    const peProjectionResult = projectRdteCandidatesV1(peCandidates);
+    if (peProjectionResult.refusals.length > 0) {
+      fail(
+        `RDT&E projector refused synthetic PE rows: ${peProjectionResult.refusals.map((r) => r.detail).join('; ')}`,
+      );
+    }
+    const peIdentityResult = projectRdteCandidatesV1([
+      {
+        candidateId: 'p9-f06:identity',
+        target: 'ProgramElement',
+        naturalKey: F06_PE_CODE,
+        operation: 'insert',
+        reason: 'synthetic populated rollback rehearsal',
+        artifactId: 'artifact-p9-f06-identity',
+        artifactContentSha256: SHA('f'),
+        verificationCandidateId: 'candidate-p9-f06-identity',
+        verificationRunId: 'run-p9-f06-identity',
+        verificationDecisionId: 'decision-p9-f06-identity',
+        sourceDocumentKey: '00000000-0000-0000-0000-000000000001',
+        sourcePdfSha256: SHA('d'),
+        assertionIds: ['assert-p9-f06-identity'],
+        evidenceIds: ['evidence-p9-f06-identity'],
+        values: { peCode: F06_PE_CODE, title: 'Synthetic rollback rehearsal PE' },
+      },
+    ]);
+    if (peIdentityResult.refusals.length > 0) {
+      fail(
+        `RDT&E projector refused synthetic PE identity: ${peIdentityResult.refusals.map((r) => r.detail).join('; ')}`,
+      );
+    }
+    projections.push(...peProjectionResult.projections, ...peIdentityResult.projections);
+    check(
+      peProjectionResult.projections.length === 2 && peIdentityResult.projections.length === 1,
+      'RDT&E projector produced one Program Element identity and two populated budget positions',
+    );
 
     const yearProjection = projections.find((p) => p.projectionKind === 'non_rdte:OmSagYear');
     check(
@@ -326,7 +420,7 @@ async function main(): Promise<void> {
     const plan = buildPromotionPlanV1({
       planId: 'plan-engine-1',
       eligibilityHash: SHA('e'),
-      scope: { cycleId: 'cycle-fy2027', fiscalYear: 2027, families: ['om'], stages: [] },
+      scope: { cycleId: 'cycle-fy2027', fiscalYear: 2027, families: ['om', 'rdte'], stages: [] },
       mode: 'baseline_hydration',
       proposedSnapshotId: SNAPSHOT_ID,
       expectedActiveSnapshotId: null,
@@ -342,7 +436,7 @@ async function main(): Promise<void> {
         (id, snapshot_key, environment, cycle_id, fiscal_year, status,
          required_scopes, completed_scopes, mapping_registry_hash)
       VALUES ('${SNAPSHOT_ID}', 'snap-engine', '${ENVIRONMENT}', 'cycle-fy2027', 2027, 'STAGING',
-              '["om"]'::jsonb, '[]'::jsonb, '${SHA('a')}');`);
+              '["om","rdte"]'::jsonb, '[]'::jsonb, '${SHA('a')}');`);
 
     // Gap 3 closeout: eligibility_hash is now a foreign key into
     // defense_budget_promotion_eligibility. Both the plan and both
@@ -358,7 +452,7 @@ async function main(): Promise<void> {
          mapping_registry_hash, scope, scope_hash, open_conflict_count,
          unsupported_item_count, document, generated_at)
       VALUES ('elig-engine-1', '${SHA('e')}', 'cycle-fy2027', '1.0.0', '${SHA('a')}',
-              '{"cycleId":"cycle-fy2027","fiscalYear":2027,"families":["om"],"stages":[]}'::jsonb,
+              '{"cycleId":"cycle-fy2027","fiscalYear":2027,"families":["om","rdte"],"stages":[]}'::jsonb,
               '${SHA('a')}', 0, 0, '{}'::jsonb, now())
       ON CONFLICT ("eligibility_hash") DO NOTHING;`);
 
@@ -368,7 +462,7 @@ async function main(): Promise<void> {
          cycle_id, fiscal_year, scope, scope_hash, mode, proposed_snapshot_id,
          item_count, blocked_count, plan_document)
       VALUES ('plan-engine-1', '${plan.planHash}', '${SHA('e')}', '1.0.0', '${SHA('a')}',
-              'cycle-fy2027', 2027, '{"families":["om"]}'::jsonb, '${SHA('a')}',
+              'cycle-fy2027', 2027, '{"families":["om","rdte"]}'::jsonb, '${SHA('a')}',
               'baseline_hydration', '${SNAPSHOT_ID}', ${plan.counts.total}, 0,
               $$${JSON.stringify(plan)}$$::jsonb);`);
 
@@ -412,14 +506,14 @@ async function main(): Promise<void> {
       fail(`engine refused: ${result.refusals.map((r) => `${r.reason}: ${r.detail}`).join('; ')}`);
     }
     ok('engine staged and activated as capiro_pe_promoter');
-    check(result.stagedRowCount === 2, `staged ${result.stagedRowCount} canonical rows`);
-    check(result.outboxRowCount === 2, `wrote ${result.outboxRowCount} outbox rows`);
+    check(result.stagedRowCount === 5, `staged ${result.stagedRowCount} canonical rows`);
+    check(result.outboxRowCount === 5, `wrote ${result.outboxRowCount} outbox rows`);
 
     /* ---- Verify the committed state ---- */
     const [{ count: rowCount }] = await admin.$queryRawUnsafe<[{ count: bigint }]>(
       `SELECT count(*) FROM defense_budget_canonical_row WHERE snapshot_id = '${SNAPSHOT_ID}'`,
     );
-    check(Number(rowCount) === 2, `canonical rows persisted (${rowCount})`);
+    check(Number(rowCount) === 5, `canonical rows persisted (${rowCount})`);
 
     const [{ snapshot_id: activeId }] = await admin.$queryRawUnsafe<[{ snapshot_id: string }]>(
       `SELECT snapshot_id FROM defense_budget_active_snapshot WHERE environment = '${ENVIRONMENT}'`,
@@ -476,14 +570,28 @@ async function main(): Promise<void> {
         rollbackOn: false,
         tenantId: F06_CANARY_TENANT,
       });
-      check(canaryRead.rows.length === 0, 'canary foreground response came from the empty canonical snapshot, not the legacy sentinel');
-      check(canaryRead.snapshotIds.includes(SNAPSHOT_ID), 'tenant-scoped canary routed through the active snapshot pointer');
+      const candidateResponse = canonicalizePeResponse(canaryRead.rows);
+      check(
+        candidateResponse.length === 2,
+        'canary foreground response came from populated canonical rows, not the legacy sentinel',
+      );
+      check(
+        candidateResponse.find((row) => row.assertedFy === 2027)?.amount === '999',
+        'candidate snapshot exposes the deliberately defective FY2027 value through ProgramElementReadService',
+      );
+      check(
+        canaryRead.snapshotIds.includes(SNAPSHOT_ID),
+        'tenant-scoped canary routed through the active snapshot pointer',
+      );
 
       const emergencyRead = await readSyntheticPe(app, {
         rollbackOn: true,
         tenantId: F06_CANARY_TENANT,
       });
-      check(emergencyRead.rows[0]?.positionCycle === 'legacy-only-fy2027', 'emergency process switch restored legacy response');
+      check(
+        emergencyRead.rows[0]?.positionCycle === 'legacy-only-fy2027',
+        'emergency process switch restored legacy response',
+      );
       check(emergencyRead.snapshotIds.length === 0, 'emergency switch bypassed snapshot row reads');
     } finally {
       if (priorPeEnvironment === undefined) delete process.env.PE_SNAPSHOT_ENVIRONMENT;
@@ -496,7 +604,39 @@ async function main(): Promise<void> {
         (id, snapshot_key, environment, cycle_id, fiscal_year, status,
          required_scopes, completed_scopes, mapping_registry_hash, snapshot_hash)
       VALUES ('${PRIOR_SNAPSHOT_ID}', 'snap-prior-engine', '${ENVIRONMENT}', 'cycle-fy2026', 2026,
-              'SUPERSEDED', '[]'::jsonb, '[]'::jsonb, '${SHA('a')}', '${SHA('b')}');`);
+              'STAGING', '[]'::jsonb, '[]'::jsonb, '${SHA('a')}', NULL);`);
+    const [{ promotion_run_id: syntheticRunId }] = await admin.$queryRawUnsafe<
+      [{ promotion_run_id: string }]
+    >(
+      `SELECT promotion_run_id FROM defense_budget_canonical_row WHERE snapshot_id = '${SNAPSHOT_ID}' AND canonical_entity = 'canonical_rdte_budget_position' LIMIT 1`,
+    );
+    await admin.$executeRawUnsafe(`
+      INSERT INTO defense_budget_canonical_row
+        (snapshot_id, promotion_run_id, canonical_entity, canonical_natural_key, parent_natural_key,
+         family, fiscal_year, funding_field, canonical_row_hash, money_original_value,
+         money_original_unit, money_value_millions, attributes, direct_or_derived, binding_status,
+         source_projection_id, source_assertion_id, evidence_ids, artifact_id, artifact_content_sha256,
+         verification_candidate_id, verification_run_id, source_document_id, source_pdf_sha256, mapping_registry_hash)
+      VALUES
+        ('${PRIOR_SNAPSHOT_ID}', '${syntheticRunId}', 'canonical_rdte_program_element', '${F06_PE_CODE}', NULL,
+         'rdte', NULL, NULL, '${SHA('4')}', NULL, NULL, NULL,
+         '{"peCode":"${F06_PE_CODE}"}'::jsonb, 'direct', 'accepted',
+         'p9-f06-prior-identity', 'assert-p9-f06-prior-identity', '["evidence-p9-f06-prior-identity"]'::jsonb,
+         'artifact-p9-f06-prior-identity', '${SHA('f')}', 'candidate-p9-f06-prior-identity', 'run-p9-f06-prior-identity',
+         '00000000-0000-0000-0000-000000000001', '${SHA('d')}', '${SHA('a')}'),
+        ('${PRIOR_SNAPSHOT_ID}', '${syntheticRunId}', 'canonical_rdte_budget_position', '${F06_PRIOR_FY2027}', '${F06_PE_CODE}',
+         'rdte', 2027, 'request', '${SHA('2')}', '250', 'millions', 250,
+         '{"peCode":"${F06_PE_CODE}","positionCycle":"pb_fy2027","valueKind":"total"}'::jsonb,
+         'direct', 'accepted', 'p9-f06-prior-2027', 'assert-p9-f06-prior-2027', '["evidence-p9-f06-prior-2027"]'::jsonb,
+         'artifact-p9-f06-prior-2027', '${SHA('f')}', 'candidate-p9-f06-prior-2027', 'run-p9-f06-prior-2027',
+         '00000000-0000-0000-0000-000000000001', '${SHA('d')}', '${SHA('a')}'),
+        ('${PRIOR_SNAPSHOT_ID}', '${syntheticRunId}', 'canonical_rdte_budget_position', '${F06_PRIOR_QUANTITY_FY2027}', '${F06_PE_CODE}',
+         'rdte', 2027, 'request', '${SHA('3')}', '12', 'millions', 12,
+         '{"peCode":"${F06_PE_CODE}","positionCycle":"pb_fy2027","valueKind":"quantity"}'::jsonb,
+         'direct', 'accepted', 'p9-f06-prior-quantity-2027', 'assert-p9-f06-prior-quantity-2027', '["evidence-p9-f06-prior-quantity-2027"]'::jsonb,
+         'artifact-p9-f06-prior-quantity-2027', '${SHA('f')}', 'candidate-p9-f06-prior-quantity-2027', 'run-p9-f06-prior-quantity-2027',
+         '00000000-0000-0000-0000-000000000001', '${SHA('d')}', '${SHA('a')}');
+      UPDATE defense_budget_canonical_snapshot SET status = 'SUPERSEDED', snapshot_hash = '${SHA('b')}' WHERE id = '${PRIOR_SNAPSHOT_ID}';`);
     await admin.$executeRawUnsafe(`
       INSERT INTO defense_budget_promotion_authorization
         (authorization_id, plan_id, plan_hash, eligibility_hash, scope_hash,
@@ -505,6 +645,14 @@ async function main(): Promise<void> {
       VALUES ('auth-rollback-1', 'plan-engine-1', '${plan.planHash}', '${SHA('e')}', '${SHA('a')}',
               '${SNAPSHOT_ID}', 'actor-admin', 'capiro_admin', 'rollback rehearsal',
               now(), now() + interval '1 hour', '{}'::jsonb, '${SHA('a')}');`);
+
+    const candidateRowsBeforeRollback = await admin.$queryRawUnsafe<
+      { canonical_entity: string; canonical_natural_key: string; canonical_row_hash: string }[]
+    >(
+      `SELECT canonical_entity, canonical_natural_key, canonical_row_hash
+         FROM defense_budget_canonical_row WHERE snapshot_id = '${SNAPSHOT_ID}'
+        ORDER BY canonical_entity, canonical_natural_key`,
+    );
 
     // No manual status fix-up here. The service and adapter must handle the
     // SUPERSEDED -> READY transition inside the activation transaction; if they
@@ -531,20 +679,41 @@ async function main(): Promise<void> {
     const [{ count: survivingRows }] = await admin.$queryRawUnsafe<[{ count: bigint }]>(
       `SELECT count(*) FROM defense_budget_canonical_row WHERE snapshot_id = '${SNAPSHOT_ID}'`,
     );
-    check(Number(survivingRows) === 2, 'rolled-back snapshot kept all of its rows');
+    check(Number(survivingRows) === 5, 'rolled-back snapshot kept all of its rows');
+    const candidateRowsAfterRollback = await admin.$queryRawUnsafe<
+      { canonical_entity: string; canonical_natural_key: string; canonical_row_hash: string }[]
+    >(
+      `SELECT canonical_entity, canonical_natural_key, canonical_row_hash
+         FROM defense_budget_canonical_row WHERE snapshot_id = '${SNAPSHOT_ID}'
+        ORDER BY canonical_entity, canonical_natural_key`,
+    );
+    check(
+      JSON.stringify(candidateRowsAfterRollback) === JSON.stringify(candidateRowsBeforeRollback),
+      'rollback left every immutable candidate row hash unchanged',
+    );
+    const [{ count: restoredRows }] = await admin.$queryRawUnsafe<[{ count: bigint }]>(
+      `SELECT count(*) FROM defense_budget_canonical_row WHERE snapshot_id = '${PRIOR_SNAPSHOT_ID}'`,
+    );
+    check(
+      Number(restoredRows) === 3,
+      'prior snapshot retained its Program Element identity and both populated budget positions',
+    );
 
     const [{ count: snapshots }] = await admin.$queryRawUnsafe<[{ count: bigint }]>(
       `SELECT count(*) FROM defense_budget_canonical_snapshot WHERE environment = '${ENVIRONMENT}'`,
     );
     check(Number(snapshots) === 2, 'no snapshot was deleted by the rollback');
 
-    const rollbackRows = await admin.$queryRawUnsafe<[{ count: bigint; from_snapshot_id: string; to_snapshot_id: string }]>(
+    const rollbackRows = await admin.$queryRawUnsafe<
+      [{ count: bigint; from_snapshot_id: string; to_snapshot_id: string }]
+    >(
       `SELECT count(*) OVER() AS count, from_snapshot_id, to_snapshot_id
          FROM defense_budget_rollback_record WHERE authorization_id = 'auth-rollback-1'`,
     );
     check(rollbackRows.length === 1, 'durable rollback record was retained');
     check(
-      rollbackRows[0].from_snapshot_id === SNAPSHOT_ID && rollbackRows[0].to_snapshot_id === PRIOR_SNAPSHOT_ID,
+      rollbackRows[0].from_snapshot_id === SNAPSHOT_ID &&
+        rollbackRows[0].to_snapshot_id === PRIOR_SNAPSHOT_ID,
       'rollback record preserves the exact pointer transition',
     );
     const [{ paused }] = await admin.$queryRawUnsafe<[{ paused: boolean }]>(
@@ -571,7 +740,35 @@ async function main(): Promise<void> {
         rollbackOn: false,
         tenantId: F06_CANARY_TENANT,
       });
-      check(afterRollbackRead.rows.length === 0, 'post-rollback canary foreground response came from the restored canonical snapshot');
+      const restoredResponse = canonicalizePeResponse(afterRollbackRead.rows);
+      check(
+        restoredResponse.length === 2,
+        'post-rollback canary foreground response came from populated restored canonical rows',
+      );
+      check(
+        JSON.stringify(restoredResponse) ===
+          JSON.stringify([
+            {
+              positionCycle: 'pb_fy2027',
+              assertedFy: 2027,
+              amount: null,
+              quantity: '12',
+              valueKind: 'quantity',
+              sourceUrl: null,
+              pageNumber: null,
+            },
+            {
+              positionCycle: 'pb_fy2027',
+              assertedFy: 2027,
+              amount: '250',
+              quantity: null,
+              valueKind: 'total',
+              sourceUrl: null,
+              pageNumber: null,
+            },
+          ]),
+        'authorized pointer rollback restored the exact prior populated ProgramElementReadService response',
+      );
       check(
         afterRollbackRead.snapshotIds.includes(PRIOR_SNAPSHOT_ID),
         'post-rollback tenant-scoped canary followed the restored pointer',
@@ -595,6 +792,9 @@ async function main(): Promise<void> {
 
     check(auditEntries.length >= 2, `engine audited ${auditEntries.length} attempts`);
 
+    console.log(
+      '[p7-engine] NOT_RUN: authenticated HTTP, deployed API restart, AWS/production DB rollback, real customer/source/notification activity, commercial activation',
+    );
     console.log(`[p7-engine] ENGINE REHEARSAL PASSED — ${passed} checks`);
   } finally {
     await admin.$disconnect().catch(() => undefined);
