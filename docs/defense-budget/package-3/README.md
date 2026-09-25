@@ -8,6 +8,7 @@ Package 3 extends the durable extraction path to procurement, O&M and MILCON whi
 - For non-RDT&E output, selected parser runs are rebound to their exact parser-run identities; the durable parser-artifact store must return a matching persisted result and verified bytes. Missing or mismatched proofs fail the factory.
 - The qualification driver projects stable substantive fields under `qualification_artifact_projection_v1` and hashes the canonicalized projection with SHA-256. Exact artifact-byte SHA-256 remains a separate integrity check.
 - Reviewed scoped PE-total inputs can produce a deterministically ordered `reviewed_partial` / `partial` publication plan, bound to its cohort and expected active snapshot. The planner is pure: it does not write canonical rows, create/activate a snapshot or publish a complete family.
+- The congressional packet resolver now has a successful exact-match regression path: a manifest-bound packet, source identity, routing context, packet bytes, and persisted parser-artifact proof must all agree before `matched` inputs are returned. The test uses offline fixtures only and performs no production registration or publication.
 - Congressional semantic production remains quarantined and blocked. Governed structured-table inputs and the required proof inputs are absent; no semantic production qualification or congressional publication is claimed.
 - Generic component-wide books remain generic lineage artifacts and are not represented as qualified family semantics. No canonical activation is included in Package 3.
 
