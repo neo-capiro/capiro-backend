@@ -28,13 +28,28 @@ describe('vNext Meri route state', () => {
   test('parses prompt and client launch context without accepting blank values', () => {
     expect(
       meriContextRequest('?meriPrompt=%20Analyze%20this%20&meriClient=%20client-123%20'),
-    ).toEqual({ prompt: 'Analyze this', clientId: 'client-123' });
+    ).toEqual({ prompt: 'Analyze this', clientId: 'client-123', prospectId: null });
     expect(meriContextRequest('?meriClient=client-123')).toEqual({
       prompt: '',
       clientId: 'client-123',
+      prospectId: null,
     });
     expect(meriContextRequest('?meriPrompt=%20&meriClient=%20')).toBeNull();
     expect(meriContextRequest('?other=1')).toBeNull();
+  });
+
+  test('parses a UUID prospect launch without accepting or inheriting client scope', () => {
+    expect(
+      meriContextRequest(
+        '?meriPrompt=Prepare&meriProspect=11111111-1111-4111-8111-111111111111&meriClient=stale',
+      ),
+    ).toEqual({
+      prompt: 'Prepare',
+      clientId: null,
+      prospectId: '11111111-1111-4111-8111-111111111111',
+    });
+    expect(meriContextRequest('?meriPrompt=Prepare&meriProspect=not-a-uuid')).toBeNull();
+    expect(withoutMeriContext('?meriProspect=11111111-1111-4111-8111-111111111111')).toBe('');
   });
 
   test('removes one-time context while retaining unrelated query state', () => {
