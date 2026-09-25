@@ -3,7 +3,11 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import { DefenseBudgetLifecycleHealthPage } from './DefenseBudgetLifecycleHealthPage.js';
-import type { CycleHealth, ScheduleTickHealth } from './defense-budget-lifecycle-api.js';
+import type {
+  CoverageReconciliation,
+  CycleHealth,
+  ScheduleTickHealth,
+} from './defense-budget-lifecycle-api.js';
 
 const apiGetMock = vi.fn();
 vi.mock('../../../lib/use-api.js', () => ({ useApi: () => ({ get: apiGetMock }) }));
@@ -68,6 +72,66 @@ function tickHealthFixture(overrides: Partial<ScheduleTickHealth> = {}): Schedul
   };
 }
 
+function coverageFixture(): CoverageReconciliation {
+  return {
+    schemaVersion: 'defense_coverage_reconciliation_v1',
+    fiscalYear: 2027,
+    environment: 'unknown',
+    activeSnapshotId: null,
+    logicalSlotCount: 1,
+    rows: [
+      {
+        slotId: 'slot-unattested',
+        fiscalYear: 2027,
+        sourceFamily: 'army-rdte-budget-justification',
+        component: null,
+        optional: false,
+        discovery: 'unknown',
+        denominator: null,
+        knownRequiredUnits: 1,
+        knownOptionalUnits: 1,
+        parsed: 0,
+        verified: 0,
+        reviewed: 0,
+        published: 0,
+        exceptions: ['catalog_completeness_unknown', 'physical_source_missing'],
+        units: [
+          {
+            unitId: 'unit-missing',
+            kind: 'volume',
+            required: true,
+            superseded: false,
+            account: null,
+            budgetActivity: 'BA 2',
+            volume: 'Volume 1',
+            sourceDocumentId: null,
+            parsed: false,
+            verified: false,
+            reviewed: false,
+            published: false,
+            exceptions: ['physical_source_missing', 'account_attribution_unknown', 'publication_missing'],
+          },
+          {
+            unitId: 'unit-unavailable-superseded',
+            kind: 'document',
+            required: false,
+            superseded: true,
+            account: 'Army',
+            budgetActivity: null,
+            volume: null,
+            sourceDocumentId: 'source-2',
+            parsed: false,
+            verified: false,
+            reviewed: false,
+            published: false,
+            exceptions: ['source_unavailable', 'source_superseded'],
+          },
+        ],
+      },
+    ],
+  };
+}
+
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -82,6 +146,7 @@ function renderPage() {
 describe('DefenseBudgetLifecycleHealthPage', () => {
   it('renders real cycle-health tiles and the per-track table once data resolves', async () => {
     apiGetMock.mockImplementation((url: string) => {
+      if (url.includes('/coverage-reconciliation')) return Promise.resolve({ data: coverageFixture() });
       if (url.includes('/schedule/tick-health')) return Promise.resolve({ data: tickHealthFixture() });
       return Promise.resolve({ data: healthFixture() });
     });
@@ -101,6 +166,7 @@ describe('DefenseBudgetLifecycleHealthPage', () => {
 
   it('shows an empty state when no expected sources are registered for the fiscal year', async () => {
     apiGetMock.mockImplementation((url: string) => {
+      if (url.includes('/coverage-reconciliation')) return Promise.resolve({ data: coverageFixture() });
       if (url.includes('/schedule/tick-health')) return Promise.resolve({ data: tickHealthFixture() });
       return Promise.resolve({ data: healthFixture({ expectedSources: 0, tracks: [] }) });
     });
@@ -114,6 +180,7 @@ describe('DefenseBudgetLifecycleHealthPage', () => {
 
   it('shows an error state with a retry action when the health request fails', async () => {
     apiGetMock.mockImplementation((url: string) => {
+      if (url.includes('/coverage-reconciliation')) return Promise.resolve({ data: coverageFixture() });
       if (url.includes('/schedule/tick-health')) return Promise.resolve({ data: tickHealthFixture() });
       return Promise.reject(new Error('network down'));
     });
@@ -126,6 +193,7 @@ describe('DefenseBudgetLifecycleHealthPage', () => {
 
   it('never renders a fabricated GPU number — the reported zero fields flow through verbatim', async () => {
     apiGetMock.mockImplementation((url: string) => {
+      if (url.includes('/coverage-reconciliation')) return Promise.resolve({ data: coverageFixture() });
       if (url.includes('/schedule/tick-health')) return Promise.resolve({ data: tickHealthFixture() });
       return Promise.resolve({ data: healthFixture() });
     });
@@ -142,5 +210,24 @@ describe('DefenseBudgetLifecycleHealthPage', () => {
     expect(screen.getByText('Not available for this workspace')).toBeInTheDocument();
     expect(apiGetMock).not.toHaveBeenCalled();
     meData = { tenant: { slug: 'capiro-internal' } };
+  });
+
+  it('shows an unknown denominator and preserves unit-level omission exceptions', async () => {
+    apiGetMock.mockImplementation((url: string) => {
+      if (url.includes('/coverage-reconciliation')) return Promise.resolve({ data: coverageFixture() });
+      if (url.includes('/schedule/tick-health')) return Promise.resolve({ data: tickHealthFixture() });
+      return Promise.resolve({ data: healthFixture() });
+    });
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByTestId('physical-source-reconciliation')).toBeInTheDocument());
+    expect(apiGetMock).toHaveBeenCalledWith('/api/budget-lifecycle/cycles/2027/coverage-reconciliation');
+    expect(screen.getByText('1 known / unknown')).toBeInTheDocument();
+    expect(screen.getByText('account_attribution_unknown')).toBeInTheDocument();
+    expect(screen.getAllByText('physical_source_missing')).toHaveLength(2);
+    expect(screen.getByText('source_unavailable')).toBeInTheDocument();
+    expect(screen.getByText('source_superseded')).toBeInTheDocument();
+    expect(screen.getByText('catalog_completeness_unknown')).toBeInTheDocument();
   });
 });

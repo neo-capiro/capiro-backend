@@ -71,6 +71,62 @@ export interface CycleHealth {
   missingSourceMeansUnknownNotZero: true;
 }
 
+export type CoverageExceptionCode =
+  | 'catalog_completeness_unknown'
+  | 'physical_source_missing'
+  | 'source_unavailable'
+  | 'source_superseded'
+  | 'extraction_missing'
+  | 'verification_not_passed'
+  | 'review_missing'
+  | 'publication_missing'
+  | 'publication_lineage_unbound'
+  | 'account_attribution_unknown';
+
+export interface PhysicalSourceUnitReconciliation {
+  unitId: string;
+  kind: 'document' | 'volume' | 'section' | 'exhibit';
+  required: boolean;
+  superseded: boolean;
+  account: string | null;
+  budgetActivity: string | null;
+  volume: string | null;
+  sourceDocumentId: string | null;
+  parsed: boolean;
+  verified: boolean;
+  reviewed: boolean;
+  published: boolean;
+  exceptions: readonly CoverageExceptionCode[];
+}
+
+export interface PhysicalSourceCoverageRow {
+  slotId: string;
+  fiscalYear: number;
+  sourceFamily: string;
+  component: string | null;
+  optional: boolean;
+  discovery: 'observed' | 'not_observed' | 'unknown';
+  /** Null means the source catalog's denominator is not attested. */
+  denominator: number | null;
+  knownRequiredUnits: number;
+  knownOptionalUnits: number;
+  parsed: number;
+  verified: number;
+  reviewed: number;
+  published: number;
+  exceptions: readonly CoverageExceptionCode[];
+  units: readonly PhysicalSourceUnitReconciliation[];
+}
+
+export interface CoverageReconciliation {
+  schemaVersion: 'defense_coverage_reconciliation_v1';
+  fiscalYear: number;
+  environment: string;
+  activeSnapshotId: string | null;
+  logicalSlotCount: number;
+  rows: readonly PhysicalSourceCoverageRow[];
+}
+
 export interface ExpectedSourceListItem {
   id: string;
   fiscalYear: number;
@@ -159,6 +215,15 @@ const BASE = '/api/budget-lifecycle';
 
 export async function getCycleHealth(api: AxiosInstance, fiscalYear: number): Promise<CycleHealth> {
   return (await api.get<CycleHealth>(`${BASE}/cycles/${fiscalYear}/health`)).data;
+}
+
+export async function getCoverageReconciliation(
+  api: AxiosInstance,
+  fiscalYear: number,
+): Promise<CoverageReconciliation> {
+  return (
+    await api.get<CoverageReconciliation>(`${BASE}/cycles/${fiscalYear}/coverage-reconciliation`)
+  ).data;
 }
 
 export async function listExpectedSources(
