@@ -153,6 +153,7 @@ export interface ObservationIngestionBridgeResult {
   readonly parserHandoffError: string | null;
   /** The Phase 2 verifier's terminal decision, or null if handoff never resolved one. */
   readonly verifierDecision: VerifierDecision | null;
+  readonly governedReview?: ParserHandoffResult['governedReview'];
   /** Additive operator reporting; never used for ingestion success or readiness routing. */
   readonly stageReport?: ObservationIngestionStageReportV1;
 }
@@ -165,6 +166,7 @@ interface DownstreamOutcome {
   readonly parserVerificationSucceeded: boolean;
   readonly durableEvidencePersisted: boolean;
   readonly reason: string | null;
+  readonly governedReview?: ParserHandoffResult['governedReview'];
 }
 
 @Injectable()
@@ -621,6 +623,18 @@ export class ObservationIngestionBridgeService {
     }
 
     const decision = parserHandoffResult.decision;
+    if (parserHandoffResult.governedReview) {
+      return {
+        handoff: parserHandoffResult,
+        parserHandoffInvoked: false,
+        parserHandoffError: null,
+        verifierDecision: null,
+        parserVerificationSucceeded: false,
+        durableEvidencePersisted: false,
+        governedReview: parserHandoffResult.governedReview,
+        reason: `governed packet required: ${parserHandoffResult.governedReview.code}`,
+      };
+    }
     if (decision === 'UNKNOWN') {
       // Defensive-only corner: the router returned without ever resolving a
       // verifier decision (e.g. a misconfigured maxEscalationRounds=0). No
@@ -670,6 +684,7 @@ export class ObservationIngestionBridgeService {
     downstream: DownstreamOutcome,
     context: { isReplay: boolean },
   ): ObservationIngestionBridgeStatus {
+    if (downstream.governedReview) return 'review_required';
     if (!downstream.parserHandoffInvoked) return 'downstream_failed';
     switch (downstream.verifierDecision) {
       case 'PASS':
@@ -711,6 +726,7 @@ export class ObservationIngestionBridgeService {
       parserHandoffInvoked: downstream?.parserHandoffInvoked ?? false,
       parserHandoffError: downstream?.parserHandoffError ?? null,
       verifierDecision: downstream?.verifierDecision ?? null,
+      governedReview: downstream?.governedReview,
       stageReport: observationIngestionStageReportV1({
         sourceDocumentBound: input.sourceDocumentBound,
         durableEvidencePersisted,

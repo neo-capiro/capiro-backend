@@ -11,6 +11,7 @@ import { PrismaObservationBridgeStore } from '../src/defense-budget/prisma-obser
 import { HttpsObservationByteFetchAdapter } from '../src/defense-budget/https-observation-byte-fetch.adapter.js';
 import { S3SourceDocumentArchiveReadAdapter } from '../src/defense-budget/s3-source-document-archive-read.adapter.js';
 import { DefaultParserHandoffAdapter } from '../src/defense-budget/default-parser-handoff.adapter.js';
+import { congressionalPacketResolverConfigFromEnv, createCongressionalPacketResolverV1 } from '../src/defense-budget/parser-router/congressional-packet-resolver-v1.js';
 import { ObservationIngestionBridgeService } from '../src/defense-budget/observation-ingestion-bridge.service.js';
 import { createBudgetVerificationS3Client } from '../src/defense-budget/verification/trusted-proof/s3-proof-adapters.js';
 import {
@@ -383,7 +384,12 @@ export async function mainIngestionManifestV1(argv = process.argv.slice(2)): Pro
       );
       const bridge = new ObservationIngestionBridgeService(
         new PrismaObservationBridgeStore(prisma), new HttpsObservationByteFetchAdapter(), registrar,
-        new DefaultParserHandoffAdapter({ workDir: artifactRoot }), archiveReader,
+        new DefaultParserHandoffAdapter({
+          workDir: artifactRoot,
+          resolveCongressionalPacket: createCongressionalPacketResolverV1(
+            congressionalPacketResolverConfigFromEnv(process.env, artifactRoot),
+          ),
+        }), archiveReader,
       );
       const controller = new RunIngestionManifestV1({ repository, bridge });
       const result = await controller.run(manifest!, {
