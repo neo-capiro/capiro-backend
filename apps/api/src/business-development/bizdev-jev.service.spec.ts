@@ -319,7 +319,7 @@ describe('BizDevJevService', () => {
 
   // ── completed shadow: cost, invisibility, projection semantics ────────────
 
-  test('shadow completed: actual-token cost at registry price; visibleEffectJsonb stays NULL', async () => {
+  test('shadow completed: actual-token cost at registry price; visibleEffectJsonb is DATABASE NULL', async () => {
     const factory = makeFactory([() => outcomeDecision('conditional_alignment', { inputTokens: 1_000_000, outputTokens: 5 })]);
     const prisma = makePrisma({ [TENANT_A]: ENROLLED_SHADOW_SETTINGS });
     const service = BizDevJevService.forTest(prisma as never, factory, { BIZDEV_JEV_ENABLED: 'true' });
@@ -328,9 +328,29 @@ describe('BizDevJevService', () => {
     expect(update.data.status).toBe('completed');
     expect(update.data.inputTokens).toBe(1_000_000);
     expect(update.data.outputTokens).toBe(5);
-    expect(update.data.visibleEffectJsonb).toBeNull();
+    // Regression (SQLSTATE 23514): shadow must supply Prisma.DbNull (database
+    // NULL). JavaScript null — or JSON null — violates
+    // business_development_jev_decisions_shadow_invisible_check and strands
+    // the trace in `pending` after a successful provider call.
+    expect(update.data.visibleEffectJsonb).toBe(Prisma.DbNull);
+    expect(update.data.visibleEffectJsonb).not.toBeNull();
     // 1M input tokens × $0.042/1M = $0.042 exactly.
     expect(new Prisma.Decimal(0.042).equals(update.data.estimatedCostUsd as Prisma.Decimal)).toBe(true);
+  });
+
+  test('shadow failure trace: completion update intentionally omits visibleEffectJsonb entirely', async () => {
+    const factory = makeFactory([() => failureDecision('malformed_response', [])]);
+    const prisma = makePrisma({ [TENANT_A]: ENROLLED_SHADOW_SETTINGS });
+    const service = BizDevJevService.forTest(prisma as never, factory, { BIZDEV_JEV_ENABLED: 'true' });
+    await launchAndWait(service, SIGNAL_REQUEST());
+    const create = prisma.__createCalls.at(-1)!;
+    const update = prisma.__updateCalls.at(-1)!;
+    // The pending INSERT and the failed-completion UPDATE both omit the
+    // column: nothing in the shadow path ever supplies a value — and
+    // especially not JS/JSON null — for visibleEffectJsonb.
+    expect(create.visibleEffectJsonb).toBeUndefined();
+    expect(update.data.status).toBe('failed');
+    expect(update.data.visibleEffectJsonb).toBeUndefined();
   });
 
   test('no auto-merge: bd_entity same_legal_entity projection is review-required reorder only', () => {
@@ -725,7 +745,11 @@ test('recordIdentityReviewOutcome updates ONLY the latest unreviewed bd_entity r
     // Resolved canonical id + allowed official record + locator + direct + awarded.
     await launchAndWait(service, SIGNAL_REQUEST({ mode: 'internal_canary' }));
     const update = prisma.__updateCalls.at(-1)!;
-    const effect = update.data.visibleEffectJsonb as { suggestion: string };
+    const effect = update.data.visibleEffectJsonb as { task: string; suggestion: string };
+    // Internal canary keeps its TYPED projection — the DbNull fix must be
+    // scoped to shadow only, never the canary path.
+    expect(update.data.visibleEffectJsonb).not.toBe(Prisma.DbNull);
+    expect(effect.task).toBe('bd_signal');
     expect(effect.suggestion).toBe('direct_fit');
   });
 
