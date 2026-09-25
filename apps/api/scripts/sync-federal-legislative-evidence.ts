@@ -20,6 +20,7 @@ import {
   replayPendingFederalEvidenceMentions,
 } from '../src/program-element/federal-evidence/persistence.js';
 import { runWithSyncRun, type RunCounts } from '../src/ingestion/sync-run.helper.js';
+import { assertFullFederalEvidenceReconciliationSafe } from './lib/federal-legislative-sync-safety.js';
 
 dotenvConfig();
 
@@ -309,8 +310,7 @@ async function main(): Promise<void> {
     // The first full inventory hydrates old source history. Require explicit
     // historical mode before any provider calls or writes so it cannot fan out
     // a corpus-sized set of events as breaking news by accident.
-    if (full && !hasCompletedFullBaseline && !historical)
-      throw new Error('FIRST_FULL_FEDERAL_EVIDENCE_RECONCILIATION_REQUIRES_HISTORICAL_MODE');
+    assertFullFederalEvidenceReconciliationSafe({ full, historical, hasCompletedFullBaseline });
     if (process.env.FEDERAL_LEGISLATIVE_EVIDENCE_ENABLED !== 'true')
       throw new Error('FEDERAL_LEGISLATIVE_EVIDENCE_DISABLED');
     if (!process.env.GOVINFO_API_KEY) throw new Error('GOVINFO_API_KEY is required');
