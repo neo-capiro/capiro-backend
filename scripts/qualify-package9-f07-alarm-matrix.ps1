@@ -228,6 +228,28 @@ function Clear-AndVerifyQueue {
   }
   Add-Observation 'ack-verification' 'PASS' "Two consecutive empty receives after acknowledging $extra duplicate deliveries" ([pscustomobject]@{ consecutiveEmptyReceives = 2; duplicateDeliveries = $extra })
 }
+function Prove-BaselineQueueEmpty {
+  $empty = 0
+  $unexpected = 0
+  while ($empty -lt 2) {
+    $raw = Invoke-AwsCli @('sqs','receive-message','--region',$Region,'--queue-url',$queueUrl,'--wait-time-seconds','20','--max-number-of-messages','10','--attribute-names','All','--output','json')
+    $batch = $raw | ConvertFrom-Json
+    $messages = @()
+    if ($null -ne $batch -and $null -ne $batch.Messages) { $messages = @($batch.Messages) }
+    if ($messages.Count -eq 0) { $empty++; continue }
+    $empty = 0
+    foreach ($message in $messages) {
+      $sns = $message.Body | ConvertFrom-Json
+      $alarmMessage = $sns.Message | ConvertFrom-Json
+      $entry = Assert-MessageIdentity $alarmMessage
+      $unexpected++
+      Add-Observation 'baseline-queue' 'FAIL' "Unexpected action notification while actions were disabled for $($entry.id) $($alarmMessage.NewStateValue)" ([pscustomobject]@{ alarmName = $alarmMessage.AlarmName; alarmArn = $alarmMessage.AlarmArn; notificationState = $alarmMessage.NewStateValue; snsMessageId = $sns.MessageId; sqsMessageId = $message.MessageId })
+      Invoke-AwsCli @('sqs','delete-message','--region',$Region,'--queue-url',$queueUrl,'--receipt-handle',$message.ReceiptHandle) | Out-Null
+    }
+  }
+  if ($unexpected -gt 0) { throw "Received $unexpected action notification(s) while the initial baseline had actions disabled" }
+  Add-Observation 'baseline-queue' 'PASS' 'Two consecutive 20-second long polls were empty while all alarms were initially OK and actions were disabled' ([pscustomobject]@{ consecutiveEmptyReceives = 2; pollWaitSeconds = 20; unexpectedDeliveries = 0 })
+}
 
 try {
   $identity = Invoke-AwsCli @('sts','get-caller-identity','--output','json') | ConvertFrom-Json
@@ -257,7 +279,7 @@ try {
   foreach ($entry in $matrix) {
     $name = Get-AlarmName $entry
     $metric = "P9F07_$($entry.id)"
-    Invoke-AwsCli @('cloudwatch','put-metric-alarm','--region',$Region,'--alarm-name',$name,'--alarm-description',"Synthetic Package 9 threshold $($entry.id) $runKey",'--namespace',$namespace,'--metric-name',$metric,'--dimensions',"Name=ThresholdId,Value=$($entry.id)",'--statistic','Maximum','--period','60','--evaluation-periods','1','--datapoints-to-alarm','1','--threshold',(Format-Number $entry.limit),'--comparison-operator',$entry.operator,'--treat-missing-data','notBreaching','--alarm-actions',$topicArn,'--ok-actions',$topicArn) | Out-Null
+    Invoke-AwsCli @('cloudwatch','put-metric-alarm','--region',$Region,'--alarm-name',$name,'--alarm-description',"Synthetic Package 9 threshold $($entry.id) $runKey",'--namespace',$namespace,'--metric-name',$metric,'--dimensions',"Name=ThresholdId,Value=$($entry.id)",'--statistic','Maximum','--period','60','--evaluation-periods','1','--datapoints-to-alarm','1','--threshold',(Format-Number $entry.limit),'--comparison-operator',$entry.operator,'--treat-missing-data','notBreaching','--alarm-actions',$topicArn,'--ok-actions',$topicArn,'--no-actions-enabled') | Out-Null
     $createdAlarmNames.Add($name)
   }
   $described = Invoke-AwsCli @('cloudwatch','describe-alarms','--region',$Region,'--alarm-name-prefix',$runKey,'--output','json') | ConvertFrom-Json
@@ -267,10 +289,28 @@ try {
     $found = @($described.MetricAlarms | Where-Object { $_.AlarmName -eq $name })
     if ($found.Count -ne 1) { throw "Expected exactly one alarm named $name" }
     $a = $found[0]
-    if ($a.Namespace -ne $namespace -or $a.MetricName -ne "P9F07_$($entry.id)" -or $a.Threshold -ne $entry.limit -or $a.ComparisonOperator -ne $entry.operator -or @($a.Dimensions).Count -ne 1 -or $a.Dimensions[0].Name -ne 'ThresholdId' -or $a.Dimensions[0].Value -ne $entry.id -or @($a.AlarmActions).Count -ne 1 -or $a.AlarmActions[0] -ne $topicArn -or @($a.OKActions).Count -ne 1 -or $a.OKActions[0] -ne $topicArn) { throw "Configured alarm identity or action mismatch: $name" }
+    if ($a.Namespace -ne $namespace -or $a.MetricName -ne "P9F07_$($entry.id)" -or $a.Threshold -ne $entry.limit -or $a.ComparisonOperator -ne $entry.operator -or @($a.Dimensions).Count -ne 1 -or $a.Dimensions[0].Name -ne 'ThresholdId' -or $a.Dimensions[0].Value -ne $entry.id -or @($a.AlarmActions).Count -ne 1 -or $a.AlarmActions[0] -ne $topicArn -or @($a.OKActions).Count -ne 1 -or $a.OKActions[0] -ne $topicArn -or $a.ActionsEnabled -ne $false) { throw "Configured alarm identity, actions, or disabled baseline mismatch: $name" }
     $alarms[$entry.id] = $a
   }
   Add-Observation 'alarm-create' 'PASS' "Created and identity-checked all $($matrix.Count) ephemeral alarms"
+
+  # Establish the initial OK baseline with every notification action disabled.
+  foreach ($entry in $matrix) {
+    $name = Get-AlarmName $entry
+    $initialTransitionTime = Wait-AlarmState $name 'OK'
+    Add-Observation 'alarm-baseline' 'OK' "Confirmed initial OK state for $($entry.id) while actions were disabled" ([pscustomobject]@{ alarmName = $name; alarmArn = $alarms[$entry.id].Arn; cloudWatchTransitionAt = $initialTransitionTime.ToString('o'); actionsEnabled = $false })
+  }
+  Prove-BaselineQueueEmpty
+
+  Invoke-AwsCli @('cloudwatch','enable-alarm-actions','--region',$Region,'--alarm-names',@($createdAlarmNames)) | Out-Null
+  $enabledReadback = Invoke-AwsCli @('cloudwatch','describe-alarms','--region',$Region,'--alarm-name-prefix',$runKey,'--output','json') | ConvertFrom-Json
+  foreach ($entry in $matrix) {
+    $name = Get-AlarmName $entry
+    $found = @($enabledReadback.MetricAlarms | Where-Object { $_.AlarmName -eq $name })
+    if ($found.Count -ne 1 -or $found[0].ActionsEnabled -ne $true -or $found[0].StateValue -ne 'OK') { throw "Alarm actions did not enable on an initial OK state for $name" }
+    $alarms[$entry.id] = $found[0]
+  }
+  Add-Observation 'alarm-actions' 'PASS' "Enabled and verified actions on all $($matrix.Count) alarms after the empty initial baseline"
 
   # Exercise every warning and stop threshold independently, including recovery, before proceeding.
   foreach ($entry in $matrix) {
@@ -297,7 +337,7 @@ catch {
   Add-Observation 'failure' 'FAIL' $_.Exception.Message
 }
 finally {
-      if ($null -ne $identity) {
+  if ($null -ne $identity) {
     if ($createdAlarmNames.Count -gt 0) {
       try { Invoke-AwsCli @('cloudwatch','delete-alarms','--region',$Region,'--alarm-names',@($createdAlarmNames)) | Out-Null; $result.cleanup.alarmsDeleted = $true }
       catch { $cleanupErrors.Add($_.Exception.Message); $result.cleanup.alarmsDeleted = $false }
