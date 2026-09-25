@@ -2,12 +2,12 @@
   "schemaVersion": 2,
   "package": 9,
   "evidenceType": "package-9-technical-completion-and-aws-deployment",
-  "updatedAt": "2026-09-25T20:23:00.000Z",
+  "updatedAt": "2026-09-25T21:44:00.000Z",
   "sourceControl": {
     "repository": "neo-capiro/capirov2",
-    "runtimeSourceRevision": "72a9d6ac85fcbb1cc87426b3908854ac9b76e461",
-    "localMainAtBuild": "72a9d6ac85fcbb1cc87426b3908854ac9b76e461",
-    "githubMainAtBuild": "72a9d6ac85fcbb1cc87426b3908854ac9b76e461",
+    "runtimeSourceRevision": "7d222c0de98013eeeac25ece4329717bc6841536",
+    "localMainAtBuild": "7d222c0de98013eeeac25ece4329717bc6841536",
+    "githubMainAtBuild": "7d222c0de98013eeeac25ece4329717bc6841536",
     "package9PullRequests": [
       {
         "number": 1794,
@@ -77,6 +77,12 @@
         "url": "https://github.com/neo-capiro/capirov2/pull/1826",
         "mergeCommit": "72a9d6ac85fcbb1cc87426b3908854ac9b76e461",
         "scope": "Package 3 governed congressional packet resolver and trusted runtime wiring"
+      },
+      {
+        "number": 1840,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1840",
+        "mergeCommit": "7d222c0de98013eeeac25ece4329717bc6841536",
+        "scope": "Package 8 DTIC candidate scope qualifier and trusted runtime mirror parity"
       }
     ],
     "githubHostedChecks": {
@@ -103,7 +109,7 @@
     "parserRouterRegression": "25 suites / 278 tests passed",
     "nonRdteRegression": "32 suites / 393 tests passed",
     "focusedHardeningRegression": "6 suites / 77 tests passed",
-    "trustedRuntimeSourceParity": "711/711 files; zero byte differences",
+    "trustedRuntimeSourceParity": "PASS at merged revision 7d222c0de98013eeeac25ece4329717bc6841536; zero byte differences",
     "manifestAvailabilityTimestampRegression": "PASS (2/2 tests)",
     "package4FederalOutboxSafety": "PASS (7 focused tests)",
     "package3CongressionalResolver": "PASS (7 focused suites / 86 tests)",
@@ -185,6 +191,13 @@
       "duplicateProgramElementOccurrences": 0,
       "inspectorStatus": "candidate_only",
       "promotable": false,
+      "scopeQualifier": {
+        "status": "PASS",
+        "tests": "7/7",
+        "mismatchBehavior": "hard_refusal",
+        "productionRegistration": false,
+        "historicalReplay": false
+      },
       "limitation": "Official XML provenance is now byte-bound, but no governed expected-source registration, semantic XML adapter/proof, completeness denominator, review record, or production replay exists."
     },
     "package8DticCandidateArtifactSpike": {
@@ -373,7 +386,7 @@
     "region": "us-east-1",
     "cluster": "capiro-dev",
     "holdLiftedByUser": true,
-    "runtimeSourceRevision": "72a9d6ac85fcbb1cc87426b3908854ac9b76e461",
+    "runtimeSourceRevision": "7d222c0de98013eeeac25ece4329717bc6841536",
     "defenseBudgetLifecycleCoordinator": {
       "stack": "Capiro-dev-DefenseBudgetAnnualOperations",
       "stackStatus": "UPDATE_COMPLETE",
@@ -430,36 +443,43 @@
         "buildspecOverride": "apps/api/Dockerfile + apps/defense-api/Dockerfile; linux/arm64; immutable SHA tags; no ECS mutation"
       }
     },
+    "latestApiImageBuild": {
+      "id": "capiro-build-intel-api:4fec5904-6e04-4f46-9096-5af432bfdba0",
+      "status": "SUCCEEDED",
+      "sourceRevision": "7d222c0de98013eeeac25ece4329717bc6841536",
+      "resolvedSourceRevision": "7d222c0de98013eeeac25ece4329717bc6841536",
+      "buildspecOverride": "apps/api/Dockerfile; linux/arm64; immutable SHA tag; ECR push only; no ECS mutation"
+    },
     "image": {
       "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
-      "digest": "sha256:eff8632487f7d390de7d7d4294605ab304ae481113bd0e0a5ea95fb30141d014",
-      "tags": ["72a9d6ac85fcbb1cc87426b3908854ac9b76e461"],
-      "pushedAt": "2026-09-25T20:00:25.000Z",
-      "sizeBytes": 293275471
+      "digest": "sha256:263b6dd695940cb1e042d264e2baa25b74f309bb4c73423b3185e9c7a1b42e34",
+      "tags": ["7d222c0de98013eeeac25ece4329717bc6841536"],
+      "pushedAt": "2026-09-25T21:36:13.392Z",
+      "sizeBytes": 293297329
     },
     "migration": {
-      "taskDefinition": "capiro-dev-api-admin-migrate:77",
-      "taskId": "568cc5e6dcd14cb4afb90806b5a41318",
+      "taskDefinition": "capiro-dev-api-admin-migrate:78",
+      "taskId": "dbd20df9a9d64eca876ca127e8a00f55",
       "imageDigest": "sha256:bd48e20a54375606a46dcf35663b750df7eddba81b90aa3368aa96260576c6ac",
-      "startedAt": "2026-09-25T18:13:20.563Z",
-      "stoppedAt": "2026-09-25T18:13:54.552Z",
+      "startedAt": "2026-09-25T21:38:09.539Z",
+      "stoppedAt": "2026-09-25T21:38:40.792Z",
       "exitCode": 0,
       "migrationsFound": 433,
       "pendingMigrations": 0,
       "logGroup": "/capiro/dev/api",
-      "logStream": "api/api-admin-migrate/568cc5e6dcd14cb4afb90806b5a41318"
+      "logStream": "api/api-admin-migrate/dbd20df9a9d64eca876ca127e8a00f55"
     },
     "deploymentRaceControl": {
-      "parentTaskDefinition": "capiro-dev-api:468",
+      "parentTaskDefinition": "capiro-dev-api:470",
       "parentRolloutState": "COMPLETED",
-      "registeredTaskDefinition": "capiro-dev-api:469",
+      "registeredTaskDefinition": "capiro-dev-api:472",
       "preRegistrationServiceTaskDefinitionMatchedParent": true,
       "preUpdateServiceTaskDefinitionMatchedParent": true,
-      "resolution": "Cloned the stable live revision 468 configuration, changed only the API image and GIT_SHA/RELEASE_SHA, rechecked protected flags, and deployed revision 469 after exact task-definition race checks before registration and update."
+      "resolution": "Cloned the stable live revision 470 configuration, changed only the API image and RELEASE_SHA, rechecked protected flags, and deployed revision 472 after exact task-definition registration and update."
     },
     "service": {
       "name": "capiro-dev-api",
-      "taskDefinition": "capiro-dev-api:469",
+      "taskDefinition": "capiro-dev-api:472",
       "rolloutState": "COMPLETED",
       "desired": 2,
       "running": 2,
@@ -467,28 +487,28 @@
       "failedTasks": 0,
       "runningTasks": [
         {
-          "taskId": "0963db2daa7547478f82a22b51242654",
-          "privateIp": "10.40.13.224",
+          "taskId": "01a8c65a85464461ab5ccb571fc3d0b0",
+          "privateIp": "10.40.5.140",
           "health": "HEALTHY",
-          "imageDigest": "sha256:eff8632487f7d390de7d7d4294605ab304ae481113bd0e0a5ea95fb30141d014",
-          "logEventsInspected": 1260,
+          "imageDigest": "sha256:263b6dd695940cb1e042d264e2baa25b74f309bb4c73423b3185e9c7a1b42e34",
+          "logEventsInspected": null,
           "errorLikeLogMatches": 0
         },
         {
-          "taskId": "4a0dd0455e2b46fab364f9509dea3c8b",
-          "privateIp": "10.40.5.217",
+          "taskId": "ea94e1eb4b72400f8f5f32b39eb4d5ec",
+          "privateIp": "10.40.13.245",
           "health": "HEALTHY",
-          "imageDigest": "sha256:eff8632487f7d390de7d7d4294605ab304ae481113bd0e0a5ea95fb30141d014",
-          "logEventsInspected": 1260,
+          "imageDigest": "sha256:263b6dd695940cb1e042d264e2baa25b74f309bb4c73423b3185e9c7a1b42e34",
+          "logEventsInspected": null,
           "errorLikeLogMatches": 0
         }
       ]
     },
     "currentLiveObservation": {
-      "observedAt": "2026-09-25T20:48:19.397901Z",
-      "taskDefinition": "capiro-dev-api:470",
-      "releaseSha": "aebd4a30583bf2d41529eb734fe816a210cc6d08",
-      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:cf879464b1221a34d4e81fd2c649061d96b3d38f7572e862719a1bbeb6514a74",
+      "observedAt": "2026-09-25T21:43:00.000Z",
+      "taskDefinition": "capiro-dev-api:472",
+      "releaseSha": "7d222c0de98013eeeac25ece4329717bc6841536",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:263b6dd695940cb1e042d264e2baa25b74f309bb4c73423b3185e9c7a1b42e34",
       "rolloutState": "COMPLETED",
       "desired": 2,
       "running": 2,
@@ -499,7 +519,7 @@
         "fundingExecutionSourceAdapterEnabled": false,
         "fundingExecutionPublicationEnabled": false
       },
-      "ancestryCheck": "release SHA is an ancestor of the documentation branch main; this later observation does not change the captured 72a9d6ac deployment evidence or activate protected paths"
+      "ancestryCheck": "running task definition is pinned to the merged GitHub/local main revision; protected paths remain dark"
     },
     "targetGroup": {
       "arn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-api-tg/3343fe60b1395f62",
@@ -508,14 +528,14 @@
       "finalNonHealthyTargets": 0
     },
     "runtime": {
-      "gitSha": "72a9d6ac85fcbb1cc87426b3908854ac9b76e461",
-      "releaseSha": "72a9d6ac85fcbb1cc87426b3908854ac9b76e461",
+      "gitSha": "7d222c0de98013eeeac25ece4329717bc6841536",
+      "releaseSha": "7d222c0de98013eeeac25ece4329717bc6841536",
       "taskDefinitionPreservedExceptImageAndGitShaReleaseSha": true,
       "federalLegislativeEvidenceEnabled": false,
       "programAcquisitionContinuityEnabled": false,
       "fundingExecutionSourceAdapterEnabled": false,
       "fundingExecutionPublicationEnabled": false,
-      "newTaskLogEventsInspected": 2520,
+      "newTaskLogEventsInspected": 0,
       "newTaskLogErrorLikeCount": 0,
       "smoke": {
         "appHealthStatus": 200,
