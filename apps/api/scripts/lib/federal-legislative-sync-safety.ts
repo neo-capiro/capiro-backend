@@ -12,3 +12,13 @@ export function assertFullFederalEvidenceReconciliationSafe(input: {
     throw new Error('FIRST_FULL_FEDERAL_EVIDENCE_RECONCILIATION_REQUIRES_HISTORICAL_MODE');
   }
 }
+
+/** Keep outbound alert delivery dark until Package 4 is explicitly enabled. */
+export function assertFederalEvidenceOutboxDrainEnabled(input: {
+  readonly commit: boolean;
+  readonly featureEnabled: string | undefined;
+}): void {
+  if (input.commit && input.featureEnabled !== 'true') {
+    throw new Error('FEDERAL_LEGISLATIVE_EVIDENCE_DISABLED');
+  }
+}
