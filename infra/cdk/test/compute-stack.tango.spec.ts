@@ -371,3 +371,23 @@ describe('every other optional-secret task placement still holds (regression net
     }
   });
 });
+
+describe('API environment identity', () => {
+  test('serve task receives the exact active-snapshot environment key', () => {
+    const template = synthComputeStack(baseConfig());
+    const serveContainers = Object.values(
+      template.findResources('AWS::ECS::TaskDefinition'),
+    ).flatMap((resource: any) => {
+      const containers = resource.Properties?.ContainerDefinitions ?? [];
+      return containers.filter((container: any) =>
+        (container.Secrets ?? []).some((secret: { Name: string }) => secret.Name === 'RECALL_API_KEY'),
+      );
+    });
+
+    expect(serveContainers).toHaveLength(1);
+    expect(serveContainers[0].Environment).toContainEqual({
+      Name: 'APP_ENV',
+      Value: 'capiro-dev',
+    });
+  });
+});
