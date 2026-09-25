@@ -1197,8 +1197,11 @@ async function runQualification() {
     const familyCounts = await queryRows<{ family: string; count: string }>(
       pool,
       samples,
-      `SELECT "classified_source_family" AS family, count(*)::text AS count
-         FROM "defense_budget_source_observation" GROUP BY "classified_source_family" ORDER BY family`,
+      `SELECT observation."classified_source_family" AS family, count(*)::text AS count
+         FROM "defense_budget_ingestion_outbox" AS outbox
+         JOIN "defense_budget_source_observation" AS observation
+           ON observation."id" = outbox."observation_id"
+        GROUP BY observation."classified_source_family" ORDER BY family`,
       [],
       'reconcile source-family distribution',
     );
