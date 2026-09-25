@@ -51,6 +51,15 @@ still `NO_GO` for production admission: the exact persisted `SourceDocument`
 identity, supported parser-run proof in the durable artifact store, and the
 `congressional_structured_packet_v1` envelope are not yet established.
 
+The exact GovInfo bytes were then run through the locked
+`deterministic_pdfplumber` runtime for all 48 reviewed pages. The local
+production-style provider and semantic-factory proof passed with 926 rows and
+zero parser failures; the reproducible summary is
+`docs/defense-budget/package-3/qualification/parser-proof-result-2026-09-25.json`.
+This strengthens the parser/proof seam but does not change the production
+decision because the test used a synthetic `SourceDocument` UUID and did not
+register a manifest or write the database.
+
 Package 8 discovery hardening then merged as PR `#1821` at
 `5314441e03abe1cfc04e5297296fb7b74703bd0d`. The defense-api image was built
 by CodeBuild and pinned into the active hourly lifecycle coordinator as task

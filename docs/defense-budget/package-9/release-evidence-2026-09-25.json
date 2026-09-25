@@ -107,6 +107,19 @@
     "manifestAvailabilityTimestampRegression": "PASS (2/2 tests)",
     "package4FederalOutboxSafety": "PASS (7 focused tests)",
     "package3CongressionalResolver": "PASS (7 focused suites / 86 tests)",
+    "package3ParserProof": {
+      "status": "PASS_LOCAL_PRODUCTION_STYLE_PROOF",
+      "report": "docs/defense-budget/package-3/qualification/parser-proof-result-2026-09-25.json",
+      "parserRunId": "pr1_3596f3be7f1af3d54c14acc5caafd3c3a1444ee8ca5d1803cb44f3430e099311",
+      "parserResultByteSha256": "59043d3a9c8cc9b64bb8b97b7d00bc79dca3cfbab88d706068c6dc3f2f0e70d1",
+      "packetByteSha256": "40f3a0f6b6bf5757011363382a32f49c40ff55f0a8a37fb2c5e32010f3671248",
+      "rowCount": 926,
+      "requestedPages": 48,
+      "succeededPages": 48,
+      "failedPages": 0,
+      "productionRegistration": false,
+      "syntheticSourceDocumentId": true
+    },
     "package5NoWriteDryRun": {
       "status": "PASS_LIMITED_SCOPE",
       "taskDefinition": "capiro-dev-api-sync-jobs:34",
