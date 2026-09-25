@@ -88,16 +88,16 @@ function localName(name: string): string {
 }
 
 function directChild(value: unknown, wanted: string): unknown {
-  const record = asRecord(value);
-  if (!record) return undefined;
-  for (const [key, child] of Object.entries(record)) {
-    if (!key.startsWith('@_') && localName(key) === wanted) return child;
-  }
-  return undefined;
+  return directNamedChild(value, wanted)?.value;
 }
 
-function findNamedNode(value: unknown, wanted: string): Record<string, unknown> | null {
-  return asRecord(directChild(value, wanted));
+function directNamedChild(value: unknown, wanted: string): { name: string; value: unknown } | null {
+  const record = asRecord(value);
+  if (!record) return null;
+  for (const [key, child] of Object.entries(record)) {
+    if (!key.startsWith('@_') && localName(key) === wanted) return { name: key, value: child };
+  }
+  return null;
 }
 
 function topLevelDocumentElement(value: unknown): { name: string; node: Record<string, unknown> } | null {
@@ -112,20 +112,66 @@ function topLevelDocumentElement(value: unknown): { name: string; node: Record<s
   return parsedNode ? { name, node: parsedNode } : null;
 }
 
-function collectProgramElementIds(value: unknown, output: string[]): void {
+type NamespaceBindings = Record<string, string>;
+
+function namespaceBindings(
+  element: Record<string, unknown>,
+  inherited: NamespaceBindings = {},
+): NamespaceBindings {
+  const bindings = { ...inherited };
+  for (const [attribute, value] of Object.entries(element)) {
+    if (typeof value !== 'string') continue;
+    if (attribute === '@_xmlns') bindings[''] = value;
+    else if (attribute.startsWith('@_xmlns:')) bindings[attribute.slice('@_xmlns:'.length)] = value;
+  }
+  return bindings;
+}
+
+function elementNamespace(name: string, bindings: NamespaceBindings): string | null {
+  const colon = name.indexOf(':');
+  const prefix = colon >= 0 ? name.slice(0, colon) : '';
+  if (colon >= 0 && (!prefix || name.indexOf(':', colon + 1) >= 0)) return null;
+  return bindings[prefix] ?? (prefix === '' ? '' : null);
+}
+
+function requireElementNamespace(
+  name: string,
+  bindings: NamespaceBindings,
+  expectedLocalName: string,
+  expectedNamespace: string,
+): void {
+  if (localName(name) !== expectedLocalName || elementNamespace(name, bindings) !== expectedNamespace) {
+    fail(`${expectedLocalName} must resolve to the expected DTIC namespace`);
+  }
+}
+
+function collectProgramElementIds(
+  name: string,
+  value: unknown,
+  inherited: NamespaceBindings,
+  output: string[],
+): void {
   if (Array.isArray(value)) {
-    for (const item of value) collectProgramElementIds(item, output);
+    for (const item of value) collectProgramElementIds(name, item, inherited, output);
     return;
   }
   const record = asRecord(value);
-  if (!record) return;
+  if (!record) {
+    if (localName(name) === 'ProgramElementNumber') {
+      requireElementNamespace(name, inherited, 'ProgramElementNumber', DTIC_JDOCS_R2_NAMESPACE_V1);
+      output.push(scalar(value, 'ProgramElementNumber'));
+    }
+    return;
+  }
+  const bindings = namespaceBindings(record, inherited);
+  if (localName(name) === 'ProgramElementNumber') {
+    requireElementNamespace(name, bindings, 'ProgramElementNumber', DTIC_JDOCS_R2_NAMESPACE_V1);
+    output.push(scalar(value, 'ProgramElementNumber'));
+    return;
+  }
   for (const [key, child] of Object.entries(record)) {
     if (key.startsWith('@_')) continue;
-    if (localName(key) === 'ProgramElementNumber') {
-      output.push(scalar(child, 'ProgramElementNumber'));
-    } else {
-      collectProgramElementIds(child, output);
-    }
+    collectProgramElementIds(key, child, bindings, output);
   }
 }
 
@@ -179,13 +225,15 @@ export function inspectDticJdocsXmlSourceV1(
     fail('expected JustificationBook as the single top-level document element');
   }
   const root = topLevel.node;
-  if (root['@_xmlns:jb'] !== DTIC_JDOCS_XML_ROOT_NAMESPACE_V1) {
-    fail('JustificationBook must declare the expected DTIC JB namespace');
+  const rootBindings = namespaceBindings(root);
+  requireElementNamespace(topLevel.name, rootBindings, 'JustificationBook', DTIC_JDOCS_XML_ROOT_NAMESPACE_V1);
+  const r2ListElement = directNamedChild(root, 'ProgramElementList');
+  const r2List = asRecord(r2ListElement?.value);
+  if (!r2ListElement || !r2List) {
+    fail('expected ProgramElementList in the DTIC R2 namespace');
   }
-  const r2List = findNamedNode(root, 'ProgramElementList');
-  if (!r2List || r2List['@_xmlns:r2'] !== DTIC_JDOCS_R2_NAMESPACE_V1) {
-    fail('ProgramElementList must declare the expected DTIC R2 namespace');
-  }
+  const r2ListBindings = namespaceBindings(r2List, rootBindings);
+  requireElementNamespace(r2ListElement.name, r2ListBindings, 'ProgramElementList', DTIC_JDOCS_R2_NAMESPACE_V1);
 
   const fiscalYearText = scalar(directChild(root, 'BudgetYear'), 'BudgetYear');
   if (!/^\d{4}$/.test(fiscalYearText)) fail('BudgetYear must be a four-digit year');
@@ -206,7 +254,7 @@ export function inspectDticJdocsXmlSourceV1(
     : scalar(submissionDateValue, 'SubmissionDate');
 
   const rawIds: string[] = [];
-  collectProgramElementIds(r2List, rawIds);
+  collectProgramElementIds(r2ListElement.name, r2List, rootBindings, rawIds);
   const programElementIds = [...new Set(rawIds)].sort((a, b) => a.localeCompare(b));
   if (programElementIds.length === 0) fail('R2 candidate contains no ProgramElementNumber identities');
 

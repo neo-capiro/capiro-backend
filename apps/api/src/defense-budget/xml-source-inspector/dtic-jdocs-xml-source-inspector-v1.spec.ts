@@ -76,7 +76,7 @@ describe('inspectDticJdocsXmlSourceV1', () => {
     expect(() => inspectDticJdocsXmlSourceV1(Buffer.from('<wrong/>'), PROVENANCE))
       .toThrow(/JustificationBook as the single top-level/);
     expect(() => inspectDticJdocsXmlSourceV1(Buffer.from(FIXTURE.replace(DTIC_JDOCS_R2_NAMESPACE_V1, 'urn:wrong')), PROVENANCE))
-      .toThrow(/expected DTIC R2 namespace/);
+      .toThrow(/ProgramElementList must resolve to the expected DTIC namespace/);
     expect(() => inspectDticJdocsXmlSourceV1(Buffer.from('<broken>'), PROVENANCE))
       .toThrow(/not well formed/);
     expect(() => inspectDticJdocsXmlSourceV1(Buffer.from(FIXTURE), {
@@ -93,5 +93,25 @@ describe('inspectDticJdocsXmlSourceV1', () => {
     const noPes = FIXTURE.replace(/\s*<r2:ProgramElement>[\s\S]*?<\/r2:ProgramElement>/g, '');
     expect(() => inspectDticJdocsXmlSourceV1(Buffer.from(noPes), PROVENANCE))
       .toThrow(/no ProgramElementNumber identities/);
+  });
+
+  it('rejects namespace declarations that do not bind the actual element QNames', () => {
+    const wrongRootPrefix = FIXTURE
+      .replace('<jb:JustificationBook xmlns:jb=', '<x:JustificationBook xmlns:x="urn:wrong" xmlns:jb=')
+      .replace('</jb:JustificationBook>', '</x:JustificationBook>');
+    expect(() => inspectDticJdocsXmlSourceV1(Buffer.from(wrongRootPrefix), PROVENANCE))
+      .toThrow(/JustificationBook must resolve to the expected DTIC namespace/);
+
+    const wrongListPrefix = FIXTURE
+      .replace('<r2:ProgramElementList xmlns:r2=', '<x:ProgramElementList xmlns:x="urn:wrong" xmlns:r2=')
+      .replace('</r2:ProgramElementList>', '</x:ProgramElementList>');
+    expect(() => inspectDticJdocsXmlSourceV1(Buffer.from(wrongListPrefix), PROVENANCE))
+      .toThrow(/ProgramElementList must resolve to the expected DTIC namespace/);
+
+    const wrongIdentityPrefix = FIXTURE
+      .replace('<r2:ProgramElementList xmlns:r2=', '<r2:ProgramElementList xmlns:x="urn:wrong" xmlns:r2=')
+      .replaceAll('r2:ProgramElementNumber', 'x:ProgramElementNumber');
+    expect(() => inspectDticJdocsXmlSourceV1(Buffer.from(wrongIdentityPrefix), PROVENANCE))
+      .toThrow(/ProgramElementNumber must resolve to the expected DTIC namespace/);
   });
 });
