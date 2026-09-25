@@ -33,12 +33,12 @@ artifacts, read/write a database, or assert annual coverage.
 
 The repository README reports 375 XML files across FY2023–FY2026:
 
-| FY | XML files | Submission form | Coverage stated by the repository |
-|---:|---:|---|---|
-| 2023 | 84 | Extracted from PDF attachments | Defense-wide RDT&E/procurement material across named agencies, including DTIC and DHP |
-| 2024 | 129 | Extracted from PDF attachments | Defense-wide RDT&E/procurement material across named agencies, including DTIC |
-| 2025 | 124 | Extracted from PDF attachments | Defense-wide RDT&E/procurement material across named agencies, including DTIC |
-| 2026 | 38 | Standalone Comptroller XML | RDT&E, procurement, and other defense-wide books; DTIC appears in the RDT&E list |
+|   FY | XML files | Submission form                | Coverage stated by the repository                                                     |
+| ---: | --------: | ------------------------------ | ------------------------------------------------------------------------------------- |
+| 2023 |        84 | Extracted from PDF attachments | Defense-wide RDT&E/procurement material across named agencies, including DTIC and DHP |
+| 2024 |       129 | Extracted from PDF attachments | Defense-wide RDT&E/procurement material across named agencies, including DTIC         |
+| 2025 |       124 | Extracted from PDF attachments | Defense-wide RDT&E/procurement material across named agencies, including DTIC         |
+| 2026 |        38 | Standalone Comptroller XML     | RDT&E, procurement, and other defense-wide books; DTIC appears in the RDT&E list      |
 
 The repository describes R-2/R-2A and P-40 content, plus R-1D summaries,
 R-3 overviews and procurement delivery schedule XML. Counts are files, not
@@ -86,3 +86,27 @@ change. Qualification should start with this single DTIC document, reconcile
 its fields against the official PDF, and keep its output `candidate_only` until
 parser proof, completeness checks, review, and governed publication are all
 independently accepted.
+
+## Second Handriss lead — FY2026 DARPA RDT&E (NO-GO)
+
+The same pinned mirror commit also contains
+`fy2026/RDTE_Vol1_DARPA_MasterJustificationBook_PB_2026.xml` (GitHub blob
+SHA-1 `ea794e1644cf515230e137a3cf92988bf38ad4e0`; fetched mirror bytes
+SHA-256 `00edc63f808a3ad568df96c8871ac5d2e1cd41446dda9e697cfca20d2a595528`,
+1,320,882 bytes). It is retained as a discovery lead only.
+
+The exact Comptroller XML URL
+[`RDTE_Vol1_DARPA_MasterJustificationBook_PB_2026.xml`](https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2026/budget_justification/pdfs/03_RDT_and_E/RDTE_Vol1_DARPA_MasterJustificationBook_PB_2026.xml)
+returned `HEAD 200` with `Content-Length: 1,320,882`, `Content-Type:
+text/xml`, and `Last-Modified: 2025-06-26 17:29:11 UTC`, but a corresponding
+`GET` returned `404`. Therefore no authoritative XML bytes or SHA-256 can be
+bound to this candidate. The separately indexed official PDF
+[`RDTE_Vol1_DARPA_MasterJustificationBook_PB_2026.pdf`](https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2026/budget_justification/pdfs/03_RDT_and_E/RDTE_Vol1_DARPA_MasterJustificationBook_PB_2026.pdf)
+is not treated as byte-equivalent to the mirror XML.
+
+The codebase has generic `pb_r2` templates and an official Comptroller host
+profile, but no deterministic FY2026 DARPA expected-source key or family rule
+that can anchor this filename. With the official endpoint inconsistent and no
+governed expected-source identity, this candidate is `candidate_only`,
+`promotable: false`, and a Package 8 manifest entry or historical replay is
+not authorized.
