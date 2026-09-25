@@ -9,9 +9,9 @@ import {
   drainIngestionOutboxBatchV1,
   drainIngestionOutboxRowV1,
   type IngestionOutboxDrainWorkerPortsV1,
-} from '../../defense-api/runtime-source/defense-budget/ingestion-outbox-drain-worker-v1.js';
-import { createIngestionOutboxDrainRepositoryPrismaV1 } from '../../defense-api/runtime-source/defense-budget/ingestion-outbox-drain-repository-prisma-v1.js';
-import type { ObservationIngestionBridgeResult } from '../../defense-api/runtime-source/defense-budget/observation-ingestion-bridge.service.js';
+} from '../src/defense-budget/ingestion-outbox-drain-worker-v1.js';
+import { createIngestionOutboxDrainRepositoryPrismaV1 } from '../src/defense-budget/ingestion-outbox-drain-repository-prisma-v1.js';
+import type { ObservationIngestionBridgeResult } from '../src/defense-budget/observation-ingestion-bridge.service.js';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const QUALIFICATION_DIR = resolve(REPO_ROOT, 'docs/defense-budget/package-9');
