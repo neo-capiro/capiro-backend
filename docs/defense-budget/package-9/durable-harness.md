@@ -15,7 +15,9 @@ It seeds 100 synthetic outbox rows across RDT&E, procurement, O&M, and MILCON. I
 - runs bounded retry/recovery subruns for a transient source outage and local provider timeout, 429, malformed response, and 5xx;
 - drains the remaining rows with four concurrent workers and reconciles all 100 stable fact IDs and notification keys from PostgreSQL.
 
-The generated run report is written under `docs/defense-budget/package-9/evidence/` and contains raw repository/fixture query timings, queue state samples, scenario results, worker concurrency, and ledger reconciliation. Timing records are local elapsed samples; they do not establish common interactive query p95 or sustained production latency.
+The generated run report is written under `docs/defense-budget/package-9/evidence/` and contains raw repository/fixture query timings, queue state samples, scenario results, worker concurrency, ledger reconciliation, and a five-second concurrent run of the checked-in [`product-query-mix-v1.json`](./product-query-mix-v1.json) against the seeded Session 12 corpus in the same disposable database. The query run uses four closed-loop clients with the documented one-second per-client start interval and hashes an execution plan containing the loaded mix, cadence, duration, and operation-to-service argument bindings. This is local synthetic service-query latency; it does not establish HTTP, authentication, network, sustained production, or buyer-visible update latency.
+
+The report [`durable-run-p9-20260925115805719-5e32a8.json`](./evidence/durable-run-p9-20260925115805719-5e32a8.json) predates the corrected query-mix cadence and terminal queue gate in the current harness. Keep it as historical raw evidence, but treat its query-mix PASS and drain PASS checks as superseded; it does not qualify the corrected harness.
 
 ## Retained deployed-revision run
 

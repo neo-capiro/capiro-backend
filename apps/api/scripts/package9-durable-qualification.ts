@@ -22,6 +22,28 @@ const LEASE_MS = 250;
 const MAX_QUEUE_ROWS = 100;
 const FAMILY = ['pb_r1', 'pb_p1', 'pb_o1', 'pb_milcon_c1'] as const;
 const FIXED_NOW = new Date('2026-09-25T00:00:00.000Z');
+const PRODUCT_QUERY_MIX_PATH = resolve(QUALIFICATION_DIR, 'product-query-mix-v1.json');
+const PRODUCT_QUERY_MIX_SOURCE = readFileSync(PRODUCT_QUERY_MIX_PATH, 'utf8');
+const PRODUCT_QUERY_MIX = JSON.parse(PRODUCT_QUERY_MIX_SOURCE) as {
+  id: string;
+  durationSecondsSmoke: number;
+  concurrentClients: number;
+  clientIntervalMilliseconds: number;
+  configuredMaximumAggregateRequestStartsPerSecond: number;
+  schedule: string;
+  operationCycle: Array<{ operation: string; weight: number }>;
+};
+const PRODUCT_QUERY_READ_TABLES = [
+  'defense_budget_cycle',
+  'defense_budget_expected_source',
+  'defense_budget_source_observation',
+  'defense_budget_source_bundle_member',
+  'defense_budget_watcher_adapter',
+  'defense_budget_watcher_run',
+  'defense_budget_ingestion_outbox',
+  'defense_budget_schedule_tick',
+  'defense_budget_lifecycle_signal',
+] as const;
 const SCENARIO_ROWS = {
   crash: 0,
   lease: 1,
@@ -51,21 +73,11 @@ interface ProductQuerySample {
   operation: string;
   clientId: string;
   elapsedMs: number;
+  requestStartOffsetMs: number;
   error: boolean;
   errorDetail: string | null;
 }
 
-const PRODUCT_QUERY_OPERATIONS = [
-  { operation: 'cycle-health-fy2027', weight: 4 },
-  { operation: 'cycle-health-fy2028', weight: 2 },
-  { operation: 'expected-sources-fy2027-request', weight: 3 },
-  { operation: 'coverage-inventory-fy2027', weight: 3 },
-  { operation: 'review-required-detail-fy2027', weight: 2 },
-  { operation: 'review-queue-fy2027', weight: 3 },
-  { operation: 'lifecycle-signals-fy2027', weight: 2 },
-  { operation: 'schedule-tick-health', weight: 1 },
-] as const;
-const PRODUCT_QUERY_CLIENTS = 4;
 const PRODUCT_QUERY_P95_LIMIT_MS = 2_000;
 
 function sha(value: string): string {
@@ -114,9 +126,9 @@ function docker(args: string[]) {
   return execute('docker', args);
 }
 
-function connectionString(hostPort: string, password: string): string {
+function connectionString(hostPort: string, password: string, username = 'p9qual'): string {
   const url = new URL(
-    `postgresql://p9qual:${encodeURIComponent(password)}@${hostPort}/p9qualification`,
+    `postgresql://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${hostPort}/p9qualification`,
   );
   url.searchParams.set('schema', 'public');
   return url.toString();
@@ -471,12 +483,68 @@ function percentile(values: number[], p: number): number | null {
 }
 
 function weightedProductQueryCycle(): string[] {
-  return PRODUCT_QUERY_OPERATIONS.flatMap(({ operation, weight }) =>
+  return PRODUCT_QUERY_MIX.operationCycle.flatMap(({ operation, weight }) =>
     Array.from({ length: weight }, () => operation),
   );
 }
 
-async function runProductQueryMix(databaseUrl: string): Promise<{
+function productQueryDispatchBindings(detailId: string) {
+  return {
+    'cycle-health-fy2029': {
+      serviceMethod: 'getCycleHealth',
+      args: [2029],
+      invoke: (service: Record<string, (...args: unknown[]) => Promise<unknown>>) =>
+        service.getCycleHealth(2029),
+    },
+    'cycle-health-fy2030': {
+      serviceMethod: 'getCycleHealth',
+      args: [2030],
+      invoke: (service: Record<string, (...args: unknown[]) => Promise<unknown>>) =>
+        service.getCycleHealth(2030),
+    },
+    'expected-sources-fy2029-authorization': {
+      serviceMethod: 'listExpectedSources',
+      args: [2029, { authorityTrack: 'authorization' }],
+      invoke: (service: Record<string, (...args: unknown[]) => Promise<unknown>>) =>
+        service.listExpectedSources(2029, { authorityTrack: 'authorization' }),
+    },
+    'coverage-inventory-fy2029': {
+      serviceMethod: 'getCoverageInventory',
+      args: [2029],
+      invoke: (service: Record<string, (...args: unknown[]) => Promise<unknown>>) =>
+        service.getCoverageInventory(2029),
+    },
+    'review-required-detail-fy2029': {
+      serviceMethod: 'getExpectedSourceDetail',
+      args: [detailId],
+      invoke: (service: Record<string, (...args: unknown[]) => Promise<unknown>>) =>
+        service.getExpectedSourceDetail(detailId),
+    },
+    'review-queue-fy2029': {
+      serviceMethod: 'listReviewQueue',
+      args: [2029],
+      invoke: (service: Record<string, (...args: unknown[]) => Promise<unknown>>) =>
+        service.listReviewQueue(2029),
+    },
+    'lifecycle-signals-fy2029': {
+      serviceMethod: 'listSignals',
+      args: [2029],
+      invoke: (service: Record<string, (...args: unknown[]) => Promise<unknown>>) =>
+        service.listSignals(2029),
+    },
+    'schedule-tick-health': {
+      serviceMethod: 'getScheduleTickHealth',
+      args: [],
+      invoke: (service: Record<string, (...args: unknown[]) => Promise<unknown>>) =>
+        service.getScheduleTickHealth(),
+    },
+  } as const;
+}
+
+async function runProductQueryMix(
+  databaseUrl: string,
+  detailId: string,
+): Promise<{
   startedAt: string;
   finishedAt: string;
   startedMonotonicMs: number;
@@ -484,6 +552,14 @@ async function runProductQueryMix(databaseUrl: string): Promise<{
   samples: ProductQuerySample[];
   observedOperations: string[];
   observedClients: string[];
+  requestStartWindow: {
+    requestedDurationMs: number;
+    observedFirstStartOffsetMs: number | null;
+    observedFinalStartOffsetMs: number | null;
+    finalStartTailMs: number | null;
+    perClientCadencePass: boolean;
+  };
+  executionSpecSha256: string;
 }> {
   const require = createRequire(import.meta.url);
   const { PrismaClient } = require(
@@ -513,7 +589,15 @@ async function runProductQueryMix(databaseUrl: string): Promise<{
   const { CycleHealthService } = require(
     resolve(REPO_ROOT, 'apps/defense-api/dist/budget-lifecycle/cycle-health.service.js'),
   ) as { CycleHealthService: new () => unknown };
-  const clients = Array.from({ length: PRODUCT_QUERY_CLIENTS }, (_, index) => {
+  if (
+    PRODUCT_QUERY_MIX.concurrentClients < 1 ||
+    PRODUCT_QUERY_MIX.clientIntervalMilliseconds < 1 ||
+    PRODUCT_QUERY_MIX.configuredMaximumAggregateRequestStartsPerSecond !==
+      (PRODUCT_QUERY_MIX.concurrentClients * 1000) / PRODUCT_QUERY_MIX.clientIntervalMilliseconds
+  ) {
+    throw new Error('Package 9 product-query mix has invalid client cadence or aggregate rate.');
+  }
+  const clients = Array.from({ length: PRODUCT_QUERY_MIX.concurrentClients }, (_, index) => {
     const prisma = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
     return {
       id: `client-${index + 1}`,
@@ -526,41 +610,50 @@ async function runProductQueryMix(databaseUrl: string): Promise<{
   });
   const samples: ProductQuerySample[] = [];
   const cycle = weightedProductQueryCycle();
+  const dispatch = productQueryDispatchBindings(detailId);
+  const dispatchBindings = Object.fromEntries(
+    Object.entries(dispatch).map(([operation, binding]) => [
+      operation,
+      {
+        serviceMethod: binding.serviceMethod,
+        args: binding.args,
+      },
+    ]),
+  );
+  const executionSpecSha256 = sha(
+    JSON.stringify({
+      mixId: PRODUCT_QUERY_MIX.id,
+      supportingMixSha256: sha(PRODUCT_QUERY_MIX_SOURCE),
+      clients: PRODUCT_QUERY_MIX.concurrentClients,
+      clientIntervalMilliseconds: PRODUCT_QUERY_MIX.clientIntervalMilliseconds,
+      durationSecondsSmoke: PRODUCT_QUERY_MIX.durationSecondsSmoke,
+      configuredMaximumAggregateRequestStartsPerSecond:
+        PRODUCT_QUERY_MIX.configuredMaximumAggregateRequestStartsPerSecond,
+      queryReader: {
+        role: 'p9q_reader',
+        noinherit: true,
+        explicitSelectTables: PRODUCT_QUERY_READ_TABLES,
+      },
+      schedule: PRODUCT_QUERY_MIX.schedule,
+      operationCycle: PRODUCT_QUERY_MIX.operationCycle,
+      dispatchBindings,
+    }),
+  );
   const startedMonotonicMs = performance.now();
   const startedAt = new Date().toISOString();
-  const runOperation = async (client: (typeof clients)[number], operation: string) => {
+  const runOperation = async (
+    client: (typeof clients)[number],
+    operation: string,
+    requestStartOffsetMs: number,
+  ) => {
     const started = performance.now();
     let failed = false;
     let errorDetail: string | null = null;
     try {
-      switch (operation) {
-        case 'cycle-health-fy2027':
-          await client.service.getCycleHealth(2027);
-          break;
-        case 'cycle-health-fy2028':
-          await client.service.getCycleHealth(2028);
-          break;
-        case 'expected-sources-fy2027-request':
-          await client.service.listExpectedSources(2027, { authorityTrack: 'request' });
-          break;
-        case 'coverage-inventory-fy2027':
-          await client.service.getCoverageInventory(2027);
-          break;
-        case 'review-required-detail-fy2027':
-          await client.service.getExpectedSourceDetail(expectedSourceId(0));
-          break;
-        case 'review-queue-fy2027':
-          await client.service.listReviewQueue(2027);
-          break;
-        case 'lifecycle-signals-fy2027':
-          await client.service.listSignals(2027);
-          break;
-        case 'schedule-tick-health':
-          await client.service.getScheduleTickHealth();
-          break;
-        default:
-          throw new Error(`Unknown Package 9 product-query operation ${operation}`);
-      }
+      const operationBinding = dispatch[operation as keyof typeof dispatch];
+      if (!operationBinding)
+        throw new Error(`Unknown Package 9 product-query operation ${operation}`);
+      await operationBinding.invoke(client.service);
     } catch (error) {
       failed = true;
       errorDetail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
@@ -569,23 +662,53 @@ async function runProductQueryMix(databaseUrl: string): Promise<{
         operation,
         clientId: client.id,
         elapsedMs: performance.now() - started,
+        requestStartOffsetMs,
         error: failed,
         errorDetail,
       });
     }
   };
+  const requestStartWindowMs = PRODUCT_QUERY_MIX.durationSecondsSmoke * 1000;
+  const requestStartDeadlineMs = startedMonotonicMs + requestStartWindowMs;
+  const clientIntervalMs = PRODUCT_QUERY_MIX.clientIntervalMilliseconds;
   try {
     await Promise.all(
       clients.map(async (client, clientIndex) => {
-        const offset = clientIndex % cycle.length;
-        for (let index = 0; index < cycle.length; index++) {
-          await runOperation(client, cycle[(index + offset) % cycle.length]!);
+        let sequence = 0;
+        const offset = clientIndex * Math.ceil(cycle.length / PRODUCT_QUERY_MIX.concurrentClients);
+        while (performance.now() < requestStartDeadlineMs) {
+          const operation = cycle[(sequence + offset) % cycle.length]!;
+          const started = performance.now();
+          await runOperation(client, operation, Number((started - startedMonotonicMs).toFixed(3)));
+          sequence++;
+          const remaining = clientIntervalMs - (performance.now() - started);
+          if (remaining > 0) {
+            const untilDeadline = requestStartDeadlineMs - performance.now();
+            if (untilDeadline > 0)
+              await new Promise((resolvePromise) =>
+                setTimeout(resolvePromise, Math.min(remaining, untilDeadline)),
+              );
+          }
         }
       }),
     );
   } finally {
     await Promise.all(clients.map((client) => client.prisma.$disconnect()));
   }
+  const offsetsByClient = new Map<string, number[]>();
+  for (const sample of samples) {
+    const offsets = offsetsByClient.get(sample.clientId) ?? [];
+    offsets.push(sample.requestStartOffsetMs);
+    offsetsByClient.set(sample.clientId, offsets);
+  }
+  const perClientCadencePass = [...offsetsByClient.values()].every((offsets) =>
+    offsets.slice(1).every((offset, index) => offset - offsets[index]! >= clientIntervalMs - 1),
+  );
+  const requestOffsets = samples.map((sample) => sample.requestStartOffsetMs);
+  const observedFirstStartOffsetMs = requestOffsets.length ? Math.min(...requestOffsets) : null;
+  const observedFinalStartOffsetMs = requestOffsets.length ? Math.max(...requestOffsets) : null;
+  const finalStartTailMs =
+    observedFinalStartOffsetMs === null ? null : requestStartWindowMs - observedFinalStartOffsetMs;
   return {
     startedAt,
     finishedAt: new Date().toISOString(),
@@ -594,6 +717,14 @@ async function runProductQueryMix(databaseUrl: string): Promise<{
     samples,
     observedOperations: [...new Set(samples.map((sample) => sample.operation))].sort(),
     observedClients: [...new Set(samples.map((sample) => sample.clientId))].sort(),
+    requestStartWindow: {
+      requestedDurationMs: requestStartWindowMs,
+      observedFirstStartOffsetMs,
+      observedFinalStartOffsetMs,
+      finalStartTailMs,
+      perClientCadencePass,
+    },
+    executionSpecSha256,
   };
 }
 
@@ -680,16 +811,7 @@ async function runQualification() {
       kind: 'disposable-local-postgresql',
       sourceRevision,
       harnessSha256: sha(readFileSync(fileURLToPath(import.meta.url), 'utf8')),
-      supportingCommonQueryMixSha256: sha(
-        readFileSync(resolve(QUALIFICATION_DIR, 'product-query-mix-v1.json'), 'utf8'),
-      ),
-      executedCommonQueryMixSha256: sha(
-        JSON.stringify({
-          mixId: 'package9-local-synthetic-product-query-mix-v1',
-          clients: PRODUCT_QUERY_CLIENTS,
-          operationCycle: PRODUCT_QUERY_OPERATIONS,
-        }),
-      ),
+      supportingCommonQueryMixSha256: sha(PRODUCT_QUERY_MIX_SOURCE),
       image: POSTGRES_IMAGE,
       containerId,
       containerName,
@@ -730,6 +852,7 @@ async function runQualification() {
     const hostPort = address.replace(/^127\.0\.0\.1:/, '127.0.0.1:');
     const databaseUrl = connectionString(hostPort, password);
     const env = { ...process.env, DATABASE_URL: databaseUrl };
+    const queryReaderPassword = randomBytes(24).toString('base64url');
     await waitForPostgres(containerId);
     // One historical identity migration grants capiro_app CONNECT ON DATABASE
     // capiro. Create that empty compatibility database only inside this
@@ -750,6 +873,44 @@ async function runQualification() {
       { env },
     );
     execute('pnpm', ['--filter', '@capiro/defense-api', 'build']);
+    const corpusSeedOutput = execute(
+      process.execPath,
+      ['scripts/seed-phase8-session12-corpus.mjs'],
+      { env },
+    );
+    const detailId = /"FY2029_AUTH_EXPECTED_SOURCE_ID":\s*"([^"]+)"/.exec(corpusSeedOutput)?.[1];
+    if (!detailId)
+      throw new Error('Session 12 corpus seed did not report its FY2029 authorization ID.');
+    docker([
+      'exec',
+      containerId,
+      'psql',
+      '-X',
+      '-qAt',
+      '-U',
+      'p9qual',
+      '-d',
+      'p9qualification',
+      '-c',
+      `CREATE ROLE p9q_reader LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD '${queryReaderPassword}'; GRANT USAGE ON SCHEMA public TO p9q_reader; GRANT SELECT ON TABLE ${PRODUCT_QUERY_READ_TABLES.join(', ')} TO p9q_reader;`,
+    ]);
+    (rawEvidence.environment as Record<string, unknown>).queryCorpusSeed = {
+      script: 'scripts/seed-phase8-session12-corpus.mjs',
+      detailId,
+    };
+    (rawEvidence.environment as Record<string, unknown>).productQueryReader = {
+      role: 'p9q_reader',
+      attributes: [
+        'LOGIN',
+        'NOINHERIT',
+        'NOSUPERUSER',
+        'NOCREATEDB',
+        'NOCREATEROLE',
+        'NOBYPASSRLS',
+      ],
+      grantedPrivilege: 'SELECT only',
+      tables: PRODUCT_QUERY_READ_TABLES,
+    };
     pool = new Pool({ connectionString: databaseUrl, max: 8 });
     const { prismaLike } = createDatabaseAdapter(pool, samples);
     const repository = createIngestionOutboxDrainRepositoryPrismaV1(prismaLike, {
@@ -944,7 +1105,7 @@ async function runQualification() {
           }
         }),
       ),
-      runProductQueryMix(databaseUrl),
+      runProductQueryMix(connectionString(hostPort, queryReaderPassword, 'p9q_reader'), detailId),
     ]);
     const loadElapsedMs = performance.now() - workerStarted;
     const workerFinishedMonotonicMs = performance.now();
@@ -964,9 +1125,11 @@ async function runQualification() {
       productQuery.finishedMonotonicMs,
     );
     const overlapDurationMs = Math.max(0, overlapMonotonicFinishedMs - overlapMonotonicStartedMs);
-    const expectedOperations = PRODUCT_QUERY_OPERATIONS.map(({ operation }) => operation).sort();
+    const expectedOperations = [
+      ...new Set(PRODUCT_QUERY_MIX.operationCycle.map(({ operation }) => operation)),
+    ].sort();
     const expectedClients = Array.from(
-      { length: PRODUCT_QUERY_CLIENTS },
+      { length: PRODUCT_QUERY_MIX.concurrentClients },
       (_, index) => `client-${index + 1}`,
     ).sort();
     const queryP95Ms = percentile(
@@ -978,6 +1141,11 @@ async function runQualification() {
       productQuery.samples.every((sample) => !sample.error) &&
       JSON.stringify(productQuery.observedOperations) === JSON.stringify(expectedOperations) &&
       JSON.stringify(productQuery.observedClients) === JSON.stringify(expectedClients) &&
+      productQuery.requestStartWindow.perClientCadencePass &&
+      productQuery.requestStartWindow.finalStartTailMs !== null &&
+      productQuery.requestStartWindow.finalStartTailMs >= 0 &&
+      productQuery.requestStartWindow.finalStartTailMs <=
+        PRODUCT_QUERY_MIX.clientIntervalMilliseconds &&
       overlapDurationMs > 0 &&
       queryP95Ms !== null &&
       queryP95Ms <= PRODUCT_QUERY_P95_LIMIT_MS;
@@ -1016,13 +1184,26 @@ async function runQualification() {
     );
     const finalLedger = ledgers[0]!;
     const scenarioResults = rawEvidence.scenarioResults as Array<{ status: string }>;
+    const finalQueue = (
+      queueSamples as Array<{
+        label?: string;
+        pending: number;
+        leased: number;
+        deadLetter: number;
+      }>
+    ).find((sample) => sample.label === 'drained');
+    const terminalQueuePass =
+      finalQueue !== undefined &&
+      finalQueue.pending === 0 &&
+      finalQueue.leased === 0 &&
+      finalQueue.deadLetter === 0;
     const workloadPass =
       Number(finalLedger.evidence) === MAX_QUEUE_ROWS &&
       Number(finalLedger.notifications) === MAX_QUEUE_ROWS &&
       Number(finalLedger.duplicateKeys) === 0 &&
       Number(finalLedger.missingEvidence) === 0 &&
       Number(finalLedger.missingNotifications) === 0 &&
-      (queueSamples[2] as { pending: number; leased: number; deadLetter: number }).pending === 0 &&
+      terminalQueuePass &&
       workerResults.reduce((sum, result) => sum + result.succeeded, 0) === MAX_QUEUE_ROWS - 8 &&
       maxConcurrentWorkers === 4;
     const measuredChecks = [
@@ -1038,6 +1219,13 @@ async function runQualification() {
         workerResults,
         maxConcurrentWorkers,
         elapsedMs: loadElapsedMs,
+      },
+      {
+        id: 'terminal-queue-drained',
+        status: terminalQueuePass ? 'PASS' : 'FAIL',
+        pending: finalQueue?.pending ?? null,
+        leased: finalQueue?.leased ?? null,
+        deadLetter: finalQueue?.deadLetter ?? null,
       },
       {
         id: 'concurrent-compiled-common-query-mix',
@@ -1057,6 +1245,8 @@ async function runQualification() {
           durationMs: overlapDurationMs,
           monotonicDurationMs: overlapDurationMs,
         },
+        requestStartWindow: productQuery.requestStartWindow,
+        executionSpecSha256: productQuery.executionSpecSha256,
       },
       {
         id: 'zero-lost-facts-zero-duplicate-logical-notifications',
@@ -1110,14 +1300,14 @@ async function runQualification() {
       },
       rawDatabaseQuerySamples: samples,
       concurrentCommonQuery: {
-        mixId: 'package9-local-synthetic-product-query-mix-v1',
+        mixId: PRODUCT_QUERY_MIX.id,
         reader: 'compiled BudgetLifecycleQueryService backed by PrismaBudgetLifecycleReadStore',
         startedAt: productQuery.startedAt,
         finishedAt: productQuery.finishedAt,
         sampleCount: productQuery.samples.length,
         errors: productQuery.samples.filter((sample) => sample.error).length,
         operationCoverage: Object.fromEntries(
-          PRODUCT_QUERY_OPERATIONS.map(({ operation }) => [
+          PRODUCT_QUERY_MIX.operationCycle.map(({ operation }) => [
             operation,
             productQuery.samples.filter((sample) => sample.operation === operation).length,
           ]),
@@ -1128,6 +1318,17 @@ async function runQualification() {
             productQuery.samples.filter((sample) => sample.clientId === clientId).length,
           ]),
         ),
+        requestedRequestStartSchedulingWindowMs:
+          productQuery.requestStartWindow.requestedDurationMs,
+        requestStartOffsetsMs: {
+          first: productQuery.requestStartWindow.observedFirstStartOffsetMs,
+          last: productQuery.requestStartWindow.observedFinalStartOffsetMs,
+          finalStartTailMs: productQuery.requestStartWindow.finalStartTailMs,
+        },
+        configuredClientIntervalMilliseconds: PRODUCT_QUERY_MIX.clientIntervalMilliseconds,
+        configuredMaximumAggregateRequestStartsPerSecond:
+          PRODUCT_QUERY_MIX.configuredMaximumAggregateRequestStartsPerSecond,
+        perClientCadencePass: productQuery.requestStartWindow.perClientCadencePass,
         latencyMs: {
           p50: percentile(
             productQuery.samples.map((sample) => sample.elapsedMs),
@@ -1147,13 +1348,7 @@ async function runQualification() {
           durationMs: overlapDurationMs,
           monotonicDurationMs: overlapDurationMs,
         },
-        mixSha256: sha(
-          JSON.stringify({
-            mixId: 'package9-local-synthetic-product-query-mix-v1',
-            clients: PRODUCT_QUERY_CLIENTS,
-            operationCycle: PRODUCT_QUERY_OPERATIONS,
-          }),
-        ),
+        executionSpecSha256: productQuery.executionSpecSha256,
         rawSamples: productQuery.samples,
       },
     };
