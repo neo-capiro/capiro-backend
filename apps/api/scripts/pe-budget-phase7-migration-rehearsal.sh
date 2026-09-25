@@ -1016,6 +1016,7 @@ ok "serve role given a rehearsal password"
 
 ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
 PROMOTER_DATABASE_URL="postgresql://capiro_pe_promoter:rehearsal-promoter@localhost:$PORT/$DB_NAME" \
+APP_DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME" \
   npx tsx "./scripts/pe-budget-phase7-engine-rehearsal.ts" \
   || fail "the engine rehearsal did not pass"
 PASS_COUNT=$((PASS_COUNT + 1))
