@@ -885,8 +885,12 @@ async function runQualification() {
     const removedCorpusSetupOutbox = await queryRows<{ id: string; family: string | null }>(
       pool,
       samples,
-      `DELETE FROM "defense_budget_ingestion_outbox"
-       RETURNING "id"::text AS "id", "family"`,
+      `DELETE FROM "defense_budget_ingestion_outbox" AS outbox
+       USING "defense_budget_source_observation" AS observation,
+             "defense_budget_expected_source" AS expected_source
+       WHERE observation."id" = outbox."observation_id"
+         AND expected_source."id" = observation."expected_source_id"
+       RETURNING outbox."id"::text AS "id", expected_source."source_family" AS "family"`,
       [],
       'remove Session 12 corpus setup outbox before Package 9 workload',
     );
