@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "package": 9,
+  "qualification": "operations-load-failure-recovery",
+  "decision": "NO_GO",
+  "activationAllowed": "shadow-only",
+  "measurementStatus": "NOT_RUN",
+  "budgetSource": "../package-0/operating-budgets.v1.json",
+  "hardLimits": {
+    "peakPendingOutboxRows": 100,
+    "deadLetterRows": 10,
+    "oldestPendingAgeMinutes": 60,
+    "concurrentDrainTasks": 4,
+    "maxDrainTaskRuntimeMinutes": 30,
+    "commonInteractiveQueryP95Milliseconds": 2000,
+    "incrementalAwsAnnualUsd": 1000,
+    "paidProviderAnnualUsd": 500,
+    "defaultPaidProviderBudgetUsd": 0
+  },
+  "invariants": [
+    "Every accepted fact has a durable immutable evidence identity before it is acknowledged.",
+    "After recovery, every accepted fact is present exactly once by logical identity; retries may create attempt records but never a second logical fact.",
+    "A logical notification key is emitted at most once, including across crash, lease expiry, retry, and replay.",
+    "Provider or source outage never converts missing evidence into acceptance, a negative assertion, or a fabricated fact.",
+    "Rollback stops admission and consumers or returns readers to the prior pointer without deleting or mutating immutable evidence."
+  ],
+  "owners": [
+    {
+      "boundary": "each publisher/source adapter",
+      "ownerRole": "named source owner recorded in the exact run manifest before admission",
+      "accountability": "source identity, freshness cursor, outage policy, and source-specific completeness assertions"
+    },
+    {
+      "boundary": "outbox, lease, drain concurrency, and queue budgets",
+      "ownerRole": "platform lead",
+      "accountability": "queue admission, bounded retries, lease recovery, capacity alarms, and immutable-evidence-safe rollback"
+    },
+    {
+      "boundary": "Congress.gov/GovInfo legislative evidence and notifications",
+      "ownerRole": "legislative lead",
+      "accountability": "version/watermark continuity, source outage behavior, historical suppression, and logical notification identity"
+    },
+    {
+      "boundary": "model/provider routing and economics",
+      "ownerRole": "model/evaluation lead",
+      "accountability": "provider pinning, stub versus paid lane, attempt/cost ledger, timeout/fallback behavior, and task-specific abstention"
+    },
+    {
+      "boundary": "fact acceptance, coverage claim, and publication decision",
+      "ownerRole": "ingestion lead with independent reviewer",
+      "accountability": "accepted-fact denominator, evidence lineage, no-loss reconciliation, and prohibition on unqualified publication"
+    }
+  ],
+  "workload": {
+    "id": "P9-BASELINE-100",
+    "seed": 9009,
+    "acceptedFactCount": 100,
+    "logicalNotificationKeys": 100,
+    "queuePeakTarget": 100,
+    "concurrentDrainTasks": 4,
+    "sourceMix": [
+      { "family": "budget-document", "count": 40 },
+      { "family": "federal-legislative", "count": 20 },
+      { "family": "execution-or-funding", "count": 20 },
+      { "family": "acquisition-cross-reference", "count": 20 }
+    ],
+    "identityRule": "Generate stable sourceFactId and logicalNotificationKey from seed and ordinal 0001-0100; preserve the mapping in the run manifest.",
+    "providerLane": "deterministic local stub; paid budget remains zero",
+    "duration": "Run steady drain for 30 minutes or until all accepted work is reconciled; separately age one held item to the 60-minute alarm threshold using a controllable test clock.",
+    "measurement": "Capture queue depth and age each minute; task concurrency and runtime; accepted/evidence/acknowledged/recovered identity sets; notification keys; common-query p50/p95/max; retries and DLQ; AWS and provider cost deltas."
+  },
+  "scenarios": [
+    {
+      "id": "P9-F01-CRASH-AFTER-EVIDENCE-COMMIT",
+      "status": "NOT_RUN",
+      "failure": "Terminate the worker after immutable evidence commit and before outbox acknowledgement.",
+      "procedure": ["Seed the baseline workload in an isolated disposable environment.", "Pause at the evidence-commit/ack boundary and terminate exactly one worker for sourceFactId ordinal 0001.", "Restart with the same image/config and drain within the limits; query by stable fact and notification keys."],
+      "passAssertions": ["100/100 accepted sourceFactIds have one committed evidence identity.", "The interrupted item is safely recognized on replay; no accepted fact is omitted.", "Each logical notification key has at most one delivered logical notification.", "Pending rows never exceed 100; DLQ never exceeds 10; drain concurrency <=4."],
+      "primaryOwner": "platform lead",
+      "coOwners": ["named source owner in run manifest", "ingestion lead"]
+    },
+    {
+      "id": "P9-F02-LEASE-EXPIRY",
+      "status": "NOT_RUN",
+      "failure": "Hold a leased job beyond its configured expiry, then let a second worker reclaim it while the original worker is prevented from acknowledging stale ownership.",
+      "procedure": ["Use a controllable clock and two workers against one isolated queue item.", "Expire the first lease, reclaim with worker two, then release the stale worker.", "Reconcile attempts, evidence identities, queue state, and notification keys."],
+      "passAssertions": ["Exactly one current lease owner can acknowledge the item.", "The stale owner cannot delete, overwrite, or acknowledge the newer lease.", "The accepted fact is retained once logically and notification key emitted at most once.", "Retry count and lease transitions are auditable; queue and task limits hold."],
+      "primaryOwner": "platform lead",
+      "coOwners": ["named source owner in run manifest", "ingestion lead"]
+    },
+    {
+      "id": "P9-F03-TRANSIENT-RETRY",
+      "status": "NOT_RUN",
+      "failure": "Inject a transient failure on the first attempt, then restore the dependency for the bounded retry.",
+      "procedure": ["Apply the fault to deterministic ordinals 0021-0030 only.", "Allow only the configured bounded retry policy; record each attempt and idempotency key.", "Drain the remaining baseline workload and compare accepted/evidence/notification sets."],
+      "passAssertions": ["All accepted items converge without exceeding maxAttemptsPerDecision=2 where model decision attempts apply.", "Retry does not duplicate logical evidence or notifications.", "No item is silently dropped or reclassified as accepted without evidence.", "DLQ remains <=10 and provides exact recoverable identities if a bounded retry is exhausted."],
+      "primaryOwner": "platform lead",
+      "coOwners": ["named source owner in run manifest", "model/evaluation lead when provider decision is involved"]
+    },
+    {
+      "id": "P9-F04-SOURCE-OUTAGE",
+      "status": "NOT_RUN",
+      "failure": "Make one named source unavailable for a fixed interval while other source families remain available.",
+      "procedure": ["Use a source-specific adapter stub for deterministic ordinals 0041-0060.", "Return timeout/5xx for 10 minutes, then restore source access without moving its watermark past unobserved records.", "Continue unrelated source families and replay the exact source interval."],
+      "passAssertions": ["Unavailable source is marked delayed/unknown, never complete or empty.", "No watermark skips the outage interval; recovered interval is reconciled from exact cursor overlap.", "No accepted facts are lost and no logical notifications duplicate after recovery.", "Oldest pending age alarm fires by 60 minutes; interactive query p95 remains <=2,000 ms."],
+      "primaryOwner": "named source owner in run manifest",
+      "coOwners": ["legislative lead for Congress.gov/GovInfo", "platform lead"]
+    },
+    {
+      "id": "P9-F05-PROVIDER-OUTAGE",
+      "status": "NOT_RUN",
+      "failure": "Return timeout, 429, malformed response, and 5xx from the provider boundary in separate deterministic sub-runs.",
+      "procedure": ["Use only a local provider stub; paid provider allocation stays $0.", "Pin model identifier and request/response fixture hashes in each sub-run.", "Exercise timeout, throttling, malformed result, and recovery; reconcile decisions and cost ledger."],
+      "passAssertions": ["Provider failure yields bounded retry or abstention/review, never a fabricated accepted fact.", "Source evidence envelope survives every failed attempt.", "Provider retries are capped and accounted; paid invocation count and spend remain zero.", "No duplicate logical notification; queue/DLQ and query budgets hold."],
+      "primaryOwner": "model/evaluation lead",
+      "coOwners": ["platform lead", "ingestion lead"]
+    },
+    {
+      "id": "P9-L01-PEAK-LOAD-AND-QUERY",
+      "status": "NOT_RUN",
+      "failure": "Sustain the 100-item baseline while four drain tasks run and common reads execute concurrently.",
+      "procedure": ["Load the stable seeded workload to a peak of 100 pending rows.", "Run no more than four drain tasks for at most 30 minutes each.", "Issue the versioned common-query mix continuously and record raw latency samples."],
+      "passAssertions": ["Pending <=100, DLQ <=10, oldest age <=60 minutes, drain tasks <=4.", "Common interactive query p95 <=2,000 ms.", "Verified program update p95 <=60 minutes.", "Measured annualized AWS projection is <=$1,000 with assumptions disclosed; provider paid spend is $0 in this lane."],
+      "primaryOwner": "platform lead",
+      "coOwners": ["model/evaluation lead for cost report", "ingestion lead"]
+    }
+  ],
+  "requiredEvidenceForPromotion": [
+    "Exact source revision, immutable image digest, configuration, seed, workload manifest, and scenario ID.",
+    "Timestamped raw metric samples and cost before/after report; no extrapolation presented as measured spend.",
+    "Accepted/evidence/acknowledged/recovered fact identity reconciliation and notification-key uniqueness report.",
+    "Alarm delivery evidence, operator timeline, exceptions, and independent sign-off.",
+    "A status of PASS only for executed assertions; never infer PASS from a planned procedure."
+  ]
+}
