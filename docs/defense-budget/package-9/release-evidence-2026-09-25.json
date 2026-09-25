@@ -1,6 +1,7 @@
 {
   "package": 9,
   "releasedAt": "2026-09-25T01:52:34.3761012Z",
+  "updatedAt": "2026-09-25T02:41:57.738Z",
   "sourceControl": {
     "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1794",
     "mergeCommit": "f8a9079c5fb149952c450bf050d9678494884c26",
@@ -11,6 +12,16 @@
       "runnerAssigned": false,
       "stepsStarted": 0,
       "sampleJobId": 107908157537
+    },
+    "durableQualification": {
+      "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1796",
+      "mergeCommit": "8d50b9671f01fc034ec712dc7696e9fe3b1c08d0",
+      "githubHostedChecks": {
+        "result": "infrastructure_failure",
+        "runnerAssigned": false,
+        "stepsStarted": 0,
+        "sampleJobId": 107919553655
+      }
     }
   },
   "validation": {
@@ -29,11 +40,44 @@
     "currentJevEconomicsHash": "0bf2374559471cbf3333c93e05343099fce793ea660fb45acb8d7970652a1fa9",
     "currentReleaseDecision": "NO_GO",
     "maximumActivation": "shadow_only",
-    "durableDatabaseLoadAndFailureRecovery": "NOT_RUN",
+    "durableDatabaseLoadAndFailureRecovery": "PASS_LIMITED_SCOPE",
     "blindIndependentAccuracyReview": "NOT_RUN",
     "buyerBenchmark": "NOT_RUN",
     "matchedWorkCostQualification": "NOT_RUN",
     "rollbackAndAlarmDeliveryRehearsal": "NOT_RUN"
+  },
+  "durableQualification": {
+    "report": "docs/defense-budget/package-9/evidence/durable-run-p9-20260925024117927-2c727e.json",
+    "sha256": "2b6adbffe6cfb4ee048901e30314d313cb31121aa77388418337e1bf01f6aeeb",
+    "sourceRevision": "8d50b9671f01fc034ec712dc7696e9fe3b1c08d0",
+    "environment": "disposable-local-postgresql",
+    "status": "PASS_LIMITED_SCOPE",
+    "scenarioPasses": 8,
+    "scenarioTotal": 8,
+    "measuredCheckPasses": 4,
+    "measuredCheckTotal": 4,
+    "acceptedFacts": 100,
+    "durableLogicalNotifications": 100,
+    "duplicateLogicalNotificationKeys": 0,
+    "missingFactEvidence": 0,
+    "missingLogicalNotifications": 0,
+    "peakQueueRows": 100,
+    "maxConcurrentWorkers": 4,
+    "syntheticDrainElapsedMilliseconds": 580.825,
+    "databaseQuerySamples": 651,
+    "databaseQueryP95Milliseconds": 9.535,
+    "databaseQueryMaximumMilliseconds": 35.372,
+    "databaseTimingIsCommonProductQueryLatency": false,
+    "notRun": [
+      "alarmDelivery",
+      "rollback",
+      "sustainedLatency",
+      "commonQueryP95",
+      "awsCost",
+      "paidProviderEconomics",
+      "buyerBenchmark",
+      "independentAccuracy"
+    ]
   },
   "aws": {
     "account": "967807252336",
@@ -49,10 +93,7 @@
     "image": {
       "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
       "digest": "sha256:ef9c9cb0865f7c4e969d75d0af05958ef265af75c0f9804cfd870592b48aedc7",
-      "tags": [
-        "f8a9079c5fb149952c450bf050d9678494884c26",
-        "package9-20260925-api"
-      ]
+      "tags": ["f8a9079c5fb149952c450bf050d9678494884c26", "package9-20260925-api"]
     },
     "service": {
       "name": "capiro-dev-api",
@@ -89,6 +130,56 @@
         "appDevApiHealthStatus": 401,
         "appDevCoverageStatus": 401,
         "authenticatedRouteInterpretation": "Expected unauthenticated authorization wall; no 5xx response observed."
+      }
+    },
+    "durableQualificationDeployment": {
+      "codeBuild": {
+        "id": "capiro-build-intel-api:811dddc5-e6dc-4d37-b1cb-118c28a08323",
+        "resolvedSourceVersion": "8d50b9671f01fc034ec712dc7696e9fe3b1c08d0",
+        "status": "SUCCEEDED"
+      },
+      "image": {
+        "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
+        "digest": "sha256:a10007952f6bce99c8646de1c8e13963934234a01c2efeb406bb00ffe312ff0d",
+        "tags": ["8d50b9671f01fc034ec712dc7696e9fe3b1c08d0", "package9-durable-20260925-api"]
+      },
+      "service": {
+        "taskDefinition": "capiro-dev-api:454",
+        "rolloutState": "COMPLETED",
+        "desired": 2,
+        "running": 2,
+        "pending": 0,
+        "failedTasks": 0,
+        "runningTasks": [
+          {
+            "taskId": "9ec940367dbc4a228a26ba3ae218d447",
+            "privateIp": "10.40.4.108",
+            "health": "HEALTHY",
+            "targetHealth": "healthy"
+          },
+          {
+            "taskId": "f22e271af1684f5aa4261dabe74465ac",
+            "privateIp": "10.40.15.120",
+            "health": "HEALTHY",
+            "targetHealth": "healthy"
+          }
+        ]
+      },
+      "runtime": {
+        "gitSha": "8d50b9671f01fc034ec712dc7696e9fe3b1c08d0",
+        "taskDefinitionPreservedExceptImageAndGitSha": true,
+        "federalLegislativeEvidenceEnabled": false,
+        "programAcquisitionContinuityEnabled": false,
+        "fundingExecutionSourceAdapterEnabled": false,
+        "fundingExecutionPublicationEnabled": false,
+        "newTaskLogErrorCount": 0,
+        "smoke": {
+          "appDevHealthStatus": 200,
+          "appHealthStatus": 200,
+          "appDevApiHealthStatus": 401,
+          "appDevCoverageStatus": 401,
+          "authenticatedRouteInterpretation": "Expected unauthenticated authorization wall; no 5xx response observed."
+        }
       }
     }
   },
@@ -145,7 +236,7 @@
     "reasons": [
       "The qualification manifest, exact marketed-family cohort, mandatory-source denominator and release authorization are not approved and bound to the deployed revision.",
       "The required blind independent semantic adjudication and confidence intervals have not been produced.",
-      "Durable-database peak-load, sustained-latency, crash, lease-expiry, alarm-delivery and rollback rehearsals have not been run on disposable isolated data.",
+      "The disposable PostgreSQL crash, lease, retry, source/provider-failure and 100-row reconciliation harness passed only its declared local scope; sustained product latency, real adapter/provider SDK behavior, alarm delivery and routing/projection rollback remain unqualified.",
       "Matched completed-work cost evidence does not establish the required 30 percent Jev savings at maintained completion, accuracy and coverage.",
       "The six predeclared buyer workflows have not been completed by the required buyer cohorts and independently adjudicated.",
       "Named operational ownership and acceptance records are not present."

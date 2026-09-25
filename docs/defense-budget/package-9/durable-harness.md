@@ -17,6 +17,10 @@ It seeds 100 synthetic outbox rows across RDT&E, procurement, O&M, and MILCON. I
 
 The generated run report is written under `docs/defense-budget/package-9/evidence/` and contains raw repository/fixture query timings, queue state samples, scenario results, worker concurrency, and ledger reconciliation. Timing records are local elapsed samples; they do not establish common interactive query p95 or sustained production latency.
 
+## Retained deployed-revision run
+
+The retained [`PASS_LIMITED_SCOPE` report](./evidence/durable-run-p9-20260925024117927-2c727e.json) is bound to deployed source revision `8d50b9671f01fc034ec712dc7696e9fe3b1c08d0` and has SHA-256 `2b6adbffe6cfb4ee048901e30314d313cb31121aa77388418337e1bf01f6aeeb`. All eight declared local recovery scenarios and four measured reconciliation checks passed: 100 evidence identities, 100 logical notification keys, no missing identities, no duplicate logical keys, a 100-row peak, and at most four concurrent workers. Its 651 database-operation timing samples are harness diagnostics only, not the product-query or sustained-load latency gate.
+
 ## Explicit limits
 
 This harness tests local durable database transitions and synthetic evidence/notification identity behavior. The bridge and readiness ports are local stubs; it does not execute source adapters, model/provider SDKs, real notification delivery, canonical publication, or buyer workflows. A run does not measure or qualify sustained 30-minute throughput, oldest-age alarms, alarm receiver delivery, projection/routing rollback, AWS cost, paid-provider economics, independent accuracy, or buyer outcomes. Those fields remain `NOT_RUN` in every report. A limited-scope pass cannot change Package 9's release decision from `NO_GO` or permit activation beyond shadow-only.
