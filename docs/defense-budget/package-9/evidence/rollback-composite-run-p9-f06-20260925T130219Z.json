@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "package": 9,
+  "scenario": "P9-F06-POPULATED-PROJECTION-AND-ROUTING-ROLLBACK",
+  "qualification": "disposable-local-postgresql-populated-program-element-canary-routing-and-pointer-rollback",
+  "status": "PASS_LIMITED_LOCAL_COMPOSITE",
+  "startedAt": "2026-09-25T13:02:19Z",
+  "completedAt": "2026-09-25T13:06:35Z",
+  "durationSeconds": 256,
+  "exitCode": 0,
+  "sourceRevision": "4b210e50f6b377124d27ebd7507241fc420098eb",
+  "harness": {
+    "enginePath": "apps/api/scripts/pe-budget-phase7-engine-rehearsal.ts",
+    "engineSha256": "5f790e1056aff46426a60b3671ef9a02b352c78e2dc2af2f9fff3408e9d80fc1",
+    "migrationPath": "apps/api/scripts/pe-budget-phase7-migration-rehearsal.sh",
+    "migrationSha256": "5d48fae19758ca986aa73c180145e2f36d9f87f0a34b056a765da6281937d727",
+    "launcher": "apps/api/scripts/run-pe-budget-phase7-migration-rehearsal.mjs",
+    "launcherSha256": "d6c1df1eb179fc29e9cb01c246cb07386fb22ae773cee2cb48e12fe1d7a4f57b",
+    "command": "pnpm --filter @capiro/api verify:pe-budget-phase-7:db",
+    "portOverride": 55449,
+    "portOverrideReason": "Port 55447 belonged to a separate acceptance container and was left untouched."
+  },
+  "database": {
+    "environment": "disposable-local-postgresql",
+    "containerName": "pe-p7-mig-rehearsal",
+    "image": "pgvector/pgvector:pg16",
+    "freshDatabase": true,
+    "syntheticDataOnly": true,
+    "sharedOrAwsDatabaseUsed": false,
+    "applicationRole": "capiro_app",
+    "promoterRole": "capiro_pe_promoter"
+  },
+  "checkGroups": {
+    "topLevelDatabaseRehearsal": 125,
+    "promotionEngine": 40,
+    "outboxDrain": 39,
+    "snapshotReader": 33,
+    "planAndValidate": 36,
+    "authorization": 13
+  },
+  "populatedRouteFixture": {
+    "tenantId": "p9-f06-synthetic-canary-tenant",
+    "peCode": "P9-F06-SYNTHETIC-PE",
+    "readMode": "snapshot_canary",
+    "emergencySwitch": "PE_SNAPSHOT_CANARY_ROLLBACK",
+    "candidateResponse": {
+      "fiscalYear": 2027,
+      "totalAmount": "999",
+      "quantity": "12"
+    },
+    "restoredPriorResponse": {
+      "fiscalYear": 2027,
+      "totalAmount": "250",
+      "quantity": "12"
+    },
+    "responseComparison": "Order-independent exact comparison of the ProgramElementReadService rows after rollback."
+  },
+  "compositeAssertions": {
+    "candidateSnapshotHadProgramElementIdentityAndTwoPositions": "PASS",
+    "candidateDefectiveTotalWasVisibleThroughProgramElementReadService": "PASS",
+    "tenantCanaryForegroundUsedActiveSnapshotPointer": "PASS",
+    "emergencyProcessSwitchReturnedLegacySentinel": "PASS",
+    "emergencyProcessSwitchBypassedSnapshotRowReads": "PASS",
+    "authorizedRollbackReactivatedPriorSnapshot": "PASS",
+    "activePointerReturnedToPriorSnapshot": "PASS",
+    "postRollbackCanaryUsedPopulatedPriorSnapshot": "PASS",
+    "restoredResponseExactlyMatchedPriorTotalAndQuantity": "PASS",
+    "bothSnapshotsRemain": "PASS",
+    "rolledBackSnapshotRowsRemain": "PASS",
+    "candidateRowHashesUnchanged": "PASS",
+    "priorProgramElementIdentityAndPositionsRemain": "PASS",
+    "durableRollbackRecordRetained": "PASS",
+    "rollbackRecordPreservedExactPointerTransition": "PASS",
+    "rollbackLeftDrainPaused": "PASS",
+    "rollbackUnsuppressedNotifications": 0,
+    "acceptedRollbackDurableAuditRows": 1,
+    "generalServeRoleCouldNotMovePointer": "PASS",
+    "activeSnapshotReadsDidNotMixSnapshots": "PASS"
+  },
+  "cleanup": {
+    "containerAbsent": true,
+    "overridePortListenersAfterCleanup": 0,
+    "separateAcceptanceContainerOrPortModified": false
+  },
+  "proves": [
+    "The shipped ProgramElementReadService and PeSnapshotGateService route a synthetic canary tenant through a populated active snapshot.",
+    "The deliberately defective candidate total of 999 is visible before rollback, so the response-level change is observable rather than inferred from pointer state alone.",
+    "The real promotion service performs an authorized rollback to a populated prior snapshot whose exact response contains total 250 and quantity 12.",
+    "The rollback preserves both snapshots, every candidate row hash, the prior Program Element identity and positions, and durable rollback and audit records.",
+    "The rollback pauses side-effect draining and produces no unsuppressed rollback notification.",
+    "The emergency process switch forces the same canary tenant to the synthetic legacy reader without reading snapshot rows."
+  ],
+  "doesNotProve": [
+    "Authenticated HTTP routing, a restarted deployed API process, production or AWS database rollback, or a real customer tenant.",
+    "Preservation of real source bytes, provider attempts, review decisions, or delivered customer notifications.",
+    "Production recovery time, alarm integration, sustained latency, cost, buyer outcomes, independent accuracy, or commercial activation."
+  ]
+}
