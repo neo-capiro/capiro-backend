@@ -10,20 +10,29 @@ $budgetPath = Join-Path $PSScriptRoot '..\docs\defense-budget\package-0\operatin
 $qualification = Get-Content -Raw $qualificationPath | ConvertFrom-Json
 $budget = Get-Content -Raw $budgetPath | ConvertFrom-Json
 
-# Package 9 specifies hard limits but no separate numeric advisory-warning bands.
-# This matrix exercises each declared warning/stop gate at its documented limit.
+# Warning thresholds come from the operator runbook; stop thresholds come from Package 9 hard limits.
+$runbookSource = 'docs/defense-budget/package-9/operator-runbook.md#alarm-policy'
 $matrix = @(
-  [ordered]@{ id = 'pending-outbox'; label = 'Pending outbox rows'; limit = [double]$qualification.hardLimits.peakPendingOutboxRows; breachValue = [double]$qualification.hardLimits.peakPendingOutboxRows + 1; operator = 'GreaterThanThreshold'; unit = 'Count' },
-  [ordered]@{ id = 'dead-letter'; label = 'Dead-letter rows'; limit = [double]$qualification.hardLimits.deadLetterRows; breachValue = [double]$qualification.hardLimits.deadLetterRows + 1; operator = 'GreaterThanThreshold'; unit = 'Count' },
-  [ordered]@{ id = 'oldest-pending-age'; label = 'Oldest pending age (minutes)'; limit = [double]$qualification.hardLimits.oldestPendingAgeMinutes; breachValue = [double]$qualification.hardLimits.oldestPendingAgeMinutes; operator = 'GreaterThanOrEqualToThreshold'; unit = 'Count' },
-  [ordered]@{ id = 'drain-task-count'; label = 'Concurrent drain tasks'; limit = [double]$qualification.hardLimits.concurrentDrainTasks; breachValue = [double]$qualification.hardLimits.concurrentDrainTasks + 1; operator = 'GreaterThanThreshold'; unit = 'Count' },
-  [ordered]@{ id = 'drain-task-runtime'; label = 'Drain task runtime (minutes)'; limit = [double]$qualification.hardLimits.maxDrainTaskRuntimeMinutes; breachValue = [double]$qualification.hardLimits.maxDrainTaskRuntimeMinutes + 1; operator = 'GreaterThanThreshold'; unit = 'Count' },
-  [ordered]@{ id = 'interactive-query-p95'; label = 'Interactive query p95 (milliseconds)'; limit = [double]$qualification.hardLimits.commonInteractiveQueryP95Milliseconds; breachValue = [double]$qualification.hardLimits.commonInteractiveQueryP95Milliseconds + 1; operator = 'GreaterThanThreshold'; unit = 'Count' },
-  [ordered]@{ id = 'verified-update-p95'; label = 'Verified program update p95 (minutes)'; limit = [double]$budget.peakReleaseDay.verifiedProgramUpdateP95Minutes; breachValue = [double]$budget.peakReleaseDay.verifiedProgramUpdateP95Minutes + 1; operator = 'GreaterThanThreshold'; unit = 'Count' },
-  [ordered]@{ id = 'aws-annual-cost'; label = 'Incremental AWS annual projection (USD)'; limit = [double]$qualification.hardLimits.incrementalAwsAnnualUsd; breachValue = [double]$qualification.hardLimits.incrementalAwsAnnualUsd + 1; operator = 'GreaterThanThreshold'; unit = 'None' },
-  [ordered]@{ id = 'provider-annual-cost'; label = 'Paid provider annual cost (USD)'; limit = [double]$qualification.hardLimits.paidProviderAnnualUsd; breachValue = [double]$qualification.hardLimits.paidProviderAnnualUsd + 1; operator = 'GreaterThanThreshold'; unit = 'None' },
-  [ordered]@{ id = 'provider-default-zero-budget'; label = 'Paid provider default budget (USD)'; limit = [double]$qualification.hardLimits.defaultPaidProviderBudgetUsd; breachValue = 0.01; operator = 'GreaterThanThreshold'; unit = 'None' }
+  [ordered]@{ id = 'pending-outbox-warning'; signal = 'pending-outbox'; phase = 'warning'; label = 'Pending outbox rows'; limit = 80.0; breachValue = 80.0; operator = 'GreaterThanOrEqualToThreshold'; unit = 'Count'; source = $runbookSource },
+  [ordered]@{ id = 'pending-outbox-stop'; signal = 'pending-outbox'; phase = 'stop'; label = 'Pending outbox rows'; limit = [double]$qualification.hardLimits.peakPendingOutboxRows; breachValue = [double]$qualification.hardLimits.peakPendingOutboxRows; operator = 'GreaterThanOrEqualToThreshold'; unit = 'Count'; source = 'docs/defense-budget/package-9/failure-recovery-qualification.json#/hardLimits/peakPendingOutboxRows' },
+  [ordered]@{ id = 'dead-letter-warning'; signal = 'dead-letter'; phase = 'warning'; label = 'Dead-letter rows'; limit = 8.0; breachValue = 8.0; operator = 'GreaterThanOrEqualToThreshold'; unit = 'Count'; source = $runbookSource },
+  [ordered]@{ id = 'dead-letter-stop'; signal = 'dead-letter'; phase = 'stop'; label = 'Dead-letter rows'; limit = [double]$qualification.hardLimits.deadLetterRows; breachValue = [double]$qualification.hardLimits.deadLetterRows; operator = 'GreaterThanOrEqualToThreshold'; unit = 'Count'; source = 'docs/defense-budget/package-9/failure-recovery-qualification.json#/hardLimits/deadLetterRows' },
+  [ordered]@{ id = 'oldest-pending-age-warning'; signal = 'oldest-pending-age'; phase = 'warning'; label = 'Oldest pending age (minutes)'; limit = 45.0; breachValue = 45.0; operator = 'GreaterThanOrEqualToThreshold'; unit = 'None'; source = $runbookSource },
+  [ordered]@{ id = 'oldest-pending-age-stop'; signal = 'oldest-pending-age'; phase = 'stop'; label = 'Oldest pending age (minutes)'; limit = [double]$qualification.hardLimits.oldestPendingAgeMinutes; breachValue = [double]$qualification.hardLimits.oldestPendingAgeMinutes; operator = 'GreaterThanOrEqualToThreshold'; unit = 'None'; source = 'docs/defense-budget/package-9/failure-recovery-qualification.json#/hardLimits/oldestPendingAgeMinutes' },
+  [ordered]@{ id = 'drain-task-count-warning'; signal = 'drain-task-count'; phase = 'warning'; label = 'Concurrent drain tasks'; limit = 3.0; breachValue = 3.0; operator = 'GreaterThanOrEqualToThreshold'; unit = 'Count'; source = $runbookSource },
+  [ordered]@{ id = 'drain-task-count-stop'; signal = 'drain-task-count'; phase = 'stop'; label = 'Concurrent drain tasks'; limit = [double]$qualification.hardLimits.concurrentDrainTasks; breachValue = [double]$qualification.hardLimits.concurrentDrainTasks; operator = 'GreaterThanOrEqualToThreshold'; unit = 'Count'; source = 'docs/defense-budget/package-9/failure-recovery-qualification.json#/hardLimits/concurrentDrainTasks' },
+  [ordered]@{ id = 'drain-task-runtime-warning'; signal = 'drain-task-runtime'; phase = 'warning'; label = 'Drain task runtime (minutes)'; limit = 25.0; breachValue = 25.0; operator = 'GreaterThanOrEqualToThreshold'; unit = 'None'; source = $runbookSource },
+  [ordered]@{ id = 'drain-task-runtime-stop'; signal = 'drain-task-runtime'; phase = 'stop'; label = 'Drain task runtime (minutes)'; limit = [double]$qualification.hardLimits.maxDrainTaskRuntimeMinutes; breachValue = [double]$qualification.hardLimits.maxDrainTaskRuntimeMinutes; operator = 'GreaterThanOrEqualToThreshold'; unit = 'None'; source = 'docs/defense-budget/package-9/failure-recovery-qualification.json#/hardLimits/maxDrainTaskRuntimeMinutes' },
+  [ordered]@{ id = 'interactive-query-p95-warning'; signal = 'interactive-query-p95'; phase = 'warning'; label = 'Interactive query p95 (milliseconds)'; limit = 1600.0; breachValue = 1600.0; operator = 'GreaterThanOrEqualToThreshold'; unit = 'Milliseconds'; source = $runbookSource },
+  [ordered]@{ id = 'interactive-query-p95-stop'; signal = 'interactive-query-p95'; phase = 'stop'; label = 'Interactive query p95 (milliseconds)'; limit = [double]$qualification.hardLimits.commonInteractiveQueryP95Milliseconds; breachValue = [double]$qualification.hardLimits.commonInteractiveQueryP95Milliseconds; operator = 'GreaterThanOrEqualToThreshold'; unit = 'Milliseconds'; source = 'docs/defense-budget/package-9/failure-recovery-qualification.json#/hardLimits/commonInteractiveQueryP95Milliseconds' },
+  [ordered]@{ id = 'verified-update-p95-warning'; signal = 'verified-update-p95'; phase = 'warning'; label = 'Verified program update p95 (minutes)'; limit = 45.0; breachValue = 45.0; operator = 'GreaterThanOrEqualToThreshold'; unit = 'None'; source = $runbookSource },
+  [ordered]@{ id = 'verified-update-p95-stop'; signal = 'verified-update-p95'; phase = 'stop'; label = 'Verified program update p95 (minutes)'; limit = [double]$budget.peakReleaseDay.verifiedProgramUpdateP95Minutes; breachValue = [double]$budget.peakReleaseDay.verifiedProgramUpdateP95Minutes; operator = 'GreaterThanOrEqualToThreshold'; unit = 'None'; source = 'docs/defense-budget/package-0/operating-budgets.v1.json#/peakReleaseDay/verifiedProgramUpdateP95Minutes' },
+  [ordered]@{ id = 'aws-annual-cost-warning'; signal = 'aws-annual-cost'; phase = 'warning'; label = 'Incremental AWS annual projection (USD)'; limit = 800.0; breachValue = 800.0; operator = 'GreaterThanOrEqualToThreshold'; unit = 'None'; source = $runbookSource },
+  [ordered]@{ id = 'aws-annual-cost-stop'; signal = 'aws-annual-cost'; phase = 'stop'; label = 'Incremental AWS annual projection (USD)'; limit = [double]$qualification.hardLimits.incrementalAwsAnnualUsd; breachValue = [double]$qualification.hardLimits.incrementalAwsAnnualUsd; operator = 'GreaterThanOrEqualToThreshold'; unit = 'None'; source = 'docs/defense-budget/package-9/failure-recovery-qualification.json#/hardLimits/incrementalAwsAnnualUsd' },
+  [ordered]@{ id = 'provider-unauthorized-spend-warning'; signal = 'provider-spend'; phase = 'warning'; label = 'Unauthorized paid provider spend (USD)'; limit = 0.0; breachValue = 0.01; operator = 'GreaterThanThreshold'; unit = 'None'; source = $runbookSource },
+  [ordered]@{ id = 'provider-annual-cost-stop'; signal = 'provider-spend'; phase = 'stop'; label = 'Paid provider annual cost (USD)'; limit = [double]$qualification.hardLimits.paidProviderAnnualUsd; breachValue = [double]$qualification.hardLimits.paidProviderAnnualUsd; operator = 'GreaterThanOrEqualToThreshold'; unit = 'None'; source = 'docs/defense-budget/package-9/failure-recovery-qualification.json#/hardLimits/paidProviderAnnualUsd' }
 )
+$syntheticDeliveryWindowSeconds = 600
 
 $required = @(
   'peakPendingOutboxRows', 'deadLetterRows', 'oldestPendingAgeMinutes',
@@ -38,8 +47,8 @@ if ($null -eq $budget.peakReleaseDay.verifiedProgramUpdateP95Minutes) {
   throw 'Missing Package 0 verifiedProgramUpdateP95Minutes limit'
 }
 $matrixIds = @($matrix | ForEach-Object { $_.id })
-if ($matrix.Count -ne 10 -or @($matrixIds | Select-Object -Unique).Count -ne $matrix.Count) {
-  throw 'Threshold matrix must contain ten unique threshold identities'
+if ($matrix.Count -ne 18 -or @($matrixIds | Select-Object -Unique).Count -ne $matrix.Count) {
+  throw 'Threshold matrix must contain eighteen unique warning/stop threshold identities'
 }
 $invalidRows = @($matrix | Where-Object {
   $_.limit -lt 0 -or
@@ -58,8 +67,10 @@ $matrixReport = @($matrix | ForEach-Object {
     breachValue = $_.breachValue
     comparisonOperator = $_.operator
     unit = $_.unit
-    thresholdClass = 'documented-hard-stop-cap'
-    separateWarningThreshold = $null
+    phase = $_.phase
+    signal = $_.signal
+    thresholdClass = $_.phase
+    source = $_.source
   }
 })
 if ($DryRun) {
@@ -67,11 +78,14 @@ if ($DryRun) {
     result = 'CONFIG_VALID'
     region = $Region
     matrixCount = $matrix.Count
+    syntheticDeliveryWindowSeconds = $syntheticDeliveryWindowSeconds
+    deliveryWindowBasis = 'Harness-only limit; no numeric delivery window is declared by the runbook.'
+    configuredDefaultProviderAllocationUsd = [double]$qualification.hardLimits.defaultPaidProviderBudgetUsd
     thresholds = $matrixReport
     humanAcknowledgement = 'NOT_RUN'
     stopAdmission = 'NOT_RUN'
     evidencePreservation = 'NOT_RUN'
-    note = 'The runbooks define hard caps but no separate numeric warning bands; no warning values were invented.'
+    note = 'Warning and stop thresholds use the operator runbook and declared hard limits. Provider unauthorized spend is tested above the $0 default allocation; the harness delivery-window limit is not a runbook value.'
   } | ConvertTo-Json -Depth 8
   exit 0
 }
@@ -100,6 +114,9 @@ $result = [ordered]@{
   callerArn = $null
   namespace = $namespace
   thresholds = $matrixReport
+  syntheticDeliveryWindowSeconds = $syntheticDeliveryWindowSeconds
+  deliveryWindowBasis = 'Harness-only limit; no numeric delivery window is declared by the runbook.'
+  configuredDefaultProviderAllocationUsd = [double]$qualification.hardLimits.defaultPaidProviderBudgetUsd
   resources = [ordered]@{}
   observations = [System.Collections.Generic.List[object]]::new()
   cleanup = [ordered]@{}
@@ -127,10 +144,27 @@ function Wait-AlarmState([string]$Name, [string]$Desired) {
   $deadline = (Get-Date).AddSeconds(420)
   do {
     $state = (Invoke-AwsCli @('cloudwatch','describe-alarms','--region',$Region,'--alarm-names',$Name,'--query','MetricAlarms[0].StateValue','--output','text')).Trim()
-    if ($state -eq $Desired) { return }
+    if ($state -eq $Desired) { return (Get-AlarmTransitionTime $Name $Desired) }
     Start-Sleep -Seconds 10
   } while ((Get-Date) -lt $deadline)
   throw "Timed out waiting for $Name to enter $Desired"
+}
+function Get-AlarmTransitionTime([string]$Name, [string]$Desired) {
+  $deadline = (Get-Date).AddSeconds(60)
+  do {
+    $history = Invoke-AwsCli @('cloudwatch','describe-alarm-history','--region',$Region,'--alarm-name',$Name,'--history-item-type','StateUpdate','--max-records','10','--output','json') | ConvertFrom-Json
+    $matches = @()
+    foreach ($item in @($history.AlarmHistoryItems)) {
+      $data = $item.HistoryData | ConvertFrom-Json
+      if ($data.newState.stateValue -eq $Desired) { $matches += $item }
+    }
+    if ($matches.Count -gt 0) {
+      $latest = $matches | Sort-Object { [DateTimeOffset]::Parse([string]$_.Timestamp) } -Descending | Select-Object -First 1
+      return [DateTimeOffset]::Parse([string]$latest.Timestamp).ToUniversalTime()
+    }
+    Start-Sleep -Seconds 2
+  } while ((Get-Date) -lt $deadline)
+  throw "No CloudWatch StateUpdate timestamp found for $Name entering $Desired"
 }
 function Assert-MessageIdentity($AlarmMessage) {
   $matched = @($matrix | Where-Object { (Get-AlarmName $_) -eq $AlarmMessage.AlarmName })
@@ -143,10 +177,10 @@ function Assert-MessageIdentity($AlarmMessage) {
   if ($AlarmMessage.AlarmArn -ne $alarms[$entry.id].Arn) { throw "Notification ARN mismatch for $($entry.id)" }
   return $entry
 }
-function Receive-AllState([string]$DesiredState) {
-  $expected = @($matrix | ForEach-Object { "$($_.id)|$DesiredState" })
+function Receive-OneState($Entry, [string]$DesiredState, [DateTimeOffset]$TransitionTime) {
+  $expected = "$($Entry.id)|$DesiredState"
   $deadline = (Get-Date).AddSeconds(600)
-  while (@($expected | Where-Object { -not $delivered.ContainsKey($_) }).Count -gt 0 -and (Get-Date) -lt $deadline) {
+  while (-not $delivered.ContainsKey($expected) -and (Get-Date) -lt $deadline) {
     $raw = Invoke-AwsCli @('sqs','receive-message','--region',$Region,'--queue-url',$queueUrl,'--wait-time-seconds','20','--max-number-of-messages','10','--attribute-names','All','--output','json')
     $batch = $raw | ConvertFrom-Json
     $messages = @()
@@ -155,15 +189,22 @@ function Receive-AllState([string]$DesiredState) {
       $sns = $message.Body | ConvertFrom-Json
       $alarmMessage = $sns.Message | ConvertFrom-Json
       $entry = Assert-MessageIdentity $alarmMessage
-      Invoke-AwsCli @('sqs','delete-message','--region',$Region,'--queue-url',$queueUrl,'--receipt-handle',$message.ReceiptHandle) | Out-Null
-      $key = "$($entry.id)|$($alarmMessage.NewStateValue)"
+      if ($entry.id -ne $Entry.id) { throw "Received $($entry.id) while waiting for $($Entry.id) $DesiredState" }
       if ($alarmMessage.NewStateValue -ne $DesiredState) { throw "Unexpected $($alarmMessage.NewStateValue) notification for $($entry.id), expected $DesiredState" }
+      $observedAt = [DateTimeOffset]::UtcNow
+      $elapsedSeconds = ($observedAt - $TransitionTime).TotalSeconds
+      if ($elapsedSeconds -lt 0) { throw "CloudWatch transition timestamp is in the future for $($entry.id) $DesiredState" }
+      if ($elapsedSeconds -gt $syntheticDeliveryWindowSeconds) { throw "Delivery for $($entry.id) $DesiredState exceeded harness limit ${syntheticDeliveryWindowSeconds}s (${elapsedSeconds}s)" }
+      Invoke-AwsCli @('sqs','delete-message','--region',$Region,'--queue-url',$queueUrl,'--receipt-handle',$message.ReceiptHandle) | Out-Null
+      $acknowledgedAt = [DateTimeOffset]::UtcNow
+      $elapsedSeconds = ($acknowledgedAt - $TransitionTime).TotalSeconds
+      if ($elapsedSeconds -gt $syntheticDeliveryWindowSeconds) { throw "Acknowledgement for $($entry.id) $DesiredState exceeded harness limit ${syntheticDeliveryWindowSeconds}s (${elapsedSeconds}s)" }
+      $key = "$($entry.id)|$DesiredState"
       $delivered[$key] = $true
-      Add-Observation 'delivery' $DesiredState "Acknowledged isolated notification for $($entry.id)" ([pscustomobject]@{ alarmName = $alarmMessage.AlarmName; alarmArn = $alarmMessage.AlarmArn; metricName = $alarmMessage.Trigger.MetricName; snsMessageId = $sns.MessageId; sqsMessageId = $message.MessageId })
+      Add-Observation 'delivery' $DesiredState "Acknowledged isolated notification for $($entry.id) within harness limit" ([pscustomobject]@{ alarmName = $alarmMessage.AlarmName; alarmArn = $alarmMessage.AlarmArn; metricName = $alarmMessage.Trigger.MetricName; snsMessageId = $sns.MessageId; sqsMessageId = $message.MessageId; cloudWatchTransitionAt = $TransitionTime.ToString('o'); acknowledgedAt = $acknowledgedAt.ToString('o'); elapsedSeconds = [math]::Round($elapsedSeconds,3); deliveryWindowLimitSeconds = $syntheticDeliveryWindowSeconds; deliveryWindowBasis = 'Harness-only limit; no numeric delivery window is declared by the runbook.' })
     }
   }
-  $missing = @($expected | Where-Object { -not $delivered.ContainsKey($_) })
-  if ($missing.Count) { throw "Missing $DesiredState deliveries: $($missing -join ', ')" }
+  if (-not $delivered.ContainsKey($expected)) { throw "Missing $DesiredState delivery: $expected" }
 }
 function Clear-AndVerifyQueue {
   $empty = 0
@@ -204,12 +245,13 @@ try {
   $queueUrl = (Invoke-AwsCli @('sqs','create-queue','--region',$Region,'--queue-name',$queueName,'--attributes','SqsManagedSseEnabled=true','--query','QueueUrl','--output','text')).Trim()
   $queueAttributesReadback = Invoke-AwsCli @('sqs','get-queue-attributes','--region',$Region,'--queue-url',$queueUrl,'--attribute-names','QueueArn','SqsManagedSseEnabled','--output','json') | ConvertFrom-Json
   $queueArn = [string]$queueAttributesReadback.Attributes.QueueArn
-  if ($queueAttributesReadback.Attributes.SqsManagedSseEnabled -ne 'true') { throw 'SQS receiver did not report SSE-SQS encryption enabled' }
+  $sseManagedEnabled = [string]$queueAttributesReadback.Attributes.SqsManagedSseEnabled
+  if ($sseManagedEnabled -ne 'true') { throw "SQS receiver did not report SqsManagedSseEnabled=true (reported '$sseManagedEnabled')" }
   $policy = [ordered]@{ Version = '2012-10-17'; Statement = @([ordered]@{ Sid = 'AllowExactQualificationTopic'; Effect = 'Allow'; Principal = [ordered]@{ Service = 'sns.amazonaws.com' }; Action = 'sqs:SendMessage'; Resource = $queueArn; Condition = [ordered]@{ ArnEquals = [ordered]@{ 'aws:SourceArn' = $topicArn } } }) } | ConvertTo-Json -Depth 8 -Compress
   $attrs = @{ Policy = $policy } | ConvertTo-Json -Compress
   Invoke-AwsCli @('sqs','set-queue-attributes','--region',$Region,'--queue-url',$queueUrl,'--attributes',$attrs) | Out-Null
   $subscriptionArn = (Invoke-AwsCli @('sns','subscribe','--region',$Region,'--topic-arn',$topicArn,'--protocol','sqs','--notification-endpoint',$queueArn,'--return-subscription-arn','--query','SubscriptionArn','--output','text')).Trim()
-  $result.resources = [ordered]@{ topicArn = $topicArn; queueUrl = $queueUrl; queueArn = $queueArn; queueEncryption = 'SSE-SQS'; subscriptionArn = $subscriptionArn }
+  $result.resources = [ordered]@{ topicArn = $topicArn; queueUrl = $queueUrl; queueArn = $queueArn; queueEncryption = 'SSE-SQS'; SqsManagedSseEnabled = $sseManagedEnabled; subscriptionArn = $subscriptionArn }
   Add-Observation 'resource-create' 'PASS' 'Created one ephemeral topic and SSE-SQS receiver with exact-source policy'
 
   foreach ($entry in $matrix) {
@@ -230,18 +272,16 @@ try {
   }
   Add-Observation 'alarm-create' 'PASS' "Created and identity-checked all $($matrix.Count) ephemeral alarms"
 
-  # Independent metric streams are injected together; each alarm has its own metric identity.
+  # Exercise every warning and stop threshold independently, including recovery, before proceeding.
   foreach ($entry in $matrix) {
     Invoke-AwsCli @('cloudwatch','put-metric-data','--region',$Region,'--namespace',$namespace,'--metric-name',"P9F07_$($entry.id)",'--dimensions',"Name=ThresholdId,Value=$($entry.id)",'--value',(Format-Number $entry.breachValue),'--unit',$entry.unit) | Out-Null
-  }
-  foreach ($entry in $matrix) { Wait-AlarmState (Get-AlarmName $entry) 'ALARM' }
-  Receive-AllState 'ALARM'
+    $alarmTransitionTime = Wait-AlarmState (Get-AlarmName $entry) 'ALARM'
+    Receive-OneState $entry 'ALARM' $alarmTransitionTime
 
-  foreach ($entry in $matrix) {
     Invoke-AwsCli @('cloudwatch','put-metric-data','--region',$Region,'--namespace',$namespace,'--metric-name',"P9F07_$($entry.id)",'--dimensions',"Name=ThresholdId,Value=$($entry.id)",'--value','0','--unit',$entry.unit) | Out-Null
+    $recoveryTransitionTime = Wait-AlarmState (Get-AlarmName $entry) 'OK'
+    Receive-OneState $entry 'OK' $recoveryTransitionTime
   }
-  foreach ($entry in $matrix) { Wait-AlarmState (Get-AlarmName $entry) 'OK' }
-  Receive-AllState 'OK'
   Clear-AndVerifyQueue
 
   foreach ($entry in $matrix) {
@@ -257,7 +297,7 @@ catch {
   Add-Observation 'failure' 'FAIL' $_.Exception.Message
 }
 finally {
-  if ($null -ne $identity) {
+      if ($null -ne $identity) {
     if ($createdAlarmNames.Count -gt 0) {
       try { Invoke-AwsCli @('cloudwatch','delete-alarms','--region',$Region,'--alarm-names',@($createdAlarmNames)) | Out-Null; $result.cleanup.alarmsDeleted = $true }
       catch { $cleanupErrors.Add($_.Exception.Message); $result.cleanup.alarmsDeleted = $false }
