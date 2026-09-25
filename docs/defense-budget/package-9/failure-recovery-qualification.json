@@ -4,7 +4,14 @@
   "qualification": "operations-load-failure-recovery",
   "decision": "NO_GO",
   "activationAllowed": "shadow-only",
-  "measurementStatus": "NOT_RUN",
+  "measurementStatus": "PARTIAL_PASS_LIMITED_LOCAL_POSTGRES",
+  "retainedRun": {
+    "report": "./evidence/durable-run-p9-20260925024117927-2c727e.json",
+    "sha256": "2b6adbffe6cfb4ee048901e30314d313cb31121aa77388418337e1bf01f6aeeb",
+    "sourceRevision": "8d50b9671f01fc034ec712dc7696e9fe3b1c08d0",
+    "status": "PASS_LIMITED_SCOPE",
+    "scope": "Disposable local PostgreSQL repository/worker, synthetic append-only evidence and notification ledgers, deterministic source/provider stubs, and four-worker 100-row reconciliation only."
+  },
   "budgetSource": "../package-0/operating-budgets.v1.json",
   "hardLimits": {
     "peakPendingOutboxRows": 100,
@@ -72,7 +79,7 @@
   "scenarios": [
     {
       "id": "P9-F01-CRASH-AFTER-EVIDENCE-COMMIT",
-      "status": "NOT_RUN",
+      "status": "PASS_LIMITED_LOCAL_POSTGRES",
       "failure": "Terminate the worker after immutable evidence commit and before outbox acknowledgement.",
       "procedure": [
         "Seed the baseline workload in an isolated disposable environment.",
@@ -90,7 +97,7 @@
     },
     {
       "id": "P9-F02-LEASE-EXPIRY",
-      "status": "NOT_RUN",
+      "status": "PASS_LIMITED_LOCAL_POSTGRES",
       "failure": "Hold a leased job beyond its configured expiry, then let a second worker reclaim it while the original worker is prevented from acknowledging stale ownership.",
       "procedure": [
         "Use a controllable clock and two workers against one isolated queue item.",
@@ -108,7 +115,7 @@
     },
     {
       "id": "P9-F03-TRANSIENT-RETRY",
-      "status": "NOT_RUN",
+      "status": "PASS_LIMITED_LOCAL_POSTGRES",
       "failure": "Inject a transient failure on the first attempt, then restore the dependency for the bounded retry.",
       "procedure": [
         "Apply the fault to deterministic ordinals 0021-0030 only.",
@@ -129,7 +136,7 @@
     },
     {
       "id": "P9-F04-SOURCE-OUTAGE",
-      "status": "NOT_RUN",
+      "status": "PARTIAL_PASS_LOCAL_STUB",
       "failure": "Make one named source unavailable for a fixed interval while other source families remain available.",
       "procedure": [
         "Use a source-specific adapter stub for deterministic ordinals 0041-0060.",
@@ -147,7 +154,7 @@
     },
     {
       "id": "P9-F05-PROVIDER-OUTAGE",
-      "status": "NOT_RUN",
+      "status": "PARTIAL_PASS_LOCAL_STUB",
       "failure": "Return timeout, 429, malformed response, and 5xx from the provider boundary in separate deterministic sub-runs.",
       "procedure": [
         "Use only a local provider stub; paid provider allocation stays $0.",
@@ -165,7 +172,7 @@
     },
     {
       "id": "P9-L01-PEAK-LOAD-AND-QUERY",
-      "status": "NOT_RUN",
+      "status": "PARTIAL_PASS_LOCAL_POSTGRES",
       "failure": "Sustain the 100-item baseline while four drain tasks run and common reads execute concurrently.",
       "procedure": [
         "Load the stable seeded workload to a peak of 100 pending rows.",
