@@ -21,6 +21,16 @@ These are separate byte identities. The XML is a machine-readable extracted
 companion; the PDF is the official publication and must remain independently
 traceable.
 
+The exact official XML endpoint
+[`RDTE_DTIC_PB_2026.xml`](https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2026/budget_justification/pdfs/03_RDT_and_E/RDTE_DTIC_PB_2026.xml)
+was re-read on 2026-09-25 with HTTP 200, `text/xml`, 67,578 bytes, and
+SHA-256 `02479cd6e67dfee10bb1029d9413dbc35e81174384b25319fedfb9589d4aac6a`.
+That digest exactly matches the pinned Handriss mirror bytes, so this lead now
+has an official XML byte binding in addition to the independently pinned PDF.
+The read-only inspector returned FY2026/PB, DTIC/0400, two PE identities
+(`0605801KA` and `0605998KA`), and zero duplicate PE occurrences. It still
+returns `candidate_only` and `promotable: false`.
+
 The read-only inspector at
 `apps/api/src/defense-budget/xml-source-inspector/dtic-jdocs-xml-source-inspector-v1.ts`
 checks well-formedness, the DTIC `JustificationBook` and R2 namespaces, required
@@ -86,6 +96,11 @@ change. Qualification should start with this single DTIC document, reconcile
 its fields against the official PDF, and keep its output `candidate_only` until
 parser proof, completeness checks, review, and governed publication are all
 independently accepted.
+
+The qualification-only manifest is retained at
+`docs/defense-budget/package-8/qualification/dtic-fy2026-official-xml-candidate-v1.json`.
+It is not a production expected-source registration and does not authorize a
+historical replay.
 
 ## Second Handriss lead — FY2026 DARPA RDT&E (NO-GO)
 
