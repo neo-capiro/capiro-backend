@@ -1,0 +1,158 @@
+{
+  "package": 9,
+  "releasedAt": "2026-09-25T01:52:34.3761012Z",
+  "sourceControl": {
+    "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1794",
+    "mergeCommit": "f8a9079c5fb149952c450bf050d9678494884c26",
+    "localMainBeforeBuild": "f8a9079c5fb149952c450bf050d9678494884c26",
+    "githubMainBeforeBuild": "f8a9079c5fb149952c450bf050d9678494884c26",
+    "githubHostedChecks": {
+      "result": "infrastructure_failure",
+      "runnerAssigned": false,
+      "stepsStarted": 0,
+      "sampleJobId": 107908157537
+    }
+  },
+  "validation": {
+    "defenseDomainBuild": "PASS",
+    "defenseDomainTypecheck": "PASS",
+    "scorecardAssertions": 5,
+    "meriv2CoreBuild": "PASS",
+    "meriv2CoreTypecheck": "PASS",
+    "jevEconomicsAssertions": 4,
+    "apiTypecheck": "PASS",
+    "apiBuild": "PASS",
+    "productionWorkerComponentAssertions": 3,
+    "jsonArtifactValidation": "PASS",
+    "independentAudit": "PASS_AFTER_REPAIR",
+    "currentReleaseScorecardHash": "00936cf7186b212db94b37442fe32ef500ad718fe8f9ca2a95301d144ab22d09",
+    "currentJevEconomicsHash": "0bf2374559471cbf3333c93e05343099fce793ea660fb45acb8d7970652a1fa9",
+    "currentReleaseDecision": "NO_GO",
+    "maximumActivation": "shadow_only",
+    "durableDatabaseLoadAndFailureRecovery": "NOT_RUN",
+    "blindIndependentAccuracyReview": "NOT_RUN",
+    "buyerBenchmark": "NOT_RUN",
+    "matchedWorkCostQualification": "NOT_RUN",
+    "rollbackAndAlarmDeliveryRehearsal": "NOT_RUN"
+  },
+  "aws": {
+    "account": "967807252336",
+    "region": "us-east-1",
+    "cluster": "capiro-dev",
+    "codeBuild": {
+      "api": {
+        "id": "capiro-build-intel-api:7289c9df-6b4c-4e15-8f37-9cf726aa4f27",
+        "resolvedSourceVersion": "f8a9079c5fb149952c450bf050d9678494884c26",
+        "status": "SUCCEEDED"
+      }
+    },
+    "image": {
+      "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
+      "digest": "sha256:ef9c9cb0865f7c4e969d75d0af05958ef265af75c0f9804cfd870592b48aedc7",
+      "tags": [
+        "f8a9079c5fb149952c450bf050d9678494884c26",
+        "package9-20260925-api"
+      ]
+    },
+    "service": {
+      "name": "capiro-dev-api",
+      "taskDefinition": "capiro-dev-api:453",
+      "rolloutState": "COMPLETED",
+      "desired": 2,
+      "running": 2,
+      "pending": 0,
+      "failedTasks": 0,
+      "runningTasks": [
+        {
+          "taskId": "693bf03acf0c464ba68caf39eee30c8d",
+          "privateIp": "10.40.10.228",
+          "health": "HEALTHY",
+          "targetHealth": "healthy"
+        },
+        {
+          "taskId": "c861357330744204aad8f5938fa966b4",
+          "privateIp": "10.40.7.102",
+          "health": "HEALTHY",
+          "targetHealth": "healthy"
+        }
+      ]
+    },
+    "runtime": {
+      "gitSha": "f8a9079c5fb149952c450bf050d9678494884c26",
+      "federalLegislativeEvidenceEnabled": false,
+      "programAcquisitionContinuityEnabled": false,
+      "fundingExecutionSourceAdapterEnabled": false,
+      "fundingExecutionPublicationEnabled": false,
+      "smoke": {
+        "appDevHealthStatus": 200,
+        "appHealthStatus": 200,
+        "appDevApiHealthStatus": 401,
+        "appDevCoverageStatus": 401,
+        "authenticatedRouteInterpretation": "Expected unauthenticated authorization wall; no 5xx response observed."
+      }
+    }
+  },
+  "postDeployReadOnlyInventory": {
+    "package0TaskId": "bbebe75b762e4d09a107ba175346d12f",
+    "package1TaskId": "8ca4c36fae2e4ad09a87b9d2b00d323a",
+    "exitCodes": [0, 0],
+    "transactionMode": "READ ONLY",
+    "sourceGitSha": "f8a9079c5fb149952c450bf050d9678494884c26",
+    "logicalSlotsByFiscalYear": {
+      "2024": 82,
+      "2025": 82,
+      "2026": 82,
+      "2027": 82
+    },
+    "observations": 14,
+    "ingestionOutboxRows": 13,
+    "verificationCandidates": 11,
+    "activeScopedApprovals": 43,
+    "corrections": 1,
+    "snapshots": 0,
+    "activeSnapshots": 0,
+    "canonicalRows": 0,
+    "governedManifests": 0,
+    "queuePending": 9,
+    "queueDeadLetter": 4,
+    "manifestEligible": 0,
+    "replayEligibleButNotQualified": 1
+  },
+  "operations": {
+    "alarms": [
+      {
+        "name": "capiro-dev-defense-budget-lifecycle-coordinator-failed",
+        "state": "OK"
+      },
+      {
+        "name": "capiro-dev-defense-budget-lifecycle-delivery-failed",
+        "state": "OK"
+      }
+    ],
+    "schedules": [
+      {
+        "name": "capiro-dev-defense-budget-lifecycle-coordinator",
+        "state": "ENABLED",
+        "schedule": "rate(1 hour)"
+      }
+    ],
+    "federalLegislativeSchedulePresent": false,
+    "fundingExecutionSchedulePresent": false
+  },
+  "activationDecision": {
+    "status": "NO_GO",
+    "maximum": "shadow_only",
+    "reasons": [
+      "The qualification manifest, exact marketed-family cohort, mandatory-source denominator and release authorization are not approved and bound to the deployed revision.",
+      "The required blind independent semantic adjudication and confidence intervals have not been produced.",
+      "Durable-database peak-load, sustained-latency, crash, lease-expiry, alarm-delivery and rollback rehearsals have not been run on disposable isolated data.",
+      "Matched completed-work cost evidence does not establish the required 30 percent Jev savings at maintained completion, accuracy and coverage.",
+      "The six predeclared buyer workflows have not been completed by the required buyer cohorts and independently adjudicated.",
+      "Named operational ownership and acceptance records are not present."
+    ],
+    "paidProviderRunStarted": false,
+    "historicalReplayStarted": false,
+    "historicalNotificationsSent": false,
+    "productionOrPaidActivationAuthorized": false
+  }
+}
