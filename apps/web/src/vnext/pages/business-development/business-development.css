@@ -44,8 +44,8 @@
   text-transform: uppercase;
 }
 .capiro-bizdev__title {
-  font-size: 30px;
-  line-height: 38px;
+  font-size: 27px;
+  line-height: 36px;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--capiro-color-text-heading);
@@ -818,6 +818,254 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* ── v5: view tabs, stage histogram, segment/toggle, cards, pills ───── */
+
+/* Sticky in-page view tab bar (Discover / Pipeline / Watchlist). */
+.capiro-bizdev__viewtabs {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding: 6px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: 12px;
+  background: var(--capiro-color-bg-surface);
+  box-shadow:
+    0 1px 3px rgba(16, 24, 40, 0.1),
+    0 1px 2px rgba(16, 24, 40, 0.06);
+  scrollbar-width: none;
+}
+.capiro-bizdev__viewtabs::-webkit-scrollbar {
+  display: none;
+}
+.capiro-bizdev__viewtab {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--capiro-color-text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.capiro-bizdev__viewtab:hover {
+  color: var(--capiro-color-text-primary);
+  background: var(--capiro-color-bg-surface-2);
+}
+.capiro-bizdev__viewtab:focus-visible {
+  outline: 2px solid var(--capiro-color-action-accent-default);
+  outline-offset: 2px;
+}
+.capiro-bizdev__viewtab.is-active {
+  background: var(--capiro-color-bg-surface-2);
+  color: var(--capiro-color-text-primary);
+  border-color: var(--capiro-color-border-control);
+  font-weight: 600;
+}
+.capiro-bizdev__viewtab-count {
+  min-width: 20px;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  background: var(--capiro-color-bg-subtle);
+  color: var(--capiro-color-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+.capiro-bizdev__viewtab.is-active .capiro-bizdev__viewtab-count {
+  background: var(--capiro-color-bg-accent-soft);
+  color: var(--capiro-color-action-accent-default);
+}
+
+/* Stage histogram row: clickable cells with real counts. */
+.capiro-bizdev__stagebar-wrap {
+  padding: 0 24px 12px;
+}
+.capiro-bizdev__stagebar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding: 12px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: 12px;
+  background: var(--capiro-color-bg-surface-2);
+}
+.capiro-bizdev__stagecell {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 74px;
+  padding: 10px 8px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: 8px;
+  background: var(--capiro-color-bg-surface);
+  font: inherit;
+  cursor: pointer;
+  flex: 1 0 74px;
+}
+.capiro-bizdev__stagecell:hover {
+  border-color: var(--capiro-color-border-control);
+}
+.capiro-bizdev__stagecell:focus-visible {
+  outline: 2px solid var(--capiro-color-action-accent-default);
+  outline-offset: 2px;
+}
+.capiro-bizdev__stagecell.is-active {
+  border-color: var(--capiro-color-action-accent-default);
+  box-shadow: 0 0 0 1px var(--capiro-color-action-accent-default);
+}
+.capiro-bizdev__stagecell--won .capiro-bizdev__stagecell-count {
+  color: var(--capiro-color-text-success);
+}
+.capiro-bizdev__stagecell-count {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--capiro-color-text-primary);
+}
+.capiro-bizdev__stagecell-label {
+  font-size: 12px;
+  color: var(--capiro-color-text-muted);
+  white-space: nowrap;
+}
+
+/* Segment row: Active/Dismissed buttons + derived overdue toggle. */
+.capiro-bizdev__segment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 0 24px 12px;
+}
+.capiro-bizdev__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--capiro-color-text-secondary);
+  cursor: pointer;
+}
+.capiro-bizdev__toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--capiro-color-action-accent-default);
+}
+.capiro-bizdev__toggle input:focus-visible {
+  outline: 2px solid var(--capiro-color-action-accent-default);
+  outline-offset: 2px;
+}
+
+/* Round status pills (watch status, alert count, muted). */
+.capiro-bizdev__pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 9px;
+  border-radius: 9999px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  background: var(--capiro-color-bg-surface-2);
+  color: var(--capiro-color-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.capiro-bizdev__pill--active {
+  background: var(--capiro-color-bg-accent-soft);
+  border-color: transparent;
+  color: var(--capiro-color-action-accent-default);
+}
+.capiro-bizdev__pill--paused,
+.capiro-bizdev__pill--ended {
+  background: var(--capiro-color-bg-subtle);
+  color: var(--capiro-color-text-muted);
+}
+.capiro-bizdev__pill--alert {
+  border-color: var(--capiro-color-border-warning);
+  color: var(--capiro-color-text-secondary);
+}
+
+/* Watchlist view: card list, source health, alert feed. */
+.capiro-bizdev__watchlist {
+  list-style: none;
+  margin: 0;
+  padding: 0 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.capiro-bizdev__card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: 12px;
+  background: var(--capiro-color-bg-surface);
+}
+.capiro-bizdev__card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.capiro-bizdev__card-head .capiro-bizdev__name-btn {
+  font-size: 15px;
+}
+.capiro-bizdev__source-health {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.capiro-bizdev__source-health li {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 18px;
+}
+.capiro-bizdev__source-health .capiro-bizdev__history-kind {
+  min-width: 90px;
+  flex-shrink: 0;
+}
+.capiro-bizdev__alert-feed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.capiro-bizdev__alert-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-left: 3px solid var(--capiro-color-border-warning);
+  border-radius: 8px;
+  background: var(--capiro-color-bg-surface);
+}
+.capiro-bizdev__footer-note {
+  padding: 0 24px 16px;
 }
 
 /* ── responsive ──────────────────────────────────────────────────────── */

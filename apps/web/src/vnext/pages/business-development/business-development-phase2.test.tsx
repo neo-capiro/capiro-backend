@@ -374,7 +374,7 @@ describe('Phase 2 gating', () => {
     });
     expect(await screen.findByRole('button', { name: 'Add prospect' })).toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: 'Discover companies' }),
+      screen.queryByRole('tab', { name: /Discover/ }),
     ).not.toBeInTheDocument();
     // Phase 1 pipeline renders normally.
     expect(await screen.findByText('Overland AI')).toBeInTheDocument();
@@ -390,11 +390,9 @@ describe('Phase 2 gating', () => {
     ).toBe(false);
   });
 
-  it('renders the Discover entry when businessDevelopmentDossier is exactly true', async () => {
+  it('renders the Discover view entry when businessDevelopmentDossier is exactly true', async () => {
     renderAt('?view=business-development', DOSSIER_ON);
-    expect(
-      await screen.findByRole('button', { name: 'Discover companies' }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: /Discover/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add prospect' })).toBeInTheDocument();
   });
 });
@@ -404,7 +402,7 @@ describe('Phase 2 gating', () => {
 describe('discover search', () => {
   it('fires the candidate search only on explicit submit, with bounded exact params', async () => {
     renderAt('?view=business-development', DOSSIER_ON);
-    fireEvent.click(await screen.findByRole('button', { name: 'Discover companies' }));
+    fireEvent.click(await screen.findByRole('tab', { name: /Discover/ }));
     await screen.findByLabelText(/Company search/);
     // Panel open, nothing submitted yet.
     expect(
@@ -894,6 +892,8 @@ describe('Phase 2 URL state and query keys', () => {
       linkedClient: '',
       q: 'ov',
       prospectId: '',
+      view: 'pipeline',
+      overdueOnly: false,
       discover: '',
       discoverQuery: '',
       discoverOffset: 0,
