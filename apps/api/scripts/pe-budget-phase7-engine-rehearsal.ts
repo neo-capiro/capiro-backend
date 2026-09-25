@@ -410,6 +410,11 @@ async function main(): Promise<void> {
       peProjectionResult.projections.length === 2 && peIdentityResult.projections.length === 1,
       'RDT&E projector produced one Program Element identity and two populated budget positions',
     );
+    const executionSource: PromotionProjectionSourceV1 = {
+      async loadForPlan() {
+        return projections;
+      },
+    };
 
     const yearProjection = projections.find((p) => p.projectionKind === 'non_rdte:OmSagYear');
     check(
@@ -480,7 +485,7 @@ async function main(): Promise<void> {
     /* ---- Run the engine as capiro_pe_promoter ---- */
     const repository = new PrismaPromotionExecutionRepositoryV1(
       promoter as unknown as PromotionPrismaLikeV1,
-      source,
+      executionSource,
       async () => {
         const client = new PgClient({ connectionString: PROMOTER_URL });
         await client.connect();
@@ -576,7 +581,8 @@ async function main(): Promise<void> {
         'canary foreground response came from populated canonical rows, not the legacy sentinel',
       );
       check(
-        candidateResponse.find((row) => row.assertedFy === 2027)?.amount === '999',
+        candidateResponse.find((row) => row.assertedFy === 2027 && row.valueKind === 'total')
+          ?.amount === '999',
         'candidate snapshot exposes the deliberately defective FY2027 value through ProgramElementReadService',
       );
       check(
@@ -635,8 +641,10 @@ async function main(): Promise<void> {
          '{"peCode":"${F06_PE_CODE}","positionCycle":"pb_fy2027","valueKind":"quantity"}'::jsonb,
          'direct', 'accepted', 'p9-f06-prior-quantity-2027', 'assert-p9-f06-prior-quantity-2027', '["evidence-p9-f06-prior-quantity-2027"]'::jsonb,
          'artifact-p9-f06-prior-quantity-2027', '${SHA('f')}', 'candidate-p9-f06-prior-quantity-2027', 'run-p9-f06-prior-quantity-2027',
-         '00000000-0000-0000-0000-000000000001', '${SHA('d')}', '${SHA('a')}');
-      UPDATE defense_budget_canonical_snapshot SET status = 'SUPERSEDED', snapshot_hash = '${SHA('b')}' WHERE id = '${PRIOR_SNAPSHOT_ID}';`);
+         '00000000-0000-0000-0000-000000000001', '${SHA('d')}', '${SHA('a')}');`);
+    await admin.$executeRawUnsafe(
+      `UPDATE defense_budget_canonical_snapshot SET status = 'SUPERSEDED', snapshot_hash = '${SHA('b')}' WHERE id = '${PRIOR_SNAPSHOT_ID}'`,
+    );
     await admin.$executeRawUnsafe(`
       INSERT INTO defense_budget_promotion_authorization
         (authorization_id, plan_id, plan_hash, eligibility_hash, scope_hash,
