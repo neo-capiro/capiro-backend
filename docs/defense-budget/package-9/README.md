@@ -27,6 +27,7 @@ These are limits, not forecasts or results. Do not admit work that would cross a
 - [Validation status](./validation-evidence.md) records local code/artifact checks and the explicit limits of the component test.
 - [Current release scorecard](./current-release-scorecard-2026-09-25.json) records the executable `NO_GO`/shadow-only decision and every blocker.
 - [Current Jev economics report](./jev-economics-current-2026-09-25.json) records the proposed/unpriced fixture's `NO_GO` result without inventing savings.
+- [Release and deployment evidence](./release-evidence-2026-09-25.json) binds the Package 9 merge to the AWS build, image digest, healthy ECS rollout, read-only inventory, alarms, and the retained `NO_GO` activation decision.
 
 ## Decision
 
