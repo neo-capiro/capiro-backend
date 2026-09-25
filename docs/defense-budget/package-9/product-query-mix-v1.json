@@ -8,7 +8,8 @@
   "durationSecondsSmoke": 5,
   "concurrentClients": 4,
   "clientIntervalMilliseconds": 1000,
-  "schedule": "Each client runs one query per second, choosing by a deterministic round-robin through the weighted operation cycle, offset by client number.",
+  "schedule": "Each client starts requests no more frequently than once per second, choosing by a deterministic round-robin through the weighted operation cycle, offset by client number. Slow requests delay that client's next start; any in-flight request may finish after the request-start scheduling window.",
+  "configuredMaximumAggregateRequestStartsPerSecond": 4,
   "operationCycle": [
     { "operation": "cycle-health-fy2029", "weight": 4 },
     { "operation": "cycle-health-fy2030", "weight": 2 },
@@ -21,7 +22,7 @@
   ],
   "limitations": [
     "The mix and rate are explicit synthetic choices, not derived from tenant request telemetry.",
-    "Calls exercise the production compiled query service and Prisma read store directly, not HTTP routing, authentication, browser behavior, or network latency.",
+    "Calls exercise the production compiled query service and Prisma read store directly with a dedicated NOINHERIT login and explicit SELECT grants, not HTTP routing, authentication, browser behavior, or network latency.",
     "The Session 12 corpus has two fiscal years and a small synthetic record set; it is not a representative production-size database.",
     "No source-change-to-verified-buyer-visible update latency, model cost, buyer workflow outcome, or production/AWS latency is measured."
   ]
