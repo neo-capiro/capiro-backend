@@ -9,6 +9,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { createRequire } from 'node:module';
 import {
   existsSync,
+  mkdtempSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -16,6 +17,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -197,8 +199,17 @@ async function main() {
   let runError;
   let savedDist;
   let savedBuildInfo;
-  let savedPrismaClient;
   const defenseApiRoot = path.join(repoRoot, 'apps/defense-api');
+  const runtimeTempRoot = path.resolve(process.env.CAPIRO_P9Q_TEMP_ROOT ?? '');
+  const systemTempRoot = path.resolve(tmpdir());
+  if (
+    process.env.CAPIRO_P9Q_CHILD !== '1' ||
+    !runtimeTempRoot.startsWith(`${systemTempRoot}${path.sep}`)
+  ) {
+    throw new Error('The benchmark child requires its parent-owned isolated OS temp directory.');
+  }
+  const isolatedSchemaPath = path.join(runtimeTempRoot, 'schema.prisma');
+  const isolatedPrismaClientRoot = path.join(runtimeTempRoot, 'prisma-client');
   const inputFiles = [
     fileURLToPath(import.meta.url),
     manifestPath,
@@ -329,13 +340,20 @@ async function main() {
       );
     savedDist = preserveForBuild(path.join(defenseApiRoot, 'dist'), runId);
     savedBuildInfo = preserveForBuild(path.join(defenseApiRoot, 'tsconfig.tsbuildinfo'), runId);
-    savedPrismaClient = preserveForBuild(
-      path.join(defenseApiRoot, 'generated/prisma-client'),
-      runId,
-    );
     execute('pnpm', ['turbo', 'run', 'build', '--filter=@capiro/defense-api^...'], {
       timeout: 15 * 60 * 1000,
     });
+    const sourceSchema = readFileSync(
+      path.join(repoRoot, 'apps/defense-api/prisma/schema.prisma'),
+      'utf8',
+    );
+    const isolatedSchema = sourceSchema.replace(
+      /output\s*=\s*"\.\.\/generated\/prisma-client"/,
+      'output          = "./prisma-client"',
+    );
+    if (isolatedSchema === sourceSchema)
+      throw new Error('Could not redirect the Prisma client generator to isolated OS temp.');
+    writeFileSync(isolatedSchemaPath, isolatedSchema, { encoding: 'utf8', flag: 'wx' });
     execute('pnpm', [
       '--filter',
       '@capiro/defense-api',
@@ -343,7 +361,7 @@ async function main() {
       'prisma',
       'generate',
       '--schema',
-      'prisma/schema.prisma',
+      isolatedSchemaPath,
     ]);
     execute('pnpm', ['--filter', '@capiro/defense-api', 'exec', 'nest', 'build']);
     if (
@@ -359,9 +377,7 @@ async function main() {
     });
 
     const require = createRequire(import.meta.url);
-    const { PrismaClient } = require(
-      path.join(repoRoot, 'apps/defense-api/generated/prisma-client/index.js'),
-    );
+    const { PrismaClient } = require(path.join(isolatedPrismaClientRoot, 'index.js'));
     const { PrismaBudgetLifecycleReadStore } = require(
       path.join(
         repoRoot,
@@ -387,8 +403,15 @@ async function main() {
         'apps/defense-api/dist/budget-lifecycle-product/prisma-budget-lifecycle-read.store.js',
       ),
       path.join(repoRoot, 'apps/defense-api/dist/budget-lifecycle/cycle-health.service.js'),
-      path.join(repoRoot, 'apps/defense-api/generated/prisma-client/index.js'),
+      path.join(isolatedPrismaClientRoot, 'index.js'),
     ]);
+    const generatedClientKey = path
+      .relative(repoRoot, path.join(isolatedPrismaClientRoot, 'index.js'))
+      .replaceAll('\\', '/');
+    report.provenance.runtimeArtifactSha256['isolated-prisma-client/index.js'] =
+      report.provenance.runtimeArtifactSha256[generatedClientKey];
+    delete report.provenance.runtimeArtifactSha256[generatedClientKey];
+    report.environment.isolatedPrismaClient = 'parent-owned-os-temp';
     admin = new PrismaClient({ datasources: { db: { url: adminUrl } } });
     reader = new PrismaClient({ datasources: { db: { url: readerUrl } } });
     const service = new BudgetLifecycleQueryService(
@@ -643,7 +666,6 @@ async function main() {
         });
       else runError = cleanupError;
     } finally {
-      restoreAfterBuild(savedPrismaClient);
       restoreAfterBuild(savedBuildInfo);
       restoreAfterBuild(savedDist);
     }
@@ -651,7 +673,47 @@ async function main() {
   if (runError) throw runError;
 }
 
-main().catch((error) => {
+async function entrypoint() {
+  if (process.env.CAPIRO_P9Q_CHILD === '1') {
+    await main();
+    return;
+  }
+  const runtimeTempRoot = mkdtempSync(path.join(tmpdir(), 'capiro-p9q-'));
+  let child;
+  let cleanupError;
+  try {
+    child = spawnSync(
+      process.execPath,
+      [fileURLToPath(import.meta.url), ...process.argv.slice(2)],
+      {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          CAPIRO_P9Q_CHILD: '1',
+          CAPIRO_P9Q_TEMP_ROOT: runtimeTempRoot,
+        },
+        encoding: 'utf8',
+        windowsHide: true,
+      },
+    );
+    if (child.stdout) process.stdout.write(child.stdout);
+    if (child.stderr) process.stderr.write(child.stderr);
+  } finally {
+    try {
+      rmSync(runtimeTempRoot, { recursive: true, force: true });
+    } catch (error) {
+      cleanupError = error;
+    }
+  }
+  if (child?.error) throw child.error;
+  if (cleanupError) throw cleanupError;
+  if (child?.status !== 0)
+    throw new Error(
+      `Benchmark child failed with ${child?.signal ? `signal ${child.signal}` : `exit ${child?.status ?? 'unknown'}`}.`,
+    );
+}
+
+entrypoint().catch((error) => {
   console.error(error instanceof Error ? error.stack : error);
   process.exit(1);
 });

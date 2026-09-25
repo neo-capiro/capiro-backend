@@ -1,5 +1,5 @@
 -- The compiled budget-lifecycle coverage query reads bundle members through
--- the SELECT-only defense serving role. Keep this read grant narrow and
+-- the defense serving role. Keep this read grant narrow and
 -- conditional so migration history also applies where that runtime role has
 -- not yet been provisioned.
 DO $$
