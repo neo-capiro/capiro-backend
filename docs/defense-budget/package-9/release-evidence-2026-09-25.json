@@ -2,12 +2,12 @@
   "schemaVersion": 2,
   "package": 9,
   "evidenceType": "package-9-technical-completion-and-aws-deployment",
-  "updatedAt": "2026-09-25T18:25:13.699Z",
+  "updatedAt": "2026-09-25T19:36:00.000Z",
   "sourceControl": {
     "repository": "neo-capiro/capirov2",
-    "runtimeSourceRevision": "c2bc41a86ef087e4b163c556595507ec08b396cf",
-    "localMainAtBuild": "c2bc41a86ef087e4b163c556595507ec08b396cf",
-    "githubMainAtBuild": "c2bc41a86ef087e4b163c556595507ec08b396cf",
+    "runtimeSourceRevision": "5314441e03abe1cfc04e5297296fb7b74703bd0d",
+    "localMainAtBuild": "5314441e03abe1cfc04e5297296fb7b74703bd0d",
+    "githubMainAtBuild": "5314441e03abe1cfc04e5297296fb7b74703bd0d",
     "package9PullRequests": [
       {
         "number": 1794,
@@ -59,6 +59,12 @@
         "url": "https://github.com/neo-capiro/capirov2/pull/1819",
         "mergeCommit": "c2bc41a86ef087e4b163c556595507ec08b396cf",
         "scope": "business-development Phase 5 watch alerts and current 433-migration API release"
+      },
+      {
+        "number": 1821,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1821",
+        "mergeCommit": "5314441e03abe1cfc04e5297296fb7b74703bd0d",
+        "scope": "Package 8 manifest discovery rejects malformed availability timestamps before filtering"
       }
     ],
     "githubHostedChecks": {
@@ -85,7 +91,8 @@
     "parserRouterRegression": "25 suites / 278 tests passed",
     "nonRdteRegression": "32 suites / 393 tests passed",
     "focusedHardeningRegression": "6 suites / 77 tests passed",
-    "trustedRuntimeSourceParity": "711/711 files; zero byte differences"
+    "trustedRuntimeSourceParity": "711/711 files; zero byte differences",
+    "manifestAvailabilityTimestampRegression": "PASS (2/2 tests)"
   },
   "qualification": {
     "concurrentDurableDrainAndQuery": {
@@ -248,6 +255,35 @@
     "cluster": "capiro-dev",
     "holdLiftedByUser": true,
     "runtimeSourceRevision": "c2bc41a86ef087e4b163c556595507ec08b396cf",
+    "defenseBudgetLifecycleCoordinator": {
+      "stack": "Capiro-dev-DefenseBudgetAnnualOperations",
+      "stackStatus": "UPDATE_COMPLETE",
+      "taskDefinition": "capiro-dev-defense-budget-lifecycle-coordinator:2",
+      "rule": "capiro-dev-defense-budget-lifecycle-coordinator",
+      "imageRepository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/defense-api",
+      "imageDigest": "sha256:0f7d828276febe0f074d2d540c7f1c057d77b7385e81d4d0795ca1429b4cb569",
+      "releaseSha": "5314441e03abe1cfc04e5297296fb7b74703bd0d",
+      "codeBuild": {
+        "id": "capiro-build-intel-api:b9cac6ac-38e5-41a8-9242-66a8c5139af1",
+        "status": "SUCCEEDED",
+        "sourceRevision": "5314441e03abe1cfc04e5297296fb7b74703bd0d",
+        "buildspecOverride": "apps/defense-api/Dockerfile; linux/arm64; immutable SHA and latest ECR tags; no ECS mutation"
+      },
+      "boundedRun": {
+        "taskId": "c73672c247a24e1cba09671f8f46da1d",
+        "startedAt": "2026-09-25T19:34:08.162Z",
+        "stoppedAt": "2026-09-25T19:34:40.058Z",
+        "exitCode": 0,
+        "logGroup": "/capiro/dev/defense-budget-lifecycle-coordinator",
+        "logStream": "schedule/lifecycle-coordinator/c73672c247a24e1cba09671f8f46da1d",
+        "outcome": "PHASE9_SCHEDULE_TICK_COMMITTED",
+        "considered": 14,
+        "due": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "capabilityProof": "CAPABILITY_PROOF_OK"
+      }
+    },
     "codeBuild": {
       "failedSafeAttempt": null,
       "failedSafeAttemptObserved": false,
