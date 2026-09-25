@@ -100,6 +100,7 @@ $queueUrl = $null
 $queueArn = $null
 $subscriptionArn = $null
 $attributesFile = $null
+$metricDataFile = Join-Path ([IO.Path]::GetTempPath()) "$runKey-metric-data.json"
 $identity = $null
 $alarms = @{}
 $createdAlarmNames = [System.Collections.Generic.List[string]]::new()
@@ -158,6 +159,25 @@ function Get-ExactQueueCount([string]$Name) {
   $urls = @()
   if ($null -ne $listing -and $null -ne $listing.QueueUrls) { $urls = @($listing.QueueUrls) }
   return @($urls | Where-Object { ([string]$_).EndsWith("/$Name", [StringComparison]::Ordinal) }).Count
+}
+function Wait-ExactQueueAbsent([string]$Name) {
+  $deadline = (Get-Date).AddSeconds(90)
+  do {
+    if ((Get-ExactQueueCount $Name) -eq 0) { return $true }
+    Start-Sleep -Seconds 5
+  } while ((Get-Date) -lt $deadline)
+  return $false
+}
+function Publish-MetricValue($Entry, [double]$Value) {
+  $metricData = @([ordered]@{
+    MetricName = "P9F07_$($Entry.id)"
+    Dimensions = @([ordered]@{ Name = 'ThresholdId'; Value = $Entry.id })
+    Value = $Value
+    Unit = $Entry.unit
+  }) | ConvertTo-Json -Depth 6 -Compress
+  [IO.File]::WriteAllText($metricDataFile, $metricData, [Text.UTF8Encoding]::new($false))
+  $metricDataFileUri = 'file://' + ($metricDataFile -replace '\\','/')
+  Invoke-AwsCli @('cloudwatch','put-metric-data','--region',$Region,'--namespace',$namespace,'--metric-data',$metricDataFileUri) | Out-Null
 }
 function Wait-AlarmState([string]$Name, [string]$Desired) {
   $deadline = (Get-Date).AddSeconds(420)
@@ -334,11 +354,11 @@ try {
 
   # Exercise every warning and stop threshold independently, including recovery, before proceeding.
   foreach ($entry in $matrix) {
-    Invoke-AwsCli @('cloudwatch','put-metric-data','--region',$Region,'--namespace',$namespace,'--metric-name',"P9F07_$($entry.id)",'--dimensions',"Name=ThresholdId,Value=$($entry.id)",'--value',(Format-Number $entry.breachValue),'--unit',$entry.unit) | Out-Null
+    Publish-MetricValue $entry $entry.breachValue
     $alarmTransitionTime = Wait-AlarmState (Get-AlarmName $entry) 'ALARM'
     Receive-OneState $entry 'ALARM' $alarmTransitionTime
 
-    Invoke-AwsCli @('cloudwatch','put-metric-data','--region',$Region,'--namespace',$namespace,'--metric-name',"P9F07_$($entry.id)",'--dimensions',"Name=ThresholdId,Value=$($entry.id)",'--value','0','--unit',$entry.unit) | Out-Null
+    Publish-MetricValue $entry 0
     $recoveryTransitionTime = Wait-AlarmState (Get-AlarmName $entry) 'OK'
     Receive-OneState $entry 'OK' $recoveryTransitionTime
   }
@@ -379,6 +399,10 @@ finally {
       try { [IO.File]::Delete($attributesFile); $result.cleanup.localAttributesFileDeleted = -not [IO.File]::Exists($attributesFile) }
       catch { $cleanupErrors.Add($_.Exception.Message); $result.cleanup.localAttributesFileDeleted = $false }
     }
+    if ($metricDataFile) {
+      try { [IO.File]::Delete($metricDataFile); $result.cleanup.localMetricDataFileDeleted = -not [IO.File]::Exists($metricDataFile) }
+      catch { $cleanupErrors.Add($_.Exception.Message); $result.cleanup.localMetricDataFileDeleted = $false }
+    }
     Start-Sleep -Seconds 2
     if ($createdAlarmNames.Count -gt 0) {
       try {
@@ -390,7 +414,7 @@ finally {
     } else { $result.cleanup.alarmsAbsent = $true }
     try { $remaining = (Invoke-AwsCli @('sns','list-topics','--region',$Region,'--query',"length(Topics[?ends_with(TopicArn, ':$topicName')])",'--output','text')).Trim(); $result.cleanup.topicAbsent = $remaining -eq '0' } catch { $cleanupErrors.Add($_.Exception.Message); $result.cleanup.topicAbsent = $false }
     try {
-      $result.cleanup.queueAbsent = (Get-ExactQueueCount $queueName) -eq 0
+      $result.cleanup.queueAbsent = Wait-ExactQueueAbsent $queueName
     }
     catch {
       $cleanupErrors.Add($_.Exception.Message)
@@ -399,7 +423,7 @@ finally {
   }
   $result.cleanup.errors = @($cleanupErrors)
   $result.completedAt = (Get-Date).ToUniversalTime().ToString('o')
-  if ($cleanupErrors.Count -gt 0 -or $result.cleanup.alarmsAbsent -ne $true -or $result.cleanup.topicAbsent -ne $true -or $result.cleanup.queueAbsent -ne $true -or $result.cleanup.subscriptionsAbsent -ne $true -or ($attributesFile -and $result.cleanup.localAttributesFileDeleted -ne $true)) {
+  if ($cleanupErrors.Count -gt 0 -or $result.cleanup.alarmsAbsent -ne $true -or $result.cleanup.topicAbsent -ne $true -or $result.cleanup.queueAbsent -ne $true -or $result.cleanup.subscriptionsAbsent -ne $true -or ($attributesFile -and $result.cleanup.localAttributesFileDeleted -ne $true) -or ($metricDataFile -and $result.cleanup.localMetricDataFileDeleted -ne $true)) {
     if ($result.result -eq 'PASS_LIMITED_SCOPE') { $result.result = 'FAIL_CLEANUP' }
   }
   Write-Output 'P9_F07_MATRIX_FINAL_JSON_BEGIN'
