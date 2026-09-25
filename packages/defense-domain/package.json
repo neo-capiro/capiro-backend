@@ -89,6 +89,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "eval:package9-scorecard": "pnpm run build && node scripts/package9-scorecard.mjs",
     "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "clean": "rm -rf dist"

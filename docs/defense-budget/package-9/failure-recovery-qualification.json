@@ -74,8 +74,17 @@
       "id": "P9-F01-CRASH-AFTER-EVIDENCE-COMMIT",
       "status": "NOT_RUN",
       "failure": "Terminate the worker after immutable evidence commit and before outbox acknowledgement.",
-      "procedure": ["Seed the baseline workload in an isolated disposable environment.", "Pause at the evidence-commit/ack boundary and terminate exactly one worker for sourceFactId ordinal 0001.", "Restart with the same image/config and drain within the limits; query by stable fact and notification keys."],
-      "passAssertions": ["100/100 accepted sourceFactIds have one committed evidence identity.", "The interrupted item is safely recognized on replay; no accepted fact is omitted.", "Each logical notification key has at most one delivered logical notification.", "Pending rows never exceed 100; DLQ never exceeds 10; drain concurrency <=4."],
+      "procedure": [
+        "Seed the baseline workload in an isolated disposable environment.",
+        "Pause at the evidence-commit/ack boundary and terminate exactly one worker for sourceFactId ordinal 0001.",
+        "Restart with the same image/config and drain within the limits; query by stable fact and notification keys."
+      ],
+      "passAssertions": [
+        "100/100 accepted sourceFactIds have one committed evidence identity.",
+        "The interrupted item is safely recognized on replay; no accepted fact is omitted.",
+        "Each logical notification key has at most one delivered logical notification.",
+        "Pending rows never exceed 100; DLQ never exceeds 10; drain concurrency <=4."
+      ],
       "primaryOwner": "platform lead",
       "coOwners": ["named source owner in run manifest", "ingestion lead"]
     },
@@ -83,8 +92,17 @@
       "id": "P9-F02-LEASE-EXPIRY",
       "status": "NOT_RUN",
       "failure": "Hold a leased job beyond its configured expiry, then let a second worker reclaim it while the original worker is prevented from acknowledging stale ownership.",
-      "procedure": ["Use a controllable clock and two workers against one isolated queue item.", "Expire the first lease, reclaim with worker two, then release the stale worker.", "Reconcile attempts, evidence identities, queue state, and notification keys."],
-      "passAssertions": ["Exactly one current lease owner can acknowledge the item.", "The stale owner cannot delete, overwrite, or acknowledge the newer lease.", "The accepted fact is retained once logically and notification key emitted at most once.", "Retry count and lease transitions are auditable; queue and task limits hold."],
+      "procedure": [
+        "Use a controllable clock and two workers against one isolated queue item.",
+        "Expire the first lease, reclaim with worker two, then release the stale worker.",
+        "Reconcile attempts, evidence identities, queue state, and notification keys."
+      ],
+      "passAssertions": [
+        "Exactly one current lease owner can acknowledge the item.",
+        "The stale owner cannot delete, overwrite, or acknowledge the newer lease.",
+        "The accepted fact is retained once logically and notification key emitted at most once.",
+        "Retry count and lease transitions are auditable; queue and task limits hold."
+      ],
       "primaryOwner": "platform lead",
       "coOwners": ["named source owner in run manifest", "ingestion lead"]
     },
@@ -92,17 +110,38 @@
       "id": "P9-F03-TRANSIENT-RETRY",
       "status": "NOT_RUN",
       "failure": "Inject a transient failure on the first attempt, then restore the dependency for the bounded retry.",
-      "procedure": ["Apply the fault to deterministic ordinals 0021-0030 only.", "Allow only the configured bounded retry policy; record each attempt and idempotency key.", "Drain the remaining baseline workload and compare accepted/evidence/notification sets."],
-      "passAssertions": ["All accepted items converge without exceeding maxAttemptsPerDecision=2 where model decision attempts apply.", "Retry does not duplicate logical evidence or notifications.", "No item is silently dropped or reclassified as accepted without evidence.", "DLQ remains <=10 and provides exact recoverable identities if a bounded retry is exhausted."],
+      "procedure": [
+        "Apply the fault to deterministic ordinals 0021-0030 only.",
+        "Allow only the configured bounded retry policy; record each attempt and idempotency key.",
+        "Drain the remaining baseline workload and compare accepted/evidence/notification sets."
+      ],
+      "passAssertions": [
+        "All accepted items converge without exceeding maxAttemptsPerDecision=2 where model decision attempts apply.",
+        "Retry does not duplicate logical evidence or notifications.",
+        "No item is silently dropped or reclassified as accepted without evidence.",
+        "DLQ remains <=10 and provides exact recoverable identities if a bounded retry is exhausted."
+      ],
       "primaryOwner": "platform lead",
-      "coOwners": ["named source owner in run manifest", "model/evaluation lead when provider decision is involved"]
+      "coOwners": [
+        "named source owner in run manifest",
+        "model/evaluation lead when provider decision is involved"
+      ]
     },
     {
       "id": "P9-F04-SOURCE-OUTAGE",
       "status": "NOT_RUN",
       "failure": "Make one named source unavailable for a fixed interval while other source families remain available.",
-      "procedure": ["Use a source-specific adapter stub for deterministic ordinals 0041-0060.", "Return timeout/5xx for 10 minutes, then restore source access without moving its watermark past unobserved records.", "Continue unrelated source families and replay the exact source interval."],
-      "passAssertions": ["Unavailable source is marked delayed/unknown, never complete or empty.", "No watermark skips the outage interval; recovered interval is reconciled from exact cursor overlap.", "No accepted facts are lost and no logical notifications duplicate after recovery.", "Oldest pending age alarm fires by 60 minutes; interactive query p95 remains <=2,000 ms."],
+      "procedure": [
+        "Use a source-specific adapter stub for deterministic ordinals 0041-0060.",
+        "Return timeout/5xx for 10 minutes, then restore source access without moving its watermark past unobserved records.",
+        "Continue unrelated source families and replay the exact source interval."
+      ],
+      "passAssertions": [
+        "Unavailable source is marked delayed/unknown, never complete or empty.",
+        "No watermark skips the outage interval; recovered interval is reconciled from exact cursor overlap.",
+        "No accepted facts are lost and no logical notifications duplicate after recovery.",
+        "Oldest pending age alarm fires by 60 minutes; interactive query p95 remains <=2,000 ms."
+      ],
       "primaryOwner": "named source owner in run manifest",
       "coOwners": ["legislative lead for Congress.gov/GovInfo", "platform lead"]
     },
@@ -110,8 +149,17 @@
       "id": "P9-F05-PROVIDER-OUTAGE",
       "status": "NOT_RUN",
       "failure": "Return timeout, 429, malformed response, and 5xx from the provider boundary in separate deterministic sub-runs.",
-      "procedure": ["Use only a local provider stub; paid provider allocation stays $0.", "Pin model identifier and request/response fixture hashes in each sub-run.", "Exercise timeout, throttling, malformed result, and recovery; reconcile decisions and cost ledger."],
-      "passAssertions": ["Provider failure yields bounded retry or abstention/review, never a fabricated accepted fact.", "Source evidence envelope survives every failed attempt.", "Provider retries are capped and accounted; paid invocation count and spend remain zero.", "No duplicate logical notification; queue/DLQ and query budgets hold."],
+      "procedure": [
+        "Use only a local provider stub; paid provider allocation stays $0.",
+        "Pin model identifier and request/response fixture hashes in each sub-run.",
+        "Exercise timeout, throttling, malformed result, and recovery; reconcile decisions and cost ledger."
+      ],
+      "passAssertions": [
+        "Provider failure yields bounded retry or abstention/review, never a fabricated accepted fact.",
+        "Source evidence envelope survives every failed attempt.",
+        "Provider retries are capped and accounted; paid invocation count and spend remain zero.",
+        "No duplicate logical notification; queue/DLQ and query budgets hold."
+      ],
       "primaryOwner": "model/evaluation lead",
       "coOwners": ["platform lead", "ingestion lead"]
     },
@@ -119,10 +167,57 @@
       "id": "P9-L01-PEAK-LOAD-AND-QUERY",
       "status": "NOT_RUN",
       "failure": "Sustain the 100-item baseline while four drain tasks run and common reads execute concurrently.",
-      "procedure": ["Load the stable seeded workload to a peak of 100 pending rows.", "Run no more than four drain tasks for at most 30 minutes each.", "Issue the versioned common-query mix continuously and record raw latency samples."],
-      "passAssertions": ["Pending <=100, DLQ <=10, oldest age <=60 minutes, drain tasks <=4.", "Common interactive query p95 <=2,000 ms.", "Verified program update p95 <=60 minutes.", "Measured annualized AWS projection is <=$1,000 with assumptions disclosed; provider paid spend is $0 in this lane."],
+      "procedure": [
+        "Load the stable seeded workload to a peak of 100 pending rows.",
+        "Run no more than four drain tasks for at most 30 minutes each.",
+        "Issue the versioned common-query mix continuously and record raw latency samples."
+      ],
+      "passAssertions": [
+        "Pending <=100, DLQ <=10, oldest age <=60 minutes, drain tasks <=4.",
+        "Common interactive query p95 <=2,000 ms.",
+        "Verified program update p95 <=60 minutes.",
+        "Measured annualized AWS projection is <=$1,000 with assumptions disclosed; provider paid spend is $0 in this lane."
+      ],
       "primaryOwner": "platform lead",
       "coOwners": ["model/evaluation lead for cost report", "ingestion lead"]
+    },
+    {
+      "id": "P9-F06-PROJECTION-AND-ROUTING-ROLLBACK",
+      "status": "NOT_RUN",
+      "failure": "Inject a post-canary defect and roll routing plus the active read projection back to the last qualified revision.",
+      "procedure": [
+        "Record the current qualified routing and projection pointers plus immutable evidence counts.",
+        "Activate one isolated canary scope, inject the defect, stop admission, and execute the documented rollback.",
+        "Reconcile pointers, immutable evidence, audit events, queue identities, and client-visible reads."
+      ],
+      "passAssertions": [
+        "Routing and active projection return to the exact prior qualified revisions within the declared recovery target.",
+        "Immutable evidence, source bytes, attempts, manifests, review decisions, and notification ledgers are unchanged except for append-only rollback events.",
+        "No unqualified canary fact remains current and no accepted historical fact is lost."
+      ],
+      "primaryOwner": "platform lead",
+      "coOwners": ["ingestion lead", "product lead"]
+    },
+    {
+      "id": "P9-F07-ALARM-DELIVERY",
+      "status": "NOT_RUN",
+      "failure": "Cross each warning and stop threshold in an isolated run and verify delivery to the named receiver without affecting production workloads.",
+      "procedure": [
+        "Bind named alarm receivers and record exact alarm/rule identities before injection.",
+        "Cross queue depth, DLQ, age, task-count, runtime, latency, AWS-cost and provider-cost thresholds one at a time with test metrics.",
+        "Record alarm state transition, receiver acknowledgement, stop-admission action and recovery."
+      ],
+      "passAssertions": [
+        "Every required alarm transitions and reaches its named receiver within the declared delivery window.",
+        "Each stop threshold prevents new admission while preserving queued and immutable evidence.",
+        "Missing, delayed, misrouted, or unacknowledged alarm delivery fails qualification."
+      ],
+      "primaryOwner": "platform lead",
+      "coOwners": [
+        "named source owner in run manifest",
+        "legislative lead",
+        "model/evaluation lead"
+      ]
     }
   ],
   "requiredEvidenceForPromotion": [

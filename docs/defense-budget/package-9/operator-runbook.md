@@ -8,17 +8,17 @@ Production activation is `NO_GO`; shadow-only observation is the highest allowed
 
 Page the platform lead and stop new admission when any hard limit is reached or projected to be crossed:
 
-| Signal | Warning | Stop / page threshold |
-| --- | --- | --- |
-| Pending outbox rows | 80 | 100 |
-| DLQ rows | 8 | 10 |
-| Oldest pending age | 45 minutes | 60 minutes |
-| Active drain tasks | 3 | 4; never start a fifth |
-| Drain task runtime | 25 minutes | 30 minutes; terminate safely and allow lease recovery |
-| Common interactive query p95 | 1,600 ms | 2,000 ms |
-| Verified program update p95 | 45 minutes | 60 minutes |
-| Incremental AWS annualized projection | $800 | $1,000 |
-| Paid provider annual allocation/spend | Any nonzero spend without a named authorization | $500 hard cap; default allocation is $0 |
+| Signal                                | Warning                                         | Stop / page threshold                                 |
+| ------------------------------------- | ----------------------------------------------- | ----------------------------------------------------- |
+| Pending outbox rows                   | 80                                              | 100                                                   |
+| DLQ rows                              | 8                                               | 10                                                    |
+| Oldest pending age                    | 45 minutes                                      | 60 minutes                                            |
+| Active drain tasks                    | 3                                               | 4; never start a fifth                                |
+| Drain task runtime                    | 25 minutes                                      | 30 minutes; terminate safely and allow lease recovery |
+| Common interactive query p95          | 1,600 ms                                        | 2,000 ms                                              |
+| Verified program update p95           | 45 minutes                                      | 60 minutes                                            |
+| Incremental AWS annualized projection | $800                                            | $1,000                                                |
+| Paid provider annual allocation/spend | Any nonzero spend without a named authorization | $500 hard cap; default allocation is $0               |
 
 The named source owner handles source-specific delay and cursor alarms. The legislative lead owns Congress.gov/GovInfo version and watermark alarms. The model/evaluation lead owns provider timeout, throttling, attempt, and cost alarms. The platform lead owns queue, lease, drain, latency, and AWS cap alarms. The ingestion lead reconciles accepted fact IDs against immutable evidence and notification keys before any stage advancement.
 
@@ -32,7 +32,7 @@ Alarm delivery must be proven in an isolated qualification run before it is reli
 4. **Stage 3 — shadow observation:** exact named manifest, source-specific owner, immutable image digest, approved read-only/shadow permissions, alarm receivers, and rollback rehearsal required. Shadow may persist append-only evidence only where already authorized; no canonical promotion or client notification.
 5. **Stage 4 — bounded production activation:** remains `NO_GO` until all required scenarios pass, independent adjudication signs off, cost reports fit caps, and an explicit release authorization exists. Start with one exact bounded manifest and enforce the queue limits continuously.
 
-Current maximum: Stage 3 shadow observation. Do not advance based on document presence or local protocol checks alone.
+Current Package 9 qualification maximum: Stage 1 local component qualification. Existing production feature flags and schedules remain at their previously authorized dark/shadow posture; this package does not advance them. Do not advance based on document presence or local protocol checks alone.
 
 ## Incident response and rollback
 

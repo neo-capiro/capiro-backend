@@ -5,13 +5,13 @@ This protocol evaluates whether qualified evidence supports six buyer plan workf
 ## Six plan workflows
 
 1. **Request to enacted comparison:** compare a buyer's requested program/PE funding with enacted authorization and appropriation, preserving fiscal year, account, and source citations.
-2. **Restriction and mark change:** identify a changed restriction, report language, or mark affecting a program and distinguish bill text, committee material, enacted law, and agency interpretation.
-3. **Program-to-award association:** connect a qualified program/PE to notices, vehicles, orders, and awards without implying a dollar allocation unsupported by source evidence.
-4. **Funding and execution trace:** trace authorization/appropriation through transfers, obligations, and outlays; expose timing, residuals, and unsupported joins.
-5. **Source-linked plan brief:** produce a concise planning brief where each material claim resolves to exact source bytes/version and page, table, or section evidence.
-6. **Change watch and decision update:** compare two dated evidence snapshots, identify additions/removals/changed values, preserve historical changes, suppress duplicate logical notices, and show uncertainty or unavailable sources.
+2. **Program renamed across years:** follow one program through a reviewed rename, renumbering, split, or merge without collapsing distinct identities or losing prior-year evidence.
+3. **Amendment changing a restriction:** identify how an amendment changes a restriction and distinguish introduced text, amendment action, committee material, enacted law, and agency interpretation.
+4. **Funds-to-award attribution:** connect a qualified program/PE to notices, vehicles, orders, awards, and modifications without implying a dollar allocation unsupported by source evidence.
+5. **Actionable procurement opportunity:** identify a relevant opportunity, its exact notice/version, buyer deadline and qualification evidence, while surfacing unavailable or conflicting facts.
+6. **Source-backed client briefing:** produce a concise client brief where each material claim resolves to exact source bytes/version and page, table, section, award, or notice evidence.
 
-Each workflow must have a frozen prompt/task statement, exact evidence packet and snapshot IDs, expected answer and acceptable abstentions, and a versioned scoring rubric before evaluation. Use at least 30 cases per workflow, stratified across service, Defense-Wide, funding family, fiscal year, and evidence quality; include ambiguous identity, missing/unavailable source, superseded version, and negative cases. These are minimum design counts, not claims about an existing corpus.
+Each workflow must have a frozen prompt/task statement, exact evidence packet and snapshot IDs, expected answer and acceptable abstentions, and a versioned scoring rubric before evaluation. Use at least 30 cases per workflow, stratified across service, Defense-Wide, funding family, fiscal year, and evidence quality; include ambiguous identity, missing/unavailable source, superseded version, and negative cases. Include BGOV, DACIS, GovWin, and Forecast International only where licensed access permits, and use the buyer's documented analyst workflow as the comparison when it does not. These are minimum design counts, not claims about an existing corpus or vendor superiority.
 
 ## Independent blind adjudication
 
