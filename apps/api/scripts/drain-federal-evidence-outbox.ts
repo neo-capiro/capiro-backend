@@ -3,6 +3,7 @@ import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { drainFederalEvidenceOutbox } from '../src/program-element/federal-evidence/outbox.js';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
+import { assertFederalEvidenceOutboxDrainEnabled } from './lib/federal-legislative-sync-safety.js';
 
 dotenvConfig();
 
@@ -13,6 +14,10 @@ function arg(name: string): string | undefined {
 
 async function main(): Promise<void> {
   const commit = process.argv.includes('--commit');
+  assertFederalEvidenceOutboxDrainEnabled({
+    commit,
+    featureEnabled: process.env.FEDERAL_LEGISLATIVE_EVIDENCE_ENABLED,
+  });
   const limit = Number(arg('limit') ?? 50);
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 500)
     throw new Error('--limit must be an integer from 1 to 500');
