@@ -44,6 +44,15 @@
       "not_promotable_and_not_authorized_for_production_import"
     ]
   },
+  "candidateArtifactSpike": {
+    "report": "docs/defense-budget/package-8/qualification/dtic-fy2026-candidate-artifact-spike-2026-09-25.json",
+    "artifactId": "dbx1_998ec586a39623b526f6743d505d4ed69f37ebe1268d984ac953b49b52a82bbd",
+    "contentSha256": "998ec586a39623b526f6743d505d4ed69f37ebe1268d984ac953b49b52a82bbd",
+    "status": "QUALIFICATION_ONLY",
+    "fundingMapping": "WARNING_ONLY",
+    "productionRegistration": false,
+    "persisted": false
+  },
   "nextQualificationGates": [
     "register an exact expected-source identity through governed review",
     "implement and qualify stable XML element-path semantic extraction",

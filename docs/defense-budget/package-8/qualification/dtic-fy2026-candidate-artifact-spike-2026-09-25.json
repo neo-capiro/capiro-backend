@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "package8_dtic_candidate_artifact_spike_v1",
+  "status": "QUALIFICATION_ONLY",
+  "run": {
+    "scriptSha256": "3475bd6d841f716a523f046c889af92a10dff4107bcf453325cf28ff6fbb990d",
+    "scriptRetained": false,
+    "command": "packages/meriv2-core/node_modules/.bin/tsx p8-dtic-spike.ts",
+    "officialXmlSha256": "02479cd6e67dfee10bb1029d9413dbc35e81174384b25319fedfb9589d4aac6a",
+    "officialPdfSha256": "08c867d61816f7b5ebb82924a33d4003ee03c7880984ac6dc9bc91363b6f2d63"
+  },
+  "artifact": {
+    "artifactId": "dbx1_998ec586a39623b526f6743d505d4ed69f37ebe1268d984ac953b49b52a82bbd",
+    "contentSha256": "998ec586a39623b526f6743d505d4ed69f37ebe1268d984ac953b49b52a82bbd",
+    "parserRunId": "prun_aef8b494bd354fa5f4e7c8fbf47d28cf36d965fe44518e032e878e37ff1ff2b2",
+    "parserMethod": "native_structured",
+    "programElementIdentityAssertions": 2,
+    "narrativeAssertions": 1,
+    "evidenceCount": 3,
+    "structuredElementEvidenceCount": 3,
+    "allEvidenceDocumentOnly": true,
+    "completenessStatus": "complete",
+    "warnings": ["dtic_xml_funding_mapping_pending", "dtic_xml_funding_mapping_pending"]
+  },
+  "safety": {
+    "sourceDocumentId": "candidate-dtic-fy2026-source-document",
+    "productionRegistration": false,
+    "persisted": false,
+    "databaseWrites": false,
+    "historicalReplay": false,
+    "historicalNotifications": false,
+    "pdfPageClaims": false
+  },
+  "remainingGates": [
+    "bind to a real registered SourceDocument and governed expected-source row",
+    "reconcile XML funding and narrative semantics against the official PDF",
+    "qualify the funding-field mapping instead of warning-only behavior",
+    "complete family/year coverage denominator and human review",
+    "persist parser and verification proof before any historical replay"
+  ]
+}
