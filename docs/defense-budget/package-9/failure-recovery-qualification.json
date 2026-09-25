@@ -4,21 +4,21 @@
   "qualification": "operations-load-failure-recovery",
   "decision": "NO_GO",
   "activationAllowed": "shadow-only",
-  "measurementStatus": "PARTIAL_PASS_LIMITED_LOCAL_COMPONENTS_AND_ISOLATED_AWS_ALARM_PATH",
+  "measurementStatus": "PARTIAL_PASS_LIMITED_LOCAL_CONCURRENT_AND_SYNTHETIC_AWS_ALARM_MATRIX",
   "retainedRun": {
-    "report": "./evidence/durable-run-p9-20260925024117927-2c727e.json",
-    "sha256": "2b6adbffe6cfb4ee048901e30314d313cb31121aa77388418337e1bf01f6aeeb",
-    "sourceRevision": "8d50b9671f01fc034ec712dc7696e9fe3b1c08d0",
+    "report": "./evidence/durable-run-p9-20260925125747227-ef8fac.json",
+    "sha256": "d46f3b21043d87fbc21cba0c6859f72e6cf7ce2d911d2841f46ba58e0ef3b50a",
+    "sourceRevision": "38ca3ca96ab4615c70f943b82b10224e91b9db73",
     "status": "PASS_LIMITED_SCOPE",
-    "scope": "Disposable local PostgreSQL repository/worker, synthetic append-only evidence and notification ledgers, deterministic source/provider stubs, and four-worker 100-row reconciliation only."
+    "scope": "Disposable local PostgreSQL repository/worker with deterministic source/provider stubs, eight recovery scenarios, a four-worker 100-row drain, append-only evidence/notification reconciliation, and a concurrent five-second compiled query-service mix."
   },
   "retainedAlarmRun": {
-    "report": "./evidence/alarm-delivery-run-p9-f07-20260925T030858Z-5d9b39.json",
-    "sha256": "e32c7fc51979a831e1cc61ebc3977d04d5e39dd8de30e9fd638a0c25fb32bf10",
-    "sourceRevision": "f691689c63cb40941e15fad25e4b6f264a4ddba5",
-    "harnessSha256": "fcf3ffb35af4875ad90f0d758356fe5afd043130e6f9502faf9d6ab864377541",
+    "report": "./evidence/alarm-matrix-run-p9-f07-20260925T124316Z-08d62a.json",
+    "sha256": "454aa1d1f0fbf46bece2d307b52886a659297bc3edc106dee594124c8e928be7",
+    "sourceRevision": "14e012c172a76122356530e8d8700f7485943069",
+    "harnessSha256": "6d0ace77dab50489375899ab09fa43cff0d2691b14ef2c54607ea83d3302fcab",
     "status": "PASS_LIMITED_SCOPE",
-    "scope": "One uniquely named synthetic CloudWatch alarm delivered ALARM and recovery OK through an exact ephemeral SNS topic to an encrypted SQS receiver; both messages were acknowledged and every ephemeral resource was verified absent after cleanup."
+    "scope": "All 18 required synthetic warning/stop alarms delivered ALARM and recovery OK through one exact ephemeral SNS topic to an encrypted SQS receiver; all 36 messages were acknowledged with no duplicates and every ephemeral resource was verified absent after cleanup."
   },
   "retainedRollbackRun": {
     "report": "./evidence/rollback-composite-run-p9-f06-20260925T130219Z.json",
@@ -205,14 +205,16 @@
     },
     {
       "id": "P9-L01-PEAK-LOAD-AND-QUERY",
-      "status": "PARTIAL_PASS_LIMITED_LOCAL_COMPONENTS",
+      "status": "PARTIAL_PASS_LIMITED_LOCAL_CONCURRENT",
       "retainedEvidence": {
         "productQueryReport": "./evidence/product-query-p9q-20260925042812623-c66b14bb.json",
         "productQuerySha256": "8513d52ec88ed2c700b5fea171e0d6d116f31eba8487b31e82a7b72e28b9a82b",
         "productQueryHarness": "../../../scripts/package9-product-query-benchmark.mjs",
         "productQueryHarnessSha256": "2eb70cc0ba95831730669ff5a1a6de59b205fa654a930a94f785ff0615fb971a",
-        "durableRecoveryReport": "./evidence/durable-run-p9-20260925024117927-2c727e.json",
-        "durableRecoverySha256": "2b6adbffe6cfb4ee048901e30314d313cb31121aa77388418337e1bf01f6aeeb"
+        "concurrentDrainQueryReport": "./evidence/durable-run-p9-20260925125747227-ef8fac.json",
+        "concurrentDrainQuerySha256": "d46f3b21043d87fbc21cba0c6859f72e6cf7ce2d911d2841f46ba58e0ef3b50a",
+        "concurrentHarnessSha256": "151212c06489f4f5af52a32fc5a01390ccde6db643ba8169aaa746276f0785f8",
+        "concurrentMixSha256": "85ad5e9bee922b0a471734ae10a4c707f92eb7164058950a9bc11b7c6535fc35"
       },
       "failure": "Sustain the 100-item baseline while four drain tasks run and common reads execute concurrently.",
       "procedure": [
@@ -230,12 +232,14 @@
         "The local synthetic product reader sustained a 1,800-second request-start window across four closed-loop clients and all eight declared operations: 7,176 samples, zero errors, 1,799.597 seconds first-to-last request-start span, and a final start 402.546 milliseconds before the deadline.",
         "Direct compiled service/read-store latency was p50 3.834 milliseconds, p95 7.067 milliseconds, and maximum 101.305 milliseconds, below the 2,000-millisecond limit in this limited local synthetic environment.",
         "The benchmark login was NOINHERIT with no memberships and zero effective table-write privileges across 494 public tables.",
-        "The separate durable recovery run observed a 100-row pending peak and at most four concurrent workers with no missing evidence or duplicate logical notification keys.",
+        "The corrected concurrent run held a 100-row peak, used four drain workers, finished at pending/leased/dead-letter 0/0/0, and reconciled 100 evidence identities plus 100 logical notifications with no missing or duplicate keys.",
+        "During that drain, four clients issued 20 error-free requests covering all eight declared compiled service/read-store operations; p95 was 172.174 milliseconds and monotonic overlap was 4,069.4863 milliseconds.",
+        "All eight crash, lease, retry, source, and local provider-fault scenarios passed, and all four workload source families reconciled at 25 rows each.",
         "A read-only 30-day Cost Explorer observation found $6.1100983972 across nine relevant account-wide service totals and a simple $74.33953049926667 annualized account-wide run rate. This is supporting context only because the account has no Package 9-specific cost-allocation boundary."
       ],
       "unqualifiedAssertions": [
-        "The 100-row/four-worker drain and the sustained product-query window were separate runs, not the required concurrent peak-load scenario.",
-        "The query run bypassed HTTP, authentication, browser and network latency, used a small synthetic corpus, and was not production or buyer traffic.",
+        "The concurrent query window was only five seconds; the separate 30-minute query run was not concurrent with the drain, so sustained production-representative concurrency remains unqualified.",
+        "Both query runs bypassed HTTP, authentication, browser and network latency, used a small synthetic corpus, and were not production or buyer traffic.",
         "Verified source-change-to-buyer-visible update p95 was not measured, and the AWS observation cannot attribute account-wide cost to Package 9 incremental spend.",
         "This limited component evidence does not make the full P9-L01 scenario PASS or authorize activation."
       ],
@@ -281,12 +285,12 @@
     },
     {
       "id": "P9-F07-ALARM-DELIVERY",
-      "status": "PARTIAL_PASS_ISOLATED_DELIVERY_ONLY",
+      "status": "PARTIAL_PASS_SYNTHETIC_MATRIX_NO_HUMAN_OR_STOP_ACTION",
       "retainedEvidence": {
-        "report": "./evidence/alarm-delivery-run-p9-f07-20260925T030858Z-5d9b39.json",
-        "sha256": "e32c7fc51979a831e1cc61ebc3977d04d5e39dd8de30e9fd638a0c25fb32bf10",
-        "harness": "../../../scripts/qualify-package9-f07-isolated.ps1",
-        "harnessSha256": "fcf3ffb35af4875ad90f0d758356fe5afd043130e6f9502faf9d6ab864377541"
+        "report": "./evidence/alarm-matrix-run-p9-f07-20260925T124316Z-08d62a.json",
+        "sha256": "454aa1d1f0fbf46bece2d307b52886a659297bc3edc106dee594124c8e928be7",
+        "harness": "../../../scripts/qualify-package9-f07-alarm-matrix.ps1",
+        "harnessSha256": "6d0ace77dab50489375899ab09fa43cff0d2691b14ef2c54607ea83d3302fcab"
       },
       "failure": "Cross each warning and stop threshold in an isolated run and verify delivery to the named receiver without affecting production workloads.",
       "procedure": [
@@ -300,13 +304,12 @@
         "Missing, delayed, misrouted, or unacknowledged alarm delivery fails qualification."
       ],
       "executedAssertions": [
-        "A synthetic alarm transitioned from INSUFFICIENT_DATA to ALARM and delivered through its exact ephemeral SNS topic to the isolated encrypted SQS receiver.",
-        "The ALARM notification was acknowledged and deleted.",
-        "The same alarm recovered from ALARM to OK, delivered recovery, and the recovery notification was acknowledged and deleted.",
-        "Two consecutive empty receives followed acknowledgement; the alarm, subscription, topic, and queue were deleted and verified absent."
+        "All 18 required warning and stop alarms established an initial OK baseline with actions disabled; two consecutive 20-second receiver polls were empty before actions were enabled.",
+        "Each threshold was crossed sequentially and delivered an identity-matched ALARM notification, then recovered and delivered an identity-matched OK notification to the encrypted exact-source SQS receiver.",
+        "All 36 notifications were acknowledged within 4.586 to 16.652 seconds against the explicitly harness-only 600-second limit, with zero duplicate deliveries.",
+        "Every alarm history contained both ALARM and OK transitions; all 18 alarms, the subscription, topic, queue, and local temporary files were deleted and verified absent."
       ],
       "unqualifiedAssertions": [
-        "The remaining required Package 9 warning and stop thresholds were not crossed.",
         "No named human or production receiver participated.",
         "Stop-admission and queued or immutable evidence preservation were not exercised.",
         "The full P9-F07 scenario therefore is not PASS and cannot authorize activation."

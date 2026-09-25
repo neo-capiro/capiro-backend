@@ -66,20 +66,20 @@
   },
   "reliability": {
     "reviewed": true,
-    "evidenceRecordId": "apps/api/src/defense-budget/package9-peak-recovery-qualification.spec.ts",
-    "reviewerId": "package9-local-component-test",
-    "reviewedAt": "2026-09-25T00:00:00.000Z",
-    "releaseRevision": "48e117e2887d128d1fc539e606e274e516237b64",
+    "evidenceRecordId": "docs/defense-budget/package-9/evidence/durable-run-p9-20260925125747227-ef8fac.json",
+    "reviewerId": "package9-corrected-local-qualification",
+    "reviewedAt": "2026-09-25T12:59:07.844Z",
+    "releaseRevision": "38ca3ca96ab4615c70f943b82b10224e91b9db73",
     "requiredFailureScenarios": 8,
-    "passedFailureScenarios": 5,
+    "passedFailureScenarios": 8,
     "lostAcceptedFacts": 0,
     "duplicateLogicalNotifications": 0,
     "peakPendingRows": 100,
     "peakDeadLetterRows": 0,
-    "oldestPendingAgeMinutes": 0,
+    "oldestPendingAgeMinutes": null,
     "maxConcurrentDrainTasks": 4,
     "verifiedProgramUpdateP95Minutes": null,
-    "commonQueryP95Milliseconds": null
+    "commonQueryP95Milliseconds": 172.174
   },
   "economics": {
     "reviewed": false,
@@ -113,13 +113,14 @@
   },
   "rollback": {
     "reviewed": true,
-    "evidenceRecordId": "docs/defense-budget/package-9/operator-runbook.md",
-    "reviewerId": "package9-protocol-review",
-    "reviewedAt": "2026-09-25T00:00:00.000Z",
-    "releaseRevision": "48e117e2887d128d1fc539e606e274e516237b64",
-    "tested": false,
+    "evidenceRecordId": "docs/defense-budget/package-9/evidence/rollback-composite-run-p9-f06-20260925T130219Z.json",
+    "reviewerId": "package9-populated-local-qualification",
+    "reviewedAt": "2026-09-25T13:06:35.000Z",
+    "releaseRevision": "4b210e50f6b377124d27ebd7507241fc420098eb",
+    "tested": true,
     "preservesImmutableEvidence": true,
-    "recoveryTargetMinutes": 15
+    "recoveryTargetMinutes": 15,
+    "rehearsalRecordId": "P9-F06-POPULATED-PROJECTION-AND-ROUTING-ROLLBACK/p9-f06-synthetic-canary-tenant"
   },
   "costBudgets": {
     "reviewed": false,
