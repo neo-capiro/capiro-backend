@@ -13,11 +13,15 @@ import {
 import type { StageV1 } from '../stages/stage-vocabulary-v1.js';
 
 export const LIFECYCLE_TO_STAGE_V1: Partial<Record<LifecycleStage, StageV1>> = {
-  hasc_mark: 'hasc', hasc_report: 'hasc', house_auth_action: 'hasc',
-  sasc_mark: 'sasc', sasc_report: 'sasc', senate_auth_action: 'sasc',
+  hasc_mark: 'hasc', hasc_report: 'hasc',
+  house_auth_action: 'hasc',
+  sasc_mark: 'sasc', sasc_report: 'sasc',
+  senate_auth_action: 'sasc',
   auth_conference: 'ndaa_conference',
-  hac_d_mark: 'hac_d', hac_d_report: 'hac_d', house_appr_action: 'hac_d',
-  sac_d_mark: 'sac_d', sac_d_report: 'sac_d', senate_appr_action: 'sac_d',
+  hac_d_mark: 'hac_d', hac_d_report: 'hac_d',
+  house_appr_action: 'hac_d',
+  sac_d_mark: 'sac_d', sac_d_report: 'sac_d',
+  senate_appr_action: 'sac_d',
   appr_conference_or_jes: 'appropriations_conference',
 };
 
@@ -61,6 +65,7 @@ export function createCongressionalPacketResolverV1(
   if (!isAbsolute(config.parserArtifactRoot)) throw new Error('parser artifact root must be absolute');
   const manifestPath = resolve(config.manifestPath);
   const parserArtifactStore = new FilesystemParserArtifactStore(resolve(config.parserArtifactRoot));
+
   return async (request) => {
     const bytes = await readFile(manifestPath);
     const actualSha = createHash('sha256').update(bytes).digest('hex');
@@ -84,20 +89,34 @@ export function createCongressionalPacketResolverV1(
     const loaded = await loadCongressionalFactoryInputsV1({
       manifest,
       request: {
-        documentKey: request.sourceKey, sourceDocumentId: request.sourceDocumentId,
-        profileId: doc.profile.profileId, stage, fiscalYear: request.fiscalYear,
-        sourceSha256: request.sourceSha256, sourceLocator: request.sourceUrl,
+        documentKey: request.sourceKey,
+        sourceDocumentId: request.sourceDocumentId,
+        profileId: doc.profile.profileId,
+        stage,
+        fiscalYear: request.fiscalYear,
+        sourceSha256: request.sourceSha256,
+        sourceLocator: request.sourceUrl,
         routing: {
-          family: routing.family, exhibit: routing.exhibit, authority: routing.authority,
-          budgetCycle: routing.budgetCycle, documentType: routing.documentType,
+          family: routing.family,
+          exhibit: routing.exhibit,
+          authority: routing.authority,
+          budgetCycle: routing.budgetCycle,
+          documentType: routing.documentType,
         },
       },
       parserArtifactStore,
-      readPacket: async (locator) => readFile(resolveCongressionalPacketLocator(manifestPath, locator)),
+      readPacket: async (locator) => {
+        return readFile(resolveCongressionalPacketLocator(manifestPath, locator));
+      },
     });
-    return { kind: 'matched', factoryInputs: {
-      packetBytes: loaded.packetBytes, factoryContext: loaded.factoryContext,
-      input: loaded.input, parserResultProofs: loaded.parserResultProofs,
-    } };
+    return {
+      kind: 'matched',
+      factoryInputs: {
+        packetBytes: loaded.packetBytes,
+        factoryContext: loaded.factoryContext,
+        input: loaded.input,
+        parserResultProofs: loaded.parserResultProofs,
+      },
+    };
   };
 }

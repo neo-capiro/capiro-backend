@@ -85,7 +85,10 @@ does not create a production manifest or authorize historical replay.
   official PDF: the source record binds the official PDF digest, the parser run
   binds an optional companion digest, and structured-element evidence carries
   a deterministic element path and the same companion digest. PDF page
-  evidence remains available separately.
+  evidence remains available separately. The DTIC qualification helper now
+  hard-refuses FY/cycle/agency/appropriation scope drift while returning an
+  explicitly non-promotable candidate envelope; it still performs no semantic
+  extraction, persistence, review, or replay.
 - Package 9 queue-age metrics now cover only pending/leased work and use the
   caller's logical clock. The new source-registration-to-evidence-commit
   latency summary is explicitly synthetic-only and cannot be reported as

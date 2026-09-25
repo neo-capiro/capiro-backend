@@ -57,6 +57,27 @@ export interface DticJdocsXmlSourceInspectionV1 {
   limitations: readonly string[];
 }
 
+/**
+ * Scope asserted by a governed qualification attempt.  This is deliberately
+ * smaller than a production expected-source row: it can prove that the bytes
+ * belong to the reviewed FY/cycle/agency/account candidate, but it cannot
+ * authorize import or publication.
+ */
+export interface DticJdocsXmlCandidateScopeV1 {
+  fiscalYear: number;
+  budgetCycle: string;
+  agency: string;
+  appropriationCode: string;
+}
+
+export interface DticJdocsXmlCandidateV1 {
+  schemaVersion: 'dtic_jdocs_xml_candidate_v1';
+  status: 'candidate_only';
+  promotable: false;
+  scope: DticJdocsXmlCandidateScopeV1;
+  inspection: DticJdocsXmlSourceInspectionV1;
+}
+
 const parser = new XMLParser({
   ignoreAttributes: false,
   parseTagValue: false,
@@ -100,7 +121,9 @@ function directNamedChild(value: unknown, wanted: string): { name: string; value
   return null;
 }
 
-function topLevelDocumentElement(value: unknown): { name: string; node: Record<string, unknown> } | null {
+function topLevelDocumentElement(
+  value: unknown,
+): { name: string; node: Record<string, unknown> } | null {
   const record = asRecord(value);
   if (!record) return null;
   const elements = Object.entries(record).filter(
@@ -140,7 +163,10 @@ function requireElementNamespace(
   expectedLocalName: string,
   expectedNamespace: string,
 ): void {
-  if (localName(name) !== expectedLocalName || elementNamespace(name, bindings) !== expectedNamespace) {
+  if (
+    localName(name) !== expectedLocalName ||
+    elementNamespace(name, bindings) !== expectedNamespace
+  ) {
     fail(`${expectedLocalName} must resolve to the expected DTIC namespace`);
   }
 }
@@ -176,8 +202,13 @@ function collectProgramElementIds(
 }
 
 function validateProvenance(value: DticJdocsXmlSourceProvenanceV1): void {
-  if (!GIT_COMMIT.test(value.mirrorCommit)) fail('mirrorCommit must be a full lowercase Git commit SHA');
-  if (!value.mirrorPath.trim() || value.mirrorPath.startsWith('/') || value.mirrorPath.includes('..')) {
+  if (!GIT_COMMIT.test(value.mirrorCommit))
+    fail('mirrorCommit must be a full lowercase Git commit SHA');
+  if (
+    !value.mirrorPath.trim() ||
+    value.mirrorPath.startsWith('/') ||
+    value.mirrorPath.includes('..')
+  ) {
     fail('mirrorPath must be a non-empty repository-relative path');
   }
   for (const [name, url] of [
@@ -226,37 +257,41 @@ export function inspectDticJdocsXmlSourceV1(
   }
   const root = topLevel.node;
   const rootBindings = namespaceBindings(root);
-  requireElementNamespace(topLevel.name, rootBindings, 'JustificationBook', DTIC_JDOCS_XML_ROOT_NAMESPACE_V1);
+  requireElementNamespace(
+    topLevel.name,
+    rootBindings,
+    'JustificationBook',
+    DTIC_JDOCS_XML_ROOT_NAMESPACE_V1,
+  );
   const r2ListElement = directNamedChild(root, 'ProgramElementList');
   const r2List = asRecord(r2ListElement?.value);
   if (!r2ListElement || !r2List) {
     fail('expected ProgramElementList in the DTIC R2 namespace');
   }
   const r2ListBindings = namespaceBindings(r2List, rootBindings);
-  requireElementNamespace(r2ListElement.name, r2ListBindings, 'ProgramElementList', DTIC_JDOCS_R2_NAMESPACE_V1);
+  requireElementNamespace(
+    r2ListElement.name,
+    r2ListBindings,
+    'ProgramElementList',
+    DTIC_JDOCS_R2_NAMESPACE_V1,
+  );
 
   const fiscalYearText = scalar(directChild(root, 'BudgetYear'), 'BudgetYear');
   if (!/^\d{4}$/.test(fiscalYearText)) fail('BudgetYear must be a four-digit year');
   const fiscalYear = Number(fiscalYearText);
   const budgetCycle = scalar(directChild(root, 'BudgetCycle'), 'BudgetCycle');
   const agency = scalar(directChild(root, 'ServiceAgencyName'), 'ServiceAgencyName');
-  const appropriationCode = scalar(
-    directChild(root, 'AppropriationCode'),
-    'AppropriationCode',
-  );
-  const appropriationName = scalar(
-    directChild(root, 'AppropriationName'),
-    'AppropriationName',
-  );
+  const appropriationCode = scalar(directChild(root, 'AppropriationCode'), 'AppropriationCode');
+  const appropriationName = scalar(directChild(root, 'AppropriationName'), 'AppropriationName');
   const submissionDateValue = directChild(root, 'SubmissionDate');
-  const submissionDate = submissionDateValue == null
-    ? null
-    : scalar(submissionDateValue, 'SubmissionDate');
+  const submissionDate =
+    submissionDateValue == null ? null : scalar(submissionDateValue, 'SubmissionDate');
 
   const rawIds: string[] = [];
   collectProgramElementIds(r2ListElement.name, r2List, rootBindings, rawIds);
   const programElementIds = [...new Set(rawIds)].sort((a, b) => a.localeCompare(b));
-  if (programElementIds.length === 0) fail('R2 candidate contains no ProgramElementNumber identities');
+  if (programElementIds.length === 0)
+    fail('R2 candidate contains no ProgramElementNumber identities');
 
   return {
     schemaVersion: DTIC_JDOCS_XML_INSPECTOR_SCHEMA_V1,
@@ -288,5 +323,71 @@ export function inspectDticJdocsXmlSourceV1(
       'mirror_bytes_and_official_pdf_are_separately_hash_bound_but_not_content_equivalent_proof',
       'not_promotable_and_not_authorized_for_production_import',
     ],
+  };
+}
+
+function normalizedScopeText(value: string): string {
+  return value.trim().replace(/\s+/g, ' ').toUpperCase();
+}
+
+/**
+ * Qualify one pinned DTIC XML candidate against an explicitly declared scope.
+ *
+ * This is still a read-only candidate envelope.  A scope mismatch is a hard
+ * refusal rather than a warning so a document cannot be silently attributed to
+ * another year, cycle, agency, or appropriation.  The returned envelope never
+ * claims semantic extraction, PDF reconciliation, completeness, or promotion.
+ */
+export function qualifyDticJdocsXmlCandidateV1(
+  bytes: Uint8Array,
+  provenance: DticJdocsXmlSourceProvenanceV1,
+  expectedScope: DticJdocsXmlCandidateScopeV1,
+): DticJdocsXmlCandidateV1 {
+  if (!Number.isInteger(expectedScope.fiscalYear) || expectedScope.fiscalYear < 1900) {
+    fail('expected fiscalYear must be a valid integer year');
+  }
+  for (const [field, value] of [
+    ['budgetCycle', expectedScope.budgetCycle],
+    ['agency', expectedScope.agency],
+    ['appropriationCode', expectedScope.appropriationCode],
+  ] as const) {
+    if (typeof value !== 'string' || value.trim() === '')
+      fail(`expected ${field} must be nonblank`);
+  }
+
+  const inspection = inspectDticJdocsXmlSourceV1(bytes, provenance);
+  const mismatches: string[] = [];
+  if (inspection.fiscalYear !== expectedScope.fiscalYear) {
+    mismatches.push(`fiscalYear=${inspection.fiscalYear} expected ${expectedScope.fiscalYear}`);
+  }
+  if (
+    normalizedScopeText(inspection.budgetCycle) !== normalizedScopeText(expectedScope.budgetCycle)
+  ) {
+    mismatches.push(`budgetCycle=${inspection.budgetCycle} expected ${expectedScope.budgetCycle}`);
+  }
+  if (normalizedScopeText(inspection.agency) !== normalizedScopeText(expectedScope.agency)) {
+    mismatches.push(`agency=${inspection.agency} expected ${expectedScope.agency}`);
+  }
+  if (
+    normalizedScopeText(inspection.appropriationCode) !==
+    normalizedScopeText(expectedScope.appropriationCode)
+  ) {
+    mismatches.push(
+      `appropriationCode=${inspection.appropriationCode} expected ${expectedScope.appropriationCode}`,
+    );
+  }
+  if (mismatches.length > 0) fail(`candidate scope mismatch: ${mismatches.join('; ')}`);
+
+  return {
+    schemaVersion: 'dtic_jdocs_xml_candidate_v1',
+    status: 'candidate_only',
+    promotable: false,
+    scope: {
+      fiscalYear: expectedScope.fiscalYear,
+      budgetCycle: expectedScope.budgetCycle.trim(),
+      agency: expectedScope.agency.trim(),
+      appropriationCode: expectedScope.appropriationCode.trim(),
+    },
+    inspection,
   };
 }

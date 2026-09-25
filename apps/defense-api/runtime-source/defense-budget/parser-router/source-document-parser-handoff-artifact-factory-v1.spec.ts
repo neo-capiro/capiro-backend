@@ -101,6 +101,14 @@ describe('source document congressional artifact factory selection', () => {
         congressionalFactoryInputs: bundle(),
       }),
     ).toThrow(/do not match handoff source identity/);
+    expect(() =>
+      resolveSourceDocumentArtifactFactoryV1({
+        ...handoffIdentity,
+        component: 'AF',
+        budgetFamily: 'committee',
+        congressionalFactoryInputs: bundle(),
+      }),
+    ).toThrow(/do not match handoff source identity/);
   });
 
   it('keeps non-committee families on their existing selector and rejects supplied committee bundles', () => {

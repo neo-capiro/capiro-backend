@@ -53,6 +53,25 @@ const profile = createHascSourceProfileV1({
   sourceDocumentKeys: ['doc-a'],
 });
 profile.requiredLineFamilies = ['rdte_pe'];
+const context = adapterTestContext({
+  manifestDocumentKey: 'doc-a',
+  sourceDocumentId: 'source-a',
+  sourcePdfSha256: ADAPTER_TEST_SOURCE_SHA,
+  sourceLocator: 'source.pdf',
+  fiscalYear: 2027,
+  family: 'committee',
+  exhibit: 'committee_report',
+  authority: 'hasc',
+  budgetCycle: 'hasc',
+  documentType: 'committee_report',
+  parser: {
+    method: result.engine,
+    parserVersion: result.parserVersion,
+    parserConfigSha256: result.parserConfigSha256,
+    outputArtifactSha256: result.contentSha256,
+    pageRanges: [{ startPage: 1, endPage: 1 }],
+  },
+});
 const packetBytes = Buffer.from(
   JSON.stringify({
     schemaVersion: 'congressional_structured_packet_v1',
@@ -83,24 +102,7 @@ function manifest(overrides: Record<string, unknown> = {}) {
         packetLocator: 'packet.json',
         packetByteSha256: sha256Bytes(packetBytes),
         profile,
-        context: adapterTestContext({
-          manifestDocumentKey: 'doc-a',
-          sourceDocumentId: 'source-a',
-          sourcePdfSha256: ADAPTER_TEST_SOURCE_SHA,
-          sourceLocator: 'source.pdf',
-          fiscalYear: 2027,
-          family: 'committee',
-          exhibit: 'committee_report',
-          authority: 'hasc',
-          budgetCycle: 'pb_fy2027',
-          parser: {
-            method: result.engine,
-            parserVersion: result.parserVersion,
-            parserConfigSha256: result.parserConfigSha256,
-            outputArtifactSha256: result.contentSha256,
-            pageRanges: [{ startPage: 1, endPage: 1 }],
-          },
-        }),
+        context,
         parserRuns: [
           {
             sourceSha256: ADAPTER_TEST_SOURCE_SHA,
@@ -134,7 +136,22 @@ function store(resultValue = result): ParserArtifactStoreV1 {
     putVerified: async () => descriptor,
   };
 }
-const request = { documentKey: 'doc-a', profileId: profile.profileId, stage: 'hasc' } as const;
+const request = {
+  documentKey: 'doc-a',
+  sourceDocumentId: 'source-a',
+  profileId: profile.profileId,
+  stage: 'hasc',
+  fiscalYear: 2027,
+  sourceSha256: ADAPTER_TEST_SOURCE_SHA,
+  sourceLocator: 'source.pdf',
+  routing: {
+    family: 'committee',
+    exhibit: 'committee_report',
+    authority: 'hasc',
+    budgetCycle: 'hasc',
+    documentType: 'committee_report',
+  },
+} as const;
 
 describe('congressional manifest packet provider', () => {
   it('loads an exact packet and persisted proof for factory readback', async () => {
@@ -148,6 +165,16 @@ describe('congressional manifest packet provider', () => {
     expect(loaded.factoryContext.context.sourcePdfSha256).toBe(ADAPTER_TEST_SOURCE_SHA);
     expect(loaded.parserResultProofs[0]?.parserRunId).toBe(runId);
     expect(loaded.parserResultProofs[0]?.resultByteSha256).toBe('b'.repeat(64));
+  });
+  it('binds a first-time registered SourceDocument id when the immutable manifest omits it', async () => {
+    const { sourceDocumentId: _sourceDocumentId, ...unboundContext } = context;
+    const loaded = await loadCongressionalFactoryInputsV1({
+      manifest: manifest({ context: unboundContext }),
+      request,
+      parserArtifactStore: store(),
+      readPacket: async () => packetBytes,
+    });
+    expect(loaded.factoryContext.context.sourceDocumentId).toBe(request.sourceDocumentId);
   });
   it('rejects a wrong packet digest and requested document/profile identity', async () => {
     await expect(
@@ -184,7 +211,7 @@ describe('congressional manifest packet provider', () => {
         parserArtifactStore: store(),
         readPacket: async () => packetBytes,
       }),
-    ).rejects.toThrow('source PDF binding');
+    ).rejects.toThrow('requested congressional source identity');
     const missing = { ...store(), findExact: async () => null } as ParserArtifactStoreV1;
     await expect(
       loadCongressionalFactoryInputsV1({
@@ -207,5 +234,16 @@ describe('congressional manifest packet provider', () => {
         readPacket: async () => packetBytes,
       }),
     ).rejects.toThrow('does not match manifest identity');
+  });
+
+  it('rejects congressional context that contradicts the requested lifecycle route', async () => {
+    await expect(
+      loadCongressionalFactoryInputsV1({
+        manifest: manifest({ context: { ...context, budgetCycle: 'pb_fy2027' } }),
+        request,
+        parserArtifactStore: store(),
+        readPacket: async () => packetBytes,
+      }),
+    ).rejects.toThrow('lifecycle routing');
   });
 });

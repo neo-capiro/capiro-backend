@@ -84,8 +84,11 @@ cycle, submission date, agency, appropriation, PE identities, funding and
 narrative fields. Existing RDT&E semantic extraction currently consumes a
 Phase-3 composed page result; no dedicated DTIC XML parser was found. The
 existing `native_structured` manifest policy and native structured companion
-verification path make a deterministic adapter plausible, but this inspector
-does not implement that adapter or map XML fields to financial assertions.
+verification path make a deterministic qualification step plausible. The
+inspector now exposes `qualifyDticJdocsXmlCandidateV1`, which re-runs the
+hash-pinned inspection and hard-refuses a FY/cycle/agency/appropriation scope
+mismatch. It returns a separate `candidate_only` envelope; it is not a
+semantic artifact adapter and does not map XML fields to financial assertions.
 
 The current extraction evidence contract has document/page/cell/text-span
 granularity but no typed XML element path. A later semantic adapter must preserve
@@ -95,7 +98,9 @@ extension to evidence provenance requires a separately reviewed contract
 change. Qualification should start with this single DTIC document, reconcile
 its fields against the official PDF, and keep its output `candidate_only` until
 parser proof, completeness checks, review, and governed publication are all
-independently accepted.
+independently accepted. The qualifier is therefore useful for historical
+backfill discovery and cohort preparation, but it cannot create a manifest
+row, persist an artifact, or authorize replay.
 
 The qualification-only manifest is retained at
 `docs/defense-budget/package-8/qualification/dtic-fy2026-official-xml-candidate-v1.json`.
