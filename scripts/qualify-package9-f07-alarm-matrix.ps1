@@ -169,12 +169,16 @@ function Wait-ExactQueueAbsent([string]$Name) {
   return $false
 }
 function Publish-MetricValue($Entry, [double]$Value) {
-  $metricData = @([ordered]@{
+  $metricDataObject = [ordered]@{
     MetricName = "P9F07_$($Entry.id)"
     Dimensions = @([ordered]@{ Name = 'ThresholdId'; Value = $Entry.id })
     Value = $Value
     Unit = $Entry.unit
-  }) | ConvertTo-Json -Depth 6 -Compress
+  }
+  $metricData = ConvertTo-Json -InputObject @($metricDataObject) -Depth 6 -Compress
+  if (-not $metricData.StartsWith('[')) {
+    throw 'Metric payload must serialize as a JSON array.'
+  }
   [IO.File]::WriteAllText($metricDataFile, $metricData, [Text.UTF8Encoding]::new($false))
   $metricDataFileUri = 'file://' + ($metricDataFile -replace '\\','/')
   Invoke-AwsCli @('cloudwatch','put-metric-data','--region',$Region,'--namespace',$namespace,'--metric-data',$metricDataFileUri) | Out-Null
