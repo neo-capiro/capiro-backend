@@ -23,6 +23,7 @@ These are limits, not forecasts or results. Do not admit work that would cross a
 
 - [Failure and load qualification matrix](./failure-recovery-qualification.json) contains fixed workload definitions, injections, assertions, owner functions, alarms, and the current unrun status for each scenario.
 - [Buyer benchmark protocol](./buyer-benchmark-protocol.md) specifies six plan workflows, blinded independent adjudication, and decision gates.
+- [Buyer qualification intake draft](./buyer-qualification-intake-draft-2026-09-25.json) lists the buyer-owned inputs needed to freeze a cohort; it is `DRAFT_NOT_APPROVED` and does not authorize a benchmark or activation.
 - [Operator and activation runbook](./operator-runbook.md) defines stage gates, alarms, stop conditions, and rollback behavior.
 - [Validation status](./validation-evidence.md) records local code/artifact checks and the explicit limits of the component test.
 - [Current release scorecard](./current-release-scorecard-2026-09-25.json) records the executable `NO_GO`/shadow-only decision and every blocker.

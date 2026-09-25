@@ -198,7 +198,14 @@
         "productionRegistration": false,
         "historicalReplay": false
       },
-      "limitation": "Official XML provenance is now byte-bound, but no governed expected-source registration, semantic XML adapter/proof, completeness denominator, review record, or production replay exists."
+      "officialXmlPdfQualification": {
+        "status": "PASS_QUALIFICATION_ONLY",
+        "report": "docs/defense-budget/package-8/qualification/dtic-official-xml-pdf-reconciliation-v1.json",
+        "matchedRecords": 5,
+        "records": 5,
+        "promotable": false
+      },
+      "limitation": "Official XML provenance is now byte-bound and has a five-record page-text spot reconciliation, but no governed expected-source registration, field-complete semantic XML adapter/proof, completeness denominator, review record, or production replay exists."
     },
     "package8DticCandidateArtifactSpike": {
       "status": "QUALIFICATION_ONLY",
@@ -224,6 +231,14 @@
       "jevEconomicsStatus": "NO_GO",
       "activation": "shadow_only",
       "limitation": "Deterministic gate checks confirm missing manifest, review, coverage, ownership, latency, pricing, cost, and authorization evidence; they do not substitute for buyer or paid-provider qualification."
+    },
+    "buyerQualificationIntakeDraft": {
+      "status": "DRAFT_NOT_APPROVED",
+      "report": "docs/defense-budget/package-9/buyer-qualification-intake-draft-2026-09-25.json",
+      "workflowCount": 6,
+      "minimumCasesPerWorkflow": 30,
+      "benchmarkAuthorized": false,
+      "activationAuthorized": false
     }
   },
   "qualification": {
