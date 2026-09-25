@@ -15,13 +15,26 @@ deployed as `capiro-dev-api:462` on pinned image digest
 The service reached 2/2 healthy tasks and final load-balancer targets; the four
 protected ingestion/publication flags remain false.
 
-The authoritative `main` advanced afterward through the FY2027 HASC
-qualification and business-development Phase 5 merge
-(`c2bc41a86ef087e4b163c556595507ec08b396cf`). That exact current-main
-revision is now deployed as API task definition `:464`; migration `:77` found
-433 migrations and exited successfully, with two healthy tasks and two final
-healthy target-group members. The feature remains fail-closed and Package 9
+The authoritative `main` then advanced through the FY2027 HASC qualification
+and business-development Phase 5 merge
+(`c2bc41a86ef087e4b163c556595507ec08b396cf`), which was deployed as API task
+definition `:464` in the prior evidence record. The current merged main
+revision is recorded below; the feature remains fail-closed and Package 9
 remains `NO_GO`/`shadow_only`.
+
+Package 4’s manual federal-evidence outbox drain now fails closed unless
+`FEDERAL_LEGISLATIVE_EVIDENCE_ENABLED=true`; dry-run inspection remains
+available. Package 3’s governed congressional packet resolver is wired through
+the parser handoff and trusted runtime mirror, but still requires an approved
+manifest and persisted independent proof before any congressional production
+artifact can be admitted. These changes merged in PRs `#1825` and `#1826` and
+were deployed from merged main
+`72a9d6ac85fcbb1cc87426b3908854ac9b76e461`.
+
+The current API rollout is task definition `:469`, with two healthy tasks on
+digest `sha256:eff8632487f7d390de7d7d4294605ab304ae481113bd0e0a5ea95fb30141d014`.
+The bounded coordinator is task definition `:3`; both releases retain all
+protected activation flags false.
 
 Package 8 discovery hardening then merged as PR `#1821` at
 `5314441e03abe1cfc04e5297296fb7b74703bd0d`. The defense-api image was built
