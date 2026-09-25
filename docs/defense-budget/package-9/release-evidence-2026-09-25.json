@@ -150,6 +150,27 @@
       },
       "writes": false,
       "limitation": "Capped aggregate counters and cursors only; not a cohort-complete row or unresolved-allocation review packet."
+    },
+    "package8OfficialSourceAudit": {
+      "status": "NO_GO_CANDIDATE_ONLY",
+      "candidate": "fy2026/RDTE_Vol1_DARPA_MasterJustificationBook_PB_2026.xml",
+      "mirrorCommit": "5c6310d9845cd75360bf4c39a220f9d6699b65df",
+      "mirrorGitBlobSha1": "ea794e1644cf515230e137a3cf92988bf38ad4e0",
+      "mirrorByteLength": 1320882,
+      "mirrorSha256": "00edc63f808a3ad568df96c8871ac5d2e1cd41446dda9e697cfca20d2a595528",
+      "officialXmlUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2026/budget_justification/pdfs/03_RDT_and_E/RDTE_Vol1_DARPA_MasterJustificationBook_PB_2026.xml",
+      "officialXmlHead": {
+        "statusCode": 200,
+        "contentLength": 1320882,
+        "contentType": "text/xml",
+        "lastModified": "2025-06-26T17:29:11Z"
+      },
+      "officialXmlGetStatusCode": 404,
+      "officialPdfUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2026/budget_justification/pdfs/03_RDT_and_E/RDTE_Vol1_DARPA_MasterJustificationBook_PB_2026.pdf",
+      "officialByteSha256": null,
+      "expectedSourceKey": null,
+      "promotable": false,
+      "limitation": "HEAD and GET disagree for the official XML endpoint; no authoritative XML bytes/hash or deterministic FY2026 DARPA expected-source identity exists. The PDF is not inferred byte-equivalent to the mirror XML."
     }
   },
   "qualification": {
