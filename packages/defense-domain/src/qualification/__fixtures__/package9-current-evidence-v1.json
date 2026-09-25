@@ -1,0 +1,145 @@
+{
+  "qualificationManifest": {
+    "id": "package9-current-evidence-v1",
+    "contentHash": null,
+    "releaseRevision": "48e117e2887d128d1fc539e606e274e516237b64",
+    "approvalRecordId": null,
+    "approvedBy": null,
+    "expectedMarketedFamilies": [],
+    "expectedMandatorySourceIds": []
+  },
+  "financialCorrectness": {
+    "reviewed": true,
+    "evidenceRecordId": "docs/defense-budget/package-6/qualification-2026-09-24.json",
+    "reviewerId": "package6-automated-qualification",
+    "reviewedAt": "2026-09-24T22:31:47.636Z",
+    "releaseRevision": "48e117e2887d128d1fc539e606e274e516237b64",
+    "displayedFactCount": 7,
+    "criticalErrorCount": 0,
+    "factsWithCompleteLineage": 7
+  },
+  "semanticAccuracy": {
+    "reviewed": false,
+    "families": []
+  },
+  "moneyAttribution": {
+    "reviewed": true,
+    "evidenceRecordId": "docs/defense-budget/package-5/qualification-2026-09-24.json",
+    "reviewerId": "package5-automated-qualification",
+    "reviewedAt": "2026-09-24T22:00:00.000Z",
+    "releaseRevision": "48e117e2887d128d1fc539e606e274e516237b64",
+    "inferredAuthoritativeAllocationCount": 0,
+    "exactAllocatedAmount": 0,
+    "sourceAllocatedAmount": 0,
+    "unexplainedResidualsVisible": true
+  },
+  "coverage": {
+    "reviewed": true,
+    "evidenceRecordId": "docs/defense-budget/package-8/release-evidence-2026-09-25.json",
+    "reviewerId": "package8-release-validation",
+    "reviewedAt": "2026-09-25T00:00:00.000Z",
+    "releaseRevision": "48e117e2887d128d1fc539e606e274e516237b64",
+    "denominatorComplete": false,
+    "qualifiedMandatorySourceIds": [],
+    "families": []
+  },
+  "lifecycle": {
+    "reviewed": true,
+    "evidenceRecordId": "docs/defense-budget/package-4/qualification-2026-09-24.json",
+    "reviewerId": "package4-automated-qualification",
+    "reviewedAt": "2026-09-24T00:00:00.000Z",
+    "releaseRevision": "48e117e2887d128d1fc539e606e274e516237b64",
+    "requiredScenarios": 6,
+    "passedScenarios": 6
+  },
+  "annualReuse": {
+    "reviewed": true,
+    "evidenceRecordId": "docs/defense-budget/package-1/validation-evidence-2026-09-24.md",
+    "reviewerId": "package1-release-validation",
+    "reviewedAt": "2026-09-24T00:00:00.000Z",
+    "releaseRevision": "48e117e2887d128d1fc539e606e274e516237b64",
+    "historicalCycles": 2,
+    "simulatedNextCycle": true,
+    "yearSpecificCodeEdits": 0,
+    "duplicateIdentities": 0,
+    "lostHistoryRecords": 0
+  },
+  "reliability": {
+    "reviewed": true,
+    "evidenceRecordId": "apps/api/src/defense-budget/package9-peak-recovery-qualification.spec.ts",
+    "reviewerId": "package9-local-component-test",
+    "reviewedAt": "2026-09-25T00:00:00.000Z",
+    "releaseRevision": "48e117e2887d128d1fc539e606e274e516237b64",
+    "requiredFailureScenarios": 8,
+    "passedFailureScenarios": 5,
+    "lostAcceptedFacts": 0,
+    "duplicateLogicalNotifications": 0,
+    "peakPendingRows": 100,
+    "peakDeadLetterRows": 0,
+    "oldestPendingAgeMinutes": 0,
+    "maxConcurrentDrainTasks": 4,
+    "verifiedProgramUpdateP95Minutes": null,
+    "commonQueryP95Milliseconds": null
+  },
+  "economics": {
+    "reviewed": false,
+    "savingsPercent": null,
+    "qualityMaintained": null,
+    "coverageMaintained": null,
+    "independentlyAdjudicated": false,
+    "approvedPriceSchedule": false
+  },
+  "userOutcome": {
+    "reviewed": false,
+    "medianTimeReductionPercent": null,
+    "completionRateMaintained": null,
+    "criticalErrorRateNoHigher": null,
+    "allAssignedTasksIncluded": false,
+    "abstentionsRescuesTimeoutsReported": false,
+    "p95TimeReported": false,
+    "independentlyAdjudicated": false
+  },
+  "ownership": {
+    "reviewed": true,
+    "evidenceRecordId": "docs/defense-budget/package-9/operator-runbook.md",
+    "reviewerId": "package9-role-inventory",
+    "reviewedAt": "2026-09-25T00:00:00.000Z",
+    "releaseRevision": "48e117e2887d128d1fc539e606e274e516237b64",
+    "sourceAdapterOwnersComplete": true,
+    "ingestionPublicationOwner": "ingestion lead",
+    "legislativeDeliveryOwner": "legislative lead",
+    "modelEconomicsOwner": "model/evaluation lead",
+    "accepted": false
+  },
+  "rollback": {
+    "reviewed": true,
+    "evidenceRecordId": "docs/defense-budget/package-9/operator-runbook.md",
+    "reviewerId": "package9-protocol-review",
+    "reviewedAt": "2026-09-25T00:00:00.000Z",
+    "releaseRevision": "48e117e2887d128d1fc539e606e274e516237b64",
+    "tested": false,
+    "preservesImmutableEvidence": true,
+    "recoveryTargetMinutes": 15
+  },
+  "costBudgets": {
+    "reviewed": false,
+    "incrementalAwsAnnualProjectedUsd": null,
+    "paidProviderAnnualProjectedUsd": null,
+    "paidProviderAuthorizedUsd": 0,
+    "paidRunManifestId": null
+  },
+  "activationControls": {
+    "reviewed": true,
+    "evidenceRecordId": "docs/defense-budget/package-9/operator-runbook.md",
+    "reviewerId": "package9-protocol-review",
+    "reviewedAt": "2026-09-25T00:00:00.000Z",
+    "releaseRevision": "48e117e2887d128d1fc539e606e274e516237b64",
+    "taskScope": null,
+    "familyScope": null,
+    "tenantScope": null,
+    "frozenQuestionModelPolicy": false,
+    "shadowBeforeCanary": true,
+    "evaluationRunManifestId": null,
+    "releaseAuthorizationRecordId": null
+  }
+}

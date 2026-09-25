@@ -25,3 +25,4 @@ export * from './evaluation/shadow-events';
 export * from './evaluation/shadow-report';
 export * from './evaluation/calibration';
 export * from './evaluation/task-paired-evaluation';
+export * from './evaluation/package9-economics';

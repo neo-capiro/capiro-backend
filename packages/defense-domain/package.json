@@ -76,6 +76,12 @@
       "require": "./dist/budget-lifecycle/index.js",
       "import": "./dist/budget-lifecycle/index.js",
       "default": "./dist/budget-lifecycle/index.js"
+    },
+    "./qualification": {
+      "types": "./dist/qualification/index.d.ts",
+      "require": "./dist/qualification/index.js",
+      "import": "./dist/qualification/index.js",
+      "default": "./dist/qualification/index.js"
     }
   },
   "files": [
@@ -83,6 +89,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "eval:package9-scorecard": "pnpm run build && node scripts/package9-scorecard.mjs",
     "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "clean": "rm -rf dist"
