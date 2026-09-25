@@ -880,6 +880,17 @@ describe('runner network isolation (INV-0, source-level)', () => {
     expect(code).not.toMatch(/\bhttp\.request\b|\bhttps\.request\b/);
     expect(code).not.toMatch(/\bsetTimeout\b|\bsetInterval\b/);
   });
+
+  test('lease claim casts interpolated UUID text before comparing UUID columns', async () => {
+    const fs = await import('node:fs/promises');
+    const path = await import('node:path');
+    const src = await fs.readFile(
+      path.join(__dirname, 'bizdev-watch-runner.ts'),
+      'utf8',
+    );
+    expect(src).toContain('WHERE "id" = ${state.id}::uuid');
+    expect(src).toContain('AND "tenant_id" = ${state.tenantId}::uuid');
+  });
 });
 
 describe('BIZDEV_WATCH_SOURCE_FAMILIES vocabulary', () => {

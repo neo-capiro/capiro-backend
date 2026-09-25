@@ -338,8 +338,8 @@ export async function runBizDevWatchEvaluation(
         .$executeRaw`UPDATE "business_development_watch_source_states"
           SET "lease_token" = ${claimToken}, "lease_until" = ${leaseUntil},
               "last_attempt_at" = ${now}, "updated_at" = ${now}
-          WHERE "id" = ${state.id}
-            AND "tenant_id" = ${state.tenantId}
+          WHERE "id" = ${state.id}::uuid
+            AND "tenant_id" = ${state.tenantId}::uuid
             AND ("lease_until" IS NULL OR "lease_until" <= now())`
         .then((n: number) => n === 1),
     );
