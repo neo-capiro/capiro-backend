@@ -2,12 +2,12 @@
   "schemaVersion": 2,
   "package": 9,
   "evidenceType": "package-9-technical-completion-and-aws-deployment",
-  "updatedAt": "2026-09-25T14:04:36.774Z",
+  "updatedAt": "2026-09-25T16:05:05.393Z",
   "sourceControl": {
     "repository": "neo-capiro/capirov2",
-    "runtimeSourceRevision": "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
-    "localMainAtBuild": "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
-    "githubMainAtBuild": "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
+    "runtimeSourceRevision": "2290d4c3dd3d2b9a4d5ad656ea0077f9fceddc57",
+    "localMainAtBuild": "2290d4c3dd3d2b9a4d5ad656ea0077f9fceddc57",
+    "githubMainAtBuild": "2290d4c3dd3d2b9a4d5ad656ea0077f9fceddc57",
     "package9PullRequests": [
       {
         "number": 1794,
@@ -41,11 +41,17 @@
         "url": "https://github.com/neo-capiro/capirov2/pull/1810",
         "mergeCommit": "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
         "scope": "complete isolated 18-threshold warning and stop alarm matrix"
+      },
+      {
+        "number": 1815,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1815",
+        "mergeCommit": "2290d4c3dd3d2b9a4d5ad656ea0077f9fceddc57",
+        "scope": "congressional proof hardening, structured XML companion provenance, queue and synthetic-latency corrections, and current fail-closed plan exit record"
       }
     ],
     "githubHostedChecks": {
       "result": "INFRASTRUCTURE_FAILURE_BEFORE_STEPS",
-      "representativeRuns": [36138334795, 36141894234],
+      "representativeRuns": [36138334795, 36141894234, 36156653550],
       "runnerAssigned": false,
       "stepsStarted": 0,
       "interpretation": "Repository-wide GitHub jobs failed before executing steps. Local, disposable-database, isolated-AWS, CodeBuild, migration, and live ECS validations are retained below."
@@ -62,7 +68,12 @@
     "apiBuild": "PASS",
     "productionWorkerComponentAssertions": 3,
     "jsonArtifactValidation": "PASS",
-    "independentTechnicalAudit": "PASS_AFTER_REPAIR"
+    "independentTechnicalAudit": "PASS_AFTER_REPAIR",
+    "package1Regression": "64 suites passed, 2 skipped; 915 tests passed, 26 skipped",
+    "parserRouterRegression": "25 suites / 278 tests passed",
+    "nonRdteRegression": "32 suites / 393 tests passed",
+    "focusedHardeningRegression": "6 suites / 77 tests passed",
+    "trustedRuntimeSourceParity": "711/711 files; zero byte differences"
   },
   "qualification": {
     "concurrentDurableDrainAndQuery": {
@@ -224,58 +235,58 @@
     "region": "us-east-1",
     "cluster": "capiro-dev",
     "holdLiftedByUser": true,
-    "runtimeSourceRevision": "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
+    "runtimeSourceRevision": "2290d4c3dd3d2b9a4d5ad656ea0077f9fceddc57",
     "codeBuild": {
       "failedSafeAttempt": {
-        "id": "capiro-build-intel-api:f4a13e9c-cd66-47b0-bf24-1a3c0b997d7f",
+        "id": "capiro-build-intel-api:d518a504-9675-49de-b2a6-e49f5b18682e",
         "status": "FAILED",
         "phase": "PRE_BUILD",
-        "sourceRevision": "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
+        "sourceRevision": "2290d4c3dd3d2b9a4d5ad656ea0077f9fceddc57",
+        "reason": "The exact-source guard rejected a literal PowerShell variable name in the environment override; the attempt stopped before registry login, build, or push.",
         "imageLoginBuildOrPushStarted": false
       },
       "successfulAttempt": {
-        "id": "capiro-build-intel-api:ab55b95c-0dc4-48e8-8a78-0c64f4e8c261",
+        "id": "capiro-build-intel-api:c7b1285b-2c2d-4653-8abf-cccbc4cf98a6",
         "status": "SUCCEEDED",
-        "sourceRevision": "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
-        "resolvedSourceRevision": "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
-        "startedAt": "2026-09-25T13:37:43.013Z",
-        "endedAt": "2026-09-25T13:41:20.344Z",
-        "buildPhaseSeconds": 161,
-        "postBuildPhaseSeconds": 25
+        "sourceRevision": "2290d4c3dd3d2b9a4d5ad656ea0077f9fceddc57",
+        "resolvedSourceRevision": "2290d4c3dd3d2b9a4d5ad656ea0077f9fceddc57",
+        "startedAt": "2026-09-25T15:50:29.086Z",
+        "endedAt": "2026-09-25T15:54:04.211Z",
+        "buildPhaseSeconds": 159,
+        "postBuildPhaseSeconds": 24,
+        "buildspecOverride": "exact source guard; apps/api/Dockerfile; linux/arm64; immutable SHA tag; ECR push only; no ECS mutation"
       }
     },
     "image": {
       "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
-      "digest": "sha256:9ab624b946dfa795d09cc087164b894701156c721ce3ec4fca86ea1171111a20",
-      "tags": [
-        "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
-        "package9-complete-20260925-88d44ec6"
-      ],
-      "pushedAt": "2026-09-25T13:41:19.091Z",
-      "sizeBytes": 293022425
+      "digest": "sha256:cbecc9043392842447e1d988e4ff55f3cab83d779c3b3b9fbfd1a819d1aef877",
+      "tags": ["2290d4c3dd3d2b9a4d5ad656ea0077f9fceddc57"],
+      "pushedAt": "2026-09-25T15:54:02.894Z",
+      "sizeBytes": 293034480
     },
     "migration": {
-      "taskDefinition": "capiro-dev-api-admin-migrate:73",
-      "taskId": "c2bc73fb6559465da3c50fcda59cbf88",
-      "imageDigest": "sha256:9ab624b946dfa795d09cc087164b894701156c721ce3ec4fca86ea1171111a20",
-      "startedAt": "2026-09-25T13:43:27.204Z",
-      "stoppedAt": "2026-09-25T13:43:57.458Z",
+      "taskDefinition": "capiro-dev-api-admin-migrate:75",
+      "taskId": "744d67c79eec4392a48b12baa3cf1278",
+      "imageDigest": "sha256:cbecc9043392842447e1d988e4ff55f3cab83d779c3b3b9fbfd1a819d1aef877",
+      "startedAt": "2026-09-25T15:55:40.005Z",
+      "stoppedAt": "2026-09-25T15:56:09.986Z",
       "exitCode": 0,
       "migrationsFound": 432,
       "pendingMigrations": 0,
       "logGroup": "/capiro/dev/api",
-      "logStream": "api/api-admin-migrate/c2bc73fb6559465da3c50fcda59cbf88"
+      "logStream": "api/api-admin-migrate/744d67c79eec4392a48b12baa3cf1278"
     },
     "deploymentRaceControl": {
-      "initialPackage9TaskDefinition": "capiro-dev-api:459",
-      "concurrentObservedTaskDefinition": "capiro-dev-api:460",
-      "concurrentObservedSourceRevision": "15bdcea3ab7706022d999090b1dcc9b4908e253a",
-      "concurrentRevisionRelationship": "ancestor of runtimeSourceRevision",
-      "resolution": "Waited for revision 460 to stabilize, cloned its live configuration, changed only the API image and GIT_SHA/RELEASE_SHA, rechecked protected flags, and deployed revision 461 after an exact task-definition race check."
+      "parentTaskDefinition": "capiro-dev-api:461",
+      "parentRolloutState": "COMPLETED",
+      "registeredTaskDefinition": "capiro-dev-api:462",
+      "preRegistrationServiceTaskDefinitionMatchedParent": true,
+      "preUpdateServiceTaskDefinitionMatchedParent": true,
+      "resolution": "Cloned the live revision 461 configuration, changed only the API image and GIT_SHA/RELEASE_SHA, rechecked protected flags, and deployed revision 462 after exact task-definition race checks before registration and update."
     },
     "service": {
       "name": "capiro-dev-api",
-      "taskDefinition": "capiro-dev-api:461",
+      "taskDefinition": "capiro-dev-api:462",
       "rolloutState": "COMPLETED",
       "desired": 2,
       "running": 2,
@@ -283,18 +294,18 @@
       "failedTasks": 0,
       "runningTasks": [
         {
-          "taskId": "85ba359877534fd49461ce7db9a975c2",
-          "privateIp": "10.40.15.209",
+          "taskId": "7c14515926c34274bd4d87ddd0441eb1",
+          "privateIp": "10.40.12.137",
           "health": "HEALTHY",
-          "imageDigest": "sha256:9ab624b946dfa795d09cc087164b894701156c721ce3ec4fca86ea1171111a20",
-          "logEventsInspected": 1253,
+          "imageDigest": "sha256:cbecc9043392842447e1d988e4ff55f3cab83d779c3b3b9fbfd1a819d1aef877",
+          "logEventsInspected": 1252,
           "errorLikeLogMatches": 0
         },
         {
-          "taskId": "8cbe9c471f7f46e5b5eef546d3752aaf",
-          "privateIp": "10.40.8.203",
+          "taskId": "db461c77b48545a6bde060ad56832967",
+          "privateIp": "10.40.7.85",
           "health": "HEALTHY",
-          "imageDigest": "sha256:9ab624b946dfa795d09cc087164b894701156c721ce3ec4fca86ea1171111a20",
+          "imageDigest": "sha256:cbecc9043392842447e1d988e4ff55f3cab83d779c3b3b9fbfd1a819d1aef877",
           "logEventsInspected": 1252,
           "errorLikeLogMatches": 0
         }
@@ -307,14 +318,14 @@
       "finalNonHealthyTargets": 0
     },
     "runtime": {
-      "gitSha": "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
-      "releaseSha": "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
+      "gitSha": "2290d4c3dd3d2b9a4d5ad656ea0077f9fceddc57",
+      "releaseSha": "2290d4c3dd3d2b9a4d5ad656ea0077f9fceddc57",
       "taskDefinitionPreservedExceptImageAndGitShaReleaseSha": true,
       "federalLegislativeEvidenceEnabled": false,
       "programAcquisitionContinuityEnabled": false,
       "fundingExecutionSourceAdapterEnabled": false,
       "fundingExecutionPublicationEnabled": false,
-      "newTaskLogEventsInspected": 2505,
+      "newTaskLogEventsInspected": 2504,
       "newTaskLogErrorLikeCount": 0,
       "smoke": {
         "appHealthStatus": 200,
@@ -324,7 +335,7 @@
     },
     "orchestrator": {
       "service": "capiro-dev-meriv2-orchestrator",
-      "taskDefinition": "capiro-dev-meriv2-orchestrator:82",
+      "taskDefinition": "capiro-dev-meriv2-orchestrator:83",
       "desired": 1,
       "running": 1,
       "pending": 0,
