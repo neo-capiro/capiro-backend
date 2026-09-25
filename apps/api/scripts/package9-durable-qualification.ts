@@ -676,10 +676,10 @@ async function runProductQueryMix(
     await Promise.all(
       clients.map(async (client, clientIndex) => {
         const offset = clientIndex * Math.ceil(cycle.length / PRODUCT_QUERY_MIX.concurrentClients);
+        let nextStartMs = startedMonotonicMs;
         for (let sequence = 0; sequence < requestStartsPerClient; sequence++) {
-          const scheduledStartMs = startedMonotonicMs + sequence * clientIntervalMs;
-          while (performance.now() < scheduledStartMs) {
-            const remaining = scheduledStartMs - performance.now();
+          while (performance.now() < nextStartMs) {
+            const remaining = nextStartMs - performance.now();
             await new Promise((resolvePromise) =>
               setTimeout(resolvePromise, Math.max(1, Math.ceil(remaining))),
             );
@@ -687,6 +687,7 @@ async function runProductQueryMix(
           if (performance.now() >= requestStartDeadlineMs) break;
           const operation = cycle[(sequence + offset) % cycle.length]!;
           const started = performance.now();
+          nextStartMs = started + clientIntervalMs;
           await runOperation(client, operation, Number((started - startedMonotonicMs).toFixed(3)));
         }
       }),
