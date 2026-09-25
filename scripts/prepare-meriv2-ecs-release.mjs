@@ -331,6 +331,9 @@ function darkApiEnvironment() {
     MERI_JEV_MAX_ATTEMPTS: '2',
     MERI_CHAT_EVIDENCE_JUDGE: 'llm',
     MERI_JEV_TASKS: '',
+    BIZDEV_JEV_ENABLED: 'false',
+    BIZDEV_JEV_TASK_BD_ENTITY_MODE: 'off',
+    BIZDEV_JEV_TASK_BD_SIGNAL_MODE: 'off',
     MERIV2_CONTROL_METRICS: 'on',
   };
 }

@@ -34,10 +34,12 @@ import {
   bizdevKeys,
   getBizDevCompanyDossier,
   getBizDevProspectDossier,
+  readBizDevJevSuggestion,
   type BizDevDossier,
   type BizDevDossierSection,
   type BizDevDossierSectionKind,
   type BizDevEvidenceItem,
+  type BizDevJevSuggestion,
 } from './bizdev-api.js';
 
 const IDENTITY_BASIS_LABELS: Record<string, string> = {
@@ -66,7 +68,11 @@ function detailKeyLabel(key: string): string {
 
 /** Structured detail rendered as selected key/value rows — never [object Object]. */
 function DetailRows({ detail }: { detail: Record<string, unknown> }) {
-  const entries = Object.entries(detail ?? {}).filter(([, v]) => v != null && v !== '');
+  // Phase 3: raw internal Jev detail keys are NEVER rendered through the
+  // generic detail table — no probabilities, prompts, private notes,
+  // contacts or conflict reasons can leak through this path.
+  const entries = Object.entries(detail ?? {})
+    .filter(([k, v]) => !k.toLowerCase().startsWith('jev') && v != null && v !== '');
   if (entries.length === 0) return null;
   return (
     <dl className="capiro-bizdev__source-list">
@@ -77,6 +83,38 @@ function DetailRows({ detail }: { detail: Record<string, unknown> }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+/**
+ * Phase 3 optional Jev suggestion rendering — canary-ready, server-gated.
+ * Each label is rendered ONLY from the exact whitelisted server token
+ * (readBizDevJevSuggestion); the browser never infers a suggestion from
+ * confidence, prose, relationship strength or probability, and a null
+ * suggestion renders exactly the Phase 2 output.
+ */
+function JevSuggestionLabels({ suggestion }: { suggestion: BizDevJevSuggestion | null }) {
+  if (!suggestion) return null;
+  if (suggestion === 'identity_review_required') {
+    return (
+      <p className="capiro-bizdev__jev-note">
+        <span className="capiro-bizdev__flag capiro-bizdev__flag--conflict">
+          Jev suggestion — review required
+        </span>
+      </p>
+    );
+  }
+  if (suggestion === 'possible_fit') {
+    return (
+      <span className="capiro-bizdev__flag capiro-bizdev__flag--conflict">Possible fit</span>
+    );
+  }
+  if (suggestion === 'direct_fit') {
+    return <span className="capiro-bizdev__flag capiro-bizdev__flag--direct">Direct fit</span>;
+  }
+  // not_evaluated — truthful and unobtrusive.
+  return (
+    <p className="capiro-bizdev__meta">Not evaluated — no automated suggestion for this section.</p>
   );
 }
 
@@ -299,6 +337,9 @@ function DossierSectionBody({
           <p className="capiro-bizdev__meta" role="status">
             {section.statusText}
           </p>
+          {kind === 'relevant_signals' ? (
+            <JevSuggestionLabels suggestion={readBizDevJevSuggestion(section.detail)} />
+          ) : null}
           {section.detail && Object.keys(section.detail).length > 0 ? (
             <DetailRows detail={section.detail} />
           ) : null}
@@ -387,6 +428,9 @@ export function DossierDrawer({ tenantId }: { tenantId: string }) {
                 <p className="capiro-bizdev__meta" role="status">
                   {identity.statusText}
                 </p>
+                {readBizDevJevSuggestion(identity.detail) === 'identity_review_required' ? (
+                  <JevSuggestionLabels suggestion="identity_review_required" />
+                ) : null}
                 {identity.detail && Object.keys(identity.detail).length > 0 ? (
                   <DetailRows detail={identity.detail} />
                 ) : null}

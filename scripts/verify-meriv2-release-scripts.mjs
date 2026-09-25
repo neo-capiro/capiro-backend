@@ -75,6 +75,9 @@ async function main() {
     "MERI_JEV_MAX_ATTEMPTS: '2'",
     "MERI_CHAT_EVIDENCE_JUDGE: 'llm'",
     "MERI_JEV_TASKS: ''",
+    "BIZDEV_JEV_ENABLED: 'false'",
+    "BIZDEV_JEV_TASK_BD_ENTITY_MODE: 'off'",
+    "BIZDEV_JEV_TASK_BD_SIGNAL_MODE: 'off'",
     "MEMORY_AUTOLEARN_GOVERNED: 'false'",
   ]) {
     assert.ok(prepare.includes(fragment), `Dark task preparation is missing ${fragment}.`);

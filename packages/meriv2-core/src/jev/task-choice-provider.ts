@@ -54,6 +54,8 @@ export interface JevChoiceTaskProvider {
 }
 
 const PACKAGE_2_CHOICE_TASKS = new Set<JevTask>(['program_identity', 'mention_scope', 'evidence_selection']);
+const BD_CHOICE_TASKS = new Set<JevTask>(['bd_entity', 'bd_signal', 'bd_claim']);
+const ENVELOPE_BOUND_CHOICE_TASKS = new Set<JevTask>([...PACKAGE_2_CHOICE_TASKS, ...BD_CHOICE_TASKS]);
 
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -146,9 +148,9 @@ export function createJevChoiceTaskProvider(options: {
   scope: JevProviderScope;
 }): JevChoiceTaskProvider {
   const registration = JEV_TASK_REGISTRY[options.task];
-  if (!PACKAGE_2_CHOICE_TASKS.has(options.task)
+  if (!ENVELOPE_BOUND_CHOICE_TASKS.has(options.task)
     || registration.primitive !== 'choice' || !registration.questionId) {
-    throw new Error(`Jev task ${options.task} is not a Package 2 envelope-bound Choice task`);
+    throw new Error(`Jev task ${options.task} is not an envelope-bound Choice task`);
   }
   return {
     name: `jev:${options.task}`,
