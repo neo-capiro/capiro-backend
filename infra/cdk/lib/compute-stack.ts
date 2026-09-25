@@ -662,6 +662,7 @@ export class ComputeStack extends cdk.Stack {
 
     const apiSharedEnv: Record<string, string> = {
       NODE_ENV: cfg.envName === 'dev' ? 'development' : 'production',
+      APP_ENV: `capiro-${cfg.envName}`,
       LOG_LEVEL: 'info',
       API_PORT: '4000',
       API_BIND_HOST: '0.0.0.0',
