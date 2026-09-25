@@ -6,11 +6,11 @@
   "activationAllowed": "shadow-only",
   "measurementStatus": "PARTIAL_PASS_LIMITED_LOCAL_CONCURRENT_AND_SYNTHETIC_AWS_ALARM_MATRIX",
   "retainedRun": {
-    "report": "./evidence/durable-run-p9-20260925125747227-ef8fac.json",
-    "sha256": "d46f3b21043d87fbc21cba0c6859f72e6cf7ce2d911d2841f46ba58e0ef3b50a",
-    "sourceRevision": "38ca3ca96ab4615c70f943b82b10224e91b9db73",
+    "report": "./evidence/durable-run-p9-20260925215225257-125f56.json",
+    "sha256": "e8befdefb29871fdbb3228ec2447b93f6397d7762055081be12c03ec1e0590e9",
+    "sourceRevision": "f371dc9c950285ecfa80506ebb3d6c1006446d95",
     "status": "PASS_LIMITED_SCOPE",
-    "scope": "Disposable local PostgreSQL repository/worker with deterministic source/provider stubs, eight recovery scenarios, a four-worker 100-row drain, append-only evidence/notification reconciliation, and a concurrent five-second compiled query-service mix."
+    "scope": "Disposable local PostgreSQL repository/worker with deterministic source/provider stubs, eight recovery scenarios, a four-worker 100-row drain, append-only evidence/notification reconciliation, and a corrected concurrent five-second compiled query-service mix."
   },
   "retainedAlarmRun": {
     "report": "./evidence/alarm-matrix-run-p9-f07-20260925T124316Z-08d62a.json",
@@ -30,13 +30,13 @@
     "scope": "Disposable local PostgreSQL plus the shipped ProgramElementReadService and PeSnapshotGateService: populated tenant-canary pointer route, emergency legacy process switch, real authorized pointer rollback from a deliberately defective total of 999 to the exact prior total of 250 and quantity of 12, immutable row-hash preservation, drain pause, outbox suppression, and durable audit assertions."
   },
   "retainedProductQueryRun": {
-    "report": "./evidence/product-query-p9q-20260925042812623-c66b14bb.json",
-    "sha256": "8513d52ec88ed2c700b5fea171e0d6d116f31eba8487b31e82a7b72e28b9a82b",
-    "sourceRevision": "f948d23cc984cd356b042caa555e3a642f3ca039",
+    "report": "./evidence/product-query-p9q-20260925220837739-63a602b7.json",
+    "sha256": "8d30dfce5d681681f7ad421eaeabe74bfdf05ff3ec32db97ea51fe773c9ad17d",
+    "sourceRevision": "f371dc9c950285ecfa80506ebb3d6c1006446d95",
     "harnessSha256": "2eb70cc0ba95831730669ff5a1a6de59b205fa654a930a94f785ff0615fb971a",
     "mixSha256": "85ad5e9bee922b0a471734ae10a4c707f92eb7164058950a9bc11b7c6535fc35",
     "status": "PASS_LOCAL_SYNTHETIC_SCOPE",
-    "scope": "A 1,800-second request-start window against compiled BudgetLifecycleQueryService and PrismaBudgetLifecycleReadStore with a small synthetic Session 12 corpus in disposable local PostgreSQL. It bypassed HTTP, authentication, network hops, AWS topology, production data, buyer traffic, concurrent outbox drain, and update-latency measurement."
+    "scope": "A 1,800-second request-start window against compiled BudgetLifecycleQueryService and PrismaBudgetLifecycleReadStore with a small synthetic Session 12 corpus in disposable local PostgreSQL: 7,108 samples, zero errors, p95 7.599 ms, and 99.98% request-start window coverage. It bypassed HTTP, authentication, network hops, AWS topology, production data, buyer traffic, concurrent outbox drain, and update-latency measurement."
   },
   "retainedAwsCostObservation": {
     "report": "./evidence/aws-cost-observation-p9-20260925T112754Z.json",
@@ -207,12 +207,12 @@
       "id": "P9-L01-PEAK-LOAD-AND-QUERY",
       "status": "PARTIAL_PASS_LIMITED_LOCAL_CONCURRENT",
       "retainedEvidence": {
-        "productQueryReport": "./evidence/product-query-p9q-20260925042812623-c66b14bb.json",
-        "productQuerySha256": "8513d52ec88ed2c700b5fea171e0d6d116f31eba8487b31e82a7b72e28b9a82b",
+        "productQueryReport": "./evidence/product-query-p9q-20260925220837739-63a602b7.json",
+        "productQuerySha256": "8d30dfce5d681681f7ad421eaeabe74bfdf05ff3ec32db97ea51fe773c9ad17d",
         "productQueryHarness": "../../../scripts/package9-product-query-benchmark.mjs",
         "productQueryHarnessSha256": "2eb70cc0ba95831730669ff5a1a6de59b205fa654a930a94f785ff0615fb971a",
-        "concurrentDrainQueryReport": "./evidence/durable-run-p9-20260925125747227-ef8fac.json",
-        "concurrentDrainQuerySha256": "d46f3b21043d87fbc21cba0c6859f72e6cf7ce2d911d2841f46ba58e0ef3b50a",
+        "concurrentDrainQueryReport": "./evidence/durable-run-p9-20260925215225257-125f56.json",
+        "concurrentDrainQuerySha256": "e8befdefb29871fdbb3228ec2447b93f6397d7762055081be12c03ec1e0590e9",
         "concurrentHarnessSha256": "151212c06489f4f5af52a32fc5a01390ccde6db643ba8169aaa746276f0785f8",
         "concurrentMixSha256": "85ad5e9bee922b0a471734ae10a4c707f92eb7164058950a9bc11b7c6535fc35"
       },
@@ -229,11 +229,11 @@
         "Measured annualized AWS projection is <=$1,000 with assumptions disclosed; provider paid spend is $0 in this lane."
       ],
       "executedAssertions": [
-        "The local synthetic product reader sustained a 1,800-second request-start window across four closed-loop clients and all eight declared operations: 7,176 samples, zero errors, 1,799.597 seconds first-to-last request-start span, and a final start 402.546 milliseconds before the deadline.",
-        "Direct compiled service/read-store latency was p50 3.834 milliseconds, p95 7.067 milliseconds, and maximum 101.305 milliseconds, below the 2,000-millisecond limit in this limited local synthetic environment.",
+        "The local synthetic product reader sustained a 1,800-second request-start window across four closed-loop clients and all eight declared operations: 7,108 samples, zero errors, 1,799.657 seconds first-to-last request-start span, and a final start 342.839 milliseconds before the deadline.",
+        "Direct compiled service/read-store latency was p50 4.032 milliseconds, p95 7.599 milliseconds, and maximum 248.564 milliseconds, below the 2,000-millisecond limit in this limited local synthetic environment.",
         "The benchmark login was NOINHERIT with no memberships and zero effective table-write privileges across 494 public tables.",
         "The corrected concurrent run held a 100-row peak, used four drain workers, finished at pending/leased/dead-letter 0/0/0, and reconciled 100 evidence identities plus 100 logical notifications with no missing or duplicate keys.",
-        "During that drain, four clients issued 20 error-free requests covering all eight declared compiled service/read-store operations; p95 was 172.174 milliseconds and monotonic overlap was 4,069.4863 milliseconds.",
+        "During that drain, four clients issued 20 error-free requests covering all eight declared compiled service/read-store operations; p95 was 153.05 milliseconds and monotonic overlap was 4,064.7537 milliseconds.",
         "All eight crash, lease, retry, source, and local provider-fault scenarios passed, and all four workload source families reconciled at 25 rows each.",
         "A read-only 30-day Cost Explorer observation found $6.1100983972 across nine relevant account-wide service totals and a simple $74.33953049926667 annualized account-wide run rate. This is supporting context only because the account has no Package 9-specific cost-allocation boundary."
       ],
