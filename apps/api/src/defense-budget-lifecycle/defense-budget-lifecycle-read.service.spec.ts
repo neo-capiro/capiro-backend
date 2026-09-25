@@ -40,6 +40,34 @@ function prismaMock(overrides: Partial<Record<string, unknown>> = {}) {
 }
 
 describe('DefenseBudgetLifecycleReadService', () => {
+  test('coverage reconciliation uses the current run and does not promote a stale PASS', async () => {
+    const original = process.env.APP_ENV;
+    process.env.APP_ENV = 'capiro-dev';
+    try {
+      const prisma = prismaMock({
+        defenseBudgetExpectedSource: { findMany: jest.fn(async () => [{ ...EXPECTED_SOURCE,
+          sourceFamily: 'pb_r2', component: 'ARMY' }]) },
+        defenseBudgetSourceObservation: { findMany: jest.fn(async () => [{ id: 'observation',
+          expectedSourceId: 'es-1', sourceDocumentId: 'doc-1', contentSha256: 'sha-1',
+          supersededByObservationId: null, observationState: 'ingested' }]) },
+        defenseBudgetSourceBundleMember: { findMany: jest.fn(async () => []) },
+        defenseBudgetActiveSnapshot: { findUnique: jest.fn(async () => ({ snapshotId: 'snap-1' })) },
+        budgetExtractionCandidateV1: { findMany: jest.fn(async () => [{ id: 'candidate-1',
+          sourceDocumentId: 'doc-1', sourceSha256: 'sha-1', currentRunId: 'run-new',
+          runs: [{ id: 'run-old', decision: 'PASS' }, { id: 'run-new', decision: 'REVIEW' }],
+          reviewDecisions: [] }]) },
+        defenseBudgetCanonicalRow: { findMany: jest.fn(async () => []) },
+      });
+      const report = await new DefenseBudgetLifecycleReadService(prisma).getCoverageReconciliation(2027);
+      expect(report.rows[0]).toMatchObject({ parsed: 1, verified: 0, reviewed: 0, published: 0,
+        denominator: null });
+      expect(report.rows[0]?.units[0]).toMatchObject({ kind: 'document', account: null,
+        budgetActivity: null });
+    } finally {
+      if (original === undefined) delete process.env.APP_ENV;
+      else process.env.APP_ENV = original;
+    }
+  });
   test('listExpectedSources never renders knownFundingPosition as anything but null', async () => {
     const prisma = prismaMock({
       defenseBudgetExpectedSource: {
