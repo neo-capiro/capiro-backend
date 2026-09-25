@@ -23,6 +23,15 @@ revision is now deployed as API task definition `:464`; migration `:77` found
 healthy target-group members. The feature remains fail-closed and Package 9
 remains `NO_GO`/`shadow_only`.
 
+Package 8 discovery hardening then merged as PR `#1821` at
+`5314441e03abe1cfc04e5297296fb7b74703bd0d`. The defense-api image was built
+by CodeBuild and pinned into the active hourly lifecycle coordinator as task
+definition `capiro-dev-defense-budget-lifecycle-coordinator:2` at digest
+`sha256:0f7d828276febe0f074d2d540c7f1c057d77b7385e81d4d0795ca1429b4cb569`.
+A bounded AWS schedule tick exited successfully with capability proof and
+`PHASE9_SCHEDULE_TICK_COMMITTED`; this is implementation evidence only and
+does not create a production manifest or authorize historical replay.
+
 ## Hardened seams in this release candidate
 
 - Package 3 now has a guarded congressional semantic-artifact factory for the
