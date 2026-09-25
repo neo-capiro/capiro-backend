@@ -9,10 +9,8 @@ import type {
   DefenseBudgetExtractionArtifactV1,
   ExtractionSourceV1,
 } from '../contracts/extraction-artifact-v1.js';
-import {
-  computeParserRunId,
-  sealParserRuntimeResult,
-} from '../parser-router/parser-runtime-contract-v1.js';
+import { sealParserRuntimeResult } from '../parser-router/parser-runtime-contract-v1.js';
+import { parserRunIdV1 } from '../parser-router/parser-run-identity-v1.js';
 import {
   DEFENSE_BUDGET_VERIFICATION_POLICY_VERSION,
   DEFENSE_BUDGET_VERIFIER_VERSION,
@@ -72,13 +70,12 @@ function fixture() {
       engineVersion: 'proof-spec',
     },
   });
-  const parserRunId = computeParserRunId({
+  const parserRunId = parserRunIdV1({
     sourceSha256: result.inputSourceSha256,
     method: result.engine,
     parserVersion: result.parserVersion,
     parserConfigSha256: result.parserConfigSha256,
-    pages: result.succeededPages,
-    runtimeContractVersion: result.schemaVersion,
+    requestedPages: result.requestedPages,
   });
   const source: ExtractionSourceV1 = {
     manifestDocumentKey: 'p1-proof',
@@ -103,6 +100,9 @@ function fixture() {
     inputSourceSha256: result.inputSourceSha256,
     outputArtifactSha256: result.contentSha256,
     pageRanges: [{ startPage: 1, endPage: 1 }],
+    requestedPages: result.requestedPages,
+    succeededPages: result.succeededPages,
+    failedPages: result.failedPages,
   });
   const identityEvidence = evidenceIdV1({ kind: 'identity', page: 1 });
   const identityFact = factIdV1({ kind: 'identity', page: 1 });

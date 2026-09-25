@@ -215,7 +215,7 @@ const ROUTING: Readonly<Record<SourceFamily, SourceFamilyRouting>> = Object.free
   // (the observation's own `authorityTrack`, threaded through unchanged) —
   // never inferred or overwritten here.
   alt_supplemental: {
-    family: 'public_law',
+    family: 'alternative_funding',
     exhibit: 'public_law',
     parserPolicy: 'mixed_layout',
     budgetCycle: 'supplemental',
@@ -223,7 +223,7 @@ const ROUTING: Readonly<Record<SourceFamily, SourceFamilyRouting>> = Object.free
     authority: 'public_law',
   },
   alt_reconciliation: {
-    family: 'public_law',
+    family: 'alternative_funding',
     exhibit: 'public_law',
     parserPolicy: 'mixed_layout',
     budgetCycle: 'supplemental',
@@ -231,7 +231,7 @@ const ROUTING: Readonly<Record<SourceFamily, SourceFamilyRouting>> = Object.free
     authority: 'public_law',
   },
   alt_continuing_resolution: {
-    family: 'public_law',
+    family: 'alternative_funding',
     exhibit: 'public_law',
     parserPolicy: 'mixed_layout',
     budgetCycle: 'supplemental',
@@ -239,7 +239,7 @@ const ROUTING: Readonly<Record<SourceFamily, SourceFamilyRouting>> = Object.free
     authority: 'public_law',
   },
   alt_rescission: {
-    family: 'public_law',
+    family: 'alternative_funding',
     exhibit: 'public_law',
     parserPolicy: 'mixed_layout',
     budgetCycle: 'supplemental',
@@ -247,7 +247,7 @@ const ROUTING: Readonly<Record<SourceFamily, SourceFamilyRouting>> = Object.free
     authority: 'public_law',
   },
   alt_transfer: {
-    family: 'committee',
+    family: 'alternative_funding',
     exhibit: 'committee_report',
     parserPolicy: 'mixed_layout',
     budgetCycle: 'supplemental',
@@ -255,7 +255,7 @@ const ROUTING: Readonly<Record<SourceFamily, SourceFamilyRouting>> = Object.free
     authority: 'reprogramming',
   },
   alt_reprogramming: {
-    family: 'committee',
+    family: 'alternative_funding',
     exhibit: 'committee_report',
     parserPolicy: 'mixed_layout',
     budgetCycle: 'supplemental',
@@ -266,7 +266,7 @@ const ROUTING: Readonly<Record<SourceFamily, SourceFamilyRouting>> = Object.free
   // Execution. Not discoverable by any registered watcher adapter today, but
   // covered so the mapping stays exhaustive over the full SourceFamily union.
   exec_allocation: {
-    family: 'unknown',
+    family: 'execution',
     exhibit: 'unknown',
     parserPolicy: 'complex',
     budgetCycle: 'execution',
@@ -274,7 +274,7 @@ const ROUTING: Readonly<Record<SourceFamily, SourceFamilyRouting>> = Object.free
     authority: 'execution',
   },
   exec_obligation: {
-    family: 'unknown',
+    family: 'execution',
     exhibit: 'unknown',
     parserPolicy: 'complex',
     budgetCycle: 'execution',
@@ -282,7 +282,7 @@ const ROUTING: Readonly<Record<SourceFamily, SourceFamilyRouting>> = Object.free
     authority: 'execution',
   },
   exec_award: {
-    family: 'unknown',
+    family: 'execution',
     exhibit: 'unknown',
     parserPolicy: 'complex',
     budgetCycle: 'execution',

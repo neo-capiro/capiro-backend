@@ -70,7 +70,9 @@ describe('R8.2-B verify CLI production proof wiring guard', () => {
     // Repository and proof clients share the SAME Prisma client.
     expect(wiringSource).toContain('const sourceDocumentClient = prisma');
     expect(wiringSource).toContain('const parseJobClient = prisma');
-    expect(wiringSource).toContain('createPrismaBudgetVerificationRepository(prisma)');
+    expect(wiringSource).toMatch(
+      /createPrismaBudgetVerificationRepository\(\s*prisma,\s*options\.verificationPersistenceFence\s*\)/,
+    );
   });
 
   it('production wiring fails closed on an unreachable database', () => {

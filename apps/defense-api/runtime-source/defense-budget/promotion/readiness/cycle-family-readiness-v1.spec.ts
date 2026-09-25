@@ -223,7 +223,7 @@ describe('evaluateCycleFamilyReadinessV1', () => {
   });
 
   it('[scoping] alternative_funding can never satisfy or overwrite the annual corpus: its track reports certification_not_supported, never waiting_for_sources, regardless of its own corpus completeness', () => {
-    const altFundingIdentity = identity({ authorityTrack: 'alternative_funding', familyGroup: 'rdte' });
+    const altFundingIdentity = identity({ authorityTrack: 'alternative_funding', familyGroup: 'alternative_funding' });
     const decision = evaluateCycleFamilyReadinessV1({
       identity: altFundingIdentity,
       cycleId: 'cycle-2027-alt-funding',
@@ -251,7 +251,7 @@ describe('evaluateCycleFamilyReadinessV1', () => {
   });
 
   it('[scoping] execution reports certification_not_supported, never waiting_for_sources, even with a fully resolved corpus', () => {
-    const executionIdentity = identity({ authorityTrack: 'execution', familyGroup: 'rdte' });
+    const executionIdentity = identity({ authorityTrack: 'execution', familyGroup: 'execution' });
     const decision = evaluateCycleFamilyReadinessV1({
       identity: executionIdentity,
       cycleId: 'cycle-2027-execution',

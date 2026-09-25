@@ -13,6 +13,10 @@ import {
 } from '../src/defense-budget/ingestion-outbox-drain-worker-v1.js';
 import { createIngestionOutboxDrainRepositoryPrismaV1 } from '../src/defense-budget/ingestion-outbox-drain-repository-prisma-v1.js';
 import type { ObservationIngestionBridgeResult } from '../src/defense-budget/observation-ingestion-bridge.service.js';
+import {
+  oldestActionableQueueAgeMs,
+  sourceRegistrationToEvidenceCommitMs,
+} from '../src/defense-budget/package9-qualification-metrics.js';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const QUALIFICATION_DIR = resolve(REPO_ROOT, 'docs/defense-budget/package-9');
@@ -303,7 +307,7 @@ async function seedWorkload(pool: Pool, samples: QuerySample[]) {
           "classified_authority_track", "classified_stage", "classified_source_family",
           "classification_confidence", "dedup_key", "first_seen_at", "last_seen_at")
        VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, 'queued', 'first_discovery', 2027,
-               'request', 'request', $7, 1, $8, $9::timestamptz, $9::timestamptz)`,
+               'request', 'request', $7, 1, $8, clock_timestamp(), clock_timestamp())`,
       [
         observation,
         expectedSourceId(familyIndex),
@@ -313,7 +317,6 @@ async function seedWorkload(pool: Pool, samples: QuerySample[]) {
         contentSha,
         family,
         sha(`p9-observation-dedup-${ordinal}`),
-        FIXED_NOW,
       ],
       `seed source observation ${ordinal}`,
     );
@@ -422,7 +425,7 @@ async function persistAcceptedFact(
   );
 }
 
-async function queueSnapshot(pool: Pool, samples: QuerySample[], label: string) {
+async function queueSnapshot(pool: Pool, samples: QuerySample[], label: string, logicalNow: Date) {
   const rows = await queryRows<{ state: string; count: string; oldest: Date | null }>(
     pool,
     samples,
@@ -432,10 +435,6 @@ async function queueSnapshot(pool: Pool, samples: QuerySample[], label: string) 
     `queue snapshot ${label}`,
   );
   const counts = Object.fromEntries(rows.map((row) => [row.state, Number(row.count)]));
-  const oldestTimestamp = rows
-    .map((row) => row.oldest)
-    .filter((date): date is Date => date !== null)
-    .sort((a, b) => a.getTime() - b.getTime())[0];
   return {
     label,
     capturedAt: new Date().toISOString(),
@@ -444,7 +443,7 @@ async function queueSnapshot(pool: Pool, samples: QuerySample[], label: string) 
     succeeded: counts.succeeded ?? 0,
     deadLetter: counts.dead_letter ?? 0,
     total: Object.values(counts).reduce((sum, count) => sum + count, 0),
-    oldestRowAgeMs: oldestTimestamp ? Math.max(0, Date.now() - oldestTimestamp.getTime()) : null,
+    oldestActionableQueueAgeMs: oldestActionableQueueAgeMs(rows, logicalNow),
   };
 }
 
@@ -938,7 +937,7 @@ async function runQualification() {
     });
     await seedWorkload(pool, samples);
     const queueSamples = rawEvidence.queueSamples as unknown[];
-    queueSamples.push(await queueSnapshot(pool, samples, 'seeded-peak'));
+    queueSamples.push(await queueSnapshot(pool, samples, 'seeded-peak', FIXED_NOW));
 
     const crashStarted = performance.now();
     const crashObservation = observationId(SCENARIO_ROWS.crash);
@@ -1099,7 +1098,9 @@ async function runQualification() {
         elapsedMs: performance.now() - faultStarted,
       });
     }
-    queueSamples.push(await queueSnapshot(pool, samples, 'fault-scenarios-recovered'));
+    queueSamples.push(
+      await queueSnapshot(pool, samples, 'fault-scenarios-recovered', recoveryTime),
+    );
 
     let activeWorkers = 0;
     let maxConcurrentWorkers = 0;
@@ -1169,7 +1170,9 @@ async function runQualification() {
       overlapDurationMs > 0 &&
       queryP95Ms !== null &&
       queryP95Ms <= PRODUCT_QUERY_P95_LIMIT_MS;
-    queueSamples.push(await queueSnapshot(pool, samples, 'drained'));
+    queueSamples.push(
+      await queueSnapshot(pool, samples, 'drained', new Date(recoveryTime.getTime() + 10_000)),
+    );
     const ledgers = await queryRows<{
       evidence: string;
       notifications: string;
@@ -1204,6 +1207,24 @@ async function runQualification() {
         GROUP BY observation."classified_source_family" ORDER BY family`,
       [],
       'reconcile source-family distribution',
+    );
+    const registrationCommitRows = await queryRows<{
+      registeredAt: Date;
+      committedAt: Date;
+    }>(
+      pool,
+      samples,
+      `SELECT observation."first_seen_at" AS "registeredAt", evidence."committed_at" AS "committedAt"
+         FROM "p9_qual_evidence" evidence
+         JOIN "defense_budget_source_observation" observation
+           ON evidence."source_fact_id" = ('fact:' || observation."id"::text)
+        WHERE evidence."run_id" = $1 ORDER BY observation."id"`,
+      [runId],
+      'measure synthetic source registration to evidence commit latency',
+    );
+    const registrationCommitLatenciesMs = registrationCommitRows.map(
+      ({ registeredAt, committedAt }) =>
+        sourceRegistrationToEvidenceCommitMs(registeredAt, committedAt),
     );
     const finalLedger = ledgers[0]!;
     const scenarioResults = rawEvidence.scenarioResults as Array<{ status: string }>;
@@ -1277,6 +1298,19 @@ async function runQualification() {
         ledgerCounts: finalLedger,
       },
       {
+        id: 'synthetic-source-registration-to-evidence-commit-latency',
+        status:
+          registrationCommitLatenciesMs.length === Number(finalLedger.evidence) &&
+          registrationCommitLatenciesMs.every((latency) => Number.isFinite(latency) && latency >= 0)
+            ? 'PASS'
+            : 'FAIL',
+        scope: 'synthetic local qualification only; not buyer-visible and not a production SLO',
+        sampleCount: registrationCommitLatenciesMs.length,
+        p50Ms: percentile(registrationCommitLatenciesMs, 0.5),
+        p95Ms: percentile(registrationCommitLatenciesMs, 0.95),
+        maxMs: percentile(registrationCommitLatenciesMs, 1),
+      },
+      {
         id: 'family-mix',
         status:
           familyCounts.length === FAMILY.length &&
@@ -1302,6 +1336,13 @@ async function runQualification() {
       maxQueueRows: Math.max(...queueSamples.map((sample) => (sample as { total: number }).total)),
       maxConcurrentWorkers,
       workerDrainElapsedMs: Number(loadElapsedMs.toFixed(3)),
+      syntheticSourceRegistrationToEvidenceCommitLatencyMs: {
+        scope: 'synthetic local qualification only; not buyer-visible and not a production SLO',
+        sampleCount: registrationCommitLatenciesMs.length,
+        p50: percentile(registrationCommitLatenciesMs, 0.5),
+        p95: percentile(registrationCommitLatenciesMs, 0.95),
+        max: percentile(registrationCommitLatenciesMs, 1),
+      },
       databaseQueryLatencyMs: {
         sampleCount: samples.length,
         min: percentile(
