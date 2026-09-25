@@ -444,6 +444,23 @@
         }
       ]
     },
+    "currentLiveObservation": {
+      "observedAt": "2026-09-25T20:48:19.397901Z",
+      "taskDefinition": "capiro-dev-api:470",
+      "releaseSha": "aebd4a30583bf2d41529eb734fe816a210cc6d08",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:cf879464b1221a34d4e81fd2c649061d96b3d38f7572e862719a1bbeb6514a74",
+      "rolloutState": "COMPLETED",
+      "desired": 2,
+      "running": 2,
+      "pending": 0,
+      "protectedFlags": {
+        "federalLegislativeEvidenceEnabled": false,
+        "programAcquisitionContinuityEnabled": false,
+        "fundingExecutionSourceAdapterEnabled": false,
+        "fundingExecutionPublicationEnabled": false
+      },
+      "ancestryCheck": "release SHA is an ancestor of the documentation branch main; this later observation does not change the captured 72a9d6ac deployment evidence or activate protected paths"
+    },
     "targetGroup": {
       "arn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-api-tg/3343fe60b1395f62",
       "expectedHealthyTargets": 2,
