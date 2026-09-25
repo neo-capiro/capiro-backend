@@ -31,10 +31,11 @@ artifact can be admitted. These changes merged in PRs `#1825` and `#1826` and
 were deployed from merged main
 `72a9d6ac85fcbb1cc87426b3908854ac9b76e461`.
 
-The current API rollout is task definition `:469`, with two healthy tasks on
-digest `sha256:eff8632487f7d390de7d7d4294605ab304ae481113bd0e0a5ea95fb30141d014`.
-The bounded coordinator is task definition `:3`; both releases retain all
-protected activation flags false.
+The current API rollout is task definition `:472`, with two healthy tasks on
+digest `sha256:263b6dd695940cb1e042d264e2baa25b74f309bb4c73423b3185e9c7a1b42e34`
+and `RELEASE_SHA=7d222c0de98013eeeac25ece4329717bc6841536`. The bounded
+coordinator is task definition `:3`; both releases retain all protected
+activation flags false.
 
 A fresh bounded P5 dry-run on `capiro-dev-api-sync-jobs:34` exited 0 without
 `--commit`, examined five SAM rows and five awards, and reported no writes with
