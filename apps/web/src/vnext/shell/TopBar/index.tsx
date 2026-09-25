@@ -18,6 +18,16 @@ import {
   type LwNotification,
 } from '../../pages/legiwatch/lib/wave1-api.js';
 import { useShellOverlay } from '../overlay-manager.js';
+import { useMe } from '../../../lib/me.js';
+import {
+  bizDevBellDateLine,
+  bizDevBellError,
+  isSafeBizDevSourceUrl,
+  useBizDevBellAlerts,
+  useBizDevBellMarkAlertRead,
+  useBizDevBellMarkAllRead,
+  type BizDevBellAlert,
+} from '../../pages/business-development/bell-alerts.js';
 
 export function CapiroTopBar({
   brand,
@@ -89,12 +99,25 @@ export function NotificationBell({
   const lwMarkRead = useMarkLwNotificationRead();
   const lwMarkAll = useMarkAllLwNotificationsRead();
   const respond = useRespondToInvite();
+  // Phase 5 stored alerts — a THIRD source in the same bell, shown only when
+  // /api/me says businessDevelopmentWatch === true (zero BD requests otherwise).
+  // Stored tenant alerts only: no provider call, ingestion, or polling here.
+  const bdWatchOn = useMe().data?.features.businessDevelopmentWatch === true;
+  const bdList = useBizDevBellAlerts(bdWatchOn);
+  const bdMarkRead = useBizDevBellMarkAlertRead();
+  const bdMarkAll = useBizDevBellMarkAllRead();
+  // Synchronous single-flight guards so double clicks can never fan out into
+  // duplicate read/read-all requests while a mutation is in flight.
+  const bdReadInFlight = useRef(false);
+  const bdMarkAllInFlight = useRef(false);
 
   const wsItems = wsList.data?.items ?? [];
   const lwItems = lwList.data?.rows ?? [];
   const wsFailed = wsList.isError;
   const lwFailed = lwList.isError;
-  const unavailable = notifications.unavailable || (wsFailed && lwFailed);
+  const bdFailed = bdWatchOn && bdList.isError;
+  const unavailable =
+    notifications.unavailable || (wsFailed && lwFailed && (!bdWatchOn || bdFailed));
 
   const label = unavailable
     ? 'Notifications unavailable'
@@ -103,16 +126,27 @@ export function NotificationBell({
   const merged = useMemo<Array<
     | { source: 'workspace'; at: number; n: WsNotification }
     | { source: 'committee'; at: number; n: LwNotification }
+    | { source: 'bizdev'; at: number; n: BizDevBellAlert }
   >>(() => {
     const out: Array<
       | { source: 'workspace'; at: number; n: WsNotification }
       | { source: 'committee'; at: number; n: LwNotification }
+      | { source: 'bizdev'; at: number; n: BizDevBellAlert }
     > = [];
+    const bdItems = bdWatchOn ? (bdList.data?.items ?? []).filter((a) => !a.dismissedAt) : [];
     for (const n of wsItems) out.push({ source: 'workspace', at: Date.parse(n.createdAt) || 0, n });
     for (const n of lwItems) out.push({ source: 'committee', at: Date.parse(n.createdAt) || 0, n });
+    // Arrival order matters: a watcher may surface an OLD event today, so
+    // firstObservedAt (notification arrival) sorts first; published/event
+    // timestamps are fallbacks only.
+    for (const n of bdItems) {
+      const at =
+        Date.parse(n.firstObservedAt ?? n.publishedAt ?? n.eventAt ?? n.effectiveAt ?? '') || 0;
+      out.push({ source: 'bizdev', at, n });
+    }
     // Newest first; a committee alert must never be buried under older items.
     return out.sort((a, b) => b.at - a.at);
-  }, [wsItems, lwItems]);
+  }, [wsItems, lwItems, bdWatchOn, bdList.data]);
 
   const onRespond = (draftId: string, collaboratorId: string, action: 'accept' | 'decline') => {
     respond.mutate(
@@ -129,6 +163,37 @@ export function NotificationBell({
   };
 
   const [actionError, setActionError] = useState<string | null>(null);
+
+  /** Business Development row: mark read FIRST, then navigate to the
+   *  prospect alert panel. Navigation happens ONLY after the read persists —
+   *  a failed read keeps the row, shows the inline error, and never navigates.
+   *  A synchronous ref guard plus the pending state block duplicate clicks. */
+  const openBizDevAlert = (n: BizDevBellAlert) => {
+    if (bdReadInFlight.current) return;
+    setActionError(null);
+    const bdTarget = `/clients?view=business-development&bdProspect=${encodeURIComponent(
+      n.prospectId,
+    )}&bdAlert=${encodeURIComponent(n.id)}`;
+    if (n.readAt) {
+      close();
+      navigate(bdTarget);
+      return;
+    }
+    bdReadInFlight.current = true;
+    bdMarkRead.mutate(
+      { prospectId: n.prospectId, alertId: n.id },
+      {
+        onSettled: () => {
+          bdReadInFlight.current = false;
+        },
+        onSuccess: () => {
+          close();
+          navigate(bdTarget);
+        },
+        onError: (err) => setActionError(bizDevBellError(err)),
+      },
+    );
+  };
 
   /** Committee/hearing row: mark read, then follow the server deep link.
    *  Navigation happens ONLY after the read persists — a failed read leaves
@@ -153,15 +218,26 @@ export function NotificationBell({
     });
   };
 
-  const markAllPending = wsMarkAll.isPending || lwMarkAll.isPending;
+  const markAllPending =
+    wsMarkAll.isPending || lwMarkAll.isPending || (bdWatchOn && bdMarkAll.isPending);
   const markAll = () => {
-    // Both sources, both caches — the dashboard Needs Attention module reads
-    // the same lw key, so it clears together with the bell.
+    // All sources, all caches — the dashboard Needs Attention module reads
+    // the same lw key, so it clears together with the bell. Each source is
+    // failure-isolated: one POST failing must not block or erase the others.
     setActionError(null);
     const onError = (err: unknown) =>
       setActionError(w1Error(err) || 'Some notifications could not be marked read.');
     if (!wsFailed) wsMarkAll.mutate(undefined, { onError });
     if (!lwFailed) lwMarkAll.mutate(undefined, { onError });
+    if (bdWatchOn && !bdFailed && !bdMarkAllInFlight.current) {
+      bdMarkAllInFlight.current = true;
+      bdMarkAll.mutate(undefined, {
+        onSettled: () => {
+          bdMarkAllInFlight.current = false;
+        },
+        onError: (err) => setActionError(bizDevBellError(err)),
+      });
+    }
   };
 
   return (
@@ -200,14 +276,20 @@ export function NotificationBell({
             ) : null}
           </div>
 
-          {wsFailed && !lwFailed ? (
+          {wsFailed ? (
             <p className="capiro-vnext-notif__empty" role="alert">
               Workspace notifications are unavailable right now — committee alerts are unaffected.
             </p>
           ) : null}
-          {lwFailed && !wsFailed ? (
+          {lwFailed ? (
             <p className="capiro-vnext-notif__empty" role="alert">
               Committee alerts are unavailable right now — workspace notifications are unaffected.
+            </p>
+          ) : null}
+          {bdFailed ? (
+            <p className="capiro-vnext-notif__empty" role="alert">
+              Business Development alerts are unavailable right now — other notifications are
+              unaffected.
             </p>
           ) : null}
           {actionError ? (
@@ -216,7 +298,7 @@ export function NotificationBell({
             </p>
           ) : null}
 
-          {wsList.isLoading || lwList.isLoading ? (
+          {wsList.isLoading || lwList.isLoading || (bdWatchOn && bdList.isLoading) ? (
             <p className="capiro-vnext-notif__empty">Loading…</p>
           ) : unavailable ? (
             <p className="capiro-vnext-notif__empty">Notifications are unavailable right now.</p>
@@ -229,6 +311,50 @@ export function NotificationBell({
           ) : (
             <ul className="capiro-vnext-notif__list">
               {merged.map((entry) => {
+                if (entry.source === 'bizdev') {
+                  const n = entry.n;
+                  const dateLine = bizDevBellDateLine(n);
+                  const bdBusy = bdMarkRead.isPending;
+                  return (
+                    <li
+                      key={`bd-${n.prospectId}-${n.id}`}
+                      className="capiro-vnext-notif__item"
+                      data-unread={!n.readAt || undefined}
+                    >
+                      {/* Siblings, never nested: the open button and the external
+                          source link are separate interactive elements inside the li. */}
+                      <button
+                        type="button"
+                        className="capiro-vnext-notif__open"
+                        disabled={bdBusy}
+                        onClick={() => openBizDevAlert(n)}
+                      >
+                        <span className="capiro-vnext-notif__message">
+                          <span className="capiro-vnext-notif__source">Business Development</span>
+                          {n.company ? `${n.company} — ` : ''}
+                          {n.title}
+                          {n.summary ? <span className="capiro-bizdev__meta">{n.summary}</span> : null}
+                          {n.materiality ? (
+                            <span className="capiro-bizdev__meta">Materiality: {n.materiality}</span>
+                          ) : null}
+                        </span>
+                        {dateLine ? (
+                          <span className="capiro-vnext-notif__time">{dateLine}</span>
+                        ) : null}
+                      </button>
+                      {isSafeBizDevSourceUrl(n.sourceLocator) ? (
+                        <a
+                          href={n.sourceLocator}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="capiro-bizdev__name-btn"
+                        >
+                          View source record (opens in a new tab)
+                        </a>
+                      ) : null}
+                    </li>
+                  );
+                }
                 if (entry.source === 'committee') {
                   const n = entry.n;
                   return (

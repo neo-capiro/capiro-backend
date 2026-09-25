@@ -488,6 +488,22 @@ export function businessDevelopmentClaimValidationEnabled(settings: unknown): bo
   return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_CLAIM_VALIDATION_FLAG, false);
 }
 
+// ── Business Development Phase 5 — prospect watch & alerts ──────────────────
+
+/**
+ * Phase 5 — the watch/alert surface. Additional per-tenant flag (default OFF)
+ * on TOP of the Phase 1 base flag: a tenant sees watch/alert routes only when
+ * BOTH flags are on, and the global env kill-switch BIZDEV_WATCH_ENABLED must
+ * also be true. Enforced by BusinessDevelopmentWatchFlagGuard (404 fail
+ * closed, exactly like the Phase 1/2/4 guards) and surfaced via GET /me
+ * `features.businessDevelopmentWatch`.
+ */
+export const BUSINESS_DEVELOPMENT_WATCH_FLAG = 'businessDevelopment.watch.enabled' as const;
+
+export function businessDevelopmentWatchEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_WATCH_FLAG, false);
+}
+
 // ── Business Development Phase 3 — Jev task-mode enrollment flags ──────────
 
 /**

@@ -198,6 +198,8 @@ const EXPECTED_TOOLS = [
   'get_business_development_brief',
   'resolve_business_development_source',
   'save_business_development_brief',
+  // Business Development Phase 5 — read-only ingested-alert summary
+  'get_business_development_recent_changes',
   // Funding Opportunities (P37) — READ-ONLY local tools. None is
   // side-effecting, so all survive the read-only chat surface below.
   'get_funding_opportunity',
@@ -508,6 +510,10 @@ describe('Meri tool registration', () => {
               calls.push('saveBrief');
               return sentinel;
             },
+            getRecentChanges: () => {
+              calls.push('getRecentChanges');
+              return sentinel;
+            },
           });
         }
         const actual = Reflect.get(target, property);
@@ -612,6 +618,7 @@ describe('Meri tool registration', () => {
       'get_business_development_evidence',
       'get_business_development_brief',
       'resolve_business_development_source',
+      'get_business_development_recent_changes',
     ]) {
       expect(svc.isSideEffecting(t)).toBe(false);
     }
@@ -687,6 +694,7 @@ describe('Meri tool registration', () => {
       'get_business_development_brief',
       'resolve_business_development_source',
       'save_business_development_brief',
+      'get_business_development_recent_changes',
     ]) {
       const schema = byName.get(name)!;
       expect(schema.input_schema.properties).toHaveProperty('conversationId');

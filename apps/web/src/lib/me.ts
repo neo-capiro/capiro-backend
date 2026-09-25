@@ -69,6 +69,14 @@ export interface MeResponse {
     businessDevelopmentMeriProspectTools?: boolean;
     /** Phase 4 assisted semantic validation. Default-off; deterministic checks remain available. */
     businessDevelopmentClaimValidation?: boolean;
+    /**
+     * Phase 5 prospect watch & alerts (Portfolio → Business Development →
+     * prospect drawer). Optional so an older cached /me shape fails closed:
+     * the real watch controls and Prospect Alerts panel only render when
+     * this is exactly true; otherwise the honest flag-disabled state stays.
+     * The API independently guards every Phase 5 route server-side.
+     */
+    businessDevelopmentWatch?: boolean;
   };
 }
 

@@ -70,6 +70,12 @@ const AUTHORITATIVE_IDENTITY_TOOLS = new Set([
   'search_lda_filings',
   'search_sec_filings',
 ]);
+const NON_IDENTITY_DOMAINS = new Set([
+  'facebook.com',
+  'linkedin.com',
+  'x.com',
+  'youtube.com',
+]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -195,6 +201,12 @@ function domainFromUrl(value: string | null): string | null {
   }
 }
 
+function isIdentityDomain(domain: string): boolean {
+  return ![...NON_IDENTITY_DOMAINS].some(
+    (blocked) => domain === blocked || domain.endsWith(`.${blocked}`),
+  );
+}
+
 function sourceWeight(tool: string): number {
   if (tool === 'lookup_client_registry') return 0.1;
   if (tool === 'search_sec_filings') return 0.08;
@@ -218,11 +230,11 @@ function candidateFromRow(
   const domains = new Set<string>();
   for (const field of URL_FIELDS) {
     const domain = domainFromUrl(stringValue(row[field]));
-    if (domain) domains.add(domain);
+    if (domain && isIdentityDomain(domain)) domains.add(domain);
   }
   for (const field of ['domain', 'emailDomain']) {
     const domain = domainFromUrl(stringValue(row[field]));
-    if (domain) domains.add(domain);
+    if (domain && isIdentityDomain(domain)) domains.add(domain);
   }
   const identifiers: Record<string, string> = {};
   for (const [field, key] of ID_FIELDS) {
@@ -369,7 +381,10 @@ export function buildMeriExternalEntityResolution(
   const corroborated = (top?.sourceTools.length ?? 0) >= 2;
   const authoritative = top ? hasAuthoritativeIdentity(top) : false;
   const separatedFromRunnerUp =
-    !runnerUp || (top ? top.confidence - runnerUp.confidence >= 0.06 : false);
+    !runnerUp ||
+    (top
+      ? Math.round((top.confidence - runnerUp.confidence) * 1000) / 1000 >= 0.06
+      : false);
   const identityStrength =
     exactDomain || corroborated || (authoritative && exactName && (top?.confidence ?? 0) >= 0.9);
   const confident = Boolean(

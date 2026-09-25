@@ -840,6 +840,32 @@ export const configSchema = z.object({
     z.enum(['off', 'shadow', 'internal_canary']).default('off'),
   ),
 
+  // ── Business Development Phase 5 — DB-only watch evaluator ───────────────
+  // Global kill-switch for the Phase 5 watch/alert surface. Default OFF; only
+  // 'true'/'1'/'yes'/'on' enable (house string-allowlist transform, NOT
+  // z.coerce.boolean()). The per-tenant businessDevelopment.watch.enabled flag
+  // is ANDed on top (tenant-flags.ts); GET /me surfaces the AND.
+  BIZDEV_WATCH_ENABLED: z
+    .string()
+    .default('false')
+    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+  // Comma-separated source-family allowlist the evaluator may scan. Defaults
+  // to the SAFE ACTIVE FIVE (acquisition_revision is DEFERRED and must never
+  // be activated by default); every entry must be a known family (validated
+  // at read time — unknown families fail closed, never silently skipped).
+  // No provider credentials anywhere in this block.
+  BIZDEV_WATCH_SOURCE_FAMILIES: z.string().default(
+    'federal_award,federal_assistance_award,sam_opportunity,tango_resource,lda_filing',
+  ),
+  // Max watches processed per evaluator run (bounded work).
+  BIZDEV_WATCH_MAX_PER_RUN: z.coerce.number().int().min(1).max(500).default(50),
+  // Max source records read per watch per family per pass (complete bound: a
+  // read that would exceed it is marked partial and does NOT advance the
+  // successful-complete baseline/watermark).
+  BIZDEV_WATCH_MAX_RECORDS_PER_SOURCE: z.coerce.number().int().min(1).max(500).default(50),
+  // WatchSourceState lease duration in seconds (multi-worker safety).
+  BIZDEV_WATCH_LEASE_SECONDS: z.coerce.number().int().min(30).max(3600).default(300),
+
   // Recall.ai meeting-notetaker bot (docs/plans/meeting-notetaker-bot-plan.md).
   // RECALL_API_KEY authenticates outbound bot dispatch/poll calls (sent as the
   // `Authorization: Token <key>` scheme, NOT Bearer). RECALL_WEBHOOK_SECRET

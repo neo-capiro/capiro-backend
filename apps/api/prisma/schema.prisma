@@ -328,6 +328,10 @@ model Tenant {
   bizdevJevDecisions                 BusinessDevelopmentJevDecision[]
   bizdevBriefs                       BusinessDevelopmentBrief[]
   bizdevBriefVersions                BusinessDevelopmentBriefVersion[]
+  bizdevWatches                      BusinessDevelopmentWatch[]
+  bizdevWatchSourceStates            BusinessDevelopmentWatchSourceState[]
+  bizdevAlerts                       BusinessDevelopmentAlert[]
+  bizdevAlertDeliveries              BusinessDevelopmentAlertDelivery[]
 
   @@map("tenants")
 }
@@ -14828,6 +14832,8 @@ model BusinessDevelopmentProspect {
   // service against an ACTIVE TenantMembership of the same tenant.
   activity        BusinessDevelopmentProspectActivity[]
   briefs          BusinessDevelopmentBrief[]
+  watches         BusinessDevelopmentWatch[]
+  alerts          BusinessDevelopmentAlert[]
 
   // Prisma-required composite unique criterion for the Phase 4 tenant-safe
   // composite FK from business_development_briefs (tenant_id, prospect_id).
@@ -15016,4 +15022,207 @@ model BusinessDevelopmentBriefVersion {
   @@unique([tenantId, briefId, idempotencyKey], map: "business_development_brief_versions_tenant_idempotency_key")
   @@index([tenantId, briefId, createdAt(sort: Desc)], map: "business_development_brief_versions_brief_created_idx")
   @@map("business_development_brief_versions")
+}
+
+/// Business Development Phase 5 — one watch per prospect. A watch is the
+/// tenant-private subscription that turns existing canonical projections
+/// (federal_award, federal_assistance_award, sam_opportunity, tango_resource,
+/// lda_filing, acquisition_revision) into tenant alerts. Phase 5 performs NO
+/// new ingestion: the runner reads existing projections only, through the
+/// per-watch BusinessDevelopmentWatchSourceState rows. SQL migration remains
+/// the source of truth for RLS, the one-watch-per-prospect unique (INCLUDING
+/// dismissed/converted prospects), the status/frequency checks, and the
+/// composite tenant-safe FKs. Existing BusinessDevelopmentProspect.watchRequested
+/// stays as-is for compatibility; the migration seeds active watches for
+/// watch_requested=true prospects with a quiet (alert-free) baseline.
+model BusinessDevelopmentWatch {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  prospectId       String    @map("prospect_id") @db.Uuid
+  /// Owner user id, plain UUID with NO DB foreign key (same rationale as
+  /// prospect owner: history survives user departure). Membership validated
+  /// in the service against an ACTIVE TenantMembership of the same tenant.
+  ownerUserId      String?   @map("owner_user_id") @db.Uuid
+  /// active | paused | ended (SQL CHECK).
+  status           String    @default("active") @db.VarChar(16)
+  mutedUntil       DateTime? @map("muted_until") @db.Timestamptz(6)
+  /// Alert categories the owner wants surfaced (subset of the Phase 5
+  /// category vocabulary; empty = all categories).
+  categories       String[]  @default([])
+  /// real_time | daily | weekly (SQL CHECK); NULL = tenant default.
+  frequency        String?   @db.VarChar(16)
+  /// True when the owner wants a digest instead of individual alerts.
+  digest           Boolean   @default(false)
+  /// Bumped by every preference change so the runner can distinguish
+  /// preference-driven re-evaluation from source-driven change.
+  preferenceVersion Int      @default(1) @map("preference_version")
+  requestedByUserId String?   @map("requested_by_user_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant   Tenant                              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  prospect BusinessDevelopmentProspect          @relation(fields: [tenantId, prospectId], references: [tenantId, id], onDelete: Cascade, map: "business_development_watches_prospect_fkey")
+  states   BusinessDevelopmentWatchSourceState[]
+  alerts   BusinessDevelopmentAlert[]
+
+  /// Prisma-required composite unique for the tenant-safe prospect FK target
+  /// (physical index SQL-owned since Phase 4 already created it on the
+  /// prospects table).
+  @@unique([tenantId, id], map: "business_development_watches_tenant_id_id_key")
+  /// ONE watch per (tenant, prospect) — including dismissed/converted
+  /// prospects; SQL owns the physical unique index of the same name.
+  @@unique([tenantId, prospectId], map: "business_development_watches_tenant_prospect_key")
+  @@index([tenantId, status, mutedUntil], map: "business_development_watches_tenant_status_muted_idx")
+  @@index([tenantId, ownerUserId], map: "business_development_watches_tenant_owner_idx")
+  @@index([tenantId, updatedAt(sort: Desc)], map: "business_development_watches_tenant_updated_idx")
+  @@map("business_development_watches")
+}
+
+/// Business Development Phase 5 — per-watch, per-source runner state.
+/// sourceFamily is one of the allowed EXISTING canonical projections; health is
+/// pending | healthy | partial | error | stale | paused (SQL CHECK). The
+/// baselineState JSONB holds the BizDevWatchBaseline (recorded fingerprints
+/// per recordId); baselinedAt NULL means "quiet baseline not yet run" — the
+/// runner creates it WITHOUT manufacturing alerts. sourceWatermark /
+/// lastSuccessfulCompleteCheckAt only advance on a COMPLETE healthy check:
+/// partial/error results update lastAttemptAt/health/lastError but never
+/// advance the complete cursor. leaseToken/leaseUntil let a DB-only
+/// evaluator safely claim per-watch/per-source work across overlapping ECS
+/// tasks without any new ingestion schedule.
+model BusinessDevelopmentWatchSourceState {
+  id                             String    @id @default(uuid()) @db.Uuid
+  tenantId                       String    @map("tenant_id") @db.Uuid
+  watchId                        String    @map("watch_id") @db.Uuid
+  /// federal_award | federal_assistance_award | sam_opportunity |
+  /// tango_resource | lda_filing | acquisition_revision (SQL CHECK).
+  sourceFamily                   String    @map("source_family") @db.VarChar(32)
+  /// pending | healthy | partial | error | stale | paused (SQL CHECK).
+  health                         String    @default("pending") @db.VarChar(16)
+  baselineState                  Json?     @map("baseline_state")
+  baselinedAt                    DateTime? @map("baselined_at") @db.Timestamptz(6)
+  lastAttemptAt                  DateTime? @map("last_attempt_at") @db.Timestamptz(6)
+  lastSuccessfulCompleteCheckAt  DateTime? @map("last_successful_complete_check_at") @db.Timestamptz(6)
+  sourceWatermark                DateTime? @map("source_watermark") @db.Timestamptz(6)
+  lastError                      String?   @map("last_error")
+  consecutiveFailures            Int       @default(0) @map("consecutive_failures")
+  /// DB-only evaluator lease (tenant-scoped): a claim token + expiry. Both
+  /// NULL when unclaimed; claiming overwrites atomically in the runner. The
+  /// lease creates NO schedule — the evaluator that ticks claims it.
+  leaseToken                     String?   @map("lease_token") @db.VarChar(64)
+  leaseUntil                     DateTime? @map("lease_until") @db.Timestamptz(6)
+  createdAt                      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  watch  BusinessDevelopmentWatch     @relation(fields: [tenantId, watchId], references: [tenantId, id], onDelete: Cascade, map: "business_development_watch_source_states_watch_fkey")
+
+  /// One state row per (tenant, watch, source family) — SQL-owned composite
+  /// unique backing index is created by the Phase 5 migration with the same
+  /// name.
+  @@unique([tenantId, watchId, sourceFamily], map: "business_development_watch_source_states_watch_source_key")
+  /// Claimable work scan: due or lease-expired rows per tenant.
+  @@index([tenantId, sourceFamily, health, leaseUntil], map: "business_development_watch_source_states_tenant_claim_idx")
+  @@index([tenantId, lastSuccessfulCompleteCheckAt(sort: Desc)], map: "business_development_watch_source_states_last_success_idx")
+  @@map("business_development_watch_source_states")
+}
+
+/// Business Development Phase 5 — append-only tenant alert. One row per
+/// material change a watch surfaced, carrying the exact source identity
+/// (prospect/watch/source family/category/changeKind/materiality), the stable
+/// semantic fingerprint + tenant-delivery dedupe key (SQL uniques make
+/// redelivery impossible), the before/after states, and the human text.
+/// `implication` is EXPLICITLY inference (the pure diff's deterministic
+/// gloss, never a source fact) and downstream UI must label it as such.
+/// Reads support an inbox directly: firstObservedAt / read / dismiss fields.
+model BusinessDevelopmentAlert {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  watchId          String   @map("watch_id") @db.Uuid
+  prospectId       String   @map("prospect_id") @db.Uuid
+  sourceFamily     String   @map("source_family") @db.VarChar(32)
+  category         String   @db.VarChar(32)
+  /// new_record | material_update | correction | backfill (SQL CHECK).
+  changeKind       String   @map("change_kind") @db.VarChar(24)
+  /// high | medium | low (SQL CHECK).
+  materiality      String   @db.VarChar(16)
+  /// Stable source record id within the projection.
+  recordId         String   @map("record_id")
+  /// Optional source revision (ledger revision, content sha, …).
+  sourceRevision   String?  @map("source_revision")
+  /// SHA-256 of the semantic change identity (pure diff contract).
+  fingerprint      String   @db.VarChar(64)
+  /// Tenant-delivery dedupe key: family:record:fingerprint.
+  dedupeKey        String   @map("dedupe_key") @db.VarChar(512)
+  beforeState      Json?    @map("before_state")
+  afterState       Json     @map("after_state")
+  changesJsonb     Json     @default("[]") @map("changes_jsonb")
+  title            String
+  summary          String
+  /// INFERENCE: deterministic gloss produced by the pure diff; NEVER a
+  /// source fact. UI must label this as inference.
+  implication      String
+  /// Exact source locator (URL or canonical projection pointer).
+  sourceLocator    String   @map("source_locator")
+  eventAt          DateTime? @map("event_at") @db.Timestamptz(6)
+  effectiveAt      DateTime? @map("effective_at") @db.Timestamptz(6)
+  publishedAt      DateTime? @map("published_at") @db.Timestamptz(6)
+  firstObservedAt  DateTime @default(now()) @map("first_observed_at") @db.Timestamptz(6)
+  /// Recipient read/dismiss state lives ONLY on the per-recipient
+  /// BusinessDevelopmentAlertDelivery row (single source of truth). The alert
+  /// itself is append-only: many recipients may each have their own read and
+  /// dismiss state for the same alert.
+  /// open | review | suppressed (SQL CHECK): review queues for a human,
+  /// suppressed stops future deliveries of the same semantic event.
+  reviewState      String   @default("open") @map("review_state") @db.VarChar(16)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant   Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  watch    BusinessDevelopmentWatch @relation(fields: [tenantId, watchId], references: [tenantId, id], onDelete: Cascade, map: "business_development_alerts_watch_fkey")
+  /// Tenant-safe prospect link for the DENORMALIZED prospect_id: the
+  /// composite FK guarantees the alert's prospect belongs to the SAME tenant.
+  prospect BusinessDevelopmentProspect @relation(fields: [tenantId, prospectId], references: [tenantId, id], onDelete: Cascade, map: "business_development_alerts_prospect_fkey")
+  deliveries BusinessDevelopmentAlertDelivery[]
+
+  /// Prisma-required composite unique target for the tenant-safe alert FK
+  /// from deliveries (the physical index lives on this table in SQL).
+  @@unique([tenantId, id], map: "business_development_alerts_tenant_id_id_key")
+  /// SEMANTIC unique: the same change can never be recorded twice per watch.
+  @@unique([tenantId, watchId, dedupeKey], map: "business_development_alerts_tenant_watch_dedupe_key")
+  @@index([tenantId, watchId, firstObservedAt(sort: Desc)], map: "business_development_alerts_tenant_watch_observed_idx")
+  @@index([tenantId, reviewState, firstObservedAt(sort: Desc)], map: "business_development_alerts_tenant_review_state_idx")
+  @@index([tenantId, category, firstObservedAt(sort: Desc)], map: "business_development_alerts_tenant_category_idx")
+  @@index([tenantId, prospectId, firstObservedAt(sort: Desc)], map: "business_development_alerts_tenant_prospect_idx")
+  @@map("business_development_alerts")
+}
+
+/// Business Development Phase 5 — idempotent in-app delivery of an alert to a
+/// recipient user. One row per (tenant, alert, recipient, channel): the
+/// unique makes double delivery impossible even across overlapping evaluator
+/// tasks. recipientUserId is a plain UUID (no DB FK) for the same
+/// history-survives-departure rationale as prospect owners.
+model BusinessDevelopmentAlertDelivery {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  alertId        String   @map("alert_id") @db.Uuid
+  recipientUserId String   @map("recipient_user_id") @db.Uuid
+  /// in_app | digest (SQL CHECK).
+  channel        String   @default("in_app") @db.VarChar(16)
+  deliveredAt    DateTime @default(now()) @map("delivered_at") @db.Timestamptz(6)
+  /// AUTHORITATIVE recipient read state: this row — not the alert — is the
+  /// single source of truth for whether THIS recipient read the alert.
+  readAt         DateTime? @map("read_at") @db.Timestamptz(6)
+  /// AUTHORITATIVE recipient dismiss state; dismissal implies read (SQL
+  /// CHECK). dismissedByUserId is a plain UUID (no DB FK): history survives
+  /// user departure.
+  dismissedAt    DateTime? @map("dismissed_at") @db.Timestamptz(6)
+  dismissedByUserId String? @map("dismissed_by_user_id") @db.Uuid
+
+  tenant Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  alert  BusinessDevelopmentAlert @relation(fields: [tenantId, alertId], references: [tenantId, id], onDelete: Cascade, map: "business_development_alert_deliveries_alert_fkey")
+
+  /// Idempotent delivery: same alert to the same recipient exactly once
+  /// per channel (SQL unique, same name).
+  @@unique([tenantId, alertId, recipientUserId, channel], map: "business_development_alert_deliveries_recipient_channel_key")
+  @@index([tenantId, recipientUserId, deliveredAt(sort: Desc)], map: "business_development_alert_deliveries_tenant_recipient_idx")
+  @@map("business_development_alert_deliveries")
 }

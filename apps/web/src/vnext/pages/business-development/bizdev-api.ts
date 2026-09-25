@@ -314,6 +314,161 @@ export function saveBizDevPreferences(
     .then((r) => r.data);
 }
 
+// ── Phase 5 — prospect watch & alerts (feature-gated contract) ─────────
+//
+// These functions freeze the expected Phase 5 endpoint contracts. The
+// backend ships them behind its own feature flag; the web layer only calls
+// them when the Phase 5 feature flag is enabled, and every response is read
+// through resilient/optional shapes so a partially rolled-out backend or an
+// older cached build never crashes the drawer. This UI performs NO provider
+// ingestion, fetching or external polling of its own — the backend's watch
+// pipeline is the only source of checks and alerts.
+
+/** Watch lifecycle statuses (exact API enum; unknown values render honestly). */
+export type BizDevWatchStatus = 'active' | 'paused' | 'ended';
+
+/** Per-source health reported by GET .../watch (`sources` list). */
+export type BizDevWatchSourceHealth = 'pending' | 'healthy' | 'partial' | 'error' | 'stale' | 'paused';
+
+export interface BizDevWatchSource {
+  source: string;
+  health: BizDevWatchSourceHealth;
+  /** ISO timestamp of the last completed check; null until one completes. */
+  lastCheckedAt: string | null;
+  /** Server-provided, human-readable explanation for non-healthy states. */
+  detail: string | null;
+}
+
+/** GET /api/business-development/prospects/:prospectId/watch response. */
+export interface BizDevProspectWatch {
+  /** null = no watch exists yet for this prospect. */
+  watch: {
+    status: BizDevWatchStatus;
+    categories: string[];
+    ownerUserId: string | null;
+    mutedUntil: string | null;
+    createdAt: string;
+    updatedAt: string;
+  } | null;
+  sources: BizDevWatchSource[];
+  /** ISO timestamp of the last fully completed check cycle, if any. */
+  lastCompletedCheckAt: string | null;
+}
+
+export interface BizDevActivateWatchInput {
+  categories?: string[];
+  ownerUserId?: string;
+}
+
+export interface BizDevUpdateWatchInput {
+  status?: BizDevWatchStatus;
+  mutedUntil?: string | null;
+  categories?: string[];
+  ownerUserId?: string;
+}
+
+/** POST .../watch — activates an existing watch or creates one. */
+export function activateBizDevWatch(api: AxiosInstance, prospectId: string, input: BizDevActivateWatchInput = {}) {
+  return api
+    .post<BizDevProspectWatch>(
+      `/api/business-development/prospects/${encodeURIComponent(prospectId)}/watch`,
+      input,
+    )
+    .then((r) => r.data);
+}
+
+/** PATCH .../watch — pause/resume/end, mute, categories or owner. */
+export function updateBizDevWatch(api: AxiosInstance, prospectId: string, input: BizDevUpdateWatchInput) {
+  return api
+    .patch<BizDevProspectWatch>(
+      `/api/business-development/prospects/${encodeURIComponent(prospectId)}/watch`,
+      input,
+    )
+    .then((r) => r.data);
+}
+
+export function getBizDevProspectWatch(api: AxiosInstance, prospectId: string) {
+  return api
+    .get<BizDevProspectWatch>(`/api/business-development/prospects/${encodeURIComponent(prospectId)}/watch`)
+    .then((r) => r.data);
+}
+
+/** One alert row (resilient: optional fields stay absent-safe in the UI). */
+export interface BizDevProspectAlert {
+  id: string;
+  prospectId: string;
+  title: string;
+  summary: string | null;
+  /** Materiality in words; never implied by color alone. */
+  materiality: string | null;
+  /** Raw materiality enum, kept internal; the text above is what users read. */
+  materialityLevel: string | null;
+  company: string | null;
+  /** Canonical source identity: which watched source family produced it. */
+  sourceFamily: string | null;
+  /** Watch/source category the alert belongs to (canonical name: category). */
+  category: string | null;
+  /** When the underlying event happened / takes effect (canonical: eventAt/effectiveAt). */
+  eventAt: string | null;
+  effectiveAt: string | null;
+  /** When the source published it / when Capiro first observed it (canonical: publishedAt/firstObservedAt). */
+  publishedAt: string | null;
+  firstObservedAt: string | null;
+  /** Exact deep link to the original source record (canonical: sourceLocator). */
+  sourceLocator: string | null;
+  /**
+   * Implication/inference text. Rendered explicitly under an 'Inference'
+   * label when present — the UI never presents it as a direct source fact.
+   */
+  implication: string | null;
+  readAt: string | null;
+  dismissedAt: string | null;
+}
+
+export function getBizDevProspectAlerts(api: AxiosInstance, prospectId: string, limit = 25, cursor?: string) {
+  return api
+    .get<{ items: BizDevProspectAlert[]; nextCursor?: string | null }>(
+      `/api/business-development/prospects/${encodeURIComponent(prospectId)}/alerts`,
+      { params: { limit, ...(cursor ? { cursor } : {}) } },
+    )
+    .then((r) => r.data);
+}
+
+export function markBizDevAlertRead(api: AxiosInstance, prospectId: string, alertId: string) {
+  return api
+    .post(`/api/business-development/prospects/${encodeURIComponent(prospectId)}/alerts/${encodeURIComponent(alertId)}/read`)
+    .then((r) => r.data);
+}
+
+export function dismissBizDevAlert(api: AxiosInstance, prospectId: string, alertId: string) {
+  return api
+    .post(`/api/business-development/prospects/${encodeURIComponent(prospectId)}/alerts/${encodeURIComponent(alertId)}/dismiss`)
+    .then((r) => r.data);
+}
+
+/**
+ * Human label for a per-source health value. Deliberately distinguishes
+ * error/stale/paused states so a failed or timed-out check is never rendered
+ * as if the source simply had nothing new.
+ */
+export const BIZDEV_SOURCE_HEALTH_LABELS: Record<BizDevWatchSourceHealth, string> = {
+  pending: 'Waiting for its first check',
+  healthy: 'Checked and healthy',
+  partial: 'Partial — some data could not be checked',
+  error: 'Error — the last check failed',
+  stale: 'Unavailable — this source is deferred or needs review',
+  paused: 'Paused — checks are not running for this source',
+};
+
+// ── Phase 5 query keys ────────────────────────────────────────────────
+
+export const bizdevWatchKeys = {
+  watch: (tenantId: string, prospectId: string) =>
+    ['business-development', tenantId, 'prospect', prospectId, 'watch'] as const,
+  alerts: (tenantId: string, prospectId: string) =>
+    ['business-development', tenantId, 'prospect', prospectId, 'alerts'] as const,
+};
+
 // ── query keys (full identity: no cross-view staleness) ────────────────
 
 export const bizdevKeys = {
