@@ -27,4 +27,3 @@ Package 1's exact production queue inventory found zero manifest-eligible rows. 
 - [Validation evidence](./validation-evidence-2026-09-24.md)
 - [Historical notification qualification](./package4-historical-suppression-qualification.json)
 - [DTIC/JDOCS candidate assessment](./handriss-dtic-source-catalog-assessment.md)
-

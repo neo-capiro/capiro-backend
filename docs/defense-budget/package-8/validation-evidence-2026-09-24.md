@@ -1,6 +1,6 @@
 # Package 8 validation evidence
 
-Date: 2026-09-24  
+Date: 2026-09-24
 Repository: `neo-capiro/capirov2`
 
 ## Local qualification
@@ -32,4 +32,3 @@ Repository: `neo-capiro/capirov2`
 ## Production release gates
 
 The code PR must merge to GitHub `main`, local `main` must fast-forward to the exact merge, and the API/web images must be built from that merge. Deployment must preserve the existing ingestion/publication flags. Post-deploy evidence must record ECS stability, exact image digests, runtime SHA, `APP_ENV`, the current coverage report, the exact manifest-eligibility decision, and notification counts before/after any permitted read-only qualification.
-
