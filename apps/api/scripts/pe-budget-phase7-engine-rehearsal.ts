@@ -42,10 +42,20 @@ import {
   type PromotionProjectionInputV1,
 } from '../src/defense-budget/promotion/promotion-planner-v1.js';
 import { canonicalMappingRegistryHashV1 } from '../src/defense-budget/promotion/canonical-mapping-registry-v1.js';
-import type { PromotionAuditEntryV1 } from '../src/defense-budget/promotion/promotion-eligibility-service-v1.js';
+import {
+  PrismaPromotionAuditSinkV1,
+  type PromotionAuditEntryV1,
+} from '../src/defense-budget/promotion/promotion-eligibility-service-v1.js';
+import { createSnapshotReadPortPrismaV1 } from '../src/defense-budget/promotion/snapshot-read-repository-prisma-v1.js';
+import type { SnapshotReadPortV1 } from '../src/defense-budget/promotion/snapshot-read-repository-v1.js';
+import { PeSnapshotGateService } from '../src/program-element/snapshot/pe-snapshot-gate.service.js';
+import { ProgramElementReadService } from '../src/program-element/program-element-read.service.js';
+import { TenantContextStore } from '../src/tenant/tenant-context.store.js';
+import type { TenantContext } from '@capiro/shared';
 
 const ADMIN_URL = required('ADMIN_DATABASE_URL');
 const PROMOTER_URL = required('PROMOTER_DATABASE_URL');
+const APP_URL = required('APP_DATABASE_URL');
 // A distinct environment from the SQL-level sections above, so this runs as a
 // genuine baseline hydration against an empty pointer. The active pointer is
 // unique per (domain, environment), so the two cannot interfere. Sharing the
@@ -56,6 +66,8 @@ const ENVIRONMENT = 'engine';
 const DOMAIN = 'defense_budget';
 const SNAPSHOT_ID = '99999999-9999-9999-9999-999999999999';
 const PRIOR_SNAPSHOT_ID = '99999999-9999-9999-9999-999999999998';
+const F06_PE_CODE = 'P9-F06-SYNTHETIC-PE';
+const F06_CANARY_TENANT = 'p9-f06-synthetic-canary-tenant';
 const SHA = (c: string) => c.repeat(64);
 
 let passed = 0;
@@ -75,6 +87,73 @@ function required(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`missing env var ${name}`);
   return value;
+}
+
+/** Exercise the shipped ProgramElementReadService and gate with only synthetic legacy data. */
+async function readSyntheticPe(
+  app: PrismaClient,
+  options: { rollbackOn: boolean; tenantId: string },
+): Promise<{ rows: Awaited<ReturnType<ProgramElementReadService['getBudgetPositions']>>; snapshotIds: string[]; legacyReads: number }> {
+  const source = createSnapshotReadPortPrismaV1(app);
+  const snapshotIds: string[] = [];
+  let legacyReads = 0;
+  const port: SnapshotReadPortV1 = {
+    loadActiveSnapshot: (domain, environment) => source.loadActiveSnapshot(domain, environment),
+    loadRows: async (query) => {
+      snapshotIds.push(query.snapshotId);
+      return source.loadRows(query);
+    },
+    loadManualOverridesForRows: source.loadManualOverridesForRows
+      ? (rows) => source.loadManualOverridesForRows!(rows)
+      : undefined,
+  };
+  const tenantStore = new TenantContextStore();
+  const configValues: Record<string, string> = {
+    PE_SNAPSHOT_READ_MODE: 'snapshot_canary',
+    PE_SNAPSHOT_CANARY_TENANTS: F06_CANARY_TENANT,
+    PE_SNAPSHOT_CANARY_ROLLBACK: options.rollbackOn ? 'on' : 'off',
+    NODE_ENV: 'test',
+  };
+  const gate = new PeSnapshotGateService(
+    port,
+    { get: (key: string) => configValues[key] } as never,
+    undefined,
+    tenantStore,
+  );
+  const syntheticLegacyPrisma = {
+    programElement: { findUnique: async () => ({ peCode: F06_PE_CODE }) },
+    programElementBudgetPosition: {
+      findMany: async () => {
+        legacyReads += 1;
+        return [{
+          positionCycle: 'legacy-only-fy2027',
+          assertedFy: 2027,
+          amount: { toString: () => '999' },
+          quantity: null,
+          valueKind: 'total',
+          sourceUrl: 'fixture://package9-f06/legacy',
+          pageNumber: 1,
+        }];
+      },
+    },
+  };
+  const reader = new ProgramElementReadService(
+    syntheticLegacyPrisma as never,
+    {} as never,
+    undefined,
+    gate,
+  );
+  const tenantContext = {
+    tenantId: options.tenantId,
+    tenantSlug: 'package9-f06-synthetic',
+    userId: 'p9-f06-synthetic-user',
+    clerkUserId: 'p9-f06-synthetic-clerk-user',
+    role: 'member',
+  } as unknown as TenantContext;
+  const rows = await tenantStore.run(tenantContext, () =>
+    reader.getBudgetPositions(F06_PE_CODE),
+  );
+  return { rows, snapshotIds, legacyReads };
 }
 
 /** Reads the verified O&M projection tables and runs the Workstream H projector. */
@@ -192,11 +271,14 @@ function normalizeDecimal(value: string): string {
 async function main(): Promise<void> {
   const admin = new PrismaClient({ datasources: { db: { url: ADMIN_URL } } });
   const promoter = new PrismaClient({ datasources: { db: { url: PROMOTER_URL } } });
+  const app = new PrismaClient({ datasources: { db: { url: APP_URL } } });
 
   const auditEntries: PromotionAuditEntryV1[] = [];
+  const persistedAudit = new PrismaPromotionAuditSinkV1(promoter.defenseBudgetPromotionAudit);
   const audit = {
     async record(entry: PromotionAuditEntryV1) {
       auditEntries.push(entry);
+      await persistedAudit.record(entry);
     },
   };
 
@@ -385,6 +467,29 @@ async function main(): Promise<void> {
     );
     check(Number(activations) === 1, `exactly one activation exists (${activations})`);
 
+    // Compose the shipped tenant-scoped read gate with the real active pointer
+    // while every database and legacy fixture remains synthetic/disposable.
+    const priorPeEnvironment = process.env.PE_SNAPSHOT_ENVIRONMENT;
+    process.env.PE_SNAPSHOT_ENVIRONMENT = ENVIRONMENT;
+    try {
+      const canaryRead = await readSyntheticPe(app, {
+        rollbackOn: false,
+        tenantId: F06_CANARY_TENANT,
+      });
+      check(canaryRead.rows.length === 0, 'canary foreground response came from the empty canonical snapshot, not the legacy sentinel');
+      check(canaryRead.snapshotIds.includes(SNAPSHOT_ID), 'tenant-scoped canary routed through the active snapshot pointer');
+
+      const emergencyRead = await readSyntheticPe(app, {
+        rollbackOn: true,
+        tenantId: F06_CANARY_TENANT,
+      });
+      check(emergencyRead.rows[0]?.positionCycle === 'legacy-only-fy2027', 'emergency process switch restored legacy response');
+      check(emergencyRead.snapshotIds.length === 0, 'emergency switch bypassed snapshot row reads');
+    } finally {
+      if (priorPeEnvironment === undefined) delete process.env.PE_SNAPSHOT_ENVIRONMENT;
+      else process.env.PE_SNAPSHOT_ENVIRONMENT = priorPeEnvironment;
+    }
+
     /* ---- Rollback to a prior snapshot ---- */
     await admin.$executeRawUnsafe(`
       INSERT INTO defense_budget_canonical_snapshot
@@ -432,6 +537,49 @@ async function main(): Promise<void> {
       `SELECT count(*) FROM defense_budget_canonical_snapshot WHERE environment = '${ENVIRONMENT}'`,
     );
     check(Number(snapshots) === 2, 'no snapshot was deleted by the rollback');
+
+    const rollbackRows = await admin.$queryRawUnsafe<[{ count: bigint; from_snapshot_id: string; to_snapshot_id: string }]>(
+      `SELECT count(*) OVER() AS count, from_snapshot_id, to_snapshot_id
+         FROM defense_budget_rollback_record WHERE authorization_id = 'auth-rollback-1'`,
+    );
+    check(rollbackRows.length === 1, 'durable rollback record was retained');
+    check(
+      rollbackRows[0].from_snapshot_id === SNAPSHOT_ID && rollbackRows[0].to_snapshot_id === PRIOR_SNAPSHOT_ID,
+      'rollback record preserves the exact pointer transition',
+    );
+    const [{ paused }] = await admin.$queryRawUnsafe<[{ paused: boolean }]>(
+      `SELECT paused FROM defense_budget_side_effect_drain_pause
+        WHERE domain = '${DOMAIN}' AND environment = '${ENVIRONMENT}'`,
+    );
+    check(paused, 'rollback left side-effect drain paused');
+    const [{ count: rollbackOutbox }] = await admin.$queryRawUnsafe<[{ count: bigint }]>(
+      `SELECT count(*) FROM defense_budget_promotion_outbox o
+         JOIN defense_budget_promotion_activation a ON a.id = o.activation_id
+        WHERE a.environment = '${ENVIRONMENT}' AND o.is_rollback = true AND o.suppress_alert = false`,
+    );
+    check(Number(rollbackOutbox) === 0, 'rollback emitted no unsuppressed notification');
+    const [{ count: rollbackAudit }] = await admin.$queryRawUnsafe<[{ count: bigint }]>(
+      `SELECT count(*) FROM defense_budget_promotion_audit
+        WHERE authorization_id = 'auth-rollback-1' AND attempt_kind = 'REDEMPTION' AND outcome = 'ALLOWED'`,
+    );
+    check(Number(rollbackAudit) === 1, 'accepted rollback authorization has one durable audit row');
+
+    const rollbackReadEnvironment = process.env.PE_SNAPSHOT_ENVIRONMENT;
+    process.env.PE_SNAPSHOT_ENVIRONMENT = ENVIRONMENT;
+    try {
+      const afterRollbackRead = await readSyntheticPe(app, {
+        rollbackOn: false,
+        tenantId: F06_CANARY_TENANT,
+      });
+      check(afterRollbackRead.rows.length === 0, 'post-rollback canary foreground response came from the restored canonical snapshot');
+      check(
+        afterRollbackRead.snapshotIds.includes(PRIOR_SNAPSHOT_ID),
+        'post-rollback tenant-scoped canary followed the restored pointer',
+      );
+    } finally {
+      if (rollbackReadEnvironment === undefined) delete process.env.PE_SNAPSHOT_ENVIRONMENT;
+      else process.env.PE_SNAPSHOT_ENVIRONMENT = rollbackReadEnvironment;
+    }
 
     /* ---- Pure helpers ---- */
     check(
