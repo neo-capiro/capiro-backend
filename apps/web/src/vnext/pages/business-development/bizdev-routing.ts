@@ -106,6 +106,10 @@ export interface BizDevRoute {
   discover: 'open' | '';
   /** Submitted discover search text (2..200 chars; only sent on explicit submit). */
   discoverQuery: string;
+  /** Submitted discover service filter (case-insensitive exact match of this firm's saved prospect.serviceHypothesis; '' = All services). */
+  discoverService: string;
+  /** Submitted discover exclusions review mode: true = include firm-excluded candidates for review. */
+  discoverIncludeExcluded: boolean;
   /** Stable numeric offset for discover paging (0..500). */
   discoverOffset: number;
   /** Dossier subject: canonical entity id (company dossier) when set. */
@@ -129,6 +133,8 @@ const DEFAULTS: BizDevRoute = {
   sort: 'newest',
   discover: '',
   discoverQuery: '',
+  discoverService: '',
+  discoverIncludeExcluded: false,
   discoverOffset: 0,
   dossierEntityId: '',
   dossierProspectId: '',
@@ -188,6 +194,8 @@ export function resolveBizDevRoute(params: URLSearchParams | null | undefined): 
   const prospectId = params.get('bdProspect')?.trim() ?? '';
   const discover = params.get('bdDiscover') === 'open' ? 'open' : '';
   const discoverQuery = (params.get('bdDq') ?? '').trim().slice(0, 200);
+  const discoverService = (params.get('bdDService') ?? '').trim().slice(0, 200);
+  const discoverIncludeExcluded = params.get('bdDExcluded') === '1';
   const discoverOffset = clampInt(params.get('bdOffset'), 0, 500, 0);
   const dossierEntityId = params.get('bdDossier')?.trim() ?? '';
   const dossierProspectId = params.get('bdDossierProspect')?.trim() ?? '';
@@ -210,6 +218,8 @@ export function resolveBizDevRoute(params: URLSearchParams | null | undefined): 
     sort,
     discover,
     discoverQuery,
+    discoverService,
+    discoverIncludeExcluded,
     discoverOffset,
     dossierEntityId,
     dossierProspectId,
@@ -254,6 +264,11 @@ export function applyBizDevRoute(
     else next.delete('bdDiscover');
   }
   if (route.discoverQuery !== undefined) set('bdDq', route.discoverQuery);
+  if (route.discoverService !== undefined) set('bdDService', route.discoverService);
+  if (route.discoverIncludeExcluded !== undefined) {
+    if (route.discoverIncludeExcluded) next.set('bdDExcluded', '1');
+    else next.delete('bdDExcluded');
+  }
   if (route.discoverOffset !== undefined) {
     if (route.discoverOffset > 0) next.set('bdOffset', String(route.discoverOffset));
     else next.delete('bdOffset');
@@ -342,11 +357,16 @@ export function isBizDevOverdue(nextActionDueAt: string | null | undefined, now 
  */
 export function bizDevDiscoverQuery(route: BizDevRoute): {
   q: string;
+  service?: string;
+  /** Strictly '0' | '1' as serialized to the backend; default '0'. */
+  includeExcluded: '0' | '1';
   limit: number;
   offset: number;
 } {
   return {
     q: route.discoverQuery,
+    ...(route.discoverService ? { service: route.discoverService } : {}),
+    includeExcluded: route.discoverIncludeExcluded ? '1' : '0',
     limit: BIZDEV_DISCOVER_LIMIT_DEFAULT,
     offset: route.discoverOffset,
   };

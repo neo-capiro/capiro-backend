@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import { BizDevDossierService } from './bizdev-dossier.service.js';
@@ -297,11 +298,24 @@ const makeHarness = (fx: Fixture) => {
           c.normalizedName.includes(term) ||
           aliasEntityIds.has(c.id),
       );
+      const servicePosition = sql.indexOf('LOWER(?)');
+      if (servicePosition >= 0) {
+        const index = (sql.slice(0, servicePosition).match(/\?/g) ?? []).length;
+        const service = String(args[index]).trim().toLowerCase();
+        rows = rows.filter(c => fx.prospects.some(p => p.tenantId === args[0] &&
+          p.canonicalEntityId === c.id && typeof p.serviceHypothesis === 'string' &&
+          p.serviceHypothesis.trim().toLowerCase() === service));
+      }
+      if (sql.includes('AND NOT EXISTS') && sql.includes('bp."conflict_excluded" = true')) {
+        rows = rows.filter(c => !fx.prospects.some(p => p.tenantId === args[0] &&
+          p.canonicalEntityId === c.id && p.conflictExcluded === true));
+      }
       const limitIdx = args.findIndex((a) => typeof a === 'number' && a > 0);
       const limit = limitIdx >= 0 ? Number(args[limitIdx]) : 25;
+      const offset = typeof args[args.length - 1] === 'number' ? Number(args[args.length - 1]) : 0;
       return rows
         .sort((a, b) => a.canonicalName.localeCompare(b.canonicalName) || a.id.localeCompare(b.id))
-        .slice(0, limit)
+        .slice(offset, offset + limit)
         .map((c) => ({
           id: c.id,
           canonicalName: c.canonicalName,
@@ -375,10 +389,11 @@ const makeHarness = (fx: Fixture) => {
   };
 
   const txFor = (t: string) => ({
-    $queryRaw: jest.fn(async (strings: TemplateStringsArray, ...args: unknown[]) => {
-      const sql = strings.join('?');
-      calls.rawQueries.push({ sql, args });
-      return runRaw(sql, args);
+    $queryRaw: jest.fn(async (strings: TemplateStringsArray, ...rawArgs: unknown[]) => {
+      const flat = Prisma.sql(strings, ...rawArgs);
+      const sql = flat.strings.join('?');
+      calls.rawQueries.push({ sql, args: flat.values });
+      return runRaw(sql, flat.values);
     }),
     businessDevelopmentProspect: {
       findFirst: jest.fn(async ({ where }: { where: Record<string, unknown> }) => {
@@ -690,7 +705,7 @@ describe('searchCandidates', () => {
       ],
     });
     const h = makeHarness(fixture);
-    const res = await h.service.searchCandidates(ctx, { q: 'acme' });
+    const res = await h.service.searchCandidates(ctx, { q: 'acme', includeExcluded: true });
     const serialized = JSON.stringify(res);
     expect(serialized).not.toContain('conflictReason');
     expect(serialized).not.toContain('SECRET');
@@ -891,6 +906,99 @@ describe('searchCandidates', () => {
 });
 
 // ── dossier section independence ────────────────────────────────────────────
+
+describe('Discover tenant selection filters', () => {
+  function selectionFixture() {
+    const canonical = ['A', 'B', 'C', 'D'].map(letter => org({
+      canonicalName: `Filter ${letter}`, normalizedName: `filter ${letter.toLowerCase()}`,
+    }));
+    const prospects = canonical.slice(0, 3).map((c, i) => ({
+      id: randomUUID(), tenantId, canonicalEntityId: c.id, status: 'active', stage: 'researching',
+      conflictExcluded: i === 0, serviceHypothesis: ' Appropriations advocacy ',
+      conflictReason: 'PRIVATE CONFLICT REASON', note: 'PRIVATE NOTE', linkedClientId: null,
+    }));
+    prospects.push({ ...prospects[1]!, id: randomUUID(), tenantId: tenantBId,
+      canonicalEntityId: canonical[1]!.id, conflictExcluded: true, serviceHypothesis: 'Foreign hypothesis' });
+    return baseFixture({ canonical, prospects });
+  }
+
+  test('default exclusion and exact service selection occur before stable offset/limit', async () => {
+    const h = makeHarness(selectionFixture());
+    const first = await h.service.searchCandidates(ctx, { q: 'filter', service: 'appropriations ADVOCACY', limit: 1 });
+    const next = await h.service.searchCandidates(ctx, { q: 'filter', service: 'appropriations ADVOCACY', limit: 1, offset: 1 });
+    expect(first.results.map(r => r.canonicalName)).toEqual(['Filter B']);
+    expect(first.coverage).toMatchObject({ more: true, serviceFilterApplied: true, exclusionsApplied: true });
+    expect(next.results.map(r => r.canonicalName)).toEqual(['Filter C']);
+    expect(next.coverage.more).toBe(false);
+    const query = h.calls.rawQueries.find(q => q.sql.includes('FROM "canonical_entities"'))!;
+    expect(query.sql.indexOf('LOWER(TRIM(bp."service_hypothesis"))')).toBeLessThan(query.sql.indexOf('LIMIT'));
+    expect(query.sql.indexOf('AND NOT EXISTS')).toBeLessThan(query.sql.indexOf('LIMIT'));
+    expect(query.sql.match(/bp\."tenant_id" = \?::uuid/g)).toHaveLength(2);
+    expect(query.args.filter(arg => arg === tenantId)).toHaveLength(5);
+    expect(h.calls.samUei).toHaveLength(0);
+    expect(h.calls.samCage).toHaveLength(0);
+  });
+
+  test('explicit review returns safe excluded marker without private reasons or notes', async () => {
+    const h = makeHarness(selectionFixture());
+    const result = await h.service.searchCandidates(ctx, { q: 'filter', includeExcluded: true });
+    expect(result.results).toHaveLength(4);
+    expect(result.results[0]!.marker.excluded).toBe(true);
+    expect(result.coverage.exclusionsApplied).toBe(false);
+    expect(JSON.stringify(result)).not.toMatch(/PRIVATE|conflictReason|"note"/);
+    expect(h.calls.rawQueries[0]!.sql).not.toContain('AND NOT EXISTS');
+  });
+
+  test('other tenants exclusion and service never influence current tenant selection', async () => {
+    const h = makeHarness(selectionFixture());
+    const a = await h.service.searchCandidates(ctx, { q: 'filter' });
+    const b = await h.service.searchCandidates(ctxB, { q: 'filter' });
+    expect(a.results.map(r => r.canonicalName)).toEqual(['Filter B', 'Filter C', 'Filter D']);
+    expect(b.results.map(r => r.canonicalName)).toEqual(['Filter A', 'Filter C', 'Filter D']);
+    const foreign = await h.service.searchCandidates(ctx, { q: 'filter', service: 'Foreign hypothesis', includeExcluded: true });
+    expect(foreign.results).toEqual([]);
+    expect(foreign.coverage).toMatchObject({ more: false, serviceFilterApplied: true, exclusionsApplied: false });
+  });
+
+  test('no-prospect and visible alias candidates remain discoverable without service filter', async () => {
+    const fx = selectionFixture();
+    fx.aliases.push({ entityId: fx.canonical[3]!.id, alias: 'Visible alias', normalizedAlias: 'visible alias', identityScope: 'tenant_private', tenantId, status: 'active' });
+    const h = makeHarness(fx);
+    expect((await h.service.searchCandidates(ctx, { q: 'Visible alias' })).results.map(r => r.canonicalName)).toEqual(['Filter D']);
+    expect((await h.service.searchCandidates(ctxB, { q: 'Visible alias' })).results).toEqual([]);
+    expect((await h.service.searchCandidates(ctx, { q: 'Visible alias', service: 'Appropriations advocacy' })).results).toEqual([]);
+  });
+
+  test('service is an exact bound literal, not a wildcard or SQL instruction', async () => {
+    for (const service of ['Appropriations', '%', "x') OR true --"]) {
+      const h = makeHarness(selectionFixture());
+      expect((await h.service.searchCandidates(ctx, { q: 'filter', service })).results).toEqual([]);
+      expect(h.calls.rawQueries[0]!.args).toContain(service);
+      expect(h.calls.rawQueries[0]!.sql).not.toContain(service);
+    }
+  });
+
+  test('whitespace and absent services keep truthful unfiltered coverage', async () => {
+    const h = makeHarness(selectionFixture());
+    for (const service of [undefined, '   ']) {
+      const result = await h.service.searchCandidates(ctx, { q: 'filter', service });
+      expect(result.results).toHaveLength(3);
+      expect(result.coverage.serviceFilterApplied).toBe(false);
+    }
+  });
+
+  test.each([123, true, {}, 'x'.repeat(201), ' '.repeat(201)])('rejects invalid service before any database read: %p', async service => {
+    const h = makeHarness(baseFixture());
+    await expect(h.service.searchCandidates(ctx, { q: 'filter', service: service as string })).rejects.toThrow();
+    expect(h.calls.withTenantCount).toBe(0);
+  });
+
+  test.each(['1', 'false', 1, null, {}])('rejects nonboolean internal includeExcluded: %p', async includeExcluded => {
+    const h = makeHarness(baseFixture());
+    await expect(h.service.searchCandidates(ctx, { q: 'filter', includeExcluded: includeExcluded as boolean })).rejects.toThrow();
+    expect(h.calls.withTenantCount).toBe(0);
+  });
+});
 
 describe('companyDossier section filter', () => {
   const dossierFixture = (): { fx: Fixture; acmeId: string } => {
