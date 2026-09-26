@@ -9,6 +9,7 @@ import { Pool, type PoolClient, type QueryResult } from 'pg';
 import {
   drainIngestionOutboxBatchV1,
   drainIngestionOutboxRowV1,
+  type IngestionDrainResultV1,
   type IngestionOutboxDrainWorkerPortsV1,
 } from '../src/defense-budget/ingestion-outbox-drain-worker-v1.js';
 import { createIngestionOutboxDrainRepositoryPrismaV1 } from '../src/defense-budget/ingestion-outbox-drain-repository-prisma-v1.js';
@@ -83,6 +84,23 @@ interface ProductQuerySample {
 }
 
 const PRODUCT_QUERY_P95_LIMIT_MS = 2_000;
+
+function positiveIntegerEnv(name: string, fallback: number): number {
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(`${name} must be a positive integer when provided.`);
+  }
+  return value;
+}
+
+function sustainedMixedLoadEnabled(): boolean {
+  const raw = process.env.P9_DURABLE_SUSTAINED_MIX?.trim().toLowerCase();
+  if (!raw || raw === '0' || raw === 'false') return false;
+  if (raw === '1' || raw === 'true') return true;
+  throw new Error('P9_DURABLE_SUSTAINED_MIX must be true/false when provided.');
+}
 
 function sha(value: string): string {
   return createHash('sha256').update(value).digest('hex');
@@ -543,6 +561,7 @@ function productQueryDispatchBindings(detailId: string) {
 async function runProductQueryMix(
   databaseUrl: string,
   detailId: string,
+  durationSeconds = PRODUCT_QUERY_MIX.durationSecondsSmoke,
 ): Promise<{
   startedAt: string;
   finishedAt: string;
@@ -625,7 +644,7 @@ async function runProductQueryMix(
       supportingMixSha256: sha(PRODUCT_QUERY_MIX_SOURCE),
       clients: PRODUCT_QUERY_MIX.concurrentClients,
       clientIntervalMilliseconds: PRODUCT_QUERY_MIX.clientIntervalMilliseconds,
-      durationSecondsSmoke: PRODUCT_QUERY_MIX.durationSecondsSmoke,
+      durationSeconds,
       configuredMaximumAggregateRequestStartsPerSecond:
         PRODUCT_QUERY_MIX.configuredMaximumAggregateRequestStartsPerSecond,
       queryReader: {
@@ -667,7 +686,7 @@ async function runProductQueryMix(
       });
     }
   };
-  const requestStartWindowMs = PRODUCT_QUERY_MIX.durationSecondsSmoke * 1000;
+  const requestStartWindowMs = durationSeconds * 1000;
   const requestStartDeadlineMs = startedMonotonicMs + requestStartWindowMs;
   const clientIntervalMs = PRODUCT_QUERY_MIX.clientIntervalMilliseconds;
   const requestStartsPerClient = Math.ceil(requestStartWindowMs / clientIntervalMs);
@@ -727,6 +746,69 @@ async function runProductQueryMix(
   };
 }
 
+function sumDrainResults(results: IngestionDrainResultV1[]): IngestionDrainResultV1 {
+  return results.reduce<IngestionDrainResultV1>(
+    (total, result) => ({
+      claimed: total.claimed + result.claimed,
+      succeeded: total.succeeded + result.succeeded,
+      governedReview: total.governedReview + result.governedReview,
+      governedReject: total.governedReject + result.governedReject,
+      retried: total.retried + result.retried,
+      poisoned: total.poisoned + result.poisoned,
+      leaseLost: total.leaseLost + result.leaseLost,
+      readinessInvoked: total.readinessInvoked + result.readinessInvoked,
+      readinessSucceeded: total.readinessSucceeded + result.readinessSucceeded,
+      readinessRetried: total.readinessRetried + result.readinessRetried,
+      readiness_deferred_committee:
+        total.readiness_deferred_committee + result.readiness_deferred_committee,
+      readinessSkippedNoScope: total.readinessSkippedNoScope + result.readinessSkippedNoScope,
+      readinessFailures: [...total.readinessFailures, ...result.readinessFailures],
+    }),
+    {
+      claimed: 0,
+      succeeded: 0,
+      governedReview: 0,
+      governedReject: 0,
+      retried: 0,
+      poisoned: 0,
+      leaseLost: 0,
+      readinessInvoked: 0,
+      readinessSucceeded: 0,
+      readinessRetried: 0,
+      readiness_deferred_committee: 0,
+      readinessSkippedNoScope: 0,
+      readinessFailures: [],
+    },
+  );
+}
+
+async function drainWorkerUntilEmpty(
+  worker: number,
+  input: {
+    now: Date;
+    batchSize: number;
+    pauseMs: number;
+  },
+  ports: IngestionOutboxDrainWorkerPortsV1,
+): Promise<IngestionDrainResultV1> {
+  const results: IngestionDrainResultV1[] = [];
+  for (;;) {
+    const result = await drainIngestionOutboxBatchV1(
+      {
+        leaseOwner: `p9-load-worker-${worker}`,
+        now: input.now,
+        batchSize: input.batchSize,
+      },
+      ports,
+    );
+    results.push(result);
+    if (result.claimed === 0) return sumDrainResults(results);
+    if (input.pauseMs > 0) {
+      await new Promise<void>((resolvePromise) => setTimeout(resolvePromise, input.pauseMs));
+    }
+  }
+}
+
 async function crashChild() {
   const runId = process.env.P9_QUAL_RUN_ID!;
   const crashObservationId = process.env.P9_QUAL_CRASH_OBSERVATION_ID!;
@@ -779,6 +861,13 @@ async function runQualification() {
   const runId = `p9-${new Date().toISOString().replace(/[-:.TZ]/g, '')}-${randomBytes(3).toString('hex')}`;
   const containerName = `${runId}-pg`;
   const password = randomBytes(24).toString('base64url');
+  const sustainedMix = sustainedMixedLoadEnabled();
+  const queryDurationSeconds = positiveIntegerEnv(
+    'P9_DURABLE_QUERY_DURATION_SECONDS',
+    PRODUCT_QUERY_MIX.durationSecondsSmoke,
+  );
+  const workerBatchSize = sustainedMix ? 1 : 25;
+  const workerPauseMs = sustainedMix ? positiveIntegerEnv('P9_DURABLE_WORKER_PAUSE_MS', 1_000) : 0;
   const containerId = docker([
     'run',
     '--detach',
@@ -827,6 +916,10 @@ async function runQualification() {
       sourceFamilies: FAMILY,
       faultRows: SCENARIO_ROWS,
       providerFaultFixtures: ['timeout', '429', 'malformed', '5xx'],
+      sustainedMixedLoad: sustainedMix,
+      queryDurationSeconds,
+      workerBatchSize,
+      workerPauseMs,
     },
     queueSamples: [],
     scenarioResults: [],
@@ -1113,20 +1206,35 @@ async function runQualification() {
           activeWorkers++;
           maxConcurrentWorkers = Math.max(maxConcurrentWorkers, activeWorkers);
           try {
-            return await drainIngestionOutboxBatchV1(
-              {
-                leaseOwner: `p9-load-worker-${worker}`,
-                now: new Date(recoveryTime.getTime() + 10_000),
-                batchSize: 25,
-              },
-              makePorts({ pool: pool!, samples, repository, runId }),
-            );
+            const ports = makePorts({ pool: pool!, samples, repository, runId });
+            return sustainedMix
+              ? await drainWorkerUntilEmpty(
+                  worker,
+                  {
+                    now: new Date(recoveryTime.getTime() + 10_000),
+                    batchSize: workerBatchSize,
+                    pauseMs: workerPauseMs,
+                  },
+                  ports,
+                )
+              : await drainIngestionOutboxBatchV1(
+                  {
+                    leaseOwner: `p9-load-worker-${worker}`,
+                    now: new Date(recoveryTime.getTime() + 10_000),
+                    batchSize: workerBatchSize,
+                  },
+                  ports,
+                );
           } finally {
             activeWorkers--;
           }
         }),
       ),
-      runProductQueryMix(connectionString(hostPort, queryReaderPassword, 'p9q_reader'), detailId),
+      runProductQueryMix(
+        connectionString(hostPort, queryReaderPassword, 'p9q_reader'),
+        detailId,
+        queryDurationSeconds,
+      ),
     ]);
     const loadElapsedMs = performance.now() - workerStarted;
     const workerFinishedMonotonicMs = performance.now();
