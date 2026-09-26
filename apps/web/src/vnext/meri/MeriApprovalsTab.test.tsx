@@ -122,9 +122,7 @@ describe('MeriApprovalsTab', () => {
     expect(
       screen.getByText(/Business actions from other conversations stay with those conversations/),
     ).toBeTruthy();
-    expect(
-      screen.getByText(/Hermes command approvals stay on their run card in chat/),
-    ).toBeTruthy();
+
   });
 
   test('a proposed action can be approved after the informed-consent dialog is confirmed', () => {
@@ -141,7 +139,7 @@ describe('MeriApprovalsTab', () => {
 
     expect(screen.getByText('AWAITING YOUR APPROVAL')).toBeTruthy();
     expect(screen.getByText(/Business action · Origin: this conversation/)).toBeTruthy();
-    expect(screen.getByText(/native Hermes command approvals remain on the run card in chat/i)).toBeTruthy();
+
     fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
     // MeriActionConfirm's own informed-consent gate: the confirm button stays
     // disabled until the acknowledgement checkbox is checked.

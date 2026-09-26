@@ -37,6 +37,23 @@ import { ProcurementLineReadService } from '../defense-budget/procurement/procur
 import { ProcurementLineWriterService } from '../defense-budget/procurement/procurement-line-writer.service.js';
 import { FederalEvidenceController } from './federal-evidence/federal-evidence.controller.js';
 import { FederalEvidenceReadService } from './federal-evidence/federal-evidence-read.service.js';
+import { ProgramContinuityController } from './programs/program-continuity.controller.js';
+import { ProgramContinuityService } from './programs/program-continuity.service.js';
+import { AcquisitionContinuityController } from './acquisition-continuity/acquisition-continuity.controller.js';
+import {
+  ACQUISITION_CONTINUITY_READ_REPOSITORY,
+  AcquisitionContinuityReadService,
+} from './acquisition-continuity/acquisition-continuity-read.service.js';
+import { AcquisitionContinuityStore } from './acquisition-continuity/acquisition-continuity.store.js';
+import { FundingExecutionController } from './funding-execution/funding-execution.controller.js';
+import {
+  FUNDING_EXECUTION_READ_REPOSITORY,
+  FundingExecutionReadService,
+} from './funding-execution/funding-execution-read.service.js';
+import { FundingExecutionStore } from '../funding-execution/funding-execution.store.js';
+import { FundingExecutionSourceAdapterService } from '../funding-execution/funding-execution-source-adapter.service.js';
+import { BuyerWorkspaceController } from './buyer-workspace/buyer-workspace.controller.js';
+import { BuyerWorkspaceService } from './buyer-workspace/buyer-workspace.service.js';
 
 // Step 2.3 — the delta writer (DeltaEngineService) and the needs-attention read path
 // (ProgramElementReadService) inject ClientPeRelevanceService, exported by IntelligenceModule.
@@ -50,6 +67,10 @@ import { FederalEvidenceReadService } from './federal-evidence/federal-evidence-
     ProgramsController,
     ProcurementLineController,
     FederalEvidenceController,
+    ProgramContinuityController,
+    AcquisitionContinuityController,
+    FundingExecutionController,
+    BuyerWorkspaceController,
   ],
   providers: [
     BudgetLinesReadService,
@@ -66,6 +87,25 @@ import { FederalEvidenceReadService } from './federal-evidence/federal-evidence-
     DeltaEngineService,
     ProgramElementDataIssueService,
     FederalEvidenceReadService,
+    ProgramContinuityService,
+    AcquisitionContinuityStore,
+    AcquisitionContinuityReadService,
+    FundingExecutionReadService,
+    BuyerWorkspaceService,
+    FundingExecutionStore,
+    {
+      provide: FundingExecutionSourceAdapterService,
+      inject: [FundingExecutionStore],
+      useFactory: (store: FundingExecutionStore) => new FundingExecutionSourceAdapterService(store),
+    },
+    {
+      provide: FUNDING_EXECUTION_READ_REPOSITORY,
+      useExisting: FundingExecutionStore,
+    },
+    {
+      provide: ACQUISITION_CONTINUITY_READ_REPOSITORY,
+      useExisting: AcquisitionContinuityStore,
+    },
     // Phase 7 Workstream K. A factory rather than an @Injectable so the
     // override service and its port stay Nest-free — the Phase 8 handoff moves
     // them into their own service, and a port that imports @nestjs/common would
@@ -124,6 +164,12 @@ import { FederalEvidenceReadService } from './federal-evidence/federal-evidence-
     ProgramsService,
     ProgramElementDataIssueService,
     FederalEvidenceReadService,
+    ProgramContinuityService,
+    AcquisitionContinuityStore,
+    AcquisitionContinuityReadService,
+    FundingExecutionReadService,
+    FundingExecutionSourceAdapterService,
+    BuyerWorkspaceService,
   ],
 })
 export class ProgramElementModule {}

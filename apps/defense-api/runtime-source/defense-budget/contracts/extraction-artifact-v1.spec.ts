@@ -80,6 +80,55 @@ describe('defenseBudgetExtractionArtifactV1Schema', () => {
     expect(() => defenseBudgetExtractionArtifactV1Schema.parse(tampered)).toThrow();
   });
 
+  it('accepts optional XML companion provenance without changing legacy artifacts', () => {
+    const legacy = buildMinimalArtifact();
+    expect(() => defenseBudgetExtractionArtifactV1Schema.parse(legacy)).not.toThrow();
+
+    const withXmlCompanion = {
+      ...legacy,
+      source: {
+        ...legacy.source,
+        xmlCompanion: {
+          locator: 'https://example.test/r1.xml',
+          officialPdfSha256: legacy.source.sourcePdfSha256,
+          companionByteSha256: 'f'.repeat(64),
+        },
+      },
+    };
+    expect(() => defenseBudgetExtractionArtifactV1Schema.parse(withXmlCompanion)).not.toThrow();
+    const withStructuredElement = {
+      ...withXmlCompanion,
+      evidence: legacy.evidence.map((evidence) => ({
+        ...evidence,
+        structuredElement: {
+          companionByteSha256: withXmlCompanion.source.xmlCompanion.companionByteSha256,
+          elementPath: '/JustificationBook/ProgramElementList/ProgramElement[1]',
+          elementId: '0602308A',
+        },
+      })),
+      parserRuns: legacy.parserRuns.map((run) => ({
+        ...run,
+        method: 'native_structured' as const,
+        inputCompanionSha256: withXmlCompanion.source.xmlCompanion.companionByteSha256,
+      })),
+    };
+    expect(() =>
+      defenseBudgetExtractionArtifactV1Schema.parse(withStructuredElement),
+    ).not.toThrow();
+    expect(() =>
+      defenseBudgetExtractionArtifactV1Schema.parse({
+        ...withXmlCompanion,
+        source: {
+          ...withXmlCompanion.source,
+          xmlCompanion: {
+            ...withXmlCompanion.source.xmlCompanion,
+            companionByteSha256: 'not-a-sha',
+          },
+        },
+      }),
+    ).toThrow();
+  });
+
   it('replay produces byte-identical canonical artifact', () => {
     const first = buildMinimalArtifact();
     const second = buildMinimalArtifact();

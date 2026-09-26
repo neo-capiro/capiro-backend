@@ -20,7 +20,7 @@ const liveConfig = () => resolveJevConfig({
 
 describe('Jev task registry', () => {
   it('covers every configured task and preserves the live constants', () => {
-    expect(JEV_TASK_REGISTRY_VERSION).toBe('jev-task-registry.v4');
+    expect(JEV_TASK_REGISTRY_VERSION).toBe('jev-task-registry.v5');
     expect(Object.keys(JEV_TASK_REGISTRY).sort()).toEqual([...JEV_TASKS].sort());
     expect(JEV_TASK_REGISTRY.claim_support).toMatchObject({
       questionVersion: 'claim_support.v1', questionId: 'claim_support', primitive: 'choice',

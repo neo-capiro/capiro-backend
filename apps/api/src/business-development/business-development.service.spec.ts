@@ -310,7 +310,7 @@ const makeHarness = (fx: Fixture) => {
     samEntity as never,
   );
 
-  return { service, tx, fx, clients, entityResolution, prepopulation, samEntity };
+  return { service, tx, fx, prisma, clients, entityResolution, prepopulation, samEntity };
 };
 
 /** Minimal where-matcher: equality fields, null checks, { not: x }, OR, id:{not}. */
@@ -779,6 +779,92 @@ describe('resolveIdentity (unresolved → confirmed)', () => {
     expect(h.tx.client.create).not.toHaveBeenCalled();
   });
 
+  test('canonical A→B correction keeps the same prospect id/stage/owner/watch/client linkage and writes before/after activity + audit', async () => {
+    const h = makeHarness(baseFx());
+    // A workflow-bearing prospect confirmed against canonical A first.
+    const clientId = randomUUID();
+    const created = (await h.service.create(ctx, {
+      displayName: 'Acme',
+      stage: 'qualified',
+      ownerUserId: userId,
+    })) as never as Record<string, unknown>;
+    await h.service.update(ctx, created.id as string, { watchRequested: true });
+    await h.service.resolveIdentity(ctx, created.id as string, {
+      canonicalEntityId: 'canon-private-ours',
+    });
+    const row = h.fx.rows.get(created.id as string)!;
+    row.linkedClientId = clientId;
+    row.convertedAt = new Date();
+
+    // Correction: canonical A → canonical B on the SAME prospect row.
+    const res = (await h.service.resolveIdentity(ctx, created.id as string, {
+      canonicalEntityId: 'canon-public',
+    })) as {
+      outcome: string;
+      prospect: Record<string, unknown>;
+    };
+    expect(res.outcome).toBe('resolved');
+    expect(res.prospect.id).toBe(created.id);
+    expect(res.prospect.canonicalEntityId).toBe('canon-public');
+
+    // Same prospect id/stage/owner/watch/client linkage preserved — no new
+    // prospect row, no merge, no conversion reset.
+    const after = h.fx.rows.get(created.id as string)!;
+    expect([...h.fx.rows.keys()]).toHaveLength(1);
+    expect(after.stage).toBe('qualified');
+    expect(after.ownerUserId).toBe(userId);
+    expect(after.watchRequested).toBe(true);
+    expect(after.linkedClientId).toBe(clientId);
+    expect(after.convertedAt).toBeTruthy();
+    expect(h.tx.client.create).not.toHaveBeenCalled();
+
+    // The identity activity records the before/after canonical ids, and an
+    // audit row exists for the correction.
+    const identityActivities = h.fx.activities.filter((a) => a.kind === 'identity');
+    expect(identityActivities).toHaveLength(2);
+    const correction = identityActivities[1]! as { beforeJsonb?: unknown; afterJsonb?: unknown };
+    expect((correction.beforeJsonb as { canonicalEntityId: unknown }).canonicalEntityId).toBe(
+      'canon-private-ours',
+    );
+    expect((correction.afterJsonb as { canonicalEntityId: unknown }).canonicalEntityId).toBe(
+      'canon-public',
+    );
+    expect(h.fx.audits.filter((a) => a.action === 'bizdev.prospect.identity')).toHaveLength(2);
+  });
+
+  test('duplicate target returns the review outcome and never merges or mutates either prospect', async () => {
+    const h = makeHarness(baseFx());
+    const mine = (await h.service.create(ctx, {
+      displayName: 'Acme',
+      stage: 'qualified',
+    })) as never as Record<string, unknown>;
+    await h.service.resolveIdentity(ctx, mine.id as string, { canonicalEntityId: 'canon-public' });
+
+    const other = (await h.service.create(ctx, {
+      displayName: 'Other',
+      stage: 'researching',
+    })) as never as Record<string, unknown>;
+    const res = (await h.service.resolveIdentity(ctx, other.id as string, {
+      canonicalEntityId: 'canon-public',
+    })) as {
+      outcome: string;
+      duplicate: { prospectId: string; status: string };
+    };
+    expect(res.outcome).toBe('duplicate');
+    expect(res.duplicate.prospectId).toBe(mine.id);
+
+    // Neither row was merged or mutated by the rejected resolution.
+    const mineAfter = h.fx.rows.get(mine.id as string)!;
+    const otherAfter = h.fx.rows.get(other.id as string)!;
+    expect(mineAfter.canonicalEntityId).toBe('canon-public');
+    expect(mineAfter.stage).toBe('qualified');
+    expect(otherAfter.canonicalEntityId).toBeNull();
+    expect(otherAfter.stage).toBe('researching');
+    expect([...h.fx.rows.keys()]).toHaveLength(2);
+    // No correction activity/audit was written for the rejected attempt.
+    expect(h.fx.activities.filter((a) => a.kind === 'identity')).toHaveLength(1);
+  });
+
   test('same-tenant duplicate owner → structured duplicate-review, not a raw unique error', async () => {
     const h = makeHarness(baseFx());
     const mine = (await h.service.create(ctx, { displayName: 'Acme' })) as never as Record<
@@ -1059,5 +1145,133 @@ describe('convert', () => {
     expect(result.created).toBe(false);
     expect(result.client.id).toBe(existing.id);
     expect(h.clients.createInTransaction).not.toHaveBeenCalled();
+  });
+});
+
+// ── Phase 3 Jev identity review hook (post-commit, best-effort) ────────────
+
+describe('Phase 3 Jev identity review hook', () => {
+  const baseFx = () => ({
+    rows: new Map(),
+    clients: new Map(),
+    memberships: [{ tenantId, userId, status: 'active' }],
+    activities: [],
+    audits: [],
+    rawQueries: [],
+  });
+
+  /** Re-run the production harness with the optional review hook attached. */
+  const makeHookHarness = (fx: ReturnType<typeof baseFx>) => {
+    const h = makeHarness(fx);
+    const hook = {
+      recordIdentityReviewOutcome: jest.fn(async () => undefined),
+    };
+    const serviceWithHook: BusinessDevelopmentService = new (
+      h.service.constructor as never as new (
+        prisma: unknown,
+        clients: unknown,
+        entityResolution: unknown,
+        prepopulation: unknown,
+        samEntity: unknown,
+        jevReview?: unknown,
+      ) => BusinessDevelopmentService
+    )(
+      (h as unknown as { prisma: unknown }).prisma,
+      (h as unknown as { clients: unknown }).clients,
+      (h as unknown as { entityResolution: unknown }).entityResolution,
+      (h as unknown as { prepopulation: unknown }).prepopulation,
+      (h as unknown as { samEntity: unknown }).samEntity,
+      hook,
+    );
+    return { service: serviceWithHook, hook, fx: h.fx };
+  };
+
+  const createUnresolved = async (
+    service: BusinessDevelopmentService,
+  ): Promise<string> => {
+    const created = (await service.create(ctx, { displayName: 'Acme' })) as never as Record<
+      string,
+      unknown
+    >;
+    return created.id as string;
+  };
+
+  test('a REAL identity change fires the review hook exactly once, post-commit', async () => {
+    const h = makeHookHarness(baseFx());
+    const id = await createUnresolved(h.service);
+    const res = (await h.service.resolveIdentity(ctx, id, {
+      canonicalEntityId: 'canon-public',
+    })) as { outcome: string; prospect: Record<string, unknown> };
+    expect(res.outcome).toBe('resolved');
+    expect(h.hook.recordIdentityReviewOutcome).toHaveBeenCalledTimes(1);
+    expect(h.hook.recordIdentityReviewOutcome).toHaveBeenCalledWith({
+      tenantId,
+      prospectId: id,
+      resolvedCanonicalEntityId: 'canon-public',
+      userId,
+    });
+  });
+
+  test('the PRIVATE identityChanged marker is stripped: the public response shape is Phase 1-exact', async () => {
+    const h = makeHookHarness(baseFx());
+    const id = await createUnresolved(h.service);
+    const res = (await h.service.resolveIdentity(ctx, id, {
+      canonicalEntityId: 'canon-public',
+    })) as Record<string, unknown>;
+    expect(Object.keys(res).sort()).toEqual(['outcome', 'prospect']);
+    expect(JSON.stringify(res)).not.toContain('identityChanged');
+  });
+
+  test('duplicate/no-op resolution (same canonical id) NEVER fires the hook', async () => {
+    const h = makeHookHarness(baseFx());
+    const id = await createUnresolved(h.service);
+    await h.service.resolveIdentity(ctx, id, { canonicalEntityId: 'canon-public' });
+    // Second resolve with the SAME canonical id: idempotent no-op.
+    const res = (await h.service.resolveIdentity(ctx, id, {
+      canonicalEntityId: 'canon-public',
+    })) as { outcome: string };
+    expect(res.outcome).toBe('resolved');
+    expect(h.hook.recordIdentityReviewOutcome).toHaveBeenCalledTimes(1); // only the first, real change
+  });
+
+  test('duplicate-review outcome NEVER fires the hook', async () => {
+    const h = makeHookHarness(baseFx());
+    const mine = prospect({ tenantId, canonicalEntityId: null });
+    h.fx.rows.set(mine.id as string, mine);
+    const other = prospect({ tenantId, canonicalEntityId: 'canon-public' });
+    h.fx.rows.set(other.id as string, other);
+    const res = await h.service.resolveIdentity(ctx, mine.id as string, {
+      canonicalEntityId: 'canon-public',
+    });
+    expect(res.outcome).toBe('duplicate');
+    expect(h.hook.recordIdentityReviewOutcome).not.toHaveBeenCalled();
+  });
+
+  test('hook ABSENT (legacy construction) → resolution still succeeds exactly as Phase 1', async () => {
+    const h = makeHarness(baseFx());
+    const id = (await h.service.create(ctx, { displayName: 'Acme' })) as never as Record<
+      string,
+      unknown
+    >;
+    const res = (await h.service.resolveIdentity(ctx, id.id as string, {
+      canonicalEntityId: 'canon-public',
+    })) as { outcome: string };
+    expect(res.outcome).toBe('resolved');
+  });
+
+  test('hook REJECTION never fails the resolution (best-effort, post-commit)', async () => {
+    const fx = baseFx();
+    const h = makeHookHarness(fx);
+    (h.hook.recordIdentityReviewOutcome as jest.Mock).mockRejectedValue(
+      new Error('review hook unavailable'),
+    );
+    const id = await createUnresolved(h.service);
+    const res = (await h.service.resolveIdentity(ctx, id, {
+      canonicalEntityId: 'canon-public',
+    })) as { outcome: string };
+    expect(res.outcome).toBe('resolved');
+    // Give the void'd promise a microtask to reject; the test still passes.
+    await new Promise((r) => setImmediate(r));
+    expect(h.fx.audits.some((a) => a.action === 'bizdev.prospect.identity')).toBe(true);
   });
 });

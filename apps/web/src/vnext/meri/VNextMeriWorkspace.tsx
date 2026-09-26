@@ -26,6 +26,7 @@ import {
   useMeriChatController,
   type MeriChatController,
 } from '../../components/chat/useMeriChatController.js';
+import { MERI_PROSPECT_LAUNCH_TITLE } from '../../components/chat/meri-prompt.js';
 import { VNextMeriIntegrations } from './VNextMeriIntegrations.js';
 import { VNextMeriShell } from './VNextMeriShell.js';
 import { readDraftReasoningMode } from './meri-reasoning-state.js';
@@ -194,6 +195,9 @@ export function VNextMeriWorkspace() {
   // refs (pendingSendRef, isCreatingThread, etc.). A numeric epoch alone cannot
   // distinguish A's stale continuation from C's active one — the token id does.
   const activeFirstSendTokenRef = useRef<FirstSendToken | null>(null);
+  // One-shot server-resolved scope for a contextual Business Development
+  // launch. Claimed and cleared by the first durable conversation creation.
+  const pendingProspectLaunchRef = useRef<string | null>(null);
   const handledContextRef = useRef<string | null>(null);
   const bootSequenceRef = useRef(0);
   const previousRoutePathRef = useRef<string | null>(null);
@@ -248,6 +252,7 @@ export function VNextMeriWorkspace() {
     pendingSendEpochRef.current = null;
     pendingSendSessionIdRef.current = null;
     activeFirstSendTokenRef.current = null;
+    pendingProspectLaunchRef.current = null;
     setIsCreatingThread(false);
     setRouteClients([]);
     setSelectedClientId(null);
@@ -442,6 +447,8 @@ export function VNextMeriWorkspace() {
       // tenant's first durable thread scoped to the previous tenant's client.
       const requestIdentityKey = identityKeyRef.current;
       const requestClientId = selectedClientId || undefined;
+      const requestProspectId = pendingProspectLaunchRef.current;
+      pendingProspectLaunchRef.current = null;
       const draftReasoningMode = readDraftReasoningMode(requestIdentityKey);
       const headers = await authHeaders();
       if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return null;
@@ -449,8 +456,9 @@ export function VNextMeriWorkspace() {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          clientId: requestClientId,
-          title: 'Chat session',
+          ...(requestProspectId
+            ? { prospectId: requestProspectId, title: MERI_PROSPECT_LAUNCH_TITLE }
+            : { clientId: requestClientId, title: 'Chat session' }),
         }),
       });
       if (!response.ok) {
@@ -922,7 +930,7 @@ export function VNextMeriWorkspace() {
       handledContextRef.current = null;
       return;
     }
-    const requestKey = `${request.prompt}\u0000${request.clientId ?? ''}`;
+    const requestKey = `${request.prompt}\u0000${request.clientId ?? ''}\u0000${request.prospectId ?? ''}`;
     if (handledContextRef.current === requestKey) return;
 
     // A contextual client launch is authorized only by the route bootstrap's
@@ -930,6 +938,15 @@ export function VNextMeriWorkspace() {
     // previously selected thread, so it is not sufficient evidence for this
     // one-time client-scoped request.
     const availableClients = routeClients;
+    if (request.prospectId) {
+      // Prospect scope is resolved and authorized by the server. Clear any
+      // unrelated global client selection before the conversation is created.
+      if (selectedClientId !== null) {
+        setSelectedClientId(null);
+        return;
+      }
+      pendingProspectLaunchRef.current = request.prospectId;
+    }
     if (request.clientId) {
       if (routeClientsError || availableClients.length === 0) {
         handledContextRef.current = requestKey;

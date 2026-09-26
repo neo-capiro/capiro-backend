@@ -14,10 +14,15 @@ import {
   CapiroTableHeaderCell,
   CapiroTableWrap,
 } from '../../components/tables/index.js';
-import { getCycleHealth, getScheduleTickHealth } from './defense-budget-lifecycle-api.js';
+import {
+  getCoverageReconciliation,
+  getCycleHealth,
+  getScheduleTickHealth,
+  type CoverageExceptionCode,
+} from './defense-budget-lifecycle-api.js';
 import './defense-budget-lifecycle-vnext.css';
 
-const FISCAL_YEAR_OPTIONS = [2029, 2028, 2027, 2026, 2025].map((year) => ({
+const FISCAL_YEAR_OPTIONS = [2029, 2028, 2027, 2026, 2025, 2024, 2023].map((year) => ({
   label: `FY${year}`,
   value: String(year),
 }));
@@ -29,6 +34,18 @@ function relativeFromNow(iso: string | null): string {
   if (hours < 1) return 'less than an hour ago';
   if (hours < 48) return `${hours}h ${deltaMs >= 0 ? 'ago' : 'from now'}`;
   return `${Math.round(hours / 24)}d ${deltaMs >= 0 ? 'ago' : 'from now'}`;
+}
+
+function ExceptionCodes({ codes }: { codes: readonly CoverageExceptionCode[] }) {
+  return codes.length ? (
+    <span className="dbl-vnext-exceptions">
+      {codes.map((code) => <code key={code}>{code}</code>)}
+    </span>
+  ) : <span>none</span>;
+}
+
+function CoverageCount({ value }: { value: number | null | undefined }) {
+  return <>{value == null ? 'unknown' : value}</>;
 }
 
 /**
@@ -57,6 +74,12 @@ export function DefenseBudgetLifecycleHealthPage() {
   const tickHealthQuery = useQuery({
     queryKey: ['defense-budget-lifecycle-schedule-tick-health'],
     queryFn: () => getScheduleTickHealth(api),
+    enabled: isInternal,
+    staleTime: 60_000,
+  });
+  const reconciliationQuery = useQuery({
+    queryKey: ['defense-budget-lifecycle-coverage-reconciliation', fiscalYear],
+    queryFn: () => getCoverageReconciliation(api, fiscalYear),
     enabled: isInternal,
     staleTime: 60_000,
   });
@@ -207,6 +230,123 @@ export function DefenseBudgetLifecycleHealthPage() {
                 <dd>{health.nvidiaRouting} — {health.productionParser}</dd>
               </div>
             </dl>
+          </div>
+
+          <div className="dbl-vnext-card" data-testid="physical-source-reconciliation">
+            <div className="dbl-vnext-card-head">
+              <div className="dbl-vnext-card-title">Physical-source reconciliation</div>
+              <div className="dbl-vnext-sub">
+                Logical source slots reconciled to physical files and downstream processing. Unknown
+                catalog denominators stay unknown; these counts are not funding amounts.
+              </div>
+            </div>
+            {reconciliationQuery.isLoading ? (
+              <div style={{ padding: 24 }}><CapiroSkeleton height={60} /></div>
+            ) : reconciliationQuery.isError ? (
+              <div style={{ padding: 24 }}>
+                <CapiroErrorState
+                  description="Could not load physical-source reconciliation."
+                  onRetry={() => reconciliationQuery.refetch()}
+                />
+              </div>
+            ) : reconciliationQuery.data ? (
+              <>
+                <div className="dbl-vnext-reconciliation-meta">
+                  FY{reconciliationQuery.data.fiscalYear} · {reconciliationQuery.data.logicalSlotCount} logical slots · environment {reconciliationQuery.data.environment} · active snapshot <span data-testid="active-snapshot-id">{reconciliationQuery.data.activeSnapshotId ?? 'unknown'}</span>
+                </div>
+                {reconciliationQuery.data.rows.length === 0 ? (
+                  <div style={{ padding: '24px' }}>
+                    <CapiroEmptyState title={`No physical-source slots registered for FY${fiscalYear}`} />
+                  </div>
+                ) : (
+                  <CapiroTableWrap>
+                    <CapiroTable>
+                      <CapiroTableHead>
+                        <tr>
+                          <CapiroTableHeaderCell>Logical slot</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Source family</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Component</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Discovery</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Required known / total</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Optional known</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Parsed</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Verified</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Reviewed</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Published</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Row exceptions</CapiroTableHeaderCell>
+                        </tr>
+                      </CapiroTableHead>
+                      <CapiroTableBody>
+                        {reconciliationQuery.data.rows.map((row) => (
+                          <tr key={row.slotId}>
+                            <CapiroTableCell><span className="dbl-vnext-mono">{row.slotId}</span></CapiroTableCell>
+                            <CapiroTableCell>{row.sourceFamily}</CapiroTableCell>
+                            <CapiroTableCell>{row.component ?? 'unknown'}</CapiroTableCell>
+                            <CapiroTableCell>{row.discovery}</CapiroTableCell>
+                            <CapiroTableCell>
+                              {row.knownRequiredUnits} known / <CoverageCount value={row.denominator} />
+                            </CapiroTableCell>
+                            <CapiroTableCell><CoverageCount value={row.knownOptionalUnits} /></CapiroTableCell>
+                            <CapiroTableCell><CoverageCount value={row.parsed} /></CapiroTableCell>
+                            <CapiroTableCell><CoverageCount value={row.verified} /></CapiroTableCell>
+                            <CapiroTableCell><CoverageCount value={row.reviewed} /></CapiroTableCell>
+                            <CapiroTableCell><CoverageCount value={row.published} /></CapiroTableCell>
+                            <CapiroTableCell><ExceptionCodes codes={row.exceptions} /></CapiroTableCell>
+                          </tr>
+                        ))}
+                      </CapiroTableBody>
+                    </CapiroTable>
+                  </CapiroTableWrap>
+                )}
+                <div className="dbl-vnext-card-head dbl-vnext-unit-head">
+                  <div className="dbl-vnext-card-title">Physical units and exceptions</div>
+                </div>
+                {reconciliationQuery.data.rows.every((row) => row.units.length === 0) ? (
+                  <div style={{ padding: '20px 24px' }}>
+                    <CapiroEmptyState title="No physical units recorded" />
+                  </div>
+                ) : (
+                  <CapiroTableWrap>
+                    <CapiroTable>
+                      <CapiroTableHead>
+                        <tr>
+                          <CapiroTableHeaderCell>Logical slot / family</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Unit</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Requirement / account</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Budget activity / volume</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Source document ID</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Source SHA-256</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Parsed</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Verified</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Reviewed</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Published</CapiroTableHeaderCell>
+                          <CapiroTableHeaderCell>Unit exceptions</CapiroTableHeaderCell>
+                        </tr>
+                      </CapiroTableHead>
+                      <CapiroTableBody>
+                        {reconciliationQuery.data.rows.flatMap((row) => row.units.map((unit) => (
+                          <tr key={unit.unitId}>
+                            <CapiroTableCell>
+                              <span className="dbl-vnext-mono">{row.slotId}</span><br />{row.sourceFamily} · {row.component ?? 'unknown'}
+                            </CapiroTableCell>
+                            <CapiroTableCell>{unit.kind} · <span className="dbl-vnext-mono">{unit.unitId}</span></CapiroTableCell>
+                            <CapiroTableCell>{unit.required ? 'required' : 'optional'} · {unit.account ?? 'account unknown'}</CapiroTableCell>
+                            <CapiroTableCell>{unit.budgetActivity ?? 'unknown'} / {unit.volume ?? 'unknown'}</CapiroTableCell>
+                            <CapiroTableCell><span data-testid={`source-document-id-${unit.unitId}`} className="dbl-vnext-mono">{unit.sourceDocumentId ?? 'unknown'}</span></CapiroTableCell>
+                            <CapiroTableCell><span data-testid={`source-sha256-${unit.unitId}`} className="dbl-vnext-mono">{unit.sourceSha256 ?? 'unknown'}</span></CapiroTableCell>
+                            <CapiroTableCell>{unit.parsed ? 'yes' : 'no'}</CapiroTableCell>
+                            <CapiroTableCell>{unit.verified ? 'yes' : 'no'}</CapiroTableCell>
+                            <CapiroTableCell>{unit.reviewed ? 'yes' : 'no'}</CapiroTableCell>
+                            <CapiroTableCell>{unit.published ? 'yes' : 'no'}</CapiroTableCell>
+                            <CapiroTableCell><ExceptionCodes codes={unit.exceptions} /></CapiroTableCell>
+                          </tr>
+                        )))}
+                      </CapiroTableBody>
+                    </CapiroTable>
+                  </CapiroTableWrap>
+                )}
+              </>
+            ) : null}
           </div>
         </>
       ) : null}

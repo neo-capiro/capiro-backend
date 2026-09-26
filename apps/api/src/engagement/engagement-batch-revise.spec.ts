@@ -26,6 +26,8 @@ interface CapturedRequest {
   existingBody?: string | null;
   reviseInstruction?: string | null;
   objective?: string | null;
+  recipient?: Record<string, unknown>;
+  items?: unknown[];
 }
 
 function serviceCapturingRequest(): {
@@ -57,6 +59,8 @@ function serviceCapturingRequest(): {
         existingBody: (request.existingBody as string | null) ?? null,
         reviseInstruction: (request.reviseInstruction as string | null) ?? null,
         objective: (request.objective as string | null) ?? null,
+        recipient: request.recipient as Record<string, unknown>,
+        items: request.items as unknown[],
       });
       return {
         outcome: 'ready',
@@ -97,6 +101,41 @@ const RECIPIENT_A = { email: 'a@mail.house.gov', directoryContactId: 'dc-a', nam
 const RECIPIENT_B = { email: 'b@mail.house.gov', directoryContactId: 'dc-b', name: 'Rep B' };
 
 describe('generateBatchEmails — revision ("Improve") threading (W2.6)', () => {
+  const selectedContext = [{
+    id: 'doc-client-brief',
+    kind: 'document' as const,
+    scope: 'a@mail.house.gov',
+    userInstruction: 'Use the procurement timeline where relevant.',
+  }];
+  const personalized = {
+    ...RECIPIENT_A,
+    personalNote: 'Mention the October procurement review if relevant.',
+  };
+
+  test.each(['initial generation', 'regeneration', 'Improve with Meri'] as const)(
+    '%s carries the selected context and recipient note to the gateway',
+    async (action) => {
+      const { service, inputs } = serviceCapturingRequest();
+      await service.generateBatchEmails(ctx, {
+        templateId: 'system-outreach-message',
+        recipients: [personalized],
+        contextItems: selectedContext,
+        ...(action === 'Improve with Meri'
+          ? { existingSubject: 'Follow-up', existingBody: 'Existing draft.', reviseInstruction: 'Make it warmer.' }
+          : {}),
+      });
+      expect(inputs).toHaveLength(1);
+      expect(inputs[0]!.items).toEqual(selectedContext);
+      expect(inputs[0]!.recipient).toMatchObject({
+        personalNote: 'Mention the October procurement review if relevant.',
+        recipientKey: 'dc-a',
+      });
+      if (action === 'Improve with Meri') {
+        expect(inputs[0]!.existingBody).toBe('Existing draft.');
+      }
+    },
+  );
+
   test('single-recipient + existingBody enters revision mode', async () => {
     const { service, inputs } = serviceCapturingRequest();
     await service.generateBatchEmails(ctx, {

@@ -80,8 +80,10 @@
     "eval:meriv2": "tsx test/evals/run-evals.ts",
     "eval:jev-replay": "tsx scripts/jev-replay-eval.ts",
     "eval:jev-package2": "tsx scripts/jev-package2-eval.ts",
+    "eval:jev-package9-economics": "tsx scripts/jev-package9-economics.ts",
     "eval:jev-shadow-report": "tsx scripts/jev-shadow-report.ts",
     "eval:canary-report": "tsx scripts/canary-report.ts",
+    "eval:jev-bd-gate": "tsx scripts/jev-bd-gate-eval.ts",
     "eval:repair-replay": "tsx scripts/repair-replay-eval.ts",
     "parity": "tsx test/parity/parity.ts",
     "clean": "rm -rf dist"

@@ -28,34 +28,12 @@ USER_NAME="postgres"
 PASSWORD="postgres"
 DB_NAME="capiro"
 P7_MIGRATION="20260822010000_pe_budget_phase7_canonical_promotion"
-# Workstream K's queue link is a second Phase 7 migration. It depends on the
-# override table the first one creates, so the pre-Phase-7 baseline must exclude
-# both — replaying it alone would fail on a missing relation rather than
-# reproducing the real upgrade path.
-P7_MIGRATION_K="20260822020000_pe_budget_phase7_manual_override_queue_link"
-# Workstream L's drain migration is the third. It adds a column to the outbox
-# the first one creates, so the same exclusion applies for the same reason.
-P7_MIGRATION_L="20260902010000_pe_budget_phase7_outbox_drain"
-# Gap 3's eligibility migration is the fourth. It ALTERs the plan table the
-# first one creates (adding the eligibility foreign key), so it must be
-# excluded from the baseline and replayed last, after P7_MIGRATION exists —
-# replaying it as part of the baseline is exactly what produced
-# `relation "defense_budget_promotion_plan" does not exist` the first time
-# this rehearsal ran after Gap 3 closed.
-P7_MIGRATION_GAP3="20260903010000_pe_budget_phase7_promotion_eligibility"
-
-# Gap 5's two migrations are the fifth and sixth. Both are purely additive and
-# neither depends on a Phase 7 table, so unlike Gap 3's they *could* replay in
-# the baseline — they are excluded anyway so the upgrade path proves they apply
-# on top of a pre-Phase-7 schema, which is the claim that matters for a
-# database that has already been migrated once.
-#
-# `..._CANDIDATE_METADATA` ALTERs a Phase 2 table that predates Phase 7
-# entirely, so it is also the one migration here that touches data an existing
-# environment already holds. The checks below assert it arrives nullable and
-# disturbs nothing.
-P7_MIGRATION_GAP5_CANDIDATE="20260907010000_pe_budget_phase2_candidate_source_metadata"
-P7_MIGRATION_GAP5_PLANS="20260907020000_pe_budget_projection_plan_persistence"
+# This timestamp is the chronological boundary, not an allowlist. Later
+# migrations can depend on Phase 7 tables, so copying every migration except a
+# hand-maintained Phase 7 list eventually creates an impossible baseline. Path
+# B first deploys only migrations before this boundary, writes legacy rows,
+# then adds the complete remaining migration chain and deploys to repository
+# tip in its real order.
 TMP_REL=".p7-rehearsal-migrations"
 
 PASS_COUNT=0
@@ -154,13 +132,9 @@ cp "$API_ROOT/prisma/schema.prisma" "$API_ROOT/$TMP_REL/schema.prisma"
 cp "$MIGRATIONS_DIR/migration_lock.toml" "$API_ROOT/$TMP_REL/migrations/" 2>/dev/null || true
 for dir in "$MIGRATIONS_DIR"/*/; do
   migration="$(basename "$dir")"
-  [ "$migration" = "$P7_MIGRATION" ] && continue
-  [ "$migration" = "$P7_MIGRATION_K" ] && continue
-  [ "$migration" = "$P7_MIGRATION_L" ] && continue
-  [ "$migration" = "$P7_MIGRATION_GAP3" ] && continue
-  [ "$migration" = "$P7_MIGRATION_GAP5_CANDIDATE" ] && continue
-  [ "$migration" = "$P7_MIGRATION_GAP5_PLANS" ] && continue
-  cp -r "$dir" "$API_ROOT/$TMP_REL/migrations/"
+  if [[ "$migration" < "$P7_MIGRATION" ]]; then
+    cp -r "$dir" "$API_ROOT/$TMP_REL/migrations/"
+  fi
 done
 (cd "$API_ROOT" && npx prisma migrate deploy --schema "$TMP_REL/schema.prisma" >/dev/null) \
   || fail "pre-Phase-7 replay failed"
@@ -199,20 +173,19 @@ INSERT INTO budget_extraction_candidate_v1 (
 );
 SQL
 
-"${PSQL[@]}" < "$MIGRATIONS_DIR/$P7_MIGRATION/migration.sql" >/dev/null \
-  || fail "Phase 7 migration failed on the upgrade path"
-"${PSQL[@]}" < "$MIGRATIONS_DIR/$P7_MIGRATION_K/migration.sql" >/dev/null \
-  || fail "Workstream K queue-link migration failed on the upgrade path"
-"${PSQL[@]}" < "$MIGRATIONS_DIR/$P7_MIGRATION_L/migration.sql" >/dev/null \
-  || fail "Workstream L drain migration failed on the upgrade path"
-"${PSQL[@]}" < "$MIGRATIONS_DIR/$P7_MIGRATION_GAP3/migration.sql" >/dev/null \
-  || fail "Gap 3 eligibility migration failed on the upgrade path"
-"${PSQL[@]}" < "$MIGRATIONS_DIR/$P7_MIGRATION_GAP5_CANDIDATE/migration.sql" >/dev/null \
-  || fail "Gap 5 candidate-metadata migration failed on the upgrade path"
-"${PSQL[@]}" < "$MIGRATIONS_DIR/$P7_MIGRATION_GAP5_PLANS/migration.sql" >/dev/null \
-  || fail "Gap 5 projection-plan migration failed on the upgrade path"
+# Add every migration from the Phase 7 boundary onward, then let Prisma apply
+# the real chronological chain. This automatically includes future migrations
+# that depend on Phase 7 and prevents them from leaking into the baseline.
+for dir in "$MIGRATIONS_DIR"/*/; do
+  migration="$(basename "$dir")"
+  if [[ "$migration" > "$P7_MIGRATION" || "$migration" = "$P7_MIGRATION" ]]; then
+    cp -r "$dir" "$API_ROOT/$TMP_REL/migrations/"
+  fi
+done
+(cd "$API_ROOT" && npx prisma migrate deploy --schema "$TMP_REL/schema.prisma" >/dev/null) \
+  || fail "Phase 7-to-tip migration chain failed on the upgrade path"
 assert_tables
-ok "Phase 7 migrations apply cleanly on top of the pre-Phase-7 schema"
+ok "Phase 7-to-tip migration chain applies cleanly on the pre-Phase-7 schema"
 
 # --- Gap 5 decision 1: the candidate metadata columns are additive -----------
 [ "$(q "SELECT count(*) FROM budget_extraction_candidate_v1
@@ -1043,6 +1016,7 @@ ok "serve role given a rehearsal password"
 
 ADMIN_DATABASE_URL="postgresql://$USER_NAME:$PASSWORD@localhost:$PORT/$DB_NAME" \
 PROMOTER_DATABASE_URL="postgresql://capiro_pe_promoter:rehearsal-promoter@localhost:$PORT/$DB_NAME" \
+APP_DATABASE_URL="postgresql://capiro_app:rehearsal-app@localhost:$PORT/$DB_NAME" \
   npx tsx "./scripts/pe-budget-phase7-engine-rehearsal.ts" \
   || fail "the engine rehearsal did not pass"
 PASS_COUNT=$((PASS_COUNT + 1))

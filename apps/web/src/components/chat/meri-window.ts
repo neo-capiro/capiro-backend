@@ -2,11 +2,13 @@ export const MERI_WINDOW_QUERY = 'meriWindow';
 export const MERI_WINDOW_NAME = 'capiro-meri-v3';
 export const MERI_WINDOW_PROMPT_QUERY = 'meriPrompt';
 export const MERI_WINDOW_CLIENT_QUERY = 'meriClient';
+export const MERI_WINDOW_PROSPECT_QUERY = 'meriProspect';
 export const MERI_VNEXT_PATH = '/meri';
 
 export interface MeriWorkspaceContextRequest {
   prompt: string;
   clientId?: string | null;
+  prospectId?: string | null;
 }
 
 export function isMeriWorkspaceWindow(search = window.location.search): boolean {
@@ -16,11 +18,15 @@ export function isMeriWorkspaceWindow(search = window.location.search): boolean 
 function appendWorkspaceContext(url: URL, context?: MeriWorkspaceContextRequest): void {
   const prompt = context?.prompt.trim();
   if (prompt) url.searchParams.set(MERI_WINDOW_PROMPT_QUERY, prompt);
-  if (context?.clientId) url.searchParams.set(MERI_WINDOW_CLIENT_QUERY, context.clientId);
+  // Prospect launches carry only the prospect UUID. The API resolves and
+  // authorizes any linked client server-side, so a stale browser client filter
+  // must never be serialized alongside it.
+  if (context?.prospectId) url.searchParams.set(MERI_WINDOW_PROSPECT_QUERY, context.prospectId);
+  else if (context?.clientId) url.searchParams.set(MERI_WINDOW_CLIENT_QUERY, context.clientId);
 }
 
 function hasWorkspaceContext(context?: MeriWorkspaceContextRequest): boolean {
-  return Boolean(context?.prompt.trim() || context?.clientId);
+  return Boolean(context?.prompt.trim() || context?.clientId || context?.prospectId);
 }
 
 export function meriWorkspaceUrl(

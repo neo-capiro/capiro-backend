@@ -71,7 +71,7 @@ export function PeWorkspacePage() {
   );
 
   return (
-    <DefenseBudgetContextProvider>
+    <DefenseBudgetContextProvider summary={summary.data}>
       <div className="pe-v2 pe-ws">
         <header className="pe-ws-bar">
           <span className="pe-ws-bar__eyebrow">Defense Budget</span>

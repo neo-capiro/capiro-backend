@@ -14,6 +14,7 @@ import type { TrustStep } from '../../components/chat/work-performed-shared.js';
 import {
   MERI_WINDOW_CLIENT_QUERY,
   MERI_WINDOW_PROMPT_QUERY,
+  MERI_WINDOW_PROSPECT_QUERY,
   MERI_WINDOW_QUERY,
 } from '../../components/chat/meri-window.js';
 
@@ -43,7 +44,10 @@ export interface PersistedMessage {
 export interface MeriContextRequest {
   prompt: string;
   clientId: string | null;
+  prospectId: string | null;
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * Read the documented one-time vNext launch context from a route query.
@@ -56,8 +60,15 @@ export interface MeriContextRequest {
 export function meriContextRequest(search: string): MeriContextRequest | null {
   const incoming = new URLSearchParams(search);
   const prompt = incoming.get(MERI_WINDOW_PROMPT_QUERY)?.trim() ?? '';
-  const clientId = incoming.get(MERI_WINDOW_CLIENT_QUERY)?.trim() || null;
-  return prompt || clientId ? { prompt, clientId } : null;
+  const rawProspectId = incoming.get(MERI_WINDOW_PROSPECT_QUERY)?.trim() ?? '';
+  // An explicitly malformed prospect scope fails closed. Do not downgrade it
+  // to an ordinary or client-scoped conversation.
+  if (rawProspectId && !UUID_RE.test(rawProspectId)) return null;
+  const prospectId = rawProspectId || null;
+  const clientId = prospectId
+    ? null
+    : incoming.get(MERI_WINDOW_CLIENT_QUERY)?.trim() || null;
+  return prompt || clientId || prospectId ? { prompt, clientId, prospectId } : null;
 }
 
 /** Remove one-time Meri launch context while preserving unrelated route state. */
@@ -65,6 +76,7 @@ export function withoutMeriContext(search: string): string {
   const outgoing = new URLSearchParams(search);
   outgoing.delete(MERI_WINDOW_PROMPT_QUERY);
   outgoing.delete(MERI_WINDOW_CLIENT_QUERY);
+  outgoing.delete(MERI_WINDOW_PROSPECT_QUERY);
   const query = outgoing.toString();
   return query ? `?${query}` : '';
 }
@@ -83,6 +95,7 @@ export function legacyMeriWindowRedirect(search: string): string | null {
   const outgoing = new URLSearchParams();
   if (context?.prompt) outgoing.set(MERI_WINDOW_PROMPT_QUERY, context.prompt);
   if (context?.clientId) outgoing.set(MERI_WINDOW_CLIENT_QUERY, context.clientId);
+  if (context?.prospectId) outgoing.set(MERI_WINDOW_PROSPECT_QUERY, context.prospectId);
 
   const base = context ? '/meri/new' : '/meri';
   const query = outgoing.toString();

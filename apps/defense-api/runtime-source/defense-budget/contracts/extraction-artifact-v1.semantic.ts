@@ -62,6 +62,16 @@ export function validateDefenseBudgetExtractionArtifactV1(
   if (!SHA256_RE.test(artifact.source.sourcePdfSha256)) {
     error('source_sha_invalid', 'source.sourcePdfSha256', 'source SHA must be lowercase SHA-256');
   }
+  if (
+    artifact.source.xmlCompanion &&
+    artifact.source.xmlCompanion.officialPdfSha256 !== artifact.source.sourcePdfSha256
+  ) {
+    error(
+      'xml_companion_official_pdf_sha_mismatch',
+      'source.xmlCompanion.officialPdfSha256',
+      'XML companion provenance must bind the official PDF SHA to source.sourcePdfSha256',
+    );
+  }
   const recomputed = computeArtifactContentSha256(artifact);
   if (artifact.contentSha256 !== recomputed) {
     error(
@@ -95,6 +105,24 @@ export function validateDefenseBudgetExtractionArtifactV1(
       );
     }
     checkPageRangeOverlap(run.pageRanges, `${path}.pageRanges`, error);
+    if (run.inputCompanionSha256 != null && run.method !== 'native_structured') {
+      error(
+        'companion_input_on_non_structured_run',
+        `${path}.inputCompanionSha256`,
+        'companion input digest is only valid for native_structured parser runs',
+      );
+    }
+    if (
+      artifact.source.xmlCompanion &&
+      run.method === 'native_structured' &&
+      run.inputCompanionSha256 !== artifact.source.xmlCompanion.companionByteSha256
+    ) {
+      error(
+        'xml_companion_parser_input_sha_mismatch',
+        `${path}.inputCompanionSha256`,
+        'native structured parser input companion SHA must equal source.xmlCompanion.companionByteSha256',
+      );
+    }
   }
 
   const evidenceIds = new Set<string>();
@@ -120,6 +148,47 @@ export function validateDefenseBudgetExtractionArtifactV1(
     }
     checkEvidenceGranularity(evidence, path, error);
     checkEvidencePageInParserRange(artifact, evidence, path, error);
+    const evidenceRun = artifact.parserRuns.find((run) => run.parserRunId === evidence.parserRunId);
+    if (evidence.structuredElement) {
+      if (!artifact.source.xmlCompanion) {
+        error(
+          'structured_element_without_xml_companion',
+          `${path}.structuredElement`,
+          'structured element evidence requires source.xmlCompanion provenance',
+        );
+      } else if (
+        evidence.structuredElement.companionByteSha256 !==
+        artifact.source.xmlCompanion.companionByteSha256
+      ) {
+        error(
+          'structured_element_companion_sha_mismatch',
+          `${path}.structuredElement.companionByteSha256`,
+          'structured element companion SHA must equal source.xmlCompanion.companionByteSha256',
+        );
+      }
+      if (
+        evidenceRun?.method !== 'native_structured' ||
+        evidenceRun.inputCompanionSha256 !== evidence.structuredElement.companionByteSha256
+      ) {
+        error(
+          'structured_element_parser_run_mismatch',
+          `${path}.structuredElement`,
+          'structured element evidence must reference a native_structured run consuming the same companion bytes',
+        );
+      }
+      if (
+        evidence.granularity !== 'document_only' ||
+        evidence.page != null ||
+        evidence.boundingBox != null ||
+        evidence.textSpan != null
+      ) {
+        error(
+          'structured_element_claims_pdf_location',
+          path,
+          'structured element evidence must be document_only and must not claim PDF page, box, or text-span locations',
+        );
+      }
+    }
   }
 
   const factIds = new Set<string>();
@@ -265,8 +334,7 @@ export function validateDefenseBudgetExtractionArtifactV1(
       ),
     );
     const duplicateWarningForFact = artifact.warnings.some(
-      (warning) =>
-        warning.code.includes('duplicate') && warning.sourceFactIds.includes(factId),
+      (warning) => warning.code.includes('duplicate') && warning.sourceFactIds.includes(factId),
     );
     if (valueAssertions.length > 1 && !duplicateWarningForFact) {
       error(
@@ -548,31 +616,14 @@ function isLeapYear(year: number): boolean {
 function isValidCalendarDate(year: number, month: number, day: number): boolean {
   if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return false;
   if (month < 1 || month > 12 || day < 1) return false;
-  const daysInMonth = [
-    31,
-    isLeapYear(year) ? 29 : 28,
-    31,
-    30,
-    31,
-    30,
-    31,
-    31,
-    30,
-    31,
-    30,
-    31,
-  ];
+  const daysInMonth = [31, isLeapYear(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
   return day <= daysInMonth[month - 1]!;
 }
 
 function isValidIsoDateOrDateTime(value: string): boolean {
   const dateMatch = ISO_DATE_RE.exec(value);
   if (dateMatch != null) {
-    return isValidCalendarDate(
-      Number(dateMatch[1]),
-      Number(dateMatch[2]),
-      Number(dateMatch[3]),
-    );
+    return isValidCalendarDate(Number(dateMatch[1]), Number(dateMatch[2]), Number(dateMatch[3]));
   }
 
   const dateTimeMatch = ISO_DATETIME_RE.exec(value);

@@ -58,6 +58,12 @@ class CreateMeriConversationDto {
   clientId?: string;
 
   @IsOptional()
+  @IsUUID()
+  // Phase 4 server-only slice: the ONLY prospect scope field the client may
+  // supply. Everything else about the prospect scope is resolved server-side.
+  prospectId?: string;
+
+  @IsOptional()
   @IsString()
   @Length(1, 160)
   title?: string;

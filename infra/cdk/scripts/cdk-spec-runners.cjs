@@ -1,8 +1,8 @@
 /**
  * Which runner owns which spec in infra/cdk/test.
  *
- * WHY THIS EXISTS (Meri/Hermes Phase 1, required fix 6b)
- * -----------------------------------------------------
+ * WHY THIS EXISTS
+ * ---------------
  * infra/cdk/test contains specs written in TWO mutually incompatible styles:
  *
  *   * jest style   — `describe()` / `test()` from jest's injected globals.
@@ -17,11 +17,8 @@
  *
  * ...and exits 1. Measured on this branch before the fix:
  * `npx jest` in infra/cdk => 15 failed suites, 6 passed, 29 tests, exit 1.
- * Every one of the 15 "failures" is a false negative: the assertions inside
- * those files were never executed at all. That included
- * `test/meri-hermes-worker-fleet.spec.ts`, so the Meri/Hermes worker-fleet
- * construct had ZERO executing coverage in CI even though its 9 assertions
- * pass when run by the right runner.
+ * Every one of those "failures" is a false negative: the assertions inside
+ * those files were never executed at all.
  *
  * Rather than hard-code two file lists that drift the moment somebody adds a
  * spec, this module PARTITIONS the directory by reading each file and looking

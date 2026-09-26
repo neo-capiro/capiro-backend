@@ -24,10 +24,16 @@ function harness() {
       findFirst: jest.fn().mockResolvedValue({ id: ctx.tenantId, slug: ctx.tenantSlug, name: 'Pilot' }),
     },
     client: {
-      findMany: jest.fn().mockResolvedValue([
-        { id: '00000000-0000-0000-0000-000000000003', name: 'Allowed' },
-      ]),
+      findMany: jest
+        .fn()
+        .mockResolvedValueOnce([
+          { id: '00000000-0000-0000-0000-000000000003', memoryWall: false },
+        ])
+        .mockResolvedValueOnce([
+          { id: '00000000-0000-0000-0000-000000000003', name: 'Allowed' },
+        ]),
     },
+    clientMemoryAccess: { findMany: jest.fn().mockResolvedValue([]) },
     mobileDeviceToken: {
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       upsert: jest.fn().mockResolvedValue({
@@ -46,7 +52,6 @@ function harness() {
   const flags = {
     isMeriMobileApiEnabled: jest.fn().mockResolvedValue(true),
     isMeriMobileCapabilityEnabled: jest.fn().mockResolvedValue(true),
-    isMeriHermesRuntimeEnabled: jest.fn().mockResolvedValue(true),
   };
   const engagement = {
     listMeetings: jest.fn(),
@@ -59,32 +64,24 @@ function harness() {
     confirmAttachment: jest.fn(),
     listAttachments: jest.fn(),
   };
-  const security = {
-    securityEnvelope: jest.fn().mockResolvedValue({
-      authorizedClientIds: ['00000000-0000-0000-0000-000000000003'],
-      authorizedMailboxConnectionIds: [],
-    }),
-  };
   const service = new MeriMobileService(
     prisma as never,
     flags as never,
     engagement as never,
-    security as never,
   );
-  return { service, prisma, flags, engagement, security, tx };
+  return { service, prisma, flags, engagement, tx };
 }
 
 describe('MeriMobileService', () => {
   it('fails closed before querying principal data', async () => {
-    const { service, flags, prisma, security } = harness();
+    const { service, flags, prisma } = harness();
     flags.isMeriMobileApiEnabled.mockResolvedValue(false);
 
     await expect(service.bootstrap(ctx)).rejects.toBeInstanceOf(NotFoundException);
     expect(prisma.withTenant).not.toHaveBeenCalled();
-    expect(security.securityEnvelope).not.toHaveBeenCalled();
   });
 
-  it('builds bootstrap client choices only from the server authorization envelope', async () => {
+  it('builds bootstrap client choices through the ethical-wall predicate', async () => {
     const { service, tx } = harness();
 
     const result = await service.bootstrap(ctx);
@@ -93,12 +90,16 @@ describe('MeriMobileService', () => {
     expect(result.clients).toEqual([
       { id: '00000000-0000-0000-0000-000000000003', name: 'Allowed' },
     ]);
-    expect(tx.client.findMany).toHaveBeenCalledWith(
+    expect(tx.client.findMany).toHaveBeenNthCalledWith(
+      1,
       expect.objectContaining({
-        where: {
-          id: { in: ['00000000-0000-0000-0000-000000000003'] },
-          status: 'active',
-        },
+        where: expect.objectContaining({ tenantId: ctx.tenantId, status: { not: 'archived' } }),
+      }),
+    );
+    expect(tx.client.findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: { id: { in: ['00000000-0000-0000-0000-000000000003'] } },
       }),
     );
   });

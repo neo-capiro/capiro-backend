@@ -42,6 +42,32 @@ describe('program-elements vNext route contract', () => {
     expect(matchPeProfilePath('/program-elements/reconciliation')).toBeNull();
   });
 
+  it('does NOT claim future reserved segments research, compare, coverage — they fall through', () => {
+    expect(isVNextProgramElementsPath('/program-elements/research')).toBe(false);
+    expect(isVNextProgramElementsPath('/program-elements/compare')).toBe(false);
+    expect(isVNextProgramElementsPath('/program-elements/coverage')).toBe(false);
+    expect(matchPeStaticPath('/program-elements/research')).toBeNull();
+    expect(matchPeStaticPath('/program-elements/compare')).toBeNull();
+    expect(matchPeStaticPath('/program-elements/coverage')).toBeNull();
+    expect(matchPeProfilePath('/program-elements/research')).toBeNull();
+    expect(matchPeProfilePath('/program-elements/compare')).toBeNull();
+    expect(matchPeProfilePath('/program-elements/coverage')).toBeNull();
+  });
+
+  it('does NOT claim deeper paths under a profile — they fall through', () => {
+    expect(isVNextProgramElementsPath('/program-elements/0605053A/extra')).toBe(false);
+    expect(matchPeProfilePath('/program-elements/0605053A/extra')).toBeNull();
+    expect(isVNextProgramElementsPath('/program-elements/0605053A/sources')).toBe(false);
+    expect(matchPeProfilePath('/program-elements/0605053A/sources')).toBeNull();
+  });
+
+  it('does NOT claim arbitrary words or malformed identifiers as profiles', () => {
+    expect(isVNextProgramElementsPath('/program-elements/whatever')).toBe(false);
+    expect(matchPeProfilePath('/program-elements/whatever')).toBeNull();
+    expect(matchPeProfilePath('/program-elements/%2Fcoverage')).toBeNull();
+    expect(matchPeProfilePath('/program-elements/%E0%A4%A')).toBeNull();
+  });
+
   it('does not claim unrelated paths', () => {
     expect(isVNextProgramElementsPath('/')).toBe(false);
     expect(isVNextProgramElementsPath('/nonexistent-path-xyz')).toBe(false);

@@ -231,6 +231,8 @@ export class MeriV3ChatClient {
       currentTurnImages?: Array<{ mediaType: string; dataBase64: string }>;
       selectedDocumentIds?: string[];
       reasoningMode: MeriV3ReasoningMode;
+      /** Phase 4: server-authored active-prospect directive (bounded fields only). */
+      prospectDirective?: string;
       toolPolicy?: 'none' | 'read-only';
       researchRun?: { sessionId: string; runId: string };
       governedContext?: MeriGovernedTurnContext;

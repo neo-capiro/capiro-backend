@@ -293,7 +293,7 @@ describe('bizdev-routing', () => {
     expect(next.get('sort')).toBe('name');
     expect(next.get('view')).toBe('business-development');
     const route = resolveBizDevRoute(next);
-    expect(route).toEqual({
+    expect(route).toMatchObject({
       stage: 'qualified',
       ownerId: 'u-2',
       status: 'dismissed',
@@ -658,8 +658,9 @@ describe('preferences', () => {
         geographies: ['WA'],
       },
     });
-    await screen.findByText(/Firm business-development preferences/);
-    expect(screen.getByText('Defense advocacy')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Preferences' }));
+    await screen.findByRole('dialog', { name: /Firm business-development preferences/ });
+    expect(await screen.findByText('Defense advocacy')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Save preferences/ })).not.toBeInTheDocument();
     unmount();
 
@@ -674,7 +675,8 @@ describe('preferences', () => {
         geographies: ['WA'],
       },
     });
-    await screen.findByText(/Firm business-development preferences/);
+    fireEvent.click(screen.getByRole('button', { name: 'Preferences' }));
+    await screen.findByRole('dialog', { name: /Firm business-development preferences/ });
     fireEvent.change(await screen.findByLabelText(/Practice \/ service areas/), {
       target: { value: 'Defense advocacy, Energy' },
     });

@@ -322,6 +322,7 @@ export class ProgramElementController {
         watched: query.watched,
         lineType: query.line_type,
         capability: query.capability,
+        fy: query.fy,
       },
       ctx,
     );

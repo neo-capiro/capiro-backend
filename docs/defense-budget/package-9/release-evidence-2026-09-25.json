@@ -1,0 +1,688 @@
+{
+  "schemaVersion": 2,
+  "package": 9,
+  "evidenceType": "package-9-technical-completion-and-aws-deployment",
+  "updatedAt": "2026-09-25T21:44:00.000Z",
+  "sourceControl": {
+    "repository": "neo-capiro/capirov2",
+    "runtimeSourceRevision": "7d222c0de98013eeeac25ece4329717bc6841536",
+    "localMainAtBuild": "7d222c0de98013eeeac25ece4329717bc6841536",
+    "githubMainAtBuild": "7d222c0de98013eeeac25ece4329717bc6841536",
+    "package9PullRequests": [
+      {
+        "number": 1794,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1794",
+        "mergeCommit": "f8a9079c5fb149952c450bf050d9678494884c26"
+      },
+      {
+        "number": 1796,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1796",
+        "mergeCommit": "8d50b9671f01fc034ec712dc7696e9fe3b1c08d0"
+      },
+      {
+        "number": 1804,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1804",
+        "mergeCommit": "daef1dddc4093bbdf3a15bc569c0d5ed96cc83e4"
+      },
+      {
+        "number": 1812,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1812",
+        "mergeCommit": "a552cb15779c9866c8011223253fdffd63f8d699",
+        "scope": "corrected concurrent drain and compiled product-query qualification"
+      },
+      {
+        "number": 1813,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1813",
+        "mergeCommit": "ad17d0a47607ba69e2fdaf5c966c71caffe64771",
+        "scope": "populated Program Element routing and pointer rollback qualification"
+      },
+      {
+        "number": 1810,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1810",
+        "mergeCommit": "88d44ec63095e61a8dd5a447f066bd5c021d65c4",
+        "scope": "complete isolated 18-threshold warning and stop alarm matrix"
+      },
+      {
+        "number": 1815,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1815",
+        "mergeCommit": "2290d4c3dd3d2b9a4d5ad656ea0077f9fceddc57",
+        "scope": "congressional proof hardening, structured XML companion provenance, queue and synthetic-latency corrections, and current fail-closed plan exit record"
+      },
+      {
+        "number": 1817,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1817",
+        "mergeCommit": "84e2f49188655196bbfc16fef91af80ad5571e80",
+        "scope": "FY2027 HASC RDT&E congressional qualification-only cohort"
+      },
+      {
+        "number": 1819,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1819",
+        "mergeCommit": "c2bc41a86ef087e4b163c556595507ec08b396cf",
+        "scope": "business-development Phase 5 watch alerts and current 433-migration API release"
+      },
+      {
+        "number": 1821,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1821",
+        "mergeCommit": "5314441e03abe1cfc04e5297296fb7b74703bd0d",
+        "scope": "Package 8 manifest discovery rejects malformed availability timestamps before filtering"
+      },
+      {
+        "number": 1825,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1825",
+        "mergeCommit": "0095dedf5d2229f3b4ef71a37aa607b99442b5b2",
+        "scope": "Package 4 committed federal-evidence outbox drain safety gate"
+      },
+      {
+        "number": 1826,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1826",
+        "mergeCommit": "72a9d6ac85fcbb1cc87426b3908854ac9b76e461",
+        "scope": "Package 3 governed congressional packet resolver and trusted runtime wiring"
+      },
+      {
+        "number": 1840,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1840",
+        "mergeCommit": "7d222c0de98013eeeac25ece4329717bc6841536",
+        "scope": "Package 8 DTIC candidate scope qualifier and trusted runtime mirror parity"
+      },
+      {
+        "number": 1853,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1853",
+        "mergeCommit": "2d480a2b141661466e76f865e3416fc90981e46b",
+        "scope": "bounded sustained Package 9 mixed-load harness and qualification evidence"
+      }
+    ],
+    "githubHostedChecks": {
+      "result": "INFRASTRUCTURE_FAILURE_BEFORE_STEPS",
+      "representativeRuns": [36138334795, 36141894234, 36156653550],
+      "runnerAssigned": false,
+      "stepsStarted": 0,
+      "interpretation": "Repository-wide GitHub jobs failed before executing steps. Local, disposable-database, isolated-AWS, CodeBuild, migration, and live ECS validations are retained below."
+    }
+  },
+  "validation": {
+    "defenseDomainBuild": "PASS",
+    "defenseDomainTypecheck": "PASS",
+    "scorecardAssertions": 5,
+    "meriv2CoreBuild": "PASS",
+    "meriv2CoreTypecheck": "PASS",
+    "jevEconomicsAssertions": 4,
+    "apiTypecheck": "PASS",
+    "apiBuild": "PASS",
+    "productionWorkerComponentAssertions": 3,
+    "jsonArtifactValidation": "PASS",
+    "independentTechnicalAudit": "PASS_AFTER_REPAIR",
+    "package1Regression": "64 suites passed, 2 skipped; 915 tests passed, 26 skipped",
+    "parserRouterRegression": "25 suites / 278 tests passed",
+    "nonRdteRegression": "32 suites / 393 tests passed",
+    "focusedHardeningRegression": "6 suites / 77 tests passed",
+    "trustedRuntimeSourceParity": "PASS at merged revision 7d222c0de98013eeeac25ece4329717bc6841536; zero byte differences",
+    "manifestAvailabilityTimestampRegression": "PASS (2/2 tests)",
+    "package4FederalOutboxSafety": "PASS (7 focused tests)",
+    "package3CongressionalResolver": "PASS (7 focused suites / 86 tests)",
+    "package3ParserProof": {
+      "status": "PASS_LOCAL_PRODUCTION_STYLE_PROOF",
+      "report": "docs/defense-budget/package-3/qualification/parser-proof-result-2026-09-25.json",
+      "parserRunId": "pr1_3596f3be7f1af3d54c14acc5caafd3c3a1444ee8ca5d1803cb44f3430e099311",
+      "parserResultByteSha256": "59043d3a9c8cc9b64bb8b97b7d00bc79dca3cfbab88d706068c6dc3f2f0e70d1",
+      "packetByteSha256": "40f3a0f6b6bf5757011363382a32f49c40ff55f0a8a37fb2c5e32010f3671248",
+      "rowCount": 926,
+      "requestedPages": 48,
+      "succeededPages": 48,
+      "failedPages": 0,
+      "productionRegistration": false,
+      "syntheticSourceDocumentId": true,
+      "productionSourceDocumentProbe": "NO_MATCH (read-only ECS task; zero rows for pinned SHA/source key/URL)"
+    },
+    "package5NoWriteDryRun": {
+      "status": "PASS_LIMITED_SCOPE",
+      "taskDefinition": "capiro-dev-api-sync-jobs:34",
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/f3496c2934cc42d3a796def215d66a47",
+      "imageDigest": "sha256:c9a6287725c5b36262833c45d7629bf9ad27dd855ae423e0f59826c370fe2993",
+      "releaseSha": "d31604f6e489fdd76b5175241c6eeb547d2fcf0c",
+      "command": "sync-program-acquisition-continuity --cap 5",
+      "exitCode": 0,
+      "commit": false,
+      "flags": {
+        "programAcquisitionContinuityEnabled": false,
+        "fundingExecutionSourceAdapterEnabled": false,
+        "fundingExecutionPublicationEnabled": false
+      },
+      "sam": {
+        "examined": 5,
+        "records": 5,
+        "relationships": 0,
+        "hasMore": true
+      },
+      "awards": {
+        "examined": 5,
+        "records": 5,
+        "relationships": 0,
+        "coverageGaps": 0,
+        "hasMore": true
+      },
+      "writes": false,
+      "limitation": "Capped aggregate counters and cursors only; not a cohort-complete row or unresolved-allocation review packet."
+    },
+    "package8OfficialSourceAudit": {
+      "status": "NO_GO_CANDIDATE_ONLY",
+      "candidate": "fy2026/RDTE_Vol1_DARPA_MasterJustificationBook_PB_2026.xml",
+      "mirrorCommit": "5c6310d9845cd75360bf4c39a220f9d6699b65df",
+      "mirrorGitBlobSha1": "ea794e1644cf515230e137a3cf92988bf38ad4e0",
+      "mirrorByteLength": 1320882,
+      "mirrorSha256": "00edc63f808a3ad568df96c8871ac5d2e1cd41446dda9e697cfca20d2a595528",
+      "officialXmlUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2026/budget_justification/pdfs/03_RDT_and_E/RDTE_Vol1_DARPA_MasterJustificationBook_PB_2026.xml",
+      "officialXmlHead": {
+        "statusCode": 200,
+        "contentLength": 1320882,
+        "contentType": "text/xml",
+        "lastModified": "2025-06-26T17:29:11Z"
+      },
+      "officialXmlGetStatusCode": 404,
+      "officialPdfUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2026/budget_justification/pdfs/03_RDT_and_E/RDTE_Vol1_DARPA_MasterJustificationBook_PB_2026.pdf",
+      "officialByteSha256": null,
+      "expectedSourceKey": null,
+      "promotable": false,
+      "limitation": "HEAD and GET disagree for the official XML endpoint; no authoritative XML bytes/hash or deterministic FY2026 DARPA expected-source identity exists. The PDF is not inferred byte-equivalent to the mirror XML."
+    },
+    "package8DticOfficialXmlCandidate": {
+      "status": "QUALIFICATION_ONLY",
+      "report": "docs/defense-budget/package-8/qualification/dtic-fy2026-official-xml-candidate-v1.json",
+      "officialXmlSha256": "02479cd6e67dfee10bb1029d9413dbc35e81174384b25319fedfb9589d4aac6a",
+      "mirrorSha256": "02479cd6e67dfee10bb1029d9413dbc35e81174384b25319fedfb9589d4aac6a",
+      "officialByteMatch": true,
+      "fiscalYear": 2026,
+      "budgetCycle": "PB",
+      "programElementIds": ["0605801KA", "0605998KA"],
+      "programElementCount": 2,
+      "duplicateProgramElementOccurrences": 0,
+      "inspectorStatus": "candidate_only",
+      "promotable": false,
+      "scopeQualifier": {
+        "status": "PASS",
+        "tests": "7/7",
+        "mismatchBehavior": "hard_refusal",
+        "productionRegistration": false,
+        "historicalReplay": false
+      },
+      "officialXmlPdfQualification": {
+        "status": "PASS_QUALIFICATION_ONLY",
+        "report": "docs/defense-budget/package-8/qualification/dtic-official-xml-pdf-reconciliation-v1.json",
+        "matchedRecords": 5,
+        "records": 5,
+        "promotable": false
+      },
+      "limitation": "Official XML provenance is now byte-bound and has a five-record page-text spot reconciliation, but no governed expected-source registration, field-complete semantic XML adapter/proof, completeness denominator, review record, or production replay exists."
+    },
+    "package8DticCandidateArtifactSpike": {
+      "status": "QUALIFICATION_ONLY",
+      "report": "docs/defense-budget/package-8/qualification/dtic-fy2026-candidate-artifact-spike-2026-09-25.json",
+      "artifactId": "dbx1_998ec586a39623b526f6743d505d4ed69f37ebe1268d984ac953b49b52a82bbd",
+      "contentSha256": "998ec586a39623b526f6743d505d4ed69f37ebe1268d984ac953b49b52a82bbd",
+      "parserRunId": "prun_aef8b494bd354fa5f4e7c8fbf47d28cf36d965fe44518e032e878e37ff1ff2b2",
+      "programElementIdentityAssertions": 2,
+      "narrativeAssertions": 1,
+      "structuredElementEvidenceCount": 3,
+      "allEvidenceDocumentOnly": true,
+      "fundingMapping": "WARNING_ONLY",
+      "productionRegistration": false,
+      "persisted": false,
+      "limitation": "Offline candidate-only artifact spike; funding mapping and PDF reconciliation remain unqualified."
+    },
+    "package9DeterministicGateAudit": {
+      "status": "NO_GO_SHADOW_ONLY",
+      "report": "docs/defense-budget/package-9/evidence/package9-deterministic-gate-audit-2026-09-25.json",
+      "scorecardReportSha256": "1ae10e1995e9b0f0436c9b11b157cb02e9e41a690657a0d53690a59141364ae4",
+      "jevEconomicsReportSha256": "7d3dde83486699e62ffc86495ca4fb8360b01d469ac6e856fade111b6b04578d",
+      "scorecardStatus": "NO_GO",
+      "jevEconomicsStatus": "NO_GO",
+      "activation": "shadow_only",
+      "limitation": "Deterministic gate checks confirm missing manifest, review, coverage, ownership, latency, pricing, cost, and authorization evidence; they do not substitute for buyer or paid-provider qualification."
+    },
+    "buyerQualificationIntakeDraft": {
+      "status": "DRAFT_NOT_APPROVED",
+      "report": "docs/defense-budget/package-9/buyer-qualification-intake-draft-2026-09-25.json",
+      "workflowCount": 6,
+      "minimumCasesPerWorkflow": 30,
+      "benchmarkAuthorized": false,
+      "activationAuthorized": false
+    }
+  },
+  "qualification": {
+    "concurrentDurableDrainAndQuery": {
+      "status": "PASS_LIMITED_SCOPE",
+      "report": "docs/defense-budget/package-9/evidence/durable-run-p9-20260925215225257-125f56.json",
+      "sha256": "e8befdefb29871fdbb3228ec2447b93f6397d7762055081be12c03ec1e0590e9",
+      "runId": "p9-20260925215225257-125f56",
+      "sourceRevision": "f371dc9c950285ecfa80506ebb3d6c1006446d95",
+      "environment": "disposable-local-postgresql",
+      "startedAt": "2026-09-25T21:52:26.042Z",
+      "finishedAt": "2026-09-25T21:53:18.837Z",
+      "scenarioPasses": 8,
+      "scenarioTotal": 8,
+      "measuredCheckPasses": 6,
+      "measuredCheckTotal": 6,
+      "peakQueueRows": 100,
+      "terminalQueue": {
+        "pending": 0,
+        "leased": 0,
+        "deadLetter": 0
+      },
+      "durableReconciliation": {
+        "acceptedFacts": 100,
+        "evidenceRows": 100,
+        "logicalNotifications": 100,
+        "duplicateLogicalNotificationKeys": 0,
+        "missingFactEvidence": 0,
+        "missingLogicalNotifications": 0
+      },
+      "sourceFamilyRows": {
+        "pb_r1": 25,
+        "pb_p1": 25,
+        "pb_o1": 25,
+        "pb_milcon_c1": 25
+      },
+      "concurrentCompiledQuery": {
+        "clients": 4,
+        "declaredOperations": 8,
+        "observedOperations": 8,
+        "samples": 20,
+        "errors": 0,
+        "p95Milliseconds": 153.05,
+        "maximumMilliseconds": 153.873,
+        "monotonicOverlapMilliseconds": 4064.7537,
+        "perClientCadencePass": true
+      },
+      "retainedFailedObservation": {
+        "report": "docs/defense-budget/package-9/evidence/durable-run-p9-20260925125435029-f669a3.json",
+        "sha256": "1ae31724f509d9f9b7e265ed1565459a9fcd73adc921b233a00dec7bc490f886",
+        "reason": "Cold-client query p95 was 4350.512 milliseconds across 13 samples and exceeded the 2000 millisecond harness limit. This observation is retained for audit and is not presented as a pass."
+      },
+      "limitations": [
+        "synthetic local workload",
+        "no authenticated HTTP or network latency",
+        "no production or buyer traffic",
+        "no source-change-to-verified-update p95 measurement"
+      ]
+    },
+    "populatedRollback": {
+      "status": "PASS_LIMITED_LOCAL_COMPOSITE",
+      "report": "docs/defense-budget/package-9/evidence/rollback-composite-run-p9-f06-20260925T130219Z.json",
+      "sha256": "c60688cf3ed9f5401cef2c355f4e71ed2e6745992593074884d1c66705e7006d",
+      "sourceRevision": "4b210e50f6b377124d27ebd7507241fc420098eb",
+      "environment": "disposable-local-postgresql",
+      "command": "P7_REHEARSAL_PG_PORT=55449 pnpm --filter @capiro/api verify:pe-budget-phase-7:db",
+      "checkGroups": {
+        "topLevelDatabaseRehearsal": 125,
+        "promotionEngine": 40,
+        "outboxDrain": 39,
+        "snapshotReader": 33,
+        "planAndValidate": 36,
+        "authorization": 13
+      },
+      "candidateResponse": {
+        "totalAmount": "999",
+        "quantity": "12"
+      },
+      "restoredPriorResponse": {
+        "totalAmount": "250",
+        "quantity": "12"
+      },
+      "verified": [
+        "candidate response visible through ProgramElementReadService",
+        "authorized pointer rollback restored the exact prior response",
+        "candidate row hashes remained unchanged",
+        "both snapshots and durable rollback audit were preserved",
+        "outbox drain remained paused",
+        "zero unsuppressed rollback notifications",
+        "ephemeral database cleanup completed without touching the separate acceptance container"
+      ],
+      "limitations": [
+        "no authenticated HTTP canary",
+        "no restarted deployed API process",
+        "no production or AWS database rollback",
+        "synthetic data only"
+      ]
+    },
+    "alarmMatrix": {
+      "status": "PASS_LIMITED_SCOPE",
+      "report": "docs/defense-budget/package-9/evidence/alarm-matrix-run-p9-f07-20260925T124316Z-08d62a.json",
+      "sha256": "454aa1d1f0fbf46bece2d307b52886a659297bc3edc106dee594124c8e928be7",
+      "sourceRevision": "14e012c172a76122356530e8d8700f7485943069",
+      "harness": "scripts/qualify-package9-f07-alarm-matrix.ps1",
+      "harnessSha256": "6d0ace77dab50489375899ab09fa43cff0d2691b14ef2c54607ea83d3302fcab",
+      "runKey": "p9-f07-matrix-20260925T124316Z-08d62a",
+      "startedAt": "2026-09-25T12:43:16.179593Z",
+      "completedAt": "2026-09-25T13:29:21.2081332Z",
+      "warningThresholds": 9,
+      "stopThresholds": 9,
+      "initialActionsDisabledOkStates": 18,
+      "initialEmptyLongPolls": 2,
+      "alarmDeliveries": 18,
+      "recoveryDeliveries": 18,
+      "duplicateDeliveries": 0,
+      "deliverySeconds": {
+        "minimum": 4.586,
+        "maximum": 16.652,
+        "harnessLimit": 600
+      },
+      "allHistoriesContainedAlarmAndOk": true,
+      "ephemeralResourcesDeleted": true,
+      "limitations": {
+        "humanAcknowledgement": "NOT_RUN",
+        "stopAdmission": "NOT_RUN",
+        "queuedAndImmutableEvidencePreservation": "NOT_RUN"
+      }
+    },
+    "sustainedLocalProductQuery": {
+      "status": "PASS_LOCAL_SYNTHETIC_SCOPE",
+      "report": "docs/defense-budget/package-9/evidence/product-query-p9q-20260925220837739-63a602b7.json",
+      "sha256": "8d30dfce5d681681f7ad421eaeabe74bfdf05ff3ec32db97ea51fe773c9ad17d",
+      "sourceRevision": "f371dc9c950285ecfa80506ebb3d6c1006446d95",
+      "durationSeconds": 1800,
+      "clients": 4,
+      "operations": 8,
+      "samples": 7108,
+      "errors": 0,
+      "p95Milliseconds": 7.599,
+      "readerEffectiveTableWritePrivileges": 0,
+      "limitations": [
+        "synthetic local workload",
+        "no authenticated HTTP or network latency",
+        "no production or buyer traffic"
+      ]
+    },
+    "awsCostObservation": {
+      "status": "SUPPORTING_ONLY_NOT_ATTRIBUTABLE",
+      "report": "docs/defense-budget/package-9/evidence/aws-cost-observation-p9-20260925T112754Z.json",
+      "sha256": "89f2ae24fd00a1ddb8b3d051705ed101785d38d0ba91b2dad5279748a3cffa88",
+      "accountWideRelevantServicesThirtyDaySumUsd": 6.1100983972,
+      "simpleAnnualizedAccountWideRunRateUsd": 74.33953049926667,
+      "package9IncrementalAwsAnnualHardCapUsd": 1000,
+      "package9IncrementalCostGatePassed": false,
+      "reason": "The account does not expose a Package 9-specific cost-allocation boundary; account-wide observations cannot qualify incremental Package 9 spend."
+    }
+  },
+  "awsDeployment": {
+    "account": "967807252336",
+    "region": "us-east-1",
+    "cluster": "capiro-dev",
+    "holdLiftedByUser": true,
+    "runtimeSourceRevision": "7d222c0de98013eeeac25ece4329717bc6841536",
+    "defenseBudgetLifecycleCoordinator": {
+      "stack": "Capiro-dev-DefenseBudgetAnnualOperations",
+      "stackStatus": "UPDATE_COMPLETE",
+      "taskDefinition": "capiro-dev-defense-budget-lifecycle-coordinator:3",
+      "rule": "capiro-dev-defense-budget-lifecycle-coordinator",
+      "imageRepository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/defense-api",
+      "imageDigest": "sha256:5c3859ae9eab2ab49ebb8e730860a947e8f19809539d94e8b230ac99b14f2208",
+      "releaseSha": "72a9d6ac85fcbb1cc87426b3908854ac9b76e461",
+      "codeBuild": {
+        "id": "capiro-build-intel-api:cb87414d-5683-4ede-84b0-3675e8efe28b",
+        "status": "FAILED_AFTER_IMMUTABLE_LATEST_PUSH",
+        "sourceRevision": "72a9d6ac85fcbb1cc87426b3908854ac9b76e461",
+        "immutableTagsPushed": true,
+        "failure": "defense-api latest tag is immutable; digest-pinned deployment proceeded",
+        "buildspecOverride": "apps/api/Dockerfile + apps/defense-api/Dockerfile; linux/arm64; immutable SHA tags; no ECS mutation"
+      },
+      "boundedRun": {
+        "taskId": "92079374d19745e6808db807ec8bf4f1",
+        "startedAt": "2026-09-25T20:08:11.647Z",
+        "stoppedAt": "2026-09-25T20:08:35.961Z",
+        "exitCode": 0,
+        "logGroup": "/capiro/dev/defense-budget-lifecycle-coordinator",
+        "logStream": "schedule/lifecycle-coordinator/92079374d19745e6808db807ec8bf4f1",
+        "outcome": "PHASE9_SCHEDULE_TICK_COMMITTED",
+        "considered": 14,
+        "due": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "capabilityProof": "CAPABILITY_PROOF_OK"
+      }
+    },
+    "codeBuild": {
+      "failedSafeAttempt": null,
+      "failedSafeAttemptObserved": false,
+      "successfulAttempt": {
+        "id": "capiro-build-intel-api:875ade8c-e0e2-423f-b6fb-45e197720657",
+        "status": "SUCCEEDED",
+        "sourceRevision": "c2bc41a86ef087e4b163c556595507ec08b396cf",
+        "resolvedSourceRevision": "c2bc41a86ef087e4b163c556595507ec08b396cf",
+        "startedAt": "2026-09-25T18:06:40.580Z",
+        "endedAt": "2026-09-25T18:10:26.344Z",
+        "buildPhaseSeconds": 169,
+        "postBuildPhaseSeconds": 25,
+        "buildspecOverride": "exact source guard; apps/api/Dockerfile; linux/arm64; immutable SHA tag; ECR push only; no ECS mutation"
+      },
+      "currentImageBuild": {
+        "id": "capiro-build-intel-api:cb87414d-5683-4ede-84b0-3675e8efe28b",
+        "status": "FAILED_AFTER_IMMUTABLE_LATEST_PUSH",
+        "sourceRevision": "72a9d6ac85fcbb1cc87426b3908854ac9b76e461",
+        "immutableApiDigest": "sha256:eff8632487f7d390de7d7d4294605ab304ae481113bd0e0a5ea95fb30141d014",
+        "immutableDefenseApiDigest": "sha256:5c3859ae9eab2ab49ebb8e730860a947e8f19809539d94e8b230ac99b14f2208",
+        "immutableTagsPushed": true,
+        "failure": "defense-api latest tag is immutable; digest-pinned deployment proceeded",
+        "buildspecOverride": "apps/api/Dockerfile + apps/defense-api/Dockerfile; linux/arm64; immutable SHA tags; no ECS mutation"
+      }
+    },
+    "latestApiImageBuild": {
+      "id": "capiro-build-intel-api:4fec5904-6e04-4f46-9096-5af432bfdba0",
+      "status": "SUCCEEDED",
+      "sourceRevision": "7d222c0de98013eeeac25ece4329717bc6841536",
+      "resolvedSourceRevision": "7d222c0de98013eeeac25ece4329717bc6841536",
+      "buildspecOverride": "apps/api/Dockerfile; linux/arm64; immutable SHA tag; ECR push only; no ECS mutation"
+    },
+    "image": {
+      "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
+      "digest": "sha256:263b6dd695940cb1e042d264e2baa25b74f309bb4c73423b3185e9c7a1b42e34",
+      "tags": ["7d222c0de98013eeeac25ece4329717bc6841536"],
+      "pushedAt": "2026-09-25T21:36:13.392Z",
+      "sizeBytes": 293297329
+    },
+    "migration": {
+      "taskDefinition": "capiro-dev-api-admin-migrate:78",
+      "taskId": "dbd20df9a9d64eca876ca127e8a00f55",
+      "imageDigest": "sha256:bd48e20a54375606a46dcf35663b750df7eddba81b90aa3368aa96260576c6ac",
+      "startedAt": "2026-09-25T21:38:09.539Z",
+      "stoppedAt": "2026-09-25T21:38:40.792Z",
+      "exitCode": 0,
+      "migrationsFound": 433,
+      "pendingMigrations": 0,
+      "logGroup": "/capiro/dev/api",
+      "logStream": "api/api-admin-migrate/dbd20df9a9d64eca876ca127e8a00f55"
+    },
+    "deploymentRaceControl": {
+      "parentTaskDefinition": "capiro-dev-api:470",
+      "parentRolloutState": "COMPLETED",
+      "registeredTaskDefinition": "capiro-dev-api:472",
+      "preRegistrationServiceTaskDefinitionMatchedParent": true,
+      "preUpdateServiceTaskDefinitionMatchedParent": true,
+      "resolution": "Cloned the stable live revision 470 configuration, changed only the API image and RELEASE_SHA, rechecked protected flags, and deployed revision 472 after exact task-definition registration and update."
+    },
+    "service": {
+      "name": "capiro-dev-api",
+      "taskDefinition": "capiro-dev-api:472",
+      "rolloutState": "COMPLETED",
+      "desired": 2,
+      "running": 2,
+      "pending": 0,
+      "failedTasks": 0,
+      "runningTasks": [
+        {
+          "taskId": "01a8c65a85464461ab5ccb571fc3d0b0",
+          "privateIp": "10.40.5.140",
+          "health": "HEALTHY",
+          "imageDigest": "sha256:263b6dd695940cb1e042d264e2baa25b74f309bb4c73423b3185e9c7a1b42e34",
+          "logEventsInspected": null,
+          "errorLikeLogMatches": 0
+        },
+        {
+          "taskId": "ea94e1eb4b72400f8f5f32b39eb4d5ec",
+          "privateIp": "10.40.13.245",
+          "health": "HEALTHY",
+          "imageDigest": "sha256:263b6dd695940cb1e042d264e2baa25b74f309bb4c73423b3185e9c7a1b42e34",
+          "logEventsInspected": null,
+          "errorLikeLogMatches": 0
+        }
+      ]
+    },
+    "currentLiveObservation": {
+      "observedAt": "2026-09-25T21:43:00.000Z",
+      "taskDefinition": "capiro-dev-api:472",
+      "releaseSha": "7d222c0de98013eeeac25ece4329717bc6841536",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:263b6dd695940cb1e042d264e2baa25b74f309bb4c73423b3185e9c7a1b42e34",
+      "rolloutState": "COMPLETED",
+      "desired": 2,
+      "running": 2,
+      "pending": 0,
+      "protectedFlags": {
+        "federalLegislativeEvidenceEnabled": false,
+        "programAcquisitionContinuityEnabled": false,
+        "fundingExecutionSourceAdapterEnabled": false,
+        "fundingExecutionPublicationEnabled": false
+      },
+      "ancestryCheck": "running task definition is pinned to the merged GitHub/local main revision; protected paths remain dark"
+    },
+    "targetGroup": {
+      "arn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-api-tg/3343fe60b1395f62",
+      "expectedHealthyTargets": 2,
+      "finalHealthyTargets": 2,
+      "finalNonHealthyTargets": 0
+    },
+    "runtime": {
+      "gitSha": "7d222c0de98013eeeac25ece4329717bc6841536",
+      "releaseSha": "7d222c0de98013eeeac25ece4329717bc6841536",
+      "taskDefinitionPreservedExceptImageAndGitShaReleaseSha": true,
+      "federalLegislativeEvidenceEnabled": false,
+      "programAcquisitionContinuityEnabled": false,
+      "fundingExecutionSourceAdapterEnabled": false,
+      "fundingExecutionPublicationEnabled": false,
+      "newTaskLogEventsInspected": 0,
+      "newTaskLogErrorLikeCount": 0,
+      "smoke": {
+        "appHealthStatus": 200,
+        "appApiHealthStatus": 401,
+        "authenticatedRouteInterpretation": "Expected unauthenticated authorization wall; no 5xx response observed."
+      }
+    },
+    "orchestrator": {
+      "service": "capiro-dev-meriv2-orchestrator",
+      "taskDefinition": "capiro-dev-meriv2-orchestrator:83",
+      "desired": 1,
+      "running": 1,
+      "pending": 0,
+      "rolloutState": "COMPLETED",
+      "modifiedByThisDeployment": false
+    }
+  },
+  "releaseScorecard": {
+    "path": "docs/defense-budget/package-9/current-release-scorecard-2026-09-25.json",
+    "sha256": "1ae10e1995e9b0f0436c9b11b157cb02e9e41a690657a0d53690a59141364ae4",
+    "evidenceHash": "e6690f38f1de1907345c0cf7af5dc3b8b21d5024558ce471f8f52f09bca65ddf",
+    "status": "NO_GO",
+    "maximumActivation": "shadow_only",
+    "jevEconomics": {
+      "path": "docs/defense-budget/package-9/jev-economics-current-2026-09-25.json",
+      "sha256": "d6f80f4564829bf3f0bd610f2eed9bc8c1084178a9b185d4874360b5d90bc302"
+    }
+  },
+  "activationDecision": {
+    "status": "NO_GO",
+    "maximum": "shadow_only",
+    "technicalImplementationAndDeclaredLimitedScopeRehearsalsComplete": true,
+    "paidProviderRunStarted": false,
+    "historicalReplayStarted": false,
+    "historicalNotificationsSent": false,
+    "productionOrPaidActivationAuthorized": false,
+    "remainingExternalGates": [
+      "approved qualification manifest with exact marketed-family cohort and mandatory-source denominator",
+      "blind independent semantic adjudication and confidence intervals",
+      "six predeclared buyer workflows with required cohorts and at least 30 independently adjudicated cases per workflow",
+      "matched completed-work cost evidence proving the required Jev savings at maintained completion, accuracy, and coverage",
+      "named operational owner acceptance record",
+      "named human alarm receiver acknowledgement",
+      "stop-admission and queued immutable-evidence preservation rehearsal",
+      "release-bound oldest-pending-age and verified-program-update p95 measurements",
+      "Package 9-specific AWS and provider cost attribution",
+      "explicit activation scopes, frozen question-model policy, evaluation-run manifest, and release authorization"
+    ]
+  },
+  "followOnQualification": {
+    "recordedAt": "2026-09-26T00:08:37.000Z",
+    "sourceRevision": "93b95efa789e3032815650b3cbc71625f27d642e",
+    "harness": "apps/api/scripts/package9-durable-qualification.ts",
+    "runId": "p9-20260926000657425-8c3acf",
+    "report": "docs/defense-budget/package-9/evidence/durable-run-p9-20260926000657425-8c3acf.json",
+    "status": "PASS_LIMITED_SCOPE",
+    "mode": {
+      "sustainedMixedLoad": true,
+      "queryDurationSeconds": 30,
+      "workerBatchSize": 1,
+      "workerPauseMs": 1000
+    },
+    "metrics": {
+      "acceptedFacts": 100,
+      "durableLogicalNotifications": 100,
+      "maxQueueRows": 100,
+      "maxConcurrentWorkers": 4,
+      "terminalQueue": {
+        "pending": 0,
+        "leased": 0,
+        "deadLetter": 0
+      },
+      "querySamples": 120,
+      "queryP95Milliseconds": 7.23,
+      "drainQueryOverlapMilliseconds": 29190.3551
+    },
+    "qualificationBoundary": "short disposable local synthetic evidence only; does not qualify production-scale throughput, HTTP/authentication/network latency, source-change-to-verified-update latency, buyer outcomes, cost attribution, paid-provider economics, rollback, or activation",
+    "releaseDecisionUnchanged": "NO_GO / shadow_only"
+  },
+  "followOnDeployment": {
+    "recordedAt": "2026-09-26T00:20:00.000Z",
+    "sourceRevision": "2d480a2b141661466e76f865e3416fc90981e46b",
+    "localMain": "2d480a2b141661466e76f865e3416fc90981e46b",
+    "githubMain": "2d480a2b141661466e76f865e3416fc90981e46b",
+    "codeBuild": {
+      "id": "capiro-build-intel-api:d2986a84-ebca-40df-ab66-a62fe65766be",
+      "resolvedSourceVersion": "2d480a2b141661466e76f865e3416fc90981e46b",
+      "status": "SUCCEEDED",
+      "startedAt": "2026-09-26T00:10:50.175Z",
+      "endedAt": "2026-09-26T00:14:29.670Z",
+      "buildspec": "apps/api/Dockerfile; linux/arm64; immutable SHA tag; ECR push only; no ECS mutation"
+    },
+    "image": {
+      "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
+      "tag": "2d480a2b141661466e76f865e3416fc90981e46b",
+      "digest": "sha256:08257e280c32b1dc49f5e5e1b3ee15d656a97b9915b7166a16130b8d86f8252a"
+    },
+    "migration": {
+      "taskDefinition": "capiro-dev-api-admin-migrate:78",
+      "taskId": "d3184bcc3f04427ba0650525858c8e7b",
+      "exitCode": 0,
+      "result": "No pending migrations to apply"
+    },
+    "service": {
+      "name": "capiro-dev-api",
+      "taskDefinition": "capiro-dev-api:475",
+      "rolloutState": "COMPLETED",
+      "desired": 2,
+      "running": 2,
+      "pending": 0,
+      "healthyTasks": 2,
+      "healthyReplacementTargets": 2,
+      "targetHealthNote": "old targets drained normally after replacement"
+    },
+    "runtime": {
+      "gitSha": "2d480a2b141661466e76f865e3416fc90981e46b",
+      "releaseSha": "2d480a2b141661466e76f865e3416fc90981e46b",
+      "appHttpStatus": 200,
+      "recentApiErrorLikeLogMatches": 0,
+      "protectedFlags": {
+        "federalLegislativeEvidenceEnabled": false,
+        "programAcquisitionContinuityEnabled": false,
+        "fundingExecutionSourceAdapterEnabled": false,
+        "fundingExecutionPublicationEnabled": false
+      }
+    },
+    "qualificationBoundary": "deployment evidence only; Package 9 remains NO_GO/shadow_only and the sustained run remains disposable synthetic evidence"
+  }
+}

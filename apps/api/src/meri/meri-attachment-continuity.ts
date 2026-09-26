@@ -53,7 +53,7 @@ export async function authorizedAttachmentSources(prisma: PrismaService, ctx: Te
   return rows.filter(row => row.messageId != null && authorized.has(row.messageId));
 }
 
-/** A metadata-only inventory for Hermes. It never replays attachment text or bytes. */
+/** A metadata-only inventory for resumable runtimes. It never replays attachment text or bytes. */
 export async function previousAttachmentManifest(prisma: PrismaService, ctx: TenantContext,
   conversationId: string, currentMessageId: string | null): Promise<PriorAttachmentManifestItem[]> {
   const messages = await prisma.withTenant(ctx.tenantId, tx => tx.clioMessage.findMany({

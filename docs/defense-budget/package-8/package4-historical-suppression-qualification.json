@@ -1,0 +1,173 @@
+{
+  "run": "58663671",
+  "database": "capiro_package8_qual2",
+  "scenarios": {
+    "unknownCodeReplay": {
+      "first": {
+        "sourceKey": "govinfo:BILLS-119hr9440ih",
+        "revisionId": "aa79029e-c2ae-45b9-908e-5c667804e6ae",
+        "observationInserted": true,
+        "revisionInserted": true,
+        "eventTypes": [],
+        "pendingUnknownCodes": [
+          "0604726F"
+        ]
+      },
+      "replay": {
+        "scanned": 1,
+        "resolved": 1
+      },
+      "historicalDrain": {
+        "claimed": 1,
+        "processed": 1,
+        "failed": 0,
+        "alertsInserted": 0,
+        "suppressedHistorical": 1
+      }
+    },
+    "sameCodeChangedLanguage": {
+      "changed": {
+        "sourceKey": "govinfo:BILLS-119hr9440ih",
+        "revisionId": "12071e9a-f6e1-4410-b2c7-8e64de2fda42",
+        "observationInserted": true,
+        "revisionInserted": true,
+        "eventTypes": [
+          "changed",
+          "text_changed"
+        ],
+        "pendingUnknownCodes": []
+      },
+      "changedDrain": {
+        "claimed": 2,
+        "processed": 2,
+        "failed": 0,
+        "alertsInserted": 2,
+        "suppressedHistorical": 0
+      },
+      "retry": {
+        "sourceKey": "govinfo:BILLS-119hr9440ih",
+        "revisionId": "12071e9a-f6e1-4410-b2c7-8e64de2fda42",
+        "observationInserted": false,
+        "revisionInserted": false,
+        "eventTypes": [],
+        "pendingUnknownCodes": []
+      },
+      "uncertainRetry": {
+        "claimed": 1,
+        "processed": 1,
+        "failed": 0,
+        "alertsInserted": 0,
+        "suppressedHistorical": 0
+      }
+    },
+    "partialSafety": {
+      "partial": {
+        "sourceKey": "govinfo:BILLS-119hr9440ih",
+        "revisionId": "9dcbd8cc-3e80-4561-a137-10a9c1f3777f",
+        "observationInserted": true,
+        "revisionInserted": true,
+        "eventTypes": [],
+        "pendingUnknownCodes": []
+      },
+      "currentRevisionId": "12071e9a-f6e1-4410-b2c7-8e64de2fda42"
+    },
+    "removalAndReinstatement": {
+      "removed": {
+        "sourceKey": "govinfo:BILLS-119hr9440ih",
+        "revisionId": null,
+        "observationInserted": true,
+        "revisionInserted": false,
+        "eventTypes": [
+          "removed"
+        ],
+        "pendingUnknownCodes": []
+      },
+      "removalDrain": {
+        "claimed": 1,
+        "processed": 1,
+        "failed": 0,
+        "alertsInserted": 1,
+        "suppressedHistorical": 0
+      },
+      "reinstated": {
+        "sourceKey": "govinfo:BILLS-119hr9440ih",
+        "revisionId": "12071e9a-f6e1-4410-b2c7-8e64de2fda42",
+        "observationInserted": true,
+        "revisionInserted": false,
+        "eventTypes": [
+          "reinstated"
+        ],
+        "pendingUnknownCodes": []
+      },
+      "reinstatementDrain": {
+        "claimed": 1,
+        "processed": 1,
+        "failed": 0,
+        "alertsInserted": 1,
+        "suppressedHistorical": 0
+      }
+    },
+    "historicalRemovalSuppression": {
+      "historicalBaselineDrain": {
+        "claimed": 1,
+        "processed": 1,
+        "failed": 0,
+        "alertsInserted": 0,
+        "suppressedHistorical": 1
+      },
+      "historicalRemoval": {
+        "sourceKey": "govinfo:BILLS-119hr9440ih-historical-58663671",
+        "revisionId": null,
+        "observationInserted": true,
+        "revisionInserted": false,
+        "eventTypes": [
+          "removed"
+        ],
+        "pendingUnknownCodes": []
+      },
+      "historicalRemovalDrain": {
+        "claimed": 1,
+        "processed": 1,
+        "failed": 0,
+        "alertsInserted": 0,
+        "suppressedHistorical": 1
+      },
+      "notificationsBeforeHistoricalRemoval": 4
+    },
+    "actionOutbox": {
+      "actionDrain": {
+        "claimed": 1,
+        "processed": 1,
+        "failed": 0,
+        "alertsInserted": 1,
+        "suppressedHistorical": 0
+      }
+    },
+    "qualifiedReads": {
+      "currentCount": 1,
+      "peEventTypes": [
+        "reinstated",
+        "removed",
+        "changed",
+        "resolved"
+      ],
+      "billEventTypes": [
+        "action_added",
+        "reinstated",
+        "removed",
+        "changed",
+        "text_changed",
+        "resolved"
+      ]
+    }
+  },
+  "counts": {
+    "revisions": 4,
+    "observations": 7,
+    "mentions": 3,
+    "events": 8,
+    "outboxProcessed": 8,
+    "alerts": 5
+  },
+  "result": "PASS"
+}

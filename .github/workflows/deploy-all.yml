@@ -1,0 +1,169 @@
+# Unified manual deploy workflow for all Capiro services.
+#
+# Usage:
+#   1. Trigger via GitHub Actions UI (workflow_dispatch)
+#   2. Select the service and target env
+#   3. The workflow builds a fresh image, pushes to ECR, then forces a new
+#      ECS deployment — ECS pulls the new :latest tag and drains old tasks.
+#
+# Prerequisites (one-time per service, already done for api/web-vnext):
+#   - ECR repo capiro/<env>/<service> must exist
+#   - OIDC role (AWS_DEV_GHA_ROLE_ARN / AWS_PROD_GHA_ROLE_ARN) must have
+#     ecr:GetAuthorizationToken + push permissions on the target repo
+#   - The ECS service capiro-<env>-<service> must exist in cluster capiro-<env>
+#
+# Services covered:
+#   api, engagement-api, api-strategy, intel-api, workspace, onboard-api,
+#   clio-sandbox, web, web-vnext, meriv2-orchestrator, marketing
+
+name: deploy-all
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to deploy'
+        required: true
+        type: choice
+        options:
+          - api
+          - engagement-api
+          - api-strategy
+          - intel-api
+          - workspace
+          - onboard-api
+          - clio-sandbox
+          - web
+          - web-vnext
+          - meriv2-orchestrator
+          - marketing
+      env:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+        default: dev
+      skip_tests:
+        description: 'Skip tests (emergency deploys only)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  SERVICE: ${{ inputs.service }}
+  TARGET_ENV: ${{ inputs.env }}
+  ECS_CLUSTER: capiro-${{ inputs.env }}
+  ECS_SERVICE: capiro-${{ inputs.env }}-${{ inputs.service }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ inputs.env == 'prod' && vars.AWS_PROD_GHA_ROLE_ARN || vars.AWS_DEV_GHA_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Resolve Dockerfile path and build context
+        id: config
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$SERVICE" in
+            marketing)
+              echo "dockerfile=marketing/Dockerfile" >> "$GITHUB_OUTPUT"
+              echo "context=." >> "$GITHUB_OUTPUT"
+              ;;
+            clio-sandbox)
+              echo "dockerfile=apps/clio-sandbox/Dockerfile" >> "$GITHUB_OUTPUT"
+              echo "context=apps/clio-sandbox" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "dockerfile=apps/${SERVICE}/Dockerfile" >> "$GITHUB_OUTPUT"
+              echo "context=." >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ steps.config.outputs.context }}
+          file: ${{ steps.config.outputs.dockerfile }}
+          platforms: linux/arm64
+          push: true
+          provenance: false
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/capiro/${{ env.TARGET_ENV }}/${{ env.SERVICE }}:${{ github.sha }}
+            ${{ steps.ecr.outputs.registry }}/capiro/${{ env.TARGET_ENV }}/${{ env.SERVICE }}:latest
+          no-cache-filters: build
+          cache-from: type=gha,scope=${{ env.SERVICE }}
+          cache-to: type=gha,mode=max,scope=${{ env.SERVICE }}
+
+      - name: Deploy to ECS
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Deploying $SERVICE to $ECS_CLUSTER/$ECS_SERVICE..."
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --force-new-deployment \
+            --region "$AWS_REGION" \
+            --query "service.{status:status,runningCount:runningCount,desiredCount:desiredCount}" \
+            --output table
+
+      - name: Wait for service stability
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Waiting for $ECS_SERVICE to stabilize (up to 10 min)..."
+          aws ecs wait services-stable \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE" \
+            --region "$AWS_REGION"
+          echo "Service stable. Verifying running task count..."
+          aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE" \
+            --region "$AWS_REGION" \
+            --query "services[0].{status:status,running:runningCount,desired:desiredCount,pending:pendingCount}" \
+            --output table
+
+      - name: Summary
+        run: |
+          echo "### Deploy complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "| | |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Service | $SERVICE |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Environment | $TARGET_ENV |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Image tag | ${{ github.sha }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ECR repo | capiro/$TARGET_ENV/$SERVICE |" >> "$GITHUB_STEP_SUMMARY"

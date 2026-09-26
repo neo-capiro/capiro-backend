@@ -19,15 +19,8 @@ import {
   type MeriQuickActionSelection,
 } from './MeriQuickActionsPanel.js';
 import { MeriCanvas } from './MeriCanvas.js';
-import { HermesApprovalCard } from './HermesApprovalCard.js';
 import { ResearchClarifyForm } from './ResearchClarifyForm.js';
 import { WorkPerformed } from './WorkPerformed.js';
-import {
-  hermesRunIsGenerating,
-  hermesRunStatusLabel,
-  type MeriHermesApprovalCard as MeriHermesApprovalCardData,
-  type MeriHermesClarifyCard,
-} from './meri-hermes-interactions.js';
 import { config } from '../../env.js';
 import { useApi } from '../../lib/use-api.js';
 import type { MeriChatController } from './useMeriChatController.js';
@@ -117,11 +110,6 @@ export function MeriWorkspaceConversation({
     handleApprovePending,
     handleApproveAll,
     handleDismissPending,
-    hermesInteractions,
-    hermesRunStatus,
-    hermesBusyRequestId,
-    resolveHermesApproval,
-    answerHermesClarification,
     activeArtifact,
     setActiveArtifact,
     authHeaders,
@@ -139,13 +127,6 @@ export function MeriWorkspaceConversation({
     orchestratorConflict,
     messagesEndRef,
   } = controller;
-
-  const hermesClarifyCards = hermesInteractions.filter(
-    (card): card is MeriHermesClarifyCard => card.kind === 'clarification' && !card.resolution,
-  );
-  const hermesApprovalCards = hermesInteractions.filter(
-    (card): card is MeriHermesApprovalCardData => card.kind === 'approval',
-  );
 
   const selectedClient = clients.find((client) => client.id === selectedClientValue) ?? null;
   // `handleNewSession` creates the durable server conversation immediately. The
@@ -543,65 +524,6 @@ export function MeriWorkspaceConversation({
               disabled={isStreaming}
               onSubmit={(answers, skipped) => void submitResearchAnswers(answers, skipped)}
             />
-          ) : null}
-
-          {/* Hermes control surface (Phase 1 backlog tickets 4/5): durable
-              clarification and native command-approval cards. Rendered
-              regardless of isStreaming and regardless of whether the run that
-              asked is still alive — unlike the business pendingApprovals
-              below, which is gated on `!isStreaming`.
-
-              A durable clarification routinely OUTLIVES its run (the broker
-              asks, the turn ends, the answer arrives as the next chat
-              message), so gating these on a live run is what made such a
-              question unanswerable. Both kinds survive a reload in any tab:
-              they are rebuilt from the server's discovery endpoint on mount
-              exactly as they are from a live SSE frame — see
-              useMeriChatController.ts's discoverHermesActive. A native
-              approval whose run HAS ended still renders, but as a
-              no-longer-actionable card (the backend refuses it), not as a
-              button that would silently fail. */}
-          {hermesClarifyCards.map((card) => (
-            <ResearchClarifyForm
-              key={card.requestId}
-              questions={[{ question: card.question, choices: card.choices, multiSelect: card.multiSelect }]}
-              disabled={hermesBusyRequestId === card.requestId}
-              allowSkip={false}
-              submitLabel="Send answer"
-              headline="Meri is waiting for your answer"
-              onSubmit={(answers) => void answerHermesClarification(card, answers['0'] ?? '')}
-            />
-          ))}
-          {hermesApprovalCards.map((card) => (
-            <HermesApprovalCard
-              key={card.requestId}
-              card={card}
-              busy={hermesBusyRequestId === card.requestId}
-              onDecide={(decision) => resolveHermesApproval(card, decision)}
-            />
-          ))}
-          {hermesRunStatus ? (
-            <div className={`hermes-run-status hermes-run-status--${hermesRunStatus}`} role="status">
-              <span className="hermes-run-status__dot" aria-hidden="true" />
-              {hermesRunStatusLabel(hermesRunStatus)}
-              {/* Steering capability statement (contracts.md §6 "Steer", MW-09).
-                  The server route POST …/runs/:id/steer exists, but no steering
-                  UX is built, so the honest thing is to say so where the user
-                  would look for it rather than leave the capability implied.
-                  This is a statement, not a control: it is permanently disabled
-                  until the steer UX ships. */}
-              {hermesRunIsGenerating(hermesRunStatus) ? (
-                <button
-                  type="button"
-                  className="hermes-run-status__steer"
-                  disabled
-                  aria-disabled="true"
-                  title="Stop the run and send a new message to change direction."
-                >
-                  Add guidance — not available for this runtime yet
-                </button>
-              ) : null}
-            </div>
           ) : null}
 
           {orchestratorConflict ? (

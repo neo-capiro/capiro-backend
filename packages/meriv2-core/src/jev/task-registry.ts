@@ -3,7 +3,7 @@ import type { CapabilityRolloutMode } from '../rollout/capability-rollout';
 import type { EvidenceEnvelope } from './decision-contract';
 import { DEFAULT_JEV_MODEL, JEV_TASKS, type JevConfig, type JevTask } from './jev-config';
 
-export const JEV_TASK_REGISTRY_VERSION = 'jev-task-registry.v4' as const;
+export const JEV_TASK_REGISTRY_VERSION = 'jev-task-registry.v5' as const;
 
 export type JevRequiredEvidenceMetadata =
   | 'authority'
@@ -87,6 +87,8 @@ const MODEL_EVALUATION_OWNER = 'model/evaluation lead';
 const UNPRICED = 'unpriced-until-approved-provider-rate';
 const CLAIM_FIXTURE = 'packages/meriv2-core/src/jev/__fixtures__/stage0-claim-evidence-v1.json';
 const PACKAGE_2_FIXTURE = 'packages/meriv2-core/src/jev/__fixtures__/package2-task-evaluation-v1.json';
+const BD_FIXTURE = 'packages/meriv2-core/src/jev/__fixtures__/bd-task-evaluation-v1.json';
+const BD_CLAIM_FIXTURE = 'packages/meriv2-core/src/jev/__fixtures__/bd-claim-replay-v1.json';
 
 function governance(input: {
   task: JevTask;
@@ -106,6 +108,8 @@ function governance(input: {
   maxCalls?: number;
   maxInputTokens?: number;
   maxOutputTokens?: number;
+  maxEstimatedCostUsd?: number;
+  priceVersion?: string;
 }): Pick<JevTaskRegistration,
   | 'ownerRole'
   | 'lifecycle'
@@ -150,8 +154,8 @@ function governance(input: {
       maxCalls: input.maxCalls ?? 1,
       maxInputTokens: input.maxInputTokens ?? 32_000,
       maxOutputTokens: input.maxOutputTokens ?? 2_000,
-      maxEstimatedCostUsd: null,
-      priceVersion: UNPRICED,
+      maxEstimatedCostUsd: input.maxEstimatedCostUsd ?? null,
+      priceVersion: input.priceVersion ?? UNPRICED,
     },
   };
 }
@@ -281,6 +285,59 @@ export const JEV_TASK_REGISTRY: Readonly<Record<JevTask, JevTaskRegistration>> =
     questionVersion: 'evidence_selection.v1', questionId: 'evidence_selection', primitive: 'choice',
     modelVersion: DEFAULT_JEV_MODEL, thresholds: {}, fallback: 'unfiltered', rolloutCapability: 'JEV_PROVIDER',
     calibration: { status: 'provisional', basis: 'Package 2 proposed fixtures only; selections are bounded to supplied candidates.' },
+  },
+  bd_entity: {
+    task: 'bd_entity',
+    ...governance({ task: 'bd_entity', lifecycle: 'shadow_only',
+      allowedOutcomes: ['same_legal_entity', 'related_not_same', 'different', 'insufficient_evidence'],
+      candidateGenerator: 'bounded-bd-organization-descriptions',
+      requiredMetadata: ['authority', 'provenance', 'document_completeness', 'relation_scope', 'source_locator'],
+      cacheFields: ['task', 'registry_version', 'question_version', 'question_hash', 'model_version',
+        'envelope_hash', 'provenance', 'candidates'],
+      thresholdsByAction: { propose_same_legal_entity: 0.99, abstain_below: 0.99 },
+      evaluationSet: { id: 'bd_entity_task_evaluation_v1', status: 'proposed', path: BD_FIXTURE },
+      maxCalls: 1, maxInputTokens: 16_000, maxOutputTokens: 1_000,
+      maxEstimatedCostUsd: 0.001,
+      priceVersion: 'typesafe-public-2026-09-15-usd-0.042-per-million-input-v1' }),
+    questionVersion: 'bd_entity.v1', questionId: 'bd_entity', primitive: 'choice',
+    modelVersion: DEFAULT_JEV_MODEL, thresholds: {}, fallback: 'no_change', rolloutCapability: 'JEV_PROVIDER',
+    calibration: { status: 'provisional', basis: 'Proposed fixtures only; no human-reviewed BD-ENTITY evaluation exists. Advisory outcome; always requires human review and can never write canonical identity facts.' },
+  },
+  bd_signal: {
+    task: 'bd_signal',
+    ...governance({ task: 'bd_signal', lifecycle: 'shadow_only',
+      allowedOutcomes: ['explicit_link', 'conditional_alignment', 'thematic_fit', 'unrelated',
+        'insufficient_evidence'],
+      candidateGenerator: 'bounded-bd-company-signal-pairs',
+      requiredMetadata: ['authority', 'provenance', 'document_completeness', 'financial_stage', 'source_locator'],
+      cacheFields: ['task', 'registry_version', 'question_version', 'question_hash', 'model_version',
+        'envelope_hash', 'provenance', 'candidates'],
+      thresholdsByAction: { label_explicit_link: 0.95, abstain_below: 0.95 },
+      effect: 'label_only',
+      evaluationSet: { id: 'bd_signal_task_evaluation_v1', status: 'proposed', path: BD_FIXTURE },
+      maxCalls: 1, maxInputTokens: 16_000, maxOutputTokens: 1_000,
+      maxEstimatedCostUsd: 0.001,
+      priceVersion: 'typesafe-public-2026-09-15-usd-0.042-per-million-input-v1' }),
+    questionVersion: 'bd_signal.v1', questionId: 'bd_signal', primitive: 'choice',
+    modelVersion: DEFAULT_JEV_MODEL, thresholds: {}, fallback: 'no_change', rolloutCapability: 'JEV_PROVIDER',
+    calibration: { status: 'provisional', basis: 'Proposed fixtures only; no human-reviewed BD-SIGNAL evaluation exists. Label-only while shadow-only; explicit_link is a semantic suggestion that application code must independently verify against identifiers, record type, event/financial stage and locator before any direct label.' },
+  },
+  bd_claim: {
+    task: 'bd_claim',
+    ...governance({ task: 'bd_claim', lifecycle: 'shadow_only',
+      allowedOutcomes: ['supported', 'contradicted', 'insufficient_evidence', 'conflicting_evidence'],
+      candidateGenerator: 'bounded-bd-claim-exact-check-binding',
+      requiredMetadata: ['authority', 'provenance', 'document_completeness', 'financial_stage', 'source_locator'],
+      cacheFields: ['task', 'registry_version', 'question_version', 'question_hash', 'model_version',
+        'envelope_hash', 'provenance', 'candidates'],
+      thresholdsByAction: { propose_supported: 0.99, abstain_below: 0.99 },
+      evaluationSet: { id: 'bd_claim_replay_v1', status: 'proposed', path: BD_CLAIM_FIXTURE },
+      maxCalls: 1, maxInputTokens: 16_000, maxOutputTokens: 1_000,
+      maxEstimatedCostUsd: 0.001,
+      priceVersion: 'typesafe-public-2026-09-15-usd-0.042-per-million-input-v1' }),
+    questionVersion: 'bd_claim.v1', questionId: 'bd_claim', primitive: 'choice',
+    modelVersion: DEFAULT_JEV_MODEL, thresholds: {}, fallback: 'no_change', rolloutCapability: 'JEV_PROVIDER',
+    calibration: { status: 'provisional', basis: 'Proposed recorded replay fixtures only; no human-reviewed BD-CLAIM evaluation exists. Dark-only: shadow_only lifecycle, max rollout shadow, advisory outcome only, one-call budget, no live effect, no application caller is wired. Code-owned exact amount/identifier/date/source-locator/financial-stage validation precedes any semantic judgment; Jev cannot approve an exact mismatch. Not calibrated for semantic accuracy; not for use on non-claim text.' },
   },
 };
 

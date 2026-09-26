@@ -73,7 +73,8 @@ export type ContextKind =
   | 'debrief'
   | 'prep'
   | 'programElement'
-  | 'capability';
+  | 'capability'
+  | 'clientOverview';
 
 /**
  * The Phase 1 selected-item contract: IDs and authenticated instructions only.
@@ -207,6 +208,8 @@ export class EvidenceSourceService {
         return this.resolveProgramElement(ctx, item, input);
       case 'capability':
         return this.resolveCapability(ctx, item, input);
+      case 'clientOverview':
+        return this.resolveClientOverview(ctx, item, input);
       case 'email':
         return this.resolveEmail(ctx, item, input);
       case 'document':
@@ -1400,6 +1403,76 @@ export class EvidenceSourceService {
       // staleness thresholds meant for bills/emails would only add noise.
       failures: [],
     };
+  }
+
+  /**
+   * The client's profile overview is evidence only after it has been
+   * rehydrated from the tenant-scoped Client row. Browser text is never used.
+   */
+  private async resolveClientOverview(
+    ctx: TenantContext,
+    item: SelectedContextItemRef,
+    input: ResolveSelectedItemsInput,
+  ): Promise<Partial<ResolveSelectedItemsResult>> {
+    const clientId = parsePrefixed(item.id, 'client-overview-');
+    if (!clientId) return { failures: [this.malformedId(item, 'clientOverview')] };
+
+    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.client.findFirst({
+        where: { id: clientId, tenantId: ctx.tenantId },
+        select: {
+          id: true,
+          name: true,
+          website: true,
+          description: true,
+          productDescription: true,
+          sectorTag: true,
+          profileType: true,
+          updatedAt: true,
+        },
+      }),
+    );
+    if (!row) {
+      return {
+        failures: [
+          sourceFailure('clientOverview', 'CLIENT_OVERVIEW_NOT_FOUND', 'critical',
+            'The selected client overview is no longer available.', item.id),
+        ],
+      };
+    }
+    if (input.clientId && row.id !== input.clientId) {
+      return {
+        failures: [
+          sourceFailure('clientOverview', 'CLIENT_OVERVIEW_OTHER_CLIENT', 'critical',
+            'A client overview you selected belongs to a different client and cannot be used for this campaign.', item.id),
+        ],
+      };
+    }
+
+    const text = [
+      `Client: ${row.name}`,
+      row.website ? `Website: ${row.website}` : null,
+      row.sectorTag ? `Sector: ${row.sectorTag}` : null,
+      row.profileType ? `Profile type: ${row.profileType}` : null,
+      row.description?.trim() ? `Overview: ${row.description.trim()}` : null,
+      row.productDescription?.trim() ? `Products and services: ${row.productDescription.trim()}` : null,
+    ].filter(Boolean).join('\n');
+    const bounded = boundEvidenceText(text);
+    const ref = this.ref({
+      sourceType: 'clientOverview',
+      sourceId: row.id,
+      title: `${row.name} — client overview`,
+      trust: 'server_record',
+      authoritativeAsOf: isoOrNull(row.updatedAt),
+      scope: item.scope,
+      now: input.now,
+      clientId: row.id,
+      provenance: {
+        isClientAssertedNotVerified: true,
+        truncated: bounded.truncated,
+      },
+    });
+    return { evidence: [this.item(ref, bounded.text, item.scope)] };
   }
 
   // ── User-authored note ────────────────────────────────────────────────────

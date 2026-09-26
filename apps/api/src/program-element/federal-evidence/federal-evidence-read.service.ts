@@ -22,6 +22,8 @@ export interface FederalEvidenceReadPage<T> {
 export interface FederalEvidenceReadOptions {
   limit?: number;
   cursor?: string | null;
+  /** Upper system-time boundary. Omitted means the current projection. */
+  knownAt?: string | null;
 }
 
 export interface FederalEvidenceTimelineScope {
@@ -41,13 +43,15 @@ export class FederalEvidenceReadService {
   ): Promise<FederalEvidenceReadPage<Record<string, unknown>>> {
     const normalizedPeCode = normalizeRequired(peCode, 'peCode');
     const limit = pageLimit(options.limit);
-    const scope = `pe:${normalizedPeCode}`;
+    const knownAt = normalizeKnownAt(options.knownAt);
+    const scope = `pe:${normalizedPeCode}${knownAt ? `|knownAt:${knownAt}` : ''}`;
     const cursor = decodeCursor(options.cursor, 'qualified-mentions', scope);
     const rows = await this.prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
       `WITH current_observation AS (
          SELECT DISTINCT ON (source_key) source_key, revision_id, state
          FROM federal_evidence_observation
-         ORDER BY source_key, id DESC
+         WHERE ($4::timestamptz IS NULL OR observed_at <= $4::timestamptz)
+         ORDER BY source_key, observed_at DESC, id DESC
        )
        SELECT m.id, m.raw_mention AS "rawMention",
               COALESCE(m.canonical_pe_code, resolved.canonical_pe_code) AS "canonicalPeCode",
@@ -70,17 +74,20 @@ export class FederalEvidenceReadService {
            FROM federal_evidence_mention_event e
           WHERE e.event_type = 'resolved' AND e.current_revision_id = m.revision_id
             AND e.candidate_key = m.candidate_key
+            AND ($4::timestamptz IS NULL OR e.created_at <= $4::timestamptz)
           ORDER BY e.created_at DESC LIMIT 1
        ) resolved ON TRUE
        WHERE o.state = 'present'
          AND (m.qualification_state = 'qualified' OR resolved.canonical_pe_code IS NOT NULL)
          AND COALESCE(m.canonical_pe_code, resolved.canonical_pe_code) = $1
+         AND ($4::timestamptz IS NULL OR m.created_at <= $4::timestamptz)
          AND ($2::timestamptz IS NULL OR (m.created_at, m.id) < ($2::timestamptz, $3::uuid))
-       ORDER BY m.created_at DESC, m.id DESC
-       LIMIT $4`,
+         ORDER BY m.created_at DESC, m.id DESC
+       LIMIT $5`,
       normalizedPeCode,
       cursor?.createdAt ?? null,
       cursor?.id ?? null,
+      knownAt,
       limit + 1,
     );
     return page(rows, limit, 'qualified-mentions', scope);
@@ -99,7 +106,8 @@ export class FederalEvidenceReadService {
       throw new BadRequestException('At least one of peCode or billId is required');
     }
     const limit = pageLimit(options.limit);
-    const scopeKey = timelineScopeKey(scope);
+    const knownAt = normalizeKnownAt(options.knownAt);
+    const scopeKey = `${timelineScopeKey(scope)}${knownAt ? `|knownAt:${knownAt}` : ''}`;
     const cursor = decodeCursor(options.cursor, 'lifecycle-timeline', scopeKey);
     const rows = await this.prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
       `SELECT e.id, e.event_key AS "eventKey", e.source_key AS "sourceKey", e.bill_id AS "billId",
@@ -121,13 +129,15 @@ export class FederalEvidenceReadService {
          ON m.revision_id = r.id AND m.candidate_key = e.candidate_key
        WHERE ($1::text IS NULL OR e.canonical_pe_code = $1)
          AND ($2::text IS NULL OR e.bill_id = $2)
+         AND ($5::timestamptz IS NULL OR e.created_at <= $5::timestamptz)
          AND ($3::timestamptz IS NULL OR (e.created_at, e.id) < ($3::timestamptz, $4::uuid))
-       ORDER BY e.created_at DESC, e.id DESC
-       LIMIT $5`,
+         ORDER BY e.created_at DESC, e.id DESC
+       LIMIT $6`,
       scope.peCode ?? null,
       scope.billId ?? null,
       cursor?.createdAt ?? null,
       cursor?.id ?? null,
+      knownAt,
       limit + 1,
     );
     return page(rows, limit, 'lifecycle-timeline', scopeKey);
@@ -146,6 +156,15 @@ function normalizeRequired(value: string, label: string): string {
   const normalized = value.trim();
   if (!normalized) throw new BadRequestException(`${label} is required`);
   return normalized;
+}
+
+function normalizeKnownAt(value: string | null | undefined): string | null {
+  if (value == null || value.trim() === '') return null;
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) {
+    throw new BadRequestException('knownAt must be a valid ISO date/time');
+  }
+  return parsed.toISOString();
 }
 
 function timelineScopeKey(scope: FederalEvidenceTimelineScope): string {

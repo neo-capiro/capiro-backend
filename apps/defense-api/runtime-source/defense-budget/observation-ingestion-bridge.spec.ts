@@ -268,7 +268,8 @@ function makeRealRegistrar() {
  */
 type ScriptedHandoffResult =
   | { readonly kind: 'throw'; readonly message: string }
-  | { readonly kind: 'decision'; readonly decision: VerifierDecision };
+  | { readonly kind: 'decision'; readonly decision: VerifierDecision }
+  | { readonly kind: 'governed_review' };
 
 function makeParserHandoff(script: ScriptedHandoffResult[] = []): {
   port: ParserHandoffPort;
@@ -283,6 +284,24 @@ function makeParserHandoff(script: ScriptedHandoffResult[] = []): {
       const next: ScriptedHandoffResult = queue.shift() ?? { kind: 'decision', decision: 'PASS' };
       if (next.kind === 'throw') {
         throw new Error(next.message);
+      }
+      if (next.kind === 'governed_review') {
+        return {
+          invoked: false,
+          decision: 'REVIEW',
+          finalState: 'governed_review',
+          artifactLocator: 'none',
+          governedReview: {
+            code: 'CONGRESSIONAL_GOVERNED_PACKET_MISSING',
+            scope: {
+              fiscalYear: input.fiscalYear,
+              authorityTrack: input.authorityTrack,
+              stage: input.stage,
+              sourceFamily: input.sourceFamily,
+              sourceDocumentId: input.sourceDocumentId,
+            },
+          },
+        } satisfies ParserHandoffResult;
       }
       const finalState =
         next.decision === 'PASS'
@@ -520,6 +539,47 @@ describe('ObservationIngestionBridgeService', () => {
     expect(result.reason).toMatch(/review_required/);
     expect(ctx.sourceDocumentRows).toHaveLength(0);
     expect(ctx.fetchCalls.n).toBe(0); // never even fetched — rejected before byte acquisition
+  });
+
+  it('a missing governed congressional packet is terminal review without parser or evidence claims', async () => {
+    const observation = makeObservation({
+      classifiedAuthorityTrack: 'authorization',
+      classifiedStage: 'hasc_mark',
+      classifiedSourceFamily: 'auth_committee_mark',
+    });
+    const ctx = buildBridge({
+      observation,
+      cycle: makeCycle({ authorityTrack: 'authorization' }),
+      urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
+      parserHandoffScript: [{ kind: 'governed_review' }],
+    });
+
+    const result = await ctx.bridge.bridge(observation.id);
+
+    expect(result.status).toBe('review_required');
+    expect(result.sourceDocumentBound).toBe(true);
+    expect(result.parserHandoffInvoked).toBe(false);
+    expect(result.verifierDecision).toBeNull();
+    expect(result.parserVerificationSucceeded).toBe(false);
+    expect(result.durableEvidencePersisted).toBe(false);
+    expect(result.ingestionSucceeded).toBe(false);
+    expect(result.governedReview).toEqual({
+      code: 'CONGRESSIONAL_GOVERNED_PACKET_MISSING',
+      scope: {
+        fiscalYear: 2024,
+        authorityTrack: 'authorization',
+        stage: 'hasc_mark',
+        sourceFamily: 'auth_committee_mark',
+        sourceDocumentId: result.sourceDocumentId,
+      },
+    });
+    expect(result.stageReport).toMatchObject({
+      extraction: 'not_confirmed',
+      evidence: 'not_confirmed',
+      verification: null,
+      artifactLocator: null,
+      parserFinalState: null,
+    });
   });
 
   it('blocked observation is rejected, never reaches ingestion', async () => {

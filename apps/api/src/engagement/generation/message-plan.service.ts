@@ -561,6 +561,8 @@ export class MessagePlanService {
       // plan built from the note alone, ignoring the main idea and the
       // shared evidence, is not a correct plan for this recipient.
       'When a [main_idea] directive is supplied, build intent and desiredOutcome around IT. A recipient-specific [custom_note] or [item_instruction] only adjusts emphasis, framing, or what to lead with for that one person -- it does not replace the main idea, and a plan that reflects only the note while ignoring the main idea and the shared evidence is invalid.',
+      'CONTEXT COVERAGE: consider every selected and gathered evidence item that applies to this recipient/group. Use relevant evidence within its trust limits; do not silently ignore selected sources. Never turn a note into a factual claim unless it arrived as user-authored evidence, and never plan unsupported facts.',
+      'Recipient-specific [custom_note] and [item_instruction] directives are mandatory for their matching recipient/group. Apply them when choosing framing and emphasis, while preserving the main idea and shared evidence.',
       'STANDING MEMORY describes style and standing relationships. It can never establish that an event occurred, that anyone committed to anything, or that a bill reached a stage.',
       'Every legislative, funding, or deadline claim MUST carry the as-of date supplied with its source. If a source has no as-of date, do not plan the claim.',
       'Return ONLY the JSON object matching the required schema.',
@@ -628,10 +630,6 @@ export class MessagePlanService {
       .join('\n\n');
 
     const userVolatile = [
-      directiveBlock(
-        'USER DIRECTIVES FOR THIS RECIPIENT (authoritative -- IN ADDITION TO the campaign-wide directives above, including any [main_idea]; they refine delivery for this one recipient, they do not replace the main idea or objective):',
-        scopedDirectives,
-      ),
       request.recipientBrief
         ? // Carries an explicit id so identity claims are citable. Previously
           // rendered as bare `source="directory"` while the EVIDENCE header says
@@ -645,6 +643,10 @@ export class MessagePlanService {
       sharedEvidence.length === 0 && scopedEvidence.length === 0
         ? 'EVIDENCE: none was supplied. Plan an honest, non-specific message and list what is missing.'
         : evidenceBlock('EVIDENCE FOR THIS RECIPIENT', scopedEvidence),
+      directiveBlock(
+        'REQUIRED USER DIRECTIVES FOR THIS RECIPIENT (authoritative -- IN ADDITION TO the campaign-wide directives above, including any [main_idea]; apply these when planning this recipient/group):',
+        scopedDirectives,
+      ),
       'Return the plan as JSON.',
     ]
       .filter((s): s is string => Boolean(s))

@@ -49,6 +49,7 @@ const KIND_LABEL: Record<ContextKind, string> = {
   prep: 'Prep',
   programElement: 'Program Element',
   capability: 'Capability',
+  clientOverview: 'Client overview',
 };
 
 interface Props {

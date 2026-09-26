@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
 import {
   BadRequestException,
-  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -13,11 +12,8 @@ import type {
   UpdateMeetingInput,
   UpdateMeetingPrepInput,
 } from '../engagement/engagement.service.js';
+import { readVisibleClientIds } from '../funding-opportunities/funding-opportunity-access.js';
 import { MeriFeatureFlagsService } from '../meri/meri-feature-flags.service.js';
-import {
-  MERI_HERMES_SECURITY_ENVELOPE,
-  type MeriHermesSecurityEnvelopePort,
-} from '../meri/hermes/meri-hermes-security.port.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 export const MERI_MOBILE_API_VERSION = '1.0.0';
@@ -89,8 +85,6 @@ export class MeriMobileService {
     private readonly prisma: PrismaService,
     private readonly flags: MeriFeatureFlagsService,
     private readonly engagement: EngagementService,
-    @Inject(MERI_HERMES_SECURITY_ENVELOPE)
-    private readonly security: MeriHermesSecurityEnvelopePort,
   ) {}
 
   async assertApi(ctx: TenantContext): Promise<void> {
@@ -106,15 +100,14 @@ export class MeriMobileService {
     if (!(await this.flags.isMeriMobileCapabilityEnabled(ctx.tenantId, capability))) {
       throw new NotFoundException('Mobile capability is not enabled for this tenant');
     }
-    if (capability === 'runs' && !(await this.flags.isMeriHermesRuntimeEnabled(ctx.tenantId))) {
+    if (capability === 'runs') {
       throw new NotFoundException('Mobile capability is not enabled for this tenant');
     }
   }
 
   async bootstrap(ctx: TenantContext) {
     await this.assertApi(ctx);
-    const [security, userTenant, runs, meetings, files, deviceTokens] = await Promise.all([
-      this.security.securityEnvelope(ctx),
+    const [userTenant, meetings, files, deviceTokens] = await Promise.all([
       this.prisma.withTenant(ctx.tenantId, async (tx) => {
         const [user, tenant] = await Promise.all([
           tx.user.findFirst({
@@ -128,20 +121,19 @@ export class MeriMobileService {
         ]);
         return { user, tenant };
       }),
-      this.flags.isMeriMobileCapabilityEnabled(ctx.tenantId, 'runs'),
       this.flags.isMeriMobileCapabilityEnabled(ctx.tenantId, 'meetings'),
       this.flags.isMeriMobileCapabilityEnabled(ctx.tenantId, 'files'),
       this.flags.isMeriMobileCapabilityEnabled(ctx.tenantId, 'deviceTokens'),
     ]);
     if (!userTenant.user || !userTenant.tenant) throw new NotFoundException('Mobile principal not found');
-    const runAvailable = runs && (await this.flags.isMeriHermesRuntimeEnabled(ctx.tenantId));
-    const clients = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.client.findMany({
-        where: { id: { in: security.authorizedClientIds }, status: 'active' },
+    const clients = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const visibleClientIds = await readVisibleClientIds(tx, ctx.tenantId, ctx.userId);
+      return tx.client.findMany({
+        where: { id: { in: visibleClientIds } },
         select: { id: true, name: true },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
-      }),
-    );
+      });
+    });
     return {
       apiVersion: MERI_MOBILE_API_VERSION,
       displayEventVersion: MERI_DISPLAY_EVENT_VERSION,
@@ -150,14 +142,14 @@ export class MeriMobileService {
       tenant: userTenant.tenant,
       clients,
       features: {
-        runs: runAvailable,
+        runs: false,
         meetings,
         files,
         deviceTokens,
       },
       actions: {
-        runStart: { available: runAvailable, confirmation: 'none', onlineRequired: true },
-        runStop: { available: true, confirmation: 'explicit_tap', onlineRequired: true },
+        runStart: { available: false, confirmation: 'none', onlineRequired: true },
+        runStop: { available: false, confirmation: 'explicit_tap', onlineRequired: true },
         meetingWrite: { available: meetings, confirmation: 'explicit_save', onlineRequired: true },
         fileConfirm: { available: files, confirmation: 'explicit_upload', onlineRequired: true },
         pushRegistration: { available: deviceTokens, confirmation: 'system_permission', onlineRequired: true },
@@ -326,7 +318,7 @@ export class MeriMobileService {
     input: Pick<MobileDeviceRegistration, 'deviceId' | 'environment'>,
   ) {
     await this.assertCapability(ctx, 'deviceTokens');
-    const result = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+    const result = (await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
       tx.mobileDeviceToken.updateMany({
         where: {
           tenantId: ctx.tenantId,
@@ -337,7 +329,7 @@ export class MeriMobileService {
         },
         data: { revokedAt: new Date() },
       }),
-    );
+    )) as { count: number };
     return { revoked: result.count > 0 };
   }
 }

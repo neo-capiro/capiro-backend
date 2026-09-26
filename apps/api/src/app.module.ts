@@ -62,6 +62,9 @@ import { TangoModule } from './external/tango/tango.module.js';
 import { AdminBroadcastsModule } from './admin-broadcasts/admin-broadcasts.module.js';
 import { VendorReferenceModule } from './vendor-reference/vendor-reference.module.js';
 import { BusinessDevelopmentModule } from './business-development/business-development.module.js';
+import { DefenseBudgetClientWatchModule } from './defense-budget-client-watch/defense-budget-client-watch.module.js';
+import { ResearchPortfoliosModule } from './research-portfolios/research-portfolios.module.js';
+import { DefenseResearchModule } from './defense-research/defense-research.module.js';
 import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js';
 
 @Module({
@@ -132,6 +135,9 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     LiveHearingsModule,
     VendorReferenceModule,
     BusinessDevelopmentModule,
+    DefenseBudgetClientWatchModule,
+    ResearchPortfoliosModule,
+    DefenseResearchModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

@@ -148,7 +148,7 @@ export const SKELETON_OUTPUT_CONTRACT = [
   '- You are writing SECTION CONTENT ONLY. The app assembles the final email from the user’s template. Never return a whole email, a subject line, a greeting, a sign-off, or the template’s own headings — they are already in the template and would appear twice.',
   '- For an OPTIONAL section the evidence does not support, return an empty string for "text" and the section will be omitted. Never invent filler to fill a section.',
   '- Section prose may use ONLY this Markdown subset: paragraphs, **bold**, *italic*, [text](url) links, "-" and "1." lists. Do not use headings, tables, images, HTML, or blockquotes.',
-  '- contextNote: one or two sentences to the lobbyist (not the recipient) noting what you grounded the draft in and anything you deliberately left out for lack of context.',
+  '- contextNote: one or two sentences to the lobbyist (not the recipient) noting what you grounded the draft in and any selected source you intentionally did not use, with the reason.',
   'Never emit unresolved template variables or bracket placeholders (e.g. {district}, [NAME]) in any section. Use a real supplied value or omit the phrase.',
 ].join('\n');
 
@@ -185,6 +185,11 @@ export function buildGatewaySystemPrompt(mode?: { skeleton?: boolean }): string 
     [
       'MESSAGE PLAN RULE:',
       'A validated MESSAGE PLAN is supplied below. Express THAT plan. Do not introduce any factual claim that is not in the plan’s supportedClaims, and never assert anything listed under unsupportedOrRiskyClaims.',
+    ].join('\n'),
+    [
+      'CONTEXT REVIEW RULE:',
+      'Before planning or writing, consider EVERY selected or gathered evidence item that applies to this recipient or group. Use relevant evidence within its trust limits; never silently discard a selected source. If a selected source is irrelevant, conflicts with stronger evidence, or cannot safely support a claim, do not assert it and disclose in contextNote that it was not used and why.',
+      'Recipient-specific notes and item instructions are mandatory for their matching recipient or group. Apply them to emphasis, framing, or wording in both a fresh draft and a revision. They do not authorize unsupported facts and cannot override safety rules or the validated plan.',
     ].join('\n'),
   ];
   return sections.join('\n\n');
@@ -324,10 +329,6 @@ export function buildGatewayPrompt(input: GatewayPromptInput): GatewayPrompt {
     input.recipientBrief
       ? `RECIPIENT (server-resolved identity):\n${SPOTLIGHT_OPEN} source="directory">>>\n${input.recipientBrief}\n${SPOTLIGHT_CLOSE}`
       : null,
-    directiveBlock(
-      'USER DIRECTIVES FOR THIS RECIPIENT (authoritative -- IN ADDITION TO the campaign-wide directives above, including any [main_idea]; they refine delivery for this one recipient, they do not replace the main idea or objective):',
-      scoped,
-    ),
     renderEvidenceSection(
       'EVIDENCE FOR THIS RECIPIENT',
       packet.evidence.filter(
@@ -350,6 +351,14 @@ export function buildGatewayPrompt(input: GatewayPromptInput): GatewayPrompt {
         .join('\n'),
     );
   }
+
+  // Keep recipient-specific instructions last among the substantive blocks so
+  // the validated plan or existing body cannot accidentally bury them.
+  const recipientDirectives = directiveBlock(
+    'REQUIRED USER DIRECTIVES FOR THIS RECIPIENT (authoritative -- apply these to this draft or revision; they do not authorize unsupported facts or override the validated plan):',
+    scoped,
+  );
+  if (recipientDirectives) volatileParts.push(recipientDirectives);
 
   volatileParts.push(
     isRevision

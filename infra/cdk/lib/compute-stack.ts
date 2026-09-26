@@ -662,6 +662,7 @@ export class ComputeStack extends cdk.Stack {
 
     const apiSharedEnv: Record<string, string> = {
       NODE_ENV: cfg.envName === 'dev' ? 'development' : 'production',
+      APP_ENV: `capiro-${cfg.envName}`,
       LOG_LEVEL: 'info',
       API_PORT: '4000',
       API_BIND_HOST: '0.0.0.0',
@@ -704,6 +705,17 @@ export class ComputeStack extends cdk.Stack {
       MERIV2_ENABLED: 'true',
       MERIV2_ORCHESTRATOR_URL: `https://${cfg.appHost}`,
       MERI_AUDITOR_MODE: 'enforce',
+      // Business Development Phase 3 Jev controls are deliberately dark in
+      // the managed baseline. A reviewed deployment may register a task
+      // definition with a tenant-scoped shadow override, but a later CDK
+      // reconciliation must fail closed rather than widen that experiment.
+      MERI_JEV_PROVIDER_MODE: 'off',
+      MERI_JEV_PROVIDER_TENANTS: '',
+      MERI_JEV_PROVIDER_SURFACES: '',
+      MERI_JEV_TASKS: '',
+      BIZDEV_JEV_ENABLED: 'false',
+      BIZDEV_JEV_TASK_BD_ENTITY_MODE: 'off',
+      BIZDEV_JEV_TASK_BD_SIGNAL_MODE: 'off',
       // Learned-memory recall backing (Phase 1 SSOT cutover). Applied OUT-OF-BAND
       // on the live api task def and verified 2026-07-18; the code default is
       // 'clio' (config.schema.ts), so a cdk deploy WITHOUT this would silently

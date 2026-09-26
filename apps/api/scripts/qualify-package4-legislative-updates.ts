@@ -210,6 +210,53 @@ async function main(): Promise<void> {
       reinstatementDrain,
     };
 
+    // A historical full-inventory removal must be retained for lifecycle
+    // reads but consumed by the outbox without creating a client alert.
+    const historicalPackageId = `${packageId}-historical-${run}`;
+    const historicalSourceKey = `govinfo:${historicalPackageId}`;
+    const historicalBillId = `${billId}-historical`;
+    await persistFederalEvidenceSnapshot(prisma, {
+      provider: 'govinfo',
+      collection: 'BILLS',
+      packageId: historicalPackageId,
+      billId: historicalBillId,
+      versionCode: 'historical',
+      lineageKey: `${historicalBillId}:house`,
+      sourceUrl: `https://www.govinfo.gov/content/pkg/${historicalPackageId}/xml/${historicalPackageId}.xml`,
+      rawContent: `<bill><section>Historical mention of ${peCode}.</section></bill>`,
+      extractedText: `Historical mention of ${peCode}.`,
+      completeness: 'complete',
+      inventoryWindowEnd: at(5),
+      observationKey: `${run}:historical-baseline`,
+      historical: true,
+    });
+    const historicalBaselineDrain = await drainFederalEvidenceOutbox(prisma);
+    assert.equal(historicalBaselineDrain.failed, 0);
+    assert.ok(historicalBaselineDrain.suppressedHistorical >= 1);
+    const notificationsBeforeHistoricalRemoval = await prisma.intelligenceChange.count();
+    const historicalRemoval = await persistFederalEvidenceRemoval(prisma, {
+      sourceKey: historicalSourceKey,
+      observationKey: `${run}:historical-removal`,
+      inventoryWindowEnd: at(6),
+      historical: true,
+      inventoryComplete: true,
+    });
+    assert.deepEqual(historicalRemoval.eventTypes, ['removed']);
+    const historicalRemovalDrain = await drainFederalEvidenceOutbox(prisma);
+    assert.equal(historicalRemovalDrain.failed, 0);
+    assert.equal(historicalRemovalDrain.suppressedHistorical, 1);
+    assert.equal(historicalRemovalDrain.alertsInserted, 0);
+    assert.equal(
+      await prisma.intelligenceChange.count(),
+      notificationsBeforeHistoricalRemoval,
+    );
+    (evidence.scenarios as Record<string, unknown>).historicalRemovalSuppression = {
+      historicalBaselineDrain,
+      historicalRemoval,
+      historicalRemovalDrain,
+      notificationsBeforeHistoricalRemoval,
+    };
+
     const oldAction = {
       date: new Date('2026-09-23T00:00:00Z'),
       text: 'Introduced in House',

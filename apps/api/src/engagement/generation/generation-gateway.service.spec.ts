@@ -97,9 +97,13 @@ function makeGateway(opts: {
   );
   const llm = { complete };
   const packets = {
-    compileOutreachPacket: jest.fn(async () => {
+    compileOutreachPacket: jest.fn(async (_ctx: unknown, input: {
+      items: unknown[];
+      requestDirectives: EvidencePacketV2['directives'];
+    }) => {
       if (opts.packetThrows) throw opts.packetThrows;
-      return opts.packet ?? basePacket();
+      const compiled = opts.packet ?? basePacket();
+      return { ...compiled, directives: [...compiled.directives, ...(input.requestDirectives ?? [])] };
     }),
   };
   const plans = {
@@ -233,6 +237,106 @@ describe('happy path', () => {
     const { svc } = makeGateway();
     const result = await svc.generate(CTX, request(), enrichment(), [CRED]);
     expect(result.manifest.emailScopeLabel).toBe('My mailbox');
+  });
+});
+
+describe('selected context and personalized notes reach every generation action', () => {
+  const selected = {
+    id: 'doc-client-brief',
+    kind: 'document' as const,
+    scope: 'dana',
+    userInstruction: 'Use the procurement timeline where relevant.',
+  };
+  const selectedEvidence = {
+    ref: {
+      sourceType: 'document', sourceId: 'attachment-1', title: 'Client brief',
+      trust: 'external_untrusted' as const, retrievedAt: NOW.toISOString(),
+    },
+    evidenceText: 'The client is preparing for a procurement review in October.',
+    scope: 'dana',
+  };
+
+  const actions: Array<[string, Partial<GenerationRequest>]> = [
+    ['initial generation', {}],
+    ['regeneration', {}],
+    ['Improve with Meri', {
+      existingSubject: 'Re: procurement review',
+      existingBody: 'Hi Dana, I wanted to follow up.',
+      reviseInstruction: 'Make this warmer.',
+    }],
+  ];
+
+  actions.forEach(([_action, revision]) => {
+    test(`${_action} considers scoped evidence and requires the matching personalized note`, async () => {
+    const { svc, complete, packets, plans, contextPlane } = makeGateway({
+      packet: basePacket({ evidence: [selectedEvidence] }),
+    });
+    const requestInput = request({
+      items: [selected],
+      mainIdea: 'Secure a meeting about the October procurement review.',
+      objective: 'Ask the office for a meeting with the client team.',
+      recipient: { ...request().recipient, personalNote: 'Mention the October review only if relevant.' },
+      ...revision,
+    });
+
+    await svc.generate(CTX, requestInput, enrichment(), [CRED]);
+
+    const compiled = (packets.compileOutreachPacket.mock.calls as unknown as Array<[
+      unknown,
+      { items: unknown[]; requestDirectives: EvidencePacketV2['directives'] },
+    ]>)[0]![1];
+    expect(compiled.items).toEqual([selected]);
+    expect(compiled.requestDirectives).toContainEqual(expect.objectContaining({
+      kind: 'custom_note',
+      text: 'Mention the October review only if relevant.',
+      scope: 'dana',
+    }));
+    expect(compiled.requestDirectives).toContainEqual(expect.objectContaining({
+      kind: 'main_idea',
+      text: 'Secure a meeting about the October procurement review.',
+    }));
+    expect(compiled.requestDirectives).toContainEqual(expect.objectContaining({
+      kind: 'objective',
+      text: 'Ask the office for a meeting with the client team.',
+    }));
+    expect(contextPlane.resolve).toHaveBeenCalledWith(CTX, expect.objectContaining({
+      objective: expect.stringContaining('Secure a meeting about the October procurement review.'),
+    }));
+    expect(contextPlane.resolve).toHaveBeenCalledWith(CTX, expect.objectContaining({
+      objective: expect.stringContaining('Ask the office for a meeting with the client team.'),
+    }));
+    const planInput = (plans.buildPlan.mock.calls as unknown as Array<[
+      unknown,
+      { packet: EvidencePacketV2 },
+    ]>)[0]![1];
+    expect(planInput.packet.evidence).toContainEqual(selectedEvidence);
+    expect(planInput.packet.directives).toContainEqual(expect.objectContaining({
+      text: 'Mention the October review only if relevant.',
+      scope: 'dana',
+    }));
+
+    const draft = (complete.mock.calls as unknown as Array<[
+      { system: string; userStatic: string; userVolatile: string },
+    ]>)[0]![0];
+    const evidenceAt = draft.userVolatile.indexOf('The client is preparing for a procurement review in October.');
+    const planAt = draft.userVolatile.indexOf('VALIDATED MESSAGE PLAN');
+    const noteAt = draft.userVolatile.indexOf('Mention the October review only if relevant.');
+    expect(evidenceAt).toBeGreaterThanOrEqual(0);
+    expect(planAt).toBeGreaterThan(evidenceAt);
+    expect(noteAt).toBeGreaterThan(planAt);
+    expect(draft.system).toContain('consider EVERY selected or gathered evidence item');
+    expect(draft.system).toContain('disclose in contextNote');
+    if (_action === 'Improve with Meri') {
+      expect(noteAt).toBeGreaterThan(draft.userVolatile.indexOf('Existing body:'));
+      expect(compiled.requestDirectives).toContainEqual(expect.objectContaining({
+        kind: 'objective',
+        text: 'Make this warmer.',
+      }));
+      expect(draft.userStatic).toContain('Secure a meeting about the October procurement review.');
+      expect(draft.userStatic).toContain('Ask the office for a meeting with the client team.');
+      expect(draft.userStatic).toContain('Make this warmer.');
+    }
+    });
   });
 });
 

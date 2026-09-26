@@ -44,6 +44,31 @@ jest.mock('./meri-defense-budget-tool.helpers.js', () => ({}));
 
 import { MeriToolsService, TOOL_DEFINITIONS } from './meri-tools.service.js';
 
+describe('buyer workspace Meri tool', () => {
+  it('passes a pinned read through without changing coverage or unsupported gaps', async () => {
+    const payload = {
+      subject: { type: 'pe', id: '0603851F' }, asOfFy: 2027,
+      knownAt: '2026-09-24T00:00:00.000Z',
+      budget: { state: 'unsupported', data: null, coverage: { unresolvedReasons: [{ code: 'gap' }] }, freshness: null },
+      federalEvidence: { state: 'unsupported', data: null },
+      acquisition: { state: 'partial', data: { events: [1] } },
+      fundingExecution: { state: 'complete', data: { publications: [2] } },
+    };
+    const read = jest.fn(async () => payload);
+    const service = Object.assign(Object.create(MeriToolsService.prototype), {
+      buyerWorkspace: { read },
+    }) as MeriToolsService;
+    const input = { peCode: '0603851F', asOfFy: 2027, knownAt: '2026-09-24T00:00:00Z' };
+    await expect(service.execute({} as never, 'get_pe_buyer_workspace', input)).resolves.toEqual({
+      tool: 'get_pe_buyer_workspace', ...payload,
+    });
+    expect(read).toHaveBeenCalledWith(input);
+    await expect(service.execute({} as never, 'get_pe_buyer_workspace', { ...input, asOfFy: '2027' }))
+      .rejects.toThrow('asOfFy');
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+});
+
 /**
  * Tool-registration regression spec. Guards the whole Meri tool surface so a
  * future change cannot silently drop a tool, orphan a schema, or lose a
@@ -138,6 +163,7 @@ const EXPECTED_TOOLS = [
   'search_program_elements',
   'get_program_element',
   'get_pe_budget_timeline',
+  'get_pe_buyer_workspace',
   'get_pe_contractors',
   'get_pe_bills',
   'get_pe_report_language',
@@ -168,6 +194,14 @@ const EXPECTED_TOOLS = [
   'create_task',
   'update_task',
   'update_client_profile',
+  // Business Development Phase 4 — prospect-scoped reads + approved save
+  'get_business_development_context',
+  'get_business_development_evidence',
+  'get_business_development_brief',
+  'resolve_business_development_source',
+  'save_business_development_brief',
+  // Business Development Phase 5 — read-only ingested-alert summary
+  'get_business_development_recent_changes',
   // Funding Opportunities (P37) — READ-ONLY local tools. None is
   // side-effecting, so all survive the read-only chat surface below.
   'get_funding_opportunity',
@@ -260,6 +294,7 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   forget_memory: ['memoryItemId'],
   get_program_element: ['peCode'],
   get_pe_budget_timeline: ['peCode'],
+  get_pe_buyer_workspace: ['peCode', 'asOfFy', 'knownAt'],
   get_pe_contractors: ['peCode'],
   get_pe_bills: ['peCode'],
   get_pe_report_language: ['peCode'],
@@ -288,6 +323,8 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   create_task: ['title'],
   update_task: ['taskId'],
   update_client_profile: ['clientId'],
+  resolve_business_development_source: ['citationIndex'],
+  save_business_development_brief: ['expectedVersionNumber', 'sections'],
   // P37. `clientId` is required on every funding tool — see the schema block's own note:
   // the chat loop's client-scope refusal keys on that field, so a tool without
   // it would read straight past a scoped session's boundary.
@@ -453,6 +490,34 @@ describe('Meri tool registration', () => {
             },
           );
         }
+        if (property === 'requireBizDevTools') {
+          return () => ({
+            getContext: () => {
+              calls.push('getContext');
+              return sentinel;
+            },
+            getEvidence: () => {
+              calls.push('getEvidence');
+              return sentinel;
+            },
+            getBrief: () => {
+              calls.push('getBrief');
+              return sentinel;
+            },
+            resolveSource: () => {
+              calls.push('resolveSource');
+              return sentinel;
+            },
+            saveBrief: () => {
+              calls.push('saveBrief');
+              return sentinel;
+            },
+            getRecentChanges: () => {
+              calls.push('getRecentChanges');
+              return sentinel;
+            },
+          });
+        }
         if (property === 'districtTools') return {
           getContext: () => { calls.push('getContext'); return sentinel; },
           getChanges: () => { calls.push('getChanges'); return sentinel; },
@@ -546,6 +611,7 @@ describe('Meri tool registration', () => {
       'update_task',
       'create_meeting_brief',
       'draft_policy_memo',
+      'save_business_development_brief',
     ];
     // isSideEffecting flags exactly the write tools — and not read/compute tools.
     for (const t of writeTools) expect(svc.isSideEffecting(t)).toBe(true);
@@ -554,6 +620,11 @@ describe('Meri tool registration', () => {
       'search_congress_bills',
       'run_analysis',
       'query_intelligence',
+      'get_business_development_context',
+      'get_business_development_evidence',
+      'get_business_development_brief',
+      'resolve_business_development_source',
+      'get_business_development_recent_changes',
     ]) {
       expect(svc.isSideEffecting(t)).toBe(false);
     }
@@ -618,6 +689,22 @@ describe('Meri tool registration', () => {
       if (!(schema.name in REQUIRED_INPUTS)) {
         expect(schema.input_schema.required).toEqual([]);
       }
+    }
+  });
+
+  it('declares conversation scope without asking the model to supply it for business-development tools', () => {
+    const byName = new Map(schemas().map((schema) => [schema.name, schema]));
+    for (const name of [
+      'get_business_development_context',
+      'get_business_development_evidence',
+      'get_business_development_brief',
+      'resolve_business_development_source',
+      'save_business_development_brief',
+      'get_business_development_recent_changes',
+    ]) {
+      const schema = byName.get(name)!;
+      expect(schema.input_schema.properties).toHaveProperty('conversationId');
+      expect(schema.input_schema.required).not.toContain('conversationId');
     }
   });
 

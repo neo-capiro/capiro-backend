@@ -390,6 +390,8 @@ function assertDarkTaskDefinition(key, taskDefinition) {
     'MERI_AUTO_CORRECTION_MODE',
     'MERI_PASSAGE_SELECTION_MODE',
     'MERI_JEV_PROVIDER_MODE',
+    'BIZDEV_JEV_TASK_BD_ENTITY_MODE',
+    'BIZDEV_JEV_TASK_BD_SIGNAL_MODE',
   ];
   for (const name of mustBeOff) {
     const value = controlled.get(name);
@@ -424,6 +426,9 @@ function assertDarkTaskDefinition(key, taskDefinition) {
   }
   if ((controlled.get('MEMORY_AUTOLEARN_GOVERNED') ?? 'false') !== 'false') {
     throw new Error(`${key} enabled governed auto-learning.`);
+  }
+  if ((controlled.get('BIZDEV_JEV_ENABLED') ?? 'false') !== 'false') {
+    throw new Error(`${key} enabled Business Development Jev.`);
   }
 }
 

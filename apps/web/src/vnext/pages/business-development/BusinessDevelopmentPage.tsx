@@ -1,40 +1,55 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { UseMutationResult, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { hasAtLeast } from '@capiro/shared';
 import { useApi } from '../../../lib/use-api.js';
 import { useMe } from '../../../lib/me.js';
-import { CapiroButton } from '../../components/actions/index.js';
+import { CapiroButton, CapiroIconButton } from '../../components/actions/index.js';
 import { CapiroDrawer, CapiroModal } from '../../components/overlays/index.js';
 import { CapiroEmptyState, CapiroErrorState } from '../../components/feedback/index.js';
 import { useCapiroToast } from '../../components/feedback/toast.js';
 import { formatDateShort } from '../../lib/labels.js';
 import { PortfolioIndexPage } from '../portfolio/PortfolioIndexPage.js';
+import { DiscoverPanel } from './BizDevDiscover.js';
+import { DossierDrawer } from './BizDevDossier.js';
+import { BizDevBrief } from './BizDevBrief.js';
+import { openVNextMeriWorkspaceWindow } from '../../../components/chat/meri-window.js';
 import {
   applyBizDevRoute,
   BIZDEV_CONFLICT_FILTERS,
+  BIZDEV_SORTS,
+  BIZDEV_SORT_LABELS,
   BIZDEV_STAGES,
   BIZDEV_STAGE_LABELS,
   BIZDEV_STATUSES,
   BIZDEV_STATUS_LABELS,
+  BIZDEV_VIEW_LABELS,
   bizDevListQuery,
+  compareBizDevProspectsForSort,
   hasBizDevFilters,
+  isBizDevOverdue,
   resolveBizDevRoute,
+  type BizDevSort,
   type BizDevStage,
+  type BizDevView,
 } from './bizdev-routing.js';
+import { BizDevWatchlist } from './BizDevWatchlist.js';
 import {
   addBizDevNote,
   bizdevErrorMessage,
   bizdevKeys,
   convertBizDevProspect,
+  createBizDevBrief,
   createBizDevProspect,
   dismissBizDevProspect,
+  getBizDevCurrentBrief,
   getBizDevDuplicateHints,
   getBizDevHistory,
   getBizDevMemberOptions,
   getBizDevPreferences,
   getBizDevProspect,
   listBizDevProspects,
+  newBizDevIdempotencyKey,
   previewBizDevDuplicateHints,
   restoreBizDevProspect,
   saveBizDevPreferences,
@@ -43,11 +58,27 @@ import {
   updateBizDevConflict,
   updateBizDevProspect,
   resolveBizDevIdentity,
+  activateBizDevWatch,
+  BIZDEV_SOURCE_HEALTH_LABELS,
+  bizdevWatchKeys,
+  dismissBizDevAlert,
+  getBizDevProspectAlerts,
+  getBizDevProspectWatch,
+  markBizDevAlertRead,
+  updateBizDevWatch,
+  type BizDevActivateWatchInput,
+  type BizDevProspectAlert,
+  type BizDevUpdateWatchInput,
+  type BizDevWatchSource,
+  type BizDevWatchSourceHealth,
   type BizDevMemberOption,
   type BizDevProspect,
   type BizDevDuplicateHint,
+  type BizDevUpdateInput,
 } from './bizdev-api.js';
 import './business-development.css';
+import './bizdev-discover.css';
+import './bizdev-pipeline.css';
 
 /* ── small shared bits ──────────────────────────────────────────────── */
 
@@ -80,6 +111,186 @@ function StatusNote({ text, warn }: { text: string; warn?: boolean }) {
   );
 }
 
+/* ── Phase 4: tabs + Draft with Meri launch ──────────────────────────── */
+
+/** Detail-drawer tabs. Evidence/Brief render only when their flag is on. */
+type ProspectTab = 'overview' | 'evidence' | 'brief';
+
+const PROSPECT_TAB_LABELS: Record<ProspectTab, string> = {
+  overview: 'Overview',
+  evidence: 'Evidence',
+  brief: 'Brief',
+};
+
+/**
+ * The bounded Draft-with-Meri prompt. Deliberately carries NO firm, prospect,
+ * provider or scope facts: the conversation's server-resolved prospect scope
+ * and its tools are the only authority for who/what/where. It asks for the
+ * exact five-section grounded brief, evidence inspection, uncertainty and
+ * citation preservation, and forbids outreach unless explicitly asked.
+ */
+export const BIZDEV_DRAFT_WITH_MERI_PROMPT =
+  'Prepare or update the grounded opportunity brief for the active prospect. ' +
+  'Inspect only the authorized evidence available to you and keep exactly these five sections: ' +
+  'Company and firm implication, Verified evidence, Judgment, Practical action, and Missing information. ' +
+  'Preserve uncertainty and keep every claim tied to its citation. ' +
+  'Do not draft or send any outreach unless I explicitly ask for it.';
+
+/**
+ * One-click Draft with Meri: if the prospect has no saved brief yet, first
+ * await creation of the deterministic initial brief (so the approval-gated
+ * Meri save tool has a current version/citation set), then open the existing
+ * docked Meri chat with a fresh prospect-scoped session and the bounded
+ * prompt. A create failure must NOT launch Meri — surface the error instead.
+ */
+async function draftBriefWithMeri(
+  api: ReturnType<typeof useApi>,
+  queryClient: ReturnType<typeof useQueryClient>,
+  tenantId: string,
+  prospect: BizDevProspect,
+  toast: ReturnType<typeof useCapiroToast>,
+): Promise<void> {
+  try {
+    const current = await getBizDevCurrentBrief(api, prospect.id);
+    if (!current.brief) {
+      await createBizDevBrief(api, prospect.id, {
+        idempotencyKey: newBizDevIdempotencyKey('create'),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: bizdevKeys.brief(tenantId, prospect.id),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: bizdevKeys.briefVersions(tenantId, prospect.id),
+      });
+    }
+  } catch (error) {
+    // No brief existed and the deterministic initial brief could not be
+    // created: launching Meri would give the save tool nothing to cite.
+    toast.error(bizdevErrorMessage(error));
+    return;
+  }
+  openVNextMeriWorkspaceWindow(window, window.location.origin, {
+    prompt: BIZDEV_DRAFT_WITH_MERI_PROMPT,
+    prospectId: prospect.id,
+  });
+}
+
+/** Keyboard-native tab strip; hidden panels stay mounted-free (no queries). */
+function ProspectTabBar({
+  tabs,
+  active,
+  onSelect,
+}: {
+  tabs: ProspectTab[];
+  active: ProspectTab;
+  onSelect: (tab: ProspectTab) => void;
+}) {
+  return (
+    <div className="capiro-bizdev__tabs" role="tablist" aria-label="Prospect detail">
+      {tabs.map((tab) => (
+        <button
+          key={tab}
+          type="button"
+          role="tab"
+          id={`bizdev-tab-${tab}`}
+          aria-selected={active === tab}
+          aria-controls={`bizdev-tabpanel-${tab}`}
+          className={`capiro-bizdev__tab${active === tab ? ' is-active' : ''}`}
+          onClick={() => onSelect(tab)}
+        >
+          {PROSPECT_TAB_LABELS[tab]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Reusable identity review/correction controls (Phase 1 canonical search +
+ * resolveBizDevIdentity, reused for already-resolved prospects when the
+ * dossier feature is on). Duplicate outcome = review/open-existing, never a
+ * merge claim.
+ */
+function IdentityReviewControls({
+  identityState,
+}: {
+  identityState: {
+    orgQuery: string;
+    setOrgQuery: (v: string) => void;
+    orgResults: Array<{ id: string; canonicalName: string; identityScope?: string }> | null;
+    setOrgResults: (v: Array<{ id: string; canonicalName: string; identityScope?: string }> | null) => void;
+    orgSearch: import('@tanstack/react-query').UseMutationResult<
+      import('./bizdev-api.js').BizDevCanonicalOrganization[],
+      Error,
+      void,
+      unknown
+    >;
+    resolveIdentity: import('@tanstack/react-query').UseMutationResult<
+      import('./bizdev-api.js').BizDevResolveIdentityResult,
+      Error,
+      string,
+      unknown
+    >;
+    duplicateNotice: { prospectId: string; displayName: string; status: string } | null;
+    hints: import('./bizdev-api.js').BizDevDuplicateHint[];
+  };
+}) {
+  return (
+    <div className="capiro-bizdev__actions">
+      <input
+        className="capiro-bizdev__input capiro-bizdev__input--grow"
+        aria-label="Search confirmed organizations"
+        value={identityState.orgQuery}
+        onChange={(e) => identityState.setOrgQuery(e.target.value)}
+        placeholder="Search confirmed organizations by name"
+        maxLength={200}
+      />
+      <CapiroButton
+        size="compact"
+        loading={identityState.orgSearch.isPending}
+        disabled={!identityState.orgQuery.trim()}
+        onClick={() => identityState.orgSearch.mutate()}
+      >
+        Search
+      </CapiroButton>
+      {identityState.orgResults ? (
+        identityState.orgResults.length === 0 ? (
+          <StatusNote text="No confirmed organizations matched." />
+        ) : (
+          <ul className="capiro-bizdev__picker-list">
+            {identityState.orgResults.map((org) => (
+              <li key={org.id}>
+                <div className="capiro-bizdev__picker-row">
+                  <span className="capiro-bizdev__picker-name">
+                    {org.canonicalName}
+                    {org.identityScope ? (
+                      <span className="capiro-bizdev__picker-meta">
+                        {' '}
+                        ·{' '}
+                        {org.identityScope === 'tenant_private'
+                          ? 'private to your firm'
+                          : 'public shared record'}
+                      </span>
+                    ) : null}
+                  </span>
+                  <CapiroButton
+                    size="compact"
+                    variant="primary"
+                    loading={identityState.resolveIdentity.isPending}
+                    onClick={() => identityState.resolveIdentity.mutate(org.id)}
+                  >
+                    Confirm identity
+                  </CapiroButton>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )
+      ) : null}
+    </div>
+  );
+}
+
 /* ── filters toolbar ────────────────────────────────────────────────── */
 
 function BizDevFilters({ members }: { members: BizDevMemberOption[] }) {
@@ -90,7 +301,7 @@ function BizDevFilters({ members }: { members: BizDevMemberOption[] }) {
 
   return (
     <div className="capiro-bizdev__filters" aria-label="Pipeline filters">
-      <label className="capiro-bizdev__label" htmlFor="bizdev-search">
+      <label className="capiro-bizdev__label capiro-bizdev__sr-only" htmlFor="bizdev-search">
         Search prospects
       </label>
       <input
@@ -129,17 +340,18 @@ function BizDevFilters({ members }: { members: BizDevMemberOption[] }) {
           </option>
         ))}
       </select>
-      {BIZDEV_STATUSES.map((s) => (
-        <button
-          key={s}
-          type="button"
-          className={`capiro-bizdev__filter${route.status === s ? ' is-active' : ''}`}
-          aria-pressed={route.status === s}
-          onClick={() => setRoute({ status: s })}
-        >
-          {BIZDEV_STATUS_LABELS[s]}
-        </button>
-      ))}
+      <select
+        className="capiro-bizdev__select"
+        aria-label="Filter by status"
+        value={route.status}
+        onChange={(e) => setRoute({ status: e.target.value as (typeof BIZDEV_STATUSES)[number] })}
+      >
+        {BIZDEV_STATUSES.map((status) => (
+          <option key={status} value={status}>
+            {BIZDEV_STATUS_LABELS[status]}
+          </option>
+        ))}
+      </select>
       <select
         className="capiro-bizdev__select"
         aria-label="Filter by conflict or exclusion"
@@ -160,6 +372,22 @@ function BizDevFilters({ members }: { members: BizDevMemberOption[] }) {
         <option value="yes">Already a client</option>
         <option value="no">Not a client yet</option>
       </select>
+      <select
+        className="capiro-bizdev__select"
+        aria-label="Sort prospects"
+        value={route.sort}
+        onChange={(e) => setRoute({ sort: e.target.value as BizDevSort })}
+      >
+        {BIZDEV_SORTS.map((s) => (
+          <option key={s} value={s}>
+            {BIZDEV_SORT_LABELS[s]}
+          </option>
+        ))}
+      </select>
+      <label className="capiro-bizdev__toggle">
+        <input type="checkbox" checked={route.overdueOnly} onChange={(e) => setRoute({ overdueOnly: e.target.checked })} />
+        <span>Overdue only<span className="capiro-bizdev__sr-only"> (derived from next-action due dates)</span></span>
+      </label>
     </div>
   );
 }
@@ -510,12 +738,20 @@ function ProspectDrawer({
   prospectId,
   members,
   isAdmin,
+  dossierEnabled,
+  briefEnabled,
+  meriProspectToolsEnabled,
+  watchAlertsEnabled,
   onClose,
 }: {
   tenantId: string;
   prospectId: string;
   members: BizDevMemberOption[];
   isAdmin: boolean;
+  dossierEnabled: boolean;
+  briefEnabled: boolean;
+  meriProspectToolsEnabled: boolean;
+  watchAlertsEnabled: boolean;
   onClose: () => void;
 }) {
   const api = useApi();
@@ -657,6 +893,16 @@ function ProspectDrawer({
     onError: (e) => toast.error(bizdevErrorMessage(e)),
   });
 
+  // Phase 4 tabs: Overview always; Evidence only with the dossier flag;
+  // Brief only with the brief flag. Unmounted tabs run no queries.
+  const availableTabs: ProspectTab[] = [
+    'overview',
+    ...(dossierEnabled ? (['evidence'] as const) : []),
+    ...(briefEnabled ? (['brief'] as const) : []),
+  ];
+  const [activeTab, setActiveTab] = useState<ProspectTab>('overview');
+  const activePanel = availableTabs.includes(activeTab) ? activeTab : 'overview';
+
   if (detail.isPending) {
     return (
       <CapiroDrawer open title="Prospect" onClose={close}>
@@ -685,48 +931,112 @@ function ProspectDrawer({
   }
   const prospect = detail.data;
 
+  // Wider drawer for the Brief tab: five editable sections + the source
+  // inspector need more than the default; the Overview keeps 560 so its
+  // existing layout is untouched. min() keeps small screens responsive.
+  const drawerWidth = activePanel === 'brief' ? 1040 : 560;
+
   return (
-    <CapiroDrawer open title={`Prospect — ${prospect.displayName}`} onClose={close} width={560}>
-      <ProspectDrawerBody
-        key={prospect.id + prospect.updatedAt}
-        prospect={prospect}
-        members={members}
-        isAdmin={isAdmin}
-        api={api}
-        invalidate={invalidate}
-        history={history.data ?? []}
-        noteState={{ noteBody, setNoteBody, addNote }}
-        dismissState={{ confirmDismiss, setConfirmDismiss, dismiss, restore }}
-        convertState={{
-          convertMode,
-          setConvertMode,
-          clientQuery,
-          setClientQuery,
-          clientResults,
-          setClientResults,
-          clientSearch,
-          selectedClientId,
-          setSelectedClientId,
-          convert,
-        }}
-        identityState={{
-          orgQuery,
-          setOrgQuery,
-          orgResults,
-          setOrgResults,
-          orgSearch,
-          resolveIdentity,
-          duplicateNotice,
-          hints: hints.data?.hints ?? [],
-        }}
-        conflictState={{
-          conflictExcluded,
-          setConflictExcluded,
-          conflictReason,
-          setConflictReason,
-          saveConflict,
-        }}
+    <CapiroDrawer
+      open
+      title={`Prospect — ${prospect.displayName}`}
+      onClose={close}
+      width={drawerWidth}
+    >
+      <ProspectTabBar
+        tabs={availableTabs}
+        active={activePanel}
+        onSelect={(tab) => setActiveTab(tab)}
       />
+      {activePanel === 'brief' ? (
+        <div
+          className="capiro-bizdev__drawer"
+          style={{ gap: 24 }}
+          role="tabpanel"
+          id="bizdev-tabpanel-brief"
+          aria-labelledby="bizdev-tab-brief"
+        >
+          <BizDevBrief
+            api={api}
+            tenantId={tenantId}
+            prospect={prospect}
+            meriEnabled={briefEnabled && meriProspectToolsEnabled}
+            onDraftWithMeri={() =>
+              void draftBriefWithMeri(api, queryClient, tenantId, prospect, toast)
+            }
+          />
+        </div>
+      ) : activePanel === 'evidence' ? (
+        <div
+          className="capiro-bizdev__drawer"
+          style={{ gap: 24 }}
+          role="tabpanel"
+          id="bizdev-tabpanel-evidence"
+          aria-labelledby="bizdev-tab-evidence"
+        >
+          {/* Evidence reuses the existing dossier surface for THIS prospect —
+              no duplicated source-inspector logic; the drawer below is keyed
+              to the same prospect id and stays visibly associated with it. */}
+          <StatusNote
+            text={`Evidence dossier for ${prospect.displayName}. Sources are the same authorized dossier records; nothing here is duplicated or editable outside the dossier surface.`}
+          />
+          <CapiroButton
+            size="compact"
+            onClick={() =>
+              setSearchParams(applyBizDevRoute(searchParams, { dossierProspectId: prospect.id }))
+            }
+          >
+            Open evidence dossier
+          </CapiroButton>
+        </div>
+      ) : (
+        <div role="tabpanel" id="bizdev-tabpanel-overview" aria-labelledby="bizdev-tab-overview">
+          <ProspectDrawerBody
+            key={prospect.id + prospect.updatedAt}
+            tenantId={tenantId}
+            prospect={prospect}
+            members={members}
+            isAdmin={isAdmin}
+            dossierEnabled={dossierEnabled}
+            watchAlertsEnabled={watchAlertsEnabled}
+            meriProspectToolsEnabled={meriProspectToolsEnabled}
+            api={api}
+            invalidate={invalidate}
+            history={history.data ?? []}
+            noteState={{ noteBody, setNoteBody, addNote }}
+            dismissState={{ confirmDismiss, setConfirmDismiss, dismiss, restore }}
+            convertState={{
+              convertMode,
+              setConvertMode,
+              clientQuery,
+              setClientQuery,
+              clientResults,
+              setClientResults,
+              clientSearch,
+              selectedClientId,
+              setSelectedClientId,
+              convert,
+            }}
+            identityState={{
+              orgQuery,
+              setOrgQuery,
+              orgResults,
+              setOrgResults,
+              orgSearch,
+              resolveIdentity,
+              duplicateNotice,
+              hints: hints.data?.hints ?? [],
+            }}
+            conflictState={{
+              conflictExcluded,
+              setConflictExcluded,
+              conflictReason,
+              setConflictReason,
+              saveConflict,
+            }}
+          />
+        </div>
+      )}
     </CapiroDrawer>
   );
 }
@@ -745,9 +1055,13 @@ function DrawerSection({ title, children }: { title: string; children: React.Rea
 }
 
 function ProspectDrawerBody({
+  tenantId,
   prospect,
   members,
   isAdmin,
+  dossierEnabled,
+  watchAlertsEnabled,
+  meriProspectToolsEnabled,
   api,
   invalidate,
   history,
@@ -757,9 +1071,13 @@ function ProspectDrawerBody({
   identityState,
   conflictState,
 }: {
+  tenantId: string;
   prospect: BizDevProspect;
   members: BizDevMemberOption[];
   isAdmin: boolean;
+  dossierEnabled: boolean;
+  watchAlertsEnabled: boolean;
+  meriProspectToolsEnabled: boolean;
   api: ReturnType<typeof useApi>;
   invalidate: () => void;
   history: import('./bizdev-api.js').BizDevActivity[];
@@ -1071,22 +1389,33 @@ function ProspectDrawerBody({
         </div>
       </DrawerSection>
 
-      <DrawerSection title="Watch">
-        <div className="capiro-bizdev__actions">
-          <CapiroButton
-            size="compact"
-            variant={prospect.watchRequested ? 'primary' : 'secondary'}
-            loading={watch.isPending}
-            onClick={() => watch.mutate(!prospect.watchRequested)}
-          >
-            {prospect.watchRequested ? 'Watching (stored)' : 'Watch this prospect'}
-          </CapiroButton>
-        </div>
-        <StatusNote
-          warn
-          text="Notifications are not active yet. Your watch choice is saved for later, but nothing will be sent."
+      {watchAlertsEnabled ? (
+        <ProspectWatchSection
+          tenantId={tenantId}
+          prospectId={prospect.id}
+          prospectName={prospect.displayName}
+          members={members}
+          meriEnabled={meriProspectToolsEnabled}
+          watchRequested={prospect.watchRequested}
         />
-      </DrawerSection>
+      ) : (
+        <DrawerSection title="Watch">
+          <div className="capiro-bizdev__actions">
+            <CapiroButton
+              size="compact"
+              variant={prospect.watchRequested ? 'primary' : 'secondary'}
+              loading={watch.isPending}
+              onClick={() => watch.mutate(!prospect.watchRequested)}
+            >
+              {prospect.watchRequested ? 'Watching (stored)' : 'Watch this prospect'}
+            </CapiroButton>
+          </div>
+          <StatusNote
+            warn
+            text="Notifications are not active yet. Your watch choice is saved for later, but nothing will be sent."
+          />
+        </DrawerSection>
+      )}
 
       <DrawerSection title="Conflict / exclusion">
         {prospect.conflictExcluded ? (
@@ -1182,7 +1511,7 @@ function ProspectDrawerBody({
         <DrawerSection title="Organization identity">
           <StatusNote
             warn
-            text="This is a manual, unresolved prospect. Confirming an organization below links your record to the shared confirmed organization — it never creates or merges one, and history is preserved."
+            text="This is a manual, unresolved prospect. Confirming an organization below links your record to the shared confirmed organization — it never creates or merges one, and history is preserved. The prospect keeps its id, stage, owner, notes, watch setting and client linkage."
           />
           {identityState.hints.length > 0 ? (
             <div>
@@ -1205,7 +1534,7 @@ function ProspectDrawerBody({
             <div>
               <StatusNote
                 warn
-                text={`“${identityState.duplicateNotice.displayName}” already holds that organization in your firm.`}
+                text={`“${identityState.duplicateNotice.displayName}” already holds that organization in your firm. This is a review result — nothing was merged.`}
               />
               <CapiroButton
                 size="compact"
@@ -1217,8 +1546,7 @@ function ProspectDrawerBody({
           ) : null}
           <div className="capiro-bizdev__actions">
             <input
-              className="capiro-bizdev__input"
-              style={{ flex: '1 1 200px' }}
+              className="capiro-bizdev__input capiro-bizdev__input--grow"
               aria-label="Search confirmed organizations"
               value={identityState.orgQuery}
               onChange={(e) => identityState.setOrgQuery(e.target.value)}
@@ -1242,7 +1570,18 @@ function ProspectDrawerBody({
                 {identityState.orgResults.map((org) => (
                   <li key={org.id}>
                     <div className="capiro-bizdev__picker-row">
-                      <span className="capiro-bizdev__picker-name">{org.canonicalName}</span>
+                      <span className="capiro-bizdev__picker-name">
+                        {org.canonicalName}
+                        {'identityScope' in org && org.identityScope ? (
+                          <span className="capiro-bizdev__picker-meta">
+                            {' '}
+                            ·{' '}
+                            {org.identityScope === 'tenant_private'
+                              ? 'private to your firm'
+                              : 'public shared record'}
+                          </span>
+                        ) : null}
+                      </span>
                       <CapiroButton
                         size="compact"
                         variant="primary"
@@ -1261,8 +1600,39 @@ function ProspectDrawerBody({
       ) : (
         <DrawerSection title="Organization identity">
           <StatusNote
-            text={`Confirmed organization: ${prospect.canonicalEntity?.canonicalName ?? 'linked record'}`}
+            text={`Confirmed organization: ${prospect.canonicalEntity?.canonicalName ?? 'linked record'}. Its identifiers and source names come from the shared confirmed record.`}
           />
+          {dossierEnabled ? (
+            <>
+              <StatusNote text="If this is the wrong organization, review or correct the identity below. The prospect keeps its id, stage, owner, notes, watch setting and client linkage; histories are never merged." />
+              {identityState.duplicateNotice ? (
+                <div>
+                  <StatusNote
+                    warn
+                    text={`“${identityState.duplicateNotice.displayName}” already holds that organization in your firm. This is a review result — nothing was merged. Open it to compare instead.`}
+                  />
+                  <CapiroButton
+                    size="compact"
+                    onClick={() => openHint(identityState.duplicateNotice!.prospectId)}
+                  >
+                    Open that prospect
+                  </CapiroButton>
+                </div>
+              ) : (
+                <IdentityReviewControls identityState={identityState} />
+              )}
+              <CapiroButton
+                size="compact"
+                onClick={() =>
+                  setSearchParams(
+                    applyBizDevRoute(searchParams, { dossierProspectId: prospect.id }),
+                  )
+                }
+              >
+                View evidence dossier
+              </CapiroButton>
+            </>
+          ) : null}
         </DrawerSection>
       )}
 
@@ -1402,6 +1772,498 @@ function ProspectDrawerBody({
   );
 }
 
+/* ── Phase 5: watch & alerts ────────────────────────────────────────── */
+
+/** Copy that explains the quiet baseline — verified verbatim in tests. */
+export const BIZDEV_QUIET_BASELINE_COPY =
+  'The first successful check for each source quietly records a starting point (a baseline). It does not send an alert, and it does not dig up historical events — alerts are only about changes observed after that.';
+
+/** Frozen Phase 5 watch-category vocabulary enforced by the API DTO. */
+export const BIZDEV_WATCH_CATEGORIES = [
+  'contract_award',
+  'assistance_award',
+  'opportunity',
+  'lobbying',
+  'acquisition',
+  'entity_change',
+  'other',
+] as const;
+
+const BIZDEV_WATCH_CATEGORY_SET = new Set<string>(BIZDEV_WATCH_CATEGORIES);
+const BIZDEV_WATCH_CATEGORY_HELP = `Allowed values: ${BIZDEV_WATCH_CATEGORIES.join(', ')}`;
+
+/** Date line that separates event dates from publication/observation dates. */
+function alertDateLine(alert: BizDevProspectAlert): string | null {
+  const dates = [
+    alert.eventAt
+      ? `Event: ${formatDateShort(alert.eventAt) ?? alert.eventAt}`
+      : null,
+    alert.effectiveAt
+      ? `Effective: ${formatDateShort(alert.effectiveAt) ?? alert.effectiveAt}`
+      : null,
+    alert.publishedAt
+      ? `Published: ${formatDateShort(alert.publishedAt) ?? alert.publishedAt}`
+      : null,
+    alert.firstObservedAt
+      ? `First observed: ${formatDateShort(alert.firstObservedAt) ?? alert.firstObservedAt}`
+      : null,
+  ].filter((value): value is string => value != null);
+  return dates.length > 0 ? dates.join(' · ') : null;
+}
+
+/** Safe deep link: absolute http(s) only, always opened in a new tab. */
+function isSafeSourceUrl(url: string | null): url is string {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Phase 5 watch & alerts surface, mounted inside the prospect drawer only
+ * when the Phase 5 feature flag is on. Calls ONLY the Business Development
+ * watch/alert endpoints — never a provider or external service.
+ */
+function ProspectWatchSection({
+  tenantId,
+  prospectId,
+  prospectName,
+  members,
+  meriEnabled,
+  watchRequested,
+}: {
+  tenantId: string;
+  prospectId: string;
+  prospectName: string;
+  members: BizDevMemberOption[];
+  meriEnabled: boolean;
+  /** Phase 1-4 watchRequested fallback, kept backwards-compatible. */
+  watchRequested: boolean;
+}) {
+  const api = useApi();
+  const toast = useCapiroToast();
+  const queryClient = useQueryClient();
+  const [categoryDraft, setCategoryDraft] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const watchQuery = useQuery({
+    queryKey: bizdevWatchKeys.watch(tenantId, prospectId),
+    queryFn: () => getBizDevProspectWatch(api, prospectId),
+  });
+
+  const alertsQuery = useQuery({
+    queryKey: bizdevWatchKeys.alerts(tenantId, prospectId),
+    queryFn: () => getBizDevProspectAlerts(api, prospectId, 25),
+    enabled: watchQuery.isSuccess && watchQuery.data?.watch != null,
+  });
+
+  const watch = watchQuery.data?.watch ?? null;
+  const sources: BizDevWatchSource[] = watchQuery.data?.sources ?? [];
+  const alerts = (alertsQuery.data?.items ?? []).filter((a) => !a.dismissedAt);
+  const memberById = new Map(members.map((m) => [m.id, m]));
+  const ownerName = watch?.ownerUserId ? memberById.get(watch.ownerUserId) : undefined;
+  const categoryValue = categoryDraft ?? (watch?.categories ?? []).join(', ');
+  const muted = Boolean(watch?.mutedUntil && new Date(watch.mutedUntil).getTime() > Date.now());
+
+  const invalidateWatch = () => {
+    void queryClient.invalidateQueries({ queryKey: bizdevWatchKeys.watch(tenantId, prospectId) });
+    void queryClient.invalidateQueries({ queryKey: bizdevWatchKeys.alerts(tenantId, prospectId) });
+  };
+
+  const onWatchError = (e: unknown) => {
+    const message = bizdevErrorMessage(e);
+    setActionError(message);
+    toast.error(message);
+  };
+  const onWatchSuccess = (message: string) => {
+    setActionError(null);
+    toast.success(message);
+    invalidateWatch();
+  };
+
+  // Typed watch mutations. Each takes its payload as the mutate() variable
+  // so a clicked action can never be issued twice or with a stale payload.
+  const activate = useMutation({
+    mutationFn: (input: BizDevActivateWatchInput) => activateBizDevWatch(api, prospectId, input),
+    onSuccess: () => onWatchSuccess('Watch activated'),
+    onError: onWatchError,
+  });
+  const patchWatch = useMutation({
+    mutationFn: (input: BizDevUpdateWatchInput) => updateBizDevWatch(api, prospectId, input),
+    onSuccess: (_data, input) =>
+      onWatchSuccess(
+        input.status === 'paused'
+          ? 'Watch paused'
+          : input.status === 'ended'
+            ? 'Watch ended'
+            : input.mutedUntil === null && !input.status
+              ? 'Watch unmuted'
+              : 'Watch updated',
+      ),
+    onError: onWatchError,
+  });
+  const [alertAction, setAlertAction] = useState<{ alertId: string; action: 'read' | 'dismiss' } | null>(
+    null,
+  );
+  const alertActionRef = useRef<{ alertId: string; action: 'read' | 'dismiss' } | null>(null);
+  const alertBusy = (alertId: string, action: 'read' | 'dismiss') =>
+    alertAction?.alertId === alertId && alertAction.action === action;
+
+  const clearAlertAction = () => {
+    alertActionRef.current = null;
+    setAlertAction(null);
+  };
+
+  const markRead = useMutation({
+    mutationFn: (alertId: string) => markBizDevAlertRead(api, prospectId, alertId),
+    onSuccess: () => {
+      clearAlertAction();
+      onWatchSuccess('Marked as read');
+    },
+    onError: (e) => {
+      clearAlertAction();
+      onWatchError(e);
+    },
+  });
+  const dismissAlert = useMutation({
+    mutationFn: (alertId: string) => dismissBizDevAlert(api, prospectId, alertId),
+    onSuccess: () => {
+      clearAlertAction();
+      onWatchSuccess('Alert dismissed');
+    },
+    onError: (e) => {
+      clearAlertAction();
+      onWatchError(e);
+    },
+  });
+
+  const runAlertAction = (alertId: string, action: 'read' | 'dismiss') => {
+    // Single-flight guard at the handler level: a second click for the same
+    // alert (either action) while one is pending is ignored before any
+    // request can be issued, even if the button's disabled state lagged.
+    if (alertActionRef.current?.alertId === alertId) return;
+    const nextAction = { alertId, action } as const;
+    alertActionRef.current = nextAction;
+    setAlertAction(nextAction);
+    if (action === 'read') markRead.mutate(alertId);
+    else dismissAlert.mutate(alertId);
+  };
+
+  // Single-flight guard: while any watch mutation is pending, every watch
+  // control is disabled so a slow request can never produce a duplicate.
+  const anyPending = activate.isPending || patchWatch.isPending;
+
+  const saveCategoryPreferences = () => {
+    const categories = splitList(categoryValue);
+    const invalid = categories.filter((category) => !BIZDEV_WATCH_CATEGORY_SET.has(category));
+    if (invalid.length > 0) {
+      const message =
+        `Unsupported ${invalid.length === 1 ? 'category' : 'categories'}: ` +
+        `${invalid.join(', ')}. ${BIZDEV_WATCH_CATEGORY_HELP}.`;
+      setActionError(message);
+      return;
+    }
+    setActionError(null);
+    patchWatch.mutate({ categories });
+  };
+
+  const errorNote = actionError ? (
+    <p role="alert" className="capiro-bizdev__statusnote capiro-bizdev__statusnote--warn">
+      {actionError}
+    </p>
+  ) : null;
+
+  if (watchQuery.isError) {
+    return (
+      <DrawerSection title="Watch">
+        <StatusNote
+          warn
+          text={`Watch status could not be loaded right now: ${bizdevErrorMessage(watchQuery.error)}`}
+        />
+      </DrawerSection>
+    );
+  }
+
+  // No watch yet → offer activation with the quiet-baseline explanation.
+  if (!watch) {
+    return (
+      <DrawerSection title="Watch">
+        <CapiroButton
+          size="compact"
+          variant="primary"
+          loading={activate.isPending}
+          disabled={anyPending}
+          onClick={() => activate.mutate({ ...(categoryValue ? { categories: splitList(categoryValue) } : {}) })}
+        >
+          {watchRequested ? 'Activate watch for this prospect' : 'Watch this prospect'}
+        </CapiroButton>
+        <StatusNote text={BIZDEV_QUIET_BASELINE_COPY} />
+        {watchRequested ? (
+          <StatusNote text="Your earlier watch request was saved. Activating here starts the real source checks." />
+        ) : null}
+        {errorNote}
+      </DrawerSection>
+    );
+  }
+
+  return (
+    <DrawerSection title="Watch">
+      <p className="capiro-bizdev__meta">
+        Status:{' '}
+        <strong>
+          {watch.status === 'active' ? 'Active' : watch.status === 'paused' ? 'Paused' : 'Ended'}
+        </strong>
+        {ownerName ? <> · Watched by {memberName(ownerName)}</> : null}
+        {muted && watch.mutedUntil ? (
+          <> · Muted until {formatDateShort(watch.mutedUntil) ?? watch.mutedUntil}</>
+        ) : null}
+      </p>
+
+      <div className="capiro-bizdev__actions">
+        {watch.status === 'active' ? (
+          <>
+            {muted ? (
+              <CapiroButton
+                size="compact"
+                loading={patchWatch.isPending}
+                disabled={anyPending}
+                onClick={() => patchWatch.mutate({ mutedUntil: null })}
+              >
+                Resume notifications
+              </CapiroButton>
+            ) : (
+              <CapiroButton
+                size="compact"
+                loading={patchWatch.isPending}
+                disabled={anyPending}
+                onClick={() =>
+                  patchWatch.mutate({ mutedUntil: new Date(Date.now() + 7 * 864e5).toISOString() })
+                }
+              >
+                Mute for 7 days
+              </CapiroButton>
+            )}
+            <CapiroButton
+              size="compact"
+              loading={patchWatch.isPending}
+              disabled={anyPending}
+              onClick={() => patchWatch.mutate({ status: 'paused' })}
+            >
+              Pause watch
+            </CapiroButton>
+          </>
+        ) : (
+          <CapiroButton
+            size="compact"
+            variant="primary"
+            loading={patchWatch.isPending}
+            disabled={anyPending}
+            onClick={() => patchWatch.mutate({ status: 'active' })}
+          >
+            {watch.status === 'paused' ? 'Resume watch' : 'Restart watch'}
+          </CapiroButton>
+        )}
+        {watch.status !== 'ended' ? (
+          <CapiroButton
+            size="compact"
+            loading={patchWatch.isPending}
+            disabled={anyPending}
+            onClick={() => patchWatch.mutate({ status: 'ended' })}
+          >
+            End watch
+          </CapiroButton>
+        ) : null}
+      </div>
+
+      <p className="capiro-bizdev__meta">
+        Last completed check:{' '}
+        {watchQuery.data?.lastCompletedCheckAt
+          ? (formatDateShort(watchQuery.data.lastCompletedCheckAt) ??
+            watchQuery.data.lastCompletedCheckAt)
+          : 'none yet — sources have not finished a first check'}
+      </p>
+
+      <div className="capiro-bizdev__field">
+        <label className="capiro-bizdev__label" htmlFor="bd-watch-categories">
+          Category preferences (comma separated)
+        </label>
+        <div className="capiro-bizdev__actions">
+          <input
+            id="bd-watch-categories"
+            className="capiro-bizdev__input capiro-bizdev__input--grow"
+            value={categoryValue}
+            onChange={(e) => setCategoryDraft(e.target.value)}
+            aria-describedby="bd-watch-categories-help"
+            maxLength={400}
+          />
+          <CapiroButton
+            size="compact"
+            loading={patchWatch.isPending}
+            disabled={anyPending}
+            onClick={saveCategoryPreferences}
+          >
+            Save categories
+          </CapiroButton>
+        </div>
+        <p id="bd-watch-categories-help" className="capiro-bizdev__meta">
+          {BIZDEV_WATCH_CATEGORY_HELP}. Leave blank to include all categories.
+        </p>
+      </div>
+
+      <StatusNote text={BIZDEV_QUIET_BASELINE_COPY} />
+
+      <h4 className="capiro-bizdev__section-title" style={{ fontSize: 13 }}>
+        Source health
+      </h4>
+      {sources.length === 0 ? (
+        <StatusNote text="No source checks have been configured for this watch yet." />
+      ) : (
+        <ul className="capiro-bizdev__history" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          {sources.map((source) => (
+            <li key={source.source} className="capiro-bizdev__history-item">
+              <span className="capiro-bizdev__history-kind">{source.source}</span>
+              <span>
+                {BIZDEV_SOURCE_HEALTH_LABELS[source.health as BizDevWatchSourceHealth] ??
+                  `Health: ${source.health}`}
+                {source.lastCheckedAt
+                  ? ` · Last check ${formatDateShort(source.lastCheckedAt) ?? source.lastCheckedAt}`
+                  : ''}
+                {source.detail ? ` · ${source.detail}` : ''}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {errorNote}
+      <div aria-live="polite" className="capiro-bizdev__sr-only" data-testid="bizdev-watch-live">
+        {anyPending ? 'Updating watch…' : actionError ? `Watch action failed: ${actionError}` : ''}
+      </div>
+
+      <ProspectAlertsPanel
+        prospectName={prospectName}
+        alerts={alerts}
+        alertsPending={alertsQuery.isPending}
+        alertsError={alertsQuery.isError ? bizdevErrorMessage(alertsQuery.error) : null}
+        meriEnabled={meriEnabled}
+        onRead={(alertId) => runAlertAction(alertId, 'read')}
+        onDismiss={(alertId) => runAlertAction(alertId, 'dismiss')}
+        alertBusy={alertBusy}
+      />
+    </DrawerSection>
+  );
+}
+
+/** Prospect Alerts panel — always scoped to the exact prospect. */
+function ProspectAlertsPanel({
+  prospectName,
+  alerts,
+  alertsPending,
+  alertsError,
+  meriEnabled,
+  onRead,
+  onDismiss,
+  alertBusy,
+}: {
+  prospectName: string;
+  alerts: BizDevProspectAlert[];
+  alertsPending: boolean;
+  alertsError: string | null;
+  meriEnabled: boolean;
+  onRead: (alertId: string) => void;
+  onDismiss: (alertId: string) => void;
+  alertBusy: (alertId: string, action: 'read' | 'dismiss') => boolean;
+}) {
+  return (
+    <section aria-label={`Prospect alerts for ${prospectName}`} style={{ display: 'grid', gap: 10 }}>
+      <h3 className="capiro-bizdev__section-title" style={{ fontSize: 15 }}>
+        Prospect Alerts
+      </h3>
+      {alertsError ? (
+        <StatusNote warn text={`Alerts could not be loaded right now: ${alertsError}`} />
+      ) : alertsPending ? (
+        <div className="capiro-portfolio__skeleton" style={{ height: 60 }} aria-busy="true" />
+      ) : alerts.length === 0 ? (
+        <StatusNote text="No alerts for this prospect. When a watched source observes a change after its baseline, it appears here." />
+      ) : (
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 10 }}>
+          {alerts.map((alert) => {
+            const dateLine = alertDateLine(alert);
+            return (
+              <li
+                key={alert.id}
+                className="capiro-bizdev__surface"
+                style={{ padding: 12, display: 'grid', gap: 6 }}
+                aria-label={alert.title}
+              >
+                <div className="capiro-bizdev__title-row">
+                  <strong>{alert.title}</strong>
+                  {alert.readAt ? <span className="capiro-bizdev__meta">Read</span> : null}
+                </div>
+                {alert.summary ? <p style={{ margin: 0 }}>{alert.summary}</p> : null}
+                {alert.materiality ? (
+                  <p className="capiro-bizdev__meta" style={{ margin: 0 }}>
+                    Materiality: {alert.materiality}
+                  </p>
+                ) : null}
+                {alert.company || alert.category || alert.sourceFamily ? (
+                  <p className="capiro-bizdev__meta" style={{ margin: 0 }}>
+                    {[alert.company, alert.category ?? alert.sourceFamily].filter(Boolean).join(' · ')}
+                  </p>
+                ) : null}
+                {dateLine ? <p className="capiro-bizdev__meta" style={{ margin: 0 }}>{dateLine}</p> : null}
+                {alert.implication ? (
+                  <p className="capiro-bizdev__meta" style={{ margin: 0 }}>
+                    Inference: {alert.implication}
+                  </p>
+                ) : null}
+                {isSafeSourceUrl(alert.sourceLocator) ? (
+                  <a
+                    href={alert.sourceLocator}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="capiro-bizdev__name-btn"
+                  >
+                    View source record (opens in a new tab)
+                  </a>
+                ) : null}
+                <div className="capiro-bizdev__actions">
+                  {!alert.readAt ? (
+                    <CapiroButton
+                      size="compact"
+                      loading={alertBusy(alert.id, 'read')}
+                      disabled={alertBusy(alert.id, 'read') || alertBusy(alert.id, 'dismiss')}
+                      onClick={() => onRead(alert.id)}
+                    >
+                      Mark as read
+                    </CapiroButton>
+                  ) : null}
+                  <CapiroButton
+                    size="compact"
+                    loading={alertBusy(alert.id, 'dismiss')}
+                    disabled={alertBusy(alert.id, 'dismiss') || alertBusy(alert.id, 'read')}
+                    onClick={() => onDismiss(alert.id)}
+                  >
+                    Dismiss
+                  </CapiroButton>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {meriEnabled ? (
+        <StatusNote
+          text={`To ask Meri what changed for ${prospectName}, open the Meri workspace from this page's Meri launcher with this prospect active.`}
+        />
+      ) : null}
+    </section>
+  );
+}
+
 /* ── preferences ─────────────────────────────────────────────────────── */
 
 /** Parse a draft (string from the textarea) or stored list into tag values. */
@@ -1531,7 +2393,169 @@ function PreferencesPanel({ tenantId, isAdmin }: { tenantId: string; isAdmin: bo
 
 /* ── pipeline (list) ─────────────────────────────────────────────────── */
 
-function Pipeline({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean }) {
+/** v5 view tab bar: Discover / Pipeline / Watchlist, URL-deep-linked. */
+function BizDevViewTabs({
+  view,
+  counts,
+  onSelect,
+  discoverEnabled,
+  watchAlertsEnabled,
+}: {
+  view: BizDevView;
+  counts: { active: number; dismissed: number };
+  onSelect: (view: BizDevView) => void;
+  discoverEnabled: boolean;
+  watchAlertsEnabled: boolean;
+}) {
+  const tabs: Array<{ view: BizDevView; count: string | null }> = [
+    { view: 'discover', count: null },
+    { view: 'pipeline', count: String(counts.active) },
+    { view: 'watchlist', count: null },
+  ];
+  return (
+    <div className="capiro-bizdev__viewtabs" role="tablist" aria-label="Business Development views">
+      {tabs
+        .filter((t) => t.view !== 'discover' || discoverEnabled)
+        .filter((t) => t.view !== 'watchlist' || watchAlertsEnabled)
+        .map((t) => (
+          <button
+            key={t.view}
+            type="button"
+            role="tab"
+            id={`bizdev-view-${t.view}`}
+            aria-selected={view === t.view}
+            aria-controls="bizdev-viewpanel"
+            className={`capiro-bizdev__viewtab${view === t.view ? ' is-active' : ''}`}
+            onClick={() => onSelect(t.view)}
+          >
+            {BIZDEV_VIEW_LABELS[t.view]}
+            {t.count != null ? (
+              <span className="capiro-bizdev__viewtab-count" aria-label={`${t.count} prospects`}>
+                {t.count}
+              </span>
+            ) : null}
+          </button>
+        ))}
+    </div>
+  );
+}
+
+/** v5 stage summary/histogram from the real list counts.byStage. */
+function BizDevStageHistogram({
+  byStage,
+  selectedStage,
+  onSelect,
+}: {
+  byStage: Record<string, number>;
+  selectedStage: BizDevStage | '';
+  onSelect: (stage: BizDevStage | '') => void;
+}) {
+  const maxCount = Math.max(0, ...BIZDEV_STAGES.map((stage) => byStage[stage] ?? 0));
+  return (
+    <div className="capiro-bizdev__stagebar" aria-label="Prospects by stage">
+      {BIZDEV_STAGES.map((stage) => {
+        const count = byStage[stage] ?? 0;
+        const selected = selectedStage === stage;
+        return (
+          <button
+            key={stage}
+            type="button"
+            className={`capiro-bizdev__stagecell${selected ? ' is-active' : ''}${stage === 'won' ? ' capiro-bizdev__stagecell--won' : ''}`}
+            aria-pressed={selected}
+            onClick={() => onSelect(selected ? '' : stage)}
+            aria-label={`${BIZDEV_STAGE_LABELS[stage]}: ${count}`}
+          >
+            <span className="capiro-bizdev__stagecell-label">{BIZDEV_STAGE_LABELS[stage]}</span>
+            <span className="capiro-bizdev__stagecell-count">{count}</span>
+            <span className="capiro-bizdev__stagecell-track" aria-hidden="true">
+              <span
+                className="capiro-bizdev__stagecell-bar"
+                style={{ width: `${maxCount ? (count / maxCount) * 100 : 0}%` }}
+              />
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── v5 pipeline: inline row mutations ──────────────────────────────── */
+
+/**
+ * Single-flight inline update for the pipeline table. A pending write for a
+ * prospect blocks any further write for that same prospect, so rapid select
+ * changes can never issue duplicate PATCHes. The selects stay controlled by
+ * the server-confirmed list value, so a failed write simply leaves the
+ * server's value on screen with an actionable per-row error + Retry.
+ */
+function useInlineProspectUpdate(tenantId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const toast = useCapiroToast();
+  // Synchronous single-flight guard: a ref, not state, so a second change
+  // in the same tick is blocked before any state can settle. One pending
+  // write for a prospect blocks BOTH its inline controls.
+  const inFlight = useRef<Set<string>>(new Set());
+  const [pendingIds, setPendingIds] = useState<Record<string, true>>({});
+  const [rowErrors, setRowErrors] = useState<
+    Record<string, { message: string; input: BizDevUpdateInput; field: 'stage' | 'owner' }>
+  >({});
+
+  const update = async (
+    id: string,
+    input: BizDevUpdateInput,
+    field: 'stage' | 'owner',
+  ): Promise<void> => {
+    if (inFlight.current.has(id)) return;
+    inFlight.current.add(id);
+    setPendingIds((p) => ({ ...p, [id]: true }));
+    setRowErrors((e) => {
+      const next = { ...e };
+      delete next[id];
+      return next;
+    });
+    try {
+      const saved = await updateBizDevProspect(api, id, input);
+      queryClient.setQueryData(bizdevKeys.detail(tenantId, id), saved);
+      // Await invalidation of the existing list/detail/history keys
+      // (bizdevKeys.all is their shared prefix) before releasing the guard.
+      await queryClient.invalidateQueries({ queryKey: bizdevKeys.all(tenantId) });
+      toast.success(field === 'stage' ? 'Stage saved' : 'Owner saved');
+    } catch (error) {
+      const message = bizdevErrorMessage(error);
+      setRowErrors((e) => ({ ...e, [id]: { message, input, field } }));
+      toast.error(message);
+    } finally {
+      inFlight.current.delete(id);
+      setPendingIds((p) => {
+        const next = { ...p };
+        delete next[id];
+        return next;
+      });
+    }
+  };
+
+  return { pendingIds, rowErrors, update };
+}
+
+function Pipeline({
+  tenantId,
+  isAdmin,
+  firmName,
+  dossierEnabled,
+  briefEnabled,
+  meriProspectToolsEnabled,
+  watchAlertsEnabled,
+}: {
+  tenantId: string;
+  isAdmin: boolean;
+  firmName?: string;
+  dossierEnabled: boolean;
+  briefEnabled: boolean;
+  meriProspectToolsEnabled: boolean;
+  watchAlertsEnabled: boolean;
+}) {
   const api = useApi();
   const [searchParams, setSearchParams] = useSearchParams();
   const route = resolveBizDevRoute(searchParams);
@@ -1545,34 +2569,114 @@ function Pipeline({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean })
   });
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
   const members_ = members.data ?? [];
-  const memberById = new Map(members_.map((m) => [m.id, m]));
+  const { pendingIds, rowErrors, update: updateRow } = useInlineProspectUpdate(tenantId);
 
   const setRoute = (patch: Parameters<typeof applyBizDevRoute>[1]) =>
     setSearchParams(applyBizDevRoute(searchParams, patch));
 
   const openProspect = (id: string) => setRoute({ prospectId: id });
 
-  const rows = list.data?.prospects ?? [];
+  const rowsAll = list.data?.prospects ?? [];
+  // Derived overdue-only toggle: pure client-side filter over the loaded
+  // nextActionDueAt values. There is no overdue/priority field in the API.
+  const rowsFiltered = route.overdueOnly
+    ? rowsAll.filter((p) => isBizDevOverdue(p.nextActionDueAt))
+    : rowsAll;
+  // v5 prototype sort: newest-first (createdAt) or due date (nulls last),
+  // applied client-side with a deterministic tie break. See bizdev-routing.
+  const rows = [...rowsFiltered].sort((a, b) =>
+    compareBizDevProspectsForSort(a, b, route.sort),
+  );
   const hasData = Boolean(list.data) && (list.data?.counts.total ?? 0) > 0;
+
+  const setView = (view: BizDevView) =>
+    // Switching views keeps filters/params; Discover keeps its legacy param
+    // in sync so old links and new links are interchangeable.
+    setRoute({
+      view,
+      ...(view === 'discover'
+        ? { discover: 'open' as const }
+        : { discover: '' as const }),
+    });
+
+  const drawer = route.prospectId ? (
+    <ProspectDrawer
+      tenantId={tenantId}
+      prospectId={route.prospectId}
+      members={members_}
+      isAdmin={isAdmin}
+      dossierEnabled={dossierEnabled}
+      briefEnabled={briefEnabled}
+      meriProspectToolsEnabled={meriProspectToolsEnabled}
+      watchAlertsEnabled={watchAlertsEnabled}
+      onClose={() => void list.refetch()}
+    />
+  ) : null;
+  const dossierDrawer =
+    route.dossierEntityId || route.dossierProspectId ? (
+      <DossierDrawer tenantId={tenantId} />
+    ) : null;
+
+  const countsActive = list.data?.counts.active ?? 0;
+  const countsDismissed = list.data?.counts.dismissed ?? 0;
+  const requestedView: BizDevView = route.discover === 'open' ? 'discover' : route.view;
+  // View feature gates fail closed even for direct/deep-linked URLs. The API
+  // independently applies the same gates; this keeps the tablist and panel in
+  // a truthful, accessible state without mounting a disabled surface.
+  const view: BizDevView =
+    (requestedView === 'discover' && !dossierEnabled) ||
+    (requestedView === 'watchlist' && !watchAlertsEnabled)
+      ? 'pipeline'
+      : requestedView;
 
   return (
     <div className="capiro-bizdev capiro-page">
-      <header className="capiro-bizdev__head">
+      <header className="capiro-bizdev__head capiro-bizdev__head--v5">
         <div>
+          <p className="capiro-bizdev__eyebrow">
+            Portfolio{firmName ? ` · ${firmName}` : ''}
+          </p>
           <h1 className="capiro-bizdev__title">Business Development</h1>
           <p className="capiro-bizdev__sub">
             Your firm's private prospect pipeline — research to won.
           </p>
         </div>
         <span className="capiro-bizdev__head-spacer" />
-        <CapiroButton variant="primary" size="standard" onClick={() => setCreateOpen(true)}>
+        <CapiroIconButton
+          className="capiro-bizdev__preferences-button"
+          label="Preferences"
+          icon="⚙"
+          onClick={() => setPreferencesOpen(true)}
+        />
+        <CapiroButton variant="secondary" size="standard" leadingIcon={<span aria-hidden="true">＋</span>} onClick={() => setCreateOpen(true)}>
           Add prospect
         </CapiroButton>
       </header>
 
-      <section className="capiro-bizdev__surface" aria-labelledby="bizdev-pipeline">
-        <div className="capiro-bizdev__toolbar">
+      <BizDevViewTabs
+        view={view}
+        counts={{ active: countsActive, dismissed: countsDismissed }}
+        onSelect={setView}
+        discoverEnabled={dossierEnabled}
+        watchAlertsEnabled={watchAlertsEnabled}
+      />
+
+      <div id="bizdev-viewpanel" role="tabpanel" aria-label="Business Development view">
+      {view === 'watchlist' ? (
+        <BizDevWatchlist
+          tenantId={tenantId}
+          members={members_}
+          watchAlertsEnabled={watchAlertsEnabled}
+          meriProspectToolsEnabled={meriProspectToolsEnabled}
+        />
+      ) : view === 'discover' ? (
+        <DiscoverPanel tenantId={tenantId} />
+      ) : (
+      <>
+      <section className="capiro-bizdev__surface capiro-bizdev__surface--v5-pipeline" aria-labelledby="bizdev-pipeline">
+        <div className="capiro-bizdev__toolbar capiro-bizdev__toolbar--v5">
           <div className="capiro-bizdev__title-row">
             <h2 className="capiro-bizdev__section-title" id="bizdev-pipeline">
               Pipeline
@@ -1596,6 +2700,7 @@ function Pipeline({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean })
                   conflict: '',
                   linkedClient: '',
                   q: '',
+                  overdueOnly: false,
                 })
               }
             >
@@ -1603,6 +2708,22 @@ function Pipeline({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean })
             </CapiroButton>
           ) : null}
         </div>
+
+      </section>
+
+      {/* Prototype: the stage summary is its own card, separate from the
+          prospect table card below. */}
+      {!list.isPending && list.data ? (
+        <section className="capiro-bizdev__surface capiro-bizdev__surface--v5-stagebar" aria-label="Prospects by stage">
+          <BizDevStageHistogram
+            byStage={list.data.counts.byStage}
+            selectedStage={route.stage}
+            onSelect={(stage) => setRoute({ stage })}
+          />
+        </section>
+      ) : null}
+
+      <section className="capiro-bizdev__surface capiro-bizdev__surface--v5-table" aria-label="Prospect table">
 
         {list.isPending ? (
           <div style={{ padding: 24 }} aria-busy="true">
@@ -1646,6 +2767,7 @@ function Pipeline({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean })
                       conflict: '',
                       linkedClient: '',
                       q: '',
+                      overdueOnly: false,
                     })
                   }
                 >
@@ -1656,19 +2778,21 @@ function Pipeline({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean })
           </div>
         ) : (
           <div className="capiro-bizdev__table-wrap">
-            <table className="capiro-bizdev__table">
+            <table className="capiro-bizdev__table capiro-bizdev__table--v5">
               <thead>
                 <tr>
-                  <th scope="col">Company</th>
-                  <th scope="col">Owner</th>
+                  <th scope="col">Prospect</th>
                   <th scope="col">Stage</th>
+                  <th scope="col">Owner</th>
                   <th scope="col">Next action</th>
-                  <th scope="col">Flags</th>
-                  <th scope="col">Updated</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Last activity</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((p) => (
+                {rows.map((p) => {
+                  const busy = Boolean(pendingIds[p.id]);
+                  return (
                   <tr key={p.id} className="capiro-bizdev__tr">
                     <td>
                       <button
@@ -1685,29 +2809,67 @@ function Pipeline({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean })
                       </button>
                     </td>
                     <td>
-                      {p.ownerUserId && memberById.get(p.ownerUserId) ? (
-                        <span className="capiro-bizdev__meta-row">
-                          <span className="capiro-portfolio__avatar" aria-hidden>
-                            {initials(memberName(memberById.get(p.ownerUserId)))}
-                          </span>
-                          {memberName(memberById.get(p.ownerUserId))}
-                        </span>
-                      ) : (
-                        <span className="capiro-bizdev__meta">Unassigned</span>
-                      )}
+                      <label className="capiro-bizdev__sr-only" htmlFor={`bizdev-row-stage-${p.id}`}>
+                        Stage for {p.displayName}
+                      </label>
+                      <select
+                        id={`bizdev-row-stage-${p.id}`}
+                        className="capiro-bizdev__select capiro-bizdev__select--inline"
+                        value={p.stage}
+                        disabled={busy}
+                        onChange={(e) =>
+                          void updateRow(p.id, { stage: e.target.value as BizDevStage }, 'stage')
+                        }
+                      >
+                        {BIZDEV_STAGES.map((s) => (
+                          <option key={s} value={s}>
+                            {BIZDEV_STAGE_LABELS[s]}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                     <td>
-                      <span className={`capiro-bizdev__stage capiro-bizdev__stage--${p.stage}`}>
-                        {BIZDEV_STAGE_LABELS[p.stage]}
-                      </span>
+                      <label className="capiro-bizdev__sr-only" htmlFor={`bizdev-row-owner-${p.id}`}>
+                        Owner for {p.displayName}
+                      </label>
+                      <select
+                        id={`bizdev-row-owner-${p.id}`}
+                        className="capiro-bizdev__select capiro-bizdev__select--inline"
+                        value={p.ownerUserId ?? ''}
+                        disabled={busy}
+                        onChange={(e) =>
+                          void updateRow(
+                            p.id,
+                            { ownerUserId: e.target.value || null },
+                            'owner',
+                          )
+                        }
+                      >
+                        <option value="">Unassigned</option>
+                        {p.ownerUserId && !members_.some((member) => member.id === p.ownerUserId) ? (
+                          <option value={p.ownerUserId}>Current owner (unavailable)</option>
+                        ) : null}
+                        {members_.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {memberName(m)}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                     <td>
                       {p.nextAction ? (
                         <span className="capiro-bizdev__meta-row">
                           {p.nextAction}
                           {p.nextActionDueAt ? (
-                            <span className="capiro-bizdev__meta">
-                              · due {formatDateShort(p.nextActionDueAt) ?? ''}
+                            <span
+                              className={`capiro-bizdev__meta${
+                                isBizDevOverdue(p.nextActionDueAt)
+                                  ? ' capiro-bizdev__meta--overdue'
+                                  : ''
+                              }`}
+                            >
+                              {isBizDevOverdue(p.nextActionDueAt) ? 'Overdue · was due ' : 'Due '}
+                              {formatDateShort(p.nextActionDueAt) ?? ''}
                             </span>
                           ) : null}
                         </span>
@@ -1729,11 +2891,11 @@ function Pipeline({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean })
                         ) : null}
                         {p.linkedClient ? (
                           <span className="capiro-bizdev__flag capiro-bizdev__flag--client">
-                            Client
+                            Client linked
                           </span>
                         ) : null}
                         {!p.conflictExcluded && p.status !== 'dismissed' && !p.linkedClient ? (
-                          <span className="capiro-bizdev__meta">—</span>
+                          <span className="capiro-bizdev__meta">{p.canonicalEntityId ? 'Active' : 'Identity unresolved'}</span>
                         ) : null}
                       </span>
                     </td>
@@ -1743,9 +2905,33 @@ function Pipeline({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean })
                       </span>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
+            {Object.keys(rowErrors).length > 0 ? (
+              <div className="capiro-bizdev__row-errors" role="status">
+                {rows
+                  .filter((p) => rowErrors[p.id])
+                  .map((p) => (
+                    <p key={p.id} className="capiro-bizdev__row-error">
+                      {p.displayName}: {rowErrors[p.id]!.message}{' '}
+                      <CapiroButton
+                        size="compact"
+                        onClick={() =>
+                          void updateRow(
+                            p.id,
+                            rowErrors[p.id]!.input,
+                            rowErrors[p.id]!.field,
+                          )
+                        }
+                      >
+                        Retry
+                      </CapiroButton>
+                    </p>
+                  ))}
+              </div>
+            ) : null}
           </div>
         )}
         {list.data ? (
@@ -1756,7 +2942,19 @@ function Pipeline({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean })
         ) : null}
       </section>
 
-      <PreferencesPanel tenantId={tenantId} isAdmin={isAdmin} />
+      </>
+      )}
+
+      </div>
+
+      <CapiroDrawer
+        open={preferencesOpen}
+        title="Firm business-development preferences"
+        onClose={() => setPreferencesOpen(false)}
+        width={640}
+      >
+        <PreferencesPanel tenantId={tenantId} isAdmin={isAdmin} />
+      </CapiroDrawer>
 
       {createOpen ? (
         <CreateProspectModal
@@ -1774,15 +2972,8 @@ function Pipeline({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean })
         />
       ) : null}
 
-      {route.prospectId ? (
-        <ProspectDrawer
-          tenantId={tenantId}
-          prospectId={route.prospectId}
-          members={members_}
-          isAdmin={isAdmin}
-          onClose={() => void list.refetch()}
-        />
-      ) : null}
+      {drawer}
+      {dossierDrawer}
     </div>
   );
 }
@@ -1801,7 +2992,15 @@ export function BusinessDevelopmentPage() {
   const me = useMe();
   if (me.data?.features.businessDevelopment === true) {
     return (
-      <Pipeline tenantId={me.data.tenant.id} isAdmin={hasAtLeast(me.data.role, 'user_admin')} />
+      <Pipeline
+        tenantId={me.data.tenant.id}
+        isAdmin={hasAtLeast(me.data.role, 'user_admin')}
+        firmName={me.data.tenant.name || undefined}
+        dossierEnabled={me.data.features.businessDevelopmentDossier === true}
+        briefEnabled={me.data.features.businessDevelopmentBrief === true}
+        meriProspectToolsEnabled={me.data.features.businessDevelopmentMeriProspectTools === true}
+        watchAlertsEnabled={me.data.features.businessDevelopmentWatch === true}
+      />
     );
   }
   return <PortfolioIndexPage />;

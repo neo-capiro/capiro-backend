@@ -1,0 +1,6360 @@
+{
+  "schemaVersion": 1,
+  "package": 9,
+  "qualification": "durable-outbox-failure-recovery-local",
+  "runId": "p9-20260925115805719-5e32a8",
+  "status": "PASS_LIMITED_SCOPE",
+  "startedAt": "2026-09-25T11:58:14.347Z",
+  "environment": {
+    "kind": "disposable-local-postgresql",
+    "sourceRevision": "306fa704a1724cca68c11aa3c18b2fb2ac2c2bd9",
+    "harnessSha256": "20b1d4303c7bd8c0a44d909ca300d92b437ea3c0349d8c3c27e1db94bbd44ef6",
+    "supportingCommonQueryMixSha256": "85ad5e9bee922b0a471734ae10a4c707f92eb7164058950a9bc11b7c6535fc35",
+    "executedCommonQueryMixSha256": "3ea19531db7e1b079a708227a15422451590bea0af5b34bc56980e2447243e6b",
+    "image": "pgvector/pgvector:pg16",
+    "containerId": "1320c373ba9776b7433998006049f067986926e4a88fdcd63e0c72e0ed5e9dc1",
+    "containerName": "p9-20260925115805719-5e32a8-pg",
+    "publishedHost": "127.0.0.1 only, ephemeral host port",
+    "mountedVolumes": false,
+    "externalServices": false,
+    "paidProviderCalls": 0,
+    "productionData": false
+  },
+  "limits": {
+    "peakQueueRows": 100,
+    "workers": 4,
+    "deadLetterMax": 10,
+    "leaseMsForHarness": 250
+  },
+  "workload": {
+    "seed": "package9-durable-qualification-v1",
+    "acceptedFactTarget": 100,
+    "sourceFamilies": [
+      "pb_r1",
+      "pb_p1",
+      "pb_o1",
+      "pb_milcon_c1"
+    ],
+    "faultRows": {
+      "crash": 0,
+      "lease": 1,
+      "retry": 2,
+      "source": 3,
+      "provider_timeout": 4,
+      "provider_429": 5,
+      "provider_malformed": 6,
+      "provider_5xx": 7
+    },
+    "providerFaultFixtures": [
+      "timeout",
+      "429",
+      "malformed",
+      "5xx"
+    ]
+  },
+  "queueSamples": [
+    {
+      "label": "seeded-peak",
+      "capturedAt": "2026-09-25T12:03:16.520Z",
+      "pending": 100,
+      "leased": 0,
+      "succeeded": 0,
+      "deadLetter": 0,
+      "total": 100,
+      "oldestRowAgeMs": 43396520
+    },
+    {
+      "label": "fault-scenarios-recovered",
+      "capturedAt": "2026-09-25T12:03:21.298Z",
+      "pending": 92,
+      "leased": 0,
+      "succeeded": 8,
+      "deadLetter": 0,
+      "total": 100,
+      "oldestRowAgeMs": 43401298
+    },
+    {
+      "label": "drained",
+      "capturedAt": "2026-09-25T12:04:19.395Z",
+      "pending": 0,
+      "leased": 0,
+      "succeeded": 100,
+      "deadLetter": 0,
+      "total": 100,
+      "oldestRowAgeMs": 43459395
+    }
+  ],
+  "scenarioResults": [
+    {
+      "id": "crash-after-evidence-before-ack",
+      "status": "PASS",
+      "childExitCode": 73,
+      "preRecoveryState": "leased",
+      "committedEvidenceBeforeRecovery": 1,
+      "recovery": {
+        "claimed": 1,
+        "succeeded": 1,
+        "governedReview": 0,
+        "governedReject": 0,
+        "retried": 0,
+        "poisoned": 0,
+        "leaseLost": 0,
+        "readinessInvoked": 1,
+        "readinessSucceeded": 1,
+        "readinessRetried": 0,
+        "readiness_deferred_committee": 0,
+        "readinessSkippedNoScope": 0,
+        "readinessFailures": []
+      },
+      "elapsedMs": 3918.919600000023
+    },
+    {
+      "id": "lease-expiry-stale-fencing",
+      "status": "PASS",
+      "staleOwner": {
+        "claimed": 1,
+        "succeeded": 0,
+        "governedReview": 0,
+        "governedReject": 0,
+        "retried": 0,
+        "poisoned": 0,
+        "leaseLost": 1,
+        "readinessInvoked": 0,
+        "readinessSucceeded": 0,
+        "readinessRetried": 0,
+        "readiness_deferred_committee": 0,
+        "readinessSkippedNoScope": 0,
+        "readinessFailures": []
+      },
+      "replacementOwner": {
+        "claimed": 1,
+        "succeeded": 1,
+        "governedReview": 0,
+        "governedReject": 0,
+        "retried": 0,
+        "poisoned": 0,
+        "leaseLost": 0,
+        "readinessInvoked": 1,
+        "readinessSucceeded": 1,
+        "readinessRetried": 0,
+        "readiness_deferred_committee": 0,
+        "readinessSkippedNoScope": 0,
+        "readinessFailures": []
+      },
+      "elapsedMs": 94.41260000003967
+    },
+    {
+      "id": "retry",
+      "status": "PASS",
+      "firstAttempt": {
+        "claimed": 1,
+        "succeeded": 0,
+        "governedReview": 0,
+        "governedReject": 0,
+        "retried": 1,
+        "poisoned": 0,
+        "leaseLost": 0,
+        "readinessInvoked": 0,
+        "readinessSucceeded": 0,
+        "readinessRetried": 0,
+        "readiness_deferred_committee": 0,
+        "readinessSkippedNoScope": 0,
+        "readinessFailures": []
+      },
+      "recoveryAttempt": {
+        "claimed": 1,
+        "succeeded": 1,
+        "governedReview": 0,
+        "governedReject": 0,
+        "retried": 0,
+        "poisoned": 0,
+        "leaseLost": 0,
+        "readinessInvoked": 1,
+        "readinessSucceeded": 1,
+        "readinessRetried": 0,
+        "readiness_deferred_committee": 0,
+        "readinessSkippedNoScope": 0,
+        "readinessFailures": []
+      },
+      "elapsedMs": 143.1191000000108
+    },
+    {
+      "id": "source",
+      "status": "PASS",
+      "firstAttempt": {
+        "claimed": 1,
+        "succeeded": 0,
+        "governedReview": 0,
+        "governedReject": 0,
+        "retried": 1,
+        "poisoned": 0,
+        "leaseLost": 0,
+        "readinessInvoked": 0,
+        "readinessSucceeded": 0,
+        "readinessRetried": 0,
+        "readiness_deferred_committee": 0,
+        "readinessSkippedNoScope": 0,
+        "readinessFailures": []
+      },
+      "recoveryAttempt": {
+        "claimed": 1,
+        "succeeded": 1,
+        "governedReview": 0,
+        "governedReject": 0,
+        "retried": 0,
+        "poisoned": 0,
+        "leaseLost": 0,
+        "readinessInvoked": 1,
+        "readinessSucceeded": 1,
+        "readinessRetried": 0,
+        "readiness_deferred_committee": 0,
+        "readinessSkippedNoScope": 0,
+        "readinessFailures": []
+      },
+      "elapsedMs": 130.1087000000407
+    },
+    {
+      "id": "provider_timeout",
+      "status": "PASS",
+      "firstAttempt": {
+        "claimed": 1,
+        "succeeded": 0,
+        "governedReview": 0,
+        "governedReject": 0,
+        "retried": 1,
+        "poisoned": 0,
+        "leaseLost": 0,
+        "readinessInvoked": 0,
+        "readinessSucceeded": 0,
+        "readinessRetried": 0,
+        "readiness_deferred_committee": 0,
+        "readinessSkippedNoScope": 0,
+        "readinessFailures": []
+      },
+      "recoveryAttempt": {
+        "claimed": 1,
+        "succeeded": 1,
+        "governedReview": 0,
+        "governedReject": 0,
+        "retried": 0,
+        "poisoned": 0,
+        "leaseLost": 0,
+        "readinessInvoked": 1,
+        "readinessSucceeded": 1,
+        "readinessRetried": 0,
+        "readiness_deferred_committee": 0,
+        "readinessSkippedNoScope": 0,
+        "readinessFailures": []
+      },
+      "elapsedMs": 169.07189999998081
+    },
+    {
+      "id": "provider_429",
+      "status": "PASS",
+      "firstAttempt": {
+        "claimed": 1,
+        "succeeded": 0,
+        "governedReview": 0,
+        "governedReject": 0,
+        "retried": 1,
+        "poisoned": 0,
+        "leaseLost": 0,
+        "readinessInvoked": 0,
+        "readinessSucceeded": 0,
+        "readinessRetried": 0,
+        "readiness_deferred_committee": 0,
+        "readinessSkippedNoScope": 0,
+        "readinessFailures": []
+      },
+      "recoveryAttempt": {
+        "claimed": 1,
+        "succeeded": 1,
+        "governedReview": 0,
+        "governedReject": 0,
+        "retried": 0,
+        "poisoned": 0,
+        "leaseLost": 0,
+        "readinessInvoked": 1,
+        "readinessSucceeded": 1,
+        "readinessRetried": 0,
+        "readiness_deferred_committee": 0,
+        "readinessSkippedNoScope": 0,
+        "readinessFailures": []
+      },
+      "elapsedMs": 123.40039999998407
+    },
+    {
+      "id": "provider_malformed",
+      "status": "PASS",
+      "firstAttempt": {
+        "claimed": 1,
+        "succeeded": 0,
+        "governedReview": 0,
+        "governedReject": 0,
+        "retried": 1,
+        "poisoned": 0,
+        "leaseLost": 0,
+        "readinessInvoked": 0,
+        "readinessSucceeded": 0,
+        "readinessRetried": 0,
+        "readiness_deferred_committee": 0,
+        "readinessSkippedNoScope": 0,
+        "readinessFailures": []
+      },
+      "recoveryAttempt": {
+        "claimed": 1,
+        "succeeded": 1,
+        "governedReview": 0,
+        "governedReject": 0,
+        "retried": 0,
+        "poisoned": 0,
+        "leaseLost": 0,
+        "readinessInvoked": 1,
+        "readinessSucceeded": 1,
+        "readinessRetried": 0,
+        "readiness_deferred_committee": 0,
+        "readinessSkippedNoScope": 0,
+        "readinessFailures": []
+      },
+      "elapsedMs": 104.82490000000689
+    },
+    {
+      "id": "provider_5xx",
+      "status": "PASS",
+      "firstAttempt": {
+        "claimed": 1,
+        "succeeded": 0,
+        "governedReview": 0,
+        "governedReject": 0,
+        "retried": 1,
+        "poisoned": 0,
+        "leaseLost": 0,
+        "readinessInvoked": 0,
+        "readinessSucceeded": 0,
+        "readinessRetried": 0,
+        "readiness_deferred_committee": 0,
+        "readinessSkippedNoScope": 0,
+        "readinessFailures": []
+      },
+      "recoveryAttempt": {
+        "claimed": 1,
+        "succeeded": 1,
+        "governedReview": 0,
+        "governedReject": 0,
+        "retried": 0,
+        "poisoned": 0,
+        "leaseLost": 0,
+        "readinessInvoked": 1,
+        "readinessSucceeded": 1,
+        "readinessRetried": 0,
+        "readiness_deferred_committee": 0,
+        "readinessSkippedNoScope": 0,
+        "readinessFailures": []
+      },
+      "elapsedMs": 90.60849999997299
+    }
+  ],
+  "rawTimingSamplesMs": [
+    {
+      "elapsedMs": 181.8007000000216,
+      "operation": "create evidence ledger"
+    },
+    {
+      "elapsedMs": 49.87189999996917,
+      "operation": "create notification ledger"
+    },
+    {
+      "elapsedMs": 32.53890000004321,
+      "operation": "create attempt ledger"
+    },
+    {
+      "elapsedMs": 13.064699999988079,
+      "operation": "create immutable-ledger guard"
+    },
+    {
+      "elapsedMs": 13.630599999974947,
+      "operation": "protect evidence ledger"
+    },
+    {
+      "elapsedMs": 12.603699999977835,
+      "operation": "protect notification ledger"
+    },
+    {
+      "elapsedMs": 26.3912999999593,
+      "operation": "seed cycle"
+    },
+    {
+      "elapsedMs": 17.788400000019465,
+      "operation": "seed expected source pb_r1"
+    },
+    {
+      "elapsedMs": 6.905299999983981,
+      "operation": "seed expected source pb_p1"
+    },
+    {
+      "elapsedMs": 12.928100000019185,
+      "operation": "seed expected source pb_o1"
+    },
+    {
+      "elapsedMs": 12.73240000003716,
+      "operation": "seed expected source pb_milcon_c1"
+    },
+    {
+      "elapsedMs": 20.28479999996489,
+      "operation": "seed source observation 0"
+    },
+    {
+      "elapsedMs": 11.841100000019651,
+      "operation": "seed outbox row 0"
+    },
+    {
+      "elapsedMs": 21.930600000021514,
+      "operation": "seed source observation 1"
+    },
+    {
+      "elapsedMs": 15.229600000020582,
+      "operation": "seed outbox row 1"
+    },
+    {
+      "elapsedMs": 4.9715000000433065,
+      "operation": "seed source observation 2"
+    },
+    {
+      "elapsedMs": 7.469599999953061,
+      "operation": "seed outbox row 2"
+    },
+    {
+      "elapsedMs": 12.824099999968894,
+      "operation": "seed source observation 3"
+    },
+    {
+      "elapsedMs": 12.990999999979977,
+      "operation": "seed outbox row 3"
+    },
+    {
+      "elapsedMs": 20.192999999970198,
+      "operation": "seed source observation 4"
+    },
+    {
+      "elapsedMs": 6.134699999995064,
+      "operation": "seed outbox row 4"
+    },
+    {
+      "elapsedMs": 7.238800000050105,
+      "operation": "seed source observation 5"
+    },
+    {
+      "elapsedMs": 9.172000000020489,
+      "operation": "seed outbox row 5"
+    },
+    {
+      "elapsedMs": 19.708900000026915,
+      "operation": "seed source observation 6"
+    },
+    {
+      "elapsedMs": 13.451799999980722,
+      "operation": "seed outbox row 6"
+    },
+    {
+      "elapsedMs": 11.561799999966752,
+      "operation": "seed source observation 7"
+    },
+    {
+      "elapsedMs": 10.71710000000894,
+      "operation": "seed outbox row 7"
+    },
+    {
+      "elapsedMs": 10.907500000030268,
+      "operation": "seed source observation 8"
+    },
+    {
+      "elapsedMs": 11.630699999979697,
+      "operation": "seed outbox row 8"
+    },
+    {
+      "elapsedMs": 4.550700000021607,
+      "operation": "seed source observation 9"
+    },
+    {
+      "elapsedMs": 6.802399999985937,
+      "operation": "seed outbox row 9"
+    },
+    {
+      "elapsedMs": 6.400699999998324,
+      "operation": "seed source observation 10"
+    },
+    {
+      "elapsedMs": 12.959999999962747,
+      "operation": "seed outbox row 10"
+    },
+    {
+      "elapsedMs": 7.230099999986123,
+      "operation": "seed source observation 11"
+    },
+    {
+      "elapsedMs": 28.70319999998901,
+      "operation": "seed outbox row 11"
+    },
+    {
+      "elapsedMs": 14.235600000014529,
+      "operation": "seed source observation 12"
+    },
+    {
+      "elapsedMs": 11.9081999999471,
+      "operation": "seed outbox row 12"
+    },
+    {
+      "elapsedMs": 22.323799999954645,
+      "operation": "seed source observation 13"
+    },
+    {
+      "elapsedMs": 18.65709999995306,
+      "operation": "seed outbox row 13"
+    },
+    {
+      "elapsedMs": 10.178099999960978,
+      "operation": "seed source observation 14"
+    },
+    {
+      "elapsedMs": 11.684200000017881,
+      "operation": "seed outbox row 14"
+    },
+    {
+      "elapsedMs": 9.379200000024866,
+      "operation": "seed source observation 15"
+    },
+    {
+      "elapsedMs": 10.044200000003912,
+      "operation": "seed outbox row 15"
+    },
+    {
+      "elapsedMs": 9.144299999985378,
+      "operation": "seed source observation 16"
+    },
+    {
+      "elapsedMs": 13.524499999999534,
+      "operation": "seed outbox row 16"
+    },
+    {
+      "elapsedMs": 24.725500000000466,
+      "operation": "seed source observation 17"
+    },
+    {
+      "elapsedMs": 14.848100000002887,
+      "operation": "seed outbox row 17"
+    },
+    {
+      "elapsedMs": 15.196499999961816,
+      "operation": "seed source observation 18"
+    },
+    {
+      "elapsedMs": 9.151200000022072,
+      "operation": "seed outbox row 18"
+    },
+    {
+      "elapsedMs": 8.149900000018533,
+      "operation": "seed source observation 19"
+    },
+    {
+      "elapsedMs": 13.785800000012387,
+      "operation": "seed outbox row 19"
+    },
+    {
+      "elapsedMs": 11.249499999976251,
+      "operation": "seed source observation 20"
+    },
+    {
+      "elapsedMs": 6.527000000001863,
+      "operation": "seed outbox row 20"
+    },
+    {
+      "elapsedMs": 8.336000000010245,
+      "operation": "seed source observation 21"
+    },
+    {
+      "elapsedMs": 24.19920000003185,
+      "operation": "seed outbox row 21"
+    },
+    {
+      "elapsedMs": 24.886400000017602,
+      "operation": "seed source observation 22"
+    },
+    {
+      "elapsedMs": 31.317399999999907,
+      "operation": "seed outbox row 22"
+    },
+    {
+      "elapsedMs": 25.67410000000382,
+      "operation": "seed source observation 23"
+    },
+    {
+      "elapsedMs": 17.5283000000054,
+      "operation": "seed outbox row 23"
+    },
+    {
+      "elapsedMs": 28.379599999985658,
+      "operation": "seed source observation 24"
+    },
+    {
+      "elapsedMs": 27.460800000000745,
+      "operation": "seed outbox row 24"
+    },
+    {
+      "elapsedMs": 13.737599999993108,
+      "operation": "seed source observation 25"
+    },
+    {
+      "elapsedMs": 10.98210000002291,
+      "operation": "seed outbox row 25"
+    },
+    {
+      "elapsedMs": 21.82829999999376,
+      "operation": "seed source observation 26"
+    },
+    {
+      "elapsedMs": 30.566200000001118,
+      "operation": "seed outbox row 26"
+    },
+    {
+      "elapsedMs": 13.216799999994691,
+      "operation": "seed source observation 27"
+    },
+    {
+      "elapsedMs": 7.735700000019278,
+      "operation": "seed outbox row 27"
+    },
+    {
+      "elapsedMs": 11.899199999985285,
+      "operation": "seed source observation 28"
+    },
+    {
+      "elapsedMs": 7.418299999961164,
+      "operation": "seed outbox row 28"
+    },
+    {
+      "elapsedMs": 17.283400000014808,
+      "operation": "seed source observation 29"
+    },
+    {
+      "elapsedMs": 9.558400000038091,
+      "operation": "seed outbox row 29"
+    },
+    {
+      "elapsedMs": 13.486399999994319,
+      "operation": "seed source observation 30"
+    },
+    {
+      "elapsedMs": 15.281600000045728,
+      "operation": "seed outbox row 30"
+    },
+    {
+      "elapsedMs": 9.946499999961816,
+      "operation": "seed source observation 31"
+    },
+    {
+      "elapsedMs": 22.399199999985285,
+      "operation": "seed outbox row 31"
+    },
+    {
+      "elapsedMs": 5.65500000002794,
+      "operation": "seed source observation 32"
+    },
+    {
+      "elapsedMs": 13.541399999987334,
+      "operation": "seed outbox row 32"
+    },
+    {
+      "elapsedMs": 18.866600000008475,
+      "operation": "seed source observation 33"
+    },
+    {
+      "elapsedMs": 24.291199999977835,
+      "operation": "seed outbox row 33"
+    },
+    {
+      "elapsedMs": 17.992499999993015,
+      "operation": "seed source observation 34"
+    },
+    {
+      "elapsedMs": 18.020900000003166,
+      "operation": "seed outbox row 34"
+    },
+    {
+      "elapsedMs": 29.471799999999348,
+      "operation": "seed source observation 35"
+    },
+    {
+      "elapsedMs": 45.93969999998808,
+      "operation": "seed outbox row 35"
+    },
+    {
+      "elapsedMs": 10.54859999998007,
+      "operation": "seed source observation 36"
+    },
+    {
+      "elapsedMs": 104.4887999999919,
+      "operation": "seed outbox row 36"
+    },
+    {
+      "elapsedMs": 30.84000000002561,
+      "operation": "seed source observation 37"
+    },
+    {
+      "elapsedMs": 10.958900000026915,
+      "operation": "seed outbox row 37"
+    },
+    {
+      "elapsedMs": 6.316799999971408,
+      "operation": "seed source observation 38"
+    },
+    {
+      "elapsedMs": 19.864400000020396,
+      "operation": "seed outbox row 38"
+    },
+    {
+      "elapsedMs": 13.500600000028498,
+      "operation": "seed source observation 39"
+    },
+    {
+      "elapsedMs": 6.098200000007637,
+      "operation": "seed outbox row 39"
+    },
+    {
+      "elapsedMs": 8.76559999998426,
+      "operation": "seed source observation 40"
+    },
+    {
+      "elapsedMs": 5.1353000000235625,
+      "operation": "seed outbox row 40"
+    },
+    {
+      "elapsedMs": 11.565899999986868,
+      "operation": "seed source observation 41"
+    },
+    {
+      "elapsedMs": 7.965299999981653,
+      "operation": "seed outbox row 41"
+    },
+    {
+      "elapsedMs": 13.510299999965355,
+      "operation": "seed source observation 42"
+    },
+    {
+      "elapsedMs": 9.010099999955855,
+      "operation": "seed outbox row 42"
+    },
+    {
+      "elapsedMs": 8.39159999997355,
+      "operation": "seed source observation 43"
+    },
+    {
+      "elapsedMs": 7.466599999985192,
+      "operation": "seed outbox row 43"
+    },
+    {
+      "elapsedMs": 7.604699999967124,
+      "operation": "seed source observation 44"
+    },
+    {
+      "elapsedMs": 10.003900000010617,
+      "operation": "seed outbox row 44"
+    },
+    {
+      "elapsedMs": 14.204300000041258,
+      "operation": "seed source observation 45"
+    },
+    {
+      "elapsedMs": 20.67230000003474,
+      "operation": "seed outbox row 45"
+    },
+    {
+      "elapsedMs": 22.26829999999609,
+      "operation": "seed source observation 46"
+    },
+    {
+      "elapsedMs": 12.257199999992736,
+      "operation": "seed outbox row 46"
+    },
+    {
+      "elapsedMs": 20.713400000007823,
+      "operation": "seed source observation 47"
+    },
+    {
+      "elapsedMs": 17.763299999991432,
+      "operation": "seed outbox row 47"
+    },
+    {
+      "elapsedMs": 24.60889999999199,
+      "operation": "seed source observation 48"
+    },
+    {
+      "elapsedMs": 23.31130000000121,
+      "operation": "seed outbox row 48"
+    },
+    {
+      "elapsedMs": 9.117299999983516,
+      "operation": "seed source observation 49"
+    },
+    {
+      "elapsedMs": 11.976399999985006,
+      "operation": "seed outbox row 49"
+    },
+    {
+      "elapsedMs": 13.494999999995343,
+      "operation": "seed source observation 50"
+    },
+    {
+      "elapsedMs": 11.337500000023283,
+      "operation": "seed outbox row 50"
+    },
+    {
+      "elapsedMs": 7.0706999999820255,
+      "operation": "seed source observation 51"
+    },
+    {
+      "elapsedMs": 6.839500000001863,
+      "operation": "seed outbox row 51"
+    },
+    {
+      "elapsedMs": 36.56279999995604,
+      "operation": "seed source observation 52"
+    },
+    {
+      "elapsedMs": 11.37430000002496,
+      "operation": "seed outbox row 52"
+    },
+    {
+      "elapsedMs": 20.585000000020955,
+      "operation": "seed source observation 53"
+    },
+    {
+      "elapsedMs": 15.767300000006799,
+      "operation": "seed outbox row 53"
+    },
+    {
+      "elapsedMs": 6.4710999999661,
+      "operation": "seed source observation 54"
+    },
+    {
+      "elapsedMs": 7.032500000030268,
+      "operation": "seed outbox row 54"
+    },
+    {
+      "elapsedMs": 13.645100000023376,
+      "operation": "seed source observation 55"
+    },
+    {
+      "elapsedMs": 21.9081999999471,
+      "operation": "seed outbox row 55"
+    },
+    {
+      "elapsedMs": 23.65170000004582,
+      "operation": "seed source observation 56"
+    },
+    {
+      "elapsedMs": 40.56579999998212,
+      "operation": "seed outbox row 56"
+    },
+    {
+      "elapsedMs": 11.290999999968335,
+      "operation": "seed source observation 57"
+    },
+    {
+      "elapsedMs": 10.18869999999879,
+      "operation": "seed outbox row 57"
+    },
+    {
+      "elapsedMs": 14.666499999992084,
+      "operation": "seed source observation 58"
+    },
+    {
+      "elapsedMs": 27.149700000009034,
+      "operation": "seed outbox row 58"
+    },
+    {
+      "elapsedMs": 11.394599999999627,
+      "operation": "seed source observation 59"
+    },
+    {
+      "elapsedMs": 10.32949999999255,
+      "operation": "seed outbox row 59"
+    },
+    {
+      "elapsedMs": 18.92200000002049,
+      "operation": "seed source observation 60"
+    },
+    {
+      "elapsedMs": 10.736000000033528,
+      "operation": "seed outbox row 60"
+    },
+    {
+      "elapsedMs": 8.868900000001304,
+      "operation": "seed source observation 61"
+    },
+    {
+      "elapsedMs": 43.06150000001071,
+      "operation": "seed outbox row 61"
+    },
+    {
+      "elapsedMs": 10.798000000009779,
+      "operation": "seed source observation 62"
+    },
+    {
+      "elapsedMs": 16.355400000000373,
+      "operation": "seed outbox row 62"
+    },
+    {
+      "elapsedMs": 7.882299999997485,
+      "operation": "seed source observation 63"
+    },
+    {
+      "elapsedMs": 5.45140000001993,
+      "operation": "seed outbox row 63"
+    },
+    {
+      "elapsedMs": 10.168999999994412,
+      "operation": "seed source observation 64"
+    },
+    {
+      "elapsedMs": 21.71830000000773,
+      "operation": "seed outbox row 64"
+    },
+    {
+      "elapsedMs": 8.798100000014529,
+      "operation": "seed source observation 65"
+    },
+    {
+      "elapsedMs": 8.867700000002515,
+      "operation": "seed outbox row 65"
+    },
+    {
+      "elapsedMs": 17.38949999999022,
+      "operation": "seed source observation 66"
+    },
+    {
+      "elapsedMs": 8.557200000039302,
+      "operation": "seed outbox row 66"
+    },
+    {
+      "elapsedMs": 6.100999999966007,
+      "operation": "seed source observation 67"
+    },
+    {
+      "elapsedMs": 24.134599999990314,
+      "operation": "seed outbox row 67"
+    },
+    {
+      "elapsedMs": 9.119300000020303,
+      "operation": "seed source observation 68"
+    },
+    {
+      "elapsedMs": 5.034500000008848,
+      "operation": "seed outbox row 68"
+    },
+    {
+      "elapsedMs": 7.615899999975227,
+      "operation": "seed source observation 69"
+    },
+    {
+      "elapsedMs": 7.547100000025239,
+      "operation": "seed outbox row 69"
+    },
+    {
+      "elapsedMs": 4.896699999982957,
+      "operation": "seed source observation 70"
+    },
+    {
+      "elapsedMs": 17.17029999999795,
+      "operation": "seed outbox row 70"
+    },
+    {
+      "elapsedMs": 26.331100000010338,
+      "operation": "seed source observation 71"
+    },
+    {
+      "elapsedMs": 11.66770000004908,
+      "operation": "seed outbox row 71"
+    },
+    {
+      "elapsedMs": 17.212500000023283,
+      "operation": "seed source observation 72"
+    },
+    {
+      "elapsedMs": 9.66860000003362,
+      "operation": "seed outbox row 72"
+    },
+    {
+      "elapsedMs": 13.415700000012293,
+      "operation": "seed source observation 73"
+    },
+    {
+      "elapsedMs": 6.678600000042934,
+      "operation": "seed outbox row 73"
+    },
+    {
+      "elapsedMs": 12.711299999966286,
+      "operation": "seed source observation 74"
+    },
+    {
+      "elapsedMs": 8.782200000016019,
+      "operation": "seed outbox row 74"
+    },
+    {
+      "elapsedMs": 27.59380000003148,
+      "operation": "seed source observation 75"
+    },
+    {
+      "elapsedMs": 6.264599999994971,
+      "operation": "seed outbox row 75"
+    },
+    {
+      "elapsedMs": 27.213599999959115,
+      "operation": "seed source observation 76"
+    },
+    {
+      "elapsedMs": 13.702899999974761,
+      "operation": "seed outbox row 76"
+    },
+    {
+      "elapsedMs": 17.316899999976158,
+      "operation": "seed source observation 77"
+    },
+    {
+      "elapsedMs": 10.54470000002766,
+      "operation": "seed outbox row 77"
+    },
+    {
+      "elapsedMs": 7.886799999978393,
+      "operation": "seed source observation 78"
+    },
+    {
+      "elapsedMs": 5.7709000000031665,
+      "operation": "seed outbox row 78"
+    },
+    {
+      "elapsedMs": 15.18859999999404,
+      "operation": "seed source observation 79"
+    },
+    {
+      "elapsedMs": 17.102400000032503,
+      "operation": "seed outbox row 79"
+    },
+    {
+      "elapsedMs": 8.168300000019372,
+      "operation": "seed source observation 80"
+    },
+    {
+      "elapsedMs": 8.612699999997858,
+      "operation": "seed outbox row 80"
+    },
+    {
+      "elapsedMs": 13.512199999997392,
+      "operation": "seed source observation 81"
+    },
+    {
+      "elapsedMs": 16.4714999999851,
+      "operation": "seed outbox row 81"
+    },
+    {
+      "elapsedMs": 6.999299999966752,
+      "operation": "seed source observation 82"
+    },
+    {
+      "elapsedMs": 8.416700000001583,
+      "operation": "seed outbox row 82"
+    },
+    {
+      "elapsedMs": 7.883800000010524,
+      "operation": "seed source observation 83"
+    },
+    {
+      "elapsedMs": 12.4041000000434,
+      "operation": "seed outbox row 83"
+    },
+    {
+      "elapsedMs": 8.915699999954086,
+      "operation": "seed source observation 84"
+    },
+    {
+      "elapsedMs": 7.779099999985192,
+      "operation": "seed outbox row 84"
+    },
+    {
+      "elapsedMs": 12.334300000045914,
+      "operation": "seed source observation 85"
+    },
+    {
+      "elapsedMs": 19.23649999999907,
+      "operation": "seed outbox row 85"
+    },
+    {
+      "elapsedMs": 11.104200000001583,
+      "operation": "seed source observation 86"
+    },
+    {
+      "elapsedMs": 25.402399999962654,
+      "operation": "seed outbox row 86"
+    },
+    {
+      "elapsedMs": 11.878300000040326,
+      "operation": "seed source observation 87"
+    },
+    {
+      "elapsedMs": 4.538100000005215,
+      "operation": "seed outbox row 87"
+    },
+    {
+      "elapsedMs": 11.25189999997383,
+      "operation": "seed source observation 88"
+    },
+    {
+      "elapsedMs": 16.553499999979977,
+      "operation": "seed outbox row 88"
+    },
+    {
+      "elapsedMs": 5.82550000003539,
+      "operation": "seed source observation 89"
+    },
+    {
+      "elapsedMs": 12.346000000019558,
+      "operation": "seed outbox row 89"
+    },
+    {
+      "elapsedMs": 14.537699999986216,
+      "operation": "seed source observation 90"
+    },
+    {
+      "elapsedMs": 6.005000000004657,
+      "operation": "seed outbox row 90"
+    },
+    {
+      "elapsedMs": 7.843000000051688,
+      "operation": "seed source observation 91"
+    },
+    {
+      "elapsedMs": 15.879099999961909,
+      "operation": "seed outbox row 91"
+    },
+    {
+      "elapsedMs": 5.767300000006799,
+      "operation": "seed source observation 92"
+    },
+    {
+      "elapsedMs": 9.854200000001583,
+      "operation": "seed outbox row 92"
+    },
+    {
+      "elapsedMs": 12.115999999979977,
+      "operation": "seed source observation 93"
+    },
+    {
+      "elapsedMs": 8.594700000016019,
+      "operation": "seed outbox row 93"
+    },
+    {
+      "elapsedMs": 22.755400000023656,
+      "operation": "seed source observation 94"
+    },
+    {
+      "elapsedMs": 24.02860000001965,
+      "operation": "seed outbox row 94"
+    },
+    {
+      "elapsedMs": 6.2163999999756925,
+      "operation": "seed source observation 95"
+    },
+    {
+      "elapsedMs": 11.298600000038277,
+      "operation": "seed outbox row 95"
+    },
+    {
+      "elapsedMs": 15.42090000002645,
+      "operation": "seed source observation 96"
+    },
+    {
+      "elapsedMs": 8.323600000003353,
+      "operation": "seed outbox row 96"
+    },
+    {
+      "elapsedMs": 10.3458999999566,
+      "operation": "seed source observation 97"
+    },
+    {
+      "elapsedMs": 13.029899999964982,
+      "operation": "seed outbox row 97"
+    },
+    {
+      "elapsedMs": 37.29829999996582,
+      "operation": "seed source observation 98"
+    },
+    {
+      "elapsedMs": 22.0458000000217,
+      "operation": "seed outbox row 98"
+    },
+    {
+      "elapsedMs": 16.463000000047032,
+      "operation": "seed source observation 99"
+    },
+    {
+      "elapsedMs": 23.117800000007264,
+      "operation": "seed outbox row 99"
+    },
+    {
+      "elapsedMs": 19.235900000028778,
+      "operation": "queue snapshot seeded-peak"
+    },
+    {
+      "elapsedMs": 7.011000000056811,
+      "operation": "verify crash boundary"
+    },
+    {
+      "elapsedMs": 2.178200000023935,
+      "operation": "verify durable crash evidence"
+    },
+    {
+      "elapsedMs": 118.15779999998631,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 10.669200000003912,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 16.689600000041537,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 12.743200000026263,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 5.664699999964796,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 7.6920000000391155,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 16.150100000028033,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 6.8232999999891035,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 12.805400000012014,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 9.662599999981467,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 10.160199999983888,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 22.54739999998128,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 7.620799999975134,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 15.744100000010803,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 12.727899999998044,
+      "operation": "record retry"
+    },
+    {
+      "elapsedMs": 18.193099999974947,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 11.355099999986123,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 21.881099999998696,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 8.185299999953713,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 8.12469999998575,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 45.697599999955855,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 8.355899999965914,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 3.757800000021234,
+      "operation": "record source"
+    },
+    {
+      "elapsedMs": 13.411900000006426,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 21.584700000006706,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 25.12599999998929,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 19.09470000001602,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 21.770299999974668,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 16.12330000003567,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 11.73509999999078,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 26.20199999999022,
+      "operation": "record provider_timeout"
+    },
+    {
+      "elapsedMs": 16.57650000002468,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 16.396799999987707,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 40.42079999996349,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 12.331999999994878,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 14.62510000000475,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 29.979400000011083,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 15.79450000001816,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 21.460299999976996,
+      "operation": "record provider_429"
+    },
+    {
+      "elapsedMs": 32.711399999971036,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 4.82839999999851,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 19.460599999991246,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 10.523999999975786,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 9.81319999997504,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 7.987000000022817,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 8.40679999999702,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 14.328800000017509,
+      "operation": "record provider_malformed"
+    },
+    {
+      "elapsedMs": 9.67379999998957,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 6.804599999974016,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 22.37919999996666,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 19.081700000038836,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 13.237699999997858,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 10.105799999961164,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 10.447500000009313,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 19.492899999953806,
+      "operation": "record provider_5xx"
+    },
+    {
+      "elapsedMs": 12.88900000002468,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 8.044999999983702,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 19.32460000005085,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 8.56349999998929,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 4.8583000000217,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 6.250399999960791,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 2.7474999999976717,
+      "operation": "queue snapshot fault-scenarios-recovered"
+    },
+    {
+      "elapsedMs": 55172.68849999999,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 44.85529999999562,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 23.614200000010896,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 17.36219999997411,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 26.854699999967124,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 55311.21599999996,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 55322.403900000034,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 60.81089999998221,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 55373.35849999997,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 51.3127000000095,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 63.724700000020675,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 45.06460000004154,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 21.02780000003986,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 47.82650000002468,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 46.87300000002142,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 52.3017000000109,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 76.3801000000094,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 28.099000000045635,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 8.67359999998007,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 10.600299999990966,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 10.750900000042748,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 21.446300000010524,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 54.76190000004135,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 63.45089999999618,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 44.59580000001006,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 54.75030000001425,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 26.23080000001937,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 32.92170000000624,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 28.50149999995483,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 28.14329999999609,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 34.87150000000838,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 36.97140000003856,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 38.35519999999087,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 79.9539999999688,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 52.93780000001425,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 56.257199999992736,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 56.226300000038464,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 23.518400000000838,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 31.991600000008475,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 23.48120000003837,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 70.40189999999711,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 73.94039999996312,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 76.1767000000109,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 7.741200000047684,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 17.973100000002887,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 30.973200000007637,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 44.10460000002058,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 57.930500000016764,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 40.56689999997616,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 42.787699999986216,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 51.03340000001481,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 70.47529999999097,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 58.164899999974295,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 33.12190000002738,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 27.488300000026356,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 60.805899999977555,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 68.73499999998603,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 87.84429999999702,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 40.837200000009034,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 106.20880000002217,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 35.476299999980256,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 37.414300000004005,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 34.78340000001481,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 11.512300000002142,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 14.32530000002589,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 27.40810000000056,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 74.53720000002068,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 24.8631999999634,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 22.477999999944586,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 20.262300000002142,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 12.0456000000122,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 59.04100000002654,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 46.69509999995353,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 69.83120000001509,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 100.86690000002272,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 15.634499999985565,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 25.89029999997001,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 27.62300000002142,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 18.15789999999106,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 34.26500000001397,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 17.2449000000488,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 17.70329999999376,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 24.293799999984913,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 25.61329999996815,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 21.71859999996377,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 23.125400000019,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 22.244400000025053,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 24.4712999999756,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 16.338099999993574,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 17.054599999974016,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 16.54480000003241,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 27.974099999992177,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 29.323700000008103,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 29.333400000003166,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 19.989000000001397,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 38.618399999977555,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 24.004799999995157,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 23.807699999946635,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 10.316099999996368,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 20.640700000047218,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 21.911800000001676,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 22.010999999998603,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 21.164899999974295,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 20.402200000011362,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 36.756099999998696,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 30.95490000001155,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 38.96820000000298,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 23.848300000012387,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 10.616600000008475,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 18.790299999993294,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 18.988799999991897,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 23.191400000010617,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 20.333600000012666,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 16.68880000000354,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 16.613599999982398,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 13.620100000000093,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 20.0912000000244,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 14.553199999965727,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 22.2212999999756,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 17.09289999998873,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 10.913300000014715,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 25.163499999966007,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 27.01290000003064,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 10.854200000001583,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 13.585800000000745,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 12.337900000042282,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 18.76589999999851,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 17.712100000004284,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 18.79619999998249,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 19.728800000040792,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 8.659199999994598,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 13.805300000007264,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 14.243099999963306,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 17.773099999991246,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 24.315999999991618,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 14.992000000027474,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 10.468499999959022,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 38.11080000002403,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 24.553700000047684,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 34.48549999995157,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 24.240300000004936,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 44.741099999984726,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 49.29570000001695,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 50.24670000001788,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 55.40629999997327,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 22.538000000000466,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 18.431999999971595,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 19.228199999954086,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 17.086700000043493,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 38.69560000003548,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 39.35860000003595,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 59.099500000011176,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 29.801400000054855,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 45.179599999974016,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 75.17189999995753,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 32.42050000000745,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 91.11109999998007,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 61.287899999995716,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 45.84520000003977,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 21.53210000001127,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 24.134099999966566,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 24.1875,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 24.960099999967497,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 16.537000000011176,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 12.62589999998454,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 14.359399999957532,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 22.34480000002077,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 44.3925000000163,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 44.010499999974854,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 32.0800000000163,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 25.32660000002943,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 40.73810000001686,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 32.57080000004498,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 36.740500000014435,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 13.229099999996834,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 7.8325000000186265,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 7.805799999972805,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 21.728300000017043,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 21.93460000003688,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 39.2960000000312,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 38.677900000009686,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 17.948900000017602,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 11.074399999983143,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 34.5107999999891,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 38.31210000003921,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 28.14329999999609,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 30.41009999997914,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 48.2670999999973,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 13.604700000025332,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 28.088199999998324,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 18.206000000005588,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 17.992000000027474,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 17.28049999999348,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 16.147399999957997,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 23.439400000032037,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 23.605099999986123,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 24.51579999999376,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 13.530399999988731,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 7.22029999998631,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 11.945499999972526,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 21.669899999978952,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 28.384399999980815,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 28.70339999999851,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 23.36149999999907,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 25.825599999981932,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 39.38059999997495,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 39.76759999996284,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 30.399800000013784,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 30.28159999998752,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 13.403799999970943,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 34.0392999999458,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 14.247399999992922,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 8.460200000030454,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 14.8579000000027,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 15.232399999978952,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 31.490099999995437,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 28.951699999975972,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 40.87089999997988,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 34.84529999998631,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 17.481399999989662,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 20.90450000000419,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 18.804600000032224,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 19.31060000002617,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 33.72020000003977,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 15.110900000028778,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 14.607999999949243,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 18.39059999998426,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 10.314100000017788,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 16.430200000002515,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 17.497899999958463,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 24.87550000002375,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 22.147699999972247,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 18.019700000004377,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 32.697099999990314,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 33.507299999997485,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 23.900200000032783,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 17.432199999981094,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 17.991800000017975,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 17.915799999958836,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 25.03049999999348,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 16.188400000042748,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 12.8462999999756,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 13.084999999962747,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 13.4835000000312,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 22.37410000001546,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 22.09259999997448,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 28.238899999996647,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 16.038599999970756,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 15.254200000024866,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 26.64329999999609,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 32.44929999997839,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 33.14000000001397,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 23.509599999990314,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 10.896999999997206,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 15.599499999952968,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 11.491399999998976,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 16.681199999991804,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 23.822799999965355,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 23.320999999996275,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 24.04680000001099,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 12.709199999982957,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 13.972599999979138,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 14.052099999971688,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 51.18859999999404,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 64.69990000000689,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 51.76569999998901,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 51.73129999998491,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 25.866600000008475,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 37.974400000006426,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 26.316400000010617,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 27.442500000004657,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 12.061699999962002,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 20.350999999966007,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 20.708699999959208,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 21.29780000000028,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 10.87469999998575,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 12.79780000000028,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 24.541299999982584,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 25.941500000015367,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 24.118999999947846,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 34.97499999997672,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 12.709199999982957,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 40.07780000002822,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 17.681299999996554,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 42.15739999996731,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 22.679000000003725,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 28.665500000002794,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 29.69900000002235,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 18.67309999995632,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 20.06060000002617,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 22.93609999999171,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 9.775699999998324,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 25.289099999994505,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 27.21779999998398,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 44.87859999999637,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 22.668699999980163,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 27.398099999991246,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 24.787400000030175,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 34.46290000004228,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 35.679599999974016,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 33.34029999998165,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 24.296500000054948,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 6.732000000018161,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 24.93720000004396,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 12.736700000008568,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 14.751399999950081,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 26.67110000003595,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 16.521899999992456,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 20.06150000001071,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 13.240400000009686,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 15.479600000020582,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 16.26849999994738,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 9.79670000000624,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 10.051500000001397,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 12.2958000000217,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 15.662700000044424,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 37.02799999999115,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 30.270799999998417,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 35.428799999994226,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 24.224099999992177,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 24.691300000005867,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 20.818499999993946,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 21.70279999997001,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 29.149100000038743,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 22.026299999968614,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 23.100600000005215,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 13.70150000002468,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 10.744500000029802,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 18.953300000051968,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 26.23399999999674,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 33.04170000000158,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 24.71940000000177,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 16.908900000038557,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 8.994100000010803,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 8.943000000028405,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 9.476900000008754,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 24.463500000012573,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 25.118900000001304,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 35.52999999996973,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 41.55409999995027,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 63.64579999999842,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 52.5743000000366,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 76.79750000004424,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 39.76840000000084,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 24.215499999991152,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 24.37359999999171,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 23.525800000003073,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 16.42269999999553,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 9.605299999995623,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 17.947800000023562,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 7.090599999995902,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 13.379599999985658,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 15.822500000009313,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 23.23080000001937,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 13.816099999996368,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 20.917100000020582,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 12.823799999954645,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 13.95209999999497,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 23.075399999972433,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 23.711899999994785,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 24.033400000014808,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 13.150299999979325,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 15.071300000010524,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 20.275800000003073,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 15.68690000002971,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 7.436199999996461,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 26.215399999986403,
+      "operation": "commit synthetic evidence and notification:transaction"
+    },
+    {
+      "elapsedMs": 32.18529999995371,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 26.020299999974668,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 22.460100000025705,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 22.508499999996275,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 17.406899999943562,
+      "operation": "outbox repository"
+    },
+    {
+      "elapsedMs": 5.5913999999756925,
+      "operation": "queue snapshot drained"
+    },
+    {
+      "elapsedMs": 9.71750000002794,
+      "operation": "reconcile durable fact and notification ledgers"
+    },
+    {
+      "elapsedMs": 10.049999999988358,
+      "operation": "reconcile source-family distribution"
+    }
+  ],
+  "unqualifiedGates": {
+    "alarmDelivery": "NOT_RUN",
+    "rollback": "NOT_RUN",
+    "sustainedLatency": "NOT_RUN",
+    "awsCost": "NOT_RUN",
+    "paidProviderEconomics": "NOT_RUN",
+    "buyerBenchmark": "NOT_RUN",
+    "independentAccuracy": "NOT_RUN",
+    "httpLatency": "NOT_RUN",
+    "authentication": "NOT_RUN",
+    "networkLatency": "NOT_RUN",
+    "updateLatency": "NOT_RUN",
+    "commercialGates": "NOT_RUN"
+  },
+  "finishedAt": "2026-09-25T12:04:19.415Z",
+  "metrics": {
+    "measuredAcceptedFacts": 100,
+    "measuredDurableLogicalNotifications": 100,
+    "measuredDuplicateLogicalNotificationKeys": 0,
+    "missingFactEvidence": 0,
+    "missingLogicalNotifications": 0,
+    "maxQueueRows": 100,
+    "maxConcurrentWorkers": 4,
+    "workerDrainElapsedMs": 58089.64,
+    "databaseQueryLatencyMs": {
+      "sampleCount": 651,
+      "min": 4.858,
+      "p50": 18.657,
+      "p95": 57.931,
+      "max": 55373.358
+    },
+    "rawDatabaseQuerySamples": [
+      {
+        "elapsedMs": 181.8007000000216,
+        "operation": "create evidence ledger"
+      },
+      {
+        "elapsedMs": 49.87189999996917,
+        "operation": "create notification ledger"
+      },
+      {
+        "elapsedMs": 32.53890000004321,
+        "operation": "create attempt ledger"
+      },
+      {
+        "elapsedMs": 13.064699999988079,
+        "operation": "create immutable-ledger guard"
+      },
+      {
+        "elapsedMs": 13.630599999974947,
+        "operation": "protect evidence ledger"
+      },
+      {
+        "elapsedMs": 12.603699999977835,
+        "operation": "protect notification ledger"
+      },
+      {
+        "elapsedMs": 26.3912999999593,
+        "operation": "seed cycle"
+      },
+      {
+        "elapsedMs": 17.788400000019465,
+        "operation": "seed expected source pb_r1"
+      },
+      {
+        "elapsedMs": 6.905299999983981,
+        "operation": "seed expected source pb_p1"
+      },
+      {
+        "elapsedMs": 12.928100000019185,
+        "operation": "seed expected source pb_o1"
+      },
+      {
+        "elapsedMs": 12.73240000003716,
+        "operation": "seed expected source pb_milcon_c1"
+      },
+      {
+        "elapsedMs": 20.28479999996489,
+        "operation": "seed source observation 0"
+      },
+      {
+        "elapsedMs": 11.841100000019651,
+        "operation": "seed outbox row 0"
+      },
+      {
+        "elapsedMs": 21.930600000021514,
+        "operation": "seed source observation 1"
+      },
+      {
+        "elapsedMs": 15.229600000020582,
+        "operation": "seed outbox row 1"
+      },
+      {
+        "elapsedMs": 4.9715000000433065,
+        "operation": "seed source observation 2"
+      },
+      {
+        "elapsedMs": 7.469599999953061,
+        "operation": "seed outbox row 2"
+      },
+      {
+        "elapsedMs": 12.824099999968894,
+        "operation": "seed source observation 3"
+      },
+      {
+        "elapsedMs": 12.990999999979977,
+        "operation": "seed outbox row 3"
+      },
+      {
+        "elapsedMs": 20.192999999970198,
+        "operation": "seed source observation 4"
+      },
+      {
+        "elapsedMs": 6.134699999995064,
+        "operation": "seed outbox row 4"
+      },
+      {
+        "elapsedMs": 7.238800000050105,
+        "operation": "seed source observation 5"
+      },
+      {
+        "elapsedMs": 9.172000000020489,
+        "operation": "seed outbox row 5"
+      },
+      {
+        "elapsedMs": 19.708900000026915,
+        "operation": "seed source observation 6"
+      },
+      {
+        "elapsedMs": 13.451799999980722,
+        "operation": "seed outbox row 6"
+      },
+      {
+        "elapsedMs": 11.561799999966752,
+        "operation": "seed source observation 7"
+      },
+      {
+        "elapsedMs": 10.71710000000894,
+        "operation": "seed outbox row 7"
+      },
+      {
+        "elapsedMs": 10.907500000030268,
+        "operation": "seed source observation 8"
+      },
+      {
+        "elapsedMs": 11.630699999979697,
+        "operation": "seed outbox row 8"
+      },
+      {
+        "elapsedMs": 4.550700000021607,
+        "operation": "seed source observation 9"
+      },
+      {
+        "elapsedMs": 6.802399999985937,
+        "operation": "seed outbox row 9"
+      },
+      {
+        "elapsedMs": 6.400699999998324,
+        "operation": "seed source observation 10"
+      },
+      {
+        "elapsedMs": 12.959999999962747,
+        "operation": "seed outbox row 10"
+      },
+      {
+        "elapsedMs": 7.230099999986123,
+        "operation": "seed source observation 11"
+      },
+      {
+        "elapsedMs": 28.70319999998901,
+        "operation": "seed outbox row 11"
+      },
+      {
+        "elapsedMs": 14.235600000014529,
+        "operation": "seed source observation 12"
+      },
+      {
+        "elapsedMs": 11.9081999999471,
+        "operation": "seed outbox row 12"
+      },
+      {
+        "elapsedMs": 22.323799999954645,
+        "operation": "seed source observation 13"
+      },
+      {
+        "elapsedMs": 18.65709999995306,
+        "operation": "seed outbox row 13"
+      },
+      {
+        "elapsedMs": 10.178099999960978,
+        "operation": "seed source observation 14"
+      },
+      {
+        "elapsedMs": 11.684200000017881,
+        "operation": "seed outbox row 14"
+      },
+      {
+        "elapsedMs": 9.379200000024866,
+        "operation": "seed source observation 15"
+      },
+      {
+        "elapsedMs": 10.044200000003912,
+        "operation": "seed outbox row 15"
+      },
+      {
+        "elapsedMs": 9.144299999985378,
+        "operation": "seed source observation 16"
+      },
+      {
+        "elapsedMs": 13.524499999999534,
+        "operation": "seed outbox row 16"
+      },
+      {
+        "elapsedMs": 24.725500000000466,
+        "operation": "seed source observation 17"
+      },
+      {
+        "elapsedMs": 14.848100000002887,
+        "operation": "seed outbox row 17"
+      },
+      {
+        "elapsedMs": 15.196499999961816,
+        "operation": "seed source observation 18"
+      },
+      {
+        "elapsedMs": 9.151200000022072,
+        "operation": "seed outbox row 18"
+      },
+      {
+        "elapsedMs": 8.149900000018533,
+        "operation": "seed source observation 19"
+      },
+      {
+        "elapsedMs": 13.785800000012387,
+        "operation": "seed outbox row 19"
+      },
+      {
+        "elapsedMs": 11.249499999976251,
+        "operation": "seed source observation 20"
+      },
+      {
+        "elapsedMs": 6.527000000001863,
+        "operation": "seed outbox row 20"
+      },
+      {
+        "elapsedMs": 8.336000000010245,
+        "operation": "seed source observation 21"
+      },
+      {
+        "elapsedMs": 24.19920000003185,
+        "operation": "seed outbox row 21"
+      },
+      {
+        "elapsedMs": 24.886400000017602,
+        "operation": "seed source observation 22"
+      },
+      {
+        "elapsedMs": 31.317399999999907,
+        "operation": "seed outbox row 22"
+      },
+      {
+        "elapsedMs": 25.67410000000382,
+        "operation": "seed source observation 23"
+      },
+      {
+        "elapsedMs": 17.5283000000054,
+        "operation": "seed outbox row 23"
+      },
+      {
+        "elapsedMs": 28.379599999985658,
+        "operation": "seed source observation 24"
+      },
+      {
+        "elapsedMs": 27.460800000000745,
+        "operation": "seed outbox row 24"
+      },
+      {
+        "elapsedMs": 13.737599999993108,
+        "operation": "seed source observation 25"
+      },
+      {
+        "elapsedMs": 10.98210000002291,
+        "operation": "seed outbox row 25"
+      },
+      {
+        "elapsedMs": 21.82829999999376,
+        "operation": "seed source observation 26"
+      },
+      {
+        "elapsedMs": 30.566200000001118,
+        "operation": "seed outbox row 26"
+      },
+      {
+        "elapsedMs": 13.216799999994691,
+        "operation": "seed source observation 27"
+      },
+      {
+        "elapsedMs": 7.735700000019278,
+        "operation": "seed outbox row 27"
+      },
+      {
+        "elapsedMs": 11.899199999985285,
+        "operation": "seed source observation 28"
+      },
+      {
+        "elapsedMs": 7.418299999961164,
+        "operation": "seed outbox row 28"
+      },
+      {
+        "elapsedMs": 17.283400000014808,
+        "operation": "seed source observation 29"
+      },
+      {
+        "elapsedMs": 9.558400000038091,
+        "operation": "seed outbox row 29"
+      },
+      {
+        "elapsedMs": 13.486399999994319,
+        "operation": "seed source observation 30"
+      },
+      {
+        "elapsedMs": 15.281600000045728,
+        "operation": "seed outbox row 30"
+      },
+      {
+        "elapsedMs": 9.946499999961816,
+        "operation": "seed source observation 31"
+      },
+      {
+        "elapsedMs": 22.399199999985285,
+        "operation": "seed outbox row 31"
+      },
+      {
+        "elapsedMs": 5.65500000002794,
+        "operation": "seed source observation 32"
+      },
+      {
+        "elapsedMs": 13.541399999987334,
+        "operation": "seed outbox row 32"
+      },
+      {
+        "elapsedMs": 18.866600000008475,
+        "operation": "seed source observation 33"
+      },
+      {
+        "elapsedMs": 24.291199999977835,
+        "operation": "seed outbox row 33"
+      },
+      {
+        "elapsedMs": 17.992499999993015,
+        "operation": "seed source observation 34"
+      },
+      {
+        "elapsedMs": 18.020900000003166,
+        "operation": "seed outbox row 34"
+      },
+      {
+        "elapsedMs": 29.471799999999348,
+        "operation": "seed source observation 35"
+      },
+      {
+        "elapsedMs": 45.93969999998808,
+        "operation": "seed outbox row 35"
+      },
+      {
+        "elapsedMs": 10.54859999998007,
+        "operation": "seed source observation 36"
+      },
+      {
+        "elapsedMs": 104.4887999999919,
+        "operation": "seed outbox row 36"
+      },
+      {
+        "elapsedMs": 30.84000000002561,
+        "operation": "seed source observation 37"
+      },
+      {
+        "elapsedMs": 10.958900000026915,
+        "operation": "seed outbox row 37"
+      },
+      {
+        "elapsedMs": 6.316799999971408,
+        "operation": "seed source observation 38"
+      },
+      {
+        "elapsedMs": 19.864400000020396,
+        "operation": "seed outbox row 38"
+      },
+      {
+        "elapsedMs": 13.500600000028498,
+        "operation": "seed source observation 39"
+      },
+      {
+        "elapsedMs": 6.098200000007637,
+        "operation": "seed outbox row 39"
+      },
+      {
+        "elapsedMs": 8.76559999998426,
+        "operation": "seed source observation 40"
+      },
+      {
+        "elapsedMs": 5.1353000000235625,
+        "operation": "seed outbox row 40"
+      },
+      {
+        "elapsedMs": 11.565899999986868,
+        "operation": "seed source observation 41"
+      },
+      {
+        "elapsedMs": 7.965299999981653,
+        "operation": "seed outbox row 41"
+      },
+      {
+        "elapsedMs": 13.510299999965355,
+        "operation": "seed source observation 42"
+      },
+      {
+        "elapsedMs": 9.010099999955855,
+        "operation": "seed outbox row 42"
+      },
+      {
+        "elapsedMs": 8.39159999997355,
+        "operation": "seed source observation 43"
+      },
+      {
+        "elapsedMs": 7.466599999985192,
+        "operation": "seed outbox row 43"
+      },
+      {
+        "elapsedMs": 7.604699999967124,
+        "operation": "seed source observation 44"
+      },
+      {
+        "elapsedMs": 10.003900000010617,
+        "operation": "seed outbox row 44"
+      },
+      {
+        "elapsedMs": 14.204300000041258,
+        "operation": "seed source observation 45"
+      },
+      {
+        "elapsedMs": 20.67230000003474,
+        "operation": "seed outbox row 45"
+      },
+      {
+        "elapsedMs": 22.26829999999609,
+        "operation": "seed source observation 46"
+      },
+      {
+        "elapsedMs": 12.257199999992736,
+        "operation": "seed outbox row 46"
+      },
+      {
+        "elapsedMs": 20.713400000007823,
+        "operation": "seed source observation 47"
+      },
+      {
+        "elapsedMs": 17.763299999991432,
+        "operation": "seed outbox row 47"
+      },
+      {
+        "elapsedMs": 24.60889999999199,
+        "operation": "seed source observation 48"
+      },
+      {
+        "elapsedMs": 23.31130000000121,
+        "operation": "seed outbox row 48"
+      },
+      {
+        "elapsedMs": 9.117299999983516,
+        "operation": "seed source observation 49"
+      },
+      {
+        "elapsedMs": 11.976399999985006,
+        "operation": "seed outbox row 49"
+      },
+      {
+        "elapsedMs": 13.494999999995343,
+        "operation": "seed source observation 50"
+      },
+      {
+        "elapsedMs": 11.337500000023283,
+        "operation": "seed outbox row 50"
+      },
+      {
+        "elapsedMs": 7.0706999999820255,
+        "operation": "seed source observation 51"
+      },
+      {
+        "elapsedMs": 6.839500000001863,
+        "operation": "seed outbox row 51"
+      },
+      {
+        "elapsedMs": 36.56279999995604,
+        "operation": "seed source observation 52"
+      },
+      {
+        "elapsedMs": 11.37430000002496,
+        "operation": "seed outbox row 52"
+      },
+      {
+        "elapsedMs": 20.585000000020955,
+        "operation": "seed source observation 53"
+      },
+      {
+        "elapsedMs": 15.767300000006799,
+        "operation": "seed outbox row 53"
+      },
+      {
+        "elapsedMs": 6.4710999999661,
+        "operation": "seed source observation 54"
+      },
+      {
+        "elapsedMs": 7.032500000030268,
+        "operation": "seed outbox row 54"
+      },
+      {
+        "elapsedMs": 13.645100000023376,
+        "operation": "seed source observation 55"
+      },
+      {
+        "elapsedMs": 21.9081999999471,
+        "operation": "seed outbox row 55"
+      },
+      {
+        "elapsedMs": 23.65170000004582,
+        "operation": "seed source observation 56"
+      },
+      {
+        "elapsedMs": 40.56579999998212,
+        "operation": "seed outbox row 56"
+      },
+      {
+        "elapsedMs": 11.290999999968335,
+        "operation": "seed source observation 57"
+      },
+      {
+        "elapsedMs": 10.18869999999879,
+        "operation": "seed outbox row 57"
+      },
+      {
+        "elapsedMs": 14.666499999992084,
+        "operation": "seed source observation 58"
+      },
+      {
+        "elapsedMs": 27.149700000009034,
+        "operation": "seed outbox row 58"
+      },
+      {
+        "elapsedMs": 11.394599999999627,
+        "operation": "seed source observation 59"
+      },
+      {
+        "elapsedMs": 10.32949999999255,
+        "operation": "seed outbox row 59"
+      },
+      {
+        "elapsedMs": 18.92200000002049,
+        "operation": "seed source observation 60"
+      },
+      {
+        "elapsedMs": 10.736000000033528,
+        "operation": "seed outbox row 60"
+      },
+      {
+        "elapsedMs": 8.868900000001304,
+        "operation": "seed source observation 61"
+      },
+      {
+        "elapsedMs": 43.06150000001071,
+        "operation": "seed outbox row 61"
+      },
+      {
+        "elapsedMs": 10.798000000009779,
+        "operation": "seed source observation 62"
+      },
+      {
+        "elapsedMs": 16.355400000000373,
+        "operation": "seed outbox row 62"
+      },
+      {
+        "elapsedMs": 7.882299999997485,
+        "operation": "seed source observation 63"
+      },
+      {
+        "elapsedMs": 5.45140000001993,
+        "operation": "seed outbox row 63"
+      },
+      {
+        "elapsedMs": 10.168999999994412,
+        "operation": "seed source observation 64"
+      },
+      {
+        "elapsedMs": 21.71830000000773,
+        "operation": "seed outbox row 64"
+      },
+      {
+        "elapsedMs": 8.798100000014529,
+        "operation": "seed source observation 65"
+      },
+      {
+        "elapsedMs": 8.867700000002515,
+        "operation": "seed outbox row 65"
+      },
+      {
+        "elapsedMs": 17.38949999999022,
+        "operation": "seed source observation 66"
+      },
+      {
+        "elapsedMs": 8.557200000039302,
+        "operation": "seed outbox row 66"
+      },
+      {
+        "elapsedMs": 6.100999999966007,
+        "operation": "seed source observation 67"
+      },
+      {
+        "elapsedMs": 24.134599999990314,
+        "operation": "seed outbox row 67"
+      },
+      {
+        "elapsedMs": 9.119300000020303,
+        "operation": "seed source observation 68"
+      },
+      {
+        "elapsedMs": 5.034500000008848,
+        "operation": "seed outbox row 68"
+      },
+      {
+        "elapsedMs": 7.615899999975227,
+        "operation": "seed source observation 69"
+      },
+      {
+        "elapsedMs": 7.547100000025239,
+        "operation": "seed outbox row 69"
+      },
+      {
+        "elapsedMs": 4.896699999982957,
+        "operation": "seed source observation 70"
+      },
+      {
+        "elapsedMs": 17.17029999999795,
+        "operation": "seed outbox row 70"
+      },
+      {
+        "elapsedMs": 26.331100000010338,
+        "operation": "seed source observation 71"
+      },
+      {
+        "elapsedMs": 11.66770000004908,
+        "operation": "seed outbox row 71"
+      },
+      {
+        "elapsedMs": 17.212500000023283,
+        "operation": "seed source observation 72"
+      },
+      {
+        "elapsedMs": 9.66860000003362,
+        "operation": "seed outbox row 72"
+      },
+      {
+        "elapsedMs": 13.415700000012293,
+        "operation": "seed source observation 73"
+      },
+      {
+        "elapsedMs": 6.678600000042934,
+        "operation": "seed outbox row 73"
+      },
+      {
+        "elapsedMs": 12.711299999966286,
+        "operation": "seed source observation 74"
+      },
+      {
+        "elapsedMs": 8.782200000016019,
+        "operation": "seed outbox row 74"
+      },
+      {
+        "elapsedMs": 27.59380000003148,
+        "operation": "seed source observation 75"
+      },
+      {
+        "elapsedMs": 6.264599999994971,
+        "operation": "seed outbox row 75"
+      },
+      {
+        "elapsedMs": 27.213599999959115,
+        "operation": "seed source observation 76"
+      },
+      {
+        "elapsedMs": 13.702899999974761,
+        "operation": "seed outbox row 76"
+      },
+      {
+        "elapsedMs": 17.316899999976158,
+        "operation": "seed source observation 77"
+      },
+      {
+        "elapsedMs": 10.54470000002766,
+        "operation": "seed outbox row 77"
+      },
+      {
+        "elapsedMs": 7.886799999978393,
+        "operation": "seed source observation 78"
+      },
+      {
+        "elapsedMs": 5.7709000000031665,
+        "operation": "seed outbox row 78"
+      },
+      {
+        "elapsedMs": 15.18859999999404,
+        "operation": "seed source observation 79"
+      },
+      {
+        "elapsedMs": 17.102400000032503,
+        "operation": "seed outbox row 79"
+      },
+      {
+        "elapsedMs": 8.168300000019372,
+        "operation": "seed source observation 80"
+      },
+      {
+        "elapsedMs": 8.612699999997858,
+        "operation": "seed outbox row 80"
+      },
+      {
+        "elapsedMs": 13.512199999997392,
+        "operation": "seed source observation 81"
+      },
+      {
+        "elapsedMs": 16.4714999999851,
+        "operation": "seed outbox row 81"
+      },
+      {
+        "elapsedMs": 6.999299999966752,
+        "operation": "seed source observation 82"
+      },
+      {
+        "elapsedMs": 8.416700000001583,
+        "operation": "seed outbox row 82"
+      },
+      {
+        "elapsedMs": 7.883800000010524,
+        "operation": "seed source observation 83"
+      },
+      {
+        "elapsedMs": 12.4041000000434,
+        "operation": "seed outbox row 83"
+      },
+      {
+        "elapsedMs": 8.915699999954086,
+        "operation": "seed source observation 84"
+      },
+      {
+        "elapsedMs": 7.779099999985192,
+        "operation": "seed outbox row 84"
+      },
+      {
+        "elapsedMs": 12.334300000045914,
+        "operation": "seed source observation 85"
+      },
+      {
+        "elapsedMs": 19.23649999999907,
+        "operation": "seed outbox row 85"
+      },
+      {
+        "elapsedMs": 11.104200000001583,
+        "operation": "seed source observation 86"
+      },
+      {
+        "elapsedMs": 25.402399999962654,
+        "operation": "seed outbox row 86"
+      },
+      {
+        "elapsedMs": 11.878300000040326,
+        "operation": "seed source observation 87"
+      },
+      {
+        "elapsedMs": 4.538100000005215,
+        "operation": "seed outbox row 87"
+      },
+      {
+        "elapsedMs": 11.25189999997383,
+        "operation": "seed source observation 88"
+      },
+      {
+        "elapsedMs": 16.553499999979977,
+        "operation": "seed outbox row 88"
+      },
+      {
+        "elapsedMs": 5.82550000003539,
+        "operation": "seed source observation 89"
+      },
+      {
+        "elapsedMs": 12.346000000019558,
+        "operation": "seed outbox row 89"
+      },
+      {
+        "elapsedMs": 14.537699999986216,
+        "operation": "seed source observation 90"
+      },
+      {
+        "elapsedMs": 6.005000000004657,
+        "operation": "seed outbox row 90"
+      },
+      {
+        "elapsedMs": 7.843000000051688,
+        "operation": "seed source observation 91"
+      },
+      {
+        "elapsedMs": 15.879099999961909,
+        "operation": "seed outbox row 91"
+      },
+      {
+        "elapsedMs": 5.767300000006799,
+        "operation": "seed source observation 92"
+      },
+      {
+        "elapsedMs": 9.854200000001583,
+        "operation": "seed outbox row 92"
+      },
+      {
+        "elapsedMs": 12.115999999979977,
+        "operation": "seed source observation 93"
+      },
+      {
+        "elapsedMs": 8.594700000016019,
+        "operation": "seed outbox row 93"
+      },
+      {
+        "elapsedMs": 22.755400000023656,
+        "operation": "seed source observation 94"
+      },
+      {
+        "elapsedMs": 24.02860000001965,
+        "operation": "seed outbox row 94"
+      },
+      {
+        "elapsedMs": 6.2163999999756925,
+        "operation": "seed source observation 95"
+      },
+      {
+        "elapsedMs": 11.298600000038277,
+        "operation": "seed outbox row 95"
+      },
+      {
+        "elapsedMs": 15.42090000002645,
+        "operation": "seed source observation 96"
+      },
+      {
+        "elapsedMs": 8.323600000003353,
+        "operation": "seed outbox row 96"
+      },
+      {
+        "elapsedMs": 10.3458999999566,
+        "operation": "seed source observation 97"
+      },
+      {
+        "elapsedMs": 13.029899999964982,
+        "operation": "seed outbox row 97"
+      },
+      {
+        "elapsedMs": 37.29829999996582,
+        "operation": "seed source observation 98"
+      },
+      {
+        "elapsedMs": 22.0458000000217,
+        "operation": "seed outbox row 98"
+      },
+      {
+        "elapsedMs": 16.463000000047032,
+        "operation": "seed source observation 99"
+      },
+      {
+        "elapsedMs": 23.117800000007264,
+        "operation": "seed outbox row 99"
+      },
+      {
+        "elapsedMs": 19.235900000028778,
+        "operation": "queue snapshot seeded-peak"
+      },
+      {
+        "elapsedMs": 7.011000000056811,
+        "operation": "verify crash boundary"
+      },
+      {
+        "elapsedMs": 2.178200000023935,
+        "operation": "verify durable crash evidence"
+      },
+      {
+        "elapsedMs": 118.15779999998631,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 10.669200000003912,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 16.689600000041537,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 12.743200000026263,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 5.664699999964796,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 7.6920000000391155,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 16.150100000028033,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 6.8232999999891035,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 12.805400000012014,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 9.662599999981467,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 10.160199999983888,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 22.54739999998128,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 7.620799999975134,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 15.744100000010803,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 12.727899999998044,
+        "operation": "record retry"
+      },
+      {
+        "elapsedMs": 18.193099999974947,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 11.355099999986123,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 21.881099999998696,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 8.185299999953713,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 8.12469999998575,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 45.697599999955855,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 8.355899999965914,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 3.757800000021234,
+        "operation": "record source"
+      },
+      {
+        "elapsedMs": 13.411900000006426,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 21.584700000006706,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 25.12599999998929,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 19.09470000001602,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 21.770299999974668,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 16.12330000003567,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 11.73509999999078,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 26.20199999999022,
+        "operation": "record provider_timeout"
+      },
+      {
+        "elapsedMs": 16.57650000002468,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 16.396799999987707,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 40.42079999996349,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 12.331999999994878,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 14.62510000000475,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 29.979400000011083,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 15.79450000001816,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 21.460299999976996,
+        "operation": "record provider_429"
+      },
+      {
+        "elapsedMs": 32.711399999971036,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 4.82839999999851,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 19.460599999991246,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 10.523999999975786,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 9.81319999997504,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 7.987000000022817,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 8.40679999999702,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 14.328800000017509,
+        "operation": "record provider_malformed"
+      },
+      {
+        "elapsedMs": 9.67379999998957,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 6.804599999974016,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 22.37919999996666,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 19.081700000038836,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 13.237699999997858,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 10.105799999961164,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 10.447500000009313,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 19.492899999953806,
+        "operation": "record provider_5xx"
+      },
+      {
+        "elapsedMs": 12.88900000002468,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 8.044999999983702,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 19.32460000005085,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 8.56349999998929,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 4.8583000000217,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 6.250399999960791,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 2.7474999999976717,
+        "operation": "queue snapshot fault-scenarios-recovered"
+      },
+      {
+        "elapsedMs": 55172.68849999999,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 44.85529999999562,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 23.614200000010896,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 17.36219999997411,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 26.854699999967124,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 55311.21599999996,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 55322.403900000034,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 60.81089999998221,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 55373.35849999997,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 51.3127000000095,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 63.724700000020675,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 45.06460000004154,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 21.02780000003986,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 47.82650000002468,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 46.87300000002142,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 52.3017000000109,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 76.3801000000094,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 28.099000000045635,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 8.67359999998007,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 10.600299999990966,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 10.750900000042748,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 21.446300000010524,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 54.76190000004135,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 63.45089999999618,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 44.59580000001006,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 54.75030000001425,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 26.23080000001937,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 32.92170000000624,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 28.50149999995483,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 28.14329999999609,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 34.87150000000838,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 36.97140000003856,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 38.35519999999087,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 79.9539999999688,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 52.93780000001425,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 56.257199999992736,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 56.226300000038464,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 23.518400000000838,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 31.991600000008475,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 23.48120000003837,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 70.40189999999711,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 73.94039999996312,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 76.1767000000109,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 7.741200000047684,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 17.973100000002887,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 30.973200000007637,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 44.10460000002058,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 57.930500000016764,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 40.56689999997616,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 42.787699999986216,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 51.03340000001481,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 70.47529999999097,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 58.164899999974295,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 33.12190000002738,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 27.488300000026356,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 60.805899999977555,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 68.73499999998603,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 87.84429999999702,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 40.837200000009034,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 106.20880000002217,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 35.476299999980256,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 37.414300000004005,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 34.78340000001481,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 11.512300000002142,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 14.32530000002589,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 27.40810000000056,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 74.53720000002068,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 24.8631999999634,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 22.477999999944586,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 20.262300000002142,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 12.0456000000122,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 59.04100000002654,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 46.69509999995353,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 69.83120000001509,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 100.86690000002272,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 15.634499999985565,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 25.89029999997001,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 27.62300000002142,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 18.15789999999106,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 34.26500000001397,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 17.2449000000488,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 17.70329999999376,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 24.293799999984913,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 25.61329999996815,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 21.71859999996377,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 23.125400000019,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 22.244400000025053,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 24.4712999999756,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 16.338099999993574,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 17.054599999974016,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 16.54480000003241,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 27.974099999992177,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 29.323700000008103,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 29.333400000003166,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 19.989000000001397,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 38.618399999977555,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 24.004799999995157,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 23.807699999946635,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 10.316099999996368,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 20.640700000047218,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 21.911800000001676,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 22.010999999998603,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 21.164899999974295,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 20.402200000011362,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 36.756099999998696,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 30.95490000001155,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 38.96820000000298,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 23.848300000012387,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 10.616600000008475,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 18.790299999993294,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 18.988799999991897,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 23.191400000010617,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 20.333600000012666,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 16.68880000000354,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 16.613599999982398,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 13.620100000000093,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 20.0912000000244,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 14.553199999965727,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 22.2212999999756,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 17.09289999998873,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 10.913300000014715,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 25.163499999966007,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 27.01290000003064,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 10.854200000001583,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 13.585800000000745,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 12.337900000042282,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 18.76589999999851,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 17.712100000004284,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 18.79619999998249,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 19.728800000040792,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 8.659199999994598,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 13.805300000007264,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 14.243099999963306,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 17.773099999991246,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 24.315999999991618,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 14.992000000027474,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 10.468499999959022,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 38.11080000002403,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 24.553700000047684,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 34.48549999995157,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 24.240300000004936,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 44.741099999984726,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 49.29570000001695,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 50.24670000001788,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 55.40629999997327,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 22.538000000000466,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 18.431999999971595,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 19.228199999954086,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 17.086700000043493,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 38.69560000003548,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 39.35860000003595,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 59.099500000011176,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 29.801400000054855,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 45.179599999974016,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 75.17189999995753,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 32.42050000000745,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 91.11109999998007,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 61.287899999995716,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 45.84520000003977,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 21.53210000001127,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 24.134099999966566,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 24.1875,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 24.960099999967497,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 16.537000000011176,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 12.62589999998454,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 14.359399999957532,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 22.34480000002077,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 44.3925000000163,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 44.010499999974854,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 32.0800000000163,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 25.32660000002943,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 40.73810000001686,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 32.57080000004498,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 36.740500000014435,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 13.229099999996834,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 7.8325000000186265,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 7.805799999972805,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 21.728300000017043,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 21.93460000003688,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 39.2960000000312,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 38.677900000009686,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 17.948900000017602,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 11.074399999983143,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 34.5107999999891,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 38.31210000003921,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 28.14329999999609,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 30.41009999997914,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 48.2670999999973,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 13.604700000025332,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 28.088199999998324,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 18.206000000005588,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 17.992000000027474,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 17.28049999999348,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 16.147399999957997,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 23.439400000032037,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 23.605099999986123,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 24.51579999999376,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 13.530399999988731,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 7.22029999998631,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 11.945499999972526,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 21.669899999978952,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 28.384399999980815,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 28.70339999999851,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 23.36149999999907,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 25.825599999981932,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 39.38059999997495,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 39.76759999996284,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 30.399800000013784,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 30.28159999998752,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 13.403799999970943,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 34.0392999999458,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 14.247399999992922,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 8.460200000030454,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 14.8579000000027,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 15.232399999978952,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 31.490099999995437,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 28.951699999975972,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 40.87089999997988,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 34.84529999998631,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 17.481399999989662,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 20.90450000000419,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 18.804600000032224,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 19.31060000002617,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 33.72020000003977,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 15.110900000028778,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 14.607999999949243,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 18.39059999998426,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 10.314100000017788,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 16.430200000002515,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 17.497899999958463,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 24.87550000002375,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 22.147699999972247,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 18.019700000004377,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 32.697099999990314,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 33.507299999997485,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 23.900200000032783,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 17.432199999981094,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 17.991800000017975,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 17.915799999958836,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 25.03049999999348,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 16.188400000042748,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 12.8462999999756,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 13.084999999962747,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 13.4835000000312,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 22.37410000001546,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 22.09259999997448,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 28.238899999996647,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 16.038599999970756,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 15.254200000024866,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 26.64329999999609,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 32.44929999997839,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 33.14000000001397,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 23.509599999990314,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 10.896999999997206,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 15.599499999952968,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 11.491399999998976,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 16.681199999991804,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 23.822799999965355,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 23.320999999996275,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 24.04680000001099,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 12.709199999982957,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 13.972599999979138,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 14.052099999971688,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 51.18859999999404,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 64.69990000000689,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 51.76569999998901,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 51.73129999998491,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 25.866600000008475,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 37.974400000006426,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 26.316400000010617,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 27.442500000004657,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 12.061699999962002,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 20.350999999966007,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 20.708699999959208,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 21.29780000000028,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 10.87469999998575,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 12.79780000000028,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 24.541299999982584,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 25.941500000015367,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 24.118999999947846,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 34.97499999997672,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 12.709199999982957,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 40.07780000002822,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 17.681299999996554,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 42.15739999996731,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 22.679000000003725,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 28.665500000002794,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 29.69900000002235,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 18.67309999995632,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 20.06060000002617,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 22.93609999999171,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 9.775699999998324,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 25.289099999994505,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 27.21779999998398,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 44.87859999999637,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 22.668699999980163,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 27.398099999991246,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 24.787400000030175,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 34.46290000004228,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 35.679599999974016,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 33.34029999998165,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 24.296500000054948,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 6.732000000018161,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 24.93720000004396,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 12.736700000008568,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 14.751399999950081,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 26.67110000003595,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 16.521899999992456,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 20.06150000001071,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 13.240400000009686,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 15.479600000020582,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 16.26849999994738,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 9.79670000000624,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 10.051500000001397,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 12.2958000000217,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 15.662700000044424,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 37.02799999999115,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 30.270799999998417,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 35.428799999994226,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 24.224099999992177,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 24.691300000005867,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 20.818499999993946,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 21.70279999997001,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 29.149100000038743,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 22.026299999968614,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 23.100600000005215,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 13.70150000002468,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 10.744500000029802,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 18.953300000051968,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 26.23399999999674,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 33.04170000000158,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 24.71940000000177,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 16.908900000038557,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 8.994100000010803,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 8.943000000028405,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 9.476900000008754,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 24.463500000012573,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 25.118900000001304,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 35.52999999996973,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 41.55409999995027,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 63.64579999999842,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 52.5743000000366,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 76.79750000004424,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 39.76840000000084,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 24.215499999991152,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 24.37359999999171,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 23.525800000003073,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 16.42269999999553,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 9.605299999995623,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 17.947800000023562,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 7.090599999995902,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 13.379599999985658,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 15.822500000009313,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 23.23080000001937,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 13.816099999996368,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 20.917100000020582,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 12.823799999954645,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 13.95209999999497,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 23.075399999972433,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 23.711899999994785,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 24.033400000014808,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 13.150299999979325,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 15.071300000010524,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 20.275800000003073,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 15.68690000002971,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 7.436199999996461,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 26.215399999986403,
+        "operation": "commit synthetic evidence and notification:transaction"
+      },
+      {
+        "elapsedMs": 32.18529999995371,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 26.020299999974668,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 22.460100000025705,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 22.508499999996275,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 17.406899999943562,
+        "operation": "outbox repository"
+      },
+      {
+        "elapsedMs": 5.5913999999756925,
+        "operation": "queue snapshot drained"
+      },
+      {
+        "elapsedMs": 9.71750000002794,
+        "operation": "reconcile durable fact and notification ledgers"
+      },
+      {
+        "elapsedMs": 10.049999999988358,
+        "operation": "reconcile source-family distribution"
+      }
+    ],
+    "concurrentCommonQuery": {
+      "mixId": "package9-local-synthetic-product-query-mix-v1",
+      "reader": "compiled BudgetLifecycleQueryService backed by PrismaBudgetLifecycleReadStore",
+      "startedAt": "2026-09-25T12:04:16.141Z",
+      "finishedAt": "2026-09-25T12:04:17.454Z",
+      "sampleCount": 80,
+      "errors": 0,
+      "operationCoverage": {
+        "cycle-health-fy2027": 16,
+        "cycle-health-fy2028": 8,
+        "expected-sources-fy2027-request": 12,
+        "coverage-inventory-fy2027": 12,
+        "review-required-detail-fy2027": 8,
+        "review-queue-fy2027": 12,
+        "lifecycle-signals-fy2027": 8,
+        "schedule-tick-health": 4
+      },
+      "clientCoverage": {
+        "client-1": 20,
+        "client-2": 20,
+        "client-3": 20,
+        "client-4": 20
+      },
+      "latencyMs": {
+        "p50": 12.323,
+        "p95": 72.6,
+        "max": 1118.193,
+        "p95LimitMs": 2000
+      },
+      "drainInterval": {
+        "startedAt": "2026-09-25T12:03:21.298Z",
+        "finishedAt": "2026-09-25T12:04:19.389Z"
+      },
+      "overlap": {
+        "startedAt": "2026-09-25T12:04:16.141Z",
+        "finishedAt": "2026-09-25T12:04:17.454Z",
+        "durationMs": 1311.9023999999627,
+        "monotonicDurationMs": 1311.9023999999627
+      },
+      "mixSha256": "3ea19531db7e1b079a708227a15422451590bea0af5b34bc56980e2447243e6b",
+      "rawSamples": [
+        {
+          "operation": "cycle-health-fy2027",
+          "clientId": "client-4",
+          "elapsedMs": 573.5149999999558,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2028",
+          "clientId": "client-4",
+          "elapsedMs": 30.648899999971036,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2028",
+          "clientId": "client-4",
+          "elapsedMs": 17.120100000000093,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "expected-sources-fy2027-request",
+          "clientId": "client-4",
+          "elapsedMs": 31.167799999995623,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "expected-sources-fy2027-request",
+          "clientId": "client-4",
+          "elapsedMs": 15.475700000009965,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "expected-sources-fy2027-request",
+          "clientId": "client-4",
+          "elapsedMs": 25.852000000013504,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2027",
+          "clientId": "client-2",
+          "elapsedMs": 707.3742000000202,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "coverage-inventory-fy2027",
+          "clientId": "client-4",
+          "elapsedMs": 50.847800000046846,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2027",
+          "clientId": "client-2",
+          "elapsedMs": 69.44409999996424,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "coverage-inventory-fy2027",
+          "clientId": "client-4",
+          "elapsedMs": 48.26800000004005,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2027",
+          "clientId": "client-2",
+          "elapsedMs": 61.01020000001881,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "coverage-inventory-fy2027",
+          "clientId": "client-4",
+          "elapsedMs": 51.03759999998147,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2028",
+          "clientId": "client-2",
+          "elapsedMs": 33.245499999960884,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "review-required-detail-fy2027",
+          "clientId": "client-4",
+          "elapsedMs": 37.507999999972526,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "review-required-detail-fy2027",
+          "clientId": "client-4",
+          "elapsedMs": 42.024600000004284,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2028",
+          "clientId": "client-2",
+          "elapsedMs": 72.60019999998622,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "review-queue-fy2027",
+          "clientId": "client-4",
+          "elapsedMs": 34.759699999995064,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "expected-sources-fy2027-request",
+          "clientId": "client-2",
+          "elapsedMs": 34.365400000009686,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "review-queue-fy2027",
+          "clientId": "client-4",
+          "elapsedMs": 24.89329999999609,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "expected-sources-fy2027-request",
+          "clientId": "client-2",
+          "elapsedMs": 12.078800000017509,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "review-queue-fy2027",
+          "clientId": "client-4",
+          "elapsedMs": 5.356800000008661,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "expected-sources-fy2027-request",
+          "clientId": "client-2",
+          "elapsedMs": 13.237699999997858,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "lifecycle-signals-fy2027",
+          "clientId": "client-4",
+          "elapsedMs": 15.948600000003353,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "lifecycle-signals-fy2027",
+          "clientId": "client-4",
+          "elapsedMs": 26.217499999969732,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "coverage-inventory-fy2027",
+          "clientId": "client-2",
+          "elapsedMs": 36.96460000000661,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "schedule-tick-health",
+          "clientId": "client-4",
+          "elapsedMs": 37.20649999997113,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "coverage-inventory-fy2027",
+          "clientId": "client-2",
+          "elapsedMs": 33.756999999983236,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2027",
+          "clientId": "client-1",
+          "elapsedMs": 1102.3033999999752,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "coverage-inventory-fy2027",
+          "clientId": "client-2",
+          "elapsedMs": 29.316300000005867,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2027",
+          "clientId": "client-4",
+          "elapsedMs": 42.25090000004275,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2027",
+          "clientId": "client-3",
+          "elapsedMs": 1118.192699999956,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2027",
+          "clientId": "client-4",
+          "elapsedMs": 8.93869999999879,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2027",
+          "clientId": "client-1",
+          "elapsedMs": 21.06309999997029,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2027",
+          "clientId": "client-4",
+          "elapsedMs": 33.63490000000456,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2027",
+          "clientId": "client-1",
+          "elapsedMs": 33.93740000005346,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "review-required-detail-fy2027",
+          "clientId": "client-2",
+          "elapsedMs": 54.05780000000959,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2027",
+          "clientId": "client-3",
+          "elapsedMs": 43.93390000000363,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2027",
+          "clientId": "client-1",
+          "elapsedMs": 19.30999999999767,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "review-required-detail-fy2027",
+          "clientId": "client-2",
+          "elapsedMs": 18.711500000033993,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2028",
+          "clientId": "client-3",
+          "elapsedMs": 23.490300000004936,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "review-queue-fy2027",
+          "clientId": "client-2",
+          "elapsedMs": 10.396099999954458,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2028",
+          "clientId": "client-1",
+          "elapsedMs": 11.21740000002319,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "review-queue-fy2027",
+          "clientId": "client-2",
+          "elapsedMs": 2.5071999999927357,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2028",
+          "clientId": "client-3",
+          "elapsedMs": 4.479600000020582,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2028",
+          "clientId": "client-1",
+          "elapsedMs": 3.969600000011269,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "review-queue-fy2027",
+          "clientId": "client-2",
+          "elapsedMs": 1.970499999995809,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "expected-sources-fy2027-request",
+          "clientId": "client-3",
+          "elapsedMs": 1.6792000000132248,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "expected-sources-fy2027-request",
+          "clientId": "client-3",
+          "elapsedMs": 1.5993000000016764,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "expected-sources-fy2027-request",
+          "clientId": "client-1",
+          "elapsedMs": 2.3222999999998137,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "lifecycle-signals-fy2027",
+          "clientId": "client-2",
+          "elapsedMs": 4.28459999995539,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "expected-sources-fy2027-request",
+          "clientId": "client-1",
+          "elapsedMs": 2.632999999972526,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "expected-sources-fy2027-request",
+          "clientId": "client-3",
+          "elapsedMs": 3.118099999963306,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "expected-sources-fy2027-request",
+          "clientId": "client-1",
+          "elapsedMs": 2.389099999971222,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "lifecycle-signals-fy2027",
+          "clientId": "client-2",
+          "elapsedMs": 32.46679999999469,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "coverage-inventory-fy2027",
+          "clientId": "client-3",
+          "elapsedMs": 32.82930000004126,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "coverage-inventory-fy2027",
+          "clientId": "client-1",
+          "elapsedMs": 34.100500000000466,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "schedule-tick-health",
+          "clientId": "client-2",
+          "elapsedMs": 5.347100000013597,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "coverage-inventory-fy2027",
+          "clientId": "client-3",
+          "elapsedMs": 12.098200000007637,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2027",
+          "clientId": "client-2",
+          "elapsedMs": 8.773700000019744,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "coverage-inventory-fy2027",
+          "clientId": "client-1",
+          "elapsedMs": 12.323399999993853,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "coverage-inventory-fy2027",
+          "clientId": "client-3",
+          "elapsedMs": 5.072599999955855,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "coverage-inventory-fy2027",
+          "clientId": "client-1",
+          "elapsedMs": 8.679500000027474,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "review-required-detail-fy2027",
+          "clientId": "client-3",
+          "elapsedMs": 11.246800000022631,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "review-required-detail-fy2027",
+          "clientId": "client-1",
+          "elapsedMs": 8.881900000036694,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "review-required-detail-fy2027",
+          "clientId": "client-3",
+          "elapsedMs": 7.433399999979883,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "review-required-detail-fy2027",
+          "clientId": "client-1",
+          "elapsedMs": 5.726199999975506,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "review-queue-fy2027",
+          "clientId": "client-3",
+          "elapsedMs": 9.715499999991152,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "review-queue-fy2027",
+          "clientId": "client-1",
+          "elapsedMs": 7.337400000018533,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "review-queue-fy2027",
+          "clientId": "client-3",
+          "elapsedMs": 2.922199999971781,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "review-queue-fy2027",
+          "clientId": "client-1",
+          "elapsedMs": 3.0094999999855645,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "review-queue-fy2027",
+          "clientId": "client-3",
+          "elapsedMs": 1.8574999999837019,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "review-queue-fy2027",
+          "clientId": "client-1",
+          "elapsedMs": 2.5258000000030734,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "lifecycle-signals-fy2027",
+          "clientId": "client-3",
+          "elapsedMs": 5.65580000000773,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "lifecycle-signals-fy2027",
+          "clientId": "client-1",
+          "elapsedMs": 5.486800000013318,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "lifecycle-signals-fy2027",
+          "clientId": "client-3",
+          "elapsedMs": 4,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "lifecycle-signals-fy2027",
+          "clientId": "client-1",
+          "elapsedMs": 5.134000000020023,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "schedule-tick-health",
+          "clientId": "client-3",
+          "elapsedMs": 4.822199999995064,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "schedule-tick-health",
+          "clientId": "client-1",
+          "elapsedMs": 3.7674000000115484,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2027",
+          "clientId": "client-3",
+          "elapsedMs": 4.791200000036042,
+          "error": false,
+          "errorDetail": null
+        },
+        {
+          "operation": "cycle-health-fy2027",
+          "clientId": "client-3",
+          "elapsedMs": 3.7259999999660067,
+          "error": false,
+          "errorDetail": null
+        }
+      ]
+    }
+  },
+  "measuredChecks": [
+    {
+      "id": "peak-queue-cap",
+      "status": "PASS",
+      "measuredRows": 100,
+      "limit": 100
+    },
+    {
+      "id": "four-worker-synthetic-load",
+      "status": "PASS",
+      "workerResults": [
+        {
+          "claimed": 25,
+          "succeeded": 25,
+          "governedReview": 0,
+          "governedReject": 0,
+          "retried": 0,
+          "poisoned": 0,
+          "leaseLost": 0,
+          "readinessInvoked": 25,
+          "readinessSucceeded": 25,
+          "readinessRetried": 0,
+          "readiness_deferred_committee": 0,
+          "readinessSkippedNoScope": 0,
+          "readinessFailures": []
+        },
+        {
+          "claimed": 25,
+          "succeeded": 25,
+          "governedReview": 0,
+          "governedReject": 0,
+          "retried": 0,
+          "poisoned": 0,
+          "leaseLost": 0,
+          "readinessInvoked": 25,
+          "readinessSucceeded": 25,
+          "readinessRetried": 0,
+          "readiness_deferred_committee": 0,
+          "readinessSkippedNoScope": 0,
+          "readinessFailures": []
+        },
+        {
+          "claimed": 17,
+          "succeeded": 17,
+          "governedReview": 0,
+          "governedReject": 0,
+          "retried": 0,
+          "poisoned": 0,
+          "leaseLost": 0,
+          "readinessInvoked": 17,
+          "readinessSucceeded": 17,
+          "readinessRetried": 0,
+          "readiness_deferred_committee": 0,
+          "readinessSkippedNoScope": 0,
+          "readinessFailures": []
+        },
+        {
+          "claimed": 25,
+          "succeeded": 25,
+          "governedReview": 0,
+          "governedReject": 0,
+          "retried": 0,
+          "poisoned": 0,
+          "leaseLost": 0,
+          "readinessInvoked": 25,
+          "readinessSucceeded": 25,
+          "readinessRetried": 0,
+          "readiness_deferred_committee": 0,
+          "readinessSkippedNoScope": 0,
+          "readinessFailures": []
+        }
+      ],
+      "maxConcurrentWorkers": 4,
+      "elapsedMs": 58089.64040000003
+    },
+    {
+      "id": "concurrent-compiled-common-query-mix",
+      "status": "PASS",
+      "reader": "compiled BudgetLifecycleQueryService backed by PrismaBudgetLifecycleReadStore",
+      "sampleCount": 80,
+      "errors": 0,
+      "observedOperations": [
+        "coverage-inventory-fy2027",
+        "cycle-health-fy2027",
+        "cycle-health-fy2028",
+        "expected-sources-fy2027-request",
+        "lifecycle-signals-fy2027",
+        "review-queue-fy2027",
+        "review-required-detail-fy2027",
+        "schedule-tick-health"
+      ],
+      "expectedOperations": [
+        "coverage-inventory-fy2027",
+        "cycle-health-fy2027",
+        "cycle-health-fy2028",
+        "expected-sources-fy2027-request",
+        "lifecycle-signals-fy2027",
+        "review-queue-fy2027",
+        "review-required-detail-fy2027",
+        "schedule-tick-health"
+      ],
+      "observedClients": [
+        "client-1",
+        "client-2",
+        "client-3",
+        "client-4"
+      ],
+      "expectedClients": [
+        "client-1",
+        "client-2",
+        "client-3",
+        "client-4"
+      ],
+      "p95Ms": 72.6,
+      "p95LimitMs": 2000,
+      "overlap": {
+        "startedAt": "2026-09-25T12:04:16.141Z",
+        "finishedAt": "2026-09-25T12:04:17.454Z",
+        "durationMs": 1311.9023999999627,
+        "monotonicDurationMs": 1311.9023999999627
+      }
+    },
+    {
+      "id": "zero-lost-facts-zero-duplicate-logical-notifications",
+      "status": "PASS",
+      "ledgerCounts": {
+        "evidence": "100",
+        "notifications": "100",
+        "duplicateKeys": "0",
+        "missingEvidence": "0",
+        "missingNotifications": "0"
+      }
+    },
+    {
+      "id": "family-mix",
+      "status": "PASS",
+      "familyCounts": [
+        {
+          "family": "pb_milcon_c1",
+          "count": "25"
+        },
+        {
+          "family": "pb_o1",
+          "count": "25"
+        },
+        {
+          "family": "pb_p1",
+          "count": "25"
+        },
+        {
+          "family": "pb_r1",
+          "count": "25"
+        }
+      ]
+    }
+  ]
+}

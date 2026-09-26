@@ -27,6 +27,7 @@
 //     of this step's scope) and still render with their existing antd/--ov2-*
 //     styling.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { GeneratedDraft, WizardV2State } from './types.js';
 import { ContextUsedPanel } from './ContextUsedPanel.js';
 import {
@@ -51,11 +52,34 @@ import { Button } from './ui/Button.js';
 import { Input } from './ui/Input.js';
 import { Select } from './ui/Select.js';
 import { Checkbox } from './ui/Checkbox.js';
+import { Dialog } from './ui/Dialog.js';
+import { useApi } from '../../../../lib/use-api.js';
+import type { Client } from '../../../clients/clientTypes.js';
 
 interface AttachmentDoc {
   id: string;
   fileName: string;
   contentType: string;
+  clientId?: string;
+  clientName?: string;
+  folder?: string | null;
+  size?: string | null;
+  date?: string | null;
+  createdAt?: string | null;
+  byteSize?: number | null;
+}
+
+function attachmentDate(document?: Pick<AttachmentDoc, 'date' | 'createdAt'>): string | null {
+  const value = document?.date ?? document?.createdAt;
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+}
+
+function attachmentTypeLabel(document?: Pick<AttachmentDoc, 'fileName' | 'contentType'>): string {
+  const extension = document?.fileName.split('.').pop()?.trim();
+  if (extension && extension !== document?.fileName) return extension.toUpperCase();
+  return document?.contentType.split('/').at(-1)?.replace('vnd.openxmlformats-officedocument.', '').toUpperCase() || 'FILE';
 }
 
 interface Props {
@@ -103,6 +127,7 @@ interface Props {
   generatingKey: string | null;
   // Attachments (campaign-level; preserved from production).
   clientId: string | null;
+  clients: Client[];
   docs: AttachmentDoc[];
   attachmentIds: string[];
   onToggleAttachment: (id: string) => void;
@@ -227,6 +252,7 @@ export function StepGenerate({
   regenerating,
   generatingKey,
   clientId,
+  clients,
   docs,
   attachmentIds,
   onToggleAttachment,
@@ -238,7 +264,67 @@ export function StepGenerate({
   const [bannerFor, setBannerFor] = useState<string | null>(null);
   // Freeform "Improve" instruction for the active draft (cleared on switch/submit).
   const [improveText, setImproveText] = useState('');
+  const [filesOpen, setFilesOpen] = useState(false);
+  const [filesClientId, setFilesClientId] = useState(clientId ?? '__general__');
+  const [filesSearch, setFilesSearch] = useState('');
+  const [pendingFileIds, setPendingFileIds] = useState<string[]>(attachmentIds);
+  const [fileDetails, setFileDetails] = useState<Record<string, AttachmentDoc>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const api = useApi();
+
+  const clientFilesQuery = useQuery({
+    queryKey: ['outreach-attachment-client-files', filesClientId],
+    enabled: filesOpen && Boolean(filesClientId) && filesClientId !== '__general__',
+    queryFn: async () => (await api.get<AttachmentDoc[]>('/api/engagement/attachments', {
+      params: { clientId: filesClientId },
+    })).data,
+    retry: false,
+    staleTime: 60_000,
+  });
+  const fileClient = clients.find((client) => client.id === filesClientId) ?? null;
+  const filesForClient = filesClientId === clientId || filesClientId === '__general__' ? docs : (clientFilesQuery.data ?? []);
+  const filteredClientFiles = filesForClient.filter((document) =>
+    !filesSearch.trim() || document.fileName.toLocaleLowerCase().includes(filesSearch.trim().toLocaleLowerCase()),
+  );
+
+  useEffect(() => {
+    const loadedFiles = [...docs, ...(clientFilesQuery.data ?? [])];
+    if (loadedFiles.length) {
+      setFileDetails((current) => ({
+        ...current,
+        ...Object.fromEntries(loadedFiles.map((document) => [document.id, {
+          ...document,
+          clientName: document.clientName ?? clients.find((client) => client.id === document.clientId)?.name,
+        }])),
+      }));
+    }
+  }, [clients, docs, clientFilesQuery.data]);
+
+  const openFiles = () => {
+    const preferredClient = clientId ?? '__general__';
+    setFilesClientId(preferredClient);
+    setFilesSearch('');
+    setPendingFileIds(attachmentIds);
+    setFilesOpen(true);
+  };
+
+  const saveFiles = () => {
+    const allChangedIds = new Set([...attachmentIds, ...pendingFileIds]);
+    for (const id of allChangedIds) {
+      const wasAttached = attachmentIds.includes(id);
+      const shouldAttach = pendingFileIds.includes(id);
+      if (wasAttached !== shouldAttach) onToggleAttachment(id);
+    }
+    setFileDetails((current) => ({
+      ...current,
+      ...Object.fromEntries(filesForClient.map((document) => [document.id, {
+        ...document,
+        clientId: document.clientId ?? filesClientId,
+        clientName: document.clientName ?? fileClient?.name,
+      }])),
+    }));
+    setFilesOpen(false);
+  };
 
   // Flat lookup: genKey → { entity, slot }.
   const index = useMemo(() => {
@@ -377,7 +463,7 @@ export function StepGenerate({
           {/* ---- Left rail ---- */}
           <div className="flex max-h-[640px] flex-col rounded-lg border border-line-hairline bg-surface">
             <div className="flex items-center gap-1.5 rounded-t-lg border-b border-line-hairline bg-surface-subtle px-3 py-2.5 text-[13px] font-semibold text-ink-primary">
-              <Icon.Zap size={13} className="text-accent" />
+              <Icon.Zap size={13} className="text-ink-primary" />
               {batchGenerating ? 'Generating…' : `${ready} / ${total} ready`}
             </div>
             <div className="flex-1 overflow-y-auto p-2">
@@ -574,45 +660,53 @@ export function StepGenerate({
         </div>
       </div>
 
-      {/* ---- Campaign-level attachments (production feature, preserved) ---- */}
+      {/* Campaign attachments stay campaign-wide because the send contract has
+          one attachmentIds list for the campaign. Client files are selected in
+          the same modal as the prototype; upload remains available here. */}
       <div className="mt-5 rounded-lg border border-line-hairline bg-surface p-4">
-        <div className="mb-1 text-[15px] font-semibold text-ink-primary">Attachments</div>
-        <div className="mb-3 text-sm text-ink-secondary">
-          Files added here are attached to every email on send (max 3MB each).
+        <div className="mb-1 flex items-center gap-2 text-[15px] font-semibold text-ink-primary"><span>Attachments</span><span className="rounded-full bg-neutral-bg px-2 py-0.5 font-mono text-[10px] font-medium text-ink-secondary">{attachmentIds.length}</span></div>
+        <div className="mb-3 text-sm text-ink-secondary">Files added here are attached to every email on send (max 3MB each).</div>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <Button variant="secondary" size="sm" onPress={openFiles}><Icon.Document size={13} /> Attach from client files</Button>
+          <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(e) => { const files = e.target.files; if (files) Array.from(files).forEach((f) => onUploadAttachment(f)); e.target.value = ''; }} />
+          <Button variant="secondary" size="sm" onPress={() => fileInputRef.current?.click()}><Icon.Plus size={13} /> Upload a file</Button>
         </div>
-        <div className="flex flex-col items-start gap-2.5">
-          {docs.map((d) => (
-            <Checkbox
-              key={d.id}
-              isSelected={attachmentIds.includes(d.id)}
-              onChange={() => onToggleAttachment(d.id)}
-            >
-              {d.fileName}
-            </Checkbox>
-          ))}
-          {docs.length === 0 && (
-            <div className="text-sm text-ink-tertiary">
-              {clientId
-                ? 'No stored documents for this client yet. Upload a file to attach it.'
-                : 'No attachments yet. Upload a file to attach it to every email.'}
-            </div>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              const files = e.target.files;
-              if (files) Array.from(files).forEach((f) => onUploadAttachment(f));
-              e.target.value = '';
-            }}
-          />
-          <Button variant="secondary" size="sm" onPress={() => fileInputRef.current?.click()}>
-            <Icon.Document size={13} /> Upload a file
-          </Button>
-        </div>
+        {attachmentIds.length ? <div className="flex flex-col gap-2">{attachmentIds.map((id) => {
+          const doc = fileDetails[id] ?? docs.find((candidate) => candidate.id === id);
+          const details = [doc?.clientName, doc?.folder, doc?.size ?? (doc?.byteSize != null ? `${Math.ceil(doc.byteSize / 1024)} KB` : null), attachmentDate(doc)].filter(Boolean).join(' · ');
+          const fileType = attachmentTypeLabel(doc);
+          return <div key={id} className="flex items-center gap-2 rounded-lg border border-line-hairline bg-surface-subtle px-3 py-2"><span className="shrink-0 rounded bg-neutral-bg px-1.5 py-0.5 text-[9px] font-semibold text-neutral-ink">{fileType}</span><span className="min-w-0 flex-1"><span className="block truncate text-[12.5px] font-medium text-ink-primary">{doc?.fileName ?? 'Selected client file'}</span>{details && <span className="block truncate text-[10px] text-ink-tertiary">{details}</span>}</span><span className="shrink-0 rounded-full bg-neutral-bg px-2 py-0.5 text-[10px] text-ink-secondary">Every draft</span><button type="button" className="appearance-none border-0 bg-transparent flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ink-tertiary hover:bg-neutral-bg hover:text-ink-primary" onClick={() => onToggleAttachment(id)} aria-label={`Remove ${doc?.fileName ?? 'attachment'}`}><Icon.XClose size={13} /></button></div>;
+        })}</div> : <div className="text-sm text-ink-tertiary">{clientId ? 'No stored documents for this client are attached yet.' : 'No attachments yet. Upload a file or choose one from client files.'}</div>}
       </div>
+
+      <Dialog
+        open={filesOpen}
+        onClose={() => setFilesOpen(false)}
+        title="Attach from client files"
+        width={780}
+        footer={<><Button variant="secondary" size="sm" onPress={() => setFilesOpen(false)}>Cancel</Button><Button variant="primary" size="sm" onPress={saveFiles}>Attach files</Button></>}
+      >
+        <p className="mb-4 text-[13px] leading-5 text-ink-secondary">Documents already saved to a client record. Attaching does not move or change the file. Selected files will be attached to every email in this campaign.</p>
+        <div className="grid min-h-[340px] grid-cols-1 overflow-hidden rounded-lg border border-line-hairline sm:grid-cols-[210px_minmax(0,1fr)]">
+          <nav className="border-b border-line-hairline bg-surface-subtle p-2 sm:border-b-0 sm:border-r" aria-label="Client files portfolio">
+            {!clientId && <button type="button" aria-current={filesClientId === '__general__' ? 'page' : undefined} onClick={() => { setFilesClientId('__general__'); setFilesSearch(''); }} className={`appearance-none border-0 mb-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[12px] ${filesClientId === '__general__' ? 'bg-surface text-ink-primary shadow-card' : 'bg-transparent text-ink-secondary hover:bg-surface'}`}><span aria-hidden="true" className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${filesClientId === '__general__' ? 'btn-dark text-white' : 'bg-neutral-bg text-neutral-ink'}`}><Icon.Document size={13} /></span><span>General files</span></button>}
+            {clients.map((client) => <button key={client.id} type="button" aria-current={filesClientId === client.id ? 'page' : undefined} onClick={() => { setFilesClientId(client.id); setFilesSearch(''); }} className={`appearance-none border-0 mb-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[12px] ${filesClientId === client.id ? 'bg-surface text-ink-primary shadow-card' : 'bg-transparent text-ink-secondary hover:bg-surface'}`}><span aria-hidden="true" className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${filesClientId === client.id ? 'btn-dark' : 'bg-neutral-bg text-neutral-ink'}`}>{client.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase()}</span><span className="truncate">{client.name}</span></button>)}
+            {clients.length === 0 && <p className="p-2 text-xs text-ink-tertiary">No clients available.</p>}
+          </nav>
+          <section className="min-w-0 p-3" aria-label={fileClient ? `${fileClient.name} files` : filesClientId === '__general__' ? 'General files' : 'Client files'}>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="text-[13px] font-semibold text-ink-primary">{fileClient?.name ?? (filesClientId === '__general__' ? 'General files' : 'Available files')}</div><div className="text-[11px] text-ink-tertiary">{pendingFileIds.length} selected</div></div>
+            <Input value={filesSearch} onChange={setFilesSearch} placeholder="Search client files…" leadingIcon={<Icon.SearchLg size={14} />} />
+            <div className="mt-3 max-h-[300px] overflow-y-auto rounded-lg border border-line-hairline">
+              {clientFilesQuery.isFetching && filesClientId !== clientId ? <div className="p-6 text-center text-xs text-ink-tertiary">Loading client files…</div> : filteredClientFiles.length ? filteredClientFiles.map((document) => {
+                const detail = [document.folder, document.size ?? (document.byteSize != null ? `${Math.ceil(document.byteSize / 1024)} KB` : null), attachmentDate(document)].filter(Boolean).join(' · ');
+                const fileType = attachmentTypeLabel(document);
+                const isAttached = pendingFileIds.includes(document.id);
+                return <div key={document.id} className="flex items-start gap-2 border-t border-line-hairline px-3 py-2.5 first:border-t-0"><Checkbox isSelected={isAttached} onChange={() => setPendingFileIds((current) => current.includes(document.id) ? current.filter((id) => id !== document.id) : [...current, document.id])}><span className="block text-[12.5px] font-medium">{document.fileName}</span>{detail && <span className="block text-[10px] text-ink-tertiary">{detail}</span>}</Checkbox>{isAttached && <span className="ml-auto shrink-0 rounded-full bg-neutral-bg px-2 py-0.5 text-[10px] text-ink-secondary">Attached</span>}<span className="shrink-0 rounded bg-neutral-bg px-1.5 py-0.5 text-[9px] font-semibold text-neutral-ink">{fileType}</span></div>;
+              }) : <div className="p-6 text-center text-xs text-ink-tertiary">{filesSearch ? 'No files match your search.' : 'No saved files for this client.'}</div>}
+            </div>
+          </section>
+        </div>
+      </Dialog>
     </div>
   );
 }
@@ -883,7 +977,7 @@ function RailRow({
           e.stopPropagation();
           onRegenerateOne(slot.genKey);
         }}
-        className="flex-none rounded-[5px] p-1 text-ink-tertiary opacity-0 hover:bg-surface hover:text-accent-ink group-hover:opacity-100"
+        className="flex-none rounded-[5px] p-1 text-ink-tertiary opacity-0 hover:bg-surface hover:text-ink-primary group-hover:opacity-100"
       >
         <Icon.Zap size={13} className={generating ? 'animate-pulse' : ''} />
       </button>

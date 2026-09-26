@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "package": 5,
+  "fixtures": {
+    "renumberedPe": true,
+    "splitProgram": 2,
+    "negativeObligation": "750",
+    "parentVehicleOrders": 2,
+    "unsupportedAllocation": "unsupported",
+    "awardDeduplication": 1
+  },
+  "counts": {
+    "crosswalks": 4,
+    "records": 4,
+    "transactions": 2,
+    "relationships": 5,
+    "openCoverageGaps": 1
+  },
+  "boundaries": {
+    "accountTotalsCombinedWithTransactions": false,
+    "unsupportedJoinPublishesDollars": false,
+    "immutableHistory": true
+  }
+}

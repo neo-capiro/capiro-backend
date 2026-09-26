@@ -995,6 +995,22 @@ describe('ProgramElementReadService', () => {
   });
 
   describe('listProgramElements B2 matched-pair deltaPct', () => {
+    test('applies the selected FY to catalog eligibility, funding positions, trend ceiling, and signals', async () => {
+      const prisma = makePrisma({ queryRawQueue: [[]] });
+      const service = new ProgramElementReadService(
+        prisma as never,
+        makeConferenceProbabilityService() as never,
+      );
+
+      await service.listProgramElements({ fy: 2027, page: 1, limit: 25 }, ctx);
+
+      const sql = (prisma.__mock.rawSqlTexts as string[]).join('\n');
+      expect(sql).toMatch(/fy_row\.fy = \?/);
+      expect(sql).toMatch(/y\.fy = \?/);
+      expect(sql).toMatch(/y\.fy <= \?/);
+      expect(sql).toMatch(/d\.asserted_fy = \?/);
+    });
+
     test('cross-FY latestRequest must not become delta base; ler pair drives %', async () => {
       const prisma = makePrisma({
         queryRawQueue: [

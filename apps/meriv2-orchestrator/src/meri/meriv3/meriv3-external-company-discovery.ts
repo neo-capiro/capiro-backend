@@ -505,11 +505,11 @@ export async function executeMeriExternalCompanyDiscovery(
   const provisionalUsable = Boolean(selectedCandidate && officialSiteUsable);
   const identityStatus: MeriExternalCompanyIdentityStatus = resolved
     ? 'resolved'
-    : provisionalUsable
+    : candidates.length === 0
+      ? 'not_found'
+      : provisionalUsable
       ? 'provisional'
-      : candidates.length > 1 || provisional.ambiguityReason
-        ? 'ambiguous'
-        : 'not_found';
+      : 'ambiguous';
   const researchName =
     resolvedName(resolution) ?? selectedCandidate?.canonicalName ?? normalizedInput;
 
@@ -528,6 +528,9 @@ export async function executeMeriExternalCompanyDiscovery(
     ambiguityReason:
       identityStatus === 'resolved' || identityStatus === 'provisional'
         ? null
-        : provisional.ambiguityReason,
+        : provisional.ambiguityReason ??
+          (identityStatus === 'ambiguous'
+            ? 'The strongest candidate could not be verified as the official company identity.'
+            : 'No credible company candidate was found.'),
   };
 }
