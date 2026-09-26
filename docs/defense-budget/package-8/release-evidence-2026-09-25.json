@@ -119,6 +119,53 @@
       "appDevRuntimeConfigSha": "56ccee8b05e75b0db17bea3bc1cd3e64546d5c2a",
       "osRuntimeConfigSha": "56ccee8b05e75b0db17bea3bc1cd3e64546d5c2a",
       "unauthenticatedCoverageRouteStatus": 401
+    },
+    "followOnCandidateDeployment": {
+      "purpose": "ship the merged Package 8 locator-inventory source while keeping candidate-only behavior and protected paths disabled",
+      "sourceRevision": "b7f6856732bf4ff360deb427aabc5d00d82dc99a",
+      "localMain": "b7f6856732bf4ff360deb427aabc5d00d82dc99a",
+      "githubMain": "b7f6856732bf4ff360deb427aabc5d00d82dc99a",
+      "codeBuild": {
+        "id": "capiro-build-intel-api:bf8d0456-7b4a-459b-b871-fc2fae9a3faf",
+        "resolvedSourceVersion": "b7f6856732bf4ff360deb427aabc5d00d82dc99a",
+        "status": "SUCCEEDED",
+        "startedAt": "2026-09-25T23:53:06.988Z",
+        "endedAt": "2026-09-25T23:56:45.526Z",
+        "buildspec": "apps/api/Dockerfile; linux/arm64; immutable SHA tag; ECR push only; no ECS mutation"
+      },
+      "image": {
+        "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
+        "tag": "b7f6856732bf4ff360deb427aabc5d00d82dc99a",
+        "digest": "sha256:0904b41a5981e31966ab3600ee87e0364520831ccd2f7cd69502109fb4f6c9d7"
+      },
+      "migration": {
+        "taskDefinition": "capiro-dev-api-admin-migrate:78",
+        "taskId": "3b4d809ca7114eb8b44da4cf42f3bbbb",
+        "exitCode": 0,
+        "result": "No pending migrations to apply"
+      },
+      "service": {
+        "taskDefinition": "capiro-dev-api:474",
+        "rolloutState": "COMPLETED",
+        "desired": 2,
+        "running": 2,
+        "pending": 0,
+        "healthyTasks": 2,
+        "targetHealth": "2 healthy replacement targets; old targets draining normally"
+      },
+      "runtime": {
+        "gitSha": "b7f6856732bf4ff360deb427aabc5d00d82dc99a",
+        "releaseSha": "b7f6856732bf4ff360deb427aabc5d00d82dc99a",
+        "appHttpStatus": 200,
+        "recentApiErrorLikeLogMatches": 0,
+        "protectedFlags": {
+          "federalLegislativeEvidenceEnabled": false,
+          "programAcquisitionContinuityEnabled": false,
+          "fundingExecutionSourceAdapterEnabled": false,
+          "fundingExecutionPublicationEnabled": false
+        }
+      },
+      "qualificationBoundary": "deployment evidence only; XML locator inventory remains candidate_only/promotable_false and no registration, persistence, semantic funding import, historical replay, or publication occurred"
     }
   },
   "postDeployReadOnlyInventory": {

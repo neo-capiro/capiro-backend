@@ -42,3 +42,22 @@ Repository: `neo-capiro/capirov2`
 - `APP_ENV=capiro-dev` and `GIT_SHA=56ccee8b…` are present on the API task. The four ingestion/publication flags remain false.
 - Both public runtime-config endpoints report the Package 8 merge SHA. An unauthenticated reconciliation request returns `401 Missing bearer token`, preserving the internal-only boundary.
 - Post-deploy SELECT-only tasks exited zero on the exact API image. They report 82 logical slots in each FY2024–FY2027, 14 observations, 11 candidates, 43 active approvals, zero active/canonical snapshots, zero governed manifests, and zero manifest-eligible rows. No historical write or notification-producing run occurred.
+
+## Follow-on candidate deployment (2026-09-25)
+
+- After the locator-inventory merge, exact local/GitHub `main` revision
+  `b7f6856732bf4ff360deb427aabc5d00d82dc99a` was built by native ARM64
+  CodeBuild `capiro-build-intel-api:bf8d0456-7b4a-459b-b871-fc2fae9a3faf`.
+- The immutable API image is pinned at
+  `sha256:0904b41a5981e31966ab3600ee87e0364520831ccd2f7cd69502109fb4f6c9d7`.
+  The idempotent migration task `capiro-dev-api-admin-migrate:78` exited 0
+  with no pending migrations.
+- ECS task definition `capiro-dev-api:474` reached `COMPLETED` with 2/2
+  healthy tasks; the public app health request returned HTTP 200 and there
+  were zero error-like API log matches in the five-minute post-rollout check.
+  `GIT_SHA` and `RELEASE_SHA` equal the merged revision, and all four
+  ingestion/publication flags remain `false`.
+- This is shipment evidence only. The XML locator inventory remains
+  `candidate_only`/`promotable: false`; no source registration, semantic
+  funding import, historical replay, canonical publication, or notification
+  occurred.
