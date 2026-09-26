@@ -1120,16 +1120,29 @@
 }
 
 /* Watchlist: recent alerts lead, watched prospects remain close by. */
+.capiro-bizdev__watchlist-page > .capiro-bizdev__toolbar {
+  padding: 0 0 12px;
+}
+.capiro-bizdev__watchlist-page > .capiro-bizdev__discover-note {
+  padding: 0;
+  margin: 0 0 16px;
+}
 .capiro-bizdev__watchlist-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
-  gap: 16px;
-  padding: 0 24px 20px;
+  grid-template-columns: minmax(0, 1fr) minmax(290px, 342px);
+  gap: 20px;
+  padding: 0 0 20px;
   align-items: start;
 }
 .capiro-bizdev__watchlist-main,
 .capiro-bizdev__watchlist-side {
   min-width: 0;
+}
+.capiro-bizdev__watchlist-side {
+  padding: 18px;
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: 12px;
 }
 .capiro-bizdev__watchlist-section-head {
   display: flex;
@@ -1188,7 +1201,13 @@
   font-size: 15px;
 }
 .capiro-bizdev__watch-prospect {
-  padding: 12px;
+  padding: 12px 0;
+  border: 0;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+  border-radius: 0;
+}
+.capiro-bizdev__watch-prospect:last-child {
+  border-bottom: 0;
 }
 .capiro-bizdev__source-health {
   list-style: none;
@@ -1202,14 +1221,39 @@
   padding: 8px 12px;
 }
 .capiro-bizdev__source-health li {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
   gap: 8px;
   font-size: 12px;
   line-height: 18px;
+  overflow-wrap: anywhere;
 }
 .capiro-bizdev__source-health .capiro-bizdev__history-kind {
-  min-width: 90px;
-  flex-shrink: 0;
+  min-width: 0;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.capiro-bizdev__watch-source-detail summary {
+  cursor: pointer;
+  color: var(--capiro-color-action-accent-default);
+}
+.capiro-bizdev__watch-source-detail p {
+  margin: 4px 0 0;
+}
+.capiro-bizdev__watchlist-alert-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 4px 0;
+}
+.capiro-bizdev__watchlist-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.capiro-bizdev__watchlist-pagination > span {
+  flex: 1 1 280px;
 }
 .capiro-bizdev__alert-feed {
   list-style: none;
@@ -1223,10 +1267,10 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 14px 16px;
+  padding: 18px;
   border: 1px solid var(--capiro-color-border-quiet);
-  border-left: 3px solid var(--capiro-color-border-warning);
-  border-radius: 8px;
+  border-left: 2px solid var(--capiro-color-action-accent-default);
+  border-radius: 12px;
   background: var(--capiro-color-bg-surface);
 }
 .capiro-bizdev__watchlist-alert-meta,
@@ -1254,7 +1298,7 @@
 }
 @media (max-width: 600px) {
   .capiro-bizdev__watchlist-layout {
-    padding-inline: 16px;
+    padding-inline: 0;
   }
 }
 @media (max-width: 1179px) {

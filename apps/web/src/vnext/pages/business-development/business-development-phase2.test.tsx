@@ -900,6 +900,7 @@ describe('Phase 2 URL state and query keys', () => {
       prospectId: '',
       view: 'pipeline',
       overdueOnly: false,
+      sort: 'newest',
       discover: '',
       discoverQuery: '',
       discoverOffset: 0,
