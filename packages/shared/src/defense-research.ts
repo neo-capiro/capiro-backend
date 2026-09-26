@@ -279,3 +279,141 @@ export interface DefenseRelationshipListDto {
   page: number;
   limit: number;
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Acquisition continuity (Phase 6)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export type AcquisitionRelationshipClass =
+  | 'source_stated_financial_allocation'
+  | 'deterministic_financial_allocation'
+  | 'reviewed_association'
+  | 'inferred_relevance'
+  | 'unresolved';
+
+export interface DefenseAcquisitionRecordSummaryDto {
+  identityKey: string;
+  sourceSystem: string;
+  sourceRecordId: string;
+  recordKind: string;
+  parentIdentityKey: string | null;
+  title: string | null;
+  status: string | null;
+  buyerOffice: string | null;
+  postedAt: string | null;
+  responseDeadline: string | null;
+  validFrom: string | null;
+  validTo: string | null;
+  contentHash: string;
+  sourceUrl: string | null;
+  sourceVersion: string | null;
+  sourceObservedAt: string | null;
+  recordedAt: string;
+  textAvailability: DefenseResearchAvailability;
+  amendmentCount: number;
+  openCoverageGaps: number;
+}
+
+export interface DefenseAcquisitionRecordDetailDto extends DefenseAcquisitionRecordSummaryDto {
+  revisions: readonly {
+    id: string;
+    identityKey: string;
+    sourceSystem: string;
+    sourceRecordId: string;
+    recordKind: string;
+    title: string | null;
+    status: string | null;
+    buyerOffice: string | null;
+    postedAt: string | null;
+    responseDeadline: string | null;
+    validFrom: string | null;
+    validTo: string | null;
+    contentHash: string;
+    sourceUrl: string | null;
+    sourceVersion: string | null;
+    sourceObservedAt: string | null;
+    recordedAt: string;
+    raw: unknown;
+  }[];
+  childIdentities: readonly string[];
+  amendmentIdentities: readonly string[];
+  extractedFields: {
+    geography?: string[];
+    naics?: string[];
+    psc?: string[];
+    setAside?: string[];
+  };
+  associations: readonly {
+    relationshipId: string;
+    relationshipClass: AcquisitionRelationshipClass;
+    subjectKind: string;
+    subjectKey: string;
+    subjectLabel: string | null;
+    validFromFy: number | null;
+    validToFy: number | null;
+    allocatedAmountUsd: string | null;
+    sourceUrl: string | null;
+    sourceObservedAt: string | null;
+    reviewStatus: 'accepted' | 'candidate' | 'quarantined';
+  }[];
+}
+
+export interface DefenseAcquisitionRecordActionDto {
+  transactionIdentityKey: string;
+  awardIdentityKey: string;
+  parentAwardIdentityKey: string | null;
+  sourceSystem: string;
+  sourceTransactionId: string;
+  piid: string | null;
+  modificationNumber: string | null;
+  actionDate: string | null;
+  signedObligationDelta: string | null;
+  signedOutlayDelta: string | null;
+  correctsIdentityKey: string | null;
+  supersedesId: string | null;
+  sourceUrl: string | null;
+  sourceObservedAt: string | null;
+  recordedAt: string;
+  raw: unknown;
+}
+
+export interface DefenseAcquisitionCoverageGapDto {
+  id: string;
+  subjectKind: string;
+  subjectKey: string;
+  sourceSystem: string;
+  relationshipKind: string;
+  reason: string;
+  detail: string | null;
+  coverageState: string;
+  sourceAsOf: string | null;
+  firstObservedAt: string;
+  lastObservedAt: string;
+  resolvedAt: string | null;
+}
+
+export interface DefenseAcquisitionRecordListDto {
+  items: readonly DefenseAcquisitionRecordSummaryDto[];
+  total: number;
+  page: number;
+  limit: number;
+  filters: {
+    q?: string;
+    sourceSystem?: string;
+    recordKind?: string;
+    status?: string;
+    buyerOffice?: string;
+    activeOn?: string;
+  };
+}
+
+export interface DefenseAcquisitionCoverageGapListDto {
+  items: readonly DefenseAcquisitionCoverageGapDto[];
+  total: number;
+  page: number;
+  limit: number;
+  filters: {
+    subjectKind: string;
+    subjectKey: string;
+  };
+}

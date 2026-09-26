@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
-describe('Defense research Phase 3-5 contracts', () => {
+describe('Defense research Phase 3-6 contracts', () => {
   test('registers the read module and complete route foundation', () => {
     const app = read('src/app.module.ts');
     const controller = read('src/defense-research/defense-research.controller.ts');
@@ -21,9 +21,26 @@ describe('Defense research Phase 3-5 contracts', () => {
       "@Get('offices')",
       "@Get('offices/:officeId')",
       "@Get('relationships')",
+      "@Get('acquisition-records')",
+      "@Get('acquisition-records/:identityKey/actions')",
+      "@Get('acquisition-records/:identityKey')",
+      "@Get('acquisition-coverage')",
       "@Get('evidence/:evidenceRefId')",
     ]) expect(controller).toContain(route);
     expect(controller.indexOf("@Get('context-documents/:documentId/revisions')")).toBeLessThan(controller.indexOf("@Get('context-documents/:documentId')"));
+    expect(controller.indexOf("@Get('acquisition-records/:identityKey/actions')")).toBeLessThan(controller.indexOf("@Get('acquisition-records/:identityKey')"));
+  });
+
+  test('reads the immutable acquisition ledger without converting associations into allocations', () => {
+    const service = read('src/defense-research/defense-research.service.ts');
+    expect(service).toContain('this.prisma.acquisitionRecordRevision.findMany');
+    expect(service).toContain("distinct: ['identityKey']");
+    expect(service).toContain('this.prisma.acquisitionAwardTransactionRevision.findMany');
+    expect(service).toContain("distinct: ['transactionIdentityKey']");
+    expect(service).toContain("rel.relationshipClass === 'source_stated_financial_allocation'");
+    expect(service).toContain("rel.relationshipClass === 'deterministic_financial_allocation'");
+    expect(service).toContain("reviewStatus: includeSpeculative ? { in: ['accepted', 'candidate'] } : 'accepted'");
+    expect(service).toContain('resolvedAt: null');
   });
 
   test('composes office and relationship research from existing temporal authorities', () => {

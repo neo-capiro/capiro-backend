@@ -14,6 +14,10 @@ import type {
   DefenseOfficeDetailDto,
   DefenseRelationshipListDto,
   OfficeStatus,
+  DefenseAcquisitionRecordListDto,
+  DefenseAcquisitionRecordDetailDto,
+  DefenseAcquisitionRecordActionDto,
+  DefenseAcquisitionCoverageGapListDto,
 } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -148,6 +152,47 @@ export class DefenseResearchController {
       page,
       limit,
     });
+  }
+
+  @Get('acquisition-records')
+  getAcquisitionRecords(
+    @Query('q') q?: string,
+    @Query('sourceSystem') sourceSystem?: string,
+    @Query('recordKind') recordKind?: string,
+    @Query('status') status?: string,
+    @Query('buyerOffice') buyerOffice?: string,
+    @Query('activeOn') activeOn?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ): Promise<DefenseAcquisitionRecordListDto> {
+    return this.service.getAcquisitionRecords({
+      q,
+      sourceSystem,
+      recordKind,
+      status,
+      buyerOffice,
+      activeOn,
+      page,
+      limit,
+    });
+  }
+
+  @Get('acquisition-records/:identityKey/actions')
+  getAcquisitionActions(@Param('identityKey') identityKey: string): Promise<readonly DefenseAcquisitionRecordActionDto[]> {
+    return this.service.getAcquisitionActions(identityKey);
+  }
+
+  @Get('acquisition-records/:identityKey')
+  getAcquisitionRecord(@Param('identityKey') identityKey: string, @Query('includeSpeculative') includeSpeculative?: string): Promise<DefenseAcquisitionRecordDetailDto> {
+    return this.service.getAcquisitionRecord(identityKey, includeSpeculative === 'true');
+  }
+
+  @Get('acquisition-coverage')
+  getAcquisitionCoverage(
+    @Query('subjectKind') subjectKind: string,
+    @Query('subjectKey') subjectKey: string,
+  ): Promise<DefenseAcquisitionCoverageGapListDto> {
+    return this.service.getAcquisitionCoverage(subjectKind, subjectKey);
   }
 
   @Get('evidence/:evidenceRefId')

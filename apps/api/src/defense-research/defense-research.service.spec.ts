@@ -177,4 +177,92 @@ describe('DefenseResearchService', () => {
     await service.getRelationships({ includeSpeculative: true });
     expect(findMany.mock.calls[1]?.[0]?.include.programLinks.where.reviewStatus.in).toEqual(['accepted', 'candidate']);
   });
+
+  test('lists only the newest acquisition revision for each source-qualified identity', async () => {
+    const recordedAt = new Date('2026-09-01T00:00:00Z');
+    const prisma = {
+      acquisitionRecordRevision: {
+        groupBy: jest.fn()
+          .mockResolvedValueOnce([{ identityKey: 'sam.gov:notice:N1' }])
+          .mockResolvedValueOnce([{ identityKey: 'sam.gov:notice:N1:A1' }]),
+        findMany: jest.fn().mockResolvedValue([{
+          id: 'revision-new', identityKey: 'sam.gov:notice:N1', sourceSystem: 'sam.gov', sourceRecordId: 'N1',
+          recordKind: 'notice', parentIdentityKey: null, title: 'Sources sought', status: 'active', buyerOffice: 'ACC',
+          postedAt: recordedAt, responseDeadline: new Date('2026-10-01T00:00:00Z'), validFrom: null, validTo: null,
+          contentHash: 'a'.repeat(64), sourceUrl: 'https://sam.gov/opp/N1', sourceVersion: '2',
+          sourceObservedAt: recordedAt, recordedAt, raw: { description: 'Exact source text' },
+        }]),
+      },
+      acquisitionCoverageGap: { count: jest.fn().mockResolvedValue(2) },
+    };
+    const result = await serviceWith(prisma).getAcquisitionRecords({ recordKind: 'notice', q: 'N1' });
+    expect(prisma.acquisitionRecordRevision.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      distinct: ['identityKey'],
+      orderBy: [{ identityKey: 'asc' }, { recordedAt: 'desc' }, { id: 'desc' }],
+    }));
+    expect(result).toMatchObject({ total: 1, items: [{ identityKey: 'sam.gov:notice:N1', recordKind: 'notice', amendmentCount: 1, openCoverageGaps: 2, textAvailability: 'partial' }] });
+  });
+
+  test('returns revisioned acquisition detail while gating candidates and financial attribution', async () => {
+    const at = new Date('2026-09-01T00:00:00Z');
+    const revision = {
+      id: 'rev-2', identityKey: 'usaspending:award:A1', sourceSystem: 'usaspending', sourceRecordId: 'A1',
+      recordKind: 'award', parentIdentityKey: null, title: 'Vehicle award', status: 'active', buyerOffice: 'Army',
+      postedAt: at, responseDeadline: null, validFrom: null, validTo: null, contentHash: 'b'.repeat(64),
+      sourceUrl: 'https://usaspending.gov/award/A1', sourceVersion: '2', sourceObservedAt: at, recordedAt: at,
+      raw: { placeOfPerformance: { state: 'VA' }, naicsCode: '541512', pscCode: 'D302' },
+    };
+    const findMany = jest.fn()
+      .mockResolvedValueOnce([revision])
+      .mockResolvedValueOnce([{ identityKey: 'usaspending:order:O1' }, { identityKey: 'usaspending:amendment:M1' }])
+      .mockResolvedValueOnce([{ identityKey: 'usaspending:amendment:M1' }])
+      .mockResolvedValueOnce([revision])
+      .mockResolvedValueOnce([{ identityKey: 'usaspending:order:O1' }, { identityKey: 'usaspending:amendment:M1' }])
+      .mockResolvedValueOnce([{ identityKey: 'usaspending:amendment:M1' }]);
+    const relationshipFindMany = jest.fn().mockResolvedValue([
+      { id: 'r1', logicalKey: 'l1', relationshipClass: 'reviewed_association', subjectKind: 'program', subjectKey: 'p1', validFromFy: 2026, validToFy: null, allocatedAmountUsd: { toString: () => '900.00' }, sourceUrl: 'https://source', sourceObservedAt: at, reviewStatus: 'accepted' },
+      { id: 'r2', logicalKey: 'l2', relationshipClass: 'source_stated_financial_allocation', subjectKind: 'program', subjectKey: 'p1', validFromFy: 2026, validToFy: null, allocatedAmountUsd: { toString: () => '125.50' }, sourceUrl: 'https://source', sourceObservedAt: at, reviewStatus: 'accepted' },
+    ]);
+    const service = serviceWith({
+      acquisitionRecordRevision: { findMany },
+      programAcquisitionRelationship: { findMany: relationshipFindMany },
+      acquisitionCoverageGap: { count: jest.fn().mockResolvedValue(0) },
+    });
+    const detail = await service.getAcquisitionRecord('usaspending:award:A1');
+    expect(relationshipFindMany.mock.calls[0]?.[0]?.where.reviewStatus).toBe('accepted');
+    expect(detail.extractedFields).toEqual({ geography: ['VA'], naics: ['541512'], psc: ['D302'] });
+    expect(detail.associations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ relationshipClass: 'reviewed_association', allocatedAmountUsd: null }),
+      expect.objectContaining({ relationshipClass: 'source_stated_financial_allocation', allocatedAmountUsd: '125.50' }),
+    ]));
+    await service.getAcquisitionRecord('usaspending:award:A1', true);
+    expect(relationshipFindMany.mock.calls[1]?.[0]?.where.reviewStatus).toEqual({ in: ['accepted', 'candidate'] });
+  });
+
+  test('keeps corrected award actions distinct and preserves signed deltas', async () => {
+    const at = new Date('2026-09-03T00:00:00Z');
+    const findMany = jest.fn().mockResolvedValue([{
+      id: 'action-rev-2', transactionIdentityKey: 'fpds:transaction:T1', awardIdentityKey: 'fpds:award:A1',
+      parentAwardIdentityKey: 'fpds:vehicle:V1', sourceSystem: 'fpds', sourceTransactionId: 'T1', piid: 'A1',
+      modificationNumber: 'P00002', actionDate: at, signedObligationDelta: { toString: () => '-42.50' },
+      signedOutlayDelta: null, correctsIdentityKey: 'fpds:transaction:T1:old', supersedesId: 'action-rev-1',
+      sourceUrl: 'https://fpds.gov/T1', sourceObservedAt: at, recordedAt: at, raw: {},
+    }]);
+    const result = await serviceWith({ acquisitionAwardTransactionRevision: { findMany } }).getAcquisitionActions('fpds:award:A1');
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ distinct: ['transactionIdentityKey'] }));
+    expect(result[0]).toMatchObject({ modificationNumber: 'P00002', signedObligationDelta: '-42.50', correctsIdentityKey: 'fpds:transaction:T1:old' });
+  });
+
+  test('returns open acquisition coverage gaps as gaps rather than fabricated zeros', async () => {
+    const at = new Date('2026-09-04T00:00:00Z');
+    const findMany = jest.fn().mockResolvedValue([{
+      id: 'gap-1', subjectKind: 'program', subjectKey: 'program-1', sourceSystem: 'fpds', relationshipKind: 'award',
+      reason: 'delayed_source', detail: 'Provider is 48 hours behind.', coverageState: 'partial', sourceAsOf: at,
+      firstObservedAt: at, lastObservedAt: at, resolvedAt: null,
+    }]);
+    const result = await serviceWith({ acquisitionCoverageGap: { findMany } }).getAcquisitionCoverage('program', 'program-1');
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { subjectKind: 'program', subjectKey: 'program-1', resolvedAt: null } }));
+    expect(result).toMatchObject({ total: 1, items: [{ reason: 'delayed_source', coverageState: 'partial' }] });
+    expect(JSON.stringify(result)).not.toContain('allocatedAmountUsd');
+  });
 });

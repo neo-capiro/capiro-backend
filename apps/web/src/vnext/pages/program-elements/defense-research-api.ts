@@ -3,6 +3,10 @@ import type {
   DefenseOfficeDetailDto,
   DefenseOfficeListDto,
   DefenseRelationshipListDto,
+  DefenseAcquisitionRecordListDto,
+  DefenseAcquisitionRecordDetailDto,
+  DefenseAcquisitionRecordActionDto,
+  DefenseAcquisitionCoverageGapListDto,
 } from '@capiro/shared';
 
 export interface OfficeFilters {
@@ -25,6 +29,17 @@ export interface RelationshipFilters {
   edgeType?: string;
   status?: string;
   includeSpeculative?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export interface AcquisitionFilters {
+  q?: string;
+  sourceSystem?: string;
+  recordKind?: string;
+  status?: string;
+  buyerOffice?: string;
+  activeOn?: string;
   page?: number;
   limit?: number;
 }
@@ -60,4 +75,29 @@ export async function listDefenseRelationships(
       params: defined(filters as Record<string, unknown>),
     })
   ).data;
+}
+
+export async function listAcquisitionRecords(api: AxiosInstance, filters: AcquisitionFilters) {
+  return (await api.get<DefenseAcquisitionRecordListDto>('/api/defense-budget/acquisition-records', {
+    params: defined(filters as Record<string, unknown>),
+  })).data;
+}
+
+export async function getAcquisitionRecord(api: AxiosInstance, identityKey: string) {
+  return (await api.get<DefenseAcquisitionRecordDetailDto>(
+    `/api/defense-budget/acquisition-records/${encodeURIComponent(identityKey)}`,
+    { params: { includeSpeculative: false } },
+  )).data;
+}
+
+export async function getAcquisitionActions(api: AxiosInstance, identityKey: string) {
+  return (await api.get<readonly DefenseAcquisitionRecordActionDto[]>(
+    `/api/defense-budget/acquisition-records/${encodeURIComponent(identityKey)}/actions`,
+  )).data;
+}
+
+export async function getAcquisitionCoverage(api: AxiosInstance, subjectKind: string, subjectKey: string) {
+  return (await api.get<DefenseAcquisitionCoverageGapListDto>('/api/defense-budget/acquisition-coverage', {
+    params: { subjectKind, subjectKey },
+  })).data;
 }

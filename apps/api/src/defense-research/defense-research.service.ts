@@ -23,6 +23,12 @@ import type {
   DefenseRelationshipEdgeDto,
   OfficeStatus,
   OfficeRelation,
+  DefenseAcquisitionRecordSummaryDto,
+  DefenseAcquisitionRecordListDto,
+  DefenseAcquisitionRecordDetailDto,
+  DefenseAcquisitionRecordActionDto,
+  DefenseAcquisitionCoverageGapListDto,
+  AcquisitionRelationshipClass,
 } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -741,5 +747,260 @@ export class DefenseResearchService {
       edition: null,
       observedAt: observedAt?.toISOString() ?? null,
     }];
+  }
+
+  private acquisitionTextAvailability(raw: unknown): DefenseResearchAvailability {
+    const value = this.record(raw);
+    return ['description', 'text', 'content', 'summary', 'synopsis'].some((key) => this.optionalString(value[key]))
+      ? 'partial'
+      : 'unavailable';
+  }
+
+  private acquisitionRecordSummaryDto(row: any, amendmentCount: number, openGaps: number): DefenseAcquisitionRecordSummaryDto {
+    return {
+      identityKey: row.identityKey,
+      sourceSystem: row.sourceSystem,
+      sourceRecordId: row.sourceRecordId,
+      recordKind: row.recordKind,
+      parentIdentityKey: row.parentIdentityKey,
+      title: row.title,
+      status: row.status,
+      buyerOffice: row.buyerOffice,
+      postedAt: row.postedAt?.toISOString() ?? null,
+      responseDeadline: row.responseDeadline?.toISOString() ?? null,
+      validFrom: row.validFrom?.toISOString() ?? null,
+      validTo: row.validTo?.toISOString() ?? null,
+      contentHash: row.contentHash,
+      sourceUrl: row.sourceUrl,
+      sourceVersion: row.sourceVersion,
+      sourceObservedAt: row.sourceObservedAt?.toISOString() ?? null,
+      recordedAt: row.recordedAt.toISOString(),
+      textAvailability: this.acquisitionTextAvailability(row.raw),
+      amendmentCount,
+      openCoverageGaps: openGaps,
+    };
+  }
+
+  private extractFieldsFromRaw(raw: unknown): DefenseAcquisitionRecordDetailDto['extractedFields'] {
+    const value = this.record(raw);
+    const strings = (...candidates: unknown[]): string[] => [...new Set(candidates.flatMap((candidate) => {
+      if (typeof candidate === 'string' && candidate.trim()) return [candidate.trim()];
+      if (Array.isArray(candidate)) return candidate.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())).map((item) => item.trim());
+      if (candidate && typeof candidate === 'object') return Object.values(candidate as Record<string, unknown>).filter((item): item is string => typeof item === 'string' && Boolean(item.trim())).map((item) => item.trim());
+      return [];
+    }))];
+    const result: DefenseAcquisitionRecordDetailDto['extractedFields'] = {};
+    const geography = strings(value.geography, value.placeOfPerformance, value.place_of_performance);
+    const naics = strings(value.naics, value.naicsCode, value.naicsCodes, value.naics_code);
+    const psc = strings(value.psc, value.pscCode, value.pscCodes, value.psc_code);
+    const setAside = strings(value.setAside, value.setAsideCode, value.setAsideType, value.set_aside);
+    if (geography.length) result.geography = geography;
+    if (naics.length) result.naics = naics;
+    if (psc.length) result.psc = psc;
+    if (setAside.length) result.setAside = setAside;
+    return result;
+  }
+
+  async getAcquisitionRecords(filters: {
+    q?: string;
+    sourceSystem?: string;
+    recordKind?: string;
+    status?: string;
+    buyerOffice?: string;
+    activeOn?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<DefenseAcquisitionRecordListDto> {
+    const page = Math.max(Number(filters.page ?? 1), 1);
+    const limit = Math.min(Math.max(Number(filters.limit ?? 50), 1), 100);
+    const where: any = {
+      ...(filters.sourceSystem ? { sourceSystem: { equals: filters.sourceSystem, mode: 'insensitive' } } : {}),
+      ...(filters.recordKind ? { recordKind: filters.recordKind } : {}),
+      ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.buyerOffice ? { buyerOffice: { contains: filters.buyerOffice, mode: 'insensitive' } } : {}),
+    };
+    if (filters.q) {
+      where.OR = [
+        { identityKey: { contains: filters.q, mode: 'insensitive' } },
+        { sourceRecordId: { contains: filters.q, mode: 'insensitive' } },
+        { title: { contains: filters.q, mode: 'insensitive' } },
+      ];
+    }
+    if (filters.activeOn) {
+      const activeOn = new Date(filters.activeOn);
+      if (!Number.isFinite(activeOn.getTime())) throw new BadRequestException('activeOn must be a valid ISO date.');
+      where.AND = [
+        { OR: [{ validFrom: null }, { validFrom: { lte: activeOn } }] },
+        { OR: [{ validTo: null }, { validTo: { gte: activeOn } }] },
+      ];
+    }
+    const grouped = await this.prisma.acquisitionRecordRevision.groupBy({ by: ['identityKey'], where });
+    const rows = await this.prisma.acquisitionRecordRevision.findMany({
+      where,
+      orderBy: [{ identityKey: 'asc' }, { recordedAt: 'desc' }, { id: 'desc' }],
+      distinct: ['identityKey'],
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    const items = await Promise.all(rows.map(async (row) => {
+      const [amendmentCount, openCoverageGaps] = await Promise.all([
+        this.prisma.acquisitionRecordRevision.groupBy({
+          by: ['identityKey'],
+          where: { parentIdentityKey: row.identityKey, recordKind: 'amendment' },
+        }).then((groups) => groups.length),
+        this.prisma.acquisitionCoverageGap.count({
+          where: { subjectKind: 'acquisition', subjectKey: row.identityKey, resolvedAt: null },
+        }),
+      ]);
+      return this.acquisitionRecordSummaryDto(row, amendmentCount, openCoverageGaps);
+    }));
+    return {
+      items,
+      total: grouped.length,
+      page,
+      limit,
+      filters: {
+        q: filters.q,
+        sourceSystem: filters.sourceSystem,
+        recordKind: filters.recordKind,
+        status: filters.status,
+        buyerOffice: filters.buyerOffice,
+        activeOn: filters.activeOn,
+      },
+    };
+  }
+
+  async getAcquisitionActions(identityKey: string): Promise<readonly DefenseAcquisitionRecordActionDto[]> {
+    if (!identityKey.trim()) throw new BadRequestException('identityKey is required.');
+    const rows = await this.prisma.acquisitionAwardTransactionRevision.findMany({
+      where: { OR: [{ awardIdentityKey: identityKey }, { parentAwardIdentityKey: identityKey }] },
+      orderBy: [{ transactionIdentityKey: 'asc' }, { revision: 'desc' }, { recordedAt: 'desc' }, { id: 'desc' }],
+      distinct: ['transactionIdentityKey'],
+    });
+    return rows.map((row) => ({
+      transactionIdentityKey: row.transactionIdentityKey,
+      awardIdentityKey: row.awardIdentityKey,
+      parentAwardIdentityKey: row.parentAwardIdentityKey,
+      sourceSystem: row.sourceSystem,
+      sourceTransactionId: row.sourceTransactionId,
+      piid: row.piid,
+      modificationNumber: row.modificationNumber,
+      actionDate: row.actionDate?.toISOString().slice(0, 10) ?? null,
+      signedObligationDelta: row.signedObligationDelta?.toString() ?? null,
+      signedOutlayDelta: row.signedOutlayDelta?.toString() ?? null,
+      correctsIdentityKey: row.correctsIdentityKey,
+      supersedesId: row.supersedesId,
+      sourceUrl: row.sourceUrl,
+      sourceObservedAt: row.sourceObservedAt?.toISOString() ?? null,
+      recordedAt: row.recordedAt.toISOString(),
+      raw: row.raw,
+    }));
+  }
+
+  async getAcquisitionRecord(identityKey: string, includeSpeculative?: boolean): Promise<DefenseAcquisitionRecordDetailDto> {
+    const revisions = await this.prisma.acquisitionRecordRevision.findMany({
+      where: { identityKey },
+      orderBy: { recordedAt: 'desc' },
+    });
+    if (revisions.length === 0) {
+      throw new NotFoundException('Acquisition record not found');
+    }
+    const latest = revisions[0]!;
+    const childIdentities = await this.prisma.acquisitionRecordRevision.findMany({
+      where: { parentIdentityKey: identityKey },
+      select: { identityKey: true },
+      distinct: ['identityKey'],
+    }).then((rows) => rows.map((row) => row.identityKey));
+    const amendmentIdentities = await this.prisma.acquisitionRecordRevision.findMany({
+      where: { parentIdentityKey: identityKey, recordKind: 'amendment' },
+      select: { identityKey: true },
+      distinct: ['identityKey'],
+    }).then((rows) => rows.map((row) => row.identityKey));
+    const extractedFields = this.extractFieldsFromRaw(latest.raw);
+    const associations = await this.prisma.programAcquisitionRelationship.findMany({
+      where: {
+        acquisitionIdentityKey: identityKey,
+        reviewStatus: includeSpeculative ? { in: ['accepted', 'candidate'] } : 'accepted',
+      },
+      orderBy: [{ logicalKey: 'asc' }, { recordedAt: 'desc' }, { id: 'desc' }],
+      distinct: ['logicalKey'],
+    });
+    const associationDtos = associations.map((rel) => ({
+      relationshipId: rel.id,
+      relationshipClass: rel.relationshipClass as AcquisitionRelationshipClass,
+      subjectKind: rel.subjectKind,
+      subjectKey: rel.subjectKey,
+      subjectLabel: null,
+      validFromFy: rel.validFromFy,
+      validToFy: rel.validToFy,
+      allocatedAmountUsd: rel.reviewStatus === 'accepted' && (rel.relationshipClass === 'source_stated_financial_allocation' || rel.relationshipClass === 'deterministic_financial_allocation') ? rel.allocatedAmountUsd?.toString() ?? null : null,
+      sourceUrl: rel.sourceUrl,
+      sourceObservedAt: rel.sourceObservedAt?.toISOString() ?? null,
+      reviewStatus: rel.reviewStatus as 'accepted' | 'candidate' | 'quarantined',
+    }));
+    const amendmentCount = amendmentIdentities.length;
+    const openCoverageGaps = await this.prisma.acquisitionCoverageGap.count({
+      where: {
+        subjectKind: 'acquisition',
+        subjectKey: identityKey,
+        resolvedAt: null,
+      },
+    });
+    const summary = this.acquisitionRecordSummaryDto(latest, amendmentCount, openCoverageGaps);
+    return {
+      ...summary,
+      revisions: revisions.map((rev) => ({
+        id: rev.id,
+        identityKey: rev.identityKey,
+        sourceSystem: rev.sourceSystem,
+        sourceRecordId: rev.sourceRecordId,
+        recordKind: rev.recordKind,
+        title: rev.title,
+        status: rev.status,
+        buyerOffice: rev.buyerOffice,
+        postedAt: rev.postedAt?.toISOString() ?? null,
+        responseDeadline: rev.responseDeadline?.toISOString() ?? null,
+        validFrom: rev.validFrom?.toISOString() ?? null,
+        validTo: rev.validTo?.toISOString() ?? null,
+        contentHash: rev.contentHash,
+        sourceUrl: rev.sourceUrl,
+        sourceVersion: rev.sourceVersion,
+        sourceObservedAt: rev.sourceObservedAt?.toISOString() ?? null,
+        recordedAt: rev.recordedAt.toISOString(),
+        raw: rev.raw,
+      })),
+      childIdentities,
+      amendmentIdentities,
+      extractedFields,
+      associations: associationDtos,
+    };
+  }
+
+  async getAcquisitionCoverage(subjectKind: string, subjectKey: string): Promise<DefenseAcquisitionCoverageGapListDto> {
+    if (!subjectKind?.trim() || !subjectKey?.trim()) throw new BadRequestException('subjectKind and subjectKey are required.');
+    const rows = await this.prisma.acquisitionCoverageGap.findMany({
+      where: { subjectKind, subjectKey, resolvedAt: null },
+      orderBy: [{ sourceSystem: 'asc' }, { relationshipKind: 'asc' }, { reason: 'asc' }],
+    });
+    return {
+      items: rows.map((row) => ({
+        id: row.id,
+        subjectKind: row.subjectKind,
+        subjectKey: row.subjectKey,
+        sourceSystem: row.sourceSystem,
+        relationshipKind: row.relationshipKind,
+        reason: row.reason,
+        detail: row.detail,
+        coverageState: row.coverageState,
+        sourceAsOf: row.sourceAsOf?.toISOString() ?? null,
+        firstObservedAt: row.firstObservedAt.toISOString(),
+        lastObservedAt: row.lastObservedAt.toISOString(),
+        resolvedAt: null,
+      })),
+      total: rows.length,
+      page: 1,
+      limit: rows.length,
+      filters: { subjectKind, subjectKey },
+    };
   }
 }
