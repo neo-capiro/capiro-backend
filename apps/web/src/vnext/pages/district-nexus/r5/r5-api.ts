@@ -148,13 +148,39 @@ export async function saveDistrictBrief(
   )).data;
 }
 
-// ── Flag key ────────────────────────────────────────────────────────────────
+// ── Flag keys ───────────────────────────────────────────────────────────────
 
 export const DISTRICT_NEXUS_R5_BRIEF_FEATURE = 'district_nexus_r5_brief';
+export const DISTRICT_NEXUS_R5_MEETING_PREP_FEATURE = 'district_nexus_r5_meeting_prep';
+export const DISTRICT_NEXUS_R5_ALERTS_FEATURE = 'district_nexus_r5_alerts';
+
+// ── R5 Meeting Prep ─────────────────────────────────────────────────────────
+
+const prepPath = '/api/intelligence/district-nexus/r5/meeting-prep';
+export interface R5PrepItem { text: string; factIds: string[] }
+export interface R5Meeting { id: string; subject: string; startsAt: string; attendees: string[] }
+export interface R5MeetingPrep {
+  id: string; meetingId: string; status: 'generated' | 'reviewed' | 'approved';
+  agenda: R5PrepItem[]; talkingPoints: R5PrepItem[]; followUps: R5PrepItem[];
+  risks: R5PrepItem[];
+  generatedFrom: { kind: string; clientId: string; state: string; district: string;
+    questions: R5PrepItem[]; attendeesTargets: string[]; evidence: R5Fact[]; factIds: string[];
+    contextGeneratedAt: string };
+}
+export async function listDistrictPrepMeetings(api: AxiosInstance, clientId: string): Promise<R5Meeting[]> {
+  return (await api.get<R5Meeting[]>(`${prepPath}/meetings`, { params: { clientId } })).data;
+}
+export async function generateDistrictPrep(api: AxiosInstance, input: { clientId: string; state: string; district: string; meetingId: string }): Promise<R5MeetingPrep> {
+  return (await api.post<R5MeetingPrep>(prepPath, input)).data;
+}
+export async function updateDistrictPrep(api: AxiosInstance, id: string, input: {
+  agenda?: R5PrepItem[]; talkingPoints?: R5PrepItem[]; questions?: R5PrepItem[];
+  followUps?: R5PrepItem[]; reviewed?: boolean;
+}): Promise<R5MeetingPrep> {
+  return (await api.patch<R5MeetingPrep>(`${prepPath}/${encodeURIComponent(id)}`, input)).data;
+}
 
 // ── R5 District alerts ──────────────────────────────────────────────────────
-
-export const DISTRICT_NEXUS_R5_ALERTS_FEATURE = 'district_nexus_r5_alerts';
 
 export interface DistrictAlertPayload {
   changeId: string;
