@@ -9,6 +9,8 @@ import { DistrictNexusRelationshipsController } from './district-nexus-relations
 import { DistrictNexusEconomicController } from './district-nexus-economic.controller.js';
 import { DistrictNexusPriorityIntelligenceController } from './priority-intelligence/priority-intelligence.controller.js';
 import { R5DistrictBriefController } from './r5-action-layer/r5-district-brief.controller.js';
+import { R5DistrictActionsController } from './r5-action-layer/r5-district-actions.controller.js';
+import { R5DistrictActionsService } from './r5-action-layer/r5-district-actions.service.js';
 import { R5MeetingPrepController } from './r5-action-layer/r5-meeting-prep.controller.js';
 import { DistrictNexusService } from './district-nexus.service.js';
 import { DistrictNexusRelationshipsService } from './district-nexus-relationships.service.js';
@@ -36,6 +38,7 @@ import { R5MeriDistrictTools } from './r5-action-layer/r5-meri-district-tools.js
  * Strategic Relevance rail. Release 3 adds reviewable first-party economic
  * evidence and public district context. Release 4 adds Federal + Local Priority
  * Intelligence (CPF/CDS, GSA property, sector signals, deterministic changes).
+ * Release 5 adds Proactive Alerts and Recommended Actions.
  * These are registered in one module but remain independently gated and
  * independently scored — no parallel map or blended master score.
  */
@@ -47,6 +50,7 @@ import { R5MeriDistrictTools } from './r5-action-layer/r5-meri-district-tools.js
     DistrictNexusEconomicController,
     DistrictNexusPriorityIntelligenceController,
     R5DistrictBriefController,
+    R5DistrictActionsController,
     R5MeetingPrepController,
     R5DistrictAlertsController,
   ],
@@ -60,6 +64,7 @@ import { R5MeriDistrictTools } from './r5-action-layer/r5-meri-district-tools.js
     DistrictNexusChangeWriter,
     R5DistrictContextService,
     R5DistrictBriefService,
+    R5DistrictActionsService,
     R5DistrictAlertsService,
     R5MeriDistrictTools,
     R5MeetingPrepService,
