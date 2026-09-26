@@ -28,11 +28,12 @@ describe('vNext Meri route state', () => {
   test('parses prompt and client launch context without accepting blank values', () => {
     expect(
       meriContextRequest('?meriPrompt=%20Analyze%20this%20&meriClient=%20client-123%20'),
-    ).toEqual({ prompt: 'Analyze this', clientId: 'client-123', prospectId: null });
+    ).toEqual({ prompt: 'Analyze this', clientId: 'client-123', prospectId: null, researchPortfolioId: null });
     expect(meriContextRequest('?meriClient=client-123')).toEqual({
       prompt: '',
       clientId: 'client-123',
       prospectId: null,
+      researchPortfolioId: null,
     });
     expect(meriContextRequest('?meriPrompt=%20&meriClient=%20')).toBeNull();
     expect(meriContextRequest('?other=1')).toBeNull();
@@ -47,9 +48,29 @@ describe('vNext Meri route state', () => {
       prompt: 'Prepare',
       clientId: null,
       prospectId: '11111111-1111-4111-8111-111111111111',
+      researchPortfolioId: null,
     });
     expect(meriContextRequest('?meriPrompt=Prepare&meriProspect=not-a-uuid')).toBeNull();
     expect(withoutMeriContext('?meriProspect=11111111-1111-4111-8111-111111111111')).toBe('');
+  });
+
+  it('parses a distinct Research Portfolio launch without changing all-client portfolio scope', () => {
+    expect(
+      meriContextRequest(
+        '?meriPrompt=Analyze&meriResearchPortfolio=22222222-2222-4222-8222-222222222222&meriClient=stale-client',
+      ),
+    ).toEqual({
+      prompt: 'Analyze',
+      clientId: null,
+      prospectId: null,
+      researchPortfolioId: '22222222-2222-4222-8222-222222222222',
+    });
+    expect(
+      meriContextRequest('?meriResearchPortfolio=not-a-uuid'),
+    ).toBeNull();
+    expect(
+      withoutMeriContext('?meriResearchPortfolio=22222222-2222-4222-8222-222222222222&other=1'),
+    ).toBe('?other=1');
   });
 
   test('removes one-time context while retaining unrelated query state', () => {
@@ -85,6 +106,27 @@ describe('vNext Meri route state', () => {
       updatedAt: '2026-08-12T20:00:00.000Z',
     });
     expect(normalizeConversation({ title: 'missing id' })).toBeNull();
+  });
+
+  test('retains only the bounded Research Portfolio scope needed to lock client switching', () => {
+    expect(normalizeConversation({
+      id: 'conv-rp',
+      title: 'Portfolio analysis',
+      updatedAt: '2026-09-26T05:00:00.000Z',
+      metadata: {
+        researchPortfolioScope: {
+          kind: 'research_portfolio',
+          researchPortfolioId: '33333333-3333-4333-8333-333333333333',
+          researchPortfolioName: 'Autonomous Maritime Systems',
+          researchPortfolioRevision: 9,
+          scopeVersion: 'a'.repeat(64),
+        },
+      },
+    })?.researchPortfolioScope).toEqual({
+      id: '33333333-3333-4333-8333-333333333333',
+      name: 'Autonomous Maritime Systems',
+      revision: 9,
+    });
   });
 
   test('resolves the newest durable conversation by server updatedAt', () => {

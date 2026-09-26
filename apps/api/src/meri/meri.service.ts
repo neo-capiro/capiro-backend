@@ -48,6 +48,15 @@ import {
   prospectScopeDirective,
   prospectTurnScopeReceipt,
 } from './meri-prospect-scope.helpers.js';
+import {
+  authorizeMeriResearchPortfolioScope,
+  MERI_RESEARCH_PORTFOLIO_SCOPE_METADATA_KEY,
+  readMeriResearchPortfolioScope,
+  ResearchPortfolioMeriScopeService,
+  researchPortfolioScopeDirective,
+  researchPortfolioTurnScopeReceipt,
+  type MeriResearchPortfolioScope,
+} from '../research-portfolios/research-portfolio-meri-scope.service.js';
 import { buildMeriFeedbackTelemetryEvent } from '../quality-telemetry/adapters/meri-feedback.telemetry-adapter.js';
 import {
   applyRecallScoreFloor,
@@ -208,6 +217,7 @@ interface CreateConversationInput {
   // The server resolves the full bounded scope; the client may supply ONLY
   // this id — never any other prospect scope field.
   prospectId?: string;
+  researchPortfolioId?: string;
 }
 
 interface UpdateConversationInput {
@@ -333,6 +343,7 @@ export class MeriService implements MeriTurnMaintenance {
     // BusinessDevelopmentModule. A prospect request with it unavailable
     // fails closed in createConversation.
     @Optional() private readonly bizdevScope?: BizDevMeriScopeService,
+    @Optional() private readonly researchPortfolioScope?: ResearchPortfolioMeriScopeService,
   ) {}
 
   async status(ctx: TenantContext) {
@@ -377,6 +388,9 @@ export class MeriService implements MeriTurnMaintenance {
 
   async createConversation(ctx: TenantContext, input: CreateConversationInput) {
     const title = input.title?.trim() || 'New Meri session';
+    if (input.prospectId && input.researchPortfolioId) {
+      throw new BadRequestException('Choose either a prospect or a Research Portfolio scope');
+    }
     let resolvedClientId = input.clientId ?? null;
     // ── Phase 4 server-only slice: prospect-scoped conversation creation ──
     // Resolve the bounded prospect scope SERVER-side before any write. A
@@ -401,6 +415,16 @@ export class MeriService implements MeriTurnMaintenance {
         );
       }
     }
+    let researchScope: MeriResearchPortfolioScope | null = null;
+    if (input.researchPortfolioId) {
+      if (!this.researchPortfolioScope) throw new NotFoundException();
+      if (resolvedClientId) {
+        throw new BadRequestException(
+          'A Research Portfolio conversation cannot inherit an unrelated client scope.',
+        );
+      }
+      researchScope = await this.researchPortfolioScope.resolve(ctx, input.researchPortfolioId);
+    }
     if (resolvedClientId) {
       // Linked and directly selected clients use the same visibility check,
       // exactly once, before the conversation is written.
@@ -424,6 +448,13 @@ export class MeriService implements MeriTurnMaintenance {
               ? {
                   [MERI_PROSPECT_SCOPE_METADATA_KEY]: JSON.parse(
                     JSON.stringify(prospectScope),
+                  ) as Prisma.InputJsonValue,
+                }
+              : {}),
+            ...(researchScope
+              ? {
+                  [MERI_RESEARCH_PORTFOLIO_SCOPE_METADATA_KEY]: JSON.parse(
+                    JSON.stringify(researchScope),
                   ) as Prisma.InputJsonValue,
                 }
               : {}),
@@ -454,6 +485,16 @@ export class MeriService implements MeriTurnMaintenance {
     }
 
     if (input.clientId !== undefined) {
+      const metadata = conversation.metadata && typeof conversation.metadata === 'object'
+        ? conversation.metadata as Record<string, unknown>
+        : null;
+      if (readMeriResearchPortfolioScope(
+        metadata?.[MERI_RESEARCH_PORTFOLIO_SCOPE_METADATA_KEY],
+      )) {
+        throw new BadRequestException(
+          'A Research Portfolio conversation cannot be reassigned to a client scope.',
+        );
+      }
       if (input.clientId) await this.ensureClientVisible(ctx, input.clientId);
       data.client = input.clientId ? { connect: { id: input.clientId } } : { disconnect: true };
     }
@@ -670,6 +711,11 @@ export class MeriService implements MeriTurnMaintenance {
     // stale scope; ordinary unscoped conversations proceed unchanged.
     const prospectScope = await authorizeMeriProspectScope(
       this.bizdevScope,
+      ctx,
+      conversation.metadata,
+    );
+    const researchScope = await authorizeMeriResearchPortfolioScope(
+      this.researchPortfolioScope,
       ctx,
       conversation.metadata,
     );
@@ -1108,6 +1154,7 @@ export class MeriService implements MeriTurnMaintenance {
         // Phase 4: the re-asserted prospect scope rides the proxy branch so it
         // can bind the directive and receipt on that path too.
         prospectScope,
+        researchScope,
         ...(clientSignal ? { clientSignal } : {}),
       });
       return;
@@ -1148,6 +1195,7 @@ export class MeriService implements MeriTurnMaintenance {
       // prospect into the legacy system prompt (dynamic tail, never the
       // cached base — same rule as the client-scope directive).
       prospectScope,
+      researchScope,
     );
 
     sse.write(
@@ -2149,7 +2197,9 @@ export class MeriService implements MeriTurnMaintenance {
             // re-asserted server scope — never retrieval plans/model output.
             ...(prospectScope
               ? { turnScope: prospectTurnScopeReceipt(prospectScope) as unknown as Prisma.InputJsonValue }
-              : {}),
+              : researchScope
+                ? { turnScope: researchPortfolioTurnScopeReceipt(researchScope) as unknown as Prisma.InputJsonValue }
+                : {}),
             ...(complianceScreen.flagged
               ? { compliance: { flagged: true, category: complianceScreen.category } }
               : {}),
@@ -2250,6 +2300,9 @@ export class MeriService implements MeriTurnMaintenance {
         partial,
         ...(assistantMessageId ? { messageId: assistantMessageId } : {}),
         ...(prospectScope ? { turnScope: prospectTurnScopeReceipt(prospectScope) } : {}),
+        ...(!prospectScope && researchScope
+          ? { turnScope: researchPortfolioTurnScopeReceipt(researchScope) }
+          : {}),
       })}\n\n`,
     );
   }
@@ -2285,6 +2338,7 @@ export class MeriService implements MeriTurnMaintenance {
     impersonateTenantId?: string;
     conversationSummary: string | null;
     prospectScope: MeriProspectScope | null;
+    researchScope: MeriResearchPortfolioScope | null;
   }): Promise<void> {
     const { ctx, sse } = args;
     const emit = (event: Record<string, unknown>) =>
@@ -2525,6 +2579,9 @@ export class MeriService implements MeriTurnMaintenance {
           ...(args.prospectScope
             ? { prospectDirective: prospectScopeDirective(args.prospectScope) }
             : {}),
+          ...(args.researchScope
+            ? { researchDirective: researchPortfolioScopeDirective(args.researchScope) }
+            : {}),
           ...(clientKbSnapshot ? { clientKbSnapshot } : {}),
           ...(args.pageWriteEnabled ? { pageWrite: true } : {}),
           ...(args.currentTurnImages.length
@@ -2693,7 +2750,9 @@ export class MeriService implements MeriTurnMaintenance {
               // re-asserted server scope — never retrieval plans/model output.
               ...(args.prospectScope
                 ? { turnScope: prospectTurnScopeReceipt(args.prospectScope) as unknown as Prisma.InputJsonValue }
-                : {}),
+                : args.researchScope
+                  ? { turnScope: researchPortfolioTurnScopeReceipt(args.researchScope) as unknown as Prisma.InputJsonValue }
+                  : {}),
               actions: steps
                 .filter((s) => s.status === 'done' && isSideEffectingTool(s.tool))
                 .map((s) => ({ tool: s.tool, kind: classifyToolAction(s.tool), ok: true })),
@@ -2751,6 +2810,9 @@ export class MeriService implements MeriTurnMaintenance {
       type: 'done',
       ...(assistantMessageId ? { messageId: assistantMessageId } : {}),
       ...(args.prospectScope ? { turnScope: prospectTurnScopeReceipt(args.prospectScope) } : {}),
+      ...(!args.prospectScope && args.researchScope
+        ? { turnScope: researchPortfolioTurnScopeReceipt(args.researchScope) }
+        : {}),
     });
   }
 
@@ -3694,6 +3756,7 @@ export class MeriService implements MeriTurnMaintenance {
     firmSkill: MeriSkill | null = null,
     activeClient: { id: string; name: string } | null = null,
     prospectScope: MeriProspectScope | null = null,
+    researchScope: MeriResearchPortfolioScope | null = null,
   ): { base: string; dynamic: string } {
     const base = [
       'You are Meri, an elite AI chief of staff designed exclusively for government affairs professionals.',
@@ -3772,6 +3835,7 @@ export class MeriService implements MeriTurnMaintenance {
     // everything that follows and must sit in the per-conversation dynamic
     // tail, never the shared cached base.
     if (prospectScope) tail.push(prospectScopeDirective(prospectScope));
+    if (researchScope) tail.push(researchPortfolioScopeDirective(researchScope));
     if (guidance) tail.push(guidance);
     if (template) {
       tail.push(`Output template: ${template.heading}`);
@@ -3797,6 +3861,7 @@ export class MeriService implements MeriTurnMaintenance {
     firmSkill: MeriSkill | null = null,
     activeClient: { id: string; name: string } | null = null,
     prospectScope: MeriProspectScope | null = null,
+    researchScope: MeriResearchPortfolioScope | null = null,
   ): SystemTextBlock[] {
     const { base, dynamic } = this.composeSystemParts(
       intent,
@@ -3806,6 +3871,7 @@ export class MeriService implements MeriTurnMaintenance {
       firmSkill,
       activeClient,
       prospectScope,
+      researchScope,
     );
     return buildMeriSystemBlocks({ base, dynamic, cacheEnabled });
   }

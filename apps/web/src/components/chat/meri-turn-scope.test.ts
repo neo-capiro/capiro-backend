@@ -19,6 +19,20 @@ describe('Meri historical scope hydration', () => {
     expect(meriTurnScopeLabel(scope)).toBe('Prospect · Acme LLC');
   });
 
+  test('keeps a Research Portfolio receipt distinct from all-client portfolio scope', () => {
+    const scope = readMeriTurnScope({
+      kind: 'research_portfolio',
+      researchPortfolioId: '22222222-2222-4222-8222-222222222222',
+      researchPortfolioName: 'Autonomous Maritime Systems',
+      researchPortfolioRevision: 9,
+      scopeVersion: 'b'.repeat(64),
+    });
+    expect(scope?.kind).toBe('research_portfolio');
+    expect(meriTurnScopeLabel(scope)).toBe('Research Portfolio · Autonomous Maritime Systems');
+    expect(meriTurnScopeLabel({ kind: 'portfolio', clientId: null, clientName: null, targetHint: null }))
+      .toBe('Portfolio — all clients');
+  });
+
   test.each([
     ['bad prospect id', { prospectId: 'not-a-uuid' }],
     ['empty name', { prospectName: ' ' }],

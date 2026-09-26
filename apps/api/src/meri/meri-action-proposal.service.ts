@@ -100,7 +100,13 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
   }
   const source = result as Record<string, unknown>;
   const summary: Record<string, Prisma.InputJsonValue> = { ok: source.ok !== false };
-  for (const key of ['tool', 'id', 'status', 'name', 'title', 'clientId', 'clientName', 'documentId', 'location', 'indexingStatus', 'reused', 'savedCount', 'pendingCount', 'failedCount', 'message']) {
+  for (const key of [
+    'tool', 'id', 'status', 'name', 'title', 'clientId', 'clientName', 'documentId',
+    'location', 'indexingStatus', 'reused', 'savedCount', 'pendingCount', 'failedCount',
+    'message', 'portfolioId', 'portfolioRevision', 'resultingRevision', 'snapshotId',
+    'requestId', 'jobId', 'outputId', 'artifactId', 'operationKey', 'contentHash',
+    'attachmentId', 'attachmentName', 'openPath', 'draftId',
+  ]) {
     const value = source[key];
     if (typeof value === 'string') summary[key] = bounded(value, 300) ?? '';
     else if (typeof value === 'number' || typeof value === 'boolean') summary[key] = value;
@@ -136,6 +142,29 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
         .filter((key) => typeof row[key] === 'string')
         .map((key) => [key, bounded(row[key], key === 'reason' ? 500 : 300) ?? '']));
     });
+  }
+  for (const key of ['request', 'artifact', 'task']) {
+    const value = source[key];
+    if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+    const record = value as Record<string, unknown>;
+    summary[key] = Object.fromEntries(
+      [
+        'id', 'status', 'portfolioId', 'snapshotId', 'operationKey', 'requestId',
+        'artifactId', 'contentHash', 'attachmentId', 'openPath', 'title',
+      ]
+        .filter((field) =>
+          typeof record[field] === 'string' ||
+          typeof record[field] === 'number' ||
+          typeof record[field] === 'boolean' ||
+          record[field] === null,
+        )
+        .map((field) => [
+          field,
+          typeof record[field] === 'string'
+            ? bounded(record[field], 300) ?? ''
+            : record[field] as Prisma.InputJsonValue,
+        ]),
+    );
   }
   return summary as Prisma.InputJsonValue;
 }

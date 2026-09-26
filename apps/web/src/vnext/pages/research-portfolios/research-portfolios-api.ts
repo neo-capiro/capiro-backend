@@ -21,6 +21,21 @@ import type {
   ResearchPortfolioReviewDto,
   ResearchPortfolioReviewMutationReceiptDto,
   CreateResearchPortfolioImportDto,
+  CreateResearchPortfolioOutputDto,
+  CreateResearchPortfolioSnapshotDto,
+  CreateResearchPortfolioSubscriptionDto,
+  ResearchPortfolioAnalyticsDto,
+  ResearchPortfolioChangeDto,
+  ResearchPortfolioClientFileReceiptDto,
+  ResearchPortfolioEventRecipientStateDto,
+  ResearchPortfolioOutputArtifactDto,
+  ResearchPortfolioOutputJobDto,
+  ResearchPortfolioSnapshotDto,
+  ResearchPortfolioSnapshotSummaryDto,
+  ResearchPortfolioSubscriptionDto,
+  SaveResearchPortfolioOutputToClientDto,
+  UpdateResearchPortfolioEventStateDto,
+  UpdateResearchPortfolioSubscriptionDto,
 } from '@capiro/shared';
 
 export const researchPortfolioKeys = {
@@ -29,7 +44,18 @@ export const researchPortfolioKeys = {
   reviews: (id: string, lane: string) => ['research-portfolios', id, 'reviews', lane] as const,
   annualReview: (id: string) => ['research-portfolios', id, 'annual-review'] as const,
   import: (id: string, jobId: string) => ['research-portfolios', id, 'imports', jobId] as const,
+  changes: (id: string) => ['research-portfolios', id, 'changes'] as const,
+  subscriptions: (id: string) => ['research-portfolios', id, 'subscriptions'] as const,
+  analytics: (id: string) => ['research-portfolios', id, 'analytics'] as const,
+  snapshots: (id: string) => ['research-portfolios', id, 'snapshots'] as const,
+  snapshot: (id: string, snapshotId: string) => ['research-portfolios', id, 'snapshots', snapshotId] as const,
+  outputJob: (id: string, jobId: string) => ['research-portfolios', id, 'outputs', jobId] as const,
 };
+
+export interface ResearchPortfolioChangesResponse {
+  items: readonly ResearchPortfolioChangeDto[];
+  nextCursor: string | null;
+}
 
 export function newIdempotencyKey(operation: string): string {
   const suffix = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
@@ -240,5 +266,153 @@ export async function actOnResearchPortfolioImport(
   return (await api.post<ResearchPortfolioImportDetailDto>(
     `/api/research-portfolios/${id}/imports/${jobId}/${action}`,
     { ...input, operationKey: newIdempotencyKey(`import-${action}`) },
+  )).data;
+}
+
+export async function listResearchPortfolioChanges(
+  api: AxiosInstance,
+  id: string,
+  cursor?: string | null,
+  limit = 50,
+): Promise<ResearchPortfolioChangesResponse> {
+  return (await api.get<ResearchPortfolioChangesResponse>(`/api/research-portfolios/${id}/changes`, {
+    params: { ...(cursor ? { cursor } : {}), limit },
+  })).data;
+}
+
+export async function updateResearchPortfolioChangeState(
+  api: AxiosInstance,
+  id: string,
+  eventId: string,
+  input: UpdateResearchPortfolioEventStateDto,
+): Promise<ResearchPortfolioEventRecipientStateDto> {
+  return (await api.patch<ResearchPortfolioEventRecipientStateDto>(
+    `/api/research-portfolios/${id}/changes/${encodeURIComponent(eventId)}/state`,
+    input,
+  )).data;
+}
+
+export async function listResearchPortfolioSubscriptions(
+  api: AxiosInstance,
+  id: string,
+): Promise<readonly ResearchPortfolioSubscriptionDto[]> {
+  return (await api.get<readonly ResearchPortfolioSubscriptionDto[]>(
+    `/api/research-portfolios/${id}/subscriptions`,
+  )).data;
+}
+
+export async function createResearchPortfolioSubscription(
+  api: AxiosInstance,
+  id: string,
+  input: CreateResearchPortfolioSubscriptionDto,
+): Promise<ResearchPortfolioSubscriptionDto> {
+  return (await api.post<ResearchPortfolioSubscriptionDto>(
+    `/api/research-portfolios/${id}/subscriptions`,
+    input,
+  )).data;
+}
+
+export async function updateResearchPortfolioSubscription(
+  api: AxiosInstance,
+  id: string,
+  subscriptionId: string,
+  input: UpdateResearchPortfolioSubscriptionDto,
+): Promise<ResearchPortfolioSubscriptionDto> {
+  return (await api.patch<ResearchPortfolioSubscriptionDto>(
+    `/api/research-portfolios/${id}/subscriptions/${encodeURIComponent(subscriptionId)}`,
+    input,
+  )).data;
+}
+
+export async function getResearchPortfolioAnalytics(
+  api: AxiosInstance,
+  id: string,
+): Promise<ResearchPortfolioAnalyticsDto> {
+  return (await api.get<ResearchPortfolioAnalyticsDto>(`/api/research-portfolios/${id}/analytics`)).data;
+}
+
+export async function listResearchPortfolioSnapshots(
+  api: AxiosInstance,
+  id: string,
+): Promise<readonly ResearchPortfolioSnapshotSummaryDto[]> {
+  return (await api.get<readonly ResearchPortfolioSnapshotSummaryDto[]>(
+    `/api/research-portfolios/${id}/snapshots`,
+  )).data;
+}
+
+export async function createResearchPortfolioSnapshot(
+  api: AxiosInstance,
+  id: string,
+  input: Omit<CreateResearchPortfolioSnapshotDto, 'operationKey'>,
+): Promise<ResearchPortfolioSnapshotDto> {
+  return (await api.post<ResearchPortfolioSnapshotDto>(`/api/research-portfolios/${id}/snapshots`, {
+    ...input,
+    operationKey: newIdempotencyKey('snapshot-create'),
+  })).data;
+}
+
+export async function getResearchPortfolioSnapshot(
+  api: AxiosInstance,
+  id: string,
+  snapshotId: string,
+): Promise<ResearchPortfolioSnapshotDto> {
+  return (await api.get<ResearchPortfolioSnapshotDto>(
+    `/api/research-portfolios/${id}/snapshots/${encodeURIComponent(snapshotId)}`,
+  )).data;
+}
+
+export async function createResearchPortfolioOutput(
+  api: AxiosInstance,
+  id: string,
+  input: Omit<CreateResearchPortfolioOutputDto, 'operationKey'>,
+): Promise<ResearchPortfolioOutputJobDto> {
+  return (await api.post<ResearchPortfolioOutputJobDto>(`/api/research-portfolios/${id}/outputs`, {
+    ...input,
+    operationKey: newIdempotencyKey('output-create'),
+  })).data;
+}
+
+export async function getResearchPortfolioOutputJob(
+  api: AxiosInstance,
+  id: string,
+  jobId: string,
+): Promise<ResearchPortfolioOutputJobDto> {
+  return (await api.get<ResearchPortfolioOutputJobDto>(
+    `/api/research-portfolios/${id}/output-jobs/${encodeURIComponent(jobId)}`,
+  )).data;
+}
+
+export async function actOnResearchPortfolioOutput(
+  api: AxiosInstance,
+  id: string,
+  jobId: string,
+  action: 'cancel' | 'retry' | 'reconcile',
+): Promise<ResearchPortfolioOutputJobDto> {
+  return (await api.post<ResearchPortfolioOutputJobDto>(
+    `/api/research-portfolios/${id}/output-jobs/${encodeURIComponent(jobId)}/${action}`,
+  )).data;
+}
+
+export async function downloadResearchPortfolioOutput(
+  api: AxiosInstance,
+  id: string,
+  artifact: ResearchPortfolioOutputArtifactDto,
+): Promise<Blob> {
+  const response = await api.get<Blob>(
+    `/api/research-portfolios/${id}/outputs/${encodeURIComponent(artifact.id)}/download`,
+    { responseType: 'blob' },
+  );
+  return response.data;
+}
+
+export async function saveResearchPortfolioOutputToClient(
+  api: AxiosInstance,
+  id: string,
+  outputId: string,
+  input: Omit<SaveResearchPortfolioOutputToClientDto, 'operationKey'>,
+): Promise<ResearchPortfolioClientFileReceiptDto> {
+  return (await api.post<ResearchPortfolioClientFileReceiptDto>(
+    `/api/research-portfolios/${id}/outputs/${encodeURIComponent(outputId)}/client-files`,
+    { ...input, operationKey: newIdempotencyKey('output-client-file') },
   )).data;
 }

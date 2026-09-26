@@ -47,9 +47,15 @@ import { MeriToolsService, TOOL_DEFINITIONS } from './meri-tools.service.js';
 describe('buyer workspace Meri tool', () => {
   it('passes a pinned read through without changing coverage or unsupported gaps', async () => {
     const payload = {
-      subject: { type: 'pe', id: '0603851F' }, asOfFy: 2027,
+      subject: { type: 'pe', id: '0603851F' },
+      asOfFy: 2027,
       knownAt: '2026-09-24T00:00:00.000Z',
-      budget: { state: 'unsupported', data: null, coverage: { unresolvedReasons: [{ code: 'gap' }] }, freshness: null },
+      budget: {
+        state: 'unsupported',
+        data: null,
+        coverage: { unresolvedReasons: [{ code: 'gap' }] },
+        freshness: null,
+      },
       federalEvidence: { state: 'unsupported', data: null },
       acquisition: { state: 'partial', data: { events: [1] } },
       fundingExecution: { state: 'complete', data: { publications: [2] } },
@@ -60,11 +66,13 @@ describe('buyer workspace Meri tool', () => {
     }) as MeriToolsService;
     const input = { peCode: '0603851F', asOfFy: 2027, knownAt: '2026-09-24T00:00:00Z' };
     await expect(service.execute({} as never, 'get_pe_buyer_workspace', input)).resolves.toEqual({
-      tool: 'get_pe_buyer_workspace', ...payload,
+      tool: 'get_pe_buyer_workspace',
+      ...payload,
     });
     expect(read).toHaveBeenCalledWith(input);
-    await expect(service.execute({} as never, 'get_pe_buyer_workspace', { ...input, asOfFy: '2027' }))
-      .rejects.toThrow('asOfFy');
+    await expect(
+      service.execute({} as never, 'get_pe_buyer_workspace', { ...input, asOfFy: '2027' }),
+    ).rejects.toThrow('asOfFy');
     expect(read).toHaveBeenCalledTimes(1);
   });
 });
@@ -94,6 +102,15 @@ const EXPECTED_TOOLS = [
   'search_capiro_data',
   'get_research_evidence',
   'search_research_sources',
+  // Defense Intelligence Research Portfolios — one domain service surface.
+  'get_research_portfolio',
+  'get_research_portfolio_analytics',
+  'get_research_portfolio_changes',
+  'create_research_portfolio_snapshot',
+  'request_research_portfolio_output',
+  'save_research_portfolio_output_to_client',
+  'watch_research_portfolio',
+  'update_research_portfolio_change_state',
   // Client knowledge base (assistant-parity F5)
   'search_client_knowledge',
   // Analysis sandbox (assistant-parity F4; pilot-gated per tenant)
@@ -251,6 +268,24 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   search_capiro_data: ['query', 'domains'],
   get_research_evidence: ['sessionId'],
   search_research_sources: ['query'],
+  get_research_portfolio: ['conversationId'],
+  get_research_portfolio_analytics: ['conversationId'],
+  get_research_portfolio_changes: ['conversationId'],
+  create_research_portfolio_snapshot: [
+    'conversationId',
+    'operationKey',
+    'name',
+    'expectedRevision',
+  ],
+  request_research_portfolio_output: ['conversationId', 'operationKey'],
+  save_research_portfolio_output_to_client: [
+    'conversationId',
+    'outputId',
+    'clientId',
+    'operationKey',
+  ],
+  watch_research_portfolio: ['conversationId'],
+  update_research_portfolio_change_state: ['conversationId', 'eventId', 'action'],
   search_client_knowledge: ['query'],
   run_analysis: ['code'],
   search_public_web: ['query'],
@@ -516,6 +551,14 @@ describe('Meri tool registration', () => {
             },
           });
         }
+        if (property === 'requireResearchPortfolioTools') {
+          return () => ({
+            execute: () => {
+              calls.push('researchPortfolioExecute');
+              return sentinel;
+            },
+          });
+        }
         const actual = Reflect.get(target, property);
         if (typeof actual !== 'function') return actual;
         return () => {
@@ -560,12 +603,12 @@ describe('Meri tool registration', () => {
     const service = Object.create(MeriToolsService.prototype) as MeriToolsService;
     const enabled = schemas();
     const baseline = enabled.filter((schema) => schema.name !== 'get_certification_status');
-    expect(service.anthropicToolSchemas({ tenantId: 'tenant-1', surface: 'chat', env: {} })).toEqual(
-      baseline,
+    expect(
+      service.anthropicToolSchemas({ tenantId: 'tenant-1', surface: 'chat', env: {} }),
+    ).toEqual(baseline);
+    expect(enabled.filter((schema) => !baseline.some((item) => item.name === schema.name))).toEqual(
+      [expect.objectContaining({ name: 'get_certification_status' })],
     );
-    expect(enabled.filter((schema) => !baseline.some((item) => item.name === schema.name))).toEqual([
-      expect.objectContaining({ name: 'get_certification_status' }),
-    ]);
     expect(
       service.anthropicToolSchemas({
         tenantId: 'tenant-1',
@@ -577,6 +620,24 @@ describe('Meri tool registration', () => {
         },
       }),
     ).toEqual(baseline);
+  });
+
+  it('can independently remove research portfolio tools from the model surface', () => {
+    const service = Object.create(MeriToolsService.prototype) as MeriToolsService;
+    const toolSchemas = service.anthropicToolSchemas({
+      tenantId: '11111111-1111-4111-8111-111111111111',
+      surface: 'chat',
+      env: {
+        MERI_STATUS_PROVENANCE_MODE: 'enforce',
+        MERI_STATUS_PROVENANCE_TENANTS: 'all',
+        MERI_STATUS_PROVENANCE_SURFACES: 'chat',
+        RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED: 'false',
+      },
+    });
+
+    expect(toolSchemas.some((schema) => schema.name === 'get_research_portfolio')).toBe(false);
+    expect(toolSchemas.some((schema) => schema.name === 'search_capiro_data')).toBe(true);
+    expect(toolSchemas.some((schema) => schema.name === 'get_certification_status')).toBe(true);
   });
 
   it('legacy read-only chat excludes every side-effecting (write) tool from the model surface', () => {
@@ -606,6 +667,11 @@ describe('Meri tool registration', () => {
       'create_meeting_brief',
       'draft_policy_memo',
       'save_business_development_brief',
+      'create_research_portfolio_snapshot',
+      'request_research_portfolio_output',
+      'save_research_portfolio_output_to_client',
+      'watch_research_portfolio',
+      'update_research_portfolio_change_state',
     ];
     // isSideEffecting flags exactly the write tools — and not read/compute tools.
     for (const t of writeTools) expect(svc.isSideEffecting(t)).toBe(true);

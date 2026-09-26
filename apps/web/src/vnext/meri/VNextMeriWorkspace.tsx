@@ -198,6 +198,7 @@ export function VNextMeriWorkspace() {
   // One-shot server-resolved scope for a contextual Business Development
   // launch. Claimed and cleared by the first durable conversation creation.
   const pendingProspectLaunchRef = useRef<string | null>(null);
+  const pendingResearchPortfolioLaunchRef = useRef<string | null>(null);
   const handledContextRef = useRef<string | null>(null);
   const bootSequenceRef = useRef(0);
   const previousRoutePathRef = useRef<string | null>(null);
@@ -253,6 +254,7 @@ export function VNextMeriWorkspace() {
     pendingSendSessionIdRef.current = null;
     activeFirstSendTokenRef.current = null;
     pendingProspectLaunchRef.current = null;
+    pendingResearchPortfolioLaunchRef.current = null;
     setIsCreatingThread(false);
     setRouteClients([]);
     setSelectedClientId(null);
@@ -449,6 +451,8 @@ export function VNextMeriWorkspace() {
       const requestClientId = selectedClientId || undefined;
       const requestProspectId = pendingProspectLaunchRef.current;
       pendingProspectLaunchRef.current = null;
+      const requestResearchPortfolioId = pendingResearchPortfolioLaunchRef.current;
+      pendingResearchPortfolioLaunchRef.current = null;
       const draftReasoningMode = readDraftReasoningMode(requestIdentityKey);
       const headers = await authHeaders();
       if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return null;
@@ -458,7 +462,12 @@ export function VNextMeriWorkspace() {
         body: JSON.stringify({
           ...(requestProspectId
             ? { prospectId: requestProspectId, title: MERI_PROSPECT_LAUNCH_TITLE }
-            : { clientId: requestClientId, title: 'Chat session' }),
+            : requestResearchPortfolioId
+              ? {
+                  researchPortfolioId: requestResearchPortfolioId,
+                  title: 'Research Portfolio analysis',
+                }
+              : { clientId: requestClientId, title: 'Chat session' }),
         }),
       });
       if (!response.ok) {
@@ -930,7 +939,7 @@ export function VNextMeriWorkspace() {
       handledContextRef.current = null;
       return;
     }
-    const requestKey = `${request.prompt}\u0000${request.clientId ?? ''}\u0000${request.prospectId ?? ''}`;
+    const requestKey = `${request.prompt}\u0000${request.clientId ?? ''}\u0000${request.prospectId ?? ''}\u0000${request.researchPortfolioId ?? ''}`;
     if (handledContextRef.current === requestKey) return;
 
     // A contextual client launch is authorized only by the route bootstrap's
@@ -946,6 +955,13 @@ export function VNextMeriWorkspace() {
         return;
       }
       pendingProspectLaunchRef.current = request.prospectId;
+    }
+    if (request.researchPortfolioId) {
+      if (selectedClientId !== null) {
+        setSelectedClientId(null);
+        return;
+      }
+      pendingResearchPortfolioLaunchRef.current = request.researchPortfolioId;
     }
     if (request.clientId) {
       if (routeClientsError || availableClients.length === 0) {
@@ -1200,6 +1216,10 @@ export function VNextMeriWorkspace() {
       const currentConversation = activeConversationId
         ? (conversations.find((conversation) => conversation.id === activeConversationId) ?? null)
         : null;
+      if (currentConversation?.researchPortfolioScope) {
+        setRouteError('Research Portfolio chats keep their server-authorized portfolio scope and cannot be reassigned to a client.');
+        return;
+      }
       const currentClientId = activeConversationId
         ? controller.selectedClientValue || currentConversation?.clientId || null
         : selectedClientId || null;
@@ -1236,8 +1256,13 @@ export function VNextMeriWorkspace() {
 
   const activeConversation =
     conversations.find((conversation) => conversation.id === activeConversationId) ?? null;
-  const effectiveClients = controller.clients.length > 0 ? controller.clients : routeClients;
-  const effectiveSelectedClient = activeConversationId
+  const isResearchPortfolioConversation = Boolean(activeConversation?.researchPortfolioScope);
+  const effectiveClients = isResearchPortfolioConversation
+    ? []
+    : controller.clients.length > 0 ? controller.clients : routeClients;
+  const effectiveSelectedClient = isResearchPortfolioConversation
+    ? ''
+    : activeConversationId
     ? controller.selectedClientValue || activeConversation?.clientId || ''
     : selectedClientId || '';
 

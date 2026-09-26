@@ -573,3 +573,273 @@ export interface ResearchPortfolioImportActionDto {
   repairs?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   compensationPreviewHash?: string;
 }
+
+// Phase 9 — personal change state, qualified analytics, immutable snapshots,
+// and durable output delivery.
+
+export type ResearchPortfolioEventStateAction = 'seen' | 'acknowledged' | 'dismissed' | 'undo';
+
+export interface ResearchPortfolioEventRecipientStateDto {
+  eventId: string;
+  recipientUserId: string;
+  revision: number;
+  seenAt: string | null;
+  acknowledgedAt: string | null;
+  dismissedAt: string | null;
+  updatedAt: string;
+}
+
+export interface ResearchPortfolioChangeDto extends ResearchPortfolioEventDto {
+  state: ResearchPortfolioEventRecipientStateDto | null;
+}
+
+export interface UpdateResearchPortfolioEventStateDto {
+  action: ResearchPortfolioEventStateAction;
+  expectedRevision?: number;
+}
+
+export type ResearchPortfolioSubscriptionTargetKind =
+  | 'portfolio'
+  | ResearchPortfolioMemberKind
+  | 'client'
+  | 'rule'
+  | 'review';
+export type ResearchPortfolioSubscriptionChannel = 'in_app' | 'email';
+export type ResearchPortfolioSubscriptionCadence = 'immediate' | 'daily' | 'weekly';
+
+export interface ResearchPortfolioSubscriptionDto {
+  id: string;
+  portfolioId: string;
+  subscriberUserId: string;
+  targetKind: ResearchPortfolioSubscriptionTargetKind;
+  targetId: string;
+  channel: ResearchPortfolioSubscriptionChannel;
+  cadence: ResearchPortfolioSubscriptionCadence;
+  active: boolean;
+  baselineEventId: string | null;
+  baselineRevision: number;
+  baselineCompletedAt: string;
+  checkpoint: Readonly<Record<string, unknown>>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ResearchPortfolioSubscriptionDeliveryDto {
+  id: string;
+  subscriptionId: string;
+  eventId: string;
+  recipientUserId: string;
+  channel: 'in_app' | 'email';
+  status: 'queued' | 'delivered' | 'partial' | 'failed' | 'withheld' | 'cancelled' | 'outcome_unknown';
+  attemptNumber: number;
+  checkpoint: Readonly<Record<string, unknown>>;
+  receipt: Readonly<Record<string, unknown>>;
+  errorCode: string | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface CreateResearchPortfolioSubscriptionDto {
+  targetKind: ResearchPortfolioSubscriptionTargetKind;
+  targetId: string;
+  channel: ResearchPortfolioSubscriptionChannel;
+  cadence: ResearchPortfolioSubscriptionCadence;
+}
+
+export interface UpdateResearchPortfolioSubscriptionDto {
+  active?: boolean;
+  channel?: ResearchPortfolioSubscriptionChannel;
+  cadence?: ResearchPortfolioSubscriptionCadence;
+}
+
+export interface ResearchPortfolioFinancialBasisDto {
+  requestEdition: string | null;
+  fundingFiscalYear: number;
+  stage: string;
+  metric: 'funding' | 'quantity' | 'unit_cost';
+  unit: 'usd_millions' | 'units' | 'usd_millions_per_unit';
+  currency: 'USD';
+  priceBasis: string | null;
+  knownAt: string | null;
+}
+
+export type ResearchPortfolioContributionDisposition =
+  | 'included'
+  | 'excluded'
+  | 'overlap'
+  | 'incompatible'
+  | 'missing'
+  | 'unavailable'
+  | 'withheld';
+
+export interface ResearchPortfolioContributionDto {
+  contributionId: string;
+  memberId: string;
+  targetKind: ResearchPortfolioMemberKind;
+  targetId: string;
+  label: string | null;
+  basis: ResearchPortfolioFinancialBasisDto | null;
+  value: string | null;
+  disposition: ResearchPortfolioContributionDisposition;
+  reason: string;
+  sourceObservationId: string | null;
+  sourceRevisionIds: readonly string[];
+  evidence: readonly Readonly<Record<string, unknown>>[];
+  dedupKey: string | null;
+  overlapsContributionId: string | null;
+}
+
+export interface ResearchPortfolioCompatibleTotalDto {
+  basis: ResearchPortfolioFinancialBasisDto;
+  value: string;
+  contributionCount: number;
+}
+
+export interface ResearchPortfolioAnalyticsDto {
+  portfolioId: string;
+  portfolioRevision: number;
+  calculationVersion: 'research-portfolio-analytics-v1';
+  availability: 'available' | 'partial' | 'unavailable';
+  totals: readonly ResearchPortfolioCompatibleTotalDto[];
+  contributions: readonly ResearchPortfolioContributionDto[];
+  coverage: {
+    eligibleMembers: number;
+    supportedMembers: number;
+    includedContributions: number;
+    excludedContributions: number;
+    overlapContributions: number;
+    unavailableMembers: number;
+  };
+  limitations: readonly string[];
+  observedAt: string;
+  readAt: string;
+}
+
+export interface CreateResearchPortfolioSnapshotDto {
+  operationKey: string;
+  name: string;
+  expectedRevision: number;
+  basis?: Partial<ResearchPortfolioFinancialBasisDto>;
+}
+
+export interface ResearchPortfolioSnapshotSummaryDto {
+  id: string;
+  portfolioId: string;
+  operationKey: string;
+  contentHash: string;
+  name: string;
+  portfolioRevision: number;
+  createdByUserId: string;
+  calculationVersion: string;
+  capturedAt: string;
+}
+
+export interface ResearchPortfolioSnapshotDto extends ResearchPortfolioSnapshotSummaryDto {
+  basis: Readonly<Record<string, unknown>>;
+  membership: readonly ResearchPortfolioMemberDto[];
+  projection: ResearchPortfolioAnalyticsDto;
+  versions: {
+    structure: Readonly<Record<string, unknown>>;
+    rules: readonly Readonly<Record<string, unknown>>[];
+    decisions: readonly Readonly<Record<string, unknown>>[];
+    templates: readonly Readonly<Record<string, unknown>>[];
+    taxonomy: readonly Readonly<Record<string, unknown>>[];
+    labels: readonly Readonly<Record<string, unknown>>[];
+    sources: readonly Readonly<Record<string, unknown>>[];
+  };
+  limitations: readonly string[];
+  clientAccessRequirements: readonly string[];
+  observedAt: string;
+  readAt: string;
+}
+
+export type ResearchPortfolioOutputStatus =
+  | 'queued'
+  | 'running'
+  | 'completed'
+  | 'partial'
+  | 'failed'
+  | 'cancelled'
+  | 'outcome_unknown';
+
+export interface CreateResearchPortfolioOutputDto {
+  operationKey: string;
+  snapshotId?: string | null;
+  selectedSections?: readonly string[];
+  includeSourceAppendix?: boolean;
+  format: 'csv';
+  deadlineAt?: string | null;
+}
+
+export interface ResearchPortfolioOutputRequestDto {
+  id: string;
+  portfolioId: string;
+  snapshotId: string | null;
+  operationKey: string;
+  requestHash: string;
+  selectedSections: readonly string[];
+  includeSourceAppendix: boolean;
+  format: 'csv';
+  status: ResearchPortfolioOutputStatus;
+  requestedByUserId: string;
+  requestedAt: string;
+  deadlineAt: string | null;
+}
+
+export interface ResearchPortfolioOutputAttemptDto {
+  id: string;
+  attemptNumber: number;
+  operationKey: string;
+  action: 'process' | 'cancel' | 'retry' | 'reconcile';
+  outcome: ResearchPortfolioOutputStatus;
+  checkpoint: Readonly<Record<string, unknown>>;
+  receipt: Readonly<Record<string, unknown>>;
+  errorCode: string | null;
+  actorUserId: string;
+  startedAt: string;
+  completedAt: string | null;
+}
+
+export interface ResearchPortfolioOutputArtifactDto {
+  id: string;
+  contentHash: string;
+  byteSize: number;
+  mediaType: 'text/csv';
+  fileName: string;
+  createdAt: string;
+  downloadPath: string;
+}
+
+export interface ResearchPortfolioOutputJobDto {
+  id: string;
+  requestId: string;
+  operationKey: string;
+  status: ResearchPortfolioOutputStatus;
+  attemptCount: number;
+  deadlineAt: string | null;
+  lastErrorCode: string | null;
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+  request: ResearchPortfolioOutputRequestDto;
+  attempts: readonly ResearchPortfolioOutputAttemptDto[];
+  artifact: ResearchPortfolioOutputArtifactDto | null;
+}
+
+export interface ResearchPortfolioClientFileReceiptDto {
+  id: string;
+  artifactId: string;
+  clientId: string;
+  attachmentId: string;
+  attachmentName: string;
+  lifecycleStatus: string | null;
+  scanStatus: string | null;
+  indexedAt: string | null;
+  openPath: string;
+  createdAt: string;
+}
+
+export interface SaveResearchPortfolioOutputToClientDto {
+  operationKey: string;
+  clientId: string;
+}

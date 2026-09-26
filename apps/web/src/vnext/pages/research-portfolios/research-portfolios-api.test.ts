@@ -7,6 +7,12 @@ import {
   updateResearchPortfolio,
   actOnResearchPortfolioImport,
   decideResearchPortfolioReview,
+  actOnResearchPortfolioOutput,
+  createResearchPortfolioOutput,
+  createResearchPortfolioSnapshot,
+  listResearchPortfolioChanges,
+  saveResearchPortfolioOutputToClient,
+  updateResearchPortfolioChangeState,
 } from './research-portfolios-api.js';
 
 const receipt = {
@@ -95,6 +101,65 @@ describe('research portfolio API mutation contract', () => {
     expect(api.post).toHaveBeenCalledWith(
       `/api/research-portfolios/${receipt.portfolioId}/imports/job-1/apply`,
       expect.objectContaining({ expectedRevision: 9, operationKey: expect.stringMatching(/import-apply/) }),
+    );
+  });
+
+  it('loads changes with a bounded cursor and keeps personal state revisions explicit', async () => {
+    const api = mockApi();
+    await listResearchPortfolioChanges(api, receipt.portfolioId, 'cursor-1', 25);
+    expect(api.get).toHaveBeenCalledWith(
+      `/api/research-portfolios/${receipt.portfolioId}/changes`,
+      { params: { cursor: 'cursor-1', limit: 25 } },
+    );
+    await updateResearchPortfolioChangeState(api, receipt.portfolioId, 'event/1', {
+      action: 'dismissed',
+      expectedRevision: 3,
+    });
+    expect(api.patch).toHaveBeenCalledWith(
+      `/api/research-portfolios/${receipt.portfolioId}/changes/event%2F1/state`,
+      { action: 'dismissed', expectedRevision: 3 },
+    );
+  });
+
+  it('creates an immutable snapshot with a fresh operation identity', async () => {
+    const api = mockApi();
+    await createResearchPortfolioSnapshot(api, receipt.portfolioId, {
+      name: 'Committee mark',
+      expectedRevision: 11,
+    });
+    expect(api.post).toHaveBeenCalledWith(
+      `/api/research-portfolios/${receipt.portfolioId}/snapshots`,
+      expect.objectContaining({
+        name: 'Committee mark',
+        expectedRevision: 11,
+        operationKey: expect.stringMatching(/^research-portfolios:snapshot-create:/),
+      }),
+    );
+  });
+
+  it('uses durable output actions and an independently idempotent client-file write', async () => {
+    const api = mockApi();
+    await createResearchPortfolioOutput(api, receipt.portfolioId, {
+      snapshotId: 'snapshot-1',
+      selectedSections: ['analytics', 'sources'],
+      includeSourceAppendix: true,
+      format: 'csv',
+    });
+    expect(api.post).toHaveBeenCalledWith(
+      `/api/research-portfolios/${receipt.portfolioId}/outputs`,
+      expect.objectContaining({ operationKey: expect.stringMatching(/^research-portfolios:output-create:/) }),
+    );
+    await actOnResearchPortfolioOutput(api, receipt.portfolioId, 'job/1', 'reconcile');
+    expect(api.post).toHaveBeenCalledWith(
+      `/api/research-portfolios/${receipt.portfolioId}/output-jobs/job%2F1/reconcile`,
+    );
+    await saveResearchPortfolioOutputToClient(api, receipt.portfolioId, 'artifact/1', { clientId: 'client-1' });
+    expect(api.post).toHaveBeenCalledWith(
+      `/api/research-portfolios/${receipt.portfolioId}/outputs/artifact%2F1/client-files`,
+      expect.objectContaining({
+        clientId: 'client-1',
+        operationKey: expect.stringMatching(/^research-portfolios:output-client-file:/),
+      }),
     );
   });
 });

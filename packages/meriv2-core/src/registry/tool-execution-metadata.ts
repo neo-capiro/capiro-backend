@@ -37,8 +37,13 @@ const CRM_MUTATION = new Set([
   'update_client_profile',
   'create_task',
   'update_task',
+  'save_research_portfolio_output_to_client',
 ]);
-const STANDING_AUTOMATION = new Set(['schedule_task', 'cancel_scheduled_task']);
+const STANDING_AUTOMATION = new Set([
+  'schedule_task',
+  'cancel_scheduled_task',
+  'watch_research_portfolio',
+]);
 const MEMORY_MUTATION = new Set([
   'save_memory',
   'confirm_memory',
@@ -66,6 +71,11 @@ const DISPLAY_VERBS: Readonly<Record<string, string>> = {
   create_powerpoint: 'Create presentation',
   create_meeting_brief: 'Create meeting brief',
   draft_policy_memo: 'Draft policy memo',
+  create_research_portfolio_snapshot: 'Create research portfolio snapshot',
+  request_research_portfolio_output: 'Create research portfolio export',
+  save_research_portfolio_output_to_client: 'Save research portfolio export to client',
+  watch_research_portfolio: 'Watch research portfolio',
+  update_research_portfolio_change_state: 'Update research portfolio change state',
 };
 
 /**

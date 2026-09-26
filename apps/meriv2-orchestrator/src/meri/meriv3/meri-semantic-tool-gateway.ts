@@ -125,6 +125,30 @@ const DOMAIN_SUPPORT: Partial<Record<MeriRetrievalDomain, readonly string[]>> = 
 
 const ACTION_RULES: ReadonlyArray<{ pattern: RegExp; tools: readonly string[] }> = [
   {
+    pattern:
+      /\b(?:create|capture|save)\b.{0,40}\b(?:research\s+portfolio\s+snapshot|portfolio\s+snapshot)\b/i,
+    tools: ['get_research_portfolio', 'get_research_portfolio_analytics', 'create_research_portfolio_snapshot'],
+  },
+  {
+    pattern:
+      /\b(?:create|generate|request|export|save|file|attach)\b.{0,50}\b(?:research\s+portfolio|portfolio)\b.{0,30}\b(?:csv|output|export|client\s+files?)\b/i,
+    tools: [
+      'get_research_portfolio',
+      'get_research_portfolio_analytics',
+      'request_research_portfolio_output',
+      'save_research_portfolio_output_to_client',
+    ],
+  },
+  {
+    pattern:
+      /\b(?:watch|monitor|subscribe|notify|acknowledge|dismiss|mark)\b.{0,45}\b(?:research\s+portfolio|portfolio|portfolio\s+(?:change|event))\b/i,
+    tools: [
+      'get_research_portfolio_changes',
+      'watch_research_portfolio',
+      'update_research_portfolio_change_state',
+    ],
+  },
+  {
     pattern: /\b(?:send|email|reply|respond)\b/i,
     tools: ['search_emails', 'get_email_thread', 'send_email', 'reply_email'],
   },
@@ -193,6 +217,15 @@ const ACTION_RULES: ReadonlyArray<{ pattern: RegExp; tools: readonly string[] }>
 ];
 
 const TOPIC_RULES: ReadonlyArray<{ pattern: RegExp; tools: readonly string[] }> = [
+  {
+    pattern:
+      /\b(?:defense\s+intelligence\s+research\s+portfolio|research\s+portfolio|portfolio\s+analytics|portfolio\s+snapshot|portfolio\s+change\s+feed)\b/i,
+    tools: [
+      'get_research_portfolio',
+      'get_research_portfolio_analytics',
+      'get_research_portfolio_changes',
+    ],
+  },
   {
     pattern:
       /\b(?:funding|grants?|nofo|opportunit(?:y|ies)|solicitations?|sam\.gov|sources\s+sought|procurement|forecasts?)\b/i,

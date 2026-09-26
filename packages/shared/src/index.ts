@@ -3750,6 +3750,70 @@ export function isMeriMailReadTool(name: string | undefined): boolean {
 
 export const MERI_CAPABILITY_REGISTRY = [
   {
+    name: 'get_research_portfolio',
+    description:
+      'Read one authorized Defense Intelligence Research Portfolio, including its immutable identity, revision, members, linked clients, grants, and recent event history. A Research Portfolio is distinct from Meri portfolio scope, which means all firm clients.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_research_portfolio_analytics',
+    description:
+      'Read the authorized portfolio financial projection from the same domain service used by the UI and exports. Returns only compatible-basis totals plus the full included, excluded, overlap, missing, withheld, and unavailable contribution ledger; unavailable is never treated as zero.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_research_portfolio_changes',
+    description:
+      'Read the authorized portfolio change feed with per-recipient seen, acknowledged, and dismissed state. Pagination and partial history are explicit.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'create_research_portfolio_snapshot',
+    description:
+      'Create an immutable, idempotent snapshot of an authorized Research Portfolio at an exact portfolio revision, including membership, projection, source versions, structure versions, calculation version, and limitations. Requires user approval.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'request_research_portfolio_output',
+    description:
+      'Request the configured durable CSV output for an authorized Research Portfolio or snapshot. Returns the real job and artifact lifecycle, including partial, failed, cancelled, and outcome-unknown states. Requires user approval.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'save_research_portfolio_output_to_client',
+    description:
+      'Save a completed Research Portfolio output through the canonical Client Files writer after current access is rechecked. Returns the actual attachment receipt and open path. Requires user approval.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'watch_research_portfolio',
+    description:
+      'Create an explicit quiet-first, per-recipient in-app watch on an authorized Research Portfolio. The baseline is recorded before later material updates are eligible for delivery. Requires user approval.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'update_research_portfolio_change_state',
+    description:
+      'Mark one authorized Research Portfolio event seen, acknowledged, dismissed, or undo that state for the current recipient with optimistic revision checking. Requires user approval.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
     name: 'get_research_evidence',
     description:
       'Read immutable attachment evidence for your research session, with source IDs, completeness/status and paging; verify supplied attachments before citing them.',

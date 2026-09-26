@@ -137,6 +137,24 @@ export const PROPOSED_CAPIRO_RULES: readonly ComplianceRule[] = [
     matches: (toolName) => toolName === 'schedule_task' || toolName === 'cancel_scheduled_task',
   },
   {
+    id: 'research_portfolio_watch.requires_approval',
+    description:
+      'A Research Portfolio watch is a standing per-recipient automation and requires human approval.',
+    outcome: 'WARN',
+    tier: 'high',
+    code: 'standing_automation',
+    matches: (toolName) => toolName === 'watch_research_portfolio',
+  },
+  {
+    id: 'research_portfolio_client_file.requires_approval',
+    description:
+      'Saving a Research Portfolio artifact mutates the selected client record and requires human approval.',
+    outcome: 'WARN',
+    tier: 'high',
+    code: 'crm_mutation',
+    matches: (toolName) => toolName === 'save_research_portfolio_output_to_client',
+  },
+  {
     id: 'internal_artifacts.pass',
     description:
       'Internal, reversible artifacts and task bookkeeping are pre-approved (audited, parity with the legacy surface).',

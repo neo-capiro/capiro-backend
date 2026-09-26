@@ -55,6 +55,31 @@ const ACTIONS: Record<
   update_task: { category: 'task_change', verbs: /\b(update|change|edit|complete)\b/i, nouns: /\b(task|todo|follow-up)\b/i },
   update_client_profile: { category: 'client_change', verbs: /\b(update|change|edit)\b/i, nouns: /\b(client|profile|client profile)\b/i },
   save_business_development_brief: { category: 'brief_save', verbs: /\b(save|store|update)\b/i, nouns: /\b(brief)\b/i },
+  create_research_portfolio_snapshot: {
+    category: 'research_save',
+    verbs: /\b(create|capture|save)\b/i,
+    nouns: /\b(research\s+portfolio\s+snapshot|portfolio\s+snapshot|snapshot)\b/i,
+  },
+  request_research_portfolio_output: {
+    category: 'artifact_create',
+    verbs: /\b(create|generate|export|request|produce)\b/i,
+    nouns: /\b(research\s+portfolio\s+(?:output|export)|portfolio\s+(?:output|export)|csv|export)\b/i,
+  },
+  save_research_portfolio_output_to_client: {
+    category: 'client_change',
+    verbs: /\b(save|file|attach|store)\b/i,
+    nouns: /\b(client\s+files?|client|portfolio\s+(?:output|export)|output|export)\b/i,
+  },
+  watch_research_portfolio: {
+    category: 'research_save',
+    verbs: /\b(watch|monitor|subscribe|notify)\b/i,
+    nouns: /\b(research\s+portfolio|portfolio|changes?|updates?)\b/i,
+  },
+  update_research_portfolio_change_state: {
+    category: 'research_save',
+    verbs: /\b(mark|acknowledge|dismiss|undo)\b/i,
+    nouns: /\b(portfolio\s+(?:change|event)|change|event)\b/i,
+  },
 };
 
 /** Deterministic authorization for a specific write tool from the current user request. */

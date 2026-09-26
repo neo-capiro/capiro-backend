@@ -15,6 +15,7 @@ import {
   MERI_WINDOW_CLIENT_QUERY,
   MERI_WINDOW_PROMPT_QUERY,
   MERI_WINDOW_PROSPECT_QUERY,
+  MERI_WINDOW_RESEARCH_PORTFOLIO_QUERY,
   MERI_WINDOW_QUERY,
 } from '../../components/chat/meri-window.js';
 
@@ -45,6 +46,7 @@ export interface MeriContextRequest {
   prompt: string;
   clientId: string | null;
   prospectId: string | null;
+  researchPortfolioId: string | null;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -61,14 +63,21 @@ export function meriContextRequest(search: string): MeriContextRequest | null {
   const incoming = new URLSearchParams(search);
   const prompt = incoming.get(MERI_WINDOW_PROMPT_QUERY)?.trim() ?? '';
   const rawProspectId = incoming.get(MERI_WINDOW_PROSPECT_QUERY)?.trim() ?? '';
+  const rawResearchPortfolioId =
+    incoming.get(MERI_WINDOW_RESEARCH_PORTFOLIO_QUERY)?.trim() ?? '';
   // An explicitly malformed prospect scope fails closed. Do not downgrade it
   // to an ordinary or client-scoped conversation.
   if (rawProspectId && !UUID_RE.test(rawProspectId)) return null;
+  if (rawResearchPortfolioId && !UUID_RE.test(rawResearchPortfolioId)) return null;
+  if (rawProspectId && rawResearchPortfolioId) return null;
   const prospectId = rawProspectId || null;
-  const clientId = prospectId
+  const researchPortfolioId = rawResearchPortfolioId || null;
+  const clientId = prospectId || researchPortfolioId
     ? null
     : incoming.get(MERI_WINDOW_CLIENT_QUERY)?.trim() || null;
-  return prompt || clientId || prospectId ? { prompt, clientId, prospectId } : null;
+  return prompt || clientId || prospectId || researchPortfolioId
+    ? { prompt, clientId, prospectId, researchPortfolioId }
+    : null;
 }
 
 /** Remove one-time Meri launch context while preserving unrelated route state. */
@@ -77,6 +86,7 @@ export function withoutMeriContext(search: string): string {
   outgoing.delete(MERI_WINDOW_PROMPT_QUERY);
   outgoing.delete(MERI_WINDOW_CLIENT_QUERY);
   outgoing.delete(MERI_WINDOW_PROSPECT_QUERY);
+  outgoing.delete(MERI_WINDOW_RESEARCH_PORTFOLIO_QUERY);
   const query = outgoing.toString();
   return query ? `?${query}` : '';
 }
@@ -96,6 +106,9 @@ export function legacyMeriWindowRedirect(search: string): string | null {
   if (context?.prompt) outgoing.set(MERI_WINDOW_PROMPT_QUERY, context.prompt);
   if (context?.clientId) outgoing.set(MERI_WINDOW_CLIENT_QUERY, context.clientId);
   if (context?.prospectId) outgoing.set(MERI_WINDOW_PROSPECT_QUERY, context.prospectId);
+  if (context?.researchPortfolioId) {
+    outgoing.set(MERI_WINDOW_RESEARCH_PORTFOLIO_QUERY, context.researchPortfolioId);
+  }
 
   const base = context ? '/meri/new' : '/meri';
   const query = outgoing.toString();
@@ -341,6 +354,24 @@ export function normalizeConversation(value: unknown): MeriConversation | null {
     rawLatest && typeof rawLatest.body === 'string' && typeof rawLatest.createdAt === 'string'
       ? { body: rawLatest.body, createdAt: rawLatest.createdAt }
       : null;
+  const metadata = raw.metadata && typeof raw.metadata === 'object' && !Array.isArray(raw.metadata)
+    ? raw.metadata as Record<string, unknown>
+    : null;
+  const rawResearchScope = metadata?.researchPortfolioScope;
+  const researchScope = rawResearchScope && typeof rawResearchScope === 'object' && !Array.isArray(rawResearchScope)
+    ? rawResearchScope as Record<string, unknown>
+    : null;
+  const researchPortfolioScope =
+    researchScope?.kind === 'research_portfolio' &&
+    typeof researchScope.researchPortfolioId === 'string' &&
+    typeof researchScope.researchPortfolioName === 'string' &&
+    Number.isInteger(researchScope.researchPortfolioRevision)
+      ? {
+          id: researchScope.researchPortfolioId,
+          name: researchScope.researchPortfolioName,
+          revision: researchScope.researchPortfolioRevision as number,
+        }
+      : null;
 
   return {
     id: raw.id,
@@ -349,6 +380,7 @@ export function normalizeConversation(value: unknown): MeriConversation | null {
     client,
     latestMessage,
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : '',
+    ...(researchPortfolioScope ? { researchPortfolioScope } : {}),
     ...(typeof raw.workspaceId === 'string' || raw.workspaceId === null ? { workspaceId: raw.workspaceId } : {}),
     ...(raw.workspace &&
     typeof raw.workspace === 'object' &&

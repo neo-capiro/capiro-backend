@@ -223,6 +223,11 @@ export interface MeriConversation {
   updatedAt: string;
   workspaceId?: string | null;
   workspace?: { id: string; name: string; clientId: string | null } | null;
+  researchPortfolioScope?: {
+    id: string;
+    name: string;
+    revision: number;
+  } | null;
 }
 
 export interface MeriSourceAttribution {

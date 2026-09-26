@@ -147,6 +147,7 @@ export class MeriV2ChatClient {
       conversationSummary?: string;
       /** Phase 4: server-authored active-prospect directive (bounded fields only). */
       prospectDirective?: string;
+      researchDirective?: string;
       /** User's preferred IANA timezone for local-date grounding. */
       timeZone?: string;
       /** Always-on client KB snapshot (1B.4), built + forwarded by the proxy. */

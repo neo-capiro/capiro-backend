@@ -310,45 +310,54 @@ model Tenant {
   knowledgeEpisodeEntities       KnowledgeEpisodeEntity[]
   knowledgeEpisodeProjectionJobs KnowledgeEpisodeProjectionJob[]
 
-  canonicalEntities                  CanonicalEntity[]
-  canonicalEntityMerges              CanonicalEntityMerge[]
-  entityAliases                      EntityAlias[]
-  entityIdentifiers                  EntityIdentifier[]
-  entityResolutions                  EntityResolution[]
-  entityIdentityGovernanceEvents     EntityIdentityGovernanceEvent[]
-  canonicalEntityBackfillCheckpoints CanonicalEntityBackfillCheckpoint[]
-  tenantHearingRelevance             TenantHearingRelevance[]
-  tenantHearingRelevanceJobs         TenantHearingRelevanceJob[]
+  canonicalEntities                       CanonicalEntity[]
+  canonicalEntityMerges                   CanonicalEntityMerge[]
+  entityAliases                           EntityAlias[]
+  entityIdentifiers                       EntityIdentifier[]
+  entityResolutions                       EntityResolution[]
+  entityIdentityGovernanceEvents          EntityIdentityGovernanceEvent[]
+  canonicalEntityBackfillCheckpoints      CanonicalEntityBackfillCheckpoint[]
+  tenantHearingRelevance                  TenantHearingRelevance[]
+  tenantHearingRelevanceJobs              TenantHearingRelevanceJob[]
   // Business Development Phase 1 back-relations.
-  bizdevProspects                    BusinessDevelopmentProspect[]
-  bizdevProspectActivity             BusinessDevelopmentProspectActivity[]
-  bizdevPreferences                  BusinessDevelopmentPreference?
-  bizdevJevDecisions                 BusinessDevelopmentJevDecision[]
-  bizdevBriefs                       BusinessDevelopmentBrief[]
-  bizdevBriefVersions                BusinessDevelopmentBriefVersion[]
-  bizdevWatches                      BusinessDevelopmentWatch[]
-  bizdevWatchSourceStates            BusinessDevelopmentWatchSourceState[]
-  bizdevAlerts                       BusinessDevelopmentAlert[]
-  bizdevAlertDeliveries              BusinessDevelopmentAlertDelivery[]
-  researchPortfolios                 ResearchPortfolio[]
-  researchPortfolioGrants            ResearchPortfolioGrant[]
-  researchPortfolioClientLinks       ResearchPortfolioClientLink[]
-  researchPortfolioMembers           ResearchPortfolioMember[]
-  researchPortfolioEvents            ResearchPortfolioEvent[]
-  researchPortfolioTemplates         ResearchPortfolioTemplate[]
-  researchTaxonomyVersions           ResearchTaxonomyVersion[]
-  researchPortfolioRuleVersions      ResearchPortfolioRuleVersion[]
-  researchPortfolioRulePreviews      ResearchPortfolioRulePreview[]
-  researchPortfolioRecomputeJobs     ResearchPortfolioRecomputeJob[]
-  researchPortfolioReviews           ResearchPortfolioReview[]
-  researchPortfolioDecisions         ResearchPortfolioDecision[]
-  researchPortfolioContinuityLedgers ResearchPortfolioContinuityLedger[]
-  researchPortfolioImportJobs        ResearchPortfolioImportJob[]
-  researchPortfolioImportRows        ResearchPortfolioImportRow[]
-  researchPortfolioImportMappings    ResearchPortfolioImportMappingVersion[]
-  researchPortfolioImportAttempts    ResearchPortfolioImportAttempt[]
-  researchPortfolioImportEffects     ResearchPortfolioImportEffect[]
-  researchPortfolioImportReceipts    ResearchPortfolioImportCompensationReceipt[]
+  bizdevProspects                         BusinessDevelopmentProspect[]
+  bizdevProspectActivity                  BusinessDevelopmentProspectActivity[]
+  bizdevPreferences                       BusinessDevelopmentPreference?
+  bizdevJevDecisions                      BusinessDevelopmentJevDecision[]
+  bizdevBriefs                            BusinessDevelopmentBrief[]
+  bizdevBriefVersions                     BusinessDevelopmentBriefVersion[]
+  bizdevWatches                           BusinessDevelopmentWatch[]
+  bizdevWatchSourceStates                 BusinessDevelopmentWatchSourceState[]
+  bizdevAlerts                            BusinessDevelopmentAlert[]
+  bizdevAlertDeliveries                   BusinessDevelopmentAlertDelivery[]
+  researchPortfolios                      ResearchPortfolio[]
+  researchPortfolioGrants                 ResearchPortfolioGrant[]
+  researchPortfolioClientLinks            ResearchPortfolioClientLink[]
+  researchPortfolioMembers                ResearchPortfolioMember[]
+  researchPortfolioEvents                 ResearchPortfolioEvent[]
+  researchPortfolioTemplates              ResearchPortfolioTemplate[]
+  researchTaxonomyVersions                ResearchTaxonomyVersion[]
+  researchPortfolioRuleVersions           ResearchPortfolioRuleVersion[]
+  researchPortfolioRulePreviews           ResearchPortfolioRulePreview[]
+  researchPortfolioRecomputeJobs          ResearchPortfolioRecomputeJob[]
+  researchPortfolioReviews                ResearchPortfolioReview[]
+  researchPortfolioDecisions              ResearchPortfolioDecision[]
+  researchPortfolioContinuityLedgers      ResearchPortfolioContinuityLedger[]
+  researchPortfolioImportJobs             ResearchPortfolioImportJob[]
+  researchPortfolioImportRows             ResearchPortfolioImportRow[]
+  researchPortfolioImportMappings         ResearchPortfolioImportMappingVersion[]
+  researchPortfolioImportAttempts         ResearchPortfolioImportAttempt[]
+  researchPortfolioImportEffects          ResearchPortfolioImportEffect[]
+  researchPortfolioImportReceipts         ResearchPortfolioImportCompensationReceipt[]
+  researchPortfolioEventStates            ResearchPortfolioEventRecipientState[]
+  researchPortfolioSubscriptions          ResearchPortfolioSubscription[]
+  researchPortfolioSubscriptionDeliveries ResearchPortfolioSubscriptionDelivery[]
+  researchPortfolioSnapshots              ResearchPortfolioSnapshot[]
+  researchPortfolioOutputRequests         ResearchPortfolioOutputRequest[]
+  researchPortfolioOutputJobs             ResearchPortfolioOutputJob[]
+  researchPortfolioOutputAttempts         ResearchPortfolioOutputAttempt[]
+  researchPortfolioOutputArtifacts        ResearchPortfolioOutputArtifact[]
+  researchPortfolioOutputReceipts         ResearchPortfolioOutputClientFileReceipt[]
 
   @@map("tenants")
 }
@@ -15086,24 +15095,33 @@ model ResearchPortfolio {
   createdAt   DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant            Tenant                                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  owner             User                                         @relation("ResearchPortfolioOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
-  grants            ResearchPortfolioGrant[]
-  clientLinks       ResearchPortfolioClientLink[]
-  members           ResearchPortfolioMember[]
-  events            ResearchPortfolioEvent[]
-  ruleVersions      ResearchPortfolioRuleVersion[]
-  rulePreviews      ResearchPortfolioRulePreview[]
-  recomputeJobs     ResearchPortfolioRecomputeJob[]
-  reviews           ResearchPortfolioReview[]
-  decisions         ResearchPortfolioDecision[]
-  continuityLedgers ResearchPortfolioContinuityLedger[]
-  importJobs        ResearchPortfolioImportJob[]
-  importRows        ResearchPortfolioImportRow[]
-  importMappings    ResearchPortfolioImportMappingVersion[]
-  importAttempts    ResearchPortfolioImportAttempt[]
-  importEffects     ResearchPortfolioImportEffect[]
-  importReceipts    ResearchPortfolioImportCompensationReceipt[]
+  tenant                 Tenant                                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner                  User                                         @relation("ResearchPortfolioOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  grants                 ResearchPortfolioGrant[]
+  clientLinks            ResearchPortfolioClientLink[]
+  members                ResearchPortfolioMember[]
+  events                 ResearchPortfolioEvent[]
+  ruleVersions           ResearchPortfolioRuleVersion[]
+  rulePreviews           ResearchPortfolioRulePreview[]
+  recomputeJobs          ResearchPortfolioRecomputeJob[]
+  reviews                ResearchPortfolioReview[]
+  decisions              ResearchPortfolioDecision[]
+  continuityLedgers      ResearchPortfolioContinuityLedger[]
+  importJobs             ResearchPortfolioImportJob[]
+  importRows             ResearchPortfolioImportRow[]
+  importMappings         ResearchPortfolioImportMappingVersion[]
+  importAttempts         ResearchPortfolioImportAttempt[]
+  importEffects          ResearchPortfolioImportEffect[]
+  importReceipts         ResearchPortfolioImportCompensationReceipt[]
+  eventStates            ResearchPortfolioEventRecipientState[]
+  subscriptions          ResearchPortfolioSubscription[]
+  subscriptionDeliveries ResearchPortfolioSubscriptionDelivery[]
+  snapshots              ResearchPortfolioSnapshot[]
+  outputRequests         ResearchPortfolioOutputRequest[]
+  outputJobs             ResearchPortfolioOutputJob[]
+  outputAttempts         ResearchPortfolioOutputAttempt[]
+  outputArtifacts        ResearchPortfolioOutputArtifact[]
+  outputReceipts         ResearchPortfolioOutputClientFileReceipt[]
 
   @@unique([tenantId, id], map: "research_portfolios_tenant_id_key")
   @@index([tenantId, lifecycle, updatedAt(sort: Desc)], map: "research_portfolios_tenant_lifecycle_updated_idx")
@@ -15190,9 +15208,12 @@ model ResearchPortfolioEvent {
   payloadFingerprint String?                    @map("payload_fingerprint") @db.VarChar(64)
   payload            Json                       @default("{}")
 
-  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  tenant                 Tenant                                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio              ResearchPortfolio                       @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  recipientStates        ResearchPortfolioEventRecipientState[]
+  subscriptionDeliveries ResearchPortfolioSubscriptionDelivery[]
 
+  @@unique([tenantId, id], map: "research_portfolio_events_tenant_id_key")
   @@unique([tenantId, portfolioId, aggregateRevision, id], map: "research_portfolio_events_revision_id_key")
   @@unique([tenantId, idempotencyKey], map: "research_portfolio_events_idempotency_key")
   @@index([tenantId, portfolioId, occurredAt(sort: Desc)], map: "research_portfolio_events_timeline_idx")
@@ -15738,6 +15759,287 @@ model ResearchPortfolioImportCompensationReceipt {
   @@unique([tenantId, operationKey], map: "research_portfolio_import_receipts_operation_key")
   @@index([tenantId, importJobId, createdAt], map: "research_portfolio_import_receipts_job_idx")
   @@map("research_portfolio_import_compensation_receipts")
+}
+
+// ---------------------------------------------------------------------------
+// Research Portfolios Phase 9 — personal state, snapshots and durable outputs.
+// ---------------------------------------------------------------------------
+
+enum ResearchPortfolioOutputStatus {
+  queued
+  running
+  completed
+  partial
+  failed
+  cancelled
+  outcome_unknown
+
+  @@map("research_portfolio_output_status")
+}
+
+enum ResearchPortfolioDeliveryStatus {
+  queued
+  delivered
+  partial
+  failed
+  withheld
+  cancelled
+  outcome_unknown
+
+  @@map("research_portfolio_delivery_status")
+}
+
+model ResearchPortfolioEventRecipientState {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  portfolioId     String    @map("portfolio_id") @db.Uuid
+  eventId         String    @map("event_id") @db.Uuid
+  recipientUserId String    @map("recipient_user_id") @db.Uuid
+  revision        Int       @default(1)
+  seenAt          DateTime? @map("seen_at") @db.Timestamptz(6)
+  acknowledgedAt  DateTime? @map("acknowledged_at") @db.Timestamptz(6)
+  dismissedAt     DateTime? @map("dismissed_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio      @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  event     ResearchPortfolioEvent @relation(fields: [tenantId, eventId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, eventId, recipientUserId], map: "research_portfolio_event_states_event_user_key")
+  @@index([tenantId, portfolioId, recipientUserId, updatedAt(sort: Desc)], map: "research_portfolio_event_states_recipient_idx")
+  @@map("research_portfolio_event_recipient_states")
+}
+
+model ResearchPortfolioSubscription {
+  id                  String    @id @default(uuid()) @db.Uuid
+  tenantId            String    @map("tenant_id") @db.Uuid
+  portfolioId         String    @map("portfolio_id") @db.Uuid
+  subscriberUserId    String    @map("subscriber_user_id") @db.Uuid
+  targetKind          String    @map("target_kind") @db.VarChar(48)
+  targetId            String    @map("target_id") @db.VarChar(256)
+  channel             String    @db.VarChar(32)
+  cadence             String    @db.VarChar(32)
+  active              Boolean   @default(true)
+  baselineEventId     String?   @map("baseline_event_id") @db.Uuid
+  baselineRevision    Int       @map("baseline_revision")
+  baselineCompletedAt DateTime  @map("baseline_completed_at") @db.Timestamptz(6)
+  checkpoint          Json      @default("{}")
+  leaseOwner          String?   @map("lease_owner") @db.VarChar(128)
+  leaseUntil          DateTime? @map("lease_until") @db.Timestamptz(6)
+  leaseFence          Int       @default(0) @map("lease_fence")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant     Tenant                                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio  ResearchPortfolio                       @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  deliveries ResearchPortfolioSubscriptionDelivery[]
+
+  @@unique([tenantId, portfolioId, subscriberUserId, targetKind, targetId, channel, cadence], map: "research_portfolio_subscriptions_identity_key")
+  @@index([tenantId, subscriberUserId, active, updatedAt(sort: Desc)], map: "research_portfolio_subscriptions_recipient_idx")
+  @@index([tenantId, active, leaseUntil], map: "research_portfolio_subscriptions_claim_idx")
+  @@map("research_portfolio_subscriptions")
+}
+
+/// Append-only per-recipient outcome for one post-baseline material event.
+model ResearchPortfolioSubscriptionDelivery {
+  id              String                          @id @default(uuid()) @db.Uuid
+  tenantId        String                          @map("tenant_id") @db.Uuid
+  portfolioId     String                          @map("portfolio_id") @db.Uuid
+  subscriptionId  String                          @map("subscription_id") @db.Uuid
+  eventId         String                          @map("event_id") @db.Uuid
+  recipientUserId String                          @map("recipient_user_id") @db.Uuid
+  channel         String                          @db.VarChar(32)
+  status          ResearchPortfolioDeliveryStatus
+  attemptNumber   Int                             @default(1) @map("attempt_number")
+  checkpoint      Json                            @default("{}")
+  receipt         Json                            @default("{}")
+  errorCode       String?                         @map("error_code") @db.VarChar(64)
+  createdAt       DateTime                        @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt     DateTime?                       @map("completed_at") @db.Timestamptz(6)
+
+  tenant       Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio    ResearchPortfolio             @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  subscription ResearchPortfolioSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  event        ResearchPortfolioEvent        @relation(fields: [tenantId, eventId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, subscriptionId, eventId, recipientUserId, channel], map: "research_portfolio_subscription_deliveries_identity_key")
+  @@index([tenantId, recipientUserId, createdAt(sort: Desc)], map: "research_portfolio_subscription_deliveries_recipient_idx")
+  @@index([tenantId, portfolioId, status, createdAt], map: "research_portfolio_subscription_deliveries_status_idx")
+  @@map("research_portfolio_subscription_deliveries")
+}
+
+/// Immutable capture of the supported projection and every version used to produce it.
+model ResearchPortfolioSnapshot {
+  id                       String   @id @default(uuid()) @db.Uuid
+  tenantId                 String   @map("tenant_id") @db.Uuid
+  portfolioId              String   @map("portfolio_id") @db.Uuid
+  operationKey             String   @map("operation_key") @db.VarChar(128)
+  contentHash              String   @map("content_hash") @db.Char(64)
+  name                     String   @db.VarChar(200)
+  portfolioRevision        Int      @map("portfolio_revision")
+  createdByUserId          String   @map("created_by_user_id") @db.Uuid
+  basis                    Json
+  membership               Json
+  projection               Json
+  structureVersions        Json     @default("{}") @map("structure_versions")
+  ruleVersions             Json     @default("[]") @map("rule_versions")
+  decisionVersions         Json     @default("[]") @map("decision_versions")
+  templateVersions         Json     @default("[]") @map("template_versions")
+  taxonomyVersions         Json     @default("[]") @map("taxonomy_versions")
+  labelVersions            Json     @default("[]") @map("label_versions")
+  sourceVersions           Json     @default("[]") @map("source_versions")
+  calculationVersion       String   @map("calculation_version") @db.VarChar(64)
+  limitations              Json     @default("[]")
+  clientAccessRequirements Json     @default("[]") @map("client_access_requirements")
+  capturedAt               DateTime @default(now()) @map("captured_at") @db.Timestamptz(6)
+  observedAt               DateTime @map("observed_at") @db.Timestamptz(6)
+  readAt                   DateTime @map("read_at") @db.Timestamptz(6)
+
+  tenant         Tenant                           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio      ResearchPortfolio                @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  outputRequests ResearchPortfolioOutputRequest[]
+
+  @@unique([tenantId, id], map: "research_portfolio_snapshots_tenant_id_key")
+  @@unique([tenantId, operationKey], map: "research_portfolio_snapshots_operation_key")
+  @@index([tenantId, portfolioId, capturedAt(sort: Desc)], map: "research_portfolio_snapshots_timeline_idx")
+  @@map("research_portfolio_snapshots")
+}
+
+model ResearchPortfolioOutputRequest {
+  id                    String                        @id @default(uuid()) @db.Uuid
+  tenantId              String                        @map("tenant_id") @db.Uuid
+  portfolioId           String                        @map("portfolio_id") @db.Uuid
+  snapshotId            String?                       @map("snapshot_id") @db.Uuid
+  operationKey          String                        @map("operation_key") @db.VarChar(128)
+  requestHash           String                        @map("request_hash") @db.Char(64)
+  context               Json                          @default("{}")
+  selectedSections      String[]                      @default([]) @map("selected_sections")
+  includeSourceAppendix Boolean                       @default(false) @map("include_source_appendix")
+  format                String                        @default("csv") @db.VarChar(16)
+  status                ResearchPortfolioOutputStatus @default(queued)
+  requestedByUserId     String                        @map("requested_by_user_id") @db.Uuid
+  requestedAt           DateTime                      @default(now()) @map("requested_at") @db.Timestamptz(6)
+  deadlineAt            DateTime?                     @map("deadline_at") @db.Timestamptz(6)
+  createdAt             DateTime                      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime                      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio            @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  snapshot  ResearchPortfolioSnapshot?   @relation(fields: [tenantId, snapshotId], references: [tenantId, id], onDelete: Restrict)
+  jobs      ResearchPortfolioOutputJob[]
+
+  @@unique([tenantId, id], map: "research_portfolio_output_requests_tenant_id_key")
+  @@unique([tenantId, operationKey], map: "research_portfolio_output_requests_operation_key")
+  @@index([tenantId, portfolioId, status, requestedAt(sort: Desc)], map: "research_portfolio_output_requests_status_idx")
+  @@map("research_portfolio_output_requests")
+}
+
+model ResearchPortfolioOutputJob {
+  id            String                        @id @default(uuid()) @db.Uuid
+  tenantId      String                        @map("tenant_id") @db.Uuid
+  portfolioId   String                        @map("portfolio_id") @db.Uuid
+  requestId     String                        @map("request_id") @db.Uuid
+  operationKey  String                        @map("operation_key") @db.VarChar(128)
+  status        ResearchPortfolioOutputStatus @default(queued)
+  attemptCount  Int                           @default(0) @map("attempt_count")
+  deadlineAt    DateTime?                     @map("deadline_at") @db.Timestamptz(6)
+  leaseOwner    String?                       @map("lease_owner") @db.VarChar(128)
+  leaseUntil    DateTime?                     @map("lease_until") @db.Timestamptz(6)
+  leaseFence    Int                           @default(0) @map("lease_fence")
+  lastErrorCode String?                       @map("last_error_code") @db.VarChar(128)
+  lastError     String?                       @map("last_error") @db.Text
+  createdAt     DateTime                      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime                      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant                            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio                 @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  request   ResearchPortfolioOutputRequest    @relation(fields: [tenantId, requestId], references: [tenantId, id], onDelete: Cascade)
+  attempts  ResearchPortfolioOutputAttempt[]
+  artifacts ResearchPortfolioOutputArtifact[]
+
+  @@unique([tenantId, id], map: "research_portfolio_output_jobs_tenant_id_key")
+  @@unique([tenantId, operationKey], map: "research_portfolio_output_jobs_operation_key")
+  @@index([tenantId, status, leaseUntil], map: "research_portfolio_output_jobs_claim_idx")
+  @@map("research_portfolio_output_jobs")
+}
+
+/// Append-only record of a single durable job execution or reconciliation attempt.
+model ResearchPortfolioOutputAttempt {
+  id            String                        @id @default(uuid()) @db.Uuid
+  tenantId      String                        @map("tenant_id") @db.Uuid
+  portfolioId   String                        @map("portfolio_id") @db.Uuid
+  jobId         String                        @map("job_id") @db.Uuid
+  attemptNumber Int                           @map("attempt_number")
+  operationKey  String                        @map("operation_key") @db.VarChar(128)
+  action        String                        @db.VarChar(32)
+  outcome       ResearchPortfolioOutputStatus
+  checkpoint    Json                          @default("{}")
+  receipt       Json                          @default("{}")
+  errorCode     String?                       @map("error_code") @db.VarChar(128)
+  actorUserId   String                        @map("actor_user_id") @db.Uuid
+  startedAt     DateTime                      @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt   DateTime?                     @map("completed_at") @db.Timestamptz(6)
+  createdAt     DateTime                      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio          @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  job       ResearchPortfolioOutputJob @relation(fields: [tenantId, jobId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, jobId, attemptNumber], map: "research_portfolio_output_attempts_number_key")
+  @@unique([tenantId, operationKey], map: "research_portfolio_output_attempts_operation_key")
+  @@index([tenantId, jobId, createdAt], map: "research_portfolio_output_attempts_job_idx")
+  @@map("research_portfolio_output_attempts")
+}
+
+/// Immutable exact output bytes. Completion requires one available artifact with this hash.
+model ResearchPortfolioOutputArtifact {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  portfolioId String   @map("portfolio_id") @db.Uuid
+  jobId       String   @map("job_id") @db.Uuid
+  contentHash String   @map("content_hash") @db.Char(64)
+  byteSize    Int      @map("byte_size")
+  mediaType   String   @map("media_type") @db.VarChar(128)
+  fileName    String   @map("file_name") @db.VarChar(255)
+  bytes       Bytes
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant                                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio                          @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  job       ResearchPortfolioOutputJob                 @relation(fields: [tenantId, jobId], references: [tenantId, id], onDelete: Cascade)
+  receipts  ResearchPortfolioOutputClientFileReceipt[]
+
+  @@unique([tenantId, id], map: "research_portfolio_output_artifacts_tenant_id_key")
+  @@unique([tenantId, jobId], map: "research_portfolio_output_artifacts_job_key")
+  @@index([tenantId, contentHash], map: "research_portfolio_output_artifacts_hash_idx")
+  @@map("research_portfolio_output_artifacts")
+}
+
+/// Append-only receipt from the canonical ClientDocumentWriterService boundary.
+model ResearchPortfolioOutputClientFileReceipt {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  portfolioId     String    @map("portfolio_id") @db.Uuid
+  artifactId      String    @map("artifact_id") @db.Uuid
+  clientId        String    @map("client_id") @db.Uuid
+  operationKey    String    @map("operation_key") @db.VarChar(128)
+  attachmentId    String    @map("attachment_id") @db.Uuid
+  attachmentName  String    @map("attachment_name") @db.VarChar(255)
+  lifecycleStatus String?   @map("lifecycle_status") @db.VarChar(32)
+  scanStatus      String?   @map("scan_status") @db.VarChar(32)
+  indexedAt       DateTime? @map("indexed_at") @db.Timestamptz(6)
+  openPath        String    @map("open_path") @db.Text
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant                          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio               @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  artifact  ResearchPortfolioOutputArtifact @relation(fields: [tenantId, artifactId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, operationKey], map: "research_portfolio_output_receipts_operation_key")
+  @@unique([tenantId, attachmentId], map: "research_portfolio_output_receipts_attachment_key")
+  @@index([tenantId, artifactId, createdAt(sort: Desc)], map: "research_portfolio_output_receipts_artifact_idx")
+  @@map("research_portfolio_output_client_file_receipts")
 }
 
 // ---------------------------------------------------------------------------

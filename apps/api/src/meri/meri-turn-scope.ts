@@ -1,6 +1,6 @@
 /** Public scope receipt for one completed turn. Stored in existing message metadata. */
 export interface MeriTurnScope {
-  kind: 'client' | 'portfolio' | 'external_entity' | 'general' | 'prospect' | 'unknown';
+  kind: 'client' | 'portfolio' | 'research_portfolio' | 'external_entity' | 'general' | 'prospect' | 'unknown';
   clientId: string | null;
   clientName: string | null;
   targetHint: string | null;
@@ -13,6 +13,9 @@ export interface MeriTurnScope {
   canonicalOrganizationId?: string | null;
   linkedClientId?: string | null;
   scopeVersion?: string;
+  researchPortfolioId?: string;
+  researchPortfolioName?: string;
+  researchPortfolioRevision?: number;
 }
 
 /** The conversation is the server snapshot captured before dispatch, never re-read at completion. */

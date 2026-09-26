@@ -2,7 +2,7 @@ import type { ChatMessage } from './chat-store.js';
 
 /** Immutable turn context. This describes retrieval scope, not ownership of each source. */
 export interface MeriTurnScope {
-  kind: 'client' | 'portfolio' | 'external_entity' | 'general' | 'prospect' | 'unknown';
+  kind: 'client' | 'portfolio' | 'research_portfolio' | 'external_entity' | 'general' | 'prospect' | 'unknown';
   clientId: string | null;
   clientName: string | null;
   targetHint: string | null;
@@ -13,6 +13,9 @@ export interface MeriTurnScope {
   canonicalOrganizationId?: string | null;
   linkedClientId?: string | null;
   scopeVersion?: string;
+  researchPortfolioId?: string;
+  researchPortfolioName?: string;
+  researchPortfolioRevision?: number;
 }
 
 const UNKNOWN_SCOPE: MeriTurnScope = {
@@ -55,6 +58,23 @@ export function readMeriTurnScope(value: unknown): MeriTurnScope | undefined {
       scopeVersion: text(row.scopeVersion) as string,
     };
   }
+  if (
+    row.kind === 'research_portfolio' &&
+    text(row.researchPortfolioId) &&
+    text(row.researchPortfolioName) &&
+    Number.isInteger(row.researchPortfolioRevision) &&
+    (row.researchPortfolioRevision as number) >= 0 &&
+    /^[0-9a-f]{64}$/.test(text(row.scopeVersion) ?? '')
+  ) {
+    return {
+      ...UNKNOWN_SCOPE,
+      kind: 'research_portfolio',
+      researchPortfolioId: text(row.researchPortfolioId) as string,
+      researchPortfolioName: text(row.researchPortfolioName) as string,
+      researchPortfolioRevision: row.researchPortfolioRevision as number,
+      scopeVersion: text(row.scopeVersion) as string,
+    };
+  }
   if (row.kind === 'external_entity') return { ...UNKNOWN_SCOPE, kind: 'external_entity', targetHint: text(row.targetHint) };
   if (row.kind === 'portfolio' || row.kind === 'general' || row.kind === 'unknown') {
     return { ...UNKNOWN_SCOPE, kind: row.kind };
@@ -88,6 +108,11 @@ export function meriTurnScopeLabel(scope?: MeriTurnScope | null, clients: Array<
     return scope.clientName || clients.find((client) => client.id === scope.clientId)?.name || `Client · ${scope.clientId}`;
   }
   if (scope?.kind === 'portfolio') return 'Portfolio — all clients';
+  if (scope?.kind === 'research_portfolio') {
+    return scope.researchPortfolioName
+      ? `Research Portfolio · ${scope.researchPortfolioName}`
+      : 'Research Portfolio';
+  }
   if (scope?.kind === 'prospect') return scope.prospectName ? `Prospect · ${scope.prospectName}` : 'Prospect';
   if (scope?.kind === 'external_entity') return scope.targetHint ? `External subject · ${scope.targetHint}` : 'External subject — name not recorded';
   if (scope?.kind === 'general') return 'General';

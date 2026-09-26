@@ -233,6 +233,8 @@ export class MeriV3ChatClient {
       reasoningMode: MeriV3ReasoningMode;
       /** Phase 4: server-authored active-prospect directive (bounded fields only). */
       prospectDirective?: string;
+      /** Server-authored Defense Intelligence Research Portfolio directive. */
+      researchDirective?: string;
       toolPolicy?: 'none' | 'read-only';
       researchRun?: { sessionId: string; runId: string };
       governedContext?: MeriGovernedTurnContext;

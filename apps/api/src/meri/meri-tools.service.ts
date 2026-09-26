@@ -152,6 +152,10 @@ import { getResearchEvidence } from './meri-research-evidence.helpers.js';
 import { buildDocumentReadPage, parseDocumentReadInput } from './meri-document-read.helpers.js';
 import { MeriClientFilingService } from './meri-client-filing.service.js';
 import { MeriBizDevToolsService } from './meri-bizdev-tools.service.js';
+import {
+  isResearchPortfolioMeriTool,
+  ResearchPortfolioMeriToolsService,
+} from '../research-portfolios/research-portfolio-meri-tools.service.js';
 import { MeetingPrepJobService } from '../engagement/meeting-prep-job.service.js';
 import { meetingPrepEnabled } from '../engagement/meeting-prep-policy.js';
 import { fetchFedrampProducts } from '../external/fedramp/fedramp.client.js';
@@ -283,6 +287,7 @@ export class MeriToolsService {
     // Phase 4 — business-development prospect tools. Optional: every handler
     // lives in MeriBizDevToolsService (one place), the switch below delegates.
     @Optional() private readonly bizDevTools?: MeriBizDevToolsService,
+    @Optional() private readonly researchPortfolioTools?: ResearchPortfolioMeriToolsService,
   ) {}
 
   manifest() {
@@ -301,6 +306,14 @@ export class MeriToolsService {
   private requireBizDevTools(): MeriBizDevToolsService {
     if (!this.bizDevTools) throw new NotFoundException('Meri tool not found');
     return this.bizDevTools;
+  }
+
+  private requireResearchPortfolioTools(): ResearchPortfolioMeriToolsService {
+    if (process.env.RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED === 'false') {
+      throw new NotFoundException('Meri tool not found');
+    }
+    if (!this.researchPortfolioTools) throw new NotFoundException('Meri tool not found');
+    return this.researchPortfolioTools;
   }
 
   /**
@@ -347,6 +360,61 @@ export class MeriToolsService {
     };
 
     const schemas: Record<MeriToolName, Record<string, unknown>> = {
+      get_research_portfolio: obj(
+        { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
+        ['conversationId'],
+      ),
+      get_research_portfolio_analytics: obj(
+        { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
+        ['conversationId'],
+      ),
+      get_research_portfolio_changes: obj(
+        {
+          conversationId: str('Exact current Research Portfolio chat conversation UUID'),
+          cursor: str('Opaque event cursor returned by the prior page'),
+          limit: { type: 'integer', minimum: 1, maximum: 100 },
+        },
+        ['conversationId'],
+      ),
+      create_research_portfolio_snapshot: obj(
+        {
+          conversationId: str('Exact current Research Portfolio chat conversation UUID'),
+          operationKey: str('Stable idempotency key for this intended snapshot'),
+          name: str('Human-readable immutable snapshot name'),
+          expectedRevision: { type: 'integer', minimum: 0 },
+        },
+        ['conversationId', 'operationKey', 'name', 'expectedRevision'],
+      ),
+      request_research_portfolio_output: obj(
+        {
+          conversationId: str('Exact current Research Portfolio chat conversation UUID'),
+          operationKey: str('Stable idempotency key for this intended output'),
+          snapshotId: str('Optional exact immutable snapshot UUID'),
+        },
+        ['conversationId', 'operationKey'],
+      ),
+      save_research_portfolio_output_to_client: obj(
+        {
+          conversationId: str('Exact current Research Portfolio chat conversation UUID'),
+          outputId: str('Exact completed output artifact UUID'),
+          clientId: str('Exact linked, currently authorized client UUID'),
+          operationKey: str('Stable idempotency key for this Client Files write'),
+        },
+        ['conversationId', 'outputId', 'clientId', 'operationKey'],
+      ),
+      watch_research_portfolio: obj(
+        { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
+        ['conversationId'],
+      ),
+      update_research_portfolio_change_state: obj(
+        {
+          conversationId: str('Exact current Research Portfolio chat conversation UUID'),
+          eventId: str('Exact portfolio event UUID'),
+          action: { type: 'string', enum: ['seen', 'acknowledged', 'dismissed', 'undo'] },
+          expectedRevision: { type: 'integer', minimum: 0 },
+        },
+        ['conversationId', 'eventId', 'action'],
+      ),
       search_legiwatch_news: obj(
         {
           ...legiwatchScope,
@@ -1699,13 +1767,14 @@ export class MeriToolsService {
 
     const statusProvenanceEnabled =
       rollout != null &&
-      resolveStatusProvenanceMode(
-        rollout.env ?? process.env,
-        rollout.tenantId,
-        rollout.surface,
-      ) === 'enforce';
+      resolveStatusProvenanceMode(rollout.env ?? process.env, rollout.tenantId, rollout.surface) ===
+        'enforce';
+    const researchPortfolioToolsEnabled =
+      (rollout?.env ?? process.env).RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED !== 'false';
     return TOOL_DEFINITIONS.filter(
-      (tool) => tool.name !== 'get_certification_status' || statusProvenanceEnabled,
+      (tool) =>
+        (tool.name !== 'get_certification_status' || statusProvenanceEnabled) &&
+        (researchPortfolioToolsEnabled || !isResearchPortfolioMeriTool(tool.name)),
     ).map((tool) => ({
       name: tool.name,
       description: tool.description,
@@ -2050,6 +2119,15 @@ export class MeriToolsService {
   async execute(ctx: TenantContext, name: MeriToolName, input: Record<string, unknown>) {
     assertMeriToolRequestActive();
     switch (name) {
+      case 'get_research_portfolio':
+      case 'get_research_portfolio_analytics':
+      case 'get_research_portfolio_changes':
+      case 'create_research_portfolio_snapshot':
+      case 'request_research_portfolio_output':
+      case 'save_research_portfolio_output_to_client':
+      case 'watch_research_portfolio':
+      case 'update_research_portfolio_change_state':
+        return this.requireResearchPortfolioTools().execute(ctx, name, input);
       case 'search_legiwatch_news':
       case 'get_florida_budget_project':
       case 'compare_florida_budget_amounts':
@@ -3229,9 +3307,7 @@ export class MeriToolsService {
     if (!query) throw new BadRequestException('query is required');
     const normalized = query.toLocaleLowerCase();
     const records = await fetchFedrampProducts();
-    const exactId = records.find(
-      (record) => record.productId.toLocaleLowerCase() === normalized,
-    );
+    const exactId = records.find((record) => record.productId.toLocaleLowerCase() === normalized);
     const matches = exactId
       ? [exactId]
       : records.filter(
@@ -4308,7 +4384,8 @@ export class MeriToolsService {
         tool: 'search_program_elements',
         peCode: null,
         claims: shadowClaims.length,
-        unknownEnactment: shadowClaims.filter((claim) => claim.enactmentStatus === 'unknown').length,
+        unknownEnactment: shadowClaims.filter((claim) => claim.enactmentStatus === 'unknown')
+          .length,
         withSource: shadowClaims.filter((claim) => claim.source != null).length,
       });
     }
@@ -4352,7 +4429,10 @@ export class MeriToolsService {
       accuracyMode === 'off' ? [] : await listBudgetLineLineage(this.prisma, { peCode });
     if (accuracyMode === 'shadow') {
       this.logBudgetSemanticsShadow(
-        'get_program_element', peCode, claims.years as unknown[], lineageRows,
+        'get_program_element',
+        peCode,
+        claims.years as unknown[],
+        lineageRows,
       );
     }
     return {
@@ -4385,7 +4465,10 @@ export class MeriToolsService {
       accuracyMode === 'off' ? [] : await listBudgetLineLineage(this.prisma, { peCode });
     if (accuracyMode === 'shadow') {
       this.logBudgetSemanticsShadow(
-        'get_pe_budget_timeline', peCode, timeline.years as unknown[], lineageRows,
+        'get_pe_budget_timeline',
+        peCode,
+        timeline.years as unknown[],
+        lineageRows,
       );
     }
     return {
@@ -4577,27 +4660,31 @@ export class MeriToolsService {
           ? normalizeDeadline({ value: null, kind: 'date', source: 'grants.gov' })
           : normalizeDeadline({ value: g.closeDate, kind: 'date', source: 'grants.gov' });
         return {
-        id: g.id,
-        title: summarizeText(g.title, 240),
-        agency: g.agency,
-        subAgency: g.subAgency,
-        opportunityNumber: g.opportunityNumber,
-        category: g.category,
-        awardCeiling: g.awardCeiling,
-        awardFloor: g.awardFloor,
-        estimatedFunding: g.estimatedFunding,
-        openDate: g.openDate,
-        closeDate: g.closeDate,
-        deadlineStatus: deadlineStatus(g.closeDate),
-        ...(enforce ? { deadline: {
-          ...normalized,
-          daysRemaining: structuredDaysUntil(nowIso, normalized),
-          status: structuredDeadlineStatus(nowIso, normalized),
-          ...(g.responseDateDesc ? { rawText: g.responseDateDesc } : {}),
-        } } : {}),
-        syncedStatus: g.status,
-        eligibility: g.eligibility,
-        url: g.url,
+          id: g.id,
+          title: summarizeText(g.title, 240),
+          agency: g.agency,
+          subAgency: g.subAgency,
+          opportunityNumber: g.opportunityNumber,
+          category: g.category,
+          awardCeiling: g.awardCeiling,
+          awardFloor: g.awardFloor,
+          estimatedFunding: g.estimatedFunding,
+          openDate: g.openDate,
+          closeDate: g.closeDate,
+          deadlineStatus: deadlineStatus(g.closeDate),
+          ...(enforce
+            ? {
+                deadline: {
+                  ...normalized,
+                  daysRemaining: structuredDaysUntil(nowIso, normalized),
+                  status: structuredDeadlineStatus(nowIso, normalized),
+                  ...(g.responseDateDesc ? { rawText: g.responseDateDesc } : {}),
+                },
+              }
+            : {}),
+          syncedStatus: g.status,
+          eligibility: g.eligibility,
+          url: g.url,
         };
       }),
     };
@@ -7128,15 +7215,17 @@ export class MeriToolsService {
 
     // Same all-federal rail and ledger as Funding Opportunities. A successful
     // local search says nothing about current SAM.gov coverage by itself.
-    const sourceFreshness = await this.opportunityTools.readSamSourceFreshness({ tenantId: ctx.tenantId, userId: ctx.userId });
+    const sourceFreshness = await this.opportunityTools.readSamSourceFreshness({
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+    });
     const source = sourceFreshness[0];
     const sourceReason =
       !source || source.recordCount == null
         ? 'source_freshness_unavailable'
         : source.lastSyncedAt == null
           ? 'all_federal_source_never_synced'
-          : !source.lastSyncedAt ||
-              Number.isNaN(Date.parse(source.lastSyncedAt))
+          : !source.lastSyncedAt || Number.isNaN(Date.parse(source.lastSyncedAt))
             ? 'source_freshness_unknown'
             : source.state !== 'current'
               ? 'latest_source_sync_incomplete'
@@ -7171,11 +7260,23 @@ export class MeriToolsService {
           : []),
       ],
       results: result.data.map((opp) => {
-        const normalized = normalizeDeadline({ value: opp.responseDeadline, kind: 'datetime', source: 'sam.gov' });
+        const normalized = normalizeDeadline({
+          value: opp.responseDeadline,
+          kind: 'datetime',
+          source: 'sam.gov',
+        });
         return {
           ...opp,
           description: summarizeText(opp.description, 300),
-          ...(enforce ? { deadline: { ...normalized, daysRemaining: structuredDaysUntil(asOf, normalized), status: structuredDeadlineStatus(asOf, normalized) } } : {}),
+          ...(enforce
+            ? {
+                deadline: {
+                  ...normalized,
+                  daysRemaining: structuredDaysUntil(asOf, normalized),
+                  status: structuredDeadlineStatus(asOf, normalized),
+                },
+              }
+            : {}),
         };
       }),
     };

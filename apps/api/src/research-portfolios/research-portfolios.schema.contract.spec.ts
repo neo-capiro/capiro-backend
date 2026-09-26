@@ -163,3 +163,72 @@ describe('Research Portfolios Phase 7 persistence contract', () => {
     expect(migrationPhase7.match(/BEFORE UPDATE OR DELETE ON/g)).toHaveLength(5);
   });
 });
+
+describe('Research Portfolios Phase 9 persistence contract', () => {
+  const migrationPhase9 = readFileSync(
+    resolve(
+      process.cwd(),
+      'prisma/migrations/20281001010000_research_portfolios_phase9_analytics_outputs/migration.sql',
+    ),
+    'utf8',
+  );
+
+  test.each([
+    'ResearchPortfolioEventRecipientState',
+    'ResearchPortfolioSubscription',
+    'ResearchPortfolioSnapshot',
+    'ResearchPortfolioOutputRequest',
+    'ResearchPortfolioOutputJob',
+    'ResearchPortfolioOutputAttempt',
+    'ResearchPortfolioOutputArtifact',
+    'ResearchPortfolioOutputClientFileReceipt',
+  ])('declares Prisma model %s', (model) => {
+    expect(schema).toContain(`model ${model} {`);
+  });
+
+  it('keeps output-unknown distinct from failure and success', () => {
+    expect(migrationPhase9.replace(/\s+/g, ' ')).toContain(
+      `'queued','running','completed','partial','failed','cancelled','outcome_unknown'`,
+    );
+  });
+
+  it('uses tenant-parent keys and RLS for every phase 9 table', () => {
+    for (const table of [
+      'research_portfolio_event_recipient_states',
+      'research_portfolio_subscriptions',
+      'research_portfolio_snapshots',
+      'research_portfolio_output_requests',
+      'research_portfolio_output_jobs',
+      'research_portfolio_output_attempts',
+      'research_portfolio_output_artifacts',
+      'research_portfolio_output_client_file_receipts',
+    ]) {
+      expect(migrationPhase9).toContain(`CREATE TABLE "${table}"`);
+      expect(migrationPhase9).toContain(`'${table}'`);
+      const start = migrationPhase9.indexOf(`CREATE TABLE "${table}"`);
+      const end = migrationPhase9.indexOf('\n);', start);
+      expect(migrationPhase9.slice(start, end)).toMatch(
+        /FOREIGN KEY \("tenant_id",\s*"portfolio_id"\) REFERENCES "research_portfolios"\("tenant_id",\s*"id"\)/,
+      );
+    }
+  });
+
+  it('makes snapshots, attempts, artifacts, and filing receipts append-only', () => {
+    for (const trigger of ['snapshots', 'output_attempts', 'output_artifacts', 'output_receipts']) {
+      expect(migrationPhase9).toContain(`research_portfolio_${trigger}_append_only_trigger`);
+    }
+    expect(migrationPhase9.match(/BEFORE UPDATE OR DELETE ON/g)).toHaveLength(4);
+  });
+
+  it('pins exact output bytes and enforces CSV-only configured delivery', () => {
+    expect(migrationPhase9).toContain('"bytes" BYTEA NOT NULL');
+    expect(migrationPhase9).toContain('CHECK ("format" = \'csv\')');
+    expect(migrationPhase9).toContain('"content_hash" CHAR(64) NOT NULL');
+    expect(migrationPhase9).toContain(
+      'CREATE INDEX "research_portfolio_output_artifacts_hash_idx"',
+    );
+    expect(migrationPhase9).not.toContain(
+      'CREATE UNIQUE INDEX "research_portfolio_output_artifacts_hash',
+    );
+  });
+});

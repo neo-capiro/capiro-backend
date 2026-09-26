@@ -83,6 +83,7 @@ export class ResearchPortfoliosService {
         },
         include: {
           grants: { where: { principalUserId: ctx.userId }, take: 1 },
+          clientLinks: { select: { clientId: true } },
           _count: { select: { members: true, clientLinks: true } },
         },
         orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
@@ -92,9 +93,17 @@ export class ResearchPortfoliosService {
       const hasMore = rows.length > boundedLimit;
       const page = hasMore ? rows.slice(0, boundedLimit) : rows;
       return {
-        items: page.map((row) =>
-          this.summary(row, row.grants[0]!.role as ResearchPortfolioGrantRole),
-        ),
+        items: await Promise.all(page.map(async (row) => {
+          const allowedClientCount = (await Promise.all(
+            row.clientLinks.map((link) =>
+              clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, link.clientId),
+            ),
+          )).filter(Boolean).length;
+          return this.summary(
+            { ...row, _count: { ...row._count, clientLinks: allowedClientCount } },
+            row.grants[0]!.role as ResearchPortfolioGrantRole,
+          );
+        })),
         nextCursor: hasMore ? page.at(-1)!.id : null,
       };
     });
@@ -113,10 +122,26 @@ export class ResearchPortfoliosService {
           _count: { select: { members: true, clientLinks: true } },
         },
       });
+      const visibleClientLinks = [];
+      const deniedClientIds: string[] = [];
+      for (const link of row.clientLinks) {
+        if (await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, link.clientId)) {
+          visibleClientLinks.push(link);
+        } else deniedClientIds.push(link.clientId);
+      }
+      const visibleEvents = deniedClientIds.length
+        ? row.events.filter((event) => {
+            const payload = JSON.stringify(event.payload ?? {});
+            return !deniedClientIds.some((clientId) => payload.includes(clientId));
+          })
+        : row.events;
       return {
-        ...this.summary(row, authorized.role),
+        ...this.summary(
+          { ...row, _count: { ...row._count, clientLinks: visibleClientLinks.length } },
+          authorized.role,
+        ),
         grants: row.grants.map((grant) => this.grantDto(grant)),
-        clientLinks: row.clientLinks.map((link) => ({
+        clientLinks: visibleClientLinks.map((link) => ({
           id: link.id,
           clientId: link.clientId,
           clientName: link.client.name,
@@ -124,7 +149,7 @@ export class ResearchPortfoliosService {
           createdAt: asIso(link.createdAt),
         })),
         members: row.members.map((member) => this.memberDto(member)),
-        recentEvents: row.events.map((event) => ({
+        recentEvents: visibleEvents.map((event) => ({
           id: event.id,
           eventKind: event.eventKind,
           aggregateRevision: event.aggregateRevision,

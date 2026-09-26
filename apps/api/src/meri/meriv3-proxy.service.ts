@@ -9,6 +9,12 @@ import {
   type MeriProspectScope,
 } from '../business-development/bizdev-meri-scope.service.js';
 import {
+  authorizeMeriResearchPortfolioScope,
+  ResearchPortfolioMeriScopeService,
+  researchPortfolioScopeDirective,
+  researchPortfolioTurnScopeReceipt,
+} from '../research-portfolios/research-portfolio-meri-scope.service.js';
+import {
   assertAttachmentConversation,
   authorizedAttachmentSources,
   compactedAttachmentContext,
@@ -84,6 +90,9 @@ export class MeriV3ProxyService {
     @Optional()
     @Inject(BizDevMeriScopeService)
     private readonly bizdevScope?: BizDevMeriScopeService,
+    @Optional()
+    @Inject(ResearchPortfolioMeriScopeService)
+    private readonly researchPortfolioScope?: ResearchPortfolioMeriScopeService,
   ) {}
 
   async shouldHandle(ctx: TenantContext): Promise<boolean> {
@@ -131,6 +140,11 @@ export class MeriV3ProxyService {
     // Ordinary unscoped conversations return null here and proceed unchanged.
     const prospectScope = await authorizeMeriProspectScope(
       this.bizdevScope,
+      ctx,
+      conversation.metadata,
+    );
+    const researchScope = await authorizeMeriResearchPortfolioScope(
+      this.researchPortfolioScope,
       ctx,
       conversation.metadata,
     );
@@ -421,6 +435,9 @@ export class MeriV3ProxyService {
           // Phase 4: the server-authored prospect directive rides the request
           // (bounded fields only — never provider payloads/notes/dossiers).
           ...(prospectScope ? { prospectDirective: prospectScopeDirective(prospectScope) } : {}),
+          ...(researchScope
+            ? { researchDirective: researchPortfolioScopeDirective(researchScope) }
+            : {}),
           ...(conversation.summary && replay.hasSummaryBoundary
             ? { conversationSummary: conversation.summary }
             : {}),
@@ -526,7 +543,9 @@ export class MeriV3ProxyService {
     // retrieval plan or model output.
     const turnScope = prospectScope
       ? prospectTurnScopeReceipt(prospectScope)
-      : captureMeriTurnScope(conversation, frame?.retrieval, frame?.contextPacket);
+      : researchScope
+        ? researchPortfolioTurnScopeReceipt(researchScope)
+        : captureMeriTurnScope(conversation, frame?.retrieval, frame?.contextPacket);
     let assistantMessageId: string | null = null;
     if (assistantContent || steps.length || errorMessage || stoppedWithoutText) {
       const message = await this.persistAssistantMessage(

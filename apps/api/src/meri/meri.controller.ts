@@ -64,6 +64,12 @@ class CreateMeriConversationDto {
   prospectId?: string;
 
   @IsOptional()
+  @IsUUID()
+  // Distinct from legacy Meri "portfolio" scope (all clients). The server
+  // resolves this id to a bounded, authorized receipt before persistence.
+  researchPortfolioId?: string;
+
+  @IsOptional()
   @IsString()
   @Length(1, 160)
   title?: string;

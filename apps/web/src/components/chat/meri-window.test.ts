@@ -94,6 +94,21 @@ describe('MeriV3 browser window', () => {
     expect(url.searchParams.get('meriClient')).toBeNull();
   });
 
+  test('vNext Research Portfolio context is distinct and drops stale client scope', () => {
+    const url = new URL(
+      meriVNextWorkspaceUrl('https://os.capiro.test', {
+        prompt: 'Analyze this Research Portfolio',
+        clientId: 'stale-client',
+        researchPortfolioId: '22222222-2222-4222-8222-222222222222',
+      }),
+    );
+    expect(url.pathname).toBe('/meri/new');
+    expect(url.searchParams.get('meriResearchPortfolio')).toBe(
+      '22222222-2222-4222-8222-222222222222',
+    );
+    expect(url.searchParams.get('meriClient')).toBeNull();
+  });
+
   test('encodes a one-time contextual prompt and optional client scope', () => {
     const focus = vi.fn();
     const open = vi.fn(

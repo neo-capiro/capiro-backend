@@ -9,8 +9,10 @@ import {
   Post,
   Put,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import type {
   TenantContext,
   CreateResearchPortfolioDto,
@@ -48,6 +50,21 @@ import type {
   ResearchPortfolioImportActionDto,
   ResearchPortfolioImportDetailDto,
   ResearchPortfolioImportJobDto,
+  CreateResearchPortfolioSubscriptionDto,
+  UpdateResearchPortfolioSubscriptionDto,
+  UpdateResearchPortfolioEventStateDto,
+  ResearchPortfolioChangeDto,
+  ResearchPortfolioEventRecipientStateDto,
+  ResearchPortfolioSubscriptionDto,
+  ResearchPortfolioSubscriptionDeliveryDto,
+  ResearchPortfolioAnalyticsDto,
+  CreateResearchPortfolioSnapshotDto,
+  ResearchPortfolioSnapshotDto,
+  ResearchPortfolioSnapshotSummaryDto,
+  CreateResearchPortfolioOutputDto,
+  ResearchPortfolioOutputJobDto,
+  SaveResearchPortfolioOutputToClientDto,
+  ResearchPortfolioClientFileReceiptDto,
 } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -56,6 +73,9 @@ import { ResearchPortfoliosService } from './research-portfolios.service.js';
 import { ResearchPortfolioRulesService } from './research-portfolio-rules.service.js';
 import { ResearchPortfolioReviewService } from './research-portfolio-review.service.js';
 import { ResearchPortfolioImportService } from './research-portfolio-import.service.js';
+import { ResearchPortfolioChangesService } from './research-portfolio-changes.service.js';
+import { ResearchPortfolioAnalyticsService } from './research-portfolio-analytics.service.js';
+import { ResearchPortfolioOutputService } from './research-portfolio-output.service.js';
 
 const RESERVED_STATIC_IDS = new Set(['templates', 'taxonomy']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -75,7 +95,187 @@ export class ResearchPortfoliosController {
     private readonly rules: ResearchPortfolioRulesService,
     private readonly reviewService: ResearchPortfolioReviewService,
     private readonly importService: ResearchPortfolioImportService,
+    private readonly changesService: ResearchPortfolioChangesService,
+    private readonly analyticsService: ResearchPortfolioAnalyticsService,
+    private readonly outputService: ResearchPortfolioOutputService,
   ) {}
+
+  @Get(':id/changes')
+  async changes(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+  ): Promise<{ items: readonly ResearchPortfolioChangeDto[]; nextCursor: string | null }> {
+    ensurePortfolioId(id);
+    const parsed = limit ? Number.parseInt(limit, 10) : 50;
+    return this.changesService.listChanges(ctx, id, cursor ?? null, Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 100) : 50);
+  }
+
+  @Patch(':id/changes/:eventId/state')
+  async updateChangeState(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('eventId') eventId: string,
+    @Body() dto: UpdateResearchPortfolioEventStateDto,
+  ): Promise<ResearchPortfolioEventRecipientStateDto> {
+    ensurePortfolioId(id);
+    return this.changesService.updateEventState(ctx, id, eventId, dto);
+  }
+
+  @Get(':id/subscriptions')
+  async subscriptions(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+  ): Promise<readonly ResearchPortfolioSubscriptionDto[]> {
+    ensurePortfolioId(id);
+    return this.changesService.listSubscriptions(ctx, id);
+  }
+
+  @Get(':id/subscription-deliveries')
+  async subscriptionDeliveries(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+  ): Promise<readonly ResearchPortfolioSubscriptionDeliveryDto[]> {
+    ensurePortfolioId(id);
+    return this.changesService.listDeliveries(ctx, id);
+  }
+
+  @Post(':id/subscriptions')
+  async createSubscription(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() dto: CreateResearchPortfolioSubscriptionDto,
+  ): Promise<ResearchPortfolioSubscriptionDto> {
+    ensurePortfolioId(id);
+    return this.changesService.createSubscription(ctx, id, dto);
+  }
+
+  @Patch(':id/subscriptions/:subscriptionId')
+  async updateSubscription(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('subscriptionId') subscriptionId: string,
+    @Body() dto: UpdateResearchPortfolioSubscriptionDto,
+  ): Promise<ResearchPortfolioSubscriptionDto> {
+    ensurePortfolioId(id);
+    return this.changesService.updateSubscription(ctx, id, subscriptionId, dto);
+  }
+
+  @Get(':id/analytics')
+  async analytics(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+  ): Promise<ResearchPortfolioAnalyticsDto> {
+    ensurePortfolioId(id);
+    return this.analyticsService.analytics(ctx, id);
+  }
+
+  @Get(':id/snapshots')
+  async snapshots(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+  ): Promise<readonly ResearchPortfolioSnapshotSummaryDto[]> {
+    ensurePortfolioId(id);
+    return this.analyticsService.listSnapshots(ctx, id);
+  }
+
+  @Post(':id/snapshots')
+  async createSnapshot(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() dto: CreateResearchPortfolioSnapshotDto,
+  ): Promise<ResearchPortfolioSnapshotDto> {
+    ensurePortfolioId(id);
+    return this.analyticsService.createSnapshot(ctx, id, dto);
+  }
+
+  @Get(':id/snapshots/:snapshotId')
+  async snapshot(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('snapshotId') snapshotId: string,
+  ): Promise<ResearchPortfolioSnapshotDto> {
+    ensurePortfolioId(id);
+    return this.analyticsService.snapshot(ctx, id, snapshotId);
+  }
+
+  @Post(':id/outputs')
+  async createOutput(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() dto: CreateResearchPortfolioOutputDto,
+  ): Promise<ResearchPortfolioOutputJobDto> {
+    ensurePortfolioId(id);
+    return this.outputService.create(ctx, id, dto);
+  }
+
+  @Get(':id/output-jobs/:jobId')
+  async outputJob(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('jobId') jobId: string,
+  ): Promise<ResearchPortfolioOutputJobDto> {
+    ensurePortfolioId(id);
+    return this.outputService.get(ctx, id, jobId);
+  }
+
+  @Post(':id/output-jobs/:jobId/cancel')
+  async cancelOutput(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('jobId') jobId: string,
+  ): Promise<ResearchPortfolioOutputJobDto> {
+    ensurePortfolioId(id);
+    return this.outputService.cancel(ctx, id, jobId);
+  }
+
+  @Post(':id/output-jobs/:jobId/retry')
+  async retryOutput(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('jobId') jobId: string,
+  ): Promise<ResearchPortfolioOutputJobDto> {
+    ensurePortfolioId(id);
+    return this.outputService.retry(ctx, id, jobId);
+  }
+
+  @Post(':id/output-jobs/:jobId/reconcile')
+  async reconcileOutput(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('jobId') jobId: string,
+  ): Promise<ResearchPortfolioOutputJobDto> {
+    ensurePortfolioId(id);
+    return this.outputService.reconcile(ctx, id, jobId);
+  }
+
+  @Get(':id/outputs/:outputId/download')
+  async downloadOutput(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('outputId') outputId: string,
+    @Res() response: Response,
+  ): Promise<void> {
+    ensurePortfolioId(id);
+    const output = await this.outputService.download(ctx, id, outputId);
+    response.setHeader('Content-Type', output.mediaType);
+    response.setHeader('Content-Disposition', `attachment; filename="${output.fileName.replace(/"/g, '')}"`);
+    response.setHeader('ETag', `"${output.contentHash}"`);
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.send(output.bytes);
+  }
+
+  @Post(':id/outputs/:outputId/client-files')
+  async saveOutputToClient(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('outputId') outputId: string,
+    @Body() dto: SaveResearchPortfolioOutputToClientDto,
+  ): Promise<ResearchPortfolioClientFileReceiptDto> {
+    ensurePortfolioId(id);
+    return this.outputService.saveToClient(ctx, id, outputId, dto);
+  }
 
   @Get()
   async list(

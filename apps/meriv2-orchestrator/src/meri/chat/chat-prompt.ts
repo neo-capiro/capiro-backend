@@ -51,6 +51,7 @@ export interface ChatInput {
   conversationSummary?: string;
   /** Server-authored active-prospect constraint from apps/api. */
   prospectDirective?: string;
+  researchDirective?: string;
   /**
    * Always-on client knowledge-base snapshot (profile digest, key people,
    * facility footprint, recent documents) for the focused client (1B.4),
@@ -426,6 +427,9 @@ export function composeChatSystemPrompt(
       : '',
     dto.prospectDirective
       ? `\n# Active business-development prospect scope\n${dto.prospectDirective}`
+      : '',
+    dto.researchDirective
+      ? `\n# Active Defense Intelligence Research Portfolio scope\n${dto.researchDirective}`
       : '',
     dto.memoryContext?.length
       ? `\n# What you remember (firm + this user)\nThese are stored memories relevant to this conversation — use them directly when they answer the question:\n${dto.memoryContext.map((m) => `- ${m}`).join('\n')}`
