@@ -91,14 +91,15 @@ describe('vNext foundation contract', () => {
 
     // The three Directory destinations were gaps until the Directory vNext split
     // (Figma 941:2860) registered them, and State Legislators joined them as a
-    // fourth first-class surface. A gap here again would mean the shell is
-    // linking to a destination that no longer resolves.
+    // fourth first-class surface, then State Committees as the fifth. A gap here
+    // again would mean the shell is linking to a destination that no longer resolves.
     const directory = VNEXT_ROUTE_MANIFEST.find((route) => route.id === 'directory');
     expect(directory?.children?.map((route) => route.path)).toEqual([
       '/directory/congressional-staff',
       '/directory/committee-staff',
       '/directory/department-of-war',
       '/directory/state-legislators',
+      '/directory/state-committees',
     ]);
     // `portfolio-coalitions` is a deliberate, disclosed gap (see routeManifest.ts's
     // note on that entry) — shown disabled (aria-disabled, shell-contract.test.tsx)
