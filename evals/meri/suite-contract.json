@@ -1,0 +1,62 @@
+{
+  "version": "meri-offline-v1",
+  "schemaVersion": 1,
+  "description": "Meri Promptfoo offline suite contract - exact case IDs and deterministic threshold",
+  "baseSha": "81c7c9c58a4fc3c1e34ab9714614882d74a60c9d",
+  "fixtureVersion": "2026-09-06.1",
+  "fixtureSha256": "f3474d7d9ee178e224d2b130e32643bec09af5ae0804e808149ed7e08442e770",
+  "threshold": 1.0,
+  "caseIds": {
+    "core": [
+      "core/leakage.cross-tenant.matrix",
+      "core/grounding.claim-evidence",
+      "core/compliance.gate.enforcement",
+      "core/entity.grounding.canonical-ids",
+      "core/legislation.bill-status.hr8800-rule-failed",
+      "core/legislation.state-bill-status.crossover-dead",
+      "core/legislation.state-rule-status.no-fabrication",
+      "core/legislation.committee-roster.never-guess",
+      "core/legislation.multi-state-comparison.order-independent",
+      "core/legislation.federal-state-mixed.no-cross-contamination",
+      "core/government-affairs-assurance-ga-goldens-v1.0.0"
+    ],
+    "ga": [
+      "ga/ga-budget-stage-and-units",
+      "ga/ga-funding-eligibility-and-forecast",
+      "ga/ga-meeting-history-and-role",
+      "ga/ga-hearing-statement-versus-decision",
+      "ga/ga-legislation-current-version",
+      "ga/ga-executive-consistent-deliverable"
+    ],
+    "plan": [
+      "plan/portfolio-changes",
+      "plan/overland-ai-profile",
+      "plan/c2-strategies-mail-history",
+      "plan/kindetic-industries-research",
+      "plan/selected-client-priorities"
+    ],
+    "sequence": [
+      "sequence/portfolio-overlap-with-target",
+      "sequence/cleared-prior-target"
+    ],
+    "calibration": [
+      "calibration/bad-citation",
+      "calibration/tenant-leak"
+    ]
+  },
+  "totalCases": 26,
+  "passThreshold": 1.0,
+  "provenance": {
+    "baseGitSha": "81c7c9c58a4fc3c1e34ab9714614882d74a60c9d",
+    "fixtureVersion": "2026-09-06.1",
+    "evaluatorVersion": "meri-offline-v1",
+    "promptfooVersion": "0.123.1",
+    "pythonVersion": "3.14.7"
+  },
+  "comments": {
+    "noBaseline": "No accepted baseline exists yet; this contract pins exact case IDs for deterministic testing.",
+    "threshold": "Pass threshold is 1.0 - all cases must pass for success.",
+    "calibration": "Calibration cases assert that the underlying grader correctly rejects bad input (fail closed).",
+    "scorerTests": "Python unit tests validate the scorer and fail-closed report verifier before the full Promptfoo run."
+  }
+}

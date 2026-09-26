@@ -1,0 +1,162 @@
+# Meri Promptfoo offline evaluation config
+# No-network, no-database, no-model regression harness.
+# Do NOT claim that success validates live Meri answers or actual model behavior.
+# All GA fixtures are sanitized invented data, not real client data.
+
+description: "Meri offline regression evaluation suite (meri-offline-v1)"
+
+# Promptfoo requires a prompts key; we pass caseId as the prompt template variable.
+# The provider ignores the prompt value and uses context.vars.caseId.
+prompts:
+  - "{{caseId}}"
+
+providers:
+  - id: "file://./runtime/provider.cjs"
+    label: meri-offline-runner
+
+defaultTest:
+  assert:
+    - type: python
+      value: "file://./scorer.py"
+      threshold: 1
+
+tests:
+  # ---- Core mechanism cases (11) ----
+  - vars:
+      caseId: "core/leakage.cross-tenant.matrix"
+
+  - vars:
+      caseId: "core/grounding.claim-evidence"
+
+  - vars:
+      caseId: "core/compliance.gate.enforcement"
+
+  - vars:
+      caseId: "core/entity.grounding.canonical-ids"
+
+  - vars:
+      caseId: "core/legislation.bill-status.hr8800-rule-failed"
+
+  - vars:
+      caseId: "core/legislation.state-bill-status.crossover-dead"
+
+  - vars:
+      caseId: "core/legislation.state-rule-status.no-fabrication"
+
+  - vars:
+      caseId: "core/legislation.committee-roster.never-guess"
+
+  - vars:
+      caseId: "core/legislation.multi-state-comparison.order-independent"
+
+  - vars:
+      caseId: "core/legislation.federal-state-mixed.no-cross-contamination"
+
+  - vars:
+      caseId: "core/government-affairs-assurance-ga-goldens-v1.0.0"
+
+  # ---- Government affairs reference-answer cases (6) ----
+  - vars:
+      caseId: "ga/ga-budget-stage-and-units"
+
+  - vars:
+      caseId: "ga/ga-funding-eligibility-and-forecast"
+
+  - vars:
+      caseId: "ga/ga-meeting-history-and-role"
+
+  - vars:
+      caseId: "ga/ga-hearing-statement-versus-decision"
+
+  - vars:
+      caseId: "ga/ga-legislation-current-version"
+
+  - vars:
+      caseId: "ga/ga-executive-consistent-deliverable"
+
+  # ---- Planner scenarios (5) ----
+  - description: "plan/portfolio-changes: portfolio scope, change_detection, query_portfolio_changes"
+    vars:
+      caseId: "plan/portfolio-changes"
+      request: "What has changed across my portfolio this week?"
+      expectedRecipeTool: "query_portfolio_changes"
+      expectedSubjectScope: "portfolio"
+      expectedWithinDays: 7
+      expectedActiveClientCount: 2
+      expectedRequiredDomains_json: '["clients","mail","tasks","action_items"]'
+      expectedRecommendedTools_json: '["query_portfolio_changes"]'
+      forbiddenRecommendedTools_json: '["research_federal_market_strategy"]'
+
+  - description: "plan/overland-ai-profile: bounded external company lookup"
+    vars:
+      caseId: "plan/overland-ai-profile"
+      request: "what does overland ai do"
+      expectedRecipeTool: "research_external_company"
+      expectedSubjectScope: "external_entity"
+      expectedTargetHint: "overland ai"
+      expectedRequiredDomains_json: '["public_web"]'
+      expectedRecommendedTools_json: '["research_external_company"]'
+      forbiddenRecommendedTools_json: '["research_federal_market_strategy","search_lda_filings","search_sec_filings","search_federal_awards","search_sam_opportunities","search_federal_grants","search_program_elements","get_pe_budget_timeline","get_pe_report_language"]'
+
+  - description: "plan/c2-strategies-mail-history: mail-only required coverage"
+    vars:
+      caseId: "plan/c2-strategies-mail-history"
+      request: "tell me my email history with c2 strategies"
+      expectedRecipeTool: "query_relationship_brief"
+      expectedSubjectScope: "external_entity"
+      expectedTargetHint: "c2 strategies"
+      expectedRequiredDomains_json: '["mail"]'
+      expectedRecommendedTools_json: '["query_relationship_brief","search_emails"]'
+      forbiddenRecommendedTools_json: '["research_external_company","research_federal_market_strategy","search_public_web","search_lda_filings","search_sec_filings","search_federal_awards","search_federal_grants","search_program_elements"]'
+
+  - description: "plan/kindetic-industries-research: comprehensive federal market research"
+    vars:
+      caseId: "plan/kindetic-industries-research"
+      request: "Give me a comprehensive strategy on kindeticindustries.inc"
+      expectedRecipeTool: "research_federal_market_strategy"
+      expectedSubjectScope: "external_entity"
+      expectedTargetHint: "kindeticindustries.inc"
+      expectedRequiredDomains_json: '["public_web","awards","budget"]'
+      expectedRecommendedTools_json: '["research_federal_market_strategy"]'
+
+  - description: "plan/selected-client-priorities: ordinary selected client lookup"
+    vars:
+      caseId: "plan/selected-client-priorities"
+      request: "What are this client's current priorities?"
+      selectedClientId: "eval-client-uuid-001"
+      expectedSubjectScope: "client"
+      expectedRecipeTool: "__none__"
+      expectedTargetHint: "__none__"
+      forbiddenRecommendedTools_json: '["research_external_company","research_federal_market_strategy"]'
+
+  # ---- Sequence scenarios (2) ----
+  - description: "sequence/portfolio-overlap-with-target: prior entity carried into portfolio overlap"
+    vars:
+      caseId: "sequence/portfolio-overlap-with-target"
+      firstRequest: "Tell me about Kinetic Industries Inc."
+      request: "Search across clients"
+      selectedClientId: "eval-client-uuid-001"
+      expectedFirstTargetHint: "Kinetic Industries Inc"
+      expectedSecondTargetHint: "Kinetic Industries Inc"
+      expectedSecondRecipeTool: "query_portfolio_overlap"
+      expectedSecondSubjectScope: "portfolio"
+
+  - description: "sequence/cleared-prior-target: prior entity cleared for unrelated client follow-up"
+    vars:
+      caseId: "sequence/cleared-prior-target"
+      firstRequest: "Tell me about Overland AI."
+      request: "What are this client's current priorities?"
+      selectedClientId: "eval-client-uuid-001"
+      expectedFirstTargetHint: "Overland AI"
+      expectedSecondTargetHint: "__none__"
+      expectedSecondRecipeTool: "__none__"
+      expectedSecondSubjectScope: "client"
+
+  # ---- Calibration scenarios (2) ----
+  - description: "calibration/bad-citation: GA grader must reject fabricated citation [999]"
+    vars:
+      caseId: "calibration/bad-citation"
+
+  - description: "calibration/tenant-leak: mechanism must reject cross-tenant leak when seeded"
+    vars:
+      caseId: "calibration/tenant-leak"
