@@ -1,10 +1,19 @@
 import { captureMeriTurnScope } from './meri-turn-scope.js';
 import {
+  authorizeMeriProspectScope,
+  prospectScopeDirective,
+  prospectTurnScopeReceipt,
+} from './meri-prospect-scope.helpers.js';
+import {
+  BizDevMeriScopeService,
+  type MeriProspectScope,
+} from '../business-development/bizdev-meri-scope.service.js';
+import {
   assertAttachmentConversation,
   authorizedAttachmentSources,
   compactedAttachmentContext,
 } from './meri-attachment-continuity.js';
-import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { MeriConversationEvidenceService } from './meri-conversation-evidence.service.js';
@@ -69,6 +78,12 @@ export class MeriV3ProxyService {
     private readonly firmSkills: MeriFirmSkillsService,
     @Inject(MERI_TURN_MAINTENANCE) private readonly maintenance: MeriTurnMaintenance,
     private readonly conversationEvidence: MeriConversationEvidenceService,
+    // Phase 4 prospect dispatch: optional so existing direct-construction
+    // specs keep compiling; Nest wiring provides it via BusinessDevelopmentModule.
+    // A prospect-scoped conversation with it unavailable fails closed below.
+    @Optional()
+    @Inject(BizDevMeriScopeService)
+    private readonly bizdevScope?: BizDevMeriScopeService,
   ) {}
 
   async shouldHandle(ctx: TenantContext): Promise<boolean> {
@@ -108,6 +123,17 @@ export class MeriV3ProxyService {
     }
 
     const conversation = await this.ensureConversation(ctx, conversationId);
+    // Phase 4 prospect-scope authorization re-check: BEFORE any user-message
+    // write or runtime dispatch for a prospect-scoped conversation, parse the
+    // server-persisted scope and re-assert it is current. Missing/malformed/
+    // stale scope, or an unavailable scope service, fails closed with the typed
+    // conflict / safe 404 — the same shape conversation-creation uses.
+    // Ordinary unscoped conversations return null here and proceed unchanged.
+    const prospectScope = await authorizeMeriProspectScope(
+      this.bizdevScope,
+      ctx,
+      conversation.metadata,
+    );
     const control = extractStreamControl(body);
     const complianceScreen = screenComplianceRisk(control.cleanContent);
     let content: string;
@@ -392,6 +418,9 @@ export class MeriV3ProxyService {
             : {}),
           ...(conversation.clientId ? { clientId: conversation.clientId } : {}),
           conversationId,
+          // Phase 4: the server-authored prospect directive rides the request
+          // (bounded fields only — never provider payloads/notes/dossiers).
+          ...(prospectScope ? { prospectDirective: prospectScopeDirective(prospectScope) } : {}),
           ...(conversation.summary && replay.hasSummaryBoundary
             ? { conversationSummary: conversation.summary }
             : {}),
@@ -492,7 +521,12 @@ export class MeriV3ProxyService {
         : finishReason === 'deadline_exceeded'
           ? 'The turn reached its time limit before an answer was generated.'
           : 'MeriV3 could not complete this turn. Please try again.';
-    const turnScope = captureMeriTurnScope(conversation, frame?.retrieval, frame?.contextPacket);
+    // Phase 4: a prospect-scoped turn's receipt comes ONLY from the server
+    // conversation snapshot re-asserted before dispatch — never from the
+    // retrieval plan or model output.
+    const turnScope = prospectScope
+      ? prospectTurnScopeReceipt(prospectScope)
+      : captureMeriTurnScope(conversation, frame?.retrieval, frame?.contextPacket);
     let assistantMessageId: string | null = null;
     if (assistantContent || steps.length || errorMessage || stoppedWithoutText) {
       const message = await this.persistAssistantMessage(

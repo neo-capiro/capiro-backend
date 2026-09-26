@@ -30,16 +30,17 @@ const EXPECTED_IN_EDITOR_TOOLS = [
   'get_pe_budget_timeline',
   'get_pe_contractors',
   'get_pe_bills',
+  'get_pe_buyer_workspace',
   'search_acquisition_personnel',
   'get_acquisition_person',
   'query_economic_data',
 ].sort();
 
 describe('IN_EDITOR_DELEGATED_TOOLS catalog', () => {
-  it('matches the apps/api in-editor allowlist exactly (24 tools)', () => {
+  it('matches the apps/api in-editor allowlist exactly (25 tools)', () => {
     const names = IN_EDITOR_DELEGATED_TOOLS.map((t) => t.name).sort();
     expect(names).toEqual(EXPECTED_IN_EDITOR_TOOLS);
-    expect(IN_EDITOR_DELEGATED_TOOLS).toHaveLength(24);
+    expect(IN_EDITOR_DELEGATED_TOOLS).toHaveLength(25);
   });
 
   it('is ALL read-only (no write tool delegated on the read surface)', () => {

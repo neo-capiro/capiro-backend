@@ -1,0 +1,28 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "src/prisma/prisma.service.ts",
+    "src/program-element/programs/program-continuity.service.ts",
+    "src/program-element/programs/program-continuity.controller.ts",
+    "src/program-element/programs/program-continuity.service.spec.ts",
+    "src/program-element/program-element.module.ts",
+    "src/program-element/acquisition-continuity/acquisition-continuity.types.ts",
+    "src/program-element/acquisition-continuity/acquisition-identity.ts",
+    "src/program-element/acquisition-continuity/acquisition-identity.spec.ts",
+    "src/program-element/acquisition-continuity/acquisition-projection.ts",
+    "src/program-element/acquisition-continuity/acquisition-projection.spec.ts",
+    "src/program-element/acquisition-continuity/acquisition-continuity-read.service.ts",
+    "src/program-element/acquisition-continuity/acquisition-continuity-read.service.spec.ts",
+    "src/program-element/acquisition-continuity/acquisition-continuity.store.ts",
+    "scripts/sync-program-acquisition-continuity.ts",
+    "scripts/qualify-package5-program-acquisition.ts",
+    "scripts/package5-qualification-safety.ts",
+    "scripts/package5-qualification-safety.spec.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

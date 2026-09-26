@@ -1,0 +1,210 @@
+/**
+ * Business Development v5 — Pipeline prototype parity styles.
+ *
+ * Imported after business-development.css; these rules only extend/override
+ * the existing surface. Layout intent comes from the v5 user prototype:
+ * a compact title/filter toolbar, a separate stage-summary card, a separate
+ * prospect-table card, prototype column order and tighter row spacing.
+ */
+
+/* Page-scoped header band. Keep the shared app shell untouched. */
+.capiro-bizdev {
+  --capiro-page-block-start: 24px;
+  gap: 0;
+}
+
+.capiro-bizdev__head--v5 {
+  align-items: flex-start;
+  margin: calc(-1 * var(--capiro-page-block-start)) calc(-1 * var(--capiro-page-gutter)) 0;
+  padding: 24px var(--capiro-page-gutter) 14px;
+  background: var(--capiro-color-bg-surface);
+}
+
+.capiro-bizdev__head--v5 .capiro-bizdev__eyebrow {
+  margin: 0 0 2px;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.capiro-bizdev__head--v5 .capiro-bizdev__title {
+  margin-block: 0 2px;
+}
+
+.capiro-bizdev__head--v5 .capiro-bizdev__sub {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.capiro-bizdev__viewtabs {
+  margin-inline: calc(-1 * var(--capiro-page-gutter));
+  padding: 0 var(--capiro-page-gutter);
+  gap: 16px;
+  background: var(--capiro-color-bg-surface);
+}
+
+.capiro-bizdev__viewtab {
+  padding-inline: 12px;
+}
+
+.capiro-bizdev__viewtab-count {
+  border-radius: 999px;
+}
+
+#bizdev-viewpanel {
+  margin-top: 20px;
+  min-width: 0;
+}
+
+/* Compact filters followed by separate stage-summary and table cards. */
+.capiro-bizdev__surface--v5-pipeline,
+.capiro-bizdev__surface--v5-stagebar,
+.capiro-bizdev__surface--v5-table {
+  margin-block-end: 12px;
+  box-shadow: none;
+}
+
+.capiro-bizdev__surface--v5-pipeline {
+  background: transparent;
+  overflow: visible;
+}
+
+.capiro-bizdev__toolbar--v5 {
+  position: relative;
+  gap: 8px;
+  padding: 0 0 8px;
+  flex-wrap: wrap;
+}
+
+.capiro-bizdev__toolbar--v5 > .capiro-bizdev__title-row {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.capiro-bizdev__toolbar--v5 .capiro-bizdev__filters {
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.capiro-bizdev__toolbar--v5 .capiro-bizdev__toolbar-spacer {
+  display: none;
+}
+
+@media (min-width: 1180px) {
+  .capiro-bizdev__toolbar--v5 .capiro-bizdev__filters {
+    grid-template-columns: minmax(140px, 1.2fr) repeat(5, minmax(100px, 1fr)) minmax(150px, 1.2fr) auto;
+    align-items: center;
+  }
+}
+
+.capiro-bizdev__filters .capiro-bizdev__toggle {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.capiro-bizdev__surface--v5-pipeline .capiro-bizdev__segment-row {
+  padding: 0;
+}
+
+.capiro-bizdev__surface--v5-stagebar {
+  border: 1px solid var(--capiro-color-border-quiet);
+  padding: 8px 18px;
+}
+
+/* Stage summary: its own flat card, histogram flush to the card edges. */
+.capiro-bizdev__surface--v5-stagebar .capiro-bizdev__stagebar {
+  margin: 0;
+  padding: 0;
+}
+
+.capiro-bizdev__surface--v5-stagebar .capiro-bizdev__stagecell-label {
+  font-weight: 400;
+  line-height: 18px;
+}
+
+.capiro-bizdev__surface--v5-stagebar .capiro-bizdev__stagecell {
+  gap: 4px;
+}
+
+.capiro-bizdev__surface--v5-stagebar .capiro-bizdev__stagecell-count {
+  line-height: 26px;
+}
+
+.capiro-bizdev__surface--v5-table .capiro-bizdev__table-wrap {
+  position: relative;
+}
+
+/* Prospect table card: prototype column order lives in the markup; here we
+   tighten row spacing and keep inline controls compact. */
+.capiro-bizdev__table--v5 {
+  margin: 0;
+}
+
+.capiro-bizdev__table--v5 thead th {
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+.capiro-bizdev__table--v5 tbody td {
+  padding-block: 12px;
+}
+
+.capiro-bizdev__table--v5 tbody tr:nth-child(even) {
+  background: transparent;
+}
+
+.capiro-bizdev__select--inline {
+  font-size: 13px;
+  padding-block: 4px;
+  padding-inline: 6px;
+  max-width: 160px;
+  width: 100%;
+  min-width: 130px;
+}
+
+/* Overdue next-action hint (prototype: "Overdue · was due …"). */
+.capiro-bizdev__meta--overdue {
+  color: var(--capiro-color-text-danger, #b3261e);
+  font-weight: 600;
+}
+
+/* Failed inline-write recovery notes under the table. */
+.capiro-bizdev__row-errors {
+  border-block-start: 1px solid var(--capiro-color-border-quiet);
+  padding: 8px 16px;
+  margin: 0;
+}
+
+.capiro-bizdev__row-error {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--capiro-color-text-danger, #b3261e);
+}
+
+@media (max-width: 779px) {
+  .capiro-bizdev__head--v5 {
+    gap: 8px;
+    padding-top: 20px;
+  }
+
+  .capiro-bizdev__head--v5 > div:first-child {
+    flex-basis: 100%;
+  }
+
+  .capiro-bizdev__viewtabs {
+    gap: 8px;
+  }
+}

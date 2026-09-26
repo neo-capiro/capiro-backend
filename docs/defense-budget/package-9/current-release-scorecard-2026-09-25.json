@@ -1,0 +1,124 @@
+{
+  "status": "NO_GO",
+  "activation": "shadow_only",
+  "gates": {
+    "qualificationManifest": {
+      "status": "NO_GO",
+      "reasons": [
+        "manifest_hash_missing_or_invalid",
+        "manifest_approval_record_missing",
+        "manifest_approver_missing",
+        "expected_marketed_families_missing_or_invalid",
+        "expected_mandatory_sources_missing_or_invalid"
+      ]
+    },
+    "financialCorrectness": {
+      "status": "PASS",
+      "reasons": []
+    },
+    "semanticAccuracy": {
+      "status": "NO_GO",
+      "reasons": [
+        "evidence_unreviewed"
+      ]
+    },
+    "moneyAttribution": {
+      "status": "PASS",
+      "reasons": []
+    },
+    "coverage": {
+      "status": "NO_GO",
+      "reasons": [
+        "coverage_denominator_incomplete",
+        "qualified_mandatory_source_ids_missing_or_invalid",
+        "marketed_family_coverage_missing"
+      ]
+    },
+    "lifecycle": {
+      "status": "PASS",
+      "reasons": []
+    },
+    "annualReuse": {
+      "status": "PASS",
+      "reasons": []
+    },
+    "reliability": {
+      "status": "NO_GO",
+      "reasons": [
+        "evidence_release_revision_mismatch",
+        "oldest_pending_age_minutes_over_budget_or_unknown",
+        "verified_program_update_p95_minutes_over_budget_or_unknown"
+      ]
+    },
+    "economics": {
+      "status": "NO_GO",
+      "reasons": [
+        "evidence_unreviewed"
+      ]
+    },
+    "userOutcome": {
+      "status": "NO_GO",
+      "reasons": [
+        "evidence_unreviewed"
+      ]
+    },
+    "ownership": {
+      "status": "NO_GO",
+      "reasons": [
+        "ownership_not_accepted",
+        "ownership_acceptance_record_missing"
+      ]
+    },
+    "rollback": {
+      "status": "NO_GO",
+      "reasons": [
+        "evidence_release_revision_mismatch"
+      ]
+    },
+    "costBudgets": {
+      "status": "NO_GO",
+      "reasons": [
+        "evidence_unreviewed"
+      ]
+    },
+    "activationControls": {
+      "status": "NO_GO",
+      "reasons": [
+        "task_activation_scope_missing",
+        "family_activation_scope_missing",
+        "tenant_activation_scope_missing",
+        "question_model_policy_not_frozen",
+        "evaluation_run_manifest_missing",
+        "release_authorization_missing"
+      ]
+    }
+  },
+  "reasons": [
+    "qualificationManifest:manifest_hash_missing_or_invalid",
+    "qualificationManifest:manifest_approval_record_missing",
+    "qualificationManifest:manifest_approver_missing",
+    "qualificationManifest:expected_marketed_families_missing_or_invalid",
+    "qualificationManifest:expected_mandatory_sources_missing_or_invalid",
+    "semanticAccuracy:evidence_unreviewed",
+    "coverage:coverage_denominator_incomplete",
+    "coverage:qualified_mandatory_source_ids_missing_or_invalid",
+    "coverage:marketed_family_coverage_missing",
+    "reliability:evidence_release_revision_mismatch",
+    "reliability:oldest_pending_age_minutes_over_budget_or_unknown",
+    "reliability:verified_program_update_p95_minutes_over_budget_or_unknown",
+    "economics:evidence_unreviewed",
+    "userOutcome:evidence_unreviewed",
+    "ownership:ownership_not_accepted",
+    "ownership:ownership_acceptance_record_missing",
+    "rollback:evidence_release_revision_mismatch",
+    "costBudgets:evidence_unreviewed",
+    "activationControls:task_activation_scope_missing",
+    "activationControls:family_activation_scope_missing",
+    "activationControls:tenant_activation_scope_missing",
+    "activationControls:question_model_policy_not_frozen",
+    "activationControls:evaluation_run_manifest_missing",
+    "activationControls:release_authorization_missing"
+  ],
+  "evaluatedReleaseRevision": "48e117e2887d128d1fc539e606e274e516237b64",
+  "evidenceHash": "e6690f38f1de1907345c0cf7af5dc3b8b21d5024558ce471f8f52f09bca65ddf"
+}

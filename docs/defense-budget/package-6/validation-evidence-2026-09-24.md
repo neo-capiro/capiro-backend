@@ -1,0 +1,52 @@
+# Package 6 validation evidence
+
+## Executed gates
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Focused API regressions | PASS | 8 suites / 49 tests covering pure certification, source adaptation, source routing, append-only storage, temporal financial reads, controller validation, worker gating/continuation, and qualification safety. |
+| Fresh-schema migration | PASS | All 426 migrations applied to disposable PostgreSQL database `package6_qualification`, including `20280924060000_package6_funding_execution_accounting`. |
+| Package 6 database qualification | PASS | Proposed/enacted separation, paired transfer source/destination, cumulative snapshot, signed negative obligation, signed rescission, explicit unallocated residual, availability period, immutable certification status, legacy compatibility, immutable source history, and dry-run worker reachability. |
+| Accounting boundaries | PASS | A 100,000,000.00 cumulative snapshot remained separate from -12,000,000.00 of transaction deltas; transfers were balanced and atomic; residuals remained separate from allocations; a positive rescission was rejected by PostgreSQL. |
+| Temporal read boundary | PASS | Reads filter certification and publication timestamps by `knownAt`; transfer counterparts and corrections obey the same bound; immutable certification status drives residual authority; availability dates survive publication and read. |
+| Source-to-store adapter | PASS | Materialized source inputs require explicit source dates and existing measure UUID bindings, retain source-native/evidence identity, append only source events, and expose no allocation-writing capability. Writes require a separate exact activation flag. |
+| Late-commit checkpoint safety | PASS | Allocation timestamps use wall-clock insert time and the worker freezes its high-water mark under a table lock, preventing pre-watermark timestamps from committing after a completed window. |
+| Worker default | PASS | The real store reported `DRY_RUN`, examined 7 rows, found the single eligible exact account-level fact, published zero rows, and did not advance a checkpoint. |
+| Qualification write safety | PASS | Qualification requires `PACKAGE6_QUALIFICATION_ALLOW_WRITES=1`, `--execute-on-disposable-package6-db`, and the exact parsed database name `package6_qualification`; connection credentials are never printed. |
+| Prisma schema | PASS | Schema validation, client generation, and a full fresh-database migration. |
+| Targeted TypeScript | PASS | Package 6 sources, adapters, scripts, controllers, storage, qualification, and worker paths compile under `tsconfig.package6.json`. |
+| Full API build | PASS | Workspace dependencies, generated Prisma client, and the complete Nest API production build compiled together. |
+| CDK schedule contract | PASS | 1 suite / 15 tests, including the Package 6 schedule disabled with its publication flag explicitly false. |
+| Patch hygiene | PASS | `git diff --check`. |
+
+The exact machine-readable result is [qualification-2026-09-24.json](./qualification-2026-09-24.json). It was produced by the executable database qualifier against a schema created entirely from repository migrations.
+
+## Qualification-discovered correction
+
+The first database run exposed that the certification query did not select the measure fiscal year when constructing immutable publication snapshots. That caused otherwise valid publications to be absent from fiscal-year reads. The query now selects `fiscalYear`, a regression assertion verifies the persisted snapshot, the disposable database was recreated from scratch, and the full qualifier then passed.
+
+## Independent review corrections
+
+Hermes’s final review found and the release fixed five additional gaps before merge:
+
+1. `knownAt` now bounds publication rows, transfer counterparts, and correction suppression—not only certifications. Residual authority comes from immutable certification status.
+2. Effective availability dates are snapshotted and exposed by financial reads.
+3. Worker high-water capture combines wall-clock allocation timestamps with a table lock, eliminating the late-commit-behind-cursor window.
+4. Rescissions must be negative transaction deltas in the pure certifier, store, and PostgreSQL constraint.
+5. A real dark CLI/provider now calls the pure adapter and append-only store, requires explicit dates and existing measure UUID bindings, and never infers allocations.
+
+## Dark-release posture
+
+The Package 6 EventBridge schedule is disabled. The publication worker additionally requires both `--commit` and `FUNDING_EXECUTION_PUBLICATION_ENABLED=true`; the source adapter separately requires `--commit` and `FUNDING_EXECUTION_SOURCE_ADAPTER_ENABLED=true`. Missing either condition keeps its path read-only. Alternative-funding and execution source families remain ineligible for canonical annual promotion.
+
+## Production release
+
+- PR [#1786](https://github.com/neo-capiro/capirov2/pull/1786) merged as `d31604f6e489fdd76b5175241c6eeb547d2fcf0c`; local and GitHub `main` matched before the build.
+- GitHub-hosted jobs failed before runner assignment with zero executed steps. The complete affected local gates passed after integrating the then-current `main` tip.
+- Native ARM64 CodeBuild `capiro-build-intel-api:666c29d1-f43c-4002-9a41-6a2bd0405052` resolved the exact merge commit and succeeded. It pushed API digest `sha256:c9a6287725c5b36262833c45d7629bf9ad27dd855ae423e0f59826c370fe2993` under immutable SHA and Package 6 tags; the image configuration reports `linux/arm64`.
+- Migration task `4508f5972a05429897290f76bd558ede` used `capiro-dev-api-migrate:134`, applied `20280924060000_package6_funding_execution_accounting`, and exited 0 before the API service changed.
+- API task definition `capiro-dev-api:449` reached `COMPLETED` at desired/running/pending `2/2/0`; both replacement tasks and target-group entries were healthy on the exact digest.
+- Sync task definition `capiro-dev-api-sync-jobs:34` pins the same digest with both Package 6 write flags false. Task `4e513fcd836b43b28c605ca0fe5cae86` exited 0 in `DRY_RUN`, examined and published zero facts, and did not advance the checkpoint.
+- No live funding-execution EventBridge rule exists. Package 6 remains dark pending operator approval of governed source coverage and the initial residual queue.
+
+Exact identifiers are in [release-evidence-2026-09-24.json](./release-evidence-2026-09-24.json).

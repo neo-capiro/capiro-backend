@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "package": 9,
+  "scenario": "P9-F06-PROJECTION-AND-ROUTING-ROLLBACK",
+  "qualification": "disposable-local-postgresql-projection-pointer-rollback",
+  "status": "PASS_LIMITED_SCOPE",
+  "startedAt": "2026-09-25T03:30:34.5687285Z",
+  "completedAt": "2026-09-25T03:35:40.9571924Z",
+  "exitCode": 0,
+  "sourceRevision": "fc85728579b477eece2dfecd285657b6f81c971b",
+  "harness": {
+    "path": "apps/api/scripts/pe-budget-phase7-migration-rehearsal.sh",
+    "sha256": "74b714a6111025ee4c725195a55e53ca5e53e4df763c9acd3b29a1180d579bbd",
+    "launcher": "C:/Program Files/Git/bin/bash.exe",
+    "reasonForExplicitLauncher": "The default WindowsApps bash resolves to WSL and cannot load this workspace's Windows esbuild binary; Git-for-Windows Bash uses native Windows Node as the script intends."
+  },
+  "database": {
+    "environment": "disposable-local-postgresql",
+    "containerName": "pe-p7-mig-rehearsal",
+    "publishedPort": 55447,
+    "image": "pgvector/pgvector:pg16",
+    "imageDigest": "sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b",
+    "freshDatabase": true,
+    "syntheticDataOnly": true,
+    "sharedOrAwsDatabaseUsed": false
+  },
+  "migrationBoundaryRepair": {
+    "status": "PASS",
+    "failureBeforeRepair": "The hand-maintained exclusion list allowed the later 20261120200000_phase8_defense_runtime_roles migration into the pre-Phase-7 baseline, where defense_budget_active_snapshot intentionally did not exist.",
+    "repair": "Deploy only migrations lexically before 20260822010000 as the baseline, seed legacy rows, then add and deploy the complete Phase-7-to-tip chain in chronological order.",
+    "freshRepositoryTipChain": "PASS",
+    "prePhase7ToRepositoryTipUpgrade": "PASS",
+    "phase7TablesVerified": 16,
+    "legacyRowsPreserved": true,
+    "canonicalRowsWrittenByMigration": 0
+  },
+  "checkGroups": {
+    "topLevelDatabaseRehearsal": 125,
+    "promotionEngine": 24,
+    "outboxDrain": 39,
+    "snapshotReader": 33,
+    "planAndValidate": 36,
+    "authorization": 13
+  },
+  "rollbackAssertions": {
+    "newCycleActivationMovedPointerAtomically": "PASS",
+    "realPromotionEngineActivatedSyntheticSnapshot": "PASS",
+    "reexecutionRecoveredExistingActivation": "PASS",
+    "rollbackReactivatedPriorSnapshot": "PASS",
+    "activePointerReturnedToPriorSnapshot": "PASS",
+    "bothSnapshotsRemain": "PASS",
+    "rolledBackSnapshotRowsRemain": "PASS",
+    "rolledBackSnapshotRowsRemainImmutable": "PASS",
+    "rollbackRecordRemainsImmutable": "PASS",
+    "rollbackWroteDrainPause": "PASS",
+    "pausedDrainClaimedNoRows": "PASS",
+    "rollbackProducedNoUnsuppressedAlert": "PASS",
+    "generalServeRoleCouldNotMovePointer": "PASS",
+    "activeSnapshotReadDidNotMixSnapshots": "PASS"
+  },
+  "cleanup": {
+    "temporaryMigrationDirectoryAbsent": true,
+    "containerAbsent": true,
+    "temporaryDependencyJunctionsRemoved": true,
+    "sourceDependencyDirectoriesPreserved": true
+  },
+  "proves": [
+    "The current migration chain can build a fresh repository-tip database and upgrade an exact pre-Phase-7 database to repository tip without leaking later dependent migrations into the baseline.",
+    "The real promotion engine can activate a synthetic snapshot and perform an authorized rollback that moves the active projection pointer to the prior snapshot.",
+    "The rollback preserves both immutable snapshots, all rolled-back canonical rows, activation and rollback audit records, and pauses side-effect draining.",
+    "Rollback and baseline hydration do not create unsuppressed alert-eligible output in this local synthetic environment.",
+    "The general serve role cannot mutate canonical rows, forge deltas, or move the active pointer."
+  ],
+  "doesNotProve": [
+    "The combined ProgramElementReadService canary route, emergency PE_SNAPSHOT_CANARY_ROLLBACK process switch, and database-pointer rollback in one API-level scenario.",
+    "A deliberately defective canary response observed through an authenticated tenant HTTP request.",
+    "Production or AWS database behavior, deployment rollback, alarm integration, latency, cost, buyer outcome, or commercial activation.",
+    "Preservation of real source bytes, customer notifications, or non-synthetic workload identities."
+  ]
+}

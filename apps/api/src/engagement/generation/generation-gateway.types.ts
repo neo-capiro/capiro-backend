@@ -119,6 +119,8 @@ export interface GatewayRecipient {
   state: string | null;
   district: string | null;
   chamber: string | null;
+  /** User-authored note for this individual recipient; rendered as a scoped directive. */
+  personalNote?: string | null;
   /**
    * Server-resolved committee names for the recipient. For a member these are
    * their assignments; for committee/office staff, the committee or office

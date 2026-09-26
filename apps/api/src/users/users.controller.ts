@@ -16,7 +16,12 @@ import {
   contextStewardActive,
   strategyWatcherActive,
   engagementVNextEnabled,
+  businessDevelopmentDossierEnabled,
   businessDevelopmentEnabled,
+  businessDevelopmentBriefEnabled,
+  businessDevelopmentMeriProspectToolsEnabled,
+  businessDevelopmentClaimValidationEnabled,
+  businessDevelopmentWatchEnabled,
   entitlementsForTenant,
 } from '../common/tenant-flags.js';
 import { meriV3ChatActive } from '../common/meriv3-flags.js';
@@ -166,6 +171,27 @@ export class UsersController {
         contextSteward: contextStewardActive(profile.tenant?.settings),
         strategyWatcher: strategyWatcherActive(profile.tenant?.settings),
         businessDevelopment: businessDevelopmentEnabled(profile.tenant?.settings),
+        businessDevelopmentDossier: businessDevelopmentDossierEnabled(
+          profile.tenant?.settings,
+        ),
+        businessDevelopmentBrief: businessDevelopmentBriefEnabled(
+          profile.tenant?.settings,
+        ),
+        businessDevelopmentMeriProspectTools: businessDevelopmentMeriProspectToolsEnabled(
+          profile.tenant?.settings,
+        ),
+        businessDevelopmentClaimValidation: businessDevelopmentClaimValidationEnabled(
+          profile.tenant?.settings,
+        ),
+        // Phase 5 watch/alert surface: mirrors ROUTE REACHABILITY exactly —
+        // global env kill-switch (BIZDEV_WATCH_ENABLED, default OFF) AND the
+        // base businessDevelopment.enabled flag AND the per-tenant
+        // businessDevelopment.watch.enabled flag (all default OFF). False
+        // whenever ANY one of the three gates is false.
+        businessDevelopmentWatch:
+          this.config.get('BIZDEV_WATCH_ENABLED', { infer: true }) &&
+          businessDevelopmentEnabled(profile.tenant?.settings) &&
+          businessDevelopmentWatchEnabled(profile.tenant?.settings),
       },
     };
   }
@@ -280,6 +306,23 @@ export class UsersController {
         contextSteward: contextStewardActive(profile.tenant?.settings),
         strategyWatcher: strategyWatcherActive(profile.tenant?.settings),
         businessDevelopment: businessDevelopmentEnabled(profile.tenant?.settings),
+        businessDevelopmentDossier: businessDevelopmentDossierEnabled(
+          profile.tenant?.settings,
+        ),
+        businessDevelopmentBrief: businessDevelopmentBriefEnabled(
+          profile.tenant?.settings,
+        ),
+        businessDevelopmentMeriProspectTools: businessDevelopmentMeriProspectToolsEnabled(
+          profile.tenant?.settings,
+        ),
+        businessDevelopmentClaimValidation: businessDevelopmentClaimValidationEnabled(
+          profile.tenant?.settings,
+        ),
+        // Same three-gate route-reachability mirror as GET /me (see above).
+        businessDevelopmentWatch:
+          this.config.get('BIZDEV_WATCH_ENABLED', { infer: true }) &&
+          businessDevelopmentEnabled(profile.tenant?.settings) &&
+          businessDevelopmentWatchEnabled(profile.tenant?.settings),
       },
     };
   }

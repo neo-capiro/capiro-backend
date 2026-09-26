@@ -1,0 +1,24 @@
+{
+  "version": "jev_package9_economics_v1",
+  "evaluationSet": {
+    "id": "package2-task-evaluation-v1",
+    "version": "jev_task_evaluation_fixture_v1",
+    "contentHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "status": "proposed",
+    "frozen": false,
+    "independentAdjudication": { "status": "proposed" }
+  },
+  "priceSchedule": {
+    "id": "not-supplied",
+    "version": "not-supplied",
+    "status": "proposed",
+    "currency": "USD"
+  },
+  "cases": [
+    {
+      "id": "package2-replay-not-buyer-evidence",
+      "jev": { "completed": true, "correct": false, "covered": true },
+      "baseline": { "completed": true, "correct": false, "covered": true }
+    }
+  ]
+}

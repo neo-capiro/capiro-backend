@@ -25,6 +25,8 @@ import { DistrictNexusStrategicFlagGuard } from './district-nexus-strategic-flag
 import { DistrictNexusEconomicFlagGuard } from './district-nexus-economic-flag.guard.js';
 import { DistrictNexusPriorityIntelligenceFlagGuard } from './priority-intelligence/priority-intelligence-flag.guard.js';
 import { R5FlagGuard } from './r5-action-layer/r5-flag.guard.js';
+import { R5DistrictAlertsService } from './r5-action-layer/r5-alerts.service.js';
+import { R5DistrictAlertsController } from './r5-action-layer/r5-alerts.controller.js';
 
 /**
  * District Nexus v2.
@@ -45,6 +47,7 @@ import { R5FlagGuard } from './r5-action-layer/r5-flag.guard.js';
     DistrictNexusPriorityIntelligenceController,
     R5DistrictBriefController,
     R5MeetingPrepController,
+    R5DistrictAlertsController,
   ],
   providers: [
     DistrictNexusService,
@@ -63,6 +66,7 @@ import { R5FlagGuard } from './r5-action-layer/r5-flag.guard.js';
     DistrictNexusEconomicFlagGuard,
     DistrictNexusPriorityIntelligenceFlagGuard,
     R5FlagGuard,
+    R5DistrictAlertsService,
   ],
   exports: [
     DistrictNexusService,

@@ -148,11 +148,14 @@ export async function saveDistrictBrief(
   )).data;
 }
 
-// ── Flag key ────────────────────────────────────────────────────────────────
+// ── Flag keys ───────────────────────────────────────────────────────────────
 
 export const DISTRICT_NEXUS_R5_BRIEF_FEATURE = 'district_nexus_r5_brief';
-
 export const DISTRICT_NEXUS_R5_MEETING_PREP_FEATURE = 'district_nexus_r5_meeting_prep';
+export const DISTRICT_NEXUS_R5_ALERTS_FEATURE = 'district_nexus_r5_alerts';
+
+// ── R5 Meeting Prep ─────────────────────────────────────────────────────────
+
 const prepPath = '/api/intelligence/district-nexus/r5/meeting-prep';
 export interface R5PrepItem { text: string; factIds: string[] }
 export interface R5Meeting { id: string; subject: string; startsAt: string; attendees: string[] }
@@ -175,4 +178,51 @@ export async function updateDistrictPrep(api: AxiosInstance, id: string, input: 
   followUps?: R5PrepItem[]; reviewed?: boolean;
 }): Promise<R5MeetingPrep> {
   return (await api.patch<R5MeetingPrep>(`${prepPath}/${encodeURIComponent(id)}`, input)).data;
+}
+
+// ── R5 District alerts ──────────────────────────────────────────────────────
+
+export interface DistrictAlertPayload {
+  changeId: string;
+  title: string;
+  districtLabel: string;
+  sourceLabel: string;
+  eventTime: string | null;
+  detectedTime: string;
+  severity: string;
+  freshness: string;
+  caveats: string[];
+  deepLink: string;
+  changeKind: string;
+  oldState: string | null;
+  newState: string | null;
+}
+
+export async function getDistrictNexusAlerts(
+  api: AxiosInstance,
+  clientId: string,
+  state?: string,
+  district?: string,
+): Promise<DistrictAlertPayload[]> {
+  const params = new URLSearchParams({ clientId });
+  if (state) params.set('state', state);
+  if (district) params.set('district', district);
+  const { data } = await api.get<DistrictAlertPayload[]>(
+    '/api/intelligence/district-nexus/r5/alerts?' + params.toString(),
+  );
+  return data;
+}
+
+export async function getDistrictAlertPreference(api: AxiosInstance, clientId: string): Promise<boolean> {
+  const { data } = await api.get<{ enabled: boolean }>(
+    '/api/intelligence/district-nexus/r5/alerts/preference', { params: { clientId } },
+  );
+  return data.enabled;
+}
+
+export async function putDistrictAlertPreference(api: AxiosInstance, clientId: string, enabled: boolean): Promise<boolean> {
+  const { data } = await api.put<{ enabled: boolean }>(
+    '/api/intelligence/district-nexus/r5/alerts/preference', { clientId, enabled },
+  );
+  return data.enabled;
 }

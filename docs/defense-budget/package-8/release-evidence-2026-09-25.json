@@ -1,0 +1,212 @@
+{
+  "package": 8,
+  "releasedAt": "2026-09-25T00:57:22.506Z",
+  "sourceControl": {
+    "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1792",
+    "mergeCommit": "56ccee8b05e75b0db17bea3bc1cd3e64546d5c2a",
+    "localMainBeforeBuild": "56ccee8b05e75b0db17bea3bc1cd3e64546d5c2a",
+    "githubMainBeforeBuild": "56ccee8b05e75b0db17bea3bc1cd3e64546d5c2a",
+    "githubHostedChecks": {
+      "result": "infrastructure_failure",
+      "runnerAssigned": false,
+      "stepsStarted": 0,
+      "sampleJobId": 107895739038
+    }
+  },
+  "validation": {
+    "domainReconciliationAssertions": 8,
+    "apiXmlSafetySuites": 4,
+    "apiXmlSafetyAssertions": 25,
+    "webAssertions": 6,
+    "cdkSynthAssertions": 12,
+    "historicalQualificationResult": "PASS",
+    "historicalQualificationMigrations": 428,
+    "apiTypecheck": "PASS",
+    "webTypecheck": "PASS",
+    "cdkTypecheck": "PASS",
+    "prismaValidate": "PASS",
+    "prismaGenerate": "PASS",
+    "apiBuild": "PASS",
+    "webBuild": "PASS",
+    "independentAudit": "PASS_AFTER_REPAIR",
+    "dticOfficialXmlPdfQualification": {
+      "status": "PASS_QUALIFICATION_ONLY",
+      "report": "docs/defense-budget/package-8/qualification/dtic-official-xml-pdf-reconciliation-v1.json",
+      "officialXmlSha256": "02479cd6e67dfee10bb1029d9413dbc35e81174384b25319fedfb9589d4aac6a",
+      "officialPdfSha256": "08c867d61816f7b5ebb82924a33d4003ee03c7880984ac6dc9bc91363b6f2d63",
+      "matchedRecords": 5,
+      "records": 5,
+      "promotable": false
+    },
+    "dticXmlLocatorInventory": {
+      "status": "PASS_QUALIFICATION_ONLY",
+      "report": "docs/defense-budget/package-8/qualification/dtic-fy2026-xml-locator-inventory-2026-09-25.json",
+      "programElementLocatorCount": 2,
+      "sourceHashBound": true,
+      "namespacePrefixIndependent": true,
+      "promotable": false
+    }
+  },
+  "aws": {
+    "account": "967807252336",
+    "region": "us-east-1",
+    "cluster": "capiro-dev",
+    "codeBuild": {
+      "api": {
+        "id": "capiro-build-intel-api:e4428ba3-747b-4c7a-9e46-f99d71c6e852",
+        "resolvedSourceVersion": "56ccee8b05e75b0db17bea3bc1cd3e64546d5c2a",
+        "status": "SUCCEEDED"
+      },
+      "web": {
+        "id": "capiro-build-web-dev:610a91a4-881d-417c-af64-f3c1c87ba149",
+        "resolvedSourceVersion": "56ccee8b05e75b0db17bea3bc1cd3e64546d5c2a",
+        "status": "SUCCEEDED"
+      }
+    },
+    "images": {
+      "api": {
+        "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
+        "digest": "sha256:5eb43799cdd72fb4307dbf6e8074a9251f3f7cda0ad0f2f4ac964533fd2237ec",
+        "tags": [
+          "56ccee8b05e75b0db17bea3bc1cd3e64546d5c2a",
+          "package8-20260924-api"
+        ]
+      },
+      "web": {
+        "repositories": [
+          "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web",
+          "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext"
+        ],
+        "digest": "sha256:368cd7370731caf4f16c36c3aa44d37a28e631201def81d0a641ed841c63933d",
+        "tags": [
+          "56ccee8b05e75b0db17bea3bc1cd3e64546d5c2a",
+          "package8-20260924-web"
+        ]
+      }
+    },
+    "services": {
+      "api": {
+        "taskDefinition": "capiro-dev-api:452",
+        "rolloutState": "COMPLETED",
+        "desired": 2,
+        "running": 2,
+        "pending": 0,
+        "replacementTargetIps": ["10.40.12.31", "10.40.11.199"],
+        "replacementTargetsHealthy": 2
+      },
+      "web": {
+        "taskDefinition": "capiro-dev-web:138",
+        "rolloutState": "COMPLETED",
+        "desired": 1,
+        "running": 1,
+        "pending": 0,
+        "replacementTargetIp": "10.40.14.50",
+        "replacementTargetHealthy": true
+      },
+      "webVnext": {
+        "taskDefinition": "capiro-dev-web-vnext:356",
+        "rolloutState": "COMPLETED",
+        "desired": 1,
+        "running": 1,
+        "pending": 0,
+        "replacementTargetIp": "10.40.7.111",
+        "replacementTargetHealthy": true
+      }
+    },
+    "runtime": {
+      "appEnv": "capiro-dev",
+      "gitSha": "56ccee8b05e75b0db17bea3bc1cd3e64546d5c2a",
+      "appDevRuntimeConfigSha": "56ccee8b05e75b0db17bea3bc1cd3e64546d5c2a",
+      "osRuntimeConfigSha": "56ccee8b05e75b0db17bea3bc1cd3e64546d5c2a",
+      "unauthenticatedCoverageRouteStatus": 401
+    },
+    "followOnCandidateDeployment": {
+      "purpose": "ship the merged Package 8 locator-inventory source while keeping candidate-only behavior and protected paths disabled",
+      "sourceRevision": "b7f6856732bf4ff360deb427aabc5d00d82dc99a",
+      "localMain": "b7f6856732bf4ff360deb427aabc5d00d82dc99a",
+      "githubMain": "b7f6856732bf4ff360deb427aabc5d00d82dc99a",
+      "codeBuild": {
+        "id": "capiro-build-intel-api:bf8d0456-7b4a-459b-b871-fc2fae9a3faf",
+        "resolvedSourceVersion": "b7f6856732bf4ff360deb427aabc5d00d82dc99a",
+        "status": "SUCCEEDED",
+        "startedAt": "2026-09-25T23:53:06.988Z",
+        "endedAt": "2026-09-25T23:56:45.526Z",
+        "buildspec": "apps/api/Dockerfile; linux/arm64; immutable SHA tag; ECR push only; no ECS mutation"
+      },
+      "image": {
+        "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
+        "tag": "b7f6856732bf4ff360deb427aabc5d00d82dc99a",
+        "digest": "sha256:0904b41a5981e31966ab3600ee87e0364520831ccd2f7cd69502109fb4f6c9d7"
+      },
+      "migration": {
+        "taskDefinition": "capiro-dev-api-admin-migrate:78",
+        "taskId": "3b4d809ca7114eb8b44da4cf42f3bbbb",
+        "exitCode": 0,
+        "result": "No pending migrations to apply"
+      },
+      "service": {
+        "taskDefinition": "capiro-dev-api:474",
+        "rolloutState": "COMPLETED",
+        "desired": 2,
+        "running": 2,
+        "pending": 0,
+        "healthyTasks": 2,
+        "targetHealth": "2 healthy replacement targets; old targets draining normally"
+      },
+      "runtime": {
+        "gitSha": "b7f6856732bf4ff360deb427aabc5d00d82dc99a",
+        "releaseSha": "b7f6856732bf4ff360deb427aabc5d00d82dc99a",
+        "appHttpStatus": 200,
+        "recentApiErrorLikeLogMatches": 0,
+        "protectedFlags": {
+          "federalLegislativeEvidenceEnabled": false,
+          "programAcquisitionContinuityEnabled": false,
+          "fundingExecutionSourceAdapterEnabled": false,
+          "fundingExecutionPublicationEnabled": false
+        }
+      },
+      "qualificationBoundary": "deployment evidence only; XML locator inventory remains candidate_only/promotable_false and no registration, persistence, semantic funding import, historical replay, or publication occurred"
+    }
+  },
+  "postDeployReadOnlyInventory": {
+    "package0TaskId": "2ebb807c72f0413f8fc7dc2f304c9fe5",
+    "package1TaskId": "680af8a2870d46a4b9831d19871776a5",
+    "exitCodes": [0, 0],
+    "transactionMode": "READ ONLY",
+    "sourceGitSha": "56ccee8b05e75b0db17bea3bc1cd3e64546d5c2a",
+    "logicalSlotsByFiscalYear": {
+      "2024": 82,
+      "2025": 82,
+      "2026": 82,
+      "2027": 82
+    },
+    "observations": 14,
+    "verificationCandidates": 11,
+    "activeScopedApprovals": 43,
+    "activeSnapshots": 0,
+    "canonicalRows": 0,
+    "governedManifests": 0,
+    "queueRows": 13,
+    "queuePending": 9,
+    "queueDeadLetter": 4,
+    "manifestEligible": 0,
+    "replayEligibleButNotQualified": 1
+  },
+  "activation": {
+    "federalLegislativeEvidenceEnabled": false,
+    "programAcquisitionContinuityEnabled": false,
+    "fundingExecutionSourceAdapterEnabled": false,
+    "fundingExecutionPublicationEnabled": false,
+    "historicalManifestStarted": false,
+    "historicalReplayStarted": false,
+    "historicalNotificationsSent": false,
+    "mirrorImportStarted": false,
+    "lifecycleCoordinatorRule": {
+      "name": "capiro-dev-defense-budget-lifecycle-coordinator",
+      "state": "ENABLED",
+      "schedule": "rate(1 hour)"
+    },
+    "federalLegislativeSchedulePresent": false,
+    "fundingExecutionSchedulePresent": false
+  }
+}

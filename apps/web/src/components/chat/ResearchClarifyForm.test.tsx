@@ -20,7 +20,7 @@ describe('ResearchClarifyForm — free-text questions (Deep Research, unchanged 
   });
 });
 
-describe('ResearchClarifyForm — choice-bearing question (Hermes durable clarification)', () => {
+describe('ResearchClarifyForm — choice-bearing question', () => {
   it('renders radio choices for a single-select question and submits the chosen value', () => {
     const onSubmit = vi.fn();
     render(

@@ -14,8 +14,17 @@
  * exactly the same "explicit exhaustive mapping over an enum" discipline
  * `STAGE_TRACK` in `types.ts` itself uses.
  */
-import type { SourceFamily } from '@capiro/defense-domain';
-import type { BudgetAuthorityV1, BudgetFamilyV1, ExhibitV1 } from '../contracts/extraction-artifact-v1.js';
+import {
+  STAGE_TRACK,
+  type AuthorityTrack,
+  type LifecycleStage,
+  type SourceFamily,
+} from '@capiro/defense-domain';
+import type {
+  BudgetAuthorityV1,
+  BudgetFamilyV1,
+  ExhibitV1,
+} from '../contracts/extraction-artifact-v1.js';
 import type { ParserPolicyV1 } from '../contracts/budget-cycle-manifest-v1.js';
 
 export interface SourceFamilyRouting {
@@ -215,7 +224,7 @@ const ROUTING: Readonly<Record<SourceFamily, SourceFamilyRouting>> = Object.free
   // (the observation's own `authorityTrack`, threaded through unchanged) —
   // never inferred or overwritten here.
   alt_supplemental: {
-    family: 'public_law',
+    family: 'alternative_funding',
     exhibit: 'public_law',
     parserPolicy: 'mixed_layout',
     budgetCycle: 'supplemental',
@@ -223,7 +232,7 @@ const ROUTING: Readonly<Record<SourceFamily, SourceFamilyRouting>> = Object.free
     authority: 'public_law',
   },
   alt_reconciliation: {
-    family: 'public_law',
+    family: 'alternative_funding',
     exhibit: 'public_law',
     parserPolicy: 'mixed_layout',
     budgetCycle: 'supplemental',
@@ -231,7 +240,7 @@ const ROUTING: Readonly<Record<SourceFamily, SourceFamilyRouting>> = Object.free
     authority: 'public_law',
   },
   alt_continuing_resolution: {
-    family: 'public_law',
+    family: 'alternative_funding',
     exhibit: 'public_law',
     parserPolicy: 'mixed_layout',
     budgetCycle: 'supplemental',
@@ -239,7 +248,7 @@ const ROUTING: Readonly<Record<SourceFamily, SourceFamilyRouting>> = Object.free
     authority: 'public_law',
   },
   alt_rescission: {
-    family: 'public_law',
+    family: 'alternative_funding',
     exhibit: 'public_law',
     parserPolicy: 'mixed_layout',
     budgetCycle: 'supplemental',
@@ -247,7 +256,7 @@ const ROUTING: Readonly<Record<SourceFamily, SourceFamilyRouting>> = Object.free
     authority: 'public_law',
   },
   alt_transfer: {
-    family: 'committee',
+    family: 'alternative_funding',
     exhibit: 'committee_report',
     parserPolicy: 'mixed_layout',
     budgetCycle: 'supplemental',
@@ -255,7 +264,7 @@ const ROUTING: Readonly<Record<SourceFamily, SourceFamilyRouting>> = Object.free
     authority: 'reprogramming',
   },
   alt_reprogramming: {
-    family: 'committee',
+    family: 'alternative_funding',
     exhibit: 'committee_report',
     parserPolicy: 'mixed_layout',
     budgetCycle: 'supplemental',
@@ -266,7 +275,7 @@ const ROUTING: Readonly<Record<SourceFamily, SourceFamilyRouting>> = Object.free
   // Execution. Not discoverable by any registered watcher adapter today, but
   // covered so the mapping stays exhaustive over the full SourceFamily union.
   exec_allocation: {
-    family: 'unknown',
+    family: 'execution',
     exhibit: 'unknown',
     parserPolicy: 'complex',
     budgetCycle: 'execution',
@@ -274,7 +283,7 @@ const ROUTING: Readonly<Record<SourceFamily, SourceFamilyRouting>> = Object.free
     authority: 'execution',
   },
   exec_obligation: {
-    family: 'unknown',
+    family: 'execution',
     exhibit: 'unknown',
     parserPolicy: 'complex',
     budgetCycle: 'execution',
@@ -282,7 +291,7 @@ const ROUTING: Readonly<Record<SourceFamily, SourceFamilyRouting>> = Object.free
     authority: 'execution',
   },
   exec_award: {
-    family: 'unknown',
+    family: 'execution',
     exhibit: 'unknown',
     parserPolicy: 'complex',
     budgetCycle: 'execution',
@@ -292,5 +301,112 @@ const ROUTING: Readonly<Record<SourceFamily, SourceFamilyRouting>> = Object.free
 });
 
 export function routingForSourceFamily(sourceFamily: SourceFamily): SourceFamilyRouting {
-  return ROUTING[sourceFamily];
+  return ROUTING[sourceFamily]!;
+}
+
+const CONGRESSIONAL_STAGES: readonly LifecycleStage[] = Object.freeze([
+  'hasc_mark',
+  'hasc_report',
+  'house_auth_action',
+  'sasc_mark',
+  'sasc_report',
+  'senate_auth_action',
+  'auth_conference',
+  'auth_enacted',
+  'hac_d_mark',
+  'hac_d_report',
+  'house_appr_action',
+  'sac_d_mark',
+  'sac_d_report',
+  'senate_appr_action',
+  'appr_conference_or_jes',
+  'appr_enacted',
+]);
+
+const CONGRESSIONAL_FAMILIES: readonly SourceFamily[] = Object.freeze([
+  'auth_committee_mark',
+  'auth_committee_report',
+  'auth_chamber_action',
+  'auth_conference_report',
+  'auth_public_law',
+  'appr_committee_mark',
+  'appr_committee_report',
+  'appr_chamber_action',
+  'appr_conference_jes',
+  'appr_public_law',
+]);
+
+const CONGRESSIONAL_FAMILY_BY_STAGE: Readonly<Partial<Record<LifecycleStage, SourceFamily>>> =
+  Object.freeze({
+    hasc_mark: 'auth_committee_mark',
+    hasc_report: 'auth_committee_report',
+    house_auth_action: 'auth_chamber_action',
+    sasc_mark: 'auth_committee_mark',
+    sasc_report: 'auth_committee_report',
+    senate_auth_action: 'auth_chamber_action',
+    auth_conference: 'auth_conference_report',
+    hac_d_mark: 'appr_committee_mark',
+    hac_d_report: 'appr_committee_report',
+    house_appr_action: 'appr_chamber_action',
+    sac_d_mark: 'appr_committee_mark',
+    sac_d_report: 'appr_committee_report',
+    senate_appr_action: 'appr_chamber_action',
+    appr_conference_or_jes: 'appr_conference_jes',
+  });
+
+/**
+ * Resolve the committee-specific route from lifecycle identity. The static
+ * SourceFamily table remains the route for every non-congressional source;
+ * committee families need their track and stage to distinguish the chambers.
+ * Invalid combinations throw so stale or contradictory classification cannot
+ * silently take the House route.
+ */
+export function routingForLifecycleSource(
+  authorityTrack: AuthorityTrack,
+  stage: LifecycleStage,
+  sourceFamily: SourceFamily,
+): SourceFamilyRouting {
+  if (!CONGRESSIONAL_STAGES.includes(stage) && !CONGRESSIONAL_FAMILIES.includes(sourceFamily)) {
+    return routingForSourceFamily(sourceFamily);
+  }
+
+  if (STAGE_TRACK[stage] !== authorityTrack) {
+    throw new Error(
+      `Invalid congressional routing: stage ${stage} does not belong to track ${authorityTrack}`,
+    );
+  }
+
+  if (
+    stage === 'auth_enacted' ||
+    stage === 'appr_enacted' ||
+    sourceFamily === 'auth_public_law' ||
+    sourceFamily === 'appr_public_law'
+  ) {
+    throw new Error(
+      'Invalid congressional routing: enacted/public-law input requires native statutory composition',
+    );
+  }
+
+  const expectedFamily = CONGRESSIONAL_FAMILY_BY_STAGE[stage];
+  if (!expectedFamily || expectedFamily !== sourceFamily) {
+    throw new Error(
+      `Invalid congressional routing: family ${sourceFamily} is unsupported for stage ${stage}`,
+    );
+  }
+
+  const committee =
+    stage.startsWith('hasc') || stage === 'house_auth_action'
+      ? 'hasc'
+      : stage.startsWith('sasc') || stage === 'senate_auth_action'
+        ? 'sasc'
+        : stage.startsWith('hac_d') || stage === 'house_appr_action'
+          ? 'hac_d'
+          : stage.startsWith('sac_d') || stage === 'senate_appr_action'
+            ? 'sac_d'
+            : null;
+  if (committee) {
+    const base = ROUTING[sourceFamily]!;
+    return { ...base, budgetCycle: committee, authority: committee };
+  }
+  return ROUTING[sourceFamily]!;
 }

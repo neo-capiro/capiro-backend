@@ -40,6 +40,16 @@ export interface DiscoveryManifest {
   readonly entries: readonly DiscoveryManifestEntry[];
 }
 
+function validateAvailableFrom(entry: DiscoveryManifestEntry): void {
+  if (entry.availableFrom == null) return;
+  const parsed = Date.parse(entry.availableFrom);
+  if (Number.isNaN(parsed)) {
+    throw new RangeError(
+      `Invalid availableFrom for ${entry.expectedSourceDedupKey}: ${entry.availableFrom}`,
+    );
+  }
+}
+
 @Injectable()
 export class ManifestSourceDiscoveryAdapter implements SourceDiscoveryPort {
   constructor(
@@ -54,6 +64,10 @@ export class ManifestSourceDiscoveryAdapter implements SourceDiscoveryPort {
     if (manifest.schemaVersion !== 'phase8_session7_discovery_manifest_v1') {
       throw new Error(`Unsupported discovery manifest schema: ${manifest.schemaVersion}`);
     }
+    // Validate every entry before discovery filters by adapter or release time.
+    // A malformed timestamp must never become an invisible candidate merely
+    // because a caller requested a different adapter.
+    for (const entry of manifest.entries) validateAvailableFrom(entry);
     this.manifest = manifest;
   }
 
@@ -70,7 +84,7 @@ export class ManifestSourceDiscoveryAdapter implements SourceDiscoveryPort {
       if (entry.adapterId !== input.adapterId) continue;
       // A source cannot be discovered before the publisher released it. This is
       // what lets a replay walk a real lifecycle forward in time.
-      if (entry.availableFrom && new Date(entry.availableFrom).getTime() > now) continue;
+      if (entry.availableFrom != null && Date.parse(entry.availableFrom) > now) continue;
 
       // Same rule a live crawler must obey: official host for THIS adapter.
       this.registry.assertAuthoritativeHost(entry.adapterId, entry.url);

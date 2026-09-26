@@ -1,0 +1,35 @@
+{
+  "version": "jev_package9_economics_report_v1",
+  "decision": "NO_GO",
+  "blockers": [
+    "evaluation_set_not_approved",
+    "evaluation_set_not_frozen",
+    "independent_adjudication_incomplete",
+    "evaluation_set_hash_mismatch",
+    "price_schedule_not_approved",
+    "price_schedule_approval_binding_missing",
+    "work_cost_unpriced",
+    "baseline_total_cost_not_positive",
+    "total_cost_reduction_below_30_percent"
+  ],
+  "evaluationSet": {
+    "id": "package2-task-evaluation-v1",
+    "version": "jev_task_evaluation_fixture_v1",
+    "contentHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "status": "proposed",
+    "frozen": false,
+    "independentAdjudication": { "status": "proposed" }
+  },
+  "priceSchedule": {
+    "id": "not-supplied",
+    "version": "not-supplied",
+    "status": "proposed",
+    "currency": "USD"
+  },
+  "cases": 1,
+  "matchedCompletedCases": 1,
+  "jev": { "completionRate": 1, "accuracy": 0, "coverage": 1, "costs": null },
+  "baseline": { "completionRate": 1, "accuracy": 0, "coverage": 1, "costs": null },
+  "totalCostReduction": null,
+  "hash": "0bf2374559471cbf3333c93e05343099fce793ea660fb45acb8d7970652a1fa9"
+}

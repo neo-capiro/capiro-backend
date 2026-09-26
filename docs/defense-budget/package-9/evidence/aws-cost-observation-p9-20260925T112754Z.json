@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "package": 9,
+  "qualification": "aws-cost-supporting-observation",
+  "status": "SUPPORTING_ONLY_NOT_ATTRIBUTABLE",
+  "capturedAt": "2026-09-25T11:27:54.8358298Z",
+  "sourceRevision": "c8379b2c35bb58f3505577fd1c5b11217763dd04",
+  "aws": {
+    "account": "967807252336",
+    "region": "us-east-1",
+    "principalArn": "arn:aws:iam::967807252336:user/capirocli"
+  },
+  "costExplorerQuery": {
+    "timePeriod": {
+      "startInclusive": "2026-08-26",
+      "endExclusive": "2026-09-25",
+      "days": 30
+    },
+    "granularity": "DAILY",
+    "metric": "UnblendedCost",
+    "groupBy": {
+      "type": "DIMENSION",
+      "key": "SERVICE"
+    }
+  },
+  "accountWideRelevantServiceTotalsUsd": [
+    {
+      "service": "Amazon EC2 Container Registry (ECR)",
+      "unblendedUsd": -0.0000000311
+    },
+    {
+      "service": "Amazon Elastic Container Service",
+      "unblendedUsd": 6.0625229833
+    },
+    {
+      "service": "Amazon Relational Database Service",
+      "unblendedUsd": -0.0000000157
+    },
+    {
+      "service": "Amazon Simple Notification Service",
+      "unblendedUsd": 0
+    },
+    {
+      "service": "Amazon Simple Queue Service",
+      "unblendedUsd": 0
+    },
+    {
+      "service": "Amazon Simple Storage Service",
+      "unblendedUsd": 0.0475727887
+    },
+    {
+      "service": "AmazonCloudWatch",
+      "unblendedUsd": 0.000001856
+    },
+    {
+      "service": "AWS Key Management Service",
+      "unblendedUsd": 0.000000816
+    },
+    {
+      "service": "CloudWatch Events",
+      "unblendedUsd": 0
+    }
+  ],
+  "accountWideRelevantServicesThirtyDaySumUsd": 6.1100983972,
+  "simpleAnnualizedAccountWideRunRateUsd": 74.33953049926667,
+  "package9IncrementalAwsAnnualHardCapUsd": 1000,
+  "interpretation": {
+    "numericAccountWideRunRateBelowCap": true,
+    "package9IncrementalCostGatePassed": false,
+    "reason": "The observed costs are account-wide service totals without a defense-budget or Package 9 cost-allocation boundary. A simple annualization is a projection, not measured annual spend or proof of Package 9 incremental cost."
+  },
+  "limitations": [
+    "The account does not expose a Package 9-specific cost allocation in this query.",
+    "Cost Explorer data may lag current service activity and may include adjustments that produce small negative service totals.",
+    "The 30-day window includes unrelated account workloads and therefore cannot be presented as Package 9 spend.",
+    "The annualized value assumes the observed 30-day account-wide run rate remains constant; it is not a measured annual total.",
+    "This observation does not authorize paid providers, increase a budget, or advance activation beyond shadow-only."
+  ]
+}

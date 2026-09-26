@@ -198,13 +198,13 @@ describe('expandContextItemScopes — Build Context list/group scope routing', (
     expect(out.every((c) => c.id === 'c-list:L1' && c.note === '')).toBe(true);
   });
 
-  it('expands a group scope into one copy per member', () => {
+  it('preserves group scope for the one shared group draft', () => {
     const out = expandContextItemScopes([item('group:G1')], targets);
-    expect(out.map((c) => c.scope).sort()).toEqual(['gail@x.com', 'hank@x.com']);
+    expect(out.map((c) => c.scope)).toEqual(['group:G1']);
   });
 
   it('drops an item scoped to a list/group that no longer exists', () => {
-    const out = expandContextItemScopes([item('list:GONE'), item('all')], targets);
+    const out = expandContextItemScopes([item('list:GONE'), item('group:GONE'), item('all')], targets);
     expect(out.map((c) => c.scope)).toEqual(['all']);
   });
 });

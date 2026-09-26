@@ -1,0 +1,48 @@
+{
+  "schema": "package3_congressional_parser_proof_result_v1",
+  "status": "PASS_LOCAL_PRODUCTION_STYLE_PROOF",
+  "source": {
+    "documentKey": "CRPT-119hrpt698",
+    "sourcePdfSha256": "6587d1cec52d8d3eda3551648f50e4bc15371ea9167da2999e263e8c8e14480a",
+    "sourceLocator": "s3://capiro-defense-budget-raw-dev-967807252336/incoming/fy2027/H._Rept._119-698_-_FY2027_NDAA.pdf?versionId=MKREMzqkucbbM4ZYaTic432fWf_Ctnwi",
+    "officialUrl": "https://www.govinfo.gov/content/pkg/CRPT-119hrpt698/pdf/CRPT-119hrpt698.pdf"
+  },
+  "parser": {
+    "engine": "deterministic_pdfplumber",
+    "parserVersion": "pdfplumber-0.11.0",
+    "parserConfigSha256": "3bc9df29aec9638eee25da1d99832c01f59b1c1d99f0a0346f74cf16975ce9b1",
+    "parserRunId": "pr1_3596f3be7f1af3d54c14acc5caafd3c3a1444ee8ca5d1803cb44f3430e099311",
+    "parserResultContentSha256": "fe9da52b12d8ed8b29c50d639644fe7323c6b90cc2b60017b670477cee1ba706",
+    "parserResultByteSha256": "59043d3a9c8cc9b64bb8b97b7d00bc79dca3cfbab88d706068c6dc3f2f0e70d1",
+    "requestedPages": 48,
+    "succeededPages": 48,
+    "failedPages": 0
+  },
+  "packet": {
+    "schemaVersion": "congressional_structured_packet_v1",
+    "packetByteSha256": "40f3a0f6b6bf5757011363382a32f49c40ff55f0a8a37fb2c5e32010f3671248",
+    "rowCount": 926,
+    "profileId": "fy2027-hasc-authorization-report"
+  },
+  "semanticArtifact": {
+    "artifactId": "dbx1_d597dc11901b9a1a89c5113963bdada9ab3168153085279265ed0a60188519c2"
+  },
+  "productionSourceDocumentProbe": {
+    "status": "NO_MATCH",
+    "taskDefinition": "capiro-dev-api-source-probe-20260925:2",
+    "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/c753498a1b9f4087bf7b08df2b5bc645",
+    "exitCode": 0,
+    "matchedRows": 0,
+    "queryScope": [
+      "sha256=6587d1cec52d8d3eda3551648f50e4bc15371ea9167da2999e263e8c8e14480a",
+      "sourceKey=CRPT-119hrpt698",
+      "sourceUrl contains CRPT-119hrpt698"
+    ],
+    "writes": false
+  },
+  "limitations": [
+    "The provider and semantic factory were exercised locally against exact parser bytes and the reviewed 926-row packet.",
+    "The SourceDocument id used for this local proof was a synthetic UUID; no production SourceDocument registration, manifest admission, database write, publication, or notification occurred.",
+    "The HASC profile remains an RDT&E-only qualification profile and is not mixed-family production coverage."
+  ]
+}

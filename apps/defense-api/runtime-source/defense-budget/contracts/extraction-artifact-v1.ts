@@ -70,6 +70,8 @@ export const BUDGET_FAMILY_V1_VALUES = [
   'milcon',
   'milpers',
   'committee',
+  'alternative_funding',
+  'execution',
   'public_law',
   'overview',
   'unknown',
@@ -242,6 +244,8 @@ export const parserRunV1Schema = z
      */
     failedPages: z.array(parserRunPageCoverageFailureV1Schema).optional(),
     providerJobId: z.string().optional(),
+    /** Byte identity of a structured companion consumed by native_structured. */
+    inputCompanionSha256: sha256Schema.optional(),
     metadata: jsonMetadataSchema.optional(),
   })
   .strict();
@@ -251,11 +255,27 @@ export type ParserRunV1 = z.infer<typeof parserRunV1Schema>;
 /* A6. Source-document schema                                          */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Optional provenance for an XML representation supplied alongside the
+ * official PDF. The two digests identify different byte streams: the PDF
+ * remains the source identity, while companionByteSha256 identifies the XML
+ * bytes at locator. This field does not imply PDF page locations.
+ */
+export const xmlCompanionProvenanceV1Schema = z
+  .object({
+    locator: nonBlankString,
+    officialPdfSha256: sha256Schema,
+    companionByteSha256: sha256Schema,
+  })
+  .strict();
+export type XmlCompanionProvenanceV1 = z.infer<typeof xmlCompanionProvenanceV1Schema>;
+
 export const extractionSourceV1Schema = z
   .object({
     manifestDocumentKey: nonBlankString,
     sourceDocumentId: z.string().optional(),
     sourcePdfSha256: sha256Schema,
+    xmlCompanion: xmlCompanionProvenanceV1Schema.optional(),
     sourceLocator: nonBlankString,
     sourceUrl: z.string().optional(),
     fiscalYear: z.number().int().min(1900).max(2200),
@@ -306,6 +326,16 @@ export const textSpanV1Schema = z
   .refine((span) => span.start < span.end, { message: 'text span requires start < end' });
 export type TextSpanV1 = z.infer<typeof textSpanV1Schema>;
 
+/** Deterministic XML element identity within one hash-pinned companion. */
+export const structuredElementLocatorV1Schema = z
+  .object({
+    companionByteSha256: sha256Schema,
+    elementPath: nonBlankString,
+    elementId: nonBlankString.optional(),
+  })
+  .strict();
+export type StructuredElementLocatorV1 = z.infer<typeof structuredElementLocatorV1Schema>;
+
 export const sourceEvidenceV1Schema = z
   .object({
     evidenceId: nonBlankString,
@@ -321,6 +351,7 @@ export const sourceEvidenceV1Schema = z
     columnLabel: z.string().optional(),
     excerpt: z.string().optional(),
     sourceSpanSha256: sha256Schema.optional(),
+    structuredElement: structuredElementLocatorV1Schema.optional(),
   })
   .strict();
 export type SourceEvidenceV1 = z.infer<typeof sourceEvidenceV1Schema>;

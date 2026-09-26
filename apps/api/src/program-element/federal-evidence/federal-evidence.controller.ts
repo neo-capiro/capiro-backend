@@ -14,10 +14,12 @@ export class FederalEvidenceController {
     @Param('peCode') peCode: string,
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
+    @Query('knownAt') knownAt?: string,
   ) {
     return this.reads.currentQualifiedMentions(peCode, {
       limit: limit === undefined ? undefined : Number(limit),
       cursor,
+      knownAt,
     });
   }
 
@@ -27,10 +29,11 @@ export class FederalEvidenceController {
     @Query('billId') billId?: string,
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
+    @Query('knownAt') knownAt?: string,
   ) {
     return this.reads.lifecycleTimeline(
       { peCode, billId },
-      { limit: limit === undefined ? undefined : Number(limit), cursor },
+      { limit: limit === undefined ? undefined : Number(limit), cursor, knownAt },
     );
   }
 }

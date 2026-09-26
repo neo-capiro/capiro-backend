@@ -80,6 +80,20 @@ describe('MeriV3 browser window', () => {
     expect(url.searchParams.get('meriClient')).toBe('client-123');
   });
 
+  test('vNext prospect context carries only the server-resolved prospect scope', () => {
+    const url = new URL(
+      meriVNextWorkspaceUrl('https://os.capiro.test', {
+        prompt: 'Prepare the opportunity brief',
+        clientId: 'stale-client',
+        prospectId: '11111111-1111-4111-8111-111111111111',
+      }),
+    );
+    expect(url.pathname).toBe('/meri/new');
+    expect(url.searchParams.get('meriPrompt')).toBe('Prepare the opportunity brief');
+    expect(url.searchParams.get('meriProspect')).toBe('11111111-1111-4111-8111-111111111111');
+    expect(url.searchParams.get('meriClient')).toBeNull();
+  });
+
   test('encodes a one-time contextual prompt and optional client scope', () => {
     const focus = vi.fn();
     const open = vi.fn(

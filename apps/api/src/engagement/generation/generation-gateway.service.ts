@@ -340,7 +340,12 @@ export class GenerationGatewayService {
         clientId: request.clientId,
         recipientName: recipient.name,
         recipientEmail: recipient.email,
-        objective: request.reviseInstruction ?? request.objective ?? request.templatePrompt,
+        // Revision is additive: retrieval still needs the campaign's original
+        // objective and main idea so all selected context remains applicable.
+        objective: [request.mainIdea, request.objective ?? request.templatePrompt, request.reviseInstruction]
+          .map((part) => part?.trim())
+          .filter(Boolean)
+          .join('\n'),
         outreachRecordId: request.outreachRecordId ?? null,
         wallAllowsClient,
       });
@@ -773,6 +778,7 @@ export class GenerationGatewayService {
       kind: AuthenticatedDirective['kind'],
       text: string | null | undefined,
       id: string,
+      scope: string = 'all',
     ): void => {
       const t = (text ?? '').trim();
       if (!t) return;
@@ -783,31 +789,30 @@ export class GenerationGatewayService {
           t.length > MAX_USER_INSTRUCTION_CHARS * 4
             ? t.slice(0, MAX_USER_INSTRUCTION_CHARS * 4)
             : t,
-        scope: 'all',
+        scope,
         authenticatedUserId: ctx.userId,
       });
     };
 
-    // In revision mode the freeform instruction IS the objective — the main
-    // idea and template are both superseded by "fix this specific thing",
-    // same as before this field existed.
+    // The campaign idea and template objective remain in force in every mode.
+    // Improve with Meri adds a revision instruction; it must not replace the
+    // purpose or selected context of the original campaign.
+    if (request.mainIdea?.trim()) {
+      push('main_idea', request.mainIdea, 'objective:main-idea');
+    }
+    push('objective', request.objective ?? request.templatePrompt, 'objective:template');
     if (request.existingBody?.trim() && request.reviseInstruction?.trim()) {
       push('objective', request.reviseInstruction, 'objective:revise');
-    } else {
-      // The main idea (Context Plan step 4) is the PRIMARY driver of what this
-      // campaign is about when the user wrote one — pushed as its own
-      // 'main_idea' directive so the prompt can give it distinct, stronger
-      // framing (see GATEWAY_PRECEDENCE_LADDER's "MAIN IDEA RULE") rather than
-      // being indistinguishable from the template's own instruction. The
-      // template's prompt still rides as 'objective' alongside it — a
-      // secondary "how to shape it" instruction, not replaced. Absent a main
-      // idea (the default), nothing changes: the template's prompt alone is
-      // the objective, exactly as before this field existed.
-      if (request.mainIdea?.trim()) {
-        push('main_idea', request.mainIdea, 'objective:main-idea');
-      }
-      push('objective', request.objective ?? request.templatePrompt, 'objective:template');
     }
+    // OutreachRecipient.personalNote is an instruction for the matching
+    // recipient, not metadata. Keep it through both fresh generation and
+    // revision, scoped so it cannot leak into another recipient's message.
+    push(
+      'custom_note',
+      request.audienceKind === 'group' ? undefined : request.recipient.personalNote,
+      `recipient-note:${request.recipient.recipientKey}`,
+      request.recipient.recipientKey,
+    );
     push('template', request.templateId, 'template:id');
     push('tone', `Write in a ${request.tone} register.`, 'tone');
     push('length', request.length ?? 'standard', 'length');

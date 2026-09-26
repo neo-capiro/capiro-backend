@@ -2,10 +2,12 @@ import 'reflect-metadata';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import {
+  CompanyDossierQueryDto,
   CreateProspectDto,
   ListProspectsQueryDto,
   PreviewDuplicateHintsDto,
   SavePreferencesDto,
+  SearchCandidatesQueryDto,
   UpdateProspectDto,
   transformQueryBoolean,
 } from './business-development.dto.js';
@@ -167,5 +169,112 @@ describe('SavePreferencesDto bounds', () => {
     expect(
       (await validate(oversized)).some((error) => error.property === 'practiceServiceAreas'),
     ).toBe(true);
+  });
+});
+
+// ── Phase 2 — candidate search + dossier query DTOs ────────────────────────
+
+describe('SearchCandidatesQueryDto boundaries', () => {
+  test('exclusion review is a strict URL opt-in and service has a bounded string contract', async () => {
+    for (const includeExcluded of ['0', '1', undefined]) {
+      expect(await validate(plainToInstance(SearchCandidatesQueryDto, { q: 'filter', includeExcluded, service: 'Appropriations advocacy' }))).toHaveLength(0);
+    }
+    for (const includeExcluded of ['true', 'false', '2', '', true, 1, ['1']]) {
+      const errors = await validate(plainToInstance(SearchCandidatesQueryDto, { q: 'filter', includeExcluded }));
+      expect(errors.some(error => error.property === 'includeExcluded')).toBe(true);
+    }
+    for (const service of [123, {}, ['service'], 'x'.repeat(201)]) {
+      const errors = await validate(plainToInstance(SearchCandidatesQueryDto, { q: 'filter', service }));
+      expect(errors.some(error => error.property === 'service')).toBe(true);
+    }
+  });
+  test('q below the 2-character floor is rejected; 2 and 200 pass; 201 is rejected', async () => {
+    const tooShort = plainToInstance(SearchCandidatesQueryDto, { q: 'a' });
+    expect((await validate(tooShort)).some((e) => e.property === 'q')).toBe(true);
+
+    const min = plainToInstance(SearchCandidatesQueryDto, { q: 'ab' });
+    expect(await validate(min)).toHaveLength(0);
+
+    const max = plainToInstance(SearchCandidatesQueryDto, { q: 'a'.repeat(200) });
+    expect(await validate(max)).toHaveLength(0);
+
+    const tooLong = plainToInstance(SearchCandidatesQueryDto, { q: 'a'.repeat(201) });
+    expect((await validate(tooLong)).some((e) => e.property === 'q')).toBe(true);
+  });
+
+  test('q missing entirely is rejected (not optional)', async () => {
+    const dto = plainToInstance(SearchCandidatesQueryDto, {});
+    expect((await validate(dto)).some((e) => e.property === 'q')).toBe(true);
+  });
+
+  test('limit boundaries: 1 and 25 pass; 0 and 26 are rejected; string coerces', async () => {
+    for (const limit of [1, 25]) {
+      const dto = plainToInstance(SearchCandidatesQueryDto, { q: 'acme', limit });
+      expect(await validate(dto)).toHaveLength(0);
+    }
+    for (const limit of [0, 26]) {
+      const dto = plainToInstance(SearchCandidatesQueryDto, { q: 'acme', limit });
+      expect((await validate(dto)).some((e) => e.property === 'limit')).toBe(true);
+    }
+    const coerced = plainToInstance(SearchCandidatesQueryDto, { q: 'acme', limit: '10' });
+    expect(await validate(coerced)).toHaveLength(0);
+    expect(coerced.limit).toBe(10);
+  });
+
+  test('offset boundaries: 0 and 500 pass; -1 and 501 are rejected', async () => {
+    for (const offset of [0, 500]) {
+      const dto = plainToInstance(SearchCandidatesQueryDto, { q: 'acme', offset });
+      expect(await validate(dto)).toHaveLength(0);
+    }
+    for (const offset of [-1, 501]) {
+      const dto = plainToInstance(SearchCandidatesQueryDto, { q: 'acme', offset });
+      expect((await validate(dto)).some((e) => e.property === 'offset')).toBe(true);
+    }
+  });
+
+  test('agency/issue/geography pass through bounded (max 200)', async () => {
+    const ok = plainToInstance(SearchCandidatesQueryDto, {
+      q: 'acme',
+      agency: 'DoD',
+      issue: 'defense',
+      geography: 'VA',
+    });
+    expect(await validate(ok)).toHaveLength(0);
+    const bad = plainToInstance(SearchCandidatesQueryDto, {
+      q: 'acme',
+      agency: 'a'.repeat(201),
+    });
+    expect((await validate(bad)).some((e) => e.property === 'agency')).toBe(true);
+  });
+});
+
+describe('CompanyDossierQueryDto / dossier section boundaries', () => {
+  const SECTIONS = [
+    'identity',
+    'government_exposure',
+    'relevant_signals',
+    'footprint',
+    'lobbying',
+    'people',
+  ];
+
+  test('every dossier section kind is accepted', async () => {
+    for (const section of SECTIONS) {
+      const dto = plainToInstance(CompanyDossierQueryDto, { section });
+      expect(await validate(dto)).toHaveLength(0);
+      expect(dto.section).toBe(section);
+    }
+  });
+
+  test('unknown section values are rejected', async () => {
+    for (const section of ['', ' Identity', 'identity ', 'exposure', 'jobs']) {
+      const dto = plainToInstance(CompanyDossierQueryDto, { section });
+      expect((await validate(dto)).some((e) => e.property === 'section')).toBe(true);
+    }
+  });
+
+  test('section omitted is valid (full dossier request)', async () => {
+    const dto = plainToInstance(CompanyDossierQueryDto, {});
+    expect(await validate(dto)).toHaveLength(0);
   });
 });

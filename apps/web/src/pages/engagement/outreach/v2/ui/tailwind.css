@@ -60,13 +60,13 @@
   --color-line-control: #d0d5dd;
   --color-line-divider: #f2f4f7;
 
-  /* Capiro navy — accent (handover §2) */
-  --color-accent: #294e68;
-  --color-accent-hover: #1f3d52;
-  --color-accent-ink: #1c3a4e;
-  --color-accent-tint: #edf3f7;
-  --color-accent-border: #c3d5e1;
-  --color-accent-muted: #5d7f97;
+  /* Metallic black/gray accent for interactive controls and icon states. */
+  --color-accent: #39424f;
+  --color-accent-hover: #1b2430;
+  --color-accent-ink: #1b2430;
+  --color-accent-tint: #f2f4f7;
+  --color-accent-border: #d0d5dd;
+  --color-accent-muted: #667085;
 
   /* Semantic — one treatment per state (handover §2) */
   --color-success: #067647;

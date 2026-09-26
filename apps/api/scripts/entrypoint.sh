@@ -94,17 +94,22 @@ case "${1:-serve}" in
     echo "Seeding workflow templates"
     exec ./node_modules/.bin/tsx prisma/seed-workflows.ts
     ;;
-  meri-hermes-staging-continuity-proof)
-    shift
-    compose_database_url
-    echo "Running guarded Meri Hermes staging continuity proof (synthetic tenant only)"
-    exec ./node_modules/.bin/tsx scripts/meri-hermes-staging-continuity-proof.ts "$@"
-    ;;
+
   sync-florida-official-committees)
     shift
     compose_database_url
     echo "Running sync-florida-official-committees (dry run unless --apply; non-local apply requires explicit opt-in and confirmation)"
     exec ./node_modules/.bin/tsx scripts/sync-florida-official-committees.ts "$@"
+    ;;
+  # Business Development Phase 5 — DB-only watch evaluator. Reads existing
+  # canonical projections ONLY (INV-0: no provider fetch, no ingestion); the
+  # scheduler is the sole retry owner. Exits nonzero only on invalid config
+  # or fatal setup.
+  bizdev-watch-scan)
+    shift
+    compose_database_url
+    echo "Running bizdev-watch-scan (DB-only watch evaluator; no provider calls)"
+    exec ./node_modules/.bin/tsx scripts/run-bizdev-watch.ts "$@"
     ;;
   ingest-florida-legislative-directories)
     shift

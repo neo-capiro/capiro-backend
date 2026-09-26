@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "package9_buyer_qualification_intake_draft_v1",
+  "status": "DRAFT_NOT_APPROVED",
+  "purpose": "Collect the buyer-owned inputs required before freezing a Package 9 benchmark manifest; this document is not an approval, cohort, accuracy result, or activation authorization.",
+  "protocol": "docs/defense-budget/package-9/buyer-benchmark-protocol.md",
+  "runtimeEvidenceRevision": "7d222c0de98013eeeac25ece4329717bc6841536",
+  "workflows": [
+    { "id": "request_to_enacted_comparison", "evidencePacketId": null, "promptTaskHash": null, "rubricId": null, "status": "NOT_FROZEN" },
+    { "id": "program_renamed_across_years", "evidencePacketId": null, "promptTaskHash": null, "rubricId": null, "status": "NOT_FROZEN" },
+    { "id": "amendment_changing_a_restriction", "evidencePacketId": null, "promptTaskHash": null, "rubricId": null, "status": "NOT_FROZEN" },
+    { "id": "funds_to_award_attribution", "evidencePacketId": null, "promptTaskHash": null, "rubricId": null, "status": "NOT_FROZEN" },
+    { "id": "actionable_procurement_opportunity", "evidencePacketId": null, "promptTaskHash": null, "rubricId": null, "status": "NOT_FROZEN" },
+    { "id": "source_backed_client_briefing", "evidencePacketId": null, "promptTaskHash": null, "rubricId": null, "status": "NOT_FROZEN" }
+  ],
+  "cohort": {
+    "minimumCasesPerWorkflow": 30,
+    "targetTotalCases": 180,
+    "caseIds": [],
+    "strata": ["service", "Defense-Wide", "funding_family", "fiscal_year", "evidence_quality"],
+    "requiredNegativeCases": ["ambiguous_identity", "missing_or_unavailable_source", "superseded_version"],
+    "status": "MISSING_BUYER_COHORT"
+  },
+  "independentAdjudication": {
+    "adjudicatorOne": null,
+    "adjudicatorTwo": null,
+    "tieBreaker": null,
+    "blindLaneProcedure": null,
+    "status": "MISSING_INDEPENDENT_REVIEW_PLAN"
+  },
+  "costControls": {
+    "paidProviderDefaultUsd": 0,
+    "paidProviderAnnualCapUsd": 500,
+    "awsIncrementalAnnualCapUsd": 1000,
+    "allocationBoundary": null,
+    "beforeAfterMeasurementPlan": null,
+    "status": "MISSING_COST_ALLOCATION_BOUNDARY"
+  },
+  "ownership": {
+    "operationalOwner": null,
+    "alarmReceiver": null,
+    "accuracyOwner": null,
+    "activationAuthority": null,
+    "status": "MISSING_NAMED_OWNERS"
+  },
+  "activation": {
+    "requested": false,
+    "tenantScope": null,
+    "familyScope": null,
+    "taskScope": null,
+    "releaseAuthorization": null,
+    "status": "NOT_REQUESTED"
+  },
+  "knownBoundedEvidence": [
+    "docs/defense-budget/package-9/evidence/durable-run-p9-20260925215225257-125f56.json",
+    "docs/defense-budget/package-9/evidence/product-query-p9q-20260925220837739-63a602b7.json",
+    "docs/defense-budget/package-9/evidence/alarm-matrix-run-p9-f07-20260925T124316Z-08d62a.json",
+    "docs/defense-budget/package-9/evidence/rollback-composite-run-p9-f06-20260925T130219Z.json"
+  ],
+  "blockers": [
+    "buyer must supply exact marketed families and mandatory-source denominator",
+    "buyer must freeze the six workflow prompts, evidence packets, expected answers, abstentions, and rubrics",
+    "two independent adjudicators and a tie-break procedure are not named",
+    "cost attribution and any paid-provider authorization are absent",
+    "operational owner, alarm receiver, and activation authority are not accepted"
+  ],
+  "decision": "NO_GO_SHADOW_ONLY"
+}

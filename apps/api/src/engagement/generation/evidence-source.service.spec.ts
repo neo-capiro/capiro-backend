@@ -239,6 +239,58 @@ describe('directives are separated from evidence (§3.b3)', () => {
   });
 });
 
+describe('client overview context', () => {
+  const clientRow = {
+    id: 'c1',
+    name: 'Northstar Systems',
+    website: 'northstar.example',
+    description: 'Builds mission systems.',
+    productDescription: 'Sensors and command systems.',
+    sectorTag: 'Aerospace',
+    profileType: 'Company',
+    updatedAt: NOW,
+  };
+
+  test('rehydrates tenant-scoped profile overview and ignores browser-supplied body', async () => {
+    const findFirst = jest.fn(async () => clientRow);
+    const { svc } = makeService({ tables: { client: { findFirst } } });
+    const item = {
+      id: 'client-overview-c1',
+      kind: 'clientOverview' as const,
+      scope: 'all' as const,
+      body: 'TAMPERED BROWSER TEXT',
+    } as unknown as SelectedContextItemRef;
+
+    const out = await svc.resolveSelectedItems(CTX, resolveInput([item]));
+    expect(findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'c1', tenantId: CTX.tenantId },
+    }));
+    expect(out.evidence).toHaveLength(1);
+    expect(out.evidence[0]).toMatchObject({
+      ref: {
+        sourceType: 'clientOverview',
+        sourceId: 'c1',
+        clientId: 'c1',
+        trust: 'server_record',
+        provenance: { isClientAssertedNotVerified: true },
+      },
+    });
+    expect(out.evidence[0]!.evidenceText).toContain('Builds mission systems.');
+    expect(out.evidence[0]!.evidenceText).toContain('Sensors and command systems.');
+    expect(out.evidence[0]!.evidenceText).not.toContain('TAMPERED BROWSER TEXT');
+  });
+
+  test('rejects an overview that belongs to a different campaign client', async () => {
+    const { svc } = makeService({ tables: { client: { findFirst: async () => ({ ...clientRow, id: 'c2' }) } } });
+    const out = await svc.resolveSelectedItems(
+      CTX,
+      resolveInput([{ id: 'client-overview-c2', kind: 'clientOverview', scope: 'all' }]),
+    );
+    expect(out.evidence).toHaveLength(0);
+    expect(out.failures[0]).toMatchObject({ code: 'CLIENT_OVERVIEW_OTHER_CLIENT', severity: 'critical' });
+  });
+});
+
 describe('access control', () => {
   test('a restricted debrief is a critical failure and its body never surfaces', async () => {
     const { svc } = makeService({

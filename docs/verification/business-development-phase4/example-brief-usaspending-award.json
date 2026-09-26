@@ -1,0 +1,100 @@
+{
+  "artifactKind": "business-development-brief-example",
+  "redaction": "Tenant, user, conversation, internal relationship, and contact identifiers removed.",
+  "brief": {
+    "id": "00000000-0000-4000-8000-000000000051",
+    "tenantId": "00000000-0000-4000-8000-000000000001",
+    "prospectId": "00000000-0000-4000-8000-000000000012",
+    "title": "Lockheed Martin opportunity brief",
+    "status": "draft",
+    "currentVersionNumber": 1,
+    "currentVersionId": "00000000-0000-4000-8000-000000000052",
+    "createdByUserId": null,
+    "createdAt": "2026-09-25T12:30:00.000Z",
+    "updatedAt": "2026-09-25T12:30:00.000Z"
+  },
+  "version": {
+    "id": "00000000-0000-4000-8000-000000000052",
+    "versionNumber": 1,
+    "createdAt": "2026-09-25T12:30:00.000Z",
+    "createdByUserId": null,
+    "sectionsHash": "fixture-sha256-usaspending-award-v1",
+    "snapshotHash": "fixture-sha256-usaspending-award-snapshot",
+    "sections": {
+      "companyAndFirmImplication": {
+        "text": "USAspending attributes the cited award record to LOCKHEED MARTIN CORPORATION. Any implication for the firm's services is an inference and must be matched to separately entered firm preferences.",
+        "provenance": "generated",
+        "citationIndexes": [0]
+      },
+      "verifiedEvidence": {
+        "text": "USAspending record CONT_AWD_Z61H_9700_FA822408G0001_9700 names LOCKHEED MARTIN CORPORATION as recipient, reports an award amount of $16,416.33, identifies the Department of Defense, and gives a performance period from 2012-11-08 through 2026-07-20.",
+        "provenance": "generated",
+        "citationIndexes": [0]
+      },
+      "judgment": {
+        "text": "The record verifies one award and its amount; it does not prove that the prospect is pursuing a new opportunity or that the firm has an existing relationship. A possible strategic fit is therefore only an inference.",
+        "provenance": "generated",
+        "citationIndexes": [0]
+      },
+      "practicalAction": {
+        "text": "Inspect the full award record and current authorized opportunity evidence, then assign an internal research owner. Do not prepare outreach unless a user explicitly requests a draft.",
+        "provenance": "generated",
+        "citationIndexes": [0]
+      },
+      "missingInformation": {
+        "text": "The captured source does not establish a new solicitation, buyer contact, program-office role, lobbying relationship, district employment count, or firm relationship. A distinct source publication date was not supplied in the captured record.",
+        "provenance": "generated",
+        "citationIndexes": [0]
+      }
+    },
+    "citations": [
+      {
+        "sourceFamily": "usaspending_contract",
+        "recordId": "CONT_AWD_Z61H_9700_FA822408G0001_9700",
+        "locator": "https://www.usaspending.gov/award/CONT_AWD_Z61H_9700_FA822408G0001_9700",
+        "originalSourceName": "USAspending",
+        "originalSourceId": "CONT_AWD_Z61H_9700_FA822408G0001_9700",
+        "eventDate": "2012-11-08",
+        "sourceUpdatedAt": null,
+        "retrievedAt": "2026-09-24T17:59:55.046Z",
+        "title": "Department of Defense award to LOCKHEED MARTIN CORPORATION",
+        "relationshipStrength": "direct",
+        "stage": "awarded"
+      }
+    ],
+    "sourceSnapshot": {
+      "generatedAt": "2026-09-25T12:30:00.000Z",
+      "identityBasis": "confirmed_canonical_entity",
+      "canonicalEntityId": "00000000-0000-4000-8000-000000000022",
+      "canonicalName": "LOCKHEED MARTIN CORPORATION",
+      "evidence": [
+        {
+          "sourceFamily": "usaspending_contract",
+          "recordId": "CONT_AWD_Z61H_9700_FA822408G0001_9700",
+          "locator": "https://www.usaspending.gov/award/CONT_AWD_Z61H_9700_FA822408G0001_9700",
+          "originalSourceName": "USAspending",
+          "originalSourceId": "CONT_AWD_Z61H_9700_FA822408G0001_9700",
+          "claimType": "government_exposure",
+          "relationshipStrength": "direct",
+          "eventDate": "2012-11-08",
+          "effectiveDate": "2026-07-20",
+          "fiscalYear": 2026,
+          "stage": "awarded",
+          "sourceUpdatedAt": null,
+          "fetchedAt": "2026-09-24T17:59:55.046Z",
+          "scopeChecked": "recipient=LOCKHEED MARTIN CORPORATION; award_type=contracts; interval=FY2026; limit=1",
+          "status": "available",
+          "title": "Department of Defense award to LOCKHEED MARTIN CORPORATION",
+          "detail": {
+            "recipientName": "LOCKHEED MARTIN CORPORATION",
+            "amount": 16416.33,
+            "awardingAgency": "Department of Defense",
+            "periodStart": "2012-11-08",
+            "periodEnd": "2026-07-20",
+            "awardUniqueId": "CONT_AWD_Z61H_9700_FA822408G0001_9700"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -102,6 +102,8 @@ describe('every context kind round-trips as an identifier', () => {
     ['document', 'doc-att-1'],
     ['debrief', 'debrief-d1'],
     ['prep', 'prep-p1'],
+    ['capability', 'capability-cap-1'],
+    ['clientOverview', 'client-overview-client-1'],
   ];
 
   for (const [kind, id] of kinds) {

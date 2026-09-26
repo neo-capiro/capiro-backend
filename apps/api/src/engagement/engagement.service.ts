@@ -412,7 +412,8 @@ export interface OutreachSelectedContextItemInput {
     | 'debrief'
     | 'prep'
     | 'programElement'
-    | 'capability';
+    | 'capability'
+    | 'clientOverview';
   /** 'all' = shared across every recipient; else recipient-key string. */
   scope: 'all' | string;
   /** An authenticated per-item directive (max 2,000 chars). */
@@ -444,6 +445,7 @@ const SERVER_REHYDRATED_KINDS = new Set([
   'prep',
   'debrief',
   'capability',
+  'clientOverview',
 ]);
 
 /**
@@ -3992,6 +3994,9 @@ export class EngagementService {
         state: recipient.state ?? null,
         district: recipient.district ?? null,
         chamber: match?.member?.chamber ?? recipient.chamber ?? null,
+        ...(!o.isGroup && recipient.personalNote?.trim()
+          ? { personalNote: recipient.personalNote.trim().slice(0, 500) }
+          : {}),
         // Server-resolved committee context — reaches the recipient brief so
         // even a bioguide-less staffer hands the planner a committee hook.
         ...(match?.member?.committees?.length ? { committees: match.member.committees } : {}),

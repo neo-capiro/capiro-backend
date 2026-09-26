@@ -203,6 +203,7 @@ export interface V2LineRow {
   service: string | null;
   lineType: string | null;
   budgetActivity: string | null;
+  lastSyncedAt: string;
   request: number | null;
   requestFy: number | null;
   current: number | null;
@@ -238,6 +239,7 @@ export function toLineRow(item: ProgramElementListItem): V2LineRow {
     service: item.service,
     lineType: item.lineType ?? item.appropriationType,
     budgetActivity: item.budgetActivity,
+    lastSyncedAt: item.lastSyncedAt,
     request,
     requestFy: item.latestRequestFy ?? null,
     current,

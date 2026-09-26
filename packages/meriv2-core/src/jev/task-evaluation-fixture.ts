@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { JEV_TASKS } from './jev-config';
-import { JEV_TASK_REGISTRY } from './task-registry';
+import { JEV_TASK_REGISTRY, JEV_TASK_REGISTRY_VERSION } from './task-registry';
 
 const observedSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('outcome'), outcome: z.string().min(1), confidence: z.number().min(0).max(1),
@@ -14,7 +14,11 @@ const observedSchema = z.discriminatedUnion('kind', [
 export const jevTaskEvaluationFixtureSchema = z.object({
   version: z.literal('jev_task_evaluation_fixture_v1'),
   model: z.string().regex(/^jev-\d+\.\d+\.\d+$/),
-  registryVersion: z.literal('jev-task-registry.v4'),
+  // Evaluation fixtures are immutable evidence artifacts. Keep the immediately
+  // preceding registry version readable after adding the BD tasks; new traces
+  // and reports still emit JEV_TASK_REGISTRY_VERSION through the registry,
+  // cache and recording paths.
+  registryVersion: z.enum(['jev-task-registry.v4', JEV_TASK_REGISTRY_VERSION]),
   cases: z.array(z.object({
     id: z.string().min(1),
     task: z.enum(JEV_TASKS),

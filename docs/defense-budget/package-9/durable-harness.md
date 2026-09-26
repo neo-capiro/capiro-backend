@@ -1,0 +1,54 @@
+# Package 9 disposable database qualification harness
+
+Run from the repository root with:
+
+```powershell
+pnpm --filter @capiro/api qualify:package9:durable
+```
+
+The runner starts a uniquely named `pgvector/pgvector:pg16` container, publishes PostgreSQL on a dynamically assigned loopback-only port, creates a random local password, applies the current `apps/api/prisma` migration ledger, and removes only the container bearing its unique run label in a `finally` block. It mounts no volume and does not use `capiro-postgres`, AWS, paid providers, or external source/provider services. The migration command receives a fresh container-only `DATABASE_URL`; any inherited URL is overridden.
+
+It seeds 100 synthetic outbox rows across RDT&E, procurement, O&M, and MILCON. It uses the production Prisma outbox repository SQL and production drain worker with a local `pg` driver adapter. Evidence and logical-notification identities are written transactionally into separate synthetic append-only ledger tables. The harness then:
+
+- kills a child worker after the evidence/notification transaction commits and before outbox acknowledgement, verifies the durable row remains leased, advances the test clock past lease expiry, and recovers it;
+- holds a stale worker after its evidence commit, reclaims its expired lease with a replacement worker, and verifies stale acknowledgement is fenced;
+- runs bounded retry/recovery subruns for a transient source outage and local provider timeout, 429, malformed response, and 5xx;
+- drains the remaining rows with four concurrent workers and reconciles all 100 stable fact IDs and notification keys from PostgreSQL.
+
+The generated run report is written under `docs/defense-budget/package-9/evidence/` and contains raw repository/fixture query timings, queue state samples, scenario results, worker concurrency, ledger reconciliation, and a concurrent run of the checked-in [`product-query-mix-v1.json`](./product-query-mix-v1.json) against the seeded Session 12 corpus in the same disposable database. The query run uses four closed-loop clients with the documented one-second per-client start interval and hashes an execution plan containing the loaded mix, cadence, duration, and operation-to-service argument bindings. This is local synthetic service-query latency; it does not establish HTTP, authentication, network, sustained production, or buyer-visible update latency.
+
+For a bounded mixed-load overlap qualification, set
+`P9_DURABLE_SUSTAINED_MIX=true`,
+`P9_DURABLE_QUERY_DURATION_SECONDS=30`, and
+`P9_DURABLE_WORKER_PAUSE_MS=1000` before running the command. The opt-in mode
+drains one row per worker iteration with an explicit pause while the query mix
+continues; it never raises the 100-row queue cap or changes production worker
+behavior. Run `p9-20260926000657425-8c3acf` passed with 100 accepted facts,
+100 logical notifications, terminal queue `0/0/0`, 120 query samples, p95
+7.23 ms, and 29,190 ms of measured overlap. The result is still short,
+disposable, synthetic evidence and does not qualify a 30-minute production
+throughput or verified-update SLO.
+
+The report [`durable-run-p9-20260925115805719-5e32a8.json`](./evidence/durable-run-p9-20260925115805719-5e32a8.json) predates the corrected query-mix cadence and terminal queue gate in the current harness. Keep it as historical raw evidence, but treat its query-mix PASS and drain PASS checks as superseded; it does not qualify the corrected harness.
+
+The corrected harness is qualified by [`durable-run-p9-20260925215225257-125f56.json`](./evidence/durable-run-p9-20260925215225257-125f56.json), a `PASS_LIMITED_SCOPE` run on source revision `f371dc9c950285ecfa80506ebb3d6c1006446d95` with SHA-256 `e8befdefb29871fdbb3228ec2447b93f6397d7762055081be12c03ec1e0590e9`. It recorded a 100-row peak, a terminal pending/leased/dead-letter state of `0/0/0`, 100 evidence identities, 100 logical notifications, all eight fault scenarios, all four source families at 25 rows, and 20 error-free requests covering all eight query operations from all four clients. Query p95 was 153.05 ms with a positive 4,064.7537 ms monotonic overlap.
+
+The immediately preceding unchanged-source run [`durable-run-p9-20260925125435029-f669a3.json`](./evidence/durable-run-p9-20260925125435029-f669a3.json) is retained as a valid failed observation, not a release pass: transient first-call delays reduced the five-second sample to 13 requests and produced a 4,350.512 ms p95, correctly failing the 2,000 ms limit. Its SHA-256 is `1ae31724f509d9f9b7e265ed1565459a9fcd73adc921b233a00dec7bc490f886`. No code changed between that run and the passing repeat; both remain local synthetic observations and neither substitutes for production or buyer evidence.
+
+## Retained deployed-revision run
+
+The retained [`PASS_LIMITED_SCOPE` report](./evidence/durable-run-p9-20260925024117927-2c727e.json) is bound to deployed source revision `8d50b9671f01fc034ec712dc7696e9fe3b1c08d0` and has SHA-256 `2b6adbffe6cfb4ee048901e30314d313cb31121aa77388418337e1bf01f6aeeb`. All eight declared local recovery scenarios and four measured reconciliation checks passed: 100 evidence identities, 100 logical notification keys, no missing identities, no duplicate logical keys, a 100-row peak, and at most four concurrent workers. Its 651 database-operation timing samples are harness diagnostics only, not the product-query or sustained-load latency gate.
+
+## Explicit limits
+
+This harness tests local durable database transitions and synthetic evidence/notification identity behavior. The bridge and readiness ports are local stubs; it does not execute source adapters, model/provider SDKs, real notification delivery, canonical publication, or buyer workflows. Even the opt-in overlap run does not measure or qualify sustained 30-minute throughput, oldest-age alarms, alarm receiver delivery, projection/routing rollback, AWS cost, paid-provider economics, independent accuracy, or buyer outcomes. Those fields remain `NOT_RUN` in every report. A limited-scope pass cannot change Package 9's release decision from `NO_GO` or permit activation beyond shadow-only.
+
+## Local synthetic product-query benchmark
+
+`pnpm --filter @capiro/api qualify:package9:product-query` runs the separately scoped query benchmark. It uses a unique disposable `pgvector/pgvector:pg16` container published only on loopback, applies the local migration ledger, seeds only the behavioral Session 12 fixture corpus, then calls the compiled production `BudgetLifecycleQueryService` backed by `PrismaBudgetLifecycleReadStore`. The benchmark login is `NOINHERIT`, has no role memberships, and receives explicit `SELECT` grants only for the query tables; the harness checks effective table write privileges across public tables and records the result. It has no volume, AWS access, source/provider call, or customer data. The Prisma client is generated into a parent-owned OS temporary directory that is removed after the benchmark child exits; existing `apps/defense-api/dist` and `tsconfig.tsbuildinfo` paths are moved aside for the build and restored in `finally`.
+
+The checked-in [`product-query-mix-v1.json`](./product-query-mix-v1.json) deliberately calls its traffic synthetic: four concurrent closed-loop callers each start no more than one request per second, using the fixed weighted operation cycle. Slow requests delay that caller's next start. The configured 5- or 1,800-second duration is the requested request-start scheduling window; it does not claim that requests span the full window. The report records the actual first-to-last monotonic request-start span, its coverage of the requested window, and the final-start tail to the deadline. In-flight calls may finish afterward, and that completion tail is reported separately. PASS requires zero request errors, at least one request from every configured client, an observation for every declared operation, and a final request start no more than one client interval before the requested deadline. The rate remains a configured maximum of four aggregate request starts per second, not a guaranteed achieved rate. Use `-- --duration-seconds 5 --output tmp/package9-product-query-smoke.json` for a short wiring smoke. The report binds the revision to SHA-256 hashes for the harness, query sources, schema, seed script, and complete migration set; it also records the applied migration ledger hash, compiled runtime artifact hashes, corpus hash, role privilege check, per-operation durations/outcomes/response byte sizes, counts, and p50/p95/max. The runner requires a clean tracked worktree and allows untracked scratch only under `tmp/`. Full runs default to uniquely named JSON files under `docs/defense-budget/package-9/evidence/` and refuse to overwrite existing output.
+
+This is a local synthetic query-service measurement, not production or buyer evidence. It bypasses HTTP routing/authentication and network hops, uses a small synthetic corpus, and does not derive its mix from tenant traffic. It does not measure source-change-to-verified-buyer-visible update latency, AWS/service topology, buyer task quality, or economics. Those remain separate qualification gates; the S12 fixture is not a substitute for Package 7 composite-reader data or authenticated tenant requests.
+
+The retained standalone run [`product-query-p9q-20260925220837739-63a602b7.json`](./evidence/product-query-p9q-20260925220837739-63a602b7.json) passed on merged revision `f371dc9c950285ecfa80506ebb3d6c1006446d95` with SHA-256 `8d30dfce5d681681f7ad421eaeabe74bfdf05ff3ec32db97ea51fe773c9ad17d`. It recorded 7,108 samples over the requested 1,800-second request-start window, 99.98% window coverage, all four clients, all eight operations, zero errors, p50 4.032 ms, p95 7.599 ms, and maximum 248.564 ms. This is standalone synthetic query evidence; it did not run concurrently with the four-worker drain and cannot establish production, authenticated, buyer-visible, or source-change-to-update latency.

@@ -1,7 +1,7 @@
 /**
  * Program Elements vNext profile — Sources & proof tab.
  * Native port of PeV2SourcesTab: EvidenceCoverageMap (stage families of square
- * nodes with verified ratios) + source ledger (quiet PASSED, loud conflict) +
+ * nodes with evidence coverage + source ledger (verified, candidate, unknown, conflict) +
  * data-quality card shown only when there is something to resolve.
  * Missing is never zero — every cell states what exists.
  */
@@ -261,13 +261,18 @@ export function PeProfileSourcesTab({ vm }: { vm: ProgramElementProfileFinalVm }
                 <CapiroSkeleton height={14} />
                 <CapiroSkeleton height={14} width="64%" />
               </div>
+            ) : sourcesQuery.isError ? (
+              <div className="pe-pf-empty" role="alert" style={{ padding: 18 }}>
+                Source records could not be loaded. Retry the profile before treating this line as having no sources.
+              </div>
             ) : sources.length === 0 ? (
               <div className="pe-pf-empty" style={{ padding: 18 }}>
                 No page-level sources are attached to this line yet.
               </div>
             ) : (
               sources.map((s) => {
-                const passed = s.confidence == null || s.confidence >= 0.5;
+                const verified = s.confidence != null && s.confidence >= 0.5;
+                const review = s.confidence != null && s.confidence < 0.5;
                 return (
                   <div
                     key={s.id}
@@ -305,12 +310,16 @@ export function PeProfileSourcesTab({ vm }: { vm: ProgramElementProfileFinalVm }
                       {s.pageNumber != null ? `p. ${s.pageNumber}` : '—'}
                     </div>
                     <div>
-                      {passed ? (
+                      {verified ? (
                         <span className="pe-pf-mono" style={{ fontSize: 10.5, letterSpacing: '0.06em', color: 'var(--pepf-quiet)' }}>
-                          ✓ PASSED
+                          ✓ VERIFIED
                         </span>
-                      ) : (
+                      ) : review ? (
                         <span className="pe-pf-ev-chip conflict">⚠ REVIEW</span>
+                      ) : (
+                        <span className="pe-pf-mono" aria-label="Verification status unknown" style={{ fontSize: 10.5, letterSpacing: '0.06em', color: 'var(--pepf-quiet)' }}>
+                          STATUS UNKNOWN
+                        </span>
                       )}
                     </div>
                     <div>
@@ -322,13 +331,18 @@ export function PeProfileSourcesTab({ vm }: { vm: ProgramElementProfileFinalVm }
                           className="pe-pf-mono"
                           style={{ fontSize: 11, letterSpacing: '0.06em', color: 'var(--pepf-heading)', textDecoration: 'underline', textUnderlineOffset: 3 }}
                         >
-                          OPEN →
+                          {verified ? 'OPEN →' : 'CANDIDATE →'}
                         </a>
                       ) : (
                         <span className="pe-pf-mono" style={{ fontSize: 11, color: 'var(--pepf-quiet)' }}>
                           —
                         </span>
                       )}
+                    {s.sourceUrl && !verified ? (
+                      <span className="pe-pf-mono" style={{ display: 'block', fontSize: 9.5, color: 'var(--pepf-quiet)' }}>
+                        Link is a candidate; source verification is not established.
+                      </span>
+                    ) : null}
                     </div>
                   </div>
                 );

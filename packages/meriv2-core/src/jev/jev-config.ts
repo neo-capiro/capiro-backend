@@ -19,6 +19,9 @@ export const JEV_TASKS = [
   'program_identity',
   'mention_scope',
   'evidence_selection',
+  'bd_entity',
+  'bd_signal',
+  'bd_claim',
 ] as const;
 export type JevTask = (typeof JEV_TASKS)[number];
 export type JevRouting = 'llm' | 'jev' | 'paired' | 'cascade';

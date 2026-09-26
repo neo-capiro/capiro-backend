@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "package8_official_xml_candidate_v1",
+  "status": "QUALIFICATION_ONLY",
+  "eligibleForProductionManifest": false,
+  "source": {
+    "fiscalYear": 2026,
+    "budgetCycle": "PB",
+    "agency": "Defense Technical Information Center",
+    "appropriationCode": "0400",
+    "appropriationName": "Research, Development, Test &amp; Evaluation, Defense-Wide",
+    "programElementIds": ["0605801KA", "0605998KA"],
+    "programElementCount": 2,
+    "duplicateProgramElementOccurrences": 0,
+    "sourceFamily": "pb_r2",
+    "stage": "rdte"
+  },
+  "officialXml": {
+    "url": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2026/budget_justification/pdfs/03_RDT_and_E/RDTE_DTIC_PB_2026.xml",
+    "httpStatus": 200,
+    "contentType": "text/xml",
+    "byteLength": 67578,
+    "sha256": "02479cd6e67dfee10bb1029d9413dbc35e81174384b25319fedfb9589d4aac6a"
+  },
+  "handrissMirror": {
+    "repository": "handriss/defense-budget-justification-data",
+    "commit": "5c6310d9845cd75360bf4c39a220f9d6699b65df",
+    "path": "fy2026/RDTE_DTIC_PB_2026.xml",
+    "sha256": "02479cd6e67dfee10bb1029d9413dbc35e81174384b25319fedfb9589d4aac6a",
+    "officialByteMatch": true
+  },
+  "officialPdf": {
+    "url": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2026/budget_justification/pdfs/03_RDT_and_E/RDTE_DTIC_PB_2026.pdf",
+    "sha256": "08c867d61816f7b5ebb82924a33d4003ee03c7880984ac6dc9bc91363b6f2d63",
+    "byteEquivalentToXml": false
+  },
+  "inspector": {
+    "schemaVersion": "dtic_jdocs_xml_source_inspection_v1",
+    "status": "candidate_only",
+    "promotable": false,
+    "focusedTest": "PASS (1 Jest suite / 5 tests)",
+    "limitations": [
+      "catalog_metadata_only_no_semantic_extraction_or_verification",
+      "does_not_establish_annual_family_or_component_completeness",
+      "not_promotable_and_not_authorized_for_production_import"
+    ]
+  },
+  "candidateArtifactSpike": {
+    "report": "docs/defense-budget/package-8/qualification/dtic-fy2026-candidate-artifact-spike-2026-09-25.json",
+    "artifactId": "dbx1_998ec586a39623b526f6743d505d4ed69f37ebe1268d984ac953b49b52a82bbd",
+    "contentSha256": "998ec586a39623b526f6743d505d4ed69f37ebe1268d984ac953b49b52a82bbd",
+    "status": "QUALIFICATION_ONLY",
+    "fundingMapping": "WARNING_ONLY",
+    "productionRegistration": false,
+    "persisted": false
+  },
+  "officialXmlPdfQualification": {
+    "report": "docs/defense-budget/package-8/qualification/dtic-official-xml-pdf-reconciliation-v1.json",
+    "status": "PASS_QUALIFICATION_ONLY",
+    "matchedRecordCount": 5,
+    "recordCount": 5,
+    "promotable": false
+  },
+  "xmlLocatorInventory": {
+    "report": "docs/defense-budget/package-8/qualification/dtic-fy2026-xml-locator-inventory-2026-09-25.json",
+    "status": "PASS_QUALIFICATION_ONLY",
+    "programElementLocatorCount": 2,
+    "sourceHashBound": true,
+    "namespacePrefixIndependent": true,
+    "promotable": false
+  },
+  "nextQualificationGates": [
+    "register an exact expected-source identity through governed review",
+    "implement and qualify stable XML element-path semantic extraction",
+    "complete field-by-field XML/PDF funding and narrative semantic reconciliation beyond page-text presence",
+    "establish completeness denominator and human review record",
+    "persist parser/proof artifacts before any historical replay"
+  ]
+}

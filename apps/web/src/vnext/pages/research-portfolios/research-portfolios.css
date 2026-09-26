@@ -1,0 +1,48 @@
+.rp-page { max-width: 1440px; margin: 0 auto; padding: 32px; color: var(--capiro-text, #172033); }
+.rp-page__header, .rp-row { display: flex; gap: 16px; align-items: center; }
+.rp-page__header { justify-content: space-between; margin-bottom: 24px; }
+.rp-page__header h1, .rp-card h2 { margin: 0 0 8px; }
+.rp-page__header p { margin: 4px 0; color: #5c667a; }
+.rp-eyebrow { text-transform: uppercase; letter-spacing: .09em; font-size: 12px; font-weight: 700; color: #5865e8 !important; }
+.rp-back { display: inline-block; margin-bottom: 20px; color: #4653d8; text-decoration: none; }
+.rp-card { background: #fff; border: 1px solid #e3e7ef; border-radius: 12px; padding: 20px; box-shadow: 0 1px 2px rgb(16 24 40 / 4%); }
+.rp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.rp-portfolio-card { color: inherit; text-decoration: none; transition: border-color .15s, transform .15s; }
+.rp-portfolio-card:hover { border-color: #7b83eb; transform: translateY(-1px); }
+.rp-row--spread { justify-content: space-between; }
+.rp-columns { display: grid; grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr); gap: 20px; margin: 20px 0; }
+.rp-stack { display: grid; gap: 20px; align-content: start; }
+.rp-form { display: grid; gap: 14px; margin-bottom: 20px; }
+.rp-form--inline { grid-template-columns: repeat(3, minmax(140px, 1fr)) auto; align-items: end; }
+.rp-form--member { grid-template-columns: 160px minmax(180px, 1fr) minmax(180px, 1fr) auto; align-items: end; }
+.rp-form label { display: grid; gap: 6px; font-weight: 600; font-size: 13px; }
+.rp-form input, .rp-form textarea, .rp-form select, .rp-member-actions input, .rp-resolve input { width: 100%; box-sizing: border-box; border: 1px solid #cfd5e1; border-radius: 8px; padding: 9px 10px; background: #fff; color: inherit; }
+.rp-button { border: 1px solid #cbd1df; border-radius: 8px; padding: 9px 13px; background: #fff; color: #27324a; cursor: pointer; white-space: nowrap; }
+.rp-button:hover:not(:disabled) { border-color: #6974df; }
+.rp-button:disabled { opacity: .55; cursor: not-allowed; }
+.rp-button--primary { background: #4f5bd5; border-color: #4f5bd5; color: #fff; }
+.rp-button--danger { color: #a42b32; }
+.rp-badge { display: inline-block; border-radius: 999px; padding: 3px 8px; background: #edf0f6; font-size: 12px; text-transform: capitalize; }
+.rp-badge--active, .rp-badge--included { color: #176b43; background: #e6f7ef; }
+.rp-badge--archived, .rp-badge--excluded { color: #8a3d15; background: #fff0e4; }
+.rp-badge--unresolved { color: #725b00; background: #fff8d4; }
+.rp-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 18px 0 0; }
+.rp-metrics dt { color: #70798b; font-size: 11px; text-transform: uppercase; }
+.rp-metrics dd { margin: 2px 0 0; font-weight: 700; text-transform: capitalize; }
+.rp-empty, .rp-state, .rp-error, .rp-notice { margin: 16px 0; }
+.rp-error { color: #a42831; }
+.rp-notice { border-radius: 8px; padding: 10px 12px; background: #eef2ff; color: #3743a4; }
+.rp-list, .rp-history { list-style: none; padding: 0; margin: 0; }
+.rp-list__item { display: flex; justify-content: space-between; gap: 14px; align-items: center; padding: 12px 0; border-top: 1px solid #edf0f5; }
+.rp-list__item p { margin: 4px 0; color: #6b7382; }
+.rp-member-actions { display: flex; align-items: center; gap: 8px; min-width: 320px; }
+.rp-resolve { display: flex; gap: 8px; }
+.rp-history li { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid #edf0f5; }
+.rp-history span { color: #6b7382; font-size: 13px; }
+.rp-count { color: #6b7382; font-size: 14px; font-weight: 500; }
+.rp-meta { color: #6b7382; font-size: 13px; }
+.rp-rule-editors { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.rp-rule-editors textarea { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
+.rp-rule-preview { border-top: 1px solid #edf0f5; padding-top: 12px; }
+@media (max-width: 900px) { .rp-columns { grid-template-columns: 1fr; } .rp-form--inline, .rp-form--member { grid-template-columns: 1fr; } .rp-page { padding: 20px; } .rp-page__header { align-items: flex-start; } .rp-member-actions { min-width: 0; flex-wrap: wrap; } }
+@media (max-width: 700px) { .rp-rule-editors { grid-template-columns: 1fr; } }

@@ -102,6 +102,14 @@ const APPROVED_VERIFICATION_OPERATOR_SCRIPTS = new Set([
   // non-promoting by construction, covered by the same
   // "approved operators import no canonical writers" re-check below.
   'phase10b31-replay-recovered-artifact.ts',
+  // Governed Package 3/10B operators. Each is non-promoting at this
+  // boundary and is still checked against CANONICAL_WRITER_PATTERNS below.
+  'correct-defense-budget-candidate-v1.ts',
+  'qualify-defense-budget-drain-image-v1.ts',
+  'replace-defense-budget-candidate-approvals-v1.ts',
+  'review-defense-budget-scoped-fact-v1.ts',
+  'revoke-defense-budget-scoped-fact-v1.ts',
+  'run-defense-budget-ingestion-manifest-v1.ts',
 ]);
 
 const CANONICAL_WRITER_PATTERNS = [
@@ -191,7 +199,7 @@ describe('verification scaffold containment', () => {
   it('is imported only by named non-promoting operator scripts', () => {
     const offenders: string[] = [];
     for (const name of readdirSync(SCRIPTS_DIR)) {
-      if (!name.endsWith('.ts')) continue;
+      if (!name.endsWith('.ts') || name.endsWith('.spec.ts')) continue;
       const code = stripComments(readFileSync(join(SCRIPTS_DIR, name), 'utf8'));
       if (VERIFICATION_IMPORT_PATTERN.test(code)) offenders.push(name);
     }

@@ -17,6 +17,8 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "verify:research-portfolios-phase0": "node scripts/verify-research-portfolios-phase0.mjs && node scripts/verify-defense-budget-mirror-parity.mjs",
+    "verify:research-portfolios-phases0-4": "pnpm verify:research-portfolios-phase0 && node scripts/verify-research-portfolios-phases1-4.mjs",
     "marketing:build": "node marketing/build.mjs",
     "marketing:test": "pnpm marketing:build && node --test marketing/support.contract.test.mjs",
     "db:up": "docker compose up -d postgres",

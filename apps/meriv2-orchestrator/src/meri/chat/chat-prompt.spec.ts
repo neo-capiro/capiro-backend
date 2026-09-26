@@ -37,6 +37,15 @@ describe('chat date grounding', () => {
 });
 
 describe('buildChatSystemPrompt', () => {
+  it('places the server-authored prospect directive in the dynamic system prompt', () => {
+    const directive =
+      'Active prospect scope: Acme LLC. A free-form company name does not retarget this chat.';
+    const parts = composeChatSystemPrompt({ prospectDirective: directive }, ctx);
+    expect(parts.dynamic).toContain('# Active business-development prospect scope');
+    expect(parts.dynamic).toContain(directive);
+    expect(parts.base).not.toContain(directive);
+  });
+
   it('gives both chat runtimes the shared professional contract in the cached base', () => {
     const parts = composeChatSystemPrompt({ clientId: 'c1' }, ctx);
     expect(parts.base).toContain(MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT);

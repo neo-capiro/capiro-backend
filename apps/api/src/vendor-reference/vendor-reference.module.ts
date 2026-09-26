@@ -17,6 +17,6 @@ import { VendorReferenceService } from './vendor-reference.service.js';
 @Module({
   controllers: [VendorReferenceController],
   providers: [VendorReferenceService, VendorReferenceSamClient, RepresentationResolverService],
-  exports: [VendorReferenceService],
+  exports: [VendorReferenceService, VendorReferenceSamClient],
 })
 export class VendorReferenceModule {}

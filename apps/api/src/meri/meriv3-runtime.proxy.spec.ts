@@ -44,17 +44,12 @@ function make() {
       async (_valueCtx: unknown, _input: unknown, execute: () => Promise<unknown>) => execute(),
     ),
   } as unknown as MeriContextPlaneRuntimeService;
-  const hermes = {
-    shouldHandle: jest.fn(async () => false),
-    streamMessage: jest.fn(async () => undefined),
-  };
   return {
     raw,
     meriv3,
     visualAnalysis,
     governedRuntime,
-    hermes,
-    service: createMeriRuntimeService(raw, meriv3, visualAnalysis, governedRuntime, hermes),
+    service: createMeriRuntimeService(raw, meriv3, visualAnalysis, governedRuntime),
   };
 }
 
@@ -123,49 +118,5 @@ describe('Meri runtime proxy Phase 19', () => {
     const { raw, service } = make();
     await expect(service.listConversations(ctx as never)).resolves.toEqual(['raw']);
     expect(raw.listConversations).toHaveBeenCalledWith(ctx);
-  });
-});
-
-describe('Meri runtime proxy Hermes pilot route (Phase 0)', () => {
-  test('a non-pilot tenant never touches Hermes and keeps its existing runtime', async () => {
-    const { raw, meriv3, hermes, service } = make();
-    await service.streamMessage(ctx as never, 'conversation', 'hello', { write: jest.fn() });
-    expect(hermes.shouldHandle).toHaveBeenCalledWith(ctx);
-    expect(hermes.streamMessage).not.toHaveBeenCalled();
-    expect(meriv3.shouldHandle).toHaveBeenCalledWith(ctx);
-    expect(raw.streamMessage).toHaveBeenCalledTimes(1);
-  });
-
-  test('a pilot tenant routes to Hermes before V3 is consulted, inside the governed turn', async () => {
-    const { raw, meriv3, hermes, governedRuntime, service } = make();
-    hermes.shouldHandle.mockResolvedValue(true);
-    (meriv3.shouldHandle as jest.Mock).mockResolvedValue(true);
-    const writer = { write: jest.fn() };
-    await service.streamMessage(ctx as never, 'conversation', 'hello', writer);
-    expect(governedRuntime.runChatTurn).toHaveBeenCalledTimes(1);
-    expect(hermes.streamMessage).toHaveBeenCalledWith(ctx, 'conversation', 'hello', {
-      write: expect.any(Function),
-    });
-    expect(meriv3.shouldHandle).not.toHaveBeenCalled();
-    expect(meriv3.streamMessage).not.toHaveBeenCalled();
-    expect(raw.streamMessage).not.toHaveBeenCalled();
-  });
-
-  test('a Hermes failure surfaces to the caller and never falls back to V3 or legacy', async () => {
-    const { raw, meriv3, hermes, service } = make();
-    hermes.shouldHandle.mockResolvedValue(true);
-    hermes.streamMessage.mockRejectedValue(new Error('Hermes runtime unavailable'));
-    await expect(
-      service.streamMessage(ctx as never, 'conversation', 'hello', { write: jest.fn() }),
-    ).rejects.toThrow('Hermes runtime unavailable');
-    expect(meriv3.streamMessage).not.toHaveBeenCalled();
-    expect(raw.streamMessage).not.toHaveBeenCalled();
-  });
-
-  test('the factory still works without a Hermes adapter (other deployments)', async () => {
-    const { raw, meriv3, visualAnalysis, governedRuntime } = make();
-    const service = createMeriRuntimeService(raw, meriv3, visualAnalysis, governedRuntime);
-    await service.streamMessage(ctx as never, 'conversation', 'hello', { write: jest.fn() });
-    expect(raw.streamMessage).toHaveBeenCalledTimes(1);
   });
 });

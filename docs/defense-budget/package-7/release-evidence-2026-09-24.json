@@ -1,0 +1,122 @@
+{
+  "package": 7,
+  "releasedAt": "2026-09-24T23:56:17Z",
+  "sourceControl": {
+    "codePullRequest": "https://github.com/neo-capiro/capirov2/pull/1788",
+    "codeMergeCommit": "93bf1e4284948145bd3956eed130ab00134a94d5",
+    "hotfixPullRequest": "https://github.com/neo-capiro/capirov2/pull/1789",
+    "hotfixMergeCommit": "aa537571a1f8bbdeb9cc3a5352926eaebf989e22",
+    "githubMainAtEvidence": "18b480b86c4ef295e8321bed8b4b701b8d95dc09",
+    "localMainAtEvidence": "18b480b86c4ef295e8321bed8b4b701b8d95dc09",
+    "githubHostedChecks": {
+      "result": "infrastructure_failure",
+      "runnerAssigned": false,
+      "stepsStarted": 0,
+      "reason": "repository billing/spending-limit outage"
+    }
+  },
+  "validation": {
+    "prismaValidate": "PASS",
+    "prismaGenerate": "PASS",
+    "apiFocusedSuites": 6,
+    "apiFocusedAssertions": 61,
+    "webFocusedFiles": 4,
+    "webFocusedAssertions": 19,
+    "apiTypecheck": "PASS",
+    "webTypecheck": "PASS",
+    "apiBuild": "PASS",
+    "webBuild": "PASS",
+    "diffCheck": "PASS",
+    "independentSafetyAudit": "PASS_AFTER_REPAIR"
+  },
+  "aws": {
+    "account": "967807252336",
+    "region": "us-east-1",
+    "cluster": "capiro-dev",
+    "codeBuild": {
+      "api": {
+        "id": "capiro-build-intel-api:f414810a-77f1-4875-8aa2-461d4b6e0e79",
+        "resolvedSourceVersion": "93bf1e4284948145bd3956eed130ab00134a94d5",
+        "status": "SUCCEEDED",
+        "platform": "linux/arm64"
+      },
+      "web": {
+        "id": "capiro-build-web-dev:173dc52d-4f52-470b-8411-82e918380416",
+        "resolvedSourceVersion": "aa537571a1f8bbdeb9cc3a5352926eaebf989e22",
+        "status": "SUCCEEDED",
+        "platform": "linux/arm64"
+      }
+    },
+    "images": {
+      "api": {
+        "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
+        "digest": "sha256:416cb227b9d72b307870dfc3d78f4c1ed8228030bdbdf7e3793a2dc47f7dbdd0",
+        "tags": [
+          "93bf1e4284948145bd3956eed130ab00134a94d5",
+          "package7-20260924-api"
+        ]
+      },
+      "web": {
+        "repositories": [
+          "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web",
+          "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext"
+        ],
+        "digest": "sha256:385bf687334591cd83f54bea6919fde27f57833b4be3a04dc596b9906f4fd371",
+        "tags": [
+          "aa537571a1f8bbdeb9cc3a5352926eaebf989e22",
+          "package7-20260924-web"
+        ]
+      }
+    },
+    "migration": {
+      "taskDefinition": "capiro-dev-api-migrate:135",
+      "taskId": "bf903743c5634e37889fa416435056aa",
+      "migrations": [
+        "20280924070000_package7_client_budget_watch"
+      ],
+      "exitCode": 0
+    },
+    "services": {
+      "api": {
+        "service": "capiro-dev-api",
+        "taskDefinition": "capiro-dev-api:451",
+        "rolloutState": "COMPLETED",
+        "desired": 2,
+        "running": 2,
+        "pending": 0,
+        "healthyReplacementTargets": 2,
+        "replacementTargetIps": [
+          "10.40.15.69",
+          "10.40.8.88"
+        ]
+      },
+      "web": {
+        "service": "capiro-dev-web",
+        "taskDefinition": "capiro-dev-web:136",
+        "rolloutState": "COMPLETED",
+        "desired": 1,
+        "running": 1,
+        "pending": 0,
+        "replacementTargetIp": "10.40.13.252"
+      },
+      "webVnext": {
+        "service": "capiro-dev-web-vnext",
+        "taskDefinition": "capiro-dev-web-vnext:351",
+        "rolloutState": "COMPLETED",
+        "desired": 1,
+        "running": 1,
+        "pending": 0,
+        "replacementTargetIp": "10.40.8.178"
+      }
+    }
+  },
+  "activation": {
+    "customerProductActive": true,
+    "clientWatchLedgerActive": true,
+    "historicalNotificationReplayStarted": false,
+    "federalLegislativeIngestionFlagChanged": false,
+    "acquisitionContinuityIngestionFlagChanged": false,
+    "fundingExecutionPublicationFlagChanged": false,
+    "canonicalBudgetHistoricalRead": "explicitly_unsupported"
+  }
+}
