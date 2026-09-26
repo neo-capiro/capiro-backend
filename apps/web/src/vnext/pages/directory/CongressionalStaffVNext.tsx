@@ -30,6 +30,9 @@ function seatLabel(member: Pick<DirectoryEntry, 'state' | 'district'>): string {
   if (!district) return state || '';
   // District already carries the state prefix (e.g. "VA-10") — use as-is.
   if (state && district.startsWith(`${state}-`)) return district;
+  // Senators: formatDistrict returns the bare state ("MD"), same as member.state.
+  // Joining them would produce "MD-MD"; return just the state instead.
+  if (state && district === state) return state;
   return [state, district].filter(Boolean).join('-');
 }
 
