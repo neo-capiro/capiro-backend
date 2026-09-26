@@ -116,6 +116,7 @@ interface MockConfig {
   watchError?: Error;
   alerts?: BizDevProspectAlert[];
   alertActionFails?: boolean;
+  patchFails?: boolean;
 }
 
 function makeApi(cfg: MockConfig): AxiosInstance {
@@ -171,7 +172,14 @@ function makeApi(cfg: MockConfig): AxiosInstance {
       if (path === '/api/business-development/prospects') return { data: prospect() };
       throw new Error(`unmocked POST ${path}`);
     }),
-    patch: vi.fn(async () => ({ data: prospect() })),
+    patch: vi.fn(async (path: string, body: { stage?: string; ownerUserId?: string | null }) => {
+      if (cfg.patchFails) throw new Error('save unavailable');
+      const id = /^\/api\/business-development\/prospects\/([^/]+)$/.exec(path)?.[1];
+      const target = prospects.find((p) => p.id === id) ?? prospects[0]!;
+      const saved = { ...target, ...(body as object) };
+      if (id === target.id) Object.assign(target, saved);
+      return { data: saved };
+    }),
     put: vi.fn(async () => ({ data: prospect() })),
   } as unknown as AxiosInstance;
 }
@@ -582,5 +590,131 @@ describe('no prototype-only fabrications', () => {
     expect(screen.queryByText(/Quiet baseline →/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Replay no duplicate/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /run scenario/i })).not.toBeInTheDocument();
+  });
+});
+
+// ── v5 pipeline slice: inline mutations, failed-write recovery, sorting ──
+
+describe('v5 pipeline inline stage/owner mutations', () => {
+  it('saves an inline stage change via the existing PATCH and refreshes the list', async () => {
+    renderAt('?view=business-development', ALL_ON);
+    const stageSelect = await screen.findByLabelText('Stage for Overland AI');
+    expect(stageSelect).toHaveValue('researching');
+    fireEvent.change(stageSelect, { target: { value: 'qualified' } });
+    await waitFor(() =>
+      expect(screen.getByLabelText('Stage for Overland AI')).toHaveValue('qualified'),
+    );
+    const patch = apiMock.patch as unknown as ReturnType<typeof vi.fn>;
+    expect(patch).toHaveBeenCalledWith(
+      '/api/business-development/prospects/p-1',
+      { stage: 'qualified' },
+    );
+    // Success invalidates the existing list query (refetch after save).
+    await waitFor(() => {
+      expect(getCalls().filter(([p]) => p === '/api/business-development/prospects').length).toBeGreaterThan(1);
+    });
+  });
+
+  it('saves an inline owner change and an unassign to null', async () => {
+    renderAt('?view=business-development', ALL_ON);
+    const ownerSelect = await screen.findByLabelText('Owner for Overland AI');
+    expect(ownerSelect).toHaveValue('u-1');
+    fireEvent.change(ownerSelect, { target: { value: '' } });
+    await waitFor(() =>
+      expect(screen.getByLabelText('Owner for Overland AI')).toHaveValue(''),
+    );
+    const patch = apiMock.patch as unknown as ReturnType<typeof vi.fn>;
+    expect(patch).toHaveBeenCalledWith(
+      '/api/business-development/prospects/p-1',
+      { ownerUserId: null },
+    );
+  });
+
+  it('keeps the server-confirmed value and shows an actionable error with Retry when the write fails', async () => {
+    const cfg = { ...ALL_ON, patchFails: true };
+    renderAt('?view=business-development', cfg);
+    const stageSelect = await screen.findByLabelText('Stage for Overland AI');
+    fireEvent.change(stageSelect, { target: { value: 'qualified' } });
+    // Server-confirmed value stays on screen; error is actionable.
+    await waitFor(() => expect(screen.getByText(/save unavailable/)).toBeInTheDocument());
+    expect(screen.getByLabelText('Stage for Overland AI')).toHaveValue('researching');
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    cfg.patchFails = false;
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(screen.getByLabelText('Stage for Overland AI')).toHaveValue('qualified'));
+    expect(screen.queryByText(/save unavailable/)).not.toBeInTheDocument();
+    expect(apiMock.patch).toHaveBeenCalledTimes(2);
+  });
+
+  it('blocks both inline fields and duplicate changes until the pending write settles', async () => {
+    renderAt('?view=business-development', ALL_ON);
+    const stage = await screen.findByLabelText('Stage for Overland AI');
+    const owner = screen.getByLabelText('Owner for Overland AI');
+    let finish!: (value: { data: BizDevProspect }) => void;
+    const patch = apiMock.patch as unknown as ReturnType<typeof vi.fn>;
+    patch.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    fireEvent.change(stage, { target: { value: 'qualified' } });
+    fireEvent.change(stage, { target: { value: 'outreach' } });
+    fireEvent.change(owner, { target: { value: '' } });
+    expect(stage).toBeDisabled();
+    expect(owner).toBeDisabled();
+    expect(patch).toHaveBeenCalledTimes(1);
+    finish({ data: prospect({ stage: 'qualified' }) });
+    await waitFor(() => expect(stage).toBeEnabled());
+    expect(owner).toBeEnabled();
+  });
+});
+
+describe('v5 pipeline sorting', () => {
+  it('sorts by createdAt newest-first by default and by due date (nulls last) via the sort control', async () => {
+    renderAt('?view=business-development', {
+      ...ALL_ON,
+      prospects: [
+        prospect({ id: 'p-old', displayName: 'Older Co', createdAt: '2026-08-01T00:00:00.000Z', nextActionDueAt: '2026-10-05T00:00:00.000Z', stage: 'qualified' }),
+        prospect({ id: 'p-new', displayName: 'Newer Co', createdAt: '2026-09-15T00:00:00.000Z', nextActionDueAt: null, stage: 'qualified' }),
+        prospect({ id: 'p-due', displayName: 'Due Soon Co', createdAt: '2026-08-15T00:00:00.000Z', nextActionDueAt: '2026-10-01T00:00:00.000Z', stage: 'qualified' }),
+      ],
+      counts: { visible: 3, total: 3, active: 3, dismissed: 0, byStage: { qualified: 3 } },
+    });
+    await screen.findByText('Older Co');
+    // Default: newest first (createdAt desc).
+    expect(document.querySelectorAll('.capiro-bizdev__name-btn').item(0)).toHaveTextContent('Newer Co');
+    // Switch to Sort: due date — p-due first, p-old second, null-due last.
+    fireEvent.change(screen.getByLabelText('Sort prospects'), { target: { value: 'due' } });
+    const names = document.querySelectorAll('.capiro-bizdev__name-btn');
+    expect(names.item(0)).toHaveTextContent('Due Soon Co');
+    expect(names.item(1)).toHaveTextContent('Older Co');
+    expect(names.item(2)).toHaveTextContent('Newer Co');
+  });
+
+  it('round-trips the sort through the URL (bdSort) without touching other params', () => {
+    const next = applyBizDevRoute(new URLSearchParams('view=business-development&sort=name'), {
+      sort: 'due',
+    });
+    expect(next.get('bdSort')).toBe('due');
+    expect(next.get('sort')).toBe('name');
+    expect(resolveBizDevRoute(next).sort).toBe('due');
+    const back = applyBizDevRoute(next, { sort: 'newest' });
+    expect(back.get('bdSort')).toBeNull();
+    expect(resolveBizDevRoute(back).sort).toBe('newest');
+  });
+
+  it('renders no priority sort option (no priority field in the API)', async () => {
+    renderAt('?view=business-development', ALL_ON);
+    await screen.findByText('Overland AI');
+    expect(screen.queryByText('Sort: priority')).not.toBeInTheDocument();
+  });
+});
+
+describe('v5 pipeline prototype layout', () => {
+  it('uses prototype columns Prospect/Stage/Owner/Next action/Status/Last activity and the firm breadcrumb', async () => {
+    renderAt('?view=business-development', ALL_ON);
+    await screen.findByText('Overland AI');
+    const headers = Array.from(document.querySelectorAll('.capiro-bizdev__table--v5 th')).map((th) => th.textContent);
+    expect(headers).toEqual(['Prospect', 'Stage', 'Owner', 'Next action', 'Status', 'Last activity']);
+    // Real firm name from the me contract in the breadcrumb.
+    expect(screen.getByText('Portfolio · Test')).toBeInTheDocument();
+    // Status counters use the current response counts.
+    expect(screen.getByText(/Active 2 · Dismissed 0 · Total 2/)).toBeInTheDocument();
   });
 });

@@ -17,15 +17,19 @@ import { openVNextMeriWorkspaceWindow } from '../../../components/chat/meri-wind
 import {
   applyBizDevRoute,
   BIZDEV_CONFLICT_FILTERS,
+  BIZDEV_SORTS,
+  BIZDEV_SORT_LABELS,
   BIZDEV_STAGES,
   BIZDEV_STAGE_LABELS,
   BIZDEV_STATUSES,
   BIZDEV_STATUS_LABELS,
   BIZDEV_VIEW_LABELS,
   bizDevListQuery,
+  compareBizDevProspectsForSort,
   hasBizDevFilters,
   isBizDevOverdue,
   resolveBizDevRoute,
+  type BizDevSort,
   type BizDevStage,
   type BizDevView,
 } from './bizdev-routing.js';
@@ -70,8 +74,11 @@ import {
   type BizDevMemberOption,
   type BizDevProspect,
   type BizDevDuplicateHint,
+  type BizDevUpdateInput,
 } from './bizdev-api.js';
 import './business-development.css';
+import './bizdev-discover.css';
+import './bizdev-pipeline.css';
 
 /* ── small shared bits ──────────────────────────────────────────────── */
 
@@ -365,6 +372,22 @@ function BizDevFilters({ members }: { members: BizDevMemberOption[] }) {
         <option value="yes">Already a client</option>
         <option value="no">Not a client yet</option>
       </select>
+      <select
+        className="capiro-bizdev__select"
+        aria-label="Sort prospects"
+        value={route.sort}
+        onChange={(e) => setRoute({ sort: e.target.value as BizDevSort })}
+      >
+        {BIZDEV_SORTS.map((s) => (
+          <option key={s} value={s}>
+            {BIZDEV_SORT_LABELS[s]}
+          </option>
+        ))}
+      </select>
+      <label className="capiro-bizdev__toggle">
+        <input type="checkbox" checked={route.overdueOnly} onChange={(e) => setRoute({ overdueOnly: e.target.checked })} />
+        <span>Overdue only<span className="capiro-bizdev__sr-only"> (derived from next-action due dates)</span></span>
+      </label>
     </div>
   );
 }
@@ -2457,9 +2480,69 @@ function BizDevStageHistogram({
   );
 }
 
+/* ── v5 pipeline: inline row mutations ──────────────────────────────── */
+
+/**
+ * Single-flight inline update for the pipeline table. A pending write for a
+ * prospect blocks any further write for that same prospect, so rapid select
+ * changes can never issue duplicate PATCHes. The selects stay controlled by
+ * the server-confirmed list value, so a failed write simply leaves the
+ * server's value on screen with an actionable per-row error + Retry.
+ */
+function useInlineProspectUpdate(tenantId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const toast = useCapiroToast();
+  // Synchronous single-flight guard: a ref, not state, so a second change
+  // in the same tick is blocked before any state can settle. One pending
+  // write for a prospect blocks BOTH its inline controls.
+  const inFlight = useRef<Set<string>>(new Set());
+  const [pendingIds, setPendingIds] = useState<Record<string, true>>({});
+  const [rowErrors, setRowErrors] = useState<
+    Record<string, { message: string; input: BizDevUpdateInput; field: 'stage' | 'owner' }>
+  >({});
+
+  const update = async (
+    id: string,
+    input: BizDevUpdateInput,
+    field: 'stage' | 'owner',
+  ): Promise<void> => {
+    if (inFlight.current.has(id)) return;
+    inFlight.current.add(id);
+    setPendingIds((p) => ({ ...p, [id]: true }));
+    setRowErrors((e) => {
+      const next = { ...e };
+      delete next[id];
+      return next;
+    });
+    try {
+      const saved = await updateBizDevProspect(api, id, input);
+      queryClient.setQueryData(bizdevKeys.detail(tenantId, id), saved);
+      // Await invalidation of the existing list/detail/history keys
+      // (bizdevKeys.all is their shared prefix) before releasing the guard.
+      await queryClient.invalidateQueries({ queryKey: bizdevKeys.all(tenantId) });
+      toast.success(field === 'stage' ? 'Stage saved' : 'Owner saved');
+    } catch (error) {
+      const message = bizdevErrorMessage(error);
+      setRowErrors((e) => ({ ...e, [id]: { message, input, field } }));
+      toast.error(message);
+    } finally {
+      inFlight.current.delete(id);
+      setPendingIds((p) => {
+        const next = { ...p };
+        delete next[id];
+        return next;
+      });
+    }
+  };
+
+  return { pendingIds, rowErrors, update };
+}
+
 function Pipeline({
   tenantId,
   isAdmin,
+  firmName,
   dossierEnabled,
   briefEnabled,
   meriProspectToolsEnabled,
@@ -2467,6 +2550,7 @@ function Pipeline({
 }: {
   tenantId: string;
   isAdmin: boolean;
+  firmName?: string;
   dossierEnabled: boolean;
   briefEnabled: boolean;
   meriProspectToolsEnabled: boolean;
@@ -2487,7 +2571,7 @@ function Pipeline({
   const [createOpen, setCreateOpen] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const members_ = members.data ?? [];
-  const memberById = new Map(members_.map((m) => [m.id, m]));
+  const { pendingIds, rowErrors, update: updateRow } = useInlineProspectUpdate(tenantId);
 
   const setRoute = (patch: Parameters<typeof applyBizDevRoute>[1]) =>
     setSearchParams(applyBizDevRoute(searchParams, patch));
@@ -2497,9 +2581,14 @@ function Pipeline({
   const rowsAll = list.data?.prospects ?? [];
   // Derived overdue-only toggle: pure client-side filter over the loaded
   // nextActionDueAt values. There is no overdue/priority field in the API.
-  const rows = route.overdueOnly
+  const rowsFiltered = route.overdueOnly
     ? rowsAll.filter((p) => isBizDevOverdue(p.nextActionDueAt))
     : rowsAll;
+  // v5 prototype sort: newest-first (createdAt) or due date (nulls last),
+  // applied client-side with a deterministic tie break. See bizdev-routing.
+  const rows = [...rowsFiltered].sort((a, b) =>
+    compareBizDevProspectsForSort(a, b, route.sort),
+  );
   const hasData = Boolean(list.data) && (list.data?.counts.total ?? 0) > 0;
 
   const setView = (view: BizDevView) =>
@@ -2544,9 +2633,11 @@ function Pipeline({
 
   return (
     <div className="capiro-bizdev capiro-page">
-      <header className="capiro-bizdev__head">
+      <header className="capiro-bizdev__head capiro-bizdev__head--v5">
         <div>
-          <p className="capiro-bizdev__eyebrow">Portfolio</p>
+          <p className="capiro-bizdev__eyebrow">
+            Portfolio{firmName ? ` · ${firmName}` : ''}
+          </p>
           <h1 className="capiro-bizdev__title">Business Development</h1>
           <p className="capiro-bizdev__sub">
             Your firm's private prospect pipeline — research to won.
@@ -2559,7 +2650,7 @@ function Pipeline({
           icon="⚙"
           onClick={() => setPreferencesOpen(true)}
         />
-        <CapiroButton variant="primary" size="standard" onClick={() => setCreateOpen(true)}>
+        <CapiroButton variant="secondary" size="standard" leadingIcon={<span aria-hidden="true">＋</span>} onClick={() => setCreateOpen(true)}>
           Add prospect
         </CapiroButton>
       </header>
@@ -2578,12 +2669,14 @@ function Pipeline({
           tenantId={tenantId}
           members={members_}
           watchAlertsEnabled={watchAlertsEnabled}
+          meriProspectToolsEnabled={meriProspectToolsEnabled}
         />
       ) : view === 'discover' ? (
         <DiscoverPanel tenantId={tenantId} />
       ) : (
-      <section className="capiro-bizdev__surface" aria-labelledby="bizdev-pipeline">
-        <div className="capiro-bizdev__toolbar">
+      <>
+      <section className="capiro-bizdev__surface capiro-bizdev__surface--v5-pipeline" aria-labelledby="bizdev-pipeline">
+        <div className="capiro-bizdev__toolbar capiro-bizdev__toolbar--v5">
           <div className="capiro-bizdev__title-row">
             <h2 className="capiro-bizdev__section-title" id="bizdev-pipeline">
               Pipeline
@@ -2616,27 +2709,21 @@ function Pipeline({
           ) : null}
         </div>
 
-        {/* Derived overdue toggle; status is selected in the filter toolbar. */}
-        <div className="capiro-bizdev__segment-row">
-          <label className="capiro-bizdev__toggle">
-            <input
-              type="checkbox"
-              checked={route.overdueOnly}
-              onChange={(e) => setRoute({ overdueOnly: e.target.checked })}
-            />
-            <span>Overdue only (derived from next-action due dates)</span>
-          </label>
-        </div>
+      </section>
 
-        {!list.isPending && list.data ? (
-          <div className="capiro-bizdev__stagebar-wrap">
-            <BizDevStageHistogram
-              byStage={list.data.counts.byStage}
-              selectedStage={route.stage}
-              onSelect={(stage) => setRoute({ stage })}
-            />
-          </div>
-        ) : null}
+      {/* Prototype: the stage summary is its own card, separate from the
+          prospect table card below. */}
+      {!list.isPending && list.data ? (
+        <section className="capiro-bizdev__surface capiro-bizdev__surface--v5-stagebar" aria-label="Prospects by stage">
+          <BizDevStageHistogram
+            byStage={list.data.counts.byStage}
+            selectedStage={route.stage}
+            onSelect={(stage) => setRoute({ stage })}
+          />
+        </section>
+      ) : null}
+
+      <section className="capiro-bizdev__surface capiro-bizdev__surface--v5-table" aria-label="Prospect table">
 
         {list.isPending ? (
           <div style={{ padding: 24 }} aria-busy="true">
@@ -2691,19 +2778,21 @@ function Pipeline({
           </div>
         ) : (
           <div className="capiro-bizdev__table-wrap">
-            <table className="capiro-bizdev__table">
+            <table className="capiro-bizdev__table capiro-bizdev__table--v5">
               <thead>
                 <tr>
-                  <th scope="col">Company</th>
-                  <th scope="col">Owner</th>
+                  <th scope="col">Prospect</th>
                   <th scope="col">Stage</th>
+                  <th scope="col">Owner</th>
                   <th scope="col">Next action</th>
-                  <th scope="col">Flags</th>
-                  <th scope="col">Updated</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Last activity</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((p) => (
+                {rows.map((p) => {
+                  const busy = Boolean(pendingIds[p.id]);
+                  return (
                   <tr key={p.id} className="capiro-bizdev__tr">
                     <td>
                       <button
@@ -2720,29 +2809,67 @@ function Pipeline({
                       </button>
                     </td>
                     <td>
-                      {p.ownerUserId && memberById.get(p.ownerUserId) ? (
-                        <span className="capiro-bizdev__meta-row">
-                          <span className="capiro-portfolio__avatar" aria-hidden>
-                            {initials(memberName(memberById.get(p.ownerUserId)))}
-                          </span>
-                          {memberName(memberById.get(p.ownerUserId))}
-                        </span>
-                      ) : (
-                        <span className="capiro-bizdev__meta">Unassigned</span>
-                      )}
+                      <label className="capiro-bizdev__sr-only" htmlFor={`bizdev-row-stage-${p.id}`}>
+                        Stage for {p.displayName}
+                      </label>
+                      <select
+                        id={`bizdev-row-stage-${p.id}`}
+                        className="capiro-bizdev__select capiro-bizdev__select--inline"
+                        value={p.stage}
+                        disabled={busy}
+                        onChange={(e) =>
+                          void updateRow(p.id, { stage: e.target.value as BizDevStage }, 'stage')
+                        }
+                      >
+                        {BIZDEV_STAGES.map((s) => (
+                          <option key={s} value={s}>
+                            {BIZDEV_STAGE_LABELS[s]}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                     <td>
-                      <span className={`capiro-bizdev__stage capiro-bizdev__stage--${p.stage}`}>
-                        {BIZDEV_STAGE_LABELS[p.stage]}
-                      </span>
+                      <label className="capiro-bizdev__sr-only" htmlFor={`bizdev-row-owner-${p.id}`}>
+                        Owner for {p.displayName}
+                      </label>
+                      <select
+                        id={`bizdev-row-owner-${p.id}`}
+                        className="capiro-bizdev__select capiro-bizdev__select--inline"
+                        value={p.ownerUserId ?? ''}
+                        disabled={busy}
+                        onChange={(e) =>
+                          void updateRow(
+                            p.id,
+                            { ownerUserId: e.target.value || null },
+                            'owner',
+                          )
+                        }
+                      >
+                        <option value="">Unassigned</option>
+                        {p.ownerUserId && !members_.some((member) => member.id === p.ownerUserId) ? (
+                          <option value={p.ownerUserId}>Current owner (unavailable)</option>
+                        ) : null}
+                        {members_.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {memberName(m)}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                     <td>
                       {p.nextAction ? (
                         <span className="capiro-bizdev__meta-row">
                           {p.nextAction}
                           {p.nextActionDueAt ? (
-                            <span className="capiro-bizdev__meta">
-                              · due {formatDateShort(p.nextActionDueAt) ?? ''}
+                            <span
+                              className={`capiro-bizdev__meta${
+                                isBizDevOverdue(p.nextActionDueAt)
+                                  ? ' capiro-bizdev__meta--overdue'
+                                  : ''
+                              }`}
+                            >
+                              {isBizDevOverdue(p.nextActionDueAt) ? 'Overdue · was due ' : 'Due '}
+                              {formatDateShort(p.nextActionDueAt) ?? ''}
                             </span>
                           ) : null}
                         </span>
@@ -2764,11 +2891,11 @@ function Pipeline({
                         ) : null}
                         {p.linkedClient ? (
                           <span className="capiro-bizdev__flag capiro-bizdev__flag--client">
-                            Client
+                            Client linked
                           </span>
                         ) : null}
                         {!p.conflictExcluded && p.status !== 'dismissed' && !p.linkedClient ? (
-                          <span className="capiro-bizdev__meta">—</span>
+                          <span className="capiro-bizdev__meta">{p.canonicalEntityId ? 'Active' : 'Identity unresolved'}</span>
                         ) : null}
                       </span>
                     </td>
@@ -2778,9 +2905,33 @@ function Pipeline({
                       </span>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
+            {Object.keys(rowErrors).length > 0 ? (
+              <div className="capiro-bizdev__row-errors" role="status">
+                {rows
+                  .filter((p) => rowErrors[p.id])
+                  .map((p) => (
+                    <p key={p.id} className="capiro-bizdev__row-error">
+                      {p.displayName}: {rowErrors[p.id]!.message}{' '}
+                      <CapiroButton
+                        size="compact"
+                        onClick={() =>
+                          void updateRow(
+                            p.id,
+                            rowErrors[p.id]!.input,
+                            rowErrors[p.id]!.field,
+                          )
+                        }
+                      >
+                        Retry
+                      </CapiroButton>
+                    </p>
+                  ))}
+              </div>
+            ) : null}
           </div>
         )}
         {list.data ? (
@@ -2791,7 +2942,9 @@ function Pipeline({
         ) : null}
       </section>
 
+      </>
       )}
+
       </div>
 
       <CapiroDrawer
@@ -2842,6 +2995,7 @@ export function BusinessDevelopmentPage() {
       <Pipeline
         tenantId={me.data.tenant.id}
         isAdmin={hasAtLeast(me.data.role, 'user_admin')}
+        firmName={me.data.tenant.name || undefined}
         dossierEnabled={me.data.features.businessDevelopmentDossier === true}
         briefEnabled={me.data.features.businessDevelopmentBrief === true}
         meriProspectToolsEnabled={me.data.features.businessDevelopmentMeriProspectTools === true}

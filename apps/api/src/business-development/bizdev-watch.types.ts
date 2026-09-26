@@ -35,18 +35,9 @@ export type BizDevWatchSourceFamily =
 /** Per-watch, per-source runner health. 'partial'/'error' never advance a
  *  complete cursor (lastSuccessfulCompleteCheckAt / sourceWatermark). */
 export type BizDevWatchSourceHealth =
-  | 'pending'
-  | 'healthy'
-  | 'partial'
-  | 'error'
-  | 'stale'
-  | 'paused';
+  'pending' | 'healthy' | 'partial' | 'error' | 'stale' | 'paused';
 
-export type BizDevAlertChangeKind =
-  | 'new_record'
-  | 'material_update'
-  | 'correction'
-  | 'backfill';
+export type BizDevAlertChangeKind = 'new_record' | 'material_update' | 'correction' | 'backfill';
 
 export type BizDevAlertMateriality = 'high' | 'medium' | 'low';
 
@@ -67,12 +58,7 @@ export type BizDevAlertCategory =
 
 /** JSON scalar/recursive value as stored in JSONB columns. */
 export type BizDevJsonValue =
-  | string
-  | number
-  | boolean
-  | null
-  | BizDevJsonValue[]
-  | { [key: string]: BizDevJsonValue };
+  string | number | boolean | null | BizDevJsonValue[] | { [key: string]: BizDevJsonValue };
 
 /**
  * Allowlisted MATERIAL fields per source family. Anything not on the list —
@@ -184,8 +170,13 @@ export const BIZDEV_WATCH_MATERIAL_FIELD_ALLOWLIST: Readonly<
 
 /** Fields that are RETRIEVAL NOISE by definition: never material, never
  *  compared, always safe to ignore wherever they appear. */
-export const BIZDEV_WATCH_HARMLESS_FIELD_ALLOWLIST: ReadonlySet<string> =
-  new Set(['fetchedAt', 'lastSyncedAt', 'providerFetchedAt', 'raw', 'rawJsonb']);
+export const BIZDEV_WATCH_HARMLESS_FIELD_ALLOWLIST: ReadonlySet<string> = new Set([
+  'fetchedAt',
+  'lastSyncedAt',
+  'providerFetchedAt',
+  'raw',
+  'rawJsonb',
+]);
 
 /**
  * One normalized observation of one EXTERNAL record from a canonical
@@ -280,6 +271,64 @@ export interface BizDevWatchBaseline {
    *  establishedAt when absent. */
   effectiveFloorAt?: string | null;
   records: Readonly<Record<string, BizDevWatchBaselineRecord>>;
+  /**
+   * Versioned, bounded TRAVERSAL checkpoint (Phase 5 paging). This is
+   * traversal progress only — discardable and restartable without losing
+   * the authoritative `records` detection map. A LEGACY baseline without
+   * `scan` must keep working (the runner synthesizes a checkpoint); a
+   * malformed or NEWER-version checkpoint must fail CLOSED.
+   */
+  scan?: BizDevWatchScanCheckpoint;
+}
+
+// ── Resumable scan checkpoint (stored inside baselineState JSON) ─────────
+
+/**
+ * SAM agency-exposure sub-traversal: a bounded keyset walk of the UEI's
+ * awards collecting the distinct awarding agencies that expose
+ * opportunities. Walked once per cycle; never the hardcoded newest-100.
+ */
+export interface BizDevWatchScanExposureCheckpoint {
+  /** Last fully processed FederalAward id in the exposure walk. */
+  cursorId: string | null;
+  /** INCLUSIVE upper-key fence over FederalAward ids, captured once at
+   *  exposure-walk start (id <= fenceId) — an exclusive fence would skip the
+   *  highest award row forever. */
+  fenceId: string | null;
+  /** Distinct awarding agencies discovered so far this cycle. */
+  agencies: string[];
+  complete: boolean;
+}
+
+/**
+ * Versioned bounded traversal metadata for one source family scan. The
+ * traversal is an ASCENDING keyset over the projection's IMMUTABLE primary
+ * key `id` (never actionDate/postedDate/version — those stay source
+ * semantics only), with a finite cycle upper-key fence so an append-heavy
+ * source can always complete a cycle. A full cycle returns to the
+ * beginning, so changes and insertions behind any cursor are eventually
+ * seen; this is eventual reconciliation, NOT snapshot consistency or
+ * instantaneous detection.
+ */
+export interface BizDevWatchScanCheckpoint {
+  /** Checkpoint format version; anything else must fail closed. */
+  version: 1;
+  /** Hash of family + exact UEI; LDA also includes sorted exact raw names. */
+  scopeHash: string;
+  /** 'initial' = quiet first traversal; 'cycle' = established reconciliation. */
+  phase: 'initial' | 'cycle';
+  /** IMMUTABLE primary-key id of the last fully processed row (page boundary). */
+  cursorId: string | null;
+  /** INCLUSIVE upper-key fence captured at cycle start (id <= fenceId) — an
+   *  exclusive fence would skip the highest row forever, including a
+   *  singleton source. Append-heavy safety: rows beyond it are next cycle. */
+  fenceId: string | null;
+  /** Initial-phase staged baseline records (quiet until the cycle completes). */
+  stagedRecords: Record<string, BizDevWatchBaselineRecord>;
+  /** Fully validated pages persisted in this traversal; resets at cycle end. */
+  pagesDone: number;
+  /** SAM only: bounded agency-exposure sub-traversal state. */
+  exposure?: BizDevWatchScanExposureCheckpoint;
 }
 
 // ── Diff output ───────────────────────────────────────────────────────────

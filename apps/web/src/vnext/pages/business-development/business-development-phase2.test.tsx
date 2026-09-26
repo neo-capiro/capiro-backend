@@ -23,6 +23,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AxiosInstance } from 'axios';
 import { BusinessDevelopmentPage } from './BusinessDevelopmentPage.js';
+import { candidateAmount, candidateEventDate } from './BizDevDiscover.js';
 import {
   applyBizDevRoute,
   bizDevDiscoverQuery,
@@ -39,6 +40,22 @@ import {
 } from './bizdev-api.js';
 
 // ── fixtures (exact backend shapes) ────────────────────────────────────
+
+describe('candidate amount display', () => {
+  it('keeps date-only source events on the original calendar day', () => {
+    expect(candidateEventDate('2026-09-17')).toBe('Sep 17, 2026');
+    expect(candidateEventDate('2026-06-30')).toBe('Jun 30, 2026');
+  });
+  it.each([
+    ['0', '$0.00'], ['-1500000.25', '-$1,500,000.25'],
+    ['9999999999999999.99', '$9,999,999,999,999,999.99'],
+  ])('preserves exact source cents for %s', (raw, exact) => {
+    expect(candidateAmount(raw)?.exact).toBe(exact);
+  });
+  it.each([null, undefined, '', 'NaN', 'Infinity', '1e10', '1.123'])('does not manufacture a number for %s', (raw) => {
+    expect(candidateAmount(raw)).toBeNull();
+  });
+});
 
 function evidence(overrides: Partial<BizDevEvidenceItem> = {}): BizDevEvidenceItem {
   return {
@@ -502,7 +519,7 @@ describe('discover search', () => {
     expect(
       screen.getByText(/Why inspect: Named prime contractor on an Army SBIR award/),
     ).toBeInTheDocument();
-    expect(screen.getByText(/USAspending/)).toBeInTheDocument();
+    expect(screen.getAllByText(/USAspending/).length).toBeGreaterThan(0);
     expect(screen.getByText('Saved prospect')).toBeInTheDocument();
     expect(screen.getByText('Client')).toBeInTheDocument();
     expect(screen.getByText('Excluded')).toBeInTheDocument();
@@ -515,7 +532,52 @@ describe('discover search', () => {
     expect(screen.queryByLabelText(/Agency/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Issue/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Geography/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/priority score|service hypothesis|source availability/i)).not.toBeInTheDocument();
+    expect(screen.getByText('Service hypothesis')).toBeInTheDocument();
+    expect(screen.getByText('Not assessed')).toBeInTheDocument();
+    expect(screen.queryByText(/priority score|source availability/i)).not.toBeInTheDocument();
+  });
+
+  it('shows latest award money separately from the aggregate and saved firm judgment', async () => {
+    const whyInspect = candidate().whyInspect!;
+    renderAt('?view=business-development&bdDiscover=open&bdDq=overland', {
+      ...DOSSIER_ON,
+      candidates: candidateSearch([candidate({
+        serviceHypothesis: 'Budget monitoring — firm hypothesis',
+        evidenceCoverage: 'available',
+        whyInspect: {
+          ...whyInspect,
+          title: '2 ingested records, obligations $50,000,000 total',
+          latestAward: {
+            obligatedAmountUsd: '1200000.25', description: 'Award for autonomous testing',
+            awardingAgency: 'Department of Defense', recipientName: 'Overland AI Inc.', recipientState: 'WA',
+          },
+        },
+      })]),
+    });
+    await screen.findByText('Overland AI');
+    expect(screen.getByLabelText('$1,200,000.25')).toHaveTextContent('$1.2M');
+    expect(screen.getByText('obligated · latest matched award')).toBeInTheDocument();
+    expect(screen.getByText('Award for autonomous testing')).toBeInTheDocument();
+    expect(screen.getByText('Department of Defense')).toBeInTheDocument();
+    expect(screen.getByText('Budget monitoring — firm hypothesis')).toBeInTheDocument();
+    expect(screen.getByText(/Recipient address state: WA · not a verified facility/)).toBeInTheDocument();
+    expect(screen.getByText(/2 ingested records/).closest('details')).not.toHaveAttribute('open');
+    expect(screen.queryByText(/employees|ceiling|Appropriations advocacy/)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['error', 'Award records could not be checked.'],
+    ['identity_unresolved', 'An exact UEI is needed'],
+    ['empty_in_queried_scope', 'No exact-UEI award records in the ingested scope.'],
+  ] as const)('distinguishes %s coverage without claiming no awards', async (evidenceCoverage, message) => {
+    renderAt('?view=business-development&bdDiscover=open&bdDq=overland', {
+      ...DOSSIER_ON,
+      candidates: candidateSearch([candidate({ whyInspect: null, evidenceCoverage })]),
+    });
+    await screen.findByText('Overland AI');
+    expect(screen.getByText((text) => text.startsWith(message))).toBeInTheDocument();
+    expect(screen.getByText('Needs review', { selector: '.capiro-bizdev__candidate-badge' })).toBeInTheDocument();
+    expect(screen.queryByText('No ingested records explain this company yet.')).not.toBeInTheDocument();
   });
 
   it('opens the dossier without saving first', async () => {
@@ -900,6 +962,7 @@ describe('Phase 2 URL state and query keys', () => {
       prospectId: '',
       view: 'pipeline',
       overdueOnly: false,
+      sort: 'newest',
       discover: '',
       discoverQuery: '',
       discoverOffset: 0,

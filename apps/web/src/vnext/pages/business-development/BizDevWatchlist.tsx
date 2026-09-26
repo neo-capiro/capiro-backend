@@ -15,7 +15,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useApi } from '../../../lib/use-api.js';
 import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroEmptyState, CapiroErrorState } from '../../components/feedback/index.js';
-import { formatDateShort } from '../../lib/labels.js';
+import { openVNextMeriWorkspaceWindow } from '../../../components/chat/meri-window.js';
 import {
   applyBizDevRoute,
 } from './bizdev-routing.js';
@@ -27,15 +27,17 @@ import {
   listBizDevProspects,
   markBizDevAlertRead,
   dismissBizDevAlert,
+  updateBizDevWatch,
   bizdevWatchKeys,
   BIZDEV_SOURCE_HEALTH_LABELS,
   type BizDevMemberOption,
   type BizDevProspect,
   type BizDevProspectAlert,
   type BizDevWatchSourceHealth,
+  type BizDevUpdateWatchInput,
 } from './bizdev-api.js';
 
-/** Hard cap on fan-out requests: the first N active prospects only. */
+/** Hard cap on prospect fan-out per page. Each watch may also load alerts. */
 export const BIZDEV_WATCHLIST_FANOUT_LIMIT = 12;
 
 type WatchPayload = {
@@ -104,21 +106,71 @@ function WatchStatusPill({ status }: { status: string }) {
   return <span className={`capiro-bizdev__pill capiro-bizdev__pill--${status}`}>{label}</span>;
 }
 
+const SOURCE_NAMES: Record<string, string> = {
+  federal_award: 'USAspending contracts',
+  federal_assistance_award: 'USAspending assistance',
+  sam_opportunity: 'SAM opportunities',
+  tango_resource: 'Tango records',
+  lda_filing: 'LDA filings',
+  usaspending_contract: 'USAspending contracts',
+};
+
+function sourceName(source: string): string {
+  return SOURCE_NAMES[source.toLowerCase()] ?? source;
+}
+
+function checkedDate(value: string | null): string {
+  if (!value) return 'Not supplied';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Not supplied' : date.toLocaleString();
+}
+
+export const BIZDEV_WATCH_MERI_PROMPT =
+  'Explain what changed for the active prospect using its authorized watch alerts and evidence. ' +
+  'Distinguish event, publication, and first-observed dates. Cite the precise sources, ' +
+  'separate verified changes from inferred implications, and describe missing or stale coverage. ' +
+  'Do not draft or send outreach.';
+
 function WatchlistProspectCard({
+  tenantId,
   payload,
   members,
   onOpen,
 }: {
+  tenantId: string;
   payload: WatchPayload;
   members: BizDevMemberOption[];
   onOpen: (id: string) => void;
 }) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const actionPending = useRef(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const { prospect, watch, error } = payload;
   const w = watch?.watch ?? null;
   const sources = watch?.sources ?? [];
   const memberById = new Map(members.map((m) => [m.id, m]));
   const owner = w?.ownerUserId ? memberById.get(w.ownerUserId) : undefined;
   const muted = Boolean(w?.mutedUntil && new Date(w.mutedUntil).getTime() > Date.now());
+  const update = useMutation({
+    mutationFn: (input: BizDevUpdateWatchInput) => updateBizDevWatch(api, prospect.id, input),
+    onSuccess: async (result) => {
+      setActionError(null);
+      queryClient.setQueryData(bizdevWatchKeys.watch(tenantId, prospect.id), result);
+      queryClient.setQueriesData<WatchPayload[]>({ queryKey: fanoutKey(tenantId) }, (current) =>
+        current?.map((row) => row.prospect.id === prospect.id ? { ...row, watch: result } : row),
+      );
+      await queryClient.invalidateQueries({ queryKey: fanoutKey(tenantId) });
+      void queryClient.invalidateQueries({ queryKey: bizdevKeys.history(tenantId, prospect.id) });
+    },
+    onError: (failure) => setActionError(bizdevErrorMessage(failure)),
+    onSettled: () => { actionPending.current = false; },
+  });
+  const changeWatch = (input: BizDevUpdateWatchInput) => {
+    if (actionPending.current) return;
+    actionPending.current = true;
+    update.mutate(input);
+  };
   return (
     <li className="capiro-bizdev__card capiro-bizdev__watch-prospect">
       <div className="capiro-bizdev__card-head">
@@ -140,9 +192,9 @@ function WatchlistProspectCard({
       <p className="capiro-bizdev__meta">
         {error
           ? 'Watch status is temporarily unavailable for this prospect.'
-          : `${w ? (owner ? `Watched by ${memberName(owner)}` : 'Watch active') : 'No watch yet for this prospect.'} · ${
+          : `${w ? (owner ? `Watched by ${memberName(owner)}` : 'Watch configured') : 'No watch yet for this prospect.'} · ${
               watch?.lastCompletedCheckAt
-                ? `Last completed check ${formatDateShort(watch.lastCompletedCheckAt) ?? watch.lastCompletedCheckAt}`
+                ? `Last completed check ${checkedDate(watch.lastCompletedCheckAt)}`
                 : 'no completed check yet'
             }`}
       </p>
@@ -155,24 +207,50 @@ function WatchlistProspectCard({
         <ul className="capiro-bizdev__source-health" aria-label={`Source health for ${prospect.displayName}`}>
           {sources.map((source) => (
             <li key={source.source}>
-              <span className="capiro-bizdev__history-kind">{source.source}</span>
+              <span className="capiro-bizdev__history-kind">{sourceName(source.source)}</span>
               <span>
                 {BIZDEV_SOURCE_HEALTH_LABELS[source.health as BizDevWatchSourceHealth] ??
                   `Health: ${source.health}`}
                 {source.lastCheckedAt
-                  ? ` · Last check ${formatDateShort(source.lastCheckedAt) ?? source.lastCheckedAt}`
+                  ? ` · Last check ${checkedDate(source.lastCheckedAt)}`
                   : ''}
-                {source.detail ? ` · ${source.detail}` : ''}
+                {source.detail ? (
+                  <details className="capiro-bizdev__watch-source-detail">
+                    <summary>Check details</summary>
+                    <p>{source.detail}</p>
+                  </details>
+                ) : null}
               </span>
             </li>
           ))}
         </ul>
       ) : null}
       <div className="capiro-bizdev__actions">
+        {w ? (
+          <CapiroButton
+            size="compact"
+            variant="quiet"
+            disabled={update.isPending}
+            onClick={() => changeWatch({ status: w.status === 'active' ? 'paused' : 'active' })}
+          >
+            {w.status === 'active' ? 'Pause' : w.status === 'paused' ? 'Resume' : 'Restart'}
+          </CapiroButton>
+        ) : null}
+        {w?.status === 'active' ? (
+          <CapiroButton
+            size="compact"
+            variant="quiet"
+            disabled={update.isPending}
+            onClick={() => changeWatch({ mutedUntil: muted ? null : new Date(Date.now() + 7 * 864e5).toISOString() })}
+          >
+            {muted ? 'Unmute' : 'Mute for 7 days'}
+          </CapiroButton>
+        ) : null}
         <CapiroButton size="compact" onClick={() => onOpen(prospect.id)}>
           Open prospect
         </CapiroButton>
       </div>
+      {actionError ? <p role="alert" className="capiro-bizdev__statusnote capiro-bizdev__statusnote--warn">Watch update failed: {actionError}</p> : null}
     </li>
   );
 }
@@ -181,15 +259,18 @@ export function BizDevWatchlist({
   tenantId,
   members,
   watchAlertsEnabled,
+  meriProspectToolsEnabled = false,
 }: {
   tenantId: string;
   members: BizDevMemberOption[];
   watchAlertsEnabled: boolean;
+  meriProspectToolsEnabled?: boolean;
 }) {
   const api = useApi();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [category, setCategory] = useState('all');
+  const [watchPage, setWatchPage] = useState(0);
   const [actionError, setActionError] = useState<string | null>(null);
   const [pendingAlertId, setPendingAlertId] = useState<string | null>(null);
   const pendingAlertRef = useRef<string | null>(null);
@@ -202,7 +283,14 @@ export function BizDevWatchlist({
   });
 
   const prospects = list.data?.prospects ?? [];
-  const fanout = useWatchlistFanout(tenantId, prospects, watchAlertsEnabled);
+  const activeProspects = prospects.filter((prospect) => prospect.status === 'active');
+  const pageCount = Math.max(1, Math.ceil(activeProspects.length / BIZDEV_WATCHLIST_FANOUT_LIMIT));
+  const pageIndex = Math.min(watchPage, pageCount - 1);
+  const pageProspects = activeProspects.slice(
+    pageIndex * BIZDEV_WATCHLIST_FANOUT_LIMIT,
+    (pageIndex + 1) * BIZDEV_WATCHLIST_FANOUT_LIMIT,
+  );
+  const fanout = useWatchlistFanout(tenantId, pageProspects, watchAlertsEnabled);
   const payloads = fanout.data ?? [];
   const watchedPayloads = payloads.filter((p) => p.watch?.watch);
   // Keep failed rows visible. Otherwise a transient watch endpoint failure
@@ -268,14 +356,16 @@ export function BizDevWatchlist({
     setSearchParams(applyBizDevRoute(searchParams, { prospectId: id, status: 'all' }));
 
   return (
-    <section className="capiro-bizdev__surface" aria-labelledby="bizdev-watchlist">
+    <section className="capiro-bizdev__watchlist-page" aria-labelledby="bizdev-watchlist">
       <div className="capiro-bizdev__toolbar">
         <div className="capiro-bizdev__title-row">
           <h2 className="capiro-bizdev__section-title" id="bizdev-watchlist">
             Watchlist
           </h2>
           <span className="capiro-bizdev__count">
-            {fanout.isPending
+            {!watchAlertsEnabled
+              ? 'Reporting disabled'
+              : fanout.isPending && activeProspects.length > 0
               ? '…'
               : `${watchedPayloads.length} watched · ${totalUnread} unread alerts`}
           </span>
@@ -308,7 +398,7 @@ export function BizDevWatchlist({
             description="Your watch choices are saved for later, but source checks and alerts are not running for your firm."
           />
         </div>
-      ) : prospects.length === 0 ? (
+      ) : activeProspects.length === 0 ? (
         <div className="capiro-bizdev__section-pad">
           <CapiroEmptyState
             variant="first-use"
@@ -360,15 +450,25 @@ export function BizDevWatchlist({
                       {alert.readAt ? <span className="capiro-bizdev__meta">Read</span> : <span className="capiro-bizdev__pill capiro-bizdev__pill--alert">New</span>}
                     </div>
                     <p className="capiro-bizdev__meta capiro-bizdev__watchlist-alert-meta">
-                      {[prospect.displayName, alert.category ?? alert.sourceFamily,
-                        alert.firstObservedAt ? `Observed ${formatDateShort(alert.firstObservedAt) ?? alert.firstObservedAt}` : null,
+                      {[prospect.displayName, alert.category ?? (alert.sourceFamily ? sourceName(alert.sourceFamily) : null),
                       ].filter(Boolean).join(' · ')}
                     </p>
                     {alert.summary ? <p className="capiro-bizdev__watchlist-alert-text">{alert.summary}</p> : null}
                     {alert.materiality ? <p className="capiro-bizdev__meta capiro-bizdev__watchlist-alert-meta">Materiality: {alert.materiality}</p> : null}
                     {alert.implication ? <p className="capiro-bizdev__meta capiro-bizdev__watchlist-alert-meta">Inference: {alert.implication}</p> : null}
+                    <p className="capiro-bizdev__meta capiro-bizdev__watchlist-alert-dates">
+                      <span>Event: {checkedDate(alert.eventAt)}</span>
+                      {alert.effectiveAt ? <span>Effective: {checkedDate(alert.effectiveAt)}</span> : null}
+                      <span>Published: {checkedDate(alert.publishedAt)}</span>
+                      <span>First observed: {checkedDate(alert.firstObservedAt)}</span>
+                    </p>
                     <div className="capiro-bizdev__actions capiro-bizdev__watchlist-alert-actions">
                       <CapiroButton size="compact" onClick={() => openProspect(prospect.id)}>Open prospect / evidence</CapiroButton>
+                      {meriProspectToolsEnabled ? (
+                        <CapiroButton variant="quiet" size="compact" onClick={() => openVNextMeriWorkspaceWindow(window, window.location.origin, { prospectId: prospect.id, prompt: BIZDEV_WATCH_MERI_PROMPT })}>
+                          Ask Meri what changed
+                        </CapiroButton>
+                      ) : null}
                       {!alert.readAt ? <CapiroButton size="compact" disabled={pendingAlertId !== null} onClick={() => runAlertAction(prospect.id, alert.id, 'read')}>Mark read</CapiroButton> : null}
                       <CapiroButton size="compact" disabled={pendingAlertId !== null} onClick={() => runAlertAction(prospect.id, alert.id, 'dismiss')}>Dismiss</CapiroButton>
                     </div>
@@ -388,6 +488,7 @@ export function BizDevWatchlist({
               {visiblePayloads.map((payload) => (
                 <WatchlistProspectCard
                   key={payload.prospect.id}
+                  tenantId={tenantId}
                   payload={payload}
                   members={members}
                   onOpen={openProspect}
@@ -397,11 +498,17 @@ export function BizDevWatchlist({
           </aside>
         </div>
       )}
-      {prospects.filter((p) => p.status === 'active').length > BIZDEV_WATCHLIST_FANOUT_LIMIT ? (
-        <p className="capiro-bizdev__footer-note capiro-bizdev__meta">
-          Showing the first {BIZDEV_WATCHLIST_FANOUT_LIMIT} active prospects. Open a prospect to
-          manage its watch directly.
-        </p>
+      {pageCount > 1 ? (
+        <nav className="capiro-bizdev__watchlist-pagination" aria-label="Watchlist pages">
+          <span className="capiro-bizdev__meta">
+            {pageIndex === 0
+              ? `Showing the first ${BIZDEV_WATCHLIST_FANOUT_LIMIT} active prospects.`
+              : `Showing active prospects ${pageIndex * BIZDEV_WATCHLIST_FANOUT_LIMIT + 1}–${Math.min((pageIndex + 1) * BIZDEV_WATCHLIST_FANOUT_LIMIT, activeProspects.length)}.`}
+            {' '}Page {pageIndex + 1} of {pageCount}. Counts and alerts reflect this page.
+          </span>
+          <CapiroButton size="compact" disabled={pageIndex === 0} onClick={() => { setWatchPage(pageIndex - 1); setCategory('all'); }}>Previous watches</CapiroButton>
+          <CapiroButton size="compact" disabled={pageIndex + 1 === pageCount} onClick={() => { setWatchPage(pageIndex + 1); setCategory('all'); }}>Next watches</CapiroButton>
+        </nav>
       ) : null}
     </section>
   );

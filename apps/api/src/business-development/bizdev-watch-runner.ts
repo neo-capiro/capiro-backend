@@ -4,12 +4,16 @@ import { Prisma as PrismaTag } from '@prisma/client';
 import { normalizeCompanyName } from '../vendor-reference/vendor-name.util.js';
 import type {
   BizDevSourceObservation,
-  BizDevWatchBaseline,
   BizDevAlertDraft,
   BizDevSuppressionReasonCode,
   BizDevWatchDiffResult,
+  BizDevWatchBaseline,
+  BizDevWatchScanCheckpoint,
+  BizDevWatchScanExposureCheckpoint,
 } from './bizdev-watch.types.js';
 import { diffObservationAgainstBaseline as diffFn } from './bizdev-watch-diff.js';
+import { resolveScanCheckpoint, scanScopeHash } from './bizdev-watch-checkpoint.js';
+export { resolveScanCheckpoint, scanScopeHash } from './bizdev-watch-checkpoint.js';
 
 /**
  * Business Development Phase 5 — DB-ONLY watch evaluator runner.
@@ -36,19 +40,21 @@ import { diffObservationAgainstBaseline as diffFn } from './bizdev-watch-diff.js
  *      normalized canonical-or-alias name) under current tenant visibility
  *      rules FIRST, with an explicit result: unresolved/ambiguous identity
  *      stays pending — NO baseline is established, NO alert is produced;
- *   4. read bounded source rows from the EXISTING projection; an incomplete
- *      (over-bound) or errored read marks the state partial/error, sets
- *      lastAttemptAt/lastError/consecutiveFailures, does NOT advance the
- *      baseline/watermark, inserts/delivers NOTHING, and never blocks other
- *      families;
- *   5. only a COMPLETE, error-free, review-free read participates in ONE
- *      per-source transaction: conflict-safe alert insert (createMany
- *      skipDuplicates + exact unique re-lookup so a duplicate replay does NOT
- *      abort the transaction and never double-delivers), and only a NEWLY
- *      inserted alert gets its delivery + alert-created activity; then
- *      baseline update, advance lastSuccessfulCompleteCheckAt / health /
- *      watermark, release the lease. A partial or error outcome NEVER
- *      advances the complete baseline/watermark.
+ *   4. read ONE bounded keyset page from the EXISTING projection (page+1
+ *      probe). A fully fetched, error-free, review-free page PERSISTS its
+ *      cursor/checkpoint progress (successful bounded progress); a failed
+ *      or incomplete read ROLLS BACK that page — state partial/error,
+ *      lastAttemptAt/lastError/consecutiveFailures set, no cursor/baseline
+ *      advance, nothing inserted/delivered, never blocks other families;
+ *   5. each validated page commits in ONE per-source transaction:
+ *      conflict-safe alert insert (createMany skipDuplicates + exact unique
+ *      re-lookup so a duplicate replay does NOT abort the transaction and
+ *      never double-delivers); only a NEWLY inserted alert gets its
+ *      delivery + alert-created activity. The COMPLETE baseline/watermark
+ *      (initialized, lastSuccessfulCompleteCheckAt, sourceWatermark,
+ *      healthy) advances ONLY at complete-cycle end — a mid-cycle page
+ *      commits progress but stays honestly partial, and a partial/error
+ *      outcome NEVER advances it.
  *   6. EVERY finalize/release write predicates on tenantId + id +
  *      leaseToken=claimToken (checked updateMany) so an expired task can
  *      never clear or overwrite a newer worker's lease.
@@ -56,7 +62,10 @@ import { diffObservationAgainstBaseline as diffFn } from './bizdev-watch-diff.js
  *      candidate read on contains-matches then an EXACT
  *      normalizeCompanyName post-filter (the dossier's lobbyingSection
  *      pattern). Contains-only/fuzzy candidates never become observations;
- *      an exact result over-bound means partial.
+ *      an exact result over-bound means partial. SAM reads are exposure-
+ *      FIRST: the bounded agency-exposure walk finishes (and is reused)
+ *      before ANY opportunity query, and the opportunity fence is captured
+ *      only then, scoped to the frozen agency set.
  *
  * Deferred family: acquisition_revision is DEFERRED (excluded from the
  * default config allowlist and from watch activation). The existing ledger's
@@ -72,7 +81,7 @@ export interface BizDevWatchRunConfig {
   sourceFamilies: string[];
   /** Max watches processed per run. */
   maxWatchesPerRun: number;
-  /** Max records read per watch per family. */
+  /** Bounded page size per source keyset read (+1 probe); also the SAM exposure sub-walk bound. */
   maxRecordsPerSource: number;
   /** Lease duration in seconds. */
   leaseSeconds: number;
@@ -136,13 +145,25 @@ export function parseSourceFamilies(raw: string | undefined): BizDevWatchSourceF
 
 /** Validate resolved config bounds; invalid bounds fail closed (throw). */
 export function validateRunConfig(config: BizDevWatchRunConfig): void {
-  if (config.maxWatchesPerRun < 1 || config.maxWatchesPerRun > 500) {
+  if (
+    !Number.isInteger(config.maxWatchesPerRun) ||
+    config.maxWatchesPerRun < 1 ||
+    config.maxWatchesPerRun > 500
+  ) {
     throw new Error('BIZDEV_WATCH_MAX_PER_RUN must be an integer between 1 and 500');
   }
-  if (config.maxRecordsPerSource < 1 || config.maxRecordsPerSource > 500) {
+  if (
+    !Number.isInteger(config.maxRecordsPerSource) ||
+    config.maxRecordsPerSource < 1 ||
+    config.maxRecordsPerSource > 500
+  ) {
     throw new Error('BIZDEV_WATCH_MAX_RECORDS_PER_SOURCE must be an integer between 1 and 500');
   }
-  if (config.leaseSeconds < 30 || config.leaseSeconds > 3600) {
+  if (
+    !Number.isInteger(config.leaseSeconds) ||
+    config.leaseSeconds < 30 ||
+    config.leaseSeconds > 3600
+  ) {
     throw new Error('BIZDEV_WATCH_LEASE_SECONDS must be an integer between 30 and 3600');
   }
   if (config.sourceFamilies.length === 0) {
@@ -237,8 +258,9 @@ export function identityAnchorFor(
   // RAW names only: canonicalName + aliases.alias. The raw strings feed the
   // LDA candidate contains query; normalizeCompanyName runs on BOTH sides
   // in the exact post-filter (the dossier's lobbyingSection pattern).
-  const exactNames = [entity.canonicalName, ...entity.aliases.map((a) => a.alias)]
-    .filter((n): n is string => Boolean(n) && n.length > 0);
+  const exactNames = [entity.canonicalName, ...entity.aliases.map((a) => a.alias)].filter(
+    (n): n is string => Boolean(n) && n.length > 0,
+  );
   // Resolved = at least one exact anchor exists (a UEI or an exact name).
   return { resolved: uei != null || exactNames.length > 0, uei, exactNames };
 }
@@ -279,7 +301,7 @@ export async function discoverClaimCandidates(
     ORDER BY s."updated_at" ASC
     LIMIT ${limit}`,
       )
-      .then((rows) => rows ?? []),
+      .then((rows: BizDevWatchClaimCandidate[] | null | undefined) => rows ?? []),
   );
 }
 
@@ -320,11 +342,7 @@ export async function runBizDevWatchEvaluation(
   // Runs EXCLUSIVELY through db.withSystem (the audited RLS-bypass
   // transaction). Unenrolled tenants produce zero candidates here, so they
   // get no claim, no baseline, and no alerts.
-  const candidateStates = await discoverClaimCandidates(
-    db,
-    families,
-    config.maxWatchesPerRun * 2,
-  );
+  const candidateStates = await discoverClaimCandidates(db, families, config.maxWatchesPerRun * 2);
 
   const claimed: BizDevWatchClaimCandidate[] = [];
 
@@ -334,14 +352,12 @@ export async function runBizDevWatchEvaluation(
     // unclaimed/expired row flips to our token; a concurrent worker's claim
     // makes this update match zero rows.
     const ok = await db.withTenant(state.tenantId, (tx) =>
-      tx
-        .$executeRaw`UPDATE "business_development_watch_source_states"
+      tx.$executeRaw`UPDATE "business_development_watch_source_states"
           SET "lease_token" = ${claimToken}, "lease_until" = ${leaseUntil},
               "last_attempt_at" = ${now}, "updated_at" = ${now}
           WHERE "id" = ${state.id}::uuid
             AND "tenant_id" = ${state.tenantId}::uuid
-            AND ("lease_until" IS NULL OR "lease_until" <= now())`
-        .then((n: number) => n === 1),
+            AND ("lease_until" IS NULL OR "lease_until" <= now())`.then((n: number) => n === 1),
     );
     if (ok) {
       metrics.checked += 1;
@@ -464,14 +480,15 @@ export async function runBizDevWatchEvaluation(
 
         // ── Identity resolution FIRST, explicit result ─────────────────────
         const anchor = identityAnchorFor(watch);
-        if (!anchor.resolved) {
+        if (!anchor.resolved || (state.sourceFamily !== 'lda_filing' && !anchor.uei)) {
           // Unresolved/ambiguous identity stays pending: no baseline, no
           // alert — never a confident alert on a weak identity. A zero-count
           // finalize means the lease was lost: skipped, NOT a pending result.
           const n = await finalizeState({
             health: 'pending',
-            lastError:
-              'Identity not resolved yet — waiting for a confirmed canonical organization with an exact identifier',
+            lastError: anchor.resolved
+              ? 'Exact UEI is required for this source — no complete comparison or absence is established'
+              : 'Identity not resolved yet — waiting for a confirmed canonical organization with an exact identifier',
             leaseToken: null,
             leaseUntil: null,
           });
@@ -479,22 +496,80 @@ export async function runBizDevWatchEvaluation(
           return 'pending' as const;
         }
 
-        // ── Read bounded source rows from the EXISTING projection ───────
-        let observations: BizDevSourceObservation[];
-        let complete: boolean;
+        // ── Resumable bounded scan: one fully validated page per source ────
+        // PAGE vs CYCLE distinction (documented deliberately):
+        //   * A PAGE is one bounded keyset read that was fully fetched and
+        //     validated (no read error, no review/skip). Only a fully
+        //     validated page may persist its cursor + per-record progress
+        //     under this lease-predicated transaction.
+        //   * A CYCLE is the complete keyset walk from the beginning up to
+        //     the fence. `initialized`, `establishedAt`,
+        //     `lastSuccessfulCompleteCheckAt`, and `sourceWatermark` advance
+        //     ONLY at cycle completion — a source mid-cycle (even with all
+        //     pages healthy) is NOT "healthy complete" coverage yet.
+        //   * Initial-phase pages stage fingerprints QUIETLY (zero alerts);
+        //     established-cycle pages may diff/update accepted per-record
+        //     baselines atomically with alerts.
+        const baselineDoc =
+          (stateRow.baselineState as unknown as BizDevWatchBaseline | null) ?? null;
+        const established = baselineDoc?.initialized === true;
+        const scopeHash = scanScopeHash(state.sourceFamily, anchor);
+        // Fail-closed checkpoint resolution: legacy (no scan field), malformed,
+        // or newer-version checkpoint data never crashes and never fabricates
+        // success — a malformed scan fails the source as partial with a safe
+        // reason; a legacy scan synthesizes a fresh checkpoint from scratch.
+        let scan: BizDevWatchScanCheckpoint;
+        let scopeChanged = false;
         try {
-          const read = await readFamilyObservations(
+          scan = resolveScanCheckpoint(baselineDoc, scopeHash, established);
+        } catch (scanError) {
+          const n = await finalizeState({
+            health: 'partial',
+            lastError:
+              scanError instanceof Error ? scanError.message : 'Stored scan checkpoint is unusable',
+            leaseToken: null,
+            leaseUntil: null,
+          });
+          if (n === 0) return 'skipped' as const;
+          metrics.partial += 1;
+          return 'partial' as const;
+        }
+        // A scope/identity change means the stored cursor indexes a DIFFERENT
+        // result set. NEVER diff one entity's source records against
+        // another's: invalidate the traversal and establish a QUIET baseline
+        // for the newly scoped identity, keeping historical alerts as audit.
+        // (For an established baseline the diff already treats
+        // initialized=false as quiet — 'baseline' outcome, no alerts — so a
+        // scope change cannot storm; the quiet re-baseline is deliberate.)
+        if (baselineDoc?.scan != null && scan.scopeHash !== scopeHash) {
+          scopeChanged = true;
+          scan = {
+            version: 1,
+            scopeHash,
+            phase: 'initial',
+            cursorId: null,
+            fenceId: null,
+            stagedRecords: {},
+            pagesDone: 0,
+          };
+        }
+
+        let observations: BizDevSourceObservation[];
+        let page: BizDevWatchScanPage;
+        try {
+          const read = await readScanPage(
             projections,
             state.sourceFamily as Exclude<BizDevWatchSourceFamilyName, 'acquisition_revision'>,
             anchor,
             config.maxRecordsPerSource,
+            scan,
           );
           observations = read.observations;
-          complete = read.complete;
+          page = read.page;
         } catch (readError) {
-          // Source read error: mark error, do NOT advance baseline/watermark,
-          // deliver nothing. A zero-count finalize means the lease was lost
-          // before the release: skipped, NOT an error result.
+          // Source read error: mark error, do NOT advance baseline/watermark/
+          // cursor, deliver nothing. A zero-count finalize means the lease
+          // was lost before the release: skipped, NOT an error result.
           const n = await finalizeState({
             health: 'error',
             lastError: readError instanceof Error ? readError.message : String(readError),
@@ -507,30 +582,15 @@ export async function runBizDevWatchEvaluation(
           return 'error' as const;
         }
 
-        if (!complete) {
-          // Over-bound read: partial. Insert/deliver NOTHING (a partial read
-          // must not produce misleading or repeating deliveries) and preserve
-          // the prior baseline/watermark. A zero-count finalize means the
-          // lease was lost before the release: skipped, NOT a partial result.
-          const n = await finalizeState({
-            health: 'partial',
-            lastError: `Source read exceeded the complete bound (${config.maxRecordsPerSource} records) — rerun with a higher bound before advancing the baseline`,
-            leaseToken: null,
-            leaseUntil: null,
-          });
-          if (n === 0) return 'skipped' as const;
-          metrics.partial += 1;
-          return 'partial' as const;
-        }
-
-        // ── Diff against the baseline (complete read only) ────────────────
-        const baseline = (stateRow.baselineState as unknown as BizDevWatchBaseline | null) ?? null;
-        const established = baseline?.initialized === true;
-
+        // ── Diff the page against the baseline ───────────────────────────
+        // The DIFF baseline is the authoritative accepted records map — during
+        // the initial phase it is deliberately UNINITIALIZED so every record
+        // is quiet-staged; during a cycle it is the established baseline.
         // Suppression (clock-injected for testability): paused watch, muted
-        // now, conflict-excluded prospect, dismissed prospect. Baseline still
-        // refreshes (a later resume cannot emit accumulated changes); the
-        // delivery is suppressed with a persisted safe reason.
+        // now, conflict-excluded prospect, dismissed prospect. Progress still
+        // persists (a later resume cannot emit accumulated changes); the
+        // delivery is suppressed with a persisted safe reason — suppression
+        // is NEVER lost across page boundaries or replay.
         const nowTs = clock().getTime();
         const suppressionReason =
           watch.status === 'paused'
@@ -552,22 +612,22 @@ export async function runBizDevWatchEvaluation(
                 : watch.prospect.dismissedAt != null
                   ? 'prospect_dismissed'
                   : null;
-
+        // On a scope change the traversal restarts QUIET: the new identity's
+        // records must never diff against the OLD identity's accepted
+        // fingerprints (that would storm catch-up alerts); the diff's
+        // uninitialized-baseline path stages them silently.
+        const diffBaseline: BizDevWatchBaseline | null =
+          established && !scopeChanged ? baselineDoc : null;
         const records: Record<string, unknown> = {};
         const drafts: BizDevAlertDraft[] = [];
         let review = false;
-        // Per-state BUFFERED commit-dependent counters: applied to the run
-        // metrics ONLY after the checked finalization proves this worker
-        // still owns the lease (finalized === 1). If finalization matches
-        // zero rows the transaction throws and rolls back — the run metrics
-        // must never claim rolled-back work.
         let suppressedDelta = 0;
         let diffFailures = 0;
         for (const observation of observations) {
           metrics.candidates += 1;
           let result: BizDevWatchDiffResult;
           try {
-            result = diffFn(observation, baseline);
+            result = diffFn(observation, diffBaseline);
           } catch {
             diffFailures += 1;
             review = true;
@@ -576,7 +636,7 @@ export async function runBizDevWatchEvaluation(
           if (result.outcome === 'review' || result.outcome === 'skip') {
             // Unresolved/ambiguous identity or an unusable observation: never
             // a confident alert, and NEVER a trusted baseline fact — the
-            // whole pass is partial and inserts/delivers nothing.
+            // page is incomplete: cursor does not advance past its start.
             review = true;
             continue;
           }
@@ -607,15 +667,14 @@ export async function runBizDevWatchEvaluation(
           }
         }
 
-        // A review/skip anywhere makes the pass PARTIAL: no baseline advance,
-        // no alert insert, no delivery — only this lease is released. A
-        // zero-count finalize means the lease was lost before the release:
-        // skipped, NOT a partial result.
+        // A review/skip anywhere makes the page INCOMPLETE: no cursor advance,
+        // no baseline advance, no alert insert, no delivery — only this lease
+        // is released. The prior durable progress survives.
         if (review) {
           const n = await finalizeState({
             health: 'partial',
             lastError:
-              'Diff returned review/skip for at least one observation — no baseline advance, no alert',
+              'Diff returned review/skip for at least one observation — page not advanced; no alert',
             leaseToken: null,
             leaseUntil: null,
           });
@@ -625,17 +684,84 @@ export async function runBizDevWatchEvaluation(
           return 'partial' as const;
         }
 
-        const baselinedDelta = established ? 0 : 1;
+        const baselinedDelta = scan.phase === 'initial' && page.cycleEnd ? 1 : 0;
 
-        // ── ONE per-source transaction ────────────────────────────────────
-        // Alerts + deliveries + activity + baseline + health + lease release
-        // commit together; any failure rolls back ALL of them.
-        const newBaseline: BizDevWatchBaseline = {
-          initialized: true,
-          establishedAt: baseline?.establishedAt ?? clock().toISOString(),
-          effectiveFloorAt: baseline?.effectiveFloorAt ?? null,
-          records: { ...(baseline?.records ?? {}), ...records } as BizDevWatchBaseline['records'],
-        };
+        // ── ONE per-source transaction (unchanged shape) ─────────────────
+        // Alerts + deliveries + activity + baseline + checkpoint + lease
+        // release commit together; any failure rolls back ALL of them.
+        const stagedRecords: BizDevWatchBaseline['records'] = {
+          ...scan.stagedRecords,
+          ...records,
+        } as BizDevWatchBaseline['records'];
+        const cycleEnd = page.cycleEnd;
+        const nextScan: BizDevWatchScanCheckpoint = cycleEnd
+          ? {
+              version: 1,
+              scopeHash,
+              // Cycle complete: return to the beginning for the NEXT cycle.
+              phase: 'cycle',
+              cursorId: null,
+              fenceId: null,
+              stagedRecords: {},
+              pagesDone: 0,
+            }
+          : {
+              ...scan,
+              pagesDone: scan.pagesDone + 1,
+              stagedRecords: scan.phase === 'initial' ? stagedRecords : scan.stagedRecords,
+              // Persist the page's inclusive fence and (for SAM) the
+              // exposure sub-walk progress so the cycle resumes exactly.
+              cursorId: page.nextCursorId,
+              fenceId: page.fenceId,
+              ...(page.exposure ? { exposure: page.exposure } : {}),
+            };
+
+        const newBaseline: BizDevWatchBaseline = cycleEnd
+          ? scan.phase === 'initial'
+            ? {
+                // Initial cycle completed: atomically promote the staged
+                // quiet fingerprints to the established baseline. ZERO
+                // alerts exist from the initial scan by construction.
+                initialized: true,
+                establishedAt: clock().toISOString(),
+                effectiveFloorAt: scopeChanged ? null : (baselineDoc?.effectiveFloorAt ?? null),
+                records: stagedRecords as BizDevWatchBaseline['records'],
+                scan: nextScan,
+              }
+            : {
+                // Reconciliation cycle completed: merge this page's accepted
+                // per-record updates into the established baseline.
+                ...(baselineDoc as BizDevWatchBaseline),
+                records: {
+                  ...(baselineDoc?.records ?? {}),
+                  ...records,
+                } as BizDevWatchBaseline['records'],
+                scan: nextScan,
+              }
+          : scan.phase === 'initial'
+            ? {
+                // Mid-initial-cycle: staged records stay INSIDE the scan
+                // checkpoint (bounded traversal metadata, no alerts), and
+                // the top-level baseline stays uninitialized/empty so zero
+                // alerts can ever be produced before the cycle completes.
+                initialized: false,
+                establishedAt: clock().toISOString(),
+                effectiveFloorAt: scopeChanged ? null : (baselineDoc?.effectiveFloorAt ?? null),
+                records: {},
+                scan: nextScan,
+              }
+            : {
+                // Mid-reconciliation-cycle: the accepted records map stays
+                // authoritative and merged (per-page diff updates land
+                // atomically with their alerts); only the watermark waits
+                // for cycle end.
+                ...(baselineDoc as BizDevWatchBaseline),
+                records: {
+                  ...(baselineDoc?.records ?? {}),
+                  ...records,
+                } as BizDevWatchBaseline['records'],
+                scan: nextScan,
+              };
 
         let delivered = 0;
         let duplicates = 0;
@@ -659,7 +785,8 @@ export async function runBizDevWatchEvaluation(
                   sourceRevision: draft.sourceRevision ?? undefined,
                   fingerprint: draft.fingerprint,
                   dedupeKey: draft.dedupeKey,
-                  beforeState: (draft.beforeState ?? undefined) as Prisma.InputJsonValue | undefined,
+                  beforeState: (draft.beforeState ?? undefined) as
+                    Prisma.InputJsonValue | undefined,
                   afterState: draft.afterState as Prisma.InputJsonValue,
                   changesJsonb: (draft.changes ?? []) as unknown as Prisma.InputJsonValue,
                   title: draft.title,
@@ -675,8 +802,8 @@ export async function runBizDevWatchEvaluation(
             });
             if (inserted.count === 0) {
               // Exact unique replay: the alert already exists. Duplicate
-              // replay still finalizes the baseline successfully — no
-              // duplicate delivery, no duplicate activity.
+              // replay still finalizes the page successfully — no duplicate
+              // delivery, no duplicate activity.
               duplicates += 1;
               continue;
             }
@@ -724,34 +851,57 @@ export async function runBizDevWatchEvaluation(
           }
         }
 
-        // Healthy finalize: the alert/delivery/activity inserts above are
-        // part of THIS tenant transaction. A ZERO-count finalize means final
-        // ownership was lost — the healthy write CANNOT be attributed to this
-        // worker, so THROW inside the transaction: ALL prior inserts
-        // (alerts, deliveries, activities) roll back and nothing commits.
+        // Healthy page/cycle finalize: the alert/delivery/activity inserts
+        // above are part of THIS tenant transaction. A ZERO-count finalize
+        // means final ownership was lost — the healthy write CANNOT be
+        // attributed to this worker, so THROW inside the transaction: ALL
+        // prior inserts (alerts, deliveries, activities) roll back together
+        // with the cursor/baseline advance, so a lost lease can never
+        // advance the alert/baseline/cursor state.
+        //
+        // WATERMARK RULE: lastSuccessfulCompleteCheckAt / sourceWatermark
+        // advance ONLY when cycleEnd — traversal-incomplete coverage is
+        // never mislabeled healthy-complete. Mid-cycle healthy pages keep
+        // health 'partial' with a truthful scan-in-progress reason, so ops
+        // never read incomplete coverage as complete success. lastError
+        // carries only real problems — normal successful suppression is NOT
+        // an error condition on a mid-cycle page.
         const finalized = await finalizeState({
           baselineState: newBaseline as unknown as Prisma.InputJsonValue,
-          baselinedAt: clock(),
-          lastSuccessfulCompleteCheckAt: clock(),
-          sourceWatermark: clock(),
+          // A new identity's quiet traversal must not retain completion
+          // timestamps belonging to the old identity. Initial progress is
+          // permitted by the additive scan-checkpoint shape constraint.
+          baselinedAt: cycleEnd ? clock() : scan.phase === 'initial' ? null : undefined,
+          lastSuccessfulCompleteCheckAt: cycleEnd
+            ? clock()
+            : scan.phase === 'initial'
+              ? null
+              : undefined,
+          sourceWatermark: cycleEnd ? clock() : scan.phase === 'initial' ? null : undefined,
           consecutiveFailures: 0,
-          lastError: suppressionReason,
-          health: 'healthy',
+          lastError: cycleEnd
+            ? suppressionReason
+            : `Scan in progress (${nextScan.pagesDone} page${nextScan.pagesDone === 1 ? '' : 's'} persisted this traversal; coverage is not yet complete)`,
+          health: cycleEnd ? 'healthy' : 'partial',
           leaseToken: null,
           leaseUntil: null,
         });
         if (finalized === 0) {
           throw new Error(
-            'Lost the source-state lease before healthy finalization — rolling back all alert/delivery/activity inserts',
+            'Lost the source-state lease before healthy finalization — rolling back all alert/delivery/activity inserts and the scan cursor',
           );
         }
         // Committed: only NOW do the run metrics claim the work (a rolled-
         // back transaction must never be reported as delivered/baselined).
+        // A committed mid-cycle healthy page makes bounded FORWARD progress
+        // (not a failure) but the traversal is honestly incomplete: count it
+        // as a progressed partial so ops never read mid-cycle as complete.
+        if (!cycleEnd) metrics.partial += 1;
         metrics.baselined += baselinedDelta;
         metrics.delivered += delivered;
         metrics.duplicates += duplicates;
         metrics.suppressed += suppressedDelta;
-        return 'healthy' as const;
+        return cycleEnd ? 'healthy' : ('partial' as const);
       });
       if (outcome === 'skipped') metrics.checked -= 1;
     } catch (familyError) {
@@ -787,122 +937,349 @@ export async function runBizDevWatchEvaluation(
 }
 
 /**
- * Read bounded observations for ONE family from the EXISTING projections.
- * Identity linkage is EXACT (exact UEI or exact normalized canonical/alias
- * name); `complete=false` when the bound was hit (partial, no baseline
- * advance, no delivery).
+ * PAGE vs CYCLE (documented deliberately): a PAGE is one bounded keyset read
+ * that was fully fetched and validated; a CYCLE is the complete keyset walk
+ * from the beginning up to the inclusive fence. `initialized` /
+ * `establishedAt` / `lastSuccessfulCompleteCheckAt` / `sourceWatermark`
+ * advance ONLY at cycle completion; a mid-cycle source is honestly partial.
+ *
+ * Traversal key: the projection's IMMUTABLE primary key `id`, ASCENDING, with
+ * a +1 probe. Dates (actionDate/postedDate/dtPosted/version) are SOURCE
+ * SEMANTICS ONLY — never traversal keys, so equal/null dates cannot affect
+ * traversal. The cycle fence is the max existing row id at cycle start and
+ * is INCLUSIVE (id <= fenceId) — an exclusive fence would skip the highest
+ * row forever (including a singleton source). A full cycle returns to the
+ * beginning, so changes and insertions behind any cursor are eventually
+ * seen: eventual reconciliation, NOT snapshot consistency or instantaneous
+ * detection. No date lookback window is used as a correctness boundary.
  */
-async function readFamilyObservations(
+export interface BizDevWatchScanPage {
+  /** IMMUTABLE id of the last row on the page (next page starts AFTER it). */
+  nextCursorId: string | null;
+  /** INCLUSIVE cycle fence in effect for this page (persist with cursor). */
+  fenceId: string | null;
+  /** True when the walk reached the inclusive fence: cycle completed. */
+  cycleEnd: boolean;
+  /** SAM only: exposure sub-walk progress to persist for the next run. */
+  exposure: BizDevWatchScanExposureCheckpoint | null;
+}
+
+/**
+ * Read ONE bounded keyset page for a family from the EXISTING projections.
+ * The page query is `id > cursor AND id <= fence ORDER BY id ASC LIMIT
+ * pageSize + 1`; the +1 probe distinguishes "fully fetched page with more
+ * remaining" from "final page". The fence is captured at cycle start (max
+ * existing id, INCLUSIVE) so an append-heavy source can always finish a
+ * cycle; rows appended after fence capture are the NEXT cycle's work.
+ */
+async function readScanPage(
   projections: BizDevProjectionDb,
   family: Exclude<BizDevWatchSourceFamilyName, 'acquisition_revision'>,
   anchor: BizDevWatchIdentityAnchor,
   maxRecords: number,
-): Promise<{ observations: BizDevSourceObservation[]; complete: boolean }> {
-  const hasUei = anchor.uei != null;
-  const names = anchor.exactNames;
-
-  if (family === 'federal_award') {
-    if (!hasUei) return { observations: [], complete: true };
-    const rows = await projections.federalAward.findMany({
-      where: { recipientUei: anchor.uei! },
-      orderBy: { actionDate: 'desc' },
-      take: maxRecords + 1,
-      select: awardSelect,
-    });
+  scan: BizDevWatchScanCheckpoint,
+): Promise<{ observations: BizDevSourceObservation[]; page: BizDevWatchScanPage }> {
+  const after = scan.cursorId;
+  // Mid-cycle reuse the stored fence; at cycle start capture the INCLUSIVE
+  // fence (current max id in scope). Persisted with the page so the cycle
+  // terminates even while the source keeps appending.
+  // SAM is EXCLUDED here: its fence is captured only after the exposure walk
+  // completes, scoped to the frozen agency set (see the sam_opportunity branch).
+  const fence =
+    family === 'sam_opportunity'
+      ? null
+      : scan.cursorId != null && scan.fenceId != null
+        ? scan.fenceId
+        : await cycleFence(projections, family, anchor);
+  // Ascending keyset predicate over the immutable id: after cursor, up to
+  // and INCLUDING the fence.
+  const idRange: Record<string, unknown> = {};
+  if (after != null) idRange.gt = after;
+  if (fence != null) idRange.lte = fence;
+  const keyset = Object.keys(idRange).length > 0 ? { id: idRange } : {};
+  const emptyPage = (cycleEnd: boolean, pageFence: string | null = fence): BizDevWatchScanPage => ({
+    nextCursorId: after,
+    fenceId: pageFence,
+    cycleEnd,
+    exposure: null,
+  });
+  const pageFromRows = <T extends { id?: unknown }>(
+    rows: T[],
+    build: (r: T) => BizDevSourceObservation,
+    exposure: BizDevWatchScanExposureCheckpoint | null,
+    pageFence: string | null = fence,
+  ): { observations: BizDevSourceObservation[]; page: BizDevWatchScanPage } => {
+    if (rows.length === 0) {
+      return { observations: [], page: { ...emptyPage(true, pageFence), exposure } };
+    }
+    const pageRows = rows.slice(0, maxRecords);
+    const lastRow = pageRows[pageRows.length - 1];
+    const lastId = (lastRow?.id ?? pageFence ?? after) as string | null;
     return {
-      observations: rows.slice(0, maxRecords).map((r) => federalAwardObservation(r)),
-      complete: rows.length <= maxRecords,
+      observations: pageRows.map(build),
+      page: {
+        nextCursorId: lastId,
+        fenceId: pageFence,
+        // Inclusive fence: the cycle ends when the +1 probe found NOTHING
+        // beyond this page within the fence — the walk has reached (and this
+        // page includes) the fence row. This covers the singleton source and
+        // the exact-page-size source: the highest row is never skipped.
+        cycleEnd: rows.length <= maxRecords,
+        exposure,
+      },
     };
+  };
+  if (family === 'federal_award') {
+    if (!anchor.uei) return { observations: [], page: emptyPage(true) };
+    const rows = await projections.federalAward.findMany({
+      where: { recipientUei: anchor.uei, ...keyset },
+      orderBy: { id: 'asc' },
+      take: maxRecords + 1,
+      select: { ...awardSelect, id: true },
+    });
+    return pageFromRows(rows, (r) => federalAwardObservation(r), null);
   }
   if (family === 'federal_assistance_award') {
-    if (!hasUei) return { observations: [], complete: true };
+    if (!anchor.uei) return { observations: [], page: emptyPage(true) };
     const rows = await projections.federalAssistanceAward.findMany({
-      where: { recipientUei: anchor.uei! },
-      orderBy: { lastModifiedDate: 'desc' },
+      where: { recipientUei: anchor.uei, ...keyset },
+      orderBy: { id: 'asc' },
       take: maxRecords + 1,
-      select: assistanceSelect,
+      select: { ...assistanceSelect, id: true },
     });
-    return {
-      observations: rows.slice(0, maxRecords).map((r) => assistanceObservation(r)),
-      complete: rows.length <= maxRecords,
-    };
+    return pageFromRows(rows, (r) => assistanceObservation(r), null);
   }
   if (family === 'sam_opportunity') {
-    // SAM opportunities use the EXISTING narrow agency-exposure relationship:
-    // only agencies the company's exact-UEI awards already expose. The link
-    // is THEMATIC/CONDITIONAL — an exposed-agency opportunity never asserts
-    // the prospect will bid or win, and identityConfidence is deliberately
-    // NOT 1: the record's agency matches the exposure set, nothing more.
-    if (!hasUei) return { observations: [], complete: true };
-    const exposure = await projections.federalAward.findMany({
-      where: { recipientUei: anchor.uei!, awardingAgency: { not: null } },
-      orderBy: { actionDate: 'desc' },
-      take: 100,
-      select: { awardingAgency: true },
-    });
-    const agencies = Array.from(
-      new Set(exposure.map((r) => r.awardingAgency).filter((a): a is string => !!a)),
-    );
-    if (agencies.length === 0) return { observations: [], complete: true };
+    if (!anchor.uei) return { observations: [], page: emptyPage(true) };
+    // Agency exposure: a BOUNDED distinct-agency keyset walk of the UEI's
+    // awards — never the hardcoded newest-100. The link stays THEMATIC/
+    // CONDITIONAL (an exposed-agency opportunity never asserts the prospect
+    // will bid or win; identityConfidence is deliberately NOT 1).
+    const exposure = await samExposureAgencies(projections, anchor, maxRecords, scan);
+    if (!exposure.complete) {
+      // Exposure still walking: ZERO observations, cycle NOT complete, and
+      // the opportunity cursor/baseline NEVER advances on this page. Only the
+      // exposure sub-walk progress persists. An early partial agency set
+      // (even with few/no opportunities) never resets the exposure walk.
+      return {
+        observations: [],
+        page: {
+          nextCursorId: after,
+          fenceId: null,
+          cycleEnd: false,
+          exposure: exposure.checkpoint,
+        },
+      };
+    }
+    // Exposure COMPLETE (possibly an empty set): the agency set is now
+    // FROZEN for the whole opportunity walk of this cycle, so a late
+    // agency's lower-id opportunity is never skipped.
+    if (exposure.agencies.length === 0) {
+      return {
+        observations: [],
+        page: { ...emptyPage(true), exposure: exposure.checkpoint },
+      };
+    }
+    // Fence captured ONLY now — scoped to the FROZEN agency set, never all
+    // non-null agencies — and reused (stored in the scan) by every later
+    // opportunity page of this cycle.
+    const samFence =
+      scan.cursorId != null && scan.fenceId != null
+        ? scan.fenceId
+        : ((
+            await projections.samOpportunity.findMany({
+              where: { agency: { in: exposure.agencies } },
+              orderBy: { id: 'desc' },
+              take: 1,
+              select: { id: true },
+            })
+          )[0]?.id ?? null);
+    const samRange: Record<string, unknown> = {};
+    if (after != null) samRange.gt = after;
+    if (samFence != null) samRange.lte = samFence;
+    const samKeyset = Object.keys(samRange).length > 0 ? { id: samRange } : {};
     const rows = await projections.samOpportunity.findMany({
-      where: { agency: { in: agencies } },
-      orderBy: { postedDate: 'desc' },
+      where: { agency: { in: exposure.agencies }, ...samKeyset },
+      orderBy: { id: 'asc' },
       take: maxRecords + 1,
-      select: opportunitySelect,
+      select: { ...opportunitySelect, id: true },
     });
-    return {
-      observations: rows.slice(0, maxRecords).map((r) => opportunityObservation(r)),
-      complete: rows.length <= maxRecords,
-    };
+    return pageFromRows(rows, (r) => opportunityObservation(r), exposure.checkpoint, samFence);
   }
   if (family === 'tango_resource') {
-    if (!hasUei) return { observations: [], complete: true };
+    if (!anchor.uei) return { observations: [], page: emptyPage(true) };
     const rows = await projections.tangoResourceSnapshot.findMany({
-      where: { resourceType: 'entity', externalId: anchor.uei!, active: true },
-      orderBy: { version: 'desc' },
+      where: { resourceType: 'entity', externalId: anchor.uei, active: true, ...keyset },
+      orderBy: { id: 'asc' },
       take: maxRecords + 1,
-      select: tangoSelect,
+      select: { ...tangoSelect, id: true },
     });
-    return {
-      observations: rows.slice(0, maxRecords).map((r) => tangoObservation(r)),
-      complete: rows.length <= maxRecords,
-    };
+    return pageFromRows(rows, (r) => tangoObservation(r), null);
   }
-  // lda_filing — the dossier's bounded candidate-read + exact-normalized
-  // post-filter pattern. A bounded CONTAINS candidate read over the RAW
-  // canonical/alias names (raw-with-punctuation rows can never contain a
-  // stripped normalized string), then normalizeCompanyName post-filters to
-  // EXACT matches on BOTH sides. A contains-only/fuzzy candidate NEVER
-  // becomes an observation. Completeness is honest: if the CANDIDATE window
-  // itself saturates its cap, exact rows may exist beyond it — the read is
-  // partial. An exact result set exceeding maxRecords is also partial.
-  if (names.length === 0) return { observations: [], complete: true };
-  const candidateCap = maxRecords * 4;
+  // lda_filing — RAW candidate rows paginated by their stable key
+  // (immutable id), exact-normalize-FILTERED per page. This replaces the old
+  // 4x candidate-cap dead end: a page with ZERO exact matches still
+  // advances the traversal, so an exact match far behind many non-matches is
+  // eventually seen.
+  if (anchor.exactNames.length === 0) return { observations: [], page: emptyPage(true) };
+  const names = anchor.exactNames;
   const candidateRows = await projections.ldaFiling.findMany({
     where: {
-      OR: names.flatMap((n) => [
-        { clientName: { equals: n, mode: 'insensitive' as const } },
+      OR: names.flatMap((n) => [{ clientName: { contains: n, mode: 'insensitive' as const } }]),
+      ...keyset,
+    },
+    orderBy: { id: 'asc' },
+    take: maxRecords + 1,
+    select: { ...ldaSelect, id: true },
+  });
+  const result = pageFromRows(candidateRows, (r) => ldaObservation(r), null);
+  // Exact-normalize post-filter AFTER page slicing: contains-only candidates
+  // never become observations, but they still advance the traversal cursor.
+  const exact = result.observations.filter((o) =>
+    names.some(
+      (n) =>
+        normalizeCompanyName((o.material['clientName'] as string) ?? '') ===
+        normalizeCompanyName(n),
+    ),
+  );
+  return { observations: exact, page: result.page };
+}
+
+/**
+ * Capture the INCLUSIVE cycle fence: the current max row id for the identity
+ * scope. Null only when the scope has no rows at all (the walk trivially
+ * completes).
+ */
+async function cycleFence(
+  projections: BizDevProjectionDb,
+  family: Exclude<BizDevWatchSourceFamilyName, 'acquisition_revision' | 'sam_opportunity'>,
+  anchor: BizDevWatchIdentityAnchor,
+): Promise<string | null> {
+  if (family === 'federal_award') {
+    if (!anchor.uei) return null;
+    const rows = await projections.federalAward.findMany({
+      where: { recipientUei: anchor.uei },
+      orderBy: { id: 'desc' },
+      take: 1,
+      select: { id: true },
+    });
+    return rows[0]?.id ?? null;
+  }
+  if (family === 'federal_assistance_award') {
+    if (!anchor.uei) return null;
+    const rows = await projections.federalAssistanceAward.findMany({
+      where: { recipientUei: anchor.uei },
+      orderBy: { id: 'desc' },
+      take: 1,
+      select: { id: true },
+    });
+    return rows[0]?.id ?? null;
+  }
+
+  if (family === 'tango_resource') {
+    if (!anchor.uei) return null;
+    const rows = await projections.tangoResourceSnapshot.findMany({
+      where: { resourceType: 'entity', externalId: anchor.uei, active: true },
+      orderBy: { id: 'desc' },
+      take: 1,
+      select: { id: true },
+    });
+    return rows[0]?.id ?? null;
+  }
+  // lda_filing
+  if (anchor.exactNames.length === 0) return null;
+  const rows = await projections.ldaFiling.findMany({
+    where: {
+      OR: anchor.exactNames.flatMap((n) => [
         { clientName: { contains: n, mode: 'insensitive' as const } },
       ]),
     },
-    orderBy: { dtPosted: 'desc' },
-    take: candidateCap + 1,
-    select: ldaSelect,
+    orderBy: { id: 'desc' },
+    take: 1,
+    select: { id: true },
   });
-  if (candidateRows.length > candidateCap) {
-    // Candidate window saturated: exact matches may exist beyond it — this
-    // is NOT a complete read. Partial, no baseline advance, no delivery.
-    return { observations: [], complete: false };
+  return rows[0]?.id ?? null;
+}
+
+/**
+ * SAM agency-exposure set for one UEI: a bounded distinct-agency walk of the
+ * UEI's awards by the SAME ascending immutable-id keyset (bounded page, +1
+ * probe). Progress is carried inside the scan checkpoint so the walk resumes
+ * across runs and restarts each cycle. An agency appearing only in award
+ * #101+ is discovered — the hardcoded newest-100 hole is closed. The walk
+ * reads only bounded pages; the accumulated agency set stays staged until
+ * exposure completes, then is frozen for the opportunity traversal.
+ */
+async function samExposureAgencies(
+  projections: BizDevProjectionDb,
+  anchor: BizDevWatchIdentityAnchor,
+  maxRecords: number,
+  scan: BizDevWatchScanCheckpoint,
+): Promise<{
+  agencies: string[];
+  complete: boolean;
+  checkpoint: BizDevWatchScanExposureCheckpoint | null;
+}> {
+  if (!anchor.uei) return { agencies: [], complete: true, checkpoint: null };
+  const prior = scan.exposure;
+  // A COMPLETE exposure walk is reused verbatim — no further award reads
+  // for the rest of the cycle. The agency set stays FROZEN for the whole
+  // opportunity walk, so a late agency's lower-id opportunity is never
+  // skipped by a re-walk that shifts the set mid-cycle.
+  if (prior?.complete === true) {
+    return { agencies: prior.agencies, complete: true, checkpoint: prior };
   }
-  const exact = candidateRows.filter((r) =>
-    names.some((n) => normalizeCompanyName(r.clientName ?? '') === normalizeCompanyName(n)),
+  const pageSize = maxRecords; // configured bound, not a hardcoded 50
+  const exposureCursor = prior?.cursorId ?? null;
+  // The exposure walk lives in the FederalAward id space — its fence is the
+  // max FederalAward id for this UEI, captured once at exposure-walk start
+  // and reused across runs of the cycle (distinct from the SAM-opportunity
+  // walk fence, which lives in the SamOpportunity id space). The fence is
+  // INCLUSIVE (id <= fenceId): an exclusive fence would skip the highest
+  // award row forever.
+  const exposureFence =
+    prior?.fenceId ??
+    (
+      await projections.federalAward.findMany({
+        where: { recipientUei: anchor.uei, awardingAgency: { not: null } },
+        orderBy: { id: 'desc' },
+        take: 1,
+        select: { id: true },
+      })
+    )[0]?.id ??
+    null;
+  const idRange: Record<string, unknown> = {};
+  if (exposureCursor != null) idRange.gt = exposureCursor;
+  if (exposureFence != null) idRange.lte = exposureFence;
+  const rows = await projections.federalAward.findMany({
+    where: {
+      recipientUei: anchor.uei,
+      awardingAgency: { not: null },
+      ...(Object.keys(idRange).length > 0 ? { id: idRange } : {}),
+    },
+    orderBy: { id: 'asc' },
+    take: pageSize + 1,
+    select: { id: true, awardingAgency: true },
+  });
+  const pageRows = rows.slice(0, pageSize);
+  const agencies = Array.from(
+    new Set<string>([
+      ...(prior?.agencies ?? []),
+      ...pageRows
+        .map((r: { awardingAgency?: unknown }) => r.awardingAgency)
+        .filter((a: unknown): a is string => typeof a === 'string' && a.length > 0),
+    ]),
   );
-  if (exact.length > maxRecords) {
-    return { observations: [], complete: false };
-  }
+  const complete = rows.length <= pageSize;
   return {
-    observations: exact.map((r) => ldaObservation(r)),
-    complete: true,
+    agencies,
+    complete,
+    checkpoint: {
+      cursorId: complete ? null : ((pageRows[pageRows.length - 1]?.id as string) ?? exposureCursor),
+      fenceId: exposureFence,
+      agencies,
+      complete,
+    },
   };
 }
 
@@ -994,11 +1371,11 @@ const ldaSelect = {
 
 // ── Observation builders (identityConfidence honest per family) ─────────────
 
-type AwardRow = { [K in keyof typeof awardSelect]: unknown };
-type AssistanceRow = { [K in keyof typeof assistanceSelect]: unknown };
-type OpportunityRow = { [K in keyof typeof opportunitySelect]: unknown };
-type TangoRow = { [K in keyof typeof tangoSelect]: unknown };
-type LdaRow = { [K in keyof typeof ldaSelect]: unknown };
+type AwardRow = Record<string, unknown>;
+type AssistanceRow = Record<string, unknown>;
+type OpportunityRow = Record<string, unknown>;
+type TangoRow = Record<string, unknown>;
+type LdaRow = Record<string, unknown>;
 
 const str = (v: unknown): string | null => (typeof v === 'string' && v.length > 0 ? v : null);
 const num = (v: unknown): number | string | null =>

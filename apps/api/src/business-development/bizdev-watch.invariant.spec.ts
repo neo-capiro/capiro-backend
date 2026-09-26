@@ -23,6 +23,7 @@ const REPO_ROOT = path.resolve(__dirname, '../../../..');
 
 const SCANNED_FILES = [
   'apps/api/src/business-development/bizdev-watch-runner.ts',
+  'apps/api/src/business-development/bizdev-watch-checkpoint.ts',
   'apps/api/src/business-development/bizdev-watch.service.ts',
   'apps/api/src/business-development/bizdev-watch.flag.guard.ts',
   'apps/api/scripts/run-bizdev-watch.ts',
@@ -30,15 +31,16 @@ const SCANNED_FILES = [
 
 /** Strip block + line comments so docs can never affect the scan. */
 function stripComments(src: string): string {
-  return src
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
 }
 
 /** Provider / external / network import or call patterns (code only). */
 const FORBIDDEN_IMPORT_PATTERNS: Array<[RegExp, string]> = [
   [/from\s+['"][^'"]*\/external\/[^'"]*['"]/, 'import from src/external (provider client)'],
-  [/from\s+['"](axios|node-fetch|got|undici|cross-fetch|superagent|request)['"]/, 'HTTP client library import'],
+  [
+    /from\s+['"](axios|node-fetch|got|undici|cross-fetch|superagent|request)['"]/,
+    'HTTP client library import',
+  ],
   [/from\s+['"]node:(net|tls|dgram|http|https|dns)['"]/, 'node network module import'],
   [/from\s+['"][^'"]*ingestion[^'"]*['"]/, 'ingestion module import'],
   [/from\s+['"][^'"]*(sam-|provider-)[a-z-]*client[^'"]*['"]/, 'provider client import'],
@@ -71,15 +73,15 @@ describe('Phase 5 INV-0: no duplicate ingestion / no network (runner, CLI, guard
       for (const [pattern, why] of FORBIDDEN_IMPORT_PATTERNS) {
         expect(`${rel}: ${why}`).toBe(`${rel}: ${why}`); // sanity label
         const hit = code.match(pattern);
-        expect(hit === null ? `${rel}: ${why} — clean` : `${rel}: ${why} — VIOLATION: ${hit[0]}`).toBe(
-          `${rel}: ${why} — clean`,
-        );
+        expect(
+          hit === null ? `${rel}: ${why} — clean` : `${rel}: ${why} — VIOLATION: ${hit[0]}`,
+        ).toBe(`${rel}: ${why} — clean`);
       }
       for (const [pattern, why] of FORBIDDEN_CALL_PATTERNS) {
         const hit = code.match(pattern);
-        expect(hit === null ? `${rel}: ${why} — clean` : `${rel}: ${why} — VIOLATION: ${hit[0]}`).toBe(
-          `${rel}: ${why} — clean`,
-        );
+        expect(
+          hit === null ? `${rel}: ${why} — clean` : `${rel}: ${why} — VIOLATION: ${hit[0]}`,
+        ).toBe(`${rel}: ${why} — clean`);
       }
       expect(code.match(PROJECTION_WRITE_PATTERN) === null).toBe(true);
       expect(code.match(PROJECTION_RAW_WRITE_PATTERN) === null).toBe(true);

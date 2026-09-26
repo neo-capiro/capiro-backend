@@ -3,8 +3,7 @@
  *
  * Mobile is default-closed behind a fleet switch, a canonical tenant-id
  * allowlist, and an explicit tenant flag. Individual capabilities have their
- * own fleet and tenant switches so rollback can disable writes without making
- * already-admitted Hermes runs uncontrollable.
+ * own fleet and tenant switches so each surface can be rolled back independently.
  */
 export const MERI_MOBILE_API_FLAG = 'meri.mobileApi' as const;
 export const MERI_MOBILE_CAPABILITY_FLAGS = {

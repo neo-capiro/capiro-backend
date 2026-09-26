@@ -1,9 +1,0 @@
-{
-  "id": "D2c",
-  "title": "Ethical wall + private scope: Bob cannot recall the walled client fact or Alice private fact",
-  "at": "2026-09-19T13:34:49.977Z",
-  "runId": null,
-  "textPreview": "",
-  "bobSawWalled": false,
-  "bobSawAlicePrivate": false
-}

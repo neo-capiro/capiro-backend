@@ -70,6 +70,19 @@ export const BIZDEV_VIEW_LABELS: Record<BizDevView, string> = {
 export const BIZDEV_CONFLICT_FILTERS = ['', 'excl', 'none'] as const;
 export type BizDevConflictFilter = (typeof BIZDEV_CONFLICT_FILTERS)[number];
 
+/**
+ * Sort controls (v5 prototype): 'newest first' uses createdAt, 'due date'
+ * uses nextActionDueAt. There is no priority field in the API, so no
+ * priority sort exists — the prototype's third option is deliberately absent.
+ */
+export const BIZDEV_SORTS = ['newest', 'due'] as const;
+export type BizDevSort = (typeof BIZDEV_SORTS)[number];
+
+export const BIZDEV_SORT_LABELS: Record<BizDevSort, string> = {
+  newest: 'Sort: newest first',
+  due: 'Sort: due date',
+};
+
 /** Linked-client filter tri-state: '' any · 'yes' already a client · 'no' not yet. */
 export const BIZDEV_CLIENT_FILTERS = ['', 'yes', 'no'] as const;
 export type BizDevClientFilter = (typeof BIZDEV_CLIENT_FILTERS)[number];
@@ -86,6 +99,8 @@ export interface BizDevRoute {
   view: BizDevView;
   /** Overdue-only derived toggle (client-side from nextActionDueAt). */
   overdueOnly: boolean;
+  /** Sort (v5): 'newest' (createdAt desc, default) | 'due' (due date asc, nulls last). */
+  sort: BizDevSort;
   // ── Phase 2 (discover/dossier) ────────────────────────────────────────
   /** Legacy param ('open' = discover view); kept writable for compatibility. */
   discover: 'open' | '';
@@ -111,6 +126,7 @@ const DEFAULTS: BizDevRoute = {
   prospectId: '',
   view: 'pipeline',
   overdueOnly: false,
+  sort: 'newest',
   discover: '',
   discoverQuery: '',
   discoverOffset: 0,
@@ -180,6 +196,7 @@ export function resolveBizDevRoute(params: URLSearchParams | null | undefined): 
   const viewParam = oneOf(params.get('bdView'), BIZDEV_VIEWS);
   const view: BizDevView = viewParam || (discover === 'open' ? 'discover' : 'pipeline');
   const overdueOnly = params.get('bdOverdue') === '1';
+  const sort: BizDevSort = oneOf(params.get('bdSort'), BIZDEV_SORTS) || DEFAULTS.sort;
   return {
     stage,
     ownerId,
@@ -190,6 +207,7 @@ export function resolveBizDevRoute(params: URLSearchParams | null | undefined): 
     prospectId,
     view,
     overdueOnly,
+    sort,
     discover,
     discoverQuery,
     discoverOffset,
@@ -226,6 +244,10 @@ export function applyBizDevRoute(
   if (route.overdueOnly !== undefined) {
     if (route.overdueOnly) next.set('bdOverdue', '1');
     else next.delete('bdOverdue');
+  }
+  if (route.sort !== undefined) {
+    if (route.sort === DEFAULTS.sort) next.delete('bdSort');
+    else next.set('bdSort', route.sort);
   }
   if (route.discover !== undefined) {
     if (route.discover === 'open') next.set('bdDiscover', 'open');
@@ -273,6 +295,30 @@ export function hasBizDevFilters(route: BizDevRoute): boolean {
       route.q ||
       route.overdueOnly,
   );
+}
+
+/**
+ * Prototype-order comparator. 'newest' sorts by createdAt descending; 'due'
+ * sorts by nextActionDueAt ascending with null/invalid dates last. Ties break
+ * deterministically on createdAt then id so ordering never flickers.
+ */
+export function compareBizDevProspectsForSort(
+  a: { id: string; createdAt: string; nextActionDueAt: string | null },
+  b: { id: string; createdAt: string; nextActionDueAt: string | null },
+  sort: BizDevSort,
+): number {
+  if (sort === 'due') {
+    const aDue = a.nextActionDueAt ? Date.parse(a.nextActionDueAt) : NaN;
+    const bDue = b.nextActionDueAt ? Date.parse(b.nextActionDueAt) : NaN;
+    const aNull = !Number.isFinite(aDue);
+    const bNull = !Number.isFinite(bDue);
+    if (aNull !== bNull) return aNull ? 1 : -1;
+    if (!aNull && aDue !== bDue) return aDue - bDue;
+  }
+  const aCreated = Date.parse(a.createdAt) || 0;
+  const bCreated = Date.parse(b.createdAt) || 0;
+  if (aCreated !== bCreated) return bCreated - aCreated;
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
 /**

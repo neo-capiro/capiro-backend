@@ -1,0 +1,16 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "RunBusinessDevelopmentWatchEvaluator",
+      "Effect": "Allow",
+      "Action": "ecs:RunTask",
+      "Resource": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-bizdev-watch-evaluator:*",
+      "Condition": {
+        "ArnEquals": {
+          "ecs:cluster": "arn:aws:ecs:us-east-1:967807252336:cluster/capiro-dev"
+        }
+      }
+    }
+  ]
+}

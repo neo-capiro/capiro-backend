@@ -3,8 +3,7 @@ import { ExperimentOutlined } from '@ant-design/icons';
 
 /**
  * A question can be plain free-text (Deep Research's original shape — just
- * the prompt string) or carry fixed choices (Hermes durable-continuation
- * clarifications, contracts.md §4.1: `{question, choices, multiSelect}`).
+ * the prompt string) or carry fixed choices (`{question, choices, multiSelect}`).
  * Choice-bearing questions render checkboxes/radios instead of a textarea;
  * everything else about the form (layout, Skip, submit) is shared.
  */
@@ -37,10 +36,7 @@ function questionMultiSelect(q: ResearchClarifyQuestion): boolean {
  * Inline clarifying-questions form rendered inside the Meri chat (Claude-style):
  * one field per question, a primary action, and (when `allowSkip`) a "Skip"
  * affordance that lets Meri proceed with its own assumptions. Answers are keyed
- * by question index to match the backend's clarify contract. Reused as-is for
- * the Hermes native clarification card (contracts.md §6) — that caller passes
- * a single choice-bearing question and no Skip, since a durable continuation
- * has no "proceed without answering" fallback.
+ * by question index to match the backend's clarify contract.
  */
 export function ResearchClarifyForm({
   questions,
