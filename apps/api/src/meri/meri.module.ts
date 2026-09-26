@@ -30,6 +30,7 @@ import { ContextModule } from '../context/context.module.js';
 import { RetrievalModule } from '../retrieval/retrieval.module.js';
 import { ContextCompilerService } from '../context/context-compiler.service.js';
 import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opportunities.module.js';
+import { DistrictNexusModule } from '../district-nexus/district-nexus.module.js';
 import { MeriOpportunityAssessmentService } from '../funding-opportunities/meri-opportunity-assessment.service.js';
 import { ReviewsModule } from '../reviews/reviews.module.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
@@ -109,6 +110,7 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
     // Phase 4 server-only slice: provides BizDevMeriScopeService for Meri
     // prospect conversation creation (one-way; BD never imports Meri).
     BusinessDevelopmentModule,
+    DistrictNexusModule,
   ],
   controllers: [
     MeriController,

@@ -83,6 +83,7 @@ enum AssociationEntityType {
 enum MeetingPrepStatus {
   generated
   edited
+  reviewed
   approved
   stale
   failed
