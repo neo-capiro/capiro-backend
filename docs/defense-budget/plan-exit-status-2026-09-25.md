@@ -219,3 +219,16 @@ This increment does not satisfy Package 3 exit: no governed production source
 registration, mixed-family completeness denominator, independent review,
 expected-source admission, historical replay, canonical publication, or
 activation was performed. Package 3 remains `NOT_COMPLETE`.
+
+The trusted runtime mirror was then synchronized in PR `#1857` at the same
+merged SHA, and `node scripts/verify-phase8-session4.mjs` returned
+`SESSION4_SOURCE_PARITY_PASS` (the optional real FY27 replay gate remains not
+enforced because no real replay evidence is available). The mirror-aligned
+SHA was rebuilt by CodeBuild
+`capiro-build-intel-api:e575c800-ebd3-4e74-81a8-44792221ebf7`, producing API
+digest `sha256:1bf5427f2e0cfb3cb47ceb5a3fd14ccd18b4e576571515fff8f4cefa30b3cc93`.
+Migration task `capiro-dev-api-admin-migrate:80` exited 0 with no pending
+migrations, and `capiro-dev-api:477` reached `COMPLETED` with two healthy tasks,
+HTTP 200 app health, zero error-like logs on the running tasks, and all four
+protected flags false. Machine-readable details are in the Package 3 release
+evidence JSON.

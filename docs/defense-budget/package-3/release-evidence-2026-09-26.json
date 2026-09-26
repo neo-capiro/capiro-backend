@@ -12,6 +12,12 @@
       "reason": "repository checks failed immediately before any steps; local gates are recorded separately"
     }
   },
+  "trustedRuntimeMirror": {
+    "mirrorPullRequest": "https://github.com/neo-capiro/capirov2/pull/1857",
+    "mirrorMergeCommit": "183c2d0cca18e77b694b586ad1fa174c763451bf",
+    "parityGate": "SESSION4_SOURCE_PARITY_PASS",
+    "replayGate": "NOT_ENFORCED_NO_REAL_FY27_REPLAY_EVIDENCE"
+  },
   "localValidation": {
     "apiTypeScript": "PASS",
     "parserRouterTypeScript": "PASS",
@@ -31,14 +37,33 @@
       "startTime": "2026-09-26T00:29:08.103Z",
       "endTime": "2026-09-26T00:32:49.304Z"
     },
+    "mirrorAlignedFollowOnBuild": {
+      "id": "capiro-build-intel-api:e575c800-ebd3-4e74-81a8-44792221ebf7",
+      "status": "SUCCEEDED",
+      "sourceVersion": "183c2d0cca18e77b694b586ad1fa174c763451bf",
+      "resolvedSourceVersion": "183c2d0cca18e77b694b586ad1fa174c763451bf",
+      "startTime": "2026-09-26T00:43:17.157Z",
+      "endTime": "2026-09-26T00:46:56.368Z"
+    },
     "image": {
       "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
       "digest": "sha256:01a42aa2c42cbaa6206c0f063db87c24c30899e438e95b8b5bfb7ec0a0f6891b",
       "tag": "0ee809cb4551b6ffc37393879f685d1d74a7f237"
     },
+    "mirrorAlignedFollowOnImage": {
+      "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
+      "digest": "sha256:1bf5427f2e0cfb3cb47ceb5a3fd14ccd18b4e576571515fff8f4cefa30b3cc93",
+      "tag": "183c2d0cca18e77b694b586ad1fa174c763451bf"
+    },
     "migration": {
       "taskDefinition": "capiro-dev-api-admin-migrate:79",
       "taskId": "d0a255102972427eb22ffc3c09e9f069",
+      "exitCode": 0,
+      "result": "No pending migrations to apply"
+    },
+    "mirrorAlignedMigration": {
+      "taskDefinition": "capiro-dev-api-admin-migrate:80",
+      "taskId": "1aa2e4fccb684930925ac8fb9b12156c",
       "exitCode": 0,
       "result": "No pending migrations to apply"
     },
@@ -69,6 +94,18 @@
       "targetGroupHealthyReplacementCount": 2,
       "targetGroupOldDrainingCount": 2
     }
+  },
+  "mirrorAlignedFollowOnDeployment": {
+    "taskDefinition": "capiro-dev-api:477",
+    "runningTaskIds": ["b3a41cd6029d474dbd9d1fddced48915", "b9aa9fe0c8f94c5582ab59048de068cc"],
+    "rolloutState": "COMPLETED",
+    "runningTaskHealth": ["HEALTHY", "HEALTHY"],
+    "runningImageDigest": "sha256:1bf5427f2e0cfb3cb47ceb5a3fd14ccd18b4e576571515fff8f4cefa30b3cc93",
+    "gitSha": "183c2d0cca18e77b694b586ad1fa174c763451bf",
+    "releaseSha": "183c2d0cca18e77b694b586ad1fa174c763451bf",
+    "appDevHealthHttpStatus": 200,
+    "runningTaskErrorLikeLogMatches": 0,
+    "protectedFlagsFalse": true
   },
   "decision": {
     "package3ExitSatisfied": false,
