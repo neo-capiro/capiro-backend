@@ -359,6 +359,8 @@ model Tenant {
   researchPortfolioOutputAttempts         ResearchPortfolioOutputAttempt[]
   researchPortfolioOutputArtifacts        ResearchPortfolioOutputArtifact[]
   researchPortfolioOutputReceipts         ResearchPortfolioOutputClientFileReceipt[]
+  meriExecutionScopes                     MeriExecutionScope[]
+  meriAgentRuns                           MeriAgentRun[]
 
   @@map("tenants")
 }
@@ -2037,6 +2039,7 @@ model ClioConversation {
   messages  ClioMessage[]
   artifacts ClioArtifact[]
   notes     ClioNote[]
+  meriAgentRuns MeriAgentRun[]
 
   @@index([tenantId, userId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_user_updated_idx")
   @@index([tenantId, clientId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_client_updated_idx")
