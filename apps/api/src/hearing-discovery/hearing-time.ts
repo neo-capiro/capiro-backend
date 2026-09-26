@@ -110,14 +110,6 @@ export function hearingCalendarDate(d: Date): Date {
   return etCalendarDay(d);
 }
 
-/** Eastern UTC-offset in ms at an instant (-4h in EDT, -5h in EST). */
-function etOffsetMs(at: Date): number {
-  const p = etParts(at);
-  const asIfUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute);
-  // etParts has minute resolution, so compare against a minute-floored instant.
-  return asIfUtc - Math.floor(at.getTime() / 60_000) * 60_000;
-}
-
 /**
  * Instant for an Eastern wall-clock reading — the inverse of `etParts`.
  *

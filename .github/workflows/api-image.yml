@@ -1,6 +1,6 @@
 # Builds the API container image and pushes it to ECR.
-# Deploys are NOT automated, `cdk deploy` runs interactively via Claude+MCP
-# per the architecture doc. This workflow only produces a build artifact.
+# Push to main builds/pushes image and triggers *dev* ECS deployment by default.
+# Manual workflow_dispatch input can target staging/prod environments.
 #
 # Auth uses OIDC -> assume role in the AWS account. Configure once:
 #   - Add an IAM role `capiro-gha-api` in the AWS account with a trust policy

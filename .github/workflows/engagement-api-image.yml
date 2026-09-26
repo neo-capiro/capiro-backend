@@ -1,6 +1,7 @@
 # Builds the Engagement API container image and pushes it to ECR.
-# Mirrors api-image.yml: build artifact only — deploys run interactively via
-# `aws ecs update-service --force-new-deployment` or the deploy-all workflow.
+# Push to main: publish a SHA-tagged dev image (immutable ECR), then force ECS rollout.
+# The dev task definition pins a digest; new image bytes require a new revision.
+# Manual staging/prod builds retain SHA + latest tags.
 #
 # Build context is the REPOSITORY ROOT (the Dockerfile installs the pnpm
 # workspace + generates the Prisma client). See api-image.yml for OIDC setup.
@@ -61,7 +62,7 @@ jobs:
           provenance: false
           tags: |
             ${{ steps.ecr.outputs.registry }}/capiro/${{ env.TARGET_ENV }}/engagement-api:${{ github.sha }}
-            ${{ steps.ecr.outputs.registry }}/capiro/${{ env.TARGET_ENV }}/engagement-api:latest
+            ${{ env.TARGET_ENV != 'dev' && format('{0}/capiro/{1}/engagement-api:latest', steps.ecr.outputs.registry, env.TARGET_ENV) || '' }}
           no-cache-filters: build
           cache-from: type=gha,scope=engagement-api
           cache-to: type=gha,mode=max,scope=engagement-api

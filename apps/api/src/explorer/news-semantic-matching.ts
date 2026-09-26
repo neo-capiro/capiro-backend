@@ -104,10 +104,6 @@ function arrayConditions(value: string, field: 'topics' | 'agencies'): Prisma.In
   ]);
 }
 
-function conceptConditions(value: string): Prisma.IntelArticleWhereInput[] {
-  return textConditions(value);
-}
-
 /**
  * Canonical `intel_article.source` slug (apps/api/scripts/sync-rss-intel.ts
  * feed slugs) → publisher hostnames seen on that feed's article links.

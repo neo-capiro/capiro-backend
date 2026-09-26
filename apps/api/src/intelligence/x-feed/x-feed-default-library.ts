@@ -71,27 +71,6 @@ export const DEFAULT_X_FEED_ACCOUNTS: readonly XFeedDefaultAccount[] = [
 
 export const DEFAULT_X_FEED_ACCOUNT_CATEGORIES = [...new Set(DEFAULT_X_FEED_ACCOUNTS.map((account) => account.category))];
 
-export function defaultXFeedAccountByUsername(username: string): XFeedDefaultAccount | undefined {
-  return DEFAULT_X_FEED_ACCOUNTS.find((account) => account.username.toLowerCase() === username.toLowerCase());
-}
-
-export function defaultXFeedUsernames(): string[] {
-  return DEFAULT_X_FEED_ACCOUNTS.map((account) => account.username);
-}
-
-export function defaultXFeedAccountsByCategory(category: string): XFeedDefaultAccount[] {
-  return DEFAULT_X_FEED_ACCOUNTS.filter((account) => account.category === category);
-}
-
-export function isDefaultXFeedAccount(username: string): boolean {
-  return Boolean(defaultXFeedAccountByUsername(username));
-}
-
-export function normalizeDefaultXFeedUsernames(usernames: readonly string[]): string[] {
-  const allowed = new Map(DEFAULT_X_FEED_ACCOUNTS.map((account) => [account.username.toLowerCase(), account.username]));
-  return [...new Set(usernames.map((username) => allowed.get(username.toLowerCase())).filter((username): username is string => Boolean(username)))];
-}
-
 export const DEFAULT_X_FEED_ACCOUNT_COUNT = DEFAULT_X_FEED_ACCOUNTS.length;
 
 export const DEFAULT_X_FEED_ACCOUNT_HANDLES = DEFAULT_X_FEED_ACCOUNTS.map((account) => `@${account.username}`);
