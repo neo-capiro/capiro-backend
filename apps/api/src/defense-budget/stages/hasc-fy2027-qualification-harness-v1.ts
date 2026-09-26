@@ -7,7 +7,8 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { adapterTestContext } from '../contracts/adapters/testing-helpers.js';
 import { sha256Bytes, sha256Hex } from '../contracts/canonical-json.js';
-import type { CommitteeArtifactV1Input } from '../contracts/adapters/committee-artifact-v1.adapter.js';
+import { integerToCanonicalString } from '../contracts/decimal-string.js';
+import { CONGRESSIONAL_TABLE_SCHEMA_VERSION, congressionalTableV1Schema, type CongressionalTableV1 } from './congressional-table-v1.js';
 import { createHascSourceProfileV1 } from './authorization/hasc-source-profile-v1.js';
 import { parseStageSourceProfileV1, stageSourceProfileHashV1 } from './stage-source-profile-v1.js';
 import { FilesystemExtractionArtifactStore } from '../parser-router/extraction-artifact-store.js';
@@ -17,7 +18,7 @@ import {
   type ParserRuntimeResultV1,
 } from '../parser-router/parser-runtime-contract-v1.js';
 import { buildParserRunIdentityV1 } from '../parser-router/parser-run-identity-v1.js';
-import { persistProofBoundCongressionalArtifactV1 } from '../parser-router/congressional-durable-semantic-artifact-factory-v1.js';
+import { persistProofBoundHascStageArtifactV1 } from '../parser-router/congressional-durable-semantic-artifact-factory-v1.js';
 
 export const HASC_FY2027_QUALIFICATION_SOURCE_SHA256 =
   '6587d1cec52d8d3eda3551648f50e4bc15371ea9167da2999e263e8c8e14480a';
@@ -69,6 +70,85 @@ interface GovernedHascPacketV1 {
     retainedObject: { uri: string; versionId: string };
     sha256: string;
     url: string;
+  };
+}
+
+interface NativeHascStagePacketV1 {
+  schemaVersion: 'congressional_stage_packet_v1';
+  documentKey: string;
+  stage: 'hasc';
+  fiscalYear: number;
+  declaredUnit: 'thousands';
+  profileId: string;
+  sourcePdfSha256: string;
+  tables: CongressionalTableV1[];
+  resolutionContext: {
+    index: [];
+    fiscalYear: number;
+    profileId: string;
+  };
+}
+
+/** Preserve the reviewed row values in native HASC tables, without inventing a line index. */
+function toNativeHascStagePacket(
+  packet: GovernedHascPacketV1,
+  profileId: string,
+): NativeHascStagePacketV1 {
+  const rowsByPage = new Map<number, GovernedHascPacketV1['rows']>();
+  for (const row of packet.rows) rowsByPage.set(row.page, [...(rowsByPage.get(row.page) ?? []), row]);
+  const tables = [...rowsByPage.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([page, pageRows]) =>
+      congressionalTableV1Schema.parse({
+        schemaVersion: CONGRESSIONAL_TABLE_SCHEMA_VERSION,
+        profileId,
+        sourceDocumentId: packet.documentKey,
+        sourceSha256: packet.source.sha256,
+        page,
+        headings: [],
+        declaredUnit: 'thousands',
+        columns: [
+          { columnIndex: 0, headerText: 'PE code', isQuantity: false },
+          {
+            columnIndex: 1,
+            headerText: 'HASC mark (thousands)',
+            isQuantity: false,
+            moneySemantic: 'authorized_total',
+            fiscalYear: packet.fiscalYear,
+          },
+        ],
+        rows: pageRows.map((row, rowIndex) => {
+          const mark = integerToCanonicalString(row.mark);
+          return {
+            rowIndex,
+            rawLabel: row.explanation ?? row.rowLabel ?? row.peCode,
+            reference: {
+              referenceKind: 'pe_code',
+              peCode: row.peCode,
+              ...(row.explanation == null ? {} : { rowTitle: row.explanation }),
+            },
+            semanticKind: 'absolute_position',
+            cells: [
+              { rowIndex, columnIndex: 0, rawText: row.peCode },
+              { rowIndex, columnIndex: 1, rawText: mark, value: mark },
+            ],
+          };
+        }),
+      }),
+    );
+  return {
+    schemaVersion: 'congressional_stage_packet_v1',
+    documentKey: packet.documentKey,
+    stage: 'hasc',
+    fiscalYear: packet.fiscalYear,
+    declaredUnit: 'thousands',
+    profileId,
+    sourcePdfSha256: packet.source.sha256,
+    tables,
+    // The pinned qualification packet contains no independent Phase 4/5 native
+    // line index. Empty resolution deliberately prevents self-matching its own
+    // PE codes into accepted funding assertions.
+    resolutionContext: { index: [], fiscalYear: packet.fiscalYear, profileId },
   };
 }
 
@@ -227,6 +307,7 @@ export async function runHascFy2027QualificationV1(input: {
     requiredLineFamilies: ['rdte_pe'],
   });
   const profileSha256 = stageSourceProfileHashV1(profile);
+  const nativePacket = toNativeHascStagePacket(packet, profile.profileId);
   const context = adapterTestContext({
     manifestDocumentKey: packet.documentKey,
     sourceDocumentId: packet.documentKey,
@@ -250,24 +331,11 @@ export async function runHascFy2027QualificationV1(input: {
       ],
     },
   });
-  const committeeInput: CommitteeArtifactV1Input = {
-    chamber: 'HASC',
-    fy: packet.fiscalYear,
-    source: 'governed_congressional_rows_v1',
-    rows: packet.rows.map((row) => ({
-      peCode: row.peCode,
-      fy: row.fy,
-      mark: row.mark,
-      markUnit: row.markUnit,
-      page: row.page,
-      rowLabel: row.rowLabel,
-      explanation: row.explanation,
-    })),
-  };
-  const output = await persistProofBoundCongressionalArtifactV1({
+  const output = await persistProofBoundHascStageArtifactV1({
     budgetFamily: 'committee',
     factoryContext: { profile, context },
-    input: committeeInput,
+    tables: nativePacket.tables,
+    resolutionContext: nativePacket.resolutionContext,
     parserResultProofs: [
       {
         parserRunId: descriptor.parserRunId,
@@ -286,13 +354,20 @@ export async function runHascFy2027QualificationV1(input: {
     sourceSha256: packet.source.sha256,
     governedPacketSha256: packetByteSha256,
     governedRowCount: packet.rows.length,
+    nativeStagePacketSchemaVersion: nativePacket.schemaVersion,
+    nativeTableCount: nativePacket.tables.length,
+    nativeTableRowCount: nativePacket.tables.reduce((total, table) => total + table.rows.length, 0),
+    requiredLineFamilies: profile.requiredLineFamilies,
+    nativeLineIndexEntryCount: nativePacket.resolutionContext.index.length,
     governedMarkTotalDollars: markTotalDollars,
     retainedSourceUri: packet.source.retainedObject.uri,
     retainedSourceVersionId: packet.source.retainedObject.versionId,
     stageProfileSha256: profileSha256,
     sourcePages: [packet.source.pageRange.start, packet.source.pageRange.end] as const,
+    parserRunId: descriptor.parserRunId,
     parserResultByteSha256: descriptor.byteSha256,
     parserResultByteLength: resultBytes.byteLength,
+    parserResultLocator: descriptor.resultLocator,
     artifactId: output.artifactId,
     artifactByteSha256: output.artifactByteSha256,
     artifactLocator: output.artifactLocator,
@@ -308,5 +383,6 @@ export async function runHascFy2027QualificationV1(input: {
     markAssertionCount: output.artifact.assertions.filter(
       (assertion) => assertion.assertionKind === 'funding' && assertion.field === 'hascMark',
     ).length,
+    unresolvedRowCount: output.artifact.omissions.length,
   };
 }

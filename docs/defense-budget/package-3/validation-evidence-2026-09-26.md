@@ -30,10 +30,29 @@ historical replay, canonical publication, or activation.
 | Existing Package 3 qualification helper          | PASS   | `qualify:package3-congressional`; `QUALIFIED_ISOLATED_PILOT`, 926 rows, 0 parser failures, no production writes |
 | Patch hygiene                                    | PASS   | `git diff --check`                                                                                              |
 
+## Native HASC qualification-only follow-on
+
+The pinned `CRPT-119hrpt698` packet was then converted into 48 native
+`congressional_stage_packet_v1` tables containing all 926 reviewed rows. The
+fixture still has no independent Phase 4/5 native identity index, so the
+resolution context intentionally contains zero entries. The durable HASC
+factory therefore emits zero accepted funding assertions and 926 explicit
+unresolved omissions while still binding one persisted parser proof and
+persisting immutable artifact bytes in disposable storage.
+
+| Gate                                             | Result | Evidence                                                                                                      |
+| ------------------------------------------------ | ------ | ------------------------------------------------------------------------------------------------------------- |
+| Native qualification harness suite               | PASS   | 1 suite / 2 tests; parser-result byte SHA and parser-run identity re-read from disposable verified storage  |
+| Native stage packet conversion                   | PASS   | 48 tables / 926 rows; schema `congressional_stage_packet_v1`; 0 native index entries                        |
+| Fail-closed identity resolution                  | PASS   | 926 unresolved omissions; 0 `hascMark` funding assertions; completeness `incomplete`                       |
+| Qualification command                             | PASS   | `QUALIFIED_ISOLATED_PILOT`, `candidateOnly: true`, no production writes; retained result JSON updated        |
+
 ## Scope limits
 
 This is an offline/candidate seam. It supports only one persisted parser run
 and the HASC stage packet shape. It does not provide a governed production
-source registration, mixed-family completeness denominator, independent human
-review, expected-source manifest approval, lifecycle worker replay, or
-publication authorization. Package 3 therefore remains `NOT_COMPLETE`.
+source registration, an independent native identity index, procurement/O&M/
+MILCON/general-provision tables, mixed-family completeness denominator,
+independent human review, expected-source manifest approval, lifecycle worker
+replay, or publication authorization. Package 3 therefore remains
+`NOT_COMPLETE`.
