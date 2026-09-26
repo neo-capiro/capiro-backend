@@ -1209,6 +1209,18 @@ export class BusinessDevelopmentService {
         return { outcome: 'resolved' as const, prospect: before, identityChanged: false };
       }
 
+      // P0 safety: if the prospect has been converted (linked to a client),
+      // atomically reconcile the linked client's canonical entity with the
+      // prospect's new canonical entity to maintain consistency. The client
+      // must always point to the same canonical organization as its linked
+      // prospect.
+      if (before.linkedClientId !== null && before.convertedAt !== null) {
+        await tx.client.update({
+          where: { id: before.linkedClientId },
+          data: { canonicalEntityId: input.canonicalEntityId },
+        });
+      }
+
       // Validate the canonical entity under the identity rules in this same
       // transaction: global_public rows are shared; tenant-private rows are
       // visible only to their owning tenant; merged-away rows are not

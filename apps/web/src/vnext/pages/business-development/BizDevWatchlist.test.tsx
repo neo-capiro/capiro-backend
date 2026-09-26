@@ -116,15 +116,21 @@ describe('Watchlist direct controls', () => {
     await waitFor(() => expect(pause).toBeEnabled());
   });
 
-  it('keeps later watches reachable while bounding each page to twelve prospect reads', async () => {
-    const { get } = setup({ count: 13 });
-    await screen.findByRole('button', { name: 'Company 12' });
-    expect(screen.queryByRole('button', { name: 'Company 13' })).not.toBeInTheDocument();
-    expect(get.mock.calls.filter(([path]) => path.endsWith('/watch'))).toHaveLength(12);
+  it('keeps later watches reachable while bounding each page to the fanout limit', async () => {
+    const { get } = setup({ count: 55 });
+    // The first BIZDEV_WATCHLIST_FANOUT_LIMIT (50) active prospects are loaded.
+    // Await the last one in the first page.
+    await waitFor(() => {
+      const watchCalls = get.mock.calls.filter(([path]) => path.endsWith('/watch'));
+      expect(watchCalls.length).toBe(50);
+    });
+    // Company 51 should not be in the first page
+    expect(screen.queryByRole('button', { name: 'Company 51' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next watches' }));
-    await screen.findByRole('button', { name: 'Company 13' });
-    expect(screen.queryByRole('button', { name: 'Company 1' })).not.toBeInTheDocument();
-    expect(get.mock.calls.filter(([path]) => path.endsWith('/watch'))).toHaveLength(13);
+    await waitFor(() => {
+      const watchCalls = get.mock.calls.filter(([path]) => path.endsWith('/watch'));
+      expect(watchCalls.length).toBe(55);
+    });
     expect(screen.getByRole('button', { name: 'Next watches' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Previous watches' })).toBeEnabled();
   });

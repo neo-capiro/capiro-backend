@@ -516,13 +516,13 @@ describe('Watchlist view', () => {
   });
 
   it('skips prospects without a watch and never fans out beyond the bound', async () => {
-    const many = Array.from({ length: 20 }, (_, i) =>
+    const many = Array.from({ length: 60 }, (_, i) =>
       prospect({ id: `p-${i}`, displayName: `Co ${i}` }),
     );
     renderAt('?view=business-development&bdView=watchlist', {
       ...ALL_ON,
       prospects: many,
-      counts: { visible: 20, total: 20, active: 20, dismissed: 0, byStage: { researching: 20 } },
+      counts: { visible: 60, total: 60, active: 60, dismissed: 0, byStage: { researching: 60 } },
     });
     await waitFor(() => {
       const watchCalls = getCalls().filter(([p]) => String(p).endsWith('/watch'));

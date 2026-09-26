@@ -37,8 +37,9 @@ import {
   type BizDevUpdateWatchInput,
 } from './bizdev-api.js';
 
-/** Hard cap on prospect fan-out per page. Each watch may also load alerts. */
-export const BIZDEV_WATCHLIST_FANOUT_LIMIT = 12;
+/** Hard cap on prospect fan-out per page. Each watch may also load alerts.
+ *  A dedicated GET /watchlist endpoint should replace this fan-out; see plan §3 U21. */
+export const BIZDEV_WATCHLIST_FANOUT_LIMIT = 50;
 
 type WatchPayload = {
   prospect: BizDevProspect;
