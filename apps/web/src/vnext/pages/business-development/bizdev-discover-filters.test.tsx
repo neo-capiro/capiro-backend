@@ -203,6 +203,10 @@ function makeApi(cfg: Cfg): AxiosInstance {
           ...candidates.coverage,
           serviceFilterApplied: cfg.legacyServer ? undefined : Boolean(params.service),
           exclusionsApplied: cfg.legacyServer ? undefined : params.includeExcluded !== '1',
+          agencyFilterApplied: params.agency !== undefined,
+          issueFilterApplied: params.issue !== undefined,
+          geographyFilterApplied: params.geography !== undefined,
+          unsupportedFilters: candidates.coverage.unsupportedFilters ?? [],
         } } };
       }
       throw new Error(`unmocked GET ${path}`);
@@ -455,5 +459,103 @@ describe('Discover paging with filters', () => {
       expect(last.params?.service).toBe('Agency engagement');
       expect(last.params?.includeExcluded).toBe('1');
     });
+  });
+});
+
+describe('Discover agency filter', () => {
+  it('renders a text input for agency filtering', async () => {
+    await openDiscover('&bdDq=acme');
+    const input = screen.getByLabelText(/Agency/i) as HTMLInputElement;
+    expect(input).toBeInTheDocument();
+    expect(input.value).toBe('');
+  });
+
+  it('updates draft state when typing and submits to URL on form submit', async () => {
+    await openDiscover('&bdDq=acme');
+    const input = screen.getByLabelText(/Agency/i) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'Defense' } });
+    expect(input.value).toBe('Defense');
+    fireEvent.click(screen.getByRole('button', { name: 'Search companies' }));
+    await waitFor(() => expect(candidateCalls().length).toBeGreaterThanOrEqual(1));
+    const lastCall = candidateCalls().at(-1)![1] as { params?: { agency?: string } };
+    expect(lastCall.params?.agency).toBe('Defense');
+  });
+});
+
+describe('Discover issue filter', () => {
+  it('renders a text input for issue keywords', async () => {
+    await openDiscover('&bdDq=acme');
+    const input = screen.getByLabelText(/Issue/i) as HTMLInputElement;
+    expect(input).toBeInTheDocument();
+    expect(input.value).toBe('');
+  });
+
+  it('passes issue value to API when searching', async () => {
+    await openDiscover('&bdDq=acme');
+    const input = screen.getByLabelText(/Issue/i) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'infrastructure' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search companies' }));
+    await waitFor(() => expect(candidateCalls().length).toBeGreaterThanOrEqual(1));
+    const lastCall = candidateCalls().at(-1)![1] as { params?: { issue?: string } };
+    expect(lastCall.params?.issue).toBe('infrastructure');
+  });
+});
+
+describe('Discover geography filter', () => {
+  it('renders a select dropdown with US states', async () => {
+    await openDiscover('&bdDq=acme');
+    const select = screen.getByLabelText(/Geography/i) as HTMLSelectElement;
+    expect(select).toBeInTheDocument();
+    const options = Array.from(select.options).map((o) => o.value);
+    expect(options).toContain('');
+    expect(options).toContain('CA');
+    expect(options).toContain('TX');
+    expect(options).toContain('FL');
+    expect(options).toHaveLength(51); // 50 states + empty
+  });
+
+  it('passes geography value to API when searching', async () => {
+    await openDiscover('&bdDq=acme');
+    const select = screen.getByLabelText(/Geography/i) as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: 'CA' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search companies' }));
+    await waitFor(() => expect(candidateCalls().length).toBeGreaterThanOrEqual(1));
+    const lastCall = candidateCalls().at(-1)![1] as { params?: { geography?: string } };
+    expect(lastCall.params?.geography).toBe('CA');
+  });
+
+  it('uses the first state as a default value when set in URL', async () => {
+    await openDiscover('&bdDq=acme&bdDGeography=TX');
+    const select = screen.getByLabelText(/Geography/i) as HTMLSelectElement;
+    expect(select.value).toBe('TX');
+  });
+});
+
+describe('Discover coverage indicators', () => {
+  it('shows filter applied state from coverage when agency/issue/geography filters are used', async () => {
+    await openDiscover('&bdDq=acme&bdDAgency=Defense&bdDIssue=infa&bdDGeography=CA', {
+      candidates: candidateSearch([candidate()], {
+        agencyFilterApplied: true,
+        issueFilterApplied: true,
+        geographyFilterApplied: true,
+        unsupportedFilters: [],
+      }),
+    });
+    await screen.findByText('Coverage applied');
+  });
+
+  it('reports unsupported filters when the backend does not support them', async () => {
+    await openDiscover('&bdDq=acme&bdDAgency=Unknown&bdDIssue=Unknown&bdDGeography=XX', {
+      candidates: candidateSearch([candidate()], {
+        agencyFilterApplied: false,
+        issueFilterApplied: false,
+        geographyFilterApplied: false,
+        unsupportedFilters: ['agency', 'issue', 'geography'],
+      }),
+    });
+    expect(await screen.findByText(/Unsupported filters:/)).toBeInTheDocument();
+    expect(screen.getByText(/Unsupported filters:/)).toHaveTextContent('agency');
+    expect(screen.getByText(/Unsupported filters:/)).toHaveTextContent('issue');
+    expect(screen.getByText(/Unsupported filters:/)).toHaveTextContent('geography');
   });
 });
