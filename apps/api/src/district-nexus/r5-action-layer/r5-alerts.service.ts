@@ -90,15 +90,16 @@ export interface EmitResult {
 
 @Injectable()
 export class R5DistrictAlertsService {
-
   private readonly appBaseUrl: string;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
   ) {
-
-    this.appBaseUrl = (config.get<string>('APP_BASE_URL') || 'https://os.capiro.ai').replace(/\/$/, '');
+    this.appBaseUrl = (config.get<string>('APP_BASE_URL') || 'https://os.capiro.ai').replace(
+      /\/$/,
+      '',
+    );
   }
 
   // -----------------------------------------------------------------------
@@ -211,17 +212,23 @@ export class R5DistrictAlertsService {
           state: normalizedState,
           geocodeStatus: 'matched',
           districtSource: 'geocoded',
-          congressionalDistrict: event.isStatewide
-            ? { not: null }
-            : normalizedDistrict,
+          congressionalDistrict: event.isStatewide ? { not: null } : normalizedDistrict,
           client: { status: { not: 'archived' }, profileStatus: 'ACTIVE' },
         },
         select: { clientId: true, client: { select: { name: true } } },
       }),
     );
-    return [...new Map(rows.map((r) => [r.clientId, {
-      clientId: r.clientId, clientName: r.client.name,
-    }])).values()];
+    return [
+      ...new Map(
+        rows.map((r) => [
+          r.clientId,
+          {
+            clientId: r.clientId,
+            clientName: r.client.name,
+          },
+        ]),
+      ).values(),
+    ];
   }
 
   // -----------------------------------------------------------------------
@@ -244,7 +251,6 @@ export class R5DistrictAlertsService {
         id: string;
         triggers: string[];
         materiality: string;
-
       };
     }>
   > {
@@ -256,7 +262,6 @@ export class R5DistrictAlertsService {
           userId: true,
           triggers: true,
           materiality: true,
-
         },
       }),
     );
@@ -275,7 +280,6 @@ export class R5DistrictAlertsService {
           id: p.id,
           triggers: p.triggers,
           materiality: p.materiality,
-
         },
       }));
   }
@@ -313,14 +317,18 @@ export class R5DistrictAlertsService {
           });
           if (!claimed.count) return false;
         }
-        const row = prior ?? await tx.notificationLog.create({
-          data: { tenantId, clientId, userId, alertId, channel: 'in_app', status: 'queued' },
-        });
+        const row =
+          prior ??
+          (await tx.notificationLog.create({
+            data: { tenantId, clientId, userId, alertId, channel: 'in_app', status: 'queued' },
+          }));
         await tx.$executeRaw`
           INSERT INTO district_nexus_alert_payload
             (notification_log_id, tenant_id, client_id, state_code, district_code, payload)
           VALUES (${row.id}::uuid, ${tenantId}::uuid, ${clientId}::uuid,
-                  ${event.stateCode}, ${event.districtCode || null}, ${JSON.stringify(payload)}::jsonb)
+                  ${/^[A-Z]{2}$/.test(event.stateCode) ? event.stateCode : (stateAbbrForFips(event.stateCode) ?? event.stateCode)},
+                  ${event.districtCode ? (/^\d+$/.test(event.districtCode) ? event.districtCode.padStart(2, '0') : event.districtCode) : null},
+                  ${JSON.stringify(payload)}::jsonb)
           ON CONFLICT (notification_log_id) DO UPDATE SET payload = EXCLUDED.payload
         `;
         await tx.notificationLog.update({ where: { id: row.id }, data: { status: 'sent' } });
@@ -332,14 +340,23 @@ export class R5DistrictAlertsService {
       await this.prisma.withTenant(tenantId, async (tx) => {
         const prior = await tx.notificationLog.findUnique({ where: key });
         if (prior) {
-          if (prior.status !== 'sent') await tx.notificationLog.updateMany({
-            where: { id: prior.id, tenantId, clientId, status: { not: 'sent' } },
-            data: { status: 'failed', error: message.slice(0, 1000) },
-          });
+          if (prior.status !== 'sent')
+            await tx.notificationLog.updateMany({
+              where: { id: prior.id, tenantId, clientId, status: { not: 'sent' } },
+              data: { status: 'failed', error: message.slice(0, 1000) },
+            });
         } else {
           try {
             await tx.notificationLog.create({
-              data: { tenantId, clientId, userId, alertId, channel: 'in_app', status: 'failed', error: message.slice(0, 1000) },
+              data: {
+                tenantId,
+                clientId,
+                userId,
+                alertId,
+                channel: 'in_app',
+                status: 'failed',
+                error: message.slice(0, 1000),
+              },
             });
           } catch (claimError) {
             if ((claimError as { code?: string }).code !== 'P2002') throw claimError;
@@ -367,16 +384,16 @@ export class R5DistrictAlertsService {
   }
 
   /** Build the payload for one alert. */
-  buildPayload(
-    event: DistrictAlertEvent,
-    clientId: string,
-  ): DistrictAlertPayload {
-    const observedAt = event.observedAt instanceof Date ? event.observedAt : new Date(event.observedAt);
-    const detectedAt = event.detectedAt instanceof Date ? event.detectedAt : new Date(event.detectedAt);
+  buildPayload(event: DistrictAlertEvent, clientId: string): DistrictAlertPayload {
+    const observedAt =
+      event.observedAt instanceof Date ? event.observedAt : new Date(event.observedAt);
+    const detectedAt =
+      event.detectedAt instanceof Date ? event.detectedAt : new Date(event.detectedAt);
 
     const caveats: string[] = [];
     if (event.sourceFreshness === 'stale') caveats.push('Stale source — data may be outdated');
-    if (event.sourceFreshness === 'failed') caveats.push('Source sync failed — data may be incomplete');
+    if (event.sourceFreshness === 'failed')
+      caveats.push('Source sync failed — data may be incomplete');
     if (event.sourceFreshness === 'unknown') caveats.push('Source freshness unknown');
 
     // Delayed detection: when detectedAt ≫ observedAt by more than 48h
@@ -385,17 +402,36 @@ export class R5DistrictAlertsService {
       caveats.push('Delayed detection — change detected well after event time');
     }
 
+    // Normalize state/district for the deep link: raw FIPS codes (e.g. '12')
+    // must become canonical abbreviations (e.g. 'FL'). Preserve raw provenance
+    // in the event; only the deep link and districtLabel need canonical form.
+    let canonicalState = event.stateCode;
+    let canonicalDistrict = event.districtCode;
+    if (!/^[A-Z]{2}$/.test(canonicalState)) {
+      const abbr = stateAbbrForFips(canonicalState);
+      if (abbr) canonicalState = abbr;
+    }
+    if (canonicalDistrict && /^\d+$/.test(canonicalDistrict)) {
+      canonicalDistrict = canonicalDistrict.padStart(2, '0');
+    }
+
+    const canonicalLabel = canonicalState
+      ? canonicalDistrict && canonicalDistrict !== '00'
+        ? `${canonicalState}-${canonicalDistrict}`
+        : `${canonicalState} (statewide)`
+      : event.districtLabel;
+
     return {
       changeId: event.changeId,
       title: event.title,
-      districtLabel: event.districtLabel,
+      districtLabel: canonicalLabel,
       sourceLabel: event.sourceLabel,
       eventTime: observedAt.toISOString(),
       detectedTime: detectedAt.toISOString(),
       severity: event.severity,
       freshness: event.sourceFreshness,
       caveats,
-      deepLink: this.deepLink(event.stateCode, event.districtCode, clientId),
+      deepLink: this.deepLink(canonicalState, canonicalDistrict, clientId),
       changeKind: event.changeKind,
       oldState: event.oldState,
       newState: event.newState,
@@ -436,50 +472,65 @@ export class R5DistrictAlertsService {
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      const changes = await this.findAlertableChanges(since, undefined, undefined, undefined, 'notable', BATCH_SIZE, cursor);
+      const changes = await this.findAlertableChanges(
+        since,
+        undefined,
+        undefined,
+        undefined,
+        'notable',
+        BATCH_SIZE,
+        cursor,
+      );
       if (changes.length === 0) break;
       totalEventsConsidered += changes.length;
       cursor = changes[changes.length - 1]?.changeId;
 
       for (const change of changes) {
-      // Enrich source freshness
-      change.sourceFreshness = await this.getSourceFreshness(change.source);
+        // Enrich source freshness
+        change.sourceFreshness = await this.getSourceFreshness(change.source);
 
-      // Find relevant clients
-      const clients = await this.findRelevantClients(tenantId, change);
+        // Find relevant clients
+        const clients = await this.findRelevantClients(tenantId, change);
 
-      for (const client of clients) {
-        // Find recipients
-        const recipients = await this.findRecipients(tenantId, client.clientId, change);
-        result.recipientsConsidered += recipients.length;
+        for (const client of clients) {
+          // Find recipients
+          const recipients = await this.findRecipients(tenantId, client.clientId, change);
+          result.recipientsConsidered += recipients.length;
 
-        if (recipients.length === 0) {
-          result.skippedPreference++;
-          continue;
-        }
+          if (recipients.length === 0) {
+            result.skippedPreference++;
+            continue;
+          }
 
-        const alertId = R5DistrictAlertsService.alertId(
-          tenantId,
-          client.clientId,
-          change.dedupeKey,
-        );
+          const alertId = R5DistrictAlertsService.alertId(
+            tenantId,
+            client.clientId,
+            change.dedupeKey,
+          );
 
-        for (const recipient of recipients) {
-          const payload = this.buildPayload(change, client.clientId);
-          // Dry-run performs only reads; a failed row is eligible for one retry.
-          const sent = commit
-            ? await this.deliver(tenantId, client.clientId, recipient.userId, alertId, change, payload)
-            : !await this.alreadySent(tenantId, recipient.userId, alertId);
-          if (sent) {
-            result.delivered++;
-            if (result.samples.length < 3) {
-              result.samples.push(payload);
+          for (const recipient of recipients) {
+            const payload = this.buildPayload(change, client.clientId);
+            // Dry-run performs only reads; a failed row is eligible for one retry.
+            const sent = commit
+              ? await this.deliver(
+                  tenantId,
+                  client.clientId,
+                  recipient.userId,
+                  alertId,
+                  change,
+                  payload,
+                )
+              : !(await this.alreadySent(tenantId, recipient.userId, alertId));
+            if (sent) {
+              result.delivered++;
+              if (result.samples.length < 3) {
+                result.samples.push(payload);
+              }
+            } else {
+              result.skippedDuplicate++;
             }
-          } else {
-            result.skippedDuplicate++;
           }
         }
-      }
       }
       // End of batch — if we got fewer than BATCH_SIZE, we've processed all events
       if (changes.length < BATCH_SIZE) break;
@@ -494,9 +545,7 @@ export class R5DistrictAlertsService {
   // -----------------------------------------------------------------------
 
   /** Determine source freshness by checking the latest source run. */
-  async getSourceFreshness(
-    source: string,
-  ): Promise<'fresh' | 'stale' | 'failed' | 'unknown'> {
+  async getSourceFreshness(source: string): Promise<'fresh' | 'stale' | 'failed' | 'unknown'> {
     try {
       const row = await this.prisma.withSystem((tx) =>
         tx.$queryRawUnsafe<Array<{ status: string; attempted_at: string }>>(
@@ -531,12 +580,18 @@ export class R5DistrictAlertsService {
   }
 
   /** Mutate only the DN trigger for the authenticated user and client. */
-  async setPreference(tenantId: string, clientId: string, userId: string, enabled: boolean): Promise<boolean> {
+  async setPreference(
+    tenantId: string,
+    clientId: string,
+    userId: string,
+    enabled: boolean,
+  ): Promise<boolean> {
     await this.verifyClientAccess(tenantId, clientId);
     return this.prisma.withTenant(tenantId, async (tx) => {
       const key = { userId_clientId: { userId, clientId } };
       const existing = await tx.alertPreference.findUnique({ where: key });
-      const triggers = existing?.triggers.filter((trigger) => trigger !== 'district_nexus_change') ?? [];
+      const triggers =
+        existing?.triggers.filter((trigger) => trigger !== 'district_nexus_change') ?? [];
       if (enabled) triggers.push('district_nexus_change');
       await tx.alertPreference.upsert({
         where: key,
@@ -550,7 +605,10 @@ export class R5DistrictAlertsService {
   async getPreference(tenantId: string, clientId: string, userId: string): Promise<boolean> {
     await this.verifyClientAccess(tenantId, clientId);
     const row = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.alertPreference.findUnique({ where: { userId_clientId: { userId, clientId } }, select: { triggers: true } }),
+      tx.alertPreference.findUnique({
+        where: { userId_clientId: { userId, clientId } },
+        select: { triggers: true },
+      }),
     );
     return row?.triggers.includes('district_nexus_change') ?? false;
   }
@@ -571,9 +629,9 @@ export class R5DistrictAlertsService {
     district?: string,
     userId?: string,
   ): Promise<DistrictAlertPayload[]> {
-    const rows = await this.prisma.withTenant(tenantId, (tx) => tx.$queryRaw<
-      Array<{ payload: DistrictAlertPayload; change_id: string | null }>
-    >`
+    const rows = await this.prisma.withTenant(
+      tenantId,
+      (tx) => tx.$queryRaw<Array<{ payload: DistrictAlertPayload; change_id: string | null }>>`
       SELECT p.payload, c.id::text AS change_id
       FROM district_nexus_alert_payload p
       JOIN notification_log n ON n.id = p.notification_log_id
@@ -582,18 +640,23 @@ export class R5DistrictAlertsService {
         AND n.tenant_id = ${tenantId}::uuid AND n.client_id = ${clientId}::uuid
         AND n.channel = 'in_app' AND n.status = 'sent'
         AND n.alert_id LIKE 'district-nexus-change:%'
-        AND (${userId ?? null}::text IS NULL OR n.user_id = ${userId}::uuid)
+        AND (${userId ?? null}::text IS NULL OR n.user_id = ${userId ?? null}::text)
         AND (${state ?? null}::text IS NULL OR p.state_code = ${state ?? null})
         AND (${district ?? null}::text IS NULL OR p.district_code = ${district ?? null})
       ORDER BY n.created_at DESC LIMIT 100
-    `);
+    `,
+    );
     // Never re-derive an event from a mutable dedupe key. Preserve the snapshot,
     // or explicitly label a deleted ledger event as unavailable.
-    return rows.map((r) => r.change_id ? r.payload : {
-      ...r.payload,
-      title: 'Event no longer available',
-      caveats: [...r.payload.caveats, 'Event no longer available in the change ledger'],
-    });
+    return rows.map((r) =>
+      r.change_id
+        ? r.payload
+        : {
+            ...r.payload,
+            title: 'Event no longer available',
+            caveats: [...r.payload.caveats, 'Event no longer available in the change ledger'],
+          },
+    );
   }
 }
 

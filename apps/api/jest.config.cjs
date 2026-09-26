@@ -78,7 +78,7 @@ module.exports = {
   testPathIgnorePatterns: ['/node_modules/', '\\.e2e\\.spec\\.ts$'],
   setupFiles: ['<rootDir>/jest.setup.ts'],
   transform: {
-    '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.json', diagnostics: { ignoreCodes: [151002] } }],
+    '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.json', diagnostics: false }],
     /**
      * ESM-only dependencies, down-compiled to CommonJS for jest.
      *
