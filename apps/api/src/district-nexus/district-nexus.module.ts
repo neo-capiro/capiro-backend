@@ -9,6 +9,7 @@ import { DistrictNexusRelationshipsController } from './district-nexus-relations
 import { DistrictNexusEconomicController } from './district-nexus-economic.controller.js';
 import { DistrictNexusPriorityIntelligenceController } from './priority-intelligence/priority-intelligence.controller.js';
 import { R5DistrictBriefController } from './r5-action-layer/r5-district-brief.controller.js';
+import { R5MeetingPrepController } from './r5-action-layer/r5-meeting-prep.controller.js';
 import { DistrictNexusService } from './district-nexus.service.js';
 import { DistrictNexusRelationshipsService } from './district-nexus-relationships.service.js';
 import { DistrictNexusStrategicService } from './district-nexus-strategic.service.js';
@@ -18,6 +19,7 @@ import { GsaRealPropertyIngestService } from './priority-intelligence/priority-i
 import { DistrictNexusChangeWriter } from './priority-intelligence/priority-intelligence-changes.js';
 import { R5DistrictContextService } from './r5-action-layer/r5-district-context.service.js';
 import { R5DistrictBriefService } from './r5-action-layer/r5-district-brief.service.js';
+import { R5MeetingPrepService } from './r5-action-layer/r5-meeting-prep.service.js';
 import { DistrictNexusFlagGuard } from './district-nexus-flag.guard.js';
 import { DistrictNexusStrategicFlagGuard } from './district-nexus-strategic-flag.guard.js';
 import { DistrictNexusEconomicFlagGuard } from './district-nexus-economic-flag.guard.js';
@@ -45,6 +47,7 @@ import { R5MeriDistrictTools } from './r5-action-layer/r5-meri-district-tools.js
     DistrictNexusEconomicController,
     DistrictNexusPriorityIntelligenceController,
     R5DistrictBriefController,
+    R5MeetingPrepController,
     R5DistrictAlertsController,
   ],
   providers: [
@@ -59,6 +62,7 @@ import { R5MeriDistrictTools } from './r5-action-layer/r5-meri-district-tools.js
     R5DistrictBriefService,
     R5DistrictAlertsService,
     R5MeriDistrictTools,
+    R5MeetingPrepService,
     ClientDocumentWriterService,
     DistrictNexusFlagGuard,
     DistrictNexusStrategicFlagGuard,

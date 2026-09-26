@@ -5,6 +5,8 @@ import {
   decideResearchPortfolioMember,
   removeResearchPortfolioGrant,
   updateResearchPortfolio,
+  actOnResearchPortfolioImport,
+  decideResearchPortfolioReview,
 } from './research-portfolios-api.js';
 
 const receipt = {
@@ -23,6 +25,7 @@ function mockApi() {
     patch: vi.fn().mockResolvedValue({ data: receipt }),
     put: vi.fn().mockResolvedValue({ data: receipt }),
     delete: vi.fn().mockResolvedValue({ data: receipt }),
+    get: vi.fn().mockResolvedValue({ data: receipt }),
   } as unknown as AxiosInstance;
 }
 
@@ -68,6 +71,30 @@ describe('research portfolio API mutation contract', () => {
         decisions: [{ memberId: 'member-1', disposition: 'excluded', reason: 'Outside scope' }],
         idempotencyKey: expect.stringMatching(/^research-portfolios:member-decision:/),
       }),
+    );
+  });
+
+  it('keeps review and portfolio revisions separate for governed decisions', async () => {
+    const api = mockApi();
+    await decideResearchPortfolioReview(api, receipt.portfolioId, 'review-1', {
+      expectedRevision: 3,
+      expectedPortfolioRevision: 9,
+      decisionType: 'dispute',
+      reason: 'Conflicting evidence',
+      evidenceAgainst: [{ sourceRevisionId: 'source-1', locator: { page: 2 }, quote: 'Conflict', stance: 'against' }],
+    });
+    expect(api.post).toHaveBeenCalledWith(
+      `/api/research-portfolios/${receipt.portfolioId}/reviews/review-1/decision`,
+      expect.objectContaining({ expectedRevision: 3, expectedPortfolioRevision: 9, idempotencyKey: expect.stringMatching(/review-decision/) }),
+    );
+  });
+
+  it('uses a new durable operation key for every import action', async () => {
+    const api = mockApi();
+    await actOnResearchPortfolioImport(api, receipt.portfolioId, 'job-1', 'apply', { expectedRevision: 9 });
+    expect(api.post).toHaveBeenCalledWith(
+      `/api/research-portfolios/${receipt.portfolioId}/imports/job-1/apply`,
+      expect.objectContaining({ expectedRevision: 9, operationKey: expect.stringMatching(/import-apply/) }),
     );
   });
 });

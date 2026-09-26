@@ -71,3 +71,95 @@ describe('Research Portfolios Phase 1 persistence contract', () => {
     expect(migration).not.toMatch(/"research_portfolio_events"[\s\S]*?"updated_at"/);
   });
 });
+
+describe('Research Portfolios Phase 7 persistence contract', () => {
+  const migrationPhase7 = readFileSync(
+    resolve(
+      process.cwd(),
+      'prisma/migrations/20280930010000_research_portfolios_phase7_reviews_imports_continuity/migration.sql',
+    ),
+    'utf8',
+  );
+
+  test.each([
+    'ResearchPortfolioReview',
+    'ResearchPortfolioDecision',
+    'ResearchPortfolioContinuityLedger',
+    'ResearchPortfolioImportJob',
+    'ResearchPortfolioImportRow',
+    'ResearchPortfolioImportMappingVersion',
+    'ResearchPortfolioImportAttempt',
+    'ResearchPortfolioImportEffect',
+    'ResearchPortfolioImportCompensationReceipt',
+  ])('declares Prisma model %s', (model) => {
+    expect(schema).toContain(`model ${model} {`);
+  });
+
+  test.each([
+    ['research_portfolio_review_status', ['open', 'assigned', 'deferred', 'resolved', 'cancelled']],
+    ['research_portfolio_review_trigger', ['rule_change', 'annual_continuity', 'import', 'dispute', 'manual']],
+    ['research_portfolio_review_target_kind', ['program', 'program_element', 'project', 'budget_line', 'award', 'rule', 'portfolio']],
+    ['research_portfolio_decision_type', ['include', 'exclude', 'defer', 'reopen', 'dispute']],
+    ['research_portfolio_continuity_status', ['unchanged', 'changed', 'expired', 'renamed', 'renumbered', 'split', 'merged', 'unresolved', 'new']],
+    ['research_portfolio_import_job_status', ['created', 'mapped', 'previewed', 'applying', 'paused', 'completed', 'partial', 'failed', 'cancelled', 'unknown', 'needs_reconciliation', 'compensated']],
+    ['research_portfolio_import_worksheet_kind', ['membership', 'rules', 'reviews']],
+    ['research_portfolio_import_row_outcome', ['applied', 'skipped', 'conflict', 'failed', 'unknown']],
+    ['research_portfolio_import_row_preview_classification', ['resolved', 'duplicate', 'invalid', 'ambiguous', 'unresolved', 'inaccessible']],
+  ] as const)('creates exact enum %s', (enumName, values) => {
+    expect(migrationPhase7.replace(/,\s*/g, ',')).toContain(
+      `CREATE TYPE "${enumName}" AS ENUM (${values.map((value) => `'${value}'`).join(',')});`,
+    );
+  });
+
+  it('uses composite tenant-parent foreign keys for every portfolio child', () => {
+    for (const table of [
+      'research_portfolio_reviews',
+      'research_portfolio_decisions',
+      'research_portfolio_continuity_ledger',
+      'research_portfolio_import_jobs',
+      'research_portfolio_import_rows',
+      'research_portfolio_import_mapping_versions',
+      'research_portfolio_import_attempts',
+      'research_portfolio_import_effects',
+      'research_portfolio_import_compensation_receipts',
+    ]) {
+      const tableStart = migrationPhase7.indexOf(`CREATE TABLE "${table}"`);
+      const tableEnd = migrationPhase7.indexOf('\n);', tableStart);
+      expect(tableStart).toBeGreaterThan(-1);
+      expect(migrationPhase7.slice(tableStart, tableEnd)).toMatch(
+        /FOREIGN KEY \("tenant_id",\s*"portfolio_id"\) REFERENCES "research_portfolios"\("tenant_id",\s*"id"\)/,
+      );
+    }
+  });
+
+  it('enforces RLS isolation policies', () => {
+    for (const table of [
+      'research_portfolio_reviews',
+      'research_portfolio_decisions',
+      'research_portfolio_continuity_ledger',
+      'research_portfolio_import_jobs',
+      'research_portfolio_import_rows',
+      'research_portfolio_import_mapping_versions',
+      'research_portfolio_import_attempts',
+      'research_portfolio_import_effects',
+      'research_portfolio_import_compensation_receipts',
+    ]) {
+      expect(migrationPhase7).toContain(`'${table}'`);
+    }
+    expect(migrationPhase7).toContain("EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY'");
+    expect(migrationPhase7).toContain("EXECUTE format('CREATE POLICY %I ON %I USING");
+  });
+
+  it('makes decisions, mappings, attempts, effects, and compensation receipts append-only', () => {
+    for (const table of [
+      'decisions',
+      'import_mappings',
+      'import_attempts',
+      'import_effects',
+      'import_receipts',
+    ]) {
+      expect(migrationPhase7).toContain(`research_portfolio_${table}_append_only_trigger`);
+    }
+    expect(migrationPhase7.match(/BEFORE UPDATE OR DELETE ON/g)).toHaveLength(5);
+  });
+});

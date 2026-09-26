@@ -121,4 +121,224 @@ describe('DefenseResearchService', () => {
     expect(detail.revisions).toEqual([]);
     expect(detail.sections).toEqual([]);
   });
+
+  test('filters the office directory through accepted program and capability relationships', async () => {
+    const prisma = {
+      programOffice: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([{
+          id: 'office-1', name: 'PEO Ground Combat Systems', officeType: 'peo', service: 'ARMY',
+          parentOfficeId: null, parentOffice: null, status: 'active', validFrom: null, validTo: null,
+          sourceUrl: 'https://army.mil/peo-gcs', metadata: { acronym: 'PEO GCS', aliases: ['GCS'] },
+          createdAt: new Date('2026-01-01T00:00:00Z'), updatedAt: new Date('2026-08-01T00:00:00Z'),
+        }]),
+      },
+    };
+    const result = await serviceWith(prisma).listOffices({ component: 'ARMY', program: 'Abrams', capability: 'ground combat', q: 'PEO GCS' });
+    expect(result.items[0]).toMatchObject({ name: 'PEO Ground Combat Systems', aliases: ['GCS'], availability: 'available' });
+    const where = (prisma.programOffice.findMany.mock.calls[0]?.[0] as any).where;
+    expect(JSON.stringify(where)).toContain('Abrams');
+    expect(JSON.stringify(where)).toContain('ground combat');
+    expect(JSON.stringify(where)).toContain('PEO GCS');
+  });
+
+  test('composes approved temporal office relationships without inventing financial allocation', async () => {
+    const at = new Date('2026-08-01T00:00:00Z');
+    const prisma = {
+      programOffice: { findMany: jest.fn().mockResolvedValue([{
+        id: 'office-1', name: 'PEO GCS', service: 'ARMY', status: 'active', validTo: null,
+        sourceUrl: 'https://army.mil/peo-gcs', updatedAt: at, parentOffice: null,
+        programLinks: [{
+          id: 'link-1', relation: 'manages', reviewStatus: 'accepted', sourceUrl: 'https://army.mil/abrams',
+          evidence: [], derivedBy: null, updatedAt: at,
+          program: { id: 'program-1', canonicalName: 'Abrams', component: 'ARMY', acquisitionPathway: 'MDAP' },
+        }],
+        roles: [{
+          id: 'role-1', roleType: 'pm', reviewStatus: 'accepted', source: 'official_directory',
+          sourceUrl: 'https://army.mil/leader', observedAt: at, effectiveEnd: null,
+          person: { id: 'person-1', fullName: 'Program Manager' }, program: null,
+        }],
+      }]) },
+    };
+    const result = await serviceWith(prisma).getRelationships({});
+    expect(result.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ relation: 'manages', sourceStated: true, inferred: false, reviewStatus: 'accepted' }),
+      expect.objectContaining({ relation: 'holds_role', from: expect.objectContaining({ id: 'person-1' }) }),
+      expect.objectContaining({ relation: 'acquisition_path', supersessionImpact: expect.stringContaining('no allocation') }),
+    ]));
+    expect(result.items.some((edge) => edge.relation === 'allocates')).toBe(false);
+  });
+
+  test('keeps speculative office links disabled unless explicitly requested', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const service = serviceWith({ programOffice: { findMany } });
+    await service.getRelationships({});
+    expect(findMany.mock.calls[0]?.[0]?.include.programLinks.where.reviewStatus.in).toEqual(['accepted']);
+    await service.getRelationships({ includeSpeculative: true });
+    expect(findMany.mock.calls[1]?.[0]?.include.programLinks.where.reviewStatus.in).toEqual(['accepted', 'candidate']);
+  });
+
+  test('lists only the newest acquisition revision for each source-qualified identity', async () => {
+    const recordedAt = new Date('2026-09-01T00:00:00Z');
+    const prisma = {
+      acquisitionRecordRevision: {
+        groupBy: jest.fn()
+          .mockResolvedValueOnce([{ identityKey: 'sam.gov:notice:N1' }])
+          .mockResolvedValueOnce([{ identityKey: 'sam.gov:notice:N1:A1' }]),
+        findMany: jest.fn().mockResolvedValue([{
+          id: 'revision-new', identityKey: 'sam.gov:notice:N1', sourceSystem: 'sam.gov', sourceRecordId: 'N1',
+          recordKind: 'notice', parentIdentityKey: null, title: 'Sources sought', status: 'active', buyerOffice: 'ACC',
+          postedAt: recordedAt, responseDeadline: new Date('2026-10-01T00:00:00Z'), validFrom: null, validTo: null,
+          contentHash: 'a'.repeat(64), sourceUrl: 'https://sam.gov/opp/N1', sourceVersion: '2',
+          sourceObservedAt: recordedAt, recordedAt, raw: { description: 'Exact source text' },
+        }]),
+      },
+      acquisitionCoverageGap: { count: jest.fn().mockResolvedValue(2) },
+    };
+    const result = await serviceWith(prisma).getAcquisitionRecords({ recordKind: 'notice', q: 'N1' });
+    expect(prisma.acquisitionRecordRevision.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      distinct: ['identityKey'],
+      orderBy: [{ identityKey: 'asc' }, { recordedAt: 'desc' }, { id: 'desc' }],
+    }));
+    expect(result).toMatchObject({ total: 1, items: [{ identityKey: 'sam.gov:notice:N1', recordKind: 'notice', amendmentCount: 1, openCoverageGaps: 2, textAvailability: 'partial' }] });
+  });
+
+  test('returns revisioned acquisition detail while gating candidates and financial attribution', async () => {
+    const at = new Date('2026-09-01T00:00:00Z');
+    const revision = {
+      id: 'rev-2', identityKey: 'usaspending:award:A1', sourceSystem: 'usaspending', sourceRecordId: 'A1',
+      recordKind: 'award', parentIdentityKey: null, title: 'Vehicle award', status: 'active', buyerOffice: 'Army',
+      postedAt: at, responseDeadline: null, validFrom: null, validTo: null, contentHash: 'b'.repeat(64),
+      sourceUrl: 'https://usaspending.gov/award/A1', sourceVersion: '2', sourceObservedAt: at, recordedAt: at,
+      raw: { placeOfPerformance: { state: 'VA' }, naicsCode: '541512', pscCode: 'D302' },
+    };
+    const findMany = jest.fn()
+      .mockResolvedValueOnce([revision])
+      .mockResolvedValueOnce([{ identityKey: 'usaspending:order:O1' }, { identityKey: 'usaspending:amendment:M1' }])
+      .mockResolvedValueOnce([{ identityKey: 'usaspending:amendment:M1' }])
+      .mockResolvedValueOnce([revision])
+      .mockResolvedValueOnce([{ identityKey: 'usaspending:order:O1' }, { identityKey: 'usaspending:amendment:M1' }])
+      .mockResolvedValueOnce([{ identityKey: 'usaspending:amendment:M1' }]);
+    const relationshipFindMany = jest.fn().mockResolvedValue([
+      { id: 'r1', logicalKey: 'l1', relationshipClass: 'reviewed_association', subjectKind: 'program', subjectKey: 'p1', validFromFy: 2026, validToFy: null, allocatedAmountUsd: { toString: () => '900.00' }, sourceUrl: 'https://source', sourceObservedAt: at, reviewStatus: 'accepted' },
+      { id: 'r2', logicalKey: 'l2', relationshipClass: 'source_stated_financial_allocation', subjectKind: 'program', subjectKey: 'p1', validFromFy: 2026, validToFy: null, allocatedAmountUsd: { toString: () => '125.50' }, sourceUrl: 'https://source', sourceObservedAt: at, reviewStatus: 'accepted' },
+    ]);
+    const service = serviceWith({
+      acquisitionRecordRevision: { findMany },
+      programAcquisitionRelationship: { findMany: relationshipFindMany },
+      acquisitionCoverageGap: { count: jest.fn().mockResolvedValue(0) },
+    });
+    const detail = await service.getAcquisitionRecord('usaspending:award:A1');
+    expect(relationshipFindMany.mock.calls[0]?.[0]?.where.reviewStatus).toBe('accepted');
+    expect(detail.extractedFields).toEqual({ geography: ['VA'], naics: ['541512'], psc: ['D302'] });
+    expect(detail.associations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ relationshipClass: 'reviewed_association', allocatedAmountUsd: null }),
+      expect.objectContaining({ relationshipClass: 'source_stated_financial_allocation', allocatedAmountUsd: '125.50' }),
+    ]));
+    await service.getAcquisitionRecord('usaspending:award:A1', true);
+    expect(relationshipFindMany.mock.calls[1]?.[0]?.where.reviewStatus).toEqual({ in: ['accepted', 'candidate'] });
+  });
+
+  test('keeps corrected award actions distinct and preserves signed deltas', async () => {
+    const at = new Date('2026-09-03T00:00:00Z');
+    const findMany = jest.fn().mockResolvedValue([{
+      id: 'action-rev-2', transactionIdentityKey: 'fpds:transaction:T1', awardIdentityKey: 'fpds:award:A1',
+      parentAwardIdentityKey: 'fpds:vehicle:V1', sourceSystem: 'fpds', sourceTransactionId: 'T1', piid: 'A1',
+      modificationNumber: 'P00002', actionDate: at, signedObligationDelta: { toString: () => '-42.50' },
+      signedOutlayDelta: null, correctsIdentityKey: 'fpds:transaction:T1:old', supersedesId: 'action-rev-1',
+      sourceUrl: 'https://fpds.gov/T1', sourceObservedAt: at, recordedAt: at, raw: {},
+    }]);
+    const result = await serviceWith({ acquisitionAwardTransactionRevision: { findMany } }).getAcquisitionActions('fpds:award:A1');
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ distinct: ['transactionIdentityKey'] }));
+    expect(result[0]).toMatchObject({ modificationNumber: 'P00002', signedObligationDelta: '-42.50', correctsIdentityKey: 'fpds:transaction:T1:old' });
+  });
+
+  test('returns open acquisition coverage gaps as gaps rather than fabricated zeros', async () => {
+    const at = new Date('2026-09-04T00:00:00Z');
+    const findMany = jest.fn().mockResolvedValue([{
+      id: 'gap-1', subjectKind: 'program', subjectKey: 'program-1', sourceSystem: 'fpds', relationshipKind: 'award',
+      reason: 'delayed_source', detail: 'Provider is 48 hours behind.', coverageState: 'partial', sourceAsOf: at,
+      firstObservedAt: at, lastObservedAt: at, resolvedAt: null,
+    }]);
+    const result = await serviceWith({ acquisitionCoverageGap: { findMany } }).getAcquisitionCoverage('program', 'program-1');
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { subjectKind: 'program', subjectKey: 'program-1', resolvedAt: null } }));
+    expect(result).toMatchObject({ total: 1, items: [{ reason: 'delayed_source', coverageState: 'partial' }] });
+    expect(JSON.stringify(result)).not.toContain('allocatedAmountUsd');
+  });
+
+  test('keeps exact, governed capability, and disabled semantic search lanes independent', async () => {
+    const pe = { peCode: '0600000A', title: 'Exact Test Program', description: 'Qualified description', service: 'ARMY', serviceCode: 'A', sources: [] };
+    const prisma = {
+      programElement: { findMany: jest.fn().mockResolvedValueOnce([pe]).mockResolvedValueOnce([pe]) },
+      program: { findMany: jest.fn().mockResolvedValue([]) },
+      programElementProject: { findMany: jest.fn().mockResolvedValue([]) },
+      procurementLine: { findMany: jest.fn().mockResolvedValue([]) },
+      programOffice: { findMany: jest.fn().mockResolvedValue([]) },
+      acquisitionRecordRevision: { findMany: jest.fn().mockResolvedValue([]) },
+      defenseContextDocument: { findMany: jest.fn().mockResolvedValue([]) },
+      capability: { findMany: jest.fn().mockResolvedValue([{ id: 'cap-1', name: 'Exact Test', slug: 'exact-test', aliases: [], taxonomyPath: 'Research › Test', matches: [{ peCode: '0600000A', confidence: 'high', matchedOn: 'curated' }] }]) },
+    };
+    const result = await serviceWith(prisma).search('0600000A', false);
+    expect(result.exact).toMatchObject({ status: 'available', items: [{ matchKind: 'exact_id' }] });
+    expect(result.capability).toMatchObject({ status: 'available', items: [{ matchKind: 'capability', score: 1 }] });
+    expect(result.semantic).toMatchObject({ status: 'disabled', items: [] });
+    expect(result.expansion.excludedTerms).toContain('rejected_capability_matches_excluded');
+  });
+
+  test('comparison preserves an observed zero and distinguishes it from missing', async () => {
+    const yearFor = (id: string, request: { toString(): string } | null) => ({ id: `year-${id}`, fy: 2028, request, hascMark: null, sascMark: null, hacDMark: null, sacDMark: null, conference: null, enacted: null, actuals: null, sources: [] });
+    const prisma = {
+      procurementLine: { findUnique: jest.fn(async (args: any) => {
+        const id = args.where.id as string;
+        return args.include ? { id, title: id, years: [yearFor(id, id === 'line-zero' ? { toString: () => '0' } : null)] } : { title: id };
+      }) },
+    };
+    const result = await serviceWith(prisma).compare(['budget_line:line-zero', 'budget_line:line-missing']);
+    const request = result.metrics.find((metric) => metric.metric === 'funding' && metric.key.includes('|request|'));
+    expect(request?.cells).toEqual([
+      expect.objectContaining({ subjectKey: 'budget_line:line-zero', value: '0' }),
+      expect.objectContaining({ subjectKey: 'budget_line:line-missing', value: null, disposition: 'missing', reason: expect.stringContaining('not zero') }),
+    ]);
+  });
+
+  test('aligns contextual passages by exact source-native section identity with independent evidence', async () => {
+    const leftId = '11111111-1111-4111-8111-111111111111';
+    const rightId = '22222222-2222-4222-8222-222222222222';
+    const prisma = {
+      defenseContextDocument: { findUnique: jest.fn(async ({ where }: any) => {
+        const id = where.id as string;
+        const left = id === leftId;
+        return {
+          id, title: left ? 'Earlier policy' : 'Later policy', family: 'policy', publisher: 'Official publisher', sourceUrl: `https://example.mil/${id}`,
+          currentRevision: {
+            id: left ? 'revision-left' : 'revision-right', sourceDocumentId: left ? 'document-left' : 'document-right', contentHash: (left ? 'a' : 'b').repeat(64),
+            version: left ? 'v1' : 'v2', observedAt: new Date(left ? '2026-01-01T00:00:00Z' : '2026-02-01T00:00:00Z'), sourceUrl: `https://example.mil/${id}`,
+            sections: [{ id: left ? 'section-left' : 'section-right', label: 'Acquisition policy', nativeLocator: 'Section 4', contentText: left ? 'Earlier qualified wording.' : 'Later qualified wording.', textAvailability: 'available' }],
+          },
+        };
+      }) },
+    };
+    const result = await serviceWith(prisma).compare([`context_document:${leftId}`, `context_document:${rightId}`]);
+    const passage = result.metrics.find((metric) => metric.metric === 'passage');
+    expect(passage?.cells.map((cell) => cell.value)).toEqual(['Earlier qualified wording.', 'Later qualified wording.']);
+    expect(passage?.cells[0]?.evidence[0]?.sourceDocumentId).toBe('document-left');
+    expect(passage?.cells[1]?.evidence[0]?.sourceDocumentId).toBe('document-right');
+    expect(result.alignments.find((alignment) => alignment.kind === 'passage')?.state).toBe('aligned');
+  });
+
+  test('customer coverage reports observed numerators without claiming an unattested denominator', async () => {
+    const prisma = {
+      defenseBudgetExpectedSource: { findMany: jest.fn().mockResolvedValue([{
+        id: 'slot-1', fiscalYear: 2028, authorityTrack: 'appropriations', stage: 'request', sourceFamily: 'pb_r2', component: 'ARMY', optional: false,
+        metadata: { account: 'RDT&E, Army', edition: 'PB FY2028' }, bundleMembers: [],
+        observations: [{ id: 'obs-1', sourceDocumentId: 'doc-1', contentSha256: 'a'.repeat(64), observationState: 'parsed', supersededByObservationId: null }],
+      }]) },
+      budgetExtractionCandidateV1: { findMany: jest.fn().mockResolvedValue([{ id: 'candidate-1', sourceDocumentId: 'doc-1', currentRunId: 'run-1', runs: [{ id: 'run-1', decision: 'PASS' }], reviewDecisions: [{ runId: 'run-1', decision: 'accept' }] }]) },
+      defenseBudgetActiveSnapshot: { findUnique: jest.fn().mockResolvedValue(null) },
+    };
+    const result = await serviceWith(prisma).productCoverage({ fiscalYear: 2028, component: 'ARMY' });
+    expect(result.denominatorKnown).toBe(false);
+    expect(result.rows[0]).toMatchObject({ discovered: 1, parsed: 1, qualified: 1, published: 0, outcome: 'unknown', denominator: { state: 'unknown', value: null } });
+    expect(JSON.stringify(result)).not.toContain('adapterId');
+  });
 });

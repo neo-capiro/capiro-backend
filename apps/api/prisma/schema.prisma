@@ -83,6 +83,7 @@ enum AssociationEntityType {
 enum MeetingPrepStatus {
   generated
   edited
+  reviewed
   approved
   stale
   failed
@@ -340,6 +341,15 @@ model Tenant {
   researchPortfolioRuleVersions      ResearchPortfolioRuleVersion[]
   researchPortfolioRulePreviews      ResearchPortfolioRulePreview[]
   researchPortfolioRecomputeJobs     ResearchPortfolioRecomputeJob[]
+  researchPortfolioReviews           ResearchPortfolioReview[]
+  researchPortfolioDecisions         ResearchPortfolioDecision[]
+  researchPortfolioContinuityLedgers ResearchPortfolioContinuityLedger[]
+  researchPortfolioImportJobs        ResearchPortfolioImportJob[]
+  researchPortfolioImportRows        ResearchPortfolioImportRow[]
+  researchPortfolioImportMappings    ResearchPortfolioImportMappingVersion[]
+  researchPortfolioImportAttempts    ResearchPortfolioImportAttempt[]
+  researchPortfolioImportEffects     ResearchPortfolioImportEffect[]
+  researchPortfolioImportReceipts    ResearchPortfolioImportCompensationReceipt[]
 
   @@map("tenants")
 }
@@ -948,11 +958,11 @@ model Client {
   canonicalEntity          CanonicalEntity?                    @relation("ClientCanonicalEntity", fields: [canonicalEntityId], references: [id], onDelete: Restrict, map: "clients_canonical_entity_fkey")
   // Business Development Phase 1 back-relation.
   bizdevProspects          BusinessDevelopmentProspect[]       @relation("BizDevProspectLinkedClient")
-  researchPortfolioLinks  ResearchPortfolioClientLink[]
+  researchPortfolioLinks   ResearchPortfolioClientLink[]
 
+  @@unique([tenantId, id], map: "clients_tenant_id_key")
   @@index([tenantId], map: "clients_tenant_idx")
   @@index([tenantId, name], map: "clients_tenant_name_idx")
-  @@unique([tenantId, id], map: "clients_tenant_id_key")
   @@map("clients")
 }
 
@@ -2011,13 +2021,13 @@ model ClioConversation {
   updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   archivedAt           DateTime? @map("archived_at") @db.Timestamptz(6)
 
-  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user          User           @relation("ClioConversationUser", fields: [userId], references: [id], onDelete: Cascade)
-  client        Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  workspace     MeriWorkspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
-  messages      ClioMessage[]
-  artifacts     ClioArtifact[]
-  notes         ClioNote[]
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User           @relation("ClioConversationUser", fields: [userId], references: [id], onDelete: Cascade)
+  client    Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  workspace MeriWorkspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  messages  ClioMessage[]
+  artifacts ClioArtifact[]
+  notes     ClioNote[]
 
   @@index([tenantId, userId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_user_updated_idx")
   @@index([tenantId, clientId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_client_updated_idx")
@@ -14795,32 +14805,32 @@ model BusinessDevelopmentBriefVersion {
 /// stays as-is for compatibility; the migration seeds active watches for
 /// watch_requested=true prospects with a quiet (alert-free) baseline.
 model BusinessDevelopmentWatch {
-  id               String    @id @default(uuid()) @db.Uuid
-  tenantId         String    @map("tenant_id") @db.Uuid
-  prospectId       String    @map("prospect_id") @db.Uuid
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  prospectId        String    @map("prospect_id") @db.Uuid
   /// Owner user id, plain UUID with NO DB foreign key (same rationale as
   /// prospect owner: history survives user departure). Membership validated
   /// in the service against an ACTIVE TenantMembership of the same tenant.
-  ownerUserId      String?   @map("owner_user_id") @db.Uuid
+  ownerUserId       String?   @map("owner_user_id") @db.Uuid
   /// active | paused | ended (SQL CHECK).
-  status           String    @default("active") @db.VarChar(16)
-  mutedUntil       DateTime? @map("muted_until") @db.Timestamptz(6)
+  status            String    @default("active") @db.VarChar(16)
+  mutedUntil        DateTime? @map("muted_until") @db.Timestamptz(6)
   /// Alert categories the owner wants surfaced (subset of the Phase 5
   /// category vocabulary; empty = all categories).
-  categories       String[]  @default([])
+  categories        String[]  @default([])
   /// real_time | daily | weekly (SQL CHECK); NULL = tenant default.
-  frequency        String?   @db.VarChar(16)
+  frequency         String?   @db.VarChar(16)
   /// True when the owner wants a digest instead of individual alerts.
-  digest           Boolean   @default(false)
+  digest            Boolean   @default(false)
   /// Bumped by every preference change so the runner can distinguish
   /// preference-driven re-evaluation from source-driven change.
-  preferenceVersion Int      @default(1) @map("preference_version")
+  preferenceVersion Int       @default(1) @map("preference_version")
   requestedByUserId String?   @map("requested_by_user_id") @db.Uuid
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant   Tenant                              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  prospect BusinessDevelopmentProspect          @relation(fields: [tenantId, prospectId], references: [tenantId, id], onDelete: Cascade, map: "business_development_watches_prospect_fkey")
+  tenant   Tenant                                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  prospect BusinessDevelopmentProspect           @relation(fields: [tenantId, prospectId], references: [tenantId, id], onDelete: Cascade, map: "business_development_watches_prospect_fkey")
   states   BusinessDevelopmentWatchSourceState[]
   alerts   BusinessDevelopmentAlert[]
 
@@ -14849,31 +14859,31 @@ model BusinessDevelopmentWatch {
 /// evaluator safely claim per-watch/per-source work across overlapping ECS
 /// tasks without any new ingestion schedule.
 model BusinessDevelopmentWatchSourceState {
-  id                             String    @id @default(uuid()) @db.Uuid
-  tenantId                       String    @map("tenant_id") @db.Uuid
-  watchId                        String    @map("watch_id") @db.Uuid
+  id                            String    @id @default(uuid()) @db.Uuid
+  tenantId                      String    @map("tenant_id") @db.Uuid
+  watchId                       String    @map("watch_id") @db.Uuid
   /// federal_award | federal_assistance_award | sam_opportunity |
   /// tango_resource | lda_filing | acquisition_revision (SQL CHECK).
-  sourceFamily                   String    @map("source_family") @db.VarChar(32)
+  sourceFamily                  String    @map("source_family") @db.VarChar(32)
   /// pending | healthy | partial | error | stale | paused (SQL CHECK).
-  health                         String    @default("pending") @db.VarChar(16)
-  baselineState                  Json?     @map("baseline_state")
-  baselinedAt                    DateTime? @map("baselined_at") @db.Timestamptz(6)
-  lastAttemptAt                  DateTime? @map("last_attempt_at") @db.Timestamptz(6)
-  lastSuccessfulCompleteCheckAt  DateTime? @map("last_successful_complete_check_at") @db.Timestamptz(6)
-  sourceWatermark                DateTime? @map("source_watermark") @db.Timestamptz(6)
-  lastError                      String?   @map("last_error")
-  consecutiveFailures            Int       @default(0) @map("consecutive_failures")
+  health                        String    @default("pending") @db.VarChar(16)
+  baselineState                 Json?     @map("baseline_state")
+  baselinedAt                   DateTime? @map("baselined_at") @db.Timestamptz(6)
+  lastAttemptAt                 DateTime? @map("last_attempt_at") @db.Timestamptz(6)
+  lastSuccessfulCompleteCheckAt DateTime? @map("last_successful_complete_check_at") @db.Timestamptz(6)
+  sourceWatermark               DateTime? @map("source_watermark") @db.Timestamptz(6)
+  lastError                     String?   @map("last_error")
+  consecutiveFailures           Int       @default(0) @map("consecutive_failures")
   /// DB-only evaluator lease (tenant-scoped): a claim token + expiry. Both
   /// NULL when unclaimed; claiming overwrites atomically in the runner. The
   /// lease creates NO schedule — the evaluator that ticks claims it.
-  leaseToken                     String?   @map("lease_token") @db.VarChar(64)
-  leaseUntil                     DateTime? @map("lease_until") @db.Timestamptz(6)
-  createdAt                      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  leaseToken                    String?   @map("lease_token") @db.VarChar(64)
+  leaseUntil                    DateTime? @map("lease_until") @db.Timestamptz(6)
+  createdAt                     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  watch  BusinessDevelopmentWatch     @relation(fields: [tenantId, watchId], references: [tenantId, id], onDelete: Cascade, map: "business_development_watch_source_states_watch_fkey")
+  tenant Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  watch  BusinessDevelopmentWatch @relation(fields: [tenantId, watchId], references: [tenantId, id], onDelete: Cascade, map: "business_development_watch_source_states_watch_fkey")
 
   /// One state row per (tenant, watch, source family) — SQL-owned composite
   /// unique backing index is created by the Phase 5 migration with the same
@@ -14894,52 +14904,52 @@ model BusinessDevelopmentWatchSourceState {
 /// gloss, never a source fact) and downstream UI must label it as such.
 /// Reads support an inbox directly: firstObservedAt / read / dismiss fields.
 model BusinessDevelopmentAlert {
-  id               String   @id @default(uuid()) @db.Uuid
-  tenantId         String   @map("tenant_id") @db.Uuid
-  watchId          String   @map("watch_id") @db.Uuid
-  prospectId       String   @map("prospect_id") @db.Uuid
-  sourceFamily     String   @map("source_family") @db.VarChar(32)
-  category         String   @db.VarChar(32)
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  watchId         String    @map("watch_id") @db.Uuid
+  prospectId      String    @map("prospect_id") @db.Uuid
+  sourceFamily    String    @map("source_family") @db.VarChar(32)
+  category        String    @db.VarChar(32)
   /// new_record | material_update | correction | backfill (SQL CHECK).
-  changeKind       String   @map("change_kind") @db.VarChar(24)
+  changeKind      String    @map("change_kind") @db.VarChar(24)
   /// high | medium | low (SQL CHECK).
-  materiality      String   @db.VarChar(16)
+  materiality     String    @db.VarChar(16)
   /// Stable source record id within the projection.
-  recordId         String   @map("record_id")
+  recordId        String    @map("record_id")
   /// Optional source revision (ledger revision, content sha, …).
-  sourceRevision   String?  @map("source_revision")
+  sourceRevision  String?   @map("source_revision")
   /// SHA-256 of the semantic change identity (pure diff contract).
-  fingerprint      String   @db.VarChar(64)
+  fingerprint     String    @db.VarChar(64)
   /// Tenant-delivery dedupe key: family:record:fingerprint.
-  dedupeKey        String   @map("dedupe_key") @db.VarChar(512)
-  beforeState      Json?    @map("before_state")
-  afterState       Json     @map("after_state")
-  changesJsonb     Json     @default("[]") @map("changes_jsonb")
-  title            String
-  summary          String
+  dedupeKey       String    @map("dedupe_key") @db.VarChar(512)
+  beforeState     Json?     @map("before_state")
+  afterState      Json      @map("after_state")
+  changesJsonb    Json      @default("[]") @map("changes_jsonb")
+  title           String
+  summary         String
   /// INFERENCE: deterministic gloss produced by the pure diff; NEVER a
   /// source fact. UI must label this as inference.
-  implication      String
+  implication     String
   /// Exact source locator (URL or canonical projection pointer).
-  sourceLocator    String   @map("source_locator")
-  eventAt          DateTime? @map("event_at") @db.Timestamptz(6)
-  effectiveAt      DateTime? @map("effective_at") @db.Timestamptz(6)
-  publishedAt      DateTime? @map("published_at") @db.Timestamptz(6)
-  firstObservedAt  DateTime @default(now()) @map("first_observed_at") @db.Timestamptz(6)
+  sourceLocator   String    @map("source_locator")
+  eventAt         DateTime? @map("event_at") @db.Timestamptz(6)
+  effectiveAt     DateTime? @map("effective_at") @db.Timestamptz(6)
+  publishedAt     DateTime? @map("published_at") @db.Timestamptz(6)
+  firstObservedAt DateTime  @default(now()) @map("first_observed_at") @db.Timestamptz(6)
   /// Recipient read/dismiss state lives ONLY on the per-recipient
   /// BusinessDevelopmentAlertDelivery row (single source of truth). The alert
   /// itself is append-only: many recipients may each have their own read and
   /// dismiss state for the same alert.
   /// open | review | suppressed (SQL CHECK): review queues for a human,
   /// suppressed stops future deliveries of the same semantic event.
-  reviewState      String   @default("open") @map("review_state") @db.VarChar(16)
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  reviewState     String    @default("open") @map("review_state") @db.VarChar(16)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  tenant   Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  watch    BusinessDevelopmentWatch @relation(fields: [tenantId, watchId], references: [tenantId, id], onDelete: Cascade, map: "business_development_alerts_watch_fkey")
+  tenant     Tenant                             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  watch      BusinessDevelopmentWatch           @relation(fields: [tenantId, watchId], references: [tenantId, id], onDelete: Cascade, map: "business_development_alerts_watch_fkey")
   /// Tenant-safe prospect link for the DENORMALIZED prospect_id: the
   /// composite FK guarantees the alert's prospect belongs to the SAME tenant.
-  prospect BusinessDevelopmentProspect @relation(fields: [tenantId, prospectId], references: [tenantId, id], onDelete: Cascade, map: "business_development_alerts_prospect_fkey")
+  prospect   BusinessDevelopmentProspect        @relation(fields: [tenantId, prospectId], references: [tenantId, id], onDelete: Cascade, map: "business_development_alerts_prospect_fkey")
   deliveries BusinessDevelopmentAlertDelivery[]
 
   /// Prisma-required composite unique target for the tenant-safe alert FK
@@ -14960,21 +14970,21 @@ model BusinessDevelopmentAlert {
 /// tasks. recipientUserId is a plain UUID (no DB FK) for the same
 /// history-survives-departure rationale as prospect owners.
 model BusinessDevelopmentAlertDelivery {
-  id             String   @id @default(uuid()) @db.Uuid
-  tenantId       String   @map("tenant_id") @db.Uuid
-  alertId        String   @map("alert_id") @db.Uuid
-  recipientUserId String   @map("recipient_user_id") @db.Uuid
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  alertId           String    @map("alert_id") @db.Uuid
+  recipientUserId   String    @map("recipient_user_id") @db.Uuid
   /// in_app | digest (SQL CHECK).
-  channel        String   @default("in_app") @db.VarChar(16)
-  deliveredAt    DateTime @default(now()) @map("delivered_at") @db.Timestamptz(6)
+  channel           String    @default("in_app") @db.VarChar(16)
+  deliveredAt       DateTime  @default(now()) @map("delivered_at") @db.Timestamptz(6)
   /// AUTHORITATIVE recipient read state: this row — not the alert — is the
   /// single source of truth for whether THIS recipient read the alert.
-  readAt         DateTime? @map("read_at") @db.Timestamptz(6)
+  readAt            DateTime? @map("read_at") @db.Timestamptz(6)
   /// AUTHORITATIVE recipient dismiss state; dismissal implies read (SQL
   /// CHECK). dismissedByUserId is a plain UUID (no DB FK): history survives
   /// user departure.
-  dismissedAt    DateTime? @map("dismissed_at") @db.Timestamptz(6)
-  dismissedByUserId String? @map("dismissed_by_user_id") @db.Uuid
+  dismissedAt       DateTime? @map("dismissed_at") @db.Timestamptz(6)
+  dismissedByUserId String?   @map("dismissed_by_user_id") @db.Uuid
 
   tenant Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   alert  BusinessDevelopmentAlert @relation(fields: [tenantId, alertId], references: [tenantId, id], onDelete: Cascade, map: "business_development_alert_deliveries_alert_fkey")
@@ -15056,6 +15066,10 @@ enum ResearchPortfolioEventKind {
   member_reinstated
   member_resolved
   rule_published
+  review_updated
+  annual_reopened
+  import_created
+  import_action
 
   @@map("research_portfolio_event_kind")
 }
@@ -15073,15 +15087,24 @@ model ResearchPortfolio {
   createdAt   DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant      Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  owner       User                          @relation("ResearchPortfolioOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
-  grants      ResearchPortfolioGrant[]
-  clientLinks ResearchPortfolioClientLink[]
-  members     ResearchPortfolioMember[]
-  events      ResearchPortfolioEvent[]
-  ruleVersions ResearchPortfolioRuleVersion[]
-  rulePreviews ResearchPortfolioRulePreview[]
-  recomputeJobs ResearchPortfolioRecomputeJob[]
+  tenant            Tenant                                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner             User                                         @relation("ResearchPortfolioOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  grants            ResearchPortfolioGrant[]
+  clientLinks       ResearchPortfolioClientLink[]
+  members           ResearchPortfolioMember[]
+  events            ResearchPortfolioEvent[]
+  ruleVersions      ResearchPortfolioRuleVersion[]
+  rulePreviews      ResearchPortfolioRulePreview[]
+  recomputeJobs     ResearchPortfolioRecomputeJob[]
+  reviews           ResearchPortfolioReview[]
+  decisions         ResearchPortfolioDecision[]
+  continuityLedgers ResearchPortfolioContinuityLedger[]
+  importJobs        ResearchPortfolioImportJob[]
+  importRows        ResearchPortfolioImportRow[]
+  importMappings    ResearchPortfolioImportMappingVersion[]
+  importAttempts    ResearchPortfolioImportAttempt[]
+  importEffects     ResearchPortfolioImportEffect[]
+  importReceipts    ResearchPortfolioImportCompensationReceipt[]
 
   @@unique([tenantId, id], map: "research_portfolios_tenant_id_key")
   @@index([tenantId, lifecycle, updatedAt(sort: Desc)], map: "research_portfolios_tenant_lifecycle_updated_idx")
@@ -15126,26 +15149,26 @@ model ResearchPortfolioClientLink {
 }
 
 model ResearchPortfolioMember {
-  id              String                             @id @default(uuid()) @db.Uuid
-  tenantId        String                             @map("tenant_id") @db.Uuid
-  portfolioId     String                             @map("portfolio_id") @db.Uuid
-  targetKind      ResearchPortfolioMemberKind        @map("target_kind")
-  targetId        String                             @map("target_id") @db.VarChar(256)
-  label           String?                            @db.VarChar(300)
-  disposition     ResearchPortfolioMemberDisposition @default(included)
-  origin          ResearchPortfolioMemberOrigin      @default(manual)
-  reason          String?
-  evidence        Json                               @default("{}")
-  qualification   String?                            @db.VarChar(64)
-  ruleVersionId   String?                            @map("rule_version_id") @db.Uuid
-  decisionRevision Int?                              @map("decision_revision")
-  unresolvedInput Json?                              @map("unresolved_input")
-  resolvedAt      DateTime?                          @map("resolved_at") @db.Timestamptz(6)
-  createdByUserId String                             @map("created_by_user_id") @db.Uuid
-  updatedByUserId String                             @map("updated_by_user_id") @db.Uuid
-  revision        Int                                @default(1)
-  createdAt       DateTime                           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime                           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id               String                             @id @default(uuid()) @db.Uuid
+  tenantId         String                             @map("tenant_id") @db.Uuid
+  portfolioId      String                             @map("portfolio_id") @db.Uuid
+  targetKind       ResearchPortfolioMemberKind        @map("target_kind")
+  targetId         String                             @map("target_id") @db.VarChar(256)
+  label            String?                            @db.VarChar(300)
+  disposition      ResearchPortfolioMemberDisposition @default(included)
+  origin           ResearchPortfolioMemberOrigin      @default(manual)
+  reason           String?
+  evidence         Json                               @default("{}")
+  qualification    String?                            @db.VarChar(64)
+  ruleVersionId    String?                            @map("rule_version_id") @db.Uuid
+  decisionRevision Int?                               @map("decision_revision")
+  unresolvedInput  Json?                              @map("unresolved_input")
+  resolvedAt       DateTime?                          @map("resolved_at") @db.Timestamptz(6)
+  createdByUserId  String                             @map("created_by_user_id") @db.Uuid
+  updatedByUserId  String                             @map("updated_by_user_id") @db.Uuid
+  revision         Int                                @default(1)
+  createdAt        DateTime                           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime                           @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
@@ -15157,16 +15180,16 @@ model ResearchPortfolioMember {
 
 /// Append-only aggregate history. There is intentionally no updatedAt field.
 model ResearchPortfolioEvent {
-  id                String                     @id @default(uuid()) @db.Uuid
-  tenantId          String                     @map("tenant_id") @db.Uuid
-  portfolioId       String                     @map("portfolio_id") @db.Uuid
-  eventKind         ResearchPortfolioEventKind @map("event_kind")
-  aggregateRevision Int                        @map("aggregate_revision")
-  actorUserId       String                     @map("actor_user_id") @db.Uuid
-  occurredAt        DateTime                   @default(now()) @map("occurred_at") @db.Timestamptz(6)
-  idempotencyKey    String?                    @map("idempotency_key") @db.VarChar(128)
-  payloadFingerprint String?                   @map("payload_fingerprint") @db.VarChar(64)
-  payload           Json                       @default("{}")
+  id                 String                     @id @default(uuid()) @db.Uuid
+  tenantId           String                     @map("tenant_id") @db.Uuid
+  portfolioId        String                     @map("portfolio_id") @db.Uuid
+  eventKind          ResearchPortfolioEventKind @map("event_kind")
+  aggregateRevision  Int                        @map("aggregate_revision")
+  actorUserId        String                     @map("actor_user_id") @db.Uuid
+  occurredAt         DateTime                   @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  idempotencyKey     String?                    @map("idempotency_key") @db.VarChar(128)
+  payloadFingerprint String?                    @map("payload_fingerprint") @db.VarChar(64)
+  payload            Json                       @default("{}")
 
   tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
@@ -15192,22 +15215,124 @@ enum ResearchPortfolioRecomputeStatus {
   @@map("research_portfolio_recompute_status")
 }
 
-model ResearchTaxonomyVersion {
-  id            String    @id @default(uuid()) @db.Uuid
-  tenantId      String    @map("tenant_id") @db.Uuid
-  version       Int
-  label         String    @db.VarChar(160)
-  vocabulary    String    @db.VarChar(64) // official_current | official_historical | capiro | tenant
-  source        String?   @db.Text
-  provenance    Json      @default("{}")
-  authorUserId  String    @map("author_user_id") @db.Uuid
-  publishedAt   DateTime  @default(now()) @map("published_at") @db.Timestamptz(6)
-  predecessorId String?   @map("predecessor_id") @db.Uuid
+enum ResearchPortfolioReviewStatus {
+  open
+  assigned
+  deferred
+  resolved
+  cancelled
 
-  tenant   Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  concepts ResearchTaxonomyConcept[]
+  @@map("research_portfolio_review_status")
+}
+
+enum ResearchPortfolioReviewTrigger {
+  rule_change
+  annual_continuity
+  import
+  dispute
+  manual
+
+  @@map("research_portfolio_review_trigger")
+}
+
+enum ResearchPortfolioReviewTargetKind {
+  program
+  program_element
+  project
+  budget_line
+  award
+  rule
+  portfolio
+
+  @@map("research_portfolio_review_target_kind")
+}
+
+enum ResearchPortfolioDecisionType {
+  include
+  exclude
+  defer
+  reopen
+  dispute
+
+  @@map("research_portfolio_decision_type")
+}
+
+enum ResearchPortfolioContinuityStatus {
+  unchanged
+  changed
+  expired
+  renamed
+  renumbered
+  split
+  merged
+  unresolved
+  new
+
+  @@map("research_portfolio_continuity_status")
+}
+
+enum ResearchPortfolioImportJobStatus {
+  created
+  mapped
+  previewed
+  applying
+  paused
+  completed
+  partial
+  failed
+  cancelled
+  unknown
+  needs_reconciliation
+  compensated
+
+  @@map("research_portfolio_import_job_status")
+}
+
+enum ResearchPortfolioImportWorksheetKind {
+  membership
+  rules
+  reviews
+
+  @@map("research_portfolio_import_worksheet_kind")
+}
+
+enum ResearchPortfolioImportRowOutcome {
+  applied
+  skipped
+  conflict
+  failed
+  unknown
+
+  @@map("research_portfolio_import_row_outcome")
+}
+
+enum ResearchPortfolioImportRowPreviewClassification {
+  resolved
+  duplicate
+  invalid
+  ambiguous
+  unresolved
+  inaccessible
+
+  @@map("research_portfolio_import_row_preview_classification")
+}
+
+model ResearchTaxonomyVersion {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  version       Int
+  label         String   @db.VarChar(160)
+  vocabulary    String   @db.VarChar(64) // official_current | official_historical | capiro | tenant
+  source        String?  @db.Text
+  provenance    Json     @default("{}")
+  authorUserId  String   @map("author_user_id") @db.Uuid
+  publishedAt   DateTime @default(now()) @map("published_at") @db.Timestamptz(6)
+  predecessorId String?  @map("predecessor_id") @db.Uuid
+
+  tenant           Tenant                             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  concepts         ResearchTaxonomyConcept[]
   templateVersions ResearchPortfolioTemplateVersion[]
-  ruleVersions ResearchPortfolioRuleVersion[]
+  ruleVersions     ResearchPortfolioRuleVersion[]
 
   @@unique([tenantId, id], map: "research_taxonomy_versions_tenant_id_key")
   @@unique([tenantId, version], map: "research_taxonomy_versions_tenant_version_key")
@@ -15300,12 +15425,12 @@ model ResearchPortfolioRuleVersion {
   predecessorId       String?               @map("predecessor_id") @db.Uuid
   publishedAt         DateTime              @default(now()) @map("published_at") @db.Timestamptz(6)
 
-  tenant          Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  portfolio       ResearchPortfolio             @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
-  taxonomyVersion ResearchTaxonomyVersion?       @relation(fields: [tenantId, taxonomyVersionId], references: [tenantId, id], onDelete: Restrict)
+  tenant          Tenant                            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio       ResearchPortfolio                 @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  taxonomyVersion ResearchTaxonomyVersion?          @relation(fields: [tenantId, taxonomyVersionId], references: [tenantId, id], onDelete: Restrict)
   templateVersion ResearchPortfolioTemplateVersion? @relation(fields: [tenantId, templateVersionId], references: [tenantId, id], onDelete: Restrict)
-  predecessor     ResearchPortfolioRuleVersion?  @relation("ResearchPortfolioRulePredecessor", fields: [tenantId, predecessorId], references: [tenantId, id], onDelete: Restrict)
-  successors      ResearchPortfolioRuleVersion[] @relation("ResearchPortfolioRulePredecessor")
+  predecessor     ResearchPortfolioRuleVersion?     @relation("ResearchPortfolioRulePredecessor", fields: [tenantId, predecessorId], references: [tenantId, id], onDelete: Restrict)
+  successors      ResearchPortfolioRuleVersion[]    @relation("ResearchPortfolioRulePredecessor")
   jobs            ResearchPortfolioRecomputeJob[]
 
   @@unique([tenantId, portfolioId, version], map: "research_portfolio_rule_versions_number_key")
@@ -15336,23 +15461,23 @@ model ResearchPortfolioRulePreview {
 }
 
 model ResearchPortfolioRecomputeJob {
-  id                String                           @id @default(uuid()) @db.Uuid
-  tenantId          String                           @map("tenant_id") @db.Uuid
-  portfolioId       String                           @map("portfolio_id") @db.Uuid
-  ruleVersionId     String                           @map("rule_version_id") @db.Uuid
-  operationKey      String                           @map("operation_key") @db.VarChar(128)
-  status            ResearchPortfolioRecomputeStatus @default(queued)
-  cursor            String?
-  processedCount    Int                              @default(0) @map("processed_count")
-  matchedCount      Int                              @default(0) @map("matched_count")
-  unknownCount      Int                              @default(0) @map("unknown_count")
-  leaseOwner        String?                          @map("lease_owner") @db.VarChar(128)
-  leaseUntil        DateTime?                        @map("lease_until") @db.Timestamptz(6)
-  attempt           Int                              @default(0)
-  result            Json                             @default("{}")
-  errorCode         String?                          @map("error_code") @db.VarChar(128)
-  createdAt         DateTime                         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime                         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id             String                           @id @default(uuid()) @db.Uuid
+  tenantId       String                           @map("tenant_id") @db.Uuid
+  portfolioId    String                           @map("portfolio_id") @db.Uuid
+  ruleVersionId  String                           @map("rule_version_id") @db.Uuid
+  operationKey   String                           @map("operation_key") @db.VarChar(128)
+  status         ResearchPortfolioRecomputeStatus @default(queued)
+  cursor         String?
+  processedCount Int                              @default(0) @map("processed_count")
+  matchedCount   Int                              @default(0) @map("matched_count")
+  unknownCount   Int                              @default(0) @map("unknown_count")
+  leaseOwner     String?                          @map("lease_owner") @db.VarChar(128)
+  leaseUntil     DateTime?                        @map("lease_until") @db.Timestamptz(6)
+  attempt        Int                              @default(0)
+  result         Json                             @default("{}")
+  errorCode      String?                          @map("error_code") @db.VarChar(128)
+  createdAt      DateTime                         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime                         @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant      Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   portfolio   ResearchPortfolio            @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
@@ -15362,6 +15487,258 @@ model ResearchPortfolioRecomputeJob {
   @@index([tenantId, status, leaseUntil], map: "research_portfolio_recompute_jobs_claim_idx")
   @@index([tenantId, portfolioId, createdAt(sort: Desc)], map: "research_portfolio_recompute_jobs_portfolio_idx")
   @@map("research_portfolio_recompute_jobs")
+}
+
+model ResearchPortfolioReview {
+  id                 String                            @id @default(uuid()) @db.Uuid
+  tenantId           String                            @map("tenant_id") @db.Uuid
+  portfolioId        String                            @map("portfolio_id") @db.Uuid
+  targetKind         ResearchPortfolioReviewTargetKind @map("target_kind")
+  targetId           String                            @map("target_id") @db.VarChar(256)
+  trigger            ResearchPortfolioReviewTrigger
+  triggerIdentity    String                            @map("trigger_identity") @db.VarChar(256)
+  dependencyIdentity String?                           @map("dependency_identity") @db.VarChar(256)
+  assigneeUserId     String?                           @map("assignee_user_id") @db.Uuid
+  reason             String                            @db.Text
+  evidenceFor        Json                              @default("[]") @map("evidence_for")
+  evidenceAgainst    Json                              @default("[]") @map("evidence_against")
+  revision           Int                               @default(1)
+  triggerFingerprint String                            @map("trigger_fingerprint") @db.Char(64)
+  status             ResearchPortfolioReviewStatus     @default(open)
+  createdAt          DateTime                          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime                          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  resolvedAt         DateTime?                         @map("resolved_at") @db.Timestamptz(6)
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id], map: "research_portfolio_reviews_tenant_id_key")
+  @@unique([tenantId, portfolioId, triggerFingerprint], map: "research_portfolio_reviews_trigger_fingerprint_key")
+  @@index([tenantId, portfolioId, status, updatedAt(sort: Desc)], map: "research_portfolio_reviews_status_idx")
+  @@index([tenantId, portfolioId, targetKind, targetId], map: "research_portfolio_reviews_target_idx")
+  @@map("research_portfolio_reviews")
+}
+
+model ResearchPortfolioDecision {
+  id              String                            @id @default(uuid()) @db.Uuid
+  tenantId        String                            @map("tenant_id") @db.Uuid
+  portfolioId     String                            @map("portfolio_id") @db.Uuid
+  targetKind      ResearchPortfolioReviewTargetKind @map("target_kind")
+  targetId        String                            @map("target_id") @db.VarChar(256)
+  decisionType    ResearchPortfolioDecisionType     @map("decision_type")
+  reason          String                            @db.Text
+  authorUserId    String                            @map("author_user_id") @db.Uuid
+  decisionTime    DateTime                          @default(now()) @map("decision_time") @db.Timestamptz(6)
+  priorDecisionId String?                           @map("prior_decision_id") @db.Uuid
+  supersedesId    String?                           @map("supersedes_id") @db.Uuid
+  evidenceFor     Json                              @default("[]") @map("evidence_for")
+  evidenceAgainst Json                              @default("[]") @map("evidence_against")
+  reviewId        String?                           @map("review_id") @db.Uuid
+  createdAt       DateTime                          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id], map: "research_portfolio_decisions_tenant_id_key")
+  @@unique([tenantId, portfolioId, targetKind, targetId, decisionTime, id], map: "research_portfolio_decisions_target_time_key")
+  @@index([tenantId, portfolioId, decisionTime(sort: Desc)], map: "research_portfolio_decisions_timeline_idx")
+  @@index([tenantId, portfolioId, reviewId], map: "research_portfolio_decisions_review_idx")
+  @@map("research_portfolio_decisions")
+}
+
+model ResearchPortfolioContinuityLedger {
+  id                         String                            @id @default(uuid()) @db.Uuid
+  tenantId                   String                            @map("tenant_id") @db.Uuid
+  portfolioId                String                            @map("portfolio_id") @db.Uuid
+  priorDecisionId            String?                           @map("prior_decision_id") @db.Uuid
+  currentDecisionId          String?                           @map("current_decision_id") @db.Uuid
+  continuityKey              String                            @map("continuity_key") @db.Char(64)
+  priorDependencyFingerprint String?                           @map("prior_dependency_fingerprint") @db.Char(64)
+  dependencyFingerprint      String                            @map("dependency_fingerprint") @db.Char(64)
+  status                     ResearchPortfolioContinuityStatus
+  identityMapping            Json                              @default("{}") @map("identity_mapping")
+  changedDependencies        Json                              @default("{}") @map("changed_dependencies")
+  originalEvidence           Json                              @default("{}") @map("original_evidence")
+  sourceEdition              String?                           @map("source_edition") @db.VarChar(128)
+  relevantPeriodStart        DateTime?                         @map("relevant_period_start") @db.Date
+  relevantPeriodEnd          DateTime?                         @map("relevant_period_end") @db.Date
+  expiryDate                 DateTime?                         @map("expiry_date") @db.Date
+  reopeningReason            String?
+  reopeningReviewId          String?                           @map("reopening_review_id") @db.Uuid
+  createdAt                  DateTime                          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime                          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, portfolioId, continuityKey], map: "research_portfolio_continuity_ledger_key")
+  @@index([tenantId, portfolioId, status, updatedAt(sort: Desc)], map: "research_portfolio_continuity_ledger_status_idx")
+  @@map("research_portfolio_continuity_ledger")
+}
+
+model ResearchPortfolioImportJob {
+  id                 String                               @id @default(uuid()) @db.Uuid
+  tenantId           String                               @map("tenant_id") @db.Uuid
+  portfolioId        String                               @map("portfolio_id") @db.Uuid
+  operationKey       String                               @map("operation_key") @db.VarChar(128)
+  worksheetKind      ResearchPortfolioImportWorksheetKind @map("worksheet_kind")
+  status             ResearchPortfolioImportJobStatus     @default(created)
+  originalHash       String                               @map("original_hash") @db.Char(64)
+  originalSize       Int                                  @map("original_size")
+  fileName           String                               @map("file_name") @db.VarChar(255)
+  mediaType          String                               @map("media_type") @db.VarChar(128)
+  originalStorageKey String?                              @map("original_storage_key") @db.VarChar(512)
+  originalBytes      Bytes                                @map("original_bytes")
+  fileMetadata       Json                                 @default("{}") @map("file_metadata")
+  parserVersion      String                               @map("parser_version") @db.VarChar(32)
+  schemaVersion      String                               @map("schema_version") @db.VarChar(32)
+  targetRevision     Int                                  @map("target_revision")
+  checkpoint         Json?                                @map("checkpoint")
+  leaseOwner         String?                              @map("lease_owner") @db.VarChar(128)
+  leaseUntil         DateTime?                            @map("lease_until") @db.Timestamptz(6)
+  rowCount           Int                                  @default(0) @map("row_count")
+  appliedCount       Int                                  @default(0) @map("applied_count")
+  createdAt          DateTime                             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime                             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant                                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio                            @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  mappings  ResearchPortfolioImportMappingVersion[]
+  rows      ResearchPortfolioImportRow[]
+  attempts  ResearchPortfolioImportAttempt[]
+  effects   ResearchPortfolioImportEffect[]
+  receipts  ResearchPortfolioImportCompensationReceipt[]
+
+  @@unique([tenantId, id], map: "research_portfolio_import_jobs_tenant_id_key")
+  @@unique([tenantId, operationKey], map: "research_portfolio_import_jobs_operation_key")
+  @@index([tenantId, portfolioId, status, createdAt(sort: Desc)], map: "research_portfolio_import_jobs_status_idx")
+  @@map("research_portfolio_import_jobs")
+}
+
+model ResearchPortfolioImportRow {
+  id                    String                                           @id @default(uuid()) @db.Uuid
+  tenantId              String                                           @map("tenant_id") @db.Uuid
+  portfolioId           String                                           @map("portfolio_id") @db.Uuid
+  importJobId           String                                           @map("import_job_id") @db.Uuid
+  worksheetKind         ResearchPortfolioImportWorksheetKind             @map("worksheet_kind")
+  sheetName             String?                                          @map("sheet_name") @db.VarChar(128)
+  rowNumber             Int                                              @map("row_number")
+  rowIdentity           String                                           @map("row_identity") @db.VarChar(256)
+  rawCells              Json                                             @default("{}") @map("raw_cells")
+  parsedData            Json                                             @default("{}") @map("parsed_data")
+  repairs               Json                                             @default("{}") @map("repairs")
+  validationIssues      Json                                             @default("[]") @map("validation_issues")
+  selected              Boolean                                          @default(true)
+  previewClassification ResearchPortfolioImportRowPreviewClassification?
+  previewReason         String?                                          @map("preview_reason")
+  finalOutcome          ResearchPortfolioImportRowOutcome?
+  finalReason           String?                                          @map("final_reason")
+  finalDisposition      Json                                             @default("{}") @map("final_disposition")
+  expectedRevision      Int?                                             @map("expected_revision")
+  canonicalTargetKey    String?                                          @map("canonical_target_key") @db.VarChar(320)
+  targetKind            String?                                          @map("target_kind") @db.VarChar(64)
+  targetId              String?                                          @map("target_id") @db.VarChar(256)
+  createdAt             DateTime                                         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime                                         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio          @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  importJob ResearchPortfolioImportJob @relation(fields: [tenantId, importJobId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, importJobId, rowIdentity], map: "research_portfolio_import_rows_row_identity_key")
+  @@index([tenantId, portfolioId, importJobId, finalOutcome], map: "research_portfolio_import_rows_outcome_idx")
+  @@map("research_portfolio_import_rows")
+}
+
+/// Immutable mapping history. There is intentionally no updatedAt field.
+model ResearchPortfolioImportMappingVersion {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  portfolioId   String   @map("portfolio_id") @db.Uuid
+  importJobId   String   @map("import_job_id") @db.Uuid
+  version       Int
+  mapping       Json
+  schemaVersion String   @map("schema_version") @db.VarChar(32)
+  authorUserId  String   @map("author_user_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "rp_import_mappings_tenant_fkey")
+  portfolio ResearchPortfolio          @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade, map: "rp_import_mappings_portfolio_fkey")
+  importJob ResearchPortfolioImportJob @relation(fields: [tenantId, importJobId], references: [tenantId, id], onDelete: Cascade, map: "rp_import_mappings_job_fkey")
+
+  @@unique([tenantId, importJobId, version], map: "research_portfolio_import_mappings_version_key")
+  @@map("research_portfolio_import_mapping_versions")
+}
+
+/// Immutable attempt history, including known failure versus unknown outcome.
+model ResearchPortfolioImportAttempt {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  portfolioId  String   @map("portfolio_id") @db.Uuid
+  importJobId  String   @map("import_job_id") @db.Uuid
+  operationKey String   @map("operation_key") @db.VarChar(128)
+  action       String   @db.VarChar(32)
+  outcome      String   @db.VarChar(32)
+  checkpoint   Json     @default("{}")
+  errorCode    String?  @map("error_code") @db.VarChar(128)
+  receipt      Json     @default("{}")
+  actorUserId  String   @map("actor_user_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio          @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  importJob ResearchPortfolioImportJob @relation(fields: [tenantId, importJobId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, operationKey], map: "research_portfolio_import_attempts_operation_key")
+  @@index([tenantId, importJobId, createdAt], map: "research_portfolio_import_attempts_job_idx")
+  @@map("research_portfolio_import_attempts")
+}
+
+/// Durable ownership record for effects created by one applied import row.
+model ResearchPortfolioImportEffect {
+  id                    String   @id @default(uuid()) @db.Uuid
+  tenantId              String   @map("tenant_id") @db.Uuid
+  portfolioId           String   @map("portfolio_id") @db.Uuid
+  importJobId           String   @map("import_job_id") @db.Uuid
+  importRowId           String   @map("import_row_id") @db.Uuid
+  effectFingerprint     String   @map("effect_fingerprint") @db.Char(64)
+  effectKind            String   @map("effect_kind") @db.VarChar(48)
+  canonicalTargetKey    String   @map("canonical_target_key") @db.VarChar(320)
+  targetId              String   @map("target_id") @db.VarChar(256)
+  targetRevisionAtApply Int?     @map("target_revision_at_apply")
+  payload               Json     @default("{}")
+  appliedAt             DateTime @default(now()) @map("applied_at") @db.Timestamptz(6)
+
+  tenant    Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio          @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  importJob ResearchPortfolioImportJob @relation(fields: [tenantId, importJobId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, importJobId, effectFingerprint], map: "research_portfolio_import_effects_fingerprint_key")
+  @@unique([tenantId, importJobId, canonicalTargetKey, effectKind], map: "research_portfolio_import_effects_target_key")
+  @@index([tenantId, importRowId], map: "research_portfolio_import_effects_row_idx")
+  @@map("research_portfolio_import_effects")
+}
+
+/// Immutable compensation preview/commit receipt. Original import results remain unchanged.
+model ResearchPortfolioImportCompensationReceipt {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  portfolioId  String   @map("portfolio_id") @db.Uuid
+  importJobId  String   @map("import_job_id") @db.Uuid
+  operationKey String   @map("operation_key") @db.VarChar(128)
+  previewHash  String   @map("preview_hash") @db.Char(64)
+  status       String   @db.VarChar(32)
+  effects      Json     @default("[]")
+  actorUserId  String   @map("actor_user_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "rp_import_receipts_tenant_fkey")
+  portfolio ResearchPortfolio          @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade, map: "rp_import_receipts_portfolio_fkey")
+  importJob ResearchPortfolioImportJob @relation(fields: [tenantId, importJobId], references: [tenantId, id], onDelete: Cascade, map: "rp_import_receipts_job_fkey")
+
+  @@unique([tenantId, operationKey], map: "research_portfolio_import_receipts_operation_key")
+  @@index([tenantId, importJobId, createdAt], map: "research_portfolio_import_receipts_job_idx")
+  @@map("research_portfolio_import_compensation_receipts")
 }
 
 // ---------------------------------------------------------------------------
@@ -15395,8 +15772,8 @@ model DefenseContextDocument {
 
   currentRevision    DefenseContextDocumentRevision?  @relation("DefenseContextCurrentRevision", fields: [currentRevisionId], references: [id], onDelete: SetNull)
   revisions          DefenseContextDocumentRevision[] @relation("DefenseContextDocumentRevisions")
-  references         DefenseReferenceOccurrence[] @relation("DefenseReferenceSourceDocument")
-  resolvedReferences DefenseReferenceOccurrence[] @relation("DefenseReferenceResolvedDocument")
+  references         DefenseReferenceOccurrence[]     @relation("DefenseReferenceSourceDocument")
+  resolvedReferences DefenseReferenceOccurrence[]     @relation("DefenseReferenceResolvedDocument")
 
   @@index([family, publisher, publishedAt(sort: Desc)], map: "defense_context_documents_family_publisher_idx")
   @@index([coverage, qualification, eligible], map: "defense_context_documents_coverage_idx")
@@ -15415,9 +15792,9 @@ model DefenseContextDocumentRevision {
   sourceUrl        String?   @map("source_url") @db.Text
   provenance       Json      @default("{}")
 
-  document       DefenseContextDocument  @relation("DefenseContextDocumentRevisions", fields: [documentId], references: [id], onDelete: Cascade)
-  currentForDocument DefenseContextDocument? @relation("DefenseContextCurrentRevision")
-  sourceDocument SourceDocument?         @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  document           DefenseContextDocument       @relation("DefenseContextDocumentRevisions", fields: [documentId], references: [id], onDelete: Cascade)
+  currentForDocument DefenseContextDocument?      @relation("DefenseContextCurrentRevision")
+  sourceDocument     SourceDocument?              @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   sections           DefenseContextSection[]
   references         DefenseReferenceOccurrence[] @relation("DefenseReferenceSourceRevision")
   resolvedReferences DefenseReferenceOccurrence[] @relation("DefenseReferenceResolvedRevision")
@@ -15429,18 +15806,18 @@ model DefenseContextDocumentRevision {
 }
 
 model DefenseContextSection {
-  id               String   @id @default(uuid()) @db.Uuid
-  revisionId       String   @map("revision_id") @db.Uuid
+  id               String  @id @default(uuid()) @db.Uuid
+  revisionId       String  @map("revision_id") @db.Uuid
   ordinal          Int
-  label            String   @db.Text
-  nativeLocator    String?  @map("native_locator") @db.VarChar(300)
-  textAvailability String   @map("text_availability") @db.VarChar(24)
-  contentHash      String?  @map("content_hash") @db.Char(64)
-  contentText      String?  @map("content_text") @db.Text
+  label            String  @db.Text
+  nativeLocator    String? @map("native_locator") @db.VarChar(300)
+  textAvailability String  @map("text_availability") @db.VarChar(24)
+  contentHash      String? @map("content_hash") @db.Char(64)
+  contentText      String? @map("content_text") @db.Text
 
   revision           DefenseContextDocumentRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
-  references         DefenseReferenceOccurrence[] @relation("DefenseReferenceSourceSection")
-  resolvedReferences DefenseReferenceOccurrence[] @relation("DefenseReferenceResolvedSection")
+  references         DefenseReferenceOccurrence[]   @relation("DefenseReferenceSourceSection")
+  resolvedReferences DefenseReferenceOccurrence[]   @relation("DefenseReferenceResolvedSection")
 
   @@unique([revisionId, ordinal], map: "defense_context_sections_revision_ordinal_key")
   @@index([revisionId, nativeLocator], map: "defense_context_sections_locator_idx")
@@ -15448,25 +15825,25 @@ model DefenseContextSection {
 }
 
 model DefenseReferenceOccurrence {
-  id                       String   @id @default(uuid()) @db.Uuid
-  documentId               String   @map("document_id") @db.Uuid
-  revisionId               String   @map("revision_id") @db.Uuid
-  sectionId                String?  @map("section_id") @db.Uuid
-  exactSpan                String   @map("exact_span") @db.Text
-  startOffset              Int?     @map("start_offset")
-  endOffset                Int?     @map("end_offset")
-  originalWording          String   @map("original_wording") @db.Text
-  referenceType            String   @map("reference_type") @db.VarChar(64)
-  targetCandidates         Json     @map("target_candidates") @default("[]")
-  resolvedTarget           Json?    @map("resolved_target")
-  resolvedTargetDocumentId String?  @map("resolved_target_document_id") @db.Uuid
-  resolvedTargetRevisionId String?  @map("resolved_target_revision_id") @db.Uuid
-  resolvedTargetSectionId  String?  @map("resolved_target_section_id") @db.Uuid
-  disposition              String   @db.VarChar(24)
-  targetAvailability       String   @map("target_availability") @db.VarChar(24)
-  reviewedByUserId         String?  @map("reviewed_by_user_id") @db.Uuid
+  id                       String    @id @default(uuid()) @db.Uuid
+  documentId               String    @map("document_id") @db.Uuid
+  revisionId               String    @map("revision_id") @db.Uuid
+  sectionId                String?   @map("section_id") @db.Uuid
+  exactSpan                String    @map("exact_span") @db.Text
+  startOffset              Int?      @map("start_offset")
+  endOffset                Int?      @map("end_offset")
+  originalWording          String    @map("original_wording") @db.Text
+  referenceType            String    @map("reference_type") @db.VarChar(64)
+  targetCandidates         Json      @default("[]") @map("target_candidates")
+  resolvedTarget           Json?     @map("resolved_target")
+  resolvedTargetDocumentId String?   @map("resolved_target_document_id") @db.Uuid
+  resolvedTargetRevisionId String?   @map("resolved_target_revision_id") @db.Uuid
+  resolvedTargetSectionId  String?   @map("resolved_target_section_id") @db.Uuid
+  disposition              String    @db.VarChar(24)
+  targetAvailability       String    @map("target_availability") @db.VarChar(24)
+  reviewedByUserId         String?   @map("reviewed_by_user_id") @db.Uuid
   reviewedAt               DateTime? @map("reviewed_at") @db.Timestamptz(6)
-  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   document         DefenseContextDocument          @relation("DefenseReferenceSourceDocument", fields: [documentId], references: [id], onDelete: Cascade)
   revision         DefenseContextDocumentRevision  @relation("DefenseReferenceSourceRevision", fields: [revisionId], references: [id], onDelete: Cascade)

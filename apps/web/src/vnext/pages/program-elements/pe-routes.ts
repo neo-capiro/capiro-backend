@@ -12,6 +12,7 @@
  *   /program-elements?dest=movement|congressional|actions|portfolio
  *   /program-elements/mark-up-monitor                  Mark-up monitor (native, Phase 3)
  *   /program-elements/contacts                         Contact review queue (native, Phase 3)
+ *   /program-elements/research                         Defense research (native, Phase 5)
  *   /program-elements/:peCode                          Line profile (Overview default tab)
  *   /program-elements/:peCode?tab=funding|legislative|structure|sources
  *
@@ -47,7 +48,7 @@ export const PE_WORKSPACE_ROUTE = '/program-elements';
  * Static PE segments claimed by the vNext module as of Phase 3 (native
  * rebuilds of the canonical mark-up monitor and contact review queue).
  */
-export const PE_CLAIMED_STATIC_SEGMENTS = ['mark-up-monitor', 'contacts'] as const;
+export const PE_CLAIMED_STATIC_SEGMENTS = ['mark-up-monitor', 'contacts', 'research', 'compare', 'coverage'] as const;
 export type PeStaticSegment = (typeof PE_CLAIMED_STATIC_SEGMENTS)[number];
 
 /**

@@ -9,6 +9,18 @@ import type {
   DefenseFundingMatrixDto,
   DefenseMilestoneResponseDto,
   DefenseReferenceOccurrenceDto,
+  DefenseResearchAvailability,
+  DefenseOfficeListDto,
+  DefenseOfficeDetailDto,
+  DefenseRelationshipListDto,
+  OfficeStatus,
+  DefenseAcquisitionRecordListDto,
+  DefenseAcquisitionRecordDetailDto,
+  DefenseAcquisitionRecordActionDto,
+  DefenseAcquisitionCoverageGapListDto,
+  DefenseSearchResponseDto,
+  DefenseComparisonResponseDto,
+  DefenseProductCoverageResponseDto,
 } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -90,8 +102,142 @@ export class DefenseResearchController {
     return this.service.referenceOccurrence(occurrenceId);
   }
 
+  @Get('offices')
+  listOffices(
+    @Query('agency') agency?: string,
+    @Query('component') component?: string,
+    @Query('officeType') officeType?: string,
+    @Query('capability') capability?: string,
+    @Query('program') program?: string,
+    @Query('status') status?: OfficeStatus,
+    @Query('availability') availability?: DefenseResearchAvailability,
+    @Query('freshness') freshness?: 'fresh' | 'stale' | 'any',
+    @Query('q') q?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ): Promise<DefenseOfficeListDto> {
+    return this.service.listOffices({
+      agency,
+      component,
+      officeType,
+      capability,
+      program,
+      status,
+      availability,
+      freshness,
+      q,
+      page,
+      limit,
+    });
+  }
+
+  @Get('offices/:officeId')
+  getOffice(@Param('officeId') officeId: string): Promise<DefenseOfficeDetailDto> {
+    return this.service.getOffice(officeId);
+  }
+
+  @Get('relationships')
+  getRelationships(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('edgeType') edgeType?: string,
+    @Query('status') status?: string,
+    @Query('includeSpeculative') includeSpeculative?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ): Promise<DefenseRelationshipListDto> {
+    return this.service.getRelationships({
+      from,
+      to,
+      edgeType,
+      status,
+      includeSpeculative: includeSpeculative === 'true',
+      page,
+      limit,
+    });
+  }
+
+  @Get('acquisition-records')
+  getAcquisitionRecords(
+    @Query('q') q?: string,
+    @Query('sourceSystem') sourceSystem?: string,
+    @Query('recordKind') recordKind?: string,
+    @Query('status') status?: string,
+    @Query('buyerOffice') buyerOffice?: string,
+    @Query('activeOn') activeOn?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ): Promise<DefenseAcquisitionRecordListDto> {
+    return this.service.getAcquisitionRecords({
+      q,
+      sourceSystem,
+      recordKind,
+      status,
+      buyerOffice,
+      activeOn,
+      page,
+      limit,
+    });
+  }
+
+  @Get('acquisition-records/:identityKey/actions')
+  getAcquisitionActions(@Param('identityKey') identityKey: string): Promise<readonly DefenseAcquisitionRecordActionDto[]> {
+    return this.service.getAcquisitionActions(identityKey);
+  }
+
+  @Get('acquisition-records/:identityKey')
+  getAcquisitionRecord(@Param('identityKey') identityKey: string, @Query('includeSpeculative') includeSpeculative?: string): Promise<DefenseAcquisitionRecordDetailDto> {
+    return this.service.getAcquisitionRecord(identityKey, includeSpeculative === 'true');
+  }
+
+  @Get('acquisition-coverage')
+  getAcquisitionCoverage(
+    @Query('subjectKind') subjectKind: string,
+    @Query('subjectKey') subjectKey: string,
+  ): Promise<DefenseAcquisitionCoverageGapListDto> {
+    return this.service.getAcquisitionCoverage(subjectKind, subjectKey);
+  }
+
   @Get('evidence/:evidenceRefId')
   evidence(@Param('evidenceRefId') evidenceRefId: string): Promise<DefenseEvidenceRefDto> {
     return this.service.resolveEvidence(evidenceRefId);
+  }
+
+  @Get('search')
+  search(
+    @Query('q') q: string,
+    @Query('semanticEnabled') semanticEnabled?: string,
+  ): Promise<DefenseSearchResponseDto> {
+    return this.service.search(q, semanticEnabled === 'true');
+  }
+
+  @Get('compare')
+  compare(
+    @Query('subjects') subjects: string,
+  ): Promise<DefenseComparisonResponseDto> {
+    return this.service.compare(subjects.split(',').map(s => s.trim()).filter(Boolean));
+  }
+
+  @Get('product-coverage')
+  productCoverage(
+    @Query('perimeter') perimeter?: string,
+    @Query('component') component?: string,
+    @Query('account') account?: string,
+    @Query('family') family?: string,
+    @Query('fiscalYear') fiscalYear?: string,
+    @Query('edition') edition?: string,
+    @Query('stage') stage?: string,
+    @Query('detail') detail?: string,
+  ): Promise<DefenseProductCoverageResponseDto> {
+    return this.service.productCoverage({
+      perimeter,
+      component,
+      account,
+      family,
+      fiscalYear: fiscalYear ? Number.parseInt(fiscalYear, 10) : undefined,
+      edition,
+      stage,
+      detail,
+    });
   }
 }

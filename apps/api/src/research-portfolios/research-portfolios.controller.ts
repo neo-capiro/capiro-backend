@@ -37,12 +37,25 @@ import type {
   ResearchPortfolioTemplateDto,
   ResearchPortfolioTemplateVersionDto,
   ResearchTaxonomyVersionDto,
+  AssignResearchPortfolioReviewDto,
+  DecideResearchPortfolioReviewDto,
+  BulkResearchPortfolioReviewsDto,
+  ReopenResearchPortfolioAnnualReviewDto,
+  ResearchPortfolioAnnualReviewDto,
+  ResearchPortfolioReviewDto,
+  ResearchPortfolioReviewMutationReceiptDto,
+  CreateResearchPortfolioImportDto,
+  ResearchPortfolioImportActionDto,
+  ResearchPortfolioImportDetailDto,
+  ResearchPortfolioImportJobDto,
 } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { ResearchPortfoliosService } from './research-portfolios.service.js';
 import { ResearchPortfolioRulesService } from './research-portfolio-rules.service.js';
+import { ResearchPortfolioReviewService } from './research-portfolio-review.service.js';
+import { ResearchPortfolioImportService } from './research-portfolio-import.service.js';
 
 const RESERVED_STATIC_IDS = new Set(['templates', 'taxonomy']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -60,6 +73,8 @@ export class ResearchPortfoliosController {
   constructor(
     private readonly service: ResearchPortfoliosService,
     private readonly rules: ResearchPortfolioRulesService,
+    private readonly reviewService: ResearchPortfolioReviewService,
+    private readonly importService: ResearchPortfolioImportService,
   ) {}
 
   @Get()
@@ -292,5 +307,98 @@ export class ResearchPortfoliosController {
   ): Promise<ResearchPortfolioMutationReceiptDto> {
     ensurePortfolioId(id);
     return this.service.resolveMember(ctx, id, memberId, dto);
+  }
+
+  @Post(':id/imports')
+  async createImport(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() dto: CreateResearchPortfolioImportDto,
+  ): Promise<ResearchPortfolioImportJobDto> {
+    ensurePortfolioId(id);
+    return this.importService.createJob(ctx, id, dto);
+  }
+
+  @Get(':id/imports/:jobId')
+  async getImport(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('jobId') jobId: string,
+  ): Promise<ResearchPortfolioImportDetailDto> {
+    ensurePortfolioId(id);
+    return this.importService.getJob(ctx, id, jobId);
+  }
+
+  @Post(':id/imports/:jobId/:action')
+  async actOnImport(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('jobId') jobId: string,
+    @Param('action') action: string,
+    @Body() dto: ResearchPortfolioImportActionDto,
+  ): Promise<ResearchPortfolioImportDetailDto> {
+    ensurePortfolioId(id);
+    return this.importService.action(ctx, id, jobId, action, dto);
+  }
+
+  @Get(':id/reviews')
+  async listReviews(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Query('lane') lane: 'mine' | 'team' | 'deferred' | 'resolved',
+  ): Promise<readonly ResearchPortfolioReviewDto[]> {
+    ensurePortfolioId(id);
+    return this.reviewService.listReviews(ctx, id, lane ?? 'mine');
+  }
+
+  @Post(':id/reviews/:reviewId/assign')
+  async assignReview(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('reviewId') reviewId: string,
+    @Body() dto: AssignResearchPortfolioReviewDto,
+  ): Promise<ResearchPortfolioReviewMutationReceiptDto> {
+    ensurePortfolioId(id);
+    return this.reviewService.assignReview(ctx, id, reviewId, dto);
+  }
+
+  @Post(':id/reviews/:reviewId/decision')
+  async decideReview(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('reviewId') reviewId: string,
+    @Body() dto: DecideResearchPortfolioReviewDto,
+  ): Promise<ResearchPortfolioReviewMutationReceiptDto> {
+    ensurePortfolioId(id);
+    return this.reviewService.decideReview(ctx, id, reviewId, dto);
+  }
+
+  @Post(':id/reviews/bulk')
+  async bulkDecideReviews(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() dto: BulkResearchPortfolioReviewsDto,
+  ): Promise<ResearchPortfolioReviewMutationReceiptDto> {
+    ensurePortfolioId(id);
+    return this.reviewService.bulkDecideReviews(ctx, id, dto);
+  }
+
+  @Get(':id/annual-review')
+  async getAnnualReview(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+  ): Promise<ResearchPortfolioAnnualReviewDto> {
+    ensurePortfolioId(id);
+    return this.reviewService.getAnnualReview(ctx, id);
+  }
+
+  @Post(':id/annual-review/reopen')
+  async reopenAnnualReview(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() dto: ReopenResearchPortfolioAnnualReviewDto,
+  ): Promise<ResearchPortfolioReviewMutationReceiptDto> {
+    ensurePortfolioId(id);
+    return this.reviewService.reopenAnnualReview(ctx, id, dto);
   }
 }

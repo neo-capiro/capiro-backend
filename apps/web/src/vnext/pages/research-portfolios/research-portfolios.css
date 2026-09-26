@@ -44,5 +44,24 @@
 .rp-rule-editors { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .rp-rule-editors textarea { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
 .rp-rule-preview { border-top: 1px solid #edf0f5; padding-top: 12px; }
+.rp-operations { display: grid; gap: 20px; margin: 20px 0; }
+.rp-tabs, .rp-action-group { display: flex; gap: 8px; flex-wrap: wrap; }
+.rp-tabs { margin: 12px 0; }
+.rp-tabs [aria-selected="true"] { background: #4f5bd5; border-color: #4f5bd5; color: #fff; }
+.rp-review { list-style: none; padding: 16px 0; border-top: 1px solid #edf0f5; }
+.rp-review-controls { display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); gap: 10px; }
+.rp-review-controls label, .rp-import-form label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+.rp-review-controls input, .rp-import-form input, .rp-import-form select, .rp-import-form textarea, .rp-grow-input { width: 100%; box-sizing: border-box; border: 1px solid #cfd5e1; border-radius: 8px; padding: 9px 10px; color: inherit; background: #fff; }
+.rp-review-controls .rp-action-group { grid-column: 1 / -1; }
+.rp-continuity-counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin: 12px 0; }
+.rp-continuity-counts span { border-radius: 8px; padding: 8px; background: #f5f7fb; font-size: 12px; text-transform: capitalize; }
+.rp-import-form { display: grid; grid-template-columns: 180px minmax(240px, 1fr); gap: 12px; align-items: end; }
+.rp-import-form label:last-of-type { grid-column: 1 / -1; }
+.rp-import-job { margin-top: 18px; border-top: 1px solid #edf0f5; padding-top: 16px; }
+.rp-table-wrap { margin-top: 14px; overflow-x: auto; }
+.rp-table { width: 100%; border-collapse: collapse; min-width: 700px; font-size: 13px; }
+.rp-table th, .rp-table td { text-align: left; padding: 9px; border-bottom: 1px solid #e7eaf0; vertical-align: top; }
+.rp-grow-input { flex: 1; }
 @media (max-width: 900px) { .rp-columns { grid-template-columns: 1fr; } .rp-form--inline, .rp-form--member { grid-template-columns: 1fr; } .rp-page { padding: 20px; } .rp-page__header { align-items: flex-start; } .rp-member-actions { min-width: 0; flex-wrap: wrap; } }
 @media (max-width: 700px) { .rp-rule-editors { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .rp-review-controls, .rp-import-form { grid-template-columns: 1fr; } .rp-import-form label:last-of-type { grid-column: auto; } }

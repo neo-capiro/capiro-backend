@@ -23,6 +23,7 @@ import {
   updateResearchPortfolio,
 } from './research-portfolios-api.js';
 import { ResearchPortfolioRulesPanel } from './ResearchPortfolioRulesPanel.js';
+import { ResearchPortfolioOperationsPanel } from './ResearchPortfolioOperationsPanel.js';
 
 interface ClientOption { id: string; name: string }
 interface TenantMember { id: string; email?: string; name?: string; firstName?: string; lastName?: string }
@@ -93,6 +94,11 @@ export function ResearchPortfolioDetailPage() {
         portfolio={portfolio}
         canEdit={Boolean(canEdit && !isArchived)}
         onDone={refresh}
+      />
+
+      <ResearchPortfolioOperationsPanel
+        portfolio={portfolio}
+        canEdit={Boolean(canEdit && !isArchived)}
       />
 
       <section className="rp-columns">
