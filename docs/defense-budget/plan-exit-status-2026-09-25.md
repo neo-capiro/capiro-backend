@@ -171,3 +171,15 @@ for these docs-only
 changes. The buyer intake remains `DRAFT_NOT_APPROVED`; Package 9 remains
 `NO_GO`/`shadow_only` until buyer-owned cohort, adjudication, cost, ownership,
 and activation inputs are supplied and independently reviewed.
+
+## 2026-09-26 bounded Package 9 overlap qualification
+
+The disposable Package 9 harness gained an opt-in sustained mixed-load mode
+that preserves the 100-row cap while pacing four local workers. Run
+`p9-20260926000657425-8c3acf` passed with 100 accepted facts, 100 logical
+notifications, terminal queue `0/0/0`, 120 compiled-query samples, query p95
+7.23 ms, and 29,190 ms of drain/query overlap. This is retained as
+`PASS_LIMITED_SCOPE` evidence only. It does not qualify production-scale
+throughput, authenticated HTTP/network latency, source-change-to-verified
+update latency, buyer outcomes, cost attribution, paid-provider economics,
+rollback, or activation. Package 9 remains `NO_GO`/`shadow_only`.
