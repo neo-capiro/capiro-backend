@@ -383,14 +383,26 @@ export class BizDevDossierService {
     }
 
     const unsupported: string[] = [];
-    if (query.agency?.trim()) unsupported.push('agency');
-    if (query.issue?.trim()) unsupported.push('issue');
-    if (query.geography?.trim()) unsupported.push('geography');
+    let agencyFilter: string | null = null;
+    let issueFilter: string | null = null;
+    let geographyFilter: string | null = null;
+    if (query.agency?.trim()) {
+      const trimmed = query.agency.trim();
+      if (trimmed.length <= SEARCH_TERM_MAX) agencyFilter = trimmed;
+    }
+    if (query.issue?.trim()) {
+      const trimmed = query.issue.trim();
+      if (trimmed.length <= SEARCH_TERM_MAX) issueFilter = trimmed;
+    }
+    if (query.geography?.trim()) {
+      const trimmed = query.geography.trim().toUpperCase();
+      if (/^[A-Z]{2}$/.test(trimmed)) geographyFilter = trimmed;
+    }
 
     const coverage = {
-      agencyFilterApplied: false,
-      issueFilterApplied: false,
-      geographyFilterApplied: false,
+      agencyFilterApplied: agencyFilter !== null,
+      issueFilterApplied: issueFilter !== null,
+      geographyFilterApplied: geographyFilter !== null,
       serviceFilterApplied: serviceFilter !== null,
       exclusionsApplied: !includeExcluded,
       unsupportedFilters: unsupported,
@@ -419,6 +431,39 @@ export class BizDevDossierService {
                  AND bp."canonical_entity_id" = ce."id"
                  AND bp."conflict_excluded" = true
              )`;
+    // Agency filter: entities with awards from the matching awarding agency.
+    const agencyPredicate = agencyFilter
+      ? Prisma.sql` AND EXISTS (
+               SELECT 1 FROM "entity_identifiers" _ei
+               JOIN "federal_award" _fa ON _ei."identifier_value" = _fa."recipient_uei"
+               WHERE _ei."entity_id" = ce."id" AND _ei."status" = 'active'
+                 AND _ei."identifier_type" = 'uei'
+                 AND (_ei."identity_scope" = 'global_public' OR _ei."tenant_id" = ${ctx.tenantId}::uuid)
+                 AND _fa."awarding_agency" ILIKE ${`%${agencyFilter}%`}
+             )`
+      : Prisma.empty;
+    // Geography filter: entities with awards in the matching recipient state.
+    const geographyPredicate = geographyFilter
+      ? Prisma.sql` AND EXISTS (
+               SELECT 1 FROM "entity_identifiers" _ei
+               JOIN "federal_award" _fa ON _ei."identifier_value" = _fa."recipient_uei"
+               WHERE _ei."entity_id" = ce."id" AND _ei."status" = 'active'
+                 AND _ei."identifier_type" = 'uei'
+                 AND (_ei."identity_scope" = 'global_public' OR _ei."tenant_id" = ${ctx.tenantId}::uuid)
+                 AND UPPER(_fa."recipient_state") = ${geographyFilter}
+             )`
+      : Prisma.empty;
+    // Issue filter: entities with awards matching the description keyword.
+    const issuePredicate = issueFilter
+      ? Prisma.sql` AND EXISTS (
+               SELECT 1 FROM "entity_identifiers" _ei
+               JOIN "federal_award" _fa ON _ei."identifier_value" = _fa."recipient_uei"
+               WHERE _ei."entity_id" = ce."id" AND _ei."status" = 'active'
+                 AND _ei."identifier_type" = 'uei'
+                 AND (_ei."identity_scope" = 'global_public' OR _ei."tenant_id" = ${ctx.tenantId}::uuid)
+                 AND _fa."description" ILIKE ${`%${issueFilter}%`}
+             )`
+      : Prisma.empty;
 
     const orgs = await this.prisma.withTenant(ctx.tenantId, async (tx) =>
       // CanonicalEntity/EntityAlias/EntityIdentifier are mixed-scope tables;
@@ -453,7 +498,7 @@ export class BizDevDossierService {
                  )
                  AND ei."normalized_value" = ${term.toUpperCase()}
              )
-           )${servicePredicate}${exclusionPredicate}
+           )${servicePredicate}${exclusionPredicate}${agencyPredicate}${geographyPredicate}${issuePredicate}
          ORDER BY ce."canonical_name" ASC, ce."id" ASC
          LIMIT ${limit + 1} OFFSET ${offset}`,
     );
