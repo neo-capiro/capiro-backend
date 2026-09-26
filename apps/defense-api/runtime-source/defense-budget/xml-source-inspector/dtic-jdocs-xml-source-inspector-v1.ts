@@ -8,6 +8,8 @@ export const DTIC_JDOCS_R2_NAMESPACE_V1 =
   'http://www.dtic.mil/comptroller/xml/schema/022009/r2' as const;
 export const DTIC_JDOCS_XML_LOCATOR_INVENTORY_SCHEMA_V1 =
   'dtic_jdocs_xml_locator_inventory_v1' as const;
+export const DTIC_JDOCS_XML_SEMANTIC_CANDIDATE_SCHEMA_V1 =
+  'dtic_jdocs_xml_semantic_candidate_v1' as const;
 
 export const DTIC_FY2026_DTIC_CANDIDATE_PROVENANCE_V1 = {
   mirrorCommit: '5c6310d9845cd75360bf4c39a220f9d6699b65df',
@@ -98,6 +100,46 @@ export interface DticJdocsXmlLocatorInventoryV1 {
   promotable: false;
   originalBytesSha256: string;
   programElementLocators: DticJdocsXmlProgramElementLocatorV1[];
+  limitations: readonly string[];
+}
+
+export interface DticJdocsXmlSemanticFieldLocatorV1 {
+  field:
+    | 'programElementNumber'
+    | 'programElementTitle'
+    | 'budgetYear'
+    | 'programElementFunding'
+    | 'allPriorYears'
+    | 'priorYear'
+    | 'currentYear'
+    | 'budgetYearOne'
+    | 'budgetYearOneBase'
+    | 'programElementMissionDescription';
+  locator: DticJdocsXmlProgramElementLocatorV1;
+}
+
+export interface DticJdocsXmlSemanticCandidateRecordV1 {
+  programElementNumber: string;
+  programElementTitle: string;
+  budgetYear: number;
+  monetaryUnit: string;
+  funding: {
+    allPriorYears: string;
+    priorYear: string;
+    currentYear: string;
+    budgetYearOne: string;
+    budgetYearOneBase: string;
+  };
+  missionDescription?: string;
+  locators: DticJdocsXmlSemanticFieldLocatorV1[];
+}
+
+export interface DticJdocsXmlSemanticCandidateV1 {
+  schemaVersion: typeof DTIC_JDOCS_XML_SEMANTIC_CANDIDATE_SCHEMA_V1;
+  status: 'candidate_only';
+  promotable: false;
+  originalBytesSha256: string;
+  records: DticJdocsXmlSemanticCandidateRecordV1[];
   limitations: readonly string[];
 }
 
@@ -192,10 +234,7 @@ function expandedPathSegment(
 
 function expandedPathString(path: readonly DticJdocsXmlElementPathSegmentV1[]): string {
   return path
-    .map(
-      (segment) =>
-        `{${segment.namespace}}${segment.localName}[${segment.siblingIndex}]`,
-    )
+    .map((segment) => `{${segment.namespace}}${segment.localName}[${segment.siblingIndex}]`)
     .join('/');
 }
 
@@ -209,9 +248,39 @@ function directNamedChildren(
   for (const [key, child] of Object.entries(record)) {
     if (key.startsWith('@_') || localName(key) !== wanted) continue;
     const values = Array.isArray(child) ? child : [child];
-    values.forEach((entry, siblingIndex) => matches.push({ name: key, value: entry, siblingIndex }));
+    values.forEach((entry, siblingIndex) =>
+      matches.push({ name: key, value: entry, siblingIndex }),
+    );
   }
   return matches;
+}
+
+function numericText(value: unknown, field: string): string {
+  const text = scalar(value, field);
+  if (!/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(text))
+    fail(`${field} must be a canonical decimal string`);
+  return text;
+}
+
+function fieldLocator(
+  parent: Record<string, unknown>,
+  parentPath: readonly DticJdocsXmlElementPathSegmentV1[],
+  parentBindings: NamespaceBindings,
+  wanted: string,
+  field: DticJdocsXmlSemanticFieldLocatorV1['field'],
+): { value: string; locator: DticJdocsXmlSemanticFieldLocatorV1 } {
+  const children = directNamedChildren(parent, wanted);
+  if (children.length !== 1) fail(`${wanted} must occur exactly once`);
+  const child = children[0]!;
+  requireElementNamespace(child.name, parentBindings, wanted, DTIC_JDOCS_R2_NAMESPACE_V1);
+  const path = [...parentPath, expandedPathSegment(child.name, parentBindings, child.siblingIndex)];
+  return {
+    value: scalar(child.value, wanted),
+    locator: {
+      field,
+      locator: { elementPath: expandedPathString(path), path, value: scalar(child.value, wanted) },
+    },
+  };
 }
 
 function requireElementNamespace(
@@ -536,6 +605,187 @@ export function inventoryDticJdocsXmlProgramElementLocatorsV1(
     programElementLocators: locators,
     limitations: [
       'element_locators_only_no_funding_semantic_extraction',
+      'does_not_establish_annual_family_or_component_completeness',
+      'prefix_independent_paths_are_bound_to_the_original_source_sha256',
+      'not_promotable_and_not_authorized_for_production_import',
+    ],
+  };
+}
+
+/**
+ * Extract the typed PE-level values present in a pinned DTIC R2 document.
+ * Every value is paired with a prefix-independent expanded-QName locator and
+ * the whole candidate is bound to the original XML byte SHA. This remains a
+ * qualification primitive: it does not assert family completeness, reconcile
+ * against the PDF, persist a semantic artifact, or authorize publication.
+ */
+export function extractDticJdocsXmlSemanticCandidateV1(
+  bytes: Uint8Array,
+  provenance: DticJdocsXmlSourceProvenanceV1,
+): DticJdocsXmlSemanticCandidateV1 {
+  validateProvenance(provenance);
+  const originalBytesSha256 = createHash('sha256').update(bytes).digest('hex');
+  if (provenance.expectedMirrorSha256 && originalBytesSha256 !== provenance.expectedMirrorSha256) {
+    fail('original byte SHA-256 does not match expectedMirrorSha256');
+  }
+  const validation = XMLValidator.validate(Buffer.from(bytes).toString('utf8'));
+  if (validation !== true) fail('XML is not well formed');
+  let document: unknown;
+  try {
+    document = parser.parse(Buffer.from(bytes).toString('utf8'));
+  } catch {
+    fail('XML parser could not read the document');
+  }
+  const topLevel = topLevelDocumentElement(document);
+  if (!topLevel || localName(topLevel.name) !== 'JustificationBook') {
+    fail('expected JustificationBook as the single top-level document element');
+  }
+  const rootBindings = namespaceBindings(topLevel.node);
+  requireElementNamespace(
+    topLevel.name,
+    rootBindings,
+    'JustificationBook',
+    DTIC_JDOCS_XML_ROOT_NAMESPACE_V1,
+  );
+  const r2ListElement = directNamedChild(topLevel.node, 'ProgramElementList');
+  const r2List = asRecord(r2ListElement?.value);
+  if (!r2ListElement || !r2List) fail('expected ProgramElementList in the DTIC R2 namespace');
+  const r2ListBindings = namespaceBindings(r2List, rootBindings);
+  requireElementNamespace(
+    r2ListElement.name,
+    r2ListBindings,
+    'ProgramElementList',
+    DTIC_JDOCS_R2_NAMESPACE_V1,
+  );
+  const listPath = [expandedPathSegment(r2ListElement.name, r2ListBindings, 0)];
+  const records: DticJdocsXmlSemanticCandidateRecordV1[] = [];
+  for (const programElement of directNamedChildren(r2List, 'ProgramElement')) {
+    const programRecord = asRecord(programElement.value);
+    if (!programRecord) fail('R2 ProgramElement must be an object');
+    const programBindings = namespaceBindings(programRecord, r2ListBindings);
+    requireElementNamespace(
+      programElement.name,
+      programBindings,
+      'ProgramElement',
+      DTIC_JDOCS_R2_NAMESPACE_V1,
+    );
+    const programPath = [
+      ...listPath,
+      expandedPathSegment(programElement.name, programBindings, programElement.siblingIndex),
+    ];
+    const number = fieldLocator(
+      programRecord,
+      programPath,
+      programBindings,
+      'ProgramElementNumber',
+      'programElementNumber',
+    );
+    const title = fieldLocator(
+      programRecord,
+      programPath,
+      programBindings,
+      'ProgramElementTitle',
+      'programElementTitle',
+    );
+    const year = fieldLocator(
+      programRecord,
+      programPath,
+      programBindings,
+      'BudgetYear',
+      'budgetYear',
+    );
+    const budgetYear = Number(year.value);
+    if (!/^\d{4}$/.test(year.value) || !Number.isInteger(budgetYear))
+      fail('ProgramElement BudgetYear must be a four-digit year');
+    const monetaryUnit = programRecord['@_monetaryUnit'];
+    if (typeof monetaryUnit !== 'string' || monetaryUnit.trim() === '')
+      fail('ProgramElement monetaryUnit attribute is required');
+    const fundingChild = directNamedChildren(programRecord, 'ProgramElementFunding');
+    if (fundingChild.length !== 1) fail('ProgramElementFunding must occur exactly once');
+    const funding = fundingChild[0]!;
+    requireElementNamespace(
+      funding.name,
+      programBindings,
+      'ProgramElementFunding',
+      DTIC_JDOCS_R2_NAMESPACE_V1,
+    );
+    const fundingRecord = asRecord(funding.value);
+    if (!fundingRecord) fail('ProgramElementFunding must be an object');
+    const fundingBindings = namespaceBindings(fundingRecord, programBindings);
+    const fundingPath = [
+      ...programPath,
+      expandedPathSegment(funding.name, fundingBindings, funding.siblingIndex),
+    ];
+    const fields = [
+      ['AllPriorYears', 'allPriorYears'],
+      ['PriorYear', 'priorYear'],
+      ['CurrentYear', 'currentYear'],
+      ['BudgetYearOne', 'budgetYearOne'],
+      ['BudgetYearOneBase', 'budgetYearOneBase'],
+    ] as const;
+    const fundingValues = Object.fromEntries(
+      fields.map(([xmlName, field]) => {
+        const result = fieldLocator(fundingRecord, fundingPath, fundingBindings, xmlName, field);
+        return [field, { value: numericText(result.value, xmlName), locator: result.locator }];
+      }),
+    ) as Record<
+      (typeof fields)[number][1],
+      { value: string; locator: DticJdocsXmlSemanticFieldLocatorV1 }
+    >;
+    const missionChild = directNamedChildren(programRecord, 'ProgramElementMissionDescription');
+    let missionDescription: string | undefined;
+    let missionLocator: DticJdocsXmlSemanticFieldLocatorV1 | undefined;
+    if (missionChild.length > 1) fail('ProgramElementMissionDescription must occur at most once');
+    if (missionChild.length === 1) {
+      const mission = fieldLocator(
+        programRecord,
+        programPath,
+        programBindings,
+        'ProgramElementMissionDescription',
+        'programElementMissionDescription',
+      );
+      missionDescription = mission.value;
+      missionLocator = mission.locator;
+    }
+    records.push({
+      programElementNumber: number.value,
+      programElementTitle: title.value,
+      budgetYear,
+      monetaryUnit: monetaryUnit.trim(),
+      funding: {
+        allPriorYears: fundingValues.allPriorYears.value,
+        priorYear: fundingValues.priorYear.value,
+        currentYear: fundingValues.currentYear.value,
+        budgetYearOne: fundingValues.budgetYearOne.value,
+        budgetYearOneBase: fundingValues.budgetYearOneBase.value,
+      },
+      ...(missionDescription != null ? { missionDescription } : {}),
+      locators: [
+        number.locator,
+        title.locator,
+        year.locator,
+        {
+          field: 'programElementFunding',
+          locator: {
+            elementPath: expandedPathString(fundingPath),
+            path: fundingPath,
+            value: '[object]',
+          },
+        },
+        ...fields.map(([, field]) => fundingValues[field].locator),
+        ...(missionLocator != null ? [missionLocator] : []),
+      ],
+    });
+  }
+  if (records.length === 0) fail('R2 candidate contains no ProgramElement records');
+  return {
+    schemaVersion: DTIC_JDOCS_XML_SEMANTIC_CANDIDATE_SCHEMA_V1,
+    status: 'candidate_only',
+    promotable: false,
+    originalBytesSha256,
+    records,
+    limitations: [
+      'field_level_xml_candidate_only_no_pdf_reconciliation',
       'does_not_establish_annual_family_or_component_completeness',
       'prefix_independent_paths_are_bound_to_the_original_source_sha256',
       'not_promotable_and_not_authorized_for_production_import',
