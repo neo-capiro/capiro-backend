@@ -1,15 +1,16 @@
 /**
  * Business Development v5 — top-level Watchlist view.
  *
- * A pure aggregation surface: it lists the firm's prospects from the EXISTING
+ * Lists the firm's prospects from the EXISTING
  * Phase 1 list endpoint, then performs a BOUNDED client-side fan-out of the
  * EXISTING Phase 5 per-prospect watch/alert GETs (getBizDevProspectWatch,
  * getBizDevProspectAlerts) over the currently loaded prospects only. It never
- * calls a provider, never mutates, and invents no scenario/digest/delivery
- * controls — every control here maps to a real Phase 5 endpoint. Opening a
- * prospect routes to the exact same drawer where the real watch controls live.
+ * calls a provider or invents scenario/digest/delivery controls. Alert actions
+ * use the existing Phase 5 endpoints. Opening a prospect routes to the same
+ * drawer where the watch controls and evidence live.
  */
-import { useQuery } from '@tanstack/react-query';
+import { useRef, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { useApi } from '../../../lib/use-api.js';
 import { CapiroButton } from '../../components/actions/index.js';
@@ -24,6 +25,9 @@ import {
   getBizDevProspectAlerts,
   getBizDevProspectWatch,
   listBizDevProspects,
+  markBizDevAlertRead,
+  dismissBizDevAlert,
+  bizdevWatchKeys,
   BIZDEV_SOURCE_HEALTH_LABELS,
   type BizDevMemberOption,
   type BizDevProspect,
@@ -104,21 +108,19 @@ function WatchlistProspectCard({
   payload,
   members,
   onOpen,
-  alertCount,
 }: {
   payload: WatchPayload;
   members: BizDevMemberOption[];
   onOpen: (id: string) => void;
-  alertCount: number;
 }) {
-  const { prospect, watch, alerts, error } = payload;
+  const { prospect, watch, error } = payload;
   const w = watch?.watch ?? null;
   const sources = watch?.sources ?? [];
   const memberById = new Map(members.map((m) => [m.id, m]));
   const owner = w?.ownerUserId ? memberById.get(w.ownerUserId) : undefined;
   const muted = Boolean(w?.mutedUntil && new Date(w.mutedUntil).getTime() > Date.now());
   return (
-    <li className="capiro-bizdev__card">
+    <li className="capiro-bizdev__card capiro-bizdev__watch-prospect">
       <div className="capiro-bizdev__card-head">
         <button
           type="button"
@@ -129,8 +131,10 @@ function WatchlistProspectCard({
         </button>
         {w ? <WatchStatusPill status={w.status} /> : null}
         {muted ? <span className="capiro-bizdev__pill">Muted</span> : null}
-        {alertCount > 0 ? (
-          <span className="capiro-bizdev__pill capiro-bizdev__pill--alert">{alertCount} new</span>
+        {payload.alerts.some((a) => !a.readAt) ? (
+          <span className="capiro-bizdev__pill capiro-bizdev__pill--alert">
+            {payload.alerts.filter((a) => !a.readAt).length} new
+          </span>
         ) : null}
       </div>
       <p className="capiro-bizdev__meta">
@@ -164,26 +168,6 @@ function WatchlistProspectCard({
           ))}
         </ul>
       ) : null}
-      {alerts.length > 0 ? (
-        <ul className="capiro-bizdev__alert-feed" aria-label={`Alerts for ${prospect.displayName}`}>
-          {alerts.map((alert) => (
-            <li key={alert.id} className="capiro-bizdev__alert-card">
-              <div className="capiro-bizdev__title-row">
-                <strong>{alert.title}</strong>
-                {alert.readAt ? <span className="capiro-bizdev__meta">Read</span> : null}
-              </div>
-              {alert.company || alert.category || alert.sourceFamily ? (
-                <p className="capiro-bizdev__meta" style={{ margin: 0 }}>
-                  {[alert.company, alert.category ?? alert.sourceFamily].filter(Boolean).join(' · ')}
-                </p>
-              ) : null}
-              <p className="capiro-bizdev__meta" style={{ margin: 0 }}>
-                Open the prospect to mark read or dismiss.
-              </p>
-            </li>
-          ))}
-        </ul>
-      ) : null}
       <div className="capiro-bizdev__actions">
         <CapiroButton size="compact" onClick={() => onOpen(prospect.id)}>
           Open prospect
@@ -203,7 +187,12 @@ export function BizDevWatchlist({
   watchAlertsEnabled: boolean;
 }) {
   const api = useApi();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [category, setCategory] = useState('all');
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingAlertId, setPendingAlertId] = useState<string | null>(null);
+  const pendingAlertRef = useRef<string | null>(null);
 
   // The EXISTING list endpoint with status=all so watched-but-dismissed or
   // any visible prospects can appear; the fan-out filters to active ones.
@@ -223,6 +212,57 @@ export function BizDevWatchlist({
     (n, p) => n + p.alerts.filter((a) => !a.readAt).length,
     0,
   );
+  const feed = watchedPayloads.flatMap((payload) =>
+    payload.alerts.map((alert) => ({ alert, prospect: payload.prospect })),
+  ).sort((a, b) => {
+    const timestamp = (alert: BizDevProspectAlert) =>
+      Date.parse(alert.firstObservedAt ?? alert.publishedAt ?? alert.eventAt ?? '') || 0;
+    return timestamp(b.alert) - timestamp(a.alert);
+  });
+  const categories = [...new Set(feed.map(({ alert }) => alert.category).filter((value): value is string => Boolean(value)))].sort();
+  const filteredFeed = category === 'all' ? feed : feed.filter(({ alert }) => alert.category === category);
+
+  const finishAlertAction = () => {
+    pendingAlertRef.current = null;
+    setPendingAlertId(null);
+  };
+  const invalidateAlerts = (prospectId: string) => {
+    void queryClient.invalidateQueries({ queryKey: fanoutKey(tenantId) });
+    void queryClient.invalidateQueries({ queryKey: bizdevWatchKeys.alerts(tenantId, prospectId) });
+  };
+  const markRead = useMutation({
+    mutationFn: ({ prospectId, alertId }: { prospectId: string; alertId: string }) =>
+      markBizDevAlertRead(api, prospectId, alertId),
+    onSuccess: (_result, { prospectId }) => {
+      setActionError(null);
+      finishAlertAction();
+      invalidateAlerts(prospectId);
+    },
+    onError: (error) => {
+      finishAlertAction();
+      setActionError(bizdevErrorMessage(error));
+    },
+  });
+  const dismiss = useMutation({
+    mutationFn: ({ prospectId, alertId }: { prospectId: string; alertId: string }) =>
+      dismissBizDevAlert(api, prospectId, alertId),
+    onSuccess: (_result, { prospectId }) => {
+      setActionError(null);
+      finishAlertAction();
+      invalidateAlerts(prospectId);
+    },
+    onError: (error) => {
+      finishAlertAction();
+      setActionError(bizdevErrorMessage(error));
+    },
+  });
+  const runAlertAction = (prospectId: string, alertId: string, action: 'read' | 'dismiss') => {
+    if (pendingAlertRef.current) return;
+    pendingAlertRef.current = alertId;
+    setPendingAlertId(alertId);
+    if (action === 'read') markRead.mutate({ prospectId, alertId });
+    else dismiss.mutate({ prospectId, alertId });
+  };
 
   const openProspect = (id: string) =>
     setSearchParams(applyBizDevRoute(searchParams, { prospectId: id, status: 'all' }));
@@ -243,7 +283,7 @@ export function BizDevWatchlist({
       </div>
       <p className="capiro-bizdev__discover-note capiro-bizdev__meta">
         {watchAlertsEnabled
-          ? 'Watched prospects with their real source health, last completed check and current alerts. Read and dismiss actions live on each prospect.'
+          ? 'Recent alerts from watched prospects, with their source health and last completed checks.'
           : 'Watch and alert reporting is not enabled for your firm yet; watch choices are saved but no checks run.'}
       </p>
 
@@ -289,17 +329,73 @@ export function BizDevWatchlist({
           />
         </div>
       ) : (
-        <ul className="capiro-bizdev__watchlist">
-          {visiblePayloads.map((payload) => (
-            <WatchlistProspectCard
-              key={payload.prospect.id}
-              payload={payload}
-              members={members}
-              onOpen={openProspect}
-              alertCount={payload.alerts.filter((a) => !a.readAt).length}
-            />
-          ))}
-        </ul>
+        <div className="capiro-bizdev__watchlist-layout">
+          <section className="capiro-bizdev__watchlist-main" aria-labelledby="bizdev-watchlist-feed-title">
+            <div className="capiro-bizdev__watchlist-section-head">
+              <div>
+                <h3 id="bizdev-watchlist-feed-title">Recent changes</h3>
+                <p className="capiro-bizdev__meta">{feed.length} alerts from the loaded watched prospects</p>
+              </div>
+              {categories.length > 1 ? (
+                <label className="capiro-bizdev__watchlist-filter">
+                  Category
+                  <select value={category} onChange={(event) => setCategory(event.target.value)}>
+                    <option value="all">All categories</option>
+                    {categories.map((value) => <option key={value} value={value}>{value}</option>)}
+                  </select>
+                </label>
+              ) : null}
+            </div>
+            {actionError ? <p role="alert" className="capiro-bizdev__statusnote capiro-bizdev__statusnote--warn">Alert action failed: {actionError}</p> : null}
+            {filteredFeed.length === 0 ? (
+              <p className="capiro-bizdev__meta capiro-bizdev__watchlist-quiet">
+                {feed.length === 0 ? 'No alerts from the loaded watches yet.' : 'No alerts in this category.'}
+              </p>
+            ) : (
+              <ul className="capiro-bizdev__alert-feed" aria-label="Recent watch alerts">
+                {filteredFeed.map(({ alert, prospect }) => (
+                  <li key={`${prospect.id}:${alert.id}`} className="capiro-bizdev__alert-card">
+                    <div className="capiro-bizdev__title-row">
+                      <strong>{alert.title}</strong>
+                      {alert.readAt ? <span className="capiro-bizdev__meta">Read</span> : <span className="capiro-bizdev__pill capiro-bizdev__pill--alert">New</span>}
+                    </div>
+                    <p className="capiro-bizdev__meta capiro-bizdev__watchlist-alert-meta">
+                      {[prospect.displayName, alert.category ?? alert.sourceFamily,
+                        alert.firstObservedAt ? `Observed ${formatDateShort(alert.firstObservedAt) ?? alert.firstObservedAt}` : null,
+                      ].filter(Boolean).join(' · ')}
+                    </p>
+                    {alert.summary ? <p className="capiro-bizdev__watchlist-alert-text">{alert.summary}</p> : null}
+                    {alert.materiality ? <p className="capiro-bizdev__meta capiro-bizdev__watchlist-alert-meta">Materiality: {alert.materiality}</p> : null}
+                    {alert.implication ? <p className="capiro-bizdev__meta capiro-bizdev__watchlist-alert-meta">Inference: {alert.implication}</p> : null}
+                    <div className="capiro-bizdev__actions capiro-bizdev__watchlist-alert-actions">
+                      <CapiroButton size="compact" onClick={() => openProspect(prospect.id)}>Open prospect / evidence</CapiroButton>
+                      {!alert.readAt ? <CapiroButton size="compact" disabled={pendingAlertId !== null} onClick={() => runAlertAction(prospect.id, alert.id, 'read')}>Mark read</CapiroButton> : null}
+                      <CapiroButton size="compact" disabled={pendingAlertId !== null} onClick={() => runAlertAction(prospect.id, alert.id, 'dismiss')}>Dismiss</CapiroButton>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+          <aside className="capiro-bizdev__watchlist-side" aria-labelledby="bizdev-watchlist-prospects-title">
+            <div className="capiro-bizdev__watchlist-section-head">
+              <div>
+                <h3 id="bizdev-watchlist-prospects-title">Watched prospects</h3>
+                <p className="capiro-bizdev__meta">Status and source health</p>
+              </div>
+            </div>
+            <ul className="capiro-bizdev__watchlist">
+              {visiblePayloads.map((payload) => (
+                <WatchlistProspectCard
+                  key={payload.prospect.id}
+                  payload={payload}
+                  members={members}
+                  onOpen={openProspect}
+                />
+              ))}
+            </ul>
+          </aside>
+        </div>
       )}
       {prospects.filter((p) => p.status === 'active').length > BIZDEV_WATCHLIST_FANOUT_LIMIT ? (
         <p className="capiro-bizdev__footer-note capiro-bizdev__meta">

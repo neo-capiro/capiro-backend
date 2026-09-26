@@ -66,14 +66,20 @@ function CandidateMarkers({ candidate }: { candidate: BizDevCandidate }) {
 function WhyInspect({ candidate }: { candidate: BizDevCandidate }) {
   const r = candidate.whyInspect;
   if (!r) {
-    return <span className="capiro-bizdev__meta">No ingested records explain this company yet.</span>;
+    return <div className="capiro-bizdev__candidate-evidence capiro-bizdev__meta">No ingested records explain this company yet.</div>;
   }
   return (
-    <span className="capiro-bizdev__meta">
-      Why inspect: {r.title}
-      {r.eventDate ? ` (${formatDateShort(r.eventDate) ?? r.eventDate})` : ''} — {r.originalSourceName}
-      {r.fetchedAt ? ` · fetched ${formatDateShort(r.fetchedAt) ?? r.fetchedAt}` : ''}
-    </span>
+    <div className="capiro-bizdev__candidate-evidence">
+      <span className="capiro-bizdev__candidate-evidence-icon" aria-hidden="true">▤</span>
+      <div>
+        <span className="capiro-bizdev__candidate-evidence-label">Why inspect · {r.originalSourceName}</span>
+        <span className="capiro-bizdev__candidate-evidence-title">Why inspect: {r.title}</span>
+        <span className="capiro-bizdev__meta">
+          {r.eventDate ? `Event ${formatDateShort(r.eventDate) ?? r.eventDate}` : 'Event date unavailable'}
+          {r.fetchedAt ? ` · fetched ${formatDateShort(r.fetchedAt) ?? r.fetchedAt}` : ''}
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -121,12 +127,23 @@ function CandidateRow({
   const identifiers = (candidate.identifiers ?? [])
     .map((i) => `${i.type}: ${i.value}`)
     .join(' · ');
+  const initials = candidate.canonicalName.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
 
   return (
     <li className="capiro-bizdev__candidate">
       <div className="capiro-bizdev__candidate-main">
-        <span className="capiro-bizdev__candidate-name">{candidate.canonicalName}</span>
-        {identifiers ? <span className="capiro-bizdev__meta">{identifiers}</span> : null}
+        <div className="capiro-bizdev__candidate-identity">
+          <span className="capiro-bizdev__candidate-avatar" aria-hidden="true">{initials}</span>
+          <div>
+            <div className="capiro-bizdev__candidate-heading">
+              <span className="capiro-bizdev__candidate-name">{candidate.canonicalName}</span>
+              {candidate.whyInspect?.relationshipStrength === 'direct' ? (
+                <span className="capiro-bizdev__candidate-badge">Direct evidence</span>
+              ) : null}
+            </div>
+            {identifiers ? <span className="capiro-bizdev__meta">{identifiers}</span> : null}
+          </div>
+        </div>
         <WhyInspect candidate={candidate} />
         <CandidateMarkers candidate={candidate} />
       </div>
@@ -200,15 +217,13 @@ export function DiscoverPanel({ tenantId }: { tenantId: string }) {
   const hasQuery = route.discover === 'open' && discoverQuery.q.length >= SEARCH_MIN;
 
   return (
-    <section className="capiro-bizdev__surface" aria-labelledby="bizdev-discover">
-      <div className="capiro-bizdev__toolbar">
+    <section className="capiro-bizdev__discover" aria-labelledby="bizdev-discover">
+      <div className="capiro-bizdev__discover-top">
+      <div className="capiro-bizdev__toolbar capiro-bizdev__discover-toolbar">
         <div className="capiro-bizdev__title-row">
           <h2 className="capiro-bizdev__section-title" id="bizdev-discover">
             Discover companies
           </h2>
-          <span className="capiro-bizdev__count">
-            Search runs only when you submit it — never automatically
-          </span>
         </div>
         {route.discover === 'open' ? (
           <CapiroButton
@@ -254,9 +269,10 @@ export function DiscoverPanel({ tenantId }: { tenantId: string }) {
         </div>
       </form>
       <p className="capiro-bizdev__discover-note capiro-bizdev__meta">
-        Company search covers Capiro’s ingested government data by organization name. Agency,
-        issue and geography filters are not supported by this data yet, so they are not shown.
+        Searches ingested government records by organization name. Results appear only after you
+        submit. Agency, issue and geography filters are not available for this search.
       </p>
+      </div>
 
       {hasQuery ? (
         search.isPending ? (
@@ -273,7 +289,7 @@ export function DiscoverPanel({ tenantId }: { tenantId: string }) {
             />
           </div>
         ) : (search.data?.results ?? []).length === 0 ? (
-          <div className="capiro-bizdev__section-pad">
+          <div className="capiro-bizdev__surface capiro-bizdev__section-pad">
             <CapiroEmptyState
               variant="search-empty"
               title="No companies matched this search"
@@ -282,6 +298,10 @@ export function DiscoverPanel({ tenantId }: { tenantId: string }) {
           </div>
         ) : (
           <>
+            <div className="capiro-bizdev__discover-summary" role="status">
+              <strong>{search.data!.results.length} {search.data!.results.length === 1 ? 'company' : 'companies'} shown</strong>
+              <span>Ingested government records · {coverage?.more ? 'more results available' : 'end of results'}</span>
+            </div>
             <ul className="capiro-bizdev__candidate-list">
               {(search.data?.results ?? []).map((candidate) => (
                 <CandidateRow
@@ -314,8 +334,7 @@ export function DiscoverPanel({ tenantId }: { tenantId: string }) {
       ) : (
         <p className="capiro-bizdev__discover-note capiro-bizdev__meta">
           Enter a company name and submit the search to see candidate companies with their
-          government exposure and why they may be worth inspecting. Nothing is fetched until you
-          search.
+          source-backed reason for inspection.
         </p>
       )}
     </section>
