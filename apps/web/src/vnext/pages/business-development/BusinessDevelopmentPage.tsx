@@ -1755,6 +1755,20 @@ function ProspectDrawerBody({
 export const BIZDEV_QUIET_BASELINE_COPY =
   'The first successful check for each source quietly records a starting point (a baseline). It does not send an alert, and it does not dig up historical events — alerts are only about changes observed after that.';
 
+/** Frozen Phase 5 watch-category vocabulary enforced by the API DTO. */
+export const BIZDEV_WATCH_CATEGORIES = [
+  'contract_award',
+  'assistance_award',
+  'opportunity',
+  'lobbying',
+  'acquisition',
+  'entity_change',
+  'other',
+] as const;
+
+const BIZDEV_WATCH_CATEGORY_SET = new Set<string>(BIZDEV_WATCH_CATEGORIES);
+const BIZDEV_WATCH_CATEGORY_HELP = `Allowed values: ${BIZDEV_WATCH_CATEGORIES.join(', ')}`;
+
 /** Date line that separates event dates from publication/observation dates. */
 function alertDateLine(alert: BizDevProspectAlert): string | null {
   const dates = [
@@ -1919,6 +1933,20 @@ function ProspectWatchSection({
   // control is disabled so a slow request can never produce a duplicate.
   const anyPending = activate.isPending || patchWatch.isPending;
 
+  const saveCategoryPreferences = () => {
+    const categories = splitList(categoryValue);
+    const invalid = categories.filter((category) => !BIZDEV_WATCH_CATEGORY_SET.has(category));
+    if (invalid.length > 0) {
+      const message =
+        `Unsupported ${invalid.length === 1 ? 'category' : 'categories'}: ` +
+        `${invalid.join(', ')}. ${BIZDEV_WATCH_CATEGORY_HELP}.`;
+      setActionError(message);
+      return;
+    }
+    setActionError(null);
+    patchWatch.mutate({ categories });
+  };
+
   const errorNote = actionError ? (
     <p role="alert" className="capiro-bizdev__statusnote capiro-bizdev__statusnote--warn">
       {actionError}
@@ -2045,17 +2073,21 @@ function ProspectWatchSection({
             className="capiro-bizdev__input capiro-bizdev__input--grow"
             value={categoryValue}
             onChange={(e) => setCategoryDraft(e.target.value)}
+            aria-describedby="bd-watch-categories-help"
             maxLength={400}
           />
           <CapiroButton
             size="compact"
             loading={patchWatch.isPending}
             disabled={anyPending}
-            onClick={() => patchWatch.mutate({ categories: splitList(categoryValue) })}
+            onClick={saveCategoryPreferences}
           >
             Save categories
           </CapiroButton>
         </div>
+        <p id="bd-watch-categories-help" className="capiro-bizdev__meta">
+          {BIZDEV_WATCH_CATEGORY_HELP}. Leave blank to include all categories.
+        </p>
       </div>
 
       <StatusNote text={BIZDEV_QUIET_BASELINE_COPY} />

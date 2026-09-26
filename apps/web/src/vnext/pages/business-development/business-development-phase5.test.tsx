@@ -17,6 +17,7 @@ import type { AxiosInstance } from 'axios';
 import {
   BusinessDevelopmentPage,
   BIZDEV_QUIET_BASELINE_COPY,
+  BIZDEV_WATCH_CATEGORIES,
 } from './BusinessDevelopmentPage.js';
 import type { BizDevProspect, BizDevProspectAlert, BizDevProspectWatch } from './bizdev-api.js';
 
@@ -315,6 +316,50 @@ describe('watch lifecycle actions', () => {
         method: 'PATCH',
         path: `/api/business-development/prospects/${PROSPECT_UUID}/watch`,
         body: expect.objectContaining({ mutedUntil: expect.any(String) }),
+      }),
+    );
+  });
+
+  it('validates category preferences before PATCHing the frozen API vocabulary', async () => {
+    renderAt('?view=business-development&bdProspect=' + PROSPECT_UUID, {
+      meFeatures: { ...WATCH_ON },
+    });
+    const drawer = await openDrawer();
+    const input = await within(drawer).findByLabelText('Category preferences (comma separated)');
+    expect(
+      within(drawer).getByText(new RegExp(BIZDEV_WATCH_CATEGORIES.join(', '))),
+    ).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: 'contract_award, not-a-category' } });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Save categories' }));
+    expect(within(drawer).getByRole('alert')).toHaveTextContent(
+      'Unsupported category: not-a-category',
+    );
+    expect(
+      apiCalls.some(
+        (call) =>
+          call.method === 'PATCH' &&
+          call.path === `/api/business-development/prospects/${PROSPECT_UUID}/watch`,
+      ),
+    ).toBe(false);
+
+    fireEvent.change(input, { target: { value: 'contract_award, lobbying' } });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Save categories' }));
+    await waitFor(() =>
+      expect(apiCalls).toContainEqual({
+        method: 'PATCH',
+        path: `/api/business-development/prospects/${PROSPECT_UUID}/watch`,
+        body: { categories: ['contract_award', 'lobbying'] },
+      }),
+    );
+
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Save categories' }));
+    await waitFor(() =>
+      expect(apiCalls).toContainEqual({
+        method: 'PATCH',
+        path: `/api/business-development/prospects/${PROSPECT_UUID}/watch`,
+        body: { categories: [] },
       }),
     );
   });
