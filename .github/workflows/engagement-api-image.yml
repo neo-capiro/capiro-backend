@@ -1,0 +1,70 @@
+# Builds the Engagement API container image and pushes it to ECR.
+# Mirrors api-image.yml: build artifact only — deploys run interactively via
+# `aws ecs update-service --force-new-deployment` or the deploy-all workflow.
+#
+# Build context is the REPOSITORY ROOT (the Dockerfile installs the pnpm
+# workspace + generates the Prisma client). See api-image.yml for OIDC setup.
+
+name: engagement-api-image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/engagement-api/**'
+      - 'apps/api/**'
+      - 'packages/shared/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/engagement-api-image.yml'
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Target env (dev|staging|prod)'
+        required: true
+        default: 'dev'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  TARGET_ENV: ${{ github.event.inputs.env || 'dev' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.TARGET_ENV == 'prod' && vars.AWS_PROD_GHA_ROLE_ARN || vars.AWS_DEV_GHA_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push (linux/arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/engagement-api/Dockerfile
+          platforms: linux/arm64
+          push: true
+          provenance: false
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/capiro/${{ env.TARGET_ENV }}/engagement-api:${{ github.sha }}
+            ${{ steps.ecr.outputs.registry }}/capiro/${{ env.TARGET_ENV }}/engagement-api:latest
+          no-cache-filters: build
+          cache-from: type=gha,scope=engagement-api
+          cache-to: type=gha,mode=max,scope=engagement-api
+
+      - name: Output image digest
+        run: echo "Pushed capiro/${TARGET_ENV}/engagement-api:${GITHUB_SHA}"
