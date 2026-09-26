@@ -16,6 +16,13 @@ import type {
   DefenseMilestoneResponseDto,
   DefenseReferenceOccurrenceDto,
   DefenseResearchAvailability,
+  DefenseOfficeSummaryDto,
+  DefenseOfficeDetailDto,
+  DefenseOfficeListDto,
+  DefenseRelationshipListDto,
+  DefenseRelationshipEdgeDto,
+  OfficeStatus,
+  OfficeRelation,
 } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -144,6 +151,7 @@ export class DefenseResearchService {
     const policyCoverage = includesPolicy ? await this.prisma.federalRegisterDocument.findMany({ where: policyWhere, select: { abstract: true, cfrReferences: true } }) : [];
     const policyPartial = policyCoverage.filter((row) => Boolean(row.abstract) || row.cfrReferences.length > 0).length;
     const policyUnavailable = policyCoverage.length - policyPartial;
+
     const allItems: DefenseContextDocumentSummaryDto[] = [
       ...rows.map((row) => this.contextSummary(row)),
       ...transcripts.map((row) => ({ id: `transcript:${row.id}`, family: 'hearing_transcript', publisher: 'GovInfo', title: row.title, congress: row.congress, committee: row.committeeName, publishedAt: (row.publishedAt ?? row.date).toISOString(), status: 'published', currentRevisionId: `transcript:${row.id}:v1`, transcriptAvailability: 'available' as const, coverage: 'available' as const, sourceUrl: row.sourceUrl })),
@@ -400,4 +408,338 @@ export class DefenseResearchService {
   private stage(positionCycle: string): string { const value = positionCycle.toLowerCase(); if (value.startsWith('pb_')) return 'request'; if (value.startsWith('hasc')) return 'hasc_mark'; if (value.startsWith('sasc')) return 'sasc_mark'; if (value.startsWith('hac')) return 'hac_d_mark'; if (value.startsWith('sac')) return 'sac_d_mark'; if (value.startsWith('conference')) return 'conference'; if (value.startsWith('enacted')) return 'enacted'; return value.split('_fy')[0] ?? value; }
   private milestoneCategory(value: string): DefenseMilestoneDto['eventCategory'] { const normalized = value.toLowerCase(); if (/test|eval|demonstrat/.test(normalized)) return 'testing'; if (/produc|manufactur|field/.test(normalized)) return 'production'; if (/transition|deploy|operational/.test(normalized)) return 'transition'; if (/develop|design|prototype/.test(normalized)) return 'development'; return 'other'; }
   private publisherFromUrl(url: string | null): string { try { return url ? new URL(url).hostname : 'Official committee source'; } catch { return 'Official committee source'; } }
+
+  async listOffices(filters: {
+    agency?: string;
+    component?: string;
+    officeType?: string;
+    capability?: string;
+    program?: string;
+    status?: OfficeStatus;
+    availability?: DefenseResearchAvailability;
+    freshness?: 'fresh' | 'stale' | 'any';
+    q?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<DefenseOfficeListDto> {
+    const page = Math.max(filters.page ?? 1, 1);
+    const limit = Math.min(Math.max(filters.limit ?? 50, 1), 100);
+    const where = this.buildOfficeWhere(filters);
+    const [total, offices] = await Promise.all([
+      this.prisma.programOffice.count({ where }),
+      this.prisma.programOffice.findMany({
+        where,
+        include: {
+          parentOffice: { select: { id: true, name: true } },
+          roles: { select: { id: true }, take: 1 },
+          programLinks: { select: { id: true }, take: 1 },
+        },
+        orderBy: [{ name: 'asc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
+    const items = offices.map((office) => this.officeToSummary(office));
+    return {
+      items,
+      total,
+      page,
+      limit,
+      filters: {
+        agency: filters.agency,
+        component: filters.component,
+        officeType: filters.officeType,
+        capability: filters.capability,
+        program: filters.program,
+        status: filters.status,
+        availability: filters.availability,
+        freshness: filters.freshness,
+      },
+    };
+  }
+
+  async getOffice(id: string): Promise<DefenseOfficeDetailDto> {
+    const office = await this.prisma.programOffice.findUnique({
+      where: { id },
+      include: {
+        parentOffice: true,
+        childOffices: true,
+        roles: {
+          include: {
+            person: true,
+          },
+          where: { reviewStatus: 'accepted' },
+        },
+        programLinks: {
+          include: { program: true },
+          where: { reviewStatus: 'accepted' },
+        },
+      },
+    });
+    if (!office) throw new NotFoundException('Office not found');
+    return this.officeToDetail(office);
+  }
+
+  async getRelationships(filters: {
+    from?: string;
+    to?: string;
+    edgeType?: string;
+    status?: string;
+    includeSpeculative?: boolean;
+    page?: number;
+    limit?: number;
+  }): Promise<DefenseRelationshipListDto> {
+    const page = Math.max(Number(filters.page ?? 1), 1);
+    const limit = Math.min(Math.max(filters.limit ?? 100, 1), 200);
+    const reviewStates = filters.includeSpeculative ? ['accepted', 'candidate'] : ['accepted'];
+    const offices = await this.prisma.programOffice.findMany({
+      include: {
+        parentOffice: { select: { id: true, name: true, service: true } },
+        roles: {
+          where: { reviewStatus: { in: reviewStates } },
+          include: {
+            person: { select: { id: true, fullName: true } },
+            program: { select: { id: true, canonicalName: true, component: true } },
+          },
+        },
+        programLinks: {
+          where: { reviewStatus: { in: reviewStates } },
+          include: { program: { select: { id: true, canonicalName: true, component: true, acquisitionPathway: true } } },
+        },
+      },
+      orderBy: { name: 'asc' },
+      take: 500,
+    });
+
+    const edges: DefenseRelationshipEdgeDto[] = [];
+    for (const office of offices) {
+      if (office.parentOffice) {
+        edges.push({
+          id: `office-parent:${office.id}:${office.parentOffice.id}`,
+          from: { type: 'office', id: office.parentOffice.id, label: office.parentOffice.name, service: office.parentOffice.service },
+          to: { type: 'office', id: office.id, label: office.name, service: office.service },
+          relation: 'manages',
+          sourceStated: Boolean(office.sourceUrl),
+          derived: !office.sourceUrl,
+          inferred: false,
+          validity: this.relationshipValidity(office.status, office.validTo),
+          observationRevision: office.updatedAt.toISOString(),
+          evidence: this.sourceEvidence(`office:${office.id}`, 'program_office', office.sourceUrl, office.updatedAt),
+          reviewStatus: office.sourceUrl ? 'accepted' : 'candidate',
+          supersessionImpact: office.status === 'superseded' ? 'Office hierarchy edge is historical and must not be treated as current.' : null,
+        });
+      }
+      for (const link of office.programLinks) {
+        const relation = this.officeProgramRelation(link.relation);
+        edges.push({
+          id: `office-program:${link.id}`,
+          from: { type: 'office', id: office.id, label: office.name, service: office.service },
+          to: { type: 'program', id: link.program.id, label: link.program.canonicalName, service: link.program.component },
+          relation,
+          sourceStated: !link.derivedBy,
+          derived: Boolean(link.derivedBy),
+          inferred: false,
+          validity: link.reviewStatus === 'accepted' ? 'valid' : 'candidate',
+          observationRevision: link.updatedAt.toISOString(),
+          evidence: this.sourceEvidence(`office-program:${link.id}`, 'program_office_program_link', link.sourceUrl, link.updatedAt),
+          reviewStatus: this.reviewState(link.reviewStatus),
+          supersessionImpact: null,
+        });
+        if (link.program.acquisitionPathway) {
+          edges.push({
+            id: `program-acquisition-path:${link.program.id}`,
+            from: { type: 'program', id: link.program.id, label: link.program.canonicalName, service: link.program.component },
+            to: { type: 'acquisition', id: `pathway:${link.program.acquisitionPathway}`, label: link.program.acquisitionPathway },
+            relation: 'acquisition_path',
+            sourceStated: false,
+            derived: true,
+            inferred: false,
+            validity: 'valid',
+            observationRevision: link.updatedAt.toISOString(),
+            evidence: this.sourceEvidence(`program:${link.program.id}:acquisition-path`, 'program', link.sourceUrl, link.updatedAt),
+            reviewStatus: this.reviewState(link.reviewStatus),
+            supersessionImpact: 'Acquisition pathway is context only and carries no allocation or award authority.',
+          });
+        }
+      }
+      for (const role of office.roles) {
+        const target = role.program
+          ? { type: 'program' as const, id: role.program.id, label: role.program.canonicalName, service: role.program.component }
+          : { type: 'office' as const, id: office.id, label: office.name, service: office.service };
+        edges.push({
+          id: `person-role:${role.id}`,
+          from: { type: 'person', id: role.person.id, label: role.person.fullName },
+          to: target,
+          relation: 'holds_role',
+          sourceStated: true,
+          derived: false,
+          inferred: false,
+          validity: role.effectiveEnd && role.effectiveEnd < new Date() ? 'superseded' : role.reviewStatus === 'accepted' ? 'valid' : 'candidate',
+          observationRevision: role.observedAt.toISOString(),
+          evidence: this.sourceEvidence(`person-role:${role.id}`, role.source, role.sourceUrl, role.observedAt),
+          reviewStatus: this.reviewState(role.reviewStatus),
+          supersessionImpact: role.effectiveEnd ? 'Role has an explicit effective end and is retained as historical evidence.' : null,
+        });
+      }
+    }
+
+    const filtered = edges.filter((edge) => {
+      if (filters.from && edge.from.id !== filters.from) return false;
+      if (filters.to && edge.to.id !== filters.to) return false;
+      if (filters.edgeType && edge.relation !== filters.edgeType) return false;
+      if (filters.status && edge.validity !== filters.status && edge.reviewStatus !== filters.status) return false;
+      return true;
+    });
+    const start = (page - 1) * limit;
+    return {
+      items: filtered.slice(start, start + limit),
+      total: filtered.length,
+      page,
+      limit,
+    };
+  }
+
+  private buildOfficeWhere(filters: any) {
+    const where: any = {};
+    const serviceFilters = [filters.agency, filters.component].filter(Boolean);
+    if (serviceFilters.length === 1) where.service = { equals: serviceFilters[0], mode: 'insensitive' };
+    if (serviceFilters.length > 1) where.AND = serviceFilters.map((value: string) => ({ service: { equals: value, mode: 'insensitive' } }));
+    if (filters.officeType) where.officeType = filters.officeType;
+    if (filters.status) where.status = filters.status;
+    const relationshipFilters: any[] = [];
+    if (filters.program) {
+      relationshipFilters.push({ programLinks: { some: { reviewStatus: 'accepted', program: { OR: [
+        { id: filters.program },
+        { canonicalName: { contains: filters.program, mode: 'insensitive' } },
+        { aliases: { some: { alias: { contains: filters.program, mode: 'insensitive' } } } },
+      ] } } } });
+    }
+    if (filters.capability) {
+      relationshipFilters.push({ programLinks: { some: { reviewStatus: 'accepted', program: { capabilityArea: { contains: filters.capability, mode: 'insensitive' } } } } });
+    }
+    if (filters.availability === 'available') where.sourceUrl = { not: null };
+    if (filters.availability === 'unavailable') where.sourceUrl = null;
+    if (filters.freshness === 'fresh') {
+      where.AND = [...(where.AND ?? []), { validTo: null }, { status: 'active' }];
+    } else if (filters.freshness === 'stale') {
+      where.OR = [{ validTo: { not: null } }, { status: { in: ['historical', 'superseded'] } }];
+    }
+    if (filters.q) {
+      const search = [
+        { name: { contains: filters.q, mode: 'insensitive' } },
+        { metadata: { path: ['acronym'], equals: filters.q } },
+        { metadata: { path: ['aliases'], array_contains: [filters.q] } },
+      ];
+      where.AND = [...(where.AND ?? []), { OR: search }];
+    }
+    if (relationshipFilters.length) where.AND = [...(where.AND ?? []), ...relationshipFilters];
+    return where;
+  }
+
+  private officeToSummary(office: any): DefenseOfficeSummaryDto {
+    return {
+      id: office.id,
+      name: office.name,
+      officeType: office.officeType,
+      service: office.service,
+      parentOfficeId: office.parentOfficeId,
+      parentOfficeName: office.parentOffice?.name ?? null,
+      status: this.officeStatus(office.status),
+      validFrom: office.validFrom?.toISOString() ?? null,
+      validTo: office.validTo?.toISOString() ?? null,
+      sourceUrl: office.sourceUrl,
+      reviewStatus: null,
+      confidence: 1.0,
+      observedAt: office.createdAt.toISOString(),
+      effectiveStart: office.validFrom?.toISOString() ?? null,
+      effectiveEnd: office.validTo?.toISOString() ?? null,
+      aliases: this.stringArray(this.record(office.metadata).aliases),
+      availability: office.sourceUrl ? 'available' : 'partial',
+      evidence: this.sourceEvidence(`office:${office.id}`, 'program_office', office.sourceUrl, office.updatedAt ?? office.createdAt),
+    };
+  }
+
+  private officeToDetail(office: any): DefenseOfficeDetailDto {
+    const summary = this.officeToSummary(office);
+    const leadership = office.roles.map((role: any) => ({
+      personId: role.person.id,
+      personName: role.person.fullName,
+      roleTitle: role.roleTitle,
+      roleType: role.roleType,
+      contactUse: role.contactUse,
+      observedAt: role.observedAt.toISOString(),
+      effectiveStart: role.effectiveStart?.toISOString() ?? null,
+      effectiveEnd: role.effectiveEnd?.toISOString() ?? null,
+      reviewStatus: this.reviewState(role.reviewStatus),
+      sourceUrl: role.sourceUrl,
+      evidence: this.sourceEvidence(`person-role:${role.id}`, role.source, role.sourceUrl, role.observedAt),
+    }));
+    const programs = office.programLinks.map((link: any) => ({
+      programId: link.program.id,
+      programName: link.program.canonicalName,
+      relation: this.officeProgramRelation(link.relation),
+      reviewStatus: this.reviewState(link.reviewStatus),
+      sourceUrl: link.sourceUrl,
+      evidence: this.sourceEvidence(`office-program:${link.id}`, 'program_office_program_link', link.sourceUrl, link.updatedAt),
+    }));
+    const metadata = this.record(office.metadata);
+    const mission = this.optionalString(metadata.mission);
+    const responsibilities = this.optionalString(metadata.responsibilities);
+    const scope = this.optionalString(metadata.scope);
+    const contact = this.optionalString(metadata.contact);
+    const website = this.optionalString(metadata.website);
+    const coverage: DefenseOfficeDetailDto['coverage'] = {
+      mission: mission ? 'available' : 'unavailable',
+      responsibilities: responsibilities ? 'available' : 'unavailable',
+      scope: scope ? 'available' : 'unavailable',
+      leadership: leadership.length ? 'available' : 'unavailable',
+      programs: programs.length ? 'available' : 'unavailable',
+      contact: contact ? 'available' : 'unavailable',
+      website: website ? 'available' : 'unavailable',
+    };
+    return {
+      ...summary,
+      mission,
+      responsibilities,
+      scope,
+      leadership,
+      programs,
+      contact,
+      website,
+      hierarchy: {
+        parent: office.parentOffice ? this.officeToSummary(office.parentOffice) : null,
+        children: office.childOffices.map((child: any) => this.officeToSummary(child)),
+      },
+      coverage,
+    };
+  }
+
+  private optionalString(value: unknown): string | null { return typeof value === 'string' && value.trim() ? value : null; }
+  private stringArray(value: unknown): string[] { return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []; }
+  private officeStatus(value: string): OfficeStatus { return ['active', 'historical', 'superseded', 'unresolved'].includes(value) ? value as OfficeStatus : 'unresolved'; }
+  private reviewState(value: string): 'accepted' | 'candidate' | 'quarantined' { return value === 'accepted' || value === 'quarantined' ? value : 'candidate'; }
+  private relationshipValidity(status: string, validTo: Date | null): DefenseRelationshipEdgeDto['validity'] {
+    if (status === 'unresolved') return 'unresolved';
+    if (status === 'superseded' || status === 'historical' || (validTo && validTo < new Date())) return 'superseded';
+    return 'valid';
+  }
+  private officeProgramRelation(value: string): OfficeRelation {
+    if (value === 'manages' || value === 'executes' || value === 'supports') return value;
+    return 'supports';
+  }
+  private sourceEvidence(id: string, family: string, sourceUrl: string | null, observedAt: Date | null): DefenseEvidenceRefDto[] {
+    if (!sourceUrl) return [];
+    return [{
+      evidenceRefId: id,
+      sourceDocumentId: null,
+      sourceRevisionId: null,
+      sourceFamily: family,
+      publisher: this.publisherFromUrl(sourceUrl),
+      sourceUrl,
+      nativeLocator: { page: null, section: null, occurrenceId: null },
+      contentHash: null,
+      edition: null,
+      observedAt: observedAt?.toISOString() ?? null,
+    }];
+  }
 }

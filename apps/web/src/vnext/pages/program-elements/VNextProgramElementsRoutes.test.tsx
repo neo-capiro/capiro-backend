@@ -22,6 +22,9 @@ vi.mock('./PeMarkupMonitorPage.js', () => ({
 vi.mock('./PePersonCandidatesPage.js', () => ({
   PePersonCandidatesPage: () => <div data-testid="native-contacts" />,
 }));
+vi.mock('./PeResearchView.js', () => ({
+  PeResearchView: () => <div data-testid="native-research" />,
+}));
 vi.mock('./profile/index.js', () => ({
   PeProfileVNext: () => <div data-testid="native-profile" />,
 }));
@@ -82,5 +85,11 @@ describe('VNextProgramElementsRoutes — all-tenant parity', () => {
     useMeMock.mockReturnValue(OTHER_TENANT);
     renderAt('/program-elements/contacts');
     expect(await screen.findByTestId('native-contacts')).toBeInTheDocument();
+  });
+
+  it('renders the native defense research surface for every tenant', async () => {
+    useMeMock.mockReturnValue(OTHER_TENANT);
+    renderAt('/program-elements/research?view=relationships');
+    expect(await screen.findByTestId('native-research')).toBeInTheDocument();
   });
 });

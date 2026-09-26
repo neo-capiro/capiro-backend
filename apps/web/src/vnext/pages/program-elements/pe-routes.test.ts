@@ -42,11 +42,11 @@ describe('program-elements vNext route contract', () => {
     expect(matchPeProfilePath('/program-elements/reconciliation')).toBeNull();
   });
 
-  it('does NOT claim future reserved segments research, compare, coverage — they fall through', () => {
-    expect(isVNextProgramElementsPath('/program-elements/research')).toBe(false);
+  it('claims research but leaves future compare and coverage segments reserved', () => {
+    expect(isVNextProgramElementsPath('/program-elements/research')).toBe(true);
     expect(isVNextProgramElementsPath('/program-elements/compare')).toBe(false);
     expect(isVNextProgramElementsPath('/program-elements/coverage')).toBe(false);
-    expect(matchPeStaticPath('/program-elements/research')).toBeNull();
+    expect(matchPeStaticPath('/program-elements/research')).toBe('research');
     expect(matchPeStaticPath('/program-elements/compare')).toBeNull();
     expect(matchPeStaticPath('/program-elements/coverage')).toBeNull();
     expect(matchPeProfilePath('/program-elements/research')).toBeNull();

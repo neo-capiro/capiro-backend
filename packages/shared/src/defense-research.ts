@@ -151,3 +151,131 @@ export interface DefenseContextDocumentListDto {
   nextCursor: string | null;
   denominator: { eligible: number; observed: number; qualified: number; available: number; partial: number; unavailable: number };
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Offices and typed relationships (Phase 5)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export type OfficeStatus = 'active' | 'historical' | 'superseded' | 'unresolved';
+export type OfficeRelation =
+  | 'manages'
+  | 'executes'
+  | 'issues'
+  | 'administers'
+  | 'pays'
+  | 'supports'
+  | 'sponsors'
+  | 'tests'
+  | 'transitions'
+  | 'performs'
+  | 'holds_role'
+  | 'acquisition_path';
+
+export interface DefenseOfficeSummaryDto {
+  id: string;
+  name: string;
+  officeType: 'peo' | 'pm' | 'cpe' | 'pae' | 'directorate' | 'command' | 'contracting_office' | 'other';
+  service: string | null;
+  parentOfficeId: string | null;
+  parentOfficeName: string | null;
+  status: OfficeStatus;
+  validFrom: string | null;
+  validTo: string | null;
+  sourceUrl: string | null;
+  reviewStatus: 'accepted' | 'candidate' | 'quarantined' | null;
+  confidence: number;
+  observedAt: string;
+  effectiveStart: string | null;
+  effectiveEnd: string | null;
+  aliases: readonly string[];
+  availability: DefenseResearchAvailability;
+  evidence: readonly DefenseEvidenceRefDto[];
+}
+
+export interface DefenseOfficeDetailDto extends DefenseOfficeSummaryDto {
+  mission: string | null;
+  responsibilities: string | null;
+  scope: string | null;
+  leadership: readonly {
+    personId: string;
+    personName: string;
+    roleTitle: string;
+    roleType: string;
+    contactUse: string;
+    observedAt: string;
+    effectiveStart: string | null;
+    effectiveEnd: string | null;
+    reviewStatus: 'accepted' | 'candidate' | 'quarantined';
+    sourceUrl: string | null;
+    evidence: readonly DefenseEvidenceRefDto[];
+  }[];
+  programs: readonly {
+    programId: string;
+    programName: string;
+    relation: OfficeRelation;
+    reviewStatus: 'accepted' | 'candidate' | 'quarantined';
+    sourceUrl: string | null;
+    evidence: readonly DefenseEvidenceRefDto[];
+  }[];
+  contact: string | null;
+  website: string | null;
+  hierarchy: {
+    parent: DefenseOfficeSummaryDto | null;
+    children: readonly DefenseOfficeSummaryDto[];
+  };
+  coverage: {
+    mission: DefenseResearchAvailability;
+    responsibilities: DefenseResearchAvailability;
+    scope: DefenseResearchAvailability;
+    leadership: DefenseResearchAvailability;
+    programs: DefenseResearchAvailability;
+    contact: DefenseResearchAvailability;
+    website: DefenseResearchAvailability;
+  };
+}
+
+export interface DefenseOfficeListDto {
+  items: readonly DefenseOfficeSummaryDto[];
+  total: number;
+  page: number;
+  limit: number;
+  filters: {
+    agency?: string;
+    component?: string;
+    officeType?: string;
+    capability?: string;
+    program?: string;
+    status?: OfficeStatus;
+    availability?: DefenseResearchAvailability;
+    freshness?: 'fresh' | 'stale' | 'any';
+  };
+}
+
+export interface DefenseRelationshipNodeDto {
+  type: 'program' | 'program_element' | 'project' | 'budget_line' | 'office' | 'person' | 'contractor' | 'acquisition' | 'evidence';
+  id: string;
+  label: string;
+  service?: string | null;
+}
+
+export interface DefenseRelationshipEdgeDto {
+  id: string;
+  from: DefenseRelationshipNodeDto;
+  to: DefenseRelationshipNodeDto;
+  relation: OfficeRelation | 'mentions' | 'cites' | 'applies_to' | 'amends' | 'supersedes' | 'allocates';
+  sourceStated: boolean;
+  derived: boolean;
+  inferred: boolean;
+  validity: 'valid' | 'candidate' | 'superseded' | 'unresolved';
+  observationRevision: string | null;
+  evidence: readonly DefenseEvidenceRefDto[];
+  reviewStatus: 'accepted' | 'candidate' | 'quarantined';
+  supersessionImpact: string | null;
+}
+
+export interface DefenseRelationshipListDto {
+  items: readonly DefenseRelationshipEdgeDto[];
+  total: number;
+  page: number;
+  limit: number;
+}

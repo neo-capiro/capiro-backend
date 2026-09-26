@@ -9,6 +9,11 @@ import type {
   DefenseFundingMatrixDto,
   DefenseMilestoneResponseDto,
   DefenseReferenceOccurrenceDto,
+  DefenseResearchAvailability,
+  DefenseOfficeListDto,
+  DefenseOfficeDetailDto,
+  DefenseRelationshipListDto,
+  OfficeStatus,
 } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -88,6 +93,61 @@ export class DefenseResearchController {
   @Get('reference-occurrences/:occurrenceId')
   referenceOccurrence(@Param('occurrenceId') occurrenceId: string): Promise<DefenseReferenceOccurrenceDto> {
     return this.service.referenceOccurrence(occurrenceId);
+  }
+
+  @Get('offices')
+  listOffices(
+    @Query('agency') agency?: string,
+    @Query('component') component?: string,
+    @Query('officeType') officeType?: string,
+    @Query('capability') capability?: string,
+    @Query('program') program?: string,
+    @Query('status') status?: OfficeStatus,
+    @Query('availability') availability?: DefenseResearchAvailability,
+    @Query('freshness') freshness?: 'fresh' | 'stale' | 'any',
+    @Query('q') q?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ): Promise<DefenseOfficeListDto> {
+    return this.service.listOffices({
+      agency,
+      component,
+      officeType,
+      capability,
+      program,
+      status,
+      availability,
+      freshness,
+      q,
+      page,
+      limit,
+    });
+  }
+
+  @Get('offices/:officeId')
+  getOffice(@Param('officeId') officeId: string): Promise<DefenseOfficeDetailDto> {
+    return this.service.getOffice(officeId);
+  }
+
+  @Get('relationships')
+  getRelationships(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('edgeType') edgeType?: string,
+    @Query('status') status?: string,
+    @Query('includeSpeculative') includeSpeculative?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ): Promise<DefenseRelationshipListDto> {
+    return this.service.getRelationships({
+      from,
+      to,
+      edgeType,
+      status,
+      includeSpeculative: includeSpeculative === 'true',
+      page,
+      limit,
+    });
   }
 
   @Get('evidence/:evidenceRefId')

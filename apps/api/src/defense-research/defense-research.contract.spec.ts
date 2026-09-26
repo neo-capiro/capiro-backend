@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
-describe('Defense research Phase 3-4 contracts', () => {
+describe('Defense research Phase 3-5 contracts', () => {
   test('registers the read module and complete route foundation', () => {
     const app = read('src/app.module.ts');
     const controller = read('src/defense-research/defense-research.controller.ts');
@@ -18,9 +18,22 @@ describe('Defense research Phase 3-4 contracts', () => {
       "@Get('context-documents/:documentId/references')",
       "@Get('context-documents/:documentId/cited-by')",
       "@Get('reference-occurrences/:occurrenceId')",
+      "@Get('offices')",
+      "@Get('offices/:officeId')",
+      "@Get('relationships')",
       "@Get('evidence/:evidenceRefId')",
     ]) expect(controller).toContain(route);
     expect(controller.indexOf("@Get('context-documents/:documentId/revisions')")).toBeLessThan(controller.indexOf("@Get('context-documents/:documentId')"));
+  });
+
+  test('composes office and relationship research from existing temporal authorities', () => {
+    const service = read('src/defense-research/defense-research.service.ts');
+    expect(service).toContain('this.prisma.programOffice.findMany');
+    expect(service).toContain("relation: 'holds_role'");
+    expect(service).toContain("relation: 'acquisition_path'");
+    expect(service).not.toContain('defenseRelationshipEdge');
+    expect(service).not.toContain("relation: 'allocates'");
+    expect(service).toContain("filters.includeSpeculative ? ['accepted', 'candidate'] : ['accepted']");
   });
 
   test('defines immutable contextual revisions and exact reference spans', () => {

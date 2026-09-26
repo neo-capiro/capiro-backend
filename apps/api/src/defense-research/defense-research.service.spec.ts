@@ -121,4 +121,60 @@ describe('DefenseResearchService', () => {
     expect(detail.revisions).toEqual([]);
     expect(detail.sections).toEqual([]);
   });
+
+  test('filters the office directory through accepted program and capability relationships', async () => {
+    const prisma = {
+      programOffice: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([{
+          id: 'office-1', name: 'PEO Ground Combat Systems', officeType: 'peo', service: 'ARMY',
+          parentOfficeId: null, parentOffice: null, status: 'active', validFrom: null, validTo: null,
+          sourceUrl: 'https://army.mil/peo-gcs', metadata: { acronym: 'PEO GCS', aliases: ['GCS'] },
+          createdAt: new Date('2026-01-01T00:00:00Z'), updatedAt: new Date('2026-08-01T00:00:00Z'),
+        }]),
+      },
+    };
+    const result = await serviceWith(prisma).listOffices({ component: 'ARMY', program: 'Abrams', capability: 'ground combat', q: 'PEO GCS' });
+    expect(result.items[0]).toMatchObject({ name: 'PEO Ground Combat Systems', aliases: ['GCS'], availability: 'available' });
+    const where = (prisma.programOffice.findMany.mock.calls[0]?.[0] as any).where;
+    expect(JSON.stringify(where)).toContain('Abrams');
+    expect(JSON.stringify(where)).toContain('ground combat');
+    expect(JSON.stringify(where)).toContain('PEO GCS');
+  });
+
+  test('composes approved temporal office relationships without inventing financial allocation', async () => {
+    const at = new Date('2026-08-01T00:00:00Z');
+    const prisma = {
+      programOffice: { findMany: jest.fn().mockResolvedValue([{
+        id: 'office-1', name: 'PEO GCS', service: 'ARMY', status: 'active', validTo: null,
+        sourceUrl: 'https://army.mil/peo-gcs', updatedAt: at, parentOffice: null,
+        programLinks: [{
+          id: 'link-1', relation: 'manages', reviewStatus: 'accepted', sourceUrl: 'https://army.mil/abrams',
+          evidence: [], derivedBy: null, updatedAt: at,
+          program: { id: 'program-1', canonicalName: 'Abrams', component: 'ARMY', acquisitionPathway: 'MDAP' },
+        }],
+        roles: [{
+          id: 'role-1', roleType: 'pm', reviewStatus: 'accepted', source: 'official_directory',
+          sourceUrl: 'https://army.mil/leader', observedAt: at, effectiveEnd: null,
+          person: { id: 'person-1', fullName: 'Program Manager' }, program: null,
+        }],
+      }]) },
+    };
+    const result = await serviceWith(prisma).getRelationships({});
+    expect(result.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ relation: 'manages', sourceStated: true, inferred: false, reviewStatus: 'accepted' }),
+      expect.objectContaining({ relation: 'holds_role', from: expect.objectContaining({ id: 'person-1' }) }),
+      expect.objectContaining({ relation: 'acquisition_path', supersessionImpact: expect.stringContaining('no allocation') }),
+    ]));
+    expect(result.items.some((edge) => edge.relation === 'allocates')).toBe(false);
+  });
+
+  test('keeps speculative office links disabled unless explicitly requested', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const service = serviceWith({ programOffice: { findMany } });
+    await service.getRelationships({});
+    expect(findMany.mock.calls[0]?.[0]?.include.programLinks.where.reviewStatus.in).toEqual(['accepted']);
+    await service.getRelationships({ includeSpeculative: true });
+    expect(findMany.mock.calls[1]?.[0]?.include.programLinks.where.reviewStatus.in).toEqual(['accepted', 'candidate']);
+  });
 });

@@ -22,6 +22,10 @@ const PePersonCandidatesPage = lazy(async () => ({
   default: (await import('./PePersonCandidatesPage.js')).PePersonCandidatesPage,
 }));
 
+const PeResearchView = lazy(async () => ({
+  default: (await import('./PeResearchView.js')).PeResearchView,
+}));
+
 const PeProfileVNext = lazy(async () => ({
   default: (await import('./profile/index.js')).PeProfileVNext,
 }));
@@ -49,6 +53,15 @@ export function VNextProgramElementsRoutes() {
       <div className="pe-vnext-root">
         <Suspense fallback={<RouteLoading />}>
           <PePersonCandidatesPage />
+        </Suspense>
+      </div>
+    );
+  }
+  if (staticSegment === 'research') {
+    return (
+      <div className="pe-vnext-root">
+        <Suspense fallback={<RouteLoading />}>
+          <PeResearchView />
         </Suspense>
       </div>
     );
