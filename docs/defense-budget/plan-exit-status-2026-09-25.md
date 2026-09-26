@@ -137,6 +137,27 @@ does not create a production manifest or authorize historical replay.
 No production manifest, replay, canonical publication, paid-provider run,
 historical notification, or activation is authorized by this record.
 
+## 2026-09-25 follow-on candidate deployment
+
+After the evidence-only merges above, the locator-inventory runtime source was
+shipped from exact local/GitHub `main` revision
+`b7f6856732bf4ff360deb427aabc5d00d82dc99a`. Native ARM64 CodeBuild
+`capiro-build-intel-api:bf8d0456-7b4a-459b-b871-fc2fae9a3faf` succeeded and
+pushed API digest
+`sha256:0904b41a5981e31966ab3600ee87e0364520831ccd2f7cd69502109fb4f6c9d7`.
+The idempotent migration `capiro-dev-api-admin-migrate:78` exited 0 with no
+pending migrations, and `capiro-dev-api:474` reached `COMPLETED` at 2/2
+healthy tasks. The public app health request returned HTTP 200 and the
+five-minute API log check found zero error-like matches. `GIT_SHA` and
+`RELEASE_SHA` equal `b7f6856732bf4ff360deb427aabc5d00d82dc99a`; all four
+protected activation flags remain false.
+
+This deployment does not change the exit decisions: Package 8 remains
+`NOT_COMPLETE` because the DTIC locator inventory is candidate-only and lacks
+field-complete semantic extraction, completeness, review, expected-source
+registration, persistence, and replay evidence. No production manifest,
+historical replay, canonical publication, or notification was performed.
+
 ## 2026-09-25 evidence addendum
 
 After this record was written, the following docs/evidence-only changes merged
