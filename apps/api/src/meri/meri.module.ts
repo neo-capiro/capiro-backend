@@ -80,31 +80,7 @@ import { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.j
 import { MeriVNextLibraryController } from './meri-vnext-library.controller.js';
 import { MeriVNextLibraryService } from './meri-vnext-library.service.js';
 import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.proxy.js';
-import { MeriHermesRuntimeClient } from './hermes/meri-hermes-runtime.client.js';
-import { MERI_HERMES_RUN_REPOSITORY, MeriHermesRunStore } from './hermes/meri-hermes-run-store.js';
-import { MeriHermesPrismaRunRepository } from './hermes/meri-hermes-prisma-run-repository.js';
-import { MeriHermesRuntimeAdapter } from './hermes/meri-hermes-runtime.adapter.js';
-import { MeriHermesBrokerService } from './hermes/meri-hermes-broker.service.js';
-import { MeriHermesDbGovernor, meriHermesSharedDbGovernor } from './hermes/meri-hermes-db-governor.js';
-import { MeriHermesBudgetService } from './hermes/meri-hermes-budget.service.js';
-import { MeriHermesAdmissionControlService } from './hermes/meri-hermes-admission-control.service.js';
-import { MeriHermesProfileLeaseService } from './hermes/meri-hermes-profile-lease.service.js';
-import { MeriHermesArtifactStorageService } from './hermes/meri-hermes-artifact-storage.service.js';
-import {
-  MeriHermesMaintenanceService,
-  MeriHermesWorkerLifecycleService,
-} from './hermes/meri-hermes-worker-lifecycle.service.js';
-import { MERI_HERMES_WORKER_RESOLVER } from './hermes/meri-hermes-worker-resolver.port.js';
-import {
-  MeriHermesBrokerController,
-  MeriHermesWorkerTokenGuard,
-} from './hermes/meri-hermes-broker.controller.js';
-import { MeriHermesController } from './hermes/meri-hermes.controller.js';
-import {
-  ContextPlaneRecallPort,
-  MERI_HERMES_RECALL_PORT,
-} from './hermes/meri-hermes-recall.ports.js';
-import { MERI_HERMES_SECURITY_ENVELOPE } from './hermes/meri-hermes-security.port.js';
+
 
 @Module({
   imports: [
@@ -145,9 +121,7 @@ import { MERI_HERMES_SECURITY_ENVELOPE } from './hermes/meri-hermes-security.por
     MeriPolicyPackController,
     MeriMcpOAuthController,
     MeriVNextLibraryController,
-    // Phase 0 Hermes pilot surfaces (server-gated; 404 outside the pilot).
-    MeriHermesController,
-    MeriHermesBrokerController,
+
   ],
   providers: [
     MeriClientFilingService,
@@ -160,53 +134,7 @@ import { MERI_HERMES_SECURITY_ENVELOPE } from './hermes/meri-hermes-security.por
     MeriV3ResearchRunner,
     MeriV3ProxyService,
     MeriConversationEvidenceService,
-    // Hermes runtime: client, run repository (durable Prisma-backed, Phase 1
-    // backlog #1) plus the in-memory MeriHermesRunStore test double, broker
-    // and adapter. The adapter/broker/controllers depend on the
-    // MERI_HERMES_RUN_REPOSITORY token, not the concrete class, so real
-    // traffic is durable across API restarts while specs can still construct
-    // MeriHermesRunStore directly.
-    MeriHermesRuntimeClient,
-    MeriHermesRunStore,
-    { provide: MERI_HERMES_RUN_REPOSITORY, useClass: MeriHermesPrismaRunRepository },
-    // Phase 1 backlog #2: on-demand worker provisioning. Bound to the client
-    // by the MERI_HERMES_WORKER_RESOLVER token (not by concrete class) to
-    // avoid a circular class dependency — see meri-hermes-worker-resolver.port.ts.
-    MeriHermesWorkerLifecycleService,
-    { provide: MERI_HERMES_WORKER_RESOLVER, useExisting: MeriHermesWorkerLifecycleService },
-    { provide: MERI_HERMES_RECALL_PORT, useClass: ContextPlaneRecallPort },
-    { provide: MERI_HERMES_SECURITY_ENVELOPE, useExisting: MeriContextPlaneService },
-    MeriHermesArtifactStorageService,
-    /**
-     * Phase 1 scaling obligations S-1..S-4. The governor is bound to the
-     * PROCESS-WIDE instance, not merely to a Nest singleton: its semaphore is
-     * what bounds Hermes-attributable database concurrency to its declared
-     * share of the API pool, and a per-consumer instance would bound nothing
-     * (three consumers with six slots each is eighteen slots). The adapter and
-     * the broker cannot receive it through DI — both are constructed
-     * positionally by their specs, so their constructors are deliberately not
-     * widened — and they reach the same object through
-     * `meriHermesSharedDbGovernor()`. Binding the provider to that same
-     * function is what keeps DI and non-DI consumers on one semaphore.
-     */
-    { provide: MeriHermesDbGovernor, useFactory: meriHermesSharedDbGovernor },
-    MeriHermesBudgetService,
-    MeriHermesAdmissionControlService,
-    MeriHermesProfileLeaseService,
-    MeriHermesBrokerService,
-    MeriHermesWorkerTokenGuard,
-    MeriHermesRuntimeAdapter,
-    /**
-     * Phase 1 required fix 2a: the background owner of crash recovery
-     * (`takeOverStaleRuns`) and idle-worker reclamation (`sweepIdleWorkers`),
-     * neither of which had any production caller. Registered here rather than
-     * in `EngagementWorkersModule` because that module is explicitly the
-     * owner of *Engagement* timers and is not loaded by every process that
-     * serves Meri. Its own guards (NODE_ENV, HTTP adapter presence,
-     * MERI_HERMES_MAINTENANCE_ENABLED) decide whether it actually starts —
-     * see the class doc.
-     */
-    MeriHermesMaintenanceService,
+
     {
       provide: MeriService,
       useFactory: createMeriRuntimeService,
@@ -215,7 +143,6 @@ import { MERI_HERMES_SECURITY_ENVELOPE } from './hermes/meri-hermes-security.por
         MeriV3ProxyService,
         MeriV3VisualAnalysisService,
         MeriContextPlaneRuntimeService,
-        MeriHermesRuntimeAdapter,
       ],
     },
     AnalyticsDbService,
@@ -327,9 +254,6 @@ import { MERI_HERMES_SECURITY_ENVELOPE } from './hermes/meri-hermes-security.por
   exports: [
     MeriToolsService,
     MeriFeatureFlagsService,
-    MeriHermesRuntimeAdapter,
-    MERI_HERMES_RUN_REPOSITORY,
-    MERI_HERMES_SECURITY_ENVELOPE,
   ],
 })
 export class MeriModule {}

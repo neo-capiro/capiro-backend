@@ -4,8 +4,7 @@
  * One place builds (a) the authorization re-check every prospect-scoped
  * dispatch must pass BEFORE any user-message write or model/runtime call, and
  * (b) the compact server-authored directive + public turn-scope receipt, so
- * the legacy loop, the MeriV2 full-chat proxy, MeriV3 and the Hermes runtime
- * adapter cannot drift apart.
+ * the legacy loop, the MeriV2 full-chat proxy and MeriV3 cannot drift apart.
  *
  * Import direction is the existing one-way MeriModule → BusinessDevelopmentModule
  * edge: this file (in meri/) imports the BD scope service; BD never imports meri.

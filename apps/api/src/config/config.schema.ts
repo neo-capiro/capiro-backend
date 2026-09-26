@@ -34,9 +34,7 @@ export const configSchema = z.object({
 
   // Tenant assets bucket (logos, future documents).
   ASSETS_BUCKET: z.string().optional(),
-  // Optional S3-compatible endpoint for Meri/Hermes artifact bytes. Unset in
-  // production so the AWS SDK retains its standard real-S3 behavior.
-  MERI_HERMES_ARTIFACT_S3_ENDPOINT: z.string().url().optional(),
+
   DIRECTORY_S3_BUCKET: z.string().optional(),
   DIRECTORY_S3_PREFIX: z.string().optional(),
   DIRECTORY_S3_LATEST_KEY: z.string().default('UPDATED DIRECTORY/LATEST.json'),

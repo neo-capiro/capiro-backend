@@ -664,7 +664,7 @@ export class MeriService implements MeriTurnMaintenance {
   ) {
     const conversation = await this.ensureConversation(ctx, conversationId);
     // Phase 4 prospect-scope authorization re-check: BEFORE any user-message
-    // write, model dispatch, native tool dispatch, or isolated MeriV2/Hermes
+    // write, model dispatch, native tool dispatch, or isolated MeriV2
     // runtime dispatch for a prospect-scoped conversation, re-assert the
     // server-persisted scope is current. Fail closed on missing/malformed/
     // stale scope; ordinary unscoped conversations proceed unchanged.
