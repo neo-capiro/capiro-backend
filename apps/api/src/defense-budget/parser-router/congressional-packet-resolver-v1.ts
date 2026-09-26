@@ -13,14 +13,18 @@ import {
 import type { StageV1 } from '../stages/stage-vocabulary-v1.js';
 
 export const LIFECYCLE_TO_STAGE_V1: Partial<Record<LifecycleStage, StageV1>> = {
-  hasc_mark: 'hasc', hasc_report: 'hasc',
+  hasc_mark: 'hasc',
+  hasc_report: 'hasc',
   house_auth_action: 'hasc',
-  sasc_mark: 'sasc', sasc_report: 'sasc',
+  sasc_mark: 'sasc',
+  sasc_report: 'sasc',
   senate_auth_action: 'sasc',
   auth_conference: 'ndaa_conference',
-  hac_d_mark: 'hac_d', hac_d_report: 'hac_d',
+  hac_d_mark: 'hac_d',
+  hac_d_report: 'hac_d',
   house_appr_action: 'hac_d',
-  sac_d_mark: 'sac_d', sac_d_report: 'sac_d',
+  sac_d_mark: 'sac_d',
+  sac_d_report: 'sac_d',
   senate_appr_action: 'sac_d',
   appr_conference_or_jes: 'appropriations_conference',
 };
@@ -35,7 +39,11 @@ export function resolveCongressionalPacketLocator(manifestPath: string, locator:
   if (isAbsolute(locator)) return locator;
   const manifestDir = resolve(manifestPath, '..');
   const packetPath = resolve(manifestDir, locator);
-  if (packetPath !== manifestDir && !packetPath.startsWith(`${manifestDir}/`) && !packetPath.startsWith(`${manifestDir}\\`))
+  if (
+    packetPath !== manifestDir &&
+    !packetPath.startsWith(`${manifestDir}/`) &&
+    !packetPath.startsWith(`${manifestDir}\\`)
+  )
     throw new Error('congressional packet locator escapes manifest directory');
   return packetPath;
 }
@@ -50,7 +58,8 @@ export function congressionalPacketResolverConfigFromEnv(
   if (!manifestPath) throw new Error('CONGRESSIONAL_PACKET_MANIFEST_PATH is required');
   if (!manifestSha256 || !/^[a-f0-9]{64}$/.test(manifestSha256))
     throw new Error('CONGRESSIONAL_PACKET_MANIFEST_SHA256 must be a lowercase SHA-256 digest');
-  const artifactRoot = parserArtifactRoot?.trim() || env.BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT?.trim();
+  const artifactRoot =
+    parserArtifactRoot?.trim() || env.BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT?.trim();
   if (!artifactRoot) throw new Error('BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT is required');
   return { manifestPath, manifestSha256, parserArtifactRoot: artifactRoot };
 }
@@ -59,10 +68,12 @@ export function createCongressionalPacketResolverV1(
   config: CongressionalPacketResolverConfigV1 | undefined,
 ): CongressionalPacketResolverV1 | undefined {
   if (!config) return undefined;
-  if (!isAbsolute(config.manifestPath)) throw new Error('congressional packet manifest path must be absolute');
+  if (!isAbsolute(config.manifestPath))
+    throw new Error('congressional packet manifest path must be absolute');
   if (!/^[a-f0-9]{64}$/.test(config.manifestSha256))
     throw new Error('congressional packet manifest SHA-256 is required');
-  if (!isAbsolute(config.parserArtifactRoot)) throw new Error('parser artifact root must be absolute');
+  if (!isAbsolute(config.parserArtifactRoot))
+    throw new Error('parser artifact root must be absolute');
   const manifestPath = resolve(config.manifestPath);
   const parserArtifactStore = new FilesystemParserArtifactStore(resolve(config.parserArtifactRoot));
 
@@ -70,22 +81,35 @@ export function createCongressionalPacketResolverV1(
     const bytes = await readFile(manifestPath);
     const actualSha = createHash('sha256').update(bytes).digest('hex');
     if (actualSha !== config.manifestSha256)
-      throw new Error(`congressional packet manifest SHA-256 mismatch: expected ${config.manifestSha256}, got ${actualSha}`);
+      throw new Error(
+        `congressional packet manifest SHA-256 mismatch: expected ${config.manifestSha256}, got ${actualSha}`,
+      );
     let raw: unknown;
-    try { raw = JSON.parse(bytes.toString('utf8')); }
-    catch { throw new Error('congressional packet manifest is not valid JSON'); }
+    try {
+      raw = JSON.parse(bytes.toString('utf8'));
+    } catch {
+      throw new Error('congressional packet manifest is not valid JSON');
+    }
     const manifest = congressionalPacketManifestV1Schema.parse(raw);
     const matches = manifest.documents.filter((doc) => doc.documentKey === request.sourceKey);
     if (matches.length === 0) return { kind: 'missing' } as const;
-    if (matches.length !== 1) throw new Error(`expected exactly one manifest document ${request.sourceKey}`);
+    if (matches.length !== 1)
+      throw new Error(`expected exactly one manifest document ${request.sourceKey}`);
     const doc = matches[0]!;
     const stage = LIFECYCLE_TO_STAGE_V1[request.stage];
-    if (!stage) throw new Error(`lifecycle stage ${request.stage} has no congressional StageV1 mapping`);
-    const routing = routingForLifecycleSource(request.authorityTrack, request.stage, request.sourceFamily);
+    if (!stage)
+      throw new Error(`lifecycle stage ${request.stage} has no congressional StageV1 mapping`);
+    const routing = routingForLifecycleSource(
+      request.authorityTrack,
+      request.stage,
+      request.sourceFamily,
+    );
     if (doc.sourcePdfSha256 !== request.sourceSha256)
       throw new Error('congressional packet manifest source SHA does not match lifecycle source');
     if (doc.fiscalYear !== request.fiscalYear || doc.sourceLocator !== request.sourceUrl)
-      throw new Error('congressional packet manifest source identity does not match lifecycle source');
+      throw new Error(
+        'congressional packet manifest source identity does not match lifecycle source',
+      );
     const loaded = await loadCongressionalFactoryInputsV1({
       manifest,
       request: {
@@ -114,7 +138,11 @@ export function createCongressionalPacketResolverV1(
       factoryInputs: {
         packetBytes: loaded.packetBytes,
         factoryContext: loaded.factoryContext,
+        packetKind: loaded.packetKind,
         input: loaded.input,
+        ...(loaded.tables != null
+          ? { tables: loaded.tables, resolutionContext: loaded.resolutionContext }
+          : {}),
         parserResultProofs: loaded.parserResultProofs,
       },
     };

@@ -10,6 +10,7 @@ Package 3 extends the durable extraction path to procurement, O&M and MILCON whi
 - Reviewed scoped PE-total inputs can produce a deterministically ordered `reviewed_partial` / `partial` publication plan, bound to its cohort and expected active snapshot. The planner is pure: it does not write canonical rows, create/activate a snapshot or publish a complete family.
 - The congressional packet resolver now has a successful exact-match regression path: a manifest-bound packet, source identity, routing context, packet bytes, and persisted parser-artifact proof must all agree before `matched` inputs are returned. The test uses offline fixtures only and performs no production registration or publication.
 - The resolver-to-factory seam now has an offline integration regression: an exact matched bundle is selected by the lifecycle factory, persisted through the immutable extraction-artifact store, re-read with its byte SHA-256, and checked for the stage-owned HASC mark assertion. The fixture deliberately narrows its profile to the legacy RDT&E-only adapter; mixed-family HASC remains fail-closed.
+- A bounded native HASC stage-packet seam now keeps mixed-family-capable tables on the HASC composer path. The strict packet provider binds its native identity index, source/profile/table pages and one persisted parser proof; the durable factory proof-binds the composed artifact before immutable persistence. This is candidate-only and does not activate production admission. See [2026-09-26 seam evidence](./validation-evidence-2026-09-26.md).
 - Congressional semantic production remains quarantined and blocked. Governed structured-table inputs and the required proof inputs are absent; no semantic production qualification or congressional publication is claimed.
 - Generic component-wide books remain generic lineage artifacts and are not represented as qualified family semantics. No canonical activation is included in Package 3.
 
@@ -27,6 +28,7 @@ Congressional semantic production requires governed structured-table material pl
 
 - [Operator runbook](./operator-runbook.md)
 - [Validation and runtime evidence](./validation-evidence-2026-09-24.md)
+- [Bounded mixed-family HASC seam evidence](./validation-evidence-2026-09-26.md)
 - [Machine-readable release evidence](./release-evidence-2026-09-24.json)
 
 Release scope: account `967807252336`, region `us-east-1`, cluster `capiro-dev`.
