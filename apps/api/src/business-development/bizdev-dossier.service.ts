@@ -90,6 +90,18 @@ export interface BizDevCandidate {
   identifiers: Array<{ type: string; value: string }>;
   /** Structured, record-backed reason to inspect — null when we have none. */
   whyInspect: WhyInspectReason | null;
+  /**
+   * Why the evidence shape looks the way it does — never conflates an
+   * aggregate/query failure with "no records". `identity_unresolved` = no
+   * visible UEI on the candidate; `empty_in_queried_scope` = exact-UEI
+   * aggregate ran and found zero rows; `error` = the aggregate itself failed;
+   * `available` = a direct record-backed reason exists. Orthogonal to
+   * markerCoverage, which stays about the tenant marker read only.
+   */
+  evidenceCoverage?: 'available' | 'empty_in_queried_scope' | 'identity_unresolved' | 'error';
+  /** The current tenant's own saved prospect hypothesis, verbatim — never an
+   * AI guess and never another tenant's. Null when no prospect/hypothesis. */
+  serviceHypothesis?: string | null;
   /** Coverage: whether marker state is a complete read or a partial one. */
   markerCoverage: 'complete' | 'partial';
   marker: {
@@ -141,6 +153,11 @@ interface AwardAggregateRow {
   latestActionDate: Date | string | null;
   latestAwardId: string | null;
   latestFetchedAt: Date | string | null;
+  latestAmount: unknown;
+  latestDescription: string | null;
+  latestAwardingAgency: string | null;
+  latestContractorName: string | null;
+  latestRecipientState: string | null;
 }
 
 /**
@@ -151,6 +168,23 @@ interface AwardAggregateRow {
  */
 export interface WhyInspectReason {
   title: string;
+  /**
+   * Structured detail of the SAME latest exact-UEI award row that backs
+   * recordId/eventDate/fetchedAt (action_date DESC NULLS LAST, id ASC — the
+   * ARRAY_AGG ordering in the single page-level aggregate). Amount semantics:
+   * USAspending "Award Amount", the award-level total obligations for the
+   * latest award record — NOT the latest action/transaction amount, and never
+   * ceiling or outlays (see federal-award-mapping.ts + the exposure section
+   * comment). Strict decimal string; zero/negative preserved; null when the
+   * source field is null or not a numeric(18,2) value.
+   */
+  latestAward: {
+    obligatedAmountUsd: string | null;
+    description: string | null;
+    awardingAgency: string | null;
+    recipientName: string | null;
+    recipientState: string | null;
+  };
   eventDate: string | null;
   sourceFamily: 'usaspending_contract';
   originalSourceName: string;
@@ -186,6 +220,31 @@ const num = (v: unknown): number | null => {
 const usd = (v: unknown): string | null => {
   const n = num(v);
   return n == null ? null : `$${Math.round(n).toLocaleString('en-US')}`;
+};
+
+/** Strict decimal-safe serialization for federal_award.amount
+ * (PG numeric(18,2), delivered by Prisma as a Decimal-like whose toString is
+ * e.g. "-1234.50"). Accepts integer or 1–2 fraction digits (pads to 2),
+ * preserves sign and zero, and returns null for anything else — no float
+ * fallback, no recursion, no silent truncation of >2 fraction digits. */
+const decimalString = (v: unknown): string | null => {
+  if (v == null) return null;
+  const s = (typeof v === 'object' && !(v instanceof Date) ? (v as { toString(): string }).toString() : String(v)).trim();
+  if (!/^[+-]?\d+(\.\d{1,2})?$/.test(s)) return null;
+  const neg = s.startsWith('-');
+  const parts = s.replace(/^[+-]/, '').split('.');
+  const int = parts[0] ?? '';
+  const frac = parts[1] ?? '';
+  const cleaned = int.replace(/^0+(?=\d)/, '');
+  const fracPadded = (frac + '00').slice(0, 2);
+  return `${neg ? '-' : ''}${cleaned || '0'}.${fracPadded}`;
+};
+
+/** Bounded display string: trimmed, whitespace-collapsed, length-capped. */
+const boundedText = (v: unknown, cap = 500): string | null => {
+  if (v == null) return null;
+  const s = String(v).replace(/\s+/g, ' ').trim().slice(0, cap);
+  return s === '' ? null : s;
 };
 
 const sectionState = (
@@ -391,17 +450,30 @@ export class BizDevDossierService {
         latest: string | null;
         latestAwardId: string | null;
         latestFetchedAt: string | null;
+        latestAmount: unknown;
+        latestDescription: string | null;
+        latestAwardingAgency: string | null;
+        latestContractorName: string | null;
+        latestRecipientState: string | null;
       }
     >();
+    let awardAggregateFailed = false;
     if (pageUeis.length > 0) {
       try {
-        // DISTINCT-compatible ordered aggregate: latest award id/date/fetched
-        // time per UEI in ONE query (window fn, not per-result reads).
+        // DISTINCT-compatible ordered aggregate: latest award row per UEI in
+        // ONE query (window fn, not per-result reads). Every ARRAY_AGG uses
+        // the SAME deterministic ordering, so recordId/eventDate/fetchedAt/
+        // latestAward.* all describe the SAME latest ingested row.
         const aggRows = await this.direct.$queryRaw<Array<AwardAggregateRow>>`
           SELECT "recipient_uei" AS "recipientUei", COUNT(*)::int AS "awardCount",
                  SUM("amount") AS "totalObligations", MAX("action_date") AS "latestActionDate",
                  (ARRAY_AGG("award_unique_id" ORDER BY "action_date" DESC NULLS LAST, "id" ASC))[1] AS "latestAwardId",
-                 (ARRAY_AGG("last_synced_at" ORDER BY "action_date" DESC NULLS LAST, "id" ASC))[1] AS "latestFetchedAt"
+                 (ARRAY_AGG("last_synced_at" ORDER BY "action_date" DESC NULLS LAST, "id" ASC))[1] AS "latestFetchedAt",
+                 (ARRAY_AGG("amount" ORDER BY "action_date" DESC NULLS LAST, "id" ASC))[1] AS "latestAmount",
+                 (ARRAY_AGG("description" ORDER BY "action_date" DESC NULLS LAST, "id" ASC))[1] AS "latestDescription",
+                 (ARRAY_AGG("awarding_agency" ORDER BY "action_date" DESC NULLS LAST, "id" ASC))[1] AS "latestAwardingAgency",
+                 (ARRAY_AGG("contractor_name" ORDER BY "action_date" DESC NULLS LAST, "id" ASC))[1] AS "latestContractorName",
+                 (ARRAY_AGG("recipient_state" ORDER BY "action_date" DESC NULLS LAST, "id" ASC))[1] AS "latestRecipientState"
           FROM "federal_award"
           WHERE "recipient_uei" = ANY(${pageUeis}::text[])
           GROUP BY "recipient_uei"`;
@@ -412,14 +484,20 @@ export class BizDevDossierService {
             latest: isoDate(row.latestActionDate),
             latestAwardId: row.latestAwardId,
             latestFetchedAt: isoDateTime(row.latestFetchedAt),
+            latestAmount: row.latestAmount,
+            latestDescription: row.latestDescription,
+            latestAwardingAgency: row.latestAwardingAgency,
+            latestContractorName: row.latestContractorName,
+            latestRecipientState: row.latestRecipientState,
           });
         }
       } catch (e) {
+        awardAggregateFailed = true;
         this.logger.warn(
           `candidate award aggregate failed: ${e instanceof Error ? e.message : String(e)}`,
         );
-        // Honest partial: candidates still return, without award-based
-        // whyInspect and with markerCoverage downgraded below.
+        // Candidates still return without award-based whyInspect. Evidence
+        // coverage becomes error; the independent tenant marker read does not.
       }
     }
 
@@ -437,6 +515,7 @@ export class BizDevDossierService {
             stage: true,
             conflictExcluded: true,
             linkedClientId: true,
+            serviceHypothesis: true,
           },
         }),
         tx.client.findMany({
@@ -464,13 +543,28 @@ export class BizDevDossierService {
 
       const uei = identifiers.find((i) => i.type === 'uei')?.value ?? null;
       let whyInspect: WhyInspectReason | null = null;
-      if (uei) {
+      let evidenceCoverage: BizDevCandidate['evidenceCoverage'] = 'empty_in_queried_scope';
+      if (!uei) {
+        evidenceCoverage = 'identity_unresolved';
+      } else if (awardAggregateFailed) {
+        evidenceCoverage = 'error';
+      } else if (!awardAggByUei.has(uei)) {
+        evidenceCoverage = 'empty_in_queried_scope';
+      }
+      if (uei && !awardAggregateFailed) {
         const agg = awardAggByUei.get(uei);
         if (agg && agg.count > 0 && agg.latestAwardId) {
           const total = agg.total ?? 'an unrevealed total';
           const when = agg.latest ? `, most recent action ${agg.latest}` : '';
           whyInspect = {
             title: `Named recipient on ${agg.count} ingested federal award record(s) (obligations ${total}${when}).`,
+            latestAward: {
+              obligatedAmountUsd: decimalString(agg.latestAmount),
+              description: boundedText(agg.latestDescription, 500),
+              awardingAgency: boundedText(agg.latestAwardingAgency, 200),
+              recipientName: boundedText(agg.latestContractorName, 300),
+              recipientState: boundedText(agg.latestRecipientState, 10),
+            },
             eventDate: agg.latest,
             sourceFamily: 'usaspending_contract',
             originalSourceName: 'USAspending',
@@ -480,6 +574,10 @@ export class BizDevDossierService {
             relationshipStrength: 'direct',
             status: 'available',
           };
+          evidenceCoverage = 'available';
+        } else {
+          // Aggregate ran fine but this UEI has no usable award rows.
+          evidenceCoverage = 'empty_in_queried_scope';
         }
       }
 
@@ -498,6 +596,10 @@ export class BizDevDossierService {
         identityScope: org.identityScope === 'tenant_private' ? 'tenant_private' : 'global_public',
         identifiers,
         whyInspect,
+        evidenceCoverage,
+        // The tenant's own saved hypothesis, verbatim from the prospect row
+        // selected above (fixed safe field set; no notes/conflict reasons).
+        serviceHypothesis: prospect?.serviceHypothesis ?? null,
         // The marker read is complete even when the award aggregate failed;
         // `partial` is reserved for a marker read that itself failed.
         markerCoverage: 'complete',

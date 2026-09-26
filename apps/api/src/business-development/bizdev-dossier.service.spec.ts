@@ -56,11 +56,13 @@ interface Alias {
 }
 
 interface AwardRow {
+  id: string;
   awardUniqueId: string;
   piid: string | null;
   recipientUei: string | null;
   contractorName: string | null;
-  amount: number | null;
+  amount: number | string | null;
+  description: string | null;
   actionDate: Date | null;
   awardingAgency: string | null;
   awardingSubTier: string | null;
@@ -130,6 +132,8 @@ type Fixture = {
   clients: Array<Record<string, unknown>>;
   facilities: Array<Record<string, unknown>>;
   tenantSettings: Record<string, unknown> | null;
+  /** When set, the candidate award aggregate raw query rejects (outage test). */
+  awardAggregateThrows?: boolean;
   samLookupByUei?: (uei: string) => { ok: true; entities: unknown[] } | { ok: false; reason: string; message: string };
   samLookupByCage?: (cage: string) => { ok: true; entities: unknown[] } | { ok: false; reason: string; message: string };
 };
@@ -147,11 +151,13 @@ const org = (over: Partial<CanonicalOrg> = {}): CanonicalOrg => ({
 });
 
 const award = (over: Partial<AwardRow> = {}): AwardRow => ({
+  id: randomUUID(),
   awardUniqueId: `AWARD_${randomUUID().slice(0, 8)}`,
   piid: 'PIID123',
   recipientUei: UEI_A,
   contractorName: 'ACME AEROSPACE LLC',
   amount: 1_000_000,
+  description: 'Advanced aerospace components R&D',
   actionDate: new Date('2026-06-15T00:00:00Z'),
   awardingAgency: 'DEPT OF DEFENSE',
   awardingSubTier: 'NAVY',
@@ -330,8 +336,13 @@ const makeHarness = (fx: Fixture) => {
         .filter((a) => a.status === 'active' && a.entityId === args[0] && visibleTo(a, String(args[1])))
         .map((a) => ({ alias: a.alias }));
     }
+    if (sql.includes('FROM "federal_award"') && fx.awardAggregateThrows) {
+      throw new Error('simulated aggregate outage');
+    }
     if (sql.includes('FROM "federal_award"') && sql.includes('ARRAY_AGG')) {
       // Candidate aggregate: GROUP BY recipient_uei with latest-row semantics.
+      // Deterministic ordering: action_date DESC NULLS LAST, then row id ASC
+      // (same tiebreak the real SQL uses via "id" — mirrored by insertion id).
       const ueis = (args.find((a) => Array.isArray(a)) ?? []) as string[];
       const out: Array<Record<string, unknown>> = [];
       for (const uei of ueis) {
@@ -340,17 +351,22 @@ const makeHarness = (fx: Fixture) => {
           .sort(
             (x, y) =>
               (y.actionDate?.getTime() ?? 0) - (x.actionDate?.getTime() ?? 0) ||
-              x.awardUniqueId.localeCompare(y.awardUniqueId),
+              x.id.localeCompare(y.id),
           );
         if (rows.length === 0) continue;
         const latest = rows[0]!;
         out.push({
           recipientUei: uei,
           awardCount: rows.length,
-          totalObligations: rows.reduce((s, r) => s + (r.amount ?? 0), 0),
+          totalObligations: rows.reduce((s, r) => s + (r.amount != null ? Number(r.amount) : 0), 0),
           latestActionDate: latest.actionDate,
           latestAwardId: latest.awardUniqueId,
           latestFetchedAt: latest.lastSyncedAt,
+          latestAmount: latest.amount,
+          latestDescription: latest.description,
+          latestAwardingAgency: latest.awardingAgency,
+          latestContractorName: latest.contractorName,
+          latestRecipientState: latest.recipientState,
         });
       }
       return out;
@@ -681,6 +697,196 @@ describe('searchCandidates', () => {
     expect(serialized).not.toContain('note');
     // The tenant read selects a fixed safe field set.
     expect(res.results[0]!.marker.excluded).toBe(true);
+  });
+
+  // ── Phase 5: structured latestAward + coverage + hypothesis ─────────────
+
+  test('latestAward fields come from the SAME latest row across two distinct awards', async () => {
+    const older = award({
+      awardUniqueId: 'AWARD_older_v2',
+      amount: 250_000.55,
+      description: 'OLDER WORK SOW',
+      awardingAgency: 'DEPT OF HOMELAND SECURITY',
+      contractorName: 'ACME OLD NAME',
+      recipientState: 'MD',
+      actionDate: new Date('2025-03-01T00:00:00Z'),
+      lastSyncedAt: new Date('2025-04-01T00:00:00Z'),
+    });
+    const newer = award({
+      awardUniqueId: 'AWARD_newer_v2',
+      amount: '98765.40' as unknown as number, // PG numeric arrives as string
+      description: 'NEWER WORK SOW',
+      awardingAgency: 'DEPT OF DEFENSE',
+      contractorName: 'ACME NEW NAME',
+      recipientState: 'VA',
+      actionDate: new Date('2026-08-01T00:00:00Z'),
+      lastSyncedAt: new Date('2026-08-02T00:00:00Z'),
+    });
+    const fx = fixtureWithOrgs();
+    fx.awards = [older, newer];
+    const h = makeHarness(fx);
+    const res = await h.service.searchCandidates(ctx, { q: 'acme' });
+    const acme = res.results.find((r) => r.canonicalName === 'Acme Aerospace')!;
+
+    expect(acme.whyInspect!.recordId).toBe('AWARD_newer_v2');
+    expect(acme.whyInspect!.eventDate).toBe('2026-08-01');
+    expect(acme.whyInspect!.fetchedAt).toBe('2026-08-02T00:00:00.000Z');
+    // All latestAward values describe the SAME (newer) row — never a mix.
+    expect(acme.whyInspect!.latestAward).toEqual({
+      obligatedAmountUsd: '98765.40',
+      description: 'NEWER WORK SOW',
+      awardingAgency: 'DEPT OF DEFENSE',
+      recipientName: 'ACME NEW NAME',
+      recipientState: 'VA',
+    });
+    // Aggregate title keeps its own all-awards scope.
+    expect(acme.whyInspect!.title).toContain('2 ingested federal award record(s)');
+    expect(acme.evidenceCoverage).toBe('available');
+  });
+
+  test('tie on action_date breaks by id ASC deterministically', async () => {
+    const tieDate = new Date('2026-07-01T00:00:00Z');
+    const lo = award({
+      id: '00000000-0000-0000-0000-000000000001',
+      awardUniqueId: 'AWARD_tie_lowid',
+      description: 'LOW ID ROW',
+      amount: 111.11,
+      actionDate: tieDate,
+    });
+    const hi = award({
+      id: '00000000-0000-0000-0000-000000000002',
+      awardUniqueId: 'AWARD_tie_highid',
+      description: 'HIGH ID ROW',
+      amount: 222.22,
+      actionDate: tieDate,
+    });
+    const fx = fixtureWithOrgs();
+    fx.awards = [hi, lo]; // insertion order must not matter
+    const h = makeHarness(fx);
+    const res = await h.service.searchCandidates(ctx, { q: 'acme' });
+    const acme = res.results[0]!;
+    expect(acme.whyInspect!.recordId).toBe('AWARD_tie_lowid');
+    expect(acme.whyInspect!.latestAward.description).toBe('LOW ID ROW');
+  });
+
+  test('null, zero, and negative latest amounts are preserved decimal-safe', async () => {
+    // UEI_A in fixtureWithOrgs is fixed; use the same harness per case.
+    const cases: Array<{ amount: number | string | null; expected: string | null }> = [
+      { amount: null, expected: null },
+      { amount: 0, expected: '0.00' },
+      { amount: -12500, expected: '-12500.00' },
+      { amount: '-0.01' as unknown as number, expected: '-0.01' },
+      { amount: '12345.6' as unknown as number, expected: '12345.60' },
+      { amount: '9999999999999999.99', expected: '9999999999999999.99' },
+      { amount: '1e30', expected: null },
+      { amount: '1.234', expected: null },
+    ];
+    for (const c of cases) {
+      const fx = fixtureWithOrgs();
+      fx.awards = [award({ amount: c.amount, awardUniqueId: 'AWARD_money_case' })];
+      const h = makeHarness(fx);
+      const res = await h.service.searchCandidates(ctx, { q: 'acme' });
+      expect(res.results[0]!.whyInspect!.latestAward.obligatedAmountUsd).toBe(c.expected);
+    }
+  });
+
+  test('candidate without UEI is identity_unresolved; exact UEI with no rows is empty_in_queried_scope', async () => {
+    const named = org({
+      canonicalName: 'Named Only Co',
+      normalizedName: 'named only co',
+    });
+    const ueiNoAwards = org({ canonicalName: 'Quiet UEI Co', normalizedName: 'quiet uei co' });
+    const fx = baseFixture({
+      canonical: [named, ueiNoAwards],
+      identifiers: [
+        {
+          entityId: ueiNoAwards.id,
+          identifierType: 'uei',
+          identifierValue: UEI_B,
+          identityScope: 'global_public',
+          tenantId: null,
+          status: 'active',
+        },
+      ],
+    });
+    const h = makeHarness(fx);
+    const res = await h.service.searchCandidates(ctx, { q: 'co' });
+
+    const quiet = res.results.find((r) => r.canonicalName === 'Quiet UEI Co')!;
+    expect(quiet.evidenceCoverage).toBe('empty_in_queried_scope');
+    expect(quiet.whyInspect).toBeNull();
+    const namedOnly = res.results.find((r) => r.canonicalName === 'Named Only Co')!;
+    expect(namedOnly.evidenceCoverage).toBe('identity_unresolved');
+    expect(namedOnly.whyInspect).toBeNull();
+  });
+
+  test('aggregate outage marks evidenceCoverage error, not empty — and still no extra queries', async () => {
+    const fx = fixtureWithOrgs();
+    fx.awardAggregateThrows = true;
+    const h = makeHarness(fx);
+    const res = await h.service.searchCandidates(ctx, { q: 'acme' });
+    const acme = res.results[0]!;
+    expect(acme.whyInspect).toBeNull();
+    expect(acme.evidenceCoverage).toBe('error');
+    // Marker coverage stays about markers only.
+    expect(acme.markerCoverage).toBe('complete');
+    // Fail-soft did not trigger per-result fallback reads.
+    expect(h.calls.rawQueries.filter((q) => q.sql.includes('ARRAY_AGG'))).toHaveLength(1);
+    expect(h.calls.awardReads).toHaveLength(0);
+    expect(h.calls.samUei).toHaveLength(0);
+  });
+
+  test('serviceHypothesis comes only from the caller tenant prospect; tenant B sees null', async () => {
+    const shared = org({ canonicalName: 'Shared Public Co', normalizedName: 'shared public co' });
+    const fixture = baseFixture({
+      canonical: [shared],
+      prospects: [
+        {
+          id: randomUUID(),
+          tenantId,
+          canonicalEntityId: shared.id,
+          status: 'active',
+          stage: 'qualified',
+          conflictExcluded: false,
+          linkedClientId: null,
+          serviceHypothesis: 'Prime contract pursuit via NAVY',
+        },
+      ],
+    });
+    const h = makeHarness(fixture);
+    const resA = await h.service.searchCandidates(ctx, { q: 'Shared' });
+    const resB = await h.service.searchCandidates(ctxB, { q: 'Shared' });
+    expect(resA.results[0]!.serviceHypothesis).toBe('Prime contract pursuit via NAVY');
+    expect(resB.results[0]!.serviceHypothesis).toBeNull();
+  });
+
+  test('serviceHypothesis and no other prospect text leaks into the response', async () => {
+    const shared = org();
+    const fixture = baseFixture({
+      canonical: [shared],
+      prospects: [
+        {
+          id: randomUUID(),
+          tenantId,
+          canonicalEntityId: shared.id,
+          status: 'active',
+          stage: 'researching',
+          conflictExcluded: false,
+          conflictReason: 'opposing counsel — SECRET',
+          linkedClientId: null,
+          notes: 'internal note — SECRETNOTE',
+          serviceHypothesis: '  Federal   R&D partnerships  ',
+        },
+      ],
+    });
+    const h = makeHarness(fixture);
+    const res = await h.service.searchCandidates(ctx, { q: 'acme' });
+    const serialized = JSON.stringify(res);
+    expect(serialized).not.toContain('SECRET');
+    expect(serialized).not.toContain('SECRETNOTE');
+    expect(serialized).not.toContain('conflictReason');
+    // Hypothesis is verbatim (not normalized).
+    expect(res.results[0]!.serviceHypothesis).toBe('  Federal   R&D partnerships  ');
   });
 });
 

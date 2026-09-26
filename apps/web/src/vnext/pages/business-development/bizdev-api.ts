@@ -684,6 +684,14 @@ export interface BizDevWhyInspectReason {
   fetchedAt: string | null;
   relationshipStrength: 'direct';
   status: 'available';
+  /** All fields describe the same award identified by recordId, not the aggregate. */
+  latestAward?: {
+    obligatedAmountUsd: string | null;
+    description: string | null;
+    awardingAgency: string | null;
+    recipientName: string | null;
+    recipientState: string | null;
+  };
 }
 
 /**
@@ -707,6 +715,9 @@ export interface BizDevCandidate {
   prospectId?: string;
   linkedClientId?: string | null;
   stage?: string | null;
+  /** Saved, same-tenant judgment; never a source fact or an inferred service fit. */
+  serviceHypothesis?: string | null;
+  evidenceCoverage?: 'available' | 'empty_in_queried_scope' | 'identity_unresolved' | 'error';
 }
 
 /** Exact candidate-search response: { results, coverage } — no cursor. */

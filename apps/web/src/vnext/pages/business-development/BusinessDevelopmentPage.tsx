@@ -77,6 +77,7 @@ import {
   type BizDevUpdateInput,
 } from './bizdev-api.js';
 import './business-development.css';
+import './bizdev-discover.css';
 import './bizdev-pipeline.css';
 
 /* ── small shared bits ──────────────────────────────────────────────── */
