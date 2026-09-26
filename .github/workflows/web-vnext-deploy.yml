@@ -77,6 +77,8 @@ jobs:
           --poolOptions.threads.singleThread
 
       - name: Typecheck web
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: pnpm --filter @capiro/web typecheck
 
       - name: Build web
