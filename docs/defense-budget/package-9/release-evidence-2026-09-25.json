@@ -83,6 +83,12 @@
         "url": "https://github.com/neo-capiro/capirov2/pull/1840",
         "mergeCommit": "7d222c0de98013eeeac25ece4329717bc6841536",
         "scope": "Package 8 DTIC candidate scope qualifier and trusted runtime mirror parity"
+      },
+      {
+        "number": 1853,
+        "url": "https://github.com/neo-capiro/capirov2/pull/1853",
+        "mergeCommit": "2d480a2b141661466e76f865e3416fc90981e46b",
+        "scope": "bounded sustained Package 9 mixed-load harness and qualification evidence"
       }
     ],
     "githubHostedChecks": {
@@ -629,5 +635,54 @@
     },
     "qualificationBoundary": "short disposable local synthetic evidence only; does not qualify production-scale throughput, HTTP/authentication/network latency, source-change-to-verified-update latency, buyer outcomes, cost attribution, paid-provider economics, rollback, or activation",
     "releaseDecisionUnchanged": "NO_GO / shadow_only"
+  },
+  "followOnDeployment": {
+    "recordedAt": "2026-09-26T00:20:00.000Z",
+    "sourceRevision": "2d480a2b141661466e76f865e3416fc90981e46b",
+    "localMain": "2d480a2b141661466e76f865e3416fc90981e46b",
+    "githubMain": "2d480a2b141661466e76f865e3416fc90981e46b",
+    "codeBuild": {
+      "id": "capiro-build-intel-api:d2986a84-ebca-40df-ab66-a62fe65766be",
+      "resolvedSourceVersion": "2d480a2b141661466e76f865e3416fc90981e46b",
+      "status": "SUCCEEDED",
+      "startedAt": "2026-09-26T00:10:50.175Z",
+      "endedAt": "2026-09-26T00:14:29.670Z",
+      "buildspec": "apps/api/Dockerfile; linux/arm64; immutable SHA tag; ECR push only; no ECS mutation"
+    },
+    "image": {
+      "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
+      "tag": "2d480a2b141661466e76f865e3416fc90981e46b",
+      "digest": "sha256:08257e280c32b1dc49f5e5e1b3ee15d656a97b9915b7166a16130b8d86f8252a"
+    },
+    "migration": {
+      "taskDefinition": "capiro-dev-api-admin-migrate:78",
+      "taskId": "d3184bcc3f04427ba0650525858c8e7b",
+      "exitCode": 0,
+      "result": "No pending migrations to apply"
+    },
+    "service": {
+      "name": "capiro-dev-api",
+      "taskDefinition": "capiro-dev-api:475",
+      "rolloutState": "COMPLETED",
+      "desired": 2,
+      "running": 2,
+      "pending": 0,
+      "healthyTasks": 2,
+      "healthyReplacementTargets": 2,
+      "targetHealthNote": "old targets drained normally after replacement"
+    },
+    "runtime": {
+      "gitSha": "2d480a2b141661466e76f865e3416fc90981e46b",
+      "releaseSha": "2d480a2b141661466e76f865e3416fc90981e46b",
+      "appHttpStatus": 200,
+      "recentApiErrorLikeLogMatches": 0,
+      "protectedFlags": {
+        "federalLegislativeEvidenceEnabled": false,
+        "programAcquisitionContinuityEnabled": false,
+        "fundingExecutionSourceAdapterEnabled": false,
+        "fundingExecutionPublicationEnabled": false
+      }
+    },
+    "qualificationBoundary": "deployment evidence only; Package 9 remains NO_GO/shadow_only and the sustained run remains disposable synthetic evidence"
   }
 }
