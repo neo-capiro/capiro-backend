@@ -246,4 +246,77 @@ describe('congressional manifest packet provider', () => {
       }),
     ).rejects.toThrow('lifecycle routing');
   });
+
+  it('loads a strict native HASC stage packet with its resolution context', async () => {
+    const nativeProfile = createHascSourceProfileV1({
+      fiscalYear: 2027,
+      reportNumber: 'H. Rept. native',
+      sourceDocumentKeys: ['doc-a'],
+    });
+    const nativePacketBytes = Buffer.from(
+      JSON.stringify({
+        schemaVersion: 'congressional_stage_packet_v1',
+        documentKey: 'doc-a',
+        stage: 'hasc',
+        fiscalYear: 2027,
+        declaredUnit: 'thousands',
+        profileId: nativeProfile.profileId,
+        sourcePdfSha256: ADAPTER_TEST_SOURCE_SHA,
+        tables: [
+          {
+            schemaVersion: 'congressional_table_v1',
+            profileId: nativeProfile.profileId,
+            sourceDocumentId: 'source-a',
+            sourceSha256: ADAPTER_TEST_SOURCE_SHA,
+            page: 1,
+            headings: [],
+            columns: [],
+            rows: [],
+          },
+        ],
+        resolutionContext: {
+          index: [],
+          fiscalYear: 2027,
+          profileId: nativeProfile.profileId,
+        },
+      }),
+    );
+    const nativeManifest = {
+      schemaVersion: 'congressional_packet_manifest_v1',
+      documents: [
+        {
+          documentKey: 'doc-a',
+          stage: 'hasc',
+          fiscalYear: 2027,
+          declaredUnit: 'thousands',
+          sourcePdfSha256: ADAPTER_TEST_SOURCE_SHA,
+          sourceLocator: 'source.pdf',
+          packetLocator: 'native-packet.json',
+          packetByteSha256: sha256Bytes(nativePacketBytes),
+          profile: nativeProfile,
+          context,
+          parserRuns: [
+            {
+              sourceSha256: ADAPTER_TEST_SOURCE_SHA,
+              method: result.engine,
+              parserVersion: result.parserVersion,
+              parserConfigSha256: result.parserConfigSha256,
+              requestedPages: [1],
+              runtimeContractVersion: 'defense_budget_parser_job_v1',
+            },
+          ],
+        },
+      ],
+    };
+    const loaded = await loadCongressionalFactoryInputsV1({
+      manifest: nativeManifest,
+      request: { ...request, profileId: nativeProfile.profileId },
+      parserArtifactStore: store(),
+      readPacket: async () => nativePacketBytes,
+    });
+    expect(loaded.packetKind).toBe('stage_composer');
+    expect(loaded.tables).toHaveLength(1);
+    expect(loaded.resolutionContext?.profileId).toBe(nativeProfile.profileId);
+    expect(loaded.input.rows).toHaveLength(0);
+  });
 });
