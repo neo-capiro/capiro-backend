@@ -15,6 +15,8 @@ export interface MatchEligibility {
   mandatoryRequirementsSatisfied: boolean;
 }
 
+export type MandatoryEligibilityStatus = 'unknown' | 'satisfied' | 'failed';
+
 export type MatchLabelReason =
   | 'jev_agrees_explicit_linkage'
   | 'jev_does_not_confirm_explicit_linkage'
@@ -37,6 +39,7 @@ export interface DeriveMatchLabelInput {
 
 export interface DerivedMatchLabel {
   label: MatchLabel;
+  eligibility: MandatoryEligibilityStatus;
   downgraded: boolean;
   reasons: MatchLabelReason[];
 }
@@ -78,6 +81,9 @@ function capAt(label: MatchLabel, cap: MatchLabel): MatchLabel {
 }
 
 export function deriveMatchLabel(input: DeriveMatchLabelInput): DerivedMatchLabel {
+  const eligibility: MandatoryEligibilityStatus = !input.eligibility.mandatoryRequirementsKnown
+    ? 'unknown'
+    : input.eligibility.mandatoryRequirementsSatisfied ? 'satisfied' : 'failed';
   const asserted = ASSERTED_LABEL[input.assertedTier];
   const authoritative = input.evidence.filter(authoritativeResolved);
   const opportunity = authoritative.some(isOpportunityEvidence);
@@ -89,7 +95,7 @@ export function deriveMatchLabel(input: DeriveMatchLabelInput): DerivedMatchLabe
   const reasons: MatchLabelReason[] = [];
 
   if (!input.evidence.length || (!authoritative.length && (!jevUsable || jev === 'insufficient_evidence'))) {
-    return { label: 'insufficient_evidence', downgraded: RANK[asserted] > 0, reasons: ['no_supporting_evidence'] };
+    return { label: 'insufficient_evidence', eligibility, downgraded: RANK[asserted] > 0, reasons: ['no_supporting_evidence'] };
   }
 
   let label = jevUsable && jev ? jev : asserted;
@@ -126,7 +132,7 @@ export function deriveMatchLabel(input: DeriveMatchLabelInput): DerivedMatchLabe
   }
   if (label === 'insufficient_evidence') reasons.push('no_supporting_evidence');
 
-  return { label, downgraded: RANK[label] < RANK[asserted], reasons: [...new Set(reasons)] };
+  return { label, eligibility, downgraded: RANK[label] < RANK[asserted], reasons: [...new Set(reasons)] };
 }
 
 export const MATCH_LABEL_DISPLAY: Readonly<Record<MatchLabel, string>> = {

@@ -32,7 +32,7 @@ const MAILBOX_PROVIDERS = ['microsoft_365', 'google_workspace', 'imap_caldav'] a
 
 type MeriContextPlaneOperation = MeriGovernedTurnContext['operationId'];
 
-interface ResolvedTurnPlan {
+export interface ResolvedTurnPlan {
   subjectScope: ContextSubjectScope;
   targetHint: string | null;
   queryClass: RetrievalQueryClass;
@@ -46,6 +46,26 @@ interface ResolvedTurnPlan {
   windowEnd?: Date;
   observedThrough?: Date;
   timeWindow: { expression: string; withinDays: number } | null;
+}
+
+/** Provider-neutral input/output seam for a future advisory capability router. */
+export interface MeriCapabilityRoutingRequest {
+  taskText: string;
+  deterministicPlan: ResolvedTurnPlan;
+  /** Server-derived IDs only; neither the task text nor a provider may add candidates. */
+  eligibleCapabilityIds: readonly string[];
+}
+
+export type MeriCapabilityRoutingDecision =
+  | { kind: 'proposal'; outcome: string; confidence: number; probabilities: Readonly<Record<string, number>>;
+    candidate: { id: string; description: string; effect: 'read_only' | 'write' } | null }
+  | { kind: 'fallback'; reason: string };
+
+export interface MeriCapabilityRoutingProvider {
+  propose(
+    request: MeriCapabilityRoutingRequest,
+    options?: { signal?: AbortSignal; deadlineAt?: number },
+  ): Promise<MeriCapabilityRoutingDecision>;
 }
 
 interface ChatConversationScope {
@@ -627,6 +647,35 @@ function inferWindow(
     observedThrough: windowEnd,
     timeWindow: { expression, withinDays: days },
   };
+}
+
+/**
+ * Dark proposal wrapper. It always returns the existing deterministic plan;
+ * the optional provider can add advisory telemetry only and has no execution
+ * or plan-replacement path. The live context-plane flow does not call this
+ * helper while capability_routing remains inactive/off.
+ */
+export async function planMeriTurnWithCapabilityProposal(
+  input: Parameters<typeof planMeriTurn>[0],
+  options: {
+    provider: MeriCapabilityRoutingProvider | null;
+    eligibleCapabilityIds: readonly string[];
+    signal?: AbortSignal;
+    deadlineAt?: number;
+  },
+): Promise<{ plan: ResolvedTurnPlan; routing: MeriCapabilityRoutingDecision }> {
+  const plan = planMeriTurn(input);
+  if (!options.provider) return { plan, routing: { kind: 'fallback', reason: 'off' } };
+  try {
+    const routing = await options.provider.propose({
+      taskText: input.task,
+      deterministicPlan: plan,
+      eligibleCapabilityIds: options.eligibleCapabilityIds,
+    }, { signal: options.signal, deadlineAt: options.deadlineAt });
+    return { plan, routing };
+  } catch {
+    return { plan, routing: { kind: 'fallback', reason: 'provider_error' } };
+  }
 }
 
 function noRetrievalPlan(subjectScope: ContextSubjectScope): ResolvedTurnPlan {

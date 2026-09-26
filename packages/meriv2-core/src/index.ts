@@ -3,6 +3,7 @@
 // claim-map grounding. Hosted over HTTP by `apps/meriv2-orchestrator`.
 export * from './registry/types';
 export * from './context/governed-evidence-auth';
+export * from './context/final-tool-schema-fingerprint';
 export * from './context/meri-explicit-subject';
 export * from './registry/tool-registry';
 export * from './registry/tool-execution-metadata';

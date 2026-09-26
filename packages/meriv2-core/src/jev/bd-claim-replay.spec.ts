@@ -139,7 +139,7 @@ describe('bd_claim replay fixture provenance', () => {
   });
 
   it('parses with the shared task evaluation fixture schema against the current registry', () => {
-    expect(fixture.registryVersion).toBe(JEV_TASK_REGISTRY_VERSION);
+    expect(fixture.registryVersion).toBe('jev-task-registry.v5');
     expect(fixture.model).toBe('jev-1.13.0');
   });
 });

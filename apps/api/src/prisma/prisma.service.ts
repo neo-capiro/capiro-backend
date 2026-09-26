@@ -145,8 +145,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   async withTenant<T>(
     tenantId: string,
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
-    opts?: { timeoutMs?: number },
+    opts?: { timeoutMs?: number; isolationLevel?: Prisma.TransactionIsolationLevel },
   ): Promise<T> {
+    const transactionOptions = {
+      ...(opts?.timeoutMs ? { timeout: opts.timeoutMs } : {}),
+      ...(opts?.isolationLevel ? { isolationLevel: opts.isolationLevel } : {}),
+    };
     return this.scopedClient({ tenantId }).$transaction(
       async (tx) => {
         // SET LOCAL is bound to the transaction. set_config(..., true) returns
@@ -164,8 +168,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       //   "Transaction already closed: ... however 8061 ms passed since
       //    the start of the transaction"
       // every time the intel tab loaded. Callers can pass a higher
-      // timeoutMs for known-slow paths.
-      opts?.timeoutMs ? { timeout: opts.timeoutMs } : undefined,
+      // timeoutMs for known-slow paths. A caller that needs several reads to
+      // share one Postgres snapshot may also request an isolationLevel; the
+      // default remains Prisma/Postgres' configured transaction default.
+      Object.keys(transactionOptions).length ? transactionOptions : undefined,
     );
   }
 

@@ -11,6 +11,7 @@ import {
   type DerivedMatchLabel,
   type EvidenceEnvelope,
   type MatchLabel,
+  type MatchEligibility,
 } from '@capiro/meriv2-core';
 
 export interface MatchLabelEvaluation {
@@ -24,6 +25,7 @@ export interface MatchLabelControlInput {
   reply: string;
   citations: readonly MeriCitation[];
   evidence: readonly AssuredEvidence[];
+  eligibility?: MatchEligibility;
   evaluate?: (input: {
     findingText: string;
     evidence: AssuredEvidence[];
@@ -104,7 +106,13 @@ function evidenceForFinding(
 }
 
 function replaceTier(reply: string, findingText: string, asserted: string, derived: DerivedMatchLabel): string {
-  if (!derived.downgraded) return reply;
+  if (!derived.downgraded) {
+    if (derived.label !== 'explicit_linkage' || derived.eligibility !== 'unknown') return reply;
+    const findingAt = reply.indexOf(findingText);
+    if (findingAt < 0) return reply;
+    const findingEnd = findingAt + findingText.length;
+    return `${reply.slice(0, findingEnd)} Eligibility has not been assessed; verify mandatory requirements before pursuing.${reply.slice(findingEnd)}`;
+  }
   const display = MATCH_LABEL_DISPLAY[derived.label];
   const findingAt = reply.indexOf(findingText);
   if (findingAt < 0) return reply;
@@ -140,7 +148,7 @@ export async function applyMatchLabelControl(input: MatchLabelControlInput): Pro
         jevCategory: evaluation.category,
         jevConfidence: evaluation.confidence,
         evidence: scoped.evidence,
-        eligibility: { mandatoryRequirementsKnown: false, mandatoryRequirementsSatisfied: true },
+        eligibility: input.eligibility ?? { mandatoryRequirementsKnown: false, mandatoryRequirementsSatisfied: false },
       });
       derived.push(result);
       if (input.mode === 'enforce') {
@@ -170,14 +178,17 @@ export function matchLabelEvent(
 ): Record<string, unknown> {
   const labels: Record<string, number> = {};
   const reasons: Record<string, number> = {};
+  const eligibility: Record<string, number> = {};
   for (const item of result.derived) {
     labels[item.label] = (labels[item.label] ?? 0) + 1;
+    eligibility[item.eligibility] = (eligibility[item.eligibility] ?? 0) + 1;
     for (const reason of item.reasons) reasons[reason] = (reasons[reason] ?? 0) + 1;
   }
   return {
     findings: result.findings,
     assertedTiers: result.assertedTiers,
     derivedLabels: labels,
+    eligibilityStatuses: eligibility,
     downgraded: result.derived.filter((item) => item.downgraded).length,
     reasonCounts: reasons,
     jevUsed: result.jevUsed,

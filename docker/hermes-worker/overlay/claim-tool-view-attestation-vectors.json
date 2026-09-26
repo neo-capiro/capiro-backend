@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "requestBodyBase64url": "eyAieiI6IDEsICJpbnB1dCIgOiAiaGVsbG8iLCAiYSI6IDIgfQ",
+  "sessionHeaderValue": "tenant:11111111-1111-4111-8111-111111111111:user:22222222-2222-4222-8222-222222222222:conversation:33333333-3333-4333-8333-333333333333:e3",
+  "sourceMessage": {
+    "body": "hello source",
+    "metadata": { "runtime": "hermes" }
+  },
+  "sessionHeaderHmacKeyBase64url": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
+  "identity": {
+    "version": 2,
+    "tenantId": "11111111-1111-4111-8111-111111111111",
+    "actorType": "user",
+    "actorId": "22222222-2222-4222-8222-222222222222",
+    "meriAudience": "private",
+    "clientId": null,
+    "workspaceId": null,
+    "scopeId": "tenant:11111111-1111-4111-8111-111111111111:user:22222222-2222-4222-8222-222222222222",
+    "conversationId": "33333333-3333-4333-8333-333333333333",
+    "userMessageId": "44444444-4444-4444-8444-444444444444",
+    "runId": "55555555-5555-4555-8555-555555555555",
+    "idempotencyKey": "phase4-claim-vector",
+    "conversationEpoch": 3,
+    "workerAudience": "meri-hermes-scope-worker",
+    "workerIngressId": "private-ingress-a",
+    "workerGeneration": "worker-image-sha256:2026",
+    "workerCredentialId": "worker-credential-2026-09",
+    "authorizationVersion": "authorization-v8",
+    "authorizationPolicyVersion": "policy-v8",
+    "grantVersion": "grant-v4",
+    "catalogDigest": "9c19feac2cf5813761ebe48cf724e81a93266165d7eb267771cb2a0be231c1eb",
+    "toolViewDigest": "483523d6cbc1170cfc0287c324dac66dec28faa9e3a9ec2dd808a94b6809c5fa",
+    "sessionHeaderKeyId": "dispatch-hmac-2026-09",
+    "claimNotAfterEpochMicros": "1790366400000000",
+    "deliveryNotAfterEpochMicros": "1790366460000000",
+    "workerCredentialNotAfterEpochMicros": "1790366460000000",
+    "reconciliationNotAfterEpochMicros": "1790456460000000",
+    "retainUntilEpochMicros": "1790546460000000",
+    "sourceMessageSha256": "1818956f52a9755a141416abeecde3a01be3d920c36b839baa65e67d6bf2c93a",
+    "bodyLengthBytes": 37,
+    "bodySha256": "3e9d9a95f06e464ba5ff8de0a27d7d51ebfaa4972e8603b436b2767608aa8ff3",
+    "sessionHeaderHmacSha256": "b4a3a56914fa3d1535b9b8ff5bbbc604763e06b2eb43d0a9705228eca20764bd",
+    "requestAssemblySha256": "4941ffd1eafc09d22061ccc4e3ae27676922e48097adf462c6105efa5c48fb6b",
+    "requestSha256": "173f29b7ab78ce7b7ba38274ade1b12737a0b12ed36b0e84ba577ee3df86af7b"
+  },
+  "workerRunId": "run_worker_vector_é",
+  "observedCatalogTools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "search",
+        "description": "Ångström search 🧭",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "é": { "type": "string" },
+            "😀": { "type": "integer", "maximum": 9007199254740991 }
+          },
+          "required": ["é"]
+        }
+      }
+    },
+    {
+      "function": {
+        "parameters": { "type": "object" },
+        "name": "read",
+        "description": "Line one\nLine two"
+      },
+      "type": "function"
+    }
+  ],
+  "observedAppliedToolSchemas": [
+    {
+      "function": {
+        "parameters": { "type": "object" },
+        "name": "read",
+        "description": "Line one\nLine two"
+      },
+      "type": "function"
+    }
+  ],
+  "key": {
+    "tenantId": "11111111-1111-4111-8111-111111111111",
+    "scopeId": "tenant:11111111-1111-4111-8111-111111111111:user:22222222-2222-4222-8222-222222222222",
+    "workerAudience": "meri-hermes-scope-worker",
+    "workerIngressId": "private-ingress-a",
+    "workerGeneration": "worker-image-sha256:2026",
+    "workerCredentialId": "worker-credential-2026-09",
+    "secretBase64url": "CwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCws",
+    "notBeforeEpochMicros": "1790366300000000",
+    "notAfterEpochMicros": "1790366460000000"
+  },
+  "notBeforeEpochMicros": "1790366390000000",
+  "notAfterEpochMicros": "1790366399000000",
+  "claims": [
+    "capiro.meri.phase4.claim-tool-view-attestation/v1",
+    "1",
+    "11111111-1111-4111-8111-111111111111",
+    "55555555-5555-4555-8555-555555555555",
+    "173f29b7ab78ce7b7ba38274ade1b12737a0b12ed36b0e84ba577ee3df86af7b",
+    "run_worker_vector_é",
+    "meri-hermes-scope-worker",
+    "private-ingress-a",
+    "worker-image-sha256:2026",
+    "worker-credential-2026-09",
+    "9c19feac2cf5813761ebe48cf724e81a93266165d7eb267771cb2a0be231c1eb",
+    "483523d6cbc1170cfc0287c324dac66dec28faa9e3a9ec2dd808a94b6809c5fa",
+    "1790366390000000",
+    "1790366399000000"
+  ],
+  "encoded": "WyJjYXBpcm8ubWVyaS5waGFzZTQuY2xhaW0tdG9vbC12aWV3LWF0dGVzdGF0aW9uL3YxIiwiMSIsIjExMTExMTExLTExMTEtNDExMS04MTExLTExMTExMTExMTExMSIsIjU1NTU1NTU1LTU1NTUtNDU1NS04NTU1LTU1NTU1NTU1NTU1NSIsIjE3M2YyOWI3YWI3OGNlN2I3YmEzODI3NGFkZTFiMTI3MzdhMGIxMmVkMzZiMGU4NGJhNTc3ZWUzZGY4NmFmN2IiLCJydW5fd29ya2VyX3ZlY3Rvcl_DqSIsIm1lcmktaGVybWVzLXNjb3BlLXdvcmtlciIsInByaXZhdGUtaW5ncmVzcy1hIiwid29ya2VyLWltYWdlLXNoYTI1NjoyMDI2Iiwid29ya2VyLWNyZWRlbnRpYWwtMjAyNi0wOSIsIjljMTlmZWFjMmNmNTgxMzc2MWViZTQ4Y2Y3MjRlODFhOTMyNjYxNjVkN2ViMjY3NzcxY2IyYTBiZTIzMWMxZWIiLCI0ODM1MjNkNmNiYzExNzBjZmMwMjg3YzMyNGRhYzY2ZGVjMjhmYWE5ZTNhOWVjMmRkODA4YTk0YjY4MDljNWZhIiwiMTc5MDM2NjM5MDAwMDAwMCIsIjE3OTAzNjYzOTkwMDAwMDAiXQ",
+  "signatureHex": "b374df8c97a4d6a05216a468e3523cc4c56688a50836cced57a532b003e2bdd3",
+  "token": "WyJjYXBpcm8ubWVyaS5waGFzZTQuY2xhaW0tdG9vbC12aWV3LWF0dGVzdGF0aW9uL3YxIiwiMSIsIjExMTExMTExLTExMTEtNDExMS04MTExLTExMTExMTExMTExMSIsIjU1NTU1NTU1LTU1NTUtNDU1NS04NTU1LTU1NTU1NTU1NTU1NSIsIjE3M2YyOWI3YWI3OGNlN2I3YmEzODI3NGFkZTFiMTI3MzdhMGIxMmVkMzZiMGU4NGJhNTc3ZWUzZGY4NmFmN2IiLCJydW5fd29ya2VyX3ZlY3Rvcl_DqSIsIm1lcmktaGVybWVzLXNjb3BlLXdvcmtlciIsInByaXZhdGUtaW5ncmVzcy1hIiwid29ya2VyLWltYWdlLXNoYTI1NjoyMDI2Iiwid29ya2VyLWNyZWRlbnRpYWwtMjAyNi0wOSIsIjljMTlmZWFjMmNmNTgxMzc2MWViZTQ4Y2Y3MjRlODFhOTMyNjYxNjVkN2ViMjY3NzcxY2IyYTBiZTIzMWMxZWIiLCI0ODM1MjNkNmNiYzExNzBjZmMwMjg3YzMyNGRhYzY2ZGVjMjhmYWE5ZTNhOWVjMmRkODA4YTk0YjY4MDljNWZhIiwiMTc5MDM2NjM5MDAwMDAwMCIsIjE3OTAzNjYzOTkwMDAwMDAiXQ.b374df8c97a4d6a05216a468e3523cc4c56688a50836cced57a532b003e2bdd3"
+}

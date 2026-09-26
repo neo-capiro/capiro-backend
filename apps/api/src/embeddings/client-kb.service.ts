@@ -1,8 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import mammoth from 'mammoth';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { extractPdfText } from '../meri/meri-attachment-extract.js';
@@ -623,15 +623,42 @@ export class ClientKbService {
     tenantId: string,
     input: { query: string; clientId: string; kind?: string; limit?: number; userId?: string },
   ): Promise<Array<{ kind: string; id: string; title: string; snippet: string; score: number }>> {
+    const result = await this.searchWithAccess(tenantId, input);
+    return result.results;
+  }
+
+  /**
+   * Meri variant that reports the client-memory wall decision from the same
+   * repeatable-read tenant snapshot as the retrieval query. A grant revocation
+   * committed after this snapshot may race the response; the wall decision and
+   * rows still describe one consistent invocation-time DB snapshot. The
+   * rows-only `search()` API remains compatible for existing callers.
+   */
+  async searchWithAccess(
+    tenantId: string,
+    input: { query: string; clientId: string; kind?: string; limit?: number; userId?: string },
+  ): Promise<{
+    authorized: boolean;
+    results: Array<{ kind: string; id: string; title: string; snippet: string; score: number }>;
+  }> {
+    if (input.kind != null && typeof input.kind !== 'string') {
+      throw new BadRequestException('kind must be a supported client knowledge source type');
+    }
+    const kindFilter = input.kind?.trim() || null;
+    if (kindFilter && !KB_SOURCE_TYPES.includes(kindFilter as KbSourceType)) {
+      throw new BadRequestException('kind must be a supported client knowledge source type');
+    }
     const limit = Math.min(Math.max(input.limit ?? 8, 1), 20);
-    const kindFilter =
-      input.kind && (KB_SOURCE_TYPES as readonly string[]).includes(input.kind) ? input.kind : null;
     const vector = await embedText(normalize(input.query));
     const literal = vectorLiteral(vector);
-    const rows = await this.prisma.withTenant(tenantId, async (tx) => {
-      if (!await clientMemoryAllowed(tx, tenantId, input.userId ?? null, input.clientId)) return [];
+    const retrieval = await this.prisma.withTenant(tenantId, async (tx) => {
+      // Keep the authorization result paired with the actual query. A separate
+      // preflight would race a grant revocation and could mislabel denial as an
+      // empty search (or, more seriously, release stale rows).
+      if (!await clientMemoryAllowed(tx, tenantId, input.userId ?? null, input.clientId))
+        return { authorized: false as const, rows: [] };
       const allowedDocuments = await this.visibleDocuments(tx, tenantId, input.clientId, input.userId);
-      return tx.$queryRawUnsafe<
+      const rows = await tx.$queryRawUnsafe<
         Array<{ source_type: string; source_id: string; content_text: string; score: number }>
       >(
         `SELECT source_type, source_id, content_text,
@@ -652,8 +679,9 @@ export class ClientKbService {
           allowedDocuments.map(document => document.id),
         ] as unknown[]),
       );
-    });
-    return rows
+      return { authorized: true as const, rows };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+    const results = retrieval.rows
       .filter((r) => Number(r.score) > 0.2)
       .map((r) => {
         const text = r.content_text.replace(/\s+/g, ' ').trim();
@@ -666,14 +694,18 @@ export class ClientKbService {
           score: Number(r.score),
         };
       });
+    return { authorized: retrieval.authorized, results };
   }
 
   /** Always-on KB snapshot for client-scoped conversations (≤~1.2k tokens). */
   async buildSnapshot(tenantId: string, clientId: string, userId?: string): Promise<string | null> {
     if (!this.enabled()) return null;
-    if (!await this.prisma.withTenant(tenantId, tx => clientMemoryAllowed(tx, tenantId, userId ?? null, clientId))) return null;
-    const client = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.client.findFirst({
+    // Bind the wall decision and every source read to one invocation-time
+    // snapshot. A separate access preflight could be followed by a committed
+    // grant revocation before the content queries begin.
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      if (!await clientMemoryAllowed(tx, tenantId, userId ?? null, clientId)) return null;
+      const client = await tx.client.findFirst({
         where: { id: clientId },
         select: {
           name: true,
@@ -683,19 +715,15 @@ export class ClientKbService {
           issueCodes: true,
           uei: true,
         },
-      }),
-    );
-    if (!client) return null;
-    const [people, facilities, recentDocs] = await Promise.all([
-      this.prisma.withTenant(tenantId, (tx) =>
+      });
+      if (!client) return null;
+      const [people, facilities, recentDocs] = await Promise.all([
         tx.clientPerson.findMany({
           where: { clientId },
           orderBy: [{ lastContact: { sort: 'desc', nulls: 'last' } }, { updatedAt: 'desc' }],
           take: 8,
           select: { name: true, title: true, role: true, lastContact: true },
         }),
-      ),
-      this.prisma.withTenant(tenantId, (tx) =>
         tx.clientFacility.findMany({
           where: { clientId },
           take: 30,
@@ -707,10 +735,9 @@ export class ClientKbService {
             employeeCount: true,
           },
         }),
-      ),
-      this.prisma.withTenant(tenantId, tx =>
-        this.visibleDocuments(tx, tenantId, clientId, userId, 5)),
-    ]);
-    return buildKbSnapshot({ client, people, facilities, recentDocs });
+        this.visibleDocuments(tx, tenantId, clientId, userId, 5),
+      ]);
+      return buildKbSnapshot({ client, people, facilities, recentDocs });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
   }
 }

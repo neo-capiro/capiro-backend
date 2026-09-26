@@ -63,6 +63,7 @@ function makePrisma(rows: Array<Record<string, unknown>>) {
     actionRecommendation: {
       findMany: jest.fn(
         async (args: {
+          where?: Record<string, unknown>;
           orderBy: Array<Record<string, unknown>>;
           skip?: number;
           take?: number;
@@ -73,7 +74,7 @@ function makePrisma(rows: Array<Record<string, unknown>>) {
           return sorted.slice(skip, skip + take);
         },
       ),
-      count: jest.fn(async () => store.length),
+      count: jest.fn(async (_args: { where: Record<string, unknown> }) => store.length),
       findFirst: jest.fn(async (args: { where: { id: string } }) => {
         // Prisma never hands back a live reference; return a copy so a later
         // `update` mutation does not retroactively change a captured `before` snapshot.
@@ -182,6 +183,30 @@ describe('ActionRecommendationReadService', () => {
       const result = await service.list(ctx, { sort: 'priority' });
 
       expect(result.data.map((c) => c.id)).toEqual(['hi', 'lo']);
+    });
+
+    test('omitted-client list applies the live wall predicate before page and total', async () => {
+      const prisma = makePrisma([makeRow()]);
+      const service = new ActionRecommendationReadService(prisma as never);
+      await service.list(ctx, { limit: 1 });
+
+      const pageWhere = prisma.__tx.actionRecommendation.findMany.mock.calls[0]?.[0]?.where;
+      const countWhere = prisma.__tx.actionRecommendation.count.mock.calls[0]?.[0]?.where;
+      expect(pageWhere).toMatchObject({
+        tenantId: ctx.tenantId,
+        client: {
+          is: {
+            tenantId: ctx.tenantId,
+            status: { not: 'archived' },
+            OR: [
+              { memoryWall: false },
+              { memoryAccessGrants: { some: { tenantId: ctx.tenantId, userId: ctx.userId } } },
+            ],
+          },
+        },
+      });
+      expect(countWhere).toEqual(pageWhere);
+      expect(prisma.__tx.actionRecommendation.findMany.mock.calls[0]?.[0]?.take).toBe(1);
     });
   });
 
@@ -301,5 +326,33 @@ describe('ActionRecommendationReadService', () => {
 
       await expect(service.getOne(ctx, 'nope')).rejects.toBeInstanceOf(NotFoundException);
     });
+  });
+
+  test('known-id detail and both mutations recheck the current client wall in SQL', async () => {
+    const wall = {
+      tenantId: ctx.tenantId,
+      status: { not: 'archived' },
+      OR: [
+        { memoryWall: false },
+        { memoryAccessGrants: { some: { tenantId: ctx.tenantId, userId: ctx.userId } } },
+      ],
+    };
+    for (const operation of ['getOne', 'updateStatus', 'updateOwner'] as const) {
+      const prisma = makePrisma([makeRow()]);
+      const service = new ActionRecommendationReadService(prisma as never);
+      if (operation === 'getOne') await service.getOne(ctx, 'card-1');
+      if (operation === 'updateStatus') await service.updateStatus(ctx, 'card-1', 'triaged');
+      if (operation === 'updateOwner') await service.updateOwner(ctx, 'card-1', ctx.userId);
+      for (const [args] of prisma.__tx.actionRecommendation.findFirst.mock.calls) {
+        expect(args.where).toMatchObject({
+          id: 'card-1', tenantId: ctx.tenantId, client: { is: wall },
+        });
+      }
+      for (const [args] of prisma.__tx.actionRecommendation.updateMany.mock.calls) {
+        expect(args.where).toMatchObject({
+          id: 'card-1', tenantId: ctx.tenantId, client: { is: wall },
+        });
+      }
+    }
   });
 });

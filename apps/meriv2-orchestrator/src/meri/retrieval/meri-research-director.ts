@@ -1,10 +1,3 @@
-import {
-  appendScheduleCorrections,
-  collectScheduleDeadlines,
-  renderScheduleConstraints,
-  type ScheduleDeadlineFact,
-} from '@capiro/shared';
-
 export const MERI_FEDERAL_MARKET_RESEARCH_DOMAINS = [
   'identity',
   'company_profile',
@@ -302,16 +295,4 @@ export function meriResearchSynthesisInstructions(
     'Do not omit a required section merely because evidence is thin. State the evidence gap and the prudent action in that section.',
     'Aim for a detailed client-ready report, not a short chat summary.',
   ].join('\n');
-}
-
-export function researchScheduleConstraints(
-  asOf: string,
-  toolResults: unknown,
-): { deadlines: ScheduleDeadlineFact[]; block: string } {
-  const deadlines = collectScheduleDeadlines(toolResults);
-  return { deadlines, block: renderScheduleConstraints(asOf, deadlines) };
-}
-
-export function validateResearchScheduleDraft(text: string, asOf: string, toolResults: unknown) {
-  return appendScheduleCorrections({ text, asOf, deadlines: collectScheduleDeadlines(toolResults) });
 }

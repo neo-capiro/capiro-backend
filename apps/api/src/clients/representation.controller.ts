@@ -14,6 +14,6 @@ export class RepresentationController {
 
   @Get()
   getRepresentation(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
-    return this.resolver.representationForClient(ctx.tenantId, clientId);
+    return this.resolver.representationForClient(ctx.tenantId, clientId, ctx.userId);
   }
 }

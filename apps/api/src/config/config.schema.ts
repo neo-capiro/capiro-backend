@@ -672,6 +672,13 @@ export const configSchema = z.object({
     .transform((v) => !['false', '0', 'no', 'off'].includes(v.trim().toLowerCase())),
   CLIO_SANDBOX_URL: z.string().url().optional(),
   CLIO_SANDBOX_TOKEN: z.string().optional(),
+  // Phase 3 dark diagnostic only. This samples the sandbox's authenticated
+  // fixed-code readiness route after an eligible run_analysis offer; it never
+  // changes offered tools, invocation, or JEV routing.
+  MERI_ANALYSIS_SANDBOX_READINESS_OBSERVER_SHADOW: z
+    .string()
+    .default('false')
+    .transform((value) => value === 'true'),
 
   // Meri public web search (search_public_web). 'duckduckgo' (default) keeps the
   // existing scraped DDG behavior with zero new dependencies; 'tavily'/'serper'

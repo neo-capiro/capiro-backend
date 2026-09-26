@@ -41,6 +41,10 @@ export interface EnvConfig {
   meriv2OrchestratorMemoryMib: number;
   meriv2OrchestratorDesiredCount: number;
   meriv2OrchestratorMaxCount: number;
+  /** Prepare dedicated Meri caller/API-target SGs without changing delegated traffic. Default off. */
+  meriPrivateToolNetworkEnabled?: boolean;
+  /** Switch delegated traffic only after private DNS, ECS registration, ingress and auth are verified. */
+  meriPrivateToolApiBaseUrl?: string;
   // Strategy Planner API (separate service; /strategy-api/*). Ships dark
   // behind per-tenant flags; owns the sp_* tables in the shared Aurora.
   apiStrategyCpu: number;
@@ -62,6 +66,8 @@ export interface EnvConfig {
     openaiApiKey: string;
     anthropicApiKey: string;
     notesEncryptionKey: string;
+    /** Existing shared API/orchestrator guard secret; complete ARN only. */
+    internalServiceSecret?: string;
     samGovApiKey?: string;
     aiCredentialEncryptionKey?: string;
     recallApiKey?: string;
@@ -299,6 +305,11 @@ export function loadConfig(app: cdk.App): EnvConfig {
                 'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/anthropic-api-key-3nhKhF',
               notesEncryptionKey:
                 'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/notes-encryption-key-Vf2rhI',
+              // Both live API :445 and Meri orchestrator :81 inject this same
+              // secret out-of-band. Keep it on both serve tasks in any future
+              // controlled CDK reconciliation; never put its value in source.
+              internalServiceSecret:
+                'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/internal-service-secret-6cEZG4',
               samGovApiKey:
                 'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/sam-gov-api-key-0gcMpp',
               aiCredentialEncryptionKey:

@@ -27,6 +27,8 @@ export interface SandboxRunRequest {
   code: string;
   datasets?: SandboxDataset[];
   timeoutMs?: number;
+  /** Internal cancellation only; never accepted from an HTTP request body. */
+  signal?: AbortSignal;
 }
 
 export interface SandboxImage {
@@ -119,6 +121,7 @@ export function validateRunRequest(
 }
 
 export async function runSandboxed(req: SandboxRunRequest): Promise<SandboxRunResult> {
+  if (req.signal?.aborted) throw new Error('sandbox run cancelled');
   const started = Date.now();
   const workdir = await mkdtemp(join(tmpdir(), 'clio-sbx-'));
   try {
@@ -140,6 +143,8 @@ export async function runSandboxed(req: SandboxRunRequest): Promise<SandboxRunRe
         );
       }
     }
+
+    if (req.signal?.aborted) throw new Error('sandbox run cancelled');
 
     const python =
       process.env.SANDBOX_PYTHON ?? (process.platform === 'win32' ? 'python' : 'python3');
@@ -179,19 +184,28 @@ export async function runSandboxed(req: SandboxRunRequest): Promise<SandboxRunRe
 
     const timeoutMs = Math.min(req.timeoutMs ?? WALL_TIMEOUT_MS, WALL_TIMEOUT_MS);
     let timedOut = false;
+    let cancelled = false;
     const exitCode: number | null = await new Promise((resolve) => {
+      const onAbort = () => {
+        cancelled = true;
+        child.kill('SIGKILL');
+      };
       const killer = setTimeout(() => {
         timedOut = true;
         child.kill('SIGKILL');
       }, timeoutMs);
       child.on('error', () => {
         clearTimeout(killer);
+        req.signal?.removeEventListener('abort', onAbort);
         resolve(null);
       });
       child.on('close', (code) => {
         clearTimeout(killer);
+        req.signal?.removeEventListener('abort', onAbort);
         resolve(code);
       });
+      req.signal?.addEventListener('abort', onAbort, { once: true });
+      if (req.signal?.aborted) onAbort();
     });
 
     const warnings: string[] = [];
@@ -227,7 +241,7 @@ export async function runSandboxed(req: SandboxRunRequest): Promise<SandboxRunRe
     }
 
     return {
-      ok: !timedOut && exitCode === 0,
+      ok: !timedOut && !cancelled && exitCode === 0,
       exitCode,
       timedOut,
       durationMs: Date.now() - started,

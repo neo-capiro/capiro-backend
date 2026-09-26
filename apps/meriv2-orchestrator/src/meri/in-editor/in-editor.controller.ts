@@ -19,7 +19,6 @@ import { parseAiProviderHeader } from '../meri.controller.js';
 import { InEditorAssistantService } from './in-editor-assistant.service.js';
 import type { AssistantResult, InEditorInput } from './in-editor-prompt.js';
 import { withGovernedEditorContext } from './in-editor-context.js';
-import './in-editor-tool-parity.js';
 
 type GovernedEditorInput = InEditorInput & { governedContext?: MeriGovernedTurnContext };
 

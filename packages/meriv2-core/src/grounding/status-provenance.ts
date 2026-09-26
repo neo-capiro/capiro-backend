@@ -1,9 +1,10 @@
 import { evidenceSupportsNegativeClaim, type AssuredEvidence } from '../assurance/claim-ledger';
 
-/** Exact strings observed in the official FedRAMP Marketplace structured payload. */
+/** Exact strings observed in the official Marketplace payload or documented changelog. */
 export const FEDRAMP_STATUS_VOCABULARY = [
   'Agency Authorization In Process',
   'FedRAMP Certified',
+  'FedRAMP Certified (In Remediation)',
   'FedRAMP In Process',
   'Initial Implementation',
   'Legacy FedRAMP Ready',
@@ -85,17 +86,24 @@ function entityFromSpan(span: string): string {
 
 /** Detect bounded FedRAMP status statements without treating the word FedRAMP alone as a claim. */
 export function detectFedrampStatusClaims(reply: string): DetectedStatusClaim[] {
-  const spans = reply.match(/[^.!?\n]+(?:[.!?]|$)/g) ?? [];
+  const sentences = reply.match(/[^.!?\n]+(?:[.!?]|$)/g) ?? [];
   const claims: DetectedStatusClaim[] = [];
-  for (const raw of spans) {
-    const span = raw.trim();
+  // A single sentence can contain claims about different products. Split only
+  // at a comma followed by a contrast/conjunction marker so each status and
+  // negation stays attached to its own bounded clause.
+  const clauses = sentences.flatMap((sentence) => sentence
+    .split(/,\s*(?=(?:but|however|while|whereas|and)\b)/i)
+    .map((clause) => clause.replace(/^\s*(?:but|however|while|whereas|and)\s+/i, '').trim()));
+  for (const span of clauses) {
     if (!/\bfedramp\b/i.test(span)) continue;
-    const negative = /\b(?:not\s+fedramp\s+(?:authorized|approved|certified)|no\s+fedramp\s+(?:authorization|certification|status)(?:\s+was)?\s+found)\b/i.test(span);
-    const status = span.match(new RegExp(`\\b(${STATUS_PATTERN}|${PARAPHRASE_PATTERN})\\b`, 'i'))?.[1] ?? null;
+    const noMatchEntity = span.match(/^no\s+fedramp\s+(?:authorization|certification|status)(?:\s+was)?\s+found\s+for\s+(.+?)[.!?]?$/i)?.[1]?.trim();
+    const negative = Boolean(noMatchEntity) || /\b(?:not\s+fedramp\s+(?:authorized|approved|certified)|(?:is|are|was|were|has|have)\s+not\s+(?:authorized|approved|certified)\s+by\s+fedramp|(?:has|have)\s+no\s+fedramp\s+(?:authorization|certification|status))\b/i.test(span);
+    const status = negative ? null
+      : span.match(new RegExp(`\\b(${STATUS_PATTERN}|${PARAPHRASE_PATTERN})(?!\\w)`, 'i'))?.[1] ?? null;
     const impact = span.match(new RegExp(`\\b(${IMPACT_PATTERN})\\b`, 'i'))?.[1] ?? null;
     if (!negative && !status && !impact) continue;
     claims.push({
-      entityMention: entityFromSpan(span),
+      entityMention: noMatchEntity || entityFromSpan(span),
       statedStatus: status,
       statedImpactLevel: impact,
       negative,
@@ -165,11 +173,14 @@ export function enforceFedrampStatusReply(
     const { claim, evidence } = item;
     let replacement: string;
     if (item.outcome === 'negative_unsupported') {
-      replacement = evidence?.coverage?.description
-        ? `No matching FedRAMP status was found within ${evidence.coverage.description}; this does not establish absence outside that scope.`
-        : `${claim.span.replace(/[.!?]$/, '')} (unverified; complete-dataset coverage was not established).`;
+      if (evidence && evidence.status !== 'not found') {
+        const impact = evidence.impactLevel ? ` at ${evidence.impactLevel} impact` : '';
+        replacement = `${claim.entityMention} has a FedRAMP Marketplace record reporting ${evidence.status}${impact} (observed ${evidence.observedAt}); the negative authorization claim was not verified.`;
+      } else {
+        replacement = `${claim.entityMention}'s FedRAMP authorization status is unverified; complete-dataset coverage was not established.`;
+      }
     } else if (item.outcome === 'unsupported' || !evidence) {
-      replacement = `${claim.span.replace(/[.!?]$/, '')} (unverified against the FedRAMP Marketplace).`;
+      replacement = `${claim.entityMention}'s FedRAMP status could not be verified from available marketplace evidence.`;
     } else {
       const impact = evidence.impactLevel ? ` at ${evidence.impactLevel} impact` : '';
       replacement = `${claim.entityMention} is ${evidence.status}${impact} (FedRAMP Marketplace, observed ${evidence.observedAt}).`;

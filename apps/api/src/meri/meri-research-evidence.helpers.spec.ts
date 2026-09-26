@@ -24,7 +24,8 @@ function fixture(count = 12) {
     $queryRawUnsafe: jest.fn().mockResolvedValue([{ allowed: true }]),
     clioConversation: { findFirst: jest.fn().mockResolvedValue({ id: 'conversation' }) },
     clioAttachment: { findMany: jest.fn(async (query: { where: { id: { in: string[] } } }) =>
-      query.where.id.in.map((attachmentId) => ({ id: attachmentId, messageId: null, kind: 'text',
+      query.where.id.in.map((attachmentId): { id: string; messageId: string | null; kind: string;
+        status: string; mediaType: string; data: Buffer | null; textContent: string } => ({ id: attachmentId, messageId: null, kind: 'text',
         status: 'parsed', mediaType: 'text/plain', data: null, textContent: 'CURRENT TEXT MUST NOT REPLACE THE SNAPSHOT' }))) },
     clioMessage: { findMany: jest.fn().mockResolvedValue([]) },
   };
@@ -34,6 +35,51 @@ function fixture(count = 12) {
 }
 
 describe('get_research_evidence immutable source tool', () => {
+  it('reads a three-attachment research lease through every page and preserves a known-value oracle', async () => {
+    const f = fixture(3);
+    const imageBytes = Buffer.from('known-image-bytes');
+    Object.assign(f.handoff, { conversationId: id(30) });
+    f.attachments[0]!.sourceMessageId = id(20);
+    f.attachments[0]!.textContent = 'Appropriated amount: $17 million.';
+    f.attachments[0]!.contentSha256 = createHash('sha256').update(f.attachments[0]!.textContent!).digest('hex');
+    f.attachments[1]!.status = 'truncated';
+    f.attachments[1]!.reason = 'Scanned page could not be fully extracted';
+    f.attachments[1]!.textContent = 'Partial scan only.';
+    f.attachments[1]!.contentSha256 = createHash('sha256').update(f.attachments[1]!.textContent!).digest('hex');
+    Object.assign(f.attachments[2]!, { kind: 'image', status: 'image_ready', textContent: null,
+      mediaType: 'image/png', contentSha256: createHash('sha256').update(imageBytes).digest('hex') });
+    f.tx.clioMessage.findMany.mockResolvedValue([{ id: id(20) }] as never);
+    f.tx.clioAttachment.findMany.mockImplementation(async (query: { where: { id: { in: string[] } } }) =>
+      query.where.id.in.map((attachmentId) => ({ id: attachmentId,
+        messageId: attachmentId === id(0) ? id(20) : null,
+        kind: attachmentId === id(2) ? 'image' : 'text',
+        status: attachmentId === id(2) ? 'image_ready' : attachmentId === id(1) ? 'truncated' : 'parsed',
+        mediaType: attachmentId === id(2) ? 'image/png' : 'text/plain',
+        data: attachmentId === id(2) ? imageBytes : null, textContent: 'Live content must not replace the snapshot',
+      })));
+
+    const pages = [];
+    let cursor: string | null = null;
+    do {
+      const page = await f.read({ limit: 1, ...(cursor ? { cursor } : {}) });
+      pages.push(page);
+      cursor = page.coverage.nextCursor;
+    } while (cursor);
+    expect(pages.map((page) => page.records[0]?.recordId)).toEqual([id(0), id(1), id(2)]);
+    expect(pages[0]!.records[0]?.payload.textContent).toBe('Appropriated amount: $17 million.');
+    expect(pages[0]!.records[0]?.provenance).toMatchObject({ originalAttachmentId: id(0), sessionId });
+    expect(pages[0]!.coverage).toMatchObject({ paginationComplete: false, contentComplete: false, complete: false });
+    expect(pages[2]!.coverage).toMatchObject({ paginationComplete: true, contentComplete: false, complete: false });
+    expect(pages[2]!.records[0]?.payload).toMatchObject({ kind: 'image', textContent: null });
+    expect(JSON.stringify(pages)).not.toContain(imageBytes.toString('base64'));
+    const selected = await f.read({ attachmentIds: [id(0)] });
+    expect(selected.coverage).toMatchObject({ total: 1, complete: true });
+    expect(wrapToolResultForPrompt('get_research_evidence', selected, 12000)).toContain('Appropriated amount: $17 million.');
+    expect(f.tx.clioConversation.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: id(30), tenantId: ctx.tenantId, userId: ctx.userId, clientId, archivedAt: null }),
+    }));
+  });
+
   it('pages all snapshot attachments, preserving original IDs/text and omitting history and bytes', async () => {
     const f = fixture();
     const first = await f.read({ limit: 10 });
@@ -88,6 +134,29 @@ describe('get_research_evidence immutable source tool', () => {
     await expect(f.read()).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('rejects reparented staged attachments and changed immutable text', async () => {
+    const f = fixture(1);
+    Object.assign(f.handoff, { conversationId: id(30) });
+    f.tx.clioMessage.findMany.mockResolvedValue([{ id: id(20) }] as never);
+    f.tx.clioAttachment.findMany.mockResolvedValue([{ id: id(0), messageId: id(20), kind: 'text',
+      status: 'parsed', mediaType: 'text/plain', data: null }] as never);
+    await expect(f.read()).rejects.toThrow('source message');
+    f.tx.clioAttachment.findMany.mockResolvedValue([{ id: id(0), messageId: null, kind: 'text',
+      status: 'parsed', mediaType: 'text/plain', data: null }] as never);
+    f.attachments[0]!.textContent = 'Changed snapshot text';
+    await expect(f.read()).rejects.toThrow('Research text changed');
+  });
+
+  it('invalidates a cursor when the selected snapshot changes or its anchor disappears', async () => {
+    const f = fixture(3);
+    const first = await f.read({ limit: 1 });
+    f.attachments[0]!.status = 'truncated';
+    await expect(f.read({ limit: 1, cursor: first.coverage.nextCursor })).rejects.toThrow('cursor no longer matches');
+    f.attachments[0]!.status = 'parsed';
+    f.attachments.shift();
+    await expect(f.read({ limit: 1, cursor: first.coverage.nextCursor })).rejects.toThrow('cursor no longer matches');
+  });
+
   it('requires the originating conversation to remain in the snapshot client scope', async () => {
     const f = fixture();
     Object.assign(f.handoff, { conversationId: id(20) });
@@ -129,6 +198,7 @@ describe('get_research_evidence immutable source tool', () => {
   it('keeps cursor and coverage visible before large text through the real prompt cap', async () => {
     const f = fixture();
     f.attachments[0]!.textContent = 'x'.repeat(30000);
+    f.attachments[0]!.contentSha256 = createHash('sha256').update(f.attachments[0]!.textContent!).digest('hex');
     const result = await f.read({ limit: 1 });
     const prompt = wrapToolResultForPrompt('get_research_evidence', result, 12000);
     expect(prompt).toContain(result.coverage.nextCursor);

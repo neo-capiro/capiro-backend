@@ -1,5 +1,6 @@
 import { Injectable, Logger, NestMiddleware } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
+import { meriDelegatedRequestId } from './meri-delegated-request-id.js';
 
 const NAMESPACE = 'Capiro/ApiLatency';
 
@@ -28,6 +29,15 @@ export class ApiLatencyMiddleware implements NestMiddleware {
           Timestamp: new Date().toISOString(),
         }),
       );
+      if (req.path.startsWith('/api/clio/tools/')) {
+        this.logger.log(JSON.stringify({
+          event: 'meri.delegated_http',
+          requestId: meriDelegatedRequestId(req),
+          endpoint: 'POST /api/clio/tools/:name',
+          statusCode: res.statusCode,
+          durationMs,
+        }));
+      }
     });
 
     next();

@@ -78,6 +78,8 @@ describe('Phase 8 exact query, money, schedule and grounded claims', () => {
       canonicalNewsUrl('https://example.org/story?id=42'),
     );
     expect(() => canonicalNewsUrl('javascript:alert(1)')).toThrow();
+    expect(() => canonicalNewsUrl('https://user:pass@example.org/story')).toThrow('INVALID_SOURCE_URL');
+    expect(() => canonicalNewsUrl('https://')).toThrow();
   });
   test('exact money exceeds Number precision; explicit zero differs from blank and embedded', () => {
     expect(dollarsToMinorUnits('$9,007,199,254,740,993.01')).toBe('900719925474099301');

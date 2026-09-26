@@ -3,7 +3,7 @@ import type { CapabilityRolloutMode } from '../rollout/capability-rollout';
 import type { EvidenceEnvelope } from './decision-contract';
 import { DEFAULT_JEV_MODEL, JEV_TASKS, type JevConfig, type JevTask } from './jev-config';
 
-export const JEV_TASK_REGISTRY_VERSION = 'jev-task-registry.v5' as const;
+export const JEV_TASK_REGISTRY_VERSION = 'jev-task-registry.v6' as const;
 
 export type JevRequiredEvidenceMetadata =
   | 'authority'
@@ -338,6 +338,37 @@ export const JEV_TASK_REGISTRY: Readonly<Record<JevTask, JevTaskRegistration>> =
     questionVersion: 'bd_claim.v1', questionId: 'bd_claim', primitive: 'choice',
     modelVersion: DEFAULT_JEV_MODEL, thresholds: {}, fallback: 'no_change', rolloutCapability: 'JEV_PROVIDER',
     calibration: { status: 'provisional', basis: 'Proposed recorded replay fixtures only; no human-reviewed BD-CLAIM evaluation exists. Dark-only: shadow_only lifecycle, max rollout shadow, advisory outcome only, one-call budget, no live effect, no application caller is wired. Code-owned exact amount/identifier/date/source-locator/financial-stage validation precedes any semantic judgment; Jev cannot approve an exact mismatch. Not calibrated for semantic accuracy; not for use on non-claim text.' },
+  },
+  capability_routing: {
+    task: 'capability_routing',
+    ...governance({
+      task: 'capability_routing',
+      lifecycle: 'inactive',
+      allowedOutcomes: ['candidate_id', 'multi_intent', 'needs_context', 'no_match'],
+      abstentionOutcomes: ['multi_intent', 'needs_context', 'no_match'],
+      requiredMetadata: [],
+      minimumSources: 0,
+      candidateGenerator: 'server-supplied-versioned-canonical-descriptors',
+      thresholdsByAction: {},
+      maxRolloutMode: 'off',
+      effect: 'advisory_only',
+      requiresHumanReview: true,
+      evaluationSet: { id: 'capability_routing_v1', status: 'missing', path: null },
+      maxCalls: 1,
+      maxInputTokens: 4_000,
+      maxOutputTokens: 1_000,
+    }),
+    questionVersion: 'capability_routing.v1',
+    questionId: 'capability_routing',
+    primitive: 'choice',
+    modelVersion: DEFAULT_JEV_MODEL,
+    thresholds: {},
+    fallback: 'no_change',
+    rolloutCapability: null,
+    calibration: {
+      status: 'provisional',
+      basis: 'Dormant contract only. No routing evaluation or calibration exists; no confidence threshold is approved.',
+    },
   },
 };
 

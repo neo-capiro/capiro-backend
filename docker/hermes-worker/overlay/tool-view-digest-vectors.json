@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "catalog": [
+    {
+      "type": "function",
+      "function": {
+        "name": "search",
+        "description": "Ångström search 🧭",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "é": { "type": "string" },
+            "😀": { "type": "integer", "maximum": 9007199254740991 }
+          },
+          "required": ["é"]
+        }
+      }
+    },
+    {
+      "function": {
+        "parameters": { "type": "object" },
+        "name": "read",
+        "description": "Line one\nLine two"
+      },
+      "type": "function"
+    }
+  ],
+  "applied": [
+    {
+      "function": {
+        "parameters": { "type": "object" },
+        "name": "read",
+        "description": "Line one\nLine two"
+      },
+      "type": "function"
+    }
+  ],
+  "catalogDigest": "9c19feac2cf5813761ebe48cf724e81a93266165d7eb267771cb2a0be231c1eb",
+  "toolViewDigest": "483523d6cbc1170cfc0287c324dac66dec28faa9e3a9ec2dd808a94b6809c5fa"
+}

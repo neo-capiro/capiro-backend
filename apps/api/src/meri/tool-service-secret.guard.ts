@@ -9,6 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
 import type { AppConfig } from '../config/config.schema.js';
+import { meriDelegatedRequestId } from '../observability/meri-delegated-request-id.js';
 
 /** Fixed-length constant-time comparison; neither secret is logged or returned. */
 function secretsMatch(provided: string, expected: string): boolean {
@@ -37,20 +38,24 @@ export class ToolServiceSecretGuard implements CanActivate {
     const enforce = productionLike || explicitlyEnforced;
     const expected = this.config.get('INTERNAL_SERVICE_SECRET', { infer: true });
 
+    const request = context.switchToHttp().getRequest<Request>();
+    const requestId = meriDelegatedRequestId(request);
+    const delegatedTool = request.path?.startsWith('/api/clio/tools/') === true;
     if (!expected) {
       if (enforce) {
+        if (delegatedTool) this.logger.warn(JSON.stringify({ event: 'meri.delegated_guard_denied', requestId, stage: 'service_identity', reason: 'not_configured' }));
         throw new ForbiddenException('Internal service identity is not configured for this route');
       }
       this.logger.warn('[tool-service-secret] development/test observe mode: secret is not configured');
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<Request>();
     const header = request.headers['x-internal-service-secret'];
     const provided = typeof header === 'string' ? header : null;
     if (provided && secretsMatch(provided, expected)) return true;
 
     if (enforce) {
+      if (delegatedTool) this.logger.warn(JSON.stringify({ event: 'meri.delegated_guard_denied', requestId, stage: 'service_identity', reason: 'missing_or_mismatched' }));
       throw new ForbiddenException('This route requires a valid internal service identity');
     }
 

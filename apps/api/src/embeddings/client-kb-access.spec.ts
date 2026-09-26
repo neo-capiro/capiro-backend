@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { ClientKbService } from './client-kb.service.js';
 import { embedAndUpsert } from './embedder.js';
 import { ownMailMessageWhere, ownMeetingWhere } from '../engagement/engagement-access.helpers.js';
@@ -69,11 +70,16 @@ function fixture() {
     clientFacility: { findMany: jest.fn().mockResolvedValue([]) } };
   const service = Object.create(ClientKbService.prototype) as ClientKbService;
   const extract = jest.fn().mockResolvedValue({ text: 'Document body', truncated: false });
-  Object.assign(service, { prisma: { withTenant: jest.fn(async (_tenant, fn) => fn(tx)) },
+  const withTenant = jest.fn(async (
+    _tenant: string,
+    fn: (scoped: typeof tx) => unknown,
+    _options?: { isolationLevel?: Prisma.TransactionIsolationLevel },
+  ) => fn(tx));
+  Object.assign(service, { prisma: { withTenant },
     config: { get: jest.fn(key => key === 'CLIO_CLIENT_KB_ENABLED' ? true : scanRequired) },
     extractAttachmentTextForKb: extract,
     countClientChunks: jest.fn().mockResolvedValue(0), clientName: jest.fn().mockResolvedValue('Client') });
-  return { service, rows, tx, query, findMany, execute, extract,
+  return { service, rows, tx, query, findMany, execute, extract, withTenant,
     denyWall: () => { wallAllowed = false; }, optionalScan: () => { scanRequired = false; } };
 }
 
@@ -132,6 +138,29 @@ describe('client KB document authorization and readiness', () => {
     expect(snapshot).not.toMatch(/private\.txt|pending\.txt|threat\.txt|unscanned\.txt|superseded\.txt/);
     f.denyWall();
     expect(await f.service.buildSnapshot(TENANT, CLIENT, OWNER)).toBeNull();
+  });
+
+  it('binds the snapshot wall decision and all reads to one repeatable-read transaction', async () => {
+    const f = fixture();
+    await f.service.buildSnapshot(TENANT, CLIENT, COLLEAGUE);
+    expect(f.withTenant).toHaveBeenCalledTimes(1);
+    expect(f.withTenant.mock.calls[0]?.[2]).toEqual({
+      isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+    });
+    expect(f.query).toHaveBeenCalledTimes(1);
+    expect(f.tx.client.findFirst).toHaveBeenCalledTimes(1);
+    expect(f.tx.clientPerson.findMany).toHaveBeenCalledTimes(1);
+    expect(f.tx.clientFacility.findMany).toHaveBeenCalledTimes(1);
+    expect(f.findMany).toHaveBeenCalledTimes(1);
+
+    f.denyWall();
+    f.withTenant.mockClear();
+    f.tx.client.findFirst.mockClear();
+    f.findMany.mockClear();
+    expect(await f.service.buildSnapshot(TENANT, CLIENT, COLLEAGUE)).toBeNull();
+    expect(f.withTenant).toHaveBeenCalledTimes(1);
+    expect(f.tx.client.findFirst).not.toHaveBeenCalled();
+    expect(f.findMany).not.toHaveBeenCalled();
   });
 
   it.each([true, false])('bounds snapshot reads before materializing documents when scanning is required=%s', async scanRequired => {

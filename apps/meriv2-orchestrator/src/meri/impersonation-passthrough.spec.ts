@@ -2,7 +2,6 @@ import type { ConfigService } from '@nestjs/config';
 import type { MeriContext } from '@capiro/meriv2-core';
 import { ApiToolExecutorRepo } from './api-tool-executor.repo';
 import { ApiActionProposalRepo } from './api-action-proposal.repo';
-import { ApiComplianceAuditRepo } from './api-compliance-audit.repo';
 import { RequestCredentialsStore } from '../request/request-credentials.store';
 
 /**
@@ -62,23 +61,6 @@ describe('impersonation passthrough on delegated apps/api calls (2.5)', () => {
     const repo = new ApiActionProposalRepo(config);
     await RequestCredentialsStore.run({ bearerToken: 'TOK', impersonateTenantId: 'tenant-X' }, () =>
       repo.create({ tool: 'send_email', input: {}, surface: 'chat' }),
-    );
-    expect(calls[0]?.headers['x-capiro-impersonate-tenant']).toBe('tenant-X');
-  });
-
-  it('compliance audit forwards the impersonate header when set', async () => {
-    const calls = captureFetch({ ok: true });
-    const repo = new ApiComplianceAuditRepo(config);
-    await RequestCredentialsStore.run(
-      { bearerToken: 'TOK', impersonateTenantId: 'tenant-X' },
-      async () => {
-        repo.record({
-          trigger: 'send_email',
-          decision: 'PASS',
-          reason: 'Passed the compliance gate.',
-        });
-        await new Promise((resolve) => setImmediate(resolve));
-      },
     );
     expect(calls[0]?.headers['x-capiro-impersonate-tenant']).toBe('tenant-X');
   });

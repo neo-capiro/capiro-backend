@@ -83,8 +83,10 @@ export function resolveCapabilityRollout(input: CapabilityRolloutInput): Capabil
   );
   if (!tenantSelected) reasons.push('tenant_not_enrolled');
   if (!surfaces.selected.has(input.surface)) reasons.push('surface_not_enrolled');
+  const invalidEnrollmentConfig = tenants.issues.length > 0 || surfaces.issues.length > 0;
   return {
-    mode: mode && mode !== 'off' && tenantSelected && surfaces.selected.has(input.surface) ? mode : 'off',
+    mode: mode && mode !== 'off' && !invalidEnrollmentConfig
+      && tenantSelected && surfaces.selected.has(input.surface) ? mode : 'off',
     reasons,
   };
 }

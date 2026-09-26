@@ -104,6 +104,11 @@ function participantIdentifiers(
 }
 
 function clientIdFrom(result: unknown): string | null {
+  if (isRecord(result) && isRecord(result.existingClient)) {
+    const existingClientId = stringValue(result.existingClient.id);
+    if (existingClientId) return existingClientId;
+  }
+
   for (const record of recordsFrom(result)) {
     for (const field of ['clientId', 'id']) {
       const value = stringValue(record[field]);

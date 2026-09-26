@@ -1,10 +1,14 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { MeriToolsService } from './meri-tools.service.js';
 import { MeriContextPlaneService } from './meri-context-plane.service.js';
 import { ContextResolverService } from '../context/context-resolver.service.js';
 import type { ContextResolutionRequest } from '../context/context-resolver.types.js';
 import { wrapToolResultForPrompt } from '@capiro/meriv2-core';
+import { visibleClientWhere } from '../memory/memory-wall.helpers.js';
+import { once } from 'node:events';
+import { createServer } from 'node:http';
+import { fetch as undiciFetch } from 'undici';
 
 // This suite supplies the engagement port below. Loading its entire mail and
 // generation dependency graph is unrelated to testing Meri's tool dispatch.
@@ -80,6 +84,8 @@ function makeMocks(
         actor: TenantContext,
       ) => Promise<{ authorizedClientIds: string[]; authorizedMailboxConnectionIds: string[] }>;
     };
+    configValues?: Record<string, unknown>;
+    runAnalysisFeatureEnabled?: boolean;
   } = {},
 ) {
   const findClient = jest.fn().mockResolvedValue({ id: 'client-1' });
@@ -109,12 +115,23 @@ function makeMocks(
         ...data,
       })),
     },
+    auditLog: { create: jest.fn().mockResolvedValue({}) },
+    meeting: { findMany: jest.fn().mockResolvedValue([]) },
+    mailThread: { findMany: jest.fn().mockResolvedValue([]) },
+    mailMessage: { findMany: jest.fn().mockResolvedValue([]) },
+    clioNote: { findMany: jest.fn().mockResolvedValue([]) },
+    directoryContactNote: { findMany: jest.fn().mockResolvedValue([]) },
+    federalAward: {
+      findMany: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
+    },
   };
   const prisma = {
     withTenant: jest.fn(async (_tenantId: string, fn: (t: typeof tx) => unknown) => fn(tx)),
     withTenantUser: jest.fn(
       async (_tenantId: string, _userId: string, fn: (t: typeof tx) => unknown) => fn(tx),
     ),
+    withSystem: jest.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
   };
   const engagement = {
     clientContext: jest.fn().mockResolvedValue({ client: { id: 'client-1', name: 'Acme' } }),
@@ -207,9 +224,11 @@ function makeMocks(
       .mockImplementation(extra.contextPlane.securityEnvelope);
   }
 
+  const config = { get: jest.fn((key: string) => extra.configValues?.[key]) };
+  const featureFlags = { isEnabled: jest.fn(async () => extra.runAnalysisFeatureEnabled ?? false) };
   const service = new MeriToolsService(
     prisma as never,
-    { get: jest.fn() } as never,
+    config as never,
     engagement as never,
     {} as never, // mailSender
     {} as never, // ldaIntel
@@ -227,7 +246,7 @@ function makeMocks(
     clientFacilities as never,
     { representationForClient: jest.fn().mockResolvedValue([]) } as never, // representation
     { search: jest.fn().mockResolvedValue([]) } as never, // clientKb
-    { isEnabled: jest.fn().mockResolvedValue(false) } as never, // featureFlags
+    featureFlags as never,
     clients as never,
     { projectClioMemory: jest.fn(), removeClioMemory: jest.fn() } as never, // memoryIngest
     { proposeSaveMemory: jest.fn() } as never, // memoryCandidates
@@ -254,8 +273,215 @@ function makeMocks(
     clientAdvocacy,
     docgen,
     clients,
+    config,
+    featureFlags,
   };
 }
+
+describe('run_analysis configured availability', () => {
+  const configured = {
+    CLIO_ANALYSIS_SANDBOX_ENABLED: true,
+    CLIO_SANDBOX_URL: 'https://sandbox.example.test',
+    CLIO_SANDBOX_TOKEN: 'test-token',
+  };
+
+  test.each([undefined, '', '   '])('reports unavailable with token %p', async (token) => {
+    const { service, featureFlags } = makeMocks({
+      configValues: { ...configured, CLIO_SANDBOX_TOKEN: token },
+      runAnalysisFeatureEnabled: true,
+    });
+    await expect(service.analysisSandboxEnabled(ctx.tenantId)).resolves.toBe(false);
+    expect(featureFlags.isEnabled).not.toHaveBeenCalled();
+  });
+
+  test('the execution path refuses an unconfigured bearer before sandbox I/O', async () => {
+    const { service } = makeMocks({
+      configValues: { ...configured, CLIO_SANDBOX_TOKEN: '' },
+      runAnalysisFeatureEnabled: true,
+    });
+    const runAnalysis = (service as unknown as {
+      runAnalysis: (actor: TenantContext, input: Record<string, unknown>) => Promise<unknown>;
+    }).runAnalysis.bind(service);
+    const fetchSpy = jest.spyOn(global, 'fetch').mockRejectedValue(new Error('unexpected sandbox I/O'));
+    try {
+      await expect(runAnalysis(ctx, { code: 'print(1)' })).resolves.toMatchObject({
+        tool: 'run_analysis',
+        ok: false,
+        error: 'The analysis sandbox is not enabled for this workspace.',
+      });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  test('rejects a sandbox redirect without forwarding its bearer, then accepts a normal result', async () => {
+    const requests: Array<{ path: string; authorization: string | null }> = [];
+    let redirect = true;
+    const validOutcome = {
+      ok: true,
+      exitCode: 0,
+      timedOut: false,
+      durationMs: 5,
+      stdout: '2\n',
+      stderr: '',
+      results: { value: 2 },
+      images: [],
+    };
+    const server = createServer((request, response) => {
+      requests.push({
+        path: request.url ?? '',
+        authorization: request.headers.authorization ?? null,
+      });
+      if (request.url === '/run' && redirect) {
+        response.writeHead(307, { location: '/redirect-target' });
+      } else if (request.url === '/run' || request.url === '/redirect-target') {
+        response.writeHead(200, { 'content-type': 'application/json' });
+        response.write(JSON.stringify(validOutcome));
+      } else {
+        response.writeHead(404);
+      }
+      response.end();
+    });
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('Expected TCP listener');
+
+    const token = 'synthetic-sandbox-token';
+    const { service } = makeMocks({
+      configValues: {
+        ...configured,
+        CLIO_SANDBOX_URL: `http://127.0.0.1:${address.port}`,
+        CLIO_SANDBOX_TOKEN: token,
+      },
+      runAnalysisFeatureEnabled: true,
+    });
+    const runAnalysis = (service as unknown as {
+      runAnalysis: (actor: TenantContext, input: Record<string, unknown>) => Promise<unknown>;
+    }).runAnalysis.bind(service);
+    const fetchSpy = jest.spyOn(global, 'fetch').mockImplementation(
+      (input, init) =>
+        undiciFetch(input as string, init as Parameters<typeof undiciFetch>[1]) as unknown as
+          Promise<Response>,
+    );
+    try {
+      await expect(runAnalysis(ctx, { code: 'print(2)' })).resolves.toMatchObject({
+        tool: 'run_analysis',
+        ok: false,
+        error: expect.stringContaining('The analysis sandbox is unavailable'),
+      });
+      expect(requests).toEqual([{ path: '/run', authorization: `Bearer ${token}` }]);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(fetchSpy.mock.calls[0]?.[1]).toMatchObject({ redirect: 'error' });
+
+      redirect = false;
+      await expect(runAnalysis(ctx, { code: 'print(2)' })).resolves.toMatchObject({
+        tool: 'run_analysis',
+        ok: true,
+        stdout: '2\n',
+        results: { value: 2 },
+      });
+      expect(requests).toEqual([
+        { path: '/run', authorization: `Bearer ${token}` },
+        { path: '/run', authorization: `Bearer ${token}` },
+      ]);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      fetchSpy.mockRestore();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  test('requires a nonblank URL and enabled tenant flag, and keeps the configured path available', async () => {
+    const switchedOff = makeMocks({
+      configValues: { ...configured, CLIO_ANALYSIS_SANDBOX_ENABLED: false },
+      runAnalysisFeatureEnabled: true,
+    });
+    await expect(switchedOff.service.analysisSandboxEnabled(ctx.tenantId)).resolves.toBe(false);
+    expect(switchedOff.featureFlags.isEnabled).not.toHaveBeenCalled();
+
+    const blankUrl = makeMocks({
+      configValues: { ...configured, CLIO_SANDBOX_URL: '   ' },
+      runAnalysisFeatureEnabled: true,
+    });
+    await expect(blankUrl.service.analysisSandboxEnabled(ctx.tenantId)).resolves.toBe(false);
+    expect(blankUrl.featureFlags.isEnabled).not.toHaveBeenCalled();
+
+    const optedOut = makeMocks({ configValues: configured, runAnalysisFeatureEnabled: false });
+    await expect(optedOut.service.analysisSandboxEnabled(ctx.tenantId)).resolves.toBe(false);
+    expect(optedOut.featureFlags.isEnabled).toHaveBeenCalledWith(ctx.tenantId, 'runAnalysis', true);
+
+    const enabled = makeMocks({ configValues: configured, runAnalysisFeatureEnabled: true });
+    await expect(enabled.service.analysisSandboxEnabled(ctx.tenantId)).resolves.toBe(true);
+  });
+});
+
+describe('search_research_sources ethical wall', () => {
+  const clientId = '22222222-2222-4222-8222-222222222222';
+  const search = (service: MeriToolsService) =>
+    (service as unknown as {
+      searchResearchSources: (actor: TenantContext, input: Record<string, unknown>) => Promise<unknown>;
+    }).searchResearchSources.bind(service);
+  const whereFor = (mock: jest.Mock): Record<string, unknown> =>
+    (mock.mock.calls[0]?.[0] as { where: Record<string, unknown> }).where;
+
+  it('keeps wall and ownership predicates in the same queries as search and limit', async () => {
+    const m = makeMocks();
+    await search(m.service)(ctx, { query: 'Acme', limit: 1 });
+
+    const clientWhere = whereFor(m.tx.client.findMany);
+    expect(clientWhere.AND).toEqual(expect.arrayContaining([visibleClientWhere(ctx)]));
+    expect(clientWhere.OR).toEqual(expect.any(Array));
+
+    const wallLinked = { OR: [
+      { clientId: null }, { client: { is: visibleClientWhere(ctx) } },
+    ] };
+    const meetingWhere = whereFor(m.tx.meeting.findMany);
+    expect(meetingWhere.AND).toEqual(expect.arrayContaining([
+      { OR: [{ createdByUserId: ctx.userId }, { connection: { createdByUserId: ctx.userId } }] },
+      wallLinked,
+    ]));
+    expect(meetingWhere.OR).toEqual(expect.any(Array));
+    expect(whereFor(m.tx.mailThread.findMany).AND).toEqual([wallLinked]);
+    expect(whereFor(m.tx.clioNote.findMany).AND).toEqual([wallLinked]);
+    expect(whereFor(m.tx.mailMessage.findMany).AND).toEqual([
+      { thread: { is: wallLinked } },
+    ]);
+    expect(m.tx.directoryContactNote.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('requires a wall-visible client for explicit client scope', async () => {
+    const m = makeMocks();
+    m.tx.directoryContactNote.findMany.mockResolvedValueOnce([{
+      id: 'directory-note-1',
+      directoryContactId: 'member-1',
+      directoryContactName: 'Member One',
+      body: 'Tenant-shared note with no client attribution',
+      createdAt: new Date('2026-09-25T00:00:00.000Z'),
+    }]);
+    const scoped = await search(m.service)(ctx, { query: 'Acme', clientId }) as {
+      results: Array<{ type: string; clientId: string | null; scope?: string }>;
+    };
+    expect(whereFor(m.tx.client.findFirst)).toEqual({
+      id: clientId, ...visibleClientWhere(ctx),
+    });
+    expect(whereFor(m.tx.directoryContactNote.findMany)).toEqual(expect.objectContaining({
+      tenantId: ctx.tenantId,
+    }));
+    expect(scoped.results).toContainEqual(expect.objectContaining({
+      type: 'directory_contact_note', clientId: null, scope: 'tenant_wide_directory',
+    }));
+
+    const denied = makeMocks();
+    denied.tx.client.findFirst.mockResolvedValueOnce(null);
+    await expect(search(denied.service)(ctx, { query: 'Acme', clientId }))
+      .rejects.toBeInstanceOf(NotFoundException);
+    expect(denied.tx.meeting.findMany).not.toHaveBeenCalled();
+    expect(denied.tx.directoryContactNote.findMany).not.toHaveBeenCalled();
+  });
+});
 
 describe('query_tasks', () => {
   it('derives overdue from past due date on open tasks only', async () => {
@@ -300,6 +526,35 @@ describe('query_tasks', () => {
     expect(call[1].dueBefore).toBeInstanceOf(Date);
   });
 
+  it('does not report a full limited page as the total result count', async () => {
+    const m = makeMocks();
+    m.engagement.listTasks.mockResolvedValue(
+      Array.from({ length: 2 }, (_, i) => ({
+        id: `task-${i}`,
+        title: `Task ${i}`,
+        status: 'todo',
+        dueDate: null,
+        clientId: null,
+        client: null,
+        meeting: null,
+        description: null,
+        createdAt: new Date('2026-01-01'),
+      })),
+    );
+    const result = (await m.service.execute(ctx, 'query_tasks', { limit: 2 })) as {
+      total: number | null;
+      returned: number;
+      pageLimit: number;
+      paginationComplete: boolean;
+    };
+    expect(result).toMatchObject({
+      total: null,
+      returned: 2,
+      pageLimit: 2,
+      paginationComplete: false,
+    });
+  });
+
   it('rejects unknown statuses', async () => {
     const m = makeMocks();
     await expect(
@@ -330,6 +585,28 @@ describe('query_action_items', () => {
     });
     expect(result.total).toBe(1);
     expect(result.actions[0]!.id).toBe('action-1');
+  });
+
+  it('discloses that an over-limit result is only a page, not complete coverage', async () => {
+    const m = makeMocks();
+    m.actionRecommendations.list.mockResolvedValue({
+      data: [{ id: 'action-1' }],
+      total: 3,
+      page: 1,
+      limit: 1,
+    });
+    const result = (await m.service.execute(ctx, 'query_action_items', { limit: 1 })) as {
+      total: number;
+      returned: number;
+      pageLimit: number;
+      paginationComplete: boolean;
+    };
+    expect(result).toMatchObject({
+      total: 3,
+      returned: 1,
+      pageLimit: 1,
+      paginationComplete: false,
+    });
   });
 });
 
@@ -870,6 +1147,15 @@ describe('client visibility gate', () => {
     ).rejects.toThrow('Client not found');
     expect(m.engagement.listTasks).not.toHaveBeenCalled();
   });
+
+  it('does not dispatch action cards for an explicit denied client', async () => {
+    const m = makeMocks();
+    m.tx.client.findMany.mockResolvedValue([]);
+    await expect(
+      m.service.execute(ctx, 'query_action_items', { clientId: 'Denied Client' }),
+    ).rejects.toThrow('Client not found');
+    expect(m.actionRecommendations.list).not.toHaveBeenCalled();
+  });
 });
 
 describe('get_client_context canonical rich profile', () => {
@@ -1184,6 +1470,73 @@ describe('search_capiro_data canonical dispatch', () => {
         domains: ['strategies_work'],
       }),
     ).rejects.toThrow('Shared retrieval is unavailable');
+  });
+});
+
+describe('search_federal_awards PE-filtered synchronized corpus', () => {
+  it('uses PE and agency filters and returns the existing amount/date/POP fields without client identity scope', async () => {
+    const m = makeMocks();
+    m.tx.federalAward.findMany.mockResolvedValue([
+      {
+        id: 'award-1',
+        contractorName: 'Defense Example Inc.',
+        awardingAgency: 'Department of Defense',
+        amount: 123456.78,
+        description: 'Test award',
+        peCode: '0604201A',
+        recipientState: 'VA',
+        popCongressionalDistrict: '10',
+        actionDate: new Date('2025-03-01T00:00:00Z'),
+        latestActionDate: new Date('2025-04-01T00:00:00Z'),
+        baseAwardSignedDate: new Date('2024-10-01T00:00:00Z'),
+        sourceLastModifiedDate: new Date('2025-04-02T00:00:00Z'),
+        popStartDate: new Date('2025-03-01T00:00:00Z'),
+        popEndDate: new Date('2026-02-28T00:00:00Z'),
+        lastSyncedAt: new Date('2025-04-03T00:00:00Z'),
+        piid: 'PIID-1',
+      },
+    ]);
+    const schema = m.service
+      .anthropicToolSchemas()
+      .find((tool) => tool.name === 'search_federal_awards')!;
+    expect(schema.input_schema.properties).toHaveProperty('peCode');
+    expect(schema.input_schema.properties).not.toHaveProperty('clientId');
+    expect(schema.input_schema.properties).not.toHaveProperty('dateFrom');
+    expect(schema.input_schema.properties).not.toHaveProperty('state');
+
+    const result = (await m.service.executeFromAuthenticatedUser(ctx, 'search_federal_awards', {
+      query: 'Defense Example',
+      agency: 'Defense',
+      peCode: '0604201a',
+      limit: 5,
+    })) as any;
+    expect(m.tx.federalAward.findMany).toHaveBeenCalledWith({
+      where: {
+        OR: [
+          { description: { contains: 'Defense Example', mode: 'insensitive' } },
+          { contractorName: { contains: 'Defense Example', mode: 'insensitive' } },
+          { awardingAgency: { contains: 'Defense Example', mode: 'insensitive' } },
+        ],
+        awardingAgency: { contains: 'Defense', mode: 'insensitive' },
+        peCode: '0604201A',
+      },
+      orderBy: { actionDate: 'desc' },
+      take: 5,
+    });
+    expect(result).toMatchObject({
+      tool: 'search_federal_awards',
+      data: [
+        expect.objectContaining({
+          amount: 123456.78,
+          peCode: '0604201A',
+          popCongressionalDistrict: '10',
+          actionDate: new Date('2025-03-01T00:00:00Z'),
+          latestActionDate: new Date('2025-04-01T00:00:00Z'),
+          baseAwardSignedDate: new Date('2024-10-01T00:00:00Z'),
+        }),
+      ],
+    });
+    expect(result.items).toBeUndefined();
   });
 });
 

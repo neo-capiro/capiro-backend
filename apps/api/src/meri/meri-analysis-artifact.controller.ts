@@ -1,4 +1,4 @@
-import { Controller, Get, NotFoundException, Param, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, Header, NotFoundException, Param, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
@@ -20,6 +20,7 @@ export class MeriAnalysisArtifactController {
   constructor(private readonly visualAnalysis: MeriV3VisualAnalysisService) {}
 
   @Get(':artifactId')
+  @Header('Cache-Control', 'private, no-store')
   async getArtifact(@CurrentTenant() ctx: TenantContext, @Param('artifactId') artifactId: string) {
     const artifact = await this.visualAnalysis.getArtifact(ctx, artifactId);
     if (!artifact) throw new NotFoundException('Analysis artifact not found');
@@ -35,7 +36,7 @@ export class MeriAnalysisArtifactController {
     const image = await this.visualAnalysis.getArtifactImage(ctx, artifactId);
     if (!image) throw new NotFoundException('Analysis image not found');
     res.setHeader('Content-Type', image.contentType);
-    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.setHeader('Cache-Control', 'private, no-store');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.send(image.buffer);
   }

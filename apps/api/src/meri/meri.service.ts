@@ -88,6 +88,7 @@ import {
   aggSuffix,
 } from '../memory/kg-cache-enrich.helpers.js';
 import { MeriToolsService } from './meri-tools.service.js';
+import { assertVisualArtifactClientAccess } from './meri-visual-artifact-access.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { MemoryIngestService } from '../memory/memory-ingest.service.js';
 import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
@@ -702,6 +703,8 @@ export class MeriService implements MeriTurnMaintenance {
     // to it. Today the controller withholds the bearer on impersonated turns, so
     // they route legacy and this stays unused — threaded for the eventual flip.
     impersonateTenantId?: string,
+    // Internal hook from the runtime proxy; called only after the V2 gate declines.
+    onLegacyV1Selected?: () => void,
   ) {
     const conversation = await this.ensureConversation(ctx, conversationId);
     // Phase 4 prospect-scope authorization re-check: BEFORE any user-message
@@ -1160,6 +1163,8 @@ export class MeriService implements MeriTurnMaintenance {
       return;
     }
 
+    onLegacyV1Selected?.();
+
     // Classify intent
     const intent = await this.classifyIntent(ctx.tenantId, content);
     this.logger.debug(`Stream intent: ${intent}`);
@@ -1356,7 +1361,8 @@ export class MeriService implements MeriTurnMaintenance {
       // tool list (and its shared prompt-cache prefix). run_analysis (F4) is
       // GA: it registers for every tenant by default (opt-OUT via
       // clioFeatureFlags.runAnalysis=false) and disappears instantly under the
-      // env kill-switch CLIO_ANALYSIS_SANDBOX_ENABLED.
+      // env kill-switch CLIO_ANALYSIS_SANDBOX_ENABLED or missing sandbox
+      // URL/bearer configuration. This is not runner-health proof.
       const analysisEnabled = await this.tools.analysisSandboxEnabled(ctx.tenantId);
       const nativeSchemas = this.tools
         .anthropicToolSchemas({ tenantId: ctx.tenantId, surface: 'chat' })
@@ -2169,6 +2175,7 @@ export class MeriService implements MeriTurnMaintenance {
           role: 'assistant',
           body: assistantContent,
           metadata: {
+            servedBy: 'legacy-v1',
             intent,
             model,
             tier: orchestration.policy.tier,
@@ -2296,6 +2303,7 @@ export class MeriService implements MeriTurnMaintenance {
     sse.write(
       `data: ${JSON.stringify({
         type: 'done',
+        servedBy: 'legacy-v1',
         finishReason,
         partial,
         ...(assistantMessageId ? { messageId: assistantMessageId } : {}),
@@ -2821,12 +2829,15 @@ export class MeriService implements MeriTurnMaintenance {
     ctx: TenantContext,
     id: string,
   ): Promise<{ buffer: Buffer; contentType: string } | null> {
-    const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioArtifact.findFirst({
-        where: { id, tenantId: ctx.tenantId },
-        select: { contentType: true, metadata: true },
-      }),
-    );
+    const artifact = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const found = await tx.clioArtifact.findFirst({
+        where: { id, tenantId: ctx.tenantId, userId: ctx.userId, kind: 'analysis_chart' },
+        select: { contentType: true, metadata: true, clientId: true,
+          conversation: { select: { clientId: true } } },
+      });
+      if (found) await assertVisualArtifactClientAccess(tx, ctx, found);
+      return found;
+    });
     const meta = artifact?.metadata as Record<string, unknown> | null;
     const b64 = typeof meta?.imageBase64 === 'string' ? (meta.imageBase64 as string) : null;
     if (!b64) return null;
@@ -4321,18 +4332,6 @@ export class MeriService implements MeriTurnMaintenance {
         r.dst_id,
       )}${aggSuffix(r.agg_weight, r.agg_count)}`,
     }));
-  }
-
-  /**
-   * Effective memory-recall source for a tenant: the global MEMORY_RECALL_SOURCE
-   * env, with a per-tenant `settings_jsonb.clioFeatureFlags.meriMemoryRecallSource`
-   * override winning when present (mirrors resolveTenantAuditorMode). Lets 'union'
-   * (the OpenAI-recall-SPOF-resilient superset path) be canaried on one tenant —
-   * e.g. capiro-internal — before a fleet-wide MEMORY_RECALL_SOURCE flip. One
-   * tenant.settings read per recall; fail-safe: any read error falls back to env.
-   */
-  private async resolveMemoryRecallSource(tenantId: string): Promise<MemoryRecallSource> {
-    return (await this.resolveRecallConfig(tenantId)).mode;
   }
 
   /**

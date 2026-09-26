@@ -11,7 +11,7 @@ describe('Jev task evaluation fixture compatibility', () => {
   );
   const historicalFixture = () => JSON.parse(readFileSync(fixturePath, 'utf8')) as Record<string, unknown>;
 
-  it('keeps the immutable v4 Package 2 replay fixture readable after the v5 registry bump', () => {
+  it('keeps the immutable v4 Package 2 replay fixture readable after the v6 registry bump', () => {
     const parsed = jevTaskEvaluationFixtureSchema.parse(historicalFixture());
 
     expect(parsed.registryVersion).toBe('jev-task-registry.v4');
@@ -21,10 +21,15 @@ describe('Jev task evaluation fixture compatibility', () => {
   it('accepts the current registry version for newly recorded fixtures', () => {
     const fixture = {
       ...historicalFixture(),
-      registryVersion: 'jev-task-registry.v5',
+      registryVersion: 'jev-task-registry.v6',
     };
 
     expect(jevTaskEvaluationFixtureSchema.parse(fixture).registryVersion)
-      .toBe('jev-task-registry.v5');
+      .toBe('jev-task-registry.v6');
+  });
+
+  it('keeps immutable v5 artifacts readable', () => {
+    const fixture = { ...historicalFixture(), registryVersion: 'jev-task-registry.v5' };
+    expect(jevTaskEvaluationFixtureSchema.parse(fixture).registryVersion).toBe('jev-task-registry.v5');
   });
 });

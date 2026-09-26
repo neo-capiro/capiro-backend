@@ -73,12 +73,37 @@ describe('canary report', () => {
     expect(report.current.latencyMs.timeToText).toEqual({ p50: 100, p95: 300 });
     expect(report.current.costPerReleasedTurn).toBe(2);
     expect(report.current.costPerCompletedTask.estimatedCostUsd).toEqual({
-      total: 4, perCompletedTask: 2, p50: 1, p95: 3,
+      total: 4, perCompletedTask: 2, p50: 1, p95: 3, knownTurns: 2, unknownTurns: 0,
     });
     expect(report.current.costPerCorrectCompletedTask).toEqual({
       value: null, correctCompleted: 0, reason: 'human_labels_not_supplied',
     });
     expect(report.current.passage.requiredRetention.value).toBe(1);
+  });
+
+  it('never aggregates unknown repair usage as zero cost', () => {
+    const unknown = event({ repairUsage: 'unknown',
+      repair: repair({ attempted: 0, timedOut: true, budgetExhausted: 1, outcomesComplete: false }),
+      tokens: { synthesis: 10, jev: 2, legacy: null, repair: null },
+      cost: { retrievalToolCalls: 0, retrievalLatencyMs: 0, coverageFollowUpTokens: 0,
+        jevCalls: null, legacyCalls: null, repairLoops: null }, estimatedCostUsd: null });
+    const report = buildCanaryReport([event({ estimatedCostUsd: 1,
+      repair: repair({ attempted: 1, corrected: 1 }) }), unknown], [], {
+      humanLabels: { c: true },
+    });
+    expect(report.current.costPerReleasedTurn).toBeNull();
+    expect(report.current.costPerCompletedTask.estimatedCostUsd).toEqual({
+      total: null, perCompletedTask: null, p50: 1, p95: 1, knownTurns: 1, unknownTurns: 1,
+    });
+    expect(report.current.costPerCorrectCompletedTask).toEqual({
+      value: null, correctCompleted: 2, reason: 'usage_unknown',
+    });
+    expect(report.current.costPerCompletedTask.components.jevCalls).toEqual({
+      total: null, perCompletedTask: null, p50: 0, p95: 0, knownTurns: 1, unknownTurns: 1,
+    });
+    expect(report.current.repair).toMatchObject({ attempted: 1, successful: 1,
+      outcomeCompleteTurns: 1, outcomeIncompleteTurns: 1 });
+    expect(report.current.repair.successRate.value).toBe(1);
   });
 
   it('reports component cost distributions and only computes correctness from supplied human labels', () => {
@@ -93,7 +118,7 @@ describe('canary report', () => {
       humanLabels: { correct: true, incorrect: false },
     });
     expect(report.current.costPerCompletedTask.components.retrievalToolCalls).toEqual({
-      total: 6, perCompletedTask: 2, p50: 2, p95: 4,
+      total: 6, perCompletedTask: 2, p50: 2, p95: 4, knownTurns: 3, unknownTurns: 0,
     });
     expect(report.current.costPerCorrectCompletedTask).toEqual({ value: 2, correctCompleted: 1, reason: null });
     expect(canaryTurnEventSchema.safeParse(old).success).toBe(true);

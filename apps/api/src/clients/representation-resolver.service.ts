@@ -14,6 +14,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { normalizeDistrictCode } from './district-code.util.js';
 import { districtMatchesHouse } from '../common/district-code.util.js';
 import { resolveStateName } from '../common/us-states.js';
+import { visibleClientWhere } from '../memory/memory-wall.helpers.js';
 
 export interface ResolvedRepresentation {
   unresolved: false;
@@ -261,6 +262,7 @@ export class RepresentationResolverService {
   async representationForClient(
     tenantId: string,
     clientId: string,
+    viewerUserId?: string,
   ): Promise<
     Array<{
       facility: { id: string; name: string; city: string | null; state: string | null };
@@ -269,7 +271,13 @@ export class RepresentationResolverService {
   > {
     const facilities = await this.prisma.withTenant(tenantId, (tx) =>
       tx.clientFacility.findMany({
-        where: { tenantId, clientId },
+        where: {
+          tenantId,
+          clientId,
+          ...(viewerUserId
+            ? { client: { is: visibleClientWhere({ tenantId, userId: viewerUserId }) } }
+            : {}),
+        },
         orderBy: { createdAt: 'asc' },
       }),
     );

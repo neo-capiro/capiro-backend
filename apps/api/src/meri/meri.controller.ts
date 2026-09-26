@@ -51,6 +51,7 @@ import { runMeriStreamWithSetupGuard } from './meri-stream-preflight.helpers.js'
 import { withMeriToolRequestControl } from './meri-tool-request-control.js';
 import { MeriPdfRenderError } from './meri-docgen-pdf.js';
 import type { AssuranceSurface } from '@capiro/meriv2-core';
+import { meriDelegatedRequestId } from '../observability/meri-delegated-request-id.js';
 
 class CreateMeriConversationDto {
   @IsOptional()
@@ -392,6 +393,11 @@ export class MeriController {
     @Body() body: Record<string, unknown>,
     @Req() req: Request,
   ) {
+    this.logger.log(JSON.stringify({
+      event: 'meri.delegated_handler_entered',
+      requestId: meriDelegatedRequestId(req),
+      tool: name,
+    }));
     return withMeriToolRequestControl(req, () =>
       this.tools.executeFromAuthenticatedUser(ctx, name, body),
     );
@@ -881,7 +887,7 @@ export class MeriController {
     const image = await this.service.getArtifactImage(ctx, id);
     if (!image) throw new NotFoundException('Image artifact not found');
     res.setHeader('Content-Type', image.contentType);
-    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.setHeader('Cache-Control', 'private, no-store');
     res.send(image.buffer);
   }
 

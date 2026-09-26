@@ -95,8 +95,9 @@ export async function runCalibratedCascade(input: CalibratedCascadeInput): Promi
       }
       if (input.claim.materialHighImpact || highImpactCategory) reasons.push('high_impact_category');
       const evaluated = input.registration.calibration.evaluatedCategories;
-      if (evaluated?.length
-        && (input.claim.category === 'unclassified' || !evaluated.includes(input.claim.category))) {
+      if (!evaluated?.length
+        || input.claim.category === 'unclassified'
+        || !evaluated.includes(input.claim.category)) {
         reasons.push('out_of_distribution');
       }
     }

@@ -20,9 +20,10 @@ export class ApiVisualAnalysisRepo {
   }
 
   /**
-   * Ask apps/api—the owner of the sandbox env + tenant flag—whether the tool is
-   * currently usable. Any auth/network/config failure removes run_analysis from
-   * the model surface for that turn instead of advertising a doomed tool.
+   * Ask apps/api—the owner of the sandbox configuration and tenant flag—whether
+   * this turn may offer the tool. This is not a runner-health/capacity proof.
+   * Any API auth/network/config failure removes run_analysis from the model
+   * surface rather than advertising it on an unverified API response.
    */
   async available(control?: ToolExecutionControl): Promise<boolean> {
     const credentials = RequestCredentialsStore.get();

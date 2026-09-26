@@ -46,6 +46,36 @@ describe('FedRAMP marketplace parser', () => {
       'No FedRAMP product records found',
     );
   });
+
+  it('accepts observed legacy and suffixed product IDs and regex-special Svelte variables', () => {
+    const source = [
+      'let $={},legacy={},suffixed={},shortId={};',
+      '$.id="FR1923743650A";$.csp="Automattic, Inc.";$.cso="WordPress VIP";$.status="FedRAMP Certified";$.cert_date=null;$.impact_level="Moderate";$.agency_authorizations=[];',
+      'legacy.id="F1607067912";legacy.csp="18F";legacy.cso="CG-TTS - Cloud.Gov";legacy.status="FedRAMP Certified (In Remediation)";legacy.cert_date=null;legacy.impact_level="Moderate";legacy.agency_authorizations=[];',
+      'suffixed.id="FR2409863458XL";suffixed.csp="Confluent";suffixed.cso="Confluent Cloud for Government";suffixed.status="FedRAMP Certified";suffixed.cert_date=null;suffixed.impact_level="Moderate";suffixed.agency_authorizations=[];',
+      'shortId.id="FR260215856";shortId.csp="SandboxAQ";shortId.cso="AQtive Guard";shortId.status="Legacy FedRAMP Ready";shortId.cert_date=null;shortId.impact_level="Moderate";shortId.agency_authorizations=[];',
+    ].join('\n');
+
+    const records = parseFedrampMarketplaceProducts(source, OBSERVED);
+    expect(records.map(({ productId, status }) => [productId, status])).toEqual([
+      ['FR1923743650A', 'FedRAMP Certified'],
+      ['F1607067912', 'FedRAMP Certified (In Remediation)'],
+      ['FR2409863458XL', 'FedRAMP Certified'],
+      ['FR260215856', 'Legacy FedRAMP Ready'],
+    ]);
+  });
+
+  it('fails closed for an unseen product ID shape or status instead of truncating inventory', () => {
+    const valid = 'a.id="FR1234567890";a.csp="Acme";a.cso="Acme Cloud";a.status="FedRAMP Certified";a.impact_level="Moderate";';
+    expect(() => parseFedrampMarketplaceProducts(
+      `${valid}b.id="FR1234567890Z";b.csp="Beta";b.cso="Beta Cloud";b.status="FedRAMP Certified";b.impact_level="Moderate";`,
+      OBSERVED,
+    )).toThrow('Unsupported marketplace product ID shape');
+    expect(() => parseFedrampMarketplaceProducts(
+      'a.id="FR1234567890";a.csp="Acme";a.cso="Acme Cloud";a.status="New Status";a.impact_level="Moderate";',
+      OBSERVED,
+    )).toThrow('Unknown marketplace status');
+  });
 });
 
 describe('FedRAMP marketplace client', () => {
@@ -59,6 +89,31 @@ describe('FedRAMP marketplace client', () => {
     });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(records[0]!.observedAt).toBe(OBSERVED);
+  });
+
+  it('retries one HTTP 200 payload that cannot be parsed, then returns the complete inventory', async () => {
+    const fetchImpl = jest.fn()
+      .mockResolvedValueOnce(new Response('<html/>', { status: 200 }))
+      .mockResolvedValueOnce(response());
+    const records = await fetchFedrampProducts({ fetchImpl, now: () => new Date(OBSERVED) });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(records).toHaveLength(4);
+    expect(records[0]!.observedAt).toBe(OBSERVED);
+  });
+
+  it('fails closed after two HTTP 200 payloads with no complete records', async () => {
+    const fetchImpl = jest.fn().mockImplementation(async () => new Response('<html/>', { status: 200 }));
+    await expect(fetchFedrampProducts({ fetchImpl })).rejects.toThrow(
+      'No FedRAMP product records found',
+    );
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries a 5xx response once', async () => {
+    const fetchImpl = jest.fn().mockResolvedValueOnce(response(503)).mockResolvedValueOnce(response());
+    const records = await fetchFedrampProducts({ fetchImpl });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(records).toHaveLength(4);
   });
 
   it('does not retry 4xx responses', async () => {

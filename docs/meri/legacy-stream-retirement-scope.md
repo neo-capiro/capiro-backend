@@ -246,25 +246,54 @@ Consequences for the retirement plan:
 | `MERIV2_ENABLED` off / orchestrator unconfigured, V3 also closed | **V1** | **V1** |
 | Orchestrator process down, gates unchanged | V3 error (no fallback) | V3 error |
 
-Zero-code detectors for "did V1 serve any turn in window W":
+Runtime identity and observation limits:
 
 - CloudWatch (api log group): the info line **`Meri total usage [conv `** (line 1759–1762) is emitted only by
   the V1 loop. `aws logs filter-log-events --filter-pattern '"Meri total usage"'` over W with zero hits ⇒ zero V1
-  turns. (Read-only.)
-- Database: `clio_messages` assistant rows carry `metadata.servedBy` = `'meriv2'` (V2, meri.service.ts:2547),
-  `'meriv3'` (V3, meriv3-proxy.service.ts:503), `'compliance-block'`, `'research-promote'`; V1 rows carry
-  **no `servedBy`** and have `metadata.tier` from the policy and a real Anthropic `model` id.
-  `SELECT count(*) FROM clio_messages WHERE role='assistant' AND created_at > … AND
-  metadata->>'servedBy' IS NULL AND metadata ? 'plan'` isolates V1 rows *(inferred from the metadata shapes;
-  not executed)*.
-- Recommended first PR of the project: add `servedBy: 'legacy-v1'` to the V1 assistant metadata so the DB
-  detector becomes exact. (One-line, zero behavior change beyond metadata.)
+  loop activity for turns that reach its final usage log. (Read-only.)
+- The normal V1 loop now persists `metadata.servedBy='legacy-v1'` on its assistant message and emits the same
+  value on its final `done` SSE frame. This makes the persisted-message detector exact for turns that reach
+  assistant persistence. Query `clio_messages` across all tenants with `role='assistant'`, a bounded `created_at` window,
+  and `metadata->>'servedBy'='legacy-v1'`; the tenant ID remains available in the row for cohort checks.
+- Persisted/emitted label audit:
+
+  | Path | Persisted `servedBy` | Persisted `runtime` | Terminal SSE identity |
+  |---|---|---|---|
+  | Normal V1 loop | `legacy-v1` | absent | `done.servedBy='legacy-v1'` |
+  | V2 orchestrator | `meriv2` | absent | `done` has no runtime label |
+  | V3 normal turn | `meriv3` | `meriv3` | `done` has no runtime label |
+  | Hermes normal finalization | `hermes` | `hermes` | `done.runtime='hermes'` |
+  | Shared compliance/research short-circuit | `compliance-block` / `research-promote` | absent | `done` has no handler/runtime label |
+  | V3's own compliance/research short-circuit | `compliance-block` / `research-promote` | `meriv3` | `done` has no handler/runtime label |
+
+  The early-exit `servedBy` values name the response handler, not the model runtime. The labels are preserved
+  here; a future telemetry contract can normalize all terminal frames without changing the underlying dispatch.
+- The runtime now emits paired structured `MeriRouteTelemetry` records when V1 is actually selected: a
+  `phase=selected` record at the raw V3 fallback after the V2 gate declines, and `phase=outcome` when the
+  service returns or throws. Both use a random shared `routeAttemptId`, fixed `runtime=legacy-v1`,
+  `dispatch=v3_raw_v2_declined`, and a boolean `impersonated`; outcomes are `completed`, `error`, `aborted`,
+  or `client_disconnected`. No tenant/user IDs,
+  conversation IDs, bearer, prompt, or arbitrary error text are included. Selection occurs after shared
+  prelude early exits and immediately before V1 intent classification, so it counts V1-loop selections,
+  not mere raw-service entry. Logger failures are swallowed and cannot affect runtime behavior. The wrapper
+  observes in-band `error` frames because the V1 loop handles some failures internally.
+- The four-week clock is not started by this code change: deployment and log-pipeline validation are still
+  required, including unsampled/retained ingestion and an alert for unmatched selections (process loss
+  between the paired records, correlated by `routeAttemptId`). Since events omit tenant identifiers by design, they cannot independently
+  prove tenant-by-tenant coverage or detect a new/disabled tenant with no V1 events; pair them with tenant
+  cohort/config inventory and persisted `servedBy` checks. `impersonated` reflects only the boolean passed
+  through this controller, not effective tenant/actor identity or successful authorization. A missing outcome
+  after selection is interruption evidence, not proof of zero traffic. Observe all tenants and include a
+  verified impersonation session if it remains a retirement prerequisite. V2/V3 selections and shared early
+  exits are intentionally not counted as V1 dispatches.
+  Error-frame observation is incremental across fragmented SSE writes, handles `data:` fields and CRLF framing,
+  and retains no more than 65,536 JavaScript characters of event text; malformed and oversized frames do not affect dispatch or output.
 
 ## 7. Retirement prerequisites and phased plan (proposal — nothing here is executed)
 
 | Phase | Deliverable | Gate to proceed | Risk |
 |---|---|---|---|
-| **R0 — Pin + observe** | Truth-table specs (this PR); `servedBy:'legacy-v1'` metadata; CloudWatch/DB detectors from §6 run weekly | ≥ 4 weeks with zero V1 turns **including** at least one impersonation session on a cohort tenant | low |
+| **R0 — Pin + observe** | Truth-table specs; `servedBy:'legacy-v1'` persisted and final SSE receipts; deploy route-selection telemetry that counts V1 attempts and outcomes; review CloudWatch/DB detectors from §6 weekly | ≥ 4 weeks with zero V1 dispatches **including** at least one verified impersonation session on a cohort tenant | low |
 | **R1 — Impersonation decision** | Either (a) lift Phase-0 containment by carrying one unified effective actor/tenant/impersonation context end-to-end so impersonated turns may enter V2, or (b) declare V3 the permanent impersonation carrier and add an explicit refusal when V3 declines an impersonated turn | Decision recorded (ADR); spec `meriv2-routing.helpers.spec.ts` + the matrix spec updated **deliberately** if (a) | medium — this is a routing contract change |
 | **R2 — Close or accept gaps** | Items 1–8 of §4 either implemented on V2/V3 or explicitly accepted; open verifications (#16, #32) closed; **V3-vs-V1 parity inventory** produced | Product sign-off | medium |
 | **R3 — Explicit no-runtime path** | Replace the V1 loop entry (line 1025) with a classified refusal (`error` frame + persisted assistant row) when both V3 and V2 decline; keep the shared prelude (§2.1) and the V2 branch (§2.3) intact; decide the orchestrator-outage stance (V1 was the last in-process runtime) | Focused jest + tsc; canary on capiro-internal with V3 key closed | **high** — persistence and SSE contract |

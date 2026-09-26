@@ -171,8 +171,8 @@ function makeAiCredentials() {
  * resolve to minimal shapes. findFirst returns the session (for ensureSession);
  * create returns ids; update is a no-op.
  */
-function makePrisma(capturedArtifacts?: Array<Record<string, any>>) {
-  let session = { ...SESSION };
+function makePrisma(capturedArtifacts?: Array<Record<string, any>>, sessionMetadata: unknown = null) {
+  let session: Omit<typeof SESSION, 'metadata'> & { metadata: unknown } = { ...SESSION, metadata: sessionMetadata };
   const tx = {
     clioResearchSession: {
       findFirst: async () => session,
@@ -238,6 +238,34 @@ function makeReviews() {
   // G4: held reports emit a review_request; fail-open stub for these specs.
   return { createSystem: jest.fn(async () => 'rr-1') } as never;
 }
+
+describe('MeriResearchService V3 handoff routing', () => {
+  it('omits attachment content from the V3 plan prompt while retaining the original attachment ID', async () => {
+    const attachmentId = '44444444-4444-4444-8444-000000000000';
+    const handoff = { version: 1, capturedAt: '2026-09-24T00:00:00Z', conversationId: null,
+      clientId: null, reasoningMode: 'deep', requestedDeliverable: 'Plan the research',
+      summary: null, summaryUpToMessageId: null, messages: [], attachments: [{
+        id: attachmentId, sourceMessageId: null, filename: 'appropriations.txt', kind: 'text',
+        status: 'parsed', reason: null, textContent: 'Appropriated amount: $17 million.',
+        mediaType: 'text/plain', byteSize: 33, contentSha256: 'a'.repeat(64),
+        source: `clio_attachment:${attachmentId}`,
+      }] };
+    const v3 = { enabled: jest.fn(async () => true),
+      plan: jest.fn(async (_ctx: TenantContext, _input: { user: string; sessionId: string }) => JSON.stringify({ title: 'Appropriations plan',
+        plan: ['Read the source'], clarifyingQuestions: [] })) };
+    const service = new MeriResearchService(makePrisma(undefined, { handoff }), makeConfig(),
+      makeTools(), makeAiCredentials(), makeReviews(), v3 as never);
+    const sse = { write: jest.fn() };
+    const now = new Date().toISOString();
+    await (service as unknown as { runPlanStream: (...args: unknown[]) => Promise<void> })
+      .runPlanStream(CTX, 'sess-1', sse, { run: { id: 'run-a', phase: 'plan', status: 'running',
+        stage: 'Planning', startedAt: now, heartbeatAt: now } });
+    const outbound = v3.plan.mock.calls[0]?.[1];
+    expect(outbound).toMatchObject({ sessionId: 'sess-1' });
+    expect(outbound?.user).toContain(attachmentId);
+    expect(outbound?.user).not.toContain('Appropriated amount: $17 million.');
+  });
+});
 
 describe('MeriResearchService — forced synthesis', () => {
   const realFetch = global.fetch;

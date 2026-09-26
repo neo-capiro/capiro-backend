@@ -43,6 +43,7 @@ jest.mock('../engagement/engagement.service.js', () => ({ EngagementService: jes
 jest.mock('./meri-defense-budget-tool.helpers.js', () => ({}));
 
 import { MeriToolsService, TOOL_DEFINITIONS } from './meri-tools.service.js';
+import { MERI_CAPABILITY_REGISTRY, MERI_LEGISLATIVE_READ_CONTRACTS } from '@capiro/shared';
 
 describe('buyer workspace Meri tool', () => {
   it('passes a pinned read through without changing coverage or unsupported gaps', async () => {
@@ -389,6 +390,29 @@ function schemas() {
 }
 
 describe('Meri tool registration', () => {
+  it('offers provider-accurate mail and distinct task, recommendation, and automation descriptions', () => {
+    const capability = (name: string) => {
+      const value = MERI_CAPABILITY_REGISTRY.find((entry) => entry.name === name);
+      expect(value).toBeDefined();
+      return value!;
+    };
+    for (const name of ['send_email', 'reply_email']) {
+      const entry = capability(name);
+      expect(entry.description).toMatch(/Outlook or Gmail/);
+      expect(entry.readOnly).toBe(false);
+      expect(schemas().find((schema) => schema.name === name)?.description)
+        .toBe(entry.description);
+    }
+    expect(capability('reply_email').description).toMatch(/not use a provider-native reply/);
+    expect(capability('schedule_task').description).toMatch(/recurring Meri automation/);
+    expect(capability('query_tasks').description).toMatch(/engagement tasks/);
+    expect(capability('query_action_items').description).toMatch(/Needs Attention.*recommendations/);
+    expect(capability('create_task').description).toMatch(/engagement task/);
+    expect(capability('schedule_task').readOnly).toBe(false);
+    expect(capability('query_tasks').readOnly).toBe(true);
+    expect(capability('query_action_items').readOnly).toBe(true);
+  });
+
   it.each(['get_legiwatch_review', 'apply_legiwatch_suggestion'] as const)(
     '%s injects authenticated identity and validates the client before the owner-service call',
     async (name) => {
@@ -719,6 +743,34 @@ describe('Meri tool registration', () => {
       expect(schema.input_schema.properties).toBeDefined();
       expect(Array.isArray(schema.input_schema.required)).toBe(true);
     }
+  });
+
+  it('keeps the legislative advisory slice in parity with callable schemas and descriptions', () => {
+    const byName = new Map(schemas().map((schema) => [schema.name, schema]));
+    expect(Object.keys(MERI_LEGISLATIVE_READ_CONTRACTS).sort()).toEqual([
+      'get_bill_status',
+      'get_committee_roster',
+      'resolve_entity',
+      'search_floor_votes',
+    ]);
+
+    for (const [name, contract] of Object.entries(MERI_LEGISLATIVE_READ_CONTRACTS)) {
+      const schema = byName.get(name);
+      expect(schema).toBeDefined();
+      expect(contract.effectClass).toBe('read_only');
+      expect(contract.requiredInputs).toEqual(schema?.input_schema.required);
+      expect(contract.purpose.length).toBeGreaterThan(20);
+      expect(contract.evidenceAuthority.length).toBeGreaterThan(20);
+    }
+
+    expect(byName.get('resolve_entity')?.description).toContain('no continuation cursor');
+    expect(byName.get('get_bill_status')?.description).toContain('up to 15 stored roll-call votes');
+    expect(byName.get('search_floor_votes')?.description).toContain(
+      'not proof no vote occurred elsewhere',
+    );
+    expect(byName.get('get_committee_roster')?.description).toContain(
+      '`state` is required for state committees',
+    );
   });
 
   it('enforces required inputs for every tool that has them', () => {

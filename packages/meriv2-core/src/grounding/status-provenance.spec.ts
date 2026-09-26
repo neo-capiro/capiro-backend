@@ -41,6 +41,16 @@ describe('FedRAMP status provenance', () => {
     ]);
   });
 
+  it('recognizes the documented remediation status as one exact status', () => {
+    const reply = 'Acme Cloud is FedRAMP Certified (In Remediation).';
+    const claims = detectFedrampStatusClaims(reply);
+    expect(claims).toEqual([
+      expect.objectContaining({ entityMention: 'Acme Cloud', statedStatus: 'FedRAMP Certified (In Remediation)' }),
+    ]);
+    expect(checkFedrampStatusClaims(claims, [evidence({ status: 'FedRAMP Certified (In Remediation)' })])[0]?.outcome)
+      .toBe('exact');
+  });
+
   it('never accepts self-reported fields as verification', () => {
     const claims = detectFedrampStatusClaims('Acme Cloud is FedRAMP Certified.');
     expect(checkFedrampStatusClaims(claims, [evidence({ selfReported: true })])[0]?.outcome).toBe('unsupported');
@@ -57,6 +67,64 @@ describe('FedRAMP status provenance', () => {
         failedSources: [],
       },
     })])[0]?.outcome).toBe('exact');
+  });
+
+  it('replaces unsupported negative and positive assertions instead of appending a disclaimer', () => {
+    const negative = 'Gamma Cloud is not FedRAMP authorized.';
+    const negativeChecked = checkFedrampStatusClaims(detectFedrampStatusClaims(negative), []);
+    const negativeReply = enforceFedrampStatusReply(negative, negativeChecked);
+    expect(negativeReply).toBe(
+      "Gamma Cloud's FedRAMP authorization status is unverified; complete-dataset coverage was not established.",
+    );
+    expect(negativeReply).not.toContain('is not FedRAMP authorized');
+
+    const sourceMiss = 'No FedRAMP authorization was found for Gamma Cloud.';
+    const sourceMissChecked = checkFedrampStatusClaims(detectFedrampStatusClaims(sourceMiss), []);
+    expect(enforceFedrampStatusReply(sourceMiss, sourceMissChecked)).toBe(
+      "Gamma Cloud's FedRAMP authorization status is unverified; complete-dataset coverage was not established.",
+    );
+
+    const positive = 'Gamma Cloud is FedRAMP Certified.';
+    const positiveChecked = checkFedrampStatusClaims(detectFedrampStatusClaims(positive), []);
+    const positiveReply = enforceFedrampStatusReply(positive, positiveChecked);
+    expect(positiveReply).toBe(
+      "Gamma Cloud's FedRAMP status could not be verified from available marketplace evidence.",
+    );
+    expect(positiveReply).not.toContain('is FedRAMP Certified');
+  });
+
+  it('states the observed record when a negative assertion conflicts with a positive record', () => {
+    const reply = 'Acme Cloud is not FedRAMP authorized.';
+    const checked = checkFedrampStatusClaims(detectFedrampStatusClaims(reply), [evidence()]);
+    expect(checked[0]?.outcome).toBe('negative_unsupported');
+    const enforced = enforceFedrampStatusReply(reply, checked);
+    expect(enforced).toContain('FedRAMP Marketplace record reporting FedRAMP Certified at Moderate impact');
+    expect(enforced).not.toContain('is not FedRAMP authorized');
+  });
+
+  it('scopes a negative status to its own clause in a multi-entity answer', () => {
+    const claims = detectFedrampStatusClaims(
+      'Acme Cloud is FedRAMP Certified, but Beta Cloud is not FedRAMP authorized.',
+    );
+    expect(claims).toEqual([
+      expect.objectContaining({ entityMention: 'Acme Cloud', statedStatus: 'FedRAMP Certified', negative: false }),
+      expect.objectContaining({ entityMention: 'Beta Cloud', statedStatus: null, negative: true }),
+    ]);
+  });
+
+  it('extracts the entity from a source-scoped no-match statement', () => {
+    expect(detectFedrampStatusClaims('No FedRAMP authorization was found for Gamma Cloud.')).toEqual([
+      expect.objectContaining({ entityMention: 'Gamma Cloud', statedStatus: null, negative: true }),
+    ]);
+  });
+
+  it('recognizes bounded negative paraphrases without widening their entity scope', () => {
+    expect(detectFedrampStatusClaims(
+      'Acme Cloud has no FedRAMP authorization. Beta Cloud is not authorized by FedRAMP.',
+    )).toEqual([
+      expect.objectContaining({ entityMention: 'Acme Cloud', statedStatus: null, negative: true }),
+      expect.objectContaining({ entityMention: 'Beta Cloud', statedStatus: null, negative: true }),
+    ]);
   });
 
   it('repairs non-exact text with exact status, impact, and source observation', () => {

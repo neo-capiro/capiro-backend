@@ -1,5 +1,6 @@
 import { MERIV3_MANAGED_APP_IDS } from './meri-managed-mcp.helpers.js';
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -11,7 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { IsIn } from 'class-validator';
+import { IsIn, IsOptional, IsUUID } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import type { Request } from 'express';
 import {
@@ -30,6 +31,7 @@ import {
 } from './meri-analysis-visualization.js';
 import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js';
 import { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.js';
+import { MeriAuthenticatedConversationScopeService } from './meri-authenticated-conversation-scope.service.js';
 import {
   MERIV3_REASONING_MODES,
   reasoningModeFromConversationMetadata,
@@ -42,6 +44,16 @@ class SetMeriV3ReasoningModeDto {
   reasoningMode!: MeriV3ReasoningMode;
 }
 
+class MeriAuthenticatedScopeRequestDto {
+  @IsUUID()
+  conversationId!: string;
+
+  /** Optional assertion only; the stored conversation remains authoritative. */
+  @IsOptional()
+  @IsUUID()
+  clientId?: string;
+}
+
 @Controller('clio/v3')
 @UseGuards(RolesGuard)
 @Roles('standard_user')
@@ -51,6 +63,7 @@ export class MeriV3SettingsController {
     private readonly flags: MeriFeatureFlagsService,
     private readonly managedMcp: MeriManagedMcpService,
     private readonly visualAnalysis: MeriV3VisualAnalysisService,
+    private readonly authenticatedScope: MeriAuthenticatedConversationScopeService,
   ) {}
 
   @Get('capabilities')
@@ -118,6 +131,22 @@ export class MeriV3SettingsController {
   async managedMcpSchemas(@CurrentTenant() ctx: TenantContext) {
     await this.assertEnabled(ctx);
     return { schemas: await this.managedMcp.schemasForMeriV3(ctx) };
+  }
+
+  /**
+   * Internal read-only scope handoff for a single authenticated conversation.
+   * This is deliberately not an eligibility snapshot: schema/catalog versions
+   * and final orchestrator tool composition are not part of this API contract.
+   */
+  @Post('internal/authenticated-conversation-scope')
+  @UseGuards(MeriV3InternalServiceGuard)
+  async authenticatedConversationScope(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() body: MeriAuthenticatedScopeRequestDto,
+  ) {
+    if (!body?.conversationId) throw new BadRequestException('conversationId is required');
+    await this.assertEnabled(ctx);
+    return this.authenticatedScope.resolve(ctx, body.conversationId, body.clientId);
   }
 
   /** Isolated orchestrator execution bridge; reads only, strict service identity required. */

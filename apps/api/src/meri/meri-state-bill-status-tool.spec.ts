@@ -109,6 +109,40 @@ describe('get_state_bill_status (S6.1, the state twin of the H.R. 8800 pin)', ()
     expect(out.found).toBe(true);
   });
 
+  it('does not read status when a designation spans multiple sessions', async () => {
+    const findUnique = jest.fn(async () => TX_DEAD_BILL);
+    const tx: Fake = {
+      stateBill: {
+        findUnique,
+        findMany: async ({ where }: { where: { sessionKey?: string } }) =>
+          where.sessionKey === '2025'
+            ? [{ id: 'tx-2025-hb1234' }]
+            : [{ id: 'tx-2027-hb1234' }, { id: 'tx-2025-hb1234' }],
+      },
+      stateBillAction: { findMany: async () => [] },
+      stateRollCallVote: { findMany: async () => [] },
+      stateBillLink: { findMany: async () => [] },
+    };
+    const ambiguous = (await call(svc(withSystemFake(tx)), 'getStateBillStatus', {
+      billId: 'TX HB 1234',
+    })) as {
+      found: boolean;
+      resolution: string;
+      candidateIds: string[];
+      note: string;
+    };
+    expect(ambiguous.found).toBe(false);
+    expect(ambiguous.resolution).toBe('ambiguous');
+    expect(ambiguous.candidateIds).toEqual(['tx-2027-hb1234', 'tx-2025-hb1234']);
+    expect(ambiguous.note).toMatch(/Specify sessionKey/);
+    expect(findUnique).not.toHaveBeenCalled();
+
+    const qualified = (await call(svc(withSystemFake(tx)), 'getStateBillStatus', {
+      billId: 'TX HB 1234', sessionKey: '2025',
+    })) as { found: boolean; billId: string };
+    expect(qualified).toMatchObject({ found: true, billId: 'tx-2025-hb1234' });
+  });
+
   it('a designation with NO state (embedded or hinted) returns a specify-the-state note, never guesses', async () => {
     const out = (await call(svc(prisma()), 'getStateBillStatus', { billId: 'HB 1234' })) as {
       found: boolean;
@@ -129,6 +163,23 @@ describe('get_state_bill_status (S6.1, the state twin of the H.R. 8800 pin)', ()
 });
 
 describe('search_state_floor_votes (S6.1)', () => {
+  it('does not run a vote query for an ambiguous bill designation', async () => {
+    const findVotes = jest.fn(async () => [{ id: 'unrelated' }]);
+    const p: Fake = withSystemFake({
+      stateBill: { findMany: async () => [
+        { id: 'tx-2027-hb1234' }, { id: 'tx-2025-hb1234' },
+      ] },
+      stateRollCallVote: { findMany: findVotes },
+    });
+    const out = (await call(svc(p), 'searchStateFloorVotes', {
+      billId: 'TX HB 1234',
+    })) as { votesFound: number; resolution: string; candidateIds: string[] };
+    expect(out.votesFound).toBe(0);
+    expect(out.resolution).toBe('ambiguous');
+    expect(out.candidateIds).toHaveLength(2);
+    expect(findVotes).not.toHaveBeenCalled();
+  });
+
   it('returns matching votes, else an explicit no-match + member-filter-unavailable note', async () => {
     const withVotes: Fake = withSystemFake({
       stateRollCallVote: {

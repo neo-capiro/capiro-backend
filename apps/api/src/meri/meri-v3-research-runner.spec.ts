@@ -31,7 +31,8 @@ function fixture(events?: MeriV3ChatStreamEvent[]) {
   };
   const flags = { isMeriV3ChatEnabled: jest.fn(async () => true) };
   const credentials = { resolveProvider: jest.fn(async () => ({ provider: 'openai', apiKey: 'tenant-key', model: 'configured-chat-model' })) };
-  const tx = { clioAttachment: { findMany: jest.fn(async () => [] as Array<{ id: string; data: Buffer; mediaType: string; status: string }>) } };
+  const tx = { $queryRawUnsafe: jest.fn(async () => [{ allowed: true }]),
+    clioAttachment: { findMany: jest.fn(async () => [] as Array<{ id: string; data: Buffer; mediaType: string; status: string }>) } };
   const prisma = { withTenantUser: jest.fn(async (_tenant: string, _user: string, callback: (db: typeof tx) => unknown) => callback(tx)) };
   const conversationEvidence = { load: jest.fn(async () => ({ citations: [], unavailable: 0, omitted: 0 })) };
   const runner = new MeriV3ResearchRunner(client as never, flags as never, credentials as never, prisma as never, conversationEvidence as never);
@@ -60,6 +61,23 @@ describe('MeriV3ResearchRunner primary runtime', () => {
     await runner.run(ctx, input, auth, () => {});
     expect(conversationEvidence.load).toHaveBeenCalledWith(ctx, 'thread-a', 'client-a', undefined, handoff.messages);
     expect(client.streamChat).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining({ inheritedDocumentEvidence: [citation] }) }));
+  });
+
+  it('passes only attachment metadata before a V3 evidence-tool read', async () => {
+    const { runner, client } = fixture();
+    const captured: MeriResearchHandoff = { ...handoff, attachments: [{
+      id: 'original-attachment', sourceMessageId: null, filename: 'appropriations.txt',
+      kind: 'text', status: 'parsed', reason: null,
+      textContent: 'Appropriated amount: $17 million.', mediaType: 'text/plain', byteSize: 33,
+      contentSha256: createHash('sha256').update('Appropriated amount: $17 million.').digest('hex'),
+      source: 'clio_attachment:original-attachment',
+    }] };
+    await runner.run(ctx, { ...input, handoff: captured,
+      user: researchHandoffPrompt(captured, input.sessionId, { includeAttachmentContent: false }) }, auth, () => {});
+    const outbound = client.streamChat.mock.calls[0]?.[0].input;
+    expect(JSON.stringify(outbound)).toContain('original-attachment');
+    expect(JSON.stringify(outbound)).toContain('get_research_evidence');
+    expect(JSON.stringify(outbound)).not.toContain('Appropriated amount: $17 million.');
   });
 
   it('does not leak a captured full document excerpt to the provider after replay authorization fails', async () => {
@@ -136,12 +154,15 @@ describe('MeriV3ResearchRunner primary runtime', () => {
     const imageInput = { ...input, handoff: { ...handoff, attachments: [{ id: 'image-a', sourceMessageId: null, filename: 'budget.png', kind: 'image', status: 'image_ready', mediaType: 'image/png', byteSize: bytes.length, textContent: null, reason: null, source: 'clio_attachment:image-a', contentSha256: createHash('sha256').update(bytes).digest('hex') }] } };
     await runner.run(ctx, imageInput, auth, () => {});
     expect(tx.clioAttachment.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ tenantId: ctx.tenantId, userId: ctx.userId }) }));
-    expect(client.streamChat).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining({ currentTurnImages: [{ mediaType: 'image/png', dataBase64: bytes.toString('base64') }] }) }));
+    expect(client.streamChat).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining({ currentTurnImages: [{ attachmentId: 'image-a', mediaType: 'image/png', dataBase64: bytes.toString('base64') }] }) }));
     const request = client.streamChat.mock.calls[0]?.[0];
     expect(request?.input.skillAddendum).toContain('get_research_evidence with sessionId="research-a"');
     expect(request?.input.skillAddendum).toContain('[S:get_research_evidence:ID]');
     tx.clioAttachment.findMany.mockResolvedValue([{ id: 'image-a', data: Buffer.from('changed'), mediaType: 'image/png', status: 'image_ready' }]);
     await expect(runner.run(ctx, imageInput, auth, () => {})).rejects.toThrow('changed since the handoff');
+    expect(client.streamChat).toHaveBeenCalledTimes(1);
+    tx.$queryRawUnsafe.mockResolvedValue([{ allowed: false }]);
+    await expect(runner.run(ctx, imageInput, auth, () => {})).rejects.toThrow('client access is no longer available');
     expect(client.streamChat).toHaveBeenCalledTimes(1);
   });
 

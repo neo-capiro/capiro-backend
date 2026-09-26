@@ -20,9 +20,28 @@
  * that migration's runtime caveat).
  */
 import type { Prisma } from '@prisma/client';
+import type { TenantContext } from '@capiro/shared';
 
 /** The transactional client every helper runs on (withTenant/withTenantUser). */
 type Tx = Prisma.TransactionClient;
+
+/**
+ * Client-row predicate for user-facing reads outside the memory tables.
+ * Keep the grant check in the same SQL statement as pagination/counting: a
+ * separately fetched denied-id list can become stale when a grant is revoked.
+ */
+export function visibleClientWhere(
+  ctx: Pick<TenantContext, 'tenantId' | 'userId'>,
+): Prisma.ClientWhereInput {
+  return {
+    tenantId: ctx.tenantId,
+    status: { not: 'archived' },
+    OR: [
+      { memoryWall: false },
+      { memoryAccessGrants: { some: { tenantId: ctx.tenantId, userId: ctx.userId } } },
+    ],
+  };
+}
 
 const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 

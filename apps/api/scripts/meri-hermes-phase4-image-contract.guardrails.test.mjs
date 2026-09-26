@@ -1,0 +1,67 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import test from 'node:test';
+
+const harnessUrl = new URL('./meri-hermes-phase4-image-contract.ts', import.meta.url);
+const fakeUrl = new URL('../../../docker/hermes-worker/overlay/phase4_fake_services.py', import.meta.url);
+const bridgeUrl = new URL('../../../docker/hermes-worker/overlay/phase4_http_bridge.py', import.meta.url);
+const dockerfileUrl = new URL('../../../docker/hermes-worker/Dockerfile', import.meta.url);
+
+test('built-image harness is opt-in, pinned-image-only, and limited to owned internal resources', async () => {
+  const harness = await readFile(harnessUrl, 'utf8');
+  const dockerfile = await readFile(dockerfileUrl, 'utf8');
+  assert.match(harness, /process\.argv\.includes\('--run'\) && process\.env\.MERI_HERMES_PHASE4_RUN === '1'/);
+  assert.match(harness, /ai\.capiro\.hermes\.upstream_commit/);
+  assert.match(harness, /ai\.capiro\.meri\.tool_view_v1_overlay/);
+  assert.match(harness, /ai\.capiro\.meri\.phase4_claim_v1_overlay/);
+  assert.match(harness, /ai\.capiro\.meri\.phase4_recovery_v1_overlay/);
+  assert.match(harness, /MERI_PHASE4_RECOVERY_V1_ENABLED=1/);
+  assert.match(harness, /X-Meri-Dispatch-Recovery-Command/);
+  assert.match(harness, /verifyMeriHermesRecoveryReceiptV1/);
+  assert.match(harness, /repeated signed status observations produced a provider or broker effect/);
+  assert.match(harness, /repeated native Stop requests were not authenticated by recovery receipts/);
+  assert.match(harness, /'network', 'create', '--internal'/);
+  assert.doesNotMatch(harness, /'--publish'/);
+  assert.match(harness, /'docker', \['exec', container, 'python3', '\/tmp\/phase4_http_bridge\.py'/);
+  assert.match(harness, /url\.origin === 'http:\/\/127\.0\.0\.1:8642'/);
+  assert.match(harness, /cleanupOwned\(kind, name, owner\)/);
+  assert.match(harness, /\['container', workerName, workerCreated\]/);
+  assert.match(harness, /\['volume', volume, volumeCreated\]/);
+  assert.match(harness, /\['volume', certVolume, certVolumeCreated\]/);
+  assert.match(harness, /\['network', network, networkCreated\]/);
+  assert.doesNotMatch(harness, /\['(?:system|image)', '(?:prune|pull|build)'/);
+  assert.match(dockerfile, /ai\.capiro\.meri\.tool_view_v1_overlay/);
+  assert.match(dockerfile, /ai\.capiro\.meri\.phase4_claim_v1_overlay/);
+  assert.match(dockerfile, /ai\.capiro\.meri\.phase4_recovery_v1_overlay/);
+  assert.match(dockerfile, /ARG MERI_HERMES_TOOL_VIEW_V1_OVERLAY=0/);
+});
+
+test('fake services only serve deterministic local fixtures and synchronize two synthetic cases', async () => {
+  const harness = await readFile(harnessUrl, 'utf8');
+  const fake = await readFile(fakeUrl, 'utf8');
+  const bridge = await readFile(bridgeUrl, 'utf8');
+  assert.match(fake, /ThreadingHTTPServer\(\("0\.0\.0\.0", port\), Handler\)/);
+  assert.match(fake, /while first_cases != \{CASE_A, CASE_B\}/);
+  assert.match(fake, /"schemaNames": sorted\(names\)/);
+  assert.match(fake, /"brokerCalls": list\(broker_calls\)/);
+  assert.match(fake, /"claimCalls": list\(claim_calls\)/);
+  assert.match(fake, /"memoryCalls": list\(memory_calls\)/);
+  assert.match(fake, /"unexpectedNetworkCalls": list\(unexpected_network_calls\)/);
+  assert.match(fake, /ssl\.PROTOCOL_TLS_SERVER/);
+  assert.match(fake, /PHASE4_DISPATCH_BEARER_KEY_B64URL/);
+  assert.match(fake, /PHASE4_ATTESTATION_KEY_B64URL/);
+  assert.match(harness, /MERI_PHASE4_CLAIM_ORIGIN=https:\/\/phase4-fakes:8443/);
+  assert.match(harness, /claims\[0\]!\.sequence < call\.sequence/);
+  assert.match(harness, /claim was retried or returned the wrong disposition/);
+  assert.match(harness, /Stop during the claim wait did not cancel the run/);
+  assert.match(harness, /unexpected pre-claim network path/);
+  assert.match(harness, /noncanonical_phase4_runtime_selection/);
+  assert.match(fake, /phase4-synthetic-attachment/);
+  assert.doesNotMatch(fake, /urllib\.request|requests\.(?:get|post)|socket\.create_connection/);
+  assert.match(bridge, /parsed\.hostname != "127\.0\.0\.1"/);
+  assert.match(bridge, /parsed\.port not in \(8002, 8642\)/);
+  assert.match(bridge, /class NoRedirect\(HTTPRedirectHandler\)/);
+  assert.match(bridge, /build_opener\(ProxyHandler\(\{\}\), NoRedirect\(\)\)/);
+  assert.match(bridge, /x-meri-dispatch-recovery-receipt/);
+  assert.match(bridge, /bridge method\/path is outside the local test allowlist/);
+});

@@ -104,13 +104,27 @@ describe('get_bill_status (LegiWatch A5, H.R. 8800 regression)', () => {
     expect(out.note).toMatch(/no recorded roll-call vote/i);
   });
 
-  it('resolves a human designation ("H.R. 8800")', async () => {
-    const out = (await call(svc(prisma()), 'getBillStatus', { billId: 'H.R. 8800' })) as {
+  it('resolves a human designation with an explicit Congress ("H.R. 8800" + 119)', async () => {
+    const out = (await call(svc(prisma()), 'getBillStatus', {
+      billId: 'H.R. 8800', congress: 119,
+    })) as {
       billId: string;
       found: boolean;
     };
     expect(out.billId).toBe('119-hr-8800');
     expect(out.found).toBe(true);
+  });
+
+  it('does not silently use the current Congress for an unqualified designation', async () => {
+    const findUnique = jest.fn(async () => HR8800);
+    const p: Fake = { ...prisma(), congressBill: { findUnique } };
+    const out = (await call(svc(p), 'getBillStatus', { billId: 'H.R. 8800' })) as {
+      found: boolean;
+      note: string;
+    };
+    expect(out.found).toBe(false);
+    expect(out.note).toMatch(/Do not infer the current Congress/i);
+    expect(findUnique).not.toHaveBeenCalled();
   });
 
   it('says NO BILL explicitly (never from memory) when absent', async () => {
@@ -124,6 +138,18 @@ describe('get_bill_status (LegiWatch A5, H.R. 8800 regression)', () => {
 });
 
 describe('search_floor_votes (LegiWatch A5)', () => {
+  it('does not return unscoped votes when a supplied bill designation lacks Congress', async () => {
+    const findMany = jest.fn(async () => [{ id: 'unrelated-vote' }]);
+    const out = (await call(svc({ rollCallVote: { findMany } }), 'searchFloorVotes', {
+      billId: 'H.R. 8800',
+    })) as { votesFound: number; votes: unknown[]; resolution: string; note: string };
+    expect(out.votesFound).toBe(0);
+    expect(out.votes).toEqual([]);
+    expect(out.resolution).toBe('needs_context');
+    expect(out.note).toMatch(/do not return unscoped votes/i);
+    expect(findMany).not.toHaveBeenCalled();
+  });
+
   it('returns matching votes, else an explicit no-match note', async () => {
     const withVotes: Fake = {
       rollCallVote: {

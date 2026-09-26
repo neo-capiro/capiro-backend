@@ -2,6 +2,7 @@ import type { MeriContext } from '@capiro/meriv2-core';
 import { MERI_SKILL_REGISTRY, hydrateMeriStarterPrompt } from '@capiro/shared/meri-skills';
 import { classifyMeriRetrievalIntent } from './meri-retrieval-intent.js';
 import { buildMeriRetrievalPlan } from './meri-retrieval-plan.js';
+import { MERI_RELATIONSHIP_RECIPE_VARIANT_CONTRACT } from '../meriv3/meriv3-retrieval-recipes.js';
 
 const context = {
   clientRoster: [
@@ -91,6 +92,26 @@ describe('Meri Quick Action routing contract', () => {
     );
 
     expect(planFor(prompt).recipeTool).toBe(definition.canonicalRecipe);
+  });
+
+  test('relationship-family variant contract matches skill IDs and starter-prompt plan reasons', () => {
+    for (const variant of Object.values(MERI_RELATIONSHIP_RECIPE_VARIANT_CONTRACT.variants)) {
+      const definition = skill(variant.skillId);
+      const prompt = hydrateMeriStarterPrompt(definition)
+        .replace('[person or organization]', 'Victory Six')
+        .replace('[client, person, or issue]', 'Victory Six');
+      const route = planFor(prompt);
+
+      expect(definition.canonicalRecipe).toBe(variant.canonicalRecipe);
+      expect(definition.semanticDomains).toEqual(variant.intentDomains);
+      expect(route.recipeTool).toBe(MERI_RELATIONSHIP_RECIPE_VARIANT_CONTRACT.recipeTool);
+      expect({
+        skillId: variant.skillId,
+        runtimeMode: route.reasons.includes('mail-history-focus')
+          ? 'mail_history_focus'
+          : 'shared_relationship_default',
+      }).toEqual({ skillId: variant.skillId, runtimeMode: variant.starterPromptExpectedMode });
+    }
   });
 
   test('Commitments audit stays pinned to the selected workspace client', () => {

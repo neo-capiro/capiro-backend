@@ -38,6 +38,7 @@ function makeService(opts: { byId?: unknown | null; byName?: unknown[] }) {
   const resolve = (service as unknown as Record<string, unknown>).ensureClientVisible as (
     ctx: TenantContext,
     clientId: string,
+    requireMemoryAccess?: boolean,
   ) => Promise<string>;
   return { resolve: resolve.bind(service), findFirst, findMany };
 }
@@ -52,6 +53,36 @@ describe('ensureClientVisible', () => {
   it('404s on a UUID that is not visible in this tenant', async () => {
     const { resolve } = makeService({ byId: null });
     await expect(resolve(CTX, UUID)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('requires a current same-tenant wall grant for protected tool reads', async () => {
+    const { resolve, findFirst } = makeService({ byId: { id: UUID } });
+    await expect(resolve(CTX, UUID, true)).resolves.toBe(UUID);
+    expect(findFirst.mock.calls[0]?.[0]?.where).toMatchObject({
+      id: UUID,
+      tenantId: CTX.tenantId,
+      status: { not: 'archived' },
+      OR: [
+        { memoryWall: false },
+        {
+          memoryAccessGrants: {
+            some: { tenantId: CTX.tenantId, userId: CTX.userId },
+          },
+        },
+      ],
+    });
+  });
+
+  it('fails closed after a revoked grant or for a foreign-tenant client', async () => {
+    const { resolve, findFirst } = makeService({ byId: { id: UUID } });
+    await expect(resolve(CTX, UUID, true)).resolves.toBe(UUID);
+    // Prisma's next findFirst returns no row once the grant is deleted; this
+    // method has no cached allow decision and re-runs the wall predicate.
+    findFirst.mockResolvedValue(null);
+    await expect(resolve(CTX, UUID, true)).rejects.toBeInstanceOf(NotFoundException);
+    const foreignCtx = { ...CTX, tenantId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' };
+    await expect(resolve(foreignCtx, UUID, true)).rejects.toBeInstanceOf(NotFoundException);
+    expect(findFirst.mock.calls[2]?.[0]?.where?.tenantId).toBe(foreignCtx.tenantId);
   });
 
   it('resolves an exact display name to its id (the unfocused-conversation case)', async () => {

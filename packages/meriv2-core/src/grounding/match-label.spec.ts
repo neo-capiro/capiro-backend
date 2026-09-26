@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import type { AssuredEvidence } from '../assurance/claim-ledger';
-import { deriveMatchLabel } from './match-label';
+import { deriveMatchLabel, type MandatoryEligibilityStatus, type MatchEligibility, type MatchLabel } from './match-label';
 
 const opportunity: AssuredEvidence = {
   id: 'opp', sourceType: 'search_procurement_forecasts', sourceId: 'forecast-1',
@@ -51,5 +51,17 @@ describe('deriveMatchLabel', () => {
     })).toMatchObject({
       label: 'conditional_linkage', reasons: expect.arrayContaining(['missing_opportunity_authority']),
     });
+  });
+
+  const eligibilityCases: Array<[MatchEligibility, MandatoryEligibilityStatus, MatchLabel]> = [
+    [{ mandatoryRequirementsKnown: false, mandatoryRequirementsSatisfied: false }, 'unknown', 'explicit_linkage'],
+    [{ mandatoryRequirementsKnown: true, mandatoryRequirementsSatisfied: false }, 'failed', 'conditional_linkage'],
+    [{ mandatoryRequirementsKnown: true, mandatoryRequirementsSatisfied: true }, 'satisfied', 'explicit_linkage'],
+  ];
+  it.each(eligibilityCases)('keeps eligibility %s separate from fit', (eligibility, status, label) => {
+    expect(deriveMatchLabel({
+      assertedTier: 'direct_match', jevCategory: 'explicit_linkage', jevConfidence: 0.9,
+      evidence: [opportunity, client], eligibility,
+    })).toMatchObject({ label, eligibility: status });
   });
 });

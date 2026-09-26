@@ -8,6 +8,7 @@ import {
   legacyEvidenceClassForTool,
   legacyPrimaryTool,
   TOOL_EVIDENCE_PROFILES,
+  toolMatchesEvidenceRequirement,
   type CitationLike,
 } from './tool-ledger-adapter';
 
@@ -114,6 +115,33 @@ describe('profile evidence classification', () => {
       primarySourcePresent: true,
       confidence: 'high',
     });
+  });
+});
+
+describe('symbolic domain-specific source family', () => {
+  const negative = {
+    id: 'negative-claim.coverage',
+    claimCategory: 'negative_or_exhaustive' as const,
+    evidenceClass: 'official_government_data' as const,
+    toolFamilies: ['domain_specific_tools'],
+  };
+
+  it('accepts explicit primary source reads, including own operational records for an internal absence claim', () => {
+    expect(toolMatchesEvidenceRequirement('get_bill_status', negative)).toBe(true);
+    expect(toolMatchesEvidenceRequirement('query_tasks', negative)).toBe(true);
+  });
+
+  it('never treats derived, secondary, action, or unclassified tools as the symbolic source', () => {
+    for (const tool of ['search_capiro_data', 'search_public_web', 'send_email', 'future_search']) {
+      expect(toolMatchesEvidenceRequirement(tool, negative)).toBe(false);
+    }
+  });
+
+  it('keeps explicit tool requirements independent of the symbolic source rule', () => {
+    expect(toolMatchesEvidenceRequirement('search_public_web', {
+      ...negative,
+      toolFamilies: ['search_public_web'],
+    })).toBe(true);
   });
 });
 

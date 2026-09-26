@@ -26,6 +26,19 @@ describe('normalizeRow', () => {
     const row = normalizeRow({ big: BigInt('9007199254740993') });
     expect(row.big).toBe('9007199254740993');
   });
+
+  it('keeps exact high-precision Decimal aggregates as strings, not rounded JSON numbers', () => {
+    const row = normalizeRow({
+      largeMoney: new Prisma.Decimal('9007199254740993.01'),
+      preciseRatio: new Prisma.Decimal('0.123456789012345678901'),
+      safeMoney: new Prisma.Decimal('1234567.89'),
+    });
+    expect(row).toEqual({
+      largeMoney: '9007199254740993.01',
+      preciseRatio: '0.123456789012345678901',
+      safeMoney: 1234567.89,
+    });
+  });
 });
 
 describe('AnalyticsDbService', () => {

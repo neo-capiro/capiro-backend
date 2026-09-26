@@ -31,18 +31,22 @@ function decodeJsString(value: string): string {
   return JSON.parse(`"${value}"`) as string;
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function stringField(body: string, variable: string, field: string): string | null {
-  const match = body.match(new RegExp(`(?:^|;)${variable}\\.${field}="((?:\\\\.|[^"\\\\])*)"`));
+  const match = body.match(new RegExp(`(?:^|;)${escapeRegExp(variable)}\\.${field}="((?:\\\\.|[^"\\\\])*)"`));
   return match ? decodeJsString(match[1]!) : null;
 }
 
 function dateField(body: string, variable: string, field: string): string | null {
-  const match = body.match(new RegExp(`(?:^|;)${variable}\\.${field}=(?:new Date\\((\\d+)\\)|null)`));
+  const match = body.match(new RegExp(`(?:^|;)${escapeRegExp(variable)}\\.${field}=(?:new Date\\((\\d+)\\)|null)`));
   return match?.[1] ? new Date(Number(match[1])).toISOString() : null;
 }
 
 function stringArrayField(body: string, variable: string, field: string): string[] {
-  const match = body.match(new RegExp(`(?:^|;)${variable}\\.${field}=\\[((?:"(?:\\\\.|[^"\\\\])*",?)*)\\]`));
+  const match = body.match(new RegExp(`(?:^|;)${escapeRegExp(variable)}\\.${field}=\\[((?:"(?:\\\\.|[^"\\\\])*",?)*)\\]`));
   if (!match) return [];
   return [...match[1]!.matchAll(/"((?:\\.|[^"\\])*)"/g)]
     .map((item) => decodeJsString(item[1]!))
@@ -55,12 +59,20 @@ export function parseFedrampMarketplaceProducts(
   observedAt: string,
 ): FedrampProductRecord[] {
   const records: FedrampProductRecord[] = [];
-  const ids = /(?:^|[;\s])([A-Za-z_$][\w$]*)\.id="(FR\d+)";/g;
-  for (const match of html.matchAll(ids)) {
-    const [assignment, variable, productId] = match;
-    const start = match.index! + assignment.length;
-    const next = html.slice(start).search(/;[A-Za-z_$][\w$]*\.id="FR\d+";/);
-    const body = html.slice(match.index!, next < 0 ? html.length : start + next);
+  const assignments = [...html.matchAll(/(?:^|[;\s])([A-Za-z_$][\w$]*)\.id="([^"]+)";/g)];
+  const productIdPattern = /^(?:FR|F)\d{9,10}(?:A|XL|XM)?$/;
+  const productLikeIdPattern = /^(?:FR|F)\d/;
+  const productAssignments = assignments.filter((match) => productIdPattern.test(match[2]!));
+  const malformedProductId = assignments.find((match) =>
+    productLikeIdPattern.test(match[2]!) && !productIdPattern.test(match[2]!),
+  );
+  if (malformedProductId) {
+    throw new FedrampMarketplaceError(`Unsupported marketplace product ID shape ${malformedProductId[2]}`);
+  }
+  for (const [index, match] of productAssignments.entries()) {
+    const [, variable, productId] = match;
+    const next = productAssignments[index + 1];
+    const body = html.slice(match.index!, next?.index ?? html.length);
     const cspName = stringField(body, variable!, 'csp');
     const csoName = stringField(body, variable!, 'cso');
     const status = stringField(body, variable!, 'status');
@@ -112,12 +124,17 @@ export async function fetchFedrampProducts(
   options: { fetchImpl?: typeof fetch; now?: () => Date } = {},
 ): Promise<FedrampProductRecord[]> {
   const fetchImpl = options.fetchImpl ?? fetch;
-  let html: string;
+  const fetchAndParse = async () =>
+    parseFedrampMarketplaceProducts(
+      await fetchOnce(fetchImpl),
+      (options.now ?? (() => new Date()))().toISOString(),
+    );
   try {
-    html = await fetchOnce(fetchImpl);
+    return await fetchAndParse();
   } catch (error) {
     if (error instanceof FedrampMarketplaceError && error.status != null && error.status < 500) throw error;
-    html = await fetchOnce(fetchImpl);
+    // A successful HTTP response can still be a partial/changed payload. Retry it
+    // once, then surface the parse failure rather than returning an empty inventory.
+    return fetchAndParse();
   }
-  return parseFedrampMarketplaceProducts(html, (options.now ?? (() => new Date()))().toISOString());
 }

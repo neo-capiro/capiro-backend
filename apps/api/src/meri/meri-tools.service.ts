@@ -10,6 +10,10 @@ import {
   assertMeriToolRequestActive,
   meriToolRequestControl,
 } from './meri-tool-request-control.js';
+import { envelopeSearchMemoryResult } from './meri-search-memory-envelope.js';
+import { envelopeFloorVotesResult } from './meri-floor-votes-envelope.js';
+import { envelopeCommitteeRosterResult } from './meri-committee-roster-envelope.js';
+import { assertVisualArtifactClientAccess } from './meri-visual-artifact-access.js';
 import {
   BadGatewayException,
   BadRequestException,
@@ -28,7 +32,6 @@ import {
   isValidCanonicalId,
   normalizeCanonicalId,
   parseBillDesignation,
-  currentCongress,
   billStatusLabel,
   isStateBillKey,
   parseStateBillDesignation,
@@ -59,7 +62,7 @@ import { ClientAdvocacyMatterService } from '../clients/client-advocacy-matter.s
 import { MemoryIngestService } from '../memory/memory-ingest.service.js';
 import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
 import { MemoryStoreService } from '../memory/memory-store.service.js';
-import { fetchDeniedClientIds, wallExclusionSql } from '../memory/memory-wall.helpers.js';
+import { fetchDeniedClientIds, visibleClientWhere, wallExclusionSql } from '../memory/memory-wall.helpers.js';
 import {
   governedRecallSuppressionEnabled,
   governedRecallSuppressionSql,
@@ -115,6 +118,7 @@ import {
 import { createHash } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
+import { KB_SOURCE_TYPES, type KbSourceType } from '../embeddings/client-kb.helpers.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
 import { validateMeriWriteToolInput, type MeriJsonSchema } from './meri-write-tool-input.js';
 import { buildSavedMemoryRecord } from './meri-memory.helpers.js';
@@ -126,7 +130,7 @@ import {
   searchFundingClaimForModel,
 } from './meri-defense-budget-tool.helpers.js';
 import { buildWebSearchRequest, normalizeWebResults } from '../common/web-search.helpers.js';
-import { looksLikePdf } from './meri-scrape.helpers.js';
+import { fetchPublicScrape, looksLikePdf, parseAndValidatePublicUrl } from './meri-scrape.helpers.js';
 import {
   buildKnowledgeGraph,
   restrictGraphToClient,
@@ -719,7 +723,7 @@ export class MeriToolsService {
       search_research_sources: obj(
         {
           query: str('Free-text search across clients, meetings, mail, notes'),
-          clientId: str('Optional client UUID to scope the search'),
+          clientId: str('Optional client UUID for client-owned sources; directory notes remain tenant-wide and are not attributed to that client'),
           limit: int('Max records (1-25)'),
         },
         ['query'],
@@ -728,9 +732,11 @@ export class MeriToolsService {
         {
           query: str('What to look up in the client knowledge base'),
           clientId: str('Client UUID (defaults to the conversation client)'),
-          kind: str(
-            'Optional filter: client_profile | client_person | client_facility | client_doc_chunk',
-          ),
+          kind: {
+            type: 'string',
+            enum: [...KB_SOURCE_TYPES],
+            description: 'Optional source type filter for the client knowledge base',
+          },
           limit: int('Max results (1-20)'),
         },
         ['query'],
@@ -829,6 +835,7 @@ export class MeriToolsService {
       get_bill_status: obj(
         {
           billId: str('Bill id ("119-hr-8800") or designation ("H.R. 8800")'),
+          congress: int('Congress number required for an unqualified bill designation'),
         },
         ['billId'],
       ),
@@ -858,7 +865,11 @@ export class MeriToolsService {
           query: str(
             'What to resolve: a canonical id ("A000360", "hsag00", "119-hr-8800"), an external id (LIS "S390", FEC, OpenSecrets, GovTrack), a bill designation ("H.R. 8800"), or a person/committee name',
           ),
-          type: str('Optional filter: "member", "committee", or "bill"'),
+          type: str('Optional filter: "member", "committee", "bill", "state_bill", or "state_legislator"'),
+          jurisdiction: str('Optional namespace: "federal" or "state"'),
+          state: str('Two-letter state code for a state bill designation or state legislator'),
+          sessionKey: str('State legislative session key (e.g. "2025"); required to disambiguate a designation reused in multiple sessions'),
+          congress: int('Congress number for an otherwise unqualified federal bill designation'),
           limit: int('Max matches (1-10, default 5)'),
         },
         ['query'],
@@ -969,6 +980,7 @@ export class MeriToolsService {
         {
           billId: str('Canonical state bill id ("tx-2025-hb1234") or designation ("TX HB 1234")'),
           state: str('Two-letter state code — required if not embedded in the designation'),
+          sessionKey: str('Legislative session key when a bill designation occurs in multiple sessions'),
         },
         ['billId'],
       ),
@@ -976,6 +988,7 @@ export class MeriToolsService {
         billId: str('Canonical state bill id or designation'),
         query: str('Keyword over the motion text'),
         state: str('Two-letter state code filter'),
+        sessionKey: str('Legislative session key when a bill designation occurs in multiple sessions'),
         chamber: str('"upper" or "lower"'),
         limit: int('Max results (1-25, default 10)'),
       }),
@@ -1842,7 +1855,22 @@ export class MeriToolsService {
   private async searchClientKnowledge(ctx: TenantContext, input: Record<string, unknown>) {
     const query = typeof input.query === 'string' ? input.query.trim() : '';
     if (!query) throw new BadRequestException('query is required');
-    const clientId = typeof input.clientId === 'string' && input.clientId ? input.clientId : null;
+    if (input.clientId != null && typeof input.clientId !== 'string') {
+      throw new BadRequestException('clientId must be a client UUID');
+    }
+    const rawClientId = typeof input.clientId === 'string' ? input.clientId.trim() : '';
+    const clientId = rawClientId || null;
+    if (clientId && !CLIENT_ID_UUID_RE.test(clientId)) {
+      throw new BadRequestException('clientId must be a client UUID');
+    }
+    if (input.kind != null && typeof input.kind !== 'string') {
+      throw new BadRequestException('kind must be a supported client knowledge source type');
+    }
+    const rawKind = typeof input.kind === 'string' ? input.kind.trim() : '';
+    const kind = rawKind || null;
+    if (kind && !KB_SOURCE_TYPES.includes(kind as KbSourceType)) {
+      throw new BadRequestException('kind must be a supported client knowledge source type');
+    }
     const generatedAt = new Date().toISOString();
     if (!clientId) {
       return {
@@ -1850,28 +1878,29 @@ export class MeriToolsService {
         generatedAt,
         results: [],
         note: 'No client is linked to this conversation. Ask the user which client, or pass clientId.',
+        outcome: 'needs_input',
+        coverage: {
+          searched: false,
+          sourceStatus: 'not_searched',
+          scope: { clientId: null, kind },
+          returned: 0,
+          complete: false,
+          completeness: 'not_applicable',
+        },
+        sources: [],
       };
     }
-    const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.client.findFirst({ where: { id: clientId }, select: { id: true, name: true } }),
-    );
-    if (!client) throw new NotFoundException('Client not found');
+    let retrieval: Awaited<ReturnType<ClientKbService['searchWithAccess']>>;
     try {
-      const results = await this.clientKb.search(ctx.tenantId, {
+      // Pair the wall decision with the retrieval query so a grant revocation
+      // cannot turn a denied read into an apparently empty successful search.
+      retrieval = await this.clientKb.searchWithAccess(ctx.tenantId, {
         query,
         clientId,
         userId: ctx.userId,
-        kind: typeof input.kind === 'string' ? input.kind : undefined,
+        kind: kind ?? undefined,
         limit: typeof input.limit === 'number' ? input.limit : undefined,
       });
-      return {
-        tool: 'search_client_knowledge',
-        generatedAt,
-        clientId,
-        clientName: client.name,
-        query,
-        results,
-      };
     } catch (err) {
       this.logger.warn(
         `search_client_knowledge failed [${clientId}]: ${err instanceof Error ? err.message : err}`,
@@ -1880,12 +1909,56 @@ export class MeriToolsService {
         tool: 'search_client_knowledge',
         generatedAt,
         clientId,
-        clientName: client.name,
         query,
         results: [],
         note: 'Knowledge-base search is temporarily unavailable; fall back to get_client_context.',
+        outcome: 'unavailable',
+        coverage: {
+          searched: false,
+          sourceStatus: 'unavailable',
+          scope: { clientId, kind },
+          returned: 0,
+          complete: false,
+          completeness: 'not_applicable',
+        },
+        sources: [],
       };
     }
+    // The KB's wall predicate denies both a missing tenant/client pair and a
+    // walled client without a grant. Keep those cases indistinguishable instead
+    // of exposing a `blocked` result or looking up the client's identifying name.
+    if (!retrieval.authorized) throw new NotFoundException('Client not found');
+
+    const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.client.findFirst({ where: { id: clientId }, select: { id: true, name: true } }),
+    );
+    if (!client) throw new NotFoundException('Client not found');
+
+    const results = retrieval.results;
+    return {
+      tool: 'search_client_knowledge',
+      generatedAt,
+      clientId,
+      clientName: client.name,
+      query,
+      results,
+      outcome: results.length ? 'ok' : 'empty',
+      coverage: {
+        searched: true,
+        sourceStatus: 'available',
+        scope: { clientId, kind },
+        returned: results.length,
+        // The KB is a thresholded top-k semantic search, so even an empty
+        // response does not prove that the complete underlying corpus is empty.
+        complete: false,
+        completeness: 'ranked_top_k',
+      },
+      sources: results.map((result) => ({
+        sourceType: result.kind,
+        sourceId: result.id,
+        clientId,
+      })),
+    };
   }
 
   // ── run_analysis (F4): sandboxed Python over the no-egress runner ────────
@@ -1896,12 +1969,17 @@ export class MeriToolsService {
   /** query_global_data: cap on the serialized `rows` handed back into a chat turn. */
   private static readonly GLOBAL_DATA_MAX_RESULT_BYTES = 256 * 1024;
 
-  /** Whether run_analysis is live for this tenant (env kill-switch AND
-   *  tenant flag; GA default ON — a tenant can opt OUT with
+  /** Whether run_analysis is configured for this tenant (env kill-switch,
+   *  sandbox URL AND bearer token, plus tenant flag; GA default ON — a tenant can opt OUT with
    *  settings_jsonb.clioFeatureFlags.runAnalysis = false). */
   async analysisSandboxEnabled(tenantId: string): Promise<boolean> {
     if (!this.config.get('CLIO_ANALYSIS_SANDBOX_ENABLED', { infer: true })) return false;
-    if (!this.config.get('CLIO_SANDBOX_URL', { infer: true })) return false;
+    const url = this.config.get('CLIO_SANDBOX_URL', { infer: true });
+    const token = this.config.get('CLIO_SANDBOX_TOKEN', { infer: true });
+    // The sandbox's /run endpoint always rejects a missing bearer token.
+    // Configuration is not a health/capacity signal, but absence guarantees
+    // every offered call fails authentication.
+    if (!url?.trim() || !token?.trim()) return false;
     return this.featureFlags.isEnabled(tenantId, 'runAnalysis', true);
   }
 
@@ -1960,6 +2038,8 @@ export class MeriToolsService {
       const requestSignal = meriToolRequestControl()?.signal;
       const res = await fetch(`${url}/run`, {
         method: 'POST',
+        // Never forward the sandbox bearer to a redirect target.
+        redirect: 'error',
         headers: {
           'content-type': 'application/json',
           ...(token ? { authorization: `Bearer ${token}` } : {}),
@@ -2039,6 +2119,45 @@ export class MeriToolsService {
       ? this.validateSideEffectingInput(name, rawInput)
       : objectInput(rawInput);
     return this.execute(ctx, name, input);
+  }
+
+  /** Opt-in envelope adapter for search_memory; the legacy tool path is unchanged. */
+  async executeSearchMemoryWithResultEnvelope(ctx: TenantContext, rawInput: unknown) {
+    const legacyPayload = await this.executeFromAuthenticatedUser(ctx, 'search_memory', rawInput);
+    return envelopeSearchMemoryResult(
+      legacyPayload as Record<string, unknown>,
+      objectInput(rawInput),
+    );
+  }
+
+  /** Opt-in local vote-search observation; the model-facing tool stays unchanged. */
+  async executeFloorVotesWithResultEnvelope(ctx: TenantContext, rawInput: unknown) {
+    const legacyPayload = await this.executeFromAuthenticatedUser(ctx, 'search_floor_votes', rawInput);
+    return envelopeFloorVotesResult(
+      legacyPayload as Record<string, unknown>,
+      objectInput(rawInput),
+    );
+  }
+
+  /** Opt-in envelope adapter for committee rosters; the legacy dispatch stays unchanged. */
+  async executeCommitteeRosterWithResultEnvelope(ctx: TenantContext, rawInput: unknown) {
+    const legacyPayload = await this.executeFromAuthenticatedUser(ctx, 'get_committee_roster', rawInput);
+    try {
+      return envelopeCommitteeRosterResult(
+        legacyPayload as Record<string, unknown>,
+        objectInput(rawInput),
+      );
+    } catch {
+      // Keep adapter failures from affecting the legacy tool response.
+      return {
+        contract: 'meri.result-envelope.v1' as const,
+        outcome: 'partial' as const,
+        legacyPayload,
+        sources: [],
+        truncation: { truncated: false },
+        errors: [{ code: 'committee_roster_observation_unverified' }],
+      };
+    }
   }
 
   /**
@@ -3228,11 +3347,19 @@ export class MeriToolsService {
    * canonical bill id, or null. Shared by the congress-bill / status / votes
    * tools so a designation query becomes a direct lookup, not a title guess.
    */
-  private resolveBillId(raw: string | null | undefined): string | null {
+  private resolveBillId(raw: string | null | undefined, congressHint?: number | null): string | null {
     if (!raw) return null;
+    const validHint = congressHint !== null && congressHint !== undefined &&
+      Number.isInteger(congressHint) && congressHint > 0 && congressHint <= 999;
+    if (congressHint !== null && congressHint !== undefined && !validHint) return null;
     const norm = normalizeCanonicalId('billId', raw);
-    if (isValidCanonicalId('billId', norm)) return norm;
-    const parsed = parseBillDesignation(raw, currentCongress());
+    if (isValidCanonicalId('billId', norm)) {
+      return validHint && Number(norm.split('-')[0]) !== congressHint ? null : norm;
+    }
+    const explicitCongress = /\((\d{2,3})(?:st|nd|rd|th)?\)\s*$/i.test(raw);
+    if (!validHint && !explicitCongress) return null;
+    const parsed = parseBillDesignation(raw, validHint ? congressHint : 1);
+    if (validHint && parsed && parsed.congress !== congressHint) return null;
     return parsed ? formatBillId(parsed.congress, parsed.type, parsed.number) : null;
   }
 
@@ -3240,22 +3367,38 @@ export class MeriToolsService {
    * Resolve a free-form state bill reference ("tx-2025-hb1234", "TX HB 1234")
    * to a canonical DD1 key, or an explicit note when it can't be resolved (S6
    * honesty contract — never guess). A bare designation needs a state, either
-   * embedded in the text or passed via `stateHint`; once state+billNumber are
-   * known, the most-recently-synced matching bill wins when multiple sessions
-   * share the same number (the common case: the user means the current one).
+   * embedded in the text or passed via `stateHint`. If the designation occurs
+   * in multiple sessions, a session or canonical key is required; sync order
+   * is not evidence of which bill the user meant.
    */
   private async resolveStateBillKey(
     raw: string | null | undefined,
     stateHint: string | null | undefined,
-  ): Promise<{ key: string | null; note?: string }> {
+    sessionHint?: string | null,
+  ): Promise<{ key: string | null; note?: string; candidateIds?: string[]; candidatesTruncated?: boolean }> {
     if (!raw) {
       return {
         key: null,
         note: 'Provide a state bill id ("tx-2025-hb1234") or designation ("TX HB 1234").',
       };
     }
+    if (stateHint && !/^[A-Za-z]{2}$/.test(stateHint)) {
+      return { key: null, note: 'State must be a two-letter code.' };
+    }
+    if (sessionHint && !/^\d{4}(?:x\d+)?$/.test(sessionHint)) {
+      return { key: null, note: 'Session key must be a four-digit year, optionally followed by x and a special-session id.' };
+    }
     const normKey = normalizeCanonicalId('stateBillKey', raw);
-    if (isValidCanonicalId('stateBillKey', normKey)) return { key: normKey };
+    if (isValidCanonicalId('stateBillKey', normKey)) {
+      const parts = normKey.match(/^([a-z]{2})-(\d{4}(?:x\d+)?)-/);
+      if (stateHint && parts?.[1] !== stateHint.toLowerCase()) {
+        return { key: null, note: `Bill ${normKey} is not in state ${stateHint.toUpperCase()}.` };
+      }
+      if (sessionHint && parts?.[2] !== sessionHint) {
+        return { key: null, note: `Bill ${normKey} is not in session ${sessionHint}.` };
+      }
+      return { key: normKey };
+    }
 
     const parsed = parseStateBillDesignation(raw, stateHint ?? null);
     if (!parsed) {
@@ -3266,16 +3409,35 @@ export class MeriToolsService {
           : `Could not parse "${raw}" as a state bill designation — specify the state, e.g. "TX HB 1234".`,
       };
     }
+    if (stateHint && parsed.state !== stateHint.toUpperCase()) {
+      return { key: null, note: `The designation specifies ${parsed.state}, not ${stateHint.toUpperCase()}.` };
+    }
     const candidates = await this.prisma.withSystem((tx) =>
       tx.stateBill.findMany({
-        where: { state: parsed.state, billNumber: parsed.billNumber },
-        orderBy: { syncedAt: 'desc' },
+        where: {
+          state: parsed.state,
+          billNumber: parsed.billNumber,
+          ...(sessionHint ? { sessionKey: sessionHint } : {}),
+        },
+        orderBy: [{ sessionKey: 'desc' }, { id: 'asc' }],
         select: { id: true },
-        take: 1,
+        take: 11,
       }),
     );
     if (!candidates.length) {
-      return { key: null, note: `No bill found matching "${raw}" in ${parsed.state}.` };
+      return {
+        key: null,
+        note: `No bill found matching "${raw}" in ${parsed.state}${sessionHint ? ` session ${sessionHint}` : ''}.`,
+      };
+    }
+    if (candidates.length > 1) {
+      const candidateIds = candidates.slice(0, 10).map((candidate) => candidate.id);
+      return {
+        key: null,
+        candidateIds,
+        candidatesTruncated: candidates.length > 10,
+        note: `"${raw}" matches multiple state bills across sessions. Specify sessionKey or a canonical state bill id; do not select one by sync recency.`,
+      };
     }
     return { key: candidates[0]!.id };
   }
@@ -3290,7 +3452,7 @@ export class MeriToolsService {
 
     // Direct lookup when the query is itself a bill designation/id — a title
     // substring search would otherwise miss "H.R. 8800".
-    const directId = this.resolveBillId(search);
+    const directId = this.resolveBillId(search, congressNum);
     if (directId) {
       const bill = await this.prisma.congressBill.findUnique({ where: { id: directId } });
       if (bill) {
@@ -3343,15 +3505,23 @@ export class MeriToolsService {
             record.cspName.toLocaleLowerCase().includes(normalized),
         );
     const candidates = matches.slice(0, 10);
-    const searchedEntireDataset = true;
     if (!matches.length) {
       return {
         tool: 'get_certification_status',
         program: 'fedramp',
         found: false,
-        searchedEntireDataset,
-        evidenceOfAbsence: true,
-        note: 'No matching product or CSP name was found in the complete fetched FedRAMP Marketplace dataset.',
+        // Parsing one or more valid prerendered records does not prove that the
+        // upstream page contains the complete marketplace inventory. Until a
+        // source-provided count/version can qualify that inventory, a miss is
+        // only a miss in the parsed records, not evidence that the entity is absent.
+        searchedEntireDataset: false,
+        evidenceOfAbsence: false,
+        coverage: {
+          complete: false,
+          reason: 'inventory_completeness_unverified',
+          recordsParsed: records.length,
+        },
+        note: 'No matching product or CSP name was found in the parsed marketplace records; inventory completeness was not verified, so this is not evidence of absence.',
         sourceUrl: records[0]?.sourceUrl,
         observedAt: records[0]?.observedAt,
       };
@@ -3366,7 +3536,7 @@ export class MeriToolsService {
         program: 'fedramp',
         found: true,
         ambiguous: true,
-        searchedEntireDataset,
+        searchedEntireDataset: false,
         candidateCount: matches.length,
         candidates: result,
         note: 'Several products match. No product was selected; disambiguation is required.',
@@ -3377,20 +3547,23 @@ export class MeriToolsService {
       program: 'fedramp',
       found: true,
       ambiguous: false,
-      searchedEntireDataset,
+      searchedEntireDataset: false,
       record: result[0],
     };
   }
 
   private async getBillStatus(input: Record<string, unknown>) {
     const raw = optionalString(input, 'billId', 60) ?? optionalString(input, 'query', 60);
-    const billId = this.resolveBillId(raw);
+    const congressHint = input.congress === undefined || input.congress === null
+      ? null
+      : Number(input.congress);
+    const billId = this.resolveBillId(raw, congressHint);
     if (!billId) {
       return {
         tool: 'get_bill_status',
         generatedAt: new Date().toISOString(),
         found: false,
-        note: 'Provide a bill id ("119-hr-8800") or designation ("H.R. 8800").',
+        note: 'Provide a canonical bill id ("119-hr-8800") or a designation with its Congress ("H.R. 8800 (119th)" or billId plus congress). Do not infer the current Congress.',
       };
     }
     const bill = await this.prisma.congressBill.findUnique({
@@ -3518,11 +3691,22 @@ export class MeriToolsService {
    * congress/member. Explicit no-match note; never infers a vote outcome.
    */
   private async searchFloorVotes(input: Record<string, unknown>) {
-    const billId = this.resolveBillId(optionalString(input, 'billId', 60) ?? undefined);
+    const rawBillId = optionalString(input, 'billId', 60);
+    const congress = input.congress ? Number(input.congress) : undefined;
+    const billId = this.resolveBillId(rawBillId, congress);
+    if (rawBillId && !billId) {
+      return {
+        tool: 'search_floor_votes',
+        generatedAt: new Date().toISOString(),
+        votesFound: 0,
+        votes: [],
+        resolution: 'needs_context',
+        note: `Could not resolve bill "${rawBillId}" in the supplied Congress. Provide a canonical bill id or an explicit Congress; do not return unscoped votes.`,
+      };
+    }
     const query = optionalString(input, 'query', 200);
     const memberRaw = optionalString(input, 'member', 80);
     const chamber = optionalString(input, 'chamber', 10)?.toLowerCase();
-    const congress = input.congress ? Number(input.congress) : undefined;
     const limit = clampInt(input.limit, 1, 25, 10);
 
     const where: Record<string, unknown> = {};
@@ -3730,6 +3914,13 @@ export class MeriToolsService {
   private async resolveEntity(input: Record<string, unknown>) {
     const query = optionalString(input, 'query', 200)?.trim();
     const type = optionalString(input, 'type', 20)?.toLowerCase();
+    const jurisdiction = optionalString(input, 'jurisdiction', 10)?.toLowerCase();
+    const state = optionalString(input, 'state', 2)?.toUpperCase();
+    const sessionKey = optionalString(input, 'sessionKey', 24);
+    const congressInput = input.congress;
+    const congress = congressInput === undefined || congressInput === null
+      ? null
+      : Number(congressInput);
     const limit = clampInt(input.limit, 1, 10, 5);
     if (!query) {
       return {
@@ -3740,14 +3931,76 @@ export class MeriToolsService {
         note: 'resolve_entity requires a query (an id, bill designation, or name).',
       };
     }
+    const invalidContext =
+      (type && !['member', 'committee', 'bill', 'state_bill', 'state_legislator'].includes(type)) ||
+      (jurisdiction && jurisdiction !== 'federal' && jurisdiction !== 'state') ||
+      (state && !/^[A-Z]{2}$/.test(state)) ||
+      (sessionKey && !/^\d{4}(?:x\d+)?$/.test(sessionKey)) ||
+      (congress !== null && (!Number.isInteger(congress) || congress < 1 || congress > 999)) ||
+      (jurisdiction === 'federal' && (type === 'state_bill' || type === 'state_legislator')) ||
+      (jurisdiction === 'state' && (type === 'member' || type === 'committee' || type === 'bill'));
+    if (invalidContext) {
+      return {
+        tool: 'resolve_entity',
+        generatedAt: new Date().toISOString(),
+        matchesFound: 0,
+        matches: [],
+        resolution: 'invalid_context',
+        note: 'The entity type, jurisdiction, state, sessionKey, or congress context is invalid or conflicting. Clarify the source namespace before resolving.',
+      };
+    }
 
     type EntityMatch = Record<string, unknown> & {
       entityType: string;
       canonicalIdType: string;
       canonicalId: string;
       matchedBy: string;
+      sourceRef: {
+        namespace: string;
+        recordId: string;
+        sourceUrl: string | null;
+        eventDate: Date | null;
+        sourceUpdatedAt: Date | null;
+        sourceCheckedAt: Date | null;
+        syncedAt: Date | null;
+        urlAuthority?: string | null;
+        crosswalk?: {
+          namespace: 'entity_crosswalk';
+          recordId: string | null;
+          idType: string;
+          idValue: string;
+          source: string | null;
+          confidence: number | null;
+          syncedAt: Date | null;
+        };
+      };
     };
     const matches: EntityMatch[] = [];
+    const crosswalkMatch = (
+      match: EntityMatch,
+      row: {
+        id?: string;
+        idType: string;
+        idValue: string;
+        source?: string;
+        confidence?: number;
+        lastSyncedAt?: Date;
+      },
+    ): EntityMatch => ({
+      ...match,
+      sourceRef: {
+        ...match.sourceRef,
+        crosswalk: {
+          namespace: 'entity_crosswalk',
+          recordId: row.id ?? null,
+          idType: row.idType,
+          idValue: row.idValue,
+          source: row.source ?? null,
+          confidence: row.confidence ?? null,
+          syncedAt: row.lastSyncedAt ?? null,
+        },
+      },
+    });
     const memberMatch = (
       m: {
         bioguideId: string;
@@ -3758,6 +4011,8 @@ export class MeriToolsService {
         chamber: string;
         lisId: string | null;
         isCurrent: boolean;
+        updateDate?: Date | null;
+        lastSyncedAt?: Date;
       },
       matchedBy: string,
     ): EntityMatch => ({
@@ -3772,6 +4027,15 @@ export class MeriToolsService {
       lisId: m.lisId,
       isCurrent: m.isCurrent,
       matchedBy,
+      sourceRef: {
+        namespace: 'congress_member',
+        recordId: m.bioguideId,
+        sourceUrl: null,
+        eventDate: null,
+        sourceUpdatedAt: m.updateDate ?? null,
+        sourceCheckedAt: null,
+        syncedAt: m.lastSyncedAt ?? null,
+      },
     });
     const committeeMatch = (
       c: {
@@ -3780,6 +4044,10 @@ export class MeriToolsService {
         chamber: string;
         parentSystemCode: string | null;
         isCurrent: boolean;
+        url?: string | null;
+        urlSource?: string | null;
+        urlVerifiedAt?: Date | null;
+        lastSyncedAt?: Date;
       },
       matchedBy: string,
     ): EntityMatch => ({
@@ -3791,6 +4059,16 @@ export class MeriToolsService {
       parentSystemCode: c.parentSystemCode,
       isCurrent: c.isCurrent,
       matchedBy,
+      sourceRef: {
+        namespace: 'congress_committee',
+        recordId: c.systemCode,
+        sourceUrl: c.url ?? null,
+        eventDate: null,
+        sourceUpdatedAt: null,
+        sourceCheckedAt: c.urlVerifiedAt ?? null,
+        syncedAt: c.lastSyncedAt ?? null,
+        urlAuthority: c.urlSource ?? null,
+      },
     });
     const stateLegislatorMatch = (
       m: {
@@ -3801,6 +4079,8 @@ export class MeriToolsService {
         district: string | null;
         party: string | null;
         active: boolean;
+        url?: string | null;
+        syncedAt?: Date;
       },
       matchedBy: string,
     ): EntityMatch => ({
@@ -3814,29 +4094,111 @@ export class MeriToolsService {
       party: m.party,
       isCurrent: m.active,
       matchedBy,
+      sourceRef: {
+        namespace: 'state_legislator',
+        recordId: m.id,
+        sourceUrl: m.url ?? null,
+        eventDate: null,
+        sourceUpdatedAt: null,
+        sourceCheckedAt: null,
+        syncedAt: m.syncedAt ?? null,
+      },
+    });
+    const stateBillMatch = (
+      b: {
+        id: string;
+        title: string;
+        state: string;
+        sessionKey: string;
+        sponsorName: string | null;
+        latestActionText: string | null;
+        latestActionDate: Date | null;
+        stateUrl?: string | null;
+        url?: string | null;
+        sourceCheckedAt?: Date | null;
+        syncedAt?: Date;
+      },
+      matchedBy: string,
+    ): EntityMatch => ({
+      entityType: 'state_bill',
+      canonicalIdType: 'stateBillKey',
+      canonicalId: b.id,
+      display: b.title,
+      state: b.state,
+      session: b.sessionKey,
+      sponsorName: b.sponsorName,
+      latestActionText: b.latestActionText,
+      latestActionDate: b.latestActionDate,
+      matchedBy,
+      sourceRef: {
+        namespace: 'state_bill',
+        recordId: b.id,
+        sourceUrl: b.stateUrl ?? b.url ?? null,
+        eventDate: b.latestActionDate,
+        sourceUpdatedAt: null,
+        sourceCheckedAt: b.sourceCheckedAt ?? null,
+        syncedAt: b.syncedAt ?? null,
+      },
     });
 
     // 1. Direct canonical-id hits.
-    if (!type || type === 'member') {
+    if (jurisdiction !== 'state' && (!type || type === 'member')) {
       const bioguide = normalizeCanonicalId('bioguide', query);
       if (isValidCanonicalId('bioguide', bioguide)) {
         const m = await this.prisma.congressMember.findUnique({ where: { bioguideId: bioguide } });
         if (m) matches.push(memberMatch(m, 'bioguide-id'));
       }
     }
-    if (!type || type === 'committee') {
+    if (jurisdiction !== 'state' && (!type || type === 'committee')) {
       const systemCode = normalizeCanonicalId('committee', query);
       if (isValidCanonicalId('committee', systemCode)) {
         const c = await this.prisma.congressCommittee.findUnique({ where: { systemCode } });
         if (c) matches.push(committeeMatch(c, 'system-code'));
       }
     }
-    if (!type || type === 'bill') {
-      const currentCongress = Math.floor((new Date().getUTCFullYear() - 1789) / 2) + 1;
+    if (jurisdiction !== 'state' && (!type || type === 'bill')) {
       const norm = normalizeCanonicalId('billId', query);
       let billIdCandidate = isValidCanonicalId('billId', norm) ? norm : null;
+      const explicitCongress = query.match(/\((\d{2,3})(?:st|nd|rd|th)?\)\s*$/i);
+      if (billIdCandidate && congress !== null && Number(billIdCandidate.split('-')[0]) !== congress) {
+        return {
+          tool: 'resolve_entity',
+          generatedAt: new Date().toISOString(),
+          matchesFound: 0,
+          matches: [],
+          resolution: 'invalid_context',
+          note: `Bill ${billIdCandidate} does not belong to Congress ${congress}.`,
+        };
+      }
       if (!billIdCandidate) {
-        const parsed = parseBillDesignation(query, currentCongress);
+        // The fallback is only a parser argument, never a resolution choice:
+        // unqualified designations return needs_context below.
+        // Compact "S390" is also a common LIS person id. Unless the caller
+        // explicitly requests a bill, give the external-id crosswalk a chance
+        // rather than treating it as an unqualified Senate designation.
+        const parsed = /^[A-Z]\d{1,5}$/.test(query) && type !== 'bill'
+          ? null
+          : parseBillDesignation(query, congress ?? 1);
+        if (parsed && congress === null && !explicitCongress) {
+          return {
+            tool: 'resolve_entity',
+            generatedAt: new Date().toISOString(),
+            matchesFound: 0,
+            matches: [],
+            resolution: 'needs_context',
+            note: `"${query}" needs a Congress number; do not assume the current Congress. Provide congress or a qualified designation such as "H.R. 8800 (119th)".`,
+          };
+        }
+        if (parsed && congress !== null && explicitCongress && parsed.congress !== congress) {
+          return {
+            tool: 'resolve_entity',
+            generatedAt: new Date().toISOString(),
+            matchesFound: 0,
+            matches: [],
+            resolution: 'invalid_context',
+            note: `The designation specifies Congress ${parsed.congress}, not ${congress}.`,
+          };
+        }
         if (parsed) billIdCandidate = formatBillId(parsed.congress, parsed.type, parsed.number);
       }
       if (billIdCandidate) {
@@ -3850,6 +4212,9 @@ export class MeriToolsService {
             sponsorBioguideId: true,
             latestActionText: true,
             latestActionDate: true,
+            url: true,
+            updateDate: true,
+            lastSyncedAt: true,
           },
         });
         if (b) {
@@ -3864,56 +4229,93 @@ export class MeriToolsService {
             latestActionText: b.latestActionText,
             latestActionDate: b.latestActionDate,
             matchedBy: 'bill-id',
+            sourceRef: {
+              namespace: 'congress_bill',
+              recordId: b.id,
+              sourceUrl: b.url ?? null,
+              eventDate: b.latestActionDate ?? null,
+              sourceUpdatedAt: b.updateDate ?? null,
+              sourceCheckedAt: null,
+              syncedAt: b.lastSyncedAt,
+            },
           });
         }
       }
     }
-    if (!type || type === 'state_bill') {
+    if (jurisdiction !== 'federal' && (!type || type === 'state_bill')) {
       const normKey = normalizeCanonicalId('stateBillKey', query);
-      let billKeyCandidate = isValidCanonicalId('stateBillKey', normKey) ? normKey : null;
-      if (!billKeyCandidate) {
-        const parsed = parseStateBillDesignation(query, null);
-        if (parsed) {
-          const candidates = await this.prisma.withSystem((tx) =>
-            tx.stateBill.findMany({
-              where: { state: parsed.state, billNumber: parsed.billNumber },
-              orderBy: { syncedAt: 'desc' },
-              select: { id: true },
-              take: 1,
+      const isCanonicalKey = isValidCanonicalId('stateBillKey', normKey);
+      const parsedDesignation = parseStateBillDesignation(query, state);
+      if (!isCanonicalKey && !parsedDesignation && /^[A-Za-z]{1,4}\.?\s*\d/.test(query) &&
+        (type === 'state_bill' || jurisdiction === 'state')) {
+        return {
+          tool: 'resolve_entity',
+          generatedAt: new Date().toISOString(),
+          matchesFound: 0,
+          matches: [],
+          resolution: 'needs_context',
+          note: `"${query}" needs a two-letter state code; do not guess the jurisdiction.`,
+        };
+      }
+      if (isCanonicalKey || parsedDesignation) {
+        const resolved = await this.resolveStateBillKey(query, state, sessionKey);
+        if (resolved.candidateIds) {
+          return {
+            tool: 'resolve_entity',
+            generatedAt: new Date().toISOString(),
+            matchesFound: 0,
+            matches: [],
+            resolution: 'ambiguous',
+            candidateIds: resolved.candidateIds,
+            candidatesTruncated: resolved.candidatesTruncated,
+            note: resolved.note,
+          };
+        }
+        if (!resolved.key) {
+          return {
+            tool: 'resolve_entity',
+            generatedAt: new Date().toISOString(),
+            matchesFound: 0,
+            matches: [],
+            resolution: isCanonicalKey || (state && parsedDesignation?.state !== state)
+              ? 'invalid_context'
+              : 'not_found',
+            note: resolved.note,
+          };
+        }
+        const billKeyCandidate = resolved.key;
+        if (billKeyCandidate) {
+          const b = await this.prisma.withSystem((tx) =>
+            tx.stateBill.findUnique({
+              where: { id: billKeyCandidate },
+              select: {
+                id: true,
+                title: true,
+                state: true,
+                sessionKey: true,
+                sponsorName: true,
+                latestActionText: true,
+                latestActionDate: true,
+                stateUrl: true,
+                url: true,
+                sourceCheckedAt: true,
+                syncedAt: true,
+              },
             }),
           );
-          billKeyCandidate = candidates[0]?.id ?? null;
+          if (b) {
+            matches.push(stateBillMatch(b, isCanonicalKey ? 'state-bill-key' : 'state-bill-designation'));
+          }
         }
       }
-      if (billKeyCandidate) {
-        const b = await this.prisma.withSystem((tx) =>
-          tx.stateBill.findUnique({
-            where: { id: billKeyCandidate! },
-            select: {
-              id: true,
-              title: true,
-              state: true,
-              sessionKey: true,
-              sponsorName: true,
-              latestActionText: true,
-              latestActionDate: true,
-            },
-          }),
-        );
-        if (b) {
-          matches.push({
-            entityType: 'state_bill',
-            canonicalIdType: 'stateBillKey',
-            canonicalId: b.id,
-            display: b.title,
-            state: b.state,
-            session: b.sessionKey,
-            sponsorName: b.sponsorName,
-            latestActionText: b.latestActionText,
-            latestActionDate: b.latestActionDate,
-            matchedBy: 'state-bill-key',
-          });
-        }
+    }
+    if (jurisdiction !== 'federal' && (!type || type === 'state_legislator') &&
+      /^ocd-person\/[A-Za-z0-9_-]+$/i.test(query)) {
+      const m = await this.prisma.withSystem((tx) =>
+        tx.stateLegislator.findUnique({ where: { id: query } }),
+      );
+      if (m && (!state || m.state === state)) {
+        matches.push(stateLegislatorMatch(m, 'openstates-person-id'));
       }
     }
 
@@ -3921,16 +4323,22 @@ export class MeriToolsService {
     if (matches.length === 0) {
       const crosswalk = await this.prisma.entityCrosswalk.findMany({
         where: { idValue: { equals: query, mode: 'insensitive' } },
-        take: limit,
+        take: Math.max(limit + 1, 2),
       });
       for (const row of crosswalk) {
-        if (row.entityType === 'member' && (!type || type === 'member')) {
+        if (row.entityType === 'member' && jurisdiction !== 'state' && (!type || type === 'member')) {
           const m = await this.prisma.congressMember.findUnique({
             where: { bioguideId: row.entityKey },
           });
-          if (m) matches.push(memberMatch(m, `${row.idType}-crosswalk`));
+          if (m) matches.push(crosswalkMatch(memberMatch(m, `${row.idType}-crosswalk`), row));
         }
-        if (row.entityType === 'state_bill' && (!type || type === 'state_bill')) {
+        if (row.entityType === 'committee' && jurisdiction !== 'state' && (!type || type === 'committee')) {
+          const c = await this.prisma.congressCommittee.findUnique({
+            where: { systemCode: row.entityKey },
+          });
+          if (c) matches.push(crosswalkMatch(committeeMatch(c, `${row.idType}-crosswalk`), row));
+        }
+        if (row.entityType === 'state_bill' && jurisdiction !== 'federal' && (!type || type === 'state_bill')) {
           const b = await this.prisma.withSystem((tx) =>
             tx.stateBill.findUnique({
               where: { id: row.entityKey },
@@ -3942,36 +4350,31 @@ export class MeriToolsService {
                 sponsorName: true,
                 latestActionText: true,
                 latestActionDate: true,
+                stateUrl: true,
+                url: true,
+                sourceCheckedAt: true,
+                syncedAt: true,
               },
             }),
           );
-          if (b) {
-            matches.push({
-              entityType: 'state_bill',
-              canonicalIdType: 'stateBillKey',
-              canonicalId: b.id,
-              display: b.title,
-              state: b.state,
-              session: b.sessionKey,
-              sponsorName: b.sponsorName,
-              latestActionText: b.latestActionText,
-              latestActionDate: b.latestActionDate,
-              matchedBy: `${row.idType}-crosswalk`,
-            });
+          if (b && (!state || b.state === state) && (!sessionKey || b.sessionKey === sessionKey)) {
+            matches.push(crosswalkMatch(stateBillMatch(b, `${row.idType}-crosswalk`), row));
           }
         }
-        if (row.entityType === 'state_legislator' && (!type || type === 'state_legislator')) {
+        if (row.entityType === 'state_legislator' && jurisdiction !== 'federal' && (!type || type === 'state_legislator')) {
           const m = await this.prisma.withSystem((tx) =>
             tx.stateLegislator.findUnique({ where: { id: row.entityKey } }),
           );
-          if (m) matches.push(stateLegislatorMatch(m, `${row.idType}-crosswalk`));
+          if (m && (!state || m.state === state)) {
+            matches.push(crosswalkMatch(stateLegislatorMatch(m, `${row.idType}-crosswalk`), row));
+          }
         }
       }
     }
 
     // 3. Name search (members + committees + state legislators; current entities first).
     if (matches.length === 0 && /[a-z]/i.test(query)) {
-      if (!type || type === 'member') {
+      if (jurisdiction !== 'state' && (!type || type === 'member')) {
         const members = await this.prisma.congressMember.findMany({
           where: {
             OR: [
@@ -3980,24 +4383,27 @@ export class MeriToolsService {
             ],
           },
           orderBy: [{ isCurrent: 'desc' }, { lastName: 'asc' }],
-          take: limit,
+          take: Math.max(limit + 1, 2),
         });
         for (const m of members) matches.push(memberMatch(m, 'name-search'));
       }
-      if ((!type || type === 'committee') && matches.length < limit) {
+      if (jurisdiction !== 'state' && (!type || type === 'committee')) {
         const committeesFound = await this.prisma.congressCommittee.findMany({
           where: { name: { contains: query, mode: 'insensitive' } },
           orderBy: [{ isCurrent: 'desc' }, { systemCode: 'asc' }],
-          take: limit - matches.length,
+          take: Math.max(limit + 1, 2),
         });
         for (const c of committeesFound) matches.push(committeeMatch(c, 'name-search'));
       }
-      if ((!type || type === 'state_legislator') && matches.length < limit) {
+      if (jurisdiction !== 'federal' && (!type || type === 'state_legislator')) {
         const legislators = await this.prisma.withSystem((tx) =>
           tx.stateLegislator.findMany({
-            where: { name: { contains: query, mode: 'insensitive' } },
+            where: {
+              name: { contains: query, mode: 'insensitive' },
+              ...(state ? { state } : {}),
+            },
             orderBy: [{ active: 'desc' }, { name: 'asc' }],
-            take: limit - matches.length,
+            take: Math.max(limit + 1, 2),
           }),
         );
         for (const m of legislators) matches.push(stateLegislatorMatch(m, 'name-search'));
@@ -4005,12 +4411,19 @@ export class MeriToolsService {
     }
 
     const trimmed = matches.slice(0, limit);
+    const ambiguous = matches.length > 1;
     return {
       tool: 'resolve_entity',
       generatedAt: new Date().toISOString(),
       matchesFound: trimmed.length,
       matches: trimmed,
-      ...(trimmed.length === 0
+      resolution: ambiguous ? 'ambiguous' : trimmed.length ? 'resolved' : 'not_found',
+      ...(ambiguous
+        ? {
+            candidateCountAtLeast: matches.length,
+            note: `"${query}" matches multiple canonical entities. Ask for a qualified id or additional jurisdiction/session context; do not choose the first result.`,
+          }
+        : trimmed.length === 0
         ? {
             note: `No canonical entity matched "${query}". Say so explicitly — do NOT fabricate a member, committee, or bill identifier.`,
           }
@@ -4830,13 +5243,19 @@ export class MeriToolsService {
   private async getStateBillStatus(input: Record<string, unknown>) {
     const raw = optionalString(input, 'billId', 60) ?? optionalString(input, 'query', 60);
     const stateHint = optionalString(input, 'state', 2);
-    const resolved = await this.resolveStateBillKey(raw, stateHint);
+    const sessionHint = optionalString(input, 'sessionKey', 24);
+    const resolved = await this.resolveStateBillKey(raw, stateHint, sessionHint);
     if (!resolved.key) {
       return {
         tool: 'get_state_bill_status',
         generatedAt: new Date().toISOString(),
         found: false,
         note: resolved.note,
+        ...(resolved.candidateIds ? {
+          resolution: 'ambiguous',
+          candidateIds: resolved.candidateIds,
+          candidatesTruncated: resolved.candidatesTruncated,
+        } : {}),
       };
     }
     const billId = resolved.key;
@@ -4968,6 +5387,7 @@ export class MeriToolsService {
   private async searchStateFloorVotes(input: Record<string, unknown>) {
     const rawBillId = optionalString(input, 'billId', 60);
     const stateHint = optionalString(input, 'state', 2);
+    const sessionHint = optionalString(input, 'sessionKey', 24);
     // 2026-07-10 hot-fix: a SUPPLIED billId that fails to resolve must
     // short-circuit here (mirroring getStateBillStatus's not-found
     // contract) — falling through to the state-prefix branch below would
@@ -4975,7 +5395,7 @@ export class MeriToolsService {
     // honestly reporting that the requested bill wasn't found.
     let billKey: string | null = null;
     if (rawBillId) {
-      const resolved = await this.resolveStateBillKey(rawBillId, stateHint);
+      const resolved = await this.resolveStateBillKey(rawBillId, stateHint, sessionHint);
       if (!resolved.key) {
         return {
           tool: 'search_state_floor_votes',
@@ -4983,6 +5403,11 @@ export class MeriToolsService {
           votesFound: 0,
           votes: [],
           note: resolved.note,
+          ...(resolved.candidateIds ? {
+            resolution: 'ambiguous',
+            candidateIds: resolved.candidateIds,
+            candidatesTruncated: resolved.candidatesTruncated,
+          } : {}),
         };
       }
       billKey = resolved.key;
@@ -5220,6 +5645,8 @@ export class MeriToolsService {
    * from the committee string alone; reuses the same resolver/query shapes
    * as `ChokepointService` (M2.4) so this tool and the Chokepoint UI can
    * never disagree about who a committee's chair is.
+   * An unresolved query can mean either no match or an ambiguous name; keep
+   * the legacy null-result shape and do not claim absence without proof.
    */
   private async getCommitteeRoster(input: Record<string, unknown>) {
     const committeeQuery = optionalString(input, 'committee', 200);
@@ -5275,7 +5702,7 @@ export class MeriToolsService {
         viceChair: null,
         rankingMember: null,
         members: [],
-        note: `No federal committee matched "${query}"${chamberFilter ? ` in ${chamberFilter}` : ''} — say so explicitly, do not guess.`,
+        note: 'No unique committee resolved within the requested filters; the name may be absent or ambiguous; specify an exact ID/chamber.',
       };
     }
 
@@ -5366,7 +5793,7 @@ export class MeriToolsService {
         viceChair: null,
         rankingMember: null,
         members: [],
-        note: `No ${state} committee matched "${query}"${chamberFilter ? ` in the ${chamberFilter} chamber` : ''} — say so explicitly, do not guess.`,
+        note: 'No unique committee resolved within the requested filters; the name may be absent or ambiguous; specify an exact ID/chamber.',
       };
     }
 
@@ -5431,7 +5858,12 @@ export class MeriToolsService {
       };
     }
 
-    const rows = await this.representation.representationForClient(ctx.tenantId, clientId);
+    const visibleClientId = await this.ensureClientVisible(ctx, clientId, true);
+    const rows = await this.representation.representationForClient(
+      ctx.tenantId,
+      visibleClientId,
+      ctx.userId,
+    );
     const filtered = stateFilter ? rows.filter((r) => r.facility.state === stateFilter) : rows;
 
     return {
@@ -5938,40 +6370,15 @@ export class MeriToolsService {
     const mode = optionalString(input, 'mode', 20) ?? 'summary';
     const maxChars = clampInt(input.maxChars, 500, 20000, mode === 'extract' ? 12000 : 4000);
 
-    const parsed = parseAndValidatePublicUrl(rawUrl);
-    const response = await fetchWithTimeout(
-      parsed.toString(),
-      {
-        method: 'GET',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; Capiro-Meri/1.0; +https://capiro.ai)',
-          Accept: 'text/html,application/xhtml+xml,application/pdf',
-        },
-        redirect: 'follow',
-      },
-      10000,
-    );
+    const resource = await fetchPublicScrape(rawUrl);
+    const finalParsed = new URL(resource.url);
+    const { contentType } = resource;
 
-    if (!response.ok) {
-      throw new BadGatewayException(`Web scrape failed (${response.status})`);
+    if (looksLikePdf(contentType, resource.url)) {
+      return this.extractPdfText(resource.body, resource.url, contentType, maxChars);
     }
 
-    const finalUrl = response.url || parsed.toString();
-    const finalParsed = parseAndValidatePublicUrl(finalUrl);
-
-    const contentType = (response.headers.get('content-type') ?? '').toLowerCase();
-
-    if (looksLikePdf(contentType, finalParsed.toString())) {
-      return this.extractPdfText(response, finalParsed.toString(), contentType, maxChars);
-    }
-
-    if (!contentType.includes('text/html') && !contentType.includes('application/xhtml+xml')) {
-      throw new BadRequestException(
-        `Unsupported content type for scraping: ${contentType || 'unknown'}`,
-      );
-    }
-
-    const html = await response.text();
+    const html = resource.body.toString('utf8');
     const title = extractHtmlTitle(html);
     const text = extractReadableText(html, maxChars);
     const links = extractTopLinks(html, finalParsed.origin, 8);
@@ -5990,26 +6397,15 @@ export class MeriToolsService {
   }
 
   /**
-   * PDF branch of scrape_web_page. The response already passed the SSRF guard
-   * (parseAndValidatePublicUrl on the original AND final URL) before we get
-   * here; this only buffers (size-capped) and extracts text.
+   * PDF branch of scrape_web_page. The fetch helper has already validated each
+   * redirect and the connected peer, and bounded the streamed body to 15 MB.
    */
   private async extractPdfText(
-    response: Response,
+    buffer: Buffer,
     url: string,
     contentType: string,
     maxChars: number,
   ) {
-    const MAX_PDF_BYTES = 15 * 1024 * 1024;
-    const declaredLength = Number(response.headers.get('content-length') ?? 0);
-    if (declaredLength > MAX_PDF_BYTES) {
-      throw new BadRequestException('PDF too large to extract (limit 15MB)');
-    }
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.byteLength > MAX_PDF_BYTES) {
-      throw new BadRequestException('PDF too large to extract (limit 15MB)');
-    }
-
     // Lazy-loaded: pdf-parse pulls in pdfjs-dist, which is heavy at module
     // load and only needed when a PDF is actually scraped.
     const { PDFParse } = await import('pdf-parse');
@@ -6046,14 +6442,13 @@ export class MeriToolsService {
     const query = requiredString(input, 'query', 240);
     let clientId = optionalString(input, 'clientId', 80);
     const limit = clampInt(input.limit, 1, 25, 8);
-    if (clientId) clientId = await this.ensureClientVisible(ctx, clientId);
+    if (clientId) clientId = await this.ensureClientVisible(ctx, clientId, true);
 
     const results = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const [clients, meetings, threads, messages, meriNotes, directoryNotes] = await Promise.all([
         tx.client.findMany({
           where: {
-            tenantId: ctx.tenantId,
-            status: { not: 'archived' },
+            AND: [visibleClientWhere(ctx)],
             ...(clientId ? { id: clientId } : {}),
             OR: [
               { name: { contains: query, mode: 'insensitive' } },
@@ -6071,7 +6466,10 @@ export class MeriToolsService {
           where: {
             tenantId: ctx.tenantId,
             ...(clientId ? { clientId } : {}),
-            ...ownMeetingWhere(ctx.userId),
+            AND: [
+              ownMeetingWhere(ctx.userId),
+              { OR: [{ clientId: null }, { client: { is: visibleClientWhere(ctx) } }] },
+            ],
             OR: [
               { subject: { contains: query, mode: 'insensitive' } },
               { description: { contains: query, mode: 'insensitive' } },
@@ -6096,6 +6494,7 @@ export class MeriToolsService {
           where: {
             tenantId: ctx.tenantId,
             ...(clientId ? { clientId } : {}),
+            AND: [{ OR: [{ clientId: null }, { client: { is: visibleClientWhere(ctx) } }] }],
             ...ownMailThreadWhere(ctx.userId),
             OR: [
               { subject: { contains: query, mode: 'insensitive' } },
@@ -6118,6 +6517,10 @@ export class MeriToolsService {
             tenantId: ctx.tenantId,
             ...ownMailMessageWhere(ctx.userId),
             ...(clientId ? { thread: { clientId } } : {}),
+            AND: [{ thread: { is: { OR: [
+              { clientId: null },
+              { client: { is: visibleClientWhere(ctx) } },
+            ] } } }],
             OR: [
               { subject: { contains: query, mode: 'insensitive' } },
               { bodyText: { contains: query, mode: 'insensitive' } },
@@ -6144,6 +6547,7 @@ export class MeriToolsService {
             tenantId: ctx.tenantId,
             userId: ctx.userId,
             ...(clientId ? { clientId } : {}),
+            AND: [{ OR: [{ clientId: null }, { client: { is: visibleClientWhere(ctx) } }] }],
             OR: [
               { title: { contains: query, mode: 'insensitive' } },
               { body: { contains: query, mode: 'insensitive' } },
@@ -6153,6 +6557,9 @@ export class MeriToolsService {
           orderBy: { createdAt: 'desc' },
           take: limit,
         }),
+        // Directory notes are tenant-wide, even when this search also has an
+        // explicit client filter. They have no client attribution; label them
+        // separately so an answer cannot treat them as selected-client facts.
         tx.directoryContactNote.findMany({
           where: {
             tenantId: ctx.tenantId,
@@ -6222,6 +6629,7 @@ export class MeriToolsService {
           type: 'directory_contact_note',
           id: note.id,
           clientId: null,
+          scope: 'tenant_wide_directory',
           title: note.directoryContactName || note.directoryContactId,
           snippet: summarizeText(note.body, 360),
           occurredAt: note.createdAt,
@@ -7100,7 +7508,7 @@ export class MeriToolsService {
     const statusRaw = optionalString(input, 'status', 30)?.toLowerCase() ?? null;
     const dueBeforeRaw = optionalString(input, 'dueBefore', 40);
     const limit = clampInt(input.limit, 1, 50, 25);
-    if (clientId) clientId = await this.ensureClientVisible(ctx, clientId);
+    if (clientId) clientId = await this.ensureClientVisible(ctx, clientId, true);
 
     const taskStatuses = Object.values(EngagementTaskStatus) as string[];
     let status: EngagementTaskStatus | undefined;
@@ -7139,7 +7547,12 @@ export class MeriToolsService {
     return {
       tool: 'query_tasks',
       generatedAt: new Date().toISOString(),
-      total: tasks.length,
+      // There is no offset/cursor on this tool. A full page is not proof that
+      // the visible result set ends here; never present its size as a total.
+      total: tasks.length < limit ? tasks.length : null,
+      returned: tasks.length,
+      pageLimit: limit,
+      paginationComplete: tasks.length < limit,
       tasks: tasks.map((task) => ({
         id: task.id,
         title: task.title,
@@ -7165,7 +7578,7 @@ export class MeriToolsService {
     const status = optionalString(input, 'status', 40);
     const sort = optionalString(input, 'sort', 20);
     const limit = clampInt(input.limit, 1, 50, 20);
-    if (clientId) clientId = await this.ensureClientVisible(ctx, clientId);
+    if (clientId) clientId = await this.ensureClientVisible(ctx, clientId, true);
 
     const result = await this.actionRecommendations.list(ctx, {
       clientId: clientId ?? undefined,
@@ -7178,6 +7591,9 @@ export class MeriToolsService {
       tool: 'query_action_items',
       generatedAt: new Date().toISOString(),
       total: result.total,
+      returned: result.data.length,
+      pageLimit: limit,
+      paginationComplete: result.data.length >= result.total,
       actions: result.data,
     };
   }
@@ -8093,12 +8509,15 @@ export class MeriToolsService {
   ): Promise<Array<{ dataBase64: string }>> {
     const out: Array<{ dataBase64: string }> = [];
     for (const id of artifactIds) {
-      const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.clioArtifact.findFirst({
-          where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
-          select: { metadata: true },
-        }),
-      );
+      const artifact = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+        const found = await tx.clioArtifact.findFirst({
+          where: { id, tenantId: ctx.tenantId, userId: ctx.userId, kind: 'analysis_chart' },
+          select: { metadata: true, clientId: true,
+            conversation: { select: { clientId: true } } },
+        });
+        if (found) await assertVisualArtifactClientAccess(tx, ctx, found);
+        return found;
+      });
       const meta = artifact?.metadata as Record<string, unknown> | null;
       if (typeof meta?.imageBase64 !== 'string' || !meta.imageBase64) {
         throw new NotFoundException(
@@ -8203,7 +8622,11 @@ export class MeriToolsService {
    * Returns the resolved UUID; callers must use the RETURN VALUE, not their
    * original input.
    */
-  private async ensureClientVisible(ctx: TenantContext, clientId: string): Promise<string> {
+  private async ensureClientVisible(
+    ctx: TenantContext,
+    clientId: string,
+    requireMemoryAccess = false,
+  ): Promise<string> {
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const raw = typeof clientId === 'string' ? clientId.trim() : '';
     if (!raw) {
@@ -8215,7 +8638,12 @@ export class MeriToolsService {
     if (UUID_RE.test(raw)) {
       const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.client.findFirst({
-          where: { id: raw, tenantId: ctx.tenantId, status: { not: 'archived' } },
+          where: {
+            id: raw,
+            ...(requireMemoryAccess
+              ? visibleClientWhere(ctx)
+              : { tenantId: ctx.tenantId, status: { not: 'archived' } }),
+          },
           select: { id: true },
         }),
       );
@@ -8226,8 +8654,9 @@ export class MeriToolsService {
     const matches = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.client.findMany({
         where: {
-          tenantId: ctx.tenantId,
-          status: { not: 'archived' },
+          ...(requireMemoryAccess
+            ? visibleClientWhere(ctx)
+            : { tenantId: ctx.tenantId, status: { not: 'archived' } }),
           name: { equals: raw, mode: 'insensitive' },
         },
         select: { id: true, name: true },
@@ -8240,6 +8669,7 @@ export class MeriToolsService {
         `"${raw}" matches ${matches.length} clients in the book of business — pass the exact client id instead.`,
       );
     }
+    if (requireMemoryAccess) throw new NotFoundException('Client not found');
     throw new NotFoundException(
       `No client named "${raw}" is in the book of business. Pass the exact client id, or select the client in Meri. If the client does not exist yet, use lookup_client_registry + create_client first.`,
     );
@@ -8686,54 +9116,6 @@ function summarizeText(value: unknown, max = 500): string {
   return normalized.length > max ? `${normalized.slice(0, max - 3)}...` : normalized;
 }
 
-function parseAndValidatePublicUrl(value: string): URL {
-  let parsed: URL;
-  try {
-    parsed = new URL(value);
-  } catch {
-    throw new BadRequestException('url must be a valid absolute URL');
-  }
-
-  if (!['http:', 'https:'].includes(parsed.protocol)) {
-    throw new BadRequestException('Only http/https URLs are allowed');
-  }
-
-  const host = (parsed.hostname || '').toLowerCase();
-  if (!host) throw new BadRequestException('URL hostname is required');
-  if (isPrivateOrLocalHost(host)) {
-    throw new BadRequestException('Private/local network URLs are not allowed');
-  }
-
-  return parsed;
-}
-
-function isPrivateOrLocalHost(host: string): boolean {
-  if (host === 'localhost' || host.endsWith('.local')) return true;
-
-  if (host.startsWith('[') && host.endsWith(']')) {
-    const inner = host.slice(1, -1).toLowerCase();
-    return (
-      inner === '::1' ||
-      inner.startsWith('fc') ||
-      inner.startsWith('fd') ||
-      inner.startsWith('fe80:')
-    );
-  }
-
-  if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) {
-    const parts = host.split('.').map((p) => Number(p));
-    if (parts.some((n) => !Number.isFinite(n) || n < 0 || n > 255)) return true;
-    const a = parts[0] ?? -1;
-    const b = parts[1] ?? -1;
-    if (a === 10 || a === 127 || a === 0) return true;
-    if (a === 169 && b === 254) return true;
-    if (a === 192 && b === 168) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-  }
-
-  return false;
-}
-
 async function fetchWithTimeout(
   input: string,
   init: RequestInit,
@@ -8787,12 +9169,10 @@ function extractTopLinks(html: string, origin: string, limit: number) {
     }
     let resolved: URL;
     try {
-      resolved = new URL(href, origin);
+      resolved = parseAndValidatePublicUrl(new URL(href, origin).toString());
     } catch {
       continue;
     }
-    if (!['http:', 'https:'].includes(resolved.protocol)) continue;
-    if (isPrivateOrLocalHost(resolved.hostname.toLowerCase())) continue;
     const url = resolved.toString();
     if (seen.has(url)) continue;
     seen.add(url);

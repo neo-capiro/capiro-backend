@@ -42,7 +42,10 @@ export interface CanaryTurnEvent {
     documentRequested: number;
     budgetExhausted: number;
     timedOut?: boolean;
+    /** False when the stage did not settle and claim-level outcomes are unavailable. */
+    outcomesComplete?: boolean;
   };
+  repairUsage?: 'not_attempted' | 'measured' | 'unknown';
   latencyMs: {
     timeToText: number;
     assessment: number;
@@ -51,19 +54,20 @@ export interface CanaryTurnEvent {
     repair: number;
     total: number;
   };
-  tokens: { synthesis: number; jev: number; legacy: number; repair: number };
+  tokens: { synthesis: number; jev: number; legacy: number | null; repair: number | null };
   cost: {
     retrievalToolCalls: number; retrievalLatencyMs: number; coverageFollowUpTokens: number;
-    jevCalls: number; legacyCalls: number; repairLoops: number;
+    jevCalls: number | null; legacyCalls: number | null; repairLoops: number | null;
   };
   cache?: { mode: 'shadow' | 'enforce'; lookups: number; hits: number; agreements: number };
-  estimatedCostUsd: number;
+  estimatedCostUsd: number | null;
   sampled: boolean;
 }
 
 type MutableMetrics = Pick<CanaryTurnEvent,
   'coverage' | 'passageSelection' | 'repair' | 'latencyMs' | 'tokens' | 'cost' | 'cache'> & {
-  estimatedCostUsd: number;
+  estimatedCostUsd: number | null;
+  repairUsage: 'not_attempted' | 'measured' | 'unknown';
   sampled: boolean;
 };
 
@@ -90,6 +94,7 @@ export class CanaryTurnCollector {
     cost: { retrievalToolCalls: 0, retrievalLatencyMs: 0, coverageFollowUpTokens: 0,
       jevCalls: 0, legacyCalls: 0, repairLoops: 0 },
     estimatedCostUsd: 0,
+    repairUsage: 'not_attempted',
     sampled: false,
   };
 
@@ -117,35 +122,48 @@ export class CanaryTurnCollector {
     this.metrics.passageSelection = selection;
     this.metrics.latencyMs.passageSelection = latencyMs;
     this.metrics.tokens.jev += tokens;
-    this.metrics.estimatedCostUsd += costUsd;
-    this.metrics.cost.jevCalls += calls ?? (tokens > 0 ? 1 : 0);
+    if (this.metrics.estimatedCostUsd !== null) this.metrics.estimatedCostUsd += costUsd;
+    if (this.metrics.cost.jevCalls !== null) this.metrics.cost.jevCalls += calls ?? (tokens > 0 ? 1 : 0);
   }
 
   noteRepair(value: CanaryTurnEvent['repair'] & {
-    assessmentMs: number; repairMs: number; tokens: number; costUsd: number; sampled?: boolean;
+    assessmentMs: number; repairMs: number; tokens: number | null; costUsd: number | null; sampled?: boolean;
     jevCalls?: number; legacyCalls?: number; repairLoops?: number;
     cache?: CanaryTurnEvent['cache'];
   }): void {
     const { assessmentMs, repairMs, tokens, costUsd, sampled, jevCalls, legacyCalls, repairLoops, cache, ...repair } = value;
-    this.metrics.repair = repair;
+    const usageUnknown = tokens === null || costUsd === null;
+    this.metrics.repair = { ...repair, outcomesComplete: !usageUnknown && repair.outcomesComplete !== false };
+    this.metrics.repairUsage = usageUnknown ? 'unknown' : 'measured';
     this.metrics.latencyMs.assessment = assessmentMs;
     this.metrics.latencyMs.repair = repairMs;
-    this.metrics.tokens.repair += tokens;
-    this.metrics.estimatedCostUsd += costUsd;
+    if (tokens === null || costUsd === null) {
+      this.metrics.tokens.repair = null;
+      this.metrics.tokens.legacy = null;
+      this.metrics.estimatedCostUsd = null;
+      this.metrics.cost.jevCalls = null;
+      this.metrics.cost.legacyCalls = null;
+      this.metrics.cost.repairLoops = null;
+    } else {
+      if (this.metrics.tokens.repair !== null) this.metrics.tokens.repair += tokens;
+      if (this.metrics.estimatedCostUsd !== null) this.metrics.estimatedCostUsd += costUsd;
+    }
     this.metrics.sampled = this.metrics.sampled || Boolean(sampled);
-    this.metrics.cost.jevCalls += jevCalls ?? 0;
-    this.metrics.cost.legacyCalls += legacyCalls ?? 0;
-    this.metrics.cost.repairLoops += repairLoops ?? repair.attempted;
+    if (!usageUnknown) {
+      if (this.metrics.cost.jevCalls !== null) this.metrics.cost.jevCalls += jevCalls ?? 0;
+      if (this.metrics.cost.legacyCalls !== null) this.metrics.cost.legacyCalls += legacyCalls ?? 0;
+      if (this.metrics.cost.repairLoops !== null) this.metrics.cost.repairLoops += repairLoops ?? repair.attempted;
+    }
     if (cache) this.metrics.cache = cache;
   }
 
   noteSynthesis(tokens: number, costUsd: number): void {
     this.metrics.tokens.synthesis += tokens;
-    this.metrics.estimatedCostUsd += costUsd;
+    if (this.metrics.estimatedCostUsd !== null) this.metrics.estimatedCostUsd += costUsd;
   }
 
   noteLegacy(tokens: number): void {
-    this.metrics.tokens.legacy += tokens;
+    if (this.metrics.tokens.legacy !== null) this.metrics.tokens.legacy += tokens;
   }
 
   /** Call exactly when the text frame is emitted; the first call is the measurement. */
@@ -182,7 +200,8 @@ export class CanaryTurnCollector {
       heldReason: input.heldReason ?? null,
       ...this.metrics,
       latencyMs: { ...this.metrics.latencyMs, timeToText, total },
-      estimatedCostUsd: Number(this.metrics.estimatedCostUsd.toFixed(9)),
+      estimatedCostUsd: this.metrics.estimatedCostUsd === null
+        ? null : Number(this.metrics.estimatedCostUsd.toFixed(9)),
     };
   }
 }
