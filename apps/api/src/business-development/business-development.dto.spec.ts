@@ -175,6 +175,19 @@ describe('SavePreferencesDto bounds', () => {
 // ── Phase 2 — candidate search + dossier query DTOs ────────────────────────
 
 describe('SearchCandidatesQueryDto boundaries', () => {
+  test('exclusion review is a strict URL opt-in and service has a bounded string contract', async () => {
+    for (const includeExcluded of ['0', '1', undefined]) {
+      expect(await validate(plainToInstance(SearchCandidatesQueryDto, { q: 'filter', includeExcluded, service: 'Appropriations advocacy' }))).toHaveLength(0);
+    }
+    for (const includeExcluded of ['true', 'false', '2', '', true, 1, ['1']]) {
+      const errors = await validate(plainToInstance(SearchCandidatesQueryDto, { q: 'filter', includeExcluded }));
+      expect(errors.some(error => error.property === 'includeExcluded')).toBe(true);
+    }
+    for (const service of [123, {}, ['service'], 'x'.repeat(201)]) {
+      const errors = await validate(plainToInstance(SearchCandidatesQueryDto, { q: 'filter', service }));
+      expect(errors.some(error => error.property === 'service')).toBe(true);
+    }
+  });
   test('q below the 2-character floor is rejected; 2 and 200 pass; 201 is rejected', async () => {
     const tooShort = plainToInstance(SearchCandidatesQueryDto, { q: 'a' });
     expect((await validate(tooShort)).some((e) => e.property === 'q')).toBe(true);

@@ -36,6 +36,7 @@ import {
   type BizDevDossier,
   type BizDevDossierSection,
   type BizDevEvidenceItem,
+  type BizDevPreferences,
   type BizDevProspect,
 } from './bizdev-api.js';
 
@@ -225,6 +226,8 @@ function prospect(overrides: Partial<BizDevProspect> = {}): BizDevProspect {
 interface Cfg {
   meFeatures?: Record<string, boolean | undefined>;
   candidates?: BizDevCandidateSearchResult;
+  /** Preferences payload for GET /preferences (null default = none saved; 'error' = outage). */
+  preferences?: BizDevPreferences | 'error';
   dossier?: BizDevDossier;
   dossierErrorSections?: string[];
   createResult?: BizDevProspect;
@@ -280,7 +283,10 @@ function makeApi(cfg: Cfg): AxiosInstance {
         return { data: { hints: [] } };
       if (path === '/api/business-development/member-options')
         return { data: { members: MEMBERS } };
-      if (path === '/api/business-development/preferences') return { data: null };
+      if (path === '/api/business-development/preferences') {
+        if (cfg.preferences === 'error') throw new Error('preferences down');
+        return { data: cfg.preferences ?? null };
+      }
       if (path === '/api/business-development/search/canonical-organizations')
         return { data: { results: cfg.canonicalOrgs ?? [] } };
       if (path === '/api/business-development/search/clients')
@@ -446,6 +452,7 @@ describe('discover search', () => {
     )!;
     expect((config as { params?: Record<string, unknown> }).params).toEqual({
       q: 'overland',
+      includeExcluded: '0',
       limit: 20,
       offset: 0,
     });
@@ -898,6 +905,8 @@ describe('Phase 2 URL state and query keys', () => {
     const cleared = applyBizDevRoute(next, {
       discover: '',
       discoverQuery: '',
+      discoverService: '',
+      discoverIncludeExcluded: false,
       discoverOffset: 0,
       dossierEntityId: '',
       dossierProspectId: '',
@@ -922,12 +931,13 @@ describe('Phase 2 URL state and query keys', () => {
   it('builds the bounded discover query from the route', () => {
     expect(bizDevDiscoverQuery(resolveBizDevRoute(new URLSearchParams('bdDq=overland')))).toEqual({
       q: 'overland',
+      includeExcluded: '0',
       limit: 20,
       offset: 0,
     });
     expect(
       bizDevDiscoverQuery(resolveBizDevRoute(new URLSearchParams('bdDq=x&bdOffset=40'))),
-    ).toEqual({ q: 'x', limit: 20, offset: 40 });
+    ).toEqual({ q: 'x', includeExcluded: '0', limit: 20, offset: 40 });
   });
 
   it('keys candidates and dossiers by tenant + full identity', () => {
@@ -965,6 +975,8 @@ describe('Phase 2 URL state and query keys', () => {
       sort: 'newest',
       discover: '',
       discoverQuery: '',
+      discoverService: '',
+      discoverIncludeExcluded: false,
       discoverOffset: 0,
       dossierEntityId: '',
       dossierProspectId: '',

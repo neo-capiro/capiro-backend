@@ -29,6 +29,7 @@ import {
 import {
   bizdevErrorMessage,
   bizdevKeys,
+  getBizDevPreferences,
   createBizDevProspect,
   searchBizDevCandidates,
   type BizDevCandidate,
@@ -267,12 +268,32 @@ export function DiscoverPanel({ tenantId }: { tenantId: string }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const route = resolveBizDevRoute(searchParams);
 
-  // Draft: typing never fetches. Submit writes q to the URL; the query
-  // subscribes to URL state only.
+  // Draft: typing never fetches. Submit writes q/service to the URL; the
+  // query subscribes to URL state only.
   const [draft, setDraft] = useState(route.discoverQuery);
+  const [draftService, setDraftService] = useState(route.discoverService);
   useEffect(() => {
     setDraft(route.discoverQuery);
-  }, [route.discoverQuery]);
+    setDraftService(route.discoverService);
+  }, [route.discoverQuery, route.discoverService]);
+
+  // Service options come from this tenant's saved practice/service
+  // preferences — never an invented static list. The submitted URL value is
+  // preserved as an option even if preferences changed or are unavailable so
+  // shared links keep working.
+  const preferences = useQuery({
+    queryKey: bizdevKeys.preferences(tenantId),
+    queryFn: () => getBizDevPreferences(api),
+    enabled: route.discover === 'open',
+  });
+  const serviceOptions = (() => {
+    const areas = preferences.data?.practiceServiceAreas;
+    const saved = (Array.isArray(areas) ? areas : []).filter(
+      (s): s is string => typeof s === 'string' && s.trim().length > 0 && s.length <= 200,
+    ).map(s => s.trim());
+    // Keep a pending choice visible even if preferences refresh during editing.
+    return [...new Set([...saved, route.discoverService, draftService].filter(Boolean))];
+  })();
 
   const discoverQuery = bizDevDiscoverQuery(route);
   const search = useQuery({
@@ -286,9 +307,24 @@ export function DiscoverPanel({ tenantId }: { tenantId: string }) {
     const q = draft.trim();
     if (q.length < SEARCH_MIN) return;
     setSearchParams(
-      applyBizDevRoute(searchParams, { discover: 'open', discoverQuery: q, discoverOffset: 0 }),
+      applyBizDevRoute(searchParams, {
+        discover: 'open',
+        discoverQuery: q,
+        discoverService: draftService,
+        discoverOffset: 0,
+      }),
     );
   };
+
+  // Review toggle describes the filtering MODE (never an invented hidden
+  // count) and preserves the submitted q/service while resetting paging.
+  const toggleExclusions = () =>
+    setSearchParams(
+      applyBizDevRoute(searchParams, {
+        discoverIncludeExcluded: !route.discoverIncludeExcluded,
+        discoverOffset: 0,
+      }),
+    );
 
   const page = (delta: number) =>
     setSearchParams(
@@ -305,6 +341,10 @@ export function DiscoverPanel({ tenantId }: { tenantId: string }) {
   const candidates = search.data?.results ?? [];
   const directCount = candidates.filter((c) => c.whyInspect?.relationshipStrength === 'direct').length;
   const reviewCount = candidates.length - directCount;
+  const filtersUnconfirmed = search.isSuccess && (
+    coverage?.exclusionsApplied !== !route.discoverIncludeExcluded ||
+    (Boolean(route.discoverService) && coverage?.serviceFilterApplied !== true)
+  );
 
   return (
     <section className="capiro-bizdev__discover" aria-labelledby="bizdev-discover">
@@ -336,8 +376,48 @@ export function DiscoverPanel({ tenantId }: { tenantId: string }) {
             Search companies
           </CapiroButton>
         </div>
+        <div className="capiro-bizdev__field capiro-bizdev__discover-service">
+          <label className="capiro-bizdev__label" htmlFor="bizdev-discover-service">
+            Service
+          </label>
+          <select
+            id="bizdev-discover-service"
+            className="capiro-bizdev__select"
+            aria-describedby="bizdev-discover-service-note"
+            value={draftService}
+            onChange={(e) => setDraftService(e.target.value)}
+          >
+            <option value="">All services</option>
+            {serviceOptions.map((service) => (
+              <option key={service} value={service}>{service}</option>
+            ))}
+          </select>
+        </div>
+        <p className="capiro-bizdev__meta capiro-bizdev__discover-service-note" id="bizdev-discover-service-note">
+          Matches your firm’s saved service hypothesis, not an assessed company service.
+        </p>
       </form>
       </div>
+
+      {hasQuery ? (
+        <div className="capiro-bizdev__discover-exclusions">
+          <CapiroButton
+            size="compact"
+            aria-pressed={route.discoverIncludeExcluded}
+            onClick={toggleExclusions}
+          >
+            {route.discoverIncludeExcluded
+              ? 'Including firm exclusions · Hide exclusions'
+              : (filtersUnconfirmed ? 'Firm exclusion filter requested · Show for review' : 'Firm exclusions filtered · Show for review')}
+          </CapiroButton>
+        </div>
+      ) : null}
+
+      {hasQuery && filtersUnconfirmed ? (
+        <p role="alert" className="capiro-bizdev__meta capiro-bizdev__section-pad">
+          This server has not confirmed the requested filters. These results may be unfiltered; retry after the service is updated.
+        </p>
+      ) : null}
 
       {hasQuery ? (
         search.isPending ? (
