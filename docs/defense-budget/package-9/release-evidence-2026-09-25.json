@@ -599,5 +599,35 @@
       "Package 9-specific AWS and provider cost attribution",
       "explicit activation scopes, frozen question-model policy, evaluation-run manifest, and release authorization"
     ]
+  },
+  "followOnQualification": {
+    "recordedAt": "2026-09-26T00:08:37.000Z",
+    "sourceRevision": "93b95efa789e3032815650b3cbc71625f27d642e",
+    "harness": "apps/api/scripts/package9-durable-qualification.ts",
+    "runId": "p9-20260926000657425-8c3acf",
+    "report": "docs/defense-budget/package-9/evidence/durable-run-p9-20260926000657425-8c3acf.json",
+    "status": "PASS_LIMITED_SCOPE",
+    "mode": {
+      "sustainedMixedLoad": true,
+      "queryDurationSeconds": 30,
+      "workerBatchSize": 1,
+      "workerPauseMs": 1000
+    },
+    "metrics": {
+      "acceptedFacts": 100,
+      "durableLogicalNotifications": 100,
+      "maxQueueRows": 100,
+      "maxConcurrentWorkers": 4,
+      "terminalQueue": {
+        "pending": 0,
+        "leased": 0,
+        "deadLetter": 0
+      },
+      "querySamples": 120,
+      "queryP95Milliseconds": 7.23,
+      "drainQueryOverlapMilliseconds": 29190.3551
+    },
+    "qualificationBoundary": "short disposable local synthetic evidence only; does not qualify production-scale throughput, HTTP/authentication/network latency, source-change-to-verified-update latency, buyer outcomes, cost attribution, paid-provider economics, rollback, or activation",
+    "releaseDecisionUnchanged": "NO_GO / shadow_only"
   }
 }
