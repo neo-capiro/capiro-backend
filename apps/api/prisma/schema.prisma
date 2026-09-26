@@ -3825,6 +3825,7 @@ model ActionRecommendation {
   id                    String    @id @default(uuid()) @db.Uuid
   tenantId              String    @map("tenant_id") @db.Uuid
   clientId              String    @map("client_id") @db.Uuid
+  districtKey           String?   @map("district_key") @db.VarChar(8)
   peCode                String?   @map("pe_code") @db.VarChar(16)
   programId             String?   @map("program_id") @db.Uuid
   deltaId               String?   @map("delta_id") @db.Uuid
@@ -3853,6 +3854,7 @@ model ActionRecommendation {
 
   @@index([tenantId, status, deadline], map: "action_recommendation_tenant_status_deadline_idx")
   @@index([tenantId, clientId], map: "action_recommendation_tenant_client_idx")
+  @@index([tenantId, clientId, districtKey], map: "action_recommendation_tenant_client_district_idx")
   @@map("action_recommendation")
 }
 

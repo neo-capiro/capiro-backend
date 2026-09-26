@@ -9,6 +9,8 @@ import { DistrictNexusRelationshipsController } from './district-nexus-relations
 import { DistrictNexusEconomicController } from './district-nexus-economic.controller.js';
 import { DistrictNexusPriorityIntelligenceController } from './priority-intelligence/priority-intelligence.controller.js';
 import { R5DistrictBriefController } from './r5-action-layer/r5-district-brief.controller.js';
+import { R5DistrictActionsController } from './r5-action-layer/r5-district-actions.controller.js';
+import { R5DistrictActionsService } from './r5-action-layer/r5-district-actions.service.js';
 import { DistrictNexusService } from './district-nexus.service.js';
 import { DistrictNexusRelationshipsService } from './district-nexus-relationships.service.js';
 import { DistrictNexusStrategicService } from './district-nexus-strategic.service.js';
@@ -42,6 +44,7 @@ import { R5FlagGuard } from './r5-action-layer/r5-flag.guard.js';
     DistrictNexusEconomicController,
     DistrictNexusPriorityIntelligenceController,
     R5DistrictBriefController,
+    R5DistrictActionsController,
   ],
   providers: [
     DistrictNexusService,
@@ -53,6 +56,7 @@ import { R5FlagGuard } from './r5-action-layer/r5-flag.guard.js';
     DistrictNexusChangeWriter,
     R5DistrictContextService,
     R5DistrictBriefService,
+    R5DistrictActionsService,
     ClientDocumentWriterService,
     DistrictNexusFlagGuard,
     DistrictNexusStrategicFlagGuard,

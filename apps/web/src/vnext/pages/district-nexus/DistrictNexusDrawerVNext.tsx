@@ -37,6 +37,8 @@ import {
 import { DistrictFederalMarketPanelVNext } from './DistrictFederalMarketPanelVNext.js';
 import { DistrictPriorityIntelligencePanelVNext } from './DistrictPriorityIntelligencePanelVNext.js';
 import { DistrictBriefPanelVNext } from './r5/DistrictBriefPanelVNext.js';
+import { DistrictActionsPanelVNext } from './r5/DistrictActionsPanelVNext.js';
+import { DISTRICT_NEXUS_R5_ACTIONS_FEATURE } from './r5/r5-actions-api.js';
 import { DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE } from '../../../pages/intelligence/district-nexus/priority-intelligence-api.js';
 import { DISTRICT_NEXUS_R5_BRIEF_FEATURE } from './r5/r5-api.js';
 import { DnxChevronDownIcon, DnxInfoIcon, DnxWarningIcon } from './icons.js';
@@ -79,6 +81,7 @@ export function DistrictNexusDrawerVNext({
   const strategicEnabled = useIntelFeatureEnabled(DISTRICT_NEXUS_STRATEGIC_FEATURE);
   const priorityEnabled = useIntelFeatureEnabled(DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE);
   const r5BriefEnabled = useIntelFeatureEnabled(DISTRICT_NEXUS_R5_BRIEF_FEATURE);
+  const r5ActionsEnabled = useIntelFeatureEnabled(DISTRICT_NEXUS_R5_ACTIONS_FEATURE);
   const { state, districtNo } = districtKey
     ? splitDistrictKey(districtKey)
     : { state: '', districtNo: '' };
@@ -251,6 +254,11 @@ export function DistrictNexusDrawerVNext({
                   state={state}
                   district={districtNo}
                 />
+              </DnxSection>
+            ) : null}
+            {r5ActionsEnabled && clientId && districtKey ? (
+              <DnxSection title="Recommended actions (R5)" meta="review · edit · stage">
+                <DistrictActionsPanelVNext clientId={clientId} state={state} district={districtNo} />
               </DnxSection>
             ) : null}
             <DnxSection title="Representation" meta="">
