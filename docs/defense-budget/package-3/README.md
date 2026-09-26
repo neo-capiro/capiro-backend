@@ -29,6 +29,7 @@ Congressional semantic production requires governed structured-table material pl
 - [Operator runbook](./operator-runbook.md)
 - [Validation and runtime evidence](./validation-evidence-2026-09-24.md)
 - [Bounded mixed-family HASC seam evidence](./validation-evidence-2026-09-26.md)
+- [2026-09-26 build/deployment evidence](./release-evidence-2026-09-26.json)
 - [Machine-readable release evidence](./release-evidence-2026-09-24.json)
 
 Release scope: account `967807252336`, region `us-east-1`, cluster `capiro-dev`.
