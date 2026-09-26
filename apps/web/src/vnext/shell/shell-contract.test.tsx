@@ -104,7 +104,7 @@ describe('directory navigation', () => {
     return screen.getByRole('menu', { name: 'Directory' });
   }
 
-  it('links every Directory destination now that all four surfaces are registered', () => {
+  it('links every Directory destination now that all five surfaces are registered', () => {
     const directory = VNEXT_ROUTE_MANIFEST.find((route) => route.id === 'directory')!;
     const menu = openDirectoryMenu([directory]);
 
@@ -113,6 +113,7 @@ describe('directory navigation', () => {
       'Committee Staff': '/directory/committee-staff',
       'Department of War': '/directory/department-of-war',
       'State Legislators': '/directory/state-legislators',
+      'State Committees': '/directory/state-committees',
     };
 
     for (const [label, href] of Object.entries(expected)) {

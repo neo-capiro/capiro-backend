@@ -18,9 +18,19 @@ import {
 /**
  * A member's seat, e.g. `VA-10` for a representative and `OH` for a senator —
  * senators have no district, and printing `OH-` for them would invent one.
+ *
+ * The API's `formatDistrict` already returns `"VA-10"` (state-prefixed) for
+ * House seats and the bare state abbreviation for senators. When `district`
+ * carries the prefix, use it directly; otherwise fall back to joining
+ * `state` + `district` for backward compatibility with test fixtures that
+ * pass a bare number.
  */
 function seatLabel(member: Pick<DirectoryEntry, 'state' | 'district'>): string {
-  return [member.state, member.district].filter(Boolean).join('-');
+  const { state, district } = member;
+  if (!district) return state || '';
+  // District already carries the state prefix (e.g. "VA-10") — use as-is.
+  if (state && district.startsWith(`${state}-`)) return district;
+  return [state, district].filter(Boolean).join('-');
 }
 
 /**
