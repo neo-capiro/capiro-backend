@@ -1708,7 +1708,7 @@ export function mergeTodayEvents(
       startsAt: meeting.startsAt,
       time: formatTime(meeting.startsAt),
       title: meeting.subject,
-      meta: [dayLabel(meeting.startsAt), meeting.client?.name, meeting.location]
+      meta: [dayLabel(meeting.startsAt), meeting.client?.name, sanitizeLocation(meeting.location)]
         .filter(Boolean)
         .join(' · '),
       href: `/engagement/meetings/${encodeURIComponent(meeting.id)}`,
