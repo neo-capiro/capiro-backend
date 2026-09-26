@@ -110,7 +110,13 @@ export function DistrictAlertsPanelVNext({ clientId, state, districtNo }: Props)
                   <span className="dnx-alert-source">{a.sourceLabel}</span>
                   <span className="dnx-alert-district">{a.districtLabel}</span>
                 </div>
-                <div className="dnx-alert-title">{a.title}</div>
+                <div className="dnx-alert-title">
+                  {a.deepLink ? (
+                    <a href={a.deepLink}>{a.title}</a>
+                  ) : (
+                    a.title
+                  )}
+                </div>
                 <div className="dnx-alert-meta">
                   <span>Event: {formatIsoDate(a.eventTime)}</span>
                   <span> - Detected: {formatIsoDate(a.detectedTime)}</span>

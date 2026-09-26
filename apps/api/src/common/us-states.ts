@@ -94,3 +94,12 @@ const STATE_FIPS_BY_ABBR: Readonly<Record<string, string>> = {
 export function stateFipsForAbbr(abbr: string): string | undefined {
   return STATE_FIPS_BY_ABBR[abbr.trim().toUpperCase()];
 }
+
+const STATE_ABBR_BY_FIPS: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries(STATE_FIPS_BY_ABBR).map(([abbr, fips]) => [fips, abbr]),
+);
+
+/** Reverse of stateFipsForAbbr — FIPS code to two-letter abbreviation. */
+export function stateAbbrForFips(fips: string): string | undefined {
+  return STATE_ABBR_BY_FIPS[fips.trim()];
+}

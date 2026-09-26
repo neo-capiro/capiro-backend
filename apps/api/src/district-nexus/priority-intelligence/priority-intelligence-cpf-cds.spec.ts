@@ -59,9 +59,17 @@ describe('attributeGeography — house vs senate semantics', () => {
   it('house: requires BOTH source-backed state and district', () => {
     const ok = attributeGeography(row({ requesterState: 'AL', requesterDistrict: '2' }));
     expect(ok).toEqual({ basis: 'house_district', state: 'AL', district: '02' });
+
+    // STDD code with state prefix works (FL08 → FL-08)
     expect(
       attributeGeography(row({ requesterState: null, state: null, requesterDistrict: 'FL08' })),
     ).toEqual({ basis: 'house_district', state: 'FL', district: '08' });
+
+    // Bug fix: requesterState=null, district='08', projectState=FL → should be UNRESOLVED
+    // House requester geography must be source-backed; projectState is never promoted
+    expect(
+      attributeGeography(row({ requesterState: null, state: 'FL', requesterDistrict: '08' })),
+    ).toEqual({ basis: 'unresolved', reason: 'house request without a source-backed state' });
 
     const noDistrict = attributeGeography(row({ requesterDistrict: null }));
     expect(noDistrict).toEqual({

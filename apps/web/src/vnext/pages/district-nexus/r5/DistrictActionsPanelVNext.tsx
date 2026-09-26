@@ -1,14 +1,22 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
+import { useMe } from '../../../../lib/me.js';
 import { CapiroBadge } from '../../../components/badges/index.js';
 import { CapiroButton } from '../../../components/actions/index.js';
 import { CapiroErrorState, CapiroSkeleton } from '../../../components/feedback/index.js';
 import { changeDistrictActionStatus, editDistrictAction, getDistrictActions, stageDistrictAction,
   type ActionScope, type ActionText, type DistrictAction } from './r5-actions-api.js';
 
+function ownerLabel(userId: string | null | undefined, meUserId: string | undefined): string {
+  if (!userId) return 'Unassigned';
+  if (meUserId && userId === meUserId) return 'You';
+  return 'Assigned';
+}
+
 export function DistrictActionsPanelVNext(scope: ActionScope) {
   const api = useApi();
+  const me = useMe();
   const queryClient = useQueryClient();
   const key = ['district-nexus', 'r5', 'actions', scope.clientId, scope.state, scope.district];
   const query = useQuery({ queryKey: key, queryFn: () => getDistrictActions(api, scope), retry: false });
@@ -41,7 +49,7 @@ export function DistrictActionsPanelVNext(scope: ActionScope) {
       <h5>{drafts[id]?.issueTitle ?? item.issueTitle} {staged ? <CapiroBadge tone="info">{item.status}</CapiroBadge> : null}</h5>
       {editing === id ? textEditor(id, item) : <><p>{item.whatChanged}</p><p>{item.whyItMatters}</p><p>Next step: {item.recommendedAction}</p></>}
       <p>Target: {item.targetAudience.length ? item.targetAudience.map((t) => t.label).join(', ') : 'No source-backed office target'}</p>
-      <p>Proposed owner: {item.ownerUserId} · Deliverable: {item.suggestedArtifactType ?? 'Not specified'}</p>
+      <p>Proposed owner: {ownerLabel(item.ownerUserId, me.data?.user?.id)} · Deliverable: {item.suggestedArtifactType ?? 'Not specified'}</p>
       <p>Confidence: {item.confidence.clientRelevance ?? 'not assessed'}{item.uncertainty ? ` · ${item.uncertainty}` : ''}</p>
       <div className="dnx-dr-l2">{sourceChips(item)}</div>
       <div className="dnx-dr-l3">

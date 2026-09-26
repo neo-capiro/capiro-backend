@@ -62,6 +62,7 @@ export class R5DistrictAlertsController {
       clientId.trim(),
       state?.trim(),
       district?.trim(),
+      ct.userId,
     );
   }
 

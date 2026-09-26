@@ -51,7 +51,10 @@ export function parseCommunityFundingStdd(
 export function normalizeCommunityFundingGeography(
   input: CommunityFundingGeographyInput,
 ): NormalizedCommunityFundingGeography {
-  const explicitState = stateCode(input.requesterState) ?? stateCode(input.projectState);
+  const explicitState =
+    input.chamber === 'house'
+      ? stateCode(input.requesterState)
+      : stateCode(input.requesterState) ?? stateCode(input.projectState);
   if (input.chamber === 'senate') {
     return { state: explicitState, district: null, conflictReason: null };
   }

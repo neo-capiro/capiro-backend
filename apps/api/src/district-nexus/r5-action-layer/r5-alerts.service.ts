@@ -22,6 +22,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { stateAbbrForFips } from '../../common/us-states.js';
 import { isR5FeatureEnabled, DISTRCT_NEXUS_R5_ALERTS } from './r5-flag.guard.js';
 
 // ---------------------------------------------------------------------------
@@ -125,6 +126,8 @@ export class R5DistrictAlertsService {
     stateCode?: string,
     districtCode?: string,
     minSeverity: 'material' | 'notable' = 'material',
+    batchSize = 500,
+    cursor?: string,
   ): Promise<DistrictAlertEvent[]> {
     const where: Prisma.DistrictNexusChangeWhereInput = {
       observationKind: 'change',
@@ -138,7 +141,8 @@ export class R5DistrictAlertsService {
       tx.districtNexusChange.findMany({
         where,
         orderBy: { observedAt: 'desc' },
-        take: 500,
+        take: batchSize,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       }),
     );
 
@@ -182,19 +186,34 @@ export class R5DistrictAlertsService {
     tenantId: string,
     event: DistrictAlertEvent,
   ): Promise<Array<{ clientId: string; clientName: string }>> {
-    if (!/^[A-Z]{2}$/.test(event.stateCode)) return [];
+    // Normalize GSA FIPS state codes (e.g. '12' → 'FL') to two-letter abbreviations.
+    // Keep raw source values in the event for provenance; use normalized for matching.
+    let normalizedState = event.stateCode;
+    let normalizedDistrict = event.districtCode;
+    if (!/^[A-Z]{2}$/.test(normalizedState)) {
+      const abbr = stateAbbrForFips(normalizedState);
+      if (abbr) {
+        normalizedState = abbr;
+      } else {
+        return [];
+      }
+    }
+    // Pad district code for consistent matching (e.g. '8' → '08')
+    if (normalizedDistrict && /^\d+$/.test(normalizedDistrict)) {
+      normalizedDistrict = normalizedDistrict.padStart(2, '0');
+    }
     // DN aggregate uses these facility trust fields. Only matched Census
     // geocodes with geocoded districts establish verified alert relevance.
     const rows = await this.prisma.withTenant(tenantId, (tx) =>
       tx.clientFacility.findMany({
         where: {
           tenantId,
-          state: event.stateCode,
+          state: normalizedState,
           geocodeStatus: 'matched',
           districtSource: 'geocoded',
           congressionalDistrict: event.isStatewide
             ? { not: null }
-            : event.districtCode.padStart(2, '0'),
+            : normalizedDistrict,
           client: { status: { not: 'archived' }, profileStatus: 'ACTIVE' },
         },
         select: { clientId: true, client: { select: { name: true } } },
@@ -410,11 +429,19 @@ export class R5DistrictAlertsService {
     result.enabled = enabled;
     if (!enabled) return result;
 
-    // Find changes since the window — material only, notable on opt-in
-    const changes = await this.findAlertableChanges(since, undefined, undefined, undefined, 'notable');
-    result.eventsConsidered = changes.length;
+    // Find changes since the window — paginate through all events
+    let cursor: string | undefined;
+    let totalEventsConsidered = 0;
+    const BATCH_SIZE = 500;
 
-    for (const change of changes) {
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const changes = await this.findAlertableChanges(since, undefined, undefined, undefined, 'notable', BATCH_SIZE, cursor);
+      if (changes.length === 0) break;
+      totalEventsConsidered += changes.length;
+      cursor = changes[changes.length - 1]?.changeId;
+
+      for (const change of changes) {
       // Enrich source freshness
       change.sourceFreshness = await this.getSourceFreshness(change.source);
 
@@ -453,8 +480,12 @@ export class R5DistrictAlertsService {
           }
         }
       }
+      }
+      // End of batch — if we got fewer than BATCH_SIZE, we've processed all events
+      if (changes.length < BATCH_SIZE) break;
     }
 
+    result.eventsConsidered = totalEventsConsidered;
     return result;
   }
 
@@ -531,12 +562,14 @@ export class R5DistrictAlertsService {
   /**
    * List recent alerts for a client, optionally filtered by state/district.
    * Reads NotificationLog rows with alertId prefix + in_app channel.
+   * Filters by the authenticated user's ID to show only their personal inbox.
    */
   async listClientAlerts(
     tenantId: string,
     clientId: string,
     state?: string,
     district?: string,
+    userId?: string,
   ): Promise<DistrictAlertPayload[]> {
     const rows = await this.prisma.withTenant(tenantId, (tx) => tx.$queryRaw<
       Array<{ payload: DistrictAlertPayload; change_id: string | null }>
@@ -549,6 +582,7 @@ export class R5DistrictAlertsService {
         AND n.tenant_id = ${tenantId}::uuid AND n.client_id = ${clientId}::uuid
         AND n.channel = 'in_app' AND n.status = 'sent'
         AND n.alert_id LIKE 'district-nexus-change:%'
+        AND (${userId ?? null}::text IS NULL OR n.user_id = ${userId}::uuid)
         AND (${state ?? null}::text IS NULL OR p.state_code = ${state ?? null})
         AND (${district ?? null}::text IS NULL OR p.district_code = ${district ?? null})
       ORDER BY n.created_at DESC LIMIT 100

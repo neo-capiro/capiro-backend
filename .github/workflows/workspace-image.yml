@@ -84,7 +84,7 @@ jobs:
             --service "$ECS_SERVICE" \
             --force-new-deployment \
             --region "$AWS_REGION" \
-            --query "service.{{status:status,runningCount:runningCount,desiredCount:desiredCount}}" \
+            --query "service.{status:status,runningCount:runningCount,desiredCount:desiredCount}" \
             --output table
 
       - name: Wait for service stability
@@ -102,6 +102,6 @@ jobs:
             --cluster "$ECS_CLUSTER" \
             --services "$ECS_SERVICE" \
             --region "$AWS_REGION" \
-            --query "services[0].{{status:status,running:runningCount,desired:desiredCount,pending:pendingCount}}" \
+            --query "services[0].{status:status,runningCount:runningCount,desiredCount:desiredCount,pendingCount:pendingCount}" \
             --output table
 
