@@ -43,6 +43,7 @@ Package 1's exact production queue inventory found zero manifest-eligible rows. 
 
 - [Validation evidence](./validation-evidence-2026-09-24.md)
 - [Machine-readable release evidence](./release-evidence-2026-09-25.json)
+- [Semantic-candidate release evidence](./release-evidence-2026-09-26.json)
 - [Historical notification qualification](./package4-historical-suppression-qualification.json)
 - [DTIC/JDOCS candidate assessment](./handriss-dtic-source-catalog-assessment.md)
 - [Semantic candidate validation evidence](./validation-evidence-2026-09-26.md)
