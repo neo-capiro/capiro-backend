@@ -59,6 +59,9 @@ describe('Research Portfolio Phase 10 Meri integration', () => {
       analytics as never,
       changes as never,
       outputs as never,
+      {} as never,
+      {} as never,
+      {} as never,
     );
     await expect(service.execute(ctx, 'get_research_portfolio', { conversationId }))
       .resolves.toEqual({ id: portfolioId });

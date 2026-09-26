@@ -28,7 +28,8 @@ export type ResearchPortfolioEventKind =
   | 'review_updated'
   | 'annual_reopened'
   | 'import_created'
-  | 'import_action';
+  | 'import_action'
+  | 'review_note_added';
 
 export interface ResearchPortfolioSummaryDto {
   id: string;
@@ -486,9 +487,10 @@ export interface ResearchPortfolioReviewMutationReceiptDto {
   occurredAt: string;
   outcomes: readonly {
     reviewId: string | null;
-    status: 'assigned' | 'decided' | 'unchanged' | 'conflict' | 'failed';
+    status: 'assigned' | 'decided' | 'unchanged' | 'conflict' | 'failed' | 'note_added';
     revision: number | null;
-    decisionId: string | null;
+    decisionId?: string | null;
+    noteId?: string | null;
     message: string | null;
   }[];
 }
@@ -842,4 +844,101 @@ export interface ResearchPortfolioClientFileReceiptDto {
 export interface SaveResearchPortfolioOutputToClientDto {
   operationKey: string;
   clientId: string;
+}
+
+// Phase 11 — bookmarks, fit, review notes, watch-conversion, operations, tour state
+
+export type ResearchPortfolioBookmarkTargetKind = 'member' | 'snapshot' | 'evidence' | 'review' | 'import' | 'output' | 'other';
+
+export interface ResearchPortfolioBookmarkDto {
+  id: string;
+  portfolioId: string;
+  userId: string;
+  targetKind: ResearchPortfolioBookmarkTargetKind;
+  targetId: string;
+  label: string | null;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateResearchPortfolioBookmarkDto {
+  idempotencyKey: string;
+  targetKind: ResearchPortfolioBookmarkTargetKind;
+  targetId: string;
+  label?: string | null;
+  note?: string | null;
+}
+
+export interface UpdateResearchPortfolioBookmarkDto {
+  label?: string | null;
+  note?: string | null;
+}
+
+export interface ResearchPortfolioFitResultDto {
+  portfolioId: string;
+  clientId: string;
+  clientName: string;
+  fitScore: number | null;
+  ruleMatches: readonly { ruleVersionId: string; matched: boolean; reason: string }[];
+  refreshedAt: string | null;
+}
+
+export interface ResearchPortfolioFitDto {
+  portfolioId: string;
+  clientFits: readonly ResearchPortfolioFitResultDto[];
+  calculatedAt: string;
+}
+
+export interface ResearchPortfolioReviewNoteDto {
+  id: string;
+  reviewId: string;
+  authorUserId: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface CreateResearchPortfolioReviewNoteDto {
+  idempotencyKey: string;
+  expectedRevision: number;
+  body: string;
+}
+
+export interface ResearchPortfolioWatchConversionPreviewDto {
+  portfolioId: string;
+  legacyWatches: number;
+  convertibleWatches: number;
+  alreadyConverted: number;
+  previewItems: readonly { userId: string; channel: string; legacyKind: string; willConvert: boolean }[];
+}
+
+export interface ResearchPortfolioWatchConversionResultDto {
+  portfolioId: string;
+  convertedCount: number;
+  skippedCount: number;
+}
+
+export type ResearchPortfolioOperationKind = 'import' | 'recompute' | 'output' | 'snapshot';
+export type ResearchPortfolioOperationStatus = 'queued' | 'running' | 'completed' | 'partial' | 'failed' | 'cancelled' | 'outcome_unknown';
+
+export interface ResearchPortfolioOperationDto {
+  id: string;
+  portfolioId: string;
+  kind: ResearchPortfolioOperationKind;
+  status: ResearchPortfolioOperationStatus;
+  actorUserId: string;
+  label: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  lastErrorCode: string | null;
+  lastError: string | null;
+  retryCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ResearchPortfolioTourStateDto {
+  tourVersion: string;
+  status: 'active' | 'dismissed' | 'completed';
+  completedAt: string | null;
 }
