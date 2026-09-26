@@ -103,6 +103,10 @@ jobs:
               echo "dockerfile=apps/clio-sandbox/Dockerfile" >> "$GITHUB_OUTPUT"
               echo "context=apps/clio-sandbox" >> "$GITHUB_OUTPUT"
               ;;
+            web-vnext)
+              echo "dockerfile=apps/web/Dockerfile" >> "$GITHUB_OUTPUT"
+              echo "context=." >> "$GITHUB_OUTPUT"
+              ;;
             *)
               echo "dockerfile=apps/${SERVICE}/Dockerfile" >> "$GITHUB_OUTPUT"
               echo "context=." >> "$GITHUB_OUTPUT"
