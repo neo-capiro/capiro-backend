@@ -220,6 +220,35 @@ registration, mixed-family completeness denominator, independent review,
 expected-source admission, historical replay, canonical publication, or
 activation was performed. Package 3 remains `NOT_COMPLETE`.
 
+## 2026-09-26 native HASC qualification-only follow-on
+
+PR `#1861` merged the qualification-only native HASC harness at
+`c53d7439043c431bdcb29a3bef1332a4c682c6a4`, matching local and GitHub `main`.
+The pinned 926-row FY2027 HASC fixture is converted into 48 native
+`congressional_stage_packet_v1` tables and passed through the proof-bound HASC
+factory. Because the reviewed fixture contains no independent Phase 4/5 native
+identity index, the resolution context has zero entries: all 926 rows remain
+explicit unresolved omissions, zero accepted HASC funding assertions are
+emitted, and completeness is `incomplete`. The exact parser-result bytes are
+re-read from disposable verified storage before artifact persistence.
+
+The exact merged SHA was built by CodeBuild retry
+`capiro-build-intel-api:2403fbac-e690-47a5-9008-7bc804e76d66` and pushed as API
+digest
+`sha256:06fb54947e1485b1973568840b571efedb0c8515a2f449f0c53727c4e01aa646`.
+The first build compiled successfully but was stopped by a truncated push tag;
+it pushed no image and mutated no ECS service. Migration task
+`capiro-dev-api-admin-migrate:82` exited 0 with no pending migrations, and
+`capiro-dev-api:479` reached `COMPLETED` with two healthy replacement tasks.
+`/health` returned HTTP 200, the five-minute error-like log scan returned zero
+matches, and all four protected flags remain false. Full details are in
+`docs/defense-budget/package-3/release-evidence-2026-09-26-native-qualification.json`.
+
+This remains an offline/candidate-only seam. No governed production
+SourceDocument, mixed-family completeness denominator, independently approved
+identity index, manifest admission, replay, canonical publication,
+notification, or activation occurred. Package 3 remains `NOT_COMPLETE`.
+
 ## 2026-09-26 Package 8 DTIC semantic candidate
 
 PR `#1859` merged the strict DTIC/JDOCS XML semantic candidate extractor at

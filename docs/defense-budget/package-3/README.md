@@ -29,6 +29,7 @@ Congressional semantic production requires governed structured-table material pl
 - [Operator runbook](./operator-runbook.md)
 - [Validation and runtime evidence](./validation-evidence-2026-09-24.md)
 - [Bounded mixed-family HASC seam evidence](./validation-evidence-2026-09-26.md)
+- [Native HASC qualification release evidence](./release-evidence-2026-09-26-native-qualification.json)
 - [2026-09-26 build/deployment evidence](./release-evidence-2026-09-26.json)
 - [Machine-readable release evidence](./release-evidence-2026-09-24.json)
 
