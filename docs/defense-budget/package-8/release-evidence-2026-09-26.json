@@ -1,0 +1,98 @@
+{
+  "package": 8,
+  "releasedAt": "2026-09-25T21:07:00-04:00",
+  "sourceControl": {
+    "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1859",
+    "mergeCommit": "601d027a1f89717b77e0fc018e205b02f2488ee1",
+    "localMain": "601d027a1f89717b77e0fc018e205b02f2488ee1",
+    "githubMain": "601d027a1f89717b77e0fc018e205b02f2488ee1",
+    "githubHostedChecks": {
+      "result": "infrastructure_failure_before_steps",
+      "runnerAssigned": false,
+      "stepsStarted": 0
+    }
+  },
+  "validation": {
+    "apiTypecheck": "PASS",
+    "focusedDticInspectorSuite": {
+      "status": "PASS",
+      "suites": 1,
+      "tests": 13
+    },
+    "realFy2026DticSmoke": {
+      "status": "PASS",
+      "xmlSha256": "02479cd6e67dfee10bb1029d9413dbc35e81174384b25319fedfb9589d4aac6a",
+      "records": 2,
+      "programElementIds": ["0605801KA", "0605998KA"],
+      "fieldLocatorCounts": [10, 9],
+      "candidateOnly": true,
+      "promotable": false
+    },
+    "prefixIndependentLocatorStability": "PASS",
+    "invalidFieldRejection": "PASS",
+    "trustedRuntimeMirrorParity": "PASS",
+    "gitDiffCheck": "PASS"
+  },
+  "aws": {
+    "account": "967807252336",
+    "region": "us-east-1",
+    "cluster": "capiro-dev",
+    "codeBuild": {
+      "project": "capiro-build-intel-api",
+      "id": "capiro-build-intel-api:465de257-1b0d-4982-bd75-a0125e9f53d5",
+      "resolvedSourceVersion": "601d027a1f89717b77e0fc018e205b02f2488ee1",
+      "status": "SUCCEEDED",
+      "buildPhase": "2026-09-25T20:58:47-04:00/2026-09-25T21:01:26-04:00"
+    },
+    "costControl": {
+      "stoppedMalformedQueuedBuild": "capiro-build-intel-api:4104bfeb-3e85-4178-81b2-883b15ca9b48",
+      "status": "STOPPED",
+      "reason": "inline buildspec variable expansion detected before provisioning"
+    },
+    "image": {
+      "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
+      "tag": "601d027a1f89717b77e0fc018e205b02f2488ee1",
+      "digest": "sha256:98c0179957909c7d1a0acd18c02defee5b64cf4c853464e4d60a4fd3c7b164ba"
+    },
+    "migration": {
+      "taskDefinition": "capiro-dev-api-admin-migrate:81",
+      "taskId": "835fc381877440a7b44782d7cc10d0b8",
+      "exitCode": 0,
+      "result": "No pending migrations to apply"
+    },
+    "service": {
+      "taskDefinition": "capiro-dev-api:478",
+      "rolloutState": "COMPLETED",
+      "desired": 2,
+      "running": 2,
+      "pending": 0,
+      "healthyTasks": 2,
+      "replacementTasks": [
+        "9afe0242b02c472c896ebd17c1aeba7d",
+        "bb38bb1361e64e04b18819b5a08ee36f"
+      ],
+      "replacementTargetHealth": ["10.40.10.45:healthy", "10.40.13.173:healthy"],
+      "oldTargets": "draining normally"
+    },
+    "runtime": {
+      "gitSha": "601d027a1f89717b77e0fc018e205b02f2488ee1",
+      "releaseSha": "601d027a1f89717b77e0fc018e205b02f2488ee1",
+      "appHttpStatus": 200,
+      "recentApiErrorLikeLogMatches": 0,
+      "protectedFlags": {
+        "federalLegislativeEvidenceEnabled": false,
+        "programAcquisitionContinuityEnabled": false,
+        "fundingExecutionSourceAdapterEnabled": false,
+        "fundingExecutionPublicationEnabled": false
+      }
+    }
+  },
+  "activation": {
+    "status": "NOT_AUTHORIZED",
+    "historicalReplayStarted": false,
+    "mirrorImportStarted": false,
+    "canonicalPublicationStarted": false,
+    "historicalNotificationsSent": false
+  },
+  "qualificationBoundary": "The DTIC semantic extractor is a hash-bound, prefix-independent candidate-only primitive. It does not establish annual/component completeness, PDF field reconciliation, human review, expected-source registration, durable semantic-artifact persistence, historical replay, or publication. Package 8 remains NOT_COMPLETE."
+}

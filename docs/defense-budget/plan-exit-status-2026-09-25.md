@@ -220,6 +220,38 @@ registration, mixed-family completeness denominator, independent review,
 expected-source admission, historical replay, canonical publication, or
 activation was performed. Package 3 remains `NOT_COMPLETE`.
 
+## 2026-09-26 Package 8 DTIC semantic candidate
+
+PR `#1859` merged the strict DTIC/JDOCS XML semantic candidate extractor at
+`601d027a1f89717b77e0fc018e205b02f2488ee1`, matching local and GitHub `main`.
+The extractor requires one PE number, title, budget year, monetary-unit
+attribute, and five canonical funding fields per record. It emits typed values
+with prefix-independent expanded-QName locators and binds the candidate to the
+original XML SHA-256. Missing fields and non-canonical numeric text are hard
+failures. The trusted runtime mirror is byte-for-byte aligned.
+
+The API TypeScript check and focused inspector suite passed (1 suite, 13
+tests). A real FY2026 DTIC XML smoke run against SHA-256
+`02479cd6e67dfee10bb1029d9413dbc35e81174384b25319fedfb9589d4aac6a` emitted
+PEs `0605801KA` and `0605998KA` with 10 and 9 field locators. Prefix-renamed
+fixtures produced identical records while changing the original-byte SHA.
+
+The exact merged SHA was built directly by CodeBuild
+`capiro-build-intel-api:465de257-1b0d-4982-bd75-a0125e9f53d5` and pushed as
+API digest
+`sha256:98c0179957909c7d1a0acd18c02defee5b64cf4c853464e4d60a4fd3c7b164ba`.
+Migration task `capiro-dev-api-admin-migrate:81` exited 0 with no pending
+migrations, and `capiro-dev-api:478` reached `COMPLETED` with two healthy
+replacement tasks. `/health` returned HTTP 200, the five-minute running-task
+error-like log scan returned zero matches, and all four protected flags remain
+false. Full machine-readable details are in
+`docs/defense-budget/package-8/release-evidence-2026-09-26.json`.
+
+This is still qualification-only evidence. No expected-source registration,
+completeness denominator, PDF field reconciliation, human review, durable
+artifact persistence, historical replay, canonical publication, or
+notification occurred. Package 8 remains `NOT_COMPLETE`.
+
 The trusted runtime mirror was then synchronized in PR `#1857` at the same
 merged SHA, and `node scripts/verify-phase8-session4.mjs` returned
 `SESSION4_SOURCE_PARITY_PASS` (the optional real FY27 replay gate remains not
