@@ -245,6 +245,8 @@ export class BusinessDevelopmentController {
       agency: query.agency,
       issue: query.issue,
       geography: query.geography,
+      service: query.service,
+      includeExcluded: query.includeExcluded === '1',
       limit: query.limit,
       offset: query.offset,
     });

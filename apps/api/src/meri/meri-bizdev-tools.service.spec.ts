@@ -400,34 +400,84 @@ describe('get_business_development_evidence', () => {
   it('includes safe factual amount/agency/stage/date/source fields and omits arbitrary provider detail', async () => {
     const { service } = harness({ dossier: dossier(2) });
     const result = await run((s, i) => s.getEvidence(ctx, i), service, validInput());
-    const records = (
-      result.evidence as { records: Array<{ facts: Record<string, unknown> }> }
-    ).records;
-    expect(records).toHaveLength(2);
-    const facts = records[0]!.facts;
-    expect(facts).toMatchObject({
+    const data = (
+      result.data as Array<{ facts: Record<string, unknown> }>
+    );
+    expect(data).toHaveLength(2);
+    // The row IS the complete record: envelope + citation aliases + facts.
+    const row = data[0]!;
+    expect(row.facts).toMatchObject({
       agency: 'Department of Defense',
       amount: 0,
       amountType: 'obligated',
     });
-    const serialized = JSON.stringify(records);
-    expect(serialized).not.toContain('providerPayload');
-    expect(serialized).not.toContain('internalNotes');
-    expect(serialized).not.toContain('contactEmail');
-    // Envelope fields survive: identity, locator, strength, separated dates.
-    expect(records[0]).toMatchObject({
-      sourceFamily: 'usaspending_contract',
+    expect(row).toMatchObject({
+      // Exact source identity and locator survive.
+      id: 'award-0',
       recordId: 'award-0',
+      url: 'https://example.gov/award/0',
       locator: 'https://example.gov/award/0',
-      originalSourceName: 'USAspending',
       originalSourceId: 'PIID-0',
-      relationshipStrength: 'direct',
+      // Exact dates and stage survive in the row itself.
       eventDate: '2026-01-15',
       sourceUpdatedAt: '2026-02-01',
       retrievedAt: '2026-03-01',
+      stage: 'awarded',
+      sourceFamily: 'usaspending_contract',
+      originalSourceName: 'USAspending',
+      relationshipStrength: 'direct',
       status: 'available',
       title: 'Acme received a $0M DoD contract, FY2026',
     });
+    const serialized = JSON.stringify(data);
+    expect(serialized).not.toContain('providerPayload');
+    expect(serialized).not.toContain('internalNotes');
+    expect(serialized).not.toContain('contactEmail');
+  });
+
+  it('never substring-cuts factual fields: oversized non-descriptive facts are omitted, descriptive ones excerpted', async () => {
+    const big = dossier(1);
+    const item = (big.sections!.government_exposure!.evidence![0] as EvidenceItem);
+    item.detail = {
+      ...item.detail,
+      amount: 12_345_678,
+      peCode: '0902138F',
+      // A factual key too big to carry exactly is OMITTED, never cut.
+      issueCodes: Array.from({ length: 40 }, (_, i) => `ISSUE-CODE-${i}`),
+      // A descriptive key gets a bounded, honestly-marked excerpt.
+      description: 'x'.repeat(2_000),
+    };
+    const { service } = harness({ dossier: big });
+    const result = await run((s, i) => s.getEvidence(ctx, i), service, validInput());
+    const row = (result.data as Array<Record<string, unknown>>)[0]!;
+    const facts = row.facts as Record<string, unknown>;
+    // Exact factual values are preserved uncut.
+    expect(facts.amount).toBe(12_345_678);
+    expect(facts.peCode).toBe('0902138F');
+    expect(facts.amountType).toBe('obligated');
+    // The oversized factual array is omitted with an explicit marker.
+    expect('issueCodes' in facts).toBe(false);
+    expect(row.factsOmitted).toEqual(['issueCodes']);
+    // The oversized descriptive string is excerpted and marked.
+    expect((facts.description as string).length).toBeLessThanOrEqual(620);
+    expect(facts.description).toContain('[truncated]');
+    expect(row.factsTruncated).toEqual(['description']);
+    expect(result.coverage).toMatchObject({ complete: true, partial: true });
+    expect((result.coverage as { note: string }).note).toContain('partial factual view');
+  });
+
+  it('bounds descriptive array elements even below the element-count cap', async () => {
+    const source = dossier(1);
+    const item = source.sections!.government_exposure!.evidence![0] as EvidenceItem;
+    item.detail.description = ['x'.repeat(2_000), 'unchanged description'];
+    const { service } = harness({ dossier: source });
+    const result = await run((s, i) => s.getEvidence(ctx, i), service, validInput());
+    const row = (result.data as Array<Record<string, any>>)[0]!;
+    expect(row.facts.description).toHaveLength(2);
+    expect(row.facts.description[0].length).toBeLessThanOrEqual(620);
+    expect(row.facts.description[1]).toBe('unchanged description');
+    expect(row.factsTruncated).toEqual(['description']);
+    expect(result.coverage).toMatchObject({ partial: true });
   });
 
   it('reports complete coverage honestly when every record fits and sections are clean', async () => {
@@ -447,6 +497,214 @@ describe('get_business_development_evidence', () => {
     const { service } = harness({ dossier: dossier(2, 'stale') });
     const result = await run((s, i) => s.getEvidence(ctx, i), service, validInput());
     expect(result.coverage).toMatchObject({ complete: true, partial: true });
+  });
+
+  it('exposes the authorized rows as bounded citation rows through the existing data contract', async () => {
+    const { service } = harness({ dossier: dossier(2) });
+    const result = await run((s, i) => s.getEvidence(ctx, i), service, validInput());
+    const data = result.data as Array<{
+      id: string;
+      title: string;
+      url: string | null;
+      snippet: string;
+      sourceFamily: string;
+      originalSourceName: string | null;
+    }>;
+    expect(data).toHaveLength(2);
+    expect(data[0]).toMatchObject({
+      id: 'award-0',
+      title: 'Acme received a $0M DoD contract, FY2026',
+      url: 'https://example.gov/award/0',
+      sourceFamily: 'usaspending_contract',
+      originalSourceName: 'USAspending',
+    });
+    expect(data[0]!.snippet).toContain('USAspending');
+    // Only the record's own locator is ever used; no provider payload leaks.
+    expect(JSON.stringify(data)).not.toContain('providerPayload');
+    expect(
+      data.every((row) => row.url === null || /^https?:\/\//.test(row.url!)),
+    ).toBe(true);
+  });
+
+  it('never invents a URL when the record carries no locator', async () => {
+    const noLocator = dossier(1);
+    (
+      noLocator.sections!.government_exposure!.evidence![0] as EvidenceItem
+    ).locator = null;
+    const { service } = harness({ dossier: noLocator });
+    const result = await run((s, i) => s.getEvidence(ctx, i), service, validInput());
+    expect((result.data as Array<{ url: unknown }>)[0]!.url).toBeNull();
+  });
+});
+
+describe('resolve_business_development_source citation mapping', () => {
+  const citation = {
+    sourceFamily: 'sam_entity',
+    recordId: 'sam-entity-1',
+    locator: 'https://sam.gov/entity/sam-entity-1',
+    originalSourceName: 'SAM.gov',
+    originalSourceId: 'HC101323FF361',
+    eventDate: null,
+    sourceUpdatedAt: null,
+    retrievedAt: null,
+    title: 'SAM.gov entity registration',
+    relationshipStrength: 'direct',
+    stage: null,
+  };
+  const snapshotEvidence: EvidenceItem = {
+    sourceFamily: 'sam_entity',
+    recordId: 'sam-entity-1',
+    locator: 'https://sam.gov/entity/sam-entity-1',
+    originalSourceName: 'SAM.gov',
+    originalSourceId: 'HC101323FF361',
+    claimType: 'identity',
+    relationshipStrength: 'direct',
+    eventDate: null,
+    effectiveDate: null,
+    fiscalYear: null,
+    stage: null,
+    sourceUpdatedAt: null,
+    fetchedAt: '2026-03-01',
+    scopeChecked: 'uei=UEI1',
+    status: 'available',
+    title: 'SAM.gov entity registration',
+    detail: {
+      uei: 'UEI1',
+      cageCode: '1AB23',
+      dbaName: 'Acme Public Business',
+      physicalAddress: { line1: '123 Main St', city: 'Denver', state: 'CO', zip: '80201', country: 'USA', contactEmail: 'private@example.test' },
+      registrationStatus: 'Active',
+      registrationExpirationDate: '2027-01-01',
+      entityStructure: 'LLC',
+      stateOfIncorporation: 'CO',
+    },
+  };
+
+  it('returns the full server-resolved record with its exact facts through the results contract', async () => {
+    const { service } = harness({
+      brief: {
+        resolveCitation: jest.fn(async () => ({
+          resolvable: true,
+          citation,
+          sourceSnapshotEvidence: snapshotEvidence,
+          currentDossierEvidence: snapshotEvidence,
+        })),
+      },
+    });
+    const result = await run(
+      (s, i) => s.resolveSource(ctx, { ...i, citationIndex: 0 }),
+      service,
+      validInput(),
+    );
+    expect(result.resolvable).toBe(true);
+    expect(result.basis).toBe('current_dossier');
+    expect(result.results).toHaveLength(1);
+    const row = (result.results as Array<Record<string, unknown>>)[0]!;
+    // Facts, dates, stage and locators ride in the SAME row as the labels.
+    expect(row).toMatchObject({
+      id: 'sam-entity-1',
+      url: 'https://sam.gov/entity/sam-entity-1',
+      title: 'SAM.gov entity registration',
+      sourceFamily: 'sam_entity',
+      retrievedAt: '2026-03-01',
+      basis: 'current_dossier',
+    });
+    expect(row.facts).toMatchObject({
+      uei: 'UEI1',
+      cageCode: '1AB23',
+      dbaName: 'Acme Public Business',
+      physicalAddress: { line1: '123 Main St', city: 'Denver', state: 'CO', zip: '80201', country: 'USA' },
+      registrationStatus: 'Active',
+      registrationExpirationDate: '2027-01-01',
+      stateOfIncorporation: 'CO',
+    });
+    expect(JSON.stringify(row)).not.toContain('private@example.test');
+    expect(JSON.stringify(row)).not.toContain('contactEmail');
+    expect(row.citation).toMatchObject({
+      recordId: 'sam-entity-1',
+      title: 'SAM.gov entity registration',
+      locator: 'https://sam.gov/entity/sam-entity-1',
+    });
+  });
+
+  it('a snapshot-only match stays resolvable with a truthful snapshot basis, not claimed as current', async () => {
+    const { service } = harness({
+      brief: {
+        resolveCitation: jest.fn(async () => ({
+          resolvable: true,
+          citation,
+          sourceSnapshotEvidence: snapshotEvidence,
+          currentDossierEvidence: null,
+        })),
+      },
+    });
+    const result = await run(
+      (s, i) => s.resolveSource(ctx, { ...i, citationIndex: 0 }),
+      service,
+      validInput(),
+    );
+    expect(result.resolvable).toBe(true);
+    expect(result.basis).toBe('snapshot_only');
+    expect(result.basisNote).toContain('snapshot');
+    const row = (result.results as Array<Record<string, unknown>>)[0]!;
+    expect(row.basis).toBe('snapshot_only');
+    expect(row.url).toBe('https://sam.gov/entity/sam-entity-1');
+  });
+
+  it('a resolvable citation with no backing evidence record adds no results row', async () => {
+    const { service } = harness({
+      brief: {
+        resolveCitation: jest.fn(async () => ({
+          resolvable: true,
+          citation,
+          sourceSnapshotEvidence: null,
+          currentDossierEvidence: null,
+        })),
+      },
+    });
+    const result = await run(
+      (s, i) => s.resolveSource(ctx, { ...i, citationIndex: 0 }),
+      service,
+      validInput(),
+    );
+    expect(result.resolvable).toBe(true);
+    expect(result.results).toBeUndefined();
+    expect(result.basis).toBe('none');
+  });
+
+  it('source_changed returns ZERO citation rows even though old citation metadata exists', async () => {
+    const { service } = harness({
+      brief: {
+        resolveCitation: jest.fn(async () => ({
+          resolvable: false,
+          limitation: 'source_changed',
+          message:
+            'The cited record is not in the saved snapshot or the current dossier — the source may have changed or been withdrawn since this version was saved.',
+          citation,
+        })),
+      },
+    });
+    const result = await run(
+      (s, i) => s.resolveSource(ctx, { ...i, citationIndex: 0 }),
+      service,
+      validInput(),
+    );
+    expect(result.resolvable).toBe(false);
+    expect(result.limitation).toBe('source_changed');
+    // No citation ROW is produced — `results` must not exist at all.
+    expect('results' in result).toBe(false);
+    expect(result.results).toBeUndefined();
+  });
+
+  it('adds no citation row when the citation index is out of range', async () => {
+    const { service } = harness({ brief: {} });
+    const result = await run(
+      (s, i) => s.resolveSource(ctx, { ...i, citationIndex: 9 }),
+      service,
+      validInput(),
+    );
+    expect(result.resolvable).toBe(false);
+    expect(result.results).toBeUndefined();
   });
 });
 
@@ -484,6 +742,55 @@ describe('get_business_development_brief', () => {
     ],
     sourceSnapshot: null,
     snapshotHash: 'snap',
+  });
+
+  it('caps added compact citation rows at 12 with truthful summary metadata, keeping the full persisted brief', async () => {
+    const brief = {
+      id: randomUUID(),
+      title: 'Acme brief',
+      status: 'draft',
+      currentVersionNumber: 4,
+      updatedAt: '2026-09-20T00:00:00.000Z',
+    };
+    const manyCitations = {
+      ...version(),
+      citations: Array.from({ length: 15 }, (_, i) => ({
+        sourceFamily: 'usaspending_contract',
+        recordId: `award-${i}`,
+        locator: `https://example.gov/award/${i}`,
+        originalSourceName: 'USAspending',
+        originalSourceId: `PIID-${i}`,
+        eventDate: '2026-01-15',
+        sourceUpdatedAt: null,
+        retrievedAt: null,
+        title: `award ${i}`,
+        relationshipStrength: 'direct',
+        stage: 'awarded',
+      })),
+    };
+    const { service } = harness({
+      brief: { getCurrentBrief: jest.fn(async () => ({ brief, currentVersion: manyCitations })) },
+    });
+    const result = await run((s, i) => s.getBrief(ctx, i), service, validInput());
+    const data = result.data as Array<{ id: string; url: string | null }>;
+    expect(data).toHaveLength(12);
+    expect(data[0]).toMatchObject({ id: 'award-0', url: 'https://example.gov/award/0' });
+    expect(data[11]).toMatchObject({ id: 'award-11', url: 'https://example.gov/award/11' });
+    // No row past the cap.
+    expect(JSON.stringify(data)).not.toContain('award-12');
+    // Truthful summary metadata about the added rows only.
+    expect(result.citationsSummary).toMatchObject({
+      total: 15,
+      returned: 12,
+      truncated: true,
+    });
+    // The persisted brief itself is returned verbatim — full citation
+    // index and sections untouched, never renumbered or truncated.
+    const persisted = (result.brief as { citations: unknown[] }).citations;
+    expect(persisted).toHaveLength(15);
+    expect((result.brief as { sections: BriefSections }).sections).toEqual(
+      version().sections,
+    );
   });
 
   it('returns the current versioned brief verbatim', async () => {

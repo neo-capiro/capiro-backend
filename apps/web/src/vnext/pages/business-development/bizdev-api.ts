@@ -484,8 +484,11 @@ export const bizdevKeys = {
   members: (tenantId: string) => ['business-development', tenantId, 'member-options'] as const,
   preferences: (tenantId: string) => ['business-development', tenantId, 'preferences'] as const,
   /** Phase 2 candidate search — keyed by tenant + full search identity. */
-  candidates: (tenantId: string, query: { q: string; limit: number; offset: number }) =>
-    ['business-development', tenantId, 'candidates', query] as const,
+  candidates: (
+    tenantId: string,
+    query: { q: string; service?: string; includeExcluded?: '0' | '1'; limit: number; offset: number },
+  ) =>
+    ['business-development', tenantId, 'candidates', { ...query, includeExcluded: query.includeExcluded ?? '0' }] as const,
   /** Phase 2 company dossier header (section=identity). */
   companyDossierIdentity: (tenantId: string, canonicalEntityId: string) =>
     ['business-development', tenantId, 'dossier', 'company', canonicalEntityId, 'identity'] as const,
@@ -727,6 +730,13 @@ export interface BizDevCandidateSearchResult {
     agencyFilterApplied: boolean;
     issueFilterApplied: boolean;
     geographyFilterApplied: boolean;
+    /**
+     * Service-hypothesis exact filter (optional: absent on a backend without
+     * the filter slice — read optional, never guess).
+     */
+    serviceFilterApplied?: boolean;
+    /** Firm-exclusion filter mode (optional for partial rollout). */
+    exclusionsApplied?: boolean;
     unsupportedFilters: string[];
     more: boolean;
     offset: number;
@@ -737,11 +747,11 @@ export interface BizDevCandidateSearchResult {
 /** GET /api/business-development/search/candidates (q 2..200, limit 1..25, offset 0..500). */
 export function searchBizDevCandidates(
   api: AxiosInstance,
-  query: { q: string; limit: number; offset: number },
+  query: { q: string; service?: string; includeExcluded?: '0' | '1'; limit: number; offset: number },
 ) {
   return api
     .get<BizDevCandidateSearchResult>('/api/business-development/search/candidates', {
-      params: query,
+      params: { ...query, includeExcluded: query.includeExcluded ?? '0' },
     })
     .then((r) => r.data);
 }

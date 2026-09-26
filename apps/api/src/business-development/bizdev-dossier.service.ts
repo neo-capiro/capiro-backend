@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { normalizeCompanyName } from '../vendor-reference/vendor-name.util.js';
@@ -125,6 +126,10 @@ export interface BizDevSearchResult {
     agencyFilterApplied: boolean;
     issueFilterApplied: boolean;
     geographyFilterApplied: boolean;
+    /** True when a nonempty `service` filter was applied in the initial SQL. */
+    serviceFilterApplied: boolean;
+    /** True when excluded (conflictExcluded) canonical entities were filtered out. */
+    exclusionsApplied: boolean;
     unsupportedFilters: string[];
     more: boolean;
     offset: number;
@@ -344,6 +349,9 @@ export class BizDevDossierService {
       agency?: string;
       issue?: string;
       geography?: string;
+      service?: string;
+      /** true opts IN excluded (conflictExcluded) entities; default false. */
+      includeExcluded?: boolean;
       limit?: number;
       offset?: number;
     },
@@ -355,6 +363,25 @@ export class BizDevDossierService {
     const limit = Math.min(Math.max(query.limit ?? SEARCH_LIMIT_DEFAULT, 1), SEARCH_LIMIT_CAP);
     const offset = Math.min(Math.max(query.offset ?? 0, 0), SEARCH_OFFSET_CAP);
 
+    // Service-side guards (DTO validation is the first gate; this is the
+    // service gate so direct callers/tests cannot bypass them).
+    if (query.includeExcluded !== undefined && typeof query.includeExcluded !== 'boolean') {
+      throw new BadRequestException('includeExcluded must be a boolean');
+    }
+    const includeExcluded = query.includeExcluded === true;
+    let serviceFilter: string | null = null;
+    if (query.service !== undefined && query.service !== null) {
+      if (typeof query.service !== 'string') {
+        throw new BadRequestException('service must be a string');
+      }
+      if (query.service.length > SEARCH_TERM_MAX) {
+        throw new BadRequestException('service must be at most 200 characters');
+      }
+      const trimmed = query.service.trim();
+      // Absent/whitespace service means unfiltered.
+      if (trimmed.length > 0) serviceFilter = trimmed;
+    }
+
     const unsupported: string[] = [];
     if (query.agency?.trim()) unsupported.push('agency');
     if (query.issue?.trim()) unsupported.push('issue');
@@ -364,11 +391,34 @@ export class BizDevDossierService {
       agencyFilterApplied: false,
       issueFilterApplied: false,
       geographyFilterApplied: false,
+      serviceFilterApplied: serviceFilter !== null,
+      exclusionsApplied: !includeExcluded,
       unsupportedFilters: unsupported,
       more: false,
       offset,
       limit,
     };
+
+    // Same-tenant prospect predicates, parameterized raw SQL. Exact
+    // case-insensitive match on the trimmed saved hypothesis; NOT EXISTS
+    // drops this tenant's conflictExcluded entities unless opted in. Both
+    // run BEFORE LIMIT/OFFSET so paging is stable over the filtered set.
+    const servicePredicate = serviceFilter
+      ? Prisma.sql` AND EXISTS (
+               SELECT 1 FROM "business_development_prospects" bp
+               WHERE bp."tenant_id" = ${ctx.tenantId}::uuid
+                 AND bp."canonical_entity_id" = ce."id"
+                 AND LOWER(TRIM(bp."service_hypothesis")) = LOWER(${serviceFilter})
+             )`
+      : Prisma.empty;
+    const exclusionPredicate = includeExcluded
+      ? Prisma.empty
+      : Prisma.sql` AND NOT EXISTS (
+               SELECT 1 FROM "business_development_prospects" bp
+               WHERE bp."tenant_id" = ${ctx.tenantId}::uuid
+                 AND bp."canonical_entity_id" = ce."id"
+                 AND bp."conflict_excluded" = true
+             )`;
 
     const orgs = await this.prisma.withTenant(ctx.tenantId, async (tx) =>
       // CanonicalEntity/EntityAlias/EntityIdentifier are mixed-scope tables;
@@ -403,7 +453,7 @@ export class BizDevDossierService {
                  )
                  AND ei."normalized_value" = ${term.toUpperCase()}
              )
-           )
+           )${servicePredicate}${exclusionPredicate}
          ORDER BY ce."canonical_name" ASC, ce."id" ASC
          LIMIT ${limit + 1} OFFSET ${offset}`,
     );

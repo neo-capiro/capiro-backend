@@ -449,6 +449,18 @@ export class SearchCandidatesQueryDto {
   @MaxLength(200)
   geography?: string;
 
+  /** Exact case-insensitive match against the caller tenant's saved
+   *  prospect.serviceHypothesis. Absent/whitespace = unfiltered. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  service?: string;
+
+  /** Strict '0' | '1' opt-in to include conflictExcluded entities. */
+  @IsOptional()
+  @IsIn(['0', '1'])
+  includeExcluded?: '0' | '1';
+
   @IsOptional()
   @IsInt()
   @Min(1)
