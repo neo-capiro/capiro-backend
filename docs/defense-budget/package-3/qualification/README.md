@@ -3,10 +3,12 @@
 Decision: **QUALIFIED_ISOLATED_PILOT**. Package 3 remains **NOT_COMPLETE** for
 production congressional coverage.
 
-This cohort closes the missing proof packet for one bounded HASC RDT&E table.
-It does not register a production manifest, run the lifecycle worker, write a
-database, backfill history, publish facts, send notifications, or activate a
-feature flag.
+This cohort converts the pinned 926-row fixture into native HASC
+`congressional_stage_packet_v1` tables and exercises the durable HASC stage
+factory with an exact persisted parser proof. It is a candidate-only,
+RDT&E-only seam qualification. It does not register a production manifest, run
+the lifecycle worker, write a database, backfill history, publish facts, send
+notifications, or activate a feature flag.
 
 ## Source and governed packet
 
@@ -49,14 +51,19 @@ pnpm --filter @capiro/api qualify:package3-congressional
 
 The command writes `qualification-result.json`. Its persisted parser proof and
 semantic artifact live only in a temporary directory that is removed after the
-run. The retained result records 926 HASC mark assertions, zero request
-assertions, a manual reviewed-packet parser proof, and the durable semantic
-artifact hashes.
+run. The native profile is narrowed to `rdte_pe`. Because the pinned packet has
+no independent Phase 4/5 native identity index, the stage resolution context is
+empty: all 926 native rows remain unresolved omissions and no funding
+assertions are emitted. The result records the manual reviewed-packet parser
+proof and durable semantic artifact hashes.
 
 ## Remaining Package 3 gaps
 
 - This packet is RDT&E-only. The real HASC profile is mixed-family and still
   requires native RDT&E, procurement, O&M, MILCON, and provision composition.
+- An independently sourced Phase 4/5 native identity index is needed before
+  the PE rows can emit accepted HASC funding assertions; the current candidate
+  intentionally remains unresolved.
 - HASC, SASC, HAC-D, SAC-D, and conference routing must become stage-aware; the
   current aggregate defaults cannot safely distinguish the two chambers.
 - A production packet provider must fetch and verify manifest-bound bytes and
