@@ -18,6 +18,9 @@ import type {
   DefenseAcquisitionRecordDetailDto,
   DefenseAcquisitionRecordActionDto,
   DefenseAcquisitionCoverageGapListDto,
+  DefenseSearchResponseDto,
+  DefenseComparisonResponseDto,
+  DefenseProductCoverageResponseDto,
 } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -198,5 +201,43 @@ export class DefenseResearchController {
   @Get('evidence/:evidenceRefId')
   evidence(@Param('evidenceRefId') evidenceRefId: string): Promise<DefenseEvidenceRefDto> {
     return this.service.resolveEvidence(evidenceRefId);
+  }
+
+  @Get('search')
+  search(
+    @Query('q') q: string,
+    @Query('semanticEnabled') semanticEnabled?: string,
+  ): Promise<DefenseSearchResponseDto> {
+    return this.service.search(q, semanticEnabled === 'true');
+  }
+
+  @Get('compare')
+  compare(
+    @Query('subjects') subjects: string,
+  ): Promise<DefenseComparisonResponseDto> {
+    return this.service.compare(subjects.split(',').map(s => s.trim()).filter(Boolean));
+  }
+
+  @Get('product-coverage')
+  productCoverage(
+    @Query('perimeter') perimeter?: string,
+    @Query('component') component?: string,
+    @Query('account') account?: string,
+    @Query('family') family?: string,
+    @Query('fiscalYear') fiscalYear?: string,
+    @Query('edition') edition?: string,
+    @Query('stage') stage?: string,
+    @Query('detail') detail?: string,
+  ): Promise<DefenseProductCoverageResponseDto> {
+    return this.service.productCoverage({
+      perimeter,
+      component,
+      account,
+      family,
+      fiscalYear: fiscalYear ? Number.parseInt(fiscalYear, 10) : undefined,
+      edition,
+      stage,
+      detail,
+    });
   }
 }

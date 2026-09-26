@@ -106,6 +106,12 @@ export function PeResearchView() {
         <a href="/program-elements">Back to Intelligence</a>
       </header>
 
+      <nav className="dr-page-nav" aria-label="Research tools">
+        <a href="/program-elements">Explore / Search</a>
+        <a href="/program-elements/compare">Compare</a>
+        <a href="/program-elements/coverage">Coverage</a>
+      </nav>
+
       <nav className="dr-tabs" aria-label="Defense research views">
         {(['offices', 'relationships', 'acquisition'] as const).map((item) => (
           <button key={item} className={view === item ? 'is-active' : ''} type="button" onClick={() => update('view', item)}>

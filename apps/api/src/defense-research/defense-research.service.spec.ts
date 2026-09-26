@@ -265,4 +265,80 @@ describe('DefenseResearchService', () => {
     expect(result).toMatchObject({ total: 1, items: [{ reason: 'delayed_source', coverageState: 'partial' }] });
     expect(JSON.stringify(result)).not.toContain('allocatedAmountUsd');
   });
+
+  test('keeps exact, governed capability, and disabled semantic search lanes independent', async () => {
+    const pe = { peCode: '0600000A', title: 'Exact Test Program', description: 'Qualified description', service: 'ARMY', serviceCode: 'A', sources: [] };
+    const prisma = {
+      programElement: { findMany: jest.fn().mockResolvedValueOnce([pe]).mockResolvedValueOnce([pe]) },
+      program: { findMany: jest.fn().mockResolvedValue([]) },
+      programElementProject: { findMany: jest.fn().mockResolvedValue([]) },
+      procurementLine: { findMany: jest.fn().mockResolvedValue([]) },
+      programOffice: { findMany: jest.fn().mockResolvedValue([]) },
+      acquisitionRecordRevision: { findMany: jest.fn().mockResolvedValue([]) },
+      defenseContextDocument: { findMany: jest.fn().mockResolvedValue([]) },
+      capability: { findMany: jest.fn().mockResolvedValue([{ id: 'cap-1', name: 'Exact Test', slug: 'exact-test', aliases: [], taxonomyPath: 'Research › Test', matches: [{ peCode: '0600000A', confidence: 'high', matchedOn: 'curated' }] }]) },
+    };
+    const result = await serviceWith(prisma).search('0600000A', false);
+    expect(result.exact).toMatchObject({ status: 'available', items: [{ matchKind: 'exact_id' }] });
+    expect(result.capability).toMatchObject({ status: 'available', items: [{ matchKind: 'capability', score: 1 }] });
+    expect(result.semantic).toMatchObject({ status: 'disabled', items: [] });
+    expect(result.expansion.excludedTerms).toContain('rejected_capability_matches_excluded');
+  });
+
+  test('comparison preserves an observed zero and distinguishes it from missing', async () => {
+    const yearFor = (id: string, request: { toString(): string } | null) => ({ id: `year-${id}`, fy: 2028, request, hascMark: null, sascMark: null, hacDMark: null, sacDMark: null, conference: null, enacted: null, actuals: null, sources: [] });
+    const prisma = {
+      procurementLine: { findUnique: jest.fn(async (args: any) => {
+        const id = args.where.id as string;
+        return args.include ? { id, title: id, years: [yearFor(id, id === 'line-zero' ? { toString: () => '0' } : null)] } : { title: id };
+      }) },
+    };
+    const result = await serviceWith(prisma).compare(['budget_line:line-zero', 'budget_line:line-missing']);
+    const request = result.metrics.find((metric) => metric.metric === 'funding' && metric.key.includes('|request|'));
+    expect(request?.cells).toEqual([
+      expect.objectContaining({ subjectKey: 'budget_line:line-zero', value: '0' }),
+      expect.objectContaining({ subjectKey: 'budget_line:line-missing', value: null, disposition: 'missing', reason: expect.stringContaining('not zero') }),
+    ]);
+  });
+
+  test('aligns contextual passages by exact source-native section identity with independent evidence', async () => {
+    const leftId = '11111111-1111-4111-8111-111111111111';
+    const rightId = '22222222-2222-4222-8222-222222222222';
+    const prisma = {
+      defenseContextDocument: { findUnique: jest.fn(async ({ where }: any) => {
+        const id = where.id as string;
+        const left = id === leftId;
+        return {
+          id, title: left ? 'Earlier policy' : 'Later policy', family: 'policy', publisher: 'Official publisher', sourceUrl: `https://example.mil/${id}`,
+          currentRevision: {
+            id: left ? 'revision-left' : 'revision-right', sourceDocumentId: left ? 'document-left' : 'document-right', contentHash: (left ? 'a' : 'b').repeat(64),
+            version: left ? 'v1' : 'v2', observedAt: new Date(left ? '2026-01-01T00:00:00Z' : '2026-02-01T00:00:00Z'), sourceUrl: `https://example.mil/${id}`,
+            sections: [{ id: left ? 'section-left' : 'section-right', label: 'Acquisition policy', nativeLocator: 'Section 4', contentText: left ? 'Earlier qualified wording.' : 'Later qualified wording.', textAvailability: 'available' }],
+          },
+        };
+      }) },
+    };
+    const result = await serviceWith(prisma).compare([`context_document:${leftId}`, `context_document:${rightId}`]);
+    const passage = result.metrics.find((metric) => metric.metric === 'passage');
+    expect(passage?.cells.map((cell) => cell.value)).toEqual(['Earlier qualified wording.', 'Later qualified wording.']);
+    expect(passage?.cells[0]?.evidence[0]?.sourceDocumentId).toBe('document-left');
+    expect(passage?.cells[1]?.evidence[0]?.sourceDocumentId).toBe('document-right');
+    expect(result.alignments.find((alignment) => alignment.kind === 'passage')?.state).toBe('aligned');
+  });
+
+  test('customer coverage reports observed numerators without claiming an unattested denominator', async () => {
+    const prisma = {
+      defenseBudgetExpectedSource: { findMany: jest.fn().mockResolvedValue([{
+        id: 'slot-1', fiscalYear: 2028, authorityTrack: 'appropriations', stage: 'request', sourceFamily: 'pb_r2', component: 'ARMY', optional: false,
+        metadata: { account: 'RDT&E, Army', edition: 'PB FY2028' }, bundleMembers: [],
+        observations: [{ id: 'obs-1', sourceDocumentId: 'doc-1', contentSha256: 'a'.repeat(64), observationState: 'parsed', supersededByObservationId: null }],
+      }]) },
+      budgetExtractionCandidateV1: { findMany: jest.fn().mockResolvedValue([{ id: 'candidate-1', sourceDocumentId: 'doc-1', currentRunId: 'run-1', runs: [{ id: 'run-1', decision: 'PASS' }], reviewDecisions: [{ runId: 'run-1', decision: 'accept' }] }]) },
+      defenseBudgetActiveSnapshot: { findUnique: jest.fn().mockResolvedValue(null) },
+    };
+    const result = await serviceWith(prisma).productCoverage({ fiscalYear: 2028, component: 'ARMY' });
+    expect(result.denominatorKnown).toBe(false);
+    expect(result.rows[0]).toMatchObject({ discovered: 1, parsed: 1, qualified: 1, published: 0, outcome: 'unknown', denominator: { state: 'unknown', value: null } });
+    expect(JSON.stringify(result)).not.toContain('adapterId');
+  });
 });

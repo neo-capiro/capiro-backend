@@ -29,10 +29,23 @@ import type {
   DefenseAcquisitionRecordActionDto,
   DefenseAcquisitionCoverageGapListDto,
   AcquisitionRelationshipClass,
+  DefenseSearchResponseDto,
+  DefenseSearchLaneDto,
+  DefenseSearchMatchDto,
+  DefenseSearchQueryExpansion,
+  DefenseComparisonResponseDto,
+  DefenseComparisonSubjectDto,
+  DefenseComparisonAlignmentDto,
+  DefenseComparisonCellDto,
+  DefenseComparisonMetricDto,
+  DefenseProductCoverageResponseDto,
+  DefenseProductCoverageRowDto,
+  DefenseProductCoverageDenominatorDto,
 } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 type SubjectType = DefenseDossierDto['subject']['type'];
+type ComparisonSubjectType = SubjectType | 'context_document';
 const EXPECTED_DOSSIER_FIELDS = [
   'mission', 'plans', 'accomplishments', 'strategy_alignment', 'performance_measures',
   'related_program_funding', 'remarks', 'analyst_questions',
@@ -123,6 +136,224 @@ export class DefenseResearchService {
     const stages = [...new Set(cells.map((cell) => cell.basis.stage))].sort();
     const metrics = [...new Set(cells.map((cell) => cell.basis.metric))];
     return { subject, projectionVersion: 'defense-funding-matrix-v1', cells, supported: { fiscalYears: years, editions, stages, metrics, knownAt: false }, limitations: ['Request edition and funding fiscal year remain separate.', 'Arbitrary pre-capture known-at reconstruction is unsupported.', ...(cells.some((cell) => cell.evidence.length === 0) ? ['Some cells lack source-locator proof and are marked partial.'] : [])] };
+  }
+
+  async search(query: string, semanticEnabled = false): Promise<DefenseSearchResponseDto> {
+    const original = query?.trim() ?? '';
+    if (original.length < 2 || original.length > 200) throw new BadRequestException('q must contain between 2 and 200 characters');
+    const normalized = this.normalizeSearch(original);
+    const negativeControls = ['retired_program_elements_excluded', 'rejected_capability_matches_excluded', 'substring_noise_limited'];
+    const [programElements, programs, projects, budgetLines, offices, acquisitions, contextDocuments, capabilities] = await Promise.all([
+      this.prisma.programElement.findMany({
+        where: { retiredAt: null, OR: [{ peCode: { equals: original, mode: 'insensitive' } }, { title: { contains: original, mode: 'insensitive' } }, { description: { contains: original, mode: 'insensitive' } }] },
+        include: { sources: { include: { sourceDocument: true }, orderBy: { observedAt: 'desc' }, take: 1 } }, take: 12,
+      }),
+      this.prisma.program.findMany({
+        where: { status: { not: 'retired' }, OR: [{ canonicalName: { contains: original, mode: 'insensitive' } }, { mdapCode: { equals: original, mode: 'insensitive' } }, { aliases: { some: { OR: [{ alias: { contains: original, mode: 'insensitive' } }, { aliasNormalized: { equals: normalized } }] } } }] },
+        include: { aliases: { orderBy: { confidence: 'desc' }, take: 10 } }, take: 12,
+      }),
+      this.prisma.programElementProject.findMany({
+        where: { OR: [{ projectCode: { equals: original, mode: 'insensitive' } }, { title: { contains: original, mode: 'insensitive' } }, { mission: { contains: original, mode: 'insensitive' } }] },
+        include: { sourceDocument: true }, take: 10,
+      }),
+      this.prisma.procurementLine.findMany({
+        where: { OR: [{ lineItemNumber: { equals: original, mode: 'insensitive' } }, { title: { contains: original, mode: 'insensitive' } }, { relatedPeCode: { equals: original, mode: 'insensitive' } }] },
+        include: { sources: { include: { sourceDocument: true }, orderBy: { observedAt: 'desc' }, take: 1 } }, take: 10,
+      }),
+      this.prisma.programOffice.findMany({ where: { status: 'active', name: { contains: original, mode: 'insensitive' } }, take: 8 }),
+      this.prisma.acquisitionRecordRevision.findMany({ where: { OR: [{ identityKey: { equals: original, mode: 'insensitive' } }, { sourceRecordId: { equals: original, mode: 'insensitive' } }, { title: { contains: original, mode: 'insensitive' } }] }, orderBy: { recordedAt: 'desc' }, take: 16 }),
+      this.prisma.defenseContextDocument.findMany({ where: { eligible: true, qualification: 'qualified', OR: [{ sourceKey: { equals: original, mode: 'insensitive' } }, { title: { contains: original, mode: 'insensitive' } }] }, include: { currentRevision: true }, take: 8 }),
+      this.prisma.capability.findMany({ where: { OR: [{ slug: { equals: original.toLowerCase() } }, { name: { contains: original, mode: 'insensitive' } }, { aliases: { hasSome: [original, normalized, original.toLowerCase()] } }] }, include: { matches: { where: { status: 'accepted' } } }, take: 8 }),
+    ]);
+
+    const exactItems: DefenseSearchMatchDto[] = [];
+    for (const row of programElements) {
+      const source = row.sources[0];
+      const evidence = source ? [this.evidence(`pe-source:${source.id}`, source.sourceDocumentId, source.sourceDocument?.sha256 ?? null, source.docType, source.publisher, source.sourceUrl, source.pageNumber, null, null, source.sourceDocument?.sourceKey ?? null, source.observedAt)] : [];
+      exactItems.push(this.searchMatch('program_element', row.peCode, row.title, row.service ?? row.serviceCode, row.peCode.toUpperCase() === original.toUpperCase() ? 'exact_id' : 'canonical_name', original, ['peCode', row.title.toLowerCase().includes(original.toLowerCase()) ? 'title' : 'description'], evidence, negativeControls));
+    }
+    for (const row of programs) {
+      const alias = row.aliases.find((item) => item.aliasNormalized === normalized || item.alias.toLowerCase().includes(original.toLowerCase()));
+      const kind = row.id === original || row.mdapCode?.toLowerCase() === original.toLowerCase() ? 'exact_id' : alias?.aliasType === 'acronym' ? 'acronym' : alias ? 'alias' : 'canonical_name';
+      const evidence = alias?.sourceUrl ? [this.evidence(`program-alias:${alias.id}`, null, null, 'program_alias', alias.source, alias.sourceUrl, null, null, null, null, alias.createdAt)] : [];
+      exactItems.push(this.searchMatch('program', row.id, row.canonicalName, row.component, kind, original, alias ? [`alias:${alias.aliasType}`] : ['canonicalName'], evidence, negativeControls));
+    }
+    for (const row of projects) {
+      const evidence = row.sourceUrl ? [this.evidence(`project:${row.id}`, row.sourceDocumentId, row.sourceDocument?.sha256 ?? null, 'r2a_project', row.sourceDocument?.title ?? null, row.sourceUrl, row.pageNumber, null, null, row.sourceDocument?.sourceKey ?? null, row.lastSyncedAt)] : [];
+      exactItems.push(this.searchMatch('project', row.id, row.title, `${row.peCode} / ${row.projectCode}`, row.projectCode.toLowerCase() === original.toLowerCase() ? 'exact_id' : 'canonical_name', original, [row.projectCode.toLowerCase() === original.toLowerCase() ? 'projectCode' : row.title.toLowerCase().includes(original.toLowerCase()) ? 'title' : 'mission'], evidence, negativeControls));
+    }
+    for (const row of budgetLines) {
+      const source = row.sources[0];
+      const evidence = source ? [this.evidence(`procurement-source:${source.id}`, source.sourceDocumentId, source.sourceDocument?.sha256 ?? null, 'procurement_jbook', source.sourceDocument?.title ?? source.publisher, source.sourceUrl, source.pageNumber, null, null, source.sourceDocument?.sourceKey ?? null, source.observedAt)] : [];
+      exactItems.push(this.searchMatch('budget_line', row.id, row.title, `${row.appropriationCode} / ${row.lineItemNumber}`, row.lineItemNumber.toLowerCase() === original.toLowerCase() ? 'exact_id' : 'canonical_name', original, [row.lineItemNumber.toLowerCase() === original.toLowerCase() ? 'lineItemNumber' : 'title'], evidence, negativeControls));
+    }
+    for (const row of offices) {
+      const evidence = row.sourceUrl ? [this.evidence(`office-source:${row.id}`, null, null, 'program_office', null, row.sourceUrl, null, null, null, null, row.updatedAt)] : [];
+      exactItems.push(this.searchMatch('office', row.id, row.name, row.service, row.id === original ? 'exact_id' : 'canonical_name', original, ['name'], evidence, negativeControls));
+    }
+    const seenAcquisitions = new Set<string>();
+    for (const row of acquisitions) {
+      if (seenAcquisitions.has(row.identityKey)) continue;
+      seenAcquisitions.add(row.identityKey);
+      const evidence = row.sourceUrl ? [this.evidence(`acquisition-search:${row.id}`, null, row.contentHash, row.recordKind, row.sourceSystem, row.sourceUrl, null, null, null, row.sourceVersion, row.sourceObservedAt ?? row.recordedAt)] : [];
+      exactItems.push(this.searchMatch('acquisition', row.identityKey, row.title ?? row.sourceRecordId, row.recordKind, row.identityKey.toLowerCase() === original.toLowerCase() || row.sourceRecordId.toLowerCase() === original.toLowerCase() ? 'exact_id' : 'canonical_name', original, [row.title?.toLowerCase().includes(original.toLowerCase()) ? 'title' : 'sourceRecordId'], evidence, negativeControls));
+    }
+    for (const row of contextDocuments) {
+      const revision = row.currentRevision;
+      const evidence = row.sourceUrl ? [this.evidence(`context-search:${row.id}`, revision?.sourceDocumentId ?? null, revision?.contentHash ?? null, row.family, row.publisher, revision?.sourceUrl ?? row.sourceUrl, null, null, null, revision?.version ?? null, revision?.observedAt ?? row.updatedAt, revision?.id ?? null)] : [];
+      exactItems.push(this.searchMatch('context_document', row.id, row.title, row.publisher, row.sourceKey.toLowerCase() === original.toLowerCase() ? 'exact_id' : 'canonical_name', original, [row.sourceKey.toLowerCase() === original.toLowerCase() ? 'sourceKey' : 'title'], evidence, negativeControls));
+    }
+    const exact = this.searchLane(this.rankSearch(exactItems));
+
+    const capabilityItems: DefenseSearchMatchDto[] = [];
+    const peCodes = [...new Set(capabilities.flatMap((capability) => capability.matches.map((match) => match.peCode)))];
+    const capabilityPes = peCodes.length ? await this.prisma.programElement.findMany({ where: { peCode: { in: peCodes }, retiredAt: null }, include: { sources: { include: { sourceDocument: true }, orderBy: { observedAt: 'desc' }, take: 1 } } }) : [];
+    const peByCode = new Map(capabilityPes.map((row) => [row.peCode, row]));
+    for (const capability of capabilities) for (const match of capability.matches) {
+      const pe = peByCode.get(match.peCode);
+      if (!pe) continue;
+      const source = pe.sources[0];
+      const evidence = source ? [this.evidence(`pe-source:${source.id}`, source.sourceDocumentId, source.sourceDocument?.sha256 ?? null, source.docType, source.publisher, source.sourceUrl, source.pageNumber, null, null, source.sourceDocument?.sourceKey ?? null, source.observedAt)] : [];
+      capabilityItems.push({ ...this.searchMatch('program_element', pe.peCode, pe.title, capability.taxonomyPath, 'capability', original, [`capability:${capability.name}`, `matchedOn:${match.matchedOn}`], evidence, negativeControls), score: match.confidence === 'high' ? 1 : match.confidence === 'med' ? 0.7 : 0.4 });
+    }
+    const capabilityLane = this.searchLane(this.rankSearch(capabilityItems));
+    const semantic: DefenseSearchLaneDto = semanticEnabled
+      ? { status: 'abstained', reason: 'No qualified semantic index is available; exact and governed capability results remain active.', items: [] }
+      : { status: 'disabled', reason: 'Semantic search is disabled for this request; exact and governed capability results remain active.', items: [] };
+    const expansionTerms = [...new Set([normalized, ...capabilities.flatMap((row) => [row.name, row.slug, ...row.aliases]).filter((term) => this.normalizeSearch(term).includes(normalized) || normalized.includes(this.normalizeSearch(term)))])];
+    const expansion: DefenseSearchQueryExpansion = { original, normalized, terms: expansionTerms, excludedTerms: negativeControls, applied: expansionTerms.length > 1 };
+    return { query: original, expansion, exact, capability: capabilityLane, semantic, limitations: ['Only qualified persisted sources are searched.', 'Capability results use accepted matches only.', 'An empty lane is an abstention, not proof that no relevant record exists.'] };
+  }
+
+  async compare(subjectTokens: readonly string[]): Promise<DefenseComparisonResponseDto> {
+    if (subjectTokens.length < 2 || subjectTokens.length > 5) throw new BadRequestException('Compare requires between 2 and 5 subjects');
+    const parsed = subjectTokens.map((token) => {
+      const split = token.indexOf(':');
+      if (split < 1 || split === token.length - 1) throw new BadRequestException('Each subject must use type:id');
+      return { type: this.comparisonSubjectType(token.slice(0, split)), id: token.slice(split + 1) };
+    });
+    const keys = parsed.map((item) => `${item.type}:${item.id}`);
+    if (new Set(keys).size !== keys.length) throw new BadRequestException('Compare subjects must be distinct');
+    const bundles = await Promise.all(parsed.map(async (item, index) => {
+      if (item.type === 'context_document') {
+        const row = await this.prisma.defenseContextDocument.findUnique({
+          where: { id: this.requireUuid(item.id, 'Comparison subject not found') },
+          include: { currentRevision: { include: { sourceDocument: true, sections: { orderBy: { ordinal: 'asc' } } } } },
+        });
+        if (!row) throw new NotFoundException('Comparison subject not found');
+        const revision = row.currentRevision;
+        const passages = revision?.sections.map((section) => ({
+          key: this.normalizeSearch(section.nativeLocator ?? section.label),
+          label: section.label,
+          value: section.contentText?.slice(0, 500) ?? null,
+          availability: section.textAvailability,
+          evidence: [this.evidence(`context-compare:${section.id}`, revision.sourceDocumentId, revision.contentHash, row.family, row.publisher, revision.sourceUrl ?? row.sourceUrl, null, section.nativeLocator, null, revision.version, revision.observedAt, revision.id)],
+        })) ?? [];
+        return {
+          key: keys[index]!,
+          subject: { type: 'context_document' as const, id: row.id, label: row.title },
+          funding: { cells: [] as DefenseFundingCellDto[] },
+          milestones: { milestones: [] as DefenseMilestoneDto[] },
+          passages,
+        };
+      }
+      const [subject, funding, milestones] = await Promise.all([this.subjectLabel(item.type, item.id), this.fundingMatrix(item.type, item.id), this.milestones(item.type, item.id)]);
+      return { key: keys[index]!, subject, funding, milestones, passages: [] };
+    }));
+    const subjects: DefenseComparisonSubjectDto[] = bundles.map((bundle) => ({ key: bundle.key, ...bundle.subject, availability: bundle.funding.cells.length || bundle.milestones.milestones.length || bundle.passages.length ? 'available' : 'unavailable' }));
+    const metricBases = new Map<string, DefenseFundingCellDto['basis']>();
+    for (const bundle of bundles) for (const cell of bundle.funding.cells) metricBases.set(this.fundingBasisKey(cell.basis), cell.basis);
+    const fundingMetrics: DefenseComparisonMetricDto[] = [...metricBases.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([key, basis]) => ({
+      key,
+      label: `${basis.metric} · FY${basis.fundingFiscalYear} · ${basis.stage}`,
+      period: `FY${basis.fundingFiscalYear}`,
+      metric: basis.metric,
+      unit: basis.unit,
+      grain: 'subject / edition / fiscal year / stage / metric',
+      cells: bundles.map((bundle): DefenseComparisonCellDto => {
+        const cell = bundle.funding.cells.find((candidate) => this.fundingBasisKey(candidate.basis) === key);
+        if (!cell) return { subjectKey: bundle.key, value: null, disposition: bundle.funding.cells.length ? 'missing' : 'unavailable', reason: bundle.funding.cells.length ? 'No qualified observation exists for this exact basis.' : 'This subject has no qualified funding matrix.', evidence: [] };
+        if (cell.value === null) return { subjectKey: bundle.key, value: null, disposition: 'missing', reason: 'The source does not state a value; missing is not zero.', evidence: cell.evidence };
+        return { subjectKey: bundle.key, value: cell.value, disposition: cell.disposition === 'observed' ? 'observed' : 'incompatible', reason: cell.disposition === 'observed' ? null : 'The value is present but its source basis is incomplete.', evidence: cell.evidence };
+      }),
+    }));
+    const passageLabels = new Map<string, string>();
+    for (const bundle of bundles) for (const passage of bundle.passages) if (passage.key) passageLabels.set(passage.key, passage.label);
+    const passageMetrics: DefenseComparisonMetricDto[] = [...passageLabels.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([passageKey, label]) => ({
+      key: `passage|${passageKey}`,
+      label: `Passage · ${label}`,
+      period: null,
+      metric: 'passage',
+      unit: null,
+      grain: 'document revision / native section',
+      cells: bundles.map((bundle): DefenseComparisonCellDto => {
+        if (bundle.subject.type !== 'context_document') return { subjectKey: bundle.key, value: null, disposition: 'incompatible', reason: 'Passage alignment applies only to contextual document subjects.', evidence: [] };
+        const passage = bundle.passages.find((candidate) => candidate.key === passageKey);
+        if (!passage) return { subjectKey: bundle.key, value: null, disposition: 'missing', reason: 'This exact native section is not present in the selected revision.', evidence: [] };
+        if (!passage.value) return { subjectKey: bundle.key, value: null, disposition: 'unavailable', reason: 'The section is identified, but qualified text is unavailable.', evidence: passage.evidence };
+        return { subjectKey: bundle.key, value: passage.value, disposition: passage.availability === 'available' ? 'observed' : 'incompatible', reason: passage.availability === 'available' ? null : 'Only partial section text is available.', evidence: passage.evidence };
+      }),
+    }));
+    const metrics = [...fundingMetrics, ...passageMetrics];
+    const fundingEvidence = Object.fromEntries(bundles.map((bundle) => [bundle.key, bundle.funding.cells.flatMap((cell) => cell.evidence)]));
+    const milestoneEvidence = Object.fromEntries(bundles.map((bundle) => [bundle.key, bundle.milestones.milestones.flatMap((milestone) => milestone.periods.flatMap((period) => period.evidence))]));
+    const passageEvidence = Object.fromEntries(bundles.map((bundle) => [bundle.key, bundle.passages.flatMap((passage) => passage.evidence)]));
+    const alignments: DefenseComparisonAlignmentDto[] = [
+      { kind: 'funding', state: fundingMetrics.length && bundles.every((bundle) => bundle.funding.cells.length) ? 'aligned' : fundingMetrics.length ? 'partial' : 'unavailable', reason: fundingMetrics.length ? 'Cells align only on identical edition, fiscal year, stage, metric, and unit.' : 'No qualified funding observations are available for these subjects.', subjectEvidence: fundingEvidence },
+      { kind: 'milestone', state: bundles.every((bundle) => bundle.milestones.milestones.length) ? 'aligned' : bundles.some((bundle) => bundle.milestones.milestones.length) ? 'partial' : 'unavailable', reason: 'Milestones retain source wording and periods; labels are not treated as equivalent without an exact normalized match.', subjectEvidence: milestoneEvidence },
+      { kind: 'passage', state: passageMetrics.length && bundles.every((bundle) => bundle.passages.length) ? 'aligned' : passageMetrics.length ? 'partial' : 'unavailable', reason: passageMetrics.length ? 'Passages align only on the normalized source-native section label or locator in each selected current revision.' : 'No contextual document sections were selected for passage alignment.', subjectEvidence: passageEvidence },
+      { kind: 'table', state: fundingMetrics.length && bundles.every((bundle) => bundle.funding.cells.length) ? 'aligned' : fundingMetrics.length ? 'partial' : 'unavailable', reason: fundingMetrics.length ? 'Source-native funding tables align on exact edition, fiscal year, stage, metric, and unit; incompatible bases remain separate.' : 'No source-qualified structured funding table cells are available for these subjects.', subjectEvidence: fundingEvidence },
+    ];
+    return { projectionVersion: 'defense-comparison-v1', subjects, metrics, alignments, limitations: ['Null means missing or unavailable and is never converted to zero.', 'Each cell retains independent evidence.', 'Cross-grain or cross-unit values are not combined.'] };
+  }
+
+  async productCoverage(filters: { perimeter?: string; component?: string; account?: string; family?: string; fiscalYear?: number; edition?: string; stage?: string; detail?: string }): Promise<DefenseProductCoverageResponseDto> {
+    if (filters.fiscalYear !== undefined && (!Number.isInteger(filters.fiscalYear) || filters.fiscalYear < 1900 || filters.fiscalYear > 2200)) throw new BadRequestException('fiscalYear must be a four-digit year');
+    const where = {
+      ...(filters.perimeter ? { authorityTrack: filters.perimeter } : {}),
+      ...(filters.component ? { component: filters.component } : {}),
+      ...(filters.family ? { sourceFamily: filters.family } : {}),
+      ...(filters.fiscalYear ? { fiscalYear: filters.fiscalYear } : {}),
+      ...(filters.stage ? { stage: filters.stage } : {}),
+    };
+    const sources = await this.prisma.defenseBudgetExpectedSource.findMany({ where, include: { observations: { select: { id: true, sourceDocumentId: true, contentSha256: true, observationState: true, supersededByObservationId: true } }, bundleMembers: { select: { memberKey: true, budgetActivity: true, volume: true, required: true, memberStatus: true, sourceDocumentId: true } } }, orderBy: [{ fiscalYear: 'desc' }, { sourceFamily: 'asc' }, { component: 'asc' }, { stage: 'asc' }], take: 500 });
+    const scoped = sources.filter((source) => {
+      const metadata = this.record(source.metadata);
+      return (!filters.account || metadata.account === filters.account)
+        && (!filters.edition || metadata.edition === filters.edition)
+        && (!filters.detail || source.bundleMembers.some((member) => member.budgetActivity === filters.detail || member.volume === filters.detail || member.memberKey === filters.detail));
+    });
+    const documentIds = [...new Set(scoped.flatMap((source) => [
+      ...source.observations.filter((row) => row.supersededByObservationId === null && !['blocked', 'withdrawn'].includes(row.observationState)).flatMap((row) => row.sourceDocumentId ? [row.sourceDocumentId] : []),
+      ...source.bundleMembers.flatMap((row) => row.sourceDocumentId ? [row.sourceDocumentId] : []),
+    ]))];
+    const environment = process.env.APP_ENV?.trim() || process.env.CAPIRO_ENVIRONMENT?.trim() || 'unknown';
+    const [candidates, pointer] = await Promise.all([
+      documentIds.length ? this.prisma.budgetExtractionCandidateV1.findMany({ where: { sourceDocumentId: { in: documentIds } }, select: { id: true, sourceDocumentId: true, currentRunId: true, runs: { select: { id: true, decision: true } }, reviewDecisions: { orderBy: { createdAt: 'desc' }, take: 1, select: { runId: true, decision: true } } } }) : Promise.resolve([]),
+      environment !== 'unknown' ? this.prisma.defenseBudgetActiveSnapshot.findUnique({ where: { domain_environment: { domain: 'defense_budget', environment } }, select: { snapshotId: true } }) : Promise.resolve(null),
+    ]);
+    const published = pointer && documentIds.length ? await this.prisma.defenseBudgetCanonicalRow.findMany({ where: { snapshotId: pointer.snapshotId, sourceDocumentId: { in: documentIds } }, select: { sourceDocumentId: true } }) : [];
+    const publishedIds = new Set(published.map((row) => row.sourceDocumentId));
+    const candidatesByDocument = new Map<string, typeof candidates>();
+    for (const candidate of candidates) candidatesByDocument.set(candidate.sourceDocumentId, [...(candidatesByDocument.get(candidate.sourceDocumentId) ?? []), candidate]);
+    const asOf = new Date().toISOString();
+    const rows: DefenseProductCoverageRowDto[] = scoped.map((source) => {
+      const metadata = this.record(source.metadata);
+      const currentDocuments = [...new Set([
+        ...source.observations.filter((row) => row.supersededByObservationId === null && !['blocked', 'withdrawn'].includes(row.observationState)).flatMap((row) => row.sourceDocumentId ? [row.sourceDocumentId] : []),
+        ...source.bundleMembers.filter((row) => row.memberStatus !== 'missing').flatMap((row) => row.sourceDocumentId ? [row.sourceDocumentId] : []),
+      ])];
+      const rowCandidates = currentDocuments.flatMap((id) => candidatesByDocument.get(id) ?? []);
+      const qualifiedDocuments = new Set(rowCandidates.flatMap((candidate) => {
+        const run = candidate.runs.find((item) => item.id === candidate.currentRunId);
+        const review = candidate.reviewDecisions[0];
+        return run?.decision === 'PASS' && review?.runId === run.id && review.decision === 'accept' ? [candidate.sourceDocumentId] : [];
+      }));
+      const detail = source.bundleMembers.length === 1 ? source.bundleMembers[0]!.budgetActivity ?? source.bundleMembers[0]!.volume ?? source.bundleMembers[0]!.memberKey : null;
+      const denominator: DefenseProductCoverageDenominatorDto = { state: 'unknown', value: null, unit: 'physical_documents', reason: 'The source catalog has no completeness attestation for this cohort.', attestedAt: null };
+      return { perimeter: source.authorityTrack, component: source.component, account: typeof metadata.account === 'string' ? metadata.account : null, family: source.sourceFamily, fiscalYear: source.fiscalYear, edition: typeof metadata.edition === 'string' ? metadata.edition : null, stage: source.stage, detail, asOf, denominator, discovered: currentDocuments.length, parsed: new Set(rowCandidates.map((candidate) => candidate.sourceDocumentId)).size, qualified: qualifiedDocuments.size, published: currentDocuments.filter((id) => publishedIds.has(id)).length, outcome: 'unknown', limitations: ['Numerators describe observed physical documents; the complete eligible population is unattested.', ...(source.optional ? ['This catalog slot is optional.'] : []), ...(!source.bundleMembers.length ? ['The catalog slot has no physical bundle manifest.'] : [])] };
+    });
+    return { projectionVersion: 'defense-product-coverage-v1', filters, rows, denominatorKnown: false, limitations: ['Coverage is a customer-safe aggregate and excludes internal queues, adapter identifiers, and operator ownership.', 'No cohort is labelled complete while its denominator is unknown.', 'Account, edition, and detail are shown only when represented by source metadata or a physical bundle manifest.'] };
   }
 
   async listContextDocuments(filters: { family?: string; publisher?: string; status?: string; limit?: number }): Promise<DefenseContextDocumentListDto> {
@@ -314,6 +545,53 @@ export class DefenseResearchService {
     const row = await this.prisma.procurementLine.findUnique({ where: { id }, select: { title: true } }); if (!row) throw new NotFoundException('Defense research subject not found'); return { type, id, label: row.title };
   }
 
+  private normalizeSearch(value: string): string {
+    return value.normalize('NFKC').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+  }
+
+  private searchMatch(
+    type: DefenseSearchMatchDto['subject']['type'],
+    id: string,
+    label: string,
+    secondaryLabel: string | null,
+    matchKind: DefenseSearchMatchDto['matchKind'],
+    queryTerm: string,
+    matchedFields: string[],
+    evidence: DefenseEvidenceRefDto[],
+    negativeControls: string[],
+  ): DefenseSearchMatchDto {
+    return {
+      subject: { type, id, label },
+      secondaryLabel,
+      matchKind,
+      score: matchKind === 'exact_id' ? 1 : matchKind === 'acronym' ? 0.95 : matchKind === 'alias' ? 0.9 : matchKind === 'canonical_name' ? 0.8 : null,
+      explanation: { queryTerm, matchedFields, rationale: matchKind === 'capability' ? 'A governed, accepted capability-to-program-element match supports this result.' : `The query matched ${matchedFields.join(', ')}.`, negativeControls },
+      availability: evidence.length ? 'available' : 'partial',
+      evidence,
+    };
+  }
+
+  private rankSearch(items: DefenseSearchMatchDto[]): DefenseSearchMatchDto[] {
+    const rank: Record<DefenseSearchMatchDto['matchKind'], number> = { exact_id: 0, acronym: 1, alias: 2, canonical_name: 3, capability: 4, semantic: 5 };
+    const deduped = new Map<string, DefenseSearchMatchDto>();
+    for (const item of items) {
+      const key = `${item.subject.type}:${item.subject.id}`;
+      const prior = deduped.get(key);
+      if (!prior || rank[item.matchKind] < rank[prior.matchKind]) deduped.set(key, item);
+    }
+    return [...deduped.values()].sort((left, right) => rank[left.matchKind] - rank[right.matchKind] || left.subject.label.localeCompare(right.subject.label)).slice(0, 25);
+  }
+
+  private searchLane(items: DefenseSearchMatchDto[]): DefenseSearchLaneDto {
+    return items.length
+      ? { status: 'available', reason: null, items }
+      : { status: 'abstained', reason: 'No qualified record met this lane\'s matching controls.', items: [] };
+  }
+
+  private fundingBasisKey(basis: DefenseFundingCellDto['basis']): string {
+    return [basis.requestEdition ?? 'unknown-edition', basis.fundingFiscalYear, basis.stage, basis.metric, basis.unit, basis.currency ?? 'unknown-currency', basis.priceBasis ?? 'unknown-price-basis'].join('|');
+  }
+
   private positionCell(row: any, observationId: string): DefenseFundingCellDto {
     const metric = row.valueKind === 'quantity' ? 'quantity' : row.valueKind === 'unit_cost' ? 'unit_cost' : 'funding';
     const unit = metric === 'quantity' ? 'units' : metric === 'unit_cost' ? 'usd_millions_per_unit' : 'usd_millions';
@@ -405,6 +683,7 @@ export class DefenseResearchService {
     return { evidenceRefId, sourceDocumentId, sourceRevisionId, sourceFamily, publisher, sourceUrl, nativeLocator: { page, section, occurrenceId }, contentHash, edition, observedAt: observedAt?.toISOString() ?? null };
   }
   private subjectType(value: string): SubjectType { if (!['program', 'program_element', 'project', 'budget_line'].includes(value)) throw new BadRequestException('subjectType must be program, program_element, project, or budget_line'); return value as SubjectType; }
+  private comparisonSubjectType(value: string): ComparisonSubjectType { if (!['program', 'program_element', 'project', 'budget_line', 'context_document'].includes(value)) throw new BadRequestException('comparison subject type must be program, program_element, project, budget_line, or context_document'); return value as ComparisonSubjectType; }
   private evidenceUuid(evidenceRefId: string, prefix: string): string {
     return this.requireUuid(evidenceRefId.slice(prefix.length), 'Evidence reference not found');
   }

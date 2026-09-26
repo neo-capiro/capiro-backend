@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
-describe('Defense research Phase 3-6 contracts', () => {
+describe('Defense research Phase 3-8 contracts', () => {
   test('registers the read module and complete route foundation', () => {
     const app = read('src/app.module.ts');
     const controller = read('src/defense-research/defense-research.controller.ts');
@@ -26,9 +26,22 @@ describe('Defense research Phase 3-6 contracts', () => {
       "@Get('acquisition-records/:identityKey')",
       "@Get('acquisition-coverage')",
       "@Get('evidence/:evidenceRefId')",
+      "@Get('search')",
+      "@Get('compare')",
+      "@Get('product-coverage')",
     ]) expect(controller).toContain(route);
     expect(controller.indexOf("@Get('context-documents/:documentId/revisions')")).toBeLessThan(controller.indexOf("@Get('context-documents/:documentId')"));
     expect(controller.indexOf("@Get('acquisition-records/:identityKey/actions')")).toBeLessThan(controller.indexOf("@Get('acquisition-records/:identityKey')"));
+  });
+
+  test('keeps customer search, comparison, and coverage semantics explicit', () => {
+    const service = read('src/defense-research/defense-research.service.ts');
+    expect(service).toContain("status: 'accepted'");
+    expect(service).toContain('No qualified semantic index is available');
+    expect(service).toContain('missing is not zero');
+    expect(service).toContain("state: 'unknown'");
+    expect(service).toContain('No cohort is labelled complete while its denominator is unknown.');
+    expect(service).not.toContain("adapterId: source.adapterId");
   });
 
   test('reads the immutable acquisition ledger without converting associations into allocations', () => {

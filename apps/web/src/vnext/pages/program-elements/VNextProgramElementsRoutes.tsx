@@ -26,6 +26,14 @@ const PeResearchView = lazy(async () => ({
   default: (await import('./PeResearchView.js')).PeResearchView,
 }));
 
+const PeCompareView = lazy(async () => ({
+  default: (await import('./PeCompareView.js')).PeCompareView,
+}));
+
+const PeCoverageView = lazy(async () => ({
+  default: (await import('./PeCoverageView.js')).PeCoverageView,
+}));
+
 const PeProfileVNext = lazy(async () => ({
   default: (await import('./profile/index.js')).PeProfileVNext,
 }));
@@ -62,6 +70,24 @@ export function VNextProgramElementsRoutes() {
       <div className="pe-vnext-root">
         <Suspense fallback={<RouteLoading />}>
           <PeResearchView />
+        </Suspense>
+      </div>
+    );
+  }
+  if (staticSegment === 'compare') {
+    return (
+      <div className="pe-vnext-root">
+        <Suspense fallback={<RouteLoading />}>
+          <PeCompareView />
+        </Suspense>
+      </div>
+    );
+  }
+  if (staticSegment === 'coverage') {
+    return (
+      <div className="pe-vnext-root">
+        <Suspense fallback={<RouteLoading />}>
+          <PeCoverageView />
         </Suspense>
       </div>
     );

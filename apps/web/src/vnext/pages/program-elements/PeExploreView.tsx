@@ -52,6 +52,7 @@ import { EvMark, FilterControl, PeSkeletonBlock, Segmented } from './pe-primitiv
 import { familyById, serviceToApiParam, useDefenseBudgetContext } from './defense-budget-context.js';
 import { DefenseBudgetFamilyCoverageNote } from './defense-budget-coverage.js';
 import { useMe } from '../../../lib/me.js';
+import { DefenseResearchSearchPanel } from './DefenseResearchSearchPanel.js';
 
 const PAGE_SIZE = 50;
 
@@ -250,6 +251,8 @@ export function PeExploreView() {
       </div>
 
       <div className="pe-ws-body">
+        <DefenseResearchSearchPanel />
+
         {me.data?.tenant?.slug === 'capiro-internal' && family.id !== 'All' ? (
           <DefenseBudgetFamilyCoverageNote familyId={family.id} fy={ctx.fy} />
         ) : null}

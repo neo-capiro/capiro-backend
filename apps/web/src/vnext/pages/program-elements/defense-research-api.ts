@@ -7,6 +7,9 @@ import type {
   DefenseAcquisitionRecordDetailDto,
   DefenseAcquisitionRecordActionDto,
   DefenseAcquisitionCoverageGapListDto,
+  DefenseSearchResponseDto,
+  DefenseComparisonResponseDto,
+  DefenseProductCoverageResponseDto,
 } from '@capiro/shared';
 
 export interface OfficeFilters {
@@ -100,4 +103,57 @@ export async function getAcquisitionCoverage(api: AxiosInstance, subjectKind: st
   return (await api.get<DefenseAcquisitionCoverageGapListDto>('/api/defense-budget/acquisition-coverage', {
     params: { subjectKind, subjectKey },
   })).data;
+}
+
+export interface DefenseSearchFilters {
+  q: string;
+  semanticEnabled?: boolean;
+}
+
+export async function searchDefenseBudget(
+  api: AxiosInstance,
+  filters: DefenseSearchFilters,
+) {
+  return (
+    await api.get<DefenseSearchResponseDto>('/api/defense-budget/search', {
+      params: defined({ ...filters }),
+    })
+  ).data;
+}
+
+export interface DefenseCompareFilters {
+  subjects: readonly string[];
+}
+
+export async function compareDefenseBudget(
+  api: AxiosInstance,
+  filters: DefenseCompareFilters,
+) {
+  return (
+    await api.get<DefenseComparisonResponseDto>('/api/defense-budget/compare', {
+      params: { subjects: filters.subjects.join(',') },
+    })
+  ).data;
+}
+
+export interface DefenseProductCoverageFilters {
+  perimeter?: string;
+  component?: string;
+  account?: string;
+  family?: string;
+  fiscalYear?: number;
+  edition?: string;
+  stage?: string;
+  detail?: string;
+}
+
+export async function getDefenseProductCoverage(
+  api: AxiosInstance,
+  filters: DefenseProductCoverageFilters,
+) {
+  return (
+    await api.get<DefenseProductCoverageResponseDto>('/api/defense-budget/product-coverage', {
+      params: defined(filters as Record<string, unknown>),
+    })
+  ).data;
 }

@@ -48,7 +48,7 @@ export const PE_WORKSPACE_ROUTE = '/program-elements';
  * Static PE segments claimed by the vNext module as of Phase 3 (native
  * rebuilds of the canonical mark-up monitor and contact review queue).
  */
-export const PE_CLAIMED_STATIC_SEGMENTS = ['mark-up-monitor', 'contacts', 'research'] as const;
+export const PE_CLAIMED_STATIC_SEGMENTS = ['mark-up-monitor', 'contacts', 'research', 'compare', 'coverage'] as const;
 export type PeStaticSegment = (typeof PE_CLAIMED_STATIC_SEGMENTS)[number];
 
 /**

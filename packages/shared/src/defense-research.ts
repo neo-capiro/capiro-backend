@@ -417,3 +417,141 @@ export interface DefenseAcquisitionCoverageGapListDto {
     subjectKey: string;
   };
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Customer research surfaces (Phase 8)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export type DefenseSearchSubjectType =
+  | 'program_element'
+  | 'program'
+  | 'project'
+  | 'budget_line'
+  | 'office'
+  | 'acquisition'
+  | 'context_document';
+
+export interface DefenseSearchMatchExplanation {
+  queryTerm: string;
+  matchedFields: readonly string[];
+  rationale: string;
+  negativeControls: readonly string[];
+}
+
+export interface DefenseSearchMatchDto {
+  subject: { type: DefenseSearchSubjectType; id: string; label: string };
+  secondaryLabel: string | null;
+  matchKind: 'exact_id' | 'canonical_name' | 'alias' | 'acronym' | 'capability' | 'semantic';
+  score: number | null;
+  explanation: DefenseSearchMatchExplanation;
+  availability: DefenseResearchAvailability;
+  evidence: readonly DefenseEvidenceRefDto[];
+}
+
+export interface DefenseSearchLaneDto {
+  status: 'available' | 'disabled' | 'abstained';
+  reason: string | null;
+  items: readonly DefenseSearchMatchDto[];
+}
+
+export interface DefenseSearchQueryExpansion {
+  original: string;
+  normalized: string;
+  terms: readonly string[];
+  excludedTerms: readonly string[];
+  applied: boolean;
+}
+
+export interface DefenseSearchResponseDto {
+  query: string;
+  expansion: DefenseSearchQueryExpansion;
+  exact: DefenseSearchLaneDto;
+  capability: DefenseSearchLaneDto;
+  semantic: DefenseSearchLaneDto;
+  limitations: readonly string[];
+}
+
+export interface DefenseComparisonSubjectDto {
+  key: string;
+  type: DefenseDossierDto['subject']['type'] | 'context_document';
+  id: string;
+  label: string;
+  availability: DefenseResearchAvailability;
+}
+
+export interface DefenseComparisonCellDto {
+  subjectKey: string;
+  value: string | null;
+  disposition: 'observed' | 'missing' | 'unavailable' | 'incompatible';
+  reason: string | null;
+  evidence: readonly DefenseEvidenceRefDto[];
+}
+
+export interface DefenseComparisonMetricDto {
+  key: string;
+  label: string;
+  period: string | null;
+  metric: string;
+  unit: string | null;
+  grain: string;
+  cells: readonly DefenseComparisonCellDto[];
+}
+
+export interface DefenseComparisonAlignmentDto {
+  kind: 'funding' | 'milestone' | 'passage' | 'table';
+  state: 'aligned' | 'partial' | 'unavailable';
+  reason: string | null;
+  subjectEvidence: Readonly<Record<string, readonly DefenseEvidenceRefDto[]>>;
+}
+
+export interface DefenseComparisonResponseDto {
+  projectionVersion: string;
+  subjects: readonly DefenseComparisonSubjectDto[];
+  metrics: readonly DefenseComparisonMetricDto[];
+  alignments: readonly DefenseComparisonAlignmentDto[];
+  limitations: readonly string[];
+}
+
+export interface DefenseProductCoverageDenominatorDto {
+  state: 'known' | 'unknown';
+  value: number | null;
+  unit: 'physical_documents';
+  reason: string;
+  attestedAt: string | null;
+}
+
+export interface DefenseProductCoverageRowDto {
+  perimeter: string;
+  component: string | null;
+  account: string | null;
+  family: string;
+  fiscalYear: number;
+  edition: string | null;
+  stage: string;
+  detail: string | null;
+  asOf: string;
+  denominator: DefenseProductCoverageDenominatorDto;
+  discovered: number;
+  parsed: number;
+  qualified: number;
+  published: number;
+  outcome: 'complete' | 'partial' | 'unavailable' | 'unknown';
+  limitations: readonly string[];
+}
+
+export interface DefenseProductCoverageResponseDto {
+  projectionVersion: string;
+  filters: {
+    perimeter?: string;
+    component?: string;
+    account?: string;
+    family?: string;
+    fiscalYear?: number;
+    edition?: string;
+    stage?: string;
+    detail?: string;
+  };
+  rows: readonly DefenseProductCoverageRowDto[];
+  denominatorKnown: boolean;
+  limitations: readonly string[];
+}
