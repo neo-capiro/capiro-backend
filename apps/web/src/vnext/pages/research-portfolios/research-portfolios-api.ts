@@ -416,3 +416,75 @@ export async function saveResearchPortfolioOutputToClient(
     { ...input, operationKey: newIdempotencyKey('output-client-file') },
   )).data;
 }
+
+// --- Phase 11: bookmarks, fit, review notes, watch-conversion, operations, tour ---
+
+import type {
+  ResearchPortfolioBookmarkDto,
+  CreateResearchPortfolioBookmarkDto,
+  UpdateResearchPortfolioBookmarkDto,
+  ResearchPortfolioFitDto,
+  ResearchPortfolioReviewNoteDto,
+  ResearchPortfolioWatchConversionPreviewDto,
+  ResearchPortfolioWatchConversionResultDto,
+  ResearchPortfolioOperationDto,
+  ResearchPortfolioTourStateDto,
+} from '@capiro/shared';
+
+export async function listResearchPortfolioBookmarks(api: AxiosInstance, id: string): Promise<readonly ResearchPortfolioBookmarkDto[]> {
+  return (await api.get<readonly ResearchPortfolioBookmarkDto[]>(`/api/research-portfolios/${id}/bookmarks`)).data;
+}
+
+export async function createResearchPortfolioBookmark(
+  api: AxiosInstance, id: string, input: Omit<CreateResearchPortfolioBookmarkDto, 'idempotencyKey'>,
+): Promise<ResearchPortfolioBookmarkDto> {
+  return (await api.post<ResearchPortfolioBookmarkDto>(`/api/research-portfolios/${id}/bookmarks`, { ...input, idempotencyKey: newIdempotencyKey('bookmark') })).data;
+}
+
+export async function updateResearchPortfolioBookmark(
+  api: AxiosInstance, id: string, bookmarkId: string, input: UpdateResearchPortfolioBookmarkDto,
+): Promise<ResearchPortfolioBookmarkDto> {
+  return (await api.patch<ResearchPortfolioBookmarkDto>(`/api/research-portfolios/${id}/bookmarks/${bookmarkId}`, input)).data;
+}
+
+export async function deleteResearchPortfolioBookmark(api: AxiosInstance, id: string, bookmarkId: string): Promise<void> {
+  await api.delete(`/api/research-portfolios/${id}/bookmarks/${bookmarkId}`);
+}
+
+export async function getResearchPortfolioFit(api: AxiosInstance, id: string): Promise<ResearchPortfolioFitDto> {
+  return (await api.get<ResearchPortfolioFitDto>(`/api/research-portfolios/${id}/fit`)).data;
+}
+
+export async function refreshResearchPortfolioFit(api: AxiosInstance, id: string): Promise<ResearchPortfolioFitDto> {
+  return (await api.post<ResearchPortfolioFitDto>(`/api/research-portfolios/${id}/fit/refresh`)).data;
+}
+
+export async function addResearchPortfolioReviewNote(
+  api: AxiosInstance, id: string, reviewId: string, body: string, expectedRevision: number,
+): Promise<ResearchPortfolioReviewNoteDto> {
+  return (await api.post<ResearchPortfolioReviewNoteDto>(`/api/research-portfolios/${id}/reviews/${reviewId}/notes`, { body, expectedRevision, idempotencyKey: newIdempotencyKey('review-note') })).data;
+}
+
+export async function previewResearchPortfolioWatchConversion(api: AxiosInstance, id: string): Promise<ResearchPortfolioWatchConversionPreviewDto> {
+  return (await api.post<ResearchPortfolioWatchConversionPreviewDto>(`/api/research-portfolios/${id}/watch-conversion/preview`)).data;
+}
+
+export async function applyResearchPortfolioWatchConversion(api: AxiosInstance, id: string): Promise<ResearchPortfolioWatchConversionResultDto> {
+  return (await api.post<ResearchPortfolioWatchConversionResultDto>(`/api/research-portfolios/${id}/watch-conversion/apply`)).data;
+}
+
+export async function getResearchPortfolioOperation(api: AxiosInstance, id: string, operationId: string): Promise<ResearchPortfolioOperationDto> {
+  return (await api.get<ResearchPortfolioOperationDto>(`/api/research-portfolios/${id}/operations/${operationId}`)).data;
+}
+
+export async function reconcileResearchPortfolioOperation(api: AxiosInstance, id: string, operationId: string): Promise<ResearchPortfolioOperationDto> {
+  return (await api.post<ResearchPortfolioOperationDto>(`/api/research-portfolios/${id}/operations/${operationId}/reconcile`)).data;
+}
+
+export async function getResearchPortfolioTourState(api: AxiosInstance, tourVersion: string): Promise<ResearchPortfolioTourStateDto> {
+  return (await api.get<ResearchPortfolioTourStateDto>(`/api/research-portfolios/tour-state/${encodeURIComponent(tourVersion)}`)).data;
+}
+
+export async function updateResearchPortfolioTourState(api: AxiosInstance, tourVersion: string, status: 'dismissed' | 'completed'): Promise<ResearchPortfolioTourStateDto> {
+  return (await api.post<ResearchPortfolioTourStateDto>(`/api/research-portfolios/tour-state/${encodeURIComponent(tourVersion)}`, { status })).data;
+}

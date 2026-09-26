@@ -14,6 +14,8 @@ import {
   changeResearchPortfolioLifecycle,
   decideResearchPortfolioMember,
   getResearchPortfolio,
+  getResearchPortfolioTourState,
+  updateResearchPortfolioTourState,
   linkResearchPortfolioClient,
   putResearchPortfolioGrant,
   removeResearchPortfolioGrant,
@@ -73,14 +75,16 @@ export function ResearchPortfolioDetailPage() {
   const api = useApi();
   const queryClient = useQueryClient();
   const [notice, setNotice] = useState<string | null>(null);
-  const tourStorageKey = `capiro:research-portfolio-tour:${id}`;
-  const [showTour, setShowTour] = useState(
-    () =>
-      typeof window !== 'undefined' &&
-      !window.localStorage
-        .getItem(`capiro:research-portfolio-tour:${id}`)
-        ?.startsWith(RESEARCH_PORTFOLIO_TOUR_VERSION),
-  );
+  const tourState = useQuery({
+    queryKey: ['research-portfolios', 'tour-state', RESEARCH_PORTFOLIO_TOUR_VERSION],
+    queryFn: () => getResearchPortfolioTourState(api, RESEARCH_PORTFOLIO_TOUR_VERSION),
+  });
+  const [showTour, setShowTour] = useState(true);
+  useEffect(() => {
+    if (tourState.data) {
+      setShowTour(tourState.data.status === 'active');
+    }
+  }, [tourState.data]);
   const detail = useQuery({
     queryKey: researchPortfolioKeys.detail(id),
     queryFn: () => getResearchPortfolio(api, id),
@@ -192,10 +196,7 @@ export function ResearchPortfolioDetailPage() {
               className="rp-button"
               type="button"
               onClick={() => {
-                window.localStorage.setItem(
-                  tourStorageKey,
-                  `${RESEARCH_PORTFOLIO_TOUR_VERSION}:dismissed`,
-                );
+                updateResearchPortfolioTourState(api, RESEARCH_PORTFOLIO_TOUR_VERSION, 'dismissed').catch(() => {});
                 setShowTour(false);
               }}
             >
@@ -205,10 +206,7 @@ export function ResearchPortfolioDetailPage() {
               className="rp-button rp-button--primary"
               type="button"
               onClick={() => {
-                window.localStorage.setItem(
-                  tourStorageKey,
-                  `${RESEARCH_PORTFOLIO_TOUR_VERSION}:completed`,
-                );
+                updateResearchPortfolioTourState(api, RESEARCH_PORTFOLIO_TOUR_VERSION, 'completed').catch(() => {});
                 setShowTour(false);
               }}
             >
