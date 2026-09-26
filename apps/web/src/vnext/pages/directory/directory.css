@@ -2348,6 +2348,19 @@
   .capiro-vnext-root .capiro-directory-tabs { padding: 6px var(--capiro-space-04) 0; }
   .capiro-vnext-root .capiro-directory-search { width: 100%; }
 
+  /* ── Mobile fixes for truncation issues ─────────────────────────────────── */
+  /* ISSUE 1: Reduce stat label truncation on legislator cards */
+  .capiro-vnext-root .capiro-directory-stat { padding: 8px 6px; }
+  .capiro-vnext-root .capiro-directory-stat__label { font-size: 8px; letter-spacing: 0.3px; }
+
+  /* ISSUE 2: Fix 'Email on file' truncation on legislator cards */
+  .capiro-vnext-root .capiro-directory-leg-card__footer-dot { display: none; }
+  .capiro-vnext-root .capiro-directory-leg-card__foot .capiro-directory-cell__action { display: none; }
+  .capiro-vnext-root .capiro-directory-leg-card__email { white-space: normal; text-overflow: initial; overflow: visible; }
+
+  /* ISSUE 3: Reduce tab label truncation on mobile tab strip */
+  .capiro-vnext-root .capiro-directory-tabs .capiro-top-nav-item { padding: 9px 10px; font-size: 13px; }
+
   /* Rows stack so no cell is clipped and the page never scrolls sideways
      (941:2888: "list/card surfaces stack to one column"). All three grids —
      the roster modifier is applied without the base class, so it must be named

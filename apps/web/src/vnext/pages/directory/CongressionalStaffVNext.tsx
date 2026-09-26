@@ -56,6 +56,20 @@ function memberRoleLabel(member: DirectoryEntry): string {
   );
 }
 
+/** Compact role for the dense list row — prefers the chamber-appropriate title
+ *  over a long leadership position that would always truncate in the grid cell.
+ *  The full leadership title shows on the rail and profile where it has room. */
+function memberListRoleLabel(member: DirectoryEntry): string {
+  return (
+    member.title ||
+    (member.chamber === 'Senate'
+      ? 'United States Senator'
+      : member.chamber === 'Governor'
+        ? 'Governor'
+        : 'Member of Congress')
+  );
+}
+
 /** Office column for a member row: the office label over chamber/seat/party. */
 function memberOfficeLines(member: DirectoryEntry): { primary: string; secondary: string } {
   const seat = seatLabel(member);
@@ -354,7 +368,7 @@ function OfficeRows({
   const officeLines = memberOfficeLines(member);
   const committeeLines = memberCommitteeLines(office);
   const isSelected = member.id === selectedId;
-  const memberRole = memberRoleLabel(member);
+  const memberRole = memberListRoleLabel(member);
 
   return (
     <>
