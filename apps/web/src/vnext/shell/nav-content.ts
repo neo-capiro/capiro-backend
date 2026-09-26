@@ -13,6 +13,7 @@ export const SHELL_NAV_DESCRIPTIONS: Readonly<Record<string, string>> = {
   'committee-staff': 'Authorizing & appropriations staff',
   'department-of-war': 'Pentagon leadership & acquisition officials',
   'state-legislators': 'Statehouse chambers, members & sponsorship',
+  'state-committees': 'Florida legislative committees, rosters & proceedings',
   'data-explorer': 'Cross-entity query and export',
   legiwatch: 'Federal and state legislative monitoring',
   'program-elements': 'Budget lines, funding and lifecycle',

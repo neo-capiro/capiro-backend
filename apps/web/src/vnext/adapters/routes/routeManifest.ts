@@ -150,6 +150,12 @@ export const VNEXT_ROUTE_MANIFEST: VNextRouteDefinition[] = [
         path: DIRECTORY_ROUTES.stateLegislators,
         availability: 'existing',
       },
+      {
+        id: 'state-committees',
+        label: 'State Committees',
+        path: DIRECTORY_ROUTES.stateCommittees,
+        availability: 'existing',
+      },
     ],
   },
   {

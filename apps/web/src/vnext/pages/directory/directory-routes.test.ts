@@ -11,12 +11,13 @@ import {
 import { VNEXT_ROUTE_GAPS, VNEXT_ROUTE_MANIFEST } from '../../adapters/routes/routeManifest.js';
 
 describe('Directory vNext route contract', () => {
-  test('declares the four first-class list routes from the handoff', () => {
+  test('declares the five first-class list routes from the handoff', () => {
     expect(Object.values(DIRECTORY_ROUTES)).toEqual([
       '/directory/congressional-staff',
       '/directory/committee-staff',
       '/directory/department-of-war',
       '/directory/state-legislators',
+      '/directory/state-committees',
     ]);
   });
 
@@ -27,6 +28,7 @@ describe('Directory vNext route contract', () => {
       'Committee Staff',
       'Department of War',
       'State Legislators',
+      'State Committees',
     ]);
   });
 
@@ -82,6 +84,7 @@ describe('vNext route manifest', () => {
       'committee-staff',
       'department-of-war',
       'state-legislators',
+      'state-committees',
     ]);
     for (const child of directory?.children ?? []) {
       expect(child.availability).toBe('existing');
