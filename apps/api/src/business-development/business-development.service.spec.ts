@@ -795,6 +795,14 @@ describe('resolveIdentity (unresolved → confirmed)', () => {
     const row = h.fx.rows.get(created.id as string)!;
     row.linkedClientId = clientId;
     row.convertedAt = new Date();
+    // Set up client so atomic reconciliation works
+    h.fx.clients.set(clientId, {
+      id: clientId,
+      name: 'Acme Client',
+      tenantId,
+      status: 'ACTIVE',
+      canonicalEntityId: 'canon-private-ours', // Initial value
+    });
 
     // Correction: canonical A → canonical B on the SAME prospect row.
     const res = (await h.service.resolveIdentity(ctx, created.id as string, {
@@ -916,6 +924,94 @@ describe('resolveIdentity (unresolved → confirmed)', () => {
     await expect(
       h.service.resolveIdentity(ctx, randomUUID(), { canonicalEntityId: 'canon-public' }),
     ).rejects.toThrow(NotFoundException);
+  });
+
+  test('converted prospect → identity change allowed with atomic client reconciliation', async () => {
+    const h = makeHarness(baseFx());
+    const created = (await h.service.create(ctx, { displayName: 'Acme' })) as never as Record<
+      string,
+      unknown
+    >;
+    // Simulate conversion by setting linkedClientId and convertedAt
+    const clientId = randomUUID();
+    const prospectRow = h.fx.rows.get(created.id as string)!;
+    prospectRow.linkedClientId = clientId;
+    prospectRow.convertedAt = new Date();
+    h.fx.clients.set(clientId, {
+      id: clientId,
+      name: 'Linked Client Co',
+      tenantId,
+      status: 'ACTIVE',
+      canonicalEntityId: 'canon-merged', // Initial value
+    });
+
+    // Identity change should succeed and atomically update client
+    const res = (await h.service.resolveIdentity(ctx, created.id as string, {
+      canonicalEntityId: 'canon-public',
+    })) as { outcome: string; prospect: Record<string, unknown> };
+
+    expect(res.outcome).toBe('resolved');
+    expect(res.prospect.canonicalEntityId).toBe('canon-public');
+
+    // Verify the linked client's canonical entity was also updated
+    const updatedClient = h.fx.clients.get(clientId)!;
+    expect(updatedClient.canonicalEntityId).toBe('canon-public');
+
+    // Prospect still linked to same client
+    expect(prospectRow.linkedClientId).toBe(clientId);
+  });
+
+  test('non-converted prospect → can still change identity freely', async () => {
+    const h = makeHarness(baseFx());
+    const created = (await h.service.create(ctx, { displayName: 'Acme' })) as never as Record<
+      string,
+      unknown
+    >;
+    // Prospect has not been converted (linkedClientId is null, convertedAt is null)
+
+    // Should be able to change identity without any error
+    const res = (await h.service.resolveIdentity(ctx, created.id as string, {
+      canonicalEntityId: 'canon-public',
+    })) as { outcome: string; prospect: Record<string, unknown> };
+
+    expect(res.outcome).toBe('resolved');
+    expect(res.prospect.canonicalEntityId).toBe('canon-public');
+  });
+
+  test('converted prospect identity change atomically reconciles client (tenant-scoped)', async () => {
+    // Test that the fix correctly applies within a tenant
+    const h = makeHarness(baseFx());
+    const created = (await h.service.create(ctx, { displayName: 'Acme' })) as never as Record<
+      string,
+      unknown
+    >;
+    // Simulate conversion with the same tenant
+    const clientId = randomUUID();
+    const prospectRow = h.fx.rows.get(created.id as string)!;
+    prospectRow.linkedClientId = clientId;
+    prospectRow.convertedAt = new Date();
+    h.fx.clients.set(clientId, {
+      id: clientId,
+      name: 'Acme Client',
+      tenantId,
+      status: 'ACTIVE',
+      canonicalEntityId: 'canon-private-ours', // Initial value
+    });
+
+    // Identity change should succeed and atomically update client
+    const res = (await h.service.resolveIdentity(ctx, created.id as string, {
+      canonicalEntityId: 'canon-public',
+    })) as { outcome: string; prospect: Record<string, unknown> };
+
+    expect(res.outcome).toBe('resolved');
+    expect(res.prospect.canonicalEntityId).toBe('canon-public');
+
+    // Verify the linked client's canonical entity was also updated
+    const updatedClient = h.fx.clients.get(clientId)!;
+    expect(updatedClient.canonicalEntityId).toBe('canon-public');
+
+    // Prospect still linked to same client
+    expect(prospectRow.linkedClientId).toBe(clientId);
   });
 });
 
