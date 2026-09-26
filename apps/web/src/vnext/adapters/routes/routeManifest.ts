@@ -46,10 +46,13 @@ export const VNEXT_ROUTE_MANIFEST: VNextRouteDefinition[] = [
         meFeature: 'businessDevelopment',
       },
       {
-        id: 'portfolio-program-elements',
-        label: 'Defense Budget',
-        path: '/program-elements',
+        id: 'portfolio-research-portfolios',
+        label: 'Research Portfolios',
+        path: '/research-portfolios',
         availability: 'existing',
+        // Navigation-only rollout switch. Saved records and authorized direct
+        // reads remain compatible when the entry is hidden.
+        featureFlag: 'research_portfolios',
       },
       {
         id: 'portfolio-coalitions',

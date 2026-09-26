@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "measuredAt": "2026-09-26T03:33:31.4758495Z",
+  "verificationStatus": "captured_read_only",
+  "aws": {
+    "profile": "capiro-dev",
+    "account": "967807252336",
+    "callerArn": "arn:aws:iam::967807252336:user/capirocli",
+    "region": "us-east-1"
+  },
+  "localBaseline": {
+    "headSha": "114b96b8ad6ae701d3cc5c6a40d062408223ee28",
+    "matchesAnyDeployedGitTag": false,
+    "note": "Local baseline and deployed image identities are recorded independently; no deployment match is inferred."
+  },
+  "queriedCategories": [
+    "sts caller identity",
+    "ECS clusters",
+    "ECS service desired/running/pending counts and rollout state",
+    "ECS task-definition container image references",
+    "ECR image digests and tags for pinned or mutable deployed references"
+  ],
+  "clusters": [
+    {
+      "name": "capiro-dev",
+      "services": [
+        { "name": "capiro-dev-web-vnext", "status": "ACTIVE", "desired": 1, "running": 1, "pending": 0, "rolloutState": "COMPLETED", "updatedAt": "2026-09-26T03:11:42.237Z", "taskDefinition": "capiro-dev-web-vnext:366", "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:ee47ca57653a9fae9eeb35444d467721c4e5770ba43a1a9bbbc71fe6851a715f", "deployedGitTag": "0113f3dd45cfbb2ab6c44a1b09743a682df1bb5a" },
+        { "name": "capiro-dev-api", "status": "ACTIVE", "desired": 2, "running": 2, "pending": 0, "rolloutState": "COMPLETED", "updatedAt": "2026-09-26T01:30:13.334Z", "taskDefinition": "capiro-dev-api:479", "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:06fb54947e1485b1973568840b571efedb0c8515a2f449f0c53727c4e01aa646", "deployedGitTag": "c53d7439043c431bdcb29a3bef1332a4c682c6a4" },
+        { "name": "capiro-dev-engagement-api", "status": "ACTIVE", "desired": 2, "running": 2, "pending": 0, "rolloutState": "COMPLETED", "updatedAt": "2026-09-25T04:20:46.958Z", "taskDefinition": "capiro-dev-engagement-api:125", "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:381edc069993df55672df1ec5c23be8c925be870a1a25e065155faefefd1871f", "deployedGitTag": "e76f306515a227df481e4190001da8bdd73b840c-engagement" },
+        { "name": "capiro-dev-intel-api", "status": "ACTIVE", "desired": 1, "running": 1, "pending": 0, "rolloutState": "COMPLETED", "updatedAt": "2026-09-23T01:52:05.878Z", "taskDefinition": "capiro-dev-intel-api:56", "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/intel-api@sha256:b4f04c02011646d87fe0e3ab38d1e03d76e5fdc195a3825472bb6015f36dd8cc", "deployedGitTag": "78d236e9164b2b4b3cc8669e84ce3e6bc8cfcc49" },
+        { "name": "capiro-dev-meriv2-orchestrator", "status": "ACTIVE", "desired": 1, "running": 1, "pending": 0, "rolloutState": "COMPLETED", "updatedAt": "2026-09-25T19:25:03.564Z", "taskDefinition": "capiro-dev-meriv2-orchestrator:84", "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:227550d5862037ef026b04e3a7cb8f77e3c3467f409e3ab5144ad0ce725018de", "deployedGitTag": null },
+        { "name": "capiro-dev-workspace", "status": "ACTIVE", "desired": 1, "running": 1, "pending": 0, "rolloutState": "COMPLETED", "updatedAt": "2026-09-25T20:00:52.087Z", "taskDefinition": "capiro-dev-workspace:43", "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/workspace@sha256:16d7630ab9b7bc4919404b8481f241fb4b4e3713e8611c14fab5e3f08b3290e3", "deployedGitTag": null },
+        { "name": "capiro-dev-onboard-api", "status": "ACTIVE", "desired": 1, "running": 1, "pending": 0, "rolloutState": "COMPLETED", "updatedAt": "2026-09-23T06:35:09.266Z", "taskDefinition": "capiro-dev-onboard-api:4", "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/onboard-api:latest", "resolvedDigestAtMeasurement": "sha256:f6134113197abd5ca05d84c3eacf238fe63ed9706a1d8f83d73dd01bf6fd5a59", "deployedGitTag": "2dc38493c540a98bd755d9d150c277f3b22b66ec" },
+        { "name": "capiro-dev-api-strategy", "status": "ACTIVE", "desired": 1, "running": 1, "pending": 0, "rolloutState": "COMPLETED", "updatedAt": "2026-09-25T20:01:30.912Z", "taskDefinition": "capiro-dev-api-strategy:28", "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api-strategy@sha256:7649985ff08f3a80223c18fb79ffd3c7301a2ac77145a82e84d6f7156f778bdc", "deployedGitTag": null }
+      ]
+    },
+    {
+      "name": "capiro-staging",
+      "services": [
+        { "name": "capiro-staging-api", "status": "ACTIVE", "desired": 1, "running": 1, "pending": 0, "rolloutState": "COMPLETED", "updatedAt": "2026-09-24T01:25:13.448Z", "taskDefinition": "capiro-staging-api:13", "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/staging/api@sha256:1e9f107f8e4d6de043c03ea832e39b709cd5da69e5674ad14423d9ad9a6e57b0", "deployedGitTag": "a88cbfca0cdbd9477176e05908794826bfc7c4a6" },
+        { "name": "capiro-staging-web", "status": "ACTIVE", "desired": 1, "running": 1, "pending": 0, "rolloutState": "COMPLETED", "updatedAt": "2026-09-23T10:19:17.093Z", "taskDefinition": "capiro-staging-web:2", "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/staging/web:latest", "resolvedDigestAtMeasurement": "sha256:fa8c0e403710cf9bfde265cae5bd41a40c43273e86143912d66b0f5df29670cd", "deployedGitTag": "8a3b54b32572bd7c1e79915385e32f7d466fd941" }
+      ]
+    },
+    {
+      "name": "capiro-prod-os-capiro",
+      "services": [
+        { "name": "Capiro-prod-os-capiro-Compute-ApiServiceC9037CF0-271wqftyKSBl", "status": "ACTIVE", "desired": 2, "running": 2, "pending": 0, "rolloutState": "COMPLETED", "updatedAt": "2026-09-23T21:35:08.715Z", "taskDefinition": "CapiroprodoscapiroComputeApiTaskDefB957247B:9", "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/prod-os-capiro/api:latest", "resolvedDigestAtMeasurement": "sha256:5b0bd03910257003b7eaebc752ca45d3c57ca1da1f5f8c1b77070015c83ffa56", "deployedGitTag": null },
+        { "name": "Capiro-prod-os-capiro-Compute-WebService7F8A1763-uVz22D2J01GB", "status": "ACTIVE", "desired": 2, "running": 2, "pending": 0, "rolloutState": "COMPLETED", "updatedAt": "2026-09-23T09:35:38.885Z", "taskDefinition": "CapiroprodoscapiroComputeWebTaskDefC38AE643:9", "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/prod-os-capiro/web:latest", "resolvedDigestAtMeasurement": "sha256:bedf09f9e108b2a30e0e891a494279baccf876c41369204767b26dc93fc17182", "deployedGitTag": null },
+        { "name": "capiro-prod-intel-api", "status": "ACTIVE", "desired": 1, "running": 1, "pending": 0, "rolloutState": "COMPLETED", "updatedAt": "2026-09-23T12:35:24.756Z", "taskDefinition": "capiro-prod-intel-api:1", "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/prod-os-capiro/intel-api:latest", "resolvedDigestAtMeasurement": "sha256:c117a733c3a957a6304ed623fe1427bcb8b7f2e9c8d91ed5dae4bec06a8102ed", "deployedGitTag": null }
+      ]
+    }
+  ],
+  "explicitUnknowns": {
+    "buildIds": "unknown_not_queried",
+    "migrationStatus": "unknown_not_queried",
+    "databaseLoginCapability": "unknown_not_queried",
+    "featureFlags": "unknown_not_queried",
+    "activeCanonicalSnapshotManifestIds": "unknown_not_queried",
+    "queueScheduleState": "unknown_not_queried"
+  },
+  "limitations": [
+    "ECS rollout completion and running counts do not prove application health, route ownership, migration state, or corpus completeness.",
+    "For task definitions that reference a mutable latest tag, the ECR digest was resolved at measurement time and does not prove the digest originally pulled by every running task.",
+    "No database login, secret retrieval, feature-flag read, source activation, replay, or mutation was attempted."
+  ]
+}

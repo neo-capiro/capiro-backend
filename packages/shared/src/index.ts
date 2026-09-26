@@ -5289,6 +5289,8 @@ export function advocacyAttributionNeedsReview(sourceType: string, metadata: unk
 }
 
 export * from './legislative-research.js';
+export * from './research-portfolios.js';
+export * from './defense-research.js';
 
 export * from './legiwatch-query.js';
 export * from './legiwatch-phase8.js';

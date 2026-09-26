@@ -1,0 +1,124 @@
+import { BadRequestException } from '@nestjs/common';
+import { DefenseResearchService } from './defense-research.service.js';
+
+function serviceWith(prisma: Record<string, unknown>) {
+  return new DefenseResearchService(prisma as never);
+}
+
+describe('DefenseResearchService', () => {
+  test('returns every dossier field and makes gaps explicit', async () => {
+    const prisma = {
+      programElement: {
+        findUnique: jest.fn().mockResolvedValue({
+          peCode: '0600000A', title: 'Test PE', description: 'Mission text',
+          raw: { plans: 'Plan text' }, sources: [],
+        }),
+      },
+    };
+    const dossier = await serviceWith(prisma).dossier('program_element', '0600000A');
+    expect(dossier.fields).toHaveLength(8);
+    expect(dossier.fields.find((field) => field.field === 'mission')).toMatchObject({ availability: 'partial', value: 'Mission text' });
+    expect(dossier.fields.find((field) => field.field === 'accomplishments')).toMatchObject({ availability: 'unavailable', value: null });
+    expect(dossier.coverage).toEqual({ state: 'partial', expectedFields: 8, availableFields: 0, partialFields: 2, unavailableFields: 6 });
+  });
+
+  test('filters project milestones by the exact project identity and preserves time precision', async () => {
+    const period = (id: string, projectCode: string, rawText: string) => ({
+      id, metadata: { projectCode }, periodRole: 'planned', rawText,
+      periodKind: 'fiscal_quarter', exactDate: null, rangeStart: null, rangeEnd: null,
+      fiscalYear: 2028, fiscalQuarter: 2, calendarQuarter: null,
+      sourceUrl: 'https://example.mil/r2a.pdf', pageNumber: 8, sourceDocumentId: 'doc-1',
+      sourceDocument: { sha256: 'a'.repeat(64), title: 'FY28 R-2A', sourceKey: 'pb-fy28', ingestedAt: new Date('2027-03-01T00:00:00Z') },
+      createdAt: new Date('2027-03-01T00:00:00Z'),
+    });
+    const prisma = {
+      programElementProject: { findFirst: jest.fn().mockResolvedValue({ id: 'project-id', peCode: '0600000A', projectCode: 'AA1', title: 'Exact project' }) },
+      programElement: { findUnique: jest.fn().mockResolvedValue({
+        title: 'Parent PE',
+        milestones: [
+          { id: 'keep', milestoneType: 'Development complete', status: 'planned', notes: null, lastSyncedAt: new Date('2027-03-01T00:00:00Z'), schedulePeriods: [period('p1', 'AA1', '2Q FY2028')] },
+          { id: 'drop', milestoneType: 'Testing', status: 'planned', notes: null, lastSyncedAt: new Date('2027-03-01T00:00:00Z'), schedulePeriods: [period('p2', 'BB2', '3Q FY2028')] },
+        ],
+      }) },
+    };
+    const result = await serviceWith(prisma).milestones('project', '0600000A:AA1');
+    expect(result.subject).toEqual({ type: 'project', id: 'project-id', label: 'Exact project' });
+    expect(result.milestones).toHaveLength(1);
+    expect(result.milestones[0]?.periods[0]).toMatchObject({ rawText: '2Q FY2028', precision: 'fiscal_quarter', fiscalYear: 2028, quarter: 2 });
+  });
+
+  test('distinguishes an observed zero from a missing funding cell', async () => {
+    const source = {
+      id: 'src-1', sourceDocumentId: 'doc-1', sourceUrl: 'https://example.mil/p40.pdf', pageNumber: 4,
+      sourceDocument: { sha256: 'b'.repeat(64), title: 'P-40', sourceKey: 'pb-fy28', ingestedAt: new Date('2027-03-01T00:00:00Z') },
+    };
+    const prisma = {
+      procurementLine: { findUnique: jest.fn()
+        .mockResolvedValueOnce({ title: 'Procurement line' })
+        .mockResolvedValueOnce({ id: 'line-1', years: [{ id: 'year-1', fy: 2028, request: { toString: () => '0' }, hascMark: null, sascMark: null, hacDMark: null, sacDMark: null, conference: null, enacted: null, actuals: null, sources: [source] }] }) },
+    };
+    const matrix = await serviceWith(prisma).fundingMatrix('budget_line', 'line-1');
+    expect(matrix.cells.find((cell) => cell.basis.stage === 'request')).toMatchObject({ value: '0', disposition: 'observed' });
+    expect(matrix.cells.find((cell) => cell.basis.stage === 'hascMark')).toMatchObject({ value: null, disposition: 'missing' });
+    expect(matrix.supported).toMatchObject({ fiscalYears: [2028], editions: ['pb-fy28'], knownAt: false });
+    await expect(serviceWith(prisma).fundingMatrix('budget_line', 'line-1', '2026-01-01')).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  test('applies publisher and status filters to live transcript and hearing adapters', async () => {
+    const prisma = {
+      defenseContextDocument: { findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
+      officialHearingTranscript: { findMany: jest.fn().mockResolvedValue([{ id: 'T1', hearingId: 'H1', title: 'Official transcript', congress: 119, committeeName: 'HASC', publishedAt: null, date: new Date('2026-09-01T00:00:00Z'), sourceUrl: 'https://govinfo.gov/t1' }]), count: jest.fn().mockResolvedValue(1) },
+      committeeHearing: { findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
+      federalRegisterDocument: { findMany: jest.fn().mockResolvedValue([]) },
+    };
+    const result = await serviceWith(prisma).listContextDocuments({ publisher: 'govinfo', status: 'published' });
+    expect(result.items.map((item) => item.id)).toEqual(['transcript:T1']);
+    expect(result.denominator).toEqual({ eligible: 1, observed: 1, qualified: 1, available: 1, partial: 0, unavailable: 0 });
+  });
+
+  test('reports real denominators independently from the returned page limit', async () => {
+    const row = { id: 'doc-1', family: 'policy_manual', publisher: 'DoD', title: 'Policy', congress: null, committee: null, publishedAt: new Date('2026-01-01T00:00:00Z'), status: 'published', currentRevisionId: null, transcriptAvailability: 'not_applicable', coverage: 'available', sourceUrl: null };
+    const count = jest.fn(async ({ where }: any) => {
+      if (where.coverage === 'available') return 1;
+      if (where.coverage === 'partial') return 1;
+      if (where.coverage === 'unavailable') return 1;
+      if (where.eligible === true) return 2;
+      if (where.qualification === 'qualified') return 2;
+      return 3;
+    });
+    const prisma = { defenseContextDocument: { findMany: jest.fn().mockResolvedValue([row]), count } };
+    const result = await serviceWith(prisma).listContextDocuments({ family: 'policy_manual', limit: 1 });
+    expect(result.items).toHaveLength(1);
+    expect(result.denominator).toEqual({ eligible: 2, observed: 3, qualified: 2, available: 1, partial: 1, unavailable: 1 });
+  });
+
+  test('adapts an official policy family with partial coverage and exact CFR occurrences', async () => {
+    const rule = {
+      documentNumber: '2026-12345', type: 'RULE', title: 'Defense acquisition rule', abstract: 'This final rule updates acquisition requirements.',
+      agencyNames: ['Department of Defense'], publicationDate: new Date('2026-08-20T00:00:00Z'),
+      cfrReferences: ['48 CFR 225.872'], htmlUrl: 'https://federalregister.gov/d/2026-12345', pdfUrl: null,
+      syncedAt: new Date('2026-08-21T00:00:00Z'),
+    };
+    const prisma = {
+      federalRegisterDocument: { findUnique: jest.fn().mockResolvedValue(rule) },
+    };
+    const service = serviceWith(prisma);
+    const detail = await service.contextDocument('federal-register:2026-12345');
+    const refs = await service.references('federal-register:2026-12345');
+    expect(detail).toMatchObject({ family: 'federal_register_rule', publisher: 'Department of Defense', coverage: 'partial', transcriptAvailability: 'not_applicable' });
+    expect(detail.sections[0]).toMatchObject({ nativeLocator: '2026-12345', textAvailability: 'partial' });
+    expect(refs[0]).toMatchObject({ exactSpan: '48 CFR 225.872', originalWording: '48 CFR 225.872', referenceType: 'cfr_reference', disposition: 'unresolved' });
+    expect(refs[0]?.evidenceRef).toMatchObject({ sourceRevisionId: 'federal-register:2026-12345:v1', nativeLocator: { section: '2026-12345' } });
+  });
+
+  test('represents a hearing without a qualified transcript as an honest unavailable case', async () => {
+    const prisma = { committeeHearing: { findUnique: jest.fn().mockResolvedValue({
+      id: 'H2', title: 'Hearing without transcript', congress: 119, committeeName: 'SASC',
+      date: new Date('2026-09-02T00:00:00Z'), eventStatus: 'completed', url: 'https://armed-services.senate.gov/h2',
+    }) } };
+    const detail = await serviceWith(prisma).contextDocument('hearing:H2');
+    expect(detail).toMatchObject({ coverage: 'unavailable', transcriptAvailability: 'unavailable', currentRevisionId: null, coverageReason: expect.stringContaining('No qualified official transcript') });
+    expect(detail.revisions).toEqual([]);
+    expect(detail.sections).toEqual([]);
+  });
+});

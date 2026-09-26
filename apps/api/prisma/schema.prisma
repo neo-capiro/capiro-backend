@@ -332,6 +332,16 @@ model Tenant {
   bizdevWatchSourceStates            BusinessDevelopmentWatchSourceState[]
   bizdevAlerts                       BusinessDevelopmentAlert[]
   bizdevAlertDeliveries              BusinessDevelopmentAlertDelivery[]
+  researchPortfolios                 ResearchPortfolio[]
+  researchPortfolioGrants            ResearchPortfolioGrant[]
+  researchPortfolioClientLinks       ResearchPortfolioClientLink[]
+  researchPortfolioMembers           ResearchPortfolioMember[]
+  researchPortfolioEvents            ResearchPortfolioEvent[]
+  researchPortfolioTemplates         ResearchPortfolioTemplate[]
+  researchTaxonomyVersions           ResearchTaxonomyVersion[]
+  researchPortfolioRuleVersions      ResearchPortfolioRuleVersion[]
+  researchPortfolioRulePreviews      ResearchPortfolioRulePreview[]
+  researchPortfolioRecomputeJobs     ResearchPortfolioRecomputeJob[]
 
   @@map("tenants")
 }
@@ -591,6 +601,8 @@ model User {
   outreachDraftVersions            OutreachDraftVersion[]         @relation("OutreachDraftVersionAuthor")
   outreachSendIntents              OutreachSendIntent[]           @relation("OutreachSendIntentOwner")
   savedOpportunitySearches         SavedOpportunitySearch[]       @relation("SavedOpportunitySearchOwner")
+  ownedResearchPortfolios          ResearchPortfolio[]            @relation("ResearchPortfolioOwner")
+  researchPortfolioGrants          ResearchPortfolioGrant[]       @relation("ResearchPortfolioGrantPrincipal")
   // Business Development Phase 1 adds NO User back-relations: prospect
   // owner/created-by and activity actor are plain UUID columns with no DB
   // foreign key (mirroring Client.createdByUserId), so a departed user never
@@ -938,9 +950,11 @@ model Client {
   canonicalEntity          CanonicalEntity?                    @relation("ClientCanonicalEntity", fields: [canonicalEntityId], references: [id], onDelete: Restrict, map: "clients_canonical_entity_fkey")
   // Business Development Phase 1 back-relation.
   bizdevProspects          BusinessDevelopmentProspect[]       @relation("BizDevProspectLinkedClient")
+  researchPortfolioLinks  ResearchPortfolioClientLink[]
 
   @@index([tenantId], map: "clients_tenant_idx")
   @@index([tenantId, name], map: "clients_tenant_name_idx")
+  @@unique([tenantId, id], map: "clients_tenant_id_key")
   @@map("clients")
 }
 
@@ -5461,6 +5475,7 @@ model SourceDocument {
   // Canonical procurement line citations (procurement_line_source).
   procurementLineSources           ProcurementLineSource[]
   programIdentityCrosswalks        ProgramIdentityCrosswalk[]
+  defenseContextRevisions          DefenseContextDocumentRevision[]
 
   @@unique([sourceKey, sha256], map: "source_document_source_key_sha256_key")
   @@index([documentType, fiscalYear, budgetCycle, component], map: "source_document_type_fy_cycle_component_idx")
@@ -15225,4 +15240,499 @@ model BusinessDevelopmentAlertDelivery {
   @@unique([tenantId, alertId, recipientUserId, channel], map: "business_development_alert_deliveries_recipient_channel_key")
   @@index([tenantId, recipientUserId, deliveredAt(sort: Desc)], map: "business_development_alert_deliveries_tenant_recipient_idx")
   @@map("business_development_alert_deliveries")
+}
+
+// ---------------------------------------------------------------------------
+// Research Portfolios Phase 1 — manual collections, authority and history.
+// ---------------------------------------------------------------------------
+
+enum ResearchPortfolioMode {
+  manual
+  rules
+  hybrid
+
+  @@map("research_portfolio_mode")
+}
+
+enum ResearchPortfolioLifecycle {
+  active
+  archived
+
+  @@map("research_portfolio_lifecycle")
+}
+
+enum ResearchPortfolioGrantRole {
+  owner
+  editor
+  viewer
+
+  @@map("research_portfolio_grant_role")
+}
+
+enum ResearchPortfolioMemberKind {
+  program
+  program_element
+  project
+  budget_line
+  award
+
+  @@map("research_portfolio_member_kind")
+}
+
+enum ResearchPortfolioMemberDisposition {
+  included
+  candidate
+  withdrawn
+  excluded
+  unresolved
+
+  @@map("research_portfolio_member_disposition")
+}
+
+enum ResearchPortfolioMemberOrigin {
+  manual
+  rule
+  import
+
+  @@map("research_portfolio_member_origin")
+}
+
+enum ResearchPortfolioEventKind {
+  created
+  updated
+  archived
+  restored
+  grant_upserted
+  grant_removed
+  client_linked
+  client_unlinked
+  member_added
+  member_decided
+  member_excluded
+  member_reinstated
+  member_resolved
+  rule_published
+
+  @@map("research_portfolio_event_kind")
+}
+
+model ResearchPortfolio {
+  id          String                     @id @default(uuid()) @db.Uuid
+  tenantId    String                     @map("tenant_id") @db.Uuid
+  ownerUserId String                     @map("owner_user_id") @db.Uuid
+  name        String                     @db.VarChar(200)
+  purpose     String?
+  mode        ResearchPortfolioMode      @default(manual)
+  lifecycle   ResearchPortfolioLifecycle @default(active)
+  revision    Int                        @default(1)
+  archivedAt  DateTime?                  @map("archived_at") @db.Timestamptz(6)
+  createdAt   DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant      Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner       User                          @relation("ResearchPortfolioOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  grants      ResearchPortfolioGrant[]
+  clientLinks ResearchPortfolioClientLink[]
+  members     ResearchPortfolioMember[]
+  events      ResearchPortfolioEvent[]
+  ruleVersions ResearchPortfolioRuleVersion[]
+  rulePreviews ResearchPortfolioRulePreview[]
+  recomputeJobs ResearchPortfolioRecomputeJob[]
+
+  @@unique([tenantId, id], map: "research_portfolios_tenant_id_key")
+  @@index([tenantId, lifecycle, updatedAt(sort: Desc)], map: "research_portfolios_tenant_lifecycle_updated_idx")
+  @@index([tenantId, ownerUserId], map: "research_portfolios_tenant_owner_idx")
+  @@map("research_portfolios")
+}
+
+model ResearchPortfolioGrant {
+  id              String                     @id @default(uuid()) @db.Uuid
+  tenantId        String                     @map("tenant_id") @db.Uuid
+  portfolioId     String                     @map("portfolio_id") @db.Uuid
+  principalUserId String                     @map("principal_user_id") @db.Uuid
+  role            ResearchPortfolioGrantRole
+  grantedByUserId String                     @map("granted_by_user_id") @db.Uuid
+  createdAt       DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio     ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  principalUser User              @relation("ResearchPortfolioGrantPrincipal", fields: [principalUserId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, portfolioId, principalUserId], map: "research_portfolio_grants_portfolio_user_key")
+  @@index([tenantId, principalUserId, role], map: "research_portfolio_grants_tenant_principal_role_idx")
+  @@map("research_portfolio_grants")
+}
+
+model ResearchPortfolioClientLink {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  portfolioId    String   @map("portfolio_id") @db.Uuid
+  clientId       String   @map("client_id") @db.Uuid
+  linkedByUserId String   @map("linked_by_user_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  client    Client            @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, portfolioId, clientId], map: "research_portfolio_client_links_portfolio_client_key")
+  @@index([tenantId, clientId], map: "research_portfolio_client_links_tenant_client_idx")
+  @@map("research_portfolio_client_links")
+}
+
+model ResearchPortfolioMember {
+  id              String                             @id @default(uuid()) @db.Uuid
+  tenantId        String                             @map("tenant_id") @db.Uuid
+  portfolioId     String                             @map("portfolio_id") @db.Uuid
+  targetKind      ResearchPortfolioMemberKind        @map("target_kind")
+  targetId        String                             @map("target_id") @db.VarChar(256)
+  label           String?                            @db.VarChar(300)
+  disposition     ResearchPortfolioMemberDisposition @default(included)
+  origin          ResearchPortfolioMemberOrigin      @default(manual)
+  reason          String?
+  evidence        Json                               @default("{}")
+  qualification   String?                            @db.VarChar(64)
+  ruleVersionId   String?                            @map("rule_version_id") @db.Uuid
+  decisionRevision Int?                              @map("decision_revision")
+  unresolvedInput Json?                              @map("unresolved_input")
+  resolvedAt      DateTime?                          @map("resolved_at") @db.Timestamptz(6)
+  createdByUserId String                             @map("created_by_user_id") @db.Uuid
+  updatedByUserId String                             @map("updated_by_user_id") @db.Uuid
+  revision        Int                                @default(1)
+  createdAt       DateTime                           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime                           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, portfolioId, targetKind, targetId], map: "research_portfolio_members_target_key")
+  @@index([tenantId, portfolioId, disposition, updatedAt(sort: Desc)], map: "research_portfolio_members_disposition_idx")
+  @@map("research_portfolio_members")
+}
+
+/// Append-only aggregate history. There is intentionally no updatedAt field.
+model ResearchPortfolioEvent {
+  id                String                     @id @default(uuid()) @db.Uuid
+  tenantId          String                     @map("tenant_id") @db.Uuid
+  portfolioId       String                     @map("portfolio_id") @db.Uuid
+  eventKind         ResearchPortfolioEventKind @map("event_kind")
+  aggregateRevision Int                        @map("aggregate_revision")
+  actorUserId       String                     @map("actor_user_id") @db.Uuid
+  occurredAt        DateTime                   @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  idempotencyKey    String?                    @map("idempotency_key") @db.VarChar(128)
+  payloadFingerprint String?                   @map("payload_fingerprint") @db.VarChar(64)
+  payload           Json                       @default("{}")
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, portfolioId, aggregateRevision, id], map: "research_portfolio_events_revision_id_key")
+  @@unique([tenantId, idempotencyKey], map: "research_portfolio_events_idempotency_key")
+  @@index([tenantId, portfolioId, occurredAt(sort: Desc)], map: "research_portfolio_events_timeline_idx")
+  @@map("research_portfolio_events")
+}
+
+// ---------------------------------------------------------------------------
+// Research Portfolios Phase 2 — immutable taxonomy, templates and rules.
+// ---------------------------------------------------------------------------
+
+enum ResearchPortfolioRecomputeStatus {
+  queued
+  running
+  partial
+  completed
+  failed
+  cancelled
+
+  @@map("research_portfolio_recompute_status")
+}
+
+model ResearchTaxonomyVersion {
+  id            String    @id @default(uuid()) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  version       Int
+  label         String    @db.VarChar(160)
+  vocabulary    String    @db.VarChar(64) // official_current | official_historical | capiro | tenant
+  source        String?   @db.Text
+  provenance    Json      @default("{}")
+  authorUserId  String    @map("author_user_id") @db.Uuid
+  publishedAt   DateTime  @default(now()) @map("published_at") @db.Timestamptz(6)
+  predecessorId String?   @map("predecessor_id") @db.Uuid
+
+  tenant   Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  concepts ResearchTaxonomyConcept[]
+  templateVersions ResearchPortfolioTemplateVersion[]
+  ruleVersions ResearchPortfolioRuleVersion[]
+
+  @@unique([tenantId, id], map: "research_taxonomy_versions_tenant_id_key")
+  @@unique([tenantId, version], map: "research_taxonomy_versions_tenant_version_key")
+  @@index([tenantId, publishedAt(sort: Desc)], map: "research_taxonomy_versions_tenant_published_idx")
+  @@map("research_taxonomy_versions")
+}
+
+model ResearchTaxonomyConcept {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  taxonomyVersionId String   @map("taxonomy_version_id") @db.Uuid
+  stableKey         String   @map("stable_key") @db.VarChar(128)
+  name              String   @db.VarChar(200)
+  kind              String   @db.VarChar(48)
+  parentKey         String?  @map("parent_key") @db.VarChar(128)
+  aliases           String[] @default([])
+  provenance        Json     @default("{}")
+  qualification     String   @default("reviewed") @db.VarChar(32)
+
+  taxonomyVersion ResearchTaxonomyVersion @relation(fields: [tenantId, taxonomyVersionId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, taxonomyVersionId, stableKey], map: "research_taxonomy_concepts_version_key")
+  @@index([tenantId, taxonomyVersionId, parentKey], map: "research_taxonomy_concepts_parent_idx")
+  @@map("research_taxonomy_concepts")
+}
+
+model ResearchPortfolioTemplate {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  name        String    @db.VarChar(200)
+  description String?   @db.Text
+  archivedAt  DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant   Tenant                             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  versions ResearchPortfolioTemplateVersion[]
+
+  @@unique([tenantId, id], map: "research_portfolio_templates_tenant_id_key")
+  @@unique([tenantId, name], map: "research_portfolio_templates_tenant_name_key")
+  @@index([tenantId, archivedAt, createdAt(sort: Desc)], map: "research_portfolio_templates_tenant_archive_idx")
+  @@map("research_portfolio_templates")
+}
+
+/// Immutable template history. There is intentionally no updatedAt field.
+model ResearchPortfolioTemplateVersion {
+  id                  String                @id @default(uuid()) @db.Uuid
+  tenantId            String                @map("tenant_id") @db.Uuid
+  templateId          String                @map("template_id") @db.Uuid
+  version             Int
+  schemaVersion       Int                   @default(1) @map("schema_version")
+  expression          Json
+  readableExpression  String                @map("readable_expression") @db.Text
+  mode                ResearchPortfolioMode
+  qualificationPolicy Json                  @map("qualification_policy")
+  taxonomyVersionId   String?               @map("taxonomy_version_id") @db.Uuid
+  authorUserId        String                @map("author_user_id") @db.Uuid
+  predecessorId       String?               @map("predecessor_id") @db.Uuid
+  operationKey        String                @map("operation_key") @db.VarChar(128)
+  payloadFingerprint  String                @map("payload_fingerprint") @db.Char(64)
+  publishedAt         DateTime              @default(now()) @map("published_at") @db.Timestamptz(6)
+
+  template        ResearchPortfolioTemplate          @relation(fields: [tenantId, templateId], references: [tenantId, id], onDelete: Cascade)
+  taxonomyVersion ResearchTaxonomyVersion?           @relation(fields: [tenantId, taxonomyVersionId], references: [tenantId, id], onDelete: Restrict)
+  predecessor     ResearchPortfolioTemplateVersion?  @relation("ResearchPortfolioTemplatePredecessor", fields: [tenantId, predecessorId], references: [tenantId, id], onDelete: Restrict)
+  successors      ResearchPortfolioTemplateVersion[] @relation("ResearchPortfolioTemplatePredecessor")
+  ruleVersions    ResearchPortfolioRuleVersion[]
+
+  @@unique([tenantId, templateId, version], map: "research_portfolio_template_versions_number_key")
+  @@unique([tenantId, id], map: "research_portfolio_template_versions_tenant_id_key")
+  @@unique([tenantId, operationKey], map: "research_portfolio_template_versions_operation_key")
+  @@index([tenantId, templateId, publishedAt(sort: Desc)], map: "research_portfolio_template_versions_published_idx")
+  @@map("research_portfolio_template_versions")
+}
+
+/// Immutable published rule history. There is intentionally no updatedAt field.
+model ResearchPortfolioRuleVersion {
+  id                  String                @id @default(uuid()) @db.Uuid
+  tenantId            String                @map("tenant_id") @db.Uuid
+  portfolioId         String                @map("portfolio_id") @db.Uuid
+  version             Int
+  schemaVersion       Int                   @default(1) @map("schema_version")
+  expression          Json
+  readableExpression  String                @map("readable_expression") @db.Text
+  mode                ResearchPortfolioMode
+  qualificationPolicy Json                  @map("qualification_policy")
+  taxonomyVersionId   String?               @map("taxonomy_version_id") @db.Uuid
+  templateVersionId   String?               @map("template_version_id") @db.Uuid
+  previewHash         String                @map("preview_hash") @db.Char(64)
+  authorUserId        String                @map("author_user_id") @db.Uuid
+  predecessorId       String?               @map("predecessor_id") @db.Uuid
+  publishedAt         DateTime              @default(now()) @map("published_at") @db.Timestamptz(6)
+
+  tenant          Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio       ResearchPortfolio             @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  taxonomyVersion ResearchTaxonomyVersion?       @relation(fields: [tenantId, taxonomyVersionId], references: [tenantId, id], onDelete: Restrict)
+  templateVersion ResearchPortfolioTemplateVersion? @relation(fields: [tenantId, templateVersionId], references: [tenantId, id], onDelete: Restrict)
+  predecessor     ResearchPortfolioRuleVersion?  @relation("ResearchPortfolioRulePredecessor", fields: [tenantId, predecessorId], references: [tenantId, id], onDelete: Restrict)
+  successors      ResearchPortfolioRuleVersion[] @relation("ResearchPortfolioRulePredecessor")
+  jobs            ResearchPortfolioRecomputeJob[]
+
+  @@unique([tenantId, portfolioId, version], map: "research_portfolio_rule_versions_number_key")
+  @@unique([tenantId, id], map: "research_portfolio_rule_versions_tenant_id_key")
+  @@index([tenantId, portfolioId, publishedAt(sort: Desc)], map: "research_portfolio_rule_versions_published_idx")
+  @@map("research_portfolio_rule_versions")
+}
+
+model ResearchPortfolioRulePreview {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @map("tenant_id") @db.Uuid
+  portfolioId        String   @map("portfolio_id") @db.Uuid
+  portfolioRevision  Int      @map("portfolio_revision")
+  previewHash        String   @map("preview_hash") @db.Char(64)
+  requestFingerprint String   @map("request_fingerprint") @db.Char(64)
+  expression         Json
+  manifest           Json
+  createdByUserId    String   @map("created_by_user_id") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt          DateTime @map("expires_at") @db.Timestamptz(6)
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, portfolioId, previewHash], map: "research_portfolio_rule_previews_hash_key")
+  @@index([tenantId, portfolioId, expiresAt], map: "research_portfolio_rule_previews_expiry_idx")
+  @@map("research_portfolio_rule_previews")
+}
+
+model ResearchPortfolioRecomputeJob {
+  id                String                           @id @default(uuid()) @db.Uuid
+  tenantId          String                           @map("tenant_id") @db.Uuid
+  portfolioId       String                           @map("portfolio_id") @db.Uuid
+  ruleVersionId     String                           @map("rule_version_id") @db.Uuid
+  operationKey      String                           @map("operation_key") @db.VarChar(128)
+  status            ResearchPortfolioRecomputeStatus @default(queued)
+  cursor            String?
+  processedCount    Int                              @default(0) @map("processed_count")
+  matchedCount      Int                              @default(0) @map("matched_count")
+  unknownCount      Int                              @default(0) @map("unknown_count")
+  leaseOwner        String?                          @map("lease_owner") @db.VarChar(128)
+  leaseUntil        DateTime?                        @map("lease_until") @db.Timestamptz(6)
+  attempt           Int                              @default(0)
+  result            Json                             @default("{}")
+  errorCode         String?                          @map("error_code") @db.VarChar(128)
+  createdAt         DateTime                         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime                         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant      Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio   ResearchPortfolio            @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  ruleVersion ResearchPortfolioRuleVersion @relation(fields: [tenantId, ruleVersionId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, operationKey], map: "research_portfolio_recompute_jobs_operation_key")
+  @@index([tenantId, status, leaseUntil], map: "research_portfolio_recompute_jobs_claim_idx")
+  @@index([tenantId, portfolioId, createdAt(sort: Desc)], map: "research_portfolio_recompute_jobs_portfolio_idx")
+  @@map("research_portfolio_recompute_jobs")
+}
+
+// ---------------------------------------------------------------------------
+// Defense Research Phase 4 — qualified contextual source projection and exact
+// reference occurrences. Global public-source tables; tenant ACLs are applied
+// by the product readers that combine them with tenant research state.
+// ---------------------------------------------------------------------------
+
+model DefenseContextDocument {
+  id                     String    @id @default(uuid()) @db.Uuid
+  sourceKey              String    @unique @map("source_key") @db.VarChar(256)
+  family                 String    @db.VarChar(64)
+  publisher              String    @db.VarChar(200)
+  publisherHost          String?   @map("publisher_host") @db.VarChar(255)
+  title                  String    @db.Text
+  congress               Int?
+  committee              String?   @db.VarChar(300)
+  publicationPeriodStart DateTime? @map("publication_period_start") @db.Date
+  publicationPeriodEnd   DateTime? @map("publication_period_end") @db.Date
+  publishedAt            DateTime? @map("published_at") @db.Timestamptz(6)
+  status                 String    @db.VarChar(48)
+  transcriptAvailability String    @map("transcript_availability") @db.VarChar(32)
+  coverage               String    @db.VarChar(24)
+  coverageReason         String?   @map("coverage_reason") @db.Text
+  qualification          String    @db.VarChar(32)
+  sourceUrl              String?   @map("source_url") @db.Text
+  eligible               Boolean   @default(true)
+  currentRevisionId      String?   @unique(map: "defense_context_documents_current_revision_key") @map("current_revision_id") @db.Uuid
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  currentRevision    DefenseContextDocumentRevision?  @relation("DefenseContextCurrentRevision", fields: [currentRevisionId], references: [id], onDelete: SetNull)
+  revisions          DefenseContextDocumentRevision[] @relation("DefenseContextDocumentRevisions")
+  references         DefenseReferenceOccurrence[] @relation("DefenseReferenceSourceDocument")
+  resolvedReferences DefenseReferenceOccurrence[] @relation("DefenseReferenceResolvedDocument")
+
+  @@index([family, publisher, publishedAt(sort: Desc)], map: "defense_context_documents_family_publisher_idx")
+  @@index([coverage, qualification, eligible], map: "defense_context_documents_coverage_idx")
+  @@map("defense_context_documents")
+}
+
+model DefenseContextDocumentRevision {
+  id               String    @id @default(uuid()) @db.Uuid
+  documentId       String    @map("document_id") @db.Uuid
+  sourceDocumentId String?   @map("source_document_id") @db.Uuid
+  version          String    @db.VarChar(128)
+  contentHash      String?   @map("content_hash") @db.Char(64)
+  publishedAt      DateTime? @map("published_at") @db.Timestamptz(6)
+  observedAt       DateTime  @map("observed_at") @db.Timestamptz(6)
+  status           String    @db.VarChar(48)
+  sourceUrl        String?   @map("source_url") @db.Text
+  provenance       Json      @default("{}")
+
+  document       DefenseContextDocument  @relation("DefenseContextDocumentRevisions", fields: [documentId], references: [id], onDelete: Cascade)
+  currentForDocument DefenseContextDocument? @relation("DefenseContextCurrentRevision")
+  sourceDocument SourceDocument?         @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  sections           DefenseContextSection[]
+  references         DefenseReferenceOccurrence[] @relation("DefenseReferenceSourceRevision")
+  resolvedReferences DefenseReferenceOccurrence[] @relation("DefenseReferenceResolvedRevision")
+
+  @@unique([documentId, version, contentHash], map: "defense_context_document_revisions_version_hash_key")
+  @@index([documentId, observedAt(sort: Desc)], map: "defense_context_document_revisions_observed_idx")
+  @@index([sourceDocumentId], map: "defense_context_document_revisions_source_document_idx")
+  @@map("defense_context_document_revisions")
+}
+
+model DefenseContextSection {
+  id               String   @id @default(uuid()) @db.Uuid
+  revisionId       String   @map("revision_id") @db.Uuid
+  ordinal          Int
+  label            String   @db.Text
+  nativeLocator    String?  @map("native_locator") @db.VarChar(300)
+  textAvailability String   @map("text_availability") @db.VarChar(24)
+  contentHash      String?  @map("content_hash") @db.Char(64)
+  contentText      String?  @map("content_text") @db.Text
+
+  revision           DefenseContextDocumentRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  references         DefenseReferenceOccurrence[] @relation("DefenseReferenceSourceSection")
+  resolvedReferences DefenseReferenceOccurrence[] @relation("DefenseReferenceResolvedSection")
+
+  @@unique([revisionId, ordinal], map: "defense_context_sections_revision_ordinal_key")
+  @@index([revisionId, nativeLocator], map: "defense_context_sections_locator_idx")
+  @@map("defense_context_sections")
+}
+
+model DefenseReferenceOccurrence {
+  id                       String   @id @default(uuid()) @db.Uuid
+  documentId               String   @map("document_id") @db.Uuid
+  revisionId               String   @map("revision_id") @db.Uuid
+  sectionId                String?  @map("section_id") @db.Uuid
+  exactSpan                String   @map("exact_span") @db.Text
+  startOffset              Int?     @map("start_offset")
+  endOffset                Int?     @map("end_offset")
+  originalWording          String   @map("original_wording") @db.Text
+  referenceType            String   @map("reference_type") @db.VarChar(64)
+  targetCandidates         Json     @map("target_candidates") @default("[]")
+  resolvedTarget           Json?    @map("resolved_target")
+  resolvedTargetDocumentId String?  @map("resolved_target_document_id") @db.Uuid
+  resolvedTargetRevisionId String?  @map("resolved_target_revision_id") @db.Uuid
+  resolvedTargetSectionId  String?  @map("resolved_target_section_id") @db.Uuid
+  disposition              String   @db.VarChar(24)
+  targetAvailability       String   @map("target_availability") @db.VarChar(24)
+  reviewedByUserId         String?  @map("reviewed_by_user_id") @db.Uuid
+  reviewedAt               DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  document         DefenseContextDocument          @relation("DefenseReferenceSourceDocument", fields: [documentId], references: [id], onDelete: Cascade)
+  revision         DefenseContextDocumentRevision  @relation("DefenseReferenceSourceRevision", fields: [revisionId], references: [id], onDelete: Cascade)
+  section          DefenseContextSection?          @relation("DefenseReferenceSourceSection", fields: [sectionId], references: [id], onDelete: SetNull)
+  resolvedDocument DefenseContextDocument?         @relation("DefenseReferenceResolvedDocument", fields: [resolvedTargetDocumentId], references: [id], onDelete: SetNull)
+  resolvedRevision DefenseContextDocumentRevision? @relation("DefenseReferenceResolvedRevision", fields: [resolvedTargetRevisionId], references: [id], onDelete: SetNull)
+  resolvedSection  DefenseContextSection?          @relation("DefenseReferenceResolvedSection", fields: [resolvedTargetSectionId], references: [id], onDelete: SetNull)
+
+  @@index([documentId, revisionId, sectionId], map: "defense_reference_occurrences_source_idx")
+  @@index([resolvedTargetDocumentId, disposition], map: "defense_reference_occurrences_target_idx")
+  @@index([referenceType, disposition], map: "defense_reference_occurrences_type_idx")
+  @@map("defense_reference_occurrences")
 }

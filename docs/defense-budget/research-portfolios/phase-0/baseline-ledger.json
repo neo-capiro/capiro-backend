@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "auditedSha": "6be92e45693de9d18b02559e174eace76d396f1c",
+  "baseHeadSha": "114b96b8ad6ae701d3cc5c6a40d062408223ee28",
+  "apiBase": "/api/research-portfolios",
+  "owner": "apps/api main Nest API",
+  "status": "proposed_not_activated",
+  "mirrorRoots": [
+    "apps/api/src/defense-budget",
+    "apps/defense-api/runtime-source/defense-budget"
+  ],
+  "expectedMirrorCount": 721,
+  "verifiedMirrorCount": 721,
+  "contentVerificationCommand": "node scripts/verify-defense-budget-mirror-parity.mjs",
+  "sourceActivationAllowed": false,
+  "arbitraryReplayAllowed": false,
+  "historicalCheckpoints": [
+    {
+      "label": "API task definition 478 with PR 1859",
+      "sha": null,
+      "note": "historical/not current live inventory"
+    },
+    {
+      "label": "task definition 479",
+      "sha": "c53d7439043c431bdcb29a3bef1332a4c682c6a4",
+      "note": "historical/not current live inventory"
+    }
+  ],
+  "currentDeployment": {
+    "verificationStatus": "captured_read_only",
+    "evidenceFile": "docs/defense-budget/research-portfolios/phase-0/live-release-inventory.json",
+    "environment": ["capiro-dev", "capiro-staging", "capiro-prod-os-capiro"],
+    "account": "967807252336",
+    "region": "us-east-1",
+    "gitSha": "varies_by_service; see evidenceFile",
+    "buildId": null,
+    "imageDigest": "captured_per_service in evidenceFile",
+    "service": "captured in evidenceFile",
+    "taskDefinition": "captured in evidenceFile",
+    "flags": null,
+    "migrations": null,
+    "databaseLogin": null,
+    "snapshotManifest": null,
+    "queueSchedule": null,
+    "measuredAt": "2026-09-26T03:33:31.4758495Z"
+  },
+  "boundedBacklogPhases": [
+    {
+      "phase": 1,
+      "title": "Manual collections and navigation",
+      "description": "New main `research-portfolios` module, additive Prisma tables/grants/typed membership/history, shared DTOs; new native list/detail; replace duplicate Portfolio Defense Budget entry. Link authorized clients through existing access services.",
+      "dependency": "0",
+      "acceptance": "Create/edit/share/archive/restore; manually add/exclude/reinstate/resolve typed members; owner/editor/viewer and client-wall tests; Clients and current Business Development v5 unchanged in function. UI flag can hide new entry while preserving saved records/read compatibility.",
+      "rollbackBoundary": "Hide the new UI entry with its feature flag while preserving saved records and read compatibility."
+    },
+    {
+      "phase": 2,
+      "title": "Taxonomy, templates and rules",
+      "description": "Versioned taxonomy/aliases/templates; full deterministic rule AST; explainable preview/diff/publish; manual precedence and unresolved/unknown semantics; bounded recompute jobs. Reuse capability mappings; add semantic tasks only when justified by independent evaluation.",
+      "dependency": "1",
+      "acceptance": "One cross-service capability collection works with positive/negative/unknown cases; component-only template works; explicit exclusions survive updates; incomplete fetch cannot remove accepted members. Disable automation without losing manual membership/history.",
+      "rollbackBoundary": "Disable automation without losing manual membership or history."
+    },
+    {
+      "phase": 3,
+      "title": "Dossier and financial foundations",
+      "description": "Extend current program/PE/BLI readers, schedule-period projection, narrative types, exact FYDP cell provenance and source inspector; repair execution metric/period DTO loss and supported temporal reads.",
+      "dependency": "0; 2 where taxonomy is consumed",
+      "acceptance": "RDT&E and procurement examples expose correct narrative/milestone/date precision and edition-aware values. No unsupported historical substitution or mixed money measures. Revert projection version only through compatibility-tested readers.",
+      "rollbackBoundary": "Revert the projection version only through compatibility-tested readers."
+    },
+    {
+      "phase": 4,
+      "title": "Contextual sources and references",
+      "description": "Extend owned source registry for missing policy/hearing families; occurrence/section parsing, source revision history and coverage contracts; retain canonical budget ingestion authority.",
+      "dependency": "0, qualified ingestion seams",
+      "acceptance": "One missing policy family and hearing gap with exact occurrences, complete/partial inventory behavior and real denominators. Disable only new family admission; retain revisions/evidence.",
+      "rollbackBoundary": "Disable only new family admission and retain revisions and evidence."
+    }
+  ]
+}
