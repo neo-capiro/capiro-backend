@@ -19,6 +19,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useApi } from '../../../lib/use-api.js';
 import {
+  getCapabilities,
   getProgramElementsList,
   getProgramElementSummary,
 } from '../../../pages/program-element/api.js';
@@ -51,6 +52,7 @@ import { EvMark, FilterControl, PeSkeletonBlock, Segmented } from './pe-primitiv
 import { familyById, serviceToApiParam, useDefenseBudgetContext } from './defense-budget-context.js';
 import { DefenseBudgetFamilyCoverageNote } from './defense-budget-coverage.js';
 import { useMe } from '../../../lib/me.js';
+import { DefenseResearchSearchPanel } from './DefenseResearchSearchPanel.js';
 
 const PAGE_SIZE = 50;
 
@@ -61,6 +63,7 @@ type Density = 'standard' | 'compact';
 
 interface ExploreFilters {
   move: string; // movement — the one dimension the shared Defense Budget context bar doesn't own
+  capability: string;
 }
 
 const MOVE_OPTIONS = ['ANY', 'Material change', 'No material change'];
@@ -89,13 +92,48 @@ function railStyle(rail: ReturnType<typeof railGeometry>, pct: number | null): C
   };
 }
 
+export function buildExploreCsv(
+  rows: V2LineRow[],
+  options: { selectedFy: number; generatedAt: string; origin: string },
+): string {
+  const header = [
+    'Program Element', 'Title', 'Service', 'Type', 'Selected FY', 'Request FY',
+    'Request', 'Current FY', 'Current', 'Stage', 'Delta', 'Delta (%)', 'Unit',
+    'Data as of', 'Export generated at', 'Attribution status', 'Source inspector',
+  ];
+  const records = rows.map((row) => [
+    row.code,
+    row.title,
+    row.service,
+    row.lineType,
+    row.currentFy ?? row.requestFy ?? options.selectedFy,
+    row.requestFy,
+    row.request,
+    row.currentFy,
+    row.current,
+    row.currentStage,
+    row.delta,
+    row.pct == null ? null : Number(row.pct.toFixed(2)),
+    'USD millions',
+    row.lastSyncedAt,
+    options.generatedAt,
+    row.signalType
+      ? 'material signal present; source review required'
+      : 'not evaluated in catalog; open source inspector',
+    `${options.origin}/program-elements/${encodeURIComponent(row.code)}?tab=sources`,
+  ]);
+  return [header, ...records]
+    .map((record) => record.map((cell) => `"${String(cell ?? '').replaceAll('"', '""')}"`).join(','))
+    .join('\n');
+}
+
 export function PeExploreView() {
   const me = useMe();
   const api = useApi();
   const navigate = useNavigate();
   const ctx = useDefenseBudgetContext();
   const family = familyById(ctx.family);
-  const [filters, setFilters] = useState<ExploreFilters>({ move: 'ANY' });
+  const [filters, setFilters] = useState<ExploreFilters>({ move: 'ANY', capability: 'ANY' });
   const [density, setDensity] = useState<Density>('standard');
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string[]>([]);
@@ -107,6 +145,11 @@ export function PeExploreView() {
     queryFn: () => getProgramElementSummary(api, {}),
     staleTime: 60_000,
   });
+  const capabilities = useQuery({
+    queryKey: ['pe-v2-capabilities'],
+    queryFn: () => getCapabilities(api),
+    staleTime: 5 * 60_000,
+  });
 
   // A family with no canonical line-level projection (MILPERS / WCF / Health
   // today) has nothing this query could honestly return — skip it and show
@@ -116,6 +159,8 @@ export function PeExploreView() {
     q: ctx.q.trim() || undefined,
     service: serviceToApiParam(ctx.service),
     line_type: family.lineType,
+    capability: filters.capability === 'ANY' ? undefined : filters.capability,
+    fy: ctx.fiscalYear,
     watched: ctx.watchedOnly ? ('true' as const) : undefined,
     page,
     limit: PAGE_SIZE,
@@ -141,14 +186,14 @@ export function PeExploreView() {
   // rule the local `move`/`mon` filters already followed.
   useEffect(() => {
     setPage(1);
-  }, [ctx.q, ctx.family, ctx.service, ctx.watchedOnly]);
+  }, [ctx.q, ctx.family, ctx.service, ctx.watchedOnly, ctx.fy, filters.capability]);
 
   const total = familyQueryable ? (list.data?.total ?? 0) : 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const anyFilter = filters.move !== 'ANY';
+  const anyFilter = filters.move !== 'ANY' || filters.capability !== 'ANY';
 
   const resetFilters = () => {
-    setFilters({ move: 'ANY' });
+    setFilters({ move: 'ANY', capability: 'ANY' });
     setPage(1);
   };
 
@@ -162,22 +207,11 @@ export function PeExploreView() {
 
   const exportRows = (codes: string[] | null) => {
     const source = codes ? rows.filter((r) => codes.includes(r.code)) : rows;
-    const csv = [
-      ['Program Element', 'Title', 'Service', 'Type', 'Request ($M)', 'Current ($M)', 'Stage', 'Delta ($M)', 'Delta (%)'],
-      ...source.map((r) => [
-        r.code,
-        r.title,
-        r.service,
-        r.lineType,
-        r.request,
-        r.current,
-        r.currentStage,
-        r.delta,
-        r.pct == null ? null : Number(r.pct.toFixed(2)),
-      ]),
-    ]
-      .map((r) => r.map((c) => `"${String(c ?? '').replaceAll('"', '""')}"`).join(','))
-      .join('\n');
+    const csv = buildExploreCsv(source, {
+      selectedFy: ctx.fiscalYear,
+      generatedAt: new Date().toISOString(),
+      origin: window.location.origin,
+    });
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     const a = document.createElement('a');
     a.href = url;
@@ -217,7 +251,9 @@ export function PeExploreView() {
       </div>
 
       <div className="pe-ws-body">
-        {me.data?.tenant.slug === 'capiro-internal' && family.id !== 'All' ? (
+        <DefenseResearchSearchPanel />
+
+        {me.data?.tenant?.slug === 'capiro-internal' && family.id !== 'All' ? (
           <DefenseBudgetFamilyCoverageNote familyId={family.id} fy={ctx.fy} />
         ) : null}
 
@@ -229,7 +265,21 @@ export function PeExploreView() {
               value={filters.move}
               options={MOVE_OPTIONS}
               onChange={(v) => {
-                setFilters({ move: v });
+                setFilters((current) => ({ ...current, move: v }));
+                setPage(1);
+              }}
+            />
+            <FilterControl
+              label="Capability"
+              value={filters.capability}
+              options={['ANY', ...(capabilities.data ?? []).map((item) => item.slug)]}
+              formatValue={(value) =>
+                value === 'ANY'
+                  ? 'Any capability'
+                  : capabilities.data?.find((item) => item.slug === value)?.name ?? value
+              }
+              onChange={(value) => {
+                setFilters((current) => ({ ...current, capability: value }));
                 setPage(1);
               }}
             />
@@ -280,7 +330,7 @@ export function PeExploreView() {
                   <tr className="pe-ws-table__grouprow">
                     <CapiroTableHeaderCell colSpan={2}>Identity</CapiroTableHeaderCell>
                     <CapiroTableHeaderCell colSpan={2}>Classification</CapiroTableHeaderCell>
-                    <CapiroTableHeaderCell colSpan={3}>FY2027 position</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell colSpan={3}>{ctx.fy} position</CapiroTableHeaderCell>
                     <CapiroTableHeaderCell colSpan={2}>Movement vs request</CapiroTableHeaderCell>
                     <CapiroTableHeaderCell>Evidence</CapiroTableHeaderCell>
                     <CapiroTableHeaderCell colSpan={3}>Client impact &amp; action</CapiroTableHeaderCell>
@@ -399,8 +449,8 @@ export function PeExploreView() {
                         </CapiroTableCell>
                         <CapiroTableCell>
                           <EvMark
-                            state={r.signalType ? 'PARTIAL' : 'VERIFIED'}
-                            label={r.signalType ? 'SIGNAL' : 'VERIFIED'}
+                            state={r.signalType ? 'PARTIAL' : 'PENDING'}
+                            label={r.signalType ? 'SIGNAL' : 'NOT REVIEWED'}
                             quiet={!r.signalType}
                           />
                           <div className="pe-ws-cap">{r.billCount != null ? `${r.billCount} BILLS` : ''}</div>
@@ -442,7 +492,7 @@ export function PeExploreView() {
           {/* Footer — sibling of the scroll wrapper, so it never scrolls away */}
           <div className="pe-v2-table-foot">
             <span>
-              {rows.length} OF {total.toLocaleString()} BUDGET LINES · FY{summary.data?.latestRequestFy ?? '—'}
+              {rows.length} OF {total.toLocaleString()} BUDGET LINES · {ctx.fy}
             </span>
             <span className="pe-ws-spacer" />
             <span className="pe-ws-foot__page">PAGE {page} OF {pageCount}</span>

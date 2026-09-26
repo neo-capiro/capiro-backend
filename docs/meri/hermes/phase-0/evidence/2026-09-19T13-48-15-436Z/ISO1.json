@@ -1,8 +1,0 @@
-{
-  "id": "ISO1",
-  "title": "Cross-user: Bob cannot read Alice run (guessed id → 404)",
-  "status": "passed",
-  "at": "2026-09-19T13:49:45.924Z",
-  "httpStatus": 404,
-  "runId": "a8d349e8-c17b-48a4-955a-0d293413b3d7"
-}

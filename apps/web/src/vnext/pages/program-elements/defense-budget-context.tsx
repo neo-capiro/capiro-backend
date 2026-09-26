@@ -8,35 +8,73 @@
  * on the profile route, which carries its own FY control instead (§3: "Two FY
  * controls in one viewport would be two sources of truth").
  *
- * Honesty note on FY scope: `getProgramElementsList` / `getMovement` /
- * `getMarkupMonitor` have no `fy` parameter — they return each line's own
- * latest asserted position, not an arbitrary historical/future year (see
- * `docs/defense-budget/defense-budget-vnext-implementation-map.md`). The
- * fiscal year selected here therefore scopes what IS genuinely FY-addressable
- * today — the lifecycle source-coverage read and the default year a profile
- * deep-link opens to — while the catalog continues to disclose each line's
- * own actual FY next to its figures, exactly as it already did. Family and
- * service DO map onto real, supported query parameters
- * (`line_type` / `service`), so those two dimensions genuinely re-scope every
- * destination that reads them.
+ * FY is a real server-side filter for the Explore catalog and scopes lifecycle
+ * source coverage plus profile deep-links. Movement and markup-monitor retain
+ * their own latest-cycle semantics, so those views continue to print the
+ * actual FY alongside every figure rather than implying the context year.
  */
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroInput } from '../../components/fields/index.js';
+import type { ProgramElementSummary } from '../../../pages/program-element/types.js';
 import { FilterControl } from './pe-primitives.js';
 
-export const DEFENSE_BUDGET_FY_OPTIONS = ['FY24', 'FY25', 'FY26', 'FY27', 'FY28'] as const;
-export type DefenseBudgetFy = (typeof DEFENSE_BUDGET_FY_OPTIONS)[number];
-export const DEFAULT_DEFENSE_BUDGET_FY: DefenseBudgetFy = 'FY27';
+export type DefenseBudgetFy = `FY${number}`;
 
-function isKnownFy(value: string | null): value is DefenseBudgetFy {
-  return !!value && (DEFENSE_BUDGET_FY_OPTIONS as readonly string[]).includes(value);
+const FY_LABEL = /^FY(\d{2})$/;
+
+export function fiscalYearToDefenseBudgetFy(fiscalYear: number): DefenseBudgetFy {
+  return `FY${String(Math.trunc(fiscalYear)).slice(-2)}` as DefenseBudgetFy;
+}
+
+export function parseDefenseBudgetFy(value: string | null | undefined): DefenseBudgetFy | null {
+  if (!value || !FY_LABEL.test(value)) return null;
+  return value as DefenseBudgetFy;
 }
 
 /** `FY27` → `2027`, the fiscal-year integer the lifecycle read routes take. */
 export function fyToFiscalYear(fy: DefenseBudgetFy): number {
-  return 2000 + Number(fy.slice(2));
+  const parsed = parseDefenseBudgetFy(fy);
+  if (!parsed) throw new Error(`Invalid defense budget fiscal year: ${fy}`);
+  return 2000 + Number(parsed.slice(2));
+}
+
+function currentFederalFiscalYear(now = new Date()): number {
+  return now.getUTCFullYear() + (now.getUTCMonth() >= 9 ? 1 : 0);
+}
+
+function validFiscalYear(value: number | null | undefined): value is number {
+  return Number.isInteger(value) && value! >= 2000 && value! <= 2099;
+}
+
+export function resolveDefaultDefenseBudgetFy(
+  summary?: Pick<ProgramElementSummary, 'latestRequestFy' | 'trend'>,
+  now = new Date(),
+): DefenseBudgetFy {
+  if (validFiscalYear(summary?.latestRequestFy)) {
+    return fiscalYearToDefenseBudgetFy(summary.latestRequestFy);
+  }
+  const trendYears = (summary?.trend ?? []).map((item) => item.fy).filter(validFiscalYear);
+  return fiscalYearToDefenseBudgetFy(
+    trendYears.length > 0 ? Math.max(...trendYears) : currentFederalFiscalYear(now),
+  );
+}
+
+/** Build a bounded metadata window and retain a valid explicit deep-link year. */
+export function buildDefenseBudgetFyOptions(
+  summary?: Pick<ProgramElementSummary, 'latestRequestFy' | 'trend'>,
+  explicitFy?: DefenseBudgetFy | null,
+  now = new Date(),
+): readonly DefenseBudgetFy[] {
+  const defaultYear = fyToFiscalYear(resolveDefaultDefenseBudgetFy(summary, now));
+  const years = new Set<number>(
+    (summary?.trend ?? []).map((item) => item.fy).filter(validFiscalYear),
+  );
+  if (validFiscalYear(summary?.latestRequestFy)) years.add(summary.latestRequestFy);
+  for (let year = defaultYear - 3; year <= defaultYear + 1; year += 1) years.add(year);
+  if (explicitFy) years.add(fyToFiscalYear(explicitFy));
+  return [...years].sort((a, b) => a - b).map(fiscalYearToDefenseBudgetFy);
 }
 
 /**
@@ -123,6 +161,7 @@ export interface DefenseBudgetContextState {
   setQ(value: string): void;
   setWatchedOnly(value: boolean): void;
   reset(): void;
+  fyOptions: readonly DefenseBudgetFy[];
 }
 
 const DefenseBudgetContext = createContext<DefenseBudgetContextState | null>(null);
@@ -135,10 +174,22 @@ export function useDefenseBudgetContext(): DefenseBudgetContextState {
   return ctx;
 }
 
-export function DefenseBudgetContextProvider({ children }: { children: ReactNode }) {
+export function DefenseBudgetContextProvider({
+  children,
+  summary,
+}: {
+  children: ReactNode;
+  summary?: ProgramElementSummary;
+}) {
   const [params, setParams] = useSearchParams();
 
-  const fy = isKnownFy(params.get('fy')) ? (params.get('fy') as DefenseBudgetFy) : DEFAULT_DEFENSE_BUDGET_FY;
+  const explicitFy = parseDefenseBudgetFy(params.get('fy'));
+  const defaultFy = resolveDefaultDefenseBudgetFy(summary);
+  const fy = explicitFy ?? defaultFy;
+  const fyOptions = useMemo(
+    () => buildDefenseBudgetFyOptions(summary, explicitFy),
+    [explicitFy, summary],
+  );
   const family = params.get('family') ?? 'All';
   const service = params.get('svc') ?? 'All';
   const q = params.get('q') ?? '';
@@ -155,6 +206,7 @@ export function DefenseBudgetContextProvider({ children }: { children: ReactNode
 
   const value = useMemo<DefenseBudgetContextState>(
     () => ({
+      fyOptions,
       fy,
       fiscalYear: fyToFiscalYear(fy),
       family,
@@ -162,7 +214,7 @@ export function DefenseBudgetContextProvider({ children }: { children: ReactNode
       q,
       watchedOnly,
       activeFilterCount: [family !== 'All', service !== 'All', watchedOnly].filter(Boolean).length,
-      setFy: (next) => patch({ fy: next === DEFAULT_DEFENSE_BUDGET_FY ? null : next }),
+      setFy: (next) => patch({ fy: next === defaultFy ? null : next }),
       setFamily: (id) => patch({ family: id === 'All' ? null : id }),
       setService: (label) => patch({ svc: label === 'All' ? null : label }),
       setQ: (next) => patch({ q: next || null }),
@@ -184,7 +236,7 @@ export function DefenseBudgetContextBar() {
     <div className="pe-v2-card defense-budget-ctxbar" role="group" aria-label="Defense Budget context">
       <div className="defense-budget-ctxbar__row">
         <span className="pe-ws-seg" role="group" aria-label="Fiscal year">
-          {DEFENSE_BUDGET_FY_OPTIONS.map((option) => (
+          {ctx.fyOptions.map((option) => (
             <button
               key={option}
               type="button"

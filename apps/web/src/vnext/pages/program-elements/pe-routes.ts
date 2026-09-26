@@ -12,6 +12,7 @@
  *   /program-elements?dest=movement|congressional|actions|portfolio
  *   /program-elements/mark-up-monitor                  Mark-up monitor (native, Phase 3)
  *   /program-elements/contacts                         Contact review queue (native, Phase 3)
+ *   /program-elements/research                         Defense research (native, Phase 5)
  *   /program-elements/:peCode                          Line profile (Overview default tab)
  *   /program-elements/:peCode?tab=funding|legislative|structure|sources
  *
@@ -47,7 +48,7 @@ export const PE_WORKSPACE_ROUTE = '/program-elements';
  * Static PE segments claimed by the vNext module as of Phase 3 (native
  * rebuilds of the canonical mark-up monitor and contact review queue).
  */
-export const PE_CLAIMED_STATIC_SEGMENTS = ['mark-up-monitor', 'contacts'] as const;
+export const PE_CLAIMED_STATIC_SEGMENTS = ['mark-up-monitor', 'contacts', 'research', 'compare', 'coverage'] as const;
 export type PeStaticSegment = (typeof PE_CLAIMED_STATIC_SEGMENTS)[number];
 
 /**
@@ -55,7 +56,21 @@ export type PeStaticSegment = (typeof PE_CLAIMED_STATIC_SEGMENTS)[number];
  * claimed ones above render native pages; `reconciliation` stays unclaimed
  * (see the header comment).
  */
-const PE_STATIC_SEGMENTS = new Set(['mark-up-monitor', 'contacts', 'reconciliation']);
+const PE_STATIC_SEGMENTS = new Set([
+  'mark-up-monitor',
+  'contacts',
+  'reconciliation',
+  'research',
+  'compare',
+  'coverage',
+]);
+
+/**
+ * Canonical PE and budget-line identifiers currently exposed by the dossier
+ * route are uppercase alpha-numeric codes. Requiring a digit prevents future
+ * static words from being swallowed by the dynamic matcher.
+ */
+const PE_PROFILE_ID = /^(?=[A-Z0-9]{8,10}$)(?=.*\d)[A-Z0-9]+$/;
 
 /** Normalize a raw `?dest=` value to a destination, defaulting to Explore. */
 export function resolvePeDestination(raw: string | null | undefined): PeDestination {
@@ -92,9 +107,19 @@ export function matchPeStaticPath(pathname: string): PeStaticSegment | null {
 export function matchPeProfilePath(pathname: string): string | null {
   if (!pathname.startsWith(`${PE_WORKSPACE_ROUTE}/`)) return null;
   const rest = pathname.slice(PE_WORKSPACE_ROUTE.length + 1);
-  const segment = rest.split('/')[0] ?? '';
-  if (!segment || PE_STATIC_SEGMENTS.has(segment)) return null;
-  return decodeURIComponent(segment);
+  if (!rest || rest.includes('/')) return null;
+
+  let segment: string;
+  try {
+    segment = decodeURIComponent(rest);
+  } catch {
+    return null;
+  }
+
+  if (segment.includes('/') || PE_STATIC_SEGMENTS.has(segment) || !PE_PROFILE_ID.test(segment)) {
+    return null;
+  }
+  return segment;
 }
 
 /**

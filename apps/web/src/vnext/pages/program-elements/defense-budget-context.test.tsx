@@ -1,108 +1,90 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
+import { describe, expect, it } from 'vitest';
+import type { ProgramElementSummary } from '../../../pages/program-element/types.js';
 import {
-  DefenseBudgetContextBar,
+  buildDefenseBudgetFyOptions,
   DefenseBudgetContextProvider,
-  familyById,
-  serviceToApiParam,
+  resolveDefaultDefenseBudgetFy,
   useDefenseBudgetContext,
 } from './defense-budget-context.js';
 
-function Harness() {
+const SUMMARY = {
+  latestRequestFy: 2030,
+  trend: [
+    { fy: 2028, total: 1 },
+    { fy: 2029, total: 2 },
+  ],
+} as ProgramElementSummary;
+
+function Probe() {
+  const context = useDefenseBudgetContext();
+  const location = useLocation();
   return (
-    <DefenseBudgetContextProvider>
-      <DefenseBudgetContextBar />
-      <ScopeReadout />
-    </DefenseBudgetContextProvider>
+    <>
+      <output data-testid="fy">{context.fy}</output>
+      <output data-testid="options">{context.fyOptions.join(',')}</output>
+      <output data-testid="location">{location.search}</output>
+      <button type="button" onClick={() => context.setFy('FY32')}>
+        Set FY32
+      </button>
+      <button type="button" onClick={context.reset}>
+        Reset filters
+      </button>
+    </>
   );
 }
 
-function ScopeReadout() {
-  const ctx = useDefenseBudgetContext();
-  return (
-    <div data-testid="scope">
-      {ctx.fy}|{ctx.family}|{ctx.service}|{ctx.q}|{String(ctx.watchedOnly)}
-    </div>
-  );
-}
-
-function renderAt(path = '/program-elements') {
+function renderProbe(path: string) {
   render(
     <MemoryRouter initialEntries={[path]}>
-      <Harness />
+      <DefenseBudgetContextProvider summary={SUMMARY}>
+        <Probe />
+      </DefenseBudgetContextProvider>
     </MemoryRouter>,
   );
 }
 
-describe('familyById / serviceToApiParam', () => {
-  it('has honest sparse coverage: RDT&E/Procurement/O&M/MILCON map to real line types, MILPERS/WCF/Health do not', () => {
-    expect(familyById('RDT&E').lineType).toBe('RDTE_PE');
-    expect(familyById('Procurement').lineType).toBe('PROCUREMENT_BLIN');
-    expect(familyById('O&M').lineType).toBe('OM_BLI');
-    expect(familyById('MILCON').lineType).toBe('MILCON_PROJECT');
-    expect(familyById('MILPERS').lineType).toBeUndefined();
-    expect(familyById('WCF').lineType).toBeUndefined();
-    expect(familyById('Health').lineType).toBeUndefined();
+describe('DefenseBudgetContextProvider fiscal-year and URL contract', () => {
+  it('uses current summary metadata instead of a hard-coded default', () => {
+    expect(resolveDefaultDefenseBudgetFy(SUMMARY)).toBe('FY30');
+    expect(buildDefenseBudgetFyOptions(SUMMARY)).toEqual([
+      'FY27',
+      'FY28',
+      'FY29',
+      'FY30',
+      'FY31',
+    ]);
+
+    renderProbe('/program-elements?dest=movement');
+    expect(screen.getByTestId('fy')).toHaveTextContent('FY30');
   });
 
-  it('MILCON has lifecycle source-family coverage even without a guaranteed line-level row (task §9 example)', () => {
-    expect(familyById('MILCON').sourceFamilies).toEqual(
-      expect.arrayContaining(['pb_milcon_c1', 'pb_dd1391']),
+  it('retains a valid explicit FY outside the metadata window', () => {
+    renderProbe('/program-elements?fy=FY35&dest=movement');
+    expect(screen.getByTestId('fy')).toHaveTextContent('FY35');
+    expect(screen.getByTestId('options')).toHaveTextContent('FY35');
+  });
+
+  it('preserves unrelated query state while changing and resetting owned filters', () => {
+    renderProbe(
+      '/program-elements?fy=FY35&dest=movement&client=client-1&family=RDT%26E&svc=Army&q=radar&watched=1',
     );
-    expect(familyById('MILPERS').sourceFamilies).toBeUndefined();
-  });
 
-  it('maps a service label to the real API code, and "All" to undefined', () => {
-    expect(serviceToApiParam('Army')).toBe('ARMY');
-    expect(serviceToApiParam('Marine Corps')).toBe('USMC');
-    expect(serviceToApiParam('All')).toBeUndefined();
-  });
-});
+    fireEvent.click(screen.getByRole('button', { name: 'Set FY32' }));
+    let search = screen.getByTestId('location').textContent ?? '';
+    expect(search).toContain('fy=FY32');
+    expect(search).toContain('dest=movement');
+    expect(search).toContain('client=client-1');
 
-describe('DefenseBudgetContextProvider — URL state', () => {
-  it('defaults to FY27, all families, all services, no search, not watched-only', () => {
-    renderAt();
-    expect(screen.getByTestId('scope')).toHaveTextContent('FY27|All|All||false');
-  });
-
-  it('reads an explicit ?fy= from the URL', () => {
-    renderAt('/program-elements?fy=FY24');
-    expect(screen.getByTestId('scope').textContent).toMatch(/^FY24\|/);
-  });
-
-  it('falls back to the default FY for an unknown ?fy= value rather than crashing', () => {
-    renderAt('/program-elements?fy=FY99');
-    expect(screen.getByTestId('scope').textContent).toMatch(/^FY27\|/);
-  });
-
-  it('clicking a fiscal year chip updates the shared scope', () => {
-    renderAt();
-    fireEvent.click(screen.getByRole('button', { name: 'FY24' }));
-    expect(screen.getByTestId('scope').textContent).toMatch(/^FY24\|/);
-  });
-
-  it('toggling watched-only flows through to every consumer', () => {
-    renderAt();
-    fireEvent.click(screen.getByRole('checkbox', { name: /watched only/i }));
-    expect(screen.getByTestId('scope')).toHaveTextContent('|true');
-  });
-
-  it('Reset clears family/service/search/watched but leaves FY untouched', () => {
-    renderAt('/program-elements?fy=FY26&family=MILCON&svc=Army&q=radar&watched=1');
-    expect(screen.getByTestId('scope')).toHaveTextContent('FY26|MILCON|Army|radar|true');
-    fireEvent.click(screen.getByRole('button', { name: /Reset/ }));
-    expect(screen.getByTestId('scope')).toHaveTextContent('FY26|All|All||false');
-  });
-
-  it('throws a clear error when the hook is used outside the provider', () => {
-    function Bare() {
-      useDefenseBudgetContext();
-      return null;
-    }
-    // Swallow the expected React error-boundary console noise for this one assertion.
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    expect(() => render(<Bare />)).toThrow('useDefenseBudgetContext must be used within DefenseBudgetContextProvider');
-    spy.mockRestore();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset filters' }));
+    search = screen.getByTestId('location').textContent ?? '';
+    expect(search).toContain('fy=FY32');
+    expect(search).toContain('dest=movement');
+    expect(search).toContain('client=client-1');
+    expect(search).not.toContain('family=');
+    expect(search).not.toContain('svc=');
+    expect(search).not.toContain('q=');
+    expect(search).not.toContain('watched=');
   });
 });

@@ -20,6 +20,7 @@ import {
   replayPendingFederalEvidenceMentions,
 } from '../src/program-element/federal-evidence/persistence.js';
 import { runWithSyncRun, type RunCounts } from '../src/ingestion/sync-run.helper.js';
+import { assertFullFederalEvidenceReconciliationSafe } from './lib/federal-legislative-sync-safety.js';
 
 dotenvConfig();
 
@@ -254,7 +255,7 @@ async function syncCollection(args: {
           sourceKey: row.sourceKey,
           observationKey: `${checkpointSource}:${cursor.until}:removed:${row.sourceKey}`,
           inventoryWindowEnd: new Date(cursor.until),
-          historical: false,
+          historical,
           inventoryComplete: true,
           metadata: { reason: 'absent_from_complete_full_inventory' },
         });
@@ -297,6 +298,7 @@ async function main(): Promise<void> {
     const checkpoint = await prisma.federalEvidenceCheckpoint.findUnique({
       where: { source: checkpointSourceFor(collectionArg, congress, full) },
     });
+    const hasCompletedFullBaseline = checkpoint?.status === 'completed' && checkpoint.completedAt != null;
     console.log(
       JSON.stringify(
         { mode: commit ? 'COMMIT' : 'DRY_RUN', collection: collectionArg, congress, full, historical, cap, checkpoint },
@@ -305,6 +307,10 @@ async function main(): Promise<void> {
       ),
     );
     if (!commit) return;
+    // The first full inventory hydrates old source history. Require explicit
+    // historical mode before any provider calls or writes so it cannot fan out
+    // a corpus-sized set of events as breaking news by accident.
+    assertFullFederalEvidenceReconciliationSafe({ full, historical, hasCompletedFullBaseline });
     if (process.env.FEDERAL_LEGISLATIVE_EVIDENCE_ENABLED !== 'true')
       throw new Error('FEDERAL_LEGISLATIVE_EVIDENCE_DISABLED');
     if (!process.env.GOVINFO_API_KEY) throw new Error('GOVINFO_API_KEY is required');

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "dtic_jdocs_xml_locator_inventory_v1",
+  "status": "PASS_QUALIFICATION_ONLY",
+  "promotable": false,
+  "source": {
+    "fiscalYear": 2026,
+    "budgetCycle": "PB",
+    "agency": "Defense Technical Information Center",
+    "mirrorCommit": "5c6310d9845cd75360bf4c39a220f9d6699b65df",
+    "mirrorPath": "fy2026/RDTE_DTIC_PB_2026.xml",
+    "originalBytesSha256": "02479cd6e67dfee10bb1029d9413dbc35e81174384b25319fedfb9589d4aac6a",
+    "officialPdfSha256": "08c867d61816f7b5ebb82924a33d4003ee03c7880984ac6dc9bc91363b6f2d63"
+  },
+  "programElementLocators": [
+    {
+      "value": "0605801KA",
+      "elementPath": "{http://www.dtic.mil/comptroller/xml/schema/022009/r2}ProgramElementList[0]/{http://www.dtic.mil/comptroller/xml/schema/022009/r2}ProgramElement[0]/{http://www.dtic.mil/comptroller/xml/schema/022009/r2}ProgramElementNumber[0]"
+    },
+    {
+      "value": "0605998KA",
+      "elementPath": "{http://www.dtic.mil/comptroller/xml/schema/022009/r2}ProgramElementList[0]/{http://www.dtic.mil/comptroller/xml/schema/022009/r2}ProgramElement[1]/{http://www.dtic.mil/comptroller/xml/schema/022009/r2}ProgramElementNumber[0]"
+    }
+  ],
+  "assertions": {
+    "programElementLocatorCount": 2,
+    "expandedQNameNamespace": "http://www.dtic.mil/comptroller/xml/schema/022009/r2",
+    "namespacePrefixIndependent": true,
+    "duplicateIdentityOccurrencesRemainDistinct": true,
+    "sourceHashBound": true
+  },
+  "limitations": [
+    "locator inventory only; no XML funding or narrative semantic extraction",
+    "does not establish annual family or component completeness",
+    "does not claim XML/PDF content equivalence beyond separately recorded hashes and qualification spot checks",
+    "candidate-only and not authorized for SourceDocument registration, import, publication, or replay"
+  ]
+}

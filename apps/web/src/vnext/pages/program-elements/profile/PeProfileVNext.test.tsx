@@ -17,10 +17,13 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { PeProfileVNext } from './PeProfileVNext.js';
 import type { ProgramElementDetail } from '../../../../pages/program-element/types.js';
+import type { ProgramElementSourceItem } from '../../../../pages/program-element/types.js';
 
 const apiGet = vi.fn();
 const apiPost = vi.fn();
 let tenantSlug = 'capiro-internal';
+let sourceItems: ProgramElementSourceItem[] = [];
+let sourcesFail = false;
 
 vi.mock('../../../../lib/use-api.js', () => ({
   useApi: () => ({ get: apiGet, post: apiPost }),
@@ -73,6 +76,10 @@ function mockEndpoints(detail: ProgramElementDetail | (() => Promise<never>) = D
       if (typeof detail === 'function') return detail();
       return { data: detail };
     }
+    if (url === '/api/program-elements/0601102A/sources') {
+      if (sourcesFail) throw new Error('source service unavailable');
+      return { data: sourceItems };
+    }
     if (url.includes('/deltas')) return { data: { data: [], total: 0, page: 1, limit: 25 } };
     if (url === '/api/intelligence/actions') return { data: { data: [], total: 0, page: 1, limit: 100 } };
     if (url.includes('/client-relevance')) return { data: [] };
@@ -105,6 +112,8 @@ describe('PeProfileVNext', () => {
     apiGet.mockReset();
     apiPost.mockReset();
     tenantSlug = 'capiro-internal';
+    sourceItems = [];
+    sourcesFail = false;
   });
 
   test('parses the PE code from the pathname (useParams is empty under VNextRouter) and renders real derived figures', async () => {
@@ -182,6 +191,38 @@ describe('PeProfileVNext', () => {
 
     expect(await screen.findByText(/evidence coverage/)).toBeInTheDocument();
     expect(apiGet).not.toHaveBeenCalledWith('/api/budget-lifecycle/cycles/2027/health');
+  });
+
+  test('source ledger keeps unknown verification unknown and marks linked unverified URLs as candidates', async () => {
+    sourceItems = [
+      {
+        id: 'candidate-source', docType: 'committee_report', exhibitType: null, fy: 2027,
+        sourceUrl: 'https://example.gov/report', pageNumber: 12, pageEnd: null, snippet: null,
+        publisher: 'House Appropriations', confidence: null, sourceDocument: null,
+      },
+      {
+        id: 'verified-source', docType: 'budget_justification', exhibitType: 'R-1', fy: 2027,
+        sourceUrl: 'https://example.gov/verified', pageNumber: 4, pageEnd: null, snippet: null,
+        publisher: null, confidence: 0.9, sourceDocument: { title: 'R-1 Book', budgetCycle: 'FY2027', sha256: null },
+      },
+    ];
+    mockEndpoints();
+    renderProfile('/program-elements/0601102A?tab=sources');
+
+    expect(await screen.findByText('STATUS UNKNOWN')).toBeInTheDocument();
+    expect(screen.getByText('CANDIDATE →')).toBeInTheDocument();
+    expect(screen.getByText('Link is a candidate; source verification is not established.')).toBeInTheDocument();
+    expect(screen.getByText('✓ VERIFIED')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'CANDIDATE →' })).toHaveAttribute('rel', 'noreferrer');
+  });
+
+  test('source lookup errors are not rendered as an empty ledger', async () => {
+    sourcesFail = true;
+    mockEndpoints();
+    renderProfile('/program-elements/0601102A?tab=sources');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Source records could not be loaded');
+    expect(screen.queryByText('No page-level sources are attached to this line yet.')).not.toBeInTheDocument();
   });
 
   test('Monitor toggles the watch state through the canonical endpoint', async () => {

@@ -299,7 +299,8 @@ export type VerifierDecision = (typeof VERIFIER_DECISION_VALUES)[number];
  * bridge does not call it, reference it, or gate on it.
  */
 export interface ParserHandoffResult {
-  readonly invoked: true;
+  /** False only for a pre-parser governed review such as a missing packet. */
+  readonly invoked: boolean;
   readonly decision: VerifierDecision;
   readonly finalState: string;
   readonly artifactLocator: string;
@@ -308,6 +309,19 @@ export interface ParserHandoffResult {
   readonly artifactId?: string;
   readonly artifactContentSha256?: string;
   readonly artifactByteSha256?: string;
+  /** A packet-selection disposition, not parser or persisted-evidence output. */
+  readonly governedReview?: CongressionalPacketReviewV1;
+}
+
+export interface CongressionalPacketReviewV1 {
+  readonly code: 'CONGRESSIONAL_GOVERNED_PACKET_MISSING';
+  readonly scope: {
+    readonly fiscalYear: number;
+    readonly authorityTrack: string;
+    readonly stage: string;
+    readonly sourceFamily: string;
+    readonly sourceDocumentId: string;
+  };
 }
 
 /**

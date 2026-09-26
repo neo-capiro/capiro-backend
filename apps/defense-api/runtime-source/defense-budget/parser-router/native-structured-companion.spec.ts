@@ -46,6 +46,11 @@ const manifest = {
 function writeCompanion(overrides?: {
   sourceSha?: string;
   method?: 'native_structured' | 'manual';
+  xmlCompanion?: {
+    locator: string;
+    officialPdfSha256: string;
+    companionByteSha256: string;
+  };
 }) {
   const builder = new ArtifactBuilderV1({
     manifestDocumentKey: document.documentKey,
@@ -60,6 +65,7 @@ function writeCompanion(overrides?: {
     component: 'ARMY',
     budgetCycle: 'pb',
     documentType: 'r1',
+    ...(overrides?.xmlCompanion ? { xmlCompanion: overrides.xmlCompanion } : {}),
   });
   builder.addParserRun({
     parserRunId: 'native-run-1',
@@ -67,9 +73,25 @@ function writeCompanion(overrides?: {
     parserVersion: 'structured-companion-v1',
     parserConfigSha256: 'b'.repeat(64),
     inputSourceSha256: overrides?.sourceSha ?? sourceSha,
+    ...(overrides?.xmlCompanion
+      ? { inputCompanionSha256: overrides.xmlCompanion.companionByteSha256 }
+      : {}),
     outputArtifactSha256: 'c'.repeat(64),
-    pageRanges: [{ startPage: 1, endPage: 1 }],
+    pageRanges: overrides?.xmlCompanion ? [] : [{ startPage: 1, endPage: 1 }],
   });
+  if (overrides?.xmlCompanion) {
+    builder.addEvidence({
+      evidenceId: 'xml-element-evidence-1',
+      sourcePdfSha256: overrides.xmlCompanion.officialPdfSha256,
+      parserRunId: 'native-run-1',
+      granularity: 'document_only',
+      structuredElement: {
+        companionByteSha256: overrides.xmlCompanion.companionByteSha256,
+        elementPath: '/JustificationBook/ProgramElementList/ProgramElement[1]',
+        elementId: '0602308A',
+      },
+    });
+  }
   const artifact = builder.finalize();
   const locator = join(workDir, 'companion.extraction-v1.json');
   writeFileSync(locator, `${JSON.stringify(artifact, null, 2)}\n`, 'utf8');
@@ -161,5 +183,53 @@ describe('native structured companion', () => {
         verificationService: verifier().service,
       }),
     ).rejects.toThrow(/native_structured parser run/);
+  });
+
+  it('preserves independent XML byte and official PDF hashes without page claims', async () => {
+    const xmlCompanion = {
+      locator: '/sources/r1.xml',
+      officialPdfSha256: sourceSha,
+      companionByteSha256: 'f'.repeat(64),
+    };
+    const companion = writeCompanion({ xmlCompanion });
+    const verification = verifier();
+    const result = await verifyNativeStructuredCompanion({
+      manifest,
+      manifestLocator: '/manifests/fy2027.json',
+      manifestDocument: document,
+      companionLocator: companion.locator,
+      sourceDocumentId,
+      sourcePdfSha256: sourceSha,
+      persistVerificationAudit: false,
+      verificationService: verification.service,
+    });
+
+    expect(companion.artifact.source).toMatchObject({ xmlCompanion });
+    expect(companion.artifact.source.sourcePdfSha256).toBe(sourceSha);
+    expect(companion.artifact.parserRuns[0]?.inputCompanionSha256).toBe(
+      xmlCompanion.companionByteSha256,
+    );
+    expect(companion.artifact.evidence[0]?.structuredElement).toMatchObject({
+      companionByteSha256: xmlCompanion.companionByteSha256,
+      elementPath: '/JustificationBook/ProgramElementList/ProgramElement[1]',
+      elementId: '0602308A',
+    });
+    expect(companion.artifact.parserRuns[0]?.pageRanges).toEqual([]);
+    expect(result.artifactId).toBe(companion.artifact.artifactId);
+    expect(verification.verify).toHaveBeenCalledWith(
+      expect.objectContaining({ expectedSourcePdfSha256: sourceSha }),
+    );
+  });
+
+  it('rejects XML provenance bound to a different official PDF', () => {
+    expect(() =>
+      writeCompanion({
+        xmlCompanion: {
+          locator: '/sources/r1.xml',
+          officialPdfSha256: 'f'.repeat(64),
+          companionByteSha256: 'e'.repeat(64),
+        },
+      }),
+    ).toThrow(/xml_companion_official_pdf_sha_mismatch/);
   });
 });

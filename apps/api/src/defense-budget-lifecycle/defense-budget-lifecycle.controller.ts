@@ -40,6 +40,12 @@ export class DefenseBudgetLifecycleController {
     return this.reads.getCycleHealth(fiscalYear);
   }
 
+  @Get('cycles/:fiscalYear/coverage-reconciliation')
+  async coverageReconciliation(@Param('fiscalYear', ParseIntPipe) fiscalYear: number) {
+    assertFiscalYearInRange(fiscalYear);
+    return this.reads.getCoverageReconciliation(fiscalYear);
+  }
+
   @Get('cycles/:fiscalYear/expected-sources')
   async expectedSources(
     @Param('fiscalYear', ParseIntPipe) fiscalYear: number,

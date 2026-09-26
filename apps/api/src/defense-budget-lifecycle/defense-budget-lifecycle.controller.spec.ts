@@ -6,6 +6,7 @@ import type { DefenseBudgetLifecycleReadService } from './defense-budget-lifecyc
 function serviceMock() {
   return {
     getCycleHealth: jest.fn(async (fy: number) => ({ fiscalYear: fy })),
+    getCoverageReconciliation: jest.fn(async (fy: number) => ({ fiscalYear: fy })),
     listExpectedSources: jest.fn(async () => []),
     getExpectedSourceDetail: jest.fn(async (id: string) => ({ id })),
     listReviewQueue: jest.fn(async () => []),
@@ -22,6 +23,7 @@ describe('DefenseBudgetLifecycleController', () => {
     expect(methods.sort()).toEqual(
       [
         'cycleHealth',
+        'coverageReconciliation',
         'expectedSources',
         'expectedSourceDetail',
         'reviewQueue',
@@ -36,6 +38,14 @@ describe('DefenseBudgetLifecycleController', () => {
     const controller = new DefenseBudgetLifecycleController(service);
     await controller.cycleHealth(2027);
     expect(service.getCycleHealth).toHaveBeenCalledWith(2027);
+  });
+
+  test('coverage reconciliation delegates through the same fiscal-year gate', async () => {
+    const service = serviceMock();
+    const controller = new DefenseBudgetLifecycleController(service);
+    await controller.coverageReconciliation(2024);
+    expect(service.getCoverageReconciliation).toHaveBeenCalledWith(2024);
+    await expect(controller.coverageReconciliation(1500)).rejects.toBeInstanceOf(NotFoundException);
   });
 
   test('rejects a fiscal year outside the supported range instead of querying it', async () => {

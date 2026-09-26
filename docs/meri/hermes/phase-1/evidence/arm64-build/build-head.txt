@@ -1,8 +1,0 @@
-[build-base] downloading hermes-agent v2026.9.14 → /tmp/tmp.EUawcwXp0u
-/tmp/tmp.EUawcwXp0u/hermes.tar.gz: OK
-[build-base] building base meri-hermes-worker:v2026.9.14-arm64 for linux/arm64 (15–45 min cold)
-#0 building with "capiro-arm" instance using docker-container driver
-
-#1 [internal] load build definition from Dockerfile
-#1 transferring dockerfile:
-#1 transferring dockerfile: 27.00kB 0.1s 

@@ -53,7 +53,10 @@ import type {
 /* ------------------------------------------------------------------ */
 
 /**
- * The family groups Phase 4/5/6 already certify against. Deliberately NOT
+ * Family groups used as the governed routing/readiness axis. Annual groups
+ * (rdte/procurement/om/milcon/committee) have existing certifiers; the two
+ * post-enactment groups below are first-class scopes but remain explicitly
+ * unsupported by annual certification. Deliberately NOT
  * `BudgetFamilyV1` (which also has `milpers`, `public_law`, `overview`,
  * `unknown` — categories with no certifier) and NOT `SourceFamily` (which is
  * document-granular, e.g. `pb_r1` vs `pb_r2` are the same certifiable group).
@@ -68,6 +71,8 @@ export const READINESS_FAMILY_GROUP_V1_VALUES = [
   'om',
   'milcon',
   'committee',
+  'alternative_funding',
+  'execution',
 ] as const;
 export const readinessFamilyGroupV1Schema_VALUES = READINESS_FAMILY_GROUP_V1_VALUES;
 export type ReadinessFamilyGroupV1 = (typeof READINESS_FAMILY_GROUP_V1_VALUES)[number];

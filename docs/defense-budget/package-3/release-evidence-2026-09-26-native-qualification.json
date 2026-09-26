@@ -1,0 +1,99 @@
+{
+  "package": 3,
+  "releasedAt": "2026-09-25T21:31:00-04:00",
+  "purpose": "candidate-only native HASC qualification harness follow-on",
+  "sourceControl": {
+    "pullRequest": "https://github.com/neo-capiro/capirov2/pull/1861",
+    "mergeCommit": "c53d7439043c431bdcb29a3bef1332a4c682c6a4",
+    "localMain": "c53d7439043c431bdcb29a3bef1332a4c682c6a4",
+    "githubMain": "c53d7439043c431bdcb29a3bef1332a4c682c6a4",
+    "githubHostedChecks": {
+      "result": "infrastructure_failure_before_steps",
+      "runnerAssigned": false,
+      "stepsStarted": 0
+    }
+  },
+  "qualification": {
+    "command": "pnpm --filter @capiro/api run qualify:package3-congressional",
+    "result": "QUALIFIED_ISOLATED_PILOT",
+    "candidateOnly": true,
+    "sourceDocumentKey": "CRPT-119hrpt698",
+    "sourcePdfSha256": "6587d1cec52d8d3eda3551648f50e4bc15371ea9167da2999e263e8c8e14480a",
+    "packetSha256": "7deb7d1dcb47d97651d8ba43c2e8bc1bdf15b23c4b35fdd956cca852036fa57e",
+    "nativeStagePacketSchemaVersion": "congressional_stage_packet_v1",
+    "nativeTableCount": 48,
+    "nativeTableRowCount": 926,
+    "nativeLineIndexEntryCount": 0,
+    "acceptedFundingAssertions": 0,
+    "unresolvedOmissions": 926,
+    "completenessStatus": "incomplete",
+    "parserProofByteSha256": "9976a0c5a3aa4c584f936f782d249ef7d1e56284abac4cc7bd3fb13257cf0c18",
+    "semanticArtifactByteSha256": "c24d665113dd08f24e8f21036cec7e9d187bfb3859bea9485864a8bd3ca9ae7a",
+    "result": "tmp/p3-native-hasc-qualification-20260926.json"
+  },
+  "validation": {
+    "apiTypecheck": "PASS",
+    "focusedSuites": {
+      "suites": 2,
+      "tests": 4,
+      "status": "PASS"
+    },
+    "sourceParity": "SESSION4_SOURCE_PARITY_PASS",
+    "patchHygiene": "PASS"
+  },
+  "aws": {
+    "account": "967807252336",
+    "region": "us-east-1",
+    "cluster": "capiro-dev",
+    "codeBuild": {
+      "failedPushAttempt": {
+        "id": "capiro-build-intel-api:b211f7f0-5cff-41c2-aa04-7455a52e36c2",
+        "status": "FAILED",
+        "reason": "post-build push command used a truncated image tag; no image was pushed and no ECS mutation occurred"
+      },
+      "successfulRetry": {
+        "id": "capiro-build-intel-api:2403fbac-e690-47a5-9008-7bc804e76d66",
+        "status": "SUCCEEDED",
+        "resolvedSourceVersion": "c53d7439043c431bdcb29a3bef1332a4c682c6a4"
+      }
+    },
+    "image": {
+      "repository": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api",
+      "tag": "c53d7439043c431bdcb29a3bef1332a4c682c6a4",
+      "digest": "sha256:06fb54947e1485b1973568840b571efedb0c8515a2f449f0c53727c4e01aa646"
+    },
+    "migration": {
+      "taskDefinition": "capiro-dev-api-admin-migrate:82",
+      "taskId": "056ad6a87adc4ab0a4e3f6f7ec4c8665",
+      "exitCode": 0,
+      "result": "No pending migrations to apply"
+    },
+    "service": {
+      "taskDefinition": "capiro-dev-api:479",
+      "rolloutState": "COMPLETED",
+      "desired": 2,
+      "running": 2,
+      "pending": 0,
+      "healthyTasks": 2,
+      "replacementTasks": [
+        "4ab37a88c6dd4597a2c7c223045e81ff",
+        "faa6acc9983c49a0b30ea2a0e5a83521"
+      ],
+      "replacementTargetHealth": ["10.40.15.211:healthy", "10.40.6.253:healthy"],
+      "oldTargets": "draining normally"
+    },
+    "runtime": {
+      "gitSha": "c53d7439043c431bdcb29a3bef1332a4c682c6a4",
+      "releaseSha": "c53d7439043c431bdcb29a3bef1332a4c682c6a4",
+      "appHttpStatus": 200,
+      "recentApiErrorLikeLogMatches": 0,
+      "protectedFlags": {
+        "federalLegislativeEvidenceEnabled": false,
+        "programAcquisitionContinuityEnabled": false,
+        "fundingExecutionSourceAdapterEnabled": false,
+        "fundingExecutionPublicationEnabled": false
+      }
+    }
+  },
+  "boundary": "The pinned fixture is RDT&E-only and has no independent native Phase 4/5 identity index. All native rows remain unresolved; no production registration, manifest admission, replay, database write, publication, notification, or activation occurred. Package 3 remains NOT_COMPLETE."
+}

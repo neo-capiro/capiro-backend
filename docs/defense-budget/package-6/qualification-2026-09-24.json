@@ -1,0 +1,40 @@
+{
+  "ok": true,
+  "package": 6,
+  "fixtures": {
+    "proposedEnactedSeparated": true,
+    "transferPair": "balanced",
+    "cumulativeSnapshotUsd": "100000000.00",
+    "transactionDeltaUsd": "-12000000.00",
+    "negativeObligationUsd": "-5000000.00",
+    "rescissionUsd": "-7000000.00",
+    "unallocatedResidualUsd": "15000000.00",
+    "legacyCompatibility": true,
+    "availabilityPeriodPreserved": true,
+    "certifiedStatusSnapshotPreserved": true
+  },
+  "counts": {
+    "sourceEvents": 7,
+    "certifications": 4,
+    "publications": 7,
+    "residuals": 1
+  },
+  "worker": {
+    "mode": "DRY_RUN",
+    "examined": 7,
+    "publishable": 1,
+    "published": 0,
+    "rejected": 6,
+    "hasMore": false,
+    "cursor": null,
+    "throughId": "2026-09-24T22:31:47.636944Z|60000000-0000-4000-8000-000000000305",
+    "checkpointAdvanced": false
+  },
+  "boundaries": {
+    "canonicalAnnualPromotionAllowed": false,
+    "workerCommitEnabled": false,
+    "accountTotalsCombinedWithTransactions": false,
+    "immutableHistory": true,
+    "positiveRescissionRejectedAtDatabase": true
+  }
+}

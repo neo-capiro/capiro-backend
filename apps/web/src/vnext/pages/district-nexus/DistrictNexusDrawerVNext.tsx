@@ -38,9 +38,10 @@ import { DistrictFederalMarketPanelVNext } from './DistrictFederalMarketPanelVNe
 import { DistrictPriorityIntelligencePanelVNext } from './DistrictPriorityIntelligencePanelVNext.js';
 import { DistrictBriefPanelVNext } from './r5/DistrictBriefPanelVNext.js';
 import { DistrictActionsPanelVNext } from './r5/DistrictActionsPanelVNext.js';
-import { DISTRICT_NEXUS_R5_ACTIONS_FEATURE } from './r5/r5-actions-api.js';
+import { DistrictAlertsPanelVNext } from './r5/DistrictAlertsPanelVNext.js';
 import { DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE } from '../../../pages/intelligence/district-nexus/priority-intelligence-api.js';
 import { DISTRICT_NEXUS_R5_BRIEF_FEATURE } from './r5/r5-api.js';
+import { DISTRICT_NEXUS_R5_ACTIONS_FEATURE } from './r5/r5-actions-api.js';
 import { DnxChevronDownIcon, DnxInfoIcon, DnxWarningIcon } from './icons.js';
 import { useIntelFeatureEnabled } from '../../../lib/intel-feature-flags.js';
 
@@ -353,6 +354,13 @@ export function DistrictNexusDrawerVNext({
             <DnxSection title="Evidence and sources" meta={`${d.evidence.length} records`}>
               <EvidenceSection evidence={d.evidence} freshness={d.freshness} />
             </DnxSection>
+            {clientId && districtKey ? (
+              <DistrictAlertsPanelVNext
+                clientId={clientId}
+                state={state}
+                districtNo={districtNo}
+              />
+            ) : null}
           </>
         ) : null}
       </div>

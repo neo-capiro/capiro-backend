@@ -32,6 +32,7 @@ const mocks = vi.hoisted(() => ({
   api: { post: vi.fn(), get: vi.fn(), patch: vi.fn() },
   navigate: vi.fn(),
   pathname: '/meri/t/thread-a',
+  search: '',
   shellProps: null as Record<string, unknown> | null,
 }));
 
@@ -50,7 +51,7 @@ vi.mock('../../state/client-filter.js', () => ({
   }),
 }));
 vi.mock('react-router-dom', () => ({
-  useLocation: () => ({ pathname: mocks.pathname, search: '' }),
+  useLocation: () => ({ pathname: mocks.pathname, search: mocks.search }),
   useNavigate: () => mocks.navigate,
 }));
 vi.mock('./VNextMeriIntegrations.js', () => ({
@@ -136,6 +137,7 @@ describe('vNext Meri route identity boundary', () => {
     mocks.getToken.mockReset();
     mocks.getToken.mockImplementation(async () => 'token');
     mocks.pathname = '/meri/t/thread-a';
+    mocks.search = '';
     mocks.shellProps = null;
     queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false, gcTime: Infinity } },
@@ -552,6 +554,40 @@ describe('vNext Meri route identity boundary', () => {
     expect(draft.result.current.draft).toBe('Early client constraint');
     expect(getChatStateSnapshot().sessionId).toBeNull();
     expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/stream'))).toHaveLength(0);
+  });
+
+  test('a contextual prospect launch creates exactly one prospect-scoped thread without client scope', async () => {
+    claimMeriIdentity('org-a:user-a');
+    mocks.pathname = '/meri/new';
+    mocks.search =
+      '?meriPrompt=Prepare+the+grounded+brief&meriProspect=11111111-1111-4111-8111-111111111111';
+    window.history.replaceState({}, '', `${mocks.pathname}${mocks.search}`);
+    const fetchMock = stubFetch((url, init) => {
+      if (url.endsWith('/api/clio/conversations') && init?.method === 'POST') {
+        return ok({ id: 'prospect-thread', title: 'Opportunity brief', clientId: null });
+      }
+      return undefined;
+    });
+
+    await act(async () => {
+      renderRoute();
+    });
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(
+          ([url, init]) => url.endsWith('/api/clio/conversations') && init?.method === 'POST',
+        ),
+      ).toHaveLength(1),
+    );
+    const createCall = fetchMock.mock.calls.find(
+      ([url, init]) => url.endsWith('/api/clio/conversations') && init?.method === 'POST',
+    );
+    expect(JSON.parse(String(createCall?.[1]?.body))).toEqual({
+      prospectId: '11111111-1111-4111-8111-111111111111',
+      title: 'Opportunity brief',
+    });
+    expect(JSON.parse(String(createCall?.[1]?.body))).not.toHaveProperty('clientId');
   });
 
   test('a deferred first turn rejected by HTTP restores the created thread draft after navigation', async () => {

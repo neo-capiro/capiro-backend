@@ -13,6 +13,8 @@ import { EntityResolutionService } from '../intelligence/entity-resolution.servi
 import { ClientPrepopulationService } from '../intelligence/client-prepopulation.service.js';
 import { SamEntityEnrichmentService } from '../intelligence/sam-entity.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { BIZDEV_JEV_REVIEW_HOOK, type BizDevJevReviewHook } from './bizdev-jev.service.js';
+import { Inject, Optional } from '@nestjs/common';
 import type { BizDevStage } from './business-development.dto.js';
 
 /**
@@ -174,6 +176,9 @@ export class BusinessDevelopmentService {
     private readonly entityResolution: EntityResolutionService,
     private readonly prepopulation: ClientPrepopulationService,
     private readonly samEntity: SamEntityEnrichmentService,
+    /** Phase 3 — optional Jev review-metadata hook (best-effort, never in-transaction). */
+    @Optional() @Inject(BIZDEV_JEV_REVIEW_HOOK)
+    private readonly jevReview?: BizDevJevReviewHook,
   ) {}
 
   // ── reads ────────────────────────────────────────────────────────────────
@@ -1195,12 +1200,13 @@ export class BusinessDevelopmentService {
         };
       }
   > {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const before = await this.findOwnedTx(tx, ctx.tenantId, id);
 
-      // Already confirmed identity → idempotent no-op.
+      // Already confirmed identity → idempotent no-op (private marker; the
+      // public response below is identical to the changed outcome).
       if (before.canonicalEntityId === input.canonicalEntityId) {
-        return { outcome: 'resolved' as const, prospect: before };
+        return { outcome: 'resolved' as const, prospect: before, identityChanged: false };
       }
 
       // Validate the canonical entity under the identity rules in this same
@@ -1268,8 +1274,36 @@ export class BusinessDevelopmentService {
         },
         { canonicalEntityId: input.canonicalEntityId },
       );
-      return { outcome: 'resolved' as const, prospect: after };
+      return { outcome: 'resolved' as const, prospect: after, identityChanged: true };
     });
+
+    // Phase 3: fire the review hook only when the transaction genuinely
+    // CHANGED the identity (private identityChanged marker — true only on
+    // the real update path). The idempotent already-resolved no-op and the
+    // duplicate-review outcome both skip it. The marker is stripped here;
+    // the public response shape is identical to Phase 1. Post-commit and
+    // best-effort: a hook failure can never fail the resolution.
+    const { identityChanged, outcome, ...rest } = result as {
+      identityChanged?: boolean;
+      outcome: 'resolved' | 'duplicate';
+      [key: string]: unknown;
+    };
+    const publicResult =
+      outcome === 'resolved'
+        ? { outcome, prospect: (rest as { prospect: ProspectRow }).prospect }
+        : { outcome, duplicate: (rest as { duplicate: unknown }).duplicate };
+    void identityChanged;
+    if (identityChanged && this.jevReview) {
+      void this.jevReview
+        .recordIdentityReviewOutcome({
+          tenantId: ctx.tenantId,
+          prospectId: id,
+          resolvedCanonicalEntityId: input.canonicalEntityId,
+          userId: ctx.userId ?? null,
+        })
+        .catch(() => undefined);
+    }
+    return publicResult as typeof result;
   }
 
   // ── shared helpers ──────────────────────────────────────────────────────

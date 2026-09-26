@@ -4,11 +4,12 @@
  * SelectedContextItem the wizard persists → the note rides the
  * Phase 1 §3.b1 wire shape (customNoteText, no title/body).
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 import { StepContextBuilder } from './StepContextBuilder.js';
+import type { Client } from '../../../clients/clientTypes.js';
 import {
   toContextItemPayload,
   type ContextKind,
@@ -16,7 +17,14 @@ import {
   type SelectedContextItem,
 } from './types.js';
 
-const api = { get: vi.fn(async () => ({ data: {} })) };
+const api = {
+  get: vi.fn(async (url?: string) => ({
+    data: url?.endsWith('/client-b/capabilities')
+      ? [{ id: 'cap-b1', name: 'Beta logistics', type: 'Service', sector: 'Logistics' }]
+      : {},
+  })),
+  post: vi.fn(async () => ({ data: { text: 'Extracted client profile context.' } })),
+};
 vi.mock('../../../../lib/use-api.js', () => ({
   useApi: () => api,
 }));
@@ -33,7 +41,7 @@ function StatefulBuilder() {
   const emptyPool: Record<ContextKind, ContextPoolItem[]> = {
     bill: [], stateBill: [], intel: [], email: [], meeting: [],
     note: [], document: [], debrief: [], prep: [],
-    programElement: [], capability: [],
+    programElement: [], capability: [], clientOverview: [],
   };
   return (
     <QueryClientProvider client={new QueryClient()}>
@@ -55,7 +63,7 @@ describe('StepContextBuilder — Custom note tab', () => {
   test('Add shared note exposes a focused editor on this tab; typing persists to wizard state', async () => {
     render(<StatefulBuilder />);
 
-    fireEvent.click(screen.getByRole('tab', { name: /custom note/i }));
+    fireEvent.click(screen.getByRole('button', { name: /custom note/i }));
     fireEvent.click(screen.getByRole('button', { name: /add shared note/i }));
 
     const editor = await screen.findByPlaceholderText(/write your note here/i);
@@ -87,14 +95,141 @@ describe('StepContextBuilder — Custom note tab', () => {
   test('Remove on this tab deletes the note from the shared state', async () => {
     render(<StatefulBuilder />);
 
-    fireEvent.click(screen.getByRole('tab', { name: /custom note/i }));
+    fireEvent.click(screen.getByRole('button', { name: /custom note/i }));
     fireEvent.click(screen.getByRole('button', { name: /add shared note/i }));
     await screen.findByPlaceholderText(/write your note here/i);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Remove Shared note' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remove Shared note' })[0]!);
     await waitFor(() => {
       expect(emitted).toHaveLength(0);
       expect(screen.queryByPlaceholderText(/write your note here/i)).toBeNull();
     });
+  });
+});
+
+describe('StepContextBuilder — client portfolio', () => {
+  test('shows client profile details and allows multiple profile context items to be selected', async () => {
+    emitted = [];
+    const client = {
+      id: 'client-1',
+      name: 'Northstar Systems',
+      sectorTag: 'Aerospace',
+      profileType: 'Company',
+      website: 'northstar.example',
+      description: 'Builds mission systems for public agencies.',
+    } as Client;
+    const pool: Record<ContextKind, ContextPoolItem[]> = {
+      bill: [], stateBill: [], intel: [
+        { id: 'intel-1', kind: 'intel', title: 'Agency modernization update', clientId: client.id, clientName: client.name },
+      ], email: [], meeting: [], note: [],
+      document: [
+        { id: 'doc-1', kind: 'document', title: 'Capability brief', clientId: client.id, clientName: client.name },
+        { id: 'doc-2', kind: 'document', title: 'Program overview', clientId: client.id, clientName: client.name },
+      ],
+      debrief: [], prep: [
+        { id: 'prep-1', kind: 'prep', title: 'Quarterly meeting prep', clientId: client.id, clientName: client.name },
+      ], programElement: [], capability: [
+        { id: 'capability-cap-1', kind: 'capability', title: 'Mission systems', clientId: client.id, clientName: client.name },
+      ], clientOverview: [],
+    };
+    function PortfolioBuilder() {
+      const [selected, setSelected] = useState<SelectedContextItem[]>([]);
+      const onChangeWithCapture = (next: SelectedContextItem[]) => {
+        emitted = next;
+        setSelected(next);
+      };
+      return (
+        <QueryClientProvider client={new QueryClient()}>
+          <StepContextBuilder
+            clients={[client]}
+            selectedClientId={client.id}
+            recipients={[]}
+            targets={[]}
+            selected={selected}
+            onChange={onChangeWithCapture}
+            pool={pool}
+            hasClient
+            loading={false}
+          />
+        </QueryClientProvider>
+      );
+    }
+
+    render(<PortfolioBuilder />);
+    expect(screen.getAllByText('Northstar Systems').length).toBeGreaterThan(1);
+    expect(screen.getAllByText('Builds mission systems for public agencies.')).toHaveLength(2);
+    const overviewGroup = screen.getByRole('region', { name: 'Client overview context' });
+    expect(within(overviewGroup).getByText('Northstar Systems overview')).toBeTruthy();
+    const documentsGroup = screen.getByRole('region', { name: 'Docs & Notes context' });
+    const capabilitiesGroup = screen.getByRole('region', { name: 'Client capabilities context' });
+    expect(screen.queryByRole('button', { name: /client capabilities/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /docs & notes/i })).toBeNull();
+    expect(within(documentsGroup).getByText('Capability brief')).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Meeting preps context' })).toBeTruthy();
+    expect(within(screen.getByRole('region', { name: 'Client intelligence context' })).getByText('Agency modernization update')).toBeTruthy();
+    fireEvent.click(within(documentsGroup).getByRole('button', { name: 'Select all' }));
+    await waitFor(() => expect(emitted.map((item) => item.id)).toEqual(['doc-1', 'doc-2']));
+    fireEvent.click(within(screen.getByRole('region', { name: 'Meeting preps context' })).getByRole('button', { name: 'Select all' }));
+    await waitFor(() => expect(emitted.map((item) => item.id)).toEqual(['doc-1', 'doc-2', 'prep-1']));
+    fireEvent.click(within(overviewGroup).getByRole('button', { name: 'Select all' }));
+    await waitFor(() => expect(emitted.map((item) => item.id)).toContain('client-overview-client-1'));
+    fireEvent.click(within(capabilitiesGroup).getByRole('button', { name: 'Select all' }));
+    await waitFor(() => expect(emitted.map((item) => item.id)).toContain('capability-cap-1'));
+    const overviewPayload = toContextItemPayload(emitted.find((item) => item.kind === 'clientOverview')!);
+    expect(overviewPayload).toMatchObject({ id: 'client-overview-client-1', kind: 'clientOverview' });
+    expect(overviewPayload).not.toHaveProperty('body');
+    expect(screen.getByRole('complementary', { name: 'Selected context' }).textContent).toContain('5');
+  });
+
+  test('loads capabilities for the open portfolio client and switches without mixing clients', async () => {
+    emitted = [];
+    const clients = [
+      { id: 'client-a', name: 'Alpha Systems' },
+      { id: 'client-b', name: 'Beta Works' },
+    ] as Client[];
+    const pool: Record<ContextKind, ContextPoolItem[]> = {
+      bill: [], stateBill: [], intel: [], email: [], meeting: [], note: [],
+      document: [], debrief: [], prep: [], programElement: [], clientOverview: [],
+      capability: [{
+        id: 'capability-cap-a1', kind: 'capability', title: 'Alpha avionics',
+        clientId: 'client-a', clientName: 'Alpha Systems',
+      }],
+    };
+    function PortfolioBuilder() {
+      const [selected, setSelected] = useState<SelectedContextItem[]>([]);
+      return (
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <StepContextBuilder
+            clients={clients}
+            selectedClientId="client-a"
+            recipients={[]}
+            targets={[]}
+            selected={selected}
+            onChange={(next) => { emitted = next; setSelected(next); }}
+            pool={pool}
+            hasClient
+            loading={false}
+          />
+        </QueryClientProvider>
+      );
+    }
+
+    render(<PortfolioBuilder />);
+    expect(await screen.findByText('Alpha avionics')).toBeTruthy();
+    expect(screen.queryByText('Beta logistics')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /Beta Works/i }));
+    await screen.findByText('Beta logistics');
+    expect(screen.queryByText('Alpha avionics')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Beta logistics/i }));
+    await waitFor(() => expect(emitted.find((item) => item.id === 'capability-cap-b1')).toMatchObject({
+      clientId: 'client-b',
+      clientName: 'Beta Works',
+    }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Alpha Systems/i }));
+    const alphaProfile = await screen.findByRole('region', { name: 'Alpha Systems profile context' });
+    expect(within(alphaProfile).getByText('Alpha avionics')).toBeTruthy();
+    expect(within(alphaProfile).queryByText('Beta logistics')).toBeNull();
   });
 });

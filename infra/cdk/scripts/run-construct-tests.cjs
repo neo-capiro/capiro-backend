@@ -8,12 +8,12 @@
  * -----------------------------------------------
  * The specs are TypeScript with `module: commonjs` + `moduleResolution: node`
  * (infra/cdk/tsconfig.json), so they use extensionless relative imports such
- * as `from '../lib/constructs/meri-hermes-worker-fleet'`.
+ * as `from '../lib/constructs/example-construct'`.
  *
  *   * Plain `node --test test/foo.spec.ts` on Node >= 23 strips the types and
  *     then loads the file as an ES module (import syntax is detected), and ESM
  *     resolution REFUSES extensionless specifiers. Verified on Node 24.19.0:
- *     `ERR_MODULE_NOT_FOUND ... /lib/constructs/meri-hermes-worker-fleet`.
+ *     `ERR_MODULE_NOT_FOUND ... /lib/constructs/example-construct`.
  *   * Registering ts-node's CommonJS require hook makes the spec load as CJS
  *     with Node's forgiving CJS resolver, which is what the tsconfig targets.
  *     Verified on Node 24.19.0: 9/9 pass, exit 0.
@@ -39,7 +39,7 @@ const { PACKAGE_ROOT, classifySpecs } = require('./cdk-spec-runners.cjs');
 function main() {
   const argv = process.argv.slice(2);
   const listOnly = argv.includes('--list');
-  /** Optional substring filters, e.g. `test:constructs meri-hermes`. */
+  /** Optional substring filters for focused construct tests. */
   const filters = argv.filter((a) => !a.startsWith('--'));
 
   const { nodeTest, jest } = classifySpecs();

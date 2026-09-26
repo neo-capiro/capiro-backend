@@ -33,12 +33,14 @@ import {
   buildCycleHealth,
   buildScheduleTickHealth,
   deriveLifecycleSignals,
+  buildCoverageReconciliation,
   type AuthorityTrack,
   type ExpectedSourceState,
   type LifecycleObservationRef,
   type LifecycleStage,
   type ObservationState,
   type SourceFamily,
+  type ReconciliationUnit,
 } from '@capiro/defense-domain';
 import {
   DEFENSE_BUDGET_LIFECYCLE_SCHEMA_VERSION,
@@ -116,6 +118,94 @@ const OBSERVATION_INCLUDE = {
 @Injectable()
 export class DefenseBudgetLifecycleReadService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /** SELECT-only physical coverage report. Catalog completeness is unattested in the live schema. */
+  async getCoverageReconciliation(fiscalYear: number) {
+    const environment = process.env.APP_ENV?.trim() || process.env.CAPIRO_ENVIRONMENT?.trim() || 'unknown';
+    const [sources, observations, members, pointer] = await Promise.all([
+      this.prisma.defenseBudgetExpectedSource.findMany({ where: { fiscalYear },
+        orderBy: [{ sourceFamily: 'asc' }, { component: 'asc' }, { id: 'asc' }] }),
+      this.prisma.defenseBudgetSourceObservation.findMany({
+        where: { expectedSource: { fiscalYear } },
+        select: { id: true, expectedSourceId: true, sourceDocumentId: true,
+          contentSha256: true, supersededByObservationId: true, observationState: true },
+      }),
+      this.prisma.defenseBudgetSourceBundleMember.findMany({
+        where: { expectedSource: { fiscalYear } },
+        select: { id: true, expectedSourceId: true, required: true, budgetActivity: true,
+          volume: true,
+          observationId: true, sourceDocumentId: true, memberStatus: true },
+      }),
+      environment !== 'unknown' ? this.prisma.defenseBudgetActiveSnapshot.findUnique({
+        where: { domain_environment: { domain: 'defense_budget', environment } },
+        select: { snapshotId: true },
+      }) : Promise.resolve(null),
+    ]);
+    const observationById = new Map(observations.map((row) => [row.id, row]));
+    const linkedObservationIds = new Set(members.flatMap((member) => member.observationId ? [member.observationId] : []));
+    const units: ReconciliationUnit[] = members.map((member) => {
+      const observation = member.observationId ? observationById.get(member.observationId) : null;
+      return { unitId: member.id, slotId: member.expectedSourceId, kind: 'volume',
+        required: member.required, account: null, budgetActivity: member.budgetActivity,
+        volume: member.volume,
+        sourceDocumentId: member.sourceDocumentId,
+        sourceSha256: observation?.sourceDocumentId === member.sourceDocumentId
+          ? observation?.contentSha256 ?? null : null,
+        superseded: observation?.supersededByObservationId !== null && observation !== undefined,
+        unavailable: observation?.observationState === 'blocked'
+          || observation?.observationState === 'withdrawn' };
+    });
+    const seenDocumentKeys = new Set<string>();
+    for (const observation of observations) {
+      if (linkedObservationIds.has(observation.id)) continue;
+      const identity = `${observation.expectedSourceId}:${observation.sourceDocumentId ?? observation.id}:${observation.contentSha256}`;
+      if (observation.supersededByObservationId === null && seenDocumentKeys.has(identity)) continue;
+      if (observation.supersededByObservationId === null) seenDocumentKeys.add(identity);
+      units.push({ unitId: observation.id, slotId: observation.expectedSourceId, kind: 'document',
+        required: true, account: null, budgetActivity: null, volume: null,
+        sourceDocumentId: observation.sourceDocumentId,
+        sourceSha256: observation.contentSha256,
+        superseded: observation.supersededByObservationId !== null,
+        unavailable: observation.observationState === 'blocked'
+          || observation.observationState === 'withdrawn' });
+    }
+    const documentIds = [...new Set(units.flatMap((unit) => unit.sourceDocumentId ? [unit.sourceDocumentId] : []))];
+    const [candidateRows, publishedRows] = await Promise.all([
+      documentIds.length ? this.prisma.budgetExtractionCandidateV1.findMany({
+        where: { sourceDocumentId: { in: documentIds } },
+        select: { id: true, sourceDocumentId: true, sourceSha256: true, currentRunId: true,
+          runs: { select: { id: true, decision: true } },
+          reviewDecisions: { orderBy: { createdAt: 'desc' }, select: { runId: true, decision: true } },
+        },
+      }) : Promise.resolve([]),
+      pointer && documentIds.length ? this.prisma.defenseBudgetCanonicalRow.findMany({
+        where: { snapshotId: pointer.snapshotId, sourceDocumentId: { in: documentIds }, fiscalYear },
+        select: { sourceDocumentId: true, sourcePdfSha256: true,
+          verificationCandidateId: true, verificationRunId: true },
+      }) : Promise.resolve([]),
+    ]);
+    return buildCoverageReconciliation({ fiscalYear, environment,
+      activeSnapshotId: pointer?.snapshotId ?? null,
+      slots: sources.map((source) => ({ slotId: source.id, fiscalYear,
+        sourceFamily: source.sourceFamily, component: source.component,
+        optional: source.optional, catalogComplete: false })),
+      units,
+      candidates: candidateRows.map((candidate) => {
+        const run = candidate.runs.find((entry) => entry.id === candidate.currentRunId);
+        return run ? { candidateId: candidate.id,
+          sourceDocumentId: candidate.sourceDocumentId, sourceSha256: candidate.sourceSha256,
+          runId: run.id, verificationDecision: run.decision as 'PASS' | 'REVIEW' | 'REJECT',
+          reviewAccepted: candidate.reviewDecisions[0]?.runId === run.id
+            && candidate.reviewDecisions[0]?.decision === 'accept' } :
+          { candidateId: candidate.id, sourceDocumentId: candidate.sourceDocumentId,
+          sourceSha256: candidate.sourceSha256, runId: null,
+          verificationDecision: null, reviewAccepted: false };
+      }),
+      publications: publishedRows.map((row) => ({ sourceDocumentId: row.sourceDocumentId,
+        sourceSha256: row.sourcePdfSha256, candidateId: row.verificationCandidateId,
+        runId: row.verificationRunId })),
+    });
+  }
 
   async getCycleHealth(fiscalYear: number): Promise<DefenseCycleHealthDto> {
     const [expectedSources, observations, watcherRuns, outbox] = await Promise.all([

@@ -1,9 +1,18 @@
 /** Public scope receipt for one completed turn. Stored in existing message metadata. */
 export interface MeriTurnScope {
-  kind: 'client' | 'portfolio' | 'external_entity' | 'general' | 'unknown';
+  kind: 'client' | 'portfolio' | 'external_entity' | 'general' | 'prospect' | 'unknown';
   clientId: string | null;
   clientName: string | null;
   targetHint: string | null;
+  // Phase 4 prospect slice: a prospect-scoped turn carries the bounded prospect
+  // identity captured from the immutable server conversation snapshot — never
+  // from retrieval plans or model output. Nullable where a prospect may lack a
+  // linked organization/client.
+  prospectId?: string;
+  prospectName?: string;
+  canonicalOrganizationId?: string | null;
+  linkedClientId?: string | null;
+  scopeVersion?: string;
 }
 
 /** The conversation is the server snapshot captured before dispatch, never re-read at completion. */

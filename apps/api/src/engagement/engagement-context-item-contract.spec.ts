@@ -70,6 +70,21 @@ describe('a modern wizard payload survives normalization', () => {
     });
     expect(out.noteUse).toBe('fact');
   });
+
+  test('a client overview stays identifier-only', () => {
+    const out = normalizeSelectedContextItem({
+      id: 'client-overview-client-1',
+      kind: 'clientOverview',
+      scope: 'all',
+      title: 'Browser title',
+      body: 'Browser overview text',
+    });
+    expect(out).toEqual({
+      id: 'client-overview-client-1',
+      kind: 'clientOverview',
+      scope: 'all',
+    });
+  });
 });
 
 describe('a legacy payload still maps onto the new names', () => {

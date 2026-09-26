@@ -25,6 +25,8 @@ import { DistrictNexusStrategicFlagGuard } from './district-nexus-strategic-flag
 import { DistrictNexusEconomicFlagGuard } from './district-nexus-economic-flag.guard.js';
 import { DistrictNexusPriorityIntelligenceFlagGuard } from './priority-intelligence/priority-intelligence-flag.guard.js';
 import { R5FlagGuard } from './r5-action-layer/r5-flag.guard.js';
+import { R5DistrictAlertsService } from './r5-action-layer/r5-alerts.service.js';
+import { R5DistrictAlertsController } from './r5-action-layer/r5-alerts.controller.js';
 
 /**
  * District Nexus v2.
@@ -33,6 +35,7 @@ import { R5FlagGuard } from './r5-action-layer/r5-flag.guard.js';
  * Strategic Relevance rail. Release 3 adds reviewable first-party economic
  * evidence and public district context. Release 4 adds Federal + Local Priority
  * Intelligence (CPF/CDS, GSA property, sector signals, deterministic changes).
+ * Release 5 adds Proactive Alerts and Recommended Actions.
  * These are registered in one module but remain independently gated and
  * independently scored — no parallel map or blended master score.
  */
@@ -45,6 +48,7 @@ import { R5FlagGuard } from './r5-action-layer/r5-flag.guard.js';
     DistrictNexusPriorityIntelligenceController,
     R5DistrictBriefController,
     R5DistrictActionsController,
+    R5DistrictAlertsController,
   ],
   providers: [
     DistrictNexusService,
@@ -63,6 +67,7 @@ import { R5FlagGuard } from './r5-action-layer/r5-flag.guard.js';
     DistrictNexusEconomicFlagGuard,
     DistrictNexusPriorityIntelligenceFlagGuard,
     R5FlagGuard,
+    R5DistrictAlertsService,
   ],
   exports: [
     DistrictNexusService,

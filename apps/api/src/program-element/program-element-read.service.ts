@@ -77,6 +77,8 @@ export interface ProgramElementListQuery {
   lineType?: string;
   /** BL-1: filter to lines with an accepted match to this capability slug. */
   capability?: string;
+  /** Return the funding position asserted for this exact fiscal year. */
+  fy?: number;
 }
 
 /**
@@ -278,6 +280,7 @@ export class ProgramElementReadService {
     // capability filters via the auditable match table (accepted rows only).
     const lineType = query.lineType?.trim();
     const capability = query.capability?.trim();
+    const fy = query.fy;
 
     type ListRow = {
       peCode: string;
@@ -357,6 +360,7 @@ export class ProgramElementReadService {
           AND (${budgetActivity ? Prisma.sql`pe.budget_activity ILIKE ${budgetActivity}` : Prisma.sql`TRUE`})
           AND (${lineType ? Prisma.sql`EXISTS (SELECT 1 FROM program_element_intelligence_cache ic WHERE ic.pe_code = pe.pe_code AND ic.line_type = ${lineType})` : Prisma.sql`TRUE`})
           AND (${capability ? Prisma.sql`EXISTS (SELECT 1 FROM capability_budget_line_match cm JOIN capability c ON c.id = cm.capability_id WHERE cm.pe_code = pe.pe_code AND cm.status = 'accepted' AND c.slug = ${capability})` : Prisma.sql`TRUE`})
+          AND (${fy ? Prisma.sql`EXISTS (SELECT 1 FROM program_element_year fy_row WHERE fy_row.pe_code = pe.pe_code AND fy_row.fy = ${fy})` : Prisma.sql`TRUE`})
           AND (${hasDataOnly ? hasDataExpr : Prisma.sql`TRUE`})
           AND (${watchedOnly ? watchedExpr : Prisma.sql`TRUE`})
           AND (
@@ -414,6 +418,7 @@ export class ProgramElementReadService {
         SELECT y.request, y.fy
         FROM program_element_year y
         WHERE y.pe_code = f.pe_code AND y.request IS NOT NULL
+          AND (${fy ? Prisma.sql`y.fy = ${fy}` : Prisma.sql`TRUE`})
         ORDER BY y.fy DESC
         LIMIT 1
       ) lr ON TRUE
@@ -421,6 +426,7 @@ export class ProgramElementReadService {
         SELECT y.enacted, y.fy
         FROM program_element_year y
         WHERE y.pe_code = f.pe_code AND y.enacted IS NOT NULL
+          AND (${fy ? Prisma.sql`y.fy = ${fy}` : Prisma.sql`TRUE`})
         ORDER BY y.fy DESC
         LIMIT 1
       ) le ON TRUE
@@ -428,6 +434,7 @@ export class ProgramElementReadService {
         SELECT y.request, y.hasc_mark, y.sasc_mark, y.hac_d_mark, y.sac_d_mark, y.conference, y.enacted, y.fy
         FROM program_element_year y
         WHERE y.pe_code = f.pe_code AND ${Prisma.raw(fundingCurrentCoalesceSql('y.'))} IS NOT NULL
+          AND (${fy ? Prisma.sql`y.fy = ${fy}` : Prisma.sql`TRUE`})
         ORDER BY y.fy DESC
         LIMIT 1
       ) lc ON TRUE
@@ -442,6 +449,7 @@ export class ProgramElementReadService {
         SELECT ${Prisma.raw(sqlCurrentCycleFyExpr('y'))} AS pe_current_cycle_fy
         FROM program_element_year y
         WHERE y.pe_code = f.pe_code
+          AND (${fy ? Prisma.sql`y.fy <= ${fy}` : Prisma.sql`TRUE`})
       ) pcy ON TRUE
       LEFT JOIN LATERAL (
         SELECT json_agg(v ORDER BY fy) AS spark
@@ -449,6 +457,7 @@ export class ProgramElementReadService {
           SELECT y.fy AS fy, ${Prisma.raw(fundingCurrentCoalesceSql('y.'))}::double precision AS v
           FROM program_element_year y
           WHERE y.pe_code = f.pe_code AND ${Prisma.raw(fundingCurrentCoalesceSql('y.'))} IS NOT NULL
+            AND (${fy ? Prisma.sql`y.fy <= ${fy}` : Prisma.sql`TRUE`})
           ORDER BY y.fy DESC
           LIMIT 6
         ) s
@@ -457,6 +466,7 @@ export class ProgramElementReadService {
         SELECT d.delta_type, d.materiality_score, d.delta_pct
         FROM program_element_delta d
         WHERE d.pe_code = f.pe_code AND d.superseded_at IS NULL
+          AND (${fy ? Prisma.sql`d.asserted_fy = ${fy}` : Prisma.sql`TRUE`})
         ORDER BY d.materiality_score DESC NULLS LAST
         LIMIT 1
       ) sig ON TRUE

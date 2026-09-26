@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "package": 9,
+  "scenario": "P9-F06-PROJECTION-AND-ROUTING-ROLLBACK",
+  "qualification": "disposable-local-postgresql-composite-canary-routing-and-pointer-rollback",
+  "status": "PASS_LIMITED_LOCAL_COMPOSITE",
+  "startedAt": "2026-09-25T03:58:06.6511775Z",
+  "completedAt": "2026-09-25T04:02:22.9933814Z",
+  "exitCode": 0,
+  "sourceRevision": "70236246b719dc8c08be02c1f78d24a904db4692",
+  "harness": {
+    "enginePath": "apps/api/scripts/pe-budget-phase7-engine-rehearsal.ts",
+    "engineSha256": "99a4447c04ac8d2d7708910dd816d6da5338cb8df0d5cd47f31c302f37d4704f",
+    "migrationPath": "apps/api/scripts/pe-budget-phase7-migration-rehearsal.sh",
+    "migrationSha256": "5d48fae19758ca986aa73c180145e2f36d9f87f0a34b056a765da6281937d727",
+    "launcher": "apps/api/scripts/run-pe-budget-phase7-migration-rehearsal.mjs",
+    "command": "pnpm --filter @capiro/api verify:pe-budget-phase-7:db",
+    "portOverride": 55449,
+    "portOverrideReason": "Port 55447 belonged to a separate acceptance task and was left untouched."
+  },
+  "database": {
+    "environment": "disposable-local-postgresql",
+    "containerName": "pe-p7-mig-rehearsal",
+    "image": "pgvector/pgvector:pg16",
+    "freshDatabase": true,
+    "syntheticDataOnly": true,
+    "sharedOrAwsDatabaseUsed": false,
+    "applicationRole": "capiro_app",
+    "promoterRole": "capiro_pe_promoter"
+  },
+  "checkGroups": {
+    "topLevelDatabaseRehearsal": 125,
+    "promotionEngine": 35,
+    "outboxDrain": 39,
+    "snapshotReader": 33,
+    "planAndValidate": 36,
+    "authorization": 13
+  },
+  "compositeAssertions": {
+    "tenantCanaryForegroundUsedActiveSnapshotPointer": "PASS",
+    "syntheticCanaryMismatchDetectedByShadowCompare": "PASS",
+    "emergencyProcessSwitchReturnedLegacySentinel": "PASS",
+    "emergencyProcessSwitchBypassedSnapshotRowReads": "PASS",
+    "authorizedRollbackReactivatedPriorSnapshot": "PASS",
+    "activePointerReturnedToPriorSnapshot": "PASS",
+    "postRollbackCanaryFollowedRestoredPointer": "PASS",
+    "bothSnapshotsRemain": "PASS",
+    "rolledBackSnapshotRowsRemain": "PASS",
+    "durableRollbackRecordRetained": "PASS",
+    "rollbackRecordPreservedExactPointerTransition": "PASS",
+    "rollbackLeftDrainPaused": "PASS",
+    "rollbackUnsuppressedNotifications": 0,
+    "acceptedRollbackDurableAuditRows": 1,
+    "generalServeRoleCouldNotMovePointer": "PASS",
+    "activeSnapshotReadsDidNotMixSnapshots": "PASS"
+  },
+  "routeFixture": {
+    "tenantId": "p9-f06-synthetic-canary-tenant",
+    "peCode": "P9-F06-SYNTHETIC-PE",
+    "readMode": "snapshot_canary",
+    "emergencySwitch": "PE_SNAPSHOT_CANARY_ROLLBACK",
+    "canonicalForegroundShape": "empty synthetic canonical result",
+    "legacyForegroundSentinel": "legacy-only-fy2027",
+    "shadowComparison": "Expected P0 count mismatch between empty canonical result and one synthetic legacy sentinel; no external metric sink was called."
+  },
+  "cleanup": {
+    "temporaryMigrationDirectoryAbsent": true,
+    "containerAbsent": true,
+    "temporaryDependencyJunctionsRemoved": true,
+    "overridePortListenersAfterCleanup": 0,
+    "separateAcceptanceContainerOrPortModified": false
+  },
+  "proves": [
+    "The shipped ProgramElementReadService and PeSnapshotGateService route a synthetic canary tenant through the active snapshot pointer in snapshot_canary mode.",
+    "The emergency process switch forces the same canary tenant to the synthetic legacy reader without reading snapshot rows.",
+    "The real promotion service performs an authorized rollback, returns the active pointer to the prior snapshot, preserves both snapshots and rows, and appends durable rollback and audit records.",
+    "The rollback pauses side-effect draining and produces no unsuppressed rollback notification.",
+    "After pointer rollback, the canary route follows the restored prior snapshot."
+  ],
+  "doesNotProve": [
+    "Equivalent populated legacy and canonical PE budget responses; the synthetic canonical snapshots contain no RDTE PE rows and are distinguished from an explicit legacy sentinel.",
+    "Authenticated HTTP routing, a restarted deployed API process, production or AWS database rollback, or a real customer tenant.",
+    "Preservation of real source bytes, provider attempts, review decisions, or delivered customer notifications.",
+    "Production recovery time, alarm integration, sustained latency, cost, buyer outcomes, independent accuracy, or commercial activation."
+  ]
+}

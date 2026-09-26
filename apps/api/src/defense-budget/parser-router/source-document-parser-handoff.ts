@@ -45,6 +45,10 @@ import {
   type ExtractionArtifactStoreV1,
 } from './extraction-artifact-store.js';
 import { resolveArtifactFactoryForFamilyV1 } from './rdte-durable-semantic-artifact-factory-v1.js';
+import {
+  resolveSourceDocumentArtifactFactoryV1,
+  type CongressionalFactoryInputsV1,
+} from './source-document-parser-handoff-artifact-factory-v1.js';
 import { lifecycleBridgeManifestCycleIdV1 } from './lifecycle-bridge-manifest-cycle-id-v1.js';
 import type { VerificationPersistenceFenceV1 } from '../verification/persistence/verification-persistence-fence-v1.js';
 
@@ -86,6 +90,8 @@ export interface SourceDocumentParserHandoffInput {
   readonly parserProjectDir?: string;
   readonly verificationPersistenceFence?: VerificationPersistenceFenceV1;
   readonly abortSignal?: AbortSignal;
+  /** Already validated by congressional-manifest-packet-provider-v1. */
+  readonly congressionalFactoryInputs?: CongressionalFactoryInputsV1;
   /** Persist the router terminal before any fallible local artifact copy. */
   readonly onTerminal?: (output: ParserRouterTerminalOutputV1) => Promise<void>;
 }
@@ -316,6 +322,7 @@ function parserArtifactRoot(input: { persistVerificationAudit: boolean; workDir:
 export async function runParserHandoffForSourceDocument(
   input: SourceDocumentParserHandoffInput,
 ): Promise<SourceDocumentParserHandoffResult> {
+  const congressionalArtifactFactory = resolveSourceDocumentArtifactFactoryV1(input);
   if (!fs.existsSync(input.sourcePath)) {
     throw new Error(`source file not found: ${input.sourcePath}`);
   }
@@ -407,29 +414,32 @@ export async function runParserHandoffForSourceDocument(
     // is always the caller-supplied `ExtractionArtifactStoreV1`'s (S3-backed
     // in production), never the underlying factory's local scratch path. See
     // `rdte-durable-semantic-artifact-factory-v1.ts` for why the raw factory
-    // cannot be assigned here directly. Procurement, O&M and MILCON resolve
-    // to their proof-bound durable factory below; unsupported families still
-    // fall back to the generic lineage builder.
-    const artifactFactory = resolveArtifactFactoryForFamilyV1(input.budgetFamily, {
-      document: syntheticManifest.documents[0]!,
-      source: {
-        manifestDocumentKey: input.sourceDocumentId,
-        sourceDocumentId: input.sourceDocumentId,
-        sourcePdfSha256: input.sourceSha256,
-        sourceLocator: input.sourceLocator,
-        ...(input.sourceUrl ? { sourceUrl: input.sourceUrl } : {}),
+    // cannot be assigned here directly. Committee uses its supplied,
+    // validated packet factory; procurement, O&M and MILCON resolve to their
+    // proof-bound durable factory; unsupported families retain the generic
+    // lineage builder.
+    const artifactFactory =
+      congressionalArtifactFactory ??
+      resolveArtifactFactoryForFamilyV1(input.budgetFamily, {
+        document: syntheticManifest.documents[0]!,
+        source: {
+          manifestDocumentKey: input.sourceDocumentId,
+          sourceDocumentId: input.sourceDocumentId,
+          sourcePdfSha256: input.sourceSha256,
+          sourceLocator: input.sourceLocator,
+          ...(input.sourceUrl ? { sourceUrl: input.sourceUrl } : {}),
+          fiscalYear: Number(input.fiscalYear),
+          family: input.budgetFamily,
+          exhibit: input.exhibitType,
+          authority: input.authority,
+          component,
+          budgetCycle: input.budgetCycle,
+          documentType: input.documentType,
+          ...(input.title ? { title: input.title } : {}),
+        },
         fiscalYear: Number(input.fiscalYear),
-        family: input.budgetFamily,
-        exhibit: input.exhibitType,
-        authority: input.authority,
-        component,
-        budgetCycle: input.budgetCycle,
-        documentType: input.documentType,
-        ...(input.title ? { title: input.title } : {}),
-      },
-      fiscalYear: Number(input.fiscalYear),
-      parserArtifactStore: verification.artifactStore,
-    });
+        parserArtifactStore: verification.artifactStore,
+      });
 
     const dependencies: ParserRouterDependencies = {
       artifactStore: verification.artifactStore,

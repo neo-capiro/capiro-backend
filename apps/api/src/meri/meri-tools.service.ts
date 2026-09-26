@@ -89,6 +89,7 @@ import {
 import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
 import { ProgramElementReadService } from '../program-element/program-element-read.service.js';
+import { BuyerWorkspaceService } from '../program-element/buyer-workspace/buyer-workspace.service.js';
 import {
   listBudgetLineLineage,
   type BudgetLineLineage,
@@ -150,6 +151,7 @@ import { projectMemoryContent } from './meri-memory-content.helpers.js';
 import { getResearchEvidence } from './meri-research-evidence.helpers.js';
 import { buildDocumentReadPage, parseDocumentReadInput } from './meri-document-read.helpers.js';
 import { MeriClientFilingService } from './meri-client-filing.service.js';
+import { MeriBizDevToolsService } from './meri-bizdev-tools.service.js';
 import { MeetingPrepJobService } from '../engagement/meeting-prep-job.service.js';
 import { meetingPrepEnabled } from '../engagement/meeting-prep-policy.js';
 import { fetchFedrampProducts } from '../external/fedramp/fedramp.client.js';
@@ -277,6 +279,10 @@ export class MeriToolsService {
     @Optional() private readonly clientAdvocacy?: ClientAdvocacyMatterService,
     @Optional() private readonly clientFiling?: MeriClientFilingService,
     @Optional() private readonly meetingPrepJobs?: MeetingPrepJobService,
+    @Optional() private readonly buyerWorkspace?: BuyerWorkspaceService,
+    // Phase 4 — business-development prospect tools. Optional: every handler
+    // lives in MeriBizDevToolsService (one place), the switch below delegates.
+    @Optional() private readonly bizDevTools?: MeriBizDevToolsService,
   ) {}
 
   manifest() {
@@ -284,6 +290,17 @@ export class MeriToolsService {
       brand: PRODUCT_NAME,
       tools: TOOL_DEFINITIONS,
     };
+  }
+
+  /**
+   * Phase 4 bizdev delegation guard. The constructor param is optional so
+   * non-DI consumers (specs) keep constructing MeriToolsService without it;
+   * an actual bizdev tool call without the service wired is a server
+   * misconfiguration, not a silent no-op.
+   */
+  private requireBizDevTools(): MeriBizDevToolsService {
+    if (!this.bizDevTools) throw new NotFoundException('Meri tool not found');
+    return this.bizDevTools;
   }
 
   /**
@@ -1146,6 +1163,14 @@ export class MeriToolsService {
         { peCode: str('Program Element or procurement budget-line code') },
         ['peCode'],
       ),
+      get_pe_buyer_workspace: obj(
+        {
+          peCode: str('Program Element or procurement budget-line code'),
+          asOfFy: int('Four-digit fiscal year to inspect'),
+          knownAt: str('ISO 8601 timestamp limiting what was known'),
+        },
+        ['peCode', 'asOfFy', 'knownAt'],
+      ),
       get_pe_contractors: obj({ peCode: str('Program Element code') }, ['peCode']),
       get_pe_bills: obj({ peCode: str('Program Element code') }, ['peCode']),
       get_pe_report_language: obj({ peCode: str('Program Element or budget-line code') }, [
@@ -1578,6 +1603,97 @@ export class MeriToolsService {
           sourceRecordId: str('The source record id'),
         },
         ['clientId', 'source', 'sourceRecordId'],
+      ),
+      // ── Business Development Phase 4 (prospect-scoped) ─────────────────
+      // Schemas enumerate ONLY the actual inputs. conversationId is optional
+      // in the schema (server-injected where applicable) but REQUIRED at
+      // handler level; the bizdev handlers fail closed without it. Authority
+      // fields (tenantId/userId/prospectId/canonical id/linked client/scope
+      // version) are not inputs at all.
+      get_business_development_context: obj({
+        conversationId: str('Exact current prospect chat conversation UUID'),
+      }),
+      get_business_development_evidence: obj({
+        conversationId: str('Exact current prospect chat conversation UUID'),
+      }),
+      get_business_development_recent_changes: obj({
+        conversationId: str('Exact current prospect chat conversation UUID'),
+        limit: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 25,
+          description: 'Optional page size, 1 to 25 alerts (default 10), newest first',
+        },
+      }),
+      get_business_development_brief: obj({
+        conversationId: str('Exact current prospect chat conversation UUID'),
+      }),
+      resolve_business_development_source: obj(
+        {
+          conversationId: str('Exact current prospect chat conversation UUID'),
+          citationIndex: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Citation index into the current brief version',
+          },
+        },
+        ['citationIndex'],
+      ),
+      save_business_development_brief: obj(
+        {
+          conversationId: str('Exact current prospect chat conversation UUID'),
+          expectedVersionNumber: {
+            type: 'integer',
+            minimum: 1,
+            description: 'The brief version number this edit is based on',
+          },
+          title: {
+            type: 'string',
+            maxLength: 300,
+            description: 'Optional brief title, at most 300 characters',
+          },
+          sections: {
+            type: 'object',
+            description:
+              'Exactly the five brief sections; each value carries only text and citationIndexes',
+            properties: Object.fromEntries(
+              [
+                'companyAndFirmImplication',
+                'verifiedEvidence',
+                'judgment',
+                'practicalAction',
+                'missingInformation',
+              ].map((key) => [
+                key,
+                {
+                  type: 'object',
+                  properties: {
+                    text: {
+                      type: 'string',
+                      maxLength: 4000,
+                      description: 'Section text, at most 4000 characters',
+                    },
+                    citationIndexes: {
+                      type: 'array',
+                      items: { type: 'integer', minimum: 0 },
+                      description:
+                        'Indexes into the current brief version citations; existing citations only',
+                    },
+                  },
+                  required: ['text', 'citationIndexes'],
+                },
+              ]),
+            ),
+            required: [
+              'companyAndFirmImplication',
+              'verifiedEvidence',
+              'judgment',
+              'practicalAction',
+              'missingInformation',
+            ],
+          },
+        },
+        ['expectedVersionNumber', 'sections'],
       ),
     };
 
@@ -2057,6 +2173,8 @@ export class MeriToolsService {
         return this.getProgramElementDetail(ctx, input);
       case 'get_pe_budget_timeline':
         return this.getPeBudgetTimeline(input, ctx);
+      case 'get_pe_buyer_workspace':
+        return this.getPeBuyerWorkspace(input);
       case 'get_pe_contractors':
         return this.getPeContractors(input);
       case 'get_pe_bills':
@@ -2172,6 +2290,24 @@ export class MeriToolsService {
           source: String(input.source ?? ''),
           sourceRecordId: String(input.sourceRecordId ?? ''),
         });
+      // ── Business Development Phase 4 ───────────────────────────────────
+      // Pure delegation: every handler (including the fail-closed prospect
+      // scope gate) lives in MeriBizDevToolsService. The registry's
+      // readOnly:false on save_business_development_brief automatically
+      // places it in SIDE_EFFECTING_TOOLS and the existing
+      // proposal/approval flow; no handler logic is duplicated here.
+      case 'get_business_development_context':
+        return this.requireBizDevTools().getContext(ctx, input);
+      case 'get_business_development_evidence':
+        return this.requireBizDevTools().getEvidence(ctx, input);
+      case 'get_business_development_recent_changes':
+        return this.requireBizDevTools().getRecentChanges(ctx, input);
+      case 'get_business_development_brief':
+        return this.requireBizDevTools().getBrief(ctx, input);
+      case 'resolve_business_development_source':
+        return this.requireBizDevTools().resolveSource(ctx, input);
+      case 'save_business_development_brief':
+        return this.requireBizDevTools().saveBrief(ctx, input);
       default:
         assertNever(name);
     }
@@ -4261,6 +4397,22 @@ export class MeriToolsService {
       currentFundingClaim: claims.currentFundingClaim,
       years: claims.years,
       ...(accuracyMode === 'enforce' ? { lineage: this.lineageForOutput(lineageRows) } : {}),
+    };
+  }
+
+  private async getPeBuyerWorkspace(input: Record<string, unknown>) {
+    if (!this.buyerWorkspace) {
+      throw new BadGatewayException('Buyer workspace read is unavailable.');
+    }
+    const peCode = requiredString(input, 'peCode', 32);
+    const asOfFy = input.asOfFy;
+    if (typeof asOfFy !== 'number' || !Number.isInteger(asOfFy) || asOfFy < 1900 || asOfFy > 2200) {
+      throw new BadRequestException('asOfFy must be a four-digit fiscal year.');
+    }
+    const knownAt = requiredString(input, 'knownAt', 40);
+    return {
+      tool: 'get_pe_buyer_workspace',
+      ...(await this.buyerWorkspace.read({ peCode, asOfFy, knownAt })),
     };
   }
 

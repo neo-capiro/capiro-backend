@@ -10,21 +10,20 @@
  * ============================================================ */
 
 :root {
-  /* Capiro navy — accent (handover §2). Was a bright blue (#2A57CE); the
-     prototype's accent is navy, used far more sparingly (step badges, checked
-     boxes, 2px rails, icon accents) than the old blue-everywhere treatment.
+  /* Metallic black/gray interaction palette for the prototype's buttons,
+     selected controls, step markers, and icon accents.
      Hardcoded (not `var(--accent, ...)`) because theme.css — the legacy
      surface's global stylesheet, loaded on this route via main.tsx — already
      declares `--accent` and every other bare name below on a real, unscoped
      :root. A var() fallback only applies when the property is unset, so
      against theme.css's values every one of those fallbacks was dead: this
      page was silently still rendering the old blue-gradient palette. */
-  --ov2-accent: #294E68;
-  --ov2-accent-hover: #1F3D52;
-  --ov2-accent-ink: #1C3A4E;
-  --ov2-accent-soft: #EDF3F7;
-  --ov2-accent-border: #C3D5E1;
-  --ov2-accent-muted: #5D7F97;
+  --ov2-accent: #39424F;
+  --ov2-accent-hover: #1B2430;
+  --ov2-accent-ink: #1B2430;
+  --ov2-accent-soft: #F2F4F7;
+  --ov2-accent-border: #D0D5DD;
+  --ov2-accent-muted: #667085;
 
   /* Ink levels (handover §2) */
   --ov2-ink-1: #101828;
@@ -44,8 +43,8 @@
   --ov2-border-2: #D0D5DD;
   --ov2-divider: #F2F4F7;
 
-  --ov2-info: #294E68;
-  --ov2-info-soft: #EDF3F7;
+  --ov2-info: #475467;
+  --ov2-info-soft: #F2F4F7;
 
   /* Semantic — one treatment per state (handover §2). "Notable" doubles as
      this system's Warning (group pills, stale-context banners, etc. already
@@ -203,8 +202,8 @@
 .ov2-dir-card:hover { border-color: var(--ov2-accent); box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
 .ov2-dir-card.selected {
   border-color: var(--ov2-accent);
-  background: linear-gradient(135deg, rgba(42,87,206,0.04), rgba(42,87,206,0.01));
-  box-shadow: 0 0 0 4px rgba(42,87,206,0.1);
+  background: linear-gradient(135deg, rgba(57,66,79,0.06), rgba(57,66,79,0.02));
+  box-shadow: 0 0 0 4px rgba(57,66,79,0.12);
 }
 .ov2-dir-card .flow { display: flex; align-items: center; gap: 10px; }
 .ov2-dir-node {
@@ -644,9 +643,9 @@
   cursor: pointer;
 }
 .ov2-ctx-note-use button.is-on {
-  border-color: #6366f1;
-  background: #eef2ff;
-  color: #3730a3;
+  border-color: var(--ov2-accent);
+  background: var(--ov2-accent-soft);
+  color: var(--ov2-accent-ink);
   font-weight: 600;
 }
 

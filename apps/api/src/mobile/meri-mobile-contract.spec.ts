@@ -9,22 +9,12 @@ describe('Meri mobile v1 published contracts', () => {
   const openapi = JSON.parse(
     readFileSync(repoFile('docs/contracts/meri-mobile/v1/openapi.json'), 'utf8'),
   ) as { info: { version: string }; paths: Record<string, unknown> };
-  const events = JSON.parse(
-    readFileSync(
-      repoFile('docs/contracts/meri-mobile/v1/meri-display-events.v1.schema.json'),
-      'utf8',
-    ),
-  ) as { properties: Record<string, unknown>; required: string[] };
 
-  it('publishes bootstrap, durable run, meeting concurrency, file, and token operations', () => {
+  it('publishes bootstrap, meeting concurrency, file, and token operations', () => {
     expect(openapi.info.version).toBe('1.0.0');
     expect(Object.keys(openapi.paths)).toEqual(
       expect.arrayContaining([
         '/bootstrap',
-        '/meri/conversations/{conversationId}/runs',
-        '/meri/runs/{runId}',
-        '/meri/runs/{runId}/events',
-        '/meri/runs/{runId}/stop',
         '/meetings',
         '/meetings/{meetingId}',
         '/files/confirm',
@@ -32,26 +22,13 @@ describe('Meri mobile v1 published contracts', () => {
         '/devices',
       ]),
     );
-    expect(JSON.stringify(openapi)).toContain('Idempotency-Key');
+    expect(Object.keys(openapi.paths).some((path) => path.startsWith('/meri/'))).toBe(false);
     expect(JSON.stringify(openapi)).toContain('If-Match');
     expect(JSON.stringify(openapi)).toContain('stale_revision');
   });
 
-  it('requires versioned, owner-recoverable event identity', () => {
-    expect(events.required).toEqual(
-      expect.arrayContaining(['schemaVersion', 'kind', 'runId', 'seq', 'at']),
-    );
-    expect(JSON.stringify(events.properties)).toContain('1.0.0');
-  });
-
-  it('keeps rollout and deferred product claims explicit', () => {
-    const rollout = readFileSync(repoFile('docs/meri/mobile/phase1-rollout-rollback.md'), 'utf8');
-    const verification = readFileSync(repoFile('docs/meri/mobile/phase1-verification.md'), 'utf8');
+  it('keeps deferred product decisions explicit', () => {
     const decisions = readFileSync(repoFile('docs/meri/mobile/phase1-decisions.md'), 'utf8');
-    expect(verification).toContain('Queued and active continuity acceptance proof');
-    expect(verification).toContain('syntheticTenantDeleted');
-    expect(rollout).toContain('No APNs key');
-    expect(rollout).toContain('No production deployment is authorized');
     expect(decisions).toContain('Post-creation attendee editing');
     expect(decisions).toContain('Voice memos');
   });

@@ -156,7 +156,10 @@ function savedRecordAtPoolStep(): OutreachRecord {
     title: 'QA generation verification',
     subject: null,
     body: null,
-    recipients: [{ id: 'rec-a', name: 'Synthetic QA', email: 'qa-generation@example.com' }],
+    recipients: [{
+      id: 'rec-a', name: 'Synthetic QA', email: 'qa-generation@example.com',
+      personalNote: 'Reference the upcoming walkthrough when relevant.',
+    }],
     recipientCount: 1,
     stats: null,
     metadata: {
@@ -166,7 +169,14 @@ function savedRecordAtPoolStep(): OutreachRecord {
       templateId: null,
       perRecipientEmails: [],
       generatedByKey: {},
-      contextItems: [],
+      contextItems: [{
+        id: 'doc-client-brief',
+        kind: 'document',
+        title: 'Client brief',
+        body: 'The client plans a walkthrough next week.',
+        scope: 'qa-generation@example.com',
+        note: 'Use the timing if relevant.',
+      }],
       mainIdea: 'Ask whether they would like to schedule a product walkthrough next week.',
       attachmentIds: [],
       targets: [
@@ -174,7 +184,10 @@ function savedRecordAtPoolStep(): OutreachRecord {
           key: 't1',
           type: 'individual',
           recipients: [
-            { id: 'rec-a', name: 'Synthetic QA', email: 'qa-generation@example.com' },
+            {
+              id: 'rec-a', name: 'Synthetic QA', email: 'qa-generation@example.com',
+              personalNote: 'Reference the upcoming walkthrough when relevant.',
+            },
           ],
           cc: [],
           bcc: [],
@@ -218,7 +231,7 @@ describe('Async generation submit (outreachAsyncGen + versionedOutreach)', () =>
     // draftId null: no record id yet, so ensureDraftRecord must CREATE one —
     // exactly the new-campaign situation the live canary reproduced.
     renderWizard(savedRecordAtPoolStep(), null);
-    await waitFor(() => expect(screen.getByText('Add context from your sources')).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Add context' })).toBeTruthy());
     const continueBtn = await waitFor(() => {
       const btn = screen.getByRole('button', { name: /Continue/ }) as HTMLButtonElement;
       expect(btn).toBeTruthy();
@@ -254,6 +267,13 @@ describe('Async generation submit (outreachAsyncGen + versionedOutreach)', () =>
     const recipients = jobBody?.recipients as Array<Record<string, unknown>>;
     expect(recipients).toHaveLength(1);
     expect(recipients[0]!.generationKeys).toEqual(['individual:rec-a']);
+    expect(recipients[0]!.personalNote).toBe('Reference the upcoming walkthrough when relevant.');
+    expect(jobBody?.contextItems).toEqual([{
+      id: 'doc-client-brief',
+      kind: 'document',
+      scope: 'qa-generation@example.com',
+      userInstruction: 'Use the timing if relevant.',
+    }]);
 
     // The sync endpoint was NOT used.
     expect(
@@ -264,7 +284,7 @@ describe('Async generation submit (outreachAsyncGen + versionedOutreach)', () =>
   test('submits NO job when the record cannot be created — the save error is surfaced instead', async () => {
     createRecordSucceeds = false;
     renderWizard(savedRecordAtPoolStep(), null);
-    await waitFor(() => expect(screen.getByText('Add context from your sources')).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Add context' })).toBeTruthy());
     const continueBtn = await waitFor(() => {
       const btn = screen.getByRole('button', { name: /Continue/ }) as HTMLButtonElement;
       expect(btn).toBeTruthy();

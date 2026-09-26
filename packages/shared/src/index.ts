@@ -2647,6 +2647,11 @@ Template: "$112.9M (FY27 HAC-D mark — appropriations; +$40.8M above the $72.1M
   "the request" / "the current ask". An outyear value is a FYDP projection — label it as such.
 - Never narrate the spark field (a bare number array with no FYs and no stages) — it is
   uninterpretable by design; use get_pe_budget_timeline instead.
+- For a buyer workspace question, call get_pe_buyer_workspace with the budget-line code, fiscal year,
+  and explicit knowledge timestamp. Explain the supported change, amount and accounting stage,
+  affected scope, client implication, and a next step justified by retrieved evidence. Cite the
+  relevant underlying sources. A section marked unsupported is an explicit gap: say what is
+  unavailable, repair or omit only that portion, and retain supported sections and citations.
 </money>
 
 <identifiers>
@@ -4279,6 +4284,14 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat', 'in_editor'],
   },
   {
+    name: 'get_pe_buyer_workspace',
+    description:
+      'Read a DoD budget line buyer workspace for an explicit fiscal year and knowledge timestamp. Returns pinned federal legislative evidence plus source-backed acquisition continuity and funding/execution sections, their coverage and freshness, and an explicit unsupported canonical-budget gap. Explain what changed, amount and stage, affected scope, client implication, justified next step, and cite the underlying evidence. Preserve supported sections when another section is unsupported.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
     name: 'get_pe_contractors',
     description:
       'Get the top contractors linked to a Program Element over the last ~24 months, by direct PE tag or DoD acquisition-program code. Note: PE-to-contractor linkage is sparse — many PEs return no contractors.',
@@ -4570,6 +4583,54 @@ export const MERI_CAPABILITY_REGISTRY = [
     description:
       'Search locally synchronized agency procurement forecasts from MakeGov/Tango. Forecasts are early signals, not open solicitations, and have no inferred eligibility or response deadline. Returns agency/office, anticipated award date, NAICS/PSC, set-aside, vehicle text, place-of-performance text, source system and freshness.',
     backend: 'federal_market',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_business_development_context',
+    description:
+      "Read the minimum safe context for the business-development prospect this chat is scoped to: identity (id, display name, stage, owner, service hypothesis, geography, next action, confirmed canonical organization and linked client), the firm's business-development preferences, and the 20 most recent activity history entries. Never returns conflict data, contact/provider payloads, or unrelated tenant settings. Requires a prospect-scoped conversation.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_business_development_evidence',
+    description:
+      "Read the locally synchronized dossier evidence for the prospect this chat is scoped to: identity basis, per-section source status, and up to 24 flattened evidence records with stable source ids, locators, relationship strength, factual fields and event/effective/source-update/retrieval dates. Truthfully reports total, truncated and partial coverage; an absent or partial section is not proof of absence. Reads local data only — never calls an external provider.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_business_development_brief',
+    description:
+      "Read the current versioned prospect brief for the prospect this chat is scoped to: title, version number, the five sections (companyAndFirmImplication, verifiedEvidence, judgment, practicalAction, missingInformation) with text, provenance and citation indexes, plus the citation records. A missing brief is reported as missing; it never fabricates one.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'resolve_business_development_source',
+    description:
+      "Resolve one citation index of the prospect brief this chat is scoped to back to its inspectable source: the citation record, the evidence item it rests on, and whether the source still matches the current dossier. Source limitations (index out of range, no brief, source changed) are reported truthfully, never papered over.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'save_business_development_brief',
+    description:
+      'Save a new version of the prospect brief this chat is scoped to, from the current version. Accepts the expected version number, an optional bounded title, and exactly five sections (companyAndFirmImplication, verifiedEvidence, judgment, practicalAction, missingInformation), each with text and existing citation indexes only — section provenance is forced to generated and citation records cannot be submitted. Deterministically idempotent per conversation, version and content; a stale version number conflicts rather than overwriting. Requires user approval. Never sends email or outreach.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_business_development_recent_changes',
+    description:
+      "Summarize the already-ingested change alerts for the business-development prospect this chat is scoped to: up to 25 recent alerts, newest first, each with source family, category, title, summary, materiality, separated event/effective/publication/first-observed dates, the exact source locator, and the change diff's implication. The implication is an inference produced from the ingested diff — never a source fact — and its conditional or thematic language must be preserved, not sharpened. Read-only over locally synchronized data: never calls a source provider and never proves bid or win intent.",
+    backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
   },
@@ -5228,6 +5289,8 @@ export function advocacyAttributionNeedsReview(sourceType: string, metadata: unk
 }
 
 export * from './legislative-research.js';
+export * from './research-portfolios.js';
+export * from './defense-research.js';
 
 export * from './legiwatch-query.js';
 export * from './legiwatch-phase8.js';

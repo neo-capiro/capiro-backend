@@ -498,3 +498,115 @@ describe('model-visible tool evidence budgets', () => {
     expect(result.projection.continuation.instruction).toContain('bodyOffset=nextBodyOffset');
   });
 });
+
+describe('business development evidence citations survive the model-visible budget', () => {
+  // Mirrors the API get_business_development_evidence response: `data` rows
+  // are the FULL authorized records (citation aliases + exact facts + dates +
+  // stage + locators); `evidence` is count metadata only.
+  const bdPayload = () => ({
+    tool: 'get_business_development_evidence',
+    generatedAt: '2026-09-26T07:09:00.000Z',
+    sectionStates: [],
+    data: Array.from({ length: 24 }, (_, i) => ({
+      id: `award-${i}`,
+      recordId: `award-${i}`,
+      url: `https://example.gov/award/${i}`,
+      locator: `https://example.gov/award/${i}`,
+      originalSourceId: `PIID-${i}`,
+      sourceFamily: 'usaspending_contract',
+      originalSourceName: 'USAspending',
+      title: `Acme received a $${i}M DoD contract, FY2026`,
+      snippet: `Acme received a $${i}M DoD contract, FY2026 — USAspending`,
+      eventDate: '2026-01-15',
+      sourceUpdatedAt: '2026-02-01',
+      retrievedAt: '2026-03-01',
+      stage: 'awarded',
+      relationshipStrength: 'direct',
+      status: 'available',
+      facts: {
+        agency: 'Department of Defense',
+        amount: i * 1_000_000,
+        amountType: 'obligated',
+        stage: 'awarded',
+        description: 'Long normalized finding. '.repeat(40),
+      },
+    })),
+    evidence: { total: 29, returned: 24, truncated: true },
+    coverage: {
+      complete: false,
+      partial: true,
+      note: 'Only the first 24 of 29 evidence records are included; this is a partial view.',
+    },
+  });
+
+  it('keeps complete factual rows (exact amount/type/stage/date/source identity) readable when the envelope exceeds the 12K budget', () => {
+    const source = bdPayload();
+    expect(JSON.stringify(source).length).toBeGreaterThan(12_000);
+    const visible = projectMeriToolEvidence({
+      result: source,
+      maxCharacters: 12_000,
+      readOnly: true,
+    }) as Record<string, any>;
+    expect(JSON.stringify(visible).length).toBeLessThanOrEqual(12_000);
+    expect(visible.truncated).toBe(true);
+    expect(Array.isArray(visible.data)).toBe(true);
+    expect((visible.data as unknown[]).length).toBeGreaterThan(0);
+    // At least one COMPLETE factual record must survive the projection —
+    // not a title-only label: exact amount, amountType, stage, date and
+    // source id/locator on the shown row.
+    const shown = visible.data as Array<Record<string, any>>;
+    const first = shown[0]!;
+    expect(first.facts.amount).toBe(0);
+    expect(first.facts.amountType).toBe('obligated');
+    expect(first.facts.stage).toBe('awarded');
+    expect(first.stage).toBe('awarded');
+    expect(first.eventDate).toBe('2026-01-15');
+    expect(first.id).toBe('award-0');
+    expect(first.recordId).toBe('award-0');
+    expect(first.url).toBe('https://example.gov/award/0');
+    expect(first.locator).toBe('https://example.gov/award/0');
+    expect(first.originalSourceId).toBe('PIID-0');
+    // Rows the projection dropped must NOT be cited; the real default
+    // maxPerTool is 5, so at most 5 of the visible rows are citable.
+    const visibleCount = shown.length;
+    expect(visibleCount).toBeLessThan(24);
+    const citations = extractCitationsFromToolResult(
+      'get_business_development_evidence',
+      visible,
+      1,
+    );
+    expect(citations.length).toBeGreaterThan(0);
+    expect(citations.length).toBeLessThanOrEqual(visibleCount);
+    for (const citation of citations) {
+      expect(citation.id).toMatch(/^award-\d+$/);
+      const index = Number(citation.id.slice(6));
+      expect(index).toBeLessThan(visibleCount);
+      expect(citation.url).toBe(`https://example.gov/award/${index}`);
+      expect(citation.title).toContain('DoD contract');
+    }
+    // Complete leading rows only; no row the projection dropped, and none invented.
+    expect(visible.data[0].id).toBe('award-0');
+    expect(visible.data[visible.data.length - 1].id).toBe(`award-${visible.data.length - 1}`);
+    expect(JSON.stringify(visible)).not.toContain('award-24');
+  });
+
+  it('does not fabricate URLs: rows without locators carry url null, never a generated link', () => {
+    const source = bdPayload();
+    for (const row of source.data as Array<{ url: string | null; locator: string | null }>) {
+      row.url = null;
+      row.locator = null;
+    }
+    const visible = projectMeriToolEvidence({
+      result: source,
+      maxCharacters: 12_000,
+      readOnly: true,
+    }) as Record<string, any>;
+    const citations = extractCitationsFromToolResult(
+      'get_business_development_evidence',
+      visible,
+      1,
+    );
+    expect(citations.length).toBeGreaterThan(0);
+    expect(citations.every((citation) => citation.url === null)).toBe(true);
+  });
+});

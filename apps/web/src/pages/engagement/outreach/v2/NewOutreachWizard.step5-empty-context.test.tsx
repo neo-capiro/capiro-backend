@@ -216,7 +216,7 @@ describe('Step 5 Context Builder with empty context', () => {
     renderWizard(savedRecordAtPoolStep());
 
     // The honest optional-copy note is visible on the pool step.
-    await waitFor(() => expect(screen.getByText('Add context from your sources')).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Add context' })).toBeTruthy());
     expect(screen.getByText(/Context is optional/)).toBeTruthy();
 
     // THE defect: Continue must be enabled with an empty context pool.

@@ -251,8 +251,6 @@ model Tenant {
   meriActionApprovals                MeriActionApproval[]
   meriPendingActions                 MeriPendingAction[]
   meriActionProposals                MeriActionProposal[]
-  meriExecutionScopes                MeriExecutionScope[]
-  meriAgentRuns                      MeriAgentRun[]
   clioAttachments                    ClioAttachment[]
   clioMcpServers                     ClioMcpServer[]
   clioMcpOAuthCredentials            ClioMcpOAuthCredential[]
@@ -325,6 +323,32 @@ model Tenant {
   bizdevProspects                    BusinessDevelopmentProspect[]
   bizdevProspectActivity             BusinessDevelopmentProspectActivity[]
   bizdevPreferences                  BusinessDevelopmentPreference?
+  bizdevJevDecisions                 BusinessDevelopmentJevDecision[]
+  bizdevBriefs                       BusinessDevelopmentBrief[]
+  bizdevBriefVersions                BusinessDevelopmentBriefVersion[]
+  bizdevWatches                      BusinessDevelopmentWatch[]
+  bizdevWatchSourceStates            BusinessDevelopmentWatchSourceState[]
+  bizdevAlerts                       BusinessDevelopmentAlert[]
+  bizdevAlertDeliveries              BusinessDevelopmentAlertDelivery[]
+  researchPortfolios                 ResearchPortfolio[]
+  researchPortfolioGrants            ResearchPortfolioGrant[]
+  researchPortfolioClientLinks       ResearchPortfolioClientLink[]
+  researchPortfolioMembers           ResearchPortfolioMember[]
+  researchPortfolioEvents            ResearchPortfolioEvent[]
+  researchPortfolioTemplates         ResearchPortfolioTemplate[]
+  researchTaxonomyVersions           ResearchTaxonomyVersion[]
+  researchPortfolioRuleVersions      ResearchPortfolioRuleVersion[]
+  researchPortfolioRulePreviews      ResearchPortfolioRulePreview[]
+  researchPortfolioRecomputeJobs     ResearchPortfolioRecomputeJob[]
+  researchPortfolioReviews           ResearchPortfolioReview[]
+  researchPortfolioDecisions         ResearchPortfolioDecision[]
+  researchPortfolioContinuityLedgers ResearchPortfolioContinuityLedger[]
+  researchPortfolioImportJobs        ResearchPortfolioImportJob[]
+  researchPortfolioImportRows        ResearchPortfolioImportRow[]
+  researchPortfolioImportMappings    ResearchPortfolioImportMappingVersion[]
+  researchPortfolioImportAttempts    ResearchPortfolioImportAttempt[]
+  researchPortfolioImportEffects     ResearchPortfolioImportEffect[]
+  researchPortfolioImportReceipts    ResearchPortfolioImportCompensationReceipt[]
 
   @@map("tenants")
 }
@@ -584,6 +608,8 @@ model User {
   outreachDraftVersions            OutreachDraftVersion[]         @relation("OutreachDraftVersionAuthor")
   outreachSendIntents              OutreachSendIntent[]           @relation("OutreachSendIntentOwner")
   savedOpportunitySearches         SavedOpportunitySearch[]       @relation("SavedOpportunitySearchOwner")
+  ownedResearchPortfolios          ResearchPortfolio[]            @relation("ResearchPortfolioOwner")
+  researchPortfolioGrants          ResearchPortfolioGrant[]       @relation("ResearchPortfolioGrantPrincipal")
   // Business Development Phase 1 adds NO User back-relations: prospect
   // owner/created-by and activity actor are plain UUID columns with no DB
   // foreign key (mirroring Client.createdByUserId), so a departed user never
@@ -931,7 +957,9 @@ model Client {
   canonicalEntity          CanonicalEntity?                    @relation("ClientCanonicalEntity", fields: [canonicalEntityId], references: [id], onDelete: Restrict, map: "clients_canonical_entity_fkey")
   // Business Development Phase 1 back-relation.
   bizdevProspects          BusinessDevelopmentProspect[]       @relation("BizDevProspectLinkedClient")
+  researchPortfolioLinks   ResearchPortfolioClientLink[]
 
+  @@unique([tenantId, id], map: "clients_tenant_id_key")
   @@index([tenantId], map: "clients_tenant_idx")
   @@index([tenantId, name], map: "clients_tenant_name_idx")
   @@map("clients")
@@ -1992,14 +2020,13 @@ model ClioConversation {
   updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   archivedAt           DateTime? @map("archived_at") @db.Timestamptz(6)
 
-  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user          User           @relation("ClioConversationUser", fields: [userId], references: [id], onDelete: Cascade)
-  client        Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  workspace     MeriWorkspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
-  messages      ClioMessage[]
-  artifacts     ClioArtifact[]
-  notes         ClioNote[]
-  meriAgentRuns MeriAgentRun[]
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User           @relation("ClioConversationUser", fields: [userId], references: [id], onDelete: Cascade)
+  client    Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  workspace MeriWorkspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  messages  ClioMessage[]
+  artifacts ClioArtifact[]
+  notes     ClioNote[]
 
   @@index([tenantId, userId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_user_updated_idx")
   @@index([tenantId, clientId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_client_updated_idx")
@@ -2391,259 +2418,6 @@ model MeriActionProposal {
   @@index([tenantId, policyPackKey, policyPackVersion], map: "meri_action_proposals_policy_pack_idx")
   @@index([tenantId, policyDecisionHash], map: "meri_action_proposals_policy_decision_idx")
   @@map("meri_action_proposals")
-}
-
-/// Phase 1 backlog #1: durable run/event/interaction tables replacing the Phase 0
-/// in-memory `MeriHermesRunStore` prototype, behind the same `MeriHermesRunRepository`
-/// interface (apps/api/src/meri/hermes/meri-hermes-run-store.ts). A run now survives
-/// an API restart; events replay across replicas by `seq`. Design: docs/meri/hermes/
-/// phase-0/contracts.md §7.
-model MeriExecutionScope {
-  /// Natural key, not a random uuid: `tenant:<tenantId>:user:<userId>` today (Phase 0
-  /// private scope). A shared room gets its own composed id once room scopes exist.
-  id                   String   @id @db.VarChar(200)
-  tenantId             String   @map("tenant_id") @db.Uuid
-  principalType        String   @map("principal_type") @db.VarChar(20)
-  principalId          String   @map("principal_id") @db.VarChar(200)
-  kind                 String   @default("private") @db.VarChar(20)
-  authorizationVersion String   @map("authorization_version") @db.VarChar(80)
-  homeVolumeRef        String?  @map("home_volume_ref") @db.VarChar(200)
-  personaVersion       String?  @map("persona_version") @db.VarChar(80)
-  workerState          Json     @default("{}") @map("worker_state_jsonb")
-  /// S-3 shared writable-profile state. Single-writer: written ONLY through
-  /// MeriHermesProfileLeaseService.writeSharedProfileState(), which requires the
-  /// fenced lease in meri_agent_profile_leases and locks this row FOR UPDATE.
-  /// Deliberately NOT `workerState`, which belongs to the worker-lifecycle claim
-  /// and is serialized by a different lock (migration 20280920050000).
-  profileState         Json     @default("{}") @map("profile_state_jsonb")
-  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  runs   MeriAgentRun[]
-
-  @@index([tenantId, principalType, principalId], map: "meri_execution_scopes_tenant_principal_idx")
-  @@map("meri_execution_scopes")
-}
-
-/// One Hermes (or future runtime) agent run. Mirrors `MeriHermesRunRecord` field
-/// for field; `envelope`/`actorContext` are the same JSON the in-memory store held
-/// in process, now durable. Never persist raw broker/worker credentials here.
-///
-/// NOTE: a partial unique index enforcing "at most one non-terminal run per
-/// conversation" (the single-writer-per-conversation lease, P1-02) is NOT
-/// representable in the Prisma schema DSL (no WHERE clause on @@unique/@@index).
-/// It lives only in migration 20280920020000_meri_hermes_admission_fencing/migration.sql
-/// as `meri_agent_runs_conversation_single_writer_idx`. Never run `prisma migrate
-/// dev`/`db pull` against this schema without accounting for that index appearing
-/// as drift — this codebase already carries other invariants (RLS policies, CHECK
-/// constraints) that live in migration SQL only, not in this file.
-model MeriAgentRun {
-  id                  String    @id @default(uuid()) @db.Uuid
-  tenantId            String    @map("tenant_id") @db.Uuid
-  scopeId             String    @map("scope_id") @db.VarChar(200)
-  actorId             String    @map("actor_id") @db.Uuid
-  conversationId      String    @map("conversation_id") @db.Uuid
-  userMessageId       String?   @map("user_message_id") @db.Uuid
-  assistantMessageId  String?   @map("assistant_message_id") @db.Uuid
-  hermesRunId         String?   @unique @map("hermes_run_id") @db.VarChar(120)
-  hermesSessionId     String?   @map("hermes_session_id") @db.VarChar(120)
-  status              String    @db.VarChar(32)
-  finishReason        String?   @map("finish_reason") @db.VarChar(20)
-  partial             Boolean   @default(false)
-  idempotencyKey      String    @map("idempotency_key") @db.VarChar(200)
-  envelope            Json      @map("envelope_jsonb")
-  actorContext        Json      @map("actor_context_jsonb")
-  lastSeq             Int       @default(0) @map("last_seq")
-  output              String    @default("") @db.Text
-  usage               Json?     @map("usage_jsonb")
-  error               String?   @db.Text
-  detached            Boolean   @default(false)
-  stopRequestedAt     DateTime? @map("stop_requested_at") @db.Timestamptz(6)
-  brokerCalls         Int       @default(0) @map("broker_calls")
-  /// Durable-dispatch outbox lite: 'pending' at admission commit (before Hermes
-  /// /v1/runs is ever called), 'dispatched' once the acceptance response lands,
-  /// 'failed' if dispatch itself errored. A run stuck 'pending' past a timeout
-  /// is ambiguous-startup (P1-07) and is reconciled, never blindly retried.
-  dispatchStatus      String    @default("pending") @map("dispatch_status") @db.VarChar(20)
-  dispatchAttempts    Int       @default(0) @map("dispatch_attempts")
-  /// Pruning-safe recovery snapshot (P1-08): the `seq` of the LAST event whose
-  /// content is already represented in `output`. Written in the SAME transaction
-  /// as the event it names, so the snapshot and its sequence can never diverge.
-  /// A recovering client reads `output` + `output_seq` and then replays only
-  /// `seq > output_seq`; `enforceEventCap` correspondingly never prunes an event
-  /// with `seq > output_seq`.
-  outputSeq           Int       @default(0) @map("output_seq")
-  /// Consumer lease (P1-09): the API replica currently consuming Hermes's event
-  /// stream for this run, plus its liveness heartbeat. A non-terminal, dispatched
-  /// run whose heartbeat is stale may be claimed by another replica
-  /// (`claimConsumer`, an atomic conditional UPDATE so only one replica wins).
-  consumerId          String?   @map("consumer_id") @db.VarChar(80)
-  consumerHeartbeatAt DateTime? @map("consumer_heartbeat_at") @db.Timestamptz(6)
-  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  finishedAt          DateTime? @map("finished_at") @db.Timestamptz(6)
-
-  tenant       Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  scope        MeriExecutionScope     @relation(fields: [scopeId], references: [id], onDelete: Cascade)
-  conversation ClioConversation       @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  events       MeriAgentRunEvent[]
-  interactions MeriAgentInteraction[]
-
-  @@unique([scopeId, idempotencyKey], map: "meri_agent_runs_scope_idempotency_key")
-  @@index([tenantId, actorId, conversationId, createdAt], map: "meri_agent_runs_tenant_actor_conversation_idx")
-  @@index([scopeId, status], map: "meri_agent_runs_scope_status_idx")
-  @@index([consumerHeartbeatAt], map: "meri_agent_runs_consumer_heartbeat_idx")
-  @@map("meri_agent_runs")
-}
-
-/// Sequenced durable event log. `payload_jsonb` carries the same `frames[]` shape
-/// the browser replays on reconnect (`GET .../events?after=seq`).
-model MeriAgentRunEvent {
-  id         String   @id @default(uuid()) @db.Uuid
-  runId      String   @map("run_id") @db.Uuid
-  seq        Int
-  kind       String   @db.VarChar(40)
-  visibility String   @default("public") @db.VarChar(20)
-  payload    Json     @map("payload_jsonb")
-  at         DateTime @default(now()) @db.Timestamptz(6)
-
-  run MeriAgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-
-  @@unique([runId, seq], map: "meri_agent_run_events_run_seq_key")
-  @@map("meri_agent_run_events")
-}
-
-/// Pending approval/clarification that must survive reconnect and worker replacement.
-model MeriAgentInteraction {
-  id           String    @id @default(uuid()) @db.Uuid
-  runId        String    @map("run_id") @db.Uuid
-  requestId    String    @map("request_id") @db.VarChar(120)
-  kind         String    @db.VarChar(20)
-  continuation String    @db.VarChar(24)
-  prompt       String    @db.Text
-  choices      Json      @default("[]") @map("choices_jsonb")
-  multiSelect  Boolean   @default(false) @map("multi_select")
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  expiresAt    DateTime? @map("expires_at") @db.Timestamptz(6)
-  resolution   Json?     @map("resolution_jsonb")
-
-  run MeriAgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-
-  @@unique([runId, requestId], map: "meri_agent_interactions_run_request_key")
-  @@map("meri_agent_interactions")
-}
-
-/// ---------------------------------------------------------------------------
-/// Phase 1 scaling controls S-1..S-4 (migration 20280920040000_meri_hermes_scaling_controls).
-///
-/// All four models are written and read exclusively through RAW SQL in
-/// apps/api/src/meri/hermes/meri-hermes-{budget,admission-control,profile-lease}.service.ts,
-/// because every decision they take must be ONE atomic conditional statement
-/// (`INSERT ... ON CONFLICT DO UPDATE ... WHERE`, `UPDATE ... WHERE guard`)
-/// rather than a read-then-write the query builder would split in two. They are
-/// declared here so the schema stays a complete description of the database.
-///
-/// NOTE, same class of thing as the `meri_agent_runs_conversation_single_writer_idx`
-/// caveat above: the `tenant_id` FOREIGN KEY to `tenants` on all four tables, and
-/// the RLS policies, live in the migration SQL only. The relation FIELD is
-/// deliberately not declared here so this block stays additive (no back-relation
-/// on `Tenant`); the constraint itself is real in the database and is what gives
-/// these tables tenant-cascade deletion.
-/// ---------------------------------------------------------------------------
-
-/// S-1: per-tenant, per-UTC-day Hermes budget counters. `committed_*` is the
-/// live exposure (open reservations + settled actuals) compared against the
-/// declared daily caps; `settled_*` is the pure actual. Money is micro-USD as
-/// BIGINT — never a float, because it is compared against a hard ceiling.
-model MeriAgentBudgetPeriod {
-  tenantId          String   @map("tenant_id") @db.Uuid
-  periodDate        DateTime @map("period_date") @db.Date
-  committedTokens   BigInt   @default(0) @map("committed_tokens")
-  committedMicroUsd BigInt   @default(0) @map("committed_micro_usd")
-  settledTokens     BigInt   @default(0) @map("settled_tokens")
-  settledMicroUsd   BigInt   @default(0) @map("settled_micro_usd")
-  admittedRuns      Int      @default(0) @map("admitted_runs")
-  settledRuns       Int      @default(0) @map("settled_runs")
-  refusedAdmissions Int      @default(0) @map("refused_admissions")
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
-
-  @@id([tenantId, periodDate])
-  @@map("meri_agent_budget_periods")
-}
-
-/// S-1: the single PARENT token reservation for one run, primary-keyed by run
-/// id. Every enabled call path (the turn itself, a retry, a reconciliation
-/// poll, compression, a future child) resolves its allowance by that run id and
-/// draws from `drawnTokens`; the primary key is what makes a second allowance
-/// for one run unrepresentable. No FK to `meri_agent_runs`: the reservation is
-/// taken — and refusable — before a user-visible run row exists.
-model MeriAgentRunReservation {
-  runId             String    @id @map("run_id") @db.Uuid
-  tenantId          String    @map("tenant_id") @db.Uuid
-  scopeId           String    @map("scope_id") @db.VarChar(200)
-  conversationId    String    @map("conversation_id") @db.Uuid
-  periodDate        DateTime  @map("period_date") @db.Date
-  maxRunTokens      Int       @map("max_run_tokens")
-  estimatedTokens   Int       @map("estimated_tokens")
-  estimatedMicroUsd BigInt    @map("estimated_micro_usd")
-  drawnTokens       Int       @default(0) @map("drawn_tokens")
-  draws             Int       @default(0)
-  /// Per-call-path tally, e.g. {"turn":3,"status_poll":1}. Evidential: it is
-  /// what lets a test prove several call paths drew down ONE counter.
-  drawPaths         Json      @default("{}") @map("draw_paths_jsonb")
-  actualTokens      Int?      @map("actual_tokens")
-  actualMicroUsd    BigInt?   @map("actual_micro_usd")
-  /// 'open' | 'reconciled' (CHECK constraint in the migration).
-  state             String    @default("open") @db.VarChar(16)
-  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  reconciledAt      DateTime? @map("reconciled_at") @db.Timestamptz(6)
-
-  @@index([tenantId, periodDate, state], map: "meri_agent_run_reservations_period_idx")
-  @@index([state, createdAt], map: "meri_agent_run_reservations_open_created_idx")
-  @@map("meri_agent_run_reservations")
-}
-
-/// S-2: concurrency slots and the bounded per-tenant admission queue. Deleted
-/// on release. Deliberately does NOT enforce one-active-run-per-conversation —
-/// that invariant is already DB-enforced in `meri_agent_runs` and is composed
-/// with rather than duplicated.
-model MeriAgentAdmissionSlot {
-  runId          String    @id @map("run_id") @db.Uuid
-  tenantId       String    @map("tenant_id") @db.Uuid
-  scopeId        String    @map("scope_id") @db.VarChar(200)
-  conversationId String    @map("conversation_id") @db.Uuid
-  /// 'active' | 'queued' (CHECK constraint in the migration).
-  state          String    @db.VarChar(16)
-  queuedAt       DateTime  @default(now()) @map("queued_at") @db.Timestamptz(6)
-  activatedAt    DateTime? @map("activated_at") @db.Timestamptz(6)
-  heartbeatAt    DateTime  @default(now()) @map("heartbeat_at") @db.Timestamptz(6)
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  @@index([state, tenantId], map: "meri_agent_admission_slots_state_tenant_idx")
-  @@index([state, scopeId], map: "meri_agent_admission_slots_state_scope_idx")
-  @@index([state, queuedAt], map: "meri_agent_admission_slots_queue_order_idx")
-  @@index([heartbeatAt], map: "meri_agent_admission_slots_heartbeat_idx")
-  @@map("meri_agent_admission_slots")
-}
-
-/// S-3: one writer per writable Hermes profile (execution scope). `fence` is a
-/// monotonic token bumped on every change of holder; a writer whose lease
-/// expired or was taken over presents a stale (holderRunId, fence) pair and its
-/// write is rejected at the database.
-model MeriAgentProfileLease {
-  scopeId     String   @id @map("scope_id") @db.VarChar(200)
-  tenantId    String   @map("tenant_id") @db.Uuid
-  holderRunId String   @map("holder_run_id") @db.Uuid
-  fence       BigInt   @default(1)
-  acquiredAt  DateTime @default(now()) @map("acquired_at") @db.Timestamptz(6)
-  renewedAt   DateTime @default(now()) @map("renewed_at") @db.Timestamptz(6)
-  expiresAt   DateTime @map("expires_at") @db.Timestamptz(6)
-  handoffs    Int      @default(0)
-
-  @@index([expiresAt], map: "meri_agent_profile_leases_expiry_idx")
-  @@map("meri_agent_profile_leases")
 }
 
 /// Clio self-scheduled recurring task (W3). A user asks Clio to run something on
@@ -4600,25 +4374,25 @@ model BillText {
 /// Immutable publisher bytes plus normalized text for one federal legislative
 /// package/version. The mutable BillText row is only a compatibility projection.
 model FederalEvidenceRevision {
-  id               String   @id @default(uuid()) @db.Uuid
-  sourceKey        String   @map("source_key")
-  provider         String   @db.VarChar(24)
-  collection       String   @db.VarChar(16)
-  packageId        String   @map("package_id")
-  billId           String?  @map("bill_id")
-  versionCode      String?  @map("version_code") @db.VarChar(32)
-  lineageKey       String   @map("lineage_key")
-  contentHash      String   @map("content_hash") @db.Char(64)
-  extractionHash   String   @map("extraction_hash") @db.Char(64)
-  parserVersion    String   @map("parser_version") @db.VarChar(64)
-  sourceUrl        String   @map("source_url")
+  id               String    @id @default(uuid()) @db.Uuid
+  sourceKey        String    @map("source_key")
+  provider         String    @db.VarChar(24)
+  collection       String    @db.VarChar(16)
+  packageId        String    @map("package_id")
+  billId           String?   @map("bill_id")
+  versionCode      String?   @map("version_code") @db.VarChar(32)
+  lineageKey       String    @map("lineage_key")
+  contentHash      String    @map("content_hash") @db.Char(64)
+  extractionHash   String    @map("extraction_hash") @db.Char(64)
+  parserVersion    String    @map("parser_version") @db.VarChar(64)
+  sourceUrl        String    @map("source_url")
   sourceModifiedAt DateTime? @map("source_modified_at") @db.Timestamptz(6)
   publishedAt      DateTime? @map("published_at") @db.Timestamptz(6)
-  fetchedAt        DateTime @default(now()) @map("fetched_at") @db.Timestamptz(6)
-  rawContent       String   @map("raw_content") @db.Text
-  extractedText    String   @map("extracted_text") @db.Text
-  completeness     String   @db.VarChar(16)
-  metadata         Json     @default("{}") @map("metadata_jsonb")
+  fetchedAt        DateTime  @default(now()) @map("fetched_at") @db.Timestamptz(6)
+  rawContent       String    @map("raw_content") @db.Text
+  extractedText    String    @map("extracted_text") @db.Text
+  completeness     String    @db.VarChar(16)
+  metadata         Json      @default("{}") @map("metadata_jsonb")
 
   @@unique([sourceKey, contentHash, extractionHash, parserVersion], map: "federal_evidence_revision_identity_key")
   @@index([billId, fetchedAt(sort: Desc)], map: "federal_evidence_revision_bill_idx")
@@ -4629,16 +4403,16 @@ model FederalEvidenceRevision {
 /// Append-only publisher observations. A removed row is written only after a
 /// complete inventory; failed/partial fetches leave the prior current row live.
 model FederalEvidenceObservation {
-  id                 BigInt   @id @default(autoincrement())
-  observationKey     String   @unique(map: "federal_evidence_observation_key_key") @map("observation_key")
-  sourceKey          String   @map("source_key")
-  revisionId         String?  @map("revision_id") @db.Uuid
-  state              String   @db.VarChar(16)
-  observedAt         DateTime @default(now()) @map("observed_at") @db.Timestamptz(6)
+  id                 BigInt    @id @default(autoincrement())
+  observationKey     String    @unique(map: "federal_evidence_observation_key_key") @map("observation_key")
+  sourceKey          String    @map("source_key")
+  revisionId         String?   @map("revision_id") @db.Uuid
+  state              String    @db.VarChar(16)
+  observedAt         DateTime  @default(now()) @map("observed_at") @db.Timestamptz(6)
   sourceModifiedAt   DateTime? @map("source_modified_at") @db.Timestamptz(6)
-  inventoryWindowEnd DateTime @map("inventory_window_end") @db.Timestamptz(6)
-  historical         Boolean  @default(false)
-  metadata           Json     @default("{}") @map("metadata_jsonb")
+  inventoryWindowEnd DateTime  @map("inventory_window_end") @db.Timestamptz(6)
+  historical         Boolean   @default(false)
+  metadata           Json      @default("{}") @map("metadata_jsonb")
 
   @@index([sourceKey, id(sort: Desc)], map: "federal_evidence_observation_current_idx")
   @@map("federal_evidence_observation")
@@ -5445,6 +5219,8 @@ model SourceDocument {
   federalFundingMeasures           FederalFundingMeasure[]
   federalFundingProvisions         FederalFundingProvision[]
   federalFundingAllocationEvidence FederalFundingAllocation[]              @relation("FederalFundingAllocationEvidence")
+  federalFundingSourceEvents       FederalFundingSourceEvent[]
+  federalFundingResidualEvidence   FederalFundingReconciliationResidual[]  @relation("FederalFundingResidualEvidence")
   // Phase 8 Session 7 — lifecycle watcher observations bound to immutable source identity.
   defenseBudgetObservations        DefenseBudgetSourceObservation[]        @relation("DefenseBudgetObservationSource")
   // Phase 10B-18 — source-bundle member bindings (Army R-2 multi-volume corpus).
@@ -5453,6 +5229,8 @@ model SourceDocument {
   ingestionManifestItems           DefenseBudgetIngestionManifestItemV1[]
   // Canonical procurement line citations (procurement_line_source).
   procurementLineSources           ProcurementLineSource[]
+  programIdentityCrosswalks        ProgramIdentityCrosswalk[]
+  defenseContextRevisions          DefenseContextDocumentRevision[]
 
   @@unique([sourceKey, sha256], map: "source_document_source_key_sha256_key")
   @@index([documentType, fiscalYear, budgetCycle, component], map: "source_document_type_fy_cycle_component_idx")
@@ -5695,6 +5473,44 @@ model ProgramElementWatch {
   @@unique([tenantId, userId, peCode], map: "program_element_watch_tenant_user_pe_code_key")
   @@index([tenantId, peCode], map: "program_element_watch_tenant_pe_code_idx")
   @@map("program_element_watch")
+}
+
+/// Package 7 client-facing defense budget watch. The subscription row is immutable;
+/// activation and decisions are represented by append-only events.
+model DefenseBudgetClientWatch {
+  id              String                          @id @default(uuid()) @db.Uuid
+  tenantId        String                          @map("tenant_id") @db.Uuid
+  clientId        String                          @map("client_id") @db.Uuid
+  targetType      String                          @map("target_type") @db.VarChar(20)
+  targetKey       String                          @map("target_key") @db.VarChar(160)
+  clientReason    String                          @map("client_reason") @db.Text
+  createdByUserId String                          @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime                        @default(now()) @map("created_at") @db.Timestamptz(6)
+  events          DefenseBudgetClientWatchEvent[]
+
+  @@unique([tenantId, clientId, targetType, targetKey], map: "defense_budget_client_watch_target_key")
+  @@index([tenantId, clientId, createdAt(sort: Desc)], map: "defense_budget_client_watch_client_idx")
+  @@map("defense_budget_client_watch")
+}
+
+model DefenseBudgetClientWatchEvent {
+  id              String                   @id @default(uuid()) @db.Uuid
+  tenantId        String                   @map("tenant_id") @db.Uuid
+  clientId        String                   @map("client_id") @db.Uuid
+  watchId         String                   @map("watch_id") @db.Uuid
+  eventType       String                   @map("event_type") @db.VarChar(24)
+  logicalEventKey String                   @map("logical_event_key") @db.VarChar(200)
+  updateEventId   String?                  @map("update_event_id") @db.Uuid
+  actorUserId     String?                  @map("actor_user_id") @db.Uuid
+  materialReason  String?                  @map("material_reason") @db.Text
+  evidence        Json?
+  createdAt       DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  watch           DefenseBudgetClientWatch @relation(fields: [watchId], references: [id], onDelete: Restrict)
+
+  @@unique([watchId, logicalEventKey], map: "defense_budget_client_watch_event_logical_key")
+  @@index([tenantId, clientId, createdAt(sort: Desc)], map: "defense_budget_client_watch_event_client_idx")
+  @@index([tenantId, clientId, updateEventId], map: "defense_budget_client_watch_event_update_idx")
+  @@map("defense_budget_client_watch_event")
 }
 
 /// Per-user PE Watch email-alert preference (PE Watch plan Phase 2; configured
@@ -6171,6 +5987,19 @@ model NotificationLog {
   @@index([tenantId])
   @@index([clientId])
   @@map("notification_log")
+}
+
+// Immutable event snapshot for an in-app District Nexus alert delivery.
+model DistrictNexusAlertPayload {
+  notificationLogId String  @id @map("notification_log_id") @db.Uuid
+  tenantId          String  @map("tenant_id") @db.Uuid
+  clientId          String  @map("client_id") @db.Uuid
+  stateCode         String  @map("state_code") @db.VarChar(2)
+  districtCode      String? @map("district_code") @db.VarChar(8)
+  payload           Json
+
+  @@index([tenantId, clientId], map: "district_nexus_alert_payload_tenant_client_idx")
+  @@map("district_nexus_alert_payload")
 }
 
 // Queued alerts awaiting a digest flush (email daily/weekly, sms daily). The
@@ -10334,12 +10163,13 @@ model Program {
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  aliases        ProgramAlias[]
-  matches        PeProgramMatch[]
-  samMatches     SamOpportunityMatch[]
-  personRoles    PersonRole[]
-  officeLinks    ProgramOfficeProgramLink[]
-  provisionLinks ProvisionPeLink[]
+  aliases            ProgramAlias[]
+  identityCrosswalks ProgramIdentityCrosswalk[]
+  matches            PeProgramMatch[]
+  samMatches         SamOpportunityMatch[]
+  personRoles        PersonRole[]
+  officeLinks        ProgramOfficeProgramLink[]
+  provisionLinks     ProvisionPeLink[]
 
   @@index([mdapCode], map: "program_mdap_code_idx")
   @@index([component], map: "program_component_idx")
@@ -10374,6 +10204,178 @@ model ProgramAlias {
   // NOTE: the pg_trgm GIN index on alias_normalized is created in raw SQL in the
   // migration (Prisma cannot express `USING gin (... gin_trgm_ops)`).
   @@map("program_alias")
+}
+
+/// Immutable, bitemporal evidence linking one source identity to one Program.
+/// Multiple rows may share a source identity (including split/merge fanout); each
+/// logical edge has a linear revision chain through supersedesId. recordedAt is
+/// system time and validFromFy/validToFy are source-world fiscal-year validity.
+/// These rows express identity/relationship evidence only, never dollars/allocation.
+model ProgramIdentityCrosswalk {
+  id               String    @id @default(uuid()) @db.Uuid
+  programId        String    @map("program_id") @db.Uuid
+  identityKind     String    @map("identity_kind") @db.VarChar(32)
+  sourceSystem     String    @map("source_system") @db.VarChar(64)
+  sourceIdentifier String    @map("source_identifier") @db.VarChar(256)
+  relationshipKind String    @map("relationship_kind") @db.VarChar(24)
+  validFromFy      Int?      @map("valid_from_fy")
+  validToFy        Int?      @map("valid_to_fy")
+  recordedAt       DateTime  @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  supersedesId     String?   @map("supersedes_id") @db.Uuid
+  source           String    @db.VarChar(128)
+  sourceUrl        String?   @map("source_url")
+  sourceDocumentId String?   @map("source_document_id") @db.Uuid
+  evidence         Json      @default("{}") @map("evidence_jsonb")
+  confidence       Float     @default(0.5)
+  /// candidate | accepted | rejected | quarantined
+  reviewStatus     String    @default("candidate") @map("review_status") @db.VarChar(20)
+  reviewedBy       String?   @map("reviewed_by") @db.Uuid
+  reviewedAt       DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  program        Program                    @relation(fields: [programId], references: [id], onDelete: Restrict)
+  sourceDocument SourceDocument?            @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  supersedes     ProgramIdentityCrosswalk?  @relation("ProgramIdentityCrosswalkRevision", fields: [supersedesId], references: [id], onDelete: Restrict)
+  revisions      ProgramIdentityCrosswalk[] @relation("ProgramIdentityCrosswalkRevision")
+
+  @@index([identityKind, sourceSystem, sourceIdentifier, recordedAt], map: "program_identity_crosswalk_identity_time_idx")
+  @@index([programId, validFromFy, validToFy], map: "program_identity_crosswalk_program_fy_idx")
+  @@index([sourceDocumentId], map: "program_identity_crosswalk_source_document_idx")
+  @@index([reviewStatus, recordedAt], map: "program_identity_crosswalk_review_idx")
+  @@map("program_identity_crosswalk")
+}
+
+/// Immutable source revision for a procurement notice, solicitation, vehicle,
+/// order, award, or modification. identityKey is source-qualified and must be
+/// constructed from the provider's authoritative identifier; PIID alone is not
+/// an identity. Repeated bytes are idempotent while changed source content
+/// appends a new revision.
+model AcquisitionRecordRevision {
+  id                String    @id @default(uuid()) @db.Uuid
+  identityKey       String    @map("identity_key")
+  sourceSystem      String    @map("source_system") @db.VarChar(64)
+  sourceRecordId    String    @map("source_record_id")
+  recordKind        String    @map("record_kind") @db.VarChar(24)
+  parentIdentityKey String?   @map("parent_identity_key")
+  title             String?
+  status            String?   @db.VarChar(64)
+  buyerOffice       String?   @map("buyer_office")
+  postedAt          DateTime? @map("posted_at") @db.Timestamptz(6)
+  responseDeadline  DateTime? @map("response_deadline") @db.Timestamptz(6)
+  validFrom         DateTime? @map("valid_from") @db.Date
+  validTo           DateTime? @map("valid_to") @db.Date
+  contentHash       String    @map("content_hash") @db.Char(64)
+  sourceUrl         String?   @map("source_url")
+  sourceVersion     String?   @map("source_version") @db.VarChar(128)
+  sourceObservedAt  DateTime? @map("source_observed_at") @db.Timestamptz(6)
+  recordedAt        DateTime  @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  raw               Json      @default("{}") @map("raw_jsonb")
+
+  @@unique([identityKey, contentHash], map: "acquisition_record_revision_identity_content_key")
+  @@index([identityKey, recordedAt], map: "acquisition_record_revision_identity_time_idx")
+  @@index([sourceSystem, recordKind, recordedAt], map: "acquisition_record_revision_source_kind_idx")
+  @@index([parentIdentityKey], map: "acquisition_record_revision_parent_idx")
+  @@map("acquisition_record_revision")
+}
+
+/// Append-only award action history. One source transaction may be corrected by
+/// a later immutable revision; signed amounts preserve deobligations/reversals.
+/// Account totals are deliberately not stored here and are never added to these
+/// transaction deltas by the Package 5 portfolio projector.
+model AcquisitionAwardTransactionRevision {
+  id                     String    @id @default(uuid()) @db.Uuid
+  transactionIdentityKey String    @map("transaction_identity_key")
+  awardIdentityKey       String    @map("award_identity_key")
+  parentAwardIdentityKey String?   @map("parent_award_identity_key")
+  sourceSystem           String    @map("source_system") @db.VarChar(64)
+  sourceTransactionId    String    @map("source_transaction_id")
+  piid                   String?
+  modificationNumber     String?   @map("modification_number")
+  actionDate             DateTime? @map("action_date") @db.Date
+  signedObligationDelta  Decimal?  @map("signed_obligation_delta") @db.Decimal(20, 2)
+  signedOutlayDelta      Decimal?  @map("signed_outlay_delta") @db.Decimal(20, 2)
+  correctsIdentityKey    String?   @map("corrects_identity_key")
+  revision               Int       @default(1)
+  contentHash            String    @map("content_hash") @db.Char(64)
+  supersedesId           String?   @map("supersedes_id") @db.Uuid
+  sourceUrl              String?   @map("source_url")
+  sourceObservedAt       DateTime? @map("source_observed_at") @db.Timestamptz(6)
+  recordedAt             DateTime  @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  raw                    Json      @default("{}") @map("raw_jsonb")
+
+  supersedes AcquisitionAwardTransactionRevision?  @relation("AcquisitionTransactionRevision", fields: [supersedesId], references: [id], onDelete: Restrict)
+  revisions  AcquisitionAwardTransactionRevision[] @relation("AcquisitionTransactionRevision")
+
+  @@unique([transactionIdentityKey, contentHash], map: "acquisition_transaction_identity_content_key")
+  @@unique([supersedesId], map: "acquisition_transaction_supersedes_key")
+  @@index([awardIdentityKey, actionDate], map: "acquisition_transaction_award_action_idx")
+  @@index([parentAwardIdentityKey], map: "acquisition_transaction_parent_idx")
+  @@index([sourceSystem, sourceTransactionId], map: "acquisition_transaction_source_id_idx")
+  @@map("acquisition_award_transaction_revision")
+}
+
+/// Immutable, revisioned relationship from a program/PE/project/procurement
+/// identity to one acquisition identity. Monetary attribution is legal only for
+/// the two explicit allocation classes; association/relevance/unresolved edges
+/// cannot carry an amount.
+model ProgramAcquisitionRelationship {
+  id                     String    @id @default(uuid()) @db.Uuid
+  logicalKey             String    @map("logical_key") @db.Char(64)
+  subjectKind            String    @map("subject_kind") @db.VarChar(32)
+  subjectKey             String    @map("subject_key")
+  acquisitionIdentityKey String    @map("acquisition_identity_key")
+  relationshipClass      String    @map("relationship_class") @db.VarChar(48)
+  validFromFy            Int?      @map("valid_from_fy")
+  validToFy              Int?      @map("valid_to_fy")
+  recordedAt             DateTime  @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  supersedesId           String?   @map("supersedes_id") @db.Uuid
+  reviewStatus           String    @default("candidate") @map("review_status") @db.VarChar(20)
+  reviewedBy             String?   @map("reviewed_by") @db.Uuid
+  reviewedAt             DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  sourceSystem           String    @map("source_system") @db.VarChar(64)
+  sourceRecordId         String    @map("source_record_id")
+  sourceUrl              String?   @map("source_url")
+  sourceVersion          String?   @map("source_version") @db.VarChar(128)
+  sourceObservedAt       DateTime? @map("source_observed_at") @db.Timestamptz(6)
+  evidence               Json      @default("{}") @map("evidence_jsonb")
+  confidence             Float     @default(0.5)
+  allocatedAmountUsd     Decimal?  @map("allocated_amount_usd") @db.Decimal(20, 2)
+  unresolvedReason       String?   @map("unresolved_reason")
+  coverageState          String    @default("unknown") @map("coverage_state") @db.VarChar(16)
+  contentHash            String    @map("content_hash") @db.Char(64)
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  supersedes ProgramAcquisitionRelationship?  @relation("ProgramAcquisitionRelationshipRevision", fields: [supersedesId], references: [id], onDelete: Restrict)
+  revisions  ProgramAcquisitionRelationship[] @relation("ProgramAcquisitionRelationshipRevision")
+
+  @@unique([logicalKey, contentHash], map: "program_acquisition_relationship_logical_content_key")
+  @@unique([supersedesId], map: "program_acquisition_relationship_supersedes_key")
+  @@index([subjectKind, subjectKey, recordedAt], map: "program_acquisition_relationship_subject_time_idx")
+  @@index([acquisitionIdentityKey, recordedAt], map: "program_acquisition_relationship_acquisition_time_idx")
+  @@index([reviewStatus, relationshipClass], map: "program_acquisition_relationship_review_class_idx")
+  @@map("program_acquisition_relationship")
+}
+
+/// Mutable coverage ledger for missing, delayed, ambiguous, or unsupported
+/// acquisition joins. Resolving a gap closes it; it never fabricates a zero.
+model AcquisitionCoverageGap {
+  id               String    @id @default(uuid()) @db.Uuid
+  subjectKind      String    @map("subject_kind") @db.VarChar(32)
+  subjectKey       String    @map("subject_key")
+  sourceSystem     String    @map("source_system") @db.VarChar(64)
+  relationshipKind String    @map("relationship_kind") @db.VarChar(64)
+  reason           String    @db.VarChar(64)
+  detail           String?
+  coverageState    String    @map("coverage_state") @db.VarChar(16)
+  sourceAsOf       DateTime? @map("source_as_of") @db.Timestamptz(6)
+  firstObservedAt  DateTime  @default(now()) @map("first_observed_at") @db.Timestamptz(6)
+  lastObservedAt   DateTime  @default(now()) @map("last_observed_at") @db.Timestamptz(6)
+  resolvedAt       DateTime? @map("resolved_at") @db.Timestamptz(6)
+
+  @@unique([subjectKind, subjectKey, sourceSystem, relationshipKind, reason], map: "acquisition_coverage_gap_identity_key")
+  @@index([subjectKind, subjectKey, resolvedAt], map: "acquisition_coverage_gap_subject_open_idx")
+  @@index([sourceSystem, resolvedAt, lastObservedAt], map: "acquisition_coverage_gap_source_open_idx")
+  @@map("acquisition_coverage_gap")
 }
 
 /// PE (and optionally a project within it) -> Program link, with evidence and a
@@ -13477,8 +13479,10 @@ model FederalFundingMeasure {
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  sourceDocument SourceDocument            @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceDocument SourceDocument                @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   provisions     FederalFundingProvision[]
+  sourceEvents   FederalFundingSourceEvent[]
+  certifications FederalFundingCertification[]
 
   // measure_type / status / authority_type value sets and the availability
   // start<=end check are SQL CHECK constraints (federal_funding_measure_*_chk)
@@ -13530,14 +13534,14 @@ model FederalFundingProvision {
 }
 
 model FederalFundingAllocation {
-  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  provisionId              String   @map("provision_id") @db.Uuid
-  targetType               String   @map("target_type")
-  targetNativeKey          String?  @map("target_native_key")
-  targetId                 String?  @map("target_id")
-  allocationStage          String   @map("allocation_stage")
-  mappingMaturity          String   @map("mapping_maturity")
-  reviewState              String   @default("candidate") @map("review_state")
+  id                       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provisionId              String    @map("provision_id") @db.Uuid
+  targetType               String    @map("target_type")
+  targetNativeKey          String?   @map("target_native_key")
+  targetId                 String?   @map("target_id")
+  allocationStage          String    @map("allocation_stage")
+  mappingMaturity          String    @map("mapping_maturity")
+  reviewState              String    @default("candidate") @map("review_state")
   // Exact/account-level allocated dollars. NULL unless the DB-owned
   // federal_funding_allocation_authoritative_dollars_chk is satisfied:
   // mappingMaturity in (exact_identifier, exact_line_item, account_level),
@@ -13545,26 +13549,39 @@ model FederalFundingAllocation {
   // reviewState = verified, an identity is present, and evidence is present.
   // Prisma cannot express this multi-column CHECK — it is SQL-owned; do not
   // assume application code alone can guarantee this invariant.
-  authoritativeAmountUsd   Decimal? @map("authoritative_amount_usd") @db.Decimal(20, 2)
-  inferredRelevance        Boolean  @default(false) @map("inferred_relevance")
-  confidence               Decimal? @db.Decimal(5, 4)
-  baseRequestStatus        String   @default("unknown") @map("base_request_status")
-  potentialDoubleCount     Boolean  @default(false) @map("potential_double_count")
-  fundingPosture           String   @default("unknown") @map("funding_posture")
-  evidenceSourceDocumentId String   @map("evidence_source_document_id") @db.Uuid
-  evidencePage             Int?     @map("evidence_page")
-  evidenceSha256           String   @map("evidence_sha256") @db.Char(64)
+  authoritativeAmountUsd   Decimal?  @map("authoritative_amount_usd") @db.Decimal(20, 2)
+  inferredRelevance        Boolean   @default(false) @map("inferred_relevance")
+  confidence               Decimal?  @db.Decimal(5, 4)
+  baseRequestStatus        String    @default("unknown") @map("base_request_status")
+  potentialDoubleCount     Boolean   @default(false) @map("potential_double_count")
+  fundingPosture           String    @default("unknown") @map("funding_posture")
+  evidenceSourceDocumentId String    @map("evidence_source_document_id") @db.Uuid
+  evidencePage             Int?      @map("evidence_page")
+  evidenceSha256           String    @map("evidence_sha256") @db.Char(64)
   // Required by federal_funding_allocation_obligation_ref_chk when
   // allocationStage = 'obligated'.
-  obligationReference      String?  @map("obligation_reference")
-  executionReference       String?  @map("execution_reference")
-  dedupKey                 String   @map("dedup_key") @db.Char(64)
-  metadata                 Json     @default("{}") @map("metadata_jsonb")
-  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  obligationReference      String?   @map("obligation_reference")
+  executionReference       String?   @map("execution_reference")
+  sourceEventId            String?   @map("source_event_id") @db.Uuid
+  amountBasis              String    @default("legacy_unspecified") @map("amount_basis")
+  asOfDate                 DateTime? @map("as_of_date") @db.Date
+  periodStart              DateTime? @map("period_start") @db.Date
+  periodEnd                DateTime? @map("period_end") @db.Date
+  executionMetric          String?   @map("execution_metric")
+  correctionOfAllocationId String?   @map("correction_of_allocation_id") @db.Uuid
+  transferPairKey          String?   @map("transfer_pair_key")
+  transferSide             String?   @map("transfer_side")
+  dedupKey                 String    @map("dedup_key") @db.Char(64)
+  metadata                 Json      @default("{}") @map("metadata_jsonb")
+  createdAt                DateTime  @default(dbgenerated("clock_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  provision              FederalFundingProvision @relation(fields: [provisionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  evidenceSourceDocument SourceDocument          @relation("FederalFundingAllocationEvidence", fields: [evidenceSourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  provision              FederalFundingProvision     @relation(fields: [provisionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  evidenceSourceDocument SourceDocument              @relation("FederalFundingAllocationEvidence", fields: [evidenceSourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceEvent            FederalFundingSourceEvent?  @relation(fields: [sourceEventId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  correctionOf           FederalFundingAllocation?   @relation("FederalFundingAllocationCorrection", fields: [correctionOfAllocationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  corrections            FederalFundingAllocation[]  @relation("FederalFundingAllocationCorrection")
+  publicationSnapshots   FederalFundingPublication[]
 
   // target_type / allocation_stage / mapping_maturity / review_state /
   // base_request_status / funding_posture value sets, confidence 0..1,
@@ -13579,10 +13596,133 @@ model FederalFundingAllocation {
   @@index([targetType, targetId, targetNativeKey], map: "federal_funding_allocation_target_idx")
   @@index([reviewState, mappingMaturity], map: "federal_funding_allocation_review_idx")
   @@index([evidenceSourceDocumentId], map: "federal_funding_allocation_evidence_document_idx")
+  @@index([sourceEventId], map: "federal_funding_allocation_source_event_idx")
+  @@index([correctionOfAllocationId], map: "federal_funding_allocation_correction_idx")
+  @@index([executionMetric, asOfDate], map: "federal_funding_allocation_execution_time_idx")
   // Partial index (WHERE potential_double_count = TRUE) is created by the SQL
   // migration; Prisma cannot express the WHERE predicate without changing
   // index semantics, so it is intentionally omitted here (SQL-owned).
   @@map("federal_funding_allocation")
+}
+
+// Immutable source occurrence/revision rail. Mutable current-state funding rows
+// are not sufficient to audit corrections, source revisions, or transfer legs.
+model FederalFundingSourceEvent {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sourceEventKey        String    @map("source_event_key")
+  sourceSystem          String    @map("source_system")
+  sourceRecordId        String    @map("source_record_id")
+  revision              Int       @default(1)
+  eventType             String    @map("event_type")
+  measureId             String?   @map("measure_id") @db.Uuid
+  sourceDocumentId      String    @map("source_document_id") @db.Uuid
+  occurredAt            DateTime? @map("occurred_at") @db.Timestamptz(6)
+  sourceObservedAt      DateTime? @map("source_observed_at") @db.Timestamptz(6)
+  sourceUrl             String?   @map("source_url")
+  sourceVersion         String?   @map("source_version")
+  amountBasis           String?   @map("amount_basis")
+  executionMetric       String?   @map("execution_metric")
+  asOfDate              DateTime? @map("as_of_date") @db.Date
+  periodStart           DateTime? @map("period_start") @db.Date
+  periodEnd             DateTime? @map("period_end") @db.Date
+  sourceAmountUsd       Decimal?  @map("source_amount_usd") @db.Decimal(20, 2)
+  signedObligationDelta Decimal?  @map("signed_obligation_delta") @db.Decimal(20, 2)
+  signedOutlayDelta     Decimal?  @map("signed_outlay_delta") @db.Decimal(20, 2)
+  correctionOfEventId   String?   @map("correction_of_event_id") @db.Uuid
+  transferPairKey       String?   @map("transfer_pair_key")
+  transferSide          String?   @map("transfer_side")
+  contentSha256         String    @map("content_sha256") @db.Char(64)
+  raw                   Json      @default("{}") @map("raw_jsonb")
+  recordedAt            DateTime  @default(now()) @map("recorded_at") @db.Timestamptz(6)
+
+  measure        FederalFundingMeasure?      @relation(fields: [measureId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceDocument SourceDocument              @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  correctionOf   FederalFundingSourceEvent?  @relation("FederalFundingSourceEventCorrection", fields: [correctionOfEventId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  corrections    FederalFundingSourceEvent[] @relation("FederalFundingSourceEventCorrection")
+  allocations    FederalFundingAllocation[]
+
+  @@unique([sourceEventKey, contentSha256], map: "federal_funding_source_event_content_key")
+  @@unique([sourceEventKey, revision], map: "federal_funding_source_event_revision_key")
+  @@index([sourceSystem, sourceRecordId, recordedAt(sort: Desc)], map: "federal_funding_source_event_source_time_idx")
+  @@index([measureId, recordedAt(sort: Desc)], map: "federal_funding_source_event_measure_time_idx")
+  @@map("federal_funding_source_event")
+}
+
+// Certification is immutable; its publication rows hold the exact allocation
+// snapshot that was reviewed, so later source corrections cannot rewrite history.
+model FederalFundingCertification {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  certificationKey     String    @map("certification_key")
+  revision             Int       @default(1)
+  measureId            String    @map("measure_id") @db.Uuid
+  measureStatus        String    @map("measure_status")
+  sourceEventWatermark DateTime? @map("source_event_watermark") @db.Timestamptz(6)
+  sourceEventCount     Int       @map("source_event_count")
+  scope                Json      @default("{}") @map("scope_jsonb")
+  status               String    @default("certified")
+  certifiedBy          String?   @map("certified_by")
+  certifiedAt          DateTime  @default(now()) @map("certified_at") @db.Timestamptz(6)
+  contentSha256        String    @map("content_sha256") @db.Char(64)
+
+  measure      FederalFundingMeasure                  @relation(fields: [measureId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  publications FederalFundingPublication[]
+  residuals    FederalFundingReconciliationResidual[]
+
+  @@unique([certificationKey, revision], map: "federal_funding_certification_revision_key")
+  @@index([measureId, certifiedAt(sort: Desc)], map: "federal_funding_certification_measure_time_idx")
+  @@map("federal_funding_certification")
+}
+
+model FederalFundingPublication {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  certificationId    String   @map("certification_id") @db.Uuid
+  allocationId       String   @map("allocation_id") @db.Uuid
+  allocationSnapshot Json     @map("allocation_snapshot_jsonb")
+  contentSha256      String   @map("content_sha256") @db.Char(64)
+  publishedAt        DateTime @default(now()) @map("published_at") @db.Timestamptz(6)
+
+  certification FederalFundingCertification @relation(fields: [certificationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  allocation    FederalFundingAllocation    @relation(fields: [allocationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([certificationId, allocationId], map: "federal_funding_publication_allocation_key")
+  @@index([allocationId, publishedAt(sort: Desc)], map: "federal_funding_publication_allocation_time_idx")
+  @@map("federal_funding_publication")
+}
+
+// Residuals intentionally have no target/allocation foreign key or target ID.
+// They record an unreconciled amount and scope without inventing an allocation.
+model FederalFundingReconciliationResidual {
+  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  certificationId          String   @map("certification_id") @db.Uuid
+  scopeKey                 String   @map("scope_key")
+  scope                    Json     @map("scope_jsonb")
+  basis                    String
+  residualAmountUsd        Decimal  @map("residual_amount_usd") @db.Decimal(20, 2)
+  reason                   String
+  coverageState            String   @map("coverage_state")
+  freshness                Json     @default("{}") @map("freshness_jsonb")
+  evidenceSourceDocumentId String?  @map("evidence_source_document_id") @db.Uuid
+  evidenceSha256           String?  @map("evidence_sha256") @db.Char(64)
+  contentSha256            String   @map("content_sha256") @db.Char(64)
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  certification          FederalFundingCertification @relation(fields: [certificationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  evidenceSourceDocument SourceDocument?             @relation("FederalFundingResidualEvidence", fields: [evidenceSourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([certificationId, scopeKey, contentSha256], map: "federal_funding_residual_content_key")
+  @@index([scopeKey, createdAt(sort: Desc)], map: "federal_funding_residual_scope_time_idx")
+  @@map("federal_funding_reconciliation_residual")
+}
+
+model FederalFundingPublicationCheckpoint {
+  checkpointKey String   @id @map("checkpoint_key")
+  version       Int
+  cursor        String?
+  throughId     String?  @map("through_id")
+  complete      Boolean  @default(false)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("federal_funding_publication_checkpoint")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -14461,7 +14601,14 @@ model BusinessDevelopmentProspect {
   // breaks reads, and history stays intact. Membership is validated in the
   // service against an ACTIVE TenantMembership of the same tenant.
   activity        BusinessDevelopmentProspectActivity[]
+  briefs          BusinessDevelopmentBrief[]
+  watches         BusinessDevelopmentWatch[]
+  alerts          BusinessDevelopmentAlert[]
 
+  // Prisma-required composite unique criterion for the Phase 4 tenant-safe
+  // composite FK from business_development_briefs (tenant_id, prospect_id).
+  // Functionally identical to the id primary key; SQL-owned physical index.
+  @@unique([tenantId, id], map: "business_development_prospects_tenant_id_id_key")
   @@index([tenantId, status, stage], map: "business_development_prospects_tenant_status_stage_idx")
   @@index([tenantId, updatedAt(sort: Desc)], map: "business_development_prospects_tenant_updated_idx")
   @@index([tenantId, ownerUserId], map: "business_development_prospects_tenant_owner_idx")
@@ -14510,4 +14657,1204 @@ model BusinessDevelopmentPreference {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("business_development_preferences")
+}
+
+/// Business Development Phase 3 — redacted Jev decision trace. This table
+/// deliberately stores hashes, typed outcomes, public source ids and usage,
+/// never the prompt, source passage, firm notes, conflicts, contacts or PDL.
+/// SQL owns the closed vocabularies and tenant RLS policy.
+model BusinessDevelopmentJevDecision {
+  id                     String    @id @default(uuid()) @db.Uuid
+  tenantId               String    @map("tenant_id") @db.Uuid
+  subjectType            String    @map("subject_type") @db.VarChar(24)
+  subjectId              String    @map("subject_id") @db.VarChar(160)
+  prospectId             String?   @map("prospect_id") @db.Uuid
+  canonicalEntityId      String?   @map("canonical_entity_id") @db.Uuid
+  task                   String    @db.VarChar(32)
+  mode                   String    @db.VarChar(24)
+  status                 String    @db.VarChar(24)
+  operationalState       String?   @map("operational_state") @db.VarChar(40)
+  providerName           String    @map("provider_name") @db.VarChar(64)
+  modelVersion           String    @map("model_version") @db.VarChar(40)
+  registryVersion        String    @map("registry_version") @db.VarChar(64)
+  questionVersion        String    @map("question_version") @db.VarChar(64)
+  envelopeHash           String    @map("envelope_hash") @db.VarChar(80)
+  candidateInventoryHash String?   @map("candidate_inventory_hash") @db.VarChar(80)
+  sourceIds              String[]  @default([]) @map("source_ids")
+  sourceHashesJsonb      Json      @default("[]") @map("source_hashes_jsonb")
+  deterministicOutcome   String?   @map("deterministic_outcome") @db.VarChar(64)
+  outcome                String?   @db.VarChar(64)
+  probabilitiesJsonb     Json?     @map("probabilities_jsonb")
+  confidence             Decimal?  @db.Decimal(6, 5)
+  reasonCodes            String[]  @default([]) @map("reason_codes")
+  inputTokens            Int?      @map("input_tokens")
+  outputTokens           Int?      @map("output_tokens")
+  estimatedCostUsd       Decimal?  @map("estimated_cost_usd") @db.Decimal(12, 9)
+  latencyMs              Int?      @map("latency_ms")
+  visibleEffectJsonb     Json?     @map("visible_effect_jsonb")
+  reviewStatus           String    @default("unreviewed") @map("review_status") @db.VarChar(24)
+  reviewedOutcome        String?   @map("reviewed_outcome") @db.VarChar(64)
+  reviewedByUserId       String?   @map("reviewed_by_user_id") @db.Uuid
+  reviewedAt             DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  idempotencyKey         String    @map("idempotency_key") @db.VarChar(400)
+  requestedAt            DateTime  @default(now()) @map("requested_at") @db.Timestamptz(6)
+  completedAt            DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, idempotencyKey], map: "business_development_jev_decisions_tenant_idempotency_key")
+  @@index([tenantId, task, mode, requestedAt(sort: Desc)], map: "business_development_jev_decisions_tenant_task_mode_idx")
+  @@index([tenantId, subjectType, subjectId, requestedAt(sort: Desc)], map: "business_development_jev_decisions_tenant_subject_idx")
+  @@index([tenantId, reviewStatus, requestedAt(sort: Desc)], map: "business_development_jev_decisions_tenant_review_idx")
+  @@map("business_development_jev_decisions")
+}
+
+/// Business Development Phase 4 — prospect brief root. One stable artifact per
+/// (tenant, prospect); versions are append-only rows in
+/// BusinessDevelopmentBriefVersion and `currentVersionId` makes optimistic
+/// concurrency unambiguous. SQL migration remains the source of truth for RLS,
+/// the composite tenant-safe FKs, and the deferrable constraints.
+model BusinessDevelopmentBrief {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  prospectId       String   @map("prospect_id") @db.Uuid
+  title            String
+  status           String   @default("draft") @db.VarChar(16)
+  currentVersionId String?  @map("current_version_id") @db.Uuid
+  createdByUserId  String?  @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant         Tenant                            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  prospect       BusinessDevelopmentProspect       @relation(fields: [tenantId, prospectId], references: [tenantId, id], onDelete: Cascade, map: "business_development_briefs_prospect_fkey")
+  /// Same-brief current-version pointer: the FK is (tenantId, currentVersionId,
+  /// id) → versions (tenantId, id, briefId), so the pointed version must carry
+  /// THIS root's id. The SQL-owned DEFERRABLE constraint of the same name
+  /// enforces it at commit; Prisma maps the same-named @@unique criteria.
+  currentVersion BusinessDevelopmentBriefVersion?  @relation("BizDevBriefCurrentVersion", fields: [tenantId, currentVersionId, id], references: [tenantId, id, briefId], onDelete: Restrict, map: "business_development_briefs_current_version_fkey")
+  versions       BusinessDevelopmentBriefVersion[] @relation("BizDevBriefVersions")
+
+  /// One brief per (tenant, prospect), archived roots included.
+  @@unique([tenantId, prospectId], map: "business_development_briefs_tenant_prospect_key")
+  /// FK-target criterion for versions.brief → briefs. Backed by the SQL
+  /// constraint business_development_briefs_tenant_id_key (same name).
+  @@unique([tenantId, id], map: "business_development_briefs_tenant_id_key")
+  /// Criterion that lets the one-to-one current-version relation carry the
+  /// brief's OWN id in the FK — the pointer is same-brief by construction.
+  /// NOTE: no SQL index of this name exists (the SQL invariant is enforced by
+  /// the composite FK (tenant_id, current_version_id, id) → versions
+  /// (tenant_id, id, brief_id)); this @@unique exists for Prisma's one-to-one
+  /// validation and is NOT drifted against by migrations (schema owns it).
+  @@unique([tenantId, currentVersionId, id], map: "business_development_briefs_tenant_current_version_key")
+  @@index([tenantId, updatedAt(sort: Desc)], map: "business_development_briefs_tenant_updated_idx")
+  @@map("business_development_briefs")
+}
+
+/// Business Development Phase 4 — immutable brief version. The five exact
+/// sections, source snapshot, citations, and per-section provenance are stored
+/// in `sections` / `sourceSnapshot` / `citations` JSONB columns written ONCE;
+/// normal operation never updates or deletes a version row. SQL owns the
+/// deferrable current-version pointer constraint and the per-brief version
+/// numbering unique.
+model BusinessDevelopmentBriefVersion {
+  id                     String   @id @default(uuid()) @db.Uuid
+  tenantId               String   @map("tenant_id") @db.Uuid
+  briefId                String   @map("brief_id") @db.Uuid
+  versionNumber          Int      @map("version_number")
+  sections               Json
+  sectionsHash           String   @map("sections_hash") @db.VarChar(64)
+  sourceSnapshot         Json     @map("source_snapshot")
+  snapshotHash           String   @map("snapshot_hash") @db.VarChar(64)
+  citations              Json     @default("[]") @map("citations")
+  idempotencyKey         String   @map("idempotency_key") @db.VarChar(400)
+  /// Which write created this row: create | edit | accept.
+  idempotencyOp          String   @map("idempotency_op") @db.VarChar(16)
+  /// SHA-256 content fingerprint of the attempted write at save time.
+  idempotencyFingerprint String   @map("idempotency_fingerprint") @db.VarChar(64)
+  createdByUserId        String?  @map("created_by_user_id") @db.Uuid
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant         Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brief          BusinessDevelopmentBrief  @relation("BizDevBriefVersions", fields: [tenantId, briefId], references: [tenantId, id], onDelete: Cascade, map: "business_development_brief_versions_brief_fkey")
+  /// Inverse side of the same-brief current-version pointer (zero or one brief
+  /// points at a given version). FK-side fields live on the brief.
+  briefCurrentOf BusinessDevelopmentBrief? @relation("BizDevBriefCurrentVersion", map: "business_development_briefs_current_version_fkey")
+
+  /// FK-target criterion for the brief current-version pointer: including
+  /// briefId in the unique columns is what makes the pointer same-brief at
+  /// the DATABASE level (the SQL constraint of the same name enforces it).
+  @@unique([tenantId, id, briefId], map: "business_development_brief_versions_tenant_id_id_brief_id_key")
+  /// One row per (brief, version number) — no duplicate numbers, ever.
+  @@unique([briefId, versionNumber], map: "business_development_brief_versions_brief_number_key")
+  /// All brief writes idempotent per (tenant, brief, key).
+  @@unique([tenantId, briefId, idempotencyKey], map: "business_development_brief_versions_tenant_idempotency_key")
+  @@index([tenantId, briefId, createdAt(sort: Desc)], map: "business_development_brief_versions_brief_created_idx")
+  @@map("business_development_brief_versions")
+}
+
+/// Business Development Phase 5 — one watch per prospect. A watch is the
+/// tenant-private subscription that turns existing canonical projections
+/// (federal_award, federal_assistance_award, sam_opportunity, tango_resource,
+/// lda_filing, acquisition_revision) into tenant alerts. Phase 5 performs NO
+/// new ingestion: the runner reads existing projections only, through the
+/// per-watch BusinessDevelopmentWatchSourceState rows. SQL migration remains
+/// the source of truth for RLS, the one-watch-per-prospect unique (INCLUDING
+/// dismissed/converted prospects), the status/frequency checks, and the
+/// composite tenant-safe FKs. Existing BusinessDevelopmentProspect.watchRequested
+/// stays as-is for compatibility; the migration seeds active watches for
+/// watch_requested=true prospects with a quiet (alert-free) baseline.
+model BusinessDevelopmentWatch {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  prospectId        String    @map("prospect_id") @db.Uuid
+  /// Owner user id, plain UUID with NO DB foreign key (same rationale as
+  /// prospect owner: history survives user departure). Membership validated
+  /// in the service against an ACTIVE TenantMembership of the same tenant.
+  ownerUserId       String?   @map("owner_user_id") @db.Uuid
+  /// active | paused | ended (SQL CHECK).
+  status            String    @default("active") @db.VarChar(16)
+  mutedUntil        DateTime? @map("muted_until") @db.Timestamptz(6)
+  /// Alert categories the owner wants surfaced (subset of the Phase 5
+  /// category vocabulary; empty = all categories).
+  categories        String[]  @default([])
+  /// real_time | daily | weekly (SQL CHECK); NULL = tenant default.
+  frequency         String?   @db.VarChar(16)
+  /// True when the owner wants a digest instead of individual alerts.
+  digest            Boolean   @default(false)
+  /// Bumped by every preference change so the runner can distinguish
+  /// preference-driven re-evaluation from source-driven change.
+  preferenceVersion Int       @default(1) @map("preference_version")
+  requestedByUserId String?   @map("requested_by_user_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant   Tenant                                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  prospect BusinessDevelopmentProspect           @relation(fields: [tenantId, prospectId], references: [tenantId, id], onDelete: Cascade, map: "business_development_watches_prospect_fkey")
+  states   BusinessDevelopmentWatchSourceState[]
+  alerts   BusinessDevelopmentAlert[]
+
+  /// Prisma-required composite unique for the tenant-safe prospect FK target
+  /// (physical index SQL-owned since Phase 4 already created it on the
+  /// prospects table).
+  @@unique([tenantId, id], map: "business_development_watches_tenant_id_id_key")
+  /// ONE watch per (tenant, prospect) — including dismissed/converted
+  /// prospects; SQL owns the physical unique index of the same name.
+  @@unique([tenantId, prospectId], map: "business_development_watches_tenant_prospect_key")
+  @@index([tenantId, status, mutedUntil], map: "business_development_watches_tenant_status_muted_idx")
+  @@index([tenantId, ownerUserId], map: "business_development_watches_tenant_owner_idx")
+  @@index([tenantId, updatedAt(sort: Desc)], map: "business_development_watches_tenant_updated_idx")
+  @@map("business_development_watches")
+}
+
+/// Business Development Phase 5 — per-watch, per-source runner state.
+/// sourceFamily is one of the allowed EXISTING canonical projections; health is
+/// pending | healthy | partial | error | stale | paused (SQL CHECK). The
+/// baselineState JSONB holds the BizDevWatchBaseline (recorded fingerprints
+/// per recordId); baselinedAt NULL means "quiet baseline not yet run" — the
+/// runner creates it WITHOUT manufacturing alerts. sourceWatermark /
+/// lastSuccessfulCompleteCheckAt only advance on a COMPLETE healthy check:
+/// partial/error results update lastAttemptAt/health/lastError but never
+/// advance the complete cursor. leaseToken/leaseUntil let a DB-only
+/// evaluator safely claim per-watch/per-source work across overlapping ECS
+/// tasks without any new ingestion schedule.
+model BusinessDevelopmentWatchSourceState {
+  id                            String    @id @default(uuid()) @db.Uuid
+  tenantId                      String    @map("tenant_id") @db.Uuid
+  watchId                       String    @map("watch_id") @db.Uuid
+  /// federal_award | federal_assistance_award | sam_opportunity |
+  /// tango_resource | lda_filing | acquisition_revision (SQL CHECK).
+  sourceFamily                  String    @map("source_family") @db.VarChar(32)
+  /// pending | healthy | partial | error | stale | paused (SQL CHECK).
+  health                        String    @default("pending") @db.VarChar(16)
+  baselineState                 Json?     @map("baseline_state")
+  baselinedAt                   DateTime? @map("baselined_at") @db.Timestamptz(6)
+  lastAttemptAt                 DateTime? @map("last_attempt_at") @db.Timestamptz(6)
+  lastSuccessfulCompleteCheckAt DateTime? @map("last_successful_complete_check_at") @db.Timestamptz(6)
+  sourceWatermark               DateTime? @map("source_watermark") @db.Timestamptz(6)
+  lastError                     String?   @map("last_error")
+  consecutiveFailures           Int       @default(0) @map("consecutive_failures")
+  /// DB-only evaluator lease (tenant-scoped): a claim token + expiry. Both
+  /// NULL when unclaimed; claiming overwrites atomically in the runner. The
+  /// lease creates NO schedule — the evaluator that ticks claims it.
+  leaseToken                    String?   @map("lease_token") @db.VarChar(64)
+  leaseUntil                    DateTime? @map("lease_until") @db.Timestamptz(6)
+  createdAt                     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  watch  BusinessDevelopmentWatch @relation(fields: [tenantId, watchId], references: [tenantId, id], onDelete: Cascade, map: "business_development_watch_source_states_watch_fkey")
+
+  /// One state row per (tenant, watch, source family) — SQL-owned composite
+  /// unique backing index is created by the Phase 5 migration with the same
+  /// name.
+  @@unique([tenantId, watchId, sourceFamily], map: "business_development_watch_source_states_watch_source_key")
+  /// Claimable work scan: due or lease-expired rows per tenant.
+  @@index([tenantId, sourceFamily, health, leaseUntil], map: "business_development_watch_source_states_tenant_claim_idx")
+  @@index([tenantId, lastSuccessfulCompleteCheckAt(sort: Desc)], map: "business_development_watch_source_states_last_success_idx")
+  @@map("business_development_watch_source_states")
+}
+
+/// Business Development Phase 5 — append-only tenant alert. One row per
+/// material change a watch surfaced, carrying the exact source identity
+/// (prospect/watch/source family/category/changeKind/materiality), the stable
+/// semantic fingerprint + tenant-delivery dedupe key (SQL uniques make
+/// redelivery impossible), the before/after states, and the human text.
+/// `implication` is EXPLICITLY inference (the pure diff's deterministic
+/// gloss, never a source fact) and downstream UI must label it as such.
+/// Reads support an inbox directly: firstObservedAt / read / dismiss fields.
+model BusinessDevelopmentAlert {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  watchId         String    @map("watch_id") @db.Uuid
+  prospectId      String    @map("prospect_id") @db.Uuid
+  sourceFamily    String    @map("source_family") @db.VarChar(32)
+  category        String    @db.VarChar(32)
+  /// new_record | material_update | correction | backfill (SQL CHECK).
+  changeKind      String    @map("change_kind") @db.VarChar(24)
+  /// high | medium | low (SQL CHECK).
+  materiality     String    @db.VarChar(16)
+  /// Stable source record id within the projection.
+  recordId        String    @map("record_id")
+  /// Optional source revision (ledger revision, content sha, …).
+  sourceRevision  String?   @map("source_revision")
+  /// SHA-256 of the semantic change identity (pure diff contract).
+  fingerprint     String    @db.VarChar(64)
+  /// Tenant-delivery dedupe key: family:record:fingerprint.
+  dedupeKey       String    @map("dedupe_key") @db.VarChar(512)
+  beforeState     Json?     @map("before_state")
+  afterState      Json      @map("after_state")
+  changesJsonb    Json      @default("[]") @map("changes_jsonb")
+  title           String
+  summary         String
+  /// INFERENCE: deterministic gloss produced by the pure diff; NEVER a
+  /// source fact. UI must label this as inference.
+  implication     String
+  /// Exact source locator (URL or canonical projection pointer).
+  sourceLocator   String    @map("source_locator")
+  eventAt         DateTime? @map("event_at") @db.Timestamptz(6)
+  effectiveAt     DateTime? @map("effective_at") @db.Timestamptz(6)
+  publishedAt     DateTime? @map("published_at") @db.Timestamptz(6)
+  firstObservedAt DateTime  @default(now()) @map("first_observed_at") @db.Timestamptz(6)
+  /// Recipient read/dismiss state lives ONLY on the per-recipient
+  /// BusinessDevelopmentAlertDelivery row (single source of truth). The alert
+  /// itself is append-only: many recipients may each have their own read and
+  /// dismiss state for the same alert.
+  /// open | review | suppressed (SQL CHECK): review queues for a human,
+  /// suppressed stops future deliveries of the same semantic event.
+  reviewState     String    @default("open") @map("review_state") @db.VarChar(16)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant     Tenant                             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  watch      BusinessDevelopmentWatch           @relation(fields: [tenantId, watchId], references: [tenantId, id], onDelete: Cascade, map: "business_development_alerts_watch_fkey")
+  /// Tenant-safe prospect link for the DENORMALIZED prospect_id: the
+  /// composite FK guarantees the alert's prospect belongs to the SAME tenant.
+  prospect   BusinessDevelopmentProspect        @relation(fields: [tenantId, prospectId], references: [tenantId, id], onDelete: Cascade, map: "business_development_alerts_prospect_fkey")
+  deliveries BusinessDevelopmentAlertDelivery[]
+
+  /// Prisma-required composite unique target for the tenant-safe alert FK
+  /// from deliveries (the physical index lives on this table in SQL).
+  @@unique([tenantId, id], map: "business_development_alerts_tenant_id_id_key")
+  /// SEMANTIC unique: the same change can never be recorded twice per watch.
+  @@unique([tenantId, watchId, dedupeKey], map: "business_development_alerts_tenant_watch_dedupe_key")
+  @@index([tenantId, watchId, firstObservedAt(sort: Desc)], map: "business_development_alerts_tenant_watch_observed_idx")
+  @@index([tenantId, reviewState, firstObservedAt(sort: Desc)], map: "business_development_alerts_tenant_review_state_idx")
+  @@index([tenantId, category, firstObservedAt(sort: Desc)], map: "business_development_alerts_tenant_category_idx")
+  @@index([tenantId, prospectId, firstObservedAt(sort: Desc)], map: "business_development_alerts_tenant_prospect_idx")
+  @@map("business_development_alerts")
+}
+
+/// Business Development Phase 5 — idempotent in-app delivery of an alert to a
+/// recipient user. One row per (tenant, alert, recipient, channel): the
+/// unique makes double delivery impossible even across overlapping evaluator
+/// tasks. recipientUserId is a plain UUID (no DB FK) for the same
+/// history-survives-departure rationale as prospect owners.
+model BusinessDevelopmentAlertDelivery {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  alertId           String    @map("alert_id") @db.Uuid
+  recipientUserId   String    @map("recipient_user_id") @db.Uuid
+  /// in_app | digest (SQL CHECK).
+  channel           String    @default("in_app") @db.VarChar(16)
+  deliveredAt       DateTime  @default(now()) @map("delivered_at") @db.Timestamptz(6)
+  /// AUTHORITATIVE recipient read state: this row — not the alert — is the
+  /// single source of truth for whether THIS recipient read the alert.
+  readAt            DateTime? @map("read_at") @db.Timestamptz(6)
+  /// AUTHORITATIVE recipient dismiss state; dismissal implies read (SQL
+  /// CHECK). dismissedByUserId is a plain UUID (no DB FK): history survives
+  /// user departure.
+  dismissedAt       DateTime? @map("dismissed_at") @db.Timestamptz(6)
+  dismissedByUserId String?   @map("dismissed_by_user_id") @db.Uuid
+
+  tenant Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  alert  BusinessDevelopmentAlert @relation(fields: [tenantId, alertId], references: [tenantId, id], onDelete: Cascade, map: "business_development_alert_deliveries_alert_fkey")
+
+  /// Idempotent delivery: same alert to the same recipient exactly once
+  /// per channel (SQL unique, same name).
+  @@unique([tenantId, alertId, recipientUserId, channel], map: "business_development_alert_deliveries_recipient_channel_key")
+  @@index([tenantId, recipientUserId, deliveredAt(sort: Desc)], map: "business_development_alert_deliveries_tenant_recipient_idx")
+  @@map("business_development_alert_deliveries")
+}
+
+// ---------------------------------------------------------------------------
+// Research Portfolios Phase 1 — manual collections, authority and history.
+// ---------------------------------------------------------------------------
+
+enum ResearchPortfolioMode {
+  manual
+  rules
+  hybrid
+
+  @@map("research_portfolio_mode")
+}
+
+enum ResearchPortfolioLifecycle {
+  active
+  archived
+
+  @@map("research_portfolio_lifecycle")
+}
+
+enum ResearchPortfolioGrantRole {
+  owner
+  editor
+  viewer
+
+  @@map("research_portfolio_grant_role")
+}
+
+enum ResearchPortfolioMemberKind {
+  program
+  program_element
+  project
+  budget_line
+  award
+
+  @@map("research_portfolio_member_kind")
+}
+
+enum ResearchPortfolioMemberDisposition {
+  included
+  candidate
+  withdrawn
+  excluded
+  unresolved
+
+  @@map("research_portfolio_member_disposition")
+}
+
+enum ResearchPortfolioMemberOrigin {
+  manual
+  rule
+  import
+
+  @@map("research_portfolio_member_origin")
+}
+
+enum ResearchPortfolioEventKind {
+  created
+  updated
+  archived
+  restored
+  grant_upserted
+  grant_removed
+  client_linked
+  client_unlinked
+  member_added
+  member_decided
+  member_excluded
+  member_reinstated
+  member_resolved
+  rule_published
+  review_updated
+  annual_reopened
+  import_created
+  import_action
+
+  @@map("research_portfolio_event_kind")
+}
+
+model ResearchPortfolio {
+  id          String                     @id @default(uuid()) @db.Uuid
+  tenantId    String                     @map("tenant_id") @db.Uuid
+  ownerUserId String                     @map("owner_user_id") @db.Uuid
+  name        String                     @db.VarChar(200)
+  purpose     String?
+  mode        ResearchPortfolioMode      @default(manual)
+  lifecycle   ResearchPortfolioLifecycle @default(active)
+  revision    Int                        @default(1)
+  archivedAt  DateTime?                  @map("archived_at") @db.Timestamptz(6)
+  createdAt   DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant            Tenant                                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner             User                                         @relation("ResearchPortfolioOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  grants            ResearchPortfolioGrant[]
+  clientLinks       ResearchPortfolioClientLink[]
+  members           ResearchPortfolioMember[]
+  events            ResearchPortfolioEvent[]
+  ruleVersions      ResearchPortfolioRuleVersion[]
+  rulePreviews      ResearchPortfolioRulePreview[]
+  recomputeJobs     ResearchPortfolioRecomputeJob[]
+  reviews           ResearchPortfolioReview[]
+  decisions         ResearchPortfolioDecision[]
+  continuityLedgers ResearchPortfolioContinuityLedger[]
+  importJobs        ResearchPortfolioImportJob[]
+  importRows        ResearchPortfolioImportRow[]
+  importMappings    ResearchPortfolioImportMappingVersion[]
+  importAttempts    ResearchPortfolioImportAttempt[]
+  importEffects     ResearchPortfolioImportEffect[]
+  importReceipts    ResearchPortfolioImportCompensationReceipt[]
+
+  @@unique([tenantId, id], map: "research_portfolios_tenant_id_key")
+  @@index([tenantId, lifecycle, updatedAt(sort: Desc)], map: "research_portfolios_tenant_lifecycle_updated_idx")
+  @@index([tenantId, ownerUserId], map: "research_portfolios_tenant_owner_idx")
+  @@map("research_portfolios")
+}
+
+model ResearchPortfolioGrant {
+  id              String                     @id @default(uuid()) @db.Uuid
+  tenantId        String                     @map("tenant_id") @db.Uuid
+  portfolioId     String                     @map("portfolio_id") @db.Uuid
+  principalUserId String                     @map("principal_user_id") @db.Uuid
+  role            ResearchPortfolioGrantRole
+  grantedByUserId String                     @map("granted_by_user_id") @db.Uuid
+  createdAt       DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio     ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  principalUser User              @relation("ResearchPortfolioGrantPrincipal", fields: [principalUserId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, portfolioId, principalUserId], map: "research_portfolio_grants_portfolio_user_key")
+  @@index([tenantId, principalUserId, role], map: "research_portfolio_grants_tenant_principal_role_idx")
+  @@map("research_portfolio_grants")
+}
+
+model ResearchPortfolioClientLink {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  portfolioId    String   @map("portfolio_id") @db.Uuid
+  clientId       String   @map("client_id") @db.Uuid
+  linkedByUserId String   @map("linked_by_user_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  client    Client            @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, portfolioId, clientId], map: "research_portfolio_client_links_portfolio_client_key")
+  @@index([tenantId, clientId], map: "research_portfolio_client_links_tenant_client_idx")
+  @@map("research_portfolio_client_links")
+}
+
+model ResearchPortfolioMember {
+  id               String                             @id @default(uuid()) @db.Uuid
+  tenantId         String                             @map("tenant_id") @db.Uuid
+  portfolioId      String                             @map("portfolio_id") @db.Uuid
+  targetKind       ResearchPortfolioMemberKind        @map("target_kind")
+  targetId         String                             @map("target_id") @db.VarChar(256)
+  label            String?                            @db.VarChar(300)
+  disposition      ResearchPortfolioMemberDisposition @default(included)
+  origin           ResearchPortfolioMemberOrigin      @default(manual)
+  reason           String?
+  evidence         Json                               @default("{}")
+  qualification    String?                            @db.VarChar(64)
+  ruleVersionId    String?                            @map("rule_version_id") @db.Uuid
+  decisionRevision Int?                               @map("decision_revision")
+  unresolvedInput  Json?                              @map("unresolved_input")
+  resolvedAt       DateTime?                          @map("resolved_at") @db.Timestamptz(6)
+  createdByUserId  String                             @map("created_by_user_id") @db.Uuid
+  updatedByUserId  String                             @map("updated_by_user_id") @db.Uuid
+  revision         Int                                @default(1)
+  createdAt        DateTime                           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime                           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, portfolioId, targetKind, targetId], map: "research_portfolio_members_target_key")
+  @@index([tenantId, portfolioId, disposition, updatedAt(sort: Desc)], map: "research_portfolio_members_disposition_idx")
+  @@map("research_portfolio_members")
+}
+
+/// Append-only aggregate history. There is intentionally no updatedAt field.
+model ResearchPortfolioEvent {
+  id                 String                     @id @default(uuid()) @db.Uuid
+  tenantId           String                     @map("tenant_id") @db.Uuid
+  portfolioId        String                     @map("portfolio_id") @db.Uuid
+  eventKind          ResearchPortfolioEventKind @map("event_kind")
+  aggregateRevision  Int                        @map("aggregate_revision")
+  actorUserId        String                     @map("actor_user_id") @db.Uuid
+  occurredAt         DateTime                   @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  idempotencyKey     String?                    @map("idempotency_key") @db.VarChar(128)
+  payloadFingerprint String?                    @map("payload_fingerprint") @db.VarChar(64)
+  payload            Json                       @default("{}")
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, portfolioId, aggregateRevision, id], map: "research_portfolio_events_revision_id_key")
+  @@unique([tenantId, idempotencyKey], map: "research_portfolio_events_idempotency_key")
+  @@index([tenantId, portfolioId, occurredAt(sort: Desc)], map: "research_portfolio_events_timeline_idx")
+  @@map("research_portfolio_events")
+}
+
+// ---------------------------------------------------------------------------
+// Research Portfolios Phase 2 — immutable taxonomy, templates and rules.
+// ---------------------------------------------------------------------------
+
+enum ResearchPortfolioRecomputeStatus {
+  queued
+  running
+  partial
+  completed
+  failed
+  cancelled
+
+  @@map("research_portfolio_recompute_status")
+}
+
+enum ResearchPortfolioReviewStatus {
+  open
+  assigned
+  deferred
+  resolved
+  cancelled
+
+  @@map("research_portfolio_review_status")
+}
+
+enum ResearchPortfolioReviewTrigger {
+  rule_change
+  annual_continuity
+  import
+  dispute
+  manual
+
+  @@map("research_portfolio_review_trigger")
+}
+
+enum ResearchPortfolioReviewTargetKind {
+  program
+  program_element
+  project
+  budget_line
+  award
+  rule
+  portfolio
+
+  @@map("research_portfolio_review_target_kind")
+}
+
+enum ResearchPortfolioDecisionType {
+  include
+  exclude
+  defer
+  reopen
+  dispute
+
+  @@map("research_portfolio_decision_type")
+}
+
+enum ResearchPortfolioContinuityStatus {
+  unchanged
+  changed
+  expired
+  renamed
+  renumbered
+  split
+  merged
+  unresolved
+  new
+
+  @@map("research_portfolio_continuity_status")
+}
+
+enum ResearchPortfolioImportJobStatus {
+  created
+  mapped
+  previewed
+  applying
+  paused
+  completed
+  partial
+  failed
+  cancelled
+  unknown
+  needs_reconciliation
+  compensated
+
+  @@map("research_portfolio_import_job_status")
+}
+
+enum ResearchPortfolioImportWorksheetKind {
+  membership
+  rules
+  reviews
+
+  @@map("research_portfolio_import_worksheet_kind")
+}
+
+enum ResearchPortfolioImportRowOutcome {
+  applied
+  skipped
+  conflict
+  failed
+  unknown
+
+  @@map("research_portfolio_import_row_outcome")
+}
+
+enum ResearchPortfolioImportRowPreviewClassification {
+  resolved
+  duplicate
+  invalid
+  ambiguous
+  unresolved
+  inaccessible
+
+  @@map("research_portfolio_import_row_preview_classification")
+}
+
+model ResearchTaxonomyVersion {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  version       Int
+  label         String   @db.VarChar(160)
+  vocabulary    String   @db.VarChar(64) // official_current | official_historical | capiro | tenant
+  source        String?  @db.Text
+  provenance    Json     @default("{}")
+  authorUserId  String   @map("author_user_id") @db.Uuid
+  publishedAt   DateTime @default(now()) @map("published_at") @db.Timestamptz(6)
+  predecessorId String?  @map("predecessor_id") @db.Uuid
+
+  tenant           Tenant                             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  concepts         ResearchTaxonomyConcept[]
+  templateVersions ResearchPortfolioTemplateVersion[]
+  ruleVersions     ResearchPortfolioRuleVersion[]
+
+  @@unique([tenantId, id], map: "research_taxonomy_versions_tenant_id_key")
+  @@unique([tenantId, version], map: "research_taxonomy_versions_tenant_version_key")
+  @@index([tenantId, publishedAt(sort: Desc)], map: "research_taxonomy_versions_tenant_published_idx")
+  @@map("research_taxonomy_versions")
+}
+
+model ResearchTaxonomyConcept {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  taxonomyVersionId String   @map("taxonomy_version_id") @db.Uuid
+  stableKey         String   @map("stable_key") @db.VarChar(128)
+  name              String   @db.VarChar(200)
+  kind              String   @db.VarChar(48)
+  parentKey         String?  @map("parent_key") @db.VarChar(128)
+  aliases           String[] @default([])
+  provenance        Json     @default("{}")
+  qualification     String   @default("reviewed") @db.VarChar(32)
+
+  taxonomyVersion ResearchTaxonomyVersion @relation(fields: [tenantId, taxonomyVersionId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, taxonomyVersionId, stableKey], map: "research_taxonomy_concepts_version_key")
+  @@index([tenantId, taxonomyVersionId, parentKey], map: "research_taxonomy_concepts_parent_idx")
+  @@map("research_taxonomy_concepts")
+}
+
+model ResearchPortfolioTemplate {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  name        String    @db.VarChar(200)
+  description String?   @db.Text
+  archivedAt  DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant   Tenant                             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  versions ResearchPortfolioTemplateVersion[]
+
+  @@unique([tenantId, id], map: "research_portfolio_templates_tenant_id_key")
+  @@unique([tenantId, name], map: "research_portfolio_templates_tenant_name_key")
+  @@index([tenantId, archivedAt, createdAt(sort: Desc)], map: "research_portfolio_templates_tenant_archive_idx")
+  @@map("research_portfolio_templates")
+}
+
+/// Immutable template history. There is intentionally no updatedAt field.
+model ResearchPortfolioTemplateVersion {
+  id                  String                @id @default(uuid()) @db.Uuid
+  tenantId            String                @map("tenant_id") @db.Uuid
+  templateId          String                @map("template_id") @db.Uuid
+  version             Int
+  schemaVersion       Int                   @default(1) @map("schema_version")
+  expression          Json
+  readableExpression  String                @map("readable_expression") @db.Text
+  mode                ResearchPortfolioMode
+  qualificationPolicy Json                  @map("qualification_policy")
+  taxonomyVersionId   String?               @map("taxonomy_version_id") @db.Uuid
+  authorUserId        String                @map("author_user_id") @db.Uuid
+  predecessorId       String?               @map("predecessor_id") @db.Uuid
+  operationKey        String                @map("operation_key") @db.VarChar(128)
+  payloadFingerprint  String                @map("payload_fingerprint") @db.Char(64)
+  publishedAt         DateTime              @default(now()) @map("published_at") @db.Timestamptz(6)
+
+  template        ResearchPortfolioTemplate          @relation(fields: [tenantId, templateId], references: [tenantId, id], onDelete: Cascade)
+  taxonomyVersion ResearchTaxonomyVersion?           @relation(fields: [tenantId, taxonomyVersionId], references: [tenantId, id], onDelete: Restrict)
+  predecessor     ResearchPortfolioTemplateVersion?  @relation("ResearchPortfolioTemplatePredecessor", fields: [tenantId, predecessorId], references: [tenantId, id], onDelete: Restrict)
+  successors      ResearchPortfolioTemplateVersion[] @relation("ResearchPortfolioTemplatePredecessor")
+  ruleVersions    ResearchPortfolioRuleVersion[]
+
+  @@unique([tenantId, templateId, version], map: "research_portfolio_template_versions_number_key")
+  @@unique([tenantId, id], map: "research_portfolio_template_versions_tenant_id_key")
+  @@unique([tenantId, operationKey], map: "research_portfolio_template_versions_operation_key")
+  @@index([tenantId, templateId, publishedAt(sort: Desc)], map: "research_portfolio_template_versions_published_idx")
+  @@map("research_portfolio_template_versions")
+}
+
+/// Immutable published rule history. There is intentionally no updatedAt field.
+model ResearchPortfolioRuleVersion {
+  id                  String                @id @default(uuid()) @db.Uuid
+  tenantId            String                @map("tenant_id") @db.Uuid
+  portfolioId         String                @map("portfolio_id") @db.Uuid
+  version             Int
+  schemaVersion       Int                   @default(1) @map("schema_version")
+  expression          Json
+  readableExpression  String                @map("readable_expression") @db.Text
+  mode                ResearchPortfolioMode
+  qualificationPolicy Json                  @map("qualification_policy")
+  taxonomyVersionId   String?               @map("taxonomy_version_id") @db.Uuid
+  templateVersionId   String?               @map("template_version_id") @db.Uuid
+  previewHash         String                @map("preview_hash") @db.Char(64)
+  authorUserId        String                @map("author_user_id") @db.Uuid
+  predecessorId       String?               @map("predecessor_id") @db.Uuid
+  publishedAt         DateTime              @default(now()) @map("published_at") @db.Timestamptz(6)
+
+  tenant          Tenant                            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio       ResearchPortfolio                 @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  taxonomyVersion ResearchTaxonomyVersion?          @relation(fields: [tenantId, taxonomyVersionId], references: [tenantId, id], onDelete: Restrict)
+  templateVersion ResearchPortfolioTemplateVersion? @relation(fields: [tenantId, templateVersionId], references: [tenantId, id], onDelete: Restrict)
+  predecessor     ResearchPortfolioRuleVersion?     @relation("ResearchPortfolioRulePredecessor", fields: [tenantId, predecessorId], references: [tenantId, id], onDelete: Restrict)
+  successors      ResearchPortfolioRuleVersion[]    @relation("ResearchPortfolioRulePredecessor")
+  jobs            ResearchPortfolioRecomputeJob[]
+
+  @@unique([tenantId, portfolioId, version], map: "research_portfolio_rule_versions_number_key")
+  @@unique([tenantId, id], map: "research_portfolio_rule_versions_tenant_id_key")
+  @@index([tenantId, portfolioId, publishedAt(sort: Desc)], map: "research_portfolio_rule_versions_published_idx")
+  @@map("research_portfolio_rule_versions")
+}
+
+model ResearchPortfolioRulePreview {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @map("tenant_id") @db.Uuid
+  portfolioId        String   @map("portfolio_id") @db.Uuid
+  portfolioRevision  Int      @map("portfolio_revision")
+  previewHash        String   @map("preview_hash") @db.Char(64)
+  requestFingerprint String   @map("request_fingerprint") @db.Char(64)
+  expression         Json
+  manifest           Json
+  createdByUserId    String   @map("created_by_user_id") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt          DateTime @map("expires_at") @db.Timestamptz(6)
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, portfolioId, previewHash], map: "research_portfolio_rule_previews_hash_key")
+  @@index([tenantId, portfolioId, expiresAt], map: "research_portfolio_rule_previews_expiry_idx")
+  @@map("research_portfolio_rule_previews")
+}
+
+model ResearchPortfolioRecomputeJob {
+  id             String                           @id @default(uuid()) @db.Uuid
+  tenantId       String                           @map("tenant_id") @db.Uuid
+  portfolioId    String                           @map("portfolio_id") @db.Uuid
+  ruleVersionId  String                           @map("rule_version_id") @db.Uuid
+  operationKey   String                           @map("operation_key") @db.VarChar(128)
+  status         ResearchPortfolioRecomputeStatus @default(queued)
+  cursor         String?
+  processedCount Int                              @default(0) @map("processed_count")
+  matchedCount   Int                              @default(0) @map("matched_count")
+  unknownCount   Int                              @default(0) @map("unknown_count")
+  leaseOwner     String?                          @map("lease_owner") @db.VarChar(128)
+  leaseUntil     DateTime?                        @map("lease_until") @db.Timestamptz(6)
+  attempt        Int                              @default(0)
+  result         Json                             @default("{}")
+  errorCode      String?                          @map("error_code") @db.VarChar(128)
+  createdAt      DateTime                         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime                         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant      Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio   ResearchPortfolio            @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  ruleVersion ResearchPortfolioRuleVersion @relation(fields: [tenantId, ruleVersionId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, operationKey], map: "research_portfolio_recompute_jobs_operation_key")
+  @@index([tenantId, status, leaseUntil], map: "research_portfolio_recompute_jobs_claim_idx")
+  @@index([tenantId, portfolioId, createdAt(sort: Desc)], map: "research_portfolio_recompute_jobs_portfolio_idx")
+  @@map("research_portfolio_recompute_jobs")
+}
+
+model ResearchPortfolioReview {
+  id                 String                            @id @default(uuid()) @db.Uuid
+  tenantId           String                            @map("tenant_id") @db.Uuid
+  portfolioId        String                            @map("portfolio_id") @db.Uuid
+  targetKind         ResearchPortfolioReviewTargetKind @map("target_kind")
+  targetId           String                            @map("target_id") @db.VarChar(256)
+  trigger            ResearchPortfolioReviewTrigger
+  triggerIdentity    String                            @map("trigger_identity") @db.VarChar(256)
+  dependencyIdentity String?                           @map("dependency_identity") @db.VarChar(256)
+  assigneeUserId     String?                           @map("assignee_user_id") @db.Uuid
+  reason             String                            @db.Text
+  evidenceFor        Json                              @default("[]") @map("evidence_for")
+  evidenceAgainst    Json                              @default("[]") @map("evidence_against")
+  revision           Int                               @default(1)
+  triggerFingerprint String                            @map("trigger_fingerprint") @db.Char(64)
+  status             ResearchPortfolioReviewStatus     @default(open)
+  createdAt          DateTime                          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime                          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  resolvedAt         DateTime?                         @map("resolved_at") @db.Timestamptz(6)
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id], map: "research_portfolio_reviews_tenant_id_key")
+  @@unique([tenantId, portfolioId, triggerFingerprint], map: "research_portfolio_reviews_trigger_fingerprint_key")
+  @@index([tenantId, portfolioId, status, updatedAt(sort: Desc)], map: "research_portfolio_reviews_status_idx")
+  @@index([tenantId, portfolioId, targetKind, targetId], map: "research_portfolio_reviews_target_idx")
+  @@map("research_portfolio_reviews")
+}
+
+model ResearchPortfolioDecision {
+  id              String                            @id @default(uuid()) @db.Uuid
+  tenantId        String                            @map("tenant_id") @db.Uuid
+  portfolioId     String                            @map("portfolio_id") @db.Uuid
+  targetKind      ResearchPortfolioReviewTargetKind @map("target_kind")
+  targetId        String                            @map("target_id") @db.VarChar(256)
+  decisionType    ResearchPortfolioDecisionType     @map("decision_type")
+  reason          String                            @db.Text
+  authorUserId    String                            @map("author_user_id") @db.Uuid
+  decisionTime    DateTime                          @default(now()) @map("decision_time") @db.Timestamptz(6)
+  priorDecisionId String?                           @map("prior_decision_id") @db.Uuid
+  supersedesId    String?                           @map("supersedes_id") @db.Uuid
+  evidenceFor     Json                              @default("[]") @map("evidence_for")
+  evidenceAgainst Json                              @default("[]") @map("evidence_against")
+  reviewId        String?                           @map("review_id") @db.Uuid
+  createdAt       DateTime                          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id], map: "research_portfolio_decisions_tenant_id_key")
+  @@unique([tenantId, portfolioId, targetKind, targetId, decisionTime, id], map: "research_portfolio_decisions_target_time_key")
+  @@index([tenantId, portfolioId, decisionTime(sort: Desc)], map: "research_portfolio_decisions_timeline_idx")
+  @@index([tenantId, portfolioId, reviewId], map: "research_portfolio_decisions_review_idx")
+  @@map("research_portfolio_decisions")
+}
+
+model ResearchPortfolioContinuityLedger {
+  id                         String                            @id @default(uuid()) @db.Uuid
+  tenantId                   String                            @map("tenant_id") @db.Uuid
+  portfolioId                String                            @map("portfolio_id") @db.Uuid
+  priorDecisionId            String?                           @map("prior_decision_id") @db.Uuid
+  currentDecisionId          String?                           @map("current_decision_id") @db.Uuid
+  continuityKey              String                            @map("continuity_key") @db.Char(64)
+  priorDependencyFingerprint String?                           @map("prior_dependency_fingerprint") @db.Char(64)
+  dependencyFingerprint      String                            @map("dependency_fingerprint") @db.Char(64)
+  status                     ResearchPortfolioContinuityStatus
+  identityMapping            Json                              @default("{}") @map("identity_mapping")
+  changedDependencies        Json                              @default("{}") @map("changed_dependencies")
+  originalEvidence           Json                              @default("{}") @map("original_evidence")
+  sourceEdition              String?                           @map("source_edition") @db.VarChar(128)
+  relevantPeriodStart        DateTime?                         @map("relevant_period_start") @db.Date
+  relevantPeriodEnd          DateTime?                         @map("relevant_period_end") @db.Date
+  expiryDate                 DateTime?                         @map("expiry_date") @db.Date
+  reopeningReason            String?
+  reopeningReviewId          String?                           @map("reopening_review_id") @db.Uuid
+  createdAt                  DateTime                          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime                          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, portfolioId, continuityKey], map: "research_portfolio_continuity_ledger_key")
+  @@index([tenantId, portfolioId, status, updatedAt(sort: Desc)], map: "research_portfolio_continuity_ledger_status_idx")
+  @@map("research_portfolio_continuity_ledger")
+}
+
+model ResearchPortfolioImportJob {
+  id                 String                               @id @default(uuid()) @db.Uuid
+  tenantId           String                               @map("tenant_id") @db.Uuid
+  portfolioId        String                               @map("portfolio_id") @db.Uuid
+  operationKey       String                               @map("operation_key") @db.VarChar(128)
+  worksheetKind      ResearchPortfolioImportWorksheetKind @map("worksheet_kind")
+  status             ResearchPortfolioImportJobStatus     @default(created)
+  originalHash       String                               @map("original_hash") @db.Char(64)
+  originalSize       Int                                  @map("original_size")
+  fileName           String                               @map("file_name") @db.VarChar(255)
+  mediaType          String                               @map("media_type") @db.VarChar(128)
+  originalStorageKey String?                              @map("original_storage_key") @db.VarChar(512)
+  originalBytes      Bytes                                @map("original_bytes")
+  fileMetadata       Json                                 @default("{}") @map("file_metadata")
+  parserVersion      String                               @map("parser_version") @db.VarChar(32)
+  schemaVersion      String                               @map("schema_version") @db.VarChar(32)
+  targetRevision     Int                                  @map("target_revision")
+  checkpoint         Json?                                @map("checkpoint")
+  leaseOwner         String?                              @map("lease_owner") @db.VarChar(128)
+  leaseUntil         DateTime?                            @map("lease_until") @db.Timestamptz(6)
+  rowCount           Int                                  @default(0) @map("row_count")
+  appliedCount       Int                                  @default(0) @map("applied_count")
+  createdAt          DateTime                             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime                             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant                                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio                            @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  mappings  ResearchPortfolioImportMappingVersion[]
+  rows      ResearchPortfolioImportRow[]
+  attempts  ResearchPortfolioImportAttempt[]
+  effects   ResearchPortfolioImportEffect[]
+  receipts  ResearchPortfolioImportCompensationReceipt[]
+
+  @@unique([tenantId, id], map: "research_portfolio_import_jobs_tenant_id_key")
+  @@unique([tenantId, operationKey], map: "research_portfolio_import_jobs_operation_key")
+  @@index([tenantId, portfolioId, status, createdAt(sort: Desc)], map: "research_portfolio_import_jobs_status_idx")
+  @@map("research_portfolio_import_jobs")
+}
+
+model ResearchPortfolioImportRow {
+  id                    String                                           @id @default(uuid()) @db.Uuid
+  tenantId              String                                           @map("tenant_id") @db.Uuid
+  portfolioId           String                                           @map("portfolio_id") @db.Uuid
+  importJobId           String                                           @map("import_job_id") @db.Uuid
+  worksheetKind         ResearchPortfolioImportWorksheetKind             @map("worksheet_kind")
+  sheetName             String?                                          @map("sheet_name") @db.VarChar(128)
+  rowNumber             Int                                              @map("row_number")
+  rowIdentity           String                                           @map("row_identity") @db.VarChar(256)
+  rawCells              Json                                             @default("{}") @map("raw_cells")
+  parsedData            Json                                             @default("{}") @map("parsed_data")
+  repairs               Json                                             @default("{}") @map("repairs")
+  validationIssues      Json                                             @default("[]") @map("validation_issues")
+  selected              Boolean                                          @default(true)
+  previewClassification ResearchPortfolioImportRowPreviewClassification?
+  previewReason         String?                                          @map("preview_reason")
+  finalOutcome          ResearchPortfolioImportRowOutcome?
+  finalReason           String?                                          @map("final_reason")
+  finalDisposition      Json                                             @default("{}") @map("final_disposition")
+  expectedRevision      Int?                                             @map("expected_revision")
+  canonicalTargetKey    String?                                          @map("canonical_target_key") @db.VarChar(320)
+  targetKind            String?                                          @map("target_kind") @db.VarChar(64)
+  targetId              String?                                          @map("target_id") @db.VarChar(256)
+  createdAt             DateTime                                         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime                                         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio          @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  importJob ResearchPortfolioImportJob @relation(fields: [tenantId, importJobId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, importJobId, rowIdentity], map: "research_portfolio_import_rows_row_identity_key")
+  @@index([tenantId, portfolioId, importJobId, finalOutcome], map: "research_portfolio_import_rows_outcome_idx")
+  @@map("research_portfolio_import_rows")
+}
+
+/// Immutable mapping history. There is intentionally no updatedAt field.
+model ResearchPortfolioImportMappingVersion {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  portfolioId   String   @map("portfolio_id") @db.Uuid
+  importJobId   String   @map("import_job_id") @db.Uuid
+  version       Int
+  mapping       Json
+  schemaVersion String   @map("schema_version") @db.VarChar(32)
+  authorUserId  String   @map("author_user_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "rp_import_mappings_tenant_fkey")
+  portfolio ResearchPortfolio          @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade, map: "rp_import_mappings_portfolio_fkey")
+  importJob ResearchPortfolioImportJob @relation(fields: [tenantId, importJobId], references: [tenantId, id], onDelete: Cascade, map: "rp_import_mappings_job_fkey")
+
+  @@unique([tenantId, importJobId, version], map: "research_portfolio_import_mappings_version_key")
+  @@map("research_portfolio_import_mapping_versions")
+}
+
+/// Immutable attempt history, including known failure versus unknown outcome.
+model ResearchPortfolioImportAttempt {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  portfolioId  String   @map("portfolio_id") @db.Uuid
+  importJobId  String   @map("import_job_id") @db.Uuid
+  operationKey String   @map("operation_key") @db.VarChar(128)
+  action       String   @db.VarChar(32)
+  outcome      String   @db.VarChar(32)
+  checkpoint   Json     @default("{}")
+  errorCode    String?  @map("error_code") @db.VarChar(128)
+  receipt      Json     @default("{}")
+  actorUserId  String   @map("actor_user_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio          @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  importJob ResearchPortfolioImportJob @relation(fields: [tenantId, importJobId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, operationKey], map: "research_portfolio_import_attempts_operation_key")
+  @@index([tenantId, importJobId, createdAt], map: "research_portfolio_import_attempts_job_idx")
+  @@map("research_portfolio_import_attempts")
+}
+
+/// Durable ownership record for effects created by one applied import row.
+model ResearchPortfolioImportEffect {
+  id                    String   @id @default(uuid()) @db.Uuid
+  tenantId              String   @map("tenant_id") @db.Uuid
+  portfolioId           String   @map("portfolio_id") @db.Uuid
+  importJobId           String   @map("import_job_id") @db.Uuid
+  importRowId           String   @map("import_row_id") @db.Uuid
+  effectFingerprint     String   @map("effect_fingerprint") @db.Char(64)
+  effectKind            String   @map("effect_kind") @db.VarChar(48)
+  canonicalTargetKey    String   @map("canonical_target_key") @db.VarChar(320)
+  targetId              String   @map("target_id") @db.VarChar(256)
+  targetRevisionAtApply Int?     @map("target_revision_at_apply")
+  payload               Json     @default("{}")
+  appliedAt             DateTime @default(now()) @map("applied_at") @db.Timestamptz(6)
+
+  tenant    Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio          @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  importJob ResearchPortfolioImportJob @relation(fields: [tenantId, importJobId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, importJobId, effectFingerprint], map: "research_portfolio_import_effects_fingerprint_key")
+  @@unique([tenantId, importJobId, canonicalTargetKey, effectKind], map: "research_portfolio_import_effects_target_key")
+  @@index([tenantId, importRowId], map: "research_portfolio_import_effects_row_idx")
+  @@map("research_portfolio_import_effects")
+}
+
+/// Immutable compensation preview/commit receipt. Original import results remain unchanged.
+model ResearchPortfolioImportCompensationReceipt {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  portfolioId  String   @map("portfolio_id") @db.Uuid
+  importJobId  String   @map("import_job_id") @db.Uuid
+  operationKey String   @map("operation_key") @db.VarChar(128)
+  previewHash  String   @map("preview_hash") @db.Char(64)
+  status       String   @db.VarChar(32)
+  effects      Json     @default("[]")
+  actorUserId  String   @map("actor_user_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "rp_import_receipts_tenant_fkey")
+  portfolio ResearchPortfolio          @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade, map: "rp_import_receipts_portfolio_fkey")
+  importJob ResearchPortfolioImportJob @relation(fields: [tenantId, importJobId], references: [tenantId, id], onDelete: Cascade, map: "rp_import_receipts_job_fkey")
+
+  @@unique([tenantId, operationKey], map: "research_portfolio_import_receipts_operation_key")
+  @@index([tenantId, importJobId, createdAt], map: "research_portfolio_import_receipts_job_idx")
+  @@map("research_portfolio_import_compensation_receipts")
+}
+
+// ---------------------------------------------------------------------------
+// Defense Research Phase 4 — qualified contextual source projection and exact
+// reference occurrences. Global public-source tables; tenant ACLs are applied
+// by the product readers that combine them with tenant research state.
+// ---------------------------------------------------------------------------
+
+model DefenseContextDocument {
+  id                     String    @id @default(uuid()) @db.Uuid
+  sourceKey              String    @unique @map("source_key") @db.VarChar(256)
+  family                 String    @db.VarChar(64)
+  publisher              String    @db.VarChar(200)
+  publisherHost          String?   @map("publisher_host") @db.VarChar(255)
+  title                  String    @db.Text
+  congress               Int?
+  committee              String?   @db.VarChar(300)
+  publicationPeriodStart DateTime? @map("publication_period_start") @db.Date
+  publicationPeriodEnd   DateTime? @map("publication_period_end") @db.Date
+  publishedAt            DateTime? @map("published_at") @db.Timestamptz(6)
+  status                 String    @db.VarChar(48)
+  transcriptAvailability String    @map("transcript_availability") @db.VarChar(32)
+  coverage               String    @db.VarChar(24)
+  coverageReason         String?   @map("coverage_reason") @db.Text
+  qualification          String    @db.VarChar(32)
+  sourceUrl              String?   @map("source_url") @db.Text
+  eligible               Boolean   @default(true)
+  currentRevisionId      String?   @unique(map: "defense_context_documents_current_revision_key") @map("current_revision_id") @db.Uuid
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  currentRevision    DefenseContextDocumentRevision?  @relation("DefenseContextCurrentRevision", fields: [currentRevisionId], references: [id], onDelete: SetNull)
+  revisions          DefenseContextDocumentRevision[] @relation("DefenseContextDocumentRevisions")
+  references         DefenseReferenceOccurrence[]     @relation("DefenseReferenceSourceDocument")
+  resolvedReferences DefenseReferenceOccurrence[]     @relation("DefenseReferenceResolvedDocument")
+
+  @@index([family, publisher, publishedAt(sort: Desc)], map: "defense_context_documents_family_publisher_idx")
+  @@index([coverage, qualification, eligible], map: "defense_context_documents_coverage_idx")
+  @@map("defense_context_documents")
+}
+
+model DefenseContextDocumentRevision {
+  id               String    @id @default(uuid()) @db.Uuid
+  documentId       String    @map("document_id") @db.Uuid
+  sourceDocumentId String?   @map("source_document_id") @db.Uuid
+  version          String    @db.VarChar(128)
+  contentHash      String?   @map("content_hash") @db.Char(64)
+  publishedAt      DateTime? @map("published_at") @db.Timestamptz(6)
+  observedAt       DateTime  @map("observed_at") @db.Timestamptz(6)
+  status           String    @db.VarChar(48)
+  sourceUrl        String?   @map("source_url") @db.Text
+  provenance       Json      @default("{}")
+
+  document           DefenseContextDocument       @relation("DefenseContextDocumentRevisions", fields: [documentId], references: [id], onDelete: Cascade)
+  currentForDocument DefenseContextDocument?      @relation("DefenseContextCurrentRevision")
+  sourceDocument     SourceDocument?              @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  sections           DefenseContextSection[]
+  references         DefenseReferenceOccurrence[] @relation("DefenseReferenceSourceRevision")
+  resolvedReferences DefenseReferenceOccurrence[] @relation("DefenseReferenceResolvedRevision")
+
+  @@unique([documentId, version, contentHash], map: "defense_context_document_revisions_version_hash_key")
+  @@index([documentId, observedAt(sort: Desc)], map: "defense_context_document_revisions_observed_idx")
+  @@index([sourceDocumentId], map: "defense_context_document_revisions_source_document_idx")
+  @@map("defense_context_document_revisions")
+}
+
+model DefenseContextSection {
+  id               String  @id @default(uuid()) @db.Uuid
+  revisionId       String  @map("revision_id") @db.Uuid
+  ordinal          Int
+  label            String  @db.Text
+  nativeLocator    String? @map("native_locator") @db.VarChar(300)
+  textAvailability String  @map("text_availability") @db.VarChar(24)
+  contentHash      String? @map("content_hash") @db.Char(64)
+  contentText      String? @map("content_text") @db.Text
+
+  revision           DefenseContextDocumentRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  references         DefenseReferenceOccurrence[]   @relation("DefenseReferenceSourceSection")
+  resolvedReferences DefenseReferenceOccurrence[]   @relation("DefenseReferenceResolvedSection")
+
+  @@unique([revisionId, ordinal], map: "defense_context_sections_revision_ordinal_key")
+  @@index([revisionId, nativeLocator], map: "defense_context_sections_locator_idx")
+  @@map("defense_context_sections")
+}
+
+model DefenseReferenceOccurrence {
+  id                       String    @id @default(uuid()) @db.Uuid
+  documentId               String    @map("document_id") @db.Uuid
+  revisionId               String    @map("revision_id") @db.Uuid
+  sectionId                String?   @map("section_id") @db.Uuid
+  exactSpan                String    @map("exact_span") @db.Text
+  startOffset              Int?      @map("start_offset")
+  endOffset                Int?      @map("end_offset")
+  originalWording          String    @map("original_wording") @db.Text
+  referenceType            String    @map("reference_type") @db.VarChar(64)
+  targetCandidates         Json      @default("[]") @map("target_candidates")
+  resolvedTarget           Json?     @map("resolved_target")
+  resolvedTargetDocumentId String?   @map("resolved_target_document_id") @db.Uuid
+  resolvedTargetRevisionId String?   @map("resolved_target_revision_id") @db.Uuid
+  resolvedTargetSectionId  String?   @map("resolved_target_section_id") @db.Uuid
+  disposition              String    @db.VarChar(24)
+  targetAvailability       String    @map("target_availability") @db.VarChar(24)
+  reviewedByUserId         String?   @map("reviewed_by_user_id") @db.Uuid
+  reviewedAt               DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  document         DefenseContextDocument          @relation("DefenseReferenceSourceDocument", fields: [documentId], references: [id], onDelete: Cascade)
+  revision         DefenseContextDocumentRevision  @relation("DefenseReferenceSourceRevision", fields: [revisionId], references: [id], onDelete: Cascade)
+  section          DefenseContextSection?          @relation("DefenseReferenceSourceSection", fields: [sectionId], references: [id], onDelete: SetNull)
+  resolvedDocument DefenseContextDocument?         @relation("DefenseReferenceResolvedDocument", fields: [resolvedTargetDocumentId], references: [id], onDelete: SetNull)
+  resolvedRevision DefenseContextDocumentRevision? @relation("DefenseReferenceResolvedRevision", fields: [resolvedTargetRevisionId], references: [id], onDelete: SetNull)
+  resolvedSection  DefenseContextSection?          @relation("DefenseReferenceResolvedSection", fields: [resolvedTargetSectionId], references: [id], onDelete: SetNull)
+
+  @@index([documentId, revisionId, sectionId], map: "defense_reference_occurrences_source_idx")
+  @@index([resolvedTargetDocumentId, disposition], map: "defense_reference_occurrences_target_idx")
+  @@index([referenceType, disposition], map: "defense_reference_occurrences_type_idx")
+  @@map("defense_reference_occurrences")
 }

@@ -405,6 +405,144 @@ export function businessDevelopmentEnabled(settings: unknown): boolean {
 }
 
 /**
+ * Business Development Phase 2 — dossier/candidate-search surface. Gates the
+ * three GET dossier routes (candidate search, canonical company dossier,
+ * prospect dossier) behind an additional per-tenant flag, default OFF, so the
+ * Phase 2 read surface can be canaried independently of the Phase 1 pipeline.
+ */
+export const BUSINESS_DEVELOPMENT_DOSSIER_FLAG = 'businessDevelopment.dossier.enabled' as const;
+
+export function businessDevelopmentDossierEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_DOSSIER_FLAG, false);
+}
+
+/**
+ * Phase 2 live-provider gates. Each defaults OFF. They gate ONLY live adapter
+ * calls (SAM entity lookup in the identity section; LDA remains an
+ * already-ingested projection so this flag controls live fetch behavior, not
+ * the readability of ingested rows); already-ingested FederalAward /
+ * FederalAssistanceAward / SamOpportunity / LdaFiling projections stay
+ * readable regardless. PDL has no client in the repo — its flags render a
+ * deferred section and never issue a call.
+ */
+export const BUSINESS_DEVELOPMENT_SAM_FLAG =
+  'businessDevelopment.provider.sam.enabled' as const;
+export const BUSINESS_DEVELOPMENT_LDA_FLAG =
+  'businessDevelopment.provider.lda.enabled' as const;
+export const BUSINESS_DEVELOPMENT_PDL_COMPANY_FLAG =
+  'businessDevelopment.provider.pdlCompany.enabled' as const;
+export const BUSINESS_DEVELOPMENT_PDL_PEOPLE_FLAG =
+  'businessDevelopment.provider.pdlPeople.enabled' as const;
+
+export function businessDevelopmentSamEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_SAM_FLAG, false);
+}
+
+export function businessDevelopmentLdaEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_LDA_FLAG, false);
+}
+
+export function businessDevelopmentPdlCompanyEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_PDL_COMPANY_FLAG, false);
+}
+
+export function businessDevelopmentPdlPeopleEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_PDL_PEOPLE_FLAG, false);
+}
+
+// ── Business Development Phase 4 — brief surface + Meri tool flags ──────────
+
+/**
+ * Phase 4 — the brief UI/API surface. Gates every brief route (an additional
+ * guard on top of Phase 1/2 flags, exactly like the dossier flag). Default
+ * OFF; fail-closed 404 when off.
+ */
+export const BUSINESS_DEVELOPMENT_BRIEF_FLAG = 'businessDevelopment.brief.enabled' as const;
+
+export function businessDevelopmentBriefEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_BRIEF_FLAG, false);
+}
+
+/**
+ * Phase 4 — Meri prospect tools (brief generation/editing through Meri).
+ * Independent of the brief UI flag so the API surface can be canaried
+ * separately from assistant-driven use. Default OFF.
+ */
+export const BUSINESS_DEVELOPMENT_MERI_PROSPECT_TOOLS_FLAG =
+  'businessDevelopment.meriProspectTools.enabled' as const;
+
+export function businessDevelopmentMeriProspectToolsEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_MERI_PROSPECT_TOOLS_FLAG, false);
+}
+
+/**
+ * Phase 4 — assisted deterministic claim validation inside briefs (identity /
+ * citation / exact amount / date / stage checks). BD-CLAIM Jev semantic
+ * validation stays DARK regardless; this flag only exposes the deterministic
+ * checker endpoints. Default OFF.
+ */
+export const BUSINESS_DEVELOPMENT_CLAIM_VALIDATION_FLAG =
+  'businessDevelopment.claimValidation.enabled' as const;
+
+export function businessDevelopmentClaimValidationEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_CLAIM_VALIDATION_FLAG, false);
+}
+
+// ── Business Development Phase 5 — prospect watch & alerts ──────────────────
+
+/**
+ * Phase 5 — the watch/alert surface. Additional per-tenant flag (default OFF)
+ * on TOP of the Phase 1 base flag: a tenant sees watch/alert routes only when
+ * BOTH flags are on, and the global env kill-switch BIZDEV_WATCH_ENABLED must
+ * also be true. Enforced by BusinessDevelopmentWatchFlagGuard (404 fail
+ * closed, exactly like the Phase 1/2/4 guards) and surfaced via GET /me
+ * `features.businessDevelopmentWatch`.
+ */
+export const BUSINESS_DEVELOPMENT_WATCH_FLAG = 'businessDevelopment.watch.enabled' as const;
+
+export function businessDevelopmentWatchEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, BUSINESS_DEVELOPMENT_WATCH_FLAG, false);
+}
+
+// ── Business Development Phase 3 — Jev task-mode enrollment flags ──────────
+
+/**
+ * Per-tenant enrollment booleans for each BD Jev task AND each mode. Each
+ * defaults OFF; a tenant must be explicitly enrolled in BOTH a task and a
+ * mode before any BD Jev evaluation runs for it (see bizdev-jev-mode.ts for
+ * how these combine with env modes and the shared registry ceiling).
+ */
+export const BIZDEV_JEV_TASK_MODE_FLAGS: Readonly<
+  Record<'bd_entity' | 'bd_signal', Record<'shadow' | 'internal_canary', string>>
+> = {
+  bd_entity: {
+    shadow: 'businessDevelopment.jev.task.bdEntity.shadow.enabled',
+    internal_canary: 'businessDevelopment.jev.task.bdEntity.internalCanary.enabled',
+  },
+  bd_signal: {
+    shadow: 'businessDevelopment.jev.task.bdSignal.shadow.enabled',
+    internal_canary: 'businessDevelopment.jev.task.bdSignal.internalCanary.enabled',
+  },
+} as const;
+
+export type BizDevJevTenantMode = 'off' | 'shadow' | 'internal_canary';
+export type BizDevJevTenantModes = Readonly<
+  Record<'bd_entity' | 'bd_signal', BizDevJevTenantMode>
+>;
+
+/** The highest mode the tenant explicitly enrolled for a task (least permissive wins upstream). */
+export function bizdevJevTaskModes(settings: unknown): BizDevJevTenantModes {
+  const flag = (name: string): boolean => tenantFeatureEnabled(settings, name, false);
+  const forTask = (task: 'bd_entity' | 'bd_signal'): BizDevJevTenantMode => {
+    const flags = BIZDEV_JEV_TASK_MODE_FLAGS[task];
+    if (flag(flags.internal_canary)) return 'internal_canary';
+    if (flag(flags.shadow)) return 'shadow';
+    return 'off';
+  };
+  return { bd_entity: forTask('bd_entity'), bd_signal: forTask('bd_signal') };
+}
+
+/**
  * Effective feature entitlements for a tenant (Phase 5, §5.1). The tier map
  * (resolveEntitlements) sets the baseline; a per-tenant boolean override at
  * settings_jsonb.clioFeatureFlags['entitlement.<feature>'] can flip a single

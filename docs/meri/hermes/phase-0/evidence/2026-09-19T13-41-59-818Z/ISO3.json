@@ -1,8 +1,0 @@
-{
-  "id": "ISO3",
-  "title": "Spoof: asserting the pilot tenant with a non-member identity is refused; body tenant fields are ignored",
-  "status": "passed",
-  "at": "2026-09-19T13:43:32.089Z",
-  "spoofStatus": 403,
-  "spoofBodyStatus": 403
-}

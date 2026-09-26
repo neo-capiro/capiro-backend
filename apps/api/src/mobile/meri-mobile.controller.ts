@@ -22,43 +22,20 @@ import {
   Get,
   Headers,
   HttpException,
-  Inject,
-  NotFoundException,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
-  Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
-import { runMeriStreamWithSetupGuard } from '../meri/meri-stream-preflight.helpers.js';
-import { projectRun } from '../meri/hermes/meri-hermes.controller.js';
-import type { MeriSseFrame } from '../meri/hermes/hermes-runtime.contracts.js';
-import { MeriHermesRuntimeAdapter } from '../meri/hermes/meri-hermes-runtime.adapter.js';
-import {
-  MERI_HERMES_RUN_REPOSITORY,
-  type MeriHermesRunRecord,
-  type MeriHermesRunRepository,
-} from '../meri/hermes/meri-hermes-run-store.js';
 import { MeriMobileService } from './meri-mobile.service.js';
-
-class StartRunDto {
-  @IsString() @Length(0, 24_000) body!: string;
-  @IsOptional() @IsIn(['new', 'regenerate', 'resend']) mode?: 'new' | 'regenerate' | 'resend';
-  @IsOptional() @IsArray() @ArrayMaxSize(8) @IsUUID(undefined, { each: true }) attachmentIds?: string[];
-}
-
-class ApprovalDto {
-  @IsString() @Length(1, 200) requestId!: string;
-  @IsIn(['approve_once', 'deny']) decision!: 'approve_once' | 'deny';
-}
 
 class MeetingListQueryDto {
   @IsOptional() @IsUUID() clientId?: string;
@@ -154,117 +131,11 @@ function setRevisionEtag(res: Response, value: unknown): void {
 @UseGuards(RolesGuard)
 @Roles('standard_user')
 export class MeriMobileController {
-  constructor(
-    private readonly mobile: MeriMobileService,
-    private readonly adapter: MeriHermesRuntimeAdapter,
-    @Inject(MERI_HERMES_RUN_REPOSITORY) private readonly runs: MeriHermesRunRepository,
-  ) {}
-
-  private async ownedRun(ctx: TenantContext, runId: string): Promise<MeriHermesRunRecord> {
-    const run = await this.runs.requireOwned(runId, ctx.tenantId, ctx.userId);
-    if (!run) throw new NotFoundException('Run not found');
-    return run;
-  }
+  constructor(private readonly mobile: MeriMobileService) {}
 
   @Get('bootstrap')
   bootstrap(@CurrentTenant() ctx: TenantContext) {
     return this.mobile.bootstrap(ctx);
-  }
-
-  @Post('meri/conversations/:conversationId/runs')
-  async startRun(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('conversationId', ParseUUIDPipe) conversationId: string,
-    @Headers('idempotency-key') idempotencyKey: string | undefined,
-    @Body() body: StartRunDto,
-    @Req() req: Request,
-    @Res() res: Response,
-  ): Promise<void> {
-    await this.mobile.assertCapability(ctx, 'runs');
-    const key = idempotencyKey?.trim();
-    if (!key || key.length > 200) {
-      throw new BadRequestException({ code: 'invalid_idempotency_key', message: 'Idempotency-Key is required (1-200 characters).' });
-    }
-    const abort = new AbortController();
-    const onAbort = () => abort.abort(new DOMException('Client disconnected', 'AbortError'));
-    req.once('aborted', onAbort);
-    res.once('close', onAbort);
-    res.once('error', onAbort);
-    try {
-      await runMeriStreamWithSetupGuard({
-        res,
-        stream: (sse) =>
-          this.adapter.streamMessage(
-            ctx,
-            conversationId,
-            body.body,
-            sse,
-            abort.signal,
-            body.mode ?? 'new',
-            body.attachmentIds ?? [],
-            undefined,
-            undefined,
-            key,
-          ),
-      });
-    } finally {
-      req.off('aborted', onAbort);
-      res.off('close', onAbort);
-      res.off('error', onAbort);
-    }
-  }
-
-  @Get('meri/runs/:runId')
-  async run(@CurrentTenant() ctx: TenantContext, @Param('runId', ParseUUIDPipe) runId: string) {
-    return projectRun(await this.ownedRun(ctx, runId));
-  }
-
-  @Get('meri/runs/:runId/events')
-  async events(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('runId', ParseUUIDPipe) runId: string,
-    @Query('after') after: string | undefined,
-    @Req() req: Request,
-    @Res() res: Response,
-  ): Promise<void> {
-    const run = await this.ownedRun(ctx, runId);
-    const afterSeq = Math.max(0, Number.parseInt(after ?? '0', 10) || 0);
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no');
-    res.flushHeaders?.();
-    const abort = new AbortController();
-    const onClose = () => abort.abort();
-    req.once('aborted', onClose);
-    res.once('close', onClose);
-    const write = (frame: MeriSseFrame) => {
-      if (!res.writableEnded && !res.destroyed) res.write(`data: ${JSON.stringify(frame)}\n\n`);
-    };
-    try {
-      await this.adapter.attach(run, write, abort.signal, afterSeq);
-    } finally {
-      req.off('aborted', onClose);
-      res.off('close', onClose);
-      if (!res.writableEnded) res.end();
-    }
-  }
-
-  @Post('meri/runs/:runId/stop')
-  async stop(@CurrentTenant() ctx: TenantContext, @Param('runId', ParseUUIDPipe) runId: string) {
-    return projectRun(await this.adapter.requestStop(await this.ownedRun(ctx, runId)));
-  }
-
-  @Post('meri/runs/:runId/approval')
-  async approval(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('runId', ParseUUIDPipe) runId: string,
-    @Body() body: ApprovalDto,
-  ) {
-    await this.mobile.assertCapability(ctx, 'runs');
-    const run = await this.ownedRun(ctx, runId);
-    await this.adapter.resolveApproval(run, body.requestId, body.decision, ctx.userId);
-    return projectRun((await this.runs.get(run.runId)) ?? run);
   }
 
   @Get('meetings')

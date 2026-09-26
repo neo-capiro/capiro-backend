@@ -120,6 +120,8 @@ describe('PeWorkspacePage (vNext native)', () => {
         q: undefined,
         service: undefined,
         line_type: undefined,
+        capability: undefined,
+        fy: 2027,
         watched: undefined,
         page: 1,
         limit: 50,
@@ -136,7 +138,7 @@ describe('PeWorkspacePage (vNext native)', () => {
     for (const group of [
       'Identity',
       'Classification',
-      'FY2027 position',
+      'FY27 position',
       'Movement vs request',
       'Evidence',
       'Client impact & action',

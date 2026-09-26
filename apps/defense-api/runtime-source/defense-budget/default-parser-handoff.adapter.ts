@@ -32,7 +32,7 @@ import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 
 import { runParserHandoffForSourceDocument } from './parser-router/source-document-parser-handoff.js';
-import { routingForSourceFamily } from './parser-router/source-family-routing.js';
+import { routingForLifecycleSource } from './parser-router/source-family-routing.js';
 import { VERIFIER_DECISION_VALUES } from './observation-ingestion-bridge.ports.js';
 import type {
   ParserHandoffInput,
@@ -42,11 +42,45 @@ import type {
 } from './observation-ingestion-bridge.ports.js';
 import { BUDGET_COMPONENT_V1_VALUES } from './contracts/extraction-artifact-v1.js';
 import type { BudgetComponentV1 } from './contracts/extraction-artifact-v1.js';
+import type { AuthorityTrack, LifecycleStage, SourceFamily } from '@capiro/defense-domain';
+import type { CongressionalPacketReviewV1 } from './observation-ingestion-bridge.ports.js';
+import type { CongressionalFactoryInputsV1 } from './parser-router/source-document-parser-handoff-artifact-factory-v1.js';
+
+export interface CongressionalPacketResolutionRequestV1 {
+  readonly fiscalYear: number;
+  readonly authorityTrack: AuthorityTrack;
+  readonly stage: LifecycleStage;
+  readonly sourceFamily: SourceFamily;
+  readonly sourceDocumentId: string;
+  readonly sourceKey: string;
+  readonly sourceSha256: string;
+  readonly sourceUrl: string;
+}
+
+export type CongressionalPacketResolutionV1 =
+  | { readonly kind: 'matched'; readonly factoryInputs: CongressionalFactoryInputsV1 }
+  | { readonly kind: 'missing' };
+
+export type CongressionalPacketResolverV1 = (
+  request: CongressionalPacketResolutionRequestV1,
+) => Promise<CongressionalPacketResolutionV1>;
 
 export interface DefaultParserHandoffAdapterOptions {
   readonly workDir: string;
   readonly maxEscalationRounds?: number;
+  readonly resolveCongressionalPacket?: CongressionalPacketResolverV1;
 }
+
+const GOVERNED_CONGRESSIONAL_NON_ENACTED_FAMILIES: readonly SourceFamily[] = [
+  'auth_committee_mark',
+  'auth_committee_report',
+  'auth_chamber_action',
+  'auth_conference_report',
+  'appr_committee_mark',
+  'appr_committee_report',
+  'appr_chamber_action',
+  'appr_conference_jes',
+];
 
 function toVerifierDecision(decision: string): VerifierDecision {
   return (VERIFIER_DECISION_VALUES as readonly string[]).includes(decision)
@@ -84,7 +118,44 @@ export class DefaultParserHandoffAdapter implements ParserHandoffPort {
   constructor(private readonly options: DefaultParserHandoffAdapterOptions) {}
 
   async handoff(input: ParserHandoffInput): Promise<ParserHandoffResult> {
-    const routing = routingForSourceFamily(input.sourceFamily);
+    const routing = routingForLifecycleSource(
+      input.authorityTrack,
+      input.stage,
+      input.sourceFamily,
+    );
+    let congressionalFactoryInputs: CongressionalFactoryInputsV1 | undefined;
+    if (GOVERNED_CONGRESSIONAL_NON_ENACTED_FAMILIES.includes(input.sourceFamily)) {
+      const resolution = await this.options.resolveCongressionalPacket?.({
+        fiscalYear: input.fiscalYear,
+        authorityTrack: input.authorityTrack,
+        stage: input.stage,
+        sourceFamily: input.sourceFamily,
+        sourceDocumentId: input.sourceDocumentId,
+        sourceKey: input.sourceKey,
+        sourceSha256: input.sourceSha256,
+        sourceUrl: input.sourceUrl,
+      });
+      if (!resolution || resolution.kind === 'missing') {
+        const governedReview: CongressionalPacketReviewV1 = {
+          code: 'CONGRESSIONAL_GOVERNED_PACKET_MISSING',
+          scope: {
+            fiscalYear: input.fiscalYear,
+            authorityTrack: input.authorityTrack,
+            stage: input.stage,
+            sourceFamily: input.sourceFamily,
+            sourceDocumentId: input.sourceDocumentId,
+          },
+        };
+        return {
+          invoked: false,
+          decision: 'REVIEW',
+          finalState: 'governed_review',
+          artifactLocator: 'none',
+          governedReview,
+        };
+      }
+      congressionalFactoryInputs = resolution.factoryInputs;
+    }
     const terminal = await runParserHandoffForSourceDocument({
       executionId:
         input.governedExecution?.executionId ??
@@ -116,6 +187,7 @@ export class DefaultParserHandoffAdapter implements ParserHandoffPort {
       maxEscalationRounds: this.options.maxEscalationRounds ?? 4,
       allowPaidParse: false,
       maxPaidPages: 0,
+      ...(congressionalFactoryInputs ? { congressionalFactoryInputs } : {}),
       // Always durable: see the file header for why this must never be false
       // on the governed bridge's production path.
       persistVerificationAudit: true,

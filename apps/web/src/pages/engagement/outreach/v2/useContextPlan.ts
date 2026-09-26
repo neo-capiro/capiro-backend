@@ -162,21 +162,39 @@ export function useContextPlan(
   };
 
   const toggle = (item: ContextPoolItem) => {
-    if (isOn(item.id)) {
-      onChange(selected.filter((c) => c.id !== item.id));
+    toggleMany([item], !isOn(item.id));
+  };
+
+  const toggleMany = (items: ContextPoolItem[], selectedOn: boolean) => {
+    const itemIds = new Set(items.map((item) => item.id));
+    const current = selectedRef.current;
+    if (!selectedOn) {
+      const next = current.filter((item) => !itemIds.has(item.id));
+      selectedRef.current = next;
+      onChange(next);
       return;
     }
-    const needsExtract = item.kind === 'document' && item.id.startsWith('doc-') && !item.body;
-    onChange([
-      ...selected,
-      {
-        ...item,
-        scope: deriveScope(item),
-        note: '',
-        body: needsExtract ? 'Extracting document text…' : item.body,
-      },
-    ]);
-    if (needsExtract) void extractDoc(item.id.slice('doc-'.length), item.id);
+    const additions = items.filter((item) => !current.some((chosen) => chosen.id === item.id));
+    if (additions.length === 0) return;
+    const next = [
+      ...current,
+      ...additions.map((item) => {
+        const needsExtract = item.kind === 'document' && item.id.startsWith('doc-') && !item.body;
+        return {
+          ...item,
+          scope: deriveScope(item),
+          note: '',
+          body: needsExtract ? 'Extracting document text…' : item.body,
+        };
+      }),
+    ];
+    selectedRef.current = next;
+    onChange(next);
+    for (const item of additions) {
+      if (item.kind === 'document' && item.id.startsWith('doc-') && !item.body) {
+        void extractDoc(item.id.slice('doc-'.length), item.id);
+      }
+    }
   };
 
   const setNote = (id: string, note: string) =>
@@ -250,6 +268,7 @@ export function useContextPlan(
     isOn,
     matchHint,
     toggle,
+    toggleMany,
     // Context Plan (step 4, Personal Notes)
     scopeOptions,
     planSections,
