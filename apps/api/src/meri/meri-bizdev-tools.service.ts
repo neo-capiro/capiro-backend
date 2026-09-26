@@ -6,6 +6,7 @@ import { BusinessDevelopmentService } from '../business-development/business-dev
 import { BizDevDossierService } from '../business-development/bizdev-dossier.service.js';
 import { BizDevBriefService } from '../business-development/bizdev-brief.service.js';
 import {
+  BRIEF_CITATION_CAP,
   BRIEF_SECTION_KEYS,
   BRIEF_TEXT_MAX,
   BRIEF_TITLE_MAX,
@@ -104,6 +105,10 @@ const EVIDENCE_DETAIL_KEYS = new Set([
   'filingPeriod',
   'income',
   'issueCodes',
+  'uei',
+  'cageCode',
+  'dbaName',
+  'physicalAddress',
   'registrationStatus',
   'registrationExpirationDate',
   'entityStructure',
@@ -251,6 +256,18 @@ export class MeriBizDevToolsService {
     const facts = Object.fromEntries(
       Object.entries(item.detail).filter(([key]) => EVIDENCE_DETAIL_KEYS.has(key)),
     );
+    // SAM's normalized business address only, never arbitrary nested fields.
+    const address = facts.physicalAddress;
+    if (address && typeof address === 'object' && !Array.isArray(address)) {
+      facts.physicalAddress = Object.fromEntries(
+        Object.entries(address).filter(([key, value]) =>
+          ['line1', 'line2', 'city', 'state', 'zip', 'country'].includes(key) &&
+          (value === null || typeof value === 'string'),
+        ),
+      );
+    } else if (address !== null) {
+      delete facts.physicalAddress;
+    }
     return {
       sourceFamily: item.sourceFamily,
       recordId: item.recordId,
@@ -272,6 +289,111 @@ export class MeriBizDevToolsService {
     };
   }
 
+  /**
+   * Descriptive free-text fact keys that may be safely excerpted (600 chars)
+   * without changing meaning. Everything else is exact-or-omitted: factual
+   * keys (amounts, dates, IDs, program codes…) are NEVER substring-cut.
+   */
+  private static readonly DESCRIPTIVE_FACT_KEYS = new Set([
+    'description',
+    'meaning',
+    'ambiguityWarning',
+    'distinctMeaning',
+    'contextOnly',
+  ]);
+  private static readonly DESCRIPTIVE_FACT_STRING_MAX = 600;
+  private static readonly DESCRIPTIVE_FACT_ARRAY_MAX = 12;
+
+  /**
+   * Bound oversized descriptive facts so one record cannot eat the whole
+   * model-visible budget. Factual keys (amount/amountType/dates/IDs/program
+   * codes) are kept EXACT or omitted with an explicit marker — never
+   * substring-cut. Only whitelisted descriptive keys get a 600-char excerpt;
+   * retained array elements are bounded too; truncated field names are
+   * reported honestly in `factsTruncated` and omitted ones in
+   * `factsOmitted`.
+   */
+  private static boundFacts(facts: Record<string, unknown>): {
+    facts: Record<string, unknown>;
+    factsTruncated: string[];
+    factsOmitted: string[];
+  } {
+    const bounded: Record<string, unknown> = {};
+    const truncated: string[] = [];
+    const omitted: string[] = [];
+    const excerpt = (value: string) =>
+      `${value.slice(0, MeriBizDevToolsService.DESCRIPTIVE_FACT_STRING_MAX)}…[truncated]`;
+    for (const [key, value] of Object.entries(facts)) {
+      if (MeriBizDevToolsService.DESCRIPTIVE_FACT_KEYS.has(key)) {
+        if (typeof value === 'string' && value.length > MeriBizDevToolsService.DESCRIPTIVE_FACT_STRING_MAX) {
+          bounded[key] = excerpt(value);
+          truncated.push(key);
+        } else if (Array.isArray(value)) {
+          let elementTruncated = false;
+          const elements = value.slice(0, MeriBizDevToolsService.DESCRIPTIVE_FACT_ARRAY_MAX).map((element) => {
+            if (
+              typeof element === 'string' &&
+              element.length > MeriBizDevToolsService.DESCRIPTIVE_FACT_STRING_MAX
+            ) {
+              elementTruncated = true;
+              return excerpt(element);
+            }
+            return element;
+          });
+          const overCount = value.length > MeriBizDevToolsService.DESCRIPTIVE_FACT_ARRAY_MAX;
+          bounded[key] = elements;
+          if (elementTruncated || overCount) truncated.push(key);
+        } else {
+          bounded[key] = value;
+        }
+        continue;
+      }
+      // Non-descriptive key: exact or explicitly-unsupported, never cut.
+      const size = JSON.stringify(value) ?? '';
+      if (size.length <= MeriBizDevToolsService.DESCRIPTIVE_FACT_STRING_MAX) {
+        bounded[key] = value;
+      } else {
+        omitted.push(key);
+      }
+    }
+    return { facts: bounded, factsTruncated: truncated, factsOmitted: omitted };
+  }
+
+  /**
+   * One full authorized record as the model-visible `data` row: the complete
+   * projectEvidenceItem projection (identity, locators, strength, separated
+   * dates, stage, status, bounded facts) PLUS the compact citation aliases
+   * (id/url/snippet) the shared collector reads. The citation labels never
+   * come alone — the exact facts/amounts/dates ride in the SAME row so they
+   * survive the orchestrator's row-wise evidence projection.
+   */
+  private static evidenceDataRow(item: EvidenceItem): Record<string, unknown> {
+    const projected = MeriBizDevToolsService.projectEvidenceItem(item);
+    const { facts, factsTruncated, factsOmitted } =
+      MeriBizDevToolsService.boundFacts(projected.facts as Record<string, unknown>);
+    return {
+      ...projected,
+      id: item.recordId ?? item.originalSourceId ?? '',
+      url: item.locator,
+      snippet: [
+        item.title,
+        item.originalSourceName,
+        item.eventDate ? `event ${item.eventDate}` : null,
+      ]
+        .filter(Boolean)
+        .join(' — '),
+      facts,
+      ...(factsTruncated.length ? { factsTruncated } : {}),
+      ...(factsOmitted.length
+        ? {
+            factsOmitted,
+            factsOmittedNote:
+              'These factual fields were too large to include exactly and were omitted rather than cut; treat them as unsupported here.',
+          }
+        : {}),
+    };
+  }
+
   async getEvidence(
     ctx: TenantContext,
     input: Record<string, unknown>,
@@ -290,9 +412,16 @@ export class MeriBizDevToolsService {
     for (const section of Object.values(dossier.sections)) {
       if (section?.evidence) all.push(...section.evidence);
     }
-    const records = all
-      .slice(0, EVIDENCE_RECORD_CAP)
-      .map((item) => MeriBizDevToolsService.projectEvidenceItem(item));
+    const capped = all.slice(0, EVIDENCE_RECORD_CAP);
+    // ONE full-fact payload: `data` carries the complete authorized records
+    // (with citation aliases), and `evidence` shrinks to count metadata — no
+    // second copy of the facts. The shared collector reads `data`, and the
+    // orchestrator projection keeps whole rows, so each visible row is a
+    // COMPLETE factual record, never a title-only label.
+    const data = capped.map((item) =>
+      MeriBizDevToolsService.evidenceDataRow(item),
+    );
+    const factsPartial = data.some((row) => row.factsTruncated || row.factsOmitted);
     return {
       tool: 'get_business_development_evidence',
       generatedAt: dossier.generatedAt,
@@ -300,16 +429,17 @@ export class MeriBizDevToolsService {
       canonicalEntityId: dossier.canonicalEntityId,
       canonicalName: dossier.canonicalName,
       sectionStates: dossier.sectionStates,
+      data,
       evidence: {
-        records,
         total: all.length,
-        returned: records.length,
-        truncated: all.length > records.length,
+        returned: capped.length,
+        truncated: all.length > capped.length,
       },
       coverage: {
         complete: all.length <= EVIDENCE_RECORD_CAP,
         partial:
-          records.length < all.length ||
+          capped.length < all.length ||
+          factsPartial ||
           dossier.sectionStates.some(
             (section) =>
               section.status !== 'available' && section.status !== 'empty_in_queried_scope',
@@ -317,7 +447,9 @@ export class MeriBizDevToolsService {
         note:
           all.length > EVIDENCE_RECORD_CAP
             ? `Only the first ${EVIDENCE_RECORD_CAP} of ${all.length} evidence records are included; this is a partial view.`
-            : 'All available evidence records are included.',
+            : factsPartial
+              ? 'All available evidence records are included, but marked facts were excerpted or omitted; this is a partial factual view.'
+              : 'All available evidence records are included.',
       },
     };
   }
@@ -355,6 +487,40 @@ export class MeriBizDevToolsService {
         sections: currentVersion.sections,
         citations: currentVersion.citations,
       },
+      // Bounded official-citation rows through the existing `data`
+      // contract so brief sources stay citable even when the full
+      // five-section payload exceeds the model-visible budget. The cap
+      // only bounds these ADDED compact rows; the persisted brief above
+      // (sections + full citation index) is returned verbatim, never
+      // truncated or renumbered. Locators come only from the saved
+      // authorized citations — nothing is invented.
+      ...(currentVersion.citations.length
+        ? {
+            data: currentVersion.citations
+              .slice(0, BRIEF_CITATION_CAP)
+              .map((citation) => ({
+                id: citation.recordId,
+                title: citation.title,
+                url: citation.locator,
+                snippet: [
+                  citation.originalSourceName,
+                  citation.stage ? `stage: ${citation.stage}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' — '),
+                sourceFamily: citation.sourceFamily,
+              })),
+            citationsSummary: {
+              total: currentVersion.citations.length,
+              returned: Math.min(currentVersion.citations.length, BRIEF_CITATION_CAP),
+              truncated: currentVersion.citations.length > BRIEF_CITATION_CAP,
+              note:
+                currentVersion.citations.length > BRIEF_CITATION_CAP
+                  ? `Only the first ${BRIEF_CITATION_CAP} of ${currentVersion.citations.length} brief citations are shown as compact rows; the full citation list is in brief.citations.`
+                  : 'All brief citations are shown as compact rows.',
+            },
+          }
+        : {}),
     };
   }
 
@@ -375,10 +541,70 @@ export class MeriBizDevToolsService {
       prospectId,
       citationIndex,
     );
+    if (!resolved.resolvable) {
+      // No citation row for ANY unresolvable outcome — including
+      // source_changed, where the old citation metadata still exists but
+      // the record is in neither the saved snapshot nor the current
+      // dossier. The citation metadata is echoed for transparency only.
+      return {
+        tool: 'resolve_business_development_source',
+        generatedAt: new Date().toISOString(),
+        resolvable: false,
+        limitation: resolved.limitation,
+        message: resolved.message,
+        citation: resolved.citation,
+      };
+    }
+    // Results only when a server-resolved EvidenceItem actually backs the
+    // citation (snapshot and/or current dossier). The row is the FULL
+    // authorized projection of that record — exact facts, amounts, dates,
+    // stage, relationship and locators — plus the citation metadata, so the
+    // facts survive the orchestrator's row-wise 12K projection. Source
+    // authority is only the existing server-resolved record: record ids and
+    // URLs come verbatim from it, never invented.
+    const evidenceItem =
+      resolved.currentDossierEvidence ?? resolved.sourceSnapshotEvidence;
+    const basis: 'current_dossier' | 'snapshot_only' | 'none' = resolved.currentDossierEvidence
+      ? 'current_dossier'
+      : resolved.sourceSnapshotEvidence
+        ? 'snapshot_only'
+        : 'none';
     return {
       tool: 'resolve_business_development_source',
       generatedAt: new Date().toISOString(),
-      ...resolved,
+      resolvable: true,
+      citation: resolved.citation,
+      basis,
+      // Truthful basis: a snapshot-only match is NOT live current data.
+      ...(basis === 'snapshot_only'
+        ? {
+            basisNote:
+              'This record matches the saved brief snapshot only; it is not currently in the prospect dossier, so it may no longer be live current data.',
+          }
+        : basis === 'none'
+          ? {
+              basisNote:
+                'The citation resolves, but no underlying evidence record backs it in either the snapshot or the current dossier; only the saved citation metadata is available.',
+            }
+          : {}),
+      ...(evidenceItem
+        ? {
+            results: [
+              {
+                ...MeriBizDevToolsService.evidenceDataRow(evidenceItem),
+                basis,
+                citation: {
+                  recordId: resolved.citation.recordId,
+                  title: resolved.citation.title,
+                  locator: resolved.citation.locator,
+                  sourceFamily: resolved.citation.sourceFamily,
+                  originalSourceName: resolved.citation.originalSourceName,
+                  stage: resolved.citation.stage,
+                },
+              },
+            ],
+          }
+        : {}),
     };
   }
 
