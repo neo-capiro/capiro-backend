@@ -492,6 +492,11 @@ describe('discover search', () => {
       ]),
     });
     await screen.findByText('Overland AI');
+    const card = screen.getByText('Overland AI').closest('li');
+    expect(card).toBeInTheDocument();
+    expect(within(card!).getByText('Direct evidence')).toBeInTheDocument();
+    expect(within(card!).getByText(/Event Jun 29|Event Jun 30/)).toBeInTheDocument();
+    expect(screen.getByText('1 company shown')).toBeInTheDocument();
     expect(screen.getByText(/UEI: UEI123/)).toBeInTheDocument();
     expect(screen.getByText(/CAGE: CAGE9/)).toBeInTheDocument();
     expect(
@@ -510,6 +515,7 @@ describe('discover search', () => {
     expect(screen.queryByLabelText(/Agency/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Issue/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Geography/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/priority score|service hypothesis|source availability/i)).not.toBeInTheDocument();
   });
 
   it('opens the dossier without saving first', async () => {

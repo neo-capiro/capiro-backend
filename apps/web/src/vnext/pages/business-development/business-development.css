@@ -444,12 +444,30 @@
 }
 
 /* ── Phase 2: discover ──────────────────────────────────────────────── */
+.capiro-bizdev__discover {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.capiro-bizdev__discover-top {
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: 12px;
+}
+.capiro-bizdev__discover-toolbar {
+  justify-content: space-between;
+  padding: 12px 16px 4px;
+}
+.capiro-bizdev__discover-toolbar .capiro-bizdev__section-title {
+  font-size: 14px;
+  line-height: 20px;
+}
 .capiro-bizdev__discover-form {
   display: flex;
   align-items: flex-end;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
-  padding: 0 24px 12px;
+  padding: 4px 16px 8px;
 }
 .capiro-bizdev__discover-q {
   flex: 1 1 280px;
@@ -460,17 +478,35 @@
   align-items: flex-end;
 }
 .capiro-bizdev__discover-note {
-  padding: 0 24px 12px;
+  margin: 0;
+  padding: 0 16px 12px;
+  font-size: 12px;
+}
+.capiro-bizdev__discover > .capiro-bizdev__discover-note {
+  padding: 4px 0;
+}
+.capiro-bizdev__discover-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  color: var(--capiro-color-text-muted);
+  font-size: 12px;
+}
+.capiro-bizdev__discover-summary strong {
+  color: var(--capiro-color-text-heading);
+  font-weight: 600;
 }
 .capiro-bizdev__section-pad {
-  padding: 0 24px 20px;
+  padding: 20px 24px;
 }
 .capiro-bizdev__candidate-list {
   list-style: none;
   margin: 0;
-  padding: 0 24px 12px;
+  padding: 0;
   display: flex;
   flex-direction: column;
+  gap: 10px;
 }
 .capiro-bizdev__candidate {
   display: flex;
@@ -478,18 +514,39 @@
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--capiro-color-border-quiet);
-}
-.capiro-bizdev__candidate:last-child {
-  border-bottom: none;
+  padding: 16px;
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: 12px;
 }
 .capiro-bizdev__candidate-main {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 12px;
   min-width: 0;
   flex: 1 1 320px;
+}
+.capiro-bizdev__candidate-identity,
+.capiro-bizdev__candidate-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.capiro-bizdev__candidate-identity {
+  gap: 10px;
+}
+.capiro-bizdev__candidate-avatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 7px;
+  background: var(--capiro-color-bg-surface-2);
+  color: var(--capiro-color-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
 }
 .capiro-bizdev__candidate-name {
   font-weight: 600;
@@ -497,11 +554,44 @@
   color: var(--capiro-color-text-primary);
   overflow-wrap: anywhere;
 }
+.capiro-bizdev__candidate-badge {
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--capiro-color-bg-surface-2);
+  color: var(--capiro-color-text-muted);
+  font-size: 11px;
+}
+.capiro-bizdev__candidate-evidence {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--capiro-color-bg-surface-2);
+}
+.capiro-bizdev__candidate-evidence > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.capiro-bizdev__candidate-evidence-icon {
+  color: var(--capiro-color-text-muted);
+}
+.capiro-bizdev__candidate-evidence-label {
+  color: var(--capiro-color-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+.capiro-bizdev__candidate-evidence-title {
+  color: var(--capiro-color-text-heading);
+  font-size: 14px;
+  font-weight: 600;
+}
 .capiro-bizdev__candidate-actions {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
+  flex-direction: column;
   gap: 8px;
-  flex-wrap: wrap;
 }
 .capiro-bizdev__discover-pager {
   display: flex;
@@ -509,7 +599,13 @@
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  padding: 12px 24px 18px;
+  padding: 4px 0 12px;
+}
+@media (max-width: 779px) {
+  .capiro-bizdev__candidate-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
 }
 .capiro-bizdev__flag--saved {
   background: var(--capiro-color-bg-accent-soft);
