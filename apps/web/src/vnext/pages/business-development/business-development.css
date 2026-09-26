@@ -115,10 +115,23 @@
   box-shadow: 0 0 0 2px var(--capiro-color-bg-accent-soft);
 }
 .capiro-bizdev__filters {
-  display: flex;
+  display: grid;
   align-items: center;
-  flex-wrap: wrap;
+  grid-template-columns: minmax(220px, 1.6fr) repeat(5, minmax(120px, 1fr));
   gap: 8px;
+  flex: 1 1 100%;
+  min-width: 0;
+}
+.capiro-bizdev__filters .capiro-bizdev__search,
+.capiro-bizdev__filters .capiro-bizdev__select {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  height: 34px;
+  font-size: 13px;
+}
+.capiro-bizdev__filters .capiro-bizdev__search {
+  flex: initial;
 }
 .capiro-bizdev__filter {
   display: inline-flex;
@@ -201,7 +214,7 @@
 .capiro-bizdev__table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 960px;
+  min-width: 900px;
 }
 .capiro-bizdev__table thead th {
   text-align: left;
@@ -211,12 +224,12 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--capiro-color-text-muted);
-  padding: 10px 20px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--capiro-color-border-quiet);
   background: var(--capiro-color-bg-surface-2);
 }
 .capiro-bizdev__table tbody td {
-  padding: 13px 20px;
+  padding: 11px 16px;
   border-bottom: 1px solid var(--capiro-color-border-quiet);
   font-size: 14px;
   color: var(--capiro-color-text-primary);
@@ -229,6 +242,12 @@
   cursor: pointer;
 }
 .capiro-bizdev__tr:hover {
+  background: var(--capiro-color-bg-surface-2);
+}
+.capiro-bizdev__table tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--capiro-color-bg-surface-2) 38%, transparent);
+}
+.capiro-bizdev__table tbody tr:nth-child(even):hover {
   background: var(--capiro-color-bg-surface-2);
 }
 .capiro-bizdev__tr:focus-within {
@@ -915,25 +934,20 @@
   white-space: nowrap;
   border: 0;
 }
+.capiro-bizdev__preferences-button {
+  font-size: 19px;
+}
 
 /* ── v5: view tabs, stage histogram, segment/toggle, cards, pills ───── */
 
-/* Sticky in-page view tab bar (Discover / Pipeline / Watchlist). */
+/* Plain underline view tabs (Discover / Pipeline / Watchlist). */
 .capiro-bizdev__viewtabs {
-  position: sticky;
-  top: 0;
-  z-index: 5;
   display: flex;
-  gap: 4px;
+  gap: 24px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  padding: 6px;
-  border: 1px solid var(--capiro-color-border-quiet);
-  border-radius: 12px;
-  background: var(--capiro-color-bg-surface);
-  box-shadow:
-    0 1px 3px rgba(16, 24, 40, 0.1),
-    0 1px 2px rgba(16, 24, 40, 0.06);
+  padding: 0 0 2px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
   scrollbar-width: none;
 }
 .capiro-bizdev__viewtabs::-webkit-scrollbar {
@@ -944,37 +958,35 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 36px;
-  padding: 0 14px;
-  border: 1px solid transparent;
-  border-radius: 8px;
+  height: 42px;
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 2px solid transparent;
   background: transparent;
   font: inherit;
   font-size: 14px;
   font-weight: 500;
-  color: var(--capiro-color-text-muted);
+  color: var(--capiro-color-text-secondary);
   white-space: nowrap;
   cursor: pointer;
 }
 .capiro-bizdev__viewtab:hover {
   color: var(--capiro-color-text-primary);
-  background: var(--capiro-color-bg-surface-2);
 }
 .capiro-bizdev__viewtab:focus-visible {
   outline: 2px solid var(--capiro-color-action-accent-default);
   outline-offset: 2px;
 }
 .capiro-bizdev__viewtab.is-active {
-  background: var(--capiro-color-bg-surface-2);
-  color: var(--capiro-color-text-primary);
-  border-color: var(--capiro-color-border-control);
+  color: var(--capiro-color-action-accent-default);
+  border-bottom-color: var(--capiro-color-action-accent-default);
   font-weight: 600;
 }
 .capiro-bizdev__viewtab-count {
-  min-width: 20px;
-  padding: 1px 7px;
-  border-radius: 9999px;
-  background: var(--capiro-color-bg-subtle);
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--capiro-color-bg-surface-2);
   color: var(--capiro-color-text-secondary);
   font-size: 12px;
   font-weight: 600;
@@ -991,59 +1003,72 @@
 }
 .capiro-bizdev__stagebar {
   display: flex;
-  gap: 8px;
+  gap: 16px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  padding: 12px;
-  border: 1px solid var(--capiro-color-border-quiet);
-  border-radius: 12px;
-  background: var(--capiro-color-bg-surface-2);
+  padding: 8px 0;
 }
 .capiro-bizdev__stagecell {
   appearance: none;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  min-width: 74px;
-  padding: 10px 8px;
-  border: 1px solid var(--capiro-color-border-quiet);
-  border-radius: 8px;
-  background: var(--capiro-color-bg-surface);
+  align-items: flex-start;
+  gap: 5px;
+  min-width: 92px;
+  padding: 8px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   font: inherit;
   cursor: pointer;
   flex: 1 0 74px;
 }
 .capiro-bizdev__stagecell:hover {
-  border-color: var(--capiro-color-border-control);
+  background: transparent;
 }
 .capiro-bizdev__stagecell:focus-visible {
   outline: 2px solid var(--capiro-color-action-accent-default);
   outline-offset: 2px;
 }
 .capiro-bizdev__stagecell.is-active {
-  border-color: var(--capiro-color-action-accent-default);
-  box-shadow: 0 0 0 1px var(--capiro-color-action-accent-default);
+  box-shadow: inset 0 -2px var(--capiro-color-action-accent-default);
 }
 .capiro-bizdev__stagecell--won .capiro-bizdev__stagecell-count {
   color: var(--capiro-color-text-success);
 }
 .capiro-bizdev__stagecell-count {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 650;
   color: var(--capiro-color-text-primary);
 }
 .capiro-bizdev__stagecell-label {
-  font-size: 12px;
-  color: var(--capiro-color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--capiro-color-text-secondary);
   white-space: nowrap;
 }
+.capiro-bizdev__stagecell-track {
+  display: block;
+  width: 100%;
+  height: 4px;
+  margin-top: 2px;
+  border-radius: 999px;
+  background: var(--capiro-color-bg-subtle);
+  overflow: hidden;
+}
+.capiro-bizdev__stagecell-bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--capiro-color-action-accent-default);
+}
 
-/* Segment row: Active/Dismissed buttons + derived overdue toggle. */
+/* Secondary filter row: derived overdue toggle. */
 .capiro-bizdev__segment-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
   flex-wrap: wrap;
   padding: 0 24px 12px;
@@ -1184,6 +1209,12 @@
   }
   .capiro-bizdev__field-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .capiro-bizdev__filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .capiro-bizdev__filters .capiro-bizdev__search {
+    grid-column: 1 / -1;
   }
   .capiro-bizdev__brief-diff-grid {
     grid-template-columns: minmax(0, 1fr);

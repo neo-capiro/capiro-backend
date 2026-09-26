@@ -6,7 +6,7 @@
  * - three view tabs with URL switching (Discover flag-gated, Watchlist flag-gated)
  * - Pipeline default view; stage histogram from real counts.byStage applies the
  *   existing stage filter
- * - Active/Dismissed segment + derived overdue-only toggle (from nextActionDueAt)
+ * - One status selector + derived overdue-only toggle (from nextActionDueAt)
  * - Watchlist renders from the existing list/watch/alert GETs only, with bounded
  *   fan-out, and opens the prospect drawer
  * - absence of prototype-only fabrications (priority, digest, demo controls)
@@ -294,6 +294,21 @@ describe('v5 view tabs', () => {
     expect(await screen.findByText('Overland AI')).toBeInTheDocument();
   });
 
+  it('opens firm preferences from the header and closes the drawer accessibly', async () => {
+    renderAt('?view=business-development', ALL_ON);
+    await screen.findByText('Overland AI');
+    expect(screen.queryByRole('dialog', { name: /Firm business-development preferences/ })).not.toBeInTheDocument();
+    expect(getCalls().map(([path]) => path)).not.toContain('/api/business-development/preferences');
+    fireEvent.click(screen.getByRole('button', { name: 'Preferences' }));
+    expect(await screen.findByRole('dialog', { name: /Firm business-development preferences/ })).toBeInTheDocument();
+    expect(await screen.findByLabelText(/Practice \/ service areas/)).toBeInTheDocument();
+    expect(getCalls().map(([path]) => path)).toContain('/api/business-development/preferences');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /Firm business-development preferences/ })).not.toBeInTheDocument(),
+    );
+  });
+
   it('switching to Discover writes bdView=discover and keeps the legacy param in sync', async () => {
     renderAt('?view=business-development', ALL_ON);
     fireEvent.click(await screen.findByRole('tab', { name: /Discover/ }));
@@ -344,9 +359,15 @@ describe('v5 view tabs', () => {
 
 describe('pipeline stage summary', () => {
   it('renders per-stage counts from counts.byStage and clicking a cell applies the stage filter', async () => {
-    renderAt('?view=business-development', ALL_ON);
+    renderAt('?view=business-development', {
+      ...ALL_ON,
+      counts: { visible: 2, total: 2, active: 2, dismissed: 0, byStage: { researching: 1, qualified: 2 } },
+    });
     const qualifiedCell = await screen.findByRole('button', { name: /Qualified/ });
-    expect(within(qualifiedCell).getByText('1')).toBeInTheDocument();
+    expect(within(qualifiedCell).getByText('2')).toBeInTheDocument();
+    expect(qualifiedCell.querySelector('.capiro-bizdev__stagecell-bar')).toHaveStyle({ width: '100%' });
+    const researchingCell = screen.getByRole('button', { name: /Researching/ });
+    expect(researchingCell.querySelector('.capiro-bizdev__stagecell-bar')).toHaveStyle({ width: '50%' });
     fireEvent.click(qualifiedCell);
     await waitFor(() => {
       const [path, config] = getCalls().filter(([p]) => p === '/api/business-development/prospects').at(-1)!;
@@ -363,9 +384,12 @@ describe('pipeline stage summary', () => {
     });
   });
 
-  it('switches the Active/Dismissed segment via URL', async () => {
+  it('exposes a single status selector and switches status via URL', async () => {
     renderAt('?view=business-development', ALL_ON);
-    fireEvent.click(await screen.findByRole('button', { name: 'Dismissed' }));
+    const statusFilters = await screen.findAllByLabelText('Filter by status');
+    expect(statusFilters).toHaveLength(1);
+    expect(screen.queryByRole('group', { name: 'Pipeline segment' })).not.toBeInTheDocument();
+    fireEvent.change(statusFilters[0]!, { target: { value: 'dismissed' } });
     await waitFor(() => {
       const [, config] = getCalls().filter(([p]) => p === '/api/business-development/prospects').at(-1)!;
       expect((config as { params?: Record<string, unknown> }).params).toMatchObject({

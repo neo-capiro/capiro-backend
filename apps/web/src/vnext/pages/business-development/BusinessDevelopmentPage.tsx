@@ -4,7 +4,7 @@ import { UseMutationResult, useMutation, useQuery, useQueryClient } from '@tanst
 import { hasAtLeast } from '@capiro/shared';
 import { useApi } from '../../../lib/use-api.js';
 import { useMe } from '../../../lib/me.js';
-import { CapiroButton } from '../../components/actions/index.js';
+import { CapiroButton, CapiroIconButton } from '../../components/actions/index.js';
 import { CapiroDrawer, CapiroModal } from '../../components/overlays/index.js';
 import { CapiroEmptyState, CapiroErrorState } from '../../components/feedback/index.js';
 import { useCapiroToast } from '../../components/feedback/toast.js';
@@ -294,7 +294,7 @@ function BizDevFilters({ members }: { members: BizDevMemberOption[] }) {
 
   return (
     <div className="capiro-bizdev__filters" aria-label="Pipeline filters">
-      <label className="capiro-bizdev__label" htmlFor="bizdev-search">
+      <label className="capiro-bizdev__label capiro-bizdev__sr-only" htmlFor="bizdev-search">
         Search prospects
       </label>
       <input
@@ -333,17 +333,18 @@ function BizDevFilters({ members }: { members: BizDevMemberOption[] }) {
           </option>
         ))}
       </select>
-      {BIZDEV_STATUSES.map((s) => (
-        <button
-          key={s}
-          type="button"
-          className={`capiro-bizdev__filter${route.status === s ? ' is-active' : ''}`}
-          aria-pressed={route.status === s}
-          onClick={() => setRoute({ status: s })}
-        >
-          {BIZDEV_STATUS_LABELS[s]}
-        </button>
-      ))}
+      <select
+        className="capiro-bizdev__select"
+        aria-label="Filter by status"
+        value={route.status}
+        onChange={(e) => setRoute({ status: e.target.value as (typeof BIZDEV_STATUSES)[number] })}
+      >
+        {BIZDEV_STATUSES.map((status) => (
+          <option key={status} value={status}>
+            {BIZDEV_STATUS_LABELS[status]}
+          </option>
+        ))}
+      </select>
       <select
         className="capiro-bizdev__select"
         aria-label="Filter by conflict or exclusion"
@@ -2394,6 +2395,7 @@ function BizDevStageHistogram({
   selectedStage: BizDevStage | '';
   onSelect: (stage: BizDevStage | '') => void;
 }) {
+  const maxCount = Math.max(0, ...BIZDEV_STAGES.map((stage) => byStage[stage] ?? 0));
   return (
     <div className="capiro-bizdev__stagebar" aria-label="Prospects by stage">
       {BIZDEV_STAGES.map((stage) => {
@@ -2406,10 +2408,16 @@ function BizDevStageHistogram({
             className={`capiro-bizdev__stagecell${selected ? ' is-active' : ''}${stage === 'won' ? ' capiro-bizdev__stagecell--won' : ''}`}
             aria-pressed={selected}
             onClick={() => onSelect(selected ? '' : stage)}
-            title={`${BIZDEV_STAGE_LABELS[stage]}: ${count}`}
+            aria-label={`${BIZDEV_STAGE_LABELS[stage]}: ${count}`}
           >
-            <span className="capiro-bizdev__stagecell-count">{count}</span>
             <span className="capiro-bizdev__stagecell-label">{BIZDEV_STAGE_LABELS[stage]}</span>
+            <span className="capiro-bizdev__stagecell-count">{count}</span>
+            <span className="capiro-bizdev__stagecell-track" aria-hidden="true">
+              <span
+                className="capiro-bizdev__stagecell-bar"
+                style={{ width: `${maxCount ? (count / maxCount) * 100 : 0}%` }}
+              />
+            </span>
           </button>
         );
       })}
@@ -2445,6 +2453,7 @@ function Pipeline({
   });
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
   const members_ = members.data ?? [];
   const memberById = new Map(members_.map((m) => [m.id, m]));
 
@@ -2512,6 +2521,12 @@ function Pipeline({
           </p>
         </div>
         <span className="capiro-bizdev__head-spacer" />
+        <CapiroIconButton
+          className="capiro-bizdev__preferences-button"
+          label="Preferences"
+          icon="⚙"
+          onClick={() => setPreferencesOpen(true)}
+        />
         <CapiroButton variant="primary" size="standard" onClick={() => setCreateOpen(true)}>
           Add prospect
         </CapiroButton>
@@ -2527,21 +2542,14 @@ function Pipeline({
 
       <div id="bizdev-viewpanel" role="tabpanel" aria-label="Business Development view">
       {view === 'watchlist' ? (
-        <>
-          <BizDevWatchlist
-            tenantId={tenantId}
-            members={members_}
-            watchAlertsEnabled={watchAlertsEnabled}
-          />
-          <PreferencesPanel tenantId={tenantId} isAdmin={isAdmin} />
-        </>
+        <BizDevWatchlist
+          tenantId={tenantId}
+          members={members_}
+          watchAlertsEnabled={watchAlertsEnabled}
+        />
       ) : view === 'discover' ? (
-        <>
-          <DiscoverPanel tenantId={tenantId} />
-          <PreferencesPanel tenantId={tenantId} isAdmin={isAdmin} />
-        </>
+        <DiscoverPanel tenantId={tenantId} />
       ) : (
-      <>
       <section className="capiro-bizdev__surface" aria-labelledby="bizdev-pipeline">
         <div className="capiro-bizdev__toolbar">
           <div className="capiro-bizdev__title-row">
@@ -2576,30 +2584,8 @@ function Pipeline({
           ) : null}
         </div>
 
-        {/* Active/Dismissed segment + derived overdue toggle */}
+        {/* Derived overdue toggle; status is selected in the filter toolbar. */}
         <div className="capiro-bizdev__segment-row">
-          <div
-            className="capiro-bizdev__filters"
-            role="group"
-            aria-label="Pipeline segment"
-          >
-            <button
-              type="button"
-              className={`capiro-bizdev__filter${route.status === 'active' ? ' is-active' : ''}`}
-              aria-pressed={route.status === 'active'}
-              onClick={() => setRoute({ status: 'active' })}
-            >
-              Active
-            </button>
-            <button
-              type="button"
-              className={`capiro-bizdev__filter${route.status === 'dismissed' ? ' is-active' : ''}`}
-              aria-pressed={route.status === 'dismissed'}
-              onClick={() => setRoute({ status: 'dismissed' })}
-            >
-              Dismissed
-            </button>
-          </div>
           <label className="capiro-bizdev__toggle">
             <input
               type="checkbox"
@@ -2773,10 +2759,17 @@ function Pipeline({
         ) : null}
       </section>
 
-      <PreferencesPanel tenantId={tenantId} isAdmin={isAdmin} />
-      </>
       )}
       </div>
+
+      <CapiroDrawer
+        open={preferencesOpen}
+        title="Firm business-development preferences"
+        onClose={() => setPreferencesOpen(false)}
+        width={640}
+      >
+        <PreferencesPanel tenantId={tenantId} isAdmin={isAdmin} />
+      </CapiroDrawer>
 
       {createOpen ? (
         <CreateProspectModal
