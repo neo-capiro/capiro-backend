@@ -29,6 +29,7 @@
         "arn:aws:ecs:us-east-1:967807252336:service/capiro-dev/capiro-dev-meriv2-orchestrator",
         "arn:aws:ecs:us-east-1:967807252336:service/capiro-dev/capiro-dev-onboard-api",
         "arn:aws:ecs:us-east-1:967807252336:service/capiro-dev/capiro-dev-web",
+        "arn:aws:ecs:us-east-1:967807252336:service/capiro-dev/capiro-dev-web-vnext",
         "arn:aws:ecs:us-east-1:967807252336:service/capiro-dev/capiro-dev-workspace"
       ]
     },
@@ -72,6 +73,8 @@
         "arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskDefExecutionRoleE6ABB053-YlEDKuUPHjLg",
         "arn:aws:iam::967807252336:role/Capiro-dev-Compute-WebTaskRoleA6676EAB-FCnepyflZyKH",
         "arn:aws:iam::967807252336:role/Capiro-dev-Compute-WebTaskDefExecutionRoleA6D04B61-gTsdzEbyD0Gc",
+        "arn:aws:iam::967807252336:role/Capiro-dev-WebVNext-WebVNextTaskRole2C188396-53lnol4Zclbu",
+        "arn:aws:iam::967807252336:role/Capiro-dev-WebVNext-WebVNextExecutionRole2DF8158E-FxJIantA6NYk",
         "arn:aws:iam::967807252336:role/Capiro-dev-Compute-MarketingTaskRole5741ECDC-LPsdynfMCaKG",
         "arn:aws:iam::967807252336:role/Capiro-dev-Compute-MarketingTaskDefExecutionRoleAC6-4ZFjx5LYPZfs",
         "arn:aws:iam::967807252336:role/capiro-dev-clio-sandbox-task",

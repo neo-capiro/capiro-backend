@@ -49,6 +49,8 @@ describe('profile evidence classification', () => {
     'research_external_company',
     'query_portfolio_overlap',
     'query_funding_opportunity_match',
+    'get_district_nexus_context',
+    'get_district_nexus_changes',
   ];
 
   it.each(derivedTools)('%s is Capiro-derived, non-primary, and non-authoritative', (tool) => {

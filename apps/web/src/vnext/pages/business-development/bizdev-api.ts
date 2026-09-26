@@ -486,7 +486,7 @@ export const bizdevKeys = {
   /** Phase 2 candidate search — keyed by tenant + full search identity. */
   candidates: (
     tenantId: string,
-    query: { q: string; service?: string; includeExcluded?: '0' | '1'; limit: number; offset: number },
+    query: { q: string; service?: string; agency?: string; issue?: string; geography?: string; includeExcluded?: '0' | '1'; limit: number; offset: number },
   ) =>
     ['business-development', tenantId, 'candidates', { ...query, includeExcluded: query.includeExcluded ?? '0' }] as const,
   /** Phase 2 company dossier header (section=identity). */
@@ -747,7 +747,7 @@ export interface BizDevCandidateSearchResult {
 /** GET /api/business-development/search/candidates (q 2..200, limit 1..25, offset 0..500). */
 export function searchBizDevCandidates(
   api: AxiosInstance,
-  query: { q: string; service?: string; includeExcluded?: '0' | '1'; limit: number; offset: number },
+  query: { q: string; service?: string; agency?: string; issue?: string; geography?: string; includeExcluded?: '0' | '1'; limit: number; offset: number },
 ) {
   return api
     .get<BizDevCandidateSearchResult>('/api/business-development/search/candidates', {

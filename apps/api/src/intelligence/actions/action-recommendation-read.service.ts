@@ -41,6 +41,7 @@ export interface ListActionsQuery {
 /** The full action-card row returned to the web layer (matches ActionCardDto exactly). */
 export interface ActionCard {
   id: string;
+  districtKey?: string | null;
   clientId: string;
   clientName?: string;
   peCode: string | null;
@@ -80,6 +81,7 @@ const MAX_LIMIT = 100;
 /** Selected columns for a card row + the joined client name. */
 const cardSelect = {
   id: true,
+  districtKey: true,
   clientId: true,
   peCode: true,
   programId: true,
@@ -286,6 +288,7 @@ function toCard(
 ): ActionCard {
   return {
     id: row.id,
+    districtKey: row.districtKey,
     clientId: row.clientId,
     clientName: row.client?.name ?? undefined,
     peCode: row.peCode,

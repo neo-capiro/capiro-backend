@@ -40,6 +40,8 @@ describe('MeriRegistryService', () => {
     expect(list).toContain('search_lda_filings');
     expect(list).toContain('get_pe_budget_timeline');
     expect(list).toContain('query_economic_data');
+    expect(list).toContain('get_district_nexus_context');
+    expect(list).toContain('get_district_nexus_changes');
     // get_client_context is registered exactly once (native), not duplicated.
     expect(list.filter((n) => n === 'get_client_context')).toHaveLength(1);
   });

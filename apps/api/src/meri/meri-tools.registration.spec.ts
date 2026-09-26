@@ -155,6 +155,8 @@ const EXPECTED_TOOLS = [
   'search_committee_hearings',
   'search_crs_reports',
   'query_economic_data',
+  'get_district_nexus_context',
+  'get_district_nexus_changes',
   // Web
   'search_public_web',
   'scrape_web_page',
@@ -559,6 +561,17 @@ describe('Meri tool registration', () => {
             },
           });
         }
+        if (property === 'districtTools')
+          return {
+            getContext: () => {
+              calls.push('getContext');
+              return sentinel;
+            },
+            getChanges: () => {
+              calls.push('getChanges');
+              return sentinel;
+            },
+          };
         const actual = Reflect.get(target, property);
         if (typeof actual !== 'function') return actual;
         return () => {

@@ -4197,6 +4197,16 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat', 'in_editor'],
   },
   {
+    name: 'get_district_nexus_context',
+    description: 'Read client-scoped District Nexus facts and gaps for a state and district; cite each fact’s source, date and funding stage, and state gaps rather than refusing.',
+    backend: 'meri', readOnly: true, surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_district_nexus_changes',
+    description: 'Read recent district change-ledger events for a client scope; cite source, event date and funding stage where present, and state gaps rather than refusing.',
+    backend: 'meri', readOnly: true, surfaces: ['full_chat'],
+  },
+  {
     name: 'search_public_web',
     description:
       'Search the public web (general results and news) for recent developments. Use this only as supplemental context after Capiro internal data tools for government-affairs answers.',

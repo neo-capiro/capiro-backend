@@ -73,3 +73,33 @@
   .capiro-bizdev__discover-submit { flex: 1 1 100%; }
   .capiro-bizdev__discover-submit > * { width: 100%; }
 }
+
+/* ── Source-availability header ──────────────────────────────── */
+.capiro-bizdev__discover-source-availability { padding: 4px 16px; }
+.capiro-bizdev__discover-source-availability .capiro-bizdev__meta { color: var(--capiro-color-text-secondary); }
+
+/* ── Agency / Issue / Geography filter fields ────────────────── */
+.capiro-bizdev__discover-agency,
+.capiro-bizdev__discover-issue,
+.capiro-bizdev__discover-geography {
+  flex: 0 1 180px;
+  min-width: 0;
+  order: 3;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.capiro-bizdev__discover-agency .capiro-bizdev__input,
+.capiro-bizdev__discover-issue .capiro-bizdev__input,
+.capiro-bizdev__discover-geography .capiro-bizdev__select {
+  width: 100%;
+  min-width: 0;
+}
+@media (max-width: 600px) {
+  .capiro-bizdev__discover-agency,
+  .capiro-bizdev__discover-issue,
+  .capiro-bizdev__discover-geography {
+    flex: 1 1 100%;
+  }
+}

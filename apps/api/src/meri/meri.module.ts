@@ -31,6 +31,7 @@ import { RetrievalModule } from '../retrieval/retrieval.module.js';
 import { ContextCompilerService } from '../context/context-compiler.service.js';
 import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opportunities.module.js';
 import { ResearchPortfoliosModule } from '../research-portfolios/research-portfolios.module.js';
+import { DistrictNexusModule } from '../district-nexus/district-nexus.module.js';
 import { MeriOpportunityAssessmentService } from '../funding-opportunities/meri-opportunity-assessment.service.js';
 import { ReviewsModule } from '../reviews/reviews.module.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
@@ -82,7 +83,6 @@ import { MeriVNextLibraryController } from './meri-vnext-library.controller.js';
 import { MeriVNextLibraryService } from './meri-vnext-library.service.js';
 import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.proxy.js';
 
-
 @Module({
   imports: [
     ManagedMcpModule,
@@ -111,6 +111,7 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
     // Phase 4 server-only slice: provides BizDevMeriScopeService for Meri
     // prospect conversation creation (one-way; BD never imports Meri).
     BusinessDevelopmentModule,
+    DistrictNexusModule,
   ],
   controllers: [
     MeriController,
@@ -123,7 +124,6 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
     MeriPolicyPackController,
     MeriMcpOAuthController,
     MeriVNextLibraryController,
-
   ],
   providers: [
     MeriClientFilingService,
@@ -221,12 +221,14 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
                   'anthropic-version': '2023-06-01',
                   'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(prepareAnthropicRequest({
-                  model: config.get('CLIO_RESEARCH_PLAN_MODEL'),
-                  max_tokens: 4000,
-                  system,
-                  messages: [{ role: 'user', content: user }],
-                })),
+                body: JSON.stringify(
+                  prepareAnthropicRequest({
+                    model: config.get('CLIO_RESEARCH_PLAN_MODEL'),
+                    max_tokens: 4000,
+                    system,
+                    messages: [{ role: 'user', content: user }],
+                  }),
+                ),
                 signal: controller.signal,
               });
               if (!response.ok) {
@@ -253,9 +255,6 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
       ],
     },
   ],
-  exports: [
-    MeriToolsService,
-    MeriFeatureFlagsService,
-  ],
+  exports: [MeriToolsService, MeriFeatureFlagsService],
 })
 export class MeriModule {}

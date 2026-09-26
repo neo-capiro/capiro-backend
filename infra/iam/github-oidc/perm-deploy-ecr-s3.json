@@ -31,6 +31,7 @@
         "arn:aws:ecr:us-east-1:967807252336:repository/capiro/dev/meriv2-orchestrator",
         "arn:aws:ecr:us-east-1:967807252336:repository/capiro/dev/onboard-api",
         "arn:aws:ecr:us-east-1:967807252336:repository/capiro/dev/web",
+        "arn:aws:ecr:us-east-1:967807252336:repository/capiro/dev/web-vnext",
         "arn:aws:ecr:us-east-1:967807252336:repository/capiro/dev/workspace",
         "arn:aws:ecr:us-east-1:967807252336:repository/cdk-hnb659fds-container-assets-967807252336-us-east-1"
       ]

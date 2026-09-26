@@ -535,10 +535,10 @@ describe('discover search', () => {
     expect(screen.queryByRole('button', { name: 'Save prospect' })).not.toBeInTheDocument();
     // No private reason text anywhere in discovery.
     expect(screen.queryByText(/conflict reason/i)).not.toBeInTheDocument();
-    // No unsupported agency/issue/geography filter inputs are shown.
-    expect(screen.queryByLabelText(/Agency/)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/Issue/)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/Geography/)).not.toBeInTheDocument();
+    // Agency/issue/geography filter inputs are now shown (Phase 2 filters).
+    expect(screen.queryByLabelText(/Agency/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Issue/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Geography/)).toBeInTheDocument();
     expect(screen.getByText('Service hypothesis')).toBeInTheDocument();
     expect(screen.getByText('Not assessed')).toBeInTheDocument();
     expect(screen.queryByText(/priority score|source availability/i)).not.toBeInTheDocument();
@@ -907,6 +907,9 @@ describe('Phase 2 URL state and query keys', () => {
       discoverQuery: '',
       discoverService: '',
       discoverIncludeExcluded: false,
+      discoverAgency: '',
+      discoverIssue: '',
+      discoverGeography: '',
       discoverOffset: 0,
       dossierEntityId: '',
       dossierProspectId: '',
@@ -977,6 +980,9 @@ describe('Phase 2 URL state and query keys', () => {
       discoverQuery: '',
       discoverService: '',
       discoverIncludeExcluded: false,
+      discoverAgency: '',
+      discoverIssue: '',
+      discoverGeography: '',
       discoverOffset: 0,
       dossierEntityId: '',
       dossierProspectId: '',

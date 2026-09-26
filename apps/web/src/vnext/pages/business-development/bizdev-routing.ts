@@ -110,6 +110,12 @@ export interface BizDevRoute {
   discoverService: string;
   /** Submitted discover exclusions review mode: true = include firm-excluded candidates for review. */
   discoverIncludeExcluded: boolean;
+  /** Submitted discover agency filter (text value). */
+  discoverAgency: string;
+  /** Submitted discover issue filter (text value). */
+  discoverIssue: string;
+  /** Submitted discover geography filter (2-letter state code). */
+  discoverGeography: string;
   /** Stable numeric offset for discover paging (0..500). */
   discoverOffset: number;
   /** Dossier subject: canonical entity id (company dossier) when set. */
@@ -135,6 +141,9 @@ const DEFAULTS: BizDevRoute = {
   discoverQuery: '',
   discoverService: '',
   discoverIncludeExcluded: false,
+  discoverAgency: '',
+  discoverIssue: '',
+  discoverGeography: '',
   discoverOffset: 0,
   dossierEntityId: '',
   dossierProspectId: '',
@@ -196,6 +205,9 @@ export function resolveBizDevRoute(params: URLSearchParams | null | undefined): 
   const discoverQuery = (params.get('bdDq') ?? '').trim().slice(0, 200);
   const discoverService = (params.get('bdDService') ?? '').trim().slice(0, 200);
   const discoverIncludeExcluded = params.get('bdDExcluded') === '1';
+  const discoverAgency = (params.get('bdDAgency') ?? '').trim().slice(0, 200);
+  const discoverIssue = (params.get('bdDIssue') ?? '').trim().slice(0, 200);
+  const discoverGeography = (params.get('bdDGeography') ?? '').trim().slice(0, 2);
   const discoverOffset = clampInt(params.get('bdOffset'), 0, 500, 0);
   const dossierEntityId = params.get('bdDossier')?.trim() ?? '';
   const dossierProspectId = params.get('bdDossierProspect')?.trim() ?? '';
@@ -220,11 +232,14 @@ export function resolveBizDevRoute(params: URLSearchParams | null | undefined): 
     discoverQuery,
     discoverService,
     discoverIncludeExcluded,
+    discoverAgency,
+    discoverIssue,
+    discoverGeography,
     discoverOffset,
     dossierEntityId,
     dossierProspectId,
     dossierSection,
-  };
+    };
 }
 
 /** Canonical query params for the route, preserving unrelated params. */
@@ -269,6 +284,9 @@ export function applyBizDevRoute(
     if (route.discoverIncludeExcluded) next.set('bdDExcluded', '1');
     else next.delete('bdDExcluded');
   }
+  if (route.discoverAgency !== undefined) set('bdDAgency', route.discoverAgency);
+  if (route.discoverIssue !== undefined) set('bdDIssue', route.discoverIssue);
+  if (route.discoverGeography !== undefined) set('bdDGeography', route.discoverGeography);
   if (route.discoverOffset !== undefined) {
     if (route.discoverOffset > 0) next.set('bdOffset', String(route.discoverOffset));
     else next.delete('bdOffset');
@@ -350,14 +368,17 @@ export function isBizDevOverdue(nextActionDueAt: string | null | undefined, now 
 /**
  * The bounded candidate-search query object for a resolved route.
  *
- * agency/issue/geography are deliberately absent: the backend reports them
- * as unsupported filters (coverage.unsupportedFilters) and the UI must never
- * present them as working filters. q is only ever non-empty after an explicit
- * submit (min 2 chars); offset is the stable numeric page anchor (0..500).
+ * q is only ever non-empty after an explicit submit (min 2 chars); offset is the
+ * stable numeric page anchor (0..500). agency/issue/geography are sent as
+ * optional query params when provided; the backend reports unsupported filters
+ * via coverage.unsupportedFilters.
  */
 export function bizDevDiscoverQuery(route: BizDevRoute): {
   q: string;
   service?: string;
+  agency?: string;
+  issue?: string;
+  geography?: string;
   /** Strictly '0' | '1' as serialized to the backend; default '0'. */
   includeExcluded: '0' | '1';
   limit: number;
@@ -366,6 +387,9 @@ export function bizDevDiscoverQuery(route: BizDevRoute): {
   return {
     q: route.discoverQuery,
     ...(route.discoverService ? { service: route.discoverService } : {}),
+    ...(route.discoverAgency ? { agency: route.discoverAgency } : {}),
+    ...(route.discoverIssue ? { issue: route.discoverIssue } : {}),
+    ...(route.discoverGeography ? { geography: route.discoverGeography } : {}),
     includeExcluded: route.discoverIncludeExcluded ? '1' : '0',
     limit: BIZDEV_DISCOVER_LIMIT_DEFAULT,
     offset: route.discoverOffset,

@@ -157,6 +157,7 @@ import {
   ResearchPortfolioMeriToolsService,
 } from '../research-portfolios/research-portfolio-meri-tools.service.js';
 import { MeetingPrepJobService } from '../engagement/meeting-prep-job.service.js';
+import { R5MeriDistrictTools } from '../district-nexus/r5-action-layer/r5-meri-district-tools.js';
 import { meetingPrepEnabled } from '../engagement/meeting-prep-policy.js';
 import { fetchFedrampProducts } from '../external/fedramp/fedramp.client.js';
 import {
@@ -288,6 +289,7 @@ export class MeriToolsService {
     // lives in MeriBizDevToolsService (one place), the switch below delegates.
     @Optional() private readonly bizDevTools?: MeriBizDevToolsService,
     @Optional() private readonly researchPortfolioTools?: ResearchPortfolioMeriToolsService,
+    @Optional() private readonly districtTools?: R5MeriDistrictTools,
   ) {}
 
   manifest() {
@@ -1055,6 +1057,17 @@ export class MeriToolsService {
         state: str('Two-letter state code'),
         district: str('Congressional district'),
         limit: int('Max results (1-50)'),
+      }),
+      get_district_nexus_context: obj({
+        clientId: str('Exact client UUID (omitted only when conversation has an active client)'),
+        state: str('Two-letter state code'),
+        district: str('Two-digit congressional district, 00 for at-large'),
+      }),
+      get_district_nexus_changes: obj({
+        clientId: str('Exact client UUID (omitted only when conversation has an active client)'),
+        state: str('Two-letter state code'),
+        district: str('Two-digit congressional district, 00 for at-large'),
+        since: str('Optional ISO timestamp lower bound'),
       }),
       search_public_web: obj(
         {
@@ -2213,6 +2226,20 @@ export class MeriToolsService {
         return this.searchCrsReports(input);
       case 'query_economic_data':
         return this.queryEconomicData(input);
+      case 'get_district_nexus_context':
+        return (
+          this.districtTools?.getContext(ctx, input) ?? {
+            available: false,
+            reason: 'feature_disabled',
+          }
+        );
+      case 'get_district_nexus_changes':
+        return (
+          this.districtTools?.getChanges(ctx, input) ?? {
+            available: false,
+            reason: 'feature_disabled',
+          }
+        );
       case 'search_public_web':
         return this.searchPublicWeb(input);
       case 'scrape_web_page':

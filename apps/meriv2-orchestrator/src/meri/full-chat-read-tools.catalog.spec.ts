@@ -7,8 +7,7 @@ import { WRITE_DELEGATED_TOOLS } from './write-tools.catalog';
  * W4.6 / D-13: the canonical apps/api Meri tool surface is now the checked-in
  * MERI_TOOL_MANIFEST in @capiro/shared (apps/api is not importable here). It is
  * the single source both sides assert against — no more hand-maintained,
- * silently-drifting name list transcribed into this file. Current surface: 67
- * tools (64 + confirm/correct/forget_memory, Phase 1 1D).
+ * silently-drifting name list transcribed into this file.
  */
 const ALL_APPS_API_TOOLS = [...MERI_TOOL_NAMES];
 
@@ -81,6 +80,8 @@ describe('FULL_CHAT_READ_TOOLS catalog', () => {
       'search_contract_vehicles',
       'search_procurement_forecasts',
       'get_district_federal_market',
+      'get_district_nexus_context',
+      'get_district_nexus_changes',
       'get_business_development_context',
       'get_business_development_evidence',
       'get_business_development_recent_changes',
@@ -88,7 +89,7 @@ describe('FULL_CHAT_READ_TOOLS catalog', () => {
       'resolve_business_development_source',
     ].sort();
     expect(FULL_CHAT_READ_TOOLS.map((t) => t.name).sort()).toEqual(expected);
-    expect(FULL_CHAT_READ_TOOLS).toHaveLength(66);
+    expect(FULL_CHAT_READ_TOOLS).toHaveLength(68);
     expect(FULL_CHAT_READ_TOOLS.every((t) => t.readOnly === true)).toBe(true);
   });
 
@@ -108,7 +109,7 @@ describe('Combined delegated-tool coverage (in-editor + write + full-chat-read)'
     ].sort();
     expect(combined).toEqual(ALL_APPS_API_TOOLS);
     expect(new Set(combined).size).toBe(combined.length); // no tool double-registered
-    expect(combined).toHaveLength(120);
+    expect(combined).toHaveLength(122);
   });
 
   it('W4.6 / D-13: the three catalogs match the canonical MERI_TOOL_MANIFEST VERBATIM (name AND description) — catches description drift the name-only check missed', () => {

@@ -1597,6 +1597,41 @@ function relativeDay(iso: string): string {
   return future ? `in ${days}d` : `${days}d ago`;
 }
 
+/**
+ * Strip query parameters (including ?pwd= tokens) from URL-shaped meeting
+ * locations so that join passwords and other secrets do not appear in the
+ * dashboard subtitle. The actual join URL is stored separately in joinUrl
+ * and used by the Join button, so this is display-only sanitization.
+ */
+function sanitizeLocation(location: string | null | undefined): string | null {
+  if (!location || typeof location !== 'string') return null;
+  const trimmed = location.trim();
+  if (!trimmed) return null;
+
+  // Not a URL — pass through (room names, addresses, etc.)
+  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) return trimmed;
+
+  try {
+    const url = new URL(trimmed);
+    const host = url.hostname.toLowerCase();
+
+    // Zoom
+    if (host.includes('zoom.us') || host.includes('zoom.com')) return 'Zoom Meeting';
+    // Microsoft Teams
+    if (host.includes('teams.microsoft.com') || host.includes('teams.live.com')) return 'Microsoft Teams Meeting';
+    // Google Meet
+    if (host.includes('meet.google.com')) return 'Google Meet';
+    // Webex
+    if (host.includes('webex.com')) return 'Webex Meeting';
+    // Generic: show just the hostname, no path or query params
+    return url.hostname;
+  } catch {
+    // Malformed URL — strip everything after ? to be safe
+    const qIdx = trimmed.indexOf('?');
+    return qIdx > 0 ? trimmed.slice(0, qIdx) : trimmed;
+  }
+}
+
 function readJoinUrl(meeting: DashMeeting): string | null {
   if (meeting.joinLink) return meeting.joinLink;
   const metadata = meeting.metadata;
@@ -1673,7 +1708,7 @@ export function mergeTodayEvents(
       startsAt: meeting.startsAt,
       time: formatTime(meeting.startsAt),
       title: meeting.subject,
-      meta: [dayLabel(meeting.startsAt), meeting.client?.name, meeting.location]
+      meta: [dayLabel(meeting.startsAt), meeting.client?.name, sanitizeLocation(meeting.location)]
         .filter(Boolean)
         .join(' · '),
       href: `/engagement/meetings/${encodeURIComponent(meeting.id)}`,

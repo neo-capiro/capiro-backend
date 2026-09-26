@@ -9,6 +9,9 @@ import { DistrictNexusRelationshipsController } from './district-nexus-relations
 import { DistrictNexusEconomicController } from './district-nexus-economic.controller.js';
 import { DistrictNexusPriorityIntelligenceController } from './priority-intelligence/priority-intelligence.controller.js';
 import { R5DistrictBriefController } from './r5-action-layer/r5-district-brief.controller.js';
+import { R5DistrictActionsController } from './r5-action-layer/r5-district-actions.controller.js';
+import { R5DistrictActionsService } from './r5-action-layer/r5-district-actions.service.js';
+import { R5MeetingPrepController } from './r5-action-layer/r5-meeting-prep.controller.js';
 import { DistrictNexusService } from './district-nexus.service.js';
 import { DistrictNexusRelationshipsService } from './district-nexus-relationships.service.js';
 import { DistrictNexusStrategicService } from './district-nexus-strategic.service.js';
@@ -18,13 +21,15 @@ import { GsaRealPropertyIngestService } from './priority-intelligence/priority-i
 import { DistrictNexusChangeWriter } from './priority-intelligence/priority-intelligence-changes.js';
 import { R5DistrictContextService } from './r5-action-layer/r5-district-context.service.js';
 import { R5DistrictBriefService } from './r5-action-layer/r5-district-brief.service.js';
+import { R5MeetingPrepService } from './r5-action-layer/r5-meeting-prep.service.js';
 import { DistrictNexusFlagGuard } from './district-nexus-flag.guard.js';
 import { DistrictNexusStrategicFlagGuard } from './district-nexus-strategic-flag.guard.js';
 import { DistrictNexusEconomicFlagGuard } from './district-nexus-economic-flag.guard.js';
 import { DistrictNexusPriorityIntelligenceFlagGuard } from './priority-intelligence/priority-intelligence-flag.guard.js';
 import { R5FlagGuard } from './r5-action-layer/r5-flag.guard.js';
-import { R5DistrictAlertsService } from './r5-action-layer/r5-alerts.service.js';
 import { R5DistrictAlertsController } from './r5-action-layer/r5-alerts.controller.js';
+import { R5DistrictAlertsService } from './r5-action-layer/r5-alerts.service.js';
+import { R5MeriDistrictTools } from './r5-action-layer/r5-meri-district-tools.js';
 
 /**
  * District Nexus v2.
@@ -33,6 +38,7 @@ import { R5DistrictAlertsController } from './r5-action-layer/r5-alerts.controll
  * Strategic Relevance rail. Release 3 adds reviewable first-party economic
  * evidence and public district context. Release 4 adds Federal + Local Priority
  * Intelligence (CPF/CDS, GSA property, sector signals, deterministic changes).
+ * Release 5 adds Proactive Alerts and Recommended Actions.
  * These are registered in one module but remain independently gated and
  * independently scored — no parallel map or blended master score.
  */
@@ -44,6 +50,8 @@ import { R5DistrictAlertsController } from './r5-action-layer/r5-alerts.controll
     DistrictNexusEconomicController,
     DistrictNexusPriorityIntelligenceController,
     R5DistrictBriefController,
+    R5DistrictActionsController,
+    R5MeetingPrepController,
     R5DistrictAlertsController,
   ],
   providers: [
@@ -56,13 +64,16 @@ import { R5DistrictAlertsController } from './r5-action-layer/r5-alerts.controll
     DistrictNexusChangeWriter,
     R5DistrictContextService,
     R5DistrictBriefService,
+    R5DistrictActionsService,
+    R5DistrictAlertsService,
+    R5MeriDistrictTools,
+    R5MeetingPrepService,
     ClientDocumentWriterService,
     DistrictNexusFlagGuard,
     DistrictNexusStrategicFlagGuard,
     DistrictNexusEconomicFlagGuard,
     DistrictNexusPriorityIntelligenceFlagGuard,
     R5FlagGuard,
-    R5DistrictAlertsService,
   ],
   exports: [
     DistrictNexusService,
@@ -71,6 +82,9 @@ import { R5DistrictAlertsController } from './r5-action-layer/r5-alerts.controll
     DistrictNexusEconomicService,
     DistrictNexusPriorityIntelligenceService,
     R5DistrictContextService,
+    R5DistrictBriefService,
+    R5DistrictAlertsService,
+    R5MeriDistrictTools,
   ],
 })
 export class DistrictNexusModule {}

@@ -4,8 +4,8 @@
  * Contract notes (backend-04-report + bizdev-dossier.service.ts):
  * - Candidate search is GET /search/candidates with q (2..200), limit (1..25),
  *   offset (0..500). The response is { results, coverage } — no cursor.
- * - agency/issue/geography filters are NOT supported by the backend; the UI
- *   shows no fake filter inputs and reports coverage honestly.
+ * - agency/issue/geography filters are supported; the UI presents filter
+ *   inputs and shows coverage indicators from the response.
  * - Candidates carry structured whyInspect, UEI/CAGE identifiers and SAFE
  *   markers only; conflict reasons / note bodies never appear.
  * - Search fires ONLY on explicit submit (never while typing or scrolling);
@@ -36,6 +36,16 @@ import {
 } from './bizdev-api.js';
 
 const SEARCH_MIN = 2;
+
+/** US state abbreviations for the geography dropdown. */
+export const US_STATES = [
+  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
+] as const;
+export type USState = (typeof US_STATES)[number];
 
 /** An award's calendar date must not move back a day in US time zones. */
 export function candidateEventDate(value: string): string {
@@ -268,14 +278,20 @@ export function DiscoverPanel({ tenantId }: { tenantId: string }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const route = resolveBizDevRoute(searchParams);
 
-  // Draft: typing never fetches. Submit writes q/service to the URL; the
+  // Draft: typing never fetches. Submit writes q/service/agency/issue/geography to the URL; the
   // query subscribes to URL state only.
   const [draft, setDraft] = useState(route.discoverQuery);
   const [draftService, setDraftService] = useState(route.discoverService);
+  const [draftAgency, setDraftAgency] = useState(route.discoverAgency);
+  const [draftIssue, setDraftIssue] = useState(route.discoverIssue);
+  const [draftGeography, setDraftGeography] = useState(route.discoverGeography);
   useEffect(() => {
     setDraft(route.discoverQuery);
     setDraftService(route.discoverService);
-  }, [route.discoverQuery, route.discoverService]);
+    setDraftAgency(route.discoverAgency);
+    setDraftIssue(route.discoverIssue);
+    setDraftGeography(route.discoverGeography);
+  }, [route.discoverQuery, route.discoverService, route.discoverAgency, route.discoverIssue, route.discoverGeography]);
 
   // Service options come from this tenant's saved practice/service
   // preferences — never an invented static list. The submitted URL value is
@@ -311,6 +327,9 @@ export function DiscoverPanel({ tenantId }: { tenantId: string }) {
         discover: 'open',
         discoverQuery: q,
         discoverService: draftService,
+        discoverAgency: draftAgency,
+        discoverIssue: draftIssue,
+        discoverGeography: draftGeography,
         discoverOffset: 0,
       }),
     );
@@ -343,7 +362,10 @@ export function DiscoverPanel({ tenantId }: { tenantId: string }) {
   const reviewCount = candidates.length - directCount;
   const filtersUnconfirmed = search.isSuccess && (
     coverage?.exclusionsApplied !== !route.discoverIncludeExcluded ||
-    (Boolean(route.discoverService) && coverage?.serviceFilterApplied !== true)
+    (Boolean(route.discoverService) && coverage?.serviceFilterApplied !== true) ||
+    (Boolean(route.discoverAgency) && coverage?.agencyFilterApplied !== true) ||
+    (Boolean(route.discoverIssue) && coverage?.issueFilterApplied !== true) ||
+    (Boolean(route.discoverGeography) && coverage?.geographyFilterApplied !== true)
   );
 
   return (
@@ -396,6 +418,48 @@ export function DiscoverPanel({ tenantId }: { tenantId: string }) {
         <p className="capiro-bizdev__meta capiro-bizdev__discover-service-note" id="bizdev-discover-service-note">
           Matches your firm’s saved service hypothesis, not an assessed company service.
         </p>
+        <div className="capiro-bizdev__field capiro-bizdev__discover-agency">
+          <label className="capiro-bizdev__label" htmlFor="bizdev-discover-agency">
+            Agency
+          </label>
+          <input
+            id="bizdev-discover-agency"
+            className="capiro-bizdev__input"
+            value={draftAgency}
+            onChange={(e) => setDraftAgency(e.target.value)}
+            maxLength={200}
+            placeholder="Agency name"
+          />
+        </div>
+        <div className="capiro-bizdev__field capiro-bizdev__discover-issue">
+          <label className="capiro-bizdev__label" htmlFor="bizdev-discover-issue">
+            Issue
+          </label>
+          <input
+            id="bizdev-discover-issue"
+            className="capiro-bizdev__input"
+            value={draftIssue}
+            onChange={(e) => setDraftIssue(e.target.value)}
+            maxLength={200}
+            placeholder="Issue keywords"
+          />
+        </div>
+        <div className="capiro-bizdev__field capiro-bizdev__discover-geography">
+          <label className="capiro-bizdev__label" htmlFor="bizdev-discover-geography">
+            Geography
+          </label>
+          <select
+            id="bizdev-discover-geography"
+            className="capiro-bizdev__select"
+            value={draftGeography}
+            onChange={(e) => setDraftGeography(e.target.value)}
+          >
+            <option value="">All states</option>
+            {US_STATES.map((state) => (
+              <option key={state} value={state}>{state}</option>
+            ))}
+          </select>
+        </div>
       </form>
       </div>
 
@@ -417,6 +481,20 @@ export function DiscoverPanel({ tenantId }: { tenantId: string }) {
         <p role="alert" className="capiro-bizdev__meta capiro-bizdev__section-pad">
           This server has not confirmed the requested filters. These results may be unfiltered; retry after the service is updated.
         </p>
+      ) : null}
+
+      {hasQuery && coverage ? (
+        <div className="capiro-bizdev__discover-source-availability" aria-live="polite">
+          {coverage.unsupportedFilters.length > 0 ? (
+            <span className="capiro-bizdev__meta">
+              Unsupported filters: {coverage.unsupportedFilters.join(', ')}
+            </span>
+          ) : coverage.agencyFilterApplied || coverage.issueFilterApplied || coverage.geographyFilterApplied ? (
+            <span className="capiro-bizdev__meta">
+              Coverage applied
+            </span>
+          ) : null}
+        </div>
       ) : null}
 
       {hasQuery ? (
