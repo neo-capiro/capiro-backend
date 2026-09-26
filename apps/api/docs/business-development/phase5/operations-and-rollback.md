@@ -22,6 +22,14 @@ The internal pilot uses global-on plus both tenant flags on only for the named i
 
 The scheduled task uses the reviewed API image digest and existing database secrets/network configuration. It overrides only the container command to `bizdev-watch-scan`. It must not invoke any `sync-*`, `ingest-*`, provider, or general-purpose task-runner command.
 
+### EventBridge invoker permission preflight
+
+An enabled rule and a successful manual smoke task do not prove scheduled execution. Check `AWS/Events` `Invocations` and `FailedInvocations` for the exact RuleName, then verify new ECS task launches, exit codes, and summary log lines. An IAM denial can prevent task creation entirely.
+
+The reviewed `scripts/ops/repair-bizdev-watch-invoker.ps1` is read-only by default. It validates the AWS account, existing target/cluster/role/family, both current PassRole grants, and IAM simulations. After merging, run with `-Apply` through AWS CLI to add the separate `BizDevWatchEvaluatorRunTask` inline policy from `bizdev-watch-invoker-policy.json`. It permits only evaluator-family revisions on the existing cluster, preserves the shared `RunTaskAndPassRole` policy, refuses conflicting policy drift, and never alters the schedule or starts a task. Do not broaden it to `ecs:*` or all task definitions.
+
+After permission propagation, require an `allowed` RunTask simulation and observe the next real scheduled run. Missing failure metrics alone are not proof of success; inspect invocation/delivery metrics and the actual task/log evidence. Do not reschedule or add ingestion to accelerate this check. Permission-only rollback removes the dedicated inline policy with `aws iam delete-role-policy --role-name capiro-dev-eventbridge-sync-invoker --policy-name BizDevWatchEvaluatorRunTask`; it must not remove the shared policy or role.
+
 ## Cost and blast-radius controls
 
 Cost is bounded database work only: claim count, record count, source allowlist, short-lived execution, and tenant flags. There are no provider credits, LLM calls, embeddings, or network-egress fetches in the evaluator. The CLI prints one JSON summary containing checked, baselined, candidates, duplicates, delivered, suppressed, partial, failed, and durationMs.
