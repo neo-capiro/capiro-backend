@@ -7,8 +7,8 @@
  * - Pipeline default view; stage histogram from real counts.byStage applies the
  *   existing stage filter
  * - One status selector + derived overdue-only toggle (from nextActionDueAt)
- * - Watchlist renders from the existing list/watch/alert GETs only, with bounded
- *   fan-out, and opens the prospect drawer
+ * - Watchlist renders from existing list/watch/alert GETs, with bounded
+ *   fan-out, opens the prospect drawer, and uses existing alert action endpoints
  * - absence of prototype-only fabrications (priority, digest, demo controls)
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -115,9 +115,11 @@ interface MockConfig {
   watch?: BizDevProspectWatch | null;
   watchError?: Error;
   alerts?: BizDevProspectAlert[];
+  alertActionFails?: boolean;
 }
 
 function makeApi(cfg: MockConfig): AxiosInstance {
+  let alertItems = cfg.alerts ?? [alertFixture()];
   const counts = cfg.counts ?? {
     visible: 2,
     total: 2,
@@ -147,7 +149,7 @@ function makeApi(cfg: MockConfig): AxiosInstance {
               : (cfg.watch ?? watchFixture()),
         };
       }
-      if (path === ALERTS_URL) return { data: { items: cfg.alerts ?? [alertFixture()], nextCursor: null } };
+      if (path === ALERTS_URL) return { data: { items: alertItems, nextCursor: null } };
       if (path === '/api/business-development/member-options') return { data: { members: MEMBERS } };
       if (path === '/api/business-development/preferences') return { data: null };
       if (path === '/api/business-development/search/canonical-organizations') return { data: { results: [] } };
@@ -155,6 +157,16 @@ function makeApi(cfg: MockConfig): AxiosInstance {
       throw new Error(`unmocked GET ${path}`);
     }),
     post: vi.fn(async (path: string) => {
+      if (path === `${ALERTS_URL}/a-1/read`) {
+        if (cfg.alertActionFails) throw new Error('alert action unavailable');
+        alertItems = alertItems.map((alert) => alert.id === 'a-1' ? { ...alert, readAt: '2026-09-25T12:00:00.000Z' } : alert);
+        return { data: {} };
+      }
+      if (path === `${ALERTS_URL}/a-1/dismiss`) {
+        if (cfg.alertActionFails) throw new Error('alert action unavailable');
+        alertItems = alertItems.map((alert) => alert.id === 'a-1' ? { ...alert, dismissedAt: '2026-09-25T12:00:00.000Z' } : alert);
+        return { data: {} };
+      }
       if (path === '/api/business-development/duplicate-hints') return { data: { hints: [] } };
       if (path === '/api/business-development/prospects') return { data: prospect() };
       throw new Error(`unmocked POST ${path}`);
@@ -431,12 +443,59 @@ describe('Watchlist view', () => {
     expect(screen.getByText(/Last completed check/)).toBeInTheDocument();
     expect(screen.getByText(/Checked and healthy/)).toBeInTheDocument();
     expect(screen.getByText('New federal contract award')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Recent changes' })).toHaveClass('capiro-bizdev__watchlist-main');
+    expect(screen.getByRole('complementary', { name: 'Watched prospects' })).toHaveClass('capiro-bizdev__watchlist-side');
+    expect(screen.getByRole('list', { name: 'Recent watch alerts' })).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Source health for Overland AI' })).toBeInTheDocument();
     // Only existing endpoints: list + watch + alerts.
     const paths = getCalls().map(([p]) => p);
     expect(paths).toContain('/api/business-development/prospects');
     expect(paths).toContain(WATCH_URL);
     expect(paths).toContain(ALERTS_URL);
     for (const p of paths) expect(p).toMatch(/^\/api\/business-development\//);
+  });
+
+  it('marks a feed alert read using the existing endpoint and refreshes the real feed', async () => {
+    renderAt('?view=business-development&bdView=watchlist', ALL_ON);
+    const feed = await screen.findByRole('list', { name: 'Recent watch alerts' });
+    fireEvent.click(within(feed).getByRole('button', { name: 'Mark read' }));
+    await waitFor(() => expect((apiMock.post as ReturnType<typeof vi.fn>).mock.calls).toContainEqual([`${ALERTS_URL}/a-1/read`]));
+    await waitFor(() => expect(screen.getByText(/watched · 0 unread alerts/)).toBeInTheDocument());
+    expect(within(feed).getByText('Read')).toBeInTheDocument();
+    expect(within(feed).queryByRole('button', { name: 'Mark read' })).not.toBeInTheDocument();
+  });
+
+  it('dismisses a feed alert and refreshes the empty feed while retaining its watch', async () => {
+    renderAt('?view=business-development&bdView=watchlist', ALL_ON);
+    const feed = await screen.findByRole('list', { name: 'Recent watch alerts' });
+    fireEvent.click(within(feed).getByRole('button', { name: 'Dismiss' }));
+    await waitFor(() => expect((apiMock.post as ReturnType<typeof vi.fn>).mock.calls).toContainEqual([`${ALERTS_URL}/a-1/dismiss`]));
+    expect(await screen.findByText('No alerts from the loaded watches yet.')).toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: 'Watched prospects' })).toHaveTextContent('Overland AI');
+  });
+
+  it('keeps a failed alert action visible with an actionable error', async () => {
+    renderAt('?view=business-development&bdView=watchlist', { ...ALL_ON, alertActionFails: true });
+    const feed = await screen.findByRole('list', { name: 'Recent watch alerts' });
+    fireEvent.click(within(feed).getByRole('button', { name: 'Mark read' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('alert action unavailable');
+    expect(within(feed).getByRole('button', { name: 'Mark read' })).toBeEnabled();
+    expect(within(feed).getByText('New federal contract award')).toBeInTheDocument();
+  });
+
+  it('filters only by categories present in loaded alerts', async () => {
+    renderAt('?view=business-development&bdView=watchlist', {
+      ...ALL_ON,
+      alerts: [alertFixture(), { ...alertFixture(), id: 'a-2', title: 'Leadership change', category: 'leadership' }],
+    });
+    const filter = await screen.findByRole('combobox', { name: 'Category' });
+    expect(within(filter).getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'All categories', 'contracts', 'leadership',
+    ]);
+    fireEvent.change(filter, { target: { value: 'leadership' } });
+    const feed = screen.getByRole('list', { name: 'Recent watch alerts' });
+    expect(within(feed).getByText('Leadership change')).toBeInTheDocument();
+    expect(within(feed).queryByText('New federal contract award')).not.toBeInTheDocument();
   });
 
   it('opens the watched prospect drawer where the real watch controls live', async () => {

@@ -1119,11 +1119,52 @@
   color: var(--capiro-color-text-secondary);
 }
 
-/* Watchlist view: card list, source health, alert feed. */
+/* Watchlist: recent alerts lead, watched prospects remain close by. */
+.capiro-bizdev__watchlist-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  gap: 16px;
+  padding: 0 24px 20px;
+  align-items: start;
+}
+.capiro-bizdev__watchlist-main,
+.capiro-bizdev__watchlist-side {
+  min-width: 0;
+}
+.capiro-bizdev__watchlist-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.capiro-bizdev__watchlist-section-head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.capiro-bizdev__watchlist-section-head p {
+  margin: 2px 0 0;
+}
+.capiro-bizdev__watchlist-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.capiro-bizdev__watchlist-filter select {
+  min-height: 36px;
+  max-width: 180px;
+  padding: 4px 8px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: 8px;
+  background: var(--capiro-color-bg-surface);
+  color: inherit;
+}
 .capiro-bizdev__watchlist {
   list-style: none;
   margin: 0;
-  padding: 0 24px 16px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1145,6 +1186,9 @@
 }
 .capiro-bizdev__card-head .capiro-bizdev__name-btn {
   font-size: 15px;
+}
+.capiro-bizdev__watch-prospect {
+  padding: 12px;
 }
 .capiro-bizdev__source-health {
   list-style: none;
@@ -1179,17 +1223,40 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 10px 12px;
+  padding: 14px 16px;
   border: 1px solid var(--capiro-color-border-quiet);
   border-left: 3px solid var(--capiro-color-border-warning);
   border-radius: 8px;
   background: var(--capiro-color-bg-surface);
+}
+.capiro-bizdev__watchlist-alert-meta,
+.capiro-bizdev__watchlist-alert-text {
+  margin: 0;
+}
+.capiro-bizdev__watchlist-alert-actions {
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+.capiro-bizdev__watchlist-quiet {
+  padding: 24px;
+  border: 1px dashed var(--capiro-color-border-quiet);
+  border-radius: 10px;
 }
 .capiro-bizdev__footer-note {
   padding: 0 24px 16px;
 }
 
 /* ── responsive ──────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .capiro-bizdev__watchlist-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .capiro-bizdev__watchlist-layout {
+    padding-inline: 16px;
+  }
+}
 @media (max-width: 1179px) {
   .capiro-bizdev {
     --capiro-page-block-start: 20px;
