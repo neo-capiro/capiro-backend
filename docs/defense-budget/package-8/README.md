@@ -13,6 +13,7 @@ Package 8 adds a fail-closed physical-source reconciliation surface and the safe
 - A read-only DTIC/JDOCS XML inspector evaluates a single pinned FY2026 mirror candidate. It validates actual QName namespace bindings, byte SHA-256, metadata, and PE identities, but always returns `candidate_only` and `promotable: false`.
 - A qualification-only reconciliation binds the pinned official DTIC XML to the official PDF by SHA-256 and checks all two PE and three project FY2026 funding identities against extracted PDF page text. It is evidence, not a production parser proof or publication approval.
 - The DTIC inspector now emits a versioned, prefix-independent expanded-QName locator inventory for each PE identity, bound to the original XML SHA-256. The real FY2026 XML yields two distinct PE locators; this remains candidate-only evidence.
+- The DTIC inspector now also emits a typed, field-level semantic candidate for each PE. It requires the PE title, budget year, monetary unit, and five canonical funding fields, binds every value to an expanded-QName locator and the original XML SHA-256, and remains `candidate_only`/`promotable: false`.
 
 ## Historical source decision
 
@@ -44,3 +45,4 @@ Package 1's exact production queue inventory found zero manifest-eligible rows. 
 - [Machine-readable release evidence](./release-evidence-2026-09-25.json)
 - [Historical notification qualification](./package4-historical-suppression-qualification.json)
 - [DTIC/JDOCS candidate assessment](./handriss-dtic-source-catalog-assessment.md)
+- [Semantic candidate validation evidence](./validation-evidence-2026-09-26.md)

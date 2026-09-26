@@ -3,6 +3,7 @@ import {
   DTIC_FY2026_DTIC_CANDIDATE_PROVENANCE_V1,
   DTIC_JDOCS_R2_NAMESPACE_V1,
   DTIC_JDOCS_XML_ROOT_NAMESPACE_V1,
+  extractDticJdocsXmlSemanticCandidateV1,
   inspectDticJdocsXmlSourceV1,
   inventoryDticJdocsXmlProgramElementLocatorsV1,
   qualifyDticJdocsXmlCandidateV1,
@@ -32,6 +33,38 @@ const PROVENANCE: DticJdocsXmlSourceProvenanceV1 = {
     'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2026/budget_justification/pdfs/03_RDT_and_E/RDTE_DTIC_PB_2026.pdf',
   officialPdfSha256: '08c867d61816f7b5ebb82924a33d4003ee03c7880984ac6dc9bc91363b6f2d63',
 };
+
+const SEMANTIC_FIXTURE = `<?xml version="1.0" encoding="UTF-8"?>
+<jb:JustificationBook xmlns:jb="${DTIC_JDOCS_XML_ROOT_NAMESPACE_V1}">
+  <jb:BudgetYear>2026</jb:BudgetYear><jb:BudgetCycle>PB</jb:BudgetCycle>
+  <jb:SubmissionDate>2025-06</jb:SubmissionDate>
+  <jb:ServiceAgencyName>Defense Technical Information Center</jb:ServiceAgencyName>
+  <jb:AppropriationCode>0400</jb:AppropriationCode>
+  <jb:AppropriationName>Research, Development, Test &amp; Evaluation, Defense-Wide</jb:AppropriationName>
+  <r2:ProgramElementList xmlns:r2="${DTIC_JDOCS_R2_NAMESPACE_V1}">
+    <r2:ProgramElement monetaryUnit="Dollars">
+      <r2:ProgramElementNumber>0605801KA</r2:ProgramElementNumber>
+      <r2:ProgramElementTitle>Knowledge Analysis</r2:ProgramElementTitle>
+      <r2:BudgetYear>2026</r2:BudgetYear>
+      <r2:ProgramElementFunding>
+        <r2:AllPriorYears>100.00</r2:AllPriorYears><r2:PriorYear>20.50</r2:PriorYear>
+        <r2:CurrentYear>30</r2:CurrentYear><r2:BudgetYearOne>40.25</r2:BudgetYearOne>
+        <r2:BudgetYearOneBase>39.75</r2:BudgetYearOneBase>
+      </r2:ProgramElementFunding>
+      <r2:ProgramElementMissionDescription>Mission one</r2:ProgramElementMissionDescription>
+    </r2:ProgramElement>
+    <r2:ProgramElement monetaryUnit="Thousands of Dollars">
+      <r2:ProgramElementNumber>0605804D8Z</r2:ProgramElementNumber>
+      <r2:ProgramElementTitle>Applied Research</r2:ProgramElementTitle>
+      <r2:BudgetYear>2027</r2:BudgetYear>
+      <r2:ProgramElementFunding>
+        <r2:AllPriorYears>0</r2:AllPriorYears><r2:PriorYear>1.25</r2:PriorYear>
+        <r2:CurrentYear>2.5</r2:CurrentYear><r2:BudgetYearOne>3.75</r2:BudgetYearOne>
+        <r2:BudgetYearOneBase>3.50</r2:BudgetYearOneBase>
+      </r2:ProgramElementFunding>
+    </r2:ProgramElement>
+  </r2:ProgramElementList>
+</jb:JustificationBook>`;
 
 describe('inspectDticJdocsXmlSourceV1', () => {
   it('pins the reviewed FY2026 DTIC mirror and official PDF identities', () => {
@@ -171,19 +204,22 @@ describe('inspectDticJdocsXmlSourceV1', () => {
       '0605801KA',
       '0605804D8Z',
     ]);
-    expect(new Set(inventory.programElementLocators.map((locator) => locator.elementPath)).size).toBe(3);
+    expect(
+      new Set(inventory.programElementLocators.map((locator) => locator.elementPath)).size,
+    ).toBe(3);
     expect(inventory.programElementLocators[0]?.elementPath).toContain(
       `{${DTIC_JDOCS_R2_NAMESPACE_V1}}ProgramElement[0]`,
     );
     expect(inventory.programElementLocators[1]?.elementPath).toContain(
       `{${DTIC_JDOCS_R2_NAMESPACE_V1}}ProgramElement[1]`,
     );
-    expect(inventory.programElementLocators[0]?.path.every((segment) => segment.namespace.length > 0)).toBe(true);
+    expect(
+      inventory.programElementLocators[0]?.path.every((segment) => segment.namespace.length > 0),
+    ).toBe(true);
   });
 
   it('keeps locator inventory stable when namespace prefixes are renamed', () => {
-    const aliased = FIXTURE
-      .replaceAll('jb:', 'root:')
+    const aliased = FIXTURE.replaceAll('jb:', 'root:')
       .replaceAll('r2:', 'data:')
       .replace('xmlns:jb=', 'xmlns:root=')
       .replace('xmlns:r2=', 'xmlns:data=');
@@ -191,10 +227,7 @@ describe('inspectDticJdocsXmlSourceV1', () => {
       Buffer.from(FIXTURE),
       PROVENANCE,
     );
-    const renamed = inventoryDticJdocsXmlProgramElementLocatorsV1(
-      Buffer.from(aliased),
-      PROVENANCE,
-    );
+    const renamed = inventoryDticJdocsXmlProgramElementLocatorsV1(Buffer.from(aliased), PROVENANCE);
     expect(renamed.programElementLocators).toEqual(original.programElementLocators);
     expect(renamed.originalBytesSha256).not.toBe(original.originalBytesSha256);
   });
@@ -221,5 +254,75 @@ describe('inspectDticJdocsXmlSourceV1', () => {
         appropriationCode: '0400',
       }),
     ).toThrow(/candidate scope mismatch: fiscalYear=2026 expected 2025/);
+  });
+
+  it('extracts typed funding records with expanded-QName field locators only', () => {
+    const bytes = Buffer.from(SEMANTIC_FIXTURE);
+    const candidate = extractDticJdocsXmlSemanticCandidateV1(bytes, PROVENANCE);
+    expect(candidate).toMatchObject({
+      schemaVersion: 'dtic_jdocs_xml_semantic_candidate_v1',
+      status: 'candidate_only',
+      promotable: false,
+      originalBytesSha256: createHash('sha256').update(bytes).digest('hex'),
+    });
+    expect(candidate.records).toHaveLength(2);
+    expect(candidate.records[0]).toMatchObject({
+      programElementNumber: '0605801KA',
+      programElementTitle: 'Knowledge Analysis',
+      budgetYear: 2026,
+      monetaryUnit: 'Dollars',
+      funding: {
+        allPriorYears: '100.00',
+        priorYear: '20.50',
+        currentYear: '30',
+        budgetYearOne: '40.25',
+        budgetYearOneBase: '39.75',
+      },
+      missionDescription: 'Mission one',
+    });
+    expect(candidate.records[0]?.locators).toHaveLength(10);
+    expect(candidate.records[1]?.locators).toHaveLength(9);
+    expect(
+      candidate.records
+        .flatMap((record) => record.locators)
+        .every((entry) => entry.locator.path.every((segment) => segment.namespace.length > 0)),
+    ).toBe(true);
+    expect(candidate.limitations).toContain(
+      'not_promotable_and_not_authorized_for_production_import',
+    );
+  });
+
+  it('keeps semantic records stable across prefix renames while rebinding the source SHA', () => {
+    const aliased = SEMANTIC_FIXTURE.replaceAll('jb:', 'root:')
+      .replaceAll('r2:', 'data:')
+      .replace('xmlns:jb=', 'xmlns:root=')
+      .replace('xmlns:r2=', 'xmlns:data=');
+    const original = extractDticJdocsXmlSemanticCandidateV1(
+      Buffer.from(SEMANTIC_FIXTURE),
+      PROVENANCE,
+    );
+    const renamed = extractDticJdocsXmlSemanticCandidateV1(Buffer.from(aliased), PROVENANCE);
+    expect(renamed.records).toEqual(original.records);
+    expect(renamed.originalBytesSha256).not.toBe(original.originalBytesSha256);
+  });
+
+  it('rejects missing semantic fields and non-canonical funding values', () => {
+    expect(() =>
+      extractDticJdocsXmlSemanticCandidateV1(
+        Buffer.from(SEMANTIC_FIXTURE.replace('<r2:BudgetYear>2027</r2:BudgetYear>', '')),
+        PROVENANCE,
+      ),
+    ).toThrow(/BudgetYear must occur exactly once/);
+    expect(() =>
+      extractDticJdocsXmlSemanticCandidateV1(
+        Buffer.from(
+          SEMANTIC_FIXTURE.replace(
+            '<r2:CurrentYear>2.5</r2:CurrentYear>',
+            '<r2:CurrentYear>2,5</r2:CurrentYear>',
+          ),
+        ),
+        PROVENANCE,
+      ),
+    ).toThrow(/CurrentYear must be a canonical decimal string/);
   });
 });
