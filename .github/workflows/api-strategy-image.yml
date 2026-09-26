@@ -36,7 +36,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
@@ -69,3 +69,37 @@ jobs:
 
       - name: Output image digest
         run: echo "Pushed capiro/${TARGET_ENV}/api-strategy:${GITHUB_SHA}"
+
+      - name: Deploy to ECS
+        shell: bash
+        run: |
+          set -euo pipefail
+          ECS_CLUSTER="capiro-${TARGET_ENV}"
+          ECS_SERVICE="capiro-${TARGET_ENV}-api-strategy"
+          echo "Deploying to $ECS_CLUSTER / $ECS_SERVICE ..."
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --force-new-deployment \
+            --region "$AWS_REGION" \
+            --query "service.{{status:status,runningCount:runningCount,desiredCount:desiredCount}}" \
+            --output table
+
+      - name: Wait for service stability
+        shell: bash
+        run: |
+          set -euo pipefail
+          ECS_CLUSTER="capiro-${TARGET_ENV}"
+          ECS_SERVICE="capiro-${TARGET_ENV}-api-strategy"
+          echo "Waiting for $ECS_SERVICE to stabilize (up to 10 min)..."
+          aws ecs wait services-stable \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE" \
+            --region "$AWS_REGION"
+          aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE" \
+            --region "$AWS_REGION" \
+            --query "services[0].{{status:status,running:runningCount,desired:desiredCount,pending:pendingCount}}" \
+            --output table
+
