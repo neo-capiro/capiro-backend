@@ -45,8 +45,8 @@ describe('BuyerWorkspaceService', () => {
     expect(calls).toEqual([
       { peCode: '0601234A', asOfFy: 2026, knownAt },
       { peCode: '0601234A', asOfFy: 2026, knownAt },
-      { evidence: 'mentions', options: { knownAt, limit: 100 } },
-      { evidence: 'lifecycle', options: { knownAt, limit: 100 } },
+      { evidence: 'mentions', options: { knownAt, limit: 100, cursor: undefined } },
+      { evidence: 'lifecycle', options: { knownAt, limit: 100, cursor: undefined } },
     ]);
     expect(result.acquisition.state).toBe('partial');
     expect(result.acquisition.data.candidates[0]!.authoritativeAmountUsd).toBeNull();
@@ -58,6 +58,26 @@ describe('BuyerWorkspaceService', () => {
     expect(result.federalEvidence.state).toBe('partial');
     expect(result.federalEvidence.data.mentions.items[0]!.qualificationState).toBe('qualified');
     expect(result.federalEvidence.data.lifecycle.nextCursor).toBe('next');
+    expect(result.federalEvidence.data.lifecycle.hasMore).toBe(true);
+  });
+
+  it('passes independent federal evidence cursors and preserves each page boundary', async () => {
+    const { service, calls } = fixture();
+    const result = await service.read({
+      ...input,
+      mentionsCursor: 'mentions-page-2',
+      lifecycleCursor: 'lifecycle-page-3',
+    });
+    expect(calls).toContainEqual({
+      evidence: 'mentions', options: { knownAt, limit: 100, cursor: 'mentions-page-2' },
+    });
+    expect(calls).toContainEqual({
+      evidence: 'lifecycle', options: { knownAt, limit: 100, cursor: 'lifecycle-page-3' },
+    });
+    expect(result.federalEvidence.data.mentions).toMatchObject({ hasMore: false, nextCursor: null });
+    expect(result.federalEvidence.data.lifecycle).toMatchObject({ hasMore: true, nextCursor: 'next' });
+    expect(result.federalEvidence.state).toBe('partial');
+    expect(result.federalEvidence.coverage.unresolvedReasons[0]!.code).toBe('federal_evidence_page_incomplete');
   });
 
   it('rejects unpinned or invalid temporal scope', async () => {

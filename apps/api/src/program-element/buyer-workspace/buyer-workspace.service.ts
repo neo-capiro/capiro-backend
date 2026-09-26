@@ -7,6 +7,8 @@ export interface BuyerWorkspaceInput {
   peCode: string;
   asOfFy: number;
   knownAt: string;
+  mentionsCursor?: string;
+  lifecycleCursor?: string;
 }
 
 /** A section is never promoted to complete by the composite read. */
@@ -44,8 +46,12 @@ export class BuyerWorkspaceService {
     const [acquisition, funding, mentions, lifecycle] = await Promise.all([
       this.acquisition.read(scope),
       this.funding.read(scope),
-      this.federalEvidence.currentQualifiedMentions(peCode, { knownAt, limit: 100 }),
-      this.federalEvidence.lifecycleTimeline({ peCode }, { knownAt, limit: 100 }),
+      this.federalEvidence.currentQualifiedMentions(peCode, {
+        knownAt, limit: 100, cursor: input.mentionsCursor,
+      }),
+      this.federalEvidence.lifecycleTimeline({ peCode }, {
+        knownAt, limit: 100, cursor: input.lifecycleCursor,
+      }),
     ]);
     if (acquisition.asOfFy !== input.asOfFy || acquisition.knownAt !== knownAt ||
         funding.asOfFy !== input.asOfFy || funding.knownAt !== knownAt) {
