@@ -591,7 +591,7 @@ describe('searchCandidates', () => {
     expect(h.calls.rawQueries.filter((q) => q.sql.includes('ARRAY_AGG'))).toHaveLength(0);
   });
 
-  test('unsupported filters are reported truthfully, never fabricated', async () => {
+  test('agency/issue/geography filters are applied when valid values are provided', async () => {
     const h = makeHarness(baseFixture());
     const res = await h.service.searchCandidates(ctx, {
       q: 'acme',
@@ -599,10 +599,10 @@ describe('searchCandidates', () => {
       issue: 'defense',
       geography: 'VA',
     });
-    expect(res.coverage.agencyFilterApplied).toBe(false);
-    expect(res.coverage.issueFilterApplied).toBe(false);
-    expect(res.coverage.geographyFilterApplied).toBe(false);
-    expect(res.coverage.unsupportedFilters).toEqual(['agency', 'issue', 'geography']);
+    expect(res.coverage.agencyFilterApplied).toBe(true);
+    expect(res.coverage.issueFilterApplied).toBe(true);
+    expect(res.coverage.geographyFilterApplied).toBe(true);
+    expect(res.coverage.unsupportedFilters).toEqual([]);
   });
 
   test('identifier visibility predicate includes global-public-or-caller-tenant only', async () => {
