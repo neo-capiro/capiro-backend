@@ -250,7 +250,7 @@ export function PeExploreView() {
       </div>
 
       <div className="pe-ws-body">
-        {me.data?.tenant.slug === 'capiro-internal' && family.id !== 'All' ? (
+        {me.data?.tenant?.slug === 'capiro-internal' && family.id !== 'All' ? (
           <DefenseBudgetFamilyCoverageNote familyId={family.id} fy={ctx.fy} />
         ) : null}
 

@@ -206,6 +206,23 @@ export function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/clients" element={<ClientWorkspacePage />} />
           <Route path="/portfolio" element={<PortfolioIndexRedirect />} />
+          {/* Research Portfolios — native vNext Phase 1. The collection and
+            detail paths must be exact (no trailing segments). vNext will
+            intercept them; classic mode falls back to a placeholder so the
+            route never 404s. */}
+          <Route
+            path="/research-portfolios"
+            element={
+              <PlaceholderPage
+                title="Research Portfolios"
+                description="Research portfolios are available in vNext mode only."
+              />
+            }
+          />
+          <Route
+            path="/research-portfolios/:id"
+            element={<PlaceholderPage title="Research Portfolio" description="Loading..." />}
+          />
           <Route path="/engagement/*" element={<EngagementPage />} />
           {/* Workspace — standalone document-builder engine (own ECR/Fargate
             service at /workspace-api/*; this is the SPA UI). */}

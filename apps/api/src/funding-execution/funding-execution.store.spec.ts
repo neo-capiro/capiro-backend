@@ -269,7 +269,7 @@ describe('FundingExecutionStore', () => {
     const { store, prisma } = harness();
     (prisma.$queryRaw as jest.Mock)
       .mockResolvedValueOnce([
-        { stable_key: 'transfer:pair-a:0:alloc-out', fact_id: 'alloc-out', snapshot: { transferPairKey: 'pair-a', transferSide: 'out', fiscalYear: 2026, availabilityStart: '2025-10-01', availabilityEnd: '2027-09-30', targetType: 'program_element', targetNativeKey: 'PE-A', reviewState: 'verified', amountBasis: 'transaction_delta', authoritativeAmountUsd: '-8.00', mappingMaturity: 'exact_identifier', inferredRelevance: false }, measure_status: 'enacted', certified_at: new Date('2026-09-24T00:00:00Z'), source_system: 'budget', source_record_id: 'native-out', source_url: null, source_version: null, source_observed_at: null, source_hash: HASH, source_raw: {}, account_id: '97X1234' },
+        { stable_key: 'transfer:pair-a:0:alloc-out', fact_id: 'alloc-out', snapshot: { transferPairKey: 'pair-a', transferSide: 'out', fiscalYear: 2026, availabilityStart: '2025-10-01', availabilityEnd: '2027-09-30', targetType: 'program_element', targetNativeKey: 'PE-A', reviewState: 'verified', amountBasis: 'transaction_delta', executionMetric: 'obligations', asOfDate: '2026-09-24', periodStart: null, periodEnd: null, authoritativeAmountUsd: '-8.00', mappingMaturity: 'exact_identifier', inferredRelevance: false }, measure_status: 'enacted', certified_at: new Date('2026-09-24T00:00:00Z'), source_system: 'budget', source_record_id: 'native-out', source_url: null, source_version: null, source_observed_at: null, source_hash: HASH, source_raw: {}, account_id: '97X1234' },
         { stable_key: 'transfer:pair-a:1:alloc-in', fact_id: 'alloc-in', snapshot: { transferPairKey: 'pair-a', transferSide: 'in', fiscalYear: 2026, targetType: 'program_element', targetNativeKey: 'PE-B', reviewState: 'verified', amountBasis: 'transaction_delta', authoritativeAmountUsd: '8.00', mappingMaturity: 'exact_identifier', inferredRelevance: false }, measure_status: 'enacted', certified_at: new Date('2026-09-24T00:00:00Z'), source_system: 'budget', source_record_id: 'native-in', source_url: null, source_version: null, source_observed_at: null, source_hash: HASH, source_raw: {}, account_id: '97X1235' },
       ])
       .mockResolvedValueOnce([]);
@@ -278,6 +278,7 @@ describe('FundingExecutionStore', () => {
     expect(page.rows[1]!.accountId).toBe('97X1235');
     expect(page.rows[0]).toMatchObject({
       availabilityStart: '2025-10-01', availabilityEnd: '2027-09-30', validFromFy: 2025, validToFy: 2027,
+      amountBasis: 'transaction_delta', executionMetric: 'obligations', asOfDate: '2026-09-24', periodStart: null, periodEnd: null,
     });
     const publicationSql = (prisma.$queryRaw as jest.Mock).mock.calls[0]![0] as Prisma.Sql;
     expect(publicationSql.strings.join(' ')).toContain('p.published_at <=');

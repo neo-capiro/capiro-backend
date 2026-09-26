@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "planDate": "2026-09-25",
+  "auditedPlanSha": "6be92e45693de9d18b02559e174eace76d396f1c",
+  "implementationBaseSha": "114b96b8ad6ae701d3cc5c6a40d062408223ee28",
+  "scope": "implementation_and_local_acceptance",
+  "deploymentStatus": "not_deployed",
+  "sourceActivationStatus": "not_authorized_and_not_performed",
+  "arbitraryReplayStatus": "not_authorized_and_not_performed",
+  "overallStatus": "pass",
+  "phases": [
+    {
+      "phase": 0,
+      "status": "pass",
+      "exitBoundary": "Contracts, live release inventory, routing/FY/URL state and requirement/action registries are frozen; the 721-file defense-budget mirror is byte-identical.",
+      "evidence": [
+        "phase-0/baseline-ledger.json",
+        "phase-0/live-release-inventory.json",
+        "phase-0/requirement-registry.json",
+        "phase-0/route-action-registry.json",
+        "scripts/verify-research-portfolios-phase0.mjs",
+        "scripts/verify-defense-budget-mirror-parity.mjs"
+      ]
+    },
+    {
+      "phase": 1,
+      "status": "pass",
+      "exitBoundary": "Tenant-scoped manual collections support create/edit/share/archive/restore, typed canonical or explicitly unresolved members, exclude/reinstate/resolve, client ethical-wall checks, immutable events, native list/detail routes and a navigation-only rollout flag.",
+      "evidence": [
+        "apps/api/prisma/migrations/20280929010000_research_portfolios_phase1/migration.sql",
+        "apps/api/src/research-portfolios/research-portfolios.service.spec.ts",
+        "apps/web/src/vnext/pages/research-portfolios/research-portfolios-api.test.ts",
+        "apps/web/src/vnext/pages/research-portfolios/research-portfolios-routes.test.ts"
+      ]
+    },
+    {
+      "phase": 2,
+      "status": "pass",
+      "exitBoundary": "Immutable taxonomy/template/rule lineage, constrained three-valued AST evaluation, canonical candidate materialization, explainable preview/publish, idempotent template versions, manual precedence, durable withdrawal history and bounded recompute receipts are implemented.",
+      "evidence": [
+        "apps/api/prisma/migrations/20280929020000_research_portfolios_phase2_rules/migration.sql",
+        "apps/api/src/research-portfolios/research-portfolio-rules.spec.ts",
+        "apps/api/src/research-portfolios/research-portfolio-rules.service.spec.ts",
+        "apps/web/src/vnext/pages/research-portfolios/ResearchPortfolioRulesPanel.tsx"
+      ]
+    },
+    {
+      "phase": 3,
+      "status": "pass",
+      "exitBoundary": "Program, PE, project and procurement dossiers expose explicit field gaps; milestones retain source-native precision; funding matrices separate edition/FY/stage/metric, distinguish zero from missing, resolve every emitted evidence ID, and retain execution amount-basis/metric/period fields.",
+      "evidence": [
+        "packages/shared/src/defense-research.ts",
+        "apps/api/src/defense-research/defense-research.service.spec.ts",
+        "apps/api/src/funding-execution/funding-execution.store.spec.ts",
+        "apps/api/src/program-element/funding-execution/funding-execution-read.service.spec.ts"
+      ]
+    },
+    {
+      "phase": 4,
+      "status": "pass",
+      "exitBoundary": "Contextual documents have immutable revisions/sections and exact first-class occurrences; an official Federal Register rule family provides partial positive coverage and exact CFR occurrences, while hearings without qualified transcripts remain explicit unavailable cases with query-wide denominators.",
+      "evidence": [
+        "apps/api/prisma/migrations/20280929040000_defense_context_documents/migration.sql",
+        "apps/api/src/defense-research/defense-research.contract.spec.ts",
+        "apps/api/src/defense-research/defense-research.service.spec.ts"
+      ]
+    }
+  ],
+  "verification": {
+    "prismaValidate": "pass",
+    "sharedBuild": "pass",
+    "apiTypecheck": "pass",
+    "apiFocusedSuites": { "status": "pass", "suites": 9, "tests": 95 },
+    "webTypecheck": "pass",
+    "webFocusedSuites": { "status": "pass", "files": 6, "tests": 41 },
+    "phase0AndMirror": { "status": "pass", "requirements": 28, "actions": 59, "mirrorFilesPerSide": 721 }
+  },
+  "rollback": {
+    "phase1": "Hide research_portfolios navigation; preserve records and authorized direct reads.",
+    "phase2": "Stop publishing rules; preserve manual members and immutable version/event history.",
+    "phase3": "Remove the new defense-research module registration only after compatibility consumers revert.",
+    "phase4": "Disable new contextual family admission; retain revisions, sections and occurrences."
+  },
+  "laterPlanPhases": "Phases 5 and later remain out of this closeout and are not claimed complete."
+}

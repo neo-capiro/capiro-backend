@@ -42,6 +42,10 @@ import {
 } from '../pages/bills/VNextBillRoutes.js';
 import { isVNextSettingsPath } from '../pages/settings/settings-route.js';
 import { isVNextAdminMiscPath } from '../pages/admin-misc/admin-misc-routes.js';
+import {
+  isVNextResearchPortfolioPath,
+  VNextResearchPortfolioRoutes,
+} from '../pages/research-portfolios/VNextResearchPortfolioRoutes.js';
 
 const VNextClientCrmRoute = lazy(async () => ({
   default: (await import('../pages/client-crm/VNextClientCrmRoute.js')).VNextClientCrmRoute,
@@ -125,6 +129,10 @@ function VNextRouterBranches({ location }: { location: ReturnType<typeof useLoca
         <VNextClientCrmRoute />
       </Suspense>
     );
+  }
+
+  if (isVNextResearchPortfolioPath(location.pathname)) {
+    return <VNextResearchPortfolioRoutes />;
   }
 
   // Dashboard is eager: it is the entry screen, so a lazy chunk would cost a

@@ -27,6 +27,12 @@ export interface FundingExecutionFact {
   accountId: string | null;
   snapshotGroupId: string | null;
   amountUsd: string | null;
+  /** Source-qualified amount semantics; retained through every read projection. */
+  amountBasis: 'snapshot' | 'period_delta' | 'transaction_delta' | 'legacy_unspecified' | null;
+  executionMetric: 'obligations' | 'outlays' | null;
+  asOfDate: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
   /** Transfer identity is source-native; legs are never paired by amount/text. */
   transferGroupId: string | null;
   transferLeg: 'outflow' | 'inflow' | null;
