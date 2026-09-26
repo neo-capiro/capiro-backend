@@ -272,6 +272,9 @@ export const TOOL_EVIDENCE_PROFILES: Readonly<Record<string, ToolEvidenceProfile
   get_funding_opportunity: official('official_government_data'),
   get_funding_opportunity_requirements: official('official_government_data'),
   query_economic_data: official('official_government_data'),
+  // Mixed public context and verified client nexus are Capiro projections, not primary source records.
+  get_district_nexus_context: CAPIRO_DERIVED,
+  get_district_nexus_changes: CAPIRO_DERIVED,
   query_global_data: official('official_government_data'),
   list_global_datasets: official('official_government_data'),
   search_tracked_bills: official('official_government_data'),
