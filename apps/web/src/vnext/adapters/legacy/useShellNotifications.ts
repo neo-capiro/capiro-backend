@@ -37,8 +37,9 @@ export interface ShellNotificationsViewModel {
 export function useShellNotifications(): ShellNotificationsViewModel {
   const workspace = useNotifications();
   const committee = useLwNotifications(true);
-  const bdWatchOn = useMe().data?.features.businessDevelopmentWatch === true;
-  const bd = useBizDevBellAlerts(bdWatchOn);
+  const meData = useMe().data;
+  const bdWatchOn = meData?.features.businessDevelopmentWatch === true;
+  const bd = useBizDevBellAlerts(meData?.tenant.id, bdWatchOn);
 
   return useMemo(() => {
     const wsFailed = workspace.isError;

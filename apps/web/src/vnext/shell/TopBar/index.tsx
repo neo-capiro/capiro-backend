@@ -102,8 +102,9 @@ export function NotificationBell({
   // Phase 5 stored alerts — a THIRD source in the same bell, shown only when
   // /api/me says businessDevelopmentWatch === true (zero BD requests otherwise).
   // Stored tenant alerts only: no provider call, ingestion, or polling here.
-  const bdWatchOn = useMe().data?.features.businessDevelopmentWatch === true;
-  const bdList = useBizDevBellAlerts(bdWatchOn);
+  const me = useMe().data;
+  const bdWatchOn = me?.features.businessDevelopmentWatch === true;
+  const bdList = useBizDevBellAlerts(me?.tenant.id, bdWatchOn);
   const bdMarkRead = useBizDevBellMarkAlertRead();
   const bdMarkAll = useBizDevBellMarkAllRead();
   // Synchronous single-flight guards so double clicks can never fan out into

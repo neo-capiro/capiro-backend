@@ -46,16 +46,18 @@ export interface BizDevBellAlertsResponse {
 }
 
 const BD_ALERTS_PATH = '/api/business-development/alerts';
-const BD_ALERTS_KEY = ['business-development', 'bell', 'alerts'] as const;
+const bdAlertsKey = (tenantId: string) =>
+  ['business-development', tenantId, 'bell', 'alerts'] as const;
 
 /**
  * Unread Business Development alerts for the bell. Disabled (zero requests)
- * unless the caller passes the exact feature flag true.
+ * unless the caller passes the exact feature flag true. Query key includes
+ * tenantId so React Query invalidates/refetches on tenant switch.
  */
-export function useBizDevBellAlerts(enabled: boolean) {
+export function useBizDevBellAlerts(tenantId: string | undefined, enabled: boolean) {
   const api = useApi();
   return useQuery<BizDevBellAlertsResponse>({
-    queryKey: BD_ALERTS_KEY,
+    queryKey: bdAlertsKey(tenantId ?? ''),
     queryFn: async () =>
       (
         await api.get<BizDevBellAlertsResponse>(BD_ALERTS_PATH, {
@@ -81,7 +83,7 @@ export function useBizDevBellMarkAlertRead() {
         )
       ).data,
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: BD_ALERTS_KEY });
+      void qc.invalidateQueries({ queryKey: ['business-development'] });
     },
   });
 }
@@ -93,7 +95,7 @@ export function useBizDevBellMarkAllRead() {
   return useMutation({
     mutationFn: async () => (await api.post(`${BD_ALERTS_PATH}/read-all`, {})).data,
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: BD_ALERTS_KEY });
+      void qc.invalidateQueries({ queryKey: ['business-development'] });
     },
   });
 }
