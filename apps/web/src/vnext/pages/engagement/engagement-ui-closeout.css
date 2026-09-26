@@ -16,7 +16,7 @@
   --eng-ink: var(--uui-gray-900, #101828);
   --eng-ink-2: var(--uui-gray-600, #475467);
   --eng-ink-3: var(--uui-gray-500, #667085);
-  --eng-ink-4: var(--uui-gray-400, #98a2b3);
+  --eng-ink-4: var(--uui-gray-500, #667085);
   --eng-primary: var(--uui-gray-900, #101828);
   /* v3 pass (2026-08-16): literal mockup navy, not the shell's indigo brand
      tokens — see engagement.css for the full rationale. This is Engagement's

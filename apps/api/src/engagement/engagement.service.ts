@@ -4936,6 +4936,7 @@ export class EngagementService {
             },
           },
           orderBy: { startsAt: 'asc' },
+          take: 2000,
         }),
         tx.mailMessage.findMany({
           where: {
@@ -4969,6 +4970,7 @@ export class EngagementService {
             },
           },
           orderBy: [{ sentAt: 'desc' }, { receivedAt: 'desc' }],
+          take: 2000,
         }),
         tx.engagementTask.findMany({
           where: {
