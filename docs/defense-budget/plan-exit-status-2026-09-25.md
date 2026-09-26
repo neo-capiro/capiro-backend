@@ -183,3 +183,11 @@ notifications, terminal queue `0/0/0`, 120 compiled-query samples, query p95
 throughput, authenticated HTTP/network latency, source-change-to-verified
 update latency, buyer outcomes, cost attribution, paid-provider economics,
 rollback, or activation. Package 9 remains `NO_GO`/`shadow_only`.
+
+The merged harness revision was also shipped directly to the dev API through
+native ARM64 CodeBuild `capiro-build-intel-api:d2986a84-ebca-40df-ab66-a62fe65766be`
+and ECS task definition `capiro-dev-api:475`, pinned to image digest
+`sha256:08257e280c32b1dc49f5e5e1b3ee15d656a97b9915b7166a16130b8d86f8252a`.
+The migration task exited 0, both replacement tasks are healthy, app health is
+HTTP 200, and all four protected activation flags remain false. This is
+runtime shipment evidence only; it does not change the Package 9 decision.
