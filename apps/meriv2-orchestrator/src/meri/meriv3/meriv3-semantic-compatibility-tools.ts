@@ -9,30 +9,6 @@ export interface MeriSemanticCompatibilitySchema {
 
 export type MeriSemanticCompatibilityToolName = 'analyze_funding_opportunity' | 'create_artifact';
 
-export interface MeriSemanticCompatibilityContract {
-  /** Descriptive metadata only; it does not authorize, execute, or validate a call. */
-  readonly contractRole: 'advisory_only';
-  readonly purpose: string;
-  readonly exclusions: readonly string[];
-  readonly requiredInputs: readonly string[];
-  readonly supportedScopes: readonly string[];
-  readonly evidenceAuthority: readonly string[];
-  readonly dependencies: readonly string[];
-  readonly effectClass: 'read_only_evidence' | 'artifact_write';
-  readonly availability: {
-    readonly featureFlag: string;
-    readonly tenantAllowlistFlag: string;
-    readonly tenantAllowlistFallbackFlag: string;
-    readonly defaultOff: true;
-  };
-  readonly typeMappings?: readonly {
-    readonly type: string;
-    readonly handler: string;
-    readonly requiredBackingInputs: readonly string[];
-    readonly result: string;
-  }[];
-}
-
 export type MeriSemanticToolInvoker = (
   name: string,
   input: Record<string, unknown>,
@@ -40,7 +16,10 @@ export type MeriSemanticToolInvoker = (
 
 const FUNDING_REASONING_TOOLS = new Set([
   'explain_opportunity_match',
+  'get_opportunity_client_context',
   'get_opportunity_government_landscape',
+  'compare_funding_opportunities',
+  'build_opportunity_action_plan',
 ]);
 
 const LEGACY_ARTIFACT_TOOLS = new Set([
@@ -71,7 +50,7 @@ const CLIENT_AWARE_ARTIFACT_TYPES = new Set([
 const ANALYZE_FUNDING_OPPORTUNITY_SCHEMA: MeriSemanticCompatibilitySchema = {
   name: 'analyze_funding_opportunity',
   description:
-    'Gather evidence for one locally held Grants.gov or SAM.gov opportunity and one authorized client. Returns separate opportunity facts, broader client context, match explanation, government-landscape result, requirements guidance or records, and coverage. Government landscape is composed for SAM.gov; for Grants.gov its result says the source is unsupported. SAM.gov calls the extracted-requirements reader; Grants.gov terms remain in the held notice body in opportunity.data.summary, which may require continuing summaryRead.nextOffset. The packet preserves each underlying result and its availability/freshness; it does not compare opportunities, build an action plan, or make an independent eligibility, recommendation, or human decision. Requires clientId, source (grants_gov or sam_gov), and sourceRecordId.',
+    'Retrieve one federal funding opportunity as a structured evidence packet for OpenAI to analyze. Returns the local opportunity facts, deterministic match evidence, client context, government landscape, freshness and coverage. It does not compare opportunities, rank pursuits, recommend a strategy, or build an action plan; perform that reasoning from the returned evidence. Requires clientId, source (grants_gov or sam_gov), and sourceRecordId.',
   input_schema: {
     type: 'object',
     additionalProperties: false,
@@ -97,7 +76,7 @@ const ANALYZE_FUNDING_OPPORTUNITY_SCHEMA: MeriSemanticCompatibilitySchema = {
 const CREATE_ARTIFACT_SCHEMA: MeriSemanticCompatibilitySchema = {
   name: 'create_artifact',
   description:
-    'Use `type` and `spec` to invoke one of six distinct existing artifact handlers; the selected handler performs type-specific validation. A single Word or PDF request stores one document spec and that artifact can be downloaded in either format; separate requests create separate artifacts. Spreadsheet uses title/sheets and saves an Excel workbook; presentation uses title/slides and saves a PowerPoint deck. meeting_brief requires meetingId and can return a background preparation job before an artifact is ready. policy_memo requires an authorized clientId; if body is omitted the handler composes it from client context and internal research, while supplied body text is stored as supplied. Put clientId and conversationId at the TOP LEVEL; conflicting nested scope values are blocked when top-level scope is present. Nested scope values remain accepted as compatibility inputs when top-level values are absent. The active conversation ID is supplied when omitted where supported; explicit IDs continue through the backing handler’s authorization checks. Existing artifact write and compliance gates remain in effect.',
+    'Generate and persist one governed Capiro artifact through the existing document services. OpenAI owns the reasoning and writing; Capiro owns generation, formatting, storage, versions, provenance, approvals and export. Put clientId and conversationId at the TOP LEVEL, not inside `spec`; Meri pins both to the active conversation when applicable. `spec` is the structured input accepted by the backing artifact type: Word and PDF use title/subtitle/sections with paragraphs, bullets and tables, and support both Word and PDF downloads from the same saved content; spreadsheet uses sheets with headers and rows; presentation uses a title slide and content slides; meeting_brief uses meetingId/title; policy_memo uses title/objective/body. This gateway never bypasses the underlying write/compliance gate.',
   input_schema: {
     type: 'object',
     additionalProperties: false,
@@ -119,134 +98,13 @@ const CREATE_ARTIFACT_SCHEMA: MeriSemanticCompatibilitySchema = {
       spec: {
         type: 'object',
         description:
-          'Complete structured content for the selected artifact type. Put scope at top level; matching nested scope values are accepted for compatibility, conflicting values are blocked when top-level scope is present.',
+          'Complete structured content for the selected artifact type. Do not put clientId or conversationId inside this object.',
         additionalProperties: true,
       },
     },
     required: ['type', 'spec'],
   },
 };
-
-/** Contracts are kept beside the feature-gated compatibility schemas without
- * being sent as additional fields to the model provider. */
-export const MERI_SEMANTIC_COMPATIBILITY_CONTRACTS = {
-  analyze_funding_opportunity: {
-    contractRole: 'advisory_only',
-    purpose:
-      'Collect existing Capiro evidence for one client and one local federal funding opportunity.',
-    exclusions: [
-      'Comparing multiple opportunities; compare_funding_opportunities remains a separate capability.',
-      'Building an opportunity action plan; build_opportunity_action_plan remains a separate capability.',
-      'Making an independent eligibility, recommendation, or human pursuit decision.',
-      'Direct Grants.gov or SAM.gov provider retrieval; evidence comes from Capiro-held services.',
-      'A successful or complete packet whenever an underlying result is blocked, unavailable, unsupported, stale, or partial.',
-      'Treating coverage.requestedDomains as proof of successful evidence retrieval; inspect toolsInvoked and each underlying result envelope.',
-      'Treating the Grants.gov requirements guidance object as extracted or verified requirements.',
-      'Independent validation of clientId/sourceRecordId formats; delegated readers return their own validation and availability results.',
-    ],
-    requiredInputs: ['clientId', 'source', 'sourceRecordId'],
-    supportedScopes: [
-      'one authorized client in the authenticated tenant',
-      'one Grants.gov or SAM.gov record held by Capiro',
-    ],
-    evidenceAuthority: [
-      'get_funding_opportunity local opportunity facts and held notice summary',
-      'get_opportunity_client_context client opportunity posture, freshness and profile gaps',
-      'explain_opportunity_match deterministic relevance, eligibility, recommendation and human-decision fields',
-      'get_opportunity_government_landscape (SAM.gov only; other sources return unsupported_source)',
-      'get_funding_opportunity_requirements for SAM.gov only; Grants.gov receives a notice-body continuation instruction, not extracted requirement records',
-    ],
-    dependencies: [
-      'get_funding_opportunity',
-      'get_opportunity_client_context',
-      'explain_opportunity_match',
-      'get_opportunity_government_landscape',
-      'get_funding_opportunity_requirements for SAM.gov only',
-    ],
-    effectClass: 'read_only_evidence',
-    availability: {
-      featureFlag: 'MERI_FUNDING_SEMANTIC_TOOLS_ENABLED',
-      tenantAllowlistFlag: 'MERI_FUNDING_SEMANTIC_TOOLS_TENANTS',
-      tenantAllowlistFallbackFlag: 'MERI_SEMANTIC_TOOL_GATEWAY_TENANTS',
-      defaultOff: true,
-    },
-  },
-  create_artifact: {
-    contractRole: 'advisory_only',
-    purpose:
-      'Route a typed artifact request to the matching existing Capiro writer and preserve its native result/receipt.',
-    exclusions: [
-      'A shared payload schema or result type across all artifact families.',
-      'Converting spreadsheets, presentations, meeting briefs, or policy memos into Word/PDF content.',
-      'An immediate saved meeting brief when the backing service instead returns a background preparation job.',
-      'A wrapper-level guarantee that arbitrary spec objects match the selected type; each backing writer validates its own fields.',
-      'Overriding the existing tenant, user, client, conversation, approval, write, or persistence checks.',
-    ],
-    requiredInputs: ['type', 'spec'],
-    supportedScopes: [
-      'authenticated tenant and user through the existing Capiro artifact handlers',
-      'optional visible client scope for word, pdf, spreadsheet and presentation; policy_memo requires a clientId',
-      'meeting-owned scope selected by meetingId for meeting_brief',
-      'optional authorized conversation attribution checked by the backing handler',
-    ],
-    evidenceAuthority: [
-      'Type-specific existing handler result, including artifact, download, format or meeting-preparation job fields when returned.',
-      'The selected backing service’s artifact record and metadata; this wrapper does not synthesize a common artifact receipt.',
-    ],
-    dependencies: [
-      'create_word for word and pdf',
-      'create_excel for spreadsheet',
-      'create_powerpoint for presentation',
-      'create_meeting_brief for meeting_brief',
-      'draft_policy_memo for policy_memo',
-    ],
-    effectClass: 'artifact_write',
-    availability: {
-      featureFlag: 'MERI_ARTIFACT_TOOL_V2_ENABLED',
-      tenantAllowlistFlag: 'MERI_ARTIFACT_TOOL_V2_TENANTS',
-      tenantAllowlistFallbackFlag: 'MERI_SEMANTIC_TOOL_GATEWAY_TENANTS',
-      defaultOff: true,
-    },
-    typeMappings: [
-      {
-        type: 'word',
-        handler: 'create_word',
-        requiredBackingInputs: ['title', 'sections'],
-        result: 'word_document; this artifact can be downloaded as DOCX or PDF',
-      },
-      {
-        type: 'pdf',
-        handler: 'create_word',
-        requiredBackingInputs: ['title', 'sections'],
-        result: 'pdf_document; this artifact can be downloaded as PDF or DOCX',
-      },
-      {
-        type: 'spreadsheet',
-        handler: 'create_excel',
-        requiredBackingInputs: ['title', 'sheets'],
-        result: 'excel_workbook',
-      },
-      {
-        type: 'presentation',
-        handler: 'create_powerpoint',
-        requiredBackingInputs: ['title', 'slides'],
-        result: 'powerpoint_deck',
-      },
-      {
-        type: 'meeting_brief',
-        handler: 'create_meeting_brief',
-        requiredBackingInputs: ['meetingId'],
-        result: 'meeting_brief artifact or preparation job',
-      },
-      {
-        type: 'policy_memo',
-        handler: 'draft_policy_memo',
-        requiredBackingInputs: ['clientId'],
-        result: 'policy_memo artifact and body text',
-      },
-    ],
-  },
-} as const satisfies Record<MeriSemanticCompatibilityToolName, MeriSemanticCompatibilityContract>;
 
 function parseAllowlist(raw: string | undefined): Set<string> {
   return new Set(

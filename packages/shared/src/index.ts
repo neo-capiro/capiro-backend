@@ -2948,7 +2948,7 @@ const CITATION_TITLE_FIELDS = [
   'billNumber',
   'headline',
 ] as const;
-export const CITATION_URL_FIELDS = [
+const CITATION_URL_FIELDS = [
   'url',
   'link',
   'htmlUrl',
@@ -3093,75 +3093,7 @@ function federalMarketCitationRows(
   ];
 }
 
-/** Comparison output is a derived result, not itself a source. Cite only the
- * exact source observations present in the owner response, never its delta or
- * a URL reconstructed from an ID. */
-function comparisonCitationRows(
-  tool: string,
-  payload: Record<string, unknown>,
-): unknown[] | null {
-  if (tool !== 'compare_florida_budget_amounts' && tool !== 'compare_legislative_versions')
-    return null;
-  if (payload.truncated === true || !citationObject(payload.result)) return [];
-  const comparison = payload.result;
-  const safeSourceUrl = (raw: unknown): string | null => {
-    if (typeof raw !== 'string') return null;
-    try {
-      const parsed = new URL(raw);
-      return ['http:', 'https:'].includes(parsed.protocol) && parsed.hostname &&
-        !parsed.username && !parsed.password ? parsed.href : null;
-    } catch {
-      return null;
-    }
-  };
-  const exact = (value: unknown): value is string =>
-    typeof value === 'string' && value.trim().length > 0;
-
-  if (tool === 'compare_florida_budget_amounts') {
-    return ['left', 'right'].flatMap((side) => {
-      const source = comparison[side];
-      if (!citationObject(source) || source.qualified !== true ||
-        !exact(source.id) || !exact(source.documentId) ||
-        !exact(source.sourceRevision) || !exact(source.locator) ||
-        source.measure !== 'money' || source.state !== 'amount' ||
-        typeof source.minorUnits !== 'string' || !/^-?\d+$/.test(source.minorUnits)) return [];
-      const snippet = `Document ${source.documentId}; revision ${source.sourceRevision}; locator ${source.locator}; ${source.minorUnits} USD cents; fiscal year ${String(source.fiscalYear ?? 'unknown')}; basis ${String(source.basis ?? 'unknown')}.`;
-      // The shared citation renderer caps snippets at 240 characters. Never
-      // silently cut a revision or locator and make it look exact.
-      if (source.id.length > 170 || snippet.length > 240) return [];
-      return [{
-        id: source.id,
-        title: `Florida budget amount ${source.id}`,
-        url: safeSourceUrl(source.sourceUrl),
-        snippet,
-      }];
-    });
-  }
-
-  const changes = Array.isArray(comparison.changes) ? comparison.changes : [];
-  return ['left', 'right'].flatMap((side) => {
-    const source = comparison[side];
-    if (!citationObject(source) || source.complete !== true ||
-      !exact(source.id) || !exact(source.revision) ||
-      !exact(source.jurisdiction) || !exact(source.sessionKey)) return [];
-    const locator = changes.flatMap((change) =>
-      citationObject(change) && citationObject(change[side]) &&
-      exact(change[side].locator) ? [change[side].locator] : [])[0];
-    if (!locator) return [];
-    const snippet = `Revision ${source.revision}; ${source.jurisdiction} session ${source.sessionKey}; locator ${locator}; ${String(source.kind ?? 'document')}.`;
-    if (source.id.length > 175 || snippet.length > 240) return [];
-    return [{
-      id: source.id,
-      title: `Legislative version ${source.id}`,
-      url: safeSourceUrl(source.sourceUrl),
-      snippet,
-    }];
-  });
-}
-
 function citationRowsOf(tool: string, payload: Record<string, unknown>): unknown[] | null {
-  const comparison = comparisonCitationRows(tool, payload);
-  if (comparison) return comparison;
   if (isMeriMailReadTool(tool) && Array.isArray(payload.messages)) {
     return payload.messages.filter(citationObject).flatMap((message) => {
       const id = firstCitationString(message, ['id']);
@@ -3228,37 +3160,6 @@ function citationRowsOf(tool: string, payload: Record<string, unknown>): unknown
     });
   }
   return null;
-}
-
-/** A source URL is a link to the cited row, not proof merely because it parses.
- * For Congress bill search, bind the official deep link to the canonical bill
- * ID before exposing it. A mismatched URL can still coexist with a local row
- * citation, but must not send a user to a different bill or Congress. */
-export function validatedCitationUrl(tool: string, id: string, raw: string | null): string | null {
-  if (!raw) return null;
-  let parsed: URL;
-  try {
-    parsed = new URL(raw);
-  } catch {
-    return null;
-  }
-  if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname ||
-    parsed.username || parsed.password) return null;
-  if (tool !== 'search_congress_bills') return raw;
-
-  const bill = /^(\d{1,3})-(hr|s|hjres|sjres|hres|sres|hconres|sconres)-(\d+)$/i.exec(id);
-  if (!bill || parsed.protocol !== 'https:' || parsed.port !== '' ||
-    parsed.hostname.replace(/^www\./, '') !== 'congress.gov') return null;
-  const billTypes: Record<string, string> = {
-    hr: 'house-bill', s: 'senate-bill',
-    hjres: 'house-joint-resolution', sjres: 'senate-joint-resolution',
-    hres: 'house-resolution', sres: 'senate-resolution',
-    hconres: 'house-concurrent-resolution', sconres: 'senate-concurrent-resolution',
-  };
-  const expectedPath = `/bill/${bill[1]}th-congress/${billTypes[bill[2]!.toLowerCase()]}/${bill[3]}`;
-  return parsed.pathname === expectedPath || parsed.pathname.startsWith(`${expectedPath}/`)
-    ? raw
-    : null;
 }
 
 /** A locator is data returned by a source owner, never a title or current picker inference. */
@@ -3359,7 +3260,7 @@ export function extractCitationsFromToolResult(
       type,
       id,
       title: truncateCitation(title, 200),
-      url: validatedCitationUrl(toolName, id, url),
+      url: url && /^https?:\/\//i.test(url) ? url : null,
       snippet: snippetRaw ? truncateCitation(snippetRaw, 240) : null,
       tool: toolName,
       ...(sourceLocatorForCitation(toolName, r, rec, id)
@@ -3830,20 +3731,6 @@ export interface MeriCapabilityDefinition {
   readonly backend: MeriToolBackend;
   readonly readOnly: boolean;
   readonly surfaces: readonly MeriToolSurface[];
-  /** Structured search/read guidance only; it does not authorize or execute tools. */
-  readonly searchContract?: MeriSearchCapabilityContract;
-}
-
-export interface MeriSearchCapabilityContract {
-  /** Guidance metadata only: does not select, filter, authorize, or execute tools. */
-  readonly contractRole: 'advisory_only';
-  readonly purpose: string;
-  readonly exclusions: readonly string[];
-  readonly supportedScopes: readonly string[];
-  readonly prerequisites: readonly string[];
-  readonly evidenceAuthority: string;
-  /** A result reason taxonomy, not a promise that every source reports every code. */
-  readonly availabilityReasonCodes: readonly string[];
 }
 
 /**
@@ -3933,71 +3820,14 @@ export const MERI_CAPABILITY_REGISTRY = [
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
-    searchContract: {
-      contractRole: 'advisory_only',
-      purpose:
-        'Read immutable attachment evidence captured for one authenticated Meri research session.',
-      exclusions: [
-        'Client Documents-tab files that were not captured in this research session.',
-        'Attachments from another tenant, user, client scope, or originating conversation.',
-        'A page or section locator for attachment text; this reader returns attachment content and status, not document page citations.',
-        'Complete content when an attachment is truncated, scanned, unsupported, or otherwise not parsed.',
-      ],
-      supportedScopes: [
-        'one research session owned by the authenticated tenant and user',
-        'the client bound to that session, when present',
-        'all captured attachments or selected original attachment IDs in that snapshot',
-      ],
-      prerequisites: [
-        'A valid research session UUID owned by the authenticated tenant and user.',
-        'The attachment must be present in the session’s immutable handoff snapshot.',
-        'The originating conversation and current attachment must still match the captured evidence when linked.',
-      ],
-      evidenceAuthority:
-        'Research-session handoff snapshot; returns session and attachment IDs, capturedAt, attachment kind/status, source message linkage, and content hash for snapshot validation. It does not return a page/section locator or a separately labeled current source version.',
-      availabilityReasonCodes: [
-        'research_handoff_unavailable',
-        'attachment_not_in_snapshot',
-        'research_session_not_found_in_scope',
-        'research_evidence_changed_or_unavailable',
-      ],
-    },
   },
   {
     name: 'search_capiro_data',
     description:
-      'Search authorized Capiro data across supported domains, including strategies, budget lines, legislation, hearings, funding, federal awards, directory and District Nexus. Use for cross-domain or domain-specific Capiro searches; inspect returned domain coverage before drawing conclusions. This is discovery across indexed Capiro sources, not an exact client-document or research-attachment reader. Returns evidence references and explicit domain coverage; missing, stale or partial data must not be treated as proof of absence.',
+      'Search authorized Capiro data across supported domains, including strategies, budget lines, legislation, hearings, funding, federal awards, directory and District Nexus. Returns evidence references and explicit domain coverage; missing, stale or partial data must not be treated as proof of absence.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
-    searchContract: {
-      contractRole: 'advisory_only',
-      purpose:
-        'Discover evidence across supported Capiro data domains and report per-domain coverage.',
-      exclusions: [
-        'Exact page or section extraction from a client document.',
-        'Immutable evidence for attachments supplied to a research session.',
-        'Institutional memory facts and preferences.',
-      ],
-      supportedScopes: [
-        'authorized tenant',
-        'supported Capiro domains',
-        'cross-domain or selected-domain search',
-      ],
-      prerequisites: [
-        'The requested domain must be supported and available for the current tenant.',
-        'Use returned coverage and continuation metadata to bound conclusions.',
-      ],
-      evidenceAuthority:
-        'Underlying indexed Capiro records identified by returned evidence references; not a substitute for exact-source reading.',
-      availabilityReasonCodes: [
-        'unsupported_domain',
-        'source_unavailable',
-        'partial_coverage',
-        'stale_source',
-        'out_of_scope',
-      ],
-    },
   },
   {
     name: 'get_client_context',
@@ -4009,39 +3839,10 @@ export const MERI_CAPABILITY_REGISTRY = [
   },
   {
     name: 'search_research_sources',
-    description:
-      'Search authorized internal research sources: Capiro clients, meetings, mail, notes, and tenant-wide directory notes. A clientId scopes client-owned sources, not unattributed directory notes. Use the source-specific reader for exact document content or a complete record. This does not search public web sources or provide research-session attachment evidence.',
+    description: 'Search authorized Capiro clients, meetings, mail, notes, and directory notes.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat', 'in_editor'],
-    searchContract: {
-      contractRole: 'advisory_only',
-      purpose:
-        'Discover matching authorized internal research records across clients, meetings, mail, notes, and directory notes.',
-      exclusions: [
-        'Public web search.',
-        'Exact client-document content and page or section locators.',
-        'Research-session attachment evidence.',
-        'Institutional memory as a distinct approved-facts store.',
-      ],
-      supportedScopes: [
-        'authorized tenant internal sources',
-        'cross-record internal research search',
-      ],
-      prerequisites: [
-        'The source category must be supported and available for the current tenant.',
-        'A selected client may narrow the search only where the handler supports that filter.',
-      ],
-      evidenceAuthority:
-        'Matching internal source records returned by the search; verify exact or complete source content with its reader.',
-      availabilityReasonCodes: [
-        'unsupported_source',
-        'source_unavailable',
-        'partial_coverage',
-        'stale_source',
-        'out_of_scope',
-      ],
-    },
   },
   {
     name: 'run_analysis',
@@ -4054,38 +3855,10 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'search_client_knowledge',
     description:
-      "Semantic search over one selected client's knowledge base: profile/overview facts, key people (titles, roles, contact history), facilities (locations, congressional districts, headcount), and indexed uploaded-document contents. Choose it for semantic questions about that client's knowledge base when a client is linked or a clientId is supplied; for exact document text, pages, or sections, use the exact client-document reader. Returns typed, citable knowledge-base entries.",
+      'Semantic search over one client\'s knowledge base: profile/overview facts, key people (titles, roles, contact history), facilities (locations, congressional districts, headcount), and uploaded document contents. Use this FIRST for questions about a specific client ("who at X handles Y", "summarize the uploaded doc", "which districts have X facilities"). Returns typed, citable knowledge-base entries.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat', 'in_editor'],
-    searchContract: {
-      contractRole: 'advisory_only',
-      purpose: 'Semantically retrieve typed knowledge-base entries for one selected client.',
-      exclusions: [
-        'Cross-client search.',
-        'Guaranteed exhaustive client profile inventory.',
-        'Exact document text, version, page, or section reading.',
-        'Research-session attachment evidence.',
-      ],
-      supportedScopes: [
-        'one authorized selected client',
-        'client profile, people, facilities, and indexed uploaded-document knowledge',
-      ],
-      prerequisites: [
-        'A linked client or an explicit clientId is required.',
-        'The selected client must be authorized to the caller.',
-      ],
-      evidenceAuthority:
-        'Returned typed client knowledge-base entries and their citations; use exact-source readers to verify source passages.',
-      availabilityReasonCodes: [
-        'client_required',
-        'client_not_found',
-        'client_forbidden',
-        'knowledge_unavailable',
-        'partial_coverage',
-        'out_of_scope',
-      ],
-    },
   },
   {
     name: 'query_intelligence',
@@ -4118,37 +3891,6 @@ export const MERI_CAPABILITY_REGISTRY = [
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
-    searchContract: {
-      contractRole: 'advisory_only',
-      purpose:
-        'Recall eligible governed memory facts and preferences, with separately paged content for an exact memory item.',
-      exclusions: [
-        'Underlying client documents, source records, meetings, or mail; use their source readers.',
-        'Pending, rejected, withdrawn, revoked, superseded, and non-controlling conflicted memory as active recall.',
-        'The prior content of a corrected or superseded item; active recall does not expose its correction history.',
-        'Treating stale or conflicted governance state as current confirmation.',
-        'Claiming that no historical proposal or excluded memory record exists from an empty active-memory result.',
-      ],
-      supportedScopes: [
-        'authorized firm memory and the authenticated user’s private memory',
-        'the selected visible client’s eligible memory when clientId is supplied',
-        'active governed memory items, with exact-item content continuation bound to item and scope',
-      ],
-      prerequisites: [
-        'A natural-language query; an exact memory read requires the canonical memoryItemId from a prior result.',
-        'An optional clientId must be a UUID for a client visible to the authenticated caller.',
-        'Use content.nextRead to continue long memory content with the same item and client scope.',
-      ],
-      evidenceAuthority:
-        'Governed memory_items records; returns memory item ID, declared scope/client, governance and freshness metadata when present, source provenance including source ID/reference/excerpt/version when present, content hash and character offsets. Approval applies to eligible active memory only; absent optional provenance fields remain unknown.',
-      availabilityReasonCodes: [
-        'empty',
-        'unavailable',
-        'metadata_only',
-        'unavailable_or_ineligible',
-        'content_changed_or_scope_changed',
-      ],
-    },
   },
   {
     name: 'search_congress_bills',
@@ -4161,7 +3903,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'get_bill_status',
     description:
-      'Read ONE federal bill from Capiro-held Congress records: stored canonical status, up to 15 recent actions, up to 15 stored roll-call votes, and linked governing-rule outcomes. This is the local record, not a live Congress.gov check; generatedAt is not source freshness. Supply a canonical id (e.g. "119-hr-8800") or an explicit Congress with an ambiguous designation; never assume the current Congress. If unresolved or not found, say so and do not substitute remembered status. A missing stored vote is not proof that no vote occurred outside these records.',
+      'Get the authoritative legislative status of ONE bill (by id "119-hr-8800" or designation "H.R. 8800"): its canonical status, recent action timeline, roll-call VOTES on the bill (with tallies + party splits), and — critically — the outcome of any RULE that governs its floor consideration. Use this to answer "did it pass / advance / stall / what happened to it". A bill whose latest action is only "rule reported" but whose rule FAILED is reported as stalled, not advancing. Explicitly states when there is NO recorded floor vote — never infer passage.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -4177,7 +3919,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'search_floor_votes',
     description:
-      'Search federal House + Senate roll-call votes in Capiro-held records by canonical bill id/designation, Congress, chamber, vote question/title, or member. Provide explicit Congress when needed; a supplied bill designation that cannot be resolved returns needs_context rather than an unscoped search. Member-name ambiguity/failure does not yield member-scoped results. Rows can include question, result, tallies, party splits, voteDate and sourceUrl; limit is at most 25 with no continuation cursor. No match means no row matched these stored filters, not proof no vote occurred elsewhere. Never infer a vote outcome.',
+      "Search congressional roll-call votes (House + Senate) in the Capiro database. Filter by bill (id/designation), keyword over the vote question/title, chamber, congress, or a specific member (Bioguide id or name). Returns each vote's question, result, yea/nay/present tally, party splits, date, and source link — and the member's own position when a member is given. Explicitly reports when NO matching roll call exists; never infer a vote outcome.",
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -4193,7 +3935,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'resolve_entity',
     description:
-      'Resolve an entity to its canonical Capiro identity before an ambiguous exact read. Supports federal members, committees and bills plus state bills and state legislators; pass type/jurisdiction and state/sessionKey/Congress context where needed. Never assume current Congress or choose the first ambiguous match. Returns a bounded list (limit at most 10, default 5), resolution status and sourceRef provenance when available; there is no continuation cursor. This is identity resolution only, not a status, vote, roster, district or authorization check. generatedAt is not source freshness.',
+      'Resolve a member of Congress, congressional committee, or bill to its CANONICAL identity in the Capiro registry (Bioguide ID, committee systemCode, or bill id like "119-hr-8800"). Accepts a canonical id, an external id (LIS, FEC, OpenSecrets, GovTrack), a bill designation ("H.R. 8800"), or a name. Use this BEFORE citing any member, committee, or bill to ground the reference — it explicitly reports when NO entity matches; never fabricate an identifier.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -4249,32 +3991,10 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'search_federal_awards',
     description:
-      'Search Capiro’s synchronized federal_award records by keyword, awarding agency, or Program Element (PE) code. The current interface filters by PE but does not filter by client identity, action date, or place of performance. Results include contractor, agency, amount, description, PE code, and available place-of-performance fields. Amount is stored as raw obligated dollars at the record basis; this result does not state a cumulative period or aggregation.',
+      'Search federal contract awards/obligations (USAspending) the firm has synced. Filter by keyword, awarding agency, or Program Element (PE) code. Returns contractor, agency, amount, description, PE code, and place-of-performance — useful for defense-contracting and PE-linked questions.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat', 'in_editor'],
-    searchContract: {
-      contractRole: 'advisory_only',
-      purpose:
-        'Discover synchronized Capiro federal_award records using keyword, awarding agency, and optional exact PE-code filters.',
-      exclusions: [
-        'Client-identity filtering or proof that a contractor is a selected client.',
-        'Action-date, state, or district filtering through this tool’s current inputs.',
-        'Exact source-document retrieval or per-row source URL validation.',
-        'Interpreting amount as a cumulative obligated total; the result does not state a cumulative period or aggregation.',
-      ],
-      supportedScopes: [
-        'synchronized Capiro federal_award corpus',
-        'keyword, awarding-agency, and exact PE-code filtering',
-      ],
-      prerequisites: [
-        'The requested records must already be present in the synchronized corpus.',
-        'For PE-specific searches, supply the exact PE code; PE attribution provenance is not returned by this tool.',
-      ],
-      evidenceAuthority:
-        'Capiro federal_award rows, with record ID, action/latest/base-signed/source-update/performance dates, and Capiro last-synchronized time; the current result does not expose a source URL or the PE-attribution provenance.',
-      availabilityReasonCodes: ['empty_result', 'query_error', 'corpus_not_synced'],
-    },
   },
   {
     name: 'search_gao_reports',
@@ -4319,7 +4039,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'get_committee_roster',
     description:
-      'Read ONE committee roster from Capiro-held membership records. `jurisdiction` is required; `state` is required for state committees because names/ids are separate by jurisdiction and state. Optional chamber filters are jurisdiction-specific. Federal candidates are limited to committees marked current; returned federal members have state but not congressional district. Ambiguous/unmatched committees return no selected roster, and no district may be inferred from membership. generatedAt is not source freshness; no page/continuation cursor or uniform completeness field is returned.',
+      'Get the full roster of ONE committee: chair, vice chair, ranking member, and every member (grouped by side/rank for federal; role for state — state chambers do not share a minority-leadership vocabulary). `jurisdiction` is required (federal and state committees are separate namespaces — never guessed from the committee string alone); `state` is required when jurisdiction=state. Matches by exact systemCode/committee id first, then by name — reports "committee referral unmatched" rather than guessing when the name matches zero or more than one committee.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -4335,7 +4055,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'list_members',
     description:
-      'List CURRENT members of Congress from the Capiro-held local roster by state and/or chamber — the direct roster lookup for questions like "who are the senators from Virginia?" or "which representatives are from Florida?". State accepts a full name ("Virginia") or 2-letter code ("VA"); chamber is "house" or "senate"; at least one of the two is required. Returns each member: name, party, state, district (House only), and chamber. Use it instead of resolve_entity (a name resolver) for by-state or by-chamber listings. A local result does not establish upstream roster completeness or synchronization recency. Explicitly reports when NO members match; never fabricate a member.',
+      'List CURRENT members of Congress by state and/or chamber — the direct roster lookup for questions like "who are the senators from Virginia?" or "which representatives are from Florida?". `state` accepts a full name ("Virginia") or 2-letter code ("VA"); `chamber` is "house" or "senate"; at least one of the two is required. Returns each member: name, party, state, district (House only), and chamber. This is the authoritative federal member roster — use it instead of resolve_entity (a name resolver) for by-state or by-chamber listings. Explicitly reports when NO members match; never fabricate a member.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -4536,7 +4256,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'send_email',
     description:
-      "Send an email from the authenticated user's connected Outlook or Gmail account to the supplied address. Requires a recipient, subject, and body; report success only after the send operation returns. This is a mail action, not an engagement task or a recurring Meri automation.",
+      "Send an email via the tenant's connected Microsoft 365 account on behalf of Meri.",
     backend: 'meri',
     readOnly: false,
     surfaces: ['full_chat'],
@@ -4576,7 +4296,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'reply_email',
     description:
-      "Send a reply-formatted email through the authenticated user's connected Outlook or Gmail account. Requires the exact owned threadId and a body; the current handler addresses the sender of the newest stored message and prefixes the subject with Re:. It does not use a provider-native reply operation or guarantee provider thread linkage. Report success only after the send operation returns.",
+      "Reply to an email thread via the tenant's connected Microsoft 365 account on behalf of Meri.",
     backend: 'meri',
     readOnly: false,
     surfaces: ['full_chat'],
@@ -4712,7 +4432,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'schedule_task',
     description:
-      'Create a recurring Meri automation (e.g. a weekly research brief), distinct from an engagement task/to-do. Requires a name, an instruction prompt, and intervalMinutes (>=60). Scheduled runs are READ-ONLY research only — they cannot send email or write data. Use when the user asks Meri to do something "every week / daily / on a schedule".',
+      'Schedule a recurring task for Meri to run automatically on a cadence (e.g. a weekly research brief). Requires a name, an instruction prompt, and intervalMinutes (>=60). Scheduled runs are READ-ONLY research only — they cannot send email or write data. Use when the user asks Meri to do something "every week / daily / on a schedule".',
     backend: 'meri',
     readOnly: false,
     surfaces: ['full_chat'],
@@ -4720,14 +4440,14 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'list_scheduled_tasks',
     description:
-      "List the caller's recurring Meri automations (name, cadence, next run, enabled state), not engagement tasks or Needs Attention recommendations.",
+      "List the caller's recurring scheduled Meri tasks (name, cadence, next run, enabled state).",
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
   },
   {
     name: 'cancel_scheduled_task',
-    description: 'Cancel (disable) a recurring Meri automation by its id; does not change an engagement task.',
+    description: 'Cancel (disable) a recurring scheduled Meri task by its id.',
     backend: 'meri',
     readOnly: false,
     surfaces: ['full_chat'],
@@ -4795,36 +4515,6 @@ export const MERI_CAPABILITY_REGISTRY = [
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat', 'in_editor'],
-    searchContract: {
-      contractRole: 'advisory_only',
-      purpose:
-        'List one client’s Documents-tab files or read/search a selected file by extractable section.',
-      exclusions: [
-        'Research-session attachments that are not also available as client Documents-tab files.',
-        'A file listing as evidence that the document text has been read.',
-        'Content outside the selected section and returned character range until continuation is followed.',
-        'Unextractable visual content or text omitted by a partial, blocked, or failed extraction.',
-      ],
-      supportedScopes: [
-        'one currently visible client and attachments authorized for the caller',
-        'file-name filtering when listing, or literal text search within the selected document section',
-        'PDF page, presentation slide, workbook sheet/row section, or text-document section locators where returned',
-      ],
-      prerequisites: [
-        'A client UUID visible to the authenticated caller.',
-        'For content reads, a documentId bound to that client and currently readable under attachment ACLs.',
-        'Repeat the same client, document, and query when continuing with coverage.nextCursor.',
-      ],
-      evidenceAuthority:
-        'Client Documents-tab attachment; listing returns document ID, client ID, created/indexed times and extraction status when available. Content reads return document ID, content hash, section kind/label, character range, and row range when applicable. These identify the extracted content version and locator, not an independently verified original-file version.',
-      availabilityReasonCodes: [
-        'empty_result',
-        'client_not_found_or_not_visible',
-        'document_not_found_or_not_readable',
-        'extraction_unavailable_or_incomplete',
-        'document_changed_since_continuation',
-      ],
-    },
   },
   {
     name: 'lookup_client_registry',
@@ -4941,33 +4631,10 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'search_federal_contract_awards',
     description:
-      'Search Capiro’s locally synchronized federal contract awards. Filter by keyword, agency, recipient, action-date range, or place-of-performance state/district. Pass clientId to restrict results using that client’s UEI and confirmed, reviewed federal identity mappings. Returns recipient, UEI, amount, distinct award-date fields, place-of-performance, source freshness, and USAspending provenance. Amount is stored as raw obligated dollars at the record basis; this result does not state a cumulative period or aggregation. Read-only; never calls MakeGov.',
+      'Search Capiro’s locally synchronized federal contract awards. Returns recipient, UEI, awarding agency, obligated amount, action date, place-of-performance district, source freshness and USAspending provenance. Pass clientId to restrict results to that client’s reviewed federal identities. Read-only; never calls MakeGov.',
     backend: 'federal_market',
     readOnly: true,
     surfaces: ['full_chat'],
-    searchContract: {
-      contractRole: 'advisory_only',
-      purpose:
-        'Search locally synchronized USAspending contract awards with action-date and place-of-performance filters, optionally scoped to one client’s reviewed federal identities.',
-      exclusions: [
-        'Program Element (PE) filtering; use search_federal_awards for the current PE filter.',
-        'Unreviewed name matches as client identity evidence.',
-        'Subawards, grants, forecasts, or future opportunities.',
-        'Treating amount as cumulative obligations; the result does not state a cumulative period or aggregation.',
-      ],
-      supportedScopes: [
-        'locally synchronized USAspending contract award corpus',
-        'optional authorized single-client scope using confirmed reviewed identity mappings and UEI rails',
-        'action-date range and place-of-performance state/district filters',
-      ],
-      prerequisites: [
-        'The award must be present in Capiro’s local synchronization.',
-        'For client-scoped queries, clientId must identify a visible tenant client; its UEI and only confirmed mappings with rollUpAwards enabled contribute to reviewed identity rails.',
-      ],
-      evidenceAuthority:
-        'USAspending award records ingested by Capiro; results identify source and synchronization timestamps and keep action, base-signed, latest-action, and POP dates distinct.',
-      availabilityReasonCodes: ['empty_result', 'identity_scope_unmatched', 'source_as_of_unavailable'],
-    },
   },
   {
     name: 'search_federal_subawards',
@@ -5712,5 +5379,3 @@ export * from './schedule/time-zone';
 export * from './schedule/deadline';
 export * from './schedule/validate';
 export * from './schedule/synthesis';
-export * from './meri-legislative-contracts.js';
-export * from './meri-result-envelope.js';

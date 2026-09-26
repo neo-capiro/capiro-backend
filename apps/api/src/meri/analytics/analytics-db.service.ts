@@ -24,15 +24,8 @@ function normalizeValue(value: unknown): unknown {
   }
   if (value instanceof Date) return value.toISOString();
   if (Prisma.Decimal.isDecimal(value)) {
-    const decimal = value as Prisma.Decimal;
-    const asNumber = decimal.toNumber();
-    // Finite is not enough: JSON numbers silently round large or precise
-    // amounts. Only use a number when the decimal survives the round trip.
-    return Number.isFinite(asNumber) &&
-      Math.abs(asNumber) <= Number.MAX_SAFE_INTEGER &&
-      new Prisma.Decimal(asNumber).equals(decimal)
-      ? asNumber
-      : decimal.toString();
+    const asNumber = (value as Prisma.Decimal).toNumber();
+    return Number.isFinite(asNumber) ? asNumber : (value as Prisma.Decimal).toString();
   }
   if (Array.isArray(value)) return value.map(normalizeValue);
   return value;

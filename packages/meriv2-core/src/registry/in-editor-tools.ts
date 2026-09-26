@@ -1,14 +1,14 @@
 /**
- * The canonical READ-ONLY allowlist ceiling for the in-document ("in-editor")
- * Meri assistant, shared by BOTH implementations of that surface:
+ * The canonical READ-ONLY tool surface for the in-document ("in-editor") Meri
+ * assistant, shared by BOTH implementations of that surface:
  *
  *  - the legacy path in apps/api (WorkspaceAssistantService), and
  *  - the MeriV2 path in apps/meriv2-orchestrator (InEditorAssistantService).
  *
  * It lives here — not duplicated in each app — because the two paths are selected
- * by a feature flag at runtime. MeriV2 also intersects this ceiling with its
- * request-local offered schemas; its shared-registry surface currently omits
- * eight legacy editor reads, tracked in the Phase 2 source audit.
+ * by a feature flag at runtime. When the sets drifted, flipping the flag silently
+ * changed which tools Meri could reach, which is exactly the class of
+ * behaviour-changing routing this must not have.
  *
  * It is an ALLOWLIST, not a denylist: a newly registered write tool can never
  * leak into the editor by default. The surface deliberately spans federal,

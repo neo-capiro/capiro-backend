@@ -6,6 +6,7 @@ import { OrchestratorContextCompilerService } from './context-compiler.service.j
 import { ApiClientContextRepo } from './api-client-context.repo.js';
 import { ApiToolExecutorRepo } from './api-tool-executor.repo.js';
 import { ApiActionProposalRepo } from './api-action-proposal.repo.js';
+import { ApiComplianceAuditRepo } from './api-compliance-audit.repo.js';
 import { InEditorController } from './in-editor/in-editor.controller.js';
 import { InEditorAssistantService } from './in-editor/in-editor-assistant.service.js';
 import { ChatController } from './chat/chat.controller.js';
@@ -53,6 +54,7 @@ import { OpenAiResponsesClient } from './meriv3/openai-responses.client.js';
     ApiClientContextRepo,
     ApiToolExecutorRepo,
     ApiActionProposalRepo,
+    ApiComplianceAuditRepo,
     MeriRegistryService,
     MeriRetrievalCoordinator,
     InEditorAssistantService,

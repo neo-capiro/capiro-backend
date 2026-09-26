@@ -1,6 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
 import { resolveJevConfig, JEV_TASKS } from './jev-config';
-import { createJevChoiceTaskProvider } from './task-choice-provider';
 import {
   JEV_TASK_REGISTRY,
   JEV_TASK_REGISTRY_VERSION,
@@ -21,7 +20,7 @@ const liveConfig = () => resolveJevConfig({
 
 describe('Jev task registry', () => {
   it('covers every configured task and preserves the live constants', () => {
-    expect(JEV_TASK_REGISTRY_VERSION).toBe('jev-task-registry.v6');
+    expect(JEV_TASK_REGISTRY_VERSION).toBe('jev-task-registry.v5');
     expect(Object.keys(JEV_TASK_REGISTRY).sort()).toEqual([...JEV_TASKS].sort());
     expect(JEV_TASK_REGISTRY.claim_support).toMatchObject({
       questionVersion: 'claim_support.v1', questionId: 'claim_support', primitive: 'choice',
@@ -53,13 +52,6 @@ describe('Jev task registry', () => {
     expect(JEV_TASK_REGISTRY.evidence_selection.cacheIdentity.fields).toEqual(expect.arrayContaining([
       'task', 'question_hash', 'provenance', 'candidates',
     ]));
-    expect(JEV_TASK_REGISTRY.capability_routing).toMatchObject({
-      lifecycle: 'inactive', questionVersion: 'capability_routing.v1',
-      maxRolloutMode: 'off', fallback: 'no_change', rolloutCapability: null,
-      thresholds: {}, thresholdsByAction: {},
-      evaluationSet: { status: 'missing', path: null },
-      permittedEffect: { kind: 'advisory_only', canonicalFinancialWrite: false },
-    });
   });
 
   it('applies task enablement and the registered shadow ceiling', () => {
@@ -68,22 +60,6 @@ describe('Jev task registry', () => {
     expect(resolveJevTaskRollout('program_identity', config, 'enforce')).toBe('shadow');
     expect(resolveJevTaskRollout('claim_support', config, 'enforce')).toBe('enforce');
     expect(resolveJevTaskRollout('mention_scope', config, 'shadow')).toBe('off');
-  });
-
-  it('keeps capability routing off even when explicitly listed and provider mode is enforce', () => {
-    const config = resolveJevConfig({ TYPESAFE_API_KEY: 'test-key', MERI_JEV_MODEL: 'jev-1.13.0',
-      MERI_JEV_TASKS: 'capability_routing' });
-    expect(config.tasks).toContain('capability_routing');
-    expect(resolveJevTaskRollout('capability_routing', config, 'enforce')).toBe('off');
-  });
-
-  it('cannot construct the existing evidence Choice provider for dormant capability routing', () => {
-    let providerCalls = 0;
-    expect(() => createJevChoiceTaskProvider({
-      task: 'capability_routing', model: 'jev-1.13.0', scope: { tenantId: 'test', surface: 'chat' },
-      client: { systemOne: async () => { providerCalls += 1; throw new Error('unexpected'); } } as never,
-    })).toThrow('is not an envelope-bound Choice task');
-    expect(providerCalls).toBe(0);
   });
 
   it('refuses a Package 2 task envelope that drops required provenance metadata', () => {

@@ -9,7 +9,6 @@ import {
   confidenceLevel,
   evaluateAssuranceRelease,
   extractCitedPeCodes,
-  IN_EDITOR_READ_TOOLS,
   metricLogLine,
   parseVerifierClaims,
   resolveAssuranceRolloutMode,
@@ -36,6 +35,7 @@ import {
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
+  ASSISTANT_TOOLS,
   PROPOSE_EDITS_TOOL,
   composeInEditorSystemPrompt,
   resolveInEditorAssurance,
@@ -107,9 +107,7 @@ export class InEditorAssistantService {
 
     const systemParts = composeInEditorSystemPrompt(dto);
     const system = flattenSystemParts(systemParts);
-    const offeredSchemas = await this.fetchToolSchemas();
-    const offeredToolNames = new Set(offeredSchemas.map((schema) => schema.name));
-    const toolSchemas = [...offeredSchemas, PROPOSE_EDITS_TOOL];
+    const toolSchemas = [...(await this.fetchToolSchemas()), PROPOSE_EDITS_TOOL];
     const assurance = resolveInEditorAssurance(dto);
     const assuranceRisk = classifyAssuranceRisk('in-editor', assurance.plan);
     const assuranceMode = resolveAssuranceRolloutMode({
@@ -242,7 +240,7 @@ export class InEditorAssistantService {
       const results = await Promise.all(
         toolUses.map(async (tu) => {
           let result: unknown;
-          if (!IN_EDITOR_READ_TOOLS.has(tu.name) || !offeredToolNames.has(tu.name)) {
+          if (!ASSISTANT_TOOLS.has(tu.name)) {
             result = { error: `Tool "${tu.name}" is not available in the document assistant.` };
             steps.push({
               tool: tu.name,

@@ -6,11 +6,6 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { sha256CanonicalAnalysisJson } from './meri-analysis-provenance.js';
 import {
-  assertVisualAnalysisClientAccess,
-  assertVisualAnalysisConversationAccess,
-  assertVisualArtifactClientAccess,
-} from './meri-visual-artifact-access.js';
-import {
   analysisResultsWithoutVisualizations,
   analysisVisualizationCandidatesFromResults,
   sanitizeAnalysisVisualization,
@@ -166,7 +161,7 @@ export class MeriV3VisualAnalysisService {
     private readonly tools: MeriToolsService,
   ) {}
 
-  /** Config/tenant gate used for offering; this does not attest runner health. */
+  /** The same env + tenant gate that controls whether run_analysis is offered. */
   isAvailable(tenantId: string): Promise<boolean> {
     return this.tools.analysisSandboxEnabled(tenantId);
   }
@@ -190,8 +185,8 @@ export class MeriV3VisualAnalysisService {
       );
     });
 
-    const conversation = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-      const owned = await tx.clioConversation.findFirst({
+    const conversation = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioConversation.findFirst({
         where: {
           id: conversationId,
           tenantId: ctx.tenantId,
@@ -199,10 +194,8 @@ export class MeriV3VisualAnalysisService {
           archivedAt: null,
         },
         select: { id: true, clientId: true },
-      });
-      if (owned) await assertVisualAnalysisClientAccess(tx, ctx, owned.clientId);
-      return owned;
-    });
+      }),
+    );
     if (!conversation) throw new NotFoundException('Meri conversation not found');
 
     const requestedClientId = optionalString(input.clientId, 80);
@@ -219,12 +212,6 @@ export class MeriV3VisualAnalysisService {
       datasets: input.datasets,
       purpose: input.purpose,
     })) as RawAnalysisResult;
-
-    // A grant/client/conversation can change while Python runs. Suppress every
-    // model-facing result, including errors and text-only results, if it did.
-    await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
-      assertVisualAnalysisConversationAccess(tx, ctx, conversationId, conversation.clientId),
-    );
 
     if (!raw || typeof raw !== 'object') return raw;
     if (raw.ok === false || raw.error) {
@@ -302,11 +289,8 @@ export class MeriV3VisualAnalysisService {
 
     const purpose = optionalString(input.purpose, 500);
     const resultSha256 = sha256CanonicalAnalysisJson(modelFacingResults);
-    const persisted = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    const persisted = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       assertMeriToolRequestActive();
-      // Keep this check locked through all inserts. A concurrent revoke,
-      // archive, or client reassignment waits for the artifact transaction.
-      await assertVisualAnalysisConversationAccess(tx, ctx, conversationId, conversation.clientId);
       const out: Array<{
         id: string;
         title: string;
@@ -372,12 +356,6 @@ export class MeriV3VisualAnalysisService {
       return out;
     });
 
-    // The persistence locks end at commit. Recheck before releasing artifact
-    // references in case a revoke committed immediately afterward.
-    await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
-      assertVisualAnalysisConversationAccess(tx, ctx, conversationId, conversation.clientId),
-    );
-
     this.logRun({
       ctx,
       conversationId,
@@ -418,20 +396,17 @@ export class MeriV3VisualAnalysisService {
     imageAvailable: boolean;
     provenance: AnalysisArtifactProvenance;
   } | null> {
-    const artifact = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-      const found = await tx.clioArtifact.findFirst({
+    const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioArtifact.findFirst({
         where: {
           id,
           tenantId: ctx.tenantId,
           userId: ctx.userId,
           kind: 'analysis_chart',
         },
-        select: { id: true, title: true, metadata: true, createdAt: true,
-          clientId: true, conversation: { select: { clientId: true } } },
-      });
-      if (found) await assertVisualArtifactClientAccess(tx, ctx, found);
-      return found;
-    });
+        select: { id: true, title: true, metadata: true, createdAt: true },
+      }),
+    );
     if (!artifact) return null;
     const metadata = metadataRecord(artifact.metadata);
     const visualization = sanitizeAnalysisVisualization(metadata.visualization);
@@ -458,20 +433,17 @@ export class MeriV3VisualAnalysisService {
     ctx: TenantContext,
     id: string,
   ): Promise<{ buffer: Buffer; contentType: string } | null> {
-    const artifact = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-      const found = await tx.clioArtifact.findFirst({
+    const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioArtifact.findFirst({
         where: {
           id,
           tenantId: ctx.tenantId,
           userId: ctx.userId,
           kind: 'analysis_chart',
         },
-        select: { contentType: true, metadata: true,
-          clientId: true, conversation: { select: { clientId: true } } },
-      });
-      if (found) await assertVisualArtifactClientAccess(tx, ctx, found);
-      return found;
-    });
+        select: { contentType: true, metadata: true },
+      }),
+    );
     if (!artifact) return null;
     const imageBase64 = boundedBase64(
       metadataRecord(artifact.metadata).imageBase64,

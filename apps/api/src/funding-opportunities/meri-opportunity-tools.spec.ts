@@ -1078,59 +1078,6 @@ describe('government-affairs funding evidence contract', () => {
     );
   });
 
-  it('does not turn a disabled source into complete coverage or a no-match claim', async () => {
-    const { adapter } = makeAdapter({
-      search: async () => ({
-        criteria: {}, opportunities: [], total: null, totalIsCapped: false,
-        page: 1, pageSize: 5, catalogComplete: false,
-        counts: { grants: null, contracts: null, active: null, closed: null },
-        mode: 'matched', clientId: CLIENT,
-        freshness: [{ source: 'grants_gov', state: 'not_enabled', recordCount: null, activeRecordCount: null, lastSyncedAt: null }],
-        provenance: [{ source: 'grants_gov', queried: false, returned: 0, count: null, capped: false }],
-        emptyReason: null, profileGaps: null, generatedAt: AS_OF.toISOString(),
-      }),
-    });
-
-    const result = await adapter.searchFundingOpportunities(STANDARD, { clientId: CLIENT, source: 'grants_gov' }, AS_OF);
-
-    expect(result.state).toBe('available');
-    expect(result.data).toMatchObject({
-      opportunities: [], total: null, emptyReason: null, hasMore: false, nextPage: null,
-      coverage: { sources: ['grants_gov'], pageCoversMatchedResults: false },
-    });
-    expect(result.data!.emptyExplanation).toContain('no source was searched');
-    expect(result.data!.coverage.explanation).toContain('not evidence that no matching opportunities exist');
-  });
-
-  it('marks requested-source coverage partial when an enabled and disabled source are selected together', async () => {
-    const { adapter } = makeAdapter({
-      search: async () => ({
-        criteria: {}, opportunities: [], total: 0, totalIsCapped: false,
-        page: 1, pageSize: 5, catalogComplete: true,
-        counts: { grants: 0, contracts: 0, active: 0, closed: 0 },
-        mode: 'matched', clientId: CLIENT,
-        freshness: [
-          { source: 'grants_gov', state: 'current', recordCount: 0, activeRecordCount: 0, lastSyncedAt: AS_OF.toISOString() },
-          { source: 'sam_gov', state: 'not_enabled', recordCount: null, activeRecordCount: null, lastSyncedAt: null },
-        ],
-        provenance: [
-          { source: 'grants_gov', queried: true, returned: 0, count: 0, capped: false },
-          { source: 'sam_gov', queried: false, returned: 0, count: null, capped: false },
-        ],
-        emptyReason: 'no_matches', profileGaps: null, generatedAt: AS_OF.toISOString(),
-      }),
-    });
-
-    const result = await adapter.searchFundingOpportunities(STANDARD, { clientId: CLIENT }, AS_OF);
-
-    expect(result.state).toBe('available');
-    expect(result.data).toMatchObject({
-      total: 0, coverage: { sources: ['grants_gov', 'sam_gov'], pageCoversMatchedResults: false },
-    });
-    expect(result.data!.emptyExplanation).toContain('disabled requested sources were not searched');
-    expect(result.data!.coverage.explanation).toContain('only the enabled sources that were queried');
-  });
-
   it.each([
     { page: 0 },
     { pageSize: 6 },

@@ -1,28 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { isRetryableTransactionError, PrismaService } from './prisma.service.js';
-
-describe('PrismaService.withTenant transaction options', () => {
-  it('forwards a requested isolation level while preserving the default when omitted', async () => {
-    const transaction = jest.fn(async (
-      callback: (tx: { $executeRaw: jest.Mock }) => Promise<unknown>,
-      _options?: unknown,
-    ) => callback({ $executeRaw: jest.fn().mockResolvedValue(1) }));
-    const service = Object.assign(Object.create(PrismaService.prototype), {
-      tenantScopedModels: new Set<string>(),
-      $extends: jest.fn(() => ({ $transaction: transaction })),
-    }) as PrismaService;
-
-    await expect(service.withTenant('tenant-a', async () => 'done', {
-      isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
-    })).resolves.toBe('done');
-    expect(transaction.mock.calls[0]?.[1]).toEqual({
-      isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
-    });
-
-    await service.withTenant('tenant-a', async () => 'default');
-    expect(transaction.mock.calls[1]?.[1]).toBeUndefined();
-  });
-});
+import { isRetryableTransactionError } from './prisma.service.js';
 
 describe('isRetryableTransactionError', () => {
   it('retries the Prisma write-conflict/deadlock code (P2034)', () => {

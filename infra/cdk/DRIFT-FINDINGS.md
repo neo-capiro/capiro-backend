@@ -1,14 +1,5 @@
 # Capiro-dev-Compute — CloudFormation Drift Findings & Remediation Runbook
 
-> **UPDATE 2026-09-24 (read-only):** `aws cloudformation describe-stacks`
-> now reports `UPDATE_ROLLBACK_COMPLETE` (last updated 2026-07-25), not
-> `UPDATE_ROLLBACK_FAILED`. The historical status and recovery instructions
-> below describe the earlier incident. No current clean CDK diff, drift
-> reconciliation, or replacement-free deployment has been verified here;
-> do **not** infer that `cdk deploy` is safe from the status change alone.
-> The current live API/orchestrator services still have no service registry
-> or Service Connect, and Cloud Map's `api` service has zero instances.
-
 > Status as of 2026-06-01. Investigation by Hermes (read-only). **No remediation
 > has been applied.** This document is the playbook for a future planned
 > maintenance window.

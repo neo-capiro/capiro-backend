@@ -52,9 +52,6 @@ import { MeriService } from './meri.service.js';
 import { MERI_TURN_MAINTENANCE } from './meri-turn-maintenance.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { MeriBizDevToolsService } from './meri-bizdev-tools.service.js';
-import { MeriToolAvailabilityProofController } from './meri-tool-availability-proof.controller.js';
-import { MeriToolAvailabilityProofService } from './meri-tool-availability-proof.service.js';
-import { MeriAnalysisSandboxReadinessObserver } from './meri-analysis-sandbox-readiness-observer.service.js';
 import { AnalyticsDbService } from './analytics/analytics-db.service.js';
 import {
   createGovernedMeriToolsService,
@@ -81,7 +78,6 @@ import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js'
 import { MeriV3ProxyService } from './meriv3-proxy.service.js';
 import { MeriConversationEvidenceService } from './meri-conversation-evidence.service.js';
 import { MeriV3SettingsController } from './meriv3-settings.controller.js';
-import { MeriAuthenticatedConversationScopeService } from './meri-authenticated-conversation-scope.service.js';
 import { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.js';
 import { MeriVNextLibraryController } from './meri-vnext-library.controller.js';
 import { MeriVNextLibraryService } from './meri-vnext-library.service.js';
@@ -119,7 +115,6 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
   ],
   controllers: [
     MeriController,
-    MeriToolAvailabilityProofController,
     MeriSourceController,
     MeriSkillsController,
     MeriV3SettingsController,
@@ -131,8 +126,6 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
     MeriVNextLibraryController,
   ],
   providers: [
-    MeriToolAvailabilityProofService,
-    MeriAnalysisSandboxReadinessObserver,
     MeriClientFilingService,
     MeriSourceService,
     MeriContextPlaneService,
@@ -182,7 +175,6 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
     },
     MeriDocgenService,
     MeriV3InternalServiceGuard,
-    MeriAuthenticatedConversationScopeService,
     MeriV3VisualAnalysisService,
     MeriVNextLibraryService,
     MeriFirmSkillsService,

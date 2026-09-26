@@ -105,7 +105,6 @@ describe('MeriV3ProxyService — done frame carries the persisted message id', (
     });
     await service.streamMessage(CTX, CONVERSATION, 'Research Anduril', sse, undefined, 'new', [], 'token');
     const saved = tx.clioMessage.create.mock.calls.map(([arg]: any) => arg.data).find((data: any) => data.role === 'assistant');
-    expect(saved.metadata).toMatchObject({ servedBy: 'meriv3', runtime: 'meriv3' });
     const expected = { kind: 'external_entity', targetHint: 'Anduril', clientId: null, clientName: null };
     expect(saved.metadata.turnScope).toEqual(expected);
     expect(frames().find((frame) => frame.type === 'done')?.turnScope).toEqual(expected);
@@ -570,7 +569,7 @@ describe('MeriV3ProxyService — done frame carries the persisted message id', (
   });
 
   it('compliance-block short-circuit: done frame includes the refusal message id', async () => {
-    const { service, flags, sse, frames, tx } = buildHarness();
+    const { service, flags, sse, frames } = buildHarness();
     flags.isEnabled.mockImplementation(
       async (_t: string, key: string) => key === 'complianceBlock',
     );
@@ -590,14 +589,10 @@ describe('MeriV3ProxyService — done frame carries the persisted message id', (
     expect(done).toBeDefined();
     expect(typeof done!.messageId).toBe('string');
     expect(done!.messageId).toMatch(/^msg-assistant-/);
-    const saved = tx.clioMessage.create.mock.calls
-      .map(([arg]: any) => arg.data)
-      .find((data: any) => data.role === 'assistant');
-    expect(saved.metadata).toMatchObject({ servedBy: 'compliance-block', runtime: 'meriv3' });
   });
 
   it('research-promote short-circuit: done frame includes the offer message id', async () => {
-    const { service, flags, sse, frames, tx } = buildHarness();
+    const { service, flags, sse, frames } = buildHarness();
     flags.isEnabled.mockImplementation(
       async (_t: string, key: string) => key === 'deepResearchPromote',
     );
@@ -617,10 +612,6 @@ describe('MeriV3ProxyService — done frame carries the persisted message id', (
     expect(done).toBeDefined();
     expect(typeof done!.messageId).toBe('string');
     expect(done!.messageId).toMatch(/^msg-assistant-/);
-    const saved = tx.clioMessage.create.mock.calls
-      .map(([arg]: any) => arg.data)
-      .find((data: any) => data.role === 'assistant');
-    expect(saved.metadata).toMatchObject({ servedBy: 'research-promote', runtime: 'meriv3' });
   });
 
   it('nothing persisted (empty reply, no tool steps, no error): done frame omits messageId rather than fabricating one', async () => {

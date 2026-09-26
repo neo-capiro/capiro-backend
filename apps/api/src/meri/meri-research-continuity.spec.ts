@@ -346,9 +346,7 @@ describe('Deep Research conversation continuity', () => {
     const planInput = f.runner.plan.mock.calls[0]?.[1] as any;
     const runInput = f.runner.run.mock.calls[0]?.[1] as any;
     expect(planInput.user).toContain('Exclude forecasted opportunities');
-    expect(runInput.user).toContain('prior-file');
-    expect(runInput.user).not.toContain('Client has three sensor manufacturing facilities');
-    expect(runInput.user).toContain('call get_research_evidence for this session');
+    expect(runInput.user).toContain('three sensor manufacturing facilities');
     expect(runInput.user).toContain('The CEO');
     expect(runInput.user).toContain('Research sessionId: research-a');
     expect(runInput.handoff.reasoningMode).toBe('max');

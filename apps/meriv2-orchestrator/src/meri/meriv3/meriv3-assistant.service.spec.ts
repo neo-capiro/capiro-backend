@@ -1,7 +1,6 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createHash } from 'node:crypto';
 import type { MeriContext, ToolRegistry } from '@capiro/meriv2-core';
 import {
   MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT,
@@ -57,8 +56,7 @@ const clientDocumentSchemas = [
     description: 'Read a research snapshot',
     input_schema: {
       type: 'object',
-      properties: { sessionId: { type: 'string' }, limit: { type: 'number' },
-        cursor: { type: 'string' }, attachmentIds: { type: 'array', items: { type: 'string' } } },
+      properties: { sessionId: { type: 'string' } },
       required: ['sessionId'],
     },
   },
@@ -1690,114 +1688,6 @@ describe('MeriV3 client transcript task completion', () => {
     ]);
   });
 
-  test('carries exact research attachment values and incomplete coverage through three leased reads to the final citation', async () => {
-    const ids = ['44444444-4444-4444-8444-000000000000',
-      '44444444-4444-4444-8444-000000000001',
-      '44444444-4444-4444-8444-000000000002'];
-    const imageBytes = Buffer.from('verified-research-image');
-    const otherImageBytes = Buffer.from('unselected-research-image');
-    const call = (args: Record<string, unknown>, callId: string) => ({
-      type: 'function_call' as const, call_id: callId, name: 'get_research_evidence',
-      arguments: JSON.stringify(args),
-    });
-    const toolResponse = (item: ReturnType<typeof call>) =>
-      response({ outputText: '', output: [item], functionCalls: [item] });
-    const providerInputs: string[] = [];
-    const responses = [
-      toolResponse(call({ sessionId: 'untrusted-chat-id', limit: 1 }, 'read-1')),
-      toolResponse(call({ sessionId: 'untrusted-chat-id', limit: 1, cursor: 'page-2' }, 'read-2')),
-      toolResponse(call({ sessionId: 'untrusted-chat-id', limit: 1, cursor: 'page-3' }, 'read-3')),
-      response({ outputText:
-        `The captured appropriations text states $17 million [S:get_research_evidence:${ids[0]}]. The scanned page remains incomplete; the image was verified but not transcribed.` }),
-    ];
-    const complete = jest.fn(async (request: { input: unknown }) => {
-      providerInputs.push(JSON.stringify(request.input));
-      return responses.shift()!;
-    });
-    const invoke = jest.fn(async (_name: string, args: Record<string, unknown>) => {
-      const index = args.cursor === 'page-3' ? 2 : args.cursor === 'page-2' ? 1 : 0;
-      return { tool: 'get_research_evidence', sessionId: 'session-a',
-        coverage: { status: 'partial', total: 3, returned: 1,
-          truncated: index < 2, paginationComplete: index === 2,
-          contentComplete: false, complete: false,
-          nextCursor: index < 2 ? `page-${index + 2}` : null },
-        records: [{ domain: 'research_attachments', recordId: ids[index], payload: {
-          id: ids[index], status: index === 1 ? 'truncated' : index === 2 ? 'image_ready' : 'parsed',
-          kind: index === 2 ? 'image' : 'text',
-          mediaType: index === 2 ? 'image/png' : 'text/plain',
-          contentSha256: index === 2 ? createHash('sha256').update(imageBytes).digest('hex') : null,
-          textContent: index === 0 ? 'Appropriated amount: $17 million.' : index === 1 ? 'Partial scan only.' : null,
-        }, provenance: { sourceType: 'research_snapshot', sessionId: 'session-a', originalAttachmentId: ids[index] } }],
-      };
-    });
-    const assistant = build(registry([{ name: 'get_research_evidence', readOnly: true }], invoke), complete);
-    global.fetch = jest.fn(async (url) => new Response(JSON.stringify(String(url).includes('/runs/')
-      ? { active: true } : { schemas: clientDocumentSchemas.filter((schema) => schema.name === 'get_research_evidence') }),
-      { status: 200 })) as typeof fetch;
-    const result = await RequestCredentialsStore.run({ bearerToken: 'user-token' }, () => assistant.run(context, {
-      messages: [{ role: 'user', text: 'Read the selected research attachments and state the exact amount.' }],
-      toolPolicy: 'read-only', researchRun: { sessionId: 'session-a', runId: 'run-a' },
-      currentTurnImages: [
-        { attachmentId: ids[2], mediaType: 'image/png', dataBase64: imageBytes.toString('base64') },
-        { attachmentId: 'unselected-image', mediaType: 'image/png', dataBase64: otherImageBytes.toString('base64') },
-      ],
-    }));
-    expect(invoke.mock.calls.map(([, args]) => args)).toEqual([
-      { sessionId: 'session-a', limit: 1 },
-      { sessionId: 'session-a', limit: 1, cursor: 'page-2' },
-      { sessionId: 'session-a', limit: 1, cursor: 'page-3' },
-    ]);
-    expect(providerInputs[1]).toContain('Appropriated amount: $17 million.');
-    expect(providerInputs[0]).not.toContain(imageBytes.toString('base64'));
-    expect(providerInputs[2]).not.toContain(imageBytes.toString('base64'));
-    expect(providerInputs[3]).toContain(imageBytes.toString('base64'));
-    expect(providerInputs[3]).not.toContain(otherImageBytes.toString('base64'));
-    expect(result.ledgerEntries?.map((entry) => entry.tool)).toEqual([
-      'get_research_evidence', 'get_research_evidence', 'get_research_evidence',
-    ]);
-    expect(result.reply).toContain(`$17 million [S:get_research_evidence:${ids[0]}]`);
-    expect(result.reply).toContain('scanned page remains incomplete');
-    expect(result.ledgerEntries?.[0]?.serialized).toContain(ids[0]);
-  });
-
-  test('does not release research image bytes for an unavailable or digest-mismatched evidence read', async () => {
-    const imageId = '44444444-4444-4444-8444-000000000002';
-    const bytes = Buffer.from('claimed-image');
-    const toolCall = { type: 'function_call' as const, call_id: 'image-read',
-      name: 'get_research_evidence', arguments: JSON.stringify({ sessionId: 'untrusted' }) };
-    const complete = jest.fn()
-      .mockResolvedValueOnce(response({ outputText: '', output: [toolCall], functionCalls: [toolCall] }))
-      .mockResolvedValueOnce(response({ outputText: 'The image content was unavailable.' }));
-    const invoke = jest.fn(async () => ({ tool: 'get_research_evidence', sessionId: 'session-a',
-      coverage: { status: 'unavailable', total: null, returned: 0, complete: false, nextCursor: null },
-      records: [{ recordId: imageId, payload: { kind: 'image', status: 'image_ready', mediaType: 'image/png',
-        contentSha256: createHash('sha256').update('different-bytes').digest('hex') } }],
-    }));
-    const assistant = build(registry([{ name: 'get_research_evidence', readOnly: true }], invoke), complete);
-    global.fetch = jest.fn(async (url) => new Response(JSON.stringify(String(url).includes('/runs/')
-      ? { active: true } : { schemas: clientDocumentSchemas.filter((schema) => schema.name === 'get_research_evidence') }),
-      { status: 200 })) as typeof fetch;
-    await RequestCredentialsStore.run({ bearerToken: 'user-token' }, () => assistant.run(context, {
-      messages: [{ role: 'user', text: 'Read the research image.' }], toolPolicy: 'read-only',
-      researchRun: { sessionId: 'session-a', runId: 'run-a' },
-      currentTurnImages: [{ attachmentId: imageId, mediaType: 'image/png', dataBase64: bytes.toString('base64') }],
-    }));
-    for (const [request] of complete.mock.calls) {
-      expect(JSON.stringify(request.input)).not.toContain(bytes.toString('base64'));
-    }
-  });
-
-  test('ordinary chat image delivery remains on the initial provider request', async () => {
-    const bytes = Buffer.from('ordinary-chat-image');
-    const complete = jest.fn().mockResolvedValue(response({ outputText: 'I can see the image.' }));
-    const assistant = build(registry([]), complete);
-    await assistant.run(context, {
-      messages: [{ role: 'user', text: 'Describe this image.' }],
-      currentTurnImages: [{ mediaType: 'image/png', dataBase64: bytes.toString('base64') }],
-    });
-    expect(JSON.stringify(complete.mock.calls[0]?.[0].input)).toContain(bytes.toString('base64'));
-  });
-
   test('cancellation stops automatic reads before another page or model call', async () => {
     const controller = new AbortController();
     const source = documentFixture('Discussion.\n'.repeat(1000));
@@ -2401,25 +2291,8 @@ describe('Stage 2 orchestrator hardening', () => {
       await assistant.run(pilotContext, dto);
       await assistant.run(pilotContext, dto);
       expect(eventsNamed(spies.warn, 'meri.rollout.invalid_config')).toEqual([
-        expect.objectContaining({ capability: 'COVERAGE_RETRIEVAL', issueCodes: ['invalid_tenant'] }),
+        expect.objectContaining({ capability: 'COVERAGE_RETRIEVAL', issues: ['invalid_tenant:capiro-internal'] }),
       ]);
-      expect(eventsNamed(spies.log, 'meri.coverage.turn')).toHaveLength(0);
-    });
-
-    test('fails off and logs only non-sensitive issue codes when malformed rollout tokens accompany valid enrollment', async () => {
-      enroll('COVERAGE_RETRIEVAL', 'shadow', { tenants: PILOT, surfaces: 'bogus,chat' });
-      const complete = jest.fn().mockResolvedValue(response({ outputText: 'Senate position only.' }));
-      const assistant = build(registry([]), complete);
-      const spies = logSpies(assistant);
-      await assistant.run(pilotContext, {
-        messages: [{ role: 'user', text: 'Compare House vs Senate positions on PE 0603851F.' }],
-        toolPolicy: 'none',
-      });
-      expect(firstEvent(spies.log, 'meri.canary.turn').modes).toMatchObject({ coverageRetrieval: 'off' });
-      expect(eventsNamed(spies.warn, 'meri.rollout.invalid_config')).toEqual([
-        expect.objectContaining({ capability: 'COVERAGE_RETRIEVAL', issueCodes: ['invalid_surface'] }),
-      ]);
-      expect(JSON.stringify(eventsNamed(spies.warn, 'meri.rollout.invalid_config'))).not.toContain('bogus');
       expect(eventsNamed(spies.log, 'meri.coverage.turn')).toHaveLength(0);
     });
   });
@@ -2549,9 +2422,8 @@ describe('Stage 2 orchestrator hardening', () => {
       promote('shadow', 'current_role');
       const reply = 'The committee chair promised action on the measure.';
       const complete = jest.fn().mockResolvedValue(response({ outputText: reply }));
-      const dispatchedRepair = jest.fn(() => new Promise(() => undefined));
       const assistant = build(registry([]), complete, jest.fn(), {
-        completeWithSchema: dispatchedRepair,
+        completeWithSchema: jest.fn(() => new Promise(() => undefined)),
       });
       const spies = logSpies(assistant);
       const events: MeriV3ChatStreamEvent[] = [];
@@ -2564,18 +2436,11 @@ describe('Stage 2 orchestrator hardening', () => {
       const result = await pending;
       expect(result.reply).toBe(reply);
       expect(textFrames(events)).toEqual([{ type: 'text', text: reply }]);
-      expect(dispatchedRepair).toHaveBeenCalled();
       expect(eventsNamed(spies.warn, 'meri.auto_correction.failed')).toEqual([
         expect.objectContaining({ mode: 'shadow', reason: 'deadline' }),
       ]);
       const canary = firstEvent(spies.log, 'meri.canary.turn');
-      expect(canary).toMatchObject({
-        repairUsage: 'unknown',
-        tokens: { repair: null, legacy: null },
-        cost: { jevCalls: null, legacyCalls: null, repairLoops: null },
-        estimatedCostUsd: null,
-      });
-      expect(canary.repair).toMatchObject({ attempted: 0, outcomesComplete: false, budgetExhausted: 1, timedOut: true });
+      expect(canary.repair).toMatchObject({ attempted: 0, budgetExhausted: 1, timedOut: true });
       expect((canary.latencyMs as { timeToText: number }).timeToText).toBeGreaterThanOrEqual(8_000);
       expect((canary.latencyMs as { timeToText: number }).timeToText).toBeLessThan(9_000);
     });

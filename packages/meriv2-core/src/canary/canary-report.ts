@@ -22,16 +22,14 @@ export const canaryTurnEventSchema = z.object({
     safetyIntervention: z.object({ evaluated: z.boolean().optional(), intervened: z.boolean(),
       reasons: z.array(z.string()) }).optional() }),
   repair: z.object({ attempted: count, corrected: count, qualified: count, omitted: count,
-    documentRequested: count, budgetExhausted: count, timedOut: z.boolean().optional(),
-    outcomesComplete: z.boolean().optional() }),
-  repairUsage: z.enum(['not_attempted', 'measured', 'unknown']).optional(),
+    documentRequested: count, budgetExhausted: count, timedOut: z.boolean().optional() }),
   latencyMs: z.object({ timeToText: count, assessment: count, passageSelection: count,
     coverageFollowUp: count, repair: count, total: count }),
-  tokens: z.object({ synthesis: count, jev: count, legacy: count.nullable(), repair: count.nullable() }),
+  tokens: z.object({ synthesis: count, jev: count, legacy: count, repair: count }),
   cost: z.object({ retrievalToolCalls: count, retrievalLatencyMs: count, coverageFollowUpTokens: count,
-    jevCalls: count.nullable(), legacyCalls: count.nullable(), repairLoops: count.nullable() }).optional(),
+    jevCalls: count, legacyCalls: count, repairLoops: count }).optional(),
   cache: z.object({ mode: z.enum(['shadow', 'enforce']), lookups: count, hits: count, agreements: count }).optional(),
-  estimatedCostUsd: z.number().nonnegative().nullable(), sampled: z.boolean(),
+  estimatedCostUsd: z.number().nonnegative(), sampled: z.boolean(),
 });
 export type CanaryTurnEvent = z.infer<typeof canaryTurnEventSchema>;
 
@@ -72,29 +70,21 @@ type Percentiles = { p50: number | null; p95: number | null };
 function aggregate(events: CanaryTurnEvent[], humanLabels?: Readonly<Record<string, boolean>>) {
   const released = events.filter((event) => event.outcome === 'released');
   const completed = released;
-  const costValue = (event: CanaryTurnEvent, key: (typeof COST_COMPONENTS)[number]) =>
-    event.cost?.[key] === undefined ? 0 : event.cost[key]!;
-  const costMetric = (key: (typeof COST_COMPONENTS)[number]) => {
-    const values = completed.map((event) => costValue(event, key));
-    const known = values.filter((value): value is number => value !== null);
-    const hasUnknown = known.length !== values.length;
-    return {
-      total: hasUnknown ? null : known.reduce((sum, value) => sum + value, 0),
-      perCompletedTask: values.length && !hasUnknown ? known.reduce((sum, value) => sum + value, 0) / values.length : null,
-      p50: percentile(known, .5),
-      p95: percentile(known, .95),
-      knownTurns: known.length,
-      unknownTurns: values.length - known.length,
-    };
-  };
+  const costValue = (event: CanaryTurnEvent, key: (typeof COST_COMPONENTS)[number]) => event.cost?.[key] ?? 0;
+  const costMetric = (key: (typeof COST_COMPONENTS)[number]) => ({
+    total: completed.reduce((sum, event) => sum + costValue(event, key), 0),
+    perCompletedTask: completed.length
+      ? completed.reduce((sum, event) => sum + costValue(event, key), 0) / completed.length : null,
+    p50: percentile(completed.map((event) => costValue(event, key)), .5),
+    p95: percentile(completed.map((event) => costValue(event, key)), .95),
+  });
   const correctlyLabelled = humanLabels === undefined ? [] : completed.filter((event) =>
     event.conversationId !== null && humanLabels[event.conversationId] === true);
   // Repair counters are per claim: `attempted` counts repairable claims and a claim is
   // resolved when it ended corrected, qualified or omitted (never more than attempted).
   // A turn is fully repaired only when every attempted claim resolved, so a single
   // unresolved claim marks the whole turn.
-  const repairOutcomeEvents = events.filter((event) => event.repair.outcomesComplete !== false);
-  const repairs = repairOutcomeEvents.map((event) => {
+  const repairs = events.map((event) => {
     const attempted = event.repair.attempted;
     const resolved = Math.min(attempted, event.repair.corrected + event.repair.qualified + event.repair.omitted);
     return { attempted, resolved };
@@ -121,8 +111,6 @@ function aggregate(events: CanaryTurnEvent[], humanLabels?: Readonly<Record<stri
     clarification: rate(events.filter((event) => event.clarificationRequested).length, events.length),
     repair: { attempted, successful, unresolved: attempted - successful, successRate: rate(successful, attempted),
       turnsAttempted, turnsFullyRepaired, turnSuccessRate: rate(turnsFullyRepaired, turnsAttempted),
-      outcomeCompleteTurns: repairOutcomeEvents.length,
-      outcomeIncompleteTurns: events.length - repairOutcomeEvents.length,
       latencyTurns: repairTurns.length,
       corrected: events.reduce((s, e) => s + e.repair.corrected, 0),
       qualified: events.reduce((s, e) => s + e.repair.qualified, 0),
@@ -144,19 +132,15 @@ function aggregate(events: CanaryTurnEvent[], humanLabels?: Readonly<Record<stri
     errorRate: rate(events.filter((event) => event.outcome === 'error').length, events.length),
     abortRate: rate(events.filter((event) => event.outcome === 'aborted').length, events.length),
     incompleteRate: rate(events.filter((event) => event.outcome === 'incomplete').length, events.length),
-    costPerReleasedTurn: released.length && released.every((event) => event.estimatedCostUsd !== null)
-      ? released.reduce((sum, event) => sum + event.estimatedCostUsd!, 0) / released.length : null,
+    costPerReleasedTurn: released.length ? released.reduce((sum, event) => sum + event.estimatedCostUsd, 0) / released.length : null,
     costPerCompletedTask: {
       completed: completed.length,
       estimatedCostUsd: {
-        total: completed.some((event) => event.estimatedCostUsd === null) ? null
-          : completed.reduce((sum, event) => sum + (event.estimatedCostUsd ?? 0), 0),
-        perCompletedTask: completed.length && completed.every((event) => event.estimatedCostUsd !== null)
-          ? completed.reduce((sum, event) => sum + event.estimatedCostUsd!, 0) / completed.length : null,
-        p50: percentile(completed.flatMap((event) => event.estimatedCostUsd === null ? [] : [event.estimatedCostUsd]), .5),
-        p95: percentile(completed.flatMap((event) => event.estimatedCostUsd === null ? [] : [event.estimatedCostUsd]), .95),
-        knownTurns: completed.filter((event) => event.estimatedCostUsd !== null).length,
-        unknownTurns: completed.filter((event) => event.estimatedCostUsd === null).length,
+        total: completed.reduce((sum, event) => sum + event.estimatedCostUsd, 0),
+        perCompletedTask: completed.length
+          ? completed.reduce((sum, event) => sum + event.estimatedCostUsd, 0) / completed.length : null,
+        p50: percentile(completed.map((event) => event.estimatedCostUsd), .5),
+        p95: percentile(completed.map((event) => event.estimatedCostUsd), .95),
       },
       components: Object.fromEntries(COST_COMPONENTS.map((key) => [key, costMetric(key)])),
     },
@@ -164,9 +148,7 @@ function aggregate(events: CanaryTurnEvent[], humanLabels?: Readonly<Record<stri
       ? { value: null, correctCompleted: 0, reason: 'human_labels_not_supplied' }
       : correctlyLabelled.length === 0
         ? { value: null, correctCompleted: 0, reason: 'no_correct_completed_tasks' }
-      : correctlyLabelled.some((event) => event.estimatedCostUsd === null)
-        ? { value: null, correctCompleted: correctlyLabelled.length, reason: 'usage_unknown' }
-        : { value: correctlyLabelled.reduce((sum, event) => sum + (event.estimatedCostUsd ?? 0), 0)
+        : { value: correctlyLabelled.reduce((sum, event) => sum + event.estimatedCostUsd, 0)
             / correctlyLabelled.length, correctCompleted: correctlyLabelled.length, reason: null },
   };
 }

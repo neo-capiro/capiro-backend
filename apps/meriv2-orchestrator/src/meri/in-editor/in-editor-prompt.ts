@@ -57,10 +57,9 @@ export interface AssistantResult {
 }
 
 /**
- * Static snapshot of the registry-declared in-editor read surface, retained for
- * catalog contracts. It currently has fewer names than the legacy editor's
- * IN_EDITOR_READ_TOOLS. Runtime execution checks the canonical allowlist and
- * request-local offered schemas in InEditorAssistantService.
+ * The constrained READ-ONLY tool surface the in-editor assistant may use — a
+ * curated allowlist (not a denylist) identical to apps/api ASSISTANT_TOOLS, so a
+ * new Meri tool never silently leaks in. Matches IN_EDITOR_DELEGATED_TOOLS.
  */
 export const ASSISTANT_TOOLS: ReadonlySet<string> = new Set(
   meriCapabilitiesForSurface('in_editor').map((tool) => tool.name),

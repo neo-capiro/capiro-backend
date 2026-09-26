@@ -20,18 +20,11 @@ import { FundingOpportunityV2DecoratorService } from './funding-opportunity-v2-d
 
 const DATABASE_URL = process.env.FUNDING_OPPORTUNITIES_TEST_DATABASE_URL;
 const parsed = DATABASE_URL ? new URL(DATABASE_URL) : null;
-const pinnedFixture = parsed?.port === '5486' && parsed.pathname === '/fo_v2_search'
-  && parsed.username === 'fo_test';
-// A second, explicitly opted-in local fixture can share an isolated PostgreSQL
-// container without touching another acceptance package's database.
-const disposableFixture = process.env.FUNDING_OPPORTUNITIES_ALLOW_LOCAL_DISPOSABLE === 'b3_accept'
-  && parsed?.port === '5498' && /^\/b3_accept_[a-z0-9_]+$/.test(parsed.pathname)
-  && parsed.username === 'b1_test';
 const isolated = Boolean(
   DATABASE_URL && process.env.DATABASE_URL === DATABASE_URL
     && parsed?.protocol === 'postgresql:' && parsed.hostname === '127.0.0.1'
-    && (pinnedFixture || disposableFixture)
-    && parsed.searchParams.get('schema') === 'public'
+    && parsed.port === '5486' && parsed.pathname === '/fo_v2_search'
+    && parsed.searchParams.get('schema') === 'public' && parsed.username === 'fo_test'
     && parsed.password.length > 0,
 );
 const describeDb = isolated ? describe : describe.skip;
@@ -247,15 +240,11 @@ describeDb('Funding Opportunity v2 search HTTP and canonical profile (isolated P
     try {
       const disabled = await request(app.getHttpServer()).get('/api/intelligence/opportunities/v2/search').query({ mode: 'all', sources: 'agency_forecast', q: namespace }).expect(200);
       expect(disabled.body.opportunities).toEqual([]);
-      expect(disabled.body.total).toBeNull();
-      expect(disabled.body.catalogComplete).toBe(false);
-      expect(disabled.body.emptyReason).toBeNull();
-      expect(disabled.body.counts).toEqual({ grants: null, contracts: null, active: null, closed: null });
+      expect(disabled.body.total).toBe(0);
       expect(disabled.body.freshness).toEqual([expect.objectContaining({ source: 'agency_forecast', state: 'not_enabled', recordCount: null, activeRecordCount: null })]);
       const sbirDisabled = await request(app.getHttpServer()).get('/api/intelligence/opportunities/v2/search').query({ mode: 'all', sources: 'sbir_sttr', q: namespace }).expect(200);
       expect(sbirDisabled.body.freshness).toEqual([expect.objectContaining({ source: 'sbir_sttr', state: 'not_enabled', recordCount: null, activeRecordCount: null })]);
-      expect(sbirDisabled.body.total).toBeNull();
-      expect(sbirDisabled.body.catalogComplete).toBe(false);
+      expect(sbirDisabled.body.total).toBe(0);
     } finally {
       await prisma.$executeRaw`UPDATE intel_feature_flag SET enabled = true WHERE id IN (${forecastFlagId}, ${sbirFlagId})`;
     }

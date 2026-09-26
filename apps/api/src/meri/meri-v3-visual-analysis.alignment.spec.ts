@@ -29,19 +29,9 @@ describe('MeriV3 visual/PNG alignment', () => {
         findFirst: jest.fn(async () => ({ id: 'conversation-1', clientId: 'client-1' })),
       },
       clioArtifact: { create },
-      $queryRaw: jest.fn(async (strings: TemplateStringsArray) => {
-        const sql = strings.join('');
-        if (sql.includes('FROM clio_conversations')) return [{ client_id: 'client-1' }];
-        if (sql.includes('FROM clients')) return [{ memory_wall: false }];
-        if (sql.includes('FROM client_memory_access')) return [];
-        throw new Error('Unexpected visual-analysis scope query');
-      }),
     };
     const prisma = {
       withTenant: jest.fn(async (_tenantId: string, callback: (value: typeof tx) => unknown) =>
-        callback(tx),
-      ),
-      withTenantUser: jest.fn(async (_tenantId: string, _userId: string, callback: (value: typeof tx) => unknown) =>
         callback(tx),
       ),
     };

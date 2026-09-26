@@ -37,20 +37,17 @@ function make(options?: { enabled?: boolean; sandboxAvailable?: boolean }) {
     run: jest.fn(async () => ({ ok: true, artifacts: [] })),
     discardUnreleasedArtifacts: jest.fn(async () => 1),
   };
-  const authenticatedScope = { resolve: jest.fn(async () => ({ eligibility: 'unresolved' })) };
   return {
     controller: new MeriV3SettingsController(
       prisma as never,
       flags as never,
       managedMcp as never,
       visualAnalysis as never,
-      authenticatedScope as never,
     ),
     prisma,
     flags,
     managedMcp,
     visualAnalysis,
-    authenticatedScope,
   };
 }
 
@@ -132,19 +129,4 @@ describe('MeriV3SettingsController visual analysis', () => {
     });
     expect(visualAnalysis.discardUnreleasedArtifacts).toHaveBeenCalledWith(ctx, artifactIds);
   });
-});
-
-describe('MeriV3SettingsController authenticated conversation scope', () => {
-  test(
-    'ignores caller-supplied candidate arrays and forwards only conversation/client assertions',
-    async () => {
-      const { controller, authenticatedScope } = make();
-      await controller.authenticatedConversationScope(ctx, {
-        conversationId: 'conv-a',
-        clientId: 'client-a',
-        candidateIds: ['send_email', 'caller-invented'],
-      } as never);
-      expect(authenticatedScope.resolve).toHaveBeenCalledWith(ctx, 'conv-a', 'client-a');
-    },
-  );
 });

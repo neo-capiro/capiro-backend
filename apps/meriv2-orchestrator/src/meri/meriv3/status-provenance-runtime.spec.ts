@@ -38,22 +38,6 @@ describe('status provenance runtime', () => {
     expect(enforced.reply).toBe('Acme Cloud is FedRAMP Certified at Moderate impact (FedRAMP Marketplace, observed 2026-09-23T00:00:00.000Z).');
   });
 
-  it('does not turn an unqualified source miss into affirmative evidence of absence', async () => {
-    const reply = 'Gamma Cloud is not FedRAMP authorized.';
-    const miss = {
-      found: false,
-      searchedEntireDataset: false,
-      evidenceOfAbsence: false,
-      coverage: { complete: false, reason: 'inventory_completeness_unverified', recordsParsed: 4 },
-      sourceUrl: 'https://fedramp.gov/marketplace/products/',
-      observedAt: '2026-09-23T00:00:00.000Z',
-    };
-    const enforced = await runStatusProvenance({ reply, mode: 'enforce', registry: registry(miss), ctx, deadlineAt: Date.now() + 1000 });
-    expect(enforced).toMatchObject({ detected: 1, outcomes: { negative_unsupported: 1 } });
-    expect(enforced.reply).toContain('complete-dataset coverage was not established');
-    expect(enforced.reply).not.toMatch(/Gamma Cloud (?:is|has) no FedRAMP authorization/i);
-  });
-
   it('degrades to the original reply when lookup fails', async () => {
     const reply = 'Acme Cloud is FedRAMP approved.';
     const failed = await runStatusProvenance({ reply, mode: 'enforce', registry: registry(null, true), ctx, deadlineAt: Date.now() + 1000 });

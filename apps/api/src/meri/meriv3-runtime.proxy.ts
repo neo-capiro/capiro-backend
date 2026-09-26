@@ -47,8 +47,6 @@
 // until the runtime matrix proves the patched internals are exercised identically.
 // ---------------------------------------------------------------------------
 import type { TenantContext } from '@capiro/shared';
-import { Logger } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { MeriService } from './meri.service.js';
 import {
@@ -58,13 +56,10 @@ import {
 import { MeriV3ProxyService } from './meriv3-proxy.service.js';
 import { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.js';
 import { withMeriTurnProgress } from './meri-turn-progress.js';
-import type { MeriHermesRuntimeAdapter } from '../hermes/meri-hermes-runtime.adapter.js';
 
 
 export const RAW_MERI_SERVICE = Symbol('RAW_MERI_SERVICE');
 const PHASE19_PATCHED = Symbol('phase19-governed-context-patched');
-const routeTelemetryLogger = new Logger('MeriRouteTelemetry');
-const MAX_OBSERVED_SSE_EVENT_CHARS = 64 * 1024;
 
 interface StreamClient {
   streamChat(args: {
@@ -120,7 +115,6 @@ export function createMeriRuntimeService(
   meriv3: MeriV3ProxyService,
   visualAnalysis: MeriV3VisualAnalysisService,
   governedRuntime: MeriContextPlaneRuntimeService,
-  hermes?: Pick<MeriHermesRuntimeAdapter, 'shouldHandle' | 'streamMessage'>,
 ): MeriService {
   installRawPhase19Adapters(raw);
   installV3Phase19Adapters(meriv3);
@@ -142,93 +136,11 @@ export function createMeriRuntimeService(
               { conversationId, body, mode, signal },
               async () => {
                 signal?.throwIfAborted();
-                // Phase 0 Hermes pilot: a peer route with the strictest gate,
-                // checked first. When it is selected, its failures surface as
-                // its own error frames — never a silent fallback to V3/legacy.
-                if (hermes && (await hermes.shouldHandle(ctx))) {
-                  signal?.throwIfAborted();
-                  return withSelectedRouteTelemetry(
-                    'hermes',
-                    'hermes_gate_accepted',
-                    forwarded.slice(0, 9),
-                    signal,
-                    (selectedArgs) => hermes.streamMessage(
-                      ...(selectedArgs as Parameters<MeriHermesRuntimeAdapter['streamMessage']>),
-                    ),
-                  );
-                }
-                signal?.throwIfAborted();
                 const useV3 = await meriv3.shouldHandle(ctx);
                 signal?.throwIfAborted();
-                if (useV3) {
-                  return withSelectedRouteTelemetry(
-                    'meriv3',
-                    'v3_gate_accepted',
-                    forwarded.slice(0, 9),
-                    signal,
-                    (selectedArgs) => meriv3.streamMessage(
-                      ...(selectedArgs as Parameters<MeriV3ProxyService['streamMessage']>),
-                    ),
-                  );
-                }
-
-                let legacyV1Selected = false;
-                const observeErrorFrame = createSseErrorFrameObserver();
-                const originalWriter = forwarded[3];
-                const routeAttemptId = randomUUID();
-                const emitRouteTelemetry = (record: Record<string, unknown>) => {
-                  try {
-                    routeTelemetryLogger.log(JSON.stringify(record));
-                  } catch {
-                    // Telemetry must never change runtime selection or stream behavior.
-                  }
-                };
-                forwarded[3] = {
-                  write(data: string) {
-                    try {
-                      observeErrorFrame(data);
-                    } catch {
-                      // Observation is best-effort and must never affect the stream.
-                    }
-                    originalWriter.write(data);
-                  },
-                };
-                const rawForwarded = [...forwarded] as unknown[];
-                rawForwarded[9] = () => {
-                  legacyV1Selected = true;
-                  emitRouteTelemetry({
-                    event: 'meri_route_selection', phase: 'selected', runtime: 'legacy-v1',
-                    dispatch: 'v3_raw_v2_declined', impersonated: Boolean(args[8]), routeAttemptId,
-                  });
-                };
-                let outcome = 'completed';
-                try {
-                  const rawStreamMessage = target.streamMessage as (...values: unknown[]) => Promise<unknown>;
-                  await rawStreamMessage(...rawForwarded);
-                  if (signal?.aborted) {
-                    const reason = signal.reason;
-                    outcome = reason instanceof DOMException && reason.name === 'AbortError' && reason.message === 'Client disconnected'
-                      ? 'client_disconnected'
-                      : 'aborted';
-                  } else if (observeErrorFrame.hasError()) {
-                    outcome = 'error';
-                  }
-                } catch (error) {
-                  const reason = signal?.reason;
-                  outcome = signal?.aborted
-                    ? (reason instanceof DOMException && reason.name === 'AbortError' && reason.message === 'Client disconnected'
-                      ? 'client_disconnected'
-                      : 'aborted')
-                    : 'error';
-                  throw error;
-                } finally {
-                  if (legacyV1Selected) {
-                    emitRouteTelemetry({
-                      event: 'meri_route_selection', phase: 'outcome', runtime: 'legacy-v1',
-                      dispatch: 'v3_raw_v2_declined', impersonated: Boolean(args[8]), outcome, routeAttemptId,
-                    });
-                  }
-                }
+                return useV3
+                  ? meriv3.streamMessage(...forwarded)
+                  : target.streamMessage(...forwarded);
               },
             );
           });
@@ -242,144 +154,6 @@ export function createMeriRuntimeService(
       return typeof value === 'function' ? value.bind(target) : value;
     },
   });
-}
-
-/** Observe only a route that has already passed its server-side gate. The SSE
- * writer remains the same writer, and telemetry failures are deliberately
- * swallowed so they cannot affect dispatch, frame delivery, or stream errors. */
-async function withSelectedRouteTelemetry(
-  runtime: 'hermes' | 'meriv3',
-  dispatch: 'hermes_gate_accepted' | 'v3_gate_accepted',
-  args: unknown[],
-  signal: AbortSignal | undefined,
-  invoke: (args: unknown[]) => Promise<unknown>,
-): Promise<unknown> {
-  const routeAttemptId = randomUUID();
-  const impersonated = Boolean(args[8]);
-  const emit = (phase: 'selected' | 'outcome', outcome?: string) => {
-    try {
-      routeTelemetryLogger.log(JSON.stringify({
-        event: 'meri_route_selection',
-        phase,
-        runtime,
-        dispatch,
-        impersonated,
-        routeAttemptId,
-        ...(outcome ? { outcome } : {}),
-      }));
-    } catch {
-      // Telemetry must never alter runtime selection or stream behavior.
-    }
-  };
-
-  const originalWriter = args[3] as { write(data: string): void };
-  const observeErrorFrame = createSseErrorFrameObserver();
-  const observedArgs = [...args];
-  observedArgs[3] = {
-    write(data: string) {
-      try {
-        observeErrorFrame(data);
-      } catch {
-        // Observation is best-effort and must never affect the stream.
-      }
-      originalWriter.write(data);
-    },
-  };
-
-  emit('selected');
-  let outcome = 'completed';
-  try {
-    const result = await invoke(observedArgs);
-    if (signal?.aborted) outcome = abortOutcome(signal);
-    else if (observeErrorFrame.hasError()) outcome = 'error';
-    return result;
-  } catch (error) {
-    outcome = signal?.aborted ? abortOutcome(signal) : 'error';
-    throw error;
-  } finally {
-    emit('outcome', outcome);
-  }
-}
-
-/**
- * Observe SSE error events across arbitrary writer chunk boundaries. This is
- * synchronous and bounded: an unterminated or oversized event is discarded
- * from observation after the cap, while every original chunk is still passed
- * through unchanged by the caller. Only complete SSE events are classified.
- */
-type SseErrorFrameObserver = ((chunk: string) => void) & { hasError(): boolean };
-
-function createSseErrorFrameObserver(): SseErrorFrameObserver {
-  const eventLines: string[] = [];
-  let line = '';
-  let eventChars = 0;
-  let oversized = false;
-  let previousWasCarriageReturn = false;
-  let emittedError = false;
-
-  const finishEvent = () => {
-    if (!oversized) {
-      try {
-        const data = [...eventLines, line]
-          .flatMap((line) => {
-            if (line.startsWith(':')) return [];
-            const colon = line.indexOf(':');
-            const field = colon < 0 ? line : line.slice(0, colon);
-            if (field !== 'data') return [];
-            let value = colon < 0 ? '' : line.slice(colon + 1);
-            if (value.startsWith(' ')) value = value.slice(1);
-            return [value];
-          })
-          .join('\n');
-        if (data && (JSON.parse(data) as { type?: unknown })?.type === 'error') {
-          emittedError = true;
-        }
-      } catch {
-        // Malformed or non-JSON events are irrelevant to error classification.
-      }
-    }
-    eventLines.length = 0;
-    line = '';
-    eventChars = 0;
-    oversized = false;
-  };
-
-  const observe = ((chunk: string) => {
-    for (const char of chunk) {
-      if (char === '\n' && previousWasCarriageReturn) {
-        previousWasCarriageReturn = false;
-        continue;
-      }
-      if (char === '\r' || char === '\n') {
-        previousWasCarriageReturn = char === '\r';
-        if (line.length === 0) {
-          finishEvent();
-        } else {
-          if (!oversized) eventLines.push(line);
-          line = '';
-        }
-        continue;
-      }
-      previousWasCarriageReturn = false;
-      eventChars += 1;
-      if (eventChars <= MAX_OBSERVED_SSE_EVENT_CHARS) line += char;
-      else {
-        oversized = true;
-        line = '';
-        eventLines.length = 0;
-      }
-    }
-  }) as ((chunk: string) => void) & { hasError(): boolean };
-  observe.hasError = () => emittedError;
-  return observe;
-}
-
-function abortOutcome(signal: AbortSignal): 'aborted' | 'client_disconnected' {
-  const reason = signal.reason;
-  return reason instanceof DOMException && reason.name === 'AbortError' &&
-    reason.message === 'Client disconnected'
-    ? 'client_disconnected'
-    : 'aborted';
 }
 
 function installRawPhase19Adapters(rawService: MeriService): void {

@@ -1,9 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { parseFedrampMarketplaceProducts, type FedrampProductRecord } from '../external/fedramp/fedramp.client.js';
+import type { FedrampProductRecord } from '../external/fedramp/fedramp.client.js';
 
 jest.mock('../external/fedramp/fedramp.client.js', () => ({
-  ...jest.requireActual('../external/fedramp/fedramp.client.js'),
   fetchFedrampProducts: jest.fn(),
 }));
 
@@ -46,15 +43,12 @@ describe('get_certification_status', () => {
     expect(result.candidates).toHaveLength(10);
   });
 
-  it('does not claim absence from a partial parsed-marketplace fixture', async () => {
-    const fixture = readFileSync(join(__dirname, '../external/fedramp/__fixtures__/marketplace-products.fixture.html'), 'utf8');
-    jest.mocked(fetchFedrampProducts).mockResolvedValue(parseFedrampMarketplaceProducts(fixture, observedAt));
+  it('reports a complete-dataset miss explicitly as evidence of absence', async () => {
+    jest.mocked(fetchFedrampProducts).mockResolvedValue([product('FR1', 'One CSP', 'One Cloud')]);
     await expect(call('missing')).resolves.toMatchObject({
       found: false,
-      searchedEntireDataset: false,
-      evidenceOfAbsence: false,
-      coverage: { complete: false, reason: 'inventory_completeness_unverified', recordsParsed: 4 },
-      note: expect.stringContaining('not evidence of absence'),
+      searchedEntireDataset: true,
+      evidenceOfAbsence: true,
       sourceUrl: 'https://fedramp.gov/marketplace/products/',
       observedAt,
     });

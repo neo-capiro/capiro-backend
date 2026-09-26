@@ -47,9 +47,6 @@ export interface MeriV3ChatInput extends ChatInput {
   toolPolicy?: 'none' | 'read-only';
   /** Server-owned durable research lease; reauthorized before each dispatch. */
   researchRun?: { sessionId: string; runId: string };
-  /** Research images carry their server-captured attachment identity. They are
-   * withheld from the provider until the matching evidence-tool read succeeds. */
-  currentTurnImages?: Array<{ attachmentId?: string; mediaType: string; dataBase64: string }>;
 }
 
 export interface MeriV3RetrievalSummary {

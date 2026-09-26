@@ -1,13 +1,11 @@
 import type {
   ClaimCategory,
   DomainEvidencePlan,
-  EvidenceClass,
   GovernmentAffairsOperatingFrame,
   LedgerEntry,
 } from '@capiro/meriv2-core';
 import {
   resolveDocumentReferences,
-  toolMatchesEvidenceRequirement,
   type DocumentReference,
   type DocumentReferenceCandidate,
 } from '@capiro/meriv2-core';
@@ -23,7 +21,6 @@ export interface CoverageRequirement {
   id: string;
   requirementId: string;
   claimCategory: ClaimCategory;
-  evidenceClass?: EvidenceClass;
   toolFamilies: string[];
   essential: boolean;
   rationale: string;
@@ -37,8 +34,7 @@ export type CoverageGapStatus =
   | 'called_no_usable_content'
   | 'truncated'
   | 'unavailable'
-  | 'extraction_failed'
-  | 'unverified_coverage';
+  | 'extraction_failed';
 
 export interface CoverageGap {
   requirementId: string;
@@ -339,7 +335,6 @@ export function buildCoverageRequirements(input: {
       id: `plan:${requirement.id}`,
       requirementId: requirement.id,
       claimCategory: requirement.claimCategory,
-      evidenceClass: requirement.evidenceClass,
       toolFamilies: [...requirement.toolFamilies],
       essential: true,
       rationale: requirement.reason,
@@ -462,14 +457,7 @@ export function compareCoverage(input: {
   citations: readonly MeriCitation[];
 }): CoverageGap[] {
   return input.requirements.map((requirement) => {
-    const called = input.toolsUsed.filter((tool) => toolMatchesEvidenceRequirement(tool, {
-      id: requirement.requirementId,
-      claimCategory: requirement.claimCategory,
-      evidenceClass: requirement.evidenceClass ?? 'official_government_data',
-      toolFamilies: requirement.toolFamilies,
-    }));
-    const symbolicOnly = requirement.toolFamilies.includes('domain_specific_tools') &&
-      !called.some((tool) => requirement.toolFamilies.includes(tool));
+    const called = requirement.toolFamilies.filter((tool) => input.toolsUsed.includes(tool));
     const receipts = input.receipts.filter((receipt) => called.includes(receipt.tool));
     const entries = input.ledgerEntries.filter((entry) => called.includes(entry.tool));
     const usable = entries.filter((entry) => entryProvidesEvidence(entry, requirement));
@@ -483,23 +471,18 @@ export function compareCoverage(input: {
     );
     // Usable content and a completed read are separate facts. A partial page
     // can contain evidence while still leaving the required read unresolved.
-    let status: CoverageGapStatus;
-    if (called.length === 0) {
-      status = symbolicOnly && input.toolsUsed.length > 0 ? 'unverified_coverage' : 'never_called';
-    } else if (openIncomplete) {
-      status = 'truncated';
-    } else if (unavailable && !usable.length) {
-      status = 'unavailable';
-    } else if (failed && !usable.length) {
-      status = 'extraction_failed';
-    } else if (!usable.length) {
-      status = 'called_no_usable_content';
-    } else {
-      // A generic family has no claim-specific identity or source scope.
-      // A direct source did run, but that alone cannot certify the claim's
-      // coverage (especially for no/only/all statements).
-      status = symbolicOnly ? 'unverified_coverage' : 'satisfied';
-    }
+    const status: CoverageGapStatus =
+      called.length === 0
+        ? 'never_called'
+        : usable.length && !openIncomplete
+          ? 'satisfied'
+          : openIncomplete
+            ? 'truncated'
+          : unavailable
+            ? 'unavailable'
+          : failed
+            ? 'extraction_failed'
+            : 'called_no_usable_content';
     return {
       requirementId: requirement.requirementId,
       essential: requirement.essential,
@@ -622,16 +605,7 @@ export function appendClaimTiedCoverageDisclosure(
   const requirement = requirements.find((item) => item.requirementId === gap.requirementId);
   if (!requirement) return reply;
   const subject = requirement.rationale.replace(/[.]+$/, '');
-  const explanations: Record<CoverageGapStatus, string> = {
-    satisfied: '',
-    never_called: 'no matching source call was recorded for this requirement',
-    called_no_usable_content: 'the recorded source call supplied no usable content',
-    truncated: 'the relevant source read remained partial or truncated',
-    unavailable: 'the relevant source was unavailable',
-    extraction_failed: 'the relevant source read failed',
-    unverified_coverage: 'recorded tool activity did not establish claim-specific coverage',
-  };
-  const note = `${subject}; that part of the answer remains limited because ${explanations[gap.status]}.`
+  const note = `${subject}; that part of the answer remains limited because the source was ${gap.status.replaceAll('_', ' ')}.`
     .replace(/\[\d{1,3}\]/g, '')
     .slice(0, 320);
   return `${reply.trim()}\n\n> **Evidence limitation:** ${note}`.trim();

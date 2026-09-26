@@ -30,7 +30,7 @@ const envelope: EvidenceEnvelope = {
   claimCategory: 'general_background', tenantId: 'tenant', clientId: null, scopeQualifiers: [], asOf: null, sources: [],
 };
 const question: EvidenceQuestion = { state: {}, questions: {} };
-const registration = (overrides: Partial<NonNullable<JevTaskRegistration['cascade']>> = {}, evaluatedCategories: readonly ClaimCategory[] = ['general_background']): JevTaskRegistration => ({
+const registration = (overrides: Partial<NonNullable<JevTaskRegistration['cascade']>> = {}, evaluatedCategories?: readonly ClaimCategory[]): JevTaskRegistration => ({
   ...JEV_TASK_REGISTRY.claim_support,
   calibration: { ...JEV_TASK_REGISTRY.claim_support.calibration, evaluatedCategories },
   cascade: { ...JEV_TASK_REGISTRY.claim_support.cascade!, auditSampleRate: 0, ...overrides },
@@ -44,29 +44,10 @@ const run = (overrides: Partial<Parameters<typeof runCalibratedCascade>[0]> = {}
 describe('runCalibratedCascade', () => {
   it('does not escalate a confident supported non-sampled claim', async () => {
     const legacy = provider(outcome('contradicted'));
-    const result = await run({ legacy, registration: registration({}, ['general_background']) });
+    const result = await run({ legacy });
     expect(result).toMatchObject({ escalated: false, escalationReasons: [], audited: false, legacy: null });
     expect(result.decision).toEqual(result.jev);
     expect(legacy.assess).not.toHaveBeenCalled();
-  });
-
-  it.each(['missing', 'empty'] as const)('treats %s calibration coverage as out of distribution and falls back to legacy', async (coverage) => {
-    const legacyDecision = outcome('contradicted');
-    const legacy = provider(legacyDecision);
-    const missingCalibration = {
-      ...JEV_TASK_REGISTRY.claim_support.calibration,
-    };
-    const configured = coverage === 'missing'
-      ? { ...registration(), calibration: missingCalibration }
-      : registration({}, []);
-    const result = await run({ legacy, registration: configured });
-    expect(result).toMatchObject({
-      escalated: true,
-      escalationReasons: ['out_of_distribution'],
-      legacy: legacyDecision,
-      decision: legacyDecision,
-    });
-    expect(legacy.assess).toHaveBeenCalledTimes(1);
   });
 
   it.each([
@@ -75,7 +56,7 @@ describe('runCalibratedCascade', () => {
     ['low_confidence', provider(outcome('supported', 0.49)), outcome(), { registration: registration({ escalateBelowConfidence: 0.5 }) }],
     ['compound_claim', provider(outcome()), outcome(), { claim: { id: 'claim', category: 'general_background' as const, compound: true } }],
     ['conflict', provider(outcome('conflicting_evidence')), outcome(), {}],
-    ['high_impact_category', provider(outcome()), outcome(), { claim: { id: 'claim', category: 'bill_status' as const, compound: false }, registration: registration({ highImpactCategories: ['bill_status'] }, ['bill_status']) }],
+    ['high_impact_category', provider(outcome()), outcome(), { claim: { id: 'claim', category: 'bill_status' as const, compound: false }, registration: registration({ highImpactCategories: ['bill_status'] }) }],
     ['out_of_distribution', provider(outcome()), outcome(), { registration: registration({}, ['bill_status']) }],
     ['audit_sample', provider(outcome()), outcome(), { registration: registration({ auditSampleRate: 1 }) }],
   ])('emits the minimal %s escalation', async (reason, jev, legacyDecision, overrides) => {
@@ -89,7 +70,7 @@ describe('runCalibratedCascade', () => {
     const result = await run({
       claim: { id: 'claim', category: 'bill_status', compound: false },
       jev: provider(outcome('contradicted')),
-      registration: registration({ highImpactCategories: ['bill_status'] }, ['bill_status']),
+      registration: registration({ highImpactCategories: ['bill_status'] }),
     });
     expect(result.escalationReasons).toEqual(['conflict', 'high_impact_category']);
   });

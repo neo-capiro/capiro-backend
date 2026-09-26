@@ -1,4 +1,3 @@
-import { NotFoundException } from '@nestjs/common';
 import { MeriToolsService } from './meri-tools.service.js';
 
 /**
@@ -17,10 +16,7 @@ const ctx: Ctx = { tenantId: 'tenant-1', userId: 'user-1' };
 
 function svc(deps: { prisma?: Fake; representation?: Fake }): MeriToolsService {
   const s = Object.create(MeriToolsService.prototype) as MeriToolsService;
-  (s as unknown as { prisma: Fake }).prisma = deps.prisma ?? {
-    withTenant: async (_tenantId: string, fn: (tx: Fake) => unknown) =>
-      fn({ client: { findMany: async () => [{ id: 'client-1', name: 'client-1' }] } }),
-  };
+  (s as unknown as { prisma: Fake }).prisma = deps.prisma ?? {};
   (s as unknown as { representation: Fake }).representation = deps.representation ?? {};
   return s;
 }
@@ -110,7 +106,7 @@ describe('get_committee_roster (M4.1)', () => {
     })) as { committee: unknown; chair: unknown; note: string };
     expect(out.committee).toBeNull();
     expect(out.chair).toBeNull();
-    expect(out.note).toMatch(/name may be absent or ambiguous/i);
+    expect(out.note).toMatch(/no federal committee matched/i);
   });
 
   it('federal — a name matching MORE THAN ONE committee (ambiguous) is not silently picked', async () => {
@@ -139,8 +135,7 @@ describe('get_committee_roster (M4.1)', () => {
       jurisdiction: 'federal',
     })) as { committee: unknown; note: string };
     expect(out.committee).toBeNull();
-    expect(out.note).toMatch(/name may be absent or ambiguous/i);
-    expect(out.note).toMatch(/exact id\/chamber/i);
+    expect(out.note).toMatch(/no federal committee matched/i);
   });
 
   const HOUSE_APPROPS = {
@@ -235,26 +230,7 @@ describe('get_committee_roster (M4.1)', () => {
       state: 'FL',
     })) as { committee: unknown; note: string };
     expect(out.committee).toBeNull();
-    expect(out.note).toMatch(/name may be absent or ambiguous/i);
-  });
-
-  it('state — duplicate normalized names are unresolved and disclose no candidate names', async () => {
-    const prisma: Fake = {
-      stateCommittee: {
-        findMany: async () => [
-          { id: 'FL-lower-rules', state: 'FL', chamber: 'lower', name: 'Rules' },
-          { id: 'FL-upper-rules', state: 'FL', chamber: 'upper', name: 'Rules' },
-        ],
-      },
-      stateCommitteeMembership: { findMany: async () => [] },
-    };
-    const out = (await call(svc({ prisma }), 'getCommitteeRoster', {
-      committee: 'Rules', jurisdiction: 'state', state: 'FL',
-    })) as { committee: unknown; note: string };
-    expect(out.committee).toBeNull();
-    expect(out.note).toMatch(/name may be absent or ambiguous/i);
-    expect(out.note).toMatch(/exact id\/chamber/i);
-    expect(out.note).not.toMatch(/FL-lower-rules|FL-upper-rules/i);
+    expect(out.note).toMatch(/no fl committee matched/i);
   });
 
   it('jurisdiction=state without a state returns a specify-the-state note, never guesses a state', async () => {
@@ -422,38 +398,6 @@ describe('get_representation (M4.2)', () => {
     };
     expect(out.facilities).toHaveLength(0);
     expect(out.note).toMatch(/no facilities found/i);
-  });
-
-  it('does not call the resolver when the exact client is hidden by its wall', async () => {
-    const representationForClient = jest.fn();
-    const findMany = jest.fn().mockResolvedValue([]);
-    const service = svc({
-      prisma: {
-        withTenant: async (_tenantId: string, fn: (tx: Fake) => unknown) =>
-          fn({ client: { findMany } }),
-      },
-      representation: { representationForClient },
-    });
-    await expect(
-      call(service, 'getRepresentation', { clientId: 'Walled Client' }, true),
-    ).rejects.toBeInstanceOf(NotFoundException);
-    expect(representationForClient).not.toHaveBeenCalled();
-    expect(findMany.mock.calls[0]?.[0]?.where).toMatchObject({
-      tenantId: ctx.tenantId,
-      name: { equals: 'Walled Client', mode: 'insensitive' },
-      OR: [
-        { memoryWall: false },
-        { memoryAccessGrants: { some: { tenantId: ctx.tenantId, userId: ctx.userId } } },
-      ],
-    });
-  });
-
-  it('passes the viewer into the resolver so a revoked grant is rechecked at facility read', async () => {
-    const representationForClient = jest.fn().mockResolvedValue([]);
-    await call(svc({ representation: { representationForClient } }), 'getRepresentation', {
-      clientId: 'client-1',
-    }, true);
-    expect(representationForClient).toHaveBeenCalledWith(ctx.tenantId, 'client-1', ctx.userId);
   });
 });
 

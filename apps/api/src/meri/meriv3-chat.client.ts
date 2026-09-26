@@ -228,7 +228,7 @@ export class MeriV3ChatClient {
       conversationSummary?: string;
       clientKbSnapshot?: string;
       pageWrite?: boolean;
-      currentTurnImages?: Array<{ attachmentId?: string; mediaType: string; dataBase64: string }>;
+      currentTurnImages?: Array<{ mediaType: string; dataBase64: string }>;
       selectedDocumentIds?: string[];
       reasoningMode: MeriV3ReasoningMode;
       /** Phase 4: server-authored active-prospect directive (bounded fields only). */

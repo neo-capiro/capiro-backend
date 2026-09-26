@@ -99,7 +99,7 @@ describe('archived Meri thread deep-link recovery', () => {
   });
 });
 
-describe('native Meri V1 lifecycle persistence matches the final stream receipt', () => {
+describe('native Meri lifecycle persistence matches the final stream receipt', () => {
   afterEach(() => jest.restoreAllMocks());
 
   it('records an in-band provider error as failed even after text and before a later completion frame', async () => {
@@ -140,16 +140,12 @@ describe('native Meri V1 lifecycle persistence matches the final stream receipt'
   it.each([
     ['end_turn', 'stop', false], ['max_tokens', 'max_tokens', true],
     [null, 'stream_interrupted', true],
-  ] as const)('records provider finish %s and raw V1 runtime identity faithfully', async (providerFinish, finishReason, partial) => {
+  ] as const)('records provider finish %s faithfully', async (providerFinish, finishReason, partial) => {
     const h = harness();
     jest.spyOn(globalThis, 'fetch').mockResolvedValue(providerResponse(providerFinish));
     await h.run();
-    expect(h.rows.find((row) => row.role === 'assistant')?.metadata).toMatchObject({
-      servedBy: 'legacy-v1', finishReason, partial,
-    });
-    expect(h.frames().at(-1)).toMatchObject({
-      type: 'done', servedBy: 'legacy-v1', messageId: 'saved-assistant', finishReason, partial,
-    });
+    expect(h.rows.find((row) => row.role === 'assistant')?.metadata).toMatchObject({ finishReason, partial });
+    expect(h.frames().at(-1)).toMatchObject({ type: 'done', messageId: 'saved-assistant', finishReason, partial });
   });
 
   it.each(['provider_failure', 'user_stop', 'provider_timeout'] as const)('keeps %s distinct on stream and reload', async (failure) => {

@@ -38,7 +38,6 @@ describe('CanaryTurnCollector', () => {
       jevTasks: {
         passage_relevance: { questionVersion: 'passage_selection.v1', modelVersion: 'jev-1.13.0' },
       }, estimatedCostUsd: .5 });
-    expect(logged.repairUsage).toBe('measured');
   });
 
   it('keeps the first text-frame measurement if the frame is noted again', () => {
@@ -47,17 +46,6 @@ describe('CanaryTurnCollector', () => {
     collector.noteTextEmitted();
     expect(collector.build({ outcome: 'released', clarificationRequested: false }).latencyMs)
       .toMatchObject({ timeToText: 50, total: 120 });
-  });
-
-  it('marks repair usage and total cost unknown when dispatched work does not settle', () => {
-    const collector = collectorAt([100, 120]);
-    collector.noteSynthesis(12, .04);
-    collector.noteRepair({ attempted: 0, corrected: 0, qualified: 0, omitted: 0, documentRequested: 0,
-      budgetExhausted: 1, timedOut: true, assessmentMs: 0, repairMs: 20, tokens: null, costUsd: null });
-    const event = collector.build({ outcome: 'released', clarificationRequested: false });
-    expect(event).toMatchObject({ repairUsage: 'unknown', repair: { outcomesComplete: false },
-      tokens: { legacy: null, repair: null },
-      cost: { jevCalls: null, legacyCalls: null, repairLoops: null }, estimatedCostUsd: null });
   });
 
   it('reports the whole duration as time-to-text when no text frame was emitted', () => {

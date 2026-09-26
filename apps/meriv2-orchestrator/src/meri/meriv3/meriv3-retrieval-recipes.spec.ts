@@ -2,11 +2,8 @@ import type { MeriContext } from '@capiro/meriv2-core';
 import type { MeriRetrievalPlan } from '../retrieval/meri-retrieval-plan.js';
 import {
   executeMeriRetrievalRecipe,
-  MERI_RELATIONSHIP_RECIPE_VARIANT_CONTRACT,
-  MERI_RETRIEVAL_TOOL_SCHEMAS,
   type MeriUnderlyingToolInvoker,
 } from './meriv3-retrieval-recipes.js';
-import { MERI_SKILL_REGISTRY } from '@capiro/shared/meri-skills';
 
 function plan(overrides: Partial<MeriRetrievalPlan> = {}): MeriRetrievalPlan {
   return {
@@ -16,8 +13,8 @@ function plan(overrides: Partial<MeriRetrievalPlan> = {}): MeriRetrievalPlan {
     targetHint: 'Victory Six',
     recipeTool: 'query_relationship_brief',
     requireCompleteCoverage: true,
-    requiredDomains: ['mail', 'contacts', 'memory'],
-    optionalDomains: ['clients', 'internal_research', 'documents', 'meetings', 'tasks', 'outreach'],
+    requiredDomains: ['mail'],
+    optionalDomains: ['contacts', 'memory', 'internal_research'],
     recommendedTools: [],
     timeWindow: null,
     activeClients: [],
@@ -63,195 +60,6 @@ function relationshipMock(extra?: MeriUnderlyingToolInvoker) {
 }
 
 describe('MeriV3 retrieval recipes', () => {
-  test('relationship variants preserve skill intent while recording shared recipe execution limits', async () => {
-    const schema = MERI_RETRIEVAL_TOOL_SCHEMAS.find(
-      (candidate) => candidate.name === MERI_RELATIONSHIP_RECIPE_VARIANT_CONTRACT.recipeTool,
-    );
-    expect(schema?.input_schema.required).toEqual(['entity']);
-    expect(schema?.input_schema.properties).toHaveProperty('withinDays');
-    expect(schema?.description).toContain(
-      'coverage manifest reports mailbox health/pagination only',
-    );
-
-    for (const variant of Object.values(MERI_RELATIONSHIP_RECIPE_VARIANT_CONTRACT.variants)) {
-      const skill = MERI_SKILL_REGISTRY.find((candidate) => candidate.id === variant.skillId);
-      expect(skill?.canonicalRecipe).toBe(variant.canonicalRecipe);
-      expect(skill?.semanticDomains).toEqual(variant.intentDomains);
-    }
-
-    const broadInvoke = relationshipMock();
-    const broadRaw = await executeMeriRetrievalRecipe(
-      'query_relationship_brief',
-      { entity: 'Victory Six' },
-      { plan: plan(), meriContext, invoke: broadInvoke },
-    );
-    const broad = broadRaw as {
-      coverage: { requestedDomains: string[] };
-      diagnostics: { mailHistoryFocus: boolean };
-    };
-
-    const mailInvoke = relationshipMock();
-    const mailRaw = await executeMeriRetrievalRecipe(
-      'query_relationship_brief',
-      { entity: 'Victory Six' },
-      {
-        plan: plan({ reasons: ['recipe:query_relationship_brief', 'mail-history-focus'] }),
-        meriContext,
-        invoke: mailInvoke,
-      },
-    );
-    const mail = mailRaw as {
-      coverage: { requestedDomains: string[] };
-      diagnostics: { mailHistoryFocus: boolean };
-    };
-
-    expect(broad.diagnostics.mailHistoryFocus).toBe(false);
-    expect(broad.coverage.requestedDomains).toEqual(['mail']);
-    expect(broadInvoke.mock.calls.map(([name]) => name)).toEqual(
-      expect.arrayContaining([
-        'get_client_context',
-        'search_client_knowledge',
-        'query_debriefs',
-        'query_tasks',
-        'query_outreach',
-      ]),
-    );
-    expect(mail.diagnostics.mailHistoryFocus).toBe(true);
-    expect(mail.coverage.requestedDomains).toEqual(['mail']);
-    const mailCalls = mailInvoke.mock.calls.map(([name]) => name);
-    for (const omitted of [
-      'get_client_context',
-      'search_client_knowledge',
-      'query_debriefs',
-      'query_tasks',
-      'query_outreach',
-      'list_upcoming_meetings',
-      'read_client_documents',
-      'search_research_sources',
-    ]) {
-      expect(mailCalls).not.toContain(omitted);
-    }
-  });
-
-  test('uses the native API existing-client ID for shared-mode client readers', async () => {
-    const apiShapedInvoke = jest.fn(async (name: string, input: Record<string, unknown>) => {
-      if (name === 'lookup_client_registry') {
-        return {
-          existingClient: { id: 'client-v6', name: 'Victory Six Advisors', website: null },
-          ldaExactMatch: null,
-          ldaCandidates: [],
-          guidance: 'Use get_client_context.',
-        };
-      }
-      if (name === 'get_client_context') return { clientId: input.clientId, profile: {} };
-      if (name === 'search_client_knowledge') return { results: [] };
-      if (name === 'query_debriefs') return { results: [] };
-      if (name === 'query_tasks') return { error: 'tasks temporarily unavailable' };
-      if (name === 'query_outreach') return { results: [] };
-      return { results: [] };
-    });
-    const raw = await executeMeriRetrievalRecipe(
-      'query_relationship_brief',
-      { entity: 'Victory Six Advisors' },
-      { plan: plan(), meriContext, invoke: apiShapedInvoke },
-    );
-    const result = raw as {
-      resolvedEntity: { clientId?: string | null } | null;
-      diagnostics: { optionalSourceFailures: string[] };
-    };
-    const clientReaderNames = [
-      'get_client_context',
-      'search_client_knowledge',
-      'query_debriefs',
-      'query_tasks',
-      'query_outreach',
-    ];
-
-    expect(result.resolvedEntity?.clientId).toBe('client-v6');
-    const readerCalls = apiShapedInvoke.mock.calls.filter(([name]) =>
-      clientReaderNames.includes(name),
-    );
-    expect(readerCalls.map(([name]) => name).sort()).toEqual([...clientReaderNames].sort());
-    expect(readerCalls.every(([, input]) => input.clientId === 'client-v6')).toBe(true);
-    expect(result.diagnostics.optionalSourceFailures).toContain('query_tasks');
-  });
-
-  test.each([
-    ['no existing client', null],
-    [
-      'ambiguous registry match only',
-      {
-        existingClient: null,
-        ldaExactMatch: null,
-        ldaCandidates: [{ ldaClientId: 'lda-1', name: 'Victory Six Advisors' }],
-        guidance: 'Ask the user to resolve the match.',
-      },
-    ],
-    ['malformed empty client ID', { id: '   ', name: 'Victory Six Advisors' }],
-  ])('does not fan out to client readers for %s', async (_label, existingClient) => {
-    const guardedInvoke = jest.fn(async (name: string) => {
-      if (name === 'lookup_client_registry') {
-        return {
-          existingClient,
-          ldaExactMatch: null,
-          ldaCandidates: [],
-          guidance: 'No resolved client.',
-        };
-      }
-      return { results: [] };
-    });
-    await executeMeriRetrievalRecipe(
-      'query_relationship_brief',
-      { entity: 'Victory Six Advisors' },
-      { plan: plan(), meriContext, invoke: guardedInvoke },
-    );
-
-    for (const clientReader of [
-      'get_client_context',
-      'search_client_knowledge',
-      'query_debriefs',
-      'query_tasks',
-      'query_outreach',
-    ]) {
-      expect(guardedInvoke.mock.calls.map(([name]) => name)).not.toContain(clientReader);
-    }
-  });
-
-  test('keeps the five client readers skipped in mail-history focus with a valid native ID', async () => {
-    const mailFocusInvoke = jest.fn(async (name: string) => {
-      if (name === 'lookup_client_registry') {
-        return {
-          existingClient: { id: 'client-v6', name: 'Victory Six Advisors', website: null },
-          ldaExactMatch: null,
-          ldaCandidates: [],
-          guidance: 'Use get_client_context.',
-        };
-      }
-      return { results: [] };
-    });
-    const raw = await executeMeriRetrievalRecipe(
-      'query_relationship_brief',
-      { entity: 'Victory Six Advisors' },
-      {
-        plan: plan({ reasons: ['recipe:query_relationship_brief', 'mail-history-focus'] }),
-        meriContext,
-        invoke: mailFocusInvoke,
-      },
-    );
-    const result = raw as { resolvedEntity: { clientId?: string | null } | null };
-    expect(result.resolvedEntity?.clientId).toBe('client-v6');
-
-    for (const clientReader of [
-      'get_client_context',
-      'search_client_knowledge',
-      'query_debriefs',
-      'query_tasks',
-      'query_outreach',
-    ]) {
-      expect(mailFocusInvoke.mock.calls.map(([name]) => name)).not.toContain(clientReader);
-    }
-  });
-
   test('builds a mailbox-first relationship brief and closes a bounded truncation gap', async () => {
     const invoke = relationshipMock(async (name, input) => {
       if (name === 'search_emails') {

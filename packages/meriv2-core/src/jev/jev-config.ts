@@ -22,7 +22,6 @@ export const JEV_TASKS = [
   'bd_entity',
   'bd_signal',
   'bd_claim',
-  'capability_routing',
 ] as const;
 export type JevTask = (typeof JEV_TASKS)[number];
 export type JevRouting = 'llm' | 'jev' | 'paired' | 'cascade';

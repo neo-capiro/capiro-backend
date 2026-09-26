@@ -18,7 +18,6 @@ import {
 import type { MeriResearchHandoff } from './meri-research-handoff.js';
 import type { ResearchRunState } from './meri-research-run-state.js';
 import type { SourceAttribution } from './meri-research.service.js';
-import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 
 export interface ResearchRuntimeAuth {
   bearerToken?: string;
@@ -130,8 +129,7 @@ export class MeriV3ResearchRunner {
       throw new ServiceUnavailableException(
         'The conversation’s OpenAI provider is not configured.',
       );
-    const currentTurnImages = toolPolicy === 'read-only'
-      ? await this.snapshotImages(ctx, input.handoff) : [];
+    const currentTurnImages = await this.snapshotImages(ctx, input.handoff);
     const inherited = toolPolicy === 'read-only'
       ? await this.conversationEvidence.load(ctx, input.conversationId ?? input.handoff?.conversationId ?? undefined,
           input.clientId, auth.signal, input.handoff?.messages)
@@ -217,19 +215,16 @@ export class MeriV3ResearchRunner {
       handoff?.attachments.filter((row) => row.kind === 'image' && row.status === 'image_ready') ??
       [];
     if (!images.length) return [];
-    const stored = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-      if (handoff?.clientId && !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, handoff.clientId))) {
-        throw new BadRequestException('Research image client access is no longer available.');
-      }
-      return tx.clioAttachment.findMany({
+    const stored = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+      tx.clioAttachment.findMany({
         where: {
           id: { in: images.map((image) => image.id) },
           tenantId: ctx.tenantId,
           userId: ctx.userId,
         },
         select: { id: true, data: true, mediaType: true, status: true },
-      });
-    });
+      }),
+    );
     return images.map((image) => {
       const row = stored.find((candidate) => candidate.id === image.id);
       if (
@@ -243,7 +238,7 @@ export class MeriV3ResearchRunner {
           'A research image is unavailable or changed since the handoff. Start a new research request.',
         );
       }
-      return { attachmentId: image.id, mediaType: row.mediaType, dataBase64: Buffer.from(row.data).toString('base64') };
+      return { mediaType: row.mediaType, dataBase64: Buffer.from(row.data).toString('base64') };
     });
   }
 }

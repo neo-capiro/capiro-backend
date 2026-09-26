@@ -2,7 +2,6 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { visibleClientWhere } from '../../memory/memory-wall.helpers.js';
 import { validateTransition } from './action-transitions.js';
 import type {
   ActionStatus,
@@ -19,9 +18,8 @@ import type {
  * lives in `action-recommendation.service.ts` (owned elsewhere) and is injected only
  * by the controller for the POST /generate route, NOT here.
  *
- * Every method is tenant-isolated through `prisma.withTenant(ctx.tenantId, ...)` and
- * applies the live client-wall predicate. Runtime RLS is not sufficient for
- * ethical-wall visibility (the app role bypasses those policies).
+ * Every method is tenant-isolated through `prisma.withTenant(ctx.tenantId, ...)` so the
+ * RLS policy on `action_recommendation` is the single source of truth for visibility.
  * Writes (status / owner) route status changes through the pure `validateTransition`
  * (§19 lifecycle) and emit an AuditLog inside the same tenant transaction, mirroring
  * `programs.service.resolveMatch`.
@@ -127,13 +125,7 @@ export class ActionRecommendationReadService {
     const limit = clampLimit(query.limit);
     const sort: ActionSort = query.sort === 'priority' ? 'priority' : 'deadline';
 
-    // The app role's RLS does not enforce ethical walls. Put the live grant
-    // predicate in BOTH the page query and count so omitted-client reads and
-    // revoked grants cannot leak card content or totals.
-    const where: Prisma.ActionRecommendationWhereInput = {
-      tenantId: ctx.tenantId,
-      client: { is: visibleClientWhere(ctx) },
-    };
+    const where: Prisma.ActionRecommendationWhereInput = { tenantId: ctx.tenantId };
     if (query.status) where.status = query.status;
     if (query.clientId) where.clientId = query.clientId;
 
@@ -168,7 +160,7 @@ export class ActionRecommendationReadService {
   async getOne(ctx: TenantContext, id: string): Promise<ActionCard> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const row = await tx.actionRecommendation.findFirst({
-        where: { id, tenantId: ctx.tenantId, client: { is: visibleClientWhere(ctx) } },
+        where: { id, tenantId: ctx.tenantId },
         select: cardSelect,
       });
       if (!row) throw new NotFoundException(`ActionRecommendation ${id} not found`);
@@ -191,7 +183,7 @@ export class ActionRecommendationReadService {
   ): Promise<ActionCard> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const current = await tx.actionRecommendation.findFirst({
-        where: { id, tenantId: ctx.tenantId, client: { is: visibleClientWhere(ctx) } },
+        where: { id, tenantId: ctx.tenantId },
         select: { id: true, status: true, dismissalReason: true },
       });
       if (!current) throw new NotFoundException(`ActionRecommendation ${id} not found`);
@@ -201,12 +193,11 @@ export class ActionRecommendationReadService {
       });
       if (!result.ok) throw new BadRequestException(result.error);
 
-      // Tenant and wall scoped write: a 0 count means the row vanished or
-      // access was revoked between read and write — treat as NotFound.
+      // Tenant-scoped write (defence-in-depth on top of RLS + the findFirst above):
+      // updateMany's `where` re-asserts the tenant, and a 0 count means the row
+      // vanished/was-stolen between read and write — treat as NotFound, never a silent no-op.
       const { count } = await tx.actionRecommendation.updateMany({
-        // Recheck the live grant atomically with the write: a revocation after
-        // the initial read must not permit a known-id mutation.
-        where: { id, tenantId: ctx.tenantId, client: { is: visibleClientWhere(ctx) } },
+        where: { id, tenantId: ctx.tenantId },
         data: {
           status: next,
           // Persist the reason only when dismissing; other transitions leave it as-is.
@@ -216,7 +207,7 @@ export class ActionRecommendationReadService {
       if (count !== 1) throw new NotFoundException(`ActionRecommendation ${id} not found`);
 
       const updated = await tx.actionRecommendation.findFirst({
-        where: { id, tenantId: ctx.tenantId, client: { is: visibleClientWhere(ctx) } },
+        where: { id, tenantId: ctx.tenantId },
         select: cardSelect,
       });
       if (!updated) throw new NotFoundException(`ActionRecommendation ${id} not found`);
@@ -249,20 +240,20 @@ export class ActionRecommendationReadService {
   ): Promise<ActionCard> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const current = await tx.actionRecommendation.findFirst({
-        where: { id, tenantId: ctx.tenantId, client: { is: visibleClientWhere(ctx) } },
+        where: { id, tenantId: ctx.tenantId },
         select: { id: true, ownerUserId: true },
       });
       if (!current) throw new NotFoundException(`ActionRecommendation ${id} not found`);
 
-      // Recheck tenant and wall visibility in the same statement as the write.
+      // Tenant-scoped write (defence-in-depth on top of RLS + the findFirst above).
       const { count } = await tx.actionRecommendation.updateMany({
-        where: { id, tenantId: ctx.tenantId, client: { is: visibleClientWhere(ctx) } },
+        where: { id, tenantId: ctx.tenantId },
         data: { ownerUserId },
       });
       if (count !== 1) throw new NotFoundException(`ActionRecommendation ${id} not found`);
 
       const updated = await tx.actionRecommendation.findFirst({
-        where: { id, tenantId: ctx.tenantId, client: { is: visibleClientWhere(ctx) } },
+        where: { id, tenantId: ctx.tenantId },
         select: cardSelect,
       });
       if (!updated) throw new NotFoundException(`ActionRecommendation ${id} not found`);

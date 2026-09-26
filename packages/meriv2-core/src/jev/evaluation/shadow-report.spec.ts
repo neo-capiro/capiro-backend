@@ -5,7 +5,7 @@ import type { EvidenceShadowEvent, HumanLabels } from './shadow-events';
 const probabilities = { supported: 0.8, contradicted: 0.1, insufficient_evidence: 0.05, conflicting_evidence: 0.05 };
 function row(id: string, jev: 'supported' | 'contradicted', legacy: 'supported' | 'contradicted', model = 'jev-v1'): EvidenceShadowEvent {
   const decision = (outcome: 'supported' | 'contradicted', providerModel: string) => ({ kind: 'outcome' as const, outcome, confidence: 0.8, probabilities, reasonCodes: [], model: providerModel, questionVersion: 'claim_support.v1', latencyMs: 2, inputTokens: 10 });
-  return { event: 'meri.evidence_shadow', schemaVersion: 'meri.evidence_shadow.v1', conversationId: 'c', turnId: id, claimId: id, claimKind: 'fact', claimCategory: 'award', envelopeHash: `hash-${id}`, eligibility: { eligible: true, reason: 'ok' }, jev: decision(jev, model), legacy: decision(legacy, 'legacy-v1'), agreement: jev === legacy, legacyAdapterVersion: 'legacy-skeptic-adapter.v1', proposedAction: { jev: 'none', legacy: 'none' }, claimText: `${id} claim`, split: 'tuning', source: 'live' };
+  return { event: 'meri.evidence_shadow', conversationId: 'c', turnId: id, claimId: id, claimKind: 'fact', claimCategory: 'award', envelopeHash: `hash-${id}`, eligibility: { eligible: true, reason: 'ok' }, jev: decision(jev, model), legacy: decision(legacy, 'legacy-v1'), agreement: jev === legacy, legacyAdapterVersion: 'legacy-skeptic-adapter.v1', proposedAction: { jev: 'none', legacy: 'none' }, claimText: `${id} claim`, split: 'tuning', source: 'live' };
 }
 const labels: HumanLabels = { version: 'jev_human_labels_v1', labels: [
   { claimId: 'a', label: 'supported', status: 'approved', reviewer: 'R', reviewedAt: '2026-09-22T00:00:00.000Z', note: '' },

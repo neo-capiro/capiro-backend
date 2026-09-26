@@ -41,12 +41,6 @@ describe('research originating context snapshot', () => {
     expect(snapshot.attachments[1]).toMatchObject({ status: 'truncated', reason: 'Extraction limit reached' });
     expect(snapshot.attachments[0]?.contentSha256).toMatch(/^[a-f0-9]{64}$/);
     expect(researchHandoffPrompt(snapshot)).toContain('Appropriated amount: $17 million');
-    const v3Prompt = researchHandoffPrompt(snapshot, 'research-session', { includeAttachmentContent: false });
-    expect(v3Prompt).toContain('research-session');
-    expect(v3Prompt).toContain('prior-file');
-    expect(v3Prompt).toContain('truncated');
-    expect(v3Prompt).not.toContain('Appropriated amount: $17 million');
-    expect(v3Prompt).not.toContain('Client manufactures sensors');
     expect(tx.clioAttachment.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ tenantId: ctx.tenantId, userId: ctx.userId }) }));
   });
 

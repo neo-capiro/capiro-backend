@@ -115,9 +115,8 @@
     "verify:phase8-session12:e2e:db": "node scripts/verify-phase8-session12-e2e-db.mjs"
   },
   "devDependencies": {
-    "prettier": "^3.9.6",
-    "promptfoo": "^0.123.1",
     "turbo": "^2.10.13",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "prettier": "^3.9.6"
   }
 }

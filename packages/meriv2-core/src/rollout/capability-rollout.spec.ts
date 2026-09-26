@@ -54,9 +54,9 @@ describe('capability rollout', () => {
     );
   });
 
-  it('fails off and reports malformed tenant and surface tokens even when valid tokens are also present', () => {
+  it('ignores and reports malformed tenant and surface tokens deterministically', () => {
     const result = resolve('enforce', `capiro-internal,${TENANT}`, 'bogus,chat');
-    expect(result.mode).toBe('off');
+    expect(result.mode).toBe('enforce');
     expect(result.reasons).toEqual(['invalid_tenant:capiro-internal', 'invalid_surface:bogus']);
     expect(
       validateCapabilityRolloutConfig({

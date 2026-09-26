@@ -33,116 +33,11 @@ export interface MeriRetrievalToolSchema {
 const stringSchema = (description: string) => ({ type: 'string', description });
 const integerSchema = (description: string) => ({ type: 'integer', description });
 
-/**
- * Advisory mapping from user-visible skill intent to the current shared recipe.
- * The planner receives request text, not skillId, so these are not three
- * independently selected or executed workflows.
- */
-export const MERI_RELATIONSHIP_RECIPE_VARIANT_CONTRACT = {
-  recipeTool: 'query_relationship_brief',
-  skillIdIsPassedToPlanner: false,
-  runtimeDiscriminator: {
-    name: 'mail-history-focus',
-    source: 'MAIL_HISTORY_RE request-text heuristic in buildMeriRetrievalPlan',
-    noMatchBehavior: 'shared relationship default; meeting_prep has no dedicated discriminator',
-    observedCaveat:
-      'The regex scans the whole request and also matches the relationship_brief and meeting_prep starter prompts because later prose contains qualifying words; this is not a reliable skill-identity signal.',
-  },
-  variants: {
-    relationship_brief: {
-      skillId: 'relationship_brief',
-      canonicalRecipe: 'query_relationship_brief',
-      intentDomains: ['identity', 'mail', 'meetings', 'contacts', 'documents', 'memory', 'tasks'],
-      starterPromptExpectedMode: 'mail_history_focus',
-    },
-    mail_history: {
-      skillId: 'mail_history',
-      canonicalRecipe: 'query_relationship_brief',
-      intentDomains: ['mail', 'clients', 'contacts', 'documents', 'tasks', 'action_items'],
-      starterPromptExpectedMode: 'mail_history_focus',
-    },
-    meeting_prep: {
-      skillId: 'meeting_prep',
-      canonicalRecipe: 'query_relationship_brief',
-      intentDomains: [
-        'clients',
-        'mail',
-        'meetings',
-        'contacts',
-        'documents',
-        'memory',
-        'tasks',
-        'action_items',
-        'outreach',
-        'legislation',
-      ],
-      starterPromptExpectedMode: 'mail_history_focus',
-      limitation: 'No meeting_prep-specific execution variant or upcoming-meeting reader is called by this recipe.',
-    },
-  },
-  recipeExecution: {
-    invokesForResolvedTarget: [
-      'search_emails',
-      'find_contacts',
-      'search_memory',
-      'lookup_client_registry',
-    ],
-    boundedMailFollowups: [
-      'search_emails by up to three discovered participant identifiers',
-      'search_emails by up to four discovered subjects',
-    ],
-    sharedRelationshipDefaultAddsIfClientIdExtractorFindsId: [
-      'get_client_context',
-      'search_client_knowledge',
-      'query_debriefs',
-      'query_tasks',
-      'query_outreach',
-    ],
-    clientIdExtractionBoundary: {
-      recognizedPaths: ['top-level id', 'top-level clientId', 'top-level client.id'],
-      nativeLookupClientRegistryPath: 'existingClient.id',
-      observedMismatch:
-        'The API lookup_client_registry payload nests an existing client under existingClient, which the recipe clientIdFrom helper does not inspect; do not claim that this native result triggers the client-specific fan-out.',
-    },
-    mailHistoryFocusSkipsClientReads: true,
-    notInvokedByRecipe: [
-      'list_upcoming_meetings',
-      'read_client_documents',
-      'search_research_sources',
-      'legislative readers',
-      'public-web or federal-market readers',
-      'mail-thread reader get_email_thread (subject follow-up remains search_emails)',
-    ],
-    coverageBoundary:
-      'coverage reports mailbox health/pagination only; supplementary contact, memory, registry and client-source completeness is not represented as a complete coverage ledger',
-    resultBoundary:
-      'The result is a bounded summary of gathered rows; it does not prove every authorized source was queried or every requested skill domain was covered.',
-  },
-  gatewaySupport: {
-    relationshipDefaultRecipeSupport: [
-      'resolve_entity',
-      'search_emails',
-      'get_email_thread',
-      'search_research_sources',
-      'search_memory',
-    ],
-    mailHistoryFocusRecipeSupport: [
-      'search_emails',
-      'get_email_thread',
-      'find_contacts',
-      'search_memory',
-      'lookup_client_registry',
-    ],
-    caveat:
-      'Request action/topic rules can add schemas beyond recipe support; schema exposure does not mean the recipe invokes them or grants permission.',
-  },
-} as const;
-
 export const MERI_RETRIEVAL_TOOL_SCHEMAS: MeriRetrievalToolSchema[] = [
   {
     name: 'query_relationship_brief',
     description:
-      'Build a bounded brief from synchronized email, contacts, firm memory and client-registry lookup. The planner does not pass a skillId: Relationship Brief and Meeting Prep currently share the same recipe, while a mail-history request may select the narrower mail-history-focus plan from request wording. Outside that focus, client context, client knowledge, debriefs, tasks and outreach are queried only when client-registry lookup resolves a client. The recipe does not directly read upcoming meetings/calendar, full client documents, legislation, public web, or search_research_sources. Its coverage manifest reports mailbox health/pagination only; it does not certify completeness of supplementary sources or every domain named by a skill. Bounded participant/subject follow-ups use search_emails. Use for relationship/email-history requests, but describe only evidence actually returned and its coverage.',
+      'Build a mailbox-first relationship history from synchronized email, known contacts, and firm memory. Use FIRST for email history, inbox history, correspondence history, “catch me up”, and relationship-history requests. It performs bounded subject/contact follow-ups to recover truncated mailbox matches. It does not search LDA, SEC, federal awards, grants, Program Elements, or the public web unless the user separately asks for external-company or federal-market research.',
     input_schema: {
       type: 'object',
       additionalProperties: false,

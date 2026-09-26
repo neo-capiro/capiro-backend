@@ -42,7 +42,6 @@ export const shadowLoggedDecisionSchema = z.discriminatedUnion('kind', [
 
 export const evidenceShadowEventSchema = z.object({
   event: z.literal('meri.evidence_shadow').default('meri.evidence_shadow'),
-  schemaVersion: z.enum(['meri.evidence_shadow.v1', 'meri.evidence_shadow.v2']).default('meri.evidence_shadow.v1'),
   conversationId: z.string().nullable(),
   turnId: z.string().nullable(),
   claimId: z.string().min(1),
@@ -53,21 +52,6 @@ export const evidenceShadowEventSchema = z.object({
   jev: shadowLoggedDecisionSchema,
   legacy: shadowLoggedDecisionSchema,
   agreement: z.boolean(),
-  freshness: z.object({
-    requiredDocumentEligible: z.boolean(),
-    claimLinkedEvidencePresent: z.boolean(),
-    sourceDateKnown: z.boolean(),
-    eligibleSourceFreshness: z.object({
-      state: z.enum(['fresh', 'stale', 'unknown']),
-      ageDays: z.number().nullable(),
-      basis: z.enum(['effectiveAt', 'publishedAt', 'retrievedAt', 'none']),
-    }),
-    linkedLedgerTemporalInformation: z.object({
-      state: z.enum(['fresh', 'stale', 'unknown']),
-      ageDays: z.number().nullable(),
-      basis: z.enum(['effectiveAt', 'publishedAt', 'retrievedAt', 'none']),
-    }),
-  }).optional(),
   legacyAdapterVersion: z.enum([
     'legacy-skeptic-adapter.v1',
     'legacy-skeptic-adapter.v2',
@@ -92,7 +76,6 @@ export const evidenceShadowTurnEventSchema = z.object({
   selected: z.number().int().nonnegative(),
   skipped: z.number().int().nonnegative(),
   budgetExhausted: z.boolean(),
-  stopReason: z.enum(['completed', 'max_claims', 'max_input_tokens', 'deadline', 'parent_abort']).optional(),
   durationMs: z.number().nonnegative(),
   inputTokens: z.number().int().nonnegative(),
   estimatedCostUsd: z.number().nonnegative(),
@@ -100,37 +83,9 @@ export const evidenceShadowTurnEventSchema = z.object({
   source: z.enum(['live', 'replay']).default('live'),
 });
 
-export const evidenceShadowProviderLifecycleEventSchema = z.object({
-  event: z.literal('meri.evidence_shadow.provider_lifecycle').default('meri.evidence_shadow.provider_lifecycle'),
-  lifecycleId: z.string().min(1),
-  conversationId: z.string().nullable(),
-  turnId: z.string().nullable(),
-  claimId: z.string().min(1),
-  envelopeHash: z.string().min(1),
-  provider: z.enum(['jev', 'legacy']),
-  dispatchBoundary: z.literal('decision_provider_assess'),
-  eligible: z.boolean(),
-  waitState: z.enum(['ineligible', 'not_started', 'waiting', 'settled', 'cancelled_by_shared_budget']),
-  providerState: z.enum(['not_started', 'pending', 'settled', 'provider_timeout', 'provider_error']),
-  cancellationReason: z.enum(['shared_deadline', 'parent_abort']).nullable(),
-  eligibilityCheckedAt: z.string().datetime(),
-  eligibleAt: z.string().datetime().nullable(),
-  attemptedAt: z.string().datetime().nullable(),
-  dispatchedAt: z.string().datetime().nullable(),
-  settledAt: z.string().datetime().nullable(),
-  cancelledAt: z.string().datetime().nullable(),
-  actualUsage: z.object({
-    inputTokens: z.number().int().nonnegative().optional(),
-    outputTokens: z.number().int().nonnegative().optional(),
-  }).nullable(),
-  usageStatus: z.enum(['reported', 'not_returned', 'unknown_due_cancellation', 'not_applicable']),
-  costStatus: z.enum(['unknown', 'unknown_due_cancellation', 'not_applicable']),
-});
-
 export type EvidenceShadowEvent = z.infer<typeof evidenceShadowEventSchema>;
 export type EvidenceShadowTurnEvent = z.infer<typeof evidenceShadowTurnEventSchema>;
-export type EvidenceShadowProviderLifecycleEvent = z.infer<typeof evidenceShadowProviderLifecycleEventSchema>;
-export type ShadowEvent = EvidenceShadowEvent | EvidenceShadowTurnEvent | EvidenceShadowProviderLifecycleEvent;
+export type ShadowEvent = EvidenceShadowEvent | EvidenceShadowTurnEvent;
 
 export interface ReadShadowEventsResult {
   events: ShadowEvent[];
@@ -142,8 +97,7 @@ function eventPayload(value: unknown): unknown {
   if (!value || typeof value !== 'object') return null;
   const row = value as Record<string, unknown>;
   const name = row.event ?? row.message ?? row.name;
-  if (name !== 'meri.evidence_shadow' && name !== 'meri.evidence_shadow.turn'
-      && name !== 'meri.evidence_shadow.provider_lifecycle') return null;
+  if (name !== 'meri.evidence_shadow' && name !== 'meri.evidence_shadow.turn') return null;
   const fields = row.fields && typeof row.fields === 'object' ? row.fields as Record<string, unknown> : row;
   return { ...fields, event: name };
 }
@@ -168,9 +122,7 @@ export function readShadowEvents(jsonlPath: string): ReadShadowEventsResult {
     const name = (payload as { event: string }).event;
     const checked = name === 'meri.evidence_shadow'
       ? evidenceShadowEventSchema.safeParse(payload)
-      : name === 'meri.evidence_shadow.turn'
-        ? evidenceShadowTurnEventSchema.safeParse(payload)
-        : evidenceShadowProviderLifecycleEventSchema.safeParse(payload);
+      : evidenceShadowTurnEventSchema.safeParse(payload);
     if (checked.success) result.events.push(checked.data);
     else result.rejected += 1;
   }

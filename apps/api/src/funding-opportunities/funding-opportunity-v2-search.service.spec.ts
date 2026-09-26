@@ -251,27 +251,6 @@ describe('FundingOpportunityV2SearchService', () => {
     expect(result.provenance.find((item) => item.source === 'sam_gov')).toMatchObject({ queried: false, count: null });
   });
 
-  test('does not report zero matches or complete coverage when every requested source is disabled', async () => {
-    const disabledSearch = jest.fn(async () => ({ records: [record('sbir_sttr', 'disabled')], count: 1 }));
-    const disabledHealth = jest.fn(async () => ({ recordCount: 1, activeRecordCount: 1, lastSyncedAt: null, state: 'current' as const }));
-    const service = makeService([
-      adapter('sbir_sttr', [], { search: disabledSearch, health: disabledHealth }),
-    ], [CLIENT], undefined, ['grants_gov']);
-
-    const result = await service.search(context, criteria({ mode: 'matched', clientId: CLIENT, sources: ['sbir_sttr'] }));
-
-    expect(disabledSearch).not.toHaveBeenCalled();
-    expect(disabledHealth).not.toHaveBeenCalled();
-    expect(result.opportunities).toEqual([]);
-    expect(result.total).toBeNull();
-    expect(result.catalogComplete).toBe(false);
-    expect(result.counts).toEqual({ grants: null, contracts: null, active: null, closed: null });
-    expect(result.emptyReason).toBeNull();
-    expect(result.profileGaps?.actualUnscoredCount).toBeNull();
-    expect(result.freshness).toEqual([expect.objectContaining({ source: 'sbir_sttr', state: 'not_enabled' })]);
-    expect(result.provenance).toEqual([expect.objectContaining({ source: 'sbir_sttr', queried: false, count: null })]);
-  });
-
   test('reports source health from adapters instead of calling a successful query current', async () => {
     const service = makeService([adapter('grants_gov', [record('grants_gov', 'g1')], {
       health: async () => ({ recordCount: 1, activeRecordCount: 1, lastSyncedAt: '2026-01-01T00:00:00.000Z', state: 'stale' }),

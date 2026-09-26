@@ -14,9 +14,10 @@ import type { WorkspaceAssistantDto } from './workspace-assistant.dto.js';
  * key even when the tenant had its own — so flipping the flag silently changed
  * capability, grounding, billing attribution, and auditability.
  *
- * These tests pin the legacy side of that contract. The MeriV2 registry still
- * advertises eight fewer tools; its in-editor-prompt.spec.ts and
- * delegated-tools.catalog.spec.ts pin that narrower surface until parity lands.
+ * These tests pin the legacy side of that contract. The MeriV2 side is pinned by
+ * apps/meriv2-orchestrator's in-editor-prompt.spec.ts +
+ * delegated-tools.catalog.spec.ts, and both sides now import the SAME allowlist
+ * from @capiro/meriv2-core, so set equality is structural rather than asserted.
  */
 
 const TENANT = '11111111-1111-4111-8111-111111111111';

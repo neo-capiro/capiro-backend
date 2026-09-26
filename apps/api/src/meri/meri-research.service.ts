@@ -760,10 +760,9 @@ export class MeriResearchService {
     const clientContext = await this.clientContext(ctx, session.clientId);
     const system = buildPlanSystemPrompt(PRODUCT_NAME);
     const handoff = readResearchHandoff(session.metadata);
-    const useV3 = this.v3Research && (await this.v3Research.enabled(ctx));
     const user = [
       buildPlanUserPrompt(session.topic, clientContext),
-      researchHandoffPrompt(handoff, session.id, { includeAttachmentContent: !useV3 }),
+      researchHandoffPrompt(handoff, session.id),
     ]
       .filter(Boolean)
       .join('\n\n');
@@ -784,6 +783,7 @@ export class MeriResearchService {
     progress.set('Planning the research…');
 
     let proposal: PlanProposal;
+    const useV3 = this.v3Research && (await this.v3Research.enabled(ctx));
     try {
       const raw = useV3
         ? await this.v3Research!.plan(
@@ -949,7 +949,6 @@ export class MeriResearchService {
     const clientContext = await this.clientContext(ctx, session.clientId);
 
     const handoff = readResearchHandoff(session.metadata);
-    const useV3 = this.v3Research && (await this.v3Research.enabled(ctx));
     const user = [
       buildResearchUserPrompt({
         topic: session.topic,
@@ -958,13 +957,13 @@ export class MeriResearchService {
         clarifyingAnswers,
         clientContext,
       }),
-      researchHandoffPrompt(handoff, session.id, { includeAttachmentContent: !useV3 }),
+      researchHandoffPrompt(handoff, session.id),
     ]
       .filter(Boolean)
       .join('\n\n');
 
     sse.write(sseEvent({ type: 'phase', phase: 'gather' }));
-    if (useV3) {
+    if (this.v3Research && (await this.v3Research.enabled(ctx))) {
       progress.set('Researching with the conversation’s selected reasoning mode…');
       const result = await this.v3Research.run(
         ctx,

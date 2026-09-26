@@ -159,37 +159,6 @@ export class ComputeStack extends cdk.Stack {
       'ImportedClerkPubKey',
       secretsStack.clerkPublishableKey.secretArn,
     );
-    const internalServiceSecretImported = cfg.externalSecretArns?.internalServiceSecret
-      ? secretsmanager.Secret.fromSecretCompleteArn(
-          this,
-          'ImportedInternalServiceSecret',
-          cfg.externalSecretArns.internalServiceSecret,
-        )
-      : undefined;
-    if (cfg.meriPrivateToolApiBaseUrl && !cfg.meriPrivateToolNetworkEnabled) {
-      throw new Error('Meri private tool API requires the dedicated network stage first');
-    }
-    if (cfg.meriPrivateToolApiBaseUrl && !internalServiceSecretImported) {
-      throw new Error('Meri private tool API requires a complete internal service secret ARN');
-    }
-    if (cfg.meriPrivateToolApiBaseUrl) {
-      const endpoint = new URL(cfg.meriPrivateToolApiBaseUrl);
-      // The live dev namespace is capiro.dev.local. The cluster's declared
-      // capiro-dev.local namespace is drifted; changing that Cloud Map resource
-      // here would be a separate, potentially replacing migration. This check
-      // only constrains the opt-in target after its live registration is proven.
-      const expectedHost = cfg.envName === 'dev'
-        ? 'api.capiro.dev.local'
-        : `api.capiro-${cfg.envName}.local`;
-      if (
-        endpoint.protocol !== 'http:' ||
-        endpoint.port !== '4000' ||
-        endpoint.hostname !== expectedHost ||
-        endpoint.username || endpoint.password || endpoint.pathname !== '/' || endpoint.search || endpoint.hash
-      ) {
-        throw new Error(`Meri private tool API must be http://${expectedHost}:4000`);
-      }
-    }
     // Wire the REAL, operator-populated GovInfo key: capiro/<env>/govinfo_api_key
     // (default-KMS). NOTE: SecretsStack also defines a separate placeholder
     // (/capiro/<env>/govinfo/api-key = "REPLACE_ME", CMK-encrypted) that was never
@@ -424,10 +393,6 @@ export class ComputeStack extends cdk.Stack {
       enableFargateCapacityProviders: true,
     });
     this.cluster.addDefaultCloudMapNamespace({
-      // Do not change this declared namespace as an incidental B5 fix. The
-      // live dev namespace is capiro.dev.local, and its existing api service
-      // must be attached/verified in a separate controlled ECS topology step.
-      // A broad CDK reconciliation can replace drifted Cloud Map resources.
       name: `capiro-${cfg.envName}.local`,
       useForServiceConnect: false,
     });
@@ -592,9 +557,6 @@ export class ComputeStack extends cdk.Stack {
     // only the username/password switch between the two tasks.
     const apiServeSecrets = {
       CLERK_SECRET_KEY: ecs.Secret.fromSecretsManager(clerkSecretKeyImported),
-      ...(internalServiceSecretImported
-        ? { INTERNAL_SERVICE_SECRET: ecs.Secret.fromSecretsManager(internalServiceSecretImported) }
-        : {}),
       CLERK_WEBHOOK_SIGNING_SECRET:
         ecs.Secret.fromSecretsManager(clerkWebhookImported),
       DB_HOST: ecs.Secret.fromSecretsManager(dbSecretImported, 'host'),
@@ -913,7 +875,6 @@ export class ComputeStack extends cdk.Stack {
         clerkSecretKeyImported.secretArn,
         clerkWebhookImported.secretArn,
         analyticsDbSecretImported.secretArn,
-        ...(internalServiceSecretImported ? [internalServiceSecretImported.secretArn] : []),
         ...externalRuntimeSecretArnPatterns,
       ],
       [dataKey.keyArn, secretsStack.secretsKey.keyArn],
@@ -943,46 +904,13 @@ export class ComputeStack extends cdk.Stack {
       },
     });
 
-    // Opt-in security groups are attached only to their respective services.
-    // The existing service SG is shared by API, Meri and other production tasks;
-    // adding Meri ingress there would expose TCP/4000 on every task using it.
-    // The shared SG already allows outbound, so these groups add no egress rule
-    // and do not pretend to restrict outbound traffic by themselves.
-    const meriToolApiTargetSecurityGroup = cfg.meriPrivateToolNetworkEnabled
-      ? new ec2.SecurityGroup(this, 'MeriToolApiTargetSg', {
-          vpc,
-          description: 'Private API target for Meri delegated tool calls',
-          allowAllOutbound: false,
-        })
-      : undefined;
-    const meriToolCallerSecurityGroup = cfg.meriPrivateToolNetworkEnabled
-      ? new ec2.SecurityGroup(this, 'MeriToolCallerSg', {
-          vpc,
-          description: 'Meri caller identity for private API tool calls',
-          allowAllOutbound: false,
-        })
-      : undefined;
-    if (meriToolApiTargetSecurityGroup && meriToolCallerSecurityGroup) {
-      new ec2.CfnSecurityGroupIngress(this, 'MeriToolApiIngress', {
-        groupId: meriToolApiTargetSecurityGroup.securityGroupId,
-        sourceSecurityGroupId: meriToolCallerSecurityGroup.securityGroupId,
-        ipProtocol: 'tcp',
-        fromPort: 4000,
-        toPort: 4000,
-        description: 'Meri caller to private API tool route only',
-      });
-    }
-
     this.apiService = new ecs.FargateService(this, 'ApiService', {
       cluster: this.cluster,
       taskDefinition: apiTaskDef,
       serviceName: `capiro-${cfg.envName}-api`,
       desiredCount: cfg.apiDesiredCount,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      securityGroups: [
-        serviceSecurityGroup as ec2.SecurityGroup,
-        ...(meriToolApiTargetSecurityGroup ? [meriToolApiTargetSecurityGroup] : []),
-      ],
+      securityGroups: [serviceSecurityGroup as ec2.SecurityGroup],
       assignPublicIp: false,
       enableExecuteCommand: cfg.envName !== 'prod', // prod uses session manager via separate path
       cloudMapOptions: { name: 'api' },
@@ -1366,9 +1294,6 @@ export class ComputeStack extends cdk.Stack {
 
     const meriv2OrchestratorServeSecrets = {
       CLERK_SECRET_KEY: ecs.Secret.fromSecretsManager(clerkSecretKeyImported),
-      ...(internalServiceSecretImported
-        ? { INTERNAL_SERVICE_SECRET: ecs.Secret.fromSecretsManager(internalServiceSecretImported) }
-        : {}),
       DB_HOST: ecs.Secret.fromSecretsManager(dbSecretImported, 'host'),
       DB_PORT: ecs.Secret.fromSecretsManager(dbSecretImported, 'port'),
       DB_USER: ecs.Secret.fromSecretsManager(appDbSecretImported, 'username'),
@@ -1398,14 +1323,6 @@ export class ComputeStack extends cdk.Stack {
       WEB_ORIGIN: `https://${cfg.appHost}`,
       // Phase-0 client-context delegation target (api /api/engagement/context/:id).
       MERIV2_API_BASE_URL: `https://${cfg.appHost}`,
-      // Do not set MERIV2_TOOL_API_BASE_URL until an approved rollout has a
-      // verified, registered private API endpoint. The live dev ECS service has
-      // no serviceRegistries/Service Connect and its Cloud Map namespace differs
-      // from the clean-stack name declared here. A premature switch would break
-      // every delegated tool call. The bridge supports an explicit opt-in URL.
-      ...(cfg.meriPrivateToolApiBaseUrl
-        ? { MERIV2_TOOL_API_BASE_URL: cfg.meriPrivateToolApiBaseUrl }
-        : {}),
       ANTHROPIC_MODEL: 'claude-sonnet-5',
       // Post-hoc grounding auditor. Matches the LIVE prod posture (both api and
       // orchestrator run 'enforce' as of 2026-07-14) so a cdk deploy does not
@@ -1437,7 +1354,6 @@ export class ComputeStack extends cdk.Stack {
         appDbSecretImported.secretArn,
         clerkSecretKeyImported.secretArn,
         anthropicApiKeySecret.secretArn,
-        ...(internalServiceSecretImported ? [internalServiceSecretImported.secretArn] : []),
       ],
       [dataKey.keyArn, secretsStack.secretsKey.keyArn],
     );
@@ -1476,10 +1392,7 @@ export class ComputeStack extends cdk.Stack {
         serviceName: `capiro-${cfg.envName}-meriv2-orchestrator`,
         desiredCount: cfg.meriv2OrchestratorDesiredCount,
         vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-        securityGroups: [
-          serviceSecurityGroup as ec2.SecurityGroup,
-          ...(meriToolCallerSecurityGroup ? [meriToolCallerSecurityGroup] : []),
-        ],
+        securityGroups: [serviceSecurityGroup as ec2.SecurityGroup],
         assignPublicIp: false,
         enableExecuteCommand: cfg.envName !== 'prod',
         cloudMapOptions: { name: 'meriv2-orchestrator' },

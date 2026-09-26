@@ -338,9 +338,6 @@ export class MeriOpportunityToolsAdapter {
       }),
     );
     const hasMore = result.total == null ? result.opportunities.length === result.pageSize : result.page * result.pageSize < result.total;
-    const requestedSourceDisabled = result.freshness.some((item) => item.state === 'not_enabled');
-    const noRequestedSourceEnabled = result.freshness.length > 0
-      && result.freshness.every((item) => item.state === 'not_enabled');
     const opportunities = result.opportunities.map(v2RecordToFundingOpportunity);
     const enforce = resolveEvidenceAccuracyModeForTenant(actor.tenantId, 'chat') === 'enforce';
     const asOfIso = asOf.toISOString();
@@ -360,11 +357,7 @@ export class MeriOpportunityToolsAdapter {
           counts: { activeGrants: result.counts.grants, activeContracts: result.counts.contracts, saved: null, pursuing: null, dismissed: null, deadlinesIn30Days: enforce ? deadlines.filter((deadline) => deadline.status === 'open' && deadline.daysRemaining != null && deadline.daysRemaining <= 30).length : null },
           freshness: result.freshness,
           emptyReason: result.emptyReason === 'no_matches' ? 'no_results_for_filters' : result.emptyReason as OpportunitySearch['emptyReason'],
-          emptyExplanation: noRequestedSourceEnabled
-            ? 'The requested opportunity sources are not enabled; no source was searched and no match count is known.'
-            : requestedSourceDisabled && result.emptyReason
-            ? 'No matches were found in the enabled sources that were queried; disabled requested sources were not searched.'
-            : result.emptyReason ? 'The canonical v2 source returned no matched records.' : null,
+          emptyExplanation: result.emptyReason ? 'The canonical v2 source returned no matched records.' : null,
           missingProfileFields: result.profileGaps?.items ?? null,
           generatedAt: result.generatedAt,
           opportunities: opportunities.map((row) => toFacts(row, {}, enforce ? asOfIso : undefined)),
@@ -373,13 +366,9 @@ export class MeriOpportunityToolsAdapter {
           nextPage: hasMore ? result.page + 1 : null,
           coverage: {
             sources: source ? [source] : ['grants_gov', 'sam_gov'],
-            pageCoversMatchedResults: result.catalogComplete === true && !requestedSourceDisabled && !result.totalIsCapped && !hasMore && result.page === 1 && result.total != null,
+            pageCoversMatchedResults: result.catalogComplete === true && !result.totalIsCapped && !hasMore && result.page === 1 && result.total != null,
             totalIsCapped: result.totalIsCapped,
-            explanation: noRequestedSourceEnabled
-              ? 'The requested opportunity sources are not enabled; no source was searched. This is not evidence that no matching opportunities exist.'
-              : requestedSourceDisabled
-              ? 'One or more requested opportunity sources are not enabled. Counts and pagination cover only the enabled sources that were queried, not all requested sources.'
-              : !result.catalogComplete
+            explanation: !result.catalogComplete
               ? 'The canonical catalog is incomplete or unavailable. A page is not proof that no other matching opportunities exist; no matching result does not prove no opportunity exists.'
               : result.total == null
               ? 'The canonical source scan reached its bound. Page through these results and narrow the search; this is not the complete opportunity universe.'

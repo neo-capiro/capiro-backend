@@ -1,5 +1,4 @@
 import { sanitizeToolResultText } from '@capiro/meriv2-core';
-import { CITATION_URL_FIELDS, validatedCitationUrl } from '@capiro/shared';
 
 const ROW_KEYS = [
   'records',
@@ -10,38 +9,17 @@ const ROW_KEYS = [
   'memories',
   'hearings',
   'messages',
-  'rows',
 ];
 const META_KEYS = [
-  'dataset',
   'status',
   'sourceStatus',
   'sourceReason',
-  'complete',
-  'coverageComplete',
-  'paginationComplete',
+  'sourceFreshness',
   'error',
   'message',
   'blocked',
   'pendingApproval',
   'proposalId',
-  'scope',
-  'queryScope',
-  'filters',
-  'timeWindow',
-  'sourceFreshness',
-  'clientId',
-  'jurisdiction',
-  'session',
-  'congress',
-  'asOf',
-  'generatedAt',
-  'observedAt',
-  'lastSyncAt',
-  'sourceRevision',
-  'version',
-  'sourceRecordId',
-  'recordId',
   'id',
   'title',
   'name',
@@ -50,7 +28,6 @@ const META_KEYS = [
   'totalMatches',
   'recordsEvaluated',
   'recordsReturned',
-  'rowCount',
   'totalCount',
   'count',
   'returned',
@@ -79,46 +56,6 @@ const META_KEYS = [
   'totalMessages',
 ];
 
-const COVERAGE_SOURCE_KEYS = [
-  'domain',
-  'source',
-  'status',
-  'sourceStatus',
-  'error',
-  'stopReason',
-  'total',
-  'totalMatches',
-  'returned',
-  'recordsReturned',
-  'recordsEvaluated',
-  'complete',
-  'coverageComplete',
-  'paginationComplete',
-  'truncated',
-  'hasMore',
-  'nextCursor',
-  'lastSyncAt',
-] as const;
-
-const OMITTED_ROW_IDENTITY_KEYS = [
-  'id',
-  'recordId',
-  'sourceId',
-  'sourceRecordId',
-  'sourceRevision',
-  'version',
-  'updatedAt',
-  'observedAt',
-  'publishedAt',
-  'publicationDate',
-  'effectiveDate',
-  'sourceUrl',
-  'url',
-  'jurisdiction',
-  'session',
-  'congress',
-] as const;
-
 function object(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -138,88 +75,6 @@ function sanitizeValue(value: unknown): unknown {
       return [unique, sanitizeValue(entry)];
     }),
   );
-}
-
-/** Keep an unrelated bill link out of the model's evidence, not only its citation. */
-function sanitizeCongressBillSearchUrls(value: unknown): unknown {
-  const sanitizeFields = (row: Record<string, unknown>, id: string): Record<string, unknown> => {
-    const safe = { ...row };
-    for (const field of CITATION_URL_FIELDS) {
-      const raw = row[field];
-      if (typeof raw === 'string' && !validatedCitationUrl('search_congress_bills', id, raw)) {
-        safe[field] = null;
-      }
-    }
-    return safe;
-  };
-  const sanitizeRow = (row: unknown): unknown => {
-    if (!object(row)) return row;
-    const payload = object(row.payload) ? row.payload : null;
-    const id = typeof row.id === 'string' ? row.id
-      : typeof row.recordId === 'string' ? row.recordId
-        : payload && typeof payload.id === 'string' ? payload.id : '';
-    const safe = sanitizeFields(row, id);
-    if (payload) safe.payload = sanitizeFields(payload, id);
-    return safe;
-  };
-  if (Array.isArray(value)) return value.map(sanitizeRow);
-  if (!object(value)) return value;
-  const result = sanitizeFields(value, typeof value.id === 'string' ? value.id : '');
-  for (const key of ROW_KEYS) {
-    if (!Array.isArray(result[key])) continue;
-    result[key] = (result[key] as unknown[]).map(sanitizeRow);
-  }
-  return result;
-}
-
-function boundedFields(
-  value: Record<string, unknown>,
-  keys: readonly string[],
-  maxFieldCharacters: number,
-): Record<string, unknown> {
-  return Object.fromEntries(
-    keys.flatMap((key) => {
-      const field = value[key];
-      if (field === undefined) return [];
-      const serialized = JSON.stringify(field);
-      return serialized && serialized.length <= maxFieldCharacters ? [[key, field]] : [];
-    }),
-  );
-}
-
-/** Preserve source health even when verbose per-source metadata is omitted. */
-function compactCoverage(value: unknown, maxCharacters: number): Record<string, unknown> | null {
-  if (!object(value)) return null;
-  const sources = Array.isArray(value.sources) ? value.sources : [];
-  const compact: Record<string, unknown> = {
-    ...boundedFields(value, COVERAGE_SOURCE_KEYS, 400),
-    complete: false,
-    paginationComplete: false,
-    truncated: true,
-  };
-  if (sources.length) {
-    compact.sources = sources.filter(object).map((source) =>
-      boundedFields(source, COVERAGE_SOURCE_KEYS, 400),
-    );
-  }
-  if (JSON.stringify(compact).length <= maxCharacters) return compact;
-  // An incomplete source inventory cannot establish that any missing source
-  // was healthy. Keep the fact that health was lost rather than return {}.
-  return {
-    complete: false,
-    paginationComplete: false,
-    truncated: true,
-    error: 'source_coverage_manifest_exceeds_model_evidence_budget',
-    sourceHealthOmitted: true,
-    sourceCount: sources.length,
-  };
-}
-
-/** An omitted row identity is a navigation hint, not citable body evidence. */
-function omittedRowIdentity(value: unknown): Record<string, unknown> | null {
-  if (!object(value)) return null;
-  const identity = boundedFields(value, OMITTED_ROW_IDENTITY_KEYS, 300);
-  return Object.keys(identity).length ? identity : null;
 }
 
 function usdDisplay(minorUnits: unknown): string | null {
@@ -658,7 +513,6 @@ export function projectMeriToolEvidence(args: {
   result: unknown;
   maxCharacters: number;
   readOnly: boolean;
-  toolName?: string;
   inputProperties?: Record<string, unknown>;
 }): unknown {
   let serialized: string;
@@ -668,10 +522,7 @@ export function projectMeriToolEvidence(args: {
     return { error: 'tool_result_not_serializable', projection: { truncated: true } };
   }
   // Apply the existing injection defense before constructing the ledger too.
-  const sanitized = sanitizeValue(JSON.parse(serialized));
-  const result = args.toolName === 'search_congress_bills'
-    ? sanitizeCongressBillSearchUrls(sanitized)
-    : sanitized;
+  const result = sanitizeValue(JSON.parse(serialized));
   const safe = JSON.stringify(result);
   const original = object(result) ? result : {};
   if (args.readOnly) {
@@ -693,34 +544,15 @@ export function projectMeriToolEvidence(args: {
   const key = rowKey ?? (Array.isArray(result) ? 'data' : undefined);
   const shown: unknown[] = [];
   const metadata: Record<string, unknown> = {};
-  const omittedMetadataFields: string[] = [];
-  const metadataBudget = Math.min(3_600, Math.floor(args.maxCharacters / 3));
   for (const field of META_KEYS) {
-    let value = original[field];
-    if (value === undefined) continue;
-    if (field === 'coverage' && JSON.stringify(value).length > 1_600) {
-      value = compactCoverage(value, 1_600);
-      omittedMetadataFields.push('coverage.details');
-    }
-    if (field === 'error' && JSON.stringify(value).length > 1_600) {
-      value = 'tool_error_details_exceed_model_evidence_budget';
-      omittedMetadataFields.push('error.details');
-    }
-    const fieldSize = JSON.stringify(value)?.length ?? Number.POSITIVE_INFINITY;
-    if (fieldSize > 1_600 || JSON.stringify({ ...metadata, [field]: value }).length > metadataBudget) {
-      omittedMetadataFields.push(field);
+    const value = original[field];
+    if (value === undefined || JSON.stringify(value).length > 1_600) continue;
+    if (
+      JSON.stringify({ ...metadata, [field]: value }).length >
+      Math.min(3_000, args.maxCharacters / 4)
+    )
       continue;
-    }
     metadata[field] = value;
-  }
-  // A dropped error or source-status field must never look like a healthy empty
-  // response. The fallback remains partial even if the raw source said complete.
-  if (original.error !== undefined && metadata.error === undefined) {
-    metadata.error = 'tool_error_details_exceed_model_evidence_budget';
-  }
-  if (original.coverage !== undefined && metadata.coverage === undefined) {
-    metadata.coverage = compactCoverage(original.coverage, 300);
-    omittedMetadataFields.push('coverage');
   }
   const overrides: Record<string, number> = {};
   for (const field of ['pageSize', 'limit', 'k', 'topK']) {
@@ -732,9 +564,6 @@ export function projectMeriToolEvidence(args: {
     ...(key ? { [key]: shown } : {}),
     truncated: true,
     partial: true,
-    complete: false,
-    coverageComplete: false,
-    paginationComplete: false,
     // A source cursor would skip rows the model never saw. The repeat must
     // retain the caller's current cursor until all of that page is visible.
     ...(rows.length || 'nextCursor' in original
@@ -760,14 +589,6 @@ export function projectMeriToolEvidence(args: {
       originalCharacters: safe.length,
       sourceRecordCount: rows.length,
       shownRecordCount: 0,
-      ...(original.nextCursor !== undefined &&
-      JSON.stringify(original.nextCursor).length <= 300
-        ? { sourceNextCursor: original.nextCursor }
-        : {}),
-      ...(original.complete !== undefined ? { sourceComplete: original.complete } : {}),
-      ...(omittedMetadataFields.length
-        ? { omittedMetadataFields: [...new Set(omittedMetadataFields)] }
-        : {}),
       omittedFields: Object.keys(original)
         .filter((field) => !(field in metadata) && field !== key)
         .slice(0, 10)
@@ -796,53 +617,6 @@ export function projectMeriToolEvidence(args: {
       (projected.projection as Record<string, unknown>).shownRecordCount = shown.length;
       break;
     }
-  }
-  // Keep bounded, non-citable navigation identities for omitted rows. They
-  // never enter the result-row array or citation extractor, and they do not
-  // imply the omitted bodies or the rest of the source were read.
-  const projection = projected.projection as Record<string, unknown>;
-  const identities: Record<string, unknown>[] = [];
-  projection.omittedRecordIdentities = identities;
-  projection.omittedRecordCount = rows.length - shown.length;
-  projection.identitiesAreNotEvidence = true;
-  const appendIdentities = () => {
-    identities.length = 0;
-    for (const row of rows.slice(shown.length)) {
-      const identity = omittedRowIdentity(row);
-      if (!identity) continue;
-      identities.push(identity);
-      if (JSON.stringify(projected).length > args.maxCharacters) {
-        identities.pop();
-        break;
-      }
-    }
-    projection.omittedIdentityCount = identities.length;
-  };
-  appendIdentities();
-  while (shown.length > 0 && JSON.stringify(projected).length > args.maxCharacters) {
-    shown.pop();
-    projected.returned = shown.length;
-    projection.shownRecordCount = shown.length;
-    projection.omittedRecordCount = rows.length - shown.length;
-    appendIdentities();
-  }
-  if (JSON.stringify(projected).length > args.maxCharacters) {
-    return {
-      error: 'tool_result_metadata_exceeds_model_evidence_budget',
-      status: 'unavailable',
-      truncated: true,
-      partial: true,
-      complete: false,
-      coverage: { complete: false, paginationComplete: false, truncated: true },
-      projection: {
-        truncated: true,
-        reason: 'model_tool_evidence_budget',
-        originalCharacters: safe.length,
-        sourceRecordCount: rows.length,
-        shownRecordCount: 0,
-        instruction: 'No source record body was visible. Narrow the read; do not claim no match.',
-      },
-    };
   }
   return projected;
 }

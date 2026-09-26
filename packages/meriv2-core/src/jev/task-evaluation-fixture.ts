@@ -18,7 +18,7 @@ export const jevTaskEvaluationFixtureSchema = z.object({
   // preceding registry version readable after adding the BD tasks; new traces
   // and reports still emit JEV_TASK_REGISTRY_VERSION through the registry,
   // cache and recording paths.
-  registryVersion: z.enum(['jev-task-registry.v4', 'jev-task-registry.v5', JEV_TASK_REGISTRY_VERSION]),
+  registryVersion: z.enum(['jev-task-registry.v4', JEV_TASK_REGISTRY_VERSION]),
   cases: z.array(z.object({
     id: z.string().min(1),
     task: z.enum(JEV_TASKS),

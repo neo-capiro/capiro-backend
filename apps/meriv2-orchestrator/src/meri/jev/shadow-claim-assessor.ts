@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import type { MeriCitation } from '@capiro/shared';
 import {
   DEFAULT_HIGH_RISK_CATEGORIES,
@@ -30,53 +29,6 @@ export interface ShadowAssessmentBudget {
   maxClaims: number;
   maxInputTokens: number;
   deadlineMs: number;
-}
-
-export type ShadowAssessmentStopReason =
-  | 'completed'
-  | 'max_claims'
-  | 'max_input_tokens'
-  | 'deadline'
-  | 'parent_abort';
-
-type ShadowProviderSlot = 'jev' | 'legacy';
-type ShadowProviderWaitState = 'ineligible' | 'not_started' | 'waiting' | 'settled' | 'cancelled_by_shared_budget';
-type ShadowProviderState = 'not_started' | 'pending' | 'settled' | 'provider_timeout' | 'provider_error';
-
-interface ShadowProviderLifecycle {
-  event: 'meri.evidence_shadow.provider_lifecycle';
-  lifecycleId: string;
-  conversationId: string | null;
-  turnId: string | null;
-  claimId: string;
-  envelopeHash: string;
-  provider: ShadowProviderSlot;
-  dispatchBoundary: 'decision_provider_assess';
-  eligible: boolean;
-  waitState: ShadowProviderWaitState;
-  providerState: ShadowProviderState;
-  cancellationReason: 'shared_deadline' | 'parent_abort' | null;
-  eligibilityCheckedAt: string;
-  eligibleAt: string | null;
-  attemptedAt: string | null;
-  dispatchedAt: string | null;
-  settledAt: string | null;
-  cancelledAt: string | null;
-  actualUsage: { inputTokens?: number; outputTokens?: number } | null;
-  usageStatus: 'reported' | 'not_returned' | 'unknown_due_cancellation' | 'not_applicable';
-  costStatus: 'unknown' | 'unknown_due_cancellation' | 'not_applicable';
-}
-
-interface TrackedProviderCall {
-  lifecycle: ShadowProviderLifecycle;
-  call?: Promise<EvidenceDecision>;
-}
-
-function logProviderLifecycle(logger: EvidenceShadowLogger, lifecycle: ShadowProviderLifecycle): void {
-  logger.log(lifecycle.event, {
-    ...lifecycle,
-    actualUsage: lifecycle.actualUsage ? { ...lifecycle.actualUsage } : null,
-  });
 }
 
 export interface AssessReleasedClaimsInput {
@@ -174,101 +126,6 @@ function resultKey(decision: EvidenceDecision): string {
   return decision.kind === 'outcome' ? decision.outcome : `failure:${decision.state}`;
 }
 
-function createTrackedProviderCall(input: {
-  slot: ShadowProviderSlot;
-  provider: DecisionProvider | null;
-  eligible: boolean;
-  envelope: Parameters<DecisionProvider['assess']>[0];
-  question: Parameters<DecisionProvider['assess']>[1];
-  signal: AbortSignal;
-  parentSignal?: AbortSignal;
-  deadlineAt: number;
-  logger: EvidenceShadowLogger;
-  conversationId?: string;
-  turnId?: string;
-  claimId: string;
-  envelopeHash: string;
-}): TrackedProviderCall {
-  const lifecycle: ShadowProviderLifecycle = {
-    event: 'meri.evidence_shadow.provider_lifecycle',
-    lifecycleId: randomUUID(),
-    conversationId: input.conversationId ?? null,
-    turnId: input.turnId ?? null,
-    claimId: input.claimId,
-    envelopeHash: input.envelopeHash,
-    provider: input.slot,
-    dispatchBoundary: 'decision_provider_assess',
-    eligible: input.eligible,
-    waitState: !input.eligible ? 'ineligible' : !input.provider ? 'not_started' : 'waiting',
-    providerState: !input.eligible || !input.provider ? 'not_started' : 'pending',
-    cancellationReason: null,
-    eligibilityCheckedAt: new Date().toISOString(),
-    eligibleAt: input.eligible ? new Date().toISOString() : null,
-    attemptedAt: null,
-    dispatchedAt: null,
-    settledAt: null,
-    cancelledAt: null,
-    actualUsage: null,
-    usageStatus: !input.eligible || !input.provider ? 'not_applicable' : 'not_returned',
-    costStatus: !input.eligible || !input.provider ? 'not_applicable' : 'unknown',
-  };
-  if (!input.eligible || !input.provider) {
-    logProviderLifecycle(input.logger, lifecycle);
-    return { lifecycle };
-  }
-
-  lifecycle.attemptedAt = new Date().toISOString();
-  let call: Promise<EvidenceDecision>;
-  try {
-    call = input.provider.assess(input.envelope, input.question, {
-      signal: input.signal, deadlineAt: input.deadlineAt,
-    });
-    lifecycle.dispatchedAt = new Date().toISOString();
-  } catch {
-    lifecycle.providerState = 'provider_error';
-    lifecycle.waitState = 'settled';
-    lifecycle.settledAt = new Date().toISOString();
-    return { lifecycle, call: Promise.reject(new Error('Provider assess invocation failed')) };
-  }
-
-  const observed = call.then((decision) => {
-    lifecycle.settledAt = new Date().toISOString();
-    const cancelledBySharedBudget = Boolean(lifecycle.cancelledAt || input.signal.aborted);
-    if (cancelledBySharedBudget && !lifecycle.cancelledAt) {
-      lifecycle.cancelledAt = lifecycle.settledAt;
-      lifecycle.cancellationReason = input.parentSignal?.aborted ? 'parent_abort' : 'shared_deadline';
-    }
-    const usage = decision.kind === 'outcome' ? decision.usage : undefined;
-    lifecycle.actualUsage = usage ? {
-      ...(usage.inputTokens !== undefined ? { inputTokens: usage.inputTokens } : {}),
-      ...(usage.outputTokens !== undefined ? { outputTokens: usage.outputTokens } : {}),
-    } : null;
-    lifecycle.usageStatus = usage
-      ? 'reported'
-      : cancelledBySharedBudget ? 'unknown_due_cancellation' : 'not_returned';
-    if (cancelledBySharedBudget) lifecycle.costStatus = 'unknown_due_cancellation';
-    if (cancelledBySharedBudget) lifecycle.waitState = 'cancelled_by_shared_budget';
-    lifecycle.providerState = cancelledBySharedBudget
-      ? 'settled'
-      : decision.kind === 'failure'
-        ? decision.state === 'timeout' ? 'provider_timeout' : 'provider_error'
-        : 'settled';
-    if (!lifecycle.cancelledAt) lifecycle.waitState = 'settled';
-    if (lifecycle.cancelledAt) logProviderLifecycle(input.logger, lifecycle);
-    return decision;
-  }, () => {
-    lifecycle.settledAt = new Date().toISOString();
-    if (!lifecycle.cancelledAt) lifecycle.actualUsage = null;
-    lifecycle.usageStatus = lifecycle.cancelledAt ? 'unknown_due_cancellation' : 'not_returned';
-    if (lifecycle.cancelledAt) lifecycle.costStatus = 'unknown_due_cancellation';
-    lifecycle.providerState = 'provider_error';
-    if (!lifecycle.cancelledAt) lifecycle.waitState = 'settled';
-    if (lifecycle.cancelledAt) logProviderLifecycle(input.logger, lifecycle);
-    throw new Error('Provider assess rejected');
-  });
-  return { lifecycle, call: observed };
-}
-
 function chainedDeadlineSignal(parent: AbortSignal | undefined, deadlineMs: number): {
   signal: AbortSignal; dispose: () => void;
 } {
@@ -309,23 +166,10 @@ export async function assessReleasedClaims(input: AssessReleasedClaimsInput): Pr
   let selected = 0;
   let estimatedInputTokens = 0;
   let budgetExhausted = false;
-  let stopReason: ShadowAssessmentStopReason = 'completed';
-  let providerAssessmentInFlight = false;
 
   try {
     for (const { claim } of ordered) {
-      if (input.signal?.aborted) {
-        stopReason = 'parent_abort';
-        budgetExhausted = true;
-        break;
-      }
-      if (Date.now() >= deadlineAt || linked.signal.aborted) {
-        stopReason = 'deadline';
-        budgetExhausted = true;
-        break;
-      }
-      if (selected >= input.budget.maxClaims) {
-        stopReason = 'max_claims';
+      if (selected >= input.budget.maxClaims || Date.now() >= deadlineAt || linked.signal.aborted) {
         budgetExhausted = true;
         break;
       }
@@ -347,7 +191,6 @@ export async function assessReleasedClaims(input: AssessReleasedClaimsInput): Pr
       // this remains a conservative (over-, never under-) estimate of the real request size.
       const claimTokens = Math.ceil(JSON.stringify(envelope).length / 4);
       if (estimatedInputTokens + claimTokens > input.budget.maxInputTokens) {
-        stopReason = 'max_input_tokens';
         budgetExhausted = true;
         break;
       }
@@ -358,21 +201,9 @@ export async function assessReleasedClaims(input: AssessReleasedClaimsInput): Pr
       let legacy: EvidenceDecision;
       let cascadeFields: Record<string, unknown> = {};
       if (!eligibility.eligible) {
-        if (input.routing !== 'cascade') {
-          for (const slot of ['jev', 'legacy'] as const) {
-            createTrackedProviderCall({
-              slot,
-              provider: slot === 'jev' ? input.providers.jev : input.providers.legacy,
-              eligible: false, envelope, question, signal: linked.signal, parentSignal: input.signal, deadlineAt,
-              logger: input.logger, conversationId: input.conversationId, turnId: input.turnId,
-              claimId: claim.id, envelopeHash: hash,
-            });
-          }
-        }
         jev = failure('jev', 'not-called', 'document_unavailable', eligibility.reason);
         legacy = failure('legacy-skeptic', 'not-called', 'document_unavailable', eligibility.reason);
       } else {
-        providerAssessmentInFlight = true;
         if (input.routing === 'cascade') {
           const result = await runCalibratedCascade({
             claim: {
@@ -399,45 +230,19 @@ export async function assessReleasedClaims(input: AssessReleasedClaimsInput): Pr
             auditDisagreement: result.auditDisagreement,
           };
         } else {
-          const tracked = (['jev', 'legacy'] as const).map((slot) => createTrackedProviderCall({
-            slot,
-            provider: slot === 'jev' ? input.providers.jev : input.providers.legacy,
-            eligible: true, envelope, question, signal: linked.signal, parentSignal: input.signal, deadlineAt,
-            logger: input.logger, conversationId: input.conversationId, turnId: input.turnId,
-            claimId: claim.id, envelopeHash: hash,
-          }));
-          const callSlots: ShadowProviderSlot[] = [];
-          const calls = tracked.flatMap((item, index) => {
-            if (!item.call) return [];
-            callSlots.push(index === 0 ? 'jev' : 'legacy');
-            return [settleBeforeAbort(item.call, linked.signal)];
-          });
-          const settled = await Promise.allSettled(calls);
-          const settledBySlot = new Map<ShadowProviderSlot, PromiseSettledResult<EvidenceDecision>>();
-          callSlots.forEach((slot, index) => settledBySlot.set(slot, settled[index]!));
-          for (const item of tracked) {
-            const lifecycle = item.lifecycle;
-            if (!lifecycle.settledAt && linked.signal.aborted) {
-              lifecycle.waitState = 'cancelled_by_shared_budget';
-              lifecycle.cancellationReason = input.signal?.aborted ? 'parent_abort' : 'shared_deadline';
-              lifecycle.cancelledAt = new Date().toISOString();
-              lifecycle.usageStatus = 'unknown_due_cancellation';
-              lifecycle.costStatus = 'unknown_due_cancellation';
-            }
-            logProviderLifecycle(input.logger, lifecycle);
-          }
+          const calls = [
+            input.providers.jev?.assess(envelope, question, { signal: linked.signal, deadlineAt }),
+            input.providers.legacy.assess(envelope, question, { signal: linked.signal, deadlineAt }),
+          ].filter((call): call is Promise<EvidenceDecision> => Boolean(call));
+          const settled = await Promise.allSettled(calls.map((call) => settleBeforeAbort(call, linked.signal)));
           if (input.providers.jev) {
-            jev = normalizeSettled(settledBySlot.get('jev'), input.providers.jev);
-            legacy = normalizeSettled(settledBySlot.get('legacy'), input.providers.legacy);
+            jev = normalizeSettled(settled[0], input.providers.jev);
+            legacy = normalizeSettled(settled[1], input.providers.legacy);
           } else {
             jev = normalizeSettled(undefined, null);
-            legacy = normalizeSettled(settledBySlot.get('legacy'), input.providers.legacy);
+            legacy = normalizeSettled(settled[0], input.providers.legacy);
           }
         }
-        if (linked.signal.aborted) {
-          stopReason = input.signal?.aborted ? 'parent_abort' : 'deadline';
-        }
-        providerAssessmentInFlight = false;
       }
       const actualTokens = (jev.kind === 'outcome' ? jev.usage?.inputTokens ?? 0 : 0)
         + (legacy.kind === 'outcome' ? legacy.usage?.inputTokens ?? 0 : 0);
@@ -449,26 +254,15 @@ export async function assessReleasedClaims(input: AssessReleasedClaimsInput): Pr
         evidencePassages: assuredClaim.sourceIds.flatMap((id) => input.passages[id] ? [input.passages[id]!] : []),
       });
       input.logger.log('meri.evidence_shadow', {
-        schemaVersion: 'meri.evidence_shadow.v2',
         conversationId: input.conversationId ?? null, turnId: input.turnId ?? null,
         claimId: claim.id, claimKind: claim.kind, claimCategory: claim.category,
         envelopeHash: hash, eligibility, jev: loggedDecision(jev), legacy: loggedDecision(legacy),
         legacyAdapterVersion: LEGACY_SKEPTIC_BASELINE_ADAPTER_VERSION,
         agreement: resultKey(jev) === resultKey(legacy),
         freshness: {
-          requiredDocumentEligible: eligibility.eligible,
-          claimLinkedEvidencePresent: evidence.length > 0,
-          sourceDateKnown: evidence.some((item) => Boolean(item.effectiveAt || item.publishedAt || item.retrievedAt)),
-          eligibleSourceFreshness: {
-            state: eligibility.eligible ? deterministic.freshness.state : 'unknown',
-            ageDays: eligibility.eligible ? deterministic.freshness.ageDays : null,
-            basis: eligibility.eligible ? deterministic.freshness.basis : 'none',
-          },
-          linkedLedgerTemporalInformation: {
-            state: deterministic.freshness.state,
-            ageDays: deterministic.freshness.ageDays,
-            basis: deterministic.freshness.basis,
-          },
+          state: deterministic.freshness.state,
+          ageDays: deterministic.freshness.ageDays,
+          basis: deterministic.freshness.basis,
         },
         exact: { result: deterministic.exact.result, kind: deterministic.exact.kind },
         proposedAction: { jev: proposedAction(jev, claim), legacy: proposedAction(legacy, claim) },
@@ -476,14 +270,6 @@ export async function assessReleasedClaims(input: AssessReleasedClaimsInput): Pr
       });
     }
   } finally {
-    if (stopReason === 'completed') {
-      if (input.signal?.aborted && (providerAssessmentInFlight || selected < ordered.length)) {
-        stopReason = 'parent_abort';
-      } else if ((linked.signal.aborted || Date.now() >= deadlineAt)
-          && (providerAssessmentInFlight || selected < ordered.length)) {
-        stopReason = 'deadline';
-      }
-    }
     if ((linked.signal.aborted || Date.now() >= deadlineAt) && selected < ordered.length) {
       budgetExhausted = true;
     }
@@ -492,7 +278,7 @@ export async function assessReleasedClaims(input: AssessReleasedClaimsInput): Pr
     const durationMs = Date.now() - startedAt;
     input.logger.log('meri.evidence_shadow.turn', {
       conversationId: input.conversationId ?? null, turnId: input.turnId ?? null,
-      selected, skipped, budgetExhausted, stopReason, durationMs, inputTokens: estimatedInputTokens,
+      selected, skipped, budgetExhausted, durationMs, inputTokens: estimatedInputTokens,
       estimatedCostUsd: estimatedInputTokens * COST_PER_INPUT_TOKEN_USD,
       sampled: Number.parseInt(hashSample(`${input.conversationId ?? ''}:${input.turnId ?? ''}`), 16) % 10 === 0,
     });

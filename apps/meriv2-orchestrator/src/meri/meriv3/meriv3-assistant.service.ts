@@ -4,7 +4,7 @@ import {
   isMeriMailReadTool,
   resolveMeriDocumentRequest,
 } from '@capiro/shared';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
@@ -124,12 +124,6 @@ import {
 } from '../retrieval/meri-evidence-requirements.js';
 import { applyLiveRepair, buildRepairDocumentReferences } from '../repair/live-repair.service.js';
 import { createOrchestratorToolExecutor } from '../repair/orchestrator-tool-executor.js';
-import {
-  ApiToolAvailabilityProofRepo,
-  assertToolAvailabilityProofMatches,
-  isToolAvailabilityProofShadowEnabled,
-  type ToolAvailabilityProofRequest,
-} from './api-tool-availability-proof.repo.js';
 import { createRevisionGenerator } from '../repair/revision-generator.js';
 import {
   askPassageQuestions,
@@ -286,53 +280,6 @@ function turnSurface(dto: MeriV3ChatInput): CanaryTurnSurface {
   return dto.researchRun ? 'research' : 'chat';
 }
 
-function attestedTurnSurface(): 'chat' | 'research' | null {
-  const operationId = currentGovernedMeriContext()?.operationId;
-  if (operationId === 'meri.chat') return 'chat';
-  if (operationId === 'meri.research' || operationId === 'research.generate-report') return 'research';
-  return null;
-}
-
-function freezeJson<T>(value: T): T {
-  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
-    for (const child of Object.values(value as Record<string, unknown>)) freezeJson(child);
-    Object.freeze(value);
-  }
-  return value;
-}
-
-function cloneAndFreezeProviderTools(
-  tools: readonly import('./meriv3.types.js').OpenAiResponsesFunctionTool[],
-): import('./meriv3.types.js').OpenAiResponsesFunctionTool[] {
-  const serialized = JSON.stringify(tools);
-  if (typeof serialized !== 'string' || Buffer.byteLength(serialized, 'utf8') > 900 * 1024) {
-    throw new Error('tool_availability_schema_size_limit');
-  }
-  return freezeJson(JSON.parse(serialized) as import('./meriv3.types.js').OpenAiResponsesFunctionTool[]);
-}
-
-function toolAvailabilityProofFailureCode(error: unknown): string {
-  const message = error instanceof Error ? error.message : '';
-  if (/^tool_availability_http_\d{3}$/.test(message)) return message;
-  if (
-    [
-      'tool_availability_timeout',
-      'tool_availability_bearer_missing',
-      'tool_availability_service_identity_missing',
-      'tool_availability_schema_count_limit',
-      'tool_availability_schema_size_limit',
-      'tool_availability_schema_invalid',
-      'tool_availability_turn_scope_unavailable',
-      'tool_availability_proof_invalid',
-      'tool_availability_proof_mismatch',
-      'tool_availability_proof_catalog_mismatch',
-      'tool_availability_proof_unoffered_check',
-      'tool_availability_offered_diagnostic_mismatch',
-    ].includes(message)
-  ) return message;
-  return 'tool_availability_proof_error';
-}
-
 /**
  * Prompt size for the passage-selection event without serializing the request:
  * message text, replayed function-call arguments and tool outputs.
@@ -411,24 +358,6 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-/** Omitted identities are navigation hints, never source bodies for repair. */
-function entryCanSupportSourceId(entry: LedgerEntry, sourceId: string): boolean {
-  const projection = asRecord(asRecord(entry.result)?.projection);
-  const omitted = Array.isArray(projection?.omittedRecordIdentities)
-    ? projection.omittedRecordIdentities
-    : [];
-  const sourceWasOmitted = omitted.some((value) => {
-    const row = asRecord(value);
-    return row && ['id', 'recordId', 'sourceId', 'sourceRecordId'].some(
-      (key) => row[key] === sourceId,
-    );
-  });
-  if (!sourceWasOmitted) return true;
-  return extractCitationsFromToolResult(entry.tool, entry.result, 1, 200).some(
-    (citation) => citation.id === sourceId || citation.stableId === sourceId,
-  );
-}
-
 /**
  * The ledger entry that produced a citation. Tool executions list their own
  * citations in a `Citable sources` header, so the entry whose header carries
@@ -440,10 +369,7 @@ function ledgerEntryForCitation(
   ledgerEntries: readonly LedgerEntry[],
 ): LedgerEntry | undefined {
   const sameTool = ledgerEntries.filter((entry) => entry.tool === citation.tool);
-  const numbered = sameTool.find((entry) =>
-    citableNumbersOf(entry.serialized)?.has(citation.n) &&
-    entryCanSupportSourceId(entry, citation.id),
-  );
+  const numbered = sameTool.find((entry) => citableNumbersOf(entry.serialized)?.has(citation.n));
   if (numbered) return numbered;
   const documentId = citation.documentEvidence?.documentId;
   const recordId = asRecord(citation.documentEvidence?.record)?.recordId;
@@ -452,13 +378,11 @@ function ledgerEntryForCitation(
       const result = asRecord(entry.result);
       if (asRecord(result?.document)?.id !== documentId) return false;
       if (typeof recordId !== 'string') return true;
-      return entryCanSupportSourceId(entry, recordId) && entry.serialized.includes(recordId);
+      return entry.serialized.includes(recordId);
     });
     if (byDocument) return byDocument;
   }
-  if (citation.id) return sameTool.find((entry) =>
-    entryCanSupportSourceId(entry, citation.id) && entry.serialized.includes(citation.id),
-  );
+  if (citation.id) return sameTool.find((entry) => entry.serialized.includes(citation.id));
   return undefined;
 }
 
@@ -468,7 +392,7 @@ function ledgerEntryForCitation(
  * citation snippet or the first same-tool entry would declare supported exact
  * values absent.
  */
-export function buildRepairPassages(
+function buildRepairPassages(
   evidence: readonly AssuredEvidence[],
   citations: readonly MeriCitation[],
   ledgerEntries: readonly LedgerEntry[],
@@ -491,12 +415,12 @@ export function buildRepairPassages(
     } else if (item.id.startsWith('formb:')) {
       const token = `[S:${item.sourceType}:${item.sourceId}]`;
       const entry =
-        ledgerEntries.find((candidate) => candidate.tool === item.sourceType && entryCanSupportSourceId(candidate, item.sourceId) && candidate.serialized.includes(token)) ??
-        ledgerEntries.find((candidate) => candidate.tool === item.sourceType && entryCanSupportSourceId(candidate, item.sourceId) && candidate.serialized.includes(item.sourceId));
+        ledgerEntries.find((candidate) => candidate.tool === item.sourceType && candidate.serialized.includes(token)) ??
+        ledgerEntries.find((candidate) => candidate.tool === item.sourceType && candidate.serialized.includes(item.sourceId));
       text = entry?.serialized;
     } else {
       const entry = ledgerEntries.find(
-        (candidate) => candidate.tool === item.sourceType && entryCanSupportSourceId(candidate, item.sourceId) && candidate.serialized.includes(item.sourceId),
+        (candidate) => candidate.tool === item.sourceType && candidate.serialized.includes(item.sourceId),
       );
       text = entry?.serialized;
     }
@@ -528,7 +452,6 @@ export class MeriV3AssistantService {
   private readonly registry: ToolRegistry;
   private readonly llm: MeriRegistryService['llm'];
   private readonly apiBaseUrl: string;
-  private readonly toolAvailabilityProof: ApiToolAvailabilityProofRepo;
   private readonly jevDecisionCache = new JevDecisionCache();
 
   private liveRepairCache(tenantId: string) {
@@ -548,7 +471,6 @@ export class MeriV3AssistantService {
     this.apiBaseUrl = (
       config.get<string>('MERIV2_API_BASE_URL') ?? 'http://localhost:3000'
     ).replace(/\/+$/, '');
-    this.toolAvailabilityProof = new ApiToolAvailabilityProofRepo(config);
   }
 
   async run(
@@ -624,12 +546,7 @@ export class MeriV3AssistantService {
   ): Promise<MeriV3ChatResult> {
     const emit = opts.onEvent ?? (() => {});
     const profile = resolveMeriV3ReasoningProfile(dto.reasoningMode);
-    // A research image may be analyzed only after its original attachment ID
-    // has been returned by the scoped evidence tool. Ordinary chat still sends
-    // current-turn images with the initial user message as before.
-    const pendingResearchImages = dto.researchRun ? dto.currentTurnImages ?? [] : [];
-    const releasedResearchImages = new Set<string>();
-    const initialInput = this.toResponsesInput(dto.researchRun ? { ...dto, currentTurnImages: [] } : dto);
+    const initialInput = this.toResponsesInput(dto);
     if (!initialInput.length || initialInput[initialInput.length - 1]?.role !== 'user') {
       return {
         reply: 'What can I help you with?',
@@ -772,26 +689,7 @@ export class MeriV3AssistantService {
             clientId: dto.clientId,
           });
 
-    let tools = availableSchemas.map(anthropicSchemaToResponsesTool);
-    if (isToolAvailabilityProofShadowEnabled(process.env.MERI_TOOL_AVAILABILITY_PROOF_SHADOW) && tools.length > 0) {
-      // Shadow-only: freeze the exact provider-facing bytes, attest them against
-      // API-owned persisted scope, then verify the API echo before gather use.
-      // The proof is diagnostic only; it never changes this tool list.
-      const proofStartedAt = Date.now();
-      try {
-        // The schema-to-provider adapter reuses `input_schema` by reference.
-        // Clone before freezing so shadow mode cannot freeze any registry/cache
-        // object shared with another request.
-        tools = cloneAndFreezeProviderTools(tools);
-        await this.verifyToolAvailabilityProof(ctx, dto, tools, opts.signal);
-      } catch (error) {
-        this.logger.warn(JSON.stringify({
-          event: 'meri.tool_availability_proof_shadow_failed',
-          reason: toolAvailabilityProofFailureCode(error),
-          diagnosticLatencyMs: Date.now() - proofStartedAt,
-        }));
-      }
-    }
+    const tools = availableSchemas.map(anthropicSchemaToResponsesTool);
     const verificationAvailable = availableSchemas.length > 0;
     const input: Array<Record<string, unknown>> = [...initialInput];
     const steps: ChatStep[] = [];
@@ -946,33 +844,6 @@ export class MeriV3AssistantService {
           call_id: execution.call.call_id,
           output: execution.serialized,
         });
-        if (dto.researchRun && execution.call.name === 'get_research_evidence' && pendingResearchImages.length) {
-          const evidence = execution.result && typeof execution.result === 'object' && !Array.isArray(execution.result)
-            ? execution.result as Record<string, unknown> : {};
-          const coverage = evidence.coverage && typeof evidence.coverage === 'object' && !Array.isArray(evidence.coverage)
-            ? evidence.coverage as Record<string, unknown> : {};
-          const records = !evidence.error && !['unavailable', 'error'].includes(String(coverage.status)) &&
-            Array.isArray(evidence.records) ? evidence.records : [];
-          for (const image of pendingResearchImages) {
-            if (!image.attachmentId || releasedResearchImages.has(image.attachmentId)) continue;
-            const record = records.find((candidate): boolean => {
-              if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return false;
-              const row = candidate as Record<string, unknown>;
-              const payload = row.payload && typeof row.payload === 'object' && !Array.isArray(row.payload)
-                ? row.payload as Record<string, unknown> : {};
-              if (row.recordId !== image.attachmentId || payload.kind !== 'image' ||
-                  payload.status !== 'image_ready' || payload.mediaType !== image.mediaType ||
-                  typeof payload.contentSha256 !== 'string') return false;
-              return createHash('sha256').update(Buffer.from(image.dataBase64, 'base64')).digest('hex') === payload.contentSha256;
-            });
-            if (!record) continue;
-            releasedResearchImages.add(image.attachmentId);
-            input.push({ role: 'user', content: [
-              { type: 'input_image', image_url: `data:${image.mediaType};base64,${image.dataBase64}` },
-              { type: 'input_text', text: `Verified research image attachment ${image.attachmentId}. Cite its get_research_evidence record ID for any image-based fact.` },
-            ] });
-          }
-        }
         // The observer receives the same bounded evidence that the model sees.
         try {
           documentCompletion?.observe(
@@ -1886,13 +1757,10 @@ export class MeriV3AssistantService {
         (reason === 'invalid_mode' && modeRaw !== ''),
     );
     if (issues.length) {
-      // Invalid values may accidentally contain secrets or other sensitive
-      // configuration. Log stable issue codes, never the raw token values.
-      const issueCodes = [...new Set(issues.map((issue) => issue.split(':', 1)[0]!))];
-      const key = `${capability}:${issueCodes.join(',')}`;
+      const key = `${capability}:${issues.join(',')}`;
       if (!rolloutDiagnosticsLogged.has(key)) {
         rolloutDiagnosticsLogged.add(key);
-        this.logStructured('warn', 'meri.rollout.invalid_config', { capability, issueCodes });
+        this.logStructured('warn', 'meri.rollout.invalid_config', { capability, issues });
       }
     }
     return rollout.mode;
@@ -2002,7 +1870,6 @@ export class MeriV3AssistantService {
         conversationId,
         mode: args.mode,
         reason,
-        repairUsage: 'unknown',
         elapsedMs: Date.now() - startedAt,
         ...extra,
       });
@@ -2016,8 +1883,8 @@ export class MeriV3AssistantService {
         timedOut: reason === 'deadline',
         assessmentMs: 0,
         repairMs: Date.now() - startedAt,
-        tokens: null,
-        costUsd: null,
+        tokens: 0,
+        costUsd: 0,
       });
       return original;
     };
@@ -2347,7 +2214,6 @@ export class MeriV3AssistantService {
         result,
         maxCharacters: TOOL_RESULT_CHARS,
         readOnly: this.registry.get(call.name)?.readOnly === true,
-        toolName: call.name,
         inputProperties: schema.input_schema.properties as Record<string, unknown> | undefined,
       });
       if (this.registry.get(call.name)?.readOnly === true) {
@@ -2927,49 +2793,6 @@ export class MeriV3AssistantService {
       );
       return [];
     }
-  }
-
-  private async verifyToolAvailabilityProof(
-    ctx: MeriContext,
-    dto: MeriV3ChatInput,
-    finalOfferedTools: readonly import('./meriv3.types.js').OpenAiResponsesFunctionTool[],
-    signal?: AbortSignal,
-  ): Promise<void> {
-    const diagnosticStartedAt = Date.now();
-    const credentials = RequestCredentialsStore.get();
-    const surface = attestedTurnSurface();
-    if (!credentials?.bearerToken) throw new Error('tool_availability_bearer_missing');
-    if (!dto.conversationId || !surface) throw new Error('tool_availability_turn_scope_unavailable');
-    const request: ToolAvailabilityProofRequest = {
-      conversationId: dto.conversationId,
-      turnNonce: randomUUID(),
-      surface,
-      finalSchemaVersion: 'meriv3.final-offered-schema.v1',
-      finalOfferedTools,
-    };
-    const proof = await this.toolAvailabilityProof.prove({
-      bearerToken: credentials.bearerToken,
-      ...(credentials.impersonateTenantId
-        ? { impersonateTenantId: credentials.impersonateTenantId }
-        : {}),
-      request,
-      ...(signal ? { signal } : {}),
-    });
-    const verified = assertToolAvailabilityProofMatches({
-      proof,
-      request,
-      tenantId: ctx.tenantId,
-      userId: ctx.userId,
-      expectedClientId: dto.clientId ?? null,
-    });
-    this.logger.log(JSON.stringify({
-      event: 'meri.tool_availability_proof_shadow_verified',
-      schemaCount: finalOfferedTools.length,
-      diagnosticLatencyMs: Date.now() - diagnosticStartedAt,
-      eligiblePermissionCount: verified.tools.filter((entry) => entry.status === 'eligible').length,
-      runtimeAvailability: verified.runtimeAvailability,
-      executable: verified.tools.some((entry) => entry.executable),
-    }));
   }
 
   private async meterRound(

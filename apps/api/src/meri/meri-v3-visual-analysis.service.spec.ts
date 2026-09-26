@@ -19,10 +19,6 @@ function make(options?: {
   storedMetadata?: Record<string, unknown> | null;
   artifactCandidates?: Array<{ id: string; metadata: Record<string, unknown> }>;
   deleteCount?: number;
-  memoryWall?: boolean;
-  wallGranted?: boolean;
-  clientActive?: boolean;
-  onAnalysis?: () => void;
 }) {
   const conversation =
     options && 'conversation' in options
@@ -40,51 +36,31 @@ function make(options?: {
           contentType: 'image/png',
           metadata: options.storedMetadata,
           createdAt: new Date('2026-08-08T10:00:00.000Z'),
-          clientId: conversation?.clientId ?? null,
-          conversation: { clientId: conversation?.clientId ?? null },
         }
       : null,
   );
   const findMany = jest.fn(async () => options?.artifactCandidates ?? []);
   const deleteMany = jest.fn(async () => ({ count: options?.deleteCount ?? 0 }));
-  const wall = {
-    memoryWall: options?.memoryWall ?? false,
-    granted: options?.wallGranted ?? false,
-    active: options?.clientActive ?? true,
-  };
-  const queryRaw = jest.fn(async (strings: TemplateStringsArray) => {
-    const sql = strings.join('');
-    if (sql.includes('FROM clio_conversations')) return conversation ? [{ client_id: conversation.clientId }] : [];
-    if (sql.includes('FROM clients')) return wall.active ? [{ memory_wall: wall.memoryWall }] : [];
-    if (sql.includes('FROM client_memory_access')) return wall.granted ? [{ id: 'grant-1' }] : [];
-    throw new Error('Unexpected visual-analysis scope query');
-  });
   const tx = {
     clioConversation: { findFirst: jest.fn(async () => conversation) },
     clioArtifact: { create, findFirst: findArtifact, findMany, deleteMany },
-    $queryRaw: queryRaw,
   };
   const prisma = {
     withTenant: jest.fn(async (_tenantId: string, callback: (value: typeof tx) => unknown) =>
-      callback(tx),
-    ),
-    withTenantUser: jest.fn(async (_tenantId: string, _userId: string, callback: (value: typeof tx) => unknown) =>
       callback(tx),
     ),
   };
   const tools = {
     analysisSandboxEnabled: jest.fn(async () => true),
     executeFromAuthenticatedUser: jest.fn(
-      async () => {
-        options?.onAnalysis?.();
-        return options?.analysis ?? {
+      async () =>
+        options?.analysis ?? {
           tool: 'run_analysis',
           ok: true,
           results: { findings: { delta: -22.7 }, table: [{ stage: 'HAC-D', amount: 169.5 }] },
           artifacts: [],
           warnings: [],
-        };
-      },
+        },
     ),
   };
   return {
@@ -96,8 +72,6 @@ function make(options?: {
     findArtifact,
     findMany,
     deleteMany,
-    wall,
-    queryRaw,
   };
 }
 
@@ -258,109 +232,6 @@ describe('MeriV3VisualAnalysisService', () => {
     expect(scoped.tools.executeFromAuthenticatedUser).not.toHaveBeenCalled();
   });
 
-  test('allows an unwalled client and a currently granted walled client', async () => {
-    for (const options of [{ memoryWall: false }, { memoryWall: true, wallGranted: true }]) {
-      const h = make({ ...options, analysis: {
-        tool: 'run_analysis', ok: true, results: {},
-        artifacts: [{ metadata: { imageBase64: 'cG5n' } }],
-      } });
-      await expect(h.service.run(ctx, { conversationId: 'conversation-1', code: 'print(1)' }))
-        .resolves.toMatchObject({ chartCount: 1 });
-      expect(h.create).toHaveBeenCalledTimes(1);
-      expect(h.prisma.withTenantUser).toHaveBeenCalledWith('tenant-1', 'user-1', expect.any(Function));
-      const queries = h.queryRaw.mock.calls.map(([strings]) => strings.join(''));
-      expect(queries.filter((sql) => sql.includes('FROM clients') && sql.includes('FOR SHARE'))).toHaveLength(4);
-      expect(queries.some((sql) => sql.includes('FROM clio_conversations') && sql.includes('FOR SHARE'))).toBe(true);
-      expect(queries.filter((sql) => sql.includes('FROM client_memory_access') && sql.includes('FOR SHARE')))
-        .toHaveLength(4);
-    }
-  });
-
-  test('denies a walled or archived client before sandbox computation, including an ungranted admin', async () => {
-    for (const options of [{ memoryWall: true }, { clientActive: false }]) {
-      const h = make(options);
-      await expect(h.service.run(ctx, { conversationId: 'conversation-1', code: 'print(1)' }))
-        .rejects.toBeInstanceOf(NotFoundException);
-      expect(h.tools.executeFromAuthenticatedUser).not.toHaveBeenCalled();
-    }
-    const admin = make({ memoryWall: true });
-    await expect(admin.service.run({ ...ctx, role: 'user_admin' } as TenantContext,
-      { conversationId: 'conversation-1', code: 'print(1)' }))
-      .rejects.toBeInstanceOf(NotFoundException);
-    expect(admin.tools.executeFromAuthenticatedUser).not.toHaveBeenCalled();
-  });
-
-  test('rejects a grant revoked during computation before persisting a visual', async () => {
-    const h = make({ memoryWall: true, wallGranted: true, analysis: {
-      tool: 'run_analysis', ok: true, results: {},
-      artifacts: [{ metadata: { imageBase64: 'cG5n' } }],
-    } });
-    h.tools.executeFromAuthenticatedUser.mockImplementation(async () => {
-      h.wall.granted = false;
-      return { tool: 'run_analysis', ok: true, results: {},
-        artifacts: [{ metadata: { imageBase64: 'cG5n' } }] };
-    });
-    await expect(h.service.run(ctx, { conversationId: 'conversation-1', code: 'print(1)' }))
-      .rejects.toBeInstanceOf(NotFoundException);
-    expect(h.create).not.toHaveBeenCalled();
-  });
-
-  test('rejects a wall erected during computation without a current grant', async () => {
-    const h = make({ analysis: { tool: 'run_analysis', ok: true, results: {},
-      artifacts: [{ metadata: { imageBase64: 'cG5n' } }] } });
-    h.tools.executeFromAuthenticatedUser.mockImplementation(async () => {
-      h.wall.memoryWall = true;
-      return { tool: 'run_analysis', ok: true, results: {},
-        artifacts: [{ metadata: { imageBase64: 'cG5n' } }] };
-    });
-    await expect(h.service.run(ctx, { conversationId: 'conversation-1', code: 'print(1)' }))
-      .rejects.toBeInstanceOf(NotFoundException);
-    expect(h.create).not.toHaveBeenCalled();
-  });
-
-  test.each([
-    ['failed sandbox result', { tool: 'run_analysis', ok: false, error: 'sandbox unavailable' }],
-    ['text-only result', { tool: 'run_analysis', ok: true, results: { answer: 1 } }],
-    ['raw null result', null],
-  ])('suppresses %s after a grant is revoked during computation', async (_label, raw) => {
-    const h = make({ memoryWall: true, wallGranted: true });
-    h.tools.executeFromAuthenticatedUser.mockImplementation(async () => {
-      h.wall.granted = false;
-      return raw as never;
-    });
-    await expect(h.service.run(ctx, { conversationId: 'conversation-1', code: 'print(1)' }))
-      .rejects.toBeInstanceOf(NotFoundException);
-    expect(h.create).not.toHaveBeenCalled();
-  });
-
-  test('suppresses artifact references if access changes immediately after persistence', async () => {
-    const h = make({ memoryWall: true, wallGranted: true, analysis: {
-      tool: 'run_analysis', ok: true, results: {},
-      artifacts: [{ metadata: { imageBase64: 'cG5n' } }],
-    } });
-    h.create.mockImplementation(async ({ data }) => {
-      h.wall.granted = false;
-      return { id: VISUAL_ID, title: data.title };
-    });
-    await expect(h.service.run(ctx, { conversationId: 'conversation-1', code: 'print(1)' }))
-      .rejects.toBeInstanceOf(NotFoundException);
-    expect(h.create).toHaveBeenCalledTimes(1);
-  });
-
-  test('preserves analysis without a selected client', async () => {
-    const h = make({ conversation: { id: 'conversation-1', clientId: null }, analysis: {
-      tool: 'run_analysis', ok: true, results: {},
-      artifacts: [{ metadata: { imageBase64: 'cG5n' } }],
-    } });
-    await expect(h.service.run(ctx, { conversationId: 'conversation-1', code: 'print(1)' }))
-      .resolves.toMatchObject({ chartCount: 1 });
-    expect(h.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ clientId: null }),
-    }));
-    expect(h.queryRaw.mock.calls.map(([strings]) => strings.join(''))
-      .some((sql) => sql.includes('FROM clients') || sql.includes('FROM client_memory_access'))).toBe(false);
-  });
-
   test('returns a bounded design-system provenance strip for the current user’s chart', async () => {
     const { service, findArtifact } = make({
       storedMetadata: {
@@ -396,8 +267,7 @@ describe('MeriV3VisualAnalysisService', () => {
         userId: 'user-1',
         kind: 'analysis_chart',
       },
-      select: { id: true, title: true, metadata: true, createdAt: true,
-        clientId: true, conversation: { select: { clientId: true } } },
+      select: { id: true, title: true, metadata: true, createdAt: true },
     });
   });
 
@@ -414,15 +284,8 @@ describe('MeriV3VisualAnalysisService', () => {
         userId: 'user-1',
         kind: 'analysis_chart',
       },
-      select: { contentType: true, metadata: true,
-        clientId: true, conversation: { select: { clientId: true } } },
+      select: { contentType: true, metadata: true },
     });
-  });
-
-  test('denies stored metadata and PNG after the selected client wall grant is revoked', async () => {
-    const h = make({ storedMetadata: { imageBase64: 'cG5n' }, memoryWall: true });
-    await expect(h.service.getArtifact(ctx, VISUAL_ID)).rejects.toBeInstanceOf(NotFoundException);
-    await expect(h.service.getArtifactImage(ctx, VISUAL_ID)).rejects.toBeInstanceOf(NotFoundException);
   });
 
   test('immediately discards only unlinked current-user artifacts created by this V3 visual path', async () => {

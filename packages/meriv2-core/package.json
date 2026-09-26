@@ -82,8 +82,6 @@
     "eval:jev-package2": "tsx scripts/jev-package2-eval.ts",
     "eval:jev-package9-economics": "tsx scripts/jev-package9-economics.ts",
     "eval:jev-shadow-report": "tsx scripts/jev-shadow-report.ts",
-    "eval:meri-capability-shadow-report": "tsx scripts/meri-capability-shadow-report.ts",
-    "eval:meri-capability-shadow-signed-report": "tsx scripts/meri-capability-shadow-signed-report.ts",
     "eval:canary-report": "tsx scripts/canary-report.ts",
     "eval:jev-bd-gate": "tsx scripts/jev-bd-gate-eval.ts",
     "eval:repair-replay": "tsx scripts/repair-replay-eval.ts",

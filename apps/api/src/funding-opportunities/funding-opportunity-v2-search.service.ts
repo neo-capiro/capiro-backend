@@ -222,11 +222,7 @@ export class FundingOpportunityV2SearchService {
       }
     }
     const sorted = sortRecords(rows, criteria);
-    // An empty set of queried sources is not a complete scan. In particular,
-    // a tenant-disabled source must not become an exact zero by vacuous `every`.
-    const queryComplete = querySources.length > 0
-      && querySources.every((source) => adapterBySource.has(source))
-      && settled.every((item) => item.result && item.result.count != null);
+    const queryComplete = querySources.every((source) => adapterBySource.has(source)) && settled.every((item) => item.result && item.result.count != null);
     const catalogComplete = queryComplete && settled.every((item) => item.result && item.health?.state === 'current');
     const successful = settled.filter((item) => item.result);
     const count = (key: 'count' | 'grantsCount' | 'contractsCount' | 'activeCount' | 'closedCount') => successful.reduce((sum, item) => sum + (item.result?.[key] ?? 0), 0);
@@ -242,12 +238,12 @@ export class FundingOpportunityV2SearchService {
       counts: { grants: queryComplete ? count('grantsCount') : null, contracts: queryComplete ? count('contractsCount') : null, active: queryComplete ? count('activeCount') : null, closed: queryComplete ? count('closedCount') : null },
       mode: criteria.mode, clientId: criteria.clientId, freshness,
       profileGaps: criteria.mode === 'matched' && client
-        ? profileGaps(client, querySources.length > 0 && querySources.length === successful.length && successful.every((item) => item.result?.actualUnscoredCount != null)
+        ? profileGaps(client, querySources.length === successful.length && successful.every((item) => item.result?.actualUnscoredCount != null)
           ? successful.reduce((sum, item) => sum + (item.result?.actualUnscoredCount ?? 0), 0)
           : null)
         : null,
       provenance: requestedSources.map((source) => { const item = settled.find((candidate) => candidate.adapter.source === source); return { source, queried: Boolean(item?.result), returned: item?.result?.records.length ?? 0, count: item?.result?.count ?? null, capped: false }; }),
-      emptyReason: sorted.length ? (sorted.slice(start, start + criteria.pageSize).length ? null : 'page_empty') : querySources.length ? 'no_matches' : null, generatedAt: new Date().toISOString(),
+      emptyReason: sorted.length ? (sorted.slice(start, start + criteria.pageSize).length ? null : 'page_empty') : 'no_matches', generatedAt: new Date().toISOString(),
     };
   }
 

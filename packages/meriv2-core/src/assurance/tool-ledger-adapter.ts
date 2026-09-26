@@ -6,12 +6,7 @@ import {
   type ClaimCandidate,
   type ClaimLedger,
 } from './claim-ledger';
-import {
-  inferClaimCategories,
-  type DomainEvidencePlan,
-  type EvidenceClass,
-  type EvidenceRequirement,
-} from './evidence-plan';
+import { inferClaimCategories, type DomainEvidencePlan, type EvidenceClass } from './evidence-plan';
 import { deriveEvidenceDates } from './evidence-dates';
 
 export interface CitationLike {
@@ -380,37 +375,6 @@ function toolProfile(tool: string): ToolEvidenceProfile {
   return TOOL_EVIDENCE_PROFILES[tool] ?? CAPIRO_DERIVED;
 }
 
-const OFFICIAL_SOURCE_CLASSES: ReadonlySet<EvidenceClass> = new Set([
-  'primary_legislative_legal_text',
-  'official_action_vote_status',
-  'committee_agency_guidance',
-  'official_budget_exhibit_mark_law',
-  'official_government_data',
-]);
-
-/**
- * `domain_specific_tools` is a symbolic family, not an executable tool name.
- * Resolve it only to explicitly profiled, primary source reads. A derived
- * answer, secondary page, mutation, or unknown tool cannot fulfill it merely
- * by having been invoked.
- */
-export function toolMatchesEvidenceRequirement(
-  tool: string,
-  requirement: Pick<EvidenceRequirement, 'id' | 'claimCategory' | 'evidenceClass' | 'toolFamilies'>,
-): boolean {
-  if (requirement.toolFamilies.includes(tool)) return true;
-  if (!requirement.toolFamilies.includes('domain_specific_tools')) return false;
-  const profile = TOOL_EVIDENCE_PROFILES[tool];
-  if (!profile?.primary || !profile.authoritative) return false;
-  if (
-    OFFICIAL_SOURCE_CLASSES.has(requirement.evidenceClass) &&
-    OFFICIAL_SOURCE_CLASSES.has(profile.evidenceClass)
-  ) return true;
-  return profile.evidenceClass === 'capiro_system_of_record' &&
-    (requirement.claimCategory === 'negative_or_exhaustive' ||
-      requirement.id === 'surface.high-risk-primary-basis');
-}
-
 function evidenceClassForTool(tool: string): EvidenceClass {
   return toolProfile(tool).evidenceClass;
 }
@@ -522,7 +486,11 @@ export function compareEvidenceClassification(input: {
 function requirementIdsForTool(tool: string, plan?: DomainEvidencePlan): string[] {
   if (!plan) return [];
   return plan.requirements
-    .filter((requirement) => toolMatchesEvidenceRequirement(tool, requirement))
+    .filter(
+      (requirement) =>
+        requirement.toolFamilies.includes(tool) ||
+        requirement.toolFamilies.includes('domain_specific_tools'),
+    )
     .map((requirement) => requirement.id);
 }
 

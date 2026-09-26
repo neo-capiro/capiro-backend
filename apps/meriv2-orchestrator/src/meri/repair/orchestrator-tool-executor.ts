@@ -174,7 +174,6 @@ class GovernedRepairToolExecutor implements RepairToolExecutor {
         result,
         maxCharacters: 12_000,
         readOnly: true,
-        toolName: call.name,
         inputProperties: schema.input_schema.properties,
       });
       const candidates = extractCitationsFromToolResult(call.name, projected, 1);

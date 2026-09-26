@@ -39,6 +39,7 @@ import {
   type ToolLoopResponse,
 } from '../request-scoped-llm.client.js';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
+import { ApiComplianceAuditRepo } from '../api-compliance-audit.repo.js';
 import { ApiActionProposalRepo } from '../api-action-proposal.repo.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
@@ -97,6 +98,7 @@ export class ChatAssistantService {
   constructor(
     registryService: MeriRegistryService,
     config: ConfigService,
+    private readonly audit: ApiComplianceAuditRepo,
     private readonly prisma: PrismaService,
     private readonly actionProposals: ApiActionProposalRepo,
   ) {

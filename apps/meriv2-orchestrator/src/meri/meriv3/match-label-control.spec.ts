@@ -1,4 +1,4 @@
-import type { AssuredEvidence, ClientFitProvider, MatchEligibility } from '@capiro/meriv2-core';
+import type { AssuredEvidence, ClientFitProvider } from '@capiro/meriv2-core';
 import { applyMatchLabelControl, createClientFitEvaluator, matchLabelEvent } from './match-label-control.js';
 
 const evidence: AssuredEvidence[] = [{
@@ -25,40 +25,8 @@ describe('match label control', () => {
     const result = await applyMatchLabelControl({ mode: 'shadow', reply, citations, evidence });
     expect(result.reply).toBe(reply);
     expect(matchLabelEvent(result, 4)).toMatchObject({ findings: 1, assertedTiers: { direct_match: 1 },
-      downgraded: 1, eligibilityStatuses: { unknown: 1 }, jevUsed: false, latencyMs: 4, registryVersion: 'jev-task-registry.v5' });
+      downgraded: 1, jevUsed: false, latencyMs: 4, registryVersion: 'jev-task-registry.v5' });
     expect(JSON.stringify(matchLabelEvent(result, 4))).not.toContain('secure sustainment');
-  });
-
-  it('reports unknown eligibility in shadow without changing the reply', async () => {
-    const client: AssuredEvidence = { ...evidence[0]!, id: 'client-1', sourceId: 'client-1',
-      sourceType: 'read_client_documents', evidenceClass: 'client_approved_context', title: 'Client capability' };
-    const reply = 'Direct match: Pursue secure sustainment [1] [2].';
-    const result = await applyMatchLabelControl({ mode: 'shadow', reply,
-      citations: [...citations, { ...citations[0]!, n: 2, id: 'client-1', tool: 'read_client_documents' }],
-      evidence: [...evidence, client], evaluate: async () => ({ category: 'explicit_linkage', confidence: 0.9, jevUsed: true }),
-    });
-    expect(result.reply).toBe(reply);
-    expect(result.derived[0]).toMatchObject({ label: 'explicit_linkage', eligibility: 'unknown' });
-    expect(matchLabelEvent(result, 1)).toMatchObject({ eligibilityStatuses: { unknown: 1 } });
-  });
-
-  const eligibilityCases: Array<[MatchEligibility, 'unknown' | 'failed' | 'satisfied', string, string | null]> = [
-    [{ mandatoryRequirementsKnown: false, mandatoryRequirementsSatisfied: false }, 'unknown', 'Direct match:', 'Eligibility has not been assessed'],
-    [{ mandatoryRequirementsKnown: true, mandatoryRequirementsSatisfied: false }, 'failed', 'Conditional niche:', 'conditional relationship'],
-    [{ mandatoryRequirementsKnown: true, mandatoryRequirementsSatisfied: true }, 'satisfied', 'Direct match:', null],
-  ];
-  it.each(eligibilityCases)('enforce distinguishes eligibility state %s', async (eligibility, status, expectedLabel, expectedCopy) => {
-    const client: AssuredEvidence = { ...evidence[0]!, id: 'client-1', sourceId: 'client-1',
-      sourceType: 'read_client_documents', evidenceClass: 'client_approved_context', title: 'Client capability' };
-    const result = await applyMatchLabelControl({ mode: 'enforce', reply: 'Direct match: Pursue secure sustainment [1] [2].',
-      citations: [...citations, { ...citations[0]!, n: 2, id: 'client-1', tool: 'read_client_documents' }],
-      evidence: [...evidence, client], eligibility,
-      evaluate: async () => ({ category: 'explicit_linkage', confidence: 0.9, jevUsed: true }),
-    });
-    expect(result.derived[0]).toMatchObject({ label: status === 'failed' ? 'conditional_linkage' : 'explicit_linkage', eligibility: status });
-    expect(result.reply).toContain(expectedLabel);
-    if (expectedCopy) expect(result.reply).toContain(expectedCopy);
-    else expect(result.reply).not.toContain('Eligibility has not been assessed');
   });
 
   it('downgrades an overstated direct match but preserves the recommendation', async () => {
@@ -110,7 +78,7 @@ describe('match label control', () => {
       evidence: [...evidence, client],
       evaluate: async () => ({ category: 'explicit_linkage', confidence: 0.9, jevUsed: true }),
     });
-    expect(result.reply).toBe(`${reply} Eligibility has not been assessed; verify mandatory requirements before pursuing.`);
+    expect(result.reply).toBe(reply);
   });
 
   it('returns the original reply when evaluation fails', async () => {

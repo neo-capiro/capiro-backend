@@ -48,7 +48,7 @@ describe('MeriAnalysisArtifactController', () => {
     await controller.getArtifactImage(ctx, 'chart-1', response as never);
     expect(visualAnalysis.getArtifactImage).toHaveBeenCalledWith(ctx, 'chart-1');
     expect(response.setHeader).toHaveBeenCalledWith('Content-Type', 'image/png');
-    expect(response.setHeader).toHaveBeenCalledWith('Cache-Control', 'private, no-store');
+    expect(response.setHeader).toHaveBeenCalledWith('Cache-Control', 'private, max-age=3600');
     expect(response.setHeader).toHaveBeenCalledWith('X-Content-Type-Options', 'nosniff');
     expect(response.send).toHaveBeenCalledWith(Buffer.from('png'));
   });

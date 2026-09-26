@@ -4,7 +4,6 @@ import {
   MeriSemanticToolGateway,
   type MeriSemanticToolSchema,
 } from './meri-semantic-tool-gateway.js';
-import { MERI_RELATIONSHIP_RECIPE_VARIANT_CONTRACT } from './meriv3-retrieval-recipes.js';
 
 const schema = (name: string): MeriSemanticToolSchema => ({
   name,
@@ -264,10 +263,6 @@ describe('MeriSemanticToolGateway', () => {
     expect(selected.decision.proposedNames).toEqual(
       expect.arrayContaining(['query_relationship_brief', 'resolve_entity', 'search_emails']),
     );
-    for (const supported of
-      MERI_RELATIONSHIP_RECIPE_VARIANT_CONTRACT.gatewaySupport.relationshipDefaultRecipeSupport) {
-      expect(selected.decision.proposedNames).toContain(supported);
-    }
     expect(selected.decision.proposedNames).not.toContain('unused_legacy_tool');
     expect(selected.decision.proposedNames.length).toBeLessThanOrEqual(20);
   });
@@ -371,10 +366,6 @@ describe('MeriSemanticToolGateway', () => {
         'lookup_client_registry',
       ]),
     );
-    for (const supported of
-      MERI_RELATIONSHIP_RECIPE_VARIANT_CONTRACT.gatewaySupport.mailHistoryFocusRecipeSupport) {
-      expect(selected.decision.exposedNames).toContain(supported);
-    }
     for (const forbidden of [
       'resolve_entity',
       'search_research_sources',

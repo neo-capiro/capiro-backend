@@ -3,6 +3,7 @@ import { ChatAssistantService } from './chat-assistant.service';
 import { MeriRegistryService } from '../meri-registry.service';
 import type { ApiClientContextRepo } from '../api-client-context.repo';
 import type { ApiToolExecutorRepo } from '../api-tool-executor.repo';
+import type { ApiComplianceAuditRepo } from '../api-compliance-audit.repo';
 import type {
   ApiActionProposalRepo,
   ActionProposalResult,
@@ -37,6 +38,8 @@ const config = {
 const clientRepo = {
   loadClientContext: async () => ({ client: { id: 'c', name: 'n' } }),
 } as unknown as ApiClientContextRepo;
+
+const auditRepo = { record: jest.fn() } as unknown as ApiComplianceAuditRepo;
 
 function fakeProposal(input: CreateActionProposalInput): ActionProposalResult {
   return {
@@ -119,6 +122,7 @@ function makeService(executor: ApiToolExecutorRepo) {
   return new ChatAssistantService(
     registryService,
     config,
+    auditRepo,
     fakePrisma,
     actionProposalsRepo,
   );
@@ -396,8 +400,8 @@ describe('ChatAssistantService.run', () => {
     expect(out.pendingApprovals).toBeUndefined();
   });
 
-  it("leaves a held WARN to apps/api's durable proposal transaction", async () => {
-    (actionProposalsRepo.create as jest.Mock).mockClear();
+  it("audits a PASS write directly, but leaves a held WARN to apps/api's durable proposal transaction (no duplicate row)", async () => {
+    (auditRepo.record as jest.Mock).mockClear();
     const executor = {
       execute: jest.fn(async () => ({ items: [] })),
     } as unknown as ApiToolExecutorRepo;
@@ -426,9 +430,13 @@ describe('ChatAssistantService.run', () => {
       makeService(executor).run(ctx, { messages: [{ role: 'user', text: 'go' }] }),
     );
 
-    // apps/api's MeriActionProposalService.create() records this WARN decision
+    const calls = (auditRepo.record as jest.Mock).mock.calls.map((c) => c[0]);
+    // The read tool produced NO audit row.
+    expect(calls.some((c) => c.trigger === 'search_congress_bills')).toBe(false);
+    // The held write produced NO orchestrator-side audit row either — apps/api's
+    // MeriActionProposalService.create() already recorded this WARN decision
     // durably, inside the same transaction as the proposal row itself.
-    expect(actionProposalsRepo.create).toHaveBeenCalledTimes(1);
+    expect(calls.some((c) => c.trigger === 'send_email')).toBe(false);
   });
 
   it('replaces a model-supplied NON-UUID clientId with the conversation focus', async () => {

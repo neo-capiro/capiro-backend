@@ -45,7 +45,6 @@ import {
   ownOutreachRecordWhere,
 } from './engagement-access.helpers.js';
 import { activeMailMessageWhere } from './mail-message-state.js';
-import { visibleClientWhere } from '../memory/memory-wall.helpers.js';
 import { readOutreachAudienceType, type OutreachAudienceType } from './outreach-audience-types.js';
 import { queryMailMessages } from './mail-query.js';
 // ── Phase 1 — governed generation gateway ───────────────────────────────────
@@ -4855,77 +4854,6 @@ export class EngagementService {
         where: {
           tenantId: ctx.tenantId,
           ...(query.clientId ? { clientId: query.clientId } : {}),
-          // Apply wall and parent-source visibility BEFORE ordering/limiting.
-          // A clientless task has no wall to check, so only its creator or
-          // assignee may read its potentially sensitive title/description.
-          AND: [
-            {
-              OR: [
-                {
-                  clientId: null,
-                  OR: [
-                    { createdByUserId: ctx.userId },
-                    { ownerUserId: ctx.userId },
-                  ],
-                },
-                { client: { is: visibleClientWhere(ctx) } },
-              ],
-            },
-            {
-              OR: [
-                { meetingId: null },
-                {
-                  meeting: {
-                    is: {
-                      tenantId: ctx.tenantId,
-                      AND: [
-                        ownMeetingWhere(ctx.userId),
-                        {
-                          OR: [
-                            { clientId: null },
-                            { client: { is: visibleClientWhere(ctx) } },
-                          ],
-                        },
-                      ],
-                    },
-                  },
-                },
-              ],
-            },
-            {
-              OR: [
-                { mailThreadId: null },
-                {
-                  mailThread: {
-                    is: {
-                      tenantId: ctx.tenantId,
-                      ...ownMailThreadWhere(ctx.userId),
-                      OR: [
-                        { clientId: null },
-                        { client: { is: visibleClientWhere(ctx) } },
-                      ],
-                    },
-                  },
-                },
-              ],
-            },
-            {
-              OR: [
-                { contactId: null },
-                {
-                  contact: {
-                    is: {
-                      tenantId: ctx.tenantId,
-                      OR: [
-                        { clientId: null },
-                        { client: { is: visibleClientWhere(ctx) } },
-                      ],
-                    },
-                  },
-                },
-              ],
-            },
-          ],
           status: query.status
             ? query.status
             : query.openOnly

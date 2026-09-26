@@ -1,9 +1,12 @@
 import { IN_EDITOR_DELEGATED_TOOLS } from './delegated-tools.catalog';
 
 /**
- * Pins the currently advertised MeriV2 in-editor surface. The legacy editor's
- * canonical allowlist is broader; its separate parity gap is tracked until the
- * shared capability registry explicitly enables those names for in-editor.
+ * Drift guard: the delegated catalog must match apps/api's in-editor allowlist
+ * (workspace-assistant.service.ts ASSISTANT_TOOLS) exactly — same names, all
+ * read-only. If apps/api adds/removes a read-only assistant tool, this list
+ * must be updated in lockstep (the names are transcribed verbatim from
+ * TOOL_DEFINITIONS). Kept as an explicit expected set because apps/api is not
+ * importable from the orchestrator package.
  */
 const EXPECTED_IN_EDITOR_TOOLS = [
   'get_client_context',

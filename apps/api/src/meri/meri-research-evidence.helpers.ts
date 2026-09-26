@@ -27,21 +27,18 @@ function parseEvidenceInput(input: Record<string, unknown>) {
     attachmentIds = [...new Set(input.attachmentIds as string[])].sort();
   }
   let afterId: string | undefined;
-  let snapshotDigest: string | undefined;
   if (input.cursor !== undefined) {
     try {
       if (typeof input.cursor !== 'string' || input.cursor.length > 2048 || !/^[\w-]+$/.test(input.cursor)) throw new Error();
       const cursor = JSON.parse(Buffer.from(input.cursor, 'base64url').toString('utf8'));
-      if (cursor.v !== 2 || cursor.sessionId !== input.sessionId || !UUID.test(cursor.afterId) ||
-          typeof cursor.snapshotDigest !== 'string' || !/^[a-f0-9]{64}$/.test(cursor.snapshotDigest) ||
+      if (cursor.v !== 1 || cursor.sessionId !== input.sessionId || !UUID.test(cursor.afterId) ||
           JSON.stringify(cursor.attachmentIds) !== JSON.stringify(attachmentIds ?? null)) throw new Error();
       afterId = cursor.afterId;
-      snapshotDigest = cursor.snapshotDigest;
     } catch {
       throw new BadRequestException('Invalid research evidence cursor for this session and attachment selection');
     }
   }
-  return { sessionId: input.sessionId, clientId: input.clientId as string | undefined, limit, attachmentIds, afterId, snapshotDigest };
+  return { sessionId: input.sessionId, clientId: input.clientId as string | undefined, limit, attachmentIds, afterId };
 }
 
 /** Read immutable, server-captured attachment evidence through a callable tool
@@ -87,16 +84,6 @@ export async function getResearchEvidence(
     const selected = handoff.attachments
       .filter((attachment) => !input.attachmentIds || input.attachmentIds.includes(attachment.id))
       .sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
-    const snapshotDigest = createHash('sha256').update(JSON.stringify({
-      capturedAt: handoff.capturedAt,
-      attachments: selected.map((attachment) => ({ id: attachment.id, kind: attachment.kind,
-        status: attachment.status, sourceMessageId: attachment.sourceMessageId,
-        contentSha256: attachment.contentSha256 })),
-    })).digest('hex');
-    if (input.afterId && (!selected.some((attachment) => attachment.id === input.afterId) ||
-        input.snapshotDigest !== snapshotDigest)) {
-      throw new BadRequestException('Research evidence cursor no longer matches this snapshot');
-    }
     const remaining = input.afterId ? selected.filter((attachment) => attachment.id > input.afterId!) : selected;
     const page = remaining.slice(0, input.limit);
     const live = page.length ? await tx.clioAttachment.findMany({
@@ -118,12 +105,8 @@ export async function getResearchEvidence(
     }
     for (const attachment of page) {
       const current = live.find((row) => row.id === attachment.id)!;
-      if (current.messageId !== attachment.sourceMessageId) {
+      if (attachment.sourceMessageId && current.messageId !== attachment.sourceMessageId) {
         throw new NotFoundException('Research evidence no longer belongs to its source message');
-      }
-      if (attachment.kind !== 'image' && ['parsed', 'truncated'].includes(attachment.status) &&
-          createHash('sha256').update(attachment.textContent ?? '').digest('hex') !== attachment.contentSha256) {
-        throw new NotFoundException('Research text changed since the snapshot');
       }
       if (attachment.kind === 'image' && attachment.status === 'image_ready' && (current.kind !== 'image' || current.status !== 'image_ready' ||
           !current.data || current.mediaType !== attachment.mediaType ||
@@ -133,9 +116,8 @@ export async function getResearchEvidence(
     }
     const hasMore = remaining.length > page.length;
     const contentComplete = selected.every((attachment) => attachment.status === 'parsed' || attachment.status === 'image_ready');
-    const nextCursor = hasMore ? Buffer.from(JSON.stringify({ v: 2, sessionId: session.id,
-      attachmentIds: input.attachmentIds ?? null, afterId: page[page.length - 1]!.id,
-      snapshotDigest })).toString('base64url') : null;
+    const nextCursor = hasMore ? Buffer.from(JSON.stringify({ v: 1, sessionId: session.id,
+      attachmentIds: input.attachmentIds ?? null, afterId: page[page.length - 1]!.id })).toString('base64url') : null;
     return {
       tool: 'get_research_evidence', sessionId: session.id, capturedAt: handoff.capturedAt,
       // These fields must precede large text so the model retains pagination
