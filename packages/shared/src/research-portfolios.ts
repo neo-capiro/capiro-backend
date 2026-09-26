@@ -24,7 +24,11 @@ export type ResearchPortfolioEventKind =
   | 'member_excluded'
   | 'member_reinstated'
   | 'member_resolved'
-  | 'rule_published';
+  | 'rule_published'
+  | 'review_updated'
+  | 'annual_reopened'
+  | 'import_created'
+  | 'import_action';
 
 export interface ResearchPortfolioSummaryDto {
   id: string;
@@ -312,4 +316,260 @@ export interface CreateResearchPortfolioTemplateVersionDto extends ResearchPortf
   mode: ResearchPortfolioMode;
   qualificationPolicy: Readonly<Record<string, unknown>>;
   taxonomyVersionId?: string | null;
+}
+
+export type ResearchPortfolioReviewStatus = 'open' | 'assigned' | 'deferred' | 'resolved' | 'cancelled';
+export type ResearchPortfolioReviewTrigger = 'rule_change' | 'annual_continuity' | 'import' | 'dispute' | 'manual';
+export type ResearchPortfolioReviewTargetKind = ResearchPortfolioMemberKind | 'rule' | 'portfolio';
+export type ResearchPortfolioDecisionType = 'include' | 'exclude' | 'defer' | 'reopen' | 'dispute';
+export type ResearchPortfolioContinuityStatus = 'unchanged' | 'changed' | 'expired' | 'renamed' | 'renumbered' | 'split' | 'merged' | 'unresolved' | 'new';
+export type ResearchPortfolioImportJobStatus = 'created' | 'mapped' | 'previewed' | 'applying' | 'paused' | 'completed' | 'partial' | 'failed' | 'cancelled' | 'unknown' | 'needs_reconciliation' | 'compensated';
+export type ResearchPortfolioImportWorksheetKind = 'membership' | 'rules' | 'reviews';
+export type ResearchPortfolioImportRowOutcome = 'applied' | 'skipped' | 'conflict' | 'failed' | 'unknown';
+export type ResearchPortfolioImportRowPreviewClassification = 'resolved' | 'duplicate' | 'invalid' | 'ambiguous' | 'unresolved' | 'inaccessible';
+
+export interface ResearchPortfolioReviewEvidenceDto {
+  sourceRevisionId: string;
+  locator: Readonly<Record<string, unknown>>;
+  quote: string | null;
+  stance: 'for' | 'against';
+}
+
+export interface ResearchPortfolioReviewDto {
+  id: string;
+  tenantId: string;
+  portfolioId: string;
+  targetKind: ResearchPortfolioReviewTargetKind;
+  targetId: string;
+  trigger: ResearchPortfolioReviewTrigger;
+  triggerIdentity: string;
+  dependencyIdentity: string | null;
+  assigneeUserId: string | null;
+  reason: string;
+  evidenceFor: readonly ResearchPortfolioReviewEvidenceDto[];
+  evidenceAgainst: readonly ResearchPortfolioReviewEvidenceDto[];
+  revision: number;
+  triggerFingerprint: string;
+  status: ResearchPortfolioReviewStatus;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | null;
+}
+
+export interface ResearchPortfolioDecisionDto {
+  id: string;
+  tenantId: string;
+  portfolioId: string;
+  targetKind: ResearchPortfolioReviewTargetKind;
+  targetId: string;
+  decisionType: ResearchPortfolioDecisionType;
+  reason: string;
+  authorUserId: string;
+  decisionTime: string;
+  priorDecisionId: string | null;
+  supersedesId: string | null;
+  evidenceFor: readonly ResearchPortfolioReviewEvidenceDto[];
+  evidenceAgainst: readonly ResearchPortfolioReviewEvidenceDto[];
+  reviewId: string | null;
+  createdAt: string;
+}
+
+export interface ResearchPortfolioContinuityLedgerDto {
+  id: string;
+  tenantId: string;
+  portfolioId: string;
+  priorDecisionId: string | null;
+  currentDecisionId: string | null;
+  continuityKey: string;
+  priorDependencyFingerprint: string | null;
+  dependencyFingerprint: string;
+  status: ResearchPortfolioContinuityStatus;
+  identityMapping: Readonly<Record<string, unknown>>;
+  changedDependencies: Readonly<Record<string, unknown>>;
+  originalEvidence: Readonly<Record<string, unknown>>;
+  sourceEdition: string | null;
+  relevantPeriodStart: string | null;
+  relevantPeriodEnd: string | null;
+  expiryDate: string | null;
+  reopeningReason: string | null;
+  reopeningReviewId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ResearchPortfolioImportJobDto {
+  id: string;
+  tenantId: string;
+  portfolioId: string;
+  operationKey: string;
+  worksheetKind: ResearchPortfolioImportWorksheetKind;
+  status: ResearchPortfolioImportJobStatus;
+  originalHash: string;
+  originalSize: number;
+  fileName: string;
+  mediaType: string;
+  originalStorageKey: string | null;
+  fileMetadata: Readonly<Record<string, unknown>>;
+  parserVersion: string;
+  schemaVersion: string;
+  targetRevision: number;
+  checkpoint: Readonly<Record<string, unknown>> | null;
+  leaseOwner: string | null;
+  leaseUntil: string | null;
+  rowCount: number;
+  appliedCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ResearchPortfolioImportRowDto {
+  id: string;
+  tenantId: string;
+  portfolioId: string;
+  importJobId: string;
+  worksheetKind: ResearchPortfolioImportWorksheetKind;
+  sheetName: string | null;
+  rowNumber: number;
+  rowIdentity: string;
+  rawCells: Readonly<Record<string, unknown>>;
+  parsedData: Readonly<Record<string, unknown>>;
+  repairs: Readonly<Record<string, unknown>>;
+  validationIssues: readonly string[];
+  selected: boolean;
+  previewClassification: ResearchPortfolioImportRowPreviewClassification | null;
+  previewReason: string | null;
+  finalOutcome: ResearchPortfolioImportRowOutcome | null;
+  finalReason: string | null;
+  finalDisposition: Readonly<Record<string, unknown>>;
+  expectedRevision: number | null;
+  canonicalTargetKey: string | null;
+  targetKind: string | null;
+  targetId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AssignResearchPortfolioReviewDto extends ResearchPortfolioMutationMetaDto {
+  expectedRevision: number;
+  expectedPortfolioRevision: number;
+  assigneeUserId: string | null;
+  reason: string;
+}
+
+export interface DecideResearchPortfolioReviewDto extends ResearchPortfolioMutationMetaDto {
+  expectedRevision: number;
+  expectedPortfolioRevision: number;
+  decisionType: ResearchPortfolioDecisionType;
+  reason: string;
+  priorDecisionId?: string | null;
+  evidenceFor?: readonly ResearchPortfolioReviewEvidenceDto[];
+  evidenceAgainst?: readonly ResearchPortfolioReviewEvidenceDto[];
+}
+
+export interface ResearchPortfolioReviewBulkItemDto {
+  reviewId: string;
+  expectedRevision: number;
+  decisionType: ResearchPortfolioDecisionType;
+  reason: string;
+  evidenceFor?: readonly ResearchPortfolioReviewEvidenceDto[];
+  evidenceAgainst?: readonly ResearchPortfolioReviewEvidenceDto[];
+}
+
+export interface BulkResearchPortfolioReviewsDto extends ResearchPortfolioMutationMetaDto {
+  expectedRevision: number;
+  items: readonly ResearchPortfolioReviewBulkItemDto[];
+}
+
+export interface ResearchPortfolioReviewMutationReceiptDto {
+  portfolioId: string;
+  actorUserId: string;
+  occurredAt: string;
+  outcomes: readonly {
+    reviewId: string | null;
+    status: 'assigned' | 'decided' | 'unchanged' | 'conflict' | 'failed';
+    revision: number | null;
+    decisionId: string | null;
+    message: string | null;
+  }[];
+}
+
+export interface ReopenResearchPortfolioAnnualReviewDto extends ResearchPortfolioMutationMetaDto {
+  expectedRevision: number;
+  continuityIds: readonly string[];
+  reason?: string;
+}
+
+export interface ResearchPortfolioAnnualReviewDto {
+  items: readonly ResearchPortfolioContinuityLedgerDto[];
+  counts: Readonly<Record<ResearchPortfolioContinuityStatus, number>>;
+}
+
+export interface ResearchPortfolioImportMappingVersionDto {
+  id: string;
+  version: number;
+  mapping: Readonly<Record<string, unknown>>;
+  schemaVersion: string;
+  authorUserId: string;
+  createdAt: string;
+}
+
+export interface ResearchPortfolioImportAttemptDto {
+  id: string;
+  operationKey: string;
+  action: 'preview' | 'apply' | 'pause' | 'resume' | 'cancel' | 'retry' | 'reconcile' | 'compensate';
+  outcome: 'succeeded' | 'known_failure' | 'unknown';
+  checkpoint: Readonly<Record<string, unknown>>;
+  errorCode: string | null;
+  receipt: Readonly<Record<string, unknown>>;
+  actorUserId: string;
+  createdAt: string;
+}
+
+export interface ResearchPortfolioImportEffectDto {
+  id: string;
+  importRowId: string;
+  effectFingerprint: string;
+  effectKind: string;
+  canonicalTargetKey: string;
+  targetId: string;
+  targetRevisionAtApply: number | null;
+  payload: Readonly<Record<string, unknown>>;
+  appliedAt: string;
+}
+
+export interface ResearchPortfolioImportCompensationReceiptDto {
+  id: string;
+  operationKey: string;
+  previewHash: string;
+  status: 'previewed' | 'committed' | 'failed';
+  effects: readonly Readonly<Record<string, unknown>>[];
+  actorUserId: string;
+  createdAt: string;
+}
+
+export interface ResearchPortfolioImportDetailDto extends ResearchPortfolioImportJobDto {
+  rows: readonly ResearchPortfolioImportRowDto[];
+  mappings: readonly ResearchPortfolioImportMappingVersionDto[];
+  attempts: readonly ResearchPortfolioImportAttemptDto[];
+  effects: readonly ResearchPortfolioImportEffectDto[];
+  compensationReceipts: readonly ResearchPortfolioImportCompensationReceiptDto[];
+}
+
+export interface CreateResearchPortfolioImportDto {
+  operationKey: string;
+  expectedRevision: number;
+  worksheetKind: ResearchPortfolioImportWorksheetKind;
+  fileName: string;
+  mediaType: 'text/csv' | 'application/vnd.ms-excel';
+  contentBase64: string;
+  schemaVersion: string;
+  mapping: Readonly<Record<string, string>>;
+}
+
+export interface ResearchPortfolioImportActionDto {
+  operationKey: string;
+  expectedRevision?: number;
+  selectedRowIds?: readonly string[];
+  repairs?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  compensationPreviewHash?: string;
 }

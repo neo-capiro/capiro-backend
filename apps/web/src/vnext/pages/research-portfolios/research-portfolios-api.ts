@@ -11,11 +11,24 @@ import type {
   ResearchPortfolioMutationReceiptDto,
   ResolveResearchPortfolioMemberDto,
   UpdateResearchPortfolioDto,
+  AssignResearchPortfolioReviewDto,
+  DecideResearchPortfolioReviewDto,
+  ReopenResearchPortfolioAnnualReviewDto,
+  ResearchPortfolioAnnualReviewDto,
+  ResearchPortfolioImportActionDto,
+  ResearchPortfolioImportDetailDto,
+  ResearchPortfolioImportJobDto,
+  ResearchPortfolioReviewDto,
+  ResearchPortfolioReviewMutationReceiptDto,
+  CreateResearchPortfolioImportDto,
 } from '@capiro/shared';
 
 export const researchPortfolioKeys = {
   all: ['research-portfolios'] as const,
   detail: (id: string) => ['research-portfolios', id] as const,
+  reviews: (id: string, lane: string) => ['research-portfolios', id, 'reviews', lane] as const,
+  annualReview: (id: string) => ['research-portfolios', id, 'annual-review'] as const,
+  import: (id: string, jobId: string) => ['research-portfolios', id, 'imports', jobId] as const,
 };
 
 export function newIdempotencyKey(operation: string): string {
@@ -142,5 +155,90 @@ export async function resolveResearchPortfolioMember(
   return (await api.post<ResearchPortfolioMutationReceiptDto>(
     `/api/research-portfolios/${id}/members/${encodeURIComponent(memberId)}/resolve`,
     { ...input, idempotencyKey: newIdempotencyKey('member-resolve') },
+  )).data;
+}
+
+export async function listResearchPortfolioReviews(
+  api: AxiosInstance,
+  id: string,
+  lane: 'mine' | 'team' | 'deferred' | 'resolved',
+): Promise<readonly ResearchPortfolioReviewDto[]> {
+  return (await api.get<readonly ResearchPortfolioReviewDto[]>(
+    `/api/research-portfolios/${id}/reviews`,
+    { params: { lane } },
+  )).data;
+}
+
+export async function assignResearchPortfolioReview(
+  api: AxiosInstance,
+  id: string,
+  reviewId: string,
+  input: Omit<AssignResearchPortfolioReviewDto, 'idempotencyKey'>,
+): Promise<ResearchPortfolioReviewMutationReceiptDto> {
+  return (await api.post<ResearchPortfolioReviewMutationReceiptDto>(
+    `/api/research-portfolios/${id}/reviews/${reviewId}/assign`,
+    { ...input, idempotencyKey: newIdempotencyKey('review-assign') },
+  )).data;
+}
+
+export async function decideResearchPortfolioReview(
+  api: AxiosInstance,
+  id: string,
+  reviewId: string,
+  input: Omit<DecideResearchPortfolioReviewDto, 'idempotencyKey'>,
+): Promise<ResearchPortfolioReviewMutationReceiptDto> {
+  return (await api.post<ResearchPortfolioReviewMutationReceiptDto>(
+    `/api/research-portfolios/${id}/reviews/${reviewId}/decision`,
+    { ...input, idempotencyKey: newIdempotencyKey('review-decision') },
+  )).data;
+}
+
+export async function getResearchPortfolioAnnualReview(
+  api: AxiosInstance,
+  id: string,
+): Promise<ResearchPortfolioAnnualReviewDto> {
+  return (await api.get<ResearchPortfolioAnnualReviewDto>(`/api/research-portfolios/${id}/annual-review`)).data;
+}
+
+export async function reopenResearchPortfolioAnnualReview(
+  api: AxiosInstance,
+  id: string,
+  input: Omit<ReopenResearchPortfolioAnnualReviewDto, 'idempotencyKey'>,
+): Promise<ResearchPortfolioReviewMutationReceiptDto> {
+  return (await api.post<ResearchPortfolioReviewMutationReceiptDto>(
+    `/api/research-portfolios/${id}/annual-review/reopen`,
+    { ...input, idempotencyKey: newIdempotencyKey('annual-reopen') },
+  )).data;
+}
+
+export async function createResearchPortfolioImport(
+  api: AxiosInstance,
+  id: string,
+  input: Omit<CreateResearchPortfolioImportDto, 'operationKey'>,
+): Promise<ResearchPortfolioImportJobDto> {
+  return (await api.post<ResearchPortfolioImportJobDto>(`/api/research-portfolios/${id}/imports`, {
+    ...input,
+    operationKey: newIdempotencyKey('import-create'),
+  })).data;
+}
+
+export async function getResearchPortfolioImport(
+  api: AxiosInstance,
+  id: string,
+  jobId: string,
+): Promise<ResearchPortfolioImportDetailDto> {
+  return (await api.get<ResearchPortfolioImportDetailDto>(`/api/research-portfolios/${id}/imports/${jobId}`)).data;
+}
+
+export async function actOnResearchPortfolioImport(
+  api: AxiosInstance,
+  id: string,
+  jobId: string,
+  action: 'preview' | 'apply' | 'pause' | 'resume' | 'cancel' | 'retry' | 'reconcile' | 'compensate',
+  input: Omit<ResearchPortfolioImportActionDto, 'operationKey'> = {},
+): Promise<ResearchPortfolioImportDetailDto> {
+  return (await api.post<ResearchPortfolioImportDetailDto>(
+    `/api/research-portfolios/${id}/imports/${jobId}/${action}`,
+    { ...input, operationKey: newIdempotencyKey(`import-${action}`) },
   )).data;
 }
