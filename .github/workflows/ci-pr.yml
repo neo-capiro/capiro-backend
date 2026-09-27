@@ -34,6 +34,12 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - name: Validate Meri deployment prerequisite
+        run: |
+          python3 scripts/validate-meri-build-isolation.py
+          python3 scripts/validate-meri-build-isolation.py --self-test
+          node --test scripts/lib/meri-release-policy.test.mjs scripts/meri-release.test.mjs
+
       # Migration directory timestamps are hand-written, and the convention is
       # "sorts after the current max on origin/main". That is a ratchet: with
       # many parallel worktrees it outruns real time, and apps/api names drifted

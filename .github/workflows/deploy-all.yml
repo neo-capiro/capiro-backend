@@ -1,21 +1,4 @@
-# Unified manual deploy workflow for all Capiro services.
-#
-# Usage:
-#   1. Trigger via GitHub Actions UI (workflow_dispatch)
-#   2. Select the service and target env
-#   3. The workflow builds a fresh image, pushes to ECR, then forces a new
-#      ECS deployment — ECS pulls the new :latest tag and drains old tasks.
-#
-# Prerequisites (one-time per service, already done for api/web-vnext):
-#   - ECR repo capiro/<env>/<service> must exist
-#   - OIDC role (AWS_DEV_GHA_ROLE_ARN / AWS_PROD_GHA_ROLE_ARN) must have
-#     ecr:GetAuthorizationToken + push permissions on the target repo
-#   - The ECS service capiro-<env>-<service> must exist in cluster capiro-<env>
-#
-# Services covered:
-#   api, engagement-api, api-strategy, intel-api, workspace, onboard-api,
-#   clio-sandbox, web, web-vnext, marketing
-
+# Legacy mutable deployment for marketing/sandbox only. Meri/shared services use scripts/meri-release.mjs.
 name: deploy-all
 
 on:
@@ -26,15 +9,7 @@ on:
         required: true
         type: choice
         options:
-          - api
-          - engagement-api
-          - api-strategy
-          - intel-api
-          - workspace
-          - onboard-api
           - clio-sandbox
-          - web
-          - web-vnext
           - marketing
       env:
         description: 'Target environment'
@@ -79,6 +54,15 @@ jobs:
             echo "ERROR: Use the reviewed immutable-digest Meri orchestrator release procedure; deploy-all cannot promote it."
             exit 1
           fi
+
+      - name: Deny protected services before AWS access
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$SERVICE" in
+            clio-sandbox|marketing) ;;
+            *) echo "Use the reviewed digest release procedure for protected services." >&2; exit 1 ;;
+          esac
 
       - uses: pnpm/action-setup@v4
         with:
