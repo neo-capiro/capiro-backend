@@ -12,12 +12,13 @@ import { ResearchPortfolioAnalyticsService } from './research-portfolio-analytic
 import { ResearchPortfolioOutputService } from './research-portfolio-output.service.js';
 import { ResearchPortfolioMeriToolsService } from './research-portfolio-meri-tools.service.js';
 import { ResearchPortfolioMeriScopeService } from './research-portfolio-meri-scope.service.js';
+import { ResearchPortfolioPhase11Service } from './research-portfolio-phase11.service.js';
 import { ResearchContextsController } from './research-contexts.controller.js';
 
 @Module({
   imports: [PrismaModule, DefenseResearchModule, ClientDocumentsModule],
   controllers: [ResearchPortfoliosController, ResearchContextsController],
-  providers: [ResearchPortfoliosService, ResearchPortfolioRulesService, ResearchPortfolioReviewService, ResearchPortfolioImportService, ResearchPortfolioChangesService, ResearchPortfolioAnalyticsService, ResearchPortfolioOutputService, ResearchPortfolioMeriToolsService, ResearchPortfolioMeriScopeService],
-  exports: [ResearchPortfoliosService, ResearchPortfolioRulesService, ResearchPortfolioReviewService, ResearchPortfolioImportService, ResearchPortfolioChangesService, ResearchPortfolioAnalyticsService, ResearchPortfolioOutputService, ResearchPortfolioMeriToolsService, ResearchPortfolioMeriScopeService],
+  providers: [ResearchPortfoliosService, ResearchPortfolioRulesService, ResearchPortfolioReviewService, ResearchPortfolioImportService, ResearchPortfolioChangesService, ResearchPortfolioAnalyticsService, ResearchPortfolioOutputService, ResearchPortfolioMeriToolsService, ResearchPortfolioMeriScopeService, ResearchPortfolioPhase11Service],
+  exports: [ResearchPortfoliosService, ResearchPortfolioRulesService, ResearchPortfolioReviewService, ResearchPortfolioImportService, ResearchPortfolioChangesService, ResearchPortfolioAnalyticsService, ResearchPortfolioOutputService, ResearchPortfolioMeriToolsService, ResearchPortfolioMeriScopeService, ResearchPortfolioPhase11Service],
 })
 export class ResearchPortfoliosModule {}

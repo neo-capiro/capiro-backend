@@ -359,6 +359,9 @@ model Tenant {
   researchPortfolioOutputAttempts         ResearchPortfolioOutputAttempt[]
   researchPortfolioOutputArtifacts        ResearchPortfolioOutputArtifact[]
   researchPortfolioOutputReceipts         ResearchPortfolioOutputClientFileReceipt[]
+  researchPortfolioBookmarks              ResearchPortfolioBookmark[]
+  researchPortfolioTourStates             ResearchPortfolioTourState[]
+  researchPortfolioReviewNotes            ResearchPortfolioReviewNote[]
 
   @@map("tenants")
 }
@@ -15081,6 +15084,7 @@ enum ResearchPortfolioEventKind {
   annual_reopened
   import_created
   import_action
+  review_note_added
 
   @@map("research_portfolio_event_kind")
 }
@@ -15125,6 +15129,8 @@ model ResearchPortfolio {
   outputAttempts         ResearchPortfolioOutputAttempt[]
   outputArtifacts        ResearchPortfolioOutputArtifact[]
   outputReceipts         ResearchPortfolioOutputClientFileReceipt[]
+  bookmarks              ResearchPortfolioBookmark[]
+  reviewNotes            ResearchPortfolioReviewNote[]
 
   @@unique([tenantId, id], map: "research_portfolios_tenant_id_key")
   @@index([tenantId, lifecycle, updatedAt(sort: Desc)], map: "research_portfolios_tenant_lifecycle_updated_idx")
@@ -15534,6 +15540,7 @@ model ResearchPortfolioReview {
 
   tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  notes     ResearchPortfolioReviewNote[]
 
   @@unique([tenantId, id], map: "research_portfolio_reviews_tenant_id_key")
   @@unique([tenantId, portfolioId, triggerFingerprint], map: "research_portfolio_reviews_trigger_fingerprint_key")
@@ -16043,6 +16050,59 @@ model ResearchPortfolioOutputClientFileReceipt {
   @@unique([tenantId, attachmentId], map: "research_portfolio_output_receipts_attachment_key")
   @@index([tenantId, artifactId, createdAt(sort: Desc)], map: "research_portfolio_output_receipts_artifact_idx")
   @@map("research_portfolio_output_client_file_receipts")
+}
+
+model ResearchPortfolioBookmark {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  portfolioId   String   @map("portfolio_id") @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  targetKind    String   @map("target_kind") @db.VarChar(48)
+  targetId      String   @map("target_id") @db.VarChar(256)
+  label         String?  @db.VarChar(255)
+  note          String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, portfolioId, userId, targetKind, targetId], map: "research_portfolio_bookmarks_unique")
+  @@index([tenantId, portfolioId, userId, createdAt(sort: Desc)], map: "research_portfolio_bookmarks_user_idx")
+  @@map("research_portfolio_bookmarks")
+}
+
+model ResearchPortfolioTourState {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  tourVersion   String   @map("tour_version") @db.VarChar(64)
+  status        String   @db.VarChar(24)
+  completedAt   DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, tourVersion], map: "research_portfolio_tour_state_unique")
+  @@map("research_portfolio_tour_states")
+}
+
+model ResearchPortfolioReviewNote {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  portfolioId   String   @map("portfolio_id") @db.Uuid
+  reviewId      String   @map("review_id") @db.Uuid
+  authorUserId  String   @map("author_user_id") @db.Uuid
+  body          String   @db.Text
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portfolio ResearchPortfolio        @relation(fields: [tenantId, portfolioId], references: [tenantId, id], onDelete: Cascade)
+  review    ResearchPortfolioReview  @relation(fields: [tenantId, reviewId], references: [tenantId, id], onDelete: Cascade)
+
+  @@index([tenantId, reviewId, createdAt(sort: Desc)], map: "research_portfolio_review_notes_review_idx")
+  @@map("research_portfolio_review_notes")
 }
 
 // ---------------------------------------------------------------------------

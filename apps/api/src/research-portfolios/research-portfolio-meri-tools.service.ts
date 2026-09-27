@@ -9,6 +9,9 @@ import { ResearchPortfoliosService } from './research-portfolios.service.js';
 import { ResearchPortfolioAnalyticsService } from './research-portfolio-analytics.service.js';
 import { ResearchPortfolioChangesService } from './research-portfolio-changes.service.js';
 import { ResearchPortfolioOutputService } from './research-portfolio-output.service.js';
+import { ResearchPortfolioReviewService } from './research-portfolio-review.service.js';
+import { ResearchPortfolioRulesService } from './research-portfolio-rules.service.js';
+import { ResearchPortfolioPhase11Service } from './research-portfolio-phase11.service.js';
 
 const requiredText = (input: Record<string, unknown>, key: string): string => {
   const value = input[key];
@@ -58,7 +61,17 @@ export type ResearchPortfolioMeriToolName =
   | 'request_research_portfolio_output'
   | 'save_research_portfolio_output_to_client'
   | 'watch_research_portfolio'
-  | 'update_research_portfolio_change_state';
+  | 'update_research_portfolio_change_state'
+  | 'get_research_portfolio_bookmarks'
+  | 'create_research_portfolio_bookmark'
+  | 'get_research_portfolio_fit'
+  | 'get_research_portfolio_reviews'
+  | 'add_research_portfolio_review_note'
+  | 'get_research_portfolio_rules'
+  | 'get_research_portfolio_imports'
+  | 'get_research_portfolio_operations'
+  | 'prepare_research_portfolio_brief'
+  | 'prepare_research_portfolio_meeting';
 
 const NAMES = new Set<ResearchPortfolioMeriToolName>([
   'get_research_portfolio',
@@ -69,6 +82,16 @@ const NAMES = new Set<ResearchPortfolioMeriToolName>([
   'save_research_portfolio_output_to_client',
   'watch_research_portfolio',
   'update_research_portfolio_change_state',
+  'get_research_portfolio_bookmarks',
+  'create_research_portfolio_bookmark',
+  'get_research_portfolio_fit',
+  'get_research_portfolio_reviews',
+  'add_research_portfolio_review_note',
+  'get_research_portfolio_rules',
+  'get_research_portfolio_imports',
+  'get_research_portfolio_operations',
+  'prepare_research_portfolio_brief',
+  'prepare_research_portfolio_meeting',
 ]);
 
 export function isResearchPortfolioMeriTool(name: string): name is ResearchPortfolioMeriToolName {
@@ -85,6 +108,9 @@ export class ResearchPortfolioMeriToolsService {
     private readonly analytics: ResearchPortfolioAnalyticsService,
     private readonly changes: ResearchPortfolioChangesService,
     private readonly outputs: ResearchPortfolioOutputService,
+    private readonly reviews: ResearchPortfolioReviewService,
+    private readonly rules: ResearchPortfolioRulesService,
+    private readonly phase11: ResearchPortfolioPhase11Service,
   ) {}
 
   async execute(
@@ -145,6 +171,84 @@ export class ResearchPortfolioMeriToolsService {
             ? {}
             : { expectedRevision: requiredInteger(input, 'expectedRevision') }),
         });
+      }
+      case 'get_research_portfolio_bookmarks':
+        return this.phase11.listBookmarks(ctx, portfolioId);
+      case 'create_research_portfolio_bookmark':
+        return this.phase11.createBookmark(ctx, portfolioId, {
+          idempotencyKey: requiredText(input, 'operationKey'),
+          targetKind: requiredText(input, 'targetKind') as any,
+          targetId: requiredText(input, 'targetId'),
+          label: (input.label as string | undefined) ?? null,
+          note: (input.note as string | undefined) ?? null,
+        });
+      case 'get_research_portfolio_fit':
+        return this.phase11.getFit(ctx, portfolioId);
+      case 'get_research_portfolio_reviews': {
+        const lane = (input.lane as string) ?? 'mine';
+        if (!['mine', 'team', 'deferred', 'resolved'].includes(lane)) {
+          throw new BadRequestException('lane must be mine, team, deferred, or resolved');
+        }
+        return this.reviews.listReviews(ctx, portfolioId, lane as 'mine' | 'team' | 'deferred' | 'resolved');
+      }
+      case 'add_research_portfolio_review_note':
+        return this.phase11.addReviewNote(ctx, portfolioId, requiredText(input, 'reviewId'), {
+          idempotencyKey: requiredText(input, 'operationKey'),
+          expectedRevision: requiredInteger(input, 'expectedRevision'),
+          body: requiredText(input, 'body'),
+        });
+      case 'get_research_portfolio_rules':
+        return this.rules.listRules(ctx, portfolioId);
+      case 'get_research_portfolio_imports':
+        // Return the most recent import job if a jobId is given
+        if (input.jobId) {
+          return this.prisma.withTenant(ctx.tenantId, async (tx: any) => {
+            const job = await tx.researchPortfolioImportJob.findFirst({
+              where: { tenantId: ctx.tenantId, portfolioId, id: input.jobId as string },
+            });
+            return job ?? { message: 'Import job not found' };
+          });
+        }
+        return this.prisma.withTenant(ctx.tenantId, async (tx: any) => {
+          return tx.researchPortfolioImportJob.findMany({
+            where: { tenantId: ctx.tenantId, portfolioId },
+            orderBy: { createdAt: 'desc' },
+            take: 20,
+          });
+        });
+      case 'get_research_portfolio_operations':
+        return this.phase11.getOperation(ctx, portfolioId, requiredText(input, 'operationId'));
+      case 'prepare_research_portfolio_brief': {
+        const [detail, analyticsResult, changesResult, reviewsResult] = await Promise.all([
+          this.portfolios.detail(ctx, portfolioId),
+          this.analytics.analytics(ctx, portfolioId),
+          this.changes.listChanges(ctx, portfolioId, null, 10),
+          this.reviews.listReviews(ctx, portfolioId, 'mine'),
+        ]);
+        return {
+          portfolio: { id: detail.id, name: detail.name, purpose: detail.purpose, lifecycle: detail.lifecycle, revision: detail.revision },
+          memberCount: detail.memberCount,
+          analytics: { availability: analyticsResult.availability, totalCount: analyticsResult.totals.length },
+          recentChanges: changesResult.items.length,
+          openReviews: reviewsResult.length,
+          preparedAt: new Date().toISOString(),
+        };
+      }
+      case 'prepare_research_portfolio_meeting': {
+        const [detailM, analyticsM, reviewsMine, reviewsTeam] = await Promise.all([
+          this.portfolios.detail(ctx, portfolioId),
+          this.analytics.analytics(ctx, portfolioId),
+          this.reviews.listReviews(ctx, portfolioId, 'mine'),
+          this.reviews.listReviews(ctx, portfolioId, 'team'),
+        ]);
+        return {
+          portfolio: { id: detailM.id, name: detailM.name, lifecycle: detailM.lifecycle },
+          analytics: { availability: analyticsM.availability },
+          myOpenReviews: reviewsMine.filter((r: any) => r.status === 'open' || r.status === 'assigned').length,
+          teamOpenReviews: reviewsTeam.filter((r: any) => r.status === 'open' || r.status === 'assigned').length,
+          actionItems: [],
+          preparedAt: new Date().toISOString(),
+        };
       }
     }
   }

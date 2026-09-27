@@ -417,6 +417,62 @@ export class MeriToolsService {
         },
         ['conversationId', 'eventId', 'action'],
       ),
+      get_research_portfolio_bookmarks: obj(
+        { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
+        ['conversationId'],
+      ),
+      create_research_portfolio_bookmark: obj(
+        {
+          conversationId: str('Exact current Research Portfolio chat conversation UUID'),
+          targetKind: { type: 'string', enum: ['member', 'source', 'snapshot', 'output'] },
+          targetId: str('Exact bookmark target entity UUID'),
+          label: str('Optional human-readable label'),
+        },
+        ['conversationId', 'targetKind', 'targetId'],
+      ),
+      get_research_portfolio_fit: obj(
+        { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
+        ['conversationId'],
+      ),
+      get_research_portfolio_reviews: obj(
+        { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
+        ['conversationId'],
+      ),
+      add_research_portfolio_review_note: obj(
+        {
+          conversationId: str('Exact current Research Portfolio chat conversation UUID'),
+          reviewId: str('Exact review UUID'),
+          body: str('Note content'),
+          parentNoteId: str('Optional parent note UUID for threading'),
+        },
+        ['conversationId', 'reviewId', 'body'],
+      ),
+      get_research_portfolio_rules: obj(
+        { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
+        ['conversationId'],
+      ),
+      get_research_portfolio_imports: obj(
+        { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
+        ['conversationId'],
+      ),
+      get_research_portfolio_operations: obj(
+        { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
+        ['conversationId'],
+      ),
+      prepare_research_portfolio_brief: obj(
+        {
+          conversationId: str('Exact current Research Portfolio chat conversation UUID'),
+          scope: { type: 'string', enum: ['summary', 'full'] },
+        },
+        ['conversationId'],
+      ),
+      prepare_research_portfolio_meeting: obj(
+        {
+          conversationId: str('Exact current Research Portfolio chat conversation UUID'),
+          meetingType: { type: 'string', enum: ['status', 'review', 'planning'] },
+        },
+        ['conversationId'],
+      ),
       search_legiwatch_news: obj(
         {
           ...legiwatchScope,
@@ -2140,6 +2196,16 @@ export class MeriToolsService {
       case 'save_research_portfolio_output_to_client':
       case 'watch_research_portfolio':
       case 'update_research_portfolio_change_state':
+      case 'get_research_portfolio_bookmarks':
+      case 'create_research_portfolio_bookmark':
+      case 'get_research_portfolio_fit':
+      case 'get_research_portfolio_reviews':
+      case 'add_research_portfolio_review_note':
+      case 'get_research_portfolio_rules':
+      case 'get_research_portfolio_imports':
+      case 'get_research_portfolio_operations':
+      case 'prepare_research_portfolio_brief':
+      case 'prepare_research_portfolio_meeting':
         return this.requireResearchPortfolioTools().execute(ctx, name, input);
       case 'search_legiwatch_news':
       case 'get_florida_budget_project':

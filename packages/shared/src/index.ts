@@ -3814,6 +3814,86 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat'],
   },
   {
+    name: 'get_research_portfolio_bookmarks',
+    description:
+      'Read the current user\'s bookmarks for an authorized Research Portfolio, including members, snapshots, evidence items, and reviews they have saved for quick reference.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'create_research_portfolio_bookmark',
+    description:
+      'Bookmark a specific item (member, snapshot, evidence, review, output) within an authorized Research Portfolio for the current user. Idempotent: bookmarking the same item again returns the existing bookmark. Requires user approval.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_research_portfolio_fit',
+    description:
+      'Read the client-link fit evaluation for an authorized Research Portfolio. Shows how well each linked client matches the portfolio rules with match scores and details.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_research_portfolio_reviews',
+    description:
+      'Read reviews for an authorized Research Portfolio in a specified lane (mine, team, deferred, resolved). Includes review evidence, assignment, and decision history.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'add_research_portfolio_review_note',
+    description:
+      'Add a note to a review in an authorized Research Portfolio. Notes are append-only and immutable. Requires user approval.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_research_portfolio_rules',
+    description:
+      'Read current rule versions for an authorized Research Portfolio, including expression, mode, qualification policy, and recompute status.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_research_portfolio_imports',
+    description:
+      'Read import job status and row details for an authorized Research Portfolio, including preview results, applied/failed outcomes, and compensation history.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_research_portfolio_operations',
+    description:
+      'Read unified operation status for an authorized Research Portfolio, covering imports, recompute jobs, output jobs, and snapshots with their lifecycle state.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'prepare_research_portfolio_brief',
+    description:
+      'Prepare structured brief data from an authorized Research Portfolio including membership summary, analytics overview, recent changes, and review status for composing an evidence-bound editable brief.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'prepare_research_portfolio_meeting',
+    description:
+      'Prepare meeting preparation materials from an authorized Research Portfolio including open reviews, pending decisions, analytics highlights, and action items.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
     name: 'get_research_evidence',
     description:
       'Read immutable attachment evidence for your research session, with source IDs, completeness/status and paging; verify supplied attachments before citing them.',

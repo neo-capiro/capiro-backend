@@ -65,6 +65,16 @@ import type {
   ResearchPortfolioOutputJobDto,
   SaveResearchPortfolioOutputToClientDto,
   ResearchPortfolioClientFileReceiptDto,
+  CreateResearchPortfolioBookmarkDto,
+  UpdateResearchPortfolioBookmarkDto,
+  ResearchPortfolioBookmarkDto,
+  ResearchPortfolioFitDto,
+  CreateResearchPortfolioReviewNoteDto,
+  ResearchPortfolioReviewNoteDto,
+  ResearchPortfolioWatchConversionPreviewDto,
+  ResearchPortfolioWatchConversionResultDto,
+  ResearchPortfolioOperationDto,
+  ResearchPortfolioTourStateDto,
 } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -76,8 +86,9 @@ import { ResearchPortfolioImportService } from './research-portfolio-import.serv
 import { ResearchPortfolioChangesService } from './research-portfolio-changes.service.js';
 import { ResearchPortfolioAnalyticsService } from './research-portfolio-analytics.service.js';
 import { ResearchPortfolioOutputService } from './research-portfolio-output.service.js';
+import { ResearchPortfolioPhase11Service } from './research-portfolio-phase11.service.js';
 
-const RESERVED_STATIC_IDS = new Set(['templates', 'taxonomy']);
+const RESERVED_STATIC_IDS = new Set(['templates', 'taxonomy', 'tour-state']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function ensurePortfolioId(id: string): void {
@@ -98,6 +109,7 @@ export class ResearchPortfoliosController {
     private readonly changesService: ResearchPortfolioChangesService,
     private readonly analyticsService: ResearchPortfolioAnalyticsService,
     private readonly outputService: ResearchPortfolioOutputService,
+    private readonly phase11: ResearchPortfolioPhase11Service,
   ) {}
 
   @Get(':id/changes')
@@ -600,5 +612,141 @@ export class ResearchPortfoliosController {
   ): Promise<ResearchPortfolioReviewMutationReceiptDto> {
     ensurePortfolioId(id);
     return this.reviewService.reopenAnnualReview(ctx, id, dto);
+  }
+
+  // --- Phase 11: bookmarks ---
+
+  @Get(':id/bookmarks')
+  async listBookmarks(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+  ): Promise<readonly ResearchPortfolioBookmarkDto[]> {
+    ensurePortfolioId(id);
+    return this.phase11.listBookmarks(ctx, id);
+  }
+
+  @Post(':id/bookmarks')
+  async createBookmark(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() dto: CreateResearchPortfolioBookmarkDto,
+  ): Promise<ResearchPortfolioBookmarkDto> {
+    ensurePortfolioId(id);
+    return this.phase11.createBookmark(ctx, id, dto);
+  }
+
+  @Patch(':id/bookmarks/:bookmarkId')
+  async updateBookmark(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('bookmarkId') bookmarkId: string,
+    @Body() dto: UpdateResearchPortfolioBookmarkDto,
+  ): Promise<ResearchPortfolioBookmarkDto> {
+    ensurePortfolioId(id);
+    return this.phase11.updateBookmark(ctx, id, bookmarkId, dto);
+  }
+
+  @Delete(':id/bookmarks/:bookmarkId')
+  async deleteBookmark(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('bookmarkId') bookmarkId: string,
+  ): Promise<void> {
+    ensurePortfolioId(id);
+    return this.phase11.deleteBookmark(ctx, id, bookmarkId);
+  }
+
+  // --- Phase 11: fit ---
+
+  @Get(':id/fit')
+  async fit(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+  ): Promise<ResearchPortfolioFitDto> {
+    ensurePortfolioId(id);
+    return this.phase11.getFit(ctx, id);
+  }
+
+  @Post(':id/fit/refresh')
+  async refreshFit(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+  ): Promise<ResearchPortfolioFitDto> {
+    ensurePortfolioId(id);
+    return this.phase11.refreshFit(ctx, id);
+  }
+
+  // --- Phase 11: review notes ---
+
+  @Post(':id/reviews/:reviewId/notes')
+  async addReviewNote(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('reviewId') reviewId: string,
+    @Body() dto: CreateResearchPortfolioReviewNoteDto,
+  ): Promise<ResearchPortfolioReviewNoteDto> {
+    ensurePortfolioId(id);
+    return this.phase11.addReviewNote(ctx, id, reviewId, dto);
+  }
+
+  // --- Phase 11: watch-conversion ---
+
+  @Post(':id/watch-conversion/preview')
+  async previewWatchConversion(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+  ): Promise<ResearchPortfolioWatchConversionPreviewDto> {
+    ensurePortfolioId(id);
+    return this.phase11.previewWatchConversion(ctx, id);
+  }
+
+  @Post(':id/watch-conversion/apply')
+  async applyWatchConversion(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+  ): Promise<ResearchPortfolioWatchConversionResultDto> {
+    ensurePortfolioId(id);
+    return this.phase11.applyWatchConversion(ctx, id);
+  }
+
+  // --- Phase 11: operations ---
+
+  @Get(':id/operations/:operationId')
+  async operation(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('operationId') operationId: string,
+  ): Promise<ResearchPortfolioOperationDto> {
+    ensurePortfolioId(id);
+    return this.phase11.getOperation(ctx, id, operationId);
+  }
+
+  @Post(':id/operations/:operationId/reconcile')
+  async reconcileOperation(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('operationId') operationId: string,
+  ): Promise<ResearchPortfolioOperationDto> {
+    ensurePortfolioId(id);
+    return this.phase11.reconcileOperation(ctx, id, operationId);
+  }
+
+  // --- Phase 11: tour state ---
+
+  @Get('tour-state/:tourVersion')
+  async getTourState(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('tourVersion') tourVersion: string,
+  ): Promise<ResearchPortfolioTourStateDto> {
+    return this.phase11.getTourState(ctx, tourVersion);
+  }
+
+  @Post('tour-state/:tourVersion')
+  async updateTourState(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('tourVersion') tourVersion: string,
+    @Body() dto: { status: 'dismissed' | 'completed' },
+  ): Promise<ResearchPortfolioTourStateDto> {
+    return this.phase11.updateTourState(ctx, tourVersion, dto.status);
   }
 }
