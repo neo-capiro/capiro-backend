@@ -470,13 +470,13 @@ export function FundingOpportunityV2ResultCard({
       />
       <div className="fo-v2-result-card-body">
         <div className="fo-v2-result-card-main">
-          <div className="fo-v2-result-tags">
-            {matched && row.clientId && clientName ? (
-              <button className="fo-v2-result-client" onClick={onClient ?? onQuick}>
-                <span>{(row.clientInitials ?? clientName.slice(0, 2)).toUpperCase()}</span>
-                {clientName}
-              </button>
-            ) : null}
+        <div className="fo-v2-result-tags">
+          {matched && row.clientId && clientName ? (
+            <button type="button" className="fo-v2-result-client" onClick={onClient ?? onQuick}>
+              <span>{(row.clientInitials ?? clientName.slice(0, 2)).toUpperCase()}</span>
+              {clientName}
+            </button>
+          ) : null}
             {tags.map((tag) => (
               <span
                 className={`fo-v2-pill fo-v2-pill--${tag.tone}`}
@@ -495,7 +495,7 @@ export function FundingOpportunityV2ResultCard({
             <span>
               {row.agency ?? 'Agency not stated'} · {publicReference(row)}
             </span>
-            <button className="fo-v2-result-source" onClick={onExternal}>
+            <button type="button" className="fo-v2-result-source" onClick={onExternal}>
               Source <FundingOpportunityV2Icon name="LinkExternal01" size={14} />
             </button>
           </div>
@@ -528,7 +528,7 @@ export function FundingOpportunityV2ResultCard({
               <strong>{deadline.compactValue ?? deadline.value}</strong>
               {deadline.daysRemaining != null &&
               !['closed', 'post_award'].includes(row.lifecycle) ? (
-                <b>{deadline.daysRemaining}d</b>
+                <b>{deadline.daysRemaining === 0 ? 'today' : `${deadline.daysRemaining}d`}</b>
               ) : null}
             </span>
             {deadline.sourceCalendarYear || deadline.sourceTimeLabel ? (
@@ -623,7 +623,7 @@ export function FundingOpportunityV2ResultCard({
                 <FundingOpportunityV2Icon name="DotsHorizontal" size={18} />
               </button>
               {menuOpen ? (
-                <div className="fo-v2-result-menu-popover" role="menu">
+                <div className="fo-v2-result-menu-popover" role="menu" aria-label="Opportunity actions">
                   {(
                     ['follow_up', 'assign_owner', 'note', 'copy_link'] as OpportunityMenuAction[]
                   ).map((action) => (

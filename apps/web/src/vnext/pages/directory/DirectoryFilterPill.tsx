@@ -108,7 +108,6 @@ export function DirectoryFilterPill({
                 key={option.value}
                 type="button"
                 role="option"
-                aria-checked={selected.includes(option.value)}
                 aria-selected={selected.includes(option.value)}
                 className="capiro-directory-filter__option"
                 onClick={() => toggle(option.value)}

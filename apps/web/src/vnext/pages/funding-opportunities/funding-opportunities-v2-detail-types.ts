@@ -660,7 +660,7 @@ export function getFundingOpportunityDeadlinePresentation({
             ? 'Forecast timing is an anticipated award estimate; no response deadline exists.'
             : 'The source did not state anticipated award timing.'
         : date
-          ? `${daysRemaining! < 0 ? 'Deadline passed' : `${daysRemaining} days remaining`} · source-backed date`
+          ? `${daysRemaining! < 0 ? 'Deadline passed' : daysRemaining === 0 ? 'Due today' : `${daysRemaining} days remaining`} · source-backed date`
           : rawOnly
             ? 'The source supplied a response deadline without a calendar date.'
             : 'The source did not state a response deadline.';
