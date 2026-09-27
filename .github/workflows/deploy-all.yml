@@ -14,7 +14,7 @@
 #
 # Services covered:
 #   api, engagement-api, api-strategy, intel-api, workspace, onboard-api,
-#   clio-sandbox, web, web-vnext, meriv2-orchestrator, marketing
+#   clio-sandbox, web, web-vnext, marketing
 
 name: deploy-all
 
@@ -35,7 +35,6 @@ on:
           - clio-sandbox
           - web
           - web-vnext
-          - meriv2-orchestrator
           - marketing
       env:
         description: 'Target environment'
@@ -69,6 +68,17 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+
+      # Fail closed before AWS setup: native MeriV3 remains live, but unqualified
+      # orchestrator images must not be deployed by the generic :latest path.
+      - name: Deny unqualified orchestrator deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$SERVICE" = "meriv2-orchestrator" ]; then
+            echo "ERROR: Use the reviewed immutable-digest Meri orchestrator release procedure; deploy-all cannot promote it."
+            exit 1
+          fi
 
       - uses: pnpm/action-setup@v4
         with:

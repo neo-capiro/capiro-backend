@@ -44,6 +44,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Validate Meri orchestrator build-only contract
+        run: python3 scripts/validate-meri-orchestrator-build-only.py
+
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -67,44 +70,9 @@ jobs:
           provenance: false
           tags: |
             ${{ steps.ecr.outputs.registry }}/capiro/${{ env.TARGET_ENV }}/meriv2-orchestrator:${{ github.sha }}
-            ${{ steps.ecr.outputs.registry }}/capiro/${{ env.TARGET_ENV }}/meriv2-orchestrator:latest
           no-cache-filters: build
           cache-from: type=gha,scope=meriv2-orchestrator
           cache-to: type=gha,mode=max,scope=meriv2-orchestrator
 
-      - name: Output image digest
-        run: echo "Pushed capiro/${TARGET_ENV}/meriv2-orchestrator:${GITHUB_SHA}"
-
-      - name: Deploy to ECS
-        shell: bash
-        run: |
-          set -euo pipefail
-          ECS_CLUSTER="capiro-${TARGET_ENV}"
-          ECS_SERVICE="capiro-${TARGET_ENV}-meriv2-orchestrator"
-          echo "Deploying to $ECS_CLUSTER / $ECS_SERVICE ..."
-          aws ecs update-service \
-            --cluster "$ECS_CLUSTER" \
-            --service "$ECS_SERVICE" \
-            --force-new-deployment \
-            --region "$AWS_REGION" \
-            --query "service.{status:status,runningCount:runningCount,desiredCount:desiredCount}" \
-            --output table
-
-      - name: Wait for service stability
-        shell: bash
-        run: |
-          set -euo pipefail
-          ECS_CLUSTER="capiro-${TARGET_ENV}"
-          ECS_SERVICE="capiro-${TARGET_ENV}-meriv2-orchestrator"
-          echo "Waiting for $ECS_SERVICE to stabilize (up to 10 min)..."
-          aws ecs wait services-stable \
-            --cluster "$ECS_CLUSTER" \
-            --services "$ECS_SERVICE" \
-            --region "$AWS_REGION"
-          aws ecs describe-services \
-            --cluster "$ECS_CLUSTER" \
-            --services "$ECS_SERVICE" \
-            --region "$AWS_REGION" \
-            --query "services[0].{status:status,runningCount:runningCount,desiredCount:desiredCount,pendingCount:pendingCount}" \
-            --output table
-
+      - name: Output published image tag
+        run: echo "Published capiro/${TARGET_ENV}/meriv2-orchestrator:${GITHUB_SHA}; ECS was not updated"

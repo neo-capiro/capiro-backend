@@ -21,6 +21,10 @@ jobs:
           # The migration timestamp guard below compares each NEW migration
           # directory against the PR base commit, so it needs real history.
           fetch-depth: 0
+      # Keep the orchestrator's image build-only invariant on every PR, even
+      # while unrelated Meri formatting/DB baseline checks remain red.
+      - name: Validate Meri orchestrator build-only contract
+        run: python3 scripts/validate-meri-orchestrator-build-only.py
       # No `version:` — pnpm/action-setup reads it from package.json
       # `packageManager` (pnpm@9.12.0); pinning both errors with
       # "Multiple versions of pnpm specified".
