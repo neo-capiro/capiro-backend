@@ -321,6 +321,49 @@ describe('OpenAiResponsesClient', () => {
     });
   });
 
+  test('does not extract or return function calls when response status is incomplete', async () => {
+    process.env.OPENAI_API_KEY = 'test-key';
+    const incompleteResponse = JSON.stringify({
+      id: 'resp-incomplete',
+      status: 'incomplete',
+      incomplete_details: { reason: 'max_output_tokens' },
+      model: 'gpt-5.6',
+      output: [
+        { type: 'reasoning', summary: [{ type: 'summary_text', text: 'bounded summary' }] },
+        {
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: 'Partial answer.' }],
+        },
+        {
+          type: 'function_call',
+          call_id: 'call_1',
+          name: 'search_memory',
+          arguments: '{\"query\":\"Kestrel\"}',
+        },
+      ],
+      usage: {
+        input_tokens: 120,
+        output_tokens: 45,
+        input_tokens_details: { cached_tokens: 20 },
+      },
+    });
+    global.fetch = jest.fn(
+      async () => new Response(incompleteResponse, { status: 200 }),
+    ) as typeof fetch;
+    const result = await new OpenAiResponsesClient().complete({
+      profile: resolveMeriV3ReasoningProfile('deep', {}),
+      instructions: 'Answer.',
+      input: [],
+      tools: [],
+    });
+    expect(result.status).toBe('incomplete');
+    expect(result.telemetry.partial).toBe(true);
+    expect(result.telemetry.finishReason).toBe('max_output_tokens');
+    expect(result.functionCalls).toEqual([]);
+    expect(result.outputText).toBe('Partial answer.');
+  });
+
   test('cancels retry backoff immediately and does not start another request', async () => {
     jest.useFakeTimers();
     process.env.OPENAI_API_KEY = 'test-key';
