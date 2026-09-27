@@ -334,12 +334,20 @@ export class OpenAiResponsesClient {
           finishReason: incompleteReason ?? body.error?.code ?? responseStatus,
           partial: responseStatus !== 'completed' || incompleteReason !== null,
         };
+        // Do not extract or return function calls when response is incomplete.
+        // The provider may have emitted partial tool calls before hitting a limit.
+        // Replay is required (output items stay request-local) and no tool should
+        // dispatch from an unclosed turn.
+        const functionCalls =
+          responseStatus === 'completed' && !incompleteReason
+            ? extractResponsesFunctionCalls(output)
+            : [];
         const draft: OpenAiResponsesResult = {
           id: String(body.id ?? ''),
           status: responseStatus,
           output,
           outputText,
-          functionCalls: extractResponsesFunctionCalls(output),
+          functionCalls,
           usage: parseOpenAiResponsesUsage(body),
           model: String(body.model ?? model),
           usedTenantKey,
@@ -348,7 +356,7 @@ export class OpenAiResponsesClient {
           providerCalls: [telemetry],
         };
 
-        const researchFinalization = draft.functionCalls.length
+        const researchFinalization = functionCalls.length
           ? null
           : MeriV3ResearchRuntimeStore.beginFinalization();
         if (!researchFinalization) return draft;

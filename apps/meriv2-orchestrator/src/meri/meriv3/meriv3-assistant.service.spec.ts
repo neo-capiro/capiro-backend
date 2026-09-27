@@ -243,6 +243,52 @@ describe('MeriV3AssistantService', () => {
     jest.restoreAllMocks();
   });
 
+  test('does not dispatch function calls from incomplete response in assistant service', async () => {
+    const complete = jest.fn().mockResolvedValue({
+      id: 'resp-1',
+      status: 'incomplete',
+      output: [],
+      outputText: 'Partial answer',
+      functionCalls: [
+        {
+          call_id: 'call_1',
+          name: 'read_client_documents',
+          arguments: '{"clientId":"client-1"}',
+        },
+      ],
+      usage,
+      model: 'gpt-5.1',
+      usedTenantKey: false,
+      incompleteReason: 'max_output_tokens',
+      telemetry: {
+        requestedModel: 'gpt-5.1',
+        effectiveModel: 'gpt-5.1',
+        requestedReasoningEffort: 'medium',
+        effectiveReasoningEffort: 'medium',
+        reasoningFallbackReasons: [],
+        finishReason: 'max_output_tokens',
+        partial: true,
+      },
+    });
+    const assistant = build(registry([]), complete);
+    const events: MeriV3ChatStreamEvent[] = [];
+    await assistant.run(
+      context,
+      {
+        conversationId: 'thread-1',
+        messages: [{ role: 'user', text: 'What is the client doc?' }],
+      },
+      { onEvent: (event) => events.push(event) },
+    );
+    // Function calls from incomplete responses should NOT be dispatched
+    const toolCallEvents = events.filter((e) => e.type === 'tool_call');
+    const toolDoneEvents = events.filter((e) => e.type === 'tool_done');
+    expect(toolCallEvents).toHaveLength(0);
+    expect(toolDoneEvents).toHaveLength(0);
+    expect(complete).toHaveBeenCalledTimes(1);
+  });
+
+
   test('off mode emits the identical reply without scheduling claim inventory work', async () => {
     const complete = jest.fn().mockResolvedValue(response({ outputText: 'H.R. 1 passed.' }));
     const assistant = build(registry([]), complete);

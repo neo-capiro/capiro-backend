@@ -1134,6 +1134,14 @@ export class MeriV3AssistantService {
           break;
         }
 
+        // Incomplete provider responses are not authorized to dispatch tool calls.
+        // Preserve the partial outcome for the caller without creating any effect.
+        if (response.status !== 'completed' || response.incompleteReason != null || response.telemetry.partial) {
+          finalText = response.outputText
+            ? response.outputText + '\n\n_(This response is incomplete; no pending tool calls were executed.)_'
+            : 'I could not complete this response, so I did not execute the pending tool calls. Please ask me to continue.';
+          break;
+        }
         await executeCalls(response.functionCalls);
         await continueDocumentReads();
       }
