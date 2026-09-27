@@ -143,11 +143,16 @@ export function validateGovernedImportRequest(
 
   // Fail-closed host check, mirroring `SourceAdapterRegistry.assertAuthoritativeHost`
   // (apps/defense-api) exactly: HTTPS plus a registered official host for
-  // this exact adapter. Only `army-budget` is wired for governed import in
-  // this phase — any other adapter fails closed rather than silently
-  // skipping the check.
+  // this exact adapter. Only `army-budget` and `navy-budget` are wired for
+  // governed import in this phase — any other adapter fails closed rather
+  // than silently skipping the check.
+  const NAVY_BUDGET_OFFICIAL_HOSTS: readonly string[] = Object.freeze([
+    'secnav.navy.mil',
+    'www.secnav.navy.mil',
+  ]);
   const officialHostsByAdapter: Record<string, readonly string[]> = {
     'army-budget': ARMY_BUDGET_OFFICIAL_HOSTS,
+    'navy-budget': NAVY_BUDGET_OFFICIAL_HOSTS,
   };
   const officialHosts = officialHostsByAdapter[input.expectedSource.adapterId];
   if (!officialHosts) {
