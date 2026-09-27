@@ -1066,42 +1066,54 @@ export class BizDevDossierService {
         : await this.samClient.lookupByCage(cage as string);
       if (result.ok && result.entities.length > 0) {
         // Exact identifier lookup: the first record is the SAM registration
-        // for this identifier. Attributed as SAM's own view of the entity.
+        // for this identifier. Verify the returned identifier matches what was
+        // requested (fail-soft: treat mismatch as no-match).
         const sam: SamEntityRecord = result.entities[0] as SamEntityRecord;
-        evidence.push({
-          sourceFamily: 'sam_entity',
-          recordId: sam.uei,
-          locator: `https://sam.gov/entity-registration/${sam.uei}`,
-          originalSourceName: 'SAM.gov',
-          originalSourceId: sam.uei,
-          claimType: 'identity',
-          relationshipStrength: 'direct',
-          eventDate: isoDate(sam.registrationDate),
-          effectiveDate: null,
-          fiscalYear: null,
-          stage: null,
-          sourceUpdatedAt: isoDateTime(sam.lastUpdateDate),
-          fetchedAt: new Date().toISOString(),
-          scopeChecked: uei ? `sam_uei=${uei}` : `sam_cage=${cage}`,
-          status: 'available',
-          title: `SAM.gov registration: ${sam.legalBusinessName}${sam.registrationStatus ? ` (${sam.registrationStatus})` : ''}`,
-          detail: {
-            uei: sam.uei,
-            cageCode: sam.cageCode,
-            dbaName: sam.dbaName,
-            registrationStatus: sam.registrationStatus,
-            registrationExpirationDate: sam.registrationExpirationDate,
-            physicalAddress: sam.physicalAddress,
-            congressionalDistrict: sam.congressionalDistrict,
-            entityStructure: sam.entityStructure,
-            stateOfIncorporation: sam.stateOfIncorporation,
-            primaryNaics: sam.primaryNaics,
-            // Contextual display of SAM's own fields; the canonical record
-            // above remains the identity of record.
-            matchBasis: uei ? 'exact_uei' : 'exact_cage',
-          },
-        });
-        samNote = `A live SAM.gov registration check (by exact ${uei ? 'UEI' : 'CAGE'}) confirmed the registration details above.`;
+        const returnedId = uei ? sam.uei : sam.cageCode;
+        const requestedId = uei ?? (cage as string);
+        if (!returnedId || returnedId.toUpperCase() !== requestedId.toUpperCase()) {
+          samNote = `A live SAM.gov registration check (by exact ${uei ? 'UEI' : 'CAGE'}) found no active registration for this identifier.`;
+          samDegradesCoverage = true;
+          this.logger.warn(
+            `dossier SAM lookup ID mismatch (requested ${uei ? 'UEI' : 'CAGE'} ${requestedId}, got ${returnedId || 'none'})`,
+          );
+        } else {
+          // ID match verified, add SAM evidence
+          evidence.push({
+            sourceFamily: 'sam_entity',
+            recordId: sam.uei,
+            locator: `https://sam.gov/entity-registration/${sam.uei}`,
+            originalSourceName: 'SAM.gov',
+            originalSourceId: sam.uei,
+            claimType: 'identity',
+            relationshipStrength: 'direct',
+            eventDate: isoDate(sam.registrationDate),
+            effectiveDate: null,
+            fiscalYear: null,
+            stage: null,
+            sourceUpdatedAt: isoDateTime(sam.lastUpdateDate),
+            fetchedAt: new Date().toISOString(),
+            scopeChecked: uei ? `sam_uei=${uei}` : `sam_cage=${cage}`,
+            status: 'available',
+            title: `SAM.gov registration: ${sam.legalBusinessName}${sam.registrationStatus ? ` (${sam.registrationStatus})` : ''}`,
+            detail: {
+              uei: sam.uei,
+              cageCode: sam.cageCode,
+              dbaName: sam.dbaName,
+              registrationStatus: sam.registrationStatus,
+              registrationExpirationDate: sam.registrationExpirationDate,
+              physicalAddress: sam.physicalAddress,
+              congressionalDistrict: sam.congressionalDistrict,
+              entityStructure: sam.entityStructure,
+              stateOfIncorporation: sam.stateOfIncorporation,
+              primaryNaics: sam.primaryNaics,
+              // Contextual display of SAM's own fields; the canonical record
+              // above remains the identity of record.
+              matchBasis: uei ? 'exact_uei' : 'exact_cage',
+            },
+          });
+          samNote = `A live SAM.gov registration check (by exact ${uei ? 'UEI' : 'CAGE'}) confirmed the registration details above.`;
+        }
       } else if (result.ok) {
         samNote = `A live SAM.gov registration check (by exact ${uei ? 'UEI' : 'CAGE'}) found no active registration for this identifier.`;
         samDegradesCoverage = true;

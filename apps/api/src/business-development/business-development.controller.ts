@@ -238,7 +238,7 @@ export class BusinessDevelopmentController {
    * ordering, stable offset paging, no live provider calls.
    */
   @Get('search/candidates')
-  @UseGuards(BusinessDevelopmentDossierFlagGuard)
+  @UseGuards(RolesGuard, BusinessDevelopmentFlagGuard, BusinessDevelopmentDossierFlagGuard)
   searchCandidates(@CurrentTenant() ctx: TenantContext, @Query() query: SearchCandidatesQueryDto) {
     return this.dossier.searchCandidates(ctx, {
       q: query.q,
@@ -254,7 +254,7 @@ export class BusinessDevelopmentController {
 
   /** Canonical company dossier (global_public or caller-tenant rows only). */
   @Get('dossier/companies/:canonicalEntityId')
-  @UseGuards(BusinessDevelopmentDossierFlagGuard)
+  @UseGuards(RolesGuard, BusinessDevelopmentFlagGuard, BusinessDevelopmentDossierFlagGuard)
   companyDossier(
     @CurrentTenant() ctx: TenantContext,
     @Param() params: CanonicalEntityIdParam,
@@ -270,7 +270,7 @@ export class BusinessDevelopmentController {
   /** Prospect dossier — full dossier for resolved prospects; honest
    * unresolved/ambiguous identity options otherwise. Tenant-owned only. */
   @Get(`prospects/:${UUID_PARAM}/dossier`)
-  @UseGuards(BusinessDevelopmentDossierFlagGuard)
+  @UseGuards(RolesGuard, BusinessDevelopmentFlagGuard, BusinessDevelopmentDossierFlagGuard)
   prospectDossier(
     @CurrentTenant() ctx: TenantContext,
     @Param() params: ProspectIdParam,
