@@ -56,13 +56,14 @@ export function AnalyticsTab({ scope }: { scope: string }) {
       </p>
       <div className="lw-tiles">
         <Tile label="Signals in 30 days" value={s.signalsTotal} denom={`across ${s.sourceFamiliesInvolved} source famil${s.sourceFamiliesInvolved === 1 ? 'y' : 'ies'}`} />
-        <Tile label="Client decisions" value={s.clientDecisions} denom={`of ${s.signalsTotal} signals reached a decision`} />
-        <Tile label="Bills moved" value={s.billsMoved} denom={`of ${s.billsTrackedTotal} tracked bills changed stage`} />
+        <Tile label="Client decisions" value={s.clientDecisions} denom={`of ${s.signalsTotal} signals reached a decision`} subDenom="Signals that reached reviewed or delivered status" />
+        <Tile label="Bills moved" value={s.billsMoved} denom={`of ${s.billsTrackedTotal} tracked bills changed stage`} subDenom="Tracked bills that changed legislative status" />
         <Tile
           label="Source coverage"
           value={s.sourceCoveragePct}
           suffix="%"
-          denom={`${s.sourceFamiliesCurrent} of ${s.sourceFamiliesTotal} committee sources healthy`}
+          denom={`${s.sourceFamiliesCurrent} of ${s.sourceFamiliesTotal} sources healthy`}
+          subDenom={`${s.sourceFamiliesCurrent} of ${s.sourceFamiliesTotal} sources healthy`}
           unavailable={s.sourceCoveragePct == null}
         />
       </div>
@@ -87,8 +88,8 @@ export function AnalyticsTab({ scope }: { scope: string }) {
                 <div key={d.date} className="lw-volbars__col">
                   <div
                     className="lw-volbars__bar"
-                    title={`${d.date}: ${d.count}`}
-                    style={{ height: `${Math.max(4, (d.count / maxDay) * 120)}px` }}
+                    title={`${d.date}: ${d.count} signals`}
+                    style={{ height: `${Math.max(1, (d.count / maxDay) * 120)}px` }}
                   />
                   <div className="lw-volbars__date">{d.date.slice(5)}</div>
                 </div>
@@ -109,7 +110,7 @@ export function AnalyticsTab({ scope }: { scope: string }) {
         ) : momentum.isError || !momentum.data ? (
           <LwStateUnavailable source="Issue momentum" reason="The momentum aggregate did not respond." onRetry={() => momentum.refetch()} />
         ) : momentum.data.topics.length === 0 ? (
-          <p className="lw-state__body" style={{ maxWidth: 'none' }}>No watchlist topics have enough history yet.</p>
+          <p className="lw-state__body" style={{ maxWidth: 'none' }}>Building baseline — topics need 23+ days of signal history to appear here.</p>
         ) : (
           <div className="lw-momentum">
             {momentum.data.topics.map((t) => (
@@ -225,12 +226,14 @@ function Tile({
   denom,
   unavailable,
   suffix,
+  subDenom,
 }: {
   label: string;
   value: number | null;
   denom: string;
   unavailable?: boolean;
   suffix?: string;
+  subDenom?: string;
 }) {
   return (
     <div className="lw-tile">
@@ -239,6 +242,7 @@ function Tile({
         {unavailable || value == null ? '—' : `${value.toLocaleString()}${suffix ?? ''}`}
       </div>
       <div className="lw-tile__denom">{unavailable ? 'Unavailable' : denom}</div>
+      {subDenom && <div className="lw-tile__subdenom" style={{ color: 'var(--lw-faint)', fontSize: 11, marginTop: 2 }}>{subDenom}</div>}
     </div>
   );
 }

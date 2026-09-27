@@ -145,7 +145,7 @@ function CommitteeEmailOptIn() {
           </span>
         ) : null}
         {save.isSuccess && !error ? (
-          <span style={{ display: 'block', fontSize: 12, color: 'var(--lw-success, #067647)' }}>
+          <span role="status" aria-live="polite" style={{ display: 'block', fontSize: 12, color: 'var(--lw-success, #067647)' }}>
             Saved
           </span>
         ) : null}
@@ -269,21 +269,9 @@ function LegiWatchPreferences() {
     );
   }
 
-  if (me.isError) {
-    return (
-      <div className="lw-body">
-        <div className="lw-card" style={{ padding: 18 }}>
-          <p style={{ margin: 0, fontSize: 13, color: 'var(--lw-meta)' }}>
-            Preferences could not be loaded — your display settings are unavailable, hearings data
-            is unaffected.
-            <LwButton size="36" onClick={() => void me.refetch()}>
-              Retry
-            </LwButton>
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // Show Monitoring overview even on /api/me error;
+  // only hide Display/Notifications with an inline error banner
+  const isError = me.isError;
 
   return (
     <div className="lw-body lw-settings" aria-label="LegiWatch settings">
@@ -296,7 +284,7 @@ function LegiWatchPreferences() {
         <div aria-label="Monitoring categories" style={{ display: 'grid', gap: 10 }}>
           <div id="monitoring-watchlists">
             <strong>Saved watchlists</strong>
-            <p style={{ margin: '3px 0' }}>Topics, terms, and jurisdictions are managed in the client watchlist editor.</p>
+            <p style={{ margin: '3px 0', color: 'var(--lw-meta)' }}>Topics, terms, and jurisdictions are managed in the client watchlist editor. Open the watchlist editor to view and edit saved items.</p>
             <a href={watchlistSetupPath(scope)}>Inspect saved watchlists</a>
           </div>
           <div id="monitoring-news-statutes">
@@ -306,7 +294,7 @@ function LegiWatchPreferences() {
           </div>
           <div id="monitoring-follows">
             <strong>Hearing and committee follows</strong>
-            <p style={{ margin: '3px 0', color: 'var(--lw-meta)' }}>Follow configuration is shown in the existing hearing and committee surfaces, not estimated here.</p>
+            <p style={{ margin: '3px 0', color: 'var(--lw-meta)' }}>Hearing follows and committee subscriptions are configured on those tabs.</p>
             <a href="/legiwatch?tab=hearings">Inspect hearings</a>{' · '}
             <a href="/legiwatch?tab=committees">Inspect committees</a>{' · '}
             <a href="#monitoring-record-hearing">Record a hearing</a>
@@ -349,10 +337,16 @@ function LegiWatchPreferences() {
         </section>
       )}
       <section className="lw-card" aria-label="Display preferences" style={{ padding: 18 }}>
+        {isError && (
+          <div role="alert" style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--lw-danger, #b42318)' }}>
+            Preferences could not be loaded — your display settings are unavailable.{' '}
+            <LwButton size="36" onClick={() => void me.refetch()}>Retry</LwButton>
+          </div>
+        )}
         <div className="lw-card__head lw-settings__display-head">
           <h2 className="lw-card__title">Display</h2>
           {save.isSuccess && savedFlash ? (
-            <LwPill tone="success" size="22">
+            <LwPill aria-live="polite" tone="success" size="22">
               SAVED
             </LwPill>
           ) : null}
@@ -419,6 +413,12 @@ function LegiWatchPreferences() {
       </section>
 
       <section id="monitoring-record-hearing" className="lw-card" aria-label="Notifications" style={{ padding: 18 }}>
+        {isError && (
+          <div role="alert" style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--lw-danger, #b42318)' }}>
+            Preferences could not be loaded — your notification settings are unavailable.{' '}
+            <LwButton size="36" onClick={() => void me.refetch()}>Retry</LwButton>
+          </div>
+        )}
         <div className="lw-card__head">
           <h2 className="lw-card__title">Notifications</h2>
           <span className="lw-card__meta">Per client, on each client's tracking configuration</span>

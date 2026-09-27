@@ -197,12 +197,12 @@ export function ageLabel(iso: string | null | undefined, now = Date.now()): stri
   const ms = now - new Date(iso).getTime();
   if (Number.isNaN(ms) || ms < 0) return '—';
   const min = Math.floor(ms / 60_000);
-  if (min < 1) return 'NOW';
-  if (min < 60) return `${min} MIN`;
+  if (min < 1) return 'now';
+  if (min < 60) return `${min}m`;
   const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr} HR`;
+  if (hr < 24) return `${hr}h`;
   const day = Math.floor(hr / 24);
-  return `${day} D`;
+  return `${day}d`;
 }
 
 /** §8.8 — client attribution is exact: one client named, several counted. */

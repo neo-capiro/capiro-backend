@@ -766,7 +766,15 @@ export function HearingsTab({ scope }: { scope: string }) {
       </div>
       <div className="lw-search">
         <Search size={16} className="lw-search__icon" aria-hidden="true" />
-        <input aria-label="Search proceedings" placeholder="Filter this week by title, committee or witness" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input
+          aria-label="Search proceedings"
+          aria-describedby="hearings-search-hint"
+          placeholder="Search this week"
+          title="Filter by title, committee or witness"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <span id="hearings-search-hint" className="lw-sr-only">Filter visible proceedings by title, committee, or witness name</span>
       </div>
     </>
   );
@@ -913,6 +921,14 @@ export function HearingsTab({ scope }: { scope: string }) {
               {exportWeek.isPending ? 'Preparing…' : 'Export calendar'}
             </LwButton>
           </div>
+          {/* Calendar timezone indicator: proceedings are bucketed by Eastern calendar day */}
+          <span
+            className="lw-hearings-date-controls__tz"
+            aria-label="Calendar timezone: Eastern (ET)"
+            title="Proceedings are organised by their official Eastern (ET) calendar day"
+          >
+            ET
+          </span>
         </>
       ) : null}
       {exportWeek.isError ? (
@@ -1119,7 +1135,13 @@ export function HearingsTab({ scope }: { scope: string }) {
                 {filtered.length === 0 ? (
                   <div style={{ padding: 18 }}>
                     <LwStateEmpty
-                      title={liveOnly ? 'No proceedings are live in this range' : 'No proceedings matched these filters'}
+                      title={
+                        liveOnly
+                          ? 'No proceedings are live in this range'
+                          : committee || kind || search
+                            ? 'No proceedings matched your filters — try clearing the search or filter'
+                            : 'No proceedings scheduled in this date range'
+                      }
                       onReset={() => {
                         setCommittee('');
                         setKind('');

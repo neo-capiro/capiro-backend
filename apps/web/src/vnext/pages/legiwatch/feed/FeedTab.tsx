@@ -28,7 +28,6 @@ import {
   WORKLIST_BUCKETS,
   SOURCE_FAMILIES,
   WORK_STATE_LABEL,
-  WORK_STATE_TONE,
   packetBand,
   ageLabel,
   clientAttribution,
@@ -73,6 +72,7 @@ function ScopedFeedTab({ scope, clients, suppressAlert }: { scope: string; clien
   const search = searchParams.get('q') ?? '';
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<string | null>(null);
+  const [showEmptyBuckets, setShowEmptyBuckets] = useState(false);
   const toastTimeout = useRef<number | null>(null);
   useEffect(() => () => {
     if (toastTimeout.current !== null) window.clearTimeout(toastTimeout.current);
@@ -325,11 +325,13 @@ function ScopedFeedTab({ scope, clients, suppressAlert }: { scope: string; clien
           <div className="lw-search" style={{ marginLeft: 'auto', flex: '0 1 320px', minWidth: 200 }}>
             <span aria-hidden="true" style={{ color: 'var(--lw-meta)' }}>⌕</span>
             <input
-              aria-label="Search the feed"
-              placeholder="Search title, client, source, record"
+              aria-label="Filter updates"
+              aria-describedby="feed-search-hint"
+              placeholder="Filter visible updates"
               value={search}
               onChange={(e) => updateView({ q: e.target.value || null }, true)}
             />
+            <span id="feed-search-hint" className="lw-sr-only">Filter by title, client, source, or record — applies within current client, source, and work-state filters</span>
           </div>
         </div>
       </div>
@@ -397,23 +399,47 @@ function ScopedFeedTab({ scope, clients, suppressAlert }: { scope: string; clien
 
           <div className="lw-rail__sect">
             <div className="lw-rail__label">Worklist</div>
-            {WORKLIST_BUCKETS.map((b) => (
-              <BucketRow
-                key={b.id}
-                label={b.label}
-                active={bucket === b.id}
-                onSelect={() => updateView({ work: b.id === 'default' ? null : b.id })}
-                // Exact server-side counts (W2-3) for every bucket at once —
-                // one shared read, not one query per row. The active
-                // bucket's own count is `total` (the exact size of what is
-                // actually loaded), never approximated from the loaded page.
-                count={
-                  b.id === 'default'
-                    ? defaultBucketCount(workStateCounts)
-                    : (workStateCounts?.[b.id as keyof typeof workStateCounts] ?? null)
-                }
-              />
-            ))}
+            {WORKLIST_BUCKETS.map((b) => {
+              const cnt = b.id === 'default'
+                ? defaultBucketCount(workStateCounts)
+                : (workStateCounts?.[b.id as keyof typeof workStateCounts] ?? null);
+              // Zero-count buckets are only shown when showing empty buckets.
+              const isActive = bucket === b.id;
+              const isZeroCount = cnt === 0;
+              if (!isActive && isZeroCount && !showEmptyBuckets) return null;
+              return (
+                <BucketRow
+                  key={b.id}
+                  label={b.label}
+                  active={isActive}
+                  onSelect={() => updateView({ work: b.id === 'default' ? null : b.id })}
+                  count={cnt}
+                />
+              );
+            })}
+            {(() => {
+              const zeroBuckets = WORKLIST_BUCKETS.filter((b) => {
+                const cnt = b.id === 'default'
+                  ? defaultBucketCount(workStateCounts)
+                  : (workStateCounts?.[b.id as keyof typeof workStateCounts] ?? null);
+                const isActive = bucket === b.id;
+                return cnt === 0 && !isActive;
+              });
+              if (zeroBuckets.length === 0) return null;
+              if (showEmptyBuckets) {
+                return null;
+              }
+              return (
+                <button
+                  type="button"
+                  className="lw-rail__opt"
+                  style={{ color: 'var(--lw-meta)', fontSize: 12 }}
+                  onClick={() => setShowEmptyBuckets(true)}
+                >
+                  Empty states ({zeroBuckets.length})
+                </button>
+              );
+            })()}
           </div>
 
           <div className="lw-rail__sect">
@@ -543,34 +569,31 @@ function RowStatePill({
 }) {
   return (
     <span onClick={(e) => e.stopPropagation()}>
-      <LwPill tone={WORK_STATE_TONE[state]}>
-        {WORK_STATE_LABEL[state]}
-      </LwPill>
-      <span style={{ display: 'inline-block', marginLeft: 6 }}>
-        <select
-          aria-label="Change work state"
-          value={state}
-          disabled={pending}
-          aria-busy={pending}
-          onClick={(e) => e.stopPropagation()}
-          onChange={(e) => onChange(e.target.value as WorkState)}
-          style={{
-            height: 24,
-            fontFamily: 'var(--lw-mono)',
-            fontSize: 11,
-            borderRadius: 6,
-            border: '1px solid var(--lw-control)',
-            color: 'var(--lw-label)',
-            background: 'var(--lw-surface)',
-          }}
-        >
-          {(Object.keys(WORK_STATE_LABEL) as WorkState[]).map((s) => (
-            <option key={s} value={s}>
-              {s === 'assigned' ? (selfAvailable ? 'Assign to me' : 'Assigned (unavailable)') : WORK_STATE_LABEL[s]}
-            </option>
-          ))}
-        </select>
-      </span>
+      {/* Single interactive state control -- the select already shows the current state
+          as its selected value, so the static pill would be redundant (QA finding). */}
+      <select
+        aria-label={`Work state: ${WORK_STATE_LABEL[state]}`}
+        value={state}
+        disabled={pending}
+        aria-busy={pending}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => onChange(e.target.value as WorkState)}
+        style={{
+          height: 24,
+          fontFamily: 'var(--lw-mono)',
+          fontSize: 11,
+          borderRadius: 6,
+          border: '1px solid var(--lw-control)',
+          color: 'var(--lw-label)',
+          background: 'var(--lw-surface)',
+        }}
+      >
+        {(Object.keys(WORK_STATE_LABEL) as WorkState[]).map((s) => (
+          <option key={s} value={s}>
+            {s === 'assigned' ? (selfAvailable ? 'Assign to me' : 'Assigned (unavailable)') : WORK_STATE_LABEL[s]}
+          </option>
+        ))}
+      </select>
     </span>
   );
 }

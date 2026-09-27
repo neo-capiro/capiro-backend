@@ -98,11 +98,24 @@ export class LegiWatchAnalyticsService {
             FROM intel_alert
             WHERE status IN ('new', 'reviewed', 'sent') AND tenant_id = ${ctx.tenantId} AND created_at BETWEEN ${from} AND ${to}
             GROUP BY 1 ORDER BY 1`;
+      // Densify: build all calendar days from 'from' to 'to', merge with actual counts (default 0)
+      const daysMap = new Map<string, number>();
+      for (const r of rows) {
+        daysMap.set(r.day.toISOString().slice(0, 10), Number(r.count));
+      }
+      const allDays: { date: string; count: number }[] = [];
+      const current = new Date(from);
+      while (current <= to) {
+        const dateKey = current.toISOString().slice(0, 10);
+        allDays.push({ date: dateKey, count: daysMap.get(dateKey) ?? 0 });
+        current.setDate(current.getDate() + 1);
+      }
+      const total = allDays.reduce((sum, d) => sum + d.count, 0);
       return {
         from: from.toISOString(),
         to: to.toISOString(),
-        total: rows.reduce((sum, r) => sum + Number(r.count), 0),
-        days: rows.map((r) => ({ date: r.day.toISOString().slice(0, 10), count: Number(r.count) })),
+        total,
+        days: allDays,
       };
     });
   }
