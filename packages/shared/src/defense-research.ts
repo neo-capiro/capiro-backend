@@ -11,6 +11,8 @@ export interface DefenseEvidenceRefDto {
   contentHash: string | null;
   edition: string | null;
   observedAt: string | null;
+  availability?: DefenseResearchAvailability;
+  reason?: string | null;
 }
 
 export interface DefenseDossierFieldDto<T = string> {
@@ -58,6 +60,10 @@ export interface DefenseMilestonePeriodDto {
   rangeEnd: string | null;
   fiscalYear: number | null;
   quarter: number | null;
+  calendarYear?: number | null;
+  calendarMonth?: number | null;
+  calendarQuarter?: number | null;
+  fiscalQuarter?: number | null;
   evidence: readonly DefenseEvidenceRefDto[];
 }
 
@@ -605,4 +611,94 @@ export interface DefenseProductCoverageResponseDto {
   rows: readonly DefenseProductCoverageRowDto[];
   denominatorKnown: boolean;
   limitations: readonly string[];
+}
+
+export interface DefenseSavedComparisonSubjectDto {
+  type: DefenseComparisonSubjectDto['type'];
+  id: string;
+}
+export interface DefenseSavedComparisonBasisDto {
+  requestEdition: string | null;
+  fundingFiscalYear: number | null;
+  stage: string | null;
+  metric: string | null;
+  unit: string | null;
+  currency: string | null;
+  priceBasis: string | null;
+  asOfDate: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+}
+export interface SaveDefenseComparisonDto {
+  schemaVersion: 'defense_saved_comparison_v1';
+  name: string;
+  subjects: readonly DefenseSavedComparisonSubjectDto[];
+  selection: { mode: 'explicit'; subjectKeys: readonly string[]; passageIds: readonly string[] };
+  basisPair: { left: DefenseSavedComparisonBasisDto; right: DefenseSavedComparisonBasisDto };
+  passageMode: 'none' | 'native_sections';
+  contextualRevisionPins: readonly {
+    documentId: string;
+    revisionId: string;
+    sectionIds: readonly string[];
+  }[];
+  displayVersion: 'defense-compare-display-v1';
+  portfolioId?: string | null;
+  idempotencyKey: string;
+  expectedRevision?: number;
+}
+export interface DefenseSavedComparisonVersionDto {
+  id: string;
+  version: number;
+  schemaVersion: 'defense_saved_comparison_v1';
+  displayVersion: string;
+  projectionVersion: string;
+  subjects: SaveDefenseComparisonDto['subjects'];
+  selection: SaveDefenseComparisonDto['selection'];
+  basisPair: SaveDefenseComparisonDto['basisPair'];
+  passageMode: SaveDefenseComparisonDto['passageMode'];
+  sourcePins: {
+    contextualRevisionPins: SaveDefenseComparisonDto['contextualRevisionPins'];
+    evidence: readonly DefenseEvidenceRefDto[];
+  };
+  capturedProjection: DefenseComparisonResponseDto;
+  contentHash: string;
+  capturedAt: string;
+  captureKnownAt: string;
+  knownAtSupport: 'capture_only';
+  limitations: readonly string[];
+}
+export interface DefenseSavedComparisonDto {
+  id: string;
+  name: string;
+  ownerUserId: string;
+  portfolioId: string | null;
+  revision: number;
+  archivedAt: string | null;
+  currentVersion: DefenseSavedComparisonVersionDto;
+}
+export interface DefenseSavedComparisonReceiptDto {
+  comparison: DefenseSavedComparisonDto;
+  eventId: string;
+  resultingRevision: number;
+  replayed: boolean;
+}
+
+export interface ChangeDefenseSavedComparisonLifecycleDto {
+  expectedRevision: number;
+  idempotencyKey: string;
+}
+export interface AddDefenseSavedComparisonSelectionDto extends ChangeDefenseSavedComparisonLifecycleDto {
+  portfolioId: string;
+  expectedPortfolioRevision: number;
+  selection: SaveDefenseComparisonDto['selection'];
+}
+export interface DefenseSavedComparisonSelectionReceiptDto extends DefenseSavedComparisonReceiptDto {
+  portfolioId: string;
+  portfolioRevision: number;
+  outcomes: readonly {
+    kind: 'member' | 'bookmark';
+    targetId: string;
+    id: string;
+    status: 'created' | 'unchanged';
+  }[];
 }

@@ -416,6 +416,8 @@ export interface ResearchPortfolioDecisionDto {
 }
 
 export interface ResearchPortfolioContinuityLedgerDto {
+  /** False for a current readonly projection that has not been persisted. */
+  persisted?: boolean;
   id: string;
   tenantId: string;
   portfolioId: string;
@@ -541,9 +543,18 @@ export interface ReopenResearchPortfolioAnnualReviewDto extends ResearchPortfoli
   reason?: string;
 }
 
+export interface RefreshResearchPortfolioAnnualReviewDto extends ResearchPortfolioMutationMetaDto {
+  expectedRevision: number;
+  asOfFiscalYear?: number;
+  knownAt?: string;
+  decisionIds?: readonly string[];
+}
+
 export interface ResearchPortfolioAnnualReviewDto {
   items: readonly ResearchPortfolioContinuityLedgerDto[];
   counts: Readonly<Record<ResearchPortfolioContinuityStatus, number>>;
+  knownAtSupport?: 'current_projection_with_temporal_identity';
+  limitations?: readonly string[];
 }
 
 export interface ResearchPortfolioImportMappingVersionDto {
@@ -857,6 +868,8 @@ export interface ResearchPortfolioOutputJobDto {
 }
 
 export interface ResearchPortfolioClientFileReceiptDto {
+  /** Original caller operation identity; legacy receipts may omit it. */
+  operationKey?: string;
   id: string;
   artifactId: string;
   clientId: string;
@@ -904,18 +917,54 @@ export interface UpdateResearchPortfolioBookmarkDto {
   note?: string | null;
 }
 
+export type ResearchPortfolioFitAvailability = 'available' | 'partial' | 'unavailable';
+
+export interface ResearchPortfolioFitBasisDto {
+  calculationVersion: string;
+  scoreBasis: 'direct_qualified_pe_association_share';
+  portfolioRevision: number;
+  ruleVersionIds: readonly string[];
+  capabilityFingerprint: string;
+  sourceBasisFingerprint: string;
+  basisFingerprint: string;
+  totalIncludedMemberCount: number;
+  supportedMemberCount: number;
+  matchedMemberCount: number;
+  limitations: readonly string[];
+}
+
 export interface ResearchPortfolioFitResultDto {
   portfolioId: string;
   clientId: string;
   clientName: string;
   fitScore: number | null;
-  ruleMatches: readonly { ruleVersionId: string; matched: boolean; reason: string }[];
+  /** Percentage (0..100) under the explicitly supported direct PE basis. */
+  availability?: ResearchPortfolioFitAvailability;
+  versionId?: string;
+  basis?: ResearchPortfolioFitBasisDto;
+  memberMatches?: readonly {
+    memberId: string;
+    targetKind: ResearchPortfolioMemberKind;
+    targetId: string;
+    matched: boolean | null;
+    capabilityIds: readonly string[];
+    reasons: readonly string[];
+    sourceDocumentIds: readonly string[];
+  }[];
+  ruleMatches: readonly {
+    ruleVersionId: string;
+    matched: boolean;
+    reason: string;
+    result?: 'match' | 'nonmatch' | 'unknown';
+  }[];
   refreshedAt: string | null;
 }
 
 export interface ResearchPortfolioFitDto {
   portfolioId: string;
   clientFits: readonly ResearchPortfolioFitResultDto[];
+  availability?: ResearchPortfolioFitAvailability;
+  limitations?: readonly string[];
   calculatedAt: string;
 }
 
@@ -933,35 +982,68 @@ export interface CreateResearchPortfolioReviewNoteDto {
   body: string;
 }
 
+export interface ApplyResearchPortfolioWatchConversionDto {
+  idempotencyKey: string;
+  expectedRevision: number;
+  previewHash: string;
+  selectedWatchIds: readonly string[];
+}
+
 export interface ResearchPortfolioWatchConversionPreviewDto {
   portfolioId: string;
+  expectedRevision: number;
+  previewHash: string;
   legacyWatches: number;
   convertibleWatches: number;
   alreadyConverted: number;
+  limitations: readonly string[];
   previewItems: readonly {
+    watchId: string;
     userId: string;
     channel: string;
     legacyKind: string;
+    targetKind: 'program_element';
+    targetId: string;
+    active: false;
+    reason: 'convertible' | 'already_subscribed' | 'not_included_member';
     willConvert: boolean;
   }[];
 }
 
 export interface ResearchPortfolioWatchConversionResultDto {
   portfolioId: string;
+  idempotencyKey: string;
+  revision: number;
   convertedCount: number;
   skippedCount: number;
+  limitations: readonly string[];
 }
 
-export type ResearchPortfolioOperationKind = 'import' | 'recompute' | 'output' | 'snapshot';
+export type ResearchPortfolioOperationKind =
+  'import' | 'recompute' | 'output' | 'snapshot' | 'client_filing';
 export type ResearchPortfolioOperationStatus =
-  'queued' | 'running' | 'completed' | 'partial' | 'failed' | 'cancelled' | 'outcome_unknown';
+  | 'queued'
+  | 'running'
+  | 'completed'
+  | 'partial'
+  | 'failed'
+  | 'cancelled'
+  | 'outcome_unknown'
+  | 'paused';
+
+export interface ReconcileResearchPortfolioOperationDto {
+  /** Required only for an original actor's client-filing checkpoint. */
+  operationKey?: string;
+}
 
 export interface ResearchPortfolioOperationDto {
   id: string;
   portfolioId: string;
   kind: ResearchPortfolioOperationKind;
   status: ResearchPortfolioOperationStatus;
-  actorUserId: string;
+  actorUserId: string | null;
+  domainStatus: string;
+  limitations: readonly string[];
   label: string | null;
   startedAt: string | null;
   completedAt: string | null;
