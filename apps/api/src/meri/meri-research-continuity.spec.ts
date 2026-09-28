@@ -5,6 +5,12 @@ import { readResearchHandoff } from './meri-research-handoff.js';
 import type { ResearchRuntimeAuth } from './meri-v3-research-runner.js';
 import { researchToolVersion, sealDurableResearchResult } from './meri-research-durable-result.js';
 import { certifyResearchProducerInputs } from './meri-report-provenance.js';
+import {
+  RESEARCH_PARTIAL,
+  RESEARCH_PROVIDER_FAILURE,
+  RESEARCH_RUN_FAILURE,
+  ResearchTerminalError,
+} from './research-observer-projection.js';
 
 jest.mock('./meri-tools.service.js', () => ({ MeriToolsService: class {} }));
 jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class {} }));
@@ -639,6 +645,25 @@ describe('Deep Research conversation continuity', () => {
     expect(f.credentials.resolveProvider).not.toHaveBeenCalled();
   });
 
+  it.each(['cancelled', 'partial', 'lease'])(
+    'persists ordinary provider prose containing %s as a generic failed run',
+    async (word) => {
+      const privateError = `Unrelated provider ${word} prose PRIVATE_FAILURE_DETAIL`;
+      const f = fixture();
+      await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+      f.runner.run.mockRejectedValue(new Error(privateError));
+
+      await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
+
+      expect(f.getSession().metadata.run.status).toBe('failed');
+      expect(f.getSession().metadata.run.failureReason).toBe(RESEARCH_RUN_FAILURE);
+      expect(f.events).toContainEqual({ type: 'error', message: RESEARCH_RUN_FAILURE });
+      expect(JSON.stringify(f.events)).not.toContain(privateError);
+      expect(f.artifacts).toHaveLength(0);
+      expect(f.messages.some((message) => message.role === 'assistant')).toBe(false);
+    },
+  );
+
   it('does not substitute a successful deterministic plan for a failed V3 plan', async () => {
     const f = fixture();
     await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
@@ -1080,6 +1105,129 @@ describe('Durable research lease and recovery', () => {
     }
   });
 
+  it.each([
+    {
+      name: 'logical SSE error followed by text and end_turn',
+      stream:
+        'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"PRIVATE_REPORT_BODY"}}\n\n' +
+        'data: {"type":"error","error":{"message":"PRIVATE_PROVIDER_ERROR"}}\n\n' +
+        'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}\n\n',
+      loseResponse: false,
+      expectedMessage: RESEARCH_PROVIDER_FAILURE,
+      expectedStatus: 'failed',
+    },
+    {
+      name: 'HTTP 200 logical error body without SSE framing',
+      stream: '{"type":"error","error":{"message":"PRIVATE_HTTP_200_ERROR"}}',
+      loseResponse: false,
+      expectedMessage: RESEARCH_PROVIDER_FAILURE,
+      expectedStatus: 'failed',
+    },
+    {
+      name: 'malformed trailing provider frame after end_turn',
+      stream:
+        'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"PRIVATE_REPORT_BODY"}}\n\n' +
+        'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}\n\n' +
+        'data: {"type":"content_block_delta"',
+      loseResponse: false,
+      expectedMessage: RESEARCH_PARTIAL,
+      expectedStatus: 'partial',
+    },
+    {
+      name: 'response loss after end_turn',
+      stream:
+        'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"PRIVATE_REPORT_BODY"}}\n\n' +
+        'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}\n\n',
+      loseResponse: true,
+      expectedMessage: RESEARCH_PARTIAL,
+      expectedStatus: 'partial',
+    },
+  ])(
+    'does not save or publish a legacy report after $name',
+    async ({ stream, loseResponse, expectedMessage, expectedStatus }) => {
+      const originalFetch = global.fetch;
+      const f = fixture();
+      f.runner.enabled.mockResolvedValue(false);
+      f.credentials.resolveProvider.mockResolvedValue({
+        provider: 'anthropic',
+        apiKey: 'local-provider-key',
+      });
+      const bytes = new TextEncoder().encode(stream);
+      global.fetch = jest.fn(async () => ({
+        ok: true,
+        status: 200,
+        text: async () => '',
+        body: {
+          async *[Symbol.asyncIterator]() {
+            yield bytes;
+            if (loseResponse) throw new Error('PRIVATE_RESPONSE_LOSS');
+          },
+        },
+      })) as unknown as typeof fetch;
+
+      try {
+        await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+        await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
+
+        expect(f.getSession().metadata.run.status).toBe(expectedStatus);
+        expect(f.getSession().metadata.run.failureReason).toBe(expectedMessage);
+        expect(f.artifacts).toHaveLength(0);
+        expect(f.messages.some((message) => message.role === 'assistant')).toBe(false);
+        expect(f.events.some((event) => event.type === 'text' || event.type === 'report')).toBe(
+          false,
+        );
+        expect(f.events).toContainEqual({ type: 'error', message: expectedMessage });
+        expect(f.events.at(-1)).toEqual({ type: 'done' });
+        expect(JSON.stringify(f.events)).not.toContain('PRIVATE_');
+      } finally {
+        global.fetch = originalFetch;
+      }
+    },
+  );
+
+  it('does not save or publish when the forced-synthesis stream returns a logical error', async () => {
+    const originalFetch = global.fetch;
+    const f = fixture();
+    f.runner.enabled.mockResolvedValue(false);
+    f.credentials.resolveProvider.mockResolvedValue({
+      provider: 'anthropic',
+      apiKey: 'local-provider-key',
+    });
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        providerResponse([{ type: 'message_delta', delta: { stop_reason: 'tool_use' } }]),
+      )
+      .mockResolvedValueOnce(
+        providerResponse([
+          {
+            type: 'content_block_delta',
+            index: 0,
+            delta: { type: 'text_delta', text: 'PRIVATE_SYNTHESIS_REPORT' },
+          },
+          { type: 'error', error: { message: 'PRIVATE_SYNTHESIS_ERROR' } },
+          { type: 'message_delta', delta: { stop_reason: 'end_turn' } },
+        ]),
+      ) as unknown as typeof fetch;
+
+    try {
+      await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+      await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
+
+      expect(f.getSession().metadata.run).toMatchObject({
+        status: 'failed',
+        failureReason: RESEARCH_PROVIDER_FAILURE,
+      });
+      expect(f.artifacts).toHaveLength(0);
+      expect(f.messages.some((message) => message.role === 'assistant')).toBe(false);
+      expect(f.events.some((event) => event.type === 'text' || event.type === 'report')).toBe(false);
+      expect(f.events).toContainEqual({ type: 'error', message: RESEARCH_PROVIDER_FAILURE });
+      expect(JSON.stringify(f.events)).not.toContain('PRIVATE_');
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
   it('does not mint a durable receipt or archived source from a resolved search_memory error', async () => {
     const originalFetch = global.fetch;
     const f = fixture();
@@ -1160,7 +1308,9 @@ describe('Durable research lease and recovery', () => {
   it('keeps incomplete provider output partial and never labels it as a completed report', async () => {
     const f = fixture();
     await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
-    f.runner.run.mockRejectedValue(new Error('Research did not complete (max_output_tokens).'));
+    f.runner.run.mockRejectedValue(
+      new ResearchTerminalError('partial', 'Research did not complete (max_output_tokens).'),
+    );
     await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
     expect(f.getSession().metadata.run.status).toBe('partial');
     expect(f.artifacts).toHaveLength(0);
@@ -1255,7 +1405,7 @@ describe('Durable research lease and recovery', () => {
       await running;
       expect(f.getSession().metadata.run).toMatchObject({
         status: 'interrupted',
-        failureReason: 'The worker could not confirm its research lease.',
+        failureReason: 'Research lease is no longer active.',
       });
       expect(f.artifacts).toHaveLength(0);
     } finally {

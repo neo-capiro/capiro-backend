@@ -26,7 +26,7 @@ import {
 } from './meri-report-provenance.js';
 import {
   projectResearchObserverEvent,
-  RESEARCH_PROVIDER_FAILURE,
+  ResearchTerminalError,
 } from './research-observer-projection.js';
 import type { ResearchPlanV1 } from './meri-research-plan.js';
 
@@ -275,16 +275,14 @@ export class MeriV3ResearchRunner {
     });
     // A truncated SSE stream is not a completed report. Do not persist streamed
     // partial text or a release-gate refusal as a successful research artifact.
-    if (providerFailed) throw new ServiceUnavailableException(RESEARCH_PROVIDER_FAILURE);
+    if (providerFailed) throw new ResearchTerminalError('provider');
     const result = frame as DoneFrame | undefined;
     if (auth.signal?.aborted || result?.aborted)
-      throw new BadRequestException('Research was cancelled.');
+      throw new ResearchTerminalError('cancelled');
     if (result?.telemetry?.partial)
-      throw new ServiceUnavailableException(
-        'Research did not complete. Retry before using it as a report.',
-      );
+      throw new ResearchTerminalError('partial');
     if (!result?.reply?.trim())
-      throw new ServiceUnavailableException('Research ended without a completed response.');
+      throw new ResearchTerminalError('partial');
     if (result.held)
       throw new BadRequestException(
         'Research could not pass evidence verification. Please review the source gaps and retry.',

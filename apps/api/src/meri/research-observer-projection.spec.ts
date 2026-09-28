@@ -1,6 +1,7 @@
 import {
   projectResearchObserverEvent,
   projectResearchObserverError,
+  ResearchTerminalError,
   RESEARCH_CANCELLED,
   RESEARCH_LEASE_FAILURE,
   RESEARCH_OBSERVER_STATUS,
@@ -112,8 +113,10 @@ describe('research observer projection', () => {
     const leaseReason = new Error(PRIVATE);
     leaseReason.name = 'ResearchLeaseError';
     lease.abort(leaseReason);
-    expect(projectResearchObserverError(RESEARCH_PROVIDER_FAILURE)).toBe(RESEARCH_PROVIDER_FAILURE);
-    expect(projectResearchObserverError(new Error('max_output_tokens: ' + PRIVATE))).toBe(
+    expect(projectResearchObserverError(new ResearchTerminalError('provider', PRIVATE))).toBe(
+      RESEARCH_PROVIDER_FAILURE,
+    );
+    expect(projectResearchObserverError(new ResearchTerminalError('partial', PRIVATE))).toBe(
       RESEARCH_PARTIAL,
     );
     expect(projectResearchObserverError(new Error(PRIVATE), cancelled.signal)).toBe(
@@ -124,6 +127,15 @@ describe('research observer projection', () => {
     );
     expect(projectResearchObserverError(new Error(PRIVATE))).toBe(RESEARCH_RUN_FAILURE);
   });
+
+  it.each(['cancelled', 'partial', 'lease', 'max_output_tokens', 'no longer owns the run'])(
+    'does not infer terminal cause from arbitrary provider prose containing %s',
+    (word) => {
+      expect(projectResearchObserverError(new Error(`unrelated ${word} prose ${PRIVATE}`))).toBe(
+        RESEARCH_RUN_FAILURE,
+      );
+    },
+  );
 
   it('accepts a canonical receipt candidate only for the internal receipt barrier', () => {
     const result = projectResearchObserverEvent(

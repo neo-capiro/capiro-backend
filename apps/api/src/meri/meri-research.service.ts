@@ -111,10 +111,13 @@ import {
   publicResearchSourceTool,
 } from './meri-report-provenance.js';
 import {
+  isResearchObserverErrorMessage,
   projectResearchObserverError,
   projectResearchObserverEvent,
+  projectResearchTerminalFailure,
   RESEARCH_OBSERVER_STATUS,
-  RESEARCH_PROVIDER_FAILURE,
+  ResearchTerminalError,
+  type ResearchTerminalFailure,
 } from './research-observer-projection.js';
 
 const PRODUCT_NAME = 'Meri';
@@ -1019,7 +1022,9 @@ export class MeriResearchService {
           if (event.type === 'error') {
             event = {
               type: 'error',
-              message: projectResearchObserverError(event.message, controller.signal),
+              message: isResearchObserverErrorMessage(event.message)
+                ? event.message
+                : projectResearchObserverError(event.message, controller.signal),
             };
           } else if (
             [
@@ -1083,15 +1088,18 @@ export class MeriResearchService {
       await execute(sink, { ...auth, run, signal: controller.signal });
     } catch (error) {
       const privateMessage = error instanceof Error ? error.message : 'Research failed';
-      const message = projectResearchObserverError(error, controller.signal);
+      const failure = projectResearchTerminalFailure(error, controller.signal);
       if (claimed)
         await this.markFailed(
           ctx,
           id,
           { ...auth, run: claimed, signal: controller.signal },
-          message,
+          failure,
         );
-      const terminal = [sseEvent({ type: 'error', message }), sseEvent({ type: 'done' })];
+      const terminal = [
+        sseEvent({ type: 'error', message: failure.message }),
+        sseEvent({ type: 'done' }),
+      ];
       // A direct execute/setup failure can race a receipt already queued by the
       // sink. Publish terminal control only after that receipt settles, using
       // the rejection path too so a failed receipt cannot poison error/done.
@@ -1363,7 +1371,7 @@ export class MeriResearchService {
     ctx: TenantContext,
     id: string,
     auth: ResearchRuntimeAuth,
-    failureReason = 'Research did not complete',
+    failure: ResearchTerminalFailure = projectResearchTerminalFailure(undefined),
   ) {
     if (!auth.run) return;
     try {
@@ -1376,19 +1384,16 @@ export class MeriResearchService {
         current.status === 'complete'
       )
         return;
-      const leaseLost =
-        auth.signal?.reason instanceof Error && auth.signal.reason.name === 'ResearchLeaseError';
-      if (leaseLost) failureReason = auth.signal!.reason.message;
-      const status = leaseLost
+      const status = failure.cause === 'lease'
         ? 'interrupted'
-        : auth.signal?.aborted
+        : failure.cause === 'cancelled'
           ? 'cancelled'
-          : /partial|did not complete|without a completed/i.test(failureReason)
+          : failure.cause === 'partial'
             ? 'partial'
             : 'failed';
       const run = {
-        ...terminalResearchRun(auth.run, status, failureReason),
-        failureReason: failureReason.slice(0, 500),
+        ...terminalResearchRun(auth.run, status, failure.message),
+        failureReason: failure.message,
       };
       const now = new Date();
       await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -1464,11 +1469,11 @@ export class MeriResearchService {
       );
     } catch (err) {
       const privateMessage = err instanceof Error ? err.message : 'Planning failed';
-      const message = projectResearchObserverError(err, auth.signal);
+      const failure = projectResearchTerminalFailure(err, auth.signal);
       this.logger.warn(`Research plan failed: ${privateMessage}`);
       // A failed provider is a recoverable failed attempt, never a fabricated plan.
-      await this.markFailed(ctx, session.id, auth, message);
-      sse.write(sseEvent({ type: 'error', message }));
+      await this.markFailed(ctx, session.id, auth, failure);
+      sse.write(sseEvent({ type: 'error', message: failure.message }));
       sse.write(sseEvent({ type: 'done' }));
       return;
     } finally {
@@ -1596,10 +1601,10 @@ export class MeriResearchService {
       await this.runResearchStream(ctx, id, sse, progress, auth);
     } catch (error) {
       const privateMessage = error instanceof Error ? error.message : 'Research failed';
-      const message = projectResearchObserverError(error, auth.signal);
+      const failure = projectResearchTerminalFailure(error, auth.signal);
       this.logger.warn(`Research run failed: ${privateMessage}`);
-      await this.markFailed(ctx, id, auth, message);
-      sse.write(sseEvent({ type: 'error', message }));
+      await this.markFailed(ctx, id, auth, failure);
+      sse.write(sseEvent({ type: 'error', message: failure.message }));
       sse.write(sseEvent({ type: 'done' }));
     } finally {
       progress.stop();
@@ -1880,67 +1885,51 @@ export class MeriResearchService {
 
           if (!response.ok || !response.body) {
             const errText = await response.text().catch(() => '');
-            throw new Error(
+            throw new ResearchTerminalError(
+              'provider',
               `Anthropic HTTP ${response.status}${errText ? `: ${errText.slice(0, 300)}` : ''}`,
             );
           }
 
-          const decoder = new TextDecoder();
           const responseBody = response.body as unknown as AsyncIterable<Uint8Array>;
-          let buffer = '';
-
-          for await (const chunk of responseBody) {
-            buffer += decoder.decode(chunk, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop() ?? '';
-
-            for (const line of lines) {
-              if (!line.startsWith('data: ')) continue;
-              const payload = line.slice(6).trim();
-              if (!payload || payload === '[DONE]') continue;
-              try {
-                const evt = JSON.parse(payload);
-                // Provider thinking is retained only for the signed replay block
-                // required by the next provider round. Observer frames receive a
-                // fixed source-independent status, never provider reasoning text.
-                const thinkingDelta = applyThinkingStreamEvent(thinkingState, evt);
-                if (thinkingDelta.thinkingTextDelta && !thinkingStatusSent) {
-                  thinkingStatusSent = true;
-                  progress.set(RESEARCH_GATHER_THINKING_STATUS);
-                }
-                if (evt.type === 'content_block_start') {
-                  const block = evt.content_block ?? {};
-                  if (block.type === 'tool_use') {
-                    toolUseById.set(evt.index, {
-                      id: String(block.id ?? ''),
-                      name: String(block.name ?? ''),
-                      jsonParts: [],
-                    });
-                  }
-                } else if (evt.type === 'content_block_delta') {
-                  const delta = evt.delta ?? {};
-                  if (delta.type === 'text_delta' && typeof delta.text === 'string') {
-                    // The first streamed prose marks the transition into synthesis.
-                    if (!synthesizing) {
-                      synthesizing = true;
-                      sse.write(sseEvent({ type: 'phase', phase: 'synthesize' }));
-                    }
-                    reportBody += delta.text;
-                    // The publication tail releases report text after authorization
-                    // and durable persistence (see bufferReport above).
-                    if (!bufferReport) sse.write(sseEvent({ type: 'text', text: delta.text }));
-                  } else if (
-                    delta.type === 'input_json_delta' &&
-                    typeof delta.partial_json === 'string'
-                  ) {
-                    toolUseById.get(evt.index)?.jsonParts.push(delta.partial_json);
-                  }
-                } else if (evt.type === 'message_delta') {
-                  stopReason = evt.delta?.stop_reason ?? stopReason;
-                }
-              } catch {
-                /* incomplete chunk */
+          for await (const evt of anthropicStreamEvents(responseBody)) {
+            // Provider thinking is retained only for the signed replay block
+            // required by the next provider round. Observer frames receive a
+            // fixed source-independent status, never provider reasoning text.
+            const thinkingDelta = applyThinkingStreamEvent(thinkingState, evt);
+            if (thinkingDelta.thinkingTextDelta && !thinkingStatusSent) {
+              thinkingStatusSent = true;
+              progress.set(RESEARCH_GATHER_THINKING_STATUS);
+            }
+            if (evt.type === 'content_block_start') {
+              const block = evt.content_block ?? {};
+              if (block.type === 'tool_use') {
+                toolUseById.set(evt.index, {
+                  id: String(block.id ?? ''),
+                  name: String(block.name ?? ''),
+                  jsonParts: [],
+                });
               }
+            } else if (evt.type === 'content_block_delta') {
+              const delta = evt.delta ?? {};
+              if (delta.type === 'text_delta' && typeof delta.text === 'string') {
+                // The first streamed prose marks the transition into synthesis.
+                if (!synthesizing) {
+                  synthesizing = true;
+                  sse.write(sseEvent({ type: 'phase', phase: 'synthesize' }));
+                }
+                reportBody += delta.text;
+                // The publication tail releases report text after authorization
+                // and durable persistence (see bufferReport above).
+                if (!bufferReport) sse.write(sseEvent({ type: 'text', text: delta.text }));
+              } else if (
+                delta.type === 'input_json_delta' &&
+                typeof delta.partial_json === 'string'
+              ) {
+                toolUseById.get(evt.index)?.jsonParts.push(delta.partial_json);
+              }
+            } else if (evt.type === 'message_delta') {
+              stopReason = evt.delta?.stop_reason ?? stopReason;
             }
           }
         } catch (roundErr) {
@@ -1952,7 +1941,11 @@ export class MeriResearchService {
             this.logger.warn(`Research gather round ${round} timed out; forcing synthesis`);
             break;
           }
-          throw roundErr;
+          if (roundErr instanceof ResearchTerminalError) throw roundErr;
+          throw new ResearchTerminalError(
+            'provider',
+            roundErr instanceof Error ? roundErr.message : 'Anthropic gather request failed.',
+          );
         } finally {
           clearTimeout(timer);
         }
@@ -2228,7 +2221,8 @@ export class MeriResearchService {
           });
           if (!response.ok || !response.body) {
             const errText = await response.text().catch(() => '');
-            throw new Error(
+            throw new ResearchTerminalError(
+              'provider',
               `Anthropic HTTP ${response.status}${errText ? `: ${errText.slice(0, 300)}` : ''}`,
             );
           }
@@ -2236,45 +2230,30 @@ export class MeriResearchService {
             synthesizing = true;
             sse.write(sseEvent({ type: 'phase', phase: 'synthesize' }));
           }
-          const decoder = new TextDecoder();
           const responseBody = response.body as unknown as AsyncIterable<Uint8Array>;
-          let buffer = '';
-          for await (const chunk of responseBody) {
-            buffer += decoder.decode(chunk, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop() ?? '';
-            for (const line of lines) {
-              if (!line.startsWith('data: ')) continue;
-              const payload = line.slice(6).trim();
-              if (!payload || payload === '[DONE]') continue;
-              try {
-                const evt = JSON.parse(payload);
-                if (evt.type === 'message_delta' && evt.delta?.stop_reason === 'end_turn')
-                  endedCleanly = true;
-                if (
-                  evt.type === 'content_block_delta' &&
-                  evt.delta?.type === 'thinking_delta' &&
-                  typeof evt.delta.thinking === 'string'
-                ) {
-                  // Do not put provider reasoning on the observer stream. A fixed
-                  // status preserves liveness without revealing source content.
-                  if (!thinkingStatusSent) {
-                    thinkingStatusSent = true;
-                    progress.set(RESEARCH_SYNTHESIS_THINKING_STATUS);
-                  }
-                } else if (
-                  evt.type === 'content_block_delta' &&
-                  evt.delta?.type === 'text_delta' &&
-                  typeof evt.delta.text === 'string'
-                ) {
-                  reportBody += evt.delta.text;
-                  // The publication tail releases report text after authorization
-                  // and durable persistence (see bufferReport above).
-                  if (!bufferReport) sse.write(sseEvent({ type: 'text', text: evt.delta.text }));
-                }
-              } catch {
-                /* incomplete chunk */
+          for await (const evt of anthropicStreamEvents(responseBody)) {
+            if (evt.type === 'message_delta' && evt.delta?.stop_reason === 'end_turn')
+              endedCleanly = true;
+            if (
+              evt.type === 'content_block_delta' &&
+              evt.delta?.type === 'thinking_delta' &&
+              typeof evt.delta.thinking === 'string'
+            ) {
+              // Do not put provider reasoning on the observer stream. A fixed
+              // status preserves liveness without revealing source content.
+              if (!thinkingStatusSent) {
+                thinkingStatusSent = true;
+                progress.set(RESEARCH_SYNTHESIS_THINKING_STATUS);
               }
+            } else if (
+              evt.type === 'content_block_delta' &&
+              evt.delta?.type === 'text_delta' &&
+              typeof evt.delta.text === 'string'
+            ) {
+              reportBody += evt.delta.text;
+              // The publication tail releases report text after authorization
+              // and durable persistence (see bufferReport above).
+              if (!bufferReport) sse.write(sseEvent({ type: 'text', text: evt.delta.text }));
             }
           }
         } catch (synthErr) {
@@ -2283,7 +2262,11 @@ export class MeriResearchService {
           if (isAbortError(synthErr)) {
             this.logger.warn('Forced research synthesis timed out; keeping partial report');
           } else {
-            throw synthErr;
+            if (synthErr instanceof ResearchTerminalError) throw synthErr;
+            throw new ResearchTerminalError(
+              'provider',
+              synthErr instanceof Error ? synthErr.message : 'Anthropic synthesis request failed.',
+            );
           }
         } finally {
           clearTimeout(timer);
@@ -2292,14 +2275,12 @@ export class MeriResearchService {
     } catch (err) {
       const privateMessage = err instanceof Error ? err.message : 'Research failed';
       this.logger.warn(`Research run failed: ${privateMessage}`);
-      sse.write(sseEvent({ type: 'error', message: RESEARCH_PROVIDER_FAILURE }));
+      throw err;
     }
 
     if (auth.signal?.aborted) throw new BadRequestException('Research was cancelled.');
     if (!endedCleanly)
-      throw new BadRequestException(
-        'Research did not complete; partial provider output has not been released as a report.',
-      );
+      throw new ResearchTerminalError('partial');
     await this.finishResearch(ctx, session, sse, progress, {
       reportBody,
       sources,
@@ -3233,6 +3214,70 @@ function sseEvent(payload: Record<string, unknown>): string {
   return `data: ${JSON.stringify(payload)}\n\n`;
 }
 
+/** Decode Anthropic SSE without allowing a logical/protocol failure to become a clean turn. */
+async function* anthropicStreamEvents(
+  body: AsyncIterable<Uint8Array>,
+): AsyncGenerator<Record<string, any>> {
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let sawEvent = false;
+
+  const parseLine = (rawLine: string): Record<string, any> | null => {
+    const line = rawLine.replace(/\r$/, '').trim();
+    if (!line || line.startsWith(':') || /^(event|id|retry):/.test(line)) return null;
+    const payload = line.startsWith('data:') ? line.slice(5).trim() : line;
+    if (!payload || payload === '[DONE]') return null;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(payload);
+    } catch (error) {
+      throw new ResearchTerminalError(
+        'partial',
+        `Malformed Anthropic stream event: ${error instanceof Error ? error.message : 'invalid JSON'}`,
+      );
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
+      throw new ResearchTerminalError('partial', 'Malformed Anthropic stream event shape.');
+    const event = parsed as Record<string, any>;
+    if (event.type === 'error') {
+      const detail =
+        event.error && typeof event.error === 'object' && typeof event.error.message === 'string'
+          ? event.error.message
+          : typeof event.message === 'string'
+            ? event.message
+            : 'Anthropic returned a logical error event.';
+      throw new ResearchTerminalError('provider', detail);
+    }
+    sawEvent = true;
+    return event;
+  };
+
+  try {
+    for await (const chunk of body) {
+      buffer += decoder.decode(chunk, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        const event = parseLine(line);
+        if (event) yield event;
+      }
+    }
+    buffer += decoder.decode();
+    if (buffer.trim()) {
+      for (const line of buffer.split('\n')) {
+        const event = parseLine(line);
+        if (event) yield event;
+      }
+    }
+  } catch (error) {
+    if (error instanceof ResearchTerminalError) throw error;
+    throw new ResearchTerminalError(
+      sawEvent ? 'partial' : 'provider',
+      error instanceof Error ? error.message : 'Anthropic stream failed.',
+    );
+  }
+}
+
 /**
  * Config guard for the wall-clock budgets. A stubbed/partial ConfigService (unit
  * tests, an older env) can hand back undefined, and feeding NaN to setTimeout
@@ -3306,12 +3351,11 @@ function createProgressReporter(
 
 /**
  * True for an AbortController-driven timeout. fetch/undici surface these as a
- * DOMException/Error named 'AbortError' (and sometimes the message "This
- * operation was aborted"), so match on either.
+ * DOMException/Error named 'AbortError'. The name is transport control state;
+ * arbitrary provider prose containing "abort" is not.
  */
 function isAbortError(err: unknown): boolean {
-  if (!(err instanceof Error)) return false;
-  return err.name === 'AbortError' || /abort/i.test(err.message);
+  return err instanceof Error && err.name === 'AbortError';
 }
 
 function asStringArray(value: Prisma.JsonValue | null | undefined): string[] {

@@ -42,19 +42,56 @@ export const RESEARCH_PARTIAL =
   'Research did not complete; partial provider output has not been released as a report.';
 export const RESEARCH_LEASE_FAILURE = 'Research lease is no longer active.';
 
+export type ResearchTerminalCause = 'provider' | 'failed' | 'cancelled' | 'partial' | 'lease';
+
+export interface ResearchTerminalFailure {
+  cause: ResearchTerminalCause;
+  message: string;
+}
+
+const RESEARCH_TERMINAL_MESSAGES: Record<ResearchTerminalCause, string> = {
+  provider: RESEARCH_PROVIDER_FAILURE,
+  failed: RESEARCH_RUN_FAILURE,
+  cancelled: RESEARCH_CANCELLED,
+  partial: RESEARCH_PARTIAL,
+  lease: RESEARCH_LEASE_FAILURE,
+};
+
+export function isResearchObserverErrorMessage(value: unknown): value is string {
+  return typeof value === 'string' && Object.values(RESEARCH_TERMINAL_MESSAGES).includes(value);
+}
+
+/** Internal typed cause. Its detail is logger-only and is never the observer projection. */
+export class ResearchTerminalError extends Error {
+  constructor(
+    readonly cause: ResearchTerminalCause,
+    detail?: string,
+  ) {
+    super(detail ?? RESEARCH_TERMINAL_MESSAGES[cause]);
+    this.name = 'ResearchTerminalError';
+  }
+}
+
+/** Classify only trusted control state, never words found in provider prose. */
+export function projectResearchTerminalFailure(
+  error: unknown,
+  signal?: AbortSignal,
+): ResearchTerminalFailure {
+  const reason = signal?.reason;
+  const cause: ResearchTerminalCause =
+    reason instanceof Error && reason.name === 'ResearchLeaseError'
+      ? 'lease'
+      : signal?.aborted
+        ? 'cancelled'
+        : error instanceof ResearchTerminalError
+          ? error.cause
+          : 'failed';
+  return { cause, message: RESEARCH_TERMINAL_MESSAGES[cause] };
+}
+
 /** Rebuild a terminal observer error from a finite, source-independent vocabulary. */
 export function projectResearchObserverError(error: unknown, signal?: AbortSignal): string {
-  const reason = signal?.reason;
-  if (reason instanceof Error && reason.name === 'ResearchLeaseError')
-    return RESEARCH_LEASE_FAILURE;
-  if (signal?.aborted) return RESEARCH_CANCELLED;
-  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
-  if (message === RESEARCH_PROVIDER_FAILURE) return RESEARCH_PROVIDER_FAILURE;
-  if (/cancelled/i.test(message)) return RESEARCH_CANCELLED;
-  if (/partial|max_output_tokens|did not complete|without a completed/i.test(message))
-    return RESEARCH_PARTIAL;
-  if (/lease|no longer owns the run/i.test(message)) return RESEARCH_LEASE_FAILURE;
-  return RESEARCH_RUN_FAILURE;
+  return projectResearchTerminalFailure(error, signal).message;
 }
 
 function record(value: unknown): Record<string, unknown> | null {
