@@ -206,7 +206,7 @@ function parseSse(body) {
   return { events, issues: [...new Set(issues)] };
 }
 
-export class CaptureTransport {
+class CaptureTransport {
   constructor({ origin, bearer, tenantSlug, deadlineMs, fetchImpl = fetch, onExchange = async () => {} }) {
     this.origin = origin;
     this.bearer = bearer;
@@ -276,6 +276,55 @@ function physicalSourceMatch(citation, source) {
   return citation?.id === source.physicalId || citation?.stableId === source.physicalId || citation?.source?.recordId === source.physicalId;
 }
 
+function emptyLinks(config, caseId, conversationId, client) {
+  return {
+    schemaVersion: 1,
+    ownerRunId: config.captureRunId,
+    caseId,
+    conversationId,
+    clientPhysicalId: client?.physicalId ?? null,
+    scopeMappingSha256: config.fixture.mappingSha256,
+    sourceLinks: [],
+    toolCallEventHashes: [],
+    retrievalTraceSha256: null,
+    serverTraceId: null,
+    messageReadback: null,
+  };
+}
+
+function safeRedactEvents(events, bearer, gaps) {
+  try {
+    return redactSecrets(events, [bearer]);
+  } catch {
+    gaps.push('CAPTURE_REDACTION_FAILED');
+    return [];
+  }
+}
+
+function uncertainCapture({ config, caseId, client, transport, startedAt, conversationId, setupEffects, gaps, stream, answer, links, usage, observedCostUsd }) {
+  const retainedGaps = [...gaps];
+  const events = safeRedactEvents(stream?.events ?? [], transport.bearer, retainedGaps);
+  return {
+    status: 'CAPTURE_UNCERTAIN',
+    acceptanceStatus: 'NOT_RUN',
+    acceptanceReason: 'chat submission did not produce a complete trustworthy receipt and will not be retried',
+    startedAt,
+    finishedAt: new Date().toISOString(),
+    caseId,
+    conversationId,
+    setupEffects,
+    gaps: [...new Set(retainedGaps)],
+    events,
+    answer,
+    links: links ?? emptyLinks(config, caseId, conversationId, client),
+    usage,
+    postHocSpendThresholdUsd: config.limits.maxSpendUsd,
+    observedCostUsd,
+    requestCount: transport.sequence,
+    synthesisSubmissionCount: transport.streamSubmissions,
+  };
+}
+
 export async function collectLiveReadCase({ config, caseId, env = process.env, fetchImpl = fetch, onExchange = async () => {} }) {
   const validated = validateCaptureConfig(config, caseId, env);
   const { testCase, origin, actor, tenant, client, sources, bearer } = validated;
@@ -283,6 +332,12 @@ export async function collectLiveReadCase({ config, caseId, env = process.env, f
   const startedAt = new Date().toISOString();
   const gaps = [];
   const setupEffects = [];
+  let conversationId = null;
+  let stream = null;
+  let answer = '';
+  let links = null;
+  let usage = null;
+  let observedCostUsd = null;
   try {
     const health = await transport.json('/health', { auth: false, purpose: 'deployment-health-preflight' });
     requireValue(health.json?.status === 'ok', 'DEPLOYMENT_NOT_READY', 'API health preflight is not ready');
@@ -308,23 +363,15 @@ export async function collectLiveReadCase({ config, caseId, env = process.env, f
       purpose: 'synthetic-conversation-setup',
     });
     requireValue(UUID.test(conversation.json?.id ?? '') && (conversation.json?.clientId ?? null) === (client?.physicalId ?? null), 'CONVERSATION_SETUP_MISMATCH', 'conversation setup did not confirm the configured client scope');
-    setupEffects.push({ type: 'synthetic_conversation_create', conversationId: conversation.json.id, responseSha256: sha256Bytes(conversation.bytes), businessEffect: false });
+    conversationId = conversation.json.id;
+    setupEffects.push({ type: 'synthetic_conversation_create', conversationId, responseSha256: sha256Bytes(conversation.bytes), businessEffect: false });
 
-    let stream;
     try {
-      stream = await transport.stream(`/api/clio/conversations/${conversation.json.id}/stream`, { body: testCase.prompt }, 'single-chat-synthesis');
+      stream = await transport.stream(`/api/clio/conversations/${conversationId}/stream`, { body: testCase.prompt }, 'single-chat-synthesis');
     } catch (error) {
-      if (!(error instanceof CaptureBlockedError)) throw error;
-      return {
-        status: 'CAPTURE_UNCERTAIN', acceptanceStatus: 'NOT_RUN',
-        acceptanceReason: 'chat submission did not produce a complete receipt and will not be retried',
-        startedAt, finishedAt: new Date().toISOString(), caseId,
-        conversationId: conversation.json.id, setupEffects,
-        gaps: [`SYNTHESIS_OUTCOME_UNKNOWN:${error.code}`], events: [], answer: '',
-        links: { schemaVersion: 1, ownerRunId: config.captureRunId, caseId, conversationId: conversation.json.id, clientPhysicalId: client?.physicalId ?? null, scopeMappingSha256: config.fixture.mappingSha256, sourceLinks: [], toolCallEventHashes: [], retrievalTraceSha256: null, serverTraceId: null, messageReadback: null },
-        usage: null, postHocSpendThresholdUsd: config.limits.maxSpendUsd, observedCostUsd: null,
-        requestCount: transport.sequence, synthesisSubmissionCount: transport.streamSubmissions,
-      };
+      const code = error instanceof CaptureBlockedError ? error.code : 'POST_SUBMISSION_PROCESSING_ERROR';
+      gaps.push(`SYNTHESIS_OUTCOME_UNKNOWN:${code}`, 'POST_SUBMISSION_EFFECTS_UNCERTAIN');
+      return uncertainCapture({ config, caseId, client, transport, startedAt, conversationId, setupEffects, gaps, stream, answer, links, usage, observedCostUsd });
     }
     const accepted = stream.events.some((event) => event?.type === 'turn_accepted');
     const doneEvents = stream.events.filter((event) => event?.type === 'done');
@@ -333,9 +380,11 @@ export async function collectLiveReadCase({ config, caseId, env = process.env, f
     const prohibited = stream.events.filter((event) => ['pending_approval', 'page_write', 'draft_updated', 'workflow_updated'].includes(event?.type));
     const toolCalls = stream.events.filter((event) => event?.type === 'tool_call');
     const citations = stream.events.filter((event) => event?.type === 'citations').flatMap((event) => array(event.citations));
-    const usage = stream.events.filter((event) => event?.type === 'usage').at(-1)?.usage ?? null;
-    const observedCostUsd = [usage?.costUsd, done?.costUsd, done?.telemetry?.costUsd].find((value) => Number.isFinite(value)) ?? null;
-    const answer = stream.events.filter((event) => event?.type === 'text').map((event) => typeof event.text === 'string' ? event.text : '').join('');
+    usage = stream.events.filter((event) => event?.type === 'usage').at(-1)?.usage ?? null;
+    observedCostUsd = [usage?.costUsd, done?.costUsd, done?.telemetry?.costUsd].find((value) => Number.isFinite(value)) ?? null;
+    const firstTerminal = stream.events.findIndex((event) => event?.type === 'done');
+    const answerEvents = firstTerminal >= 0 ? stream.events.slice(0, firstTerminal + 1) : stream.events;
+    answer = answerEvents.filter((event) => event?.type === 'text').map((event) => typeof event.text === 'string' ? event.text : '').join('');
 
     if (!accepted) gaps.push('TURN_ACCEPTANCE_RECEIPT_MISSING');
     if (doneEvents.length !== 1) gaps.push(doneEvents.length === 0 ? 'TERMINAL_DONE_MISSING_CAPTURE_UNCERTAIN' : 'MULTIPLE_TERMINAL_DONE_EVENTS');
@@ -351,6 +400,11 @@ export async function collectLiveReadCase({ config, caseId, env = process.env, f
     if (!done?.retrieval?.trace) gaps.push('SERVER_RETRIEVAL_TRACE_MISSING');
     gaps.push('SERVER_TRACE_ID_MISSING', 'SERVER_TOOL_CALL_IDS_MISSING');
     if (!answer.trim()) gaps.push('ANSWER_BYTES_MISSING');
+
+    if (stream.parseIssues.length > 0 || doneEvents.length !== 1 || stream.interrupted) {
+      gaps.push('POST_SUBMISSION_EFFECTS_UNCERTAIN');
+      return uncertainCapture({ config, caseId, client, transport, startedAt, conversationId, setupEffects, gaps, stream, answer, links, usage, observedCostUsd });
+    }
 
     const sourceLinks = [];
     for (const source of sources) {
@@ -385,7 +439,7 @@ export async function collectLiveReadCase({ config, caseId, env = process.env, f
 
     let messageReadback = null;
     if (done?.messageId) {
-      const messages = await transport.json(`/api/clio/conversations/${conversation.json.id}/messages`, { purpose: 'canonical-message-readback' });
+      const messages = await transport.json(`/api/clio/conversations/${conversationId}/messages`, { purpose: 'canonical-message-readback' });
       const row = array(messages.json?.data ?? messages.json).find((message) => message?.id === done.messageId);
       requireValue(row && row.role === 'assistant' && typeof row.body === 'string', 'MESSAGE_READBACK_MISMATCH', 'canonical assistant message readback is missing');
       requireValue(row.body.trim() === answer.trim(), 'MESSAGE_READBACK_MISMATCH', 'streamed answer differs from canonical assistant message readback');
@@ -394,11 +448,11 @@ export async function collectLiveReadCase({ config, caseId, env = process.env, f
       gaps.push('CANONICAL_MESSAGE_ID_MISSING');
     }
 
-    const links = {
+    links = {
       schemaVersion: 1,
       ownerRunId: config.captureRunId,
       caseId,
-      conversationId: conversation.json.id,
+      conversationId,
       clientPhysicalId: client?.physicalId ?? null,
       sourceLinks,
       toolCallEventHashes: toolCalls.map((event, index) => ({ observedIndex: index + 1, sha256: sha256Stable(redactSecrets(event, [bearer])) })),
@@ -407,15 +461,14 @@ export async function collectLiveReadCase({ config, caseId, env = process.env, f
       scopeMappingSha256: config.fixture.mappingSha256,
       messageReadback,
     };
-    const uncertain = !done || !accepted || Boolean(stream.interrupted) || stream.parseIssues.length > 0 || doneEvents.length !== 1;
     return {
-      status: uncertain ? 'CAPTURE_UNCERTAIN' : gaps.length ? 'CAPTURE_INCOMPLETE' : 'CAPTURE_COMPLETE',
+      status: gaps.length ? 'CAPTURE_INCOMPLETE' : 'CAPTURE_COMPLETE',
       acceptanceStatus: 'NOT_RUN',
       acceptanceReason: config.provenance === 'UNIT_FIXTURE_NOT_LIVE' ? 'UNIT_FIXTURE_NOT_LIVE' : 'capture authority/telemetry gaps remain; verifier authority gate is unchanged',
       startedAt,
       finishedAt: new Date().toISOString(),
       caseId,
-      conversationId: conversation.json.id,
+      conversationId,
       setupEffects,
       gaps: [...new Set(gaps)],
       events: redactSecrets(stream.events, [bearer]),
@@ -427,6 +480,11 @@ export async function collectLiveReadCase({ config, caseId, env = process.env, f
       requestCount: transport.sequence,
       synthesisSubmissionCount: transport.streamSubmissions,
     };
+  } catch (error) {
+    if (transport.streamSubmissions === 0) throw error;
+    const code = error instanceof CaptureBlockedError ? error.code : 'POST_SUBMISSION_PROCESSING_ERROR';
+    gaps.push(`SYNTHESIS_OUTCOME_UNKNOWN:${code}`, 'POST_SUBMISSION_EFFECTS_UNCERTAIN');
+    return uncertainCapture({ config, caseId, client, transport, startedAt, conversationId, setupEffects, gaps, stream, answer, links, usage, observedCostUsd });
   } finally {
     transport.close();
   }

@@ -7,6 +7,7 @@ import test from 'node:test';
 import { executeLiveCase } from '../capture-adapter.mjs';
 import { ArtifactCollector, verifyCollectedArtifacts } from '../artifact-collector.mjs';
 import { main as captureCli } from '../capture-cli.mjs';
+import * as captureTransportModule from '../capture-transport.mjs';
 import { sourceMappingDigest } from '../capture-transport.mjs';
 
 const API_SHA = 'a'.repeat(40);
@@ -59,7 +60,7 @@ function json(res, status, body, headers = {}) {
 }
 
 async function server(options = {}) {
-  const counts = { total: 0, conversation: 0, stream: 0, redirectedTarget: 0 };
+  const counts = { total: 0, conversation: 0, stream: 0, messageReadback: 0, redirectedTarget: 0 };
   const instance = createServer(async (req, res) => {
     counts.total += 1;
     const url = new URL(req.url, 'http://127.0.0.1');
@@ -81,6 +82,10 @@ async function server(options = {}) {
     }
     if (url.pathname === `/api/clio/conversations/${CONVERSATION}/stream`) {
       counts.stream += 1;
+      if (options.streamNetworkErrorBeforeHeaders) {
+        req.socket.destroy();
+        return;
+      }
       res.writeHead(200, { 'content-type': 'text/event-stream' });
       const citationId = options.sourceMismatch ? '77777777-7777-4777-8777-777777777777' : SOURCE;
       const events = [
@@ -101,11 +106,19 @@ async function server(options = {}) {
       if (options.unterminatedFrame) res.write('data: {"type":"text"');
       if (options.duplicateDone) res.write(`data: ${JSON.stringify({ type: 'done', messageId: MESSAGE })}\n\n`);
       if (options.postTerminal) res.write(`data: ${JSON.stringify({ type: 'runtime', model: 'after-terminal' })}\n\n`);
+      if (options.postTerminalText) res.write(`data: ${JSON.stringify({ type: 'text', text: 'Late untrusted text.' })}\n\n`);
       if (options.frameOverflow) for (let index = 0; index < 4_097; index += 1) res.write(`: frame-${index}\n\n`);
       if (options.invalidUtf8) res.write(Buffer.from([0xc3, 0x28]));
       return res.end();
     }
-    if (url.pathname === `/api/clio/conversations/${CONVERSATION}/messages`) return json(res, 200, [{ id: MESSAGE, role: 'assistant', body: 'Observed current approved memory.' }]);
+    if (url.pathname === `/api/clio/conversations/${CONVERSATION}/messages`) {
+      counts.messageReadback += 1;
+      if (options.messageReadbackNetworkError) {
+        req.socket.destroy();
+        return;
+      }
+      return json(res, 200, [{ id: MESSAGE, role: 'assistant', body: options.messageReadbackMismatch ? 'Different canonical answer.' : 'Observed current approved memory.' }]);
+    }
     if (url.pathname === '/api/clio/sources') return json(res, 200, { kind: 'memory', status: 'available', recordId: url.searchParams.get('recordId'), sourceVersion: 'v2', text: 'Current server readback' });
     return json(res, 404, { error: 'not found' });
   });
@@ -173,7 +186,9 @@ test('missing scope mapping blocks before synthesis', async () => {
 test('missing client preflight blocks before conversation or synthesis', async () => {
   const value = await run({ missingClient: true });
   try {
+    assert.equal(value.result.status, 'BLOCKED');
     assert.equal(value.result.reason, 'CLIENT_SCOPE_MISMATCH');
+    assert.equal(value.result.synthesisSubmissionCount, 0);
     assert.equal(value.fixture.counts.stream, 0);
   } finally { await value.cleanup(); }
 });
@@ -186,11 +201,12 @@ test('missing source evidence is an explicit incomplete capture gap', async () =
   } finally { await value.cleanup(); }
 });
 
-test('observed source mismatch blocks and cannot be repaired from expected fixture fields', async () => {
+test('observed source mismatch remains uncertain after submission and cannot be repaired from expected fixture fields', async () => {
   const value = await run({ sourceMismatch: true });
   try {
-    assert.equal(value.result.status, 'BLOCKED');
-    assert.equal(value.result.reason, 'SOURCE_EVIDENCE_MISMATCH');
+    assert.equal(value.result.status, 'CAPTURE_UNCERTAIN');
+    assert(value.result.gaps.includes('SYNTHESIS_OUTCOME_UNKNOWN:SOURCE_EVIDENCE_MISMATCH'));
+    assert.equal(value.result.synthesisSubmissionCount, 1);
     assert.equal(value.fixture.counts.stream, 1);
   } finally { await value.cleanup(); }
 });
@@ -288,6 +304,57 @@ for (const [name, options, expectedGap] of [
     } finally { await value.cleanup(); }
   });
 }
+
+test('raw capture transport is internal and cannot bypass public entry-point readiness', () => {
+  assert.equal(Object.hasOwn(captureTransportModule, 'CaptureTransport'), false);
+});
+
+test('valid text after done is uncertain before late bytes affect answer or canonical readback', async () => {
+  const value = await run({ postTerminalText: true });
+  try {
+    assert.equal(value.result.status, 'CAPTURE_UNCERTAIN');
+    assert.equal(value.result.synthesisSubmissionCount, 1);
+    assert.equal(value.fixture.counts.stream, 1);
+    assert.equal(value.fixture.counts.messageReadback, 0);
+    assert.equal(value.result.answer, 'Observed current approved memory.');
+    assert(value.result.gaps.includes('SSE_POST_TERMINAL_EVENT'));
+    assert(value.result.gaps.includes('POST_SUBMISSION_EFFECTS_UNCERTAIN'));
+  } finally { await value.cleanup(); }
+});
+
+test('canonical message mismatch after submission retains one-submission uncertainty', async () => {
+  const value = await run({ messageReadbackMismatch: true });
+  try {
+    assert.equal(value.result.status, 'CAPTURE_UNCERTAIN');
+    assert.equal(value.result.synthesisSubmissionCount, 1);
+    assert.equal(value.fixture.counts.stream, 1);
+    assert.equal(value.fixture.counts.messageReadback, 1);
+    assert(value.result.gaps.includes('SYNTHESIS_OUTCOME_UNKNOWN:MESSAGE_READBACK_MISMATCH'));
+    assert(value.result.gaps.includes('POST_SUBMISSION_EFFECTS_UNCERTAIN'));
+  } finally { await value.cleanup(); }
+});
+
+test('message readback network failure after submission retains one-submission uncertainty', async () => {
+  const value = await run({ messageReadbackNetworkError: true });
+  try {
+    assert.equal(value.result.status, 'CAPTURE_UNCERTAIN');
+    assert.equal(value.result.synthesisSubmissionCount, 1);
+    assert.equal(value.fixture.counts.stream, 1);
+    assert.equal(value.fixture.counts.messageReadback, 1);
+    assert(value.result.gaps.includes('SYNTHESIS_OUTCOME_UNKNOWN:NETWORK_ERROR'));
+  } finally { await value.cleanup(); }
+});
+
+test('stream network failure after request start but before headers is never retried or reported as zero submissions', async () => {
+  const value = await run({ streamNetworkErrorBeforeHeaders: true });
+  try {
+    assert.equal(value.result.status, 'CAPTURE_UNCERTAIN');
+    assert.equal(value.result.synthesisSubmissionCount, 1);
+    assert.equal(value.fixture.counts.stream, 1);
+    assert(value.result.gaps.includes('SYNTHESIS_OUTCOME_UNKNOWN:NETWORK_ERROR'));
+    assert(value.result.gaps.includes('POST_SUBMISSION_EFFECTS_UNCERTAIN'));
+  } finally { await value.cleanup(); }
+});
 
 test('invalid UTF-8 after done invalidates the stream without a retry', async () => {
   const value = await run({ invalidUtf8: true });
