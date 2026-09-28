@@ -37,33 +37,7 @@ export TMPDIR
 case "${1:-serve}" in
   migrate)
     echo "Running prisma migrate deploy (api-strategy engine)"
-    # Auto-resolve any previously failed migrations before deploying, so a
-    # stuck failed entry doesn't block forward progress. (Mirrors apps/api.)
-    node -e "
-      const { PrismaClient } = require('./generated/prisma-client');
-      const p = new PrismaClient();
-      (async () => {
-        try {
-          const failed = await p.\$queryRaw\`
-            SELECT migration_name FROM _prisma_migrations
-            WHERE finished_at IS NULL AND rolled_back_at IS NULL
-          \`;
-          for (const row of failed) {
-            console.log('Resolving failed migration:', row.migration_name);
-            await p.\$executeRaw\`
-              UPDATE _prisma_migrations
-              SET rolled_back_at = NOW()
-              WHERE migration_name = \${row.migration_name}
-            \`;
-          }
-        } catch (e) {
-          // _prisma_migrations may not exist yet on a clean DB; ignore.
-          console.log('Pre-migrate check skipped:', e.message);
-        } finally {
-          await p.\$disconnect();
-        }
-      })();
-    " || true
+    # Stop on failed migrations. Ledger recovery requires a reviewed procedure.
     node node_modules/prisma/build/index.js migrate deploy
     # Seed the global reference baseline (insert-if-empty; never clobbers
     # ops-verb edits) after migrating.
