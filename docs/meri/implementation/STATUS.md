@@ -1,5 +1,20 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-28 13:40 UTC
+
+File 01 remains IN_PROGRESS. Reviewed integration source is `484f0a01b10bb8f7f4c11c1f88a1d517c2a3c0e4`; this checkpoint is documentation only. Both mains and AWS remain unchanged. Required verification, database recovery and owner acceptance hold release. The two synthetic tenants remain approved but not enabled.
+
+- PASS, bounded scheduler recovery: sources `de18ad505` and `8db3923c5` integrated as `8f4a01727` and `9d9319369`. Independent review reproduced closure of all four prior findings, ran 96 focused tests and five actual child-runner PostgreSQL crash/restart tests, and confirmed owned-schema/process cleanup. Combined integration ran 101 tests across five suites and full API typecheck, all exit 0. Controlled local sinks do not establish real provider, RLS or deployed acceptance.
+- PASS, offline acceptance-receipt validation: sources `721746192` and `d9aa4aa07` integrated as `4b0435668` and `37ac9abd8`. Independent review ran 43 tests plus 16 adversarial mutations; integration ran 43 tests and verified the frozen 75-case contract, all exit 0. File cases 40–45 remain explicitly unimplemented until actual bytes, current source authority and live capture are joined. Source-binary candidate `892a098ba` contains seven reproducible assets and 49 passing local tests; independent review remains pending.
+- PASS, direct import-boundary guard: sources `f8c002610` and `e49c3412c` integrated as `23370e145` and `484f0a01b`. Independent review cleared the three original bypass probes and 22 additional bounded fixtures; integrated 17 tests and the 509-file scan exit 0. Only the first textual import guard is replaced; reasoning-redaction and SharePoint guards remain. Whole-transitive runtime isolation is not claimed.
+- Pending independent review: report provenance and delayed authorized report delivery at `97c278f36`; prior-attachment reader and trusted JSON/SSE transport at `a944bed97`. Procedure validation `957e4b137` has scoped independent PASS (87 API, five controlled HTTP/interleaving and seven guard tests plus API typecheck), but its report-base prerequisite remains held. RP proposal inner/outer binding `ff0f18f84` has 97 implementation tests and API typecheck exit 0; active-turn forwarding and independent review remain. RP promotion stays disabled.
+
+At published source `53574a937`, visual analysis, memory PostgreSQL and connectors Actions passed. Canary passed types/test stages then failed the old textual boundary guard, now repaired locally; a fresh hosted run is required. Phase 17 failed historical migration `20281003010000_dedup_client_intel_mapping` at `min(uuid)`. No gate is waived and no Actions outage fallback applies.
+
+All 75 authenticated baseline cases, seven Commitments & Deliverables cases, eight required coworker cases and applicable memory acceptance remain NOT_RUN. Remaining mandatory work includes typed plans (implementation active), ordered steering, Stop versus observer detach, bounded children and persistent aggregate budgets; complete source-owner and document coverage; progressive discovery, narrative/JEV, telemetry; then live acceptance, both-main integration and release. No file 02 readiness.
+
+Evidence root: `C:/dev/cap-meri-foundation-evidence`. Exact records: `review-scheduler-receipt-repair-report.md`, `integration-9d931-scheduler.log`, `integration-9d931-api-typecheck.log`, `review-acceptance-receipt-binding-report.md`, `integration-37ac-acceptance-tests.log`, `review-import-boundary-binding-fix-report.md`, `integration-484f-guard-tests.log`, `queue-current.json`.
+
 ## Current checkpoint — 2026-09-28 13:04 UTC
 
 File 01 is IN_PROGRESS. The source-adoption and license records are integrated through `3ac96ce0b` (sources `051ed0f68` and corrected `2c67594c5`). Independent review verified donor records, notices, hashes and bounded claims; a second review verified the corrected compaction replay history. The seven integrated files match the reviewed candidate. These records do not qualify the remaining mandatory implementations.

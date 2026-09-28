@@ -1,6 +1,10 @@
 # File 01 requirements ledger
 
-### Evidence update � 2026-09-28 12:44 UTC
+### Evidence update — 2026-09-28 13:40 UTC
+
+Integration through `484f0a01b`: scheduler crash/restart repair (independent 96+5 tests; integrated 101 and full API typecheck exit 0), offline receipt/UI/trace binding (43 tests plus 16 independent mutations), and direct syntax-aware import guard (17 tests/509-file scan plus 22 independent probes). This is bounded evidence for ANNEX-5.2/5.5, 12.1–12.5 and CI only; overall rows and live cases remain NOT_RUN. See current STATUS for exact source/integration SHAs and limitations. File cases 40–45 remain unimplemented; seven source binaries are a candidate awaiting review, not live authority. Report97 and attachmenta944 reviews are active; procedure957 narrowly passed; RPproposalff0 needs active-turn forwarding and review. Typed planning implementation is active. Neither main nor AWS changed. Full remaining mandatory scope is retained.
+
+### Evidence update — 2026-09-28 12:44 UTC
 
 Reviewed web fixture sourceb285 integrated55217eb65 with exacttree parity and83independent tests exit0. Full visual Actions71/4ade succeeded;71canary API/ork/core/types passed then3invalidwebfixtures failed, now repaired locally. Historical min(uuid) migration still fails. Schedulerde18 independentreview found4actual defects despite91passing tests; excluded/follow-up active. Procedure737 implementation30API/99assistant tests/types/build0, independentreview active. Reportproof/typedattachment/capture/source-adoption work remains unqualified. Bothmains/AWS unchanged; all original live acceptance remainsNOT_RUN. LatestSTATUS details scope and source-bound evidence.
 
