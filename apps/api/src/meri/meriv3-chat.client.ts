@@ -271,7 +271,12 @@ export class MeriV3ChatClient {
                 {
                   ...params.input.governedContext,
                   inheritedDocumentEvidence: params.input.inheritedDocumentEvidence ?? [],
-                  prompt: [params.input.governedContext.prompt, params.input.inheritedEvidenceNotice ?? ''].filter(Boolean).join('\n\n'),
+                  prompt: [
+                    params.input.governedContext.prompt,
+                    params.input.inheritedEvidenceNotice ?? '',
+                  ]
+                    .filter(Boolean)
+                    .join('\n\n'),
                 },
                 params.input,
                 process.env.INTERNAL_SERVICE_SECRET,

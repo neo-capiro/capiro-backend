@@ -22,9 +22,7 @@ const initial = {
   sourceHealth: [
     { source: 'institutional_knowledge', status: 'error', detail: 'adapter_execution_failed' },
   ],
-  unavailableSources: [
-    { source: 'institutional_knowledge', reason: 'adapter_execution_failed' },
-  ],
+  unavailableSources: [{ source: 'institutional_knowledge', reason: 'adapter_execution_failed' }],
   toolsInvoked: ['retrieval-v2:institutional_knowledge'],
   stopReason: 'source_error',
 } as const;
@@ -37,7 +35,9 @@ function fixture() {
       coverage: initial,
     },
   } as unknown as MeriGovernedTurnContext;
-  jest.mocked(currentMeriGovernedRuntime).mockReturnValue({ context: governed, activeClient: null });
+  jest
+    .mocked(currentMeriGovernedRuntime)
+    .mockReturnValue({ context: governed, activeClient: null });
   const raw = {
     orchestrateContext: jest.fn(),
     loadRelevantMemories: jest.fn(),
@@ -56,9 +56,11 @@ function fixture() {
       upstream = event;
       const onEvent = jest.fn();
       await v3.client.streamChat({ input: {}, onEvent } as never);
-      expect(streamChat).toHaveBeenLastCalledWith(expect.objectContaining({
-        input: { governedContext: governed },
-      }));
+      expect(streamChat).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          input: { governedContext: governed },
+        }),
+      );
       return onEvent.mock.calls[0]![0];
     },
   };
@@ -77,19 +79,29 @@ describe('governed Meri stream completion coverage', () => {
       restoredSources: ['institutional_knowledge'],
       unavailableSources: [],
       initialContext: initial,
-      sourceHealth: [{
-        source: 'institutional_knowledge', status: 'partial',
-        detail: 'source_access_restored_coverage_unproven',
-      }],
-      toolReads: [{
-        source: 'institutional_knowledge', tool: 'search_memory', status: 'partial',
-        recordsReturned: 3, recordsEvaluated: 404, paginationComplete: false,
-        truncated: false,
-      }],
+      sourceHealth: [
+        {
+          source: 'institutional_knowledge',
+          status: 'partial',
+          detail: 'source_access_restored_coverage_unproven',
+        },
+      ],
+      toolReads: [
+        {
+          source: 'institutional_knowledge',
+          tool: 'search_memory',
+          status: 'partial',
+          recordsReturned: 3,
+          recordsEvaluated: 404,
+          paginationComplete: false,
+          truncated: false,
+        },
+      ],
       stopReason: 'turn_coverage_partial',
     };
     const received = await receive({
-      type: 'done', reply: 'Approved fact [1].',
+      type: 'done',
+      reply: 'Approved fact [1].',
       contextPacket: { packetId: 'upstream-copy' },
       retrieval: { plan: governed.retrieval.plan, coverage },
     });
@@ -101,13 +113,21 @@ describe('governed Meri stream completion coverage', () => {
     expect(governed.retrieval.coverage.missingDomains).toEqual(['institutional_knowledge']);
   });
 
-  it.each([undefined, null, { coverage: { complete: true } }, {
-    coverage: { phase: 'turn', complete: true, toolReads: 'malformed' },
-  }])('keeps governed initial coverage when no completed-turn receipts exist (%p)', async (retrieval) => {
-    const { governed, receive } = fixture();
-    const received = await receive({ type: 'done', retrieval });
-    expect(received.retrieval).toBe(governed.retrieval);
-  });
+  it.each([
+    undefined,
+    null,
+    { coverage: { complete: true } },
+    {
+      coverage: { phase: 'turn', complete: true, toolReads: 'malformed' },
+    },
+  ])(
+    'keeps governed initial coverage when no completed-turn receipts exist (%p)',
+    async (retrieval) => {
+      const { governed, receive } = fixture();
+      const received = await receive({ type: 'done', retrieval });
+      expect(received.retrieval).toBe(governed.retrieval);
+    },
+  );
 
   it('passes tool and progress events through unchanged', async () => {
     const { receive } = fixture();

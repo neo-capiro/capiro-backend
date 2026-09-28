@@ -19,7 +19,14 @@ import {
   authorizedAttachmentSources,
   compactedAttachmentContext,
 } from './meri-attachment-continuity.js';
-import { BadRequestException, Inject, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { MeriConversationEvidenceService } from './meri-conversation-evidence.service.js';
@@ -56,7 +63,10 @@ import {
 import { reasoningModeFromConversationMetadata } from './meriv3-conversation.helpers.js';
 import { buildMeriGroundingStatement } from './meri-grounding-statement.js';
 import { MERI_TURN_MAINTENANCE, type MeriTurnMaintenance } from './meri-turn-maintenance.js';
-import { describeAttachmentContentState, retryAttachmentExtraction } from './meri-attachment-content-state.js';
+import {
+  describeAttachmentContentState,
+  retryAttachmentExtraction,
+} from './meri-attachment-content-state.js';
 import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
 
 interface SseWriter {
@@ -777,25 +787,49 @@ export class MeriV3ProxyService {
       string,
       { id: string; filename: string; text: string; status: string; reason: string | null }
     >();
-    const filingSources = new Map<string, { id: string; filename: string; kind: string; status: string; reason: string | null }>();
+    const filingSources = new Map<
+      string,
+      { id: string; filename: string; kind: string; status: string; reason: string | null }
+    >();
     const visibleImageIds = new Set<string>();
-    const sourceMessageIds = messages.filter(message => message.role === 'user').map(message => message.id);
+    const sourceMessageIds = messages
+      .filter((message) => message.role === 'user')
+      .map((message) => message.id);
     const currentTurnImages: Array<{ mediaType: string; dataBase64: string }> = [];
     if (allIds.length) {
-      const enforceContentState = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat') === 'enforce';
-      const documents = await authorizedAttachmentSources(this.prisma, ctx, conversationId, allIds,
-        sourceMessageIds, enforceContentState);
+      const enforceContentState =
+        resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat') === 'enforce';
+      const documents = await authorizedAttachmentSources(
+        this.prisma,
+        ctx,
+        conversationId,
+        allIds,
+        sourceMessageIds,
+        enforceContentState,
+      );
       for (const document of documents) {
         const initial = describeAttachmentContentState(document);
-        if (enforceContentState &&
-          !initial.readable && document.data) {
-          await retryAttachmentExtraction(this.prisma, document.id, ctx.tenantId, ctx.userId,
-            () => this.aiCredentials.resolveProvider(ctx, 'openai'));
-          const refreshed = await this.prisma.withTenant(ctx.tenantId, tx => tx.clioAttachment.findFirst({
-            where: { id: document.id, tenantId: ctx.tenantId, userId: ctx.userId },
-            select: { id: true, filename: true, kind: true, textContent: true, status: true, reason: true,
-              messageId: true, pages: true, data: true, createdAt: true },
-          }));
+        if (enforceContentState && !initial.readable && document.data) {
+          await retryAttachmentExtraction(this.prisma, document.id, ctx.tenantId, ctx.userId, () =>
+            this.aiCredentials.resolveProvider(ctx, 'openai'),
+          );
+          const refreshed = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+            tx.clioAttachment.findFirst({
+              where: { id: document.id, tenantId: ctx.tenantId, userId: ctx.userId },
+              select: {
+                id: true,
+                filename: true,
+                kind: true,
+                textContent: true,
+                status: true,
+                reason: true,
+                messageId: true,
+                pages: true,
+                data: true,
+                createdAt: true,
+              },
+            }),
+          );
           if (refreshed) Object.assign(document, refreshed);
         }
         filingSources.set(document.id, document);
@@ -819,7 +853,9 @@ export class MeriV3ProxyService {
               tenantId: ctx.tenantId,
               userId: ctx.userId,
               kind: 'image',
-              messageId: { in: documents.flatMap(source => source.messageId ? [source.messageId] : []) },
+              messageId: {
+                in: documents.flatMap((source) => (source.messageId ? [source.messageId] : [])),
+              },
             },
             select: { id: true, mediaType: true, data: true },
           }),
@@ -839,15 +875,26 @@ export class MeriV3ProxyService {
       const parts = [message.body];
       for (const ref of refsByMessage.get(message.id) ?? []) {
         const document = documentText.get(ref.id);
-        const contentState = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat') === 'enforce'
-          && filingSources.has(ref.id) ? describeAttachmentContentState(filingSources.get(ref.id)!).state : undefined;
+        const contentState =
+          resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat') === 'enforce' &&
+          filingSources.has(ref.id)
+            ? describeAttachmentContentState(filingSources.get(ref.id)!).state
+            : undefined;
         if (document)
           parts.push(
-            formatAttachmentContext(document.filename, document.text, undefined, document, contentState),
+            formatAttachmentContext(
+              document.filename,
+              document.text,
+              undefined,
+              document,
+              contentState,
+            ),
           );
         else if (filingSources.has(ref.id)) {
           const imageVisible = message.id === lastUser?.id && visibleImageIds.has(ref.id);
-          parts.push(formatAttachmentFilingReference(filingSources.get(ref.id)!, imageVisible, contentState));
+          parts.push(
+            formatAttachmentFilingReference(filingSources.get(ref.id)!, imageVisible, contentState),
+          );
         } else {
           parts.push(
             `Attachment ${JSON.stringify(ref.filename)} (ID ${ref.id}) is unavailable for this turn. Ask for that file again; do not claim to have read it.`,

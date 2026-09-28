@@ -196,9 +196,7 @@ describe('MeriWorkspaceWindow prototype parity', () => {
       }),
     );
     expect(mocks.sendMessage).not.toHaveBeenCalled();
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /MODE · MAX/i })).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByRole('button', { name: /MODE · MAX/i })).toBeTruthy());
   });
 
   test('removes obsolete runtime and close controls and uses the prototype Pro Tip/minimize controls', () => {
@@ -234,9 +232,7 @@ describe('MeriWorkspaceWindow prototype parity', () => {
         reasoningMode: 'deep',
       }),
     );
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /MODE · DEEP/i })).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByRole('button', { name: /MODE · DEEP/i })).toBeTruthy());
   });
 
   test('starts a new production conversation from the prototype rail', () => {
