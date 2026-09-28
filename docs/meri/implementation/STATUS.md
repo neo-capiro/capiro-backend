@@ -1,5 +1,15 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-28 16:45 UTC
+
+Progressive discovery sources41f3517 and8da6c0a are consolidated as25a609b and5d25c7d. Independent repair review passed156 candidate tests,9 fresh actual-assistant probes and both app typechecks. Combined integration passed168 runtime tests across6 suites and runtime typecheck; changed-file formatting passed. The scoped result preserves current canonical disclosure/dispatch authority; real live revocation, full source adoption and full File01 acceptance remain unqualified.
+
+The original offline26-case suite was rerun at exact0e302106f with26/26 PASS and verifier exit0. Python scorer tests and Node runtime tests also exited0. Its report hash is c2b07450362acea041e924457cc8df85f7ca6b266681fe1bc284fd8f5406d01f under `offline-0e302/`. This is a mechanism evaluation, not75 live/CD7/CW8 acceptance or a final future-release result.
+
+Focused Workstream A outcomes now have draft PR1908 at08a0a9d2e, exact local/remote verified. Targeted API56, runtime133, core10 and baseline fixture5 tests, both app typechecks and shared/core builds exited0. Four-file formatting preserves source/emitted ASTs and ordered comments. Its independent review was interrupted by OpenRouter402 and must resume on this final head. Neither PR is merged or deployed.
+
+Further implementation candidates are preserved on GitHub: native tasks/action-items55f33c6 (72 affected+19 regression API tests/type/build0); narrative/JEV e05616c (164runtime tests/type0); meetings3d826e6 (lead147API/106runtime tests0, worker builds/both types0); aggregate provider budgets a0821d4 (lead10API/134runtime tests/both types0). All await independent qualification and integration; none establish full family/live acceptance. Telemetry remains uncommitted after402. Server capture authority repair and durable step/steering coordinator workers continue. Minimal UI and child adapter, remaining sources and trusted live capture remain mandatory. Latest OpenRouter balance at16:39 was about$3.39; a top-up question is pending. No model substitution, shared environment change or scope reduction occurred.
+
 ## Current checkpoint — 2026-09-28 16:32 UTC
 
 File 01 remains in progress. The consolidated branch at f92 has successful hosted memory PostgreSQL and connector checks. Hosted canary and visual checks stopped at formatting before code validation. Seven affected files are now mechanically formatted; source AST, emitted JavaScript AST and ordered comments are equivalent in all seven, and both complete workflow format commands exit 0. Evidence: `ci-f92-canary-failed.log`, `ci-f92-visual-failed.log`, `f92-format-proof.json`, `integration-additional-format-gates.json`. This is not a code-check waiver.
