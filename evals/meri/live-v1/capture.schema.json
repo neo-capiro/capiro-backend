@@ -130,7 +130,7 @@
         "evidence": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["run", "auth", "runtime", "setup", "execution", "sources", "effects", "status", "ui"],
+          "required": ["run", "auth", "runtime", "setup", "execution", "sources", "effects", "status", "ui", "predicate"],
           "properties": {
             "run": {
               "type": "object",
@@ -302,6 +302,16 @@
                 "approvalErrorVisible": { "type": ["boolean", "null"] },
                 "persistedAfterReload": { "type": ["boolean", "null"] },
                 "stayedInsideMeri": { "type": ["boolean", "null"] }
+              }
+            },
+            "predicate": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["applicable", "notApplicableReason", "artifact"],
+              "properties": {
+                "applicable": { "type": "boolean" },
+                "notApplicableReason": { "type": ["string", "null"] },
+                "artifact": { "anyOf": [{ "$ref": "#/$defs/artifact" }, { "type": "null" }] }
               }
             }
           }

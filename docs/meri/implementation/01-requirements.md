@@ -1,5 +1,17 @@
 # File 01 requirements ledger
 
+### Evidence update — 2026-09-28 14:22 UTC
+
+Reviewed source binaries and typed paged attachment reads/transport are integrated through `9cf6ca2a2`: 49 fixture tests, 96 API tests, 62 orchestrator tests and both typechecks exit 0. These are bounded implementation checks; live cases 40–45 remain unimplemented until canonical loading/current authority/capture are joined. All original live acceptance and aggregate requirement rows remain NOT_RUN. Last published `0adfe2e01` passed full canary, visual, memory PostgreSQL and connector CI; historical min(uuid) migration still fails. Report typed-frame leakage and plan admission counterexamples are under repair; mail and RP transport are under independent review. Both mains/AWS unchanged. See current STATUS for exact commits and limitations.
+
+### Evidence update — 2026-09-28 13:40 UTC
+
+Integration through `484f0a01b`: scheduler crash/restart repair (independent 96+5 tests; integrated 101 and full API typecheck exit 0), offline receipt/UI/trace binding (43 tests plus 16 independent mutations), and direct syntax-aware import guard (17 tests/509-file scan plus 22 independent probes). This is bounded evidence for ANNEX-5.2/5.5, 12.1–12.5 and CI only; overall rows and live cases remain NOT_RUN. See current STATUS for exact source/integration SHAs and limitations. File cases 40–45 remain unimplemented; seven source binaries are a candidate awaiting review, not live authority. Report97 and attachmenta944 reviews are active; procedure957 narrowly passed; RPproposalff0 needs active-turn forwarding and review. Typed planning implementation is active. Neither main nor AWS changed. Full remaining mandatory scope is retained.
+
+### Evidence update — 2026-09-28 12:44 UTC
+
+Reviewed web fixture sourceb285 integrated55217eb65 with exacttree parity and83independent tests exit0. Full visual Actions71/4ade succeeded;71canary API/ork/core/types passed then3invalidwebfixtures failed, now repaired locally. Historical min(uuid) migration still fails. Schedulerde18 independentreview found4actual defects despite91passing tests; excluded/follow-up active. Procedure737 implementation30API/99assistant tests/types/build0, independentreview active. Reportproof/typedattachment/capture/source-adoption work remains unqualified. Bothmains/AWS unchanged; all original live acceptance remainsNOT_RUN. LatestSTATUS details scope and source-bound evidence.
+
 ### Evidence update — 2026-09-28 11:56 UTC
 
 Reviewed document/sandbox/bounded-compaction changes integrated througha884d6445; fresh145tests/4suites, full API typecheck and14guard tests/509-file scan exit0. Independentcompaction4864-case grid0. FullLinuxsandbox Actions36416414333 at6aac succeeded; latestguard968 CI running. Private report source authority and served-procedure gaps remain HOLD. New scheduler-crash implementation active; both mains/AWS untouched. All original live acceptance remains NOT_RUN. See latest STATUS checkpoint for exact scope and limits.

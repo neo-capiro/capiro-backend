@@ -101,6 +101,7 @@ const EXPECTED_TOOLS = [
   'get_client_context',
   'search_capiro_data',
   'get_research_evidence',
+  'read_chat_attachments',
   'search_research_sources',
   // Defense Intelligence Research Portfolios — one domain service surface.
   'get_research_portfolio',
@@ -279,6 +280,7 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   get_client_context: ['clientId'],
   search_capiro_data: ['query', 'domains'],
   get_research_evidence: ['sessionId'],
+  read_chat_attachments: [],
   search_research_sources: ['query'],
   get_research_portfolio: ['conversationId'],
   get_research_portfolio_analytics: ['conversationId'],
@@ -409,6 +411,19 @@ function schemas() {
 }
 
 describe('Meri tool registration', () => {
+  it('dispatches read_chat_attachments only through the dedicated owner service', async () => {
+    const read = jest.fn(async () => ({ tool: 'read_chat_attachments', records: [] }));
+    const service = Object.assign(Object.create(MeriToolsService.prototype), {
+      chatAttachmentReader: { read },
+    }) as MeriToolsService;
+    const ctx = { tenantId: 'tenant-1', userId: 'user-1' } as never;
+    const input = { conversationId: '11111111-1111-4111-8111-111111111111' };
+    await expect(service.execute(ctx, 'read_chat_attachments', input)).resolves.toMatchObject({
+      tool: 'read_chat_attachments',
+    });
+    expect(read).toHaveBeenCalledWith(ctx, input);
+  });
+
   it.each(['get_legiwatch_review', 'apply_legiwatch_suggestion'] as const)(
     '%s injects authenticated identity and validates the client before the owner-service call',
     async (name) => {
@@ -655,6 +670,8 @@ describe('Meri tool registration', () => {
           ? { query: 'strategy', domains: ['strategies_work'] }
           : schema.name === 'get_research_evidence'
             ? { sessionId: '11111111-1111-4111-8111-111111111111' }
+            : schema.name === 'read_chat_attachments'
+              ? { conversationId: '11111111-1111-4111-8111-111111111111' }
             : {},
       );
       expect(result).toMatchObject(sentinel);

@@ -53,6 +53,8 @@ import { MeriClaimWriterService } from './meri-claim-writer.js';
 import { renderReportToBrowserHtml, renderReportToWordHtml } from './meri-research.helpers.js';
 import { runMeriStreamWithSetupGuard } from './meri-stream-preflight.helpers.js';
 import { withMeriToolRequestControl } from './meri-tool-request-control.js';
+import { withMeriChatAttachmentReadScope } from './meri-chat-attachment-read-scope.js';
+import { admitMeriChatAttachmentTransport } from './meri-chat-attachment-transport.js';
 import { MeriPdfRenderError } from './meri-docgen-pdf.js';
 import { sha256Bytes, validateDocumentArtifactBytes } from './meri-artifact-integrity.js';
 import type { AssuranceSurface } from '@capiro/meriv2-core';
@@ -431,9 +433,13 @@ export class MeriController {
     @Body() body: Record<string, unknown>,
     @Req() req: Request,
   ) {
-    return withMeriToolRequestControl(req, () =>
-      this.tools.executeFromAuthenticatedUser(ctx, name, body),
-    );
+    const admitted = admitMeriChatAttachmentTransport(name, body, ctx, req);
+    return withMeriToolRequestControl(req, () => {
+      const execute = () => this.tools.executeFromAuthenticatedUser(ctx, name, admitted.input);
+      return admitted.scope
+        ? withMeriChatAttachmentReadScope(admitted.scope, execute)
+        : execute();
+    });
   }
 
   /**

@@ -1,10 +1,29 @@
-Nous Research Hermes Agent (H1 runtime guardrails and H5 procedure playbook)
+Nous Research Hermes Agent (H1 runtime guardrails, H2 context compaction, and H5 procedure playbook)
 
 This product includes a substantial TypeScript adaptation of tool-loop guardrail concepts from Hermes Agent. Adapted behavior is implemented in:
 
 - apps/meriv2-orchestrator/src/meri/meriv3/meriv3-run-budget.ts
 - apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts
 - apps/meriv2-orchestrator/src/meri/meriv3/openai-responses.client.ts
+
+This product also includes a native TypeScript adaptation of context-compaction
+behavior from these pinned Hermes Agent sources and tests:
+
+- NousResearch/hermes-agent@516535b54275e963a82b4c28f866338fb768e7bc
+- agent/context_compressor.py
+- agent/conversation_compression.py
+- NousResearch/hermes-agent@062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f
+- tests/agent/test_compression_adoption_preserves_live_tail.py
+- tests/agent/test_compression_stall_deterministic_fallback.py
+- tests/agent/test_compressor_tail_cut_tool_pair_floor.py
+- tests/agent/test_context_compressor_cross_session_guard.py
+- tests/agent/test_steer_compaction_persistence.py
+
+The H2 adaptation is implemented in:
+
+- apps/api/src/meri/meri-compaction.helpers.ts
+- apps/api/src/meri/meri.service.ts
+- apps/api/src/meri/meriv3-proxy.service.ts
 
 This product also includes an H5 adaptation of evidence classification, cited
 commitments, unresolved owner/date handling, modality preservation, duplicate

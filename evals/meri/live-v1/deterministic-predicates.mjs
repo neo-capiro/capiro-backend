@@ -1,9 +1,19 @@
 import { frozenFixture } from './fixture.mjs';
 import { structuredExecutionRequirements } from './execution-requirements.mjs';
-import { sinkArtifactSchema, traceArtifactSchema } from './artifact-schemas.mjs';
+import {
+  acceptanceEvidenceSchema,
+  authArtifactSchema,
+  sinkArtifactSchema,
+  traceArtifactSchema,
+  uiArtifactSchema,
+} from './artifact-schemas.mjs';
 import { validateJsonSchema } from './lib/schema-validator.mjs';
+import { evaluateSavedEvidenceCase, savedEvidenceCaseIds } from './saved-evidence-predicates.mjs';
 
-const IMPLEMENTED_CASES = new Set(['01', '03', '12', '19', '20', '46', '51', '56', '72']);
+const ROW_COVERAGE_IMPLEMENTED_CASES = new Set([
+  '01', '03', '12', '13', '14', '15', '16', '17', '18', '19', '20', '46', '51', '56', '72',
+]);
+const SOURCE_QUALIFICATION_INCOMPLETE_CASES = new Set(['40', '41', '42', '43', '44', '45']);
 
 function folded(value) {
   return value.normalize('NFC').toLocaleLowerCase('en-US').replace(/[’']/gu, "'").replace(/\s+/gu, ' ').trim();
@@ -33,7 +43,10 @@ function validateTraceShape(trace, capture, captureRunId) {
 
 function validateArtifactShapes(artifacts) {
   const defects = validateJsonSchema(artifacts.trace, traceArtifactSchema, { path: 'trace artifact' });
+  defects.push(...validateJsonSchema(artifacts.auth, authArtifactSchema, { path: 'auth artifact' }));
   if (artifacts.sink !== null) defects.push(...validateJsonSchema(artifacts.sink, sinkArtifactSchema, { path: 'sink artifact' }));
+  for (const ui of artifacts.ui) defects.push(...validateJsonSchema(ui, uiArtifactSchema, { path: 'UI artifact' }));
+  if (artifacts.acceptance !== null) defects.push(...validateJsonSchema(artifacts.acceptance, acceptanceEvidenceSchema, { path: 'predicate artifact' }));
   return defects.map((defect) => `saved artifact schema violation: ${defect}`);
 }
 
@@ -42,6 +55,17 @@ function sameAuthorizationScope(scope, auth) {
     && scope?.actorId === auth?.actorId
     && scope?.tenantId === auth?.selectedTenantId
     && scope?.clientId === auth?.selectedClientId;
+}
+
+function savedAuthorizationScope(scope, artifacts) {
+  if (sameAuthorizationScope(scope, artifacts.auth)) return true;
+  const session = artifacts.acceptance?.memory?.sessions?.find((item) => item.sessionId === scope?.sessionId);
+  const actor = frozenFixture.actors[session?.actorId];
+  return session?.actorId === scope?.actorId
+    && session?.tenantId === scope?.tenantId
+    && session?.clientId === scope?.clientId
+    && JSON.stringify(session.currentRoles) === JSON.stringify(actor?.currentRoles)
+    && JSON.stringify(session.ethicalWalls) === JSON.stringify(actor?.ethicalWalls);
 }
 
 function validateCorrelations(capture, artifacts, captureRunId) {
@@ -57,7 +81,7 @@ function validateCorrelations(capture, artifacts, captureRunId) {
   for (const tool of capture.evidence.runtime.tools) {
     const match = records.find((record) => record.kind === 'tool' && record.callId === tool.callId);
     if (!match || match.status !== tool.status || match.operationId !== tool.operationId || match.name !== tool.name) defects.push(`tool call ${tool.callId} lacks a correlated trace record`);
-    else if (!sameAuthorizationScope(match.authorizationScope, artifacts.auth)) defects.push(`tool call ${tool.callId} authorization scope is not bound to the saved session`);
+    else if (!savedAuthorizationScope(match.authorizationScope, artifacts)) defects.push(`tool call ${tool.callId} authorization scope is not bound to a saved authenticated session`);
   }
   for (const citation of capture.evidence.sources.citations) {
     const passage = artifacts.passages.get(citation.sourceId);
@@ -87,6 +111,12 @@ function validateCorrelations(capture, artifacts, captureRunId) {
     }
     const authRecord = records.find((record) => record.kind === 'auth' && record.sessionId === auth.sessionId);
     if (!authRecord) defects.push('auth artifact lacks correlated trace record');
+    const actor = frozenFixture.actors[auth.actorId];
+    if (!actor
+      || JSON.stringify(auth.currentRoles) !== JSON.stringify(actor.currentRoles)
+      || JSON.stringify(auth.ethicalWalls) !== JSON.stringify(actor.ethicalWalls)) {
+      defects.push('auth artifact current role/wall authority does not exactly match the frozen actor');
+    }
   }
   if (artifacts.payload && artifacts.sink) {
     const effects = capture.evidence.effects;
@@ -133,6 +163,10 @@ function validateCorrelations(capture, artifacts, captureRunId) {
       defects.push('UI artifact is not run/case correlated');
     }
     if (ui.operationId && ui.operationId !== capture.evidence.effects.operationId) defects.push('UI operation is not correlated to captured effect');
+    if (ui.sessionId !== artifacts.auth?.sessionId
+      || ui.actorId !== artifacts.auth?.actorId
+      || ui.tenantId !== artifacts.auth?.selectedTenantId
+      || ui.clientId !== artifacts.auth?.selectedClientId) defects.push('UI artifact authorization scope is not bound to the saved session');
   }
   return defects;
 }
@@ -264,26 +298,45 @@ function casePredicate(capture, artifacts) {
   return defects;
 }
 
-export function evaluateDeterministicEvidence(capture, testCase, artifacts, captureRunId) {
+export function evaluateDeterministicEvidence(capture, testCase, artifacts, captureRunId, provenance) {
   const shapeDefects = validateArtifactShapes(artifacts);
   if (shapeDefects.length > 0) {
     return {
-      implemented: IMPLEMENTED_CASES.has(capture.caseId),
+      implemented: ROW_COVERAGE_IMPLEMENTED_CASES.has(capture.caseId),
       defects: shapeDefects,
       integrityDefects: shapeDefects,
       reason: 'saved artifact schema validation failed',
     };
   }
   const integrityDefects = validateCorrelations(capture, artifacts, captureRunId);
+  const expectedAuthorityClass = provenance === 'UNIT_FIXTURE_NOT_LIVE'
+    ? 'UNIT_FIXTURE_NOT_LIVE'
+    : provenance === 'LIVE_CAPTURE' ? 'AUTHORITATIVE_CAPTURE' : null;
+  if (artifacts.acceptance && expectedAuthorityClass && artifacts.acceptance.authorityClass !== expectedAuthorityClass) {
+    integrityDefects.push('saved predicate authority class is not bound to bundle provenance');
+  }
   const defects = [
     ...integrityDefects,
     ...validateExecutionRequirements(capture, artifacts.trace),
     ...commonLeakDefects(capture, testCase, artifacts.answer.text, artifacts.passages),
   ];
-  if (!IMPLEMENTED_CASES.has(capture.caseId)) {
-    return { implemented: false, defects, integrityDefects, reason: `case ${capture.caseId} row-specific deterministic predicate is not implemented` };
+  if (savedEvidenceCaseIds.includes(capture.caseId)) defects.push(...evaluateSavedEvidenceCase(capture, artifacts, captureRunId));
+  else if (ROW_COVERAGE_IMPLEMENTED_CASES.has(capture.caseId)) defects.push(...casePredicate(capture, artifacts));
+  if (!ROW_COVERAGE_IMPLEMENTED_CASES.has(capture.caseId)) {
+    const sourceQualificationIncomplete = SOURCE_QUALIFICATION_INCOMPLETE_CASES.has(capture.caseId);
+    return {
+      implemented: false,
+      defects,
+      integrityDefects,
+      reason: sourceQualificationIncomplete
+        ? `case ${capture.caseId} source-byte/parser/current-authority row qualification is not implemented`
+        : `case ${capture.caseId} row-specific deterministic predicate is not implemented`,
+      coverageDetails: sourceQualificationIncomplete ? [
+        'reliable lower-level saved artifact hashes and structural joins were checked, but they do not qualify original row coverage',
+        'actual source bytes, trusted parser output, source identity, and current-version authority are not independently proven',
+      ] : [],
+    };
   }
-  defects.push(...casePredicate(capture, artifacts));
   return { implemented: true, defects, integrityDefects, reason: null };
 }
 
