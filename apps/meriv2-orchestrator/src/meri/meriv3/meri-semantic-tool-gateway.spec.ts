@@ -142,9 +142,13 @@ describe('MeriSemanticToolGateway', () => {
     const selected = gateway.select({ schemas, tenantId: 'tenant-1', request, plan: plan(null) });
     expect(selected.decision.mode).toBe('enabled');
     expect(selected.decision.fallbackToLegacy).toBe(false);
-    expect(selected.decision.exposedNames).toEqual(expect.arrayContaining([
-      'save_chat_attachments', 'lookup_client_registry', 'read_client_documents',
-    ]));
+    expect(selected.decision.exposedNames).toEqual(
+      expect.arrayContaining([
+        'save_chat_attachments',
+        'lookup_client_registry',
+        'read_client_documents',
+      ]),
+    );
   });
 
   test.each([

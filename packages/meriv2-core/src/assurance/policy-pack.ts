@@ -22,17 +22,9 @@ export type PolicyPackAction = (typeof POLICY_PACK_ACTIONS)[number];
 
 export type PolicyPackOutcome = 'PASS' | 'WARN' | 'BLOCK';
 export type PolicyPackStatus =
-  | 'draft'
-  | 'pending_review'
-  | 'reviewed'
-  | 'published'
-  | 'retired'
-  | 'disabled_example';
+  'draft' | 'pending_review' | 'reviewed' | 'published' | 'retired' | 'disabled_example';
 export type PolicyReviewStatus =
-  | 'not_required_product_policy'
-  | 'pending'
-  | 'approved'
-  | 'rejected';
+  'not_required_product_policy' | 'pending' | 'approved' | 'rejected';
 
 export interface PolicyAuthority {
   type: 'approved_product_policy' | 'legal_authority' | 'client_policy' | 'example_only';

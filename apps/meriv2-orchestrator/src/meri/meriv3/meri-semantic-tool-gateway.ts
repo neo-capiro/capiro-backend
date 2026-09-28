@@ -127,7 +127,11 @@ const ACTION_RULES: ReadonlyArray<{ pattern: RegExp; tools: readonly string[] }>
   {
     pattern:
       /\b(?:create|capture|save)\b.{0,40}\b(?:research\s+portfolio\s+snapshot|portfolio\s+snapshot)\b/i,
-    tools: ['get_research_portfolio', 'get_research_portfolio_analytics', 'create_research_portfolio_snapshot'],
+    tools: [
+      'get_research_portfolio',
+      'get_research_portfolio_analytics',
+      'create_research_portfolio_snapshot',
+    ],
   },
   {
     pattern:

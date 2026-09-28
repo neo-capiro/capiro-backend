@@ -1673,10 +1673,7 @@ export function stateBillSessionLabel(sessionKey: string): string {
 // ─────────────────────────────────────────────────────────────────────────
 
 export type StateDeadlineCutoffType =
-  | 'committeeCutoff'
-  | 'crossover'
-  | 'secondCommitteeCutoff'
-  | 'sineDie';
+  'committeeCutoff' | 'crossover' | 'secondCommitteeCutoff' | 'sineDie';
 
 export interface StateSessionCalendar {
   committeeCutoffDate?: string | null;
@@ -2001,14 +1998,7 @@ export {
 
 /** A point in the appropriations lifecycle a funding value can come from. */
 export type FundingStage =
-  | 'enacted'
-  | 'conference'
-  | 'sacd'
-  | 'hacd'
-  | 'sasc'
-  | 'hasc'
-  | 'request'
-  | 'none';
+  'enacted' | 'conference' | 'sacd' | 'hacd' | 'sasc' | 'hasc' | 'request' | 'none';
 
 /** Human-facing label for each funding stage (legends, tooltips, "Latest: …"). */
 export const FUNDING_STAGE_LABEL: Record<FundingStage, string> = {
@@ -3310,11 +3300,12 @@ export function formatCitationsForPrompt(citations: MeriCitation[]): string {
           c.source.section ? `section ${c.source.section}` : null,
           c.source.version ? `version ${c.source.version}` : null,
           c.source.observedAt ? `observed ${c.source.observedAt}` : null,
-        ].filter(Boolean).join(' / ')
+        ]
+          .filter(Boolean)
+          .join(' / ')
       : null;
-    const target = c.url ?? (c.id || c.stableId
-      ? `${c.type} record ${c.id || c.stableId}`
-      : `tool ${c.tool}`);
+    const target =
+      c.url ?? (c.id || c.stableId ? `${c.type} record ${c.id || c.stableId}` : `tool ${c.tool}`);
     bits.push(`Source: ${target}${locator ? ` (${locator})` : ''}`);
     return `[${c.n}] ${bits.join(' — ')}`;
   });
@@ -3816,7 +3807,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'get_research_portfolio_bookmarks',
     description:
-      'Read the current user\'s bookmarks for an authorized Research Portfolio, including members, snapshots, evidence items, and reviews they have saved for quick reference.',
+      "Read the current user's bookmarks for an authorized Research Portfolio, including members, snapshots, evidence items, and reviews they have saved for quick reference.",
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -4278,13 +4269,19 @@ export const MERI_CAPABILITY_REGISTRY = [
   },
   {
     name: 'get_district_nexus_context',
-    description: 'Read client-scoped District Nexus facts and gaps for a state and district; cite each fact’s source, date and funding stage, and state gaps rather than refusing.',
-    backend: 'meri', readOnly: true, surfaces: ['full_chat'],
+    description:
+      'Read client-scoped District Nexus facts and gaps for a state and district; cite each fact’s source, date and funding stage, and state gaps rather than refusing.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
   },
   {
     name: 'get_district_nexus_changes',
-    description: 'Read recent district change-ledger events for a client scope; cite source, event date and funding stage where present, and state gaps rather than refusing.',
-    backend: 'meri', readOnly: true, surfaces: ['full_chat'],
+    description:
+      'Read recent district change-ledger events for a client scope; cite source, event date and funding stage where present, and state gaps rather than refusing.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
   },
   {
     name: 'search_public_web',
@@ -4751,7 +4748,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'get_business_development_evidence',
     description:
-      "Read the locally synchronized dossier evidence for the prospect this chat is scoped to: identity basis, per-section source status, and up to 24 flattened evidence records with stable source ids, locators, relationship strength, factual fields and event/effective/source-update/retrieval dates. Truthfully reports total, truncated and partial coverage; an absent or partial section is not proof of absence. Reads local data only — never calls an external provider.",
+      'Read the locally synchronized dossier evidence for the prospect this chat is scoped to: identity basis, per-section source status, and up to 24 flattened evidence records with stable source ids, locators, relationship strength, factual fields and event/effective/source-update/retrieval dates. Truthfully reports total, truncated and partial coverage; an absent or partial section is not proof of absence. Reads local data only — never calls an external provider.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -4759,7 +4756,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'get_business_development_brief',
     description:
-      "Read the current versioned prospect brief for the prospect this chat is scoped to: title, version number, the five sections (companyAndFirmImplication, verifiedEvidence, judgment, practicalAction, missingInformation) with text, provenance and citation indexes, plus the citation records. A missing brief is reported as missing; it never fabricates one.",
+      'Read the current versioned prospect brief for the prospect this chat is scoped to: title, version number, the five sections (companyAndFirmImplication, verifiedEvidence, judgment, practicalAction, missingInformation) with text, provenance and citation indexes, plus the citation records. A missing brief is reported as missing; it never fabricates one.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -4767,7 +4764,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'resolve_business_development_source',
     description:
-      "Resolve one citation index of the prospect brief this chat is scoped to back to its inspectable source: the citation record, the evidence item it rests on, and whether the source still matches the current dossier. Source limitations (index out of range, no brief, source changed) are reported truthfully, never papered over.",
+      'Resolve one citation index of the prospect brief this chat is scoped to back to its inspectable source: the citation record, the evidence item it rests on, and whether the source still matches the current dossier. Source limitations (index out of range, no brief, source changed) are reported truthfully, never papered over.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],

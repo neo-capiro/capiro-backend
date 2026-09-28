@@ -331,12 +331,7 @@ export class ChangeSetsService {
    * marked stale (that status write COMMITS — it happens inside the tx and the
    * 409 is thrown after) and a ConflictException tells the caller to regenerate.
    */
-  async apply(
-    tenantId: string,
-    userId: string,
-    id: string,
-    dto: { opIndexes?: number[] } = {},
-  ) {
+  async apply(tenantId: string, userId: string, id: string, dto: { opIndexes?: number[] } = {}) {
     // A6 grounding (fiscal window + firm phases + reference calendars) for the
     // post-apply verifier — fetched BEFORE the tx opens (same as the assistant
     // path): grounding reads run their own withTenant txs, and nesting them

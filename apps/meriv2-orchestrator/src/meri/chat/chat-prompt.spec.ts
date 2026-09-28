@@ -1,4 +1,8 @@
-import { buildChatDateGrounding, buildChatSystemPrompt, composeChatSystemPrompt } from './chat-prompt';
+import {
+  buildChatDateGrounding,
+  buildChatSystemPrompt,
+  composeChatSystemPrompt,
+} from './chat-prompt';
 import { KeywordIntentRouter, MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT } from '@capiro/meriv2-core';
 import type { MeriContext } from '@capiro/meriv2-core';
 

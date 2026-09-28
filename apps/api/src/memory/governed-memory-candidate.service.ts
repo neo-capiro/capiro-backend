@@ -49,11 +49,7 @@ interface CandidateGovernanceRow {
 }
 
 export type OwnedMemoryCandidateStatus =
-  | 'pending'
-  | 'withdrawn'
-  | 'rejected'
-  | 'approved'
-  | 'auto_committed';
+  'pending' | 'withdrawn' | 'rejected' | 'approved' | 'auto_committed';
 
 interface OwnCandidateRow {
   id: string;

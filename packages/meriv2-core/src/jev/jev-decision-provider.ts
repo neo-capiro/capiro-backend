@@ -1,4 +1,7 @@
-import { CLAIM_SUPPORT_QUESTION_ID, CLAIM_SUPPORT_QUESTION_VERSION } from './claim-support-question';
+import {
+  CLAIM_SUPPORT_QUESTION_ID,
+  CLAIM_SUPPORT_QUESTION_VERSION,
+} from './claim-support-question';
 import {
   EVIDENCE_OUTCOMES,
   type DecisionProvider,

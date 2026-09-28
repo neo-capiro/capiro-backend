@@ -31,8 +31,7 @@ interface Harness {
 }
 
 type SectionOutcome =
-  | { kind: 'ok'; html?: string }
-  | { kind: 'http'; status: number; body?: unknown };
+  { kind: 'ok'; html?: string } | { kind: 'http'; status: number; body?: unknown };
 
 function harness(
   opts: {

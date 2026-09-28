@@ -16,9 +16,7 @@ function partsAt(date: Date, timeZone: string): Record<string, number> {
     hourCycle: 'h23',
   }).formatToParts(date);
   return Object.fromEntries(
-    parts
-      .filter((part) => part.type !== 'literal')
-      .map((part) => [part.type, Number(part.value)]),
+    parts.filter((part) => part.type !== 'literal').map((part) => [part.type, Number(part.value)]),
   );
 }
 

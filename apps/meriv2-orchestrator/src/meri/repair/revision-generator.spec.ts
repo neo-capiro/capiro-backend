@@ -3,16 +3,28 @@ import { createRevisionGenerator } from './revision-generator';
 const generationInput = {
   affectedText: 'TITAN is not in production.',
   claim: {
-    id: 'c1', text: 'TITAN is not in production.', type: 'fact' as const,
-    category: 'general_background', sourceIds: [], primarySourcePresent: false,
+    id: 'c1',
+    text: 'TITAN is not in production.',
+    type: 'fact' as const,
+    category: 'general_background',
+    sourceIds: [],
+    primarySourcePresent: false,
     confidence: 'unknown' as const,
   },
   dependentSentences: [],
-  evidence: [{
-    id: 'e1', sourceType: 'refresh_status', sourceId: 'titan',
-    evidenceClass: 'official_government_data' as const, passage: 'TITAN entered production.',
-    locator: '[2]', primary: true, authoritative: true, requirementIds: [],
-  }],
+  evidence: [
+    {
+      id: 'e1',
+      sourceType: 'refresh_status',
+      sourceId: 'titan',
+      evidenceClass: 'official_government_data' as const,
+      passage: 'TITAN entered production.',
+      locator: '[2]',
+      primary: true,
+      authoritative: true,
+      requirementIds: [],
+    },
+  ],
   allowedEvidenceIds: ['e1'],
 };
 
@@ -24,7 +36,8 @@ describe('revision generator', () => {
     }));
     const generate = createRevisionGenerator({ completeWithSchema } as never, () => 2_500);
     await expect(generate(generationInput, {})).resolves.toEqual({
-      replacementText: 'TITAN entered production [2].', citedEvidenceIds: ['e1'],
+      replacementText: 'TITAN entered production [2].',
+      citedEvidenceIds: ['e1'],
       usage: { inputTokens: 20, outputTokens: 8 },
     });
     expect(completeWithSchema).toHaveBeenCalledWith(expect.objectContaining({ timeoutMs: 2_500 }));
@@ -38,7 +51,8 @@ describe('revision generator', () => {
     }));
     const generate = createRevisionGenerator({ completeWithSchema } as never, () => 2_500);
     await expect(generate(generationInput, {})).resolves.toEqual({
-      replacementText: 'TITAN entered production [2].', citedEvidenceIds: ['e1'],
+      replacementText: 'TITAN entered production [2].',
+      citedEvidenceIds: ['e1'],
     });
   });
 

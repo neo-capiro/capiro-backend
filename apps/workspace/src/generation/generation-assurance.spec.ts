@@ -81,9 +81,19 @@ describe('assessGeneratedSectionsForRelease', () => {
     const log = jest.spyOn(console, 'log').mockImplementation(() => undefined);
     const tenant = '11111111-1111-4111-8111-111111111111';
     const args = {
-      generated: [{ section: 'Client', html: '<p>The client record is current.<sup>[1]</sup></p>' }],
+      generated: [
+        { section: 'Client', html: '<p>The client record is current.<sup>[1]</sup></p>' },
+      ],
       sectionCitations: {
-        Client: [{ n: 1, token: '[S:client:1]', kind: 'ctx' as const, refId: 'client-1', label: 'Client record' }],
+        Client: [
+          {
+            n: 1,
+            token: '[S:client:1]',
+            kind: 'ctx' as const,
+            refId: 'client-1',
+            label: 'Client record',
+          },
+        ],
       },
       generatedAt: '2026-01-01T00:00:00.000Z',
     };
@@ -91,23 +101,31 @@ describe('assessGeneratedSectionsForRelease', () => {
       process.env.MERI_EVIDENCE_PROFILES_TENANTS = tenant;
       process.env.MERI_EVIDENCE_PROFILES_SURFACES = 'workspace-gen';
       process.env.MERI_EVIDENCE_PROFILES_MODE = 'off';
-      const off = runWithGenerationAssuranceTenant(tenant, () => assessGeneratedSectionsForRelease(args));
+      const off = runWithGenerationAssuranceTenant(tenant, () =>
+        assessGeneratedSectionsForRelease(args),
+      );
       expect(log).not.toHaveBeenCalled();
 
       process.env.MERI_EVIDENCE_PROFILES_MODE = 'shadow';
-      const shadow = runWithGenerationAssuranceTenant(tenant, () => assessGeneratedSectionsForRelease(args));
+      const shadow = runWithGenerationAssuranceTenant(tenant, () =>
+        assessGeneratedSectionsForRelease(args),
+      );
       expect(shadow.heldSections).toEqual(off.heldSections);
-      expect(shadow.verdicts.map(({ decision, held, blockers, riskLevel }) => ({
-        decision,
-        held,
-        blockers,
-        riskLevel,
-      }))).toEqual(off.verdicts.map(({ decision, held, blockers, riskLevel }) => ({
-        decision,
-        held,
-        blockers,
-        riskLevel,
-      })));
+      expect(
+        shadow.verdicts.map(({ decision, held, blockers, riskLevel }) => ({
+          decision,
+          held,
+          blockers,
+          riskLevel,
+        })),
+      ).toEqual(
+        off.verdicts.map(({ decision, held, blockers, riskLevel }) => ({
+          decision,
+          held,
+          blockers,
+          riskLevel,
+        })),
+      );
       expect(log).toHaveBeenCalledTimes(1);
       const event = JSON.parse(String(log.mock.calls[0]?.[0]));
       expect(event).toMatchObject({
@@ -119,7 +137,9 @@ describe('assessGeneratedSectionsForRelease', () => {
       expect(JSON.stringify(event)).not.toContain('The client record is current');
 
       process.env.MERI_EVIDENCE_PROFILES_MODE = 'enforce';
-      const enforce = runWithGenerationAssuranceTenant(tenant, () => assessGeneratedSectionsForRelease(args));
+      const enforce = runWithGenerationAssuranceTenant(tenant, () =>
+        assessGeneratedSectionsForRelease(args),
+      );
       expect(off.verdicts[0]?.envelope.claimLedger.evidence[0]).toMatchObject({
         primary: true,
         authoritative: true,

@@ -10,7 +10,12 @@ import type {
 
 export interface RemedyPlanResult {
   remedy: Remedy | null;
-  reason?: 'no_requirement' | 'no_concrete_route' | 'unknown_tool' | 'tool_not_read_only' | 'failed_call_deduped';
+  reason?:
+    | 'no_requirement'
+    | 'no_concrete_route'
+    | 'unknown_tool'
+    | 'tool_not_read_only'
+    | 'failed_call_deduped';
 }
 
 export function deriveRequirement(input: DerivedRequirementInput): RepairRequirement | null {
@@ -20,8 +25,15 @@ export function deriveRequirement(input: DerivedRequirementInput): RepairRequire
   // A House/Senate comparison whose evidence lacks one chamber's figure is
   // incomplete even when the judge accepts the prose (2d: chamber completeness).
   const chamberComplete = input.deterministic?.houseSenateComplete !== false;
-  if (decision.kind === 'outcome' && decision.outcome === 'supported'
-    && exactResult !== 'mismatch' && exactResult !== 'absent' && freshnessState !== 'stale' && chamberComplete) return null;
+  if (
+    decision.kind === 'outcome' &&
+    decision.outcome === 'supported' &&
+    exactResult !== 'mismatch' &&
+    exactResult !== 'absent' &&
+    freshnessState !== 'stale' &&
+    chamberComplete
+  )
+    return null;
 
   const requirement = selectRequirement(evidencePlan.requirements, claim.category, envelope);
   if (!requirement) return null;
@@ -29,9 +41,12 @@ export function deriveRequirement(input: DerivedRequirementInput): RepairRequire
   if (freshnessState === 'stale') kind = 'stale_status';
   else if (exactResult === 'mismatch') kind = 'contradiction';
   else if (exactResult === 'absent' || !chamberComplete) kind = 'missing_evidence';
-  else if (decision.kind === 'failure' && decision.state === 'document_unavailable') kind = 'document_unavailable';
-  else if (decision.kind === 'outcome' && decision.outcome === 'contradicted') kind = 'contradiction';
-  else if (decision.kind === 'outcome' && decision.outcome === 'conflicting_evidence') kind = 'conflict';
+  else if (decision.kind === 'failure' && decision.state === 'document_unavailable')
+    kind = 'document_unavailable';
+  else if (decision.kind === 'outcome' && decision.outcome === 'contradicted')
+    kind = 'contradiction';
+  else if (decision.kind === 'outcome' && decision.outcome === 'conflicting_evidence')
+    kind = 'conflict';
   else if (claim.asOf && requirement.freshness === 'same_turn') kind = 'stale_status';
   return {
     claimId: claim.id,
@@ -44,7 +59,10 @@ export function deriveRequirement(input: DerivedRequirementInput): RepairRequire
   };
 }
 
-export function planRemedy(requirement: RepairRequirement, context: RepairContext): RemedyPlanResult {
+export function planRemedy(
+  requirement: RepairRequirement,
+  context: RepairContext,
+): RemedyPlanResult {
   for (const name of requirement.toolFamilies) {
     if (name === 'domain_specific_tools') continue;
     const registered = context.toolRegistry.get(name);
@@ -53,7 +71,8 @@ export function planRemedy(requirement: RepairRequirement, context: RepairContex
     const kind = remedyKind(requirement, name);
     const args = combinedArgs(requirement, context);
     const dedupeKey = hash(`${name}:${canonicalJson(args)}`);
-    if (context.failedDedupeKeys?.has(dedupeKey)) return { remedy: null, reason: 'failed_call_deduped' };
+    if (context.failedDedupeKeys?.has(dedupeKey))
+      return { remedy: null, reason: 'failed_call_deduped' };
     if (context.previousRemedyKinds?.has(kind) && requirement.toolFamilies.length === 1) continue;
     return {
       remedy: {
@@ -74,11 +93,20 @@ function selectRequirement(
   category: string,
   envelope: DerivedRequirementInput['envelope'],
 ): EvidenceRequirement | undefined {
-  const matching = requirements.filter((item) => item.claimCategory === category && item.level === 'required');
-  return matching.find((item) => !envelope.sources.some((source) => source.sourceType === item.evidenceClass)) ?? matching[0];
+  const matching = requirements.filter(
+    (item) => item.claimCategory === category && item.level === 'required',
+  );
+  return (
+    matching.find(
+      (item) => !envelope.sources.some((source) => source.sourceType === item.evidenceClass),
+    ) ?? matching[0]
+  );
 }
 
-function combinedArgs(requirement: RepairRequirement, context: RepairContext): Record<string, unknown> {
+function combinedArgs(
+  requirement: RepairRequirement,
+  context: RepairContext,
+): Record<string, unknown> {
   return {
     claimIds: [requirement.claimId],
     evidenceClass: requirement.evidenceClass,
@@ -93,7 +121,8 @@ function combinedArgs(requirement: RepairRequirement, context: RepairContext): R
 }
 
 function remedyKind(requirement: RepairRequirement, name: string): RemedyKind {
-  if (requirement.kind === 'conflict' || requirement.kind === 'contradiction') return 'fetch_comparison_source';
+  if (requirement.kind === 'conflict' || requirement.kind === 'contradiction')
+    return 'fetch_comparison_source';
   if (requirement.kind === 'stale_status') return 'refresh_status';
   if (/resolve|entity|member|legislator/i.test(name)) return 'resolve_entity';
   if (/document|attachment|section|transcript/i.test(name)) return 'read_document_section';

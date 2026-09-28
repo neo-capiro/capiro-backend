@@ -246,23 +246,34 @@ describe('MeriV3AssistantService', () => {
   test('off mode emits the identical reply without scheduling claim inventory work', async () => {
     const complete = jest.fn().mockResolvedValue(response({ outputText: 'H.R. 1 passed.' }));
     const assistant = build(registry([]), complete);
-    const claimLog = jest.spyOn((assistant as unknown as { logger: { log: (...args: unknown[]) => void } }).logger, 'log');
+    const claimLog = jest.spyOn(
+      (assistant as unknown as { logger: { log: (...args: unknown[]) => void } }).logger,
+      'log',
+    );
     const events: unknown[] = [];
-    const result = await assistant.run(context, {
-      conversationId: 'thread-off',
-      messages: [{ role: 'user', text: 'What happened?' }],
-    }, { onEvent: (event) => events.push(event) });
+    const result = await assistant.run(
+      context,
+      {
+        conversationId: 'thread-off',
+        messages: [{ role: 'user', text: 'What happened?' }],
+      },
+      { onEvent: (event) => events.push(event) },
+    );
     expect(result.reply).toBe('H.R. 1 passed.');
     expect(events).toContainEqual({ type: 'text', text: 'H.R. 1 passed.' });
     await new Promise((resolve) => setImmediate(resolve));
-    expect(claimLog.mock.calls.map(([message]) => eventNameOf(message))).not.toContain('meri.claim_inventory');
+    expect(claimLog.mock.calls.map(([message]) => eventNameOf(message))).not.toContain(
+      'meri.claim_inventory',
+    );
   });
 
   test('blocks an audit that retracts text absent from the literal preceding answer', async () => {
-    const complete = jest.fn().mockResolvedValue(response({
-      outputText:
-        'I retract "No document-generation receipt existed." A receipt was visible after all.',
-    }));
+    const complete = jest.fn().mockResolvedValue(
+      response({
+        outputText:
+          'I retract "No document-generation receipt existed." A receipt was visible after all.',
+      }),
+    );
     const assistant = build(registry([]), complete);
     const prior = 'The House passed the bill 220-210. A generation receipt is visible below.';
     const result = await assistant.run(context, {
@@ -288,14 +299,23 @@ describe('MeriV3AssistantService', () => {
     const complete = jest.fn().mockResolvedValue(response({ outputText: 'H.R. 1 passed.' }));
     const assistant = build(registry([]), complete);
     const order: string[] = [];
-    const logger = (assistant as unknown as { logger: { log: (...args: unknown[]) => void } }).logger;
+    const logger = (assistant as unknown as { logger: { log: (...args: unknown[]) => void } })
+      .logger;
     jest.spyOn(logger, 'log').mockImplementation((message: unknown) => {
       if (eventNameOf(message) === 'meri.evidence_shadow') order.push('provider');
     });
-    await assistant.run({ ...context, tenantId } as MeriContext, {
-      conversationId: 'thread-shadow',
-      messages: [{ role: 'user', text: 'What happened?' }],
-    }, { onEvent: (event) => { if (event.type === 'text') order.push('reply'); } });
+    await assistant.run(
+      { ...context, tenantId } as MeriContext,
+      {
+        conversationId: 'thread-shadow',
+        messages: [{ role: 'user', text: 'What happened?' }],
+      },
+      {
+        onEvent: (event) => {
+          if (event.type === 'text') order.push('reply');
+        },
+      },
+    );
     expect(order).toEqual(['reply']);
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(order[0]).toBe('reply');
@@ -913,15 +933,27 @@ describe('MeriV3AssistantService', () => {
     description: 'Read budget marks',
     input_schema: {
       type: 'object',
-      properties: { peCode: { type: 'string' }, chamber: { type: 'string' }, cursor: { type: 'string' } },
+      properties: {
+        peCode: { type: 'string' },
+        chamber: { type: 'string' },
+        cursor: { type: 'string' },
+      },
       required: ['peCode'],
     },
   };
   const chamberMark = (chamber: unknown) => ({
     data: [
       chamber === 'house'
-        ? { id: '0603851F-house', title: 'HAC-D mark for PE 0603851F', description: 'House mark: $412.6 million.' }
-        : { id: '0603851F-senate', title: 'SAC-D mark for PE 0603851F', description: 'Senate mark: $400.0 million.' },
+        ? {
+            id: '0603851F-house',
+            title: 'HAC-D mark for PE 0603851F',
+            description: 'House mark: $412.6 million.',
+          }
+        : {
+            id: '0603851F-senate',
+            title: 'SAC-D mark for PE 0603851F',
+            description: 'Senate mark: $400.0 million.',
+          },
     ],
   });
   const structuredLogEvents = (spy: jest.SpyInstance, name: string) =>
@@ -937,39 +969,64 @@ describe('MeriV3AssistantService', () => {
     process.env.MERI_COVERAGE_RETRIEVAL_SURFACES = 'chat';
     const complete = jest.fn().mockResolvedValue(response({ outputText: 'Senate position only.' }));
     const invoke = jest.fn();
-    const assistant = build(registry([{ name: 'get_pe_budget_timeline', readOnly: true }], invoke), complete);
-    const log = jest.spyOn((assistant as unknown as { logger: { log: (...args: unknown[]) => void } }).logger, 'log');
-    global.fetch = jest.fn(async () => new Response(JSON.stringify({ schemas: [chamberBudgetSchema] }), { status: 200 })) as typeof fetch;
+    const assistant = build(
+      registry([{ name: 'get_pe_budget_timeline', readOnly: true }], invoke),
+      complete,
+    );
+    const log = jest.spyOn(
+      (assistant as unknown as { logger: { log: (...args: unknown[]) => void } }).logger,
+      'log',
+    );
+    global.fetch = jest.fn(
+      async () => new Response(JSON.stringify({ schemas: [chamberBudgetSchema] }), { status: 200 }),
+    ) as typeof fetch;
 
-    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () => assistant.run(
-      { ...context, tenantId: '11111111-1111-4111-8111-111111111111' },
-      { conversationId: 'coverage-shadow', messages: [{ role: 'user', text: 'Compare House vs Senate positions on PE 0603851F.' }] },
-    ));
+    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      assistant.run(
+        { ...context, tenantId: '11111111-1111-4111-8111-111111111111' },
+        {
+          conversationId: 'coverage-shadow',
+          messages: [{ role: 'user', text: 'Compare House vs Senate positions on PE 0603851F.' }],
+        },
+      ),
+    );
     expect(invoke).not.toHaveBeenCalled();
     expect(result.reply).toBe('Senate position only.');
     const event = structuredLogEvents(log, 'meri.coverage.turn')[0]!;
     expect(event).toMatchObject({ mode: 'shadow', executed: 0, followUpPlanned: 2 });
-    expect((event.gaps as Array<{ requirementId: string }>).map((gap) => gap.requirementId)).toEqual([
-      'house-senate-comparison.house',
-      'house-senate-comparison.senate',
-    ]);
+    expect(
+      (event.gaps as Array<{ requirementId: string }>).map((gap) => gap.requirementId),
+    ).toEqual(['house-senate-comparison.house', 'house-senate-comparison.senate']);
   });
 
   test('coverage enforce executes one read-only follow-up per chamber and re-synthesizes over both', async () => {
     process.env.MERI_COVERAGE_RETRIEVAL_MODE = 'enforce';
     process.env.MERI_COVERAGE_RETRIEVAL_TENANTS = '11111111-1111-4111-8111-111111111111';
     process.env.MERI_COVERAGE_RETRIEVAL_SURFACES = 'chat';
-    const complete = jest.fn()
+    const complete = jest
+      .fn()
       .mockResolvedValueOnce(response({ outputText: 'Senate position only.' }))
       .mockResolvedValueOnce(response({ outputText: 'House [1] and Senate [2] marks compared.' }));
-    const invoke = jest.fn(async (_name: string, args: Record<string, unknown>) => chamberMark(args.chamber));
-    const assistant = build(registry([{ name: 'get_pe_budget_timeline', readOnly: true }], invoke), complete);
-    global.fetch = jest.fn(async () => new Response(JSON.stringify({ schemas: [chamberBudgetSchema] }), { status: 200 })) as typeof fetch;
+    const invoke = jest.fn(async (_name: string, args: Record<string, unknown>) =>
+      chamberMark(args.chamber),
+    );
+    const assistant = build(
+      registry([{ name: 'get_pe_budget_timeline', readOnly: true }], invoke),
+      complete,
+    );
+    global.fetch = jest.fn(
+      async () => new Response(JSON.stringify({ schemas: [chamberBudgetSchema] }), { status: 200 }),
+    ) as typeof fetch;
 
-    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () => assistant.run(
-      { ...context, tenantId: '11111111-1111-4111-8111-111111111111' },
-      { conversationId: 'coverage-enforce', messages: [{ role: 'user', text: 'Compare House vs Senate positions on PE 0603851F.' }] },
-    ));
+    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      assistant.run(
+        { ...context, tenantId: '11111111-1111-4111-8111-111111111111' },
+        {
+          conversationId: 'coverage-enforce',
+          messages: [{ role: 'user', text: 'Compare House vs Senate positions on PE 0603851F.' }],
+        },
+      ),
+    );
     expect(invoke.mock.calls.map(([name, args]) => [name, args])).toEqual([
       ['get_pe_budget_timeline', { peCode: '0603851F', chamber: 'house' }],
       ['get_pe_budget_timeline', { peCode: '0603851F', chamber: 'senate' }],
@@ -978,26 +1035,38 @@ describe('MeriV3AssistantService', () => {
     // Both chambers reach the re-synthesis as distinct tool outputs and citations.
     const synthesisInput = complete.mock.calls[1][0].input as Array<Record<string, unknown>>;
     const outputs = synthesisInput.filter((item) => item.type === 'function_call_output');
-    expect(outputs.map((item) => item.call_id)).toEqual(['coverage_follow_up_0', 'coverage_follow_up_1']);
+    expect(outputs.map((item) => item.call_id)).toEqual([
+      'coverage_follow_up_0',
+      'coverage_follow_up_1',
+    ]);
     expect(String(outputs[0]!.output)).toContain('0603851F-house');
     expect(String(outputs[0]!.output)).not.toContain('0603851F-senate');
     expect(String(outputs[1]!.output)).toContain('0603851F-senate');
     expect(result.reply).toBe('House [1] and Senate [2] marks compared.');
-    expect(result.citations?.map((citation) => citation.id)).toEqual(['0603851F-house', '0603851F-senate']);
+    expect(result.citations?.map((citation) => citation.id)).toEqual([
+      '0603851F-house',
+      '0603851F-senate',
+    ]);
   });
 
   test('coverage enforce follows a concrete continuation cursor until the routed source closes', async () => {
     process.env.MERI_COVERAGE_RETRIEVAL_MODE = 'enforce';
     process.env.MERI_COVERAGE_RETRIEVAL_TENANTS = '11111111-1111-4111-8111-111111111111';
     process.env.MERI_COVERAGE_RETRIEVAL_SURFACES = 'chat';
-    const complete = jest.fn()
+    const complete = jest
+      .fn()
       .mockResolvedValueOnce(response({ outputText: 'Partial comparison.' }))
       .mockResolvedValueOnce(response({ outputText: 'Complete comparison.' }));
     const invoke = jest.fn(async (_name: string, args: Record<string, unknown>) => {
       if (args.chamber === 'house' && !args.cursor) {
         return {
           data: [{ id: '0603851F-house-1', title: 'House page one' }],
-          coverage: { complete: false, truncated: true, paginationComplete: false, nextCursor: 'house:2' },
+          coverage: {
+            complete: false,
+            truncated: true,
+            paginationComplete: false,
+            nextCursor: 'house:2',
+          },
         };
       }
       return {
@@ -1005,13 +1074,23 @@ describe('MeriV3AssistantService', () => {
         coverage: { complete: true, truncated: false, paginationComplete: true, nextCursor: null },
       };
     });
-    const assistant = build(registry([{ name: 'get_pe_budget_timeline', readOnly: true }], invoke), complete);
-    global.fetch = jest.fn(async () => new Response(JSON.stringify({ schemas: [chamberBudgetSchema] }), { status: 200 })) as typeof fetch;
+    const assistant = build(
+      registry([{ name: 'get_pe_budget_timeline', readOnly: true }], invoke),
+      complete,
+    );
+    global.fetch = jest.fn(
+      async () => new Response(JSON.stringify({ schemas: [chamberBudgetSchema] }), { status: 200 }),
+    ) as typeof fetch;
 
-    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () => assistant.run(
-      { ...context, tenantId: '11111111-1111-4111-8111-111111111111' },
-      { conversationId: 'coverage-cursor', messages: [{ role: 'user', text: 'Compare House vs Senate positions on PE 0603851F.' }] },
-    ));
+    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      assistant.run(
+        { ...context, tenantId: '11111111-1111-4111-8111-111111111111' },
+        {
+          conversationId: 'coverage-cursor',
+          messages: [{ role: 'user', text: 'Compare House vs Senate positions on PE 0603851F.' }],
+        },
+      ),
+    );
 
     expect(invoke.mock.calls.map(([, args]) => args)).toEqual([
       { peCode: '0603851F', chamber: 'house' },
@@ -1020,47 +1099,66 @@ describe('MeriV3AssistantService', () => {
     ]);
     expect(complete).toHaveBeenCalledTimes(2);
     expect(result.reply).toBe('Complete comparison.');
-    expect(result.toolCoverage?.filter((receipt) => receipt.requestRoute?.chamber === 'house')).toHaveLength(2);
+    expect(
+      result.toolCoverage?.filter((receipt) => receipt.requestRoute?.chamber === 'house'),
+    ).toHaveLength(2);
   });
 
   test.each([
     ['rejects', () => Promise.reject(new Error('coverage synthesis provider unavailable'))],
     ['returns empty prose', () => Promise.resolve(response({ outputText: '' }))],
-  ])('coverage enforce releases the completed prose when the follow-up re-synthesis %s', async (_label, secondCall) => {
-    process.env.MERI_COVERAGE_RETRIEVAL_MODE = 'enforce';
-    process.env.MERI_COVERAGE_RETRIEVAL_TENANTS = '11111111-1111-4111-8111-111111111111';
-    process.env.MERI_COVERAGE_RETRIEVAL_SURFACES = 'chat';
-    const complete = jest.fn()
-      .mockResolvedValueOnce(response({ outputText: 'Senate position only.' }))
-      .mockImplementationOnce(secondCall);
-    const invoke = jest.fn(async (_name: string, args: Record<string, unknown>) => chamberMark(args.chamber));
-    const assistant = build(registry([{ name: 'get_pe_budget_timeline', readOnly: true }], invoke), complete);
-    const warn = jest.spyOn(
-      (assistant as unknown as { logger: { warn: (...args: unknown[]) => void } }).logger,
-      'warn',
-    );
-    global.fetch = jest.fn(async () => new Response(JSON.stringify({ schemas: [chamberBudgetSchema] }), { status: 200 })) as typeof fetch;
+  ])(
+    'coverage enforce releases the completed prose when the follow-up re-synthesis %s',
+    async (_label, secondCall) => {
+      process.env.MERI_COVERAGE_RETRIEVAL_MODE = 'enforce';
+      process.env.MERI_COVERAGE_RETRIEVAL_TENANTS = '11111111-1111-4111-8111-111111111111';
+      process.env.MERI_COVERAGE_RETRIEVAL_SURFACES = 'chat';
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(response({ outputText: 'Senate position only.' }))
+        .mockImplementationOnce(secondCall);
+      const invoke = jest.fn(async (_name: string, args: Record<string, unknown>) =>
+        chamberMark(args.chamber),
+      );
+      const assistant = build(
+        registry([{ name: 'get_pe_budget_timeline', readOnly: true }], invoke),
+        complete,
+      );
+      const warn = jest.spyOn(
+        (assistant as unknown as { logger: { warn: (...args: unknown[]) => void } }).logger,
+        'warn',
+      );
+      global.fetch = jest.fn(
+        async () =>
+          new Response(JSON.stringify({ schemas: [chamberBudgetSchema] }), { status: 200 }),
+      ) as typeof fetch;
 
-    const events: Array<{ type: string; text?: string }> = [];
-    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () => assistant.run(
-      { ...context, tenantId: '11111111-1111-4111-8111-111111111111' },
-      { conversationId: 'coverage-enforce-failed', messages: [{ role: 'user', text: 'Compare House vs Senate positions on PE 0603851F.' }] },
-      { onEvent: (event) => events.push(event as { type: string; text?: string }) },
-    ));
-    // The follow-up executed (evidence was fetched) but the forced re-synthesis over
-    // it failed: the model's already-completed answer is released, never a generic
-    // "reasoning runtime unavailable" message and never a held/empty/duplicated turn.
-    expect(invoke).toHaveBeenCalledTimes(2);
-    expect(complete).toHaveBeenCalledTimes(2);
-    expect(result.reply).toBe('Senate position only.');
-    expect(result.reply).not.toContain('reasoning runtime was unavailable');
-    expect(events.filter((event) => event.type === 'text')).toEqual([
-      { type: 'text', text: 'Senate position only.' },
-    ]);
-    expect(structuredLogEvents(warn, 'meri.coverage.failed')).toEqual([
-      expect.objectContaining({ mode: 'enforce', keptCompletedProse: true }),
-    ]);
-  });
+      const events: Array<{ type: string; text?: string }> = [];
+      const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        assistant.run(
+          { ...context, tenantId: '11111111-1111-4111-8111-111111111111' },
+          {
+            conversationId: 'coverage-enforce-failed',
+            messages: [{ role: 'user', text: 'Compare House vs Senate positions on PE 0603851F.' }],
+          },
+          { onEvent: (event) => events.push(event as { type: string; text?: string }) },
+        ),
+      );
+      // The follow-up executed (evidence was fetched) but the forced re-synthesis over
+      // it failed: the model's already-completed answer is released, never a generic
+      // "reasoning runtime unavailable" message and never a held/empty/duplicated turn.
+      expect(invoke).toHaveBeenCalledTimes(2);
+      expect(complete).toHaveBeenCalledTimes(2);
+      expect(result.reply).toBe('Senate position only.');
+      expect(result.reply).not.toContain('reasoning runtime was unavailable');
+      expect(events.filter((event) => event.type === 'text')).toEqual([
+        { type: 'text', text: 'Senate position only.' },
+      ]);
+      expect(structuredLogEvents(warn, 'meri.coverage.failed')).toEqual([
+        expect.objectContaining({ mode: 'enforce', keptCompletedProse: true }),
+      ]);
+    },
+  );
 
   test('holds a governed write as an opaque proposal instead of invoking it', async () => {
     const call = {
@@ -1152,10 +1250,26 @@ describe('MeriV3AssistantService', () => {
       .mockResolvedValueOnce(response({ outputText: 'Here is a draft.' }));
     const invoke = jest.fn();
     const createProposal = jest.fn();
-    const assistant = build(registry([{ name: 'send_email', readOnly: false }], invoke), complete, createProposal);
-    global.fetch = jest.fn(async () => new Response(JSON.stringify({ schemas: [{
-      name: 'send_email', description: 'Send email', input_schema: { type: 'object', properties: {} },
-    }] }), { status: 200 })) as typeof fetch;
+    const assistant = build(
+      registry([{ name: 'send_email', readOnly: false }], invoke),
+      complete,
+      createProposal,
+    );
+    global.fetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            schemas: [
+              {
+                name: 'send_email',
+                description: 'Send email',
+                input_schema: { type: 'object', properties: {} },
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+    ) as typeof fetch;
 
     const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
       assistant.run(context, { messages: [{ role: 'user', text: 'Draft an email to Alex.' }] }),
@@ -1774,7 +1888,11 @@ describe('Stage 2 orchestrator hardening', () => {
     jest.restoreAllMocks();
   });
 
-  const schemaOf = (name: string, properties: Record<string, unknown>, required: string[] = []) => ({
+  const schemaOf = (
+    name: string,
+    properties: Record<string, unknown>,
+    required: string[] = [],
+  ) => ({
     name,
     description: name,
     input_schema: { type: 'object', properties, ...(required.length ? { required } : {}) },
@@ -1840,7 +1958,8 @@ describe('Stage 2 orchestrator hardening', () => {
     if (!event) throw new Error(`no ${name} event was logged`);
     return event;
   };
-  const textFrames = (events: MeriV3ChatStreamEvent[]) => events.filter((event) => event.type === 'text');
+  const textFrames = (events: MeriV3ChatStreamEvent[]) =>
+    events.filter((event) => event.type === 'text');
   const callIds = (input: Array<Record<string, unknown>>, type: string) =>
     input.filter((item) => item.type === type).map((item) => item.call_id);
   const answersFor = (candidates: readonly PassageCandidate[], score: number) => ({
@@ -1866,7 +1985,14 @@ describe('Stage 2 orchestrator hardening', () => {
     toolCalls: 0,
     passes: 0,
     metrics: {
-      repairs: { attempted: 1, corrected: 1, qualified: 0, omitted: 0, documentRequested: 0, budgetExhausted: 0 },
+      repairs: {
+        attempted: 1,
+        corrected: 1,
+        qualified: 0,
+        omitted: 0,
+        documentRequested: 0,
+        budgetExhausted: 0,
+      },
       wouldAttempt: 0,
       unresolved: 0,
       claimOutcomes: [],
@@ -1908,7 +2034,10 @@ describe('Stage 2 orchestrator hardening', () => {
           ? budgetResult('0603851F', '$412.6 million')
           : { data: [{ id: 'hr-1', title: 'H.R. 1', description: 'An unrelated bill.' }] },
       );
-    const runBudgetTurn = (assistant: MeriV3AssistantService, events: MeriV3ChatStreamEvent[] = []) =>
+    const runBudgetTurn = (
+      assistant: MeriV3AssistantService,
+      events: MeriV3ChatStreamEvent[] = [],
+    ) =>
       RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
         assistant.run(
           pilotContext,
@@ -1944,10 +2073,18 @@ describe('Stage 2 orchestrator hardening', () => {
       expect(JSON.stringify(synthesisInput)).toContain('$412.6 million');
       const canary = firstEvent(spies.log, 'meri.canary.turn');
       expect(canary.passageSelection).toMatchObject({
-        candidates: 2, kept: 1, dropped: 1, requiredCandidates: 1, requiredRetained: 1, fallback: false,
+        candidates: 2,
+        kept: 1,
+        dropped: 1,
+        requiredCandidates: 1,
+        requiredRetained: 1,
+        fallback: false,
       });
       expect(eventsNamed(spies.log, 'meri.passage_selection')[0]).toMatchObject({
-        mode: 'enforce', applied: true, removedCalls: 1, evidenceRecall: 1,
+        mode: 'enforce',
+        applied: true,
+        removedCalls: 1,
+        evidenceRecall: 1,
       });
       expect(result.reply).toBe(REWRITTEN);
     });
@@ -1971,38 +2108,49 @@ describe('Stage 2 orchestrator hardening', () => {
       expect(result.reply).toBe(PROSE);
       expect(textFrames(events)).toEqual([{ type: 'text', text: PROSE }]);
       const canary = firstEvent(spies.log, 'meri.canary.turn');
-      expect(canary.passageSelection).toMatchObject({ candidates: 2, kept: 2, dropped: 0, fallback: false });
-      expect(eventsNamed(spies.log, 'meri.passage_selection')[0]).toMatchObject({ applied: false, removedCalls: 0 });
+      expect(canary.passageSelection).toMatchObject({
+        candidates: 2,
+        kept: 2,
+        dropped: 0,
+        fallback: false,
+      });
+      expect(eventsNamed(spies.log, 'meri.passage_selection')[0]).toMatchObject({
+        applied: false,
+        removedCalls: 0,
+      });
     });
 
     test.each([
       ['rejects', () => Promise.reject(new Error('synthesis provider unavailable'))],
       ['returns empty prose', () => Promise.resolve(response({ outputText: '' }))],
-    ])('enforce releases the completed prose when the forced re-synthesis %s', async (_label, thirdCall) => {
-      enroll('PASSAGE_SELECTION', 'enforce');
-      const complete = jest
-        .fn()
-        .mockResolvedValueOnce(toolRound(budgetCall, billsCall))
-        .mockResolvedValueOnce(response({ outputText: PROSE }))
-        .mockImplementationOnce(thirdCall);
-      const assistant = build(budgetRegistry(budgetInvoke()), complete);
-      const spies = logSpies(assistant);
-      jest
-        .spyOn(passageSelector, 'askPassageQuestions')
-        .mockImplementation(async ({ candidates }) => answersFor(candidates, 0.05));
-      global.fetch = fetchWith([BUDGET_SCHEMA, BILLS_SCHEMA]);
+    ])(
+      'enforce releases the completed prose when the forced re-synthesis %s',
+      async (_label, thirdCall) => {
+        enroll('PASSAGE_SELECTION', 'enforce');
+        const complete = jest
+          .fn()
+          .mockResolvedValueOnce(toolRound(budgetCall, billsCall))
+          .mockResolvedValueOnce(response({ outputText: PROSE }))
+          .mockImplementationOnce(thirdCall);
+        const assistant = build(budgetRegistry(budgetInvoke()), complete);
+        const spies = logSpies(assistant);
+        jest
+          .spyOn(passageSelector, 'askPassageQuestions')
+          .mockImplementation(async ({ candidates }) => answersFor(candidates, 0.05));
+        global.fetch = fetchWith([BUDGET_SCHEMA, BILLS_SCHEMA]);
 
-      const events: MeriV3ChatStreamEvent[] = [];
-      const result = await runBudgetTurn(assistant, events);
-      expect(complete).toHaveBeenCalledTimes(3);
-      expect(result.reply).toBe(PROSE);
-      expect(result.reply).not.toContain('reasoning runtime was unavailable');
-      expect(textFrames(events)).toEqual([{ type: 'text', text: PROSE }]);
-      expect(result.telemetry).toMatchObject({ finishReason: 'completed' });
-      expect(eventsNamed(spies.warn, 'meri.passage_selection.failed')).toEqual([
-        expect.objectContaining({ keptCompletedProse: true }),
-      ]);
-    });
+        const events: MeriV3ChatStreamEvent[] = [];
+        const result = await runBudgetTurn(assistant, events);
+        expect(complete).toHaveBeenCalledTimes(3);
+        expect(result.reply).toBe(PROSE);
+        expect(result.reply).not.toContain('reasoning runtime was unavailable');
+        expect(textFrames(events)).toEqual([{ type: 'text', text: PROSE }]);
+        expect(result.telemetry).toMatchObject({ finishReason: 'completed' });
+        expect(eventsNamed(spies.warn, 'meri.passage_selection.failed')).toEqual([
+          expect.objectContaining({ keptCompletedProse: true }),
+        ]);
+      },
+    );
 
     test('selection time is charged to the turn deadline instead of extending the synthesis timeout', async () => {
       fakeTimers();
@@ -2068,7 +2216,10 @@ describe('Stage 2 orchestrator hardening', () => {
       expect(event.promptCharsBefore).toBe(gather.instructions.length + chars(synthesis.input));
       expect(event.promptCharsAfter).toBeLessThan(event.promptCharsBefore as number);
       // Shadow never changes the request: both tool calls are still replayed.
-      expect(callIds(synthesis.input, 'function_call_output')).toEqual(['budget-call', 'bills-call']);
+      expect(callIds(synthesis.input, 'function_call_output')).toEqual([
+        'budget-call',
+        'bills-call',
+      ]);
     });
   });
 
@@ -2084,7 +2235,10 @@ describe('Stage 2 orchestrator hardening', () => {
       });
       const lines = spies.log.mock.calls
         .map(([message]) => message)
-        .filter((message): message is string => typeof message === 'string' && message.includes('"meri.canary.turn"'));
+        .filter(
+          (message): message is string =>
+            typeof message === 'string' && message.includes('"meri.canary.turn"'),
+        );
       expect(lines).toHaveLength(1);
       expect(lines[0]).not.toMatch(/\n/);
       const dir = mkdtempSync(join(tmpdir(), 'meri-canary-'));
@@ -2095,7 +2249,10 @@ describe('Stage 2 orchestrator hardening', () => {
         expect(parsed).toMatchObject({ rejected: 0, unrelated: 0 });
         expect(parsed.events).toEqual([JSON.parse(lines[0]!)]);
         expect(parsed.events[0]).toMatchObject({
-          event: 'meri.canary.turn', tenantId: 'tenant-1', surface: 'chat', outcome: 'released',
+          event: 'meri.canary.turn',
+          tenantId: 'tenant-1',
+          surface: 'chat',
+          outcome: 'released',
         });
       } finally {
         rmSync(dir, { recursive: true, force: true });
@@ -2108,12 +2265,21 @@ describe('Stage 2 orchestrator hardening', () => {
       const order: string[] = [];
       const spies = logSpies(assistant);
       spies.log.mockImplementation((message: unknown) => {
-        if (typeof message === 'string' && message.includes('"event":"meri.canary.turn"')) order.push('canary');
+        if (typeof message === 'string' && message.includes('"event":"meri.canary.turn"'))
+          order.push('canary');
       });
       await assistant.run(
         context,
-        { conversationId: 'order', messages: [{ role: 'user', text: 'What happened?' }], toolPolicy: 'none' },
-        { onEvent: (event) => { if (event.type === 'text') order.push('text'); } },
+        {
+          conversationId: 'order',
+          messages: [{ role: 'user', text: 'What happened?' }],
+          toolPolicy: 'none',
+        },
+        {
+          onEvent: (event) => {
+            if (event.type === 'text') order.push('text');
+          },
+        },
       );
       expect(order).toEqual(['text', 'canary']);
       const canary = firstEvent(spies.log, 'meri.canary.turn');
@@ -2126,10 +2292,15 @@ describe('Stage 2 orchestrator hardening', () => {
       const assistant = build(registry([]), complete);
       const spies = logSpies(assistant);
       const events: MeriV3ChatStreamEvent[] = [];
-      await assistant.run(context, {
-        conversationId: 'deadline-incomplete', toolPolicy: 'none',
-        messages: [{ role: 'user', text: 'Summarize the evidence.' }],
-      }, { deadlineAt: Date.now() - 1, onEvent: (event) => events.push(event) });
+      await assistant.run(
+        context,
+        {
+          conversationId: 'deadline-incomplete',
+          toolPolicy: 'none',
+          messages: [{ role: 'user', text: 'Summarize the evidence.' }],
+        },
+        { deadlineAt: Date.now() - 1, onEvent: (event) => events.push(event) },
+      );
       expect(complete).not.toHaveBeenCalled();
       expect(textFrames(events)).toHaveLength(1);
       expect(firstEvent(spies.log, 'meri.canary.turn')).toMatchObject({ outcome: 'incomplete' });
@@ -2140,7 +2311,10 @@ describe('Stage 2 orchestrator hardening', () => {
       const complete = jest.fn().mockResolvedValue(response({ outputText: 'H.R. 1 passed.' }));
       const assistant = build(registry([]), complete);
       const spies = logSpies(assistant);
-      const dto = { messages: [{ role: 'user' as const, text: 'What happened?' }], toolPolicy: 'none' as const };
+      const dto = {
+        messages: [{ role: 'user' as const, text: 'What happened?' }],
+        toolPolicy: 'none' as const,
+      };
       await assistant.run(context, dto);
       await assistant.run(pilotContext, dto);
       const canaries = eventsNamed(spies.log, 'meri.canary.turn');
@@ -2163,7 +2337,11 @@ describe('Stage 2 orchestrator hardening', () => {
       // The payloads exactly as the shadow assessor handed them to the service's structured logger.
       const structured = jest.spyOn(
         assistant as unknown as {
-          logStructured: (level: 'log' | 'warn', event: string, fields: Record<string, unknown>) => void;
+          logStructured: (
+            level: 'log' | 'warn',
+            event: string,
+            fields: Record<string, unknown>,
+          ) => void;
         },
         'logStructured',
       );
@@ -2201,7 +2379,9 @@ describe('Stage 2 orchestrator hardening', () => {
         writeFileSync(file, `${lines.join('\n')}\n`, 'utf8');
         const parsed = readShadowEvents(file);
         expect(parsed).toMatchObject({ rejected: 0, unrelated: 0 });
-        expect(parsed.events.map((event) => event.event)).toEqual(payloads.map((payload) => payload.event));
+        expect(parsed.events.map((event) => event.event)).toEqual(
+          payloads.map((payload) => payload.event),
+        );
         parsed.events.forEach((event, index) => {
           // Every field the report reads back is the field the service emitted;
           // `source: 'live'` is the parser's default for an exported event.
@@ -2245,8 +2425,13 @@ describe('Stage 2 orchestrator hardening', () => {
       const research = firstEvent(spies.log, 'meri.canary.turn');
       expect(research.surface).toBe('research');
       expect(research.modes).toEqual({
-        evidenceAccuracy: 'off', claimAssessment: 'off', coverageRetrieval: 'off',
-        passageSelection: 'off', autoCorrection: 'off', jevProvider: 'off', routing: 'llm',
+        evidenceAccuracy: 'off',
+        claimAssessment: 'off',
+        coverageRetrieval: 'off',
+        passageSelection: 'off',
+        autoCorrection: 'off',
+        jevProvider: 'off',
+        routing: 'llm',
       });
       expect(eventsNamed(spies.log, 'meri.coverage.turn')).toHaveLength(0);
 
@@ -2261,7 +2446,10 @@ describe('Stage 2 orchestrator hardening', () => {
       const chat = eventsNamed(spies.log, 'meri.canary.turn')[1]!;
       expect(chat.surface).toBe('chat');
       expect(chat.modes).toMatchObject({
-        coverageRetrieval: 'enforce', passageSelection: 'enforce', autoCorrection: 'enforce', jevProvider: 'enforce',
+        coverageRetrieval: 'enforce',
+        passageSelection: 'enforce',
+        autoCorrection: 'enforce',
+        jevProvider: 'enforce',
       });
     });
 
@@ -2271,7 +2459,10 @@ describe('Stage 2 orchestrator hardening', () => {
       const complete = jest.fn().mockResolvedValue(response({ outputText: 'H.R. 1 passed.' }));
       const assistant = build(registry([]), complete);
       const spies = logSpies(assistant);
-      const dto = { messages: [{ role: 'user' as const, text: 'What happened?' }], toolPolicy: 'none' as const };
+      const dto = {
+        messages: [{ role: 'user' as const, text: 'What happened?' }],
+        toolPolicy: 'none' as const,
+      };
       await assistant.run(pilotContext, dto);
       await assistant.run(pilotContext, dto);
       expect(eventsNamed(spies.warn, 'meri.auto_correction.unknown_categories')).toEqual([
@@ -2281,17 +2472,24 @@ describe('Stage 2 orchestrator hardening', () => {
 
     test('logs meri.rollout.invalid_config once when a Stage 2 control carries a malformed token', async () => {
       enroll('COVERAGE_RETRIEVAL', 'shadow', { tenants: 'capiro-internal' });
-      const complete = jest.fn().mockResolvedValue(response({ outputText: 'Senate position only.' }));
+      const complete = jest
+        .fn()
+        .mockResolvedValue(response({ outputText: 'Senate position only.' }));
       const assistant = build(registry([]), complete);
       const spies = logSpies(assistant);
       const dto = {
-        messages: [{ role: 'user' as const, text: 'Compare House vs Senate positions on PE 0603851F.' }],
+        messages: [
+          { role: 'user' as const, text: 'Compare House vs Senate positions on PE 0603851F.' },
+        ],
         toolPolicy: 'none' as const,
       };
       await assistant.run(pilotContext, dto);
       await assistant.run(pilotContext, dto);
       expect(eventsNamed(spies.warn, 'meri.rollout.invalid_config')).toEqual([
-        expect.objectContaining({ capability: 'COVERAGE_RETRIEVAL', issues: ['invalid_tenant:capiro-internal'] }),
+        expect.objectContaining({
+          capability: 'COVERAGE_RETRIEVAL',
+          issues: ['invalid_tenant:capiro-internal'],
+        }),
       ]);
       expect(eventsNamed(spies.log, 'meri.coverage.turn')).toHaveLength(0);
     });
@@ -2308,7 +2506,10 @@ describe('Stage 2 orchestrator hardening', () => {
       armReleaseGate();
       enroll('COVERAGE_RETRIEVAL', 'enforce');
       const complete = jest.fn().mockResolvedValue(
-        response({ outputText: 'The House marked PE 0603851F at $412.6 million and the Senate at $400 million.' }),
+        response({
+          outputText:
+            'The House marked PE 0603851F at $412.6 million and the Senate at $400 million.',
+        }),
       );
       const assistant = build(registry([]), complete);
       logSpies(assistant);
@@ -2318,7 +2519,9 @@ describe('Stage 2 orchestrator hardening', () => {
         {
           conversationId: 'held-coverage',
           toolPolicy: 'none',
-          messages: [{ role: 'user', text: 'Compare House vs Senate budget marks for PE 0603851F.' }],
+          messages: [
+            { role: 'user', text: 'Compare House vs Senate budget marks for PE 0603851F.' },
+          ],
         },
         { onEvent: (event) => events.push(event) },
       );
@@ -2333,13 +2536,19 @@ describe('Stage 2 orchestrator hardening', () => {
       enroll('AUTO_CORRECTION', 'enforce');
       process.env.MERI_AUTO_CORRECTION_CATEGORIES = 'bill_status';
       const repairSpy = jest.spyOn(liveRepair, 'applyLiveRepair');
-      const complete = jest.fn().mockResolvedValue(response({ outputText: 'H.R. 1 passed the House.' }));
+      const complete = jest
+        .fn()
+        .mockResolvedValue(response({ outputText: 'H.R. 1 passed the House.' }));
       const assistant = build(registry([]), complete);
       const spies = logSpies(assistant);
       const events: MeriV3ChatStreamEvent[] = [];
       const result = await assistant.run(
         pilotContext,
-        { conversationId: 'held', toolPolicy: 'none', messages: [{ role: 'user', text: 'What is the status of H.R. 1?' }] },
+        {
+          conversationId: 'held',
+          toolPolicy: 'none',
+          messages: [{ role: 'user', text: 'What is the status of H.R. 1?' }],
+        },
         { onEvent: (event) => events.push(event) },
       );
       expect(result.reply).toMatch(/^I could not safely release/);
@@ -2362,9 +2571,14 @@ describe('Stage 2 orchestrator hardening', () => {
         .mockResolvedValueOnce(toolRound(statusCall))
         .mockResolvedValueOnce(response({ outputText: 'H.R. 1 passed the House [1].' }));
       const invoke = jest.fn(async () => ({
-        data: [{ id: 'hr1-119', title: 'H.R. 1', latestAction: 'Passed House on September 10, 2026.' }],
+        data: [
+          { id: 'hr1-119', title: 'H.R. 1', latestAction: 'Passed House on September 10, 2026.' },
+        ],
       }));
-      const assistant = build(registry([{ name: 'get_bill_status', readOnly: true }], invoke), complete);
+      const assistant = build(
+        registry([{ name: 'get_bill_status', readOnly: true }], invoke),
+        complete,
+      );
       const spies = logSpies(assistant);
       jest
         .spyOn(liveRepair, 'applyLiveRepair')
@@ -2374,7 +2588,10 @@ describe('Stage 2 orchestrator hardening', () => {
       const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
         assistant.run(
           pilotContext,
-          { conversationId: 'rewrite-held', messages: [{ role: 'user', text: 'What is the status of H.R. 1?' }] },
+          {
+            conversationId: 'rewrite-held',
+            messages: [{ role: 'user', text: 'What is the status of H.R. 1?' }],
+          },
           { onEvent: (event) => events.push(event) },
         ),
       );
@@ -2429,7 +2646,11 @@ describe('Stage 2 orchestrator hardening', () => {
       const events: MeriV3ChatStreamEvent[] = [];
       const pending = assistant.run(
         pilotContext,
-        { conversationId: 'judge-hangs', toolPolicy: 'none', messages: [{ role: 'user', text: 'Who chairs the committee?' }] },
+        {
+          conversationId: 'judge-hangs',
+          toolPolicy: 'none',
+          messages: [{ role: 'user', text: 'Who chairs the committee?' }],
+        },
         { onEvent: (event) => events.push(event) },
       );
       await jest.advanceTimersByTimeAsync(8_500);
@@ -2449,7 +2670,10 @@ describe('Stage 2 orchestrator hardening', () => {
       promote('enforce', 'bill_status');
       const controller = new AbortController();
       jest.spyOn(liveRepair, 'applyLiveRepair').mockImplementation(() => {
-        setTimeout(() => controller.abort(new DOMException('Client disconnected', 'AbortError')), 0);
+        setTimeout(
+          () => controller.abort(new DOMException('Client disconnected', 'AbortError')),
+          0,
+        );
         return new Promise(() => undefined);
       });
       const complete = jest.fn().mockResolvedValue(response({ outputText: BILL_REPLY }));
@@ -2489,7 +2713,10 @@ describe('Stage 2 orchestrator hardening', () => {
     test('caps the promoted claims assessed in one turn', async () => {
       promote('shadow', 'bill_status');
       const repairSpy = jest.spyOn(liveRepair, 'applyLiveRepair');
-      const reply = Array.from({ length: 15 }, (_, index) => `H.R. ${index + 1} passed the House.`).join(' ');
+      const reply = Array.from(
+        { length: 15 },
+        (_, index) => `H.R. ${index + 1} passed the House.`,
+      ).join(' ');
       const complete = jest.fn().mockResolvedValue(response({ outputText: reply }));
       const assistant = build(registry([]), complete);
       const spies = logSpies(assistant);
@@ -2518,9 +2745,15 @@ describe('Stage 2 orchestrator hardening', () => {
           .mockResolvedValueOnce(toolRound(first, second))
           .mockResolvedValueOnce(response({ outputText: reply }));
         const invoke = jest.fn(async (_name: string, args: Record<string, unknown>) =>
-          budgetResult(String(args.peCode), args.peCode === '0603851F' ? '$300.0 million' : '$412.6 million'),
+          budgetResult(
+            String(args.peCode),
+            args.peCode === '0603851F' ? '$300.0 million' : '$412.6 million',
+          ),
         );
-        const assistant = build(registry([{ name: 'get_pe_budget_timeline', readOnly: true }], invoke), complete);
+        const assistant = build(
+          registry([{ name: 'get_pe_budget_timeline', readOnly: true }], invoke),
+          complete,
+        );
         const spies = logSpies(assistant);
         const repairSpy = jest.spyOn(liveRepair, 'applyLiveRepair');
         global.fetch = fetchWith([BUDGET_SCHEMA]);
@@ -2545,7 +2778,11 @@ describe('Stage 2 orchestrator hardening', () => {
     test('passes truthful document references so a claim read from the document is judged rather than turned into an attachment request', async () => {
       promote('shadow', 'current_role');
       const text = 'The chair promised action on the measure at the September meeting.';
-      const read = fnCall('read_client_documents', { clientId: 'client-1', documentId: 'transcript-1' }, 'read-call');
+      const read = fnCall(
+        'read_client_documents',
+        { clientId: 'client-1', documentId: 'transcript-1' },
+        'read-call',
+      );
       const reply = 'The transcript says the chair promised action [1].';
       const invoke = documentFixture(text);
       const complete = jest
@@ -2553,7 +2790,10 @@ describe('Stage 2 orchestrator hardening', () => {
         .mockResolvedValueOnce(toolRound(read))
         .mockResolvedValueOnce(response({ outputText: reply }));
       const assistant = build(
-        registry(clientDocumentSchemas.map(({ name }) => ({ name, readOnly: true })), invoke),
+        registry(
+          clientDocumentSchemas.map(({ name }) => ({ name, readOnly: true })),
+          invoke,
+        ),
         complete,
       );
       const spies = logSpies(assistant);
@@ -2563,7 +2803,9 @@ describe('Stage 2 orchestrator hardening', () => {
         assistant.run(pilotContext, {
           clientId: 'client-1',
           conversationId: 'doc-readable',
-          messages: [{ role: 'user', text: 'What did the chair commit to at the September meeting?' }],
+          messages: [
+            { role: 'user', text: 'What did the chair commit to at the September meeting?' },
+          ],
         }),
       );
       expect(result.reply).toBe(reply);

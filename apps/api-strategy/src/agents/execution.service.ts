@@ -1345,8 +1345,7 @@ export class ExecutionService {
     bindingCtx: { headVersionId: string | null; stewardHealth: StewardHealth | null },
   ): Record<string, unknown> {
     const outreachResult = results[`${node.id}:outreach_record`] as
-      | { artifactRef?: string; body?: string | null }
-      | undefined;
+      { artifactRef?: string; body?: string | null } | undefined;
     const outreachRef = outreachResult?.artifactRef ?? null;
     // Idempotent replay (stageOutreach's already_staged branch carries no body):
     // reuse the PRIOR token for this run+artifact VERBATIM instead of recomputing

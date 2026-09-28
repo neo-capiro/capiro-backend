@@ -72,7 +72,9 @@ export interface CreateClientFitClientInput {
   fetchImpl?: typeof fetch;
 }
 
-export function createPassageSelectionClient(input: Omit<CreateChatDecisionProvidersInput, 'llm'>): {
+export function createPassageSelectionClient(
+  input: Omit<CreateChatDecisionProvidersInput, 'llm'>,
+): {
   client: JevClient | null;
   model: string;
   reason: string | null;
@@ -91,13 +93,21 @@ export function createPassageSelectionClient(input: Omit<CreateChatDecisionProvi
           ? 'registry_model_mismatch'
           : null;
   if (!registry.modelMatches && config.tasks.includes('passage_relevance')) {
-    logRegistryMismatchOnce(logger, 'passage_relevance', config.model, registry.registration.modelVersion);
+    logRegistryMismatchOnce(
+      logger,
+      'passage_relevance',
+      config.model,
+      registry.registration.modelVersion,
+    );
   }
   if (reason) return { client: null, model: config.model, reason };
   return {
     client: createJevClient({
-      apiKey: input.env.TYPESAFE_API_KEY!, model: config.model, baseUrl: config.baseUrl,
-      timeoutMs: config.timeoutMs, maxAttempts: config.maxAttempts,
+      apiKey: input.env.TYPESAFE_API_KEY!,
+      model: config.model,
+      baseUrl: config.baseUrl,
+      timeoutMs: config.timeoutMs,
+      maxAttempts: config.maxAttempts,
       ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
     }),
     model: config.model,
@@ -128,13 +138,17 @@ export function createClientFitClient(input: CreateClientFitClientInput): {
   }
   if (reason) return { client: null, model: config.model, reason };
   const transport = createJevClient({
-    apiKey: input.env.TYPESAFE_API_KEY!, model: config.model, baseUrl: config.baseUrl,
-    timeoutMs: config.timeoutMs, maxAttempts: config.maxAttempts,
+    apiKey: input.env.TYPESAFE_API_KEY!,
+    model: config.model,
+    baseUrl: config.baseUrl,
+    timeoutMs: config.timeoutMs,
+    maxAttempts: config.maxAttempts,
     ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
   });
   return {
     client: createClientFitProvider({
-      client: transport, model: config.model,
+      client: transport,
+      model: config.model,
       scope: { tenantId: input.tenantId, surface: input.surface },
     }),
     model: config.model,
@@ -186,12 +200,20 @@ export function createChatDecisionProviders(
   let unavailableReason: string | null = null;
   if (!config.available) unavailableReason = config.reasons.join(',') || 'config_unavailable';
   else if (providerMode === 'off') unavailableReason = 'rollout_off';
-  else if (!['paired', 'jev', 'cascade'].includes(config.routing)) unavailableReason = `routing:${config.routing}`;
-  else if (!config.tasks.includes('claim_support')) unavailableReason = 'task_not_enabled:claim_support';
-  else if (!registry.modelMatches && config.routing !== 'paired') unavailableReason = 'registry_model_mismatch';
+  else if (!['paired', 'jev', 'cascade'].includes(config.routing))
+    unavailableReason = `routing:${config.routing}`;
+  else if (!config.tasks.includes('claim_support'))
+    unavailableReason = 'task_not_enabled:claim_support';
+  else if (!registry.modelMatches && config.routing !== 'paired')
+    unavailableReason = 'registry_model_mismatch';
 
   if (!registry.modelMatches && config.tasks.includes('claim_support')) {
-    logRegistryMismatchOnce(logger, 'claim_support', config.model, registry.registration.modelVersion);
+    logRegistryMismatchOnce(
+      logger,
+      'claim_support',
+      config.model,
+      registry.registration.modelVersion,
+    );
   }
 
   if (unavailableReason) {
@@ -213,7 +235,12 @@ export function createChatDecisionProviders(
     scope: { tenantId: input.tenantId, surface: input.surface },
   });
   const jev = store
-    ? createRecordingDecisionProvider({ live: jevLive, store, model: config.model, provider: 'jev' })
+    ? createRecordingDecisionProvider({
+        live: jevLive,
+        store,
+        model: config.model,
+        provider: 'jev',
+      })
     : jevLive;
   return { jev, legacy, legacyBaseline, routing: config.routing };
 }

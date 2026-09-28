@@ -17,9 +17,12 @@ export function resolveMatchLabelMode(
   tenantId: string | null | undefined,
   surface: AssuranceSurface,
 ): CapabilityRolloutMode {
-  return resolveCapabilityRollout({ capability: MATCH_LABEL_CAPABILITY, env, tenantId, surface }).mode;
+  return resolveCapabilityRollout({ capability: MATCH_LABEL_CAPABILITY, env, tenantId, surface })
+    .mode;
 }
 
-export function validateMatchLabelConfig(env: CapabilityRolloutEnvironment): CapabilityRolloutValidation {
+export function validateMatchLabelConfig(
+  env: CapabilityRolloutEnvironment,
+): CapabilityRolloutValidation {
   return validateCapabilityRolloutConfig({ capability: MATCH_LABEL_CAPABILITY, env });
 }

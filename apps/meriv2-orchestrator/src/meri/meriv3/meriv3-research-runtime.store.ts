@@ -58,9 +58,17 @@ export class MeriV3ResearchRuntimeStore {
     const state = this.storage.getStore();
     if (!state || state.finalizationConsumed) return null;
     state.finalizationConsumed = true;
-    const block = renderScheduleConstraints(state.asOf ?? new Date().toISOString(), state.scheduleDeadlines);
+    const block = renderScheduleConstraints(
+      state.asOf ?? new Date().toISOString(),
+      state.scheduleDeadlines,
+    );
     if (state.scheduleMode === 'shadow' && block) {
-      console.warn(JSON.stringify({ event: 'meri.evidence_accuracy.shadow', scheduleConstraints: block.slice(0, 2000) }));
+      console.warn(
+        JSON.stringify({
+          event: 'meri.evidence_accuracy.shadow',
+          scheduleConstraints: block.slice(0, 2000),
+        }),
+      );
     }
     return {
       forcedFirstTool: state.forcedFirstTool,

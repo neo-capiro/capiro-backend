@@ -63,9 +63,7 @@ export async function executeMeriRepresentationLookup(
     coverageManifest: {
       requiredDomains: ['directory'],
       optionalDomains: [],
-      searchedDomains: [
-        ...(rosterOk ? ['directory'] : []),
-      ],
+      searchedDomains: [...(rosterOk ? ['directory'] : [])],
       coverage: [
         { tool: 'list_members', checked: true, complete: rosterOk },
         {
@@ -76,7 +74,11 @@ export async function executeMeriRepresentationLookup(
       ],
       gaps: [
         ...(rosterOk ? [] : ['list_members']),
-        ...(clientId ? (representationOk ? [] : ['get_representation']) : ['get_representation (no client selected — roster only)']),
+        ...(clientId
+          ? representationOk
+            ? []
+            : ['get_representation']
+          : ['get_representation (no client selected — roster only)']),
       ],
     },
   };

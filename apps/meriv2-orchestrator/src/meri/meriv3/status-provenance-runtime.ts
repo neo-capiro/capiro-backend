@@ -26,9 +26,19 @@ interface StatusToolResult {
   };
 }
 
-function evidenceFromResult(result: StatusToolResult, entity: string): CertificationStatusEvidence | null {
+function evidenceFromResult(
+  result: StatusToolResult,
+  entity: string,
+): CertificationStatusEvidence | null {
   const record = result.record;
-  if (result.found && !result.ambiguous && record?.productId && record.status && record.sourceUrl && record.observedAt) {
+  if (
+    result.found &&
+    !result.ambiguous &&
+    record?.productId &&
+    record.status &&
+    record.sourceUrl &&
+    record.observedAt
+  ) {
     return {
       entityId: record.productId,
       entityNames: [entity, record.cspName ?? '', record.csoName ?? ''].filter(Boolean),
@@ -40,7 +50,13 @@ function evidenceFromResult(result: StatusToolResult, entity: string): Certifica
       primary: true,
     };
   }
-  if (!result.found && result.evidenceOfAbsence && result.searchedEntireDataset && result.sourceUrl && result.observedAt) {
+  if (
+    !result.found &&
+    result.evidenceOfAbsence &&
+    result.searchedEntireDataset &&
+    result.sourceUrl &&
+    result.observedAt
+  ) {
     return {
       entityId: entity,
       entityNames: [entity],
@@ -80,9 +96,21 @@ export async function runStatusProvenance(input: {
   const startedAt = Date.now();
   const claims = detectFedrampStatusClaims(input.reply);
   const outcomes: Record<StatusCheckOutcome, number> = {
-    exact: 0, paraphrased: 0, mismatch: 0, unsupported: 0, negative_unsupported: 0,
+    exact: 0,
+    paraphrased: 0,
+    mismatch: 0,
+    unsupported: 0,
+    negative_unsupported: 0,
   };
-  if (!claims.length) return { reply: input.reply, outcomes, lookupOk: true, latencyMs: Date.now() - startedAt, detected: 0, failureReason: null };
+  if (!claims.length)
+    return {
+      reply: input.reply,
+      outcomes,
+      lookupOk: true,
+      latencyMs: Date.now() - startedAt,
+      detected: 0,
+      failureReason: null,
+    };
   const evidence: CertificationStatusEvidence[] = [];
   try {
     for (const claim of claims) {
@@ -99,7 +127,8 @@ export async function runStatusProvenance(input: {
     const checked = checkFedrampStatusClaims(claims, evidence);
     for (const item of checked) outcomes[item.outcome] += 1;
     return {
-      reply: input.mode === 'enforce' ? enforceFedrampStatusReply(input.reply, checked) : input.reply,
+      reply:
+        input.mode === 'enforce' ? enforceFedrampStatusReply(input.reply, checked) : input.reply,
       outcomes,
       lookupOk: true,
       latencyMs: Date.now() - startedAt,
@@ -113,7 +142,8 @@ export async function runStatusProvenance(input: {
       lookupOk: false,
       latencyMs: Date.now() - startedAt,
       detected: claims.length,
-      failureReason: error instanceof Error && error.message === 'deadline' ? 'deadline' : 'lookup_failed',
+      failureReason:
+        error instanceof Error && error.message === 'deadline' ? 'deadline' : 'lookup_failed',
     };
   }
 }

@@ -418,7 +418,10 @@ export class OpenAiResponsesClient {
           const validatedSynthesis = MeriV3ResearchRuntimeStore.validateDraft(synthesis.outputText);
           if (validatedSynthesis.issueCount > 0) {
             this.logger.warn(
-              JSON.stringify({ event: 'meri.schedule_integrity', issueCount: validatedSynthesis.issueCount }),
+              JSON.stringify({
+                event: 'meri.schedule_integrity',
+                issueCount: validatedSynthesis.issueCount,
+              }),
             );
           }
           return {

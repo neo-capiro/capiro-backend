@@ -27,11 +27,7 @@ export interface DetectedStatusClaim {
 }
 
 export type StatusCheckOutcome =
-  | 'exact'
-  | 'paraphrased'
-  | 'mismatch'
-  | 'unsupported'
-  | 'negative_unsupported';
+  'exact' | 'paraphrased' | 'mismatch' | 'unsupported' | 'negative_unsupported';
 
 export interface CertificationStatusEvidence {
   entityId: string;
@@ -90,8 +86,12 @@ export function detectFedrampStatusClaims(reply: string): DetectedStatusClaim[] 
   for (const raw of spans) {
     const span = raw.trim();
     if (!/\bfedramp\b/i.test(span)) continue;
-    const negative = /\b(?:not\s+fedramp\s+(?:authorized|approved|certified)|no\s+fedramp\s+(?:authorization|certification|status)(?:\s+was)?\s+found)\b/i.test(span);
-    const status = span.match(new RegExp(`\\b(${STATUS_PATTERN}|${PARAPHRASE_PATTERN})\\b`, 'i'))?.[1] ?? null;
+    const negative =
+      /\b(?:not\s+fedramp\s+(?:authorized|approved|certified)|no\s+fedramp\s+(?:authorization|certification|status)(?:\s+was)?\s+found)\b/i.test(
+        span,
+      );
+    const status =
+      span.match(new RegExp(`\\b(${STATUS_PATTERN}|${PARAPHRASE_PATTERN})\\b`, 'i'))?.[1] ?? null;
     const impact = span.match(new RegExp(`\\b(${IMPACT_PATTERN})\\b`, 'i'))?.[1] ?? null;
     if (!negative && !status && !impact) continue;
     claims.push({
@@ -138,13 +138,19 @@ export function checkFedrampStatusClaims(
   evidence: readonly CertificationStatusEvidence[],
 ): CheckedStatusClaim[] {
   return claims.map((claim) => {
-    const match = evidence.find((item) => usableEvidence(item) && matchesEntity(claim, item)) ?? null;
+    const match =
+      evidence.find((item) => usableEvidence(item) && matchesEntity(claim, item)) ?? null;
     if (claim.negative) {
-      return { claim, evidence: match, outcome: match && supportsNegative(match) ? 'exact' : 'negative_unsupported' };
+      return {
+        claim,
+        evidence: match,
+        outcome: match && supportsNegative(match) ? 'exact' : 'negative_unsupported',
+      };
     }
     if (!match) return { claim, evidence: null, outcome: 'unsupported' };
     const statusExact = claim.statedStatus === match.status;
-    const impactExact = claim.statedImpactLevel == null || claim.statedImpactLevel === match.impactLevel;
+    const impactExact =
+      claim.statedImpactLevel == null || claim.statedImpactLevel === match.impactLevel;
     if (statusExact && impactExact) return { claim, evidence: match, outcome: 'exact' };
     const normalized = claim.statedStatus?.toLocaleLowerCase() ?? '';
     if (PARAPHRASED_STATUS[normalized] === match.status && impactExact) {

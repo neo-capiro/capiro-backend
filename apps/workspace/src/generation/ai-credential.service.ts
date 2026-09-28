@@ -44,7 +44,9 @@ export class AiCredentialService {
   ) {
     this.globalAnthropic = config.get<string>('ANTHROPIC_API_KEY');
     // Sonnet is the document-generation runtime model (build directive).
-    this.workspaceModel = upgradeTextModel(config.get<string>('WORKSPACE_MODEL') ?? 'claude-sonnet-5');
+    this.workspaceModel = upgradeTextModel(
+      config.get<string>('WORKSPACE_MODEL') ?? 'claude-sonnet-5',
+    );
     const rawKey = config.get<string>('AI_CREDENTIAL_ENCRYPTION_KEY');
     if (rawKey) {
       try {

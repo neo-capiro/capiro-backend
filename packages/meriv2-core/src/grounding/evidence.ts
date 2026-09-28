@@ -32,13 +32,7 @@ export type EvidenceEntityType =
   | 'client_record';
 
 export type EvidenceStage =
-  | 'request'
-  | 'HASC'
-  | 'SASC'
-  | 'HAC-D'
-  | 'SAC-D'
-  | 'conference'
-  | 'enacted';
+  'request' | 'HASC' | 'SASC' | 'HAC-D' | 'SAC-D' | 'conference' | 'enacted';
 
 export type EvidenceVehicleClass = 'request' | 'authorization' | 'appropriation';
 
