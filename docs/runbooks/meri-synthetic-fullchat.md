@@ -16,22 +16,24 @@ Qualification gate before any workflow run
 Do not dispatch this workflow until all of the following are true:
 
 1. The implementation is merged to current `main`.
-2. An approved API image is built from that merged commit. A branch image is not eligible. The repository's current API build path, `.github/workflows/api-image.yml`, explicitly sets `provenance: false`, does not capture the build step's digest output, and uploads no build attestation or manifest. Therefore source labels, SHA tags, and ECS/ECR digest agreement alone are not accepted as digest-to-source provenance for this release.
+2. An approved API image is built from that merged commit by `.github/workflows/api-image.yml`. Every plan/apply/rollback dispatch must supply its exact positive build run ID and attempt. A branch image, mutable tag, source label, caller-supplied JSON, or ECS/ECR agreement without the retained build record is not eligible.
 3. Both the running `capiro-dev-api` tasks and the latest active `capiro-dev-api-diag` task definition resolve to the same immutable `capiro/dev/api@sha256:...` digest and exact 40-character source commit.
 4. The `capiro-dev-api-diag` revision has exactly one container definition, named `db-inspect`, and no task-definition `entryPoint` override (so the API image entrypoint dispatches `set-tenant-flag`). Secret and environment names must each be nonempty and unique. The two name sets must be disjoint; `DB_HOST`, `DB_PORT`, `DB_USER`, and `DB_PASSWORD` must exist only as the four exact secret references used by the served API, while exactly one plaintext `DB_NAME` must equal the served API value. The workflow never registers or repairs this revision.
 5. The Actions role already has the bounded runtime permissions required to describe ECS state, run only the existing `capiro-dev-api-diag` family on `capiro-dev`, pass the unchanged existing API roles, and read that task's existing CloudWatch log stream. This code does not add permissions and has no manual-DB fallback.
 
-The runner checks that the image-declared source commit is an ancestor of current `origin/main` and that the declared source tree contains the fixed foundation mode before it starts a task. That is a metadata/source-content guard, not proof that the observed image digest was built from that commit.
+The runner checks that the image-declared source commit is an ancestor of current `origin/main`, descends from the API-image record producer commit, and contains the fixed foundation mode plus the producer workflow/script/contract before it starts a task.
 
 Concrete digest-to-source release requirement
 
-No checked-in approved API-image attestation or build-manifest path exists today: the inspected `api-image.yml` path disables provenance and retains no manifest. Do not invent or infer one from image labels. Before any dispatch, release engineering must separately approve and retain a build-system-produced record that binds all of the following in one reviewed build: repository `neo-capiro/capirov2`, exact merged 40-character commit, root build context, `apps/api/Dockerfile`, `linux/arm64`, ECR repository `967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api`, and the resulting `sha256` image digest. The reviewer must verify the record against the trusted build run's resolved source revision and output digest, then verify that exact digest is the one carried by the commit tag, every running API task, and the single-container diag revision. Until such an approved retained record exists, plan/apply/rollback remain HOLD even if this runner's metadata checks pass.
+The producer contract is `docs/contracts/api-image-build-record.md` as introduced by producer commit `2b524fd2ae77ab07f7b3b83beafac5186a501663`. The consumer independently retrieves authenticated GitHub run-attempt and artifact metadata and requires the exact repository, `main` branch/ref, full head SHA, API-image workflow path, completed/success state, run ID/attempt, unique artifact ID/name, ordered timestamps, and GitHub archive digest. It bounded-downloads at most 1 MiB with `curl --max-filesize` before Python reads the archive; unavailable bounded-download support is a hard workflow error, never permission to download unbounded. The ZIP must contain only `api-image-build-record.json`, and the record must have the exact Version 1 schema with root context, `apps/api/Dockerfile`, `linux/arm64`, dev ECR repository/environment, source commit/ref/repository, and immutable digest/URI matching every current API task and the exact one-container active diag revision. There is no metadata-only fallback.
+
+The producer remains independently unreviewed and neither producer nor consumer has live qualification. This consumer implementation does not approve the producer contract, GitHub artifact behavior, OIDC/IAM, ECR, ECS, CloudWatch, or database execution. Plan/apply/rollback remain HOLD until producer and consumer receive separate review and live qualification.
 
 Modes
 
 Plan (default)
 
-Plan accepts no source receipt or confirmation. It runs the fixed command in read-only mode, locks and reads exactly the two tenant rows through `app.current_tenant`, and uploads one sanitized receipt. The receipt contains only tenant ID/slug and prior flag presence/value. It never contains the surrounding settings JSON.
+Plan accepts no source receipt or confirmation. It requires and revalidates the explicit API-image build run/attempt and retained record, runs the fixed command in read-only mode, locks and reads exactly the two tenant rows through `app.current_tenant`, and uploads one sanitized receipt. The receipt retains the exact authenticated build proof plus only tenant ID/slug and prior flag presence/value. It never contains the surrounding settings JSON.
 
 Apply
 
@@ -40,7 +42,7 @@ Apply requires:
 - the exact successful plan workflow run ID and run attempt;
 - `APPLY_FIXED_MERI_FOUNDATION_FULLCHAT`.
 
-The workflow validates GitHub run/attempt/artifact metadata and archive SHA-256, then passes the plan's exact prior states to the fixed command. One serializable transaction locks both exact UUID+slug rows, compares both prior states, and sets the literal dotted key to boolean `true` with JSONB path updates. Any mismatch aborts both rows. Exact in-transaction readback and task exit code zero are required before `verified: true`.
+The workflow validates GitHub run/attempt/artifact metadata and archive SHA-256, rejects every unexpected receipt-root field, revalidates the plan's exact nested build proof, and requires the current authenticated build proof/runtime identity to equal that plan proof. It then passes the plan's exact prior states to the fixed command. One serializable transaction locks both exact UUID+slug rows, compares both prior states, and sets the literal dotted key to boolean `true` with JSONB path updates. Any mismatch aborts both rows. Exact in-transaction readback and task exit code zero are required before `verified: true`.
 
 Rollback
 
@@ -49,7 +51,7 @@ Rollback requires:
 - the exact successful apply workflow run ID and run attempt;
 - `ROLLBACK_FIXED_MERI_FOUNDATION_FULLCHAT`.
 
-It restores each apply receipt's exact prior state: absent remains absent, false returns to false, and any other prior JSON value is restored. Unrelated settings and flags are preserved. A state other than applied `true` or the exact prior state fails closed. Exact prior state is accepted only as reconciliation of an already-completed rollback; the runner never blindly submits a second ECS task after an ambiguous `RunTask` acknowledgement.
+It rejects every unexpected apply-receipt root field, revalidates the apply receipt's bound historical build proof, and separately requires an authenticated build record matching the current served API/diag runtime. The current rollback image may be a later compatible merged-main image and therefore need not equal the apply image, but it must contain this fixed command and satisfy the same exact producer record/runtime checks; there is no old-image or metadata-only fallback. Rollback restores each apply receipt's exact prior state: absent remains absent, false returns to false, and any other prior JSON value is restored. Unrelated settings and flags are preserved. A state other than applied `true` or the exact prior state fails closed. Exact prior state is accepted only as reconciliation of an already-completed rollback; the runner never blindly submits a second ECS task after an ambiguous `RunTask` acknowledgement.
 
 Cohort/research sequencing remains independent
 

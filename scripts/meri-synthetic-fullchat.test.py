@@ -4,12 +4,14 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import importlib.util
 import json
 import os
 import sys
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from typing import Any, Sequence
 from unittest.mock import patch
@@ -53,6 +55,77 @@ def db_result(mode: str, before: list[dict[str, Any]], after: list[dict[str, Any
         ],
     }
     return fullchat.RESULT_PREFIX + json.dumps(value, separators=(",", ":"))
+
+
+def trusted_build_metadata(
+    archive_digest: str | None = None,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    run = {
+        "id": 777,
+        "run_attempt": 2,
+        "event": "push",
+        "head_branch": "main",
+        "head_sha": "e" * 40,
+        "path": fullchat.API_IMAGE_WORKFLOW_PATH,
+        "status": "completed",
+        "conclusion": "success",
+        "repository": {"id": 10, "full_name": fullchat.REPOSITORY},
+        "head_repository": {"id": 10, "full_name": fullchat.REPOSITORY},
+        "created_at": "2026-09-27T23:00:00Z",
+        "run_started_at": "2026-09-27T23:00:01Z",
+        "updated_at": "2026-09-27T23:10:00Z",
+    }
+    artifacts = {
+        "total_count": 1,
+        "artifacts": [{
+            "id": 88,
+            "name": fullchat.build_artifact_name("777", "2"),
+            "digest": archive_digest or f"sha256:{'d' * 64}",
+            "expired": False,
+            "created_at": "2026-09-27T23:09:00Z",
+            "updated_at": "2026-09-27T23:09:30Z",
+            "workflow_run": {
+                "id": 777,
+                "head_sha": run["head_sha"],
+                "head_branch": "main",
+                "repository_id": 10,
+                "head_repository_id": 10,
+            },
+        }],
+    }
+    digest = f"sha256:{'b' * 64}"
+    record = {
+        "schemaVersion": fullchat.API_IMAGE_SCHEMA_VERSION,
+        "source": {
+            "repository": fullchat.REPOSITORY,
+            "ref": "refs/heads/main",
+            "commit": run["head_sha"],
+        },
+        "build": {
+            "context": ".",
+            "dockerfile": "apps/api/Dockerfile",
+            "platform": "linux/arm64",
+        },
+        "image": {
+            "repository": fullchat.IMAGE_REPOSITORY,
+            "digest": digest,
+            "uri": f"{fullchat.IMAGE_REPOSITORY}@{digest}",
+        },
+        "environment": "dev",
+        "workflow": {
+            "name": fullchat.API_IMAGE_WORKFLOW_NAME,
+            "path": fullchat.API_IMAGE_WORKFLOW_PATH,
+            "runId": 777,
+            "runAttempt": 2,
+        },
+    }
+    return run, artifacts, record
+
+
+def trusted_build_proof() -> dict[str, Any]:
+    run, artifacts, record = trusted_build_metadata()
+    selection = fullchat.select_build_artifact("777", "2", run, artifacts)
+    return {**selection, "record": record}
 
 
 def trusted_metadata(mode: str = "plan") -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
@@ -121,6 +194,7 @@ def trusted_metadata(mode: str = "plan") -> tuple[dict[str, Any], dict[str, Any]
             f"arn:aws:ecs:{fullchat.REGION}:{fullchat.ACCOUNT_ID}:task/"
             f"{fullchat.CLUSTER}/{'c' * 32}"
         ),
+        "buildProof": trusted_build_proof(),
         "priorStates": states(),
     }
     receipt["readback"] = json.loads(
@@ -128,6 +202,12 @@ def trusted_metadata(mode: str = "plan") -> tuple[dict[str, Any], dict[str, Any]
             len(fullchat.RESULT_PREFIX):
         ]
     )
+    if mode == "apply":
+        receipt.update({
+            "sourceRunId": "122",
+            "sourceRunAttempt": "1",
+            "sourceArtifactDigest": f"sha256:{'9' * 64}",
+        })
     return run, artifacts, receipt
 
 
@@ -207,6 +287,29 @@ class ArtifactBindingTests(unittest.TestCase):
         with self.assertRaises(fullchat.FullchatError):
             fullchat.validate_source_receipt(receipt, run, selection, "plan")
 
+    def test_source_receipt_rejects_outer_root_fields_direct_and_from_archive(self) -> None:
+        for root_field in ("settings_jsonb", "credentials", "arbitrary"):
+            with self.subTest(root_field=root_field):
+                run, artifacts, receipt = trusted_metadata()
+                receipt[root_field] = {"credential": "must-not-survive"}
+                selection = fullchat.select_artifact("123", "1", run, artifacts)
+                with self.assertRaisesRegex(fullchat.FullchatError, "root fields"):
+                    fullchat.validate_source_receipt(receipt, run, selection, "plan")
+
+        run, artifacts, receipt = trusted_metadata()
+        receipt["settings_jsonb"] = {"credential": "must-not-survive"}
+        with tempfile.TemporaryDirectory() as folder:
+            archive_path = Path(folder) / "source.zip"
+            with zipfile.ZipFile(archive_path, "w") as archive:
+                archive.writestr("receipt.json", json.dumps(receipt))
+            artifacts["artifacts"][0]["digest"] = (
+                f"sha256:{hashlib.sha256(archive_path.read_bytes()).hexdigest()}"
+            )
+            selection = fullchat.select_artifact("123", "1", run, artifacts)
+            loaded = fullchat.load_source_receipt(archive_path, selection, selection)
+            with self.assertRaisesRegex(fullchat.FullchatError, "root fields"):
+                fullchat.validate_source_receipt(loaded, run, selection, "plan")
+
     def test_wrong_attempt_workflow_digest_and_actor_are_refused(self) -> None:
         run, artifacts, receipt = trusted_metadata()
         cases = []
@@ -228,6 +331,91 @@ class ArtifactBindingTests(unittest.TestCase):
         forged["actorId"] = "99"
         with self.assertRaises(fullchat.FullchatError):
             fullchat.validate_source_receipt(forged, run, selection, "plan")
+
+
+class BuildBindingTests(unittest.TestCase):
+    def write_archive(self, folder: str, name: str, value: dict[str, Any]) -> Path:
+        path = Path(folder) / "build.zip"
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr(name, json.dumps(value))
+        return path
+
+    def test_authenticated_build_metadata_rejects_wrong_run_workflow_attempt_and_repo(self) -> None:
+        run, artifacts, _ = trusted_build_metadata()
+        selection = fullchat.select_build_artifact("777", "2", run, artifacts)
+        self.assertEqual(selection["headSha"], "e" * 40)
+        cases: list[tuple[str, dict[str, Any], dict[str, Any], str, str]] = []
+        wrong_run = copy.deepcopy(run)
+        wrong_run["id"] = 778
+        cases.append(("run", wrong_run, artifacts, "777", "2"))
+        wrong_workflow = copy.deepcopy(run)
+        wrong_workflow["path"] = ".github/workflows/other.yml"
+        cases.append(("workflow", wrong_workflow, artifacts, "777", "2"))
+        wrong_attempt = copy.deepcopy(run)
+        wrong_attempt["run_attempt"] = 3
+        cases.append(("attempt", wrong_attempt, artifacts, "777", "2"))
+        foreign = copy.deepcopy(run)
+        foreign["repository"]["full_name"] = "foreign/repository"
+        cases.append(("repository", foreign, artifacts, "777", "2"))
+        for label, run_value, artifact_value, run_id, attempt in cases:
+            with self.subTest(label=label):
+                with self.assertRaises(fullchat.FullchatError):
+                    fullchat.select_build_artifact(
+                        run_id, attempt, run_value, artifact_value
+                    )
+
+    def test_build_archive_rejects_wrong_zip_hash_source_digest_env_context_and_paths(self) -> None:
+        run, artifacts, record = trusted_build_metadata()
+        with tempfile.TemporaryDirectory() as folder:
+            valid = self.write_archive(folder, "api-image-build-record.json", record)
+            archive_digest = f"sha256:{hashlib.sha256(valid.read_bytes()).hexdigest()}"
+            run, artifacts, record = trusted_build_metadata(archive_digest)
+            selection = fullchat.select_build_artifact("777", "2", run, artifacts)
+            proof = fullchat.load_build_proof(valid, selection, selection)
+            self.assertEqual(proof["record"]["image"]["digest"], f"sha256:{'b' * 64}")
+
+            wrong_hash = copy.deepcopy(selection)
+            wrong_hash["archiveDigest"] = f"sha256:{'0' * 64}"
+            with self.assertRaisesRegex(fullchat.FullchatError, "digest"):
+                fullchat.load_build_proof(valid, wrong_hash, wrong_hash)
+
+            wrong_zip = self.write_archive(folder, "nested/api-image-build-record.json", record)
+            wrong_zip_selection = copy.deepcopy(selection)
+            wrong_zip_selection["archiveDigest"] = (
+                f"sha256:{hashlib.sha256(wrong_zip.read_bytes()).hexdigest()}"
+            )
+            with self.assertRaisesRegex(fullchat.FullchatError, "contain only"):
+                fullchat.load_build_proof(wrong_zip, wrong_zip_selection, wrong_zip_selection)
+
+        mutations = {
+            "build source": lambda value: value["source"].update(commit="f" * 40),
+            "image digest": lambda value: value["image"].update(digest=f"sha256:{'c' * 64}"),
+            "environment": lambda value: value.update(environment="prod"),
+            "context": lambda value: value["build"].update(context="apps/api"),
+            "dockerfile path": lambda value: value["build"].update(dockerfile="Dockerfile"),
+            "workflow path": lambda value: value["workflow"].update(path=".github/workflows/other.yml"),
+            "unknown root": lambda value: value.update(untrusted=True),
+        }
+        selection = fullchat.select_build_artifact("777", "2", run, artifacts)
+        for label, mutate in mutations.items():
+            with self.subTest(label=label):
+                candidate = copy.deepcopy(record)
+                mutate(candidate)
+                with self.assertRaises(fullchat.FullchatError):
+                    fullchat.validate_build_record(candidate, selection)
+        with self.assertRaisesRegex(fullchat.FullchatError, "duplicate JSON keys"):
+            fullchat.strict_json_loads('{"source":{},"source":{}}', "build record")
+
+        proof = {**selection, "record": record}
+        with self.assertRaisesRegex(fullchat.FullchatError, "does not match"):
+            fullchat.validate_runtime_build(
+                {
+                    "imageDigest": f"sha256:{'0' * 64}",
+                    "sourceCommit": "e" * 40,
+                    "image": record["image"]["uri"],
+                },
+                proof,
+            )
 
 
 class AckLossTests(unittest.TestCase):
@@ -462,7 +650,9 @@ class MainReceiptTests(unittest.TestCase):
         def run_task(self, *args: Any) -> str:
             return MainReceiptTests.task_arn
 
-    def stopped_task(self, extra: bool = False, exit_code: int = 0) -> dict[str, Any]:
+    def stopped_task(
+        self, extra: bool = False, exit_code: int = 0, mode: str = "plan"
+    ) -> dict[str, Any]:
         containers = [{
             "name": fullchat.CONTAINER,
             "lastStatus": "STOPPED",
@@ -482,15 +672,76 @@ class MainReceiptTests(unittest.TestCase):
             "taskArn": self.task_arn,
             "clusterArn": f"arn:aws:ecs:{fullchat.REGION}:{fullchat.ACCOUNT_ID}:cluster/{fullchat.CLUSTER}",
             "taskDefinitionArn": self.task_definition,
-            "startedBy": "meri-fullchat-321-1-plan",
+            "startedBy": f"meri-fullchat-321-1-{mode}",
             "launchType": "FARGATE",
             "lastStatus": "STOPPED",
             "stopCode": "EssentialContainerExited",
             "containers": containers,
         }
 
-    def run_main(self, messages: Sequence[str], task: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+    def run_main(
+        self, messages: Sequence[str], task: dict[str, Any], mode: str = "plan"
+    ) -> tuple[int, dict[str, Any]]:
         with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            build_archive = root / "build.zip"
+            _, _, record = trusted_build_metadata()
+            with zipfile.ZipFile(build_archive, "w") as archive:
+                archive.writestr("api-image-build-record.json", json.dumps(record))
+            archive_digest = f"sha256:{hashlib.sha256(build_archive.read_bytes()).hexdigest()}"
+            build_run, build_artifacts, _ = trusted_build_metadata(archive_digest)
+            build_selection = fullchat.select_build_artifact(
+                "777", "2", build_run, build_artifacts
+            )
+            build_selection_path = root / "build-selection.json"
+            build_selection_path.write_text(json.dumps(build_selection), encoding="utf-8")
+            build_proof = {**build_selection, "record": record}
+            source_run: dict[str, Any] | None = None
+            source_artifacts: dict[str, Any] | None = None
+            source_selection_path = root / "source-selection.json"
+            source_archive = root / "source.zip"
+            if mode in ("apply", "rollback"):
+                source_run, source_artifacts, source_receipt = trusted_metadata(
+                    "plan" if mode == "apply" else "apply"
+                )
+                if mode == "apply":
+                    source_receipt["buildProof"] = build_proof
+                else:
+                    historical_proof = copy.deepcopy(build_proof)
+                    historical_proof["headSha"] = "a" * 40
+                    historical_proof["record"]["source"]["commit"] = "a" * 40
+                    historical_proof["record"]["image"]["digest"] = f"sha256:{'c' * 64}"
+                    historical_proof["record"]["image"]["uri"] = (
+                        f"{fullchat.IMAGE_REPOSITORY}@sha256:{'c' * 64}"
+                    )
+                    source_receipt["buildProof"] = historical_proof
+                    source_receipt["imageSourceCommit"] = "a" * 40
+                    source_receipt["imageDigest"] = f"sha256:{'c' * 64}"
+                with zipfile.ZipFile(source_archive, "w") as archive:
+                    archive.writestr("receipt.json", json.dumps(source_receipt))
+                source_artifacts["artifacts"][0]["digest"] = (
+                    f"sha256:{hashlib.sha256(source_archive.read_bytes()).hexdigest()}"
+                )
+                source_selection = fullchat.select_artifact(
+                    "123", "1", source_run, source_artifacts
+                )
+                source_selection_path.write_text(json.dumps(source_selection), encoding="utf-8")
+
+            class Github:
+                def run_attempt(self, run_id: str, attempt: str) -> dict[str, Any]:
+                    if (run_id, attempt) == ("777", "2"):
+                        return copy.deepcopy(build_run)
+                    if (run_id, attempt) == ("123", "1") and source_run is not None:
+                        return copy.deepcopy(source_run)
+                    raise AssertionError((run_id, attempt))
+
+                def artifacts(self, run_id: str) -> dict[str, Any]:
+                    if run_id == "777":
+                        return copy.deepcopy(build_artifacts)
+                    if run_id == "123" and source_artifacts is not None:
+                        return copy.deepcopy(source_artifacts)
+                    raise AssertionError(run_id)
+
             with (
                 patch.dict(os.environ, {
                     "GITHUB_RUN_ID": "321",
@@ -501,16 +752,39 @@ class MainReceiptTests(unittest.TestCase):
                 }),
                 patch.object(fullchat, "GitCli", return_value=object()),
                 patch.object(fullchat, "verify_execution_context", return_value="f" * 40),
+                patch.object(fullchat, "GithubApi", return_value=Github()),
                 patch.object(fullchat, "AwsCli", self.Aws),
                 patch.object(fullchat, "capture_runtime", return_value=self.runtime),
                 patch.object(fullchat, "wait_for_task", return_value=task),
                 patch.object(fullchat, "wait_for_log_messages", return_value=messages),
             ):
-                status = fullchat.main([
-                    "--mode", "plan",
+                arguments = [
+                    "--mode", mode,
                     "--output-dir", folder,
+                    "--build-run-id", "777",
+                    "--build-run-attempt", "2",
+                    "--build-artifact-selection", str(build_selection_path),
+                    "--build-artifact-archive", str(build_archive),
                     "--wait-timeout-seconds", "60",
-                ])
+                ]
+                if mode in ("apply", "rollback"):
+                    arguments.extend([
+                        (
+                            "--apply-confirmation"
+                            if mode == "apply"
+                            else "--rollback-confirmation"
+                        ),
+                        (
+                            fullchat.APPLY_CONFIRMATION
+                            if mode == "apply"
+                            else fullchat.ROLLBACK_CONFIRMATION
+                        ),
+                        "--source-run-id", "123",
+                        "--source-run-attempt", "1",
+                        "--artifact-selection", str(source_selection_path),
+                        "--artifact-archive", str(source_archive),
+                    ])
+                status = fullchat.main(arguments)
             receipt = json.loads((Path(folder) / "receipt.json").read_text(encoding="utf-8"))
         return status, receipt
 
@@ -537,6 +811,26 @@ class MainReceiptTests(unittest.TestCase):
         self.assertEqual(receipt["result"], "FAILED")
         self.assertIs(receipt["verified"], False)
 
+    def test_main_accepts_authenticated_build_bound_apply_receipt(self) -> None:
+        message = db_result("apply", states(), states(True, True))
+        status, receipt = self.run_main(
+            [message], self.stopped_task(mode="apply"), mode="apply"
+        )
+        self.assertEqual(status, 0)
+        self.assertEqual(receipt["result"], "APPLIED_AND_VERIFIED")
+        self.assertEqual(receipt["buildProof"]["record"]["environment"], "dev")
+        self.assertEqual(receipt["sourceRunId"], "123")
+
+    def test_main_rollback_accepts_a_different_current_compatible_build(self) -> None:
+        message = db_result("rollback", states(True, True), states())
+        status, receipt = self.run_main(
+            [message], self.stopped_task(mode="rollback"), mode="rollback"
+        )
+        self.assertEqual(status, 0)
+        self.assertEqual(receipt["result"], "ROLLED_BACK_AND_VERIFIED")
+        self.assertEqual(receipt["imageDigest"], f"sha256:{'b' * 64}")
+        self.assertEqual(receipt["buildProof"]["record"]["source"]["commit"], "e" * 40)
+
     def test_main_fails_closed_on_duplicate_absent_result_and_nonzero_exit(self) -> None:
         message = db_result("plan", states(), states())
         cases = {
@@ -560,6 +854,9 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertIn("github.ref != 'refs/heads/main'", text)
         self.assertIn('test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"', text)
         self.assertIn("--select-source-artifact", text)
+        self.assertIn("--select-build-artifact", text)
+        self.assertIn("--max-filesize 1048576", text)
+        self.assertIn("--build-run-id", text)
         self.assertIn("actions/artifacts/${artifact_id}/zip", text)
         self.assertIn("synthetic-fullchat-receipt-${{ github.run_id }}-${{ github.run_attempt }}", text)
         for forbidden_input in ("tenant_slug", "tenant_id", "flag:", "script:", "shell:", "url:", "task_definition:", "image_digest:"):

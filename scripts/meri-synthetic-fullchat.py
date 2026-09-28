@@ -13,6 +13,8 @@ import re
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 import zipfile
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -27,6 +29,11 @@ REPOSITORY = "neo-capiro/capirov2"
 WORKFLOW_PATH = ".github/workflows/meri-synthetic-fullchat.yml"
 WORKFLOW_NAME = "meri-synthetic-fullchat"
 ARTIFACT_PREFIX = "synthetic-fullchat-receipt"
+API_IMAGE_WORKFLOW_PATH = ".github/workflows/api-image.yml"
+API_IMAGE_WORKFLOW_NAME = "api-image"
+API_IMAGE_ARTIFACT_PREFIX = "api-image-build-record"
+API_IMAGE_SCHEMA_VERSION = "capiro.api-image-build-record.v1"
+API_IMAGE_PRODUCER_COMMIT = "2b524fd2ae77ab07f7b3b83beafac5186a501663"
 IMAGE_REPOSITORY = f"{ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/capiro/dev/api"
 FLAG = "meriv3.fullChat"
 TENANTS = (
@@ -52,8 +59,22 @@ REGISTER_SOURCE_FILES = (
 )
 MAX_ARCHIVE_BYTES = 1024 * 1024
 MAX_RECEIPT_BYTES = 512 * 1024
+MAX_GITHUB_METADATA_BYTES = 1024 * 1024
 DB_SECRET_NAMES = frozenset({"DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD"})
 DB_RESULT_KEYS = frozenset({"schemaVersion", "operation", "mode", "result", "flag", "tenants"})
+BUILD_RECORD_KEYS = frozenset({"schemaVersion", "source", "build", "image", "environment", "workflow"})
+BUILD_PROOF_KEYS = frozenset({
+    "runId", "runAttempt", "headSha", "runCreatedAt", "runStartedAt", "runUpdatedAt",
+    "artifactId", "artifactName", "artifactCreatedAt", "artifactUpdatedAt", "archiveDigest", "record",
+})
+BUILD_SELECTION_KEYS = BUILD_PROOF_KEYS - {"record"}
+RECEIPT_BASE_KEYS = frozenset({
+    "schemaVersion", "workflow", "workflowPath", "repository", "runId", "runAttempt",
+    "artifactName", "workflowSha", "actor", "actorId", "mode", "result", "verified",
+    "target", "flag", "tenants", "qualifiedTaskDefinition", "imageDigest",
+    "imageSourceCommit", "taskArn", "buildProof", "priorStates", "readback",
+})
+RECEIPT_SOURCE_KEYS = frozenset({"sourceRunId", "sourceRunAttempt", "sourceArtifactDigest"})
 
 
 class FullchatError(RuntimeError):
@@ -147,10 +168,73 @@ class GitCli:
         return completed.stdout.strip()
 
 
+def strict_json_loads(payload: str, label: str) -> Any:
+    def object_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise FullchatError(f"{label} contains duplicate JSON keys")
+            result[key] = value
+        return result
+
+    try:
+        return json.loads(payload, object_pairs_hook=object_pairs)
+    except json.JSONDecodeError as exc:
+        raise FullchatError(f"{label} is invalid JSON") from exc
+
+
+class GithubApi:
+    def __init__(self, token: str | None = None) -> None:
+        self.token = token if token is not None else os.environ.get("GITHUB_TOKEN", "")
+        if not self.token:
+            raise FullchatError("GITHUB_TOKEN is required for authenticated provenance retrieval")
+
+    def _json(self, path: str) -> dict[str, Any]:
+        request = urllib.request.Request(
+            f"https://api.github.com/repos/{REPOSITORY}/{path}",
+            headers={
+                "Accept": "application/vnd.github+json",
+                "Authorization": f"Bearer {self.token}",
+                "X-GitHub-Api-Version": "2022-11-28",
+                "User-Agent": "capiro-meri-synthetic-fullchat",
+            },
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                payload = response.read(MAX_GITHUB_METADATA_BYTES + 1)
+        except (OSError, urllib.error.HTTPError, urllib.error.URLError) as exc:
+            raise FullchatError("authenticated GitHub metadata retrieval failed") from exc
+        if len(payload) > MAX_GITHUB_METADATA_BYTES:
+            raise FullchatError("authenticated GitHub metadata exceeded the bounded response size")
+        try:
+            decoded = payload.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise FullchatError("authenticated GitHub metadata was not UTF-8") from exc
+        value = strict_json_loads(decoded, "authenticated GitHub metadata")
+        if not isinstance(value, dict):
+            raise FullchatError("authenticated GitHub metadata has an unexpected shape")
+        return value
+
+    def run_attempt(self, run_id: str, attempt: str) -> dict[str, Any]:
+        artifact_name(run_id, attempt)
+        return self._json(f"actions/runs/{run_id}/attempts/{attempt}")
+
+    def artifacts(self, run_id: str) -> dict[str, Any]:
+        if not INTEGER_RE.fullmatch(run_id):
+            raise FullchatError("run ID must be a positive decimal integer")
+        return self._json(f"actions/runs/{run_id}/artifacts?per_page=100")
+
+
 def artifact_name(run_id: str, attempt: str) -> str:
     if not INTEGER_RE.fullmatch(run_id) or not INTEGER_RE.fullmatch(attempt):
         raise FullchatError("run ID and attempt must be positive decimal integers")
     return f"{ARTIFACT_PREFIX}-{run_id}-{attempt}"
+
+
+def build_artifact_name(run_id: str, attempt: str) -> str:
+    if not INTEGER_RE.fullmatch(run_id) or not INTEGER_RE.fullmatch(attempt):
+        raise FullchatError("build run ID and attempt must be positive decimal integers")
+    return f"{API_IMAGE_ARTIFACT_PREFIX}-{run_id}-{attempt}"
 
 
 def github_time(value: Any, field: str) -> datetime.datetime:
@@ -192,6 +276,8 @@ def select_artifact(
     values = artifacts.get("artifacts")
     if not isinstance(values, list) or artifacts.get("total_count") != len(values):
         raise FullchatError("trusted GitHub artifact metadata is incomplete")
+    if not all(isinstance(item, dict) for item in values):
+        raise FullchatError("trusted GitHub artifact metadata contains an invalid entry")
     matches = [item for item in values if item.get("name") == expected_name]
     if len(matches) != 1:
         raise FullchatError("trusted GitHub metadata does not select one exact run-attempt artifact")
@@ -223,33 +309,137 @@ def select_artifact(
     }
 
 
+def select_build_artifact(
+    run_id: str,
+    attempt: str,
+    run: Mapping[str, Any],
+    artifacts: Mapping[str, Any],
+) -> dict[str, Any]:
+    expected_name = build_artifact_name(run_id, attempt)
+    head_sha = run.get("head_sha")
+    if (
+        str(run.get("id")) != run_id
+        or str(run.get("run_attempt")) != attempt
+        or run.get("event") not in ("push", "workflow_dispatch")
+        or run.get("head_branch") != "main"
+        or not SHA_RE.fullmatch(str(head_sha or ""))
+        or run.get("path") != API_IMAGE_WORKFLOW_PATH
+        or (run.get("repository") or {}).get("full_name") != REPOSITORY
+        or (run.get("head_repository") or {}).get("full_name") != REPOSITORY
+        or run.get("status") != "completed"
+        or run.get("conclusion") != "success"
+    ):
+        raise FullchatError("trusted GitHub run is not the exact successful main API image workflow attempt")
+    created_at = run.get("created_at")
+    started_at = run.get("run_started_at")
+    updated_at = run.get("updated_at")
+    created = github_time(created_at, "build run created_at")
+    started = github_time(started_at, "build run_started_at")
+    updated = github_time(updated_at, "build run updated_at")
+    if not created <= started <= updated:
+        raise FullchatError("trusted GitHub build run timestamps are inconsistent")
+    values = artifacts.get("artifacts")
+    if not isinstance(values, list) or artifacts.get("total_count") != len(values):
+        raise FullchatError("trusted GitHub build artifact metadata is incomplete or paginated")
+    if not all(isinstance(item, dict) for item in values):
+        raise FullchatError("trusted GitHub build artifact metadata contains an invalid entry")
+    matches = [item for item in values if item.get("name") == expected_name]
+    if len(matches) != 1:
+        raise FullchatError("trusted GitHub metadata does not select one exact build run-attempt artifact")
+    item = matches[0]
+    workflow_run = item.get("workflow_run") or {}
+    digest = item.get("digest")
+    if (
+        not isinstance(item.get("id"), int)
+        or isinstance(item.get("id"), bool)
+        or item["id"] <= 0
+        or sum(candidate.get("id") == item["id"] for candidate in values) != 1
+        or not DIGEST_RE.fullmatch(str(digest or ""))
+        or item.get("expired") is not False
+        or str(workflow_run.get("id")) != run_id
+        or workflow_run.get("head_sha") != head_sha
+        or workflow_run.get("head_branch") != "main"
+        or workflow_run.get("repository_id") != (run.get("repository") or {}).get("id")
+        or workflow_run.get("head_repository_id") != (run.get("head_repository") or {}).get("id")
+    ):
+        raise FullchatError("trusted GitHub build artifact is not bound to the exact source run")
+    artifact_created_at = item.get("created_at")
+    artifact_updated_at = item.get("updated_at")
+    artifact_created = github_time(artifact_created_at, "build artifact created_at")
+    artifact_updated = github_time(artifact_updated_at, "build artifact updated_at")
+    if not started <= artifact_created <= artifact_updated <= updated:
+        raise FullchatError("trusted GitHub build artifact timestamps are outside its run")
+    return {
+        "runId": int(run_id),
+        "runAttempt": int(attempt),
+        "headSha": head_sha,
+        "runCreatedAt": created_at,
+        "runStartedAt": started_at,
+        "runUpdatedAt": updated_at,
+        "artifactId": item["id"],
+        "artifactName": expected_name,
+        "artifactCreatedAt": artifact_created_at,
+        "artifactUpdatedAt": artifact_updated_at,
+        "archiveDigest": digest,
+    }
+
+
+def github_artifact_selection(
+    github: GithubApi,
+    run_id: str,
+    attempt: str,
+    build: bool,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    run = github.run_attempt(run_id, attempt)
+    artifacts = github.artifacts(run_id)
+    selection = (
+        select_build_artifact(run_id, attempt, run, artifacts)
+        if build
+        else select_artifact(run_id, attempt, run, artifacts)
+    )
+    return run, selection
+
+
+def load_archive_json(
+    archive: Path,
+    selection: Mapping[str, Any],
+    expected_selection: Mapping[str, Any],
+    filename: str,
+    label: str,
+) -> dict[str, Any]:
+    if dict(selection) != dict(expected_selection):
+        raise FullchatError(f"{label} artifact selection changed after authenticated validation")
+    if not archive.is_file() or not 0 < archive.stat().st_size <= MAX_ARCHIVE_BYTES:
+        raise FullchatError(f"{label} archive is absent or oversized")
+    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    if f"sha256:{digest}" != selection.get("archiveDigest"):
+        raise FullchatError(f"{label} archive digest does not match GitHub metadata")
+    try:
+        with zipfile.ZipFile(archive) as value:
+            entries = value.infolist()
+            if len(entries) != 1 or entries[0].filename != filename:
+                raise FullchatError(f"{label} archive must contain only {filename}")
+            entry = entries[0]
+            mode = (entry.external_attr >> 16) & 0o170000
+            if entry.is_dir() or mode == 0o120000 or entry.flag_bits & 1 or not 0 < entry.file_size <= MAX_RECEIPT_BYTES:
+                raise FullchatError(f"{label} archive entry is unsafe")
+            payload = value.read(entry).decode("utf-8")
+    except (OSError, UnicodeDecodeError, zipfile.BadZipFile) as exc:
+        raise FullchatError(f"{label} archive is unreadable") from exc
+    result = strict_json_loads(payload, label)
+    if not isinstance(result, dict):
+        raise FullchatError(f"{label} has an unexpected shape")
+    return result
+
+
 def load_source_receipt(
     archive: Path,
     selection: Mapping[str, Any],
     expected_selection: Mapping[str, Any],
 ) -> dict[str, Any]:
-    if dict(selection) != dict(expected_selection):
-        raise FullchatError("artifact selection changed after validation")
-    if not archive.is_file() or not 0 < archive.stat().st_size <= MAX_ARCHIVE_BYTES:
-        raise FullchatError("receipt archive is absent or oversized")
-    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
-    if f"sha256:{digest}" != selection.get("archiveDigest"):
-        raise FullchatError("receipt archive digest does not match GitHub metadata")
-    try:
-        with zipfile.ZipFile(archive) as value:
-            entries = value.infolist()
-            if len(entries) != 1 or entries[0].filename != "receipt.json":
-                raise FullchatError("receipt archive must contain only receipt.json")
-            entry = entries[0]
-            mode = (entry.external_attr >> 16) & 0o170000
-            if entry.is_dir() or mode == 0o120000 or entry.flag_bits & 1 or not 0 < entry.file_size <= MAX_RECEIPT_BYTES:
-                raise FullchatError("receipt archive entry is unsafe")
-            receipt = json.loads(value.read(entry).decode("utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError, zipfile.BadZipFile) as exc:
-        raise FullchatError("receipt archive is unreadable") from exc
-    if not isinstance(receipt, dict):
-        raise FullchatError("source receipt has an unexpected shape")
-    return receipt
+    return load_archive_json(
+        archive, selection, expected_selection, "receipt.json", "source receipt"
+    )
 
 
 def validate_db_states(values: Any, field: str) -> list[dict[str, Any]]:
@@ -281,12 +471,127 @@ def state_token(states: Sequence[Mapping[str, Any]]) -> str:
     return base64.urlsafe_b64encode(raw).decode().rstrip("=")
 
 
+def validate_build_selection(selection: Mapping[str, Any]) -> None:
+    if set(selection) != BUILD_SELECTION_KEYS:
+        raise FullchatError("build artifact selection shape is not exact")
+    run_id = selection.get("runId")
+    attempt = selection.get("runAttempt")
+    if (
+        not isinstance(run_id, int)
+        or isinstance(run_id, bool)
+        or run_id <= 0
+        or not isinstance(attempt, int)
+        or isinstance(attempt, bool)
+        or attempt <= 0
+        or selection.get("artifactName") != build_artifact_name(str(run_id), str(attempt))
+        or not isinstance(selection.get("artifactId"), int)
+        or isinstance(selection.get("artifactId"), bool)
+        or selection["artifactId"] <= 0
+        or not SHA_RE.fullmatch(str(selection.get("headSha", "")))
+        or not DIGEST_RE.fullmatch(str(selection.get("archiveDigest", "")))
+    ):
+        raise FullchatError("build artifact selection identity is invalid")
+    created = github_time(selection.get("runCreatedAt"), "bound build run created_at")
+    started = github_time(selection.get("runStartedAt"), "bound build run_started_at")
+    updated = github_time(selection.get("runUpdatedAt"), "bound build run updated_at")
+    artifact_created = github_time(
+        selection.get("artifactCreatedAt"), "bound build artifact created_at"
+    )
+    artifact_updated = github_time(
+        selection.get("artifactUpdatedAt"), "bound build artifact updated_at"
+    )
+    if not created <= started <= artifact_created <= artifact_updated <= updated:
+        raise FullchatError("bound build run/artifact timestamps are inconsistent")
+
+
+def validate_build_record(
+    record: Mapping[str, Any], selection: Mapping[str, Any]
+) -> dict[str, Any]:
+    validate_build_selection(selection)
+    source = record.get("source")
+    build = record.get("build")
+    image = record.get("image")
+    workflow = record.get("workflow")
+    digest = image.get("digest") if isinstance(image, dict) else None
+    if (
+        set(record) != BUILD_RECORD_KEYS
+        or record.get("schemaVersion") != API_IMAGE_SCHEMA_VERSION
+        or not isinstance(source, dict)
+        or set(source) != {"repository", "ref", "commit"}
+        or source.get("repository") != REPOSITORY
+        or source.get("ref") != "refs/heads/main"
+        or source.get("commit") != selection.get("headSha")
+        or not isinstance(build, dict)
+        or build != {
+            "context": ".",
+            "dockerfile": "apps/api/Dockerfile",
+            "platform": "linux/arm64",
+        }
+        or record.get("environment") != "dev"
+        or not isinstance(image, dict)
+        or set(image) != {"repository", "digest", "uri"}
+        or image.get("repository") != IMAGE_REPOSITORY
+        or not DIGEST_RE.fullmatch(str(digest or ""))
+        or image.get("uri") != f"{IMAGE_REPOSITORY}@{digest}"
+        or not isinstance(workflow, dict)
+        or set(workflow) != {"name", "path", "runId", "runAttempt"}
+        or workflow.get("name") != API_IMAGE_WORKFLOW_NAME
+        or workflow.get("path") != API_IMAGE_WORKFLOW_PATH
+        or type(workflow.get("runId")) is not int
+        or type(workflow.get("runAttempt")) is not int
+        or workflow.get("runId") != selection.get("runId")
+        or workflow.get("runAttempt") != selection.get("runAttempt")
+    ):
+        raise FullchatError("API image build record does not match the exact Version 1 dev contract")
+    return dict(record)
+
+
+def load_build_proof(
+    archive: Path,
+    selection: Mapping[str, Any],
+    expected_selection: Mapping[str, Any],
+) -> dict[str, Any]:
+    validate_build_selection(expected_selection)
+    record = load_archive_json(
+        archive,
+        selection,
+        expected_selection,
+        "api-image-build-record.json",
+        "API image build record",
+    )
+    normalized = validate_build_record(record, expected_selection)
+    return {**dict(expected_selection), "record": normalized}
+
+
+def validate_bound_build_proof(
+    proof: Any, image_digest: Any, image_source_commit: Any
+) -> dict[str, Any]:
+    if not isinstance(proof, dict) or set(proof) != BUILD_PROOF_KEYS:
+        raise FullchatError("source receipt build proof shape is not exact")
+    selection = {key: proof[key] for key in BUILD_SELECTION_KEYS}
+    record = proof.get("record")
+    if not isinstance(record, dict):
+        raise FullchatError("source receipt build record is absent")
+    normalized = validate_build_record(record, selection)
+    if (
+        normalized["image"]["digest"] != image_digest
+        or normalized["source"]["commit"] != image_source_commit
+    ):
+        raise FullchatError("source receipt build proof contradicts its runtime identity")
+    return {**selection, "record": normalized}
+
+
 def validate_source_receipt(
     receipt: Mapping[str, Any],
     run: Mapping[str, Any],
     selection: Mapping[str, Any],
     expected_mode: str,
 ) -> list[dict[str, Any]]:
+    expected_keys = RECEIPT_BASE_KEYS | (
+        RECEIPT_SOURCE_KEYS if expected_mode == "apply" else frozenset()
+    )
+    if set(receipt) != expected_keys:
+        raise FullchatError("source receipt root fields are not the exact successful schema")
     if (
         receipt.get("schemaVersion") != 1
         or receipt.get("workflow") != WORKFLOW_NAME
@@ -318,6 +623,15 @@ def validate_source_receipt(
         or not SHA_RE.fullmatch(str(receipt.get("imageSourceCommit", "")))
     ):
         raise FullchatError("source receipt runtime/image binding is invalid")
+    validate_bound_build_proof(
+        receipt.get("buildProof"), receipt.get("imageDigest"), receipt.get("imageSourceCommit")
+    )
+    if expected_mode == "apply" and (
+        not INTEGER_RE.fullmatch(str(receipt.get("sourceRunId", "")))
+        or not INTEGER_RE.fullmatch(str(receipt.get("sourceRunAttempt", "")))
+        or not DIGEST_RE.fullmatch(str(receipt.get("sourceArtifactDigest", "")))
+    ):
+        raise FullchatError("source apply receipt chain identity is invalid")
     prior = validate_db_states(receipt.get("priorStates"), "source priorStates")
     readback = receipt.get("readback")
     if not isinstance(readback, dict):
@@ -396,7 +710,14 @@ def unique_named_values(
 def validate_image_source(git: GitCli, sha: str) -> None:
     git.run(("cat-file", "-e", f"{sha}^{{commit}}"))
     git.run(("merge-base", "--is-ancestor", sha, "origin/main"))
+    git.run(("merge-base", "--is-ancestor", API_IMAGE_PRODUCER_COMMIT, sha))
     for path in REGISTER_SOURCE_FILES:
+        git.run(("cat-file", "-e", f"{sha}:{path}"))
+    for path in (
+        API_IMAGE_WORKFLOW_PATH,
+        "scripts/api-image-build-record.py",
+        "docs/contracts/api-image-build-record.md",
+    ):
         git.run(("cat-file", "-e", f"{sha}:{path}"))
     script = git.run(("show", f"{sha}:apps/api/scripts/set-tenant-flag.ts"))
     foundation = git.run(("show", f"{sha}:apps/api/scripts/set-tenant-flag-foundation.ts"))
@@ -458,12 +779,18 @@ def capture_runtime(aws: AwsCli, git: GitCli) -> dict[str, Any]:
             or task.get("desiredStatus") != "RUNNING"
         ):
             raise FullchatError("API running task identity/status is not exact")
-    digests = {
-        str(container.get("imageDigest"))
-        for task in tasks
-        for container in task.get("containers", [])
-        if container.get("name") == "api"
-    }
+    digests: set[str] = set()
+    for task in tasks:
+        containers = task.get("containers")
+        api_containers = [
+            item for item in containers or []
+            if isinstance(item, dict) and item.get("name") == "api"
+        ]
+        if len(api_containers) != 1 or not DIGEST_RE.fullmatch(
+            str(api_containers[0].get("imageDigest", ""))
+        ):
+            raise FullchatError("each API running task must expose one immutable api image digest")
+        digests.add(str(api_containers[0]["imageDigest"]))
     if len(digests) != 1 or not DIGEST_RE.fullmatch(next(iter(digests))):
         raise FullchatError("API running tasks do not agree on one immutable image digest")
     digest = next(iter(digests))
@@ -547,6 +874,18 @@ def capture_runtime(aws: AwsCli, git: GitCli) -> dict[str, Any]:
         "logGroup": options["awslogs-group"],
         "logPrefix": options["awslogs-stream-prefix"],
     }
+
+
+def validate_runtime_build(runtime: Mapping[str, Any], proof: Mapping[str, Any]) -> None:
+    record = proof.get("record")
+    if not isinstance(record, dict):
+        raise FullchatError("current API image build proof is absent")
+    if (
+        runtime.get("imageDigest") != record["image"]["digest"]
+        or runtime.get("sourceCommit") != record["source"]["commit"]
+        or runtime.get("image") != record["image"]["uri"]
+    ):
+        raise FullchatError("current served/diag runtime does not match the authenticated API image build record")
 
 
 def command_for(mode: str, expected: Sequence[Mapping[str, Any]] | None) -> list[str]:
@@ -654,7 +993,12 @@ def parse_db_result(
     return sanitized, before_values, after_values
 
 
-def base_receipt(mode: str, runtime: Mapping[str, Any], task_arn: str) -> dict[str, Any]:
+def base_receipt(
+    mode: str,
+    runtime: Mapping[str, Any],
+    task_arn: str,
+    build_proof: Mapping[str, Any],
+) -> dict[str, Any]:
     run_id = os.environ.get("GITHUB_RUN_ID", "local")
     attempt = os.environ.get("GITHUB_RUN_ATTEMPT", "local")
     return {
@@ -678,6 +1022,7 @@ def base_receipt(mode: str, runtime: Mapping[str, Any], task_arn: str) -> dict[s
         "imageDigest": runtime["imageDigest"],
         "imageSourceCommit": runtime["sourceCommit"],
         "taskArn": task_arn,
+        "buildProof": dict(build_proof),
     }
 
 
@@ -695,11 +1040,14 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--rollback-confirmation", default="")
     parser.add_argument("--source-run-id", default="")
     parser.add_argument("--source-run-attempt", default="")
-    parser.add_argument("--run-metadata", type=Path)
-    parser.add_argument("--artifact-metadata", type=Path)
+    parser.add_argument("--build-run-id", default="")
+    parser.add_argument("--build-run-attempt", default="")
     parser.add_argument("--artifact-selection", type=Path)
     parser.add_argument("--artifact-archive", type=Path)
+    parser.add_argument("--build-artifact-selection", type=Path)
+    parser.add_argument("--build-artifact-archive", type=Path)
     parser.add_argument("--select-source-artifact", action="store_true")
+    parser.add_argument("--select-build-artifact", action="store_true")
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--wait-timeout-seconds", type=int, default=900)
     return parser.parse_args(argv)
@@ -709,9 +1057,10 @@ def load_json(path: Path | None, label: str) -> dict[str, Any]:
     if not path:
         raise FullchatError(f"{label} path is required")
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        payload = path.read_text(encoding="utf-8")
+    except OSError as exc:
         raise FullchatError(f"{label} is unreadable") from exc
+    value = strict_json_loads(payload, label)
     if not isinstance(value, dict):
         raise FullchatError(f"{label} has an unexpected shape")
     return value
@@ -723,19 +1072,42 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         git = GitCli()
         verify_execution_context(os.environ, git)
-        if args.select_source_artifact:
-            run = load_json(args.run_metadata, "run metadata")
-            artifacts = load_json(args.artifact_metadata, "artifact metadata")
-            selected = select_artifact(args.source_run_id, args.source_run_attempt, run, artifacts)
-            if not args.artifact_selection:
-                raise FullchatError("artifact selection output path is required")
-            write_json(args.artifact_selection, selected)
-            print(f"Validated exact source artifact ID {selected['artifactId']}.")
+        if args.select_source_artifact or args.select_build_artifact:
+            if args.select_source_artifact and args.select_build_artifact:
+                raise FullchatError("select exactly one artifact type")
+            github = GithubApi()
+            if args.select_build_artifact:
+                _, selected = github_artifact_selection(
+                    github, args.build_run_id, args.build_run_attempt, True
+                )
+                output = args.build_artifact_selection
+                label = "build artifact selection"
+            else:
+                _, selected = github_artifact_selection(
+                    github, args.source_run_id, args.source_run_attempt, False
+                )
+                output = args.artifact_selection
+                label = "source artifact selection"
+            if not output:
+                raise FullchatError(f"{label} output path is required")
+            write_json(output, selected)
+            print(f"Validated exact {label} ID {selected['artifactId']}.")
             return 0
         if not args.output_dir:
             raise FullchatError("output directory is required")
         if not 60 <= args.wait_timeout_seconds <= 1200:
             raise FullchatError("wait timeout must be between 60 and 1200 seconds")
+        github = GithubApi()
+        _, expected_build_selection = github_artifact_selection(
+            github, args.build_run_id, args.build_run_attempt, True
+        )
+        build_selection = load_json(args.build_artifact_selection, "build artifact selection")
+        if not args.build_artifact_archive:
+            raise FullchatError("API image build record archive is required")
+        build_proof = load_build_proof(
+            args.build_artifact_archive, build_selection, expected_build_selection
+        )
+        source_selection: dict[str, Any] | None = None
         if args.mode == "plan":
             if any((args.apply_confirmation, args.rollback_confirmation, args.source_run_id, args.source_run_attempt)):
                 raise FullchatError("plan accepts no mutation confirmation or source receipt")
@@ -746,20 +1118,26 @@ def main(argv: Sequence[str] | None = None) -> int:
             other = args.rollback_confirmation if args.mode == "apply" else args.apply_confirmation
             if supplied != required or other:
                 raise FullchatError(f"{args.mode} requires only its exact fixed confirmation")
-            run = load_json(args.run_metadata, "run metadata")
-            artifacts = load_json(args.artifact_metadata, "artifact metadata")
-            selection = load_json(args.artifact_selection, "artifact selection")
-            validated = select_artifact(args.source_run_id, args.source_run_attempt, run, artifacts)
-            source = load_source_receipt(args.artifact_archive, selection, validated) if args.artifact_archive else None
-            if source is None:
+            run, validated = github_artifact_selection(
+                github, args.source_run_id, args.source_run_attempt, False
+            )
+            source_selection = load_json(args.artifact_selection, "source artifact selection")
+            if not args.artifact_archive:
                 raise FullchatError("source receipt archive is required")
+            source = load_source_receipt(args.artifact_archive, source_selection, validated)
             expected = validate_source_receipt(
                 source, run, validated, "plan" if args.mode == "apply" else "apply"
             )
+            source_proof = validate_bound_build_proof(
+                source.get("buildProof"), source.get("imageDigest"), source.get("imageSourceCommit")
+            )
+            if args.mode == "apply" and source_proof != build_proof:
+                raise FullchatError("apply current build proof differs from the receipt-bound plan")
         aws = AwsCli()
         if aws.identity().get("Account") != ACCOUNT_ID:
             raise FullchatError("OIDC credentials are not for the fixed dev account")
         runtime = capture_runtime(aws, git)
+        validate_runtime_build(runtime, build_proof)
         run_id = os.environ.get("GITHUB_RUN_ID", "local")
         attempt = os.environ.get("GITHUB_RUN_ATTEMPT", "local")
         started_by = f"meri-fullchat-{run_id}-{attempt}-{args.mode}"
@@ -768,11 +1146,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         task_arn = aws.run_task(runtime["taskDefinition"], runtime["network"], command_for(args.mode, expected), started_by)
         if not TASK_ARN_RE.fullmatch(task_arn):
             raise FullchatError("run-task returned a task outside the fixed cluster/account/region")
-        receipt = base_receipt(args.mode, runtime, task_arn)
+        receipt = base_receipt(args.mode, runtime, task_arn, build_proof)
         if args.mode != "plan":
+            assert source_selection is not None
             receipt["sourceRunId"] = args.source_run_id
             receipt["sourceRunAttempt"] = args.source_run_attempt
-            receipt["sourceArtifactDigest"] = selection["archiveDigest"]
+            receipt["sourceArtifactDigest"] = source_selection["archiveDigest"]
         task = wait_for_task(aws, task_arn, args.wait_timeout_seconds)
         if (
             task.get("taskArn") != task_arn

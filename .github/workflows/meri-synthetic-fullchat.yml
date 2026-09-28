@@ -20,6 +20,12 @@ on:
         description: 'Exact source workflow run attempt.'
         required: false
         default: ''
+      build_run_id:
+        description: 'Exact successful api-image build run ID for the current API/diag image.'
+        required: true
+      build_run_attempt:
+        description: 'Exact successful api-image build run attempt.'
+        required: true
       apply_confirmation:
         description: 'Apply only: APPLY_FIXED_MERI_FOUNDATION_FULLCHAT'
         required: false
@@ -45,6 +51,8 @@ env:
   INPUT_MODE: ${{ inputs.mode }}
   INPUT_SOURCE_RUN_ID: ${{ inputs.source_run_id }}
   INPUT_SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+  INPUT_BUILD_RUN_ID: ${{ inputs.build_run_id }}
+  INPUT_BUILD_RUN_ATTEMPT: ${{ inputs.build_run_attempt }}
   INPUT_APPLY_CONFIRMATION: ${{ inputs.apply_confirmation }}
   INPUT_ROLLBACK_CONFIRMATION: ${{ inputs.rollback_confirmation }}
 
@@ -75,7 +83,21 @@ jobs:
       - name: Run fixed-path offline guards
         run: python3 scripts/meri-synthetic-fullchat.test.py
 
-      - name: Download trusted source-run metadata
+      - name: Select exact authenticated build artifact
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$INPUT_BUILD_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$INPUT_BUILD_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
+          mkdir -p "$METADATA_DIR"
+          python3 scripts/meri-synthetic-fullchat.py \
+            --select-build-artifact \
+            --build-run-id "$INPUT_BUILD_RUN_ID" \
+            --build-run-attempt "$INPUT_BUILD_RUN_ATTEMPT" \
+            --build-artifact-selection "$METADATA_DIR/build-selection.json"
+
+      - name: Select exact authenticated source artifact
         if: inputs.mode != 'plan'
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -83,27 +105,28 @@ jobs:
           set -euo pipefail
           [[ "$INPUT_SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
           [[ "$INPUT_SOURCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
-          mkdir -p "$METADATA_DIR"
-          gh api --method GET \
-            "repos/${GITHUB_REPOSITORY}/actions/runs/${INPUT_SOURCE_RUN_ID}/attempts/${INPUT_SOURCE_RUN_ATTEMPT}" \
-            > "$METADATA_DIR/run-attempt.json"
-          gh api --method GET \
-            "repos/${GITHUB_REPOSITORY}/actions/runs/${INPUT_SOURCE_RUN_ID}/artifacts?per_page=100" \
-            > "$METADATA_DIR/artifacts.json"
-
-      - name: Select one exact source artifact
-        if: inputs.mode != 'plan'
-        run: |
-          set -euo pipefail
           python3 scripts/meri-synthetic-fullchat.py \
             --select-source-artifact \
             --source-run-id "$INPUT_SOURCE_RUN_ID" \
             --source-run-attempt "$INPUT_SOURCE_RUN_ATTEMPT" \
-            --run-metadata "$METADATA_DIR/run-attempt.json" \
-            --artifact-metadata "$METADATA_DIR/artifacts.json" \
             --artifact-selection "$METADATA_DIR/selection.json"
 
-      - name: Download only the validated artifact ID
+      - name: Bounded download of validated build record
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          artifact_id="$(python3 -c 'import json,os; print(json.load(open(os.environ["METADATA_DIR"] + "/build-selection.json", encoding="utf-8"))["artifactId"])')"
+          [[ "$artifact_id" =~ ^[1-9][0-9]*$ ]]
+          curl --fail --silent --show-error --location --max-filesize 1048576 \
+            -H 'Accept: application/vnd.github+json' \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            --output "$METADATA_DIR/build-artifact.zip" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip"
+          [[ "$(stat -c%s "$METADATA_DIR/build-artifact.zip")" -le 1048576 ]]
+
+      - name: Bounded download of validated source receipt
         if: inputs.mode != 'plan'
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -111,10 +134,13 @@ jobs:
           set -euo pipefail
           artifact_id="$(python3 -c 'import json,os; print(json.load(open(os.environ["METADATA_DIR"] + "/selection.json", encoding="utf-8"))["artifactId"])')"
           [[ "$artifact_id" =~ ^[1-9][0-9]*$ ]]
-          gh api --method GET \
+          curl --fail --silent --show-error --location --max-filesize 1048576 \
             -H 'Accept: application/vnd.github+json' \
-            "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
-            > "$METADATA_DIR/artifact.zip"
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            --output "$METADATA_DIR/artifact.zip" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip"
+          [[ "$(stat -c%s "$METADATA_DIR/artifact.zip")" -le 1048576 ]]
 
       - name: Configure fixed dev AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -123,6 +149,8 @@ jobs:
           aws-region: us-east-1
 
       - name: Run fixed owner command and require exact readback
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           args=(
@@ -131,13 +159,15 @@ jobs:
             --rollback-confirmation "$INPUT_ROLLBACK_CONFIRMATION"
             --source-run-id "$INPUT_SOURCE_RUN_ID"
             --source-run-attempt "$INPUT_SOURCE_RUN_ATTEMPT"
+            --build-run-id "$INPUT_BUILD_RUN_ID"
+            --build-run-attempt "$INPUT_BUILD_RUN_ATTEMPT"
+            --build-artifact-selection "$METADATA_DIR/build-selection.json"
+            --build-artifact-archive "$METADATA_DIR/build-artifact.zip"
             --output-dir "$OUTPUT_DIR"
             --wait-timeout-seconds 900
           )
           if [[ "$INPUT_MODE" != plan ]]; then
             args+=(
-              --run-metadata "$METADATA_DIR/run-attempt.json"
-              --artifact-metadata "$METADATA_DIR/artifacts.json"
               --artifact-selection "$METADATA_DIR/selection.json"
               --artifact-archive "$METADATA_DIR/artifact.zip"
             )
