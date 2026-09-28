@@ -106,15 +106,31 @@ export function detectFedrampStatusClaims(reply: string): DetectedStatusClaim[] 
 }
 
 function usableEvidence(evidence: CertificationStatusEvidence): boolean {
-  return evidence.authoritative && evidence.primary && evidence.selfReported !== true;
+  return evidence.authoritative
+    && evidence.primary
+    && evidence.selfReported !== true
+    && evidence.entityId.trim().length > 0;
+}
+
+function normalizedIdentity(value: string): string {
+  return value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
 }
 
 function matchesEntity(claim: DetectedStatusClaim, evidence: CertificationStatusEvidence): boolean {
-  const mention = claim.entityMention.toLocaleLowerCase();
+  const mention = normalizedIdentity(claim.entityMention);
+  if (!mention) return false;
   return [evidence.entityId, ...(evidence.entityNames ?? [])].some((name) => {
-    const normalized = name.toLocaleLowerCase();
-    return mention.includes(normalized) || normalized.includes(mention);
+    return typeof name === 'string' && normalizedIdentity(name) === mention;
   });
+}
+
+function matchingEvidence(
+  claim: DetectedStatusClaim,
+  evidence: readonly CertificationStatusEvidence[],
+): CertificationStatusEvidence | null {
+  const matches = evidence.filter((item) => usableEvidence(item) && matchesEntity(claim, item));
+  const entityIds = new Set(matches.map((item) => normalizedIdentity(item.entityId)));
+  return entityIds.size === 1 ? matches[0] ?? null : null;
 }
 
 function supportsNegative(evidence: CertificationStatusEvidence): boolean {
@@ -138,7 +154,7 @@ export function checkFedrampStatusClaims(
   evidence: readonly CertificationStatusEvidence[],
 ): CheckedStatusClaim[] {
   return claims.map((claim) => {
-    const match = evidence.find((item) => usableEvidence(item) && matchesEntity(claim, item)) ?? null;
+    const match = matchingEvidence(claim, evidence);
     if (claim.negative) {
       return { claim, evidence: match, outcome: match && supportsNegative(match) ? 'exact' : 'negative_unsupported' };
     }

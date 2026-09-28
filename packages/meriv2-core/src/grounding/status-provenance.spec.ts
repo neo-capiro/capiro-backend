@@ -41,6 +41,22 @@ describe('FedRAMP status provenance', () => {
     ]);
   });
 
+  it('requires an exact canonical id or owner-supplied name rather than substring overlap', () => {
+    const claims = detectFedrampStatusClaims(
+      'FR123 is FedRAMP approved. Acme is FedRAMP approved. Acme Cloud is FedRAMP approved.',
+    );
+    expect(checkFedrampStatusClaims(claims, [evidence({ entityNames: ['Acme'] })])
+      .map((item) => item.outcome)).toEqual(['paraphrased', 'paraphrased', 'unsupported']);
+  });
+
+  it('treats one owner name bound to multiple canonical records as ambiguous', () => {
+    const claims = detectFedrampStatusClaims('Acme is FedRAMP approved.');
+    expect(checkFedrampStatusClaims(claims, [
+      evidence({ entityId: 'FR123', entityNames: ['Acme'] }),
+      evidence({ entityId: 'FR456', entityNames: ['Acme'] }),
+    ])[0]).toMatchObject({ outcome: 'unsupported', evidence: null });
+  });
+
   it('never accepts self-reported fields as verification', () => {
     const claims = detectFedrampStatusClaims('Acme Cloud is FedRAMP Certified.');
     expect(checkFedrampStatusClaims(claims, [evidence({ selfReported: true })])[0]?.outcome).toBe('unsupported');
