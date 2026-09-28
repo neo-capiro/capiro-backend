@@ -24,6 +24,8 @@ jobs:
     name: Phase 4 target intelligence
     runs-on: ubuntu-latest
     timeout-minutes: 75
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,6 +47,12 @@ jobs:
 
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build shared
+        run: pnpm --filter @capiro/shared build
+
+      - name: Build MeriV2 core
+        run: pnpm --filter @capiro/meriv2-core build
 
       - name: Generate API Prisma client
         run: pnpm --filter @capiro/api exec prisma generate

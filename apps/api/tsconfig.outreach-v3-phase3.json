@@ -8,6 +8,7 @@
     "declarationMap": false
   },
   "include": [
+    "src/types/word-extractor.d.ts",
     "src/outreach-v3/reasoning/**/*.ts",
     "src/outreach-v3/services/outreach-command-proposal.service.ts",
     "src/outreach-v3/api/outreach-v3-state.module.ts",
@@ -16,8 +17,5 @@
     "src/engagement/runtime/engagement-runtime.types.ts",
     "src/engagement-api.app.module.ts"
   ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+  "exclude": ["node_modules", "dist"]
 }

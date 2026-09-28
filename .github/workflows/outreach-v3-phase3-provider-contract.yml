@@ -32,5 +32,7 @@ jobs:
           cache: pnpm
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
+      - name: Build shared
+        run: pnpm --filter @capiro/shared build
       - name: Provider contract
         run: node scripts/verify-outreach-v3-phase3-provider-contract.mjs
