@@ -130,7 +130,6 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
     // Only the user's query is sent; canonical facts and access checks are read
     // freshly after this bounded attempt, including on every continuation.
     const vector = await this.queryEmbedding(request);
-    let canonicalRows: GovernedMemoryRow[] = [];
     try {
       return await this.prisma.withTenantUser(
         request.caller.tenantId,
@@ -157,6 +156,7 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
             );
           }
 
+          const candidateOrder = memoryCandidateOrderSql(request.query ?? '', vector);
           const rows = await tx.$queryRaw<GovernedMemoryRow[]>(Prisma.sql`
           SELECT mi.id::text AS id, mi.tenant_id::text AS "tenantId",
                  mi.client_id::text AS "clientId", mi.owner_user_id::text AS "ownerUserId",
@@ -182,18 +182,34 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
             AND mi.status = 'active'
             ${request.memoryItemId ? Prisma.sql`AND mi.id = ${request.memoryItemId}::uuid` : Prisma.empty}
             AND mi.memory_class IN ('institutional_authoritative', 'client_steering', 'user_preference', 'episodic_working')
+            AND (mi.memory_scope <> 'user_private' OR mi.owner_user_id = ${request.caller.userId}::uuid)
+            AND (mi.memory_scope <> 'client' OR mi.client_id = ANY(${allowedClientIds}::uuid[]))
+            AND (
+              mi.memory_class NOT IN ('institutional_authoritative', 'client_steering')
+              OR mi.approved_by_user_id IS NOT NULL
+            )
+            AND (
+              mi.source_type <> 'unknown'
+              OR mi.source_ref IS NOT NULL
+              OR mi.source_id IS NOT NULL
+            )
+            AND (
+              mi.memory_class <> 'episodic_working'
+              OR mi.expires_at IS NOT NULL
+              OR mi.valid_until IS NOT NULL
+            )
+            AND COALESCE(mi.sensitivity, 'normal') = 'normal'
             AND (mi.expires_at IS NULL OR mi.expires_at > now())
             AND (mi.valid_until IS NULL OR mi.valid_until > now())
             AND (mi.effective_from IS NULL OR mi.effective_from <= now())
             AND (mi.client_id IS NULL OR mi.client_id = ANY(${allowedClientIds}::uuid[]))
             AND ${Prisma.raw(governedRecallEligibilitySql('mi'))}
-          ORDER BY mi.updated_at DESC, mi.id ASC
+          ${candidateOrder}
           LIMIT ${MAX_MEMORY_ROWS_PER_CALL + 1}
         `);
 
           const hardTruncated = rows.length > MAX_MEMORY_ROWS_PER_CALL;
           const eligible = rows
-            .slice(0, MAX_MEMORY_ROWS_PER_CALL)
             .filter(
               (row) =>
                 MEMORY_CLASSES.includes(row.memoryClass) &&
@@ -216,8 +232,8 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
                 .join('\n\n'),
             }));
 
-          canonicalRows = eligible;
-          const ranked = await this.rankMemories(tx, request, eligible, vector);
+          const rankedCandidates = await this.rankMemories(tx, request, eligible, vector);
+          const ranked = rankedCandidates.slice(0, MAX_MEMORY_ROWS_PER_CALL);
           const snapshot = memorySnapshot(
             request,
             ranked.map(({ row }) => row),
@@ -285,7 +301,7 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
       // An SQL projection error can abort a PostgreSQL transaction even when
       // caught inside its callback. Read canonical evidence again without the
       // optional semantic query; do not turn that into an empty healthy scan.
-      if (canonicalRows.length && vector) {
+      if (vector) {
         return this.retrieveGovernedMemory(
           dataset,
           {
@@ -671,13 +687,7 @@ function memorySnapshot(request: RetrievalRequest, rows: GovernedMemoryRow[]): s
 }
 
 function lexicalScores(rows: GovernedMemoryRow[], query: string): Map<string, number> {
-  const tokens = uniqueStrings(
-    query
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, ' ')
-      .split(/\s+/)
-      .filter((token) => token.length >= 3 && !STOP_WORDS.has(token)),
-  );
+  const tokens = memoryQueryTokens(query);
   const scores = new Map<string, number>();
   for (const row of rows) {
     const key = row.key.toLowerCase();
@@ -690,6 +700,52 @@ function lexicalScores(rows: GovernedMemoryRow[], query: string): Map<string, nu
     scores.set(row.id, score);
   }
   return scores;
+}
+
+/**
+ * Candidate limits must be applied after policy and relevance. This SQL order
+ * mirrors the in-process ranker: semantic similarity first when available,
+ * then the existing lexical title/body score, recency, and stable id. The
+ * correlated embedding projection is intentionally scoped through the already
+ * eligible memory row, so tenant/client/actor/lifecycle predicates cannot be
+ * bypassed by an embedding hit.
+ */
+function memoryCandidateOrderSql(query: string, vector: number[] | null): Prisma.Sql {
+  const terms: Prisma.Sql[] = [];
+  if (vector?.length) {
+    const literal = `[${vector.join(',')}]`;
+    terms.push(Prisma.sql`(
+      SELECT MIN(ce.embedding <=> ${literal}::vector)
+      FROM context_embeddings ce
+      WHERE ce.source_type = 'memory_item'
+        AND ce.source_id = mi.id::text
+        AND ce.tenant_id = mi.tenant_id
+    ) ASC NULLS LAST`);
+  }
+
+  const tokens = memoryQueryTokens(query);
+  if (tokens.length) {
+    const tokenScores = tokens.map(
+      (token) => Prisma.sql`(
+        CASE WHEN POSITION(${token} IN LOWER(mi.title)) > 0 THEN 4 ELSE 0 END
+        + CASE WHEN POSITION(${token} IN LOWER(mi.sections_jsonb::text)) > 0 THEN 1 ELSE 0 END
+      )`,
+    );
+    terms.push(Prisma.sql`(${Prisma.join(tokenScores, ' + ')}) DESC`);
+  }
+
+  terms.push(Prisma.sql`mi.updated_at DESC`, Prisma.sql`mi.id ASC`);
+  return Prisma.sql`ORDER BY ${Prisma.join(terms, ', ')}`;
+}
+
+function memoryQueryTokens(query: string): string[] {
+  return uniqueStrings(
+    query
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .split(/\s+/)
+      .filter((token) => token.length >= 3 && !STOP_WORDS.has(token)),
+  );
 }
 
 function compareMemoryRank(

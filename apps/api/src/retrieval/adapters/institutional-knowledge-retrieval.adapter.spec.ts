@@ -486,6 +486,45 @@ const selectedClientRequest = () =>
   });
 
 describe('canonical institutional recall governance', () => {
+  it('recalls an older approved MA510 candidate beyond 500 newer eligible rows', async () => {
+    const newer = Array.from({ length: 500 }, (_, index) =>
+      approved({
+        id: `newer-${index}`,
+        key: `Routine update ${index}`,
+        sections: [{ key: 'memory', heading: 'Memory', body: `Routine update ${index}` }],
+        updatedAt: new Date(2026, 7, 20, 0, index),
+      }),
+    );
+    const ma510 = approved({
+      id: 'MA510',
+      key: 'Aster demonstration policy',
+      sections: [
+        {
+          key: 'memory',
+          heading: 'Memory',
+          body: 'The autonomous maritime demo requires an approved safety review.',
+        },
+      ],
+      updatedAt: new Date('2020-01-01T00:00:00Z'),
+    });
+    const { adapter, dataset, queryRaw } = setup({ governed: [...newer, ma510] });
+
+    const result = await adapter.retrieve(dataset, {
+      ...selectedClientRequest(),
+      query: 'What did we approve about the autonomous maritime demo?',
+    });
+
+    expect(result.records[0]).toMatchObject({ recordId: 'MA510' });
+    const candidateSql = queryRaw.mock.calls[0]![0] as { text: string; values: unknown[] };
+    expect(candidateSql.text.indexOf('governed_status')).toBeLessThan(
+      candidateSql.text.indexOf('ORDER BY'),
+    );
+    expect(candidateSql.text.indexOf('ORDER BY')).toBeLessThan(candidateSql.text.indexOf('LIMIT'));
+    expect(candidateSql.values).toEqual(
+      expect.arrayContaining(['autonomous', 'maritime', 'demo']),
+    );
+  });
+
   it('reads canonical approved content without a Clio projection or embedding', async () => {
     const { adapter, dataset, clioMemoryFindMany, queryRaw } = setup({ governed: [approved()] });
     const result = await adapter.retrieve(dataset, selectedClientRequest());
@@ -582,6 +621,31 @@ describe('canonical institutional recall governance', () => {
     const denied = await adapter.retrieve(dataset, request, first.nextCursor);
     expect(denied.sourceStatus).toBe('unauthorized');
     expect(denied.records).toEqual([]);
+  });
+
+  it('withholds pending, superseded, revoked, cross-tenant, cross-client and private rows on continuation', async () => {
+    const rows = [
+      approved({ id: 'first', key: 'alpha' }),
+      approved({ id: 'second', key: 'beta', updatedAt: new Date('2026-08-19T10:00:00Z') }),
+      approved({ id: 'pending', status: 'pending_review' }),
+      approved({ id: 'superseded', status: 'superseded' }),
+      approved({ id: 'revoked', status: 'revoked' }),
+      approved({ id: 'other-tenant', tenantId: 'tenant-2' }),
+      approved({ id: 'other-client', clientId: 'client-2' }),
+      approved({ id: 'other-private', visibility: 'user', ownerUserId: 'user-2' }),
+    ];
+    const { adapter, dataset } = setup({ governed: rows });
+    const request = { ...selectedClientRequest(), query: '', pageSize: 1 };
+
+    const first = await adapter.retrieve(dataset, request);
+    const second = await adapter.retrieve(dataset, request, first.nextCursor);
+
+    expect([...first.records, ...second.records].map((record) => record.recordId).sort()).toEqual([
+      'first',
+      'second',
+    ]);
+    expect(second.hasMore).toBe(false);
+    expect(second.coverageComplete).toBe(true);
   });
 
   it('marks the safety cap incomplete instead of claiming all memory was searched', async () => {
