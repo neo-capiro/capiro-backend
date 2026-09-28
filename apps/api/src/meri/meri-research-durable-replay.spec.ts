@@ -123,6 +123,7 @@ function harness() {
       { name: 'search_memory', description: 'search', input_schema: TOOL_SCHEMA },
     ]),
     isConcurrencySafe: jest.fn((tool: string) => tool === 'search_memory'),
+    isSideEffecting: jest.fn((tool: string) => tool !== 'search_memory'),
     execute: jest.fn(async (_ctx: unknown, _tool: string, input: Record<string, unknown>) => {
       if (!sourceAllowed) throw new Error('memory source revoked');
       if (input.query === 'alpha') return completeMemoryResult('execution-a');

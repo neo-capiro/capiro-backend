@@ -281,14 +281,45 @@ function fixture(options: { privateInheritedInputs?: boolean } = {}) {
       },
     ]),
     isConcurrencySafe: jest.fn(() => true),
+    isSideEffecting: jest.fn(() => false),
     execute: jest.fn(),
   };
   const runner = {
     enabled: jest.fn(async () => true),
     plan: jest.fn(async (_ctx: unknown, _input: unknown) =>
       JSON.stringify({
+        version: 1,
         title: 'Client briefing',
-        plan: ['Review client constraints', 'Check funding status'],
+        scope: {
+          sessionId: 'research-a',
+          tenantId: 'tenant-a',
+          actorId: 'user-a',
+          clientId: 'client-a',
+          conversationId: 'thread-a',
+        },
+        budget: { toolCalls: 2, tokens: 4_000 },
+        steps: [
+          {
+            id: 'review-client-constraints',
+            objective: 'Review client constraints',
+            dependsOn: [],
+            requiredEvidenceDomains: ['client_context'],
+            allowedCapabilities: ['search_memory'],
+            effect: 'read',
+            completionCondition: 'Current client constraints are supported or reported unavailable.',
+            budget: { toolCalls: 1, tokens: 2_000 },
+          },
+          {
+            id: 'check-funding-status',
+            objective: 'Check funding status',
+            dependsOn: ['review-client-constraints'],
+            requiredEvidenceDomains: ['documents'],
+            allowedCapabilities: ['read_client_documents'],
+            effect: 'read',
+            completionCondition: 'Current funding status is supported by authorized evidence.',
+            budget: { toolCalls: 1, tokens: 2_000 },
+          },
+        ],
         clarifyingQuestions: ['Who is the audience?'],
       }),
     ),
@@ -1007,6 +1038,12 @@ describe('Durable research lease and recovery', () => {
 
     try {
       await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+      // This legacy-runtime outcome test begins at gather. Seed an already admitted
+      // v1 contract so the new pre-dispatch boundary does not consume its two
+      // provider responses as legacy-plan migration calls.
+      const admitted = JSON.parse(await f.runner.plan(ctx, {}));
+      f.getSession().metadata.researchPlan = admitted;
+      f.getSession().plan = admitted.steps.map((step: any) => step.objective);
       await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
 
       expect(f.getSession().metadata.durableStepReceipts).toBeUndefined();

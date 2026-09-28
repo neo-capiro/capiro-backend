@@ -208,6 +208,7 @@ function makeAiCredentials() {
 function makePrisma(
   capturedArtifacts?: Array<Record<string, any>>,
   tenantId = SESSION.tenantId,
+  planCapability = 'searchBills',
 ) {
   const artifacts = capturedArtifacts ?? [];
   const backingConversation = {
@@ -223,7 +224,34 @@ function makePrisma(
     // These legacy-path specs begin after the standalone session's backing
     // thread exists. Public legislative reads require no owner-result proof,
     // but report publication still reauthorizes this exact thread scope.
-    metadata: { backingConversationId: backingConversation.id },
+    metadata: {
+      backingConversationId: backingConversation.id,
+      researchPlan: {
+        version: 1,
+        title: 'Test research',
+        scope: {
+          sessionId: SESSION.id,
+          tenantId,
+          actorId: SESSION.userId,
+          clientId: null,
+          conversationId: null,
+        },
+        budget: { toolCalls: 2, tokens: 4_000 },
+        steps: [
+          {
+            id: 'gather-evidence',
+            objective: 'Gather authorized evidence for the requested report.',
+            dependsOn: [],
+            requiredEvidenceDomains: ['legislative'],
+            allowedCapabilities: [planCapability],
+            effect: 'read',
+            completionCondition: 'Available evidence is gathered and gaps are explicit.',
+            budget: { toolCalls: 2, tokens: 4_000 },
+          },
+        ],
+        clarifyingQuestions: [],
+      },
+    },
   };
   let reportRunFenced = false;
   const tx = {
@@ -349,6 +377,7 @@ function makeTools() {
       { name: 'searchBills', description: 'x', input_schema: { type: 'object', properties: {} } },
     ],
     isConcurrencySafe: (name: string) => !SIDE_EFFECTING_TEST.has(name),
+    isSideEffecting: (name: string) => SIDE_EFFECTING_TEST.has(name),
     execute: async () => {
       throw new Error('No qualified owner result in this source-free synthesis fixture.');
     },
@@ -583,6 +612,7 @@ describe('MeriResearchService — forced synthesis', () => {
         },
       ],
       isConcurrencySafe: () => true,
+      isSideEffecting: () => false,
       execute: async () => ({ items: [{ id: 'hr1234' }], count: 1 }),
     } as unknown as ConstructorParameters<typeof MeriResearchService>[2];
     const REPORT =
@@ -598,7 +628,7 @@ describe('MeriResearchService — forced synthesis', () => {
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const svc = new MeriResearchService(
-      makePrisma(),
+      makePrisma(undefined, SESSION.tenantId, 'search_bills'),
       makeConfig(),
       toolsLc,
       makeAiCredentials(),
@@ -742,6 +772,7 @@ describe('MeriResearchService — forced synthesis', () => {
         { name: 'send_email', description: 'x', input_schema: { type: 'object', properties: {} } },
       ],
       isConcurrencySafe: (name: string) => !SIDE_EFFECTING_TEST.has(name),
+      isSideEffecting: (name: string) => SIDE_EFFECTING_TEST.has(name),
       execute: executeSpy,
     } as unknown as ConstructorParameters<typeof MeriResearchService>[2];
 

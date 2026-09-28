@@ -34,17 +34,23 @@ import { ReviewsService } from '../reviews/reviews.service.js';
 import { DELIVERABLE_RISK_TIERS } from '@capiro/shared';
 import {
   assembleReportArtifact,
-  buildPlanSystemPrompt,
   buildPlanUserPrompt,
   buildResearchSystemPrompt,
   buildResearchUserPrompt,
   clampTitle,
   humanToolLabel,
-  parsePlanProposal,
   summarizeJsonForPrompt,
   summarizeToolResultForTrust,
-  type PlanProposal,
 } from './meri-research.helpers.js';
+import {
+  ResearchPlanValidationError,
+  buildResearchPlanRepairPrompt,
+  buildResearchPlanSystemPrompt,
+  researchPlanStringProjection,
+  validateResearchPlan,
+  type ResearchPlanAdmissionContext,
+  type ResearchPlanV1,
+} from './meri-research-plan.js';
 import {
   applyThinkingStreamEvent,
   createThinkingState,
@@ -1361,7 +1367,8 @@ export class MeriResearchService {
     sse.write(sseEvent({ type: 'phase', phase: 'plan' }));
 
     const clientContext = await this.clientContext(ctx, session.clientId);
-    const system = buildPlanSystemPrompt(PRODUCT_NAME);
+    const admissionContext = this.researchPlanAdmissionContext(ctx, session);
+    const system = buildResearchPlanSystemPrompt(PRODUCT_NAME, admissionContext);
     const handoff = readResearchHandoff(session.metadata);
     const user = [
       buildPlanUserPrompt(session.topic, clientContext),
@@ -1385,24 +1392,16 @@ export class MeriResearchService {
     });
     progress.set('Planning the research…');
 
-    let proposal: PlanProposal;
-    const useV3 = this.v3Research && (await this.v3Research.enabled(ctx));
+    let proposal: ResearchPlanV1;
     try {
-      const raw = useV3
-        ? await this.v3Research!.plan(
-            ctx,
-            {
-              sessionId: session.id,
-              topic: session.topic,
-              clientId: session.clientId,
-              system,
-              user,
-              handoff,
-            },
-            auth,
-          )
-        : await this.anthropicComplete(ctx.tenantId, system, user, auth.signal);
-      proposal = parsePlanProposal(raw, session.topic);
+      proposal = await this.requestAdmittedResearchPlan(
+        ctx,
+        session,
+        admissionContext,
+        system,
+        user,
+        auth,
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Planning failed';
       this.logger.warn(`Research plan failed: ${msg}`);
@@ -1438,23 +1437,31 @@ export class MeriResearchService {
         throw new BadRequestException(
           'The originating conversation is no longer available in this client scope',
         );
+      const currentAdmissionContext = this.researchPlanAdmissionContext(ctx, {
+        ...session,
+        metadata: currentMetadata,
+      });
+      const admitted = validateResearchPlan(proposal, currentAdmissionContext);
+      const stringPlan = researchPlanStringProjection(admitted);
+      const persistedMetadata = {
+        ...researchMetadata(currentMetadata),
+        researchPlan: admitted,
+        run: terminalResearchRun(
+          auth.run!,
+          'awaiting_clarification',
+          admitted.clarifyingQuestions.length
+            ? 'Waiting for your clarification answers'
+            : 'Plan ready; research can begin',
+        ),
+      };
       await tx.clioResearchSession.update({
         where: { id: session.id },
         data: {
-          title: clampTitle(proposal.title),
-          plan: proposal.plan as Prisma.InputJsonValue,
-          clarifyingQuestions: proposal.clarifyingQuestions as Prisma.InputJsonValue,
+          title: clampTitle(admitted.title),
+          plan: stringPlan as Prisma.InputJsonValue,
+          clarifyingQuestions: admitted.clarifyingQuestions as Prisma.InputJsonValue,
           status: 'awaiting_clarification',
-          metadata: {
-            ...researchMetadata(currentMetadata),
-            run: terminalResearchRun(
-              auth.run!,
-              'awaiting_clarification',
-              proposal.clarifyingQuestions.length
-                ? 'Waiting for your clarification answers'
-                : 'Plan ready; research can begin',
-            ),
-          } as unknown as Prisma.InputJsonObject,
+          metadata: persistedMetadata as unknown as Prisma.InputJsonObject,
           updatedAt: new Date(),
         },
       });
@@ -1467,9 +1474,9 @@ export class MeriResearchService {
               conversationId: handoff.conversationId,
               role: 'assistant',
               body:
-                `Research plan — ${proposal.title}\n\n${proposal.plan.map((step, index) => `${index + 1}. ${step}`).join('\n')}` +
-                (proposal.clarifyingQuestions.length
-                  ? `\n\nClarifying questions:\n${proposal.clarifyingQuestions.join('\n')}`
+                `Research plan — ${admitted.title}\n\n${stringPlan.map((step, index) => `${index + 1}. ${step}`).join('\n')}` +
+                (admitted.clarifyingQuestions.length
+                  ? `\n\nClarifying questions:\n${admitted.clarifyingQuestions.join('\n')}`
                   : ''),
               metadata: { researchSessionId: session.id },
             },
@@ -1481,7 +1488,7 @@ export class MeriResearchService {
           where: { id: session.id },
           data: {
             metadata: {
-              ...researchMetadata(currentMetadata),
+              ...persistedMetadata,
               run: terminalResearchRun(auth.run!, 'awaiting_clarification', 'Plan ready'),
               planMessageId: planMessage.id,
             } as unknown as Prisma.InputJsonObject,
@@ -1491,7 +1498,7 @@ export class MeriResearchService {
     });
 
     sse.write(sseEvent({ type: 'title', title: proposal.title }));
-    sse.write(sseEvent({ type: 'plan', plan: proposal.plan }));
+    sse.write(sseEvent({ type: 'plan', plan: researchPlanStringProjection(proposal) }));
     sse.write(sseEvent({ type: 'clarify', questions: proposal.clarifyingQuestions }));
     sse.write(sseEvent({ type: 'done', ...(planMessageId ? { messageId: planMessageId } : {}) }));
   }
@@ -1545,8 +1552,11 @@ export class MeriResearchService {
     auth: ResearchRuntimeAuth,
   ) {
     const session = await this.ensureSession(ctx, id);
+    const admittedPlan = await this.admitResearchPlanForDispatch(ctx, session, auth);
+    if (!auth.run) throw new ConflictException('Research dispatch requires an active run lease.');
+    await this.assertRunActive(ctx, id, auth.run.id);
 
-    const plan = asStringArray(session.plan);
+    const plan = researchPlanStringProjection(admittedPlan);
     const clarifyingQuestions = asStringArray(session.clarifyingQuestions);
     const clarifyingAnswers = asStringRecord(session.clarifyingAnswers);
     const clientContext = await this.clientContext(ctx, session.clientId);
@@ -1560,6 +1570,7 @@ export class MeriResearchService {
         clarifyingAnswers,
         clientContext,
       }),
+      `ADMITTED RESEARCH PLAN CONTRACT v${admittedPlan.version}:\n${JSON.stringify(admittedPlan)}`,
       researchHandoffPrompt(handoff, session.id),
     ]
       .filter(Boolean)
@@ -1648,9 +1659,12 @@ export class MeriResearchService {
     // concurrency-safe (== read-only, i.e. not in SIDE_EFFECTING_TOOLS) tools;
     // the final report is persisted by this service, not via a write tool. This
     // mirrors the read-only hardening on the scheduled-tasks runner.
+    const admittedCapabilities = new Set(
+      admittedPlan.steps.flatMap((step) => step.allowedCapabilities),
+    );
     const toolSchemas = this.tools
-      .anthropicToolSchemas()
-      .filter((s) => this.tools.isConcurrencySafe(s.name));
+      .anthropicToolSchemas({ tenantId: ctx.tenantId, surface: 'chat' })
+      .filter((s) => admittedCapabilities.has(s.name) && this.tools.isConcurrencySafe(s.name));
     const system = buildResearchSystemPrompt(PRODUCT_NAME);
 
     const messages: Array<{ role: 'user' | 'assistant'; content: unknown }> = [
@@ -1924,6 +1938,12 @@ export class MeriResearchService {
             resultPayload = { error: scopeViolation };
             this.logger.warn(
               `Deep Research blocked an out-of-scope client read: ${t.name} (session ${session.id})`,
+            );
+          } else if (!admittedCapabilities.has(t.name)) {
+            isError = true;
+            resultPayload = { error: `Tool "${t.name}" is outside the admitted research plan` };
+            this.logger.warn(
+              `Deep Research blocked an out-of-plan tool call: ${t.name} (session ${session.id})`,
             );
           } else if (!this.tools.isConcurrencySafe(t.name)) {
             // Defense-in-depth: never execute a side-effecting tool in the
@@ -2643,6 +2663,176 @@ export class MeriResearchService {
   }
 
   // ── internals ───────────────────────────────────────────────────────────
+
+  private researchPlanAdmissionContext(
+    ctx: TenantContext,
+    session: {
+      id: string;
+      clientId: string | null;
+      metadata: Prisma.JsonValue | null;
+    },
+  ): ResearchPlanAdmissionContext {
+    const handoff = readResearchHandoff(session.metadata);
+    return {
+      scope: {
+        sessionId: session.id,
+        tenantId: ctx.tenantId,
+        actorId: ctx.userId,
+        clientId: session.clientId,
+        conversationId: handoff?.conversationId ?? null,
+      },
+      capabilities: this.tools
+        .anthropicToolSchemas({ tenantId: ctx.tenantId, surface: 'chat' })
+        .map((schema) => ({
+          name: schema.name,
+          sideEffecting: this.tools.isSideEffecting(schema.name),
+        })),
+    };
+  }
+
+  /** Strict provider boundary with one validation-triggered repair and no fallback plan. */
+  private async requestAdmittedResearchPlan(
+    ctx: TenantContext,
+    session: {
+      id: string;
+      topic: string;
+      clientId: string | null;
+      metadata: Prisma.JsonValue | null;
+    },
+    admissionContext: ResearchPlanAdmissionContext,
+    system: string,
+    user: string,
+    auth: ResearchRuntimeAuth,
+  ): Promise<ResearchPlanV1> {
+    const handoff = readResearchHandoff(session.metadata);
+    const useV3 = Boolean(this.v3Research && (await this.v3Research.enabled(ctx)));
+    const complete = (nextSystem: string, nextUser: string) =>
+      useV3
+        ? this.v3Research!.plan(
+            ctx,
+            {
+              sessionId: session.id,
+              topic: session.topic,
+              clientId: session.clientId,
+              system: nextSystem,
+              user: nextUser,
+              handoff,
+            },
+            auth,
+          )
+        : this.anthropicComplete(ctx.tenantId, nextSystem, nextUser, auth.signal);
+
+    const raw = await complete(system, user);
+    try {
+      return validateResearchPlan(raw, admissionContext);
+    } catch (error) {
+      if (!(error instanceof ResearchPlanValidationError)) throw error;
+      if (auth.run) await this.assertRunActive(ctx, session.id, auth.run.id);
+      const repair = buildResearchPlanRepairPrompt(system, raw, error);
+      const repairedRaw = await complete(repair.system, `${user}\n\n${repair.user}`);
+      try {
+        return validateResearchPlan(repairedRaw, admissionContext);
+      } catch (repairError) {
+        if (!(repairError instanceof ResearchPlanValidationError)) throw repairError;
+        throw new BadRequestException(
+          `Research plan remained invalid after one repair attempt: ${repairError.issues.join('; ')}`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Revalidates current catalog/scope immediately before dispatch. Old sessions
+   * receive one bounded planning migration; a stored typed plan is never silently
+   * repaired because scope or catalog drift is an authorization failure.
+   */
+  private async admitResearchPlanForDispatch(
+    ctx: TenantContext,
+    session: Awaited<ReturnType<MeriResearchService['ensureSession']>>,
+    auth: ResearchRuntimeAuth,
+  ): Promise<ResearchPlanV1> {
+    const context = this.researchPlanAdmissionContext(ctx, session);
+    const stored = researchMetadata(session.metadata).researchPlan;
+    if (stored !== undefined) {
+      try {
+        return validateResearchPlan(stored, context);
+      } catch (error) {
+        if (!(error instanceof ResearchPlanValidationError)) throw error;
+        throw new BadRequestException(
+          `Saved research plan is not admitted for the current scope and capabilities: ${error.issues.join('; ')}`,
+        );
+      }
+    }
+    if (!auth.run) throw new ConflictException('Legacy plan migration requires an active run lease.');
+
+    const clientContext = await this.clientContext(ctx, session.clientId);
+    const legacyPlan = asStringArray(session.plan);
+    const system = buildResearchPlanSystemPrompt(PRODUCT_NAME, context);
+    const user = [
+      buildPlanUserPrompt(session.topic, clientContext),
+      legacyPlan.length
+        ? `Legacy UI plan (uncertified; migrate it rather than trusting it):\n${legacyPlan
+            .map((step, index) => `${index + 1}. ${step}`)
+            .join('\n')}`
+        : 'No legacy plan is available. Create the bounded typed plan from the saved request.',
+      researchHandoffPrompt(readResearchHandoff(session.metadata), session.id),
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+    const proposed = await this.requestAdmittedResearchPlan(
+      ctx,
+      session,
+      context,
+      system,
+      user,
+      auth,
+    );
+
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const current = await tx.clioResearchSession.findFirst({
+        where: { id: session.id, tenantId: ctx.tenantId, userId: ctx.userId },
+      });
+      const currentRun = readResearchRun(current?.metadata);
+      if (
+        !current ||
+        currentRun?.id !== auth.run!.id ||
+        currentRun.leaseEpoch !== auth.run!.leaseEpoch ||
+        currentRun.status !== 'running'
+      )
+        throw new ConflictException('Research lease is no longer active.');
+      await this.assertResearchPublicationAuthorized(tx, ctx, current);
+      const admitted = validateResearchPlan(
+        proposed,
+        this.researchPlanAdmissionContext(ctx, current),
+      );
+      const nextMetadata = {
+        ...researchMetadata(current.metadata),
+        researchPlan: admitted,
+      };
+      const updated = await this.updateActiveResearchRun(
+        tx,
+        ctx,
+        current.id,
+        currentRun,
+        current.metadata,
+        nextMetadata,
+        current.status,
+        new Date(),
+      );
+      if (!updated)
+        throw new ConflictException('Research lease changed while admitting the migrated plan.');
+      await tx.clioResearchSession.update({
+        where: { id: current.id },
+        data: {
+          title: clampTitle(admitted.title),
+          plan: researchPlanStringProjection(admitted) as Prisma.InputJsonValue,
+          clarifyingQuestions: admitted.clarifyingQuestions as Prisma.InputJsonValue,
+          updatedAt: new Date(),
+        },
+      });
+      return admitted;
+    });
+  }
 
   private async updateActiveResearchRun(
     tx: Prisma.TransactionClient,
