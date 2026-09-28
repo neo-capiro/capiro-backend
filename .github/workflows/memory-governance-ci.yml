@@ -80,7 +80,9 @@ jobs:
         run: bash apps/api/scripts/test-memory-governance-backfill-rollback.sh
 
       - name: Typecheck the full repository dependency graph
-        run: pnpm turbo run typecheck
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: pnpm turbo run typecheck --concurrency=1
 
       - name: Typecheck the production governance-backfill operator
         run: pnpm --filter @capiro/api exec tsc -p tsconfig.memory-governance-backfill.json --noEmit
