@@ -98,6 +98,7 @@ import { MeriV3SemanticRuntimeStore } from './meriv3-semantic-runtime.store.js';
 import {
   assertMeriProcedureToolDispatch,
   bindMeriProcedureSchemas,
+  MeriProcedureBindingError,
   requireMeriProcedureBinding,
 } from './meriv3-procedure-guard.js';
 import { enforceClientFilingConfirmation } from '../chat/client-filing-confirmation.js';
@@ -179,6 +180,7 @@ export interface MeriV3RunOptions {
 }
 
 const TOOL_RESULT_CHARS = 12_000;
+const PROCEDURE_AUTHORITY_TIMEOUT_MS = 5_000;
 /**
  * Stage 2c budget. The repair stage runs between finalization and the single
  * text emission, so `maxMs` is also the hard ceiling on how long that frame can
@@ -392,6 +394,7 @@ function withToolBudget(
   registry: ToolRegistry,
   budget: MeriRunBudget,
   scope: MeriToolSignatureScope,
+  beforeInvoke?: (name: string, control?: ToolExecutionControl) => Promise<void>,
 ): ToolRegistry {
   const invoke = async <O>(
     name: string,
@@ -416,6 +419,7 @@ function withToolBudget(
         toolName: name,
         readOnly: registry.get(name)?.readOnly,
       });
+      await beforeInvoke?.(name, control);
       const result = await registry.invoke<O>(name, input, ctx, control);
       if (registry.get(name)?.readOnly === true) {
         budget.observeToolResult({
@@ -713,6 +717,87 @@ export class MeriV3AssistantService {
       config.get<string>('MERIV2_API_BASE_URL') ?? 'http://localhost:3000'
     ).replace(/\/+$/, '');
     this.serviceSecret = config.get<string>('INTERNAL_SERVICE_SECRET') || undefined;
+  }
+
+  /**
+   * Confirm the exact prepared procedure against the API owner immediately
+   * before dispatch. There is deliberately no cache, retry, or alternate
+   * authority path; the authenticated API may only narrow the signed binding.
+   */
+  private async assertCurrentProcedureAuthority(
+    conversationId: string | undefined,
+    toolName: string,
+    control?: ToolExecutionControl,
+  ): Promise<void> {
+    const procedure = currentGovernedMeriContext()?.procedure;
+    if (!procedure) return;
+    assertMeriProcedureToolDispatch({
+      procedure,
+      toolName,
+      readOnly: this.registry.get(toolName)?.readOnly,
+    });
+    const creds = RequestCredentialsStore.get();
+    if (!conversationId || !creds?.bearerToken || !this.serviceSecret) {
+      throw new MeriProcedureBindingError('Served procedure binding is invalid or no longer current');
+    }
+
+    const execution = createMeriExecutionControl(control, PROCEDURE_AUTHORITY_TIMEOUT_MS);
+    try {
+      execution.assertActive();
+      const response = await fetch(`${this.apiBaseUrl}/api/clio/procedure-runtime/validate`, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${creds.bearerToken}`,
+          'content-type': 'application/json',
+          accept: 'application/json',
+          'x-internal-service-secret': this.serviceSecret,
+          ...(execution.deadlineAt ? { 'x-meri-deadline-at': String(execution.deadlineAt) } : {}),
+          ...(creds.impersonateTenantId
+            ? { 'x-capiro-impersonate-tenant': creds.impersonateTenantId }
+            : {}),
+        },
+        body: JSON.stringify({
+          conversationId,
+          clientId: procedure.clientId,
+          scope: procedure.scope,
+          recordId: procedure.identity.recordId,
+          canonicalId: procedure.identity.canonicalId,
+          procedureVersion: procedure.identity.version,
+          manifestDigest: procedure.manifestDigest,
+          toolName,
+        }),
+        signal: execution.signal,
+      });
+      execution.assertActive();
+      if (!response.ok) {
+        throw new MeriProcedureBindingError(
+          'Served procedure binding is invalid or no longer current',
+        );
+      }
+      const decision = (await response.json()) as {
+        authorized?: unknown;
+        identity?: Record<string, unknown>;
+        manifestDigest?: unknown;
+      };
+      execution.assertActive();
+      if (
+        decision.authorized !== true ||
+        decision.identity?.source !== procedure.identity.source ||
+        decision.identity.recordId !== procedure.identity.recordId ||
+        decision.identity.canonicalId !== procedure.identity.canonicalId ||
+        decision.identity.version !== procedure.identity.version ||
+        decision.manifestDigest !== procedure.manifestDigest
+      ) {
+        throw new MeriProcedureBindingError(
+          'Served procedure binding is invalid or no longer current',
+        );
+      }
+    } catch {
+      execution.assertActive();
+      throw new MeriProcedureBindingError('Served procedure binding is invalid or no longer current');
+    } finally {
+      execution.dispose();
+    }
   }
 
   async run(
@@ -1973,7 +2058,13 @@ export class MeriV3AssistantService {
         : await runStatusProvenance({
             reply: released.reply,
             mode: 'enforce',
-            registry: withToolBudget(this.registry, runtimeBudget, budgetScope),
+            registry: withToolBudget(
+              this.registry,
+              runtimeBudget,
+              budgetScope,
+              (name, control) =>
+                this.assertCurrentProcedureAuthority(dto.conversationId, name, control),
+            ),
             ctx,
             deadlineAt: Math.min(opts.deadlineAt ?? Date.now() + 8_000, Date.now() + 8_000),
             signal: opts.signal,
@@ -2126,7 +2217,13 @@ export class MeriV3AssistantService {
       void runStatusProvenance({
         reply: released.reply,
         mode: 'shadow',
-        registry: withToolBudget(this.registry, runtimeBudget, budgetScope),
+        registry: withToolBudget(
+          this.registry,
+          runtimeBudget,
+          budgetScope,
+          (name, control) =>
+            this.assertCurrentProcedureAuthority(dto.conversationId, name, control),
+        ),
         ctx,
         deadlineAt: Date.now() + 8_000,
         signal: opts.requestSignal ?? opts.signal,
@@ -2467,10 +2564,16 @@ export class MeriV3AssistantService {
                     toolName: name,
                     readOnly: this.registry.get(name)?.readOnly,
                   });
-                  const result = await this.registry.invoke(name, input, ctx, {
+                  const dispatchControl = {
                     signal: signal ?? controller.signal,
                     deadlineAt,
-                  });
+                  };
+                  await this.assertCurrentProcedureAuthority(
+                    dto.conversationId,
+                    name,
+                    dispatchControl,
+                  );
+                  const result = await this.registry.invoke(name, input, ctx, dispatchControl);
                   args.runtimeBudget.observeToolResult({
                     signature,
                     result,
@@ -3146,9 +3249,19 @@ export class MeriV3AssistantService {
           args.control,
         );
         if (replay.replayed === true) {
+          await this.assertCurrentProcedureAuthority(
+            args.conversationId,
+            args.name,
+            args.control,
+          );
           result = replay.result;
           durableSafeRead = this.durableOutcome(replay.durableSafeRead);
         } else {
+          await this.assertCurrentProcedureAuthority(
+            args.conversationId,
+            args.name,
+            args.control,
+          );
           result = await this.registry.invoke(args.name, args.input, args.ctx, args.control);
           const classification = classifyApiToolReadOutcome(args.name, result);
           if (!classification || (classification.kind !== 'complete' && classification.kind !== 'empty')) {
@@ -3174,6 +3287,7 @@ export class MeriV3AssistantService {
           durableSafeRead = this.durableOutcome({ ...receipt, replayed: false });
         }
       } else {
+        await this.assertCurrentProcedureAuthority(args.conversationId, args.name, args.control);
         result = await this.registry.invoke(args.name, args.input, args.ctx, args.control);
       }
       if (durableSafeRead) args.captureDurableSafeRead(durableSafeRead);

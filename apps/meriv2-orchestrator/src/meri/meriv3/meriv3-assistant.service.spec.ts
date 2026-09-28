@@ -261,6 +261,18 @@ function servedProcedureContext(): MeriGovernedTurnContext {
   } as MeriGovernedTurnContext;
 }
 
+function currentProcedureDecision(governed: MeriGovernedTurnContext): Response {
+  const procedure = governed.procedure!;
+  return new Response(
+    JSON.stringify({
+      authorized: true,
+      identity: procedure.identity,
+      manifestDigest: procedure.manifestDigest,
+    }),
+    { status: 200 },
+  );
+}
+
 /** The `event` field of a structured (single JSON line) log message, or null for any other message. */
 function eventNameOf(message: unknown): string | null {
   if (typeof message !== 'string' || !message.startsWith('{')) return null;
@@ -3953,20 +3965,24 @@ describe('Stage 2 orchestrator hardening', () => {
         complete,
         proposal,
         {},
-        selectorConfig('enabled'),
+        { ...selectorConfig('enabled'), INTERNAL_SERVICE_SECRET: 'service-secret' },
       );
+      const governed = servedProcedureContext();
       global.fetch = jest.fn(
-        async () =>
-          new Response(
-            JSON.stringify({ schemas: [toolSchema('query_tasks'), toolSchema('send_email')] }),
-            { status: 200 },
-          ),
+        async (url: string | URL | Request) =>
+          String(url).includes('/procedure-runtime/validate')
+            ? currentProcedureDecision(governed)
+            : new Response(
+                JSON.stringify({ schemas: [toolSchema('query_tasks'), toolSchema('send_email')] }),
+                { status: 200 },
+              ),
       ) as typeof fetch;
 
       await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
-        runWithGovernedMeriContext(servedProcedureContext(), () =>
+        runWithGovernedMeriContext(governed, () =>
           assistant.run(context, {
             clientId: 'client-1',
+            conversationId: '33333333-3333-4333-8333-333333333333',
             messages: [{ role: 'user', text: 'Run the commitments audit.' }],
           }),
         ),
@@ -3976,6 +3992,385 @@ describe('Stage 2 orchestrator hardening', () => {
       expect(invoke).toHaveBeenCalledTimes(1);
       expect(invoke.mock.calls[0]?.[0]).toBe('query_tasks');
       expect(proposal).not.toHaveBeenCalled();
+    });
+
+    test('exposes and invokes the manifest-authorized upcoming-meetings reader after current validation', async () => {
+      const meetingCall = {
+        type: 'function_call',
+        call_id: 'procedure-meeting-read',
+        name: 'list_upcoming_meetings',
+        arguments: '{}',
+      };
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(
+          response({ output: [meetingCall], outputText: '', functionCalls: [meetingCall] }),
+        )
+        .mockResolvedValueOnce(response({ outputText: 'Upcoming calendar checked.' }));
+      const invoke = jest.fn().mockResolvedValue({ meetings: [] });
+      const assistant = build(
+        registry(
+          [
+            { name: 'query_tasks', readOnly: true },
+            { name: 'list_upcoming_meetings', readOnly: true },
+          ],
+          invoke,
+        ),
+        complete,
+        jest.fn(),
+        {},
+        { ...selectorConfig('legacy'), INTERNAL_SERVICE_SECRET: 'service-secret' },
+      );
+      const governed = servedProcedureContext();
+      governed.procedure!.policy.allowedCapabilities.push('meetings.read');
+      governed.procedure!.policy.allowedTools = ['query_tasks', 'list_upcoming_meetings'];
+      const validationRequests: Array<{ headers: Record<string, string>; body: Record<string, unknown> }> = [];
+      global.fetch = jest.fn(async (url: string | URL | Request, init?: RequestInit) => {
+        if (String(url).includes('/procedure-runtime/validate')) {
+          validationRequests.push({
+            headers: init?.headers as Record<string, string>,
+            body: JSON.parse(String(init?.body)) as Record<string, unknown>,
+          });
+          return currentProcedureDecision(governed);
+        }
+        return new Response(
+          JSON.stringify({
+            schemas: [toolSchema('query_tasks'), toolSchema('list_upcoming_meetings')],
+          }),
+          { status: 200 },
+        );
+      }) as typeof fetch;
+
+      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        runWithGovernedMeriContext(governed, () =>
+          assistant.run(context, {
+            clientId: 'client-1',
+            conversationId: '33333333-3333-4333-8333-333333333333',
+            messages: [{ role: 'user', text: 'Check the upcoming calendar source.' }],
+          }),
+        ),
+      );
+
+      expect(providerToolNames(complete)).toContain('list_upcoming_meetings');
+      expect(invoke).toHaveBeenCalledTimes(1);
+      expect(invoke.mock.calls[0]?.[0]).toBe('list_upcoming_meetings');
+      expect(validationRequests).toEqual([
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            authorization: 'Bearer bearer',
+            'x-internal-service-secret': 'service-secret',
+          }),
+          body: expect.objectContaining({
+            conversationId: '33333333-3333-4333-8333-333333333333',
+            clientId: 'client-1',
+            canonicalId: 'commitments_audit',
+            procedureVersion: 6,
+            manifestDigest: 'a'.repeat(64),
+            toolName: 'list_upcoming_meetings',
+          }),
+        }),
+      ]);
+    });
+
+    test('revalidates every invocation and executes no second tool after revocation', async () => {
+      const first = {
+        type: 'function_call',
+        call_id: 'before-revocation',
+        name: 'query_tasks',
+        arguments: '{"query":"first"}',
+      };
+      const second = {
+        type: 'function_call',
+        call_id: 'after-revocation',
+        name: 'query_tasks',
+        arguments: '{"query":"second"}',
+      };
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(response({ output: [first], outputText: '', functionCalls: [first] }))
+        .mockResolvedValueOnce(response({ output: [second], outputText: '', functionCalls: [second] }))
+        .mockResolvedValueOnce(response({ outputText: 'Authority changed; stopped.' }));
+      const invoke = jest.fn().mockResolvedValue({ tasks: [] });
+      const assistant = build(
+        registry([{ name: 'query_tasks', readOnly: true }], invoke),
+        complete,
+        jest.fn(),
+        {},
+        { ...selectorConfig('legacy'), INTERNAL_SERVICE_SECRET: 'service-secret' },
+      );
+      const governed = servedProcedureContext();
+      let validations = 0;
+      global.fetch = jest.fn(async (url: string | URL | Request) => {
+        if (String(url).includes('/procedure-runtime/validate')) {
+          validations += 1;
+          return validations === 1
+            ? currentProcedureDecision(governed)
+            : new Response(JSON.stringify({ authorized: false }), { status: 403 });
+        }
+        return new Response(JSON.stringify({ schemas: [toolSchema('query_tasks')] }), {
+          status: 200,
+        });
+      }) as typeof fetch;
+
+      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        runWithGovernedMeriContext(governed, () =>
+          assistant.run(context, {
+            clientId: 'client-1',
+            conversationId: '33333333-3333-4333-8333-333333333333',
+            messages: [{ role: 'user', text: 'Run both audit reads.' }],
+          }),
+        ),
+      );
+
+      expect(validations).toBe(2);
+      expect(invoke).toHaveBeenCalledTimes(1);
+      expect(invoke.mock.calls[0]?.[1]).toMatchObject({ query: 'first' });
+    });
+
+    test.each(['cancelled', 'deadline_exceeded'] as const)(
+      'fails closed when the callback is %s before registry invocation',
+      async (finishReason) => {
+        const call = {
+          type: 'function_call',
+          call_id: 'callback-timeout',
+          name: 'query_tasks',
+          arguments: '{}',
+        };
+        const complete = jest
+          .fn()
+          .mockResolvedValueOnce(
+            response({ output: [call], outputText: '', functionCalls: [call] }),
+          )
+          .mockResolvedValue(response({ outputText: 'Stopped.' }));
+        const invoke = jest.fn();
+        const assistant = build(
+          registry([{ name: 'query_tasks', readOnly: true }], invoke),
+          complete,
+          jest.fn(),
+          {},
+          { ...selectorConfig('legacy'), INTERNAL_SERVICE_SECRET: 'service-secret' },
+        );
+        const governed = servedProcedureContext();
+        const abort = new AbortController();
+        let callbackStarted = false;
+        global.fetch = jest.fn(async (url: string | URL | Request, init?: RequestInit) => {
+          if (!String(url).includes('/procedure-runtime/validate')) {
+            return new Response(JSON.stringify({ schemas: [toolSchema('query_tasks')] }), {
+              status: 200,
+            });
+          }
+          callbackStarted = true;
+          if (finishReason === 'cancelled') {
+            queueMicrotask(() => abort.abort(new DOMException('Stopped', 'AbortError')));
+          }
+          return new Promise<Response>((_resolve, reject) => {
+            const signal = init?.signal;
+            if (signal?.aborted) reject(signal.reason);
+            else signal?.addEventListener('abort', () => reject(signal.reason), { once: true });
+          });
+        }) as typeof fetch;
+
+        const startedAt = Date.now();
+        const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+          runWithGovernedMeriContext(governed, () =>
+            assistant.run(
+              context,
+              {
+                clientId: 'client-1',
+                conversationId: '33333333-3333-4333-8333-333333333333',
+                messages: [{ role: 'user', text: 'Run the audit read.' }],
+              },
+              {
+                signal: abort.signal,
+                deadlineAt: Date.now() + 120_000,
+              },
+            ),
+          ),
+        );
+
+        expect(callbackStarted).toBe(true);
+        expect(invoke).not.toHaveBeenCalled();
+        if (finishReason === 'cancelled') {
+          expect(result.telemetry).toMatchObject({ partial: true, finishReason });
+        } else {
+          expect(Date.now() - startedAt).toBeGreaterThanOrEqual(4_500);
+          expect(complete).toHaveBeenCalledTimes(2);
+          expect(JSON.stringify(complete.mock.calls[1]?.[0]).toLowerCase()).toContain('tool failed');
+        }
+      },
+      10_000,
+    );
+
+    test('rejects a late abort after the validation body arrives and before admission', async () => {
+      const call = {
+        type: 'function_call',
+        call_id: 'callback-late-abort',
+        name: 'query_tasks',
+        arguments: '{}',
+      };
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(response({ output: [call], outputText: '', functionCalls: [call] }))
+        .mockResolvedValue(response({ outputText: 'Stopped.' }));
+      const invoke = jest.fn();
+      const assistant = build(
+        registry([{ name: 'query_tasks', readOnly: true }], invoke),
+        complete,
+        jest.fn(),
+        {},
+        { ...selectorConfig('legacy'), INTERNAL_SERVICE_SECRET: 'service-secret' },
+      );
+      const governed = servedProcedureContext();
+      const abort = new AbortController();
+      global.fetch = jest.fn(async (url: string | URL | Request) => {
+        if (!String(url).includes('/procedure-runtime/validate')) {
+          return new Response(JSON.stringify({ schemas: [toolSchema('query_tasks')] }), {
+            status: 200,
+          });
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => {
+            abort.abort(new DOMException('Stopped', 'AbortError'));
+            return {
+              authorized: true,
+              identity: governed.procedure!.identity,
+              manifestDigest: governed.procedure!.manifestDigest,
+            };
+          },
+        } as Response;
+      }) as typeof fetch;
+
+      const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        runWithGovernedMeriContext(governed, () =>
+          assistant.run(
+            context,
+            {
+              clientId: 'client-1',
+              conversationId: '33333333-3333-4333-8333-333333333333',
+              messages: [{ role: 'user', text: 'Run the audit read.' }],
+            },
+            { signal: abort.signal, deadlineAt: Date.now() + 120_000 },
+          ),
+        ),
+      );
+
+      expect(invoke).not.toHaveBeenCalled();
+      expect(result.telemetry).toMatchObject({ partial: true, finishReason: 'cancelled' });
+    });
+
+    test('revalidates before admitting a durable replay and rejects replay after revocation', async () => {
+      const call = {
+        type: 'function_call',
+        call_id: 'procedure-durable-replay',
+        name: 'query_tasks',
+        arguments: '{}',
+      };
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(response({ output: [call], outputText: '', functionCalls: [call] }))
+        .mockResolvedValueOnce(response({ outputText: 'Authority changed; stopped.' }));
+      const invoke = jest.fn();
+      const assistant = build(
+        registry([{ name: 'query_tasks', readOnly: true }], invoke),
+        complete,
+        jest.fn(),
+        {},
+        { ...selectorConfig('legacy'), INTERNAL_SERVICE_SECRET: 'service-secret' },
+      );
+      const governed = servedProcedureContext();
+      let validations = 0;
+      global.fetch = jest.fn(async (url: string | URL | Request) => {
+        const href = String(url);
+        if (href.endsWith('/tool-schemas')) {
+          return new Response(JSON.stringify({ schemas: [toolSchema('query_tasks')] }), {
+            status: 200,
+          });
+        }
+        if (href.endsWith('/active')) {
+          return new Response(JSON.stringify({ active: true }), { status: 200 });
+        }
+        if (href.endsWith('/safe-read/replay')) {
+          return new Response(
+            JSON.stringify({
+              replayed: true,
+              result: { tasks: ['replayed-secret'] },
+              durableSafeRead: {
+                executionId: 'execution-replay',
+                providerCallId: call.call_id,
+                tool: call.name,
+                toolVersion: 'test-version',
+                classifier: 'complete',
+                sequence: 4,
+                receiptId: 'receipt-replay',
+                replayed: true,
+              },
+            }),
+            { status: 200 },
+          );
+        }
+        if (href.includes('/procedure-runtime/validate')) {
+          validations += 1;
+          return new Response(JSON.stringify({ authorized: false }), { status: 403 });
+        }
+        return new Response('{}', { status: 404 });
+      }) as typeof fetch;
+
+      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        runWithGovernedMeriContext(governed, () =>
+          assistant.run(context, {
+            clientId: 'client-1',
+            conversationId: '33333333-3333-4333-8333-333333333333',
+            messages: [{ role: 'user', text: 'Continue the durable audit.' }],
+            toolPolicy: 'read-only',
+            researchRun: { sessionId: 'session-a', runId: 'run-a', leaseEpoch: 3 },
+          }),
+        ),
+      );
+
+      expect(validations).toBe(1);
+      expect(invoke).not.toHaveBeenCalled();
+      expect(JSON.stringify(complete.mock.calls[1]?.[0])).not.toContain('replayed-secret');
+    });
+
+    test('rejects missing user bearer or service identity before validation transport', async () => {
+      const governed = servedProcedureContext();
+      const fetchMock = jest.fn();
+      global.fetch = fetchMock as typeof fetch;
+      const withSecret = build(
+        registry([{ name: 'query_tasks', readOnly: true }]),
+        jest.fn(),
+        jest.fn(),
+        {},
+        { INTERNAL_SERVICE_SECRET: 'service-secret' },
+      );
+      const withoutSecret = build(
+        registry([{ name: 'query_tasks', readOnly: true }]),
+        jest.fn(),
+      );
+      const callback = (assistant: MeriV3AssistantService) =>
+        (
+          assistant as unknown as {
+            assertCurrentProcedureAuthority: (
+              conversationId: string,
+              toolName: string,
+            ) => Promise<void>;
+          }
+        ).assertCurrentProcedureAuthority(
+          '33333333-3333-4333-8333-333333333333',
+          'query_tasks',
+        );
+
+      await expect(
+        runWithGovernedMeriContext(governed, () => callback(withSecret)),
+      ).rejects.toThrow('invalid or no longer current');
+      await expect(
+        RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+          runWithGovernedMeriContext(governed, () => callback(withoutSecret)),
+        ),
+      ).rejects.toThrow('invalid or no longer current');
+      expect(fetchMock).not.toHaveBeenCalled();
     });
 
     test('blocks unknown provider names without copying them or private arguments into public traces', async () => {

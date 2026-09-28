@@ -65,6 +65,7 @@ import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriMcpOAuthController } from './meri-mcp-oauth.controller.js';
 import { MeriManagedMcpService } from './meri-managed-mcp.service.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
+import { MeriProcedureRuntimeValidationService } from './meri-procedure-runtime-validation.service.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
 import { MeriApprovalService } from './meri-approval.service.js';
 import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
@@ -178,6 +179,7 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
     MeriV3VisualAnalysisService,
     MeriVNextLibraryService,
     MeriFirmSkillsService,
+    MeriProcedureRuntimeValidationService,
     MeriFeatureFlagsService,
     MeriApprovalService,
     MeriActionProposalService,

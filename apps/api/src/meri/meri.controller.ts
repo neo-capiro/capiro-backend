@@ -23,11 +23,14 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
+  IsInt,
   IsObject,
   IsOptional,
   IsString,
   IsUUID,
   Length,
+  Matches,
+  Min,
   ValidateIf,
 } from 'class-validator';
 import type { Request, Response } from 'express';
@@ -43,6 +46,7 @@ import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { MeriMcpService, type CatalogAddInput, type McpServerInput } from './meri-mcp.service.js';
 import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
+import { MeriProcedureRuntimeValidationService } from './meri-procedure-runtime-validation.service.js';
 import { MeriApprovalService } from './meri-approval.service.js';
 import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
@@ -210,6 +214,38 @@ class ResolveAttachmentTextDto {
   attachmentIds!: string[];
 }
 
+class ValidateMeriProcedureRuntimeDto {
+  @IsUUID()
+  conversationId!: string;
+
+  @ValidateIf((_, value) => value !== null)
+  @IsUUID()
+  clientId!: string | null;
+
+  @IsIn(['general', 'client', 'portfolio', 'external_entity'])
+  scope!: 'general' | 'client' | 'portfolio' | 'external_entity';
+
+  @IsString()
+  @Length(1, 200)
+  recordId!: string;
+
+  @IsString()
+  @Matches(/^[a-z0-9_]{2,48}$/)
+  canonicalId!: string;
+
+  @IsInt()
+  @Min(1)
+  procedureVersion!: number;
+
+  @IsString()
+  @Matches(/^[a-f0-9]{64}$/)
+  manifestDigest!: string;
+
+  @IsString()
+  @Matches(/^[a-z0-9_:-]{2,160}$/)
+  toolName!: string;
+}
+
 @Controller('clio')
 @UseGuards(RolesGuard)
 @Roles('standard_user')
@@ -224,6 +260,7 @@ export class MeriController {
     private readonly mcp: MeriMcpService,
     private readonly mcpOAuth: MeriMcpOAuthService,
     private readonly firmSkills: MeriFirmSkillsService,
+    private readonly procedureRuntime: MeriProcedureRuntimeValidationService,
     private readonly approvals: MeriApprovalService,
     private readonly complianceAudit: MeriComplianceAuditService,
     private readonly claimWriter: MeriClaimWriterService,
@@ -383,7 +420,8 @@ export class MeriController {
   // ToolServiceSecretGuard: this endpoint runs write tools with no compliance
   // gate (that gate is in the orchestrator), so it must only be reachable by the
   // orchestrator (post-gate), never a rogue user bearer. Requires the internal
-  // service secret in addition to the user JWT. Observe-by-default; enforced when
+  // service secret in addition to the user JWT. Production and staging always
+  // enforce it; development/test observe by default unless
   // MERI_TOOLS_REQUIRE_SERVICE_SECRET=true. @CurrentTenant (user JWT) unchanged.
   @Post('tools/:name')
   @UseGuards(ToolServiceSecretGuard)
@@ -396,6 +434,19 @@ export class MeriController {
     return withMeriToolRequestControl(req, () =>
       this.tools.executeFromAuthenticatedUser(ctx, name, body),
     );
+  }
+
+  /**
+   * Current-authority check. Production/staging require user JWT plus service
+   * identity; development/test retain the existing guard's observe-mode policy.
+   */
+  @Post('procedure-runtime/validate')
+  @UseGuards(ToolServiceSecretGuard)
+  validateProcedureRuntime(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() body: ValidateMeriProcedureRuntimeDto,
+  ) {
+    return this.procedureRuntime.validate(ctx, body);
   }
 
   // ── MeriV2 legacy write-tool approvals (Workstream B4 + B4.1) — RETIRED ──

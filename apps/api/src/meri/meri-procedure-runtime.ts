@@ -3,7 +3,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { MERI_CAPABILITY_REGISTRY } from '@capiro/shared';
 import type { MeriGovernedProcedureBinding } from '@capiro/meriv2-core';
 import type { MeriFirmSkillsService } from './meri-firm-skills.service.js';
-import type { MeriSkill } from './skills/skill.types.js';
+import type { MeriProcedureBinding, MeriSkill } from './skills/skill.types.js';
 
 const PROCEDURE_BINDING_TTL_MS = 5 * 60_000;
 
@@ -45,7 +45,25 @@ export async function resolveServedProcedure(input: {
   const selectedBinding = input.selected?.procedureBinding;
   if (!input.selected?.procedure || !selectedBinding) return null;
 
-  const resolved = await input.firmSkills.resolveProcedureReference(input.tenantId, selectedBinding);
+  return resolveCurrentServedProcedure({
+    tenantId: input.tenantId,
+    clientId: input.clientId,
+    reference: selectedBinding,
+    firmSkills: input.firmSkills,
+    now: input.now,
+  });
+}
+
+/** Re-resolve and project one exact procedure reference without a cache. */
+export async function resolveCurrentServedProcedure(input: {
+  tenantId: string;
+  clientId: string | null;
+  reference: MeriProcedureBinding;
+  firmSkills: Pick<MeriFirmSkillsService, 'resolveProcedureReference'>;
+  now?: number;
+}): Promise<{ binding: MeriGovernedProcedureBinding; receipt: ServedProcedureReceipt }> {
+
+  const resolved = await input.firmSkills.resolveProcedureReference(input.tenantId, input.reference);
   const manifest = resolved.procedure;
   const identity = resolved.procedureBinding;
   if (!manifest || !identity) throw new NotFoundException('Procedure binding is unavailable');
