@@ -37,6 +37,19 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
         (await client.query('SELECT * FROM committee_hearing WHERE id = $1', [where.id])).rows[0] ??
         null,
     },
+    hearingStreamCandidate: {
+      findMany: async ({ where }: { where: { hearingId: { in: string[] } } }) =>
+        (
+          await client.query(
+            `SELECT id, hearing_id AS "hearingId", provider,
+          official_page_url AS "officialPageUrl", capture_policy AS "capturePolicy",
+          priority, updated_at AS "updatedAt" FROM hearing_stream_candidate
+          WHERE hearing_id = ANY($1::text[])
+          ORDER BY priority ASC, updated_at DESC, id ASC`,
+            [where.hearingId.in],
+          )
+        ).rows,
+    },
   };
   const service = new LegiWatchWave1Service(
     prisma as unknown as PrismaService,
@@ -60,7 +73,12 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
       );
       CREATE TEMP VIEW federal_committee_hearing AS SELECT * FROM committee_hearing
         WHERE geographic_jurisdiction='US' OR geographic_jurisdiction IS NULL;
-      CREATE TEMP TABLE hearing_stream_candidate (hearing_id text, official_page_url text, media_url text);
+      CREATE TEMP TABLE hearing_stream_candidate (
+        hearing_id text, official_page_url text, media_url text,
+        id text DEFAULT md5(random()::text), provider text DEFAULT 'unknown',
+        capture_policy text DEFAULT 'REVIEW_REQUIRED', priority integer DEFAULT 100,
+        updated_at timestamptz DEFAULT now()
+      );
       CREATE TEMP TABLE committee_source (source_url text);
       CREATE TEMP TABLE intel_live_hearing_session (
         id text PRIMARY KEY, hearing_id text, tenant_id text, created_by text,
@@ -80,6 +98,7 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
         id text, capture_id text, start_ms integer, speaker_label text, text text, sequence integer,
         is_final boolean DEFAULT true
     );
+      CREATE TEMP TABLE public_hearing_speaker (capture_id text, speaker_label text, display_name text);
       CREATE TEMP TABLE public_hearing_insight (
         id text, hearing_id text, capture_id text, segment_id text,
         insight_type text, title text, summary text, evidence_text text, sequence integer
@@ -101,8 +120,7 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
     jest.clearAllMocks();
     await client.query(`TRUNCATE committee_hearing, hearing_stream_candidate, committee_source,
       intel_live_hearing_session, intel_transcript_segment, intel_live_summary_card,
-      public_hearing_capture, official_hearing_transcript, public_hearing_transcript_segment,
-      public_hearing_insight`);
+      public_hearing_capture, official_hearing_transcript, public_hearing_transcript_segment, public_hearing_speaker, public_hearing_insight`);
     await hearing('fauci', 'TESTIMONY OF ANTHONY FAUCI', 'https://congress.gov/hearings/fauci');
     await hearing('other', 'Unrelated proceeding', 'https://senate.gov/hearings/other');
   });
@@ -198,7 +216,7 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
 
   it('recovers only unique official media/page identities for unlinked public sessions', async () => {
     await client.query(
-      `INSERT INTO hearing_stream_candidate VALUES
+      `INSERT INTO hearing_stream_candidate (hearing_id, official_page_url, media_url) VALUES
       ('fauci','https://senate.gov/hearings/fauci',$1)`,
       [SENATE_RECORDING],
     );
@@ -227,10 +245,13 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
       if (field === 'canonical')
         await client.query(`UPDATE committee_hearing SET url=$1 WHERE id='fauci'`, [url]);
       else
-        await client.query(`INSERT INTO hearing_stream_candidate VALUES ('fauci',$1,$2)`, [
-          field === 'candidate-page' ? url : 'https://senate.gov/hearings/fauci',
-          field === 'candidate-media' ? url : null,
-        ]);
+        await client.query(
+          `INSERT INTO hearing_stream_candidate (hearing_id, official_page_url, media_url) VALUES ('fauci',$1,$2)`,
+          [
+            field === 'candidate-page' ? url : 'https://senate.gov/hearings/fauci',
+            field === 'candidate-media' ? url : null,
+          ],
+        );
       await session('generic-calendar', { url });
       expect((await service.savedSessions(ctx, 'fauci')).sessions).toEqual([]);
     },
@@ -244,10 +265,13 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
       if (field === 'canonical')
         await client.query(`UPDATE committee_hearing SET url=$1 WHERE id='fauci'`, [url]);
       else
-        await client.query(`INSERT INTO hearing_stream_candidate VALUES ('fauci',$1,$2)`, [
-          field === 'candidate-page' ? url : 'https://senate.gov/hearings/fauci',
-          field === 'candidate-media' ? url : null,
-        ]);
+        await client.query(
+          `INSERT INTO hearing_stream_candidate (hearing_id, official_page_url, media_url) VALUES ('fauci',$1,$2)`,
+          [
+            field === 'candidate-page' ? url : 'https://senate.gov/hearings/fauci',
+            field === 'candidate-media' ? url : null,
+          ],
+        );
       await session('generic-stream', { url });
       expect((await service.savedSessions(ctx, 'fauci')).sessions).toEqual([]);
     },
@@ -269,7 +293,7 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
     await transcript('direct-target');
     await transcript('unrelated');
     await client.query(
-      `INSERT INTO hearing_stream_candidate VALUES
+      `INSERT INTO hearing_stream_candidate (hearing_id, official_page_url, media_url) VALUES
       ('fauci','https://senate.gov/hearings/fauci',$1),
       ('other','https://senate.gov/hearings/other',$1)`,
       [SENATE_RECORDING],
@@ -295,7 +319,7 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
   });
 
   it('rejects reused media URLs and duplicate canonical page identities', async () => {
-    await client.query(`INSERT INTO hearing_stream_candidate VALUES
+    await client.query(`INSERT INTO hearing_stream_candidate (hearing_id, official_page_url, media_url) VALUES
       ('fauci','https://senate.gov/hearings/fauci','https://cdn.senate.gov/live/master.m3u8'),
       ('other','https://senate.gov/hearings/other','https://cdn.senate.gov/live/master.m3u8')`);
     await session('shared-stream', { url: 'https://cdn.senate.gov/live/master.m3u8' });
@@ -341,6 +365,22 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
       { hasTranscript: true },
     );
     expect(foreign.total).toBe(0);
+  });
+
+  it('archive playback uses the scoped candidate projection and deterministic priority', async () => {
+    await client.query(`INSERT INTO hearing_stream_candidate
+      (id, hearing_id, official_page_url, provider, capture_policy, priority) VALUES
+      ('later', 'fauci', 'https://www.senate.gov/hearings/later', 'senate-isvp', 'BLOCKED', 20),
+      ('chosen', 'fauci', 'https://www.senate.gov/hearings/chosen', 'senate-isvp', 'BLOCKED', 10),
+      ('foreign', 'other', 'https://www.senate.gov/hearings/foreign', 'senate-isvp', 'BLOCKED', 0)`);
+    const result = await service.searchArchive(ctx, { q: 'Fauci' });
+    expect(result.rows).toEqual([
+      expect.objectContaining({
+        id: 'fauci',
+        officialPlaybackUrl: 'https://www.senate.gov/hearings/chosen',
+        officialPlaybackKind: 'official_player_page',
+      }),
+    ]);
   });
 
   it('archive count/facets/paging deduplicate several saved sessions and retain public-only transcripts', async () => {
