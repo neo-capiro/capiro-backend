@@ -1,0 +1,154 @@
+name: meri-synthetic-fullchat
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'plan is DB-read-only; apply/rollback require an exact source receipt and confirmation'
+        required: true
+        default: plan
+        type: choice
+        options:
+          - plan
+          - apply
+          - rollback
+      source_run_id:
+        description: 'Apply: exact plan run ID. Rollback: exact apply run ID.'
+        required: false
+        default: ''
+      source_run_attempt:
+        description: 'Exact source workflow run attempt.'
+        required: false
+        default: ''
+      apply_confirmation:
+        description: 'Apply only: APPLY_FIXED_MERI_FOUNDATION_FULLCHAT'
+        required: false
+        default: ''
+      rollback_confirmation:
+        description: 'Rollback only: ROLLBACK_FIXED_MERI_FOUNDATION_FULLCHAT'
+        required: false
+        default: ''
+
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+
+concurrency:
+  group: meri-synthetic-fullchat-capiro-dev
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  OUTPUT_DIR: /tmp/meri-synthetic-fullchat
+  METADATA_DIR: /tmp/meri-synthetic-fullchat-metadata
+  INPUT_MODE: ${{ inputs.mode }}
+  INPUT_SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+  INPUT_SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+  INPUT_APPLY_CONFIRMATION: ${{ inputs.apply_confirmation }}
+  INPUT_ROLLBACK_CONFIRMATION: ${{ inputs.rollback_confirmation }}
+
+jobs:
+  fixed-foundation-fullchat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Refuse every repository/ref except merged main
+        if: github.repository != 'neo-capiro/capirov2' || github.ref != 'refs/heads/main'
+        run: |
+          echo 'This workflow may run only from neo-capiro/capirov2 main.' >&2
+          exit 2
+
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Prove current complete merged main
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse --is-shallow-repository)" = false
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+
+      - name: Run fixed-path offline guards
+        run: python3 scripts/meri-synthetic-fullchat.test.py
+
+      - name: Download trusted source-run metadata
+        if: inputs.mode != 'plan'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$INPUT_SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$INPUT_SOURCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
+          mkdir -p "$METADATA_DIR"
+          gh api --method GET \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${INPUT_SOURCE_RUN_ID}/attempts/${INPUT_SOURCE_RUN_ATTEMPT}" \
+            > "$METADATA_DIR/run-attempt.json"
+          gh api --method GET \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${INPUT_SOURCE_RUN_ID}/artifacts?per_page=100" \
+            > "$METADATA_DIR/artifacts.json"
+
+      - name: Select one exact source artifact
+        if: inputs.mode != 'plan'
+        run: |
+          set -euo pipefail
+          python3 scripts/meri-synthetic-fullchat.py \
+            --select-source-artifact \
+            --source-run-id "$INPUT_SOURCE_RUN_ID" \
+            --source-run-attempt "$INPUT_SOURCE_RUN_ATTEMPT" \
+            --run-metadata "$METADATA_DIR/run-attempt.json" \
+            --artifact-metadata "$METADATA_DIR/artifacts.json" \
+            --artifact-selection "$METADATA_DIR/selection.json"
+
+      - name: Download only the validated artifact ID
+        if: inputs.mode != 'plan'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          artifact_id="$(python3 -c 'import json,os; print(json.load(open(os.environ["METADATA_DIR"] + "/selection.json", encoding="utf-8"))["artifactId"])')"
+          [[ "$artifact_id" =~ ^[1-9][0-9]*$ ]]
+          gh api --method GET \
+            -H 'Accept: application/vnd.github+json' \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
+            > "$METADATA_DIR/artifact.zip"
+
+      - name: Configure fixed dev AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEV_GHA_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Run fixed owner command and require exact readback
+        run: |
+          set -euo pipefail
+          args=(
+            --mode "$INPUT_MODE"
+            --apply-confirmation "$INPUT_APPLY_CONFIRMATION"
+            --rollback-confirmation "$INPUT_ROLLBACK_CONFIRMATION"
+            --source-run-id "$INPUT_SOURCE_RUN_ID"
+            --source-run-attempt "$INPUT_SOURCE_RUN_ATTEMPT"
+            --output-dir "$OUTPUT_DIR"
+            --wait-timeout-seconds 900
+          )
+          if [[ "$INPUT_MODE" != plan ]]; then
+            args+=(
+              --run-metadata "$METADATA_DIR/run-attempt.json"
+              --artifact-metadata "$METADATA_DIR/artifacts.json"
+              --artifact-selection "$METADATA_DIR/selection.json"
+              --artifact-archive "$METADATA_DIR/artifact.zip"
+            )
+          fi
+          python3 scripts/meri-synthetic-fullchat.py "${args[@]}"
+
+      - name: Upload sanitized receipt only
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: synthetic-fullchat-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/meri-synthetic-fullchat/receipt.json
+          if-no-files-found: warn
+          retention-days: 30
