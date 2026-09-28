@@ -299,9 +299,7 @@ export const configSchema = z.object({
   // one, and both live models (OPENAI_MODEL/OUTREACH_V3_REASONING_MODEL =
   // gpt-4.1-mini) accept none, so the effort applies the moment a reasoning model
   // is configured and is inert until then.
-  OUTREACH_V3_GENERATION_EFFORT: z
-    .enum(['low', 'medium', 'high', 'xhigh', 'max'])
-    .default('max'),
+  OUTREACH_V3_GENERATION_EFFORT: z.enum(['low', 'medium', 'high', 'xhigh', 'max']).default('max'),
 
   // Model override for V3 generation only. Empty (the default) keeps the resolved
   // credential's model, so a deploy never changes the drafting model or COGS on
@@ -852,9 +850,9 @@ export const configSchema = z.object({
   // be activated by default); every entry must be a known family (validated
   // at read time — unknown families fail closed, never silently skipped).
   // No provider credentials anywhere in this block.
-  BIZDEV_WATCH_SOURCE_FAMILIES: z.string().default(
-    'federal_award,federal_assistance_award,sam_opportunity,tango_resource,lda_filing',
-  ),
+  BIZDEV_WATCH_SOURCE_FAMILIES: z
+    .string()
+    .default('federal_award,federal_assistance_award,sam_opportunity,tango_resource,lda_filing'),
   // Max watches processed per evaluator run (bounded work).
   BIZDEV_WATCH_MAX_PER_RUN: z.coerce.number().int().min(1).max(500).default(50),
   // Max source records read per watch per family per pass (complete bound: a
@@ -1242,7 +1240,10 @@ export function validateConfig(raw: Record<string, unknown>): AppConfig {
           '\n\nThe engagement-api process must run with all five controls at the same posture.',
       );
     }
-    if (isActive && parsed.ENGAGEMENT_API_PROMOTION_TOKEN !== ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT) {
+    if (
+      isActive &&
+      parsed.ENGAGEMENT_API_PROMOTION_TOKEN !== ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT
+    ) {
       throw new Error(
         'Engagement API is configured for the ACTIVE posture but ENGAGEMENT_API_PROMOTION_TOKEN ' +
           'does not match the required acknowledgement string. See ' +

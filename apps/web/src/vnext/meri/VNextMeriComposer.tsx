@@ -13,7 +13,11 @@ import {
   truncateFilenameMiddle,
   type StagedAttachment,
 } from '../../components/chat/chat-attachments.js';
-import { useManagedMcpApps, managedAppStatusLabel, type ManagedAppId } from '../../components/chat/managed-mcp-apps.js';
+import {
+  useManagedMcpApps,
+  managedAppStatusLabel,
+  type ManagedAppId,
+} from '../../components/chat/managed-mcp-apps.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { maySend, meriEffectiveIdentityKey } from '../../components/chat/meri-route-guards.js';
 import { useCapiroToast } from '../components/feedback/toast.js';
@@ -354,28 +358,29 @@ export function VNextMeriComposer({
   );
 
   const libraryConnectorItems = useMemo<MeriLibraryPaneItem[]>(
-    () => (managedApps?.apps ?? []).map((app) => ({
-      key: app.id,
-      connectorId: app.id,
-      label: app.name,
-      desc: app.description,
-      icon: 'Dataflow03',
-      hasBadge: true,
-      badge: managedAppStatusLabel(app),
-      badgeBg: app.connected ? '#ECFDF3' : '#F2F4F7',
-      badgeFg: app.connected ? '#027A48' : '#475467',
-      canDel: false,
-      disabled: Boolean(managedApps?.busyAppId) || !app.available,
-      run: () => {
-        if (app.connected) {
-          setAddOpen(false);
-          setAddPane(null);
-          onOpenIntegrations();
-        } else {
-          void managedApps?.connect(app.id);
-        }
-      },
-    })),
+    () =>
+      (managedApps?.apps ?? []).map((app) => ({
+        key: app.id,
+        connectorId: app.id,
+        label: app.name,
+        desc: app.description,
+        icon: 'Dataflow03',
+        hasBadge: true,
+        badge: managedAppStatusLabel(app),
+        badgeBg: app.connected ? '#ECFDF3' : '#F2F4F7',
+        badgeFg: app.connected ? '#027A48' : '#475467',
+        canDel: false,
+        disabled: Boolean(managedApps?.busyAppId) || !app.available,
+        run: () => {
+          if (app.connected) {
+            setAddOpen(false);
+            setAddPane(null);
+            onOpenIntegrations();
+          } else {
+            void managedApps?.connect(app.id);
+          }
+        },
+      })),
     [managedApps, onOpenIntegrations],
   );
 
@@ -792,9 +797,13 @@ export function VNextMeriComposer({
                   </span>
                   <span className="vnext-meri__add-popover-item-body">
                     <span className="vnext-meri__add-popover-item-label">
-                      {app.connected ? app.name : (app.needsReauth ? 'Reconnect ' : 'Connect ') + app.name}
+                      {app.connected
+                        ? app.name
+                        : (app.needsReauth ? 'Reconnect ' : 'Connect ') + app.name}
                     </span>
-                    <span className="vnext-meri__add-popover-item-desc">{managedAppStatusLabel(app)}</span>
+                    <span className="vnext-meri__add-popover-item-desc">
+                      {managedAppStatusLabel(app)}
+                    </span>
                   </span>
                 </button>
               ))}
@@ -819,7 +828,11 @@ export function VNextMeriComposer({
               </button>
 
               <div className="vnext-meri__add-popover-separator" />
-              {managedApps?.error ? <div role="alert" className="vnext-meri__add-popover-pane-empty">{managedApps.error}</div> : null}
+              {managedApps?.error ? (
+                <div role="alert" className="vnext-meri__add-popover-pane-empty">
+                  {managedApps.error}
+                </div>
+              ) : null}
               <div className="vnext-meri__add-popover-eyebrow">LIBRARY</div>
               {LIBRARY_PANES.map((pane) => (
                 <button
@@ -863,15 +876,33 @@ export function VNextMeriComposer({
                 <span className="vnext-meri__add-popover-eyebrow">
                   {activePane.label.toUpperCase()}
                 </span>
-                {activePane.id === 'prompts' ? <button type="button"
-                  className="vnext-meri__confirm-cancel" onClick={() => {
-                    setAddOpen(false);
-                    setAddPane(null);
-                    setManagePromptsOpen(true);
-                  }}>Manage prompts</button> : null}
+                {activePane.id === 'prompts' ? (
+                  <button
+                    type="button"
+                    className="vnext-meri__confirm-cancel"
+                    onClick={() => {
+                      setAddOpen(false);
+                      setAddPane(null);
+                      setManagePromptsOpen(true);
+                    }}
+                  >
+                    Manage prompts
+                  </button>
+                ) : null}
               </div>
-              {activePane.id === 'prompts' && promptsQuery.isLoading ? <div role="status" className="vnext-meri__add-popover-pane-empty">Loading saved prompts…</div> : null}
-              {activePane.id === 'prompts' && promptsQuery.isError ? <div role="alert" className="vnext-meri__add-popover-pane-empty">Saved prompts could not be loaded. <button type="button" onClick={() => void promptsQuery.refetch()}>Retry</button></div> : null}
+              {activePane.id === 'prompts' && promptsQuery.isLoading ? (
+                <div role="status" className="vnext-meri__add-popover-pane-empty">
+                  Loading saved prompts…
+                </div>
+              ) : null}
+              {activePane.id === 'prompts' && promptsQuery.isError ? (
+                <div role="alert" className="vnext-meri__add-popover-pane-empty">
+                  Saved prompts could not be loaded.{' '}
+                  <button type="button" onClick={() => void promptsQuery.refetch()}>
+                    Retry
+                  </button>
+                </div>
+              ) : null}
               <div className="vnext-meri__add-popover-pane-body">
                 {activePane.items.map((item) => (
                   <div key={item.key} className="vnext-meri__add-popover-pane-row">
@@ -883,7 +914,13 @@ export function VNextMeriComposer({
                       disabled={item.disabled}
                     >
                       <span className="vnext-meri__add-popover-tile">
-                        <>{item.connectorId ? <ConnectorMark id={item.connectorId} size={15} /> : <MeriIcon name={item.icon} size={15} color="var(--m-gray-600)" />}</>
+                        <>
+                          {item.connectorId ? (
+                            <ConnectorMark id={item.connectorId} size={15} />
+                          ) : (
+                            <MeriIcon name={item.icon} size={15} color="var(--m-gray-600)" />
+                          )}
+                        </>
                       </span>
                       <span className="vnext-meri__add-popover-item-body">
                         <span className="vnext-meri__add-popover-item-label">{item.label}</span>
@@ -916,10 +953,15 @@ export function VNextMeriComposer({
                   </div>
                 ))}
               </div>
-              {activePane.items.length === 0 && !(activePane.id === 'prompts' && (promptsQuery.isLoading || promptsQuery.isError)) ? (
+              {activePane.items.length === 0 &&
+              !(activePane.id === 'prompts' && (promptsQuery.isLoading || promptsQuery.isError)) ? (
                 <div className="vnext-meri__add-popover-pane-empty">{activePane.emptyText}</div>
               ) : null}
-              {managedApps?.error && activePane.id === 'connectors' ? <div role="alert" className="vnext-meri__add-popover-pane-empty">{managedApps.error}</div> : null}
+              {managedApps?.error && activePane.id === 'connectors' ? (
+                <div role="alert" className="vnext-meri__add-popover-pane-empty">
+                  {managedApps.error}
+                </div>
+              ) : null}
               <div className="vnext-meri__add-popover-separator" />
               <div className="vnext-meri__add-popover-footer">{activePane.foot}</div>
             </>
@@ -1258,11 +1300,19 @@ export function VNextMeriComposer({
     />
   ) : null;
 
-  const savedPromptDialog = managePromptsOpen ? <MeriSavedPromptManager
-    onClose={() => setManagePromptsOpen(false)}
-    disabled={busy}
-    onReuse={(body) => { if (!busy) fillFromLibrary(body, 'Prompt filled in the composer. Review it and press Send when ready.'); }}
-  /> : null;
+  const savedPromptDialog = managePromptsOpen ? (
+    <MeriSavedPromptManager
+      onClose={() => setManagePromptsOpen(false)}
+      disabled={busy}
+      onReuse={(body) => {
+        if (!busy)
+          fillFromLibrary(
+            body,
+            'Prompt filled in the composer. Review it and press Send when ready.',
+          );
+      }}
+    />
+  ) : null;
 
   if (variant === 'landing') {
     return (

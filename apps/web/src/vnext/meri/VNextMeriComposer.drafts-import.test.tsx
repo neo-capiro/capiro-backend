@@ -31,11 +31,22 @@ vi.mock('../../lib/use-api.js', () => ({ useApi: () => mocks.api }));
 vi.mock('../../state/impersonation.js', () => ({ useImpersonation: () => mocks.impersonation }));
 vi.mock('../components/feedback/toast.js', () => ({ useCapiroToast: () => mocks.toast }));
 vi.mock('../../components/chat/managed-mcp-apps.js', async (importOriginal) => ({
-  ...await importOriginal<typeof import('../../components/chat/managed-mcp-apps.js')>(),
+  ...(await importOriginal<typeof import('../../components/chat/managed-mcp-apps.js')>()),
   useManagedMcpApps: () => ({
-    apps: [{ id: 'hubspot', name: 'HubSpot', description: 'CRM', status: 'connected',
-      connected: true, available: true, needsReauth: false, lastError: null }],
-    busyAppId: null, error: null,
+    apps: [
+      {
+        id: 'hubspot',
+        name: 'HubSpot',
+        description: 'CRM',
+        status: 'connected',
+        connected: true,
+        available: true,
+        needsReauth: false,
+        lastError: null,
+      },
+    ],
+    busyAppId: null,
+    error: null,
   }),
 }));
 vi.mock('./meri-icons.js', () => ({ MeriIcon: () => null }));
