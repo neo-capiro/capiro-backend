@@ -39,8 +39,12 @@ function harness(
   },
   wallAllowed = true,
 ) {
-  const findFirst = jest.fn(async () => conversation);
-  const wallLookup = jest.fn(async () => (wallAllowed ? [{ allowed: true }] : [{ allowed: false }]));
+  let currentConversation = conversation;
+  let currentWallAllowed = wallAllowed;
+  const findFirst = jest.fn(async () => currentConversation);
+  const wallLookup = jest.fn(async () =>
+    currentWallAllowed ? [{ allowed: true }] : [{ allowed: false }],
+  );
   const prisma = {
     withTenantUser: jest.fn(
       async (_tenantId: string, _userId: string, run: (tx: unknown) => unknown) =>
@@ -53,7 +57,21 @@ function harness(
     findFirst,
     wallLookup,
     firmSkills,
+    setConversation(next: { id: string; clientId: string | null } | null) {
+      currentConversation = next;
+    },
+    setWallAllowed(next: boolean) {
+      currentWallAllowed = next;
+    },
   };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
 }
 
 describe('MeriProcedureRuntimeValidationService', () => {
@@ -77,7 +95,10 @@ describe('MeriProcedureRuntimeValidationService', () => {
       TENANT,
       resolved.procedureBinding,
     );
-    expect(h.wallLookup).toHaveBeenCalledWith(expect.any(String), TENANT, CLIENT, USER);
+    expect(h.findFirst).toHaveBeenCalledTimes(2);
+    expect(h.wallLookup).toHaveBeenCalledTimes(2);
+    expect(h.wallLookup).toHaveBeenNthCalledWith(1, expect.any(String), TENANT, CLIENT, USER);
+    expect(h.wallLookup).toHaveBeenNthCalledWith(2, expect.any(String), TENANT, CLIENT, USER);
   });
 
   it('fails closed when the authenticated actor does not own the conversation', async () => {
@@ -110,5 +131,87 @@ describe('MeriProcedureRuntimeValidationService', () => {
     await expect(h.service.validate(ctx, input)).rejects.toThrow(
       'Current procedure execution authority is unavailable',
     );
+  });
+
+  it('fails closed when the selected client drifts while canonical resolution is pending', async () => {
+    const h = harness();
+    const resolverStarted = deferred<void>();
+    const releaseResolver = deferred<void>();
+    h.firmSkills.resolveProcedureReference.mockImplementationOnce(async () => {
+      resolverStarted.resolve();
+      await releaseResolver.promise;
+      return resolved;
+    });
+
+    const validation = h.service.validate(ctx, input);
+    await resolverStarted.promise;
+    h.setConversation({ id: CONVERSATION, clientId: null });
+    releaseResolver.resolve();
+
+    await expect(validation).rejects.toBeInstanceOf(NotFoundException);
+    expect(h.findFirst).toHaveBeenCalledTimes(2);
+    expect(h.wallLookup).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails closed when conversation ownership or archive authority disappears during resolution', async () => {
+    const h = harness();
+    const resolverStarted = deferred<void>();
+    const releaseResolver = deferred<void>();
+    h.firmSkills.resolveProcedureReference.mockImplementationOnce(async () => {
+      resolverStarted.resolve();
+      await releaseResolver.promise;
+      return resolved;
+    });
+
+    const validation = h.service.validate(ctx, input);
+    await resolverStarted.promise;
+    h.setConversation(null);
+    releaseResolver.resolve();
+
+    await expect(validation).rejects.toBeInstanceOf(NotFoundException);
+    expect(h.findFirst).toHaveBeenCalledTimes(2);
+    expect(h.wallLookup).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails closed when ethical-wall authority is revoked while resolution is pending', async () => {
+    const h = harness();
+    const resolverStarted = deferred<void>();
+    const releaseResolver = deferred<void>();
+    h.firmSkills.resolveProcedureReference.mockImplementationOnce(async () => {
+      resolverStarted.resolve();
+      await releaseResolver.promise;
+      return resolved;
+    });
+
+    const validation = h.service.validate(ctx, input);
+    await resolverStarted.promise;
+    h.setWallAllowed(false);
+    releaseResolver.resolve();
+
+    await expect(validation).rejects.toBeInstanceOf(NotFoundException);
+    expect(h.findFirst).toHaveBeenCalledTimes(2);
+    expect(h.wallLookup).toHaveBeenCalledTimes(2);
+  });
+
+  it('fails closed when the canonical version changes during validation', async () => {
+    const h = harness();
+    const resolverStarted = deferred<void>();
+    const releaseResolver = deferred<void>();
+    h.firmSkills.resolveProcedureReference.mockImplementationOnce(async () => {
+      resolverStarted.resolve();
+      await releaseResolver.promise;
+      return {
+        ...resolved,
+        procedureBinding: { ...resolved.procedureBinding, version: 4 },
+      };
+    });
+
+    const validation = h.service.validate(ctx, input);
+    await resolverStarted.promise;
+    releaseResolver.resolve();
+
+    await expect(validation).rejects.toBeInstanceOf(NotFoundException);
+    expect(h.findFirst).toHaveBeenCalledTimes(1);
+    expect(h.wallLookup).toHaveBeenCalledTimes(1);
   });
 });

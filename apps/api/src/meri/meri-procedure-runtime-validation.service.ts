@@ -49,25 +49,7 @@ export class MeriProcedureRuntimeValidationService {
     ctx: TenantContext,
     input: ValidateMeriProcedureRuntimeInput,
   ): Promise<MeriProcedureRuntimeDecision> {
-    const conversation = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-      const owned = await tx.clioConversation.findFirst({
-        where: {
-          id: input.conversationId,
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
-          archivedAt: null,
-        },
-        select: { id: true, clientId: true },
-      });
-      if (!owned || owned.clientId !== input.clientId) return null;
-      if (
-        owned.clientId &&
-        !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, owned.clientId))
-      ) {
-        return null;
-      }
-      return owned;
-    });
+    const conversation = await this.currentOwnedConversation(ctx, input);
     if (!conversation) unavailable();
 
     let current;
@@ -100,10 +82,42 @@ export class MeriProcedureRuntimeValidationService {
       unavailable();
     }
 
+    // The canonical resolver is asynchronous and does not own conversation or
+    // ethical-wall state. Re-read that owner immediately before a positive
+    // decision so authority cannot be based only on its pre-resolver value.
+    // A mutation after this final read remains the unavoidable response/use
+    // window; this check deliberately does not retry or widen authority.
+    if (!(await this.currentOwnedConversation(ctx, input))) unavailable();
+
     return {
       authorized: true,
       identity: { ...binding.identity },
       manifestDigest: binding.manifestDigest,
     };
+  }
+
+  private currentOwnedConversation(
+    ctx: TenantContext,
+    input: ValidateMeriProcedureRuntimeInput,
+  ): Promise<{ id: string; clientId: string | null } | null> {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const owned = await tx.clioConversation.findFirst({
+        where: {
+          id: input.conversationId,
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          archivedAt: null,
+        },
+        select: { id: true, clientId: true },
+      });
+      if (!owned || owned.clientId !== input.clientId) return null;
+      if (
+        owned.clientId &&
+        !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, owned.clientId))
+      ) {
+        return null;
+      }
+      return owned;
+    });
   }
 }
