@@ -58,6 +58,50 @@ describe('status provenance runtime', () => {
     expect(enforced).toMatchObject({ lookupOk: true, outcomes: { paraphrased: 1 } });
   });
 
+  it('does not elevate a retained product status to a company-wide CSP claim', () => {
+    const enforced = enforceRetainedStatusProvenance({
+      reply: 'Acme is FedRAMP Certified.',
+      retainedResults: [result],
+    });
+    expect(enforced.reply).toBe(
+      'Acme is FedRAMP Certified (unverified against the FedRAMP Marketplace).',
+    );
+    expect(enforced).toMatchObject({ lookupOk: false, outcomes: { exact: 0, unsupported: 1 } });
+  });
+
+  it('uses the latest retained status for the same product instead of the first result', () => {
+    const enforced = enforceRetainedStatusProvenance({
+      reply: 'FR123 is FedRAMP approved.',
+      retainedResults: [result, {
+        ...result,
+        record: {
+          ...result.record,
+          status: 'FedRAMP In Process',
+          observedAt: '2026-09-24T00:00:00.000Z',
+        },
+      }],
+    });
+    expect(enforced.reply).toBe(
+      'FR123 is FedRAMP In Process at Moderate impact (FedRAMP Marketplace, observed 2026-09-24T00:00:00.000Z).',
+    );
+    expect(enforced).toMatchObject({ lookupOk: true, outcomes: { mismatch: 1 } });
+  });
+
+  it.each([
+    ['equal', '2026-09-23T00:00:00.000Z'],
+    ['unknown', 'not-a-timestamp'],
+  ])('fails closed for retained product statuses with conflicting %s recency', (_label, observedAt) => {
+    const enforced = enforceRetainedStatusProvenance({
+      reply: 'FR123 is FedRAMP approved.',
+      retainedResults: [result, {
+        ...result,
+        record: { ...result.record, status: 'FedRAMP In Process', observedAt },
+      }],
+    });
+    expect(enforced.reply).toContain('unverified against the FedRAMP Marketplace');
+    expect(enforced).toMatchObject({ lookupOk: false, outcomes: { unsupported: 1 } });
+  });
+
   it('does not bind retained authority to a different entity', () => {
     const enforced = enforceRetainedStatusProvenance({
       reply: 'Other Cloud is FedRAMP approved.',
@@ -98,6 +142,30 @@ describe('status provenance runtime', () => {
     expect(enforced.reply).toContain('Other Cloud is FedRAMP approved (unverified against the FedRAMP Marketplace).');
     expect(enforced.reply).not.toContain('Other Cloud is FedRAMP Certified');
     expect(enforced).toMatchObject({ lookupOk: false, outcomes: { unsupported: 1 } });
+  });
+
+  it('does not elevate a fresh product lookup to a company-wide CSP claim', async () => {
+    const enforced = await runStatusProvenance({
+      reply: 'Acme is FedRAMP Certified.',
+      mode: 'enforce',
+      registry: registry(result),
+      ctx,
+      deadlineAt: Date.now() + 1000,
+    });
+    expect(enforced.reply).toContain('unverified against the FedRAMP Marketplace');
+    expect(enforced).toMatchObject({ lookupOk: false, outcomes: { exact: 0, unsupported: 1 } });
+  });
+
+  it.each(['Acme Cloud', 'FR123'])('accepts a fresh canonical product %s claim', async (identity) => {
+    const enforced = await runStatusProvenance({
+      reply: `${identity} is FedRAMP approved.`,
+      mode: 'enforce',
+      registry: registry(result),
+      ctx,
+      deadlineAt: Date.now() + 1000,
+    });
+    expect(enforced.reply).toContain(`${identity} is FedRAMP Certified at Moderate impact`);
+    expect(enforced).toMatchObject({ lookupOk: true, outcomes: { paraphrased: 1 } });
   });
 
   it('rejects a matching record without authoritative source provenance', async () => {

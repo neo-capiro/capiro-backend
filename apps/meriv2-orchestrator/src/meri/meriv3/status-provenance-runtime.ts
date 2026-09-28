@@ -38,7 +38,8 @@ function evidenceFromResult(result: StatusToolResult): CertificationStatusEviden
   ) {
     return {
       entityId: record.productId,
-      entityNames: [record.cspName, record.csoName]
+      // FedRAMP statuses authorize a product/CSO, not its CSP company generally.
+      entityNames: [record.csoName]
         .filter(nonEmptyString),
       status: record.status,
       impactLevel: nonEmptyString(record.impactLevel) ? record.impactLevel : undefined,
