@@ -9,6 +9,7 @@ export {
   activeMemoryReviewExplanation,
   activeMemoryVersionPresentation,
   pendingReviewHeadline,
+  pendingReviewSourceLabel,
   pendingReviewTone,
   type MemoryReviewSection,
   type MemoryReviewerIdentity,
@@ -18,6 +19,7 @@ import {
   activeMemoryReviewExplanation,
   activeMemoryVersionPresentation,
   pendingReviewHeadline,
+  pendingReviewSourceLabel,
   pendingReviewTone,
   type MemoryReviewSection,
   type PendingMemoryReviewState,
@@ -73,6 +75,18 @@ export function PendingMemoryReviewPanel({
           <Descriptions.Item label="Approver needed">
             {pending.reviewerRequirement ?? 'An authorized administrator or reviewer'}
           </Descriptions.Item>
+          <Descriptions.Item label="Source">
+            {pendingReviewSourceLabel(pending.sourceKind)}
+          </Descriptions.Item>
+          <Descriptions.Item label="Version">
+            Current {pending.activeVersion ?? 'not reported'} · Proposed{' '}
+            {pending.proposalVersion ?? 'pending'}
+          </Descriptions.Item>
+          {pending.conflict && (
+            <Descriptions.Item label="Conflict">
+              <Text type="warning">{pending.conflict}</Text>
+            </Descriptions.Item>
+          )}
           <Descriptions.Item label="Eligible approvers">
             {reviewers.length > 0 ? (
               <Space wrap>

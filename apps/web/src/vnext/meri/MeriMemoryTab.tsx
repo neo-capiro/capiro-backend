@@ -4,7 +4,6 @@ import {
   memoryCandidateTargetLabel,
   memoryQueueErrorMessage,
   memoryReviewCandidateTitle,
-  memoryReviewOutcomeMessage,
   ownedMemoryCandidateStatusLabel,
   ownedMemoryCandidateTitle,
   type OwnedMemoryCandidate,
@@ -13,6 +12,11 @@ import {
   type ReviewQueueResponse,
 } from '../../components/memory-queue-shared.js';
 import { useApi } from '../../lib/use-api.js';
+import { httpErrorStatus } from '../../lib/query-retry.js';
+import type {
+  MemoryReviewDetail,
+  MemoryReviewInboxPage,
+} from '../../components/memory-review-inbox-shared.js';
 import { useCapiroToast } from '../components/feedback/toast.js';
 import { MeriIcon } from './meri-icons.js';
 import { MeriPanelState } from './MeriPanelState.js';
@@ -65,7 +69,43 @@ function kindLabel(kind: string): string {
   if (kind === 'correction') return 'CORRECTION';
   if (kind === 'restore') return 'RESTORE';
   if (kind === 'contradiction') return 'CONTRADICTION';
+  if (kind === 'learning_signal_conflict') return 'SOURCE CONFLICT';
   return kind.replace(/_/g, ' ').toUpperCase();
+}
+
+type ReviewDecision = 'approve' | 'reject' | 'request-changes' | 'resolve-conflict';
+type ConflictResolution =
+  | 'duplicate'
+  | 'corroborate_existing'
+  | 'supersede_existing'
+  | 'conflict_requires_review';
+
+interface ReviewDecisionInput {
+  id: string;
+  decision: ReviewDecision;
+  reason?: string;
+  resolution?: ConflictResolution;
+}
+
+interface DecisionNotice {
+  input: ReviewDecisionInput;
+  tone: 'error' | 'warning' | 'success';
+  title: string;
+  message: string;
+  ambiguous: boolean;
+  detail?: MemoryReviewDetail;
+}
+
+function decisionObserved(detail: MemoryReviewDetail, decision: ReviewDecision): boolean {
+  if (decision === 'approve' || decision === 'resolve-conflict') {
+    return detail.status === 'approved';
+  }
+  if (decision === 'reject') return detail.status === 'rejected';
+  return detail.status === 'changes_requested';
+}
+
+function sourceLabel(sourceKind: string): string {
+  return sourceKind.replace(/_/g, ' ');
 }
 
 function reviewBody(candidate: ReviewableMemoryCandidate): Array<{ heading: string; body: string }> {
@@ -182,8 +222,25 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
   const qc = useQueryClient();
   const toast = useCapiroToast();
   const { review, proposals } = useMeriGovernedMemoryQueues();
+  const history = useQuery<MemoryReviewInboxPage>({
+    queryKey: ['memory-review-inbox', 'history', 'meri'],
+    queryFn: async () =>
+      (
+        await api.get<MemoryReviewInboxPage>('/api/memory/review/inbox', {
+          params: { view: 'history', limit: 25 },
+        })
+      ).data,
+    staleTime: 10_000,
+    retry: 1,
+  });
   const [rejecting, setRejecting] = useState<ReviewableMemoryCandidate | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [requestingChanges, setRequestingChanges] = useState<ReviewableMemoryCandidate | null>(null);
+  const [changeReason, setChangeReason] = useState('');
+  const [resolvingConflict, setResolvingConflict] = useState<ReviewableMemoryCandidate | null>(null);
+  const [conflictResolution, setConflictResolution] =
+    useState<ConflictResolution>('conflict_requires_review');
+  const [decisionNotice, setDecisionNotice] = useState<DecisionNotice | null>(null);
 
   const activeMemory = (packet?.items ?? []).filter(isGovernedMemoryItem);
   const reviewCandidates = review.data?.enabled ? review.data.candidates : [];
@@ -193,6 +250,7 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
     for (const key of [
       'memory-review-candidates',
       'memory-own-proposals',
+      'memory-review-inbox',
       'memory-review-summary',
       'memory-governance-overview',
       'memory-governance-items',
@@ -203,20 +261,83 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
     }
   };
 
+  const reconcileDecision = async (
+    input: ReviewDecisionInput,
+    error?: unknown,
+  ) => {
+    let detail: MemoryReviewDetail | undefined;
+    try {
+      const observed = (
+        await api.get<MemoryReviewDetail>(`/api/memory/review/inbox/candidates/${input.id}`)
+      ).data;
+      if (observed && typeof observed.status === 'string') detail = observed;
+    } catch {
+      // A failed status read never licenses replaying the write.
+    }
+
+    if (detail && decisionObserved(detail, input.decision)) {
+      setDecisionNotice({
+        input,
+        tone: 'success',
+        title: 'Decision confirmed',
+        message: 'The canonical review record confirms the persisted decision.',
+        ambiguous: false,
+        detail,
+      });
+      toast.success(
+        input.decision === 'approve' || input.decision === 'resolve-conflict'
+          ? 'Memory approval confirmed'
+          : input.decision === 'reject'
+            ? 'Memory rejection confirmed'
+            : 'Change request confirmed',
+      );
+      invalidateMemory();
+      return;
+    }
+
+    const status = httpErrorStatus(error);
+    const definitive = status === 403 || status === 409;
+    const failure = error
+      ? memoryQueueErrorMessage(error)
+      : 'The decision response was accepted but its status could not be confirmed.';
+    setDecisionNotice({
+      input,
+      tone: definitive ? 'error' : 'warning',
+      title:
+        status === 403
+          ? 'Review permission denied'
+          : status === 409
+            ? 'Review changed before this decision'
+            : 'Decision status unconfirmed',
+      message: definitive
+        ? `${failure} The proposal was not reported as changed.`
+        : `${failure} Check status before taking any further action; the decision will not be sent again automatically.`,
+      ambiguous: !definitive,
+      ...(detail ? { detail } : {}),
+    });
+    invalidateMemory();
+  };
+
   const decision = useMutation({
-    mutationFn: async (input: { id: string; decision: 'approve' | 'reject'; reason?: string }) =>
+    mutationFn: async (input: ReviewDecisionInput) =>
       (
         await api.post('/api/memory/review/candidates/' + input.id + '/' + input.decision, {
           ...(input.reason ? { reason: input.reason } : {}),
+          ...(input.resolution ? { decision: input.resolution } : {}),
         })
       ).data as Record<string, unknown>,
-    onSuccess: (result, input) => {
-      toast.success(memoryReviewOutcomeMessage(result, input.decision));
+    onSuccess: async (_result, input) => {
       setRejecting(null);
       setRejectReason('');
-      invalidateMemory();
+      setRequestingChanges(null);
+      setChangeReason('');
+      setResolvingConflict(null);
+      await reconcileDecision(input);
     },
-    onError: (error: unknown) => toast.error(memoryQueueErrorMessage(error)),
+    onError: async (error: unknown, input) => {
+      toast.error(memoryQueueErrorMessage(error));
+      await reconcileDecision(input, error);
+    },
   });
 
   const withdraw = useMutation({
@@ -302,6 +423,29 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
         {!review.isLoading && !review.isError && reviewCandidates.length === 0 ? (
           <MeriPanelState tone="empty">Nothing is waiting for your review.</MeriPanelState>
         ) : null}
+        {decisionNotice ? (
+          <MeriPanelState tone={decisionNotice.tone === 'error' ? 'error' : 'loading'}>
+            <strong>{decisionNotice.title}</strong>
+            <div>{decisionNotice.message}</div>
+            {decisionNotice.detail ? (
+              <div style={{ marginTop: 6, fontFamily: MONO, fontSize: 10 }}>
+                RECEIPT {decisionNotice.detail.candidateId} ·{' '}
+                {decisionNotice.detail.status.toUpperCase()}
+                {decisionNotice.detail.decidedAt ? ` · ${decisionNotice.detail.decidedAt}` : ''}
+              </div>
+            ) : null}
+            {decisionNotice.ambiguous ? (
+              <button
+                type="button"
+                className="vnext-meri__rail-action-btn"
+                style={{ marginTop: 8 }}
+                onClick={() => void reconcileDecision(decisionNotice.input)}
+              >
+                Check current status
+              </button>
+            ) : null}
+          </MeriPanelState>
+        ) : null}
         <div style={{ display: 'grid', gap: 8 }}>
           {reviewCandidates.map((candidate) => (
             <QueueCard
@@ -314,7 +458,10 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
                   {candidate.capabilities.approve ? (
                     <QueueButton
                       tone="primary"
-                      disabled={decision.isPending}
+                      disabled={
+                        decision.isPending ||
+                        (decisionNotice?.input.id === candidate.id && decisionNotice.ambiguous)
+                      }
                       onClick={() => decision.mutate({ id: candidate.id, decision: 'approve' })}
                     >
                       Approve
@@ -323,10 +470,41 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
                   {candidate.capabilities.reject ? (
                     <QueueButton
                       tone="danger"
-                      disabled={decision.isPending}
+                      disabled={
+                        decision.isPending ||
+                        (decisionNotice?.input.id === candidate.id && decisionNotice.ambiguous)
+                      }
                       onClick={() => rejectCandidate(candidate)}
                     >
                       Reject
+                    </QueueButton>
+                  ) : null}
+                  {candidate.capabilities.requestChanges ? (
+                    <QueueButton
+                      disabled={
+                        decision.isPending ||
+                        (decisionNotice?.input.id === candidate.id && decisionNotice.ambiguous)
+                      }
+                      onClick={() => {
+                        setChangeReason('');
+                        setRequestingChanges(candidate);
+                      }}
+                    >
+                      Request changes
+                    </QueueButton>
+                  ) : null}
+                  {candidate.capabilities.resolveConflict ? (
+                    <QueueButton
+                      disabled={
+                        decision.isPending ||
+                        (decisionNotice?.input.id === candidate.id && decisionNotice.ambiguous)
+                      }
+                      onClick={() => {
+                        setConflictResolution('conflict_requires_review');
+                        setResolvingConflict(candidate);
+                      }}
+                    >
+                      Resolve conflict
                     </QueueButton>
                   ) : null}
                 </>
@@ -340,6 +518,20 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
                   </p>
                 </div>
               ))}
+              <div style={{ marginTop: 8, color: '#667085', fontSize: 10.5, lineHeight: 1.5 }}>
+                <div>Source: {sourceLabel(candidate.sourceKind)}</div>
+                <div>Proposed by: {candidate.workflow?.submittedBy.name ?? candidate.proposedByUserId}</div>
+                <div>Review reference: {candidate.workflow?.requestId ?? candidate.id}</div>
+                <div>Current reviewer: {candidate.workflow?.assignedReviewer?.name ?? 'Not assigned'}</div>
+                {candidate.conflict ? (
+                  <div>
+                    Conflict: {candidate.conflict.conflictStatus} against memory{' '}
+                    {candidate.conflict.contradictsMemoryItemId}
+                  </div>
+                ) : candidate.candidateKind === 'contradiction' ? (
+                  <div>Conflict: proposed contradiction requires governed review</div>
+                ) : null}
+              </div>
               {rejecting?.id === candidate.id ? (
                 <div style={{ marginTop: 10 }}>
                   <textarea
@@ -384,6 +576,79 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
                   </div>
                 </div>
               ) : null}
+              {requestingChanges?.id === candidate.id ? (
+                <div style={{ marginTop: 10 }}>
+                  <textarea
+                    value={changeReason}
+                    onChange={(event) => setChangeReason(event.target.value)}
+                    aria-label="Requested changes"
+                    placeholder="Explain the correction or evidence needed for second review"
+                    maxLength={500}
+                    rows={3}
+                    style={{
+                      width: '100%',
+                      resize: 'vertical',
+                      border: '1px solid #D7DCE3',
+                      borderRadius: 8,
+                      padding: 9,
+                      color: '#344054',
+                      font: 'inherit',
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <QueueButton onClick={() => setRequestingChanges(null)}>Cancel</QueueButton>
+                    <QueueButton
+                      tone="primary"
+                      disabled={!changeReason.trim() || decision.isPending}
+                      onClick={() =>
+                        decision.mutate({
+                          id: candidate.id,
+                          decision: 'request-changes',
+                          reason: changeReason.trim(),
+                        })
+                      }
+                    >
+                      Send for correction
+                    </QueueButton>
+                  </div>
+                </div>
+              ) : null}
+              {resolvingConflict?.id === candidate.id ? (
+                <div style={{ marginTop: 10 }}>
+                  <label style={{ display: 'grid', gap: 5, color: '#475467', fontSize: 11 }}>
+                    Governed conflict decision
+                    <select
+                      aria-label="Governed conflict decision"
+                      value={conflictResolution}
+                      onChange={(event) =>
+                        setConflictResolution(event.target.value as ConflictResolution)
+                      }
+                      style={{ border: '1px solid #D7DCE3', borderRadius: 8, padding: 8 }}
+                    >
+                      <option value="duplicate">Duplicate current memory</option>
+                      <option value="corroborate_existing">Corroborates current memory</option>
+                      <option value="supersede_existing">Supersede current memory</option>
+                      <option value="conflict_requires_review">Keep conflict open for review</option>
+                    </select>
+                  </label>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <QueueButton onClick={() => setResolvingConflict(null)}>Cancel</QueueButton>
+                    <QueueButton
+                      tone="primary"
+                      disabled={decision.isPending}
+                      onClick={() =>
+                        decision.mutate({
+                          id: candidate.id,
+                          decision: 'resolve-conflict',
+                          resolution: conflictResolution,
+                        })
+                      }
+                    >
+                      Confirm conflict decision
+                    </QueueButton>
+                  </div>
+                </div>
+              ) : null}
             </QueueCard>
           ))}
         </div>
@@ -404,7 +669,7 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
           <MeriPanelState tone="empty">You have not proposed an institutional memory change.</MeriPanelState>
         ) : null}
         <div style={{ display: 'grid', gap: 8 }}>
-          {ownedProposals.slice(0, 5).map((candidate) => (
+          {ownedProposals.map((candidate) => (
             <QueueCard
               key={candidate.id}
               eyebrow={scopeLabel(candidate.scope) + ' · ' + ownedMemoryCandidateStatusLabel(candidate.status).toUpperCase()}
@@ -436,21 +701,52 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
                   </div>
                 ))
               )}
+              {candidate.status !== 'pending' ? (
+                <div
+                  aria-label="Memory decision receipt"
+                  style={{ marginTop: 8, color: '#667085', fontFamily: MONO, fontSize: 9.5 }}
+                >
+                  DECISION RECEIPT · {candidate.id} ·{' '}
+                  {ownedMemoryCandidateStatusLabel(candidate.status).toUpperCase()}
+                  {candidate.decidedAt ? ` · ${candidate.decidedAt}` : ''}
+                </div>
+              ) : null}
             </QueueCard>
           ))}
         </div>
       </section>
 
-      <a
-        href="/settings/memory"
-        target="_blank"
-        rel="noreferrer"
-        className="vnext-meri__rail-action-btn"
-        style={{ justifyContent: 'center', textDecoration: 'none' }}
-      >
-        <MeriIcon name="ArrowUpRight" size={14} color="#344054" />
-        Open Governance Center
-      </a>
+      <section>
+        <div className="vnext-meri__section-label" style={{ marginBottom: 8 }}>
+          DECISION RECEIPTS · {history.data?.items?.length ?? 0}
+        </div>
+        <p style={{ margin: '0 0 10px', color: '#667085', fontSize: 12, lineHeight: 1.55 }}>
+          Persisted canonical review decisions available to you after reload.
+        </p>
+        {history.isLoading ? <MeriPanelState tone="loading">Loading decision receipts…</MeriPanelState> : null}
+        {history.isError ? (
+          <MeriPanelState tone="error">Decision receipts could not be loaded.</MeriPanelState>
+        ) : null}
+        <div style={{ display: 'grid', gap: 8 }}>
+          {(history.data?.items ?? []).map((item) => (
+            <QueueCard
+              key={item.reviewRequestId}
+              eyebrow={`${scopeLabel(item.scope)} · ${item.status.replace(/_/g, ' ').toUpperCase()}`}
+              title={item.title}
+              target={item.client?.name ?? (item.scope === 'firm' ? 'Firm memory' : 'Client unavailable')}
+            >
+              <div aria-label="Memory decision receipt" style={{ marginTop: 8, color: '#667085', fontSize: 10.5, lineHeight: 1.5 }}>
+                <div>Review reference: {item.candidateId}</div>
+                <div>Proposed by: {item.submittedBy.name}</div>
+                <div>Revision: {item.revisionNumber}</div>
+                <div>Decided by: {item.decidedBy?.name ?? 'Canonical review service'}</div>
+                <div>Decided at: {item.decidedAt ?? 'Timestamp unavailable'}</div>
+              </div>
+            </QueueCard>
+          ))}
+        </div>
+      </section>
+
     </div>
   );
 }
