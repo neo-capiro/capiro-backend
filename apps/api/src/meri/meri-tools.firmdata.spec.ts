@@ -502,6 +502,7 @@ describe('search_sam_opportunities', () => {
 describe('query_debriefs', () => {
   it('requires clientId and maps the canonical exact owner page without summarizing', async () => {
     const m = makeMocks();
+    m.tx.$queryRawUnsafe.mockResolvedValue([{ allowed: true }] as never);
     await expect(m.service.execute(ctx, 'query_debriefs', {})).rejects.toBeInstanceOf(
       BadRequestException,
     );
@@ -536,6 +537,7 @@ describe('query_debriefs', () => {
     expect(result.debriefs[0]!.body).toBe(body);
     expect(result.debriefs[0]!.bodyCoverage.complete).toBe(true);
     expect(m.engagement.listClientDebriefs).not.toHaveBeenCalled();
+    expect(m.tx.$queryRawUnsafe).toHaveBeenCalledTimes(2);
   });
 });
 
