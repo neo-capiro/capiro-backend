@@ -54,12 +54,10 @@ jobs:
         run: git diff --check HEAD^
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9.12.0
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: '22.22'
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
@@ -70,6 +68,8 @@ jobs:
           pnpm --filter @capiro/meriv2-core build
 
       - name: Validate and generate Prisma client
+        env:
+          DATABASE_URL: postgresql://ci_dummy:ci_dummy@127.0.0.1:1/ci_schema_validation_only?schema=public
         run: |
           pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
           pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
