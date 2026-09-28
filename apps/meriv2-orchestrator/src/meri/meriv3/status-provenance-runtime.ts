@@ -69,6 +69,46 @@ export interface StatusProvenanceRuntimeResult {
   failureReason: string | null;
 }
 
+/**
+ * Enforce from already-retained authoritative results only. This path performs
+ * no lookup and is safe after aggregate acquisition has stopped. Claims without
+ * retained support are localized as unverified rather than released unchanged.
+ */
+export function enforceRetainedStatusProvenance(input: {
+  reply: string;
+  retainedResults: readonly unknown[];
+}): StatusProvenanceRuntimeResult {
+  const startedAt = Date.now();
+  const claims = detectFedrampStatusClaims(input.reply);
+  const outcomes: Record<StatusCheckOutcome, number> = {
+    exact: 0,
+    paraphrased: 0,
+    mismatch: 0,
+    unsupported: 0,
+    negative_unsupported: 0,
+  };
+  const evidence = claims.flatMap((claim) =>
+    input.retainedResults.flatMap((result) => {
+      if (!result || typeof result !== 'object' || Array.isArray(result)) return [];
+      const item = evidenceFromResult(result as StatusToolResult, claim.entityMention);
+      return item ? [item] : [];
+    }),
+  );
+  const checked = checkFedrampStatusClaims(claims, evidence);
+  for (const item of checked) outcomes[item.outcome] += 1;
+  const fullySupported = checked.every(
+    (item) => item.evidence !== null && item.outcome !== 'negative_unsupported',
+  );
+  return {
+    reply: enforceFedrampStatusReply(input.reply, checked),
+    outcomes,
+    lookupOk: fullySupported,
+    latencyMs: Date.now() - startedAt,
+    detected: claims.length,
+    failureReason: fullySupported ? null : 'retained_evidence_only',
+  };
+}
+
 export async function runStatusProvenance(input: {
   reply: string;
   mode: 'shadow' | 'enforce';

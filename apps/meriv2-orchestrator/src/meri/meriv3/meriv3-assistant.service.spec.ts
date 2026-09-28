@@ -243,6 +243,12 @@ describe('MeriV3AssistantService', () => {
     delete process.env.MERI_JEV_PROVIDER_SURFACES;
     delete process.env.MERI_JEV_TASKS;
     delete process.env.MERI_CHAT_EVIDENCE_JUDGE;
+    delete process.env.MERI_MATCH_LABEL_MODE;
+    delete process.env.MERI_MATCH_LABEL_TENANTS;
+    delete process.env.MERI_MATCH_LABEL_SURFACES;
+    delete process.env.MERI_STATUS_PROVENANCE_MODE;
+    delete process.env.MERI_STATUS_PROVENANCE_TENANTS;
+    delete process.env.MERI_STATUS_PROVENANCE_SURFACES;
     delete process.env.TYPESAFE_API_KEY;
     resetMeriV3RolloutDiagnosticsForTest();
     jest.restoreAllMocks();
@@ -900,6 +906,108 @@ describe('MeriV3AssistantService', () => {
     expect(synthesis.instructions).toContain('admitted governed context evidence');
     expect(synthesis.instructions).toContain('Preserve their source references');
     expect(synthesis.instructions).toContain('label any remaining material gap');
+  });
+
+  test('rejects incomplete forced no-tools synthesis text and returns a deterministic partial once', async () => {
+    process.env.OPENAI_API_KEY = 'test-key';
+    const providerResponses = [
+      {
+        id: 'resp-empty-draft',
+        status: 'completed',
+        model: 'gpt-5.6',
+        output: [{ type: 'message', role: 'assistant', content: [] }],
+        usage: { input_tokens: 8, output_tokens: 1 },
+      },
+      {
+        id: 'resp-incomplete-synthesis',
+        status: 'incomplete',
+        model: 'gpt-5.6',
+        incomplete_details: { reason: 'max_output_tokens' },
+        output: [{
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: 'UNRELEASED PARTIAL SYNTHESIS' }],
+        }],
+        usage: { input_tokens: 8, output_tokens: 4 },
+      },
+    ];
+    global.fetch = jest.fn(async () =>
+      new Response(JSON.stringify(providerResponses.shift()), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })) as typeof fetch;
+    const assistant = build(registry([]), new OpenAiResponsesClient());
+
+    const result = await assistant.run(context, {
+      toolPolicy: 'none',
+      messages: [{ role: 'user', text: 'Prepare the answer.' }],
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(result.reply).not.toContain('UNRELEASED PARTIAL SYNTHESIS');
+    expect(result.reply).toContain('The synthesis response was incomplete');
+    expect(result.reply).toContain('remaining requested work is incomplete');
+    expect(result.telemetry).toMatchObject({ partial: true });
+  });
+
+  test('runs local enforce controls after runtime exhaustion without another model or tool call', async () => {
+    const tenantId = '11111111-1111-4111-8111-111111111111';
+    process.env.MERI_MATCH_LABEL_MODE = 'enforce';
+    process.env.MERI_MATCH_LABEL_TENANTS = tenantId;
+    process.env.MERI_MATCH_LABEL_SURFACES = 'chat';
+    process.env.MERI_STATUS_PROVENANCE_MODE = 'enforce';
+    process.env.MERI_STATUS_PROVENANCE_TENANTS = tenantId;
+    process.env.MERI_STATUS_PROVENANCE_SURFACES = 'chat';
+    const calls = Array.from({ length: 60 }, (_, index) => ({
+      type: 'function_call' as const,
+      call_id: `exhaust-${index}`,
+      name: 'search_memory',
+      arguments: JSON.stringify({ query: `q-${index}` }),
+      status: 'completed',
+    }));
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(response({ output: calls, outputText: '', functionCalls: calls }))
+      .mockResolvedValueOnce(response({
+        outputText:
+          'Direct match: Pursue secure sustainment. Acme Cloud is FedRAMP approved.',
+      }));
+    const invoke = jest.fn();
+    const assistant = build(
+      registry([
+        { name: 'search_memory', readOnly: true },
+        { name: 'get_certification_status', readOnly: true },
+      ], invoke),
+      complete,
+    );
+    global.fetch = jest.fn(async () =>
+      new Response(JSON.stringify({ schemas: [
+        {
+          name: 'search_memory',
+          description: 'Search memory',
+          input_schema: { type: 'object', properties: { query: {} } },
+        },
+        {
+          name: 'get_certification_status',
+          description: 'Get certification status',
+          input_schema: { type: 'object', properties: { program: {}, query: {} } },
+        },
+      ] }), { status: 200 })) as typeof fetch;
+
+    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      assistant.run({ ...context, tenantId } as MeriContext, {
+        conversationId: 'enforced-exhaustion-thread',
+        reasoningMode: 'fast',
+        messages: [{ role: 'user', text: 'Find and qualify the opportunity.' }],
+      }),
+    );
+
+    expect(complete).toHaveBeenCalledTimes(2);
+    expect(invoke).not.toHaveBeenCalled();
+    expect(result.reply).not.toContain('Direct match:');
+    expect(result.reply).toContain('Insufficient evidence:');
+    expect(result.reply).toContain('unverified against the FedRAMP Marketplace');
+    expect(result.telemetry).toMatchObject({ partial: true, finishReason: 'runtime_tool_calls' });
   });
 
   test('uses only the model-visible tool projection for citation and grounding evidence', async () => {

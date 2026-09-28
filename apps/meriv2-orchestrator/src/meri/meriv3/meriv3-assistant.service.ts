@@ -86,6 +86,7 @@ import {
 import {
   OpenAiResponsesClient,
   anthropicSchemaToResponsesTool,
+  completedTextResponseFailure,
   readOpenAiResponsesErrorTelemetry,
 } from './openai-responses.client.js';
 import { resolveMeriV3ReasoningProfile } from './meriv3-reasoning.js';
@@ -118,7 +119,10 @@ import {
   buildLiteralAuditContext,
   validateLiteralAuditCorrections,
 } from './meriv3-audit-contract.js';
-import { runStatusProvenance } from './status-provenance-runtime.js';
+import {
+  enforceRetainedStatusProvenance,
+  runStatusProvenance,
+} from './status-provenance-runtime.js';
 import { createChatDecisionProviders, createClientFitClient, createPassageSelectionClient } from '../jev/jev-provider.factory.js';
 import { assessReleasedClaims } from '../jev/shadow-claim-assessor.js';
 import { applyMatchLabelControl, createClientFitEvaluator, matchLabelEvent } from './match-label-control.js';
@@ -400,6 +404,14 @@ function errorReason(error: unknown): string {
   return (error instanceof Error ? error.message : String(error)).slice(0, 300);
 }
 
+class ForcedSynthesisBoundaryError extends Error {
+  readonly name = 'ForcedSynthesisBoundaryError';
+
+  constructor(readonly failure: string) {
+    super(`Forced synthesis response rejected: ${failure}`);
+  }
+}
+
 function boundedPartialReply(
   reason: string | null | undefined,
   ledgerEntries: LedgerEntry[],
@@ -414,6 +426,20 @@ function boundedPartialReply(
       ? ['Retained supported findings/evidence from completed reads:', ...retained].join('\n')
       : 'No tool finding was completed before the bound was reached.',
     'No additional tool or write was started after the stop. The remaining requested work is incomplete.',
+  ].join('\n\n');
+}
+
+function incompleteSynthesisPartialReply(ledgerEntries: LedgerEntry[]): string {
+  const retained = ledgerEntries.slice(-4).map((entry) => {
+    const summary = entry.serialized.replace(/\s+/g, ' ').trim().slice(0, 320);
+    return `- ${entry.tool}: ${summary}${entry.serialized.length > summary.length ? '…' : ''}`;
+  });
+  return [
+    'The synthesis response was incomplete, so I did not release its partial text.',
+    retained.length
+      ? ['Retained supported findings/evidence from completed reads:', ...retained].join('\n')
+      : 'No supported tool finding was retained for a partial answer.',
+    'No additional tool or write was started. The remaining requested work is incomplete.',
   ].join('\n\n');
 }
 
@@ -1240,6 +1266,8 @@ export class MeriV3AssistantService {
         computeAiCostUsd(synthesis.model, synthesis.usage.inputTokens, synthesis.usage.outputTokens),
       );
       void this.meterRound(ctx, synthesis.model, synthesis.usage, synthesis.usedTenantKey);
+      const boundaryFailure = completedTextResponseFailure(synthesis);
+      if (boundaryFailure) throw new ForcedSynthesisBoundaryError(boundaryFailure);
       return synthesis.outputText;
     };
 
@@ -1565,6 +1593,14 @@ export class MeriV3AssistantService {
         (error instanceof Error && error.name === 'ResearchRunInactiveError')
       )
         finalText = '';
+      else if (error instanceof ForcedSynthesisBoundaryError) {
+        telemetry = {
+          ...telemetry,
+          partial: true,
+          finishReason: 'incomplete_synthesis_response',
+        };
+        finalText = incompleteSynthesisPartialReply(ledgerEntries);
+      }
       else if (
         !finalText &&
         (gatheredToolOutput || toolsUsed.length > 0) &&
@@ -1730,7 +1766,7 @@ export class MeriV3AssistantService {
       }
     }
 
-    if (matchLabelMode === 'enforce' && released.reply && !runtimeBudget.acquisitionStopped) {
+    if (matchLabelMode === 'enforce' && released.reply) {
       const started = Date.now();
       const matchLedger = buildEvidenceLedger({
         output: released.reply,
@@ -1738,16 +1774,26 @@ export class MeriV3AssistantService {
         citations: released.citations,
         plan: evidencePlan,
       }, 'matchLabelEnforce');
-      const matchResult = await applyMatchLabelControl({
+      let matchResult = await applyMatchLabelControl({
         mode: 'enforce',
         reply: released.reply,
         citations: released.citations,
         evidence: matchLedger.evidence,
-        ...(clientFit.client ? { evaluate: createClientFitEvaluator({
+        ...(!runtimeBudget.acquisitionStopped && clientFit.client ? { evaluate: createClientFitEvaluator({
           provider: clientFit.client, tenantId: ctx.tenantId, deadlineAt: started + 8_000,
           signal: opts.signal,
         }) } : {}),
       });
+      // A model-budget failure must not turn enforce into pass-through. Local
+      // evidence derivation remains valid after aggregate acquisition stops.
+      if (matchResult.failureReason) {
+        matchResult = await applyMatchLabelControl({
+          mode: 'enforce',
+          reply: released.reply,
+          citations: released.citations,
+          evidence: matchLedger.evidence,
+        });
+      }
       released = { ...released, reply: matchResult.reply };
       if (matchResult.failureReason) {
         this.logStructured('warn', 'meri.match_label.failed', {
@@ -1757,16 +1803,31 @@ export class MeriV3AssistantService {
       }
     }
 
-    // Enforce is pre-release and bounded. Any lookup/deadline failure returns the original reply.
-    if (statusProvenanceMode === 'enforce' && released.reply && !runtimeBudget.acquisitionStopped) {
-      const statusResult = await runStatusProvenance({
-        reply: released.reply,
-        mode: 'enforce',
-        registry: withToolBudget(this.registry, runtimeBudget, budgetScope),
-        ctx,
-        deadlineAt: Math.min(opts.deadlineAt ?? Date.now() + 8_000, Date.now() + 8_000),
-        signal: opts.signal,
-      });
+    if (statusProvenanceMode === 'enforce' && released.reply) {
+      const retainedStatusResults = ledgerEntries
+        .filter((entry) => entry.tool === 'get_certification_status')
+        .map((entry) => entry.result);
+      let statusResult = runtimeBudget.acquisitionStopped
+        ? enforceRetainedStatusProvenance({
+            reply: released.reply,
+            retainedResults: retainedStatusResults,
+          })
+        : await runStatusProvenance({
+            reply: released.reply,
+            mode: 'enforce',
+            registry: withToolBudget(this.registry, runtimeBudget, budgetScope),
+            ctx,
+            deadlineAt: Math.min(opts.deadlineAt ?? Date.now() + 8_000, Date.now() + 8_000),
+            signal: opts.signal,
+          });
+      // If authoritative lookup cannot fit or fails, use retained evidence and
+      // qualify unsupported claims rather than silently passing them through.
+      if (!statusResult.lookupOk) {
+        statusResult = enforceRetainedStatusProvenance({
+          reply: released.reply,
+          retainedResults: retainedStatusResults,
+        });
+      }
       released = { ...released, reply: statusResult.reply };
       if (!statusResult.lookupOk) {
         this.logStructured('warn', 'meri.status_provenance.failed', {
