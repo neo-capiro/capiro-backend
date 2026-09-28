@@ -3741,13 +3741,13 @@ export function isMeriMailReadTool(name: string | undefined): boolean {
 
 export const MERI_CAPABILITY_REGISTRY = [
   {
-  name: 'manage_research_portfolio',
-  description:
-    'Execute a selected native Research Portfolio UI action within the current server-owned chat scope. Read current revision/preview first; writes require explicit user confirmation and original idempotency identity. Supports portfolio lifecycle, own authorized grant/link/member decisions, rule previews/publication, review/annual decisions, retained CSV import actions, own subscriptions/bookmarks, qualified direct-PE subset fit refresh, dormant watch conversion, owner-private saved comparisons attached to this Research Portfolio, explicit saved selection additions, and safe output/checkpoint reconciliation. Domain services enforce current permissions and return actual receipts; never retarget chat scope, send messages, invent recompute support, or widen tenant/admin authority.',
-  backend: 'meri',
-  readOnly: false,
-  surfaces: ['full_chat'],
-},
+    name: 'manage_research_portfolio',
+    description:
+      'Execute a selected native Research Portfolio UI action within the current server-owned chat scope. Read current revision/preview first; writes require explicit user confirmation and original idempotency identity. Supports portfolio lifecycle, own authorized grant/link/member decisions, rule previews/publication, review/annual decisions, retained CSV import actions, own subscriptions/bookmarks, qualified direct-PE subset fit refresh, dormant watch conversion, owner-private saved comparisons attached to this Research Portfolio, explicit saved selection additions, and safe output/checkpoint reconciliation. Domain services enforce current permissions and return actual receipts; never retarget chat scope, send messages, invent recompute support, or widen tenant/admin authority.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
   {
     name: 'get_research_portfolio',
     description:
@@ -3829,13 +3829,13 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat'],
   },
   {
-  name: 'get_research_portfolio_fit',
-  description:
-    'Read current client-link fit for the supported direct qualified canonical PE association subset. Percentage is matched supported PE members, not general relevance; unsupported members and missing facts make partial/unavailable explicit. Persisted version UUID and basis fingerprint are optional; never imply durable history when absent.',
-  backend: 'meri',
-  readOnly: true,
-  surfaces: ['full_chat'],
-},
+    name: 'get_research_portfolio_fit',
+    description:
+      'Read current client-link fit for the supported direct qualified canonical PE association subset. Percentage is matched supported PE members, not general relevance; unsupported members and missing facts make partial/unavailable explicit. Persisted version UUID and basis fingerprint are optional; never imply durable history when absent.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
   {
     name: 'get_research_portfolio_reviews',
     description:
@@ -3877,21 +3877,21 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat'],
   },
   {
-  name: 'prepare_research_portfolio_brief',
-  description:
-    'Create an owner-private durable unreviewed editable brief draft using current Research Portfolio evidence after explicit confirmed:true approval and original operationKey. Return actual artifact ID, source lineage and optional real owned internal meeting prep/task IDs; no provider sends or automatic task selection.',
-  backend: 'meri',
-  readOnly: false,
-  surfaces: ['full_chat'],
-},
+    name: 'prepare_research_portfolio_brief',
+    description:
+      'Create an owner-private durable unreviewed editable brief draft using current Research Portfolio evidence after explicit confirmed:true approval and original operationKey. Return actual artifact ID, source lineage and optional real owned internal meeting prep/task IDs; no provider sends or automatic task selection.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
   {
-  name: 'prepare_research_portfolio_meeting',
-  description:
-    'Create an owner-private durable unreviewed editable meeting draft using current Research Portfolio evidence after explicit confirmed:true approval and original operationKey. Return actual artifact ID, source lineage and optional real owned internal meeting prep/task IDs; no provider sends or automatic task selection.',
-  backend: 'meri',
-  readOnly: false,
-  surfaces: ['full_chat'],
-},
+    name: 'prepare_research_portfolio_meeting',
+    description:
+      'Create an owner-private durable unreviewed editable meeting draft using current Research Portfolio evidence after explicit confirmed:true approval and original operationKey. Return actual artifact ID, source lineage and optional real owned internal meeting prep/task IDs; no provider sends or automatic task selection.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
   {
     name: 'get_research_evidence',
     description:
