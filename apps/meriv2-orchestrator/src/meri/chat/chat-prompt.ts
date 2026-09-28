@@ -93,11 +93,24 @@ export function buildChatDateGrounding(timeZone: string | undefined, now: Date):
   );
 }
 
+export interface DurableSafeReadOutcome {
+  executionId: string;
+  providerCallId: string;
+  tool: string;
+  toolVersion: string;
+  classifier: 'complete' | 'empty';
+  sequence: number;
+  receiptId: string;
+  replayed: boolean;
+}
+
 export interface ChatStep {
   tool: string;
   label: string;
   detail?: string;
   status: 'done' | 'error' | 'pending_approval' | 'blocked';
+  /** Server-authored post-execution identity; present only for committed safe reads. */
+  durableSafeRead?: DurableSafeReadOutcome;
 }
 
 /**
@@ -162,13 +175,16 @@ export interface ChatResult {
  * deltas of the final reply are a deliberate follow-up.
  */
 export type ChatStreamEvent =
-  | { type: 'tool_call'; tool: string; label: string }
+  | { type: 'tool_call'; tool: string; label: string; providerCallId?: string }
   | {
       type: 'tool_done';
       tool: string;
       label: string;
       status: ChatStep['status'];
       detail?: string;
+      durableSafeRead?: DurableSafeReadOutcome;
+      /** Captured owner payload is server-to-server research data, never a browser contract. */
+      ownerResult?: unknown;
     }
   | {
       type: 'pending_approval';

@@ -6,6 +6,7 @@ import type {
   MeriGovernedTurnContext,
   MeriEvidenceManifest,
 } from '@capiro/meriv2-core';
+import { classifyApiToolReadOutcome } from '@capiro/shared/meri-read-outcome';
 import { AiCredentialResolverService } from '../ai-credentials/ai-credential-resolver.service.js';
 import { MeriConversationEvidenceService } from './meri-conversation-evidence.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -88,19 +89,53 @@ export class MeriV3ResearchRunner {
   }> {
     const result = await this.complete(ctx, input, auth, 'read-only', onEvent);
     const ledgerEntries = result.ledgerEntries ?? [];
-    // The current done frame has no stable post-execution call identity on
-    // either a step or its ledger entry. Tool-name membership cannot prove
-    // which invocation produced which result, even when an owner classifier
-    // could qualify the payload. Fail closed and archive no V3 sources. The
-    // required future contract is one server-authored execution ID present on
-    // both records, plus the exact owner payload captured after execution; only
-    // an ID-equal entry classified complete/empty may become a source.
     const sources: SourceAttribution[] = [];
+    const toolsUsed: string[] = [];
+    for (const entry of ledgerEntries) {
+      const durable = entry.durableSafeRead;
+      if (!durable) continue;
+      const matchingSteps = result.steps.filter(
+        (step) => step.durableSafeRead?.executionId === durable.executionId,
+      );
+      const matchedStep = matchingSteps.length === 1 ? matchingSteps[0] : undefined;
+      if (
+        !matchedStep ||
+        matchedStep.status !== 'done' ||
+        matchedStep.durableSafeRead?.receiptId !== durable.receiptId ||
+        matchedStep.durableSafeRead?.tool !== durable.tool
+      )
+        continue;
+      const ownerClassification = classifyApiToolReadOutcome(durable.tool, entry.result);
+      if (
+        !ownerClassification ||
+        (ownerClassification.kind !== 'complete' && ownerClassification.kind !== 'empty') ||
+        ownerClassification.kind !== durable.classifier
+      )
+        continue;
+      const source: SourceAttribution = {
+        tool: durable.tool,
+        label: matchedStep.label,
+        summary: `${durable.tool} returned a qualified ${durable.classifier} result.`,
+        confidence: 'high',
+      };
+      sources.push(source);
+      toolsUsed.push(durable.tool);
+      onEvent({
+        type: 'source',
+        source,
+        durableSafeRead: {
+          ...durable,
+          outcome: 'complete',
+          persisted: true,
+          toolCallId: durable.providerCallId,
+        },
+      });
+    }
     return {
       reportBody: result.reply,
       model: result.model,
       sources,
-      toolsUsed: [],
+      toolsUsed,
       ledgerEntries,
       citations: result.citations ?? [],
       ...(result.telemetry ? { telemetry: result.telemetry } : {}),
@@ -163,7 +198,15 @@ export class MeriV3ResearchRunner {
           ? { inheritedEvidenceNotice: `${inherited.unavailable} earlier document observations could not be reauthorized; ${inherited.omitted} were outside the bounded replay. Retrieve missing evidence before using it.` }
           : {}),
         toolPolicy,
-        ...(auth.run ? { researchRun: { sessionId: input.sessionId, runId: auth.run.id } } : {}),
+        ...(auth.run
+          ? {
+              researchRun: {
+                sessionId: input.sessionId,
+                runId: auth.run.id,
+                leaseEpoch: auth.run.leaseEpoch,
+              },
+            }
+          : {}),
         ...(currentTurnImages.length ? { currentTurnImages } : {}),
       },
       onEvent: (event) => {

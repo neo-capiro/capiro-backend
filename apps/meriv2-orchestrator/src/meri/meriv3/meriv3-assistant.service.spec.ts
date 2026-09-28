@@ -2267,6 +2267,8 @@ describe('Durable research cancellation across API replicas', () => {
     );
     const checks: any[] = [];
     global.fetch = jest.fn(async (url, init) => {
+      if (String(url).includes('/safe-read/replay'))
+        return new Response(JSON.stringify({ replayed: false }), { status: 200 });
       if (String(url).includes('/runs/')) {
         checks.push({ url, headers: init?.headers });
         return new Response(JSON.stringify({ active }), { status: active ? 200 : 409 });
@@ -2289,7 +2291,7 @@ describe('Durable research cancellation across API replicas', () => {
         assistant.run(context, {
           messages: [{ role: 'user', text: 'Research the client' }],
           toolPolicy: 'read-only',
-          researchRun: { sessionId: 'session-a', runId: 'run-a' },
+          researchRun: { sessionId: 'session-a', runId: 'run-a', leaseEpoch: 3 },
         }),
     );
     expect(invoke).toHaveBeenCalledTimes(1);
@@ -2320,7 +2322,7 @@ describe('Durable research cancellation across API replicas', () => {
       assistant.run(context, {
         messages: [{ role: 'user', text: 'Research' }],
         toolPolicy: 'read-only',
-        researchRun: { sessionId: 'other-user-session', runId: 'run-a' },
+        researchRun: { sessionId: 'other-user-session', runId: 'run-a', leaseEpoch: 3 },
       }),
     );
     expect(complete).not.toHaveBeenCalled();
@@ -2341,13 +2343,75 @@ describe('Durable research cancellation across API replicas', () => {
         assistant.run(context, {
           messages: [{ role: 'user', text: 'Research' }],
           toolPolicy: 'read-only',
-          researchRun: { sessionId: 'session-a', runId: 'run-a' },
+          researchRun: { sessionId: 'session-a', runId: 'run-a', leaseEpoch: 3 },
         }),
       );
       expect(complete).not.toHaveBeenCalled();
       expect(result.telemetry).toMatchObject({ finishReason: 'runtime_error', partial: true });
     },
   );
+
+  test('commits a qualified HTTP-200 owner result before sharing one server execution ID across step and ledger', async () => {
+    const call = {
+      type: 'function_call' as const,
+      call_id: 'provider-call-a',
+      name: 'search_memory',
+      arguments: JSON.stringify({ query: 'radar' }),
+    };
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(response({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(response({ outputText: 'Done.' }));
+    const ownerResult = {
+      tool: 'search_memory',
+      coverage: { complete: true, paginationComplete: true, sources: [{ domain: 'institutional_knowledge', sourceStatus: 'healthy', hasMore: false, truncated: false, paginationComplete: true, coverageComplete: true }] },
+      factContentUnavailableCount: 0, contentStatus: 'available', contentTruncated: false,
+      nextCursor: null, results: [{ id: 'fact-a', content: 'full content' }],
+      records: [{ id: 'fact-a', content: 'full content' }],
+    };
+    const invoke = jest.fn(async () => ownerResult);
+    const assistant = build(registry([{ name: 'search_memory', readOnly: true }], invoke), complete);
+    const committed: Array<Record<string, unknown>> = [];
+    global.fetch = jest.fn(async (url, init) => {
+      const href = String(url);
+      if (href.endsWith('/tool-schemas'))
+        return new Response(JSON.stringify({ schemas: [{ name: 'search_memory', description: 'Memory', input_schema: { type: 'object', properties: { query: { type: 'string' } } } }] }), { status: 200 });
+      if (href.endsWith('/active'))
+        return new Response(JSON.stringify({ active: true }), { status: 200 });
+      if (href.endsWith('/safe-read/replay'))
+        return new Response(JSON.stringify({ replayed: false }), { status: 200 });
+      if (href.endsWith('/safe-read/outcomes')) {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        committed.push(body);
+        return new Response(JSON.stringify({
+          ...body,
+          classifier: 'complete',
+          sequence: 9,
+          receiptId: 'receipt-a',
+        }), { status: 200 });
+      }
+      return new Response('{}', { status: 404 });
+    }) as typeof fetch;
+
+    const result = await RequestCredentialsStore.run({ bearerToken: 'user-token' }, () =>
+      assistant.run(context, {
+        messages: [{ role: 'user', text: 'Research radar.' }],
+        toolPolicy: 'read-only',
+        researchRun: { sessionId: 'session-a', runId: 'run-a', leaseEpoch: 3 },
+      }),
+    );
+
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(committed).toHaveLength(1);
+    expect(committed[0]).toMatchObject({
+      providerCallId: 'provider-call-a', leaseEpoch: 3, input: { query: 'radar' }, result: ownerResult,
+    });
+    const stepIdentity = result.steps?.[0]?.durableSafeRead;
+    const ledgerIdentity = result.ledgerEntries?.[0]?.durableSafeRead;
+    expect(stepIdentity?.executionId).toEqual(expect.any(String));
+    expect(ledgerIdentity).toEqual(stepIdentity);
+    expect(result.ledgerEntries?.[0]?.result).toEqual(ownerResult);
+  });
 });
 
 describe('MeriV3 client transcript task completion', () => {
@@ -2591,7 +2655,7 @@ describe('MeriV3 client transcript task completion', () => {
       assistant.run(context, {
         messages: [{ role: 'user', text: 'Review the research evidence.' }],
         toolPolicy: 'read-only',
-        researchRun: { sessionId: 'session-a', runId: 'run-a' },
+        researchRun: { sessionId: 'session-a', runId: 'run-a', leaseEpoch: 3 },
       }),
     );
     expect(invoke).toHaveBeenCalledTimes(1);
@@ -3218,7 +3282,7 @@ describe('Stage 2 orchestrator hardening', () => {
           conversationId: 'research-run',
           messages: [{ role: 'user', text: 'Research the status of H.R. 1.' }],
           toolPolicy: 'read-only',
-          researchRun: { sessionId: 'session-a', runId: 'run-a' },
+          researchRun: { sessionId: 'session-a', runId: 'run-a', leaseEpoch: 3 },
         }),
       );
       const research = firstEvent(spies.log, 'meri.canary.turn');

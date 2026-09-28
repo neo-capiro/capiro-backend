@@ -1,6 +1,11 @@
 import type { ProviderUsage } from '@capiro/shared';
 import type { LedgerEntry, MeriEvidenceManifest } from '@capiro/meriv2-core';
-import type { ChatInput, ChatResult, ChatStreamEvent } from '../chat/chat-prompt.js';
+import type {
+  ChatInput,
+  ChatResult,
+  ChatStreamEvent,
+  DurableSafeReadOutcome,
+} from '../chat/chat-prompt.js';
 import type { MeriCoverageManifest } from '../retrieval/meri-retrieval-coverage.js';
 import type { MeriRetrievalTrace } from '../retrieval/meri-retrieval-coordinator.js';
 import type {
@@ -46,7 +51,7 @@ export interface MeriV3ChatInput extends ChatInput {
   /** A caller may only narrow the normal governed full-chat capabilities. */
   toolPolicy?: 'none' | 'read-only';
   /** Server-owned durable research lease; reauthorized before each dispatch. */
-  researchRun?: { sessionId: string; runId: string };
+  researchRun?: { sessionId: string; runId: string; leaseEpoch: number };
 }
 
 export interface MeriV3RetrievalSummary {
@@ -69,7 +74,7 @@ export interface MeriV3ChatResult extends ChatResult {
   evidenceManifest?: MeriEvidenceManifest;
   providerCalls?: MeriV3ProviderTelemetry[];
   /** Tool evidence for the API research auditor; never provider reasoning. */
-  ledgerEntries?: LedgerEntry[];
+  ledgerEntries?: Array<LedgerEntry & { durableSafeRead?: DurableSafeReadOutcome }>;
   held?: boolean;
   runtime: 'meriv3';
   model: string;

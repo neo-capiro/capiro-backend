@@ -24,6 +24,17 @@ export interface MeriV3ProviderTelemetry {
   partial: boolean;
 }
 
+export interface MeriV3DurableSafeReadOutcome {
+  executionId: string;
+  providerCallId: string;
+  tool: string;
+  toolVersion: string;
+  classifier: 'complete' | 'empty';
+  sequence: number;
+  receiptId: string;
+  replayed: boolean;
+}
+
 export interface MeriV3RetrievalStreamSummary {
   plan: {
     version: 1;
@@ -108,13 +119,15 @@ export type MeriV3ChatStreamEvent =
       telemetry?: MeriV3ProviderTelemetry;
       providerCalls?: MeriV3ProviderTelemetry[];
     }
-  | { type: 'tool_call'; tool: string; label: string }
+  | { type: 'tool_call'; tool: string; label: string; providerCallId?: string }
   | {
       type: 'tool_done';
       tool: string;
       label: string;
       status: 'done' | 'error' | 'pending_approval' | 'blocked';
       detail?: string;
+      durableSafeRead?: MeriV3DurableSafeReadOutcome;
+      ownerResult?: unknown;
     }
   | {
       type: 'pending_approval';
@@ -194,6 +207,7 @@ export type MeriV3ChatStreamEvent =
         label: string;
         detail?: string;
         status: 'done' | 'error' | 'pending_approval' | 'blocked';
+        durableSafeRead?: MeriV3DurableSafeReadOutcome;
       }>;
       pendingApprovals?: Array<{
         tool: string;
@@ -204,7 +218,7 @@ export type MeriV3ChatStreamEvent =
       contextPacket?: MeriContextPacketSummary;
       retrieval?: MeriV3RetrievalStreamSummary;
       aborted?: boolean;
-      ledgerEntries?: LedgerEntry[];
+      ledgerEntries?: Array<LedgerEntry & { durableSafeRead?: MeriV3DurableSafeReadOutcome }>;
       held?: boolean;
     }
   | { type: 'error'; message: string };
@@ -237,7 +251,7 @@ export class MeriV3ChatClient {
       /** Server-authored Defense Intelligence Research Portfolio directive. */
       researchDirective?: string;
       toolPolicy?: 'none' | 'read-only';
-      researchRun?: { sessionId: string; runId: string };
+      researchRun?: { sessionId: string; runId: string; leaseEpoch: number };
       governedContext?: MeriGovernedTurnContext;
       /** API-only authority; moved inside the signed governed context before transport. */
       procedure?: MeriGovernedProcedureBinding;

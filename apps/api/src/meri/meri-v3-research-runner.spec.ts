@@ -194,4 +194,65 @@ describe('MeriV3ResearchRunner primary runtime', () => {
     expect(result.sources).toEqual([]);
     expect(result.toolsUsed).toEqual([]);
   });
+
+  it('publishes only the owner-qualified payload whose server execution ID is shared by ledger and step', async () => {
+    const base = fixture();
+    const durable = {
+      executionId: 'server-execution-a', providerCallId: 'provider-call-a', tool: 'search_memory',
+      toolVersion: 'sha256:schema-a', classifier: 'complete' as const, sequence: 7,
+      receiptId: 'receipt-a', replayed: false,
+    };
+    const validOwnerPayload = {
+      tool: 'search_memory',
+      coverage: { complete: true, paginationComplete: true, sources: [{ domain: 'institutional_knowledge', sourceStatus: 'healthy', hasMore: false, truncated: false, paginationComplete: true, coverageComplete: true }] },
+      factContentUnavailableCount: 0, contentStatus: 'available', contentTruncated: false,
+      nextCursor: null, results: [{ id: 'fact-a', content: 'full content' }],
+      records: [{ id: 'fact-a', content: 'full content' }],
+    };
+    const { runner } = fixture([{
+      ...base.done,
+      steps: [
+        { tool: 'search_memory', label: 'First same-name read', status: 'done', durableSafeRead: durable },
+        { tool: 'search_memory', label: 'Other same-name read', status: 'done', durableSafeRead: { ...durable, executionId: 'server-execution-b', receiptId: 'receipt-b' } },
+      ],
+      ledgerEntries: [
+        { tool: 'search_memory', result: validOwnerPayload, serialized: '{}', durableSafeRead: durable },
+        { tool: 'search_memory', result: validOwnerPayload, serialized: '{}', durableSafeRead: { ...durable, executionId: 'missing-step-id', receiptId: 'receipt-c' } },
+      ],
+    } as MeriV3ChatStreamEvent]);
+    const onEvent = jest.fn();
+
+    const result = await runner.run(ctx, input, auth, onEvent);
+
+    expect(result.sources).toEqual([expect.objectContaining({ tool: 'search_memory', label: 'First same-name read' })]);
+    expect(result.toolsUsed).toEqual(['search_memory']);
+    expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'source',
+      durableSafeRead: expect.objectContaining({ executionId: 'server-execution-a', persisted: true }),
+    }));
+  });
+
+  it('rejects an HTTP-200 logical error even when an untrusted frame labels it complete', async () => {
+    const base = fixture();
+    const durable = {
+      executionId: 'server-logical-error', providerCallId: 'provider-logical-error', tool: 'search_memory',
+      toolVersion: 'sha256:schema-a', classifier: 'complete' as const, sequence: 8,
+      receiptId: 'receipt-logical-error', replayed: false,
+    };
+    const { runner } = fixture([{
+      ...base.done,
+      steps: [{ tool: 'search_memory', label: 'Logical error', status: 'done', durableSafeRead: durable }],
+      ledgerEntries: [{
+        tool: 'search_memory',
+        result: { status: 'error', error: 'upstream rejected query' },
+        serialized: '{}',
+        durableSafeRead: durable,
+      }],
+    } as MeriV3ChatStreamEvent]);
+
+    const result = await runner.run(ctx, input, auth, () => {});
+
+    expect(result.sources).toEqual([]);
+    expect(result.toolsUsed).toEqual([]);
+  });
 });

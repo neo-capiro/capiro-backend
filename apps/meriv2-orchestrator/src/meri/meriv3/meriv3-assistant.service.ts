@@ -4,7 +4,8 @@ import {
   isMeriMailReadTool,
   resolveMeriDocumentRequest,
 } from '@capiro/shared';
-import { createHash } from 'node:crypto';
+import { classifyApiToolReadOutcome } from '@capiro/shared/meri-read-outcome';
+import { createHash, randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
@@ -70,6 +71,7 @@ import {
   toolLabel,
   type ChatArtifact,
   type ChatStep,
+  type DurableSafeReadOutcome,
 } from '../chat/chat-prompt.js';
 import { flattenSystemParts } from '../prompt-cache.helpers.js';
 import { currentGovernedMeriContext } from '../meri-governed-context.runtime.js';
@@ -291,6 +293,24 @@ function functionCallBatchIsComplete(calls: OpenAiResponsesFunctionCall[]): bool
       return false;
     }
   });
+}
+
+function canonicalSchemaJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalSchemaJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value as Record<string, unknown>)
+      .sort()
+      .map(
+        (key) =>
+          `${JSON.stringify(key)}:${canonicalSchemaJson((value as Record<string, unknown>)[key])}`,
+      )
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function toolSchemaVersion(schema: ToolSchema): string {
+  return `sha256:${createHash('sha256').update(canonicalSchemaJson(schema.input_schema)).digest('hex')}`;
 }
 
 function safetyIdentifier(ctx: MeriContext): string {
@@ -666,6 +686,7 @@ export class MeriV3AssistantService {
   private readonly llm: MeriRegistryService['llm'];
   private readonly apiBaseUrl: string;
   private readonly governedSemanticGateway: MeriSemanticToolGateway;
+  private readonly serviceSecret?: string;
   private readonly jevDecisionCache = new JevDecisionCache();
 
   private liveRepairCache(tenantId: string) {
@@ -686,6 +707,7 @@ export class MeriV3AssistantService {
     this.apiBaseUrl = (
       config.get<string>('MERIV2_API_BASE_URL') ?? 'http://localhost:3000'
     ).replace(/\/+$/, '');
+    this.serviceSecret = config.get<string>('INTERNAL_SERVICE_SECRET') || undefined;
   }
 
   async run(
@@ -2784,6 +2806,7 @@ export class MeriV3AssistantService {
         continue;
       }
       args.toolsUsed.push(call.name);
+      let durableSafeRead: DurableSafeReadOutcome | undefined;
       const result = await this.invokeTool({
         ctx: args.ctx,
         name: call.name,
@@ -2800,6 +2823,12 @@ export class MeriV3AssistantService {
         control: args.control,
         citations: args.citations,
         evidenceAccuracyMode: args.evidenceAccuracyMode,
+        providerCallId: call.call_id,
+        schema,
+        researchRun: args.dto.researchRun,
+        captureDurableSafeRead: (outcome) => {
+          durableSafeRead = outcome;
+        },
       });
       logDispatch(call, governedToolResult(result), true);
       const visibleResult = projectMeriToolEvidence({
@@ -2886,7 +2915,14 @@ export class MeriV3AssistantService {
       }
       const body = wrapMeriToolEvidence(call.name, visibleResult);
       const serialized = cites.length ? `${formatCitationsForPrompt(cites)}\n\n${body}` : body;
-      args.ledgerEntries.push({ tool: call.name, serialized, result: visibleResult });
+      args.ledgerEntries.push({
+        tool: call.name,
+        serialized,
+        // A committed research read retains the exact owner payload; prompt
+        // projection remains `visibleResult` in the Responses call below.
+        result: durableSafeRead ? result : visibleResult,
+        ...(durableSafeRead ? { durableSafeRead } : {}),
+      } as LedgerEntry);
       const execution = { call, result: visibleResult, serialized };
       executions.push(execution);
       if (intentKey) batchWriteIntents.set(intentKey, execution);
@@ -2946,10 +2982,14 @@ export class MeriV3AssistantService {
     control?: ToolExecutionControl;
     citations: MeriCitation[];
     evidenceAccuracyMode: ReturnType<typeof resolveEvidenceAccuracyMode>;
+    providerCallId: string;
+    schema: ToolSchema;
+    researchRun?: { sessionId: string; runId: string; leaseEpoch: number };
+    captureDurableSafeRead: (outcome: DurableSafeReadOutcome) => void;
   }): Promise<unknown> {
     assertToolExecutionActive(args.control);
     const label = toolLabel(args.name);
-    args.emit({ type: 'tool_call', tool: args.name, label });
+    args.emit({ type: 'tool_call', tool: args.name, label, providerCallId: args.providerCallId });
     if (args.scopeViolation) {
       args.steps.push({
         tool: args.name,
@@ -3085,9 +3125,57 @@ export class MeriV3AssistantService {
     }
 
     try {
-      const result = await this.registry.invoke(args.name, args.input, args.ctx, args.control);
-      args.steps.push({ tool: args.name, label, status: 'done' });
-      args.emit({ type: 'tool_done', tool: args.name, label, status: 'done' });
+      let result: unknown;
+      let durableSafeRead: DurableSafeReadOutcome | undefined;
+      if (args.researchRun) {
+        const toolVersion = toolSchemaVersion(args.schema);
+        const replay = await this.researchSafeReadRequest(
+          args.researchRun,
+          'replay',
+          { tool: args.name, toolVersion, input: args.input },
+          args.control,
+        );
+        if (replay.replayed === true) {
+          result = replay.result;
+          durableSafeRead = this.durableOutcome(replay.durableSafeRead);
+        } else {
+          result = await this.registry.invoke(args.name, args.input, args.ctx, args.control);
+          const classification = classifyApiToolReadOutcome(args.name, result);
+          if (!classification || (classification.kind !== 'complete' && classification.kind !== 'empty')) {
+            const detail = `Read result was not durably qualified (${classification?.kind ?? 'unknown'}).`;
+            args.steps.push({ tool: args.name, label, status: 'error', detail });
+            args.emit({ type: 'tool_done', tool: args.name, label, status: 'error', detail });
+            return result;
+          }
+          const executionId = randomUUID();
+          const receipt = await this.researchSafeReadRequest(
+            args.researchRun,
+            'outcomes',
+            {
+              executionId,
+              providerCallId: args.providerCallId,
+              tool: args.name,
+              toolVersion,
+              input: args.input,
+              result,
+            },
+            args.control,
+          );
+          durableSafeRead = this.durableOutcome({ ...receipt, replayed: false });
+        }
+      } else {
+        result = await this.registry.invoke(args.name, args.input, args.ctx, args.control);
+      }
+      if (durableSafeRead) args.captureDurableSafeRead(durableSafeRead);
+      args.steps.push({ tool: args.name, label, status: 'done', durableSafeRead });
+      args.emit({
+        type: 'tool_done',
+        tool: args.name,
+        label,
+        status: 'done',
+        durableSafeRead,
+        ...(durableSafeRead ? { ownerResult: result } : {}),
+      });
       return result;
     } catch (error) {
       assertToolExecutionActive(args.control);
@@ -3371,6 +3459,62 @@ export class MeriV3AssistantService {
     } finally {
       execution.dispose();
     }
+  }
+
+  private async researchSafeReadRequest(
+    researchRun: { sessionId: string; runId: string; leaseEpoch: number },
+    operation: 'replay' | 'outcomes',
+    body: Record<string, unknown>,
+    control?: ToolExecutionControl,
+  ): Promise<Record<string, unknown>> {
+    const credentials = RequestCredentialsStore.get();
+    if (!credentials?.bearerToken)
+      throw new Error('Authenticated research result authority is required.');
+    const response = await fetch(
+      `${this.apiBaseUrl}/api/clio/research/${encodeURIComponent(researchRun.sessionId)}/runs/${encodeURIComponent(researchRun.runId)}/safe-read/${operation}`,
+      {
+        method: 'POST',
+        signal: control?.signal,
+        headers: {
+          authorization: ['Bearer', credentials.bearerToken].join(' '),
+          'content-type': 'application/json',
+          accept: 'application/json',
+          ...(this.serviceSecret ? { 'x-internal-service-secret': this.serviceSecret } : {}),
+          ...(credentials.impersonateTenantId
+            ? { 'x-capiro-impersonate-tenant': credentials.impersonateTenantId }
+            : {}),
+        },
+        body: JSON.stringify({ ...body, leaseEpoch: researchRun.leaseEpoch }),
+      },
+    );
+    if (!response.ok)
+      throw new Error(`Research result authority rejected ${operation} (HTTP ${response.status}).`);
+    return (await response.json()) as Record<string, unknown>;
+  }
+
+  private durableOutcome(value: unknown): DurableSafeReadOutcome {
+    if (!value || typeof value !== 'object') throw new Error('Invalid durable safe-read receipt.');
+    const receipt = value as Record<string, unknown>;
+    if (
+      typeof receipt.executionId !== 'string' ||
+      typeof receipt.providerCallId !== 'string' ||
+      typeof receipt.tool !== 'string' ||
+      typeof receipt.toolVersion !== 'string' ||
+      (receipt.classifier !== 'complete' && receipt.classifier !== 'empty') ||
+      typeof receipt.sequence !== 'number' ||
+      typeof receipt.receiptId !== 'string'
+    )
+      throw new Error('Incomplete durable safe-read receipt.');
+    return {
+      executionId: receipt.executionId,
+      providerCallId: receipt.providerCallId,
+      tool: receipt.tool,
+      toolVersion: receipt.toolVersion,
+      classifier: receipt.classifier,
+      sequence: receipt.sequence,
+      receiptId: receipt.receiptId,
+      replayed: receipt.replayed === true,
+    };
   }
 
   private async fetchToolSchemas(control?: ToolExecutionControl): Promise<ToolSchema[]> {
