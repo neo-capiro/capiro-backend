@@ -108,7 +108,7 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
     'message', 'portfolioId', 'portfolioRevision', 'resultingRevision', 'snapshotId',
     'requestId', 'jobId', 'outputId', 'artifactId', 'operationKey', 'contentHash',
     'attachmentId', 'attachmentName', 'openPath', 'draftId', 'sentFrom', 'to', 'subject', 'error',
-    'scheduled', 'reconciled', 'canceled', 'taskId',
+    'scheduled', 'active', 'creationConfirmed', 'reconciled', 'canceled', 'taskId',
   ]) {
     const value = source[key];
     if (typeof value === 'string') summary[key] = bounded(value, 300) ?? '';
@@ -154,6 +154,7 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
       [
         'id', 'status', 'portfolioId', 'snapshotId', 'operationKey', 'requestId',
         'artifactId', 'contentHash', 'attachmentId', 'openPath', 'title',
+        'enabled', 'lastStatus', 'active', 'creationConfirmed',
       ]
         .filter((field) =>
           typeof record[field] === 'string' ||
@@ -274,6 +275,17 @@ function classifyExecutionFailure(tool: string, error: unknown): {
   return retryable
     ? { status: 'failed_retryable', code: rawCode ?? 'transient_failure', message }
     : { status: 'failed_terminal', code: rawCode ?? 'execution_failed', message };
+}
+
+function confirmedScheduleCreation(tool: string, result: unknown): boolean {
+  if (tool !== 'schedule_task' || !result || typeof result !== 'object' || Array.isArray(result)) {
+    return false;
+  }
+  const value = result as Record<string, unknown>;
+  const task = value.task && typeof value.task === 'object' && !Array.isArray(value.task)
+    ? value.task as Record<string, unknown>
+    : null;
+  return value.creationConfirmed === true && typeof task?.id === 'string' && task.id.length > 0;
 }
 
 @Injectable()
@@ -483,8 +495,9 @@ export class MeriActionProposalService {
       const result = await this.tools.executeFromAuthenticatedUser(ctx, tool, input, {
         actionProposalId: row.id,
       });
-      const incomplete =
-        classifyMeriActionLogicalFailure(tool, result) ?? filingExecutionFailure(tool, result);
+      const incomplete = confirmedScheduleCreation(tool, result)
+        ? null
+        : classifyMeriActionLogicalFailure(tool, result) ?? filingExecutionFailure(tool, result);
       if (incomplete) {
         const failed = await this.finalize(ctx, row.id, { ...incomplete, resultSummary: resultSummary(result) });
         return { disposition: 'failed', proposal: this.toPublic(failed), executionResult: result };
@@ -557,7 +570,9 @@ export class MeriActionProposalService {
         status: 'succeeded',
         resultSummary: resultSummary({
           tool: 'schedule_task',
-          scheduled: true,
+          scheduled: receipt.active,
+          active: receipt.active,
+          creationConfirmed: true,
           reconciled: true,
           task: receipt,
         }),
@@ -738,9 +753,10 @@ export class MeriActionProposalService {
       const result = await this.tools.executeFromAuthenticatedUser(ctx, row.tool, canonical, {
         actionProposalId: row.id,
       });
-      const incomplete =
-        classifyMeriActionLogicalFailure(row.tool, result) ??
-        filingExecutionFailure(row.tool, result);
+      const incomplete = confirmedScheduleCreation(row.tool, result)
+        ? null
+        : classifyMeriActionLogicalFailure(row.tool, result) ??
+          filingExecutionFailure(row.tool, result);
       if (incomplete) return this.toPublic(await this.finalize(ctx, row.id, {
         ...incomplete, resultSummary: resultSummary(result),
       }));

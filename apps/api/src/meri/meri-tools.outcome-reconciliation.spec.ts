@@ -35,19 +35,51 @@ interface StoredTask {
   intervalMinutes: number;
   toolAllowList: unknown[];
   nextRunAt: Date;
+  enabled: boolean;
+  lastStatus: string | null;
   createdBy: string;
   metadata: Record<string, unknown>;
 }
 
-function scheduleHarness(options: { ackLossId?: string; gateProposalId?: string } = {}) {
+function scheduleHarness(options: {
+  ackLossId?: string;
+  gateProposalId?: string;
+  initialTaskCount?: number;
+  quotaRace?: boolean;
+  wallAllowed?: boolean;
+} = {}) {
   const rows = new Map<string, StoredTask>();
+  let wallAllowed = options.wallAllowed ?? true;
   let createAttempts = 0;
   let ackLost = false;
   let gatedReads = 0;
+  let countCalls = 0;
   let releaseGate: () => void = () => undefined;
+  let releaseCreate: () => void = () => undefined;
   const gate = new Promise<void>((resolve) => {
     releaseGate = resolve;
   });
+  const created = new Promise<void>((resolve) => {
+    releaseCreate = resolve;
+  });
+  for (let i = 0; i < (options.initialTaskCount ?? 0); i += 1) {
+    const id = `existing-${i}`;
+    rows.set(id, {
+      id,
+      tenantId: ctx.tenantId,
+      ownerUserId: ctx.userId,
+      scope: 'user_private',
+      name: `Existing ${i}`,
+      prompt: 'Existing task',
+      intervalMinutes: 60,
+      toolAllowList: [],
+      nextRunAt: new Date(),
+      enabled: true,
+      lastStatus: null,
+      createdBy: 'meri',
+      metadata: {},
+    });
+  }
   const scoped = (where: Record<string, any>, row: StoredTask | undefined) =>
     row
     && (!where.tenantId || row.tenantId === where.tenantId)
@@ -93,10 +125,13 @@ function scheduleHarness(options: { ackLossId?: string; gateProposalId?: string 
       intervalMinutes: data.intervalMinutes,
       toolAllowList: data.toolAllowList,
       nextRunAt: data.nextRunAt,
+      enabled: data.enabled ?? true,
+      lastStatus: data.lastStatus ?? null,
       createdBy: data.createdBy,
       metadata: data.metadata,
     };
     rows.set(id, row);
+    releaseCreate();
     if (options.ackLossId === id && !ackLost) {
       ackLost = true;
       throw new Error('connection reset after committed insert');
@@ -106,13 +141,25 @@ function scheduleHarness(options: { ackLossId?: string; gateProposalId?: string 
       name: row.name,
       intervalMinutes: row.intervalMinutes,
       nextRunAt: row.nextRunAt,
+      enabled: row.enabled,
+      lastStatus: row.lastStatus,
     };
   });
   const tx = {
+    client: {
+      findFirst: jest.fn(async ({ where }: { where: Record<string, unknown> }) => ({
+        id: where.id,
+      })),
+    },
+    $queryRawUnsafe: jest.fn(async () => [{ allowed: wallAllowed }]),
     clioScheduledTask: {
       findFirst,
       findMany,
-      count: jest.fn(async () => rows.size),
+      count: jest.fn(async () => {
+        countCalls += 1;
+        if (options.quotaRace && countCalls === 2) await created;
+        return rows.size;
+      }),
       create,
     },
   };
@@ -123,7 +170,17 @@ function scheduleHarness(options: { ackLossId?: string; gateProposalId?: string 
   const scheduleTask = (service as unknown as { scheduleTask: ScheduleTask }).scheduleTask.bind(
     service,
   );
-  return { service, scheduleTask, rows, create, findFirst, findMany };
+  return {
+    service,
+    scheduleTask,
+    rows,
+    create,
+    findFirst,
+    findMany,
+    setWallAllowed: (allowed: boolean) => {
+      wallAllowed = allowed;
+    },
+  };
 }
 
 describe('Meri write outcome reconciliation', () => {
@@ -220,6 +277,36 @@ describe('Meri write outcome reconciliation', () => {
     expect(h.create.mock.calls[0]?.[0].data.id).toBe(PROPOSAL_A);
   });
 
+  test('actual handler converges quota 24 -> A inserts 25 -> B fresh-reads A before rejection', async () => {
+    const h = scheduleHarness({
+      gateProposalId: PROPOSAL_A,
+      initialTaskCount: 24,
+      quotaRace: true,
+    });
+
+    const [a, b] = await Promise.all([
+      h.scheduleTask(ctx, input, PROPOSAL_A),
+      h.scheduleTask(ctx, input, PROPOSAL_A),
+    ]);
+
+    expect(a).toMatchObject({
+      scheduled: true,
+      active: true,
+      creationConfirmed: true,
+      task: { id: PROPOSAL_A },
+    });
+    expect(b).toMatchObject({
+      scheduled: true,
+      active: true,
+      creationConfirmed: true,
+      reconciled: true,
+      task: { id: PROPOSAL_A },
+    });
+    expect(h.rows.size).toBe(25);
+    expect(h.create).toHaveBeenCalledTimes(1);
+    expect(h.findFirst).toHaveBeenCalledTimes(3);
+  });
+
   test('returns the original durable receipt after commit then acknowledgement loss', async () => {
     const h = scheduleHarness({ ackLossId: PROPOSAL_A });
 
@@ -262,6 +349,8 @@ describe('Meri write outcome reconciliation', () => {
       intervalMinutes: 60,
       toolAllowList: [],
       nextRunAt: new Date(),
+      enabled: true,
+      lastStatus: null,
       createdBy: 'meri',
       metadata: {},
     });
@@ -303,5 +392,65 @@ describe('Meri write outcome reconciliation', () => {
       .scheduleEffectFingerprint;
     await expect(h.service.readScheduleTaskReceipt(ctx, PROPOSAL_A, input)).resolves.toBeNull();
     expect(h.create).toHaveBeenCalledTimes(1);
+  });
+
+  test('uses current memory-wall authority for creation and receipt normalization', async () => {
+    const clientId = '66666666-6666-4666-8666-666666666666';
+    const h = scheduleHarness({ wallAllowed: false });
+
+    await expect(h.scheduleTask(ctx, { ...input, clientId }, PROPOSAL_A))
+      .rejects.toThrow('Client not found');
+    expect(h.create).not.toHaveBeenCalled();
+
+    h.setWallAllowed(true);
+    await expect(h.scheduleTask(ctx, { ...input, clientId }, PROPOSAL_A)).resolves.toMatchObject({
+      scheduled: true,
+      task: { id: PROPOSAL_A },
+    });
+    h.setWallAllowed(false);
+    await expect(
+      h.service.readScheduleTaskReceipt(ctx, PROPOSAL_A, { ...input, clientId }),
+    ).resolves.toBeNull();
+    expect(h.create).toHaveBeenCalledTimes(1);
+  });
+
+  test('reports recovered cancellation as historical creation without re-enabling or creating', async () => {
+    const h = scheduleHarness();
+    await h.scheduleTask(ctx, input, PROPOSAL_A);
+    const stored = h.rows.get(PROPOSAL_A)!;
+    stored.enabled = false;
+    stored.lastStatus = 'canceled';
+
+    await expect(h.scheduleTask(ctx, input, PROPOSAL_A)).resolves.toMatchObject({
+      scheduled: false,
+      active: false,
+      creationConfirmed: true,
+      reconciled: true,
+      task: {
+        id: PROPOSAL_A,
+        enabled: false,
+        lastStatus: 'canceled',
+        active: false,
+      },
+      note: expect.stringContaining('Historical creation was confirmed'),
+    });
+    expect(h.create).toHaveBeenCalledTimes(1);
+    expect(stored.enabled).toBe(false);
+    expect(stored.lastStatus).toBe('canceled');
+  });
+
+  test('never converges a canceled same-id row whose effect was mutated', async () => {
+    const h = scheduleHarness();
+    await h.scheduleTask(ctx, input, PROPOSAL_A);
+    const stored = h.rows.get(PROPOSAL_A)!;
+    stored.enabled = false;
+    stored.lastStatus = 'canceled';
+    stored.prompt = 'Mutated after cancellation';
+
+    await expect(h.scheduleTask(ctx, input, PROPOSAL_A))
+      .rejects.toThrow('Unique constraint failed');
+    await expect(h.service.readScheduleTaskReceipt(ctx, PROPOSAL_A, input)).resolves.toBeNull();
+    expect(h.create).toHaveBeenCalledTimes(2);
+    expect(h.rows.size).toBe(1);
   });
 });

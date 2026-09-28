@@ -59,7 +59,11 @@ import { ClientAdvocacyMatterService } from '../clients/client-advocacy-matter.s
 import { MemoryIngestService } from '../memory/memory-ingest.service.js';
 import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
 import { MemoryStoreService } from '../memory/memory-store.service.js';
-import { fetchDeniedClientIds, wallExclusionSql } from '../memory/memory-wall.helpers.js';
+import {
+  clientMemoryAllowed,
+  fetchDeniedClientIds,
+  wallExclusionSql,
+} from '../memory/memory-wall.helpers.js';
 import {
   governedRecallSuppressionEnabled,
   governedRecallSuppressionSql,
@@ -234,6 +238,10 @@ interface ScheduleTaskReceipt {
   name: string;
   intervalMinutes: number;
   nextRunAt: Date;
+  enabled: boolean;
+  lastStatus: string | null;
+  active: boolean;
+  creationConfirmed: true;
 }
 
 interface NormalizedScheduleEffect {
@@ -7143,7 +7151,7 @@ export class MeriToolsService {
         ? input.clientId.trim()
         : null;
     const clientId = requestedClient
-      ? await this.ensureClientVisible(ctx, requestedClient)
+      ? await this.ensureScheduleClientAuthorized(ctx, requestedClient)
       : null;
     const requestedEmail = normalizeDeliveryEmail(input.deliverEmailTo);
     let emailRecipientIntent: NormalizedScheduleEffect['emailRecipientIntent'] = 'none';
@@ -7229,6 +7237,27 @@ export class MeriToolsService {
       && (typeof metadata.emailTo === 'string' ? metadata.emailTo : null) === effect.emailTo;
   }
 
+  private scheduleTaskReceipt(candidate: {
+    id: string;
+    name: string;
+    intervalMinutes: number;
+    nextRunAt: Date;
+    enabled: boolean;
+    lastStatus: string | null;
+  }): ScheduleTaskReceipt {
+    const active = candidate.enabled && candidate.lastStatus !== 'canceled';
+    return {
+      id: candidate.id,
+      name: candidate.name,
+      intervalMinutes: candidate.intervalMinutes,
+      nextRunAt: candidate.nextRunAt,
+      enabled: candidate.enabled,
+      lastStatus: candidate.lastStatus,
+      active,
+      creationConfirmed: true,
+    };
+  }
+
   private async findScheduleTaskReceipt(
     ctx: TenantContext,
     actionProposalId: string,
@@ -7242,6 +7271,8 @@ export class MeriToolsService {
       intervalMinutes: true,
       toolAllowList: true,
       nextRunAt: true,
+      enabled: true,
+      lastStatus: true,
       createdBy: true,
       metadata: true,
     } as const;
@@ -7258,12 +7289,7 @@ export class MeriToolsService {
     );
     if (deterministic) {
       return this.scheduleCandidateMatches(deterministic, actionProposalId, effect)
-        ? {
-            id: deterministic.id,
-            name: deterministic.name,
-            intervalMinutes: deterministic.intervalMinutes,
-            nextRunAt: deterministic.nextRunAt,
-          }
+        ? this.scheduleTaskReceipt(deterministic)
         : null;
     }
 
@@ -7292,12 +7318,7 @@ export class MeriToolsService {
     );
     if (verified.length !== 1) return null;
     const [candidate] = verified;
-    return {
-      id: candidate!.id,
-      name: candidate!.name,
-      intervalMinutes: candidate!.intervalMinutes,
-      nextRunAt: candidate!.nextRunAt,
-    };
+    return this.scheduleTaskReceipt(candidate!);
   }
 
   /** Read-only durable-receipt lookup for action-proposal status recovery. */
@@ -7331,6 +7352,8 @@ export class MeriToolsService {
       name: true,
       intervalMinutes: true,
       nextRunAt: true,
+      enabled: true,
+      lastStatus: true,
     } as const;
     const normalized = await this.normalizeScheduleEffect(ctx, input);
     if (!normalized.ok) {
@@ -7343,10 +7366,14 @@ export class MeriToolsService {
     if (authoritativeReceipt) {
       return {
         tool: 'schedule_task',
-        scheduled: true,
+        scheduled: authoritativeReceipt.active,
+        active: authoritativeReceipt.active,
+        creationConfirmed: true,
         task: authoritativeReceipt,
         reconciled: true,
-        note: 'The existing scheduled task receipt was recovered; no second task was created.',
+        note: authoritativeReceipt.active
+          ? 'The existing active scheduled task receipt was recovered; no second task was created.'
+          : 'Historical creation was confirmed, but the task is currently disabled or canceled. It was not re-enabled and no new task was created.',
       };
     }
     const existingTaskCount = await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -7360,6 +7387,26 @@ export class MeriToolsService {
       existingTaskCount,
     });
     if (!quotaValidation.ok) {
+      // Another invocation for this exact proposal can commit task 25 after our
+      // initial receipt read but before this count. A fresh scoped read must win
+      // over quota rejection; it only returns the original exact receipt and
+      // never permits another insert.
+      const quotaBoundaryReceipt = actionProposalId
+        ? await this.findScheduleTaskReceipt(ctx, actionProposalId, effect)
+        : null;
+      if (quotaBoundaryReceipt) {
+        return {
+          tool: 'schedule_task',
+          scheduled: quotaBoundaryReceipt.active,
+          active: quotaBoundaryReceipt.active,
+          creationConfirmed: true,
+          task: quotaBoundaryReceipt,
+          reconciled: true,
+          note: quotaBoundaryReceipt.active
+            ? 'The original active scheduled task receipt was recovered at the quota boundary; no second task was created.'
+            : 'Historical creation was confirmed at the quota boundary, but the task is currently disabled or canceled. It was not re-enabled and no new task was created.',
+        };
+      }
       return { tool: 'schedule_task', scheduled: false, error: quotaValidation.error };
     }
     const metadata: Record<string, string | number> = {
@@ -7381,7 +7428,7 @@ export class MeriToolsService {
     let task: ScheduleTaskReceipt;
     let reconciled = false;
     try {
-      task = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      const created = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.clioScheduledTask.create({
           data: {
             ...(actionProposalId ? { id: actionProposalId } : {}),
@@ -7399,6 +7446,7 @@ export class MeriToolsService {
           select: selectReceipt,
         }),
       );
+      task = this.scheduleTaskReceipt(created);
     } catch (error) {
       // A transaction/connection failure can arrive after commit. Reconcile by
       // the proposal-stable operation identity before allowing the ambiguity to
@@ -7420,6 +7468,8 @@ export class MeriToolsService {
     return {
       tool: 'schedule_task',
       scheduled: true,
+      active: true,
+      creationConfirmed: true,
       task,
       ...(reconciled ? { reconciled: true } : {}),
       note: `Scheduled as a READ-ONLY recurring research task (${cadence}; no autonomous email/writes). Meri runs it automatically and delivers each briefing to your inbox.${emailDeliveryNote} Use list_scheduled_tasks to review or cancel_scheduled_task to stop it.`,
@@ -8611,6 +8661,25 @@ export class MeriToolsService {
     throw new NotFoundException(
       `No client named "${raw}" is in the book of business. Pass the exact client id, or select the client in Meri. If the client does not exist yet, use lookup_client_registry + create_client first.`,
     );
+  }
+
+  /**
+   * Scheduling persists a client scope for later unattended reads, so ordinary
+   * same-tenant visibility is insufficient. Resolve the client first, then use
+   * the current actor's existing memory-wall authority in a fresh tenant
+   * transaction. Receipt normalization calls this same boundary, which makes a
+   * revoked grant fail closed during reconciliation as well as creation.
+   */
+  private async ensureScheduleClientAuthorized(
+    ctx: TenantContext,
+    clientReference: string,
+  ): Promise<string> {
+    const clientId = await this.ensureClientVisible(ctx, clientReference);
+    const allowed = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId),
+    );
+    if (!allowed) throw new NotFoundException('Client not found');
+    return clientId;
   }
 
   private async ensureConversationForTool(

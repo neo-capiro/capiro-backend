@@ -517,6 +517,10 @@ describe('MeriActionProposalService', () => {
         name: 'Watch',
         intervalMinutes: 60,
         nextRunAt: new Date('2026-09-29T00:00:00.000Z'),
+        enabled: true,
+        lastStatus: null,
+        active: true,
+        creationConfirmed: true,
       },
     });
 
@@ -530,6 +534,46 @@ describe('MeriActionProposalService', () => {
       task: { id: PROPOSAL },
     });
     expect(h.tools.readScheduleTaskReceipt).toHaveBeenCalledWith(ctx, PROPOSAL, input);
+    expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+
+  it('GET/list records canceled receipt evidence as historical creation, not an active task', async () => {
+    const input = { name: 'Watch', prompt: 'Check', intervalMinutes: 60 };
+    const h = harness({
+      row: makeRow({
+        tool: 'schedule_task',
+        input,
+        status: 'outcome_unknown',
+      }),
+      scheduleReceipt: {
+        id: PROPOSAL,
+        name: 'Watch',
+        intervalMinutes: 60,
+        nextRunAt: new Date('2026-09-29T00:00:00.000Z'),
+        enabled: false,
+        lastStatus: 'canceled',
+        active: false,
+        creationConfirmed: true,
+      },
+    });
+
+    const [result] = await h.service.list(ctx);
+
+    expect(result?.status).toBe('succeeded');
+    expect(result?.resultSummary).toMatchObject({
+      tool: 'schedule_task',
+      scheduled: false,
+      active: false,
+      creationConfirmed: true,
+      reconciled: true,
+      task: {
+        id: PROPOSAL,
+        enabled: false,
+        lastStatus: 'canceled',
+        active: false,
+        creationConfirmed: true,
+      },
+    });
     expect(h.tools.execute).not.toHaveBeenCalled();
   });
 
@@ -612,6 +656,37 @@ describe('MeriActionProposalService', () => {
     const h = harness({ row: makeRow({ tool }), executeResult });
     h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
     expect((await h.service.approveAndExecute(ctx, PROPOSAL)).status).toBe('succeeded');
+  });
+
+  it('accepts a historical canceled creation receipt without claiming it remains scheduled', async () => {
+    const input = { name: 'Watch', prompt: 'Check', intervalMinutes: 60 };
+    const h = harness({
+      row: makeRow({ tool: 'schedule_task', input }),
+      executeResult: {
+        tool: 'schedule_task',
+        scheduled: false,
+        active: false,
+        creationConfirmed: true,
+        task: {
+          id: PROPOSAL,
+          enabled: false,
+          lastStatus: 'canceled',
+          active: false,
+          creationConfirmed: true,
+        },
+      },
+    });
+    h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
+
+    const result = await h.service.approveAndExecute(ctx, PROPOSAL);
+
+    expect(result.status).toBe('succeeded');
+    expect(result.resultSummary).toMatchObject({
+      scheduled: false,
+      active: false,
+      creationConfirmed: true,
+      task: { id: PROPOSAL, enabled: false, lastStatus: 'canceled', active: false },
+    });
   });
 
   it('retains an acknowledged reply receipt when only artifact persistence failed', async () => {

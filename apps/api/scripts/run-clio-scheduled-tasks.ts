@@ -32,6 +32,7 @@ import {
   isAllowListSafe,
   DEFAULT_SCHEDULED_TOOL_ALLOWLIST,
 } from '../src/meri/meri-schedule.helpers.js';
+import { checkScheduledTaskExecutionBoundary } from '../src/meri/meri-schedule-execution-boundary.js';
 
 dotenvConfig();
 
@@ -302,6 +303,32 @@ async function main(): Promise<void> {
         clerkUserId,
         role: role as TenantContext['role'],
       };
+
+      // The due list is only a snapshot. Re-read the task before execution so a
+      // concurrent cancellation stays canceled, then evaluate the current
+      // owner's authority for the current client through the existing ethical-
+      // wall helper. Same-tenant client existence is not permission.
+      let executionBoundary: 'runnable' | 'inactive' | 'wall_denied' = 'inactive';
+      try {
+        executionBoundary = await prisma.withTenant(task.tenant_id, (tx: any) =>
+          checkScheduledTaskExecutionBoundary(tx, {
+            id: task.id,
+            tenantId: task.tenant_id,
+            ownerUserId: task.owner_user_id,
+          }),
+        );
+      } catch {
+        executionBoundary = 'wall_denied';
+      }
+      if (executionBoundary === 'inactive') {
+        failed += 1;
+        continue;
+      }
+      if (executionBoundary === 'wall_denied') {
+        await advance(prisma, task, now, 'skipped_wall');
+        failed += 1;
+        continue;
+      }
 
       // Resolve the tenant's Anthropic key + model (tenant key first, then global).
       const resolved = await aiCreds.resolveProvider(ctx, 'anthropic');
