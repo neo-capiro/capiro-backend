@@ -348,10 +348,15 @@ export class MemoryStoreService {
     // content items but the ON CONFLICT SET below never resets a 'confirmed' row.
     const ingestRunId = ctx?.runId ?? item.ingestRunId ?? null;
     const reviewState = ctx?.reviewState ?? item.reviewState ?? 'auto';
+    // memory_scope is structural routing metadata and must move atomically with
+    // client/owner/visibility during a projection refresh.
+    const memoryScope =
+      item.memoryScope ??
+      (item.clientId ? 'client' : item.visibility === 'user' ? 'user_private' : 'firm');
     return this.prisma.withSystem(async (tx) => {
       const rows = await tx.$queryRaw<Array<{ id: string }>>`
         INSERT INTO memory_items (
-          tenant_id, client_id, owner_user_id, type, visibility, entity_id,
+          tenant_id, client_id, owner_user_id, type, visibility, memory_scope, entity_id,
           slug, title, aliases, tags, source, source_ref, provenance,
           sections_jsonb, schema_version,
           status, sensitivity, legal_hold, exportable, training_use, expires_at,
@@ -362,6 +367,7 @@ export class MemoryStoreService {
           ${item.ownerUserId}::uuid,
           ${item.type},
           ${item.visibility},
+          ${memoryScope},
           ${item.entityId}::uuid,
           ${item.slug},
           ${item.title},
@@ -393,6 +399,7 @@ export class MemoryStoreService {
           client_id = EXCLUDED.client_id,
           owner_user_id = EXCLUDED.owner_user_id,
           visibility = EXCLUDED.visibility,
+          memory_scope = EXCLUDED.memory_scope,
           entity_id = EXCLUDED.entity_id,
           title = EXCLUDED.title,
           aliases = EXCLUDED.aliases,

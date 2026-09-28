@@ -3,13 +3,19 @@ import { join } from 'node:path';
 import { describe, expect, test } from '@jest/globals';
 
 function repositoryPath(relativePath: string): string {
-  const candidates = [join(process.cwd(), relativePath), join(process.cwd(), 'apps/api', relativePath)];
+  const candidates = [
+    join(process.cwd(), relativePath),
+    join(process.cwd(), 'apps/api', relativePath),
+  ];
   const found = candidates.find(existsSync);
   if (!found) throw new Error(`Could not resolve repository path: ${relativePath}`);
   return found;
 }
 
-const consumer = readFileSync(repositoryPath('src/knowledge/mailbox/mailbox-knowledge.consumer.ts'), 'utf8');
+const consumer = readFileSync(
+  repositoryPath('src/knowledge/mailbox/mailbox-knowledge.consumer.ts'),
+  'utf8',
+);
 const flags = readFileSync(
   repositoryPath('src/knowledge/mailbox/mailbox-knowledge-flags.service.ts'),
   'utf8',
@@ -17,9 +23,15 @@ const flags = readFileSync(
 const drain = readFileSync(repositoryPath('scripts/drain-mailbox-knowledge.ts'), 'utf8');
 const dispatcher = readFileSync(repositoryPath('scripts/entrypoint-dispatcher.inc'), 'utf8');
 const schema = readFileSync(repositoryPath('prisma/schema.prisma'), 'utf8');
-const alignWorkflow = join(process.cwd(), '../../.github/workflows/knowledge-schema-align-once.yml');
+const alignWorkflow = join(
+  process.cwd(),
+  '../../.github/workflows/knowledge-schema-align-once.yml',
+);
 const alignScript = join(process.cwd(), '../../scripts/align-mailbox-knowledge-prisma-schema.mjs');
-const knowledgeCi = readFileSync(join(process.cwd(), '../../.github/workflows/knowledge-plane-ci.yml'), 'utf8');
+const knowledgeCi = readFileSync(
+  join(process.cwd(), '../../.github/workflows/knowledge-plane-ci.yml'),
+  'utf8',
+);
 
 describe('Phase 4 mailbox knowledge worker architecture', () => {
   test('does not start an in-process timer from the HTTP API process', () => {
@@ -47,8 +59,8 @@ describe('Phase 4 mailbox knowledge worker architecture', () => {
     expect(schema).toContain('model KnowledgeAssertion {');
     expect(schema).toContain('model KnowledgeEvidence {');
     expect(schema).toContain('knowledgeMailboxJobs');
-    expect(schema).toContain('knowledgeJobs KnowledgeMailboxJob[]');
-    expect(schema).toContain('mailboxJobs KnowledgeMailboxJob[]');
+    expect(schema).toMatch(/\bknowledgeJobs\s+KnowledgeMailboxJob\[\]/);
+    expect(schema).toMatch(/\bmailboxJobs\s+KnowledgeMailboxJob\[\]/);
     expect(existsSync(alignWorkflow)).toBe(false);
     expect(existsSync(alignScript)).toBe(false);
     expect(knowledgeCi).not.toContain('align-mailbox-knowledge-prisma-schema.mjs');

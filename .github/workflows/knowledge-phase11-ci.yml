@@ -74,12 +74,17 @@ jobs:
           pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
           pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
 
+      # One worker preserves sequential execution and recycles its heap between suites.
       - name: Focused Phase 11 Retrieval tests
-        run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/retrieval
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: pnpm --filter @capiro/api exec jest --maxWorkers=1 --workerIdleMemoryLimit=1GB --forceExit src/retrieval
 
       - name: Canonical identity normalization regressions
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: |
-          pnpm --filter @capiro/api exec jest --runInBand --forceExit \
+          pnpm --filter @capiro/api exec jest --maxWorkers=1 --workerIdleMemoryLimit=1GB --forceExit \
             src/knowledge/entities/entity-normalization.spec.ts \
             src/knowledge/entities/universal-entity-resolution.preview.spec.ts \
             src/knowledge/entities/universal-entity-resolution.service.spec.ts
