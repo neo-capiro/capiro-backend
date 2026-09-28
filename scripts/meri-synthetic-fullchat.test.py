@@ -6,10 +6,13 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from typing import Any, Sequence
+from unittest.mock import patch
 
 SCRIPT = Path(__file__).with_name("meri-synthetic-fullchat.py")
 SPEC = importlib.util.spec_from_file_location("meri_synthetic_fullchat", SCRIPT)
@@ -165,6 +168,14 @@ class FixedCommandTests(unittest.TestCase):
         extra["tenants"][0]["wholeSettings"] = {"secret": True}
         with self.assertRaises(fullchat.FullchatError):
             fullchat.parse_db_result([fullchat.RESULT_PREFIX + json.dumps(extra)], "apply")
+        for root_field in ("settings_jsonb", "credentials", "arbitrary"):
+            with self.subTest(root_field=root_field):
+                root_extra = json.loads(db_result("apply", prior, applied)[len(fullchat.RESULT_PREFIX):])
+                root_extra[root_field] = {"secret": "must-not-survive"}
+                with self.assertRaises(fullchat.FullchatError):
+                    fullchat.parse_db_result(
+                        [fullchat.RESULT_PREFIX + json.dumps(root_extra)], "apply"
+                    )
         false_after = states(False, True)
         with self.assertRaisesRegex(fullchat.FullchatError, "literal boolean true"):
             fullchat.parse_db_result([db_result("apply", prior, false_after)], "apply")
@@ -188,6 +199,13 @@ class ArtifactBindingTests(unittest.TestCase):
         run, artifacts, receipt = trusted_metadata("apply")
         selection = fullchat.select_artifact("123", "1", run, artifacts)
         self.assertEqual(fullchat.validate_source_receipt(receipt, run, selection, "apply"), states())
+
+    def test_source_receipt_rejects_untrusted_readback_root_fields(self) -> None:
+        run, artifacts, receipt = trusted_metadata()
+        selection = fullchat.select_artifact("123", "1", run, artifacts)
+        receipt["readback"]["settings_jsonb"] = {"credential": "must-not-survive"}
+        with self.assertRaises(fullchat.FullchatError):
+            fullchat.validate_source_receipt(receipt, run, selection, "plan")
 
     def test_wrong_attempt_workflow_digest_and_actor_are_refused(self) -> None:
         run, artifacts, receipt = trusted_metadata()
@@ -368,6 +386,170 @@ class RuntimeQualificationTests(unittest.TestCase):
         aws.entrypoint = ["node", "-e"]
         with self.assertRaisesRegex(fullchat.FullchatError, "entrypoint"):
             fullchat.capture_runtime(aws, self.Git())
+
+    def test_runtime_rejects_extra_containers_duplicate_names_and_plaintext_db_shadows(self) -> None:
+        class Mutant(self.Aws):
+            def __init__(self, mutation: Any) -> None:
+                super().__init__()
+                self.mutation = mutation
+
+            def describe_task_definition(self, name: str) -> dict[str, Any]:
+                response = super().describe_task_definition(name)
+                if fullchat.TASK_FAMILY in name:
+                    self.mutation(response["taskDefinition"])
+                return response
+
+        mutations = {
+            "extra executable container": lambda td: td["containerDefinitions"].append(
+                {"name": "rogue", "image": f"evil@sha256:{'d' * 64}", "command": ["arbitrary"]}
+            ),
+            "plaintext DB_HOST shadow": lambda td: td["containerDefinitions"][0]["environment"].append(
+                {"name": "DB_HOST", "value": "attacker-db"}
+            ),
+            "duplicate DB_NAME": lambda td: td["containerDefinitions"][0]["environment"].extend(
+                [{"name": "DB_NAME", "value": "wrong"}, {"name": "DB_NAME", "value": "capiro"}]
+            ),
+            "duplicate DB_HOST secret": lambda td: td["containerDefinitions"][0]["secrets"].insert(
+                0, {"name": "DB_HOST", "valueFrom": "wrong-secret"}
+            ),
+            "wrong image repository": lambda td: td["containerDefinitions"][0].update(
+                image=f"evil@sha256:{'a' * 64}"
+            ),
+            "single wrong DB credential reference": lambda td: td["containerDefinitions"][0][
+                "secrets"
+            ].__setitem__(0, {"name": "DB_HOST", "valueFrom": "wrong-secret"}),
+            "single wrong DB_NAME": lambda td: td["containerDefinitions"][0][
+                "environment"
+            ].__setitem__(0, {"name": "DB_NAME", "value": "wrong"}),
+            "entrypoint override": lambda td: td["containerDefinitions"][0].update(
+                entryPoint=["/bin/sh", "-c"]
+            ),
+        }
+        for label, mutation in mutations.items():
+            with self.subTest(label=label):
+                with self.assertRaises(fullchat.FullchatError):
+                    fullchat.capture_runtime(Mutant(mutation), self.Git())
+
+
+class MainReceiptTests(unittest.TestCase):
+    task_arn = (
+        f"arn:aws:ecs:{fullchat.REGION}:{fullchat.ACCOUNT_ID}:task/"
+        f"{fullchat.CLUSTER}/{'a' * 32}"
+    )
+    task_definition = (
+        f"arn:aws:ecs:{fullchat.REGION}:{fullchat.ACCOUNT_ID}:task-definition/"
+        f"{fullchat.TASK_FAMILY}:50"
+    )
+    image = f"{fullchat.IMAGE_REPOSITORY}@sha256:{'b' * 64}"
+    runtime = {
+        "taskDefinition": task_definition,
+        "image": image,
+        "imageDigest": f"sha256:{'b' * 64}",
+        "sourceCommit": "e" * 40,
+        "network": {"awsvpcConfiguration": {
+            "subnets": ["subnet-fixed"],
+            "securityGroups": ["sg-fixed"],
+            "assignPublicIp": "DISABLED",
+        }},
+        "logGroup": "/capiro/dev/api",
+        "logPrefix": "diag",
+    }
+
+    class Aws:
+        def identity(self) -> dict[str, str]:
+            return {"Account": fullchat.ACCOUNT_ID}
+
+        def run_task(self, *args: Any) -> str:
+            return MainReceiptTests.task_arn
+
+    def stopped_task(self, extra: bool = False, exit_code: int = 0) -> dict[str, Any]:
+        containers = [{
+            "name": fullchat.CONTAINER,
+            "lastStatus": "STOPPED",
+            "exitCode": exit_code,
+            "image": self.image,
+            "imageDigest": self.runtime["imageDigest"],
+        }]
+        if extra:
+            containers.append({
+                "name": "rogue",
+                "lastStatus": "STOPPED",
+                "exitCode": 0,
+                "image": f"evil@sha256:{'c' * 64}",
+                "imageDigest": f"sha256:{'c' * 64}",
+            })
+        return {
+            "taskArn": self.task_arn,
+            "clusterArn": f"arn:aws:ecs:{fullchat.REGION}:{fullchat.ACCOUNT_ID}:cluster/{fullchat.CLUSTER}",
+            "taskDefinitionArn": self.task_definition,
+            "startedBy": "meri-fullchat-321-1-plan",
+            "launchType": "FARGATE",
+            "lastStatus": "STOPPED",
+            "stopCode": "EssentialContainerExited",
+            "containers": containers,
+        }
+
+    def run_main(self, messages: Sequence[str], task: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+        with tempfile.TemporaryDirectory() as folder:
+            with (
+                patch.dict(os.environ, {
+                    "GITHUB_RUN_ID": "321",
+                    "GITHUB_RUN_ATTEMPT": "1",
+                    "GITHUB_SHA": "f" * 40,
+                    "GITHUB_ACTOR": "review",
+                    "GITHUB_ACTOR_ID": "42",
+                }),
+                patch.object(fullchat, "GitCli", return_value=object()),
+                patch.object(fullchat, "verify_execution_context", return_value="f" * 40),
+                patch.object(fullchat, "AwsCli", self.Aws),
+                patch.object(fullchat, "capture_runtime", return_value=self.runtime),
+                patch.object(fullchat, "wait_for_task", return_value=task),
+                patch.object(fullchat, "wait_for_log_messages", return_value=messages),
+            ):
+                status = fullchat.main([
+                    "--mode", "plan",
+                    "--output-dir", folder,
+                    "--wait-timeout-seconds", "60",
+                ])
+            receipt = json.loads((Path(folder) / "receipt.json").read_text(encoding="utf-8"))
+        return status, receipt
+
+    def test_main_requires_exact_stopped_container_set(self) -> None:
+        message = db_result("plan", states(), states())
+        status, receipt = self.run_main([message], self.stopped_task(extra=True))
+        self.assertEqual(status, 2)
+        self.assertEqual(receipt["result"], "FAILED")
+        self.assertIs(receipt["verified"], False)
+
+    def test_main_reconstructs_sanitized_receipt_and_rejects_hostile_root(self) -> None:
+        message = db_result("plan", states(), states())
+        status, receipt = self.run_main([message], self.stopped_task())
+        self.assertEqual(status, 0)
+        self.assertIs(receipt["verified"], True)
+        self.assertEqual(set(receipt["readback"]), set(fullchat.DB_RESULT_KEYS))
+
+        hostile = json.loads(message[len(fullchat.RESULT_PREFIX):])
+        hostile["settings_jsonb"] = {"credential": "must-not-survive"}
+        status, receipt = self.run_main(
+            [fullchat.RESULT_PREFIX + json.dumps(hostile)], self.stopped_task()
+        )
+        self.assertEqual(status, 2)
+        self.assertEqual(receipt["result"], "FAILED")
+        self.assertIs(receipt["verified"], False)
+
+    def test_main_fails_closed_on_duplicate_absent_result_and_nonzero_exit(self) -> None:
+        message = db_result("plan", states(), states())
+        cases = {
+            "duplicate result": ([message, message], self.stopped_task()),
+            "absent result": (["no result"], self.stopped_task()),
+            "nonzero exit": ([message], self.stopped_task(exit_code=1)),
+        }
+        for label, (messages, task) in cases.items():
+            with self.subTest(label=label):
+                status, receipt = self.run_main(messages, task)
+                self.assertEqual(status, 2)
+                self.assertEqual(receipt["result"], "FAILED")
+                self.assertIs(receipt["verified"], False)
 
 
 class WorkflowContractTests(unittest.TestCase):

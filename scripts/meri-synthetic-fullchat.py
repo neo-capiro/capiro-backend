@@ -52,6 +52,8 @@ REGISTER_SOURCE_FILES = (
 )
 MAX_ARCHIVE_BYTES = 1024 * 1024
 MAX_RECEIPT_BYTES = 512 * 1024
+DB_SECRET_NAMES = frozenset({"DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD"})
+DB_RESULT_KEYS = frozenset({"schemaVersion", "operation", "mode", "result", "flag", "tenants"})
 
 
 class FullchatError(RuntimeError):
@@ -353,15 +355,42 @@ def source_commit(container: Mapping[str, Any]) -> str:
         value = labels.get(key)
         if isinstance(value, str) and SHA_RE.fullmatch(value.lower()):
             candidates.add(value.lower())
-    environment = container.get("environment") or []
-    for item in environment:
-        if item.get("name") in ("GIT_SHA", "RELEASE_SHA", "SOURCE_COMMIT"):
-            value = str(item.get("value", "")).lower()
+    environment = unique_named_values(
+        container.get("environment"), "value", "container source environment"
+    )
+    for name, raw_value in environment.items():
+        if name in ("GIT_SHA", "RELEASE_SHA", "SOURCE_COMMIT"):
+            value = raw_value.lower()
             if SHA_RE.fullmatch(value):
                 candidates.add(value)
     if len(candidates) != 1:
         raise FullchatError("qualified image must expose one exact 40-character source commit")
     return next(iter(candidates))
+
+
+def unique_named_values(
+    values: Any,
+    value_field: str,
+    field: str,
+) -> dict[str, str]:
+    if not isinstance(values, list):
+        raise FullchatError(f"{field} must be a list")
+    result: dict[str, str] = {}
+    for item in values:
+        if not isinstance(item, dict) or set(item) != {"name", value_field}:
+            raise FullchatError(f"{field} contains an invalid entry")
+        name = item.get("name")
+        value = item.get(value_field)
+        if (
+            not isinstance(name, str)
+            or not name
+            or not isinstance(value, str)
+            or not value
+            or name in result
+        ):
+            raise FullchatError(f"{field} names and values must be nonempty and unique")
+        result[name] = value
+    return result
 
 
 def validate_image_source(git: GitCli, sha: str) -> None:
@@ -462,32 +491,43 @@ def capture_runtime(aws: AwsCli, git: GitCli) -> dict[str, Any]:
         or td.get("executionRoleArn") != service_td.get("executionRoleArn")
     ):
         raise FullchatError("qualified one-off does not reuse the served API task/execution roles")
-    containers = [item for item in td.get("containerDefinitions") or [] if item.get("name") == CONTAINER]
-    if len(containers) != 1:
-        raise FullchatError("qualified one-off does not have one db-inspect container")
+    containers = td.get("containerDefinitions")
+    if (
+        not isinstance(containers, list)
+        or len(containers) != 1
+        or not isinstance(containers[0], dict)
+        or containers[0].get("name") != CONTAINER
+    ):
+        raise FullchatError("qualified one-off must contain only the db-inspect container")
     container = containers[0]
     if container.get("entryPoint") not in (None, []):
         raise FullchatError("qualified one-off overrides the API image entrypoint")
     image = str(container.get("image", ""))
     if image != f"{IMAGE_REPOSITORY}@{digest}":
         raise FullchatError("qualified one-off is not pinned to the currently served API digest")
-    one_off_secrets = {
-        item.get("name"): item.get("valueFrom") for item in container.get("secrets") or []
-    }
-    served_secrets = {
-        item.get("name"): item.get("valueFrom") for item in service_containers[0].get("secrets") or []
-    }
-    required_db_secrets = {"DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD"}
-    if set(one_off_secrets) != required_db_secrets or any(
-        one_off_secrets[name] != served_secrets.get(name) for name in required_db_secrets
+    one_off_secrets = unique_named_values(container.get("secrets"), "valueFrom", "qualified one-off secrets")
+    served_secrets = unique_named_values(
+        service_containers[0].get("secrets"), "valueFrom", "served API secrets"
+    )
+    if set(one_off_secrets) != DB_SECRET_NAMES or any(
+        one_off_secrets[name] != served_secrets.get(name) for name in DB_SECRET_NAMES
     ):
         raise FullchatError("qualified one-off must reuse only the served API four-field DB credential mechanism")
-    one_off_environment = {
-        item.get("name"): item.get("value") for item in container.get("environment") or []
-    }
-    served_environment = {
-        item.get("name"): item.get("value") for item in service_containers[0].get("environment") or []
-    }
+    one_off_environment = unique_named_values(
+        container.get("environment"), "value", "qualified one-off environment"
+    )
+    served_environment = unique_named_values(
+        service_containers[0].get("environment"), "value", "served API environment"
+    )
+    if (
+        set(one_off_secrets) & set(one_off_environment)
+        or set(served_secrets) & set(served_environment)
+        or DB_SECRET_NAMES & set(one_off_environment)
+        or DB_SECRET_NAMES & set(served_environment)
+        or "DB_NAME" in one_off_secrets
+        or "DB_NAME" in served_secrets
+    ):
+        raise FullchatError("DB credential and name sources must be unique and disjoint from plaintext environment")
     if not one_off_environment.get("DB_NAME") or one_off_environment["DB_NAME"] != served_environment.get("DB_NAME"):
         raise FullchatError("qualified one-off does not reuse the served API DB_NAME")
     commit = source_commit(container)
@@ -500,6 +540,7 @@ def capture_runtime(aws: AwsCli, git: GitCli) -> dict[str, Any]:
         raise FullchatError("qualified one-off does not use bounded awslogs output")
     return {
         "taskDefinition": arn,
+        "image": image,
         "imageDigest": digest,
         "sourceCommit": commit,
         "network": network,
@@ -565,6 +606,7 @@ def parse_db_result(
     expected_result = {"plan": "PLAN_ONLY", "apply": "APPLIED_AND_VERIFIED", "rollback": "ROLLED_BACK_AND_VERIFIED"}[mode]
     if (
         not isinstance(value, dict)
+        or set(value) != DB_RESULT_KEYS
         or value.get("schemaVersion") != 1
         or value.get("operation") != "meri-foundation-fullchat"
         or value.get("mode") != mode
@@ -593,7 +635,23 @@ def parse_db_result(
         identity = {"tenantId": tenant_id, "tenantSlug": slug, "flag": FLAG}
         before_values.append({**identity, "state": before_state})
         after_values.append({**identity, "state": state})
-    return value, before_values, after_values
+    sanitized = {
+        "schemaVersion": 1,
+        "operation": "meri-foundation-fullchat",
+        "mode": mode,
+        "result": expected_result,
+        "flag": FLAG,
+        "tenants": [
+            {
+                "tenantId": tenant_id,
+                "tenantSlug": slug,
+                "before": before_values[index]["state"],
+                "after": after_values[index]["state"],
+            }
+            for index, (tenant_id, slug) in enumerate(TENANTS)
+        ],
+    }
+    return sanitized, before_values, after_values
 
 
 def base_receipt(mode: str, runtime: Mapping[str, Any], task_arn: str) -> dict[str, Any]:
@@ -724,14 +782,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             or task.get("launchType") != "FARGATE"
         ):
             raise FullchatError("stopped task identity/runtime does not match the exact launch")
-        containers = [item for item in task.get("containers") or [] if item.get("name") == CONTAINER]
+        containers = task.get("containers")
         if (
-            len(containers) != 1
+            not isinstance(containers, list)
+            or len(containers) != 1
+            or not isinstance(containers[0], dict)
+            or containers[0].get("name") != CONTAINER
+            or containers[0].get("lastStatus") != "STOPPED"
             or containers[0].get("exitCode") != 0
+            or containers[0].get("image") != runtime["image"]
             or containers[0].get("imageDigest") != runtime["imageDigest"]
             or task.get("stopCode") not in (None, "EssentialContainerExited")
         ):
-            raise FullchatError("one-off task did not exit zero through the expected container")
+            raise FullchatError("one-off task container set/status/image/exit readback is not exact")
         task_id = task_arn.rsplit("/", 1)[-1]
         stream = f"{runtime['logPrefix']}/{CONTAINER}/{task_id}"
         db_result, before_values, after_values = parse_db_result(

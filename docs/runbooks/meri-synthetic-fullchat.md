@@ -16,12 +16,16 @@ Qualification gate before any workflow run
 Do not dispatch this workflow until all of the following are true:
 
 1. The implementation is merged to current `main`.
-2. An approved API image is built from that merged commit. A branch image is not eligible.
+2. An approved API image is built from that merged commit. A branch image is not eligible. The repository's current API build path, `.github/workflows/api-image.yml`, explicitly sets `provenance: false`, does not capture the build step's digest output, and uploads no build attestation or manifest. Therefore source labels, SHA tags, and ECS/ECR digest agreement alone are not accepted as digest-to-source provenance for this release.
 3. Both the running `capiro-dev-api` tasks and the latest active `capiro-dev-api-diag` task definition resolve to the same immutable `capiro/dev/api@sha256:...` digest and exact 40-character source commit.
-4. The `capiro-dev-api-diag` revision uses container `db-inspect`, has no task-definition `entryPoint` override (so the API image entrypoint dispatches `set-tenant-flag`), retains only `DB_HOST`, `DB_PORT`, `DB_USER`, and `DB_PASSWORD` secrets plus `DB_NAME`, and reuses the running API task/execution roles. The workflow never registers or repairs this revision.
+4. The `capiro-dev-api-diag` revision has exactly one container definition, named `db-inspect`, and no task-definition `entryPoint` override (so the API image entrypoint dispatches `set-tenant-flag`). Secret and environment names must each be nonempty and unique. The two name sets must be disjoint; `DB_HOST`, `DB_PORT`, `DB_USER`, and `DB_PASSWORD` must exist only as the four exact secret references used by the served API, while exactly one plaintext `DB_NAME` must equal the served API value. The workflow never registers or repairs this revision.
 5. The Actions role already has the bounded runtime permissions required to describe ECS state, run only the existing `capiro-dev-api-diag` family on `capiro-dev`, pass the unchanged existing API roles, and read that task's existing CloudWatch log stream. This code does not add permissions and has no manual-DB fallback.
 
-The runner proves the image source commit is an ancestor of current `origin/main` and that the exact source tree contains the fixed foundation mode before it starts a task. This prevents assuming that an older image contains a newly merged script.
+The runner checks that the image-declared source commit is an ancestor of current `origin/main` and that the declared source tree contains the fixed foundation mode before it starts a task. That is a metadata/source-content guard, not proof that the observed image digest was built from that commit.
+
+Concrete digest-to-source release requirement
+
+No checked-in approved API-image attestation or build-manifest path exists today: the inspected `api-image.yml` path disables provenance and retains no manifest. Do not invent or infer one from image labels. Before any dispatch, release engineering must separately approve and retain a build-system-produced record that binds all of the following in one reviewed build: repository `neo-capiro/capirov2`, exact merged 40-character commit, root build context, `apps/api/Dockerfile`, `linux/arm64`, ECR repository `967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api`, and the resulting `sha256` image digest. The reviewer must verify the record against the trusted build run's resolved source revision and output digest, then verify that exact digest is the one carried by the commit tag, every running API task, and the single-container diag revision. Until such an approved retained record exists, plan/apply/rollback remain HOLD even if this runner's metadata checks pass.
 
 Modes
 
@@ -57,5 +61,5 @@ Runtime failures
 
 - A missing qualified image/task definition is a hard refusal, not permission to use an old image.
 - Missing ECS/PassRole/CloudWatch permissions are a hard refusal; do not fall back to direct SQL.
-- A nonzero task, absent/duplicate sanitized result, wrong tenant/key, image/source drift, or readback mismatch can never produce `verified: true`.
+- An extra task-definition or stopped-task container, a nonzero task, absent/duplicate sanitized result, wrong tenant/key, image/source drift, ambiguous/duplicate DB names or sources, unexpected result root field, or readback mismatch can never produce `verified: true`.
 - If `RunTask` acknowledgement is lost, the runner reconciles the unique fixed `startedBy` identity. Zero or multiple matches fails without a retry.
