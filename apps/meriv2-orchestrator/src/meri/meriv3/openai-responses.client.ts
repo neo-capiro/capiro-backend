@@ -125,6 +125,32 @@ export function extractResponsesFunctionCalls(
   );
 }
 
+/**
+ * A text boundary is usable only when the provider closed the entire response.
+ * Checking both the normalized call list and raw output prevents a malformed
+ * tool item suppressed by the adapter from being mistaken for tool-free prose.
+ */
+export function completedTextResponseFailure(
+  response: OpenAiResponsesResult,
+): string | null {
+  if (response.status !== 'completed') return `status_${response.status}`;
+  if (response.incompleteReason !== null) {
+    return `incomplete_${response.incompleteReason ?? 'unknown'}`;
+  }
+  if (response.telemetry.partial) return `partial_${response.telemetry.finishReason}`;
+  if (response.telemetry.finishReason !== 'completed') {
+    return `finish_${response.telemetry.finishReason}`;
+  }
+  if (
+    response.functionCalls.length > 0 ||
+    response.output.some((item) => item.type === 'function_call')
+  ) {
+    return 'unexpected_function_call';
+  }
+  if (!response.outputText.trim()) return 'empty_output';
+  return null;
+}
+
 function validateResponsesFunctionCallBatch(output: OpenAiResponsesOutputItem[]): {
   calls: OpenAiResponsesFunctionCall[];
   failure?: 'incomplete_function_call' | 'malformed_function_call';
@@ -224,6 +250,15 @@ function criticProfile(profile: MeriV3ReasoningProfile): MeriV3ReasoningProfile 
     effort: profile.effort === 'max' ? 'xhigh' : profile.effort,
     maxOutputTokens: Math.min(profile.maxOutputTokens, 8_192),
   };
+}
+
+function qualifiedResearchDraft(text: string): string {
+  return [
+    text.trim(),
+    'Research finalization was incomplete. This is the last closed grounded draft; requested sections or cross-checks may still be missing.',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
 }
 
 @Injectable()
@@ -429,6 +464,7 @@ export class OpenAiResponsesClient {
           }
           return {
             ...draft,
+            outputText: qualifiedResearchDraft(draft.outputText),
             telemetry: {
               ...draft.telemetry,
               finishReason: 'research_finalization_skipped',
@@ -448,6 +484,7 @@ export class OpenAiResponsesClient {
         ];
 
         let criticResult: OpenAiResponsesResult | undefined;
+        let synthesisResult: OpenAiResponsesResult | undefined;
         try {
           const critic = await this.complete({
             profile: criticProfile(params.profile),
@@ -464,6 +501,10 @@ export class OpenAiResponsesClient {
               : {}),
           });
           criticResult = critic;
+          const criticBoundaryFailure = completedTextResponseFailure(critic);
+          if (criticBoundaryFailure) {
+            throw new Error(`Research Director critic response rejected: ${criticBoundaryFailure}`);
+          }
           const synthesisInput: Array<Record<string, unknown>> = [
             ...evidenceInput,
             {
@@ -487,6 +528,13 @@ export class OpenAiResponsesClient {
               ? { budget: params.budget, budgetPhase: 'finalization' as const }
               : {}),
           });
+          synthesisResult = synthesis;
+          const synthesisBoundaryFailure = completedTextResponseFailure(synthesis);
+          if (synthesisBoundaryFailure) {
+            throw new Error(
+              `Research Director synthesis response rejected: ${synthesisBoundaryFailure}`,
+            );
+          }
           const validatedSynthesis = MeriV3ResearchRuntimeStore.validateDraft(synthesis.outputText);
           if (validatedSynthesis.issueCount > 0) {
             this.logger.warn(
@@ -515,7 +563,12 @@ export class OpenAiResponsesClient {
           );
           return {
             ...draft,
-            usage: criticResult ? combinedUsage(draft.usage, criticResult.usage) : draft.usage,
+            outputText: qualifiedResearchDraft(draft.outputText),
+            usage: combinedUsage(
+              draft.usage,
+              ...(criticResult ? [criticResult.usage] : []),
+              ...(synthesisResult ? [synthesisResult.usage] : []),
+            ),
             telemetry: {
               ...draft.telemetry,
               finishReason:
@@ -525,6 +578,8 @@ export class OpenAiResponsesClient {
             providerCalls: [
               ...(draft.providerCalls ?? [draft.telemetry]),
               ...(criticResult?.providerCalls ?? (criticResult ? [criticResult.telemetry] : [])),
+              ...(synthesisResult?.providerCalls ??
+                (synthesisResult ? [synthesisResult.telemetry] : [])),
               ...(readOpenAiResponsesErrorTelemetry(finalizationError)
                 ? [readOpenAiResponsesErrorTelemetry(finalizationError)!]
                 : []),

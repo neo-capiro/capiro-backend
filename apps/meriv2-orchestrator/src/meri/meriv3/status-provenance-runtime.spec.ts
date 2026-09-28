@@ -1,5 +1,8 @@
 import type { MeriContext, ToolRegistry } from '@capiro/meriv2-core';
-import { runStatusProvenance } from './status-provenance-runtime';
+import {
+  enforceRetainedStatusProvenance,
+  runStatusProvenance,
+} from './status-provenance-runtime';
 
 const ctx = {
   tenantId: 'tenant', userId: 'user', clerkUserId: 'clerk', role: 'standard_user',
@@ -42,5 +45,29 @@ describe('status provenance runtime', () => {
     const reply = 'Acme Cloud is FedRAMP approved.';
     const failed = await runStatusProvenance({ reply, mode: 'enforce', registry: registry(null, true), ctx, deadlineAt: Date.now() + 1000 });
     expect(failed).toMatchObject({ reply, lookupOk: false, failureReason: 'lookup_failed' });
+  });
+
+  it('repairs from retained authoritative evidence without another lookup', () => {
+    const enforced = enforceRetainedStatusProvenance({
+      reply: 'Acme Cloud is FedRAMP approved.',
+      retainedResults: [result],
+    });
+    expect(enforced.reply).toBe(
+      'Acme Cloud is FedRAMP Certified at Moderate impact (FedRAMP Marketplace, observed 2026-09-23T00:00:00.000Z).',
+    );
+    expect(enforced).toMatchObject({ lookupOk: true, outcomes: { paraphrased: 1 } });
+  });
+
+  it('qualifies a status claim when no retained authoritative evidence supports it', () => {
+    const enforced = enforceRetainedStatusProvenance({
+      reply: 'Acme Cloud is FedRAMP approved.',
+      retainedResults: [],
+    });
+    expect(enforced.reply).toContain('unverified against the FedRAMP Marketplace');
+    expect(enforced).toMatchObject({
+      lookupOk: false,
+      failureReason: 'retained_evidence_only',
+      outcomes: { unsupported: 1 },
+    });
   });
 });
