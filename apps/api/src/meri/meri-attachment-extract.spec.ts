@@ -42,6 +42,39 @@ describe('PDF indexing extraction coverage', () => {
     expect(pages.getPage).toHaveBeenCalledTimes(PDF_MAX_PAGES);
   });
 
+  it('returns exact bounded single-page windows with native length and truthful truncation', async () => {
+    const body = `${'A'.repeat(40_000)}TAIL_SENTINEL`;
+    const firstPage = document([body, 'second page']);
+    const first = await extractPdfText(Buffer.from('fixture'), {
+      firstPage: 1,
+      limits: { pages: 1, characters: 40_000 },
+      pageWindow: { offset: 0 },
+    });
+    expect(first.text).toHaveLength(40_000);
+    expect(first.selectedPage).toEqual({
+      page: 1,
+      characterStart: 0,
+      characterEnd: 40_000,
+      nativeCharacters: body.length,
+      truncated: true,
+    });
+    expect(firstPage.getPage).toHaveBeenCalledTimes(1);
+
+    document([body, 'second page']);
+    const tail = await extractPdfText(Buffer.from('fixture'), {
+      firstPage: 1,
+      limits: { pages: 1, characters: 40_000 },
+      pageWindow: { offset: 40_000 },
+    });
+    expect(tail.text).toBe('TAIL_SENTINEL');
+    expect(tail.selectedPage).toMatchObject({
+      characterStart: 40_000,
+      characterEnd: body.length,
+      nativeCharacters: body.length,
+      truncated: true,
+    });
+  });
+
   it('releases the worker even when a page fails to parse', async () => {
     const f = document(['first']);
     f.getPage.mockRejectedValue(new Error('parse failure'));

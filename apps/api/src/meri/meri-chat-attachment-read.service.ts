@@ -39,6 +39,7 @@ const MESSAGE_SCAN_PAGE = 25;
 const XLSX_ROWS_PER_SECTION = 100;
 const TEXT_SECTION_CHARS = 20_000;
 const MAX_DECODED_TEXT_CHARS = 2_000_000;
+const PDF_PAGE_WINDOW_CHARS = 40_000;
 
 type SectionLocator = { section: number; rowStart: number; offset: number };
 type ManifestLocator = { createdAt: string; messageId: string; attachmentIndex: number };
@@ -101,6 +102,8 @@ interface AuthorizedSource {
 
 interface ExtractedSection {
   text: string;
+  textStart?: number;
+  sectionCharacters?: number;
   locator: SectionLocator;
   sectionKind: 'page' | 'slide_with_notes' | 'sheet_rows' | 'text_section';
   sectionLabel: string;
@@ -147,17 +150,25 @@ function decodeCursor(value: unknown): CursorPayload {
   const parts = value.slice(CURSOR_PREFIX.length).split('.');
   if (parts.length !== 2 || !parts[0] || !parts[1])
     throw new BadRequestException('Invalid chat attachment cursor');
-  const expected = createHmac('sha256', cursorSecret()).update(parts[0]).digest();
+  let encodedPayload: Buffer;
   let supplied: Buffer;
   try {
+    if (!/^[A-Za-z0-9_-]+$/.test(parts[0]) || !/^[A-Za-z0-9_-]+$/.test(parts[1]))
+      throw new Error('alphabet');
+    encodedPayload = Buffer.from(parts[0], 'base64url');
     supplied = Buffer.from(parts[1], 'base64url');
+    if (
+      encodedPayload.toString('base64url') !== parts[0] ||
+      supplied.toString('base64url') !== parts[1]
+    ) throw new Error('noncanonical');
   } catch {
     throw new BadRequestException('Invalid chat attachment cursor');
   }
+  const expected = createHmac('sha256', cursorSecret()).update(parts[0]).digest();
   if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected))
     throw new BadRequestException('Invalid chat attachment cursor');
   try {
-    const payload = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8')) as CursorPayload;
+    const payload = JSON.parse(encodedPayload.toString('utf8')) as CursorPayload;
     if (
       payload.v !== 1 ||
       (payload.mode !== 'manifest' && payload.mode !== 'read') ||
@@ -552,25 +563,30 @@ export class MeriChatAttachmentReadService {
       originalBytesHash: source.originalBytesHash,
     });
 
-    if (input.locator.offset > extracted.text.length)
+    const textStart = extracted.textStart ?? 0;
+    const sectionCharacters = extracted.sectionCharacters ?? extracted.text.length;
+    const localOffset = input.locator.offset - textStart;
+    if (localOffset < 0 || localOffset > extracted.text.length)
       throw new BadRequestException('characterOffset is outside this attachment section');
     const lower = extracted.text.toLowerCase();
     const match = input.query
-      ? lower.indexOf(input.query.toLowerCase(), input.locator.offset)
-      : input.locator.offset;
+      ? lower.indexOf(input.query.toLowerCase(), localOffset)
+      : localOffset;
     const start = match < 0
       ? extracted.text.length
-      : Math.max(input.locator.offset, match - (input.query ? 240 : 0));
+      : Math.max(localOffset, match - (input.query ? 240 : 0));
     let end = Math.min(
       extracted.text.length,
       Math.max(start + input.limit, match + input.query.length),
     );
     while (end > start && JSON.stringify(extracted.text.slice(start, end)).length > 6500) end -= 1;
+    const characterStart = textStart + start;
+    const characterEnd = textStart + end;
     const moreText = end < extracted.text.length;
     const nextLocator = match < 0
       ? extracted.nextLocator
       : moreText
-        ? { ...extracted.locator, offset: end }
+        ? { ...extracted.locator, offset: characterEnd }
         : extracted.nextLocator;
     const nextCursor = nextLocator
       ? signCursor({
@@ -589,10 +605,10 @@ export class MeriChatAttachmentReadService {
         })
       : null;
     const text = extracted.text.slice(start, end);
-    const sectionComplete = start === 0 && end === extracted.text.length &&
+    const sectionComplete = characterStart === 0 && characterEnd === sectionCharacters &&
       extracted.extractionStatus === 'complete';
     const contentComplete = sectionComplete && extracted.locator.section === 1 && !nextCursor;
-    const reference = `${source.id}:${source.originalBytesHash.slice(0, 16)}:${extracted.sectionKind}:${extracted.locator.section}:${start}-${end}`;
+    const reference = `${source.id}:${source.originalBytesHash.slice(0, 16)}:${extracted.sectionKind}:${extracted.locator.section}:${characterStart}-${characterEnd}`;
     return {
       tool: 'read_chat_attachments',
       generatedAt: new Date().toISOString(),
@@ -616,9 +632,9 @@ export class MeriChatAttachmentReadService {
         sectionLabel: extracted.sectionLabel,
         sectionCount: extracted.sectionCount,
         coordinates: extracted.coordinates ?? null,
-        characterStart: start,
-        characterEnd: end,
-        sectionCharacters: extracted.text.length,
+        characterStart,
+        characterEnd,
+        sectionCharacters,
         extractionStatus: extracted.extractionStatus,
         limitation: extracted.limitation,
         matched: input.query ? match >= 0 : null,
@@ -642,8 +658,8 @@ export class MeriChatAttachmentReadService {
           sectionKind: extracted.sectionKind,
           sectionLabel: extracted.sectionLabel,
           coordinates: extracted.coordinates ?? null,
-          characterStart: start,
-          characterEnd: end,
+          characterStart,
+          characterEnd,
           text,
         },
         provenance: {
@@ -667,29 +683,51 @@ export class MeriChatAttachmentReadService {
     const signal = meriToolRequestControl()?.signal;
     if (signal?.aborted) throw signal.reason;
     if (source.kind === 'pdf') {
+      const remainingReadableCharacters = Math.max(0, MAX_DECODED_TEXT_CHARS - locator.offset);
       const extracted = await extractPdfText(source.data, {
         firstPage: locator.section,
-        limits: { pages: 1, characters: 40_000 },
+        limits: { pages: 1, characters: Math.min(PDF_PAGE_WINDOW_CHARS, remainingReadableCharacters) },
+        pageWindow: { offset: locator.offset },
         preserveLineBreaks: true,
         ...(signal ? { signal } : {}),
       });
       if (locator.section > extracted.pages)
         throw new BadRequestException('PDF page does not exist');
+      const selectedPage = extracted.selectedPage;
+      if (!selectedPage) throw new Error('PDF_PAGE_WINDOW_MISSING');
+      if (locator.offset > selectedPage.nativeCharacters)
+        throw new BadRequestException('characterOffset is outside this attachment section');
       const unreadable = extracted.unreadablePages.includes(locator.section);
+      const readableCharacters = Math.min(selectedPage.nativeCharacters, MAX_DECODED_TEXT_CHARS);
+      const hardLimitReached = selectedPage.nativeCharacters > MAX_DECODED_TEXT_CHARS &&
+        selectedPage.characterEnd >= MAX_DECODED_TEXT_CHARS;
+      const nextLocator = selectedPage.characterEnd < readableCharacters
+        ? { ...locator, offset: selectedPage.characterEnd }
+        : !hardLimitReached && locator.section < extracted.pages
+          ? { section: locator.section + 1, rowStart: 1, offset: 0 }
+          : null;
       return {
         text: extracted.text,
+        textStart: selectedPage.characterStart,
+        sectionCharacters: selectedPage.nativeCharacters,
         locator,
         sectionKind: 'page',
         sectionLabel: `PDF page ${locator.section}`,
         sectionCount: extracted.pages,
-        nextLocator: locator.section < extracted.pages
-          ? { section: locator.section + 1, rowStart: 1, offset: 0 }
-          : null,
-        extractionStatus: unreadable ? 'unreadable' : 'complete',
+        nextLocator,
+        extractionStatus: unreadable ? 'unreadable' : hardLimitReached ? 'partial' : 'complete',
         limitation: unreadable
           ? 'This page has no readable native text. No OCR or provider transcription was substituted.'
-          : null,
-        coordinates: { page: locator.section },
+          : hardLimitReached
+            ? `Native page text exceeds the ${MAX_DECODED_TEXT_CHARS}-character safety limit; the range after character ${MAX_DECODED_TEXT_CHARS} is unavailable.`
+            : null,
+        coordinates: {
+          page: locator.section,
+          selectedCharacterStart: selectedPage.characterStart,
+          selectedCharacterEnd: selectedPage.characterEnd,
+          nativeCharacters: selectedPage.nativeCharacters,
+          selectedPageTruncated: selectedPage.truncated,
+        },
       };
     }
     if (source.kind === 'pptx') {

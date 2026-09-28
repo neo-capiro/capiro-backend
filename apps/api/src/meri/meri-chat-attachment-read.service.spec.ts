@@ -11,6 +11,7 @@ const USER = '22222222-2222-4222-8222-222222222222';
 const CONVERSATION = '33333333-3333-4333-8333-333333333333';
 const CLIENT = '44444444-4444-4444-8444-444444444444';
 const VERSION = new Date('2026-09-28T12:00:00.000Z');
+const CURSOR_PREFIX_FOR_TEST = 'chat-attachment:v1:';
 const uuid = (index: number) => `aaaaaaaa-aaaa-4aaa-8aaa-${String(index).padStart(12, '0')}`;
 
 interface MessageRow {
@@ -48,6 +49,40 @@ async function pdf(pages: number): Promise<Buffer> {
     value.drawText(`Literal page ${page} evidence marker P-${page}`, { x: 50, y: 700, font, size: 14 });
   }
   return Buffer.from(await document.save({ useObjectStreams: false }));
+}
+
+async function largePagePdf(): Promise<Buffer> {
+  const document = await PDFDocument.create();
+  const font = await document.embedFont(StandardFonts.Helvetica);
+  const page = document.addPage([612, 30_000]);
+  for (let index = 0; index < 490; index += 1) {
+    page.drawText(`${String(index).padStart(4, '0')}: ${'native PDF evidence '.repeat(5)}`, {
+      x: 20,
+      y: 29_970 - index * 25,
+      font,
+      size: 8,
+    });
+  }
+  page.drawText('UNREAD_TAIL_SENTINEL_AFTER_40000_CHARS', {
+    x: 20,
+    y: 14_000,
+    font,
+    size: 8,
+  });
+  return Buffer.from(await document.save({ useObjectStreams: false }));
+}
+
+
+function nonCanonicalUnusedBits(value: string): string {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  const decoded = Buffer.from(value, 'base64url');
+  const lastIndex = alphabet.indexOf(value.at(-1)!);
+  for (let candidate = 0; candidate < alphabet.length; candidate += 1) {
+    if (candidate === lastIndex) continue;
+    const changed = `${value.slice(0, -1)}${alphabet[candidate]}`;
+    if (Buffer.from(changed, 'base64url').equals(decoded)) return changed;
+  }
+  throw new Error('fixture has no noncanonical unused-bit mutation');
 }
 
 async function pptx(): Promise<Buffer> {
@@ -249,6 +284,43 @@ describe('MeriChatAttachmentReadService original-byte typed reads', () => {
     expect(result.coverage.nextCursor).toEqual(expect.any(String));
   });
 
+  it('reads a large native PDF page through bounded signed windows without gaps or duplication', async () => {
+    const bytes = await largePagePdf();
+    const row = attachment(uuid(8), uuid(108), 'large-page.pdf', 'pdf', bytes);
+    const h = harness({ attachments: [row], messages: [message(row)] });
+    let cursor: string | undefined;
+    let expectedStart = 0;
+    let text = '';
+    let last: any;
+    for (let call = 0; call < 20; call += 1) {
+      const result = await run(h.service, {
+        conversationId: CONVERSATION,
+        attachmentId: row.id,
+        limit: 6000,
+        ...(cursor ? { cursor } : {}),
+      }) as any;
+      expect(result.coverage.characterStart).toBe(expectedStart);
+      expect(result.coverage.characterEnd - result.coverage.characterStart).toBeLessThanOrEqual(6000);
+      const part = result.records[0]?.payload.text ?? '';
+      expect(part.length).toBe(result.coverage.characterEnd - result.coverage.characterStart);
+      text += part;
+      expectedStart = result.coverage.characterEnd;
+      cursor = result.coverage.nextCursor ?? undefined;
+      last = result;
+      if (!cursor) break;
+    }
+    expect(text).toContain('UNREAD_TAIL_SENTINEL_AFTER_40000_CHARS');
+    expect(text).toHaveLength(last.coverage.sectionCharacters);
+    expect(last.coverage).toMatchObject({
+      extractionStatus: 'complete',
+      limitation: null,
+      paginationComplete: true,
+      truncated: false,
+    });
+    expect(cursor).toBeUndefined();
+  });
+
+
   it('reads real PowerPoint slide 6 and speaker notes without returning prior slides', async () => {
     const bytes = await pptx();
     const row = attachment(uuid(2), uuid(102), 'six-slides.pptx', 'pptx', bytes);
@@ -346,6 +418,24 @@ describe('MeriChatAttachmentReadService original-byte typed reads', () => {
       query: 'P-2',
       cursor: tampered,
     })).rejects.toThrow('Invalid chat attachment cursor');
+
+    const [prefix, encodedAndSignature] = cursor.split('chat-attachment:v1:');
+    expect(prefix).toBe('');
+    const [encodedPayload, signature] = encodedAndSignature!.split('.');
+    const nonCanonicalSignature = `${CURSOR_PREFIX_FOR_TEST}${encodedPayload}.${nonCanonicalUnusedBits(signature!)}`;
+    for (const nonCanonical of [
+      nonCanonicalSignature,
+      `${CURSOR_PREFIX_FOR_TEST}${encodedPayload}.${signature}=`,
+      `${CURSOR_PREFIX_FOR_TEST}${encodedPayload}.${signature} `,
+      `${CURSOR_PREFIX_FOR_TEST}${encodedPayload}=.${signature}`,
+    ]) {
+      await expect(run(h.service, {
+        conversationId: CONVERSATION,
+        attachmentId: row.id,
+        query: 'P-2',
+        cursor: nonCanonical,
+      })).rejects.toThrow('Invalid chat attachment cursor');
+    }
 
     const stale = harness({
       attachments: [row],
