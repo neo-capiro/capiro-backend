@@ -1422,6 +1422,98 @@ describe('MeriV3AssistantService', () => {
     ]);
   });
 
+  test('deduplicates scoped write intent within one batch while preserving call outputs', async () => {
+    const first = {
+      type: 'function_call',
+      call_id: 'call-a',
+      name: 'schedule_task',
+      arguments:
+        '{"name":"Federal watch","prompt":"Check authorized sources","intervalMinutes":60}',
+    };
+    const duplicate = {
+      ...first,
+      call_id: 'call-b',
+      arguments:
+        '{"intervalMinutes":60,"prompt":"Check authorized sources","name":"Federal watch"}',
+    };
+    const laterTurn = { ...first, call_id: 'call-c' };
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(
+        response({ output: [first, duplicate], outputText: '', functionCalls: [first, duplicate] }),
+      )
+      .mockResolvedValueOnce(response({ outputText: 'Scheduled once.' }))
+      .mockResolvedValueOnce(
+        response({ output: [laterTurn], outputText: '', functionCalls: [laterTurn] }),
+      )
+      .mockResolvedValueOnce(response({ outputText: 'Scheduled again by request.' }));
+    let proposalSequence = 0;
+    const createProposal = jest.fn(async (_request: unknown) => {
+      proposalSequence += 1;
+      return {
+        disposition: 'executed',
+        proposal: {},
+        executionResult: {
+          tool: 'schedule_task',
+          scheduled: true,
+          task: { id: `task-${proposalSequence}` },
+        },
+      };
+    });
+    const assistant = build(
+      registry([{ name: 'schedule_task', readOnly: false }]),
+      complete,
+      createProposal,
+    );
+    global.fetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            schemas: [
+              {
+                name: 'schedule_task',
+                description: 'Schedule task',
+                input_schema: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string' },
+                    prompt: { type: 'string' },
+                    intervalMinutes: { type: 'number' },
+                    clientId: { type: 'string' },
+                  },
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+    ) as typeof fetch;
+    const dto = {
+      conversationId: 'conversation-1',
+      clientId: 'client-1',
+      messages: [{ role: 'user' as const, text: 'Schedule this federal watch task.' }],
+    };
+
+    await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () => assistant.run(context, dto));
+    await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () => assistant.run(context, dto));
+
+    expect(createProposal).toHaveBeenCalledTimes(2);
+    expect(createProposal.mock.calls[0]?.[0]).toMatchObject({
+      tool: 'schedule_task',
+      input: { clientId: 'client-1', name: 'Federal watch' },
+    });
+    const firstFollowUpInput = complete.mock.calls[1]?.[0]?.input as Array<Record<string, unknown>>;
+    const outputs = firstFollowUpInput.filter((item) => item.type === 'function_call_output');
+    expect(outputs).toHaveLength(2);
+    expect(outputs.map((item) => item.call_id)).toEqual(['call-a', 'call-b']);
+    expect(outputs[0]?.output).toBe(outputs[1]?.output);
+    expect(complete.mock.calls[3]?.[0]?.input).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'function_call_output', call_id: 'call-c' }),
+      ]),
+    );
+  });
+
   test('does not create a proposal for a draft-only email request', async () => {
     const call = {
       type: 'function_call',

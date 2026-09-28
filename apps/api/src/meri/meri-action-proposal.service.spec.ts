@@ -460,7 +460,9 @@ describe('MeriActionProposalService', () => {
     const h = harness({ row, executeResult: { ok: true, clientId: TENANT } });
     h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
     const result = await h.service.approveAndExecute(ctx, PROPOSAL);
-    expect(h.tools.execute).toHaveBeenCalledWith(ctx, 'update_client_profile', row.input);
+    expect(h.tools.execute).toHaveBeenCalledWith(ctx, 'update_client_profile', row.input, {
+      logicalOperationId: PROPOSAL,
+    });
     expect(result.status).toBe('succeeded');
     expect(result.attemptCount).toBe(1);
   });
@@ -471,6 +473,26 @@ describe('MeriActionProposalService', () => {
     const result = await h.service.approveAndExecute(ctx, PROPOSAL);
     expect(result.status).toBe('outcome_unknown');
     expect(result.error?.code).toBe('external_outcome_unknown');
+  });
+
+  it('keeps an ambiguous schedule acknowledgement non-retryable with the same operation id', async () => {
+    const input = { name: 'Watch', prompt: 'Check', intervalMinutes: 60 };
+    const h = harness({
+      row: makeRow({ tool: 'schedule_task', input }),
+      executeError: new Error('connection reset after commit acknowledgement was lost'),
+    });
+    h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
+
+    const first = await h.service.approveAndExecute(ctx, PROPOSAL);
+    const reconnected = await h.service.approveAndExecute(ctx, PROPOSAL);
+
+    expect(first.status).toBe('outcome_unknown');
+    expect(first.error?.code).toBe('schedule_task_outcome_unknown');
+    expect(reconnected.status).toBe('outcome_unknown');
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+    expect(h.tools.execute).toHaveBeenCalledWith(ctx, 'schedule_task', input, {
+      logicalOperationId: PROPOSAL,
+    });
   });
 
   it.each([
@@ -509,6 +531,45 @@ describe('MeriActionProposalService', () => {
     const h = harness({ row: makeRow({ tool }), executeResult });
     h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
     expect((await h.service.approveAndExecute(ctx, PROPOSAL)).status).toBe('succeeded');
+  });
+
+  it('retains an acknowledged reply receipt when only artifact persistence failed', async () => {
+    const executeResult = {
+      ok: true,
+      sentFrom: 'me@example.com',
+      to: 'you@example.com',
+      subject: 'Re: Hi',
+      sendReceipt: {
+        provider: 'gmail',
+        providerMessageId: 'message-1',
+        providerThreadId: 'thread-1',
+        correlationId: 'correlation-1',
+      },
+      artifactPersistence: {
+        persisted: false,
+        error: 'Tool clientId does not match the Meri conversation client',
+      },
+    };
+    const h = harness({
+      row: makeRow({ tool: 'reply_email', input: { threadId: 'thread-1', body: 'Reply' } }),
+      executeResult,
+    });
+    h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
+
+    const result = await h.service.approveAndExecute(ctx, PROPOSAL);
+
+    expect(result.status).toBe('succeeded');
+    expect(result.resultSummary).toMatchObject({
+      sendReceipt: {
+        provider: 'gmail',
+        providerMessageId: 'message-1',
+        correlationId: 'correlation-1',
+      },
+      artifactPersistence: {
+        persisted: false,
+        error: 'Tool clientId does not match the Meri conversation client',
+      },
+    });
   });
 
   it('classifies safe internal transient errors as failed_retryable', async () => {
@@ -687,7 +748,9 @@ describe('MeriActionProposalService — retries retain the original policy autho
       'save_chat_attachments',
       input,
     );
-    expect(h.tools.execute).toHaveBeenNthCalledWith(2, ctx, 'save_chat_attachments', input);
+    expect(h.tools.execute).toHaveBeenNthCalledWith(2, ctx, 'save_chat_attachments', input, {
+      logicalOperationId: PROPOSAL,
+    });
   });
 
   it.each(['WARN', 'BLOCK'] as const)(

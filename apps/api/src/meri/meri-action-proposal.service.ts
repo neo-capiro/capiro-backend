@@ -169,6 +169,40 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
         ]),
     );
   }
+  const sendReceipt = source.sendReceipt;
+  if (sendReceipt && typeof sendReceipt === 'object' && !Array.isArray(sendReceipt)) {
+    const receipt = sendReceipt as Record<string, unknown>;
+    summary.sendReceipt = Object.fromEntries(
+      [
+        'provider',
+        'providerMessageId',
+        'providerThreadId',
+        'providerDraftId',
+        'providerConversationId',
+        'providerInternetMessageId',
+        'correlationId',
+      ]
+        .filter((field) => typeof receipt[field] === 'string')
+        .map((field) => [field, bounded(receipt[field], 300) ?? '']),
+    );
+  }
+  const artifactPersistence = source.artifactPersistence;
+  if (
+    artifactPersistence &&
+    typeof artifactPersistence === 'object' &&
+    !Array.isArray(artifactPersistence)
+  ) {
+    const persistence = artifactPersistence as Record<string, unknown>;
+    summary.artifactPersistence = {
+      persisted: persistence.persisted === true,
+      ...(typeof persistence.error === 'string'
+        ? { error: bounded(persistence.error, 500) ?? '' }
+        : {}),
+      ...(typeof persistence.reason === 'string'
+        ? { reason: bounded(persistence.reason, 500) ?? '' }
+        : {}),
+    };
+  }
   return summary as Prisma.InputJsonValue;
 }
 
@@ -225,6 +259,13 @@ function classifyExecutionFailure(tool: string, error: unknown): {
     return terminal
       ? { status: 'failed_terminal', code: rawCode ?? `http_${httpStatus ?? 400}`, message }
       : { status: 'outcome_unknown', code: rawCode ?? 'external_outcome_unknown', message };
+  }
+  if (tool === 'schedule_task' && !terminal) {
+    return {
+      status: 'outcome_unknown',
+      code: rawCode ?? 'schedule_task_outcome_unknown',
+      message: `${message} Check scheduled tasks before any retry.`,
+    };
   }
   if (terminal) return { status: 'failed_terminal', code: rawCode ?? `http_${httpStatus ?? 400}`, message };
   const retryable = httpStatus === 408 || httpStatus === 429 ||
@@ -439,7 +480,9 @@ export class MeriActionProposalService {
 
     try {
       assertMeriToolRequestActive();
-      const result = await this.tools.executeFromAuthenticatedUser(ctx, tool, input);
+      const result = await this.tools.executeFromAuthenticatedUser(ctx, tool, input, {
+        logicalOperationId: row.id,
+      });
       const incomplete =
         classifyMeriActionLogicalFailure(tool, result) ?? filingExecutionFailure(tool, result);
       if (incomplete) {
@@ -642,7 +685,9 @@ export class MeriActionProposalService {
     row = claimed.row;
 
     try {
-      const result = await this.tools.executeFromAuthenticatedUser(ctx, row.tool, canonical);
+      const result = await this.tools.executeFromAuthenticatedUser(ctx, row.tool, canonical, {
+        logicalOperationId: row.id,
+      });
       const incomplete =
         classifyMeriActionLogicalFailure(row.tool, result) ??
         filingExecutionFailure(row.tool, result);

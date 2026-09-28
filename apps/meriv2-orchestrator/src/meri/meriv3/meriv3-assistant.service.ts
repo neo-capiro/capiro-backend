@@ -213,6 +213,37 @@ function parseArguments(raw: string): Record<string, unknown> {
   return parsed as Record<string, unknown>;
 }
 
+function canonicalJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalJsonValue);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, nested]) => [key, canonicalJsonValue(nested)]),
+    );
+  }
+  return value;
+}
+
+function writeIntentKey(args: {
+  ctx: MeriContext;
+  dto: MeriV3ChatInput;
+  tool: string;
+  input: Record<string, unknown>;
+}): string {
+  return JSON.stringify(
+    canonicalJsonValue({
+      tenantId: args.ctx.tenantId,
+      actorUserId: args.ctx.userId,
+      clientId: args.dto.clientId ?? args.input.clientId ?? null,
+      conversationId: args.dto.conversationId ?? null,
+      researchRunId: args.dto.researchRun?.runId ?? null,
+      tool: args.tool,
+      input: args.input,
+    }),
+  );
+}
+
 function functionCallBatchIsComplete(calls: OpenAiResponsesFunctionCall[]): boolean {
   const callIds = new Set<string>();
   return calls.every((call) => {
@@ -2183,6 +2214,10 @@ export class MeriV3AssistantService {
     control?: ToolExecutionControl;
   }): Promise<FunctionExecution[]> {
     const executions: FunctionExecution[] = [];
+    // This cache exists only for one provider-emitted batch. It prevents two
+    // distinct call IDs with the same scoped write intent from creating two
+    // effects/proposals while still returning one correlated output per call ID.
+    const batchWriteIntents = new Map<string, FunctionExecution>();
     for (const call of args.calls) {
       assertToolExecutionActive(args.control);
       await this.assertResearchRunActive(args.dto, args.control);
@@ -2238,6 +2273,21 @@ export class MeriV3AssistantService {
       );
       if (call.name === 'get_research_evidence' && args.dto.researchRun) {
         augmented.input.sessionId = args.dto.researchRun.sessionId;
+      }
+      const definition = this.registry.get(call.name);
+      const intentKey =
+        definition?.readOnly === false
+          ? writeIntentKey({
+              ctx: args.ctx,
+              dto: args.dto,
+              tool: call.name,
+              input: augmented.input,
+            })
+          : null;
+      const prior = intentKey ? batchWriteIntents.get(intentKey) : undefined;
+      if (prior) {
+        executions.push({ call, result: prior.result, serialized: prior.serialized });
+        continue;
       }
       args.toolsUsed.push(call.name);
       const result = await this.invokeTool({
@@ -2334,7 +2384,9 @@ export class MeriV3AssistantService {
       const body = wrapMeriToolEvidence(call.name, visibleResult);
       const serialized = cites.length ? `${formatCitationsForPrompt(cites)}\n\n${body}` : body;
       args.ledgerEntries.push({ tool: call.name, serialized, result: visibleResult });
-      executions.push({ call, result: visibleResult, serialized });
+      const execution = { call, result: visibleResult, serialized };
+      executions.push(execution);
+      if (intentKey) batchWriteIntents.set(intentKey, execution);
     }
     return executions;
   }
