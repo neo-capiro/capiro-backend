@@ -140,7 +140,8 @@ export async function authorizedAttachmentSources(
   );
 }
 
-/** A metadata-only inventory for resumable runtimes. It never replays attachment text or bytes. */
+/** A metadata-only inventory for resumable runtimes. It never returns attachment text or bytes.
+ * Readable XLSX entries are verified against bounded, currently authorized saved-source reads. */
 export async function previousAttachmentManifest(
   prisma: PrismaService,
   ctx: TenantContext,
@@ -180,18 +181,39 @@ export async function previousAttachmentManifest(
       },
     }),
   );
+  const xlsxIds = rows.filter((row) => row.kind === 'xlsx').map((row) => row.id);
+  const xlsxData = new Map<string, Uint8Array | null>();
+  if (xlsxIds.length) {
+    const savedSources = await prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioAttachment.findMany({
+        where: {
+          id: { in: xlsxIds },
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          messageId: { in: messageIds },
+          kind: 'xlsx',
+        },
+        select: { id: true, data: true },
+      }),
+    );
+    for (const source of savedSources) xlsxData.set(source.id, source.data);
+  }
   const turnByMessage = new Map(
     [...messages].reverse().map((message, index) => [message.id, index + 1]),
   );
   return rows.map((row) => {
     const content = describeAttachmentContentState(row);
+    const sourceMatches =
+      row.kind !== 'xlsx' ||
+      !content.readable ||
+      cachedXlsxTextMatchesBytes(row.textContent, xlsxData.get(row.id));
     return {
       id: row.id,
       filename: row.filename,
       turn: turnByMessage.get(row.messageId!) ?? 0,
       uploadedAt: row.createdAt,
-      state: content.state,
-      extractedChars: content.extractedChars,
+      state: sourceMatches ? content.state : 'failed',
+      extractedChars: sourceMatches ? content.extractedChars : 0,
     };
   });
 }
