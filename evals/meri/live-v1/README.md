@@ -28,7 +28,7 @@ The existing `evals/meri/` 26-case offline suite is separate and unchanged. `CD-
 - `capture.schema.json` — capture evidence schema with explicit setup/stale/runtime/product boundaries and an owned optional row-predicate artifact boundary.
 - `artifact-reader.mjs` — owned-root artifact reader that recomputes raw-byte hashes and refuses absolute, traversal, URL and symlink references.
 - `deterministic-predicates.mjs`, `saved-evidence-predicates.mjs`, `execution-requirements.mjs` — implemented row predicates plus canonical saved memory/document receipts and structured prior-turn, fault, transition and mode-matrix requirements.
-- `capture-adapter.mjs` — schema-only starter; live execution deliberately throws `NOT_IMPLEMENTED`.
+- `capture-adapter.mjs`, `capture-transport.mjs`, `artifact-collector.mjs`, `capture-cli.mjs` — bounded read-only API capture path for cases 01 and 20.
 - `verify-capture.mjs` — runtime-schema, artifact, correlation, predicate and status verifier. Caller `passed`, proof booleans and arbitrary 64-hex strings are not PASS evidence.
 - `recorded-provider.mjs` — read-only recorded-output provider that refuses network/write request fields.
 - `report.mjs` — deterministic JSON/Markdown reporter.
@@ -84,6 +84,44 @@ Cases 40–45 retain lower-level structural checks for canonical source read rec
 ## Offline grading safety
 
 Live behavior must be captured exactly once. Writes may occur only in a separately authorized disposable sink through a future live capture adapter. Offline grading then consumes saved records through `recorded-provider.mjs`; that provider has no network client and rejects embedded network/write/operation request fields. An evaluator must not repeat a write to obtain answer text.
+
+## Dedicated live read capture
+
+This slice is an interim capture guard, not completion of the mandatory live-75 run or a server receipt. `LIVE_CAPTURE` currently returns `LIVE_SERVER_AUTHORITY_CONTRACT_MISSING` before any HTTP request, conversation creation, or synthesis. The guard is unconditional because the existing server does not expose authority for all of these preconditions:
+
+1. predispatch read-only tool enforcement plus suppression or sandboxing of incidental after-turn writes;
+2. a server-authored current fixture/source ownership and version receipt for the authenticated actor, tenant, client, and frozen-to-physical mapping;
+3. the exact served API and orchestrator release identities; and
+4. a server/provider-enforced cost reservation.
+
+A caller-owned boolean, `expectedOperation`, scope-file SHA, configured release SHA, model instruction, or absence of late SSE write events cannot satisfy the guard. `maxSpendUsd` is only a configured post-hoc comparison threshold in the current controlled collector. It is not a provider ceiling or reservation, and an over-threshold observation can only be reported after cost has been incurred. Do not run the CLI with a live bearer while this guard is present.
+
+`UNIT_FIXTURE_NOT_LIVE` remains available as a controlled loopback diagnostic for cases 01 and 20. Its raw HTTP transport is module-internal; every exported capture entry point validates provenance and `LIVE_CAPTURE` remains unconditionally blocked before HTTP. The diagnostic exercises the reviewed `/health`, `/api/me`, `/api/clio/status`, `/api/clients`, conversation, stream, message-readback, and supported source-readback sequence, but it remains `NOT_RUN`. It submits synthesis at most once and never retries an ambiguous submission. Once submission starts, parser, redaction, canonical-readback, and network failures retain the observed submission count and return `CAPTURE_UNCERTAIN`; they are not rewritten as zero-submission `BLOCKED` results. Redirects are never followed. Strict UTF-8, a 4,096-frame SSE bound, complete frame termination, exactly one terminal event, and no post-terminal event are required. Structural stream defects are classified `CAPTURE_UNCERTAIN` before post-terminal text can affect the answer or canonical readback. The only permitted live API origin is `https://app.capiro.ai`; `https://os.capiro.ai` is UI-only.
+
+The UNIT diagnostic does not prevent effects or cost at a remote service and must not be pointed at one: its target validation is loopback-only. Event inspection and `maxSpendUsd` are post-hoc observations, not predispatch effect enforcement, provider authorization, reservation, or a cost ceiling.
+
+Controlled artifact writes reject linked roots, parents, refs, dangling destinations, root/parent identity changes, and external same-byte substitutions. New files use a temporary plain file plus an atomic no-replace hard-link commit and are checked before and after access. These checks are not claimed to be fully race-proof: portable Node path APIs do not pin every traversed directory handle, especially across Windows reparse substitution. `ArtifactCollector` therefore refuses `LIVE_CAPTURE` path mode with `LIVE_ARTIFACT_PATH_UNSAFE`; only the controlled diagnostic uses this writer.
+
+Copy `capture-scope.example.json` outside the repository, replace every placeholder with the existing synthetic fixture's physical IDs and current seed/deployment receipts, then bind the mapping:
+
+```bash
+node evals/meri/live-v1/capture-cli.mjs --scope-hash C:/path/to/scope.json
+# Put the printed hash in fixture.mappingSha256.
+# LIVE_CAPTURE execution remains blocked; do not supply a live bearer.
+```
+
+The bearer is read only from `MERI_LIVE_BEARER_TOKEN`; credentials, cookies, provider headers, JWT-shaped values, and exact known secret values are redacted before controlled persistence. This is bounded redaction, not a categorical guarantee for unknown secret forms or caller-provided logging. Do not put tokens in the scope file. The CLI creates a fresh owned run directory under `--out`; it refuses an existing run path. Exit 0 is reserved for `CAPTURE_COMPLETE` only. `BLOCKED` exits 2, `CAPTURE_UNCERTAIN` exits 3, and `CAPTURE_INCOMPLETE` exits 4. No collector exit is acceptance.
+
+Current server integration gaps remain explicit. The main API source does not emit the release SHA, public stream events do not expose an authoritative orchestrator identity, server trace ID, durable tool-call IDs, logical-effect audit, or complete model/token/cost receipt, and budget citations have no supported `/api/clio/sources` owner readback. Missing authority remains `BLOCKED`; it is never converted to PASS. The existing verifier's all-live source/auth authority gate and human rubric are unchanged.
+
+The precise next integration is an extension of existing API ownership paths, not a new evaluation framework:
+
+1. `/health` must expose the actual served API SHA, and authenticated `/api/clio/status` must return a server-authored, short-lived capture-readiness receipt. Its bytes must bind the served orchestrator SHA, authenticated actor/tenant/client, exact allowed read-tool registry, dispatch-boundary write denial, incidental-job policy, and a server/provider cost reservation amount and identity. A readiness boolean is insufficient.
+2. Before conversation creation, the existing `/api/clio/sources` owner path must return a current authority receipt for each mapped physical source, binding frozen ID, owner tenant/client, canonical version, locator, and content/passage hash. The owner must add equivalent budget-record support for case 20; until then that case remains blocked.
+3. The existing conversation/stream request contract must consume the single-use readiness receipt, reject stale or mismatched scope before assistant dispatch, and emit a durable terminal receipt binding API/orchestrator identities, request/trace/tool-call IDs, effective model, token and actual cost records, source versions/locators/passage hashes, and a zero-logical-effect audit covering incidental writes.
+4. The collector can then validate those server-authored receipts before conversation creation and after the one stream submission. It must not accept scope-config declarations as substitutes. The portable LIVE artifact path still requires an owner implementation that can pin directory handles or an equivalently safe existing storage primitive.
+
+No endpoint or trusted config switch is fabricated in this collector. App/API owners must implement the above on the existing contracts before the unconditional guard can be removed.
 
 ## Narrow local commands
 
