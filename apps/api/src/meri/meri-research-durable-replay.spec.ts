@@ -1097,7 +1097,6 @@ describe('Meri durable safe-read commit and replay', () => {
     expect(h.tools.execute).not.toHaveBeenCalled();
   });
 
-<<<<<<< HEAD
   it('commits the actual debrief owner page and replays an old lease only while current bytes remain exact', async () => {
     const h = harness();
     let current: unknown = completeDebriefResult();
@@ -1198,7 +1197,6 @@ describe('Meri durable safe-read commit and replay', () => {
       'no longer authorized',
       );
     });
-=======
   it('rejects legacy cross-client mail from replay, report export and restored model context', async () => {
     const clientA = '33333333-3333-4333-8333-333333333333';
     const clientB = '55555555-5555-4555-8555-555555555555';
@@ -1281,7 +1279,6 @@ describe('Meri durable safe-read commit and replay', () => {
       'Research session not found',
     );
   });
->>>>>>> d2e54cafd (fix(meri): bind mail evidence to current scope)
 
   it('reauthorizes canonical full mail through retained replay, report read and export, then denies mutation and mailbox revocation', async () => {
     const replay = harness({
