@@ -1,17 +1,12 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
-import type { TenantContext } from '@capiro/shared';
+import { MERI_CAPABILITY_REGISTRY, type TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { validateFirmSkill } from './meri-firm-skills.helpers.js';
 import { CLIO_SKILLS } from './skills/skill-registry.js';
-import type { MeriSkill } from './skills/skill.types.js';
+import type { MeriProcedureBinding, MeriSkill } from './skills/skill.types.js';
 import { TOOL_DEFINITIONS } from './meri-tools.service.js';
 
 const VERSION_HISTORY_CAP = 10;
@@ -51,9 +46,17 @@ export class MeriFirmSkillsService {
     return TOOL_DEFINITIONS.map((t) => t.name);
   }
 
+  private readOnlyTools(): string[] {
+    return MERI_CAPABILITY_REGISTRY.filter((capability) => capability.readOnly).map(
+      (capability) => capability.name,
+    );
+  }
+
   /** Built-in triggers are reserved too — a firm skill may never claim them. */
   private validate(input: Record<string, unknown>) {
-    const validation = validateFirmSkill(input, this.allowedTools());
+    const validation = validateFirmSkill(input, this.allowedTools(), {
+      readOnlyTools: this.readOnlyTools(),
+    });
     if (!validation.ok || !validation.skill) {
       throw new BadRequestException(validation.errors.join('; ') || 'Invalid skill');
     }
@@ -86,10 +89,11 @@ export class MeriFirmSkillsService {
       name: row.name,
       skill: row.skillJson,
       version: row.version,
-      versions: (row.versions as unknown as SkillVersionSnapshot[] | null)?.map((v) => ({
-        version: v.version,
-        savedAt: v.savedAt,
-      })) ?? [],
+      versions:
+        (row.versions as unknown as SkillVersionSnapshot[] | null)?.map((v) => ({
+          version: v.version,
+          savedAt: v.savedAt,
+        })) ?? [],
       enabled: row.enabled,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -111,7 +115,10 @@ export class MeriFirmSkillsService {
           },
         }),
       );
-      await this.audit(ctx, 'clio.firm_skill.create', row.id, { skillId: skill.id, name: skill.name });
+      await this.audit(ctx, 'clio.firm_skill.create', row.id, {
+        skillId: skill.id,
+        name: skill.name,
+      });
       this.invalidate(ctx.tenantId);
       return row;
     } catch (err) {
@@ -139,7 +146,10 @@ export class MeriFirmSkillsService {
         },
       }),
     );
-    await this.audit(ctx, 'clio.firm_skill.update', id, { skillId: skill.id, version: row.version });
+    await this.audit(ctx, 'clio.firm_skill.update', id, {
+      skillId: skill.id,
+      version: row.version,
+    });
     this.invalidate(ctx.tenantId);
     return row;
   }
@@ -219,9 +229,19 @@ export class MeriFirmSkillsService {
       const validation = validateFirmSkill(
         row.skillJson as unknown as Record<string, unknown>,
         this.allowedTools(),
+        { readOnlyTools: this.readOnlyTools() },
       );
-      if (validation.ok && validation.skill) skills.push(validation.skill);
-      else {
+      if (validation.ok && validation.skill) {
+        skills.push({
+          ...validation.skill,
+          procedureBinding: {
+            source: 'firm',
+            recordId: row.id,
+            canonicalId: row.skillId,
+            version: row.version,
+          },
+        });
+      } else {
         this.logger.warn(
           `Skipping invalid stored firm skill [${row.skillId}]: ${validation.errors.join('; ')}`,
         );
@@ -229,6 +249,50 @@ export class MeriFirmSkillsService {
     }
     this.cache.set(tenantId, { skills, fetchedAt: Date.now() });
     return skills;
+  }
+
+  /**
+   * Resolve an untrusted binding against the current tenant row. This read is
+   * deliberately uncached: disable, delete/revoke, tenant mismatch, ID change,
+   * or version drift must fail closed before procedure content is used.
+   */
+  async resolveProcedureReference(
+    tenantId: string,
+    binding: MeriProcedureBinding,
+  ): Promise<MeriSkill> {
+    if (!this.enabled() || !this.validBinding(binding)) {
+      throw new NotFoundException('Procedure binding is unavailable');
+    }
+    const row = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.clioFirmSkill.findFirst({
+        where: { id: binding.recordId, tenantId, enabled: true },
+      }),
+    );
+    if (
+      !row ||
+      !row.enabled ||
+      row.skillId !== binding.canonicalId ||
+      row.version !== binding.version
+    ) {
+      throw new NotFoundException('Procedure binding is unavailable');
+    }
+    const validation = validateFirmSkill(
+      row.skillJson as unknown as Record<string, unknown>,
+      this.allowedTools(),
+      { readOnlyTools: this.readOnlyTools() },
+    );
+    if (!validation.ok || !validation.skill?.procedure || validation.skill.id !== row.skillId) {
+      throw new NotFoundException('Procedure binding is unavailable');
+    }
+    return {
+      ...validation.skill,
+      procedureBinding: {
+        source: 'firm',
+        recordId: row.id,
+        canonicalId: row.skillId,
+        version: row.version,
+      },
+    };
   }
 
   // ── Internals ────────────────────────────────────────────────────────────
@@ -239,6 +303,19 @@ export class MeriFirmSkillsService {
     );
     if (!row) throw new NotFoundException('Firm skill not found');
     return row;
+  }
+
+  private validBinding(binding: MeriProcedureBinding): boolean {
+    return Boolean(
+      binding &&
+      binding.source === 'firm' &&
+      typeof binding.recordId === 'string' &&
+      binding.recordId.length > 0 &&
+      typeof binding.canonicalId === 'string' &&
+      /^[a-z0-9_]{2,48}$/.test(binding.canonicalId) &&
+      Number.isInteger(binding.version) &&
+      binding.version > 0,
+    );
   }
 
   private pushVersion(existing: {

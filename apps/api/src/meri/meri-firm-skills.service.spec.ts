@@ -1,6 +1,8 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
+import { commitmentsAuditProcedureSkill } from './skills/commitments-audit.procedure.js';
+import type { MeriProcedureBinding } from './skills/skill.types.js';
 
 /**
  * In-memory Prisma double with tenant-GUC-style scoping (same pattern as
@@ -24,11 +26,14 @@ function makePrisma(seed: Row[] = []) {
             (where.tenantId === undefined || r.tenantId === where.tenantId),
         ),
       findFirst: async ({ where }: { where: Row }) =>
-        scoped().find((r) => r.id === where.id) ?? null,
+        scoped().find(
+          (r) =>
+            r.id === where.id &&
+            (where.tenantId === undefined || r.tenantId === where.tenantId) &&
+            (where.enabled === undefined || r.enabled === where.enabled),
+        ) ?? null,
       create: async ({ data }: { data: Row }) => {
-        if (
-          scoped().some((r) => r.skillId === data.skillId && r.tenantId === data.tenantId)
-        ) {
+        if (scoped().some((r) => r.skillId === data.skillId && r.tenantId === data.tenantId)) {
           const err = new Error('unique') as Error & { code: string };
           err.code = 'P2002';
           // Mimic Prisma's known-request error shape closely enough for the catch.
@@ -99,6 +104,11 @@ const VALID_SKILL = {
   requiredTools: ['get_client_context'],
   template: { heading: 'Earmark Request Memo', sections: ['Eligibility', 'Member Fit', 'Ask'] },
 };
+
+const COMMITMENTS_SKILL_INPUT = commitmentsAuditProcedureSkill as unknown as Record<
+  string,
+  unknown
+>;
 
 describe('MeriFirmSkillsService — validation at save', () => {
   test('creates a valid skill and serves it at turn time', async () => {
@@ -187,5 +197,71 @@ describe('MeriFirmSkillsService — versioning + lifecycle', () => {
     const dryRun = await svc.testRun(ctx(TENANT_A), created.id);
     expect(dryRun.template?.sections).toEqual(['Eligibility', 'Member Fit', 'Ask']);
     expect(dryRun.note).toContain('No tools were executed');
+  });
+});
+
+describe('MeriFirmSkillsService — current procedure binding', () => {
+  test('serves actual row/version provenance and rejects a stale version after update', async () => {
+    const prisma = makePrisma();
+    const svc = new MeriFirmSkillsService(prisma as never, config as never);
+    const created = (await svc.create(ctx(TENANT_A), COMMITMENTS_SKILL_INPUT)) as {
+      id: string;
+      version: number;
+    };
+
+    const served = await svc.skillsForTenant(TENANT_A);
+    const binding = served[0]?.procedureBinding;
+    expect(binding).toEqual({
+      source: 'firm',
+      recordId: created.id,
+      canonicalId: 'commitments_audit',
+      version: created.version,
+    });
+    const resolved = await svc.resolveProcedureReference(TENANT_A, binding!);
+    expect(resolved.procedureBinding).toEqual(binding);
+    expect(resolved.procedure?.caseIds).toContain('CD-07');
+
+    await svc.update(ctx(TENANT_A), created.id, {
+      ...commitmentsAuditProcedureSkill,
+      systemAddendum: `${commitmentsAuditProcedureSkill.systemAddendum} Keep coverage explicit.`,
+    });
+    await expect(svc.resolveProcedureReference(TENANT_A, binding!)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    const current = (await svc.skillsForTenant(TENANT_A))[0]?.procedureBinding;
+    expect(current?.version).toBe(2);
+    await expect(svc.resolveProcedureReference(TENANT_A, current!)).resolves.toMatchObject({
+      id: 'commitments_audit',
+      procedureBinding: { version: 2 },
+    });
+  });
+
+  test('fails closed for disabled, revoked, and wrong-tenant references', async () => {
+    const disabledPrisma = makePrisma();
+    const disabledSvc = new MeriFirmSkillsService(disabledPrisma as never, config as never);
+    const disabledRow = (await disabledSvc.create(ctx(TENANT_A), COMMITMENTS_SKILL_INPUT)) as {
+      id: string;
+    };
+    const disabledBinding = (await disabledSvc.skillsForTenant(TENANT_A))[0]
+      ?.procedureBinding as MeriProcedureBinding;
+    await disabledSvc.setEnabled(ctx(TENANT_A), disabledRow.id, false);
+    await expect(
+      disabledSvc.resolveProcedureReference(TENANT_A, disabledBinding),
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    const revokedPrisma = makePrisma();
+    const revokedSvc = new MeriFirmSkillsService(revokedPrisma as never, config as never);
+    const revokedRow = (await revokedSvc.create(ctx(TENANT_A), COMMITMENTS_SKILL_INPUT)) as {
+      id: string;
+    };
+    const revokedBinding = (await revokedSvc.skillsForTenant(TENANT_A))[0]
+      ?.procedureBinding as MeriProcedureBinding;
+    await expect(
+      revokedSvc.resolveProcedureReference(TENANT_B, revokedBinding),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    await revokedSvc.remove(ctx(TENANT_A), revokedRow.id);
+    await expect(
+      revokedSvc.resolveProcedureReference(TENANT_A, revokedBinding),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
