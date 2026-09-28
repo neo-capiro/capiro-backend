@@ -57,6 +57,21 @@ function packet(clientId: string): MeriContextPacket {
   };
 }
 
+function storeDecisionRecovery(
+  scope: string,
+  input: {
+    id: string;
+    reviewRequestId: string;
+    decision: 'approve' | 'reject' | 'request-changes' | 'resolve-conflict';
+  },
+  legacyProof: Record<string, unknown> = {},
+) {
+  window.sessionStorage.setItem(
+    `capiro:meri-memory-decision:v1:${encodeURIComponent(scope)}:${input.id}:${input.decision}:none`,
+    JSON.stringify({ input, ...legacyProof }),
+  );
+}
+
 function inboxItem(
   label: string,
   status: MemoryReviewInboxItem['status'] = 'changes_requested',
@@ -528,6 +543,170 @@ describe('Meri governed proposal targets', () => {
       expect(card('Proposal l3-review').getByRole('button', { name: 'Approve' })).toBeEnabled(),
     );
     expect(mocks.api.post).toHaveBeenCalledTimes(1);
+  });
+
+  it('restores every ambiguous candidate lock after reload and checks each with GET only', async () => {
+    const candidates = [
+      candidate('ambiguous-one', 'l3', 'L3 Harris'),
+      candidate('ambiguous-two', 'anduril', 'Anduril'),
+    ];
+    review = candidates;
+    mocks.api.get.mockImplementation(async (url: string) => {
+      if (url.includes('/inbox/candidates/')) {
+        const candidateId = url.slice(url.lastIndexOf('/') + 1);
+        const pending = inboxItem(`pending-${candidateId}`, 'pending');
+        return {
+          data: detailFor(pending, {
+            candidateId,
+            reviewRequestId: candidateId,
+          }),
+        };
+      }
+      if (url.endsWith('/inbox')) {
+        return { data: { enabled: true, view: 'history', items: [], nextCursor: null } };
+      }
+      return { data: { enabled: true, candidates: url.endsWith('/proposals') ? proposals : review } };
+    });
+    mocks.api.post.mockRejectedValue(new Error('Lost response'));
+
+    const first = show();
+    await screen.findByText('Proposal ambiguous-one');
+    fireEvent.click(card('Proposal ambiguous-one').getByRole('button', { name: 'Approve' }));
+    await waitFor(() =>
+      expect(card('Proposal ambiguous-two').getByRole('button', { name: 'Approve' })).toBeEnabled(),
+    );
+    fireEvent.click(card('Proposal ambiguous-two').getByRole('button', { name: 'Approve' }));
+    await waitFor(() =>
+      expect(screen.getAllByText('Decision status unconfirmed')).toHaveLength(2),
+    );
+    expect(card('Proposal ambiguous-one').getByRole('button', { name: 'Approve' })).toBeDisabled();
+    expect(card('Proposal ambiguous-two').getByRole('button', { name: 'Approve' })).toBeDisabled();
+    first.unmount();
+
+    show();
+    await screen.findByText('Proposal ambiguous-one');
+    await waitFor(() =>
+      expect(screen.getAllByText('Decision status unconfirmed')).toHaveLength(2),
+    );
+    expect(card('Proposal ambiguous-one').getByRole('button', { name: 'Approve' })).toBeDisabled();
+    expect(card('Proposal ambiguous-two').getByRole('button', { name: 'Approve' })).toBeDisabled();
+    expect(
+      mocks.api.get.mock.calls.filter(([url]) => String(url).includes('/inbox/candidates/')),
+    ).toHaveLength(4);
+    expect(mocks.api.post).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips a malformed same-scope recovery entry and restores the later valid lock', async () => {
+    const locked = review[0]!;
+    window.sessionStorage.setItem(
+      `capiro:meri-memory-decision:v1:${encodeURIComponent(mocks.scope.value)}:malformed`,
+      '{not-json',
+    );
+    storeDecisionRecovery(mocks.scope.value, {
+      id: locked.id,
+      reviewRequestId: locked.id,
+      decision: 'approve',
+    });
+    const pending = inboxItem('malformed-sibling-pending', 'pending');
+    mocks.api.get.mockImplementation(async (url: string) => {
+      if (url.includes('/inbox/candidates/')) {
+        return {
+          data: detailFor(pending, {
+            candidateId: locked.id,
+            reviewRequestId: locked.id,
+          }),
+        };
+      }
+      if (url.endsWith('/inbox')) {
+        return { data: { enabled: true, view: 'history', items: [], nextCursor: null } };
+      }
+      return { data: { enabled: true, candidates: url.endsWith('/proposals') ? proposals : review } };
+    });
+
+    show();
+    await screen.findByText('Proposal l3-review');
+    expect(await screen.findByText('Decision status unconfirmed')).toBeInTheDocument();
+    expect(card('Proposal l3-review').getByRole('button', { name: 'Approve' })).toBeDisabled();
+    expect(mocks.api.get).toHaveBeenCalledWith(
+      `/api/memory/review/inbox/candidates/${locked.id}`,
+    );
+    expect(mocks.api.post).not.toHaveBeenCalled();
+  });
+
+  it('does not treat stored accepted metadata as causal proof and keeps it within auth scope', async () => {
+    const locked = review[0]!;
+    storeDecisionRecovery(
+      mocks.scope.value,
+      { id: locked.id, reviewRequestId: locked.id, decision: 'approve' },
+      {
+        accepted: true,
+        acceptedResult: { candidateId: locked.id, outcome: 'activated' },
+      },
+    );
+    const approved = inboxItem('stored-accepted-approved', 'approved');
+    mocks.api.get.mockImplementation(async (url: string) => {
+      if (url.includes('/inbox/candidates/')) {
+        return {
+          data: detailFor(approved, {
+            candidateId: locked.id,
+            reviewRequestId: locked.id,
+          }),
+        };
+      }
+      if (url.endsWith('/inbox')) {
+        return { data: { enabled: true, view: 'history', items: [], nextCursor: null } };
+      }
+      return { data: { enabled: true, candidates: url.endsWith('/proposals') ? proposals : review } };
+    });
+
+    const view = show();
+    await screen.findByText('Proposal l3-review');
+    expect(await screen.findByText('Decision status unconfirmed')).toBeInTheDocument();
+    expect(screen.getByText(/No fresh acknowledged decision response is available/)).toBeInTheDocument();
+    expect(screen.getByText(/Current recorded status: approved/)).toBeInTheDocument();
+    expect(screen.getByText(/terminal read alone is not attributed to your write/)).toBeInTheDocument();
+    expect(screen.queryByText('Decision confirmed')).not.toBeInTheDocument();
+    expect(mocks.toast.success).not.toHaveBeenCalled();
+    expect(card('Proposal l3-review').getByRole('button', { name: 'Approve' })).toBeDisabled();
+
+    mocks.scope.value = 'org-b:self:actor-b';
+    view.selectClient('new-auth-scope');
+    await waitFor(() =>
+      expect(card('Proposal l3-review').getByRole('button', { name: 'Approve' })).toBeEnabled(),
+    );
+    expect(mocks.api.post).not.toHaveBeenCalled();
+  });
+
+  it('does not confirm an approve when its accepted response reports the reject outcome', async () => {
+    const approving = review[0]!;
+    const approved = inboxItem('wrong-outcome-approved', 'approved');
+    mocks.api.get.mockImplementation(async (url: string) => {
+      if (url.includes('/inbox/candidates/')) {
+        return {
+          data: detailFor(approved, {
+            candidateId: approving.id,
+            reviewRequestId: approving.id,
+          }),
+        };
+      }
+      if (url.endsWith('/inbox')) {
+        return { data: { enabled: true, view: 'history', items: [], nextCursor: null } };
+      }
+      return { data: { enabled: true, candidates: url.endsWith('/proposals') ? proposals : review } };
+    });
+    mocks.api.post.mockResolvedValueOnce({
+      data: { candidateId: approving.id, outcome: 'rejected' },
+    });
+
+    show();
+    await screen.findByText('Proposal l3-review');
+    fireEvent.click(card('Proposal l3-review').getByRole('button', { name: 'Approve' }));
+    expect(await screen.findByText('Decision status unconfirmed')).toBeInTheDocument();
+    expect(screen.getByText(/accepted response did not match the requested decision/i)).toBeInTheDocument();
+    expect(screen.getByText(/Current recorded status: approved/)).toBeInTheDocument();
+    expect(screen.queryByText('Decision confirmed')).not.toBeInTheDocument();
+    expect(mocks.toast.success).not.toHaveBeenCalled();
+    expect(card('Proposal l3-review').getByRole('button', { name: 'Approve' })).toBeDisabled();
   });
 
   it('labels firm, personal, and legacy unnamed client cards explicitly under a selected client', async () => {

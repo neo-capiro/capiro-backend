@@ -9,8 +9,6 @@ export type PersistedMemoryDecision = {
       | 'supersede_existing'
       | 'conflict_requires_review';
   };
-  accepted: boolean;
-  acceptedResult?: Record<string, unknown>;
 };
 
 const PREFIX = 'capiro:meri-memory-decision:v1:';
@@ -19,29 +17,57 @@ function key(scope: string, input: PersistedMemoryDecision['input']): string {
   return `${PREFIX}${encodeURIComponent(scope)}:${input.id}:${input.decision}:${input.resolution ?? 'none'}`;
 }
 
-export function readMemoryDecisionRecovery(scope: string): PersistedMemoryDecision | null {
-  if (typeof sessionStorage === 'undefined') return null;
+const DECISIONS = new Set(['approve', 'reject', 'request-changes', 'resolve-conflict']);
+const RESOLUTIONS = new Set([
+  'duplicate',
+  'corroborate_existing',
+  'supersede_existing',
+  'conflict_requires_review',
+]);
+
+function isPersistedMemoryDecision(value: unknown): value is PersistedMemoryDecision {
+  if (!value || typeof value !== 'object') return false;
+  const input = (value as { input?: unknown }).input;
+  if (!input || typeof input !== 'object') return false;
+  const candidate = input as Record<string, unknown>;
+  const decisionIsValid =
+    typeof candidate.decision === 'string' && DECISIONS.has(candidate.decision);
+  const resolutionIsValid =
+    candidate.decision === 'resolve-conflict'
+      ? typeof candidate.resolution === 'string' && RESOLUTIONS.has(candidate.resolution)
+      : candidate.resolution === undefined;
+  return (
+    typeof candidate.id === 'string' &&
+    candidate.id.length > 0 &&
+    typeof candidate.reviewRequestId === 'string' &&
+    candidate.reviewRequestId.length > 0 &&
+    decisionIsValid &&
+    resolutionIsValid
+  );
+}
+
+export function readMemoryDecisionRecoveries(scope: string): PersistedMemoryDecision[] {
+  if (typeof sessionStorage === 'undefined') return [];
+  const recoveries: PersistedMemoryDecision[] = [];
   try {
     for (let index = 0; index < sessionStorage.length; index += 1) {
       const storageKey = sessionStorage.key(index);
       if (!storageKey?.startsWith(`${PREFIX}${encodeURIComponent(scope)}:`)) continue;
-      const raw = sessionStorage.getItem(storageKey);
-      if (!raw) continue;
-      const parsed = JSON.parse(raw) as PersistedMemoryDecision;
-      if (
-        parsed?.input &&
-        typeof parsed.input.id === 'string' &&
-        typeof parsed.input.reviewRequestId === 'string' &&
-        typeof parsed.input.decision === 'string' &&
-        typeof parsed.accepted === 'boolean'
-      ) {
-        return parsed;
+      try {
+        const raw = sessionStorage.getItem(storageKey);
+        if (!raw) continue;
+        const parsed: unknown = JSON.parse(raw);
+        if (isPersistedMemoryDecision(parsed) && storageKey === key(scope, parsed.input)) {
+          recoveries.push({ input: parsed.input });
+        }
+      } catch {
+        // A malformed sibling entry must not hide other recoverable decisions.
       }
     }
   } catch {
-    // Storage may be unavailable or contain stale data; recovery remains user-driven.
+    // Storage may be unavailable; return any entries already read.
   }
-  return null;
+  return recoveries;
 }
 
 export function writeMemoryDecisionRecovery(

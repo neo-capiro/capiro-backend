@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   memoryCandidateTargetLabel,
@@ -24,7 +24,7 @@ import { MeriPanelState } from './MeriPanelState.js';
 import type { MeriContextPacket, MeriContextPacketItem } from './meri-vnext-api.js';
 import {
   clearMemoryDecisionRecovery,
-  readMemoryDecisionRecovery,
+  readMemoryDecisionRecoveries,
   writeMemoryDecisionRecovery,
 } from './memory-decision-recovery.js';
 
@@ -138,27 +138,21 @@ function acceptedResultMatches(
     );
   }
   if (input.decision === 'resolve-conflict') {
-    return result.decision === input.resolution && typeof result.controllingItemId === 'string';
+    if (!input.resolution) return false;
+    const expectedOutcome: Record<ConflictResolution, string> = {
+      duplicate: 'duplicate',
+      corroborate_existing: 'corroborated',
+      supersede_existing: 'activated',
+      conflict_requires_review: 'conflict',
+    };
+    return (
+      result.decision === input.resolution &&
+      result.outcome === expectedOutcome[input.resolution] &&
+      typeof result.controllingItemId === 'string'
+    );
   }
-  return typeof result.outcome === 'string';
-}
-
-function minimalAcceptedResult(result: Record<string, unknown>): Record<string, unknown> {
-  const workflow = result.workflow;
-  return {
-    candidateId: result.candidateId,
-    outcome: result.outcome,
-    decision: result.decision,
-    controllingItemId: result.controllingItemId,
-    ...(workflow && typeof workflow === 'object'
-      ? {
-          workflow: {
-            requestId: (workflow as Record<string, unknown>).requestId,
-            status: (workflow as Record<string, unknown>).status,
-          },
-        }
-      : {}),
-  };
+  if (input.decision === 'reject') return result.outcome === 'rejected';
+  return ['activated', 'duplicate', 'conflict'].includes(String(result.outcome));
 }
 
 function sourceLabel(sourceKind: string): string {
@@ -277,6 +271,8 @@ function QueueButton({
 export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) {
   const api = useApi();
   const apiScope = useApiScope();
+  const apiScopeRef = useRef(apiScope);
+  apiScopeRef.current = apiScope;
   const qc = useQueryClient();
   const toast = useCapiroToast();
   const { review, proposals } = useMeriGovernedMemoryQueues();
@@ -317,7 +313,7 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
   const [resolvingConflict, setResolvingConflict] = useState<ReviewableMemoryCandidate | null>(null);
   const [conflictResolution, setConflictResolution] =
     useState<ConflictResolution>('conflict_requires_review');
-  const [decisionNotice, setDecisionNotice] = useState<DecisionNotice | null>(null);
+  const [decisionNotices, setDecisionNotices] = useState<DecisionNotice[]>([]);
   const [revising, setRevising] = useState<MemoryReviewDetail | null>(null);
   const [revisionSections, setRevisionSections] = useState<
     NonNullable<MemoryReviewDetail['proposal']['canonicalItem']>['sections']
@@ -350,14 +346,21 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
     }
   };
 
+  const setDecisionNotice = (notice: DecisionNotice) => {
+    setDecisionNotices((current) => [
+      ...current.filter((entry) => entry.input.id !== notice.input.id),
+      notice,
+    ]);
+  };
+
   const reconcileDecision = async (
     input: ReviewDecisionInput,
     options: {
       error?: unknown;
-      accepted?: boolean;
       acceptedResult?: Record<string, unknown>;
     } = {},
   ) => {
+    const reconciliationScope = apiScope;
     let detail: MemoryReviewDetail | undefined;
     try {
       const observed = (
@@ -368,15 +371,16 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
       // A failed status read never licenses replaying the write.
     }
 
+    if (apiScopeRef.current !== reconciliationScope) return;
+
     const status = httpErrorStatus(options.error);
     const definitiveFailure = status === 403 || status === 409;
     const readbackMatches = detail
       ? detail.candidateId === input.id && detail.reviewRequestId === input.reviewRequestId
       : false;
     const resultMatches = acceptedResultMatches(input, options.acceptedResult);
-    const persisted = Boolean(options.accepted && resultMatches);
 
-    if (!definitiveFailure && persisted && detail && decisionObserved(detail, input)) {
+    if (!definitiveFailure && resultMatches && detail && decisionObserved(detail, input)) {
       clearMemoryDecisionRecovery(apiScope, input);
       const conflictLeftOpen =
         input.decision === 'resolve-conflict' &&
@@ -409,19 +413,17 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
 
     const failure = options.error
       ? memoryQueueErrorMessage(options.error)
-      : 'The decision response was accepted but its status could not be confirmed.';
+      : options.acceptedResult
+        ? resultMatches
+          ? 'The decision response was accepted but its status could not be confirmed.'
+          : 'The accepted response did not match the requested decision.'
+        : 'No fresh acknowledged decision response is available.';
     const currentState = readbackMatches
       ? ` Current recorded status: ${detail!.status.replace(/_/g, ' ')}${detail!.decidedBy ? ` by ${detail!.decidedBy!.name}` : ''}.`
       : ' The requested candidate and review request were not both confirmed by the readback.';
     const ambiguous = !definitiveFailure;
     if (ambiguous) {
-      writeMemoryDecisionRecovery(apiScope, {
-        input,
-        accepted: persisted,
-        ...(persisted && options.acceptedResult
-          ? { acceptedResult: minimalAcceptedResult(options.acceptedResult) }
-          : {}),
-      });
+      writeMemoryDecisionRecovery(apiScope, { input });
     } else {
       clearMemoryDecisionRecovery(apiScope, input);
     }
@@ -458,7 +460,6 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
       setChangeReason('');
       setResolvingConflict(null);
       await reconcileDecision(input, {
-        accepted: true,
         acceptedResult: result,
       });
     },
@@ -469,22 +470,18 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
   });
 
   useEffect(() => {
-    const recovery = readMemoryDecisionRecovery(apiScope);
-    if (!recovery) {
-      setDecisionNotice(null);
-      return;
-    }
-    setDecisionNotice({
-      input: recovery.input,
-      tone: 'warning',
-      title: 'Decision status unconfirmed',
-      message: 'A prior write had an ambiguous outcome. Checking canonical status without resending it.',
-      ambiguous: true,
-    });
-    void reconcileDecision(recovery.input, {
-      accepted: recovery.accepted,
-      acceptedResult: recovery.acceptedResult,
-    });
+    const recoveries = readMemoryDecisionRecoveries(apiScope);
+    setDecisionNotices(
+      recoveries.map((recovery) => ({
+        input: recovery.input,
+        tone: 'warning',
+        title: 'Decision status unconfirmed',
+        message:
+          'A prior write had an ambiguous outcome. Checking canonical status without resending it.',
+        ambiguous: true,
+      })),
+    );
+    for (const recovery of recoveries) void reconcileDecision(recovery.input);
     // apiScope is the tenant + impersonation + actor boundary for this recovery read.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiScope]);
@@ -622,8 +619,11 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
         {!review.isLoading && !review.isError && reviewCandidates.length === 0 ? (
           <MeriPanelState tone="empty">Nothing is waiting for your review.</MeriPanelState>
         ) : null}
-        {decisionNotice ? (
-          <MeriPanelState tone={decisionNotice.tone === 'error' ? 'error' : 'loading'}>
+        {decisionNotices.map((decisionNotice) => (
+          <MeriPanelState
+            key={`${decisionNotice.input.id}:${decisionNotice.input.decision}:${decisionNotice.input.resolution ?? 'none'}`}
+            tone={decisionNotice.tone === 'error' ? 'error' : 'loading'}
+          >
             <strong>{decisionNotice.title}</strong>
             <div>{decisionNotice.message}</div>
             {decisionNotice.detail ? (
@@ -640,18 +640,14 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
                 className="vnext-meri__rail-action-btn"
                 style={{ marginTop: 8 }}
                 onClick={() => {
-                  const recovery = readMemoryDecisionRecovery(apiScope);
-                  void reconcileDecision(decisionNotice.input, {
-                    accepted: recovery?.accepted,
-                    acceptedResult: recovery?.acceptedResult,
-                  });
+                  void reconcileDecision(decisionNotice.input);
                 }}
               >
                 Check current status
               </button>
             ) : null}
           </MeriPanelState>
-        ) : null}
+        ))}
         <div style={{ display: 'grid', gap: 8 }}>
           {reviewCandidates.map((candidate) => (
             <QueueCard
@@ -666,7 +662,9 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
                       tone="primary"
                       disabled={
                         decision.isPending ||
-                        (decisionNotice?.input.id === candidate.id && decisionNotice.ambiguous)
+                        decisionNotices.some(
+                          (notice) => notice.input.id === candidate.id && notice.ambiguous,
+                        )
                       }
                       onClick={() =>
                         decision.mutate({
@@ -684,7 +682,9 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
                       tone="danger"
                       disabled={
                         decision.isPending ||
-                        (decisionNotice?.input.id === candidate.id && decisionNotice.ambiguous)
+                        decisionNotices.some(
+                          (notice) => notice.input.id === candidate.id && notice.ambiguous,
+                        )
                       }
                       onClick={() => rejectCandidate(candidate)}
                     >
@@ -695,7 +695,9 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
                     <QueueButton
                       disabled={
                         decision.isPending ||
-                        (decisionNotice?.input.id === candidate.id && decisionNotice.ambiguous)
+                        decisionNotices.some(
+                          (notice) => notice.input.id === candidate.id && notice.ambiguous,
+                        )
                       }
                       onClick={() => {
                         setChangeReason('');
@@ -709,7 +711,9 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
                     <QueueButton
                       disabled={
                         decision.isPending ||
-                        (decisionNotice?.input.id === candidate.id && decisionNotice.ambiguous)
+                        decisionNotices.some(
+                          (notice) => notice.input.id === candidate.id && notice.ambiguous,
+                        )
                       }
                       onClick={() => {
                         setConflictResolution('conflict_requires_review');
