@@ -1,5 +1,18 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-28 02:10 UTC
+
+This checkpoint supersedes dated assignments and evidence below. File 01 remains IN_PROGRESS; neither main integration nor release acceptance is complete.
+
+- Integration candidate includes reviewed approval recovery and served vNext UI at `0beaf33b1`, then reviewed delegated read outcomes at `7fe09bb74`. Integrated approval verification exited 0: 114 web tests, 47 API service tests, 11 HTTP tests and web typecheck. Integrated read verification passed 71 tests; final process exit is retained in the task evidence.
+- Memory candidate `df679a1ba775629f829fe02ab0762e2f4c9327e7` repairs directly reproduced NULL-to-zero fusion. Four new regressions failed before and passed after; 56 adapter/embedded-PostgreSQL tests pass. Independent repair review is pending. Actual pgvector, production-role RLS and representative scale remain NOT RUN.
+- Durable candidate `4873308c243b8df83541f16ee10759777ec0590d` adds live-lease SQL fencing, conservative receipt qualification, publication authorization and terminal-frame delivery isolation. Forty-seven focused tests pass; independent review is active. Full result persistence/resume and V3 qualified execution receipts remain incomplete.
+- Scheduler review identified quota-bound false failure and missing wall checks; correction and actual local PostgreSQL transaction evidence are in progress. Aggregate runtime bounds and the canonical 75-case contract are also in progress.
+- Draft PR 1902 head `5f63b98d0951953ed31d8f85a3eafb7541f0a7c2` has scoped independent CI-bootstrap approval and 14 focused tests. Remote replay now passes role/function prerequisites and the Phase 10 migration, then fails on the existing `min(uuid)` dedup migration. A read-only capiro-dev probe found no such aggregate and no ledger entry for that migration. A narrow SQL repair is in progress; no gate was bypassed and no live migration ran.
+- Exact two-tenant enablement remains APPROVED_NOT_APPLIED. Workflow candidate `9bf706bb961732dcd3835f431d92c9623fa2e9fa` is on GitHub; independent review rejected its Git check and ambiguous apply/rollback receipts. Repairs are in progress. Historical orchestrator ancestry is verified after deepening the shallow local checkout; its main-ancestry guard remains unchanged.
+- A native PostgreSQL 16.15 installation was found outside PATH. A separate task-owned cluster now listens only on 127.0.0.1:55433; authenticated identity audit exited 0. Existing installed database/service and AWS are untouched. Credentials are private and absent from source. Native pgvector is not installed. Earlier claims that no local PostgreSQL was available were setup-discovery errors, not product defects.
+- Current independent implementation capacity is temporarily five bounded slices plus one reviewer, with 16 logical CPUs, 39.3 GiB free RAM and measured CPU utilization about 22% when the fifth short CI slice was started. Source ownership is disjoint; no nested delegation.
+
 IN_PROGRESS. File 01 is not complete and file 02 has not started. Codex GPT-6 Astra High leads; actual Hermes GPT-5.6 Sol High implements; independent Hermes GPT-6 Sol High reviews. Both Hermes routes were authenticated and smoke-tested through OpenRouter with High effort and no model fallback. Shared runtime settings were preserved.
 
 ## Authorized environment and Git recovery
