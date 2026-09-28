@@ -7467,12 +7467,14 @@ export class MeriToolsService {
       : '';
     return {
       tool: 'schedule_task',
-      scheduled: true,
-      active: true,
+      scheduled: task.active,
+      active: task.active,
       creationConfirmed: true,
       task,
       ...(reconciled ? { reconciled: true } : {}),
-      note: `Scheduled as a READ-ONLY recurring research task (${cadence}; no autonomous email/writes). Meri runs it automatically and delivers each briefing to your inbox.${emailDeliveryNote} Use list_scheduled_tasks to review or cancel_scheduled_task to stop it.`,
+      note: task.active
+        ? `Scheduled as a READ-ONLY recurring research task (${cadence}; no autonomous email/writes). Meri runs it automatically and delivers each briefing to your inbox.${emailDeliveryNote} Use list_scheduled_tasks to review or cancel_scheduled_task to stop it.`
+        : 'Historical creation was confirmed after the insert outcome was reconciled, but the task is currently disabled or canceled. It was not re-enabled and no new task was created.',
     };
   }
 

@@ -43,6 +43,7 @@ interface StoredTask {
 
 function scheduleHarness(options: {
   ackLossId?: string;
+  cancelOnAckLoss?: boolean;
   gateProposalId?: string;
   initialTaskCount?: number;
   quotaRace?: boolean;
@@ -134,6 +135,10 @@ function scheduleHarness(options: {
     releaseCreate();
     if (options.ackLossId === id && !ackLost) {
       ackLost = true;
+      if (options.cancelOnAckLoss) {
+        row.enabled = false;
+        row.lastStatus = 'canceled';
+      }
       throw new Error('connection reset after committed insert');
     }
     return {
@@ -324,6 +329,30 @@ describe('Meri write outcome reconciliation', () => {
       task: { id: PROPOSAL_A },
     });
     expect(h.create).toHaveBeenCalledTimes(1);
+  });
+
+  test('reports cancellation committed after insert acknowledgement loss from the fresh receipt', async () => {
+    const h = scheduleHarness({ ackLossId: PROPOSAL_A, cancelOnAckLoss: true });
+
+    const recovered = await h.scheduleTask(ctx, input, PROPOSAL_A);
+
+    expect(recovered).toMatchObject({
+      scheduled: false,
+      active: false,
+      creationConfirmed: true,
+      reconciled: true,
+      task: {
+        id: PROPOSAL_A,
+        enabled: false,
+        lastStatus: 'canceled',
+        active: false,
+        creationConfirmed: true,
+      },
+      note: expect.stringContaining('Historical creation was confirmed'),
+    });
+    expect(h.create).toHaveBeenCalledTimes(1);
+    expect(h.rows.size).toBe(1);
+    expect(h.rows.get(PROPOSAL_A)).toMatchObject({ enabled: false, lastStatus: 'canceled' });
   });
 
   test('refuses changed intent and ignores an untrusted logicalOperationId in tool input', async () => {

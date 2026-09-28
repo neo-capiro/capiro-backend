@@ -135,7 +135,11 @@ describeLocal('Meri schedule handler — native PostgreSQL receipt boundary', ()
     if (pool) await pool.end();
   });
 
-  function harness(options: { barrier?: boolean; ackLoss?: boolean } = {}) {
+  function harness(options: {
+    barrier?: boolean;
+    ackLoss?: boolean;
+    cancelAfterAckLoss?: boolean;
+  } = {}) {
     let initialReads = 0;
     let releaseInitialReads: () => void = () => undefined;
     const initialReadGate = new Promise<void>((resolveGate) => {
@@ -251,6 +255,14 @@ describeLocal('Meri schedule handler — native PostgreSQL receipt boundary', ()
           if (options.ackLoss && createdInTransaction && !ackLost) {
             ackLost = true;
             failureObserved = true;
+            if (options.cancelAfterAckLoss) {
+              await pool.query(
+                `UPDATE "${schemaName}".clio_scheduled_task
+                    SET enabled = false, last_status = 'canceled'
+                  WHERE id = $1::uuid`,
+                [PROPOSAL],
+              );
+            }
             throw new Error('simulated acknowledgement loss after COMMIT');
           }
           return value;
@@ -327,6 +339,41 @@ describeLocal('Meri schedule handler — native PostgreSQL receipt boundary', ()
     expect(stored.rows[0]?.count).toBe('1');
     expect(h.evidence.insertAttempts).toBe(1);
     expect(h.evidence.uniqueViolations).toBe(0);
+    expect(h.evidence.freshReadsAfterFailure).toBeGreaterThanOrEqual(1);
+  }, 30_000);
+
+  test('commit then lost acknowledgement then cancellation fresh-reads inactive historical receipt', async () => {
+    const h = harness({ ackLoss: true, cancelAfterAckLoss: true });
+
+    const recovered = await h.scheduleTask(ctx, input, PROPOSAL);
+
+    expect(recovered).toMatchObject({
+      scheduled: false,
+      active: false,
+      creationConfirmed: true,
+      reconciled: true,
+      task: {
+        id: PROPOSAL,
+        enabled: false,
+        lastStatus: 'canceled',
+        active: false,
+        creationConfirmed: true,
+      },
+    });
+    const stored = await pool.query<{
+      count: string;
+      enabled: boolean;
+      last_status: string | null;
+    }>(
+      `SELECT count(*)::text AS count,
+              bool_and(enabled) AS enabled,
+              min(last_status) AS last_status
+         FROM "${schemaName}".clio_scheduled_task
+        WHERE id = $1::uuid`,
+      [PROPOSAL],
+    );
+    expect(stored.rows[0]).toEqual({ count: '1', enabled: false, last_status: 'canceled' });
+    expect(h.evidence.insertAttempts).toBe(1);
     expect(h.evidence.freshReadsAfterFailure).toBeGreaterThanOrEqual(1);
   }, 30_000);
 });
