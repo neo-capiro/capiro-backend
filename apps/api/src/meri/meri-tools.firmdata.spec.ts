@@ -121,6 +121,12 @@ function makeMocks(
     clientContext: jest.fn().mockResolvedValue({ client: { id: 'client-1', name: 'Acme' } }),
     listTasks: jest.fn().mockResolvedValue([]),
     listClientDebriefs: jest.fn().mockResolvedValue([]),
+    readClientDebriefsExact: jest.fn().mockResolvedValue({
+      rows: [],
+      sourceStatus: 'healthy',
+      sourceReason: null,
+      nextAfter: null,
+    }),
     listAttachments: jest.fn().mockResolvedValue([]),
     extractAttachmentText: jest.fn(),
     listCampaigns: jest.fn().mockResolvedValue([]),
@@ -494,27 +500,42 @@ describe('search_sam_opportunities', () => {
 });
 
 describe('query_debriefs', () => {
-  it('requires clientId and withholds restricted bodies', async () => {
+  it('requires clientId and maps the canonical exact owner page without summarizing', async () => {
     const m = makeMocks();
     await expect(m.service.execute(ctx, 'query_debriefs', {})).rejects.toBeInstanceOf(
       BadRequestException,
     );
-    m.engagement.listClientDebriefs.mockResolvedValue([
-      {
+    const body = 'x'.repeat(2000);
+    m.engagement.readClientDebriefsExact.mockResolvedValue({
+      rows: [{
         id: 'debrief-1',
         meetingId: 'meeting-1',
-        meeting: { id: 'meeting-1', subject: 'Hill day' },
-        body: 'super secret',
-        restricted: true,
+        clientId: 'client-1',
+        meeting: {
+          id: 'meeting-1',
+          clientId: 'client-1',
+          subject: 'Hill day',
+          startsAt: new Date('2026-06-01T14:00:00.000Z'),
+        },
+        body,
+        status: 'approved',
+        authorUserId: 'user-1',
         author: null,
-        createdAt: new Date('2026-06-01'),
-      },
-    ]);
+        createdAt: new Date('2026-06-01T15:00:00.000Z'),
+        updatedAt: new Date('2026-06-01T16:00:00.000Z'),
+      }],
+      sourceStatus: 'healthy',
+      sourceReason: null,
+      nextAfter: null,
+    });
     const result = (await m.service.execute(ctx, 'query_debriefs', {
       clientId: 'client-1',
-    })) as { debriefs: Array<{ body: string | null; restricted: boolean }> };
-    expect(result.debriefs[0]!.body).toBeNull();
-    expect(result.debriefs[0]!.restricted).toBe(true);
+      debriefId: 'debrief-1',
+      characterLimit: 2000,
+    })) as { debriefs: Array<{ body: string; bodyCoverage: { complete: boolean } }> };
+    expect(result.debriefs[0]!.body).toBe(body);
+    expect(result.debriefs[0]!.bodyCoverage.complete).toBe(true);
+    expect(m.engagement.listClientDebriefs).not.toHaveBeenCalled();
   });
 });
 

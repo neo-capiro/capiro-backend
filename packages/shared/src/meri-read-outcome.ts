@@ -192,6 +192,53 @@ function classifyDocumentRead(payload: unknown): ApiToolReadOutcome {
     : { kind: 'partial', reason: 'document_coverage_incomplete' };
 }
 
+function classifyDebriefRead(payload: unknown): ApiToolReadOutcome {
+  const failure = ownerFailure(payload);
+  if (failure) return failure;
+  const value = record(payload);
+  const scope = record(value?.scope);
+  const coverage = record(value?.coverage);
+  if (
+    value?.tool !== 'query_debriefs' ||
+    typeof value.clientId !== 'string' ||
+    !scope ||
+    !(scope.debriefId === null || typeof scope.debriefId === 'string') ||
+    !coverage ||
+    !['healthy', 'degraded'].includes(String(coverage.sourceStatus)) ||
+    typeof coverage.pageComplete !== 'boolean' ||
+    typeof coverage.complete !== 'boolean' ||
+    typeof coverage.paginationComplete !== 'boolean' ||
+    typeof coverage.bodyCoverageComplete !== 'boolean' ||
+    typeof coverage.truncated !== 'boolean' ||
+    !(coverage.nextCursor === null || typeof coverage.nextCursor === 'string') ||
+    !nonnegativeInteger(value.returned) ||
+    !Array.isArray(value.debriefs) ||
+    value.returned !== value.debriefs.length
+  ) {
+    return invalidResult('query_debriefs');
+  }
+  if (coverage.sourceStatus !== 'healthy' || !coverage.pageComplete) {
+    return { kind: 'partial', reason: 'debrief_source_coverage_incomplete' };
+  }
+  if (
+    value.returned === 0 &&
+    coverage.complete &&
+    coverage.paginationComplete &&
+    !coverage.truncated
+  ) {
+    return { kind: 'empty' };
+  }
+  // An identity read is durable for its exact bounded body window. The owner
+  // contract still reports complete=false while additional transcript text
+  // remains, so consumers cannot turn a page proof into whole-body coverage.
+  if (typeof scope.debriefId === 'string' && value.returned === 1) {
+    return { kind: 'complete' };
+  }
+  return coverage.complete && coverage.paginationComplete && !coverage.truncated
+    ? { kind: 'complete' }
+    : { kind: 'partial', reason: 'debrief_coverage_incomplete' };
+}
+
 function validClient(value: UnknownRecord | null): boolean {
   const context = record(value?.context);
   const client = record(context?.client);
@@ -339,6 +386,8 @@ export function classifyApiToolReadOutcome(
       return classifyMailThread(payload);
     case 'read_client_documents':
       return classifyDocumentRead(payload);
+    case 'query_debriefs':
+      return classifyDebriefRead(payload);
     case 'get_client_context':
       return classifyClientContext(payload);
     case 'search_memory':

@@ -162,6 +162,7 @@ import { projectMemoryContent } from './meri-memory-content.helpers.js';
 import { getResearchEvidence } from './meri-research-evidence.helpers.js';
 import { buildDocumentReadPage, parseDocumentReadInput } from './meri-document-read.helpers.js';
 import { MeriChatAttachmentReadService } from './meri-chat-attachment-read.service.js';
+import { buildDebriefReadResult, parseDebriefReadInput } from './meri-debrief-read.helpers.js';
 import { MeriClientFilingService } from './meri-client-filing.service.js';
 import { MeriBizDevToolsService } from './meri-bizdev-tools.service.js';
 import {
@@ -1586,7 +1587,31 @@ export class MeriToolsService {
         },
         limit: int('Max results (1-50)'),
       }),
-      query_debriefs: obj({ clientId: str('Client UUID') }, ['clientId']),
+      query_debriefs: obj(
+        {
+          clientId: str('Client UUID'),
+          debriefId: str(
+            'Optional exact debrief UUID. Use for an exact body read and repeat it when following a body cursor.',
+          ),
+          from: str(
+            'Optional inclusive ISO timestamp lower bound on the parent meeting start. No time window is applied when omitted.',
+          ),
+          to: str(
+            'Optional inclusive ISO timestamp upper bound on the parent meeting start. No time window is applied when omitted.',
+          ),
+          cursor: str(
+            'Opaque nextCursor from the preceding query_debriefs page. Repeat the same client, debrief identity, and time window.',
+          ),
+          limit: int('Maximum authorized debrief rows per list page (1-25, default 25).'),
+          characterOffset: int(
+            '0-based exact body character offset for an initial debriefId read. Prefer cursor for continuation.',
+          ),
+          characterLimit: int(
+            'Maximum exact body characters per debrief (1-6000; default 1500 for lists and 5000 for debriefId reads).',
+          ),
+        },
+        ['clientId'],
+      ),
       read_client_documents: obj(
         {
           clientId: str('Client UUID whose Documents-tab files to list/read'),
@@ -7876,22 +7901,16 @@ export class MeriToolsService {
   private async queryDebriefs(ctx: TenantContext, input: Record<string, unknown>) {
     let clientId = requiredString(input, 'clientId', 80);
     clientId = await this.ensureClientVisible(ctx, clientId);
-    const debriefs = await this.engagement.listClientDebriefs(ctx, { clientId });
-    return {
-      tool: 'query_debriefs',
-      generatedAt: new Date().toISOString(),
+    const selection = parseDebriefReadInput(ctx, input, clientId);
+    const page = await this.engagement.readClientDebriefsExact(ctx, {
       clientId,
-      total: debriefs.length,
-      debriefs: debriefs.map((debrief) => ({
-        id: debrief.id,
-        meetingId: debrief.meetingId,
-        meeting: debrief.meeting,
-        body: debrief.restricted ? null : summarizeText(debrief.body, 1500),
-        restricted: debrief.restricted,
-        author: debrief.author,
-        createdAt: debrief.createdAt,
-      })),
-    };
+      debriefId: selection.debriefId,
+      from: selection.from,
+      to: selection.to,
+      limit: selection.debriefId ? 1 : selection.limit,
+      listAfter: selection.listAfter,
+    });
+    return buildDebriefReadResult(ctx, selection, page);
   }
 
   /** Canonical, currently authorized section reads with resumable evidence. */

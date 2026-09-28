@@ -5,6 +5,7 @@ import {
   buildResearchReportProvenance,
   certifyResearchProducerInputs,
 } from './meri-report-provenance';
+import { buildDebriefReadResult, parseDebriefReadInput } from './meri-debrief-read.helpers';
 
 const TOOL_SCHEMA = {
   type: 'object',
@@ -13,6 +14,51 @@ const TOOL_SCHEMA = {
 };
 const TOOL_VERSION = researchToolVersion(TOOL_SCHEMA);
 const ctx = { tenantId: 'tenant-1', userId: 'user-1', tenantSlug: 'tenant' } as never;
+
+const DEBRIEF_SCHEMA = {
+  type: 'object',
+  properties: {
+    clientId: { type: 'string' },
+    debriefId: { type: 'string' },
+    characterLimit: { type: 'integer' },
+  },
+  required: ['clientId'],
+};
+const DEBRIEF_VERSION = researchToolVersion(DEBRIEF_SCHEMA);
+const DEBRIEF_INPUT = {
+  clientId: 'client-1',
+  debriefId: 'debrief-1',
+  characterLimit: 100,
+};
+
+function completeDebriefResult(
+  body = 'PRIVATE EXACT DEBRIEF SOURCE',
+  updatedAt = '2026-09-21T10:00:00.000Z',
+) {
+  const selection = parseDebriefReadInput(ctx, DEBRIEF_INPUT, 'client-1');
+  return buildDebriefReadResult(ctx, selection, {
+    rows: [{
+      id: 'debrief-1',
+      meetingId: 'meeting-1',
+      clientId: 'client-1',
+      body,
+      status: 'approved',
+      authorUserId: 'user-1',
+      author: {
+        id: 'user-1', email: 'owner@example.com', firstName: 'Owner', lastName: 'One',
+      },
+      createdAt: new Date('2026-09-20T10:00:00.000Z'),
+      updatedAt: new Date(updatedAt),
+      meeting: {
+        id: 'meeting-1', clientId: 'client-1', subject: 'Client review',
+        startsAt: new Date('2026-09-19T14:00:00.000Z'),
+      },
+    }],
+    sourceStatus: 'healthy',
+    sourceReason: null,
+    nextAfter: null,
+  });
+}
 
 function completeMemoryResult(id: string, body = `body-${id}`) {
   const contentHash = `hash-${body}`;
@@ -653,5 +699,106 @@ describe('Meri durable safe-read commit and replay', () => {
     });
     await expect(h.service.getReportMarkdown(ctx, 'session-1')).rejects.toThrow();
     expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+
+  it('commits the actual debrief owner page and replays an old lease only while current bytes remain exact', async () => {
+    const h = harness();
+    let current: unknown = completeDebriefResult();
+    let revoked = false;
+    h.tools.anthropicToolSchemas.mockReturnValue([
+      { name: 'query_debriefs', description: 'debriefs', input_schema: DEBRIEF_SCHEMA },
+    ]);
+    h.tools.isConcurrencySafe.mockImplementation((tool: string) => tool === 'query_debriefs');
+    h.tools.execute.mockImplementation(async () => {
+      if (revoked) throw new Error('debrief access revoked');
+      return current;
+    });
+    await h.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', {
+      executionId: 'debrief-execution-1',
+      leaseEpoch: 1,
+      providerCallId: 'debrief-provider-1',
+      tool: 'query_debriefs',
+      toolVersion: DEBRIEF_VERSION,
+      input: DEBRIEF_INPUT,
+      result: current,
+    });
+    expect(readDurableResearchStepReceipts(h.session.metadata)).toEqual([
+      expect.objectContaining({
+        version: 2,
+        tool: 'query_debriefs',
+        classifier: 'complete',
+        resultRef: expect.stringMatching(/^private-result-/),
+      }),
+    ]);
+
+    h.resume();
+    const request = {
+      leaseEpoch: 2,
+      tool: 'query_debriefs',
+      toolVersion: DEBRIEF_VERSION,
+      input: DEBRIEF_INPUT,
+    };
+    await expect(h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
+      .resolves.toMatchObject({
+        replayed: true,
+        result: {
+          tool: 'query_debriefs',
+          debriefs: [{ id: 'debrief-1', body: 'PRIVATE EXACT DEBRIEF SOURCE' }],
+        },
+      });
+
+    current = completeDebriefResult(
+      'EDITED PRIVATE DEBRIEF WITH SAME IDS AND COUNT',
+      '2026-09-22T10:00:00.000Z',
+    );
+    await expect(h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
+      .resolves.toEqual({ replayed: false });
+    revoked = true;
+    await expect(h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
+      .resolves.toEqual({ replayed: false });
+  });
+
+  it('reauthorizes debrief-backed report read/export and withholds it after edit or revoke', async () => {
+    const h = harness();
+    let current: unknown = completeDebriefResult();
+    let revoked = false;
+    h.tools.anthropicToolSchemas.mockReturnValue([
+      { name: 'query_debriefs', description: 'debriefs', input_schema: DEBRIEF_SCHEMA },
+    ]);
+    h.tools.isConcurrencySafe.mockImplementation((tool: string) => tool === 'query_debriefs');
+    h.tools.execute.mockImplementation(async () => {
+      if (revoked) throw new Error('debrief access revoked');
+      return current;
+    });
+    await h.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', {
+      executionId: 'debrief-report-execution',
+      leaseEpoch: 1,
+      providerCallId: 'debrief-report-provider',
+      tool: 'query_debriefs',
+      toolVersion: DEBRIEF_VERSION,
+      input: DEBRIEF_INPUT,
+      result: current,
+    });
+    h.completeReport(['query_debriefs']);
+
+    const allowed = await h.service.getSession(ctx, 'session-1');
+    const exported = await h.service.getReportMarkdown(ctx, 'session-1');
+    expect(allowed.report?.bodyText).toBe('REPORT_CITING_CURRENT_RUN_MEMORY');
+    expect(exported.markdown).toBe('REPORT_CITING_CURRENT_RUN_MEMORY');
+    expect(JSON.stringify(allowed)).not.toContain('PRIVATE EXACT DEBRIEF SOURCE');
+
+    current = completeDebriefResult('EDITED PRIVATE DEBRIEF', '2026-09-22T10:00:00.000Z');
+    const edited = await h.service.getSession(ctx, 'session-1');
+    expect(edited.report?.bodyText).toContain('current source authorization');
+    await expect(h.service.getReportMarkdown(ctx, 'session-1')).rejects.toThrow(
+      'source version changed',
+    );
+
+    revoked = true;
+    const denied = await h.service.getSession(ctx, 'session-1');
+    expect(denied.report?.bodyText).toContain('current source authorization');
+    await expect(h.service.getReportMarkdown(ctx, 'session-1')).rejects.toThrow(
+      'no longer authorized',
+    );
   });
 });

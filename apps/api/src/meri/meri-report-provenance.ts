@@ -6,6 +6,7 @@ import { researchMetadata, type ResearchRunState } from './meri-research-run-sta
 export const PUBLIC_RESEARCH_SOURCE_TOOLS = [
   'read_client_documents',
   'search_memory',
+  'query_debriefs',
 ] as const;
 
 const PUBLIC_RESEARCH_SOURCE_TOOL_SET = new Set<string>(PUBLIC_RESEARCH_SOURCE_TOOLS);

@@ -5878,6 +5878,171 @@ export class EngagementService {
   }
 
   /**
+   * Canonical bounded owner read for Meri research. Unlike the Outreach list
+   * above, this excludes lifecycle-ineligible and body-restricted rows entirely,
+   * keyset-paginates the authorized source, and re-reads every row immediately
+   * before decrypting it. The existing Outreach behavior remains unchanged.
+   */
+  async readClientDebriefsExact(
+    ctx: TenantContext,
+    query: {
+      clientId: string;
+      debriefId: string | null;
+      from: Date | null;
+      to: Date | null;
+      limit: number;
+      listAfter: { createdAt: Date; id: string } | null;
+    },
+  ) {
+    const MAX_SCANNED_ROWS = 250;
+    const CHUNK_SIZE = 50;
+    const startsAt = {
+      ...(query.from ? { gte: query.from } : {}),
+      ...(query.to ? { lte: query.to } : {}),
+    };
+    const baseWhere: Prisma.MeetingDebriefWhereInput = {
+      tenantId: ctx.tenantId,
+      status: MeetingDebriefStatus.approved,
+      ...(query.debriefId ? { id: query.debriefId } : {}),
+      meeting: {
+        clientId: query.clientId,
+        client: { status: { not: 'archived' } },
+        status: { notIn: ['pending', 'deleted', 'archived'] },
+        ...(Object.keys(startsAt).length ? { startsAt } : {}),
+      },
+    };
+    const include = {
+      author: { select: { id: true, email: true, firstName: true, lastName: true } },
+      meeting: { select: { id: true, clientId: true, subject: true, startsAt: true } },
+    } satisfies Prisma.MeetingDebriefInclude;
+
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const currentClient = await tx.client.findFirst({
+        where: { id: query.clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
+        select: { id: true },
+      });
+      if (!currentClient) throw new NotFoundException('Client not found');
+
+      const authorized = [] as Array<{
+        id: string;
+        meetingId: string;
+        clientId: string;
+        body: string;
+        status: MeetingDebriefStatus;
+        authorUserId: string | null;
+        author: { id: string; email: string; firstName: string | null; lastName: string | null } | null;
+        createdAt: Date;
+        updatedAt: Date;
+        meeting: { id: string; clientId: string | null; subject: string; startsAt: Date };
+      }>;
+      let after = query.listAfter;
+      let lastScanned: { createdAt: Date; id: string } | null = null;
+      let sourceExhausted = false;
+      let sourceStatus: 'healthy' | 'degraded' = 'healthy';
+      let sourceReason: string | null = null;
+      let scanned = 0;
+
+      while (authorized.length <= query.limit && scanned < MAX_SCANNED_ROWS && !sourceExhausted) {
+        const take = Math.min(CHUNK_SIZE, MAX_SCANNED_ROWS - scanned);
+        const candidates = await tx.meetingDebrief.findMany({
+          where: {
+            ...baseWhere,
+            ...(after
+              ? {
+                  AND: [
+                    {
+                      OR: [
+                        { createdAt: { lt: after.createdAt } },
+                        { createdAt: after.createdAt, id: { lt: after.id } },
+                      ],
+                    },
+                  ],
+                }
+              : {}),
+          },
+          include,
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take,
+        });
+        sourceExhausted = candidates.length < take;
+        if (candidates.length === 0) break;
+
+        for (const candidate of candidates) {
+          scanned += 1;
+          lastScanned = { createdAt: candidate.createdAt, id: candidate.id };
+          after = lastScanned;
+
+          // Re-evaluate current parent/client/lifecycle and body ACL immediately
+          // before decrypting. A stale row from the scan is never returned.
+          const current = await tx.meetingDebrief.findFirst({
+            where: { ...baseWhere, id: candidate.id },
+            include,
+          });
+          if (!current || !canReadEncryptedEntry(ctx, current)) continue;
+          if (authorized.length >= query.limit) {
+            authorized.push({
+              id: current.id,
+              meetingId: current.meetingId,
+              clientId: current.meeting.clientId!,
+              body: '',
+              status: current.status,
+              authorUserId: current.authorUserId,
+              author: current.author,
+              createdAt: current.createdAt,
+              updatedAt: current.updatedAt,
+              meeting: current.meeting,
+            });
+            break;
+          }
+          try {
+            authorized.push({
+              id: current.id,
+              meetingId: current.meetingId,
+              clientId: current.meeting.clientId!,
+              body: this.notesCrypto.decrypt({
+                bodyCiphertext: current.bodyCiphertext,
+                iv: current.iv,
+                authTag: current.authTag,
+              }),
+              status: current.status,
+              authorUserId: current.authorUserId,
+              author: current.author,
+              createdAt: current.createdAt,
+              updatedAt: current.updatedAt,
+              meeting: current.meeting,
+            });
+          } catch {
+            sourceStatus = 'degraded';
+            sourceReason = 'authorized_debrief_body_unavailable';
+          }
+        }
+      }
+
+      const hasAuthorizedContinuation = authorized.length > query.limit;
+      const rows = authorized.slice(0, query.limit);
+      let nextAfter: { createdAt: Date; id: string } | null = null;
+      if (hasAuthorizedContinuation && rows.length) {
+        const last = rows[rows.length - 1]!;
+        nextAfter = { createdAt: last.createdAt, id: last.id };
+      } else if (!sourceExhausted && scanned >= MAX_SCANNED_ROWS && lastScanned) {
+        sourceStatus = 'degraded';
+        sourceReason = 'authorized_debrief_scan_bound_reached';
+        // Do not expose a keyset derived from a row whose body ACL failed. The
+        // page is explicitly partial/degraded instead of leaking hidden identity
+        // or timestamp metadata through a decodable continuation token.
+        nextAfter = null;
+      }
+
+      const finalClient = await tx.client.findFirst({
+        where: { id: query.clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
+        select: { id: true },
+      });
+      if (!finalClient) throw new NotFoundException('Client not found');
+      return { rows, sourceStatus, sourceReason, nextAfter };
+    });
+  }
+
+  /**
    * Tenant-wide context library for the Outreach Build Context step. Returns ALL
    * documents/notes, debriefs, and meeting preps across the tenant — each tagged
    * with its client so the UI groups by client. Intentionally NOT filtered by the

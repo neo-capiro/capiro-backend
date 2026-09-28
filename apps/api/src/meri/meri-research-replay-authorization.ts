@@ -17,8 +17,13 @@ import {
   reportReceiptManifestSha256,
   sameResearchReportProvenance,
 } from './meri-report-provenance.js';
+import { debriefOwnerProof } from './meri-research-debrief-proof.js';
 
-const SUPPORTED_OWNER_TOOLS = new Set(['search_memory', 'read_client_documents']);
+const SUPPORTED_OWNER_TOOLS = new Set([
+  'search_memory',
+  'read_client_documents',
+  'query_debriefs',
+]);
 
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -147,7 +152,9 @@ export function currentOwnerResultAuthorizesReplay(
     ? memoryProof
     : tool === 'read_client_documents'
       ? documentProof
-      : null;
+      : tool === 'query_debriefs'
+        ? debriefOwnerProof
+        : null;
   if (!project) return false;
   const saved = project(savedResult);
   const current = project(currentResult);

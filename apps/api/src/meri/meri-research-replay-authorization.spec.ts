@@ -52,9 +52,10 @@ function document(contentHash = 'a'.repeat(64)) {
 }
 
 describe('durable replay current-owner authorization adapters', () => {
-  it('supports canonical memory and exact document owners only', () => {
+  it('supports only finite canonical memory, document, and debrief owners', () => {
     expect(supportsDurableOwnerReauthorization('search_memory')).toBe(true);
     expect(supportsDurableOwnerReauthorization('read_client_documents')).toBe(true);
+    expect(supportsDurableOwnerReauthorization('query_debriefs')).toBe(true);
     expect(supportsDurableOwnerReauthorization('search_emails')).toBe(false);
   });
 
