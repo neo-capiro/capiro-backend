@@ -2,6 +2,7 @@ import { prepareOpenAiResponsesRequest, upgradeTextModel } from '@capiro/shared/
 import { Injectable, Logger } from '@nestjs/common';
 import type { ProviderUsage } from '@capiro/shared';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
+import type { MeriModelBudgetPhase, MeriRunBudget } from './meriv3-run-budget.js';
 import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
 import type {
   MeriV3ReasoningEffort,
@@ -55,6 +56,8 @@ interface CompleteParams {
   deadlineAt?: number;
   signal?: AbortSignal;
   safetyIdentifier?: string;
+  budget?: MeriRunBudget;
+  budgetPhase?: MeriModelBudgetPhase;
 }
 
 interface RawResponsesBody {
@@ -283,6 +286,7 @@ export class OpenAiResponsesClient {
           } satisfies MeriV3ProviderTelemetry,
         },
       );
+    let wireAttempts = 0;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
       if (params.signal?.aborted) {
         throw failedRequest(new DOMException('Aborted', 'AbortError'), 'cancelled');
@@ -300,6 +304,11 @@ export class OpenAiResponsesClient {
       params.signal?.addEventListener('abort', abortFromCaller, { once: true });
       let status: number | undefined;
       try {
+        params.budget?.reserveModelAttempt(
+          params.budgetPhase ?? 'acquisition',
+          wireAttempts > 0,
+        );
+        wireAttempts += 1;
         const toolFields = params.tools.length
           ? {
               tools: params.tools,
@@ -450,6 +459,9 @@ export class OpenAiResponsesClient {
             deadlineAt,
             ...(params.signal ? { signal: params.signal } : {}),
             ...(params.safetyIdentifier ? { safetyIdentifier: params.safetyIdentifier } : {}),
+            ...(params.budget
+              ? { budget: params.budget, budgetPhase: 'finalization' as const }
+              : {}),
           });
           criticResult = critic;
           const synthesisInput: Array<Record<string, unknown>> = [
@@ -471,6 +483,9 @@ export class OpenAiResponsesClient {
             deadlineAt,
             ...(params.signal ? { signal: params.signal } : {}),
             ...(params.safetyIdentifier ? { safetyIdentifier: params.safetyIdentifier } : {}),
+            ...(params.budget
+              ? { budget: params.budget, budgetPhase: 'finalization' as const }
+              : {}),
           });
           const validatedSynthesis = MeriV3ResearchRuntimeStore.validateDraft(synthesis.outputText);
           if (validatedSynthesis.issueCount > 0) {

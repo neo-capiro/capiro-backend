@@ -51,6 +51,7 @@ import {
   type AssuredEvidence,
   type AuditorMode,
   type CapabilityRolloutMode,
+  type DecisionProvider,
   type LedgerEntry,
   type MeriContext,
   type ToolRegistry,
@@ -105,6 +106,13 @@ import type {
   OpenAiResponsesResult,
 } from './meriv3.types.js';
 import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
+import {
+  MeriRunBudget,
+  MeriRunBudgetExhaustedError,
+  isLegitimatePollingObservation,
+  isLogicalToolFailure,
+  type MeriToolSignatureScope,
+} from './meriv3-run-budget.js';
 import { scheduleClaimInventoryShadow } from './meriv3-claim-inventory-shadow.js';
 import {
   buildLiteralAuditContext,
@@ -319,8 +327,94 @@ function isTurnAbortError(error: unknown, signal?: AbortSignal): boolean {
   );
 }
 
+function withModelBudget(
+  provider: DecisionProvider | null,
+  budget: MeriRunBudget,
+  phase: 'repair' | 'shadow',
+): DecisionProvider | null {
+  if (!provider) return null;
+  return {
+    name: provider.name,
+    available: () => provider.available(),
+    assess: (envelope, question, options) => {
+      budget.reserveModelAttempt(phase);
+      return provider.assess(envelope, question, options);
+    },
+  };
+}
+
+function withToolBudget(
+  registry: ToolRegistry,
+  budget: MeriRunBudget,
+  scope: MeriToolSignatureScope,
+): ToolRegistry {
+  const invoke = async <O>(
+    name: string,
+    input: unknown,
+    ctx: MeriContext,
+    control?: ToolExecutionControl,
+  ): Promise<O> => {
+    if (!budget.reserveToolBatch(1)) {
+      throw new MeriRunBudgetExhaustedError(budget.reason ?? 'tool_calls');
+    }
+    const validatedArgs =
+      input && typeof input === 'object' && !Array.isArray(input)
+        ? (input as Record<string, unknown>)
+        : {};
+    const signature = budget.toolSignature(scope, name, validatedArgs);
+    if (!budget.beginTool(signature)) {
+      throw new MeriRunBudgetExhaustedError(budget.reason ?? 'retry_calls');
+    }
+    try {
+      const result = await registry.invoke<O>(name, input, ctx, control);
+      if (registry.get(name)?.readOnly === true) {
+        budget.observeToolResult({
+          signature,
+          result,
+          failed: isLogicalToolFailure(result),
+          repeatable: isLegitimatePollingObservation(validatedArgs, result),
+        });
+      }
+      return result;
+    } catch (error) {
+      if (registry.get(name)?.readOnly === true) {
+        budget.observeToolResult({
+          signature,
+          result: { error: errorReason(error) },
+          failed: true,
+        });
+      }
+      throw error;
+    }
+  };
+  return new Proxy(registry, {
+    get(target, property) {
+      if (property === 'invoke') return invoke;
+      const value = Reflect.get(target, property, target) as unknown;
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
+}
+
 function errorReason(error: unknown): string {
   return (error instanceof Error ? error.message : String(error)).slice(0, 300);
+}
+
+function boundedPartialReply(
+  reason: string | null | undefined,
+  ledgerEntries: LedgerEntry[],
+): string {
+  const retained = ledgerEntries.slice(-4).map((entry) => {
+    const summary = entry.serialized.replace(/\s+/g, ' ').trim().slice(0, 320);
+    return `- ${entry.tool}: ${summary}${entry.serialized.length > summary.length ? '…' : ''}`;
+  });
+  return [
+    `I stopped this turn at its aggregate runtime bound${reason ? ` (${reason.replaceAll('_', ' ')})` : ''}.`,
+    retained.length
+      ? ['Retained supported findings/evidence from completed reads:', ...retained].join('\n')
+      : 'No tool finding was completed before the bound was reached.',
+    'No additional tool or write was started after the stop. The remaining requested work is incomplete.',
+  ].join('\n\n');
 }
 
 /**
@@ -598,6 +692,14 @@ export class MeriV3AssistantService {
   ): Promise<MeriV3ChatResult> {
     const emit = opts.onEvent ?? (() => {});
     const profile = resolveMeriV3ReasoningProfile(dto.reasoningMode);
+    const runtimeBudget = MeriRunBudget.fromToolRoundCeiling(profile.maxToolRounds, opts);
+    const budgetScope: MeriToolSignatureScope = {
+      actorId: ctx.userId,
+      tenantId: ctx.tenantId,
+      clientId: dto.clientId ?? null,
+      conversationId: dto.conversationId ?? null,
+      runId: dto.researchRun?.runId ?? null,
+    };
     const initialInput = this.toResponsesInput(dto);
     if (!initialInput.length || initialInput[initialInput.length - 1]?.role !== 'user') {
       return {
@@ -666,6 +768,7 @@ export class MeriV3AssistantService {
       tenantId: ctx.tenantId,
       surface,
       logger: { warn: (event, fields) => this.logStructured('warn', event, fields ?? {}) },
+      fetchImpl: runtimeBudget.budgetedFetch('selection'),
     });
     const buildEvidenceLedger = (
       input: Omit<Parameters<typeof buildControlledClaimLedger>[0], 'env' | 'tenantId' | 'surface' | 'callSite' | 'logShadow'>,
@@ -888,6 +991,8 @@ export class MeriV3AssistantService {
         noteComplianceOutcome,
         evidenceAccuracyMode,
         control: opts,
+        runtimeBudget,
+        budgetScope,
       });
       gatheredToolOutput = gatheredToolOutput || executions.length > 0;
       for (const execution of executions) {
@@ -923,6 +1028,7 @@ export class MeriV3AssistantService {
       // still checks the user's current ACL and the shared turn deadline.
       while (
         automaticReads < MAX_AUTOMATIC_DOCUMENT_READS &&
+        !runtimeBudget.acquisitionStopped &&
         (opts.deadlineAt ?? startedAt + profile.turnBudgetMs) - Date.now() > reserveMs
       ) {
         const next = documentCompletion.nextRead();
@@ -982,6 +1088,7 @@ export class MeriV3AssistantService {
         const provider = createPassageSelectionClient({
           env: process.env, tenantId: ctx.tenantId, surface: 'chat',
           logger: this.structuredLogger,
+          fetchImpl: runtimeBudget.budgetedFetch('selection'),
         });
         const remainingMs = turnDeadlineAt() - selectionStartedAt;
         const answers = await askPassageQuestions({
@@ -1111,7 +1218,11 @@ export class MeriV3AssistantService {
       });
       const synthesis = await this.openai.complete({
         profile,
-        instructions: `${selected.instructions}\n\n${finishInstructions()}`,
+        instructions: [
+          selected.instructions,
+          finishInstructions(),
+          ...(runtimeBudget.acquisitionStopped ? [runtimeBudget.partialInstruction()] : []),
+        ].join('\n\n'),
         input: selected.input,
         tools: [],
         toolChoice: 'none',
@@ -1119,6 +1230,8 @@ export class MeriV3AssistantService {
         deadlineAt: opts.deadlineAt,
         ...(opts.signal ? { signal: opts.signal } : {}),
         safetyIdentifier: safetyIdentifier(ctx),
+        budget: runtimeBudget,
+        budgetPhase: 'synthesis',
       });
       recordProviderResult(synthesis);
       addUsage(usage, synthesis.usage);
@@ -1134,6 +1247,7 @@ export class MeriV3AssistantService {
       await continueDocumentReads();
       for (rounds = 0; rounds < profile.maxToolRounds; rounds += 1) {
         assertToolExecutionActive(opts);
+        if (runtimeBudget.acquisitionStopped) break;
         await this.assertResearchRunActive(dto, opts);
         const remainingMs = (opts.deadlineAt ?? startedAt + profile.turnBudgetMs) - Date.now();
         // Stop opening new gather rounds once only the synthesis reserve remains.
@@ -1150,6 +1264,8 @@ export class MeriV3AssistantService {
           deadlineAt: opts.deadlineAt,
           ...(opts.signal ? { signal: opts.signal } : {}),
           safetyIdentifier: safetyIdentifier(ctx),
+          budget: runtimeBudget,
+          budgetPhase: 'acquisition',
         });
         recordProviderResult(response);
         assertToolExecutionActive(opts);
@@ -1214,9 +1330,10 @@ export class MeriV3AssistantService {
 
         await executeCalls(response.functionCalls);
         await continueDocumentReads();
+        if (runtimeBudget.acquisitionStopped) break;
       }
 
-      if (coverageRetrievalMode !== 'off') {
+      if (coverageRetrievalMode !== 'off' && !runtimeBudget.acquisitionStopped) {
         const coverageStartedAt = Date.now();
         let gaps = compareCoverage({
           requirements: coverageRequirements,
@@ -1471,6 +1588,20 @@ export class MeriV3AssistantService {
           finalText =
             'I gathered sources for this request but hit a model time limit before the final write finished. Retry the turn (or switch to Deep Research) so I can finish the report from the evidence already collected. No unapproved action was executed.';
         }
+      } else if (
+        !finalText &&
+        (error instanceof MeriRunBudgetExhaustedError || runtimeBudget.acquisitionStopped)
+      ) {
+        try {
+          finalText = await runForcedSynthesis('aggregate runtime bound reached');
+        } catch (synthesisError) {
+          this.logger.error(
+            `MeriV3 bounded partial synthesis failed: ${
+              synthesisError instanceof Error ? synthesisError.message : String(synthesisError)
+            }`,
+          );
+          finalText = boundedPartialReply(runtimeBudget.reason, ledgerEntries);
+        }
       } else {
         this.logger.error(
           `MeriV3 model loop failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -1480,6 +1611,17 @@ export class MeriV3AssistantService {
       }
     }
 
+    if (
+      runtimeBudget.acquisitionStopped &&
+      runtimeBudget.reason !== 'cancelled' &&
+      runtimeBudget.reason !== 'deadline'
+    ) {
+      telemetry = {
+        ...telemetry,
+        partial: true,
+        finishReason: `runtime_${runtimeBudget.reason}`,
+      };
+    }
     if (opts.signal?.aborted || (opts.deadlineAt !== undefined && Date.now() >= opts.deadlineAt)) {
       telemetry = {
         ...telemetry,
@@ -1533,7 +1675,12 @@ export class MeriV3AssistantService {
       Boolean(released.reply) &&
       (!opts.signal?.aborted || telemetry.finishReason === 'deadline_exceeded');
 
-    if (autoCorrectionMode !== 'off' && released.reply && autoCorrectionCategories.categories.size) {
+    if (
+      autoCorrectionMode !== 'off' &&
+      released.reply &&
+      autoCorrectionCategories.categories.size &&
+      !runtimeBudget.acquisitionStopped
+    ) {
       const corrected = await this.applyBoundedAutoCorrection({
         ctx,
         dto,
@@ -1555,6 +1702,8 @@ export class MeriV3AssistantService {
         evidenceAccuracyMode,
         synthesisModel: actualModel,
         canary,
+        runtimeBudget,
+        budgetScope,
       });
       released = { ...released, reply: corrected.reply, citations: corrected.citations };
       documentRequests = corrected.documentRequests;
@@ -1581,7 +1730,7 @@ export class MeriV3AssistantService {
       }
     }
 
-    if (matchLabelMode === 'enforce' && released.reply) {
+    if (matchLabelMode === 'enforce' && released.reply && !runtimeBudget.acquisitionStopped) {
       const started = Date.now();
       const matchLedger = buildEvidenceLedger({
         output: released.reply,
@@ -1609,11 +1758,11 @@ export class MeriV3AssistantService {
     }
 
     // Enforce is pre-release and bounded. Any lookup/deadline failure returns the original reply.
-    if (statusProvenanceMode === 'enforce' && released.reply) {
+    if (statusProvenanceMode === 'enforce' && released.reply && !runtimeBudget.acquisitionStopped) {
       const statusResult = await runStatusProvenance({
         reply: released.reply,
         mode: 'enforce',
-        registry: this.registry,
+        registry: withToolBudget(this.registry, runtimeBudget, budgetScope),
         ctx,
         deadlineAt: Math.min(opts.deadlineAt ?? Date.now() + 8_000, Date.now() + 8_000),
         signal: opts.signal,
@@ -1701,7 +1850,13 @@ export class MeriV3AssistantService {
             surface: 'chat',
             llm: this.llm,
             logger: this.structuredLogger,
+            fetchImpl: runtimeBudget.budgetedFetch('shadow'),
           });
+          const shadowLegacy = withModelBudget(
+            providers.legacyBaseline,
+            runtimeBudget,
+            'shadow',
+          )!;
           await assessReleasedClaims({
             claims,
             ledger: claimLedger,
@@ -1712,7 +1867,7 @@ export class MeriV3AssistantService {
             conversationId: dto.conversationId,
             turnId: undefined,
             asOf,
-            providers: { jev: providers.jev, legacy: providers.legacyBaseline },
+            providers: { jev: providers.jev, legacy: shadowLegacy },
             routing: resolveJevConfig(process.env).routing,
             budget: JEV_TASK_REGISTRY.claim_support.shadowBudget!,
             signal: opts.requestSignal ?? opts.signal,
@@ -1726,7 +1881,7 @@ export class MeriV3AssistantService {
       void runStatusProvenance({
         reply: released.reply,
         mode: 'shadow',
-        registry: this.registry,
+        registry: withToolBudget(this.registry, runtimeBudget, budgetScope),
         ctx,
         deadlineAt: Date.now() + 8_000,
         signal: opts.requestSignal ?? opts.signal,
@@ -1739,7 +1894,13 @@ export class MeriV3AssistantService {
         });
       }).catch(() => undefined);
     }
-    if (dto.pageWrite && pageWriteState.payload && !released.held && !opts.signal?.aborted) {
+    if (
+      dto.pageWrite &&
+      pageWriteState.payload &&
+      !released.held &&
+      !opts.signal?.aborted &&
+      !runtimeBudget.acquisitionStopped
+    ) {
       const pageWrite = this.validateCitationText(
         pageWriteState.payload.body,
         citations,
@@ -1773,6 +1934,7 @@ export class MeriV3AssistantService {
         aborted: Boolean(opts.signal?.aborted),
         telemetry,
         providerCalls,
+        runtimeBudget: runtimeBudget.snapshot(),
       }),
     );
     emit({
@@ -1911,6 +2073,8 @@ export class MeriV3AssistantService {
     /** Model that wrote this turn; prices legacy-judge, recheck and revision tokens. */
     synthesisModel: string;
     canary: CanaryTurnCollector;
+    runtimeBudget: MeriRunBudget;
+    budgetScope: MeriToolSignatureScope;
   }): Promise<{ reply: string; citations: MeriCitation[]; documentRequests: number }> {
     const { ctx, dto, opts, released } = args;
     const original = { reply: released.reply, citations: released.citations, documentRequests: 0 };
@@ -1925,7 +2089,7 @@ export class MeriV3AssistantService {
       });
       return original;
     }
-    if (opts.signal?.aborted || opts.requestSignal?.aborted) {
+    if (opts.signal?.aborted || opts.requestSignal?.aborted || args.runtimeBudget.acquisitionStopped) {
       this.logStructured('log', 'meri.auto_correction.skipped', {
         conversationId,
         mode: args.mode,
@@ -2008,7 +2172,9 @@ export class MeriV3AssistantService {
         surface: 'chat',
         llm: this.llm,
         logger: this.structuredLogger,
+        fetchImpl: args.runtimeBudget.budgetedFetch('repair'),
       });
+      const budgetedLegacy = withModelBudget(providers.legacy, args.runtimeBudget, 'repair')!;
       // Document references are built only from what this turn observed
       // (readable content reads, selected or named listings); a turn that
       // touched no document passes none. The repair loop reads their
@@ -2033,11 +2199,43 @@ export class MeriV3AssistantService {
               },
               citations: released.citations,
               ledgerEntries: args.ledgerEntries,
-              invoke: (name, input, signal) =>
-                this.registry.invoke(name, input, ctx, {
-                  signal: signal ?? controller.signal,
-                  deadlineAt,
-                }),
+              invoke: async (name, input, signal) => {
+                if (!args.runtimeBudget.reserveToolBatch(1)) {
+                  throw new MeriRunBudgetExhaustedError(
+                    args.runtimeBudget.reason ?? 'tool_calls',
+                  );
+                }
+                const signature = args.runtimeBudget.toolSignature(
+                  args.budgetScope,
+                  name,
+                  input,
+                );
+                if (!args.runtimeBudget.beginTool(signature)) {
+                  throw new MeriRunBudgetExhaustedError(
+                    args.runtimeBudget.reason ?? 'retry_calls',
+                  );
+                }
+                try {
+                  const result = await this.registry.invoke(name, input, ctx, {
+                    signal: signal ?? controller.signal,
+                    deadlineAt,
+                  });
+                  args.runtimeBudget.observeToolResult({
+                    signature,
+                    result,
+                    failed: isLogicalToolFailure(result),
+                    repeatable: isLegitimatePollingObservation(input, result),
+                  });
+                  return result;
+                } catch (error) {
+                  args.runtimeBudget.observeToolResult({
+                    signature,
+                    result: { error: errorReason(error) },
+                    failed: true,
+                  });
+                  throw error;
+                }
+              },
               evidenceAccuracyMode: args.evidenceAccuracyMode,
               documentReferences,
             })
@@ -2057,13 +2255,21 @@ export class MeriV3AssistantService {
         tenantId: ctx.tenantId,
         clientId: dto.clientId,
         conversationId: dto.conversationId,
-        providers,
+        providers: { jev: providers.jev, legacy: budgetedLegacy },
         executor,
         // Remaining time is measured from this stage's deadline, never from a
         // budget clock the repair loop restarts for itself.
         generate:
           args.mode === 'enforce'
-            ? createRevisionGenerator(this.llm, () => Math.max(1, deadlineAt - Date.now()))
+            ? createRevisionGenerator(
+                {
+                  completeWithSchema: async (params) => {
+                    args.runtimeBudget.reserveModelAttempt('repair');
+                    return this.llm.completeWithSchema(params);
+                  },
+                },
+                () => Math.max(1, deadlineAt - Date.now()),
+              )
             : async ({ affectedText }) => ({ replacementText: affectedText, citedEvidenceIds: [] }),
         promotedCategories: args.categories,
         budget: { ...AUTO_CORRECTION_BUDGET, maxMs: Math.max(1, deadlineAt - Date.now()) },
@@ -2212,8 +2418,36 @@ export class MeriV3AssistantService {
     noteComplianceOutcome: (outcome: 'PASS' | 'WARN' | 'BLOCK') => void;
     evidenceAccuracyMode: ReturnType<typeof resolveEvidenceAccuracyMode>;
     control?: ToolExecutionControl;
+    runtimeBudget: MeriRunBudget;
+    budgetScope: MeriToolSignatureScope;
   }): Promise<FunctionExecution[]> {
     const executions: FunctionExecution[] = [];
+    const stopWithoutDispatch = (call: OpenAiResponsesFunctionCall): void => {
+      const detail = `Aggregate runtime acquisition stopped: ${args.runtimeBudget.reason ?? 'tool_calls'}.`;
+      const result = {
+        error: detail,
+        code: 'MERI_RUNTIME_BUDGET_STOPPED',
+        partial: true,
+      };
+      args.steps.push({
+        tool: call.name,
+        label: toolLabel(call.name),
+        status: 'blocked',
+        detail,
+      });
+      args.emit({
+        type: 'tool_done',
+        tool: call.name,
+        label: toolLabel(call.name),
+        status: 'blocked',
+        detail,
+      });
+      executions.push({ call, result, serialized: JSON.stringify(result) });
+    };
+    if (!args.runtimeBudget.reserveToolBatch(args.calls.length)) {
+      for (const call of args.calls) stopWithoutDispatch(call);
+      return executions;
+    }
     // This cache exists only for one provider-emitted batch. It prevents two
     // distinct call IDs with the same scoped write intent from creating two
     // effects/proposals while still returning one correlated output per call ID.
@@ -2274,6 +2508,15 @@ export class MeriV3AssistantService {
       if (call.name === 'get_research_evidence' && args.dto.researchRun) {
         augmented.input.sessionId = args.dto.researchRun.sessionId;
       }
+      const signature = args.runtimeBudget.toolSignature(
+        args.budgetScope,
+        call.name,
+        augmented.input,
+      );
+      if (!args.runtimeBudget.beginTool(signature)) {
+        stopWithoutDispatch(call);
+        continue;
+      }
       const definition = this.registry.get(call.name);
       const intentKey =
         definition?.readOnly === false
@@ -2313,6 +2556,14 @@ export class MeriV3AssistantService {
         readOnly: this.registry.get(call.name)?.readOnly === true,
         inputProperties: schema.input_schema.properties as Record<string, unknown> | undefined,
       });
+      if (definition?.readOnly === true) {
+        args.runtimeBudget.observeToolResult({
+          signature,
+          result: visibleResult,
+          failed: isLogicalToolFailure(visibleResult),
+          repeatable: isLegitimatePollingObservation(augmented.input, visibleResult),
+        });
+      }
       if (this.registry.get(call.name)?.readOnly === true) {
         const routeKeys = new Set([
           'clientId',
