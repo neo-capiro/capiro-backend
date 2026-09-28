@@ -1,6 +1,22 @@
 # Meri file 01 status
 
-## Current checkpoint — 2026-09-28 02:59 UTC
+## Current checkpoint — 2026-09-28 03:35 UTC
+
+File 01 remains IN_PROGRESS. Draft PR1904 is the combined review candidate; neither main has changed and no shared deployment, migration, synthetic Meri enablement or production canary has run. Database recovery remains an independent release hold.
+
+- Integration `e3612c7fbefef81d9a01239cd399e7a5d8312153` includes reviewed durable outcomes and the final CI-only prerequisite snapshot (`6adbdb450`), plus Defense's isolated CI fixture repairs (`b26f4d696`, `e3612c7fb`). The 14 database-bootstrap tests and 10 verifier tests exit 0. Historical migration SQL from held `1f68dbed9` is excluded. Full combined CI is not green.
+- Exact PR1904 logs reproduce a stale core-Prisma argument expectation, PGlite's missing Node VM-module flag, and a formatting-sensitive PWA assertion. Three catalog failures omit ten already implemented Research Portfolio tools. A bounded Hermes worker owns those qualification repairs and a separately proved mechanical formatting commit; no gate is waived.
+- Runtime identity correction `cebf277f5` fixes the prior cross-product claim, but independent probes still find a product record certifying a company and first-match selection among conflicting retained statuses. Its implementation and review processes each hit their tool-call limit (exit 1), despite specific tests exiting 0. A focused repair is active; this chain is not accepted for integration.
+- Memory workspace `b7b901366` repairs pagination, in-Meri revision and single-action recovery; independent 11 API / 36 web tests and web typecheck exit 0. Further direct probes expose multiple unresolved decisions and untrusted stored acknowledgement attribution. The same owner is repairing those cases; no full memory acceptance.
+- Native PostgreSQL qualification `0bf8224c7` is published. Non-vector assertions ran on the owned local database; vector bodies are NOT RUN, regardless of their registered Jest names. Required-vector mode fails without the extension. Independent review is active; the new pgvector CI job has not run.
+- Capture verifier `147fd7648` is published: actual artifact bytes/hashes replace declarative passed flags, with 28 tests exiting 0. Only nine case-specific predicates exist; trusted capture/auth, real fixtures/faults/sinks, and remaining predicates are incomplete. All 75 live cases remain NOT RUN. Independent review is active.
+- Cohort repair `8ca56777e` is published; independent 28 tests and 24 direct accept/refuse probes exit 0. It closes final-observation and artifact-binding findings offline. FullChat flag apply/removal through Actions, authentic metadata and redirect qualification remain missing; no workflow was dispatched.
+- The artifact worker wrote into the integration checkout by mistake. The lead stopped that process, archived every changed byte and hash under `C:/dev/cap-meri-foundation-evidence/artifact-isolation-20260928-0328`, transferred the patch to its assigned worktree and restored only those verified archived source files. Integration is clean; the replacement worker owns conflict resolution and qualification in `C:/dev/cap-meri-baseline-lock-parity`. No artifact acceptance is claimed.
+- Owner credit top-ups restored the pinned Hermes/OpenRouter routes. Implementation remains GPT-5.6 Sol High; independent review remains GPT-6 Sol High. No model substitution occurred.
+
+Remaining required scope includes durable full-result replay and current authorization, plans/steering/children/aggregate cost budgets, governed selector and versioned procedures, attachment reads, scheduler races, JEV/narrative/trace reconciliation, every applicable acceptance case, both-main integration and approved release. See requirements ledger; bounded fixes are not file-01 completion.
+
+## Previous checkpoint — 2026-09-28 02:59 UTC
 
 File 01 remains IN_PROGRESS; all shared releases and both-main integration remain on hold. No synthetic Meri enablement, migration, deployment or production canary has run.
 
