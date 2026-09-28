@@ -17,12 +17,15 @@ export function sha256Bytes(bytes: Uint8Array): string {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
-const OOXML_MAIN_PART: Record<Exclude<DocFormat, 'pdf'>, {
-  path: string;
-  contentType: string;
-  rootName: string;
-  rootNamespace: string;
-}> = {
+const OOXML_MAIN_PART: Record<
+  Exclude<DocFormat, 'pdf'>,
+  {
+    path: string;
+    contentType: string;
+    rootName: string;
+    rootNamespace: string;
+  }
+> = {
   docx: {
     path: 'word/document.xml',
     contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml',
@@ -37,7 +40,8 @@ const OOXML_MAIN_PART: Record<Exclude<DocFormat, 'pdf'>, {
   },
   pptx: {
     path: 'ppt/presentation.xml',
-    contentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml',
+    contentType:
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml',
     rootName: 'presentation',
     rootNamespace: 'http://schemas.openxmlformats.org/presentationml/2006/main',
   },
@@ -53,11 +57,16 @@ interface ZipEntry {
   content: Buffer;
 }
 
+export type ValidatedOoxmlEntries = ReadonlyMap<string, Buffer>;
+
 function findZipEnd(bytes: Buffer): number {
   const minimum = Math.max(0, bytes.length - 65_557);
   for (let offset = bytes.length - 22; offset >= minimum; offset -= 1) {
-    if (bytes.readUInt32LE(offset) === 0x06054b50 &&
-        offset + 22 + bytes.readUInt16LE(offset + 20) === bytes.length) return offset;
+    if (
+      bytes.readUInt32LE(offset) === 0x06054b50 &&
+      offset + 22 + bytes.readUInt16LE(offset + 20) === bytes.length
+    )
+      return offset;
   }
   throw new Error('ooxml_zip_end_missing');
 }
@@ -73,13 +82,23 @@ function readBoundedZipEntries(bytes: Buffer): Map<string, ZipEntry> {
   const entryCount = bytes.readUInt16LE(endOffset + 10);
   const centralSize = bytes.readUInt32LE(endOffset + 12);
   const centralOffset = bytes.readUInt32LE(endOffset + 16);
-  if (!entryCount || entryCount !== entriesOnDisk || entryCount > 5_000 ||
-      centralOffset + centralSize !== endOffset) throw new Error('ooxml_entry_count_invalid');
+  if (
+    !entryCount ||
+    entryCount !== entriesOnDisk ||
+    entryCount > 5_000 ||
+    centralOffset + centralSize !== endOffset
+  )
+    throw new Error('ooxml_entry_count_invalid');
 
   const decoder = new TextDecoder('utf-8', { fatal: true });
   const metadata: Array<{
-    name: string; flags: number; method: number; crc: number;
-    compressedSize: number; uncompressedSize: number; localOffset: number;
+    name: string;
+    flags: number;
+    method: number;
+    crc: number;
+    compressedSize: number;
+    uncompressedSize: number;
+    localOffset: number;
   }> = [];
   const names = new Set<string>();
   let declaredTotal = 0;
@@ -98,8 +117,14 @@ function readBoundedZipEntries(bytes: Buffer): Map<string, ZipEntry> {
     const commentLength = bytes.readUInt16LE(offset + 32);
     const localOffset = bytes.readUInt32LE(offset + 42);
     const next = offset + 46 + nameLength + extraLength + commentLength;
-    if (!nameLength || next > endOffset || flags & 1 ||
-        compressedSize === 0xffffffff || uncompressedSize === 0xffffffff || localOffset === 0xffffffff) {
+    if (
+      !nameLength ||
+      next > endOffset ||
+      flags & 1 ||
+      compressedSize === 0xffffffff ||
+      uncompressedSize === 0xffffffff ||
+      localOffset === 0xffffffff
+    ) {
       throw new Error('ooxml_entry_header_invalid');
     }
     let name: string;
@@ -112,8 +137,14 @@ function readBoundedZipEntries(bytes: Buffer): Map<string, ZipEntry> {
     } catch {
       throw new Error('ooxml_entry_name_invalid');
     }
-    if (!name || name.includes('\\') || name.includes('\0') || name.startsWith('/') ||
-        name.split('/').some((part) => part === '..') || names.has(name)) {
+    if (
+      !name ||
+      name.includes('\\') ||
+      name.includes('\0') ||
+      name.startsWith('/') ||
+      name.split('/').some((part) => part === '..') ||
+      names.has(name)
+    ) {
       throw new Error('ooxml_entry_name_invalid');
     }
     if (name.endsWith('/') && (compressedSize !== 0 || uncompressedSize !== 0)) {
@@ -121,7 +152,8 @@ function readBoundedZipEntries(bytes: Buffer): Map<string, ZipEntry> {
     }
     names.add(name);
     if (!name.endsWith('/')) {
-      if (uncompressedSize > MAX_DOCUMENT_ARTIFACT_BYTES) throw new Error('ooxml_entry_size_invalid');
+      if (uncompressedSize > MAX_DOCUMENT_ARTIFACT_BYTES)
+        throw new Error('ooxml_entry_size_invalid');
       declaredTotal += uncompressedSize;
       if (declaredTotal > MAX_OOXML_INFLATED_BYTES) throw new Error('ooxml_inflated_size_invalid');
     }
@@ -133,7 +165,10 @@ function readBoundedZipEntries(bytes: Buffer): Map<string, ZipEntry> {
   const entries = new Map<string, ZipEntry>();
   let actualTotal = 0;
   for (const entry of metadata) {
-    if (entry.localOffset + 30 > centralOffset || bytes.readUInt32LE(entry.localOffset) !== 0x04034b50) {
+    if (
+      entry.localOffset + 30 > centralOffset ||
+      bytes.readUInt32LE(entry.localOffset) !== 0x04034b50
+    ) {
       throw new Error('ooxml_local_header_invalid');
     }
     const localFlags = bytes.readUInt16LE(entry.localOffset + 6);
@@ -147,7 +182,9 @@ function readBoundedZipEntries(bytes: Buffer): Map<string, ZipEntry> {
     }
     let localName: string;
     try {
-      localName = decoder.decode(bytes.subarray(entry.localOffset + 30, entry.localOffset + 30 + localNameLength));
+      localName = decoder.decode(
+        bytes.subarray(entry.localOffset + 30, entry.localOffset + 30 + localNameLength),
+      );
     } catch {
       throw new Error('ooxml_entry_name_invalid');
     }
@@ -157,7 +194,8 @@ function readBoundedZipEntries(bytes: Buffer): Map<string, ZipEntry> {
     let content: Buffer;
     try {
       if (entry.method === 0) {
-        if (entry.compressedSize !== entry.uncompressedSize) throw new Error('stored_size_mismatch');
+        if (entry.compressedSize !== entry.uncompressedSize)
+          throw new Error('stored_size_mismatch');
         content = Buffer.from(compressed);
       } else if (entry.method === 8) {
         content = inflateRawSync(compressed, { maxOutputLength: entry.uncompressedSize + 1 });
@@ -192,7 +230,7 @@ function localName(name: string): string {
 
 function asXmlNode(value: unknown): XmlNode | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? value as XmlNode
+    ? (value as XmlNode)
     : null;
 }
 
@@ -214,7 +252,9 @@ function parseXmlRoot(content: Buffer): { name: string; node: XmlNode } {
   }
   const document = asXmlNode(parsed);
   const elements = document
-    ? Object.entries(document).filter(([name]) => !name.startsWith('?') && !name.startsWith('#') && !name.startsWith('!'))
+    ? Object.entries(document).filter(
+        ([name]) => !name.startsWith('?') && !name.startsWith('#') && !name.startsWith('!'),
+      )
     : [];
   if (elements.length !== 1) throw new Error('ooxml_xml_root_invalid');
   const [name, value] = elements[0]!;
@@ -227,7 +267,8 @@ function namespaceBindings(node: XmlNode): Map<string, string> {
   const bindings = new Map<string, string>();
   for (const [name, value] of Object.entries(node)) {
     if (name === '@_xmlns' && typeof value === 'string') bindings.set('', value);
-    else if (name.startsWith('@_xmlns:') && typeof value === 'string') bindings.set(name.slice(8), value);
+    else if (name.startsWith('@_xmlns:') && typeof value === 'string')
+      bindings.set(name.slice(8), value);
   }
   return bindings;
 }
@@ -242,15 +283,25 @@ function childElementNamespace(
   inherited: Map<string, string>,
 ): string | null {
   const bindings = new Map(inherited);
-  for (const [prefix, namespace] of namespaceBindings(element.node)) bindings.set(prefix, namespace);
+  for (const [prefix, namespace] of namespaceBindings(element.node))
+    bindings.set(prefix, namespace);
   return elementNamespace(element.name, bindings);
 }
 
-function directElements(node: XmlNode, wantedLocalName: string): Array<{ name: string; node: XmlNode }> {
+function directElements(
+  node: XmlNode,
+  wantedLocalName: string,
+): Array<{ name: string; node: XmlNode }> {
   const out: Array<{ name: string; node: XmlNode }> = [];
   for (const [name, value] of Object.entries(node)) {
-    if (name.startsWith('@_') || name.startsWith('?') || name.startsWith('#') || name.startsWith('!') ||
-        localName(name) !== wantedLocalName) continue;
+    if (
+      name.startsWith('@_') ||
+      name.startsWith('?') ||
+      name.startsWith('#') ||
+      name.startsWith('!') ||
+      localName(name) !== wantedLocalName
+    )
+      continue;
     for (const candidate of Array.isArray(value) ? value : [value]) {
       const child = asXmlNode(candidate);
       if (child) out.push({ name, node: child });
@@ -259,16 +310,14 @@ function directElements(node: XmlNode, wantedLocalName: string): Array<{ name: s
   return out;
 }
 
-/** Parse the generated binary at the API owner before it can be persisted or served. */
-export async function validateDocumentArtifactBytes(format: DocFormat, bytes: Buffer): Promise<void> {
+/** Validate an OOXML package and expose only entries that passed the shared
+ * central-directory, inflation, size, and CRC checks. */
+export function validateOoxmlArtifactPackage(
+  format: Exclude<DocFormat, 'pdf'>,
+  bytes: Buffer,
+): ValidatedOoxmlEntries {
   if (!bytes.length || bytes.length > MAX_DOCUMENT_ARTIFACT_BYTES) {
     throw new Error('document_size_invalid');
-  }
-  if (format === 'pdf') {
-    if (bytes.subarray(0, 5).toString('ascii') !== '%PDF-') throw new Error('pdf_signature_invalid');
-    const document = await PDFDocument.load(bytes, { updateMetadata: false });
-    if (document.getPageCount() < 1) throw new Error('pdf_has_no_pages');
-    return;
   }
 
   const entries = readBoundedZipEntries(bytes);
@@ -280,33 +329,62 @@ export async function validateDocumentArtifactBytes(format: DocFormat, bytes: Bu
 
   const contentTypes = parseXmlRoot(typeEntry.content);
   const contentTypeBindings = namespaceBindings(contentTypes.node);
-  if (localName(contentTypes.name) !== 'Types' ||
-      elementNamespace(contentTypes.name, contentTypeBindings) !== CONTENT_TYPES_NAMESPACE ||
-      !directElements(contentTypes.node, 'Override').some((element) =>
+  if (
+    localName(contentTypes.name) !== 'Types' ||
+    elementNamespace(contentTypes.name, contentTypeBindings) !== CONTENT_TYPES_NAMESPACE ||
+    !directElements(contentTypes.node, 'Override').some(
+      (element) =>
         childElementNamespace(element, contentTypeBindings) === CONTENT_TYPES_NAMESPACE &&
         element.node['@_PartName'] === `/${expected.path}` &&
-        element.node['@_ContentType'] === expected.contentType)) {
+        element.node['@_ContentType'] === expected.contentType,
+    )
+  ) {
     throw new Error('ooxml_type_mismatch');
   }
 
   const relationships = parseXmlRoot(rootRelationships.content);
   const relationshipBindings = namespaceBindings(relationships.node);
-  if (localName(relationships.name) !== 'Relationships' ||
-      elementNamespace(relationships.name, relationshipBindings) !== RELATIONSHIPS_NAMESPACE ||
-      !directElements(relationships.node, 'Relationship').some((element) =>
+  if (
+    localName(relationships.name) !== 'Relationships' ||
+    elementNamespace(relationships.name, relationshipBindings) !== RELATIONSHIPS_NAMESPACE ||
+    !directElements(relationships.node, 'Relationship').some(
+      (element) =>
         childElementNamespace(element, relationshipBindings) === RELATIONSHIPS_NAMESPACE &&
         element.node['@_Type'] === OFFICE_DOCUMENT_RELATIONSHIP &&
         element.node['@_Target'] === expected.path &&
-        element.node['@_TargetMode'] === undefined)) {
+        element.node['@_TargetMode'] === undefined,
+    )
+  ) {
     throw new Error('ooxml_relationship_mismatch');
   }
 
   const main = parseXmlRoot(mainPart.content);
   const mainBindings = namespaceBindings(main.node);
-  if (localName(main.name) !== expected.rootName ||
-      elementNamespace(main.name, mainBindings) !== expected.rootNamespace) {
+  if (
+    localName(main.name) !== expected.rootName ||
+    elementNamespace(main.name, mainBindings) !== expected.rootNamespace
+  ) {
     throw new Error('ooxml_main_root_mismatch');
   }
+  return new Map([...entries].map(([name, entry]) => [name, entry.content]));
+}
+
+/** Parse the generated binary at the API owner before it can be persisted or served. */
+export async function validateDocumentArtifactBytes(
+  format: DocFormat,
+  bytes: Buffer,
+): Promise<void> {
+  if (!bytes.length || bytes.length > MAX_DOCUMENT_ARTIFACT_BYTES) {
+    throw new Error('document_size_invalid');
+  }
+  if (format === 'pdf') {
+    if (bytes.subarray(0, 5).toString('ascii') !== '%PDF-')
+      throw new Error('pdf_signature_invalid');
+    const document = await PDFDocument.load(bytes, { updateMetadata: false });
+    if (document.getPageCount() < 1) throw new Error('pdf_has_no_pages');
+    return;
+  }
+  validateOoxmlArtifactPackage(format, bytes);
 }
 
 let crcTable: Uint32Array | undefined;
@@ -315,7 +393,8 @@ function crc32(bytes: Buffer): number {
     crcTable = new Uint32Array(256);
     for (let n = 0; n < 256; n += 1) {
       let value = n;
-      for (let bit = 0; bit < 8; bit += 1) value = (value & 1) ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+      for (let bit = 0; bit < 8; bit += 1)
+        value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
       crcTable[n] = value >>> 0;
     }
   }
@@ -366,11 +445,16 @@ function pngUnfilteredRows(
       const left = index >= bytesPerPixel ? decoded[index - bytesPerPixel]! : 0;
       const above = previous?.[index] ?? 0;
       const upperLeft = index >= bytesPerPixel ? (previous?.[index - bytesPerPixel] ?? 0) : 0;
-      const predictor = filter === 0 ? 0
-        : filter === 1 ? left
-          : filter === 2 ? above
-            : filter === 3 ? Math.floor((left + above) / 2)
-              : paethPredictor(left, above, upperLeft);
+      const predictor =
+        filter === 0
+          ? 0
+          : filter === 1
+            ? left
+            : filter === 2
+              ? above
+              : filter === 3
+                ? Math.floor((left + above) / 2)
+                : paethPredictor(left, above, upperLeft);
       decoded[index] = (encoded[index]! + predictor) & 0xff;
     }
     rows.push(decoded);
@@ -391,11 +475,21 @@ export interface ValidatedPng {
 export function validatePngBase64(value: unknown): ValidatedPng | null {
   if (typeof value !== 'string') return null;
   const base64 = value.trim();
-  if (!base64 || base64.length > MAX_PNG_BASE64_CHARS || base64.length % 4 !== 0 ||
-      !/^[A-Za-z0-9+/]*={0,2}$/.test(base64)) return null;
+  if (
+    !base64 ||
+    base64.length > MAX_PNG_BASE64_CHARS ||
+    base64.length % 4 !== 0 ||
+    !/^[A-Za-z0-9+/]*={0,2}$/.test(base64)
+  )
+    return null;
   const buffer = Buffer.from(base64, 'base64');
-  if (!buffer.length || buffer.toString('base64') !== base64 || buffer.length < 45 ||
-      !buffer.subarray(0, 8).equals(PNG_SIGNATURE)) return null;
+  if (
+    !buffer.length ||
+    buffer.toString('base64') !== base64 ||
+    buffer.length < 45 ||
+    !buffer.subarray(0, 8).equals(PNG_SIGNATURE)
+  )
+    return null;
 
   let offset = 8;
   let chunkIndex = 0;
@@ -432,11 +526,31 @@ export function validatePngBase64(value: unknown): ValidatedPng | null {
       height = data.readUInt32BE(4);
       bitDepth = data[8]!;
       colorType = data[9]!;
-      if (!width || !height || width > 8192 || height > 8192 || width * height > MAX_PNG_PIXELS ||
-          !validPngBitDepth(colorType, bitDepth) || data[10] !== 0 || data[11] !== 0 || data[12] !== 0) return null;
+      if (
+        !width ||
+        !height ||
+        width > 8192 ||
+        height > 8192 ||
+        width * height > MAX_PNG_PIXELS ||
+        !validPngBitDepth(colorType, bitDepth) ||
+        data[10] !== 0 ||
+        data[11] !== 0 ||
+        data[12] !== 0
+      )
+        return null;
     } else if (type === 'PLTE') {
-      if (!sawIhdr || sawPlte || sawIdat || length === 0 || length > 768 || length % 3 !== 0 ||
-          colorType === 0 || colorType === 4 || (colorType === 3 && length / 3 > 2 ** bitDepth)) return null;
+      if (
+        !sawIhdr ||
+        sawPlte ||
+        sawIdat ||
+        length === 0 ||
+        length > 768 ||
+        length % 3 !== 0 ||
+        colorType === 0 ||
+        colorType === 4 ||
+        (colorType === 3 && length / 3 > 2 ** bitDepth)
+      )
+        return null;
       sawPlte = true;
       paletteEntries = length / 3;
     } else if (type === 'IDAT') {
@@ -491,20 +605,29 @@ export function validatePngBase64(value: unknown): ValidatedPng | null {
   return { buffer, base64, sha256: sha256Bytes(buffer), width, height };
 }
 
-export function readPersistedPng(
-  metadata: unknown,
-): (ValidatedPng & { integrityPolicy: 'persisted_hash_match' | 'validated_legacy_no_persisted_hash' }) | null {
+export function readPersistedPng(metadata: unknown):
+  | (ValidatedPng & {
+      integrityPolicy: 'persisted_hash_match' | 'validated_legacy_no_persisted_hash';
+    })
+  | null {
   if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
   const record = metadata as Record<string, unknown>;
   const png = validatePngBase64(record.imageBase64);
   if (!png) return null;
-  if (record.imageByteAuthority !== undefined &&
-      record.imageByteAuthority !== PERSISTED_PNG_BYTE_AUTHORITY) return null;
+  if (
+    record.imageByteAuthority !== undefined &&
+    record.imageByteAuthority !== PERSISTED_PNG_BYTE_AUTHORITY
+  )
+    return null;
   if (record.imageSha256 === undefined) {
     if (record.imageByteAuthority === PERSISTED_PNG_BYTE_AUTHORITY) return null;
     return { ...png, integrityPolicy: 'validated_legacy_no_persisted_hash' };
   }
-  if (typeof record.imageSha256 !== 'string' || !SHA256_RE.test(record.imageSha256) ||
-      record.imageSha256 !== png.sha256) return null;
+  if (
+    typeof record.imageSha256 !== 'string' ||
+    !SHA256_RE.test(record.imageSha256) ||
+    record.imageSha256 !== png.sha256
+  )
+    return null;
   return { ...png, integrityPolicy: 'persisted_hash_match' };
 }
