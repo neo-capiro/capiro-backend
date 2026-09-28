@@ -1,3 +1,4 @@
+import { bindResearchPortfolioToolConversation } from './meri-research-portfolio-tool-scope.js';
 import { isResearchPortfolioArtifact, authorizeResearchPortfolioArtifact, authorizeResearchPortfolioConversation } from '../research-portfolios/research-portfolio-artifact-authority.js';
 import { prepareAnthropicRequest, anthropicResponseText } from '@capiro/shared/ai-model-policy';
 import { assertAttachmentConversation, authorizedAttachmentSources, compactedAttachmentContext } from './meri-attachment-continuity.js';
@@ -1691,6 +1692,9 @@ export class MeriService implements MeriTurnMaintenance {
           // ClioArtifact row — without it persistArtifact returns
           // { persisted: false } and the generated Office document is silently
           // dropped (no artifact row, no download URL, canvas never opens).
+          const researchBinding = bindResearchPortfolioToolConversation(t.name, parsedInput, conversationId);
+          parsedInput = researchBinding.input;
+          if (researchBinding.refusal) scopeViolation = researchBinding.refusal;
           if (parsedInput.conversationId === undefined) {
             parsedInput.conversationId = conversationId;
           }
