@@ -1,6 +1,30 @@
 # Meri file 01 status
 
-## Current checkpoint — 2026-09-28 16:45 UTC
+## Current checkpoint — 2026-09-28 18:17 UTC
+
+File01 remains IN_PROGRESS. The independently reviewed capture policy, current-authority checks and bounded private-output fence are consolidated from 8e0bbba/dc83983/e6ff15a as 646014fb2/e7bfb3c12/be175dc78. The independently reviewed two-line Knowledge Phase17 heap fix is integrated as94e4b3df. Combined source bdf1daf05 additionally preserves the capture-only analysis exclusion in fresh progressive discovery and current disclosure, and fixes the current controller test-constructor dependency.
+
+PASS, scoped combined qualification: own shared/core builds; API13 capture +58 V3 +25 runtime/control tests;182 orchestrator capture/progressive/procedure/current-authority tests;11 actual-function V3/V2/raw output probes; API and orchestrator typechecks; changed-source formatting. Every claimed successful command exited0. Exact source-bound evidence and initial setup/fixture failures are retained in capture-integration-qualification.md. This is controlled local qualification; fresh hosted checks and final release qualification remain pending.
+
+Independent narrative a62 review passed230core/144runtime tests and types but held promotion after actual probes reproduced lost document-owner identity under large-result projection and summary-only intel discovery treated as consulted. Its repair is active. Remaining source-family4bc review passed135API tests/types but held promotion for actual Monday mapping, prior-attachment text, replay-field, unavailable-state and bounded-web-fetch gaps. Task/action repair57b51 is published and under independent review; telemetryfdb independent review is active. Provider-budget and meeting-owner repairs are still being finalized. Candidates are not release acceptance.
+
+Focused PR1908 is published ataf564559e with operation-bound email receipt repair35d260d and exact verified CI prerequisite blobs. Its66API tests, controlled source chain, deployable typechecks/builds and31guard tests passed locally. New hosted checks reached inherited187-file formatting debt, three stale catalog assertions and two legitimate sandbox startup failures; no gate is waived. These are separate from the historical min(uuid) migration failure on the consolidated branch.
+
+Fixture provisionera33b637 maps112records and passes12local tests plus frozen75-case contract validation, but its controlled offline plan leaves102records unavailable. Actual canonical native-owner runtime assembly is underway; a fixture contract is not a populated acceptance environment. Trusted capture evidence receipts are being implemented separately. All original75 live, CD7, CW8, applicable memory acceptance, AppendixH dispositions, complete source/cost/build/fixture/effect authority, database clearance, named owner acceptance, both-main integration and approved deployment remain incomplete. Neither main nor AWS changed; the two approved synthetic enablements remain unapplied.
+
+## Current checkpoint â€” 2026-09-28 17:40 UTC
+
+File01 remains IN_PROGRESS across all original A/B/C/D requirements. At exact published `3111e053d43960d8ca44ab589d120ceafb105bd3`, hosted Meri canary36455729896, visual36455730095, memory PostgreSQL36455730252 and connectors36455729838 all passed. Meriv2 Phase17 run36455729933 still fails historical migration20281003010000 at min(uuid). Separately, Knowledge Phase17 run36455729985 exhausted its default2GiB Node heap; isolated two-line CI candidatecdfb0a9 adds the existing6144MiB policy, preserving every step, and locally passed54API+17retrieval tests. It awaits independent review; no gate was waived.
+
+Completed task candidates now on GitHub include durable coordinator df57a798, controls UI1a3a906, joined telemetryfdbd85b, bounded children9f1ec149 and remaining Monday/bill/consulted-web/attachment families4bc32ad. A combined coordinator/UI candidate d6645590 (plus documentation854d3a254) passed actual localhost production-web-client to Nest controller/service integration,71API/25web/105runtime tests, all three app typechecks and web build. It awaits independent review and provider-budget/child integration. These are implementation results, not deployed acceptance.
+
+Independent reviews found concrete provider-budget bypass/accounting/deadline defects and native task/action linked-source/proof defects; repair workers are active. Narrative source integrity remains under repair. Captured private output after authority withdrawal is repaired in e6ff15a9 with bounded capture-only buffering and current-authority release;13capture/V2/raw,50V3 and25regression tests plus both app typechecks passed, final independent review pending. Trusted server evidence receipts and owned synthetic fixture provisioning are now separate implementation assignments; no shared fixture writes have occurred.
+
+Focused PR1908 is published at cfd4b049. Its send-email semantic repair passed66API tests, API typecheck/build, and exact35+5-file mechanical formatting proof. Independent review closed the two earlier defects but reproduced a wrong-operation correlation accepted as success, so another bounded repair is required. Hosted canary/visual progressed through formatting and now fail API TypeScript at the inherited2GiB heap limit; the proven foundation CI prerequisites need selective integration. PR1908 is still draft and not full WorkstreamA completion.
+
+OpenRouter at17:36 had about$50.14 remaining; pinned Hermes execution continues. Two unrelated old CLI sessions were stopped at the user's request, with active goal workers, histories and gateway preserved. All75live/CD7/CW8/applicablememory, historical AppendixH disposition, trusted source/cost/build/fixture/sandbox and effect capture, DB clearance, named owner acceptance, both-main integration and approved deployment remain unfinished. Neither main, AWS nor synthetic allowlists have been changed. Current process ownership and exact reports: `C:/dev/cap-meri-foundation-evidence/queue-current.json`. This checkpoint is local documentation pending the next verified source batch.
+
+## Current checkpoint â€” 2026-09-28 16:45 UTC
 
 Progressive discovery sources41f3517 and8da6c0a are consolidated as25a609b and5d25c7d. Independent repair review passed156 candidate tests,9 fresh actual-assistant probes and both app typechecks. Combined integration passed168 runtime tests across6 suites and runtime typecheck; changed-file formatting passed. The scoped result preserves current canonical disclosure/dispatch authority; real live revocation, full source adoption and full File01 acceptance remain unqualified.
 
@@ -10,7 +34,7 @@ Focused Workstream A outcomes now have draft PR1908 at08a0a9d2e, exact local/rem
 
 Further implementation candidates are preserved on GitHub: native tasks/action-items55f33c6 (72 affected+19 regression API tests/type/build0); narrative/JEV e05616c (164runtime tests/type0); meetings3d826e6 (lead147API/106runtime tests0, worker builds/both types0); aggregate provider budgets a0821d4 (lead10API/134runtime tests/both types0). All await independent qualification and integration; none establish full family/live acceptance. Telemetry remains uncommitted after402. Server capture authority repair and durable step/steering coordinator workers continue. Minimal UI and child adapter, remaining sources and trusted live capture remain mandatory. Latest OpenRouter balance at16:39 was about$3.39; a top-up question is pending. No model substitution, shared environment change or scope reduction occurred.
 
-## Current checkpoint — 2026-09-28 16:32 UTC
+## Current checkpoint â€” 2026-09-28 16:32 UTC
 
 File 01 remains in progress. The consolidated branch at f92 has successful hosted memory PostgreSQL and connector checks. Hosted canary and visual checks stopped at formatting before code validation. Seven affected files are now mechanically formatted; source AST, emitted JavaScript AST and ordered comments are equivalent in all seven, and both complete workflow format commands exit 0. Evidence: `ci-f92-canary-failed.log`, `ci-f92-visual-failed.log`, `f92-format-proof.json`, `integration-additional-format-gates.json`. This is not a code-check waiver.
 
@@ -18,7 +42,7 @@ Durable replay correction80445 has independent scoped PASS (34 API,104 orchestra
 
 A separate focused Workstream A outcome candidate7003610 is built from actual origin/main42942de, preserving the larger original scope in PR1904. Its56 API and133 runtime tests, runtime typecheck and shared/core builds exit0. Full API typecheck exits2 on11 diagnostics in unchanged business-development test fixtures; the known fixture repair78d5 is absent from this main-based candidate. Independent review is verifying the candidate and baseline provenance. No release readiness is claimed. Both mains, AWS and approved synthetic enablement remain unchanged.
 
-## Current checkpoint — 2026-09-28 16:15 UTC
+## Current checkpoint â€” 2026-09-28 16:15 UTC
 
 The reviewed report/source/plan/procedure candidate is now consolidated into the task integration branch at `94a0faaf6a170d6416ded65c45ce0ee05a55205c`. This is task-branch integration, not a merge to either main or an AWS release. Full original File01 scope remains active.
 
@@ -29,9 +53,9 @@ The reviewed report/source/plan/procedure candidate is now consolidated into the
 
 Evidence: `combined-mail-debrief-api.log`, `combined-mail-debrief-api-typecheck.log`, `combined-strict-stream-tests.log`, `combined-strict-stream-api-typecheck.log`, `combined-final-transport-procedure-api.log`, `combined-final-orchestrator-typecheck.log`, and the named review reports under `C:/dev/cap-meri-foundation-evidence`. No live provider/shared-database effect occurred in these combined checks. Both mains, shared AWS and synthetic enablement remain unchanged. No File01 readiness or live acceptance PASS is claimed.
 
-## Current checkpoint — 2026-09-28 15:55 UTC
+## Current checkpoint â€” 2026-09-28 15:55 UTC
 
-File 01 remains IN_PROGRESS. User requested the concrete path to ship 01-A separately. A focused release inventory is separating reviewed outcomes/approvals/files fixes and necessary dependencies from this mixed foundation PR. Section 01-A names 17 baseline cases (13–19, 40–46, 51, 72, 75) plus CD-05; full75/CD7/CW8 remain final File-01 closeout requirements, not automatic prerequisites for every focused fix. No main or AWS changes; synthetic enablement remains approved but unapplied.
+File 01 remains IN_PROGRESS. User requested the concrete path to ship 01-A separately. A focused release inventory is separating reviewed outcomes/approvals/files fixes and necessary dependencies from this mixed foundation PR. Section 01-A names 17 baseline cases (13â€“19, 40â€“46, 51, 72, 75) plus CD-05; full75/CD7/CW8 remain final File-01 closeout requirements, not automatic prerequisites for every focused fix. No main or AWS changes; synthetic enablement remains approved but unapplied.
 
 - Portfolio whitespace admission: independently reviewed Defense source `477f1e9b1e49bc00bb31ee718273c3211aaa0ac9` selectively ported as `d169f4b396a791d3c3b7468b287cb2e39487d250`. Only two classifier trims plus regression tests; Foundation's18 canonical names and separately guarded future management name, existing P0B outcome/receipt behavior, and cohorts preserved.20 API tests including actual localhost HTTP rejection and28 orchestrator tests passed with exit0. This closes the directly observed normalization bypass; no live/RLS/global revocation claim.
 - At published152c, Meri canary36441909078, visual36441908717, memory PostgreSQL36441908957 and connectors36441909221 succeeded. Phase17 36441908905 failed historical migration20281003010000 at min(uuid). No waiver or Actions-outage fallback.
@@ -43,7 +67,7 @@ Evidence: `C:/dev/cap-meri-foundation-evidence/integrated-rp-normalization-api.l
 All live baseline acceptance remains NOT_RUN. Full durable execution/children/aggregate budgets, source coverage, narrative/JEV/telemetry, authenticated fixtures/sinks, final acceptance, both-main integration and controlled release remain unfinished. File02 has not started.
 
 
-## Current checkpoint — 2026-09-28 15:15 UTC
+## Current checkpoint â€” 2026-09-28 15:15 UTC
 
 File 01 remains IN_PROGRESS. Qualified integration source is `edcd2d1b0461fb4a18730d21a05c54776b180170`; this checkpoint adds documentation. Both mains and AWS remain unchanged. Approved synthetic tenant enablement remains unapplied. Release still requires missing implementation/acceptance, database recovery and owner acceptance.
 
@@ -57,12 +81,12 @@ All 75 authenticated baseline cases, seven Commitments & Deliverables cases, req
 
 Evidence under `C:/dev/cap-meri-foundation-evidence`: `review-rp-combined-scope-repair-report.md`, `integrated-edcd-api-tests.log`, `integrated-edcd-api-typecheck.log`, `integrated-edcd-ork-tests.log`, `integrated-edcd-ork-typecheck.log`, `ci-ff94-phase17-failed.log`, and `queue-current.json`. No shared data or provider effect was performed by these checks; local PostgreSQL tests created and dropped owned random schemas.
 
-## Current checkpoint — 2026-09-28 14:22 UTC
+## Current checkpoint â€” 2026-09-28 14:22 UTC
 
 File 01 remains IN_PROGRESS. Verified integration source is `9cf6ca2a2098257146997c6b35a3fc1c17c37801`; this checkpoint changes documentation only. Both mains and AWS remain unchanged. Release still requires the missing acceptance work, database recovery and owner acceptance. Approved synthetic-tenant enablement remains unapplied.
 
 - PASS, bounded prior-turn attachment reader and trusted transport: reviewed sources `6ee4a8825`, `a944bed97` and `ed5f6dc27` integrated as `78f1cb58f`, `32ec3bf64` and `9cf6ca2a2`. All 20 files match the reviewed candidate. Review reproduced exact long-PDF text continuation across pages and rejected noncanonical cursor signatures. The two-million-character native-page cap is explicitly partial, not complete; parser allocation is not qualified. Integrated 96 API tests, 62 orchestrator tests and both typechecks exited 0. No live JWT/RLS/browser or report-owner adapter qualification is claimed.
-- PASS, reproducible source fixtures: source `892a098ba79850e8992f09d5f3e7409ab12b2ae1` integrated as `ca9a5955c`. Independent parser/determinism probes and 49 integrated tests exited 0. Seven PDF/PPTX/XLSX assets prepare evidence inputs; they do not satisfy live cases 40–45 or canonical source loading.
+- PASS, reproducible source fixtures: source `892a098ba79850e8992f09d5f3e7409ab12b2ae1` integrated as `ca9a5955c`. Independent parser/determinism probes and 49 integrated tests exited 0. Seven PDF/PPTX/XLSX assets prepare evidence inputs; they do not satisfy live cases 40â€“45 or canonical source loading.
 - HOLD, research report streaming: independent review at `18c58b62c` confirmed thinking redaction but reproduced typed page/artifact/caveat content before current authorization and durable publication. A finite observer projection repair is being completed. Procedure `957e4b137` remains narrowly reviewed; the combined report/procedure candidate has 179 API and 106 orchestrator tests plus API typecheck exit 0, but remains excluded until the report boundary passes review.
 - IN_PROGRESS: typed plan admission `dbc50d806` needs duplicate-JSON rejection and a fresh current-scope check immediately before dispatch; repairs and actual authenticated V3 plan enforcement are active. Full per-step execution, steering, durable aggregate budgets and child execution remain mandatory. Canonical mail owner adapter `69b3b9727` has 55 tests and API typecheck exit 0 and is under independent review. RP proposal transport `de140b913` is also under independent review and remains excluded.
 
@@ -72,12 +96,12 @@ All 75 live baseline cases, CD7, required CW8 and applicable memory acceptance r
 
 Evidence: `review-prior-attachment-page-cursor-repair-report.md`, `integration-9cf-attachment-api.log`, `integration-9cf-attachment-ork.log`, `integration-9cf-api-typecheck.log`, `integration-9cf-ork-typecheck.log`, `review-acceptance-source-binaries-report.md`, `integration-source-binaries-tests.log`, `ci-0adfe-canary-success.log`, `ci-0adfe-phase17-failed.log`, and `queue-current.json`, under `C:/dev/cap-meri-foundation-evidence`.
 
-## Current checkpoint — 2026-09-28 13:40 UTC
+## Current checkpoint â€” 2026-09-28 13:40 UTC
 
 File 01 remains IN_PROGRESS. Reviewed integration source is `484f0a01b10bb8f7f4c11c1f88a1d517c2a3c0e4`; this checkpoint is documentation only. Both mains and AWS remain unchanged. Required verification, database recovery and owner acceptance hold release. The two synthetic tenants remain approved but not enabled.
 
 - PASS, bounded scheduler recovery: sources `de18ad505` and `8db3923c5` integrated as `8f4a01727` and `9d9319369`. Independent review reproduced closure of all four prior findings, ran 96 focused tests and five actual child-runner PostgreSQL crash/restart tests, and confirmed owned-schema/process cleanup. Combined integration ran 101 tests across five suites and full API typecheck, all exit 0. Controlled local sinks do not establish real provider, RLS or deployed acceptance.
-- PASS, offline acceptance-receipt validation: sources `721746192` and `d9aa4aa07` integrated as `4b0435668` and `37ac9abd8`. Independent review ran 43 tests plus 16 adversarial mutations; integration ran 43 tests and verified the frozen 75-case contract, all exit 0. File cases 40–45 remain explicitly unimplemented until actual bytes, current source authority and live capture are joined. Source-binary candidate `892a098ba` contains seven reproducible assets and 49 passing local tests; independent review remains pending.
+- PASS, offline acceptance-receipt validation: sources `721746192` and `d9aa4aa07` integrated as `4b0435668` and `37ac9abd8`. Independent review ran 43 tests plus 16 adversarial mutations; integration ran 43 tests and verified the frozen 75-case contract, all exit 0. File cases 40â€“45 remain explicitly unimplemented until actual bytes, current source authority and live capture are joined. Source-binary candidate `892a098ba` contains seven reproducible assets and 49 passing local tests; independent review remains pending.
 - PASS, direct import-boundary guard: sources `f8c002610` and `e49c3412c` integrated as `23370e145` and `484f0a01b`. Independent review cleared the three original bypass probes and 22 additional bounded fixtures; integrated 17 tests and the 509-file scan exit 0. Only the first textual import guard is replaced; reasoning-redaction and SharePoint guards remain. Whole-transitive runtime isolation is not claimed.
 - Pending independent review: report provenance and delayed authorized report delivery at `97c278f36`; prior-attachment reader and trusted JSON/SSE transport at `a944bed97`. Procedure validation `957e4b137` has scoped independent PASS (87 API, five controlled HTTP/interleaving and seven guard tests plus API typecheck), but its report-base prerequisite remains held. RP proposal inner/outer binding `ff0f18f84` has 97 implementation tests and API typecheck exit 0; active-turn forwarding and independent review remain. RP promotion stays disabled.
 
@@ -87,7 +111,7 @@ All 75 authenticated baseline cases, seven Commitments & Deliverables cases, eig
 
 Evidence root: `C:/dev/cap-meri-foundation-evidence`. Exact records: `review-scheduler-receipt-repair-report.md`, `integration-9d931-scheduler.log`, `integration-9d931-api-typecheck.log`, `review-acceptance-receipt-binding-report.md`, `integration-37ac-acceptance-tests.log`, `review-import-boundary-binding-fix-report.md`, `integration-484f-guard-tests.log`, `queue-current.json`.
 
-## Current checkpoint — 2026-09-28 13:04 UTC
+## Current checkpoint â€” 2026-09-28 13:04 UTC
 
 File 01 is IN_PROGRESS. The source-adoption and license records are integrated through `3ac96ce0b` (sources `051ed0f68` and corrected `2c67594c5`). Independent review verified donor records, notices, hashes and bounded claims; a second review verified the corrected compaction replay history. The seven integrated files match the reviewed candidate. These records do not qualify the remaining mandatory implementations.
 
@@ -101,7 +125,7 @@ Remaining work includes durable plans, steering, Stop versus disconnect, bounded
 
 Evidence root: `C:/dev/cap-meri-foundation-evidence`. Reviews: `review-source-adoption-records-report.md` and `review-source-adoption-lineage-fix-report.md`. Current ownership: `queue-current.json`.
 
-## Current checkpoint — 2026-09-28 12:44 UTC
+## Current checkpoint â€” 2026-09-28 12:44 UTC
 
 File01 remains IN_PROGRESS. Reviewed integration source before this documentation commit:55217eb657842bf6bfe6f63f1963b3fdd4591869. Its tree94a15faa3e1d3dc0cb9d009445caebd2a54ec084 exactly equals independently reviewed/tested sourceb28588e1818f2413f6353aac3d18652977e91f00. Both mains and AWS remain unchanged. Database recovery, required verification and owner acceptance hold release; approved two-tenant enablement remains unapplied.
 
@@ -116,7 +140,7 @@ All75 authenticated baseline cases, CD7, requiredCW8 and applicablememory accept
 
 Evidence root:C:/dev/cap-meri-foundation-evidence. Key files:review-web-download-fixture-report.md;web-download-fixture-report.md;ci-71-canary-failed.log;ci-71-phase17-failed.log;ci-integration-4ade-visual-success.log;review-scheduler-crash-recovery-report.md;procedure-dispatch-authority-repair-report.md;review-combined-report-authority-report.md;queue-current.json.
 
-## Current checkpoint — 2026-09-28 11:56 UTC
+## Current checkpoint â€” 2026-09-28 11:56 UTC
 
 File 01 remains IN_PROGRESS. Source before this documentation commit: a884d6445344fdce1ab94f3d7abe0589677dbf4c. Reviewed document fixture and sandbox chain are integrated through80961b462; reviewed bounded-compaction chain is integrated througha884d6445. Fresh integrated145tests/4suites exit0; integrated14guard tests and actual509-file guard exit0. Full API typecheck also exited 0 at this exact integrated source. Both mains and AWS remain unchanged; release/enablement held.
 
@@ -131,7 +155,7 @@ All75 authenticated cases, CD7, requiredCW8 and applicablememory acceptance rema
 
 Evidence: review-boundary-followups-report.md; boundary-followups-lead-receipt.md; review-report-proof-final-report.md; review-served-procedure-report.md; integration-a884-compaction-document.log; integration-a884-api-typecheck.log; ci-sandbox-isolation-36416414333-full.log. External evidence root C:/dev/cap-meri-foundation-evidence.
 
-## Previous checkpoint — 2026-09-28 10:50 UTC
+## Previous checkpoint â€” 2026-09-28 10:50 UTC
 
 File 01 remains IN_PROGRESS after restored OpenRouter credits. Integration source before this documentation commit is c719ae15e6a0dc969210d3a3f486c3a0fb1321a7; last published draft source is 9ffc9dbf9dbd1ddefaed393f58324f5351bf90c4. Both mains, shared AWS deployment and approved two-tenant enablement remain unchanged. Required live75/CD7/CW8 acceptance remains NOT_RUN. Separate database recovery and owner acceptance still hold release.
 
@@ -144,7 +168,7 @@ File 01 remains IN_PROGRESS after restored OpenRouter credits. Integration sourc
 
 Remaining mandatory scope includes full authorized reads/crash-resume, plans/steering/Stop-vs-detach/two-leaf children and aggregate budgets, progressive governed selection/served procedures, typed attachment workarea, scheduler crash recovery, narrative/JEV/telemetry, source adoption, authenticated acceptance and both-main approved release. No file02 readiness. Actual pinned Hermes GPT5.6Sol High implements, separate GPT6Sol High reviews; no substitution.
 
-## Previous checkpoint — 2026-09-28 05:12 UTC
+## Previous checkpoint â€” 2026-09-28 05:12 UTC
 
 File 01 remains IN_PROGRESS. Reviewed integration source before this documentation commit is 2d84c426ab9e9502baf98397a6229c74d95533c4. Draft PR1904 contains the verified code batch; neither main, AWS, migrations nor the two approved tenant settings has changed. Separate database recovery still holds shared release. All 75 authenticated cases, CD7 and required CW8 remain NOT_RUN.
 
@@ -159,7 +183,7 @@ File 01 remains IN_PROGRESS. Reviewed integration source before this documentati
 
 Two pinned Hermes sessions stoppedHTTP402; credit top-up question is pending. Available balance observed05:09 UTC was about$1.52. No provider/model substitution was made. Remaining required scope includes full authorized reads/replay, plans/steering/children/aggregate budgets, governed selection/served procedures, scheduler recovery, narrative/JEV/telemetry, source adoption, authenticated acceptance and both-main release. No file-02 readiness.
 
-## Previous checkpoint — 2026-09-28 04:55 UTC
+## Previous checkpoint â€” 2026-09-28 04:55 UTC
 
 File 01 remains IN_PROGRESS. Reviewed integration source before this documentation commit is 2ccfb106a762383b348da847f73215d021e43fb1. Draft PR1904 is for qualification only. Both mains, shared deployment, migrations and the approved two-tenant enablement remain unchanged; separate database recovery remains a release hold.
 
@@ -175,7 +199,7 @@ File 01 remains IN_PROGRESS. Reviewed integration source before this documentati
 
 Pinned Hermes GPT-5.6 Sol High implementation and separate GPT-6 Sol High review continue. OpenRouter balance observed at 04:49:42 UTC was approximately $13.13. No model/provider substitution. Remaining required scope includes plans/steering/children/aggregate budgets, governed selector and served versioned procedures, typed full attachment reads, scheduler recovery, JEV/narrative/telemetry, source adoption dispositions, authenticated acceptance and both-main release. No file-02 readiness.
 
-## Previous checkpoint — 2026-09-28 04:18 UTC
+## Previous checkpoint â€” 2026-09-28 04:18 UTC
 
 Native pgvector follow-up: Actions [36376591290](https://github.com/neo-capiro/capirov2/actions/runs/36376591290) at add5be483 completed successfully. Actual PostgreSQL 16/vector(1024) ran all ten tests, including 1000/501-row candidate and semantic-abort/fallback cases. Local vector absence remains a local limit; CI semantic qualification is now PASS. Artifact independent review rejected complete boundary at9276bd489 after malformed OOXML/PNG/browser and cross-client chart embedding counterexamples; repair active and candidate excluded.
 
@@ -193,7 +217,7 @@ File 01 remains IN_PROGRESS. Reviewed integration source is 55b4b84ac29027002e35
 
 Pinned Hermes GPT-5.6 Sol High implementation and separate GPT-6 Sol High review continue. Remaining work includes full result replay/current authorization, plans/steering/children/aggregate budgets, governed selection/versioned procedures, prior-turn attachment reads, scheduler delivery/recovery, JEV/narrative/telemetry, all required acceptance checks and both-main release. No file-02 readiness is claimed.
 
-## Previous checkpoint — 2026-09-28 03:35 UTC
+## Previous checkpoint â€” 2026-09-28 03:35 UTC
 
 File 01 remains IN_PROGRESS. Draft PR1904 is the combined review candidate; neither main has changed and no shared deployment, migration, synthetic Meri enablement or production canary has run. Database recovery remains an independent release hold.
 
@@ -209,7 +233,7 @@ File 01 remains IN_PROGRESS. Draft PR1904 is the combined review candidate; neit
 
 Remaining required scope includes durable full-result replay and current authorization, plans/steering/children/aggregate cost budgets, governed selector and versioned procedures, attachment reads, scheduler races, JEV/narrative/trace reconciliation, every applicable acceptance case, both-main integration and approved release. See requirements ledger; bounded fixes are not file-01 completion.
 
-## Previous checkpoint — 2026-09-28 02:59 UTC
+## Previous checkpoint â€” 2026-09-28 02:59 UTC
 
 File 01 remains IN_PROGRESS; all shared releases and both-main integration remain on hold. No synthetic Meri enablement, migration, deployment or production canary has run.
 
@@ -222,7 +246,7 @@ File 01 remains IN_PROGRESS; all shared releases and both-main integration remai
 - Local-main preservation proof is `C:/dev/cap-meri-foundation-evidence/local-main-preservation-20260928-025326/manifest.json`, with raw copies and binary patch. All four dirty files match original P0B `1963efa25` after line-ending normalization; three are byte-identical. Main remains one local P0A commit ahead of origin/main; no local-main content/ref mutation occurred.
 - Defense owner independently ports accepted formatter `f23e06f43` without its held SQL parent and owns its CI fixture repairs. Cross-chat release coordination continues; this task does not merge/deploy Defense PR 1903.
 
-## Historical checkpoint — 2026-09-28 02:45 UTC
+## Historical checkpoint â€” 2026-09-28 02:45 UTC
 
 This checkpoint supersedes dated assignments and evidence below. File 01 remains IN_PROGRESS. No main integration or shared release is complete.
 
@@ -238,7 +262,7 @@ This checkpoint supersedes dated assignments and evidence below. File 01 remains
 - OpenRouter stopped six sessions with HTTP 402 at approximately 02:31. All interrupted changes were preserved in `C:/dev/cap-meri-foundation-evidence/wip-20260928-0235/manifest.json`; no reset/clean or model substitution occurred. Neo selected adding credits; an increased account balance was verified at 02:41. One implementation worker (durable read outcomes) and one independent reviewer (formatter) resumed from saved checkpoints. Other interrupted slices remain queued, not abandoned.
 - Cross-chat coordination with the Defense release owner is explicitly authorized by Neo in that task. That owner handles historical Outreach gates, Engagement CI and saved-session integration fixture repairs. This task does not merge or deploy their PR 1903.
 
-## Historical checkpoint — 2026-09-28 02:10 UTC
+## Historical checkpoint â€” 2026-09-28 02:10 UTC
 
 This checkpoint supersedes dated assignments and evidence below. File 01 remains IN_PROGRESS; neither main integration nor release acceptance is complete.
 
@@ -283,7 +307,7 @@ Evidence root: C:/dev/cap-meri-foundation-evidence. Reports are bounded source/t
 - CI: missing capiro_worker during disposable migrations is reproduced on base main and the recovery PR. Earlier ECR public base-image rate limit cleared on the updated run. Other CI failures remain under investigation; there is no global green verdict and no gate bypass.
 - Read-only AWS/database preflight: API task definition 483, image digest sha256:640f76d01bd6d0b7658f1229aee90cd7979c75d8b0f7ab7df76a5d5b7abc3c68, ECR tag 42942dedad59382f4b4aac6f904b9aee0e02efa6. Database reachable locally; six bootstrap models have all expected columns. Historical migration drift is recorded separately, with no migration attempted. ECS exec agents are STOPPED; no service restart requested.
 
-## Checkpoint — 2026-09-28 01:18 UTC
+## Checkpoint â€” 2026-09-28 01:18 UTC
 
 Additional preserved GitHub topic commits: truthful read outcomes `e4b6eec9e23962812dc80029e6e064d017ba3beb`, durable research receipts `a72470f0d21e920a763f0324410584513a8f2ea6`, effect reconciliation `aabf0c049c1bb4ba90875a473d7077d54fc3995a`, approval recovery hardening `ed25c7eeaa6cd02c28176e1a220b53971d203daa`, disposable CI bootstrap `99fb1776d3688844c39a1f0c9cb488af8072d06c`, fixture ownership hardening `f662c4598897b03abc841a400f06b67d1b48de42`. Publication is backup/review availability, not acceptance or integration into either main.
 
@@ -308,7 +332,7 @@ Authorized first application at source `baace8ff69efbb759042c2aedf713248f3b3d69a
 - Independent CI review: C:/dev/cap-meri-foundation-review.
 - Independent approval review: C:/dev/cap-meri-baseline-lock-parity.
 
-## Checkpoint — 2026-09-28 01:45 UTC
+## Checkpoint â€” 2026-09-28 01:45 UTC
 
 Synthetic setup is READY at `ac49269f71c40762062546b4b20abe32abdb69cf`, with 18 pure tests and independent narrow source approval. Resume of the original provisional manifest exited 0 and preserved all original Clerk identities. A separate read-only database audit exited 0: two tenants, four users, four memberships, three clients, two wall grants and two bounded reviewer grants match the manifest. Four database users were created by Clerk webhooks before resume; they were reused. Manifest SHA256: `45fe8239aa0ca6de485d93d53c00d1a3e9fd5b86eb2992d45e1be100ad99f991`. No provider connector, message send, Stripe write or application turn was issued.
 

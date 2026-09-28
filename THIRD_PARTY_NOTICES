@@ -1,4 +1,4 @@
-Nous Research Hermes Agent (H1 runtime guardrails, H2 context compaction, and H5 procedure playbook)
+Nous Research Hermes Agent (H1 runtime guardrails, H2 context compaction, H4 governed discovery, and H5 procedure playbook)
 
 This product includes a substantial TypeScript adaptation of tool-loop guardrail concepts from Hermes Agent. Adapted behavior is implemented in:
 

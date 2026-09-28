@@ -1199,7 +1199,9 @@
         {
           "upstream": "tests/agent/test_compression_adoption_preserves_live_tail.py",
           "capiroPath": "apps/api/src/meri/meri-protocol-compaction.service.spec.ts",
-          "capiroTests": ["allows only the concurrent boundary-CAS winner to report a committed compaction"]
+          "capiroTests": [
+            "allows only the concurrent boundary-CAS winner to report a committed compaction"
+          ]
         },
         {
           "upstream": "tests/agent/test_compressor_tail_cut_tool_pair_floor.py",
@@ -1212,12 +1214,16 @@
         {
           "upstream": "tests/agent/test_context_compressor_cross_session_guard.py",
           "capiroPath": "apps/api/src/meri/meri-compaction.helpers.spec.ts",
-          "capiroTests": ["fails closed when historical metadata cannot prove the boundary or current client"]
+          "capiroTests": [
+            "fails closed when historical metadata cannot prove the boundary or current client"
+          ]
         },
         {
           "upstream": "tests/agent/test_steer_compaction_persistence.py",
           "capiroPath": "apps/api/src/meri/meri-compaction.helpers.spec.ts",
-          "capiroTests": ["preserves objective, corrections, source versions, partial status and pending proposal handles"]
+          "capiroTests": [
+            "preserves objective, corrections, source versions, partial status and pending proposal handles"
+          ]
         },
         {
           "upstream": "tests/agent/test_compression_stall_deterministic_fallback.py",
@@ -1230,7 +1236,11 @@
         "report": "C:/dev/cap-meri-foundation-evidence/foundation-pr-body-1219.md",
         "sourceSha": "a884d6445344fdce1ab94f3d7abe0589677dbf4c",
         "result": "145 API tests across four suites and full API typecheck exited 0; independent exact-boundary review and 4,864-case grid exited 0; earlier native PostgreSQL fence checks passed",
-        "notRun": ["full provider protocol-pair persistence", "authenticated cases 25, 42, 71", "CW-06"]
+        "notRun": [
+          "full provider protocol-pair persistence",
+          "authenticated cases 25, 42, 71",
+          "CW-06"
+        ]
       },
       "remainingGap": "No durable provider call/output groups, token/current-provider envelope authority, source-current-authority hydration, semantic user-quoted revocation, whole-request budget or live-provider qualification.",
       "rollback": "File-01 lead/P1C API conversation owner reverts the H2 application chain while retaining conversation rows; never promote protected receipts to source authority.",
@@ -1336,7 +1346,9 @@
         {
           "upstream": "tests/tools/test_tool_search_multiquery.py",
           "candidatePath": "apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.spec.ts",
-          "candidateTests": ["bounds fallback discovery and intersects it with the live authorized surface"]
+          "candidateTests": [
+            "bounds fallback discovery and intersects it with the live authorized surface"
+          ]
         }
       ],
       "observedTestReceipt": {
@@ -1346,7 +1358,12 @@
           "C:/dev/cap-meri-foundation-evidence/review-served-procedure-report.md"
         ],
         "result": "Selector ancestry observed 132 focused tests; served ancestry observed 141 orchestrator + 48 API + 15 context tests, followed by independently reproduced privacy/coverage/freshness gaps; 9a candidate was not rerun here",
-        "notRun": ["integrated current-source H4 tests", "progressive discovery", "actual provider-schema recall", "full privacy/freshness qualification"]
+        "notRun": [
+          "integrated current-source H4 tests",
+          "progressive discovery",
+          "actual provider-schema recall",
+          "full privacy/freshness qualification"
+        ]
       },
       "remainingGap": "Integrate a repaired candidate and prove progressive discovery or approved equivalent, actual schemas, required-capability recall, authorization/current freshness, source coverage, invocation freshness and telemetry privacy.",
       "rollback": "File-01 lead/P1B selector owner keeps the candidate unintegrated and flags unchanged; a future rollout must stop new admissions and revert without replacing the canonical registry.",
@@ -1504,6 +1521,109 @@
       "trigger": "Relevant workflow contracts are qualified and added jurisdiction, connector or model-role breadth shows independent measured benefit.",
       "currentReason": "Mandatory current workflow/source boundaries remain open.",
       "mandatorySubstitute": false
+    }
+  ],
+  "integrationCheckpoints": [
+    {
+      "at": "2026-09-28T17:45:00Z",
+      "capiroSourceSha": "3111e053d43960d8ca44ab589d120ceafb105bd3",
+      "recordType": "LEAD_CONSOLIDATION_CHECKPOINT",
+      "independentWholeRegisterReview": "PENDING",
+      "fullAcceptanceClaimed": false,
+      "bothMainsIntegrated": false,
+      "deployed": false,
+      "sourceTargets": [
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/meriv3/meri-progressive-tool-discovery.ts",
+          "sha256": "dd87343151feb9ffbd62f7adcbd66d87b8107eff49c1b2e2746acffe61d89685"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-tool-selection.ts",
+          "sha256": "928f3e8c09d57d45607eda77b30e48846cbdb0060c17064103accfa2abe3b9a5"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.ts",
+          "sha256": "c40b80b3f9c93fbf89c0ba1e1d54e820665b7147862d945d2f4ed3d6cd87e017"
+        },
+        {
+          "path": "apps/api/src/meri/meri-procedure-runtime-validation.service.ts",
+          "sha256": "44696463e10d727e231e4778b75dd35269363fa6d9030a9f6d47c4bed703df57"
+        },
+        {
+          "path": "apps/api/src/meri/meri-procedure-runtime.ts",
+          "sha256": "8cd585f81e1626811fb52f118e96c3b61c2769f9097147f2b818ec2aced31a60"
+        },
+        {
+          "path": "apps/api/src/meri/skills/commitments-audit.procedure.ts",
+          "sha256": "0634e22cb494ea69fd3d857e9375ce63f2543d5af8d9292a7a58a95d455dca28"
+        }
+      ],
+      "dispositions": [
+        {
+          "id": "H4",
+          "classification": "ADAPTED",
+          "integrationStatus": "INTEGRATED_BOUNDED",
+          "sourceCommits": ["25a609b26", "5d25c7d89"],
+          "evidence": "Progressive search/describe/owner-schema dispatch plus current disclosure/invocation authority. Independent156 runtime tests +9 fresh actual-assistant probes +both types0; combined168/runtime type0. THIRD_PARTY_NOTICES already includes H4 donor paths. Full source-family/CD7/live adoption acceptance remains NOT_RUN."
+        },
+        {
+          "id": "H5",
+          "classification": "ADAPTED",
+          "integrationStatus": "INTEGRATED_BOUNDED",
+          "sourceCommits": ["5a1985ce9", "f600db3f4", "aee26babd", "9d5eb22f9"],
+          "reviewedCandidate": "957e4b13701cc6de27b089600e66a8f209126a24",
+          "evidence": "Served procedure binding/current uncached owner/version and after-await selected-client checks integrated. Independent87API +5 fresh probes +7runtime/APItype0 for last repair; final combined transport/procedure39API tests0. Full source families and CD7 remain NOT_RUN."
+        },
+        {
+          "id": "H3",
+          "classification": "CANDIDATE_HELD_NOT_INTEGRATED",
+          "candidate": "e05616c6b10f2ee799227744eaa261491fc7fcf1",
+          "evidence": "Independent discovery-snippet promotion/exact-row/version/span findings are under narrative-source-integrity-repair. Not accepted or integrated."
+        },
+        {
+          "id": "T1",
+          "classification": "CANDIDATE_HELD_NOT_INTEGRATED",
+          "candidate": "fdbd85b1c7e2ea273714b26023cde4ed12a50d9a",
+          "evidence": "Joined telemetry candidate published;4core/61API/117runtime/1web/all3types/sharedcorebuild0. Independent review/exporter/live/budget and capture binding remain pending."
+        },
+        {
+          "id": "HERMES_COWORKER",
+          "classification": "CANDIDATE_HELD_NOT_INTEGRATED",
+          "candidates": [
+            "df57a7984702c88a3c7f562d2b812f8eb4a32a1b",
+            "d6645590bd53392a2c5928d2618d42a086157ec7",
+            "9f1ec149cb91bde5b52a718e68bda50c0e01fe31"
+          ],
+          "evidence": "Coordinator/ordered steering/Stop/detach/reconnect/UI and bounded-child candidates implemented, held for independent review and shared-budget combined integration. Provider budget a082 has direct review defects under repair. CW01-08 remain NOT_RUN."
+        }
+      ]
+    },
+    {
+      "at": "2026-09-28T18:17:00Z",
+      "capiroSourceSha": "bdf1daf05e0414f1c7267b21756c47591d90423e",
+      "recordType": "COMBINED_CAPTURE_QUALIFICATION",
+      "fullAcceptanceClaimed": false,
+      "bothMainsIntegrated": false,
+      "deployed": false,
+      "evidence": "docs/meri/implementation/capture-integration-qualification.md",
+      "sourceTargets": [
+        {
+          "path": "apps/api/src/meri/meri-server-readonly-capture.ts",
+          "sha256": "690033aef5edc5c918f796318e0944f4a1d50827445c5df6e099b18bd03d1eba"
+        },
+        {
+          "path": "apps/api/src/meri/meriv3-proxy.service.ts",
+          "sha256": "768ec8d41915607109c826ced1ac583ff718d531b9d4b2dd2cba160e1626af6a"
+        },
+        {
+          "path": "apps/api/src/meri/meri.service.ts",
+          "sha256": "b35702bd396cd56f1120c449cc769ed38fd5e12444f95a75d2681fb1faf988dd"
+        },
+        {
+          "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+          "sha256": "115e5f4afdd0bb9aa8f16642cfd77d8080d563e79574abda0570de577f8d80f0"
+        }
+      ]
     }
   ]
 }

@@ -1,5 +1,21 @@
 # File 01 source acquisition and adoption register
 
+## Current consolidation checkpoint — source `3111e053d`
+
+Lead update, 2026-09-28. The register review below describes historical source `71efe006a`; it is retained as an evidence snapshot. The following changes are present in the current task integration branch. This update does not claim either-main integration, deployment, or complete adoption acceptance.
+
+| Item | Current code disposition | Evidence and remaining boundary |
+|---|---|---|
+| H4 governed discovery | Adapted; bounded implementation integrated as25a609b/5d25c7d | Search/describe exposes original authorized owner schemas, with current disclosure and invocation checks. Independent156tests+9fresh actual-assistant probes/both types0; combined168tests/runtime type0. Existing THIRD_PARTY_NOTICES already contains the source pin, donor paths and adapted targets. Full live/source-family/CD7 acceptance remains NOT_RUN. |
+| H5 procedures | Adapted; served binding and repairs integrated as5a1985c/f600db3/aee26ba/9d5eb22 | Exact current procedure identity/version and post-await conversation/client/wall checks are present. Last repair957e4b independent87API+5fresh probes+7runtime/APItype0; combined transport/procedure39API0. Canonical C&D source families and CD7 remain pending. |
+| H3 citations/JEV | Candidate held; repair active | Exacte056 review reproduced discovery snippets being accepted without consultation and source identity/span gaps. Candidate tests do not close those findings. |
+| T1 joined telemetry | Candidatefdbd85b published; not integrated/reviewed | Bounded4core/61API/117runtime/1web tests, three app types and shared/core build0. Exporter, actual billing, capture and shared-budget integration remain pending. |
+| Additional coworker sources | Coordinator/UI/children candidates; not integrated/reviewed | Backenddf57a798, combined UI/backendd6645590 and child9f1ec149 preserve their separate pins/reports. Real localhost UI/API tests passed; full shared-budget/coordinator/child qualification and CW01-08 remain NOT_RUN. |
+
+`01-source-inventory.json.integrationCheckpoints` binds this update to exact current Git-blob hashes while preserving all110 original inventory records,103 acquired identities and the historical adoption review. The original two Hermes pins remain separate. Mandatory gaps are not converted into conditional work.
+
+## Historical independently reviewed register at `71efe006a`
+
 Reviewed 2026-09-28 against Capiro source `71efe006a7c120f157a90a6dac6adaf743353937`.
 
 Acquisition means exact donor bytes were saved for inspection. It does not mean adoption, compatibility, acceptance, release, or deployment. `01-source-inventory.json` preserves the original 103 acquired identities and hashes plus seven unsuccessful metadata probes (110 original records total), and adds machine-readable adoption records without replacing an original field or hash. Raw donor files remain under `C:/dev/cap-meri-foundation-evidence/upstream`; none was executed for this review.
