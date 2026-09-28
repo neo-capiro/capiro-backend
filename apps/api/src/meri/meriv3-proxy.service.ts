@@ -68,6 +68,10 @@ import {
   retryAttachmentExtraction,
 } from './meri-attachment-content-state.js';
 import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
+import {
+  boundReplayMessageBody,
+  protocolCompactionReplay,
+} from './meri-compaction.helpers.js';
 
 interface SseWriter {
   write(data: string): void;
@@ -448,8 +452,14 @@ export class MeriV3ProxyService {
           ...(researchScope
             ? { researchDirective: researchPortfolioScopeDirective(researchScope) }
             : {}),
-          ...(conversation.summary && replay.hasSummaryBoundary
-            ? { conversationSummary: conversation.summary }
+          ...(conversation.summaryUpToMessageId && replay.hasSummaryBoundary
+            ? {
+                conversationSummary: protocolCompactionReplay({
+                  metadata: conversation.metadata,
+                  boundaryMessageId: conversation.summaryUpToMessageId,
+                  clientId: conversation.clientId,
+                }),
+              }
             : {}),
           ...(clientKbSnapshot ? { clientKbSnapshot } : {}),
           ...(skillAddendum ? { skillAddendum } : {}),
@@ -872,7 +882,7 @@ export class MeriV3ProxyService {
       }
     }
     const history = messages.map((message) => {
-      const parts = [message.body];
+      const parts = [boundReplayMessageBody(message)];
       for (const ref of refsByMessage.get(message.id) ?? []) {
         const document = documentText.get(ref.id);
         const contentState =

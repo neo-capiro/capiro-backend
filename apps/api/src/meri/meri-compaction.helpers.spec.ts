@@ -1,10 +1,14 @@
 import { describe, expect, test } from '@jest/globals';
 import {
+  boundReplayMessageBody,
+  buildProtocolCompactionState,
   buildCompactionPrompt,
   clampTurnForSummary,
   estimateTokens,
   formatSummaryBlockForPrompt,
+  MERI_PROTOCOL_COMPACTION_METADATA_KEY,
   planCompaction,
+  protocolCompactionReplay,
   sanitizeSummaryOutput,
 } from './meri-compaction.helpers.js';
 
@@ -247,10 +251,10 @@ describe('clampTurnForSummary', () => {
 });
 
 describe('formatSummaryBlockForPrompt', () => {
-  test('labels the block as established context', () => {
+  test('labels the block as protected state rather than source authority', () => {
     const block = formatSummaryBlockForPrompt('Facts & context: …');
-    expect(block).toContain('Conversation summary');
-    expect(block).toContain('established conversation context');
+    expect(block).toContain('Protected conversation state');
+    expect(block).toContain('not source or action authority');
   });
 });
 
@@ -259,5 +263,142 @@ describe('sanitizeSummaryOutput', () => {
     expect(sanitizeSummaryOutput('   ')).toBeNull();
     expect(sanitizeSummaryOutput('ok')).toBe('ok');
     expect(sanitizeSummaryOutput('a'.repeat(10_000))?.length).toBeLessThanOrEqual(6001);
+  });
+});
+
+describe('protocol-safe compaction receipts', () => {
+  test('moves the watermark backward instead of splitting a user/assistant protocol unit', () => {
+    const messages = Array.from({ length: 18 }, (_, index) => ({
+      id: `m${index}`,
+      role: index % 2 ? 'assistant' : 'user',
+      body: 'x'.repeat(1000),
+    }));
+    messages[5]!.role = 'user';
+    const plan = planCompaction({
+      messages,
+      existingSummary: null,
+      triggerTokens: 1000,
+      tailMessages: 12,
+    });
+    expect(plan.toSummarize.map((message) => message.id)).toEqual(['m0', 'm1', 'm2', 'm3']);
+    expect(plan.upToMessageId).toBe('m3');
+  });
+
+  test('preserves objective, corrections, source versions, partial status and pending proposal handles', () => {
+    const state = buildProtocolCompactionState({
+      existingMetadata: {},
+      previousBoundaryMessageId: null,
+      boundaryMessageId: 'a2',
+      clientId: 'client-1',
+      messages: [
+        { id: 'u1', role: 'user', body: 'Prepare a two-page client memo.' },
+        {
+          id: 'a1',
+          role: 'assistant',
+          body: 'PRIVATE SOURCE BODY MUST NOT SURVIVE',
+          metadata: {
+            finishReason: 'completed',
+            citations: [
+              {
+                sourceId: 'source-1',
+                sourceVersion: 'version-7',
+                snippet: 'REVOKED PRIVATE EXCERPT',
+              },
+            ],
+            trustSteps: [{ tool: 'read_client_documents', status: 'done' }],
+            pendingApprovals: [
+              { proposalId: 'proposal-1', tool: 'send_email', status: 'proposed' },
+            ],
+          },
+        },
+        {
+          id: 'u2',
+          role: 'user',
+          body: 'Correction: use only enacted FY2027 amounts; never call requests enacted.',
+        },
+        {
+          id: 'a2',
+          role: 'assistant',
+          body: 'Interrupted private draft.',
+          metadata: { finishReason: 'deadline_exceeded', partial: true },
+        },
+      ],
+    });
+    const replay = protocolCompactionReplay({
+      metadata: { [MERI_PROTOCOL_COMPACTION_METADATA_KEY]: state },
+      boundaryMessageId: 'a2',
+      clientId: 'client-1',
+    });
+
+    expect(replay).toContain('Prepare a two-page client memo.');
+    expect(replay).toContain('use only enacted FY2027 amounts');
+    expect(replay).toContain('source-1 version=version-7');
+    expect(replay).toContain('proposal-1 tool=send_email observed=proposed');
+    expect(replay).toContain('finish=deadline_exceeded partial=true');
+    expect(state.status).toBe('partial');
+    for (const forbidden of [
+      'PRIVATE SOURCE BODY MUST NOT SURVIVE',
+      'REVOKED PRIVATE EXCERPT',
+      'Interrupted private draft.',
+    ]) {
+      expect(replay).not.toContain(forbidden);
+    }
+  });
+
+  test('fails closed when historical metadata cannot prove the boundary or current client', () => {
+    const staleState = buildProtocolCompactionState({
+      existingMetadata: {},
+      previousBoundaryMessageId: null,
+      boundaryMessageId: 'old-boundary',
+      clientId: 'old-client',
+      messages: [
+        { id: 'u1', role: 'user', body: 'Old instruction' },
+        { id: 'a1', role: 'assistant', body: 'Revoked private body' },
+      ],
+    });
+    const replay = protocolCompactionReplay({
+      metadata: { [MERI_PROTOCOL_COMPACTION_METADATA_KEY]: staleState },
+      boundaryMessageId: 'new-boundary',
+      clientId: 'new-client',
+    });
+    expect(replay).toContain('PARTIAL (fail closed)');
+    expect(replay).toContain('was not replayed');
+    expect(replay).not.toContain('Old instruction');
+    expect(replay).not.toContain('Revoked private body');
+  });
+
+  test('bounds a huge provider payload with an honest exact-message handle', () => {
+    const replay = boundReplayMessageBody(
+      { id: 'huge-output', body: 'z'.repeat(100_000) },
+      2000,
+    );
+    expect(replay.length).toBeLessThan(2400);
+    expect(replay).toContain('98000 characters were omitted');
+    expect(replay).toContain('authorized conversation message huge-output');
+  });
+
+  test('keeps bounded state across many short turns without another model call', () => {
+    const messages = Array.from({ length: 160 }, (_, index) => ({
+      id: `m${index}`,
+      role: index % 2 ? 'assistant' : 'user',
+      body:
+        index === 0
+          ? 'Build the committee briefing.'
+          : index % 2
+            ? 'Done.'
+            : `Correction: constraint ${index} must remain explicit.`,
+      metadata: index % 2 ? { finishReason: 'completed' } : undefined,
+    }));
+    const state = buildProtocolCompactionState({
+      existingMetadata: {},
+      previousBoundaryMessageId: null,
+      boundaryMessageId: 'm159',
+      clientId: null,
+      messages,
+    });
+    expect(state.objective?.text).toBe('Build the committee briefing.');
+    expect(state.corrections).toHaveLength(12);
+    expect(state.completedUnits).toHaveLength(24);
+    expect(JSON.stringify(state).length).toBeLessThan(12_000);
   });
 });
