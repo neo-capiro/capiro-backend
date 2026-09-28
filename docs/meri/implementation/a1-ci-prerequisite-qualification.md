@@ -1,0 +1,15 @@
+# Workstream A CI prerequisites
+
+Base:220aa2bfff303fa616dcabfa2ffa67d0873f6177. The exact foundation a55f21470 workflow/setup fragments resolve observed connector API/web heap failures and missing capiro_worker role in disposable CI. They also preserve canonical API -> Workspace -> Strategy migration ordering and dependency package builds. These are CI-only service containers and guards; no product routing or deployed database settings change. Source hashes/paths: a1-reviewed-ci-setup-integration.json.
+
+PASS:9 actual disposable-bootstrap guard tests;2 PGlite/owned-PostgreSQL UUID regression tests; supported changed-file formatting/diff checks, all exit0. Previous220 prerequisite qualification:23 API tests/2suites0. The6bd source-chain rerun executes actual approval service -> sendEmail handler -> EngagementMailSender with controlled sink: canonical receipts/correlation, wrong/missing receipts, retry/no-redispatch, disconnect, response loss, artifact failure and concurrent approval assertions all exit0. This is controlled integration, not live/provider/DB evidence. Exact snapshot/probe/log: a1-6bd-source-chain-source.json, a1-6bd-actual-source-chain.cjs/.log.
+
+# CI migration replay qualification
+
+Reviewed SQL/test donor: 1f68dbed92ebbcf036a550c49be6a62f64ad1ac0. Workflow wiring donor: 0d6663293. The original failure is PostgreSQL 42883, MIN(uuid), directly observed again in foundation run 36473371181. The existing migration retains the lowest UUID per (client_id, source, external_id) using ROW_NUMBER; it does not claim chronological retention. Migration directory identity and LF bytes are preserved. No migration history or checksum exception is introduced.
+
+The original independent SQL review passed PGlite and an owned local PostgreSQL transaction with rollback; it identified missing CI test wiring. Qwen added full checkout history and the mandatory node:test regression after dependency installation, before migration replay. Kimi's separate static wiring review confirms ordering and no removed gate; it did not rerun SQL. The regression test exists in the donor/integration (the review checkout's absent file is not a candidate absence).
+
+PASS, lead integration: the exact checked-in SQL/test passed both PGlite and owned PostgreSQL tests in each integration tree, 2 passed / 0 failed / 0 skipped, actual exit 0. SQL has LF-only bytes. Workflow/test formatting and diff checks exit 0. Evidence under C:/dev/cap-meri-foundation-evidence: uuid-integrated-foundation-tests.log, uuid-integrated-a1-tests.log and exit JSON, review-ci-uuid-replay-report.md, review-ci-uuid-wiring-report.md. PostgreSQL uses only the fixed owned local endpoint 127.0.0.1:55433 and a generated schema inside a rolled-back transaction.
+
+No full migration replay or shared-database validation is claimed by the two-table-level tests. Fresh hosted replay remains required. The minimal test table does not prove all live RLS, FK, trigger or tenant consistency properties. No AWS/shared database, provider, main, deployment or migration ledger was changed. Both-main integration and live release remain subject to database clearance and named owner approval.
