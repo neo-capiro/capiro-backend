@@ -59,7 +59,14 @@ function fixture(options: {
     title: 'Legacy research',
     topic: 'Assess the current authorization outlook',
     status: 'researching',
-    plan: ['Legacy status check'],
+    plan:
+      options.storedPlan &&
+      typeof options.storedPlan === 'object' &&
+      Array.isArray((options.storedPlan as { steps?: unknown }).steps)
+        ? (options.storedPlan as { steps: Array<{ objective?: unknown }> }).steps
+            .map((step) => step.objective)
+            .filter((objective): objective is string => typeof objective === 'string')
+        : ['Legacy status check'],
     clarifyingQuestions: [],
     clarifyingAnswers: {},
     sources: null,
@@ -204,6 +211,8 @@ function fixture(options: {
     {} as never,
     runner as never,
   );
+  const logger = { warn: jest.fn() };
+  Object.assign(service as object, { logger });
   const events: any[] = [];
   const sse = {
     write: (data: string) => events.push(JSON.parse(data.replace(/^data: /, '').trim())),
@@ -211,6 +220,7 @@ function fixture(options: {
   return {
     service,
     runner,
+    logger,
     tools,
     tx,
     events,
@@ -232,7 +242,7 @@ function invalidCases(): Array<[string, () => unknown, string]> {
         plan.steps[0]!.allowedCapabilities = ['invented_capability'];
         return plan;
       },
-      'capability_unavailable',
+      'steps[0].capability_unavailable:invented_capability',
     ],
     [
       'write capability disguised as a read',
@@ -241,7 +251,7 @@ function invalidCases(): Array<[string, () => unknown, string]> {
         plan.steps[0]!.allowedCapabilities = ['send_email'];
         return plan;
       },
-      'write_capability_requires_approval',
+      'steps[0].write_capability_requires_approval:send_email',
     ],
     [
       'scope mismatch',
@@ -259,7 +269,7 @@ function invalidCases(): Array<[string, () => unknown, string]> {
         plan.steps[0]!.dependsOn = ['verify-current-status'];
         return plan;
       },
-      'self_dependency',
+      'self_dependency:verify-current-status; dependency_cycle',
     ],
     [
       'overallocated budget',
@@ -275,13 +285,21 @@ function invalidCases(): Array<[string, () => unknown, string]> {
 }
 
 describe('MeriResearchService typed-plan admission', () => {
-  it.each(invalidCases())('gates %s before research dispatch with zero tools', async (_name, makePlan, issue) => {
-    const f = fixture({ storedPlan: makePlan() });
-    await f.service.streamResearch(ctx, 'session-plan', f.sse);
-    expect(f.runner.run).not.toHaveBeenCalled();
-    expect(f.tools.execute).not.toHaveBeenCalled();
-    expect(f.events.find((event) => event.type === 'error')?.message).toContain(issue);
-  });
+  it.each(invalidCases())(
+    'gates %s before research dispatch with zero tools',
+    async (_name, makePlan, issue) => {
+      const f = fixture({ storedPlan: makePlan() });
+      await f.service.streamResearch(ctx, 'session-plan', f.sse);
+      expect(f.runner.run).not.toHaveBeenCalled();
+      expect(f.tools.execute).not.toHaveBeenCalled();
+      expect(f.events.find((event) => event.type === 'error')?.message).toBe(
+        'Research failed before report publication.',
+      );
+      expect(f.logger.warn).toHaveBeenCalledWith(
+        `Research run failed: Saved research plan is not admitted for the current scope and capabilities: ${issue}`,
+      );
+    },
+  );
 
   it('allows only one provider repair and fails truthfully when the repair is also invalid', async () => {
     const f = fixture({
@@ -291,8 +309,11 @@ describe('MeriResearchService typed-plan admission', () => {
     expect(f.runner.plan).toHaveBeenCalledTimes(2);
     expect(f.runner.run).not.toHaveBeenCalled();
     expect(f.tools.execute).not.toHaveBeenCalled();
-    expect(f.events.find((event) => event.type === 'error')?.message).toContain(
-      'remained invalid after one repair attempt',
+    expect(f.events.find((event) => event.type === 'error')?.message).toBe(
+      'Research failed before report publication.',
+    );
+    expect(f.logger.warn).toHaveBeenCalledWith(
+      'Research run failed: Research plan remained invalid after one repair attempt: plan_missing_field:scope; plan_missing_field:budget; plan_missing_field:steps; plan_missing_field:clarifyingQuestions; scope_must_be_object; budget_must_be_object; clarifyingQuestions_must_be_array; steps_must_be_array',
     );
   });
 
@@ -318,8 +339,11 @@ describe('MeriResearchService typed-plan admission', () => {
     expect(f.runner.plan).toHaveBeenCalledTimes(2);
     expect(f.runner.run).not.toHaveBeenCalled();
     expect(f.tools.execute).not.toHaveBeenCalled();
-    expect(f.events.find((event) => event.type === 'error')?.message).toContain(
-      'duplicate_object_key',
+    expect(f.events.find((event) => event.type === 'error')?.message).toBe(
+      'Research failed before report publication.',
+    );
+    expect(f.logger.warn).toHaveBeenCalledWith(
+      'Research run failed: Research plan remained invalid after one repair attempt: duplicate_object_key:"toolCalls"',
     );
   });
 
@@ -344,8 +368,11 @@ describe('MeriResearchService typed-plan admission', () => {
     await f.service.streamResearch(ctx, 'session-plan', f.sse);
     expect(f.runner.run).not.toHaveBeenCalled();
     expect(f.tools.execute).not.toHaveBeenCalled();
-    expect(f.events.find((event) => event.type === 'error')?.message).toContain(
-      'no longer running',
+    expect(f.events.find((event) => event.type === 'error')?.message).toBe(
+      'Research failed before report publication.',
+    );
+    expect(f.logger.warn).toHaveBeenCalledWith(
+      'Research run failed: Research is no longer running.',
     );
   });
 
@@ -365,8 +392,11 @@ describe('MeriResearchService typed-plan admission', () => {
     expect(f.getSession().clientId).toBe('different-client');
     expect(f.runner.run).not.toHaveBeenCalled();
     expect(f.tools.execute).not.toHaveBeenCalled();
-    expect(f.events.find((event) => event.type === 'error')?.message).toContain(
-      'scope_mismatch:clientId',
+    expect(f.events.find((event) => event.type === 'error')?.message).toBe(
+      'Research failed before report publication.',
+    );
+    expect(f.logger.warn).toHaveBeenCalledWith(
+      'Research run failed: Saved research plan is not admitted for the current scope and capabilities: scope_mismatch:clientId',
     );
   });
 
@@ -375,8 +405,11 @@ describe('MeriResearchService typed-plan admission', () => {
     await f.service.streamResearch(ctx, 'session-plan', f.sse);
     expect(f.runner.run).not.toHaveBeenCalled();
     expect(f.tools.execute).not.toHaveBeenCalled();
-    expect(f.events.find((event) => event.type === 'error')?.message).toContain(
-      'capability_unavailable:search_memory',
+    expect(f.events.find((event) => event.type === 'error')?.message).toBe(
+      'Research failed before report publication.',
+    );
+    expect(f.logger.warn).toHaveBeenCalledWith(
+      'Research run failed: Saved research plan is not admitted for the current scope and capabilities: steps[0].capability_unavailable:search_memory',
     );
   });
 });

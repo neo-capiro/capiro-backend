@@ -1049,8 +1049,12 @@ describe('Durable research lease and recovery', () => {
 
     try {
       await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+      const admitted = JSON.parse(await f.runner.plan(ctx, {}));
+      f.getSession().metadata.researchPlan = admitted;
+      f.getSession().plan = admitted.steps.map((step: any) => step.objective);
       await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
 
+      expect(f.tools.execute).toHaveBeenCalled();
       expect(f.getSession().metadata.durableStepReceipts).toHaveLength(1);
       const source = f.events.find((event) => event.type === 'source');
       expect(source?.source).toEqual({
@@ -1069,6 +1073,8 @@ describe('Durable research lease and recovery', () => {
       expect(f.events.find((event) => event.type === 'report')?.body).toContain(
         'Authorized legacy evidence',
       );
+      const reportArtifact = f.artifacts.find((artifact) => artifact.kind === 'research_report');
+      expect(reportArtifact?.bodyText).toContain('Authorized legacy evidence');
     } finally {
       global.fetch = originalFetch;
     }

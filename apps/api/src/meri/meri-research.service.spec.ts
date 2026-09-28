@@ -803,48 +803,32 @@ describe('MeriResearchService — forced synthesis', () => {
     const privateTool = 'private_lowercase_owner_token';
     fetchMock = jest.fn(async () => okResponse(sseBody(toolOnlyRound(privateTool)))) as jest.Mock;
     global.fetch = fetchMock as unknown as typeof fetch;
-    const service = Object.assign(Object.create(MeriResearchService.prototype), {
-      v3Research: { enabled: async () => false },
-      prisma: {
-        withTenant: async (_tenant: string, fn: (tx: unknown) => unknown) =>
-          fn({ tenant: { findFirst: async () => null } }),
-      },
-      aiCredentials: { resolveProvider: async () => ({ apiKey: 'local-placeholder' }) },
-      config: makeConfig({ CLIO_RESEARCH_MAX_TOOL_ROUNDS: 1 }),
-      tools: { anthropicToolSchemas: () => [], isConcurrencySafe: () => false },
-      logger: { warn: jest.fn() },
-      ensureSession: async () => ({
-        id: 'session-1',
-        title: 'Research',
-        topic: 'Topic',
-        clientId: null,
-        plan: [],
-        clarifyingQuestions: [],
-        clarifyingAnswers: {},
-        metadata: null,
-      }),
-      clientContext: async () => null,
-    }) as MeriResearchService;
+    const tools = makeTools('search_memory');
+    const executeSpy = jest.spyOn(tools, 'execute');
+    const service = new MeriResearchService(
+      makePrisma(undefined, SESSION.tenantId, 'search_memory'),
+      makeConfig({ CLIO_RESEARCH_MAX_TOOL_ROUNDS: 1 }),
+      tools,
+      makeAiCredentials(),
+      makeReviews(),
+    );
     const observed: Array<Record<string, unknown>> = [];
-    const progress = {
-      set: (note: string) => observed.push({ type: 'progress', note }),
-      stop: () => undefined,
-    };
 
-    await expect(
-      (service as any).runResearchStream(
-        CTX,
-        'session-1',
-        { write: (data: string) => observed.push(JSON.parse(data.slice(6))) },
-        progress,
-        {},
-      ),
-    ).rejects.toThrow('partial provider output');
+    await service.streamResearch(CTX, 'sess-1', {
+      write: (data: string) => observed.push(JSON.parse(data.slice(6))),
+    });
 
+    expect(fetchMock).toHaveBeenCalled();
+    expect(executeSpy).not.toHaveBeenCalled();
     expect(JSON.stringify(observed)).not.toContain(privateTool);
     expect(observed.some((event) => event.type === 'step' || event.type === 'source')).toBe(false);
     expect(observed.some((event) => event.type === 'text' || event.type === 'report')).toBe(false);
     expect(JSON.stringify(observed)).not.toContain('Tool error');
+    expect(observed).toContainEqual({
+      type: 'error',
+      message: 'Research did not complete; partial provider output has not been released as a report.',
+    });
+    expect(observed.at(-1)).toEqual({ type: 'done' });
   });
 
   it.each([
