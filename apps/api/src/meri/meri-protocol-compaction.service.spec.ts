@@ -4,7 +4,7 @@ import { MeriService } from './meri.service.js';
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const ACTOR = '22222222-2222-4222-8222-222222222222';
 const CONVERSATION = '33333333-3333-4333-8333-333333333333';
-const REVISION = new Date('2026-09-28T12:00:00.000Z');
+const REVISION = '2026-09-28 12:00:00.123456+00';
 
 function harness() {
   const messages = Array.from({ length: 18 }, (_, index) => ({
@@ -15,16 +15,16 @@ function harness() {
     metadata: index % 2 ? { finishReason: 'completed' } : {},
   }));
   const tx = {
-    clioConversation: {
-      findFirst: jest.fn(async () => ({
+    $queryRaw: jest.fn(async (_query: unknown) => [
+      {
         summary: null,
         summaryUpToMessageId: null,
         clientId: null,
         userId: ACTOR,
-        updatedAt: REVISION,
+        updatedAtRevision: REVISION,
         metadata: { meriv3: { reasoningMode: 'max' } },
-      })),
-    },
+      },
+    ]),
     clioMessage: { findMany: jest.fn(async () => messages) },
     $executeRaw: jest.fn(async (_query: unknown): Promise<number> => 1),
   };
@@ -50,6 +50,12 @@ describe('MeriService protocol compaction commit', () => {
 
     await (service as any).maybeCompactConversation({ tenantId: TENANT, userId: ACTOR }, CONVERSATION);
 
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+    const snapshot = tx.$queryRaw.mock.calls[0]![0] as { strings: string[]; values: unknown[] };
+    const snapshotSql = snapshot.strings.join('?');
+    expect(snapshotSql).toContain('updated_at::text AS "updatedAtRevision"');
+    expect(snapshotSql).toContain('archived_at IS NULL');
+    expect(snapshot.values).toEqual([CONVERSATION, TENANT, ACTOR]);
     expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
     const query = tx.$executeRaw.mock.calls[0]![0] as { strings: string[]; values: unknown[] };
     const sql = query.strings.join('?');
@@ -57,7 +63,8 @@ describe('MeriService protocol compaction commit', () => {
     expect(sql).toContain('summary_up_to_message_id IS NOT DISTINCT FROM');
     expect(sql).toContain('user_id =');
     expect(sql).toContain('client_id IS NOT DISTINCT FROM');
-    expect(sql).toContain('updated_at =');
+    expect(sql).toContain('updated_at = ?::timestamptz');
+    expect(sql).toContain('archived_at IS NULL');
     expect(query.values).toContain(ACTOR);
     expect(query.values).toContain(REVISION);
     expect(query.values.some((value) =>
@@ -80,7 +87,7 @@ describe('MeriService protocol compaction commit', () => {
     expect(logger.log).toHaveBeenCalledTimes(1);
   });
 
-  it('rejects stale actor/client/revision publication instead of replacing the objective', async () => {
+  it('rejects stale actor/client/revision/boundary publication instead of replacing the objective', async () => {
     const { service, tx, logger } = harness();
     tx.$executeRaw.mockResolvedValueOnce(0);
 
@@ -92,7 +99,21 @@ describe('MeriService protocol compaction commit', () => {
     expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
     expect(logger.log).not.toHaveBeenCalled();
     const query = tx.$executeRaw.mock.calls[0]![0] as { strings: string[]; values: unknown[] };
-    expect(query.strings.join('?')).toEqual(expect.stringContaining('updated_at ='));
+    expect(query.strings.join('?')).toEqual(expect.stringContaining('updated_at = ?::timestamptz'));
     expect(query.values).toEqual(expect.arrayContaining([TENANT, ACTOR, null, REVISION]));
+  });
+
+  it('does not compact a conversation absent from the active authorized snapshot', async () => {
+    const { service, tx, logger } = harness();
+    tx.$queryRaw.mockResolvedValueOnce([]);
+
+    await (service as any).maybeCompactConversation(
+      { tenantId: TENANT, userId: ACTOR },
+      CONVERSATION,
+    );
+
+    expect(tx.$executeRaw).not.toHaveBeenCalled();
+    expect(tx.clioMessage.findMany).not.toHaveBeenCalled();
+    expect(logger.log).not.toHaveBeenCalled();
   });
 });

@@ -2996,19 +2996,36 @@ export class MeriService implements MeriTurnMaintenance {
     conversationId: string,
   ): Promise<void> {
     if (!this.config.get('CLIO_COMPACTION_ENABLED', { infer: true })) return;
-    const conversation = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioConversation.findFirst({
-        where: { id: conversationId, tenantId: ctx.tenantId, userId: ctx.userId },
-        select: {
-          summary: true,
-          summaryUpToMessageId: true,
-          clientId: true,
-          userId: true,
-          updatedAt: true,
-          metadata: true,
-        },
-      }),
+    const conversations = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      // Prisma materializes timestamptz as a JavaScript Date, which discards
+      // PostgreSQL's final three microsecond digits. Keep the exact revision as
+      // text in the same owned-row snapshot as every input that fences or
+      // shapes publication; parsing it back in PostgreSQL is lossless.
+      tx.$queryRaw<
+        Array<{
+          summary: string | null;
+          summaryUpToMessageId: string | null;
+          clientId: string | null;
+          userId: string;
+          updatedAtRevision: string;
+          metadata: Prisma.JsonValue;
+        }>
+      >(Prisma.sql`
+        SELECT summary,
+               summary_up_to_message_id::text AS "summaryUpToMessageId",
+               client_id::text AS "clientId",
+               user_id::text AS "userId",
+               updated_at::text AS "updatedAtRevision",
+               metadata_jsonb AS metadata
+        FROM clio_conversations
+        WHERE id = ${conversationId}::uuid
+          AND tenant_id = ${ctx.tenantId}::uuid
+          AND user_id = ${ctx.userId}::uuid
+          AND archived_at IS NULL
+        LIMIT 1
+      `),
     );
+    const conversation = conversations[0];
     if (!conversation) return;
     const boundary = conversation.summaryUpToMessageId
       ? await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -3083,7 +3100,8 @@ export class MeriService implements MeriTurnMaintenance {
           AND user_id = ${ctx.userId}::uuid
           AND client_id IS NOT DISTINCT FROM ${conversation.clientId}::uuid
           AND summary_up_to_message_id IS NOT DISTINCT FROM ${conversation.summaryUpToMessageId}::uuid
-          AND updated_at = ${conversation.updatedAt}
+          AND updated_at = ${conversation.updatedAtRevision}::timestamptz
+          AND archived_at IS NULL
       `),
     );
     if (!updated) return;
