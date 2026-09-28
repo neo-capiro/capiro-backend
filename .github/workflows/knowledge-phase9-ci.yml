@@ -40,6 +40,7 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro
+      NODE_OPTIONS: --max-old-space-size=6144
 
     steps:
       - uses: actions/checkout@v4
@@ -70,7 +71,7 @@ jobs:
 
       - name: Focused Phase 9 Retrieval V2 tests
         env:
-          NODE_OPTIONS: --experimental-vm-modules
+          NODE_OPTIONS: --max-old-space-size=6144 --experimental-vm-modules
         run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/retrieval
 
       - name: Knowledge Plane regression tests

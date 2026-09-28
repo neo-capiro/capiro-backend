@@ -65,6 +65,8 @@ jobs:
       - name: Build required dependency packages
         run: |
           pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
           pnpm --filter @capiro/auth build
           pnpm --filter @capiro/strategy-verifier build
           pnpm --filter @capiro/meriv2-core build
