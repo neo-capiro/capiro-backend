@@ -70,7 +70,10 @@ import { extractPptxText, isPowerPointAttachment } from './pptx-extract.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { currentMeetingPrepExecution } from './meeting-prep-job-runtime.js';
 import { currentMeetingGovernedContext } from './meeting-context-runtime.js';
-import { assertSavedMeetingPrepAccess } from './meeting-prep-source-access.js';
+import { assertSavedMeetingPrepAccess,filterResearchPortfolioMeetingPreps } from './meeting-prep-source-access.js';
+import {ConflictException} from '@nestjs/common';
+import {RESEARCH_PORTFOLIO_TASK_SOURCE,assertOwnedResearchPortfolioTask} from './research-portfolio-task-access.js';
+import {authorizeResearchPortfolioArtifact} from '../research-portfolios/research-portfolio-artifact-authority.js';
 import { meetingPrepPdfSections, renderMeetingPrepPdf } from './meeting-prep-pdf.js';
 import { prepMeetingLogistics } from './meeting-prep-grounding.js';
 import { assertHearingRecordDocumentAccess } from './hearing-record-document-access.js';
@@ -1890,9 +1893,10 @@ export class EngagementService {
       case 'prep': {
         const row = await tx.meetingPrep.findFirst({
           where: { id: ref.id, tenantId: ctx.tenantId, meetingId },
-          select: { status: true, sharedAt: true, sharedByUserId: true },
+          select: { status: true, sharedAt: true, sharedByUserId: true, generatedFrom:true },
         });
         if (!row) return null;
+        if((row.generatedFrom as Record<string,unknown>|null)?.schemaVersion==='research_portfolio_institutional_v1')throw new ForbiddenException('Private Research Portfolio preparation cannot be shared');
         return {
           approved: row.status === MeetingPrepStatus.approved,
           sharedAt: row.sharedAt,
@@ -2404,6 +2408,8 @@ export class EngagementService {
       rows.map(async (row) => {
         // Phase 2 §d: a note counts here only once APPROVED — existence alone is
         // not approval (that was the pre-Phase-2 bug this fixes).
+        const visibleRpPreps=await filterResearchPortfolioMeetingPreps(tx,ctx,row.preps as Array<{generatedFrom?:unknown}>);
+        row.preps.splice(0,row.preps.length,...visibleRpPreps as typeof row.preps);
         const hasApprovedNote = row.notes.some((n) => n.status === 'approved');
         const artifacts: Array<'prep' | 'notes' | 'debrief'> = [];
         if (row.preps[0]?.status === MeetingPrepStatus.approved) artifacts.push('prep');
@@ -3095,7 +3101,7 @@ export class EngagementService {
         ? await this.clientMeetingAssociationWhere(tx, ctx.tenantId, clientId)
         : null;
 
-      return tx.meeting.findMany({
+      const rows=await tx.meeting.findMany({
         where: {
           AND: [
             {
@@ -3126,6 +3132,8 @@ export class EngagementService {
         orderBy: { startsAt: 'desc' },
         take: 100,
       });
+      for(const row of rows)row.preps=await filterResearchPortfolioMeetingPreps(tx,ctx,row.preps);
+      return rows;
     });
 
     const attendeeEmails = unique(
@@ -4849,10 +4857,12 @@ export class EngagementService {
       limit?: number;
     },
   ) {
-    return this.prisma.withTenant(ctx.tenantId, (tx) =>
+    return this.prisma.withTenant(ctx.tenantId, async(tx) => {
+      const tasks=await
       tx.engagementTask.findMany({
         where: {
           tenantId: ctx.tenantId,
+          OR:[{sourceType:null},{sourceType:{not:RESEARCH_PORTFOLIO_TASK_SOURCE}},{sourceType:RESEARCH_PORTFOLIO_TASK_SOURCE,createdByUserId:ctx.userId,ownerUserId:ctx.userId}],
           ...(query.clientId ? { clientId: query.clientId } : {}),
           status: query.status
             ? query.status
@@ -4873,8 +4883,11 @@ export class EngagementService {
         },
         orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
         ...(query.limit ? { take: Math.min(50, Math.max(1, query.limit)) } : {}),
-      }),
-    );
+      });
+      const visible=[];
+      for(const task of tasks){try{await assertOwnedResearchPortfolioTask(tx,ctx,task);visible.push(task);}catch(error){if(error instanceof ForbiddenException||error instanceof NotFoundException)continue;throw error;}}
+      return visible;
+    });
   }
 
   async reportOverview(ctx: TenantContext, query: EngagementReportQuery) {
@@ -4924,7 +4937,7 @@ export class EngagementService {
             connection: { select: { accountEmail: true, displayName: true } },
             attendees: { select: { email: true, name: true, role: true } },
             preps: {
-              select: { status: true },
+              select: { status: true, generatedFrom:true },
               orderBy: { createdAt: 'desc' },
               take: 1,
             },
@@ -4976,6 +4989,7 @@ export class EngagementService {
           where: {
             tenantId: ctx.tenantId,
             ...(clientId ? { clientId } : {}),
+            OR:[{sourceType:null},{sourceType:{not:RESEARCH_PORTFOLIO_TASK_SOURCE}}],
             status: { notIn: [EngagementTaskStatus.done, EngagementTaskStatus.canceled] },
           },
           select: {
@@ -4988,6 +5002,7 @@ export class EngagementService {
         }),
       ]);
 
+      for(const meeting of meetings)meeting.preps=await filterResearchPortfolioMeetingPreps(tx,ctx,meeting.preps);
       return { storedTargets, meetings, messages, tasks };
     });
 
@@ -5311,8 +5326,8 @@ export class EngagementService {
     return archiveReportTarget(this.prisma, ctx, targetId);
   }
 
-  createTask(ctx: TenantContext, input: CreateTaskInput) {
-    return this.prisma.withTenant(ctx.tenantId, (tx) =>
+  createTask(ctx: TenantContext, input: CreateTaskInput, internal?: {tx:Prisma.TransactionClient;sourceType:string;sourceId:string}) {
+    const write=(tx:Prisma.TransactionClient)=>
       tx.engagementTask.create({
         data: {
           tenantId: ctx.tenantId,
@@ -5325,14 +5340,44 @@ export class EngagementService {
           ownerUserId: input.ownerUserId ?? null,
           dueDate: input.dueDate ? parseDate(input.dueDate, 'dueDate') : null,
           createdByUserId: ctx.userId,
+          ...(internal?{sourceType:internal.sourceType,sourceId:internal.sourceId}:{}),
         },
-      }),
-    );
+      });
+    return internal?write(internal.tx):this.prisma.withTenant(ctx.tenantId,write);
+  }
+
+  /** Internal transaction reuse by evidence-bound private RP actions only. */
+  async createOwnedResearchPortfolioTask(tx:Prisma.TransactionClient,ctx:TenantContext,input:{artifactId:string;reviewId:string;title:string;description:string}){
+    const artifact=await tx.clioArtifact.findFirst({where:{id:input.artifactId,tenantId:ctx.tenantId,userId:ctx.userId}});if(!artifact)throw new NotFoundException('Research Portfolio artifact not found');
+    await authorizeResearchPortfolioArtifact(tx,ctx,artifact);
+    const sourceId=input.artifactId+'|'+input.reviewId;
+    const existing=await tx.engagementTask.findFirst({where:{tenantId:ctx.tenantId,sourceType:RESEARCH_PORTFOLIO_TASK_SOURCE,sourceId}});
+    if(existing){await assertOwnedResearchPortfolioTask(tx,ctx,existing);return existing;}
+    return this.createTask(ctx,{title:input.title,description:input.description,ownerUserId:ctx.userId},{tx,sourceType:RESEARCH_PORTFOLIO_TASK_SOURCE,sourceId});
+  }
+
+  async assertOwnedResearchPortfolioMeeting(tx:Prisma.TransactionClient,ctx:TenantContext,meetingId:string){
+    await this.lockMeetingClientAssignment(tx,ctx,meetingId);
+    const meeting=await this.ensureOwnMeeting(tx,ctx,meetingId);
+    const classification=await tx.meeting.findFirst({where:{id:meeting.id,tenantId:ctx.tenantId},select:{isInternal:true}});
+    if(meeting.clientId!==null||classification?.isInternal!==true)throw new NotFoundException('An owned internal meeting is required');
+    return meeting;
+  }
+
+  /** Deterministic editable preparation; no gateway, credentials or sharing. */
+  async createOwnedResearchPortfolioMeetingPrep(tx:Prisma.TransactionClient,ctx:TenantContext,input:{meetingId:string;artifactId:string;summary:string;agenda:string[];followUps:string[]}){
+    await this.assertOwnedResearchPortfolioMeeting(tx,ctx,input.meetingId);
+    const artifact=await tx.clioArtifact.findFirst({where:{id:input.artifactId,tenantId:ctx.tenantId,userId:ctx.userId}});if(!artifact)throw new NotFoundException('Research Portfolio artifact not found');
+    await authorizeResearchPortfolioArtifact(tx,ctx,artifact);
+    if(await tx.meetingPrep.findFirst({where:{tenantId:ctx.tenantId,meetingId:input.meetingId,status:'approved'},select:{id:true}}))throw new ConflictException('An approved meeting preparation already exists; preserve it and use the private draft');
+    return tx.meetingPrep.create({data:{tenantId:ctx.tenantId,meetingId:input.meetingId,clientId:null,status:'edited',summary:input.summary,agenda:input.agenda,followUps:input.followUps,talkingPoints:[],risks:[],emailEvidence:[],provider:null,model:null,sharedAt:null,sharedByUserId:null,editedByUserId:ctx.userId,generatedFrom:{schemaVersion:'research_portfolio_institutional_v1',briefing:true,artifactId:artifact.id,meetingId:input.meetingId,actorUserId:ctx.userId,reviewStatus:'unreviewed_draft'}}});
   }
 
   async updateTask(ctx: TenantContext, id: string, input: UpdateTaskInput) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await ensureExists(tx.engagementTask.findUnique({ where: { id } }), 'Task not found');
+      const task=await ensureExists(tx.engagementTask.findUnique({ where: { id } }), 'Task not found');
+      await assertOwnedResearchPortfolioTask(tx,ctx,task);
+      if(task.sourceType===RESEARCH_PORTFOLIO_TASK_SOURCE&&'ownerUserId' in input&&input.ownerUserId!==ctx.userId)throw new BadRequestException('Private Research Portfolio tasks remain owned by their creator');
       return tx.engagementTask.update({
         where: { id },
         data: {
@@ -5590,6 +5635,7 @@ export class EngagementService {
           },
         });
         if (!meeting) throw new NotFoundException('Meeting not found');
+        meeting.preps=await filterResearchPortfolioMeetingPreps(tx,ctx,meeting.preps);
 
         const effectiveClientId = await this.resolveEffectiveMeetingClientId(tx, ctx, meeting);
         const effectiveClient =
@@ -8771,8 +8817,8 @@ export class EngagementService {
   }
 
   private async recentClientMeetingsForOutreach(ctx: TenantContext, clientId: string) {
-    const meetings = await this.prisma.withTenant(ctx.tenantId, async (tx) =>
-      tx.meeting.findMany({
+    const meetings = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const rows=await tx.meeting.findMany({
         where: {
           AND: [
             { tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
@@ -8802,8 +8848,10 @@ export class EngagementService {
         },
         orderBy: { startsAt: 'desc' },
         take: 8,
-      }),
-    );
+      });
+      for(const row of rows)row.preps=await filterResearchPortfolioMeetingPreps(tx,ctx,row.preps);
+      return rows;
+    });
 
     const debriefsByMeeting = await Promise.all(
       meetings.map((meeting) => this.listMeetingDebriefs(ctx, meeting.id).catch(() => [])),

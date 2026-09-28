@@ -1,4 +1,5 @@
-import { ForbiddenException } from '@nestjs/common';
+import { authorizeResearchPortfolioArtifact } from '../research-portfolios/research-portfolio-artifact-authority.js';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { Prisma } from '@prisma/client';
 import {
@@ -137,6 +138,72 @@ export async function assertSavedMeetingPrepAccess(
   ctx: TenantContext,
   generatedFrom: unknown,
 ): Promise<void> {
+  const rp = generatedFrom as {
+    schemaVersion?: unknown;
+    artifactId?: unknown;
+    actorUserId?: unknown;
+    meetingId?: unknown;
+  } | null;
+  if (rp?.schemaVersion === 'research_portfolio_institutional_v1') {
+    if (typeof rp.artifactId !== 'string' || rp.actorUserId !== ctx.userId)
+      throw new ForbiddenException('Research Portfolio preparation source access changed');
+    const artifact = await tx.clioArtifact.findFirst({
+      where: { id: rp.artifactId, tenantId: ctx.tenantId, userId: ctx.userId },
+    });
+    if (!artifact)
+      throw new ForbiddenException('Research Portfolio preparation source is unavailable');
+    const { metadata } = await authorizeResearchPortfolioArtifact(tx, ctx, artifact);
+    const prepId = metadata.meetingPrepId;
+    if (typeof prepId !== 'string')
+      throw new ForbiddenException('Research Portfolio preparation binding is unavailable');
+    const peek = await tx.meetingPrep.findFirst({
+      where: { id: prepId, tenantId: ctx.tenantId },
+      select: { meetingId: true },
+    });
+    if (!peek)
+      throw new ForbiddenException('Research Portfolio preparation binding is unavailable');
+    // Canonical reassignment locks the meeting before its prep children.
+    await tx.$executeRaw`SELECT id FROM meetings WHERE tenant_id=${ctx.tenantId}::uuid AND id=${peek.meetingId}::uuid FOR SHARE`;
+    // Serialize RP prep guards with subsequent edits instead of lock upgrades.
+    await tx.$executeRaw`SELECT id FROM meeting_preps WHERE tenant_id=${ctx.tenantId}::uuid AND id=${prepId}::uuid FOR UPDATE`;
+    const linked = await tx.meetingPrep.findFirst({
+      where: { id: prepId, tenantId: ctx.tenantId },
+      select: { id: true, meetingId: true, clientId: true, generatedFrom: true },
+    });
+    const stored = linked?.generatedFrom as {
+      schemaVersion?: unknown;
+      artifactId?: unknown;
+      actorUserId?: unknown;
+      meetingId?: unknown;
+    } | null;
+    if (
+      !linked ||
+      linked.meetingId !== peek.meetingId ||
+      linked.clientId !== null ||
+      stored?.schemaVersion !== 'research_portfolio_institutional_v1' ||
+      stored.artifactId !== artifact.id ||
+      stored.actorUserId !== ctx.userId
+    )
+      throw new ForbiddenException('Research Portfolio preparation binding changed');
+    // Legacy unreleased drafts have a reciprocal artifact/prep ID binding.
+    // Derive their meeting from that canonical stored row, never caller JSON.
+    // New captures also retain the original meeting ID on both native owners.
+    if (
+      (rp.meetingId !== undefined && rp.meetingId !== linked.meetingId) ||
+      (stored.meetingId !== undefined && stored.meetingId !== linked.meetingId) ||
+      (metadata.meetingId !== undefined && metadata.meetingId !== linked.meetingId)
+    )
+      throw new ForbiddenException('Research Portfolio preparation meeting identity changed');
+    const meeting = await tx.meeting.findFirst({
+      where: { id: linked.meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
+      select: { id: true, clientId: true, isInternal: true },
+    });
+    if (!meeting || meeting.clientId !== null || meeting.isInternal !== true)
+      throw new ForbiddenException(
+        'An owned internal meeting is required for this Research Portfolio preparation',
+      );
+    return;
+  }
   const provenance = generatedFrom as {
     briefing?: unknown;
     grounding?: {
@@ -151,4 +218,26 @@ export async function assertSavedMeetingPrepAccess(
       'Meeting preparation source provenance is missing. Regenerate this briefing.',
     );
   await assertMeetingPrepSourceAccess(tx, ctx, sources);
+}
+
+/** Filter only private RP preparations; ordinary preparations retain behavior. */
+export async function filterResearchPortfolioMeetingPreps<T extends { generatedFrom?: unknown }>(
+  tx: Prisma.TransactionClient,
+  ctx: TenantContext,
+  preps: T[],
+): Promise<T[]> {
+  const visible: T[] = [];
+  for (const prep of preps) {
+    const provenance = prep.generatedFrom as { schemaVersion?: unknown } | null;
+    if (provenance?.schemaVersion === 'research_portfolio_institutional_v1') {
+      try {
+        await assertSavedMeetingPrepAccess(tx, ctx, provenance);
+      } catch (error) {
+        if (error instanceof ForbiddenException || error instanceof NotFoundException) continue;
+        throw error;
+      }
+    }
+    visible.push(prep);
+  }
+  return visible;
 }
