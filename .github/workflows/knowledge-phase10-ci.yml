@@ -52,6 +52,8 @@ jobs:
       - name: Phase 10 vector-storage architecture contract
         run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/retrieval/vector-storage-architecture.contract.spec.ts
       - name: Retrieval V2 regression suite
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144 --experimental-vm-modules
         run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/retrieval
       - name: Reject Phase 10 TypeScript errors
         shell: bash

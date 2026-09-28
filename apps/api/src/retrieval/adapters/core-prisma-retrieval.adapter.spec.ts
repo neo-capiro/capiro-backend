@@ -89,7 +89,7 @@ describe('CorePrismaRetrievalAdapter', () => {
 
     await adapter.retrieve(catalog.get('clients'), request());
 
-    expect(withTenant).toHaveBeenCalledWith('tenant-1', expect.any(Function));
+    expect(withTenant).toHaveBeenCalledWith('tenant-1', expect.any(Function), undefined);
     expect(tx.client.findMany).toHaveBeenNthCalledWith(1, {
       where: {
         id: { in: ['client-visible'] },

@@ -73,6 +73,8 @@ jobs:
           pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
 
       - name: Focused Phase 11 Retrieval tests
+        env:
+          NODE_OPTIONS: --experimental-vm-modules
         run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/retrieval
 
       - name: Canonical identity normalization regressions

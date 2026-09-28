@@ -9,6 +9,7 @@ import { PublicDomainRetrievalAdapter } from './adapters/public-domain-retrieval
 import { ActionRecommendationsRetrievalAdapter } from './adapters/action-recommendations-retrieval.adapter.js';
 import { HearingsRetrievalAdapter } from './adapters/hearings-retrieval.adapter.js';
 import { DistrictNexusRetrievalAdapter } from './adapters/district-nexus-retrieval.adapter.js';
+import { MondayManagedMcpAdapter } from './adapters/monday-managed-mcp.adapter.js';
 
 jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class {} }));
 jest.mock('../knowledge/graph/temporal-knowledge-graph.service.js', () => ({ TemporalKnowledgeGraphService: class {} }));
@@ -38,6 +39,7 @@ function adapters() {
     new HearingsRetrievalAdapter(undefined as never),
     new DistrictNexusRetrievalAdapter(undefined as never, undefined as never, undefined as never, undefined as never,
       undefined as never, undefined as never, undefined as never, undefined as never, undefined as never),
+    new MondayManagedMcpAdapter(undefined as never, undefined as never),
   ];
 }
 

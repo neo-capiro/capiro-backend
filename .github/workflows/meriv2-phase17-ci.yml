@@ -151,6 +151,8 @@ jobs:
         run: pnpm --filter @capiro/api-strategy test
 
       - name: Test API
+        env:
+          NODE_OPTIONS: --experimental-vm-modules
         run: pnpm --filter @capiro/api test
 
       - name: Test Workspace
