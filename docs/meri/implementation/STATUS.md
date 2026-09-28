@@ -1,5 +1,20 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-28 19:16 UTC
+
+File01 remains incomplete across all original A/B/C/D requirements. The task-specific Hermes implementation provider is now AWS Bedrock Qwen3 Coder Next; independent review is Kimi K2.5. Both passed actual file/terminal/process smoke with exit0. Neo authorized these substitutions. Requested High effort is not forwarded by the installed Converse adapter; effective reasoning is model-default. Production models and unrelated Hermes profiles were not changed.
+
+Published integration source524bed65208cfc178c47dbffc8b4cbb9c3af74b4 passed hosted canary36466372130, visual36466372107, connectors36466372275, memory PostgreSQL36466372132 and Knowledge Phase17 run36466372030. Meriv2 Phase17 run36466371932 and memory-governance36466372171 both fail historical migration min(uuid); exact failed logs are retained. No failing gate is waived.
+
+Focused Workstream A PR1908 is published at6bd18424d82479fdcaeda0a8c1d8961f3547a53f, including qualified formatter/sandbox prerequisites and literal catalog/current research-review guidance corrections. Lead direct54tests/4suites and3fileformat exit0. A stale empty worktree index.lock was exclusively opened and moved into evidence after confirming no active Git writer; source was preserved. Worker claims of a commit were false; the lead made and published the actual commit. Fresh hosted checks and independent final review remain pending.
+
+Meeting candidatee77e724599ae5c9c261e3c2439769fdf3ec31d42 has independent scoped PASS:11 fresh probes and110 canonical tests/typecheck exit0, following lead136tests/APItypes/format exit0. Task/action candidate57b51 has106 existing tests and6 corrected fresh probes exit0. Capture producer4a28 has lead direct7core+5runtime+64API=76tests exit0; reviewer found no scoped defect but broader collector/fixture/build/effect qualification remains HOLD. The live guard stays closed. Narrative repairc9f7ae3d27f0d9e3a5d5eeaf3a9582f4d25b2052 is clean/published after155core+77runtime tests, shared/core builds/runtime types/format exit0; independent review remains pending.
+
+Provider-budget API22tests including owned native PostgreSQL pass; assistant unit fixtures lacked the new scoped client method and produced12 failures, now undergoing narrow contract repair and requalification. Remaining-source, joined-telemetry and native fixture workers ended with incomplete dirty work, preserved and not promoted. No full runtime fixture assembly or live provisioning result is established by their reports. No shared database/provider writes occurred in these checks.
+
+Neither main, AWS deployment nor synthetic tenant enablement changed. All75 live cases, CD7, CW8, applicable memory acceptance, original26 offline and historical AppendixH26 remain separate full-plan requirements. Both-main integration, database clearance, named owner acceptance and approved deployment remain required. No File01 completion or readiness for File02 is claimed.
+
+
 
 ## Current checkpoint — 2026-09-28 18:38 UTC
 
