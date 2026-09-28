@@ -22,6 +22,8 @@ on:
       - 'docs/handoffs/meriv3-visual-analysis-handoff.md'
       - 'docs/plans/meriv3-visual-analysis.md'
       - 'docs/runbooks/meriv3-visual-analysis-canary.md'
+      - 'scripts/ci/verify-meri-visual-isolation.mjs'
+      - 'scripts/ci/verify-meri-visual-isolation.test.mjs'
       - '.github/workflows/clio-evals.yml'
       - '.github/workflows/meriv3-visual-analysis-ci.yml'
   pull_request:
@@ -45,6 +47,8 @@ on:
       - 'docs/handoffs/meriv3-visual-analysis-handoff.md'
       - 'docs/plans/meriv3-visual-analysis.md'
       - 'docs/runbooks/meriv3-visual-analysis-canary.md'
+      - 'scripts/ci/verify-meri-visual-isolation.mjs'
+      - 'scripts/ci/verify-meri-visual-isolation.test.mjs'
       - '.github/workflows/clio-evals.yml'
       - '.github/workflows/meriv3-visual-analysis-ci.yml'
   workflow_dispatch:
@@ -116,6 +120,8 @@ jobs:
           "docs/handoffs/meriv3-visual-analysis-handoff.md"
           "docs/plans/meriv3-visual-analysis.md"
           "docs/runbooks/meriv3-visual-analysis-canary.md"
+          "scripts/ci/verify-meri-visual-isolation.mjs"
+          "scripts/ci/verify-meri-visual-isolation.test.mjs"
           ".github/workflows/clio-evals.yml"
           ".github/workflows/meriv3-visual-analysis-ci.yml"
 
@@ -171,10 +177,8 @@ jobs:
       - name: Permanent architecture and security guards
         run: |
           set -e
-          if grep -Rin "meriv3" apps/workspace/src apps/api-strategy/src apps/intel-api/src --include='*.ts' --include='*.tsx'; then
-            echo "Visual analysis must remain isolated to MeriV3 chat."
-            exit 1
-          fi
+          node --test scripts/ci/verify-meri-visual-isolation.test.mjs
+          node scripts/ci/verify-meri-visual-isolation.mjs
           if grep -Ein "type:[[:space:]]*['\"](thinking|reasoning)['\"]" \
             apps/meriv2-orchestrator/src/meri/meriv3/meriv3.controller.ts \
             apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts \
