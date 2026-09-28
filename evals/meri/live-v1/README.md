@@ -28,7 +28,7 @@ The existing `evals/meri/` 26-case offline suite is separate and unchanged. `CD-
 - `capture.schema.json` — capture evidence schema with explicit setup/stale/runtime/product boundaries and an owned optional row-predicate artifact boundary.
 - `artifact-reader.mjs` — owned-root artifact reader that recomputes raw-byte hashes and refuses absolute, traversal, URL and symlink references.
 - `deterministic-predicates.mjs`, `saved-evidence-predicates.mjs`, `execution-requirements.mjs` — implemented row predicates plus canonical saved memory/document receipts and structured prior-turn, fault, transition and mode-matrix requirements.
-- `capture-adapter.mjs` — schema-only starter; live execution deliberately throws `NOT_IMPLEMENTED`.
+- `capture-adapter.mjs`, `capture-transport.mjs`, `artifact-collector.mjs`, `capture-cli.mjs` — bounded read-only API capture path for cases 01 and 20.
 - `verify-capture.mjs` — runtime-schema, artifact, correlation, predicate and status verifier. Caller `passed`, proof booleans and arbitrary 64-hex strings are not PASS evidence.
 - `recorded-provider.mjs` — read-only recorded-output provider that refuses network/write request fields.
 - `report.mjs` — deterministic JSON/Markdown reporter.
@@ -84,6 +84,37 @@ Cases 40–45 retain lower-level structural checks for canonical source read rec
 ## Offline grading safety
 
 Live behavior must be captured exactly once. Writes may occur only in a separately authorized disposable sink through a future live capture adapter. Offline grading then consumes saved records through `recorded-provider.mjs`; that provider has no network client and rejects embedded network/write/operation request fields. An evaluator must not repeat a write to obtain answer text.
+
+## Dedicated live read capture
+
+The bounded adapter implements the current public API sequence for Appendix F cases 01 and 20:
+
+1. validate an explicit frozen-ID-to-physical-ID scope map and its SHA-256;
+2. preflight `/health`, `/api/me`, `/api/clio/status`, and `/api/clients`;
+3. create one synthetic conversation through `POST /api/clio/conversations` and record that setup effect separately;
+4. submit the frozen case prompt once to `POST /api/clio/conversations/:id/stream`;
+5. retain sanitized response bytes, SSE events, timings, source links, and exact hashes;
+6. read the canonical assistant message back from `/api/clio/conversations/:id/messages`; and
+7. when a citation carries a supported current-owner locator, read it back from `/api/clio/sources`.
+
+It does not accept a prompt, endpoint path, tenant, or URL from CLI arguments. `LIVE_CAPTURE` is restricted to the exact `capiro-dev` API origins `https://app.capiro.ai` and `https://os.capiro.ai`, the fixture namespace `meri-foundation-20260928`, and tenant slugs/UUIDs `meri-foundation-20260928-t1`/`f2d6cf8f-057c-479a-8110-62fe5086d43f` or `meri-foundation-20260928-t2`/`52e91176-08f0-4d89-9633-bc212f5bdbbf`. Controlled tests must declare `UNIT_FIXTURE_NOT_LIVE` and use loopback HTTP. Redirects are never followed.
+
+The collector has a single synthesis submission slot, concurrency 1, one whole-run deadline, an explicit spend cap, and no retry path after chat submission. An interrupted stream is `CAPTURE_UNCERTAIN`; it is never resubmitted. Browser, write, approval, fault-injection, restart, research, and compaction cases fail closed with a specific unsupported reason. A write-like tool/event in a read capture blocks the result. Conversation creation is reported as a synthetic setup effect, not silently treated as zero effects.
+
+Copy `capture-scope.example.json` outside the repository, replace every placeholder with the existing synthetic fixture's physical IDs and current seed/deployment receipts, then bind the mapping:
+
+```bash
+node evals/meri/live-v1/capture-cli.mjs --scope-hash C:/path/to/scope.json
+# Put the printed hash in fixture.mappingSha256.
+export MERI_LIVE_BEARER_TOKEN='<existing synthetic Clerk JWT>'
+node evals/meri/live-v1/capture-cli.mjs --config C:/path/to/scope.json --case 01 --out C:/owned/evidence-root
+```
+
+The bearer is read only from `MERI_LIVE_BEARER_TOKEN`; credentials, cookies, provider headers, and known secret values are redacted before persistence. Do not put tokens in the scope file. The CLI creates a fresh owned run directory under `--out`; it refuses an existing run path. Exit 0 means collection completed, not that acceptance passed. `BLOCKED` exits 2 and ambiguous/interrupted capture exits 3.
+
+Current server integration gaps remain explicit. The main API source currently does not set `X-Capiro-Release-Sha`, so the deployment-authority preflight blocks unless the actually served `capiro-dev` response supplies that header. Public stream events do not expose a server trace ID, durable tool-call IDs, or cost USD. Budget citations do not have a supported `/api/clio/sources` owner readback. Missing effective model, token usage, cost, source, or trace evidence remains a capture gap and `NOT_RUN`/`BLOCKED`; it is never converted to PASS. The existing verifier's all-live source/auth authority gate is unchanged. Human adjudication is absent until a real human supplies it.
+
+The next server binding needed for acceptance is a read-only capture receipt on the existing chat/read contract (not a caller-asserted test fixture): served API/orchestrator release identities; trace and tool-call IDs; effective model, token and cost records; canonical source version/locator/passage hashes; and a current fixture ownership/scope receipt for the physical source IDs. Case 20 additionally needs a canonical current-owner readback for budget records. No network endpoint was invented in this collector to fill those gaps.
 
 ## Narrow local commands
 
