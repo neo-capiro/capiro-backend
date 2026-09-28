@@ -1,16 +1,20 @@
+import { createHash } from 'node:crypto';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { MERI_CAPABILITY_REGISTRY } from '@capiro/shared';
 import type { MeriContext, ToolRegistry } from '@capiro/meriv2-core';
 import {
   createMeriResearchPlanExecutionEnvelope,
   MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT,
   readCanaryEvents,
   readShadowEvents,
+  type MeriServerReadonlyCapturePolicy,
 } from '@capiro/meriv2-core';
 import { runWithGovernedMeriContext } from '../meri-governed-context.runtime.js';
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
+import { withTrustedCurrentTurnScope } from '../../request/trusted-current-turn-scope.js';
 import * as passageSelector from '../jev/passage-selector.js';
 import type { PassageCandidate } from '../jev/passage-selector.js';
 import * as liveRepair from '../repair/live-repair.service.js';
@@ -4089,6 +4093,115 @@ describe('Stage 2 orchestrator hardening', () => {
       expect(trace).toContain('search_procurement_forecasts');
       expect(trace).toContain('"result":"done"');
       expect(trace).not.toContain('procurement forecasts');
+    });
+
+    test('keeps run_analysis excluded from fresh progressive disclosure during server capture', async () => {
+      const search = {
+        type: 'function_call',
+        call_id: 'capture-search-analysis',
+        name: 'tool_search',
+        arguments: '{"queries":["run_analysis"]}',
+      };
+      const describe = {
+        type: 'function_call',
+        call_id: 'capture-describe-analysis',
+        name: 'tool_describe',
+        arguments: '{"names":["run_analysis"]}',
+      };
+      const direct = {
+        type: 'function_call',
+        call_id: 'capture-invoke-analysis',
+        name: 'run_analysis',
+        arguments: '{"code":"print(1)"}',
+      };
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(
+          response({ output: [search], outputText: '', functionCalls: [search] }),
+        )
+        .mockResolvedValueOnce(
+          response({ output: [describe], outputText: '', functionCalls: [describe] }),
+        )
+        .mockResolvedValueOnce(
+          response({ output: [direct], outputText: '', functionCalls: [direct] }),
+        )
+        .mockResolvedValueOnce(response({ outputText: 'Capture remained read only.' }));
+      const invoke = jest.fn();
+      const definitions = [
+        { name: 'search_memory', readOnly: true },
+        { name: 'search_procurement_forecasts', readOnly: true },
+        { name: 'run_analysis', readOnly: true },
+      ];
+      const assistant = build(
+        registry(definitions, invoke),
+        complete,
+        jest.fn(),
+        {},
+        selectorConfig('enabled'),
+      );
+      global.fetch = jest.fn(
+        async () =>
+          new Response(
+            JSON.stringify({ schemas: definitions.map(({ name }) => toolSchema(name)) }),
+            { status: 200 },
+          ),
+      ) as typeof fetch;
+      const now = Date.now();
+      const capturePolicy: MeriServerReadonlyCapturePolicy = {
+        version: 1,
+        kind: 'server_readonly_acceptance_capture',
+        policyId: 'capture-policy-1',
+        fixtureNamespace: 'meri-foundation-20260928',
+        tenantId: context.tenantId,
+        tenantSlug: 'meri-foundation-20260928-t1',
+        actorUserId: context.userId,
+        conversationId: 'capture-conversation-1',
+        clientId: null,
+        issuedAt: now,
+        expiresAt: now + 60_000,
+        toolAuthority: 'shared_static_registry_read_only',
+        toolCatalogSha256: createHash('sha256')
+          .update(
+            MERI_CAPABILITY_REGISTRY.filter((tool) => tool.readOnly === true)
+              .map((tool) => tool.name)
+              .sort()
+              .join('\n'),
+          )
+          .digest('hex'),
+        dynamicMcpAllowed: false,
+        incidentalWriters: 'suppressed',
+        expectedCaptureWrites: [
+          'context_packet_and_evidence',
+          'conversation_user_message',
+          'conversation_assistant_message',
+        ],
+      };
+
+      await withTrustedCurrentTurnScope(
+        {
+          tenantId: context.tenantId,
+          userId: context.userId,
+          conversationId: 'capture-conversation-1',
+          selectedClientId: null,
+          capturePolicy,
+        },
+        () =>
+          RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+            assistant.run(context, {
+              messages: [{ role: 'user', text: 'What do you remember about Kestrel?' }],
+            }),
+          ),
+      );
+
+      for (let call = 0; call < complete.mock.calls.length; call += 1) {
+        expect(providerToolNames(complete, call)).not.toContain('run_analysis');
+      }
+      expect(JSON.stringify(complete.mock.calls[1]?.[0]?.input)).toContain('totalAvailable');
+      expect(JSON.stringify(complete.mock.calls[2]?.[0]?.input)).toContain('unavailableCount');
+      expect(JSON.stringify(complete.mock.calls[3]?.[0]?.input)).toContain(
+        'unavailable tool request was blocked',
+      );
+      expect(invoke).not.toHaveBeenCalled();
     });
 
     test('withholds a name, description, and telemetry when the registry withdraws it before search', async () => {

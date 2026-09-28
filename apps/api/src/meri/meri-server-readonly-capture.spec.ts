@@ -44,7 +44,9 @@ const ordinaryCtx: TenantContext = {
   role: 'standard_user',
 };
 
-function policy(overrides: Partial<MeriServerReadonlyCapturePolicy> = {}): MeriServerReadonlyCapturePolicy {
+function policy(
+  overrides: Partial<MeriServerReadonlyCapturePolicy> = {},
+): MeriServerReadonlyCapturePolicy {
   const issuedAt = Date.now();
   return {
     version: 1,
@@ -157,6 +159,7 @@ function controllerWithSink(sink: jest.Mock, actualToolBoundary = false, prisma?
   return new MeriController(
     {} as never,
     tools as never,
+    {} as never,
     {} as never,
     {} as never,
     {} as never,
@@ -636,9 +639,9 @@ describe('server-owned read-only acceptance capture boundary', () => {
         ),
       ).rejects.toMatchObject({ status: 403 });
       expect(writes).toEqual([]);
-      expect(authority.tx.clioMessage.create.mock.calls.map(([arg]: any) => arg.data.role)).toEqual([
-        'user',
-      ]);
+      expect(authority.tx.clioMessage.create.mock.calls.map(([arg]: any) => arg.data.role)).toEqual(
+        ['user'],
+      );
       expect(authority.tx.clioArtifact.create).not.toHaveBeenCalled();
       expect(authority.tx.clioArtifact.updateMany).not.toHaveBeenCalled();
       expect(raw.scheduleAfterTurnMaintenance).not.toHaveBeenCalled();
@@ -744,18 +747,15 @@ describe('server-owned read-only acceptance capture boundary', () => {
           captureCtx,
           { conversationId: CONVERSATION_ID, body: 'Read private source', mode: 'new' },
           () =>
-            raw.streamMessage(
-              captureCtx,
-              CONVERSATION_ID,
-              'Read private source',
-              { write: (value: string) => writes.push(value) },
-            ),
+            raw.streamMessage(captureCtx, CONVERSATION_ID, 'Read private source', {
+              write: (value: string) => writes.push(value),
+            }),
         ),
       ).rejects.toMatchObject({ status: 403 });
       expect(writes).toEqual([]);
-      expect(authority.tx.clioMessage.create.mock.calls.map(([arg]: any) => arg.data.role)).toEqual([
-        'user',
-      ]);
+      expect(authority.tx.clioMessage.create.mock.calls.map(([arg]: any) => arg.data.role)).toEqual(
+        ['user'],
+      );
       expect(authority.tx.clioArtifact.create).not.toHaveBeenCalled();
       expect(authority.tx.clioArtifact.updateMany).not.toHaveBeenCalled();
       expect(raw.scheduleAfterTurnMaintenance).not.toHaveBeenCalled();
@@ -856,7 +856,6 @@ describe('server-owned read-only acceptance capture boundary', () => {
         }),
       ).toThrow('Server-owned read-only capture authority was denied before dispatch.');
     }
-
   });
 
   test('ordinary tenants retain their existing controller behavior without a capture policy', async () => {

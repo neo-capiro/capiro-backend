@@ -1146,7 +1146,8 @@ export class MeriV3AssistantService {
                     canonical.readOnly === definition.readOnly &&
                     (dto.toolPolicy !== 'read-only' || definition.readOnly === true) &&
                     (!currentAdmitted || currentAdmitted.has(schema.name)) &&
-                    (schema.name !== 'get_research_evidence' || dto.researchRun),
+                    (schema.name !== 'get_research_evidence' || dto.researchRun) &&
+                    (!currentServerReadonlyCapturePolicy() || schema.name !== 'run_analysis'),
                   );
                 });
           const currentGoverned = currentGovernedMeriContext();
@@ -1196,7 +1197,8 @@ export class MeriV3AssistantService {
           dto.toolPolicy === 'none' ||
           (dto.toolPolicy === 'read-only' && definition.readOnly !== true) ||
           (admittedReadCapabilities && !admittedReadCapabilities.has(schema.name)) ||
-          (schema.name === 'get_research_evidence' && !dto.researchRun)
+          (schema.name === 'get_research_evidence' && !dto.researchRun) ||
+          (currentServerReadonlyCapturePolicy() && schema.name === 'run_analysis')
         ) {
           return false;
         }
