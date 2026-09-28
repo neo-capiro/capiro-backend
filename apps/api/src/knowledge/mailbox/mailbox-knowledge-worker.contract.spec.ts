@@ -9,6 +9,35 @@ function repositoryPath(relativePath: string): string {
   return found;
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function prismaModelHasFieldType(
+  source: string,
+  modelName: string,
+  fieldName: string,
+  fieldType: string,
+): boolean {
+  const modelStart = new RegExp(
+    `^[\\t ]*model[\\t ]+${escapeRegExp(modelName)}[\\t ]*\\{[\\t ]*\\r?$`,
+    'm',
+  ).exec(source);
+  if (!modelStart || modelStart.index === undefined) return false;
+
+  const bodyStart = modelStart.index + modelStart[0].length;
+  const modelEnd = /^[\t ]*}[\t ]*\r?$/gm;
+  modelEnd.lastIndex = bodyStart;
+  const endMatch = modelEnd.exec(source);
+  if (!endMatch) return false;
+
+  const modelBody = source.slice(bodyStart, endMatch.index);
+  return new RegExp(
+    `^[\\t ]*${escapeRegExp(fieldName)}[\\t ]+${escapeRegExp(fieldType)}(?:[\\t ]+.*)?\\r?$`,
+    'm',
+  ).test(modelBody);
+}
+
 const consumer = readFileSync(repositoryPath('src/knowledge/mailbox/mailbox-knowledge.consumer.ts'), 'utf8');
 const flags = readFileSync(
   repositoryPath('src/knowledge/mailbox/mailbox-knowledge-flags.service.ts'),
@@ -47,11 +76,76 @@ describe('Phase 4 mailbox knowledge worker architecture', () => {
     expect(schema).toContain('model KnowledgeAssertion {');
     expect(schema).toContain('model KnowledgeEvidence {');
     expect(schema).toContain('knowledgeMailboxJobs');
-    expect(schema).toContain('knowledgeJobs KnowledgeMailboxJob[]');
-    expect(schema).toContain('mailboxJobs KnowledgeMailboxJob[]');
+    expect(
+      prismaModelHasFieldType(schema, 'MailMessage', 'knowledgeJobs', 'KnowledgeMailboxJob[]'),
+    ).toBe(true);
+    expect(
+      prismaModelHasFieldType(schema, 'KnowledgeEvent', 'mailboxJobs', 'KnowledgeMailboxJob[]'),
+    ).toBe(true);
     expect(existsSync(alignWorkflow)).toBe(false);
     expect(existsSync(alignScript)).toBe(false);
     expect(knowledgeCi).not.toContain('align-mailbox-knowledge-prisma-schema.mjs');
     expect(knowledgeCi).not.toContain('align-knowledge-plane-prisma-schema.mjs');
+  });
+
+  test('scopes relation checks to the owning model without depending on field alignment', () => {
+    const whitespaceVariation = `model MailMessage {
+\tknowledgeJobs\tKnowledgeMailboxJob[]
+}
+
+model KnowledgeEvent {
+  mailboxJobs          KnowledgeMailboxJob[]
+}`;
+    expect(
+      prismaModelHasFieldType(
+        whitespaceVariation,
+        'MailMessage',
+        'knowledgeJobs',
+        'KnowledgeMailboxJob[]',
+      ),
+    ).toBe(true);
+    expect(
+      prismaModelHasFieldType(
+        whitespaceVariation,
+        'KnowledgeEvent',
+        'mailboxJobs',
+        'KnowledgeMailboxJob[]',
+      ),
+    ).toBe(true);
+
+    const missingRelation = `model MailMessage {
+  id String
+}`;
+    expect(
+      prismaModelHasFieldType(
+        missingRelation,
+        'MailMessage',
+        'knowledgeJobs',
+        'KnowledgeMailboxJob[]',
+      ),
+    ).toBe(false);
+
+    const wrongType = `model MailMessage {
+  knowledgeJobs KnowledgeMailboxExtractionJob[]
+}`;
+    expect(
+      prismaModelHasFieldType(wrongType, 'MailMessage', 'knowledgeJobs', 'KnowledgeMailboxJob[]'),
+    ).toBe(false);
+
+    const relationInAnotherModel = `model MailMessage {
+  id String
+}
+
+model KnowledgeEvent {
+  knowledgeJobs KnowledgeMailboxJob[]
+}`;
+    expect(
+      prismaModelHasFieldType(
+        relationInAnotherModel,
+        'MailMessage',
+        'knowledgeJobs',
+        'KnowledgeMailboxJob[]',
+      ),
+    ).toBe(false);
   });
 });
