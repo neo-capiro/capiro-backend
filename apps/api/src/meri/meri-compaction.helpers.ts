@@ -247,12 +247,18 @@ export function allocateBoundedReplayHistory(
     cursor -= 2;
   }
 
-  const boundedPairs = completePairs.map(([user, assistant]) => [
-    { ...user, body: boundReplayMessageBody(user) },
-    { ...assistant, body: boundReplayMessageBody(assistant) },
-  ] as [BoundedReplayMessage, BoundedReplayMessage]);
+  const boundedPairs = completePairs.map(
+    ([user, assistant]) =>
+      [
+        { ...user, body: boundReplayMessageBody(user) },
+        { ...assistant, body: boundReplayMessageBody(assistant) },
+      ] as [BoundedReplayMessage, BoundedReplayMessage],
+  );
   let boundedPending = pendingUser
-    ? { ...pendingUser, body: boundReplayMessageBody(pendingUser) }
+    ? {
+        ...pendingUser,
+        body: boundReplayMessageBody(pendingUser, Math.min(MAX_REPLAY_BODY_CHARS, historyBudget)),
+      }
     : null;
   const selectedPairs: Array<[BoundedReplayMessage, BoundedReplayMessage]> = [];
   let selectedChars = boundedPending?.body.length ?? 0;
@@ -261,7 +267,9 @@ export function allocateBoundedReplayHistory(
     const pair = boundedPairs[index]!;
     const pairChars = pair[0].body.length + pair[1].body.length;
     if (selectedPairs.length * 2 >= pairMessageLimit || selectedChars + pairChars > historyBudget) {
-      continue;
+      // Selection is a newest-first suffix. Once this unit cannot fit, no
+      // older unit may backfill around it and create an interior omission.
+      break;
     }
     selectedPairs.unshift(pair);
     selectedChars += pairChars;
@@ -284,11 +292,12 @@ export function allocateBoundedReplayHistory(
   if (omittedMessages > 0) {
     let notice = wholeMessageNotice();
     while (selectedPairs.length && selectedChars + notice.length > historyBudget) {
+      // Notice growth may only trim the oldest edge of the selected suffix.
       const removed = selectedPairs.shift()!;
       selectedChars -= removed[0].body.length + removed[1].body.length;
       omittedMessages += 2;
-      const originals = removed.map((message) =>
-        messages.find((candidate) => candidate.id === message.id)?.body.length ?? 0,
+      const originals = removed.map(
+        (message) => messages.find((candidate) => candidate.id === message.id)?.body.length ?? 0,
       );
       omittedCharacters += originals[0]! + originals[1]!;
       notice = wholeMessageNotice();
@@ -482,10 +491,15 @@ export function buildProtocolCompactionState(input: {
     const user = input.messages[index];
     const assistant = input.messages[index + 1];
     if (!user || !assistant || user.role !== 'user' || assistant.role !== 'assistant') {
-      limitations.push('A malformed or half-paired protocol unit was left outside protected state.');
+      limitations.push(
+        'A malformed or half-paired protocol unit was left outside protected state.',
+      );
       break;
     }
-    const directive = protectedDirective(user, objective ? MAX_DIRECTIVE_CHARS : MAX_OBJECTIVE_CHARS);
+    const directive = protectedDirective(
+      user,
+      objective ? MAX_DIRECTIVE_CHARS : MAX_OBJECTIVE_CHARS,
+    );
     if (!objective && directive) objective = directive;
     if (directive) {
       latestUserDirection = directive;
@@ -657,8 +671,12 @@ export function protocolCompactionReplay(input: {
     `Client scope: ${state.clientId ?? '(general conversation)'}. A client mismatch invalidates this state.`,
     'User-authored directives below are instructions, not evidence. Source and proposal entries are opaque handles only and require a current authorized read before use.',
   ];
-  if (state.objective) lines.push(`Objective [${state.objective.messageId}]: ${state.objective.text}`);
-  if (state.latestUserDirection && state.latestUserDirection.messageId !== state.objective?.messageId) {
+  if (state.objective)
+    lines.push(`Objective [${state.objective.messageId}]: ${state.objective.text}`);
+  if (
+    state.latestUserDirection &&
+    state.latestUserDirection.messageId !== state.objective?.messageId
+  ) {
     lines.push(
       `Latest user direction [${state.latestUserDirection.messageId}]: ${state.latestUserDirection.text}`,
     );
@@ -683,7 +701,9 @@ export function protocolCompactionReplay(input: {
     );
   }
   if (state.omittedProposalReceiptCount) {
-    lines.push(`Omitted proposal receipts: ${state.omittedProposalReceiptCount}. Treat their status as unknown.`);
+    lines.push(
+      `Omitted proposal receipts: ${state.omittedProposalReceiptCount}. Treat their status as unknown.`,
+    );
   }
   if (state.sourceReceipts.length) {
     lines.push(
@@ -770,7 +790,8 @@ function sourceHandles(message: CompactionMessage): ProtectedSourceReceipt[] {
       ? (record(metadata.evidenceManifest).sources as unknown[])
       : []),
   ];
-  const contextPacketId = text(metadata.contextPacketId, 200) || text(record(metadata.contextPacket).packetId, 200);
+  const contextPacketId =
+    text(metadata.contextPacketId, 200) || text(record(metadata.contextPacket).packetId, 200);
   if (contextPacketId) rows.push({ id: `context-packet:${contextPacketId}` });
   return rows.flatMap((item) => {
     const source = record(item);
@@ -843,10 +864,12 @@ function parseProtocolReceipt(value: unknown): ProtectedProtocolReceipt[] {
       finishReason,
       partial: item.partial === true || !completeFinishReason(finishReason),
       completedTools: Array.isArray(item.completedTools)
-        ? item.completedTools.flatMap((tool) => {
-            const valueText = text(tool, 120);
-            return valueText ? [valueText] : [];
-          }).slice(0, 12)
+        ? item.completedTools
+            .flatMap((tool) => {
+              const valueText = text(tool, 120);
+              return valueText ? [valueText] : [];
+            })
+            .slice(0, 12)
         : [],
     },
   ];
@@ -894,9 +917,7 @@ function text(value: unknown, maxChars: number): string {
 }
 
 function nonnegativeCount(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value)
-    ? Math.max(0, Math.floor(value))
-    : 0;
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
 }
 
 function boundedNewestRecords<T>(

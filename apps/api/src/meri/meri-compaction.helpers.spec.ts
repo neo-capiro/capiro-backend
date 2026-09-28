@@ -370,10 +370,7 @@ describe('protocol-safe compaction receipts', () => {
   });
 
   test('bounds a huge provider payload without claiming an unavailable message retriever', () => {
-    const replay = boundReplayMessageBody(
-      { id: 'huge-output', body: 'z'.repeat(100_000) },
-      2000,
-    );
+    const replay = boundReplayMessageBody({ id: 'huge-output', body: 'z'.repeat(100_000) }, 2000);
     expect(replay.length).toBeLessThanOrEqual(2000);
     expect(replay).toContain('characters were omitted');
     expect(replay).toContain('Ask the user to restate');
@@ -383,7 +380,7 @@ describe('protocol-safe compaction receipts', () => {
   test('allocates the 81-message counterexample on a complete boundary under one aggregate cap', () => {
     const messages = Array.from({ length: 81 }, (_, index) => ({
       id: `m${index}`,
-      role: index % 2 ? 'assistant' as const : 'user' as const,
+      role: index % 2 ? ('assistant' as const) : ('user' as const),
       body: `${index}:`.padEnd(60_000, 'x'),
     }));
     const protectedStateChars = 12_000;
@@ -402,6 +399,75 @@ describe('protocol-safe compaction receipts', () => {
     expect(allocation.history.map((message) => message.body).join('\n')).toContain(
       'Ask the user to restate',
     );
+  });
+
+  test('retains a contiguous newest suffix instead of backfilling around an oversized middle unit', () => {
+    const exactBody = (prefix: string, length: number, fill: string) => prefix.padEnd(length, fill);
+    const bodies = {
+      u0: exactBody('FIRST_GOAL: preserve this oldest objective exactly.', 100, '0'),
+      a0: exactBody('ACK_FIRST_GOAL: oldest objective received.', 100, 'A'),
+      u1: exactBody(
+        'MISSING_MIDDLE_CONSTRAINT: never infer that a requested amount was enacted.',
+        450,
+        '1',
+      ),
+      a1: exactBody('MIDDLE_ASSISTANT: acknowledged the middle constraint.', 450, 'B'),
+      u2: exactBody('RECENT_REQUEST: prepare the bounded replay.', 100, '2'),
+      a2: exactBody('RECENT_RESPONSE: bounded replay prepared.', 100, 'C'),
+      u3: exactBody('LATEST_PENDING_USER: apply the retained constraints now.', 100, '3'),
+    };
+    const allocation = allocateBoundedReplayHistory(
+      [
+        { id: 'u0', role: 'user', body: bodies.u0 },
+        { id: 'a0', role: 'assistant', body: bodies.a0 },
+        { id: 'u1', role: 'user', body: bodies.u1 },
+        { id: 'a1', role: 'assistant', body: bodies.a1 },
+        { id: 'u2', role: 'user', body: bodies.u2 },
+        { id: 'a2', role: 'assistant', body: bodies.a2 },
+        { id: 'u3', role: 'user', body: bodies.u3 },
+      ],
+      { maxChars: 1200, protectedStateChars: 100 },
+    );
+
+    expect(allocation.history.map((message) => message.id)).toEqual(['u2', 'a2', 'u3']);
+    expect(allocation.history[0]?.body).toMatch(
+      /^\[SERVER REPLAY NOTICE: 4 older conversation message\(s\) and 1100 characters were omitted/,
+    );
+    expect(allocation.history[0]?.body.endsWith(bodies.u2)).toBe(true);
+    expect(allocation.history[1]?.body).toBe(bodies.a2);
+    expect(allocation.history[2]?.body).toBe(bodies.u3);
+    expect(allocation.omittedMessages).toBe(4);
+    expect(allocation.omittedCharacters).toBe(1100);
+    expect(allocation.totalChars + 100).toBeLessThanOrEqual(1200);
+    expect(allocation.history.map((message) => message.body).join('\n')).not.toContain(
+      'FIRST_GOAL',
+    );
+    expect(allocation.history.map((message) => message.body).join('\n')).not.toContain(
+      'MISSING_MIDDLE_CONSTRAINT',
+    );
+  });
+
+  test('preserves the contiguous suffix when the omission notice evicts another unit', () => {
+    const messages = [
+      { id: 'u0', role: 'user' as const, body: 'old-user'.padEnd(150, '0') },
+      { id: 'a0', role: 'assistant' as const, body: 'old-assistant'.padEnd(150, 'A') },
+      { id: 'u1', role: 'user' as const, body: 'middle-user'.padEnd(50, '1') },
+      { id: 'a1', role: 'assistant' as const, body: 'middle-assistant'.padEnd(50, 'B') },
+      { id: 'u2', role: 'user' as const, body: 'newest-user'.padEnd(50, '2') },
+      { id: 'a2', role: 'assistant' as const, body: 'newest-assistant'.padEnd(50, 'C') },
+      { id: 'u3', role: 'user' as const, body: 'pending-user'.padEnd(50, '3') },
+    ];
+    const allocation = allocateBoundedReplayHistory(messages, {
+      maxChars: 600,
+      protectedStateChars: 100,
+    });
+
+    expect(allocation.history.map((message) => message.id)).toEqual(['u2', 'a2', 'u3']);
+    expect(allocation.omittedMessages).toBe(4);
+    expect(allocation.history[0]?.body).toContain(
+      'SERVER REPLAY NOTICE: 4 older conversation message(s)',
+    );
+    expect(allocation.totalChars + 100).toBeLessThanOrEqual(600);
   });
 
   test('marks a missing or unknown finish reason partial instead of completed', () => {
@@ -435,7 +501,12 @@ describe('protocol-safe compaction receipts', () => {
     const objective = `Prepare the exact objective ${'O'.repeat(620)} CRITICAL_FINAL_CLAUSE`;
     const messages = [
       { id: 'u-objective', role: 'user', body: objective },
-      { id: 'a-objective', role: 'assistant', body: 'Acknowledged.', metadata: { finishReason: 'completed' } },
+      {
+        id: 'a-objective',
+        role: 'assistant',
+        body: 'Acknowledged.',
+        metadata: { finishReason: 'completed' },
+      },
       ...Array.from({ length: 70 }, (_, index) => [
         {
           id: `u-correction-${index}`,
