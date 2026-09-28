@@ -41,17 +41,103 @@ try:
 except Exception:  # noqa: BLE001 - resource is unavailable on Windows dev hosts
     sys.stderr.write("[harness] rlimits unavailable on this platform\n")
 
+
+def _linux_task_context():
+    """Return aggregate-only task counts; never expose process names or IDs."""
+    context = {}
+    try:
+        resource_module = globals().get("resource")
+        if resource_module is None:
+            return context
+        soft, hard = resource_module.getrlimit(resource_module.RLIMIT_NPROC)
+        context["nproc_soft"] = soft
+        context["nproc_hard"] = hard
+    except Exception:  # noqa: BLE001 - diagnostic only
+        pass
+
+    if not sys.platform.startswith("linux"):
+        return context
+
+    try:
+        getuid = getattr(os, "getuid", None)
+        if getuid is None:
+            return context
+        real_uid = getuid()
+        uid_processes = 0
+        uid_tasks = 0
+        self_threads = None
+        with os.scandir("/proc") as entries:
+            for entry in entries:
+                if not entry.name.isdigit():
+                    continue
+                try:
+                    uid = None
+                    threads = None
+                    with io.open(
+                        os.path.join(entry.path, "status"),
+                        "r",
+                        encoding="utf-8",
+                        errors="replace",
+                    ) as status_file:
+                        for line in status_file:
+                            if line.startswith("Uid:"):
+                                uid = int(line.split()[1])
+                            elif line.startswith("Threads:"):
+                                threads = int(line.split()[1])
+                            if uid is not None and threads is not None:
+                                break
+                    if uid == real_uid and threads is not None:
+                        uid_processes += 1
+                        uid_tasks += threads
+                        if entry.name == str(os.getpid()):
+                            self_threads = threads
+                except (FileNotFoundError, PermissionError, ProcessLookupError, ValueError):
+                    continue
+        context["uid_processes"] = uid_processes
+        context["uid_tasks"] = uid_tasks
+        if self_threads is not None:
+            context["self_threads"] = self_threads
+    except Exception:  # noqa: BLE001 - diagnostic must not affect containment
+        pass
+    return context
+
+
+def _report_warm_import_failure(stage, module_name, exc):  # noqa: ANN001
+    """Emit one bounded, aggregate-only diagnostic for the trusted warm stack."""
+    import traceback
+
+    frames = traceback.extract_tb(exc.__traceback__, limit=8)
+    diagnostic = {
+        "stage": stage,
+        "module": module_name,
+        "error": type(exc).__name__,
+        "message": " ".join(str(exc).split())[:160],
+        "frames": [
+            f"{os.path.basename(frame.filename)[:80]}:{frame.lineno}:{frame.name[:80]}"
+            for frame in frames
+        ],
+        **_linux_task_context(),
+    }
+    encoded = json.dumps(diagnostic, ensure_ascii=True, separators=(",", ":"))
+    sys.stderr.write(f"[harness] warm-import diagnostic {encoded[:2048]}\n")
+
+
 # ── 2. Pre-import the allowed analysis stack BEFORE arming the hook ───────
 # NumPy/SciPy/statsmodels legitimately load native extensions during import.
 # Warm the exact allowed stack first so the audit hook constrains USER code
 # without breaking approved numerical routines.
+_warm_import_module = "matplotlib"
 try:
     import matplotlib
 
     matplotlib.use("Agg")
+    _warm_import_module = "matplotlib.pyplot"
     import matplotlib.pyplot as plt  # noqa: F401
+
+    _warm_import_module = "cycler"
     from cycler import cycler
 
+    _warm_import_module = "matplotlib.rcParams"
     CAPIRO_COLORS = [
         "#A85F42",  # rust
         "#263243",  # graphite
@@ -91,19 +177,32 @@ try:
             "savefig.pad_inches": 0.18,
         }
     )
-except Exception:  # noqa: BLE001 - matplotlib genuinely optional locally
-    pass
+except Exception as exc:  # noqa: BLE001 - matplotlib genuinely optional locally
+    _report_warm_import_failure("visual", _warm_import_module, exc)
 
+_warm_import_module = "numpy"
 try:
     import numpy  # noqa: F401
+
+    _warm_import_module = "pandas"
     import pandas  # noqa: F401
+
+    _warm_import_module = "scipy"
     import scipy  # noqa: F401
+
+    _warm_import_module = "scipy.stats"
     import scipy.stats  # noqa: F401
+
+    _warm_import_module = "statsmodels.api"
     import statsmodels.api  # noqa: F401
+
+    _warm_import_module = "seaborn"
     import seaborn  # noqa: F401
+
+    _warm_import_module = "networkx"
     import networkx  # noqa: F401
 except Exception as exc:  # noqa: BLE001 - pure-python analysis can still run
-    sys.stderr.write(f"[harness] optional analysis import unavailable: {exc}\n")
+    _report_warm_import_failure("analysis", _warm_import_module, exc)
 
 # ── 3. Audit hook: no network, no subprocesses, no NEW native loading ──────
 BLOCKED_PREFIXES = (
