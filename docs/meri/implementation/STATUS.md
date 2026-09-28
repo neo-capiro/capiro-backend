@@ -1,6 +1,20 @@
 # Meri file 01 status
 
-## Current checkpoint � 2026-09-28 12:44 UTC
+## Current checkpoint — 2026-09-28 13:04 UTC
+
+File 01 is IN_PROGRESS. The source-adoption and license records are integrated through `3ac96ce0b` (sources `051ed0f68` and corrected `2c67594c5`). Independent review verified donor records, notices, hashes and bounded claims; a second review verified the corrected compaction replay history. The seven integrated files match the reviewed candidate. These records do not qualify the remaining mandatory implementations.
+
+At published `53574a937c199d99fa6e1bdd56dbedb4b8815636`, visual analysis (`36423883792`), memory PostgreSQL qualification (`36423884066`) and connectors (`36423884000`) passed. Meri canary (`36423884026`) is running. Phase 17 (`36423883987`) failed disposable database initialization at `20281003010000_dedup_client_intel_mapping`: `function min(uuid) does not exist`. Direct log: `ci-535-phase17-failed.log`. Database recovery is separately owned; no release-gate waiver applies.
+
+Procedure review at `737c332d1` passed 83 API and 106 assistant tests but reproduced a selected-client switch during validation. Its narrow repair is under qualification. Report provenance/projection and four scheduler recovery defects remain isolated. The attachment reader still needs trusted conversation transport; its follow-up is specified in `prior-attachment-transport-contract.md`.
+
+Twelve new memory/file predicates are committed at `721746192`: 39 offline tests passed and the original 75-case contract is intact; independent review is running. All 75 live baseline cases, seven Commitments & Deliverables cases, eight required coworker cases and applicable memory acceptance remain NOT_RUN. Unit fixtures are not live acceptance; the live capture authority gate remains BLOCKED.
+
+Remaining work includes durable plans, steering, Stop versus disconnect, bounded children and persistent shared budgets; full current source authorization and document coverage; progressive discovery, narrative/JEV and telemetry; then live acceptance, both-main integration and release. Neither main nor AWS has changed. The two synthetic tenants remain approved but not enabled. Credits are available; pinned Hermes implementation/review models are unchanged.
+
+Evidence root: `C:/dev/cap-meri-foundation-evidence`. Reviews: `review-source-adoption-records-report.md` and `review-source-adoption-lineage-fix-report.md`. Current ownership: `queue-current.json`.
+
+## Current checkpoint — 2026-09-28 12:44 UTC
 
 File01 remains IN_PROGRESS. Reviewed integration source before this documentation commit:55217eb657842bf6bfe6f63f1963b3fdd4591869. Its tree94a15faa3e1d3dc0cb9d009445caebd2a54ec084 exactly equals independently reviewed/tested sourceb28588e1818f2413f6353aac3d18652977e91f00. Both mains and AWS remain unchanged. Database recovery, required verification and owner acceptance hold release; approved two-tenant enablement remains unapplied.
 
