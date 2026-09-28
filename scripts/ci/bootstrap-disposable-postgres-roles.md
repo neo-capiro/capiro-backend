@@ -1,16 +1,17 @@
-# Disposable PostgreSQL migration-role bootstrap
+# Disposable PostgreSQL migration-prerequisite bootstrap
 
-`bootstrap-disposable-postgres-roles.sh` supplies cluster-scoped role fixtures that a clean GitHub Actions PostgreSQL service lacks but the checked-in API migration chain expects.
+`bootstrap-disposable-postgres-roles.sh` supplies external baseline prerequisites that a clean GitHub Actions PostgreSQL service lacks but the checked-in API migration chain expects.
 
-The helper currently creates only `capiro_worker`. Migration `20281002010000_research_portfolios_phase10_watch_delivery` grants that role `SELECT, INSERT`; the migration does not create it. Other named roles in the API chain are created by earlier migrations (`capiro_app`, `capiro_pe_promoter`, `capiro_defense_serve`, `capiro_defense_job`, and `capiro_analytics_ro`) and therefore are not bootstrap fixtures.
+The helper creates only one cluster role, `capiro_worker`. Migration `20281002010000_research_portfolios_phase10_watch_delivery` grants that role `SELECT, INSERT`; the migration does not create it. Other named roles in the API chain are created by earlier migrations (`capiro_app`, `capiro_pe_promoter`, `capiro_defense_serve`, `capiro_defense_job`, and `capiro_analytics_ro`) and therefore are not bootstrap fixtures.
 
 Safety boundary:
 
 - The target is fixed to `postgres@127.0.0.1:5432/capiro`; no URL, host, port, database, or role override is accepted.
 - Mutating mode requires `GITHUB_ACTIONS=true`, `CI=true`, and an explicit `CI_DISPOSABLE_POSTGRES=1` marker from the workflow job.
-- Both PostgreSQL commands pin libpq's host and host-address parameters to loopback and discard inherited service-file and `PGOPTIONS` settings. The connected database, user, port, and superuser status are still checked before mutation. PostgreSQL's server address is not compared because Docker reports its bridge address inside the service container.
+- Every PostgreSQL command pins libpq's host and host-address parameters to loopback and discards inherited service-file and `PGOPTIONS` settings. The connected database, user, port, and superuser status are still checked before mutation. PostgreSQL's server address is not compared because Docker reports its bridge address inside the service container.
 - The fixture role is `NOLOGIN`, `NOINHERIT`, `NOSUPERUSER`, `NOCREATEDB`, `NOCREATEROLE`, `NOBYPASSRLS`, and `NOREPLICATION`, with no inherited role memberships. Existing unsafe role state fails closed.
-- The helper changes no tables, migrations, checksums, application grants, or non-CI databases.
+- `research-portfolio-append-only-prerequisite.sql` creates `public.reject_append_only_mutation()` only when missing. A compatible existing definition is preserved exactly; an incompatible definition fails closed.
+- The helper changes no tables, migration files, migration checksums, application grants, or non-CI databases.
 
 Local checks do not contact PostgreSQL:
 
@@ -22,9 +23,9 @@ A full migration replay remains a GitHub Actions check because the assigned Wind
 
 ## Phase 10 append-only prerequisite
 
-After role bootstrap passed, the clean replay exposed a separate repository defect: `20281002010000_research_portfolios_phase10_watch_delivery` referenced `public.reject_append_only_mutation()` without an earlier migration defining it. The additive `20281002000000_research_portfolio_append_only_prerequisite` migration now supplies that function before the consumer and preserves a compatible existing definition.
+Migration `20281002010000_research_portfolios_phase10_watch_delivery` references `public.reject_append_only_mutation()`. A direct read-only live probe established that this function is a known, unledgered deployed baseline prerequisite, in the same class as the externally provisioned `capiro_worker` role. Clean CI therefore installs the known function fixture after the role fixture and before migration replay.
 
-The read-only live probe is different evidence, not a live fix: it found the delivery table and compatible function already present while the Phase 10 migration ledger entry was absent. This change neither connects to nor reconciles that pre-existing unledgered live state.
+This is a disposable-CI bootstrap, not an application migration. It proves replay after explicit external-baseline setup; it does not claim a pristine migration-only replay. The SQL input has no production rollout path, does not connect to production, and is not a production repair or reconciliation of live migration-ledger state.
 
 The focused test uses only the installed PGlite PostgreSQL runtime:
 

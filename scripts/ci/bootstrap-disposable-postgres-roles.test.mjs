@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -8,6 +8,11 @@ import { fileURLToPath } from 'node:url';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const script = path.join(scriptDir, 'bootstrap-disposable-postgres-roles.sh');
+const prerequisiteSql = path.join(scriptDir, 'research-portfolio-append-only-prerequisite.sql');
+const removedApplicationMigration = path.resolve(
+  scriptDir,
+  '../../apps/api/prisma/migrations/20281002000000_research_portfolio_append_only_prerequisite/migration.sql',
+);
 const migration = path.resolve(
   scriptDir,
   '../../apps/api/prisma/migrations/20281002010000_research_portfolios_phase10_watch_delivery/migration.sql',
@@ -50,6 +55,10 @@ test('validation documents the fixed disposable target without contacting Postgr
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /target=postgres@127\.0\.0\.1:5432\/capiro/);
   assert.match(result.stdout, /required role=capiro_worker NOLOGIN NOINHERIT NOBYPASSRLS/);
+  assert.match(
+    result.stdout,
+    /append-only prerequisite=.*research-portfolio-append-only-prerequisite\.sql/,
+  );
   assert.match(result.stdout, /no PostgreSQL command executed/);
 });
 
@@ -90,7 +99,7 @@ test('an unexpected connected database identity fails before role creation', () 
   assert.doesNotMatch(result.stdout, /ready:/);
 });
 
-test('an inherited PGHOSTADDR cannot redirect either psql command', () => {
+test('an inherited PGHOSTADDR cannot redirect any psql command', () => {
   const { fakeBin, invocations } = installEnvironmentRecordingPsql('capiro-ci-role-hostaddr-');
   const result = run([], {
     PATH: `${fakeBin}${path.delimiter}${process.env.PATH}`,
@@ -102,7 +111,7 @@ test('an inherited PGHOSTADDR cannot redirect either psql command', () => {
 
   assert.equal(result.status, 0, result.stderr);
   const calls = readFileSync(invocations, 'utf8').trim().split('\n');
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
   for (const call of calls) {
     assert.match(call, /^PGHOSTADDR=127\.0\.0\.1 /);
     assert.match(call, /ARGS=.*--host=127\.0\.0\.1/);
@@ -110,7 +119,7 @@ test('an inherited PGHOSTADDR cannot redirect either psql command', () => {
   }
 });
 
-test('inherited libpq service and option settings cannot influence either psql command', () => {
+test('inherited libpq service and option settings cannot influence any psql command', () => {
   const { fakeBin, invocations } = installEnvironmentRecordingPsql('capiro-ci-role-service-');
   const serviceFile = path.join(fakeBin, 'pg_service.conf');
   writeFileSync(serviceFile, '[redirect]\nhostaddr=203.0.113.8\nport=6543\n');
@@ -126,7 +135,7 @@ test('inherited libpq service and option settings cannot influence either psql c
 
   assert.equal(result.status, 0, result.stderr);
   const calls = readFileSync(invocations, 'utf8').trim().split('\n');
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
   for (const call of calls) {
     assert.match(
       call,
@@ -169,6 +178,16 @@ test('the helper creates only the migration-required least-privilege role', () =
   assert.doesNotMatch(calls, /CREATE ROLE (?!capiro_worker)/);
   assert.doesNotMatch(calls, /\bSUPERUSER\b(?![\s\S]*NOSUPERUSER)/);
   assert.doesNotMatch(calls, /\bBYPASSRLS\b(?![\s\S]*NOBYPASSRLS)/);
+  assert.match(
+    calls,
+    /--file=.*[\\/]scripts[\\/]ci[\\/]research-portfolio-append-only-prerequisite\.sql$/m,
+  );
+  assert.ok(calls.indexOf('DO $bootstrap$') < calls.indexOf('--file='));
+});
+
+test('the append-only prerequisite is a CI input, not an application migration', () => {
+  assert.equal(existsSync(prerequisiteSql), true);
+  assert.equal(existsSync(removedApplicationMigration), false);
 });
 
 test('the checked-in migration still requires the exact capiro_worker fixture role', () => {

@@ -3,11 +3,8 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { PGlite } from '../../node_modules/.pnpm/@electric-sql+pglite@0.5.8/node_modules/@electric-sql/pglite/dist/index.js';
 
-const migrationSql = await readFile(
-  new URL(
-    '../../apps/api/prisma/migrations/20281002000000_research_portfolio_append_only_prerequisite/migration.sql',
-    import.meta.url,
-  ),
+const prerequisiteSql = await readFile(
+  new URL('./research-portfolio-append-only-prerequisite.sql', import.meta.url),
   'utf8',
 );
 const consumerSql = await readFile(
@@ -54,13 +51,13 @@ async function functionMetadata(db) {
 
 test('missing helper is created and the actual delivery trigger permits INSERT but blocks mutation', async () => {
   await withDatabase(async (db) => {
-    await db.exec(migrationSql);
+    await db.exec(prerequisiteSql);
 
     const metadata = await functionMetadata(db);
     assert.equal(metadata.returns_trigger, true);
     assert.equal(metadata.language, 'plpgsql');
     assert.equal(metadata.security_definer, false);
-    assert.doesNotMatch(migrationSql, /CREATE\s+OR\s+REPLACE/i);
+    assert.doesNotMatch(prerequisiteSql, /CREATE\s+OR\s+REPLACE/i);
 
     await db.exec(`
       CREATE TABLE research_portfolio_subscription_deliveries (
@@ -89,12 +86,12 @@ test('missing helper is created and the actual delivery trigger permits INSERT b
   });
 });
 
-test('reapplying the migration preserves the compatible existing definition', async () => {
+test('reapplying the CI prerequisite preserves the compatible existing definition', async () => {
   await withDatabase(async (db) => {
-    await db.exec(migrationSql);
+    await db.exec(prerequisiteSql);
     const before = await functionMetadata(db);
 
-    await db.exec(migrationSql);
+    await db.exec(prerequisiteSql);
     const after = await functionMetadata(db);
 
     assert.deepEqual(after, before);
@@ -111,7 +108,7 @@ test('an existing non-trigger function fails closed without replacement', async 
     `);
     const before = await functionMetadata(db);
 
-    await assert.rejects(db.exec(migrationSql), /Incompatible existing function/);
+    await assert.rejects(db.exec(prerequisiteSql), /Incompatible existing function/);
     assert.deepEqual(await functionMetadata(db), before);
   });
 });
@@ -131,7 +128,7 @@ test('an existing SECURITY DEFINER trigger function fails closed without replace
     `);
     const before = await functionMetadata(db);
 
-    await assert.rejects(db.exec(migrationSql), /Incompatible existing function/);
+    await assert.rejects(db.exec(prerequisiteSql), /Incompatible existing function/);
     assert.deepEqual(await functionMetadata(db), before);
   });
 });
@@ -150,7 +147,7 @@ test('an existing trigger function with permissive behavior fails closed', async
     `);
     const before = await functionMetadata(db);
 
-    await assert.rejects(db.exec(migrationSql), /Incompatible existing function/);
+    await assert.rejects(db.exec(prerequisiteSql), /Incompatible existing function/);
     assert.deepEqual(await functionMetadata(db), before);
   });
 });

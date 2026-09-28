@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Create cluster-scoped role prerequisites that production already provisions,
+# Create external baseline prerequisites that production already provisions,
 # but a clean GitHub Actions PostgreSQL service does not. This helper is
 # intentionally tied to the repository's disposable capiro service fixture: it
 # accepts no database URL or target override and refuses to mutate outside GHA.
@@ -10,6 +10,8 @@ readonly PG_PORT="5432"
 readonly PG_DATABASE="capiro"
 readonly PG_ADMIN_ROLE="postgres"
 readonly REQUIRED_ROLE="capiro_worker"
+readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly APPEND_ONLY_PREREQUISITE_SQL="${SCRIPT_DIR}/research-portfolio-append-only-prerequisite.sql"
 
 usage() {
   printf '%s\n' \
@@ -45,6 +47,7 @@ if ((VALIDATE_ONLY)); then
   printf 'validation-only: target=%s@%s:%s/%s\n' \
     "$PG_ADMIN_ROLE" "$PG_HOST" "$PG_PORT" "$PG_DATABASE"
   printf 'validation-only: required role=%s NOLOGIN NOINHERIT NOBYPASSRLS\n' "$REQUIRED_ROLE"
+  printf 'validation-only: append-only prerequisite=%s\n' "$APPEND_ONLY_PREREQUISITE_SQL"
   printf 'validation-only: no PostgreSQL command executed\n'
   exit 0
 fi
@@ -124,4 +127,7 @@ END
 $bootstrap$;
 SQL
 
-printf 'ready: disposable migration prerequisite role %s (NOLOGIN, no RLS bypass)\n' "$REQUIRED_ROLE"
+run_psql --file="$APPEND_ONLY_PREREQUISITE_SQL"
+
+printf 'ready: disposable migration prerequisites (role %s and append-only function)\n' \
+  "$REQUIRED_ROLE"
