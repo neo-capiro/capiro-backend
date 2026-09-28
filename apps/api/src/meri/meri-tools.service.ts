@@ -180,7 +180,6 @@ import {
 } from './meri-client-context.helpers.js';
 import { MeriContextPlaneService } from './meri-context-plane.service.js';
 import { RETRIEVAL_DOMAINS } from '../retrieval/retrieval-v2.types.js';
-import { RetrievalV2Service } from '../retrieval/retrieval-v2.service.js';
 import { MERI_DATA_QUERY_CLASSES, searchCapiroData } from './meri-data-search.helpers.js';
 import { projectMemoryContent } from './meri-memory-content.helpers.js';
 import { getResearchEvidence } from './meri-research-evidence.helpers.js';
@@ -414,7 +413,6 @@ export class MeriToolsService {
     @Optional() private readonly districtTools?: R5MeriDistrictTools,
     @Optional() private readonly chatAttachmentReader?: MeriChatAttachmentReadService,
     @Optional() private readonly researchPortfolioScope?: ResearchPortfolioMeriScopeService,
-    @Optional() private readonly retrieval?: RetrievalV2Service,
   ) {}
 
   manifest() {
@@ -449,7 +447,7 @@ export class MeriToolsService {
   }
 
   private async readMondayClientBoards(ctx: TenantContext, input: Record<string, unknown>) {
-    if (!this.retrieval) throw new NotFoundException('Meri tool not found');
+    if (!this.contextPlane) throw new NotFoundException('Meri tool not found');
     const clientId = requiredString(input, 'clientId', 80);
     if (!CLIENT_ID_UUID_RE.test(clientId)) throw new BadRequestException('clientId must be a UUID');
     const boardContext = optionalString(input, 'boardContext', 2000);
@@ -463,13 +461,8 @@ export class MeriToolsService {
       if (!allowed) throw new NotFoundException('Client not found');
     };
     await assertCurrentWall();
-    const response = await this.retrieval.retrieve({
-      caller: {
-        tenantId: ctx.tenantId,
-        userId: ctx.userId,
-        clientIds: [clientId],
-        authorizedClientIds: [clientId],
-      },
+    const response = await this.contextPlane.searchToolData(ctx, {
+      clientId,
       queryClass: 'lookup',
       requestedDomains: ['monday'],
       ...(boardContext ? { mondayBoardContext: boardContext } : {}),

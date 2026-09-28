@@ -25,8 +25,8 @@ const CTX = {
   role: 'capiro_admin',
 } as const;
 
-function service(input: { prisma?: object; retrieval?: object } = {}) {
-  const args: unknown[] = Array.from({ length: 36 }, () => undefined);
+function service(input: { prisma?: object; contextPlane?: object } = {}) {
+  const args: unknown[] = Array.from({ length: 35 }, () => undefined);
   args[0] = {
     withTenantUser: jest.fn(async (_tenant: string, _user: string, run: (tx: unknown) => unknown) =>
       run({ $queryRawUnsafe: jest.fn().mockResolvedValue([{ allowed: true }]) }),
@@ -34,7 +34,7 @@ function service(input: { prisma?: object; retrieval?: object } = {}) {
     ...(input.prisma ?? {}),
   };
   args[1] = { get: jest.fn() };
-  args[35] = input.retrieval;
+  args[25] = input.contextPlane;
   return Reflect.construct(MeriToolsService, args) as MeriToolsService;
 }
 
@@ -224,13 +224,16 @@ describe('remaining canonical source families', () => {
   });
 
   it('uses the governed Monday owner and reports a missing connection as unavailable, never empty', async () => {
-    const retrieval = { retrieve: jest.fn().mockResolvedValue(mondayResult('unavailable')) };
-    const result = (await service({ retrieval }).execute(CTX, 'read_monday_client_boards', {
+    const contextPlane = {
+      searchToolData: jest.fn().mockResolvedValue(mondayResult('unavailable')),
+    };
+    const result = (await service({ contextPlane }).execute(CTX, 'read_monday_client_boards', {
       clientId: CLIENT,
     })) as Record<string, unknown>;
-    expect(retrieval.retrieve).toHaveBeenCalledWith(
+    expect(contextPlane.searchToolData).toHaveBeenCalledWith(
+      CTX,
       expect.objectContaining({
-        caller: expect.objectContaining({ tenantId: TENANT, userId: USER, clientIds: [CLIENT] }),
+        clientId: CLIENT,
         requestedDomains: ['monday'],
         requireComplete: true,
       }),
@@ -243,6 +246,41 @@ describe('remaining canonical source families', () => {
     expect(classifyApiToolReadOutcome('read_monday_client_boards', result)).toMatchObject({
       kind: 'unavailable',
     });
+  });
+
+  it('does not release Monday evidence when the client wall is revoked during retrieval', async () => {
+    let allowed = true;
+    const prisma = {
+      withTenantUser: jest.fn(
+        async (_tenant: string, _user: string, run: (tx: unknown) => unknown) =>
+          run({ $queryRawUnsafe: jest.fn(async () => [{ allowed }]) }),
+      ),
+    };
+    const contextPlane = {
+      searchToolData: jest.fn(async () => {
+        allowed = false;
+        return mondayResult();
+      }),
+    };
+    await expect(
+      service({ prisma, contextPlane }).execute(CTX, 'read_monday_client_boards', {
+        clientId: CLIENT,
+        pageSize: 1,
+        cursor: 'next-page',
+        boardContext: 'board:42',
+      }),
+    ).rejects.toThrow('Client not found');
+    expect(contextPlane.searchToolData).toHaveBeenCalledWith(
+      CTX,
+      expect.objectContaining({
+        clientId: CLIENT,
+        pageSize: 1,
+        cursors: { monday: 'next-page' },
+        mondayBoardContext: 'board:42',
+        requireComplete: false,
+      }),
+    );
+    expect(prisma.withTenantUser).toHaveBeenCalledTimes(2);
   });
 
   it('reads exact current bill-version text with retained version and extraction hashes', async () => {
