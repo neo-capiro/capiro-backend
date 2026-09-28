@@ -395,9 +395,19 @@ export class OpenAiResponsesClient {
           providerCalls: [telemetry],
         };
 
-        const researchFinalization = functionCalls.length
-          ? null
-          : MeriV3ResearchRuntimeStore.beginFinalization();
+        // Finalization may only transform a closed, valid provider draft. An
+        // incomplete envelope or invalid function-call batch must return to the
+        // assistant's bounded fresh-repair path without consuming the one-shot
+        // research finalization or exposing its partial output to critic/synthesis.
+        const draftCanFinalize =
+          responseStatus === 'completed' &&
+          incompleteReason === null &&
+          callFailure === undefined &&
+          !telemetry.partial;
+        const researchFinalization =
+          draftCanFinalize && functionCalls.length === 0
+            ? MeriV3ResearchRuntimeStore.beginFinalization()
+            : null;
         if (!researchFinalization) return draft;
 
         const remainingBudgetMs = deadlineAt - Date.now();
