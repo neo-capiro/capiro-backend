@@ -88,6 +88,8 @@ import {
   aggSuffix,
 } from '../memory/kg-cache-enrich.helpers.js';
 import { MeriToolsService } from './meri-tools.service.js';
+import { readPersistedPng } from './meri-artifact-integrity.js';
+import { MeriContextPlaneService } from './meri-context-plane.service.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { MemoryIngestService } from '../memory/memory-ingest.service.js';
 import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
@@ -344,6 +346,7 @@ export class MeriService implements MeriTurnMaintenance {
     // fails closed in createConversation.
     @Optional() private readonly bizdevScope?: BizDevMeriScopeService,
     @Optional() private readonly researchPortfolioScope?: ResearchPortfolioMeriScopeService,
+    @Optional() private readonly contextPlane?: MeriContextPlaneService,
   ) {}
 
   async status(ctx: TenantContext) {
@@ -2820,19 +2823,41 @@ export class MeriService implements MeriTurnMaintenance {
   async getArtifactImage(
     ctx: TenantContext,
     id: string,
-  ): Promise<{ buffer: Buffer; contentType: string } | null> {
+  ): Promise<{
+    buffer: Buffer;
+    contentType: string;
+    sha256: string;
+    integrityPolicy: 'persisted_hash_match' | 'validated_legacy_no_persisted_hash';
+  } | null> {
     const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioArtifact.findFirst({
-        where: { id, tenantId: ctx.tenantId },
-        select: { contentType: true, metadata: true },
+        where: { id, tenantId: ctx.tenantId, userId: ctx.userId, kind: 'analysis_chart' },
+        select: {
+          contentType: true,
+          metadata: true,
+          clientId: true,
+          conversation: {
+            select: { tenantId: true, userId: true, clientId: true, archivedAt: true },
+          },
+        },
       }),
     );
-    const meta = artifact?.metadata as Record<string, unknown> | null;
-    const b64 = typeof meta?.imageBase64 === 'string' ? (meta.imageBase64 as string) : null;
-    if (!b64) return null;
+    const conversation = artifact?.conversation;
+    if (!artifact || !conversation || conversation.tenantId !== ctx.tenantId ||
+        conversation.userId !== ctx.userId || conversation.archivedAt ||
+        conversation.clientId !== artifact.clientId) return null;
+    if (artifact.clientId) {
+      if (!this.contextPlane) return null;
+      const security = await this.contextPlane.securityEnvelope(ctx);
+      if (!security.authorizedClientIds.includes(artifact.clientId)) return null;
+    }
+    const image = readPersistedPng(artifact?.metadata);
+    if (!image) return null;
     return {
-      buffer: Buffer.from(b64, 'base64'),
-      contentType: artifact?.contentType ?? 'image/png',
+      buffer: image.buffer,
+      contentType: artifact?.contentType === 'image/png' ? artifact.contentType : 'image/png',
+      sha256: image.sha256,
+      integrityPolicy: image.integrityPolicy,
     };
   }
 

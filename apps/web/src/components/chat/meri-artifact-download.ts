@@ -8,30 +8,63 @@ const DOCUMENT_TYPES: Record<string, string> = {
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
 };
 const ARTIFACT_ID = /^[a-zA-Z0-9_-]{1,200}$/;
+export const MAX_MERI_DOCUMENT_DOWNLOAD_BYTES = 20 * 1024 * 1024;
+const SHA256_HEX = /^[0-9a-f]{64}$/;
 
-function includesBytes(bytes: Uint8Array, sequence: number[]): boolean {
-  outer: for (let offset = 0; offset <= bytes.length - sequence.length; offset += 1) {
-    for (let index = 0; index < sequence.length; index += 1) {
-      if (bytes[offset + index] !== sequence[index]) continue outer;
+async function readBoundedResponse(response: Response, signal: AbortSignal): Promise<Uint8Array> {
+  const declared = response.headers.get('Content-Length');
+  let declaredLength: number | null = null;
+  if (declared !== null) {
+    const length = Number(declared);
+    if (!Number.isSafeInteger(length) || length < 1 || length > MAX_MERI_DOCUMENT_DOWNLOAD_BYTES) {
+      throw new Error('The downloaded document was empty or too large. Please retry.');
     }
-    return true;
+    declaredLength = length;
   }
-  return false;
+  if (!response.body) throw new Error('The server did not return readable document bytes. Please retry.');
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      signal.throwIfAborted();
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value?.byteLength) continue;
+      total += value.byteLength;
+      if (total > MAX_MERI_DOCUMENT_DOWNLOAD_BYTES) {
+        await reader.cancel();
+        throw new Error('The downloaded document was too large. Please retry.');
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  if (!total) throw new Error('The downloaded document was empty. Please retry.');
+  if (declaredLength !== null && total !== declaredLength) {
+    throw new Error('The downloaded document was incomplete. Please retry.');
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
 }
 
-/** MIME is only a routing hint. Validate controlled endpoint bytes before the
- * browser creates a file from them. */
-export function meriDocumentBytesMatchFormat(bytes: Uint8Array, extension: string): boolean {
-  if (extension === 'pdf') {
-    return bytes.length >= 11 && new TextDecoder('ascii').decode(bytes.subarray(0, 5)) === '%PDF-' &&
-      includesBytes(bytes.subarray(Math.max(0, bytes.length - 1024)), [0x25, 0x25, 0x45, 0x4f, 0x46]);
-  }
-  if (extension === 'docx' || extension === 'xlsx' || extension === 'pptx') {
-    return bytes.length >= 22 && bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04 &&
-      includesBytes(bytes.subarray(Math.max(0, bytes.length - 65_557)), [0x50, 0x4b, 0x05, 0x06]);
-  }
-  return false;
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', arrayBufferCopy(bytes));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
+
+function arrayBufferCopy(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
+
 
 /** Older model replies wrapped this protected app route in a sandbox alias.
  * Accept that exact alias only; it never names a file, host or fetch target. */
@@ -185,14 +218,19 @@ export async function fetchMeriArtifactDownload({
   if (!extension || (requestedFormat && extension !== requestedFormat)) {
     throw new Error('The server did not return the expected document. Please retry.');
   }
-  const blob = await response.blob();
-  signal.throwIfAborted();
-  if (!blob.size) throw new Error('The downloaded document was empty. Please retry.');
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  signal.throwIfAborted();
-  if (!meriDocumentBytesMatchFormat(bytes, extension)) {
-    throw new Error('The server did not return the expected document. Please retry.');
+  if (response.headers.get('X-Capiro-Artifact-Id') !== artifactId) {
+    throw new Error('The server returned a different saved document. Please retry.');
   }
+  const expectedSha256 = response.headers.get('X-Capiro-Artifact-Sha256')?.toLowerCase() ?? '';
+  if (!SHA256_HEX.test(expectedSha256)) {
+    throw new Error('The server did not return a document integrity receipt. Please retry.');
+  }
+  const bytes = await readBoundedResponse(response, signal);
+  signal.throwIfAborted();
+  if (await sha256Hex(bytes) !== expectedSha256) {
+    throw new Error('The downloaded document did not match its integrity receipt. Please retry.');
+  }
+  const blob = new Blob([arrayBufferCopy(bytes)], { type: contentType });
   const filename = safeFilename(filenameFromDisposition(response.headers.get('Content-Disposition')), extension)
     ?? safeFilename(fallbackFilename, extension)
     ?? `document.${extension}`;

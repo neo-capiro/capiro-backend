@@ -50,6 +50,7 @@ import { renderReportToBrowserHtml, renderReportToWordHtml } from './meri-resear
 import { runMeriStreamWithSetupGuard } from './meri-stream-preflight.helpers.js';
 import { withMeriToolRequestControl } from './meri-tool-request-control.js';
 import { MeriPdfRenderError } from './meri-docgen-pdf.js';
+import { sha256Bytes, validateDocumentArtifactBytes } from './meri-artifact-integrity.js';
 import type { AssuranceSurface } from '@capiro/meriv2-core';
 
 class CreateMeriConversationDto {
@@ -835,8 +836,9 @@ export class MeriController {
     res.send(html);
   }
 
-  // Download a Meri-generated document. Word/PDF share the same saved spec. The binary is
-  // regenerated on demand from the spec stored on the artifact — no blob storage.
+  // Download a Meri-generated document. Native bytes created by the current
+  // writer are immutable; legacy rows and alternate Word/PDF exports are
+  // regenerated from the same saved spec and labeled as such in the receipt.
   @Get('artifacts/:id/download')
   async downloadArtifact(
     @CurrentTenant() ctx: TenantContext,
@@ -850,7 +852,11 @@ export class MeriController {
     }
     let buffer: Buffer;
     try {
-      buffer = await this.tools.renderStoredDocument(doc.format, doc.specJson);
+      buffer = doc.persistedBytes ?? await this.tools.renderStoredDocument(doc.format, doc.specJson);
+      await validateDocumentArtifactBytes(doc.format, buffer);
+      if (doc.persistedSha256 && sha256Bytes(buffer) !== doc.persistedSha256) {
+        throw new Error('persisted_document_digest_mismatch');
+      }
     } catch (error) {
       throw new UnprocessableEntityException({
         code: 'MERI_DOCUMENT_RENDER_FAILED',
@@ -862,10 +868,18 @@ export class MeriController {
       });
     }
     res.setHeader('Content-Type', doc.mimeType);
+    res.setHeader('Content-Length', String(buffer.length));
     res.setHeader('Content-Disposition', `attachment; filename="${doc.filename}"`);
     // The authenticated web client needs the canonical saved filename when
     // downloading from the API origin. Artifact bytes remain private.
-    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+    const sha256 = sha256Bytes(buffer);
+    res.setHeader('X-Capiro-Artifact-Id', id);
+    res.setHeader('X-Capiro-Artifact-Sha256', sha256);
+    res.setHeader('X-Capiro-Artifact-Byte-Authority', doc.byteAuthority);
+    res.setHeader(
+      'Access-Control-Expose-Headers',
+      'Content-Disposition, Content-Length, X-Capiro-Artifact-Id, X-Capiro-Artifact-Sha256, X-Capiro-Artifact-Byte-Authority',
+    );
     res.setHeader('Cache-Control', 'private, no-store');
     res.send(buffer);
   }
@@ -881,7 +895,12 @@ export class MeriController {
     const image = await this.service.getArtifactImage(ctx, id);
     if (!image) throw new NotFoundException('Image artifact not found');
     res.setHeader('Content-Type', image.contentType);
-    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.setHeader('Content-Length', String(image.buffer.length));
+    res.setHeader('ETag', `"sha256-${image.sha256}"`);
+    res.setHeader('X-Capiro-Artifact-Id', id);
+    res.setHeader('X-Capiro-Image-Integrity', image.integrityPolicy);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.send(image.buffer);
   }
 

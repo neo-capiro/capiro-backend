@@ -1,11 +1,12 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { createHash } from 'node:crypto';
+import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { assertMeriToolRequestActive } from './meri-tool-request-control.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
+import { MeriContextPlaneService } from './meri-context-plane.service.js';
 import { sha256CanonicalAnalysisJson } from './meri-analysis-provenance.js';
+import { readPersistedPng, validatePngBase64 } from './meri-artifact-integrity.js';
 import {
   analysisResultsWithoutVisualizations,
   analysisVisualizationCandidatesFromResults,
@@ -56,26 +57,6 @@ function optionalString(value: unknown, max = 300): string | null {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
   return trimmed ? trimmed.slice(0, max) : null;
-}
-
-function boundedBase64(value: unknown, max: number): string | null {
-  if (typeof value !== 'string') return null;
-  const trimmed = value.trim();
-  if (!trimmed || trimmed.length > max) return null;
-  return trimmed;
-}
-
-const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-const PNG_IEND_CHUNK = Buffer.from([0, 0, 0, 0, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]);
-
-function validatedPng(value: unknown): { base64: string; buffer: Buffer; sha256: string } | null {
-  const base64 = boundedBase64(value, 3 * 1024 * 1024);
-  if (!base64) return null;
-  const buffer = Buffer.from(base64, 'base64');
-  if (buffer.length < PNG_SIGNATURE.length + PNG_IEND_CHUNK.length ||
-    !buffer.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE) ||
-    !buffer.subarray(-PNG_IEND_CHUNK.length).equals(PNG_IEND_CHUNK)) return null;
-  return { base64, buffer, sha256: createHash('sha256').update(buffer).digest('hex') };
 }
 
 function metadataRecord(value: unknown): Record<string, unknown> {
@@ -173,7 +154,24 @@ export class MeriV3VisualAnalysisService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tools: MeriToolsService,
+    @Optional() private readonly contextPlane?: MeriContextPlaneService,
   ) {}
+
+  private async currentArtifactContextAllowed(
+    ctx: TenantContext,
+    artifact: {
+      clientId: string | null;
+      conversation: { tenantId: string; userId: string; clientId: string | null; archivedAt: Date | null } | null;
+    },
+  ): Promise<boolean> {
+    const conversation = artifact.conversation;
+    if (!conversation || conversation.tenantId !== ctx.tenantId || conversation.userId !== ctx.userId ||
+        conversation.archivedAt || conversation.clientId !== artifact.clientId) return false;
+    if (!artifact.clientId) return true;
+    if (!this.contextPlane) return false;
+    const security = await this.contextPlane.securityEnvelope(ctx);
+    return security.authorizedClientIds.includes(artifact.clientId);
+  }
 
   /** The same env + tenant gate that controls whether run_analysis is offered. */
   isAvailable(tenantId: string): Promise<boolean> {
@@ -317,16 +315,16 @@ export class MeriV3VisualAnalysisService {
       for (let index = 0; index < count; index += 1) {
         assertMeriToolRequestActive();
         const visual = visualsByIndex[index] ?? null;
-        const image = images[index] ?? null;
-        const rawMeta = metadataRecord(image?.metadata);
-        const png = validatedPng(rawMeta.imageBase64);
-        const imageBase64 = png?.base64 ?? null;
+        const rawImage = images[index] ?? null;
+        const rawMeta = metadataRecord(rawImage?.metadata);
+        const image = validatePngBase64(rawMeta.imageBase64);
+        const imageBase64 = image?.base64 ?? null;
         const filename = optionalString(rawMeta.filename, 160);
         const codeSha256 = optionalString(rawMeta.codeSha256, 80);
         if (!visual && !imageBase64) continue;
 
         const title =
-          visual?.title ?? optionalString(image?.title, 140) ?? `Analysis visual ${index + 1}`;
+          visual?.title ?? optionalString(rawImage?.title, 140) ?? `Analysis visual ${index + 1}`;
         const metadata: Record<string, unknown> = {
           source: 'meri_v3_visual_analysis',
           tool: 'run_analysis',
@@ -336,7 +334,7 @@ export class MeriV3VisualAnalysisService {
           ...(datasets.length ? { datasets } : {}),
           ...(filename ? { filename } : {}),
           ...(codeSha256 ? { codeSha256 } : {}),
-          ...(imageBase64 ? { imageBase64, imageSha256: png!.sha256 } : {}),
+          ...(image ? { imageBase64: image.base64, imageSha256: image.sha256 } : {}),
           ...(visual
             ? {
                 visualization: visual,
@@ -419,14 +417,20 @@ export class MeriV3VisualAnalysisService {
           userId: ctx.userId,
           kind: 'analysis_chart',
         },
-        select: { id: true, title: true, metadata: true, createdAt: true },
+        select: {
+          id: true,
+          title: true,
+          metadata: true,
+          createdAt: true,
+          clientId: true,
+          conversation: { select: { tenantId: true, userId: true, clientId: true, archivedAt: true } },
+        },
       }),
     );
-    if (!artifact) return null;
+    if (!artifact || !(await this.currentArtifactContextAllowed(ctx, artifact))) return null;
     const metadata = metadataRecord(artifact.metadata);
     const visualization = sanitizeAnalysisVisualization(metadata.visualization);
-    const imageAvailable =
-      typeof metadata.imageBase64 === 'string' && metadata.imageBase64.length > 0;
+    const imageAvailable = Boolean(readPersistedPng(metadata));
     if (!visualization && !imageAvailable) return null;
     const datasets = datasetSummariesFromMetadata(metadata.datasets);
     return {
@@ -447,7 +451,12 @@ export class MeriV3VisualAnalysisService {
   async getArtifactImage(
     ctx: TenantContext,
     id: string,
-  ): Promise<{ buffer: Buffer; contentType: string; sha256: string } | null> {
+  ): Promise<{
+    buffer: Buffer;
+    contentType: string;
+    sha256: string;
+    integrityPolicy: 'persisted_hash_match' | 'validated_legacy_no_persisted_hash';
+  } | null> {
     const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioArtifact.findFirst({
         where: {
@@ -456,16 +465,22 @@ export class MeriV3VisualAnalysisService {
           userId: ctx.userId,
           kind: 'analysis_chart',
         },
-        select: { contentType: true, metadata: true },
+        select: {
+          contentType: true,
+          metadata: true,
+          clientId: true,
+          conversation: { select: { tenantId: true, userId: true, clientId: true, archivedAt: true } },
+        },
       }),
     );
-    if (!artifact) return null;
-    const png = validatedPng(metadataRecord(artifact.metadata).imageBase64);
-    if (!png) return null;
+    if (!artifact || !(await this.currentArtifactContextAllowed(ctx, artifact))) return null;
+    const image = readPersistedPng(artifact.metadata);
+    if (!image) return null;
     return {
-      buffer: png.buffer,
+      buffer: image.buffer,
       contentType: artifact.contentType === 'image/png' ? artifact.contentType : 'image/png',
-      sha256: png.sha256,
+      sha256: image.sha256,
+      integrityPolicy: image.integrityPolicy,
     };
   }
 

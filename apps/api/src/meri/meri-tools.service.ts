@@ -117,6 +117,12 @@ import {
   validateScheduleRequest,
 } from './meri-schedule.helpers.js';
 import { createHash } from 'node:crypto';
+import {
+  MAX_DOCUMENT_ARTIFACT_BYTES,
+  readPersistedPng,
+  sha256Bytes,
+  validateDocumentArtifactBytes,
+} from './meri-artifact-integrity.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
@@ -6939,10 +6945,9 @@ export class MeriToolsService {
   // ── Document generation (Word / PDF / Excel / PowerPoint) ──
 
   /**
-   * Generate a downloadable document. The validated spec is normalized,
-   * then a binary is produced ONCE to prove it builds; the spec (JSON) is stored
-   * on the artifact so the download endpoint regenerates the binary statelessly
-   * (no blob storage needed), mirroring the research-export pattern.
+   * Generate a downloadable document. The normalized spec and validated native
+   * bytes are persisted together so the native download is immutable. Legacy
+   * rows and alternate Word/PDF exports remain explicitly regenerated.
    */
   private async createDocument(
     ctx: TenantContext,
@@ -6955,6 +6960,7 @@ export class MeriToolsService {
 
     let title: string;
     let normalized: unknown;
+    let generatedBuffer: Buffer;
     if (format === 'docx' || format === 'pdf') {
       const spec = normalizeWordSpec(input);
       // Resolve referenced analysis-chart artifacts into embedded PNGs (F4)
@@ -6975,7 +6981,7 @@ export class MeriToolsService {
       normalized = spec;
       if (format === 'pdf') {
         try {
-          await this.docgen.buildPdf(spec);
+          generatedBuffer = await this.docgen.buildPdf(spec);
         } catch (error) {
           throw new UnprocessableEntityException({
             code: 'MERI_DOCUMENT_GENERATION_FAILED',
@@ -6987,12 +6993,12 @@ export class MeriToolsService {
                 : 'PDF generation failed. Nothing was saved. Try again or request Word.',
           });
         }
-      } else await this.docgen.buildDocx(spec);
+      } else generatedBuffer = await this.docgen.buildDocx(spec);
     } else if (format === 'xlsx') {
       const spec = normalizeExcelSpec(input);
       title = spec.title;
       normalized = spec;
-      await this.docgen.buildXlsx(spec);
+      generatedBuffer = await this.docgen.buildXlsx(spec);
     } else {
       const spec = normalizePptxSpec(input);
       for (const slide of spec.slides) {
@@ -7009,8 +7015,10 @@ export class MeriToolsService {
       }
       title = spec.title;
       normalized = spec;
-      await this.docgen.buildPptx(spec);
+      generatedBuffer = await this.docgen.buildPptx(spec);
     }
+    await validateDocumentArtifactBytes(format, generatedBuffer);
+    const documentSha256 = sha256Bytes(generatedBuffer);
 
     const toolName =
       format === 'docx' || format === 'pdf'
@@ -7040,6 +7048,11 @@ export class MeriToolsService {
         mimeType: mimeForFormat(format),
         filename,
         generatedAt: new Date().toISOString(),
+        documentBytesBase64: generatedBuffer.toString('base64'),
+        documentSha256,
+        documentByteLength: generatedBuffer.length,
+        documentByteFormat: format,
+        documentByteAuthority: 'persisted_at_creation_v1',
       },
     });
 
@@ -7082,14 +7095,37 @@ export class MeriToolsService {
     ctx: TenantContext,
     artifactId: string,
     requestedFormat?: string,
-  ): Promise<{ format: DocFormat; specJson: string; filename: string; mimeType: string } | null> {
+  ): Promise<{
+    format: DocFormat;
+    specJson: string;
+    filename: string;
+    mimeType: string;
+    persistedBytes: Buffer | null;
+    persistedSha256: string | null;
+    byteAuthority: 'persisted_at_creation_v1' | 'regenerated_legacy' | 'regenerated_export';
+  } | null> {
     const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioArtifact.findFirst({
         where: { id: artifactId, tenantId: ctx.tenantId, userId: ctx.userId },
-        select: { bodyText: true, metadata: true },
+        select: {
+          bodyText: true,
+          metadata: true,
+          clientId: true,
+          conversation: {
+            select: { tenantId: true, userId: true, clientId: true, archivedAt: true },
+          },
+        },
       }),
     );
     if (!artifact || !artifact.bodyText) return null;
+    if (!artifact.conversation || artifact.conversation.tenantId !== ctx.tenantId ||
+        artifact.conversation.userId !== ctx.userId || artifact.conversation.archivedAt ||
+        artifact.conversation.clientId !== artifact.clientId) return null;
+    if (artifact.clientId) {
+      if (!this.contextPlane) return null;
+      const security = await this.contextPlane.securityEnvelope(ctx);
+      if (!security.authorizedClientIds.includes(artifact.clientId)) return null;
+    }
     const meta = (artifact.metadata ?? {}) as Record<string, unknown>;
     const nativeFormat = meta.docFormat;
     if (
@@ -7118,11 +7154,45 @@ export class MeriToolsService {
     const filename = (
       format === nativeFormat ? savedFilename : `${savedFilename.replace(/\.[^.]*$/, '')}.${format}`
     ).replace(/[\r\n"\\]/g, '_');
+    let persistedBytes: Buffer | null = null;
+    let persistedSha256: string | null = null;
+    let byteAuthority: 'persisted_at_creation_v1' | 'regenerated_legacy' | 'regenerated_export' =
+      format === nativeFormat ? 'regenerated_legacy' : 'regenerated_export';
+    const hasPersistedByteFields = [
+      meta.documentBytesBase64,
+      meta.documentSha256,
+      meta.documentByteLength,
+      meta.documentByteFormat,
+      meta.documentByteAuthority,
+    ].some((value) => value !== undefined);
+    if (format === nativeFormat && hasPersistedByteFields) {
+      if (typeof meta.documentBytesBase64 !== 'string' ||
+          meta.documentBytesBase64.length > Math.ceil(MAX_DOCUMENT_ARTIFACT_BYTES / 3) * 4 + 4 ||
+          typeof meta.documentSha256 !== 'string' || !/^[0-9a-f]{64}$/.test(meta.documentSha256) ||
+          meta.documentByteFormat !== nativeFormat ||
+          meta.documentByteAuthority !== 'persisted_at_creation_v1' ||
+          typeof meta.documentByteLength !== 'number' || !Number.isSafeInteger(meta.documentByteLength) ||
+          meta.documentByteLength < 1 || meta.documentByteLength > MAX_DOCUMENT_ARTIFACT_BYTES) {
+        throw new UnprocessableEntityException('The saved document bytes failed their integrity receipt.');
+      }
+      const decoded = Buffer.from(meta.documentBytesBase64, 'base64');
+      if (decoded.toString('base64') !== meta.documentBytesBase64 ||
+          decoded.length !== meta.documentByteLength ||
+          sha256Bytes(decoded) !== meta.documentSha256) {
+        throw new UnprocessableEntityException('The saved document bytes failed their integrity receipt.');
+      }
+      persistedBytes = decoded;
+      persistedSha256 = meta.documentSha256;
+      byteAuthority = 'persisted_at_creation_v1';
+    }
     return {
       format,
       specJson: artifact.bodyText,
       filename,
       mimeType: mimeForFormat(format),
+      persistedBytes,
+      persistedSha256,
+      byteAuthority,
     };
   }
 
@@ -8519,18 +8589,20 @@ export class MeriToolsService {
           select: { metadata: true },
         }),
       );
-      const meta = artifact?.metadata as Record<string, unknown> | null;
-      if (typeof meta?.imageBase64 !== 'string' || !meta.imageBase64) {
-        throw new NotFoundException(
-          'One or more analysis charts were not found. Regenerate the charts and try again.',
-        );
-      }
-      if (meta.imageBase64.length > MAX_IMAGE_BASE64_CHARS) {
+      const metadata = artifact?.metadata as Record<string, unknown> | null;
+      if (typeof metadata?.imageBase64 === 'string' &&
+          metadata.imageBase64.length > MAX_IMAGE_BASE64_CHARS) {
         throw new BadRequestException(
           'A saved chart is too large to embed. Regenerate a smaller chart and try again.',
         );
       }
-      out.push({ dataBase64: meta.imageBase64 });
+      const image = readPersistedPng(artifact?.metadata);
+      if (!image) {
+        throw new NotFoundException(
+          'One or more analysis charts were not found. Regenerate the charts and try again.',
+        );
+      }
+      out.push({ dataBase64: image.base64 });
     }
     return out;
   }

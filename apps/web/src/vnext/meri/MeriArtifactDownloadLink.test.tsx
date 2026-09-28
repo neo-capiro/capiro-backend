@@ -1,17 +1,12 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { MeriArtifactDownloadLink } from './MeriArtifactDownloadLink.js';
+import { artifactDownloadResponse } from '../../test/meri-artifact-download-fixtures.js';
 
 const apiBaseUrl = 'https://api.example.test';
 const href = '/api/clio/artifacts/saved-artifact-1/download';
-const docxMime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-const officeBytes = Uint8Array.from([
-  0x50, 0x4b, 0x03, 0x04, 0, 0, 0, 0, 0, 0, 0, 0,
-  0x50, 0x4b, 0x05, 0x06, 0, 0, 0, 0, 0, 0,
-]);
-const pdfBytes = new TextEncoder().encode('%PDF-1.7\ncontrolled fixture\n%%EOF');
 function success() {
-  return { ok: true, headers: new Headers({ 'Content-Type': docxMime, 'Content-Disposition': 'attachment; filename="saved-briefing.docx"' }), blob: async () => new Blob([officeBytes], { type: docxMime }) };
+  return artifactDownloadResponse({ disposition: 'attachment; filename="saved-briefing.docx"' });
 }
 function setupBlob() {
   const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:saved-document');
@@ -31,7 +26,7 @@ describe('inline Meri artifact download', () => {
   });
 
   test('intercepts the protected Markdown link and downloads the same saved artifact after reopening', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(success());
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(success()));
     vi.stubGlobal('fetch', fetchMock);
     const { click } = setupBlob();
     const getAuthHeaders = vi.fn(async () => ({ Authorization: 'Bearer current-user' }));
@@ -74,7 +69,7 @@ describe('inline Meri artifact download', () => {
   });
 
   test('downloads PDF through the same protected inline link after history replay', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, headers: new Headers({ 'Content-Type': 'application/pdf' }), blob: async () => new Blob([pdfBytes], { type: 'application/pdf' }) });
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(artifactDownloadResponse({ mime: 'application/pdf' })));
     vi.stubGlobal('fetch', fetchMock);
     const { click } = setupBlob();
     const getAuthHeaders = vi.fn(async () => ({ Authorization: 'Bearer current-user' }));
