@@ -422,10 +422,12 @@ describe('MeriResearchService typed-plan admission', () => {
         allowedReadCapabilities: ['get_client_context'],
       },
     });
-    expect(f.runner.run.mock.calls[0]?.[1].user).toContain('get_client_context');
-    expect(f.runner.run.mock.calls[0]?.[1].user).not.toContain(
-      '\"allowedCapabilities\":[\"search_memory\"]',
-    );
+    expect(f.runner.run.mock.calls[0]?.[1]).toMatchObject({
+      user: expect.stringContaining('get_client_context'),
+    });
+    expect(f.runner.run.mock.calls[0]?.[1]).toMatchObject({
+      user: expect.not.stringContaining('\"allowedCapabilities\":[\"search_memory\"]'),
+    });
     expect(f.tools.execute).not.toHaveBeenCalled();
   });
 
