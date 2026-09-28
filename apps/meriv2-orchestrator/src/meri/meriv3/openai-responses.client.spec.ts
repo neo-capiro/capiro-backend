@@ -413,32 +413,35 @@ describe('OpenAiResponsesClient', () => {
       { ...responseBody.output[2], status: 'completed', arguments: '{"query":' },
       'malformed_function_call',
     ],
-  ])('rejects every call in a completed response containing %s', async (_label, invalidCall, reason) => {
-    process.env.OPENAI_API_KEY = 'test-key';
-    global.fetch = jest.fn(
-      async () =>
-        new Response(
-          JSON.stringify({
-            ...responseBody,
-            output: [
-              { ...responseBody.output[2], call_id: 'call-valid', status: 'completed' },
-              invalidCall,
-            ],
-          }),
-          { status: 200 },
-        ),
-    ) as typeof fetch;
+  ])(
+    'rejects every call in a completed response containing %s',
+    async (_label, invalidCall, reason) => {
+      process.env.OPENAI_API_KEY = 'test-key';
+      global.fetch = jest.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              ...responseBody,
+              output: [
+                { ...responseBody.output[2], call_id: 'call-valid', status: 'completed' },
+                invalidCall,
+              ],
+            }),
+            { status: 200 },
+          ),
+      ) as typeof fetch;
 
-    const result = await new OpenAiResponsesClient().complete({
-      profile: resolveMeriV3ReasoningProfile('deep', {}),
-      instructions: 'Answer.',
-      input: [],
-      tools: [],
-    });
+      const result = await new OpenAiResponsesClient().complete({
+        profile: resolveMeriV3ReasoningProfile('deep', {}),
+        instructions: 'Answer.',
+        input: [],
+        tools: [],
+      });
 
-    expect(result.functionCalls).toEqual([]);
-    expect(result.telemetry).toMatchObject({ finishReason: reason, partial: true });
-  });
+      expect(result.functionCalls).toEqual([]);
+      expect(result.telemetry).toMatchObject({ finishReason: reason, partial: true });
+    },
+  );
 
   test('cancels retry backoff immediately and does not start another request', async () => {
     jest.useFakeTimers();

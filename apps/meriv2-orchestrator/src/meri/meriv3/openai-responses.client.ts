@@ -130,9 +130,7 @@ export function extractResponsesFunctionCalls(
  * Checking both the normalized call list and raw output prevents a malformed
  * tool item suppressed by the adapter from being mistaken for tool-free prose.
  */
-export function completedTextResponseFailure(
-  response: OpenAiResponsesResult,
-): string | null {
+export function completedTextResponseFailure(response: OpenAiResponsesResult): string | null {
   if (response.status !== 'completed') return `status_${response.status}`;
   if (response.incompleteReason !== null) {
     return `incomplete_${response.incompleteReason ?? 'unknown'}`;
@@ -339,10 +337,7 @@ export class OpenAiResponsesClient {
       params.signal?.addEventListener('abort', abortFromCaller, { once: true });
       let status: number | undefined;
       try {
-        params.budget?.reserveModelAttempt(
-          params.budgetPhase ?? 'acquisition',
-          wireAttempts > 0,
-        );
+        params.budget?.reserveModelAttempt(params.budgetPhase ?? 'acquisition', wireAttempts > 0);
         wireAttempts += 1;
         const toolFields = params.tools.length
           ? {
@@ -415,7 +410,9 @@ export class OpenAiResponsesClient {
           reasoningFallbackReasons: [...reasoningFallbackReasons],
           finishReason: callFailure ?? incompleteReason ?? body.error?.code ?? responseStatus,
           partial:
-            responseStatus !== 'completed' || incompleteReason !== null || callFailure !== undefined,
+            responseStatus !== 'completed' ||
+            incompleteReason !== null ||
+            callFailure !== undefined,
         };
         // Do not extract or return function calls when response is incomplete.
         // The provider may have emitted partial tool calls before hitting a limit.
@@ -538,7 +535,10 @@ export class OpenAiResponsesClient {
           const validatedSynthesis = MeriV3ResearchRuntimeStore.validateDraft(synthesis.outputText);
           if (validatedSynthesis.issueCount > 0) {
             this.logger.warn(
-              JSON.stringify({ event: 'meri.schedule_integrity', issueCount: validatedSynthesis.issueCount }),
+              JSON.stringify({
+                event: 'meri.schedule_integrity',
+                issueCount: validatedSynthesis.issueCount,
+              }),
             );
           }
           return {
