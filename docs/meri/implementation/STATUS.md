@@ -1,6 +1,8 @@
 # Meri file 01 status
 
-## Current checkpoint — 2026-09-28 04:15 UTC
+## Current checkpoint — 2026-09-28 04:18 UTC
+
+Native pgvector follow-up: Actions [36376591290](https://github.com/neo-capiro/capirov2/actions/runs/36376591290) at add5be483 completed successfully. Actual PostgreSQL 16/vector(1024) ran all ten tests, including 1000/501-row candidate and semantic-abort/fallback cases. Local vector absence remains a local limit; CI semantic qualification is now PASS. Artifact independent review rejected complete boundary at9276bd489 after malformed OOXML/PNG/browser and cross-client chart embedding counterexamples; repair active and candidate excluded.
 
 File 01 remains IN_PROGRESS. Reviewed integration source is 55b4b84ac29027002e35c0c44dcc727900e4848e before this checkpoint and the shared-build CI prerequisite. Draft PR1904 is for qualification only. Both mains, shared deployment, migrations and approved synthetic enablement remain unchanged; database recovery remains a release hold.
 
