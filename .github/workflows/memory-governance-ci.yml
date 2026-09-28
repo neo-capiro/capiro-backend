@@ -55,6 +55,11 @@ jobs:
           pnpm --filter @capiro/onboard-api exec prisma generate
           pnpm --filter @capiro/api-strategy exec prisma generate
 
+      - name: Bootstrap disposable Postgres migration roles
+        env:
+          CI_DISPOSABLE_POSTGRES: '1'
+        run: bash scripts/ci/bootstrap-disposable-postgres-roles.sh
+
       - name: Replay all API migrations on clean Postgres
         run: pnpm --filter @capiro/api exec prisma migrate deploy
 
