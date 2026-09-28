@@ -28,7 +28,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import type { TenantContext } from '@capiro/shared';
+import { MERI_CAPABILITY_REGISTRY, type TenantContext } from '@capiro/shared';
 import { MeriConversationEvidenceService } from './meri-conversation-evidence.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ordinaryClioArtifactWhere } from '../common/internal-clio-artifact.js';
@@ -88,6 +88,26 @@ interface StreamControl {
   cleanContent: string;
   traceEnabled: boolean;
   pageWriteEnabled: boolean;
+}
+
+const PUBLIC_WORK_TOOL_NAMES = new Set([
+  ...MERI_CAPABILITY_REGISTRY.map((tool) => tool.name),
+  'synthesize',
+  'unknown_tool',
+]);
+const UNKNOWN_PUBLIC_TOOL = {
+  tool: 'unknown_tool',
+  label: 'Unavailable tool',
+  detail: 'An unavailable tool request was blocked.',
+} as const;
+
+function publicWorkTool<T extends { tool: string; label: string; detail?: string }>(event: T): T {
+  if (PUBLIC_WORK_TOOL_NAMES.has(event.tool)) return event;
+  return {
+    ...event,
+    ...UNKNOWN_PUBLIC_TOOL,
+    ...('status' in event ? { status: 'blocked' } : {}),
+  };
 }
 
 @Injectable()
@@ -378,26 +398,29 @@ export class MeriV3ProxyService {
           providerCalls = event.providerCalls ?? providerCalls;
           emit(event as unknown as Record<string, unknown>);
           return;
-        case 'tool_call':
-          emit({ type: 'tool_call', tool: event.tool, label: event.label });
+        case 'tool_call': {
+          const visible = publicWorkTool(event);
+          emit({ type: 'tool_call', tool: visible.tool, label: visible.label });
           return;
+        }
         case 'tool_done': {
-          steps.push(event);
+          const visible = publicWorkTool(event);
+          steps.push(visible);
           const summary =
-            event.status === 'done'
-              ? (event.detail ?? 'Completed')
-              : event.status === 'pending_approval'
+            visible.status === 'done'
+              ? (visible.detail ?? 'Completed')
+              : visible.status === 'pending_approval'
                 ? 'Held for your approval'
-                : (event.detail ?? (event.status === 'blocked' ? 'Blocked' : 'Errored'));
+                : (visible.detail ?? (visible.status === 'blocked' ? 'Blocked' : 'Errored'));
           emit({
             type: 'sources',
             sources: [
               {
-                tool: event.tool,
-                label: event.label,
+                tool: visible.tool,
+                label: visible.label,
                 count: null,
                 summary,
-                confidence: event.status === 'done' ? 'high' : 'low',
+                confidence: visible.status === 'done' ? 'high' : 'low',
               },
             ],
           });

@@ -1157,11 +1157,11 @@ describe('MeriV3 public work receipt persistence', () => {
         status: 'done',
         detail: 'Three approved facts',
       });
-      onEvent({ type: 'tool_call', tool: 'send_message', label: 'Send message' });
+      onEvent({ type: 'tool_call', tool: 'send_email', label: 'Send email' });
       onEvent({
         type: 'tool_done',
-        tool: 'send_message',
-        label: 'Send message',
+        tool: 'send_email',
+        label: 'Send email',
         status: 'pending_approval',
       });
       onEvent({ type: 'text', text: 'Draft prepared.' });
@@ -1193,8 +1193,8 @@ describe('MeriV3 public work receipt persistence', () => {
           confidence: 'high',
         },
         {
-          tool: 'send_message',
-          label: 'Send message',
+          tool: 'send_email',
+          label: 'Send email',
           status: 'error',
           detail: 'Held for your approval',
           confidence: 'low',
@@ -1208,6 +1208,49 @@ describe('MeriV3 public work receipt persistence', () => {
     ]);
     expect(persisted).toMatchObject({
       id: frames().find((frame) => frame.type === 'done')?.messageId,
+    });
+  });
+
+  it('redacts a lowercase undeclared provider name from stream and persisted telemetry', async () => {
+    const { service, client, sse, frames, tx } = buildHarness();
+    client.streamChat.mockImplementationOnce(async ({ onEvent }: any) => {
+      onEvent({
+        type: 'tool_call',
+        tool: 'lowercaseprivatename',
+        label: 'lowercaseprivatename private label',
+      });
+      onEvent({
+        type: 'tool_done',
+        tool: 'lowercaseprivatename',
+        label: 'lowercaseprivatename private label',
+        status: 'blocked',
+        detail: 'privateargs private reason',
+      });
+      onEvent({ type: 'done', reply: 'Blocked.', intent: 'general', model: 'test' });
+    });
+
+    await service.streamMessage(
+      CTX,
+      CONVERSATION,
+      'Do not disclose the provider name.',
+      sse,
+      undefined,
+      'new',
+      [],
+      'token',
+    );
+
+    const saved = tx.clioMessage.create.mock.calls
+      .map(([arg]: any) => arg.data)
+      .find((data: any) => data.role === 'assistant');
+    const publicCapture = JSON.stringify({ frames: frames(), metadata: saved.metadata });
+    expect(publicCapture).not.toContain('lowercaseprivatename');
+    expect(publicCapture).not.toContain('privateargs');
+    expect(publicCapture).not.toContain('private reason');
+    expect(saved.metadata).toMatchObject({
+      trustSteps: [expect.objectContaining({ tool: 'unknown_tool', label: 'Unavailable tool' })],
+      trace: [expect.objectContaining({ tool: 'unknown_tool', label: 'Unavailable tool' })],
+      toolsUsed: ['unknown_tool'],
     });
   });
 });

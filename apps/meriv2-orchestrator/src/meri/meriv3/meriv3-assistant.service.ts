@@ -193,6 +193,11 @@ const AUTO_CORRECTION_BUDGET = {
 /** Promoted material claims assessed per turn; later claims stay byte-identical. */
 const AUTO_CORRECTION_MAX_CLAIMS = 12;
 const PAGE_WRITE_DRAFT_TOOLS = new Set(['draft_policy_memo', 'create_meeting_brief']);
+const UNKNOWN_PUBLIC_TOOL = {
+  tool: 'unknown_tool',
+  label: 'Unavailable tool',
+  detail: 'An unavailable tool request was blocked.',
+} as const;
 const MODEL_AUTHORED_PERSISTED_BODY_FIELDS: ReadonlyMap<string, string> = new Map([
   ['draft_policy_memo', 'body'],
   ['save_note', 'body'],
@@ -2669,6 +2674,10 @@ export class MeriV3AssistantService {
     semanticDecisionId: string;
   }): Promise<FunctionExecution[]> {
     const executions: FunctionExecution[] = [];
+    const publicCall = (call: OpenAiResponsesFunctionCall) =>
+      args.schemas.some((schema) => schema.name === call.name)
+        ? { tool: call.name, label: toolLabel(call.name), detail: undefined }
+        : UNKNOWN_PUBLIC_TOOL;
     const logDispatch = (
       call: OpenAiResponsesFunctionCall,
       result: string,
@@ -2693,23 +2702,24 @@ export class MeriV3AssistantService {
     };
     const stopWithoutDispatch = (call: OpenAiResponsesFunctionCall): void => {
       const detail = `Aggregate runtime acquisition stopped: ${args.runtimeBudget.reason ?? 'tool_calls'}.`;
+      const visible = publicCall(call);
       const result = {
         error: detail,
         code: 'MERI_RUNTIME_BUDGET_STOPPED',
         partial: true,
       };
       args.steps.push({
-        tool: call.name,
-        label: toolLabel(call.name),
+        tool: visible.tool,
+        label: visible.label,
         status: 'blocked',
-        detail,
+        detail: visible.detail ?? detail,
       });
       args.emit({
         type: 'tool_done',
-        tool: call.name,
-        label: toolLabel(call.name),
+        tool: visible.tool,
+        label: visible.label,
         status: 'blocked',
-        detail,
+        detail: visible.detail ?? detail,
       });
       executions.push({ call, result, serialized: JSON.stringify(result) });
       logDispatch(call, 'blocked_budget', false);
@@ -2729,17 +2739,17 @@ export class MeriV3AssistantService {
       // Enforce capability selection at execution too: a provider can emit an
       // undeclared call, but it cannot escape the caller's narrower tool policy.
       if (!schema) {
-        const detail = 'This tool is not available for this operation.';
+        const detail = UNKNOWN_PUBLIC_TOOL.detail;
         args.steps.push({
-          tool: call.name,
-          label: toolLabel(call.name),
+          tool: UNKNOWN_PUBLIC_TOOL.tool,
+          label: UNKNOWN_PUBLIC_TOOL.label,
           status: 'blocked',
           detail,
         });
         args.emit({
           type: 'tool_done',
-          tool: call.name,
-          label: toolLabel(call.name),
+          tool: UNKNOWN_PUBLIC_TOOL.tool,
+          label: UNKNOWN_PUBLIC_TOOL.label,
           status: 'blocked',
           detail,
         });

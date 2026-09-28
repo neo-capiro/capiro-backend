@@ -1569,10 +1569,16 @@ describe('MeriV3AssistantService', () => {
       expect(invoke).not.toHaveBeenCalled();
       expect(proposal).not.toHaveBeenCalled();
       expect(result.steps).toEqual(
-        expect.arrayContaining([expect.objectContaining({ tool: name, status: 'blocked' })]),
+        expect.arrayContaining([
+          expect.objectContaining({
+            tool: 'unknown_tool',
+            label: 'Unavailable tool',
+            status: 'blocked',
+          }),
+        ]),
       );
       expect(JSON.stringify(complete.mock.calls[1]?.[0].input)).toContain(
-        'not available for this operation',
+        'An unavailable tool request was blocked.',
       );
     },
   );
@@ -3972,16 +3978,28 @@ describe('Stage 2 orchestrator hardening', () => {
       expect(proposal).not.toHaveBeenCalled();
     });
 
-    test('blocks an unknown provider name without copying private text into selector telemetry', async () => {
-      const call = {
+    test('blocks unknown provider names without copying them or private arguments into public traces', async () => {
+      const upperCall = {
         type: 'function_call',
         call_id: 'undeclared-private-name',
         name: 'TOPSECRET9',
         arguments: '{"body":"private argument"}',
       };
+      const lowerCall = {
+        type: 'function_call',
+        call_id: 'undeclared-lowercase-name',
+        name: 'lowercaseprivatename',
+        arguments: '{"reason":"private reason"}',
+      };
       const complete = jest
         .fn()
-        .mockResolvedValueOnce(response({ output: [call], outputText: '', functionCalls: [call] }))
+        .mockResolvedValueOnce(
+          response({
+            output: [upperCall, lowerCall],
+            outputText: '',
+            functionCalls: [upperCall, lowerCall],
+          }),
+        )
         .mockResolvedValueOnce(response({ outputText: 'Blocked.' }));
       const invoke = jest.fn();
       const proposal = jest.fn();
@@ -4010,10 +4028,13 @@ describe('Stage 2 orchestrator hardening', () => {
           ),
       ) as typeof fetch;
 
-      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
-        assistant.run(context, {
-          messages: [{ role: 'user', text: 'My private keyword is TOPSECRET9.' }],
-        }),
+      const events: unknown[] = [];
+      const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        assistant.run(
+          context,
+          { messages: [{ role: 'user', text: 'My private keyword is TOPSECRET9.' }] },
+          { onEvent: (event) => events.push(event) },
+        ),
       );
 
       expect(providerToolNames(complete)).toEqual(['search_memory', 'send_email']);
@@ -4026,6 +4047,18 @@ describe('Stage 2 orchestrator hardening', () => {
       expect(selectorLogs.join('\n')).not.toContain('TOPSECRET9');
       expect(selectorLogs.join('\n')).not.toContain('private argument');
       expect(selectorLogs.join('\n')).not.toContain('private keyword');
+      const publicTrace = JSON.stringify({ events, steps: result.steps });
+      expect(publicTrace).not.toContain('TOPSECRET9');
+      expect(publicTrace).not.toContain('lowercaseprivatename');
+      expect(publicTrace).not.toContain('private argument');
+      expect(publicTrace).not.toContain('private reason');
+      expect(result.steps).toEqual([
+        expect.objectContaining({ tool: 'unknown_tool', label: 'Unavailable tool', status: 'blocked' }),
+        expect.objectContaining({ tool: 'unknown_tool', label: 'Unavailable tool', status: 'blocked' }),
+      ]);
+      const providerContinuation = JSON.stringify(complete.mock.calls[1]);
+      expect(providerContinuation).toContain('undeclared-private-name');
+      expect(providerContinuation).toContain('undeclared-lowercase-name');
     });
   });
 });
