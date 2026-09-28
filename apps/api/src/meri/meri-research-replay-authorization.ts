@@ -168,9 +168,14 @@ interface CurrentOwnerTools {
 }
 
 function stringArray(value: unknown): string[] | null {
-  return Array.isArray(value) && value.every((item) => typeof item === 'string')
-    ? value
-    : null;
+  if (
+    !Array.isArray(value) ||
+    !value.every(
+      (item) => typeof item === 'string' && item.length > 0 && item.trim() === item,
+    )
+  )
+    return null;
+  return new Set(value).size === value.length ? value : null;
 }
 
 /**
@@ -229,7 +234,9 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
           'The originating conversation is no longer available in this client scope',
         );
 
-      let toolsUsed = scope.toolsUsed ?? null;
+      let toolsUsed = scope.toolsUsed === undefined ? null : stringArray(scope.toolsUsed);
+      if (scope.toolsUsed !== undefined && !toolsUsed)
+        throw new ConflictException('The research report authorization proof is unavailable.');
       if (scope.reportArtifactId && session.reportArtifactId !== scope.reportArtifactId)
         throw new ConflictException('The research report identity changed.');
       if (!toolsUsed) {
@@ -256,10 +263,33 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
       if (!toolsUsed)
         throw new ConflictException('The research report authorization proof is unavailable.');
 
+      const metadata = researchMetadata(session.metadata);
+      const rawReceipts = metadata.durableStepReceipts;
+      const allReceipts = readDurableResearchStepReceipts(session.metadata);
+      if (
+        rawReceipts !== undefined &&
+        (!Array.isArray(rawReceipts) || rawReceipts.length !== allReceipts.length)
+      )
+        throw new ConflictException('A research source authorization proof is unavailable.');
+
       const toolSet = new Set(toolsUsed);
-      const receipts = readDurableResearchStepReceipts(session.metadata).filter(
+      const completedReceipts = allReceipts.filter(
+        (receipt) => receipt.status === 'complete',
+      );
+      if (toolSet.size === 0 && completedReceipts.length > 0)
+        throw new ConflictException('The research report source declaration is incomplete.');
+
+      const storedRun = record(metadata.run);
+      const storedRunId = typeof storedRun?.id === 'string' ? storedRun.id : null;
+      const receiptsToReconcile = storedRunId
+        ? completedReceipts.filter((receipt) => receipt.runId === storedRunId)
+        : completedReceipts;
+      if (receiptsToReconcile.some((receipt) => !toolSet.has(receipt.tool)))
+        throw new ConflictException('The research report source declaration is incomplete.');
+
+      const receipts = completedReceipts.filter(
         (receipt) =>
-          receipt.version === 2 && receipt.status === 'complete' && toolSet.has(receipt.tool),
+          receipt.version === 2 && toolSet.has(receipt.tool),
       );
       for (const tool of toolSet) {
         if (!receipts.some((receipt) => receipt.tool === tool))

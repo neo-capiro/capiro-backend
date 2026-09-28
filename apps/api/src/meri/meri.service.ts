@@ -754,26 +754,54 @@ export class MeriService implements MeriTurnMaintenance {
     authorization: Map<string, Promise<boolean>>,
   ): Promise<string | null> {
     if (!summary) return summary;
-    const reports = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioArtifact.findMany({
-        where: {
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
-          conversationId: scope.conversationId,
-          kind: 'research_report',
-        },
-        select: { id: true, metadata: true },
-      }),
+    const linked = await this.prisma.withTenant(ctx.tenantId, async (tx) =>
+      Promise.all([
+        tx.clioArtifact.findMany({
+          where: {
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            conversationId: scope.conversationId,
+            kind: 'research_report',
+          },
+          select: { id: true, metadata: true },
+        }),
+        tx.clioMessage.findMany({
+          where: {
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            conversationId: scope.conversationId,
+            role: 'assistant',
+          },
+          select: { metadata: true },
+        }),
+      ]),
     );
-    for (const report of reports) {
-      const sessionId = researchReportSessionId(report);
+    const references = [
+      ...linked[0].map((report) => ({
+        sessionId: researchReportSessionId(report),
+        artifactId: report.id,
+        malformed: false,
+      })),
+      ...linked[1].flatMap((message) => {
+        const sessionId = researchReportSessionId(message);
+        return sessionId || researchReportMessage(message)
+          ? [{ sessionId, artifactId: undefined, malformed: !sessionId }]
+          : [];
+      }),
+    ];
+    const checked = new Set<string>();
+    for (const reference of references) {
+      const key = `${reference.sessionId ?? ''}:${reference.artifactId ?? ''}`;
+      if (checked.has(key)) continue;
+      checked.add(key);
       if (
-        !sessionId ||
+        reference.malformed ||
+        !reference.sessionId ||
         !(await this.currentReportReadAuthorized(
           ctx,
           scope,
-          sessionId,
-          report.id,
+          reference.sessionId,
+          reference.artifactId,
           authorization,
         ))
       )
@@ -1127,7 +1155,14 @@ export class MeriService implements MeriTurnMaintenance {
           }),
         )
       : null;
-    const conversationSummary = summaryBoundary ? (conversation.summary ?? null) : null;
+    const conversationSummary = summaryBoundary
+      ? await this.authorizeOrdinaryConversationSummary(
+          ctx,
+          { conversationId, clientId: conversation.clientId },
+          conversation.summary ?? null,
+          new Map(),
+        )
+      : null;
     const historyDesc = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioMessage.findMany({
         where: {
@@ -6315,11 +6350,19 @@ function withheldResearchReportMetadata(
         const step = value && typeof value === 'object' && !Array.isArray(value)
           ? (value as Record<string, Prisma.JsonValue>)
           : {};
-        const safe = Object.fromEntries(
-          ['tool', 'label', 'count', 'confidence', 'status']
-            .filter((key) => ['string', 'number', 'boolean'].includes(typeof step[key]))
-            .map((key) => [key, step[key]]),
-        ) as Prisma.JsonObject;
+        const tool = publicResearchToolName(step.tool);
+        const safe = {
+          ...(tool ? { tool } : {}),
+          ...(typeof step.count === 'number' &&
+          Number.isSafeInteger(step.count) &&
+          step.count >= 0
+            ? { count: step.count }
+            : {}),
+          ...(['low', 'high'].includes(String(step.confidence))
+            ? { confidence: step.confidence }
+            : {}),
+          ...(['done', 'error'].includes(String(step.status)) ? { status: step.status } : {}),
+        } as Prisma.JsonObject;
         return Object.keys(safe).length ? [safe] : [];
       })
     : undefined;
@@ -6327,13 +6370,10 @@ function withheldResearchReportMetadata(
     ...(sessionId ? { researchSessionId: sessionId } : {}),
     ...(metadata.researchReport === true ? { researchReport: true } : {}),
     ...(trustSteps ? { trustSteps } : {}),
-    ...(typeof metadata.intent === 'string' ? { intent: metadata.intent } : {}),
-    ...(typeof metadata.tier === 'string' ? { tier: metadata.tier } : {}),
-    ...(typeof metadata.reasoningMode === 'string'
+    ...(metadata.intent === 'deep_research' ? { intent: metadata.intent } : {}),
+    ...(['fast', 'deep'].includes(String(metadata.tier)) ? { tier: metadata.tier } : {}),
+    ...(['fast', 'standard', 'deep', 'max'].includes(String(metadata.reasoningMode))
       ? { reasoningMode: metadata.reasoningMode }
-      : {}),
-    ...(typeof metadata.finishReason === 'string'
-      ? { finishReason: metadata.finishReason }
       : {}),
     ...(typeof metadata.partial === 'boolean' ? { partial: metadata.partial } : {}),
     ...(typeof metadata.sourceCount === 'number' ? { sourceCount: metadata.sourceCount } : {}),
@@ -6344,6 +6384,10 @@ function withheldResearchReportMetadata(
       ...(sessionId ? { researchSessionId: sessionId } : {}),
     },
   };
+}
+
+function publicResearchToolName(value: unknown): string | null {
+  return typeof value === 'string' && /^[a-z][a-z0-9_]{0,63}$/.test(value) ? value : null;
 }
 
 /**

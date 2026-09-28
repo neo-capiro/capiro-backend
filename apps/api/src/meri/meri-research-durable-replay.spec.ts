@@ -138,7 +138,7 @@ function harness() {
     tx,
     tools,
     artifacts,
-    completeReport: () => {
+    completeReport: (toolsUsed: unknown = ['search_memory']) => {
       session.reportArtifactId = 'report-1';
       session.status = 'complete';
       session.metadata = {
@@ -150,7 +150,7 @@ function harness() {
         title: 'Durable report',
         kind: 'research_report',
         bodyText: 'REPORT_CITING_CURRENT_RUN_MEMORY',
-        metadata: { researchSessionId: session.id, toolsUsed: ['search_memory'] },
+        metadata: { researchSessionId: session.id, toolsUsed },
       });
     },
     revoke: () => {
@@ -388,6 +388,29 @@ describe('Meri durable safe-read commit and replay', () => {
     expect(publicJson).toContain('execution-private');
   });
 
+  it('returns the actual source-free report shape when no receipt or source declaration exists', async () => {
+    const h = harness();
+    h.completeReport([]);
+
+    const response = await h.service.getSession(ctx, 'session-1');
+    const markdown = await h.service.getReportMarkdown(ctx, 'session-1');
+
+    expect(response).toMatchObject({
+      id: 'session-1',
+      report: {
+        id: 'report-1',
+        bodyText: 'REPORT_CITING_CURRENT_RUN_MEMORY',
+        metadata: { researchSessionId: 'session-1', toolsUsed: [] },
+      },
+      reportMetadata: {},
+    });
+    expect(markdown).toEqual({
+      title: 'Durable report',
+      markdown: 'REPORT_CITING_CURRENT_RUN_MEMORY',
+    });
+    expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+
   it('withholds a completed same-run report after current source authority is revoked', async () => {
     const h = harness();
     await h.service.commitSafeReadOutcome(
@@ -466,19 +489,57 @@ describe('Meri durable safe-read commit and replay', () => {
     );
     h.completeReport();
     Object.assign(h.artifacts.get('report-1')!.metadata, {
-      trustSteps: [{ tool: 'search_memory', label: 'Memory', detail: 'PRIVATE_DETAIL', count: 1 }],
+      intent: 'PRIVATE_INTENT',
+      trustSteps: [{ tool: 'search_memory', label: 'PRIVATE_LABEL', detail: 'PRIVATE_DETAIL', count: 1 }],
       nested: { body: 'PRIVATE_NESTED_BODY' },
     });
+    h.session.metadata.durableStepReceipts[0].summary = 'PRIVATE_RECEIPT_SUMMARY';
     h.revokeSource();
 
     const response = await h.service.getSession(ctx, 'session-1');
-    const json = JSON.stringify(response.reportMetadata);
+    const json = JSON.stringify(response);
 
     expect(json).not.toContain('PRIVATE_DETAIL');
     expect(json).not.toContain('PRIVATE_NESTED_BODY');
-    expect(response.reportMetadata).toMatchObject({
-      trustSteps: [{ tool: 'search_memory', label: 'Memory', count: 1 }],
+    expect(json).not.toContain('PRIVATE_LABEL');
+    expect(json).not.toContain('PRIVATE_INTENT');
+    expect(json).not.toContain('PRIVATE_RECEIPT_SUMMARY');
+    expect(response.report?.metadata).toMatchObject({
+      trustSteps: [{ tool: 'search_memory', count: 1 }],
       reportBodyAccess: { status: 'withheld' },
     });
+    expect(response.reportMetadata).toMatchObject({
+      trustSteps: [{ tool: 'search_memory', count: 1 }],
+      reportBodyAccess: { status: 'withheld' },
+    });
+    expect(
+      (response.metadata.durableStepReceipts as Array<{ summary: string }>)[0]?.summary,
+    ).toBe('Authorized read completed');
+  });
+
+  it.each([
+    ['empty', []],
+    ['missing', undefined],
+    ['malformed', ['search_memory', 7]],
+  ])('withholds a saved private receipt when toolsUsed is %s', async (_label, toolsUsed) => {
+    const h = harness();
+    await h.service.commitSafeReadOutcome(
+      ctx,
+      'session-1',
+      'run-1',
+      outcome('execution-current-run', 'radar'),
+    );
+    h.completeReport(toolsUsed);
+    if (toolsUsed === undefined) delete h.artifacts.get('report-1')!.metadata.toolsUsed;
+    h.revokeSource();
+
+    const response = await h.service.getSession(ctx, 'session-1');
+
+    expect(response.report?.bodyText).toContain('current source authorization');
+    expect(response.report?.metadata).toMatchObject({
+      reportBodyAccess: { status: 'withheld', recovery: 'research_session' },
+    });
+    await expect(h.service.getReportMarkdown(ctx, 'session-1')).rejects.toThrow();
+    expect(h.tools.execute).not.toHaveBeenCalled();
   });
 });

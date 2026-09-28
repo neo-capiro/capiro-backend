@@ -353,13 +353,17 @@ export class MeriResearchService {
           ctx,
           session.id,
           storedRun,
-          asStringArray(
+          asDeclaredResearchTools(
             researchMetadata(report.metadata as Prisma.JsonValue).toolsUsed as Prisma.JsonValue,
           ),
         );
       } catch {
         reportBodyWithheld = true;
-        report = { ...report, bodyText: RESEARCH_REPORT_BODY_WITHHELD };
+        report = {
+          ...report,
+          bodyText: RESEARCH_REPORT_BODY_WITHHELD,
+          metadata: withheldPublicResearchReportMetadata(report.metadata, session.id),
+        };
       }
     }
     let reportMetadata = publicResearchReportMetadata(report?.metadata);
@@ -519,7 +523,7 @@ export class MeriResearchService {
       ctx,
       session.id,
       storedRun,
-      asStringArray(
+      asDeclaredResearchTools(
         researchMetadata(artifact.metadata as Prisma.JsonValue).toolsUsed as Prisma.JsonValue,
       ),
     );
@@ -2639,13 +2643,13 @@ export class MeriResearchService {
     ctx: TenantContext,
     id: string,
     _run: ResearchRunState | null,
-    toolsUsed: string[],
+    toolsUsed: string[] | null,
   ): Promise<void> {
     await assertCurrentResearchReportSourcesAuthorized({
       prisma: this.prisma,
       tools: this.tools,
       ctx,
-      scope: { sessionId: id, toolsUsed },
+      scope: { sessionId: id, ...(toolsUsed ? { toolsUsed } : {}) },
     });
   }
 
@@ -2848,6 +2852,24 @@ function asStringArray(value: Prisma.JsonValue | null | undefined): string[] {
   return value.filter((v): v is string => typeof v === 'string');
 }
 
+function asDeclaredResearchTools(
+  value: Prisma.JsonValue | null | undefined,
+): string[] | null {
+  if (
+    !Array.isArray(value) ||
+    !value.every(
+      (item) => typeof item === 'string' && item.length > 0 && item.trim() === item,
+    )
+  )
+    return null;
+  const tools = value as string[];
+  return new Set(tools).size === tools.length ? tools : null;
+}
+
+function publicResearchToolName(value: unknown): string | null {
+  return typeof value === 'string' && /^[a-z][a-z0-9_]{0,63}$/.test(value) ? value : null;
+}
+
 function asStringRecord(value: Prisma.JsonValue | null | undefined): Record<string, string> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   const out: Record<string, string> = {};
@@ -2858,6 +2880,7 @@ function asStringRecord(value: Prisma.JsonValue | null | undefined): Record<stri
 }
 
 function publicDurableSafeRead(receipt: DurableResearchStepReceipt, replayed: boolean) {
+  const tool = publicResearchToolName(receipt.tool) ?? 'research_source';
   return {
     version: receipt.version,
     receiptId: receipt.receiptId,
@@ -2866,10 +2889,11 @@ function publicDurableSafeRead(receipt: DurableResearchStepReceipt, replayed: bo
     sequence: receipt.sequence,
     effectClass: receipt.effectClass,
     toolCallId: receipt.toolCallId,
-    tool: receipt.tool,
-    label: receipt.label,
+    tool,
+    label: 'Research source',
     status: receipt.status,
-    summary: receipt.summary,
+    summary:
+      receipt.status === 'complete' ? 'Authorized read completed' : 'Authorized read failed',
     completedAt: receipt.completedAt,
     outcome: 'complete',
     persisted: true,
@@ -2936,23 +2960,28 @@ function withheldPublicResearchReportMetadata(
   const trustSteps = Array.isArray(metadata.trustSteps)
     ? metadata.trustSteps.flatMap((value) => {
         const step = researchMetadata(value);
-        const safe = Object.fromEntries(
-          ['tool', 'label', 'count', 'confidence', 'status']
-            .filter((key) => ['string', 'number', 'boolean'].includes(typeof step[key]))
-            .map((key) => [key, step[key]]),
-        );
+        const tool = publicResearchToolName(step.tool);
+        const safe = {
+          ...(tool ? { tool } : {}),
+          ...(typeof step.count === 'number' &&
+          Number.isSafeInteger(step.count) &&
+          step.count >= 0
+            ? { count: step.count }
+            : {}),
+          ...(['low', 'high'].includes(String(step.confidence))
+            ? { confidence: step.confidence }
+            : {}),
+          ...(['done', 'error'].includes(String(step.status)) ? { status: step.status } : {}),
+        };
         return Object.keys(safe).length ? [safe] : [];
       })
     : undefined;
   return {
     ...(trustSteps ? { trustSteps } : {}),
-    ...(typeof metadata.intent === 'string' ? { intent: metadata.intent } : {}),
-    ...(typeof metadata.tier === 'string' ? { tier: metadata.tier } : {}),
-    ...(typeof metadata.reasoningMode === 'string'
+    ...(metadata.intent === 'deep_research' ? { intent: metadata.intent } : {}),
+    ...(['fast', 'deep'].includes(String(metadata.tier)) ? { tier: metadata.tier } : {}),
+    ...(['fast', 'standard', 'deep', 'max'].includes(String(metadata.reasoningMode))
       ? { reasoningMode: metadata.reasoningMode }
-      : {}),
-    ...(typeof metadata.finishReason === 'string'
-      ? { finishReason: metadata.finishReason }
       : {}),
     ...(typeof metadata.partial === 'boolean' ? { partial: metadata.partial } : {}),
     reportBodyAccess: {

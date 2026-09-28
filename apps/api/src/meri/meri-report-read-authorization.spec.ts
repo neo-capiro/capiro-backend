@@ -37,6 +37,7 @@ function harness(options: {
   proof?: boolean;
   toolsUsed?: readonly string[];
   summary?: string | null;
+  reportArtifactInSummary?: boolean;
 } = {}) {
   const savedResult = memory();
   const sealed = sealDurableResearchResult({
@@ -182,7 +183,7 @@ function harness(options: {
     clioMessage: { findMany: jest.fn(async () => [reportMessage]) },
     clioArtifact: {
       findFirst: jest.fn(async ({ where }: { where: { id: string } }) => artifacts.get(where.id) ?? null),
-      findMany: jest.fn(async () => [report]),
+      findMany: jest.fn(async () => options.reportArtifactInSummary === false ? [] : [report]),
     },
   };
   const prisma = {
@@ -293,8 +294,43 @@ describe('ordinary research report read authorization', () => {
     expect(JSON.stringify({ messages, conversations })).not.toContain(marker);
     expect(messages[0]!.metadata).toMatchObject({
       researchSessionId: 'session-1',
-      trustSteps: [{ tool: 'search_memory', label: 'Memory', count: 1, status: 'done' }],
+      trustSteps: [{ tool: 'search_memory', count: 1, status: 'done' }],
       reportBodyAccess: { recovery: 'research_session' },
+    });
+  });
+
+  it('gates metadata-only linked report summaries without depending on artifact discovery', async () => {
+    const revoked = harness({
+      revoked: true,
+      summary: `Summary: ${marker}`,
+      reportArtifactInSummary: false,
+    });
+    const allowed = harness({ summary: `Summary: ${marker}`, reportArtifactInSummary: false });
+
+    const revokedList = await revoked.service.listConversations(ctx);
+    const allowedList = await allowed.service.listConversations(ctx);
+
+    expect(revokedList[0]!.summary).toBeNull();
+    expect(allowedList[0]!.summary).toBe(`Summary: ${marker}`);
+    expect(revoked.execute).toHaveBeenCalled();
+    expect(allowed.execute).toHaveBeenCalled();
+  });
+
+  it('drops untrusted primitive strings from withheld structural metadata', async () => {
+    const h = harness({ revoked: true });
+    h.reportMessage.metadata = {
+      researchSessionId: 'session-1',
+      researchReport: true,
+      intent: marker,
+      trustSteps: [{ tool: marker, label: marker, count: 1, status: 'done' }],
+    };
+
+    const messages = await h.service.listMessages(ctx, 'conversation-1');
+
+    expect(JSON.stringify(messages)).not.toContain(marker);
+    expect(messages[0]!.metadata).toMatchObject({
+      researchSessionId: 'session-1',
+      trustSteps: [{ count: 1, status: 'done' }],
     });
   });
 
