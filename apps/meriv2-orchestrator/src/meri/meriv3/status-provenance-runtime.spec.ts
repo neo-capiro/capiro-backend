@@ -58,6 +58,108 @@ describe('status provenance runtime', () => {
     expect(enforced).toMatchObject({ lookupOk: true, outcomes: { paraphrased: 1 } });
   });
 
+  it('does not bind retained authority to a different entity', () => {
+    const enforced = enforceRetainedStatusProvenance({
+      reply: 'Other Cloud is FedRAMP approved.',
+      retainedResults: [result],
+    });
+    expect(enforced.reply).toContain('Other Cloud is FedRAMP approved (unverified against the FedRAMP Marketplace).');
+    expect(enforced.reply).not.toContain('Other Cloud is FedRAMP Certified');
+    expect(enforced).toMatchObject({
+      lookupOk: false,
+      failureReason: 'retained_evidence_only',
+      outcomes: { paraphrased: 0, unsupported: 1 },
+    });
+  });
+
+  it('repairs only the matching entity in a mixed retained-evidence reply', () => {
+    const enforced = enforceRetainedStatusProvenance({
+      reply: 'Acme Cloud is FedRAMP approved. Other Cloud is FedRAMP approved.',
+      retainedResults: [result],
+    });
+    expect(enforced.reply).toBe(
+      'Acme Cloud is FedRAMP Certified at Moderate impact (FedRAMP Marketplace, observed 2026-09-23T00:00:00.000Z). '
+      + 'Other Cloud is FedRAMP approved (unverified against the FedRAMP Marketplace).',
+    );
+    expect(enforced).toMatchObject({
+      lookupOk: false,
+      outcomes: { paraphrased: 1, unsupported: 1 },
+    });
+  });
+
+  it('treats a mismatched fresh lookup result as unsupported', async () => {
+    const enforced = await runStatusProvenance({
+      reply: 'Other Cloud is FedRAMP approved.',
+      mode: 'enforce',
+      registry: registry(result),
+      ctx,
+      deadlineAt: Date.now() + 1000,
+    });
+    expect(enforced.reply).toContain('Other Cloud is FedRAMP approved (unverified against the FedRAMP Marketplace).');
+    expect(enforced.reply).not.toContain('Other Cloud is FedRAMP Certified');
+    expect(enforced).toMatchObject({ lookupOk: false, outcomes: { unsupported: 1 } });
+  });
+
+  it('rejects a matching record without authoritative source provenance', async () => {
+    const unproven = {
+      ...result,
+      record: { ...result.record, sourceUrl: undefined },
+    };
+    const enforced = await runStatusProvenance({
+      reply: 'Acme Cloud is FedRAMP approved.',
+      mode: 'enforce',
+      registry: registry(unproven),
+      ctx,
+      deadlineAt: Date.now() + 1000,
+    });
+    expect(enforced.reply).toContain('unverified against the FedRAMP Marketplace');
+    expect(enforced).toMatchObject({ lookupOk: false, outcomes: { unsupported: 1 } });
+  });
+
+  it.each([
+    ['ambiguous', { ...result, ambiguous: true }],
+    ['unbound', {
+      ...result,
+      record: { ...result.record, cspName: undefined, csoName: undefined },
+    }],
+  ])('treats an %s fresh lookup result as unsupported', async (_label, lookupResult) => {
+    const enforced = await runStatusProvenance({
+      reply: 'Acme Cloud is FedRAMP approved.',
+      mode: 'enforce',
+      registry: registry(lookupResult),
+      ctx,
+      deadlineAt: Date.now() + 1000,
+    });
+    expect(enforced.reply).toContain('unverified against the FedRAMP Marketplace');
+    expect(enforced).toMatchObject({
+      lookupOk: false,
+      failureReason: 'unsupported_entity',
+      outcomes: { unsupported: 1 },
+    });
+  });
+
+  it('does not bind complete-dataset absence to an unreturned claim identity', async () => {
+    const absent = {
+      found: false,
+      searchedEntireDataset: true,
+      evidenceOfAbsence: true,
+      sourceUrl: 'https://fedramp.gov/marketplace/products/',
+      observedAt: '2026-09-23T00:00:00.000Z',
+    };
+    const enforced = await runStatusProvenance({
+      reply: 'Acme Cloud is not FedRAMP authorized.',
+      mode: 'enforce',
+      registry: registry(absent),
+      ctx,
+      deadlineAt: Date.now() + 1000,
+    });
+    expect(enforced.reply).toContain('unverified; complete-dataset coverage was not established');
+    expect(enforced).toMatchObject({
+      lookupOk: false,
+      outcomes: { negative_unsupported: 1 },
+    });
+  });
+
   it('qualifies a status claim when no retained authoritative evidence supports it', () => {
     const enforced = enforceRetainedStatusProvenance({
       reply: 'Acme Cloud is FedRAMP approved.',
