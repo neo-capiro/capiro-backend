@@ -1,46 +1,47 @@
 # Meri file 01 status
 
-State: IN_PROGRESS (not ready for file 02).
-Lead: Codex GPT-6 Astra High, verified from current turn metadata.
-Integration worktree: C:/dev/cap-meri-foundation; branch codex/meri-foundation-20260928.
-Initial source / observed origin main: 42942dedad59382f4b4aac6f904b9aee0e02efa6.
-Local main observed: 0ddab91669cb9eae2f2f3b7757424fe98212d52a, occupied in another checkout.
+IN_PROGRESS. File 01 is not complete and file 02 has not started. Codex GPT-6 Astra High leads; actual Hermes GPT-5.6 Sol High implements; independent Hermes GPT-6 Sol High reviews. Both Hermes routes were authenticated and smoke-tested through OpenRouter with High effort and no model fallback. Shared runtime settings were preserved.
 
-## Ownership and dependencies
+## Authorized environment and Git recovery
 
-Neo subsequently requested this lead take over local recovery, validation and publication to GitHub because integration is stalled. Preserve original branches and unrelated changes. Recovered true P0A baseline commit: 0ddab91669cb9eae2f2f3b7757424fe98212d52a. Separate unqualified semantic trace candidate: 06a73796cca4e7b21c5e9bf75e4e66abbf8103f2; P0B 1963efa25a1c981b283292946098438798d4f544. Both are not ancestors of observed origin/main; PR query by exact head returned none. Local reports have missing-plan/stale assertions; they are not accepted completion evidence.
+Neo confirmed capiro-dev in AWS is the only environment and neo-capiro/capirov2 is the repository, and explicitly authorized synthetic tenants/users. Creation uses an owned namespace; no destructive fixed-ID seed, real sends, external-provider mutations or production canaries. Production canaries remain user-run.
 
-Wave 0: import receipts and compatible contracts -> Wave 1: P0C UI/files, P1A recall/evidence, P1C plans/budgets -> Wave 2: P1B selector/commitments and P2 narrative/JEV -> integrated acceptance/review -> approved integration/release. Central dispatcher, shared schemas, migrations, integration and routing remain lead-owned. P0C existing checkout is clean at initial main; no active Hermes implementation process found at inspection. Do not reuse without ownership confirmation.
+Recovered original P0A baseline 0ddab91669cb9eae2f2f3b7757424fe98212d52a and P0B 1963efa25a1c981b283292946098438798d4f544. Original closeout claims are not accepted as completion evidence. Main 42942dedad59382f4b4aac6f904b9aee0e02efa6 remains unchanged on GitHub. The local main checkout C:/Users/Administrator/cap-meri-completion is at 0ddab9166 with four dirty P0B files; preserve them. C:/dev/capirov2 has extensive unrelated changes and is untouched. Managed worktree creation was unavailable from this projectless chat; native isolated C:/dev worktrees are used.
 
-## Environment
+Command-local gh credential helper recovered stalled Git publication without changing shared authentication. These exact commits are now backed up on matching GitHub topic branches:
 
-Hermes v0.21.5+2446.g9fc7f17; installed source 9fc7f179. Existing OpenRouter credential located in kanbanorchestrator profile without printing/copying it. Authenticated models/user and key endpoints returned HTTP 200. Exact requested openai/gpt-5.6-sol and openai/gpt-6-sol catalog entries support tools and reasoning. Task-scoped configs require parameters, High effort, no fallback; shared settings remain unchanged. Actual routed model/tool-call smoke is pending. Logs outside checkout: C:/dev/cap-meri-foundation-evidence.
+| Branch | SHA | Qualification |
+|---|---|---|
+| codex/meri-baseline-recovery | 5daff1e4671984b6f2397afb48dc5a1472972a8d | Draft PR 1902; offline baseline only |
+| codex/meri-outcomes-validation | aeec5a81639980972e9ebdf4919a52f80b8cc62f | Focused tests pass; review findings still being repaired |
+| codex/meri-approval-recovery | dfbb967383e5fff73e801c33f2204a1444d31ea7 | Focused tests/typecheck pass; review pending |
+| codex/meri-memory-recall | 18ade62642fbe0d24886a20265a2c29419b5cd3d | 45 tests pass; independent review and SQL/live qualification pending |
+| codex/meri-synthetic-fixtures | a3b159fcdffd6e1bf177bf63eb41d0f236142647 | Five offline tests pass; pre-apply review requires repairs |
 
-Managed worktree creation returned Not a git repository for this projectless chat, so native git worktree add used C:/dev as required. Primary checkout has extensive unrelated dirty files and was not modified. Required neoma pnpm path absent; installed pnpm 9.12.0 used with offline frozen install.
+Integration branch codex/meri-foundation-20260928 currently retains recovered P0A/P0B, dependency cleanup and the full supplied plans/ledger. No main merge, deployment, migration or shared flag/routing change has been performed.
 
-## Read record
+## Evidence and review
 
-Read both supplied files in full. Foundation: all 1,779 lines, opening runbook and original annex acceptance contracts. File 02/03 not supplied and not in execution scope. See 01-requirements.md.
+Evidence root: C:/dev/cap-meri-foundation-evidence. Reports are bounded source/test evidence, not live acceptance.
 
-## Verification/release
+- Baseline: frozen offline installs, shared/core builds, 53 Python tests, 40 Node tests, Promptfoo 26/26 and verifier all exit 0 on recovered candidate 50a439243. Dependency repair 6fdccff42 preserves every previous importer/package/snapshot and passes frozen install, shared/core build, 26/26 and verifier. Final 5daff1e46 adds only Node >=22.22 tooling prerequisite documentation. Independent narrow source/lock review accepted preservation and its documentation finding is addressed.
+- P0B aeec5a816: 87 provider/runtime tests and 52 proposal-service tests pass, orchestrator typecheck exit 0. API-wide typecheck remains affected by unrelated setup/source diagnostics. Review found research-finalization bypass and post-effect receipt/retry gaps; static findings are being reproduced and repaired, not represented as live defects.
+- P0C dfbb96738: 30 controller/card/work-state tests and web typecheck exit 0. Controlled local fixtures cover lost acknowledgment, authoritative status reconciliation and double-click. Authenticated workspace acceptance remains NOT_RUN.
+- P1A 18ade6264: baseline old-memory regression failed, candidate 45/45 tests exit 0. Real SQL query performance/correctness, authorization continuation and served recall remain NOT_RUN.
+- Fixture a3b159fcd: five pure Node tests exit 0. Independent review found ready-manifest ID, ownership/roster/grant and firm-review-role gaps. No tenant/user has yet been created by this task; repair is underway.
+- CI: missing capiro_worker during disposable migrations is reproduced on base main and the recovery PR. Earlier ECR public base-image rate limit cleared on the updated run. Other CI failures remain under investigation; there is no global green verdict and no gate bypass.
+- Read-only AWS/database preflight: API task definition 483, image digest sha256:640f76d01bd6d0b7658f1229aee90cd7979c75d8b0f7ab7df76a5d5b7abc3c68, ECR tag 42942dedad59382f4b4aac6f904b9aee0e02efa6. Database reachable locally; six bootstrap models have all expected columns. Historical migration drift is recorded separately, with no migration attempted. ECS exec agents are STOPPED; no service restart requested.
 
-Hermes smoke and offline install in progress. Product tests NOT_RUN. Authenticated isolated staging target unverified; Docker command absent. No production canary run. No application edits, merge, migration, deploy, flag or routing change by this task. Release requires explicit approval under supplied AGENTS instructions after a concrete reviewed candidate exists.
+## Active bounded work
 
-## Latest execution checkpoint
+- Read-tool outcomes: codex/meri-read-outcomes in C:/dev/cap-meri-outcomes-validation.
+- Provider/post-effect reconciliation: codex/meri-outcome-reconciliation in C:/dev/cap-meri-memory-recall.
+- Native durable research: codex/meri-durable-research in C:/dev/cap-meri-approval-recovery.
+- Isolated fixture hardening: codex/meri-fixture-hardening in C:/dev/cap-meri-fixture-hardening. Fourth implementation slot is temporarily justified by an independent pure-Node setup slice and confirmed 16-core/64-GB host capacity.
+- Independent review: read-only exact candidate in C:/dev/cap-meri-foundation-review, currently approval UI.
 
-Integrated baseline 0ddab9166 by fast-forward and incomplete-call patch 1963efa25 by cherry-pick into isolated branch, candidate 50a439243. No main mutation/push yet. Git credential-manager has stale blocked pushes/queries; command-local `-c credential.helper= -c 'credential.helper=!gh auth git-credential'` succeeded without modifying shared auth.
+## Remaining mandatory scope
 
-Hermes smoke PASS for tool access on both exact models, actual upstream OpenAI logged. High supplied via CLI and task profile, require_parameters true, no fallback. Initial disposable HERMES_HOME bootstrapping timed out; then supported named profiles succeeded. Initial worker launch inherited incorrect terminal cwd from common profile; stopped before any source edits, confirmed integration worktree unchanged, relaunched with explicit per-task profile cwd and verified actual terminal roots. Logs retain setup failures separately.
+P0B complete reconciliation/read outcomes; P0C in-Meri memory decisions and files/artifacts; P1A real query/evidence/cache authorization; P1B governed discovery, versioned procedures, commitments and qualified consolidation; P1C plans, aggregate budgets, compaction, durable checkpoints/steering/children/UI; P2 narrative/JEV/trace joins. Source acquisitions require pinned-license/translated-test records. The separate 75 live, CD7, CW01-08 and M acceptance rows remain unqualified. Conditional infrastructure/alternate-runtime work needs explicit disposition and triggers, not automatic expansion.
 
-Active workers (all base 50a439243):
-- P0B: C:/dev/cap-meri-outcomes-validation, truthful logical outcomes and incomplete/malformed-call safety.
-- P0C: C:/dev/cap-meri-approval-recovery, business approval failure/unknown recovery UI only.
-- P1A: C:/dev/cap-meri-memory-recall, authorized old-memory candidate generation only.
-- Review: C:/dev/cap-meri-foundation-review exact detached candidate, read-only independent review.
-P1C queued until a worker slot is free; central contracts remain lead-owned.
-
-Validation on candidate 50a439243: frozen offline install exit 0, shared build exit 0, core build exit 0, Python 53 pass exit 0, Node 40 pass exit 0, Promptfoo 26/26 exit 0, report verifier exit 0. P0B provider suite 13 pass; assistant suite NOT_RUN due missing generated Prisma client; prisma generate in progress (no migrations). No live quality/deployment claim. Full source reports under C:/dev/cap-meri-foundation-evidence.
-
-User environment confirmation (2026-09-28): capiro-dev in AWS is the only environment; GitHub repository is neo-capiro/capirov2. User explicitly authorized creation of synthetic tenants and users for this acceptance run. Shared environment requires dedicated owned namespace, non-destructive idempotent setup and sandboxed writes; do not run destructive fixed-ID Phase 19 seed. No production canaries are implied.
-Offline checkpoint corrected: generated Prisma client without DB writes; both imported P0B suites then passed 83 tests, exit 0. Reviewer independently found untested incomplete-response and mixed-call gaps; P0B remains incomplete. Draft recovery PR #1902 published baseline only. CI failures under investigation; no merges or deploys.
-
+Read both supplied files in full (foundation 1,779 lines), including original annex contracts. No scope was removed. Independent review, exact both-main integration, approved release and live evidence remain required before handover completion.
