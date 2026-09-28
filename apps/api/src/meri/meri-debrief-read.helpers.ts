@@ -366,6 +366,7 @@ export function buildDebriefReadResult(
       from: selection.from?.toISOString() ?? null,
       to: selection.to?.toISOString() ?? null,
       timeField: 'meeting.startsAt',
+      statusEligibility: 'approved_only',
       characterOffset: selection.debriefId ? selection.characterOffset : null,
       characterLimit: selection.characterLimit,
       listLimit: selection.limit,
@@ -382,9 +383,10 @@ export function buildDebriefReadResult(
       truncated: Boolean(nextCursor) || !bodyCoverageComplete || page.sourceStatus !== 'healthy',
       nextCursor,
       totalIsReturnedPageOnly: true,
+      appliesTo: 'approved_only_eligible_debriefs',
       note: aggregateComplete
-        ? 'The authorized query and every returned debrief body completed within this bounded read.'
-        : 'Coverage is bounded. A page is exact only for its declared rows and body windows; follow nextCursor where present and do not infer complete client history or transcript coverage.',
+        ? 'The authorized query and every returned approved-eligible debrief body completed within this bounded read. Coverage does not include non-approved lifecycle rows.'
+        : 'Coverage is bounded to approved-eligible debriefs. A page is exact only for its declared rows and body windows; follow nextCursor where present and do not infer all-lifecycle client history or complete transcript coverage.',
     },
     debriefs,
   };

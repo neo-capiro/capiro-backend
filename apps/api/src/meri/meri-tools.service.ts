@@ -7901,6 +7901,15 @@ export class MeriToolsService {
   private async queryDebriefs(ctx: TenantContext, input: Record<string, unknown>) {
     let clientId = requiredString(input, 'clientId', 80);
     clientId = await this.ensureClientVisible(ctx, clientId);
+    const assertWallAllowed = async () => {
+      const allowed = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+        clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId),
+      );
+      if (!allowed) throw new NotFoundException('Client not found');
+    };
+    // The tool boundary rejects before the private owner query. The owner also
+    // enforces this wall so direct callers and unfocused report replay inherit it.
+    await assertWallAllowed();
     const selection = parseDebriefReadInput(ctx, input, clientId);
     const page = await this.engagement.readClientDebriefsExact(ctx, {
       clientId,
@@ -7910,6 +7919,8 @@ export class MeriToolsService {
       limit: selection.debriefId ? 1 : selection.limit,
       listAfter: selection.listAfter,
     });
+    // Close a grant-revocation window across the owner await before projection.
+    await assertWallAllowed();
     return buildDebriefReadResult(ctx, selection, page);
   }
 

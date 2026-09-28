@@ -33,6 +33,7 @@ export function debriefOwnerProof(value: unknown): Record<string, unknown> | nul
     !(scope.from === null || finiteDate(scope.from)) ||
     !(scope.to === null || finiteDate(scope.to)) ||
     scope.timeField !== 'meeting.startsAt' ||
+    scope.statusEligibility !== 'approved_only' ||
     !(scope.characterOffset === null || nonnegativeInteger(scope.characterOffset)) ||
     !nonnegativeInteger(scope.characterLimit) ||
     !nonnegativeInteger(scope.listLimit) ||
@@ -46,6 +47,7 @@ export function debriefOwnerProof(value: unknown): Record<string, unknown> | nul
     typeof coverage.bodyCoverageComplete !== 'boolean' ||
     typeof coverage.truncated !== 'boolean' ||
     !(coverage.nextCursor === null || typeof coverage.nextCursor === 'string') ||
+    coverage.appliesTo !== 'approved_only_eligible_debriefs' ||
     !Array.isArray(root.debriefs)
   ) {
     return null;
@@ -146,6 +148,7 @@ export function debriefOwnerProof(value: unknown): Record<string, unknown> | nul
       from: scope.from,
       to: scope.to,
       timeField: scope.timeField,
+      statusEligibility: scope.statusEligibility,
       characterOffset: scope.characterOffset,
       characterLimit: scope.characterLimit,
       listLimit: scope.listLimit,
@@ -158,6 +161,7 @@ export function debriefOwnerProof(value: unknown): Record<string, unknown> | nul
       bodyCoverageComplete: coverage.bodyCoverageComplete,
       truncated: coverage.truncated,
       nextCursor: coverage.nextCursor,
+      appliesTo: coverage.appliesTo,
     },
     rows,
   };

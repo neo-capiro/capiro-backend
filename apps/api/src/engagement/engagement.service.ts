@@ -163,6 +163,7 @@ import { outreachClientProfileEnabled } from '../common/tenant-flags.js';
 import { runAuditor, type LedgerEntry } from '@capiro/meriv2-core';
 import { resolveTenantAuditorMode } from '../common/auditor-mode.js';
 import { dateBoundsInZone } from '../intelligence/time-bounds.js';
+import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 
 export interface CreateIntegrationInput {
   provider: EngagementProvider;
@@ -5911,6 +5912,9 @@ export class EngagementService {
         ...(Object.keys(startsAt).length ? { startsAt } : {}),
       },
     };
+    // Policy basis: preserve listClientDebriefs' tenant-level internal semantics.
+    // The encrypted-entry ACL controls body access; the customer shared-meeting
+    // feed does not establish an owner/share-only rule for this research read.
     const include = {
       author: { select: { id: true, email: true, firstName: true, lastName: true } },
       meeting: { select: { id: true, clientId: true, subject: true, startsAt: true } },
@@ -5922,6 +5926,8 @@ export class EngagementService {
         select: { id: true },
       });
       if (!currentClient) throw new NotFoundException('Client not found');
+      if (!(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, query.clientId)))
+        throw new NotFoundException('Client not found');
 
       const authorized = [] as Array<{
         id: string;
@@ -5978,7 +5984,12 @@ export class EngagementService {
             where: { ...baseWhere, id: candidate.id },
             include,
           });
-          if (!current || !canReadEncryptedEntry(ctx, current)) continue;
+          if (!current) continue;
+          // Recheck the canonical ethical wall after the row await and before
+          // either body decryption or current-row metadata enters the result.
+          if (!(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, query.clientId)))
+            throw new NotFoundException('Client not found');
+          if (!canReadEncryptedEntry(ctx, current)) continue;
           if (authorized.length >= query.limit) {
             authorized.push({
               id: current.id,
@@ -6038,6 +6049,8 @@ export class EngagementService {
         select: { id: true },
       });
       if (!finalClient) throw new NotFoundException('Client not found');
+      if (!(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, query.clientId)))
+        throw new NotFoundException('Client not found');
       return { rows, sourceStatus, sourceReason, nextAfter };
     });
   }

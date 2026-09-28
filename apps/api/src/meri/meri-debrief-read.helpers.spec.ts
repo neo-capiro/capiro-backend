@@ -41,7 +41,13 @@ describe('bounded exact query_debriefs projection', () => {
 
     expect(selection.from).toBeNull();
     expect(selection.to).toBeNull();
-    expect(result.scope).toMatchObject({ from: null, to: null, timeField: 'meeting.startsAt' });
+    expect(result.scope).toMatchObject({
+      from: null,
+      to: null,
+      timeField: 'meeting.startsAt',
+      statusEligibility: 'approved_only',
+    });
+    expect(result.coverage.appliesTo).toBe('approved_only_eligible_debriefs');
     expect(result.debriefs[0]!.body).toBe('Exact debrief source text');
     expect(result.coverage.complete).toBe(true);
     expect(classifyApiToolReadOutcome('query_debriefs', result)).toEqual({ kind: 'complete' });
@@ -120,6 +126,12 @@ describe('bounded exact query_debriefs projection', () => {
     });
 
     expect(classifyApiToolReadOutcome('query_debriefs', empty)).toEqual({ kind: 'empty' });
+    expect(empty.scope.statusEligibility).toBe('approved_only');
+    expect(empty.coverage).toMatchObject({
+      complete: true,
+      appliesTo: 'approved_only_eligible_debriefs',
+    });
+    expect(empty.coverage.note).toContain('does not include non-approved lifecycle rows');
     expect(classifyApiToolReadOutcome('query_debriefs', degraded)).toEqual({
       kind: 'partial',
       reason: 'debrief_source_coverage_incomplete',

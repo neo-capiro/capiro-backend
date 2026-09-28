@@ -97,4 +97,15 @@ describe('query_debriefs current owner proof', () => {
 
     expect(currentOwnerResultAuthorizesReplay('query_debriefs', result(), current)).toBe(true);
   });
+
+  it('binds approved-only scope and coverage semantics into the owner proof', () => {
+    const changedScope = result() as any;
+    changedScope.scope.statusEligibility = 'all_lifecycle';
+    const changedCoverage = result() as any;
+    changedCoverage.coverage.appliesTo = 'all_lifecycle_debriefs';
+
+    expect(debriefOwnerProof(changedScope)).toBeNull();
+    expect(debriefOwnerProof(changedCoverage)).toBeNull();
+    expect(currentOwnerResultAuthorizesReplay('query_debriefs', result(), changedScope)).toBe(false);
+  });
 });

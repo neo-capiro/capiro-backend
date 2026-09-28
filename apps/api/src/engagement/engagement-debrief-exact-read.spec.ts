@@ -41,14 +41,18 @@ function debrief(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function harness(current: ReturnType<typeof debrief> | null) {
+function harness(current: ReturnType<typeof debrief> | null, wallDecisions: boolean[] = [true]) {
   const candidate = debrief();
+  let wallIndex = 0;
   const tx = {
     client: { findFirst: jest.fn().mockResolvedValue({ id: 'client-1' }) },
     meetingDebrief: {
       findMany: jest.fn().mockResolvedValue([candidate]),
       findFirst: jest.fn().mockResolvedValue(current),
     },
+    $queryRawUnsafe: jest.fn(async () => [{
+      allowed: wallDecisions[Math.min(wallIndex++, wallDecisions.length - 1)],
+    }]),
   };
   const decrypt = jest.fn().mockReturnValue('EXACT DECRYPTED BODY');
   const service = Object.assign(Object.create(EngagementService.prototype), {
@@ -95,6 +99,24 @@ describe('Engagement canonical exact debrief owner read', () => {
     });
     expect(h.decrypt).toHaveBeenCalledTimes(1);
     expect(h.tx.client.findFirst).toHaveBeenCalledTimes(2);
+    expect(h.tx.$queryRawUnsafe).toHaveBeenCalledTimes(3);
+  });
+
+  it('rejects a denied client before scanning or decrypting private debriefs', async () => {
+    const h = harness(debrief(), [false]);
+
+    await expect(h.service.readClientDebriefsExact(ctx, query)).rejects.toThrow('Client not found');
+    expect(h.tx.meetingDebrief.findMany).not.toHaveBeenCalled();
+    expect(h.decrypt).not.toHaveBeenCalled();
+  });
+
+  it('rechecks the wall after the current-row await and before decryption', async () => {
+    const h = harness(debrief(), [true, false]);
+
+    await expect(h.service.readClientDebriefsExact(ctx, query)).rejects.toThrow('Client not found');
+    expect(h.tx.meetingDebrief.findMany).toHaveBeenCalledTimes(1);
+    expect(h.tx.meetingDebrief.findFirst).toHaveBeenCalledTimes(1);
+    expect(h.decrypt).not.toHaveBeenCalled();
   });
 
   it('does not leak restricted row metadata or decrypt its body', async () => {
