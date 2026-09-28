@@ -1,5 +1,9 @@
 # File 01 requirements ledger
 
+### Evidence update — 2026-09-28 10:50 UTC
+
+Artifact/XLSX repair is integrated through5de753e52 with independent review and integrated95API/85web/fullAPItypecheck exit0. This closes bounded byte/readiness counterexamples only; original acceptance cases stay NOT_RUN. Knowledge assertion repair c637 is integratedc719 after independent17adverse probes. CI connector gate passes; Phase17 alltypechecks/core/orchestrator pass but Strategy setup fails; Knowledge disposable role, canary fixture/VM flag and Linux sandbox startup failures remain. Compaction0bb and procedure7ac are under independent review; governed selector and generic report source authority are active. Neither main or AWS changed; approved two-tenant enablement remains unapplied. See latest STATUS checkpoint for exact evidence limits.
+
 Foundation SHA256: 77c55b7484343a766c3bd17047c513b50c7c5d045e2018f03ea9dd0c08b622bd (normalized UTF-8 text). Entire 1,779-line source read, including annexes A–D/F–I. Launch prompt scheduling takes precedence; scope is file 01 only.
 
 This ledger records mandatory scope; bounded candidate evidence is in STATUS.md and does not constitute complete acceptance. Each acceptance row retains its original contract in the supplied plan. Implementation/PR/SHA, deterministic/UI evidence, independent review, both-main integration, deployment and residual gap must be filled before PASS. Neo authorized this lead to recover, validate and publish P0A/P0B; see STATUS.md for exact receipts.

@@ -1,6 +1,19 @@
 # Meri file 01 status
 
-## Current checkpoint — 2026-09-28 05:12 UTC
+## Current checkpoint — 2026-09-28 10:50 UTC
+
+File 01 remains IN_PROGRESS after restored OpenRouter credits. Integration source before this documentation commit is c719ae15e6a0dc969210d3a3f486c3a0fb1321a7; last published draft source is 9ffc9dbf9dbd1ddefaed393f58324f5351bf90c4. Both mains, shared AWS deployment and approved two-tenant enablement remain unchanged. Required live75/CD7/CW8 acceptance remains NOT_RUN. Separate database recovery and owner acceptance still hold release.
+
+- PASS, scoped artifact/XLSX integration: exact source chain0117569/9276bd4/2c6b884/251dbe4/59d0a9a/19f7e98/e762 integrated through5de753e52. Independent review at e762 rechecked seven original artifact counterexamples, current saved-byte readiness and owner/replay boundaries;80API/85web tests exit0. Integrated branch95API tests across9 suites,85web tests across3 suites and fullAPI typecheck exit0. Decoder/integrity/continuity/web download blobs equal reviewed candidate. Full XML parser allocation bounds, full typed prior-turn pagination, immutable provenance, live authenticated persistence/download and Office renderer remain unqualified.
+- PASS, narrow CI/code repairs: approval prompt distinction source0f26 is integrated1f9;31prompt+137consumer tests/typecheck0. Connector full Actions36409200917 at9ffc succeeds. Phase17 Actions36409200503 passes all dependency typechecks and core/orchestrator tests, then fails Strategy17tests/4suites because disposable public.sp_strategy is absent;93suites/1654tests pass, laterAPI/workspace/web steps skipped. No overall green. Knowledge9/11 now fail migration20281002010000 because disposable capiro_worker role missing. Canary exposes stale research transaction mocks/registration expectations and missing VM flag. These are separate setup/source findings, not 34 assumed product defects.
+- PASS, scoped knowledge contract: sourcec637 integratedc719 after independent4tests and17adverse probes0; comment/string false positives repaired. Targeted lexical mask is not a general Prisma parser.
+- HOLD, Linux sandbox: fixed single-thread childenv is integrated107f. Actual9ffc Linux advanced analysis now passes, but warm-import owner and legit-analysis fail with cannot-start-thread. Diagnostic-only followup active; no limit relaxation or Linux PASS.
+- HOLD, compaction: source8ee repairs bounded replay/tail/partial/CAS, but direct nativePG proved microsecond truncation prevented valid publication. Source0bb now reads coherent authorized snapshot with exact textual revision;13nativePG tests plus35focused tests/APItypecheck0. Independent review active, source remains excluded. Provider pairing, full token budget and authorized retrieval still incomplete.
+- HOLD, durable report replay: ordinary history/preview/linked-report source-authority repair active againstcd9. Procedure7ac serializes versions and preserves fixed C&D commitments;51tests/APItype0, independent review active; served signed proxy/assistant/starter binding still absent. Governed selector implementation is active; exactH4pin is required, current runtime flags remain unset and unchanged.
+
+Remaining mandatory scope includes full authorized reads/crash-resume, plans/steering/Stop-vs-detach/two-leaf children and aggregate budgets, progressive governed selection/served procedures, typed attachment workarea, scheduler crash recovery, narrative/JEV/telemetry, source adoption, authenticated acceptance and both-main approved release. No file02 readiness. Actual pinned Hermes GPT5.6Sol High implements, separate GPT6Sol High reviews; no substitution.
+
+## Previous checkpoint — 2026-09-28 05:12 UTC
 
 File 01 remains IN_PROGRESS. Reviewed integration source before this documentation commit is 2d84c426ab9e9502baf98397a6229c74d95533c4. Draft PR1904 contains the verified code batch; neither main, AWS, migrations nor the two approved tenant settings has changed. Separate database recovery still holds shared release. All 75 authenticated cases, CD7 and required CW8 remain NOT_RUN.
 
