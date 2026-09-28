@@ -1235,6 +1235,9 @@ describe('Durable research lease and recovery', () => {
 
     try {
       await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+      const admitted = JSON.parse(await f.runner.plan(ctx, {}));
+      f.getSession().metadata.researchPlan = admitted;
+      f.getSession().plan = admitted.steps.map((step: any) => step.objective);
       await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
 
       expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -1292,6 +1295,9 @@ describe('Durable research lease and recovery', () => {
 
     try {
       await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+      const admitted = JSON.parse(await f.runner.plan(ctx, {}));
+      f.getSession().metadata.researchPlan = admitted;
+      f.getSession().plan = admitted.steps.map((step: any) => step.objective);
       await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
 
       expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -1345,6 +1351,9 @@ describe('Durable research lease and recovery', () => {
 
     try {
       await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+      const admitted = JSON.parse(await f.runner.plan(ctx, {}));
+      f.getSession().metadata.researchPlan = admitted;
+      f.getSession().plan = admitted.steps.map((step: any) => step.objective);
       await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
 
       expect(global.fetch).toHaveBeenCalledTimes(2);
@@ -1388,6 +1397,9 @@ describe('Durable research lease and recovery', () => {
 
     try {
       await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+      const admitted = JSON.parse(await f.runner.plan(ctx, {}));
+      f.getSession().metadata.researchPlan = admitted;
+      f.getSession().plan = admitted.steps.map((step: any) => step.objective);
       await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
 
       expect(global.fetch).toHaveBeenCalledTimes(1);
