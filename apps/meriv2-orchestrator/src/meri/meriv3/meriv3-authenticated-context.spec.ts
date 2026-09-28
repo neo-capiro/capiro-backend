@@ -1,4 +1,8 @@
-import { attestMeriGovernedContext, type MeriGovernedTurnContext } from '@capiro/meriv2-core';
+import {
+  attestMeriGovernedContext,
+  createMeriResearchPlanExecutionEnvelope,
+  type MeriGovernedTurnContext,
+} from '@capiro/meriv2-core';
 import { currentGovernedMeriContext } from '../meri-governed-context.runtime.js';
 import { MeriV3Controller } from './meriv3.controller.js';
 
@@ -73,6 +77,26 @@ function bindProcedure(governed: MeriGovernedTurnContext): MeriGovernedTurnConte
     },
   };
   return governed;
+}
+
+function researchInput() {
+  const researchRun = { sessionId: 'session-1', runId: 'run-1', leaseEpoch: 4 };
+  return {
+    ...input,
+    toolPolicy: 'read-only' as const,
+    researchRun,
+    researchPlanExecution: createMeriResearchPlanExecutionEnvelope({
+      plan: { version: 1, title: 'Admitted', steps: [] },
+      scope: {
+        ...researchRun,
+        tenantId: actor.tenantId,
+        actorId: actor.userId,
+        clientId: input.clientId,
+        conversationId: input.conversationId,
+      },
+      allowedReadCapabilities: ['search_memory'],
+    }),
+  };
 }
 
 describe('MeriV3 governed context HTTP trust boundary', () => {
@@ -203,6 +227,69 @@ describe('MeriV3 governed context HTTP trust boundary', () => {
       instance.run({ ...input, conversationId: 'conversation-2', governedContext }, tenant, {
         headers: {},
       } as never),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(run).not.toHaveBeenCalled();
+  });
+  it('accepts exact admitted-plan scope and rejects missing or altered research authority before execution', async () => {
+    const { instance, run } = controller();
+    const valid = researchInput();
+    await instance.run(
+      { ...valid, governedContext: attestMeriGovernedContext(context(), valid, secret) },
+      tenant,
+      { headers: {} } as never,
+    );
+    expect(run).toHaveBeenCalledTimes(1);
+    run.mockClear();
+
+    const missing = { ...valid, researchPlanExecution: undefined };
+    await expect(
+      instance.run(
+        { ...missing, governedContext: attestMeriGovernedContext(context(), missing, secret) },
+        tenant,
+        { headers: {} } as never,
+      ),
+    ).rejects.toMatchObject({ status: 403 });
+
+    for (const mutate of [
+      (dto: ReturnType<typeof researchInput>) => {
+        (dto.researchPlanExecution as { planVersion: number }).planVersion = 2;
+      },
+      (dto: ReturnType<typeof researchInput>) => {
+        dto.researchPlanExecution.planSha256 = `sha256:${'0'.repeat(64)}`;
+      },
+      (dto: ReturnType<typeof researchInput>) => {
+        dto.researchPlanExecution.allowedReadCapabilities = ['get_client_context'];
+      },
+      (dto: ReturnType<typeof researchInput>) => {
+        dto.researchPlanExecution.scope.sessionId = 'session-2';
+      },
+      (dto: ReturnType<typeof researchInput>) => {
+        dto.researchPlanExecution.scope.clientId = 'client-2';
+      },
+    ]) {
+      const signed = researchInput();
+      const governedContext = attestMeriGovernedContext(context(), signed, secret);
+      mutate(signed);
+      await expect(
+        instance.run({ ...signed, governedContext }, tenant, { headers: {} } as never),
+      ).rejects.toMatchObject({ status: 403 });
+    }
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('rejects a freshly signed envelope whose actor scope disagrees with the turn', async () => {
+    const { instance, run } = controller();
+    const wrongScope = researchInput();
+    wrongScope.researchPlanExecution.scope.actorId = 'user-2';
+    await expect(
+      instance.run(
+        {
+          ...wrongScope,
+          governedContext: attestMeriGovernedContext(context(), wrongScope, secret),
+        },
+        tenant,
+        { headers: {} } as never,
+      ),
     ).rejects.toMatchObject({ status: 403 });
     expect(run).not.toHaveBeenCalled();
   });

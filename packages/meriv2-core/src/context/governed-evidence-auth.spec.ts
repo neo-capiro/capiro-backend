@@ -1,5 +1,6 @@
 import type { MeriGovernedTurnContext } from '../registry/types';
 import { attestMeriGovernedContext, verifyMeriGovernedContext } from './governed-evidence-auth';
+import { createMeriResearchPlanExecutionEnvelope } from './research-plan-execution';
 
 const actor = { tenantId: 'tenant-1', userId: 'user-1' };
 const binding = {
@@ -123,6 +124,37 @@ describe('authenticated governed evidence transport', () => {
       expect(() =>
         verifyMeriGovernedContext(signed, binding, { ...actor, ...changed }, secret, now),
       ).toThrow('authentication_failed');
+    },
+  );
+  it.each(['version', 'hash', 'capability', 'session', 'run', 'lease'] as const)(
+    'rejects a changed authenticated research-plan %s',
+    (field) => {
+      const researchRun = { sessionId: 'session-1', runId: 'run-1', leaseEpoch: 4 };
+      const researchPlanExecution = createMeriResearchPlanExecutionEnvelope({
+        plan: { version: 1, title: 'Admitted', steps: [] },
+        scope: {
+          ...researchRun,
+          tenantId: actor.tenantId,
+          actorId: actor.userId,
+          clientId: binding.clientId,
+          conversationId: binding.conversationId,
+        },
+        allowedReadCapabilities: ['search_memory'],
+      });
+      const researchBinding = { ...binding, researchRun, researchPlanExecution };
+      const signed = attestMeriGovernedContext(context(), researchBinding, secret, now);
+      const changed = JSON.parse(JSON.stringify(researchBinding)) as typeof researchBinding;
+      if (field === 'version')
+        (changed.researchPlanExecution as { planVersion: number }).planVersion = 2;
+      if (field === 'hash') changed.researchPlanExecution.planSha256 = `sha256:${'0'.repeat(64)}`;
+      if (field === 'capability')
+        changed.researchPlanExecution.allowedReadCapabilities = ['get_client_context'];
+      if (field === 'session') changed.researchPlanExecution.scope.sessionId = 'session-2';
+      if (field === 'run') changed.researchRun.runId = 'run-2';
+      if (field === 'lease') changed.researchPlanExecution.scope.leaseEpoch += 1;
+      expect(() => verifyMeriGovernedContext(signed, changed, actor, secret, now)).toThrow(
+        'authentication_failed',
+      );
     },
   );
   it('rejects expired, future, unsigned and unconfigured contexts', () => {

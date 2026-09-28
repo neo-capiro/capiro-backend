@@ -101,6 +101,10 @@ import {
   MeriProcedureBindingError,
   requireMeriProcedureBinding,
 } from './meriv3-procedure-guard.js';
+import {
+  assertMeriV3ResearchCapability,
+  requireMeriV3ResearchPlanExecution,
+} from './meriv3-plan-execution.js';
 import { enforceClientFilingConfirmation } from '../chat/client-filing-confirmation.js';
 import { MeriDocumentCompletion } from './meriv3-document-completion.js';
 import { classifyMeriRetrievalIntent } from '../retrieval/meri-retrieval-intent.js';
@@ -395,6 +399,7 @@ function withToolBudget(
   budget: MeriRunBudget,
   scope: MeriToolSignatureScope,
   beforeInvoke?: (name: string, control?: ToolExecutionControl) => Promise<void>,
+  admittedReadCapabilities: ReadonlySet<string> | null = null,
 ): ToolRegistry {
   const invoke = async <O>(
     name: string,
@@ -402,6 +407,7 @@ function withToolBudget(
     ctx: MeriContext,
     control?: ToolExecutionControl,
   ): Promise<O> => {
+    assertMeriV3ResearchCapability(admittedReadCapabilities, name);
     if (!budget.reserveToolBatch(1)) {
       throw new MeriRunBudgetExhaustedError(budget.reason ?? 'tool_calls');
     }
@@ -872,6 +878,10 @@ export class MeriV3AssistantService {
     opts: MeriV3RunOptions,
   ): Promise<MeriV3ChatResult> {
     const emit = opts.onEvent ?? (() => {});
+    const researchPlanExecution = requireMeriV3ResearchPlanExecution(dto, ctx);
+    const admittedReadCapabilities = researchPlanExecution
+      ? new Set(researchPlanExecution.allowedReadCapabilities)
+      : null;
     const governed = currentGovernedMeriContext();
     const procedure = governed
       ? requireMeriProcedureBinding({ governed, dto, tenantId: ctx.tenantId })
@@ -1025,7 +1035,9 @@ export class MeriV3AssistantService {
       dto.toolPolicy === 'none'
         ? []
         : (await this.fetchToolSchemas(opts)).filter(
-            (schema) => dto.toolPolicy !== 'read-only' || readOnlyNames.has(schema.name),
+            (schema) =>
+              (dto.toolPolicy !== 'read-only' || readOnlyNames.has(schema.name)) &&
+              (!admittedReadCapabilities || admittedReadCapabilities.has(schema.name)),
           );
     // This tool reads a research snapshot, not client Files. Its session comes
     // from the authenticated research lease, never a guessed chat/client UUID.
@@ -1228,6 +1240,7 @@ export class MeriV3AssistantService {
         runtimeBudget,
         budgetScope,
         semanticDecisionId: selection.decision.decisionId,
+        admittedReadCapabilities,
       });
       gatheredToolOutput = gatheredToolOutput || executions.length > 0;
       for (const execution of executions) {
@@ -1974,6 +1987,7 @@ export class MeriV3AssistantService {
         canary,
         runtimeBudget,
         budgetScope,
+        admittedReadCapabilities,
       });
       released = { ...released, reply: corrected.reply, citations: corrected.citations };
       documentRequests = corrected.documentRequests;
@@ -2064,6 +2078,7 @@ export class MeriV3AssistantService {
               budgetScope,
               (name, control) =>
                 this.assertCurrentProcedureAuthority(dto.conversationId, name, control),
+              admittedReadCapabilities,
             ),
             ctx,
             deadlineAt: Math.min(opts.deadlineAt ?? Date.now() + 8_000, Date.now() + 8_000),
@@ -2223,6 +2238,7 @@ export class MeriV3AssistantService {
           budgetScope,
           (name, control) =>
             this.assertCurrentProcedureAuthority(dto.conversationId, name, control),
+          admittedReadCapabilities,
         ),
         ctx,
         deadlineAt: Date.now() + 8_000,
@@ -2419,6 +2435,7 @@ export class MeriV3AssistantService {
     canary: CanaryTurnCollector;
     runtimeBudget: MeriRunBudget;
     budgetScope: MeriToolSignatureScope;
+    admittedReadCapabilities: ReadonlySet<string> | null;
   }): Promise<{ reply: string; citations: MeriCitation[]; documentRequests: number }> {
     const { ctx, dto, opts, released } = args;
     const original = { reply: released.reply, citations: released.citations, documentRequests: 0 };
@@ -2551,6 +2568,7 @@ export class MeriV3AssistantService {
               citations: released.citations,
               ledgerEntries: args.ledgerEntries,
               invoke: async (name, input, signal) => {
+                assertMeriV3ResearchCapability(args.admittedReadCapabilities, name);
                 if (!args.runtimeBudget.reserveToolBatch(1)) {
                   throw new MeriRunBudgetExhaustedError(args.runtimeBudget.reason ?? 'tool_calls');
                 }
@@ -2775,6 +2793,7 @@ export class MeriV3AssistantService {
     runtimeBudget: MeriRunBudget;
     budgetScope: MeriToolSignatureScope;
     semanticDecisionId: string;
+    admittedReadCapabilities: ReadonlySet<string> | null;
   }): Promise<FunctionExecution[]> {
     const executions: FunctionExecution[] = [];
     const publicCall = (call: OpenAiResponsesFunctionCall) =>
@@ -2837,7 +2856,6 @@ export class MeriV3AssistantService {
     const batchWriteIntents = new Map<string, FunctionExecution>();
     for (const call of args.calls) {
       assertToolExecutionActive(args.control);
-      await this.assertResearchRunActive(args.dto, args.control);
       const schema = args.schemas.find((candidate) => candidate.name === call.name);
       // Enforce capability selection at execution too: a provider can emit an
       // undeclared call, but it cannot escape the caller's narrower tool policy.
@@ -2864,6 +2882,7 @@ export class MeriV3AssistantService {
         logDispatch(call, 'blocked_undeclared', false);
         continue;
       }
+      await this.assertResearchRunActive(args.dto, args.control);
       let parsed: Record<string, unknown>;
       try {
         parsed = parseArguments(call.arguments);
@@ -2939,6 +2958,7 @@ export class MeriV3AssistantService {
         providerCallId: call.call_id,
         schema,
         researchRun: args.dto.researchRun,
+        admittedReadCapabilities: args.admittedReadCapabilities,
         captureDurableSafeRead: (outcome) => {
           durableSafeRead = outcome;
         },
@@ -3098,9 +3118,11 @@ export class MeriV3AssistantService {
     providerCallId: string;
     schema: ToolSchema;
     researchRun?: { sessionId: string; runId: string; leaseEpoch: number };
+    admittedReadCapabilities: ReadonlySet<string> | null;
     captureDurableSafeRead: (outcome: DurableSafeReadOutcome) => void;
   }): Promise<unknown> {
     assertToolExecutionActive(args.control);
+    assertMeriV3ResearchCapability(args.admittedReadCapabilities, args.name);
     const label = toolLabel(args.name);
     args.emit({ type: 'tool_call', tool: args.name, label, providerCallId: args.providerCallId });
     if (args.scopeViolation) {

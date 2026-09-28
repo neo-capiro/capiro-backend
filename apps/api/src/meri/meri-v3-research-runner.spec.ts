@@ -14,12 +14,62 @@ jest.mock('./meri-feature-flags.service.js', () => ({ MeriFeatureFlagsService: c
 
 const ctx = { tenantId: 'tenant-a', userId: 'user-a', tenantSlug: 'internal' } as TenantContext;
 const governedContext = { version: 1, prompt: 'Authorized client evidence', operationId: 'research.generate-report' } as MeriGovernedTurnContext;
-const auth = { bearerToken: 'caller-token', impersonateTenantId: 'tenant-a', governedContext };
+const auth = {
+  bearerToken: 'caller-token',
+  impersonateTenantId: 'tenant-a',
+  governedContext,
+  run: {
+    id: 'run-a',
+    leaseEpoch: 3,
+    eventSequence: 0,
+    phase: 'research' as const,
+    status: 'running' as const,
+    stage: 'Researching',
+    startedAt: '2026-09-06T00:00:00.000Z',
+    heartbeatAt: '2026-09-06T00:00:00.000Z',
+  },
+};
 const handoff: MeriResearchHandoff = {
   version: 1, capturedAt: '2026-09-06T00:00:00.000Z', conversationId: 'thread-a', clientId: 'client-a', reasoningMode: 'max',
   requestedDeliverable: 'Client briefing', summary: 'Only discuss enacted funding.', summaryUpToMessageId: 'early-1', messages: [], attachments: [],
 };
-const input = { sessionId: 'research-a', clientId: 'client-a', system: 'Write a sourced briefing', user: 'The complete immutable handoff', handoff };
+const admittedPlan = {
+  version: 1 as const,
+  title: 'Client briefing',
+  scope: {
+    sessionId: 'research-a',
+    tenantId: 'tenant-a',
+    actorId: 'user-a',
+    clientId: 'client-a',
+    conversationId: 'thread-a',
+  },
+  budget: { toolCalls: 1, tokens: 1000 },
+  steps: [
+    {
+      id: 'read-client',
+      objective: 'Read client context',
+      dependsOn: [],
+      requiredEvidenceDomains: ['client_context' as const],
+      allowedCapabilities: ['get_client_context'],
+      effect: 'read' as const,
+      completionCondition: 'Client context reviewed',
+      budget: { toolCalls: 1, tokens: 1000 },
+    },
+  ],
+  clarifyingQuestions: [],
+};
+const input = {
+  sessionId: 'research-a',
+  conversationId: 'thread-a',
+  clientId: 'client-a',
+  system: 'Write a sourced briefing',
+  user: 'The complete immutable handoff',
+  handoff,
+  admittedPlanExecution: {
+    plan: admittedPlan,
+    allowedReadCapabilities: ['get_client_context'],
+  },
+};
 
 function fixture(events?: MeriV3ChatStreamEvent[]) {
   const done = { type: 'done', reply: '# Briefing\n\nEnacted funding matters.', runtime: 'meriv3', model: 'configured-chat-model', reasoningMode: 'max', reasoningEffort: 'high', steps: [{ tool: 'get_client_context', label: 'Client', status: 'done' }], ledgerEntries: [{ tool: 'get_client_context', result: { id: 'client-a' }, serialized: '{"id":"client-a"}' }], citations: [] } as MeriV3ChatStreamEvent;
@@ -47,8 +97,23 @@ describe('MeriV3ResearchRunner primary runtime', () => {
     expect(credentials.resolveProvider).toHaveBeenCalledWith(ctx, 'openai');
     expect(client.streamChat).toHaveBeenCalledWith(expect.objectContaining({
       bearerToken: 'caller-token', impersonateTenantId: 'tenant-a',
-      input: expect.objectContaining({ conversationId: 'thread-a', clientId: 'client-a', reasoningMode: 'max', governedContext, toolPolicy: 'read-only', messages: [{ role: 'user', text: input.user }] }),
+      input: expect.objectContaining({
+        conversationId: 'thread-a', clientId: 'client-a', reasoningMode: 'max', governedContext,
+        toolPolicy: 'read-only', messages: [{ role: 'user', text: input.user }],
+        researchRun: { sessionId: 'research-a', runId: 'run-a', leaseEpoch: 3 },
+        researchPlanExecution: expect.objectContaining({
+          version: 1,
+          planVersion: 1,
+          planSha256: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+          allowedReadCapabilities: ['get_client_context'],
+          scope: expect.objectContaining({
+            sessionId: 'research-a', runId: 'run-a', leaseEpoch: 3,
+            tenantId: 'tenant-a', actorId: 'user-a', clientId: 'client-a', conversationId: 'thread-a',
+          }),
+        }),
+      }),
     }));
+    expect(JSON.stringify(client.streamChat.mock.calls[0]?.[0].input)).not.toContain('completionCondition');
     expect(result.model).toBe('configured-chat-model');
     expect(result.ledgerEntries).toHaveLength(1);
   });
@@ -80,6 +145,18 @@ describe('MeriV3ResearchRunner primary runtime', () => {
     const { runner, client } = fixture();
     await runner.plan(ctx, { ...input, handoff: { ...handoff, reasoningMode: 'standard' } }, auth);
     expect(client.streamChat).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining({ toolPolicy: 'none', reasoningMode: 'standard' }) }));
+    expect(client.streamChat.mock.calls[0]?.[0].input).not.toHaveProperty('researchRun');
+    expect(client.streamChat.mock.calls[0]?.[0].input).not.toHaveProperty('researchPlanExecution');
+  });
+
+  it('rejects missing admitted execution authority before credentials or provider dispatch', async () => {
+    const { runner, client, credentials } = fixture();
+    const { admittedPlanExecution: _omitted, ...withoutPlan } = input;
+    await expect(runner.run(ctx, withoutPlan, auth, () => {})).rejects.toThrow(
+      'admitted plan execution envelope',
+    );
+    expect(credentials.resolveProvider).not.toHaveBeenCalled();
+    expect(client.streamChat).not.toHaveBeenCalled();
   });
   it('retains reconciled turn coverage in the research result rather than reverting to the initial packet', async () => {
     const base = fixture();

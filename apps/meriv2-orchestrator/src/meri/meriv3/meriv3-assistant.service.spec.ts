@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { MeriContext, ToolRegistry } from '@capiro/meriv2-core';
 import {
+  createMeriResearchPlanExecutionEnvelope,
   MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT,
   readCanaryEvents,
   readShadowEvents,
@@ -213,6 +214,37 @@ function registry(definitions: Array<{ name: string; readOnly: boolean }>, invok
     },
     invoke,
   } as unknown as ToolRegistry;
+}
+
+function researchAuthority(
+  allowedReadCapabilities: string[],
+  scope: {
+    sessionId?: string;
+    tenantId?: string;
+    actorId?: string;
+    clientId?: string | null;
+    conversationId?: string | null;
+  } = {},
+) {
+  const researchRun = {
+    sessionId: scope.sessionId ?? 'session-a',
+    runId: 'run-a',
+    leaseEpoch: 3,
+  };
+  return {
+    researchRun,
+    researchPlanExecution: createMeriResearchPlanExecutionEnvelope({
+      plan: { version: 1, title: 'Admitted test plan', steps: [] },
+      scope: {
+        ...researchRun,
+        tenantId: scope.tenantId ?? context.tenantId,
+        actorId: scope.actorId ?? context.userId,
+        clientId: scope.clientId ?? null,
+        conversationId: scope.conversationId ?? null,
+      },
+      allowedReadCapabilities,
+    }),
+  };
 }
 
 function servedProcedureContext(): MeriGovernedTurnContext {
@@ -2258,6 +2290,113 @@ describe('MeriV3AssistantService', () => {
   );
 });
 
+describe('Admitted research plan execution', () => {
+  const savedFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = savedFetch;
+  });
+
+  test('rejects a research run with no execution envelope before schema, provider, or tool calls', async () => {
+    const complete = jest.fn();
+    const invoke = jest.fn();
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock as typeof fetch;
+    const assistant = build(registry([{ name: 'search_memory', readOnly: true }], invoke), complete);
+
+    await expect(
+      assistant.run(context, {
+        messages: [{ role: 'user', text: 'Research Kestrel.' }],
+        toolPolicy: 'read-only',
+        researchRun: { sessionId: 'session-a', runId: 'run-a', leaseEpoch: 3 },
+      }),
+    ).rejects.toThrow('execution_envelope_invalid');
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(complete).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  test('exposes only the admitted catalog intersection and blocks an unlisted provider call before replay or tool dispatch', async () => {
+    const unlisted = {
+      type: 'function_call' as const,
+      call_id: 'unlisted-call',
+      name: 'get_client_context',
+      arguments: '{}',
+      status: 'completed',
+    };
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(response({ output: [unlisted], outputText: '', functionCalls: [unlisted] }))
+      .mockResolvedValueOnce(response({ outputText: 'The unlisted read was not executed.' }));
+    const invoke = jest.fn();
+    const replayRequests: string[] = [];
+    global.fetch = jest.fn(async (url) => {
+      const href = String(url);
+      if (href.endsWith('/tool-schemas')) {
+        return new Response(
+          JSON.stringify({
+            schemas: ['search_memory', 'get_client_context'].map((name) => ({
+              name,
+              description: name,
+              input_schema: { type: 'object', properties: {} },
+            })),
+          }),
+          { status: 200 },
+        );
+      }
+      if (href.endsWith('/active')) return new Response(JSON.stringify({ active: true }), { status: 200 });
+      if (href.includes('/safe-read/') || href.includes('/api/clio/tools/')) replayRequests.push(href);
+      return new Response('{}', { status: 500 });
+    }) as typeof fetch;
+    const assistant = build(
+      registry(
+        [
+          { name: 'search_memory', readOnly: true },
+          { name: 'get_client_context', readOnly: true },
+        ],
+        invoke,
+      ),
+      complete,
+    );
+
+    const result = await RequestCredentialsStore.run({ bearerToken: 'user-token' }, () =>
+      assistant.run(context, {
+        messages: [{ role: 'user', text: 'Research Kestrel.' }],
+        toolPolicy: 'read-only',
+        ...researchAuthority(['search_memory']),
+      }),
+    );
+
+    expect((complete.mock.calls[0]?.[0].tools as Array<{ name: string }>).map((tool) => tool.name)).toEqual([
+      'search_memory',
+    ]);
+    expect(invoke).not.toHaveBeenCalled();
+    expect(replayRequests).toEqual([]);
+    expect(result.reply).toBe('The unlisted read was not executed.');
+  });
+
+  test('does not expose a plan-admitted capability that the current API catalog denies', async () => {
+    const complete = jest.fn().mockResolvedValue(response({ outputText: 'Catalog denied the read.' }));
+    global.fetch = jest.fn(async (url) =>
+      String(url).endsWith('/tool-schemas')
+        ? new Response(JSON.stringify({ schemas: [] }), { status: 200 })
+        : new Response(JSON.stringify({ active: true }), { status: 200 }),
+    ) as typeof fetch;
+    const invoke = jest.fn();
+    const assistant = build(registry([{ name: 'search_memory', readOnly: true }], invoke), complete);
+
+    await RequestCredentialsStore.run({ bearerToken: 'user-token' }, () =>
+      assistant.run(context, {
+        messages: [{ role: 'user', text: 'Research Kestrel.' }],
+        toolPolicy: 'read-only',
+        ...researchAuthority(['search_memory']),
+      }),
+    );
+
+    expect(complete.mock.calls[0]?.[0].tools).toEqual([]);
+    expect(invoke).not.toHaveBeenCalled();
+  });
+});
+
 describe('Durable research cancellation across API replicas', () => {
   const savedFetch = global.fetch;
   afterEach(() => {
@@ -2309,7 +2448,7 @@ describe('Durable research cancellation across API replicas', () => {
         assistant.run(context, {
           messages: [{ role: 'user', text: 'Research the client' }],
           toolPolicy: 'read-only',
-          researchRun: { sessionId: 'session-a', runId: 'run-a', leaseEpoch: 3 },
+          ...researchAuthority(['search_memory']),
         }),
     );
     expect(invoke).toHaveBeenCalledTimes(1);
@@ -2340,7 +2479,7 @@ describe('Durable research cancellation across API replicas', () => {
       assistant.run(context, {
         messages: [{ role: 'user', text: 'Research' }],
         toolPolicy: 'read-only',
-        researchRun: { sessionId: 'other-user-session', runId: 'run-a', leaseEpoch: 3 },
+        ...researchAuthority([], { sessionId: 'other-user-session' }),
       }),
     );
     expect(complete).not.toHaveBeenCalled();
@@ -2361,7 +2500,7 @@ describe('Durable research cancellation across API replicas', () => {
         assistant.run(context, {
           messages: [{ role: 'user', text: 'Research' }],
           toolPolicy: 'read-only',
-          researchRun: { sessionId: 'session-a', runId: 'run-a', leaseEpoch: 3 },
+          ...researchAuthority([]),
         }),
       );
       expect(complete).not.toHaveBeenCalled();
@@ -2415,7 +2554,7 @@ describe('Durable research cancellation across API replicas', () => {
       assistant.run(context, {
         messages: [{ role: 'user', text: 'Research radar.' }],
         toolPolicy: 'read-only',
-        researchRun: { sessionId: 'session-a', runId: 'run-a', leaseEpoch: 3 },
+        ...researchAuthority(['search_memory']),
       }),
     );
 
@@ -2673,7 +2812,7 @@ describe('MeriV3 client transcript task completion', () => {
       assistant.run(context, {
         messages: [{ role: 'user', text: 'Review the research evidence.' }],
         toolPolicy: 'read-only',
-        researchRun: { sessionId: 'session-a', runId: 'run-a', leaseEpoch: 3 },
+        ...researchAuthority(['get_research_evidence']),
       }),
     );
     expect(invoke).toHaveBeenCalledTimes(1);
@@ -3300,7 +3439,7 @@ describe('Stage 2 orchestrator hardening', () => {
           conversationId: 'research-run',
           messages: [{ role: 'user', text: 'Research the status of H.R. 1.' }],
           toolPolicy: 'read-only',
-          researchRun: { sessionId: 'session-a', runId: 'run-a', leaseEpoch: 3 },
+          ...researchAuthority([], { tenantId: PILOT, conversationId: 'research-run' }),
         }),
       );
       const research = firstEvent(spies.log, 'meri.canary.turn');
@@ -4324,7 +4463,10 @@ describe('Stage 2 orchestrator hardening', () => {
             conversationId: '33333333-3333-4333-8333-333333333333',
             messages: [{ role: 'user', text: 'Continue the durable audit.' }],
             toolPolicy: 'read-only',
-            researchRun: { sessionId: 'session-a', runId: 'run-a', leaseEpoch: 3 },
+            ...researchAuthority(['query_tasks'], {
+              clientId: 'client-1',
+              conversationId: '33333333-3333-4333-8333-333333333333',
+            }),
           }),
         ),
       );

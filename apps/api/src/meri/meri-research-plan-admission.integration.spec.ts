@@ -164,7 +164,7 @@ function fixture(options: {
   const runner = {
     enabled: jest.fn(async () => true),
     plan: jest.fn(async () => outputs.shift() ?? JSON.stringify(validPlan())),
-    run: jest.fn(async () => {
+    run: jest.fn(async (..._args: unknown[]) => {
       expect(session.metadata.researchPlan).toMatchObject({ version: 1 });
       expect(session.plan).toEqual(['Verify the current status from authorized evidence.']);
       expect(tools.execute).not.toHaveBeenCalled();
@@ -276,6 +276,12 @@ describe('MeriResearchService typed-plan admission', () => {
     expect(f.runner.run).toHaveBeenCalledTimes(1);
     expect(f.getSession().metadata.researchPlan).toMatchObject({ version: 1 });
     expect(f.getSession().plan).toEqual(['Verify the current status from authorized evidence.']);
+    expect(f.runner.run.mock.calls[0]?.[1]).toMatchObject({
+      admittedPlanExecution: {
+        plan: { version: 1 },
+        allowedReadCapabilities: ['search_memory'],
+      },
+    });
     expect(f.tools.execute).not.toHaveBeenCalled();
   });
 

@@ -7,6 +7,7 @@ import type {
   MeriContextPacketSummary,
   MeriGovernedProcedureBinding,
   MeriGovernedTurnContext,
+  MeriResearchPlanExecutionEnvelopeV1,
 } from '@capiro/meriv2-core';
 import type { ResolvedAiForChatHeader } from './meriv2-chat.client.js';
 
@@ -252,6 +253,8 @@ export class MeriV3ChatClient {
       researchDirective?: string;
       toolPolicy?: 'none' | 'read-only';
       researchRun?: { sessionId: string; runId: string; leaseEpoch: number };
+      /** Server-authored and covered by the governed-context turn attestation. */
+      researchPlanExecution?: MeriResearchPlanExecutionEnvelopeV1;
       governedContext?: MeriGovernedTurnContext;
       /** API-only authority; moved inside the signed governed context before transport. */
       procedure?: MeriGovernedProcedureBinding;

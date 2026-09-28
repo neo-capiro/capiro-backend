@@ -6,6 +6,7 @@ import type {
   MeriGovernedTurnContext,
   MeriEvidenceManifest,
 } from '@capiro/meriv2-core';
+import { createMeriResearchPlanExecutionEnvelope } from '@capiro/meriv2-core';
 import { classifyApiToolReadOutcome } from '@capiro/shared/meri-read-outcome';
 import { AiCredentialResolverService } from '../ai-credentials/ai-credential-resolver.service.js';
 import { MeriConversationEvidenceService } from './meri-conversation-evidence.service.js';
@@ -20,6 +21,7 @@ import type { MeriResearchHandoff } from './meri-research-handoff.js';
 import type { ResearchRunState } from './meri-research-run-state.js';
 import type { SourceAttribution } from './meri-research.service.js';
 import { certifyResearchProducerInputs } from './meri-report-provenance.js';
+import type { ResearchPlanV1 } from './meri-research-plan.js';
 
 export interface ResearchRuntimeAuth {
   bearerToken?: string;
@@ -41,6 +43,11 @@ interface ResearchRunInput {
   user: string;
   handoff: MeriResearchHandoff | null;
   clientContext?: string | null;
+  /** API-admitted authority. Present only for execution, never model planning. */
+  admittedPlanExecution?: {
+    plan: ResearchPlanV1;
+    allowedReadCapabilities: string[];
+  };
 }
 
 type DoneFrame = Extract<MeriV3ChatStreamEvent, { type: 'done' }>;
@@ -172,6 +179,10 @@ export class MeriV3ResearchRunner {
     if (!auth.bearerToken || !auth.governedContext) {
       throw new BadRequestException('Research requires the authenticated conversation context.');
     }
+    const researchPlanExecution =
+      toolPolicy === 'read-only'
+        ? this.researchPlanExecutionEnvelope(ctx, input, auth)
+        : undefined;
     if (!this.client.configured)
       throw new ServiceUnavailableException('MeriV3 research runtime is not configured.');
     const aiProvider = await this.credentials.resolveProvider(ctx, 'openai');
@@ -215,13 +226,14 @@ export class MeriV3ResearchRunner {
           ? { inheritedEvidenceNotice: `${inherited.unavailable} earlier document observations could not be reauthorized; ${inherited.omitted} were outside the bounded replay. Retrieve missing evidence before using it.` }
           : {}),
         toolPolicy,
-        ...(auth.run
+        ...(toolPolicy === 'read-only' && auth.run
           ? {
               researchRun: {
                 sessionId: input.sessionId,
                 runId: auth.run.id,
                 leaseEpoch: auth.run.leaseEpoch,
               },
+              researchPlanExecution,
             }
           : {}),
         ...(currentTurnImages.length ? { currentTurnImages } : {}),
@@ -318,6 +330,29 @@ export class MeriV3ResearchRunner {
       producerInputEvaluated: true,
       ...producerInput,
     };
+  }
+
+  private researchPlanExecutionEnvelope(
+    ctx: TenantContext,
+    input: ResearchRunInput,
+    auth: ResearchRuntimeAuth,
+  ) {
+    if (!auth.run || !input.admittedPlanExecution) {
+      throw new BadRequestException('Research requires an admitted plan execution envelope.');
+    }
+    return createMeriResearchPlanExecutionEnvelope({
+      plan: input.admittedPlanExecution.plan,
+      allowedReadCapabilities: input.admittedPlanExecution.allowedReadCapabilities,
+      scope: {
+        sessionId: input.sessionId,
+        runId: auth.run.id,
+        leaseEpoch: auth.run.leaseEpoch,
+        tenantId: ctx.tenantId,
+        actorId: ctx.userId,
+        clientId: input.clientId,
+        conversationId: input.conversationId ?? input.handoff?.conversationId ?? null,
+      },
+    });
   }
 
   private async snapshotImages(ctx: TenantContext, handoff: MeriResearchHandoff | null) {

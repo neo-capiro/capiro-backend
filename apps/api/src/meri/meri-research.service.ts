@@ -1589,6 +1589,16 @@ export class MeriResearchService {
           user,
           handoff,
           clientContext,
+          admittedPlanExecution: {
+            plan: admittedPlan,
+            allowedReadCapabilities: [
+              ...new Set(
+                admittedPlan.steps
+                  .flatMap((step) => step.allowedCapabilities)
+                  .filter((name) => this.tools.isConcurrencySafe(name)),
+              ),
+            ].sort(),
+          },
         },
         auth,
         (event) => {

@@ -1,10 +1,13 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { MeriGovernedTurnContext } from '../registry/types';
+import type { MeriResearchPlanExecutionEnvelopeV1 } from './research-plan-execution';
 
 export interface MeriGovernedRequestBinding {
   conversationId?: string;
   clientId?: string;
   messages?: readonly { role?: unknown; text?: unknown }[];
+  researchRun?: { sessionId: string; runId: string; leaseEpoch: number };
+  researchPlanExecution?: MeriResearchPlanExecutionEnvelopeV1;
 }
 
 const MAX_AGE_MS = 5 * 60_000;
@@ -22,6 +25,12 @@ function signedPayload(
     conversationId: binding.conversationId ?? null,
     clientId: binding.clientId ?? null,
     messages: (binding.messages ?? []).map(({ role, text }) => ({ role, text })),
+    ...(binding.researchRun || binding.researchPlanExecution
+      ? {
+          researchRun: binding.researchRun ?? null,
+          researchPlanExecution: binding.researchPlanExecution ?? null,
+        }
+      : {}),
     context: content,
   });
 }

@@ -33,6 +33,10 @@ import {
   MeriProcedureBindingError,
   requireMeriProcedureBinding,
 } from './meriv3-procedure-guard.js';
+import {
+  MeriV3ResearchPlanExecutionError,
+  requireMeriV3ResearchPlanExecution,
+} from './meriv3-plan-execution.js';
 
 type GovernedMeriV3ChatInput = MeriV3ChatInput & { governedContext?: MeriGovernedTurnContext };
 
@@ -73,6 +77,7 @@ export class MeriV3Controller {
       const governed = requireGovernedContext(dto);
       const meriContext = await this.resolver.resolveIdentity(tenant);
       authenticateGovernedContext(governed, dto, meriContext);
+      authenticateResearchPlanExecution(dto, meriContext);
       const procedure = authenticateProcedureBinding(governed, dto, meriContext);
       meriContext.contextPacket = governed.contextPacket;
       const effectiveDto = {
@@ -105,6 +110,7 @@ export class MeriV3Controller {
     const governed = requireGovernedContext(dto);
     const meriContext = await this.resolver.resolveIdentity(tenant);
     authenticateGovernedContext(governed, dto, meriContext);
+    authenticateResearchPlanExecution(dto, meriContext);
     const procedure = authenticateProcedureBinding(governed, dto, meriContext);
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -259,6 +265,22 @@ function authenticateProcedureBinding(
       statusCode: 403,
       error: 'Current served procedure binding required',
       code: 'meri_procedure_binding_invalid',
+    });
+  }
+}
+
+function authenticateResearchPlanExecution(
+  dto: MeriV3ChatInput,
+  identity: { tenantId: string; userId: string },
+): void {
+  try {
+    requireMeriV3ResearchPlanExecution(dto, identity);
+  } catch (error) {
+    if (!(error instanceof MeriV3ResearchPlanExecutionError)) throw error;
+    throw new ForbiddenException({
+      statusCode: 403,
+      error: 'Authenticated admitted research plan required',
+      code: 'meri_research_plan_execution_envelope_invalid',
     });
   }
 }
