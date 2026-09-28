@@ -70,6 +70,7 @@ import {
   retryAttachmentExtraction,
 } from './meri-attachment-content-state.js';
 import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
+import { MeriResearchService } from './meri-research.service.js';
 
 interface SseWriter {
   write(data: string): void;
@@ -96,6 +97,7 @@ export class MeriV3ProxyService {
     private readonly firmSkills: MeriFirmSkillsService,
     @Inject(MERI_TURN_MAINTENANCE) private readonly maintenance: MeriTurnMaintenance,
     private readonly conversationEvidence: MeriConversationEvidenceService,
+    private readonly research: MeriResearchService,
     // Phase 4 prospect dispatch: optional so existing direct-construction
     // specs keep compiling; Nest wiring provides it via BusinessDevelopmentModule.
     // A prospect-scoped conversation with it unavailable fails closed below.
@@ -275,6 +277,8 @@ export class MeriV3ProxyService {
       ctx,
       conversationId,
       conversation.summaryUpToMessageId ?? null,
+      conversation.clientId,
+      conversation.summary ?? null,
     );
     const inherited = await this.conversationEvidence.load(
       ctx,
@@ -437,16 +441,22 @@ export class MeriV3ProxyService {
       }
     }, 20_000);
     const stopKeepAlive = () => clearInterval(keepAlive);
+    const inheritedEvidenceNotices = [
+      inherited.unavailable || inherited.omitted
+        ? `${inherited.unavailable} earlier document observations could not be reauthorized; ${inherited.omitted} were outside the bounded replay. Retrieve missing evidence through current tools before using it.`
+        : null,
+      replay.withheldReports.length
+        ? 'Earlier research report context was withheld because current source authorization could not be confirmed. Reopen the research session to refresh or rerun it; do not infer the withheld contents.'
+        : null,
+    ].filter((notice): notice is string => Boolean(notice));
     try {
       await this.client.streamChat({
         bearerToken,
         input: {
           messages: replay.history,
           inheritedDocumentEvidence: inherited.citations,
-          ...(inherited.unavailable || inherited.omitted
-            ? {
-                inheritedEvidenceNotice: `${inherited.unavailable} earlier document observations could not be reauthorized; ${inherited.omitted} were outside the bounded replay. Retrieve missing evidence through current tools before using it.`,
-              }
+          ...(inheritedEvidenceNotices.length
+            ? { inheritedEvidenceNotice: inheritedEvidenceNotices.join(' ') }
             : {}),
           ...(conversation.clientId ? { clientId: conversation.clientId } : {}),
           conversationId,
@@ -456,8 +466,8 @@ export class MeriV3ProxyService {
           ...(researchScope
             ? { researchDirective: researchPortfolioScopeDirective(researchScope) }
             : {}),
-          ...(conversation.summary && replay.hasSummaryBoundary
-            ? { conversationSummary: conversation.summary }
+          ...(replay.conversationSummary && replay.hasSummaryBoundary
+            ? { conversationSummary: replay.conversationSummary }
             : {}),
           ...(clientKbSnapshot ? { clientKbSnapshot } : {}),
           ...(skillAddendum ? { skillAddendum } : {}),
@@ -756,6 +766,8 @@ export class MeriV3ProxyService {
     ctx: TenantContext,
     conversationId: string,
     summaryUpToMessageId: string | null,
+    clientId: string | null = null,
+    conversationSummary: string | null = null,
   ) {
     const boundary = summaryUpToMessageId
       ? await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -789,13 +801,20 @@ export class MeriV3ProxyService {
       }),
     );
     messages.reverse();
+    const reportContext = await this.research.authorizeModelContext(
+      ctx,
+      { conversationId, clientId },
+      messages,
+      conversationSummary,
+    );
+    const authorizedMessages = reportContext.messages;
     const refsByMessage = new Map<string, AttachmentMetaRef[]>();
-    for (const message of messages) {
+    for (const message of authorizedMessages) {
       if (message.role !== 'user') continue;
       const refs = attachmentRefsFromMetadata(message.metadata);
       if (refs.length) refsByMessage.set(message.id, refs);
     }
-    const lastUser = [...messages].reverse().find((message) => message.role === 'user') ?? null;
+    const lastUser = [...authorizedMessages].reverse().find((message) => message.role === 'user') ?? null;
     const allIds = [...refsByMessage.values()].flat().map((ref) => ref.id);
     const documentText = new Map<
       string,
@@ -806,7 +825,7 @@ export class MeriV3ProxyService {
       { id: string; filename: string; kind: string; status: string; reason: string | null }
     >();
     const visibleImageIds = new Set<string>();
-    const sourceMessageIds = messages
+    const sourceMessageIds = authorizedMessages
       .filter((message) => message.role === 'user')
       .map((message) => message.id);
     const currentTurnImages: Array<{ mediaType: string; dataBase64: string }> = [];
@@ -885,7 +904,7 @@ export class MeriV3ProxyService {
         }
       }
     }
-    const history = messages.map((message) => {
+    const history = authorizedMessages.map((message) => {
       const parts = [message.body];
       for (const ref of refsByMessage.get(message.id) ?? []) {
         const document = documentText.get(ref.id);
@@ -920,17 +939,23 @@ export class MeriV3ProxyService {
         text: parts.join('\n\n'),
       };
     });
-    if (boundary || messages.length >= 80) {
+    if (boundary || authorizedMessages.length >= 80) {
       const carried = await compactedAttachmentContext(
         this.prisma,
         ctx,
         conversationId,
-        messages.map((message) => message.id),
+        authorizedMessages.map((message) => message.id),
       );
       const latest = [...history].reverse().find((message) => message.role === 'user');
       if (carried && latest) latest.text += `\n\n${carried}`;
     }
-    return { history, currentTurnImages, hasSummaryBoundary: Boolean(boundary) };
+    return {
+      history,
+      currentTurnImages,
+      hasSummaryBoundary: Boolean(boundary),
+      conversationSummary: reportContext.summary,
+      withheldReports: reportContext.withheldReports,
+    };
   }
 
   private async persistAssistantMessage(

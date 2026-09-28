@@ -2,6 +2,12 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { MeriV3ProxyService } from './meriv3-proxy.service.js';
 import { scheduleMeriTurnMaintenance } from './meri-turn-maintenance.js';
 import { commitmentsAuditProcedureSkill } from './skills/commitments-audit.procedure.js';
+import { MeriResearchService } from './meri-research.service.js';
+import {
+  researchToolVersion,
+  sealDurableResearchResult,
+} from './meri-research-durable-result.js';
+import { RESEARCH_REPORT_BODY_WITHHELD } from './meri-research-replay-authorization.js';
 
 // These injected collaborators already use harness instances below. Avoid
 // booting their unrelated tool/service graphs in this proxy unit suite.
@@ -74,6 +80,15 @@ function buildHarness() {
   const conversationEvidence = {
     load: jest.fn(async () => ({ citations: [], unavailable: 0, omitted: 0 })),
   };
+  const research = {
+    authorizeModelContext: jest.fn(
+      async (_ctx: unknown, _scope: unknown, messages: any[], summary: string | null) => ({
+        messages,
+        summary,
+        withheldReports: [],
+      }),
+    ),
+  };
 
   const service = new MeriV3ProxyService(
     prisma as never,
@@ -84,6 +99,7 @@ function buildHarness() {
     firmSkills as never,
     maintenance,
     conversationEvidence as never,
+    research as never,
   );
 
   const writes: string[] = [];
@@ -103,11 +119,261 @@ function buildHarness() {
     frames,
     maintenance,
     conversationEvidence,
+    research,
     firmSkills,
   };
 }
 
 const CTX = { tenantId: TENANT, userId: USER } as never;
+
+const REPORT_MARKER = 'REVOKED_V3_REPORT_BODY';
+const REPORT_SUMMARY_MARKER = 'REVOKED_V3_REPORT_SUMMARY';
+const MEMORY_SCHEMA = {
+  type: 'object',
+  properties: { query: { type: 'string' } },
+  required: ['query'],
+};
+
+function memoryOwnerResult(value = 'authorized memory', version = 'v1') {
+  const hash = `hash-${value}`;
+  return {
+    tool: 'search_memory',
+    contentStatus: 'available',
+    results: [{ id: 'memory-1' }],
+    records: [
+      {
+        recordId: 'memory-1',
+        updatedAt: '2026-09-28T00:00:00.000Z',
+        provenance: { sourceVersion: version, contentHash: hash },
+        payload: { clientId: null, content: { hash }, value },
+      },
+    ],
+  };
+}
+
+function installActualReportAuthority(
+  h: ReturnType<typeof buildHarness>,
+  mode: 'authorized' | 'revoked' | 'changed' | 'missing' | 'unsupported',
+) {
+  const savedResult = memoryOwnerResult();
+  const sealed = sealDurableResearchResult({
+    executionId: 'execution-1',
+    providerCallId: 'provider-1',
+    runId: 'run-1',
+    leaseEpoch: 1,
+    tool: 'search_memory',
+    toolVersion: researchToolVersion(MEMORY_SCHEMA),
+    classifier: 'complete',
+    input: { query: 'owner query' },
+    result: savedResult,
+    completedAt: '2026-09-28T00:00:00.000Z',
+  });
+  const receipt = {
+    version: 2,
+    receiptId: 'receipt-1',
+    runId: 'run-1',
+    leaseEpoch: 1,
+    sequence: 1,
+    effectClass: 'safe_read',
+    toolCallId: 'provider-1',
+    tool: 'search_memory',
+    label: 'Search memory',
+    status: 'complete',
+    summary: 'Authorized read completed',
+    completedAt: '2026-09-28T00:00:00.000Z',
+    executionId: 'execution-1',
+    providerCallId: 'provider-1',
+    toolVersion: sealed.envelope.toolVersion,
+    inputSha256: sealed.envelope.inputSha256,
+    resultSha256: sealed.envelope.resultSha256,
+    resultBodySha256: sealed.bodySha256,
+    resultRef: 'safe-result-1',
+    resultByteSize: sealed.byteSize,
+    classifier: 'complete',
+  };
+  const report = {
+    id: 'report-1',
+    messageId: 'report-message-1',
+    kind: 'research_report',
+    bodyText: REPORT_MARKER,
+    metadata: {
+      researchSessionId: 'session-1',
+      toolsUsed: mode === 'unsupported' ? ['search_emails'] : ['search_memory'],
+    },
+  };
+  const session = {
+    id: 'session-1',
+    tenantId: TENANT,
+    userId: USER,
+    clientId: null,
+    reportArtifactId: report.id,
+    metadata: {
+      handoff: {
+        version: 1,
+        capturedAt: '2026-09-28T00:00:00.000Z',
+        conversationId: CONVERSATION,
+        clientId: null,
+        reasoningMode: 'deep',
+        requestedDeliverable: 'Report',
+        summary: null,
+        summaryUpToMessageId: null,
+        messages: [],
+        attachments: [],
+      },
+      run: {
+        id: 'run-1',
+        leaseEpoch: 1,
+        eventSequence: 1,
+        phase: 'research',
+        status: 'complete',
+        stage: 'Report saved',
+        startedAt: '2026-09-28T00:00:00.000Z',
+        heartbeatAt: '2026-09-28T00:01:00.000Z',
+        finishedAt: '2026-09-28T00:01:00.000Z',
+      },
+      durableStepReceipts: mode === 'unsupported' || mode === 'missing' ? [] : [receipt],
+    },
+  };
+  const reportMessage = {
+    id: report.messageId,
+    role: 'assistant',
+    body: REPORT_MARKER,
+    metadata: {
+      researchSessionId: session.id,
+      researchReport: true,
+      trustSteps: [{ tool: 'search_memory', label: 'Memory', detail: REPORT_MARKER }],
+      nested: { body: REPORT_MARKER },
+    },
+  };
+  const safeResult = {
+    id: 'safe-result-1',
+    kind: 'internal_research_safe_read_result',
+    bodyText: sealed.body,
+    metadata: { serverOnly: true },
+  };
+  const execute = jest.fn(async () => {
+    if (mode === 'revoked') throw new Error('canonical owner revoked memory');
+    return mode === 'changed' ? memoryOwnerResult('corrected memory', 'v2') : savedResult;
+  });
+  h.tx.clioMessage.findMany.mockResolvedValue([reportMessage]);
+  Object.assign(h.tx.clioArtifact, {
+    findMany: jest.fn(async () => [report]),
+    findFirst: jest.fn(async ({ where }: any) => {
+      if (where.id === report.id) return report;
+      if (where.id === safeResult.id) return safeResult;
+      return null;
+    }),
+  });
+  Object.assign(h.tx, {
+    clioResearchSession: { findFirst: jest.fn(async () => session) },
+  });
+  const research = Object.assign(Object.create(MeriResearchService.prototype), {
+    prisma: h.prisma,
+    tools: { execute },
+  }) as MeriResearchService;
+  Object.assign(h.service as object, { research });
+  return { execute };
+}
+
+describe('MeriV3ProxyService — report context authority', () => {
+  it('preserves authorized same-run report history and summary after current owner checks', async () => {
+    const h = buildHarness();
+    const { execute } = installActualReportAuthority(h, 'authorized');
+
+    const replay = await (h.service as any).buildReplay(
+      CTX,
+      CONVERSATION,
+      null,
+      null,
+      REPORT_SUMMARY_MARKER,
+    );
+
+    expect(replay.history).toEqual([{ role: 'assistant', text: REPORT_MARKER }]);
+    expect(replay.conversationSummary).toBe(REPORT_SUMMARY_MARKER);
+    expect(replay.withheldReports).toEqual([]);
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(h.tx.clioConversation.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: CONVERSATION,
+        tenantId: TENANT,
+        userId: USER,
+        clientId: null,
+        archivedAt: null,
+      },
+      select: { id: true },
+    });
+  });
+
+  it.each([
+    ['revoked owner', 'revoked', true],
+    ['changed owner version', 'changed', true],
+    ['missing proof', 'missing', false],
+    ['unsupported proof', 'unsupported', false],
+  ] as Array<[
+    string,
+    'revoked' | 'changed' | 'missing' | 'unsupported',
+    boolean,
+  ]>)(
+    'withholds report history, derived summary, and source-derived metadata for %s',
+    async (_label, mode, ownerCalled) => {
+      const h = buildHarness();
+      const { execute } = installActualReportAuthority(h, mode);
+
+      const replay = await (h.service as any).buildReplay(
+        CTX,
+        CONVERSATION,
+        null,
+        null,
+        REPORT_SUMMARY_MARKER,
+      );
+      const serialized = JSON.stringify(replay);
+
+      expect(replay.history).toEqual([
+        { role: 'assistant', text: RESEARCH_REPORT_BODY_WITHHELD },
+      ]);
+      expect(replay.conversationSummary).toBeNull();
+      expect(replay.withheldReports).toEqual([
+        expect.objectContaining({
+          messageId: 'report-message-1',
+          metadata: expect.objectContaining({
+            reportBodyAccess: {
+              status: 'withheld',
+              reason: 'current_source_authorization_unavailable',
+              recovery: 'research_session',
+              researchSessionId: 'session-1',
+            },
+          }),
+        }),
+      ]);
+      expect(serialized).not.toContain(REPORT_MARKER);
+      expect(serialized).not.toContain(REPORT_SUMMARY_MARKER);
+      if (ownerCalled) expect(execute).toHaveBeenCalledTimes(1);
+      else expect(execute).not.toHaveBeenCalled();
+    },
+  );
+
+  it('keeps a user-authored research handoff outside report-derived authorization', async () => {
+    const h = buildHarness();
+    h.tx.clioMessage.findMany.mockResolvedValue([
+      {
+        id: 'handoff-message',
+        role: 'user',
+        body: 'Run this research request.',
+        metadata: { researchSessionId: 'session-unknown' },
+      },
+    ]);
+
+    const replay = await (h.service as any).buildReplay(CTX, CONVERSATION, null, null, null);
+
+    expect(replay.history).toEqual([{ role: 'user', text: 'Run this research request.' }]);
+    expect(h.research.authorizeModelContext).toHaveBeenCalledWith(
+      CTX,
+      { conversationId: CONVERSATION, clientId: null },
+      expect.any(Array),
+      null,
+    );
+  });
+});
 
 describe('MeriV3ProxyService — done frame carries the persisted message id', () => {
   it('binds an exact current client procedure and emits only its redacted contract receipt', async () => {

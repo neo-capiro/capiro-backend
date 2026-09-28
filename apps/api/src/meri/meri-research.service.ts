@@ -134,6 +134,22 @@ export interface ResearchSafeReadOutcomeInput {
   result: unknown;
 }
 
+export interface MeriReportModelContextMessage {
+  id: string;
+  role: string;
+  body: string;
+  metadata?: Prisma.JsonValue | null;
+}
+
+export interface MeriReportModelContextAuthorization<T extends MeriReportModelContextMessage> {
+  messages: T[];
+  summary: string | null;
+  withheldReports: Array<{
+    messageId: string | null;
+    metadata: Record<string, unknown>;
+  }>;
+}
+
 /**
  * Deep Research workflow and persistence. The provider plans, chooses reads,
  * and synthesizes; this service preserves scope, evidence, progress and reports.
@@ -208,6 +224,100 @@ export class MeriResearchService {
       }),
     );
     return visible.filter((session) => session !== null);
+  }
+
+  /**
+   * Reauthorize report-derived chat context immediately before it crosses a
+   * model boundary. Ordinary messages and user-authored research handoffs are
+   * unchanged; assistant report references fail closed through the same
+   * current-owner seam used by report recovery and export.
+   */
+  async authorizeModelContext<T extends MeriReportModelContextMessage>(
+    ctx: TenantContext,
+    scope: { conversationId: string; clientId: string | null },
+    messages: T[],
+    summary: string | null,
+  ): Promise<MeriReportModelContextAuthorization<T>> {
+    const reports = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioArtifact.findMany({
+        where: {
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          conversationId: scope.conversationId,
+          kind: 'research_report',
+        },
+        select: { id: true, messageId: true, metadata: true },
+      }),
+    );
+    const reportByMessageId = new Map(
+      reports.flatMap((report) => (report.messageId ? [[report.messageId, report] as const] : [])),
+    );
+    const authorization = new Map<string, Promise<boolean>>();
+    const authorize = (sessionId: string | null, reportArtifactId?: string): Promise<boolean> => {
+      if (!sessionId) return Promise.resolve(false);
+      const key = `${sessionId}:${reportArtifactId ?? ''}`;
+      const existing = authorization.get(key);
+      if (existing) return existing;
+      const checked = assertCurrentResearchReportSourcesAuthorized({
+        prisma: this.prisma,
+        tools: this.tools,
+        ctx,
+        scope: { sessionId, reportArtifactId, ...scope },
+      }).then(
+        () => true,
+        () => false,
+      );
+      authorization.set(key, checked);
+      return checked;
+    };
+    const withheldReports: MeriReportModelContextAuthorization<T>['withheldReports'] = [];
+    let messageContextWithheld = false;
+    const authorizedMessages = await Promise.all(
+      messages.map(async (message) => {
+        const metadata = researchMetadata(message.metadata);
+        const linkedReport = reportByMessageId.get(message.id);
+        const linkedMetadata = researchMetadata(linkedReport?.metadata);
+        const sessionId =
+          typeof metadata.researchSessionId === 'string' && metadata.researchSessionId
+            ? metadata.researchSessionId
+            : typeof linkedMetadata.researchSessionId === 'string' && linkedMetadata.researchSessionId
+              ? linkedMetadata.researchSessionId
+              : null;
+        const reportDerived =
+          message.role === 'assistant' &&
+          (metadata.researchReport === true || Boolean(sessionId) || Boolean(linkedReport));
+        if (!reportDerived || (await authorize(sessionId, linkedReport?.id))) return message;
+        messageContextWithheld = true;
+        const withheld = withheldPublicResearchReportMetadata(message.metadata, sessionId);
+        withheldReports.push({ messageId: message.id, metadata: withheld });
+        return {
+          ...message,
+          body: RESEARCH_REPORT_BODY_WITHHELD,
+          metadata: withheld as Prisma.InputJsonValue,
+        };
+      }),
+    );
+    let authorizedSummary = messageContextWithheld ? null : summary;
+    if (summary) {
+      for (const report of reports) {
+        const metadata = researchMetadata(report.metadata);
+        const sessionId =
+          typeof metadata.researchSessionId === 'string' && metadata.researchSessionId
+            ? metadata.researchSessionId
+            : null;
+        if (!(await authorize(sessionId, report.id))) {
+          authorizedSummary = null;
+          if (!withheldReports.some((entry) => entry.messageId === report.messageId)) {
+            withheldReports.push({
+              messageId: report.messageId,
+              metadata: withheldPublicResearchReportMetadata(report.metadata, sessionId),
+            });
+          }
+          break;
+        }
+      }
+    }
+    return { messages: authorizedMessages, summary: authorizedSummary, withheldReports };
   }
 
   async getSession(ctx: TenantContext, id: string) {
@@ -2820,7 +2930,7 @@ function publicResearchReportMetadata(value: unknown): Record<string, unknown> {
 /** Withheld reads retain only structural recovery/status data, never source-derived prose. */
 function withheldPublicResearchReportMetadata(
   value: unknown,
-  sessionId: string,
+  sessionId: string | null,
 ): Record<string, unknown> {
   const metadata = researchMetadata(value);
   const trustSteps = Array.isArray(metadata.trustSteps)
@@ -2848,8 +2958,8 @@ function withheldPublicResearchReportMetadata(
     reportBodyAccess: {
       status: 'withheld',
       reason: 'current_source_authorization_unavailable',
-      recovery: 'research_session',
-      researchSessionId: sessionId,
+      recovery: sessionId ? 'research_session' : 'conversation_research_history',
+      ...(sessionId ? { researchSessionId: sessionId } : {}),
     },
   };
 }
