@@ -124,6 +124,7 @@ import {
   validateDocumentArtifactBytes,
 } from './meri-artifact-integrity.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { isInternalClioArtifact } from '../common/internal-clio-artifact.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
 import { validateMeriWriteToolInput, type MeriJsonSchema } from './meri-write-tool-input.js';
@@ -7117,6 +7118,7 @@ export class MeriToolsService {
         select: {
           bodyText: true,
           metadata: true,
+          kind: true,
           clientId: true,
           conversation: {
             select: { tenantId: true, userId: true, clientId: true, archivedAt: true },
@@ -7124,7 +7126,7 @@ export class MeriToolsService {
         },
       }),
     );
-    if (!artifact || !artifact.bodyText) return null;
+    if (!artifact || !artifact.bodyText || isInternalClioArtifact(artifact)) return null;
     if (!artifact.conversation || artifact.conversation.tenantId !== ctx.tenantId ||
         artifact.conversation.userId !== ctx.userId || artifact.conversation.archivedAt ||
         artifact.conversation.clientId !== artifact.clientId) return null;
@@ -7133,6 +7135,7 @@ export class MeriToolsService {
       const security = await this.contextPlane.securityEnvelope(ctx);
       if (!security.authorizedClientIds.includes(artifact.clientId)) return null;
     }
+
     const meta = (artifact.metadata ?? {}) as Record<string, unknown>;
     const nativeFormat = meta.docFormat;
     if (
@@ -8628,11 +8631,12 @@ export class MeriToolsService {
         }),
       );
       const conversation = artifact?.conversation;
-      if (!artifact || artifact.kind !== 'analysis_chart' || artifact.clientId !== binding.clientId ||
+      if (!artifact || isInternalClioArtifact(artifact) || artifact.kind !== 'analysis_chart' || artifact.clientId !== binding.clientId ||
           artifact.conversationId !== binding.conversationId || !conversation ||
           conversation.id !== binding.conversationId || conversation.tenantId !== ctx.tenantId ||
           conversation.userId !== ctx.userId || conversation.clientId !== binding.clientId ||
           conversation.archivedAt) {
+
         throw new NotFoundException(
           'One or more analysis charts were not found. Regenerate the charts in this conversation and try again.',
         );

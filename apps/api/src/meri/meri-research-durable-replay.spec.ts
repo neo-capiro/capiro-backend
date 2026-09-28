@@ -10,6 +10,7 @@ const TOOL_VERSION = researchToolVersion(TOOL_SCHEMA);
 const ctx = { tenantId: 'tenant-1', userId: 'user-1', tenantSlug: 'tenant' } as never;
 
 function completeMemoryResult(id: string, body = `body-${id}`) {
+  const contentHash = `hash-${body}`;
   return {
     tool: 'search_memory',
     coverage: {
@@ -31,12 +32,23 @@ function completeMemoryResult(id: string, body = `body-${id}`) {
     contentTruncated: false,
     nextCursor: null,
     results: [{ id, body }],
-    records: [{ id, body }],
+    records: [{
+      domain: 'institutional_knowledge',
+      recordId: id,
+      updatedAt: '2026-09-28T00:00:00.000Z',
+      provenance: { sourceVersion: 'memory-v1', contentHash },
+      payload: {
+        sourceKind: 'governed_memory', memoryItemId: id, clientId: null,
+        content: { hash: contentHash }, value: body,
+      },
+    }],
   };
 }
 
 function harness() {
   let authorizationAllowed = true;
+  let sourceAllowed = true;
+  let currentSource = completeMemoryResult('execution-1');
   const artifacts = new Map<string, { bodyText: string }>();
   const session: Record<string, any> = {
     id: 'session-1',
@@ -106,6 +118,12 @@ function harness() {
       { name: 'search_memory', description: 'search', input_schema: TOOL_SCHEMA },
     ]),
     isConcurrencySafe: jest.fn((tool: string) => tool === 'search_memory'),
+    execute: jest.fn(async (_ctx: unknown, _tool: string, input: Record<string, unknown>) => {
+      if (!sourceAllowed) throw new Error('memory source revoked');
+      if (input.query === 'alpha') return completeMemoryResult('execution-a');
+      if (input.query === 'beta') return completeMemoryResult('execution-b');
+      return currentSource;
+    }),
   };
   const service = new MeriResearchService(
     prisma,
@@ -121,6 +139,12 @@ function harness() {
     artifacts,
     revoke: () => {
       authorizationAllowed = false;
+    },
+    revokeSource: () => {
+      sourceAllowed = false;
+    },
+    replaceSource: (result: ReturnType<typeof completeMemoryResult>) => {
+      currentSource = result;
     },
     resume: () => {
       session.metadata = {
@@ -231,6 +255,52 @@ describe('Meri durable safe-read commit and replay', () => {
     ).rejects.toThrow('conversation');
   });
 
+  it('declines replay when current source authority is revoked or its version changed', async () => {
+    const request = {
+      leaseEpoch: 2,
+      tool: 'search_memory',
+      toolVersion: TOOL_VERSION,
+      input: { query: 'radar' },
+    };
+    const revoked = harness();
+    await revoked.service.commitSafeReadOutcome(
+      ctx, 'session-1', 'run-1', outcome('execution-1', 'radar'),
+    );
+    revoked.resume();
+    revoked.revokeSource();
+    await expect(revoked.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
+      .resolves.toEqual({ replayed: false });
+
+    const changed = harness();
+    await changed.service.commitSafeReadOutcome(
+      ctx, 'session-1', 'run-1', outcome('execution-1', 'radar'),
+    );
+    changed.resume();
+    changed.replaceSource(completeMemoryResult('execution-1', 'corrected body'));
+    await expect(changed.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
+      .resolves.toEqual({ replayed: false });
+  });
+
+  it('treats an absent or corrupt private result as a replay miss', async () => {
+    const h = harness();
+    await h.service.commitSafeReadOutcome(
+      ctx, 'session-1', 'run-1', outcome('execution-1', 'radar'),
+    );
+    h.resume();
+    const request = {
+      leaseEpoch: 2,
+      tool: 'search_memory',
+      toolVersion: TOOL_VERSION,
+      input: { query: 'radar' },
+    };
+    h.artifacts.clear();
+    await expect(h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
+      .resolves.toEqual({ replayed: false });
+    h.artifacts.set('private-result-1', { bodyText: '{corrupt' });
+    await expect(h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
+      .resolves.toEqual({ replayed: false });
+  });
+
   it('keeps same-name invocations separate by execution ID and exact input', async () => {
     const h = harness();
     await h.service.commitSafeReadOutcome(
@@ -255,7 +325,7 @@ describe('Meri durable safe-read commit and replay', () => {
 
     expect(replay.replayed).toBe(true);
     expect(replay.durableSafeRead?.executionId).toBe('execution-a');
-    expect((replay.result as any).records[0].id).toBe('execution-a');
+    expect((replay.result as any).records[0].recordId).toBe('execution-a');
     expect(h.artifacts.size).toBe(2);
   });
 

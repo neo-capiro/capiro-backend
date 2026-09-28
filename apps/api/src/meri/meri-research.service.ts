@@ -26,6 +26,7 @@ import { resolveTenantAuditorMode } from '../common/auditor-mode.js';
 import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { isInternalClioArtifact } from '../common/internal-clio-artifact.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { clientScopeRefusal, CLIENT_ID_UUID_RE, isMeriMailReadTool } from './meri-prompt.helpers.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
@@ -91,6 +92,10 @@ import {
   researchToolVersion,
   sealDurableResearchResult,
 } from './meri-research-durable-result.js';
+import {
+  currentOwnerResultAuthorizesReplay,
+  supportsDurableOwnerReauthorization,
+} from './meri-research-replay-authorization.js';
 
 const PRODUCT_NAME = 'Meri';
 
@@ -212,10 +217,15 @@ export class MeriResearchService {
     if (session.reportArtifactId) {
       report = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.clioArtifact.findFirst({
-          where: { id: session.reportArtifactId ?? undefined, tenantId: ctx.tenantId },
-          select: { id: true, title: true, bodyText: true, metadata: true },
+          where: {
+            id: session.reportArtifactId ?? undefined,
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+          },
+          select: { id: true, title: true, bodyText: true, metadata: true, kind: true },
         }),
       );
+      if (isInternalClioArtifact(report)) report = null;
     }
     // A held artifact is never released by reconnection or export.
     if (report && researchMetadata(report.metadata).heldForReview === true)
@@ -223,6 +233,17 @@ export class MeriResearchService {
         ...report,
         bodyText: 'Report held for review. Open Reviews before using this deliverable.',
       };
+    const storedRun = readResearchRun(session.metadata);
+    if (report && storedRun) {
+      await this.assertReplayedReportSourcesAuthorized(
+        ctx,
+        session.id,
+        storedRun,
+        asStringArray(
+          researchMetadata(report.metadata as Prisma.JsonValue).toolsUsed as Prisma.JsonValue,
+        ),
+      );
+    }
     let reportMetadata = publicResearchReportMetadata(report?.metadata);
     const reportMessageId = researchMetadata(session.metadata).reportMessageId;
     if (report && typeof reportMessageId === 'string') {
@@ -361,13 +382,29 @@ export class MeriResearchService {
     }
     const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioArtifact.findFirst({
-        where: { id: session.reportArtifactId ?? undefined, tenantId: ctx.tenantId },
-        select: { title: true, bodyText: true, metadata: true },
+        where: {
+          id: session.reportArtifactId ?? undefined,
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+        },
+        select: { title: true, bodyText: true, metadata: true, kind: true },
       }),
     );
-    if (!artifact) throw new NotFoundException('Report artifact not found');
+    if (!artifact || isInternalClioArtifact(artifact))
+      throw new NotFoundException('Report artifact not found');
     if (researchMetadata(artifact.metadata).heldForReview === true)
       throw new BadRequestException('This research report is held for review');
+    const storedRun = readResearchRun(session.metadata);
+    if (storedRun) {
+      await this.assertReplayedReportSourcesAuthorized(
+        ctx,
+        session.id,
+        storedRun,
+        asStringArray(
+          researchMetadata(artifact.metadata as Prisma.JsonValue).toolsUsed as Prisma.JsonValue,
+        ),
+      );
+    }
     return { title: artifact.title, markdown: artifact.bodyText ?? '' };
   }
 
@@ -547,19 +584,56 @@ export class MeriResearchService {
         },
         select: { bodyText: true },
       });
-      const envelope = openDurableResearchResult(artifact?.bodyText, receipt.resultBodySha256);
+      let envelope;
+      try {
+        envelope = openDurableResearchResult(artifact?.bodyText, receipt.resultBodySha256);
+      } catch {
+        // A missing/corrupt private cache is a replay miss. The caller may perform
+        // a fresh owner read; cache damage must not turn the tool into an error.
+        return { replayed: false as const };
+      }
       if (
         envelope.executionId !== receipt.executionId ||
+        envelope.providerCallId !== receipt.providerCallId ||
+        envelope.runId !== receipt.runId ||
+        envelope.leaseEpoch !== receipt.leaseEpoch ||
         envelope.tool !== receipt.tool ||
         envelope.toolVersion !== receipt.toolVersion ||
         envelope.inputSha256 !== receipt.inputSha256 ||
         envelope.resultSha256 !== receipt.resultSha256
       )
-        throw new ConflictException('Durable safe-read result identity mismatch.');
+        return { replayed: false as const };
       const classified = classifyApiToolReadOutcome(envelope.tool, envelope.result);
       if (classified?.kind !== envelope.classifier)
-        throw new ConflictException('Durable safe-read result is no longer replay-qualified.');
-      await this.assertResearchPublicationAuthorized(tx, ctx, current);
+        return { replayed: false as const };
+      if (!supportsDurableOwnerReauthorization(envelope.tool))
+        return { replayed: false as const };
+      let currentOwnerResult: unknown;
+      try {
+        // The canonical owner path re-evaluates RLS/ACL, lifecycle and source
+        // version now. This is an authorization proof read, not old coverage.
+        currentOwnerResult = await this.tools.execute(
+          ctx,
+          envelope.tool as never,
+          envelope.input,
+        );
+      } catch {
+        return { replayed: false as const };
+      }
+      if (!currentOwnerResultAuthorizesReplay(envelope.tool, envelope.result, currentOwnerResult))
+        return { replayed: false as const };
+      const final = await tx.clioResearchSession.findFirst({
+        where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
+      });
+      const finalRun = readResearchRun(final?.metadata);
+      if (
+        !final ||
+        finalRun?.id !== run.id ||
+        finalRun.leaseEpoch !== run.leaseEpoch ||
+        finalRun.status !== 'running'
+      )
+        throw new ConflictException('Research lease is no longer active.');
+      await this.assertResearchPublicationAuthorized(tx, ctx, final);
       return {
         replayed: true as const,
         result: envelope.result,
@@ -2116,6 +2190,13 @@ export class MeriResearchService {
       `the content is released; the saved report is marked *held for review*.` +
       (heldReason ? `\n>\n> ${heldReason.slice(0, 500)}` : '');
 
+    await this.assertReplayedReportSourcesAuthorized(
+      ctx,
+      session.id,
+      result.runAuth.run!,
+      toolsUsed,
+    );
+
     // Persist the report artifact + link it to the session.
     progress.set('Saving the report…');
     const artifactBody = assembleReportArtifact({
@@ -2290,6 +2371,13 @@ export class MeriResearchService {
       return { artifactId: artifact.id, messageId: reportMessage?.id ?? null, conversationId };
     });
     const artifactId = persisted.artifactId;
+    // Persistence and network publication are separate revocation boundaries.
+    await this.assertReplayedReportSourcesAuthorized(
+      ctx,
+      session.id,
+      result.runAuth.run!,
+      toolsUsed,
+    );
 
     if (handoff?.conversationId) {
       try {
@@ -2426,6 +2514,68 @@ export class MeriResearchService {
         throw new ConflictException('Research lease is no longer active.');
       await this.assertResearchPublicationAuthorized(tx, ctx, current);
     });
+  }
+
+  /** Reauthorize prior-run owner bodies before saving and before releasing a report. */
+  private async assertReplayedReportSourcesAuthorized(
+    ctx: TenantContext,
+    id: string,
+    run: ResearchRunState,
+    toolsUsed: string[],
+  ): Promise<void> {
+    const envelopes = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const current = await tx.clioResearchSession.findFirst({
+        where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
+      });
+      if (!current) throw new NotFoundException('Research session not found');
+      await this.assertResearchPublicationAuthorized(tx, ctx, current);
+      const handoff = readResearchHandoff(current.metadata);
+      const backing = researchMetadata(current.metadata).backingConversationId;
+      const conversationId = handoff?.conversationId ?? (typeof backing === 'string' ? backing : null);
+      if (!conversationId) return [];
+      const toolSet = new Set(toolsUsed);
+      const prior = readDurableResearchStepReceipts(current.metadata).filter(
+        (receipt) => receipt.version === 2 && receipt.status === 'complete' &&
+          receipt.runId !== run.id && toolSet.has(receipt.tool),
+      );
+      const loaded = [];
+      for (const receipt of prior) {
+        const artifact = await tx.clioArtifact.findFirst({
+          where: { id: receipt.resultRef, tenantId: ctx.tenantId, userId: ctx.userId,
+            clientId: current.clientId, conversationId, kind: RESEARCH_SAFE_READ_ARTIFACT_KIND },
+          select: { bodyText: true },
+        });
+        let envelope;
+        try {
+          envelope = openDurableResearchResult(artifact?.bodyText, receipt.resultBodySha256!);
+        } catch {
+          throw new ConflictException('A replayed research source is no longer available.');
+        }
+        if (envelope.executionId !== receipt.executionId ||
+            envelope.providerCallId !== receipt.providerCallId ||
+            envelope.runId !== receipt.runId || envelope.leaseEpoch !== receipt.leaseEpoch ||
+            envelope.tool !== receipt.tool || envelope.toolVersion !== receipt.toolVersion ||
+            envelope.inputSha256 !== receipt.inputSha256 ||
+            envelope.resultSha256 !== receipt.resultSha256) {
+          throw new ConflictException('A replayed research source identity changed.');
+        }
+        loaded.push(envelope);
+      }
+      return loaded;
+    });
+    for (const envelope of envelopes) {
+      if (!supportsDurableOwnerReauthorization(envelope.tool))
+        throw new ConflictException('A replayed research source cannot be currently authorized.');
+      let currentResult: unknown;
+      try {
+        currentResult = await this.tools.execute(ctx, envelope.tool as never, envelope.input);
+      } catch {
+        throw new ConflictException('A replayed research source is no longer authorized.');
+      }
+      if (!currentOwnerResultAuthorizesReplay(envelope.tool, envelope.result, currentResult))
+        throw new ConflictException('A replayed research source version changed.');
+    }
+    await this.ensureSession(ctx, id);
   }
 
   private async ensureSession(ctx: TenantContext, id: string) {

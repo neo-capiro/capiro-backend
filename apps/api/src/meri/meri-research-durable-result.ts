@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
+import { INTERNAL_RESEARCH_SAFE_READ_ARTIFACT_KIND } from '../common/internal-clio-artifact.js';
 
-export const RESEARCH_SAFE_READ_ARTIFACT_KIND = 'internal_research_safe_read_result';
+export const RESEARCH_SAFE_READ_ARTIFACT_KIND = INTERNAL_RESEARCH_SAFE_READ_ARTIFACT_KIND;
 export const RESEARCH_SAFE_READ_RESULT_VERSION = 1 as const;
 export const MAX_RESEARCH_SAFE_READ_RESULT_BYTES = 1_000_000;
 

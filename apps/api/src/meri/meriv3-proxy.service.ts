@@ -31,6 +31,7 @@ import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { MeriConversationEvidenceService } from './meri-conversation-evidence.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { ordinaryClioArtifactWhere } from '../common/internal-clio-artifact.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
@@ -628,6 +629,7 @@ export class MeriV3ProxyService {
               userId: ctx.userId,
               conversationId,
               messageId: null,
+              ...ordinaryClioArtifactWhere(),
             },
             data: { messageId: message.id },
           }),

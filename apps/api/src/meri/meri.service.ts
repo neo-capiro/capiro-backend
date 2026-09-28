@@ -91,6 +91,10 @@ import { MeriToolsService } from './meri-tools.service.js';
 import { readPersistedPng } from './meri-artifact-integrity.js';
 import { MeriContextPlaneService } from './meri-context-plane.service.js';
 import { RESEARCH_SAFE_READ_ARTIFACT_KIND } from './meri-research-durable-result.js';
+import {
+  isInternalClioArtifact,
+  ordinaryClioArtifactWhere,
+} from '../common/internal-clio-artifact.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { MemoryIngestService } from '../memory/memory-ingest.service.js';
 import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
@@ -380,7 +384,7 @@ export class MeriService implements MeriTurnMaintenance {
           workspace: { select: { id: true, name: true, clientId: true } },
           messages: { orderBy: { createdAt: 'desc' }, take: 1 },
           artifacts: {
-            where: { kind: { not: RESEARCH_SAFE_READ_ARTIFACT_KIND } },
+            where: ordinaryClioArtifactWhere(),
             orderBy: { createdAt: 'desc' },
             take: 4,
           },
@@ -549,6 +553,7 @@ export class MeriService implements MeriTurnMaintenance {
               tenantId: ctx.tenantId,
               userId: ctx.userId,
               conversationId,
+              ...ordinaryClioArtifactWhere(),
             },
             data: { clientId: input.clientId ?? null },
           }),
@@ -588,7 +593,12 @@ export class MeriService implements MeriTurnMaintenance {
       tx.clioMessage.findMany({
         where: { tenantId: ctx.tenantId, userId: ctx.userId, conversationId },
         orderBy: { createdAt: 'asc' },
-        include: { artifacts: { orderBy: { createdAt: 'asc' } } },
+        include: {
+          artifacts: {
+            where: ordinaryClioArtifactWhere(),
+            orderBy: { createdAt: 'asc' },
+          },
+        },
       }),
     );
   }
@@ -2788,6 +2798,7 @@ export class MeriService implements MeriTurnMaintenance {
               userId: ctx.userId,
               conversationId: args.conversationId,
               messageId: null,
+              ...ordinaryClioArtifactWhere(),
             },
             data: { messageId: assistantMessage.id },
           });
@@ -2840,6 +2851,7 @@ export class MeriService implements MeriTurnMaintenance {
         select: {
           contentType: true,
           metadata: true,
+          kind: true,
           clientId: true,
           conversation: {
             select: { tenantId: true, userId: true, clientId: true, archivedAt: true },
@@ -2848,7 +2860,7 @@ export class MeriService implements MeriTurnMaintenance {
       }),
     );
     const conversation = artifact?.conversation;
-    if (!artifact || !conversation || conversation.tenantId !== ctx.tenantId ||
+    if (!artifact || isInternalClioArtifact(artifact) || !conversation || conversation.tenantId !== ctx.tenantId ||
         conversation.userId !== ctx.userId || conversation.archivedAt ||
         conversation.clientId !== artifact.clientId) return null;
     if (artifact.clientId) {
@@ -2858,6 +2870,7 @@ export class MeriService implements MeriTurnMaintenance {
     }
     const image = readPersistedPng(artifact?.metadata);
     if (!image) return null;
+
     return {
       buffer: image.buffer,
       contentType: artifact?.contentType === 'image/png' ? artifact.contentType : 'image/png',
@@ -4876,11 +4889,11 @@ export class MeriService implements MeriTurnMaintenance {
         where: {
           id: parentId,
           tenantId: ctx.tenantId,
-          kind: { not: RESEARCH_SAFE_READ_ARTIFACT_KIND },
+          ...ordinaryClioArtifactWhere(),
         },
       }),
     );
-    if (!parent) throw new NotFoundException('Artifact not found');
+    if (!parent || isInternalClioArtifact(parent)) throw new NotFoundException('Artifact not found');
 
     return this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioArtifact.create({
