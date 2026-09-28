@@ -1,101 +1,75 @@
-# Canonical memory PostgreSQL qualification report
+# Canonical memory PostgreSQL gate repair report
 
-## Scope
+## Scope and boundary
 
-Target source: `df679a1ba775629f829fe02ab0762e2f4c9327e7` on `codex/meri-memory-postgres`.
+Base: `0bf8224c73455e3cb5ac25559b05f972445b7fd4` on `codex/meri-postgres-gate`.
 
-This change adds only:
+This repair changes only the dedicated GitHub Actions workflow, PostgreSQL qualification spec, localhost-only harness, harness README, and this report. It does not change the production adapter, ranking algorithm, Prisma schema, migrations, providers, cloud resources, deploy paths, or live databases.
 
-- a focused PostgreSQL qualification spec for the production `InstitutionalKnowledgeRetrievalAdapter`, production `Prisma.sql`, real `PrismaClient`, and `PrismaService.withTenantUser` transaction wrapper;
-- a localhost-only disposable database/role/schema harness and its README;
-- a pull-request/manual GitHub Actions job backed by `pgvector/pgvector:pg16`;
-- this evidence report.
+The existing focused fixture remains intact: generated NOLOGIN owner and least-privilege LOGIN application roles, production `PrismaService.withTenantUser`, real `Prisma.sql`, force-RLS relations, governance/ethical-wall tests, and cleanup of the generated database and roles.
 
-No adapter algorithm, migration SQL, Prisma schema, production workflow, deploy path, IAM, routing, provider, cloud, or remote database was changed.
+## Repaired gate behavior
 
-## Fixture boundary
+- `MEMORY_POSTGRES_REQUIRE_VECTOR=1` now rejects conflicting DB-free mode and absent, empty, nonexistent, malformed, or credential-free database input during module configuration, before `createQualificationDatabase` can construct a client or issue a database write.
+- Every accepted target must be `127.0.0.1` with an explicit port, username, password, maintenance database, and `MEMORY_POSTGRES_OWNED_ENDPOINT_ACK` exactly matching `127.0.0.1:<port>`. An omitted port cannot silently select local PostgreSQL `5432`.
+- The GitHub Actions pgvector service publishes only on `127.0.0.1:5432`, and the required-vector step explicitly acknowledges that owned disposable endpoint.
+- The five semantic cases use `semanticIt`. They are mandatory tests only in required-vector mode; optional mode registers them as Jest skips. No vector-named test can turn green through an early return.
+- Optional native PostgreSQL mode reports `MEMORY_POSTGRES_VECTOR NOT_RUN ... semantic_tests=SKIP nonvector=RUN`. A semantic PASS still requires the required-vector marker and successful completion against real pgvector.
 
-The harness creates a uniquely named `meri_memory_qualification_*` database owned by a generated NOLOGIN role and a separate LOGIN app role. The app role is asserted at runtime to be `NOSUPERUSER`, `NOCREATEDB`, `NOCREATEROLE`, `NOINHERIT`, `NOBYPASSRLS`, non-replicating, and not a member of the owner role. All test relations and extensions are installed in `memory_qualification`, never `public`.
+## Direct verification
 
-`tenants`, `users`, and `clients` are deliberately minimal parent fixtures. This is not a full migration replay. The adapter-relevant final shapes for `client_memory_access`, `memory_items`, `context_embeddings`, governance checks/indexes, current owner/expiry/wall RLS, and the 1024-dimensional HNSW vector column are sourced from the migrations enumerated by `DDL_PROVENANCE` in `apps/api/test/memory-postgres-qualification/harness.ts`.
+Commands ran from `C:/dev/cap-meri-outcomes-validation` or its `apps/api` directory. No install, external network, provider, cloud, container, push, merge, or deploy operation was used. Existing dependencies from `C:/dev/cap-meri-fixture-hardening` supplied Jest, TypeScript, Prettier, and a generated Prisma client; that dependency reuse is a limitation rather than clean-install evidence.
 
-Both accepted database inputs are fail-closed to loopback hosts. The native credentials file is read in-process and was never printed. Every local run created a fresh database and generated roles, then cleanup verification found zero remaining qualification databases and roles.
+### Missing-database required-vector negative
 
-## Direct execution evidence
+The independent review recorded the pre-repair command with `MEMORY_POSTGRES_REQUIRE_VECTOR=1` and no database input exiting `0` with one static pass and nine skips.
 
-All commands ran from `C:/dev/cap-meri-fixture-hardening`. No dependency install or network access was used.
+After repair, the same condition exited `1` before test registration with:
 
-### DB-free review guard
+    MEMORY_POSTGRES_REQUIRE_VECTOR requires MEMORY_POSTGRES_ADMIN_URL or MEMORY_POSTGRES_CREDENTIALS_FILE
 
-Command:
+Result: before `0`, after `1`.
 
-    MEMORY_POSTGRES_DB_FREE=1 pnpm --filter @capiro/api exec jest --ci --runInBand --runTestsByPath src/retrieval/adapters/institutional-knowledge-retrieval.adapter.postgres.spec.ts
+### DB-free static guards
 
-Exit: `0`.
+`MEMORY_POSTGRES_DB_FREE=1` focused Jest exited `0`: one static guard passed and nine database tests skipped. The guard covers required-vector/DB-free conflict, missing and empty target input, nonexistent credential file, missing URL credentials, non-IPv4-loopback hosts, implicit port rejection, owned-endpoint acknowledgement mismatch, workflow host binding, and required-vector CI configuration.
 
-Observed: `MEMORY_POSTGRES_DATABASE NOT_RUN mode=DB_FREE`; 1 static/guard test passed and 9 database tests were skipped. The guard checks the minimal-parent/canonical-relation manifest, relevant migration provenance, non-public schema, rejection of non-loopback targets, and the dedicated workflow's PR/manual trigger, pgvector service, frozen-lock install, localhost target, required-vector flag, and absence of deploy/AWS actions.
+The operational conflict negative with both `MEMORY_POSTGRES_DB_FREE=1` and `MEMORY_POSTGRES_REQUIRE_VECTOR=1` exited `1` before test registration with `MEMORY_POSTGRES_REQUIRE_VECTOR conflicts with MEMORY_POSTGRES_DB_FREE`.
 
-### Native PostgreSQL 16, non-vector qualification
+### Malformed target and zero writes
 
-Command:
+A private-credential catalog probe first asserted the only inspected native endpoint was `127.0.0.1:55433` and reported:
 
-    MEMORY_POSTGRES_CREDENTIALS_FILE=C:/dev/cap-meri-foundation-evidence/private/local-postgres.json pnpm --filter @capiro/api exec jest --ci --runInBand --runTestsByPath src/retrieval/adapters/institutional-knowledge-retrieval.adapter.postgres.spec.ts
+    MEMORY_POSTGRES_CATALOG endpoint=127.0.0.1:55433 databases=0 roles=0 vector_available=false
 
-Exit: `0`.
+Focused Jest with required-vector mode, the correct endpoint acknowledgement, and `postgresql://127.0.0.1:55433/postgres` (no credentials) exited `1` before test registration with `memory PostgreSQL qualification requires explicit database credentials`.
 
-Observed: `MEMORY_POSTGRES_VECTOR NOT_RUN reason=extension_unavailable nonvector=RUN`; suite 1 passed, 10 registered tests passed.
+The same catalog probe afterward again reported `databases=0 roles=0 vector_available=false`. The malformed target caused zero qualification writes.
 
-Executed assertions covered the generated least-privilege app role, production `SET LOCAL` tenant/user GUCs, fail-closed RLS outside the wrapper, governed eligibility, tenant/private/client walls, grant deletion, canonical revocation and cursor restart, and 1023-dimensional/non-finite provider vectors degrading to a fresh lexical read without poisoning fallback.
+### Owned native PostgreSQL 16, optional non-vector mode
 
-The five pgvector-only test bodies return before vector setup when `vectorAvailable` is false. Their registered Jest names therefore appear in the passing suite, but they are explicitly **NOT semantic PASS**; the marker above is authoritative.
+Using only `C:/dev/cap-meri-foundation-evidence/private/local-postgres.json` with `MEMORY_POSTGRES_OWNED_ENDPOINT_ACK=127.0.0.1:55433`, focused Jest exited `0` and printed:
 
-### Missing-extension CI guard negative control
+    MEMORY_POSTGRES_VECTOR NOT_RUN reason=optional_mode extension=unavailable semantic_tests=SKIP nonvector=RUN
 
-Command:
+Jest reported five passed and five skipped. The five genuine passes covered the static guard plus least-privilege role/production `SET LOCAL`, RLS/governed eligibility/ethical walls, cursor revocation and wall-grant recheck, and malformed provider-vector lexical fallback. The five semantic cases were explicitly skipped and are not semantic PASS.
 
-    MEMORY_POSTGRES_CREDENTIALS_FILE=C:/dev/cap-meri-foundation-evidence/private/local-postgres.json MEMORY_POSTGRES_REQUIRE_VECTOR=1 pnpm --filter @capiro/api exec jest --ci --runInBand --runTestsByPath src/retrieval/adapters/institutional-knowledge-retrieval.adapter.postgres.spec.ts
+### Required-vector missing-extension negative and cleanup
 
-Exit: `1`, expected.
-
-Observed failure: `required pgvector extension is unavailable`. This is the same flag set by the GitHub Actions database step, so a service image without the extension cannot produce a green qualification job.
+The same owned endpoint with `MEMORY_POSTGRES_REQUIRE_VECTOR=1` exited `1`, expected, because `required pgvector extension is unavailable`. The failure came from `beforeAll`; no semantic test passed. Cleanup readback then reported `databases=0 roles=0 vector_available=false`.
 
 ### Focused static verification
 
-Command:
+- Focused TypeScript compilation of the PostgreSQL spec and harness: exit `0`.
+- Prettier check on the workflow, spec, harness, and README: exit `0`.
+- `git diff --check`: exit `0`.
 
-    pnpm --filter @capiro/api exec tsc --noEmit --module Node16 --moduleResolution Node16 --target ES2022 --lib ES2022 --esModuleInterop --skipLibCheck --strictNullChecks --noImplicitAny --experimentalDecorators --emitDecoratorMetadata --types node,jest src/retrieval/adapters/institutional-knowledge-retrieval.adapter.postgres.spec.ts test/memory-postgres-qualification/harness.ts
+Broad root commands were not rerun because the supplied baseline already records unrelated missing-dependency failures and this task prohibited broad root commands and installation.
 
-Exit: `0`.
+## Semantic contract and status
 
-Command:
+The embedding row is treated by the current implementation as a derived ranking projection. The test with stale projection text/hash proves that ranking can select the memory while the returned value, provenance content hash, and source version come from the current canonical memory body. Changing the projection hash then proves cursor drift/restart behavior.
 
-    pnpm exec prettier --check .github/workflows/memory-postgres-qualification.yml apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.postgres.spec.ts apps/api/test/memory-postgres-qualification/harness.ts apps/api/test/memory-postgres-qualification/README.md
+The test does not prove projection-hash equality with the canonical content hash and does not prove stale-hash exclusion from ranking. No ranker or eligibility behavior was changed; that would require a separate measured requirement.
 
-Exit: `0`; all matched files use Prettier style.
-
-Cleanup readback command used the private credentials in-process against asserted `127.0.0.1:55433` and queried only catalog counts. Exit: `0`; observed `MEMORY_POSTGRES_CLEANUP databases=0 roles=0`.
-
-### Repository-wide commands
-
-These required root commands were attempted without installing dependencies, as required by the task:
-
-- `pnpm run test` — exit `1`: unrelated workspace packages have missing local executables/node_modules (`jest` first surfaced in infra/auth tasks).
-- `pnpm run lint` — exit `1`: unrelated workspace packages have no local `eslint` executable/node_modules.
-- `pnpm run typecheck` — exit `1`: unrelated workspace packages have missing Nest/Express/Clerk types; the API stage also has pre-existing business-development spec errors.
-- `pnpm run build` — exit `1`: unrelated workspace packages have no local `nest` executable/node_modules.
-
-No install was attempted. The focused Jest, TypeScript, formatting, PostgreSQL, and cleanup checks above are the applicable verification for this change.
-
-## Semantic qualification status
-
-`NOT_RUN` locally because native PostgreSQL 16 at `127.0.0.1:55433` does not provide pgvector. The GitHub Actions job was not run from this unpushed branch.
-
-The dedicated pgvector job is configured to execute, without mocked vector operators:
-
-- genuine 1024-dimensional vectors, exact current-model/source/tenant correlation, two models, stale projection hash/text versus canonical document body version and provenance;
-- an old unembedded lexical hit after 1,000 embedded distractors;
-- a semantic-only hit alongside 501 sparse rows whose semantic score/rank projections are SQL `NULL`;
-- a real vector-dimension operator error, observed aborted transaction state, rollback, and recovery in a fresh production transaction;
-- a real semantic SQL permission failure followed by lexical fallback in a fresh transaction.
-
-No semantic PASS is claimed until this job, or the same harness against a real loopback PostgreSQL 16 with pgvector, completes with `MEMORY_POSTGRES_VECTOR RUN engine=postgresql extension=vector dimensions=1024` and exit `0`.
+Actual semantic qualification is `NOT_RUN`: native `127.0.0.1:55433` has no pgvector, and the GitHub Actions pgvector workflow was not run from this checkout. The configured CI gate must still execute successfully and emit `MEMORY_POSTGRES_VECTOR RUN engine=postgresql extension=vector dimensions=1024` before any semantic PASS claim.

@@ -25,9 +25,10 @@ const FOREIGN_CLIENT = '30000000-0000-4000-8000-000000000003';
 const CURRENT_MODEL = 'qualification-current-1024';
 const OLD_MODEL = 'qualification-old-1024';
 const dataset = { domain: 'institutional_knowledge' } as SemanticDatasetDescriptor;
+const requireVector = process.env.MEMORY_POSTGRES_REQUIRE_VECTOR === '1';
 const adminUrl = qualificationAdminUrl();
 const databaseIt = adminUrl ? it : it.skip;
-const requireVector = process.env.MEMORY_POSTGRES_REQUIRE_VECTOR === '1';
+const semanticIt = adminUrl && requireVector ? it : it.skip;
 
 function request(overrides: Partial<RetrievalRequest> = {}): RetrievalRequest {
   return {
@@ -114,9 +115,9 @@ describe('canonical memory PostgreSQL qualification harness', () => {
     prisma = new PrismaService({ datasources: { db: { url: qualification.appUrl } } });
     await prisma.$connect();
     console.log(
-      qualification.vectorAvailable
+      requireVector && qualification.vectorAvailable
         ? 'MEMORY_POSTGRES_VECTOR RUN engine=postgresql extension=vector dimensions=1024'
-        : 'MEMORY_POSTGRES_VECTOR NOT_RUN reason=extension_unavailable nonvector=RUN',
+        : `MEMORY_POSTGRES_VECTOR NOT_RUN reason=optional_mode extension=${qualification.vectorAvailable ? 'available' : 'unavailable'} semantic_tests=SKIP nonvector=RUN`,
     );
   });
 
@@ -146,7 +147,7 @@ describe('canonical memory PostgreSQL qualification harness', () => {
     await grantWallAccess();
   });
 
-  it('is DB_FREE-reviewable and refuses non-loopback targets', () => {
+  it('is DB_FREE-reviewable and fails closed before database setup', () => {
     const workflow = readFileSync(
       resolve(__dirname, '../../../../../.github/workflows/memory-postgres-qualification.yml'),
       'utf8',
@@ -166,16 +167,74 @@ describe('canonical memory PostgreSQL qualification harness', () => {
     expect(DDL_PROVENANCE.sourceMigrations).toContain('20260719221000_memory_wall_rls');
     expect(QUALIFICATION_SCHEMA).not.toBe('public');
     expect(() =>
-      assertDisposableLocalUrl('postgresql://user:password@db.example.com/capiro'),
-    ).toThrow('refuses non-loopback');
+      assertDisposableLocalUrl(
+        'postgresql://user:password@db.example.com:5432/capiro',
+        'db.example.com:5432',
+      ),
+    ).toThrow('requires the IPv4 loopback host');
     expect(
-      assertDisposableLocalUrl('postgresql://user:password@127.0.0.1:55433/local').hostname,
+      assertDisposableLocalUrl(
+        'postgresql://user:password@127.0.0.1:55433/local',
+        '127.0.0.1:55433',
+      ).hostname,
     ).toBe('127.0.0.1');
+    expect(() =>
+      assertDisposableLocalUrl(
+        'postgresql://user:password@localhost:55433/local',
+        '127.0.0.1:55433',
+      ),
+    ).toThrow('requires the IPv4 loopback host');
+    expect(() =>
+      assertDisposableLocalUrl('postgresql://user:password@127.0.0.1/local', '127.0.0.1:5432'),
+    ).toThrow('requires an explicit loopback port');
+    expect(() =>
+      assertDisposableLocalUrl('postgresql://127.0.0.1:55433/local', '127.0.0.1:55433'),
+    ).toThrow('requires explicit database credentials');
+    expect(() =>
+      assertDisposableLocalUrl(
+        'postgresql://user:password@127.0.0.1:55433/local',
+        '127.0.0.1:5432',
+      ),
+    ).toThrow('must match the explicitly owned qualification endpoint');
+    expect(() =>
+      qualificationAdminUrl({
+        MEMORY_POSTGRES_REQUIRE_VECTOR: '1',
+        MEMORY_POSTGRES_DB_FREE: '1',
+      }),
+    ).toThrow('conflicts with MEMORY_POSTGRES_DB_FREE');
+    expect(() => qualificationAdminUrl({ MEMORY_POSTGRES_REQUIRE_VECTOR: '1' })).toThrow(
+      'requires MEMORY_POSTGRES_ADMIN_URL or MEMORY_POSTGRES_CREDENTIALS_FILE',
+    );
+    expect(() =>
+      qualificationAdminUrl({
+        MEMORY_POSTGRES_REQUIRE_VECTOR: '1',
+        MEMORY_POSTGRES_ADMIN_URL: ' ',
+        MEMORY_POSTGRES_CREDENTIALS_FILE: ' ',
+      }),
+    ).toThrow('requires MEMORY_POSTGRES_ADMIN_URL or MEMORY_POSTGRES_CREDENTIALS_FILE');
+    expect(() =>
+      qualificationAdminUrl({
+        MEMORY_POSTGRES_REQUIRE_VECTOR: '1',
+        MEMORY_POSTGRES_ADMIN_URL: 'postgresql://127.0.0.1:55433/postgres',
+        MEMORY_POSTGRES_OWNED_ENDPOINT_ACK: '127.0.0.1:55433',
+      }),
+    ).toThrow('requires explicit database credentials');
+    expect(() =>
+      qualificationAdminUrl({
+        MEMORY_POSTGRES_REQUIRE_VECTOR: '1',
+        MEMORY_POSTGRES_CREDENTIALS_FILE: resolve(
+          __dirname,
+          'qualification-credentials-do-not-exist.json',
+        ),
+      }),
+    ).toThrow('MEMORY_POSTGRES_CREDENTIALS_FILE does not exist');
     expect(workflow).toContain('pull_request:');
     expect(workflow).toContain('workflow_dispatch:');
     expect(workflow).toContain('image: pgvector/pgvector:pg16');
     expect(workflow).toContain('pnpm install --frozen-lockfile');
     expect(workflow).toContain("MEMORY_POSTGRES_REQUIRE_VECTOR: '1'");
+    expect(workflow).toContain("MEMORY_POSTGRES_OWNED_ENDPOINT_ACK: '127.0.0.1:5432'");
+    expect(workflow).toContain("- '127.0.0.1:5432:5432'");
     expect(workflow).toContain('127.0.0.1:5432/postgres');
     expect(workflow).not.toMatch(/prisma migrate deploy|aws-actions|deploy/i);
   });
@@ -371,10 +430,9 @@ describe('canonical memory PostgreSQL qualification harness', () => {
     },
   );
 
-  databaseIt(
-    'uses genuine 1024-d vectors, exact current-model/source correlation, and canonical body versions',
+  semanticIt(
+    'uses the embedding as a derived ranking projection while returning the current canonical body/version',
     async () => {
-      if (!qualification!.vectorAvailable) return;
       const currentBody = 'Current document body version two';
       const target = '50000000-0000-4000-8000-000000000001';
       const distractor = '50000000-0000-4000-8000-000000000002';
@@ -453,8 +511,7 @@ describe('canonical memory PostgreSQL qualification harness', () => {
     },
   );
 
-  databaseIt('retains an old unembedded lexical body hit after 1000 embedded rows', async () => {
-    if (!qualification!.vectorAvailable) return;
+  semanticIt('retains an old unembedded lexical body hit after 1000 embedded rows', async () => {
     const target = '51000000-0000-4000-8000-000000000001';
     const far = vectorLiteral(axisVector(1));
     await qualification!.admin.$executeRaw(Prisma.sql`
@@ -506,10 +563,9 @@ describe('canonical memory PostgreSQL qualification harness', () => {
     });
   });
 
-  databaseIt(
+  semanticIt(
     'retains a semantic-only hit beside 501 sparse NULL-projection lexical rows',
     async () => {
-      if (!qualification!.vectorAvailable) return;
       const semanticOnly = '52000000-0000-4000-8000-000000000001';
       await qualification!.admin.$executeRaw(Prisma.sql`
       INSERT INTO memory_items (
@@ -551,10 +607,9 @@ describe('canonical memory PostgreSQL qualification harness', () => {
     },
   );
 
-  databaseIt(
+  semanticIt(
     'observes a real vector-dimension abort and recovers in a fresh production transaction',
     async () => {
-      if (!qualification!.vectorAvailable) return;
       let mismatchObserved = false;
       let abortedObserved = false;
       await expect(
@@ -588,8 +643,7 @@ describe('canonical memory PostgreSQL qualification harness', () => {
     },
   );
 
-  databaseIt('rolls back a real semantic SQL failure before lexical adapter fallback', async () => {
-    if (!qualification!.vectorAvailable) return;
+  semanticIt('rolls back a real semantic SQL failure before lexical adapter fallback', async () => {
     const lexicalId = '54000000-0000-4000-8000-000000000001';
     await insertMemory({ id: lexicalId });
     await insertEmbedding(lexicalId, CURRENT_MODEL, axisVector(0));

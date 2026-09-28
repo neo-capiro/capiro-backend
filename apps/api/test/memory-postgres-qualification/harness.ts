@@ -30,6 +30,17 @@ type LocalCredentials = {
   database: string;
 };
 
+type QualificationEnvironment = Partial<
+  Record<
+    | 'MEMORY_POSTGRES_ADMIN_URL'
+    | 'MEMORY_POSTGRES_CREDENTIALS_FILE'
+    | 'MEMORY_POSTGRES_DB_FREE'
+    | 'MEMORY_POSTGRES_OWNED_ENDPOINT_ACK'
+    | 'MEMORY_POSTGRES_REQUIRE_VECTOR',
+    string | undefined
+  >
+>;
+
 export type QualificationDatabase = {
   admin: PrismaClient;
   appUrl: string;
@@ -40,20 +51,47 @@ export type QualificationDatabase = {
   dispose(): Promise<void>;
 };
 
-export function qualificationAdminUrl(): string | null {
-  if (process.env.MEMORY_POSTGRES_DB_FREE === '1') return null;
-  const explicit = process.env.MEMORY_POSTGRES_ADMIN_URL?.trim();
-  if (explicit) return assertDisposableLocalUrl(explicit).toString();
+export function qualificationAdminUrl(
+  environment: QualificationEnvironment = process.env,
+): string | null {
+  const requireVector = environment.MEMORY_POSTGRES_REQUIRE_VECTOR === '1';
+  if (environment.MEMORY_POSTGRES_DB_FREE === '1') {
+    if (requireVector) {
+      throw new Error('MEMORY_POSTGRES_REQUIRE_VECTOR conflicts with MEMORY_POSTGRES_DB_FREE');
+    }
+    return null;
+  }
 
-  const credentialsPath = process.env.MEMORY_POSTGRES_CREDENTIALS_FILE?.trim();
-  if (!credentialsPath || !existsSync(credentialsPath)) return null;
+  const endpointAck = environment.MEMORY_POSTGRES_OWNED_ENDPOINT_ACK?.trim();
+  const explicit = environment.MEMORY_POSTGRES_ADMIN_URL?.trim();
+  if (explicit) return assertDisposableLocalUrl(explicit, endpointAck).toString();
+
+  const credentialsPath = environment.MEMORY_POSTGRES_CREDENTIALS_FILE?.trim();
+  if (!credentialsPath) {
+    if (requireVector) {
+      throw new Error(
+        'MEMORY_POSTGRES_REQUIRE_VECTOR requires MEMORY_POSTGRES_ADMIN_URL or MEMORY_POSTGRES_CREDENTIALS_FILE',
+      );
+    }
+    return null;
+  }
+  if (!existsSync(credentialsPath)) {
+    throw new Error('MEMORY_POSTGRES_CREDENTIALS_FILE does not exist');
+  }
   const parsed = JSON.parse(readFileSync(credentialsPath, 'utf8')) as Partial<LocalCredentials>;
   if (
     typeof parsed.host !== 'string' ||
+    parsed.host.trim() === '' ||
     typeof parsed.port !== 'number' ||
+    !Number.isInteger(parsed.port) ||
+    parsed.port < 1 ||
+    parsed.port > 65_535 ||
     typeof parsed.user !== 'string' ||
+    parsed.user.trim() === '' ||
     typeof parsed.password !== 'string' ||
-    typeof parsed.database !== 'string'
+    parsed.password === '' ||
+    typeof parsed.database !== 'string' ||
+    parsed.database.trim() === ''
   ) {
     throw new Error('MEMORY_POSTGRES_CREDENTIALS_FILE has an unsupported shape');
   }
@@ -63,16 +101,35 @@ export function qualificationAdminUrl(): string | null {
   url.username = parsed.user;
   url.password = parsed.password;
   url.pathname = `/${parsed.database}`;
-  return assertDisposableLocalUrl(url.toString()).toString();
+  return assertDisposableLocalUrl(url.toString(), endpointAck).toString();
 }
 
-export function assertDisposableLocalUrl(raw: string): URL {
-  const url = new URL(raw);
+export function assertDisposableLocalUrl(raw: string, endpointAck?: string): URL {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error('memory PostgreSQL qualification requires a valid postgres URL');
+  }
   if (!['postgres:', 'postgresql:'].includes(url.protocol)) {
     throw new Error('memory PostgreSQL qualification requires a postgres URL');
   }
-  if (!['127.0.0.1', 'localhost', '::1', '[::1]'].includes(url.hostname)) {
-    throw new Error('memory PostgreSQL qualification refuses non-loopback databases');
+  if (url.hostname !== '127.0.0.1') {
+    throw new Error('memory PostgreSQL qualification requires the IPv4 loopback host 127.0.0.1');
+  }
+  const authority = /^(?:postgres|postgresql):\/\/([^/?#]+)/i.exec(raw.trim())?.[1];
+  const hostPort = authority?.slice(authority.lastIndexOf('@') + 1);
+  const port = /^127\.0\.0\.1:(\d+)$/.exec(hostPort ?? '')?.[1];
+  if (!port || Number(port) < 1 || Number(port) > 65_535) {
+    throw new Error('memory PostgreSQL qualification requires an explicit loopback port');
+  }
+  if (!url.username || !url.password) {
+    throw new Error('memory PostgreSQL qualification requires explicit database credentials');
+  }
+  if (endpointAck !== `127.0.0.1:${port}`) {
+    throw new Error(
+      'MEMORY_POSTGRES_OWNED_ENDPOINT_ACK must match the explicitly owned qualification endpoint',
+    );
   }
   if (!url.pathname || url.pathname === '/') {
     throw new Error('memory PostgreSQL qualification requires a maintenance database name');
@@ -84,8 +141,9 @@ export function assertDisposableLocalUrl(raw: string): URL {
 export async function createQualificationDatabase(
   adminUrl: string,
   requireVector: boolean,
+  endpointAck = process.env.MEMORY_POSTGRES_OWNED_ENDPOINT_ACK?.trim(),
 ): Promise<QualificationDatabase> {
-  const maintenanceUrl = assertDisposableLocalUrl(adminUrl);
+  const maintenanceUrl = assertDisposableLocalUrl(adminUrl, endpointAck);
   const suffix = randomBytes(6).toString('hex');
   const databaseName = `${QUALIFICATION_PREFIX}${suffix}`;
   const ownerRole = `${QUALIFICATION_PREFIX}owner_${suffix}`;
