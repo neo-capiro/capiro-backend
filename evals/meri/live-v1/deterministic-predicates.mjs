@@ -10,7 +10,10 @@ import {
 import { validateJsonSchema } from './lib/schema-validator.mjs';
 import { evaluateSavedEvidenceCase, savedEvidenceCaseIds } from './saved-evidence-predicates.mjs';
 
-const IMPLEMENTED_CASES = new Set(['01', '03', '12', '19', '20', '46', '51', '56', '72', ...savedEvidenceCaseIds]);
+const ROW_COVERAGE_IMPLEMENTED_CASES = new Set([
+  '01', '03', '12', '13', '14', '15', '16', '17', '18', '19', '20', '46', '51', '56', '72',
+]);
+const SOURCE_QUALIFICATION_INCOMPLETE_CASES = new Set(['40', '41', '42', '43', '44', '45']);
 
 function folded(value) {
   return value.normalize('NFC').toLocaleLowerCase('en-US').replace(/[’']/gu, "'").replace(/\s+/gu, ' ').trim();
@@ -299,7 +302,7 @@ export function evaluateDeterministicEvidence(capture, testCase, artifacts, capt
   const shapeDefects = validateArtifactShapes(artifacts);
   if (shapeDefects.length > 0) {
     return {
-      implemented: IMPLEMENTED_CASES.has(capture.caseId),
+      implemented: ROW_COVERAGE_IMPLEMENTED_CASES.has(capture.caseId),
       defects: shapeDefects,
       integrityDefects: shapeDefects,
       reason: 'saved artifact schema validation failed',
@@ -317,11 +320,23 @@ export function evaluateDeterministicEvidence(capture, testCase, artifacts, capt
     ...validateExecutionRequirements(capture, artifacts.trace),
     ...commonLeakDefects(capture, testCase, artifacts.answer.text, artifacts.passages),
   ];
-  if (!IMPLEMENTED_CASES.has(capture.caseId)) {
-    return { implemented: false, defects, integrityDefects, reason: `case ${capture.caseId} row-specific deterministic predicate is not implemented` };
-  }
   if (savedEvidenceCaseIds.includes(capture.caseId)) defects.push(...evaluateSavedEvidenceCase(capture, artifacts, captureRunId));
-  else defects.push(...casePredicate(capture, artifacts));
+  else if (ROW_COVERAGE_IMPLEMENTED_CASES.has(capture.caseId)) defects.push(...casePredicate(capture, artifacts));
+  if (!ROW_COVERAGE_IMPLEMENTED_CASES.has(capture.caseId)) {
+    const sourceQualificationIncomplete = SOURCE_QUALIFICATION_INCOMPLETE_CASES.has(capture.caseId);
+    return {
+      implemented: false,
+      defects,
+      integrityDefects,
+      reason: sourceQualificationIncomplete
+        ? `case ${capture.caseId} source-byte/parser/current-authority row qualification is not implemented`
+        : `case ${capture.caseId} row-specific deterministic predicate is not implemented`,
+      coverageDetails: sourceQualificationIncomplete ? [
+        'reliable lower-level saved artifact hashes and structural joins were checked, but they do not qualify original row coverage',
+        'actual source bytes, trusted parser output, source identity, and current-version authority are not independently proven',
+      ] : [],
+    };
+  }
   return { implemented: true, defects, integrityDefects, reason: null };
 }
 

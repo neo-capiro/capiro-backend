@@ -176,7 +176,13 @@ export function evaluateCapture(capture, testCase, context = {}) {
     return fail('BLOCKED', 'capture evidence evaluation failed closed', [`${error?.name || 'Error'}: ${error?.message || String(error)}`]);
   }
   const defects = [...declaredDefects, ...deterministic.defects];
-  if (!deterministic.implemented) return fail('NOT_RUN', deterministic.reason, defects);
+  if (!deterministic.implemented) {
+    const details = [...defects, ...(deterministic.coverageDetails ?? [])];
+    if (context.provenance === 'LIVE_CAPTURE') {
+      return fail('BLOCKED', 'offline capture/auth/source authority verification is not implemented', [deterministic.reason, ...details]);
+    }
+    return fail('NOT_RUN', deterministic.reason, details);
+  }
 
   const authorityReason = context.provenance === 'UNIT_FIXTURE_NOT_LIVE'
     ? 'unit fixture artifacts are explicitly NOT live evidence'

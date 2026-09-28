@@ -150,7 +150,9 @@ export function savedUiActions(context) {
       receiptId: receiptAction ? context.receiptId : null,
       statusCode: denied ? 403 : action === 'stale_revision_error_observed' ? 409 : null,
       state: action.includes('pending') ? 'pending' : action.includes('rejected') ? 'rejected' : null,
-      detail: action === 'authorization_error_observed' ? 'reviewer role required' : null,
+      detail: action === 'authorization_error_observed'
+        ? 'reviewer role required'
+        : action === 'stale_revision_error_observed' ? 'stale revision' : null,
     };
   });
 }

@@ -130,7 +130,7 @@ function validateMemorySessions(defects, receipt) {
   }
 }
 
-function validateAttemptTools(defects, artifacts, memory) {
+function validateAttemptTools(defects, capture, artifacts, memory) {
   for (const attempt of memory.attempts) {
     const tool = artifacts.trace.records.find((record) => record.kind === 'tool' && record.callId === attempt.toolCallId);
     const session = memory.sessions.find((item) => item.sessionId === attempt.sessionId);
@@ -144,6 +144,22 @@ function validateAttemptTools(defects, artifacts, memory) {
         && tool.authorizationScope.tenantId === session.tenantId
         && tool.authorizationScope.clientId === session.clientId,
       `memory attempt ${attempt.attemptId} is not bound to its source/actor/scope/tool call`);
+    const successfulDecision = ['approved', 'rejected'].includes(attempt.outcome);
+    const deniedDecision = attempt.outcome === 'denied';
+    const staleDecision = attempt.outcome === 'stale_revision';
+    requireValue(defects,
+      tool.httpStatus === attempt.statusCode
+        && (successfulDecision
+          ? tool.status === 'complete' && tool.logicalError === null && attempt.statusCode >= 200 && attempt.statusCode < 300
+          : deniedDecision
+            ? tool.status === 'denied' && attempt.statusCode === 403 && folded(tool.logicalError).length > 0
+            : staleDecision && tool.status === 'complete' && attempt.statusCode === 409
+              && folded(tool.logicalError).includes('stale') && folded(tool.logicalError).includes('revision')),
+      `memory attempt ${attempt.attemptId} declared outcome/status is not bound to the actual tool HTTP/logical response`);
+    if (successfulDecision) {
+      requireValue(defects, tool.operationId === capture.evidence.effects.operationId,
+        `memory attempt ${attempt.attemptId} is not bound to the captured decision operation`);
+    }
   }
 }
 
@@ -164,11 +180,31 @@ function payloadObject(artifacts, defects) {
   }
 }
 
-function validateEffectReceipt(defects, artifacts, proposal, expectedKind) {
+function validateEffectReceipt(defects, capture, artifacts, proposal, expectedKind, attempt = null) {
   const sinkReceipt = artifacts.sink?.receipts.find((item) => item.receiptId === proposal.receiptId);
   const sinkEffect = artifacts.sink?.effects.find((item) => item.logicalEffectId === sinkReceipt?.logicalEffectId);
+  const traceEffects = artifacts.trace.records.filter((record) => record.kind === 'effect'
+    && record.operationId === artifacts.sink?.operationId
+    && record.proposalId === proposal.proposalId
+    && record.receiptId === sinkReceipt?.receiptId
+    && record.logicalEffectId === sinkEffect?.logicalEffectId);
   requireValue(defects, Boolean(sinkReceipt && sinkEffect), `proposal ${proposal.sourceId} lacks its authoritative sink receipt/effect`);
-  if (sinkEffect) requireValue(defects, sinkEffect.type === expectedKind && sinkEffect.status === 'succeeded', `proposal ${proposal.sourceId} sink effect type/status is wrong`);
+  requireValue(defects,
+    artifacts.sink?.operationId === capture.evidence.effects.operationId
+      && artifacts.sink?.proposalId === proposal.proposalId
+      && sinkReceipt?.status === 'succeeded'
+      && sinkEffect?.type === expectedKind
+      && sinkEffect?.status === 'succeeded'
+      && traceEffects.length === 1,
+    `proposal ${proposal.sourceId} receipt status/operation/decision/effect join is invalid`);
+  if (attempt) {
+    const expectedDecision = attempt.requestedDecision === 'approve' ? 'approved' : 'rejected';
+    requireValue(defects,
+      attempt.receiptId === sinkReceipt?.receiptId
+        && attempt.outcome === expectedDecision
+        && proposal.decision === expectedDecision,
+      `proposal ${proposal.sourceId} decision attempt is not joined to the successful receipt/effect`);
+  }
 }
 
 function memoryPredicate(capture, artifacts) {
@@ -177,7 +213,7 @@ function memoryPredicate(capture, artifacts) {
   if (!memory) return ['canonical memory state/decision receipt is missing'];
   requireValue(defects, artifacts.acceptance.document === null, 'memory receipt contains document evidence');
   validateMemorySessions(defects, artifacts.acceptance);
-  validateAttemptTools(defects, artifacts, memory);
+  validateAttemptTools(defects, capture, artifacts, memory);
   const id = capture.caseId;
   const source = (sourceId) => frozenFixture.sources[sourceId].facts;
   const textHash = (sourceId) => source(sourceId).proposedText ? sha256Text(source(sourceId).proposedText) : null;
@@ -203,7 +239,7 @@ function memoryPredicate(capture, artifacts) {
       decision: null, receiptId: artifacts.sink?.receipts[0]?.receiptId ?? null, decisionActorId: null, decisionReason: null,
     });
     requireValue(defects, memory.proposals.length === 1 && memory.attempts.length === 0 && memory.recall === null, 'case 13 must contain one pending proposal and no decision/recall receipt');
-    if (proposal) validateEffectReceipt(defects, artifacts, proposal, 'memory_proposal');
+    if (proposal) validateEffectReceipt(defects, capture, artifacts, proposal, 'memory_proposal');
     const payload = payloadObject(artifacts, defects);
     requireValue(defects, same(payload, {
       kind: 'memory_proposal', sourceId, proposalId: proposalId(sourceId), scope: 'client', clientId: 'ASTER',
@@ -227,7 +263,7 @@ function memoryPredicate(capture, artifacts) {
       && memory.recall?.textSha256 === textHash(sourceId) && memory.recall?.state === 'approved'
       && memory.recall?.recalled === true && memory.recall?.turnOffset === 1,
     'case 14 next-turn recall is not bound to the approved version/text hash');
-    if (proposal) validateEffectReceipt(defects, artifacts, proposal, 'memory_decision');
+    if (proposal) validateEffectReceipt(defects, capture, artifacts, proposal, 'memory_decision', attempt);
     const payload = payloadObject(artifacts, defects);
     requireValue(defects, same(payload, {
       kind: 'memory_decision', sourceId, proposalId: proposalId(sourceId), decision: 'approve', expectedRevision: 1,
@@ -251,7 +287,7 @@ function memoryPredicate(capture, artifacts) {
     requireValue(defects, memory.recall?.sourceId === sourceId && memory.recall?.recalled === false
       && memory.recall?.state === 'rejected' && memory.recall?.versionId === null,
     'case 15 rejected candidate was not deterministically excluded from recall');
-    if (proposal) validateEffectReceipt(defects, artifacts, proposal, 'memory_decision');
+    if (proposal) validateEffectReceipt(defects, capture, artifacts, proposal, 'memory_decision', attempt);
     const payload = payloadObject(artifacts, defects);
     requireValue(defects, same(payload, {
       kind: 'memory_decision', sourceId, proposalId: proposalId(sourceId), decision: 'reject', expectedRevision: 1,
@@ -309,16 +345,27 @@ function memoryPredicate(capture, artifacts) {
     });
     const staleAttempt = memory.attempts.find((attempt) => attempt.sourceId === staleId);
     const currentAttempt = memory.attempts.find((attempt) => attempt.sourceId === currentId);
+    const staleErrorAction = artifacts.ui.flatMap((artifact) => artifact.actions ?? [])
+      .find((action) => action.action === 'stale_revision_error_observed');
     requireValue(defects, memory.sessions.length === 2 && memory.attempts.length === 2
       && staleAttempt?.expectedRevision === 1 && staleAttempt?.observedRevision === 2 && staleAttempt?.statusCode === 409
       && staleAttempt?.outcome === 'stale_revision' && staleAttempt?.logicalEffectCount === 0 && staleAttempt?.receiptId === null
       && currentAttempt?.expectedRevision === 2 && currentAttempt?.observedRevision === 2 && currentAttempt?.statusCode === 200
       && currentAttempt?.outcome === 'approved' && currentAttempt?.logicalEffectCount === 1 && currentAttempt?.receiptId === current?.receiptId,
     'case 18 does not prove a zero-effect stale rejection plus one receipt-bound current revision approval');
+    requireValue(defects,
+      staleErrorAction?.sessionId === staleAttempt?.sessionId
+        && staleErrorAction?.sourceId === staleAttempt?.sourceId
+        && staleErrorAction?.proposalId === staleAttempt?.proposalId
+        && staleErrorAction?.outcome === 'denied'
+        && staleErrorAction?.statusCode === staleAttempt?.statusCode
+        && folded(staleErrorAction?.detail).includes('stale')
+        && folded(staleErrorAction?.detail).includes('revision'),
+      'case 18 stale-revision UI error outcome is not bound to the rejected attempt');
     requireValue(defects, memory.recall?.sourceId === currentId && memory.recall?.versionId === current?.versionId
       && memory.recall?.textSha256 === textHash(currentId) && memory.recall?.recalled === true,
     'case 18 recall does not resolve to the intended current version/hash');
-    if (current) validateEffectReceipt(defects, artifacts, current, 'memory_decision');
+    if (current) validateEffectReceipt(defects, capture, artifacts, current, 'memory_decision', currentAttempt);
     const payload = payloadObject(artifacts, defects);
     requireValue(defects, same(payload, {
       kind: 'memory_decision', sourceId: currentId, proposalId: proposalId(currentId), decision: 'approve', expectedRevision: 2,
@@ -330,6 +377,17 @@ function memoryPredicate(capture, artifacts) {
 
 function toolRecord(artifacts, callId) {
   return artifacts.trace.records.find((record) => record.kind === 'tool' && record.callId === callId);
+}
+
+function rangeLocator(range) {
+  return `range:${range.start}-${range.end}`;
+}
+
+function sameAuthorization(left, right) {
+  return left?.sessionId === right?.sessionId
+    && left?.actorId === right?.actorId
+    && left?.tenantId === right?.selectedTenantId
+    && left?.clientId === right?.selectedClientId;
 }
 
 function validateDocumentReceipt(capture, artifacts, receipt) {
@@ -361,6 +419,27 @@ function validateDocumentReceipt(capture, artifacts, receipt) {
   for (const callId of receipt.toolCallIds) {
     const tool = toolRecord(artifacts, callId);
     requireValue(defects, Boolean(tool?.sourceIds.includes(receipt.sourceId)), `source ${receipt.sourceId} read range references an unbound source call ${callId}`);
+  }
+  requireValue(defects, receipt.toolCallIds.length === new Set(receipt.toolCallIds).size,
+    `source ${receipt.sourceId} read tool call IDs are not unique`);
+  for (const range of receipt.readRanges) {
+    const tool = toolRecord(artifacts, range.toolCallId);
+    const sourceCall = artifacts.trace.records.find((record) => record.kind === 'source'
+      && record.sourceId === receipt.sourceId
+      && record.toolCallId === range.toolCallId
+      && record.version === receipt.sourceVersion
+      && record.locator === rangeLocator(range));
+    requireValue(defects,
+      receipt.toolCallIds.includes(range.toolCallId)
+        && tool?.sourceIds.length === 1
+        && tool.sourceIds[0] === receipt.sourceId
+        && tool.status === 'complete'
+        && tool.httpStatus === 200
+        && tool.logicalError === null
+        && sameAuthorization(tool.authorizationScope, artifacts.auth)
+        && sameAuthorization(sourceCall?.authorizationScope, artifacts.auth)
+        && same(tool.authorizationScope, sourceCall?.authorizationScope),
+      `source ${receipt.sourceId} range ${range.start}-${range.end} lacks an actual authorized source call with matching version/locator`);
   }
   requireValue(defects, receipt.format.authorityClass === artifacts.acceptance.authorityClass, `source ${receipt.sourceId} format/read authority class is inconsistent`);
   for (const section of receipt.sections) {

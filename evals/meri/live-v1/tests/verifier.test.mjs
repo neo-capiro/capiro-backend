@@ -345,7 +345,7 @@ test('unimplemented row predicate remains NOT_RUN rather than trusting hard-gate
   assert.match(caseResult.reason, /row-specific deterministic predicate is not implemented/u);
 });
 
-test('cases 13-18 and 40-45 validate canonical saved UNIT evidence but remain NOT_RUN', (t) => {
+test('cases 13-18 validate qualified predicates while 40-45 expose only lower-level checks; all remain NOT_RUN', (t) => {
   const variantsById = new Map([
     ...['13', '14', '15', '16', '17', '18', '40', '41', '43', '44', '45'].map((id) => [id, [{ id }]]),
     ['42', [
@@ -357,10 +357,110 @@ test('cases 13-18 and 40-45 validate canonical saved UNIT evidence but remain NO
     const { bundle } = unit(t, variants);
     const caseResult = result(verifyCaptureBundle(bundle), id);
     assert.equal(caseResult.status, 'NOT_RUN', id);
-    assert.match(caseResult.reason, /UNIT fixture.*NOT live/iu, id);
-    assert.deepEqual([...new Set(caseResult.details)], [
-      'saved artifact hashes and structural joins were checked, but capture/auth/source authority remains unverified',
-    ], id);
+    if (Number(id) < 40) {
+      assert.match(caseResult.reason, /UNIT fixture.*NOT live/iu, id);
+      assert.deepEqual([...new Set(caseResult.details)], [
+        'saved artifact hashes and structural joins were checked, but capture/auth/source authority remains unverified',
+      ], id);
+    } else {
+      assert.match(caseResult.reason, /source-byte\/parser\/current-authority row qualification is not implemented/u, id);
+      assert.match(caseResult.details.join('\n'), /lower-level.*structural joins.*do not qualify original row coverage/u, id);
+      assert.match(caseResult.details.join('\n'), /actual source bytes, trusted parser output, source identity, and current-version authority/u, id);
+    }
+  }
+});
+
+test('case 14 rejects an unsupported receipt status despite a succeeded effect, with a clean positive control', (t) => {
+  const positive = unit(t, [{ id: '14' }]);
+  const positiveResult = result(verifyCaptureBundle(positive.bundle), '14');
+  assert.equal(positiveResult.status, 'NOT_RUN');
+  assert.doesNotMatch(positiveResult.details.join('\n'), /receipt status\/operation\/decision\/effect join is invalid/u);
+
+  const counterexample = unit(t, [{ id: '14' }]);
+  const capture = counterexample.bundle.captures[0];
+  const descriptor = { ref: capture.evidence.effects.sinkRef, sha256: capture.evidence.effects.sinkSha256 };
+  mutateJson(counterexample.root, descriptor, (sink) => { sink.receipts[0].status = 'unsupported_not_approved'; });
+  capture.evidence.effects.sinkSha256 = descriptor.sha256;
+  const caseResult = result(verifyCaptureBundle(counterexample.bundle), '14');
+  assert.equal(caseResult.status, 'NOT_RUN');
+  assert.match(caseResult.details.join('\n'), /receipt status\/operation\/decision\/effect join is invalid/u);
+});
+
+test('case 18 binds stale attempt labels to actual trace HTTP/logical response and UI error outcome', (t) => {
+  const positive = unit(t, [{ id: '18' }]);
+  const positiveResult = result(verifyCaptureBundle(positive.bundle), '18');
+  assert.equal(positiveResult.status, 'NOT_RUN');
+  assert.doesNotMatch(positiveResult.details.join('\n'), /actual tool HTTP\/logical response|stale-revision UI error outcome/u);
+
+  const counterexample = unit(t, [{ id: '18' }]);
+  const capture = counterexample.bundle.captures[0];
+  mutateJson(counterexample.root, capture.evidence.run.traceArtifact, (trace) => {
+    const tool = trace.records.find((record) => record.kind === 'tool' && record.callId.endsWith('-stale'));
+    tool.httpStatus = 200;
+    tool.logicalError = null;
+  });
+  const uiDescriptor = capture.evidence.ui.evidenceArtifacts[0];
+  mutateJson(counterexample.root, uiDescriptor, (ui) => {
+    const action = ui.actions.find((item) => item.action === 'stale_revision_error_observed');
+    action.outcome = 'observed';
+    action.statusCode = 200;
+    action.detail = null;
+  });
+  const caseResult = result(verifyCaptureBundle(counterexample.bundle), '18');
+  assert.equal(caseResult.status, 'NOT_RUN');
+  assert.match(caseResult.details.join('\n'), /actual tool HTTP\/logical response/u);
+  assert.match(caseResult.details.join('\n'), /stale-revision UI error outcome/u);
+});
+
+test('consistent self-declared hashes and sections cannot qualify cases 40, 42, or 45 as source-byte proof', (t) => {
+  for (const id of ['40', '42', '45']) {
+    const variants = id === '42'
+      ? [{ id, runtimeMode: 'Standard', pairId: 'case42-pair' }, { id, runtimeMode: 'Deep', pairId: 'case42-pair' }]
+      : [{ id }];
+    const { root, bundle } = unit(t, variants);
+    for (const capture of bundle.captures) {
+      const attachment = capture.evidence.sources.attachments[0];
+      const changed = writeArtifact(root, attachment.byteRef, `NOT AUTHORITATIVE ${id} SOURCE BYTES`, { raw: true });
+      attachment.byteSha256 = changed.sha256;
+      const readbackDescriptor = { ref: attachment.downloadReceiptRef, sha256: attachment.downloadReceiptSha256 };
+      mutateJson(root, readbackDescriptor, (readback) => { readback.byteSha256 = changed.sha256; });
+      attachment.downloadReceiptSha256 = readbackDescriptor.sha256;
+      mutateJson(root, capture.evidence.predicate.artifact, (receipt) => {
+        receipt.document.receipts[0].byteSha256 = changed.sha256;
+        if (receipt.document.priorTurn) receipt.document.priorTurn.pointerSha256 = changed.sha256;
+      });
+    }
+    const caseResult = result(verifyCaptureBundle(bundle), id);
+    assert.equal(caseResult.status, 'NOT_RUN', id);
+    assert.match(caseResult.reason, /source-byte\/parser\/current-authority row qualification is not implemented/u, id);
+    assert.match(caseResult.details.join('\n'), /actual source bytes, trusted parser output, source identity, and current-version authority/u, id);
+    assert.doesNotMatch(caseResult.details.join('\n'), /byte hash is not bound/u, id);
+  }
+});
+
+test('all saved-evidence purported LIVE_CAPTURE claims remain BLOCKED by the unimplemented authority gate', (t) => {
+  for (const id of ['13', '14', '15', '16', '17', '18', '40', '41', '42', '43', '44', '45']) {
+    const variants = id === '42'
+      ? [{ id, runtimeMode: 'Standard', pairId: 'case42-pair' }, { id, runtimeMode: 'Deep', pairId: 'case42-pair' }]
+      : [{ id }];
+    const { root, bundle } = unit(t, variants);
+    const ownerDescriptor = { ref: 'bundle-owner.json', sha256: bundle.ownerSha256 };
+    mutateJson(root, ownerDescriptor, (owner) => { owner.provenance = 'LIVE_CAPTURE'; });
+    bundle.ownerSha256 = ownerDescriptor.sha256;
+    for (const capture of bundle.captures) {
+      mutateJson(root, capture.evidence.predicate.artifact, (receipt) => {
+        receipt.authorityClass = 'AUTHORITATIVE_CAPTURE';
+        for (const documentReceipt of receipt.document?.receipts ?? []) {
+          documentReceipt.format.authorityClass = 'AUTHORITATIVE_CAPTURE';
+        }
+      });
+    }
+    const caseResult = result(verifyCaptureBundle(bundle), id);
+    assert.equal(caseResult.status, 'BLOCKED', id);
+    assert.match(caseResult.reason, /offline capture\/auth\/source authority verification is not implemented/u, id);
+    if (Number(id) >= 40) {
+      assert.match(caseResult.details.join('\n'), /source-byte\/parser\/current-authority row qualification is not implemented/u, id);
+    }
   }
 });
 
@@ -437,6 +537,11 @@ test('file saved-evidence counterexamples fail closed across source bytes, sourc
         receipt.document.receipts[0].readRanges[0].toolCallId = 'phantom-page-call';
       });
     }, /unbound source call/u],
+    ['phantom range call hidden behind a separate valid toolCallIds list', (root, capture) => {
+      mutateJson(root, capture.evidence.predicate.artifact, (receipt) => {
+        receipt.document.receipts[0].readRanges[3].toolCallId = 'phantom-not-called';
+      });
+    }, /range 61-80 lacks an actual authorized source call with matching version\/locator/u],
     ['pagination coverage', (root, capture) => {
       mutateJson(root, capture.evidence.predicate.artifact, (receipt) => { receipt.document.receipts[0].readRanges.pop(); });
     }, /page 1–80 range coverage/u],

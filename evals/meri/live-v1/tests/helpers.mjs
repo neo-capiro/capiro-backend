@@ -229,22 +229,29 @@ function makeCapture(root, id, { runtimeMode = 'Standard', verificationMode = 'd
     { kind: 'proposal', caseId: id, runId, traceId, proposalId, payloadSha256: payload.sha256 },
     { kind: 'effect', caseId: id, runId, traceId, operationId, proposalId, receiptId, logicalEffectId },
   ] : [];
+  const sourceBindings = sourceRecords.map(({ sourceId, toolCallId, passageSha256, version, locator }) => ({ sourceId, toolCallId, passageSha256, version, locator }));
+  const acceptanceValue = savedEvidenceIds.has(id) ? savedAcceptanceValue({
+    ...savedContext,
+    sourceBindings,
+    uiActions: uiValue?.actions ?? [],
+  }, savedAttachment) : null;
+  const rangeSourceRecords = (acceptanceValue?.document?.receipts ?? []).flatMap((receipt) => receipt.readRanges.map((range) => ({
+    kind: 'source', caseId: id, runId, traceId, sourceId: receipt.sourceId,
+    passageSha256: passageDescriptors.get(receipt.sourceId).sha256,
+    toolCallId: range.toolCallId, version: receipt.sourceVersion,
+    locator: `range:${range.start}-${range.end}`, authorizationScope,
+  })));
   const traceValue = {
     schemaVersion: 1, captureRunId, caseId: id, runId, conversationId, traceId, runtimeMode, verificationMode, pairId,
     previousTurns, injectedFaults, transitions, streamedClaims: [],
     records: [
       { kind: 'auth', caseId: id, runId, traceId, sessionId: authValue.sessionId },
       ...(id === '18' ? [{ kind: 'auth', caseId: id, runId, traceId, sessionId: `${authValue.sessionId}-secondary` }] : []),
-      ...toolRecords, ...sourceRecords, ...effectRecords,
+      ...toolRecords, ...sourceRecords, ...rangeSourceRecords, ...effectRecords,
     ],
   };
   const trace = writeArtifact(root, `${prefix}/trace.json`, traceValue);
-  const sourceBindings = sourceRecords.map(({ sourceId, toolCallId, passageSha256, version, locator }) => ({ sourceId, toolCallId, passageSha256, version, locator }));
-  const acceptance = savedEvidenceIds.has(id) ? writeArtifact(root, `${prefix}/predicate.json`, savedAcceptanceValue({
-    ...savedContext,
-    sourceBindings,
-    uiActions: uiValue?.actions ?? [],
-  }, savedAttachment)) : null;
+  const acceptance = acceptanceValue ? writeArtifact(root, `${prefix}/predicate.json`, acceptanceValue) : null;
 
   return {
     caseId: id,
