@@ -1,9 +1,10 @@
 import type { Prisma } from '@prisma/client';
 import {
-  advanceScheduledTaskExecution,
-  checkScheduledTaskExecutionBoundary,
-  claimScheduledTaskExecution,
+  authorizeScheduledTaskExecution,
+  executeAuthorizedScheduledTaskEffect,
   executeScheduledTaskEffect,
+  parseScheduledTaskDurableReceipt,
+  type ScheduledTaskExecutionClaim,
 } from './meri-schedule-execution-boundary.js';
 
 const task = {
@@ -12,281 +13,137 @@ const task = {
   ownerUserId: '33333333-3333-4333-8333-333333333333',
 };
 const clientId = '44444444-4444-4444-8444-444444444444';
+const receipt = {
+  version: 1 as const,
+  occurrenceId: '55555555-5555-4555-8555-555555555555',
+  scheduledFor: '2026-09-28T10:00:00.000Z',
+  claimedAt: '2026-09-28T10:00:00.000Z',
+  nextRunAt: '2026-09-28T11:00:00.000Z',
+  fence: '66666666-6666-4666-8666-666666666666',
+  attempt: 1,
+  heartbeatAt: '2026-09-28T10:00:00.000Z',
+  leaseExpiresAt: '2026-09-28T10:02:00.000Z',
+  stage: 'claimed' as const,
+  notification: { requested: false, recipient: null, outcome: 'not_requested' as const },
+};
+const claim: ScheduledTaskExecutionClaim = {
+  claimedAt: new Date(receipt.claimedAt),
+  nextRunAt: new Date(receipt.nextRunAt),
+  occurrenceId: receipt.occurrenceId,
+  fence: receipt.fence,
+  receipt,
+  recovered: false,
+};
 
-function tx(options: {
-  taskExists?: boolean;
+function transaction(options: {
+  active?: boolean;
+  clientId?: string;
   clientExists?: boolean;
-  clientId?: string | null;
   wallAllowed?: boolean;
+  role?: string;
 }) {
+  const metadata = options.clientId ? { clientId: options.clientId } : {};
   return {
-    clioScheduledTask: {
-      findFirst: jest.fn().mockResolvedValue(
-        options.taskExists === false
-          ? null
-          : { metadata: options.clientId ? { clientId: options.clientId } : {} },
-      ),
-    },
     client: {
       findFirst: jest.fn().mockResolvedValue(
         options.clientExists === false ? null : { id: options.clientId },
       ),
     },
-    // Exercise memory-wall.helpers.ts's actual clientMemoryAllowed query path.
-    $queryRawUnsafe: jest.fn().mockResolvedValue([{ allowed: options.wallAllowed === true }]),
+    $queryRawUnsafe: jest.fn(async (sql: string) => {
+      if (sql.includes('FROM clients c')) return [{ allowed: options.wallAllowed !== false }];
+      if (sql.includes('SELECT st.enabled')) {
+        return [{
+          enabled: true,
+          status: 'running',
+          occurrence_id: receipt.occurrenceId,
+          fence: receipt.fence,
+          lease_expires_at: receipt.leaseExpiresAt,
+          owner_active: options.active !== false,
+        }];
+      }
+      return options.active === false
+        ? []
+        : [{
+            metadata,
+            role: options.role ?? 'standard_user',
+            clerk_user_id: 'clerk-owner',
+            tenant_slug: 'tenant',
+          }];
+    }),
   } as unknown as Prisma.TransactionClient;
 }
 
-describe('scheduled task execution boundary', () => {
-  it('stops a task canceled after the due-task snapshot without evaluating client access', async () => {
-    const transaction = tx({ taskExists: false });
-
-    await expect(checkScheduledTaskExecutionBoundary(transaction, task)).resolves.toBe('inactive');
-    expect(transaction.client.findFirst).not.toHaveBeenCalled();
-    expect(transaction.$queryRawUnsafe).not.toHaveBeenCalled();
+describe('scheduled task durable execution boundary', () => {
+  it('parses a namespaced durable occurrence receipt and rejects legacy running metadata', () => {
+    expect(parseScheduledTaskDurableReceipt({ scheduleExecution: receipt })).toEqual(receipt);
+    expect(parseScheduledTaskDurableReceipt({ clientId })).toBeNull();
   });
 
-  it('denies a current same-tenant client when the current actor lost wall authority', async () => {
-    const transaction = tx({ clientId, clientExists: true, wallAllowed: false });
+  it('requires a current active owner membership instead of defaulting a missing role', async () => {
+    const tx = transaction({ active: false });
 
-    await expect(checkScheduledTaskExecutionBoundary(transaction, task)).resolves.toBe(
-      'wall_denied',
-    );
-    expect(transaction.client.findFirst).toHaveBeenCalledWith({
-      where: {
-        id: clientId,
-        tenantId: task.tenantId,
-        status: { not: 'archived' },
-      },
-      select: { id: true },
-    });
-    expect(transaction.$queryRawUnsafe).toHaveBeenCalledTimes(1);
-  });
-
-  it('runs only when the current task, client, and actor wall authority all remain valid', async () => {
-    const transaction = tx({ clientId, clientExists: true, wallAllowed: true });
-
-    await expect(checkScheduledTaskExecutionBoundary(transaction, task)).resolves.toBe('runnable');
-    expect(transaction.$queryRawUnsafe).toHaveBeenCalledTimes(1);
-  });
-
-  function claimHarness(options: { clientId?: string; wallAllowed?: boolean } = {}) {
-    const row = {
-      enabled: true,
-      lastStatus: null as string | null,
-      lastRunAt: null as Date | null,
-      nextRunAt: new Date('2026-09-28T10:00:00.000Z'),
-      updatedAt: '2026-09-28 09:00:00+00',
-      runCount: 0,
-      metadata: options.clientId ? { clientId: options.clientId } : {},
-    };
-    let fenceSequence = 0;
-    let wallAllowed = options.wallAllowed ?? true;
-    const transaction = {
-      clioScheduledTask: {
-        findFirst: jest.fn(async ({ where }: { where: Record<string, any> }) => {
-          if (!row.enabled) return null;
-          if (where.lastStatus !== undefined && row.lastStatus !== where.lastStatus) return null;
-          if (
-            where.lastRunAt !== undefined
-            && row.lastRunAt?.getTime() !== (where.lastRunAt as Date).getTime()
-          ) return null;
-          return { metadata: row.metadata };
-        }),
-      },
-      client: { findFirst: jest.fn(async () => ({ id: options.clientId })) },
-      $queryRawUnsafe: jest.fn(async (
-        sql: string,
-        _id: string,
-        _tenantId: string,
-        _ownerUserId: string,
-        claimedAt: Date,
-        nextRunAtOrFence: Date | string,
-      ) => {
-        if (sql.includes('SELECT last_status AS status')) {
-          return row.enabled ? [{ status: row.lastStatus }] : [];
-        }
-        if (sql.includes('FROM clio_scheduled_task')) {
-          return row.enabled
-            && row.lastStatus === 'running'
-            && row.lastRunAt?.getTime() === claimedAt.getTime()
-            && row.updatedAt === nextRunAtOrFence
-            ? [{ metadata: row.metadata }]
-            : [];
-        }
-        if (sql.includes('FROM clients c')) return [{ allowed: wallAllowed }];
-        if (
-          !row.enabled
-          || row.nextRunAt.getTime() > claimedAt.getTime()
-          || row.lastStatus === 'running'
-        ) return [];
-        fenceSequence += 1;
-        row.lastRunAt = claimedAt;
-        row.nextRunAt = nextRunAtOrFence as Date;
-        row.lastStatus = 'running';
-        row.updatedAt = `2026-09-28 10:00:00.00${fenceSequence}+00`;
-        return [{ fence: row.updatedAt }];
-      }),
-      $executeRawUnsafe: jest.fn(async (
-        _sql: string,
-        _id: string,
-        _tenantId: string,
-        _ownerUserId: string,
-        status: string,
-        claimedAt: Date,
-        fence: string,
-      ) => {
-        if (
-          !row.enabled
-          || row.lastStatus !== 'running'
-          || row.lastRunAt?.getTime() !== claimedAt.getTime()
-          || row.updatedAt !== fence
-        ) return 0;
-        row.lastStatus = status;
-        row.runCount += 1;
-        row.updatedAt = '2026-09-28 10:00:01+00';
-        return 1;
-      }),
-    } as unknown as Prisma.TransactionClient;
-    return {
-      row,
-      transaction,
-      cancel: () => {
-        row.enabled = false;
-        row.lastStatus = 'canceled';
-        row.updatedAt = '2026-09-28 10:00:00.500+00';
-      },
-      setWallAllowed: (allowed: boolean) => {
-        wallAllowed = allowed;
-      },
-    };
-  }
-
-  it('lets two runners reach a controlled sink only once through the atomic claim', async () => {
-    const h = claimHarness();
-    const claimedAt = new Date('2026-09-28T10:00:00.000Z');
-    const nextRunAt = new Date('2026-09-28T11:00:00.000Z');
-    const sink = jest.fn(async () => 'delivered');
-    const run = async () => {
-      const result = await claimScheduledTaskExecution(h.transaction, task, claimedAt, nextRunAt);
-      if (result.state !== 'claimed') return result.state;
-      const effect = await executeScheduledTaskEffect(
-        () => checkScheduledTaskExecutionBoundary(h.transaction, task, result.claim),
-        sink,
-      );
-      return effect.executed ? effect.value : effect.boundary;
-    };
-
-    await expect(Promise.all([run(), run()])).resolves.toEqual(
-      expect.arrayContaining(['delivered', 'already_running']),
-    );
-    expect(sink).toHaveBeenCalledTimes(1);
-  });
-
-  it('rejects the next due cadence while the prior claim remains active', async () => {
-    const h = claimHarness();
-    const first = await claimScheduledTaskExecution(
-      h.transaction,
-      task,
-      new Date('2026-09-28T10:00:00.000Z'),
-      new Date('2026-09-28T11:00:00.000Z'),
-    );
-    if (first.state !== 'claimed') throw new Error('expected first claim');
-    const sink = jest.fn(async () => 'started');
-    await expect(executeScheduledTaskEffect(
-      () => checkScheduledTaskExecutionBoundary(h.transaction, task, first.claim),
-      sink,
-    )).resolves.toEqual({ executed: true, value: 'started' });
-
-    await expect(claimScheduledTaskExecution(
-      h.transaction,
-      task,
-      new Date('2026-09-28T11:00:00.000Z'),
-      new Date('2026-09-28T12:00:00.000Z'),
-    )).resolves.toEqual({ state: 'already_running' });
-    await expect(
-      checkScheduledTaskExecutionBoundary(h.transaction, task, first.claim),
-    ).resolves.toBe('runnable');
-    expect(sink).toHaveBeenCalledTimes(1);
-    expect(h.row).toMatchObject({
-      lastStatus: 'running',
-      nextRunAt: new Date('2026-09-28T11:00:00.000Z'),
-      runCount: 0,
-    });
-    await expect(
-      advanceScheduledTaskExecution(h.transaction, task, first.claim, 'ok'),
-    ).resolves.toBe(true);
-  });
-
-  it('keeps canceled status when stale completion tries to advance the claim', async () => {
-    const h = claimHarness();
-    const result = await claimScheduledTaskExecution(
-      h.transaction,
-      task,
-      new Date('2026-09-28T10:00:00.000Z'),
-      new Date('2026-09-28T11:00:00.000Z'),
-    );
-    expect(result.state).toBe('claimed');
-    if (result.state !== 'claimed') throw new Error('expected claim');
-    h.cancel();
-
-    await expect(
-      advanceScheduledTaskExecution(h.transaction, task, result.claim, 'ok'),
-    ).resolves.toBe(false);
-    expect(h.row).toMatchObject({
-      enabled: false,
-      lastStatus: 'canceled',
-      runCount: 0,
+    await expect(authorizeScheduledTaskExecution(tx, task, claim)).resolves.toEqual({
+      boundary: 'authority_denied',
     });
   });
 
-  it('rechecks the fenced claim before a controlled external effect', async () => {
-    const h = claimHarness();
-    const result = await claimScheduledTaskExecution(
-      h.transaction,
+  it('returns the current role and identity rather than a cached/default actor', async () => {
+    const tx = transaction({ role: 'user_admin' });
+
+    await expect(authorizeScheduledTaskExecution(tx, task, claim)).resolves.toEqual({
+      boundary: 'runnable',
+      authority: {
+        role: 'user_admin',
+        clerkUserId: 'clerk-owner',
+        tenantSlug: 'tenant',
+      },
+    });
+  });
+
+  it('denies a missing or newly walled client before the operation', async () => {
+    await expect(authorizeScheduledTaskExecution(
+      transaction({ clientId, clientExists: false }),
       task,
-      new Date('2026-09-28T10:00:00.000Z'),
-      new Date('2026-09-28T11:00:00.000Z'),
-    );
-    if (result.state !== 'claimed') throw new Error('expected claim');
-    h.cancel();
+      claim,
+    )).resolves.toEqual({ boundary: 'wall_denied' });
+    await expect(authorizeScheduledTaskExecution(
+      transaction({ clientId, clientExists: true, wallAllowed: false }),
+      task,
+      claim,
+    )).resolves.toEqual({ boundary: 'wall_denied' });
+  });
+
+  it('rebuilds authority for every controlled operation', async () => {
+    let role = 'standard_user';
+    const authorize = jest.fn(async () => ({
+      boundary: 'runnable' as const,
+      authority: { role, clerkUserId: 'clerk-owner', tenantSlug: 'tenant' },
+    }));
+    const sink = jest.fn(async (authority: { role: string }) => authority.role);
+
+    await expect(executeAuthorizedScheduledTaskEffect(authorize, sink))
+      .resolves.toMatchObject({ executed: true, value: 'standard_user' });
+    role = 'user_admin';
+    await expect(executeAuthorizedScheduledTaskEffect(authorize, sink))
+      .resolves.toMatchObject({ executed: true, value: 'user_admin' });
+    expect(authorize).toHaveBeenCalledTimes(2);
+  });
+
+  it('never invokes a controlled sink after cancellation, revocation, or lease loss', async () => {
     const sink = jest.fn(async () => undefined);
-
-    await expect(executeScheduledTaskEffect(
-      () => checkScheduledTaskExecutionBoundary(h.transaction, task, result.claim),
-      sink,
-    )).resolves.toEqual({ executed: false, boundary: 'inactive' });
+    for (const boundary of ['inactive', 'authority_denied', 'wall_denied', 'lease_lost'] as const) {
+      await expect(executeScheduledTaskEffect(async () => boundary, sink)).resolves.toEqual({
+        executed: false,
+        boundary,
+      });
+    }
     expect(sink).not.toHaveBeenCalled();
   });
 
-  it('rechecks current client-wall authority before a controlled external effect', async () => {
-    const h = claimHarness({ clientId, wallAllowed: true });
-    const result = await claimScheduledTaskExecution(
-      h.transaction,
-      task,
-      new Date('2026-09-28T10:00:00.000Z'),
-      new Date('2026-09-28T11:00:00.000Z'),
-    );
-    if (result.state !== 'claimed') throw new Error('expected claim');
-    h.setWallAllowed(false);
+  it('propagates authorization infrastructure failure without invoking the sink', async () => {
     const sink = jest.fn(async () => undefined);
-
-    await expect(executeScheduledTaskEffect(
-      () => checkScheduledTaskExecutionBoundary(h.transaction, task, result.claim),
-      sink,
-    )).resolves.toEqual({ executed: false, boundary: 'wall_denied' });
-    expect(sink).not.toHaveBeenCalled();
-  });
-
-  it('propagates guard infrastructure failure instead of reporting wall denial', async () => {
-    const transaction = tx({ taskExists: true });
-    (transaction.clioScheduledTask.findFirst as jest.Mock).mockRejectedValueOnce(
-      new Error('guard database unavailable'),
-    );
-    const sink = jest.fn(async () => undefined);
-
-    await expect(executeScheduledTaskEffect(
-      () => checkScheduledTaskExecutionBoundary(transaction, task),
+    await expect(executeAuthorizedScheduledTaskEffect(
+      async () => { throw new Error('guard database unavailable'); },
       sink,
     )).rejects.toThrow('guard database unavailable');
     expect(sink).not.toHaveBeenCalled();
