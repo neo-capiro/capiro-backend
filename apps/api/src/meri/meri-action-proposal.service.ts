@@ -171,19 +171,12 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
   const sendReceipt = source.sendReceipt;
   if (sendReceipt && typeof sendReceipt === 'object' && !Array.isArray(sendReceipt)) {
     const receipt = sendReceipt as Record<string, unknown>;
-    summary.sendReceipt = Object.fromEntries(
-      [
-        'provider',
-        'providerMessageId',
-        'providerThreadId',
-        'providerDraftId',
-        'providerConversationId',
-        'providerInternetMessageId',
-        'correlationId',
-      ]
+    summary.sendReceipt = { ok: receipt.ok === true, ...Object.fromEntries(
+      ['provider', 'providerMessageId', 'providerThreadId', 'providerDraftId',
+        'providerConversationId', 'providerInternetMessageId', 'correlationId']
         .filter((field) => typeof receipt[field] === 'string')
         .map((field) => [field, bounded(receipt[field], 300) ?? '']),
-    );
+    ) };
   }
   const artifactPersistence = source.artifactPersistence;
   if (

@@ -23,6 +23,31 @@ export function classifyMeriActionLogicalFailure(
   result: unknown,
 ): MeriActionLogicalFailure | null {
   const value = record(result);
+  if (tool === 'send_email') {
+    if (typeof value.error === 'string') {
+      return {
+        status: 'failed_terminal',
+        errorCode: 'send_email_failed',
+        errorMessage: message(value.error, 'The email was not sent.'),
+      };
+    }
+    const receipt = record(value.sendReceipt);
+    const providerIdentityConfirmed =
+      (receipt.provider === 'gmail' && typeof receipt.providerMessageId === 'string'
+        && receipt.providerMessageId.trim().length > 0) ||
+      (receipt.provider === 'microsoft_graph' && typeof receipt.providerDraftId === 'string'
+        && receipt.providerDraftId.trim().length > 0);
+    if (value.ok === true && typeof value.sentFrom === 'string' && typeof value.to === 'string'
+      && typeof value.subject === 'string' && receipt.ok === true
+      && typeof receipt.correlationId === 'string' && receipt.correlationId.trim().length > 0
+      && providerIdentityConfirmed) return null;
+    return {
+      status: 'outcome_unknown',
+      errorCode: 'send_email_receipt_missing',
+      errorMessage: 'The send handler did not return an authoritative provider acceptance receipt. Check Sent Items before retrying.',
+    };
+  }
+
   if (tool === 'reply_email') {
     if (typeof value.error === 'string') {
       return {

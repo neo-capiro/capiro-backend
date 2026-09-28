@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
+import { EngagementMailSender } from '../engagement/mail-sender.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 
 jest.mock('../program-element/program-element-read.service.js', () => ({
@@ -16,6 +17,11 @@ type ReplyEmail = (
   actor: TenantContext,
   input: Record<string, unknown>,
 ) => Promise<Record<string, unknown>>;
+type SendEmail = (
+  actor: TenantContext,
+  input: Record<string, unknown>,
+  logicalOperationId?: string,
+) => Promise<Record<string, unknown>>;
 type ScheduleTask = (
   actor: TenantContext,
   input: Record<string, unknown>,
@@ -23,6 +29,44 @@ type ScheduleTask = (
 ) => Promise<Record<string, unknown>>;
 
 describe('Meri write outcome reconciliation', () => {
+  test('send_email retains the owned adapter acceptance when artifact persistence rejects', async () => {
+    const acceptedSink = jest.fn(async (_actor: TenantContext, _connectionId: string,
+      input: { correlationId?: string }) => ({ ok: true as const, provider: 'gmail' as const,
+      providerMessageId: 'gmail-message-1', providerThreadId: 'gmail-thread-1',
+      correlationId: input.correlationId ?? '' }));
+    const mailSender = new EngagementMailSender({ sendMail: jest.fn() } as never,
+      { sendMail: acceptedSink } as never, { assertExternalAction: jest.fn() } as never);
+    const persistArtifact = jest.fn().mockRejectedValue(
+      new BadRequestException('Tool clientId does not match the Meri conversation client'));
+    const service = Object.create(MeriToolsService.prototype) as MeriToolsService;
+    (service as unknown as { mailSender: unknown }).mailSender = mailSender;
+    (service as unknown as { findUserEmailConnection: unknown }).findUserEmailConnection = jest.fn()
+      .mockResolvedValue({ id: 'connection-1', provider: 'google_workspace', accountEmail: 'owner@example.com' });
+    (service as unknown as { persistArtifact: unknown }).persistArtifact = persistArtifact;
+    const sendEmail = (service as unknown as { sendEmail: SendEmail }).sendEmail.bind(service);
+    const result = await sendEmail(ctx, { to: 'recipient@example.com', subject: 'Hello', body: 'Body',
+      clientId: 'client-1', conversationId: 'conversation-1' }, 'proposal-operation-1');
+    expect(acceptedSink).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ ok: true, sendReceipt: { ok: true, provider: 'gmail',
+      providerMessageId: 'gmail-message-1', correlationId: 'proposal-operation-1' },
+    artifactPersistence: { persisted: false,
+      error: 'Tool clientId does not match the Meri conversation client' } });
+  });
+
+  test('send_email propagates adapter acknowledgement loss without fabricating a receipt', async () => {
+    const acceptedSink = jest.fn(async () => { throw new Error('socket closed after provider request'); });
+    const mailSender = new EngagementMailSender({ sendMail: jest.fn() } as never,
+      { sendMail: acceptedSink } as never, { assertExternalAction: jest.fn() } as never);
+    const service = Object.create(MeriToolsService.prototype) as MeriToolsService;
+    (service as unknown as { mailSender: unknown }).mailSender = mailSender;
+    (service as unknown as { findUserEmailConnection: unknown }).findUserEmailConnection = jest.fn()
+      .mockResolvedValue({ id: 'connection-1', provider: 'google_workspace', accountEmail: 'owner@example.com' });
+    const sendEmail = (service as unknown as { sendEmail: SendEmail }).sendEmail.bind(service);
+    await expect(sendEmail(ctx, { to: 'recipient@example.com', subject: 'Hello', body: 'Body' },
+      'proposal-operation-1')).rejects.toThrow('socket closed after provider request');
+    expect(acceptedSink).toHaveBeenCalledTimes(1);
+  });
+
   test('reply_email retains the provider receipt when post-send artifact persistence rejects', async () => {
     const sendReceipt = {
       ok: true as const,

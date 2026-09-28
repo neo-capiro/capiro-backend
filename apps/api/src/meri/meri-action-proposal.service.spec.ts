@@ -467,12 +467,17 @@ describe('MeriActionProposalService', () => {
     expect(result.attemptCount).toBe(1);
   });
 
-  it('classifies an ambiguous external-send error as outcome_unknown and not retryable', async () => {
-    const h = harness({ executeError: new Error('socket closed after provider request') });
-    h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
-    const result = await h.service.approveAndExecute(ctx, PROPOSAL);
+  it.each(['PASS', 'WARN'] as const)('keeps ambiguous send_email %s outcome unknown without retry', async (outcome) => {
+    const h = harness({ row: outcome === 'WARN' ? makeRow() : null,
+      executeError: new Error('socket closed after provider request') });
+    h.setPolicy({ outcome, reasons: ['Send policy'] });
+    const result = outcome === 'WARN' ? await h.service.approveAndExecute(ctx, PROPOSAL)
+      : (await h.service.create(ctx, { tool: 'send_email', input: makeRow().input, surface: 'chat' })).proposal;
+    const retry = await h.service.approveAndExecute(ctx, PROPOSAL);
     expect(result.status).toBe('outcome_unknown');
     expect(result.error?.code).toBe('external_outcome_unknown');
+    expect(retry.status).toBe('outcome_unknown');
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
   });
 
   it('keeps an ambiguous schedule acknowledgement non-retryable with the same operation id', async () => {
@@ -496,6 +501,7 @@ describe('MeriActionProposalService', () => {
   });
 
   it.each([
+    ['send_email', { error: 'No connected email account found.' }, 'send_email_failed'],
     ['reply_email', { error: 'Thread not found.' }, 'reply_email_failed'],
     [
       'schedule_task',
@@ -524,6 +530,8 @@ describe('MeriActionProposalService', () => {
   });
 
   it.each([
+    ['send_email', { ok: true, sentFrom: 'me@example.com', to: 'you@example.com', subject: 'Hi',
+      sendReceipt: { ok: true, provider: 'gmail', providerMessageId: 'message-1', correlationId: PROPOSAL } }],
     ['reply_email', { ok: true, sentFrom: 'me@example.com', to: 'you@example.com', subject: 'Re: Hi' }],
     ['schedule_task', { tool: 'schedule_task', scheduled: true, task: { id: 'task-1' } }],
     ['cancel_scheduled_task', { tool: 'cancel_scheduled_task', canceled: true, taskId: 'task-1' }],
@@ -531,6 +539,47 @@ describe('MeriActionProposalService', () => {
     const h = harness({ row: makeRow({ tool }), executeResult });
     h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
     expect((await h.service.approveAndExecute(ctx, PROPOSAL)).status).toBe('succeeded');
+  });
+
+  it.each(['PASS', 'WARN'] as const)('keeps disconnected send_email truthful on the %s path', async (outcome) => {
+    const h = harness({ row: outcome === 'WARN' ? makeRow() : null,
+      executeResult: { error: 'No connected email account found.' } });
+    h.setPolicy({ outcome, reasons: ['Send policy'] });
+    const result = outcome === 'WARN' ? await h.service.approveAndExecute(ctx, PROPOSAL)
+      : (await h.service.create(ctx, { tool: 'send_email', input: makeRow().input, surface: 'chat' })).proposal;
+    expect(result.status).toBe('failed_terminal');
+    expect(result.error?.code).toBe('send_email_failed');
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps send_email unknown without authoritative provider identity and does not retry', async () => {
+    const executeResult = { ok: true, sentFrom: 'me@example.com', to: 'you@example.com', subject: 'Hi',
+      sendReceipt: { ok: true, provider: 'gmail', correlationId: PROPOSAL } };
+    const h = harness({ executeResult });
+    h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
+    const result = await h.service.approveAndExecute(ctx, PROPOSAL);
+    const retry = await h.service.approveAndExecute(ctx, PROPOSAL);
+    expect(result.status).toBe('outcome_unknown');
+    expect(result.error?.code).toBe('send_email_receipt_missing');
+    expect(result.resultSummary).toMatchObject({ sendReceipt: executeResult.sendReceipt });
+    expect(retry.status).toBe('outcome_unknown');
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['PASS', 'WARN'] as const)('retains accepted send and artifact failure on the %s path', async (outcome) => {
+    const executeResult = { ok: true, sentFrom: 'me@example.com', to: 'you@example.com', subject: 'Hi',
+      sendReceipt: { ok: true, provider: 'gmail', providerMessageId: 'message-1', correlationId: PROPOSAL },
+      artifactPersistence: { persisted: false, error: 'Artifact persistence failed after acceptance' } };
+    const h = harness({ row: outcome === 'WARN' ? makeRow() : null, executeResult });
+    h.setPolicy({ outcome, reasons: ['Send policy'] });
+    const result = outcome === 'WARN' ? await h.service.approveAndExecute(ctx, PROPOSAL)
+      : (await h.service.create(ctx, { tool: 'send_email', input: makeRow().input, surface: 'chat' })).proposal;
+    const retry = await h.service.approveAndExecute(ctx, PROPOSAL);
+    expect(result.status).toBe('succeeded');
+    expect(result.resultSummary).toMatchObject({ sendReceipt: executeResult.sendReceipt,
+      artifactPersistence: executeResult.artifactPersistence });
+    expect(retry.status).toBe('succeeded');
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
   });
 
   it('retains an acknowledged reply receipt when only artifact persistence failed', async () => {
