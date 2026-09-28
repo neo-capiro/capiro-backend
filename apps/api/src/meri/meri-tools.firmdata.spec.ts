@@ -5,6 +5,7 @@ import { MeriContextPlaneService } from './meri-context-plane.service.js';
 import { ContextResolverService } from '../context/context-resolver.service.js';
 import type { ContextResolutionRequest } from '../context/context-resolver.types.js';
 import { wrapToolResultForPrompt } from '@capiro/meriv2-core';
+import { generatedOoxmlBytes } from './meri-artifact-test-fixtures.js';
 
 // This suite supplies the engagement port below. Loading its entire mail and
 // generation dependency graph is unrelated to testing Meri's tool dispatch.
@@ -178,7 +179,7 @@ function makeMocks(
   };
 
   const docgen = {
-    buildDocx: jest.fn().mockResolvedValue(Buffer.from('docx')),
+    buildDocx: jest.fn().mockImplementation(() => generatedOoxmlBytes('docx')),
     buildXlsx: jest.fn().mockResolvedValue(Buffer.from('xlsx')),
     buildPptx: jest.fn().mockResolvedValue(Buffer.from('pptx')),
   };
@@ -637,6 +638,21 @@ describe('P2 write tools', () => {
 });
 
 describe('create_word artifact persistence (regression: conversationId threading)', () => {
+  it('rejects invalid document bytes before persistence', async () => {
+    const m = makeMocks();
+    m.docgen.buildDocx.mockResolvedValueOnce(Buffer.from('docx'));
+
+    await expect(
+      m.service.execute(ctx, 'create_word', {
+        title: 'Strategy Memo',
+        clientId: 'client-1',
+        conversationId: 'conv-1',
+        sections: [{ heading: 'Overview', body: 'Body text' }],
+      }),
+    ).rejects.toThrow('ooxml_zip_end_missing');
+    expect(m.tx.clioArtifact.create).not.toHaveBeenCalled();
+  });
+
   it('persists the document artifact and returns a download URL when conversationId is supplied', async () => {
     const m = makeMocks();
     const result = (await m.service.execute(ctx, 'create_word', {
