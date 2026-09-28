@@ -280,7 +280,9 @@ jobs:
       # transition coverage remains in funding-opportunity-pipeline.spec.ts.
       - name: Typecheck — apps/api and apps/web
         if: steps.scope.outputs.in_scope == 'true'
-        run: pnpm turbo run typecheck --filter=@capiro/api --filter=@capiro/web
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: pnpm turbo run typecheck --filter=@capiro/api --filter=@capiro/web --concurrency=1
 
       # ---------------------------------------------------------------- api --
       # Every module this feature owns, enumerated. `--runInBand` because the

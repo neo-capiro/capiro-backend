@@ -222,7 +222,7 @@ jobs:
 
       - name: Assert saved hearing association SQL is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/saved-session-sql-summary.json" saved-session-sql 1 17
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/saved-session-sql-summary.json" saved-session-sql 1 26
 
       # ---------------------------------------------------------------- api --
       # Gate H (memo lifecycle), Gate I (entailment/filing), Gate J (integrity),
