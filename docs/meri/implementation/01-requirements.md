@@ -44,7 +44,7 @@ This ledger records mandatory scope; bounded candidate evidence is in STATUS.md 
 | M1 | conditional/later | Lead | Separately authorized service relocation | Existing contracts; P0A/P0B where applicable | pending | NOT_RUN | pending | not integrated/deployed | NOT_RUN; qualification pending |
 | F1 | conditional/later | Lead | Measured need after relevant workflow qualification | Existing contracts; P0A/P0B where applicable | pending | NOT_RUN | pending | not integrated/deployed | NOT_RUN; qualification pending |
 | CW-09–12 | conditional/later | Lead | Full file-02 coworker/drafting/model workflow promotion | Existing contracts; P0A/P0B where applicable | pending | NOT_RUN | pending | not integrated/deployed | NOT_RUN; qualification pending |
-| M20 | conditional/later | Lead | Original M contracts located and applicable shared boundary changed | Existing contracts; P0A/P0B where applicable | pending | NOT_RUN | pending | not integrated/deployed | NOT_RUN; qualification pending |
+| M01–M20 | mixed required/conditional | Lead | Original M contracts preserved and mapped per changed boundary | See 01-memory-strategy-acceptance.md | Original 20 contracts plus file-01 applicability record | NOT_RUN | per-change review required | not qualified/deployed | Required affected memory/source/review/runtime cases remain; full structural drafting later unless existing path changes |
 
 ## Original acceptance cases
 
@@ -141,4 +141,4 @@ This ledger records mandatory scope; bounded candidate evidence is in STATUS.md 
 | CW-07 | Annex 12.6 | NOT_RUN | Implementation and real worker/UI faults pending |
 | CW-08 | Annex 12.6 | NOT_RUN | Implementation and real worker/UI faults pending |
 
-26 offline cases: baseline PASS at 6fdccff42 (26/26 and verifier exit 0); final combined file-01 acceptance NOT_RUN. Original suite contract is evals/meri/suite-contract.json; do not replace or renumber. M20 original rows are referenced but not embedded in this file: locate original before claiming applicable M coverage.
+26 offline cases: baseline PASS at 6fdccff42 (26/26 and verifier exit 0); final combined file-01 acceptance NOT_RUN. Original suite contract is evals/meri/suite-contract.json; do not replace or renumber. Original M01–M20 contracts and applicability are preserved in 01-memory-strategy-acceptance.md; no M pass is claimed.

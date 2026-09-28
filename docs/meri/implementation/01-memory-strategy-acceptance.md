@@ -26,3 +26,20 @@ Source: local Desktop master plan, SHA256 ac30ad26bafdf4c62bcd4c63ce64d005f96115
 | M20 | Expert requests a generic answer | Meri answers without forcing a Matter/client or unnecessary review. |
 
 All NOT_RUN; applicable shared authorization/source/memory boundaries must pass.
+
+## File 01 applicability at the current implementation boundary
+
+These dispositions preserve the original contracts above. They do not turn a changed shared boundary into optional scope. All applicable acceptance remains NOT RUN until real outputs qualify it.
+
+| Cases | File 01 disposition | Reason / activation |
+|---|---|---|
+| M01, M02, M06 | Required now | Canonical memory retrieval, source delivery and tenant/client walls are directly changed. |
+| M03 | Required for changed source/version handles | Exact source versions, delayed retrieval and cache/replay invalidation are mandatory file-01 evidence contracts. |
+| M04 | Required for scheduling/delivery changes | Stable operation/effect identity and one schedule/notification owner must survive duplicate delivery. |
+| M05, M07, M08, M09, M10 | Required for changed narrative/match/JEV boundaries | Client context and authoritative government stage/eligibility facts must remain distinct when these outputs are revised. Existing ingestion is preserved. |
+| M11 | Required for current multi-output source consistency; full white-paper workbench later | Existing briefs/artifacts must retain facts from their authorized source snapshot. File 01 does not add the full later drafting product. |
+| M12, M13 | Conditional on editing a previously verified draft through a changed file-01 surface | If existing artifact editing changes, recheck edited claims and preserve revisions. Full later drafting lifecycle is not silently imported. |
+| M14, M15 | Later drafting scope unless an existing structural-amendment path is changed | No new amendment editing engine is authorized by file 01. Preserve existing behavior; activate exact tests if touching it. |
+| M16, M17, M18, M19, M20 | Required at the affected runtime/review/action/procedure boundary | Current timeout behavior, in-Meri decisions, separate send authorization, governed learning and general-scope answers are file-01 invariants. |
+
+This is an applicability record, not evidence that any case passed. The remaining 75, CD7 and CW8 suites retain separate counts.
