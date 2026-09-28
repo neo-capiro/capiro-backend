@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals
 import { TextEncoder } from 'node:util';
 import type { TenantContext } from '@capiro/shared';
 import { MeriResearchService } from './meri-research.service.js';
+import { ACTIVE_RESEARCH_RUN_FENCE_SQL } from './meri-research-run-state.js';
 
 // These dependencies are supplied explicitly by this service unit harness.
 jest.mock('./meri-tools.service.js', () => ({ MeriToolsService: class {} }));
@@ -166,27 +167,102 @@ function makeAiCredentials() {
   } as unknown as ConstructorParameters<typeof MeriResearchService>[3];
 }
 
-/**
- * Prisma stub: withTenant just runs the callback with a tx whose model methods
- * resolve to minimal shapes. findFirst returns the session (for ensureSession);
- * create returns ids; update is a no-op.
- */
-function makePrisma(capturedArtifacts?: Array<Record<string, any>>) {
-  let session = { ...SESSION };
+/** Transaction fixture for the live-run fence and report publication contract. */
+function makePrisma(
+  capturedArtifacts?: Array<Record<string, any>>,
+  tenantId = SESSION.tenantId,
+) {
+  const backingConversation = {
+    id: 'conv-1',
+    tenantId,
+    userId: SESSION.userId,
+    clientId: SESSION.clientId,
+    archivedAt: null,
+  };
+  let session = {
+    ...SESSION,
+    tenantId,
+    // These legacy-path specs begin after the standalone session's backing
+    // thread exists. Public legislative reads require no owner-result proof,
+    // but report publication still reauthorizes this exact thread scope.
+    metadata: { backingConversationId: backingConversation.id },
+  };
+  let reportRunFenced = false;
   const tx = {
+    $queryRawUnsafe: jest.fn(async (sql: string, ...values: unknown[]) => {
+      const run = (session.metadata as { run?: Record<string, unknown> }).run;
+      expect(sql).toBe(ACTIVE_RESEARCH_RUN_FENCE_SQL);
+      expect(values.slice(0, 7)).toEqual([
+        session.id,
+        session.tenantId,
+        session.userId,
+        session.status,
+        run?.id,
+        run?.leaseEpoch,
+        run?.phase,
+      ]);
+      expect(run?.status).toBe('running');
+      expect(values[7]).toBeInstanceOf(Date);
+      expect(values[8]).toBeInstanceOf(Date);
+      expect(Date.parse(String(run?.heartbeatAt))).toBeGreaterThanOrEqual(
+        (values[7] as Date).getTime(),
+      );
+      reportRunFenced = true;
+      session = { ...session, updatedAt: values[8] as Date };
+      return [{ metadata_jsonb: structuredClone(session.metadata) }];
+    }),
     clioResearchSession: {
-      findFirst: async () => session,
-      update: async ({ data }: any) => (session = { ...session, ...data }),
-      updateMany: async ({ data }: any) => {
-        session = { ...session, ...data };
+      findFirst: async ({ where }: any) => {
+        expect(where).toEqual({
+          id: session.id,
+          tenantId: session.tenantId,
+          userId: session.userId,
+        });
+        return structuredClone(session);
+      },
+      update: async ({ where, data }: any) => {
+        expect(where).toEqual({ id: session.id });
+        session = { ...session, ...structuredClone(data) };
+        return structuredClone(session);
+      },
+      updateMany: async ({ where, data }: any) => {
+        const currentMetadata = structuredClone(session.metadata);
+        expect(where).toEqual({
+          id: session.id,
+          tenantId: session.tenantId,
+          userId: session.userId,
+          metadata: { equals: currentMetadata },
+          reportArtifactId: null,
+        });
+        session = { ...session, ...structuredClone(data) };
         return { count: 1 };
       },
     },
     clioConversation: {
-      create: async () => ({ id: 'conv-1' }),
+      findFirst: async ({ where, select }: any) => {
+        expect(where).toEqual({
+          id: backingConversation.id,
+          tenantId: session.tenantId,
+          userId: session.userId,
+          clientId: session.clientId,
+          archivedAt: null,
+        });
+        expect(select).toEqual({ id: true });
+        return { id: backingConversation.id };
+      },
+      create: async ({ data, select }: any) => {
+        expect(data).toMatchObject({
+          tenantId: session.tenantId,
+          userId: session.userId,
+          clientId: session.clientId,
+        });
+        expect(select).toEqual({ id: true });
+        return { id: backingConversation.id };
+      },
     },
     clioArtifact: {
       create: async ({ data }: any) => {
+        expect(reportRunFenced).toBe(true);
         capturedArtifacts?.push(data);
         return { id: 'artifact-1' };
       },
@@ -195,9 +271,15 @@ function makePrisma(capturedArtifacts?: Array<Record<string, any>>) {
     client: {
       findFirst: async () => null,
     },
+    meriAuditLedger: {
+      create: jest.fn(async ({ data }: any) => ({ id: 'audit-1', ...data })),
+    },
   };
   return {
-    withTenant: async (_tenantId: string, cb: (t: typeof tx) => unknown) => cb(tx),
+    withTenant: async (tenantId: string, cb: (t: typeof tx) => unknown) => {
+      expect(tenantId).toBe(session.tenantId);
+      return cb(tx);
+    },
   } as unknown as ConstructorParameters<typeof MeriResearchService>[0];
 }
 
@@ -235,8 +317,9 @@ function makeTools() {
 // ── Test ─────────────────────────────────────────────────────────────────────
 
 function makeReviews() {
-  // G4: held reports emit a review_request; fail-open stub for these specs.
-  return { createSystem: jest.fn(async () => 'rr-1') } as never;
+  // G4: held reports emit a review_request; the service owns the held body.
+  const reviews = { createSystem: jest.fn(async () => 'rr-1') };
+  return reviews as unknown as typeof reviews & ConstructorParameters<typeof MeriResearchService>[4];
 }
 
 describe('MeriResearchService — forced synthesis', () => {
@@ -360,7 +443,7 @@ describe('MeriResearchService — forced synthesis', () => {
     }) as unknown as jest.Mock;
     global.fetch = fetchMock as unknown as typeof fetch;
     const svc = new MeriResearchService(
-      makePrisma(artifacts),
+      makePrisma(artifacts, tenantId),
       makeConfig(),
       makeTools(),
       makeAiCredentials(),
@@ -726,12 +809,13 @@ describe('MeriResearchService — forced synthesis', () => {
       }) as unknown as jest.Mock;
       global.fetch = fetchMock as unknown as typeof fetch;
 
+      const reviews = makeReviews();
       const svc = new MeriResearchService(
         makePrisma(),
         makeConfig(),
         makeTools(),
         makeAiCredentials(),
-        makeReviews(),
+        reviews,
       );
       const { events, sse } = collectSse();
 
@@ -743,7 +827,10 @@ describe('MeriResearchService — forced synthesis', () => {
       expect(String(notice?.message ?? '')).toMatch(/grounding checks/i);
       // The buffering guarantee itself is unchanged: no report prose streams
       // token-by-token ahead of the audit, only the single post-audit delivery.
-      expect(events.filter((e) => e.type === 'text')).toHaveLength(1);
+      const deliveredBodies = events.filter((e) => e.type === 'text');
+      expect(deliveredBodies).toHaveLength(1);
+      expect(String(deliveredBodies[0]?.text)).toContain(REPORT);
+      expect(reviews.createSystem).not.toHaveBeenCalled();
     } finally {
       if (prevMode === undefined) delete process.env.MERI_AUDITOR_MODE;
       else process.env.MERI_AUDITOR_MODE = prevMode;
