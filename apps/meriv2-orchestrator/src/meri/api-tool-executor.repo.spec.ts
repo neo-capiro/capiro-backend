@@ -1,5 +1,6 @@
 import type { MeriContext } from '@capiro/meriv2-core';
 import { ApiToolExecutorRepo } from './api-tool-executor.repo';
+import { classifyApiToolReadOutcome } from './api-tool-read-outcome';
 import { RequestCredentialsStore } from '../request/request-credentials.store';
 
 const originalFetch = global.fetch;
@@ -173,6 +174,60 @@ describe('ApiToolExecutorRepo — delegated read outcomes', () => {
         repo.execute(CTX, 'get_client_context', { clientId: 'client-1' }),
       ),
     ).rejects.toThrow('get_client_context_result_contract_invalid');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects an empty current client-context section map after actual fetch parsing', async () => {
+    const malformed = {
+      tool: 'get_client_context',
+      context: { client: { id: 'client-1' } },
+      profileSections: {},
+    };
+    const fetchMock = jest.fn(async () => new Response(JSON.stringify(malformed)));
+    (global as unknown as { fetch: unknown }).fetch = fetchMock;
+    const repo = new ApiToolExecutorRepo(cfg({}));
+
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'user-tok' }, () =>
+        repo.execute(CTX, 'get_client_context', { clientId: 'client-1' }),
+      ),
+    ).rejects.toThrow('get_client_context_result_contract_invalid');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [
+      'search_emails',
+      {
+        totalMatches: 2,
+        returned: 1,
+        hasMore: false,
+        offset: 1,
+        messages: [{ id: 'mail-2' }],
+        searchedMailboxes: [{ mailCoverage: { sourceStatus: 'healthy' } }],
+      },
+      'mail_coverage_incomplete',
+    ],
+    [
+      'get_email_thread',
+      {
+        totalMessages: 2,
+        returned: 1,
+        hasMore: false,
+        messageOffset: 1,
+        messages: [{ bodyCompleteness: 'full', bodyTruncated: false }],
+      },
+      'mail_body_coverage_incomplete',
+    ],
+  ])('preserves the owner %s final page while classifying it partial', async (tool, payload, reason) => {
+    expect(classifyApiToolReadOutcome(tool, payload)).toEqual({ kind: 'partial', reason });
+    const fetchMock = jest.fn(async () => new Response(JSON.stringify(payload)));
+    (global as unknown as { fetch: unknown }).fetch = fetchMock;
+    const repo = new ApiToolExecutorRepo(cfg({}));
+
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'user-tok' }, () => repo.execute(CTX, tool, {})),
+    ).resolves.toEqual(payload);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 

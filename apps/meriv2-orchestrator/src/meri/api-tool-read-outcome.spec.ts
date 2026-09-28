@@ -1,5 +1,18 @@
 import { classifyApiToolReadOutcome } from './api-tool-read-outcome';
 
+const CLIENT_PROFILE_SECTION_NAMES = [
+  'capabilities',
+  'people',
+  'facilities',
+  'submissionHistory',
+  'advocacyMatters',
+  'advocacyRecords',
+] as const;
+
+function profileSections(status: 'complete' | 'partial' | 'unavailable' = 'complete') {
+  return Object.fromEntries(CLIENT_PROFILE_SECTION_NAMES.map((name) => [name, { status }]));
+}
+
 function memoryResult(overrides: Record<string, unknown> = {}) {
   return {
     tool: 'search_memory',
@@ -139,7 +152,7 @@ describe('API tool-owned read outcome normalization', () => {
         tool: 'get_client_context',
         context: { client: { id: 'client-1' } },
         profileSections: {
-          capabilities: { status: 'complete' },
+          ...profileSections(),
           advocacyRecords: { status: 'unavailable' },
         },
       }),
@@ -151,6 +164,31 @@ describe('API tool-owned read outcome normalization', () => {
       classifyApiToolReadOutcome('get_client_context', {
         tool: 'get_client_context',
         context: { client: { id: 'client-1' } },
+      }),
+    ).toEqual({ kind: 'failed', reason: 'get_client_context_result_contract_invalid' });
+  });
+
+  it.each(CLIENT_PROFILE_SECTION_NAMES)(
+    'fails a current client-context result missing required producer section %s',
+    (missingSection) => {
+      const sections = profileSections();
+      delete sections[missingSection];
+      expect(
+        classifyApiToolReadOutcome('get_client_context', {
+          tool: 'get_client_context',
+          context: { client: { id: 'client-1' } },
+          profileSections: sections,
+        }),
+      ).toEqual({ kind: 'failed', reason: 'get_client_context_result_contract_invalid' });
+    },
+  );
+
+  it('fails a current client-context result with an empty section map', () => {
+    expect(
+      classifyApiToolReadOutcome('get_client_context', {
+        tool: 'get_client_context',
+        context: { client: { id: 'client-1' } },
+        profileSections: {},
       }),
     ).toEqual({ kind: 'failed', reason: 'get_client_context_result_contract_invalid' });
   });
@@ -181,11 +219,45 @@ describe('API tool-owned read outcome normalization', () => {
           totalMessages: 1,
           returned: 1,
           hasMore: false,
+          messageOffset: 0,
           messages: [{ bodyCompleteness, bodyTruncated }],
         }),
       ).toEqual(expected);
     },
   );
+
+  it.each([
+    [1, 2, 1],
+    [1, 1, 0],
+  ])(
+    'keeps a standalone final thread page partial (offset %i, total %i, returned %i)',
+    (messageOffset, totalMessages, returned) => {
+      expect(
+        classifyApiToolReadOutcome('get_email_thread', {
+          totalMessages,
+          returned,
+          hasMore: false,
+          messageOffset,
+          messages: Array.from({ length: returned }, () => ({
+            bodyCompleteness: 'full',
+            bodyTruncated: false,
+          })),
+        }),
+      ).toEqual({ kind: 'partial', reason: 'mail_body_coverage_incomplete' });
+    },
+  );
+
+  it('preserves a genuinely empty thread result', () => {
+    expect(
+      classifyApiToolReadOutcome('get_email_thread', {
+        totalMessages: 0,
+        returned: 0,
+        hasMore: false,
+        messageOffset: 0,
+        messages: [],
+      }),
+    ).toEqual({ kind: 'empty' });
+  });
 
   it('classifies only fully covered, fully available governed memory as complete', () => {
     expect(classifyApiToolReadOutcome('search_memory', memoryResult())).toEqual({
@@ -302,6 +374,7 @@ describe('API tool-owned read outcome normalization', () => {
       totalMatches: 0,
       returned: 0,
       hasMore: false,
+      offset: 0,
       messages: [],
     };
     expect(
@@ -313,6 +386,19 @@ describe('API tool-owned read outcome normalization', () => {
     expect(classifyApiToolReadOutcome('search_emails', { ...base, searchedMailboxes: [] })).toEqual(
       { kind: 'unavailable', reason: 'mail_source_unavailable' },
     );
+  });
+
+  it('keeps a standalone final search page partial when earlier matches were skipped', () => {
+    expect(
+      classifyApiToolReadOutcome('search_emails', {
+        totalMatches: 2,
+        returned: 1,
+        hasMore: false,
+        offset: 1,
+        messages: [{ id: 'mail-2' }],
+        searchedMailboxes: [{ mailCoverage: { sourceStatus: 'healthy' } }],
+      }),
+    ).toEqual({ kind: 'partial', reason: 'mail_coverage_incomplete' });
   });
 
   it('fails a malformed qualified owner response instead of assuming completeness', () => {

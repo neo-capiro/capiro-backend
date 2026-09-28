@@ -23,6 +23,7 @@ const mailSearchSchema = z
     totalMatches: z.number().int().nonnegative(),
     returned: z.number().int().nonnegative(),
     hasMore: z.boolean(),
+    offset: z.number().int().nonnegative().default(0),
     messages: z.array(z.unknown()),
     searchedMailboxes: z.array(
       z
@@ -39,6 +40,7 @@ const mailThreadSchema = z
     totalMessages: z.number().int().nonnegative(),
     returned: z.number().int().nonnegative(),
     hasMore: z.boolean(),
+    messageOffset: z.number().int().nonnegative().default(0),
     messages: z.array(
       z
         .object({
@@ -84,17 +86,26 @@ const documentReadSchema = z
   })
   .passthrough();
 
+const clientProfileSectionSchema = z
+  .object({
+    status: z.enum(['complete', 'partial', 'unavailable', 'not_requested']),
+  })
+  .passthrough();
+
 const clientContextSchema = z
   .object({
     tool: z.literal('get_client_context'),
     context: z.object({ client: z.object({ id: z.string().min(1) }).passthrough() }).passthrough(),
-    profileSections: z.record(
-      z
-        .object({
-          status: z.enum(['complete', 'partial', 'unavailable', 'not_requested']),
-        })
-        .passthrough(),
-    ),
+    profileSections: z
+      .object({
+        capabilities: clientProfileSectionSchema,
+        people: clientProfileSectionSchema,
+        facilities: clientProfileSectionSchema,
+        submissionHistory: clientProfileSectionSchema,
+        advocacyMatters: clientProfileSectionSchema,
+        advocacyRecords: clientProfileSectionSchema,
+      })
+      .passthrough(),
   })
   .passthrough();
 
@@ -156,7 +167,7 @@ function classifyMailSearch(toolName: string, payload: unknown): ApiToolReadOutc
   if (failure) return failure;
   const parsed = mailSearchSchema.safeParse(payload);
   if (!parsed.success) return invalidResult(toolName);
-  const { totalMatches, returned, hasMore, searchedMailboxes } = parsed.data;
+  const { totalMatches, returned, hasMore, offset, searchedMailboxes } = parsed.data;
   const statuses = searchedMailboxes.map((mailbox) => mailbox.mailCoverage.sourceStatus);
   const noAvailableMailbox =
     statuses.length === 0 || statuses.every((status) => status === 'unavailable');
@@ -167,6 +178,9 @@ function classifyMailSearch(toolName: string, payload: unknown): ApiToolReadOutc
     return { kind: 'partial', reason: 'mail_coverage_incomplete' };
   }
   if (totalMatches === 0 && returned === 0) return { kind: 'empty' };
+  if (offset !== 0 || returned !== totalMatches) {
+    return { kind: 'partial', reason: 'mail_coverage_incomplete' };
+  }
   return { kind: 'complete' };
 }
 
@@ -175,10 +189,12 @@ function classifyMailThread(payload: unknown): ApiToolReadOutcome {
   if (failure) return failure;
   const parsed = mailThreadSchema.safeParse(payload);
   if (!parsed.success) return invalidResult('get_email_thread');
-  const { totalMessages, returned, hasMore, messages } = parsed.data;
+  const { totalMessages, returned, hasMore, messageOffset, messages } = parsed.data;
   if (totalMessages === 0 && returned === 0) return { kind: 'empty' };
   if (
     hasMore ||
+    messageOffset !== 0 ||
+    returned !== totalMessages ||
     messages.some((message) => message.bodyTruncated || message.bodyCompleteness !== 'full')
   ) {
     return { kind: 'partial', reason: 'mail_body_coverage_incomplete' };
@@ -245,7 +261,14 @@ function classifyClientContext(payload: unknown): ApiToolReadOutcome | null {
     }
     return invalidResult('get_client_context');
   }
-  const statuses = Object.values(parsed.data.profileSections).map((section) => section.status);
+  const statuses = [
+    parsed.data.profileSections.capabilities.status,
+    parsed.data.profileSections.people.status,
+    parsed.data.profileSections.facilities.status,
+    parsed.data.profileSections.submissionHistory.status,
+    parsed.data.profileSections.advocacyMatters.status,
+    parsed.data.profileSections.advocacyRecords.status,
+  ];
   return statuses.some((status) => status === 'partial' || status === 'unavailable')
     ? { kind: 'partial', reason: 'client_context_coverage_incomplete' }
     : { kind: 'complete' };
