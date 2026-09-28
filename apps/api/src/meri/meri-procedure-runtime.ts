@@ -68,15 +68,18 @@ export async function resolveServedProcedure(input: {
     ),
   );
   const requiredTools = [...new Set(resolved.requiredTools)];
-  const allowedTools = requiredTools.filter((name) => {
+  // The manifest's capabilities define the maximum requested read surface;
+  // requiredTools remain mandatory workflow dependencies, not the complete
+  // allow-list. The canonical registry and current runtime schemas still get
+  // the final say at exposure and invocation.
+  const allowedTools = [...capabilityTools].filter((name) => {
     const capability = canonicalTools.get(name);
     return Boolean(
-      capabilityTools.has(name) &&
-        capability &&
+      capability &&
         (manifest.effectPolicy.mode !== 'read_only' || capability.readOnly === true),
     );
   });
-  if (allowedTools.length !== requiredTools.length) {
+  if (requiredTools.some((name) => !allowedTools.includes(name))) {
     throw new NotFoundException('Procedure binding is unavailable');
   }
 

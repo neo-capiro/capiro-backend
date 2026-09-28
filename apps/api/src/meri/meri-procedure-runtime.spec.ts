@@ -38,7 +38,11 @@ describe('served procedure API binding', () => {
       manifestDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
       policy: {
         effectMode: 'read_only',
-        allowedTools: expect.arrayContaining(['get_client_context', 'query_tasks']),
+        allowedTools: expect.arrayContaining([
+          'get_client_context',
+          'query_tasks',
+          'list_upcoming_meetings',
+        ]),
         requiredTools: selected.requiredTools,
       },
       contract: { caseIds: ['CD-01', 'CD-02', 'CD-03', 'CD-04', 'CD-05', 'CD-06', 'CD-07'] },
@@ -54,6 +58,8 @@ describe('served procedure API binding', () => {
       completionCheckCount: 7,
       coverageStates: ['checked', 'disconnected', 'unavailable', 'not mapped'],
     });
+    expect(served?.binding.policy.allowedTools).toContain('list_upcoming_meetings');
+    expect(served?.binding.policy.requiredTools).not.toContain('list_upcoming_meetings');
   });
 
   it('requires a client for commitments_audit even from the general launcher', async () => {

@@ -75,7 +75,7 @@ describe('MeriV3 served procedure guard', () => {
     ).toThrow('invalid or no longer current');
   });
 
-  it('intersects procedure tools with current authorized schemas and canonical definitions', () => {
+  it('intersects all manifest-authorized readers with current schemas while keeping required tools mandatory', () => {
     const get = jest.fn((name: string) =>
       name === 'send_email' ? { readOnly: false } : { readOnly: true },
     );
@@ -83,18 +83,29 @@ describe('MeriV3 served procedure guard', () => {
       procedure: procedure({
         policy: {
           ...procedure().policy,
-          allowedTools: ['get_client_context', 'query_tasks', 'send_email'],
+          allowedCapabilities: ['client.read', 'tasks.read', 'meetings.read'],
+          allowedTools: [
+            'get_client_context',
+            'query_tasks',
+            'list_upcoming_meetings',
+            'send_email',
+          ],
         },
       }),
       schemas: [
         { name: 'get_client_context' },
         { name: 'query_tasks' },
+        { name: 'list_upcoming_meetings' },
         { name: 'send_email' },
         { name: 'search_public_web' },
       ],
       registry: { get } as never,
     });
-    expect(bound.schemas).toEqual([{ name: 'get_client_context' }, { name: 'query_tasks' }]);
+    expect(bound.schemas).toEqual([
+      { name: 'get_client_context' },
+      { name: 'query_tasks' },
+      { name: 'list_upcoming_meetings' },
+    ]);
     expect(bound.requiredTools).toEqual(['get_client_context', 'query_tasks']);
   });
 
