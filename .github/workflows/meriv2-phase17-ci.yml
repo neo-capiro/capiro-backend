@@ -33,6 +33,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
+      NODE_OPTIONS: --max-old-space-size=6144
       CI: 'true'
       DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro?schema=public
       DIRECT_URL: postgresql://capiro:capiro@localhost:5432/capiro?schema=public
@@ -76,14 +77,17 @@ jobs:
           if [ -z "$base" ]; then
             base=$(git merge-base origin/main HEAD 2>/dev/null || git rev-parse HEAD^)
           fi
-          mapfile -d '' -t files < <(git diff --name-only -z --diff-filter=ACMR "$base...HEAD" -- \
+          changed_file_list=$(mktemp)
+          trap 'rm -f "$changed_file_list"' EXIT
+          git diff --name-only -z --diff-filter=ACMR "$base...HEAD" -- \
             '.github/workflows/meriv2-phase17-*.yml' \
             'packages/meriv2-core/**' \
             'apps/meriv2-orchestrator/**' \
             'apps/api/src/memory/**' \
             'apps/api/src/context/**' \
             'apps/workspace/src/generation/**' \
-            'apps/api-strategy/src/agents/**')
+            'apps/api-strategy/src/agents/**' > "$changed_file_list"
+          mapfile -d '' -t files < "$changed_file_list"
           if (( ${#files[@]} == 0 )); then
             echo 'No changed files in the Phase 17 formatting scope.'
           else

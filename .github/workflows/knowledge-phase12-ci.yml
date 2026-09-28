@@ -43,6 +43,8 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
     timeout-minutes: 30
 
     steps:
@@ -90,14 +92,16 @@ jobs:
           # Reject newly-added coupling. Existing cross-domain defaults and
           # historical fixtures remain visible baseline debt, but do not make
           # every unrelated PR fail this Phase 12 ownership gate.
-          titan_literal_hits=$(git diff --unified=0 --no-ext-diff "$base...HEAD" -- \
+          titan_diff=$(mktemp)
+          trap 'rm -f "$titan_diff"' EXIT
+          git diff --unified=0 --no-ext-diff "$base...HEAD" -- \
             'apps/**' 'packages/**' 'scripts/**' \
-            ':!apps/api/src/embeddings/titan-embedding.provider.ts' \
-            | awk '
-                /^diff --git / { path=$4; sub(/^b\//, "", path) }
-                /^\+\+\+/ { next }
-                /^\+[^+]/ && /amazon\.titan-embed-text-v2:0/ { print path ":" substr($0, 2) }
-              ' || true)
+            ':!apps/api/src/embeddings/titan-embedding.provider.ts' > "$titan_diff"
+          titan_literal_hits=$(awk '
+              /^diff --git / { path=$4; sub(/^b\//, "", path) }
+              /^\+\+\+/ { next }
+              /^\+[^+]/ && /amazon\.titan-embed-text-v2:0/ { print path ":" substr($0, 2) }
+            ' "$titan_diff")
           if [ -n "$titan_literal_hits" ]; then
             echo "Titan embedding model is coupled outside the provider adapter:" >&2
             echo "$titan_literal_hits" >&2

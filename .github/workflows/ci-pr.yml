@@ -14,6 +14,8 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -99,10 +101,13 @@ jobs:
         run: |
           set -euo pipefail
           base="${{ github.event.pull_request.base.sha }}"
-          mapfile -d '' -t files < <(git diff --name-only -z --diff-filter=ACMR "$base...HEAD" -- \
+          changed_file_list=$(mktemp)
+          trap 'rm -f "$changed_file_list"' EXIT
+          git diff --name-only -z --diff-filter=ACMR "$base...HEAD" -- \
             'packages/meriv2-core/**' \
             'apps/meriv2-orchestrator/**' \
-            'packages/shared/**')
+            'packages/shared/**' > "$changed_file_list"
+          mapfile -d '' -t files < "$changed_file_list"
           if (( ${#files[@]} == 0 )); then
             echo 'No changed files in the MeriV2/shared formatting scope.'
           else
@@ -206,6 +211,8 @@ jobs:
     # Every AWS/docker interaction the suite exercises runs against a fake
     # binary recorded and asserted on by the tests themselves.
     runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4

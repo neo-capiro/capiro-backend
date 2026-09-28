@@ -49,9 +49,13 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v7
         with:
@@ -75,7 +79,9 @@ jobs:
           if [ -z "$base" ]; then
             base=$(git merge-base origin/main HEAD 2>/dev/null || git rev-parse HEAD^)
           fi
-          mapfile -d '' -t files < <(git diff --name-only -z --diff-filter=ACMR "$base...HEAD" -- \
+          changed_file_list=$(mktemp)
+          trap 'rm -f "$changed_file_list"' EXIT
+          git diff --name-only -z --diff-filter=ACMR "$base...HEAD" -- \
             'apps/meriv2-orchestrator/src/meri/meriv3/**' \
             'apps/meriv2-orchestrator/src/meri/meri.module.ts' \
             'apps/api/src/meri/meriv3*.ts' \
@@ -90,7 +96,8 @@ jobs:
             'apps/web/src/lib/me.ts' \
             'docs/plans/meriv3-*' \
             'docs/runbooks/meriv3-*' \
-            '.github/workflows/meriv3-canary-ci.yml')
+            '.github/workflows/meriv3-canary-ci.yml' > "$changed_file_list"
+          mapfile -d '' -t files < "$changed_file_list"
           if (( ${#files[@]} == 0 )); then
             echo 'No changed files in the MeriV3 formatting scope.'
           else

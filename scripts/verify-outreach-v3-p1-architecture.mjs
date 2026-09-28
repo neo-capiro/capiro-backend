@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { validateOwnershipFixture } from './engagement-runtime-ownership.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const PHASE1_BASE_SHA = process.env.OUTREACH_V3_P1_BASE_SHA || '46e029dad5c27bf44c7920cd5a4000716621671f';
+export const PHASE1_BASE_SHA =
+  process.env.OUTREACH_V3_P1_BASE_SHA || '46e029dad5c27bf44c7920cd5a4000716621671f';
 export const REQUIRED_CAPABILITIES = [
   'search_capiro',
   'get_capiro_record',
@@ -17,6 +18,10 @@ export const REQUIRED_CAPABILITIES = [
   'get_recent_activity',
   'search_targets',
   'get_target_profile',
+  'get_document',
+  'recommend_outreach_strategy',
+  'analyze_target_coverage',
+  'find_similar_targets',
 ].sort();
 
 function read(relative) {
@@ -37,7 +42,8 @@ export function validateCapabilityCatalog(catalog) {
     problems.push('capability catalog names do not match the required closed set');
   }
   for (const name of names) {
-    if (/^(meri|outreach)_/.test(name)) problems.push(`consumer-prefixed duplicate capability: ${name}`);
+    if (/^(meri|outreach)_/.test(name))
+      problems.push(`consumer-prefixed duplicate capability: ${name}`);
   }
   for (const required of ['get_client_context', 'get_recent_activity', 'get_capiro_record']) {
     if (catalog.find((entry) => entry.name === required)?.status !== 'implemented') {
@@ -103,9 +109,17 @@ export function architectureProblems() {
   const scopeEnd = process.env.OUTREACH_V3_P1_SCOPE_END;
   let catalog;
   if (scopeEnd) {
-    const result = execFileSync('git', ['show', `${scopeEnd}:apps/api/src/capabilities/__fixtures__/capiro-capability-catalog.v1.json`], {
-      cwd: ROOT, encoding: 'utf8',
-    });
+    const result = execFileSync(
+      'git',
+      [
+        'show',
+        `${scopeEnd}:apps/api/src/capabilities/__fixtures__/capiro-capability-catalog.v1.json`,
+      ],
+      {
+        cwd: ROOT,
+        encoding: 'utf8',
+      },
+    );
     catalog = JSON.parse(result);
   } else {
     catalog = json('apps/api/src/capabilities/__fixtures__/capiro-capability-catalog.v1.json');
@@ -151,12 +165,8 @@ export function architectureProblems() {
   }
 
   const alertMemoModule = read('apps/api/src/intelligence/alert-memo/alert-memo.module.ts');
-  const districtBriefModule = read(
-    'apps/api/src/intelligence/alert-memo/district-brief.module.ts',
-  );
-  const hearingRecapService = read(
-    'apps/api/src/intelligence/alert-memo/hearing-recap.service.ts',
-  );
+  const districtBriefModule = read('apps/api/src/intelligence/alert-memo/district-brief.module.ts');
+  const hearingRecapService = read('apps/api/src/intelligence/alert-memo/hearing-recap.service.ts');
   if (/^import\s+\{[^}]*EngagementModule/m.test(alertMemoModule)) {
     problems.push('AlertMemoModule still imports broad EngagementModule');
   }
@@ -171,7 +181,7 @@ export function architectureProblems() {
   if (!meriModule.includes('AiCredentialsModule')) {
     problems.push('MeriModule does not consume the neutral AiCredentialsModule');
   }
-  if (meriModule.includes("../engagement/ai-credential-resolver.service")) {
+  if (meriModule.includes('../engagement/ai-credential-resolver.service')) {
     problems.push('MeriModule still resolves credentials through the Engagement path');
   }
 
@@ -224,10 +234,14 @@ export function architectureProblems() {
   const phase1ScopeEnd = process.env.OUTREACH_V3_P1_SCOPE_END ?? 'HEAD';
   let changed = [];
   try {
-    changed = execFileSync('git', ['diff', '--name-only', `${PHASE1_BASE_SHA}..${phase1ScopeEnd}`], {
-      cwd: ROOT,
-      encoding: 'utf8',
-    })
+    changed = execFileSync(
+      'git',
+      ['diff', '--name-only', `${PHASE1_BASE_SHA}..${phase1ScopeEnd}`],
+      {
+        cwd: ROOT,
+        encoding: 'utf8',
+      },
+    )
       .split(/\r?\n/)
       .filter(Boolean);
   } catch {
