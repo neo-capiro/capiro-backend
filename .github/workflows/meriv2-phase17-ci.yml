@@ -22,21 +22,21 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg16
         env:
-          POSTGRES_USER: capiro
-          POSTGRES_PASSWORD: capiro
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
           POSTGRES_DB: capiro
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U capiro -d capiro"
+          --health-cmd "pg_isready -U postgres -d capiro"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
     env:
       CI: 'true'
       NODE_OPTIONS: --max-old-space-size=6144
-      DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro?schema=public
-      DIRECT_URL: postgresql://capiro:capiro@localhost:5432/capiro?schema=public
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro?schema=public
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/capiro?schema=public
       CLERK_SECRET_KEY: sk_test_meriv2_phase17_ci
 
     steps:
@@ -61,6 +61,70 @@ jobs:
           pnpm --filter @capiro/intel-api exec prisma generate
           pnpm --filter @capiro/onboard-api exec prisma generate
           pnpm --filter @capiro/workspace exec prisma generate
+
+      - name: Bootstrap disposable Postgres migration prerequisites
+        env:
+          CI_DISPOSABLE_POSTGRES: '1'
+        run: bash scripts/ci/bootstrap-disposable-postgres-roles.sh
+
+      - name: Initialize disposable service database
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # These services deliberately share the public schema but own disjoint
+          # table prefixes. API goes first because its migrations install the
+          # shared extensions, RLS helpers, and capiro_app role used by later
+          # Workspace migrations. Each owner then replays its own history; db
+          # push would overwrite that ownership boundary and is not used here.
+          pnpm --filter @capiro/api exec prisma migrate deploy
+          pnpm --filter @capiro/workspace exec prisma migrate deploy
+          pnpm --filter @capiro/api-strategy exec prisma migrate deploy
+
+          database_url="${DIRECT_URL%%\?*}"
+          psql "$database_url" -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          DECLARE
+            missing_tables text[];
+          BEGIN
+            SELECT array_agg(required_table)
+              INTO missing_tables
+              FROM unnest(ARRAY[
+                'tenants',
+                'ws_draft',
+                'ws_document',
+                'sp_strategy',
+                'sp_node',
+                'sp_context_fact'
+              ]) AS required(required_table)
+             WHERE to_regclass('public.' || required_table) IS NULL;
+
+            IF missing_tables IS NOT NULL THEN
+              RAISE EXCEPTION 'missing required service tables: %', missing_tables;
+            END IF;
+
+            IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector') THEN
+              RAISE EXCEPTION 'missing required vector extension';
+            END IF;
+
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'capiro_app') THEN
+              RAISE EXCEPTION 'missing required capiro_app role';
+            END IF;
+
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_constraint WHERE conname = 'ws_document_draft_id_fkey'
+            ) THEN
+              RAISE EXCEPTION 'missing Workspace draft/document foreign key';
+            END IF;
+
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_constraint WHERE conname = 'sp_node_strategy_id_fkey'
+            ) THEN
+              RAISE EXCEPTION 'missing Strategy node/strategy foreign key';
+            END IF;
+          END
+          $$;
+          SQL
 
       - name: Build required dependency packages
         run: |
