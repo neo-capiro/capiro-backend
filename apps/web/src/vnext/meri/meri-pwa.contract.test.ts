@@ -51,6 +51,48 @@ function findVariableInitializer(sourceFile: ts.SourceFile, name: string): ts.Ex
   return initializer;
 }
 
+function unwrapParentheses(expression: ts.Expression): ts.Expression {
+  let current = expression;
+  while (ts.isParenthesizedExpression(current)) current = current.expression;
+  return current;
+}
+
+function isIdentifierNamed(expression: ts.Expression, name: string): boolean {
+  const candidate = unwrapParentheses(expression);
+  return ts.isIdentifier(candidate) && candidate.text === name;
+}
+
+function isPropertyAccessNamed(
+  expression: ts.Expression,
+  receiverName: string,
+  propertyName: string,
+): boolean {
+  const candidate = unwrapParentheses(expression);
+  return (
+    ts.isPropertyAccessExpression(candidate) &&
+    isIdentifierNamed(candidate.expression, receiverName) &&
+    candidate.name.text === propertyName
+  );
+}
+
+function isStringLiteralWithText(expression: ts.Expression, text: string): boolean {
+  const candidate = unwrapParentheses(expression);
+  return ts.isStringLiteral(candidate) && candidate.text === text;
+}
+
+function isLogicalNotOfPropertyAccess(
+  expression: ts.Expression,
+  receiverName: string,
+  propertyName: string,
+): boolean {
+  const candidate = unwrapParentheses(expression);
+  return (
+    ts.isPrefixUnaryExpression(candidate) &&
+    candidate.operator === ts.SyntaxKind.ExclamationToken &&
+    isPropertyAccessNamed(candidate.operand, receiverName, propertyName)
+  );
+}
+
 function findJsxAttributeExpression(
   sourceFile: ts.SourceFile,
   tagName: string,
@@ -58,10 +100,7 @@ function findJsxAttributeExpression(
 ): ts.Expression {
   let expression: ts.Expression | undefined;
   const visit = (node: ts.Node) => {
-    if (
-      ts.isJsxOpeningLikeElement(node) &&
-      node.tagName.getText(sourceFile) === tagName
-    ) {
+    if (ts.isJsxOpeningLikeElement(node) && node.tagName.getText(sourceFile) === tagName) {
       const attribute = node.attributes.properties.find(
         (property): property is ts.JsxAttribute =>
           ts.isJsxAttribute(property) && property.name.getText(sourceFile) === attributeName,
@@ -134,34 +173,19 @@ describe('Meri installable-app contract', () => {
     const effectiveChrome = findVariableInitializer(sourceFile, 'effectiveWindowChrome');
     expect(ts.isConditionalExpression(effectiveChrome)).toBe(true);
     if (!ts.isConditionalExpression(effectiveChrome)) return;
-    expect(effectiveChrome.condition.getText(sourceFile)).toBe('install.isStandalone');
-    expect(ts.isStringLiteral(effectiveChrome.whenTrue)).toBe(true);
-    expect(ts.isStringLiteral(effectiveChrome.whenTrue) && effectiveChrome.whenTrue.text).toBe(
-      'maximized',
-    );
-    expect(ts.isIdentifier(effectiveChrome.whenFalse)).toBe(true);
-    expect(ts.isIdentifier(effectiveChrome.whenFalse) && effectiveChrome.whenFalse.text).toBe(
-      'windowChrome',
-    );
+    expect(isPropertyAccessNamed(effectiveChrome.condition, 'install', 'isStandalone')).toBe(true);
+    expect(isStringLiteralWithText(effectiveChrome.whenTrue, 'maximized')).toBe(true);
+    expect(isIdentifierNamed(effectiveChrome.whenFalse, 'windowChrome')).toBe(true);
 
-    const topBarChrome = findJsxAttributeExpression(
-      sourceFile,
-      'VNextMeriTopBar',
-      'windowChrome',
-    );
-    expect(ts.isIdentifier(topBarChrome) && topBarChrome.text).toBe('effectiveWindowChrome');
+    const topBarChrome = findJsxAttributeExpression(sourceFile, 'VNextMeriTopBar', 'windowChrome');
+    expect(isIdentifierNamed(topBarChrome, 'effectiveWindowChrome')).toBe(true);
 
     const controls = findJsxAttributeExpression(
       sourceFile,
       'VNextMeriTopBar',
       'showWindowControls',
     );
-    expect(ts.isPrefixUnaryExpression(controls)).toBe(true);
-    expect(
-      ts.isPrefixUnaryExpression(controls) &&
-        controls.operator === ts.SyntaxKind.ExclamationToken &&
-        controls.operand.getText(sourceFile),
-    ).toBe('install.isStandalone');
+    expect(isLogicalNotOfPropertyAccess(controls, 'install', 'isStandalone')).toBe(true);
 
     expect(shell).toContain("install.isStandalone ? 'Meri' : 'Meri — Capiro'");
     expect(topBar).toContain('<MeriInstallButton />');
