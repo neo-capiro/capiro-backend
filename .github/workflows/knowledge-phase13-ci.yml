@@ -52,6 +52,8 @@ jobs:
           pnpm --filter @capiro/meriv2-core build
 
       - name: Validate and generate Prisma client
+        env:
+          DATABASE_URL: postgresql://ci_dummy:ci_dummy@127.0.0.1:1/ci_schema_validation_only?schema=public
         run: |
           pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
           pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
