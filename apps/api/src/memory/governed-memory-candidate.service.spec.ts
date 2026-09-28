@@ -248,7 +248,7 @@ describe('GovernedMemoryCandidateService Phase 13 dispositions', () => {
         clientId: null,
         proposedBy: PROPOSER,
         sourceKind: 'settings_sections',
-        scope: 'firm',
+        scope: 'firm' as const,
         status: 'pending',
         createdAt: new Date(Date.UTC(2026, 6, 31, 12, 0, 51 - index)),
         decidedAt: null,
