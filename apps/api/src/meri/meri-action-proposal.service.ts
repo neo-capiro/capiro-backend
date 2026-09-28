@@ -17,6 +17,7 @@ import {
 } from './meri-policy-pack.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { assertMeriToolRequestActive } from './meri-tool-request-control.js';
+import { classifyMeriActionLogicalFailure } from './meri-action-logical-outcome.js';
 
 export const MERI_ACTION_PROPOSAL_STATUSES = [
   'proposed', 'approved', 'executing', 'succeeded', 'failed_retryable',
@@ -105,7 +106,8 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
     'location', 'indexingStatus', 'reused', 'savedCount', 'pendingCount', 'failedCount',
     'message', 'portfolioId', 'portfolioRevision', 'resultingRevision', 'snapshotId',
     'requestId', 'jobId', 'outputId', 'artifactId', 'operationKey', 'contentHash',
-    'attachmentId', 'attachmentName', 'openPath', 'draftId',
+    'attachmentId', 'attachmentName', 'openPath', 'draftId', 'sentFrom', 'to', 'subject', 'error',
+    'scheduled', 'canceled', 'taskId',
   ]) {
     const value = source[key];
     if (typeof value === 'string') summary[key] = bounded(value, 300) ?? '';
@@ -437,7 +439,8 @@ export class MeriActionProposalService {
     try {
       assertMeriToolRequestActive();
       const result = await this.tools.executeFromAuthenticatedUser(ctx, tool, input);
-      const incomplete = filingExecutionFailure(tool, result);
+      const incomplete =
+        classifyMeriActionLogicalFailure(tool, result) ?? filingExecutionFailure(tool, result);
       if (incomplete) {
         const failed = await this.finalize(ctx, row.id, { ...incomplete, resultSummary: resultSummary(result) });
         return { disposition: 'failed', proposal: this.toPublic(failed), executionResult: result };
@@ -627,7 +630,9 @@ export class MeriActionProposalService {
 
     try {
       const result = await this.tools.executeFromAuthenticatedUser(ctx, row.tool, canonical);
-      const incomplete = filingExecutionFailure(row.tool, result);
+      const incomplete =
+        classifyMeriActionLogicalFailure(row.tool, result) ??
+        filingExecutionFailure(row.tool, result);
       if (incomplete) return this.toPublic(await this.finalize(ctx, row.id, {
         ...incomplete, resultSummary: resultSummary(result),
       }));

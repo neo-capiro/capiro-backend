@@ -243,19 +243,20 @@ describe('MeriV3AssistantService', () => {
     jest.restoreAllMocks();
   });
 
-  test('does not dispatch function calls from incomplete response in assistant service', async () => {
-    const complete = jest.fn().mockResolvedValue({
+  test('repairs an incomplete response without dispatching its call or releasing stale prose', async () => {
+    const incompleteCall = {
+      type: 'function_call',
+      call_id: 'call_1',
+      name: 'search_memory',
+      arguments: '{"query":"Kestrel"}',
+    };
+    const validCall = { ...incompleteCall, call_id: 'call_2', status: 'completed' };
+    const complete = jest.fn().mockResolvedValueOnce({
       id: 'resp-1',
       status: 'incomplete',
-      output: [],
+      output: [incompleteCall],
       outputText: 'Partial answer',
-      functionCalls: [
-        {
-          call_id: 'call_1',
-          name: 'read_client_documents',
-          arguments: '{"clientId":"client-1"}',
-        },
-      ],
+      functionCalls: [incompleteCall],
       usage,
       model: 'gpt-5.1',
       usedTenantKey: false,
@@ -269,23 +270,95 @@ describe('MeriV3AssistantService', () => {
         finishReason: 'max_output_tokens',
         partial: true,
       },
-    });
-    const assistant = build(registry([]), complete);
-    const events: MeriV3ChatStreamEvent[] = [];
-    await assistant.run(
-      context,
-      {
-        conversationId: 'thread-1',
-        messages: [{ role: 'user', text: 'What is the client doc?' }],
-      },
-      { onEvent: (event) => events.push(event) },
+    })
+      .mockResolvedValueOnce(response({ output: [validCall], outputText: '', functionCalls: [validCall] }))
+      .mockResolvedValueOnce(response({ outputText: 'Verified answer.' }));
+    const invoke = jest.fn().mockResolvedValue({ records: [] });
+    const assistant = build(
+      registry([{ name: 'search_memory', readOnly: true }], invoke),
+      complete,
     );
-    // Function calls from incomplete responses should NOT be dispatched
+    global.fetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            schemas: [
+              {
+                name: 'search_memory',
+                description: 'Search memory',
+                input_schema: { type: 'object', properties: { query: { type: 'string' } } },
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+    ) as typeof fetch;
+    const events: MeriV3ChatStreamEvent[] = [];
+    const result = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () => assistant.run(
+        context,
+        {
+          conversationId: 'thread-1',
+          messages: [{ role: 'user', text: 'What does memory say about Kestrel?' }],
+        },
+        { onEvent: (event) => events.push(event) },
+      ),
+    );
     const toolCallEvents = events.filter((e) => e.type === 'tool_call');
     const toolDoneEvents = events.filter((e) => e.type === 'tool_done');
-    expect(toolCallEvents).toHaveLength(0);
-    expect(toolDoneEvents).toHaveLength(0);
-    expect(complete).toHaveBeenCalledTimes(1);
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(toolCallEvents).toHaveLength(1);
+    expect(toolDoneEvents).toHaveLength(1);
+    expect(complete).toHaveBeenCalledTimes(3);
+    expect(result.reply).toContain('Verified answer.');
+    expect(result.reply).not.toContain('Partial answer');
+  });
+
+  test.each([
+    [
+      'an incomplete item status',
+      { type: 'function_call', call_id: 'call-bad', name: 'search_memory', arguments: '{}', status: 'incomplete' },
+    ],
+    [
+      'malformed arguments',
+      { type: 'function_call', call_id: 'call-bad', name: 'search_memory', arguments: '{', status: 'completed' },
+    ],
+  ])('executes zero calls from a batch containing %s', async (_label, invalidCall) => {
+    const validCall = {
+      type: 'function_call',
+      call_id: 'call-valid',
+      name: 'search_memory',
+      arguments: '{"query":"Kestrel"}',
+      status: 'completed',
+    };
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(response({
+        output: [validCall, invalidCall],
+        outputText: 'Stale draft.',
+        functionCalls: [validCall, invalidCall],
+      }))
+      .mockResolvedValueOnce(response({ outputText: 'Recovered without effects.' }));
+    const invoke = jest.fn();
+    const assistant = build(registry([{ name: 'search_memory', readOnly: true }], invoke), complete);
+    global.fetch = jest.fn(
+      async () => new Response(JSON.stringify({ schemas: [{
+        name: 'search_memory',
+        description: 'Search memory',
+        input_schema: { type: 'object', properties: { query: { type: 'string' } } },
+      }] }), { status: 200 }),
+    ) as typeof fetch;
+
+    const result = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () => assistant.run(context, { messages: [{ role: 'user', text: 'Check Kestrel.' }] }),
+    );
+
+    expect(invoke).not.toHaveBeenCalled();
+    expect(complete).toHaveBeenCalledTimes(2);
+    expect(result.reply).toContain('Recovered without effects.');
+    expect(result.reply).not.toContain('Stale draft.');
   });
 
 
