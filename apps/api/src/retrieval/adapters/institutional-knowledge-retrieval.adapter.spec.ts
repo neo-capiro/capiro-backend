@@ -125,10 +125,20 @@ function setup(
       approvedByUserId: 'reviewer-1',
       approvedAt: new Date('2026-08-18T09:00:00Z'),
     }));
+  const semanticById = new Map(
+    (options.semanticScores ?? []).map((entry, index) => [
+      entry.id,
+      {
+        semanticScore: entry.score,
+        semanticRank: index + 1,
+        embeddingContentHash: 'projection-hash',
+      },
+    ]),
+  );
   const queryRaw = jest.fn(async (query: { text?: string }) =>
     query.text?.includes('mi.sections_jsonb AS sections')
-      ? canonical
-      : (options.semanticScores ?? []),
+      ? canonical.map((row) => ({ ...row, ...semanticById.get(String(row.id)) }))
+      : [],
   );
   const tx = {
     clioMemory: { findMany: clioMemoryFindMany },
@@ -140,7 +150,14 @@ function setup(
   );
   const prisma = { withTenantUser } as unknown as PrismaService;
   const embeddingProvider = {
-    embed: jest.fn(options.embed ?? (async () => [0.1, 0.2, 0.3])),
+    metadata: {
+      provider: 'test',
+      model: 'test-memory-model',
+      modelVersion: '1',
+      dimensions: 1024,
+    },
+    embed: jest.fn(options.embed ?? (async () => Array<number>(1024).fill(0.1))),
+    embedBatch: jest.fn(),
   } as unknown as EmbeddingProvider;
   const adapter = new InstitutionalKnowledgeRetrievalAdapter(graph, prisma, embeddingProvider);
   const dataset = new SemanticDataCatalogService().get('institutional_knowledge');
@@ -424,7 +441,7 @@ describe('InstitutionalKnowledgeRetrievalAdapter', () => {
         },
       ],
       // Embedding provider works fine.
-      embed: async () => [0.1, 0.2, 0.3],
+      embed: async () => Array<number>(1024).fill(0.1),
     });
     // Only memory-1 has an embedding score; memory-2 has none.
 
@@ -517,12 +534,12 @@ describe('canonical institutional recall governance', () => {
     expect(result.records[0]).toMatchObject({ recordId: 'MA510' });
     const candidateSql = queryRaw.mock.calls[0]![0] as { text: string; values: unknown[] };
     expect(candidateSql.text.indexOf('governed_status')).toBeLessThan(
-      candidateSql.text.indexOf('ORDER BY'),
+      candidateSql.text.indexOf('lexical_candidates AS'),
     );
-    expect(candidateSql.text.indexOf('ORDER BY')).toBeLessThan(candidateSql.text.indexOf('LIMIT'));
-    expect(candidateSql.values).toEqual(
-      expect.arrayContaining(['autonomous', 'maritime', 'demo']),
+    expect(candidateSql.text.indexOf('lexical_candidates AS')).toBeLessThan(
+      candidateSql.text.indexOf('LIMIT'),
     );
+    expect(candidateSql.values).toEqual(expect.arrayContaining(['autonomous', 'maritime', 'demo']));
   });
 
   it('reads canonical approved content without a Clio projection or embedding', async () => {
@@ -610,7 +627,7 @@ describe('canonical institutional recall governance', () => {
     });
     const request = { ...selectedClientRequest(), pageSize: 1 };
     const first = await adapter.retrieve(dataset, request);
-    expect(first.nextCursor).toMatch(/^memory:v2:1:[a-f0-9]{64}$/);
+    expect(first.nextCursor).toMatch(/^memory:v3:1:[a-f0-9]{64}$/);
     queryRaw.mockResolvedValue([
       approved({ status: 'revoked' }),
       approved({ id: 'memory-next', status: 'revoked' }),
@@ -664,10 +681,10 @@ describe('canonical institutional recall governance', () => {
 
 describe('canonical memory semantic fallback status', () => {
   it('reports query-wide embedding-index failure as degraded, while retaining approved lexical evidence', async () => {
-    const { adapter, dataset, queryRaw } = setup({ governed: [approved()] });
+    const { adapter, dataset, queryRaw, withTenantUser } = setup({ governed: [approved()] });
     queryRaw.mockImplementation(async (query) => {
-      if (query.text?.includes('mi.sections_jsonb AS sections')) return [approved()];
-      throw new Error('embedding index unavailable');
+      if (query.text?.includes('<=>')) throw new Error('embedding index unavailable');
+      return [approved()];
     });
     const result = await adapter.retrieve(dataset, {
       ...selectedClientRequest(),
@@ -679,6 +696,8 @@ describe('canonical memory semantic fallback status', () => {
       coverageComplete: false,
       stopReason: 'governed_memory_semantic_projection_incomplete',
     });
+    expect(withTenantUser).toHaveBeenCalledTimes(2);
+    expect(queryRaw.mock.calls[1]![0].text).not.toContain('<=>');
   });
 
   it('treats an empty provider vector as unavailable semantic projection', async () => {
@@ -689,6 +708,37 @@ describe('canonical memory semantic fallback status', () => {
     });
     expect(result.records).toHaveLength(1);
     expect(result.sourceStatus).toBe('degraded');
+  });
+
+  it('rejects a non-1024 provider vector before SQL and uses a lexical transaction', async () => {
+    const { adapter, dataset, queryRaw, withTenantUser } = setup({
+      governed: [approved()],
+      embed: async () => Array<number>(1023).fill(0.1),
+    });
+    const result = await adapter.retrieve(dataset, {
+      ...selectedClientRequest(),
+      queryClass: 'semantic_recall',
+    });
+    expect(result).toMatchObject({ returned: 1, sourceStatus: 'degraded' });
+    expect(withTenantUser).toHaveBeenCalledTimes(1);
+    expect(queryRaw.mock.calls[0]![0].text).not.toContain('<=>');
+  });
+
+  it('selects one exact embedding model in the governed candidate query and has no MIN/map rescore', async () => {
+    const { adapter, dataset, queryRaw } = setup({
+      governed: [approved()],
+      semanticScores: [{ id: 'memory-approved', score: 0.91 }],
+    });
+    const result = await adapter.retrieve(dataset, {
+      ...selectedClientRequest(),
+      queryClass: 'semantic_recall',
+    });
+    const sql = queryRaw.mock.calls[0]![0] as { text: string; values: unknown[] };
+    expect(sql.text).toContain('ce.model =');
+    expect(sql.text).not.toContain('MIN(ce.embedding');
+    expect(sql.values).toContain('test-memory-model');
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+    expect(result.records[0]?.retrievalSignals).toEqual({ semanticSimilarity: 0.91 });
   });
 });
 
@@ -813,6 +863,42 @@ describe('Phase 3 fact content and bounded recall', () => {
       stopReason: 'governed_memory_changed_restart_search',
     });
   });
+
+  it.each(['source_hash', 'embedding_model', 'authorization_envelope'] as const)(
+    'binds continuation cursors to %s',
+    async (change) => {
+      const rows = [approved(), approved({ id: 'second' })];
+      const { adapter, dataset, queryRaw, embeddingProvider } = setup({ governed: rows });
+      const firstRequest = { ...selectedClientRequest(), pageSize: 1 };
+      const first = await adapter.retrieve(dataset, firstRequest);
+
+      if (change === 'source_hash') {
+        queryRaw.mockResolvedValue([
+          approved({ sourceContentHash: 'changed-hash' }),
+          approved({ id: 'second' }),
+        ]);
+      } else if (change === 'embedding_model') {
+        (embeddingProvider.metadata as { model: string }).model = 'replacement-memory-model';
+      }
+      const nextRequest =
+        change === 'authorization_envelope'
+          ? {
+              ...firstRequest,
+              caller: {
+                ...firstRequest.caller,
+                authorizedClientIds: ['client-1', 'client-2'],
+              },
+            }
+          : firstRequest;
+      const next = await adapter.retrieve(dataset, nextRequest, first.nextCursor);
+
+      expect(next).toMatchObject({
+        records: [],
+        coverageComplete: false,
+        stopReason: 'governed_memory_changed_restart_search',
+      });
+    },
+  );
 
   it('bounds a hung embedding provider before opening the fresh authorized transaction', async () => {
     jest.useFakeTimers();
