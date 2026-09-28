@@ -129,11 +129,12 @@ jobs:
           # a pre-existing 1536-dimension OpenAI space. Migrating/removing it here
           # would violate the no-re-embed/no-dimension-change acceptance rule and
           # alter default Meri recall. Freeze it to the two inherited runtime call
-          # sites (+ config declaration) so no new direct provider coupling spreads.
+          # sites, config declaration, and its pre-existing 1536-dimension backfill
+          # reconciler so no new direct provider coupling spreads.
           legacy_openai_hits=$(git grep -n -E 'api\.openai\.com/v1/embeddings|text-embedding-3-small' -- \
             'apps/api/src/**' 'apps/api/scripts/**' || true)
           unexpected_legacy_hits=$(printf '%s\n' "$legacy_openai_hits" | grep -v -E \
-            '^(apps/api/src/meri/meri\.service\.ts|apps/api/src/memory/memory-candidate\.service\.ts|apps/api/src/config/config\.schema\.ts):' || true)
+            '^(apps/api/src/meri/meri\.service\.ts|apps/api/src/memory/memory-candidate\.service\.ts|apps/api/src/config/config\.schema\.ts|apps/api/scripts/backfill-clio-memory-embeddings\.ts):' || true)
           if [ -n "$unexpected_legacy_hits" ]; then
             echo "New direct legacy OpenAI embedding coupling was introduced outside the grandfathered compatibility island:" >&2
             echo "$unexpected_legacy_hits" >&2
