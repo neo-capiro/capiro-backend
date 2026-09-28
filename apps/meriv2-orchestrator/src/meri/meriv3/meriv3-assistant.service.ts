@@ -123,9 +123,17 @@ import {
   enforceRetainedStatusProvenance,
   runStatusProvenance,
 } from './status-provenance-runtime.js';
-import { createChatDecisionProviders, createClientFitClient, createPassageSelectionClient } from '../jev/jev-provider.factory.js';
+import {
+  createChatDecisionProviders,
+  createClientFitClient,
+  createPassageSelectionClient,
+} from '../jev/jev-provider.factory.js';
 import { assessReleasedClaims } from '../jev/shadow-claim-assessor.js';
-import { applyMatchLabelControl, createClientFitEvaluator, matchLabelEvent } from './match-label-control.js';
+import {
+  applyMatchLabelControl,
+  createClientFitEvaluator,
+  matchLabelEvent,
+} from './match-label-control.js';
 import {
   appendClaimTiedCoverageDisclosure,
   buildCoverageRequirements,
@@ -473,9 +481,7 @@ function promptTextChars(items: readonly Record<string, unknown>[]): number {
 }
 
 type BudgetedSettlement<T> =
-  | { kind: 'settled'; value: T }
-  | { kind: 'deadline' }
-  | { kind: 'aborted' };
+  { kind: 'settled'; value: T } | { kind: 'deadline' } | { kind: 'aborted' };
 
 /**
  * Resolve `work`, or stop waiting at `deadlineAt` / on `signal`. The work
@@ -574,25 +580,38 @@ function buildRepairPassages(
     let text: string | undefined;
     if (item.id.startsWith('citation:')) {
       const citation =
-        citations.find((candidate) => `citation:${candidate.n}:${candidate.tool}:${candidate.id}` === item.id) ??
-        citations.find((candidate) => candidate.tool === item.sourceType && candidate.id === item.sourceId);
+        citations.find(
+          (candidate) => `citation:${candidate.n}:${candidate.tool}:${candidate.id}` === item.id,
+        ) ??
+        citations.find(
+          (candidate) => candidate.tool === item.sourceType && candidate.id === item.sourceId,
+        );
       const entry = citation ? ledgerEntryForCitation(citation, ledgerEntries) : undefined;
       text = entry?.serialized ?? citation?.snippet ?? undefined;
       if (citation && text) {
         // `extractMaterialClaims` keys a marker's evidence as `${tool}:${id}` (or
         // the stable id); expose the same passage under those ids too.
-        const aliases = [`${citation.tool}:${citation.id}`, ...(citation.stableId ? [citation.stableId] : [])];
+        const aliases = [
+          `${citation.tool}:${citation.id}`,
+          ...(citation.stableId ? [citation.stableId] : []),
+        ];
         for (const alias of aliases) passages[alias] ??= { text };
       }
     } else if (item.id.startsWith('formb:')) {
       const token = `[S:${item.sourceType}:${item.sourceId}]`;
       const entry =
-        ledgerEntries.find((candidate) => candidate.tool === item.sourceType && candidate.serialized.includes(token)) ??
-        ledgerEntries.find((candidate) => candidate.tool === item.sourceType && candidate.serialized.includes(item.sourceId));
+        ledgerEntries.find(
+          (candidate) => candidate.tool === item.sourceType && candidate.serialized.includes(token),
+        ) ??
+        ledgerEntries.find(
+          (candidate) =>
+            candidate.tool === item.sourceType && candidate.serialized.includes(item.sourceId),
+        );
       text = entry?.serialized;
     } else {
       const entry = ledgerEntries.find(
-        (candidate) => candidate.tool === item.sourceType && candidate.serialized.includes(item.sourceId),
+        (candidate) =>
+          candidate.tool === item.sourceType && candidate.serialized.includes(item.sourceId),
       );
       text = entry?.serialized;
     }
@@ -797,17 +816,21 @@ export class MeriV3AssistantService {
       fetchImpl: runtimeBudget.budgetedFetch('selection'),
     });
     const buildEvidenceLedger = (
-      input: Omit<Parameters<typeof buildControlledClaimLedger>[0], 'env' | 'tenantId' | 'surface' | 'callSite' | 'logShadow'>,
+      input: Omit<
+        Parameters<typeof buildControlledClaimLedger>[0],
+        'env' | 'tenantId' | 'surface' | 'callSite' | 'logShadow'
+      >,
       callSite: string,
       ledgerSurface: AssuranceSurface = surface,
-    ) => buildControlledClaimLedger({
-      ...input,
-      env: process.env,
-      tenantId: ctx.tenantId,
-      surface: ledgerSurface,
-      callSite,
-      logShadow: (event, fields) => this.logStructured('log', event, { ...fields }),
-    });
+    ) =>
+      buildControlledClaimLedger({
+        ...input,
+        env: process.env,
+        tenantId: ctx.tenantId,
+        surface: ledgerSurface,
+        callSite,
+        logShadow: (event, fields) => this.logStructured('log', event, { ...fields }),
+      });
     const statusProvenanceMode = resolveStatusProvenanceMode(process.env, ctx.tenantId, surface);
     const canary = new CanaryTurnCollector({
       conversationId: dto.conversationId ?? null,
@@ -936,12 +959,16 @@ export class MeriV3AssistantService {
       const body = typeof toolInput[field] === 'string' ? String(toolInput[field]).trim() : '';
       if (!body) return null;
       try {
-        const claimLedger = buildEvidenceLedger({
-          output: body,
-          ledgerEntries,
-          citations,
-          plan: evidencePlan,
-        }, 'prePersistRefusal', 'memo');
+        const claimLedger = buildEvidenceLedger(
+          {
+            output: body,
+            ledgerEntries,
+            citations,
+            plan: evidencePlan,
+          },
+          'prePersistRefusal',
+          'memo',
+        );
         const grounding = runAuditor({
           output: body,
           ledger: { entries: ledgerEntries },
@@ -1104,15 +1131,23 @@ export class MeriV3AssistantService {
             .filter((citation) => {
               const evidence = citation.documentEvidence;
               if (!evidence) return false;
-              return dto.selectedDocumentIds?.includes(evidence.documentId)
-                || coverageRequirements.some((requirement) =>
-                  requirement.route?.documentId === evidence.documentId);
+              return (
+                dto.selectedDocumentIds?.includes(evidence.documentId) ||
+                coverageRequirements.some(
+                  (requirement) => requirement.route?.documentId === evidence.documentId,
+                )
+              );
             })
-            .flatMap((citation) => [citation.id, ...(citation.stableId ? [citation.stableId] : [])]),
+            .flatMap((citation) => [
+              citation.id,
+              ...(citation.stableId ? [citation.stableId] : []),
+            ]),
           userSelectedDocumentIds: dto.selectedDocumentIds,
         });
         const provider = createPassageSelectionClient({
-          env: process.env, tenantId: ctx.tenantId, surface: 'chat',
+          env: process.env,
+          tenantId: ctx.tenantId,
+          surface: 'chat',
           logger: this.structuredLogger,
           fetchImpl: runtimeBudget.budgetedFetch('selection'),
         });
@@ -1146,9 +1181,12 @@ export class MeriV3AssistantService {
         if (evidenceRecall !== 1) {
           throw new Error('Passage selection required-evidence recall invariant failed');
         }
-        const changed = rebuilt.removedCallIds.length > 0 || rebuilt.prunedCitationNumbers.length > 0;
+        const changed =
+          rebuilt.removedCallIds.length > 0 || rebuilt.prunedCitationNumbers.length > 0;
         const applied = passageSelectionMode === 'enforce' && !fallback && changed;
-        const conflictCandidates = candidates.filter((candidate) => candidate.deterministicConflict).length;
+        const conflictCandidates = candidates.filter(
+          (candidate) => candidate.deterministicConflict,
+        ).length;
         const latencyMs = Date.now() - selectionStartedAt;
         const costUsd = answers.inputTokens * PASSAGE_SELECTION_MODEL_PRICE_PER_INPUT_TOKEN;
         this.logStructured('log', 'meri.passage_selection', {
@@ -1177,8 +1215,10 @@ export class MeriV3AssistantService {
           inputTokens: answers.inputTokens,
           estimatedCostUsd: costUsd,
           registryVersion: JEV_TASK_REGISTRY_VERSION,
-          task: { questionVersion: PASSAGE_SELECTION_QUESTION_VERSION,
-            modelVersion: JEV_TASK_REGISTRY.passage_relevance.modelVersion },
+          task: {
+            questionVersion: PASSAGE_SELECTION_QUESTION_VERSION,
+            modelVersion: JEV_TASK_REGISTRY.passage_relevance.modelVersion,
+          },
           questionVersion: answers.questionVersion,
           model: answers.model || provider.model,
         });
@@ -1193,8 +1233,12 @@ export class MeriV3AssistantService {
           safetyIntervention: {
             evaluated: true,
             intervened: selection.safetyIntervention.intervened || rebuilt.fallback,
-            reasons: [...selection.safetyIntervention.reasons,
-              ...(rebuilt.fallback ? [`fallback_unfiltered:${rebuilt.fallbackReason ?? 'rebuild_failed'}`] : [])],
+            reasons: [
+              ...selection.safetyIntervention.reasons,
+              ...(rebuilt.fallback
+                ? [`fallback_unfiltered:${rebuilt.fallbackReason ?? 'rebuild_failed'}`]
+                : []),
+            ],
           },
           latencyMs,
           tokens: answers.inputTokens,
@@ -1263,7 +1307,11 @@ export class MeriV3AssistantService {
       addUsage(usage, synthesis.usage);
       canary.noteSynthesis(
         synthesis.usage.inputTokens + synthesis.usage.outputTokens,
-        computeAiCostUsd(synthesis.model, synthesis.usage.inputTokens, synthesis.usage.outputTokens),
+        computeAiCostUsd(
+          synthesis.model,
+          synthesis.usage.inputTokens,
+          synthesis.usage.outputTokens,
+        ),
       );
       void this.meterRound(ctx, synthesis.model, synthesis.usage, synthesis.usedTenantKey);
       const boundaryFailure = completedTextResponseFailure(synthesis);
@@ -1392,7 +1440,8 @@ export class MeriV3AssistantService {
             let roundExecuted = 0;
             for (const planned of followUp.calls) {
               if (executed >= 8) break;
-              const remainingMs = (opts.deadlineAt ?? startedAt + profile.turnBudgetMs) - Date.now();
+              const remainingMs =
+                (opts.deadlineAt ?? startedAt + profile.turnBudgetMs) - Date.now();
               if (remainingMs <= reserveMs) break;
               const key = `${planned.name}:${JSON.stringify(planned.arguments)}`;
               if (attempted.has(key)) continue;
@@ -1482,8 +1531,7 @@ export class MeriV3AssistantService {
         const essentialResiduals = gaps.filter(
           (gap) => gap.essential && gap.status !== 'satisfied',
         );
-        residualCoverageGaps =
-          coverageRetrievalMode === 'enforce' ? essentialResiduals : [];
+        residualCoverageGaps = coverageRetrievalMode === 'enforce' ? essentialResiduals : [];
         latestCoverageGaps = gaps;
         canary.noteCoverage({
           gaps: gaps.filter((gap) => gap.status !== 'satisfied').length,
@@ -1525,7 +1573,12 @@ export class MeriV3AssistantService {
       // synthesis (it calls selectSynthesisEvidence() internally): re-running
       // Jev scoring here would be redundant and would pay for a second synthesis
       // call on a request whose evidence set has not changed since.
-      if (passageSelectionMode === 'enforce' && finalText && !coverageResynthesized && !opts.signal?.aborted) {
+      if (
+        passageSelectionMode === 'enforce' &&
+        finalText &&
+        !coverageResynthesized &&
+        !opts.signal?.aborted
+      ) {
         const preSelectionText = finalText;
         try {
           const selected = await selectSynthesisEvidence();
@@ -1600,8 +1653,7 @@ export class MeriV3AssistantService {
           finishReason: 'incomplete_synthesis_response',
         };
         finalText = incompleteSynthesisPartialReply(ledgerEntries);
-      }
-      else if (
+      } else if (
         !finalText &&
         (gatheredToolOutput || toolsUsed.length > 0) &&
         isModelTimeoutError(error)
@@ -1768,21 +1820,30 @@ export class MeriV3AssistantService {
 
     if (matchLabelMode === 'enforce' && released.reply) {
       const started = Date.now();
-      const matchLedger = buildEvidenceLedger({
-        output: released.reply,
-        ledgerEntries,
-        citations: released.citations,
-        plan: evidencePlan,
-      }, 'matchLabelEnforce');
+      const matchLedger = buildEvidenceLedger(
+        {
+          output: released.reply,
+          ledgerEntries,
+          citations: released.citations,
+          plan: evidencePlan,
+        },
+        'matchLabelEnforce',
+      );
       let matchResult = await applyMatchLabelControl({
         mode: 'enforce',
         reply: released.reply,
         citations: released.citations,
         evidence: matchLedger.evidence,
-        ...(!runtimeBudget.acquisitionStopped && clientFit.client ? { evaluate: createClientFitEvaluator({
-          provider: clientFit.client, tenantId: ctx.tenantId, deadlineAt: started + 8_000,
-          signal: opts.signal,
-        }) } : {}),
+        ...(!runtimeBudget.acquisitionStopped && clientFit.client
+          ? {
+              evaluate: createClientFitEvaluator({
+                provider: clientFit.client,
+                tenantId: ctx.tenantId,
+                deadlineAt: started + 8_000,
+                signal: opts.signal,
+              }),
+            }
+          : {}),
       });
       // A model-budget failure must not turn enforce into pass-through. Local
       // evidence derivation remains valid after aggregate acquisition stops.
@@ -1846,32 +1907,57 @@ export class MeriV3AssistantService {
       const releasedCitations = released.citations;
       const started = Date.now();
       queueMicrotask(() => {
-        void Promise.resolve().then(async () => {
-          const matchLedger = buildEvidenceLedger({
-            output: reply,
-            ledgerEntries,
-            citations: releasedCitations,
-            plan: evidencePlan,
-          }, 'matchLabelShadow');
-          const result = await applyMatchLabelControl({
-            mode: 'shadow', reply, citations: releasedCitations, evidence: matchLedger.evidence,
-            ...(clientFit.client ? { evaluate: createClientFitEvaluator({
-              provider: clientFit.client, tenantId: ctx.tenantId, deadlineAt: started + 8_000,
-              signal: opts.signal,
-            }) } : {}),
-          });
-          if (result.findings > 0) {
-            this.logStructured('log', 'meri.match_label.shadow', matchLabelEvent(result, Date.now() - started));
-          }
-        }).catch(() => undefined);
+        void Promise.resolve()
+          .then(async () => {
+            const matchLedger = buildEvidenceLedger(
+              {
+                output: reply,
+                ledgerEntries,
+                citations: releasedCitations,
+                plan: evidencePlan,
+              },
+              'matchLabelShadow',
+            );
+            const result = await applyMatchLabelControl({
+              mode: 'shadow',
+              reply,
+              citations: releasedCitations,
+              evidence: matchLedger.evidence,
+              ...(clientFit.client
+                ? {
+                    evaluate: createClientFitEvaluator({
+                      provider: clientFit.client,
+                      tenantId: ctx.tenantId,
+                      deadlineAt: started + 8_000,
+                      signal: opts.signal,
+                    }),
+                  }
+                : {}),
+            });
+            if (result.findings > 0) {
+              this.logStructured(
+                'log',
+                'meri.match_label.shadow',
+                matchLabelEvent(result, Date.now() - started),
+              );
+            }
+          })
+          .catch(() => undefined);
       });
     }
     const canaryEvent = canary.build({
-      outcome: opts.signal?.aborted && telemetry.finishReason !== 'deadline_exceeded' ? 'aborted'
-        : released.held ? 'held' : telemetry.finishReason === 'runtime_error' ? 'error'
-          : telemetry.finishReason === 'deadline_exceeded' ? 'incomplete' : 'released',
+      outcome:
+        opts.signal?.aborted && telemetry.finishReason !== 'deadline_exceeded'
+          ? 'aborted'
+          : released.held
+            ? 'held'
+            : telemetry.finishReason === 'runtime_error'
+              ? 'error'
+              : telemetry.finishReason === 'deadline_exceeded'
+                ? 'incomplete'
+                : 'released',
       clarificationRequested: replyRequestsClarification(released.reply, documentRequests),
-      heldReason: released.held ? complianceOutcome ?? 'release_gate' : null,
+      heldReason: released.held ? (complianceOutcome ?? 'release_gate') : null,
     });
     // One JSON object per log line: the shape `readCanaryEvents` parses from an
     // exported log line, like the `meriv3.turn` event below.
@@ -1888,23 +1974,28 @@ export class MeriV3AssistantService {
         asOf,
         logger: this.structuredLogger,
         afterInventory: async () => {
-          const claimLedger = buildEvidenceLedger({
-            output: released.reply,
-            ledgerEntries,
-            citations: released.citations,
-            plan: evidencePlan,
-          }, 'claimInventory');
+          const claimLedger = buildEvidenceLedger(
+            {
+              output: released.reply,
+              ledgerEntries,
+              citations: released.citations,
+              plan: evidencePlan,
+            },
+            'claimInventory',
+          );
           const claims = extractMaterialClaims({
             replyText: released.reply,
             citations: released.citations,
             ledger: claimLedger,
             asOf,
           }).filter((claim) => claim.material);
-          const passages = Object.fromEntries(claimLedger.evidence.map((evidence) => {
-            const citation = released.citations.find((item) => item.id === evidence.sourceId);
-            const entry = ledgerEntries.find((item) => item.tool === evidence.sourceType);
-            return [evidence.id, { text: citation?.snippet ?? entry?.serialized ?? '' }];
-          }));
+          const passages = Object.fromEntries(
+            claimLedger.evidence.map((evidence) => {
+              const citation = released.citations.find((item) => item.id === evidence.sourceId);
+              const entry = ledgerEntries.find((item) => item.tool === evidence.sourceType);
+              return [evidence.id, { text: citation?.snippet ?? entry?.serialized ?? '' }];
+            }),
+          );
           const providers = createChatDecisionProviders({
             env: process.env,
             tenantId: ctx.tenantId,
@@ -1913,11 +2004,7 @@ export class MeriV3AssistantService {
             logger: this.structuredLogger,
             fetchImpl: runtimeBudget.budgetedFetch('shadow'),
           });
-          const shadowLegacy = withModelBudget(
-            providers.legacyBaseline,
-            runtimeBudget,
-            'shadow',
-          )!;
+          const shadowLegacy = withModelBudget(providers.legacyBaseline, runtimeBudget, 'shadow')!;
           await assessReleasedClaims({
             claims,
             ledger: claimLedger,
@@ -1946,14 +2033,16 @@ export class MeriV3AssistantService {
         ctx,
         deadlineAt: Date.now() + 8_000,
         signal: opts.requestSignal ?? opts.signal,
-      }).then((result) => {
-        if (!result.detected) return;
-        this.logStructured('log', 'meri.status_provenance.shadow', {
-          counts: result.outcomes,
-          lookupOk: result.lookupOk,
-          latencyMs: result.latencyMs,
-        });
-      }).catch(() => undefined);
+      })
+        .then((result) => {
+          if (!result.detected) return;
+          this.logStructured('log', 'meri.status_provenance.shadow', {
+            counts: result.outcomes,
+            lookupOk: result.lookupOk,
+            latencyMs: result.latencyMs,
+          });
+        })
+        .catch(() => undefined);
     }
     if (
       dto.pageWrite &&
@@ -2150,7 +2239,11 @@ export class MeriV3AssistantService {
       });
       return original;
     }
-    if (opts.signal?.aborted || opts.requestSignal?.aborted || args.runtimeBudget.acquisitionStopped) {
+    if (
+      opts.signal?.aborted ||
+      opts.requestSignal?.aborted ||
+      args.runtimeBudget.acquisitionStopped
+    ) {
       this.logStructured('log', 'meri.auto_correction.skipped', {
         conversationId,
         mode: args.mode,
@@ -2164,8 +2257,7 @@ export class MeriV3AssistantService {
       opts.deadlineAt ?? Number.POSITIVE_INFINITY,
     );
     const controller = new AbortController();
-    const abortFromTurn = () =>
-      controller.abort(opts.signal?.reason ?? opts.requestSignal?.reason);
+    const abortFromTurn = () => controller.abort(opts.signal?.reason ?? opts.requestSignal?.reason);
     opts.signal?.addEventListener('abort', abortFromTurn, { once: true });
     opts.requestSignal?.addEventListener('abort', abortFromTurn, { once: true });
     const failed = (reason: string, extra: Record<string, unknown> = {}) => {
@@ -2226,7 +2318,11 @@ export class MeriV3AssistantService {
       }
       // Passages are bound to the ledger entry each evidence item came from and
       // carry that entry's full text, so exact comparison sees the cited values.
-      const passages = buildRepairPassages(claimLedger.evidence, released.citations, args.ledgerEntries);
+      const passages = buildRepairPassages(
+        claimLedger.evidence,
+        released.citations,
+        args.ledgerEntries,
+      );
       const providers = createChatDecisionProviders({
         env: process.env,
         tenantId: ctx.tenantId,
@@ -2262,19 +2358,11 @@ export class MeriV3AssistantService {
               ledgerEntries: args.ledgerEntries,
               invoke: async (name, input, signal) => {
                 if (!args.runtimeBudget.reserveToolBatch(1)) {
-                  throw new MeriRunBudgetExhaustedError(
-                    args.runtimeBudget.reason ?? 'tool_calls',
-                  );
+                  throw new MeriRunBudgetExhaustedError(args.runtimeBudget.reason ?? 'tool_calls');
                 }
-                const signature = args.runtimeBudget.toolSignature(
-                  args.budgetScope,
-                  name,
-                  input,
-                );
+                const signature = args.runtimeBudget.toolSignature(args.budgetScope, name, input);
                 if (!args.runtimeBudget.beginTool(signature)) {
-                  throw new MeriRunBudgetExhaustedError(
-                    args.runtimeBudget.reason ?? 'retry_calls',
-                  );
+                  throw new MeriRunBudgetExhaustedError(args.runtimeBudget.reason ?? 'retry_calls');
                 }
                 try {
                   const result = await this.registry.invoke(name, input, ctx, {
@@ -2792,7 +2880,8 @@ export class MeriV3AssistantService {
     if (definition.readOnly === false) {
       const intent = classifyActionIntent(args.userRequest, args.name);
       if (!intent.authorized) {
-        const detail = 'No action was taken because this request did not explicitly authorize that action.';
+        const detail =
+          'No action was taken because this request did not explicitly authorize that action.';
         args.steps.push({ tool: args.name, label, status: 'blocked', detail });
         args.emit({ type: 'tool_done', tool: args.name, label, status: 'blocked', detail });
         return { blocked: true, persisted: false, message: detail, category: intent.category };

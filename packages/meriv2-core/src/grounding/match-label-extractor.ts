@@ -35,10 +35,16 @@ export function extractMatchFindings(reply: string): ExtractedMatchFinding[] {
       heading = TIER_MAP[headingMatch[1]!.toLowerCase()]!;
       continue;
     }
-    const inline = clean(line).replace(/\*\*|__/g, '').match(new RegExp(`^${TIER}\\s*[:—-]\\s*(.+)$`, 'i'));
+    const inline = clean(line)
+      .replace(/\*\*|__/g, '')
+      .match(new RegExp(`^${TIER}\\s*[:—-]\\s*(.+)$`, 'i'));
     if (inline) {
       const findingText = inline[2]!.trim();
-      findings.push({ tier: TIER_MAP[inline[1]!.toLowerCase()]!, findingText, citationRefs: refs(findingText) });
+      findings.push({
+        tier: TIER_MAP[inline[1]!.toLowerCase()]!,
+        findingText,
+        citationRefs: refs(findingText),
+      });
       heading = null;
       continue;
     }

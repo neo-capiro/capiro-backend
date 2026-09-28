@@ -86,7 +86,8 @@ export interface JevTaskRegistration {
 const MODEL_EVALUATION_OWNER = 'model/evaluation lead';
 const UNPRICED = 'unpriced-until-approved-provider-rate';
 const CLAIM_FIXTURE = 'packages/meriv2-core/src/jev/__fixtures__/stage0-claim-evidence-v1.json';
-const PACKAGE_2_FIXTURE = 'packages/meriv2-core/src/jev/__fixtures__/package2-task-evaluation-v1.json';
+const PACKAGE_2_FIXTURE =
+  'packages/meriv2-core/src/jev/__fixtures__/package2-task-evaluation-v1.json';
 const BD_FIXTURE = 'packages/meriv2-core/src/jev/__fixtures__/bd-task-evaluation-v1.json';
 const BD_CLAIM_FIXTURE = 'packages/meriv2-core/src/jev/__fixtures__/bd-claim-replay-v1.json';
 
@@ -110,7 +111,8 @@ function governance(input: {
   maxOutputTokens?: number;
   maxEstimatedCostUsd?: number;
   priceVersion?: string;
-}): Pick<JevTaskRegistration,
+}): Pick<
+  JevTaskRegistration,
   | 'ownerRole'
   | 'lifecycle'
   | 'allowedOutcomes'
@@ -123,13 +125,17 @@ function governance(input: {
   | 'maxRolloutMode'
   | 'permittedEffect'
   | 'evaluationSet'
-  | 'costBudget'> {
+  | 'costBudget'
+> {
   return {
     ownerRole: MODEL_EVALUATION_OWNER,
     lifecycle: input.lifecycle,
     allowedOutcomes: input.allowedOutcomes,
-    abstentionOutcomes: input.abstentionOutcomes ?? input.allowedOutcomes.filter((outcome) =>
-      ['insufficient_evidence', 'none', 'ambiguous', 'not_stated'].includes(outcome)),
+    abstentionOutcomes:
+      input.abstentionOutcomes ??
+      input.allowedOutcomes.filter((outcome) =>
+        ['insufficient_evidence', 'none', 'ambiguous', 'not_stated'].includes(outcome),
+      ),
     evidenceRequirements: {
       minimumSources: input.minimumSources ?? 1,
       requiredMetadata: input.requiredMetadata ?? ['source_locator'],
@@ -138,7 +144,12 @@ function governance(input: {
     cacheIdentity: {
       version: `${input.task}-cache.v1`,
       fields: input.cacheFields ?? [
-        'task', 'registry_version', 'question_version', 'question_hash', 'model_version', 'envelope_hash',
+        'task',
+        'registry_version',
+        'question_version',
+        'question_hash',
+        'model_version',
+        'envelope_hash',
       ],
     },
     thresholdsByAction: input.thresholdsByAction ?? { abstain_below: 1 },
@@ -149,7 +160,11 @@ function governance(input: {
       canonicalFinancialWrite: false,
       requiresHumanReview: input.requiresHumanReview ?? true,
     },
-    evaluationSet: input.evaluationSet ?? { id: `${input.task}.unqualified`, status: 'missing', path: null },
+    evaluationSet: input.evaluationSet ?? {
+      id: `${input.task}.unqualified`,
+      status: 'missing',
+      path: null,
+    },
     costBudget: {
       maxCalls: input.maxCalls ?? 1,
       maxInputTokens: input.maxInputTokens ?? 32_000,
@@ -164,12 +179,26 @@ export const JEV_TASK_REGISTRY: Readonly<Record<JevTask, JevTaskRegistration>> =
   claim_support: {
     task: 'claim_support',
     ...governance({
-      task: 'claim_support', lifecycle: 'active',
-      allowedOutcomes: ['supported', 'contradicted', 'insufficient_evidence', 'conflicting_evidence'],
-      candidateGenerator: 'assured-claim-source-binding', thresholdsByAction: { accept_supported: 0.5, abstain_below: 0.5 },
-      maxRolloutMode: 'enforce', requiresHumanReview: false,
-      evaluationSet: { id: 'jev_claim_evidence_fixture_v1', status: 'proposed', path: CLAIM_FIXTURE },
-      maxCalls: 12, maxInputTokens: 60_000, maxOutputTokens: 8_000,
+      task: 'claim_support',
+      lifecycle: 'active',
+      allowedOutcomes: [
+        'supported',
+        'contradicted',
+        'insufficient_evidence',
+        'conflicting_evidence',
+      ],
+      candidateGenerator: 'assured-claim-source-binding',
+      thresholdsByAction: { accept_supported: 0.5, abstain_below: 0.5 },
+      maxRolloutMode: 'enforce',
+      requiresHumanReview: false,
+      evaluationSet: {
+        id: 'jev_claim_evidence_fixture_v1',
+        status: 'proposed',
+        path: CLAIM_FIXTURE,
+      },
+      maxCalls: 12,
+      maxInputTokens: 60_000,
+      maxOutputTokens: 8_000,
     }),
     questionVersion: 'claim_support.v1',
     questionId: 'claim_support',
@@ -192,152 +221,429 @@ export const JEV_TASK_REGISTRY: Readonly<Record<JevTask, JevTaskRegistration>> =
   },
   citation_support: {
     task: 'citation_support',
-    ...governance({ task: 'citation_support', lifecycle: 'inactive',
-      allowedOutcomes: ['supported', 'contradicted', 'insufficient_evidence', 'conflicting_evidence'],
-      candidateGenerator: 'citation-source-binding', minimumSources: 1 }),
-    questionVersion: 'citation_support.v1', questionId: 'citation_support', primitive: 'choice',
-    modelVersion: DEFAULT_JEV_MODEL, thresholds: {}, fallback: 'no_change', rolloutCapability: null,
-    calibration: { status: 'provisional', basis: 'Registry placeholder only; there is no live consumer or production calibration.' },
+    ...governance({
+      task: 'citation_support',
+      lifecycle: 'inactive',
+      allowedOutcomes: [
+        'supported',
+        'contradicted',
+        'insufficient_evidence',
+        'conflicting_evidence',
+      ],
+      candidateGenerator: 'citation-source-binding',
+      minimumSources: 1,
+    }),
+    questionVersion: 'citation_support.v1',
+    questionId: 'citation_support',
+    primitive: 'choice',
+    modelVersion: DEFAULT_JEV_MODEL,
+    thresholds: {},
+    fallback: 'no_change',
+    rolloutCapability: null,
+    calibration: {
+      status: 'provisional',
+      basis: 'Registry placeholder only; there is no live consumer or production calibration.',
+    },
   },
   passage_relevance: {
     task: 'passage_relevance',
-    ...governance({ task: 'passage_relevance', lifecycle: 'active',
-      allowedOutcomes: ['relevant', 'not_relevant'], candidateGenerator: 'governed-passage-candidates',
-      minimumSources: 0, thresholdsByAction: { retain_relevant: 0.35, retain_usable: 0.5, abstain_below: 0.35 },
-      maxRolloutMode: 'enforce', effect: 'filter_supplied_candidates', requiresHumanReview: false,
-      maxCalls: 4, maxInputTokens: 60_000, maxOutputTokens: 4_000 }),
-    questionVersion: 'passage_selection.v1', primitive: 'noul', modelVersion: DEFAULT_JEV_MODEL,
-    thresholds: { relevant: 0.35, usable: 0.5, contradicts: 0.5 }, fallback: 'unfiltered',
+    ...governance({
+      task: 'passage_relevance',
+      lifecycle: 'active',
+      allowedOutcomes: ['relevant', 'not_relevant'],
+      candidateGenerator: 'governed-passage-candidates',
+      minimumSources: 0,
+      thresholdsByAction: { retain_relevant: 0.35, retain_usable: 0.5, abstain_below: 0.35 },
+      maxRolloutMode: 'enforce',
+      effect: 'filter_supplied_candidates',
+      requiresHumanReview: false,
+      maxCalls: 4,
+      maxInputTokens: 60_000,
+      maxOutputTokens: 4_000,
+    }),
+    questionVersion: 'passage_selection.v1',
+    primitive: 'noul',
+    modelVersion: DEFAULT_JEV_MODEL,
+    thresholds: { relevant: 0.35, usable: 0.5, contradicts: 0.5 },
+    fallback: 'unfiltered',
     rolloutCapability: 'PASSAGE_SELECTION',
-    calibration: { status: 'provisional', basis: 'Existing Stage 2 passage-selection values; no production calibration study has been completed.' },
+    calibration: {
+      status: 'provisional',
+      basis:
+        'Existing Stage 2 passage-selection values; no production calibration study has been completed.',
+    },
   },
   conflict_detection: {
     task: 'conflict_detection',
-    ...governance({ task: 'conflict_detection', lifecycle: 'inactive',
+    ...governance({
+      task: 'conflict_detection',
+      lifecycle: 'inactive',
       allowedOutcomes: ['conflict', 'no_conflict', 'insufficient_evidence'],
-      candidateGenerator: 'claim-conflict-candidates', minimumSources: 2 }),
-    questionVersion: 'conflict_detection.v1', questionId: 'conflict_detection', primitive: 'choice',
-    modelVersion: DEFAULT_JEV_MODEL, thresholds: {}, fallback: 'no_change', rolloutCapability: null,
-    calibration: { status: 'provisional', basis: 'Registry placeholder only; there is no live consumer or production calibration.' },
+      candidateGenerator: 'claim-conflict-candidates',
+      minimumSources: 2,
+    }),
+    questionVersion: 'conflict_detection.v1',
+    questionId: 'conflict_detection',
+    primitive: 'choice',
+    modelVersion: DEFAULT_JEV_MODEL,
+    thresholds: {},
+    fallback: 'no_change',
+    rolloutCapability: null,
+    calibration: {
+      status: 'provisional',
+      basis: 'Registry placeholder only; there is no live consumer or production calibration.',
+    },
   },
   client_fit: {
     task: 'client_fit',
-    ...governance({ task: 'client_fit', lifecycle: 'active',
-      allowedOutcomes: ['explicit_linkage', 'conditional_linkage', 'capability_class_alignment', 'adjacency',
-        'insufficient_evidence'], candidateGenerator: 'governed-client-fit-state',
-      requiredMetadata: ['provenance', 'source_locator'], thresholdsByAction: { apply_label: 0.8, abstain_below: 0.8 },
-      maxRolloutMode: 'enforce', effect: 'label_only', requiresHumanReview: false }),
-    questionVersion: 'client_fit.v1', questionId: 'client_fit', primitive: 'choice',
-    modelVersion: DEFAULT_JEV_MODEL, thresholds: {}, fallback: 'no_change', rolloutCapability: 'MATCH_LABEL',
-    calibration: { status: 'provisional', basis: 'No human-labelled client_fit.v1 evaluation has been completed.' },
+    ...governance({
+      task: 'client_fit',
+      lifecycle: 'active',
+      allowedOutcomes: [
+        'explicit_linkage',
+        'conditional_linkage',
+        'capability_class_alignment',
+        'adjacency',
+        'insufficient_evidence',
+      ],
+      candidateGenerator: 'governed-client-fit-state',
+      requiredMetadata: ['provenance', 'source_locator'],
+      thresholdsByAction: { apply_label: 0.8, abstain_below: 0.8 },
+      maxRolloutMode: 'enforce',
+      effect: 'label_only',
+      requiresHumanReview: false,
+    }),
+    questionVersion: 'client_fit.v1',
+    questionId: 'client_fit',
+    primitive: 'choice',
+    modelVersion: DEFAULT_JEV_MODEL,
+    thresholds: {},
+    fallback: 'no_change',
+    rolloutCapability: 'MATCH_LABEL',
+    calibration: {
+      status: 'provisional',
+      basis: 'No human-labelled client_fit.v1 evaluation has been completed.',
+    },
   },
   status_selection: {
     task: 'status_selection',
-    ...governance({ task: 'status_selection', lifecycle: 'shadow_only',
-      allowedOutcomes: ['candidate_id', 'not_stated', 'ambiguous'], candidateGenerator: 'status-span-candidates',
-      thresholdsByAction: { select_candidate: 0.9, abstain_below: 0.9 }, effect: 'filter_supplied_candidates' }),
-    questionVersion: 'status_selection.v1', questionId: 'status_selection', primitive: 'choice',
-    modelVersion: DEFAULT_JEV_MODEL, thresholds: {}, fallback: 'no_change', rolloutCapability: 'STATUS_PROVENANCE',
-    calibration: { status: 'provisional', basis: 'Bounded-candidate status selection is not wired to a live source adapter and has no production calibration.' },
+    ...governance({
+      task: 'status_selection',
+      lifecycle: 'shadow_only',
+      allowedOutcomes: ['candidate_id', 'not_stated', 'ambiguous'],
+      candidateGenerator: 'status-span-candidates',
+      thresholdsByAction: { select_candidate: 0.9, abstain_below: 0.9 },
+      effect: 'filter_supplied_candidates',
+    }),
+    questionVersion: 'status_selection.v1',
+    questionId: 'status_selection',
+    primitive: 'choice',
+    modelVersion: DEFAULT_JEV_MODEL,
+    thresholds: {},
+    fallback: 'no_change',
+    rolloutCapability: 'STATUS_PROVENANCE',
+    calibration: {
+      status: 'provisional',
+      basis:
+        'Bounded-candidate status selection is not wired to a live source adapter and has no production calibration.',
+    },
   },
   program_identity: {
     task: 'program_identity',
-    ...governance({ task: 'program_identity', lifecycle: 'shadow_only',
-      allowedOutcomes: ['same_entity', 'related_entity', 'different_entity', 'insufficient_evidence'],
+    ...governance({
+      task: 'program_identity',
+      lifecycle: 'shadow_only',
+      allowedOutcomes: [
+        'same_entity',
+        'related_entity',
+        'different_entity',
+        'insufficient_evidence',
+      ],
       candidateGenerator: 'qualified-program-alias-candidates',
-      requiredMetadata: ['authority', 'provenance', 'document_completeness', 'relation_scope', 'source_locator'],
-      cacheFields: ['task', 'registry_version', 'question_version', 'question_hash', 'model_version',
-        'envelope_hash', 'provenance', 'candidates'],
+      requiredMetadata: [
+        'authority',
+        'provenance',
+        'document_completeness',
+        'relation_scope',
+        'source_locator',
+      ],
+      cacheFields: [
+        'task',
+        'registry_version',
+        'question_version',
+        'question_hash',
+        'model_version',
+        'envelope_hash',
+        'provenance',
+        'candidates',
+      ],
       thresholdsByAction: { propose_same_entity: 0.99, abstain_below: 0.99 },
-      evaluationSet: { id: 'package2_program_identity_v1', status: 'proposed', path: PACKAGE_2_FIXTURE },
-      maxInputTokens: 16_000 }),
-    questionVersion: 'program_identity.v1', questionId: 'program_identity', primitive: 'choice',
-    modelVersion: DEFAULT_JEV_MODEL, thresholds: {}, fallback: 'no_change', rolloutCapability: 'JEV_PROVIDER',
-    calibration: { status: 'provisional', basis: 'Package 2 proposed fixtures only; no automatic entity merge is permitted.' },
+      evaluationSet: {
+        id: 'package2_program_identity_v1',
+        status: 'proposed',
+        path: PACKAGE_2_FIXTURE,
+      },
+      maxInputTokens: 16_000,
+    }),
+    questionVersion: 'program_identity.v1',
+    questionId: 'program_identity',
+    primitive: 'choice',
+    modelVersion: DEFAULT_JEV_MODEL,
+    thresholds: {},
+    fallback: 'no_change',
+    rolloutCapability: 'JEV_PROVIDER',
+    calibration: {
+      status: 'provisional',
+      basis: 'Package 2 proposed fixtures only; no automatic entity merge is permitted.',
+    },
   },
   mention_scope: {
     task: 'mention_scope',
-    ...governance({ task: 'mention_scope', lifecycle: 'shadow_only',
-      allowedOutcomes: ['pe_specific', 'project_specific', 'program_wide', 'capability_only', 'incidental',
-        'insufficient_evidence'],
+    ...governance({
+      task: 'mention_scope',
+      lifecycle: 'shadow_only',
+      allowedOutcomes: [
+        'pe_specific',
+        'project_specific',
+        'program_wide',
+        'capability_only',
+        'incidental',
+        'insufficient_evidence',
+      ],
       candidateGenerator: 'qualified-legislative-mention-candidates',
-      requiredMetadata: ['authority', 'provenance', 'document_completeness', 'relation_scope', 'source_locator'],
-      cacheFields: ['task', 'registry_version', 'question_version', 'question_hash', 'model_version',
-        'envelope_hash', 'provenance', 'candidates'],
+      requiredMetadata: [
+        'authority',
+        'provenance',
+        'document_completeness',
+        'relation_scope',
+        'source_locator',
+      ],
+      cacheFields: [
+        'task',
+        'registry_version',
+        'question_version',
+        'question_hash',
+        'model_version',
+        'envelope_hash',
+        'provenance',
+        'candidates',
+      ],
       thresholdsByAction: { propose_scope: 0.95, abstain_below: 0.95 },
-      evaluationSet: { id: 'package2_mention_scope_v1', status: 'proposed', path: PACKAGE_2_FIXTURE },
-      maxInputTokens: 16_000 }),
-    questionVersion: 'mention_scope.v1', questionId: 'mention_scope', primitive: 'choice',
-    modelVersion: DEFAULT_JEV_MODEL, thresholds: {}, fallback: 'no_change', rolloutCapability: 'JEV_PROVIDER',
-    calibration: { status: 'provisional', basis: 'Package 2 proposed fixtures only; scope remains review-only.' },
+      evaluationSet: {
+        id: 'package2_mention_scope_v1',
+        status: 'proposed',
+        path: PACKAGE_2_FIXTURE,
+      },
+      maxInputTokens: 16_000,
+    }),
+    questionVersion: 'mention_scope.v1',
+    questionId: 'mention_scope',
+    primitive: 'choice',
+    modelVersion: DEFAULT_JEV_MODEL,
+    thresholds: {},
+    fallback: 'no_change',
+    rolloutCapability: 'JEV_PROVIDER',
+    calibration: {
+      status: 'provisional',
+      basis: 'Package 2 proposed fixtures only; scope remains review-only.',
+    },
   },
   evidence_selection: {
     task: 'evidence_selection',
-    ...governance({ task: 'evidence_selection', lifecycle: 'shadow_only',
-      allowedOutcomes: ['candidate_id', 'none', 'ambiguous'], candidateGenerator: 'bounded-evidence-span-candidates',
-      requiredMetadata: ['authority', 'provenance', 'document_completeness', 'financial_stage', 'source_locator'],
-      cacheFields: ['task', 'registry_version', 'question_version', 'question_hash', 'model_version',
-        'envelope_hash', 'provenance', 'candidates'],
+    ...governance({
+      task: 'evidence_selection',
+      lifecycle: 'shadow_only',
+      allowedOutcomes: ['candidate_id', 'none', 'ambiguous'],
+      candidateGenerator: 'bounded-evidence-span-candidates',
+      requiredMetadata: [
+        'authority',
+        'provenance',
+        'document_completeness',
+        'financial_stage',
+        'source_locator',
+      ],
+      cacheFields: [
+        'task',
+        'registry_version',
+        'question_version',
+        'question_hash',
+        'model_version',
+        'envelope_hash',
+        'provenance',
+        'candidates',
+      ],
       thresholdsByAction: { select_candidate: 0.95, abstain_below: 0.95 },
       effect: 'filter_supplied_candidates',
-      evaluationSet: { id: 'package2_evidence_selection_v1', status: 'proposed', path: PACKAGE_2_FIXTURE },
-      maxInputTokens: 16_000 }),
-    questionVersion: 'evidence_selection.v1', questionId: 'evidence_selection', primitive: 'choice',
-    modelVersion: DEFAULT_JEV_MODEL, thresholds: {}, fallback: 'unfiltered', rolloutCapability: 'JEV_PROVIDER',
-    calibration: { status: 'provisional', basis: 'Package 2 proposed fixtures only; selections are bounded to supplied candidates.' },
+      evaluationSet: {
+        id: 'package2_evidence_selection_v1',
+        status: 'proposed',
+        path: PACKAGE_2_FIXTURE,
+      },
+      maxInputTokens: 16_000,
+    }),
+    questionVersion: 'evidence_selection.v1',
+    questionId: 'evidence_selection',
+    primitive: 'choice',
+    modelVersion: DEFAULT_JEV_MODEL,
+    thresholds: {},
+    fallback: 'unfiltered',
+    rolloutCapability: 'JEV_PROVIDER',
+    calibration: {
+      status: 'provisional',
+      basis: 'Package 2 proposed fixtures only; selections are bounded to supplied candidates.',
+    },
   },
   bd_entity: {
     task: 'bd_entity',
-    ...governance({ task: 'bd_entity', lifecycle: 'shadow_only',
-      allowedOutcomes: ['same_legal_entity', 'related_not_same', 'different', 'insufficient_evidence'],
+    ...governance({
+      task: 'bd_entity',
+      lifecycle: 'shadow_only',
+      allowedOutcomes: [
+        'same_legal_entity',
+        'related_not_same',
+        'different',
+        'insufficient_evidence',
+      ],
       candidateGenerator: 'bounded-bd-organization-descriptions',
-      requiredMetadata: ['authority', 'provenance', 'document_completeness', 'relation_scope', 'source_locator'],
-      cacheFields: ['task', 'registry_version', 'question_version', 'question_hash', 'model_version',
-        'envelope_hash', 'provenance', 'candidates'],
+      requiredMetadata: [
+        'authority',
+        'provenance',
+        'document_completeness',
+        'relation_scope',
+        'source_locator',
+      ],
+      cacheFields: [
+        'task',
+        'registry_version',
+        'question_version',
+        'question_hash',
+        'model_version',
+        'envelope_hash',
+        'provenance',
+        'candidates',
+      ],
       thresholdsByAction: { propose_same_legal_entity: 0.99, abstain_below: 0.99 },
       evaluationSet: { id: 'bd_entity_task_evaluation_v1', status: 'proposed', path: BD_FIXTURE },
-      maxCalls: 1, maxInputTokens: 16_000, maxOutputTokens: 1_000,
+      maxCalls: 1,
+      maxInputTokens: 16_000,
+      maxOutputTokens: 1_000,
       maxEstimatedCostUsd: 0.001,
-      priceVersion: 'typesafe-public-2026-09-15-usd-0.042-per-million-input-v1' }),
-    questionVersion: 'bd_entity.v1', questionId: 'bd_entity', primitive: 'choice',
-    modelVersion: DEFAULT_JEV_MODEL, thresholds: {}, fallback: 'no_change', rolloutCapability: 'JEV_PROVIDER',
-    calibration: { status: 'provisional', basis: 'Proposed fixtures only; no human-reviewed BD-ENTITY evaluation exists. Advisory outcome; always requires human review and can never write canonical identity facts.' },
+      priceVersion: 'typesafe-public-2026-09-15-usd-0.042-per-million-input-v1',
+    }),
+    questionVersion: 'bd_entity.v1',
+    questionId: 'bd_entity',
+    primitive: 'choice',
+    modelVersion: DEFAULT_JEV_MODEL,
+    thresholds: {},
+    fallback: 'no_change',
+    rolloutCapability: 'JEV_PROVIDER',
+    calibration: {
+      status: 'provisional',
+      basis:
+        'Proposed fixtures only; no human-reviewed BD-ENTITY evaluation exists. Advisory outcome; always requires human review and can never write canonical identity facts.',
+    },
   },
   bd_signal: {
     task: 'bd_signal',
-    ...governance({ task: 'bd_signal', lifecycle: 'shadow_only',
-      allowedOutcomes: ['explicit_link', 'conditional_alignment', 'thematic_fit', 'unrelated',
-        'insufficient_evidence'],
+    ...governance({
+      task: 'bd_signal',
+      lifecycle: 'shadow_only',
+      allowedOutcomes: [
+        'explicit_link',
+        'conditional_alignment',
+        'thematic_fit',
+        'unrelated',
+        'insufficient_evidence',
+      ],
       candidateGenerator: 'bounded-bd-company-signal-pairs',
-      requiredMetadata: ['authority', 'provenance', 'document_completeness', 'financial_stage', 'source_locator'],
-      cacheFields: ['task', 'registry_version', 'question_version', 'question_hash', 'model_version',
-        'envelope_hash', 'provenance', 'candidates'],
+      requiredMetadata: [
+        'authority',
+        'provenance',
+        'document_completeness',
+        'financial_stage',
+        'source_locator',
+      ],
+      cacheFields: [
+        'task',
+        'registry_version',
+        'question_version',
+        'question_hash',
+        'model_version',
+        'envelope_hash',
+        'provenance',
+        'candidates',
+      ],
       thresholdsByAction: { label_explicit_link: 0.95, abstain_below: 0.95 },
       effect: 'label_only',
       evaluationSet: { id: 'bd_signal_task_evaluation_v1', status: 'proposed', path: BD_FIXTURE },
-      maxCalls: 1, maxInputTokens: 16_000, maxOutputTokens: 1_000,
+      maxCalls: 1,
+      maxInputTokens: 16_000,
+      maxOutputTokens: 1_000,
       maxEstimatedCostUsd: 0.001,
-      priceVersion: 'typesafe-public-2026-09-15-usd-0.042-per-million-input-v1' }),
-    questionVersion: 'bd_signal.v1', questionId: 'bd_signal', primitive: 'choice',
-    modelVersion: DEFAULT_JEV_MODEL, thresholds: {}, fallback: 'no_change', rolloutCapability: 'JEV_PROVIDER',
-    calibration: { status: 'provisional', basis: 'Proposed fixtures only; no human-reviewed BD-SIGNAL evaluation exists. Label-only while shadow-only; explicit_link is a semantic suggestion that application code must independently verify against identifiers, record type, event/financial stage and locator before any direct label.' },
+      priceVersion: 'typesafe-public-2026-09-15-usd-0.042-per-million-input-v1',
+    }),
+    questionVersion: 'bd_signal.v1',
+    questionId: 'bd_signal',
+    primitive: 'choice',
+    modelVersion: DEFAULT_JEV_MODEL,
+    thresholds: {},
+    fallback: 'no_change',
+    rolloutCapability: 'JEV_PROVIDER',
+    calibration: {
+      status: 'provisional',
+      basis:
+        'Proposed fixtures only; no human-reviewed BD-SIGNAL evaluation exists. Label-only while shadow-only; explicit_link is a semantic suggestion that application code must independently verify against identifiers, record type, event/financial stage and locator before any direct label.',
+    },
   },
   bd_claim: {
     task: 'bd_claim',
-    ...governance({ task: 'bd_claim', lifecycle: 'shadow_only',
-      allowedOutcomes: ['supported', 'contradicted', 'insufficient_evidence', 'conflicting_evidence'],
+    ...governance({
+      task: 'bd_claim',
+      lifecycle: 'shadow_only',
+      allowedOutcomes: [
+        'supported',
+        'contradicted',
+        'insufficient_evidence',
+        'conflicting_evidence',
+      ],
       candidateGenerator: 'bounded-bd-claim-exact-check-binding',
-      requiredMetadata: ['authority', 'provenance', 'document_completeness', 'financial_stage', 'source_locator'],
-      cacheFields: ['task', 'registry_version', 'question_version', 'question_hash', 'model_version',
-        'envelope_hash', 'provenance', 'candidates'],
+      requiredMetadata: [
+        'authority',
+        'provenance',
+        'document_completeness',
+        'financial_stage',
+        'source_locator',
+      ],
+      cacheFields: [
+        'task',
+        'registry_version',
+        'question_version',
+        'question_hash',
+        'model_version',
+        'envelope_hash',
+        'provenance',
+        'candidates',
+      ],
       thresholdsByAction: { propose_supported: 0.99, abstain_below: 0.99 },
       evaluationSet: { id: 'bd_claim_replay_v1', status: 'proposed', path: BD_CLAIM_FIXTURE },
-      maxCalls: 1, maxInputTokens: 16_000, maxOutputTokens: 1_000,
+      maxCalls: 1,
+      maxInputTokens: 16_000,
+      maxOutputTokens: 1_000,
       maxEstimatedCostUsd: 0.001,
-      priceVersion: 'typesafe-public-2026-09-15-usd-0.042-per-million-input-v1' }),
-    questionVersion: 'bd_claim.v1', questionId: 'bd_claim', primitive: 'choice',
-    modelVersion: DEFAULT_JEV_MODEL, thresholds: {}, fallback: 'no_change', rolloutCapability: 'JEV_PROVIDER',
-    calibration: { status: 'provisional', basis: 'Proposed recorded replay fixtures only; no human-reviewed BD-CLAIM evaluation exists. Dark-only: shadow_only lifecycle, max rollout shadow, advisory outcome only, one-call budget, no live effect, no application caller is wired. Code-owned exact amount/identifier/date/source-locator/financial-stage validation precedes any semantic judgment; Jev cannot approve an exact mismatch. Not calibrated for semantic accuracy; not for use on non-claim text.' },
+      priceVersion: 'typesafe-public-2026-09-15-usd-0.042-per-million-input-v1',
+    }),
+    questionVersion: 'bd_claim.v1',
+    questionId: 'bd_claim',
+    primitive: 'choice',
+    modelVersion: DEFAULT_JEV_MODEL,
+    thresholds: {},
+    fallback: 'no_change',
+    rolloutCapability: 'JEV_PROVIDER',
+    calibration: {
+      status: 'provisional',
+      basis:
+        'Proposed recorded replay fixtures only; no human-reviewed BD-CLAIM evaluation exists. Dark-only: shadow_only lifecycle, max rollout shadow, advisory outcome only, one-call budget, no live effect, no application caller is wired. Code-owned exact amount/identifier/date/source-locator/financial-stage validation precedes any semantic judgment; Jev cannot approve an exact mismatch. Not calibrated for semantic accuracy; not for use on non-claim text.',
+    },
   },
 };
 
@@ -374,8 +680,14 @@ export function resolveJevTaskRollout(
   providerMode: CapabilityRolloutMode,
 ): CapabilityRolloutMode {
   const registration = JEV_TASK_REGISTRY[task];
-  if (!config.available || providerMode === 'off' || !config.tasks.includes(task)
-    || registration.lifecycle === 'inactive' || registration.modelVersion !== config.model) return 'off';
+  if (
+    !config.available ||
+    providerMode === 'off' ||
+    !config.tasks.includes(task) ||
+    registration.lifecycle === 'inactive' ||
+    registration.modelVersion !== config.model
+  )
+    return 'off';
   if (registration.maxRolloutMode === 'shadow' && providerMode === 'enforce') return 'shadow';
   return providerMode;
 }
@@ -384,59 +696,104 @@ export function validateJevTaskRegistry(config: JevConfig): { ok: boolean; issue
   const issues: string[] = [];
   for (const task of JEV_TASKS) {
     const registration = JEV_TASK_REGISTRY[task];
-    if (!registration) { issues.push(`missing_registration:${task}`); continue; }
+    if (!registration) {
+      issues.push(`missing_registration:${task}`);
+      continue;
+    }
     if (registration.task !== task) issues.push(`task_identity_mismatch:${task}`);
     if (!registration.ownerRole.trim()) issues.push(`missing_owner:${task}`);
-    if (!registration.allowedOutcomes.length
-      || new Set(registration.allowedOutcomes).size !== registration.allowedOutcomes.length) {
+    if (
+      !registration.allowedOutcomes.length ||
+      new Set(registration.allowedOutcomes).size !== registration.allowedOutcomes.length
+    ) {
       issues.push(`invalid_allowed_outcomes:${task}`);
     }
-    if (registration.abstentionOutcomes.some((outcome) => !registration.allowedOutcomes.includes(outcome))) {
+    if (
+      registration.abstentionOutcomes.some(
+        (outcome) => !registration.allowedOutcomes.includes(outcome),
+      )
+    ) {
       issues.push(`invalid_abstention_outcome:${task}`);
     }
-    if (!Number.isInteger(registration.evidenceRequirements.minimumSources)
-      || registration.evidenceRequirements.minimumSources < 0) issues.push(`invalid_evidence_requirement:${task}`);
-    if (!registration.candidateGenerator.id.trim() || !registration.candidateGenerator.version.trim()) {
+    if (
+      !Number.isInteger(registration.evidenceRequirements.minimumSources) ||
+      registration.evidenceRequirements.minimumSources < 0
+    )
+      issues.push(`invalid_evidence_requirement:${task}`);
+    if (
+      !registration.candidateGenerator.id.trim() ||
+      !registration.candidateGenerator.version.trim()
+    ) {
       issues.push(`invalid_candidate_generator:${task}`);
     }
     const identityFields = new Set(registration.cacheIdentity.fields);
-    if (!registration.cacheIdentity.version.trim()
-      || !['task', 'question_version', 'question_hash', 'model_version'].every((field) => identityFields.has(field as JevCacheIdentityField))) {
+    if (
+      !registration.cacheIdentity.version.trim() ||
+      !['task', 'question_version', 'question_hash', 'model_version'].every((field) =>
+        identityFields.has(field as JevCacheIdentityField),
+      )
+    ) {
       issues.push(`invalid_cache_identity:${task}`);
     }
     if (config.tasks.includes(task) && registration.modelVersion !== config.model) {
       issues.push(`model_mismatch:${task}:${registration.modelVersion}:${config.model}`);
     }
-    for (const [name, value] of Object.entries({ ...registration.thresholds, ...registration.thresholdsByAction })) {
-      if (!Number.isFinite(value) || value < 0 || value > 1) issues.push(`threshold_out_of_range:${task}:${name}`);
+    for (const [name, value] of Object.entries({
+      ...registration.thresholds,
+      ...registration.thresholdsByAction,
+    })) {
+      if (!Number.isFinite(value) || value < 0 || value > 1)
+        issues.push(`threshold_out_of_range:${task}:${name}`);
     }
-    if (!Number.isInteger(registration.timeoutMs) || registration.timeoutMs < 500 || registration.timeoutMs > 30_000) {
+    if (
+      !Number.isInteger(registration.timeoutMs) ||
+      registration.timeoutMs < 500 ||
+      registration.timeoutMs > 30_000
+    ) {
       issues.push(`invalid_timeout:${task}`);
     }
-    if (registration.permittedEffect.canonicalFinancialWrite !== false) issues.push(`canonical_write_forbidden:${task}`);
-    if (!registration.evaluationSet.id.trim()
-      || (registration.evaluationSet.status !== 'missing' && !registration.evaluationSet.path)) {
+    if (registration.permittedEffect.canonicalFinancialWrite !== false)
+      issues.push(`canonical_write_forbidden:${task}`);
+    if (
+      !registration.evaluationSet.id.trim() ||
+      (registration.evaluationSet.status !== 'missing' && !registration.evaluationSet.path)
+    ) {
       issues.push(`invalid_evaluation_set:${task}`);
     }
     const cost = registration.costBudget;
-    if (!Number.isInteger(cost.maxCalls) || cost.maxCalls < 1
-      || !Number.isInteger(cost.maxInputTokens) || cost.maxInputTokens < 1
-      || !Number.isInteger(cost.maxOutputTokens) || cost.maxOutputTokens < 0
-      || (cost.maxEstimatedCostUsd !== null
-        && (!Number.isFinite(cost.maxEstimatedCostUsd) || cost.maxEstimatedCostUsd < 0))
-      || !cost.priceVersion.trim()) issues.push(`invalid_cost_budget:${task}`);
+    if (
+      !Number.isInteger(cost.maxCalls) ||
+      cost.maxCalls < 1 ||
+      !Number.isInteger(cost.maxInputTokens) ||
+      cost.maxInputTokens < 1 ||
+      !Number.isInteger(cost.maxOutputTokens) ||
+      cost.maxOutputTokens < 0 ||
+      (cost.maxEstimatedCostUsd !== null &&
+        (!Number.isFinite(cost.maxEstimatedCostUsd) || cost.maxEstimatedCostUsd < 0)) ||
+      !cost.priceVersion.trim()
+    )
+      issues.push(`invalid_cost_budget:${task}`);
     const rate = registration.cascade?.auditSampleRate;
     if (rate !== undefined && (!Number.isFinite(rate) || rate < 0 || rate > 1)) {
       issues.push(`audit_sample_rate_out_of_range:${task}`);
     }
     const confidence = registration.cascade?.escalateBelowConfidence;
-    if (confidence !== undefined && (!Number.isFinite(confidence) || confidence < 0 || confidence > 1)) {
+    if (
+      confidence !== undefined &&
+      (!Number.isFinite(confidence) || confidence < 0 || confidence > 1)
+    ) {
       issues.push(`cascade_confidence_out_of_range:${task}`);
     }
     const budget = registration.shadowBudget;
-    if (budget && (!Number.isInteger(budget.maxClaims) || budget.maxClaims < 1
-      || !Number.isInteger(budget.maxInputTokens) || budget.maxInputTokens < 1
-      || !Number.isFinite(budget.deadlineMs) || budget.deadlineMs < 1)) {
+    if (
+      budget &&
+      (!Number.isInteger(budget.maxClaims) ||
+        budget.maxClaims < 1 ||
+        !Number.isInteger(budget.maxInputTokens) ||
+        budget.maxInputTokens < 1 ||
+        !Number.isFinite(budget.deadlineMs) ||
+        budget.deadlineMs < 1)
+    ) {
       issues.push(`invalid_shadow_budget:${task}`);
     }
   }

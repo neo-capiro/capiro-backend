@@ -50,11 +50,7 @@ interface CandidateGovernanceRow {
 }
 
 export type OwnedMemoryCandidateStatus =
-  | 'pending'
-  | 'withdrawn'
-  | 'rejected'
-  | 'approved'
-  | 'auto_committed';
+  'pending' | 'withdrawn' | 'rejected' | 'approved' | 'auto_committed';
 
 interface OwnCandidateRow {
   id: string;
@@ -190,96 +186,92 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
         : { enabled: false, candidates: [] };
     }
 
-    const page = await this.governedPrisma.withTenantUser(
-      ctx.tenantId,
-      ctx.userId,
-      async (tx) => {
-        const rows = (await tx.memoryCandidate.findMany({
-          where: {
-            tenantId: ctx.tenantId,
-            proposedBy: ctx.userId,
-            scope: { in: ['firm', 'client'] },
-            ...(cursor
-              ? {
-                  OR: [
-                    { createdAt: { lt: cursor.createdAt } },
-                    { createdAt: cursor.createdAt, id: { lt: cursor.id } },
-                  ],
-                }
-              : {}),
-          },
-          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-          take: paged ? limit + 1 : limit,
-          select: {
-            id: true,
-            clientId: true,
-            proposedBy: true,
-            sourceKind: true,
-            scope: true,
-            status: true,
-            createdAt: true,
-            decidedAt: true,
-          },
-        })) as OwnCandidateRow[];
-        const pageRows = paged ? rows.slice(0, limit) : rows;
+    const page = await this.governedPrisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const rows = (await tx.memoryCandidate.findMany({
+        where: {
+          tenantId: ctx.tenantId,
+          proposedBy: ctx.userId,
+          scope: { in: ['firm', 'client'] },
+          ...(cursor
+            ? {
+                OR: [
+                  { createdAt: { lt: cursor.createdAt } },
+                  { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+                ],
+              }
+            : {}),
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: paged ? limit + 1 : limit,
+        select: {
+          id: true,
+          clientId: true,
+          proposedBy: true,
+          sourceKind: true,
+          scope: true,
+          status: true,
+          createdAt: true,
+          decidedAt: true,
+        },
+      })) as OwnCandidateRow[];
+      const pageRows = paged ? rows.slice(0, limit) : rows;
 
-        const own: OwnedMemoryCandidate[] = [];
-        for (const row of pageRows) {
-          const contentAllowed = row.clientId
-            ? await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, row.clientId)
-            : true;
-          const payloadRow = contentAllowed
-            ? await tx.memoryCandidate.findFirst({
-                where: { id: row.id, tenantId: ctx.tenantId },
-                select: { payload: true },
-              })
-            : null;
-          own.push({
-            id: row.id,
-            scope: row.scope,
-            clientId: row.clientId,
-            sourceKind: row.sourceKind,
-            status: row.status,
-            createdAt: row.createdAt.toISOString(),
-            decidedAt: row.decidedAt?.toISOString() ?? null,
-            restricted: !contentAllowed,
-            proposal: payloadRow ? proposalFromPayload(payloadRow.payload) : null,
-            capabilities: { withdraw: row.status === 'pending' },
-          });
-        }
-        // A restricted proposal keeps its status/withdrawal capability, but
-        // neither its body nor its client's name may cross the current wall.
-        const clientIds = [
-          ...new Set(
-            own.flatMap((candidate) =>
-              !candidate.restricted && candidate.scope === 'client' && candidate.clientId
-                ? [candidate.clientId]
-                : [],
-            ),
-          ),
-        ];
-        const clients = clientIds.length
-          ? await tx.client.findMany({
-              where: { tenantId: ctx.tenantId, id: { in: clientIds } },
-              select: { id: true, name: true },
+      const own: OwnedMemoryCandidate[] = [];
+      for (const row of pageRows) {
+        const contentAllowed = row.clientId
+          ? await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, row.clientId)
+          : true;
+        const payloadRow = contentAllowed
+          ? await tx.memoryCandidate.findFirst({
+              where: { id: row.id, tenantId: ctx.tenantId },
+              select: { payload: true },
             })
-          : [];
-        const names = new Map(clients.map((client) => [client.id, client.name]));
-        return {
-          candidates: own.map((candidate) => ({
-            ...candidate,
-            clientName:
-              !candidate.restricted && candidate.clientId
-                ? (names.get(candidate.clientId) ?? null)
-                : null,
-          })),
-          nextCursor:
-            paged && rows.length > limit && pageRows.length > 0
-              ? encodeOwnProposalCursor(pageRows[pageRows.length - 1]!)
+          : null;
+        own.push({
+          id: row.id,
+          scope: row.scope,
+          clientId: row.clientId,
+          sourceKind: row.sourceKind,
+          status: row.status,
+          createdAt: row.createdAt.toISOString(),
+          decidedAt: row.decidedAt?.toISOString() ?? null,
+          restricted: !contentAllowed,
+          proposal: payloadRow ? proposalFromPayload(payloadRow.payload) : null,
+          capabilities: { withdraw: row.status === 'pending' },
+        });
+      }
+      // A restricted proposal keeps its status/withdrawal capability, but
+      // neither its body nor its client's name may cross the current wall.
+      const clientIds = [
+        ...new Set(
+          own.flatMap((candidate) =>
+            !candidate.restricted && candidate.scope === 'client' && candidate.clientId
+              ? [candidate.clientId]
+              : [],
+          ),
+        ),
+      ];
+      const clients = clientIds.length
+        ? await tx.client.findMany({
+            where: { tenantId: ctx.tenantId, id: { in: clientIds } },
+            select: { id: true, name: true },
+          })
+        : [];
+      const names = new Map(clients.map((client) => [client.id, client.name]));
+      return {
+        candidates: own.map((candidate) => ({
+          ...candidate,
+          clientName:
+            !candidate.restricted && candidate.clientId
+              ? (names.get(candidate.clientId) ?? null)
               : null,
-        };
-      },
-    );
+        })),
+        nextCursor:
+          paged && rows.length > limit && pageRows.length > 0
+            ? encodeOwnProposalCursor(pageRows[pageRows.length - 1]!)
+            : null,
+      };
+    });
 
     return paged
       ? { enabled: true, candidates: page.candidates, nextCursor: page.nextCursor }
@@ -467,9 +459,7 @@ function decodeOwnProposalCursor(value: unknown): { createdAt: Date; id: string 
       !createdAt ||
       !Number.isFinite(createdAt.getTime()) ||
       typeof decoded.id !== 'string' ||
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-        decoded.id,
-      )
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(decoded.id)
     ) {
       throw new Error('invalid cursor payload');
     }

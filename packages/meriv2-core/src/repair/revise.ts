@@ -41,7 +41,13 @@ export async function reviseAffectedClaim(
     .map((item) => item.id)
     .filter((id) => input.ledgerEvidenceIds.has(id));
   const result = await input.generate(
-    { affectedText, claim: input.claim, dependentSentences, evidence: input.evidence, allowedEvidenceIds },
+    {
+      affectedText,
+      claim: input.claim,
+      dependentSentences,
+      evidence: input.evidence,
+      allowedEvidenceIds,
+    },
     { signal: input.signal },
   );
   throwIfAborted(input.signal);
@@ -69,8 +75,12 @@ export function findDependentSentences(reply: string, claim: AssuredClaim): stri
 }
 
 export function splitSentences(text: string): string[] {
-  return text
-    .match(/[^.!?]+(?:[.!?]+|$)/g)?.map((sentence) => sentence.trim()).filter(Boolean) ?? [];
+  return (
+    text
+      .match(/[^.!?]+(?:[.!?]+|$)/g)
+      ?.map((sentence) => sentence.trim())
+      .filter(Boolean) ?? []
+  );
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

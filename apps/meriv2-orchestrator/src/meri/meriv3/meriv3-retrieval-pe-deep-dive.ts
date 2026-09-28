@@ -15,7 +15,10 @@ const PE_READERS = [
   'get_pe_bills',
 ] as const;
 
-function peCodeFrom(input: Record<string, unknown>, ctx: MeriRetrievalRecipeContext): string | null {
+function peCodeFrom(
+  input: Record<string, unknown>,
+  ctx: MeriRetrievalRecipeContext,
+): string | null {
   const explicit = stringValue(input.peCode) ?? stringValue(input.pe);
   if (explicit) return explicit.trim().toUpperCase();
   const hint = ctx.plan.targetHint;
@@ -59,12 +62,11 @@ export async function executeMeriPeDeepDive(
     }
     const rows = resultRows(search.result).filter(isRecord);
     const code =
-      stringValue(rows[0]?.peCode) ??
-      stringValue(rows[0]?.pe_number) ??
-      stringValue(rows[0]?.code);
+      stringValue(rows[0]?.peCode) ?? stringValue(rows[0]?.pe_number) ?? stringValue(rows[0]?.code);
     if (!code) {
       return {
-        error: 'could not resolve Program Element: no PE code provided and search returned no match',
+        error:
+          'could not resolve Program Element: no PE code provided and search returned no match',
         results: sources.map((source) => ({ tool: source.tool, result: source.result })),
       };
     }

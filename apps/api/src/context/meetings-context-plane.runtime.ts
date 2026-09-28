@@ -190,7 +190,8 @@ export class MeetingsContextPlaneRuntime {
         if (mode === 'prep' && currentMeetingPrepExecution()) {
           const governed = requireMeetingGovernedContext('prep');
           const input = aiArgs[0] as { meeting?: { id?: string } } | undefined;
-          if (input?.meeting?.id !== governed.meetingId) throw new Error('phase24_meeting_context_object_mismatch');
+          if (input?.meeting?.id !== governed.meetingId)
+            throw new Error('phase24_meeting_context_object_mismatch');
           // The canonical source registry is already supplied to every bounded
           // ledger/draft/review call. Do not resolve and inject a second packet.
           return entry.fn.apply(this, aiArgs);

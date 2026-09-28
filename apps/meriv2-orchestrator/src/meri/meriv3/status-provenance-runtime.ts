@@ -29,18 +29,17 @@ function nonEmptyString(value: unknown): value is string {
 function evidenceFromResult(result: StatusToolResult): CertificationStatusEvidence | null {
   const record = result.record;
   if (
-    result.found === true
-    && result.ambiguous === false
-    && nonEmptyString(record?.productId)
-    && nonEmptyString(record.status)
-    && nonEmptyString(record.sourceUrl)
-    && nonEmptyString(record.observedAt)
+    result.found === true &&
+    result.ambiguous === false &&
+    nonEmptyString(record?.productId) &&
+    nonEmptyString(record.status) &&
+    nonEmptyString(record.sourceUrl) &&
+    nonEmptyString(record.observedAt)
   ) {
     return {
       entityId: record.productId,
       // FedRAMP statuses authorize a product/CSO, not its CSP company generally.
-      entityNames: [record.csoName]
-        .filter(nonEmptyString),
+      entityNames: [record.csoName].filter(nonEmptyString),
       status: record.status,
       impactLevel: nonEmptyString(record.impactLevel) ? record.impactLevel : undefined,
       sourceUrl: record.sourceUrl,
@@ -110,9 +109,21 @@ export async function runStatusProvenance(input: {
   const startedAt = Date.now();
   const claims = detectFedrampStatusClaims(input.reply);
   const outcomes: Record<StatusCheckOutcome, number> = {
-    exact: 0, paraphrased: 0, mismatch: 0, unsupported: 0, negative_unsupported: 0,
+    exact: 0,
+    paraphrased: 0,
+    mismatch: 0,
+    unsupported: 0,
+    negative_unsupported: 0,
   };
-  if (!claims.length) return { reply: input.reply, outcomes, lookupOk: true, latencyMs: Date.now() - startedAt, detected: 0, failureReason: null };
+  if (!claims.length)
+    return {
+      reply: input.reply,
+      outcomes,
+      lookupOk: true,
+      latencyMs: Date.now() - startedAt,
+      detected: 0,
+      failureReason: null,
+    };
   const evidence: CertificationStatusEvidence[] = [];
   try {
     for (const claim of claims) {
@@ -132,7 +143,8 @@ export async function runStatusProvenance(input: {
       (item) => item.evidence !== null && item.outcome !== 'negative_unsupported',
     );
     return {
-      reply: input.mode === 'enforce' ? enforceFedrampStatusReply(input.reply, checked) : input.reply,
+      reply:
+        input.mode === 'enforce' ? enforceFedrampStatusReply(input.reply, checked) : input.reply,
       outcomes,
       lookupOk: fullySupported,
       latencyMs: Date.now() - startedAt,
@@ -146,7 +158,8 @@ export async function runStatusProvenance(input: {
       lookupOk: false,
       latencyMs: Date.now() - startedAt,
       detected: claims.length,
-      failureReason: error instanceof Error && error.message === 'deadline' ? 'deadline' : 'lookup_failed',
+      failureReason:
+        error instanceof Error && error.message === 'deadline' ? 'deadline' : 'lookup_failed',
     };
   }
 }

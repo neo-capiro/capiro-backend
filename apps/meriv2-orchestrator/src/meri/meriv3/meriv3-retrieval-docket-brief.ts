@@ -70,7 +70,11 @@ export async function executeMeriRegulatoryDocketBrief(
       ],
       gaps: [
         ...(docketOk ? [] : ['query_regulatory_dockets']),
-        ...(query ? (stateOk ? [] : ['get_state_rule_status']) : ['get_state_rule_status (no rule id/keyword provided — federal docket only)']),
+        ...(query
+          ? stateOk
+            ? []
+            : ['get_state_rule_status']
+          : ['get_state_rule_status (no rule id/keyword provided — federal docket only)']),
       ],
     },
   };

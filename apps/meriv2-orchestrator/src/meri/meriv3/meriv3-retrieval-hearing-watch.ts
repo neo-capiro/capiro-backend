@@ -73,8 +73,7 @@ export async function executeMeriHearingWatch(
       ],
       gaps: resultHasError(hearings.result) ? ['search_committee_hearings'] : [],
       legiwatchHandoff: lwHandoff,
-      note:
-        'Calendar-driven watch: run again near committee markups. For bill status, use Bill Watch — hearings and bills change on different clocks.',
+      note: 'Calendar-driven watch: run again near committee markups. For bill status, use Bill Watch — hearings and bills change on different clocks.',
     },
   };
 }

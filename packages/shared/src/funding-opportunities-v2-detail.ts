@@ -1,6 +1,9 @@
-import type { OpportunitySearchRecordV2, OpportunitySourceV2, OpportunityTypeV2 } from './funding-opportunities-v2.js';
+import type {
+  OpportunitySearchRecordV2,
+  OpportunitySourceV2,
+  OpportunityTypeV2,
+} from './funding-opportunities-v2.js';
 import type { OpportunityRecordDecorationV2 } from './funding-opportunities-v2-workflow.js';
-
 
 export type FundingOpportunityV2DatePrecision = 'date' | 'timestamp' | 'raw';
 
@@ -95,10 +98,7 @@ export interface FundingOpportunityV2ResponseInstructions {
 }
 
 export type FundingOpportunityV2DestinationKind =
-  | 'source_page'
-  | `document:${string}`
-  | `application:${string}`
-  | `contact_email:${string}`;
+  'source_page' | `document:${string}` | `application:${string}` | `contact_email:${string}`;
 
 export interface FundingOpportunityV2Destination {
   kind: FundingOpportunityV2DestinationKind;

@@ -36,7 +36,9 @@ export async function recheckRevision(input: RecheckInput): Promise<RecheckResul
 }
 
 /** Minimal fallback until S1-A lands: sentence-level factual-looking additions only. */
-export function extractNewMaterialClaims(input: Pick<RecheckInput, 'originalAffectedText' | 'replacementText' | 'revisedClaim'>): AssuredClaim[] {
+export function extractNewMaterialClaims(
+  input: Pick<RecheckInput, 'originalAffectedText' | 'replacementText' | 'revisedClaim'>,
+): AssuredClaim[] {
   const original = new Set(splitSentences(input.originalAffectedText));
   return splitSentences(input.replacementText)
     .filter((sentence) => sentence !== input.revisedClaim.text && !original.has(sentence))
@@ -58,24 +60,28 @@ function envelopeFor(claim: AssuredClaim, input: RecheckInput): EvidenceEnvelope
     claimCategory: claim.category,
     tenantId: input.tenantId,
     clientId: input.clientId ?? null,
-    scopeQualifiers: [...new Set([`category:${claim.category}`, ...(input.scopeQualifiers ?? [])])].sort(),
+    scopeQualifiers: [
+      ...new Set([`category:${claim.category}`, ...(input.scopeQualifiers ?? [])]),
+    ].sort(),
     asOf: claim.asOf ?? null,
     sources: claim.sourceIds.flatMap((id) => {
       const item = evidence.get(id);
       if (!item) return [];
-      return [{
-        evidenceId: id,
-        sourceType: item.evidenceClass,
-        sourceId: item.sourceId,
-        documentId: null,
-        version: null,
-        locator: null,
-        passage: input.ledger.passages[id] ?? '',
-        sourceDate: item.asOf ?? null,
-        publishedAt: item.publishedAt ?? null,
-        effectiveAt: item.effectiveAt ?? null,
-        retrievedAt: item.retrievedAt ?? null,
-      }];
+      return [
+        {
+          evidenceId: id,
+          sourceType: item.evidenceClass,
+          sourceId: item.sourceId,
+          documentId: null,
+          version: null,
+          locator: null,
+          passage: input.ledger.passages[id] ?? '',
+          sourceDate: item.asOf ?? null,
+          publishedAt: item.publishedAt ?? null,
+          effectiveAt: item.effectiveAt ?? null,
+          retrievedAt: item.retrievedAt ?? null,
+        },
+      ];
     }),
   };
 }
@@ -86,6 +92,9 @@ export function proportionalFallback(claim: AssuredClaim): 'qualified' | 'omitte
     : 'qualified';
 }
 
-export function limitationSentence(claim: AssuredClaim, reason = 'the available evidence does not resolve it'): string {
+export function limitationSentence(
+  claim: AssuredClaim,
+  reason = 'the available evidence does not resolve it',
+): string {
   return `Evidence limitation for “${claim.text.replace(/[.!?]+$/, '')}”: ${reason}.`;
 }

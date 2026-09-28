@@ -36,7 +36,9 @@ export function scheduleClaimInventoryShadow(input: ClaimInventoryShadowInput): 
   setTimer(() => {
     const startedAt = Date.now();
     const deadlineMs = input.deadlineMs ?? 2_000;
-    const deadline = new Promise<'deadline'>((resolve) => setTimer(() => resolve('deadline'), deadlineMs));
+    const deadline = new Promise<'deadline'>((resolve) =>
+      setTimer(() => resolve('deadline'), deadlineMs),
+    );
     const work = Promise.resolve().then(() => buildClaimInventoryEvent(input, startedAt));
     void Promise.race([work, deadline])
       .then((result) => {
@@ -49,13 +51,14 @@ export function scheduleClaimInventoryShadow(input: ClaimInventoryShadowInput): 
           return;
         }
         input.logger.log('meri.claim_inventory', result);
-        if (input.afterInventory) void Promise.resolve(input.afterInventory()).catch((error: unknown) => {
-          input.logger.warn('meri.evidence_shadow.failed', {
-            conversationId: input.conversationId ?? null,
-            turnId: input.turnId ?? null,
-            reason: error instanceof Error ? error.message : String(error),
+        if (input.afterInventory)
+          void Promise.resolve(input.afterInventory()).catch((error: unknown) => {
+            input.logger.warn('meri.evidence_shadow.failed', {
+              conversationId: input.conversationId ?? null,
+              turnId: input.turnId ?? null,
+              reason: error instanceof Error ? error.message : String(error),
+            });
           });
-        });
       })
       .catch((error: unknown) => {
         input.logger.warn('meri.claim_inventory.failed', {
@@ -85,7 +88,8 @@ export function buildClaimInventoryEvent(
     if (!isDocumentSpecificClaim(claim, input.ledger)) continue;
     documentClaims += 1;
     const eligibility = checkExactSourceEligibility(claim, references, input.ledger);
-    if (!eligibility.eligible) failures[eligibility.reason] = (failures[eligibility.reason] ?? 0) + 1;
+    if (!eligibility.eligible)
+      failures[eligibility.reason] = (failures[eligibility.reason] ?? 0) + 1;
   }
   return {
     conversationId: input.conversationId ?? null,
@@ -106,23 +110,26 @@ function documentReferences(citations: readonly MeriCitation[]): DocumentReferen
   return citations.flatMap((citation) => {
     const evidence = citation.documentEvidence;
     if (!evidence) return [];
-    const recordId = typeof evidence.record.recordId === 'string'
-      ? evidence.record.recordId
-      : typeof evidence.record.id === 'string'
-        ? evidence.record.id
-        : null;
-    return [{
-      kind: 'client_document' as const,
-      id: evidence.documentId,
-      filename: citation.title,
-      version: evidence.contentHash,
-      contentState: recordId ? 'indexed_or_extracted' as const : 'metadata_only' as const,
-      readable: Boolean(recordId),
-      relevantPassageIds: recordId ? [recordId] : [],
-      resolution: 'explicit_id' as const,
-      clientId: evidence.clientId,
-      requestedClientId: evidence.clientId,
-    }];
+    const recordId =
+      typeof evidence.record.recordId === 'string'
+        ? evidence.record.recordId
+        : typeof evidence.record.id === 'string'
+          ? evidence.record.id
+          : null;
+    return [
+      {
+        kind: 'client_document' as const,
+        id: evidence.documentId,
+        filename: citation.title,
+        version: evidence.contentHash,
+        contentState: recordId ? ('indexed_or_extracted' as const) : ('metadata_only' as const),
+        readable: Boolean(recordId),
+        relevantPassageIds: recordId ? [recordId] : [],
+        resolution: 'explicit_id' as const,
+        clientId: evidence.clientId,
+        requestedClientId: evidence.clientId,
+      },
+    ];
   });
 }
 

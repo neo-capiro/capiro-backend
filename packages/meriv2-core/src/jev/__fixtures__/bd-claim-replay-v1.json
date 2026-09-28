@@ -13,21 +13,62 @@
       "task": "bd_claim",
       "category": "exact_checks_pass_supported",
       "input": {
-        "claim": { "text": "Corvus Analytics Inc received a $12.5M awarded contract (award number W912XYZ12345678, awarded on 2026-08-14) for data analytics services." },
+        "claim": {
+          "text": "Corvus Analytics Inc received a $12.5M awarded contract (award number W912XYZ12345678, awarded on 2026-08-14) for data analytics services."
+        },
         "exactChecks": [
-          { "kind": "amount", "claimValue": "12500000:USD", "sourceValue": "12500000:USD", "matchesExactly": true },
-          { "kind": "identifier", "claimValue": "W912XYZ12345678", "sourceValue": "W912XYZ12345678", "matchesExactly": true },
-          { "kind": "date", "claimValue": "2026-08-14", "sourceValue": "2026-08-14", "matchesExactly": true },
-          { "kind": "source_locator", "claimValue": "usaspending:award:line-1", "sourceValue": "usaspending:award:line-1", "matchesExactly": true },
-          { "kind": "financial_stage", "claimValue": "awarded", "sourceValue": "awarded", "matchesExactly": true }
+          {
+            "kind": "amount",
+            "claimValue": "12500000:USD",
+            "sourceValue": "12500000:USD",
+            "matchesExactly": true
+          },
+          {
+            "kind": "identifier",
+            "claimValue": "W912XYZ12345678",
+            "sourceValue": "W912XYZ12345678",
+            "matchesExactly": true
+          },
+          {
+            "kind": "date",
+            "claimValue": "2026-08-14",
+            "sourceValue": "2026-08-14",
+            "matchesExactly": true
+          },
+          {
+            "kind": "source_locator",
+            "claimValue": "usaspending:award:line-1",
+            "sourceValue": "usaspending:award:line-1",
+            "matchesExactly": true
+          },
+          {
+            "kind": "financial_stage",
+            "claimValue": "awarded",
+            "sourceValue": "awarded",
+            "matchesExactly": true
+          }
         ],
         "evidenceIds": ["e-award"]
       },
       "expected": { "kind": "outcome", "outcome": "supported" },
       "humanReview": { "status": "proposed" },
       "replay": {
-        "jev": { "kind": "outcome", "outcome": "supported", "confidence": 0.99, "action": "propose", "latencyMs": 16, "usage": { "inputTokens": 180, "outputTokens": 22 } },
-        "baseline": { "kind": "outcome", "outcome": "supported", "confidence": 0.9, "action": "propose", "latencyMs": 27, "usage": { "inputTokens": 240, "outputTokens": 30 } }
+        "jev": {
+          "kind": "outcome",
+          "outcome": "supported",
+          "confidence": 0.99,
+          "action": "propose",
+          "latencyMs": 16,
+          "usage": { "inputTokens": 180, "outputTokens": 22 }
+        },
+        "baseline": {
+          "kind": "outcome",
+          "outcome": "supported",
+          "confidence": 0.9,
+          "action": "propose",
+          "latencyMs": 27,
+          "usage": { "inputTokens": 240, "outputTokens": 30 }
+        }
       }
     },
     {
@@ -35,13 +76,40 @@
       "task": "bd_claim",
       "category": "exact_check_refusal",
       "input": {
-        "claim": { "text": "Corvus Analytics Inc received a $12.6M awarded contract (award number W912XYZ12345678) for data analytics services." },
+        "claim": {
+          "text": "Corvus Analytics Inc received a $12.6M awarded contract (award number W912XYZ12345678) for data analytics services."
+        },
         "exactChecks": [
-          { "kind": "amount", "claimValue": "$12.6M", "sourceValue": "$12,500,000", "matchesExactly": false },
-          { "kind": "identifier", "claimValue": "W912XYZ12345678", "sourceValue": "W912XYZ12345678", "matchesExactly": true },
-          { "kind": "date", "claimValue": "2026-08-14", "sourceValue": "2026-08-14", "matchesExactly": true },
-          { "kind": "source_locator", "claimValue": "usaspending:award:line-1", "sourceValue": "usaspending:award:line-1", "matchesExactly": true },
-          { "kind": "financial_stage", "claimValue": "awarded", "sourceValue": "awarded", "matchesExactly": true }
+          {
+            "kind": "amount",
+            "claimValue": "$12.6M",
+            "sourceValue": "$12,500,000",
+            "matchesExactly": false
+          },
+          {
+            "kind": "identifier",
+            "claimValue": "W912XYZ12345678",
+            "sourceValue": "W912XYZ12345678",
+            "matchesExactly": true
+          },
+          {
+            "kind": "date",
+            "claimValue": "2026-08-14",
+            "sourceValue": "2026-08-14",
+            "matchesExactly": true
+          },
+          {
+            "kind": "source_locator",
+            "claimValue": "usaspending:award:line-1",
+            "sourceValue": "usaspending:award:line-1",
+            "matchesExactly": true
+          },
+          {
+            "kind": "financial_stage",
+            "claimValue": "awarded",
+            "sourceValue": "awarded",
+            "matchesExactly": true
+          }
         ],
         "evidenceIds": ["e-award"]
       },
@@ -49,7 +117,14 @@
       "humanReview": { "status": "proposed" },
       "replay": {
         "jev": { "kind": "failure", "state": "judge_unavailable", "latencyMs": 0 },
-        "baseline": { "kind": "outcome", "outcome": "supported", "confidence": 0.88, "action": "propose", "latencyMs": 25, "usage": { "inputTokens": 230, "outputTokens": 28 } }
+        "baseline": {
+          "kind": "outcome",
+          "outcome": "supported",
+          "confidence": 0.88,
+          "action": "propose",
+          "latencyMs": 25,
+          "usage": { "inputTokens": 230, "outputTokens": 28 }
+        }
       }
     },
     {
@@ -57,13 +132,40 @@
       "task": "bd_claim",
       "category": "incomplete_exact_checks",
       "input": {
-        "claim": { "text": "Corvus Analytics Inc received a $12.5M awarded contract for data analytics services." },
+        "claim": {
+          "text": "Corvus Analytics Inc received a $12.5M awarded contract for data analytics services."
+        },
         "exactChecks": [
-          { "kind": "amount", "claimValue": "12500000:USD", "sourceValue": "12500000:USD", "matchesExactly": true },
-          { "kind": "amount", "claimValue": "12500000:USD", "sourceValue": "12500000:USD", "matchesExactly": true },
-          { "kind": "date", "claimValue": "2026-08-14", "sourceValue": "2026-08-14", "matchesExactly": true },
-          { "kind": "source_locator", "claimValue": "usaspending:award:line-1", "sourceValue": "usaspending:award:line-1", "matchesExactly": true },
-          { "kind": "financial_stage", "claimValue": "awarded", "sourceValue": "awarded", "matchesExactly": true }
+          {
+            "kind": "amount",
+            "claimValue": "12500000:USD",
+            "sourceValue": "12500000:USD",
+            "matchesExactly": true
+          },
+          {
+            "kind": "amount",
+            "claimValue": "12500000:USD",
+            "sourceValue": "12500000:USD",
+            "matchesExactly": true
+          },
+          {
+            "kind": "date",
+            "claimValue": "2026-08-14",
+            "sourceValue": "2026-08-14",
+            "matchesExactly": true
+          },
+          {
+            "kind": "source_locator",
+            "claimValue": "usaspending:award:line-1",
+            "sourceValue": "usaspending:award:line-1",
+            "matchesExactly": true
+          },
+          {
+            "kind": "financial_stage",
+            "claimValue": "awarded",
+            "sourceValue": "awarded",
+            "matchesExactly": true
+          }
         ],
         "evidenceIds": ["e-award"]
       },
@@ -79,21 +181,62 @@
       "task": "bd_claim",
       "category": "insufficient_evidence",
       "input": {
-        "claim": { "text": "Corvus Analytics Inc received a $12.5M awarded contract (award number W912XYZ12345678, awarded on 2026-08-14) for radar software services." },
+        "claim": {
+          "text": "Corvus Analytics Inc received a $12.5M awarded contract (award number W912XYZ12345678, awarded on 2026-08-14) for radar software services."
+        },
         "exactChecks": [
-          { "kind": "amount", "claimValue": "12500000:USD", "sourceValue": "12500000:USD", "matchesExactly": true },
-          { "kind": "identifier", "claimValue": "W912XYZ12345678", "sourceValue": "W912XYZ12345678", "matchesExactly": true },
-          { "kind": "date", "claimValue": "2026-08-14", "sourceValue": "2026-08-14", "matchesExactly": true },
-          { "kind": "source_locator", "claimValue": "usaspending:award:line-1", "sourceValue": "usaspending:award:line-1", "matchesExactly": true },
-          { "kind": "financial_stage", "claimValue": "awarded", "sourceValue": "awarded", "matchesExactly": true }
+          {
+            "kind": "amount",
+            "claimValue": "12500000:USD",
+            "sourceValue": "12500000:USD",
+            "matchesExactly": true
+          },
+          {
+            "kind": "identifier",
+            "claimValue": "W912XYZ12345678",
+            "sourceValue": "W912XYZ12345678",
+            "matchesExactly": true
+          },
+          {
+            "kind": "date",
+            "claimValue": "2026-08-14",
+            "sourceValue": "2026-08-14",
+            "matchesExactly": true
+          },
+          {
+            "kind": "source_locator",
+            "claimValue": "usaspending:award:line-1",
+            "sourceValue": "usaspending:award:line-1",
+            "matchesExactly": true
+          },
+          {
+            "kind": "financial_stage",
+            "claimValue": "awarded",
+            "sourceValue": "awarded",
+            "matchesExactly": true
+          }
         ],
         "evidenceIds": ["e-award"]
       },
       "expected": { "kind": "outcome", "outcome": "insufficient_evidence" },
       "humanReview": { "status": "proposed" },
       "replay": {
-        "jev": { "kind": "outcome", "outcome": "insufficient_evidence", "confidence": 0.97, "action": "abstain", "latencyMs": 15, "usage": { "inputTokens": 175, "outputTokens": 21 } },
-        "baseline": { "kind": "outcome", "outcome": "supported", "confidence": 0.7, "action": "abstain", "latencyMs": 24, "usage": { "inputTokens": 225, "outputTokens": 26 } }
+        "jev": {
+          "kind": "outcome",
+          "outcome": "insufficient_evidence",
+          "confidence": 0.97,
+          "action": "abstain",
+          "latencyMs": 15,
+          "usage": { "inputTokens": 175, "outputTokens": 21 }
+        },
+        "baseline": {
+          "kind": "outcome",
+          "outcome": "supported",
+          "confidence": 0.7,
+          "action": "abstain",
+          "latencyMs": 24,
+          "usage": { "inputTokens": 225, "outputTokens": 26 }
+        }
       }
     },
     {
@@ -101,13 +244,40 @@
       "task": "bd_claim",
       "category": "malformed_response",
       "input": {
-        "claim": { "text": "Corvus Analytics Inc received a $12.5M awarded contract (award number W912XYZ12345678, awarded on 2026-08-14) for data analytics services." },
+        "claim": {
+          "text": "Corvus Analytics Inc received a $12.5M awarded contract (award number W912XYZ12345678, awarded on 2026-08-14) for data analytics services."
+        },
         "exactChecks": [
-          { "kind": "amount", "claimValue": "12500000:USD", "sourceValue": "12500000:USD", "matchesExactly": true },
-          { "kind": "identifier", "claimValue": "W912XYZ12345678", "sourceValue": "W912XYZ12345678", "matchesExactly": true },
-          { "kind": "date", "claimValue": "2026-08-14", "sourceValue": "2026-08-14", "matchesExactly": true },
-          { "kind": "source_locator", "claimValue": "usaspending:award:line-1", "sourceValue": "usaspending:award:line-1", "matchesExactly": true },
-          { "kind": "financial_stage", "claimValue": "awarded", "sourceValue": "awarded", "matchesExactly": true }
+          {
+            "kind": "amount",
+            "claimValue": "12500000:USD",
+            "sourceValue": "12500000:USD",
+            "matchesExactly": true
+          },
+          {
+            "kind": "identifier",
+            "claimValue": "W912XYZ12345678",
+            "sourceValue": "W912XYZ12345678",
+            "matchesExactly": true
+          },
+          {
+            "kind": "date",
+            "claimValue": "2026-08-14",
+            "sourceValue": "2026-08-14",
+            "matchesExactly": true
+          },
+          {
+            "kind": "source_locator",
+            "claimValue": "usaspending:award:line-1",
+            "sourceValue": "usaspending:award:line-1",
+            "matchesExactly": true
+          },
+          {
+            "kind": "financial_stage",
+            "claimValue": "awarded",
+            "sourceValue": "awarded",
+            "matchesExactly": true
+          }
         ],
         "evidenceIds": ["e-award"]
       },
@@ -123,13 +293,40 @@
       "task": "bd_claim",
       "category": "provider_timeout",
       "input": {
-        "claim": { "text": "Corvus Analytics Inc received a $12.5M awarded contract (award number W912XYZ12345678, awarded on 2026-08-14) for data analytics services." },
+        "claim": {
+          "text": "Corvus Analytics Inc received a $12.5M awarded contract (award number W912XYZ12345678, awarded on 2026-08-14) for data analytics services."
+        },
         "exactChecks": [
-          { "kind": "amount", "claimValue": "12500000:USD", "sourceValue": "12500000:USD", "matchesExactly": true },
-          { "kind": "identifier", "claimValue": "W912XYZ12345678", "sourceValue": "W912XYZ12345678", "matchesExactly": true },
-          { "kind": "date", "claimValue": "2026-08-14", "sourceValue": "2026-08-14", "matchesExactly": true },
-          { "kind": "source_locator", "claimValue": "usaspending:award:line-1", "sourceValue": "usaspending:award:line-1", "matchesExactly": true },
-          { "kind": "financial_stage", "claimValue": "awarded", "sourceValue": "awarded", "matchesExactly": true }
+          {
+            "kind": "amount",
+            "claimValue": "12500000:USD",
+            "sourceValue": "12500000:USD",
+            "matchesExactly": true
+          },
+          {
+            "kind": "identifier",
+            "claimValue": "W912XYZ12345678",
+            "sourceValue": "W912XYZ12345678",
+            "matchesExactly": true
+          },
+          {
+            "kind": "date",
+            "claimValue": "2026-08-14",
+            "sourceValue": "2026-08-14",
+            "matchesExactly": true
+          },
+          {
+            "kind": "source_locator",
+            "claimValue": "usaspending:award:line-1",
+            "sourceValue": "usaspending:award:line-1",
+            "matchesExactly": true
+          },
+          {
+            "kind": "financial_stage",
+            "claimValue": "awarded",
+            "sourceValue": "awarded",
+            "matchesExactly": true
+          }
         ],
         "evidenceIds": ["e-award"]
       },
@@ -145,13 +342,40 @@
       "task": "bd_claim",
       "category": "empty_evidence",
       "input": {
-        "claim": { "text": "Corvus Analytics Inc received a $12.5M awarded contract (award number W912XYZ12345678, awarded on 2026-08-14) for data analytics services." },
+        "claim": {
+          "text": "Corvus Analytics Inc received a $12.5M awarded contract (award number W912XYZ12345678, awarded on 2026-08-14) for data analytics services."
+        },
         "exactChecks": [
-          { "kind": "amount", "claimValue": "12500000:USD", "sourceValue": "12500000:USD", "matchesExactly": true },
-          { "kind": "identifier", "claimValue": "W912XYZ12345678", "sourceValue": "W912XYZ12345678", "matchesExactly": true },
-          { "kind": "date", "claimValue": "2026-08-14", "sourceValue": "2026-08-14", "matchesExactly": true },
-          { "kind": "source_locator", "claimValue": "usaspending:award:line-1", "sourceValue": "usaspending:award:line-1", "matchesExactly": true },
-          { "kind": "financial_stage", "claimValue": "awarded", "sourceValue": "awarded", "matchesExactly": true }
+          {
+            "kind": "amount",
+            "claimValue": "12500000:USD",
+            "sourceValue": "12500000:USD",
+            "matchesExactly": true
+          },
+          {
+            "kind": "identifier",
+            "claimValue": "W912XYZ12345678",
+            "sourceValue": "W912XYZ12345678",
+            "matchesExactly": true
+          },
+          {
+            "kind": "date",
+            "claimValue": "2026-08-14",
+            "sourceValue": "2026-08-14",
+            "matchesExactly": true
+          },
+          {
+            "kind": "source_locator",
+            "claimValue": "usaspending:award:line-1",
+            "sourceValue": "usaspending:award:line-1",
+            "matchesExactly": true
+          },
+          {
+            "kind": "financial_stage",
+            "claimValue": "awarded",
+            "sourceValue": "awarded",
+            "matchesExactly": true
+          }
         ],
         "evidenceIds": []
       },
@@ -167,21 +391,62 @@
       "task": "bd_claim",
       "category": "contradicted",
       "input": {
-        "claim": { "text": "The $12.5M Corvus Analytics Inc award (award number W912XYZ12345678) was NOT awarded on 2026-08-14; the cited record awards it on that date." },
+        "claim": {
+          "text": "The $12.5M Corvus Analytics Inc award (award number W912XYZ12345678) was NOT awarded on 2026-08-14; the cited record awards it on that date."
+        },
         "exactChecks": [
-          { "kind": "amount", "claimValue": "12500000:USD", "sourceValue": "12500000:USD", "matchesExactly": true },
-          { "kind": "identifier", "claimValue": "W912XYZ12345678", "sourceValue": "W912XYZ12345678", "matchesExactly": true },
-          { "kind": "date", "claimValue": "2026-08-14", "sourceValue": "2026-08-14", "matchesExactly": true },
-          { "kind": "source_locator", "claimValue": "usaspending:award:line-1", "sourceValue": "usaspending:award:line-1", "matchesExactly": true },
-          { "kind": "financial_stage", "claimValue": "awarded", "sourceValue": "awarded", "matchesExactly": true }
+          {
+            "kind": "amount",
+            "claimValue": "12500000:USD",
+            "sourceValue": "12500000:USD",
+            "matchesExactly": true
+          },
+          {
+            "kind": "identifier",
+            "claimValue": "W912XYZ12345678",
+            "sourceValue": "W912XYZ12345678",
+            "matchesExactly": true
+          },
+          {
+            "kind": "date",
+            "claimValue": "2026-08-14",
+            "sourceValue": "2026-08-14",
+            "matchesExactly": true
+          },
+          {
+            "kind": "source_locator",
+            "claimValue": "usaspending:award:line-1",
+            "sourceValue": "usaspending:award:line-1",
+            "matchesExactly": true
+          },
+          {
+            "kind": "financial_stage",
+            "claimValue": "awarded",
+            "sourceValue": "awarded",
+            "matchesExactly": true
+          }
         ],
         "evidenceIds": ["e-award"]
       },
       "expected": { "kind": "outcome", "outcome": "contradicted" },
       "humanReview": { "status": "proposed" },
       "replay": {
-        "jev": { "kind": "outcome", "outcome": "contradicted", "confidence": 0.98, "action": "abstain", "latencyMs": 17, "usage": { "inputTokens": 190, "outputTokens": 23 } },
-        "baseline": { "kind": "outcome", "outcome": "contradicted", "confidence": 0.85, "action": "abstain", "latencyMs": 28, "usage": { "inputTokens": 245, "outputTokens": 31 } }
+        "jev": {
+          "kind": "outcome",
+          "outcome": "contradicted",
+          "confidence": 0.98,
+          "action": "abstain",
+          "latencyMs": 17,
+          "usage": { "inputTokens": 190, "outputTokens": 23 }
+        },
+        "baseline": {
+          "kind": "outcome",
+          "outcome": "contradicted",
+          "confidence": 0.85,
+          "action": "abstain",
+          "latencyMs": 28,
+          "usage": { "inputTokens": 245, "outputTokens": 31 }
+        }
       }
     }
   ]

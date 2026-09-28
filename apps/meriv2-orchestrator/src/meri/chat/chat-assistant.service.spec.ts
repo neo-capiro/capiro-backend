@@ -351,7 +351,9 @@ describe('ChatAssistantService.run', () => {
     });
 
     const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
-      makeService(executor).run(ctx, { messages: [{ role: 'user', text: 'send an email to them' }] }),
+      makeService(executor).run(ctx, {
+        messages: [{ role: 'user', text: 'send an email to them' }],
+      }),
     );
 
     // The delegated executor was NEVER called (gate held the write).
@@ -385,7 +387,10 @@ describe('ChatAssistantService.run', () => {
           [{ type: 'tool_use', id: 't1', name: 'send_email', input: { to: 'a@b.com' } }],
           'tool_use',
         );
-      return anthropic([{ type: 'text', text: 'I can prepare that if you ask me to send it.' }], 'end_turn');
+      return anthropic(
+        [{ type: 'text', text: 'I can prepare that if you ask me to send it.' }],
+        'end_turn',
+      );
     });
 
     const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>

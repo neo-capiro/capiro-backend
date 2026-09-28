@@ -12,10 +12,7 @@ import {
 import type { MeriCitation } from '@capiro/shared';
 import type { MeriToolCoverageReceipt } from '../meriv3/meriv3-turn-coverage.js';
 
-export type CoverageTemplate =
-  | 'house_senate_comparison'
-  | 'transcript_summary'
-  | 'current_status';
+export type CoverageTemplate = 'house_senate_comparison' | 'transcript_summary' | 'current_status';
 
 export interface CoverageRequirement {
   id: string;
@@ -123,9 +120,11 @@ export function documentContentEvidence(value: unknown): DocumentContentEvidence
         : null;
   if (!documentId) return null;
   const rows = Array.isArray(record.records) ? record.records.map(object) : [];
-  const texts = [record.text, record.content, ...rows.map((row) => object(row?.payload)?.text)].filter(
-    (text): text is string => typeof text === 'string' && text.trim().length > 0,
-  );
+  const texts = [
+    record.text,
+    record.content,
+    ...rows.map((row) => object(row?.payload)?.text),
+  ].filter((text): text is string => typeof text === 'string' && text.trim().length > 0);
   if (!texts.length) return null;
   const recordIds = rows.flatMap((row) => {
     const id = row?.recordId ?? row?.id;
@@ -135,7 +134,10 @@ export function documentContentEvidence(value: unknown): DocumentContentEvidence
 }
 
 function isDocumentContentRequirement(requirement: CoverageRequirement): boolean {
-  return requirement.template === 'transcript_summary' || typeof requirement.route?.documentId === 'string';
+  return (
+    requirement.template === 'transcript_summary' ||
+    typeof requirement.route?.documentId === 'string'
+  );
 }
 
 /** Whether one ledger entry supplies evidence for the requirement (and its route). */
@@ -169,9 +171,10 @@ function payloadReadIncomplete(value: unknown): boolean {
   const coverage = object(record.coverage);
   const pagination = object(record.pagination) ?? object(coverage?.pagination);
   const continuation = object(record.continuation) ?? object(coverage?.continuation);
-  return [record, coverage].some((metadata) =>
-    Boolean(
-      metadata &&
+  return (
+    [record, coverage].some((metadata) =>
+      Boolean(
+        metadata &&
         (metadata.truncated === true ||
           metadata.contentTruncated === true ||
           metadata.truncatedByProjection === true ||
@@ -180,13 +183,20 @@ function payloadReadIncomplete(value: unknown): boolean {
           metadata.paginationComplete === false ||
           metadata.complete === false ||
           metadata.partial === true),
-    ),
-  ) || Boolean(
-    pagination &&
-      (pagination.hasMore === true || pagination.nextCursor != null || pagination.complete === false),
-  ) || Boolean(
-    continuation &&
-      (continuation.blocked === true || continuation.complete === false || continuation.incomplete === true),
+      ),
+    ) ||
+    Boolean(
+      pagination &&
+      (pagination.hasMore === true ||
+        pagination.nextCursor != null ||
+        pagination.complete === false),
+    ) ||
+    Boolean(
+      continuation &&
+      (continuation.blocked === true ||
+        continuation.complete === false ||
+        continuation.incomplete === true),
+    )
   );
 }
 
@@ -198,7 +208,9 @@ function receiptIsIncomplete(receipt: MeriToolCoverageReceipt): boolean {
 }
 
 function receiptIsComplete(receipt: MeriToolCoverageReceipt): boolean {
-  return receipt.status === 'complete' && !receipt.truncated && receipt.paginationComplete !== false;
+  return (
+    receipt.status === 'complete' && !receipt.truncated && receipt.paginationComplete !== false
+  );
 }
 
 /** An incomplete read closes only after a later terminal receipt for that source. */
@@ -222,7 +234,11 @@ function hasOpenIncompleteRead(
         return comparable.every(([key, value]) => receipt.requestRoute?.[key] === value);
       }
       const documentId = route.documentId;
-      return typeof documentId !== 'string' || !receipt.documentPage || receipt.documentPage.documentId === documentId;
+      return (
+        typeof documentId !== 'string' ||
+        !receipt.documentPage ||
+        receipt.documentPage.documentId === documentId
+      );
     });
   const openReceipts = relevant.some(({ receipt, index }) => {
     if (!receiptIsIncomplete(receipt)) return false;
@@ -235,8 +251,7 @@ function hasOpenIncompleteRead(
   });
   const routedEntries = entries.filter(
     (entry) =>
-      entry.tool === tool &&
-      (requirement.route ? entryProvidesEvidence(entry, requirement) : true),
+      entry.tool === tool && (requirement.route ? entryProvidesEvidence(entry, requirement) : true),
   );
   const incompletePayload = routedEntries.some((entry) => payloadReadIncomplete(entry.result));
   // Payload metadata has no source identity; a later complete receipt from the
@@ -255,16 +270,18 @@ function idsForTool(
       ...citations.filter((citation) => citation.tool === tool).map((citation) => citation.id),
       ...ledgerEntries
         .filter((entry) => entry.tool === tool)
-        .flatMap((entry) => arrays.flatMap((key) => {
-          const rows = object(entry.result)?.[key];
-          return Array.isArray(rows)
-            ? rows.flatMap((row) => {
-                const item = object(row);
-                const id = item?.id ?? item?.recordId ?? item?.documentId;
-                return typeof id === 'string' ? [id] : [];
-              })
-            : [];
-        })),
+        .flatMap((entry) =>
+          arrays.flatMap((key) => {
+            const rows = object(entry.result)?.[key];
+            return Array.isArray(rows)
+              ? rows.flatMap((row) => {
+                  const item = object(row);
+                  const id = item?.id ?? item?.recordId ?? item?.documentId;
+                  return typeof id === 'string' ? [id] : [];
+                })
+              : [];
+          }),
+        ),
     ]),
   ];
 }
@@ -287,15 +304,16 @@ function evidenceIdsFor(
     ];
   }
   if (isDocumentContentRequirement(requirement)) {
-    return [...new Set(usable.flatMap((entry) => documentContentEvidence(entry.result)?.recordIds ?? []))];
+    return [
+      ...new Set(usable.flatMap((entry) => documentContentEvidence(entry.result)?.recordIds ?? [])),
+    ];
   }
-  return [...new Set(called.flatMap((tool) => idsForTool(tool, input.ledgerEntries, input.citations)))];
+  return [
+    ...new Set(called.flatMap((tool) => idsForTool(tool, input.ledgerEntries, input.citations))),
+  ];
 }
 
-function add(
-  output: CoverageRequirement[],
-  requirement: CoverageRequirement,
-): void {
+function add(output: CoverageRequirement[], requirement: CoverageRequirement): void {
   if (!output.some((item) => item.id === requirement.id)) output.push(requirement);
 }
 
@@ -344,7 +362,9 @@ export function buildCoverageRequirements(input: {
   const comparison =
     /\bhouse\s+(?:vs\.?|versus|and)\s+senate\b/i.test(input.request) ||
     /\bhac-?d\b[\s\S]*\bsac-?d\b|\bsac-?d\b[\s\S]*\bhac-?d\b/i.test(input.request) ||
-    (/\bhouse\b/i.test(input.request) && /\bsenate\b/i.test(input.request) && /\bcompar/i.test(input.request));
+    (/\bhouse\b/i.test(input.request) &&
+      /\bsenate\b/i.test(input.request) &&
+      /\bcompar/i.test(input.request));
   if (comparison) {
     for (const chamber of ['House', 'Senate'] as const) {
       add(output, {
@@ -379,7 +399,8 @@ export function buildCoverageRequirements(input: {
   });
   const concrete = references.filter((item) => item.resolution !== 'pronoun_heuristic');
   const heuristic = references.filter((item) => item.resolution === 'pronoun_heuristic');
-  for (const reference of concrete) add(output, documentRequirement(reference, true, input.clientId));
+  for (const reference of concrete)
+    add(output, documentRequirement(reference, true, input.clientId));
   // A selected id that resolves against no candidate manifest is not a confirmed,
   // fetchable client document — apps/api's only current producer for
   // `selectedDocumentIds` is the message's own chat attachments (their content is
@@ -390,7 +411,9 @@ export function buildCoverageRequirements(input: {
   // that already used the real content. Only promote it to essential+routed when
   // an actual manifest entry confirms it names a real document; otherwise it is a
   // non-essential hint, same treatment as an unresolved keyword mention.
-  for (const id of selectedIds.filter((selected) => !references.some((item) => item.id === selected))) {
+  for (const id of selectedIds.filter(
+    (selected) => !references.some((item) => item.id === selected),
+  )) {
     if (!attachments.length) {
       add(output, {
         id: `template:transcript_summary:${id}`,
@@ -410,7 +433,8 @@ export function buildCoverageRequirements(input: {
       claimCategory: 'report_language',
       toolFamilies: ['read_client_documents'],
       essential: true,
-      rationale: 'Readable content from the selected document is required; metadata or a filename is not evidence.',
+      rationale:
+        'Readable content from the selected document is required; metadata or a filename is not evidence.',
       template: 'transcript_summary',
       route: { documentId: id, clientId: input.clientId },
     });
@@ -431,8 +455,14 @@ export function buildCoverageRequirements(input: {
     }
   }
 
-  if (/\b(?:currently|current status|in production|latest status|as of (?:now|today))\b/i.test(input.request)) {
-    const category = input.plan.requestCategories.find((item) => item !== 'general_background') ?? 'general_background';
+  if (
+    /\b(?:currently|current status|in production|latest status|as of (?:now|today))\b/i.test(
+      input.request,
+    )
+  ) {
+    const category =
+      input.plan.requestCategories.find((item) => item !== 'general_background') ??
+      'general_background';
     const families = input.plan.requirements
       .filter((item) => input.plan.requiredRequirementIds.includes(item.id))
       .flatMap((item) => item.toolFamilies);
@@ -442,7 +472,8 @@ export function buildCoverageRequirements(input: {
       claimCategory: category,
       toolFamilies: [...new Set(families)],
       essential: true,
-      rationale: 'The requested current-status claim requires an observed or effective date within its freshness policy.',
+      rationale:
+        'The requested current-status claim requires an observed or effective date within its freshness policy.',
       template: 'current_status',
     });
   }
@@ -462,10 +493,12 @@ export function compareCoverage(input: {
     const entries = input.ledgerEntries.filter((entry) => called.includes(entry.tool));
     const usable = entries.filter((entry) => entryProvidesEvidence(entry, requirement));
     const unavailable = receipts.some((receipt) => receipt.status === 'unavailable');
-    const failed = receipts.some((receipt) => receipt.status === 'error') || entries.some((entry) => {
-      const result = object(entry.result);
-      return Boolean(result?.error || result?.blocked);
-    });
+    const failed =
+      receipts.some((receipt) => receipt.status === 'error') ||
+      entries.some((entry) => {
+        const result = object(entry.result);
+        return Boolean(result?.error || result?.blocked);
+      });
     const openIncomplete = called.some((tool) =>
       hasOpenIncompleteRead(tool, entries, receipts, requirement),
     );
@@ -478,11 +511,11 @@ export function compareCoverage(input: {
           ? 'satisfied'
           : openIncomplete
             ? 'truncated'
-          : unavailable
-            ? 'unavailable'
-          : failed
-            ? 'extraction_failed'
-            : 'called_no_usable_content';
+            : unavailable
+              ? 'unavailable'
+              : failed
+                ? 'extraction_failed'
+                : 'called_no_usable_content';
     return {
       requirementId: requirement.requirementId,
       essential: requirement.essential,
@@ -500,7 +533,9 @@ function requestedProperties(schema: CoverageToolSchema): Set<string> {
 function requestIdentities(request: string): Record<string, unknown> {
   const pe = request.match(/\b\d{7}[A-Z]\b/i)?.[0];
   const bill = request.match(/\b(?:H\.?R\.?|S\.?)\s*\d+\b/i)?.[0];
-  const opportunity = request.match(/\b(?:opportunity|notice|award)\s*(?:id|number)?\s*[:#]?\s*([A-Z0-9_-]{4,})\b/i)?.[1];
+  const opportunity = request.match(
+    /\b(?:opportunity|notice|award)\s*(?:id|number)?\s*[:#]?\s*([A-Z0-9_-]{4,})\b/i,
+  )?.[1];
   return {
     ...(pe ? { peCode: pe.toUpperCase(), code: pe.toUpperCase() } : {}),
     ...(bill ? { billId: bill.replace(/\s+/g, '') } : {}),
@@ -557,13 +592,20 @@ export function planFollowUp(input: {
   ledgerEntries?: readonly LedgerEntry[];
 }): CoverageFollowUpPlan | null {
   const calls: CoverageFollowUpCall[] = [];
-  const identity = { ...requestIdentities(input.request), clientId: input.frame.clientId ?? undefined };
+  const identity = {
+    ...requestIdentities(input.request),
+    clientId: input.frame.clientId ?? undefined,
+  };
   for (const gap of input.gaps) {
     if (!gap.essential || gap.status === 'satisfied') continue;
-    const requirement = input.requirements?.find((item) => item.requirementId === gap.requirementId);
+    const requirement = input.requirements?.find(
+      (item) => item.requirementId === gap.requirementId,
+    );
     if (!requirement) continue;
     for (const name of requirement.toolFamilies) {
-      const schema = input.toolSchemas.find((item) => item.name === name && item.readOnly !== false);
+      const schema = input.toolSchemas.find(
+        (item) => item.name === name && item.readOnly !== false,
+      );
       if (!schema) continue;
       const properties = requestedProperties(schema);
       const candidates = {
@@ -605,8 +647,9 @@ export function appendClaimTiedCoverageDisclosure(
   const requirement = requirements.find((item) => item.requirementId === gap.requirementId);
   if (!requirement) return reply;
   const subject = requirement.rationale.replace(/[.]+$/, '');
-  const note = `${subject}; that part of the answer remains limited because the source was ${gap.status.replaceAll('_', ' ')}.`
-    .replace(/\[\d{1,3}\]/g, '')
-    .slice(0, 320);
+  const note =
+    `${subject}; that part of the answer remains limited because the source was ${gap.status.replaceAll('_', ' ')}.`
+      .replace(/\[\d{1,3}\]/g, '')
+      .slice(0, 320);
   return `${reply.trim()}\n\n> **Evidence limitation:** ${note}`.trim();
 }

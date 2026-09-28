@@ -11,19 +11,26 @@ type RetrievalSourceStatus = SourceStatus | 'unauthorized' | 'unsupported' | 'er
 
 const SOURCE_STATUSES = new Set<SourceStatus>(['healthy', 'degraded', 'unavailable']);
 const RETRIEVAL_SOURCE_STATUSES = new Set<RetrievalSourceStatus>([
-  'healthy', 'degraded', 'unavailable', 'unauthorized', 'unsupported', 'error',
+  'healthy',
+  'degraded',
+  'unavailable',
+  'unauthorized',
+  'unsupported',
+  'error',
 ]);
-const CLIENT_SECTION_STATUSES = new Set([
-  'complete', 'partial', 'unavailable', 'not_requested',
-]);
+const CLIENT_SECTION_STATUSES = new Set(['complete', 'partial', 'unavailable', 'not_requested']);
 const MEMORY_CONTENT_STATUSES = new Set([
-  'available', 'empty', 'metadata_only', 'unavailable', 'unavailable_or_ineligible',
+  'available',
+  'empty',
+  'metadata_only',
+  'unavailable',
+  'unavailable_or_ineligible',
 ]);
 const BODY_COMPLETENESS = new Set(['full', 'preview', 'truncated', 'unknown']);
 
 function record(value: unknown): UnknownRecord | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? value as UnknownRecord
+    ? (value as UnknownRecord)
     : null;
 }
 
@@ -46,9 +53,15 @@ function classifyMailSearch(toolName: string, payload: unknown): ApiToolReadOutc
   if (failure) return failure;
   const value = record(payload);
   const offset = value?.offset === undefined ? 0 : value.offset;
-  if (!value || !nonnegativeInteger(value.totalMatches) || !nonnegativeInteger(value.returned)
-    || typeof value.hasMore !== 'boolean' || !nonnegativeInteger(offset)
-    || !Array.isArray(value.messages) || !Array.isArray(value.searchedMailboxes)) {
+  if (
+    !value ||
+    !nonnegativeInteger(value.totalMatches) ||
+    !nonnegativeInteger(value.returned) ||
+    typeof value.hasMore !== 'boolean' ||
+    !nonnegativeInteger(offset) ||
+    !Array.isArray(value.messages) ||
+    !Array.isArray(value.searchedMailboxes)
+  ) {
     return invalidResult(toolName);
   }
   const statuses: SourceStatus[] = [];
@@ -61,8 +74,8 @@ function classifyMailSearch(toolName: string, payload: unknown): ApiToolReadOutc
     }
     statuses.push(status as SourceStatus);
   }
-  const noAvailableMailbox = statuses.length === 0
-    || statuses.every((status) => status === 'unavailable');
+  const noAvailableMailbox =
+    statuses.length === 0 || statuses.every((status) => status === 'unavailable');
   if (noAvailableMailbox && value.returned === 0) {
     return { kind: 'unavailable', reason: 'mail_source_unavailable' };
   }
@@ -81,17 +94,25 @@ function classifyMailThread(payload: unknown): ApiToolReadOutcome {
   if (failure) return failure;
   const value = record(payload);
   const messageOffset = value?.messageOffset === undefined ? 0 : value.messageOffset;
-  if (!value || !nonnegativeInteger(value.totalMessages) || !nonnegativeInteger(value.returned)
-    || typeof value.hasMore !== 'boolean' || !nonnegativeInteger(messageOffset)
-    || !Array.isArray(value.messages)) {
+  if (
+    !value ||
+    !nonnegativeInteger(value.totalMessages) ||
+    !nonnegativeInteger(value.returned) ||
+    typeof value.hasMore !== 'boolean' ||
+    !nonnegativeInteger(messageOffset) ||
+    !Array.isArray(value.messages)
+  ) {
     return invalidResult('get_email_thread');
   }
   const messages: Array<{ bodyTruncated: boolean; bodyCompleteness: string }> = [];
   for (const rawMessage of value.messages) {
     const message = record(rawMessage);
-    if (!message || typeof message.bodyTruncated !== 'boolean'
-      || typeof message.bodyCompleteness !== 'string'
-      || !BODY_COMPLETENESS.has(message.bodyCompleteness)) {
+    if (
+      !message ||
+      typeof message.bodyTruncated !== 'boolean' ||
+      typeof message.bodyCompleteness !== 'string' ||
+      !BODY_COMPLETENESS.has(message.bodyCompleteness)
+    ) {
       return invalidResult('get_email_thread');
     }
     messages.push({
@@ -100,8 +121,12 @@ function classifyMailThread(payload: unknown): ApiToolReadOutcome {
     });
   }
   if (value.totalMessages === 0 && value.returned === 0) return { kind: 'empty' };
-  if (value.hasMore || messageOffset !== 0 || value.returned !== value.totalMessages
-    || messages.some((message) => message.bodyTruncated || message.bodyCompleteness !== 'full')) {
+  if (
+    value.hasMore ||
+    messageOffset !== 0 ||
+    value.returned !== value.totalMessages ||
+    messages.some((message) => message.bodyTruncated || message.bodyCompleteness !== 'full')
+  ) {
     return { kind: 'partial', reason: 'mail_body_coverage_incomplete' };
   }
   return { kind: 'complete' };
@@ -112,34 +137,54 @@ function classifyDocumentRead(payload: unknown): ApiToolReadOutcome {
   if (failure) return failure;
   const value = record(payload);
   const coverage = record(value?.coverage);
-  if (value?.tool === 'read_client_documents' && coverage
-    && nonnegativeInteger(coverage.total) && nonnegativeInteger(coverage.returned)
-    && typeof coverage.truncated === 'boolean' && typeof coverage.complete === 'boolean'
-    && typeof coverage.paginationComplete === 'boolean' && Array.isArray(value.documents)) {
-    if (coverage.total === 0 && coverage.returned === 0 && value.documents.length === 0
-      && coverage.complete && coverage.paginationComplete) {
+  if (
+    value?.tool === 'read_client_documents' &&
+    coverage &&
+    nonnegativeInteger(coverage.total) &&
+    nonnegativeInteger(coverage.returned) &&
+    typeof coverage.truncated === 'boolean' &&
+    typeof coverage.complete === 'boolean' &&
+    typeof coverage.paginationComplete === 'boolean' &&
+    Array.isArray(value.documents)
+  ) {
+    if (
+      coverage.total === 0 &&
+      coverage.returned === 0 &&
+      value.documents.length === 0 &&
+      coverage.complete &&
+      coverage.paginationComplete
+    ) {
       return { kind: 'empty' };
     }
     return coverage.complete && coverage.paginationComplete && !coverage.truncated
       ? { kind: 'complete' }
       : { kind: 'partial', reason: 'document_list_coverage_incomplete' };
   }
-  if (value?.tool !== 'read_client_documents' || !coverage
-    || typeof coverage.complete !== 'boolean' || typeof coverage.truncated !== 'boolean'
-    || typeof coverage.extractedSectionEmpty !== 'boolean'
-    || typeof coverage.continuationBlocked !== 'boolean'
-    || (coverage.missingContent !== undefined && typeof coverage.missingContent !== 'boolean')
-    || (coverage.matched !== undefined && coverage.matched !== null
-      && typeof coverage.matched !== 'boolean')
-    || (coverage.nextCursor !== null && typeof coverage.nextCursor !== 'string')
-    || !Array.isArray(value.records)) {
+  if (
+    value?.tool !== 'read_client_documents' ||
+    !coverage ||
+    typeof coverage.complete !== 'boolean' ||
+    typeof coverage.truncated !== 'boolean' ||
+    typeof coverage.extractedSectionEmpty !== 'boolean' ||
+    typeof coverage.continuationBlocked !== 'boolean' ||
+    (coverage.missingContent !== undefined && typeof coverage.missingContent !== 'boolean') ||
+    (coverage.matched !== undefined &&
+      coverage.matched !== null &&
+      typeof coverage.matched !== 'boolean') ||
+    (coverage.nextCursor !== null && typeof coverage.nextCursor !== 'string') ||
+    !Array.isArray(value.records)
+  ) {
     return invalidResult('read_client_documents');
   }
   if (coverage.missingContent === true || coverage.continuationBlocked) {
     return { kind: 'unavailable', reason: 'document_content_unavailable' };
   }
-  if (value.records.length === 0 && coverage.matched === false && coverage.nextCursor === null
-    && !coverage.truncated) {
+  if (
+    value.records.length === 0 &&
+    coverage.matched === false &&
+    coverage.nextCursor === null &&
+    !coverage.truncated
+  ) {
     return { kind: 'empty' };
   }
   return coverage.complete && !coverage.truncated
@@ -157,7 +202,11 @@ function classifyClientContext(payload: unknown): ApiToolReadOutcome | null {
   const value = record(payload);
   const sections = record(value?.profileSections);
   const sectionNames = [
-    'capabilities', 'people', 'facilities', 'submissionHistory', 'advocacyMatters',
+    'capabilities',
+    'people',
+    'facilities',
+    'submissionHistory',
+    'advocacyMatters',
     'advocacyRecords',
   ] as const;
   const statuses: string[] = [];
@@ -199,14 +248,21 @@ function classifyMemorySearch(payload: unknown): ApiToolReadOutcome {
   if (failure) return failure;
   const value = record(payload);
   const coverage = record(value?.coverage);
-  if (value?.tool !== 'search_memory' || !coverage
-    || typeof coverage.complete !== 'boolean' || typeof coverage.paginationComplete !== 'boolean'
-    || !Array.isArray(coverage.sources) || coverage.sources.length === 0
-    || !nonnegativeInteger(value.factContentUnavailableCount)
-    || typeof value.contentStatus !== 'string' || !MEMORY_CONTENT_STATUSES.has(value.contentStatus)
-    || typeof value.contentTruncated !== 'boolean'
-    || (value.nextCursor !== null && typeof value.nextCursor !== 'string')
-    || !Array.isArray(value.results) || !Array.isArray(value.records)) {
+  if (
+    value?.tool !== 'search_memory' ||
+    !coverage ||
+    typeof coverage.complete !== 'boolean' ||
+    typeof coverage.paginationComplete !== 'boolean' ||
+    !Array.isArray(coverage.sources) ||
+    coverage.sources.length === 0 ||
+    !nonnegativeInteger(value.factContentUnavailableCount) ||
+    typeof value.contentStatus !== 'string' ||
+    !MEMORY_CONTENT_STATUSES.has(value.contentStatus) ||
+    typeof value.contentTruncated !== 'boolean' ||
+    (value.nextCursor !== null && typeof value.nextCursor !== 'string') ||
+    !Array.isArray(value.results) ||
+    !Array.isArray(value.records)
+  ) {
     return invalidResult('search_memory');
   }
   const sources: Array<{
@@ -218,11 +274,15 @@ function classifyMemorySearch(payload: unknown): ApiToolReadOutcome {
   }> = [];
   for (const rawSource of coverage.sources) {
     const source = record(rawSource);
-    if (source?.domain !== 'institutional_knowledge' || typeof source.sourceStatus !== 'string'
-      || !RETRIEVAL_SOURCE_STATUSES.has(source.sourceStatus as RetrievalSourceStatus)
-      || typeof source.hasMore !== 'boolean' || typeof source.truncated !== 'boolean'
-      || typeof source.paginationComplete !== 'boolean'
-      || typeof source.coverageComplete !== 'boolean') {
+    if (
+      source?.domain !== 'institutional_knowledge' ||
+      typeof source.sourceStatus !== 'string' ||
+      !RETRIEVAL_SOURCE_STATUSES.has(source.sourceStatus as RetrievalSourceStatus) ||
+      typeof source.hasMore !== 'boolean' ||
+      typeof source.truncated !== 'boolean' ||
+      typeof source.paginationComplete !== 'boolean' ||
+      typeof source.coverageComplete !== 'boolean'
+    ) {
       return invalidResult('search_memory');
     }
     sources.push({
@@ -233,15 +293,29 @@ function classifyMemorySearch(payload: unknown): ApiToolReadOutcome {
       coverageComplete: source.coverageComplete,
     });
   }
-  if (value.contentStatus === 'unavailable' || value.contentStatus === 'unavailable_or_ineligible') {
+  if (
+    value.contentStatus === 'unavailable' ||
+    value.contentStatus === 'unavailable_or_ineligible'
+  ) {
     return { kind: 'unavailable', reason: 'memory_content_unavailable' };
   }
-  const sourceCoverageIncomplete = sources.some((source) => source.sourceStatus !== 'healthy'
-    || source.hasMore || source.truncated || !source.paginationComplete
-    || !source.coverageComplete);
-  if (!coverage.complete || !coverage.paginationComplete || sourceCoverageIncomplete
-    || value.contentStatus === 'metadata_only' || value.factContentUnavailableCount > 0
-    || value.contentTruncated || value.nextCursor !== null) {
+  const sourceCoverageIncomplete = sources.some(
+    (source) =>
+      source.sourceStatus !== 'healthy' ||
+      source.hasMore ||
+      source.truncated ||
+      !source.paginationComplete ||
+      !source.coverageComplete,
+  );
+  if (
+    !coverage.complete ||
+    !coverage.paginationComplete ||
+    sourceCoverageIncomplete ||
+    value.contentStatus === 'metadata_only' ||
+    value.factContentUnavailableCount > 0 ||
+    value.contentTruncated ||
+    value.nextCursor !== null
+  ) {
     return { kind: 'partial', reason: 'memory_coverage_incomplete' };
   }
   if (value.contentStatus === 'empty') return { kind: 'empty' };

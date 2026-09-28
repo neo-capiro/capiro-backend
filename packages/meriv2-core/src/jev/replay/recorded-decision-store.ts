@@ -1,4 +1,12 @@
-import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname } from 'node:path';
 import { z } from 'zod';
 
@@ -20,25 +28,35 @@ export interface RecordedDecision extends RecordingKey {
   usage?: { inputTokens: number; outputTokens: number };
 }
 
-const recordingSchema = z.object({
-  task: z.string().min(1).optional(),
-  registryVersion: z.string().min(1).optional(),
-  questionHash: z.string().min(1).optional(),
-  envelopeHash: z.string().min(1),
-  questionVersion: z.string().min(1),
-  model: z.string().min(1),
-  provider: z.string().min(1),
-  recordedAt: z.string().min(1),
-  request: z.object({ state: z.unknown(), questions: z.record(z.unknown()) }).strict(),
-  response: z.unknown(),
-  latencyMs: z.number().nonnegative(),
-  usage: z.object({ inputTokens: z.number().nonnegative(), outputTokens: z.number().nonnegative() }).optional(),
-}).strict();
+const recordingSchema = z
+  .object({
+    task: z.string().min(1).optional(),
+    registryVersion: z.string().min(1).optional(),
+    questionHash: z.string().min(1).optional(),
+    envelopeHash: z.string().min(1),
+    questionVersion: z.string().min(1),
+    model: z.string().min(1),
+    provider: z.string().min(1),
+    recordedAt: z.string().min(1),
+    request: z.object({ state: z.unknown(), questions: z.record(z.unknown()) }).strict(),
+    response: z.unknown(),
+    latencyMs: z.number().nonnegative(),
+    usage: z
+      .object({ inputTokens: z.number().nonnegative(), outputTokens: z.number().nonnegative() })
+      .optional(),
+  })
+  .strict();
 
 function key(value: RecordingKey): string {
-  return [value.task ?? 'claim_support', value.registryVersion ?? 'legacy-registry',
-    value.questionHash ?? 'legacy-question', value.envelopeHash, value.questionVersion,
-    value.model, value.provider].join('\u0000');
+  return [
+    value.task ?? 'claim_support',
+    value.registryVersion ?? 'legacy-registry',
+    value.questionHash ?? 'legacy-question',
+    value.envelopeHash,
+    value.questionVersion,
+    value.model,
+    value.provider,
+  ].join('\u0000');
 }
 
 function rejectSecrets(value: unknown): void {
@@ -63,7 +81,12 @@ export class RecordedDecisionStore {
     const exact = this.index.get(key(recordingKey));
     if (exact) return exact;
     if (recordingKey.task || recordingKey.registryVersion || recordingKey.questionHash) {
-      const { task: _task, registryVersion: _registryVersion, questionHash: _questionHash, ...legacy } = recordingKey;
+      const {
+        task: _task,
+        registryVersion: _registryVersion,
+        questionHash: _questionHash,
+        ...legacy
+      } = recordingKey;
       return this.index.get(key(legacy));
     }
     return undefined;
@@ -76,7 +99,11 @@ export class RecordedDecisionStore {
     const line = `${JSON.stringify(parsed)}\n`;
     if (!existsSync(this.path)) {
       const fd = openSync(this.path, 'wx');
-      try { writeFileSync(fd, line); } finally { closeSync(fd); }
+      try {
+        writeFileSync(fd, line);
+      } finally {
+        closeSync(fd);
+      }
     } else {
       appendFileSync(this.path, line, 'utf8');
     }

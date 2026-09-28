@@ -26,8 +26,7 @@ import type {
 } from './context-resolver.types.js';
 
 export type Phase17CompiledContextPacket =
-  | Exclude<CompiledContextPacket, { version: 2 }>
-  | CoverageAwareContextPacketV2;
+  Exclude<CompiledContextPacket, { version: 2 }> | CoverageAwareContextPacketV2;
 
 export interface PersistedContextPacketRetrievalState {
   retrievalContext: Record<string, unknown>;

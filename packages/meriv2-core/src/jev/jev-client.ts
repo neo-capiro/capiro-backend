@@ -146,10 +146,12 @@ function validateResponse(
     const question = questions[id];
     if (!question) throw new JevMalformedResponseError();
     if (question.type === 'noul') {
-      const parsed = z.object({
-        type: z.literal('noul'),
-        noul: z.number().finite().min(0).max(1),
-      }).safeParse(root.data.answers[id]);
+      const parsed = z
+        .object({
+          type: z.literal('noul'),
+          noul: z.number().finite().min(0).max(1),
+        })
+        .safeParse(root.data.answers[id]);
       if (!parsed.success) throw new JevMalformedResponseError();
       answers[id] = parsed.data;
       continue;
@@ -168,7 +170,10 @@ function validateResponse(
         throw new JevMalformedResponseError();
       }
       const levelKeys = Object.keys(parsed.data.probabilities).sort();
-      const levelSum = Object.values(parsed.data.probabilities).reduce((total, value) => total + value, 0);
+      const levelSum = Object.values(parsed.data.probabilities).reduce(
+        (total, value) => total + value,
+        0,
+      );
       if (JSON.stringify(levelKeys) !== JSON.stringify(levels) || Math.abs(levelSum - 1) > 0.02) {
         throw new JevMalformedResponseError();
       }
@@ -200,7 +205,12 @@ function validateResponse(
 function retryAfterMs(response: Response, attempt: number, now: number): number {
   const rawMilliseconds = response.headers.get('retry-after-ms');
   const milliseconds = Number(rawMilliseconds);
-  if (rawMilliseconds != null && rawMilliseconds.trim() !== '' && Number.isFinite(milliseconds) && milliseconds >= 0) {
+  if (
+    rawMilliseconds != null &&
+    rawMilliseconds.trim() !== '' &&
+    Number.isFinite(milliseconds) &&
+    milliseconds >= 0
+  ) {
     return Math.min(milliseconds, MAX_RETRY_DELAY_MS);
   }
   const raw = response.headers.get('retry-after');
@@ -285,7 +295,8 @@ export function createJevClient(options: JevClientOptions): {
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
   const now = options.now ?? Date.now;
   const baseUrl = (options.baseUrl ?? 'https://api.typesafe.ai').replace(/\/$/, '');
-  if (!/^https:\/\/[^/]+$/i.test(baseUrl)) throw new JevRequestError('Jev base URL must be an HTTPS origin');
+  if (!/^https:\/\/[^/]+$/i.test(baseUrl))
+    throw new JevRequestError('Jev base URL must be an HTTPS origin');
   if (!options.apiKey.trim()) throw new JevAuthError();
 
   return {
@@ -298,12 +309,18 @@ export function createJevClient(options: JevClientOptions): {
       if (Buffer.byteLength(body, 'utf8') > MAX_REQUEST_BYTES) {
         throw new JevRequestError('Jev request exceeds the byte limit');
       }
-      if (callOptions.maxAttempts !== undefined
-        && (!Number.isInteger(callOptions.maxAttempts) || callOptions.maxAttempts < 1)) {
+      if (
+        callOptions.maxAttempts !== undefined &&
+        (!Number.isInteger(callOptions.maxAttempts) || callOptions.maxAttempts < 1)
+      ) {
         throw new JevRequestError('Jev call maxAttempts must be a positive integer');
       }
-      const maxAttempts = Math.min(options.maxAttempts, callOptions.maxAttempts ?? options.maxAttempts);
-      const remainingMs = () => (callOptions.deadlineAt == null ? Infinity : callOptions.deadlineAt - now());
+      const maxAttempts = Math.min(
+        options.maxAttempts,
+        callOptions.maxAttempts ?? options.maxAttempts,
+      );
+      const remainingMs = () =>
+        callOptions.deadlineAt == null ? Infinity : callOptions.deadlineAt - now();
       for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
         if (callOptions.signal?.aborted) throw new JevCancelledError();
         const remaining = remainingMs();
@@ -311,7 +328,10 @@ export function createJevClient(options: JevClientOptions): {
         const controller = new AbortController();
         const cancel = () => controller.abort(callOptions.signal?.reason);
         callOptions.signal?.addEventListener('abort', cancel, { once: true });
-        const timeout = setTimeout(() => controller.abort(), Math.min(options.timeoutMs, remaining));
+        const timeout = setTimeout(
+          () => controller.abort(),
+          Math.min(options.timeoutMs, remaining),
+        );
         let retry: { status: number; delayMs: number };
         try {
           const response = await fetchImpl(`${baseUrl}/v1/systemone`, {

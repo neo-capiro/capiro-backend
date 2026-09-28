@@ -108,7 +108,12 @@ export function deriveVehicleType(
 ): NonNullable<FundingClaim['vehicleType']> {
   if (stage === 'request') return 'budget_request';
   if (stage === 'hasc' || stage === 'sasc' || stage === 'ndaa_conference') return 'authorization';
-  if (stage === 'hacd' || stage === 'sacd' || stage === 'appropriations_conference' || stage === 'enacted') {
+  if (
+    stage === 'hacd' ||
+    stage === 'sacd' ||
+    stage === 'appropriations_conference' ||
+    stage === 'enacted'
+  ) {
     return 'appropriation';
   }
   return 'unknown';
@@ -123,11 +128,7 @@ export function deriveVehicleType(
  * - unknown_coverage: cannot tell applicability from stored evidence
  */
 export type MissingMarkStatus =
-  | 'present'
-  | 'not_applicable'
-  | 'not_started'
-  | 'candidate_gap'
-  | 'unknown_coverage';
+  'present' | 'not_applicable' | 'not_started' | 'candidate_gap' | 'unknown_coverage';
 
 /* ------------------------------------------------------------------ */
 /* Measure provenance — canonical snapshot vs live external enrichment  */
@@ -209,9 +210,7 @@ export interface LegacyCompatibilityProvenance {
 }
 
 export type MeasureProvenance =
-  | CanonicalSnapshotProvenance
-  | LiveExternalProvenance
-  | LegacyCompatibilityProvenance;
+  CanonicalSnapshotProvenance | LiveExternalProvenance | LegacyCompatibilityProvenance;
 
 /** One dollar measure that knows where it came from and when. */
 export interface AttributedMeasure {

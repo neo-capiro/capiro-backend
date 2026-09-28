@@ -31,7 +31,9 @@ export function deriveEvidenceDates(input: DeriveEvidenceDatesInput): DerivedEvi
   const effectiveAt = awardEffective ?? ruleEffective;
 
   const budgetObserved = firstIso(source?.observedAt, payload?.publishedAt);
-  const publishedAt = budgetObserved ?? firstIso(payload?.publicationDate, payload?.postedDate, payload?.publishedDate);
+  const publishedAt =
+    budgetObserved ??
+    firstIso(payload?.publicationDate, payload?.postedDate, payload?.publishedDate);
 
   const toolAsOf = firstIso(
     payload?.capiroSyncedAt,
@@ -57,7 +59,7 @@ export function deriveEvidenceDates(input: DeriveEvidenceDatesInput): DerivedEvi
 
 function object(value: unknown): Record<string, unknown> | null {
   return value != null && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
+    ? (value as Record<string, unknown>)
     : null;
 }
 

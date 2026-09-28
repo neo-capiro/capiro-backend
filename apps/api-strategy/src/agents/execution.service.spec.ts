@@ -730,7 +730,7 @@ describe('ExecutionService.plan — G0 pre-execution re-check', () => {
     expect(store.artifacts.size).toBe(0);
   });
 
-    it('makes an open material conflict ADVISORY (not a gate): plan still reviews eligible, the conflict rides in g0.advisories', async () => {
+  it('makes an open material conflict ADVISORY (not a gate): plan still reviews eligible, the conflict rides in g0.advisories', async () => {
     const store = makeStore();
     seedStrategy(store);
     seedMission(store);

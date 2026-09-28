@@ -27,8 +27,7 @@ export interface BatchOrderError {
 }
 
 export type BatchOrderResult =
-  | { ok: true; ops: PlanEdit[] }
-  | { ok: false; error: BatchOrderError };
+  { ok: true; ops: PlanEdit[] } | { ok: false; error: BatchOrderError };
 
 /** Key-order-independent JSON identity (mirrors watcher.service.ts's
  *  stableJson) — a stored op and a freshly recomputed twin must not read as

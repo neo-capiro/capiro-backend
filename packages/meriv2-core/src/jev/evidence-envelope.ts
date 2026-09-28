@@ -87,25 +87,37 @@ export function envelopeSourcesForJev(
 function truncateAtBoundary(text: string, cap: number): string {
   if (text.length <= cap) return text;
   const prefix = text.slice(0, cap + 1);
-  const boundary = Math.max(prefix.lastIndexOf('. '), prefix.lastIndexOf('! '), prefix.lastIndexOf('? '));
+  const boundary = Math.max(
+    prefix.lastIndexOf('. '),
+    prefix.lastIndexOf('! '),
+    prefix.lastIndexOf('? '),
+  );
   return `${prefix.slice(0, boundary >= Math.floor(cap / 2) ? boundary + 1 : cap).trimEnd()}…`;
 }
 
 function deriveQualifiers(input: BuildEvidenceEnvelopeInput): string[] {
   const derived = [
     `category:${input.claim.category}`,
-    input.asOf ?? input.claim.asOf ? `as-of:${input.asOf ?? input.claim.asOf}` : undefined,
+    (input.asOf ?? input.claim.asOf) ? `as-of:${input.asOf ?? input.claim.asOf}` : undefined,
   ];
-  return [...new Set([...derived, ...(input.scopeQualifiers ?? [])].filter((x): x is string => typeof x === 'string' && Boolean(x.trim())))]
-    .sort();
+  return [
+    ...new Set(
+      [...derived, ...(input.scopeQualifiers ?? [])].filter(
+        (x): x is string => typeof x === 'string' && Boolean(x.trim()),
+      ),
+    ),
+  ].sort();
 }
 
-export function buildEvidenceEnvelope(
-  input: BuildEvidenceEnvelopeInput,
-): { envelope: EvidenceEnvelope; hash: string } {
+export function buildEvidenceEnvelope(input: BuildEvidenceEnvelopeInput): {
+  envelope: EvidenceEnvelope;
+  hash: string;
+} {
   const referenced = new Set(input.claim.sourceIds);
   const evidenceById = new Map(input.ledger.evidence.map((item) => [item.id, item]));
-  const citationById = new Map(input.citations.filter((item) => referenced.has(item.id)).map((item) => [item.id, item]));
+  const citationById = new Map(
+    input.citations.filter((item) => referenced.has(item.id)).map((item) => [item.id, item]),
+  );
   const droppedEvidenceIds: string[] = [];
   const truncatedEvidenceIds: string[] = [];
   let totalChars = 0;
@@ -143,13 +155,24 @@ export function buildEvidenceEnvelope(
       sourceDate: passage?.sourceDate ?? evidence.asOf ?? null,
       publishedAt: passage?.publishedAt ?? evidence.publishedAt ?? null,
       effectiveAt: passage?.effectiveAt ?? evidence.effectiveAt ?? null,
-      retrievedAt: passage?.retrievedAt ?? evidence.retrievedAt ?? citation?.source?.observedAt
-        ?? citation?.documentEvidence?.observedAt ?? null,
+      retrievedAt:
+        passage?.retrievedAt ??
+        evidence.retrievedAt ??
+        citation?.source?.observedAt ??
+        citation?.documentEvidence?.observedAt ??
+        null,
       ...(passage?.authority
-        ? { authority: { sourceAuthority: passage.authority.sourceAuthority,
-            publisher: passage.authority.publisher ?? null, jurisdiction: passage.authority.jurisdiction ?? null } }
+        ? {
+            authority: {
+              sourceAuthority: passage.authority.sourceAuthority,
+              publisher: passage.authority.publisher ?? null,
+              jurisdiction: passage.authority.jurisdiction ?? null,
+            },
+          }
         : {}),
-      ...(passage?.documentCompleteness ? { documentCompleteness: passage.documentCompleteness } : {}),
+      ...(passage?.documentCompleteness
+        ? { documentCompleteness: passage.documentCompleteness }
+        : {}),
       ...(passage?.relationScope ? { relationScope: passage.relationScope } : {}),
       ...(passage?.financialStage !== undefined ? { financialStage: passage.financialStage } : {}),
       ...(input.includeProvenance

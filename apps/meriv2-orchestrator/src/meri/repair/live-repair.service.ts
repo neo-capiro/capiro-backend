@@ -90,8 +90,12 @@ export interface LiveRepairResult {
   passes: number;
   metrics: {
     repairs: {
-      attempted: number; corrected: number; qualified: number; omitted: number;
-      documentRequested: number; budgetExhausted: number;
+      attempted: number;
+      corrected: number;
+      qualified: number;
+      omitted: number;
+      documentRequested: number;
+      budgetExhausted: number;
     };
     /** Claims enforce would have attempted; reported by shadow only (attempted stays 0). */
     wouldAttempt: number;
@@ -119,9 +123,13 @@ export const JEV_COST_PER_INPUT_TOKEN_USD = 0.042 / 1_000_000;
 export const DEFAULT_REPAIR_LLM_MODEL = 'claude-sonnet-4-5';
 
 /** Eligibility failures meaning the referenced document cannot be read as requested. */
-const DOCUMENT_UNAVAILABLE_REASONS: ReadonlySet<ExactSourceEligibilityReason> = new Set<ExactSourceEligibilityReason>([
-  'metadata_only', 'unreadable', 'wrong_client', 'version_mismatch',
-]);
+const DOCUMENT_UNAVAILABLE_REASONS: ReadonlySet<ExactSourceEligibilityReason> =
+  new Set<ExactSourceEligibilityReason>([
+    'metadata_only',
+    'unreadable',
+    'wrong_client',
+    'version_mismatch',
+  ]);
 
 const object = (value: unknown): Record<string, unknown> | null =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -152,7 +160,9 @@ export interface RepairDocumentReferenceSources {
  * request (metadata only, `readable` from the listing's `usable` flag). Nothing
  * is synthesised; a turn with no document activity yields `[]`.
  */
-export function buildRepairDocumentReferences(input: RepairDocumentReferenceSources): DocumentReference[] {
+export function buildRepairDocumentReferences(
+  input: RepairDocumentReferenceSources,
+): DocumentReference[] {
   const byId = new Map<string, DocumentReference>();
   const selected = new Set(input.selectedDocumentIds ?? []);
   const request = (input.request ?? '').toLowerCase();
@@ -161,7 +171,7 @@ export function buildRepairDocumentReferences(input: RepairDocumentReferenceSour
       .filter((citation) => citation.documentEvidence?.documentId === documentId)
       .flatMap((citation) => [citation.id, ...(citation.stableId ? [citation.stableId] : [])]);
   const scope = (result: Record<string, unknown>) => ({
-    clientId: typeof result.clientId === 'string' ? result.clientId : input.clientId ?? null,
+    clientId: typeof result.clientId === 'string' ? result.clientId : (input.clientId ?? null),
     ...(input.clientId !== undefined ? { requestedClientId: input.clientId } : {}),
   });
 
@@ -174,28 +184,50 @@ export function buildRepairDocumentReferences(input: RepairDocumentReferenceSour
       const coverage = object(result.coverage);
       const rows = Array.isArray(result.records) ? result.records.map(object) : [];
       const text =
-        rows.map((row) => object(row?.payload)?.text).find(
-          (value): value is string => typeof value === 'string' && value.trim().length > 0,
-        ) ?? (typeof result.text === 'string' && result.text.trim() ? result.text : undefined);
-      const readable = Boolean(text) && coverage?.continuationBlocked !== true && coverage?.missingContent !== true;
-      const contentState: DocumentContentState = readable ? (coverage?.complete === true ? 'ready' : 'partial') : 'failed';
+        rows
+          .map((row) => object(row?.payload)?.text)
+          .find((value): value is string => typeof value === 'string' && value.trim().length > 0) ??
+        (typeof result.text === 'string' && result.text.trim() ? result.text : undefined);
+      const readable =
+        Boolean(text) &&
+        coverage?.continuationBlocked !== true &&
+        coverage?.missingContent !== true;
+      const contentState: DocumentContentState = readable
+        ? coverage?.complete === true
+          ? 'ready'
+          : 'partial'
+        : 'failed';
       const filename =
-        typeof document.fileName === 'string' ? document.fileName
-          : typeof document.filename === 'string' ? document.filename
+        typeof document.fileName === 'string'
+          ? document.fileName
+          : typeof document.filename === 'string'
+            ? document.filename
             : document.id;
-      const recordIds = rows.flatMap((row) => (typeof row?.recordId === 'string' ? [row.recordId] : []));
+      const recordIds = rows.flatMap((row) =>
+        typeof row?.recordId === 'string' ? [row.recordId] : [],
+      );
       const existing = byId.get(document.id);
-      const state = existing?.readable && !readable
-        ? { readable: true, contentState: existing.contentState }
-        : { readable, contentState };
+      const state =
+        existing?.readable && !readable
+          ? { readable: true, contentState: existing.contentState }
+          : { readable, contentState };
       byId.set(document.id, {
         kind: 'client_document',
         id: document.id,
         filename,
         version: typeof document.contentHash === 'string' ? document.contentHash : null,
         ...state,
-        relevantPassageIds: [...new Set([...(existing?.relevantPassageIds ?? []), ...passageIds(document.id), ...recordIds])],
-        resolution: selected.has(document.id) || request.includes(document.id.toLowerCase()) ? 'explicit_id' : 'filename',
+        relevantPassageIds: [
+          ...new Set([
+            ...(existing?.relevantPassageIds ?? []),
+            ...passageIds(document.id),
+            ...recordIds,
+          ]),
+        ],
+        resolution:
+          selected.has(document.id) || request.includes(document.id.toLowerCase())
+            ? 'explicit_id'
+            : 'filename',
         ...scope(result),
       });
       continue;
@@ -204,7 +236,11 @@ export function buildRepairDocumentReferences(input: RepairDocumentReferenceSour
     for (const row of listing) {
       if (!row || typeof row.id !== 'string' || byId.has(row.id)) continue;
       const fileName =
-        typeof row.fileName === 'string' ? row.fileName : typeof row.filename === 'string' ? row.filename : null;
+        typeof row.fileName === 'string'
+          ? row.fileName
+          : typeof row.filename === 'string'
+            ? row.filename
+            : null;
       const named = fileName ? mentionsFilename(request, fileName) : false;
       if (!selected.has(row.id) && !named) continue;
       const usable = row.usable !== false;
@@ -234,13 +270,37 @@ function mentionsFilename(text: string, filename: string): boolean {
 export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepairResult> {
   if (input.mode === 'off') {
     return {
-      reply: input.released, citations: input.citations, changed: false, outcomes: {}, toolCalls: 0, passes: 0,
+      reply: input.released,
+      citations: input.citations,
+      changed: false,
+      outcomes: {},
+      toolCalls: 0,
+      passes: 0,
       metrics: {
-        repairs: { attempted: 0, corrected: 0, qualified: 0, omitted: 0, documentRequested: 0, budgetExhausted: 0 },
-        wouldAttempt: 0, unresolved: 0, claimOutcomes: [],
-        assessmentMs: 0, repairMs: 0, inputTokens: 0, jevInputTokens: 0, legacyInputTokens: 0,
-        revisionInputTokens: 0, revisionOutputTokens: 0, recheckInputTokens: 0,
-        estimatedCostUsd: 0, sampled: false, jevCalls: 0, legacyCalls: 0, repairLoops: 0,
+        repairs: {
+          attempted: 0,
+          corrected: 0,
+          qualified: 0,
+          omitted: 0,
+          documentRequested: 0,
+          budgetExhausted: 0,
+        },
+        wouldAttempt: 0,
+        unresolved: 0,
+        claimOutcomes: [],
+        assessmentMs: 0,
+        repairMs: 0,
+        inputTokens: 0,
+        jevInputTokens: 0,
+        legacyInputTokens: 0,
+        revisionInputTokens: 0,
+        revisionOutputTokens: 0,
+        recheckInputTokens: 0,
+        estimatedCostUsd: 0,
+        sampled: false,
+        jevCalls: 0,
+        legacyCalls: 0,
+        repairLoops: 0,
       },
     };
   }
@@ -248,7 +308,10 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
   const startedAt = now();
   const shadow = input.mode === 'shadow';
   const promoted = input.claims.filter(
-    (claim) => claim.material && claim.category !== 'unclassified' && input.promotedCategories.has(claim.category),
+    (claim) =>
+      claim.material &&
+      claim.category !== 'unclassified' &&
+      input.promotedCategories.has(claim.category),
   );
   const decisions: Record<string, EvidenceDecision> = {};
   const deterministicByClaim: Record<string, DeterministicClaimEvaluation> = {};
@@ -271,7 +334,9 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
     const evidence = input.ledger.evidence
       .filter((item) => current.sourceIds.includes(item.id))
       .map((item) => ({ ...item, passage: input.passages[item.id]?.text }));
-    const boundPassages = current.sourceIds.flatMap((id) => (input.passages[id] ? [input.passages[id]!] : []));
+    const boundPassages = current.sourceIds.flatMap((id) =>
+      input.passages[id] ? [input.passages[id]!] : [],
+    );
     const deterministic = evaluateClaimDeterministically({
       claim: current,
       evidence,
@@ -279,7 +344,11 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
       asOf: current.asOf ?? new Date().toISOString(),
     });
     deterministicByClaim[current.id] = deterministic;
-    const exactSource = checkExactSourceEligibility(claim, input.documentReferences ?? [], input.ledger);
+    const exactSource = checkExactSourceEligibility(
+      claim,
+      input.documentReferences ?? [],
+      input.ledger,
+    );
     // Only a document the turn knows cannot be read as requested short-circuits
     // to a document request. No document at all, or a readable document without
     // a bound passage, is assessed normally (and may be read during repair).
@@ -331,7 +400,11 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
       outcome: outcomes[current.id],
       cascaded: Boolean(legacy),
       sampledApproval: Boolean(jev?.kind === 'outcome' && jev.outcome === 'supported' && legacy),
-      deterministic: { exact: deterministic.exact.result, freshness: deterministic.freshness.state, houseSenateComplete: deterministic.houseSenateComplete },
+      deterministic: {
+        exact: deterministic.exact.result,
+        freshness: deterministic.freshness.state,
+        houseSenateComplete: deterministic.houseSenateComplete,
+      },
       exactSource: exactSource.reason,
     });
   }
@@ -352,12 +425,17 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
   if (repairable.length && !shadow) {
     if (input.signal?.aborted) {
       status = 'cancelled';
-      claimOutcomes = repairable.map((claim) => ({ claimId: claim.id, outcome: 'aborted' as const }));
+      claimOutcomes = repairable.map((claim) => ({
+        claimId: claim.id,
+        outcome: 'aborted' as const,
+      }));
     } else {
       const ledger: RepairLedgerVersion = {
         version: 1,
         ledger: input.ledger,
-        passages: Object.fromEntries(Object.entries(input.passages).map(([id, passage]) => [id, passage.text])),
+        passages: Object.fromEntries(
+          Object.entries(input.passages).map(([id, passage]) => [id, passage.text]),
+        ),
       };
       const outcome = await runRepairLoop({
         reply: input.released,
@@ -394,7 +472,8 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
   }
   const changed = reply !== input.released;
   const totalMs = now() - startedAt;
-  const count = (predicate: (item: RepairClaimOutcome) => boolean) => claimOutcomes.filter(predicate).length;
+  const count = (predicate: (item: RepairClaimOutcome) => boolean) =>
+    claimOutcomes.filter(predicate).length;
   // Per-claim counts: corrected + qualified + omitted + unresolved === attempted.
   // Shadow never repairs, so it reports attempted = 0 and the would-be count separately.
   const repairs = {
@@ -402,7 +481,9 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
     corrected: count((item) => item.outcome === 'corrected'),
     qualified: count((item) => item.outcome === 'qualified'),
     omitted: count((item) => item.outcome === 'omitted'),
-    documentRequested: count((item) => item.outcome === 'qualified' && item.reason === 'document_unavailable'),
+    documentRequested: count(
+      (item) => item.outcome === 'qualified' && item.reason === 'document_unavailable',
+    ),
     budgetExhausted: status === 'budget_exhausted' ? 1 : 0,
     unresolved: count((item) => item.outcome === 'unresolved' || item.outcome === 'aborted'),
     cancelled: status === 'cancelled' ? 1 : 0,
@@ -413,7 +494,11 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
   // Jev tokens at Jev's rate; legacy judge, recheck and revision tokens at the LLM's rate.
   const estimatedCostUsd =
     jevInputTokens * jevRate +
-    computeAiCostUsd(llmModel, legacyInputTokens + tokens.recheckInput + tokens.revisionInput, tokens.revisionOutput);
+    computeAiCostUsd(
+      llmModel,
+      legacyInputTokens + tokens.recheckInput + tokens.revisionInput,
+      tokens.revisionOutput,
+    );
   input.logger.log('meri.auto_correction.turn', {
     conversationId: input.conversationId ?? null,
     mode: input.mode ?? 'enforce',
@@ -429,7 +514,13 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
     legacyCalls,
     sampledApprovals,
     sampledDisagreements,
-    latencyMs: { assessment: assessmentMs, retrieval: now() - repairStartedAt, revision: 0, recheck: 0, total: totalMs },
+    latencyMs: {
+      assessment: assessmentMs,
+      retrieval: now() - repairStartedAt,
+      revision: 0,
+      recheck: 0,
+      total: totalMs,
+    },
     inputTokens,
     tokens: { jev: jevInputTokens, legacy: legacyInputTokens, ...tokens },
     estimatedCostUsd,
@@ -437,12 +528,20 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
     timeToTextMs: totalMs,
   });
   return {
-    reply, citations: input.citations, changed, outcomes, toolCalls, passes,
+    reply,
+    citations: input.citations,
+    changed,
+    outcomes,
+    toolCalls,
+    passes,
     metrics: {
       repairs: {
-        attempted: repairs.attempted, corrected: repairs.corrected,
-        qualified: repairs.qualified, omitted: repairs.omitted,
-        documentRequested: repairs.documentRequested, budgetExhausted: repairs.budgetExhausted,
+        attempted: repairs.attempted,
+        corrected: repairs.corrected,
+        qualified: repairs.qualified,
+        omitted: repairs.omitted,
+        documentRequested: repairs.documentRequested,
+        budgetExhausted: repairs.budgetExhausted,
       },
       wouldAttempt: repairs.wouldAttempt,
       unresolved: repairs.unresolved,
@@ -475,31 +574,53 @@ export function sampled(
 
 function toAssuredClaim(claim: MaterialClaim): AssuredClaim {
   return {
-    id: claim.id, text: claim.text, type: claim.kind, category: claim.category,
-    sourceIds: claim.evidenceIds, primarySourcePresent: claim.evidenceIds.length > 0,
-    confidence: 'unknown', ...(claim.asOf ? { asOf: claim.asOf } : {}),
+    id: claim.id,
+    text: claim.text,
+    type: claim.kind,
+    category: claim.category,
+    sourceIds: claim.evidenceIds,
+    primarySourcePresent: claim.evidenceIds.length > 0,
+    confidence: 'unknown',
+    ...(claim.asOf ? { asOf: claim.asOf } : {}),
   };
 }
 
 function envelopeFor(claim: AssuredClaim, input: LiveRepairInput): EvidenceEnvelope {
   const byId = new Map(input.ledger.evidence.map((item) => [item.id, item]));
   return {
-    envelopeVersion: 'meri-evidence-envelope-v1', claimId: claim.id, claimText: claim.text,
-    claimKind: claim.type, claimCategory: claim.category, tenantId: input.tenantId,
-    clientId: input.clientId ?? null, scopeQualifiers: [], asOf: claim.asOf ?? null,
+    envelopeVersion: 'meri-evidence-envelope-v1',
+    claimId: claim.id,
+    claimText: claim.text,
+    claimKind: claim.type,
+    claimCategory: claim.category,
+    tenantId: input.tenantId,
+    clientId: input.clientId ?? null,
+    scopeQualifiers: [],
+    asOf: claim.asOf ?? null,
     sources: claim.sourceIds.flatMap((id) => {
       const item = byId.get(id);
-      return item ? [{
-        evidenceId: id, sourceType: item.sourceType, sourceId: item.sourceId,
-        documentId: null, version: null, locator: null, passage: input.passages[id]?.text ?? '',
-        sourceDate: item.asOf ?? null, publishedAt: item.publishedAt ?? null,
-        effectiveAt: item.effectiveAt ?? null, retrievedAt: item.retrievedAt ?? null,
-        provenance: {
-          evidenceClass: item.evidenceClass,
-          primary: item.primary,
-          authoritative: item.authoritative,
-        },
-      }] : [];
+      return item
+        ? [
+            {
+              evidenceId: id,
+              sourceType: item.sourceType,
+              sourceId: item.sourceId,
+              documentId: null,
+              version: null,
+              locator: null,
+              passage: input.passages[id]?.text ?? '',
+              sourceDate: item.asOf ?? null,
+              publishedAt: item.publishedAt ?? null,
+              effectiveAt: item.effectiveAt ?? null,
+              retrievedAt: item.retrievedAt ?? null,
+              provenance: {
+                evidenceClass: item.evidenceClass,
+                primary: item.primary,
+                authoritative: item.authoritative,
+              },
+            },
+          ]
+        : [];
     }),
   };
 }
@@ -514,13 +635,22 @@ function deterministicDecision(
   claim: AssuredClaim,
   boundPassages: number,
 ): EvidenceDecision | null {
-  if (evaluation.exact.result !== 'mismatch' || boundPassages === 0 || !claim.sourceIds.length) return null;
+  if (evaluation.exact.result !== 'mismatch' || boundPassages === 0 || !claim.sourceIds.length)
+    return null;
   return {
-    kind: 'outcome', outcome: 'contradicted',
-    probabilities: { supported: 0, contradicted: 1, insufficient_evidence: 0, conflicting_evidence: 0 },
-    confidence: 1, reasonCodes: [`deterministic:mismatch:${evaluation.freshness.state}`],
+    kind: 'outcome',
+    outcome: 'contradicted',
+    probabilities: {
+      supported: 0,
+      contradicted: 1,
+      insufficient_evidence: 0,
+      conflicting_evidence: 0,
+    },
+    confidence: 1,
+    reasonCodes: [`deterministic:mismatch:${evaluation.freshness.state}`],
     evidenceIds: claim.sourceIds,
-    provider: { name: 'deterministic', model: 'rules', questionVersion: 'claim_support.v1' }, latencyMs: 0,
+    provider: { name: 'deterministic', model: 'rules', questionVersion: 'claim_support.v1' },
+    latencyMs: 0,
   };
 }
 
@@ -529,14 +659,29 @@ function failure(
   reason: string,
   state: Extract<EvidenceDecision, { kind: 'failure' }>['state'] = 'judge_unavailable',
 ): EvidenceDecision {
-  return { kind: 'failure', state, reasonCodes: [reason], provider: { name, model: 'unknown', questionVersion: 'claim_support.v1' }, latencyMs: 0 };
+  return {
+    kind: 'failure',
+    state,
+    reasonCodes: [reason],
+    provider: { name, model: 'unknown', questionVersion: 'claim_support.v1' },
+    latencyMs: 0,
+  };
 }
-function documentNameFor(claim: Pick<AssuredClaim, 'text' | 'sourceIds'>, references: readonly DocumentReference[]): string | undefined {
-  return references.find((reference) =>
-    claim.sourceIds.includes(reference.id) || claim.text.toLowerCase().includes(reference.filename.toLowerCase()),
-  )?.filename ?? (references.length === 1 ? references[0]?.filename : undefined);
+function documentNameFor(
+  claim: Pick<AssuredClaim, 'text' | 'sourceIds'>,
+  references: readonly DocumentReference[],
+): string | undefined {
+  return (
+    references.find(
+      (reference) =>
+        claim.sourceIds.includes(reference.id) ||
+        claim.text.toLowerCase().includes(reference.filename.toLowerCase()),
+    )?.filename ?? (references.length === 1 ? references[0]?.filename : undefined)
+  );
 }
-function usage(decision: EvidenceDecision | null): number { return decision?.kind === 'outcome' ? decision.usage?.inputTokens ?? 0 : 0; }
+function usage(decision: EvidenceDecision | null): number {
+  return decision?.kind === 'outcome' ? (decision.usage?.inputTokens ?? 0) : 0;
+}
 function countValues(values: Record<string, string>): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const value of Object.values(values)) counts[value] = (counts[value] ?? 0) + 1;

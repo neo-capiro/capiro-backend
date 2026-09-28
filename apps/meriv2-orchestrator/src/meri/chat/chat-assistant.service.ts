@@ -142,17 +142,21 @@ export class ChatAssistantService {
       surface: 'chat',
     });
     const buildEvidenceLedger = (
-      input: Omit<Parameters<typeof buildControlledClaimLedger>[0], 'env' | 'tenantId' | 'surface' | 'callSite' | 'logShadow'>,
+      input: Omit<
+        Parameters<typeof buildControlledClaimLedger>[0],
+        'env' | 'tenantId' | 'surface' | 'callSite' | 'logShadow'
+      >,
       callSite: string,
       surface: 'chat' | 'memo',
-    ) => buildControlledClaimLedger({
-      ...input,
-      env: process.env,
-      tenantId: ctx.tenantId,
-      surface,
-      callSite,
-      logShadow: (event, fields) => this.logger.log(JSON.stringify({ event, ...fields })),
-    });
+    ) =>
+      buildControlledClaimLedger({
+        ...input,
+        env: process.env,
+        tenantId: ctx.tenantId,
+        surface,
+        callSite,
+        logShadow: (event, fields) => this.logger.log(JSON.stringify({ event, ...fields })),
+      });
     const evaluateBeforeRelease =
       assuranceMode !== 'off' && assuranceRisk.requiresBufferBeforeRelease;
     const bufferBeforeRelease =
@@ -207,12 +211,16 @@ export class ChatAssistantService {
       const body = typeof raw === 'string' ? raw.trim() : '';
       if (!body) return null;
       try {
-        const claimLedger = buildEvidenceLedger({
-          output: body,
-          ledgerEntries,
-          citations,
-          plan: evidencePlan,
-        }, 'prePersistRefusal', 'memo');
+        const claimLedger = buildEvidenceLedger(
+          {
+            output: body,
+            ledgerEntries,
+            citations,
+            plan: evidencePlan,
+          },
+          'prePersistRefusal',
+          'memo',
+        );
         const grounding = runAuditor({
           output: body,
           ledger: { entries: ledgerEntries },
@@ -296,12 +304,16 @@ export class ChatAssistantService {
 
       if (evaluateBeforeRelease && cleanedText.trim()) {
         try {
-          const claimLedger = buildEvidenceLedger({
-            output: cleanedText,
-            ledgerEntries,
-            citations,
-            plan: evidencePlan,
-          }, 'finalize', 'chat');
+          const claimLedger = buildEvidenceLedger(
+            {
+              output: cleanedText,
+              ledgerEntries,
+              citations,
+              plan: evidencePlan,
+            },
+            'finalize',
+            'chat',
+          );
           const grounding = runAuditor({
             output: cleanedText,
             ledger: { entries: ledgerEntries },
@@ -725,7 +737,8 @@ export class ChatAssistantService {
     const isWrite = this.registry.get(name)?.readOnly === false;
     emit({ type: 'tool_call', tool: name, label });
     if (isWrite && !classifyActionIntent(userRequest, name).authorized) {
-      const detail = 'I did not create an action because this request did not explicitly ask me to.';
+      const detail =
+        'I did not create an action because this request did not explicitly ask me to.';
       steps.push({ tool: name, label, status: 'blocked', detail });
       emit({ type: 'tool_done', tool: name, label, status: 'blocked', detail });
       return { blocked: true, persisted: false, message: detail };

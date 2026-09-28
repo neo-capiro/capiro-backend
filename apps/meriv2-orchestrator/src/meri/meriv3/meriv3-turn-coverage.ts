@@ -400,19 +400,17 @@ export function reconcileMeriTurnCoverage(
         mailPage: read.mailPage,
         detail: read.detail,
       })),
-    ).map(
-      (observed): MeriToolCoverageReceipt => ({
-        source: 'mail',
-        tool: observed.tool,
-        status: observed.status,
-        recordsReturned: observed.returned,
-        recordsEvaluated: null,
-        recordsMatched: observed.total,
-        paginationComplete: !observed.hasMore,
-        truncated: observed.truncated,
-        ...(observed.detail ? { detail: observed.detail } : {}),
-      }),
-    ),
+    ).map((observed): MeriToolCoverageReceipt => ({
+      source: 'mail',
+      tool: observed.tool,
+      status: observed.status,
+      recordsReturned: observed.returned,
+      recordsEvaluated: null,
+      recordsMatched: observed.total,
+      paginationComplete: !observed.hasMore,
+      truncated: observed.truncated,
+      ...(observed.detail ? { detail: observed.detail } : {}),
+    })),
   ];
   const coverage = initial.coverage;
   const usable = new Set(

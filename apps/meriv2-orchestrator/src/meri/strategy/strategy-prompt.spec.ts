@@ -620,11 +620,19 @@ describe('strategy-prompt — Phase 4 assurance', () => {
  */
 describe('strategy-prompt — amendment type discipline', () => {
   it('renders the addendum in the draft prompt only for type=amendment', () => {
-    const amendment = { clientId: 'c1', type: 'amendment', goal: 'File the plus-up amendment' } as StrategyDraftInput;
+    const amendment = {
+      clientId: 'c1',
+      type: 'amendment',
+      goal: 'File the plus-up amendment',
+    } as StrategyDraftInput;
     const appropriations = { ...amendment, type: 'appropriations' } as StrategyDraftInput;
-    expect(buildDraftSystemPrompt(amendment, '(pack)')).toContain('# Amendment strategy discipline');
+    expect(buildDraftSystemPrompt(amendment, '(pack)')).toContain(
+      '# Amendment strategy discipline',
+    );
     expect(buildDraftSystemPrompt(amendment, '(pack)')).toContain('Client input required:');
-    expect(buildDraftSystemPrompt(appropriations, '(pack)')).not.toContain('# Amendment strategy discipline');
+    expect(buildDraftSystemPrompt(appropriations, '(pack)')).not.toContain(
+      '# Amendment strategy discipline',
+    );
   });
 
   it('renders the addendum in the assistant prompt for an amendment strategy', () => {
@@ -640,7 +648,16 @@ describe('strategy-prompt — amendment type discipline', () => {
   });
 
   it('typeDisciplineSection is empty for every other type and for a missing type', () => {
-    for (const type of ['appropriations', 'authorization', 'regulatory', 'coalition', 'procurement', 'earmark', null, undefined]) {
+    for (const type of [
+      'appropriations',
+      'authorization',
+      'regulatory',
+      'coalition',
+      'procurement',
+      'earmark',
+      null,
+      undefined,
+    ]) {
       expect(typeDisciplineSection(type)).toBe('');
     }
     expect(typeDisciplineSection('amendment')).toBe(AMENDMENT_TYPE_ADDENDUM);
