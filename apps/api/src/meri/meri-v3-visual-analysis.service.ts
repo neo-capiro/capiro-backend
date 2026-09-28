@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { assertMeriToolRequestActive } from './meri-tool-request-control.js';
@@ -62,6 +63,19 @@ function boundedBase64(value: unknown, max: number): string | null {
   const trimmed = value.trim();
   if (!trimmed || trimmed.length > max) return null;
   return trimmed;
+}
+
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const PNG_IEND_CHUNK = Buffer.from([0, 0, 0, 0, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]);
+
+function validatedPng(value: unknown): { base64: string; buffer: Buffer; sha256: string } | null {
+  const base64 = boundedBase64(value, 3 * 1024 * 1024);
+  if (!base64) return null;
+  const buffer = Buffer.from(base64, 'base64');
+  if (buffer.length < PNG_SIGNATURE.length + PNG_IEND_CHUNK.length ||
+    !buffer.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE) ||
+    !buffer.subarray(-PNG_IEND_CHUNK.length).equals(PNG_IEND_CHUNK)) return null;
+  return { base64, buffer, sha256: createHash('sha256').update(buffer).digest('hex') };
 }
 
 function metadataRecord(value: unknown): Record<string, unknown> {
@@ -305,7 +319,8 @@ export class MeriV3VisualAnalysisService {
         const visual = visualsByIndex[index] ?? null;
         const image = images[index] ?? null;
         const rawMeta = metadataRecord(image?.metadata);
-        const imageBase64 = boundedBase64(rawMeta.imageBase64, 3 * 1024 * 1024);
+        const png = validatedPng(rawMeta.imageBase64);
+        const imageBase64 = png?.base64 ?? null;
         const filename = optionalString(rawMeta.filename, 160);
         const codeSha256 = optionalString(rawMeta.codeSha256, 80);
         if (!visual && !imageBase64) continue;
@@ -321,7 +336,7 @@ export class MeriV3VisualAnalysisService {
           ...(datasets.length ? { datasets } : {}),
           ...(filename ? { filename } : {}),
           ...(codeSha256 ? { codeSha256 } : {}),
-          ...(imageBase64 ? { imageBase64 } : {}),
+          ...(imageBase64 ? { imageBase64, imageSha256: png!.sha256 } : {}),
           ...(visual
             ? {
                 visualization: visual,
@@ -432,7 +447,7 @@ export class MeriV3VisualAnalysisService {
   async getArtifactImage(
     ctx: TenantContext,
     id: string,
-  ): Promise<{ buffer: Buffer; contentType: string } | null> {
+  ): Promise<{ buffer: Buffer; contentType: string; sha256: string } | null> {
     const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioArtifact.findFirst({
         where: {
@@ -445,14 +460,12 @@ export class MeriV3VisualAnalysisService {
       }),
     );
     if (!artifact) return null;
-    const imageBase64 = boundedBase64(
-      metadataRecord(artifact.metadata).imageBase64,
-      3 * 1024 * 1024,
-    );
-    if (!imageBase64) return null;
+    const png = validatedPng(metadataRecord(artifact.metadata).imageBase64);
+    if (!png) return null;
     return {
-      buffer: Buffer.from(imageBase64, 'base64'),
+      buffer: png.buffer,
       contentType: artifact.contentType === 'image/png' ? artifact.contentType : 'image/png',
+      sha256: png.sha256,
     };
   }
 

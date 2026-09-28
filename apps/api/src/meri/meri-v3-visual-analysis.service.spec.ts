@@ -12,6 +12,7 @@ const ctx = {
 
 const VISUAL_ID = 'a1111111-1111-4111-8111-111111111111';
 const OTHER_ID = 'b2222222-2222-4222-8222-222222222222';
+const PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6GQAAAAASUVORK5CYII=';
 
 function make(options?: {
   conversation?: { id: string; clientId: string | null } | null;
@@ -115,7 +116,7 @@ describe('MeriV3VisualAnalysisService', () => {
             title: 'Analysis chart 1',
             kind: 'analysis_chart',
             metadata: {
-              imageBase64: 'aGVsbG8=',
+              imageBase64: PNG_BASE64,
               filename: 'fig_1.png',
               codeSha256: 'abc123',
             },
@@ -151,7 +152,8 @@ describe('MeriV3VisualAnalysisService', () => {
           metadata: expect.objectContaining({
             source: 'meri_v3_visual_analysis',
             evidence: 'derived',
-            imageBase64: 'aGVsbG8=',
+            imageBase64: PNG_BASE64,
+            imageSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
             datasets: [{ name: 'Capiro PE funding', rowCount: 1 }],
             resultSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
             visualizationSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
@@ -171,7 +173,7 @@ describe('MeriV3VisualAnalysisService', () => {
     expect(result.artifacts).toEqual([
       expect.objectContaining({ id: VISUAL_ID, kind: 'analysis_chart', persisted: true }),
     ]);
-    expect(JSON.stringify(result)).not.toContain('aGVsbG8=');
+    expect(JSON.stringify(result)).not.toContain(PNG_BASE64);
   });
 
   test('keeps a static PNG fallback and reports an invalid interactive spec honestly', async () => {
@@ -191,7 +193,7 @@ describe('MeriV3VisualAnalysisService', () => {
             },
           ],
         },
-        artifacts: [{ metadata: { imageBase64: 'cG5n' } }],
+        artifacts: [{ metadata: { imageBase64: PNG_BASE64 } }],
       },
     });
     const result = (await service.run(ctx, {
@@ -236,7 +238,7 @@ describe('MeriV3VisualAnalysisService', () => {
     const { service, findArtifact } = make({
       storedMetadata: {
         visualization: lineVisual,
-        imageBase64: 'cG5n',
+        imageBase64: PNG_BASE64,
         datasets: [
           { name: 'Capiro PE funding', rowCount: 14 },
           { name: 'SASC mark', rowCount: 4 },
@@ -272,10 +274,11 @@ describe('MeriV3VisualAnalysisService', () => {
   });
 
   test('returns PNG bytes only through the same tenant + user artifact predicate', async () => {
-    const { service, findArtifact } = make({ storedMetadata: { imageBase64: 'cG5n' } });
+    const { service, findArtifact } = make({ storedMetadata: { imageBase64: PNG_BASE64 } });
     await expect(service.getArtifactImage(ctx, VISUAL_ID)).resolves.toEqual({
-      buffer: Buffer.from('png'),
+      buffer: Buffer.from(PNG_BASE64, 'base64'),
       contentType: 'image/png',
+      sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
     });
     expect(findArtifact).toHaveBeenCalledWith({
       where: {

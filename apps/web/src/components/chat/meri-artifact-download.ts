@@ -9,6 +9,30 @@ const DOCUMENT_TYPES: Record<string, string> = {
 };
 const ARTIFACT_ID = /^[a-zA-Z0-9_-]{1,200}$/;
 
+function includesBytes(bytes: Uint8Array, sequence: number[]): boolean {
+  outer: for (let offset = 0; offset <= bytes.length - sequence.length; offset += 1) {
+    for (let index = 0; index < sequence.length; index += 1) {
+      if (bytes[offset + index] !== sequence[index]) continue outer;
+    }
+    return true;
+  }
+  return false;
+}
+
+/** MIME is only a routing hint. Validate controlled endpoint bytes before the
+ * browser creates a file from them. */
+export function meriDocumentBytesMatchFormat(bytes: Uint8Array, extension: string): boolean {
+  if (extension === 'pdf') {
+    return bytes.length >= 11 && new TextDecoder('ascii').decode(bytes.subarray(0, 5)) === '%PDF-' &&
+      includesBytes(bytes.subarray(Math.max(0, bytes.length - 1024)), [0x25, 0x25, 0x45, 0x4f, 0x46]);
+  }
+  if (extension === 'docx' || extension === 'xlsx' || extension === 'pptx') {
+    return bytes.length >= 22 && bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04 &&
+      includesBytes(bytes.subarray(Math.max(0, bytes.length - 65_557)), [0x50, 0x4b, 0x05, 0x06]);
+  }
+  return false;
+}
+
 /** Older model replies wrapped this protected app route in a sandbox alias.
  * Accept that exact alias only; it never names a file, host or fetch target. */
 export function canonicalMeriArtifactSandboxUrl(href: string): string | null {
@@ -122,7 +146,16 @@ export async function fetchMeriArtifactDownload({
     throw new Error('Sign in again, then retry the download.');
   }
   const url = `${apiBaseUrl.replace(/\/$/, '')}/api/clio/artifacts/${artifactId}/download${format ? `?format=${format}` : ''}`;
-  const response = await fetch(url, { headers, signal, cache: 'no-store', redirect: 'error' });
+  let response: Response;
+  try {
+    response = await fetch(url, { headers, signal, cache: 'no-store', redirect: 'error' });
+  } catch (error) {
+    signal.throwIfAborted();
+    if (error instanceof TypeError) {
+      throw new Error('The network connection failed. Check your connection and retry the download.');
+    }
+    throw error;
+  }
   if (!response.ok) {
     if (response.status === 401) throw new Error('Your sign-in expired. Sign in again, then retry the download.');
     if (response.status === 403 || response.status === 404) {
@@ -155,6 +188,11 @@ export async function fetchMeriArtifactDownload({
   const blob = await response.blob();
   signal.throwIfAborted();
   if (!blob.size) throw new Error('The downloaded document was empty. Please retry.');
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  signal.throwIfAborted();
+  if (!meriDocumentBytesMatchFormat(bytes, extension)) {
+    throw new Error('The server did not return the expected document. Please retry.');
+  }
   const filename = safeFilename(filenameFromDisposition(response.headers.get('Content-Disposition')), extension)
     ?? safeFilename(fallbackFilename, extension)
     ?? `document.${extension}`;

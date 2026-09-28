@@ -34,6 +34,12 @@ const artifact = {
   bodyText: JSON.stringify(wordSpec),
 };
 
+const officeBytes = Uint8Array.from([
+  0x50, 0x4b, 0x03, 0x04, 0, 0, 0, 0, 0, 0, 0, 0,
+  0x50, 0x4b, 0x05, 0x06, 0, 0, 0, 0, 0, 0,
+]);
+const pdfBytes = new TextEncoder().encode('%PDF-1.7\ncontrolled fixture\n%%EOF');
+
 const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
 
 afterEach(() => {
@@ -45,8 +51,8 @@ afterEach(() => {
 
 describe('MeriArtifactCanvas Word preview', () => {
   test.each([['workspace', MeriArtifactCanvas], ['drawer', MeriCanvas]] as const)('%s offers PDF and Word from one saved document without downloading its JSON spec', async (_surface, Canvas) => {
-    const pdf = new Blob(['%PDF-1.7'], { type: 'application/pdf' });
-    const word = new Blob(['PK-document'], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    const pdf = new Blob([pdfBytes], { type: 'application/pdf' });
+    const word = new Blob([officeBytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       const blob = url.endsWith('format=pdf') ? pdf : word;
       return { ok: true, headers: new Headers({ 'Content-Type': blob.type }), blob: async () => blob };
@@ -76,8 +82,8 @@ describe('MeriArtifactCanvas Word preview', () => {
   });
 
   test('reopens a native PDF artifact with its readable preview and a Word alternative', async () => {
-    const word = new Blob(['PK-document'], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-    const fetchMock = vi.fn().mockResolvedValueOnce({ ok: true, headers: new Headers({ 'Content-Type': 'application/pdf' }), blob: async () => new Blob(['%PDF-1.7']) })
+    const word = new Blob([officeBytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    const fetchMock = vi.fn().mockResolvedValueOnce({ ok: true, headers: new Headers({ 'Content-Type': 'application/pdf' }), blob: async () => new Blob([pdfBytes], { type: 'application/pdf' }) })
       .mockResolvedValueOnce({ ok: true, headers: new Headers({ 'Content-Type': word.type }), blob: async () => word });
     vi.stubGlobal('fetch', fetchMock);
     const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:saved-pdf');
@@ -99,7 +105,7 @@ describe('MeriArtifactCanvas Word preview', () => {
 
   test('keeps conversion failure visible, preserves the document and offers a retry or Word download', async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce({ ok: false, status: 422, json: async () => ({ code: 'MERI_DOCUMENT_RENDER_FAILED' }) })
-      .mockResolvedValueOnce({ ok: true, headers: new Headers({ 'Content-Type': 'application/pdf' }), blob: async () => new Blob(['%PDF-1.7']) });
+      .mockResolvedValueOnce({ ok: true, headers: new Headers({ 'Content-Type': 'application/pdf' }), blob: async () => new Blob([pdfBytes], { type: 'application/pdf' }) });
     vi.stubGlobal('fetch', fetchMock);
     const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:saved-pdf');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
@@ -159,7 +165,7 @@ describe('MeriArtifactCanvas Word preview', () => {
   });
 
   test('downloads the authenticated canonical DOCX binary without replacing its persisted spec', async () => {
-    const blob = new Blob(['PK'], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    const blob = new Blob([officeBytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, headers: new Headers({
       'Content-Type': blob.type,
       'Content-Disposition': 'attachment; filename="saved-qa-briefing.docx"',

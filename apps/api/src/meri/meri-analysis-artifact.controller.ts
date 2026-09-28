@@ -35,8 +35,11 @@ export class MeriAnalysisArtifactController {
     const image = await this.visualAnalysis.getArtifactImage(ctx, artifactId);
     if (!image) throw new NotFoundException('Analysis image not found');
     res.setHeader('Content-Type', image.contentType);
-    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.setHeader('Cache-Control', 'private, no-store');
     res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Length', image.buffer.length.toString());
+    res.setHeader('ETag', `"sha256-${image.sha256}"`);
+    res.setHeader('X-Capiro-Artifact-Id', artifactId);
     res.send(image.buffer);
   }
 }
