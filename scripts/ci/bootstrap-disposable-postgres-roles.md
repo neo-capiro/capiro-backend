@@ -8,7 +8,7 @@ Safety boundary:
 
 - The target is fixed to `postgres@127.0.0.1:5432/capiro`; no URL, host, port, database, or role override is accepted.
 - Mutating mode requires `GITHUB_ACTIONS=true`, `CI=true`, and an explicit `CI_DISPOSABLE_POSTGRES=1` marker from the workflow job.
-- The connection uses the fixed loopback endpoint, and the connected database, user, port, and superuser status are checked before mutation. PostgreSQL's server address is not fixed because Docker reports its bridge address inside the service container.
+- Both PostgreSQL commands pin libpq's host and host-address parameters to loopback and discard inherited service-file and `PGOPTIONS` settings. The connected database, user, port, and superuser status are still checked before mutation. PostgreSQL's server address is not compared because Docker reports its bridge address inside the service container.
 - The fixture role is `NOLOGIN`, `NOINHERIT`, `NOSUPERUSER`, `NOCREATEDB`, `NOCREATEROLE`, `NOBYPASSRLS`, and `NOREPLICATION`, with no inherited role memberships. Existing unsafe role state fails closed.
 - The helper changes no tables, migrations, checksums, application grants, or non-CI databases.
 

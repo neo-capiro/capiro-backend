@@ -65,17 +65,30 @@ readonly PSQL=(
   --dbname="$PG_DATABASE"
 )
 
+run_psql() (
+  # Command-line --host does not override an inherited PGHOSTADDR, and libpq
+  # services can supply their own connection parameters. Pin both address
+  # inputs and remove service/option expansion for every psql invocation.
+  unset PGSERVICE PGSERVICEFILE PGOPTIONS
+  export PGHOST="$PG_HOST"
+  export PGHOSTADDR="$PG_HOST"
+  export PGPORT="$PG_PORT"
+  export PGDATABASE="$PG_DATABASE"
+  export PGUSER="$PG_ADMIN_ROLE"
+  "${PSQL[@]}" "$@"
+)
+
 # Validate the connected server before any mutation. The fixed loopback TCP
 # endpoint, database, service superuser, and GHA-only marker distinguish this
 # disposable fixture from an arbitrary DATABASE_URL (including capiro-dev or
 # any other live database). inet_server_addr() is intentionally not compared:
 # Docker port forwarding exposes the container's bridge address to Postgres.
-connection_identity="$("${PSQL[@]}" --tuples-only --no-align --command \
+connection_identity="$(run_psql --tuples-only --no-align --command \
   "SELECT current_database(), current_user, inet_server_port(), current_setting('is_superuser')")"
 [[ "$connection_identity" == 'capiro|postgres|5432|on' ]] ||
   fail "refusing unexpected PostgreSQL target identity '$connection_identity'"
 
-"${PSQL[@]}" <<'SQL'
+run_psql <<'SQL'
 DO $bootstrap$
 DECLARE
   role_is_safe boolean;

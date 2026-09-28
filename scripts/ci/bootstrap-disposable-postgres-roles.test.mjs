@@ -20,6 +20,26 @@ function run(args = [], env = {}) {
   });
 }
 
+function installEnvironmentRecordingPsql(prefix) {
+  const fakeBin = mkdtempSync(path.join(tmpdir(), prefix));
+  const invocations = path.join(fakeBin, 'psql-environment.log');
+  const fakePsql = path.join(fakeBin, 'psql');
+  writeFileSync(
+    fakePsql,
+    `#!/usr/bin/env bash
+printf 'PGHOSTADDR=%s PGSERVICE_SET=%s PGSERVICEFILE_SET=%s PGOPTIONS_SET=%s ARGS=%s\\n' \
+  "\${PGHOSTADDR-}" "\${PGSERVICE+x}" "\${PGSERVICEFILE+x}" "\${PGOPTIONS+x}" "$*" >> "${invocations}"
+if [[ " $* " == *" --command "* ]]; then
+  printf '%s\\n' 'capiro|postgres|5432|on'
+else
+  cat >/dev/null
+fi
+`,
+    { mode: 0o755 },
+  );
+  return { fakeBin, invocations };
+}
+
 test('validation documents the fixed disposable target without contacting PostgreSQL', () => {
   const result = run(['--validate-only'], {
     GITHUB_ACTIONS: '',
@@ -68,6 +88,53 @@ test('an unexpected connected database identity fails before role creation', () 
   assert.equal(result.status, 2);
   assert.match(result.stderr, /refusing unexpected PostgreSQL target identity/);
   assert.doesNotMatch(result.stdout, /ready:/);
+});
+
+test('an inherited PGHOSTADDR cannot redirect either psql command', () => {
+  const { fakeBin, invocations } = installEnvironmentRecordingPsql('capiro-ci-role-hostaddr-');
+  const result = run([], {
+    PATH: `${fakeBin}${path.delimiter}${process.env.PATH}`,
+    GITHUB_ACTIONS: 'true',
+    CI: 'true',
+    CI_DISPOSABLE_POSTGRES: '1',
+    PGHOSTADDR: '203.0.113.7',
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const calls = readFileSync(invocations, 'utf8').trim().split('\n');
+  assert.equal(calls.length, 2);
+  for (const call of calls) {
+    assert.match(call, /^PGHOSTADDR=127\.0\.0\.1 /);
+    assert.match(call, /ARGS=.*--host=127\.0\.0\.1/);
+    assert.doesNotMatch(call, /203\.0\.113\.7/);
+  }
+});
+
+test('inherited libpq service and option settings cannot influence either psql command', () => {
+  const { fakeBin, invocations } = installEnvironmentRecordingPsql('capiro-ci-role-service-');
+  const serviceFile = path.join(fakeBin, 'pg_service.conf');
+  writeFileSync(serviceFile, '[redirect]\nhostaddr=203.0.113.8\nport=6543\n');
+  const result = run([], {
+    PATH: `${fakeBin}${path.delimiter}${process.env.PATH}`,
+    GITHUB_ACTIONS: 'true',
+    CI: 'true',
+    CI_DISPOSABLE_POSTGRES: '1',
+    PGSERVICE: 'redirect',
+    PGSERVICEFILE: serviceFile,
+    PGOPTIONS: '-c search_path=attacker',
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const calls = readFileSync(invocations, 'utf8').trim().split('\n');
+  assert.equal(calls.length, 2);
+  for (const call of calls) {
+    assert.match(
+      call,
+      /^PGHOSTADDR=127\.0\.0\.1 PGSERVICE_SET= PGSERVICEFILE_SET= PGOPTIONS_SET= /,
+    );
+    assert.match(call, /ARGS=.*--host=127\.0\.0\.1.*--port=5432/);
+    assert.doesNotMatch(call, /redirect|203\.0\.113\.8|6543|attacker/);
+  }
 });
 
 test('the helper creates only the migration-required least-privilege role', () => {
