@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
+import { EngagementService } from '../engagement/engagement.service';
 import { MeriResearchService } from './meri-research.service';
 import { researchToolVersion } from './meri-research-durable-result';
 import { readDurableResearchStepReceipts } from './meri-research-durable-step';
+import { MeriToolsService } from './meri-tools.service';
 import {
   buildResearchReportProvenance,
   certifyResearchProducerInputs,
@@ -196,8 +198,105 @@ function completeMailSearchResult(asOf = '2026-09-28T00:00:00.000Z') {
   };
 }
 
+const MAILBOX_ID = '44444444-4444-4444-8444-444444444444';
+const MAPPED_AS_OF = new Date('2026-09-28T12:00:00.000Z');
+
+async function mappedMailThread(clientId: string | null) {
+  const threadId = '11111111-1111-4111-8111-111111111111';
+  const engagement = Object.create(EngagementService.prototype) as any;
+  engagement.prisma = {
+    withTenant: async (_tenantId: string, callback: any) => callback({
+      mailThread: { findFirst: jest.fn(async () => ({
+        id: threadId,
+        connectionId: MAILBOX_ID,
+        clientId,
+        subject: 'Mapped canonical source',
+        updatedAt: new Date('2026-09-28T00:00:00.000Z'),
+        connection: { accountEmail: 'owner@example.test', status: 'connected' },
+        messages: [{
+          id: '22222222-2222-4222-8222-222222222222',
+          connectionId: MAILBOX_ID,
+          subject: 'Mapped canonical source',
+          bodyText: 'ACTUAL_MAPPED_MAIL_BODY',
+          updatedAt: new Date('2026-09-28T00:01:00.000Z'),
+          metadata: { bodyCompleteness: 'full' },
+          fromEmail: 'sender@example.test',
+          fromName: 'Sender',
+          toRecipients: [],
+          ccRecipients: [],
+          sentAt: new Date('2026-09-27T12:00:00.000Z'),
+          receivedAt: null,
+        }],
+      })) },
+    }),
+  };
+  const tools = Object.create(MeriToolsService.prototype) as any;
+  tools.engagement = engagement;
+  return tools.getEmailThread(ctx, { threadId });
+}
+
+function mappedMailRow(index: number, clientId: string | null) {
+  return {
+    id: `22222222-2222-4222-8222-22222222222${index}`,
+    thread_id: `11111111-1111-4111-8111-11111111111${index}`,
+    connection_id: MAILBOX_ID,
+    message_updated_at: MAPPED_AS_OF,
+    subject: `Mapped source ${index}`,
+    from_email: 'sender@example.test',
+    from_name: 'Sender',
+    to_recipients: [],
+    cc_recipients: [],
+    sent_at: new Date(`2026-09-28T0${index}:00:00.000Z`),
+    received_at: null,
+    preview: `Mapped preview ${index}`,
+    has_attachments: false,
+    folder: 'inbox',
+    internet_message_id: `<mapped-${index}@example.test>`,
+    client_id: clientId,
+    client_name: clientId ? `Client ${index}` : null,
+    account_email: 'owner@example.test',
+  };
+}
+
+async function mappedMailSearch(
+  tool: 'search_emails' | 'list_emails',
+  clientIds: Array<string | null>,
+) {
+  const rows = clientIds.map((clientId, index) => mappedMailRow(index + 1, clientId));
+  const coverage = [{
+    connection_id: MAILBOX_ID,
+    account_email: 'owner@example.test',
+    provider: 'google_workspace',
+    status: 'connected',
+    last_sync_at: MAPPED_AS_OF,
+    sync_state: { mail: {
+      captureVersion: 1,
+      updatedAt: MAPPED_AS_OF.toISOString(),
+      historyId: 'history-1',
+      labels: { ALL: { backfillDone: true } },
+    } },
+    synced_messages: rows.length,
+    oldest_synced: MAPPED_AS_OF,
+    newest_synced: MAPPED_AS_OF,
+  }];
+  const queries = jest.fn()
+    .mockResolvedValueOnce([{ n: rows.length }])
+    .mockResolvedValueOnce(rows)
+    .mockResolvedValueOnce(coverage);
+  const engagement = Object.create(EngagementService.prototype) as any;
+  engagement.prisma = {
+    withTenant: async (_tenantId: string, callback: any) => callback({ $queryRaw: queries }),
+  };
+  const tools = Object.create(MeriToolsService.prototype) as any;
+  tools.engagement = engagement;
+  const input = { query: 'Report', asOf: MAPPED_AS_OF.toISOString() };
+  return tool === 'list_emails'
+    ? tools.listEmails(ctx, input)
+    : tools.searchEmails(ctx, input);
+}
+
 function harness(options: {
-  tool?: 'search_memory' | 'get_email_thread' | 'search_emails';
+  tool?: 'search_memory' | 'get_email_thread' | 'search_emails' | 'list_emails';
   schema?: Record<string, unknown>;
   source?: unknown;
   clientId?: string | null;
@@ -208,6 +307,7 @@ function harness(options: {
   let authorizationAllowed = true;
   let wallAllowed = options.wallAllowed !== false;
   let sourceAllowed = true;
+  let clientDuringExecute: string | null | undefined;
   let currentSource: unknown = options.source ?? completeMemoryResult('execution-1');
   const artifacts = new Map<string, Record<string, any>>();
   const session: Record<string, any> = {
@@ -284,6 +384,7 @@ function harness(options: {
     isSideEffecting: jest.fn((tool: string) => tool !== ownerTool),
     execute: jest.fn(async (_ctx: unknown, _tool: string, input: Record<string, unknown>) => {
       if (!sourceAllowed) throw new Error('memory source revoked');
+      if (clientDuringExecute !== undefined) session.clientId = clientDuringExecute;
       if (ownerTool === 'search_memory' && input.query === 'alpha')
         return completeMemoryResult('execution-a');
       if (ownerTool === 'search_memory' && input.query === 'beta')
@@ -383,6 +484,9 @@ function harness(options: {
     replaceSource: (result: unknown) => {
       currentSource = result;
     },
+    changeSessionClientDuringExecute: (clientId: string | null) => {
+      clientDuringExecute = clientId;
+    },
     resume: () => {
       session.metadata = {
         ...session.metadata,
@@ -431,6 +535,21 @@ function mailSearchOutcome(result = completeMailSearchResult()) {
     tool: 'search_emails',
     toolVersion: MAIL_SEARCH_TOOL_VERSION,
     input: { query: 'Report' },
+    result,
+  };
+}
+
+function mappedMailSearchOutcome(
+  tool: 'search_emails' | 'list_emails',
+  result: Record<string, unknown>,
+) {
+  return {
+    executionId: `mail-${tool}-execution-1`,
+    leaseEpoch: 1,
+    providerCallId: `provider-mail-${tool}-execution-1`,
+    tool,
+    toolVersion: MAIL_SEARCH_TOOL_VERSION,
+    input: { query: 'Report', asOf: MAPPED_AS_OF.toISOString() },
     result,
   };
 }
@@ -564,6 +683,118 @@ describe('Meri durable safe-read commit and replay', () => {
       query: 'Report',
       asOf: source.asOf,
     });
+  });
+
+  it('does not release an omitted-client B thread envelope into a focused A session', async () => {
+    const clientA = '33333333-3333-4333-8333-333333333333';
+    const clientB = '55555555-5555-4555-8555-555555555555';
+    const source = await mappedMailThread(clientB);
+    const h = harness({
+      tool: 'get_email_thread', schema: MAIL_TOOL_SCHEMA, source, clientId: clientA,
+    });
+    await h.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', mailOutcome(source));
+    h.resume();
+
+    const replay = await h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', {
+      leaseEpoch: 2,
+      tool: 'get_email_thread',
+      toolVersion: MAIL_TOOL_VERSION,
+      input: { threadId: source.threadId },
+    });
+
+    expect(replay).toEqual({ replayed: false });
+    expect(JSON.stringify(replay)).not.toContain('ACTUAL_MAPPED_MAIL_BODY');
+    expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+
+  it.each(['search_emails', 'list_emails'] as const)(
+    'binds omitted-client mixed %s results to focused scope and preserves authorized positives',
+    async (tool) => {
+      const clientA = '33333333-3333-4333-8333-333333333333';
+      const clientB = '55555555-5555-4555-8555-555555555555';
+      const request = {
+        leaseEpoch: 2,
+        tool,
+        toolVersion: MAIL_SEARCH_TOOL_VERSION,
+        input: { query: 'Report', asOf: MAPPED_AS_OF.toISOString() },
+      };
+
+      const mixedSource = await mappedMailSearch(tool, [clientA, clientB]);
+      const mixed = harness({
+        tool, schema: MAIL_SEARCH_TOOL_SCHEMA, source: mixedSource, clientId: clientA,
+      });
+      await mixed.service.commitSafeReadOutcome(
+        ctx, 'session-1', 'run-1', mappedMailSearchOutcome(tool, mixedSource),
+      );
+      mixed.resume();
+      await expect(mixed.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
+        .resolves.toEqual({ replayed: false });
+      expect(mixed.tools.execute).not.toHaveBeenCalled();
+
+      const focusedSource = await mappedMailSearch(tool, [clientA]);
+      const focused = harness({
+        tool, schema: MAIL_SEARCH_TOOL_SCHEMA, source: focusedSource, clientId: clientA,
+      });
+      await focused.service.commitSafeReadOutcome(
+        ctx, 'session-1', 'run-1', mappedMailSearchOutcome(tool, focusedSource),
+      );
+      focused.resume();
+      await expect(focused.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
+        .resolves.toMatchObject({ replayed: true });
+
+      const unfocusedSource = await mappedMailSearch(tool, [clientB]);
+      const unfocused = harness({ tool, schema: MAIL_SEARCH_TOOL_SCHEMA, source: unfocusedSource });
+      await unfocused.service.commitSafeReadOutcome(
+        ctx, 'session-1', 'run-1', mappedMailSearchOutcome(tool, unfocusedSource),
+      );
+      unfocused.resume();
+      await expect(unfocused.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
+        .resolves.toMatchObject({ replayed: true });
+
+      const revoked = harness({ tool, schema: MAIL_SEARCH_TOOL_SCHEMA, source: unfocusedSource });
+      await revoked.service.commitSafeReadOutcome(
+        ctx, 'session-1', 'run-1', mappedMailSearchOutcome(tool, unfocusedSource),
+      );
+      revoked.resume();
+      revoked.revokeWall();
+      await expect(revoked.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
+        .resolves.toEqual({ replayed: false });
+      expect(revoked.tools.execute).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rechecks mail source scope after the owner await and preserves null-client personal mail', async () => {
+    const clientA = '33333333-3333-4333-8333-333333333333';
+    const clientB = '55555555-5555-4555-8555-555555555555';
+    const sourceB = await mappedMailThread(clientB);
+    const changed = harness({ tool: 'get_email_thread', schema: MAIL_TOOL_SCHEMA, source: sourceB });
+    await changed.service.commitSafeReadOutcome(
+      ctx, 'session-1', 'run-1', mailOutcome(sourceB),
+    );
+    changed.resume();
+    changed.changeSessionClientDuringExecute(clientA);
+    await expect(changed.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', {
+      leaseEpoch: 2,
+      tool: 'get_email_thread',
+      toolVersion: MAIL_TOOL_VERSION,
+      input: { threadId: sourceB.threadId },
+    })).resolves.toEqual({ replayed: false });
+    expect(changed.tools.execute).toHaveBeenCalledTimes(1);
+
+    const personalSource = await mappedMailThread(null);
+    const personal = harness({
+      tool: 'get_email_thread', schema: MAIL_TOOL_SCHEMA, source: personalSource, clientId: clientA,
+    });
+    await personal.service.commitSafeReadOutcome(
+      ctx, 'session-1', 'run-1', mailOutcome(personalSource),
+    );
+    personal.resume();
+    await expect(personal.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', {
+      leaseEpoch: 2,
+      tool: 'get_email_thread',
+      toolVersion: MAIL_TOOL_VERSION,
+      input: { threadId: personalSource.threadId },
+    })).resolves.toMatchObject({ replayed: true });
   });
 
   it('treats an absent or corrupt private result as a replay miss', async () => {

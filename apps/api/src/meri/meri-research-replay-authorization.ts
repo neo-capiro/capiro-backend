@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -158,6 +159,37 @@ export function currentOwnerReauthorizationInput(
   if (!supportsDurableOwnerReauthorization(tool)) return null;
   if (!['list_emails', 'search_emails', 'get_email_thread'].includes(tool)) return originalInput;
   return canonicalMailReauthorization(tool, originalInput, savedResult)?.executeInput ?? null;
+}
+
+/**
+ * Resolve canonical mail evidence and bind every non-null requested/returned
+ * client to the current research scope and actor's current ethical-wall access.
+ * Null-client personal mail deliberately contributes no client requirement.
+ */
+export async function currentMailSourceScopeAuthorization(input: {
+  tx: Prisma.TransactionClient;
+  ctx: TenantContext;
+  sessionClientId: string | null;
+  tool: string;
+  originalInput: Record<string, unknown>;
+  savedResult: unknown;
+}) {
+  const authorization = canonicalMailReauthorization(
+    input.tool,
+    input.originalInput,
+    input.savedResult,
+  );
+  if (!authorization) return null;
+  const evidenceClientIds = new Set([
+    ...(authorization.requestedClientId ? [authorization.requestedClientId] : []),
+    ...authorization.returnedClientIds,
+  ]);
+  for (const clientId of evidenceClientIds) {
+    if (input.sessionClientId && clientId !== input.sessionClientId) return null;
+    if (!(await clientMemoryAllowed(input.tx, input.ctx.tenantId, input.ctx.userId, clientId)))
+      return null;
+  }
+  return authorization;
 }
 
 /** Compare only current owner identity/version evidence, never old coverage flags. */
@@ -453,25 +485,20 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
         const mailAuthorization = ['list_emails', 'search_emails', 'get_email_thread'].includes(
           envelope.tool,
         )
-          ? canonicalMailReauthorization(envelope.tool, envelope.input, envelope.result)
+          ? await currentMailSourceScopeAuthorization({
+              tx,
+              ctx,
+              sessionClientId: session.clientId,
+              tool: envelope.tool,
+              originalInput: envelope.input,
+              savedResult: envelope.result,
+            })
           : null;
         if (
           ['list_emails', 'search_emails', 'get_email_thread'].includes(envelope.tool) &&
           !mailAuthorization
         ) {
           throw new ConflictException('A research source authorization proof is unavailable.');
-        }
-        if (mailAuthorization) {
-          const evidenceClientIds = new Set([
-            ...(mailAuthorization.requestedClientId ? [mailAuthorization.requestedClientId] : []),
-            ...mailAuthorization.returnedClientIds,
-          ]);
-          for (const clientId of evidenceClientIds) {
-            if (session.clientId && clientId !== session.clientId)
-              throw new ConflictException('A research source is outside the report client scope.');
-            if (!(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId)))
-              throw new ConflictException('A research source is no longer authorized.');
-          }
         }
         envelopes.push({ envelope, mailAuthorization });
       }

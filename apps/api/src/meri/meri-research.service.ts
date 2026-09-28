@@ -101,6 +101,7 @@ import {
 } from './meri-research-durable-result.js';
 import {
   assertCurrentResearchReportSourcesAuthorized,
+  currentMailSourceScopeAuthorization,
   currentOwnerReauthorizationInput,
   currentOwnerResultAuthorizesReplay,
   RESEARCH_REPORT_BODY_WITHHELD,
@@ -756,11 +757,23 @@ export class MeriResearchService {
         return { replayed: false as const };
       if (!supportsDurableOwnerReauthorization(envelope.tool))
         return { replayed: false as const };
-      const reauthorizationInput = currentOwnerReauthorizationInput(
+      const isMailTool = ['list_emails', 'search_emails', 'get_email_thread'].includes(
         envelope.tool,
-        envelope.input,
-        envelope.result,
       );
+      const mailAuthorization = isMailTool
+        ? await currentMailSourceScopeAuthorization({
+            tx,
+            ctx,
+            sessionClientId: current.clientId,
+            tool: envelope.tool,
+            originalInput: envelope.input,
+            savedResult: envelope.result,
+          })
+        : null;
+      if (isMailTool && !mailAuthorization) return { replayed: false as const };
+      const reauthorizationInput = isMailTool
+        ? mailAuthorization!.executeInput
+        : currentOwnerReauthorizationInput(envelope.tool, envelope.input, envelope.result);
       if (!reauthorizationInput) return { replayed: false as const };
 >>>>>>> d2e54cafd (fix(meri): bind mail evidence to current scope)
       let currentOwnerResult: unknown;
@@ -792,6 +805,18 @@ export class MeriResearchService {
         finalRun.status !== 'running'
       )
         throw new ConflictException('Research lease is no longer active.');
+      if (
+        isMailTool &&
+        !(await currentMailSourceScopeAuthorization({
+          tx,
+          ctx,
+          sessionClientId: final.clientId,
+          tool: envelope.tool,
+          originalInput: envelope.input,
+          savedResult: envelope.result,
+        }))
+      )
+        return { replayed: false as const };
       await this.assertResearchPublicationAuthorized(tx, ctx, final);
       return {
         replayed: true as const,
