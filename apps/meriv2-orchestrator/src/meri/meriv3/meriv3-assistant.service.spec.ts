@@ -215,6 +215,52 @@ function registry(definitions: Array<{ name: string; readOnly: boolean }>, invok
   } as unknown as ToolRegistry;
 }
 
+function servedProcedureContext(): MeriGovernedTurnContext {
+  const now = Date.now();
+  return {
+    version: 1,
+    operationId: 'meri.chat',
+    prompt: 'Run the authenticated procedure.',
+    contextPacket: {
+      packetId: 'procedure-packet-1',
+      items: [],
+      exclusions: [],
+      unauthorizedCount: 0,
+      degraded: false,
+    },
+    retrieval: {} as MeriGovernedTurnContext['retrieval'],
+    procedure: {
+      version: 1,
+      tenantId: 'tenant-1',
+      identity: {
+        source: 'firm',
+        recordId: 'procedure-row-1',
+        canonicalId: 'commitments_audit',
+        version: 6,
+      },
+      manifestDigest: 'a'.repeat(64),
+      instruction: 'Run the signed commitments audit.',
+      scope: 'client',
+      clientId: 'client-1',
+      clientRequired: true,
+      resolvedAt: now,
+      validUntil: now + 60_000,
+      policy: {
+        effectMode: 'read_only',
+        allowedCapabilities: ['tasks.read'],
+        allowedTools: ['query_tasks', 'send_email'],
+        requiredTools: ['query_tasks'],
+      },
+      contract: {
+        outputFields: ['auditStatus'],
+        completionChecks: ['Report source coverage'],
+        coverageStates: ['checked', 'disconnected', 'unavailable', 'not mapped'],
+        caseIds: ['CD-01', 'CD-02', 'CD-03', 'CD-04', 'CD-05', 'CD-06', 'CD-07'],
+      },
+    },
+  } as MeriGovernedTurnContext;
+}
+
 /** The `event` field of a structured (single JSON line) log message, or null for any other message. */
 function eventNameOf(message: unknown): string | null {
   if (typeof message !== 'string' || !message.startsWith('{')) return null;
@@ -3805,11 +3851,68 @@ describe('Stage 2 orchestrator hardening', () => {
       expect(providerToolNames(complete)).not.toContain(mcpName);
     });
 
-    test('blocks a deliberately emitted authorized-but-undeclared call with zero dispatch', async () => {
+    test('runs an authorized procedure read and blocks a procedure write in the actual assistant path', async () => {
+      const read = {
+        type: 'function_call',
+        call_id: 'procedure-read',
+        name: 'query_tasks',
+        arguments: '{}',
+      };
+      const write = {
+        type: 'function_call',
+        call_id: 'procedure-write',
+        name: 'send_email',
+        arguments: '{"body":"must not execute"}',
+      };
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(
+          response({ output: [read, write], outputText: '', functionCalls: [read, write] }),
+        )
+        .mockResolvedValueOnce(response({ outputText: 'Read-only audit complete.' }));
+      const invoke = jest.fn().mockResolvedValue({ tasks: [] });
+      const proposal = jest.fn();
+      const assistant = build(
+        registry(
+          [
+            { name: 'query_tasks', readOnly: true },
+            { name: 'send_email', readOnly: false },
+          ],
+          invoke,
+        ),
+        complete,
+        proposal,
+        {},
+        selectorConfig('enabled'),
+      );
+      global.fetch = jest.fn(
+        async () =>
+          new Response(
+            JSON.stringify({ schemas: [toolSchema('query_tasks'), toolSchema('send_email')] }),
+            { status: 200 },
+          ),
+      ) as typeof fetch;
+
+      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        runWithGovernedMeriContext(servedProcedureContext(), () =>
+          assistant.run(context, {
+            clientId: 'client-1',
+            messages: [{ role: 'user', text: 'Run the commitments audit.' }],
+          }),
+        ),
+      );
+
+      expect(providerToolNames(complete)).toEqual(['query_tasks']);
+      expect(invoke).toHaveBeenCalledTimes(1);
+      expect(invoke.mock.calls[0]?.[0]).toBe('query_tasks');
+      expect(proposal).not.toHaveBeenCalled();
+    });
+
+    test('blocks an unknown provider name without copying private text into selector telemetry', async () => {
       const call = {
         type: 'function_call',
-        call_id: 'undeclared-send',
-        name: 'send_email',
+        call_id: 'undeclared-private-name',
+        name: 'TOPSECRET9',
         arguments: '{"body":"private argument"}',
       };
       const complete = jest
@@ -3845,19 +3948,20 @@ describe('Stage 2 orchestrator hardening', () => {
 
       await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
         assistant.run(context, {
-          messages: [{ role: 'user', text: 'What do you remember about Kestrel?' }],
+          messages: [{ role: 'user', text: 'My private keyword is TOPSECRET9.' }],
         }),
       );
 
-      expect(providerToolNames(complete)).toEqual(['search_memory']);
+      expect(providerToolNames(complete)).toEqual(['search_memory', 'send_email']);
       expect(invoke).not.toHaveBeenCalled();
       expect(proposal).not.toHaveBeenCalled();
       const selectorLogs = log.mock.calls
         .map(([message]) => String(message))
         .filter((message) => message.includes('meri.semantic_tool_gateway'));
       expect(selectorLogs.join('\n')).toContain('blocked_undeclared');
+      expect(selectorLogs.join('\n')).not.toContain('TOPSECRET9');
       expect(selectorLogs.join('\n')).not.toContain('private argument');
-      expect(selectorLogs.join('\n')).not.toContain('Kestrel');
+      expect(selectorLogs.join('\n')).not.toContain('private keyword');
     });
   });
 });

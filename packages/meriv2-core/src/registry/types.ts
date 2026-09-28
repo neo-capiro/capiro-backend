@@ -76,6 +76,8 @@ export interface MeriGovernedTurnContext {
   evidence?: MeriContextEvidenceEnvelope;
   /** Server-saved document observations; canonical source authorization and hash checked this turn. */
   inheritedDocumentEvidence?: MeriCitation[];
+  /** API-resolved procedure authority. This entire projection is covered by the context attestation. */
+  procedure?: MeriGovernedProcedureBinding;
   attestation?: { version: 1; issuedAt: number; signature: string };
   contextPacket: MeriContextPacketSummary;
   retrieval: {
@@ -123,6 +125,41 @@ export interface MeriGovernedTurnContext {
       toolsInvoked: string[];
       stopReason: string;
     };
+  };
+}
+
+/**
+ * Narrow execution projection of a tenant procedure. The API derives it from
+ * the current canonical row and tool registry; browser input is never copied
+ * into this authority object.
+ */
+export interface MeriGovernedProcedureBinding {
+  version: 1;
+  tenantId: string;
+  identity: {
+    source: 'firm';
+    recordId: string;
+    canonicalId: string;
+    version: number;
+  };
+  manifestDigest: string;
+  instruction: string;
+  scope: 'general' | 'client' | 'portfolio' | 'external_entity';
+  clientId: string | null;
+  clientRequired: boolean;
+  resolvedAt: number;
+  validUntil: number;
+  policy: {
+    effectMode: 'read_only' | 'approval_required';
+    allowedCapabilities: string[];
+    allowedTools: string[];
+    requiredTools: string[];
+  };
+  contract: {
+    outputFields: string[];
+    completionChecks: string[];
+    coverageStates: string[];
+    caseIds: string[];
   };
 }
 

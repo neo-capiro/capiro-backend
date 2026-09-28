@@ -41,6 +41,40 @@ function context(): MeriGovernedTurnContext {
   };
 }
 
+function bindProcedure(governed: MeriGovernedTurnContext): MeriGovernedTurnContext {
+  const now = Date.now();
+  governed.procedure = {
+    version: 1,
+    tenantId: actor.tenantId,
+    identity: {
+      source: 'firm',
+      recordId: 'procedure-row-1',
+      canonicalId: 'commitments_audit',
+      version: 6,
+    },
+    manifestDigest: 'a'.repeat(64),
+    instruction: 'SIGNED PROCEDURE INSTRUCTION',
+    scope: 'client',
+    clientId: input.clientId,
+    clientRequired: true,
+    resolvedAt: now,
+    validUntil: now + 60_000,
+    policy: {
+      effectMode: 'read_only',
+      allowedCapabilities: ['tasks.read'],
+      allowedTools: ['query_tasks'],
+      requiredTools: ['query_tasks'],
+    },
+    contract: {
+      outputFields: ['auditStatus'],
+      completionChecks: ['Report source coverage'],
+      coverageStates: ['checked'],
+      caseIds: ['CD-01', 'CD-02', 'CD-03', 'CD-04', 'CD-05', 'CD-06', 'CD-07'],
+    },
+  };
+  return governed;
+}
+
 describe('MeriV3 governed context HTTP trust boundary', () => {
   const priorSecret = process.env.INTERNAL_SERVICE_SECRET;
   beforeEach(() => {
@@ -169,6 +203,37 @@ describe('MeriV3 governed context HTTP trust boundary', () => {
       instance.run({ ...input, conversationId: 'conversation-2', governedContext }, tenant, {
         headers: {},
       } as never),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(run).not.toHaveBeenCalled();
+  });
+  it('uses only the signed procedure instruction and rejects a wrong-client binding', async () => {
+    const { instance, run } = controller();
+    const governedContext = attestMeriGovernedContext(bindProcedure(context()), input, secret);
+    await instance.run(
+      { ...input, skillAddendum: 'FORGED CALLER PROCEDURE', governedContext },
+      tenant,
+      { headers: {} } as never,
+    );
+    const effective = (run.mock.calls as unknown[][])[0]?.[1] as { skillAddendum: string };
+    expect(effective.skillAddendum).toContain('SIGNED PROCEDURE INSTRUCTION');
+    expect(effective.skillAddendum).not.toContain('FORGED CALLER PROCEDURE');
+
+    const wrongClient = bindProcedure(context());
+    wrongClient.procedure!.clientId = 'client-2';
+    const signedWrongClient = attestMeriGovernedContext(wrongClient, input, secret);
+    await expect(
+      instance.run({ ...input, governedContext: signedWrongClient }, tenant, {
+        headers: {},
+      } as never),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('rejects a forged procedure policy before assistant execution', async () => {
+    const { instance, run } = controller();
+    const governedContext = attestMeriGovernedContext(bindProcedure(context()), input, secret);
+    governedContext.procedure!.policy.allowedTools.push('send_email');
+    await expect(
+      instance.run({ ...input, governedContext }, tenant, { headers: {} } as never),
     ).rejects.toMatchObject({ status: 403 });
     expect(run).not.toHaveBeenCalled();
   });

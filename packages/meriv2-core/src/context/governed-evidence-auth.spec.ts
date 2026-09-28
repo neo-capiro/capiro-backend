@@ -41,6 +41,38 @@ function context(): MeriGovernedTurnContext {
   };
 }
 
+function procedure() {
+  return {
+    version: 1 as const,
+    tenantId: actor.tenantId,
+    identity: {
+      source: 'firm' as const,
+      recordId: 'procedure-row-1',
+      canonicalId: 'commitments_audit',
+      version: 4,
+    },
+    manifestDigest: 'a'.repeat(64),
+    instruction: 'Run the canonical read-only commitments audit.',
+    scope: 'client' as const,
+    clientId: binding.clientId ?? null,
+    clientRequired: true,
+    resolvedAt: now,
+    validUntil: now + 60_000,
+    policy: {
+      effectMode: 'read_only' as const,
+      allowedCapabilities: ['tasks.read'],
+      allowedTools: ['query_tasks'],
+      requiredTools: ['query_tasks'],
+    },
+    contract: {
+      outputFields: ['auditStatus'],
+      completionChecks: ['Report source coverage'],
+      coverageStates: ['checked'],
+      caseIds: ['CD-01'],
+    },
+  };
+}
+
 describe('authenticated governed evidence transport', () => {
   it('round trips the exact API payload through JSON under the resolved identity', () => {
     const signed = JSON.parse(
@@ -59,6 +91,21 @@ describe('authenticated governed evidence transport', () => {
       'authentication_failed',
     );
   });
+  it.each(['version', 'client', 'policy', 'tools'] as const)(
+    'rejects an altered served-procedure %s',
+    (field) => {
+      const source = context();
+      source.procedure = procedure();
+      const signed = attestMeriGovernedContext(source, binding, secret, now);
+      if (field === 'version') signed.procedure!.identity.version += 1;
+      if (field === 'client') signed.procedure!.clientId = 'client-2';
+      if (field === 'policy') signed.procedure!.policy.effectMode = 'approval_required';
+      if (field === 'tools') signed.procedure!.policy.allowedTools.push('send_email');
+      expect(() => verifyMeriGovernedContext(signed, binding, actor, secret, now)).toThrow(
+        'authentication_failed',
+      );
+    },
+  );
   it.each([
     { conversationId: 'conversation-2' },
     { clientId: 'client-2' },

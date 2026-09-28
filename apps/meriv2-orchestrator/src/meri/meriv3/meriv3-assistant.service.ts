@@ -93,6 +93,11 @@ import { resolveMeriV3ReasoningProfile } from './meriv3-reasoning.js';
 import { MeriSemanticToolGateway } from './meri-semantic-tool-gateway.js';
 import { buildMeriGovernedToolSelectionContext } from './meriv3-governed-tool-selection.js';
 import { MeriV3SemanticRuntimeStore } from './meriv3-semantic-runtime.store.js';
+import {
+  assertMeriProcedureToolDispatch,
+  bindMeriProcedureSchemas,
+  requireMeriProcedureBinding,
+} from './meriv3-procedure-guard.js';
 import { enforceClientFilingConfirmation } from '../chat/client-filing-confirmation.js';
 import { MeriDocumentCompletion } from './meriv3-document-completion.js';
 import { classifyMeriRetrievalIntent } from '../retrieval/meri-retrieval-intent.js';
@@ -381,6 +386,11 @@ function withToolBudget(
       throw new MeriRunBudgetExhaustedError(budget.reason ?? 'retry_calls');
     }
     try {
+      assertMeriProcedureToolDispatch({
+        procedure: currentGovernedMeriContext()?.procedure,
+        toolName: name,
+        readOnly: registry.get(name)?.readOnly,
+      });
       const result = await registry.invoke<O>(name, input, ctx, control);
       if (registry.get(name)?.readOnly === true) {
         budget.observeToolResult({
@@ -750,6 +760,10 @@ export class MeriV3AssistantService {
     opts: MeriV3RunOptions,
   ): Promise<MeriV3ChatResult> {
     const emit = opts.onEvent ?? (() => {});
+    const governed = currentGovernedMeriContext();
+    const procedure = governed
+      ? requireMeriProcedureBinding({ governed, dto, tenantId: ctx.tenantId })
+      : null;
     const profile = resolveMeriV3ReasoningProfile(dto.reasoningMode);
     const runtimeBudget = MeriRunBudget.fromToolRoundCeiling(profile.maxToolRounds, opts);
     const budgetScope: MeriToolSignatureScope = {
@@ -903,9 +917,15 @@ export class MeriV3AssistantService {
           );
     // This tool reads a research snapshot, not client Files. Its session comes
     // from the authenticated research lease, never a guessed chat/client UUID.
-    const authorizedSchemas = toolSchemas.filter(
+    const leaseAuthorizedSchemas = toolSchemas.filter(
       (schema) => schema.name !== 'get_research_evidence' || Boolean(dto.researchRun),
     );
+    const procedureSchemas = bindMeriProcedureSchemas({
+      procedure,
+      schemas: leaseAuthorizedSchemas,
+      registry: this.registry,
+    });
+    const authorizedSchemas = procedureSchemas.schemas;
     const selectionContext = buildMeriGovernedToolSelectionContext({
       ctx,
       dto,
@@ -922,7 +942,7 @@ export class MeriV3AssistantService {
       request: lastUserText,
       recentUserContext: selectionContext.recentUserContext,
       plan: selectionContext.plan,
-      protectedNames: selectionContext.protectedNames,
+      protectedNames: [...selectionContext.protectedNames, ...procedureSchemas.requiredTools],
       discoveryNames: selectionContext.discoveryNames,
       allowCanonicalResearchDirector: false,
     });
@@ -2415,6 +2435,11 @@ export class MeriV3AssistantService {
                   throw new MeriRunBudgetExhaustedError(args.runtimeBudget.reason ?? 'retry_calls');
                 }
                 try {
+                  assertMeriProcedureToolDispatch({
+                    procedure: currentGovernedMeriContext()?.procedure,
+                    toolName: name,
+                    readOnly: this.registry.get(name)?.readOnly,
+                  });
                   const result = await this.registry.invoke(name, input, ctx, {
                     signal: signal ?? controller.signal,
                     deadlineAt,
@@ -2630,7 +2655,10 @@ export class MeriV3AssistantService {
       const exposed = args.schemas.some((schema) => schema.name === call.name);
       this.logStructured('log', 'meri.semantic_tool_gateway.dispatch', {
         decisionId: args.semanticDecisionId,
-        requestedNames: [call.name],
+        // Provider-emitted undeclared names are untrusted text. Keep the
+        // attempted-call count/result, but never echo an unknown name into
+        // selector telemetry where it could carry copied private request text.
+        requestedNames: exposed ? [call.name] : [],
         requestedCount: 1,
         selectedNames: exposed ? [call.name] : [],
         selectedCount: exposed ? 1 : 0,
@@ -2945,6 +2973,11 @@ export class MeriV3AssistantService {
       args.emit({ type: 'tool_done', tool: args.name, label, status: 'error', detail });
       return { error: detail };
     }
+    assertMeriProcedureToolDispatch({
+      procedure: currentGovernedMeriContext()?.procedure,
+      toolName: args.name,
+      readOnly: definition.readOnly,
+    });
     const refusal = args.prePersistRefusal(args.name, args.input);
     if (refusal) {
       args.steps.push({ tool: args.name, label, status: 'blocked', detail: refusal });

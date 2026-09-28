@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { MeriV3ProxyService } from './meriv3-proxy.service.js';
 import { scheduleMeriTurnMaintenance } from './meri-turn-maintenance.js';
+import { commitmentsAuditProcedureSkill } from './skills/commitments-audit.procedure.js';
 
 // These injected collaborators already use harness instances below. Avoid
 // booting their unrelated tool/service graphs in this proxy unit suite.
@@ -92,12 +93,83 @@ function buildHarness() {
       .filter((w) => w.startsWith('data: '))
       .map((w) => JSON.parse(w.slice(6)) as Record<string, unknown>);
 
-  return { service, tx, prisma, flags, client, sse, frames, maintenance, conversationEvidence };
+  return {
+    service,
+    tx,
+    prisma,
+    flags,
+    client,
+    sse,
+    frames,
+    maintenance,
+    conversationEvidence,
+    firmSkills,
+  };
 }
 
 const CTX = { tenantId: TENANT, userId: USER } as never;
 
 describe('MeriV3ProxyService — done frame carries the persisted message id', () => {
+  it('binds an exact current client procedure and emits only its redacted contract receipt', async () => {
+    const { service, client, sse, tx, frames, firmSkills } = buildHarness();
+    const selected = {
+      ...commitmentsAuditProcedureSkill,
+      procedureBinding: {
+        source: 'firm' as const,
+        recordId: 'procedure-row-1',
+        canonicalId: 'commitments_audit',
+        version: 7,
+      },
+    };
+    tx.clioConversation.findFirst.mockResolvedValue({
+      id: CONVERSATION,
+      clientId: 'client-1',
+      summaryUpToMessageId: null,
+      summary: null,
+      metadata: null,
+      client: { id: 'client-1', name: 'Client One' },
+    } as never);
+    firmSkills.skillsForTenant.mockResolvedValue([selected] as never);
+    Object.assign(firmSkills, {
+      resolveProcedureReference: jest.fn(async () => selected),
+    });
+    client.streamChat.mockImplementationOnce(async ({ input, onEvent }: any) => {
+      expect(input.skillAddendum).toBeUndefined();
+      expect(input.procedure).toMatchObject({
+        tenantId: TENANT,
+        clientId: 'client-1',
+        identity: { canonicalId: 'commitments_audit', version: 7 },
+        policy: { effectMode: 'read_only' },
+      });
+      onEvent({ type: 'done', reply: 'Audit complete.', steps: [] });
+    });
+
+    await service.streamMessage(
+      CTX,
+      CONVERSATION,
+      'Run commitments_audit for this client',
+      sse,
+      undefined,
+      'new',
+      [],
+      'token',
+    );
+
+    const receipt = frames().find((frame) => frame.type === 'done')?.procedure;
+    expect(receipt).toEqual({
+      id: 'commitments_audit',
+      version: 7,
+      source: 'firm',
+      scope: 'client',
+      clientId: 'client-1',
+      effectMode: 'read_only',
+      caseIds: ['CD-01', 'CD-02', 'CD-03', 'CD-04', 'CD-05', 'CD-06', 'CD-07'],
+      completionCheckCount: 7,
+      coverageStates: ['checked', 'disconnected', 'unavailable', 'not mapped'],
+    });
+    expect(JSON.stringify(receipt)).not.toContain('Audit every evidenced commitment');
+  });
+
   it('persists and streams the same actual turn scope when the selected client differs', async () => {
     const { service, client, sse, tx, frames } = buildHarness();
     tx.clioConversation.findFirst.mockResolvedValue({

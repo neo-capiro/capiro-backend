@@ -29,6 +29,10 @@ import { listMeriV3ReasoningProfiles } from './meriv3-reasoning.js';
 import type { MeriV3ChatInput } from './meriv3.types.js';
 import { meriEvidenceManifest } from './meriv3-context-evidence.js';
 import { reconcileMeriTurnCoverage } from './meriv3-turn-coverage.js';
+import {
+  MeriProcedureBindingError,
+  requireMeriProcedureBinding,
+} from './meriv3-procedure-guard.js';
 
 type GovernedMeriV3ChatInput = MeriV3ChatInput & { governedContext?: MeriGovernedTurnContext };
 
@@ -69,10 +73,12 @@ export class MeriV3Controller {
       const governed = requireGovernedContext(dto);
       const meriContext = await this.resolver.resolveIdentity(tenant);
       authenticateGovernedContext(governed, dto, meriContext);
+      const procedure = authenticateProcedureBinding(governed, dto, meriContext);
       meriContext.contextPacket = governed.contextPacket;
       const effectiveDto = {
         ...dto,
-        skillAddendum: withGovernedPrompt(dto.skillAddendum, governed),
+        // Bound turns consume only the server-resolved signed instruction.
+        skillAddendum: withGovernedPrompt(procedure?.instruction ?? dto.skillAddendum, governed),
       };
       const run = async () => this.assistant.run(meriContext, effectiveDto);
       const result = await runWithGovernedMeriContext(governed, run);
@@ -99,6 +105,7 @@ export class MeriV3Controller {
     const governed = requireGovernedContext(dto);
     const meriContext = await this.resolver.resolveIdentity(tenant);
     authenticateGovernedContext(governed, dto, meriContext);
+    const procedure = authenticateProcedureBinding(governed, dto, meriContext);
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
@@ -131,7 +138,7 @@ export class MeriV3Controller {
       meriContext.contextPacket = governed.contextPacket;
       const effectiveDto = {
         ...dto,
-        skillAddendum: withGovernedPrompt(dto.skillAddendum, governed),
+        skillAddendum: withGovernedPrompt(procedure?.instruction ?? dto.skillAddendum, governed),
       };
       frame({
         type: 'start',
@@ -235,6 +242,23 @@ function authenticateGovernedContext(
       statusCode: 403,
       error: 'Authenticated Context Plane input required',
       code: 'meri_governed_context_authentication_failed',
+    });
+  }
+}
+
+function authenticateProcedureBinding(
+  governed: MeriGovernedTurnContext,
+  dto: MeriV3ChatInput,
+  identity: { tenantId: string },
+) {
+  try {
+    return requireMeriProcedureBinding({ governed, dto, tenantId: identity.tenantId });
+  } catch (error) {
+    if (!(error instanceof MeriProcedureBindingError)) throw error;
+    throw new ForbiddenException({
+      statusCode: 403,
+      error: 'Current served procedure binding required',
+      code: 'meri_procedure_binding_invalid',
     });
   }
 }

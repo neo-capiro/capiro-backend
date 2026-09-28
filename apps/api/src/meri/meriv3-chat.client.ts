@@ -5,6 +5,7 @@ import type {
   LedgerEntry,
   MeriEvidenceManifest,
   MeriContextPacketSummary,
+  MeriGovernedProcedureBinding,
   MeriGovernedTurnContext,
 } from '@capiro/meriv2-core';
 import type { ResolvedAiForChatHeader } from './meriv2-chat.client.js';
@@ -238,6 +239,8 @@ export class MeriV3ChatClient {
       toolPolicy?: 'none' | 'read-only';
       researchRun?: { sessionId: string; runId: string };
       governedContext?: MeriGovernedTurnContext;
+      /** API-only authority; moved inside the signed governed context before transport. */
+      procedure?: MeriGovernedProcedureBinding;
       /** Server-only observations from MeriConversationEvidenceService. */
       inheritedDocumentEvidence?: MeriCitation[];
       inheritedEvidenceNotice?: string;
@@ -252,6 +255,10 @@ export class MeriV3ChatClient {
     if (params.aiProvider && params.aiProvider.provider !== 'openai') {
       throw new Error('MeriV3 requires an OpenAI credential');
     }
+    const { procedure, ...transportInput } = params.input;
+    if (procedure && !params.input.governedContext) {
+      throw new Error('meri_procedure_governed_context_required');
+    }
     const response = await fetch(`${this.baseUrl}/meri-api/v3/chat/stream`, {
       method: 'POST',
       headers: {
@@ -264,12 +271,13 @@ export class MeriV3ChatClient {
           : {}),
       },
       body: JSON.stringify({
-        ...params.input,
+        ...transportInput,
         ...(params.input.governedContext
           ? {
               governedContext: attestMeriGovernedContext(
                 {
                   ...params.input.governedContext,
+                  ...(procedure ? { procedure } : {}),
                   inheritedDocumentEvidence: params.input.inheritedDocumentEvidence ?? [],
                   prompt: [
                     params.input.governedContext.prompt,
@@ -278,7 +286,7 @@ export class MeriV3ChatClient {
                     .filter(Boolean)
                     .join('\n\n'),
                 },
-                params.input,
+                transportInput,
                 process.env.INTERNAL_SERVICE_SECRET,
               ),
             }

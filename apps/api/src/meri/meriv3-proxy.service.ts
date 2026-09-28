@@ -37,6 +37,7 @@ import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
 import { CLIO_SKILLS } from './skills/skill-registry.js';
 import { matchFirmSkillForTurn } from './meri-firm-skills.helpers.js';
+import { resolveServedProcedure, type ServedProcedureReceipt } from './meri-procedure-runtime.js';
 import {
   MAX_ATTACHMENTS_PER_MESSAGE,
   attachmentMetaRef,
@@ -294,13 +295,18 @@ export class MeriV3ProxyService {
           .catch(() => null)) ?? undefined;
     }
     let skillAddendum: string | undefined;
-    try {
-      const tenantSkills = await this.firmSkills.skillsForTenant(ctx.tenantId).catch(() => []);
-      const matched = matchFirmSkillForTurn('', content, tenantSkills, CLIO_SKILLS);
-      if (matched?.systemAddendum) skillAddendum = matched.systemAddendum;
-    } catch {
-      // Firm-authored steering is best effort; the governed runtime still works.
-    }
+    const tenantSkills = await this.firmSkills.skillsForTenant(ctx.tenantId).catch(() => []);
+    const matched = matchFirmSkillForTurn('', content, tenantSkills, CLIO_SKILLS);
+    // A selected procedure is authority, not optional steering. Exact
+    // resolution errors propagate; they never become unrestricted chat.
+    const procedure = await resolveServedProcedure({
+      tenantId: ctx.tenantId,
+      clientId: conversation.clientId,
+      selected: matched,
+      firmSkills: this.firmSkills,
+    });
+    // Procedure instructions travel only in the signed governed context.
+    if (!procedure && matched?.systemAddendum) skillAddendum = matched.systemAddendum;
 
     emit({
       type: 'start',
@@ -308,6 +314,7 @@ export class MeriV3ProxyService {
       tier: reasoningMode === 'fast' ? 'fast' : 'deep',
       runtime: 'meriv3',
       reasoningMode,
+      ...(procedure ? { procedure: procedure.receipt } : {}),
     });
     if (control.pageWriteEnabled) {
       emit({
@@ -453,6 +460,7 @@ export class MeriV3ProxyService {
             : {}),
           ...(clientKbSnapshot ? { clientKbSnapshot } : {}),
           ...(skillAddendum ? { skillAddendum } : {}),
+          ...(procedure ? { procedure: procedure.binding } : {}),
           ...(control.pageWriteEnabled ? { pageWrite: true } : {}),
           ...(replay.currentTurnImages.length
             ? { currentTurnImages: replay.currentTurnImages }
@@ -595,6 +603,7 @@ export class MeriV3ProxyService {
           ...(frame?.retrieval
             ? { retrieval: frame.retrieval as unknown as Prisma.InputJsonValue }
             : {}),
+          ...(procedure ? { procedure: procedure.receipt as unknown as Prisma.InputJsonValue } : {}),
           finishReason,
           partial,
           trace: steps as unknown as Prisma.InputJsonValue,
@@ -641,12 +650,15 @@ export class MeriV3ProxyService {
       ...(assistantMessageId ? { messageId: assistantMessageId } : {}),
       ...(frame?.contextPacket?.packetId ? { contextPacketId: frame.contextPacket.packetId } : {}),
       ...(frame?.retrieval ? { retrieval: frame.retrieval } : {}),
+      ...(procedure ? { procedure: procedure.receipt } : {}),
       turnScope,
     });
     this.logger.log(
       `MeriV3 proxy turn tenant=${ctx.tenantId} conversation=${conversationId} mode=${reasoningMode} ` +
         `model=${runtimeModel} tools=${steps.length} coverage=${frame?.retrieval?.coverage.complete ?? 'n/a'} ` +
-        `aborted=${aborted} sourceMessage=${sourceMessageId}`,
+        `aborted=${aborted} sourceMessage=${sourceMessageId} procedure=${procedureLogIdentity(
+          procedure?.receipt,
+        )}`,
     );
   }
 
@@ -953,4 +965,9 @@ function extractStreamControl(body: string): StreamControl {
   const pageWriteEnabled = prefix.test(cleanContent);
   if (pageWriteEnabled) cleanContent = cleanContent.replace(prefix, '').trim();
   return { cleanContent, traceEnabled, pageWriteEnabled };
+}
+
+function procedureLogIdentity(receipt: ServedProcedureReceipt | undefined): string {
+  if (!receipt) return 'none';
+  return `${receipt.id}@${receipt.version}:${receipt.scope}:${receipt.effectMode}`;
 }
