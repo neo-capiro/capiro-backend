@@ -624,7 +624,8 @@ export class MeriActionProposalService {
         logicalOperationId: row.id,
       });
       const incomplete =
-        classifyMeriActionLogicalFailure(tool, result) ?? filingExecutionFailure(tool, result);
+        classifyMeriActionLogicalFailure(tool, result, row.id) ??
+        filingExecutionFailure(tool, result);
       if (incomplete) {
         const failed = await this.finalize(ctx, row.id, {
           ...incomplete,
@@ -920,7 +921,7 @@ export class MeriActionProposalService {
         logicalOperationId: row.id,
       });
       const incomplete =
-        classifyMeriActionLogicalFailure(row.tool, result) ??
+        classifyMeriActionLogicalFailure(row.tool, result, row.id) ??
         filingExecutionFailure(row.tool, result);
       if (incomplete)
         return this.toPublic(

@@ -5,6 +5,7 @@ import { CAPIRO_COMPLIANCE_POLICY_VERSION, computeActionFingerprintV2 } from '@c
 import type { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../config/config.schema.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
+import { classifyMeriActionLogicalFailure } from './meri-action-logical-outcome.js';
 import {
   MeriActionProposalService,
   type MeriActionProposalStatus,
@@ -690,7 +691,7 @@ describe('MeriActionProposalService', () => {
   });
 
   it.each(['PASS', 'WARN'] as const)(
-    'retains accepted send and artifact failure on the %s path',
+    'binds accepted send and artifact failure to the exact operation on the %s path',
     async (outcome) => {
       const executeResult = {
         ok: true,
@@ -728,6 +729,46 @@ describe('MeriActionProposalService', () => {
       });
       expect(retry.status).toBe('succeeded');
       expect(h.tools.execute).toHaveBeenCalledTimes(1);
+
+      const wrongOperationResult = {
+        ...executeResult,
+        sendReceipt: {
+          ...executeResult.sendReceipt,
+          correlationId: '44444444-4444-4444-8444-444444444444',
+        },
+      };
+      expect(classifyMeriActionLogicalFailure('send_email', executeResult, PROPOSAL)).toBeNull();
+      expect(
+        classifyMeriActionLogicalFailure('send_email', wrongOperationResult, PROPOSAL),
+      ).toMatchObject({
+        status: 'outcome_unknown',
+        errorCode: 'send_email_receipt_missing',
+      });
+
+      const wrong = harness({
+        row: outcome === 'WARN' ? makeRow() : null,
+        executeResult: wrongOperationResult,
+      });
+      wrong.setPolicy({ outcome, reasons: ['Send policy'] });
+      const mismatched =
+        outcome === 'WARN'
+          ? await wrong.service.approveAndExecute(ctx, PROPOSAL)
+          : (
+              await wrong.service.create(ctx, {
+                tool: 'send_email',
+                input: makeRow().input,
+                surface: 'chat',
+              })
+            ).proposal;
+      const mismatchedRetry = await wrong.service.approveAndExecute(ctx, PROPOSAL);
+      expect(mismatched.status).toBe('outcome_unknown');
+      expect(mismatched.error?.code).toBe('send_email_receipt_missing');
+      expect(mismatched.resultSummary).toMatchObject({
+        sendReceipt: wrongOperationResult.sendReceipt,
+        artifactPersistence: wrongOperationResult.artifactPersistence,
+      });
+      expect(mismatchedRetry.status).toBe('outcome_unknown');
+      expect(wrong.tools.execute).toHaveBeenCalledTimes(1);
     },
   );
 

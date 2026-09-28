@@ -21,6 +21,7 @@ function message(value: unknown, fallback: string): string {
 export function classifyMeriActionLogicalFailure(
   tool: string,
   result: unknown,
+  expectedLogicalOperationId?: string,
 ): MeriActionLogicalFailure | null {
   const value = record(result);
   if (tool === 'send_email') {
@@ -46,7 +47,9 @@ export function classifyMeriActionLogicalFailure(
       typeof value.subject === 'string' &&
       receipt.ok === true &&
       typeof receipt.correlationId === 'string' &&
-      receipt.correlationId.trim().length > 0 &&
+      typeof expectedLogicalOperationId === 'string' &&
+      expectedLogicalOperationId.length > 0 &&
+      receipt.correlationId === expectedLogicalOperationId &&
       providerIdentityConfirmed
     )
       return null;
