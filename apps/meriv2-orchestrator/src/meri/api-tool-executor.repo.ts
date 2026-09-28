@@ -5,7 +5,11 @@ import { createMeriExecutionControl } from './meri-execution-control.js';
 import { classifyApiToolReadOutcome } from './api-tool-read-outcome.js';
 import { RequestCredentialsStore } from '../request/request-credentials.store.js';
 import { currentTrustedCurrentTurnScope } from '../request/trusted-current-turn-scope.js';
-import { bindCurrentConversationToolInput } from './current-turn-tool-scope.js';
+import {
+  bindCurrentConversationToolInput,
+  isCurrentConversationResearchPortfolioTool,
+} from './current-turn-tool-scope.js';
+import { buildResearchPortfolioToolTransport } from './rp-tool-transport.js';
 
 const RETRYABLE_MAIL_READS = new Set(['list_emails', 'search_emails', 'get_email_thread']);
 const MAX_MAIL_RETRY_DELAY_MS = 5_000;
@@ -103,6 +107,12 @@ export class ApiToolExecutorRepo implements ToolExecutor {
     }
     const currentTurn = currentTrustedCurrentTurnScope();
     const boundedInput = bindCurrentConversationToolInput(toolName, input, currentTurn);
+    const researchPortfolioTool = isCurrentConversationResearchPortfolioTool(toolName);
+    if (researchPortfolioTool && !this.serviceSecret) {
+      throw new Error(
+        `INTERNAL_SERVICE_SECRET is not configured for Research Portfolio tool "${toolName}"`,
+      );
+    }
     if (toolName === 'read_chat_attachments') {
       if (!this.serviceSecret) {
         throw new Error('Internal service identity is not configured for chat attachment reads');
@@ -151,7 +161,9 @@ export class ApiToolExecutorRepo implements ToolExecutor {
                   selectedClientId: currentTurn!.selectedClientId,
                 },
               }
-            : boundedInput,
+            : researchPortfolioTool
+              ? buildResearchPortfolioToolTransport(toolName, boundedInput, currentTurn)
+              : boundedInput,
         ),
         signal: execution.signal,
       } satisfies RequestInit;

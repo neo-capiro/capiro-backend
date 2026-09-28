@@ -43,7 +43,10 @@ export function bindCurrentConversationToolInput(
   input: Record<string, unknown>,
   scope: TrustedCurrentTurnScope | undefined,
 ): Record<string, unknown> {
-  if (!scope || !isCurrentConversationResearchPortfolioTool(toolName)) return input;
+  if (!isCurrentConversationResearchPortfolioTool(toolName)) return input;
+  if (!scope) {
+    throw new Error(`Trusted current-turn scope is unavailable for delegated tool "${toolName}"`);
+  }
   if (!scope.conversationId) {
     throw new Error(`Trusted current conversation is unavailable for delegated tool "${toolName}"`);
   }

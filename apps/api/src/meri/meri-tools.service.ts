@@ -167,6 +167,8 @@ import {
   isResearchPortfolioMeriTool,
   ResearchPortfolioMeriToolsService,
 } from '../research-portfolios/research-portfolio-meri-tools.service.js';
+import { ResearchPortfolioMeriScopeService } from '../research-portfolios/research-portfolio-meri-scope.service.js';
+import { executeMeriResearchPortfolioToolAtCurrentUse } from './meri-rp-tool-transport.js';
 import { MeetingPrepJobService } from '../engagement/meeting-prep-job.service.js';
 import { R5MeriDistrictTools } from '../district-nexus/r5-action-layer/r5-meri-district-tools.js';
 import { meetingPrepEnabled } from '../engagement/meeting-prep-policy.js';
@@ -353,6 +355,7 @@ export class MeriToolsService {
     @Optional() private readonly researchPortfolioTools?: ResearchPortfolioMeriToolsService,
     @Optional() private readonly districtTools?: R5MeriDistrictTools,
     @Optional() private readonly chatAttachmentReader?: MeriChatAttachmentReadService,
+    @Optional() private readonly researchPortfolioScope?: ResearchPortfolioMeriScopeService,
   ) {}
 
   manifest() {
@@ -2327,7 +2330,14 @@ export class MeriToolsService {
       case 'get_research_portfolio_operations':
       case 'prepare_research_portfolio_brief':
       case 'prepare_research_portfolio_meeting':
-        return this.requireResearchPortfolioTools().execute(ctx, name, input);
+        return executeMeriResearchPortfolioToolAtCurrentUse({
+          prisma: this.prisma,
+          scopeService: this.researchPortfolioScope,
+          ctx,
+          name,
+          input,
+          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),
+        });
       case 'search_legiwatch_news':
       case 'get_florida_budget_project':
       case 'compare_florida_budget_amounts':
