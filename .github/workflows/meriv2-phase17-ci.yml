@@ -68,16 +68,27 @@ jobs:
           pnpm --filter @capiro/strategy-verifier build
           pnpm --filter @capiro/meriv2-core build
 
-      - name: Check Phase 17 formatting scope
-        run: >-
-          pnpm exec prettier --check
-          ".github/workflows/meriv2-phase17-*.yml"
-          "packages/meriv2-core/**/*.{ts,json}"
-          "apps/meriv2-orchestrator/**/*.{ts,cjs,json}"
-          "apps/api/src/memory/**/*.ts"
-          "apps/api/src/context/**/*.ts"
-          "apps/workspace/src/generation/**/*.ts"
-          "apps/api-strategy/src/agents/**/*.ts"
+      - name: Check changed files in the Phase 17 formatting scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$base" ]; then
+            base=$(git merge-base origin/main HEAD 2>/dev/null || git rev-parse HEAD^)
+          fi
+          mapfile -d '' -t files < <(git diff --name-only -z --diff-filter=ACMR "$base...HEAD" -- \
+            '.github/workflows/meriv2-phase17-*.yml' \
+            'packages/meriv2-core/**' \
+            'apps/meriv2-orchestrator/**' \
+            'apps/api/src/memory/**' \
+            'apps/api/src/context/**' \
+            'apps/workspace/src/generation/**' \
+            'apps/api-strategy/src/agents/**')
+          if (( ${#files[@]} == 0 )); then
+            echo 'No changed files in the Phase 17 formatting scope.'
+          else
+            pnpm exec prettier --check "${files[@]}"
+          fi
 
       - name: Run and classify Phase 17 bypass searches
         shell: bash

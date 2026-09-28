@@ -57,6 +57,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
+      NODE_OPTIONS: --max-old-space-size=6144
       DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro_ci
 
     steps:

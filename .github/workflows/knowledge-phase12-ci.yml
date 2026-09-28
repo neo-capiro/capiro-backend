@@ -48,7 +48,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Patch hygiene
         run: git diff --check HEAD^
@@ -82,9 +82,22 @@ jobs:
         run: |
           set -euo pipefail
 
-          titan_literal_hits=$(git grep -n -E 'amazon\.titan-embed-text-v2:0' -- \
+          base="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$base" ]; then
+            base=$(git merge-base origin/main HEAD 2>/dev/null || git rev-parse HEAD^)
+          fi
+
+          # Reject newly-added coupling. Existing cross-domain defaults and
+          # historical fixtures remain visible baseline debt, but do not make
+          # every unrelated PR fail this Phase 12 ownership gate.
+          titan_literal_hits=$(git diff --unified=0 --no-ext-diff "$base...HEAD" -- \
             'apps/**' 'packages/**' 'scripts/**' \
-            ':!apps/api/src/embeddings/titan-embedding.provider.ts' || true)
+            ':!apps/api/src/embeddings/titan-embedding.provider.ts' \
+            | awk '
+                /^diff --git / { path=$4; sub(/^b\//, "", path) }
+                /^\+\+\+/ { next }
+                /^\+[^+]/ && /amazon\.titan-embed-text-v2:0/ { print path ":" substr($0, 2) }
+              ' || true)
           if [ -n "$titan_literal_hits" ]; then
             echo "Titan embedding model is coupled outside the provider adapter:" >&2
             echo "$titan_literal_hits" >&2

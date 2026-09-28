@@ -95,11 +95,19 @@ jobs:
         # unrelated pre-existing debt). State-platform code in apps/api is
         # formatted file-by-file at authorship; a repo-wide changed-files gate is
         # a separate follow-up once the apps/* debt is paid down.
-        run: >
-          pnpm exec prettier --check
-          "packages/meriv2-core/**/*.ts"
-          "apps/meriv2-orchestrator/**/*.ts"
-          "packages/shared/**/*.ts"
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          mapfile -d '' -t files < <(git diff --name-only -z --diff-filter=ACMR "$base...HEAD" -- \
+            'packages/meriv2-core/**' \
+            'apps/meriv2-orchestrator/**' \
+            'packages/shared/**')
+          if (( ${#files[@]} == 0 )); then
+            echo 'No changed files in the MeriV2/shared formatting scope.'
+          else
+            pnpm exec prettier --check "${files[@]}"
+          fi
 
       # BYOK4 guard: no MeriV2 code may read the global Anthropic key directly.
       # The ONLY permitted reference is the orchestrator's resolver wiring

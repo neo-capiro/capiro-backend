@@ -26,25 +26,55 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Detect Revised Phase 1 owned changes
+        id: phase1-scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != 'pull_request' ]; then
+            echo 'should_run=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          should_run=false
+          while IFS= read -r file; do
+            case "$file" in
+              package.json|scripts/*outreach-v3-p1*|scripts/*engagement-runtime-ownership*|apps/api/src/engagement/**|apps/api/src/engagement-api.app.module.ts|apps/api/src/engagement-workers/**|apps/api/src/engagement-callbacks/**|apps/api/src/webhooks/**|apps/api/src/capabilities/**|apps/api/src/ai-credentials/**|apps/api/src/intelligence/alert-memo/**|apps/api/src/meri/meri.module.ts|apps/api/src/app.module.ts|infra/cdk/fixtures/engagement-runtime-ownership.v1.json|docs/contracts/capiro-capabilities-v1.md|docs/contracts/engagement-runtime-ownership-v1.md|docs/runbooks/capiro-capability-security.md|docs/runbooks/engagement-runtime-ownership.md|docs/plans/outreach-v3/revised-phase-1-*|docs/plans/outreach-v3/revised-phase-2-*)
+                should_run=true
+                break
+                ;;
+            esac
+          done < <(git diff --name-only "${{ github.event.pull_request.base.sha }}...HEAD")
+          echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
+          echo "Revised Phase 1 owned changes: $should_run"
+
       - name: Show exact execution head
         run: |
           git rev-parse HEAD
           test -z "$(git status --short)"
 
+      - name: Report non-Phase-1 pull request
+        if: steps.phase1-scope.outputs.should_run != 'true'
+        run: echo 'No Revised Phase 1 owned paths changed; closeout gate is not applicable.'
+
       - uses: pnpm/action-setup@v4
+        if: steps.phase1-scope.outputs.should_run == 'true'
 
       - uses: actions/setup-node@v7
+        if: steps.phase1-scope.outputs.should_run == 'true'
         with:
           node-version: 22
           cache: pnpm
 
       - name: Install locked dependencies
+        if: steps.phase1-scope.outputs.should_run == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Generate API Prisma client
+        if: steps.phase1-scope.outputs.should_run == 'true'
         run: pnpm --filter @capiro/api exec prisma generate
 
       - name: Execute exact Revised Phase 1 DB-free gate
+        if: steps.phase1-scope.outputs.should_run == 'true'
         run: |
           set -o pipefail
           pnpm verify:outreach-v3-phase-1

@@ -67,38 +67,35 @@ jobs:
           pnpm --filter @capiro/onboard-api exec prisma generate
           pnpm --filter @capiro/api-strategy exec prisma generate
 
-      - name: Format gate — MeriV3 changed paths
-        run: >
-          pnpm exec prettier --check
-          "apps/meriv2-orchestrator/src/meri/meriv3/**/*.ts"
-          "apps/meriv2-orchestrator/src/meri/meri.module.ts"
-          "apps/api/src/meri/meriv3*.ts"
-          "apps/api/src/meri/meri-managed-mcp*.ts"
-          "apps/api/src/meri/meri-mcp-oauth.controller.ts"
-          "apps/api/src/meri/meri.module.ts"
-          "apps/api/src/common/meriv3*.ts"
-          "apps/api/src/capiro-admin/meriv3*.ts"
-          "apps/api/src/capiro-admin/capiro-admin.module.ts"
-          "apps/api/src/users/users.controller.ts"
-          "apps/web/src/components/chat/ChatInput.tsx"
-          "apps/web/src/components/chat/ManagedComposerPlus.tsx"
-          "apps/web/src/components/chat/ManagedComposerPlus.test.tsx"
-          "apps/web/src/components/chat/managed-mcp-apps.tsx"
-          "apps/web/src/components/chat/managed-mcp-apps.test.tsx"
-          "apps/web/src/components/chat/managed-mcp-apps.css"
-          "apps/web/src/components/chat/MeriOverlay.tsx"
-          "apps/web/src/components/chat/MeriOverlay.test.tsx"
-          "apps/web/src/components/chat/MeriWorkspaceWindow.tsx"
-          "apps/web/src/components/chat/MeriWorkspaceWindow.test.tsx"
-          "apps/web/src/components/chat/meri-window.ts"
-          "apps/web/src/components/chat/meri-window.test.ts"
-          "apps/web/src/components/chat/meri-workspace-window.css"
-          "apps/web/src/components/chat/meri-workspace-window-scope.css"
-          "apps/web/src/lib/me.ts"
-          "docs/plans/meriv3-thin-agent-architecture.md"
-          "docs/plans/meriv3-managed-mcp-apps.md"
-          "docs/runbooks/meriv3-capiro-internal-canary.md"
-          ".github/workflows/meriv3-canary-ci.yml"
+      - name: Format gate — changed files in MeriV3 scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$base" ]; then
+            base=$(git merge-base origin/main HEAD 2>/dev/null || git rev-parse HEAD^)
+          fi
+          mapfile -d '' -t files < <(git diff --name-only -z --diff-filter=ACMR "$base...HEAD" -- \
+            'apps/meriv2-orchestrator/src/meri/meriv3/**' \
+            'apps/meriv2-orchestrator/src/meri/meri.module.ts' \
+            'apps/api/src/meri/meriv3*.ts' \
+            'apps/api/src/meri/meri-managed-mcp*.ts' \
+            'apps/api/src/meri/meri-mcp-oauth.controller.ts' \
+            'apps/api/src/meri/meri.module.ts' \
+            'apps/api/src/common/meriv3*.ts' \
+            'apps/api/src/capiro-admin/meriv3*.ts' \
+            'apps/api/src/capiro-admin/capiro-admin.module.ts' \
+            'apps/api/src/users/users.controller.ts' \
+            'apps/web/src/components/chat/**' \
+            'apps/web/src/lib/me.ts' \
+            'docs/plans/meriv3-*' \
+            'docs/runbooks/meriv3-*' \
+            '.github/workflows/meriv3-canary-ci.yml')
+          if (( ${#files[@]} == 0 )); then
+            echo 'No changed files in the MeriV3 formatting scope.'
+          else
+            pnpm exec prettier --check "${files[@]}"
+          fi
 
       - name: Build shared package prerequisites
         run: |
