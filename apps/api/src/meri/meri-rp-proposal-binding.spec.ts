@@ -189,6 +189,7 @@ describe('Research Portfolio proposal binding', () => {
       },
       select: { metadata: true, clientId: true },
     });
+    expect(findFirst).toHaveBeenCalledTimes(2);
     expect(authorize).toHaveBeenCalledTimes(1);
   });
 
@@ -248,4 +249,53 @@ describe('Research Portfolio proposal binding', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     },
   );
+
+  it.each([
+    ['client', { metadata, clientId: null }],
+    ['RP metadata', {
+      metadata: {
+        researchPortfolioScope: {
+          ...metadata.researchPortfolioScope,
+          researchPortfolioRevision: 4,
+        },
+      },
+      clientId: CLIENT,
+    }],
+  ])('rejects %s drift while the RP grant check is awaited', async (_label, changed) => {
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let entered!: () => void;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const findFirst = jest
+      .fn()
+      .mockResolvedValueOnce({ metadata, clientId: CLIENT })
+      .mockImplementationOnce(async () => changed);
+    const authorize = jest.fn(async () => {
+      entered();
+      await waiting;
+      return { researchPortfolioId: 'portfolio-1' };
+    });
+    const prisma = {
+      withTenant: jest.fn((_tenantId: string, callback: (tx: unknown) => unknown) =>
+        callback({ clioConversation: { findFirst } }),
+      ),
+    };
+
+    const check = authorizeResearchPortfolioProposalConversation(
+      prisma as never,
+      { authorize } as never,
+      ctx,
+      CONVERSATION,
+      CLIENT,
+    );
+    await started;
+    release();
+
+    await expect(check).rejects.toBeInstanceOf(BadRequestException);
+    expect(findFirst).toHaveBeenCalledTimes(2);
+  });
 });

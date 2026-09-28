@@ -1,5 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import type { MeriActionProposal } from '@prisma/client';
+import { PrismaClient, type MeriActionProposal } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import {
   CAPIRO_COMPLIANCE_POLICY_VERSION,
@@ -244,6 +245,19 @@ function harness(
   }
 
   const tx = {
+    $queryRaw: jest.fn(async (_strings: TemplateStringsArray, ...values: unknown[]) =>
+      conversation &&
+      conversation.id === values[0] &&
+      conversation.tenantId === TENANT &&
+      conversation.tenantId === values[1] &&
+      conversation.userId === USER &&
+      conversation.userId === values[2] &&
+      conversation.archivedAt === null &&
+      conversation.clientId === values[3] &&
+      JSON.stringify(conversation.metadata) === values[4]
+        ? [{ id: conversation.id }]
+        : [],
+    ),
     client: { findFirst: jest.fn().mockResolvedValue(null) },
     clioConversation: {
       findFirst: jest.fn(async ({ where }: { where: Record<string, unknown> }) =>
@@ -987,7 +1001,7 @@ describe('MeriActionProposalService — Research Portfolio conversation binding'
         'create_research_portfolio_snapshot',
         snapshotInput,
       );
-      expect(h.authorizeScope).toHaveBeenCalledTimes(1);
+      expect(h.authorizeScope).toHaveBeenCalledTimes(2);
       expect(h.tools.execute).toHaveBeenCalledTimes(executions);
     },
   );
@@ -1276,6 +1290,156 @@ describe('MeriActionProposalService — Research Portfolio conversation binding'
     expect(h.authorizeScope).not.toHaveBeenCalled();
     expect(h.policyPacks.decideForAction).not.toHaveBeenCalled();
     expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['creation', false],
+    ['approval', true],
+  ] as const)('rejects RP %s when selected client changes during awaited policy', async (_label, approval) => {
+    const conversation = {
+      id: RP_CONVERSATION,
+      tenantId: TENANT,
+      userId: USER,
+      archivedAt: null,
+      clientId: RP_CLIENT,
+      metadata: researchPortfolioMetadata(),
+    };
+    const h = harness({ row: approval ? rpRow({}, RP_CLIENT) : null, conversation });
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let entered!: () => void;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    h.policyPacks.decideForAction = jest.fn(async () => {
+      entered();
+      await waiting;
+      return authoritativeDecision('create_research_portfolio_snapshot', {
+        outcome: 'WARN',
+        reasons: ['Review snapshot'],
+      });
+    });
+    const action = approval
+      ? h.service.approveAndExecute(ctx, PROPOSAL)
+      : h.service.create(
+          ctx,
+          {
+            tool: 'create_research_portfolio_snapshot',
+            input: snapshotInput,
+            conversationId: RP_CONVERSATION,
+            surface: 'chat',
+          },
+          { conversationId: RP_CONVERSATION, selectedClientId: RP_CLIENT },
+        );
+    await started;
+    h.setConversation({ ...conversation, clientId: null });
+    release();
+
+    await expect(action).rejects.toBeInstanceOf(BadRequestException);
+    expect(h.getRow()?.status ?? null).toBe(approval ? 'proposed' : null);
+    expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['grant', new BadRequestException('Research Portfolio grant was revoked')],
+    ['ethical wall', new NotFoundException('Research Portfolio is blocked')],
+  ])('rejects approval when the late RP %s check fails after policy', async (_label, error) => {
+    const h = harness({ row: rpRow() });
+    h.authorizeScope.mockResolvedValueOnce({ researchPortfolioId: RP_PORTFOLIO });
+    h.authorizeScope.mockRejectedValueOnce(error);
+
+    await expect(h.service.approveAndExecute(ctx, PROPOSAL)).rejects.toBe(error);
+    expect(h.getRow()?.status).toBe('proposed');
+    expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+
+  it('rejects approval when the conversation is archived during the late grant check', async () => {
+    const conversation = {
+      id: RP_CONVERSATION,
+      tenantId: TENANT,
+      userId: USER,
+      archivedAt: null,
+      clientId: null,
+      metadata: researchPortfolioMetadata(),
+    };
+    const h = harness({ row: rpRow(), conversation });
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let entered!: () => void;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    h.authorizeScope
+      .mockResolvedValueOnce({ researchPortfolioId: RP_PORTFOLIO })
+      .mockImplementationOnce(async () => {
+        entered();
+        await waiting;
+        return { researchPortfolioId: RP_PORTFOLIO };
+      });
+
+    const approval = h.service.approveAndExecute(ctx, PROPOSAL);
+    await started;
+    h.setConversation({ ...conversation, archivedAt: new Date() });
+    release();
+
+    await expect(approval).rejects.toBeInstanceOf(NotFoundException);
+    expect(h.getRow()?.status).toBe('proposed');
+    expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+
+  it('allows exactly one of two concurrent approvals to claim and execute', async () => {
+    const h = harness({ row: rpRow() });
+
+    const [first, second] = await Promise.all([
+      h.service.approveAndExecute(ctx, PROPOSAL),
+      h.service.approveAndExecute(ctx, PROPOSAL),
+    ]);
+
+    expect([first.status, second.status]).toContain('succeeded');
+    expect([first.status, second.status].every((value) => /^(?:executing|succeeded)$/.test(value)))
+      .toBe(true);
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+    expect(h.getRow()?.attemptCount).toBe(1);
+  });
+
+  it('leaves approval retryable when the transaction claim fence loses the exact conversation row', async () => {
+    const h = harness({ row: rpRow({ status: 'failed_retryable', attemptCount: 1 }) });
+    h.tx.$queryRaw.mockResolvedValueOnce([]);
+
+    await expect(h.service.approveAndExecute(ctx, PROPOSAL)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(h.getRow()?.status).toBe('failed_retryable');
+    expect(h.getRow()?.attemptCount).toBe(1);
+    expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+
+  it('keeps a failed RP PASS execution retryable under the same late-fenced authority', async () => {
+    const h = harness({ row: null });
+    h.setPolicy({ outcome: 'PASS', reasons: ['RP write allowed'] });
+    h.tools.execute.mockRejectedValueOnce(new Error('temporarily unavailable'));
+    h.tools.execute.mockResolvedValueOnce({ ok: true, snapshotId: PROPOSAL });
+
+    const created = await h.service.create(
+      ctx,
+      {
+        tool: 'create_research_portfolio_snapshot',
+        input: snapshotInput,
+        conversationId: RP_CONVERSATION,
+        surface: 'chat',
+      },
+      { conversationId: RP_CONVERSATION, selectedClientId: null },
+    );
+    expect(created.proposal.status).toBe('failed_retryable');
+
+    const retried = await h.service.approveAndExecute(ctx, PROPOSAL);
+    expect(retried.status).toBe('succeeded');
+    expect(retried.attemptCount).toBe(2);
+    expect(h.tools.execute).toHaveBeenCalledTimes(2);
   });
 
   it('leaves an ordinary non-RP proposal path unaffected', async () => {
@@ -1638,5 +1802,96 @@ describe('MeriActionProposalService.list', () => {
     expect(defaultRows.some((row) => row.proposalId === PROPOSAL)).toBe(false);
     expect(exactRows.map((row) => row.proposalId)).toEqual([PROPOSAL]);
     expect(h.execute).not.toHaveBeenCalled();
+  });
+});
+
+const rpClaimDatabaseUrl = process.env.RP_PROPOSAL_CLAIM_TEST_DATABASE_URL;
+const rpClaimPostgresSuite = rpClaimDatabaseUrl ? describe : describe.skip;
+rpClaimPostgresSuite('RP proposal conversation claim fence — PostgreSQL', () => {
+  const schema = `rp_claim_${randomUUID().replaceAll('-', '')}`;
+  const tenantId = randomUUID();
+  const userId = randomUUID();
+  const conversationId = randomUUID();
+  const clientId = randomUUID();
+  const checkpointMetadata = researchPortfolioMetadata();
+  let admin: PrismaClient;
+  let db: PrismaClient;
+
+  beforeAll(async () => {
+    admin = new PrismaClient({ datasources: { db: { url: rpClaimDatabaseUrl! } } });
+    await admin.$executeRawUnsafe(`CREATE SCHEMA "${schema}"`);
+    const url = new URL(rpClaimDatabaseUrl!);
+    url.searchParams.set('schema', schema);
+    url.searchParams.set('connection_limit', '1');
+    db = new PrismaClient({ datasources: { db: { url: url.toString() } } });
+    await db.$executeRawUnsafe(`SET search_path TO "${schema}"`);
+    await db.$executeRawUnsafe(`
+      CREATE TABLE clio_conversations (
+        id uuid PRIMARY KEY,
+        tenant_id uuid NOT NULL,
+        user_id uuid NOT NULL,
+        client_id uuid NULL,
+        metadata_jsonb jsonb NOT NULL,
+        archived_at timestamptz NULL
+      )
+    `);
+    await db.$executeRawUnsafe(
+      `INSERT INTO clio_conversations(id, tenant_id, user_id, client_id, metadata_jsonb)
+       VALUES ('${conversationId}', '${tenantId}', '${userId}', NULL, '${JSON.stringify(checkpointMetadata)}'::jsonb)`,
+    );
+  });
+
+  afterAll(async () => {
+    if (db) await db.$disconnect();
+    if (admin) {
+      await admin.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
+      await admin.$disconnect();
+    }
+  });
+
+  it('matches exact null/non-null client and metadata and rejects archive/client/metadata drift', async () => {
+    const service = new MeriActionProposalService(
+      {} as PrismaService,
+      {} as MeriToolsService,
+      {} as ConfigService<AppConfig, true>,
+      {} as MeriPolicyPackService,
+      {} as ResearchPortfolioMeriScopeService,
+    );
+    const lock = (
+      service as unknown as {
+        lockResearchPortfolioProposalConversation: (
+          tx: PrismaClient,
+          context: TenantContext,
+          id: string,
+          checkpoint: { metadata: Record<string, unknown>; clientId: string | null },
+        ) => Promise<boolean>;
+      }
+    ).lockResearchPortfolioProposalConversation.bind(service);
+    const context = { ...ctx, tenantId, userId };
+
+    await expect(
+      lock(db, context, conversationId, { metadata: checkpointMetadata, clientId: null }),
+    ).resolves.toBe(true);
+    await db.$executeRawUnsafe(
+      `UPDATE clio_conversations SET client_id = '${clientId}' WHERE id = '${conversationId}'`,
+    );
+    await expect(
+      lock(db, context, conversationId, { metadata: checkpointMetadata, clientId }),
+    ).resolves.toBe(true);
+    await expect(
+      lock(db, context, conversationId, { metadata: checkpointMetadata, clientId: null }),
+    ).resolves.toBe(false);
+    await db.$executeRawUnsafe(
+      `UPDATE clio_conversations SET metadata_jsonb = '{"researchPortfolioScope":null}'::jsonb WHERE id = '${conversationId}'`,
+    );
+    await expect(
+      lock(db, context, conversationId, { metadata: checkpointMetadata, clientId }),
+    ).resolves.toBe(false);
+    await db.$executeRawUnsafe(
+      `UPDATE clio_conversations SET metadata_jsonb = '${JSON.stringify(checkpointMetadata)}'::jsonb, archived_at = now() WHERE id = '${conversationId}'`,
+    );
+    await expect(
+      lock(db, context, conversationId, { metadata: checkpointMetadata, clientId }),
+    ).resolves.toBe(false);
   });
 });

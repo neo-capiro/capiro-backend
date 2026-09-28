@@ -1,4 +1,6 @@
+import { isDeepStrictEqual } from 'node:util';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -12,6 +14,11 @@ const TRUSTED_SCOPE_KEY = '__meriRpCurrentTurnScope';
 export interface ResearchPortfolioProposalTurnScope {
   conversationId: string;
   selectedClientId: string | null;
+}
+
+export interface ResearchPortfolioProposalConversationCheckpoint {
+  metadata: Prisma.JsonValue;
+  clientId: string | null;
 }
 
 const RESEARCH_PORTFOLIO_TOOLS = new Set([
@@ -193,7 +200,7 @@ export async function authorizeResearchPortfolioProposalConversation(
   conversationId: string,
   trustedSelectedClientId: string | null | undefined,
   policyClientId?: string | null,
-): Promise<void> {
+): Promise<ResearchPortfolioProposalConversationCheckpoint> {
   const conversation = await prisma.withTenant(ctx.tenantId, (tx) =>
     tx.clioConversation.findFirst({
       where: {
@@ -215,9 +222,29 @@ export async function authorizeResearchPortfolioProposalConversation(
   if (!scope) {
     throw new BadRequestException('This conversation is not scoped to a Research Portfolio');
   }
+  const current = await prisma.withTenant(ctx.tenantId, (tx) =>
+    tx.clioConversation.findFirst({
+      where: {
+        id: conversationId,
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        archivedAt: null,
+      },
+      select: { metadata: true, clientId: true },
+    }),
+  );
+  if (!current) throw new NotFoundException('Meri conversation not found');
+  if (
+    current.clientId !== conversation.clientId ||
+    !isDeepStrictEqual(current.metadata, conversation.metadata)
+  ) {
+    throw new BadRequestException(
+      'The current Research Portfolio conversation authority changed during authorization.',
+    );
+  }
   if (
     trustedSelectedClientId !== undefined &&
-    conversation.clientId !== trustedSelectedClientId
+    current.clientId !== trustedSelectedClientId
   ) {
     throw new BadRequestException(
       'The current conversation client changed after the Research Portfolio proposal turn.',
@@ -225,11 +252,12 @@ export async function authorizeResearchPortfolioProposalConversation(
   }
   if (
     policyClientId &&
-    conversation.clientId &&
-    conversation.clientId !== policyClientId
+    current.clientId &&
+    current.clientId !== policyClientId
   ) {
     throw new BadRequestException(
       'The proposal client does not match the current conversation client.',
     );
   }
+  return current;
 }
