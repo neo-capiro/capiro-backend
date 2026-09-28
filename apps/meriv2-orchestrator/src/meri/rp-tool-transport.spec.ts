@@ -50,6 +50,20 @@ describe('Research Portfolio tool transport envelope', () => {
     },
   );
 
+  it.each([' get_research_portfolio ', '\tmanage_research_portfolio\n'])(
+    'binds normalized %s before dispatch',
+    (name) => {
+      expect(() => buildResearchPortfolioToolTransport(name, {}, undefined)).toThrow(
+        'Trusted current-turn scope is unavailable',
+      );
+      expect(buildResearchPortfolioToolTransport(name, {}, scope)).toEqual({
+        version: 1,
+        input: { conversationId: CONVERSATION },
+        currentTurn: scope,
+      });
+    },
+  );
+
   it('fails missing scope, missing conversation, cross-model target, and malformed trusted context', () => {
     expect(() =>
       buildResearchPortfolioToolTransport('get_research_portfolio', {}, undefined),

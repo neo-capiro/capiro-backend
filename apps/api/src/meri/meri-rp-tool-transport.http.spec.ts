@@ -194,6 +194,14 @@ describe('Research Portfolio actual repo -> HTTP -> controller -> canonical owne
     expect(validateProcedureRuntime).not.toHaveBeenCalled();
   });
 
+  it('requires strict RP admission for whitespace-normalized tool names before canonical dispatch', async () => {
+    await request(app.getHttpServer())
+      .post('/api/clio/tools/%20get_research_portfolio%20')
+      .send({ conversationId: CONVERSATION })
+      .expect(403);
+    expect(detail).not.toHaveBeenCalled();
+  });
+
   function repo(): OrchestratorRepo {
     // Runtime require keeps the API package's production TypeScript root closed
     // while exercising the actual orchestrator repository over a real socket.
