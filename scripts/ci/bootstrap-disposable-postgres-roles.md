@@ -19,3 +19,13 @@ Local checks do not contact PostgreSQL:
     node --test scripts/ci/bootstrap-disposable-postgres-roles.test.mjs
 
 A full migration replay remains a GitHub Actions check because the assigned Windows environment has no Docker/WSL PostgreSQL fixture.
+
+## Phase 10 append-only prerequisite
+
+After role bootstrap passed, the clean replay exposed a separate repository defect: `20281002010000_research_portfolios_phase10_watch_delivery` referenced `public.reject_append_only_mutation()` without an earlier migration defining it. The additive `20281002000000_research_portfolio_append_only_prerequisite` migration now supplies that function before the consumer and preserves a compatible existing definition.
+
+The read-only live probe is different evidence, not a live fix: it found the delivery table and compatible function already present while the Phase 10 migration ledger entry was absent. This change neither connects to nor reconciles that pre-existing unledgered live state.
+
+The focused test uses only the installed PGlite PostgreSQL runtime:
+
+    node --test scripts/ci/research-portfolio-migration-prerequisite.test.mjs
