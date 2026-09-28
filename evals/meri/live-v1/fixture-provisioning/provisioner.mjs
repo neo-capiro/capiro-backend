@@ -54,7 +54,29 @@ function assertExactOwnedRow(record, row) {
   return rowVersion(row);
 }
 
+function assertAbsent(record, existing) {
+  if (existing) {
+    throw new FixtureProvisioningError(
+      'EXPECTED_ABSENT_ROW_PRESENT',
+      `${record.logicalId} must start absent; automatic deletion is forbidden`,
+    );
+  }
+}
+
 function operationFor(record, existing) {
+  if (record.expectedPresence === 'absent') {
+    assertAbsent(record, existing);
+    return {
+      action: 'assert_absent',
+      logicalId: record.logicalId,
+      physicalId: record.physicalId,
+      owner: record.owner,
+      tenantId: record.tenantId,
+      expectedRowVersion: null,
+      expectedPayloadSha256: record.payloadSha256,
+      expectedOwnershipMarkerSha256: record.ownership.markerSha256,
+    };
+  }
   if (!existing) {
     return {
       action: 'create',
@@ -91,6 +113,7 @@ function planBody(manifest, operations, unavailable, authority) {
     operations,
     unavailable,
     summary: {
+      absent: operations.filter((entry) => entry.action === 'assert_absent').length,
       creates: operations.filter((entry) => entry.action === 'create').length,
       replacements: operations.filter((entry) => entry.action === 'replace').length,
       stable: operations.filter((entry) => entry.action === 'noop').length,
@@ -208,6 +231,24 @@ export async function applyFixture({ manifest, plan, adapter, confirmation }) {
     if (!record) throw new FixtureProvisioningError('PLAN_RECORD_MISSING', operation.logicalId);
     try {
       const before = await adapter.inspect(record);
+      if (record.expectedPresence === 'absent') {
+        if (operation.action !== 'assert_absent') {
+          throw new FixtureProvisioningError('PLAN_PRESENCE_MISMATCH', record.logicalId);
+        }
+        assertAbsent(record, before);
+        results.push({
+          action: 'assert_absent',
+          outcome: 'verified_absent',
+          logicalId: record.logicalId,
+          physicalId: record.physicalId,
+          tenantId: record.tenantId,
+          owner: record.owner,
+        });
+        continue;
+      }
+      if (!['create', 'replace', 'noop'].includes(operation.action)) {
+        throw new FixtureProvisioningError('PLAN_ACTION_INVALID', record.logicalId);
+      }
       if (operation.action === 'create') {
         if (before) assertExactOwnedRow(record, before);
         if (before) {
@@ -292,6 +333,15 @@ export async function verifyFixture({ manifest, adapter }) {
     }
     try {
       const actual = await adapter.inspect(record);
+      if (record.expectedPresence === 'absent') {
+        assertAbsent(record, actual);
+        records.push({
+          logicalId: record.logicalId,
+          physicalId: record.physicalId,
+          outcome: 'verified_absent',
+        });
+        continue;
+      }
       if (!actual) throw new FixtureProvisioningError('EXPECTED_ROW_MISSING', record.logicalId);
       records.push({ outcome: 'verified', ...appliedRecord(record, actual) });
     } catch (error) {

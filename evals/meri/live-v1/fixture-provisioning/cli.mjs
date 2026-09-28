@@ -122,6 +122,7 @@ async function main() {
     tenants: config.tenants,
     clients: config.clients,
     actors: config.actors,
+    uploaderActors: config.uploaderActors,
     availableOwners: config.availableOwners,
   });
 

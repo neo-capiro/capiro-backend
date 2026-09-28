@@ -162,6 +162,191 @@ test('source map covers frozen sources plus CD7/CW8 additions and is honest abou
   );
 });
 
+test('unconfigured native owners always explain their unavailability', async () => {
+  const mapped = await manifest([]);
+  for (const record of mapped.records) {
+    assert.equal(record.availability.status, 'unavailable');
+    assert.equal(typeof record.availability.reason, 'string');
+    assert.ok(record.availability.reason.length > 0, record.logicalId);
+  }
+});
+
+test('document uploader binding cannot borrow an actor from another tenant', async () => {
+  const mapped = await buildFixtureManifest({
+    clients: CLIENTS,
+    actors: { PAT: { ...ACTORS.PAT, tenantId: 'T2' } },
+    availableOwners: ['engagement_attachment'],
+  });
+  const record = mapped.records.find((entry) => entry.logicalId === 'D-A-1');
+  assert.equal(record.availability.status, 'unavailable');
+  assert.equal(record.uploaderActorId, null);
+  assert.match(record.availability.reason, /crosses tenants/);
+  assertManifest(mapped);
+});
+
+test('explicit uploader binding uses the selected same-tenant actor', async () => {
+  const userId = '55555555-5555-4555-8555-555555555555';
+  const mapped = await buildFixtureManifest({
+    clients: CLIENTS,
+    actors: { ...ACTORS, UPLOADER: { tenantId: 'T1', userId } },
+    uploaderActors: { T1: 'UPLOADER' },
+    availableOwners: ['engagement_attachment'],
+  });
+  const record = mapped.records.find((entry) => entry.logicalId === 'D-A-1');
+  assert.equal(record.uploaderActorId, userId);
+  assert.equal(record.availability.status, 'available');
+  assert.equal(
+    record.physicalId,
+    clientDocumentPhysicalId({
+      tenantId: AUTHORIZED_TENANTS.T1.id,
+      userId,
+      clientId: CLIENTS.ASTER.physicalId,
+      idempotencyKey: 'meri-foundation-20260928:D-A-1',
+      contentType: record.payload.sourceAsset.mediaType,
+      byteSha256: record.payload.sourceAsset.byteSha256,
+    }),
+  );
+  assertManifest(mapped);
+});
+
+test('rehashing a manifest cannot conceal a changed ownership or uploader identity', async (t) => {
+  const base = await manifest(['engagement_attachment']);
+  const mutations = [
+    [
+      'ownership marker',
+      'RECORD_OWNERSHIP_MISMATCH',
+      (record) => {
+        record.ownership.marker.tenantId = AUTHORIZED_TENANTS.T2.id;
+      },
+    ],
+    [
+      'physical identity',
+      'RECORD_PHYSICAL_ID_MISMATCH',
+      (record) => {
+        record.physicalId = CLIENTS.CEDAR.physicalId;
+      },
+    ],
+    [
+      'uploader actor',
+      'DOCUMENT_ACTOR_BINDING_MISMATCH',
+      (record) => {
+        record.uploaderActorId = CLIENTS.CEDAR.physicalId;
+      },
+    ],
+  ];
+  for (const [label, code, mutate] of mutations) {
+    await t.test(label, () => {
+      const changed = structuredClone(base);
+      mutate(changed.records.find((record) => record.logicalId === 'D-A-1'));
+      assert.throws(() => assertManifest(rehash(changed)), { code });
+    });
+  }
+});
+
+test('absent proposal is checked without creating it, and reset never deletes it', async () => {
+  const mapped = await manifest(['memory_candidate']);
+  const record = mapped.records.find((entry) => entry.logicalId === 'MEM-PROPOSAL-13');
+  const adapter = new TestCanonicalOwnerAdapter();
+  const plan = await planFixture({ manifest: mapped, adapter });
+  assert.equal(record.expectedPresence, 'absent');
+  assert.equal(
+    plan.operations.find((op) => op.logicalId === record.logicalId).action,
+    'assert_absent',
+  );
+  assert.equal(plan.summary.absent, 1);
+  const receipt = await applyFixture({
+    manifest: mapped,
+    plan,
+    adapter,
+    confirmation: APPLY_CONFIRMATION,
+  });
+  assert.equal(receipt.status, 'complete');
+  assert.equal(
+    receipt.records.find((entry) => entry.logicalId === record.logicalId).outcome,
+    'verified_absent',
+  );
+  assert.equal(adapter.rows.has(record.physicalId), false);
+  const verified = await verifyFixture({ manifest: mapped, adapter });
+  assert.equal(verified.status, 'complete');
+  assert.equal(
+    verified.records.find((entry) => entry.logicalId === record.logicalId).outcome,
+    'verified_absent',
+  );
+  const reset = await planOwnedReset({ manifest: mapped, seedReceipt: receipt, adapter });
+  assert.equal(
+    reset.operations.some((entry) => entry.logicalId === record.logicalId),
+    false,
+  );
+});
+
+test('an unexpectedly present proposal stops planning and verification without deleting it', async () => {
+  const mapped = await manifest(['memory_candidate']);
+  const record = mapped.records.find((entry) => entry.logicalId === 'MEM-PROPOSAL-13');
+  const adapter = new TestCanonicalOwnerAdapter();
+  adapter.rows.set(record.physicalId, adapter.row(record, 1));
+  await assert.rejects(planFixture({ manifest: mapped, adapter }), {
+    code: 'EXPECTED_ABSENT_ROW_PRESENT',
+  });
+  const verified = await verifyFixture({ manifest: mapped, adapter });
+  assert.equal(verified.status, 'failed');
+  assert.equal(
+    verified.records.find((entry) => entry.logicalId === record.logicalId).errorCode,
+    'EXPECTED_ABSENT_ROW_PRESENT',
+  );
+  assert.equal(adapter.deleteCalls, 0);
+  assert.equal(adapter.createCalls, 0);
+});
+
+test('proposal appearing after planning fails at apply without overwriting it', async () => {
+  const mapped = await manifest(['memory_candidate']);
+  const record = mapped.records.find((entry) => entry.logicalId === 'MEM-PROPOSAL-13');
+  const adapter = new TestCanonicalOwnerAdapter();
+  const plan = await planFixture({ manifest: mapped, adapter });
+  const appeared = adapter.row(record, 7);
+  adapter.rows.set(record.physicalId, appeared);
+  const receipt = await applyFixture({
+    manifest: mapped,
+    plan,
+    adapter,
+    confirmation: APPLY_CONFIRMATION,
+  });
+  assert.equal(receipt.status, 'failed');
+  assert.equal(
+    receipt.records.find((entry) => entry.logicalId === record.logicalId).errorCode,
+    'EXPECTED_ABSENT_ROW_PRESENT',
+  );
+  assert.deepEqual(adapter.rows.get(record.physicalId), appeared);
+  assert.equal(adapter.deleteCalls, 0);
+});
+
+test('absence semantics cannot be replaced by a rehashed manifest or create operation', async () => {
+  const mapped = await manifest(['memory_candidate']);
+  const changed = structuredClone(mapped);
+  changed.records.find((entry) => entry.logicalId === 'MEM-PROPOSAL-13').expectedPresence =
+    'present';
+  assert.throws(() => assertManifest(rehash(changed)), { code: 'RECORD_PRESENCE_MISMATCH' });
+  const adapter = new TestCanonicalOwnerAdapter();
+  const plan = structuredClone(await planFixture({ manifest: mapped, adapter }));
+  plan.operations.find((entry) => entry.logicalId === 'MEM-PROPOSAL-13').action = 'create';
+  const receipt = await applyFixture({
+    manifest: mapped,
+    plan: rehash(plan),
+    adapter,
+    confirmation: APPLY_CONFIRMATION,
+  });
+  assert.equal(receipt.status, 'failed');
+  assert.equal(
+    receipt.records.find((entry) => entry.logicalId === 'MEM-PROPOSAL-13').errorCode,
+    'PLAN_PRESENCE_MISMATCH',
+  );
+  assert.equal(
+    adapter.rows.has(
+      mapped.records.find((entry) => entry.logicalId === 'MEM-PROPOSAL-13').physicalId,
+    ),
+    false,
+  );
+});
+
 test('manifest rejects cross-client, tenant, and content-hash mismatches', async (t) => {
   const base = await manifest();
   await t.test('cross-client reference', () => {

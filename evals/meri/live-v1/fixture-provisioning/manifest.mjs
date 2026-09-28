@@ -25,15 +25,11 @@ const MEMORY_ITEM_KINDS = new Set([
   'private_preference',
 ]);
 const MEMORY_CANDIDATE_KINDS = new Set(['memory_candidate_fixture']);
-const MEETING_KINDS = new Set(['meeting', 'meeting_media', 'legislative_event']);
-const DEBRIEF_KINDS = new Set(['transcript']);
-const RESEARCH_KINDS = new Set([
-  'research_portfolio',
+const RESEARCH_EVENT_KINDS = new Set([
   'research_snapshot',
   'research_output',
   'research_event',
   'research_evidence',
-  'durable_run_fixture',
 ]);
 const BILL_KINDS = new Set(['bill_text', 'bill_status', 'amendment_status', 'report_passage']);
 const BUDGET_KINDS = new Set([
@@ -108,12 +104,23 @@ const EXTENSION_RECORDS = Object.freeze([
 ]);
 
 function canonicalOwner(logicalId, source) {
+  if (source.kind === 'institutional_memory' && source.facts?.lifecycle === 'pending') {
+    return 'memory_candidate';
+  }
+  if (source.kind === 'memory_governance_receipt') return 'memory_transition_audit';
   if (MEMORY_ITEM_KINDS.has(source.kind)) return 'memory_item';
   if (MEMORY_CANDIDATE_KINDS.has(source.kind)) return 'memory_candidate';
-  if (MEETING_KINDS.has(source.kind)) return 'meeting';
-  if (DEBRIEF_KINDS.has(source.kind)) return 'meeting_debrief';
-  if (RESEARCH_KINDS.has(source.kind)) return 'research_portfolio';
+  if (source.kind === 'meeting') return 'meeting';
+  if (source.kind === 'meeting_media') return 'meeting_media_test_adapter';
+  if (source.kind === 'transcript') {
+    return logicalId === 'MEETING-TRANSCRIPT-OWNERS'
+      ? 'meeting_debrief'
+      : 'hearing_transcript_test_adapter';
+  }
+  if (source.kind === 'research_portfolio') return 'research_portfolio';
+  if (RESEARCH_EVENT_KINDS.has(source.kind)) return 'research_portfolio_event';
   if (BILL_KINDS.has(source.kind)) return 'federal_legislative_evidence';
+  if (source.kind === 'legislative_event') return 'federal_legislative_evidence';
   if (BUDGET_KINDS.has(source.kind)) return 'defense_budget_source';
   if (EXTERNAL_KINDS.has(source.kind)) return `${source.kind}_test_adapter`;
   if (source.kind === 'client_profile') return 'client';
@@ -121,7 +128,6 @@ function canonicalOwner(logicalId, source) {
   if (source.kind === 'business_development_record') return 'business_development_prospect';
   if (source.kind === 'program_record') return 'client_capability';
   if (source.kind === 'generated_artifact_fixture') return 'engagement_attachment';
-  if (logicalId === 'MEETING-TRANSCRIPT-OWNERS') return 'meeting_debrief';
   return 'canonical_source_adapter';
 }
 
@@ -134,6 +140,10 @@ function unavailableReason(owner) {
   }
   if (owner === 'engagement_attachment') {
     return 'canonical ClientDocumentWriterService uploader and authoritative readback are not configured';
+  }
+  // memory_transition_audit is read-only - it references pre-existing audit records
+  if (owner === 'memory_transition_audit') {
+    return 'memory transition audit is read-only; bind reviewed existing records or a controlled test adapter';
   }
   return `canonical owner ${owner} is not declared available`;
 }
@@ -193,11 +203,15 @@ function recordFor(input, options) {
     input.owner,
     frozenFixture.version,
   );
-  const writerActor = options.actors.PAT?.physicalId ?? options.actors.PAT?.userId ?? null;
+  const actorKey = options.uploaderActors[input.tenantId];
+  const actor = actorKey ? options.actors[actorKey] : null;
+  const actorId = actor?.physicalId ?? actor?.userId ?? null;
+  const writerActor =
+    actor?.tenantId === input.tenantId && UUID.test(actorId ?? '') ? actorId : null;
   const assetByteSha256 = input.asset?.byteSha256 ?? input.facts?.byteSha256 ?? null;
   if (input.owner === 'engagement_attachment' && !writerActor) {
     status = 'unavailable';
-    reason = 'canonical uploader actor binding is absent';
+    reason = 'canonical uploader actor binding is absent, invalid, or crosses tenants';
   }
   const identity =
     input.owner === 'engagement_attachment' && writerActor && assetByteSha256
@@ -226,6 +240,8 @@ function recordFor(input, options) {
     clientLogicalId: input.clientId ?? null,
     clientPhysicalId: client?.physicalId ?? null,
     owner: input.owner,
+    expectedPresence: input.facts?.initialState === 'absent' ? 'absent' : 'present',
+    uploaderActorId: input.owner === 'engagement_attachment' ? writerActor : null,
     ownership: identity,
     expectedRowVersion: null,
     availability: { status, reason },
@@ -248,6 +264,7 @@ export async function buildFixtureManifest({
   tenants = AUTHORIZED_TENANTS,
   clients = {},
   actors = {},
+  uploaderActors = { T1: 'PAT' },
   availableOwners = [],
   assetManifestUrl = ASSET_MANIFEST_URL,
   assetRootUrl = ASSET_ROOT_URL,
@@ -293,7 +310,7 @@ export async function buildFixtureManifest({
           facts: source.facts,
           asset,
         },
-        { tenants, clients, actors, availableOwners: ownerSet },
+        { tenants, clients, actors, uploaderActors, availableOwners: ownerSet },
       ),
     );
   }
@@ -301,7 +318,7 @@ export async function buildFixtureManifest({
     records.push(
       recordFor(
         { ...extension, fixtureKind: 'acceptance_extension' },
-        { tenants, clients, actors, availableOwners: ownerSet },
+        { tenants, clients, actors, uploaderActors, availableOwners: ownerSet },
       ),
     );
   }
@@ -317,6 +334,7 @@ export async function buildFixtureManifest({
     tenants,
     clients,
     actors,
+    uploaderActors,
     records,
   };
   return Object.freeze({ ...sourceMap, contentSha256: sha256Stable(sourceMap) });
@@ -353,6 +371,57 @@ export function assertManifest(manifest) {
         'RECORD_TENANT_MISMATCH',
         `${record.logicalId} tenant binding mismatch`,
       );
+    }
+    const frozenSource = frozenFixture.sources[record.logicalId];
+    const expectedPresence = frozenSource?.facts?.initialState === 'absent' ? 'absent' : 'present';
+    if (record.expectedPresence !== expectedPresence) {
+      throw new FixtureProvisioningError('RECORD_PRESENCE_MISMATCH', record.logicalId);
+    }
+    const identity = ownedIdentity(
+      record.logicalId,
+      record.tenantId,
+      record.owner,
+      body.fixtureVersion,
+    );
+    if (
+      record.ownership?.markerSha256 !== identity.markerSha256 ||
+      sha256Stable(record.ownership?.marker ?? null) !== identity.markerSha256
+    ) {
+      throw new FixtureProvisioningError('RECORD_OWNERSHIP_MISMATCH', record.logicalId);
+    }
+    let physicalId = identity.physicalId;
+    if (record.owner === 'engagement_attachment') {
+      const actorKey = body.uploaderActors?.[record.tenantKey];
+      const actor = actorKey ? body.actors?.[actorKey] : null;
+      const actorId = actor?.physicalId ?? actor?.userId ?? null;
+      const expectedActor =
+        actor?.tenantId === record.tenantKey && UUID.test(actorId ?? '') ? actorId : null;
+      if (
+        record.uploaderActorId !== expectedActor ||
+        (record.availability.status === 'available' && !expectedActor)
+      ) {
+        throw new FixtureProvisioningError('DOCUMENT_ACTOR_BINDING_MISMATCH', record.logicalId);
+      }
+      const byteSha256 = record.payload.sourceAsset?.byteSha256 ?? record.payload.facts?.byteSha256;
+      if (expectedActor && byteSha256) {
+        physicalId = clientDocumentPhysicalId({
+          tenantId: record.tenantId,
+          userId: expectedActor,
+          clientId: record.clientPhysicalId,
+          idempotencyKey: `${FIXTURE_NAMESPACE}:${record.logicalId}`,
+          contentType: record.payload.sourceAsset?.mediaType ?? 'text/plain',
+          byteSha256,
+        });
+      }
+    }
+    if (record.physicalId !== physicalId || record.ownership?.physicalId !== physicalId) {
+      throw new FixtureProvisioningError('RECORD_PHYSICAL_ID_MISMATCH', record.logicalId);
+    }
+    if (
+      !['available', 'unavailable'].includes(record.availability?.status) ||
+      (record.availability.status === 'unavailable' && !record.availability.reason)
+    ) {
+      throw new FixtureProvisioningError('RECORD_AVAILABILITY_INVALID', record.logicalId);
     }
     if (record.payloadSha256 !== sha256Stable(record.payload)) {
       throw new FixtureProvisioningError(

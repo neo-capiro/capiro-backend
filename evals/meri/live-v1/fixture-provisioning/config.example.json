@@ -41,7 +41,15 @@
     "ELI": {
       "tenantId": "T1",
       "userId": "REPLACE_WITH_EXISTING_ELI_USER_UUID"
+    },
+    "T2_UPLOADER": {
+      "tenantId": "T2",
+      "userId": "REPLACE_WITH_EXISTING_T2_USER_UUID"
     }
   },
-  "availableOwners": []
+  "availableOwners": [],
+  "uploaderActors": {
+    "T1": "PAT",
+    "T2": "T2_UPLOADER"
+  }
 }
