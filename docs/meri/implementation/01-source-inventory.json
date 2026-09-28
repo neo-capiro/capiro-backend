@@ -1161,7 +1161,11 @@
       },
       "capiroSource": {
         "sha": "71efe006a7c120f157a90a6dac6adaf743353937",
-        "rejectedOnlyCommit": "a9f5819557f6a7fde1c839f86a3504a44a087f34",
+        "initialOriginalCommit": {
+          "sha": "a9f5819557f6a7fde1c839f86a3504a44a087f34",
+          "acceptanceDisposition": "REJECTED_AS_SUFFICIENT_ACCEPTANCE_EVIDENCE"
+        },
+        "initialIntegratedReplay": "085db54ed09eb007277efab00c937a5721985ee0",
         "originalRepairCommits": [
           "8ee5c2e0b601d7f53a166735cb66075002cf37a5",
           "0bb847e7d91d48fccebf1d323e4de35e3af35a26",
@@ -1170,7 +1174,6 @@
           "72519696d84ebb5b83a39c357524d68a5d1fe978"
         ],
         "integratedRepairCommits": [
-          "085db54ed09eb007277efab00c937a5721985ee0",
           "2d1b33ff95393818255d33d49eab91a9c49f5d53",
           "35e76021b908f430d74ac9885f917b5cefde2d74",
           "3f5adcf1c1b44898f89419c3d78c47343d288df2",
