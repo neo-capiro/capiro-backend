@@ -1,5 +1,7 @@
 # Defense Budget and Research Portfolios — branch closeout, 2026-09-28
 
+This is the earlier branch snapshot. See [the current closeout](CURRENT-BRANCH-CLOSEOUT-2026-09-28.md) for the applied transport repair, current verification and CI blockers.
+
 Current scope records verified isolated implementation, original failures and explicit remaining gaps. Latest instruction excludes merging and shipping to AWS. Full release acceptance remains NO-GO.
 
 Branch: `codex/defense-continuation-20260928`. Verification parent: `b466d26017cee42dbf614112395f6342653504e1`. Final commit and remote-head identity are pending and will be recorded in the external commit manifest after publication to draft PR [#1903](https://github.com/neo-capiro/capirov2/pull/1903).

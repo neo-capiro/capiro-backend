@@ -86,6 +86,20 @@ jobs:
           node scripts/phase8-session8-discovery-replay.mjs \
             --out docs/defense-budget/phase8-session8-discovery-replay-evidence.json
 
+      # Keep only public publisher responses created by the governed prepare step.
+      # These are debugging bytes, not admission or completeness evidence.
+      - name: Retain public discovery corpus for failure review
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase8-session8-public-discovery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .session8-discovery/prepared-corpus.json
+            .session8-discovery/resources/*.bin
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: warn
+
       - name: Static discovery gate
         run: node scripts/verify-phase8-session8.mjs --enforce-replay
 
