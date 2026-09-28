@@ -1,6 +1,22 @@
 # Meri file 01 status
 
-## Current checkpoint — 2026-09-28 04:18 UTC
+## Current checkpoint — 2026-09-28 04:55 UTC
+
+File 01 remains IN_PROGRESS. Reviewed integration source before this documentation commit is 2ccfb106a762383b348da847f73215d021e43fb1. Draft PR1904 is for qualification only. Both mains, shared deployment, migrations and the approved two-tenant enablement remain unchanged; separate database recovery remains a release hold.
+
+- PASS, bounded scheduler repair: source d46cb6a8c and its reviewed predecessors are integrated. Actual integrated 87 tests across four suites, including owned native PostgreSQL, and API typecheck exit 0. Direct long-running cadence probe proves a second cadence cannot steal an active claim. A crashed running claim can still block future cadences indefinitely; crash recovery, exactly-once delivery and full scheduler acceptance are not claimed.
+- PASS, actual PostgreSQL/vector qualification: Actions 36376591290 at add5be483 ran all ten PostgreSQL16/vector(1024) tests, including 1000 lexical/501 semantic-only candidates, tenant/wall checks, null projection and real semantic-abort fallback. Local pgvector remains unavailable; the CI qualification is not a local skip.
+- PASS, narrow CI repairs: Knowledge shallow-history/validation prerequisites, PWA semantic assertion, two additional formatter gates and three workflow heap prerequisites are integrated. API and web typechecks with 6144MiB exit 0. Formatter 88445ce5f is equivalent under documented parentheses/JSX whitespace normalization and CSS font-quote/layout normalization; raw source AST equality is not claimed. Existing 223-file formatter likewise uses parenthesis normalization. No gate is waived and combined CI remains unqualified.
+- Artifact repair 2c6b884f3 clears seven direct prior byte/access counterexamples on combined candidate251dbe498. Independent API 122 tests/11 suites and web85/3 exit 0. XLSX still decodes cells before its output bounds and does not recheck current persisted bytes against cached text; focused repair is active. This combined slice remains excluded from integration. No live database/browser/Office-renderer acceptance.
+- Procedure manifest aa6c161f7 is a committed isolated candidate: 46 focused tests, API typecheck/build and format exit 0. The worker process exited 1; successful individual command exits are separately recorded. Current-row/version resolution and C&D contract do not yet bind the served proxy/DTO/assistant. Independent review remains pending.
+- Protocol compaction a9f581955 is an isolated candidate with 63 focused tests and API typecheck exit 0. Independent review is active; no protocol or source-adoption acceptance yet.
+- Durable full-result replay was rejected after actual owner-path probes returned revoked memory and exposed private internal artifacts through generic DOCX/update paths. Authorization repair is active. Mock-adapter probes are not mislabeled live endpoints.
+- Capture verifier e9202d4ed has 36 tests exit 0; independent extra-effect review is active. All 75 authenticated cases, CD7 and required CW8 remain NOT_RUN; no trusted live capture or score.
+- Synthetic fullChat36d5ba757 passes its narrow runtime-container/DB-shadow/receipt repairs. API build-record2b524fd2a is isolated, under independent review, and its consumer is in progress. This is not cryptographic attestation or live qualification. Enablement remains APPROVED_NOT_APPLIED.
+
+Pinned Hermes GPT-5.6 Sol High implementation and separate GPT-6 Sol High review continue. OpenRouter balance observed at 04:49:42 UTC was approximately $13.13. No model/provider substitution. Remaining required scope includes plans/steering/children/aggregate budgets, governed selector and served versioned procedures, typed full attachment reads, scheduler recovery, JEV/narrative/telemetry, source adoption dispositions, authenticated acceptance and both-main release. No file-02 readiness.
+
+## Previous checkpoint — 2026-09-28 04:18 UTC
 
 Native pgvector follow-up: Actions [36376591290](https://github.com/neo-capiro/capirov2/actions/runs/36376591290) at add5be483 completed successfully. Actual PostgreSQL 16/vector(1024) ran all ten tests, including 1000/501-row candidate and semantic-abort/fallback cases. Local vector absence remains a local limit; CI semantic qualification is now PASS. Artifact independent review rejected complete boundary at9276bd489 after malformed OOXML/PNG/browser and cross-client chart embedding counterexamples; repair active and candidate excluded.
 
