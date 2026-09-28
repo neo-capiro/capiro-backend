@@ -470,6 +470,177 @@ describe('protocol-safe compaction receipts', () => {
     expect(allocation.totalChars + 100).toBeLessThanOrEqual(600);
   });
 
+  test('keeps the pending identity and the aggregate envelope at the exact 120/100 boundary', () => {
+    const exactBody = (prefix: string, length: number, fill: string) => prefix.padEnd(length, fill);
+    const messages = [
+      { id: 'u0', role: 'user' as const, body: exactBody('FIRST_GOAL', 100, '0') },
+      { id: 'a0', role: 'assistant' as const, body: exactBody('ACK_FIRST_GOAL', 100, 'A') },
+      {
+        id: 'u1',
+        role: 'user' as const,
+        body: exactBody('MISSING_MIDDLE_CONSTRAINT', 450, '1'),
+      },
+      { id: 'a1', role: 'assistant' as const, body: exactBody('MIDDLE_ASSISTANT', 450, 'B') },
+      { id: 'u2', role: 'user' as const, body: exactBody('RECENT_REQUEST', 100, '2') },
+      { id: 'a2', role: 'assistant' as const, body: exactBody('RECENT_RESPONSE', 100, 'C') },
+      {
+        id: 'u3',
+        role: 'user' as const,
+        body: exactBody('LATEST_PENDING_USER', 100, '3'),
+      },
+    ];
+
+    const allocation = allocateBoundedReplayHistory(messages, {
+      maxChars: 120,
+      protectedStateChars: 100,
+    });
+
+    expect(allocation.history.map((message) => message.id)).toEqual(['u3']);
+    expect(allocation.history[0]?.body).toMatch(/^LATEST_PENDING/);
+    expect(allocation.omittedMessages).toBe(6);
+    expect(allocation.omittedCharacters).toBe(1381);
+    expect(allocation.totalChars).toBe(20);
+    expect(allocation.totalChars + 100).toBeLessThanOrEqual(120);
+  });
+
+  test('rejects invalid budgets and an already-over-budget protected state explicitly', () => {
+    const pending = [{ id: 'u0', role: 'user' as const, body: 'pending' }];
+    for (const maxChars of [Number.NaN, Number.POSITIVE_INFINITY, -1, 0]) {
+      expect(() => allocateBoundedReplayHistory(pending, { maxChars })).toThrow(RangeError);
+    }
+    for (const protectedStateChars of [Number.NaN, Number.POSITIVE_INFINITY, -1, 121]) {
+      expect(() =>
+        allocateBoundedReplayHistory(pending, { maxChars: 120, protectedStateChars }),
+      ).toThrow(RangeError);
+    }
+  });
+
+  test('uses a zero-character tail without exceeding a protected state that exactly fills the cap', () => {
+    const allocation = allocateBoundedReplayHistory(
+      [{ id: 'pending', role: 'user', body: 'retain my identity' }],
+      { maxChars: 100, protectedStateChars: 100 },
+    );
+
+    expect(allocation.history).toEqual([{ id: 'pending', role: 'user', body: '' }]);
+    expect(allocation.omittedMessages).toBe(0);
+    expect(allocation.omittedCharacters).toBe('retain my identity'.length);
+    expect(allocation.totalChars + 100).toBe(100);
+  });
+
+  test('preserves an only-pending request exactly when it fits and meaningfully when it does not', () => {
+    const pending = {
+      id: 'pending-only',
+      role: 'user' as const,
+      body: 'LATEST_PENDING_ONLY: preserve this request.',
+    };
+
+    const fitting = allocateBoundedReplayHistory([pending], { maxChars: 80 });
+    expect(fitting.history).toEqual([pending]);
+    expect(fitting.omittedMessages).toBe(0);
+    expect(fitting.omittedCharacters).toBe(0);
+
+    const tight = allocateBoundedReplayHistory([pending], {
+      maxChars: 120,
+      protectedStateChars: 100,
+    });
+    expect(tight.history.map((message) => message.id)).toEqual(['pending-only']);
+    expect(tight.history[0]?.body).toMatch(/^LATEST_PENDING_ONLY/);
+    expect(tight.history[0]?.body.endsWith('…')).toBe(true);
+    expect(tight.omittedMessages).toBe(0);
+    expect(tight.omittedCharacters).toBe(pending.body.length - 19);
+    expect(tight.totalChars + 100).toBeLessThanOrEqual(120);
+  });
+
+  test('uses a standalone notice rather than returning half a pair when all pairs are omitted', () => {
+    const messages = [
+      { id: 'u0', role: 'user' as const, body: 'old request'.padEnd(200, 'u') },
+      { id: 'a0', role: 'assistant' as const, body: 'old response'.padEnd(200, 'a') },
+    ];
+    const allocation = allocateBoundedReplayHistory(messages, {
+      maxChars: 400,
+      protectedStateChars: 100,
+    });
+
+    expect(allocation.history.map((message) => message.id)).toEqual([
+      'server-bounded-replay-notice',
+    ]);
+    expect(allocation.history[0]?.body).toContain('2 older conversation message(s)');
+    expect(allocation.omittedMessages).toBe(2);
+    expect(allocation.omittedCharacters).toBe(400);
+    expect(allocation.totalChars + 100).toBeLessThanOrEqual(400);
+  });
+
+  test('keeps only whole contiguous suffix units across budget, state, count, and body boundaries', () => {
+    const budgets = [1, 20, 120, 600, MAX_REPLAY_HISTORY_CHARS];
+    const bodyLengths = [0, 1, 19, 121, 12_001];
+    const messageCounts = [0, 1, 2, 3, 8, 9];
+
+    for (const maxChars of budgets) {
+      for (const protectedStateChars of [0, Math.floor(maxChars / 2), maxChars]) {
+        for (const bodyLength of bodyLengths) {
+          for (const messageCount of messageCounts) {
+            const messages = Array.from({ length: messageCount }, (_, index) => ({
+              id: `m${index}`,
+              role: index % 2 ? ('assistant' as const) : ('user' as const),
+              body: `${index}:`.padEnd(bodyLength, 'x'),
+            }));
+            const allocation = allocateBoundedReplayHistory(messages, {
+              maxChars,
+              protectedStateChars,
+              maxMessages: 5,
+            });
+            const charged = allocation.history.reduce(
+              (sum, message) => sum + message.body.length,
+              protectedStateChars,
+            );
+            expect(charged).toBeLessThanOrEqual(maxChars);
+            expect(allocation.totalChars).toBe(charged - protectedStateChars);
+
+            const pending = messageCount % 2 ? messages.at(-1)! : null;
+            if (pending) expect(allocation.history.at(-1)?.id).toBe(pending.id);
+            const retained = allocation.history.filter(
+              (message) => message.id !== 'server-bounded-replay-notice',
+            );
+            const retainedPairs = pending ? retained.slice(0, -1) : retained;
+            expect(retainedPairs.length % 2).toBe(0);
+            for (let index = 0; index < retainedPairs.length; index += 2) {
+              expect(retainedPairs[index]?.role).toBe('user');
+              expect(retainedPairs[index + 1]?.role).toBe('assistant');
+            }
+            const originalIds = messages.map((message) => message.id);
+            const retainedIds = retained.map((message) => message.id);
+            expect(retainedIds.length ? originalIds.slice(-retainedIds.length) : []).toEqual(
+              retainedIds,
+            );
+          }
+        }
+      }
+    }
+  });
+
+  test('accounts for notice growth with a long decimal omission count', () => {
+    const omittedCount = 100_005;
+    const messages = [
+      ...Array.from({ length: omittedCount }, (_, index) => ({
+        id: `orphan-${index}`,
+        role: 'assistant' as const,
+        body: 'x',
+      })),
+      { id: 'pending', role: 'user' as const, body: 'Keep the pending request meaningful.' },
+    ];
+    const allocation = allocateBoundedReplayHistory(messages, {
+      maxChars: 600,
+      protectedStateChars: 100,
+    });
+
+    expect(allocation.history.map((message) => message.id)).toEqual(['pending']);
+    expect(allocation.history[0]?.body).toContain(`${omittedCount} older conversation message(s)`);
+    expect(allocation.history[0]?.body).toContain('Keep the pending request meaningful.');
+    expect(allocation.omittedMessages).toBe(omittedCount);
+    expect(allocation.omittedCharacters).toBe(omittedCount);
+    expect(allocation.totalChars + 100).toBeLessThanOrEqual(600);
+  });
+
   test('marks a missing or unknown finish reason partial instead of completed', () => {
     const state = buildProtocolCompactionState({
       existingMetadata: {},

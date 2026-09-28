@@ -189,19 +189,45 @@ export function boundReplayMessageBody(
   message: Pick<CompactionMessage, 'id' | 'body'>,
   maxChars = MAX_REPLAY_BODY_CHARS,
 ): string {
-  const body = message.body ?? '';
-  if (body.length <= maxChars) return body;
+  return boundReplayBody(message.body ?? '', maxChars).body;
+}
+
+interface BoundedReplayBody {
+  body: string;
+  keptCharacters: number;
+}
+
+function boundReplayBody(body: string, maxChars: number): BoundedReplayBody {
+  if (!Number.isFinite(maxChars) || maxChars < 0) {
+    throw new RangeError('maxChars must be a finite non-negative number');
+  }
+  const limit = Math.floor(maxChars);
+  if (body.length <= limit) return { body, keptCharacters: body.length };
+  if (limit === 0) return { body: '', keptCharacters: 0 };
   const notice = (omitted: number) =>
     `\n\n[SERVER REPLAY NOTICE: ${omitted} characters were omitted from this bounded history request. No callable full-message retriever is available here. Ask the user to restate omitted objective or constraint text before relying on it.]`;
-  let keptChars = Math.max(0, maxChars - notice(body.length).length);
-  let kept = body.slice(0, keptChars).trimEnd();
-  let suffix = notice(body.length - kept.length);
-  while (kept.length + suffix.length > maxChars && keptChars > 0) {
-    keptChars -= kept.length + suffix.length - maxChars;
-    kept = body.slice(0, Math.max(0, keptChars)).trimEnd();
-    suffix = notice(body.length - kept.length);
+  let keptCharacters = Math.max(0, limit - notice(body.length).length);
+  for (let attempt = 0; attempt < 32; attempt += 1) {
+    const suffix = notice(body.length - keptCharacters);
+    const nextKeptCharacters = limit - suffix.length;
+    if (nextKeptCharacters < 1) break;
+    if (nextKeptCharacters === keptCharacters) {
+      return {
+        body: `${body.slice(0, keptCharacters)}${suffix}`,
+        keptCharacters,
+      };
+    }
+    keptCharacters = nextKeptCharacters;
   }
-  return `${kept}${suffix}`.slice(0, maxChars);
+
+  // A clipped warning is neither useful nor honest. For a tiny valid budget,
+  // retain a marked prefix so the pending request still carries partial meaning;
+  // aggregate allocation metadata reports the exact omitted character count.
+  const prefixCharacters = Math.max(0, limit - 1);
+  return {
+    body: `${body.slice(0, prefixCharacters)}…`,
+    keptCharacters: prefixCharacters,
+  };
 }
 
 export interface BoundedReplayMessage {
@@ -231,10 +257,23 @@ export function allocateBoundedReplayHistory(
     maxMessages?: number;
   } = {},
 ): BoundedReplayAllocation {
-  const maxChars = Math.max(1, options.maxChars ?? MAX_REPLAY_HISTORY_CHARS);
-  const protectedStateChars = Math.max(0, options.protectedStateChars ?? 0);
-  const historyBudget = Math.max(1, maxChars - Math.min(maxChars - 1, protectedStateChars));
-  const maxMessages = Math.max(1, options.maxMessages ?? MAX_REPLAY_MESSAGES);
+  const maxChars = options.maxChars ?? MAX_REPLAY_HISTORY_CHARS;
+  const protectedStateChars = options.protectedStateChars ?? 0;
+  const maxMessagesOption = options.maxMessages ?? MAX_REPLAY_MESSAGES;
+  if (!Number.isFinite(maxChars) || maxChars <= 0) {
+    throw new RangeError('maxChars must be a finite positive number');
+  }
+  if (!Number.isFinite(protectedStateChars) || protectedStateChars < 0) {
+    throw new RangeError('protectedStateChars must be a finite non-negative number');
+  }
+  if (protectedStateChars > maxChars) {
+    throw new RangeError('protectedStateChars cannot exceed maxChars');
+  }
+  if (!Number.isFinite(maxMessagesOption) || maxMessagesOption < 1) {
+    throw new RangeError('maxMessages must be a finite positive number');
+  }
+  const historyBudget = Math.floor(maxChars - protectedStateChars);
+  const maxMessages = Math.floor(maxMessagesOption);
   const pendingUser = messages.at(-1)?.role === 'user' ? messages.at(-1)! : null;
   let cursor = messages.length - (pendingUser ? 1 : 0);
   const completePairs: Array<[BoundedReplayMessage, BoundedReplayMessage]> = [];
@@ -247,25 +286,30 @@ export function allocateBoundedReplayHistory(
     cursor -= 2;
   }
 
+  type BoundedEntry = {
+    message: BoundedReplayMessage;
+    keptCharacters: number;
+  };
+  const boundedEntry = (message: BoundedReplayMessage, limit = MAX_REPLAY_BODY_CHARS) => {
+    const bounded = boundReplayBody(message.body, limit);
+    return {
+      message: { ...message, body: bounded.body },
+      keptCharacters: bounded.keptCharacters,
+    } satisfies BoundedEntry;
+  };
   const boundedPairs = completePairs.map(
     ([user, assistant]) =>
-      [
-        { ...user, body: boundReplayMessageBody(user) },
-        { ...assistant, body: boundReplayMessageBody(assistant) },
-      ] as [BoundedReplayMessage, BoundedReplayMessage],
+      [boundedEntry(user), boundedEntry(assistant)] as [BoundedEntry, BoundedEntry],
   );
   let boundedPending = pendingUser
-    ? {
-        ...pendingUser,
-        body: boundReplayMessageBody(pendingUser, Math.min(MAX_REPLAY_BODY_CHARS, historyBudget)),
-      }
+    ? boundedEntry(pendingUser, Math.min(MAX_REPLAY_BODY_CHARS, historyBudget))
     : null;
-  const selectedPairs: Array<[BoundedReplayMessage, BoundedReplayMessage]> = [];
-  let selectedChars = boundedPending?.body.length ?? 0;
+  const selectedPairs: Array<[BoundedEntry, BoundedEntry]> = [];
+  let selectedChars = boundedPending?.message.body.length ?? 0;
   const pairMessageLimit = Math.floor((maxMessages - (boundedPending ? 1 : 0)) / 2) * 2;
   for (let index = boundedPairs.length - 1; index >= 0; index -= 1) {
     const pair = boundedPairs[index]!;
-    const pairChars = pair[0].body.length + pair[1].body.length;
+    const pairChars = pair[0].message.body.length + pair[1].message.body.length;
     if (selectedPairs.length * 2 >= pairMessageLimit || selectedChars + pairChars > historyBudget) {
       // Selection is a newest-first suffix. Once this unit cannot fit, no
       // older unit may backfill around it and create an interior omission.
@@ -275,16 +319,18 @@ export function allocateBoundedReplayHistory(
     selectedChars += pairChars;
   }
 
-  let omittedMessages = cursor + (boundedPairs.length - selectedPairs.length) * 2;
   const originalCandidateChars = messages.reduce((sum, message) => sum + message.body.length, 0);
-  const selectedOriginalChars = [
-    ...selectedPairs.flat(),
-    ...(boundedPending ? [boundedPending] : []),
-  ].reduce((sum, message) => {
-    const original = messages.find((candidate) => candidate.id === message.id);
-    return sum + (original?.body.length ?? 0);
-  }, 0);
-  let omittedCharacters = Math.max(0, originalCandidateChars - selectedOriginalChars);
+  const omissionStats = () => {
+    const keptCharacters = [
+      ...selectedPairs.flat(),
+      ...(boundedPending ? [boundedPending] : []),
+    ].reduce((sum, entry) => sum + entry.keptCharacters, 0);
+    return {
+      omittedMessages: cursor + (boundedPairs.length - selectedPairs.length) * 2,
+      omittedCharacters: Math.max(0, originalCandidateChars - keptCharacters),
+    };
+  };
+  let { omittedMessages, omittedCharacters } = omissionStats();
   const wholeMessageNotice = () =>
     `[SERVER REPLAY NOTICE: ${omittedMessages} older conversation message(s) and ${omittedCharacters} characters were omitted by bounded history allocation. No callable full-message retriever is available in this request. Ask the user to restate any missing objective or constraint; do not infer omitted content.]`;
 
@@ -294,38 +340,71 @@ export function allocateBoundedReplayHistory(
     while (selectedPairs.length && selectedChars + notice.length > historyBudget) {
       // Notice growth may only trim the oldest edge of the selected suffix.
       const removed = selectedPairs.shift()!;
-      selectedChars -= removed[0].body.length + removed[1].body.length;
-      omittedMessages += 2;
-      const originals = removed.map(
-        (message) => messages.find((candidate) => candidate.id === message.id)?.body.length ?? 0,
-      );
-      omittedCharacters += originals[0]! + originals[1]!;
+      selectedChars -= removed[0].message.body.length + removed[1].message.body.length;
+      ({ omittedMessages, omittedCharacters } = omissionStats());
       notice = wholeMessageNotice();
     }
-    aggregateNotice = notice;
+
     if (boundedPending) {
-      const available = Math.max(1, historyBudget - notice.length - 2);
-      if (boundedPending.body.length > available) {
-        boundedPending = {
-          ...boundedPending,
-          body: boundReplayMessageBody(
-            messages.find((message) => message.id === boundedPending!.id) ?? boundedPending,
-            available,
-          ),
-        };
+      const pairChars = selectedPairs
+        .flat()
+        .reduce((sum, entry) => sum + entry.message.body.length, 0);
+      for (let attempt = 0; attempt < 32; attempt += 1) {
+        const roomAfterNotice = historyBudget - pairChars - notice.length;
+        const pendingLimit = roomAfterNotice > 2 ? roomAfterNotice - 2 : 0;
+        boundedPending = boundedEntry(pendingUser!, Math.min(MAX_REPLAY_BODY_CHARS, pendingLimit));
+        ({ omittedMessages, omittedCharacters } = omissionStats());
+        const nextNotice = wholeMessageNotice();
+        const separatorChars = boundedPending.message.body.length > 0 ? 2 : 0;
+        if (
+          nextNotice.length + separatorChars + boundedPending.message.body.length + pairChars <=
+          historyBudget
+        ) {
+          notice = nextNotice;
+          aggregateNotice = notice;
+          break;
+        }
+        notice = nextNotice;
       }
+      if (!aggregateNotice) {
+        // The complete notice itself cannot fit. Preserve the pending identity
+        // and a marked body prefix; exact omissions remain in return metadata.
+        boundedPending = boundedEntry(
+          pendingUser!,
+          Math.min(MAX_REPLAY_BODY_CHARS, historyBudget - pairChars),
+        );
+        ({ omittedMessages, omittedCharacters } = omissionStats());
+      }
+    } else if (notice.length <= historyBudget - selectedChars) {
+      aggregateNotice = notice;
     }
+
     const firstUser = selectedPairs[0]?.[0] ?? boundedPending;
-    if (firstUser) firstUser.body = `${notice}\n\n${firstUser.body}`;
+    if (firstUser && aggregateNotice) {
+      firstUser.message.body = firstUser.message.body
+        ? `${aggregateNotice}\n\n${firstUser.message.body}`
+        : aggregateNotice;
+    }
   }
 
-  const history = [...selectedPairs.flat(), ...(boundedPending ? [boundedPending] : [])];
-  if (!history.length && aggregateNotice) {
-    history.push({
-      id: 'server-bounded-replay-notice',
-      role: 'user',
-      body: aggregateNotice.slice(0, historyBudget),
-    });
+  const history = [
+    ...selectedPairs.flat().map((entry) => entry.message),
+    ...(boundedPending ? [boundedPending.message] : []),
+  ];
+  if (!history.length && omittedMessages > 0) {
+    const notices = [
+      wholeMessageNotice(),
+      `[REPLAY OMITTED: ${omittedMessages} message(s), ${omittedCharacters} character(s)]`,
+      `[${omittedMessages} messages omitted]`,
+    ];
+    const standaloneNotice = notices.find((candidate) => candidate.length <= historyBudget);
+    if (standaloneNotice) {
+      history.push({
+        id: 'server-bounded-replay-notice',
+        role: 'user',
+        body: standaloneNotice,
+      });
+    }
   }
   const totalChars = history.reduce((sum, message) => sum + message.body.length, 0);
   return { history, omittedMessages, omittedCharacters, totalChars };
