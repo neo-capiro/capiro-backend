@@ -141,4 +141,4 @@ This ledger records mandatory scope; bounded candidate evidence is in STATUS.md 
 | CW-07 | Annex 12.6 | NOT_RUN | Implementation and real worker/UI faults pending |
 | CW-08 | Annex 12.6 | NOT_RUN | Implementation and real worker/UI faults pending |
 
-26 offline cases: NOT_RUN. Original suite contract is evals/meri/suite-contract.json; do not replace or renumber. M20 original rows are referenced but not embedded in this file: locate original before claiming applicable M coverage.
+26 offline cases: baseline PASS at 6fdccff42 (26/26 and verifier exit 0); final combined file-01 acceptance NOT_RUN. Original suite contract is evals/meri/suite-contract.json; do not replace or renumber. M20 original rows are referenced but not embedded in this file: locate original before claiming applicable M coverage.

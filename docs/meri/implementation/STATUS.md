@@ -1,6 +1,22 @@
 # Meri file 01 status
 
-## Current checkpoint — 2026-09-28 02:10 UTC
+## Current checkpoint — 2026-09-28 02:45 UTC
+
+This checkpoint supersedes dated assignments and evidence below. File 01 remains IN_PROGRESS. No main integration or shared release is complete.
+
+- Verified integration candidate `78d5fc9c6cdff622ae8834d5038683be3056803c` is published on `codex/meri-foundation-20260928`. It contains reviewed approval recovery, delegated read outcomes and canonical memory recall, plus the Defense owner's six-line business-development test fixture correction. Integrated approval verification: 114 web tests, 47 API service tests, 11 HTTP tests and web typecheck, all exit 0. Integrated read verification: 71 tests and orchestrator build, exit 0. Integrated memory verification: 56 tests including actual embedded PostgreSQL lexical queries, exit 0. API typecheck also exits 0 after building existing defense-contracts/defense-domain dependencies; earlier missing workspace outputs were setup failures.
+- Independent memory NULL-rank repair review PASS at `df679a1ba775629f829fe02ab0762e2f4c9327e7`. Actual native pgvector, production-role RLS, representative live scale and stale embedding projection qualification remain NOT RUN. The native PostgreSQL/pgvector harness is unfinished and preserved.
+- Runtime bounds `854a5fc30b2e88badc986134355ee1969699649e` and provider finalization `d083cde776936c500f663fb23a6601f845785a3d` are published candidates. Provider/assistant/runtime suites pass 26/79/30 tests, typecheck and build exit 0. Independent review is still required; these are not integrated or complete aggregate/durable execution.
+- In-Meri memory review candidate `a97650f2d3f5962eb7684ebf6ce0163c2fd5c625` is published: 30 component tests, web typecheck and shared build exit 0. Independent review and authenticated acceptance remain NOT RUN.
+- Scheduler boundary candidate `d6ea2f52efd8b2f21bdf3d66c21ceaa83a7eb9b7` is published. Seventy-five tests include real task-owned PostgreSQL uniqueness/aborted-transaction/fresh-read and commit-ack-loss checks. Full Prisma/RLS and independent review remain unqualified.
+- Draft PR 1902 is at `1f68dbed92ebbcf036a550c49be6a62f64ad1ac0`. GitHub run 36369180411 passed all disposable migrations and governance concurrency/backfill/rollback steps, then failed on the separately repaired stale business-development fixture. The historical `min(uuid)` migration edit is ON HOLD: the migration recovery owner reports lost/changed ledger history, so an absent current ledger row cannot prove the migration was never applied. No migration or release has run from this task.
+- All shared-service releases remain ON HOLD pending the separate database recovery assessment. Exact two-tenant enablement stays APPROVED_NOT_APPLIED. Candidate `4b2f3b577db7077056e402a1ec5db8bb87541ea7` still needs final observed task-definition/deployment-count checks and exact workflow-artifact attempt/download binding repairs before acceptance. Prior approval remains valid; technical/release gates are unresolved.
+- Mechanical formatter `f23e06f43bf53e1e218dc3098fd336c5a277ddc3` is on its topic branch only. Separate Defense review reports all 215 source/emit/comment ASTs and five JSON values equivalent, exit 0. Our pinned Hermes review remains pending; no formatting gate is waived.
+- Canonical 75-case contract candidate `f34923daf9ba86eed6e42aca94b7f8e0c273f1b8` is a scaffold only. Review directly reproduced false declarative PASS results; verifier repair is unfinished. Every live case remains NOT RUN and score UNSET. Full capture, source fixtures, adapter fault injection, CD7 and CW8 remain required.
+- OpenRouter stopped six sessions with HTTP 402 at approximately 02:31. All interrupted changes were preserved in `C:/dev/cap-meri-foundation-evidence/wip-20260928-0235/manifest.json`; no reset/clean or model substitution occurred. Neo selected adding credits; an increased account balance was verified at 02:41. One implementation worker (durable read outcomes) and one independent reviewer (formatter) resumed from saved checkpoints. Other interrupted slices remain queued, not abandoned.
+- Cross-chat coordination with the Defense release owner is explicitly authorized by Neo in that task. That owner handles historical Outreach gates, Engagement CI and saved-session integration fixture repairs. This task does not merge or deploy their PR 1903.
+
+## Historical checkpoint — 2026-09-28 02:10 UTC
 
 This checkpoint supersedes dated assignments and evidence below. File 01 remains IN_PROGRESS; neither main integration nor release acceptance is complete.
 
