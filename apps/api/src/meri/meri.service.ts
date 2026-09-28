@@ -90,6 +90,7 @@ import {
 import { MeriToolsService } from './meri-tools.service.js';
 import { readPersistedPng } from './meri-artifact-integrity.js';
 import { MeriContextPlaneService } from './meri-context-plane.service.js';
+import { RESEARCH_SAFE_READ_ARTIFACT_KIND } from './meri-research-durable-result.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { MemoryIngestService } from '../memory/memory-ingest.service.js';
 import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
@@ -378,7 +379,11 @@ export class MeriService implements MeriTurnMaintenance {
           client: { select: { id: true, name: true, logoS3Key: true } },
           workspace: { select: { id: true, name: true, clientId: true } },
           messages: { orderBy: { createdAt: 'desc' }, take: 1 },
-          artifacts: { orderBy: { createdAt: 'desc' }, take: 4 },
+          artifacts: {
+            where: { kind: { not: RESEARCH_SAFE_READ_ARTIFACT_KIND } },
+            orderBy: { createdAt: 'desc' },
+            take: 4,
+          },
         },
       });
       return conversations.map((conversation) => ({
@@ -4868,7 +4873,11 @@ export class MeriService implements MeriTurnMaintenance {
   async createArtifactVersion(ctx: TenantContext, parentId: string, bodyText: string) {
     const parent = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioArtifact.findFirst({
-        where: { id: parentId, tenantId: ctx.tenantId },
+        where: {
+          id: parentId,
+          tenantId: ctx.tenantId,
+          kind: { not: RESEARCH_SAFE_READ_ARTIFACT_KIND },
+        },
       }),
     );
     if (!parent) throw new NotFoundException('Artifact not found');

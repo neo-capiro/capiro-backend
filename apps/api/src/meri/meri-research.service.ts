@@ -12,10 +12,10 @@ import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import type { MeriCitation, TenantContext } from '@capiro/shared';
 import {
-  classifyApiToolReadOutcome,
   validateCitationMarkers,
   validateFormBCitations,
 } from '@capiro/shared';
+import { classifyApiToolReadOutcome } from '@capiro/shared/meri-read-outcome';
 import {
   runAuditor,
   ledgerToToolResultMap,
@@ -79,7 +79,18 @@ import {
   type ResearchRunState,
   type ResearchRunPhase,
 } from './meri-research-run-state.js';
-import { appendDurableResearchStepReceipt } from './meri-research-durable-step.js';
+import {
+  appendDurableResearchResultReceipt,
+  readDurableResearchStepReceipts,
+  type DurableResearchStepReceipt,
+} from './meri-research-durable-step.js';
+import {
+  RESEARCH_SAFE_READ_ARTIFACT_KIND,
+  openDurableResearchResult,
+  researchJsonSha256,
+  researchToolVersion,
+  sealDurableResearchResult,
+} from './meri-research-durable-result.js';
 
 const PRODUCT_NAME = 'Meri';
 
@@ -104,6 +115,16 @@ export interface SourceAttribution {
 interface SseSink {
   write: (data: string) => void;
   flush?: () => Promise<void>;
+}
+
+export interface ResearchSafeReadOutcomeInput {
+  executionId: string;
+  leaseEpoch?: number;
+  providerCallId: string;
+  tool: string;
+  toolVersion: string;
+  input: Record<string, unknown>;
+  result: unknown;
 }
 
 /**
@@ -220,7 +241,13 @@ export class MeriResearchService {
       const metadata = researchMetadata(message?.metadata);
       reportMetadata = publicResearchReportMetadata(metadata);
     }
-    return { ...session, run: readResearchRun(session.metadata), report, reportMetadata };
+    return {
+      ...session,
+      metadata: publicResearchSessionMetadata(session.metadata),
+      run: readResearchRun(session.metadata),
+      report,
+      reportMetadata,
+    };
   }
 
   async createSession(ctx: TenantContext, input: ResearchHandoffInput) {
@@ -434,6 +461,113 @@ export class MeriResearchService {
     return { active: true };
   }
 
+  /** Server-to-server V3 hook; commits private result bytes and the public receipt atomically. */
+  async commitSafeReadOutcome(
+    ctx: TenantContext,
+    id: string,
+    runId: string,
+    input: ResearchSafeReadOutcomeInput,
+  ) {
+    const committed = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const current = await tx.clioResearchSession.findFirst({
+        where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
+      });
+      const run = readResearchRun(current?.metadata);
+      if (
+        !current ||
+        !run ||
+        run.id !== runId ||
+        run.status !== 'running' ||
+        input.leaseEpoch !== run.leaseEpoch
+      )
+        throw new ConflictException('Research lease is no longer active.');
+      await this.assertResearchPublicationAuthorized(tx, ctx, current);
+      const receipt = await this.commitSafeReadOutcomeInTransaction(tx, ctx, current, run, input);
+      return { receipt, run };
+    });
+    // Commit and publication are separate failure boundaries. A revocation here
+    // leaves the private result durable but withholds it from the caller.
+    await this.assertReceiptPublicationAuthorized(ctx, id, committed.run);
+    return committed.receipt;
+  }
+
+  /** Reuse is limited to a prior ownership epoch and reauthorized on every request. */
+  async replaySafeReadOutcome(
+    ctx: TenantContext,
+    id: string,
+    runId: string,
+    request: {
+      leaseEpoch: number;
+      tool: string;
+      toolVersion: string;
+      input: Record<string, unknown>;
+    },
+  ) {
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const current = await tx.clioResearchSession.findFirst({
+        where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
+      });
+      const run = readResearchRun(current?.metadata);
+      if (
+        !current ||
+        !run ||
+        run.id !== runId ||
+        run.status !== 'running' ||
+        request.leaseEpoch !== run.leaseEpoch
+      )
+        throw new ConflictException('Research lease is no longer active.');
+      await this.assertResearchPublicationAuthorized(tx, ctx, current);
+      this.assertCurrentSafeReadPolicy(ctx, request.tool, request.toolVersion);
+      const inputSha256 = researchJsonSha256(request.input);
+      const receipt = readDurableResearchStepReceipts(current.metadata)
+        .filter(
+          (candidate) =>
+            candidate.version === 2 &&
+            candidate.status === 'complete' &&
+            candidate.leaseEpoch < run.leaseEpoch &&
+            candidate.runId !== run.id &&
+            candidate.tool === request.tool &&
+            candidate.toolVersion === request.toolVersion &&
+            candidate.inputSha256 === inputSha256,
+        )
+        .sort((a, b) => b.sequence - a.sequence)[0];
+      if (!receipt?.resultRef || !receipt.resultBodySha256) return { replayed: false as const };
+      const handoff = readResearchHandoff(current.metadata);
+      const backing = researchMetadata(current.metadata).backingConversationId;
+      const conversationId = handoff?.conversationId ?? (typeof backing === 'string' ? backing : null);
+      if (!conversationId) return { replayed: false as const };
+      const artifact = await tx.clioArtifact.findFirst({
+        where: {
+          id: receipt.resultRef,
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          clientId: current.clientId,
+          conversationId,
+          kind: RESEARCH_SAFE_READ_ARTIFACT_KIND,
+        },
+        select: { bodyText: true },
+      });
+      const envelope = openDurableResearchResult(artifact?.bodyText, receipt.resultBodySha256);
+      if (
+        envelope.executionId !== receipt.executionId ||
+        envelope.tool !== receipt.tool ||
+        envelope.toolVersion !== receipt.toolVersion ||
+        envelope.inputSha256 !== receipt.inputSha256 ||
+        envelope.resultSha256 !== receipt.resultSha256
+      )
+        throw new ConflictException('Durable safe-read result identity mismatch.');
+      const classified = classifyApiToolReadOutcome(envelope.tool, envelope.result);
+      if (classified?.kind !== envelope.classifier)
+        throw new ConflictException('Durable safe-read result is no longer replay-qualified.');
+      await this.assertResearchPublicationAuthorized(tx, ctx, current);
+      return {
+        replayed: true as const,
+        result: envelope.result,
+        durableSafeRead: publicDurableSafeRead(receipt, true),
+      };
+    });
+  }
+
   /** Cancelling is an explicit action; a disconnected browser only detaches. */
   async cancelRun(ctx: TenantContext, id: string) {
     const session = await this.ensureSession(ctx, id);
@@ -645,16 +779,23 @@ export class MeriResearchService {
                 typeof qualification.toolCallId === 'string' &&
                 typeof qualification.tool === 'string'
               ) {
-                const persisted = await this.persistDurableSourceReceipt(
-                  ctx,
-                  id,
-                  run,
-                  researchMetadata(event.source),
-                  qualification,
-                );
+                const persisted =
+                  qualification.persisted === true
+                    ? (qualification as unknown as DurableResearchStepReceipt)
+                    : await this.persistDurableSourceReceipt(
+                        ctx,
+                        id,
+                        run,
+                        researchMetadata(event.source),
+                        qualification,
+                      );
                 run.eventSequence = persisted.sequence;
-                data = sseEvent({ ...event, sequence: persisted.sequence });
                 await this.assertReceiptPublicationAuthorized(ctx, id, run);
+                data = sseEvent({
+                  ...event,
+                  sequence: persisted.sequence,
+                  durableSafeRead: publicDurableSafeRead(persisted, qualification.replayed === true),
+                });
               }
               safeWrite(data);
             })
@@ -729,41 +870,154 @@ export class MeriResearchService {
         !toolCallId.trim() ||
         source.tool !== tool ||
         source.confidence !== 'high' ||
-        !this.tools.isConcurrencySafe(tool)
+        !this.tools.isConcurrencySafe(tool) ||
+        typeof qualification.executionId !== 'string' ||
+        typeof qualification.toolVersion !== 'string' ||
+        !qualification.input ||
+        typeof qualification.input !== 'object' ||
+        Array.isArray(qualification.input) ||
+        !('result' in qualification)
       )
         throw new ConflictException('Research source completion was not qualified for durability.');
-
-      const appended = appendDurableResearchStepReceipt(current.metadata, run, {
-        receiptId: `${run.id}:${run.leaseEpoch}:${toolCallId}`,
-        toolCallId,
+      return this.commitSafeReadOutcomeInTransaction(tx, ctx, current, run, {
+        executionId: qualification.executionId,
+        providerCallId: toolCallId,
         tool,
-        label: humanToolLabel(tool),
-        status: 'complete',
-        // Server-authored operational metadata only. Tool result text and row
-        // labels must never enter a public durable receipt.
-        summary:
-          typeof qualification.recordsReturned === 'number' &&
-          Number.isSafeInteger(qualification.recordsReturned) &&
-          qualification.recordsReturned >= 0
-            ? `${qualification.recordsReturned} authorized record(s) returned`
-            : 'Authorized read completed',
-        completedAt: new Date().toISOString(),
+        toolVersion: qualification.toolVersion,
+        input: qualification.input as Record<string, unknown>,
+        result: qualification.result,
       });
-      const now = new Date();
-      const changed = await this.updateActiveResearchRun(
-        tx,
-        ctx,
-        id,
-        run,
-        current.metadata,
-        appended.metadata,
-        current.status,
-        now,
-      );
-      if (!changed)
-        throw new ConflictException('Research lease changed while saving progress.');
-      return appended.receipt;
     });
+  }
+
+  private assertCurrentSafeReadPolicy(ctx: TenantContext, tool: string, toolVersion: string) {
+    const schema = this.tools
+      .anthropicToolSchemas({ tenantId: ctx.tenantId, surface: 'chat' })
+      .find((candidate) => candidate.name === tool);
+    if (
+      !schema ||
+      !this.tools.isConcurrencySafe(tool) ||
+      researchToolVersion(schema.input_schema) !== toolVersion
+    )
+      throw new ConflictException('The read tool is no longer authorized by the current policy.');
+  }
+
+  private async commitSafeReadOutcomeInTransaction(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    current: Awaited<ReturnType<MeriResearchService['ensureSession']>>,
+    run: ResearchRunState,
+    input: ResearchSafeReadOutcomeInput,
+  ) {
+    if (!input.executionId?.trim() || !input.providerCallId?.trim())
+      throw new ConflictException('A durable safe-read outcome requires exact invocation identity.');
+    this.assertCurrentSafeReadPolicy(ctx, input.tool, input.toolVersion);
+    const readOutcome = classifyApiToolReadOutcome(input.tool, input.result);
+    if (readOutcome?.kind !== 'complete' && readOutcome?.kind !== 'empty')
+      throw new ConflictException('The owner result is not a qualified complete safe read.');
+
+    const existing = readDurableResearchStepReceipts(current.metadata).find(
+      (receipt) => receipt.version === 2 && receipt.executionId === input.executionId,
+    );
+    if (existing) {
+      if (
+        existing.runId !== run.id ||
+        existing.leaseEpoch !== run.leaseEpoch ||
+        existing.providerCallId !== input.providerCallId ||
+        existing.tool !== input.tool ||
+        existing.toolVersion !== input.toolVersion ||
+        existing.inputSha256 !== researchJsonSha256(input.input) ||
+        existing.resultSha256 !== researchJsonSha256(input.result)
+      )
+        throw new ConflictException('Durable safe-read execution identity was reused inconsistently.');
+      return existing;
+    }
+
+    const completedAt = new Date().toISOString();
+    const sealed = sealDurableResearchResult({
+      executionId: input.executionId,
+      providerCallId: input.providerCallId,
+      runId: run.id,
+      leaseEpoch: run.leaseEpoch,
+      tool: input.tool,
+      toolVersion: input.toolVersion,
+      classifier: readOutcome.kind,
+      input: input.input,
+      result: input.result,
+      completedAt,
+    });
+    const metadata = researchMetadata(current.metadata);
+    const handoff = readResearchHandoff(current.metadata);
+    let conversationId =
+      handoff?.conversationId ??
+      (typeof metadata.backingConversationId === 'string' ? metadata.backingConversationId : null);
+    if (!conversationId) {
+      const conversation = await tx.clioConversation.create({
+        data: {
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          clientId: current.clientId,
+          title: `Research: ${current.title}`,
+          status: 'active',
+          metadata: { researchSessionId: current.id } as Prisma.InputJsonObject,
+        },
+        select: { id: true },
+      });
+      conversationId = conversation.id;
+    }
+    const artifact = await tx.clioArtifact.create({
+      data: {
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        clientId: current.clientId,
+        conversationId,
+        title: 'Internal research safe-read result',
+        kind: RESEARCH_SAFE_READ_ARTIFACT_KIND,
+        contentType: 'application/json',
+        bodyText: sealed.body,
+        metadata: {
+          serverOnly: true,
+          researchSessionId: current.id,
+          executionId: input.executionId,
+          bodySha256: sealed.bodySha256,
+          byteSize: sealed.byteSize,
+        } as Prisma.InputJsonObject,
+      },
+      select: { id: true },
+    });
+    const receiptBase = conversationId === metadata.backingConversationId
+      ? current.metadata
+      : { ...metadata, backingConversationId: conversationId };
+    const appended = appendDurableResearchResultReceipt(receiptBase, run, {
+      receiptId: `${run.id}:${run.leaseEpoch}:${input.executionId}`,
+      toolCallId: input.providerCallId,
+      tool: input.tool,
+      label: humanToolLabel(input.tool),
+      status: 'complete',
+      summary: 'Authorized read completed',
+      completedAt,
+      executionId: input.executionId,
+      providerCallId: input.providerCallId,
+      toolVersion: input.toolVersion,
+      inputSha256: sealed.envelope.inputSha256,
+      resultSha256: sealed.envelope.resultSha256,
+      resultBodySha256: sealed.bodySha256,
+      resultRef: artifact.id,
+      resultByteSize: sealed.byteSize,
+      classifier: sealed.envelope.classifier,
+    });
+    const changed = await this.updateActiveResearchRun(
+      tx,
+      ctx,
+      current.id,
+      run,
+      current.metadata,
+      appended.metadata,
+      current.status,
+      new Date(),
+    );
+    if (!changed) throw new ConflictException('Research lease changed while saving progress.');
+    return appended.receipt;
   }
 
   private async replaySession(
@@ -1455,6 +1709,9 @@ export class MeriResearchService {
 
           let resultPayload: unknown;
           let isError = false;
+          const toolSchema = toolSchemas.find((schema) => schema.name === t.name);
+          const toolVersion = toolSchema ? researchToolVersion(toolSchema.input_schema) : '';
+          let replayedReceipt: Record<string, unknown> | undefined;
           if (scopeViolation) {
             isError = true;
             resultPayload = { error: scopeViolation };
@@ -1472,10 +1729,24 @@ export class MeriResearchService {
             );
           } else {
             try {
-              resultPayload = await withMeriToolExecutionControl(
-                { signal: auth.signal, deadlineAt },
-                () => this.tools.execute(ctx, t.name as never, parsedInput),
-              );
+              const replay =
+                auth.run && toolVersion
+                  ? await this.replaySafeReadOutcome(ctx, id, auth.run.id, {
+                      leaseEpoch: auth.run.leaseEpoch,
+                      tool: t.name,
+                      toolVersion,
+                      input: parsedInput,
+                    })
+                  : { replayed: false as const };
+              if (replay.replayed) {
+                resultPayload = replay.result;
+                replayedReceipt = replay.durableSafeRead;
+              } else {
+                resultPayload = await withMeriToolExecutionControl(
+                  { signal: auth.signal, deadlineAt },
+                  () => this.tools.execute(ctx, t.name as never, parsedInput),
+                );
+              }
             } catch (err) {
               isError = true;
               resultPayload = {
@@ -1511,18 +1782,27 @@ export class MeriResearchService {
             sseEvent({
               type: 'source',
               source,
-              ...(qualifiedSuccess && this.tools.isConcurrencySafe(t.name) && t.id
+              ...(qualifiedSuccess && this.tools.isConcurrencySafe(t.name) && t.id && toolVersion
                 ? {
-                    durableSafeRead: {
-                      outcome: 'complete',
-                      toolCallId: t.id,
-                      tool: t.name,
-                      ...(typeof count === 'number' ? { recordsReturned: count } : {}),
-                    },
+                    durableSafeRead:
+                      replayedReceipt ??
+                      {
+                        outcome: 'complete',
+                        executionId: randomUUID(),
+                        toolCallId: t.id,
+                        tool: t.name,
+                        toolVersion,
+                        input: parsedInput,
+                        result: resultPayload,
+                        ...(typeof count === 'number' ? { recordsReturned: count } : {}),
+                      },
                   }
                 : {}),
             }),
           );
+          // The result receipt and private payload must commit before this
+          // owner result is returned to the provider for the next model turn.
+          if (qualifiedSuccess) await sse.flush?.();
 
           const serialized = summarizeJsonForPrompt(resultPayload, 12_000);
           toolResultBlocks.push({
@@ -2100,15 +2380,19 @@ export class MeriResearchService {
     )
       throw new NotFoundException('Research session not found');
     const handoff = readResearchHandoff(session.metadata);
+    const backingConversationId = researchMetadata(session.metadata).backingConversationId;
     if (handoff && handoff.clientId !== session.clientId)
       throw new BadRequestException(
         'The originating conversation is no longer available in this client scope',
       );
+    const authorizedConversationId =
+      handoff?.conversationId ??
+      (typeof backingConversationId === 'string' ? backingConversationId : null);
     if (
-      handoff?.conversationId &&
+      authorizedConversationId &&
       !(await tx.clioConversation.findFirst({
         where: {
-          id: handoff.conversationId,
+          id: authorizedConversationId,
           tenantId: ctx.tenantId,
           userId: ctx.userId,
           clientId: session.clientId,
@@ -2350,6 +2634,49 @@ function asStringRecord(value: Prisma.JsonValue | null | undefined): Record<stri
     if (typeof v === 'string') out[k] = v;
   }
   return out;
+}
+
+function publicDurableSafeRead(receipt: DurableResearchStepReceipt, replayed: boolean) {
+  return {
+    version: receipt.version,
+    receiptId: receipt.receiptId,
+    runId: receipt.runId,
+    leaseEpoch: receipt.leaseEpoch,
+    sequence: receipt.sequence,
+    effectClass: receipt.effectClass,
+    toolCallId: receipt.toolCallId,
+    tool: receipt.tool,
+    label: receipt.label,
+    status: receipt.status,
+    summary: receipt.summary,
+    completedAt: receipt.completedAt,
+    outcome: 'complete',
+    persisted: true,
+    replayed,
+    ...(receipt.executionId ? { executionId: receipt.executionId } : {}),
+    ...(receipt.providerCallId ? { providerCallId: receipt.providerCallId } : {}),
+    ...(receipt.toolVersion ? { toolVersion: receipt.toolVersion } : {}),
+    ...(receipt.classifier ? { classifier: receipt.classifier } : {}),
+  };
+}
+
+/** Public recovery metadata deliberately excludes result refs, hashes, inputs, and result bytes. */
+function publicResearchSessionMetadata(value: unknown): Record<string, unknown> {
+  const metadata = researchMetadata(value);
+  return {
+    handoff: {
+      conversationId: readResearchHandoff(value)?.conversationId ?? null,
+    },
+    ...(typeof metadata.planMessageId === 'string' ? { planMessageId: metadata.planMessageId } : {}),
+    ...(typeof metadata.reportMessageId === 'string' ? { reportMessageId: metadata.reportMessageId } : {}),
+    ...(Array.isArray(metadata.durableStepReceipts)
+      ? {
+          durableStepReceipts: readDurableResearchStepReceipts(metadata).map((receipt) =>
+            publicDurableSafeRead(receipt, false),
+          ),
+        }
+      : {}),
+  };
 }
 
 /** Only user-facing evidence crosses the report stream/recovery boundary. */

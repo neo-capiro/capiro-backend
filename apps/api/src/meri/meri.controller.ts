@@ -786,6 +786,43 @@ export class MeriController {
     return this.research.assertRunActive(ctx, id, runId);
   }
 
+  @Post('research/:id/runs/:runId/safe-read/replay')
+  @UseGuards(ToolServiceSecretGuard)
+  replayResearchSafeRead(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('runId') runId: string,
+    @Body()
+    body: {
+      leaseEpoch: number;
+      tool: string;
+      toolVersion: string;
+      input: Record<string, unknown>;
+    },
+  ) {
+    return this.research.replaySafeReadOutcome(ctx, id, runId, body);
+  }
+
+  @Post('research/:id/runs/:runId/safe-read/outcomes')
+  @UseGuards(ToolServiceSecretGuard)
+  commitResearchSafeRead(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('runId') runId: string,
+    @Body()
+    body: {
+      executionId: string;
+      leaseEpoch: number;
+      providerCallId: string;
+      tool: string;
+      toolVersion: string;
+      input: Record<string, unknown>;
+      result: unknown;
+    },
+  ) {
+    return this.research.commitSafeReadOutcome(ctx, id, runId, body);
+  }
+
   @Post('research/:id/cancel')
   cancelResearch(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
     return this.research.cancelRun(ctx, id);

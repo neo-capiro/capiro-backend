@@ -11,7 +11,7 @@ export type DurableResearchStepStatus = 'complete' | 'failed';
 
 /** Public operational receipt only; tool inputs/results and provider reasoning stay outside metadata. */
 export interface DurableResearchStepReceipt {
-  version: 1;
+  version: 1 | 2;
   receiptId: string;
   runId: string;
   leaseEpoch: number;
@@ -24,6 +24,16 @@ export interface DurableResearchStepReceipt {
   status: DurableResearchStepStatus;
   summary: string;
   completedAt: string;
+  /** Version 2 is the first replay-authoritative receipt. Version 1 remains progress-only. */
+  executionId?: string;
+  providerCallId?: string;
+  toolVersion?: string;
+  inputSha256?: string;
+  resultSha256?: string;
+  resultBodySha256?: string;
+  resultRef?: string;
+  resultByteSize?: number;
+  classifier?: 'complete' | 'empty';
 }
 
 export interface DurableResearchStepInput {
@@ -35,6 +45,18 @@ export interface DurableResearchStepInput {
   status: DurableResearchStepStatus;
   summary: string;
   completedAt: string;
+}
+
+export interface DurableResearchResultReceiptInput extends DurableResearchStepInput {
+  executionId: string;
+  providerCallId: string;
+  toolVersion: string;
+  inputSha256: string;
+  resultSha256: string;
+  resultBodySha256: string;
+  resultRef: string;
+  resultByteSize: number;
+  classifier: 'complete' | 'empty';
 }
 
 function boundedText(value: unknown): string {
@@ -51,7 +73,7 @@ export function readDurableResearchStepReceipts(value: unknown): DurableResearch
   return rows.flatMap((value) => {
     const row = researchMetadata(value);
     if (
-      row.version !== 1 ||
+      ![1, 2].includes(Number(row.version)) ||
       typeof row.receiptId !== 'string' ||
       typeof row.runId !== 'string' ||
       !nonNegativeInteger(row.leaseEpoch) ||
@@ -63,7 +85,17 @@ export function readDurableResearchStepReceipts(value: unknown): DurableResearch
       !['complete', 'failed'].includes(String(row.status)) ||
       typeof row.summary !== 'string' ||
       typeof row.completedAt !== 'string' ||
-      !Number.isFinite(Date.parse(row.completedAt))
+      !Number.isFinite(Date.parse(row.completedAt)) ||
+      (row.version === 2 &&
+        (typeof row.executionId !== 'string' ||
+          typeof row.providerCallId !== 'string' ||
+          typeof row.toolVersion !== 'string' ||
+          typeof row.inputSha256 !== 'string' ||
+          typeof row.resultSha256 !== 'string' ||
+          typeof row.resultBodySha256 !== 'string' ||
+          typeof row.resultRef !== 'string' ||
+          !nonNegativeInteger(row.resultByteSize) ||
+          !['complete', 'empty'].includes(String(row.classifier))))
     )
       return [];
     return [row as unknown as DurableResearchStepReceipt];
@@ -123,6 +155,57 @@ export function appendDurableResearchStepReceipt(
       durableStepReceipts: [...retained, receipt].slice(-MAX_DURABLE_STEP_RECEIPTS),
     },
     run: nextRun,
+    receipt,
+  };
+}
+
+/** Append a result receipt in the same transaction as its private result artifact. */
+export function appendDurableResearchResultReceipt(
+  value: unknown,
+  expectedRun: Pick<ResearchRunState, 'id' | 'leaseEpoch'>,
+  input: DurableResearchResultReceiptInput,
+): {
+  metadata: Record<string, unknown>;
+  run: ResearchRunState;
+  receipt: DurableResearchStepReceipt;
+} {
+  const appended = appendDurableResearchStepReceipt(value, expectedRun, input);
+  const required = [
+    input.executionId,
+    input.providerCallId,
+    input.toolVersion,
+    input.inputSha256,
+    input.resultSha256,
+    input.resultBodySha256,
+    input.resultRef,
+  ];
+  if (
+    required.some((field) => !boundedText(field)) ||
+    !Number.isSafeInteger(input.resultByteSize) ||
+    input.resultByteSize < 0
+  ) {
+    throw new Error('A durable research result receipt requires complete replay identity.');
+  }
+  const receipt: DurableResearchStepReceipt = {
+    ...appended.receipt,
+    version: 2,
+    executionId: boundedText(input.executionId),
+    providerCallId: boundedText(input.providerCallId),
+    toolVersion: boundedText(input.toolVersion),
+    inputSha256: boundedText(input.inputSha256),
+    resultSha256: boundedText(input.resultSha256),
+    resultBodySha256: boundedText(input.resultBodySha256),
+    resultRef: boundedText(input.resultRef),
+    resultByteSize: input.resultByteSize,
+    classifier: input.classifier,
+  };
+  const retained = readDurableResearchStepReceipts(appended.metadata);
+  return {
+    metadata: {
+      ...appended.metadata,
+      durableStepReceipts: [...retained.slice(0, -1), receipt].slice(-MAX_DURABLE_STEP_RECEIPTS),
+    },
+    run: appended.run,
     receipt,
   };
 }
