@@ -3,8 +3,10 @@
 # Inner hardening layer only — tenant isolation comes from the Fargate
 # microVM + no-egress security group + zero-permission task role (see
 # docs/adr/0001-clio-analysis-sandbox-isolation.md). This harness:
-#   1. sets POSIX rlimits (CPU/memory/processes/file-size/fds),
-#   2. pre-imports the explicitly allowed analysis stack,
+#   1. sets early POSIX rlimits (CPU/memory/file-size/fds),
+#   2. pre-imports the explicitly allowed analysis stack with fixed native
+#      thread counts, then cleans up trusted initialization threads and sets
+#      the exact process/task limit,
 #   3. installs an audit hook that raises on network, subprocess, and
 #      native-code-loading events,
 #   4. applies a calm Capiro chart theme and forces the matplotlib Agg backend,
@@ -20,26 +22,65 @@ import io
 import json
 import os
 import sys
+import threading
+import time
 
 WORKDIR = os.getcwd()
 OUT_DIR = os.path.join(WORKDIR, "out")
 MAX_FIGURES = 6
 
-os.makedirs(OUT_DIR, exist_ok=True)
-
-# ── 1. POSIX rlimits (degrade gracefully on non-POSIX dev hosts) ──────────
+# ── 1. Early POSIX rlimits ─────────────────────────────────────────────────
+# Keep RLIMIT_NPROC out of this first group. GitHub-hosted Linux runners share
+# a UID with unrelated tasks, so installing the exact 64-task owner limit here
+# can prevent matplotlib's trusted, short-lived font-discovery timer from
+# starting. All other limits remain installed before trusted scientific code.
+resource = None
 try:
-    import resource
+    import resource as _resource
 
-    CPU_SECONDS = int(os.environ.get("SANDBOX_CPU_SECONDS", "30"))
-    MEM_BYTES = int(os.environ.get("SANDBOX_MEM_BYTES", str(1024 * 1024 * 1024)))
-    resource.setrlimit(resource.RLIMIT_CPU, (CPU_SECONDS, CPU_SECONDS))
-    resource.setrlimit(resource.RLIMIT_AS, (MEM_BYTES, MEM_BYTES))
-    resource.setrlimit(resource.RLIMIT_NPROC, (64, 64))
-    resource.setrlimit(resource.RLIMIT_FSIZE, (20 * 1024 * 1024, 20 * 1024 * 1024))
-    resource.setrlimit(resource.RLIMIT_NOFILE, (256, 256))
-except Exception:  # noqa: BLE001 - resource is unavailable on Windows dev hosts
+    resource = _resource
+except ImportError:
+    if os.name == "posix":
+        raise RuntimeError("sandbox: POSIX resource limits are unavailable")
     sys.stderr.write("[harness] rlimits unavailable on this platform\n")
+
+
+CPU_SECONDS = int(os.environ.get("SANDBOX_CPU_SECONDS", "30"))
+MEM_BYTES = int(os.environ.get("SANDBOX_MEM_BYTES", str(1024 * 1024 * 1024)))
+_EARLY_LIMIT_SPECS = (
+    ("RLIMIT_CPU", CPU_SECONDS),
+    ("RLIMIT_AS", MEM_BYTES),
+    ("RLIMIT_FSIZE", 20 * 1024 * 1024),
+    ("RLIMIT_NOFILE", 256),
+)
+
+
+def _install_exact_limit(limit_name, value):  # noqa: ANN001
+    """Install and verify one owner limit; POSIX setup is fail-closed."""
+    if resource is None:
+        return
+    if (
+        limit_name == "RLIMIT_NPROC"
+        and os.environ.get("SANDBOX_TEST_FORCE_NPROC_FAILURE") == "1"
+    ):
+        raise OSError("forced RLIMIT_NPROC installation failure")
+    limit = getattr(resource, limit_name)
+    expected = (value, value)
+    resource.setrlimit(limit, expected)
+    actual = resource.getrlimit(limit)
+    if actual != expected:
+        raise RuntimeError(
+            f"sandbox: {limit_name} verification failed: expected {expected}, got {actual}"
+        )
+
+
+if resource is not None:
+    try:
+        for _limit_name, _limit_value in _EARLY_LIMIT_SPECS:
+            _install_exact_limit(_limit_name, _limit_value)
+    except Exception as exc:  # noqa: BLE001 - no user code may run after setup failure
+        raise RuntimeError("sandbox: early resource-limit installation failed") from exc
+_EARLY_LIMITS_INSTALLED = resource is not None
 
 
 def _linux_task_context():
@@ -122,10 +163,34 @@ def _report_warm_import_failure(stage, module_name, exc):  # noqa: ANN001
     sys.stderr.write(f"[harness] warm-import diagnostic {encoded[:2048]}\n")
 
 
-# ── 2. Pre-import the allowed analysis stack BEFORE arming the hook ───────
+# ── 2. Pre-import the allowed analysis stack BEFORE NPROC and the hook ────
 # NumPy/SciPy/statsmodels legitimately load native extensions during import.
-# Warm the exact allowed stack first so the audit hook constrains USER code
-# without breaking approved numerical routines.
+# Warm only this fixed stack while CPU/memory/file/fd limits, the runner's wall
+# timeout, and one-thread native-library environment remain active. No user
+# source is read or executed in this stage.
+_NATIVE_THREAD_ENV_NAMES = (
+    "OPENBLAS_NUM_THREADS",
+    "GOTO_NUM_THREADS",
+    "OMP_NUM_THREADS",
+    "MKL_NUM_THREADS",
+    "NUMEXPR_NUM_THREADS",
+    "VECLIB_MAXIMUM_THREADS",
+    "BLIS_NUM_THREADS",
+)
+_unbounded_native_env = {
+    name: os.environ.get(name)
+    for name in _NATIVE_THREAD_ENV_NAMES
+    if os.environ.get(name) != "1"
+}
+if _unbounded_native_env:
+    raise RuntimeError(
+        f"sandbox: native analysis thread bounds are not fixed: {_unbounded_native_env}"
+    )
+
+_trusted_thread_baseline = {thread.ident for thread in threading.enumerate()}
+if _trusted_thread_baseline != {threading.current_thread().ident}:
+    raise RuntimeError("sandbox: unexpected thread exists before trusted initialization")
+_warm_import_failures = []
 _warm_import_module = "matplotlib"
 try:
     import matplotlib
@@ -177,8 +242,9 @@ try:
             "savefig.pad_inches": 0.18,
         }
     )
-except Exception as exc:  # noqa: BLE001 - matplotlib genuinely optional locally
+except Exception as exc:  # noqa: BLE001 - report the trusted setup failure below
     _report_warm_import_failure("visual", _warm_import_module, exc)
+    _warm_import_failures.append(_warm_import_module)
 
 _warm_import_module = "numpy"
 try:
@@ -201,8 +267,59 @@ try:
 
     _warm_import_module = "networkx"
     import networkx  # noqa: F401
-except Exception as exc:  # noqa: BLE001 - pure-python analysis can still run
+except Exception as exc:  # noqa: BLE001 - report the trusted setup failure below
     _report_warm_import_failure("analysis", _warm_import_module, exc)
+    _warm_import_failures.append(_warm_import_module)
+
+
+def _finish_trusted_initialization_threads():
+    """Boundedly join trusted warm-import threads before user-code entry."""
+    deadline = time.monotonic() + 2.0
+    current = threading.current_thread()
+    for thread in threading.enumerate():
+        if thread is current or thread.ident in _trusted_thread_baseline:
+            continue
+        thread.join(max(0.0, deadline - time.monotonic()))
+
+    remaining = [
+        thread.name
+        for thread in threading.enumerate()
+        if thread is not current and thread.ident not in _trusted_thread_baseline
+    ]
+    if remaining:
+        raise RuntimeError(
+            f"sandbox: trusted initialization threads did not stop: {remaining[:4]}"
+        )
+
+    # threading.enumerate() cannot see native worker threads. On Linux, require
+    # the fixed one-thread scientific initialization to return to one task too.
+    if sys.platform.startswith("linux"):
+        with os.scandir("/proc/self/task") as entries:
+            task_count = sum(1 for entry in entries if entry.name.isdigit())
+        if task_count != 1:
+            raise RuntimeError(
+                f"sandbox: trusted initialization left {task_count} live tasks"
+            )
+
+
+_finish_trusted_initialization_threads()
+_TRUSTED_WARM_IMPORTS_COMPLETE = True
+
+# Install the exact owner process/task limit after fixed trusted initialization
+# but before any user-controlled source is read. A POSIX failure terminates the
+# harness; Windows remains the explicitly reported local-development exception.
+if resource is not None:
+    try:
+        _install_exact_limit("RLIMIT_NPROC", 64)
+    except Exception as exc:  # noqa: BLE001 - fail closed before user-code entry
+        raise RuntimeError("sandbox: RLIMIT_NPROC installation failed") from exc
+_NPROC_LIMIT_INSTALLED = resource is not None
+
+if _warm_import_failures:
+    failed = ", ".join(_warm_import_failures)
+    raise RuntimeError(f"sandbox: trusted analysis initialization failed: {failed}")
+
+os.makedirs(OUT_DIR, exist_ok=True)
 
 # ── 3. Audit hook: no network, no subprocesses, no NEW native loading ──────
 BLOCKED_PREFIXES = (

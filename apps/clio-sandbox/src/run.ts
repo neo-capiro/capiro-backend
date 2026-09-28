@@ -172,6 +172,11 @@ export async function runSandboxed(req: SandboxRunRequest): Promise<SandboxRunRe
         PYTHONDONTWRITEBYTECODE: '1',
         PYTHONIOENCODING: 'utf-8',
         ...NATIVE_ANALYSIS_THREAD_ENV,
+        // Test-only fault injection is inherited from trusted runner config,
+        // never from a SandboxRunRequest. It can only make setup fail closed.
+        ...(process.env.SANDBOX_TEST_FORCE_NPROC_FAILURE === '1'
+          ? { SANDBOX_TEST_FORCE_NPROC_FAILURE: '1' }
+          : {}),
         ...(process.platform === 'win32'
           ? {
               SYSTEMROOT: process.env.SYSTEMROOT ?? '',
