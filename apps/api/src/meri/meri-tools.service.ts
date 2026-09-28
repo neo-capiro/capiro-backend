@@ -1,3 +1,4 @@
+import { researchPortfolioManagementSchema, parseResearchPortfolioManagementInput } from '../research-portfolios/research-portfolio-management.js';
 import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
 import {
   deadlineStatus as structuredDeadlineStatus,
@@ -311,7 +312,7 @@ export class MeriToolsService {
   }
 
   private requireResearchPortfolioTools(): ResearchPortfolioMeriToolsService {
-    if (process.env.RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED === 'false') {
+    if (process.env.RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED !== 'true') {
       throw new NotFoundException('Meri tool not found');
     }
     if (!this.researchPortfolioTools) throw new NotFoundException('Meri tool not found');
@@ -362,6 +363,7 @@ export class MeriToolsService {
     };
 
     const schemas: Record<MeriToolName, Record<string, unknown>> = {
+      manage_research_portfolio: researchPortfolioManagementSchema,
       get_research_portfolio: obj(
         { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
         ['conversationId'],
@@ -463,19 +465,28 @@ export class MeriToolsService {
         ['conversationId', 'operationId'],
       ),
       prepare_research_portfolio_brief: obj(
-        {
-          conversationId: str('Exact current Research Portfolio chat conversation UUID'),
-          scope: { type: 'string', enum: ['summary', 'full'] },
-        },
-        ['conversationId'],
-      ),
+    {
+      conversationId: str('Exact current Research Portfolio chat UUID'),
+      operationKey: str('Original stable idempotency key for this unreviewed editable draft'),
+      confirmed: { type: 'boolean', enum: [true] },
+    },
+    ['conversationId', 'operationKey', 'confirmed'],
+  ),
       prepare_research_portfolio_meeting: obj(
-        {
-          conversationId: str('Exact current Research Portfolio chat conversation UUID'),
-          meetingType: { type: 'string', enum: ['status', 'review', 'planning'] },
-        },
-        ['conversationId'],
-      ),
+    {
+      conversationId: str('Exact current Research Portfolio chat UUID'),
+      operationKey: str('Original stable idempotency key for this unreviewed editable draft'),
+      confirmed: { type: 'boolean', enum: [true] },
+      meetingId: str('Optional exact owned internal client-null meeting UUID'),
+      selectedReviewIds: {
+        type: 'array',
+        maxItems: 20,
+        uniqueItems: true,
+        items: { type: 'string', format: 'uuid' },
+      },
+    },
+    ['conversationId', 'operationKey', 'confirmed'],
+  ),
       search_legiwatch_news: obj(
         {
           ...legiwatchScope,
@@ -1842,7 +1853,7 @@ export class MeriToolsService {
       resolveStatusProvenanceMode(rollout.env ?? process.env, rollout.tenantId, rollout.surface) ===
         'enforce';
     const researchPortfolioToolsEnabled =
-      (rollout?.env ?? process.env).RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED !== 'false';
+      (rollout?.env ?? process.env).RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED === 'true';
     return TOOL_DEFINITIONS.filter(
       (tool) =>
         (tool.name !== 'get_certification_status' || statusProvenanceEnabled) &&
@@ -1883,6 +1894,10 @@ export class MeriToolsService {
     if (!this.isSideEffecting(normalizedName)) {
       throw new BadRequestException(`${normalizedName} is not a side-effecting Meri tool`);
     }
+    if (normalizedName === 'manage_research_portfolio') {
+  this.requireResearchPortfolioTools();
+  return parseResearchPortfolioManagementInput(rawInput);
+}
     const definition = this.anthropicToolSchemas().find((tool) => tool.name === normalizedName);
     if (!definition) throw new BadRequestException(`Unknown Meri tool: ${normalizedName}`);
     return validateMeriWriteToolInput(
@@ -2191,6 +2206,7 @@ export class MeriToolsService {
   async execute(ctx: TenantContext, name: MeriToolName, input: Record<string, unknown>) {
     assertMeriToolRequestActive();
     switch (name) {
+      case 'manage_research_portfolio':
       case 'get_research_portfolio':
       case 'get_research_portfolio_analytics':
       case 'get_research_portfolio_changes':

@@ -57,7 +57,7 @@ function harness() {
   const schemas = Object.create(MeriToolsService.prototype).anthropicToolSchemas({
     tenantId: ctx.tenantId,
     surface: 'chat',
-    env: {},
+    env: { RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED: 'true' },
   });
   return {
     imports,

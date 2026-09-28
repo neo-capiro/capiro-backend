@@ -1,4 +1,16 @@
-import { BadRequestException, Injectable, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
+import { DefenseSavedComparisonsService } from '../defense-research/defense-saved-comparisons.service.js';
+import {
+  executeResearchPortfolioManagement,
+  validateResearchPortfolioInstitutionalInput,
+} from './research-portfolio-management.js';
+import { ResearchPortfolioInstitutionalService } from './research-portfolio-institutional.service.js';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  Optional,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -55,6 +67,7 @@ const requiredConversationId = (input: Record<string, unknown>): string => {
 };
 
 export type ResearchPortfolioMeriToolName =
+  | 'manage_research_portfolio'
   | 'get_research_portfolio'
   | 'get_research_portfolio_analytics'
   | 'get_research_portfolio_changes'
@@ -75,6 +88,7 @@ export type ResearchPortfolioMeriToolName =
   | 'prepare_research_portfolio_meeting';
 
 const NAMES = new Set<ResearchPortfolioMeriToolName>([
+  'manage_research_portfolio',
   'get_research_portfolio',
   'get_research_portfolio_analytics',
   'get_research_portfolio_changes',
@@ -113,6 +127,8 @@ export class ResearchPortfolioMeriToolsService {
     private readonly rules: ResearchPortfolioRulesService,
     private readonly phase11: ResearchPortfolioPhase11Service,
     @Optional() private readonly imports?: ResearchPortfolioImportService,
+    @Optional() private readonly institutional?: ResearchPortfolioInstitutionalService,
+    @Optional() private readonly savedComparisons?: DefenseSavedComparisonsService,
   ) {}
 
   async execute(
@@ -122,6 +138,23 @@ export class ResearchPortfolioMeriToolsService {
   ): Promise<unknown> {
     const portfolioId = await this.authorizeScope(ctx, input);
     switch (name) {
+      case 'manage_research_portfolio':
+        return executeResearchPortfolioManagement(
+          {
+            portfolios: this.portfolios,
+            analytics: this.analytics,
+            changes: this.changes,
+            outputs: this.outputs,
+            reviews: this.reviews,
+            rules: this.rules,
+            phase11: this.phase11,
+            imports: this.imports,
+            savedComparisons: this.savedComparisons,
+          },
+          ctx,
+          portfolioId,
+          input,
+        );
       case 'get_research_portfolio':
         return this.portfolios.detail(ctx, portfolioId);
       case 'get_research_portfolio_analytics':
@@ -191,7 +224,11 @@ export class ResearchPortfolioMeriToolsService {
         if (!['mine', 'team', 'deferred', 'resolved'].includes(lane)) {
           throw new BadRequestException('lane must be mine, team, deferred, or resolved');
         }
-        return this.reviews.listReviews(ctx, portfolioId, lane as 'mine' | 'team' | 'deferred' | 'resolved');
+        return this.reviews.listReviews(
+          ctx,
+          portfolioId,
+          lane as 'mine' | 'team' | 'deferred' | 'resolved',
+        );
       }
       case 'add_research_portfolio_review_note':
         return this.phase11.addReviewNote(ctx, portfolioId, requiredText(input, 'reviewId'), {
@@ -202,49 +239,35 @@ export class ResearchPortfolioMeriToolsService {
       case 'get_research_portfolio_rules':
         return this.rules.listRules(ctx, portfolioId);
       case 'get_research_portfolio_imports': {
-        if (!this.imports) throw new ServiceUnavailableException('Research Portfolio import reader is unavailable');
+        if (!this.imports)
+          throw new ServiceUnavailableException('Research Portfolio import reader is unavailable');
         const jobId = optionalText(input, 'jobId');
         if (jobId) return this.imports.getJob(ctx, portfolioId, jobId);
-        const jobs = await this.prisma.withTenant(ctx.tenantId, async (tx: any) => tx.researchPortfolioImportJob.findMany({
-          where: { tenantId: ctx.tenantId, portfolioId }, select: { id: true }, orderBy: { createdAt: 'desc' }, take: 20,
-        }));
+        const jobs = await this.prisma.withTenant(ctx.tenantId, async (tx: any) =>
+          tx.researchPortfolioImportJob.findMany({
+            where: { tenantId: ctx.tenantId, portfolioId },
+            select: { id: true },
+            orderBy: { createdAt: 'desc' },
+            take: 20,
+          }),
+        );
         // Use the same current-authority all-row DTO as the ordinary product.
         // Raw job records omit rows, outcomes and compensation receipts.
-        return Promise.all(jobs.map((job: { id: string }) => this.imports!.getJob(ctx, portfolioId, job.id)));
+        return Promise.all(
+          jobs.map((job: { id: string }) => this.imports!.getJob(ctx, portfolioId, job.id)),
+        );
       }
       case 'get_research_portfolio_operations':
         return this.phase11.getOperation(ctx, portfolioId, requiredText(input, 'operationId'));
-      case 'prepare_research_portfolio_brief': {
-        const [detail, analyticsResult, changesResult, reviewsResult] = await Promise.all([
-          this.portfolios.detail(ctx, portfolioId),
-          this.analytics.analytics(ctx, portfolioId),
-          this.changes.listChanges(ctx, portfolioId, null, 10),
-          this.reviews.listReviews(ctx, portfolioId, 'mine'),
-        ]);
-        return {
-          portfolio: { id: detail.id, name: detail.name, purpose: detail.purpose, lifecycle: detail.lifecycle, revision: detail.revision },
-          memberCount: detail.memberCount,
-          analytics: { availability: analyticsResult.availability, totalCount: analyticsResult.totals.length },
-          recentChanges: changesResult.items.length,
-          openReviews: reviewsResult.length,
-          preparedAt: new Date().toISOString(),
-        };
-      }
+      case 'prepare_research_portfolio_brief':
       case 'prepare_research_portfolio_meeting': {
-        const [detailM, analyticsM, reviewsMine, reviewsTeam] = await Promise.all([
-          this.portfolios.detail(ctx, portfolioId),
-          this.analytics.analytics(ctx, portfolioId),
-          this.reviews.listReviews(ctx, portfolioId, 'mine'),
-          this.reviews.listReviews(ctx, portfolioId, 'team'),
-        ]);
-        return {
-          portfolio: { id: detailM.id, name: detailM.name, lifecycle: detailM.lifecycle },
-          analytics: { availability: analyticsM.availability },
-          myOpenReviews: reviewsMine.filter((r: any) => r.status === 'open' || r.status === 'assigned').length,
-          teamOpenReviews: reviewsTeam.filter((r: any) => r.status === 'open' || r.status === 'assigned').length,
-          actionItems: [],
-          preparedAt: new Date().toISOString(),
-        };
+        if (!this.institutional)
+          throw new ServiceUnavailableException(
+            'Research Portfolio institutional writer is unavailable',
+          );
+        const kind = name === 'prepare_research_portfolio_brief' ? 'brief' : 'meeting';
+        const prepared = validateResearchPortfolioInstitutionalInput(input, kind);
+        return this.institutional.prepare(ctx, { ...prepared, kind });
       }
     }
   }
