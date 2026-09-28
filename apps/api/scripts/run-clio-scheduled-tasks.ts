@@ -27,12 +27,20 @@ import { config as dotenvConfig } from 'dotenv';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 import { recordAiUsageEvent, parseProviderUsage, type TenantContext } from '@capiro/shared';
+import type { ResolvedAiCredential } from '../src/ai-credentials/ai-credential-resolver.service.js';
 import {
   computeNextRunAtAnchored,
   isAllowListSafe,
   DEFAULT_SCHEDULED_TOOL_ALLOWLIST,
 } from '../src/meri/meri-schedule.helpers.js';
-import { checkScheduledTaskExecutionBoundary } from '../src/meri/meri-schedule-execution-boundary.js';
+import {
+  advanceScheduledTaskExecution,
+  checkScheduledTaskExecutionBoundary,
+  claimScheduledTaskExecution,
+  executeScheduledTaskEffect,
+  type ScheduledTaskExecutionBoundary,
+  type ScheduledTaskExecutionClaim,
+} from '../src/meri/meri-schedule-execution-boundary.js';
 
 dotenvConfig();
 
@@ -102,7 +110,12 @@ async function runResearch(
   allowList: string[],
   logger: Logger,
   prisma: any,
-): Promise<{ text: string; toolsUsed: string[] } | null> {
+  checkExecutionBoundary: () => Promise<ScheduledTaskExecutionBoundary>,
+): Promise<
+  | { text: string; toolsUsed: string[] }
+  | { blocked: Exclude<ScheduledTaskExecutionBoundary, 'runnable'> }
+  | null
+> {
   // Filter the full Meri tool schema list to the task's allow-list, and harden:
   // never attach a tool that isn't read-only-safe (defense in depth on top of
   // isAllowListSafe, which we also check before calling this).
@@ -125,21 +138,26 @@ async function runResearch(
   for (let round = 0; round < MAX_ROUNDS; round += 1) {
     let json: any;
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': ANTHROPIC_VERSION,
-        },
-        body: JSON.stringify(prepareAnthropicRequest({
-          model,
-          max_tokens: MAX_TOKENS,
-          system: SYSTEM_PROMPT,
-          tools: toolSchemas,
-          messages,
-        })),
-      });
+      const request = await executeScheduledTaskEffect(
+        checkExecutionBoundary,
+        () => fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': ANTHROPIC_VERSION,
+          },
+          body: JSON.stringify(prepareAnthropicRequest({
+            model,
+            max_tokens: MAX_TOKENS,
+            system: SYSTEM_PROMPT,
+            tools: toolSchemas,
+            messages,
+          })),
+        }),
+      );
+      if (!request.executed) return { blocked: request.boundary };
+      const res = request.value;
       if (!res.ok) {
         logger.warn(
           `[task ${task.id}] anthropic ${res.status}: ${(await res.text()).slice(0, 200)}`,
@@ -154,6 +172,8 @@ async function runResearch(
 
     // Phase 1 M5.0 (H-1): meter this round — one ai_usage_events row per
     // Anthropic call, same as the interactive chat/in-editor loops.
+    // Once a provider request started, always meter its returned usage even if
+    // cancellation arrived in flight. Cancellation cannot retract that call.
     await recordAiUsageEvent(
       { prisma, logger },
       { tenantId: ctx.tenantId, userId: ctx.userId },
@@ -200,7 +220,12 @@ async function runResearch(
         isError = true;
       } else {
         try {
-          payload = await toolsService.execute(ctx, name, input);
+          const execution = await executeScheduledTaskEffect(
+            checkExecutionBoundary,
+            () => toolsService.execute(ctx, name, input),
+          );
+          if (!execution.executed) return { blocked: execution.boundary };
+          payload = execution.value;
           toolsUsed.push(name);
         } catch (err) {
           payload = { error: (err as Error).message };
@@ -264,11 +289,6 @@ async function main(): Promise<void> {
         Array.isArray(task.tool_allow_list) && task.tool_allow_list.length
           ? (task.tool_allow_list as string[])
           : [...DEFAULT_SCHEDULED_TOOL_ALLOWLIST];
-      if (!isAllowListSafe(allowList)) {
-        await advance(prisma, task, now, 'skipped_unsafe');
-        failed += 1;
-        continue;
-      }
 
       // Resolve the owner's role for the tenant context (default to 'member').
       let role = 'member';
@@ -304,42 +324,87 @@ async function main(): Promise<void> {
         role: role as TenantContext['role'],
       };
 
-      // The due list is only a snapshot. Re-read the task before execution so a
-      // concurrent cancellation stays canceled, then evaluate the current
-      // owner's authority for the current client through the existing ethical-
-      // wall helper. Same-tenant client existence is not permission.
-      let executionBoundary: 'runnable' | 'inactive' | 'wall_denied' = 'inactive';
+      const identity = {
+        id: task.id,
+        tenantId: task.tenant_id,
+        ownerUserId: task.owner_user_id,
+      };
+      const meta =
+        task.metadata_jsonb && typeof task.metadata_jsonb === 'object'
+          ? (task.metadata_jsonb as Record<string, unknown>)
+          : {};
+      const runAtMin = typeof meta.runAtMinutesUtc === 'number' ? meta.runAtMinutesUtc : null;
+      const nextRunAt = computeNextRunAtAnchored(now, task.interval_minutes, runAtMin);
+
+      // The due list is only a snapshot. Move the exact occurrence forward in
+      // one conditional UPDATE before any provider or delivery effect. The
+      // returned updated_at value fences every later guard and completion.
+      let claimResult;
       try {
-        executionBoundary = await prisma.withTenant(task.tenant_id, (tx: any) =>
-          checkScheduledTaskExecutionBoundary(tx, {
-            id: task.id,
-            tenantId: task.tenant_id,
-            ownerUserId: task.owner_user_id,
-          }),
+        claimResult = await prisma.withTenant(task.tenant_id, (tx: any) =>
+          claimScheduledTaskExecution(tx, identity, now, nextRunAt),
         );
-      } catch {
-        executionBoundary = 'wall_denied';
-      }
-      if (executionBoundary === 'inactive') {
+      } catch (err) {
+        logger.warn(`[task ${task.id}] claim failed: ${(err as Error).message}`);
         failed += 1;
         continue;
       }
-      if (executionBoundary === 'wall_denied') {
-        await advance(prisma, task, now, 'skipped_wall');
+      if (claimResult.state === 'inactive') {
+        failed += 1;
+        continue;
+      }
+      const claim: ScheduledTaskExecutionClaim = claimResult.claim;
+      const finish = (status: string) =>
+        prisma.withTenant(task.tenant_id, (tx: any) =>
+          advanceScheduledTaskExecution(tx, identity, claim, status),
+        );
+      const checkExecutionBoundary = (): Promise<ScheduledTaskExecutionBoundary> =>
+        prisma.withTenant(task.tenant_id, (tx: any) =>
+          checkScheduledTaskExecutionBoundary(tx, identity, claim),
+        ).catch(() => 'wall_denied' as const);
+      const stopAtBoundary = async (
+        boundary: Exclude<ScheduledTaskExecutionBoundary, 'runnable'>,
+      ) => {
+        if (boundary === 'wall_denied') await finish('skipped_wall');
+        failed += 1;
+      };
+
+      if (claimResult.state === 'wall_denied') {
+        await stopAtBoundary('wall_denied');
+        continue;
+      }
+      if (!isAllowListSafe(allowList)) {
+        await finish('skipped_unsafe');
         failed += 1;
         continue;
       }
 
       // Resolve the tenant's Anthropic key + model (tenant key first, then global).
-      const resolved = await aiCreds.resolveProvider(ctx, 'anthropic');
+      let credentialEffect;
+      try {
+        credentialEffect = await executeScheduledTaskEffect<ResolvedAiCredential | null>(
+          checkExecutionBoundary,
+          () => aiCreds.resolveProvider(ctx, 'anthropic'),
+        );
+      } catch (err) {
+        logger.warn(`[task ${task.id}] credential resolution failed: ${(err as Error).message}`);
+        await finish('error');
+        failed += 1;
+        continue;
+      }
+      if (!credentialEffect.executed) {
+        await stopAtBoundary(credentialEffect.boundary);
+        continue;
+      }
+      const resolved = credentialEffect.value;
       if (!resolved?.apiKey) {
         logger.warn(`[task ${task.id}] no Anthropic credential; skipping`);
-        await advance(prisma, task, now, 'error');
+        await finish('error');
         failed += 1;
         continue;
       }
 
-      let result: { text: string; toolsUsed: string[] } | null = null;
+      let result: Awaited<ReturnType<typeof runResearch>> = null;
       try {
         result = await runResearch(
           task,
@@ -351,13 +416,18 @@ async function main(): Promise<void> {
           allowList,
           logger,
           prisma,
+          checkExecutionBoundary,
         );
       } catch (err) {
         logger.warn(`[task ${task.id}] research failed: ${(err as Error).message}`);
       }
 
+      if (result && 'blocked' in result) {
+        await stopAtBoundary(result.blocked);
+        continue;
+      }
       if (!result || !result.text) {
-        await advance(prisma, task, now, 'error');
+        await finish('error');
         failed += 1;
         continue;
       }
@@ -368,27 +438,33 @@ async function main(): Promise<void> {
         // FORCE RLS WITH CHECK passes even when this runs under a role where RLS
         // is active (withTenant alone would set current_user_id() NULL and the
         // non-null owner row would be rejected).
-        await prisma.withTenantUser(task.tenant_id, task.owner_user_id, (tx: any) =>
-          tx.clioProactiveAlert.create({
-            data: {
-              tenantId: task.tenant_id,
-              ownerUserId: task.owner_user_id,
-              alertType: 'scheduled_task',
-              title: `Scheduled: ${task.name}`,
-              body: result!.text.slice(0, 8000),
-              priority: 'normal',
-              sourceType: 'scheduled_task',
-              sourceId: `${task.id}:${now.toISOString().slice(0, 10)}`,
-              metadata: {
-                taskId: task.id,
+        const alert = await executeScheduledTaskEffect(
+          checkExecutionBoundary,
+          () => prisma.withTenantUser(task.tenant_id, task.owner_user_id, (tx: any) =>
+            tx.clioProactiveAlert.create({
+              data: {
+                tenantId: task.tenant_id,
                 ownerUserId: task.owner_user_id,
-                runAt: now.toISOString(),
-                toolsUsed: result!.toolsUsed,
+                alertType: 'scheduled_task',
+                title: `Scheduled: ${task.name}`,
+                body: result.text.slice(0, 8000),
+                priority: 'normal',
+                sourceType: 'scheduled_task',
+                sourceId: `${task.id}:${now.toISOString().slice(0, 10)}`,
+                metadata: {
+                  taskId: task.id,
+                  ownerUserId: task.owner_user_id,
+                  runAt: now.toISOString(),
+                  toolsUsed: result.toolsUsed,
+                },
               },
-            },
-          }),
+            }),
+          ),
         );
-        await advance(prisma, task, now, 'ok');
+        if (!alert.executed) {
+          await stopAtBoundary(alert.boundary);
+          continue;
+        }
         delivered += 1;
 
         // Optional fixed email delivery: if the task was created with a frozen
@@ -396,27 +472,36 @@ async function main(): Promise<void> {
         // The recipient was authorized at creation time; the model never chose
         // it and never had a send tool. Email failure is non-fatal — the inbox
         // delivery already succeeded.
-        const meta =
-          task.metadata_jsonb && typeof task.metadata_jsonb === 'object'
-            ? (task.metadata_jsonb as Record<string, unknown>)
-            : {};
         const emailTo = typeof meta.emailTo === 'string' ? meta.emailTo : null;
         if (emailTo) {
-          const sent = await toolsService.sendScheduledBriefingEmail(
-            ctx,
-            emailTo,
-            `Meri briefing: ${task.name}`,
-            result!.text,
+          const email = await executeScheduledTaskEffect<{
+            ok: boolean;
+            sentFrom?: string;
+            error?: string;
+          }>(
+            checkExecutionBoundary,
+            () => toolsService.sendScheduledBriefingEmail(
+              ctx,
+              emailTo,
+              `Meri briefing: ${task.name}`,
+              result.text,
+            ),
           );
+          if (!email.executed) {
+            await stopAtBoundary(email.boundary);
+            continue;
+          }
+          const sent = email.value;
           if (sent.ok) {
             logger.log(`[task ${task.id}] briefing emailed to ${emailTo} from ${sent.sentFrom}`);
           } else {
             logger.warn(`[task ${task.id}] briefing email to ${emailTo} failed: ${sent.error}`);
           }
         }
+        await finish('ok');
       } catch (err) {
         logger.warn(`[task ${task.id}] deliver failed: ${(err as Error).message}`);
-        await advance(prisma, task, now, 'error');
+        await finish('error');
         failed += 1;
       }
     }
@@ -429,27 +514,6 @@ async function main(): Promise<void> {
   } finally {
     await app.close();
   }
-}
-
-/** Advance next_run_at (clock-anchored when metadata.runAtMinutesUtc is set). */
-async function advance(prisma: any, task: DueTask, now: Date, status: string): Promise<void> {
-  const meta =
-    task.metadata_jsonb && typeof task.metadata_jsonb === 'object'
-      ? (task.metadata_jsonb as Record<string, unknown>)
-      : {};
-  const runAtMin = typeof meta.runAtMinutesUtc === 'number' ? meta.runAtMinutesUtc : null;
-  const next = computeNextRunAtAnchored(now, task.interval_minutes, runAtMin);
-  await prisma.withSystem((tx: any) =>
-    tx.$executeRawUnsafe(
-      `UPDATE clio_scheduled_task
-       SET last_run_at = $1, next_run_at = $2, last_status = $3, run_count = run_count + 1, updated_at = now()
-       WHERE id = $4::uuid`,
-      now,
-      next,
-      status,
-      task.id,
-    ),
-  );
 }
 
 main().catch((err) => {

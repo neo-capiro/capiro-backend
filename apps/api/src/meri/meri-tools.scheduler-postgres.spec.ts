@@ -1,9 +1,14 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
-import { Pool } from 'pg';
+import { Pool, type PoolClient } from 'pg';
 import type { TenantContext } from '@capiro/shared';
 import { MeriToolsService } from './meri-tools.service.js';
+import {
+  advanceScheduledTaskExecution,
+  claimScheduledTaskExecution,
+  executeScheduledTaskEffect,
+} from './meri-schedule-execution-boundary.js';
 
 jest.mock('../program-element/program-element-read.service.js', () => ({
   ProgramElementReadService: class {},
@@ -113,11 +118,14 @@ describeLocal('Meri schedule handler — native PostgreSQL receipt boundary', ()
         prompt text NOT NULL,
         interval_minutes integer NOT NULL,
         tool_allow_list jsonb NOT NULL DEFAULT '[]'::jsonb,
+        last_run_at timestamptz,
         next_run_at timestamptz NOT NULL,
         enabled boolean NOT NULL DEFAULT true,
         last_status varchar(20),
+        run_count integer NOT NULL DEFAULT 0,
         created_by varchar(40) NOT NULL,
-        metadata_jsonb jsonb NOT NULL DEFAULT '{}'::jsonb
+        metadata_jsonb jsonb NOT NULL DEFAULT '{}'::jsonb,
+        updated_at timestamptz NOT NULL DEFAULT now()
       )
     `);
   }, 30_000);
@@ -294,6 +302,65 @@ describeLocal('Meri schedule handler — native PostgreSQL receipt boundary', ()
     return { scheduleTask, evidence };
   }
 
+  function executionTransaction(client: PoolClient) {
+    return {
+      clioScheduledTask: {
+        findFirst: async ({ where }: { where: Record<string, any> }) => {
+          const result = await client.query(
+            `SELECT metadata_jsonb
+               FROM clio_scheduled_task
+              WHERE id = $1::uuid AND tenant_id = $2::uuid AND owner_user_id = $3::uuid
+                AND enabled = true
+                AND ($4::text IS NULL OR last_status = $4)
+                AND ($5::timestamptz IS NULL OR last_run_at = $5)
+                AND ($6::timestamptz IS NULL OR updated_at = $6)
+              LIMIT 1`,
+            [
+              where.id,
+              where.tenantId,
+              where.ownerUserId,
+              where.lastStatus ?? null,
+              where.lastRunAt ?? null,
+              where.updatedAt ?? null,
+            ],
+          );
+          return result.rows[0] ? { metadata: result.rows[0].metadata_jsonb } : null;
+        },
+      },
+      client: { findFirst: async () => null },
+      $queryRawUnsafe: async (sql: string, ...args: unknown[]) =>
+        (await client.query(sql, args)).rows,
+      $executeRawUnsafe: async (sql: string, ...args: unknown[]) =>
+        (await client.query(sql, args)).rowCount ?? 0,
+    };
+  }
+
+  async function withExecutionTransaction<T>(fn: (tx: any) => Promise<T>): Promise<T> {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(`SET LOCAL search_path TO "${schemaName}"`);
+      const value = await fn(executionTransaction(client));
+      await client.query('COMMIT');
+      return value;
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async function insertDueExecutionTask() {
+    await pool.query(
+      `INSERT INTO "${schemaName}".clio_scheduled_task (
+         id, tenant_id, owner_user_id, scope, name, prompt, interval_minutes,
+         next_run_at, created_by
+       ) VALUES ($1::uuid, $2::uuid, $3::uuid, 'user_private', 'race', 'race', 60, $4, 'meri')`,
+      [PROPOSAL, ctx.tenantId, ctx.userId, new Date('2026-09-28T10:00:00.000Z')],
+    );
+  }
+
   test('real PK race aborts the loser transaction and fresh scoped read converges one receipt', async () => {
     const h = harness({ barrier: true });
 
@@ -375,5 +442,78 @@ describeLocal('Meri schedule handler — native PostgreSQL receipt boundary', ()
     expect(stored.rows[0]).toEqual({ count: '1', enabled: false, last_status: 'canceled' });
     expect(h.evidence.insertAttempts).toBe(1);
     expect(h.evidence.freshReadsAfterFailure).toBeGreaterThanOrEqual(1);
+  }, 30_000);
+
+  test('two native PostgreSQL runners atomically claim one occurrence and reach one sink', async () => {
+    await insertDueExecutionTask();
+    const sink = jest.fn();
+    const identity = { id: PROPOSAL, tenantId: ctx.tenantId, ownerUserId: ctx.userId };
+    const claimedAt = new Date('2026-09-28T10:00:00.000Z');
+    const nextRunAt = new Date('2026-09-28T11:00:00.000Z');
+    const run = () => withExecutionTransaction(async (tx) => {
+      const result = await claimScheduledTaskExecution(tx, identity, claimedAt, nextRunAt);
+      if (result.state !== 'claimed') return result.state;
+      const effect = await executeScheduledTaskEffect(
+        async () => 'runnable',
+        async () => sink(),
+      );
+      expect(effect.executed).toBe(true);
+      await expect(
+        advanceScheduledTaskExecution(tx, identity, result.claim, 'ok'),
+      ).resolves.toBe(true);
+      return 'completed';
+    });
+
+    await expect(Promise.all([run(), run()])).resolves.toEqual(
+      expect.arrayContaining(['completed', 'inactive']),
+    );
+    expect(sink).toHaveBeenCalledTimes(1);
+    const stored = await pool.query<{
+      enabled: boolean;
+      last_status: string;
+      run_count: number;
+      next_run_at: Date;
+    }>(
+      `SELECT enabled, last_status, run_count, next_run_at
+         FROM "${schemaName}".clio_scheduled_task WHERE id = $1::uuid`,
+      [PROPOSAL],
+    );
+    expect(stored.rows[0]).toMatchObject({ enabled: true, last_status: 'ok', run_count: 1 });
+    expect(stored.rows[0]?.next_run_at).toEqual(nextRunAt);
+  }, 30_000);
+
+  test('native cancellation after claim defeats fenced completion and retains canceled status', async () => {
+    await insertDueExecutionTask();
+    const identity = { id: PROPOSAL, tenantId: ctx.tenantId, ownerUserId: ctx.userId };
+    const claim = await withExecutionTransaction((tx) =>
+      claimScheduledTaskExecution(
+        tx,
+        identity,
+        new Date('2026-09-28T10:00:00.000Z'),
+        new Date('2026-09-28T11:00:00.000Z'),
+      ),
+    );
+    expect(claim.state).toBe('claimed');
+    if (claim.state !== 'claimed') throw new Error('expected claim');
+    await pool.query(
+      `UPDATE "${schemaName}".clio_scheduled_task
+          SET enabled = false, last_status = 'canceled', updated_at = clock_timestamp()
+        WHERE id = $1::uuid`,
+      [PROPOSAL],
+    );
+
+    await expect(withExecutionTransaction((tx) =>
+      advanceScheduledTaskExecution(tx, identity, claim.claim, 'ok'),
+    )).resolves.toBe(false);
+    const stored = await pool.query<{
+      enabled: boolean;
+      last_status: string;
+      run_count: number;
+    }>(
+      `SELECT enabled, last_status, run_count
+         FROM "${schemaName}".clio_scheduled_task WHERE id = $1::uuid`,
+      [PROPOSAL],
+    );
+    expect(stored.rows[0]).toEqual({ enabled: false, last_status: 'canceled', run_count: 0 });
   }, 30_000);
 });
