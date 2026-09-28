@@ -110,7 +110,12 @@ import {
   certifyResearchProducerInputs,
   publicResearchSourceTool,
 } from './meri-report-provenance.js';
-import { projectResearchObserverEvent } from './research-observer-projection.js';
+import {
+  projectResearchObserverError,
+  projectResearchObserverEvent,
+  RESEARCH_OBSERVER_STATUS,
+  RESEARCH_PROVIDER_FAILURE,
+} from './research-observer-projection.js';
 
 const PRODUCT_NAME = 'Meri';
 
@@ -124,8 +129,8 @@ const PRODUCT_NAME = 'Meri';
  */
 const SYNTHESIS_FLOOR_MS = 180_000;
 
-const RESEARCH_GATHER_THINKING_STATUS = 'Reviewing evidence and planning the next research step…';
-const RESEARCH_SYNTHESIS_THINKING_STATUS = 'Writing the report…';
+const RESEARCH_GATHER_THINKING_STATUS = RESEARCH_OBSERVER_STATUS.gatheringThinking;
+const RESEARCH_SYNTHESIS_THINKING_STATUS = RESEARCH_OBSERVER_STATUS.writingReport;
 
 export interface SourceAttribution {
   tool: string;
@@ -137,6 +142,8 @@ export interface SourceAttribution {
 
 interface SseSink {
   write: (data: string) => void;
+  /** Internal-only receipt candidate channel; never an observer transport. */
+  writeReceiptCandidate?: (event: Record<string, unknown>) => void;
   flush?: () => Promise<void>;
 }
 
@@ -948,71 +955,125 @@ export class MeriResearchService {
       timer = setInterval(heartbeat, 10_000);
       timer.unref?.();
       let pendingError: unknown;
+      const queueEvent = (event: Record<string, unknown>, data = sseEvent(event)) => {
+        if (event.type === 'progress' && typeof event.note === 'string') run.stage = event.note;
+        if (event.type === 'step') run.stage = RESEARCH_OBSERVER_STATUS.readingSource;
+        if (event.type === 'error' || event.type === 'done') {
+          // Durable progress can fail independently of the terminal control
+          // channel. Preserve event ordering, but never hide the honest
+          // terminal outcome from observers after a queued receipt failure.
+          pending = pending.then(
+            () => safeWrite(data),
+            () => safeWrite(data),
+          );
+          return;
+        }
+        pending = pending
+          .then(async () => {
+            if (pendingError) throw pendingError;
+            const qualification = researchMetadata(event.durableSafeRead);
+            if (
+              event.type === 'source' &&
+              qualification.outcome === 'complete' &&
+              typeof qualification.toolCallId === 'string' &&
+              typeof qualification.tool === 'string'
+            ) {
+              const persisted =
+                qualification.persisted === true
+                  ? (qualification as unknown as DurableResearchStepReceipt)
+                  : await this.persistDurableSourceReceipt(
+                      ctx,
+                      id,
+                      run,
+                      researchMetadata(event.source),
+                      qualification,
+                    );
+              run.eventSequence = persisted.sequence;
+              await this.assertReceiptPublicationAuthorized(ctx, id, run);
+              data = sseEvent({
+                ...event,
+                sequence: persisted.sequence,
+                durableSafeRead: publicDurableSafeRead(
+                  persisted,
+                  qualification.replayed === true,
+                ),
+              });
+            }
+            safeWrite(data);
+          })
+          .catch((error) => {
+            pendingError = error;
+            controller.abort(
+              researchLeaseError('Research progress could not be persisted.'),
+            );
+          });
+      };
       const sink: SseSink = {
         write: (data: string) => {
-          let event: Record<string, unknown> | undefined;
+          let event: Record<string, unknown>;
           try {
             event = JSON.parse(data.replace(/^data: /, '').trim()) as Record<string, unknown>;
-            if (event.type === 'progress' && typeof event.note === 'string') run.stage = event.note;
-            if (event.type === 'step' && typeof event.label === 'string')
-              run.stage = `Reading ${event.label}`;
-            // Stage-only records: elapsed time is not a completion percentage.
           } catch {
-            /* non-data heartbeat */
-          }
-          if (event?.type === 'error' || event?.type === 'done') {
-            // Durable progress can fail independently of the terminal control
-            // channel. Preserve event ordering, but never hide the honest
-            // terminal outcome from observers after a queued receipt failure.
-            pending = pending.then(
-              () => safeWrite(data),
-              () => safeWrite(data),
-            );
             return;
           }
-          pending = pending
-            .then(async () => {
-              if (pendingError) throw pendingError;
-              const qualification = researchMetadata(event?.durableSafeRead);
+          if (event.type === 'error') {
+            event = {
+              type: 'error',
+              message: projectResearchObserverError(event.message, controller.signal),
+            };
+          } else if (
+            [
+              'thinking',
+              'reasoning',
+              'reasoning_delta',
+              'reasoning_summary',
+              'start',
+              'runtime',
+              'progress',
+              'tool_call',
+              'tool_done',
+              'pending_approval',
+              'source',
+            ].includes(String(event.type))
+          ) {
+            const original = event;
+            const projected = projectResearchObserverEvent(event);
+            if (!projected) return;
+            event = projected;
+            if (event.type === 'progress') {
               if (
-                event?.type === 'source' &&
-                qualification.outcome === 'complete' &&
-                typeof qualification.toolCallId === 'string' &&
-                typeof qualification.tool === 'string'
-              ) {
-                const persisted =
-                  qualification.persisted === true
-                    ? (qualification as unknown as DurableResearchStepReceipt)
-                    : await this.persistDurableSourceReceipt(
-                        ctx,
-                        id,
-                        run,
-                        researchMetadata(event.source),
-                        qualification,
-                      );
-                run.eventSequence = persisted.sequence;
-                await this.assertReceiptPublicationAuthorized(ctx, id, run);
-                data = sseEvent({
-                  ...event,
-                  sequence: persisted.sequence,
-                  durableSafeRead: publicDurableSafeRead(
-                    persisted,
-                    qualification.replayed === true,
-                  ),
-                });
-              }
-              safeWrite(data);
-            })
-            .catch((error) => {
-              pendingError = error;
-              controller.abort(
-                researchLeaseError(
-                  error instanceof Error
-                    ? error.message
-                    : 'Research progress could not be persisted.',
-                ),
-              );
-            });
+                typeof original.elapsedMs === 'number' &&
+                Number.isSafeInteger(original.elapsedMs) &&
+                original.elapsedMs >= 0
+              )
+                event.elapsedMs = original.elapsedMs;
+              if (
+                typeof original.budgetMs === 'number' &&
+                Number.isSafeInteger(original.budgetMs) &&
+                original.budgetMs >= 0
+              )
+                event.budgetMs = original.budgetMs;
+            }
+          } else if (
+            ![
+              'run',
+              'phase',
+              'title',
+              'plan',
+              'clarify',
+              'notice',
+              'text',
+              'report',
+              'done',
+            ].includes(String(event.type))
+          ) {
+            return;
+          }
+          queueEvent(event);
+        },
+        writeReceiptCandidate: (candidate) => {
+          const projected = projectResearchObserverEvent(candidate, { receiptCandidates: true });
+          if (projected) queueEvent(projected);
         },
         flush: async () => {
           await pending;
@@ -1021,7 +1082,8 @@ export class MeriResearchService {
       };
       await execute(sink, { ...auth, run, signal: controller.signal });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Research failed';
+      const privateMessage = error instanceof Error ? error.message : 'Research failed';
+      const message = projectResearchObserverError(error, controller.signal);
       if (claimed)
         await this.markFailed(
           ctx,
@@ -1037,6 +1099,7 @@ export class MeriResearchService {
         () => terminal.forEach(safeWrite),
         () => terminal.forEach(safeWrite),
       );
+      this.logger.warn(`Research run failed: ${privateMessage}`);
     } finally {
       stopping = true;
       if (timer) clearInterval(timer);
@@ -1400,11 +1463,12 @@ export class MeriResearchService {
         auth,
       );
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Planning failed';
-      this.logger.warn(`Research plan failed: ${msg}`);
+      const privateMessage = err instanceof Error ? err.message : 'Planning failed';
+      const message = projectResearchObserverError(err, auth.signal);
+      this.logger.warn(`Research plan failed: ${privateMessage}`);
       // A failed provider is a recoverable failed attempt, never a fabricated plan.
-      await this.markFailed(ctx, session.id, auth, msg);
-      sse.write(sseEvent({ type: 'error', message: msg }));
+      await this.markFailed(ctx, session.id, auth, message);
+      sse.write(sseEvent({ type: 'error', message }));
       sse.write(sseEvent({ type: 'done' }));
       return;
     } finally {
@@ -1531,8 +1595,9 @@ export class MeriResearchService {
     try {
       await this.runResearchStream(ctx, id, sse, progress, auth);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Research failed';
-      this.logger.warn(`Research run failed: ${message}`);
+      const privateMessage = error instanceof Error ? error.message : 'Research failed';
+      const message = projectResearchObserverError(error, auth.signal);
+      this.logger.warn(`Research run failed: ${privateMessage}`);
       await this.markFailed(ctx, id, auth, message);
       sse.write(sseEvent({ type: 'error', message }));
       sse.write(sseEvent({ type: 'done' }));
@@ -1595,7 +1660,7 @@ export class MeriResearchService {
       ]
         .filter(Boolean)
         .join('\n\n');
-      progress.set('Researching with the conversation’s selected reasoning mode…');
+      progress.set(RESEARCH_OBSERVER_STATUS.startingRuntime);
       const result = await this.v3Research.run(
         ctx,
         {
@@ -1622,10 +1687,11 @@ export class MeriResearchService {
           const projected = projectResearchObserverEvent(event, { receiptCandidates: true });
           if (!projected) return;
           // Progress follows observed provider/tool events, never an elapsed-time percentage.
-          if (projected.type === 'step') progress.set('Reading an authorized research source…');
+          if (projected.type === 'step') progress.set(RESEARCH_OBSERVER_STATUS.readingSource);
           else if (projected.type === 'source')
-            progress.set('Reviewing the retrieved evidence for the report…');
-          sse.write(sseEvent(projected));
+            progress.set(RESEARCH_OBSERVER_STATUS.reviewingEvidence);
+          if (projected.type === 'source') sse.writeReceiptCandidate?.(projected);
+          else sse.write(sseEvent(projected));
         },
       );
       await this.finishResearch(ctx, acceptedSession, sse, progress, {
@@ -1678,7 +1744,7 @@ export class MeriResearchService {
       Math.floor(totalBudgetMs / 2),
     );
     const deadlineAt = Date.now() + totalBudgetMs;
-    progress.set('Reviewing the research plan…');
+    progress.set(RESEARCH_OBSERVER_STATUS.reviewingPlan);
     // Deep Research is a read-only GATHER agent: it must NOT be able to call
     // side-effecting tools (send_email/reply_email/save_memory/create_task/
     // update_client_profile/docgen/...). A long-running agentic loop over the full
@@ -1769,10 +1835,7 @@ export class MeriResearchService {
           );
           break;
         }
-        progress.set(
-          `Gathering evidence — round ${round + 1} of ${maxRounds}` +
-            (sources.length > 0 ? ` · ${sources.length} source(s) so far` : ''),
-        );
+        progress.set(RESEARCH_OBSERVER_STATUS.gatheringEvidence);
         const controller = new AbortController();
         // Clamp the per-call timeout to the budget that's actually left, so one
         // slow round can't consume time the report needs.
@@ -1954,13 +2017,24 @@ export class MeriResearchService {
               }
             }
           }
-          sse.write(sseEvent({ type: 'step', tool: t.name, label: humanToolLabel(t.name) }));
-          progress.set(`Running ${humanToolLabel(t.name)}…`);
-
           let resultPayload: unknown;
           let isError = false;
           const toolSchema = toolSchemas.find((schema) => schema.name === t.name);
           const toolVersion = toolSchema ? researchToolVersion(toolSchema.input_schema) : '';
+          const publicTool = publicResearchSourceTool(t.name);
+          const observerToolQualified = Boolean(
+            !scopeViolation &&
+              publicTool &&
+              toolSchema &&
+              toolVersion &&
+              this.tools.isConcurrencySafe(t.name),
+          );
+          const step = projectResearchObserverEvent({
+            type: 'tool_call',
+            tool: observerToolQualified ? publicTool : null,
+          });
+          if (step?.type === 'step') sse.write(sseEvent(step));
+          progress.set(RESEARCH_OBSERVER_STATUS.readingSource);
           let replayedReceipt: Record<string, unknown> | undefined;
           if (scopeViolation) {
             isError = true;
@@ -2017,46 +2091,49 @@ export class MeriResearchService {
           if (readOutcome?.kind === 'failed' || readOutcome?.kind === 'unavailable') {
             isError = true;
           }
-          const { count, detail } = summarizeToolResultForTrust(resultPayload);
-          const source: SourceAttribution = {
-            tool: t.name,
-            label: humanToolLabel(t.name),
-            count: count ?? undefined,
-            summary: isError
-              ? (readOutcome?.reason ??
-                (typeof (resultPayload as { error?: unknown })?.error === 'string'
-                  ? (resultPayload as { error: string }).error
-                  : 'Tool error'))
-              : (readOutcome?.reason ?? detail) || 'Completed',
-            confidence: qualifiedSuccess ? 'high' : 'low',
-          };
-          if (qualifiedSuccess) {
-            sources.push(source);
-            toolsUsed.push(t.name);
-          }
-          sse.write(
-            sseEvent({
-              type: 'source',
-              source,
-              ...(qualifiedSuccess && this.tools.isConcurrencySafe(t.name) && t.id && toolVersion
-                ? {
-                    durableSafeRead: replayedReceipt ?? {
-                      outcome: 'complete',
-                      executionId: randomUUID(),
-                      toolCallId: t.id,
-                      tool: t.name,
-                      toolVersion,
-                      input: parsedInput,
-                      result: resultPayload,
-                      ...(typeof count === 'number' ? { recordsReturned: count } : {}),
-                    },
-                  }
-                : {}),
-            }),
+          const { count } = summarizeToolResultForTrust(resultPayload);
+          const observerQualifiedSuccess = Boolean(
+            qualifiedSuccess && observerToolQualified && t.id && publicTool,
           );
+          const source: SourceAttribution = {
+            tool: publicTool ?? 'research_source',
+            label: 'Research source',
+            count: count ?? undefined,
+            summary: 'Authorized read completed',
+            confidence: 'high',
+          };
+          if (observerQualifiedSuccess) {
+            sources.push(source);
+            toolsUsed.push(publicTool!);
+          }
+          progress.set(
+            observerQualifiedSuccess
+              ? RESEARCH_OBSERVER_STATUS.sourceFinished
+              : RESEARCH_OBSERVER_STATUS.sourceNeedsAttention,
+          );
+          if (observerQualifiedSuccess) {
+            const candidate = projectResearchObserverEvent(
+              {
+                type: 'source',
+                source,
+                  durableSafeRead: replayedReceipt ?? {
+                    outcome: 'complete',
+                    executionId: randomUUID(),
+                    toolCallId: t.id,
+                    tool: publicTool,
+                    toolVersion,
+                    input: parsedInput,
+                    result: resultPayload,
+                    ...(typeof count === 'number' ? { recordsReturned: count } : {}),
+                  },
+              },
+              { receiptCandidates: true },
+            );
+            if (candidate) sse.writeReceiptCandidate?.(candidate);
+          }
           // The result receipt and private payload must commit before this
           // owner result is returned to the provider for the next model turn.
-          if (qualifiedSuccess) await sse.flush?.();
+          if (observerQualifiedSuccess) await sse.flush?.();
 
           const serialized = summarizeJsonForPrompt(resultPayload, 12_000);
           toolResultBlocks.push({
@@ -2099,7 +2176,7 @@ export class MeriResearchService {
             'research report NOW, in markdown, following the report requirements: Executive Summary, ' +
             'plan-driven sections with inline source citations, Recommended Actions, and Open Questions.',
         });
-        progress.set('Writing the report…');
+        progress.set(RESEARCH_OBSERVER_STATUS.writingReport);
         const controller = new AbortController();
         // Synthesis gets whatever budget remains, but never less than a floor: if
         // gathering already blew through the budget, handing the writer a 0ms
@@ -2207,9 +2284,9 @@ export class MeriResearchService {
         }
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Research failed';
-      this.logger.warn(`Research run failed: ${msg}`);
-      sse.write(sseEvent({ type: 'error', message: msg }));
+      const privateMessage = err instanceof Error ? err.message : 'Research failed';
+      this.logger.warn(`Research run failed: ${privateMessage}`);
+      sse.write(sseEvent({ type: 'error', message: RESEARCH_PROVIDER_FAILURE }));
     }
 
     if (auth.signal?.aborted) throw new BadRequestException('Research was cancelled.');
@@ -2315,7 +2392,7 @@ export class MeriResearchService {
     let held = false;
     let heldReason = '';
     if (auditorMode !== 'off' && reportBody.trim().length > 0) {
-      progress.set('Checking the report against the gathered sources…');
+      progress.set(RESEARCH_OBSERVER_STATUS.checkingReport);
       try {
         const verdict = runAuditor({
           output: reportBody,
@@ -2382,7 +2459,7 @@ export class MeriResearchService {
       (heldReason ? `\n>\n> ${heldReason.slice(0, 500)}` : '');
 
     // Persist the report artifact + link it to the session.
-    progress.set('Saving the report…');
+    progress.set(RESEARCH_OBSERVER_STATUS.savingReport);
     const artifactBody = assembleReportArtifact({
       title: session.title,
       topic: session.topic,
@@ -3181,7 +3258,7 @@ function createProgressReporter(
   opts: { intervalMs: number; budgetMs: number },
 ): ProgressReporter {
   const startedAt = Date.now();
-  let note = 'Starting the research run…';
+  let note: string = RESEARCH_OBSERVER_STATUS.startingRun;
   let stopped = false;
 
   const emit = () => {
@@ -3207,7 +3284,11 @@ function createProgressReporter(
 
   return {
     set: (next: string) => {
-      note = next;
+      const projected = projectResearchObserverEvent({ type: 'progress', note: next });
+      note =
+        projected?.type === 'progress' && typeof projected.note === 'string'
+          ? projected.note
+          : RESEARCH_OBSERVER_STATUS.preparingReport;
       emit();
     },
     stop: () => {

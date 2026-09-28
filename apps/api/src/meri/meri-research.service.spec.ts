@@ -799,6 +799,90 @@ describe('MeriResearchService — forced synthesis', () => {
     },
   );
 
+  it('withholds unknown legacy provider tool names and unqualified sources on the actual service path', async () => {
+    const privateTool = 'private_lowercase_owner_token';
+    fetchMock = jest.fn(async () => okResponse(sseBody(toolOnlyRound(privateTool)))) as jest.Mock;
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const service = Object.assign(Object.create(MeriResearchService.prototype), {
+      v3Research: { enabled: async () => false },
+      prisma: {
+        withTenant: async (_tenant: string, fn: (tx: unknown) => unknown) =>
+          fn({ tenant: { findFirst: async () => null } }),
+      },
+      aiCredentials: { resolveProvider: async () => ({ apiKey: 'local-placeholder' }) },
+      config: makeConfig({ CLIO_RESEARCH_MAX_TOOL_ROUNDS: 1 }),
+      tools: { anthropicToolSchemas: () => [], isConcurrencySafe: () => false },
+      logger: { warn: jest.fn() },
+      ensureSession: async () => ({
+        id: 'session-1',
+        title: 'Research',
+        topic: 'Topic',
+        clientId: null,
+        plan: [],
+        clarifyingQuestions: [],
+        clarifyingAnswers: {},
+        metadata: null,
+      }),
+      clientContext: async () => null,
+    }) as MeriResearchService;
+    const observed: Array<Record<string, unknown>> = [];
+    const progress = {
+      set: (note: string) => observed.push({ type: 'progress', note }),
+      stop: () => undefined,
+    };
+
+    await expect(
+      (service as any).runResearchStream(
+        CTX,
+        'session-1',
+        { write: (data: string) => observed.push(JSON.parse(data.slice(6))) },
+        progress,
+        {},
+      ),
+    ).rejects.toThrow('partial provider output');
+
+    expect(JSON.stringify(observed)).not.toContain(privateTool);
+    expect(observed.some((event) => event.type === 'step' || event.type === 'source')).toBe(false);
+    expect(observed.some((event) => event.type === 'text' || event.type === 'report')).toBe(false);
+    expect(JSON.stringify(observed)).not.toContain('Tool error');
+  });
+
+  it.each([
+    ['provider error', false, 'Research provider failed before report publication.'],
+    ['cancellation', true, 'Research was cancelled.'],
+  ])('keeps legacy %s terminal frames fixed and content-free', async (_case, cancelled, expected) => {
+    const privateError = 'RAW_PRIVATE_LEGACY_PROVIDER_ERROR';
+    fetchMock = jest.fn(async () => {
+      throw new Error(privateError);
+    }) as jest.Mock;
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const controller = new AbortController();
+    if (cancelled) controller.abort(new Error(privateError));
+    const service = new MeriResearchService(
+      makePrisma(),
+      makeConfig(),
+      makeTools(),
+      makeAiCredentials(),
+      makeReviews(),
+    );
+    const observed: Array<Record<string, unknown>> = [];
+
+    await service.streamResearch(
+      CTX,
+      'sess-1',
+      {
+        write: (data: string) =>
+          observed.push(JSON.parse(data.replace(/^data: /, '').trim()) as Record<string, unknown>),
+      },
+      { signal: controller.signal },
+    );
+
+    expect(JSON.stringify(observed)).not.toContain(privateError);
+    expect(observed.some((event) => event.type === 'text' || event.type === 'report')).toBe(false);
+    expect(observed).toContainEqual({ type: 'error', message: expected });
+    expect(observed.at(-1)).toEqual({ type: 'done' });
+  });
+
   it('emits a report after the tool loop exhausts without prose', async () => {
     const PRIVATE_THINKING = 'RAW_PRIVATE_OWNER_DETAIL_IN_FORCED_SYNTHESIS';
     const REPORT =
@@ -1041,8 +1125,7 @@ describe('MeriResearchService — forced synthesis', () => {
     expect(events.filter((event) => event.type === 'text')).toHaveLength(0);
     expect(events).toContainEqual({
       type: 'error',
-      message:
-        'The research report includes private producer inputs without a current authorization adapter.',
+      message: 'Research failed before report publication.',
     });
     expect(JSON.stringify(events)).not.toContain('Shipbuilding accounts diverge');
     expect(JSON.stringify(events)).not.toContain('[S:search_bills:hr1234]');

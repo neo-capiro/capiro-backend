@@ -619,8 +619,7 @@ describe('Deep Research conversation continuity', () => {
     );
     expect(f.events).toContainEqual({
       type: 'error',
-      message:
-        'The research report includes private producer inputs without a current authorization adapter.',
+      message: 'Research failed before report publication.',
     });
     expect(f.maintenance.scheduleAfterTurnMaintenance).not.toHaveBeenCalled();
   });
@@ -632,7 +631,10 @@ describe('Deep Research conversation continuity', () => {
     await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
     expect(f.artifacts).toHaveLength(0);
     expect(f.getSession().status).toBe('failed');
-    expect(f.events).toContainEqual({ type: 'error', message: 'V3 provider unavailable' });
+    expect(f.events).toContainEqual({
+      type: 'error',
+      message: 'Research failed before report publication.',
+    });
     expect(f.events.at(-1)).toEqual({ type: 'done' });
     expect(f.credentials.resolveProvider).not.toHaveBeenCalled();
   });
@@ -644,7 +646,10 @@ describe('Deep Research conversation continuity', () => {
     await f.service.streamPlan(ctx, 'research-a', f.sse, f.auth);
     expect(f.getSession().status).toBe('failed');
     expect(f.events.some((event) => event.type === 'plan')).toBe(false);
-    expect(f.events).toContainEqual({ type: 'error', message: 'V3 provider unavailable' });
+    expect(f.events).toContainEqual({
+      type: 'error',
+      message: 'Research failed before report publication.',
+    });
     expect(f.credentials.resolveProviderByTenantId).not.toHaveBeenCalled();
   });
 
@@ -945,7 +950,7 @@ describe('Durable research lease and recovery', () => {
     await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
     expect(f.getSession().metadata.durableStepReceipts).toBeUndefined();
     expect(f.getSession().metadata.run.status).toBe('interrupted');
-    expect(f.events).toContainEqual({ type: 'error', message: 'Receipt database unavailable' });
+    expect(f.events).toContainEqual({ type: 'error', message: 'Research lease is no longer active.' });
     expect(f.events.at(-1)).toEqual({ type: 'done' });
   });
 
@@ -963,19 +968,19 @@ describe('Durable research lease and recovery', () => {
       'research',
       output,
       f.auth,
-      async (sink: { write: (data: string) => void }) => {
-        sink.write(
-          `data: ${JSON.stringify({
-            type: 'source',
-            source: {
-              tool: 'read_client_documents',
-              label: 'Read client document',
-              summary: 'Authorized client result',
-              confidence: 'high',
-            },
-            durableSafeRead: f.durableDocumentRead('call-outer-catch'),
-          })}\n\n`,
-        );
+      async (sink: {
+        writeReceiptCandidate: (event: Record<string, unknown>) => void;
+      }) => {
+        sink.writeReceiptCandidate({
+          type: 'source',
+          source: {
+            tool: 'read_client_documents',
+            label: 'Research source',
+            summary: 'Authorized read completed',
+            confidence: 'high',
+          },
+          durableSafeRead: f.durableDocumentRead('call-outer-catch'),
+        });
         throw new Error('Outer execute failed');
       },
     );
@@ -992,6 +997,81 @@ describe('Durable research lease and recovery', () => {
     const errorIndex = observed.findIndex((event) => event.type === 'error');
     expect(errorIndex).toBeGreaterThan(sourceIndex);
     expect(observed.at(-1)).toEqual({ type: 'done' });
+  });
+
+  it('publishes a canonical legacy source only after its durable owner receipt and report save', async () => {
+    const originalFetch = global.fetch;
+    const f = fixture();
+    f.runner.enabled.mockResolvedValue(false);
+    f.credentials.resolveProvider.mockResolvedValue({
+      provider: 'anthropic',
+      apiKey: 'local-placeholder',
+      model: 'legacy-test-model',
+    });
+    f.tools.execute.mockResolvedValue(completeDocumentResult());
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        providerResponse([
+          {
+            type: 'content_block_start',
+            index: 0,
+            content_block: {
+              type: 'tool_use',
+              id: 'call-document-success',
+              name: 'read_client_documents',
+            },
+          },
+          {
+            type: 'content_block_delta',
+            index: 0,
+            delta: {
+              type: 'input_json_delta',
+              partial_json: '{"documentId":"prior-file"}',
+            },
+          },
+          { type: 'message_delta', delta: { stop_reason: 'tool_use' } },
+        ]),
+      )
+      .mockResolvedValueOnce(
+        providerResponse([
+          {
+            type: 'content_block_delta',
+            index: 0,
+            delta: {
+              type: 'text_delta',
+              text: '# Report\n\nAuthorized legacy evidence. [S:read_client_documents:prior-file]',
+            },
+          },
+          { type: 'message_delta', delta: { stop_reason: 'end_turn' } },
+        ]),
+      ) as unknown as typeof fetch;
+
+    try {
+      await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+      await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
+
+      expect(f.getSession().metadata.durableStepReceipts).toHaveLength(1);
+      const source = f.events.find((event) => event.type === 'source');
+      expect(source?.source).toEqual({
+        tool: 'read_client_documents',
+        label: 'Research source',
+        summary: 'Authorized read completed',
+        confidence: 'high',
+      });
+      expect(source?.durableSafeRead).toMatchObject({
+        persisted: true,
+        tool: 'read_client_documents',
+        status: 'complete',
+      });
+      expect(source?.durableSafeRead).not.toHaveProperty('input');
+      expect(source?.durableSafeRead).not.toHaveProperty('result');
+      expect(f.events.find((event) => event.type === 'report')?.body).toContain(
+        'Authorized legacy evidence',
+      );
+    } finally {
+      global.fetch = originalFetch;
+    }
   });
 
   it('does not mint a durable receipt or archived source from a resolved search_memory error', async () => {
@@ -1049,9 +1129,8 @@ describe('Durable research lease and recovery', () => {
       expect(f.getSession().metadata.durableStepReceipts).toBeUndefined();
       expect(f.getSession().sources).toEqual([]);
       expect(f.artifacts[0]?.metadata).toMatchObject({ sourceCount: 0, toolsUsed: [] });
-      const source = f.events.find((event) => event.type === 'source');
-      expect(source?.source).toMatchObject({ tool: 'search_memory', confidence: 'low' });
-      expect(source).not.toHaveProperty('durableSafeRead');
+      expect(f.events.some((event) => event.type === 'source')).toBe(false);
+      expect(JSON.stringify(f.events)).not.toContain('Provide a search query.');
     } finally {
       global.fetch = originalFetch;
     }
@@ -1068,7 +1147,7 @@ describe('Durable research lease and recovery', () => {
     expect(f.getSession().status).toBe('researching');
     expect(f.getSession().metadata.run.status).toBe('running');
     expect((await f.service.getSession(ctx, 'research-a')).run?.status).toBe('interrupted');
-    expect(f.events).toContainEqual({ type: 'error', message: 'Provider failed after suspension' });
+    expect(f.events).toContainEqual({ type: 'error', message: 'Research failed before report publication.' });
     expect(f.events.at(-1)).toEqual({ type: 'done' });
   });
 

@@ -1,6 +1,12 @@
 import {
   projectResearchObserverEvent,
+  projectResearchObserverError,
+  RESEARCH_CANCELLED,
+  RESEARCH_LEASE_FAILURE,
+  RESEARCH_OBSERVER_STATUS,
+  RESEARCH_PARTIAL,
   RESEARCH_PROVIDER_FAILURE,
+  RESEARCH_RUN_FAILURE,
 } from './research-observer-projection.js';
 
 const PRIVATE = 'RAW_PRIVATE_OWNER_DETAIL_IN_TYPED_FRAME';
@@ -88,6 +94,35 @@ describe('research observer projection', () => {
         extra: PRIVATE,
       }),
     ).toEqual({ type: 'progress', note: 'Reviewing evidence and preparing the report…' });
+  });
+
+  it('keeps useful service-authored progress finite and source-independent', () => {
+    for (const note of Object.values(RESEARCH_OBSERVER_STATUS)) {
+      expect(projectResearchObserverEvent({ type: 'progress', note, extra: PRIVATE })).toEqual({
+        type: 'progress',
+        note,
+      });
+    }
+  });
+
+  it('maps provider, cancellation, partial, lease and unknown errors to fixed messages', () => {
+    const cancelled = new AbortController();
+    cancelled.abort();
+    const lease = new AbortController();
+    const leaseReason = new Error(PRIVATE);
+    leaseReason.name = 'ResearchLeaseError';
+    lease.abort(leaseReason);
+    expect(projectResearchObserverError(RESEARCH_PROVIDER_FAILURE)).toBe(RESEARCH_PROVIDER_FAILURE);
+    expect(projectResearchObserverError(new Error('max_output_tokens: ' + PRIVATE))).toBe(
+      RESEARCH_PARTIAL,
+    );
+    expect(projectResearchObserverError(new Error(PRIVATE), cancelled.signal)).toBe(
+      RESEARCH_CANCELLED,
+    );
+    expect(projectResearchObserverError(new Error(PRIVATE), lease.signal)).toBe(
+      RESEARCH_LEASE_FAILURE,
+    );
+    expect(projectResearchObserverError(new Error(PRIVATE))).toBe(RESEARCH_RUN_FAILURE);
   });
 
   it('accepts a canonical receipt candidate only for the internal receipt barrier', () => {

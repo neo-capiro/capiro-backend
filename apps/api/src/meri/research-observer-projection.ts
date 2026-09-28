@@ -7,6 +7,24 @@ const SOURCE_STEP_FINISHED = 'Research source step finished.';
 const SOURCE_STEP_NEEDS_ATTENTION = 'Research source step needs attention.';
 const READ_ONLY_CONTINUATION = 'Research is continuing in read-only mode.';
 
+export const RESEARCH_OBSERVER_STATUS = {
+  startingRun: 'Starting the research run…',
+  planning: 'Planning the research…',
+  reviewingPlan: 'Reviewing the research plan…',
+  gatheringEvidence: 'Gathering evidence…',
+  gatheringThinking: 'Reviewing evidence and planning the next research step…',
+  reviewingEvidence: 'Reviewing the retrieved evidence for the report…',
+  writingReport: 'Writing the report…',
+  checkingReport: 'Checking the report against the gathered sources…',
+  savingReport: 'Saving the report…',
+  preparingReport: PREPARING_REPORT,
+  startingRuntime: STARTING_RUNTIME,
+  readingSource: READING_SOURCE,
+  sourceFinished: SOURCE_STEP_FINISHED,
+  sourceNeedsAttention: SOURCE_STEP_NEEDS_ATTENTION,
+  readOnlyContinuation: READ_ONLY_CONTINUATION,
+} as const;
+
 const FIXED_PROGRESS_NOTES = new Set([
   PREPARING_REPORT,
   STARTING_RUNTIME,
@@ -14,9 +32,30 @@ const FIXED_PROGRESS_NOTES = new Set([
   SOURCE_STEP_FINISHED,
   SOURCE_STEP_NEEDS_ATTENTION,
   READ_ONLY_CONTINUATION,
+  ...Object.values(RESEARCH_OBSERVER_STATUS),
 ]);
 
 export const RESEARCH_PROVIDER_FAILURE = 'Research provider failed before report publication.';
+export const RESEARCH_RUN_FAILURE = 'Research failed before report publication.';
+export const RESEARCH_CANCELLED = 'Research was cancelled.';
+export const RESEARCH_PARTIAL =
+  'Research did not complete; partial provider output has not been released as a report.';
+export const RESEARCH_LEASE_FAILURE = 'Research lease is no longer active.';
+
+/** Rebuild a terminal observer error from a finite, source-independent vocabulary. */
+export function projectResearchObserverError(error: unknown, signal?: AbortSignal): string {
+  const reason = signal?.reason;
+  if (reason instanceof Error && reason.name === 'ResearchLeaseError')
+    return RESEARCH_LEASE_FAILURE;
+  if (signal?.aborted) return RESEARCH_CANCELLED;
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+  if (message === RESEARCH_PROVIDER_FAILURE) return RESEARCH_PROVIDER_FAILURE;
+  if (/cancelled/i.test(message)) return RESEARCH_CANCELLED;
+  if (/partial|max_output_tokens|did not complete|without a completed/i.test(message))
+    return RESEARCH_PARTIAL;
+  if (/lease|no longer owns the run/i.test(message)) return RESEARCH_LEASE_FAILURE;
+  return RESEARCH_RUN_FAILURE;
+}
 
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
