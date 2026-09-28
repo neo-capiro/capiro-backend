@@ -124,13 +124,43 @@ function matchesEntity(claim: DetectedStatusClaim, evidence: CertificationStatus
   });
 }
 
+function observedAtMillis(evidence: CertificationStatusEvidence): number | null {
+  const millis = Date.parse(evidence.observedAt);
+  return Number.isFinite(millis) ? millis : null;
+}
+
+function sameStatus(
+  left: CertificationStatusEvidence,
+  right: CertificationStatusEvidence,
+): boolean {
+  return left.status === right.status
+    && (left.impactLevel ?? null) === (right.impactLevel ?? null);
+}
+
 function matchingEvidence(
   claim: DetectedStatusClaim,
   evidence: readonly CertificationStatusEvidence[],
 ): CertificationStatusEvidence | null {
   const matches = evidence.filter((item) => usableEvidence(item) && matchesEntity(claim, item));
   const entityIds = new Set(matches.map((item) => normalizedIdentity(item.entityId)));
-  return entityIds.size === 1 ? matches[0] ?? null : null;
+  if (entityIds.size !== 1 || matches.length === 0) return null;
+  if (matches.length === 1) return matches[0] ?? null;
+
+  const statusConflict = matches.some((item) => !sameStatus(item, matches[0]!));
+  const dated = matches.map((item) => ({ item, observedAt: observedAtMillis(item) }));
+
+  // Conflicting records are usable only when every observation has comparable
+  // recency and one latest status wins. Unknown recency must not inherit array order.
+  if (statusConflict && dated.some(({ observedAt }) => observedAt === null)) return null;
+  const known = dated.filter(
+    (entry): entry is { item: CertificationStatusEvidence; observedAt: number } => entry.observedAt !== null,
+  );
+  if (known.length === 0) return statusConflict ? null : matches[0] ?? null;
+
+  const latestAt = Math.max(...known.map(({ observedAt }) => observedAt));
+  const latest = known.filter(({ observedAt }) => observedAt === latestAt).map(({ item }) => item);
+  if (latest.some((item) => !sameStatus(item, latest[0]!))) return null;
+  return latest[0] ?? null;
 }
 
 function supportsNegative(evidence: CertificationStatusEvidence): boolean {
