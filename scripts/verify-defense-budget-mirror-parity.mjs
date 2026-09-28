@@ -12,7 +12,9 @@ import { exit } from 'node:process';
 const ROOT = process.cwd();
 const MIRROR_A = join(ROOT, 'apps/api/src/defense-budget');
 const MIRROR_B = join(ROOT, 'apps/defense-api/runtime-source/defense-budget');
-const EXPECTED_FILE_COUNT = 721;
+// Historical closeout baseline contained 721 files. The bounded native XML
+// adapter and its mirrored regression spec add two files in each current mirror.
+const EXPECTED_FILE_COUNT = 723;
 
 async function computeFileHash(filePath) {
   const content = await readFile(filePath);

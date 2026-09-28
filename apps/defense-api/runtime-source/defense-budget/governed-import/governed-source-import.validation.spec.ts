@@ -42,7 +42,9 @@ const BUNDLE_MEMBER: GovernedImportBundleMemberFacts = {
   boundContentSha256: null,
 };
 
-function baseInput(overrides: Partial<GovernedImportRequestInput> = {}): GovernedImportRequestInput {
+function baseInput(
+  overrides: Partial<GovernedImportRequestInput> = {},
+): GovernedImportRequestInput {
   return {
     expectedSource: EXPECTED_SOURCE,
     bundleMember: BUNDLE_MEMBER,
@@ -77,14 +79,21 @@ describe('validateGovernedImportRequest — Phase 10B-18 Part G/M', () => {
 
   it('refuses a member that belongs to a different expected source', () => {
     const result = validateGovernedImportRequest(
-      baseInput({ bundleMember: { ...BUNDLE_MEMBER, expectedSourceId: 'some-other-expected-source' } }),
+      baseInput({
+        bundleMember: { ...BUNDLE_MEMBER, expectedSourceId: 'some-other-expected-source' },
+      }),
     );
-    expect(result).toMatchObject({ ok: false, code: 'member_belongs_to_different_expected_source' });
+    expect(result).toMatchObject({
+      ok: false,
+      code: 'member_belongs_to_different_expected_source',
+    });
   });
 
   it('refuses an --official-url that does not match the registered member URL', () => {
     const result = validateGovernedImportRequest(
-      baseInput({ officialUrlArg: 'https://www.asafm.army.mil/Portals/72/Documents/some-other-file.pdf' }),
+      baseInput({
+        officialUrlArg: 'https://www.asafm.army.mil/Portals/72/Documents/some-other-file.pdf',
+      }),
     );
     expect(result).toMatchObject({ ok: false, code: 'official_url_argument_mismatch' });
   });
@@ -129,7 +138,8 @@ describe('validateGovernedImportRequest — Phase 10B-18 Part G/M', () => {
   });
 
   it('refuses a document whose title resolves to a different source family than pb_r2', () => {
-    const r1Title = 'Department of the Army Fiscal Year 2024 Budget Estimates: RDT&E Program Element List (R-1)';
+    const r1Title =
+      'Department of the Army Fiscal Year 2024 Budget Estimates: RDT&E Program Element List (R-1)';
     const result = validateGovernedImportRequest(
       baseInput({ bundleMember: { ...BUNDLE_MEMBER, title: r1Title } }),
     );
@@ -180,10 +190,64 @@ describe('validateGovernedImportRequest — Phase 10B-18 Part G/M', () => {
     const result = validateGovernedImportRequest(
       baseInput({
         siblingMembers: [
-          { memberKey: 'volume_1_ba_2', required: true, memberStatus: 'verified', boundContentSha256: accepted.contentSha256 },
+          {
+            memberKey: 'volume_1_ba_2',
+            required: true,
+            memberStatus: 'verified',
+            boundContentSha256: accepted.contentSha256,
+          },
         ],
       }),
     );
     expect(result).toMatchObject({ ok: false, code: 'sha_already_bound_to_different_member' });
+  });
+});
+
+// Synthetic signatures exercise local host/identity validation only. They are
+// not publisher bytes, source qualification, or governed source admission.
+describe('existing Navy governed validation parity', () => {
+  const navy = (url: string): GovernedImportRequestInput =>
+    baseInput({
+      expectedSource: { ...EXPECTED_SOURCE, adapterId: 'navy-budget', component: 'NAVY' },
+      officialUrlArg: url,
+      bundleMember: {
+        ...BUNDLE_MEMBER,
+        officialUrl: url,
+        title:
+          'Department of the Navy Fiscal Year 2024 Budget Estimates Research Development Test and Evaluation R-2 Budget Activity 1',
+      },
+    });
+  it.each(['secnav.navy.mil', 'www.secnav.navy.mil'])(
+    'accepts the existing registered HTTPS Navy host %s without side effects',
+    (host) => {
+      expect(
+        validateGovernedImportRequest(navy('https://' + host + '/Budget/2024/R2-Volume-1.pdf')).ok,
+      ).toBe(true);
+    },
+  );
+  it.each([
+    'http://secnav.navy.mil/Budget/2024/R2.pdf',
+    'https://secnav.navy.mil.evil.example/Budget/2024/R2.pdf',
+    'https://asafm.army.mil/Budget/2024/R2.pdf',
+  ])('refuses insecure, deceptive or different-adapter host %s', (url) => {
+    expect(validateGovernedImportRequest(navy(url))).toMatchObject({
+      ok: false,
+      code: 'non_official_host',
+    });
+  });
+  it('keeps unsupported adapters fail closed and retains component identity guard', () => {
+    const input = navy('https://secnav.navy.mil/Budget/2024/R2.pdf');
+    expect(
+      validateGovernedImportRequest({
+        ...input,
+        expectedSource: { ...input.expectedSource, adapterId: 'saf-fm-budget' },
+      }),
+    ).toMatchObject({ ok: false, code: 'non_official_host' });
+    expect(
+      validateGovernedImportRequest({
+        ...input,
+        expectedSource: { ...input.expectedSource, component: 'ARMY' },
+      }),
+    ).toMatchObject({ ok: false, code: 'wrong_component' });
   });
 });
