@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -64,6 +65,17 @@ interface OwnCandidateRow {
   status: OwnedMemoryCandidateStatus;
   createdAt: Date;
   decidedAt: Date | null;
+}
+
+export interface OwnProposalPageInput {
+  cursor?: string;
+  limit?: string | number;
+}
+
+export interface OwnedProposalPage {
+  enabled: boolean;
+  candidates: OwnedMemoryCandidate[];
+  nextCursor: string | null;
 }
 
 export interface OwnedMemoryCandidate {
@@ -160,10 +172,25 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
    */
   async listOwnProposals(
     ctx: CandidateActorContext,
-  ): Promise<{ enabled: boolean; candidates: OwnedMemoryCandidate[] }> {
-    if (!memoryReviewSurfaceEnabled()) return { enabled: false, candidates: [] };
+  ): Promise<{ enabled: boolean; candidates: OwnedMemoryCandidate[] }>;
+  async listOwnProposals(
+    ctx: CandidateActorContext,
+    input: OwnProposalPageInput,
+  ): Promise<OwnedProposalPage>;
+  async listOwnProposals(
+    ctx: CandidateActorContext,
+    input?: OwnProposalPageInput,
+  ): Promise<{ enabled: boolean; candidates: OwnedMemoryCandidate[]; nextCursor?: string | null }> {
+    const paged = input !== undefined;
+    const limit = paged ? parseOwnProposalPageSize(input.limit) : 50;
+    const cursor = paged ? decodeOwnProposalCursor(input.cursor) : null;
+    if (!memoryReviewSurfaceEnabled()) {
+      return paged
+        ? { enabled: false, candidates: [], nextCursor: null }
+        : { enabled: false, candidates: [] };
+    }
 
-    const candidates = await this.governedPrisma.withTenantUser(
+    const page = await this.governedPrisma.withTenantUser(
       ctx.tenantId,
       ctx.userId,
       async (tx) => {
@@ -172,9 +199,17 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
             tenantId: ctx.tenantId,
             proposedBy: ctx.userId,
             scope: { in: ['firm', 'client'] },
+            ...(cursor
+              ? {
+                  OR: [
+                    { createdAt: { lt: cursor.createdAt } },
+                    { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+                  ],
+                }
+              : {}),
           },
-          orderBy: { createdAt: 'desc' },
-          take: 50,
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: paged ? limit + 1 : limit,
           select: {
             id: true,
             clientId: true,
@@ -186,9 +221,10 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
             decidedAt: true,
           },
         })) as OwnCandidateRow[];
+        const pageRows = paged ? rows.slice(0, limit) : rows;
 
         const own: OwnedMemoryCandidate[] = [];
-        for (const row of rows) {
+        for (const row of pageRows) {
           const contentAllowed = row.clientId
             ? await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, row.clientId)
             : true;
@@ -229,17 +265,25 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
             })
           : [];
         const names = new Map(clients.map((client) => [client.id, client.name]));
-        return own.map((candidate) => ({
-          ...candidate,
-          clientName:
-            !candidate.restricted && candidate.clientId
-              ? (names.get(candidate.clientId) ?? null)
+        return {
+          candidates: own.map((candidate) => ({
+            ...candidate,
+            clientName:
+              !candidate.restricted && candidate.clientId
+                ? (names.get(candidate.clientId) ?? null)
+                : null,
+          })),
+          nextCursor:
+            paged && rows.length > limit && pageRows.length > 0
+              ? encodeOwnProposalCursor(pageRows[pageRows.length - 1]!)
               : null,
-        }));
+        };
       },
     );
 
-    return { enabled: true, candidates };
+    return paged
+      ? { enabled: true, candidates: page.candidates, nextCursor: page.nextCursor }
+      : { enabled: true, candidates: page.candidates };
   }
 
   private requireWithdrawalEnabled(): void {
@@ -391,6 +435,47 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
         },
       });
     }
+  }
+}
+
+function parseOwnProposalPageSize(value: unknown): number {
+  if (value === undefined || value === null || value === '') return 50;
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 100) {
+    throw new BadRequestException('limit must be an integer from 1 to 100.');
+  }
+  return parsed;
+}
+
+function encodeOwnProposalCursor(row: Pick<OwnCandidateRow, 'createdAt' | 'id'>): string {
+  return Buffer.from(
+    JSON.stringify({ createdAt: row.createdAt.toISOString(), id: row.id }),
+    'utf8',
+  ).toString('base64url');
+}
+
+function decodeOwnProposalCursor(value: unknown): { createdAt: Date; id: string } | null {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string') throw new BadRequestException('cursor is invalid.');
+  try {
+    const decoded = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as {
+      createdAt?: unknown;
+      id?: unknown;
+    };
+    const createdAt = typeof decoded.createdAt === 'string' ? new Date(decoded.createdAt) : null;
+    if (
+      !createdAt ||
+      !Number.isFinite(createdAt.getTime()) ||
+      typeof decoded.id !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        decoded.id,
+      )
+    ) {
+      throw new Error('invalid cursor payload');
+    }
+    return { createdAt, id: decoded.id };
+  } catch {
+    throw new BadRequestException('cursor is invalid.');
   }
 }
 

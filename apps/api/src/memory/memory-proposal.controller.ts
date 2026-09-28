@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
@@ -40,8 +40,14 @@ export class MemoryProposalController {
   }
 
   @Get()
-  listOwnProposals(@CurrentTenant() ctx: TenantContext) {
-    return this.candidates.listOwnProposals(ctx);
+  listOwnProposals(
+    @CurrentTenant() ctx: TenantContext,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return cursor !== undefined || limit !== undefined
+      ? this.candidates.listOwnProposals(ctx, { cursor, limit })
+      : this.candidates.listOwnProposals(ctx);
   }
 
   @Post(':id/withdraw')

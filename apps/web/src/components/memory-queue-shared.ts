@@ -45,6 +45,8 @@ export interface OwnedMemoryCandidate {
 export interface OwnedProposalQueueResponse {
   enabled: boolean;
   candidates: OwnedMemoryCandidate[];
+  /** Present only for the additive paged producer contract. */
+  nextCursor?: string | null;
 }
 
 export function ownedMemoryCandidateTitle(candidate: OwnedMemoryCandidate): string {

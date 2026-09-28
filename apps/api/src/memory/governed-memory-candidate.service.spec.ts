@@ -110,6 +110,9 @@ function harness(
       ]),
       findFirst,
     },
+    client: {
+      findMany: jest.fn(async () => [{ id: CLIENT, name: 'Fixture client' }]),
+    },
     memoryTransitionAudit: {
       create: jest.fn(async (args: { data: Record<string, unknown> }) => {
         audits.push(args.data);
@@ -234,6 +237,48 @@ describe('GovernedMemoryCandidateService Phase 13 dispositions', () => {
           }),
         ],
       });
+    });
+  });
+
+  it('keeps the unpaged contract unchanged and keyset-pages candidate 51', async () => {
+    await withReviewSurface(true, async () => {
+      const h = harness({ scope: 'firm' });
+      const rows = Array.from({ length: 51 }, (_, index) => ({
+        id: `55555555-5555-4555-8555-${String(index + 1).padStart(12, '0')}`,
+        clientId: null,
+        proposedBy: PROPOSER,
+        sourceKind: 'settings_sections',
+        scope: 'firm',
+        status: 'pending',
+        createdAt: new Date(Date.UTC(2026, 6, 31, 12, 0, 51 - index)),
+        decidedAt: null,
+      }));
+      h.tx.memoryCandidate.findMany
+        .mockImplementationOnce(async () => rows.slice(0, 50))
+        .mockImplementationOnce(async () => rows.slice(0, 51))
+        .mockImplementationOnce(async () => rows.slice(50));
+
+      const legacy = await h.service.listOwnProposals(proposerCtx);
+      expect(legacy).toEqual({ enabled: true, candidates: expect.any(Array) });
+      expect(legacy).not.toHaveProperty('nextCursor');
+
+      const first = await h.service.listOwnProposals(proposerCtx, { limit: 50 });
+      expect(first.candidates).toHaveLength(50);
+      expect(first.nextCursor).toEqual(expect.any(String));
+
+      const second = await h.service.listOwnProposals(proposerCtx, {
+        limit: 50,
+        cursor: first.nextCursor!,
+      });
+      expect(second.candidates.map((candidate) => candidate.id)).toEqual([rows[50]!.id]);
+      expect(second.nextCursor).toBeNull();
+      expect(h.tx.memoryCandidate.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          take: 51,
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          where: expect.objectContaining({ OR: expect.any(Array) }),
+        }),
+      );
     });
   });
 
