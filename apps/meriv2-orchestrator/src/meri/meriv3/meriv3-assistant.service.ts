@@ -90,6 +90,9 @@ import {
   readOpenAiResponsesErrorTelemetry,
 } from './openai-responses.client.js';
 import { resolveMeriV3ReasoningProfile } from './meriv3-reasoning.js';
+import { MeriSemanticToolGateway } from './meri-semantic-tool-gateway.js';
+import { buildMeriGovernedToolSelectionContext } from './meriv3-governed-tool-selection.js';
+import { MeriV3SemanticRuntimeStore } from './meriv3-semantic-runtime.store.js';
 import { enforceClientFilingConfirmation } from '../chat/client-filing-confirmation.js';
 import { MeriDocumentCompletion } from './meriv3-document-completion.js';
 import { classifyMeriRetrievalIntent } from '../retrieval/meri-retrieval-intent.js';
@@ -412,6 +415,15 @@ function errorReason(error: unknown): string {
   return (error instanceof Error ? error.message : String(error)).slice(0, 300);
 }
 
+function governedToolResult(result: unknown): string {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) return 'done';
+  const record = result as Record<string, unknown>;
+  if (record.pendingApproval === true) return 'pending_approval';
+  if (record.blocked === true) return 'blocked';
+  if (record.error) return 'error';
+  return 'done';
+}
+
 class ForcedSynthesisBoundaryError extends Error {
   readonly name = 'ForcedSynthesisBoundaryError';
 
@@ -643,6 +655,7 @@ export class MeriV3AssistantService {
   private readonly registry: ToolRegistry;
   private readonly llm: MeriRegistryService['llm'];
   private readonly apiBaseUrl: string;
+  private readonly governedSemanticGateway: MeriSemanticToolGateway;
   private readonly jevDecisionCache = new JevDecisionCache();
 
   private liveRepairCache(tenantId: string) {
@@ -659,6 +672,7 @@ export class MeriV3AssistantService {
   ) {
     this.registry = registryService.registry;
     this.llm = registryService.llm;
+    this.governedSemanticGateway = new MeriSemanticToolGateway(config);
     this.apiBaseUrl = (
       config.get<string>('MERIV2_API_BASE_URL') ?? 'http://localhost:3000'
     ).replace(/\/+$/, '');
@@ -868,6 +882,16 @@ export class MeriV3AssistantService {
       initialEvidence.citationPrompt,
     ].join('\n');
 
+    const coverageRequirements =
+      coverageRetrievalMode === 'off'
+        ? []
+        : buildCoverageRequirements({
+            plan: evidencePlan,
+            request: lastUserText,
+            frame: operatingFrame,
+            selectedDocumentIds: dto.selectedDocumentIds,
+            clientId: dto.clientId,
+          });
     const readOnlyNames = new Set<string>(
       MERI_CAPABILITY_REGISTRY.filter((tool) => tool.readOnly).map((tool) => tool.name),
     );
@@ -879,19 +903,44 @@ export class MeriV3AssistantService {
           );
     // This tool reads a research snapshot, not client Files. Its session comes
     // from the authenticated research lease, never a guessed chat/client UUID.
-    const availableSchemas = toolSchemas.filter(
+    const authorizedSchemas = toolSchemas.filter(
       (schema) => schema.name !== 'get_research_evidence' || Boolean(dto.researchRun),
     );
-    const coverageRequirements =
-      coverageRetrievalMode === 'off'
-        ? []
-        : buildCoverageRequirements({
-            plan: evidencePlan,
-            request: lastUserText,
-            frame: operatingFrame,
-            selectedDocumentIds: dto.selectedDocumentIds,
-            clientId: dto.clientId,
-          });
+    const selectionContext = buildMeriGovernedToolSelectionContext({
+      ctx,
+      dto,
+      request: lastUserText,
+      authorizedNames: authorizedSchemas.map((schema) => schema.name),
+      evidencePlan,
+      coverageRequirements,
+      governedContext: currentGovernedMeriContext(),
+      documentReadRequired: Boolean(documentCompletion),
+    });
+    const selection = this.governedSemanticGateway.select({
+      schemas: authorizedSchemas,
+      tenantId: ctx.tenantId,
+      request: lastUserText,
+      recentUserContext: selectionContext.recentUserContext,
+      plan: selectionContext.plan,
+      protectedNames: selectionContext.protectedNames,
+      discoveryNames: selectionContext.discoveryNames,
+      allowCanonicalResearchDirector: false,
+    });
+    MeriV3SemanticRuntimeStore.recordDecision(selection.decision);
+    const availableSchemas = selection.schemas;
+    this.logStructured('log', 'meri.semantic_tool_gateway.selection', {
+      decisionId: selection.decision.decisionId,
+      mode: selection.decision.mode,
+      requestedNames: selection.decision.requestedNames,
+      requestedCount: selection.decision.requestedNames.length,
+      selectedNames: selection.decision.selectedNames,
+      selectedCount: selection.decision.selectedNames.length,
+      exposedNames: selection.decision.exposedNames,
+      exposedCount: selection.decision.exposedNames.length,
+      invokedNames: [],
+      invokedCount: 0,
+      result: selection.decision.fallbackToLegacy ? 'fallback_legacy' : 'selected',
+    });
 
     const tools = availableSchemas.map(anthropicSchemaToResponsesTool);
     const verificationAvailable = availableSchemas.length > 0;
@@ -1046,6 +1095,7 @@ export class MeriV3AssistantService {
         control: opts,
         runtimeBudget,
         budgetScope,
+        semanticDecisionId: selection.decision.decisionId,
       });
       gatheredToolOutput = gatheredToolOutput || executions.length > 0;
       for (const execution of executions) {
@@ -2569,8 +2619,28 @@ export class MeriV3AssistantService {
     control?: ToolExecutionControl;
     runtimeBudget: MeriRunBudget;
     budgetScope: MeriToolSignatureScope;
+    semanticDecisionId: string;
   }): Promise<FunctionExecution[]> {
     const executions: FunctionExecution[] = [];
+    const logDispatch = (
+      call: OpenAiResponsesFunctionCall,
+      result: string,
+      invoked: boolean,
+    ): void => {
+      const exposed = args.schemas.some((schema) => schema.name === call.name);
+      this.logStructured('log', 'meri.semantic_tool_gateway.dispatch', {
+        decisionId: args.semanticDecisionId,
+        requestedNames: [call.name],
+        requestedCount: 1,
+        selectedNames: exposed ? [call.name] : [],
+        selectedCount: exposed ? 1 : 0,
+        exposedNames: exposed ? [call.name] : [],
+        exposedCount: exposed ? 1 : 0,
+        invokedNames: invoked ? [call.name] : [],
+        invokedCount: invoked ? 1 : 0,
+        result,
+      });
+    };
     const stopWithoutDispatch = (call: OpenAiResponsesFunctionCall): void => {
       const detail = `Aggregate runtime acquisition stopped: ${args.runtimeBudget.reason ?? 'tool_calls'}.`;
       const result = {
@@ -2592,6 +2662,7 @@ export class MeriV3AssistantService {
         detail,
       });
       executions.push({ call, result, serialized: JSON.stringify(result) });
+      logDispatch(call, 'blocked_budget', false);
     };
     if (!args.runtimeBudget.reserveToolBatch(args.calls.length)) {
       for (const call of args.calls) stopWithoutDispatch(call);
@@ -2627,6 +2698,7 @@ export class MeriV3AssistantService {
           result: { error: detail },
           serialized: JSON.stringify({ error: detail }),
         });
+        logDispatch(call, 'blocked_undeclared', false);
         continue;
       }
       let parsed: Record<string, unknown>;
@@ -2647,6 +2719,7 @@ export class MeriV3AssistantService {
           result: { error: detail },
           serialized: JSON.stringify({ error: detail }),
         });
+        logDispatch(call, 'invalid_arguments', false);
         continue;
       }
       const augmented = this.augmentToolInput(
@@ -2679,6 +2752,7 @@ export class MeriV3AssistantService {
       const prior = intentKey ? batchWriteIntents.get(intentKey) : undefined;
       if (prior) {
         executions.push({ call, result: prior.result, serialized: prior.serialized });
+        logDispatch(call, 'deduplicated', false);
         continue;
       }
       args.toolsUsed.push(call.name);
@@ -2699,6 +2773,7 @@ export class MeriV3AssistantService {
         citations: args.citations,
         evidenceAccuracyMode: args.evidenceAccuracyMode,
       });
+      logDispatch(call, governedToolResult(result), true);
       const visibleResult = projectMeriToolEvidence({
         result,
         maxCharacters: TOOL_RESULT_CHARS,

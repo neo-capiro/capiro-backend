@@ -156,6 +156,7 @@ function build(
   complete: jest.Mock | OpenAiResponsesClient,
   createProposal = jest.fn(),
   llmOverrides: Record<string, jest.Mock> = {},
+  configValues: Record<string, string | undefined> = {},
 ) {
   const registryService = {
     registry,
@@ -177,7 +178,11 @@ function build(
       }),
     ),
   };
-  const config = { get: jest.fn(() => 'http://api.test') };
+  const config = {
+    get: jest.fn((key: string) =>
+      key === 'MERIV2_API_BASE_URL' ? 'http://api.test' : configValues[key],
+    ),
+  };
   return new MeriV3AssistantService(
     registryService as never,
     openai as never,
@@ -3595,6 +3600,264 @@ describe('Stage 2 orchestrator hardening', () => {
       const [claim] = eventsNamed(spies.log, 'meri.auto_correction.claim');
       expect(claim).toMatchObject({ cascaded: true });
       expect(claim!.outcome).not.toBe('document_unavailable');
+    });
+  });
+
+  describe('native governed tool selection', () => {
+    const toolSchema = (name: string) => ({
+      name,
+      description: name,
+      input_schema: {
+        type: 'object',
+        properties: { query: { type: 'string' }, clientId: { type: 'string' } },
+      },
+    });
+    const providerToolNames = (complete: jest.Mock, call = 0): string[] =>
+      (complete.mock.calls[call]?.[0]?.tools as Array<{ name: string }> | undefined)?.map(
+        (tool) => tool.name,
+      ) ?? [];
+    const selectorConfig = (mode: 'legacy' | 'shadow' | 'enabled') => ({
+      MERI_SEMANTIC_TOOL_GATEWAY_TENANTS: 'tenant-1',
+      ...(mode === 'shadow' ? { MERI_SEMANTIC_TOOL_GATEWAY_SHADOW: 'true' } : {}),
+      ...(mode === 'enabled' ? { MERI_SEMANTIC_TOOL_GATEWAY_ENABLED: 'true' } : {}),
+    });
+
+    test.each([
+      ['legacy', ['search_memory', 'get_bill_status', 'send_email']],
+      ['shadow', ['search_memory', 'get_bill_status', 'send_email']],
+      ['enabled', ['search_memory']],
+    ] as const)(
+      'sends the expected %s schema payload to the ordinary provider turn',
+      async (mode, expected) => {
+        const definitions = [
+          { name: 'search_memory', readOnly: true },
+          { name: 'get_bill_status', readOnly: true },
+          { name: 'send_email', readOnly: false },
+        ];
+        const complete = jest.fn().mockResolvedValue(response());
+        const assistant = build(
+          registry(definitions),
+          complete,
+          jest.fn(),
+          {},
+          selectorConfig(mode),
+        );
+        global.fetch = jest.fn(
+          async () =>
+            new Response(
+              JSON.stringify({ schemas: definitions.map(({ name }) => toolSchema(name)) }),
+              { status: 200 },
+            ),
+        ) as typeof fetch;
+
+        await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+          assistant.run(context, {
+            messages: [{ role: 'user', text: 'What do you remember about Kestrel?' }],
+          }),
+        );
+
+        expect(providerToolNames(complete)).toEqual(expected);
+      },
+    );
+
+    test('does not recreate a missing required capability in the provider payload', async () => {
+      const complete = jest.fn().mockResolvedValue(response());
+      const assistant = build(
+        registry([{ name: 'search_memory', readOnly: true }]),
+        complete,
+        jest.fn(),
+        {},
+        selectorConfig('enabled'),
+      );
+      global.fetch = jest.fn(
+        async () =>
+          new Response(JSON.stringify({ schemas: [toolSchema('search_memory')] }), { status: 200 }),
+      ) as typeof fetch;
+
+      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        assistant.run(context, {
+          messages: [{ role: 'user', text: 'What is the current status of H.R. 1?' }],
+        }),
+      );
+
+      expect(providerToolNames(complete)).not.toContain('get_bill_status');
+      expect(providerToolNames(complete)).not.toContain('search_floor_votes');
+    });
+
+    test('keeps enabled selection in selected-client scope and pins the executed input', async () => {
+      const call = {
+        type: 'function_call',
+        call_id: 'client-context',
+        name: 'get_client_context',
+        arguments: '{}',
+      };
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(response({ output: [call], outputText: '', functionCalls: [call] }))
+        .mockResolvedValueOnce(response());
+      const invoke = jest.fn().mockResolvedValue({ client: { id: 'client-1' } });
+      const assistant = build(
+        registry(
+          [
+            { name: 'get_client_context', readOnly: true },
+            { name: 'search_public_web', readOnly: true },
+          ],
+          invoke,
+        ),
+        complete,
+        jest.fn(),
+        {},
+        selectorConfig('enabled'),
+      );
+      global.fetch = jest.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              schemas: [toolSchema('get_client_context'), toolSchema('search_public_web')],
+            }),
+            { status: 200 },
+          ),
+      ) as typeof fetch;
+
+      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        assistant.run(context, {
+          clientId: 'client-1',
+          messages: [{ role: 'user', text: 'Summarize this client.' }],
+        }),
+      );
+
+      expect(providerToolNames(complete)).toContain('get_client_context');
+      expect(providerToolNames(complete)).not.toContain('search_public_web');
+      expect(invoke).toHaveBeenCalledWith(
+        'get_client_context',
+        { clientId: 'client-1' },
+        context,
+        expect.any(Object),
+      );
+    });
+
+    test.each([
+      ['read-only', ['search_memory']],
+      ['none', []],
+    ] as const)(
+      'intersects enabled selection with %s policy before provider exposure',
+      async (toolPolicy, expected) => {
+        const definitions = [
+          { name: 'search_memory', readOnly: true },
+          { name: 'send_email', readOnly: false },
+        ];
+        const complete = jest.fn().mockResolvedValue(response());
+        const assistant = build(
+          registry(definitions),
+          complete,
+          jest.fn(),
+          {},
+          selectorConfig('enabled'),
+        );
+        global.fetch = jest.fn(
+          async () =>
+            new Response(
+              JSON.stringify({ schemas: definitions.map(({ name }) => toolSchema(name)) }),
+              { status: 200 },
+            ),
+        ) as typeof fetch;
+
+        await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+          assistant.run(context, {
+            toolPolicy,
+            messages: [{ role: 'user', text: 'Remember this and send an email.' }],
+          }),
+        );
+
+        expect(providerToolNames(complete)).toEqual(expected);
+      },
+    );
+
+    test('does not promote a dynamic MCP schema outside the authorized full-chat surface', async () => {
+      const mcpName = 'mcp__hubspot__search_companies';
+      const definitions = [
+        { name: mcpName, readOnly: true },
+        { name: 'search_memory', readOnly: true },
+      ];
+      const complete = jest.fn().mockResolvedValue(response());
+      const assistant = build(
+        registry(definitions),
+        complete,
+        jest.fn(),
+        {},
+        selectorConfig('enabled'),
+      );
+      global.fetch = jest.fn(
+        async () =>
+          new Response(
+            JSON.stringify({ schemas: definitions.map(({ name }) => toolSchema(name)) }),
+            { status: 200 },
+          ),
+      ) as typeof fetch;
+
+      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        assistant.run(context, {
+          messages: [{ role: 'user', text: 'Look up Kinetic Industries in HubSpot.' }],
+        }),
+      );
+
+      expect(providerToolNames(complete)).toEqual(['search_memory']);
+      expect(providerToolNames(complete)).not.toContain(mcpName);
+    });
+
+    test('blocks a deliberately emitted authorized-but-undeclared call with zero dispatch', async () => {
+      const call = {
+        type: 'function_call',
+        call_id: 'undeclared-send',
+        name: 'send_email',
+        arguments: '{"body":"private argument"}',
+      };
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(response({ output: [call], outputText: '', functionCalls: [call] }))
+        .mockResolvedValueOnce(response({ outputText: 'Blocked.' }));
+      const invoke = jest.fn();
+      const proposal = jest.fn();
+      const assistant = build(
+        registry(
+          [
+            { name: 'search_memory', readOnly: true },
+            { name: 'send_email', readOnly: false },
+          ],
+          invoke,
+        ),
+        complete,
+        proposal,
+        {},
+        selectorConfig('enabled'),
+      );
+      const log = jest.spyOn(
+        (assistant as unknown as { logger: { log: (...args: unknown[]) => void } }).logger,
+        'log',
+      );
+      global.fetch = jest.fn(
+        async () =>
+          new Response(
+            JSON.stringify({ schemas: [toolSchema('search_memory'), toolSchema('send_email')] }),
+            { status: 200 },
+          ),
+      ) as typeof fetch;
+
+      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        assistant.run(context, {
+          messages: [{ role: 'user', text: 'What do you remember about Kestrel?' }],
+        }),
+      );
+
+      expect(providerToolNames(complete)).toEqual(['search_memory']);
+      expect(invoke).not.toHaveBeenCalled();
+      expect(proposal).not.toHaveBeenCalled();
+      const selectorLogs = log.mock.calls
+        .map(([message]) => String(message))
+        .filter((message) => message.includes('meri.semantic_tool_gateway'));
+      expect(selectorLogs.join('\n')).toContain('blocked_undeclared');
+      expect(selectorLogs.join('\n')).not.toContain('private argument');
+      expect(selectorLogs.join('\n')).not.toContain('Kestrel');
     });
   });
 });
