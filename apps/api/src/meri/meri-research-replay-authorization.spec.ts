@@ -6,12 +6,34 @@ import {
 function memory(version = 'v1', hash = 'hash-1') {
   return {
     tool: 'search_memory',
+    contentStatus: 'available',
+    results: [{ id: 'memory-1' }],
     records: [{
       recordId: 'memory-1',
       updatedAt: '2026-09-28T00:00:00.000Z',
       provenance: { sourceVersion: version, contentHash: hash },
       payload: { clientId: 'client-1', content: { hash } },
     }],
+  };
+}
+
+function emptyMemory() {
+  return {
+    tool: 'search_memory',
+    contentStatus: 'empty',
+    results: [],
+    records: [],
+    coverage: {
+      complete: true,
+      paginationComplete: true,
+      sources: [{
+        domain: 'institutional_knowledge',
+        sourceStatus: 'healthy',
+        coverageComplete: true,
+        paginationComplete: true,
+        truncated: false,
+      }],
+    },
   };
 }
 
@@ -40,6 +62,22 @@ describe('durable replay current-owner authorization adapters', () => {
     expect(currentOwnerResultAuthorizesReplay('search_memory', memory(), memory())).toBe(true);
     expect(currentOwnerResultAuthorizesReplay('search_memory', memory(), memory('v2'))).toBe(false);
     expect(currentOwnerResultAuthorizesReplay('search_memory', memory(), memory('v1', 'hash-2'))).toBe(false);
+  });
+
+  it('rejects unversioned projections while preserving owner-proven empty results', () => {
+    expect(currentOwnerResultAuthorizesReplay(
+      'search_memory',
+      { tool: 'search_memory', results: [{ id: 'memory-1' }], records: [] },
+      { tool: 'search_memory', results: [], records: [] },
+    )).toBe(false);
+    expect(currentOwnerResultAuthorizesReplay('search_memory', emptyMemory(), emptyMemory())).toBe(
+      true,
+    );
+    expect(currentOwnerResultAuthorizesReplay(
+      'search_memory',
+      emptyMemory(),
+      { ...emptyMemory(), coverage: { complete: false, sources: [] } },
+    )).toBe(false);
   });
 
   it('requires the exact authorized document content and section version', () => {

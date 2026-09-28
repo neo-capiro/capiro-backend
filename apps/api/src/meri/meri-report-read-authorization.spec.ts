@@ -18,6 +18,8 @@ function memory(body = 'authorized memory', version = 'v1') {
   const hash = `hash-${body}`;
   return {
     tool: 'search_memory',
+    contentStatus: 'available',
+    results: [{ id: 'memory-1' }],
     records: [
       {
         recordId: 'memory-1',
@@ -29,7 +31,13 @@ function memory(body = 'authorized memory', version = 'v1') {
   };
 }
 
-function harness(options: { revoked?: boolean; changed?: boolean; proof?: boolean } = {}) {
+function harness(options: {
+  revoked?: boolean;
+  changed?: boolean;
+  proof?: boolean;
+  toolsUsed?: readonly string[];
+  summary?: string | null;
+} = {}) {
   const savedResult = memory();
   const sealed = sealDurableResearchResult({
     executionId: 'execution-1',
@@ -111,7 +119,7 @@ function harness(options: { revoked?: boolean; changed?: boolean; proof?: boolea
     bodyText: marker,
     metadata: {
       researchSessionId: session.id,
-      toolsUsed: ['search_memory'],
+      toolsUsed: options.toolsUsed ?? ['search_memory'],
     },
     createdAt: new Date('2026-09-28T00:01:00.000Z'),
   };
@@ -138,7 +146,7 @@ function harness(options: { revoked?: boolean; changed?: boolean; proof?: boolea
     bodyText: sealed.body,
     metadata: { serverOnly: true },
   };
-  const reportMessage = {
+  const reportMessage: any = {
     id: 'report-message-1',
     tenantId: ctx.tenantId,
     userId: ctx.userId,
@@ -156,6 +164,7 @@ function harness(options: { revoked?: boolean; changed?: boolean; proof?: boolea
     userId: ctx.userId,
     clientId: null,
     archivedAt: null,
+    summary: options.summary ?? null,
     messages: [reportMessage],
     artifacts: [report, ordinary],
   };
@@ -173,6 +182,7 @@ function harness(options: { revoked?: boolean; changed?: boolean; proof?: boolea
     clioMessage: { findMany: jest.fn(async () => [reportMessage]) },
     clioArtifact: {
       findFirst: jest.fn(async ({ where }: { where: { id: string } }) => artifacts.get(where.id) ?? null),
+      findMany: jest.fn(async () => [report]),
     },
   };
   const prisma = {
@@ -186,7 +196,7 @@ function harness(options: { revoked?: boolean; changed?: boolean; proof?: boolea
     prisma,
     tools: { execute },
   }) as MeriService;
-  return { service, prisma, tx, execute, reportMessage, report, ordinary };
+  return { service, prisma, tx, execute, reportMessage, report, ordinary, conversation, session };
 }
 
 describe('ordinary research report read authorization', () => {
@@ -229,6 +239,7 @@ describe('ordinary research report read authorization', () => {
 
   it.each([
     ['absent proof', { proof: false }],
+    ['unsupported source without a receipt', { proof: false, toolsUsed: ['search_emails'] }],
     ['changed source version', { changed: true }],
   ] as const)('fails closed with recovery metadata for %s', async (_label, options) => {
     const h = harness(options);
@@ -256,5 +267,47 @@ describe('ordinary research report read authorization', () => {
       }),
     ).rejects.toThrow('no longer authorized');
     expect(h.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('withholds alternate assistant references and report-derived summaries by structured session identity', async () => {
+    const h = harness({ revoked: true, summary: `Summary: ${marker}` });
+    h.reportMessage.metadata = {
+      researchSessionId: 'session-1',
+      trustSteps: [
+        {
+          tool: 'search_memory',
+          label: 'Memory',
+          detail: marker,
+          count: 1,
+          status: 'done',
+        },
+      ],
+      nested: { body: marker },
+    };
+
+    const messages = await h.service.listMessages(ctx, 'conversation-1');
+    const conversations = await h.service.listConversations(ctx);
+
+    expect(messages[0]!.body).toBe(RESEARCH_REPORT_BODY_WITHHELD);
+    expect(conversations[0]!.summary).toBeNull();
+    expect(JSON.stringify({ messages, conversations })).not.toContain(marker);
+    expect(messages[0]!.metadata).toMatchObject({
+      researchSessionId: 'session-1',
+      trustSteps: [{ tool: 'search_memory', label: 'Memory', count: 1, status: 'done' }],
+      reportBodyAccess: { recovery: 'research_session' },
+    });
+  });
+
+  it('keeps a non-report user handoff message with a research session identity unchanged', async () => {
+    const h = harness({ revoked: true });
+    h.reportMessage.role = 'user';
+    h.reportMessage.body = 'ordinary research request';
+    h.reportMessage.metadata = { researchSessionId: 'session-1' };
+    h.reportMessage.artifacts = [h.ordinary];
+
+    const messages = await h.service.listMessages(ctx, 'conversation-1');
+
+    expect(messages[0]!.body).toBe('ordinary research request');
+    expect(messages[0]!.metadata).toEqual({ researchSessionId: 'session-1' });
   });
 });

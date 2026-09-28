@@ -19,21 +19,56 @@ function record(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function rows(value: Record<string, unknown>): Record<string, unknown>[] {
-  return Array.isArray(value.records)
-    ? value.records.map(record).filter((row): row is Record<string, unknown> => Boolean(row))
-    : [];
+function rows(value: unknown): Record<string, unknown>[] | null {
+  if (!Array.isArray(value)) return null;
+  const projected = value.map(record);
+  return projected.every((row): row is Record<string, unknown> => Boolean(row))
+    ? projected
+    : null;
+}
+
+function healthyCompleteMemoryOwnerProof(root: Record<string, unknown>): boolean {
+  const coverage = record(root.coverage);
+  const sources = rows(coverage?.sources);
+  const owner = sources?.find((source) => source.domain === 'institutional_knowledge');
+  return Boolean(
+    coverage?.complete === true &&
+      coverage.paginationComplete === true &&
+      owner?.sourceStatus === 'healthy' &&
+      owner.coverageComplete === true &&
+      owner.paginationComplete === true &&
+      owner.truncated === false,
+  );
 }
 
 function memoryProof(value: unknown): string[] | null {
   const root = record(value);
   if (!root || root.tool !== 'search_memory') return null;
+  const records = rows(root.records);
+  const results = rows(root.results);
+  if (!records || !results || records.length !== results.length) return null;
+  if (records.length === 0) {
+    // Empty replay is meaningful only when the canonical owner says its search
+    // completed successfully. An absent projection or an unowned empty array is
+    // not authority for a previously non-empty result.
+    return root.contentStatus === 'empty' && healthyCompleteMemoryOwnerProof(root)
+      ? [researchJsonSha256({ owner: 'institutional_knowledge', outcome: 'empty' })]
+      : null;
+  }
+  if (!['available', 'metadata_only'].includes(String(root.contentStatus))) return null;
   const proofs: string[] = [];
-  for (const row of rows(root)) {
+  for (const [index, row] of records.entries()) {
     const payload = record(row.payload);
     const provenance = record(row.provenance);
     const content = record(payload?.content);
     const recordId = typeof row.recordId === 'string' ? row.recordId : null;
+    const result = results[index];
+    const resultId =
+      typeof result?.memoryItemId === 'string'
+        ? result.memoryItemId
+        : typeof result?.id === 'string'
+          ? result.id
+          : null;
     const version = typeof provenance?.sourceVersion === 'string' ? provenance.sourceVersion : null;
     const contentHash =
       typeof content?.hash === 'string'
@@ -41,7 +76,7 @@ function memoryProof(value: unknown): string[] | null {
         : typeof provenance?.contentHash === 'string'
           ? provenance.contentHash
           : null;
-    if (!recordId || (!version && !contentHash)) return null;
+    if (!recordId || resultId !== recordId || (!version && !contentHash)) return null;
     proofs.push(
       researchJsonSha256({
         recordId,
@@ -67,7 +102,9 @@ function documentProof(value: unknown): string[] | null {
     // Listings carry no owner content version and therefore cannot authorize replay.
     return null;
   }
-  const proofs = rows(root).map((row) => {
+  const records = rows(root.records);
+  if (!records) return null;
+  const proofs = records.map((row) => {
     const provenance = record(row.provenance);
     return researchJsonSha256({
       recordId: row.recordId,
@@ -224,7 +261,7 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
         (receipt) =>
           receipt.version === 2 && receipt.status === 'complete' && toolSet.has(receipt.tool),
       );
-      for (const tool of toolsUsed.filter(supportsDurableOwnerReauthorization)) {
+      for (const tool of toolSet) {
         if (!receipts.some((receipt) => receipt.tool === tool))
           throw new ConflictException('A research source authorization proof is unavailable.');
       }

@@ -237,7 +237,7 @@ export class MeriResearchService {
         bodyText: 'Report held for review. Open Reviews before using this deliverable.',
       };
     const storedRun = readResearchRun(session.metadata);
-    if (report && storedRun) {
+    if (report) {
       try {
         await this.assertReplayedReportSourcesAuthorized(
           ctx,
@@ -271,15 +271,7 @@ export class MeriResearchService {
       reportMetadata = publicResearchReportMetadata(metadata);
     }
     if (reportBodyWithheld)
-      reportMetadata = {
-        ...reportMetadata,
-        reportBodyAccess: {
-          status: 'withheld',
-          reason: 'current_source_authorization_unavailable',
-          recovery: 'research_session',
-          researchSessionId: session.id,
-        },
-      };
+      reportMetadata = withheldPublicResearchReportMetadata(reportMetadata, session.id);
     return {
       ...session,
       metadata: publicResearchSessionMetadata(session.metadata),
@@ -413,16 +405,14 @@ export class MeriResearchService {
     if (researchMetadata(artifact.metadata).heldForReview === true)
       throw new BadRequestException('This research report is held for review');
     const storedRun = readResearchRun(session.metadata);
-    if (storedRun) {
-      await this.assertReplayedReportSourcesAuthorized(
-        ctx,
-        session.id,
-        storedRun,
-        asStringArray(
-          researchMetadata(artifact.metadata as Prisma.JsonValue).toolsUsed as Prisma.JsonValue,
-        ),
-      );
-    }
+    await this.assertReplayedReportSourcesAuthorized(
+      ctx,
+      session.id,
+      storedRun,
+      asStringArray(
+        researchMetadata(artifact.metadata as Prisma.JsonValue).toolsUsed as Prisma.JsonValue,
+      ),
+    );
     return { title: artifact.title, markdown: artifact.bodyText ?? '' };
   }
 
@@ -2538,7 +2528,7 @@ export class MeriResearchService {
   private async assertReplayedReportSourcesAuthorized(
     ctx: TenantContext,
     id: string,
-    _run: ResearchRunState,
+    _run: ResearchRunState | null,
     toolsUsed: string[],
   ): Promise<void> {
     await assertCurrentResearchReportSourcesAuthorized({
@@ -2825,4 +2815,41 @@ function publicResearchReportMetadata(value: unknown): Record<string, unknown> {
       .filter((key) => key in metadata)
       .map((key) => [key, metadata[key]]),
   );
+}
+
+/** Withheld reads retain only structural recovery/status data, never source-derived prose. */
+function withheldPublicResearchReportMetadata(
+  value: unknown,
+  sessionId: string,
+): Record<string, unknown> {
+  const metadata = researchMetadata(value);
+  const trustSteps = Array.isArray(metadata.trustSteps)
+    ? metadata.trustSteps.flatMap((value) => {
+        const step = researchMetadata(value);
+        const safe = Object.fromEntries(
+          ['tool', 'label', 'count', 'confidence', 'status']
+            .filter((key) => ['string', 'number', 'boolean'].includes(typeof step[key]))
+            .map((key) => [key, step[key]]),
+        );
+        return Object.keys(safe).length ? [safe] : [];
+      })
+    : undefined;
+  return {
+    ...(trustSteps ? { trustSteps } : {}),
+    ...(typeof metadata.intent === 'string' ? { intent: metadata.intent } : {}),
+    ...(typeof metadata.tier === 'string' ? { tier: metadata.tier } : {}),
+    ...(typeof metadata.reasoningMode === 'string'
+      ? { reasoningMode: metadata.reasoningMode }
+      : {}),
+    ...(typeof metadata.finishReason === 'string'
+      ? { finishReason: metadata.finishReason }
+      : {}),
+    ...(typeof metadata.partial === 'boolean' ? { partial: metadata.partial } : {}),
+    reportBodyAccess: {
+      status: 'withheld',
+      reason: 'current_source_authorization_unavailable',
+      recovery: 'research_session',
+      researchSessionId: sessionId,
+    },
+  };
 }

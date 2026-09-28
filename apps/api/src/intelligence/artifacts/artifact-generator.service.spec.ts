@@ -249,6 +249,48 @@ describe('ArtifactGeneratorService', () => {
     ]);
   });
 
+  it('excludes a server-only marker even when its kind looks like an ordinary action artifact', async () => {
+    const { svc, prisma } = makeGenerator();
+    const base = {
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+      clientId: null,
+      conversationId: 'conversation-1',
+      contentType: 'text/markdown',
+      createdAt: new Date(),
+    };
+    prisma.__insert({
+      ...base,
+      id: 'ordinary-row',
+      title: 'Ordinary',
+      kind: 'artifact_internal_brief',
+      bodyText: 'ORDINARY_BODY',
+      metadata: { actionId: 'card-1', version: 1 },
+    });
+    prisma.__insert({
+      ...base,
+      id: 'server-only-row',
+      title: 'Private',
+      kind: 'artifact_internal_brief',
+      bodyText: 'PRIVATE_OWNER_RESULT',
+      metadata: { actionId: 'card-1', serverOnly: true },
+    });
+
+    const list = await svc.listForAction(ctx, 'card-1');
+
+    expect(list.map((row) => row.id)).toEqual(['ordinary-row']);
+    expect(JSON.stringify(list)).not.toContain('PRIVATE_OWNER_RESULT');
+    expect(prisma.__tx.clioArtifact.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            { NOT: { metadata: { path: ['serverOnly'], equals: true } } },
+          ]),
+        }),
+      }),
+    );
+  });
+
   it('does not expose or mutate a server-only research result through known-id ordinary routes', async () => {
     const { svc, prisma } = makeGenerator();
     const privateBody = '{"result":"PRIVATE OWNER RESULT"}';

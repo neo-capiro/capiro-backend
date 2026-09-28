@@ -415,4 +415,70 @@ describe('Meri durable safe-read commit and replay', () => {
       'no longer authorized',
     );
   });
+
+  it('does not treat a missing run as report authority for recovery or export', async () => {
+    const h = harness();
+    await h.service.commitSafeReadOutcome(
+      ctx,
+      'session-1',
+      'run-1',
+      outcome('execution-current-run', 'radar'),
+    );
+    h.completeReport();
+    delete h.session.metadata.run;
+    h.revokeSource();
+
+    const response = await h.service.getSession(ctx, 'session-1');
+
+    expect(response.report?.bodyText).toContain('current source authorization');
+    expect(response.reportMetadata).toMatchObject({
+      reportBodyAccess: { status: 'withheld', recovery: 'research_session' },
+    });
+    await expect(h.service.getReportMarkdown(ctx, 'session-1')).rejects.toThrow(
+      'no longer authorized',
+    );
+  });
+
+  it('withholds unsupported missing-receipt reports without calling an unowned adapter', async () => {
+    const h = harness();
+    h.completeReport();
+    h.artifacts.get('report-1')!.metadata.toolsUsed = ['search_emails'];
+
+    const response = await h.service.getSession(ctx, 'session-1');
+
+    expect(response.report?.bodyText).toContain('current source authorization');
+    expect(response.reportMetadata).toMatchObject({
+      reportBodyAccess: { status: 'withheld', recovery: 'research_session' },
+    });
+    expect(h.tools.execute).not.toHaveBeenCalled();
+    await expect(h.service.getReportMarkdown(ctx, 'session-1')).rejects.toThrow(
+      'authorization proof is unavailable',
+    );
+  });
+
+  it('removes report-derived detail and nested bodies from withheld recovery metadata', async () => {
+    const h = harness();
+    await h.service.commitSafeReadOutcome(
+      ctx,
+      'session-1',
+      'run-1',
+      outcome('execution-current-run', 'radar'),
+    );
+    h.completeReport();
+    Object.assign(h.artifacts.get('report-1')!.metadata, {
+      trustSteps: [{ tool: 'search_memory', label: 'Memory', detail: 'PRIVATE_DETAIL', count: 1 }],
+      nested: { body: 'PRIVATE_NESTED_BODY' },
+    });
+    h.revokeSource();
+
+    const response = await h.service.getSession(ctx, 'session-1');
+    const json = JSON.stringify(response.reportMetadata);
+
+    expect(json).not.toContain('PRIVATE_DETAIL');
+    expect(json).not.toContain('PRIVATE_NESTED_BODY');
+    expect(response.reportMetadata).toMatchObject({
+      trustSteps: [{ tool: 'search_memory', label: 'Memory', count: 1 }],
+      reportBodyAccess: { status: 'withheld' },
+    });
+  });
 });

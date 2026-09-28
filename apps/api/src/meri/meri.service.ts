@@ -399,6 +399,12 @@ export class MeriService implements MeriTurnMaintenance {
     return Promise.all(
       conversations.map(async (conversation) => ({
         ...conversation,
+        summary: await this.authorizeOrdinaryConversationSummary(
+          ctx,
+          { conversationId: conversation.id, clientId: conversation.clientId },
+          conversation.summary,
+          authorization,
+        ),
         artifacts: await Promise.all(
           conversation.artifacts.map((artifact) =>
             this.authorizeOrdinaryReportArtifact(
@@ -659,6 +665,7 @@ export class MeriService implements MeriTurnMaintenance {
   private async authorizeOrdinaryReportMessage<
     T extends {
       body: string;
+      role?: string;
       metadata?: Prisma.JsonValue | null;
       artifacts?: Array<{
         id: string;
@@ -682,7 +689,10 @@ export class MeriService implements MeriTurnMaintenance {
       : undefined;
     const linkedReport = message.artifacts?.find((artifact) => artifact.kind === 'research_report');
     const sessionId = researchReportSessionId(message) ?? researchReportSessionId(linkedReport);
-    const isReportMessage = researchReportMessage(message) || Boolean(linkedReport);
+    const isReportMessage =
+      researchReportMessage(message) ||
+      Boolean(linkedReport) ||
+      (Boolean(sessionId) && message.role === 'assistant');
     const authorized = sessionId
       ? await this.currentReportReadAuthorized(
           ctx,
@@ -735,6 +745,41 @@ export class MeriService implements MeriTurnMaintenance {
           bodyText: RESEARCH_REPORT_BODY_WITHHELD,
           metadata: withheldResearchReportMetadata(artifact.metadata, sessionId),
         };
+  }
+
+  private async authorizeOrdinaryConversationSummary(
+    ctx: TenantContext,
+    scope: { conversationId: string; clientId: string | null },
+    summary: string | null,
+    authorization: Map<string, Promise<boolean>>,
+  ): Promise<string | null> {
+    if (!summary) return summary;
+    const reports = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioArtifact.findMany({
+        where: {
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          conversationId: scope.conversationId,
+          kind: 'research_report',
+        },
+        select: { id: true, metadata: true },
+      }),
+    );
+    for (const report of reports) {
+      const sessionId = researchReportSessionId(report);
+      if (
+        !sessionId ||
+        !(await this.currentReportReadAuthorized(
+          ctx,
+          scope,
+          sessionId,
+          report.id,
+          authorization,
+        ))
+      )
+        return null;
+    }
+    return summary;
   }
 
   private currentReportReadAuthorized(
@@ -3282,13 +3327,14 @@ export class MeriService implements MeriTurnMaintenance {
             message_id: string;
             title: string;
             client_id: string | null;
+            role: string;
             body: string;
             metadata: Prisma.JsonValue;
             created_at: Date;
             score: number;
           }>
         >(
-          `SELECT m.conversation_id, m.id AS message_id, c.title, c.client_id, m.body,
+          `SELECT m.conversation_id, m.id AS message_id, c.title, c.client_id, m.role, m.body,
                   m.metadata_jsonb AS metadata, m.created_at,
                   1 - (ce.embedding <=> '${literal}'::vector) AS score
              FROM context_embeddings ce
@@ -3311,7 +3357,7 @@ export class MeriService implements MeriTurnMaintenance {
           const message = await this.authorizeOrdinaryReportMessage(
             ctx,
             { conversationId: row.conversation_id, clientId: row.client_id },
-            { body: row.body, metadata: row.metadata },
+            { body: row.body, role: row.role, metadata: row.metadata },
             authorization,
           );
           return { ...row, body: message.body };
@@ -3349,6 +3395,7 @@ export class MeriService implements MeriTurnMaintenance {
           conversationId: true,
           id: true,
           body: true,
+          role: true,
           metadata: true,
           createdAt: true,
           conversation: { select: { title: true, clientId: true } },
@@ -3361,7 +3408,7 @@ export class MeriService implements MeriTurnMaintenance {
         const message = await this.authorizeOrdinaryReportMessage(
           ctx,
           { conversationId: row.conversationId, clientId: row.conversation.clientId },
-          { body: row.body, metadata: row.metadata },
+          { body: row.body, role: row.role, metadata: row.metadata },
           authorization,
         );
         return { ...row, body: message.body };
@@ -6263,8 +6310,33 @@ function withheldResearchReportMetadata(
   const metadata = value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, Prisma.JsonValue>)
     : {};
+  const trustSteps = Array.isArray(metadata.trustSteps)
+    ? metadata.trustSteps.flatMap((value) => {
+        const step = value && typeof value === 'object' && !Array.isArray(value)
+          ? (value as Record<string, Prisma.JsonValue>)
+          : {};
+        const safe = Object.fromEntries(
+          ['tool', 'label', 'count', 'confidence', 'status']
+            .filter((key) => ['string', 'number', 'boolean'].includes(typeof step[key]))
+            .map((key) => [key, step[key]]),
+        ) as Prisma.JsonObject;
+        return Object.keys(safe).length ? [safe] : [];
+      })
+    : undefined;
   return {
-    ...metadata,
+    ...(sessionId ? { researchSessionId: sessionId } : {}),
+    ...(metadata.researchReport === true ? { researchReport: true } : {}),
+    ...(trustSteps ? { trustSteps } : {}),
+    ...(typeof metadata.intent === 'string' ? { intent: metadata.intent } : {}),
+    ...(typeof metadata.tier === 'string' ? { tier: metadata.tier } : {}),
+    ...(typeof metadata.reasoningMode === 'string'
+      ? { reasoningMode: metadata.reasoningMode }
+      : {}),
+    ...(typeof metadata.finishReason === 'string'
+      ? { finishReason: metadata.finishReason }
+      : {}),
+    ...(typeof metadata.partial === 'boolean' ? { partial: metadata.partial } : {}),
+    ...(typeof metadata.sourceCount === 'number' ? { sourceCount: metadata.sourceCount } : {}),
     reportBodyAccess: {
       status: 'withheld',
       reason: 'current_source_authorization_unavailable',

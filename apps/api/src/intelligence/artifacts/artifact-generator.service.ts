@@ -238,12 +238,13 @@ export class ArtifactGeneratorService {
           tenantId: ctx.tenantId,
           kind: { startsWith: ARTIFACT_KIND_PREFIX },
           metadata: { path: ['actionId'], equals: actionId },
+          ...ordinaryClioArtifactWhere(),
         },
         orderBy: { createdAt: 'desc' },
         select: { id: true, title: true, kind: true, bodyText: true, metadata: true },
       }),
     );
-    return rows.map((row) => ({
+    return rows.filter((row) => !isInternalClioArtifact(row)).map((row) => ({
       id: row.id,
       title: row.title,
       kind: row.kind,
