@@ -2,7 +2,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.js';
 import { generatedPngBase64 } from './meri-artifact-test-fixtures.js';
-import { sha256Bytes } from './meri-artifact-integrity.js';
+import { PERSISTED_PNG_BYTE_AUTHORITY, sha256Bytes } from './meri-artifact-integrity.js';
 
 const ctx = {
   tenantId: 'tenant-1',
@@ -168,6 +168,7 @@ describe('MeriV3VisualAnalysisService', () => {
             evidence: 'derived',
             imageBase64: PNG,
             imageSha256: sha256Bytes(Buffer.from(PNG, 'base64')),
+            imageByteAuthority: PERSISTED_PNG_BYTE_AUTHORITY,
             datasets: [{ name: 'Capiro PE funding', rowCount: 1 }],
             resultSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
             visualizationSha256: expect.stringMatching(/^[0-9a-f]{64}$/),

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { canonicalMeriArtifactSandboxUrl, fetchMeriArtifactDownload, meriArtifactDownloadFromUrl, meriArtifactIdFromDownloadUrl, saveMeriDownloadBlob } from './meri-artifact-download.js';
+import { canonicalMeriArtifactSandboxUrl, fetchMeriArtifactDownload, meriArtifactDownloadFromUrl, meriArtifactIdFromDownloadUrl, meriDocumentBytesMatchFormat, saveMeriDownloadBlob } from './meri-artifact-download.js';
 import { artifactDownloadResponse, artifactFixture, type ArtifactFixtureMime } from '../../test/meri-artifact-download-fixtures.js';
 
 const apiBaseUrl = 'https://api.example.test';
@@ -125,6 +125,24 @@ describe('canonical authenticated Meri downloads', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(missing).mockResolvedValueOnce(mismatch));
     await expect(fetchMeriArtifactDownload(input())).rejects.toThrow('integrity receipt');
     await expect(fetchMeriArtifactDownload(input())).rejects.toThrow('did not match');
+  });
+
+  test('checks the byte-format envelope after the response hash matches', async () => {
+    const fakePdf = new TextEncoder().encode('%PDF-1.7\nFAKE-PDF\n%%EOF');
+    const digest = await crypto.subtle.digest('SHA-256', fakePdf);
+    const sha256 = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(artifactDownloadResponse({
+      mime: 'application/pdf',
+      bytes: fakePdf,
+      sha256,
+    })));
+
+    expect(meriDocumentBytesMatchFormat(fakePdf, 'pdf')).toBe(false);
+    await expect(fetchMeriArtifactDownload({ ...input(), expectedFormat: 'pdf' }))
+      .rejects.toThrow('expected document format');
+
+    const generated = artifactFixture('application/pdf').bytes;
+    expect(meriDocumentBytesMatchFormat(generated, 'pdf')).toBe(true);
   });
 
   test('rejects same-format bytes carrying another saved artifact identity', async () => {

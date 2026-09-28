@@ -6,7 +6,11 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { MeriContextPlaneService } from './meri-context-plane.service.js';
 import { sha256CanonicalAnalysisJson } from './meri-analysis-provenance.js';
-import { readPersistedPng, validatePngBase64 } from './meri-artifact-integrity.js';
+import {
+  PERSISTED_PNG_BYTE_AUTHORITY,
+  readPersistedPng,
+  validatePngBase64,
+} from './meri-artifact-integrity.js';
 import {
   analysisResultsWithoutVisualizations,
   analysisVisualizationCandidatesFromResults,
@@ -334,7 +338,11 @@ export class MeriV3VisualAnalysisService {
           ...(datasets.length ? { datasets } : {}),
           ...(filename ? { filename } : {}),
           ...(codeSha256 ? { codeSha256 } : {}),
-          ...(image ? { imageBase64: image.base64, imageSha256: image.sha256 } : {}),
+          ...(image ? {
+            imageBase64: image.base64,
+            imageSha256: image.sha256,
+            imageByteAuthority: PERSISTED_PNG_BYTE_AUTHORITY,
+          } : {}),
           ...(visual
             ? {
                 visualization: visual,

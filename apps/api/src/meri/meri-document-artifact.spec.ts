@@ -73,7 +73,10 @@ type Artifact = {
 };
 
 function harness(initialArtifacts: Artifact[] = []) {
-  const artifacts = [...initialArtifacts];
+  const artifacts = initialArtifacts.map((artifact) =>
+    typeof artifact.metadata?.imageBase64 === 'string'
+      ? { kind: 'analysis_chart', clientId: null, conversationId, ...artifact }
+      : artifact);
   const conversation: {
     id: string; tenantId: string; userId: string; archivedAt: Date | null; clientId: string | null;
   } = {
@@ -363,6 +366,18 @@ describe('Meri generated document download boundary (MW-01)', () => {
     expect(h.buildDocx).toHaveBeenCalledTimes(1);
   });
 
+  it('blocks alternate exports when any native byte receipt is partial', async () => {
+    const h = harness([storedArtifact({ metadata: {
+      docFormat: 'docx',
+      filename: 'glass-harbor-qa-brief.docx',
+      documentSha256: '0'.repeat(64),
+    } })]);
+
+    await expect(h.service.getDocumentArtifact(ctx, artifactId, 'pdf'))
+      .rejects.toBeInstanceOf(UnprocessableEntityException);
+    expect(h.buildPdf).not.toHaveBeenCalled();
+  });
+
   it('keeps legacy rows compatible but rechecks conversation state and client wall at delivery', async () => {
     const legacy = storedArtifact({ clientId: 'client-1' });
     const h = harness([legacy]);
@@ -444,12 +459,46 @@ describe('Meri generated document download boundary (MW-01)', () => {
     expect(spec.sections[0]!.images).toHaveLength(allowed ? 1 : 0);
     expect(spec.sections[0]!.imageArtifactIds).toEqual([]);
     expect(h.tx.clioArtifact.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: chartId, tenantId: ctx.tenantId, userId: ctx.userId },
+      where: {
+        id: chartId,
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        kind: 'analysis_chart',
+        conversationId,
+        clientId: null,
+      },
     }));
     const bytes = await h.service.renderStoredDocument(stored!.format, stored!.specJson);
     const zip = await JSZip.loadAsync(bytes);
     expect(Object.keys(zip.files).filter((name) => /^word\/media\/.*\.png$/.test(name)))
       .toHaveLength(allowed ? 1 : 0);
+  });
+
+  it('refuses an archived chart from another client even if a data adapter returns it', async () => {
+    const h = harness();
+    h.conversation.clientId = 'client-a';
+    h.tx.clioArtifact.findFirst.mockResolvedValueOnce({
+      id: chartId,
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+      kind: 'analysis_chart',
+      clientId: 'client-b',
+      conversationId: 'conversation-b',
+      metadata: { imageBase64: png, imageSha256: sha256Bytes(Buffer.from(png, 'base64')) },
+      conversation: {
+        id: 'conversation-b',
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        clientId: 'client-b',
+        archivedAt: new Date('2026-09-28T00:00:00.000Z'),
+      },
+    } as never);
+
+    await expect(h.service.execute(ctx, 'create_word', {
+      ...wordInput(),
+      sections: [{ heading: 'Chart', imageArtifactIds: [chartId] }],
+    })).rejects.toBeInstanceOf(NotFoundException);
+    expect(h.tx.clioArtifact.create).not.toHaveBeenCalled();
   });
 });
 

@@ -6957,6 +6957,13 @@ export class MeriToolsService {
     let clientId = optionalString(input, 'clientId', 80) ?? null;
     const conversationId = optionalString(input, 'conversationId', 80);
     if (clientId) clientId = await this.ensureClientVisible(ctx, clientId);
+    if (conversationId) {
+      const conversation = await this.ensureConversationForTool(ctx, conversationId, clientId);
+      if (clientId !== null && clientId !== conversation.clientId) {
+        throw new BadRequestException('Tool clientId does not match the Meri conversation client');
+      }
+      clientId = conversation.clientId;
+    }
 
     let title: string;
     let normalized: unknown;
@@ -6968,7 +6975,7 @@ export class MeriToolsService {
       for (const section of spec.sections) {
         section.images = [
           ...section.images,
-          ...(await this.resolveChartImages(ctx, section.imageArtifactIds)),
+          ...(await this.resolveChartImages(ctx, section.imageArtifactIds, { conversationId, clientId })),
         ];
         if (section.images.length > MAX_IMAGES_PER_BLOCK) {
           throw new BadRequestException(
@@ -7004,7 +7011,7 @@ export class MeriToolsService {
       for (const slide of spec.slides) {
         slide.images = [
           ...slide.images,
-          ...(await this.resolveChartImages(ctx, slide.imageArtifactIds)),
+          ...(await this.resolveChartImages(ctx, slide.imageArtifactIds, { conversationId, clientId })),
         ];
         if (slide.images.length > MAX_IMAGES_PER_BLOCK) {
           throw new BadRequestException(
@@ -7165,7 +7172,7 @@ export class MeriToolsService {
       meta.documentByteFormat,
       meta.documentByteAuthority,
     ].some((value) => value !== undefined);
-    if (format === nativeFormat && hasPersistedByteFields) {
+    if (hasPersistedByteFields) {
       if (typeof meta.documentBytesBase64 !== 'string' ||
           meta.documentBytesBase64.length > Math.ceil(MAX_DOCUMENT_ARTIFACT_BYTES / 3) * 4 + 4 ||
           typeof meta.documentSha256 !== 'string' || !/^[0-9a-f]{64}$/.test(meta.documentSha256) ||
@@ -7181,9 +7188,11 @@ export class MeriToolsService {
           sha256Bytes(decoded) !== meta.documentSha256) {
         throw new UnprocessableEntityException('The saved document bytes failed their integrity receipt.');
       }
-      persistedBytes = decoded;
-      persistedSha256 = meta.documentSha256;
-      byteAuthority = 'persisted_at_creation_v1';
+      if (format === nativeFormat) {
+        persistedBytes = decoded;
+        persistedSha256 = meta.documentSha256;
+        byteAuthority = 'persisted_at_creation_v1';
+      }
     }
     return {
       format,
@@ -8580,15 +8589,54 @@ export class MeriToolsService {
   private async resolveChartImages(
     ctx: TenantContext,
     artifactIds: string[],
+    binding: { conversationId: string | null; clientId: string | null },
   ): Promise<Array<{ dataBase64: string }>> {
+    if (!artifactIds.length) return [];
+    if (!binding.conversationId) {
+      throw new NotFoundException(
+        'Analysis charts can only be embedded from the current Meri conversation.',
+      );
+    }
+    if (binding.clientId) {
+      if (!this.contextPlane) throw new NotFoundException('One or more analysis charts were not found.');
+      const security = await this.contextPlane.securityEnvelope(ctx);
+      if (!security.authorizedClientIds.includes(binding.clientId)) {
+        throw new NotFoundException('One or more analysis charts were not found.');
+      }
+    }
     const out: Array<{ dataBase64: string }> = [];
     for (const id of artifactIds) {
       const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.clioArtifact.findFirst({
-          where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
-          select: { metadata: true },
+          where: {
+            id,
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            kind: 'analysis_chart',
+            conversationId: binding.conversationId!,
+            clientId: binding.clientId,
+          },
+          select: {
+            kind: true,
+            metadata: true,
+            clientId: true,
+            conversationId: true,
+            conversation: {
+              select: { id: true, tenantId: true, userId: true, clientId: true, archivedAt: true },
+            },
+          },
         }),
       );
+      const conversation = artifact?.conversation;
+      if (!artifact || artifact.kind !== 'analysis_chart' || artifact.clientId !== binding.clientId ||
+          artifact.conversationId !== binding.conversationId || !conversation ||
+          conversation.id !== binding.conversationId || conversation.tenantId !== ctx.tenantId ||
+          conversation.userId !== ctx.userId || conversation.clientId !== binding.clientId ||
+          conversation.archivedAt) {
+        throw new NotFoundException(
+          'One or more analysis charts were not found. Regenerate the charts in this conversation and try again.',
+        );
+      }
       const metadata = artifact?.metadata as Record<string, unknown> | null;
       if (typeof metadata?.imageBase64 === 'string' &&
           metadata.imageBase64.length > MAX_IMAGE_BASE64_CHARS) {
