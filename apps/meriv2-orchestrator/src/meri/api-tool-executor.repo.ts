@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { MeriContext, ToolExecutor, ToolExecutionControl } from '@capiro/meriv2-core';
 import { createMeriExecutionControl } from './meri-execution-control.js';
+import { classifyApiToolReadOutcome } from './api-tool-read-outcome.js';
 import { RequestCredentialsStore } from '../request/request-credentials.store.js';
 
 const RETRYABLE_MAIL_READS = new Set(['list_emails', 'search_emails', 'get_email_thread']);
@@ -129,7 +130,17 @@ export class ApiToolExecutorRepo implements ToolExecutor {
       for (let attempt = 0; ; attempt += 1) {
         execution.assertActive();
         const res = await fetch(url, request);
-        if (res.ok) return (await res.json()) as unknown;
+        if (res.ok) {
+          const payload = (await res.json()) as unknown;
+          const outcome = classifyApiToolReadOutcome(toolName, payload);
+          if (outcome?.kind === 'failed' || outcome?.kind === 'unavailable') {
+            this.logger.warn(`Delegated read "${toolName}" -> ${outcome.kind}`);
+            throw new Error(
+              `Delegated read "${toolName}" ${outcome.kind}: ${(outcome.reason ?? 'owner_result_unavailable').slice(0, 200)}`,
+            );
+          }
+          return payload;
+        }
         const body = await res.text().catch(() => '');
         this.logger.warn(`Delegated tool "${toolName}" -> ${res.status}`);
         const retryDelay = attempt === 0 ? mailCapacityRetryDelay(toolName, res, body) : null;

@@ -36,7 +36,21 @@ describe('mail read retry after explicit API capacity failure', () => {
   test.each(['list_emails', 'search_emails', 'get_email_thread'])(
     '%s recovers once, retaining request scope, identity and original deadline',
     async (tool) => {
-      const receipt = { totalMatches: 389, returned: 15, hasMore: true };
+      const receipt =
+        tool === 'get_email_thread'
+          ? {
+              totalMessages: 1,
+              returned: 1,
+              hasMore: false,
+              messages: [{ bodyTruncated: false, bodyCompleteness: 'complete' }],
+            }
+          : {
+              totalMatches: 389,
+              returned: 15,
+              hasMore: true,
+              messages: Array.from({ length: 15 }, (_, id) => ({ id })),
+              searchedMailboxes: [{ mailCoverage: { sourceStatus: 'healthy' } }],
+            };
       const fetchMock = jest
         .fn()
         .mockResolvedValueOnce(busy())
@@ -146,11 +160,27 @@ describe('mail read retry after explicit API capacity failure', () => {
     const fetchMock = jest
       .fn()
       .mockResolvedValueOnce(busy(retryAt))
-      .mockResolvedValueOnce(new Response('{"returned":0,"totalMatches":0}'));
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            returned: 0,
+            totalMatches: 0,
+            hasMore: false,
+            messages: [],
+            searchedMailboxes: [{ mailCoverage: { sourceStatus: 'healthy' } }],
+          }),
+        ),
+      );
     global.fetch = fetchMock;
     const result = execute();
     await jest.advanceTimersByTimeAsync(2_000);
-    await expect(result).resolves.toEqual({ returned: 0, totalMatches: 0 });
+    await expect(result).resolves.toEqual({
+      returned: 0,
+      totalMatches: 0,
+      hasMore: false,
+      messages: [],
+      searchedMailboxes: [{ mailCoverage: { sourceStatus: 'healthy' } }],
+    });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
