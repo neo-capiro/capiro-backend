@@ -1,5 +1,7 @@
 import { frozenFixture } from './fixture.mjs';
 import { structuredExecutionRequirements } from './execution-requirements.mjs';
+import { sinkArtifactSchema, traceArtifactSchema } from './artifact-schemas.mjs';
+import { validateJsonSchema } from './lib/schema-validator.mjs';
 
 const IMPLEMENTED_CASES = new Set(['01', '03', '12', '19', '20', '46', '51', '56', '72']);
 
@@ -29,6 +31,19 @@ function validateTraceShape(trace, capture, captureRunId) {
   return defects;
 }
 
+function validateArtifactShapes(artifacts) {
+  const defects = validateJsonSchema(artifacts.trace, traceArtifactSchema, { path: 'trace artifact' });
+  if (artifacts.sink !== null) defects.push(...validateJsonSchema(artifacts.sink, sinkArtifactSchema, { path: 'sink artifact' }));
+  return defects.map((defect) => `saved artifact schema violation: ${defect}`);
+}
+
+function sameAuthorizationScope(scope, auth) {
+  return scope?.sessionId === auth?.sessionId
+    && scope?.actorId === auth?.actorId
+    && scope?.tenantId === auth?.selectedTenantId
+    && scope?.clientId === auth?.selectedClientId;
+}
+
 function validateCorrelations(capture, artifacts, captureRunId) {
   const defects = validateTraceShape(artifacts.trace, capture, captureRunId);
   const { trace } = artifacts;
@@ -38,16 +53,27 @@ function validateCorrelations(capture, artifacts, captureRunId) {
   const bound = (record) => record?.runId === run.runId && record?.traceId === run.traceId && record?.caseId === capture.caseId;
   for (const record of records) if (!bound(record)) defects.push(`trace ${String(record?.kind)} record is not run/case correlated`);
 
+  const declaredTools = new Map(capture.evidence.runtime.tools.map((tool) => [tool.callId, tool]));
   for (const tool of capture.evidence.runtime.tools) {
     const match = records.find((record) => record.kind === 'tool' && record.callId === tool.callId);
-    if (!match || match.status !== tool.status || match.operationId !== tool.operationId) defects.push(`tool call ${tool.callId} lacks a correlated trace record`);
+    if (!match || match.status !== tool.status || match.operationId !== tool.operationId || match.name !== tool.name) defects.push(`tool call ${tool.callId} lacks a correlated trace record`);
+    else if (!sameAuthorizationScope(match.authorizationScope, artifacts.auth)) defects.push(`tool call ${tool.callId} authorization scope is not bound to the saved session`);
   }
   for (const citation of capture.evidence.sources.citations) {
     const passage = artifacts.passages.get(citation.sourceId);
-    const sourceRecord = records.find((record) => record.kind === 'source' && record.sourceId === citation.sourceId && record.passageSha256 === passage?.sha256);
+    const sourceRecord = records.find((record) => record.kind === 'source'
+      && record.sourceId === citation.sourceId
+      && record.passageSha256 === passage?.sha256
+      && record.version === citation.version
+      && record.locator === citation.locator);
     const toolRecord = sourceRecord && records.find((record) => record.kind === 'tool' && record.callId === sourceRecord.toolCallId);
-    if (!sourceRecord || !toolRecord || !toolRecord.sourceIds?.includes(citation.sourceId)) {
-      defects.push(`source ${citation.sourceId} lacks source→tool→run correlation`);
+    const declaredTool = sourceRecord && declaredTools.get(sourceRecord.toolCallId);
+    if (!sourceRecord || !toolRecord || !declaredTool || !toolRecord.sourceIds.includes(citation.sourceId) || !declaredTool.sourceIds.includes(citation.sourceId)) {
+      defects.push(`source ${citation.sourceId} lacks source→declared-tool→trace correlation`);
+    } else if (!sameAuthorizationScope(sourceRecord.authorizationScope, artifacts.auth)
+      || !sameAuthorizationScope(toolRecord.authorizationScope, artifacts.auth)
+      || JSON.stringify(sourceRecord.authorizationScope) !== JSON.stringify(toolRecord.authorizationScope)) {
+      defects.push(`source ${citation.sourceId} authorization scope is not bound to its declared tool and saved session`);
     }
   }
   if (artifacts.auth) {
@@ -73,8 +99,24 @@ function validateCorrelations(capture, artifacts, captureRunId) {
       defects.push('sink artifact is not run/case correlated');
     }
     const proposal = records.find((record) => record.kind === 'proposal' && record.proposalId === effects.proposalId && record.payloadSha256 === artifacts.payload.sha256);
-    const effect = records.find((record) => record.kind === 'effect' && record.operationId === effects.operationId && record.proposalId === effects.proposalId);
-    if (!proposal || !effect) defects.push('proposal→effect trace correlation is incomplete');
+    if (!proposal) defects.push('proposal→effect trace correlation is incomplete');
+    if (new Set(sink.receipts.map((receipt) => receipt.receiptId)).size !== sink.receipts.length) defects.push('authoritative sink receipt IDs are not unique');
+    for (const receipt of sink.receipts) {
+      const sinkEffect = sink.effects.find((item) => item.logicalEffectId === receipt.logicalEffectId);
+      const receiptTraceEffects = records.filter((record) => record.kind === 'effect'
+        && record.operationId === effects.operationId
+        && record.proposalId === effects.proposalId
+        && record.receiptId === receipt.receiptId);
+      if (!sinkEffect || receiptTraceEffects.length !== 1 || receiptTraceEffects[0].logicalEffectId !== receipt.logicalEffectId) {
+        defects.push(`sink receipt ${receipt.receiptId} lacks exact proposal→effect→receipt trace correlation`);
+      }
+    }
+    const sinkReceiptIds = new Set(sink.receipts.map((receipt) => receipt.receiptId));
+    const unmatchedTraceEffect = records.find((record) => record.kind === 'effect'
+      && record.operationId === effects.operationId
+      && record.proposalId === effects.proposalId
+      && !sinkReceiptIds.has(record.receiptId));
+    if (unmatchedTraceEffect) defects.push(`effect trace receipt ${unmatchedTraceEffect.receiptId} has no exact authoritative sink receipt`);
   }
   for (const ui of artifacts.ui) {
     if (ui.captureRunId !== captureRunId || ui.runId !== run.runId || ui.traceId !== run.traceId || ui.caseId !== capture.caseId) {
@@ -213,16 +255,26 @@ function casePredicate(capture, artifacts) {
 }
 
 export function evaluateDeterministicEvidence(capture, testCase, artifacts, captureRunId) {
+  const shapeDefects = validateArtifactShapes(artifacts);
+  if (shapeDefects.length > 0) {
+    return {
+      implemented: IMPLEMENTED_CASES.has(capture.caseId),
+      defects: shapeDefects,
+      integrityDefects: shapeDefects,
+      reason: 'saved artifact schema validation failed',
+    };
+  }
+  const integrityDefects = validateCorrelations(capture, artifacts, captureRunId);
   const defects = [
-    ...validateCorrelations(capture, artifacts, captureRunId),
+    ...integrityDefects,
     ...validateExecutionRequirements(capture, artifacts.trace),
     ...commonLeakDefects(capture, testCase, artifacts.answer.text, artifacts.passages),
   ];
   if (!IMPLEMENTED_CASES.has(capture.caseId)) {
-    return { implemented: false, defects, reason: `case ${capture.caseId} row-specific deterministic predicate is not implemented` };
+    return { implemented: false, defects, integrityDefects, reason: `case ${capture.caseId} row-specific deterministic predicate is not implemented` };
   }
   defects.push(...casePredicate(capture, artifacts));
-  return { implemented: true, defects, reason: null };
+  return { implemented: true, defects, integrityDefects, reason: null };
 }
 
 export function expectedModeMatrix(caseId) {

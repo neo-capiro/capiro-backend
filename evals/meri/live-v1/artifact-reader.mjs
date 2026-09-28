@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { lstatSync, readFileSync, realpathSync } from 'node:fs';
-import { isAbsolute, relative, resolve, sep } from 'node:path';
+import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, realpathSync } from 'node:fs';
+import { isAbsolute, parse, relative, resolve, sep } from 'node:path';
 
 const SHA256 = /^[a-f0-9]{64}$/u;
 const REMOTE_OR_FILE_URL = /^[a-z][a-z0-9+.-]*:/iu;
@@ -38,11 +38,56 @@ function assertOwnedRelativeRef(ref) {
   return parts;
 }
 
+function assertNoSymlinkComponents(path, label) {
+  const absolute = resolve(path);
+  const parsed = parse(absolute);
+  let cursor = parsed.root;
+  for (const part of absolute.slice(parsed.root.length).split(sep).filter(Boolean)) {
+    cursor = resolve(cursor, part);
+    const stats = lstatSync(cursor, { throwIfNoEntry: false });
+    if (!stats) throw new ArtifactIntegrityError(`${label} does not exist`);
+    if (stats.isSymbolicLink()) throw new ArtifactIntegrityError(`${label} contains a symlink component`);
+  }
+}
+
+function safelyReadBoundedFile(path, ref) {
+  let fd;
+  try {
+    const noFollow = constants.O_NOFOLLOW ?? 0;
+    fd = openSync(path, constants.O_RDONLY | noFollow);
+    const before = fstatSync(fd, { bigint: true });
+    if (!before.isFile()) throw new ArtifactIntegrityError(`artifact is not a regular file: ${ref}`);
+    if (before.size > BigInt(MAX_ARTIFACT_BYTES)) throw new ArtifactIntegrityError(`artifact exceeds ${MAX_ARTIFACT_BYTES} bytes: ${ref}`);
+
+    const chunks = [];
+    let total = 0;
+    while (total <= MAX_ARTIFACT_BYTES) {
+      const chunk = Buffer.allocUnsafe(Math.min(64 * 1024, MAX_ARTIFACT_BYTES + 1 - total));
+      const count = readSync(fd, chunk, 0, chunk.length, null);
+      if (count === 0) break;
+      chunks.push(chunk.subarray(0, count));
+      total += count;
+    }
+    if (total > MAX_ARTIFACT_BYTES) throw new ArtifactIntegrityError(`artifact exceeds ${MAX_ARTIFACT_BYTES} bytes while reading: ${ref}`);
+    const after = fstatSync(fd, { bigint: true });
+    if (before.size !== after.size || before.mtimeNs !== after.mtimeNs || before.ctimeNs !== after.ctimeNs) {
+      throw new ArtifactIntegrityError(`artifact changed while being read: ${ref}`);
+    }
+    return Buffer.concat(chunks, total);
+  } catch (error) {
+    if (error instanceof ArtifactIntegrityError) throw error;
+    throw new ArtifactIntegrityError(`safe artifact open/read failed for ${ref}: ${error.message}`);
+  } finally {
+    if (fd !== undefined) closeSync(fd);
+  }
+}
+
 export class OwnedArtifactReader {
   constructor(rootPath, expectedOwner) {
     if (typeof rootPath !== 'string' || !isAbsolute(rootPath) || isUrl(rootPath)) {
       throw new ArtifactIntegrityError('artifactRoot must be an absolute local filesystem path');
     }
+    assertNoSymlinkComponents(rootPath, 'artifactRoot');
     const rootStats = lstatSync(rootPath, { throwIfNoEntry: false });
     if (!rootStats?.isDirectory()) throw new ArtifactIntegrityError('artifactRoot is missing or is not a directory');
     if (rootStats.isSymbolicLink()) throw new ArtifactIntegrityError('symlink artifactRoot refused');
@@ -92,7 +137,7 @@ export class OwnedArtifactReader {
   readBytes(descriptor, options) {
     if (!descriptor || typeof descriptor !== 'object') throw new ArtifactIntegrityError('artifact descriptor is missing');
     if (!SHA256.test(descriptor.sha256 ?? '')) throw new ArtifactIntegrityError(`artifact hash is malformed: ${String(descriptor.ref)}`);
-    const bytes = readFileSync(this.resolveRef(descriptor.ref, options));
+    const bytes = safelyReadBoundedFile(this.resolveRef(descriptor.ref, options), descriptor.ref);
     const actualSha256 = hashBytes(bytes);
     if (!hashesEqual(actualSha256, descriptor.sha256)) {
       throw new ArtifactIntegrityError(`artifact hash mismatch for ${descriptor.ref}: declared ${descriptor.sha256}, actual ${actualSha256}`);

@@ -160,8 +160,18 @@ export function evaluateCapture(capture, testCase, context = {}) {
     if (error instanceof ArtifactIntegrityError || error?.code) return fail('BLOCKED', 'artifact integrity verification failed', [error.message]);
     throw error;
   }
-  const deterministic = evaluateDeterministicEvidence(capture, testCase, artifacts, context.captureRunId);
-  const defects = [...validateDeclaredEvidence(capture, testCase, artifacts, context.captureRunId), ...deterministic.defects];
+  let deterministic;
+  let declaredDefects;
+  try {
+    deterministic = evaluateDeterministicEvidence(capture, testCase, artifacts, context.captureRunId);
+    if (deterministic.integrityDefects.length > 0) {
+      return fail('BLOCKED', deterministic.reason || 'saved artifact correlation/integrity verification failed', deterministic.integrityDefects);
+    }
+    declaredDefects = validateDeclaredEvidence(capture, testCase, artifacts, context.captureRunId);
+  } catch (error) {
+    return fail('BLOCKED', 'capture evidence evaluation failed closed', [`${error?.name || 'Error'}: ${error?.message || String(error)}`]);
+  }
+  const defects = [...declaredDefects, ...deterministic.defects];
   if (!deterministic.implemented) return fail('NOT_RUN', deterministic.reason, defects);
 
   const authorityReason = context.provenance === 'UNIT_FIXTURE_NOT_LIVE'
@@ -169,7 +179,7 @@ export function evaluateCapture(capture, testCase, context = {}) {
     : 'offline capture/auth/source authority verification is not implemented';
   const authorityStatus = context.provenance === 'UNIT_FIXTURE_NOT_LIVE' ? 'NOT_RUN' : 'BLOCKED';
   if (defects.length > 0) return fail(authorityStatus, authorityReason, defects);
-  return fail(authorityStatus, authorityReason, ['artifact hashes, correlations, row predicate and saved human rubric validated, but authority remains unproved']);
+  return fail(authorityStatus, authorityReason, ['saved artifact hashes and structural joins were checked, but capture/auth/source authority remains unverified']);
 }
 
 function validateRunManifest(bundle, errors) {
@@ -194,12 +204,18 @@ function aggregateCaseResults(testCase, captures, evaluations) {
   if (matrix.length > 0) {
     const actualKeys = new Set(captures.map((capture) => `${capture.evidence.execution.runtimeMode}\u0000${capture.evidence.execution.verificationMode}`));
     const missing = matrix.filter((entry) => !actualKeys.has(`${entry.runtimeMode}\u0000${entry.verificationMode}`));
-    if (missing.length > 0) return {
-      caseId: testCase.id,
-      status: 'NOT_RUN',
-      reason: 'required mode matrix is incomplete',
-      details: missing.map((entry) => `missing ${entry.runtimeMode}/${entry.verificationMode} capture (${entry.disposition})`),
-    };
+    if (missing.length > 0) {
+      const blocked = evaluations.find((evaluation) => evaluation.status === 'BLOCKED');
+      return {
+        caseId: testCase.id,
+        status: blocked ? 'BLOCKED' : 'NOT_RUN',
+        reason: blocked ? 'capture integrity failure with incomplete required mode matrix' : 'required mode matrix is incomplete',
+        details: [
+          ...missing.map((entry) => `missing ${entry.runtimeMode}/${entry.verificationMode} capture (${entry.disposition})`),
+          ...evaluations.flatMap((evaluation) => evaluation.details),
+        ],
+      };
+    }
     const pairIds = new Set(captures.map((capture) => capture.evidence.execution.pairId));
     if (pairIds.size !== 1) return { caseId: testCase.id, status: 'BLOCKED', reason: 'mode captures do not share one stable pair ID', details: [...pairIds] };
   }

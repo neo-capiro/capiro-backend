@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, rmSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 import { sha256RawBytes } from '../artifact-reader.mjs';
 import { RecordedCaptureProvider } from '../recorded-provider.mjs';
 import { evaluateCapture, verifyCaptureBundle } from '../verify-capture.mjs';
@@ -65,7 +65,8 @@ test('actual saved case 20 UNIT bytes and Standard/Deep matrix validate but rema
   assert.equal(report.counts.PASS, 0);
   assert.equal(result(report, '20').status, 'NOT_RUN');
   assert.match(result(report, '20').reason, /UNIT fixture.*NOT live/iu);
-  assert.match(result(report, '20').details.join('\n'), /hashes, correlations, row predicate.*validated/u);
+  assert.match(result(report, '20').details.join('\n'), /capture\/auth\/source authority remains unverified/u);
+  assert.doesNotMatch(result(report, '20').details.join('\n'), /correlations validated/u);
 });
 
 test('case 20 evaluates actual answer bytes rather than caller passed booleans', (t) => {
@@ -110,7 +111,7 @@ test('case 12 counts 500 actual saved UNIT distractor rows but still is not live
   const caseResult = result(verifyCaptureBundle(bundle), '12');
   assert.equal(caseResult.status, 'NOT_RUN');
   assert.doesNotMatch(caseResult.details.join('\n'), /500 distinct newer eligible distractors/u);
-  assert.match(caseResult.details.join('\n'), /hashes, correlations, row predicate.*validated/u);
+  assert.match(caseResult.details.join('\n'), /capture\/auth\/source authority remains unverified/u);
 });
 
 test('case 19 requires captured first-click failure and retry transitions', (t) => {
@@ -148,8 +149,8 @@ test('case 51 reconciles actual sink rows and rejects duplicate logical effects'
     capture.evidence.effects.receiptIds = sink.receipts.map((item) => item.receiptId);
   }
   const caseResult = result(verifyCaptureBundle(bundle), '51');
-  assert.equal(caseResult.status, 'NOT_RUN');
-  assert.match(caseResult.details.join('\n'), /effect count 2 does not equal expected 1|exactly one unique logical effect/u);
+  assert.equal(caseResult.status, 'BLOCKED');
+  assert.match(caseResult.details.join('\n'), /receipt.*exact.*correlation|effect trace receipt/u);
 });
 
 test('case 56 shadow-only evidence cannot satisfy the enabled/shadow pair', (t) => {
@@ -203,6 +204,107 @@ test('symlink artifact refs are refused', (t) => {
   const caseResult = result(verifyCaptureBundle(bundle), '12');
   assert.equal(caseResult.status, 'BLOCKED');
   assert.match(caseResult.details.join('\n'), /symlink artifact ref refused/u);
+});
+
+test('malformed saved trace and sink records are schema-BLOCKED without throwing', (t) => {
+  const mutations = [
+    ['null transitions', [{ id: '12' }], (root, bundle) => mutateJson(root, bundle.captures[0].evidence.run.traceArtifact, (trace) => { trace.transitions = null; })],
+    ['primitive trace record', [{ id: '12' }], (root, bundle) => mutateJson(root, bundle.captures[0].evidence.run.traceArtifact, (trace) => { trace.records[1] = null; })],
+    ['primitive source record', [{ id: '12' }], (root, bundle) => mutateJson(root, bundle.captures[0].evidence.run.traceArtifact, (trace) => { trace.records[2] = 'malicious-source-record'; })],
+    ['primitive sink receipt', [{ id: '51', runtimeMode: 'Standard', pairId: 'case51-pair' }, { id: '51', runtimeMode: 'Deep', pairId: 'case51-pair' }], (root, bundle) => {
+      for (const capture of bundle.captures) {
+        const descriptor = { ref: capture.evidence.effects.sinkRef, sha256: capture.evidence.effects.sinkSha256 };
+        mutateJson(root, descriptor, (sink) => { sink.receipts[0] = null; });
+        capture.evidence.effects.sinkSha256 = descriptor.sha256;
+      }
+    }],
+  ];
+  for (const [label, variants, mutate] of mutations) {
+    const { root, bundle } = unit(t, variants);
+    mutate(root, bundle);
+    const caseResult = result(verifyCaptureBundle(bundle), variants[0].id);
+    assert.equal(caseResult.status, 'BLOCKED', label);
+    assert.match(`${caseResult.reason}\n${caseResult.details.join('\n')}`, /saved artifact schema validation failed|saved artifact schema violation/u, label);
+  }
+});
+
+test('saved source records join declared runtime calls and exact authorization scope', (t) => {
+  for (const mutation of ['phantom-tool', 'wrong-scope']) {
+    const { root, bundle } = unit(t, [{ id: '12', completeCase12Setup: true }]);
+    const trace = bundle.captures[0].evidence.run.traceArtifact;
+    mutateJson(root, trace, (value) => {
+      const source = value.records.find((record) => record.kind === 'source');
+      if (mutation === 'phantom-tool') {
+        source.toolCallId = 'phantom-not-in-runtime-tools';
+        value.records.push({ ...value.records.find((record) => record.kind === 'tool'), callId: source.toolCallId });
+      } else {
+        source.authorizationScope = { ...source.authorizationScope, tenantId: 'wrong-tenant' };
+      }
+    });
+    const caseResult = result(verifyCaptureBundle(bundle), '12');
+    assert.equal(caseResult.status, 'BLOCKED', mutation);
+    assert.match(caseResult.details.join('\n'), /declared-tool|authorization scope/u, mutation);
+  }
+});
+
+test('citation locator and version bind the saved source metadata', (t) => {
+  const { bundle } = unit(t, [
+    { id: '20', runtimeMode: 'Standard', pairId: 'case20-pair' },
+    { id: '20', runtimeMode: 'Deep', pairId: 'case20-pair' },
+  ]);
+  for (const capture of bundle.captures) {
+    capture.evidence.sources.citations[0].locator = 'made-up-page-999';
+    capture.evidence.sources.citations[0].version = 'invented-version';
+  }
+  const caseResult = result(verifyCaptureBundle(bundle), '20');
+  assert.equal(caseResult.status, 'BLOCKED');
+  assert.match(caseResult.details.join('\n'), /source→declared-tool→trace correlation/u);
+});
+
+test('sink receipt IDs bind exactly to proposal/effect trace records', (t) => {
+  const { root, bundle } = unit(t, [
+    { id: '51', runtimeMode: 'Standard', pairId: 'case51-pair' },
+    { id: '51', runtimeMode: 'Deep', pairId: 'case51-pair' },
+  ]);
+  for (const capture of bundle.captures) {
+    const descriptor = { ref: capture.evidence.effects.sinkRef, sha256: capture.evidence.effects.sinkSha256 };
+    const sink = mutateJson(root, descriptor, (value) => { value.receipts[0].receiptId = `switched-${value.receipts[0].receiptId}`; });
+    capture.evidence.effects.sinkSha256 = descriptor.sha256;
+    capture.evidence.effects.receiptIds = [sink.receipts[0].receiptId];
+  }
+  const caseResult = result(verifyCaptureBundle(bundle), '51');
+  assert.equal(caseResult.status, 'BLOCKED');
+  assert.match(caseResult.details.join('\n'), /exact proposal→effect→receipt|no exact authoritative sink receipt/u);
+});
+
+test('incomplete mode matrix retains underlying BLOCKED artifact diagnostics', (t) => {
+  const { bundle } = unit(t, [{ id: '20', runtimeMode: 'Standard' }]);
+  bundle.captures[0].evidence.status.answerRef = '../invalid';
+  const caseResult = result(verifyCaptureBundle(bundle), '20');
+  assert.equal(caseResult.status, 'BLOCKED');
+  assert.match(caseResult.reason, /integrity failure.*incomplete required mode matrix/u);
+  assert.match(caseResult.details.join('\n'), /missing Deep\/default|traversal/u);
+});
+
+test('a symlink in an artifactRoot ancestor is refused', (t) => {
+  const { root, bundle } = unit(t, [{ id: '12', completeCase12Setup: true }]);
+  const alias = `${root}-parent-alias`;
+  symlinkSync(dirname(root), alias, 'dir');
+  t.after(() => rmSync(alias, { force: true }));
+  bundle.artifactRoot = join(alias, basename(root));
+  const report = verifyCaptureBundle(bundle);
+  assert.equal(report.valid, false);
+  assert.equal(report.counts.BLOCKED, 75);
+  assert.match(report.errors.join('\n'), /artifactRoot contains a symlink component/u);
+});
+
+test('saved artifact reads enforce the byte bound before allocation', (t) => {
+  const { root, bundle } = unit(t, [{ id: '12' }]);
+  const answer = bundle.captures[0].evidence.status.answerRef;
+  truncateSync(join(root, ...answer.split('/')), 16 * 1024 * 1024 + 1);
+  const caseResult = result(verifyCaptureBundle(bundle), '12');
+  assert.equal(caseResult.status, 'BLOCKED');
+  assert.match(caseResult.details.join('\n'), /exceeds 16777216 bytes/u);
 });
 
 test('schema validation rejects malformed actual capture shapes before evaluation', (t) => {

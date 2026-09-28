@@ -112,6 +112,7 @@ function makeCapture(root, id, { runtimeMode = 'Standard', verificationMode = 'd
   const sink = sinkValue ? writeArtifact(root, `${prefix}/sink.json`, sinkValue) : null;
 
   const authValue = { schemaVersion: 1, captureRunId, caseId: id, runId, traceId, sessionId: `session-${suffix}`, actorId: testCase.actor, actorTenantId, selectedTenantId: actorTenantId, selectedClientId: testCase.client, issuer: 'unit-fixture-not-live' };
+  const authorizationScope = { sessionId: authValue.sessionId, actorId: testCase.actor, tenantId: actorTenantId, clientId: testCase.client };
   const auth = writeArtifact(root, `${prefix}/auth.json`, authValue);
   const uiValue = testCase.surface === 'api' ? null : { schemaVersion: 1, captureRunId, caseId: id, runId, traceId, operationId, proposalId, route: '/meri', event: 'controlled-unit-ui-record' };
   const ui = uiValue ? writeArtifact(root, `${prefix}/ui.json`, uiValue) : null;
@@ -147,8 +148,8 @@ function makeCapture(root, id, { runtimeMode = 'Standard', verificationMode = 'd
     stablePointersVerified: requirements.previousTurns.stablePointersRequired ? true : undefined,
   } : null;
   const injectedFaults = (requirements?.injectedFaults ?? []).map((fault) => ({ ...fault }));
-  const toolRecords = consulted.map((sourceId, index) => ({ kind: 'tool', caseId: id, runId, traceId, callId: `call-${suffix}-${index}`, name: `controlled-tool-${sourceId}`, status: id === '72' ? 'partial' : 'complete', sourceIds: [sourceId], operationId, httpStatus: id === '72' ? 200 : 200, logicalError: id === '72' ? 'document unavailable' : null }));
-  const sourceRecords = consulted.map((sourceId, index) => ({ kind: 'source', caseId: id, runId, traceId, sourceId, passageSha256: passageDescriptors.get(sourceId).sha256, toolCallId: `call-${suffix}-${index}` }));
+  const toolRecords = consulted.map((sourceId, index) => ({ kind: 'tool', caseId: id, runId, traceId, callId: `call-${suffix}-${index}`, name: `controlled-tool-${sourceId}`, status: id === '72' ? 'partial' : 'complete', sourceIds: [sourceId], operationId, httpStatus: 200, logicalError: id === '72' ? 'document unavailable' : null, authorizationScope }));
+  const sourceRecords = consulted.map((sourceId, index) => ({ kind: 'source', caseId: id, runId, traceId, sourceId, passageSha256: passageDescriptors.get(sourceId).sha256, toolCallId: `call-${suffix}-${index}`, version: 'controlled-unit-v1', locator: `unit:${sourceId}`, authorizationScope }));
   const effectRecords = hasEffect ? [
     { kind: 'proposal', caseId: id, runId, traceId, proposalId, payloadSha256: payload.sha256 },
     { kind: 'effect', caseId: id, runId, traceId, operationId, proposalId, receiptId, logicalEffectId },
