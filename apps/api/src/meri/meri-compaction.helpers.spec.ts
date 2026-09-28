@@ -503,6 +503,89 @@ describe('protocol-safe compaction receipts', () => {
     expect(allocation.totalChars + 100).toBeLessThanOrEqual(120);
   });
 
+  test('charges the notice separator at no-pending exact-fit and protected-state boundaries', () => {
+    const messages = [
+      { id: 'u0', role: 'user' as const, body: 'u'.repeat(400) },
+      { id: 'a0', role: 'assistant' as const, body: 'a'.repeat(400) },
+      { id: 'u1', role: 'user' as const, body: 'x'.repeat(30) },
+      { id: 'a1', role: 'assistant' as const, body: 'y'.repeat(30) },
+    ];
+
+    for (const { maxChars, protectedStateChars } of [
+      { maxChars: 334, protectedStateChars: 0 },
+      { maxChars: 335, protectedStateChars: 0 },
+      { maxChars: 434, protectedStateChars: 100 },
+      { maxChars: 435, protectedStateChars: 100 },
+    ]) {
+      const allocation = allocateBoundedReplayHistory(messages, {
+        maxChars,
+        protectedStateChars,
+      });
+      expect(allocation.history.map((message) => message.id)).toEqual([
+        'server-bounded-replay-notice',
+      ]);
+      expect(allocation.omittedMessages).toBe(4);
+      expect(allocation.omittedCharacters).toBe(860);
+      expect(allocation.totalChars + protectedStateChars).toBeLessThanOrEqual(maxChars);
+    }
+
+    for (const { maxChars, protectedStateChars } of [
+      { maxChars: 336, protectedStateChars: 0 },
+      { maxChars: 436, protectedStateChars: 100 },
+    ]) {
+      const allocation = allocateBoundedReplayHistory(messages, {
+        maxChars,
+        protectedStateChars,
+      });
+      expect(allocation.history.map((message) => message.id)).toEqual(['u1', 'a1']);
+      expect(allocation.history[0]?.body).toMatch(/^\[SERVER REPLAY NOTICE:/);
+      expect(allocation.history[0]?.body.endsWith('x'.repeat(30))).toBe(true);
+      expect(allocation.omittedMessages).toBe(2);
+      expect(allocation.omittedCharacters).toBe(800);
+      expect(allocation.totalChars).toBe(336);
+      expect(allocation.totalChars + protectedStateChars).toBe(maxChars);
+    }
+  });
+
+  test('charges the separator for the first retained pair instead of an empty or tiny pending body', () => {
+    const complete = [
+      { id: 'u0', role: 'user' as const, body: 'u'.repeat(400) },
+      { id: 'a0', role: 'assistant' as const, body: 'a'.repeat(400) },
+      { id: 'u1', role: 'user' as const, body: 'x'.repeat(30) },
+      { id: 'a1', role: 'assistant' as const, body: 'y'.repeat(30) },
+    ];
+
+    for (const { body, maxChars } of [
+      { body: '', maxChars: 334 },
+      { body: 'p', maxChars: 335 },
+    ]) {
+      const allocation = allocateBoundedReplayHistory(
+        [...complete, { id: 'u2', role: 'user', body }],
+        { maxChars },
+      );
+      expect(allocation.history.map((message) => message.id)).toEqual(['u2']);
+      expect(allocation.history[0]?.body.endsWith(body)).toBe(true);
+      expect(allocation.omittedMessages).toBe(4);
+      expect(allocation.omittedCharacters).toBe(860);
+      expect(allocation.totalChars).toBeLessThanOrEqual(maxChars);
+    }
+
+    for (const { body, maxChars } of [
+      { body: '', maxChars: 336 },
+      { body: 'p', maxChars: 337 },
+    ]) {
+      const allocation = allocateBoundedReplayHistory(
+        [...complete, { id: 'u2', role: 'user', body }],
+        { maxChars },
+      );
+      expect(allocation.history.map((message) => message.id)).toEqual(['u1', 'a1', 'u2']);
+      expect(allocation.history.at(-1)).toEqual({ id: 'u2', role: 'user', body });
+      expect(allocation.omittedMessages).toBe(2);
+      expect(allocation.omittedCharacters).toBe(800);
+      expect(allocation.totalChars).toBe(maxChars);
+    }
+  });
+
   test('rejects invalid budgets and an already-over-budget protected state explicitly', () => {
     const pending = [{ id: 'u0', role: 'user' as const, body: 'pending' }];
     for (const maxChars of [Number.NaN, Number.POSITIVE_INFINITY, -1, 0]) {

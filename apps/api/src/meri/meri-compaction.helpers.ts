@@ -333,11 +333,18 @@ export function allocateBoundedReplayHistory(
   let { omittedMessages, omittedCharacters } = omissionStats();
   const wholeMessageNotice = () =>
     `[SERVER REPLAY NOTICE: ${omittedMessages} older conversation message(s) and ${omittedCharacters} characters were omitted by bounded history allocation. No callable full-message retriever is available in this request. Ask the user to restate any missing objective or constraint; do not infer omitted content.]`;
+  const noticeSeparatorChars = () => {
+    const recipient = selectedPairs[0]?.[0] ?? boundedPending;
+    return recipient?.message.body.length ? 2 : 0;
+  };
 
   let aggregateNotice: string | null = null;
   if (omittedMessages > 0) {
     let notice = wholeMessageNotice();
-    while (selectedPairs.length && selectedChars + notice.length > historyBudget) {
+    while (
+      selectedPairs.length &&
+      selectedChars + notice.length + noticeSeparatorChars() > historyBudget
+    ) {
       // Notice growth may only trim the oldest edge of the selected suffix.
       const removed = selectedPairs.shift()!;
       selectedChars -= removed[0].message.body.length + removed[1].message.body.length;
@@ -351,13 +358,20 @@ export function allocateBoundedReplayHistory(
         .reduce((sum, entry) => sum + entry.message.body.length, 0);
       for (let attempt = 0; attempt < 32; attempt += 1) {
         const roomAfterNotice = historyBudget - pairChars - notice.length;
-        const pendingLimit = roomAfterNotice > 2 ? roomAfterNotice - 2 : 0;
+        const pairRecipientSeparatorChars = selectedPairs[0]?.[0].message.body.length ? 2 : 0;
+        const pendingLimit = selectedPairs.length
+          ? Math.max(0, roomAfterNotice - pairRecipientSeparatorChars)
+          : roomAfterNotice > 2
+            ? roomAfterNotice - 2
+            : 0;
         boundedPending = boundedEntry(pendingUser!, Math.min(MAX_REPLAY_BODY_CHARS, pendingLimit));
         ({ omittedMessages, omittedCharacters } = omissionStats());
         const nextNotice = wholeMessageNotice();
-        const separatorChars = boundedPending.message.body.length > 0 ? 2 : 0;
         if (
-          nextNotice.length + separatorChars + boundedPending.message.body.length + pairChars <=
+          nextNotice.length +
+            noticeSeparatorChars() +
+            boundedPending.message.body.length +
+            pairChars <=
           historyBudget
         ) {
           notice = nextNotice;
@@ -375,7 +389,7 @@ export function allocateBoundedReplayHistory(
         );
         ({ omittedMessages, omittedCharacters } = omissionStats());
       }
-    } else if (notice.length <= historyBudget - selectedChars) {
+    } else if (notice.length + noticeSeparatorChars() <= historyBudget - selectedChars) {
       aggregateNotice = notice;
     }
 
