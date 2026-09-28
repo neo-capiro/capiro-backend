@@ -28,17 +28,58 @@ Evidence root: C:/dev/cap-meri-foundation-evidence. Reports are bounded source/t
 - P0B aeec5a816: 87 provider/runtime tests and 52 proposal-service tests pass, orchestrator typecheck exit 0. API-wide typecheck remains affected by unrelated setup/source diagnostics. Review found research-finalization bypass and post-effect receipt/retry gaps; static findings are being reproduced and repaired, not represented as live defects.
 - P0C dfbb96738: 30 controller/card/work-state tests and web typecheck exit 0. Controlled local fixtures cover lost acknowledgment, authoritative status reconciliation and double-click. Authenticated workspace acceptance remains NOT_RUN.
 - P1A 18ade6264: baseline old-memory regression failed, candidate 45/45 tests exit 0. Real SQL query performance/correctness, authorization continuation and served recall remain NOT_RUN.
-- Fixture a3b159fcd: five pure Node tests exit 0. Independent review found ready-manifest ID, ownership/roster/grant and firm-review-role gaps. No tenant/user has yet been created by this task; repair is underway.
+- Fixture a3b159fcd: at the initial checkpoint, five pure Node tests exited 0 and review found ownership/roster/grant gaps. Later source review and actual creation results supersede that setup status below.
 - CI: missing capiro_worker during disposable migrations is reproduced on base main and the recovery PR. Earlier ECR public base-image rate limit cleared on the updated run. Other CI failures remain under investigation; there is no global green verdict and no gate bypass.
 - Read-only AWS/database preflight: API task definition 483, image digest sha256:640f76d01bd6d0b7658f1229aee90cd7979c75d8b0f7ab7df76a5d5b7abc3c68, ECR tag 42942dedad59382f4b4aac6f904b9aee0e02efa6. Database reachable locally; six bootstrap models have all expected columns. Historical migration drift is recorded separately, with no migration attempted. ECS exec agents are STOPPED; no service restart requested.
 
-## Active bounded work
+## Checkpoint — 2026-09-28 01:18 UTC
 
-- Read-tool outcomes: codex/meri-read-outcomes in C:/dev/cap-meri-outcomes-validation.
-- Provider/post-effect reconciliation: codex/meri-outcome-reconciliation in C:/dev/cap-meri-memory-recall.
-- Native durable research: codex/meri-durable-research in C:/dev/cap-meri-approval-recovery.
-- Isolated fixture hardening: codex/meri-fixture-hardening in C:/dev/cap-meri-fixture-hardening. Fourth implementation slot is temporarily justified by an independent pure-Node setup slice and confirmed 16-core/64-GB host capacity.
-- Independent review: read-only exact candidate in C:/dev/cap-meri-foundation-review, currently approval UI.
+Additional preserved GitHub topic commits: truthful read outcomes `e4b6eec9e23962812dc80029e6e064d017ba3beb`, durable research receipts `a72470f0d21e920a763f0324410584513a8f2ea6`, effect reconciliation `aabf0c049c1bb4ba90875a473d7077d54fc3995a`, approval recovery hardening `ed25c7eeaa6cd02c28176e1a220b53971d203daa`, disposable CI bootstrap `99fb1776d3688844c39a1f0c9cb488af8072d06c`, fixture ownership hardening `f662c4598897b03abc841a400f06b67d1b48de42`. Publication is backup/review availability, not acceptance or integration into either main.
+
+- Effect reconciliation: actual Responses/research composition reproduced two failures before repair; final 94 orchestrator tests, 54 proposal tests, two real-handler tests, orchestrator typecheck/build exit 0. Independent review remains pending. Scheduler concurrent uniqueness and complete unknown-receipt recovery remain unresolved. Combined API test OOM was preserved and constituent tests rerun successfully.
+- Approval hardening: 27 web tests, 47 service tests, 11 HTTP tests and web typecheck exit 0. Bounded exact-receipt recovery, transient failure persistence and bulk eligibility fixes are under independent review. Fresh-reload discovery of an old receipt beyond 100 rows remains unresolved.
+- Memory recall review rejected broad qualification: semantic candidates can crowd out unembedded lexical matches; SQL JSON scoring differs from body scoring; multiple embedding models can reorder results. Repair now includes actual embedded PostgreSQL tests, not just mocked query results. SQL/live qualification remains NOT_RUN.
+- Read-outcome review found incomplete memory coverage, malformed rich context fallback and mail body status mismatches. A bounded correction is running.
+- Durable research commit adds existing-session fencing and step receipts but does not yet persist full resumable result bytes or complete goals, aggregate budgets, steering, children and UI. It is not a full durable execution pass.
+- CI bootstrap six offline contracts and syntax/format checks exit 0. Independent review and actual GitHub disposable database replay are pending. Existing main catalog/prompt assertions reproduce 4 failures / 34 passes; broad formatting failures remain. No gate is bypassed.
+
+### Actual synthetic setup side effects
+
+Authorized first application at source `baace8ff69efbb759042c2aedf713248f3b3d69a` created four synthetic Clerk users, two owned organizations and four memberships. A strict empty-namespace preflight ran first. Database application failed with PostgreSQL 42501 at the memory reviewer grant because this policy requires transaction tenant context even when the other setup queries use the existing bypass setting. The transaction rolled back; the Clerk resources remain and must be reused, not recreated. The private provisional manifest and first-apply lock are retained under `C:/dev/cap-meri-foundation-evidence/private`; no credential or private identity material belongs in this repository.
+
+`fixture-create-once.log` and `fixture-create-once-exit.json` are direct failure evidence. Tenant context is being repaired using existing policy, with no policy/schema/privilege change. Roster hardening now has 17 pure tests at `f662c4598`. Setup is not READY and no full live acceptance case has passed. No external messages, provider operations, billing/Stripe writes, deployment or migration has been performed.
+
+## Active bounded work (supersedes earlier assignments)
+
+- Read-tool coverage correction: C:/dev/cap-meri-memory-recall.
+- Actual SQL memory recall correction: C:/dev/cap-meri-outcomes-validation.
+- Fixture tenant-context correction: C:/dev/cap-meri-fixture-hardening.
+- Independent CI review: C:/dev/cap-meri-foundation-review.
+- Independent approval review: C:/dev/cap-meri-baseline-lock-parity.
+
+## Checkpoint — 2026-09-28 01:45 UTC
+
+Synthetic setup is READY at `ac49269f71c40762062546b4b20abe32abdb69cf`, with 18 pure tests and independent narrow source approval. Resume of the original provisional manifest exited 0 and preserved all original Clerk identities. A separate read-only database audit exited 0: two tenants, four users, four memberships, three clients, two wall grants and two bounded reviewer grants match the manifest. Four database users were created by Clerk webhooks before resume; they were reused. Manifest SHA256: `45fe8239aa0ca6de485d93d53c00d1a3e9fd5b86eb2992d45e1be100ad99f991`. No provider connector, message send, Stripe write or application turn was issued.
+
+Authenticated Playwright sign-in as synthetic Pat succeeded at os.capiro.ai. The actual page `/meri/new` reports `MeriV3 is not enabled for this tenant`; this is setup evidence, not a completed acceptance case. Neo explicitly approved adding only the two owned synthetic tenant slugs to the API/orchestrator Meri allowlists and enabling their `meriv3.fullChat` flags through the approved release workflow. Exact immutable images, existing cohort, proposed diff and rollback are in the local user-facing `outputs/synthetic-meri-enablement.json`. Status: APPROVED, NOT APPLIED. The existing build workflows do not support this configuration change; a bounded manual Actions implementation is being prepared. No direct AWS deployment fallback is authorized while Actions is operating.
+
+Additional published candidate commits:
+
+| Slice | Candidate | Evidence / disposition |
+|---|---|---|
+| Read coverage | `4bedfaacbab3735fe7092f6a827887d2fe2e4c1c` | 71 focused tests exit 0; corrects reviewed coverage, final-page and context-section gaps; final review pending |
+| Actual served approval UI | `932e9c37933f1e64adc82bf8a7adf6866cab3b0b` | 126 focused tests, web typecheck, changed-file format exit 0; independent review pending; historical reload gap still open |
+| Canonical memory SQL | `2a8d5d96cc2d14c812ac92d9578befffd97c1e5a` | 52 tests and API build exit 0; real PGlite production lexical SQL over 1,009 rows retrieves older target at rank 1 and excludes scoped controls; native pgvector/live performance unqualified |
+| Scheduler stable receipt | `d87405cae684600c0f16cb80772d730c78065fa3` | 64 focused tests exit 0; trusted proposal UUID primary key, scoped fingerprint, read-only unknown recovery; independent review and DB race proof pending |
+| CI loopback binding | `7c139ac0bd1a70420cbd7d66525fa19330559181` | 8 local contracts + independent review; PR 1902 updated; actual role-bootstrap step passes, migration replay now exposes missing pre-existing append-only function |
+
+Direct CI evidence at 7c139: `ci-recovery-memory-7c139-failed.log` records PostgreSQL 42883 for `reject_append_only_mutation()`. Read-only live schema inspection confirms that function and its delivery table already exist without the matching Phase 10 migration ledger entry. No migration or live repair was attempted. An attempted additive prerequisite commit `d6feceb10` failed the existing migration-order guard and is NOT accepted; the correction is restricted to explicit disposable CI baseline setup and must preserve every existing migration byte and the guard.
+
+Independent outcome review accepts the original provider-entry guard, same-batch dedup and acknowledged reply-email receipt scope, but found two still-unqualified output boundaries: incomplete critic prose entering synthesis and forced synthesis releasing incomplete text. These remain required P0B work. Independent durable review found an expired owner terminal-write path, untruthful safe-read classification of generic progress events, incomplete delivery authorization and progress-write errors swallowing terminal notifications. These are being repaired before integration; full result-byte persistence and restart recovery remain separate mandatory work.
+
+Fifty-one exact pinned Hermes source/license/test files were acquired from the local Git objects for the two plan-specified SHAs, with a SHA256 inventory under the evidence `upstream` directory. Acquisition is not production adoption; translated tests and notices remain required per adaptation.
+
+Current writers: runtime bounds in outcomes-validation; approved synthetic cohort workflow in approval-recovery; durable API fencing in memory-recall; disposable CI prerequisite in fixture-hardening. Four independent slices run on the verified 16-CPU / 62.9-GiB host (43.1 GiB free at dispatch). Reviewers independently inspect memory SQL and the served vNext approval fix. No uncontrolled delegation. No main merge, image deployment or migration has occurred.
 
 ## Remaining mandatory scope
 
