@@ -169,6 +169,19 @@ import { getResearchEvidence } from './meri-research-evidence.helpers.js';
 import { buildDocumentReadPage, parseDocumentReadInput } from './meri-document-read.helpers.js';
 import { MeriChatAttachmentReadService } from './meri-chat-attachment-read.service.js';
 import { buildDebriefReadResult, parseDebriefReadInput } from './meri-debrief-read.helpers.js';
+import {
+  buildMeetingListResult,
+  buildMeetingSourceResult,
+  parseMeetingReadInput,
+  type ExactMeetingSource,
+  type MeetingReadRow,
+  type MeetingSourceInventory,
+} from './meri-meeting-read.helpers.js';
+import { buildMeriTaskReadResult, parseMeriTaskReadInput } from './meri-task-read.helpers.js';
+import {
+  buildMeriActionItemReadResult,
+  parseMeriActionItemReadInput,
+} from './meri-action-item-read.helpers.js';
 import { MeriClientFilingService } from './meri-client-filing.service.js';
 import { MeriBizDevToolsService } from './meri-bizdev-tools.service.js';
 import {
@@ -281,23 +294,25 @@ function scheduleEffectFingerprint(
   effect: Omit<NormalizedScheduleEffect, 'fingerprint'>,
 ): string {
   return createHash('sha256')
-    .update(JSON.stringify({
-      version: SCHEDULE_EFFECT_FINGERPRINT_VERSION,
-      tenantId: ctx.tenantId,
-      actorUserId: ctx.userId,
-      clientId: effect.clientId,
-      schedule: {
-        name: effect.name,
-        prompt: effect.prompt,
-        intervalMinutes: effect.intervalMinutes,
-        runAtMinutesUtc: effect.runAtMinutesUtc,
-        toolAllowList: effect.allowList,
-      },
-      emailRecipient: {
-        intent: effect.emailRecipientIntent,
-        address: effect.emailTo,
-      },
-    }))
+    .update(
+      JSON.stringify({
+        version: SCHEDULE_EFFECT_FINGERPRINT_VERSION,
+        tenantId: ctx.tenantId,
+        actorUserId: ctx.userId,
+        clientId: effect.clientId,
+        schedule: {
+          name: effect.name,
+          prompt: effect.prompt,
+          intervalMinutes: effect.intervalMinutes,
+          runAtMinutesUtc: effect.runAtMinutesUtc,
+          toolAllowList: effect.allowList,
+        },
+        emailRecipient: {
+          intent: effect.emailRecipientIntent,
+          address: effect.emailTo,
+        },
+      }),
+    )
     .digest('hex');
 }
 
@@ -1564,17 +1579,21 @@ export class MeriToolsService {
       cancel_scheduled_task: obj({ taskId: str('Scheduled task UUID') }, ['taskId']),
       query_tasks: obj({
         clientId: str('Optional client UUID'),
+        taskId: str('Optional exact native task UUID; requires clientId'),
         status: str('Optional: open | overdue | todo | in_progress | done | blocked | canceled'),
         dueBefore: str('Optional ISO date upper bound on due date'),
         limit: int('Max results (1-50)'),
+        cursor: str('Opaque nextCursor for exact client-scoped native task pagination'),
       }),
       query_action_items: obj({
         clientId: str('Optional client UUID filter'),
+        actionItemId: str('Optional exact action-recommendation UUID; requires clientId'),
         status: str(
           'Optional status: new | triaged | assigned | drafting | ready_for_review | sent_to_client | outreach_completed | monitoring | dismissed | archived',
         ),
         sort: str('Sort order: deadline (default) | priority'),
         limit: int('Max results (1-50)'),
+        cursor: str('Opaque nextCursor for exact client-scoped action-item pagination'),
       }),
       search_tracked_bills: obj({ clientId: str('Client UUID') }, ['clientId']),
       query_regulatory_dockets: obj({
@@ -1618,6 +1637,37 @@ export class MeriToolsService {
           characterLimit: int(
             'Maximum exact body characters per debrief (1-6000; default 1500 for lists and 5000 for debriefId reads).',
           ),
+        },
+        ['clientId'],
+      ),
+      read_client_meetings: obj(
+        {
+          clientId: str('Exact selected client UUID'),
+          meetingId: str(
+            'Optional exact meeting UUID. Without sourceKind/sourceId, returns its authorized note/transcript source inventory.',
+          ),
+          sourceKind: {
+            type: 'string',
+            enum: ['note', 'transcript'],
+            description: 'Exact persisted meeting source family; requires meetingId and sourceId.',
+          },
+          sourceId: str(
+            'Exact note UUID or persisted transcript attachment UUID from a prior meeting inventory.',
+          ),
+          from: str(
+            'Optional inclusive ISO timestamp lower bound on meeting start. Omit for all eligible history.',
+          ),
+          to: str(
+            'Optional inclusive ISO timestamp upper bound on meeting start. Omit for all eligible history.',
+          ),
+          cursor: str(
+            'Opaque nextCursor from the preceding meeting list or source-body page. Repeat the same scope and identities.',
+          ),
+          limit: int('Maximum authorized meeting rows per inventory page (1-25, default 25).'),
+          characterOffset: int(
+            '0-based exact source-body offset for an initial sourceId read. Prefer cursor for continuation.',
+          ),
+          characterLimit: int('Maximum exact source characters per page (1-6000, default 5000).'),
         },
         ['clientId'],
       ),
@@ -2348,10 +2398,7 @@ export class MeriToolsService {
     assertMeriToolRequestActive();
     const capturePolicy =
       currentMeriToolCapturePolicy() ?? currentMeriServerReadonlyCapturePolicy();
-    assertMeriServerReadonlyCaptureToolAllowed(
-      String(name),
-      capturePolicy,
-    );
+    assertMeriServerReadonlyCaptureToolAllowed(String(name), capturePolicy);
     await assertMeriServerReadonlyCaptureCurrentAuthority({
       prisma: this.prisma,
       ctx,
@@ -2565,6 +2612,8 @@ export class MeriToolsService {
         return this.searchSamOpportunities(ctx, input);
       case 'query_debriefs':
         return this.queryDebriefs(ctx, input);
+      case 'read_client_meetings':
+        return this.readClientMeetings(ctx, input);
       case 'read_client_documents':
         return this.readClientDocuments(ctx, input);
       case 'query_outreach':
@@ -6819,8 +6868,14 @@ export class MeriToolsService {
     const bodyOffset = input.bodyOffset == null ? 0 : Number(input.bodyOffset);
     const limit = input.limit == null ? 3 : Number(input.limit);
     const maxCharacters = input.maxCharacters == null ? 2000 : Number(input.maxCharacters);
-    if (!uuid.test(threadId) || (clientId && !uuid.test(clientId)) || (messageId && !uuid.test(messageId))) {
-      return { error: 'Use exact threadId, clientId and messageId UUIDs returned by the mail tools.' };
+    if (
+      !uuid.test(threadId) ||
+      (clientId && !uuid.test(clientId)) ||
+      (messageId && !uuid.test(messageId))
+    ) {
+      return {
+        error: 'Use exact threadId, clientId and messageId UUIDs returned by the mail tools.',
+      };
     }
     if (
       !Number.isInteger(messageOffset) ||
@@ -6845,7 +6900,8 @@ export class MeriToolsService {
     // Reuse the endpoint's tenant, owner and active-message authorization. No
     // provider network call, read-receipt mutation, or message send is involved.
     const thread = await this.engagement.getMailThread(ctx, threadId, clientId || undefined);
-    if (clientId && thread.clientId !== clientId) throw new NotFoundException('Mail thread not found');
+    if (clientId && thread.clientId !== clientId)
+      throw new NotFoundException('Mail thread not found');
     const matching = messageId
       ? thread.messages.filter((message) => message.id === messageId)
       : thread.messages;
@@ -7044,8 +7100,7 @@ export class MeriToolsService {
     });
 
     let artifactPersistence:
-      | { persisted: true }
-      | { persisted: false; error?: string; reason?: string } = conversationId
+      { persisted: true } | { persisted: false; error?: string; reason?: string } = conversationId
       ? { persisted: true }
       : { persisted: false, reason: 'No conversationId was supplied; no artifact was requested.' };
     if (conversationId) {
@@ -7122,7 +7177,10 @@ export class MeriToolsService {
       for (const section of spec.sections) {
         section.images = [
           ...section.images,
-          ...(await this.resolveChartImages(ctx, section.imageArtifactIds, { conversationId, clientId })),
+          ...(await this.resolveChartImages(ctx, section.imageArtifactIds, {
+            conversationId,
+            clientId,
+          })),
         ];
         if (section.images.length > MAX_IMAGES_PER_BLOCK) {
           throw new BadRequestException(
@@ -7158,7 +7216,10 @@ export class MeriToolsService {
       for (const slide of spec.slides) {
         slide.images = [
           ...slide.images,
-          ...(await this.resolveChartImages(ctx, slide.imageArtifactIds, { conversationId, clientId })),
+          ...(await this.resolveChartImages(ctx, slide.imageArtifactIds, {
+            conversationId,
+            clientId,
+          })),
         ];
         if (slide.images.length > MAX_IMAGES_PER_BLOCK) {
           throw new BadRequestException(
@@ -7273,9 +7334,14 @@ export class MeriToolsService {
       }),
     );
     if (!artifact || !artifact.bodyText || isInternalClioArtifact(artifact)) return null;
-    if (!artifact.conversation || artifact.conversation.tenantId !== ctx.tenantId ||
-        artifact.conversation.userId !== ctx.userId || artifact.conversation.archivedAt ||
-        artifact.conversation.clientId !== artifact.clientId) return null;
+    if (
+      !artifact.conversation ||
+      artifact.conversation.tenantId !== ctx.tenantId ||
+      artifact.conversation.userId !== ctx.userId ||
+      artifact.conversation.archivedAt ||
+      artifact.conversation.clientId !== artifact.clientId
+    )
+      return null;
     if (artifact.clientId) {
       if (!this.contextPlane) return null;
       const security = await this.contextPlane.securityEnvelope(ctx);
@@ -7322,20 +7388,31 @@ export class MeriToolsService {
       meta.documentByteAuthority,
     ].some((value) => value !== undefined);
     if (hasPersistedByteFields) {
-      if (typeof meta.documentBytesBase64 !== 'string' ||
-          meta.documentBytesBase64.length > Math.ceil(MAX_DOCUMENT_ARTIFACT_BYTES / 3) * 4 + 4 ||
-          typeof meta.documentSha256 !== 'string' || !/^[0-9a-f]{64}$/.test(meta.documentSha256) ||
-          meta.documentByteFormat !== nativeFormat ||
-          meta.documentByteAuthority !== 'persisted_at_creation_v1' ||
-          typeof meta.documentByteLength !== 'number' || !Number.isSafeInteger(meta.documentByteLength) ||
-          meta.documentByteLength < 1 || meta.documentByteLength > MAX_DOCUMENT_ARTIFACT_BYTES) {
-        throw new UnprocessableEntityException('The saved document bytes failed their integrity receipt.');
+      if (
+        typeof meta.documentBytesBase64 !== 'string' ||
+        meta.documentBytesBase64.length > Math.ceil(MAX_DOCUMENT_ARTIFACT_BYTES / 3) * 4 + 4 ||
+        typeof meta.documentSha256 !== 'string' ||
+        !/^[0-9a-f]{64}$/.test(meta.documentSha256) ||
+        meta.documentByteFormat !== nativeFormat ||
+        meta.documentByteAuthority !== 'persisted_at_creation_v1' ||
+        typeof meta.documentByteLength !== 'number' ||
+        !Number.isSafeInteger(meta.documentByteLength) ||
+        meta.documentByteLength < 1 ||
+        meta.documentByteLength > MAX_DOCUMENT_ARTIFACT_BYTES
+      ) {
+        throw new UnprocessableEntityException(
+          'The saved document bytes failed their integrity receipt.',
+        );
       }
       const decoded = Buffer.from(meta.documentBytesBase64, 'base64');
-      if (decoded.toString('base64') !== meta.documentBytesBase64 ||
-          decoded.length !== meta.documentByteLength ||
-          sha256Bytes(decoded) !== meta.documentSha256) {
-        throw new UnprocessableEntityException('The saved document bytes failed their integrity receipt.');
+      if (
+        decoded.toString('base64') !== meta.documentBytesBase64 ||
+        decoded.length !== meta.documentByteLength ||
+        sha256Bytes(decoded) !== meta.documentSha256
+      ) {
+        throw new UnprocessableEntityException(
+          'The saved document bytes failed their integrity receipt.',
+        );
       }
       if (format === nativeFormat) {
         persistedBytes = decoded;
@@ -7359,10 +7436,7 @@ export class MeriToolsService {
   private async normalizeScheduleEffect(
     ctx: TenantContext,
     input: Record<string, unknown>,
-  ): Promise<
-    | { ok: true; effect: NormalizedScheduleEffect }
-    | { ok: false; error: string }
-  > {
+  ): Promise<{ ok: true; effect: NormalizedScheduleEffect } | { ok: false; error: string }> {
     // Receipt verification must not depend on the current task count. The quota
     // is checked separately immediately before a genuinely new insert.
     const validation = validateScheduleRequest({
@@ -7375,9 +7449,7 @@ export class MeriToolsService {
     if (!validation.ok) return { ok: false, error: validation.error! };
 
     const requestedClient =
-      typeof input.clientId === 'string' && input.clientId.trim()
-        ? input.clientId.trim()
-        : null;
+      typeof input.clientId === 'string' && input.clientId.trim() ? input.clientId.trim() : null;
     const clientId = requestedClient
       ? await this.ensureScheduleClientAuthorized(ctx, requestedClient)
       : null;
@@ -7391,9 +7463,7 @@ export class MeriToolsService {
       } else {
         emailRecipientIntent = 'owner_connection';
         const connection = await this.findUserEmailConnection(ctx);
-        emailTo = connection?.accountEmail
-          ? normalizeDeliveryEmail(connection.accountEmail)
-          : null;
+        emailTo = connection?.accountEmail ? normalizeDeliveryEmail(connection.accountEmail) : null;
       }
       if (!emailTo) {
         return {
@@ -7437,32 +7507,37 @@ export class MeriToolsService {
     actionProposalId: string,
     effect: NormalizedScheduleEffect,
   ): boolean {
-    const metadata = candidate.metadata && typeof candidate.metadata === 'object'
-      && !Array.isArray(candidate.metadata)
-      ? candidate.metadata as Record<string, unknown>
-      : {};
+    const metadata =
+      candidate.metadata &&
+      typeof candidate.metadata === 'object' &&
+      !Array.isArray(candidate.metadata)
+        ? (candidate.metadata as Record<string, unknown>)
+        : {};
     const allowList = Array.isArray(candidate.toolAllowList)
       ? candidate.toolAllowList.filter((value): value is string => typeof value === 'string')
       : [];
-    const boundProposalId = typeof metadata.actionProposalId === 'string'
-      ? metadata.actionProposalId
-      : metadata.logicalOperationId;
-    return candidate.scope === 'user_private'
-      && candidate.createdBy === 'meri'
-      && boundProposalId === actionProposalId
-      && metadata.scheduleEffectFingerprintVersion === SCHEDULE_EFFECT_FINGERPRINT_VERSION
-      && metadata.scheduleEffectFingerprint === effect.fingerprint
-      && candidate.name === effect.name
-      && candidate.prompt === effect.prompt
-      && candidate.intervalMinutes === effect.intervalMinutes
-      && JSON.stringify([...new Set(allowList)].sort()) === JSON.stringify(effect.allowList)
-      && (typeof metadata.runAtMinutesUtc === 'number' ? metadata.runAtMinutesUtc : null)
-        === effect.runAtMinutesUtc
-      && (typeof metadata.clientId === 'string' ? metadata.clientId : null) === effect.clientId
-      && (typeof metadata.emailRecipientIntent === 'string'
+    const boundProposalId =
+      typeof metadata.actionProposalId === 'string'
+        ? metadata.actionProposalId
+        : metadata.logicalOperationId;
+    return (
+      candidate.scope === 'user_private' &&
+      candidate.createdBy === 'meri' &&
+      boundProposalId === actionProposalId &&
+      metadata.scheduleEffectFingerprintVersion === SCHEDULE_EFFECT_FINGERPRINT_VERSION &&
+      metadata.scheduleEffectFingerprint === effect.fingerprint &&
+      candidate.name === effect.name &&
+      candidate.prompt === effect.prompt &&
+      candidate.intervalMinutes === effect.intervalMinutes &&
+      JSON.stringify([...new Set(allowList)].sort()) === JSON.stringify(effect.allowList) &&
+      (typeof metadata.runAtMinutesUtc === 'number' ? metadata.runAtMinutesUtc : null) ===
+        effect.runAtMinutesUtc &&
+      (typeof metadata.clientId === 'string' ? metadata.clientId : null) === effect.clientId &&
+      (typeof metadata.emailRecipientIntent === 'string'
         ? metadata.emailRecipientIntent
-        : 'none') === effect.emailRecipientIntent
-      && (typeof metadata.emailTo === 'string' ? metadata.emailTo : null) === effect.emailTo;
+        : 'none') === effect.emailRecipientIntent &&
+      (typeof metadata.emailTo === 'string' ? metadata.emailTo : null) === effect.emailTo
+    );
   }
 
   private scheduleTaskReceipt(candidate: {
@@ -7745,11 +7820,32 @@ export class MeriToolsService {
 
   private async queryTasks(ctx: TenantContext, input: Record<string, unknown>) {
     let clientId = optionalString(input, 'clientId', 80);
+    if (clientId) {
+      clientId = await this.ensureClientVisible(ctx, clientId);
+      const selection = parseMeriTaskReadInput(
+        ctx,
+        input,
+        clientId,
+        Object.values(EngagementTaskStatus),
+      );
+      const page = await this.engagement.readMeriTasksExact(ctx, {
+        clientId,
+        taskId: selection.taskId,
+        status: selection.status,
+        openOnly: selection.openOnly,
+        dueBefore: selection.dueBefore,
+        offset: selection.offset,
+        limit: selection.limit,
+      });
+      return buildMeriTaskReadResult(ctx, selection, page);
+    }
+    if (input.cursor !== undefined || input.taskId !== undefined)
+      throw new BadRequestException(
+        'clientId is required for exact task identity or pagination reads',
+      );
     const statusRaw = optionalString(input, 'status', 30)?.toLowerCase() ?? null;
     const dueBeforeRaw = optionalString(input, 'dueBefore', 40);
     const limit = clampInt(input.limit, 1, 50, 25);
-    if (clientId) clientId = await this.ensureClientVisible(ctx, clientId);
-
     const taskStatuses = Object.values(EngagementTaskStatus) as string[];
     let status: EngagementTaskStatus | undefined;
     let openOnly = false;
@@ -7810,11 +7906,26 @@ export class MeriToolsService {
 
   private async queryActionItems(ctx: TenantContext, input: Record<string, unknown>) {
     let clientId = optionalString(input, 'clientId', 80);
+    if (clientId) {
+      clientId = await this.ensureClientVisible(ctx, clientId);
+      const selection = parseMeriActionItemReadInput(ctx, input, clientId);
+      const page = await this.actionRecommendations.readMeriActionItemsExact(ctx, {
+        clientId,
+        actionItemId: selection.actionItemId,
+        status: selection.status ?? undefined,
+        sort: selection.sort,
+        page: selection.page,
+        limit: selection.limit,
+      });
+      return buildMeriActionItemReadResult(ctx, selection, page);
+    }
+    if (input.cursor !== undefined || input.actionItemId !== undefined)
+      throw new BadRequestException(
+        'clientId is required for exact action-item identity or pagination reads',
+      );
     const status = optionalString(input, 'status', 40);
     const sort = optionalString(input, 'sort', 20);
     const limit = clampInt(input.limit, 1, 50, 20);
-    if (clientId) clientId = await this.ensureClientVisible(ctx, clientId);
-
     const result = await this.actionRecommendations.list(ctx, {
       clientId: clientId ?? undefined,
       status: (status as ActionStatus | null) ?? undefined,
@@ -7981,6 +8092,236 @@ export class MeriToolsService {
     // Close a grant-revocation window across the owner await before projection.
     await assertWallAllowed();
     return buildDebriefReadResult(ctx, selection, page);
+  }
+
+  private async assertMeetingReadAllowed(ctx: TenantContext, clientId: string): Promise<void> {
+    const allowed = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const client = await tx.client.findFirst({
+        where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
+        select: { id: true },
+      });
+      return Boolean(client) && clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId);
+    });
+    if (!allowed) throw new NotFoundException('Client not found');
+  }
+
+  private async meetingReadRow(
+    ctx: TenantContext,
+    clientId: string,
+    meetingId: string,
+  ): Promise<MeetingReadRow> {
+    await this.engagement.getClientMeeting(ctx, clientId, meetingId);
+    const [notes, attachments] = await Promise.all([
+      this.engagement.listMeetingNotes(ctx, meetingId),
+      this.engagement.listAttachments(ctx, { meetingId }),
+    ]);
+    // Re-resolve after the source-owner awaits so a deleted, reassigned, or
+    // newly disassociated parent cannot lend stale authority to its children.
+    const currentMeeting = await this.engagement.getClientMeeting(ctx, clientId, meetingId);
+    const noteSources: MeetingSourceInventory[] = notes
+      .filter((note) => note.meetingId === meetingId)
+      .map((note) => {
+        const body = typeof note.body === 'string' ? note.body : null;
+        return {
+          sourceKind: 'note',
+          sourceId: note.id,
+          sourceVersion: note.updatedAt.toISOString(),
+          meetingId,
+          clientId,
+          lifecycleStatus: String(note.status),
+          availability: body === null ? 'restricted' : 'available',
+          availabilityReason: body === null ? 'meeting_entry_acl_denied' : null,
+          contentHash:
+            body === null ? null : createHash('sha256').update(body, 'utf8').digest('hex'),
+          createdAt: note.createdAt.toISOString(),
+          updatedAt: note.updatedAt.toISOString(),
+        };
+      });
+    const transcriptSources: MeetingSourceInventory[] = attachments
+      .filter(
+        (attachment) =>
+          attachment.source === 'notetaker' &&
+          attachment.contentType === 'text/plain' &&
+          (!currentMeeting.transcriptS3Key || attachment.s3Key === currentMeeting.transcriptS3Key),
+      )
+      .map((attachment) => ({
+        sourceKind: 'transcript' as const,
+        sourceId: attachment.id,
+        sourceVersion:
+          typeof attachment.calculatedSha256 === 'string' && attachment.calculatedSha256
+            ? attachment.calculatedSha256
+            : attachment.createdAt.toISOString(),
+        meetingId,
+        clientId,
+        lifecycleStatus: String(attachment.lifecycleStatus),
+        availability: attachment.usable ? ('available' as const) : ('unavailable' as const),
+        availabilityReason: attachment.usable
+          ? null
+          : String(attachment.blockedReason ?? 'persisted_transcript_unavailable'),
+        contentHash:
+          typeof attachment.calculatedSha256 === 'string' ? attachment.calculatedSha256 : null,
+        createdAt: attachment.createdAt.toISOString(),
+        updatedAt: attachment.createdAt.toISOString(),
+      }));
+    const sources = [...noteSources, ...transcriptSources].sort(
+      (left, right) =>
+        left.sourceKind.localeCompare(right.sourceKind) ||
+        left.sourceId.localeCompare(right.sourceId),
+    );
+    const transcriptAvailable = transcriptSources.some(
+      (source) => source.availability === 'available',
+    );
+    const notesRestricted = noteSources.some((source) => source.availability !== 'available');
+    // The wall must still hold after every parent/source-owner await.
+    await this.assertMeetingReadAllowed(ctx, clientId);
+    return {
+      id: currentMeeting.id,
+      clientId,
+      subject: currentMeeting.subject,
+      startsAt: currentMeeting.startsAt.toISOString(),
+      endsAt: currentMeeting.endsAt.toISOString(),
+      status: String(currentMeeting.status),
+      updatedAt: currentMeeting.updatedAt.toISOString(),
+      sources,
+      sourceAvailability: {
+        notes: noteSources.length === 0 ? 'empty' : notesRestricted ? 'partial' : 'available',
+        transcript: transcriptAvailable ? 'available' : 'unavailable',
+        transcriptReason: transcriptAvailable
+          ? null
+          : transcriptSources.length > 0
+            ? 'persisted_transcript_unavailable'
+            : 'calendar_event_without_persisted_transcript',
+      },
+    };
+  }
+
+  private async readClientMeetings(ctx: TenantContext, input: Record<string, unknown>) {
+    const clientId = await this.ensureClientVisible(ctx, requiredString(input, 'clientId', 80));
+    await this.assertMeetingReadAllowed(ctx, clientId);
+    const selection = parseMeetingReadInput(ctx, input, clientId);
+
+    if (selection.sourceId && selection.sourceKind && selection.meetingId) {
+      const initial = await this.meetingReadRow(ctx, clientId, selection.meetingId);
+      const initialSource = initial.sources.find(
+        (source) =>
+          source.sourceKind === selection.sourceKind && source.sourceId === selection.sourceId,
+      );
+      if (!initialSource) throw new NotFoundException('Meeting source not found');
+      if (initialSource.availability !== 'available')
+        throw new NotFoundException('Meeting source not available');
+
+      // Reauthorize after owner inventory awaits and use only the fresh current row.
+      await this.assertMeetingReadAllowed(ctx, clientId);
+      const current = await this.meetingReadRow(ctx, clientId, selection.meetingId);
+      const currentSource = current.sources.find(
+        (source) =>
+          source.sourceKind === selection.sourceKind && source.sourceId === selection.sourceId,
+      );
+      if (!currentSource || currentSource.availability !== 'available')
+        throw new NotFoundException('Meeting source not available');
+
+      let exactSource: ExactMeetingSource;
+      if (selection.sourceKind === 'note') {
+        const notes = await this.engagement.listMeetingNotes(ctx, selection.meetingId);
+        const note = notes.find(
+          (candidate) =>
+            candidate.id === selection.sourceId && candidate.meetingId === selection.meetingId,
+        );
+        if (!note || typeof note.body !== 'string')
+          throw new NotFoundException('Meeting source not available');
+        exactSource = {
+          ...currentSource,
+          sourceVersion: note.updatedAt.toISOString(),
+          contentHash: createHash('sha256').update(note.body, 'utf8').digest('hex'),
+          body: note.body,
+        };
+      } else {
+        const extracted = await this.engagement.extractAttachmentText(ctx, selection.sourceId, {
+          section: 1,
+          ...(meriToolRequestControl()?.signal ? { signal: meriToolRequestControl()!.signal } : {}),
+        });
+        if (
+          extracted.contentType !== 'text/plain' ||
+          typeof extracted.text !== 'string' ||
+          ('truncated' in extracted && extracted.truncated === true) ||
+          !/^[a-f0-9]{64}$/.test(extracted.contentHash)
+        )
+          throw new NotFoundException('Persisted transcript source is not exactly readable');
+        const bodyHash = createHash('sha256').update(extracted.text, 'utf8').digest('hex');
+        if (bodyHash !== extracted.contentHash)
+          throw new NotFoundException('Persisted transcript source hash is not exact');
+        exactSource = {
+          ...currentSource,
+          sourceVersion: extracted.contentHash,
+          contentHash: extracted.contentHash,
+          body: extracted.text,
+        };
+      }
+
+      // Close permission, parent, lifecycle, supersession, and source-version races.
+      await this.assertMeetingReadAllowed(ctx, clientId);
+      const final = await this.meetingReadRow(ctx, clientId, selection.meetingId);
+      const finalSource = final.sources.find(
+        (source) =>
+          source.sourceKind === selection.sourceKind && source.sourceId === selection.sourceId,
+      );
+      if (!finalSource || finalSource.availability !== 'available')
+        throw new NotFoundException('Meeting source not available');
+      if (
+        selection.sourceKind === 'note' &&
+        (finalSource.sourceVersion !== exactSource.sourceVersion ||
+          finalSource.contentHash !== exactSource.contentHash)
+      )
+        throw new BadRequestException('Meeting source changed during the read; restart the read');
+      if (
+        selection.sourceKind === 'transcript' &&
+        finalSource.contentHash !== null &&
+        finalSource.contentHash !== exactSource.contentHash
+      )
+        throw new BadRequestException('Meeting source changed during the read; restart the read');
+
+      // Close a wall/membership revocation at the final current-owner boundary.
+      await this.assertMeetingReadAllowed(ctx, clientId);
+      const { sources: _sources, ...meeting } = final;
+      return buildMeetingSourceResult(ctx, selection, meeting, exactSource);
+    }
+
+    let rows: MeetingReadRow[];
+    let hasMore = false;
+    if (selection.meetingId) {
+      rows = [await this.meetingReadRow(ctx, clientId, selection.meetingId)];
+    } else {
+      const from = selection.from?.toISOString() ?? '0001-01-01T00:00:00.000Z';
+      const toExclusive = selection.to
+        ? new Date(selection.to.getTime() + 1).toISOString()
+        : '9999-12-31T23:59:59.999Z';
+      const meetings = await this.engagement.listMeetings(ctx, {
+        clientId,
+        from,
+        to: toExclusive,
+        limit: selection.limit + 1,
+        ...(selection.listAfter
+          ? {
+              cursor: {
+                startsAt: selection.listAfter.startsAt.toISOString(),
+                id: selection.listAfter.id,
+              },
+            }
+          : {}),
+      });
+      hasMore = meetings.length > selection.limit;
+      const settled = await Promise.allSettled(
+        meetings
+          .slice(0, selection.limit)
+          .map((meeting) => this.meetingReadRow(ctx, clientId, meeting.id)),
+      );
+      rows = settled.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
+      const omittedMeetings = settled.length - rows.length;
+      await this.assertMeetingReadAllowed(ctx, clientId);
+      return buildMeetingListResult(ctx, selection, rows, hasMore, omittedMeetings);
+    }
+    await this.assertMeetingReadAllowed(ctx, clientId);
+    return buildMeetingListResult(ctx, selection, rows, hasMore);
   }
 
   /** Canonical, currently authorized section reads with resumable evidence. */
@@ -8752,7 +9093,8 @@ export class MeriToolsService {
       );
     }
     if (binding.clientId) {
-      if (!this.contextPlane) throw new NotFoundException('One or more analysis charts were not found.');
+      if (!this.contextPlane)
+        throw new NotFoundException('One or more analysis charts were not found.');
       const security = await this.contextPlane.securityEnvelope(ctx);
       if (!security.authorizedClientIds.includes(binding.clientId)) {
         throw new NotFoundException('One or more analysis charts were not found.');
@@ -8782,19 +9124,28 @@ export class MeriToolsService {
         }),
       );
       const conversation = artifact?.conversation;
-      if (!artifact || isInternalClioArtifact(artifact) || artifact.kind !== 'analysis_chart' || artifact.clientId !== binding.clientId ||
-          artifact.conversationId !== binding.conversationId || !conversation ||
-          conversation.id !== binding.conversationId || conversation.tenantId !== ctx.tenantId ||
-          conversation.userId !== ctx.userId || conversation.clientId !== binding.clientId ||
-          conversation.archivedAt) {
-
+      if (
+        !artifact ||
+        isInternalClioArtifact(artifact) ||
+        artifact.kind !== 'analysis_chart' ||
+        artifact.clientId !== binding.clientId ||
+        artifact.conversationId !== binding.conversationId ||
+        !conversation ||
+        conversation.id !== binding.conversationId ||
+        conversation.tenantId !== ctx.tenantId ||
+        conversation.userId !== ctx.userId ||
+        conversation.clientId !== binding.clientId ||
+        conversation.archivedAt
+      ) {
         throw new NotFoundException(
           'One or more analysis charts were not found. Regenerate the charts in this conversation and try again.',
         );
       }
       const metadata = artifact?.metadata as Record<string, unknown> | null;
-      if (typeof metadata?.imageBase64 === 'string' &&
-          metadata.imageBase64.length > MAX_IMAGE_BASE64_CHARS) {
+      if (
+        typeof metadata?.imageBase64 === 'string' &&
+        metadata.imageBase64.length > MAX_IMAGE_BASE64_CHARS
+      ) {
         throw new BadRequestException(
           'A saved chart is too large to embed. Regenerate a smaller chart and try again.',
         );

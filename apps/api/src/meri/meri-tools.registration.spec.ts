@@ -213,6 +213,7 @@ const EXPECTED_TOOLS = [
   'query_regulatory_dockets',
   'search_sam_opportunities',
   'query_debriefs',
+  'read_client_meetings',
   'read_client_documents',
   'query_outreach',
   // Client creation (LDA-first): read-only pre-check + approval-gated write
@@ -374,6 +375,7 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   cancel_scheduled_task: ['taskId'],
   search_tracked_bills: ['clientId'],
   query_debriefs: ['clientId'],
+  read_client_meetings: ['clientId'],
   read_client_documents: ['clientId'],
   lookup_client_registry: ['name'],
   create_client: ['name'],
@@ -672,7 +674,7 @@ describe('Meri tool registration', () => {
             ? { sessionId: '11111111-1111-4111-8111-111111111111' }
             : schema.name === 'read_chat_attachments'
               ? { conversationId: '11111111-1111-4111-8111-111111111111' }
-            : {},
+              : {},
       );
       expect(result).toMatchObject(sentinel);
       expect(calls).toHaveLength(1);

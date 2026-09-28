@@ -9,6 +9,12 @@ import {
   certifyResearchProducerInputs,
 } from './meri-report-provenance';
 import { buildDebriefReadResult, parseDebriefReadInput } from './meri-debrief-read.helpers';
+import {
+  buildMeetingSourceResult,
+  parseMeetingReadInput,
+  type ExactMeetingSource,
+  type MeetingReadRow,
+} from './meri-meeting-read.helpers';
 
 const TOOL_SCHEMA = {
   type: 'object',
@@ -45,29 +51,91 @@ const DEBRIEF_INPUT = {
   characterLimit: 100,
 };
 
+const MEETING_CLIENT_ID = '33333333-3333-4333-8333-333333333333';
+const MEETING_SCHEMA = {
+  type: 'object',
+  properties: {
+    clientId: { type: 'string' },
+    meetingId: { type: 'string' },
+    sourceKind: { type: 'string' },
+    sourceId: { type: 'string' },
+    characterLimit: { type: 'integer' },
+  },
+  required: ['clientId'],
+};
+const MEETING_VERSION = researchToolVersion(MEETING_SCHEMA);
+const MEETING_INPUT = {
+  clientId: MEETING_CLIENT_ID,
+  meetingId: 'meeting-1',
+  sourceKind: 'transcript',
+  sourceId: 'transcript-1',
+  characterLimit: 6_000,
+};
+
+function completeMeetingSourceResult(
+  body = 'PRIVATE EXACT AUTHORIZED TRANSCRIPT SOURCE',
+  sourceVersion = 'version-1',
+) {
+  const contentHash = createHash('sha256').update(body, 'utf8').digest('hex');
+  const selection = parseMeetingReadInput(ctx, MEETING_INPUT, MEETING_CLIENT_ID);
+  const meeting: MeetingReadRow = {
+    id: 'meeting-1',
+    clientId: MEETING_CLIENT_ID,
+    subject: 'Client review',
+    startsAt: '2026-09-19T14:00:00.000Z',
+    endsAt: '2026-09-19T15:00:00.000Z',
+    status: 'completed',
+    updatedAt: '2026-09-19T16:00:00.000Z',
+    sources: [],
+    sourceAvailability: { notes: 'empty', transcript: 'available', transcriptReason: null },
+  };
+  const source: ExactMeetingSource = {
+    sourceKind: 'transcript',
+    sourceId: 'transcript-1',
+    meetingId: 'meeting-1',
+    clientId: MEETING_CLIENT_ID,
+    lifecycleStatus: 'ready',
+    availability: 'available',
+    availabilityReason: null,
+    body,
+    contentHash,
+    sourceVersion,
+    createdAt: '2026-09-19T16:00:00.000Z',
+    updatedAt: '2026-09-19T16:00:00.000Z',
+  };
+  return buildMeetingSourceResult(ctx, selection, meeting, source);
+}
+
 function completeDebriefResult(
   body = 'PRIVATE EXACT DEBRIEF SOURCE',
   updatedAt = '2026-09-21T10:00:00.000Z',
 ) {
   const selection = parseDebriefReadInput(ctx, DEBRIEF_INPUT, 'client-1');
   return buildDebriefReadResult(ctx, selection, {
-    rows: [{
-      id: 'debrief-1',
-      meetingId: 'meeting-1',
-      clientId: 'client-1',
-      body,
-      status: 'approved',
-      authorUserId: 'user-1',
-      author: {
-        id: 'user-1', email: 'owner@example.com', firstName: 'Owner', lastName: 'One',
+    rows: [
+      {
+        id: 'debrief-1',
+        meetingId: 'meeting-1',
+        clientId: 'client-1',
+        body,
+        status: 'approved',
+        authorUserId: 'user-1',
+        author: {
+          id: 'user-1',
+          email: 'owner@example.com',
+          firstName: 'Owner',
+          lastName: 'One',
+        },
+        createdAt: new Date('2026-09-20T10:00:00.000Z'),
+        updatedAt: new Date(updatedAt),
+        meeting: {
+          id: 'meeting-1',
+          clientId: 'client-1',
+          subject: 'Client review',
+          startsAt: new Date('2026-09-19T14:00:00.000Z'),
+        },
       },
-      createdAt: new Date('2026-09-20T10:00:00.000Z'),
-      updatedAt: new Date(updatedAt),
-      meeting: {
-        id: 'meeting-1', clientId: 'client-1', subject: 'Client review',
-        startsAt: new Date('2026-09-19T14:00:00.000Z'),
-      },
-    }],
+    ],
     sourceStatus: 'healthy',
     sourceReason: null,
     nextAfter: null,
@@ -97,16 +165,21 @@ function completeMemoryResult(id: string, body = `body-${id}`) {
     contentTruncated: false,
     nextCursor: null,
     results: [{ id, body }],
-    records: [{
-      domain: 'institutional_knowledge',
-      recordId: id,
-      updatedAt: '2026-09-28T00:00:00.000Z',
-      provenance: { sourceVersion: 'memory-v1', contentHash },
-      payload: {
-        sourceKind: 'governed_memory', memoryItemId: id, clientId: null,
-        content: { hash: contentHash }, value: body,
+    records: [
+      {
+        domain: 'institutional_knowledge',
+        recordId: id,
+        updatedAt: '2026-09-28T00:00:00.000Z',
+        provenance: { sourceVersion: 'memory-v1', contentHash },
+        payload: {
+          sourceKind: 'governed_memory',
+          memoryItemId: id,
+          clientId: null,
+          content: { hash: contentHash },
+          value: body,
+        },
       },
-    }],
+    ],
   };
 }
 
@@ -135,30 +208,32 @@ function completeMailThreadResult(
       clientId,
       threadUpdatedAt: '2026-09-28T00:00:00.000Z',
     },
-    messages: [{
-      id: messageId,
-      threadId,
-      subject: 'Canonical source',
-      from: { email: 'sender@example.test', name: 'Sender' },
-      to: [{ email: 'owner@example.test', name: 'Owner' }],
-      cc: [],
-      sentAt: '2026-09-27T12:00:00.000Z',
-      receivedAt: null,
-      bodyText: body,
-      bodyOffset: 0,
-      bodyLength: body.length,
-      bodyCompleteness: 'full',
-      bodyTruncated: false,
-      nextBodyOffset: null,
-      sourceProof: {
-        version: 1,
-        mailboxId: 'mailbox-1',
+    messages: [
+      {
+        id: messageId,
         threadId,
-        messageId,
-        messageUpdatedAt,
-        bodySha256: createHash('sha256').update(body, 'utf8').digest('hex'),
+        subject: 'Canonical source',
+        from: { email: 'sender@example.test', name: 'Sender' },
+        to: [{ email: 'owner@example.test', name: 'Owner' }],
+        cc: [],
+        sentAt: '2026-09-27T12:00:00.000Z',
+        receivedAt: null,
+        bodyText: body,
+        bodyOffset: 0,
+        bodyLength: body.length,
+        bodyCompleteness: 'full',
+        bodyTruncated: false,
+        nextBodyOffset: null,
+        sourceProof: {
+          version: 1,
+          mailboxId: 'mailbox-1',
+          threadId,
+          messageId,
+          messageUpdatedAt,
+          bodySha256: createHash('sha256').update(body, 'utf8').digest('hex'),
+        },
       },
-    }],
+    ],
   };
 }
 
@@ -171,29 +246,39 @@ function completeMailSearchResult(asOf = '2026-09-28T00:00:00.000Z') {
     nextOffset: null,
     asOf,
     queryScope: {
-      query: 'Report', from: null, participant: null, clientId: null,
-      folder: 'all', withinDays: null, asOf,
+      query: 'Report',
+      from: null,
+      participant: null,
+      clientId: null,
+      folder: 'all',
+      withinDays: null,
+      asOf,
     },
     timeWindow: { start: null, end: asOf },
     folder: 'all',
     clientId: null,
     messages: [],
-    searchedMailboxes: [{
-      accountEmail: 'owner@example.test',
-      sourceProof: { version: 1, mailboxId: 'mailbox-1' },
-      provider: 'google_workspace',
-      status: 'connected',
-      lastSyncAt: '2026-09-28T00:00:00.000Z',
-      connectionLastSyncAt: '2026-09-28T00:00:00.000Z',
-      syncedMessages: 0,
-      syncedRange: null,
-      mailCoverage: {
-        sourceStatus: 'healthy', reason: null,
-        lastMailSyncAt: '2026-09-28T00:00:00.000Z',
-        lastConnectionSyncAt: '2026-09-28T00:00:00.000Z',
-        backfillComplete: true, hasMore: false, captureRepair: 'complete',
+    searchedMailboxes: [
+      {
+        accountEmail: 'owner@example.test',
+        sourceProof: { version: 1, mailboxId: 'mailbox-1' },
+        provider: 'google_workspace',
+        status: 'connected',
+        lastSyncAt: '2026-09-28T00:00:00.000Z',
+        connectionLastSyncAt: '2026-09-28T00:00:00.000Z',
+        syncedMessages: 0,
+        syncedRange: null,
+        mailCoverage: {
+          sourceStatus: 'healthy',
+          reason: null,
+          lastMailSyncAt: '2026-09-28T00:00:00.000Z',
+          lastConnectionSyncAt: '2026-09-28T00:00:00.000Z',
+          backfillComplete: true,
+          hasMore: false,
+          captureRepair: 'complete',
+        },
       },
-    }],
+    ],
     notes: ['Canonical bounded mail result.'],
   };
 }
@@ -205,30 +290,35 @@ async function mappedMailThread(clientId: string | null) {
   const threadId = '11111111-1111-4111-8111-111111111111';
   const engagement = Object.create(EngagementService.prototype) as any;
   engagement.prisma = {
-    withTenant: async (_tenantId: string, callback: any) => callback({
-      mailThread: { findFirst: jest.fn(async () => ({
-        id: threadId,
-        connectionId: MAILBOX_ID,
-        clientId,
-        subject: 'Mapped canonical source',
-        updatedAt: new Date('2026-09-28T00:00:00.000Z'),
-        connection: { accountEmail: 'owner@example.test', status: 'connected' },
-        messages: [{
-          id: '22222222-2222-4222-8222-222222222222',
-          connectionId: MAILBOX_ID,
-          subject: 'Mapped canonical source',
-          bodyText: 'ACTUAL_MAPPED_MAIL_BODY',
-          updatedAt: new Date('2026-09-28T00:01:00.000Z'),
-          metadata: { bodyCompleteness: 'full' },
-          fromEmail: 'sender@example.test',
-          fromName: 'Sender',
-          toRecipients: [],
-          ccRecipients: [],
-          sentAt: new Date('2026-09-27T12:00:00.000Z'),
-          receivedAt: null,
-        }],
-      })) },
-    }),
+    withTenant: async (_tenantId: string, callback: any) =>
+      callback({
+        mailThread: {
+          findFirst: jest.fn(async () => ({
+            id: threadId,
+            connectionId: MAILBOX_ID,
+            clientId,
+            subject: 'Mapped canonical source',
+            updatedAt: new Date('2026-09-28T00:00:00.000Z'),
+            connection: { accountEmail: 'owner@example.test', status: 'connected' },
+            messages: [
+              {
+                id: '22222222-2222-4222-8222-222222222222',
+                connectionId: MAILBOX_ID,
+                subject: 'Mapped canonical source',
+                bodyText: 'ACTUAL_MAPPED_MAIL_BODY',
+                updatedAt: new Date('2026-09-28T00:01:00.000Z'),
+                metadata: { bodyCompleteness: 'full' },
+                fromEmail: 'sender@example.test',
+                fromName: 'Sender',
+                toRecipients: [],
+                ccRecipients: [],
+                sentAt: new Date('2026-09-27T12:00:00.000Z'),
+                receivedAt: null,
+              },
+            ],
+          })),
+        },
+      }),
   };
   const tools = Object.create(MeriToolsService.prototype) as any;
   tools.engagement = engagement;
@@ -263,23 +353,28 @@ async function mappedMailSearch(
   clientIds: Array<string | null>,
 ) {
   const rows = clientIds.map((clientId, index) => mappedMailRow(index + 1, clientId));
-  const coverage = [{
-    connection_id: MAILBOX_ID,
-    account_email: 'owner@example.test',
-    provider: 'google_workspace',
-    status: 'connected',
-    last_sync_at: MAPPED_AS_OF,
-    sync_state: { mail: {
-      captureVersion: 1,
-      updatedAt: MAPPED_AS_OF.toISOString(),
-      historyId: 'history-1',
-      labels: { ALL: { backfillDone: true } },
-    } },
-    synced_messages: rows.length,
-    oldest_synced: MAPPED_AS_OF,
-    newest_synced: MAPPED_AS_OF,
-  }];
-  const queries = jest.fn()
+  const coverage = [
+    {
+      connection_id: MAILBOX_ID,
+      account_email: 'owner@example.test',
+      provider: 'google_workspace',
+      status: 'connected',
+      last_sync_at: MAPPED_AS_OF,
+      sync_state: {
+        mail: {
+          captureVersion: 1,
+          updatedAt: MAPPED_AS_OF.toISOString(),
+          historyId: 'history-1',
+          labels: { ALL: { backfillDone: true } },
+        },
+      },
+      synced_messages: rows.length,
+      oldest_synced: MAPPED_AS_OF,
+      newest_synced: MAPPED_AS_OF,
+    },
+  ];
+  const queries = jest
+    .fn()
     .mockResolvedValueOnce([{ n: rows.length }])
     .mockResolvedValueOnce(rows)
     .mockResolvedValueOnce(coverage);
@@ -290,18 +385,23 @@ async function mappedMailSearch(
   const tools = Object.create(MeriToolsService.prototype) as any;
   tools.engagement = engagement;
   const input = { query: 'Report', asOf: MAPPED_AS_OF.toISOString() };
-  return tool === 'list_emails'
-    ? tools.listEmails(ctx, input)
-    : tools.searchEmails(ctx, input);
+  return tool === 'list_emails' ? tools.listEmails(ctx, input) : tools.searchEmails(ctx, input);
 }
 
-function harness(options: {
-  tool?: 'search_memory' | 'get_email_thread' | 'search_emails' | 'list_emails';
-  schema?: Record<string, unknown>;
-  source?: unknown;
-  clientId?: string | null;
-  wallAllowed?: boolean;
-} = {}) {
+function harness(
+  options: {
+    tool?:
+      | 'search_memory'
+      | 'get_email_thread'
+      | 'search_emails'
+      | 'list_emails'
+      | 'read_client_meetings';
+    schema?: Record<string, unknown>;
+    source?: unknown;
+    clientId?: string | null;
+    wallAllowed?: boolean;
+  } = {},
+) {
   const ownerTool = options.tool ?? 'search_memory';
   const ownerSchema = options.schema ?? TOOL_SCHEMA;
   let authorizationAllowed = true;
@@ -360,7 +460,7 @@ function harness(options: {
         const value = artifacts.get(where.id);
         return value ?? null;
       }),
-      findMany: jest.fn(async () => artifacts.has('report-1') ? [artifacts.get('report-1')] : []),
+      findMany: jest.fn(async () => (artifacts.has('report-1') ? [artifacts.get('report-1')] : [])),
     },
     $queryRawUnsafe: jest.fn(async (...args: any[]) => {
       if (String(args[0]).startsWith('SELECT (NOT c.memory_wall'))
@@ -415,9 +515,10 @@ function harness(options: {
       const bodyText = producerSourceFree
         ? 'SOURCE_FREE_REPORT_FROM_KNOWN_PROMPT_ONLY'
         : 'REPORT_CITING_CURRENT_RUN_MEMORY';
-      const declaredTools = Array.isArray(toolsUsed) && toolsUsed.every((tool) => typeof tool === 'string')
-        ? toolsUsed as string[]
-        : null;
+      const declaredTools =
+        Array.isArray(toolsUsed) && toolsUsed.every((tool) => typeof tool === 'string')
+          ? (toolsUsed as string[])
+          : null;
       const producerInput = declaredTools
         ? certifyResearchProducerInputs({
             hashMaterial: { bodyText },
@@ -644,21 +745,29 @@ describe('Meri durable safe-read commit and replay', () => {
     };
     const revoked = harness();
     await revoked.service.commitSafeReadOutcome(
-      ctx, 'session-1', 'run-1', outcome('execution-1', 'radar'),
+      ctx,
+      'session-1',
+      'run-1',
+      outcome('execution-1', 'radar'),
     );
     revoked.resume();
     revoked.revokeSource();
-    await expect(revoked.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
-      .resolves.toEqual({ replayed: false });
+    await expect(
+      revoked.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
+    ).resolves.toEqual({ replayed: false });
 
     const changed = harness();
     await changed.service.commitSafeReadOutcome(
-      ctx, 'session-1', 'run-1', outcome('execution-1', 'radar'),
+      ctx,
+      'session-1',
+      'run-1',
+      outcome('execution-1', 'radar'),
     );
     changed.resume();
     changed.replaceSource(completeMemoryResult('execution-1', 'corrected body'));
-    await expect(changed.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
-      .resolves.toEqual({ replayed: false });
+    await expect(
+      changed.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
+    ).resolves.toEqual({ replayed: false });
   });
 
   it('reauthorizes an unchanged implicit-asOf mail search at its saved server window', async () => {
@@ -668,17 +777,17 @@ describe('Meri durable safe-read commit and replay', () => {
       schema: MAIL_SEARCH_TOOL_SCHEMA,
       source,
     });
-    await h.service.commitSafeReadOutcome(
-      ctx, 'session-1', 'run-1', mailSearchOutcome(source),
-    );
+    await h.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', mailSearchOutcome(source));
     h.resume();
 
-    await expect(h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', {
-      leaseEpoch: 2,
-      tool: 'search_emails',
-      toolVersion: MAIL_SEARCH_TOOL_VERSION,
-      input: { query: 'Report' },
-    })).resolves.toMatchObject({ replayed: true, result: { asOf: source.asOf } });
+    await expect(
+      h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', {
+        leaseEpoch: 2,
+        tool: 'search_emails',
+        toolVersion: MAIL_SEARCH_TOOL_VERSION,
+        input: { query: 'Report' },
+      }),
+    ).resolves.toMatchObject({ replayed: true, result: { asOf: source.asOf } });
     expect(h.tools.execute).toHaveBeenLastCalledWith(ctx, 'search_emails', {
       query: 'Report',
       asOf: source.asOf,
@@ -690,7 +799,10 @@ describe('Meri durable safe-read commit and replay', () => {
     const clientB = '55555555-5555-4555-8555-555555555555';
     const source = await mappedMailThread(clientB);
     const h = harness({
-      tool: 'get_email_thread', schema: MAIL_TOOL_SCHEMA, source, clientId: clientA,
+      tool: 'get_email_thread',
+      schema: MAIL_TOOL_SCHEMA,
+      source,
+      clientId: clientA,
     });
     await h.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', mailOutcome(source));
     h.resume();
@@ -721,44 +833,66 @@ describe('Meri durable safe-read commit and replay', () => {
 
       const mixedSource = await mappedMailSearch(tool, [clientA, clientB]);
       const mixed = harness({
-        tool, schema: MAIL_SEARCH_TOOL_SCHEMA, source: mixedSource, clientId: clientA,
+        tool,
+        schema: MAIL_SEARCH_TOOL_SCHEMA,
+        source: mixedSource,
+        clientId: clientA,
       });
       await mixed.service.commitSafeReadOutcome(
-        ctx, 'session-1', 'run-1', mappedMailSearchOutcome(tool, mixedSource),
+        ctx,
+        'session-1',
+        'run-1',
+        mappedMailSearchOutcome(tool, mixedSource),
       );
       mixed.resume();
-      await expect(mixed.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
-        .resolves.toEqual({ replayed: false });
+      await expect(
+        mixed.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
+      ).resolves.toEqual({ replayed: false });
       expect(mixed.tools.execute).not.toHaveBeenCalled();
 
       const focusedSource = await mappedMailSearch(tool, [clientA]);
       const focused = harness({
-        tool, schema: MAIL_SEARCH_TOOL_SCHEMA, source: focusedSource, clientId: clientA,
+        tool,
+        schema: MAIL_SEARCH_TOOL_SCHEMA,
+        source: focusedSource,
+        clientId: clientA,
       });
       await focused.service.commitSafeReadOutcome(
-        ctx, 'session-1', 'run-1', mappedMailSearchOutcome(tool, focusedSource),
+        ctx,
+        'session-1',
+        'run-1',
+        mappedMailSearchOutcome(tool, focusedSource),
       );
       focused.resume();
-      await expect(focused.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
-        .resolves.toMatchObject({ replayed: true });
+      await expect(
+        focused.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
+      ).resolves.toMatchObject({ replayed: true });
 
       const unfocusedSource = await mappedMailSearch(tool, [clientB]);
       const unfocused = harness({ tool, schema: MAIL_SEARCH_TOOL_SCHEMA, source: unfocusedSource });
       await unfocused.service.commitSafeReadOutcome(
-        ctx, 'session-1', 'run-1', mappedMailSearchOutcome(tool, unfocusedSource),
+        ctx,
+        'session-1',
+        'run-1',
+        mappedMailSearchOutcome(tool, unfocusedSource),
       );
       unfocused.resume();
-      await expect(unfocused.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
-        .resolves.toMatchObject({ replayed: true });
+      await expect(
+        unfocused.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
+      ).resolves.toMatchObject({ replayed: true });
 
       const revoked = harness({ tool, schema: MAIL_SEARCH_TOOL_SCHEMA, source: unfocusedSource });
       await revoked.service.commitSafeReadOutcome(
-        ctx, 'session-1', 'run-1', mappedMailSearchOutcome(tool, unfocusedSource),
+        ctx,
+        'session-1',
+        'run-1',
+        mappedMailSearchOutcome(tool, unfocusedSource),
       );
       revoked.resume();
       revoked.revokeWall();
-      await expect(revoked.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
-        .resolves.toEqual({ replayed: false });
+      await expect(
+        revoked.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
+      ).resolves.toEqual({ replayed: false });
       expect(revoked.tools.execute).not.toHaveBeenCalled();
     },
   );
@@ -767,40 +901,55 @@ describe('Meri durable safe-read commit and replay', () => {
     const clientA = '33333333-3333-4333-8333-333333333333';
     const clientB = '55555555-5555-4555-8555-555555555555';
     const sourceB = await mappedMailThread(clientB);
-    const changed = harness({ tool: 'get_email_thread', schema: MAIL_TOOL_SCHEMA, source: sourceB });
-    await changed.service.commitSafeReadOutcome(
-      ctx, 'session-1', 'run-1', mailOutcome(sourceB),
-    );
+    const changed = harness({
+      tool: 'get_email_thread',
+      schema: MAIL_TOOL_SCHEMA,
+      source: sourceB,
+    });
+    await changed.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', mailOutcome(sourceB));
     changed.resume();
     changed.changeSessionClientDuringExecute(clientA);
-    await expect(changed.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', {
-      leaseEpoch: 2,
-      tool: 'get_email_thread',
-      toolVersion: MAIL_TOOL_VERSION,
-      input: { threadId: sourceB.threadId },
-    })).resolves.toEqual({ replayed: false });
+    await expect(
+      changed.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', {
+        leaseEpoch: 2,
+        tool: 'get_email_thread',
+        toolVersion: MAIL_TOOL_VERSION,
+        input: { threadId: sourceB.threadId },
+      }),
+    ).resolves.toEqual({ replayed: false });
     expect(changed.tools.execute).toHaveBeenCalledTimes(1);
 
     const personalSource = await mappedMailThread(null);
     const personal = harness({
-      tool: 'get_email_thread', schema: MAIL_TOOL_SCHEMA, source: personalSource, clientId: clientA,
+      tool: 'get_email_thread',
+      schema: MAIL_TOOL_SCHEMA,
+      source: personalSource,
+      clientId: clientA,
     });
     await personal.service.commitSafeReadOutcome(
-      ctx, 'session-1', 'run-1', mailOutcome(personalSource),
+      ctx,
+      'session-1',
+      'run-1',
+      mailOutcome(personalSource),
     );
     personal.resume();
-    await expect(personal.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', {
-      leaseEpoch: 2,
-      tool: 'get_email_thread',
-      toolVersion: MAIL_TOOL_VERSION,
-      input: { threadId: personalSource.threadId },
-    })).resolves.toMatchObject({ replayed: true });
+    await expect(
+      personal.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', {
+        leaseEpoch: 2,
+        tool: 'get_email_thread',
+        toolVersion: MAIL_TOOL_VERSION,
+        input: { threadId: personalSource.threadId },
+      }),
+    ).resolves.toMatchObject({ replayed: true });
   });
 
   it('treats an absent or corrupt private result as a replay miss', async () => {
     const h = harness();
     await h.service.commitSafeReadOutcome(
-      ctx, 'session-1', 'run-1', outcome('execution-1', 'radar'),
+      ctx,
+      'session-1',
+      'run-1',
+      outcome('execution-1', 'radar'),
     );
     h.resume();
     const request = {
@@ -810,11 +959,13 @@ describe('Meri durable safe-read commit and replay', () => {
       input: { query: 'radar' },
     };
     h.artifacts.clear();
-    await expect(h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
-      .resolves.toEqual({ replayed: false });
+    await expect(
+      h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
+    ).resolves.toEqual({ replayed: false });
     h.artifacts.set('private-result-1', { bodyText: '{corrupt' });
-    await expect(h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
-      .resolves.toEqual({ replayed: false });
+    await expect(
+      h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
+    ).resolves.toEqual({ replayed: false });
   });
 
   it('keeps same-name invocations separate by execution ID and exact input', async () => {
@@ -990,7 +1141,9 @@ describe('Meri durable safe-read commit and replay', () => {
     h.completeReport();
     Object.assign(h.artifacts.get('report-1')!.metadata, {
       intent: 'PRIVATE_INTENT',
-      trustSteps: [{ tool: 'search_memory', label: 'PRIVATE_LABEL', detail: 'PRIVATE_DETAIL', count: 1 }],
+      trustSteps: [
+        { tool: 'search_memory', label: 'PRIVATE_LABEL', detail: 'PRIVATE_DETAIL', count: 1 },
+      ],
       nested: { body: 'PRIVATE_NESTED_BODY' },
     });
     h.session.metadata.durableStepReceipts[0].summary = 'PRIVATE_RECEIPT_SUMMARY';
@@ -1012,39 +1165,49 @@ describe('Meri durable safe-read commit and replay', () => {
       trustSteps: [{ tool: 'search_memory', count: 1 }],
       reportBodyAccess: { status: 'withheld' },
     });
-    expect(
-      (response.metadata.durableStepReceipts as Array<{ summary: string }>)[0]?.summary,
-    ).toBe('Authorized read completed');
+    expect((response.metadata.durableStepReceipts as Array<{ summary: string }>)[0]?.summary).toBe(
+      'Authorized read completed',
+    );
   });
 
   it('projects recovery sources without returning persisted owner prose', async () => {
     const h = harness();
     await h.service.commitSafeReadOutcome(
-      ctx, 'session-1', 'run-1', outcome('execution-current-run', 'radar'),
+      ctx,
+      'session-1',
+      'run-1',
+      outcome('execution-current-run', 'radar'),
     );
     h.completeReport();
-    h.session.sources = [{
-      tool: 'search_memory',
-      label: 'Memory',
-      summary: 'private owner result text',
-      confidence: 'high',
-    }];
+    h.session.sources = [
+      {
+        tool: 'search_memory',
+        label: 'Memory',
+        summary: 'private owner result text',
+        confidence: 'high',
+      },
+    ];
 
     const response = await h.service.getSession(ctx, 'session-1');
 
     expect(JSON.stringify(response)).not.toContain('private owner result text');
-    expect(response.sources).toEqual([{
-      tool: 'search_memory',
-      label: 'Research source',
-      summary: 'Authorized read completed',
-      confidence: 'high',
-    }]);
+    expect(response.sources).toEqual([
+      {
+        tool: 'search_memory',
+        label: 'Research source',
+        summary: 'Authorized read completed',
+        confidence: 'high',
+      },
+    ]);
   });
 
   it('binds recovery and export to the delivered report metadata identity', async () => {
     const h = harness();
     await h.service.commitSafeReadOutcome(
-      ctx, 'session-1', 'run-1', outcome('execution-current-run', 'radar'),
+      ctx,
+      'session-1',
+      'run-1',
+      outcome('execution-current-run', 'radar'),
     );
     h.completeReport();
     h.artifacts.get('report-1')!.metadata.researchSessionId = 'different-session';
@@ -1058,7 +1221,10 @@ describe('Meri durable safe-read commit and replay', () => {
   it('omits a malformed private receipt tool identifier from the public DTO', async () => {
     const h = harness();
     await h.service.commitSafeReadOutcome(
-      ctx, 'session-1', 'run-1', outcome('execution-current-run', 'radar'),
+      ctx,
+      'session-1',
+      'run-1',
+      outcome('execution-current-run', 'radar'),
     );
     h.completeReport();
     h.session.metadata.durableStepReceipts[0].tool = 'private_source_detail';
@@ -1095,6 +1261,188 @@ describe('Meri durable safe-read commit and replay', () => {
     });
     await expect(h.service.getReportMarkdown(ctx, 'session-1')).rejects.toThrow();
     expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+
+  it('replays an old authorized transcript receipt only while current source bytes remain exact', async () => {
+    const initial = completeMeetingSourceResult();
+    const h = harness({
+      tool: 'read_client_meetings',
+      schema: MEETING_SCHEMA,
+      source: initial,
+      clientId: MEETING_CLIENT_ID,
+    });
+    await h.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', {
+      executionId: 'meeting-source-execution-1',
+      leaseEpoch: 1,
+      providerCallId: 'meeting-source-provider-1',
+      tool: 'read_client_meetings',
+      toolVersion: MEETING_VERSION,
+      input: MEETING_INPUT,
+      result: initial,
+    });
+    expect(readDurableResearchStepReceipts(h.session.metadata)).toEqual([
+      expect.objectContaining({
+        tool: 'read_client_meetings',
+        classifier: 'complete',
+        resultRef: expect.stringMatching(/^private-result-/),
+      }),
+    ]);
+
+    h.resume();
+    const request = {
+      leaseEpoch: 2,
+      tool: 'read_client_meetings',
+      toolVersion: MEETING_VERSION,
+      input: MEETING_INPUT,
+    };
+    await expect(
+      h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
+    ).resolves.toMatchObject({
+      replayed: true,
+      result: {
+        tool: 'read_client_meetings',
+        source: { body: 'PRIVATE EXACT AUTHORIZED TRANSCRIPT SOURCE' },
+      },
+    });
+
+    h.replaceSource(completeMeetingSourceResult('EDITED TRANSCRIPT SOURCE', 'version-2'));
+    await expect(
+      h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
+    ).resolves.toEqual({ replayed: false });
+    h.revokeSource();
+    await expect(
+      h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
+    ).resolves.toEqual({ replayed: false });
+  });
+
+  it('binds standalone meeting replay to selected and post-owner current client scope', async () => {
+    const initial = completeMeetingSourceResult();
+    const clientA = '55555555-5555-4555-8555-555555555555';
+    const committed = {
+      executionId: 'meeting-scope-execution',
+      leaseEpoch: 1,
+      providerCallId: 'meeting-scope-provider',
+      tool: 'read_client_meetings',
+      toolVersion: MEETING_VERSION,
+      input: MEETING_INPUT,
+      result: initial,
+    };
+    const request = {
+      leaseEpoch: 2,
+      tool: 'read_client_meetings',
+      toolVersion: MEETING_VERSION,
+      input: MEETING_INPUT,
+    };
+
+    const selectedA = harness({
+      tool: 'read_client_meetings',
+      schema: MEETING_SCHEMA,
+      source: initial,
+      clientId: clientA,
+    });
+    await selectedA.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', committed);
+    selectedA.resume();
+    await expect(
+      selectedA.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
+    ).resolves.toEqual({ replayed: false });
+    expect(selectedA.tools.execute).not.toHaveBeenCalled();
+
+    const unscoped = harness({
+      tool: 'read_client_meetings',
+      schema: MEETING_SCHEMA,
+      source: initial,
+    });
+    await unscoped.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', committed);
+    unscoped.resume();
+    await expect(
+      unscoped.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
+    ).resolves.toMatchObject({ replayed: true });
+    expect(unscoped.tools.execute).toHaveBeenCalledTimes(1);
+
+    const changedAfterOwner = harness({
+      tool: 'read_client_meetings',
+      schema: MEETING_SCHEMA,
+      source: initial,
+    });
+    await changedAfterOwner.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', committed);
+    changedAfterOwner.resume();
+    changedAfterOwner.changeSessionClientDuringExecute(clientA);
+    await expect(
+      changedAfterOwner.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
+    ).resolves.toEqual({ replayed: false });
+    expect(changedAfterOwner.tools.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('reauthorizes meeting-source report read, export and model input and withholds edited bytes', async () => {
+    const initial = completeMeetingSourceResult();
+    const h = harness({
+      tool: 'read_client_meetings',
+      schema: MEETING_SCHEMA,
+      source: initial,
+      clientId: MEETING_CLIENT_ID,
+    });
+    await h.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', {
+      executionId: 'meeting-report-execution',
+      leaseEpoch: 1,
+      providerCallId: 'meeting-report-provider',
+      tool: 'read_client_meetings',
+      toolVersion: MEETING_VERSION,
+      input: MEETING_INPUT,
+      result: initial,
+    });
+    h.completeReport(['read_client_meetings']);
+
+    await expect(h.service.getSession(ctx, 'session-1')).resolves.toMatchObject({
+      report: { bodyText: 'REPORT_CITING_CURRENT_RUN_MEMORY' },
+    });
+    await expect(h.service.getReportMarkdown(ctx, 'session-1')).resolves.toEqual({
+      title: 'Durable report',
+      markdown: 'REPORT_CITING_CURRENT_RUN_MEMORY',
+    });
+    const model = await h.service.authorizeModelContext(
+      ctx,
+      { conversationId: 'conversation-1', clientId: MEETING_CLIENT_ID },
+      [
+        {
+          id: 'report-message',
+          role: 'assistant',
+          body: 'MEETING_SOURCE_REPORT',
+          metadata: {
+            researchReport: true,
+            researchSessionId: 'session-1',
+          },
+        },
+      ],
+      'MEETING_SOURCE_SUMMARY',
+    );
+    expect(model.messages[0]?.body).toBe('MEETING_SOURCE_REPORT');
+    expect(model.summary).toBe('MEETING_SOURCE_SUMMARY');
+
+    h.replaceSource(completeMeetingSourceResult('EDITED TRANSCRIPT SOURCE', 'version-2'));
+    await expect(h.service.getSession(ctx, 'session-1')).resolves.toMatchObject({
+      report: { bodyText: expect.stringContaining('current source authorization') },
+    });
+    await expect(h.service.getReportMarkdown(ctx, 'session-1')).rejects.toThrow(
+      'source version changed',
+    );
+    const deniedModel = await h.service.authorizeModelContext(
+      ctx,
+      { conversationId: 'conversation-1', clientId: MEETING_CLIENT_ID },
+      [
+        {
+          id: 'report-message',
+          role: 'assistant',
+          body: 'MEETING_SOURCE_REPORT',
+          metadata: {
+            researchReport: true,
+            researchSessionId: 'session-1',
+          },
+        },
+      ],
+      'MEETING_SOURCE_SUMMARY',
+    );
+    expect(deniedModel.messages[0]?.body).toContain('current source authorization');
+    expect(deniedModel.summary).toBeNull();
   });
 
   it('commits the actual debrief owner page and replays an old lease only while current bytes remain exact', async () => {
@@ -1134,24 +1482,27 @@ describe('Meri durable safe-read commit and replay', () => {
       toolVersion: DEBRIEF_VERSION,
       input: DEBRIEF_INPUT,
     };
-    await expect(h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
-      .resolves.toMatchObject({
-        replayed: true,
-        result: {
-          tool: 'query_debriefs',
-          debriefs: [{ id: 'debrief-1', body: 'PRIVATE EXACT DEBRIEF SOURCE' }],
-        },
-      });
+    await expect(
+      h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
+    ).resolves.toMatchObject({
+      replayed: true,
+      result: {
+        tool: 'query_debriefs',
+        debriefs: [{ id: 'debrief-1', body: 'PRIVATE EXACT DEBRIEF SOURCE' }],
+      },
+    });
 
     current = completeDebriefResult(
       'EDITED PRIVATE DEBRIEF WITH SAME IDS AND COUNT',
       '2026-09-22T10:00:00.000Z',
     );
-    await expect(h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
-      .resolves.toEqual({ replayed: false });
+    await expect(
+      h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
+    ).resolves.toEqual({ replayed: false });
     revoked = true;
-    await expect(h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
-      .resolves.toEqual({ replayed: false });
+    await expect(
+      h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
+    ).resolves.toEqual({ replayed: false });
   });
 
   it('reauthorizes debrief-backed report read/export and withholds it after edit or revoke', async () => {
@@ -1195,8 +1546,8 @@ describe('Meri durable safe-read commit and replay', () => {
     expect(denied.report?.bodyText).toContain('current source authorization');
     await expect(h.service.getReportMarkdown(ctx, 'session-1')).rejects.toThrow(
       'no longer authorized',
-      );
-    });
+    );
+  });
   it('rejects legacy cross-client mail from replay, report export and restored model context', async () => {
     const clientA = '33333333-3333-4333-8333-333333333333';
     const clientB = '55555555-5555-4555-8555-555555555555';
@@ -1206,18 +1557,21 @@ describe('Meri durable safe-read commit and replay', () => {
       clientB,
     );
     const h = harness({
-      tool: 'get_email_thread', schema: MAIL_TOOL_SCHEMA, source, clientId: clientA,
-    });
-    await h.service.commitSafeReadOutcome(
-      ctx, 'session-1', 'run-1', mailOutcome(source, clientA),
-    );
-    h.resume();
-    await expect(h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', {
-      leaseEpoch: 2,
       tool: 'get_email_thread',
-      toolVersion: MAIL_TOOL_VERSION,
-      input: { threadId: source.threadId, clientId: clientA },
-    })).resolves.toEqual({ replayed: false });
+      schema: MAIL_TOOL_SCHEMA,
+      source,
+      clientId: clientA,
+    });
+    await h.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', mailOutcome(source, clientA));
+    h.resume();
+    await expect(
+      h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', {
+        leaseEpoch: 2,
+        tool: 'get_email_thread',
+        toolVersion: MAIL_TOOL_VERSION,
+        input: { threadId: source.threadId, clientId: clientA },
+      }),
+    ).resolves.toEqual({ replayed: false });
 
     h.session.metadata = {
       ...h.session.metadata,
@@ -1233,9 +1587,17 @@ describe('Meri durable safe-read commit and replay', () => {
     const model = await h.service.authorizeModelContext(
       ctx,
       { conversationId: 'conversation-1', clientId: clientA },
-      [{ id: 'report-message', role: 'assistant', body: 'CROSS_CLIENT_REPORT', metadata: {
-        researchReport: true, researchSessionId: 'session-1',
-      } }],
+      [
+        {
+          id: 'report-message',
+          role: 'assistant',
+          body: 'CROSS_CLIENT_REPORT',
+          metadata: {
+            researchReport: true,
+            researchSessionId: 'session-1',
+          },
+        },
+      ],
       'CROSS_CLIENT_SUMMARY',
     );
     expect(model.messages[0]?.body).toContain('current source authorization');
@@ -1249,10 +1611,16 @@ describe('Meri durable safe-read commit and replay', () => {
       [completeMailThreadResult(), undefined],
     ] as const) {
       const h = harness({
-        tool: 'get_email_thread', schema: MAIL_TOOL_SCHEMA, source, clientId: clientA,
+        tool: 'get_email_thread',
+        schema: MAIL_TOOL_SCHEMA,
+        source,
+        clientId: clientA,
       });
       await h.service.commitSafeReadOutcome(
-        ctx, 'session-1', 'run-1', mailOutcome(source, explicitClient),
+        ctx,
+        'session-1',
+        'run-1',
+        mailOutcome(source, explicitClient),
       );
       h.completeReport();
       await expect(h.service.getSession(ctx, 'session-1')).resolves.toMatchObject({
@@ -1265,11 +1633,12 @@ describe('Meri durable safe-read commit and replay', () => {
     const clientA = '33333333-3333-4333-8333-333333333333';
     const source = completeMailThreadResult(undefined, undefined, clientA);
     const h = harness({
-      tool: 'get_email_thread', schema: MAIL_TOOL_SCHEMA, source, clientId: clientA,
+      tool: 'get_email_thread',
+      schema: MAIL_TOOL_SCHEMA,
+      source,
+      clientId: clientA,
     });
-    await h.service.commitSafeReadOutcome(
-      ctx, 'session-1', 'run-1', mailOutcome(source, clientA),
-    );
+    await h.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', mailOutcome(source, clientA));
     h.completeReport();
     h.revokeWall();
     await expect(h.service.getSession(ctx, 'session-1')).rejects.toThrow(
@@ -1286,31 +1655,23 @@ describe('Meri durable safe-read commit and replay', () => {
       schema: MAIL_TOOL_SCHEMA,
       source: completeMailThreadResult(),
     });
-    await replay.service.commitSafeReadOutcome(
-      ctx,
-      'session-1',
-      'run-1',
-      mailOutcome(),
-    );
+    await replay.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', mailOutcome());
     replay.resume();
-    await expect(replay.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', {
-      leaseEpoch: 2,
-      tool: 'get_email_thread',
-      toolVersion: MAIL_TOOL_VERSION,
-      input: { threadId: '11111111-1111-4111-8111-111111111111' },
-    })).resolves.toMatchObject({ replayed: true, result: { totalMessages: 1 } });
+    await expect(
+      replay.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', {
+        leaseEpoch: 2,
+        tool: 'get_email_thread',
+        toolVersion: MAIL_TOOL_VERSION,
+        input: { threadId: '11111111-1111-4111-8111-111111111111' },
+      }),
+    ).resolves.toMatchObject({ replayed: true, result: { totalMessages: 1 } });
 
     const report = harness({
       tool: 'get_email_thread',
       schema: MAIL_TOOL_SCHEMA,
       source: completeMailThreadResult(),
     });
-    await report.service.commitSafeReadOutcome(
-      ctx,
-      'session-1',
-      'run-1',
-      mailOutcome(),
-    );
+    await report.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', mailOutcome());
     report.completeReport();
     await expect(report.service.getSession(ctx, 'session-1')).resolves.toMatchObject({
       report: { bodyText: 'REPORT_CITING_CURRENT_RUN_MEMORY' },
@@ -1320,10 +1681,9 @@ describe('Meri durable safe-read commit and replay', () => {
       markdown: 'REPORT_CITING_CURRENT_RUN_MEMORY',
     });
 
-    report.replaceSource(completeMailThreadResult(
-      'Corrected canonical mail body.',
-      '2026-09-28T00:02:00.000Z',
-    ));
+    report.replaceSource(
+      completeMailThreadResult('Corrected canonical mail body.', '2026-09-28T00:02:00.000Z'),
+    );
     await expect(report.service.getSession(ctx, 'session-1')).resolves.toMatchObject({
       report: { bodyText: expect.stringContaining('current source authorization') },
       reportMetadata: { reportBodyAccess: { status: 'withheld' } },

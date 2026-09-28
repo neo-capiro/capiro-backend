@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import { MeriToolsService } from './meri-tools.service.js';
 import { MeriContextPlaneService } from './meri-context-plane.service.js';
@@ -119,7 +120,17 @@ function makeMocks(
   };
   const engagement = {
     clientContext: jest.fn().mockResolvedValue({ client: { id: 'client-1', name: 'Acme' } }),
+    listMeetings: jest.fn().mockResolvedValue([]),
+    getMeeting: jest.fn(),
+    getClientMeeting: jest.fn(),
+    listMeetingNotes: jest.fn().mockResolvedValue([]),
     listTasks: jest.fn().mockResolvedValue([]),
+    readMeriTasksExact: jest.fn().mockResolvedValue({
+      rows: [],
+      total: 0,
+      sourceStatus: 'healthy',
+      sourceReason: null,
+    }),
     listClientDebriefs: jest.fn().mockResolvedValue([]),
     readClientDebriefsExact: jest.fn().mockResolvedValue({
       rows: [],
@@ -136,6 +147,14 @@ function makeMocks(
   };
   const actionRecommendations = {
     list: jest.fn().mockResolvedValue({ data: [], total: 0, page: 1, limit: 20 }),
+    readMeriActionItemsExact: jest.fn().mockResolvedValue({
+      data: [],
+      total: 0,
+      page: 1,
+      limit: 20,
+      sourceStatus: 'healthy',
+      sourceReason: null,
+    }),
   };
   const intelligence = { listTrackedBills: jest.fn().mockResolvedValue([]) };
   const regulatoryDockets = {
@@ -264,7 +283,431 @@ function makeMocks(
   };
 }
 
+describe('read_client_meetings', () => {
+  const meeting = (id: string, startsAt: string, clientId: string | null = 'client-1') => ({
+    id,
+    clientId,
+    subject: `Meeting ${id}`,
+    startsAt: new Date(startsAt),
+    endsAt: new Date(Date.parse(startsAt) + 3_600_000),
+    status: 'completed',
+    updatedAt: new Date('2026-09-22T00:00:00.000Z'),
+    transcriptS3Key: null,
+  });
+
+  function authorized() {
+    const m = makeMocks();
+    m.tx.$queryRawUnsafe.mockResolvedValue([{ allowed: true }]);
+    return m;
+  }
+
+  it('uses the canonical meeting owner, paginates history, and does not fabricate a transcript', async () => {
+    const m = authorized();
+    m.engagement.listMeetings.mockResolvedValue([
+      meeting('meeting-1', '2026-08-01T10:00:00.000Z'),
+      meeting('meeting-2', '2026-08-02T10:00:00.000Z'),
+    ]);
+    m.engagement.getClientMeeting.mockImplementation(async (_ctx, _clientId, id) =>
+      meeting(id, id === 'meeting-1' ? '2026-08-01T10:00:00.000Z' : '2026-08-02T10:00:00.000Z'),
+    );
+
+    const result = (await m.service.execute(ctx, 'read_client_meetings', {
+      clientId: 'client-1',
+      limit: 1,
+    })) as any;
+
+    expect(m.engagement.listMeetings).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        clientId: 'client-1',
+        from: '0001-01-01T00:00:00.000Z',
+        to: '9999-12-31T23:59:59.999Z',
+        limit: 2,
+      }),
+    );
+    expect(m.engagement.getClientMeeting).toHaveBeenCalledWith(ctx, 'client-1', 'meeting-1');
+    expect(result.coverage).toMatchObject({ meetingPaginationComplete: false, complete: false });
+    expect(result.meetings[0].sourceAvailability).toEqual({
+      notes: 'empty',
+      transcript: 'unavailable',
+      transcriptReason: 'calendar_event_without_persisted_transcript',
+    });
+  });
+
+  it('returns exact authorized note bytes and rejects a different-client parent', async () => {
+    const m = authorized();
+    m.engagement.getClientMeeting.mockResolvedValue(
+      meeting('meeting-1', '2026-08-01T10:00:00.000Z'),
+    );
+    m.engagement.listMeetingNotes.mockResolvedValue([
+      {
+        id: 'note-1',
+        meetingId: 'meeting-1',
+        clientId: 'client-1',
+        body: 'Pat promised the demo by October 8.',
+        status: 'approved',
+        createdAt: new Date('2026-08-01T11:00:00.000Z'),
+        updatedAt: new Date('2026-08-02T11:00:00.000Z'),
+      },
+    ]);
+
+    const result = (await m.service.execute(ctx, 'read_client_meetings', {
+      clientId: 'client-1',
+      meetingId: 'meeting-1',
+      sourceKind: 'note',
+      sourceId: 'note-1',
+    })) as any;
+    expect(result.source).toMatchObject({
+      sourceKind: 'note',
+      sourceId: 'note-1',
+      body: 'Pat promised the demo by October 8.',
+      provenance: {
+        owner: 'meeting_notes',
+        sourceVersion: '2026-08-02T11:00:00.000Z',
+      },
+    });
+    expect(result.coverage.complete).toBe(true);
+
+    m.engagement.getClientMeeting.mockRejectedValue(new Error('Meeting not found'));
+    await expect(
+      m.service.execute(ctx, 'read_client_meetings', {
+        clientId: 'client-1',
+        meetingId: 'meeting-1',
+      }),
+    ).rejects.toThrow('Meeting not found');
+  });
+
+  it('reads only a persisted authorized transcript attachment through its storage owner', async () => {
+    const m = authorized();
+    m.engagement.getClientMeeting.mockResolvedValue({
+      ...meeting('meeting-1', '2026-08-01T10:00:00.000Z'),
+      transcriptS3Key: 'tenant/client/transcript.txt',
+    });
+    m.engagement.listAttachments.mockResolvedValue([
+      {
+        id: 'transcript-1',
+        source: 'notetaker',
+        contentType: 'text/plain',
+        s3Key: 'tenant/client/transcript.txt',
+        fileName: 'transcript.txt',
+        calculatedSha256: null,
+        lifecycleStatus: 'ready',
+        usable: true,
+        blockedReason: null,
+        createdAt: new Date('2026-08-01T11:00:00.000Z'),
+        updatedAt: new Date('2026-08-01T11:00:00.000Z'),
+      },
+    ]);
+    m.engagement.extractAttachmentText.mockResolvedValue({
+      attachmentId: 'transcript-1',
+      fileName: 'transcript.txt',
+      contentType: 'text/plain',
+      text: 'Full persisted transcript bytes.',
+      contentHash: createHash('sha256')
+        .update('Full persisted transcript bytes.', 'utf8')
+        .digest('hex'),
+      truncated: false,
+      section: 1,
+      sectionCount: 1,
+    });
+
+    const result = (await m.service.execute(ctx, 'read_client_meetings', {
+      clientId: 'client-1',
+      meetingId: 'meeting-1',
+      sourceKind: 'transcript',
+      sourceId: 'transcript-1',
+    })) as any;
+
+    expect(m.engagement.extractAttachmentText).toHaveBeenCalledWith(ctx, 'transcript-1', {
+      section: 1,
+    });
+    expect(result.source).toMatchObject({
+      sourceKind: 'transcript',
+      sourceId: 'transcript-1',
+      body: 'Full persisted transcript bytes.',
+      contentHash: createHash('sha256')
+        .update('Full persisted transcript bytes.', 'utf8')
+        .digest('hex'),
+      provenance: {
+        owner: 'engagement_attachment_storage',
+      },
+    });
+  });
+
+  it('fails closed when the ethical-wall grant is revoked after the owner read', async () => {
+    const m = authorized();
+    m.engagement.getClientMeeting.mockResolvedValue(
+      meeting('meeting-1', '2026-08-01T10:00:00.000Z'),
+    );
+    let wallCalls = 0;
+    m.tx.$queryRawUnsafe.mockImplementation(async () => [{ allowed: wallCalls++ < 1 }]);
+
+    await expect(
+      m.service.execute(ctx, 'read_client_meetings', {
+        clientId: 'client-1',
+        meetingId: 'meeting-1',
+      }),
+    ).rejects.toThrow('Client not found');
+  });
+
+  it.each(['wall', 'membership'] as const)(
+    'denies exact note bytes when %s is revoked by the final owner await',
+    async (revocation) => {
+      const m = authorized();
+      const parent = meeting('meeting-1', '2026-08-01T10:00:00.000Z');
+      const source = {
+        id: 'note-1',
+        meetingId: 'meeting-1',
+        clientId: 'stale-child-client',
+        body: 'FINAL_AWAIT_PRIVATE_BODY',
+        status: 'approved',
+        createdAt: new Date('2026-08-01T11:00:00.000Z'),
+        updatedAt: new Date('2026-08-02T11:00:00.000Z'),
+      };
+      let allowed = true;
+      let noteReads = 0;
+      m.engagement.getClientMeeting.mockResolvedValue(parent);
+      m.engagement.listMeetingNotes.mockImplementation(async () => {
+        if (++noteReads === 4) allowed = false;
+        return [source];
+      });
+      if (revocation === 'wall') {
+        m.tx.$queryRawUnsafe.mockImplementation(async () => [{ allowed }]);
+      } else {
+        m.tx.client.findFirst.mockImplementation(async () => (allowed ? { id: 'client-1' } : null));
+      }
+      await expect(
+        m.service.execute(ctx, 'read_client_meetings', {
+          clientId: 'client-1',
+          meetingId: 'meeting-1',
+          sourceKind: 'note',
+          sourceId: 'note-1',
+        }),
+      ).rejects.toThrow('Client not found');
+      expect(noteReads).toBe(4);
+    },
+  );
+
+  it('uses current parent association, rejects wrong note parents, and preserves stale child-client semantics', async () => {
+    const parentChanged = authorized();
+    let currentParent = true;
+    let noteReads = 0;
+    parentChanged.engagement.getClientMeeting.mockImplementation(async () => {
+      if (!currentParent) throw new Error('Meeting not found');
+      return meeting('meeting-1', '2026-08-01T10:00:00.000Z');
+    });
+    parentChanged.engagement.listMeetingNotes.mockImplementation(async () => {
+      if (++noteReads === 4) currentParent = false;
+      return [
+        {
+          id: 'note-1',
+          meetingId: 'meeting-1',
+          clientId: 'client-2',
+          body: 'body',
+          status: 'approved',
+          createdAt: new Date('2026-08-01T11:00:00.000Z'),
+          updatedAt: new Date('2026-08-02T11:00:00.000Z'),
+        },
+      ];
+    });
+    await expect(
+      parentChanged.service.execute(ctx, 'read_client_meetings', {
+        clientId: 'client-1',
+        meetingId: 'meeting-1',
+        sourceKind: 'note',
+        sourceId: 'note-1',
+      }),
+    ).rejects.toThrow('Meeting not found');
+
+    const wrongParent = authorized();
+    wrongParent.engagement.getClientMeeting.mockResolvedValue(
+      meeting('meeting-1', '2026-08-01T10:00:00.000Z'),
+    );
+    wrongParent.engagement.listMeetingNotes.mockResolvedValue([
+      {
+        id: 'note-1',
+        meetingId: 'different-meeting',
+        clientId: 'client-1',
+        body: 'wrong parent',
+        status: 'approved',
+        createdAt: new Date('2026-08-01T11:00:00.000Z'),
+        updatedAt: new Date('2026-08-02T11:00:00.000Z'),
+      },
+    ]);
+    await expect(
+      wrongParent.service.execute(ctx, 'read_client_meetings', {
+        clientId: 'client-1',
+        meetingId: 'meeting-1',
+        sourceKind: 'note',
+        sourceId: 'note-1',
+      }),
+    ).rejects.toThrow('Meeting source not found');
+
+    const staleChildClient = authorized();
+    staleChildClient.engagement.getClientMeeting.mockResolvedValue(
+      meeting('meeting-1', '2026-08-01T10:00:00.000Z'),
+    );
+    staleChildClient.engagement.listMeetingNotes.mockResolvedValue([
+      {
+        id: 'note-1',
+        meetingId: 'meeting-1',
+        clientId: 'client-2',
+        body: 'current parent authority',
+        status: 'approved',
+        createdAt: new Date('2026-08-01T11:00:00.000Z'),
+        updatedAt: new Date('2026-08-02T11:00:00.000Z'),
+      },
+    ]);
+    await expect(
+      staleChildClient.service.execute(ctx, 'read_client_meetings', {
+        clientId: 'client-1',
+        meetingId: 'meeting-1',
+        sourceKind: 'note',
+        sourceId: 'note-1',
+      }),
+    ).resolves.toMatchObject({
+      clientId: 'client-1',
+      source: { clientId: 'client-1', body: 'current parent authority' },
+    });
+  });
+
+  it('keeps canonical null-client associations and reports inaccessible mixed rows as partial', async () => {
+    const associated = authorized();
+    const nullClient = meeting('associated-null', '2026-08-01T10:00:00.000Z', null);
+    const assigned = meeting('assigned', '2026-08-02T10:00:00.000Z');
+    associated.engagement.listMeetings.mockResolvedValue([nullClient, assigned]);
+    associated.engagement.getClientMeeting.mockImplementation(async (_ctx, _clientId, id) =>
+      id === nullClient.id ? nullClient : assigned,
+    );
+    const page = (await associated.service.execute(ctx, 'read_client_meetings', {
+      clientId: 'client-1',
+      limit: 2,
+    })) as any;
+    expect(page.meetings).toEqual([
+      expect.objectContaining({ id: 'associated-null', clientId: 'client-1' }),
+      expect.objectContaining({ id: 'assigned', clientId: 'client-1' }),
+    ]);
+
+    const mixed = authorized();
+    mixed.engagement.listMeetings.mockResolvedValue([nullClient, assigned]);
+    mixed.engagement.getClientMeeting.mockImplementation(async (_ctx, _clientId, id) => {
+      if (id === assigned.id) throw new Error('Meeting not found');
+      return nullClient;
+    });
+    const partial = (await mixed.service.execute(ctx, 'read_client_meetings', {
+      clientId: 'client-1',
+      limit: 2,
+    })) as any;
+    expect(partial.meetings).toEqual([
+      expect.objectContaining({ id: 'associated-null', clientId: 'client-1' }),
+    ]);
+    expect(partial.coverage).toMatchObject({
+      sourceStatus: 'degraded',
+      complete: false,
+      partial: true,
+      omittedMeetings: 1,
+    });
+    expect(partial.coverage.note).not.toContain('No eligible authorized meetings');
+  });
+
+  it('denies extracted transcript bytes when the canonical parent changes during extraction', async () => {
+    const m = authorized();
+    let parentCurrent = true;
+    m.engagement.getClientMeeting.mockImplementation(async () => {
+      if (!parentCurrent) throw new Error('Meeting not found');
+      return {
+        ...meeting('meeting-1', '2026-08-01T10:00:00.000Z'),
+        transcriptS3Key: 'transcript.txt',
+      };
+    });
+    m.engagement.listAttachments.mockResolvedValue([
+      {
+        id: 'transcript-1',
+        source: 'notetaker',
+        contentType: 'text/plain',
+        s3Key: 'transcript.txt',
+        calculatedSha256: null,
+        lifecycleStatus: 'ready',
+        usable: true,
+        blockedReason: null,
+        createdAt: new Date('2026-08-01T11:00:00.000Z'),
+      },
+    ]);
+    m.engagement.extractAttachmentText.mockImplementation(async () => {
+      parentCurrent = false;
+      const text = 'TRANSCRIPT_PRIVATE_BODY';
+      return {
+        contentType: 'text/plain',
+        text,
+        truncated: false,
+        contentHash: createHash('sha256').update(text).digest('hex'),
+      };
+    });
+    await expect(
+      m.service.execute(ctx, 'read_client_meetings', {
+        clientId: 'client-1',
+        meetingId: 'meeting-1',
+        sourceKind: 'transcript',
+        sourceId: 'transcript-1',
+      }),
+    ).rejects.toThrow('Meeting not found');
+  });
+});
+
 describe('query_tasks', () => {
+  it('maps the exact client-scoped canonical owner result with honest coverage', async () => {
+    const m = makeMocks();
+    m.engagement.readMeriTasksExact.mockResolvedValue({
+      rows: [
+        {
+          id: 'task-1',
+          clientId: 'client-1',
+          meetingId: null,
+          contactId: null,
+          mailThreadId: null,
+          title: 'Deliver demo',
+          description: 'Demo body',
+          ownerUserId: null,
+          dueDate: null,
+          status: 'done',
+          sourceType: 'meeting',
+          sourceId: 'meeting-1',
+          createdByUserId: 'user-1',
+          createdAt: new Date('2026-09-20T00:00:00.000Z'),
+          updatedAt: new Date('2026-09-21T00:00:00.000Z'),
+          client: { id: 'client-1', name: 'Acme' },
+          meeting: null,
+        },
+      ],
+      total: 1,
+      sourceStatus: 'healthy',
+      sourceReason: null,
+    });
+    const result = (await m.service.execute(ctx, 'query_tasks', { clientId: 'client-1' })) as any;
+    expect(m.engagement.readMeriTasksExact).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        clientId: 'client-1',
+        offset: 0,
+        limit: 25,
+      }),
+    );
+    expect(result).toMatchObject({
+      total: 1,
+      returned: 1,
+      coverage: { complete: true, absenceSupported: false },
+      tasks: [
+        {
+          id: 'task-1',
+          title: 'Deliver demo',
+          ownerUserId: null,
+          dueDate: null,
+          nativeCompletion: { completed: true, establishesDeliveryOrAcceptance: false },
+        },
+      ],
+    });
+  });
+
   it('derives overdue from past due date on open tasks only', async () => {
     const m = makeMocks();
     m.engagement.listTasks.mockResolvedValue([
@@ -318,21 +761,44 @@ describe('query_tasks', () => {
 describe('query_action_items', () => {
   it('passes ctx + filters to the read service and returns the cards', async () => {
     const m = makeMocks();
-    m.actionRecommendations.list.mockResolvedValue({
-      data: [{ id: 'action-1', issueTitle: 'PE cut' }],
+    m.actionRecommendations.readMeriActionItemsExact.mockResolvedValue({
+      data: [
+        {
+          id: 'action-1',
+          clientId: 'client-1',
+          clientName: 'Acme',
+          issueTitle: 'PE cut',
+          recommendedAction: 'Prepare response',
+          whatChanged: 'Cut',
+          whyItMatters: 'Risk',
+          status: 'new',
+          ownerUserId: null,
+          deadline: null,
+          deadlineSource: null,
+          actionType: 'monitor',
+          outcome: null,
+          evidence: [],
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
       total: 1,
       page: 1,
       limit: 20,
+      sourceStatus: 'healthy',
+      sourceReason: null,
     });
     const result = (await m.service.execute(ctx, 'query_action_items', {
       clientId: 'client-1',
       status: 'new',
       sort: 'priority',
     })) as { total: number; actions: Array<{ id: string }> };
-    expect(m.actionRecommendations.list).toHaveBeenCalledWith(ctx, {
+    expect(m.actionRecommendations.readMeriActionItemsExact).toHaveBeenCalledWith(ctx, {
       clientId: 'client-1',
+      actionItemId: null,
       status: 'new',
       sort: 'priority',
+      page: 1,
       limit: 20,
     });
     expect(result.total).toBe(1);
@@ -418,17 +884,33 @@ describe('search_sam_opportunities', () => {
     try {
       const m = makeMocks();
       m.programElement.listSamOpportunities.mockResolvedValue({
-        data: [{ id: 'opp-1', title: 'Radar RFI', description: 'short', responseDeadline: new Date('2099-07-15T21:00:00Z') }],
+        data: [
+          {
+            id: 'opp-1',
+            title: 'Radar RFI',
+            description: 'short',
+            responseDeadline: new Date('2099-07-15T21:00:00Z'),
+          },
+        ],
         total: 1,
       });
       process.env.MERI_EVIDENCE_ACCURACY_MODE = 'off';
-      const off = (await m.service.execute(ctx, 'search_sam_opportunities', {})) as { results: Array<Record<string, unknown>> };
-      expect(off.results[0]).toEqual({ id: 'opp-1', title: 'Radar RFI', description: 'short', responseDeadline: new Date('2099-07-15T21:00:00Z') });
+      const off = (await m.service.execute(ctx, 'search_sam_opportunities', {})) as {
+        results: Array<Record<string, unknown>>;
+      };
+      expect(off.results[0]).toEqual({
+        id: 'opp-1',
+        title: 'Radar RFI',
+        description: 'short',
+        responseDeadline: new Date('2099-07-15T21:00:00Z'),
+      });
 
       process.env.MERI_EVIDENCE_ACCURACY_MODE = 'enforce';
       process.env.MERI_EVIDENCE_ACCURACY_TENANTS = 'all';
       process.env.MERI_EVIDENCE_ACCURACY_SURFACES = 'chat';
-      const enforced = (await m.service.execute(ctx, 'search_sam_opportunities', {})) as { results: Array<{ deadline: Record<string, unknown> }> };
+      const enforced = (await m.service.execute(ctx, 'search_sam_opportunities', {})) as {
+        results: Array<{ deadline: Record<string, unknown> }>;
+      };
       expect(enforced.results[0]!.deadline).toMatchObject({
         at: '2099-07-15T21:00:00.000Z',
         basis: 'explicit_datetime',
@@ -445,7 +927,12 @@ describe('search_sam_opportunities', () => {
 
   it.each([
     ['clean recent source', freshSam, 'healthy', null],
-    ['stale source', { ...freshSam, lastSyncedAt: new Date(Date.now() - 48 * 3600000).toISOString() }, 'degraded', 'source_sync_stale'],
+    [
+      'stale source',
+      { ...freshSam, lastSyncedAt: new Date(Date.now() - 48 * 3600000).toISOString() },
+      'degraded',
+      'source_sync_stale',
+    ],
     [
       'failed attempt',
       { ...freshSam, state: 'error_cached' },
@@ -508,23 +995,25 @@ describe('query_debriefs', () => {
     );
     const body = 'x'.repeat(2000);
     m.engagement.readClientDebriefsExact.mockResolvedValue({
-      rows: [{
-        id: 'debrief-1',
-        meetingId: 'meeting-1',
-        clientId: 'client-1',
-        meeting: {
-          id: 'meeting-1',
+      rows: [
+        {
+          id: 'debrief-1',
+          meetingId: 'meeting-1',
           clientId: 'client-1',
-          subject: 'Hill day',
-          startsAt: new Date('2026-06-01T14:00:00.000Z'),
+          meeting: {
+            id: 'meeting-1',
+            clientId: 'client-1',
+            subject: 'Hill day',
+            startsAt: new Date('2026-06-01T14:00:00.000Z'),
+          },
+          body,
+          status: 'approved',
+          authorUserId: 'user-1',
+          author: null,
+          createdAt: new Date('2026-06-01T15:00:00.000Z'),
+          updatedAt: new Date('2026-06-01T16:00:00.000Z'),
         },
-        body,
-        status: 'approved',
-        authorUserId: 'user-1',
-        author: null,
-        createdAt: new Date('2026-06-01T15:00:00.000Z'),
-        updatedAt: new Date('2026-06-01T16:00:00.000Z'),
-      }],
+      ],
       sourceStatus: 'healthy',
       sourceReason: null,
       nextAfter: null,
@@ -1343,24 +1832,20 @@ describe('search_memory canonical recall dispatch', () => {
         value: '{"summary":"crm_finding_accepted on crm.fill_with_meri"}',
       },
     };
-    const retrieve = jest
-      .fn()
-      .mockResolvedValue({
-        records: [legacy],
-        coverage: {
-          complete: true,
-          sources: [{ domain: 'institutional_knowledge', sourceStatus: 'healthy' }],
-        },
-      });
+    const retrieve = jest.fn().mockResolvedValue({
+      records: [legacy],
+      coverage: {
+        complete: true,
+        sources: [{ domain: 'institutional_knowledge', sourceStatus: 'healthy' }],
+      },
+    });
     const m = makeMocks({
       downstreamRetrieval: { retrieve },
       contextPlane: {
-        securityEnvelope: jest
-          .fn()
-          .mockResolvedValue({
-            authorizedClientIds: [clientId],
-            authorizedMailboxConnectionIds: [],
-          }),
+        securityEnvelope: jest.fn().mockResolvedValue({
+          authorizedClientIds: [clientId],
+          authorizedMailboxConnectionIds: [],
+        }),
       },
     });
     const result = (await m.service.readGovernedMemorySource(ctx, {
@@ -1502,12 +1987,10 @@ describe('search_memory canonical recall dispatch', () => {
     const m = makeMocks({
       downstreamRetrieval: { retrieve },
       contextPlane: {
-        securityEnvelope: jest
-          .fn()
-          .mockResolvedValue({
-            authorizedClientIds: [clientId],
-            authorizedMailboxConnectionIds: [],
-          }),
+        securityEnvelope: jest.fn().mockResolvedValue({
+          authorizedClientIds: [clientId],
+          authorizedMailboxConnectionIds: [],
+        }),
       },
     });
     const page = (await m.service.executeFromAuthenticatedUser(ctx, 'search_memory', {

@@ -10,6 +10,9 @@ export const PUBLIC_RESEARCH_SOURCE_TOOLS = [
   'search_emails',
   'search_memory',
   'query_debriefs',
+  'read_client_meetings',
+  'query_tasks',
+  'query_action_items',
 ] as const;
 
 const PUBLIC_RESEARCH_SOURCE_TOOL_SET = new Set<string>(PUBLIC_RESEARCH_SOURCE_TOOLS);
@@ -134,9 +137,10 @@ export function reportReceiptManifest(
       resultRef: receipt.resultRef,
       classifier: receipt.classifier,
     }))
-    .sort((left, right) =>
-      Number(left.sequence) - Number(right.sequence) ||
-      String(left.receiptId).localeCompare(String(right.receiptId)),
+    .sort(
+      (left, right) =>
+        Number(left.sequence) - Number(right.sequence) ||
+        String(left.receiptId).localeCompare(String(right.receiptId)),
     );
 }
 
@@ -148,10 +152,15 @@ export function reportReceiptManifestSha256(
   return researchJsonSha256(reportReceiptManifest(receipts, run, toolsUsed));
 }
 
-export function buildResearchReportProvenance(input: Omit<ResearchReportProvenanceV1, 'version' | 'artifactVersion' | 'kind' | 'bodySha256' | 'receiptManifestSha256' | 'sourceMode'> & {
-  body: string;
-  receipts: DurableResearchStepReceipt[];
-}): ResearchReportProvenanceV1 {
+export function buildResearchReportProvenance(
+  input: Omit<
+    ResearchReportProvenanceV1,
+    'version' | 'artifactVersion' | 'kind' | 'bodySha256' | 'receiptManifestSha256' | 'sourceMode'
+  > & {
+    body: string;
+    receipts: DurableResearchStepReceipt[];
+  },
+): ResearchReportProvenanceV1 {
   const toolsUsed = [...new Set(input.toolsUsed)].sort();
   if (toolsUsed.some((tool) => !publicResearchSourceTool(tool))) {
     throw new Error('A research report provenance receipt contains an unsupported source owner.');
@@ -159,7 +168,10 @@ export function buildResearchReportProvenance(input: Omit<ResearchReportProvenan
   if (!SHA256_RE.test(input.producerInputSha256)) {
     throw new Error('A research report provenance receipt requires producer input authority.');
   }
-  if (input.producerInputMode === 'source_free' && (toolsUsed.length > 0 || input.clientContextSha256)) {
+  if (
+    input.producerInputMode === 'source_free' &&
+    (toolsUsed.length > 0 || input.clientContextSha256)
+  ) {
     throw new Error('A source-free report contains covered private producer inputs.');
   }
   if (
@@ -168,15 +180,22 @@ export function buildResearchReportProvenance(input: Omit<ResearchReportProvenan
   ) {
     throw new Error('A source-free report cannot inherit a durable source receipt.');
   }
-  const manifest = reportReceiptManifest(input.receipts, {
-    id: input.runId,
-    leaseEpoch: input.leaseEpoch,
-  }, toolsUsed);
+  const manifest = reportReceiptManifest(
+    input.receipts,
+    {
+      id: input.runId,
+      leaseEpoch: input.leaseEpoch,
+    },
+    toolsUsed,
+  );
   if (toolsUsed.length === 0 && manifest.length !== 0) {
     throw new Error('A source-free report cannot inherit a durable source receipt.');
   }
 
-  if (toolsUsed.length > 0 && toolsUsed.some((tool) => !manifest.some((receipt) => receipt.tool === tool))) {
+  if (
+    toolsUsed.length > 0 &&
+    toolsUsed.some((tool) => !manifest.some((receipt) => receipt.tool === tool))
+  ) {
     throw new Error('A research report source declaration is missing its durable receipt.');
   }
   return {
@@ -237,12 +256,13 @@ export function readResearchReportProvenance(value: unknown): ResearchReportProv
     !['durable_receipts', 'producer_proven_source_free', 'producer_current_inputs'].includes(
       String(proof.sourceMode),
     ) ||
-    (proof.sourceMode === 'durable_receipts') !== (toolsUsed.length > 0) ||
+    (proof.sourceMode === 'durable_receipts') !== toolsUsed.length > 0 ||
     (proof.sourceMode === 'producer_proven_source_free') !==
       (toolsUsed.length === 0 && proof.producerInputMode === 'source_free') ||
     (proof.sourceMode === 'producer_current_inputs') !==
       (toolsUsed.length === 0 && proof.producerInputMode === 'covered_inputs') ||
-    (proof.producerInputMode === 'source_free' && (toolsUsed.length > 0 || proof.clientContextSha256))
+    (proof.producerInputMode === 'source_free' &&
+      (toolsUsed.length > 0 || proof.clientContextSha256))
   ) {
     return null;
   }

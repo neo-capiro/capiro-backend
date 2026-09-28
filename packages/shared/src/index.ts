@@ -4587,6 +4587,14 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat'],
   },
   {
+    name: 'read_client_meetings',
+    description:
+      'Read the selected client’s authorized historical meetings and exact persisted meeting-note or transcript source text. Lists explicit source availability and paginates both meeting inventory and exact source bodies; a calendar event alone is never treated as a transcript.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
     name: 'query_outreach',
     description:
       "List outreach campaigns and their status (draft, sent, responses) for the firm or a client, or fetch a single outreach record's full detail by outreachId.",

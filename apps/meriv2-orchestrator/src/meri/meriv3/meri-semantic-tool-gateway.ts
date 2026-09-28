@@ -100,7 +100,7 @@ const DOMAIN_SUPPORT: Partial<Record<MeriRetrievalDomain, readonly string[]>> = 
   documents: ['read_client_documents', 'search_client_knowledge'],
   mail: ['search_emails', 'list_emails', 'get_email_thread'],
   contacts: ['find_contacts'],
-  meetings: ['list_upcoming_meetings', 'query_debriefs'],
+  meetings: ['list_upcoming_meetings', 'read_client_meetings', 'query_debriefs'],
   tasks: ['query_tasks', 'list_scheduled_tasks'],
   action_items: ['query_action_items'],
   outreach: ['query_outreach'],

@@ -4711,25 +4711,25 @@ describe('Stage 2 orchestrator hardening', () => {
       expect(proposal).not.toHaveBeenCalled();
     });
 
-    test('exposes and invokes the manifest-authorized upcoming-meetings reader after current validation', async () => {
+    test('exposes and invokes the manifest-authorized historical meeting-source reader after current validation', async () => {
       const meetingCall = {
         type: 'function_call',
         call_id: 'procedure-meeting-read',
-        name: 'list_upcoming_meetings',
-        arguments: '{}',
+        name: 'read_client_meetings',
+        arguments: '{"clientId":"client-1"}',
       };
       const complete = jest
         .fn()
         .mockResolvedValueOnce(
           response({ output: [meetingCall], outputText: '', functionCalls: [meetingCall] }),
         )
-        .mockResolvedValueOnce(response({ outputText: 'Upcoming calendar checked.' }));
-      const invoke = jest.fn().mockResolvedValue({ meetings: [] });
+        .mockResolvedValueOnce(response({ outputText: 'Historical meeting sources checked.' }));
+      const invoke = jest.fn().mockResolvedValue({ meetings: [], coverage: { complete: true } });
       const assistant = build(
         registry(
           [
             { name: 'query_tasks', readOnly: true },
-            { name: 'list_upcoming_meetings', readOnly: true },
+            { name: 'read_client_meetings', readOnly: true },
           ],
           invoke,
         ),
@@ -4740,7 +4740,7 @@ describe('Stage 2 orchestrator hardening', () => {
       );
       const governed = servedProcedureContext();
       governed.procedure!.policy.allowedCapabilities.push('meetings.read');
-      governed.procedure!.policy.allowedTools = ['query_tasks', 'list_upcoming_meetings'];
+      governed.procedure!.policy.allowedTools = ['query_tasks', 'read_client_meetings'];
       const validationRequests: Array<{
         headers: Record<string, string>;
         body: Record<string, unknown>;
@@ -4755,7 +4755,7 @@ describe('Stage 2 orchestrator hardening', () => {
         }
         return new Response(
           JSON.stringify({
-            schemas: [toolSchema('query_tasks'), toolSchema('list_upcoming_meetings')],
+            schemas: [toolSchema('query_tasks'), toolSchema('read_client_meetings')],
           }),
           { status: 200 },
         );
@@ -4766,14 +4766,14 @@ describe('Stage 2 orchestrator hardening', () => {
           assistant.run(context, {
             clientId: 'client-1',
             conversationId: '33333333-3333-4333-8333-333333333333',
-            messages: [{ role: 'user', text: 'Check the upcoming calendar source.' }],
+            messages: [{ role: 'user', text: 'Check the historical meeting sources.' }],
           }),
         ),
       );
 
-      expect(providerToolNames(complete)).toContain('list_upcoming_meetings');
+      expect(providerToolNames(complete)).toContain('read_client_meetings');
       expect(invoke).toHaveBeenCalledTimes(1);
-      expect(invoke.mock.calls[0]?.[0]).toBe('list_upcoming_meetings');
+      expect(invoke.mock.calls[0]?.[0]).toBe('read_client_meetings');
       expect(validationRequests).toEqual([
         expect.objectContaining({
           headers: expect.objectContaining({
@@ -4786,7 +4786,7 @@ describe('Stage 2 orchestrator hardening', () => {
             canonicalId: 'commitments_audit',
             procedureVersion: 6,
             manifestDigest: 'a'.repeat(64),
-            toolName: 'list_upcoming_meetings',
+            toolName: 'read_client_meetings',
           }),
         }),
       ]);

@@ -42,6 +42,7 @@ describe('served procedure API binding', () => {
           'get_client_context',
           'query_tasks',
           'list_upcoming_meetings',
+          'read_client_meetings',
         ]),
         requiredTools: selected.requiredTools,
       },
@@ -59,6 +60,7 @@ describe('served procedure API binding', () => {
       coverageStates: ['checked', 'disconnected', 'unavailable', 'not mapped'],
     });
     expect(served?.binding.policy.allowedTools).toContain('list_upcoming_meetings');
+    expect(served?.binding.policy.allowedTools).toContain('read_client_meetings');
     expect(served?.binding.policy.requiredTools).not.toContain('list_upcoming_meetings');
   });
 

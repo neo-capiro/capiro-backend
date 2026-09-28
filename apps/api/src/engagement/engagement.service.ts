@@ -513,8 +513,7 @@ export function assertGatewayContextContract(items: OutreachSelectedContextItemI
  * formatPeTruth already own that).
  */
 export type OutreachContextTruth =
-  | { kind: 'bill'; raw: BillTruth }
-  | { kind: 'programElement'; raw: PeTruth };
+  { kind: 'bill'; raw: BillTruth } | { kind: 'programElement'; raw: PeTruth };
 
 export interface GenerateBatchEmailInput {
   campaignId?: string;
@@ -1415,6 +1414,35 @@ export class EngagementService {
     });
   }
 
+  /** Resolve one meeting through the same current client association used by listMeetings. */
+  async getClientMeeting(ctx: TenantContext, clientId: string, id: string) {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const client = await tx.client.findFirst({
+        where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
+        select: { id: true },
+      });
+      if (!client) throw new NotFoundException('Client not found');
+      const clientAssociationWhere = await this.clientMeetingAssociationWhere(
+        tx,
+        ctx.tenantId,
+        clientId,
+      );
+      const meeting = await tx.meeting.findFirst({
+        where: {
+          AND: [
+            { id, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
+            clientAssociationWhere,
+          ],
+        },
+        include: meetingInclude(),
+      });
+      if (!meeting) throw new NotFoundException('Meeting not found');
+      if (!(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId)))
+        throw new NotFoundException('Client not found');
+      return meeting;
+    });
+  }
+
   async createMeeting(ctx: TenantContext, input: CreateMeetingInput) {
     const startsAt = parseDate(input.startsAt, 'startsAt');
     const endsAt = parseDate(input.endsAt, 'endsAt');
@@ -1493,7 +1521,8 @@ export class EngagementService {
   async updateMeeting(ctx: TenantContext, id: string, input: UpdateMeetingInput) {
     const attachmentIds: string[] = [];
     const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      if ('clientId' in input || input.expectedRevision) await this.lockMeetingClientAssignment(tx, ctx, id);
+      if ('clientId' in input || input.expectedRevision)
+        await this.lockMeetingClientAssignment(tx, ctx, id);
       const existing = await tx.meeting.findFirst({
         where: { id, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
       });
@@ -3358,21 +3387,19 @@ export class EngagementService {
 
     return [
       ...(SYSTEM_AI_TEMPLATES as unknown as AiTemplateItem[]),
-      ...userTemplates.map(
-        (t): UserAiTemplate => ({
-          id: t.id,
-          source: 'user' as const,
-          name: t.name,
-          category: t.category,
-          prompt: t.prompt,
-          description: t.description,
-          samplePreview: t.samplePreview,
-          tone: t.tone,
-          usageCount: t.usageCount,
-          createdAt: t.createdAt,
-          updatedAt: t.updatedAt,
-        }),
-      ),
+      ...userTemplates.map((t): UserAiTemplate => ({
+        id: t.id,
+        source: 'user' as const,
+        name: t.name,
+        category: t.category,
+        prompt: t.prompt,
+        description: t.description,
+        samplePreview: t.samplePreview,
+        tone: t.tone,
+        usageCount: t.usageCount,
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+      })),
     ];
   }
 
@@ -4887,6 +4914,170 @@ export class EngagementService {
     );
   }
 
+  /** Canonical client-scoped Meri task owner with exact counts and current wall checks. */
+  async readMeriTasksExact(
+    ctx: TenantContext,
+    query: {
+      clientId: string;
+      taskId: string | null;
+      status: EngagementTaskStatus | null;
+      openOnly: boolean;
+      dueBefore: Date | null;
+      offset: number;
+      limit: number;
+    },
+  ) {
+    const where: Prisma.EngagementTaskWhereInput = {
+      tenantId: ctx.tenantId,
+      clientId: query.clientId,
+      ...(query.taskId ? { id: query.taskId } : {}),
+      ...(query.status
+        ? { status: query.status }
+        : query.openOnly
+          ? {
+              status: {
+                in: [
+                  EngagementTaskStatus.todo,
+                  EngagementTaskStatus.in_progress,
+                  EngagementTaskStatus.blocked,
+                ],
+              },
+            }
+          : {}),
+      ...(query.dueBefore ? { dueDate: { lte: query.dueBefore } } : {}),
+    };
+    const include = {
+      client: { select: { id: true, name: true } },
+    } satisfies Prisma.EngagementTaskInclude;
+    const meetingSelect = {
+      id: true,
+      clientId: true,
+      subject: true,
+      isInternal: true,
+      visibility: true,
+      status: true,
+      updatedAt: true,
+    } satisfies Prisma.MeetingSelect;
+
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const authorize = async () => {
+        const client = await tx.client.findFirst({
+          where: { id: query.clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
+          select: { id: true },
+        });
+        if (!client || !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, query.clientId)))
+          throw new NotFoundException('Client not found');
+      };
+      await authorize();
+      const [candidates, initialTotal] = await Promise.all([
+        tx.engagementTask.findMany({
+          where,
+          include,
+          orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }, { id: 'asc' }],
+          skip: query.offset,
+          take: query.limit,
+        }),
+        tx.engagementTask.count({ where }),
+      ]);
+      const rows = [] as Array<
+        (typeof candidates)[number] & {
+          meeting: { id: string; subject: string } | null;
+          linkedSourceProofs: Array<{
+            owner: 'meetings';
+            sourceRecordId: string;
+            currentClientId: string;
+            sourceVersion: string;
+            contentSha256: string;
+          }>;
+        }
+      >;
+      let sourceChanged = false;
+      for (const candidate of candidates) {
+        const current = await tx.engagementTask.findFirst({
+          where: { ...where, id: candidate.id },
+          include,
+        });
+        await authorize();
+        if (!current) {
+          sourceChanged = true;
+          continue;
+        }
+        if (
+          current.updatedAt.getTime() !== candidate.updatedAt.getTime() ||
+          createHash('sha256').update(JSON.stringify(current)).digest('hex') !==
+            createHash('sha256').update(JSON.stringify(candidate)).digest('hex')
+        )
+          sourceChanged = true;
+
+        let meeting: { id: string; subject: string } | null = null;
+        const linkedSourceProofs = [] as Array<{
+          owner: 'meetings';
+          sourceRecordId: string;
+          currentClientId: string;
+          sourceVersion: string;
+          contentSha256: string;
+        }>;
+        if (current.meetingId) {
+          const meetingWhere: Prisma.MeetingWhereInput = {
+            id: current.meetingId,
+            tenantId: ctx.tenantId,
+            clientId: query.clientId,
+            isInternal: false,
+            ...ownMeetingWhere(ctx.userId),
+          };
+          const linkedCandidate = await tx.meeting.findFirst({
+            where: meetingWhere,
+            select: meetingSelect,
+          });
+          await authorize();
+          const linkedCurrent = await tx.meeting.findFirst({
+            where: meetingWhere,
+            select: meetingSelect,
+          });
+          await authorize();
+          if (!linkedCandidate || !linkedCurrent) {
+            sourceChanged = true;
+          } else {
+            const candidateHash = createHash('sha256')
+              .update(JSON.stringify(linkedCandidate))
+              .digest('hex');
+            const currentHash = createHash('sha256')
+              .update(JSON.stringify(linkedCurrent))
+              .digest('hex');
+            if (candidateHash !== currentHash) sourceChanged = true;
+            meeting = { id: linkedCurrent.id, subject: linkedCurrent.subject };
+            linkedSourceProofs.push({
+              owner: 'meetings',
+              sourceRecordId: linkedCurrent.id,
+              currentClientId: linkedCurrent.clientId!,
+              sourceVersion: linkedCurrent.updatedAt.toISOString(),
+              contentSha256: currentHash,
+            });
+          }
+        }
+        rows.push({
+          ...current,
+          meetingId: meeting ? current.meetingId : null,
+          sourceId:
+            current.sourceType === 'meeting' && current.sourceId === current.meetingId && !meeting
+              ? null
+              : current.sourceId,
+          meeting,
+          linkedSourceProofs,
+        });
+      }
+      const total = await tx.engagementTask.count({ where });
+      if (total !== initialTotal) sourceChanged = true;
+      await authorize();
+      return {
+        rows,
+        total,
+        sourceStatus: sourceChanged ? ('degraded' as const) : ('healthy' as const),
+        sourceReason: sourceChanged ? 'task_source_changed_during_read' : null,
+      };
+    });
+  }
+
   async reportOverview(ctx: TenantContext, query: EngagementReportQuery) {
     const period = normalizeReportPeriod(query.period);
     const cycle = reportPeriodWindow(period);
@@ -5399,14 +5590,26 @@ export class EngagementService {
     ctx: TenantContext,
     meetingId: string,
     noteId: string,
-    input: { body: string; confidential?: boolean; accessLevel?: string; expectedRevision?: string },
+    input: {
+      body: string;
+      confidential?: boolean;
+      accessLevel?: string;
+      expectedRevision?: string;
+    },
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.ensureOwnMeeting(tx, ctx, meetingId);
       const note = await tx.meetingNote.findFirst({
         where: { id: noteId, tenantId: ctx.tenantId, meetingId },
-        select: { id: true, authorUserId: true, updatedAt: true, status: true, confidential: true, accessLevel: true },
+        select: {
+          id: true,
+          authorUserId: true,
+          updatedAt: true,
+          status: true,
+          confidential: true,
+          accessLevel: true,
+        },
       });
       if (!note) throw new NotFoundException('Meeting note not found');
       if (!canEditEncryptedEntry(ctx, note)) {
@@ -5479,25 +5682,43 @@ export class EngagementService {
     ctx: TenantContext,
     meetingId: string,
     debriefId: string,
-    input: { body: string; confidential?: boolean; accessLevel?: string; expectedRevision?: string },
+    input: {
+      body: string;
+      confidential?: boolean;
+      accessLevel?: string;
+      expectedRevision?: string;
+    },
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.ensureOwnMeeting(tx, ctx, meetingId);
       const debrief = await tx.meetingDebrief.findFirst({
         where: { id: debriefId, tenantId: ctx.tenantId, meetingId },
-        select: { id: true, authorUserId: true, updatedAt: true, status: true, confidential: true, accessLevel: true },
+        select: {
+          id: true,
+          authorUserId: true,
+          updatedAt: true,
+          status: true,
+          confidential: true,
+          accessLevel: true,
+        },
       });
       if (!debrief) throw new NotFoundException('Meeting debrief not found');
       if (!canEditEncryptedEntry(ctx, debrief)) {
         throw new ForbiddenException('You can only edit your own meeting debriefs');
       }
-      assertExpectedRevision(input.expectedRevision, debrief.updatedAt, 'meeting_debrief', debriefId, {
-        id: debrief.id,
-        status: debrief.status,
-        confidential: debrief.confidential,
-        accessLevel: debrief.accessLevel,
-      });
+      assertExpectedRevision(
+        input.expectedRevision,
+        debrief.updatedAt,
+        'meeting_debrief',
+        debriefId,
+        {
+          id: debrief.id,
+          status: debrief.status,
+          confidential: debrief.confidential,
+          accessLevel: debrief.accessLevel,
+        },
+      );
 
       return tx.meetingDebrief.update({
         where: { id: debriefId },
@@ -5945,7 +6166,12 @@ export class EngagementService {
         body: string;
         status: MeetingDebriefStatus;
         authorUserId: string | null;
-        author: { id: string; email: string; firstName: string | null; lastName: string | null } | null;
+        author: {
+          id: string;
+          email: string;
+          firstName: string | null;
+          lastName: string | null;
+        } | null;
         createdAt: Date;
         updatedAt: Date;
         meeting: { id: string; clientId: string | null; subject: string; startsAt: Date };
@@ -6609,7 +6835,14 @@ export class EngagementService {
     const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const prep = await tx.meetingPrep.findFirst({
         where: { id: prepId, tenantId: ctx.tenantId },
-        select: { id: true, meetingId: true, generatedFrom: true, updatedAt: true, status: true, clientId: true },
+        select: {
+          id: true,
+          meetingId: true,
+          generatedFrom: true,
+          updatedAt: true,
+          status: true,
+          clientId: true,
+        },
       });
       if (!prep) throw new NotFoundException('Meeting prep not found');
       await this.ensureOwnMeeting(tx, ctx, prep.meetingId);

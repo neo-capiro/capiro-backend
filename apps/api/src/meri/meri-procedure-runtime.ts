@@ -10,7 +10,7 @@ const PROCEDURE_BINDING_TTL_MS = 5 * 60_000;
 const PROCEDURE_CAPABILITY_TOOLS: Readonly<Record<string, readonly string[]>> = {
   'client.read': ['get_client_context'],
   'mail.read': ['list_emails', 'search_emails', 'get_email_thread'],
-  'meetings.read': ['list_upcoming_meetings'],
+  'meetings.read': ['list_upcoming_meetings', 'read_client_meetings'],
   'debriefs.read': ['query_debriefs'],
   'tasks.read': ['query_tasks'],
   'action_items.read': ['query_action_items'],
@@ -62,8 +62,10 @@ export async function resolveCurrentServedProcedure(input: {
   firmSkills: Pick<MeriFirmSkillsService, 'resolveProcedureReference'>;
   now?: number;
 }): Promise<{ binding: MeriGovernedProcedureBinding; receipt: ServedProcedureReceipt }> {
-
-  const resolved = await input.firmSkills.resolveProcedureReference(input.tenantId, input.reference);
+  const resolved = await input.firmSkills.resolveProcedureReference(
+    input.tenantId,
+    input.reference,
+  );
   const manifest = resolved.procedure;
   const identity = resolved.procedureBinding;
   if (!manifest || !identity) throw new NotFoundException('Procedure binding is unavailable');
@@ -93,8 +95,7 @@ export async function resolveCurrentServedProcedure(input: {
   const allowedTools = [...capabilityTools].filter((name) => {
     const capability = canonicalTools.get(name);
     return Boolean(
-      capability &&
-        (manifest.effectPolicy.mode !== 'read_only' || capability.readOnly === true),
+      capability && (manifest.effectPolicy.mode !== 'read_only' || capability.readOnly === true),
     );
   });
   if (requiredTools.some((name) => !allowedTools.includes(name))) {

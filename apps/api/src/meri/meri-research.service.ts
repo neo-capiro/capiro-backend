@@ -102,6 +102,8 @@ import {
 import {
   assertCurrentResearchReportSourcesAuthorized,
   currentMailSourceScopeAuthorization,
+  currentMeetingSourceScopeAuthorization,
+  currentNativeWorkSourceScopeAuthorization,
   currentOwnerReauthorizationInput,
   currentOwnerResultAuthorizesReplay,
   RESEARCH_REPORT_BODY_WITHHELD,
@@ -749,10 +751,8 @@ export class MeriResearchService {
       )
         return { replayed: false as const };
       const classified = classifyApiToolReadOutcome(envelope.tool, envelope.result);
-      if (classified?.kind !== envelope.classifier)
-        return { replayed: false as const };
-      if (!supportsDurableOwnerReauthorization(envelope.tool))
-        return { replayed: false as const };
+      if (classified?.kind !== envelope.classifier) return { replayed: false as const };
+      if (!supportsDurableOwnerReauthorization(envelope.tool)) return { replayed: false as const };
       const isMailTool = ['list_emails', 'search_emails', 'get_email_thread'].includes(
         envelope.tool,
       );
@@ -767,9 +767,34 @@ export class MeriResearchService {
           })
         : null;
       if (isMailTool && !mailAuthorization) return { replayed: false as const };
-      const reauthorizationInput = isMailTool
-        ? mailAuthorization!.executeInput
-        : currentOwnerReauthorizationInput(envelope.tool, envelope.input, envelope.result);
+      const isMeetingTool = envelope.tool === 'read_client_meetings';
+      const meetingAuthorization = isMeetingTool
+        ? await currentMeetingSourceScopeAuthorization({
+            tx,
+            ctx,
+            sessionClientId: current.clientId,
+            originalInput: envelope.input,
+            savedResult: envelope.result,
+          })
+        : null;
+      const isNativeWorkTool = ['query_tasks', 'query_action_items'].includes(envelope.tool);
+      const nativeWorkAuthorization = isNativeWorkTool
+        ? await currentNativeWorkSourceScopeAuthorization({
+            tx,
+            ctx,
+            sessionClientId: current.clientId,
+            tool: envelope.tool,
+            originalInput: envelope.input,
+            savedResult: envelope.result,
+          })
+        : null;
+      if (isMeetingTool && !meetingAuthorization) return { replayed: false as const };
+      if (isNativeWorkTool && !nativeWorkAuthorization) return { replayed: false as const };
+      const reauthorizationInput =
+        mailAuthorization?.executeInput ??
+        meetingAuthorization?.executeInput ??
+        nativeWorkAuthorization?.executeInput ??
+        currentOwnerReauthorizationInput(envelope.tool, envelope.input, envelope.result);
       if (!reauthorizationInput) return { replayed: false as const };
       let currentOwnerResult: unknown;
       try {
@@ -799,6 +824,29 @@ export class MeriResearchService {
       if (
         isMailTool &&
         !(await currentMailSourceScopeAuthorization({
+          tx,
+          ctx,
+          sessionClientId: final.clientId,
+          tool: envelope.tool,
+          originalInput: envelope.input,
+          savedResult: envelope.result,
+        }))
+      )
+        return { replayed: false as const };
+      if (
+        isMeetingTool &&
+        !(await currentMeetingSourceScopeAuthorization({
+          tx,
+          ctx,
+          sessionClientId: final.clientId,
+          originalInput: envelope.input,
+          savedResult: envelope.result,
+        }))
+      )
+        return { replayed: false as const };
+      if (
+        isNativeWorkTool &&
+        !(await currentNativeWorkSourceScopeAuthorization({
           tx,
           ctx,
           sessionClientId: final.clientId,
@@ -1034,19 +1082,14 @@ export class MeriResearchService {
               data = sseEvent({
                 ...event,
                 sequence: persisted.sequence,
-                durableSafeRead: publicDurableSafeRead(
-                  persisted,
-                  qualification.replayed === true,
-                ),
+                durableSafeRead: publicDurableSafeRead(persisted, qualification.replayed === true),
               });
             }
             safeWrite(data);
           })
           .catch((error) => {
             pendingError = error;
-            controller.abort(
-              researchLeaseError('Research progress could not be persisted.'),
-            );
+            controller.abort(researchLeaseError('Research progress could not be persisted.'));
           });
       };
       const sink: SseSink = {
@@ -1422,13 +1465,14 @@ export class MeriResearchService {
         current.status === 'complete'
       )
         return;
-      const status = failure.cause === 'lease'
-        ? 'interrupted'
-        : failure.cause === 'cancelled'
-          ? 'cancelled'
-          : failure.cause === 'partial'
-            ? 'partial'
-            : 'failed';
+      const status =
+        failure.cause === 'lease'
+          ? 'interrupted'
+          : failure.cause === 'cancelled'
+            ? 'cancelled'
+            : failure.cause === 'partial'
+              ? 'partial'
+              : 'failed';
       const run = {
         ...terminalResearchRun(auth.run, status, failure.message),
         failureReason: failure.message,
@@ -1975,10 +2019,7 @@ export class MeriResearchService {
           // timeout. Don't let it kill the whole run — stop gathering and fall
           // through to the forced-synthesis pass so we still write a report
           // rather than persisting only the sources gathered so far.
-          if (
-            isControllerAbort(roundErr, controller.signal) &&
-            !auth.signal?.aborted
-          ) {
+          if (isControllerAbort(roundErr, controller.signal) && !auth.signal?.aborted) {
             this.logger.warn(`Research gather round ${round} timed out; forcing synthesis`);
             break;
           }
@@ -2064,10 +2105,10 @@ export class MeriResearchService {
           const publicTool = publicResearchSourceTool(t.name);
           const observerToolQualified = Boolean(
             !scopeViolation &&
-              publicTool &&
-              toolSchema &&
-              toolVersion &&
-              this.tools.isConcurrencySafe(t.name),
+            publicTool &&
+            toolSchema &&
+            toolVersion &&
+            this.tools.isConcurrencySafe(t.name),
           );
           const step = projectResearchObserverEvent({
             type: 'tool_call',
@@ -2156,16 +2197,16 @@ export class MeriResearchService {
               {
                 type: 'source',
                 source,
-                  durableSafeRead: replayedReceipt ?? {
-                    outcome: 'complete',
-                    executionId: randomUUID(),
-                    toolCallId: t.id,
-                    tool: publicTool,
-                    toolVersion,
-                    input: parsedInput,
-                    result: resultPayload,
-                    ...(typeof count === 'number' ? { recordsReturned: count } : {}),
-                  },
+                durableSafeRead: replayedReceipt ?? {
+                  outcome: 'complete',
+                  executionId: randomUUID(),
+                  toolCallId: t.id,
+                  tool: publicTool,
+                  toolVersion,
+                  input: parsedInput,
+                  result: resultPayload,
+                  ...(typeof count === 'number' ? { recordsReturned: count } : {}),
+                },
               },
               { receiptCandidates: true },
             );
@@ -2300,10 +2341,7 @@ export class MeriResearchService {
         } catch (synthErr) {
           // Keep whatever prose streamed before an abort rather than discarding
           // it — a partial report is still more useful than sources alone.
-          if (
-            isControllerAbort(synthErr, controller.signal) &&
-            !auth.signal?.aborted
-          ) {
+          if (isControllerAbort(synthErr, controller.signal) && !auth.signal?.aborted) {
             this.logger.warn('Forced research synthesis timed out; keeping partial report');
           } else {
             if (synthErr instanceof ResearchTerminalError) throw synthErr;
@@ -2323,8 +2361,7 @@ export class MeriResearchService {
     }
 
     if (auth.signal?.aborted) throw new BadRequestException('Research was cancelled.');
-    if (!endedCleanly)
-      throw new ResearchTerminalError('partial');
+    if (!endedCleanly) throw new ResearchTerminalError('partial');
     await this.finishResearch(ctx, session, sse, progress, {
       reportBody,
       sources,
@@ -2935,7 +2972,8 @@ export class MeriResearchService {
         );
       }
     }
-    if (!auth.run) throw new ConflictException('Legacy plan migration requires an active run lease.');
+    if (!auth.run)
+      throw new ConflictException('Legacy plan migration requires an active run lease.');
 
     const clientContext = await this.clientContext(ctx, session.clientId);
     const legacyPlan = asStringArray(session.plan);

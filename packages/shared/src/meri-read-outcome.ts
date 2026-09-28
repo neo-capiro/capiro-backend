@@ -239,6 +239,95 @@ function classifyDebriefRead(payload: unknown): ApiToolReadOutcome {
     : { kind: 'partial', reason: 'debrief_coverage_incomplete' };
 }
 
+function classifyMeetingRead(payload: unknown): ApiToolReadOutcome {
+  const failure = ownerFailure(payload);
+  if (failure) return failure;
+  const value = record(payload);
+  const scope = record(value?.scope);
+  const coverage = record(value?.coverage);
+  if (
+    value?.tool !== 'read_client_meetings' ||
+    typeof value.clientId !== 'string' ||
+    !scope ||
+    !coverage ||
+    !['healthy', 'degraded'].includes(String(coverage.sourceStatus)) ||
+    typeof coverage.pageComplete !== 'boolean' ||
+    typeof coverage.complete !== 'boolean' ||
+    typeof coverage.partial !== 'boolean' ||
+    typeof coverage.meetingPaginationComplete !== 'boolean' ||
+    typeof coverage.sourceInventoryComplete !== 'boolean' ||
+    typeof coverage.sourceBodyCoverageComplete !== 'boolean' ||
+    typeof coverage.truncated !== 'boolean' ||
+    !(coverage.nextCursor === null || typeof coverage.nextCursor === 'string') ||
+    !nonnegativeInteger(value.returned)
+  )
+    return invalidResult('read_client_meetings');
+  const exactSource = typeof scope.sourceId === 'string';
+  if (exactSource) {
+    const source = record(value.source);
+    const provenance = record(source?.provenance);
+    const bodyCoverage = record(source?.bodyCoverage);
+    if (
+      !source ||
+      typeof source.body !== 'string' ||
+      !provenance ||
+      typeof provenance.sourceId !== 'string' ||
+      typeof provenance.sourceVersion !== 'string' ||
+      !bodyCoverage ||
+      typeof bodyCoverage.complete !== 'boolean' ||
+      typeof bodyCoverage.truncated !== 'boolean'
+    )
+      return invalidResult('read_client_meetings');
+    // Like debrief identity reads, each exact canonical body window is durable
+    // evidence even when the source needs another window. Coverage remains
+    // explicit so a consumer cannot turn one receipt into whole-source coverage.
+    return { kind: 'complete' };
+  }
+  if (!Array.isArray(value.meetings) || value.returned !== value.meetings.length)
+    return invalidResult('read_client_meetings');
+  if (value.returned === 0 && coverage.complete) return { kind: 'empty' };
+  return coverage.sourceStatus === 'healthy' && coverage.pageComplete
+    ? { kind: 'complete' }
+    : { kind: 'partial', reason: 'meeting_source_inventory_incomplete' };
+}
+
+function classifyNativeWorkRead(
+  toolName: 'query_tasks' | 'query_action_items',
+  collection: 'tasks' | 'actions',
+  payload: unknown,
+): ApiToolReadOutcome {
+  const failure = ownerFailure(payload);
+  if (failure) return failure;
+  const value = record(payload);
+  const scope = record(value?.scope);
+  const coverage = record(value?.coverage);
+  const rows = value?.[collection];
+  if (
+    value?.tool !== toolName ||
+    typeof value.clientId !== 'string' ||
+    !scope ||
+    !coverage ||
+    !['healthy', 'degraded'].includes(String(coverage.sourceStatus)) ||
+    typeof coverage.complete !== 'boolean' ||
+    typeof coverage.partial !== 'boolean' ||
+    typeof coverage.paginationComplete !== 'boolean' ||
+    typeof coverage.hasMore !== 'boolean' ||
+    !(coverage.nextCursor === null || typeof coverage.nextCursor === 'string') ||
+    coverage.totalIsExactForScope !== true ||
+    !nonnegativeInteger(value.total) ||
+    !nonnegativeInteger(value.returned) ||
+    !Array.isArray(rows) ||
+    value.returned !== rows.length
+  )
+    return invalidResult(toolName);
+  if (coverage.sourceStatus !== 'healthy')
+    return { kind: 'partial', reason: `${toolName}_source_changed` };
+  if (coverage.hasMore || !coverage.paginationComplete || coverage.partial)
+    return { kind: 'partial', reason: `${toolName}_coverage_incomplete` };
+  if (value.total === 0 && value.returned === 0 && coverage.complete) return { kind: 'empty' };
+  return coverage.complete ? { kind: 'complete' } : invalidResult(toolName);
+}
+
 function validClient(value: UnknownRecord | null): boolean {
   const context = record(value?.context);
   const client = record(context?.client);
@@ -388,6 +477,12 @@ export function classifyApiToolReadOutcome(
       return classifyDocumentRead(payload);
     case 'query_debriefs':
       return classifyDebriefRead(payload);
+    case 'read_client_meetings':
+      return classifyMeetingRead(payload);
+    case 'query_tasks':
+      return classifyNativeWorkRead('query_tasks', 'tasks', payload);
+    case 'query_action_items':
+      return classifyNativeWorkRead('query_action_items', 'actions', payload);
     case 'get_client_context':
       return classifyClientContext(payload);
     case 'search_memory':

@@ -23,11 +23,23 @@ import {
   sameResearchReportProvenance,
 } from './meri-report-provenance.js';
 import { debriefOwnerProof } from './meri-research-debrief-proof.js';
+import { meetingOwnerProof } from './meri-research-meeting-proof.js';
+import {
+  canonicalTaskOwnerProof,
+  canonicalTaskReauthorizationInput,
+} from './meri-task-read.proof.js';
+import {
+  canonicalActionItemOwnerProof,
+  canonicalActionItemReauthorizationInput,
+} from './meri-action-item-read.proof.js';
 
 const SUPPORTED_OWNER_TOOLS = new Set([
   'search_memory',
   'read_client_documents',
   'query_debriefs',
+  'read_client_meetings',
+  'query_tasks',
+  'query_action_items',
   'list_emails',
   'search_emails',
   'get_email_thread',
@@ -42,9 +54,7 @@ function record(value: unknown): Record<string, unknown> | null {
 function rows(value: unknown): Record<string, unknown>[] | null {
   if (!Array.isArray(value)) return null;
   const projected = value.map(record);
-  return projected.every((row): row is Record<string, unknown> => Boolean(row))
-    ? projected
-    : null;
+  return projected.every((row): row is Record<string, unknown> => Boolean(row)) ? projected : null;
 }
 
 function healthyCompleteMemoryOwnerProof(root: Record<string, unknown>): boolean {
@@ -53,11 +63,11 @@ function healthyCompleteMemoryOwnerProof(root: Record<string, unknown>): boolean
   const owner = sources?.find((source) => source.domain === 'institutional_knowledge');
   return Boolean(
     coverage?.complete === true &&
-      coverage.paginationComplete === true &&
-      owner?.sourceStatus === 'healthy' &&
-      owner.coverageComplete === true &&
-      owner.paginationComplete === true &&
-      owner.truncated === false,
+    coverage.paginationComplete === true &&
+    owner?.sourceStatus === 'healthy' &&
+    owner.coverageComplete === true &&
+    owner.paginationComplete === true &&
+    owner.truncated === false,
   );
 }
 
@@ -114,11 +124,7 @@ function documentProof(value: unknown): string[] | null {
   const root = record(value);
   if (!root || root.tool !== 'read_client_documents') return null;
   const document = record(root.document);
-  if (
-    !document ||
-    typeof document.id !== 'string' ||
-    typeof document.contentHash !== 'string'
-  ) {
+  if (!document || typeof document.id !== 'string' || typeof document.contentHash !== 'string') {
     // Listings carry no owner content version and therefore cannot authorize replay.
     return null;
   }
@@ -157,6 +163,9 @@ export function currentOwnerReauthorizationInput(
   savedResult: unknown,
 ): Record<string, unknown> | null {
   if (!supportsDurableOwnerReauthorization(tool)) return null;
+  if (tool === 'query_tasks') return canonicalTaskReauthorizationInput(originalInput, savedResult);
+  if (tool === 'query_action_items')
+    return canonicalActionItemReauthorizationInput(originalInput, savedResult);
   if (!['list_emails', 'search_emails', 'get_email_thread'].includes(tool)) return originalInput;
   return canonicalMailReauthorization(tool, originalInput, savedResult)?.executeInput ?? null;
 }
@@ -192,21 +201,77 @@ export async function currentMailSourceScopeAuthorization(input: {
   return authorization;
 }
 
+/** Bind persisted meeting evidence to its canonical client and current wall. */
+export async function currentMeetingSourceScopeAuthorization(input: {
+  tx: Prisma.TransactionClient;
+  ctx: TenantContext;
+  sessionClientId: string | null;
+  originalInput: Record<string, unknown>;
+  savedResult: unknown;
+}): Promise<{ executeInput: Record<string, unknown>; clientId: string } | null> {
+  const saved = record(input.savedResult);
+  const requestedClientId =
+    typeof input.originalInput.clientId === 'string' ? input.originalInput.clientId : null;
+  const returnedClientId = typeof saved?.clientId === 'string' ? saved.clientId : null;
+  if (
+    !requestedClientId ||
+    !returnedClientId ||
+    requestedClientId !== returnedClientId ||
+    (input.sessionClientId !== null && input.sessionClientId !== returnedClientId) ||
+    !(await clientMemoryAllowed(input.tx, input.ctx.tenantId, input.ctx.userId, returnedClientId))
+  )
+    return null;
+  return { executeInput: input.originalInput, clientId: returnedClientId };
+}
+
+/** Task/action evidence is report-eligible only in the same focused client scope. */
+export async function currentNativeWorkSourceScopeAuthorization(input: {
+  tx: Prisma.TransactionClient;
+  ctx: TenantContext;
+  sessionClientId: string | null;
+  tool: string;
+  originalInput: Record<string, unknown>;
+  savedResult: unknown;
+}) {
+  const executeInput = currentOwnerReauthorizationInput(
+    input.tool,
+    input.originalInput,
+    input.savedResult,
+  );
+  const root = record(input.savedResult);
+  const clientId = typeof root?.clientId === 'string' ? root.clientId : null;
+  if (
+    !executeInput ||
+    !clientId ||
+    input.sessionClientId !== clientId ||
+    !(await clientMemoryAllowed(input.tx, input.ctx.tenantId, input.ctx.userId, clientId))
+  )
+    return null;
+  return { executeInput, requestedClientId: clientId, returnedClientIds: [clientId] };
+}
+
 /** Compare only current owner identity/version evidence, never old coverage flags. */
 export function currentOwnerResultAuthorizesReplay(
   tool: string,
   savedResult: unknown,
   currentResult: unknown,
 ): boolean {
-  const project = tool === 'search_memory'
-    ? memoryProof
-    : tool === 'read_client_documents'
-      ? documentProof
-      : tool === 'query_debriefs'
-        ? debriefOwnerProof
-        : ['list_emails', 'search_emails', 'get_email_thread'].includes(tool)
-          ? (value: unknown) => canonicalMailOwnerProof(tool, value)
-          : null;
+  const project =
+    tool === 'search_memory'
+      ? memoryProof
+      : tool === 'read_client_documents'
+        ? documentProof
+        : tool === 'query_debriefs'
+          ? debriefOwnerProof
+          : tool === 'read_client_meetings'
+            ? meetingOwnerProof
+            : tool === 'query_tasks'
+              ? canonicalTaskOwnerProof
+              : tool === 'query_action_items'
+                ? canonicalActionItemOwnerProof
+                : ['list_emails', 'search_emails', 'get_email_thread'].includes(tool)
+                  ? (value: unknown) => canonicalMailOwnerProof(tool, value)
+                  : null;
   if (!project) return false;
   const saved = project(savedResult);
   const current = project(currentResult);
@@ -233,19 +298,13 @@ export interface ResearchReportReadScope {
 }
 
 interface CurrentOwnerTools {
-  execute(
-    ctx: TenantContext,
-    tool: never,
-    input: Record<string, unknown>,
-  ): Promise<unknown>;
+  execute(ctx: TenantContext, tool: never, input: Record<string, unknown>): Promise<unknown>;
 }
 
 function stringArray(value: unknown): string[] | null {
   if (
     !Array.isArray(value) ||
-    !value.every(
-      (item) => typeof item === 'string' && item.length > 0 && item.trim() === item,
-    )
+    !value.every((item) => typeof item === 'string' && item.length > 0 && item.trim() === item)
   )
     return null;
   return new Set(value).size === value.length ? value : null;
@@ -301,10 +360,7 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
       const backing = researchMetadata(session.metadata).backingConversationId;
       const conversationId =
         handoff?.conversationId ?? (typeof backing === 'string' ? backing : null);
-      if (
-        handoff?.clientId !== undefined &&
-        handoff.clientId !== session.clientId
-      )
+      if (handoff?.clientId !== undefined && handoff.clientId !== session.clientId)
         throw new BadRequestException(
           'The originating conversation is no longer available in this client scope',
         );
@@ -348,8 +404,10 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
           declared.some((tool) => !publicResearchSourceTool(tool)) ||
           !/^[a-f0-9]{64}$/.test(scope.publication.producerInputSha256) ||
           !['source_free', 'covered_inputs'].includes(scope.publication.producerInputMode) ||
-          !(scope.publication.clientContextSha256 === null ||
-            /^[a-f0-9]{64}$/.test(scope.publication.clientContextSha256)) ||
+          !(
+            scope.publication.clientContextSha256 === null ||
+            /^[a-f0-9]{64}$/.test(scope.publication.clientContextSha256)
+          ) ||
           (scope.publication.producerInputMode === 'source_free' &&
             (declared.length > 0 || scope.publication.clientContextSha256 !== null)) ||
           !storedRun ||
@@ -421,9 +479,7 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
       const toolSet = new Set(toolsUsed);
       const completedReceipts = allReceipts.filter(
         (receipt) =>
-          receipt.status === 'complete' &&
-          receipt.version === 2 &&
-          toolSet.has(receipt.tool),
+          receipt.status === 'complete' && receipt.version === 2 && toolSet.has(receipt.tool),
       );
       if (toolSet.size === 0 && completedReceipts.length > 0)
         throw new ConflictException('The research report source declaration is incomplete.');
@@ -431,8 +487,7 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
         throw new ConflictException('The research report source declaration is incomplete.');
 
       const receipts = completedReceipts.filter(
-        (receipt) =>
-          receipt.version === 2 && toolSet.has(receipt.tool),
+        (receipt) => receipt.version === 2 && toolSet.has(receipt.tool),
       );
       for (const tool of toolSet) {
         if (!receipts.some((receipt) => receipt.tool === tool))
@@ -494,26 +549,58 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
               savedResult: envelope.result,
             })
           : null;
+        const nativeWorkAuthorization = ['query_tasks', 'query_action_items'].includes(
+          envelope.tool,
+        )
+          ? await currentNativeWorkSourceScopeAuthorization({
+              tx,
+              ctx,
+              sessionClientId: session.clientId,
+              tool: envelope.tool,
+              originalInput: envelope.input,
+              savedResult: envelope.result,
+            })
+          : null;
         if (
           ['list_emails', 'search_emails', 'get_email_thread'].includes(envelope.tool) &&
           !mailAuthorization
         ) {
           throw new ConflictException('A research source authorization proof is unavailable.');
         }
-        envelopes.push({ envelope, mailAuthorization });
+        const meetingAuthorization =
+          envelope.tool === 'read_client_meetings'
+            ? await currentMeetingSourceScopeAuthorization({
+                tx,
+                ctx,
+                sessionClientId: session.clientId,
+                originalInput: envelope.input,
+                savedResult: envelope.result,
+              })
+            : null;
+        if (envelope.tool === 'read_client_meetings' && !meetingAuthorization)
+          throw new ConflictException('A research source authorization proof is unavailable.');
+        if (
+          ['query_tasks', 'query_action_items'].includes(envelope.tool) &&
+          !nativeWorkAuthorization
+        )
+          throw new ConflictException('A research source authorization proof is unavailable.');
+        envelopes.push({
+          envelope,
+          sourceAuthorization: mailAuthorization ?? meetingAuthorization ?? nativeWorkAuthorization,
+        });
       }
       return { envelopes, sessionId: session.id };
     });
 
   const loaded = await load();
   for (const authorized of loaded.envelopes) {
-    const { envelope, mailAuthorization } = authorized;
+    const { envelope, sourceAuthorization } = authorized;
     let currentResult: unknown;
     try {
       currentResult = await tools.execute(
         ctx,
         envelope.tool as never,
-        mailAuthorization?.executeInput ?? envelope.input,
+        sourceAuthorization?.executeInput ?? envelope.input,
       );
     } catch {
       throw new ConflictException('A research source is no longer authorized.');
