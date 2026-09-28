@@ -4,6 +4,8 @@ import type { MeriContext, ToolExecutor, ToolExecutionControl } from '@capiro/me
 import { createMeriExecutionControl } from './meri-execution-control.js';
 import { classifyApiToolReadOutcome } from './api-tool-read-outcome.js';
 import { RequestCredentialsStore } from '../request/request-credentials.store.js';
+import { currentTrustedCurrentTurnScope } from '../request/trusted-current-turn-scope.js';
+import { bindCurrentConversationToolInput } from './current-turn-tool-scope.js';
 
 const RETRYABLE_MAIL_READS = new Set(['list_emails', 'search_emails', 'get_email_thread']);
 const MAX_MAIL_RETRY_DELAY_MS = 5_000;
@@ -99,6 +101,22 @@ export class ApiToolExecutorRepo implements ToolExecutor {
     if (!creds?.bearerToken) {
       throw new Error(`No forwarded credential available for delegated tool "${toolName}"`);
     }
+    const currentTurn = currentTrustedCurrentTurnScope();
+    const boundedInput = bindCurrentConversationToolInput(toolName, input, currentTurn);
+    if (toolName === 'read_chat_attachments') {
+      if (!this.serviceSecret) {
+        throw new Error('Internal service identity is not configured for chat attachment reads');
+      }
+      if (!currentTurn?.conversationId) {
+        throw new Error('Trusted current conversation is unavailable for chat attachment reads');
+      }
+      if (
+        boundedInput.conversationId !== undefined &&
+        boundedInput.conversationId !== currentTurn.conversationId
+      ) {
+        throw new Error('Chat attachment reads cannot target another conversation');
+      }
+    }
     const execution = createMeriExecutionControl(control, this.timeoutMs);
     try {
       execution.assertActive();
@@ -121,7 +139,20 @@ export class ApiToolExecutorRepo implements ToolExecutor {
             ? { 'x-capiro-impersonate-tenant': creds.impersonateTenantId }
             : {}),
         },
-        body: JSON.stringify(input),
+        body: JSON.stringify(
+          toolName === 'read_chat_attachments'
+            ? {
+                version: 1,
+                input: { ...boundedInput, conversationId: currentTurn!.conversationId },
+                currentTurn: {
+                  tenantId: currentTurn!.tenantId,
+                  userId: currentTurn!.userId,
+                  conversationId: currentTurn!.conversationId,
+                  selectedClientId: currentTurn!.selectedClientId,
+                },
+              }
+            : boundedInput,
+        ),
         signal: execution.signal,
       } satisfies RequestInit;
       // One retry only, inside the original deadline and cancellation signal.

@@ -1,5 +1,7 @@
 import { attestMeriGovernedContext, type MeriGovernedTurnContext } from '@capiro/meriv2-core';
+import { EventEmitter } from 'node:events';
 import { currentGovernedMeriContext } from '../meri-governed-context.runtime.js';
+import { currentTrustedCurrentTurnScope } from '../../request/trusted-current-turn-scope.js';
 import { MeriV3Controller } from './meriv3.controller.js';
 
 const actor = {
@@ -53,6 +55,12 @@ describe('MeriV3 governed context HTTP trust boundary', () => {
   function controller() {
     const run = jest.fn().mockImplementation(async () => {
       expect(currentGovernedMeriContext()?.evidence?.tenantId).toBe(actor.tenantId);
+      expect(currentTrustedCurrentTurnScope()).toEqual({
+        tenantId: actor.tenantId,
+        userId: actor.userId,
+        conversationId: input.conversationId,
+        selectedClientId: input.clientId,
+      });
       return {
         reply: 'Enacted funding only.',
         runtime: 'meriv3',
@@ -100,6 +108,32 @@ describe('MeriV3 governed context HTTP trust boundary', () => {
     expect(run).not.toHaveBeenCalled();
     expect(setHeader).not.toHaveBeenCalled();
     expect(on).not.toHaveBeenCalled();
+  });
+  it('establishes the same trusted current-turn scope for authenticated SSE execution', async () => {
+    const { instance, run } = controller();
+    const req = Object.assign(new EventEmitter(), {
+      headers: {},
+      aborted: false,
+    });
+    const frames: string[] = [];
+    const res = Object.assign(new EventEmitter(), {
+      writableEnded: false,
+      destroyed: false,
+      setHeader: jest.fn(),
+      write: jest.fn((frame: string) => {
+        frames.push(frame);
+        return true;
+      }),
+      end: jest.fn(function (this: { writableEnded: boolean }) {
+        this.writableEnded = true;
+      }),
+    });
+    const governedContext = attestMeriGovernedContext(context(), input, secret);
+    await instance.stream({ ...input, governedContext }, tenant, req as never, res as never);
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'text/event-stream');
+    expect(frames.some((frame) => frame.includes('"type":"done"'))).toBe(true);
+    expect(currentTrustedCurrentTurnScope()).toBeUndefined();
   });
   it('returns later tool receipts with the original signed context, rather than overwriting them with initial coverage', async () => {
     const { instance, run } = controller();

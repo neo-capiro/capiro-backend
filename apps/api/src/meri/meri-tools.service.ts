@@ -776,7 +776,7 @@ export class MeriToolsService {
       read_chat_attachments: obj(
         {
           conversationId: str(
-            'Current Meri conversation UUID. The server rejects it unless it exactly matches the served request scope.',
+            'Optional compatibility value for the current Meri conversation UUID. Omit it normally: the server derives the current conversation from authenticated transport context and rejects a conflicting value.',
           ),
           attachmentId: str(
             'Optional ordinary-chat attachment UUID from this conversation. Omit to page through the finite prior-attachment manifest.',
@@ -814,7 +814,7 @@ export class MeriToolsService {
               'Maximum returned characters for a section (1-6000), or manifest records (1-20).',
           },
         },
-        ['conversationId'],
+        [],
       ),
       search_capiro_data: obj(
         {

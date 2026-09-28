@@ -280,7 +280,7 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   get_client_context: ['clientId'],
   search_capiro_data: ['query', 'domains'],
   get_research_evidence: ['sessionId'],
-  read_chat_attachments: ['conversationId'],
+  read_chat_attachments: [],
   search_research_sources: ['query'],
   get_research_portfolio: ['conversationId'],
   get_research_portfolio_analytics: ['conversationId'],

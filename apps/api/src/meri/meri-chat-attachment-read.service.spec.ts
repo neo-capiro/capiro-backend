@@ -337,7 +337,9 @@ describe('MeriChatAttachmentReadService original-byte typed reads', () => {
       cursor,
     }) as any;
     expect(second.records[0].payload.text).toContain('P-2');
-    const tampered = `${cursor.slice(0, -1)}${cursor.endsWith('A') ? 'B' : 'A'}`;
+    const signatureStart = cursor.lastIndexOf('.') + 1;
+    const signatureFirst = cursor[signatureStart]!;
+    const tampered = `${cursor.slice(0, signatureStart)}${signatureFirst === 'A' ? 'B' : 'A'}${cursor.slice(signatureStart + 1)}`;
     await expect(run(h.service, {
       conversationId: CONVERSATION,
       attachmentId: row.id,
