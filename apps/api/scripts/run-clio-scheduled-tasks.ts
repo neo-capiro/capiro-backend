@@ -72,6 +72,9 @@ interface DueTask {
   tool_allow_list: unknown;
   metadata_jsonb: unknown;
   next_run_at: Date;
+  next_run_at_token: string;
+  observed_occurrence_id: string | null;
+  observed_fence: string | null;
 }
 
 type AuthorizedEffect = <T>(
@@ -81,10 +84,32 @@ type AuthorizedEffect = <T>(
   | { executed: false; boundary: Exclude<ScheduledTaskExecutionBoundary, 'runnable'> }
 >;
 
-function tenantContext(
-  task: DueTask,
-  authority: ScheduledTaskOwnerAuthority,
-): TenantContext {
+type ScheduledResearchResult =
+  | { text: string; toolsUsed: string[] }
+  | { blocked: Exclude<ScheduledTaskExecutionBoundary, 'runnable'> }
+  | null;
+
+function isBlockedResearchResult(
+  result: ScheduledResearchResult,
+): result is { blocked: Exclude<ScheduledTaskExecutionBoundary, 'runnable'> } {
+  return result !== null && 'blocked' in result;
+}
+
+export interface ScheduledTaskRunnerOptions {
+  services?: { prisma: any; toolsService: any; aiCreds: any };
+  commit?: boolean;
+  now?: () => Date;
+  research?: (input: {
+    task: DueTask;
+    executeAuthorized: AuthorizedEffect;
+  }) => Promise<ScheduledResearchResult>;
+  checkpoint?: (
+    stage: 'claimed' | 'result_saved' | 'email_effect',
+    input: { task: DueTask; claim: ScheduledTaskExecutionClaim },
+  ) => Promise<void>;
+}
+
+function tenantContext(task: DueTask, authority: ScheduledTaskOwnerAuthority): TenantContext {
   return {
     tenantId: task.tenant_id,
     tenantSlug: authority.tenantSlug,
@@ -169,24 +194,26 @@ async function runResearch(
   for (let round = 0; round < MAX_ROUNDS; round += 1) {
     let json: any;
     try {
-      const request = await executeAuthorized(
-        () => fetch('https://api.anthropic.com/v1/messages', {
+      const request = await executeAuthorized(() =>
+        fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'x-api-key': apiKey,
             'anthropic-version': ANTHROPIC_VERSION,
           },
-          body: JSON.stringify(prepareAnthropicRequest({
-            model,
-            max_tokens: MAX_TOKENS,
-            system: SYSTEM_PROMPT,
-            tools: toolSchemas,
-            messages,
-          })),
+          body: JSON.stringify(
+            prepareAnthropicRequest({
+              model,
+              max_tokens: MAX_TOKENS,
+              system: SYSTEM_PROMPT,
+              tools: toolSchemas,
+              messages,
+            }),
+          ),
         }),
       );
-      if (!request.executed) return { blocked: request.boundary };
+      if (request.executed === false) return { blocked: request.boundary };
       const res = request.value;
       if (!res.ok) {
         logger.warn(
@@ -250,10 +277,10 @@ async function runResearch(
         isError = true;
       } else {
         try {
-          const execution = await executeAuthorized(
-            (currentCtx) => toolsService.execute(currentCtx, name, input),
+          const execution = await executeAuthorized((currentCtx) =>
+            toolsService.execute(currentCtx, name, input),
           );
-          if (!execution.executed) return { blocked: execution.boundary };
+          if (execution.executed === false) return { blocked: execution.boundary };
           payload = execution.value;
           toolsUsed.push(name);
         } catch (err) {
@@ -276,30 +303,64 @@ async function runResearch(
   return lastText ? { text: lastText, toolsUsed } : null;
 }
 
-async function main(): Promise<void> {
+export async function runScheduledTasks(options: ScheduledTaskRunnerOptions = {}): Promise<void> {
   const logger = new Logger('run-meri-scheduled-tasks');
-  const { AppModule, PrismaService, MeriToolsService, AiCredentialResolverService } =
-    await loadNest();
-  const app = await NestFactory.createApplicationContext(AppModule, { logger: ['warn', 'error'] });
+  let app: { get(token: any): any; close(): Promise<void> } | null = null;
+  let services = options.services;
+  if (!services) {
+    const modules = await loadNest();
+    app = await NestFactory.createApplicationContext(modules.AppModule, {
+      logger: ['warn', 'error'],
+    });
+    services = {
+      prisma: app.get(modules.PrismaService),
+      toolsService: app.get(modules.MeriToolsService),
+      aiCreds: app.get(modules.AiCredentialResolverService),
+    };
+  }
+  const dryRun = options.commit === undefined ? DRY_RUN : !options.commit;
   const t0 = Date.now();
   try {
-    const prisma = app.get(PrismaService);
-    const toolsService = app.get(MeriToolsService);
-    const aiCreds = app.get(AiCredentialResolverService);
+    const { prisma, toolsService, aiCreds } = services;
 
     const due: DueTask[] = await prisma.withSystem((tx: any) =>
       tx.$queryRawUnsafe(
         `SELECT id, tenant_id, owner_user_id, name, prompt, interval_minutes,
-                tool_allow_list, metadata_jsonb, next_run_at
+                tool_allow_list, metadata_jsonb, next_run_at,
+                next_run_at::text AS next_run_at_token,
+                metadata_jsonb #>> '{scheduleExecution,occurrenceId}' AS observed_occurrence_id,
+                metadata_jsonb #>> '{scheduleExecution,fence}' AS observed_fence
            FROM clio_scheduled_task
-          WHERE enabled = true AND next_run_at <= now()
+          WHERE enabled = true
+            AND (
+              next_run_at <= now()
+              OR (
+                last_status = 'running'
+                AND metadata_jsonb #>> '{scheduleExecution,version}' = '1'
+                AND NULLIF(metadata_jsonb #>> '{scheduleExecution,occurrenceId}', '') IS NOT NULL
+                AND NULLIF(metadata_jsonb #>> '{scheduleExecution,fence}', '') IS NOT NULL
+                AND metadata_jsonb #>> '{scheduleExecution,stage}' IN (
+                  'claimed', 'research_started', 'result_saved',
+                  'email_started', 'email_confirmed', 'email_unknown', 'recovery_unknown'
+                )
+                AND CASE
+                  WHEN pg_input_is_valid(
+                    COALESCE(metadata_jsonb #>> '{scheduleExecution,leaseExpiresAt}', ''),
+                    'timestamptz'
+                  )
+                  THEN (metadata_jsonb #>> '{scheduleExecution,leaseExpiresAt}')::timestamptz
+                         <= clock_timestamp()
+                  ELSE false
+                END
+              )
+            )
           ORDER BY next_run_at ASC
           LIMIT ${MAX_TASKS_PER_RUN}`,
       ),
     );
 
-    logger.log(`${due.length} due task(s); dryRun=${DRY_RUN}`);
-    if (DRY_RUN) {
+    logger.log(`${due.length} due task(s); dryRun=${dryRun}`);
+    if (dryRun) {
       // eslint-disable-next-line no-console
       console.log(
         'CLIO_SCHEDULED_DRYRUN ' +
@@ -314,7 +375,7 @@ async function main(): Promise<void> {
     let delivered = 0;
     let failed = 0;
     for (const task of due) {
-      const now = new Date();
+      const now = options.now?.() ?? new Date();
       const allowList =
         Array.isArray(task.tool_allow_list) && task.tool_allow_list.length
           ? (task.tool_allow_list as string[])
@@ -343,17 +404,23 @@ async function main(): Promise<void> {
             identity,
             now,
             nextRunAt,
-            task.next_run_at,
+            task.next_run_at_token,
             emailTo,
+            task.observed_occurrence_id && task.observed_fence
+              ? {
+                  occurrenceId: task.observed_occurrence_id,
+                  fence: task.observed_fence,
+                }
+              : null,
           ),
         );
       } catch (err) {
-        logger.warn(
-          `[task ${task.id}] claim acknowledgement uncertain: ${(err as Error).message}`,
-        );
-        const reconciled = await prisma.withTenant(task.tenant_id, (tx: any) =>
-          reconcileScheduledTaskClaim(tx, identity, now),
-        ).catch(() => null);
+        logger.warn(`[task ${task.id}] claim acknowledgement uncertain: ${(err as Error).message}`);
+        const reconciled = await prisma
+          .withTenant(task.tenant_id, (tx: any) =>
+            reconcileScheduledTaskClaim(tx, identity, now, task.next_run_at_token),
+          )
+          .catch(() => null);
         if (!reconciled) {
           failed += 1;
           continue;
@@ -365,16 +432,14 @@ async function main(): Promise<void> {
         continue;
       }
       if (claimResult.state === 'already_running') {
-        logger.warn(
-          `[task ${task.id}] active lease retained; another worker owns this occurrence`,
-        );
+        logger.warn(`[task ${task.id}] active lease retained; another worker owns this occurrence`);
         failed += 1;
         continue;
       }
       if (claimResult.state === 'legacy_running_unknown') {
         logger.warn(
           `[task ${task.id}] legacy running row has no durable lease/receipt; ` +
-          'outcome is unknown and automatic replay is forbidden',
+            'outcome is unknown and automatic replay is forbidden',
         );
         failed += 1;
         continue;
@@ -382,7 +447,7 @@ async function main(): Promise<void> {
       if (claimResult.state === 'ambiguous_effect') {
         logger.warn(
           `[task ${task.id}] expired ${claimResult.stage} occurrence has an ambiguous effect; ` +
-          'it was terminalized without replay',
+            'it was terminalized without replay',
         );
         failed += 1;
         continue;
@@ -396,6 +461,7 @@ async function main(): Promise<void> {
         continue;
       }
       const claim: ScheduledTaskExecutionClaim = claimResult.claim;
+      await options.checkpoint?.('claimed', { task, claim });
       const finish = (status: string) =>
         prisma.withTenantUser(task.tenant_id, task.owner_user_id, (tx: any) =>
           advanceScheduledTaskExecution(tx, identity, claim, status),
@@ -407,16 +473,20 @@ async function main(): Promise<void> {
       const heartbeat = setInterval(() => {
         if (heartbeatBusy || leaseLost) return;
         heartbeatBusy = true;
-        heartbeatPromise = prisma.withTenant(task.tenant_id, (tx: any) =>
-          renewScheduledTaskExecutionLease(tx, identity, claim),
-        ).then((renewed: boolean) => {
-          if (!renewed) leaseLost = true;
-        }).catch((err: Error) => {
-          leaseLost = true;
-          logger.warn(`[task ${task.id}] heartbeat failed: ${err.message}`);
-        }).finally(() => {
-          heartbeatBusy = false;
-        });
+        heartbeatPromise = prisma
+          .withTenant(task.tenant_id, (tx: any) =>
+            renewScheduledTaskExecutionLease(tx, identity, claim),
+          )
+          .then((renewed: boolean) => {
+            if (!renewed) leaseLost = true;
+          })
+          .catch((err: Error) => {
+            leaseLost = true;
+            logger.warn(`[task ${task.id}] heartbeat failed: ${err.message}`);
+          })
+          .finally(() => {
+            heartbeatBusy = false;
+          });
       }, SCHEDULED_TASK_HEARTBEAT_MS);
       heartbeat.unref();
 
@@ -429,15 +499,23 @@ async function main(): Promise<void> {
         } catch (err) {
           logger.warn(
             `[task ${task.id}] execution boundary check failed; authority is unknown: ` +
-            (err as Error).message,
+              (err as Error).message,
           );
           throw err;
         }
       };
+      const finishKnownSuccess = async () => {
+        if (await finish('ok')) return true;
+        const authorization = await authorizeCurrent();
+        if (authorization.boundary === 'authority_denied') {
+          return finish('skipped_authority');
+        }
+        if (authorization.boundary === 'wall_denied') return finish('skipped_wall');
+        return false;
+      };
       const executeAuthorized: AuthorizedEffect = (effect) =>
-        executeAuthorizedScheduledTaskEffect(
-          authorizeCurrent,
-          (authority) => effect(tenantContext(task, authority)),
+        executeAuthorizedScheduledTaskEffect(authorizeCurrent, (authority) =>
+          effect(tenantContext(task, authority)),
         );
       const stopAtBoundary = async (
         boundary: Exclude<ScheduledTaskExecutionBoundary, 'runnable'>,
@@ -464,10 +542,8 @@ async function main(): Promise<void> {
 
         let saved: ScheduledTaskSavedResult | null = null;
         if (claim.receipt.stage === 'result_saved' || claim.receipt.stage === 'email_confirmed') {
-          saved = await prisma.withTenantUser(
-            task.tenant_id,
-            task.owner_user_id,
-            (tx: any) => readScheduledTaskSavedResult(tx, identity, claim),
+          saved = await prisma.withTenantUser(task.tenant_id, task.owner_user_id, (tx: any) =>
+            readScheduledTaskSavedResult(tx, identity, claim),
           );
           if (!saved) {
             logger.warn(`[task ${task.id}] durable result reference has no current exact alert`);
@@ -483,20 +559,20 @@ async function main(): Promise<void> {
           if (!started) {
             const authorization = await authorizeCurrent();
             await stopAtBoundary(
-              authorization.boundary === 'runnable'
-                ? 'lease_lost'
-                : authorization.boundary,
+              authorization.boundary === 'runnable' ? 'lease_lost' : authorization.boundary,
             );
             continue;
           }
 
           let credentialEffect;
           try {
-            credentialEffect = await executeAuthorized<ResolvedAiCredential | null>(
-              (currentCtx) => aiCreds.resolveProvider(currentCtx, 'anthropic'),
+            credentialEffect = await executeAuthorized<ResolvedAiCredential | null>((currentCtx) =>
+              aiCreds.resolveProvider(currentCtx, 'anthropic'),
             );
           } catch (err) {
-            logger.warn(`[task ${task.id}] credential resolution failed: ${(err as Error).message}`);
+            logger.warn(
+              `[task ${task.id}] credential resolution failed: ${(err as Error).message}`,
+            );
             await finish('error');
             failed += 1;
             continue;
@@ -513,23 +589,25 @@ async function main(): Promise<void> {
             continue;
           }
 
-          let result: Awaited<ReturnType<typeof runResearch>> = null;
+          let result: ScheduledResearchResult = null;
           try {
-            result = await runResearch(
-              task,
-              toolsService,
-              resolved.apiKey,
-              resolved.model,
-              resolved.usedTenantKey,
-              allowList,
-              logger,
-              prisma,
-              executeAuthorized,
-            );
+            result = options.research
+              ? await options.research({ task, executeAuthorized })
+              : await runResearch(
+                  task,
+                  toolsService,
+                  resolved.apiKey,
+                  resolved.model,
+                  resolved.usedTenantKey,
+                  allowList,
+                  logger,
+                  prisma,
+                  executeAuthorized,
+                );
           } catch (err) {
             logger.warn(`[task ${task.id}] research failed: ${(err as Error).message}`);
           }
-          if (result && 'blocked' in result) {
+          if (isBlockedResearchResult(result)) {
             await stopAtBoundary(result.blocked);
             continue;
           }
@@ -540,10 +618,8 @@ async function main(): Promise<void> {
           }
 
           try {
-            await prisma.withTenantUser(
-              task.tenant_id,
-              task.owner_user_id,
-              (tx: any) => persistScheduledTaskResultAndAlert(tx, identity, claim, {
+            await prisma.withTenantUser(task.tenant_id, task.owner_user_id, (tx: any) =>
+              persistScheduledTaskResultAndAlert(tx, identity, claim, {
                 taskName: task.name,
                 text: result.text,
                 toolsUsed: result.toolsUsed,
@@ -552,36 +628,34 @@ async function main(): Promise<void> {
           } catch (err) {
             // A transaction acknowledgement can be lost after both the alert and
             // result reference committed. Fresh-read before deciding it failed.
-            saved = await prisma.withTenantUser(
-              task.tenant_id,
-              task.owner_user_id,
-              (tx: any) => readScheduledTaskSavedResult(tx, identity, claim),
-            ).catch(() => null);
+            saved = await prisma
+              .withTenantUser(task.tenant_id, task.owner_user_id, (tx: any) =>
+                readScheduledTaskSavedResult(tx, identity, claim),
+              )
+              .catch(() => null);
             if (!saved) throw err;
           }
-          saved ??= await prisma.withTenantUser(
-            task.tenant_id,
-            task.owner_user_id,
-            (tx: any) => readScheduledTaskSavedResult(tx, identity, claim),
+          saved ??= await prisma.withTenantUser(task.tenant_id, task.owner_user_id, (tx: any) =>
+            readScheduledTaskSavedResult(tx, identity, claim),
           );
           if (!saved) throw new Error('saved result was not readable after commit');
           delivered += 1;
         }
 
+        await options.checkpoint?.('result_saved', { task, claim });
+
         if (claim.receipt.stage === 'email_confirmed') {
-          await finish('ok');
+          await finishKnownSuccess();
           continue;
         }
         if (!emailTo) {
-          await finish('ok');
+          await finishKnownSuccess();
           continue;
         }
 
         try {
-          const began = await prisma.withTenantUser(
-            task.tenant_id,
-            task.owner_user_id,
-            (tx: any) => beginScheduledTaskEmailDispatch(tx, identity, claim),
+          const began = await prisma.withTenantUser(task.tenant_id, task.owner_user_id, (tx: any) =>
+            beginScheduledTaskEmailDispatch(tx, identity, claim),
           );
           if (!began) {
             await stopAtBoundary('lease_lost');
@@ -592,7 +666,7 @@ async function main(): Promise<void> {
           // Never issue the external call after this ambiguity.
           logger.warn(
             `[task ${task.id}] email dispatch-start acknowledgement uncertain; no send attempted: ` +
-            (err as Error).message,
+              (err as Error).message,
           );
           await finish('notification_unknown');
           failed += 1;
@@ -603,36 +677,39 @@ async function main(): Promise<void> {
           ok: boolean;
           sentFrom?: string;
           error?: string;
-        }>((currentCtx) => toolsService.sendScheduledBriefingEmail(
-          currentCtx,
-          emailTo,
-          `Meri briefing: ${task.name}`,
-          saved!.text,
-        ));
-        if (!email.executed) {
+        }>((currentCtx) =>
+          toolsService.sendScheduledBriefingEmail(
+            currentCtx,
+            emailTo,
+            `Meri briefing: ${task.name}`,
+            saved!.text,
+          ),
+        );
+        if (email.executed === false) {
           await stopAtBoundary(email.boundary);
           continue;
         }
         const sent = email.value;
+        await options.checkpoint?.('email_effect', { task, claim });
         const confirmed = sent.ok === true;
-        const outcomeWritten = await prisma.withTenantUser(
-          task.tenant_id,
-          task.owner_user_id,
-          (tx: any) => recordScheduledTaskEmailOutcome(
-            tx,
-            identity,
-            claim,
-            confirmed
-              ? { confirmed: true, sentFrom: sent.sentFrom }
-              : { confirmed: false, error: sent.error },
-          ),
-        ).catch((err: Error) => {
-          logger.warn(`[task ${task.id}] email outcome receipt failed: ${err.message}`);
-          return false;
-        });
+        const outcomeWritten = await prisma
+          .withTenantUser(task.tenant_id, task.owner_user_id, (tx: any) =>
+            recordScheduledTaskEmailOutcome(
+              tx,
+              identity,
+              claim,
+              confirmed
+                ? { confirmed: true, sentFrom: sent.sentFrom }
+                : { confirmed: false, error: sent.error },
+            ),
+          )
+          .catch((err: Error) => {
+            logger.warn(`[task ${task.id}] email outcome receipt failed: ${err.message}`);
+            return false;
+          });
         if (confirmed && outcomeWritten) {
           logger.log(`[task ${task.id}] briefing email confirmed for ${emailTo}`);
-          await finish('ok');
+          await finishKnownSuccess();
         } else {
           logger.warn(
             `[task ${task.id}] briefing result is saved; email outcome is unknown and will not be retried`,
@@ -656,12 +733,14 @@ async function main(): Promise<void> {
     // eslint-disable-next-line no-console
     console.log('CLIO_SCHEDULED_REPORT ' + JSON.stringify({ due: due.length, delivered, failed }));
   } finally {
-    await app.close();
+    await app?.close();
   }
 }
 
-main().catch((err) => {
-  // eslint-disable-next-line no-console
-  console.error('[run-meri-scheduled-tasks] FAILED', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  void runScheduledTasks().catch((err) => {
+    // eslint-disable-next-line no-console
+    console.error('[run-meri-scheduled-tasks] FAILED', err);
+    process.exit(1);
+  });
+}

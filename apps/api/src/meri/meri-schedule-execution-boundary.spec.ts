@@ -79,6 +79,22 @@ describe('scheduled task durable execution boundary', () => {
     expect(parseScheduledTaskDurableReceipt({ clientId })).toBeNull();
   });
 
+  it('rejects malformed receipt expiry and stage values without attempting a timestamp cast', () => {
+    expect(parseScheduledTaskDurableReceipt({
+      scheduleExecution: { ...receipt, leaseExpiresAt: 'not-a-timestamp' },
+    })).toBeNull();
+    expect(parseScheduledTaskDurableReceipt({
+      scheduleExecution: { ...receipt, stage: 'legacy_running' },
+    })).toBeNull();
+  });
+
+  it('preserves a valid six-digit scheduled timestamp token as receipt identity', () => {
+    const scheduledFor = '2026-09-28 10:00:00.123456+00';
+    expect(parseScheduledTaskDurableReceipt({
+      scheduleExecution: { ...receipt, scheduledFor },
+    })?.scheduledFor).toBe(scheduledFor);
+  });
+
   it('requires a current active owner membership instead of defaulting a missing role', async () => {
     const tx = transaction({ active: false });
 

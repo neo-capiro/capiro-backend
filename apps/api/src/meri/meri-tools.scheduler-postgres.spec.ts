@@ -1,6 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import { resolve } from 'node:path';
 import { Pool, type PoolClient } from 'pg';
 import type { TenantContext } from '@capiro/shared';
 import { MeriToolsService } from './meri-tools.service.js';
@@ -51,13 +50,7 @@ type LocalPostgresConfig = {
   scope: string;
 };
 
-const configuredPath = process.env.MERI_SCHEDULER_POSTGRES_CONFIG;
-const defaultPath = resolve(
-  process.cwd(),
-  '../../../cap-meri-foundation-evidence/private/local-postgres.json',
-);
-const configPath = configuredPath || defaultPath;
-const describeLocal = existsSync(configPath) ? describe : describe.skip;
+const configPath = 'C:/dev/cap-meri-foundation-evidence/private/local-postgres.json';
 
 /**
  * Native PostgreSQL boundary proof for the production schedule handler.
@@ -67,7 +60,7 @@ const describeLocal = existsSync(configPath) ? describe : describe.skip;
  * transaction. This proves PK conflict/failed-transaction/fresh-read behavior;
  * it is not represented as full Prisma middleware or RLS integration proof.
  */
-describeLocal('Meri schedule handler — native PostgreSQL receipt boundary', () => {
+describe('Meri schedule handler — native PostgreSQL receipt boundary', () => {
   let pool: Pool;
   let schemaName: string;
 
@@ -203,16 +196,27 @@ describeLocal('Meri schedule handler — native PostgreSQL receipt boundary', ()
 
   afterAll(async () => {
     if (pool && schemaName) {
-      await pool.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
+      const ownership = await pool.query<{ owned: boolean }>(
+        `SELECT pg_get_userbyid(nspowner) = current_user AS owned
+           FROM pg_namespace
+          WHERE nspname = $1`,
+        [schemaName],
+      );
+      if (ownership.rows[0]?.owned !== true) {
+        throw new Error('refusing to drop an unowned scheduler fixture schema');
+      }
+      await pool.query(`DROP SCHEMA "${schemaName}" CASCADE`);
     }
     if (pool) await pool.end();
   });
 
-  function harness(options: {
-    barrier?: boolean;
-    ackLoss?: boolean;
-    cancelAfterAckLoss?: boolean;
-  } = {}) {
+  function harness(
+    options: {
+      barrier?: boolean;
+      ackLoss?: boolean;
+      cancelAfterAckLoss?: boolean;
+    } = {},
+  ) {
     let initialReads = 0;
     let releaseInitialReads: () => void = () => undefined;
     const initialReadGate = new Promise<void>((resolveGate) => {
@@ -431,10 +435,7 @@ describeLocal('Meri schedule handler — native PostgreSQL receipt boundary', ()
     }
   }
 
-  async function insertDueExecutionTask(
-    dueAt: Date,
-    metadata: Record<string, unknown> = {},
-  ) {
+  async function insertDueExecutionTask(dueAt: Date, metadata: Record<string, unknown> = {}) {
     await pool.query(
       `INSERT INTO "${schemaName}".clio_scheduled_task (
          id, tenant_id, owner_user_id, scope, name, prompt, interval_minutes,
@@ -541,32 +542,36 @@ describeLocal('Meri schedule handler — native PostgreSQL receipt boundary', ()
 
   async function claimFresh(notificationRecipient: string | null = null) {
     const value = times();
-    await insertDueExecutionTask(value.scheduledFor, notificationRecipient
-      ? { emailTo: notificationRecipient }
-      : {});
-    const result = await withExecutionTransaction((tx) => claimScheduledTaskExecution(
-      tx,
-      identity,
-      value.claimedAt,
-      value.nextRunAt,
+    await insertDueExecutionTask(
       value.scheduledFor,
-      notificationRecipient,
-    ));
+      notificationRecipient ? { emailTo: notificationRecipient } : {},
+    );
+    const result = await withExecutionTransaction((tx) =>
+      claimScheduledTaskExecution(
+        tx,
+        identity,
+        value.claimedAt,
+        value.nextRunAt,
+        value.scheduledFor,
+        notificationRecipient,
+      ),
+    );
     expect(result.state).toBe('claimed');
     if (result.state !== 'claimed') throw new Error('expected claim');
     return { ...value, claim: result.claim };
   }
 
   async function saveResult(claim: Awaited<ReturnType<typeof claimFresh>>['claim']) {
-    await expect(withExecutionTransaction((tx) =>
-      markScheduledTaskResearchStarted(tx, identity, claim),
-    )).resolves.toBe(true);
-    await withExecutionTransaction((tx) => persistScheduledTaskResultAndAlert(
-      tx,
-      identity,
-      claim,
-      { taskName: 'race', text: 'saved briefing', toolsUsed: ['query_intelligence'] },
-    ));
+    await expect(
+      withExecutionTransaction((tx) => markScheduledTaskResearchStarted(tx, identity, claim)),
+    ).resolves.toBe(true);
+    await withExecutionTransaction((tx) =>
+      persistScheduledTaskResultAndAlert(tx, identity, claim, {
+        taskName: 'race',
+        text: 'saved briefing',
+        toolsUsed: ['query_intelligence'],
+      }),
+    );
     const saved = await withExecutionTransaction((tx) =>
       readScheduledTaskSavedResult(tx, identity, claim),
     );
@@ -591,98 +596,214 @@ describeLocal('Meri schedule handler — native PostgreSQL receipt boundary', ()
   test('two native PostgreSQL workers claim one occurrence and only one reaches the sink', async () => {
     const value = times();
     await insertDueExecutionTask(value.scheduledFor);
-    const run = () => withExecutionTransaction((tx) => claimScheduledTaskExecution(
-      tx,
-      identity,
-      value.claimedAt,
-      value.nextRunAt,
-      value.scheduledFor,
-    ));
+    const run = () =>
+      withExecutionTransaction((tx) =>
+        claimScheduledTaskExecution(
+          tx,
+          identity,
+          value.claimedAt,
+          value.nextRunAt,
+          value.scheduledFor,
+        ),
+      );
     const claims = await Promise.all([run(), run()]);
     expect(claims.map((entry) => entry.state).sort()).toEqual(['already_running', 'claimed']);
     const winner = claims.find((entry) => entry.state === 'claimed');
     if (!winner || winner.state !== 'claimed') throw new Error('expected claim winner');
     const sink = jest.fn(async () => 'controlled');
 
-    await expect(withExecutionTransaction((tx) => executeScheduledTaskEffect(
-      () => checkScheduledTaskExecutionBoundary(tx, identity, winner.claim),
-      sink,
-    ))).resolves.toEqual({ executed: true, value: 'controlled' });
+    await expect(
+      withExecutionTransaction((tx) =>
+        executeScheduledTaskEffect(
+          () => checkScheduledTaskExecutionBoundary(tx, identity, winner.claim),
+          sink,
+        ),
+      ),
+    ).resolves.toEqual({ executed: true, value: 'controlled' });
     expect(sink).toHaveBeenCalledTimes(1);
+  }, 30_000);
+
+  test('claims the exact six-digit PostgreSQL due token without rounding through Date', async () => {
+    const claimedAt = new Date();
+    const roundedDue = new Date(claimedAt.getTime() - 1_000);
+    await pool.query(
+      `INSERT INTO "${schemaName}".clio_scheduled_task (
+         id, tenant_id, owner_user_id, scope, name, prompt, interval_minutes,
+         next_run_at, created_by
+       ) VALUES (
+         $1::uuid, $2::uuid, $3::uuid, 'user_private', 'fractional', 'fractional', 60,
+         $4::timestamptz + interval '0.000456 second', 'meri'
+       )`,
+      [PROPOSAL, ctx.tenantId, ctx.userId, roundedDue],
+    );
+    const observed = await pool.query<{ next_run_at: Date; exact: string }>(
+      `SELECT next_run_at, next_run_at::text AS exact
+         FROM "${schemaName}".clio_scheduled_task
+        WHERE id = $1::uuid`,
+      [PROPOSAL],
+    );
+    expect(observed.rows[0]?.exact).toMatch(/\.\d{6}/);
+    const nextRunAt = new Date(claimedAt.getTime() + 60 * 60_000);
+    await expect(
+      withExecutionTransaction((tx) =>
+        claimScheduledTaskExecution(
+          tx,
+          identity,
+          claimedAt,
+          nextRunAt,
+          observed.rows[0]!.next_run_at,
+        ),
+      ),
+    ).resolves.toEqual({ state: 'inactive' });
+
+    const exact = await withExecutionTransaction((tx) =>
+      claimScheduledTaskExecution(tx, identity, claimedAt, nextRunAt, observed.rows[0]!.exact),
+    );
+    expect(exact.state).toBe('claimed');
+    if (exact.state !== 'claimed') throw new Error('expected exact fractional claim');
+    expect(exact.claim.receipt.scheduledFor).toBe(observed.rows[0]!.exact);
+  }, 30_000);
+
+  test('does not start the next cadence while the prior fence owns a live lease', async () => {
+    const first = await claimFresh();
+    const nextCadence = new Date(first.nextRunAt.getTime() + 1_000);
+    await pool.query(
+      `UPDATE "${schemaName}".clio_scheduled_task
+          SET metadata_jsonb = jsonb_set(
+                metadata_jsonb,
+                '{scheduleExecution,leaseExpiresAt}',
+                to_jsonb(($2::timestamptz + interval '120 seconds')::text),
+                false
+              )
+        WHERE id = $1::uuid`,
+      [PROPOSAL, nextCadence],
+    );
+    await expect(
+      withExecutionTransaction((tx) =>
+        claimScheduledTaskExecution(
+          tx,
+          identity,
+          nextCadence,
+          new Date(nextCadence.getTime() + 60 * 60_000),
+          first.nextRunAt,
+          null,
+          { occurrenceId: first.claim.occurrenceId, fence: first.claim.fence },
+        ),
+      ),
+    ).resolves.toEqual({ state: 'already_running' });
+    const stored = await pool.query<{ last_status: string; run_count: number; next_run_at: Date }>(
+      `SELECT last_status, run_count, next_run_at
+         FROM "${schemaName}".clio_scheduled_task
+        WHERE id = $1::uuid`,
+      [PROPOSAL],
+    );
+    expect(stored.rows[0]).toEqual({
+      last_status: 'running',
+      run_count: 0,
+      next_run_at: first.nextRunAt,
+    });
   }, 30_000);
 
   test('heartbeat renews the exact lease and a stale fence cannot renew', async () => {
     const { claim } = await claimFresh();
     const heartbeatAt = new Date(Date.now() + 5_000);
-    await expect(withExecutionTransaction((tx) =>
-      renewScheduledTaskExecutionLease(tx, identity, claim, heartbeatAt),
-    )).resolves.toBe(true);
+    await expect(
+      withExecutionTransaction((tx) =>
+        renewScheduledTaskExecutionLease(tx, identity, claim, heartbeatAt),
+      ),
+    ).resolves.toBe(true);
     const row = await pool.query<{ metadata_jsonb: Record<string, unknown> }>(
       `SELECT metadata_jsonb FROM "${schemaName}".clio_scheduled_task WHERE id = $1::uuid`,
       [PROPOSAL],
     );
     const renewed = parseScheduledTaskDurableReceipt(row.rows[0]?.metadata_jsonb);
     expect(renewed?.heartbeatAt).toBe(heartbeatAt.toISOString());
-    await expect(withExecutionTransaction((tx) => renewScheduledTaskExecutionLease(
-      tx,
-      identity,
-      { ...claim, fence: '77777777-7777-4777-8777-777777777777' },
-      new Date(),
-    ))).resolves.toBe(false);
+    await expect(
+      withExecutionTransaction((tx) =>
+        renewScheduledTaskExecutionLease(
+          tx,
+          identity,
+          { ...claim, fence: '77777777-7777-4777-8777-777777777777' },
+          new Date(),
+        ),
+      ),
+    ).resolves.toBe(false);
   }, 30_000);
 
   test('expired pre-effect claims retry boundedly with a new fence and reject stale completion', async () => {
     const first = await claimFresh();
     await expireLease();
-    const secondResult = await withExecutionTransaction((tx) => claimScheduledTaskExecution(
-      tx,
-      identity,
-      new Date(),
-      first.nextRunAt,
-      first.nextRunAt,
-    ));
+    const secondResult = await withExecutionTransaction((tx) =>
+      claimScheduledTaskExecution(
+        tx,
+        identity,
+        new Date(),
+        first.nextRunAt,
+        first.nextRunAt,
+        null,
+        { occurrenceId: first.claim.occurrenceId, fence: first.claim.fence },
+      ),
+    );
     expect(secondResult.state).toBe('claimed');
     if (secondResult.state !== 'claimed') throw new Error('expected recovered claim');
     expect(secondResult.claim).toMatchObject({ recovered: true });
     expect(secondResult.claim.fence).not.toBe(first.claim.fence);
-    await expect(withExecutionTransaction((tx) =>
-      advanceScheduledTaskExecution(tx, identity, first.claim, 'ok'),
-    )).resolves.toBe(false);
+    await expect(
+      withExecutionTransaction((tx) =>
+        advanceScheduledTaskExecution(tx, identity, first.claim, 'ok'),
+      ),
+    ).resolves.toBe(false);
 
     await expireLease();
-    const thirdResult = await withExecutionTransaction((tx) => claimScheduledTaskExecution(
-      tx,
-      identity,
-      new Date(),
-      first.nextRunAt,
-      first.nextRunAt,
-    ));
+    const thirdResult = await withExecutionTransaction((tx) =>
+      claimScheduledTaskExecution(
+        tx,
+        identity,
+        new Date(),
+        first.nextRunAt,
+        first.nextRunAt,
+        null,
+        { occurrenceId: secondResult.claim.occurrenceId, fence: secondResult.claim.fence },
+      ),
+    );
     expect(thirdResult.state).toBe('claimed');
     if (thirdResult.state !== 'claimed') throw new Error('expected third bounded claim');
     expect(thirdResult.claim.receipt.attempt).toBe(3);
     await expireLease();
-    await expect(withExecutionTransaction((tx) => claimScheduledTaskExecution(
-      tx,
-      identity,
-      new Date(),
-      first.nextRunAt,
-      first.nextRunAt,
-    ))).resolves.toMatchObject({ state: 'ambiguous_effect', stage: 'recovery_unknown' });
+    await expect(
+      withExecutionTransaction((tx) =>
+        claimScheduledTaskExecution(
+          tx,
+          identity,
+          new Date(),
+          first.nextRunAt,
+          first.nextRunAt,
+          null,
+          { occurrenceId: thirdResult.claim.occurrenceId, fence: thirdResult.claim.fence },
+        ),
+      ),
+    ).resolves.toMatchObject({ state: 'ambiguous_effect', stage: 'recovery_unknown' });
   }, 30_000);
 
   test('lost claim COMMIT acknowledgement reconciles the exact durable occurrence', async () => {
     const value = times();
     await insertDueExecutionTask(value.scheduledFor);
-    await expect(withExecutionTransaction((tx) => claimScheduledTaskExecution(
-      tx,
-      identity,
-      value.claimedAt,
-      value.nextRunAt,
-      value.scheduledFor,
-    ), { loseAck: true })).rejects.toThrow('acknowledgement loss');
+    await expect(
+      withExecutionTransaction(
+        (tx) =>
+          claimScheduledTaskExecution(
+            tx,
+            identity,
+            value.claimedAt,
+            value.nextRunAt,
+            value.scheduledFor,
+          ),
+        { loseAck: true },
+      ),
+    ).rejects.toThrow('acknowledgement loss');
 
     const reconciled = await withExecutionTransaction((tx) =>
-      reconcileScheduledTaskClaim(tx, identity, value.claimedAt),
+      reconcileScheduledTaskClaim(tx, identity, value.claimedAt, value.scheduledFor),
     );
     expect(reconciled).toMatchObject({ claimedAt: value.claimedAt, recovered: false });
   }, 30_000);
@@ -690,16 +811,21 @@ describeLocal('Meri schedule handler — native PostgreSQL receipt boundary', ()
   test('lost alert/result commit acknowledgement fresh-reads one atomic result receipt', async () => {
     const { claim } = await claimFresh();
     await withExecutionTransaction((tx) => markScheduledTaskResearchStarted(tx, identity, claim));
-    await expect(withExecutionTransaction((tx) => persistScheduledTaskResultAndAlert(
-      tx,
-      identity,
-      claim,
-      { taskName: 'race', text: 'atomic saved result', toolsUsed: [] },
-    ), { loseAck: true })).rejects.toThrow('acknowledgement loss');
+    await expect(
+      withExecutionTransaction(
+        (tx) =>
+          persistScheduledTaskResultAndAlert(tx, identity, claim, {
+            taskName: 'race',
+            text: 'atomic saved result',
+            toolsUsed: [],
+          }),
+        { loseAck: true },
+      ),
+    ).rejects.toThrow('acknowledgement loss');
 
-    await expect(withExecutionTransaction((tx) =>
-      readScheduledTaskSavedResult(tx, identity, claim),
-    )).resolves.toMatchObject({ text: 'atomic saved result' });
+    await expect(
+      withExecutionTransaction((tx) => readScheduledTaskSavedResult(tx, identity, claim)),
+    ).resolves.toMatchObject({ text: 'atomic saved result' });
     const count = await pool.query<{ count: string }>(
       `SELECT count(*)::text AS count FROM "${schemaName}".clio_proactive_alerts`,
     );
@@ -709,21 +835,26 @@ describeLocal('Meri schedule handler — native PostgreSQL receipt boundary', ()
   test('crash after email dispatch-start never auto-sends again and surfaces unknown separately', async () => {
     const { claim, nextRunAt } = await claimFresh('owner@example.test');
     const saved = await saveResult(claim);
-    await expect(withExecutionTransaction((tx) =>
-      beginScheduledTaskEmailDispatch(tx, identity, claim),
-    )).resolves.toBe(true);
+    await expect(
+      withExecutionTransaction((tx) => beginScheduledTaskEmailDispatch(tx, identity, claim)),
+    ).resolves.toBe(true);
     const controlledEmailSink = jest.fn(async () => 'possible-send');
     await controlledEmailSink();
     await expireLease();
 
-    await expect(withExecutionTransaction((tx) => claimScheduledTaskExecution(
-      tx,
-      identity,
-      new Date(),
-      nextRunAt,
-      nextRunAt,
-      'owner@example.test',
-    ))).resolves.toEqual({
+    await expect(
+      withExecutionTransaction((tx) =>
+        claimScheduledTaskExecution(
+          tx,
+          identity,
+          new Date(),
+          nextRunAt,
+          nextRunAt,
+          'owner@example.test',
+          { occurrenceId: claim.occurrenceId, fence: claim.fence },
+        ),
+      ),
+    ).resolves.toEqual({
       state: 'notification_unknown',
       result: { alertId: saved.alertId, savedAt: expect.any(String) },
     });
@@ -751,23 +882,72 @@ describeLocal('Meri schedule handler — native PostgreSQL receipt boundary', ()
   test('confirmed controlled email persists confirmation before terminal completion', async () => {
     const { claim } = await claimFresh('owner@example.test');
     await saveResult(claim);
-    await withExecutionTransaction((tx) => beginScheduledTaskEmailDispatch(tx, identity, claim));
-    await expect(withExecutionTransaction((tx) => recordScheduledTaskEmailOutcome(
-      tx,
-      identity,
-      claim,
-      { confirmed: true, sentFrom: 'controlled@example.test' },
-    ))).resolves.toBe(true);
-    await expect(withExecutionTransaction((tx) =>
-      advanceScheduledTaskExecution(tx, identity, claim, 'ok'),
-    )).resolves.toBe(true);
-    const row = await pool.query<{ last_status: string; outcome: string }>(
+    const startedAt = new Date(Date.now() - 30_000);
+    const confirmedAt = new Date();
+    await withExecutionTransaction((tx) =>
+      beginScheduledTaskEmailDispatch(tx, identity, claim, startedAt),
+    );
+    await expect(
+      withExecutionTransaction((tx) =>
+        recordScheduledTaskEmailOutcome(
+          tx,
+          identity,
+          claim,
+          { confirmed: true, sentFrom: 'controlled@example.test' },
+          confirmedAt,
+        ),
+      ),
+    ).resolves.toBe(true);
+    await expect(
+      withExecutionTransaction((tx) => advanceScheduledTaskExecution(tx, identity, claim, 'ok')),
+    ).resolves.toBe(true);
+    const row = await pool.query<{
+      last_status: string;
+      outcome: string;
+      started_at: string;
+      confirmed_at: string;
+    }>(
       `SELECT last_status,
-              metadata_jsonb #>> '{scheduleExecution,notification,outcome}' AS outcome
+              metadata_jsonb #>> '{scheduleExecution,notification,outcome}' AS outcome,
+              metadata_jsonb #>> '{scheduleExecution,notification,startedAt}' AS started_at,
+              metadata_jsonb #>> '{scheduleExecution,notification,confirmedAt}' AS confirmed_at
          FROM "${schemaName}".clio_scheduled_task WHERE id = $1::uuid`,
       [PROPOSAL],
     );
-    expect(row.rows[0]).toEqual({ last_status: 'ok', outcome: 'confirmed' });
+    expect(row.rows[0]).toEqual({
+      last_status: 'ok',
+      outcome: 'confirmed',
+      started_at: startedAt.toISOString(),
+      confirmed_at: confirmedAt.toISOString(),
+    });
+  }, 30_000);
+
+  test('membership-only revocation rejects ok but permits a truthful denied terminal status', async () => {
+    const { claim } = await claimFresh();
+    await saveResult(claim);
+    await pool.query(`UPDATE "${schemaName}".tenant_memberships SET status = 'removed'`);
+    await expect(
+      withExecutionTransaction((tx) => advanceScheduledTaskExecution(tx, identity, claim, 'ok')),
+    ).resolves.toBe(false);
+    const before = await pool.query<{ last_status: string; run_count: number }>(
+      `SELECT last_status, run_count
+         FROM "${schemaName}".clio_scheduled_task
+        WHERE id = $1::uuid`,
+      [PROPOSAL],
+    );
+    expect(before.rows[0]).toEqual({ last_status: 'running', run_count: 0 });
+    await expect(
+      withExecutionTransaction((tx) =>
+        advanceScheduledTaskExecution(tx, identity, claim, 'skipped_authority'),
+      ),
+    ).resolves.toBe(true);
+    const after = await pool.query<{ last_status: string; run_count: number }>(
+      `SELECT last_status, run_count
+         FROM "${schemaName}".clio_scheduled_task
+        WHERE id = $1::uuid`,
+      [PROPOSAL],
+    );
+    expect(after.rows[0]).toEqual({ last_status: 'skipped_authority', run_count: 1 });
   }, 30_000);
 
   test('current wall and membership revocation block effects; cancellation defeats completion', async () => {
@@ -784,30 +964,36 @@ describeLocal('Meri schedule handler — native PostgreSQL receipt boundary', ()
       [ctx.tenantId, client, ctx.userId],
     );
     await insertDueExecutionTask(value.scheduledFor, { clientId: client });
-    const result = await withExecutionTransaction((tx) => claimScheduledTaskExecution(
-      tx,
-      identity,
-      value.claimedAt,
-      value.nextRunAt,
-      value.scheduledFor,
-    ));
+    const result = await withExecutionTransaction((tx) =>
+      claimScheduledTaskExecution(
+        tx,
+        identity,
+        value.claimedAt,
+        value.nextRunAt,
+        value.scheduledFor,
+      ),
+    );
     expect(result.state).toBe('claimed');
     if (result.state !== 'claimed') throw new Error('expected claim');
-    await pool.query(
-      `DELETE FROM "${schemaName}".client_memory_access`,
-    );
+    await pool.query(`DELETE FROM "${schemaName}".client_memory_access`);
     const sink = jest.fn(async () => undefined);
-    await expect(withExecutionTransaction((tx) => executeScheduledTaskEffect(
-      () => checkScheduledTaskExecutionBoundary(tx, identity, result.claim),
-      sink,
-    ))).resolves.toEqual({ executed: false, boundary: 'wall_denied' });
-    await pool.query(
-      `UPDATE "${schemaName}".tenant_memberships SET status = 'removed'`,
-    );
-    await expect(withExecutionTransaction((tx) => executeScheduledTaskEffect(
-      () => checkScheduledTaskExecutionBoundary(tx, identity, result.claim),
-      sink,
-    ))).resolves.toEqual({ executed: false, boundary: 'authority_denied' });
+    await expect(
+      withExecutionTransaction((tx) =>
+        executeScheduledTaskEffect(
+          () => checkScheduledTaskExecutionBoundary(tx, identity, result.claim),
+          sink,
+        ),
+      ),
+    ).resolves.toEqual({ executed: false, boundary: 'wall_denied' });
+    await pool.query(`UPDATE "${schemaName}".tenant_memberships SET status = 'removed'`);
+    await expect(
+      withExecutionTransaction((tx) =>
+        executeScheduledTaskEffect(
+          () => checkScheduledTaskExecutionBoundary(tx, identity, result.claim),
+          sink,
+        ),
+      ),
+    ).resolves.toEqual({ executed: false, boundary: 'authority_denied' });
     expect(sink).not.toHaveBeenCalled();
 
     await pool.query(
@@ -816,9 +1002,26 @@ describeLocal('Meri schedule handler — native PostgreSQL receipt boundary', ()
         WHERE id = $1::uuid`,
       [PROPOSAL],
     );
-    await expect(withExecutionTransaction((tx) =>
-      advanceScheduledTaskExecution(tx, identity, result.claim, 'ok'),
-    )).resolves.toBe(false);
+    await expect(
+      withExecutionTransaction((tx) =>
+        advanceScheduledTaskExecution(tx, identity, result.claim, 'ok'),
+      ),
+    ).resolves.toBe(false);
+    const canceled = await pool.query<{
+      enabled: boolean;
+      last_status: string;
+      run_count: number;
+    }>(
+      `SELECT enabled, last_status, run_count
+         FROM "${schemaName}".clio_scheduled_task
+        WHERE id = $1::uuid`,
+      [PROPOSAL],
+    );
+    expect(canceled.rows[0]).toEqual({
+      enabled: false,
+      last_status: 'canceled',
+      run_count: 0,
+    });
   }, 30_000);
 
   test('legacy running rows without a lease fail closed without replay', async () => {
@@ -830,12 +1033,16 @@ describeLocal('Meri schedule handler — native PostgreSQL receipt boundary', ()
         WHERE id = $1::uuid`,
       [PROPOSAL, value.claimedAt, value.nextRunAt],
     );
-    await expect(withExecutionTransaction((tx) => claimScheduledTaskExecution(
-      tx,
-      identity,
-      new Date(),
-      new Date(Date.now() + 60 * 60_000),
-      value.nextRunAt,
-    ))).resolves.toEqual({ state: 'legacy_running_unknown' });
+    await expect(
+      withExecutionTransaction((tx) =>
+        claimScheduledTaskExecution(
+          tx,
+          identity,
+          new Date(),
+          new Date(Date.now() + 60 * 60_000),
+          value.nextRunAt,
+        ),
+      ),
+    ).resolves.toEqual({ state: 'legacy_running_unknown' });
   }, 30_000);
 });

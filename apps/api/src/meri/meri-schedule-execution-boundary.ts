@@ -7,11 +7,7 @@ export const SCHEDULED_TASK_HEARTBEAT_MS = 10_000;
 export const SCHEDULED_TASK_MAX_ATTEMPTS = 3;
 
 export type ScheduledTaskExecutionBoundary =
-  | 'runnable'
-  | 'inactive'
-  | 'authority_denied'
-  | 'wall_denied'
-  | 'lease_lost';
+  'runnable' | 'inactive' | 'authority_denied' | 'wall_denied' | 'lease_lost';
 
 export interface ScheduledTaskIdentity {
   id: string;
@@ -65,6 +61,11 @@ export interface ScheduledTaskExecutionClaim {
   recovered: boolean;
 }
 
+export interface ScheduledTaskObservedOccurrence {
+  occurrenceId: string;
+  fence: string;
+}
+
 export interface ScheduledTaskOwnerAuthority {
   role: string;
   clerkUserId: string;
@@ -107,8 +108,32 @@ export interface ScheduledTaskSavedResult {
 
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
+    ? (value as Record<string, unknown>)
     : null;
+}
+
+const SCHEDULED_TASK_STAGES: readonly ScheduledTaskExecutionStage[] = [
+  'claimed',
+  'research_started',
+  'result_saved',
+  'email_started',
+  'email_confirmed',
+  'email_unknown',
+  'recovery_unknown',
+  'completed',
+];
+
+function validTimestamp(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && Number.isFinite(Date.parse(value));
+}
+
+function timestampToken(value: Date | string): string {
+  if (typeof value === 'string') {
+    if (!validTimestamp(value)) throw new Error('invalid scheduled task timestamp token');
+    return value;
+  }
+  if (!Number.isFinite(value.getTime())) throw new Error('invalid scheduled task date');
+  return value.toISOString();
 }
 
 export function parseScheduledTaskDurableReceipt(
@@ -117,23 +142,29 @@ export function parseScheduledTaskDurableReceipt(
   const root = record(metadata);
   const value = record(root?.scheduleExecution);
   const notification = record(value?.notification);
+  const result = value?.result === undefined ? null : record(value.result);
   if (
-    value?.version !== 1
-    || typeof value.occurrenceId !== 'string'
-    || typeof value.scheduledFor !== 'string'
-    || typeof value.claimedAt !== 'string'
-    || typeof value.nextRunAt !== 'string'
-    || typeof value.fence !== 'string'
-    || typeof value.attempt !== 'number'
-    || typeof value.heartbeatAt !== 'string'
-    || typeof value.leaseExpiresAt !== 'string'
-    || typeof value.stage !== 'string'
-    || !notification
-    || typeof notification.requested !== 'boolean'
-    || !['pending', 'not_requested', 'unknown', 'confirmed'].includes(
-      String(notification.outcome),
-    )
-  ) return null;
+    value?.version !== 1 ||
+    typeof value.occurrenceId !== 'string' ||
+    !validTimestamp(value.scheduledFor) ||
+    !validTimestamp(value.claimedAt) ||
+    !validTimestamp(value.nextRunAt) ||
+    typeof value.fence !== 'string' ||
+    !Number.isSafeInteger(value.attempt) ||
+    Number(value.attempt) < 1 ||
+    !validTimestamp(value.heartbeatAt) ||
+    !validTimestamp(value.leaseExpiresAt) ||
+    !SCHEDULED_TASK_STAGES.includes(value.stage as ScheduledTaskExecutionStage) ||
+    !notification ||
+    typeof notification.requested !== 'boolean' ||
+    !(notification.recipient === null || typeof notification.recipient === 'string') ||
+    !['pending', 'not_requested', 'unknown', 'confirmed'].includes(String(notification.outcome)) ||
+    (notification.startedAt !== undefined && !validTimestamp(notification.startedAt)) ||
+    (notification.confirmedAt !== undefined && !validTimestamp(notification.confirmedAt)) ||
+    (value.result !== undefined &&
+      (!result || typeof result.alertId !== 'string' || !validTimestamp(result.savedAt)))
+  )
+    return null;
 
   return value as unknown as ScheduledTaskDurableReceipt;
 }
@@ -155,14 +186,14 @@ function claimFromReceipt(
 function newReceipt(input: {
   claimedAt: Date;
   nextRunAt: Date;
-  scheduledFor: Date;
+  scheduledFor: Date | string;
   notificationRecipient: string | null;
 }): ScheduledTaskDurableReceipt {
   const claimedAt = input.claimedAt.toISOString();
   return {
     version: 1,
     occurrenceId: randomUUID(),
-    scheduledFor: input.scheduledFor.toISOString(),
+    scheduledFor: timestampToken(input.scheduledFor),
     claimedAt,
     nextRunAt: input.nextRunAt.toISOString(),
     fence: randomUUID(),
@@ -186,12 +217,14 @@ export async function authorizeScheduledTaskExecution(
   task: ScheduledTaskIdentity,
   claim?: ScheduledTaskExecutionClaim,
 ): Promise<ScheduledTaskAuthorization> {
-  const rows = await tx.$queryRawUnsafe<Array<{
-    metadata: Prisma.JsonValue;
-    role: string;
-    clerk_user_id: string;
-    tenant_slug: string;
-  }>>(
+  const rows = await tx.$queryRawUnsafe<
+    Array<{
+      metadata: Prisma.JsonValue;
+      role: string;
+      clerk_user_id: string;
+      tenant_slug: string;
+    }>
+  >(
     `SELECT st.metadata_jsonb AS metadata,
             tm.role::text AS role,
             u.clerk_user_id AS clerk_user_id,
@@ -223,15 +256,18 @@ export async function authorizeScheduledTaskExecution(
   );
   const current = rows[0];
   if (!current) {
-    const state = (await tx.$queryRawUnsafe<Array<{
-      enabled: boolean;
-      status: string | null;
-      occurrence_id: string | null;
-      fence: string | null;
-      lease_expires_at: string | null;
-      owner_active: boolean;
-    }>>(
-      `SELECT st.enabled,
+    const state = (
+      await tx.$queryRawUnsafe<
+        Array<{
+          enabled: boolean;
+          status: string | null;
+          occurrence_id: string | null;
+          fence: string | null;
+          lease_expires_at: string | null;
+          owner_active: boolean;
+        }>
+      >(
+        `SELECT st.enabled,
               st.last_status AS status,
               st.metadata_jsonb #>> '{scheduleExecution,occurrenceId}' AS occurrence_id,
               st.metadata_jsonb #>> '{scheduleExecution,fence}' AS fence,
@@ -249,10 +285,11 @@ export async function authorizeScheduledTaskExecution(
           AND st.tenant_id = $2::uuid
           AND st.owner_user_id = $3::uuid
         LIMIT 1`,
-      task.id,
-      task.tenantId,
-      task.ownerUserId,
-    ))[0];
+        task.id,
+        task.tenantId,
+        task.ownerUserId,
+      )
+    )[0];
     if (!state || !state.enabled || state.status !== 'running') {
       return { boundary: 'inactive' };
     }
@@ -273,7 +310,7 @@ export async function authorizeScheduledTaskExecution(
       select: { id: true },
     });
     if (!client) return { boundary: 'wall_denied' };
-    if (!await clientMemoryAllowed(tx, task.tenantId, task.ownerUserId, clientId)) {
+    if (!(await clientMemoryAllowed(tx, task.tenantId, task.ownerUserId, clientId))) {
       return { boundary: 'wall_denied' };
     }
   }
@@ -302,12 +339,12 @@ async function terminalizeExpiredReceipt(
   receipt: ScheduledTaskDurableReceipt,
   status: 'recovery_unknown' | 'notification_unknown',
 ): Promise<boolean> {
-  const nextStage: ScheduledTaskExecutionStage = status === 'notification_unknown'
-    ? 'email_unknown'
-    : 'recovery_unknown';
-  const notification = status === 'notification_unknown'
-    ? { ...receipt.notification, outcome: 'unknown' as const }
-    : receipt.notification;
+  const nextStage: ScheduledTaskExecutionStage =
+    status === 'notification_unknown' ? 'email_unknown' : 'recovery_unknown';
+  const notification =
+    status === 'notification_unknown'
+      ? { ...receipt.notification, outcome: 'unknown' as const }
+      : receipt.notification;
   const changed = await tx.$executeRawUnsafe(
     `UPDATE clio_scheduled_task
         SET last_status = $6,
@@ -336,16 +373,23 @@ async function terminalizeExpiredReceipt(
   return changed === 1;
 }
 
-/** Claim a new due occurrence or recover only a receipt with no ambiguous effect. */
+/** Claim a new due occurrence or recover only the exact observed expired receipt. */
 export async function claimScheduledTaskExecution(
   tx: Prisma.TransactionClient,
   task: ScheduledTaskIdentity,
   claimedAt: Date,
   nextRunAt: Date,
-  scheduledFor: Date = claimedAt,
+  scheduledFor: Date | string = claimedAt,
   notificationRecipient: string | null = null,
+  observedOccurrence: ScheduledTaskObservedOccurrence | null = null,
 ): Promise<ScheduledTaskClaimResult> {
-  const receipt = newReceipt({ claimedAt, nextRunAt, scheduledFor, notificationRecipient });
+  const scheduledForToken = timestampToken(scheduledFor);
+  const receipt = newReceipt({
+    claimedAt,
+    nextRunAt,
+    scheduledFor: scheduledForToken,
+    notificationRecipient,
+  });
   const rows = await tx.$queryRawUnsafe<Array<{ metadata: Prisma.JsonValue }>>(
     `UPDATE clio_scheduled_task
         SET last_run_at = $4::timestamptz,
@@ -371,32 +415,48 @@ export async function claimScheduledTaskExecution(
     task.ownerUserId,
     claimedAt,
     nextRunAt,
-    scheduledFor,
+    scheduledForToken,
     JSON.stringify(receipt),
   );
 
   let activeReceipt = parseScheduledTaskDurableReceipt(rows[0]?.metadata);
   let recovered = false;
   if (!activeReceipt) {
-    const current = (await tx.$queryRawUnsafe<Array<{
-      status: string | null;
-      metadata: Prisma.JsonValue;
-    }>>(
-      `SELECT last_status AS status, metadata_jsonb AS metadata
+    const current = (
+      await tx.$queryRawUnsafe<
+        Array<{
+          status: string | null;
+          metadata: Prisma.JsonValue;
+          scheduled_for_matches: boolean;
+        }>
+      >(
+        `SELECT last_status AS status,
+              metadata_jsonb AS metadata,
+              next_run_at = $4::timestamptz AS scheduled_for_matches
          FROM clio_scheduled_task
         WHERE id = $1::uuid
           AND tenant_id = $2::uuid
           AND owner_user_id = $3::uuid
           AND enabled = true
         FOR UPDATE`,
-      task.id,
-      task.tenantId,
-      task.ownerUserId,
-    ))[0];
+        task.id,
+        task.tenantId,
+        task.ownerUserId,
+        scheduledForToken,
+      )
+    )[0];
     if (!current) return { state: 'inactive' };
     if (current.status !== 'running') return { state: 'inactive' };
     const prior = parseScheduledTaskDurableReceipt(current.metadata);
     if (!prior) return { state: 'legacy_running_unknown' };
+    if (
+      !observedOccurrence ||
+      !current.scheduled_for_matches ||
+      observedOccurrence.occurrenceId !== prior.occurrenceId ||
+      observedOccurrence.fence !== prior.fence
+    ) {
+      return { state: 'already_running' };
+    }
     if (new Date(prior.leaseExpiresAt).getTime() > claimedAt.getTime()) {
       return { state: 'already_running' };
     }
@@ -466,9 +526,11 @@ export async function reconcileScheduledTaskClaim(
   tx: Prisma.TransactionClient,
   task: ScheduledTaskIdentity,
   claimedAt: Date,
+  scheduledFor: Date | string,
 ): Promise<ScheduledTaskExecutionClaim | null> {
-  const row = (await tx.$queryRawUnsafe<Array<{ metadata: Prisma.JsonValue }>>(
-    `SELECT metadata_jsonb AS metadata
+  const row = (
+    await tx.$queryRawUnsafe<Array<{ metadata: Prisma.JsonValue }>>(
+      `SELECT metadata_jsonb AS metadata
        FROM clio_scheduled_task
       WHERE id = $1::uuid
         AND tenant_id = $2::uuid
@@ -476,12 +538,15 @@ export async function reconcileScheduledTaskClaim(
         AND enabled = true
         AND last_status = 'running'
         AND last_run_at = $4::timestamptz
+        AND metadata_jsonb #>> '{scheduleExecution,scheduledFor}' = $5::text
       LIMIT 1`,
-    task.id,
-    task.tenantId,
-    task.ownerUserId,
-    claimedAt,
-  ))[0];
+      task.id,
+      task.tenantId,
+      task.ownerUserId,
+      claimedAt,
+      timestampToken(scheduledFor),
+    )
+  )[0];
   const receipt = parseScheduledTaskDurableReceipt(row?.metadata);
   return receipt ? claimFromReceipt(receipt, false) : null;
 }
@@ -618,8 +683,9 @@ export async function persistScheduledTaskResultAndAlert(
     claim.occurrenceId,
     JSON.stringify(alertMetadata),
   );
-  const exactAlert = (await tx.$queryRawUnsafe<Array<{ id: string }>>(
-    `SELECT id
+  const exactAlert = (
+    await tx.$queryRawUnsafe<Array<{ id: string }>>(
+      `SELECT id
        FROM clio_proactive_alerts
       WHERE id = $1::uuid
         AND tenant_id = $2::uuid
@@ -627,11 +693,12 @@ export async function persistScheduledTaskResultAndAlert(
         AND alert_type = 'scheduled_task'
         AND source_id = $4
       LIMIT 1`,
-    alertId,
-    task.tenantId,
-    task.ownerUserId,
-    claim.occurrenceId,
-  ))[0];
+      alertId,
+      task.tenantId,
+      task.ownerUserId,
+      claim.occurrenceId,
+    )
+  )[0];
   if (!exactAlert) throw new Error('scheduled task alert identity conflict');
 
   const result = { alertId, savedAt };
@@ -678,13 +745,16 @@ export async function readScheduledTaskSavedResult(
 ): Promise<ScheduledTaskSavedResult | null> {
   const authorization = await authorizeScheduledTaskExecution(tx, task, claim);
   if (authorization.boundary !== 'runnable') return null;
-  const row = (await tx.$queryRawUnsafe<Array<{
-    metadata: Prisma.JsonValue;
-    id: string;
-    body: string;
-    alert_metadata: Prisma.JsonValue;
-  }>>(
-    `SELECT st.metadata_jsonb AS metadata,
+  const row = (
+    await tx.$queryRawUnsafe<
+      Array<{
+        metadata: Prisma.JsonValue;
+        id: string;
+        body: string;
+        alert_metadata: Prisma.JsonValue;
+      }>
+    >(
+      `SELECT st.metadata_jsonb AS metadata,
             a.id,
             a.body,
             a.metadata_jsonb AS alert_metadata
@@ -703,12 +773,13 @@ export async function readScheduledTaskSavedResult(
         AND st.metadata_jsonb #>> '{scheduleExecution,occurrenceId}' = $4
         AND st.metadata_jsonb #>> '{scheduleExecution,fence}' = $5
       LIMIT 1`,
-    task.id,
-    task.tenantId,
-    task.ownerUserId,
-    claim.occurrenceId,
-    claim.fence,
-  ))[0];
+      task.id,
+      task.tenantId,
+      task.ownerUserId,
+      claim.occurrenceId,
+      claim.fence,
+    )
+  )[0];
   const receipt = parseScheduledTaskDurableReceipt(row?.metadata);
   if (!row || !receipt?.result || receipt.result.alertId !== row.id) return null;
   const alertMetadata = record(row.alert_metadata);
@@ -805,18 +876,16 @@ export async function recordScheduledTaskEmailOutcome(
   outcome: { confirmed: true; sentFrom?: string } | { confirmed: false; error?: string },
   observedAt: Date = new Date(),
 ): Promise<boolean> {
-  const notification = {
-    ...claim.receipt.notification,
-    outcome: outcome.confirmed ? 'confirmed' as const : 'unknown' as const,
-    startedAt: claim.receipt.notification.startedAt ?? observedAt.toISOString(),
-    ...(outcome.confirmed
+  const notificationPatch = {
+    outcome: outcome.confirmed ? ('confirmed' as const) : ('unknown' as const),
+    ...(outcome.confirmed === true
       ? { confirmedAt: observedAt.toISOString(), sentFrom: outcome.sentFrom }
       : { error: outcome.error?.slice(0, 500) ?? 'delivery outcome unknown' }),
   };
   const stage: ScheduledTaskExecutionStage = outcome.confirmed
     ? 'email_confirmed'
     : 'email_unknown';
-  const changed = await tx.$executeRawUnsafe(
+  const rows = await tx.$queryRawUnsafe<Array<{ notification: Prisma.JsonValue }>>(
     `UPDATE clio_scheduled_task
         SET metadata_jsonb = jsonb_set(
               jsonb_set(
@@ -826,7 +895,7 @@ export async function recordScheduledTaskEmailOutcome(
                 false
               ),
               '{scheduleExecution,notification}',
-              $7::jsonb,
+              (metadata_jsonb #> '{scheduleExecution,notification}') || $7::jsonb,
               false
             ),
             updated_at = clock_timestamp()
@@ -838,17 +907,20 @@ export async function recordScheduledTaskEmailOutcome(
         AND metadata_jsonb #>> '{scheduleExecution,occurrenceId}' = $4
         AND metadata_jsonb #>> '{scheduleExecution,fence}' = $5
         AND metadata_jsonb #>> '{scheduleExecution,stage}' IN ('email_started', 'email_unknown')
+        AND metadata_jsonb #>> '{scheduleExecution,notification,startedAt}' IS NOT NULL
         AND (metadata_jsonb #>> '{scheduleExecution,leaseExpiresAt}')::timestamptz
-              > clock_timestamp()`,
+              > clock_timestamp()
+      RETURNING metadata_jsonb #> '{scheduleExecution,notification}' AS notification`,
     task.id,
     task.tenantId,
     task.ownerUserId,
     claim.occurrenceId,
     claim.fence,
     stage,
-    JSON.stringify(notification),
+    JSON.stringify(notificationPatch),
   );
-  if (changed !== 1) return false;
+  const notification = record(rows[0]?.notification);
+  if (!notification || !validTimestamp(notification.startedAt)) return false;
   const alertChanged = await tx.$executeRawUnsafe(
     `UPDATE clio_proactive_alerts
         SET metadata_jsonb = jsonb_set(
@@ -863,7 +935,7 @@ export async function recordScheduledTaskEmailOutcome(
     task.tenantId,
     task.ownerUserId,
     claim.occurrenceId,
-    notification.outcome,
+    notificationPatch.outcome,
     observedAt.toISOString(),
   );
   if (alertChanged !== 1) throw new Error('scheduled task alert missing at email outcome');
@@ -877,8 +949,16 @@ export async function advanceScheduledTaskExecution(
   claim: ScheduledTaskExecutionClaim,
   status: string,
 ): Promise<boolean> {
+  if (['ok', 'skipped_authority', 'skipped_wall'].includes(status)) {
+    const authorization = await authorizeScheduledTaskExecution(tx, task, claim);
+    if (status === 'ok' && authorization.boundary !== 'runnable') return false;
+    if (status === 'skipped_authority' && authorization.boundary !== 'authority_denied') {
+      return false;
+    }
+    if (status === 'skipped_wall' && authorization.boundary !== 'wall_denied') return false;
+  }
   const changed = await tx.$executeRawUnsafe(
-    `UPDATE clio_scheduled_task
+    `UPDATE clio_scheduled_task st
         SET last_status = $6::text,
             run_count = run_count + 1,
             metadata_jsonb = jsonb_set(
@@ -909,7 +989,92 @@ export async function advanceScheduledTaskExecution(
         AND metadata_jsonb #>> '{scheduleExecution,occurrenceId}' = $4
         AND metadata_jsonb #>> '{scheduleExecution,fence}' = $5
         AND (metadata_jsonb #>> '{scheduleExecution,leaseExpiresAt}')::timestamptz
-              > clock_timestamp()`,
+              > clock_timestamp()
+        AND (
+          $6::text <> 'notification_unknown'
+          OR (
+            metadata_jsonb #>> '{scheduleExecution,stage}' IN ('email_started', 'email_unknown')
+            AND metadata_jsonb #>> '{scheduleExecution,notification,outcome}' = 'unknown'
+          )
+        )
+        AND (
+          $6::text NOT IN ('ok', 'skipped_authority', 'skipped_wall')
+          OR (
+            $6::text = 'ok'
+            AND metadata_jsonb #>> '{scheduleExecution,stage}' IN ('result_saved', 'email_confirmed')
+            AND EXISTS (
+              SELECT 1
+                FROM tenant_memberships tm
+                JOIN tenants t ON t.id = tm.tenant_id AND t.status = 'active'
+                JOIN users u ON u.id = tm.user_id
+               WHERE tm.tenant_id = st.tenant_id
+                 AND tm.user_id = st.owner_user_id
+                 AND tm.status = 'active'
+            )
+            AND (
+              NULLIF(metadata_jsonb ->> 'clientId', '') IS NULL
+              OR EXISTS (
+                SELECT 1
+                  FROM clients c
+                 WHERE c.id::text = metadata_jsonb ->> 'clientId'
+                   AND c.tenant_id = st.tenant_id
+                   AND c.status <> 'archived'
+                   AND (
+                     NOT c.memory_wall
+                     OR EXISTS (
+                       SELECT 1
+                         FROM client_memory_access a
+                        WHERE a.tenant_id = c.tenant_id
+                          AND a.client_id = c.id
+                          AND a.user_id = st.owner_user_id
+                     )
+                   )
+              )
+            )
+          )
+          OR (
+            $6::text = 'skipped_authority'
+            AND NOT EXISTS (
+              SELECT 1
+                FROM tenant_memberships tm
+                JOIN tenants t ON t.id = tm.tenant_id AND t.status = 'active'
+                JOIN users u ON u.id = tm.user_id
+               WHERE tm.tenant_id = st.tenant_id
+                 AND tm.user_id = st.owner_user_id
+                 AND tm.status = 'active'
+            )
+          )
+          OR (
+            $6::text = 'skipped_wall'
+            AND NULLIF(metadata_jsonb ->> 'clientId', '') IS NOT NULL
+            AND EXISTS (
+              SELECT 1
+                FROM tenant_memberships tm
+                JOIN tenants t ON t.id = tm.tenant_id AND t.status = 'active'
+                JOIN users u ON u.id = tm.user_id
+               WHERE tm.tenant_id = st.tenant_id
+                 AND tm.user_id = st.owner_user_id
+                 AND tm.status = 'active'
+            )
+            AND NOT EXISTS (
+              SELECT 1
+                FROM clients c
+               WHERE c.id::text = metadata_jsonb ->> 'clientId'
+                 AND c.tenant_id = st.tenant_id
+                 AND c.status <> 'archived'
+                 AND (
+                   NOT c.memory_wall
+                   OR EXISTS (
+                     SELECT 1
+                       FROM client_memory_access a
+                      WHERE a.tenant_id = c.tenant_id
+                        AND a.client_id = c.id
+                        AND a.user_id = st.owner_user_id
+                   )
+                 )
+            )
+          )
+        )`,
     task.id,
     task.tenantId,
     task.ownerUserId,
