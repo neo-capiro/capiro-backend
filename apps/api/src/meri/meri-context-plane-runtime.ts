@@ -10,6 +10,8 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { planTurnRerun } from './meri-turn.helpers.js';
 import { MeriContextPlaneService } from './meri-context-plane.service.js';
 import {
+  assertMeriServerReadonlyCaptureCurrentAuthority,
+  assertMeriServerReadonlyCaptureTurnInput,
   issueMeriServerReadonlyCapturePolicy,
   meriServerReadonlyCaptureReceipt,
 } from './meri-server-readonly-capture.js';
@@ -61,7 +63,21 @@ export class MeriContextPlaneRuntimeService {
     // Retrieval owns its database work. Stop must prevent the next stage from
     // starting, even when that work finishes after the browser disconnected.
     input.signal?.throwIfAborted();
-    const activeClient = resolved.retrieval.plan.subjectScope === 'client' ? prepared.client : null;
+    assertMeriServerReadonlyCaptureTurnInput({
+      policy: prepared.capturePolicy,
+      mode: input.mode,
+      attachmentIds: [],
+    });
+    const currentAuthority = await assertMeriServerReadonlyCaptureCurrentAuthority({
+      prisma: this.prisma,
+      ctx,
+      policy: prepared.capturePolicy,
+    });
+    input.signal?.throwIfAborted();
+    const activeClient =
+      resolved.retrieval.plan.subjectScope === 'client'
+        ? (currentAuthority?.client ?? prepared.client)
+        : null;
     const context = prepared.capturePolicy
       ? { ...resolved, serverReadonlyCapturePolicy: prepared.capturePolicy }
       : resolved;
@@ -96,7 +112,6 @@ export class MeriContextPlaneRuntimeService {
       prisma: this.prisma,
       ctx,
       conversationId: input.conversationId,
-      clientId: conversation.client?.id ?? null,
     });
 
     const cleanBody = cleanStreamControl(input.body);

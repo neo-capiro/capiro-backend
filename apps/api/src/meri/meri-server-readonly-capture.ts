@@ -84,39 +84,14 @@ export async function issueMeriServerReadonlyCapturePolicy(args: {
   prisma: PrismaService;
   ctx: TenantContext;
   conversationId: string;
-  clientId: string | null;
   now?: number;
 }): Promise<MeriServerReadonlyCapturePolicy | null> {
   const expectedSlug = SYNTHETIC_TENANTS.get(args.ctx.tenantId);
   if (!expectedSlug && !isMeriReadonlyCaptureTenant(args.ctx)) return null;
   if (expectedSlug !== args.ctx.tenantSlug) throw captureDenied('tenant_identity_rebound');
-
-  const [tenant, actor] = await Promise.all([
-    args.prisma.tenant.findUnique({
-      where: { id: args.ctx.tenantId },
-      select: { id: true, slug: true, settings: true },
-    }),
-    args.prisma.user.findUnique({
-      where: { id: args.ctx.userId },
-      select: { id: true, clerkUserId: true, email: true, firstName: true, lastName: true },
-    }),
-  ]);
-  const settings = asRecord(tenant?.settings);
-  const fixture = asRecord(settings?.meriFoundationFixture);
-  const actorName = `${actor?.firstName ?? ''} ${actor?.lastName ?? ''}`.trim();
-  if (
-    tenant?.id !== args.ctx.tenantId ||
-    tenant.slug !== expectedSlug ||
-    fixture?.fixtureNamespace !== MERI_CAPTURE_POLICY_NAMESPACE ||
-    actor?.id !== args.ctx.userId ||
-    actor.clerkUserId !== args.ctx.clerkUserId ||
-    !actor.email.toLowerCase().endsWith('@example.com') ||
-    !/synthetic/i.test(actorName)
-  ) {
-    throw captureDenied('server_current_fixture_authority_missing');
-  }
   const issuedAt = args.now ?? Date.now();
-  return Object.freeze({
+  const conversation = await currentCaptureAuthorityRows(args.prisma, args.ctx, args.conversationId);
+  const policy: MeriServerReadonlyCapturePolicy = {
     version: 1,
     kind: 'server_readonly_acceptance_capture',
     policyId: randomUUID(),
@@ -125,7 +100,7 @@ export async function issueMeriServerReadonlyCapturePolicy(args: {
     tenantSlug: expectedSlug,
     actorUserId: args.ctx.userId,
     conversationId: args.conversationId,
-    clientId: args.clientId,
+    clientId: conversation?.clientId ?? null,
     issuedAt,
     expiresAt: issuedAt + POLICY_TTL_MS,
     toolAuthority: 'shared_static_registry_read_only',
@@ -137,7 +112,51 @@ export async function issueMeriServerReadonlyCapturePolicy(args: {
       'conversation_user_message',
       'conversation_assistant_message',
     ] as const,
+  };
+  await assertMeriServerReadonlyCaptureCurrentAuthority({
+    prisma: args.prisma,
+    ctx: args.ctx,
+    policy,
+    now: issuedAt,
   });
+  return Object.freeze(policy);
+}
+
+export async function assertMeriServerReadonlyCaptureCurrentAuthority(args: {
+  prisma: PrismaService;
+  ctx: TenantContext;
+  policy: MeriServerReadonlyCapturePolicy | null;
+  now?: number;
+}): Promise<{ client: { id: string; name: string } | null } | null> {
+  const { policy } = args;
+  if (!policy) return null;
+  assertExactCapturePolicy(policy, args.ctx, args.now);
+  const conversation = await currentCaptureAuthorityRows(
+    args.prisma,
+    args.ctx,
+    policy.conversationId,
+  );
+  if (!conversation || conversation.clientId !== policy.clientId) {
+    throw captureDenied('server_current_conversation_or_client_authority_missing');
+  }
+  return { client: conversation.client };
+}
+
+export function assertMeriServerReadonlyCaptureTurnInput(args: {
+  policy: MeriServerReadonlyCapturePolicy | null;
+  mode: 'new' | 'regenerate' | 'resend';
+  attachmentIds: readonly string[];
+}): void {
+  if (!args.policy) return;
+  if (args.mode !== 'new') throw captureDenied('rerun_writes_not_authorized');
+  if (args.attachmentIds.length) throw captureDenied('attachment_claim_writes_not_authorized');
+}
+
+export function assertMeriServerReadonlyCaptureNoArtifactWrites(
+  policy: MeriServerReadonlyCapturePolicy | null,
+  artifactIds: readonly string[],
+): void {
+  if (policy && artifactIds.length) throw captureDenied('artifact_writes_not_authorized');
 }
 
 export function assertMeriServerReadonlyCaptureToolAllowed(
@@ -185,6 +204,109 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
+}
+
+async function currentCaptureAuthorityRows(
+  prisma: PrismaService,
+  ctx: TenantContext,
+  conversationId: string,
+): Promise<{
+  clientId: string | null;
+  client: { id: string; name: string } | null;
+} | null> {
+  return prisma.withTenant(ctx.tenantId, async (tx) => {
+    const [tenant, actor, membership, conversation] = await Promise.all([
+      tx.tenant.findUnique({
+        where: { id: ctx.tenantId },
+        select: { id: true, slug: true, settings: true },
+      }),
+      tx.user.findUnique({
+        where: { id: ctx.userId },
+        select: { id: true, clerkUserId: true, email: true, firstName: true, lastName: true },
+      }),
+      tx.tenantMembership.findFirst({
+        where: { tenantId: ctx.tenantId, userId: ctx.userId, status: 'active' },
+        select: { id: true },
+      }),
+      tx.clioConversation.findFirst({
+        where: {
+          id: conversationId,
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          archivedAt: null,
+        },
+        select: {
+          clientId: true,
+          client: {
+            select: {
+              id: true,
+              tenantId: true,
+              name: true,
+              memoryWall: true,
+              memoryAccessGrants: {
+                where: { userId: ctx.userId },
+                select: { id: true },
+                take: 1,
+              },
+            },
+          },
+        },
+      }),
+    ]);
+    const settings = asRecord(tenant?.settings);
+    const fixture = asRecord(settings?.meriFoundationFixture);
+    const actorName = `${actor?.firstName ?? ''} ${actor?.lastName ?? ''}`.trim();
+    const expectedSlug = SYNTHETIC_TENANTS.get(ctx.tenantId);
+    const client = conversation?.client;
+    if (
+      tenant?.id !== ctx.tenantId ||
+      tenant.slug !== expectedSlug ||
+      fixture?.fixtureNamespace !== MERI_CAPTURE_POLICY_NAMESPACE ||
+      actor?.id !== ctx.userId ||
+      actor.clerkUserId !== ctx.clerkUserId ||
+      !actor.email.toLowerCase().endsWith('@example.com') ||
+      !/synthetic/i.test(actorName) ||
+      !membership ||
+      !conversation ||
+      (conversation.clientId !== null &&
+        (!client ||
+          client.id !== conversation.clientId ||
+          client.tenantId !== ctx.tenantId ||
+          (client.memoryWall && client.memoryAccessGrants.length === 0)))
+    ) {
+      throw captureDenied('server_current_fixture_authority_missing');
+    }
+    return {
+      clientId: conversation.clientId,
+      client: client ? { id: client.id, name: client.name } : null,
+    };
+  });
+}
+
+function assertExactCapturePolicy(
+  policy: MeriServerReadonlyCapturePolicy,
+  ctx: TenantContext,
+  now = Date.now(),
+): void {
+  if (
+    policy.version !== 1 ||
+    policy.kind !== 'server_readonly_acceptance_capture' ||
+    policy.fixtureNamespace !== MERI_CAPTURE_POLICY_NAMESPACE ||
+    policy.tenantId !== ctx.tenantId ||
+    policy.tenantSlug !== ctx.tenantSlug ||
+    policy.actorUserId !== ctx.userId ||
+    policy.expiresAt <= now ||
+    policy.toolAuthority !== 'shared_static_registry_read_only' ||
+    policy.toolCatalogSha256 !== meriReadonlyCaptureCatalogSha256() ||
+    policy.dynamicMcpAllowed !== false ||
+    policy.incidentalWriters !== 'suppressed' ||
+    policy.expectedCaptureWrites.length !== 3 ||
+    policy.expectedCaptureWrites[0] !== 'context_packet_and_evidence' ||
+    policy.expectedCaptureWrites[1] !== 'conversation_user_message' ||
+    policy.expectedCaptureWrites[2] !== 'conversation_assistant_message'
+  ) {
+    throw captureDenied('signed_policy_scope_or_contract_invalid');
+  }
 }
 
 function captureDenied(reason: string): ForbiddenException {

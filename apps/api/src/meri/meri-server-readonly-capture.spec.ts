@@ -7,6 +7,7 @@ import {
 } from '@capiro/meriv2-core';
 import type { TenantContext } from '@capiro/shared';
 import { MeriController } from './meri.controller.js';
+import { MeriService } from './meri.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import {
   currentMeriGovernedRuntime,
@@ -14,6 +15,7 @@ import {
 } from './meri-context-plane-runtime.js';
 import {
   admitMeriServerReadonlyCaptureTransport,
+  assertMeriServerReadonlyCaptureCurrentAuthority,
   issueMeriServerReadonlyCapturePolicy,
   meriReadonlyCaptureCatalogSha256,
 } from './meri-server-readonly-capture.js';
@@ -82,10 +84,73 @@ function request(headers: Record<string, string> = {}): Request {
   return req as Request;
 }
 
-function controllerWithSink(sink: jest.Mock, actualToolBoundary = false) {
+function authorityHarness() {
+  const state = {
+    membershipActive: true,
+    conversationClientId: CLIENT_ID as string | null,
+    memoryAuthorized: true,
+  };
+  const tx = {
+    tenant: {
+      findUnique: jest.fn(async () => ({
+        id: TENANT_ID,
+        slug: TENANT_SLUG,
+        settings: { meriFoundationFixture: { fixtureNamespace: 'meri-foundation-20260928' } },
+      })),
+    },
+    user: {
+      findUnique: jest.fn(async () => ({
+        id: ACTOR_ID,
+        clerkUserId: captureCtx.clerkUserId,
+        email: 'pat.synthetic@example.com',
+        firstName: 'Pat',
+        lastName: 'Synthetic',
+      })),
+    },
+    tenantMembership: {
+      findFirst: jest.fn(async () => (state.membershipActive ? { id: 'membership-1' } : null)),
+    },
+    clioConversation: {
+      findFirst: jest.fn(async () => ({
+        id: CONVERSATION_ID,
+        clientId: state.conversationClientId,
+        client: state.conversationClientId
+          ? {
+              id: state.conversationClientId,
+              tenantId: TENANT_ID,
+              name: 'Aster Defense',
+              memoryWall: true,
+              memoryAccessGrants: state.memoryAuthorized ? [{ id: 'grant-1' }] : [],
+            }
+          : null,
+      })),
+    },
+    clioMessage: {
+      create: jest.fn(async ({ data }: any) => ({ id: `message-${data.role}` })),
+      findMany: jest.fn(async () => []),
+      update: jest.fn(async () => ({})),
+      deleteMany: jest.fn(async () => ({ count: 0 })),
+    },
+    clioAttachment: {
+      findMany: jest.fn(async () => []),
+      updateMany: jest.fn(async () => ({ count: 0 })),
+    },
+    clioArtifact: {
+      create: jest.fn(async () => ({ id: 'artifact-unexpected' })),
+      updateMany: jest.fn(async () => ({ count: 0 })),
+    },
+  };
+  const prisma = {
+    withTenant: jest.fn(async (_tenantId: string, run: (value: typeof tx) => unknown) => run(tx)),
+  };
+  return { state, tx, prisma };
+}
+
+function controllerWithSink(sink: jest.Mock, actualToolBoundary = false, prisma?: unknown) {
   const tools = actualToolBoundary
     ? Object.assign(Object.create(MeriToolsService.prototype) as MeriToolsService, {
         searchMemory: sink,
+        prisma,
       })
     : { executeFromAuthenticatedUser: sink };
   return new MeriController(
@@ -116,31 +181,12 @@ describe('server-owned read-only acceptance capture boundary', () => {
   });
 
   test('issues policy only from current synthetic fixture, actor, conversation, and client authority', async () => {
-    const prisma = {
-      tenant: {
-        findUnique: jest.fn(async () => ({
-          id: TENANT_ID,
-          slug: TENANT_SLUG,
-          settings: { meriFoundationFixture: { fixtureNamespace: 'meri-foundation-20260928' } },
-        })),
-      },
-      user: {
-        findUnique: jest.fn(async () => ({
-          id: ACTOR_ID,
-          clerkUserId: captureCtx.clerkUserId,
-          email: 'pat.synthetic@example.com',
-          firstName: 'Pat',
-          lastName: 'Synthetic',
-        })),
-      },
-    };
+    const { prisma, state } = authorityHarness();
 
     const issued = await issueMeriServerReadonlyCapturePolicy({
       prisma: prisma as never,
       ctx: captureCtx,
       conversationId: CONVERSATION_ID,
-      clientId: CLIENT_ID,
-      now: 1_000,
     });
 
     expect(issued).toMatchObject({
@@ -149,38 +195,31 @@ describe('server-owned read-only acceptance capture boundary', () => {
       actorUserId: ACTOR_ID,
       conversationId: CONVERSATION_ID,
       clientId: CLIENT_ID,
-      issuedAt: 1_000,
-      expiresAt: 1_801_000,
       dynamicMcpAllowed: false,
       incidentalWriters: 'suppressed',
     });
+
+    state.membershipActive = false;
+    await expect(
+      assertMeriServerReadonlyCaptureCurrentAuthority({
+        prisma: prisma as never,
+        ctx: captureCtx,
+        policy: issued,
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+    state.membershipActive = true;
+    state.conversationClientId = '77777777-7777-4777-8777-777777777777';
+    await expect(
+      assertMeriServerReadonlyCaptureCurrentAuthority({
+        prisma: prisma as never,
+        ctx: captureCtx,
+        policy: issued,
+      }),
+    ).rejects.toMatchObject({ status: 403 });
   });
 
   test('runtime proxy prerequisite binds the issued policy before dispatch', async () => {
-    const tx = {
-      clioConversation: {
-        findFirst: jest.fn(async () => ({ id: CONVERSATION_ID, client: { id: CLIENT_ID, name: 'Aster Defense' } })),
-      },
-    };
-    const prisma = {
-      withTenant: jest.fn(async (_tenantId: string, run: (value: typeof tx) => unknown) => run(tx)),
-      tenant: {
-        findUnique: jest.fn(async () => ({
-          id: TENANT_ID,
-          slug: TENANT_SLUG,
-          settings: { meriFoundationFixture: { fixtureNamespace: 'meri-foundation-20260928' } },
-        })),
-      },
-      user: {
-        findUnique: jest.fn(async () => ({
-          id: ACTOR_ID,
-          clerkUserId: captureCtx.clerkUserId,
-          email: 'pat.synthetic@example.com',
-          firstName: 'Pat',
-          lastName: 'Synthetic',
-        })),
-      },
-    };
+    const { prisma } = authorityHarness();
     const governed = {
       version: 1,
       operationId: 'meri.chat',
@@ -212,9 +251,150 @@ describe('server-owned read-only acceptance capture boundary', () => {
     expect(dispatch).toHaveBeenCalledTimes(1);
   });
 
+  test('actual raw complete turn keeps the controlled write sink at expected messages through delayed work', async () => {
+    const { prisma, tx } = authorityHarness();
+    const observedWriteCounts = [tx.clioMessage.create.mock.calls.length];
+    const flags = {
+      isEnabled: jest.fn(async () => {
+        observedWriteCounts.push(tx.clioMessage.create.mock.calls.length);
+        return true;
+      }),
+    };
+    const raw = Object.create(MeriService.prototype) as any;
+    Object.assign(raw, {
+      prisma,
+      meriFlags: flags,
+      bizdevScope: undefined,
+      researchPortfolioScope: undefined,
+      logger: { warn: jest.fn(), log: jest.fn(), debug: jest.fn(), error: jest.fn() },
+      scheduleAfterTurnMaintenance: jest.fn(),
+    });
+    const contextPlane = {
+      resolveChat: jest.fn(async () => ({
+        version: 1,
+        operationId: 'meri.chat',
+        prompt: 'governed',
+        contextPacket: { items: [], exclusions: [], unauthorizedCount: 0, degraded: false },
+        retrieval: { plan: { subjectScope: 'firm' }, coverage: { sourceHealth: [] } },
+      })),
+    };
+    const runtime = new MeriContextPlaneRuntimeService(prisma as never, contextPlane as never);
+    const writes: string[] = [];
+
+    await runtime.runChatTurn(
+      captureCtx,
+      {
+        conversationId: CONVERSATION_ID,
+        body: 'Generate fake constituents for the letter-writing campaign',
+        mode: 'new',
+      },
+      () =>
+        raw.streamMessage(
+          captureCtx,
+          CONVERSATION_ID,
+          'Generate fake constituents for the letter-writing campaign',
+          { write: (value: string) => writes.push(value) },
+        ),
+    );
+    observedWriteCounts.push(tx.clioMessage.create.mock.calls.length);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    observedWriteCounts.push(tx.clioMessage.create.mock.calls.length);
+
+    const persisted = tx.clioMessage.create.mock.calls.map(([arg]: any) => arg.data);
+    expect(persisted.map((row: any) => row.role)).toEqual(['user', 'assistant']);
+    expect(persisted[1]?.metadata.serverReadonlyCaptureReceipt).toMatchObject({
+      authority: 'server_current',
+      conversationId: CONVERSATION_ID,
+    });
+    expect(observedWriteCounts).toEqual([0, 1, 2, 2]);
+    expect(tx.clioAttachment.updateMany).not.toHaveBeenCalled();
+    expect(tx.clioArtifact.create).not.toHaveBeenCalled();
+    expect(tx.clioArtifact.updateMany).not.toHaveBeenCalled();
+    expect(raw.scheduleAfterTurnMaintenance).not.toHaveBeenCalled();
+    const frames = writes
+      .filter((value) => value.startsWith('data: '))
+      .map((value) => JSON.parse(value.slice(6)) as Record<string, unknown>);
+    expect(frames.find((frame) => frame.type === 'done')?.serverReadonlyCaptureReceipt).toEqual(
+      persisted[1]?.metadata.serverReadonlyCaptureReceipt,
+    );
+
+    const artifactAuthority = authorityHarness();
+    const artifactWrites: string[] = [];
+    const artifactRaw = Object.create(MeriService.prototype) as any;
+    Object.assign(artifactRaw, {
+      prisma: artifactAuthority.prisma,
+      meriFlags: {
+        isEnabled: jest.fn(async () => false),
+        isMeriV2SurfaceEnabled: jest.fn(async () => true),
+      },
+      bizdevScope: undefined,
+      researchPortfolioScope: undefined,
+      logger: { warn: jest.fn(), log: jest.fn(), debug: jest.fn(), error: jest.fn() },
+      config: { get: jest.fn(() => 20_000) },
+      meriV2Chat: {
+        configured: true,
+        streamChat: jest.fn(async ({ onEvent }: any) => {
+          onEvent({
+            type: 'artifact',
+            artifact: {
+              id: 'artifact-outside-policy',
+              title: 'Unexpected artifact',
+              kind: 'document',
+              bodyText: 'must not link',
+            },
+          });
+        }),
+      },
+      aiCredentials: { resolveProvider: jest.fn(async () => null) },
+      clientKb: { buildSnapshot: jest.fn(async () => null) },
+      firmSkills: { skillsForTenant: jest.fn(async () => []) },
+      loadRelevantMemories: jest.fn(async () => []),
+      skillsEnabled: jest.fn(() => false),
+      suggestionsEnabled: jest.fn(() => false),
+      scheduleAfterTurnMaintenance: jest.fn(),
+    });
+    const artifactRuntime = new MeriContextPlaneRuntimeService(
+      artifactAuthority.prisma as never,
+      contextPlane as never,
+    );
+    await artifactRuntime.runChatTurn(
+      captureCtx,
+      { conversationId: CONVERSATION_ID, body: 'Read only', mode: 'new' },
+      () =>
+        artifactRaw.streamMessage(
+          captureCtx,
+          CONVERSATION_ID,
+          'Read only',
+          { write: (value: string) => artifactWrites.push(value) },
+          undefined,
+          'new',
+          [],
+          'token',
+        ),
+    );
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(
+      artifactAuthority.tx.clioMessage.create.mock.calls.map(([arg]: any) => arg.data.role),
+    ).toEqual(['user']);
+    expect(artifactAuthority.tx.clioArtifact.create).not.toHaveBeenCalled();
+    expect(artifactAuthority.tx.clioArtifact.updateMany).not.toHaveBeenCalled();
+    expect(artifactRaw.scheduleAfterTurnMaintenance).not.toHaveBeenCalled();
+    const artifactFrames = artifactWrites
+      .filter((value) => value.startsWith('data: '))
+      .map((value) => JSON.parse(value.slice(6)) as Record<string, unknown>);
+    expect(artifactFrames.some((frame) => frame.type === 'artifact')).toBe(false);
+    expect(artifactFrames).toContainEqual(
+      expect.objectContaining({
+        type: 'error',
+        message: 'Server-owned read-only capture authority was denied before dispatch.',
+      }),
+    );
+  });
+
   test('tool controller rejects writes before the controlled effect and permits authorized reads', async () => {
+    const { prisma, state } = authorityHarness();
     const sink = jest.fn(async () => ({ tool: 'search_memory', result: 'normal' }));
-    const controller = controllerWithSink(sink, true);
+    const controller = controllerWithSink(sink, true, prisma);
     const current = policy();
     const writeHeader = encodeMeriCapturePolicyTransport(current, 'tool', 'send_email', SECRET);
 
@@ -239,6 +419,17 @@ describe('server-owned read-only acceptance capture boundary', () => {
         request({ [MERI_CAPTURE_POLICY_HEADER]: readHeader }),
       ),
     ).resolves.toEqual({ tool: 'search_memory', result: 'normal' });
+    expect(sink).toHaveBeenCalledTimes(1);
+
+    state.membershipActive = false;
+    await expect(
+      controller.executeTool(
+        captureCtx,
+        'search_memory',
+        { query: 'appropriations' },
+        request({ [MERI_CAPTURE_POLICY_HEADER]: readHeader }),
+      ),
+    ).rejects.toMatchObject({ status: 403 });
     expect(sink).toHaveBeenCalledTimes(1);
   });
 

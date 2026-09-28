@@ -33,6 +33,13 @@ const USER = '22222222-2222-4222-8222-222222222222';
 const CONVERSATION = '33333333-3333-4333-8333-333333333333';
 const CAPTURE_TENANT = 'f2d6cf8f-057c-479a-8110-62fe5086d43f';
 const CAPTURE_USER = '44444444-4444-4444-8444-444444444444';
+const CAPTURE_CTX = {
+  tenantId: CAPTURE_TENANT,
+  tenantSlug: 'meri-foundation-20260928-t1',
+  userId: CAPTURE_USER,
+  clerkUserId: 'clerk-capture-user',
+  role: 'standard_user',
+} as const;
 
 /**
  * Phase 27 post-launch P1 (MeriV3 front) â€” found live in the Capiro-internal
@@ -48,6 +55,25 @@ const CAPTURE_USER = '44444444-4444-4444-8444-444444444444';
  */
 function buildHarness() {
   const tx = {
+    tenant: {
+      findUnique: jest.fn(async () => ({
+        id: CAPTURE_TENANT,
+        slug: 'meri-foundation-20260928-t1',
+        settings: { meriFoundationFixture: { fixtureNamespace: 'meri-foundation-20260928' } },
+      })),
+    },
+    user: {
+      findUnique: jest.fn(async () => ({
+        id: CAPTURE_USER,
+        clerkUserId: 'clerk-capture-user',
+        email: 'capture.synthetic@example.com',
+        firstName: 'Capture',
+        lastName: 'Synthetic',
+      })),
+    },
+    tenantMembership: {
+      findFirst: jest.fn(async () => ({ id: 'capture-membership' })),
+    },
     clioConversation: {
       findFirst: jest.fn(async () => ({
         id: CONVERSATION,
@@ -498,13 +524,6 @@ describe('MeriV3ProxyService â€” done frame carries the persisted message i
 
   it('persists only the expected conversation messages, emits the receipt, and schedules no maintenance for capture', async () => {
     const { service, client, sse, tx, frames, prisma, maintenance } = buildHarness();
-    const captureCtx = {
-      tenantId: CAPTURE_TENANT,
-      tenantSlug: 'meri-foundation-20260928-t1',
-      userId: CAPTURE_USER,
-      clerkUserId: 'clerk-capture-user',
-      role: 'standard_user',
-    } as const;
     const contextPlane = {
       resolveChat: jest.fn(async () => ({
         version: 1,
@@ -515,7 +534,9 @@ describe('MeriV3ProxyService â€” done frame carries the persisted message i
       })),
     };
     const runtime = new MeriContextPlaneRuntimeService(prisma as never, contextPlane as never);
+    const actualWriteCounts = [tx.clioMessage.create.mock.calls.length];
     client.streamChat.mockImplementationOnce(async ({ onEvent }: any) => {
+      actualWriteCounts.push(tx.clioMessage.create.mock.calls.length);
       onEvent({ type: 'text', text: 'Authorized read result.' });
       onEvent({
         type: 'done',
@@ -530,11 +551,11 @@ describe('MeriV3ProxyService â€” done frame carries the persisted message i
     });
 
     await runtime.runChatTurn(
-      captureCtx as never,
+      CAPTURE_CTX as never,
       { conversationId: CONVERSATION, body: 'Read only', mode: 'new' },
       () =>
         service.streamMessage(
-          captureCtx as never,
+          CAPTURE_CTX as never,
           CONVERSATION,
           'Read only',
           sse,
@@ -544,7 +565,9 @@ describe('MeriV3ProxyService â€” done frame carries the persisted message i
           'token',
         ),
     );
+    actualWriteCounts.push(tx.clioMessage.create.mock.calls.length);
     await new Promise<void>((resolve) => setImmediate(resolve));
+    actualWriteCounts.push(tx.clioMessage.create.mock.calls.length);
 
     const persisted = tx.clioMessage.create.mock.calls.map(([arg]: any) => arg.data);
     expect(persisted.map((row: any) => row.role)).toEqual(['user', 'assistant']);
@@ -563,7 +586,167 @@ describe('MeriV3ProxyService â€” done frame carries the persisted message i
     );
     expect(maintenance.scheduleAfterTurnMaintenance).not.toHaveBeenCalled();
     expect(tx.clioArtifact.updateMany).not.toHaveBeenCalled();
+    expect(tx.clioAttachment.updateMany).not.toHaveBeenCalled();
+    expect(tx.clioMessage.update).not.toHaveBeenCalled();
+    expect(tx.clioMessage.deleteMany).not.toHaveBeenCalled();
+    expect(actualWriteCounts).toEqual([0, 1, 2, 2]);
   });
+
+  it('rejects capture attachment/rerun writes and artifact linking outside the exact policy', async () => {
+    const governed = {
+      version: 1,
+      operationId: 'meri.chat',
+      prompt: 'governed context',
+      contextPacket: { items: [], exclusions: [], unauthorizedCount: 0, degraded: false },
+      retrieval: { plan: { subjectScope: 'firm' }, coverage: { sourceHealth: [] } },
+    };
+
+    for (const rejected of [
+      { mode: 'new' as const, attachmentIds: ['attachment-1'], body: 'Read attachment' },
+      { mode: 'regenerate' as const, attachmentIds: [], body: '' },
+      { mode: 'resend' as const, attachmentIds: [], body: 'Edited prompt' },
+    ]) {
+      const h = buildHarness();
+      const runtime = new MeriContextPlaneRuntimeService(
+        h.prisma as never,
+        { resolveChat: jest.fn(async () => governed) } as never,
+      );
+      await expect(
+        runtime.runChatTurn(
+          CAPTURE_CTX as never,
+          { conversationId: CONVERSATION, body: rejected.body, mode: rejected.mode },
+          () =>
+            h.service.streamMessage(
+              CAPTURE_CTX as never,
+              CONVERSATION,
+              rejected.body,
+              h.sse,
+              undefined,
+              rejected.mode,
+              rejected.attachmentIds,
+              'token',
+            ),
+        ),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(h.tx.clioMessage.create).not.toHaveBeenCalled();
+      expect(h.tx.clioMessage.update).not.toHaveBeenCalled();
+      expect(h.tx.clioMessage.deleteMany).not.toHaveBeenCalled();
+      expect(h.tx.clioAttachment.updateMany).not.toHaveBeenCalled();
+    }
+
+    const artifact = buildHarness();
+    const runtime = new MeriContextPlaneRuntimeService(
+      artifact.prisma as never,
+      { resolveChat: jest.fn(async () => governed) } as never,
+    );
+    artifact.client.streamChat.mockImplementationOnce(async ({ onEvent }: any) => {
+      onEvent({
+        type: 'artifact',
+        artifact: { id: 'artifact-1', title: 'Unexpected', kind: 'document' },
+      });
+    });
+    await runtime.runChatTurn(
+      CAPTURE_CTX as never,
+      { conversationId: CONVERSATION, body: 'Read only', mode: 'new' },
+      () =>
+        artifact.service.streamMessage(
+          CAPTURE_CTX as never,
+          CONVERSATION,
+          'Read only',
+          artifact.sse,
+          undefined,
+          'new',
+          [],
+          'token',
+        ),
+    );
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(artifact.tx.clioArtifact.updateMany).not.toHaveBeenCalled();
+    expect(artifact.frames().some((frame) => frame.type === 'artifact')).toBe(false);
+    expect(artifact.frames()).toContainEqual(
+      expect.objectContaining({ type: 'error', message: 'Server-owned read-only capture authority was denied before dispatch.' }),
+    );
+    expect(artifact.maintenance.scheduleAfterTurnMaintenance).not.toHaveBeenCalled();
+  });
+
+  it.each(['membership_revoked', 'client_rebound'] as const)(
+    'fails closed after the runtime await when current authority is %s',
+    async (change) => {
+      const h = buildHarness();
+      let rebound = false;
+      h.tx.clioConversation.findFirst.mockImplementation(
+        (async () => ({
+          id: CONVERSATION,
+          clientId: rebound ? 'client-rebound' : null,
+          summaryUpToMessageId: null,
+          summary: null,
+          metadata: null,
+          client: rebound
+            ? {
+                id: 'client-rebound',
+                tenantId: CAPTURE_TENANT,
+                name: 'Rebound Client',
+                memoryWall: false,
+                memoryAccessGrants: [],
+              }
+            : null,
+        })) as never,
+      );
+      h.client.streamChat.mockImplementationOnce(async ({ onEvent }: any) => {
+        onEvent({ type: 'text', text: 'Result before revocation.' });
+        onEvent({
+          type: 'done',
+          reply: 'Result before revocation.',
+          citations: [],
+          steps: [],
+          runtime: 'meriv3',
+          model: 'configured-model',
+          reasoningMode: 'fast',
+          reasoningEffort: 'low',
+        });
+        if (change === 'membership_revoked') {
+          h.tx.tenantMembership.findFirst.mockResolvedValue(null as never);
+        } else {
+          rebound = true;
+        }
+      });
+      const runtime = new MeriContextPlaneRuntimeService(
+        h.prisma as never,
+        {
+          resolveChat: jest.fn(async () => ({
+            version: 1,
+            operationId: 'meri.chat',
+            prompt: 'governed context',
+            contextPacket: { items: [], exclusions: [], unauthorizedCount: 0, degraded: false },
+            retrieval: { plan: { subjectScope: 'firm' }, coverage: { sourceHealth: [] } },
+          })),
+        } as never,
+      );
+
+      await expect(
+        runtime.runChatTurn(
+          CAPTURE_CTX as never,
+          { conversationId: CONVERSATION, body: 'Read only', mode: 'new' },
+          () =>
+            h.service.streamMessage(
+              CAPTURE_CTX as never,
+              CONVERSATION,
+              'Read only',
+              h.sse,
+              undefined,
+              'new',
+              [],
+              'token',
+            ),
+        ),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(h.tx.clioMessage.create.mock.calls.map(([arg]: any) => arg.data.role)).toEqual(['user']);
+      expect(h.tx.clioArtifact.updateMany).not.toHaveBeenCalled();
+      expect(h.maintenance.scheduleAfterTurnMaintenance).not.toHaveBeenCalled();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(h.tx.clioMessage.create).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it('persists and streams the same actual turn scope when the selected client differs', async () => {
     const { service, client, sse, tx, frames } = buildHarness();

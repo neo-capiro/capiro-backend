@@ -12,7 +12,10 @@ import {
   meriToolRequestControl,
 } from './meri-tool-request-control.js';
 import { currentMeriServerReadonlyCapturePolicy } from './meri-context-plane-runtime.js';
-import { assertMeriServerReadonlyCaptureToolAllowed } from './meri-server-readonly-capture.js';
+import {
+  assertMeriServerReadonlyCaptureCurrentAuthority,
+  assertMeriServerReadonlyCaptureToolAllowed,
+} from './meri-server-readonly-capture.js';
 import {
   BadGatewayException,
   BadRequestException,
@@ -2343,10 +2346,18 @@ export class MeriToolsService {
     execution?: { actionProposalId?: string },
   ) {
     assertMeriToolRequestActive();
+    const capturePolicy =
+      currentMeriToolCapturePolicy() ?? currentMeriServerReadonlyCapturePolicy();
     assertMeriServerReadonlyCaptureToolAllowed(
       String(name),
-      currentMeriToolCapturePolicy() ?? currentMeriServerReadonlyCapturePolicy(),
+      capturePolicy,
     );
+    await assertMeriServerReadonlyCaptureCurrentAuthority({
+      prisma: this.prisma,
+      ctx,
+      policy: capturePolicy,
+    });
+    assertMeriToolRequestActive();
     switch (name) {
       case 'get_research_portfolio':
       case 'get_research_portfolio_analytics':

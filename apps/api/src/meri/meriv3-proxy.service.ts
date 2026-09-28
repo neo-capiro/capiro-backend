@@ -76,6 +76,11 @@ import {
   currentMeriServerReadonlyCaptureReceipt,
 } from './meri-context-plane-runtime.js';
 import {
+  assertMeriServerReadonlyCaptureCurrentAuthority,
+  assertMeriServerReadonlyCaptureNoArtifactWrites,
+  assertMeriServerReadonlyCaptureTurnInput,
+} from './meri-server-readonly-capture.js';
+import {
   allocateBoundedReplayHistory,
   boundReplayMessageBody,
   MAX_REPLAY_MESSAGES,
@@ -200,6 +205,13 @@ export class MeriV3ProxyService {
       ctx,
       conversation.metadata,
     );
+    const capturePolicy = currentMeriServerReadonlyCapturePolicy();
+    assertMeriServerReadonlyCaptureTurnInput({ policy: capturePolicy, mode, attachmentIds });
+    await assertMeriServerReadonlyCaptureCurrentAuthority({
+      prisma: this.prisma,
+      ctx,
+      policy: capturePolicy,
+    });
     const control = extractStreamControl(body);
     const complianceScreen = screenComplianceRisk(control.cleanContent);
     let content: string;
@@ -443,6 +455,7 @@ export class MeriV3ProxyService {
           emit(event as unknown as Record<string, unknown>);
           return;
         case 'artifact':
+          assertMeriServerReadonlyCaptureNoArtifactWrites(capturePolicy, [event.artifact.id]);
           artifactIds.push(event.artifact.id);
           emit(event as unknown as Record<string, unknown>);
           return;
@@ -500,6 +513,11 @@ export class MeriV3ProxyService {
         : null,
     ].filter((notice): notice is string => Boolean(notice));
     try {
+      await assertMeriServerReadonlyCaptureCurrentAuthority({
+        prisma: this.prisma,
+        ctx,
+        policy: capturePolicy,
+      });
       await this.client.streamChat({
         bearerToken,
         input: {
@@ -682,6 +700,7 @@ export class MeriV3ProxyService {
         },
       );
       assistantMessageId = message.id;
+      assertMeriServerReadonlyCaptureNoArtifactWrites(capturePolicy, artifactIds);
       if (artifactIds.length) {
         await this.prisma.withTenant(ctx.tenantId, (tx) =>
           tx.clioArtifact.updateMany({
@@ -902,7 +921,12 @@ export class MeriV3ProxyService {
       );
       for (const document of documents) {
         const initial = describeAttachmentContentState(document);
-        if (enforceContentState && !initial.readable && document.data) {
+        if (
+          !currentMeriServerReadonlyCapturePolicy() &&
+          enforceContentState &&
+          !initial.readable &&
+          document.data
+        ) {
           await retryAttachmentExtraction(this.prisma, document.id, ctx.tenantId, ctx.userId, () =>
             this.aiCredentials.resolveProvider(ctx, 'openai'),
           );
@@ -1041,6 +1065,11 @@ export class MeriV3ProxyService {
     body: string,
     metadata: Record<string, unknown>,
   ): Promise<{ id: string }> {
+    await assertMeriServerReadonlyCaptureCurrentAuthority({
+      prisma: this.prisma,
+      ctx,
+      policy: currentMeriServerReadonlyCapturePolicy(),
+    });
     const captureReceipt = currentMeriServerReadonlyCaptureReceipt();
     const message = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioMessage.create({
