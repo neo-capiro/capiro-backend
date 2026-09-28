@@ -1,3 +1,15 @@
+import { ResearchPortfolioWatchConversionPanel } from './ResearchPortfolioWatchConversionPanel.js';
+import {
+  emptyOutputWorkspace,
+  readOutputWorkspace,
+  persistOutputWorkspace,
+  outputWorkspaceKey,
+  type RetainedOutputWorkspace,
+} from './research-portfolio-output-draft.js';
+import {
+  ResearchPortfolioAuthorityBoundary,
+  useResearchPortfolioAuthorityScope,
+} from './research-portfolio-authority.js';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -27,12 +39,12 @@ import {
   listResearchPortfolioSnapshots,
   listResearchPortfolioSubscriptions,
   researchPortfolioKeys,
+  newIdempotencyKey,
   saveResearchPortfolioOutputToClient,
   updateResearchPortfolioChangeState,
   updateResearchPortfolioSubscription,
 } from './research-portfolios-api.js';
 
-const OUTPUT_STORAGE_PREFIX = 'capiro:research-portfolio-output:';
 const TARGET_KINDS: readonly ResearchPortfolioSubscriptionTargetKind[] = [
   'portfolio',
   'program',
@@ -44,20 +56,6 @@ const TARGET_KINDS: readonly ResearchPortfolioSubscriptionTargetKind[] = [
   'rule',
   'review',
 ];
-
-function outputStorageKey(portfolioId: string): string {
-  return `${OUTPUT_STORAGE_PREFIX}${portfolioId}`;
-}
-
-function readRememberedOutputJob(portfolioId: string): string | null {
-  if (typeof window === 'undefined') return null;
-  return window.localStorage.getItem(outputStorageKey(portfolioId));
-}
-
-function rememberOutputJob(portfolioId: string, jobId: string): void {
-  if (typeof window !== 'undefined')
-    window.localStorage.setItem(outputStorageKey(portfolioId), jobId);
-}
 
 function basisLabel(analytics: ResearchPortfolioAnalyticsDto): string {
   const basis =
@@ -220,7 +218,15 @@ export function ResearchPortfolioAnalyticsPanel({
   );
 }
 
-function ChangesAndSubscriptions({ portfolio }: { portfolio: ResearchPortfolioDetailDto }) {
+export function ChangesAndSubscriptions(props: { portfolio: ResearchPortfolioDetailDto }) {
+  return (
+    <ResearchPortfolioAuthorityBoundary>
+      <ChangesAndSubscriptionsContent key={props.portfolio.id} {...props} />
+    </ResearchPortfolioAuthorityBoundary>
+  );
+}
+
+function ChangesAndSubscriptionsContent({ portfolio }: { portfolio: ResearchPortfolioDetailDto }) {
   const api = useApi();
   const queryClient = useQueryClient();
   const [targetKind, setTargetKind] =
@@ -354,6 +360,12 @@ function ChangesAndSubscriptions({ portfolio }: { portfolio: ResearchPortfolioDe
           ) : null}
         </div>
         <div className="rp-watch-panel">
+          <ResearchPortfolioWatchConversionPanel
+            portfolioId={portfolio.id}
+            canEdit={
+              ['owner', 'editor'].includes(portfolio.myRole) && portfolio.lifecycle === 'active'
+            }
+          />
           <h3>Explicit watches</h3>
           <form
             className="rp-form"
@@ -457,7 +469,18 @@ function ChangesAndSubscriptions({ portfolio }: { portfolio: ResearchPortfolioDe
   );
 }
 
-function AnalyticsAndSnapshots({
+export function AnalyticsAndSnapshots(props: {
+  portfolio: ResearchPortfolioDetailDto;
+  canCreateSnapshot: boolean;
+}) {
+  return (
+    <ResearchPortfolioAuthorityBoundary>
+      <AnalyticsAndSnapshotsContent key={props.portfolio.id} {...props} />
+    </ResearchPortfolioAuthorityBoundary>
+  );
+}
+
+function AnalyticsAndSnapshotsContent({
   portfolio,
   canCreateSnapshot,
 }: {
@@ -609,39 +632,99 @@ function SnapshotReceipt({ snapshot }: { snapshot: ResearchPortfolioSnapshotDto 
   );
 }
 
-function DurableOutputs({ portfolio }: { portfolio: ResearchPortfolioDetailDto }) {
+export function DurableOutputs(props: { portfolio: ResearchPortfolioDetailDto }) {
+  return (
+    <ResearchPortfolioAuthorityBoundary>
+      <DurableOutputsContent key={props.portfolio.id} {...props} />
+    </ResearchPortfolioAuthorityBoundary>
+  );
+}
+
+function DurableOutputsContent({ portfolio }: { portfolio: ResearchPortfolioDetailDto }) {
   const api = useApi();
   const queryClient = useQueryClient();
-  const [snapshotId, setSnapshotId] = useState('');
-  const [includeSourceAppendix, setIncludeSourceAppendix] = useState(true);
-  const [jobId, setJobId] = useState(() => readRememberedOutputJob(portfolio.id));
-  const [clientId, setClientId] = useState(portfolio.clientLinks[0]?.clientId ?? '');
+  const scope = useResearchPortfolioAuthorityScope()!;
+  const storageKey = outputWorkspaceKey(scope, portfolio.id);
+  const [initial] = useState(() => {
+    try {
+      return { value: readOutputWorkspace(storageKey), error: null as string | null };
+    } catch (error) {
+      return { value: emptyOutputWorkspace(), error: (error as Error).message };
+    }
+  });
+  const [workspace, setWorkspace] = useState<RetainedOutputWorkspace>(initial.value);
+  const [storageError, setStorageError] = useState<string | null>(initial.error);
+  const [snapshotId, setSnapshotId] = useState(workspace.create?.payload.snapshotId ?? '');
+  const [includeSourceAppendix, setIncludeSourceAppendix] = useState(
+    workspace.create?.payload.includeSourceAppendix ?? true,
+  );
+  const [clientId, setClientId] = useState(
+    workspace.filing?.clientId ?? portfolio.clientLinks[0]?.clientId ?? '',
+  );
   const [receipt, setReceipt] = useState<ResearchPortfolioClientFileReceiptDto | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  function retain(value: RetainedOutputWorkspace) {
+    persistOutputWorkspace(storageKey, value);
+    setWorkspace(value);
+    setStorageError(null);
+  }
   const snapshots = useQuery({
     queryKey: researchPortfolioKeys.snapshots(portfolio.id),
     queryFn: () => listResearchPortfolioSnapshots(api, portfolio.id),
   });
   const output = useQuery({
-    queryKey: researchPortfolioKeys.outputJob(portfolio.id, jobId ?? ''),
-    queryFn: () => getResearchPortfolioOutputJob(api, portfolio.id, jobId!),
-    enabled: Boolean(jobId),
+    queryKey: researchPortfolioKeys.outputJob(portfolio.id, workspace.jobId ?? ''),
+    queryFn: () => getResearchPortfolioOutputJob(api, portfolio.id, workspace.jobId!),
+    enabled: Boolean(workspace.jobId),
     refetchInterval: (query) =>
       ['queued', 'running'].includes(query.state.data?.status ?? '') ? 2_000 : false,
   });
   const createdJob = useMutation({
-    mutationFn: () =>
-      createResearchPortfolioOutput(api, portfolio.id, {
-        snapshotId: snapshotId || null,
-        selectedSections: ['analytics', 'contributions', 'sources'],
-        includeSourceAppendix,
-        format: 'csv',
-      }),
+    mutationFn: async () => {
+      if (initial.error) throw Error(initial.error);
+      if (workspace.filing && !workspace.filing.confirmed)
+        throw Error('Reconcile the retained client filing before building another output');
+      const attempt = workspace.create ?? {
+        operationKey: newIdempotencyKey('output-create'),
+        payload: {
+          snapshotId: snapshotId || null,
+          selectedSections: ['analytics', 'contributions', 'sources'],
+          includeSourceAppendix,
+          format: 'csv' as const,
+        },
+      };
+      try {
+        retain({
+          ...workspace,
+          create: attempt,
+          filing: workspace.filing?.confirmed ? null : workspace.filing,
+        });
+      } catch {
+        setStorageError(
+          'The exact output request could not be retained. No request was sent. Free browser storage and retry.',
+        );
+        throw Error('Output storage unavailable');
+      }
+      return createResearchPortfolioOutput(
+        api,
+        portfolio.id,
+        attempt.payload,
+        attempt.operationKey,
+      );
+    },
     onSuccess: (job) => {
-      setJobId(job.id);
-      rememberOutputJob(portfolio.id, job.id);
-      queryClient.setQueryData(researchPortfolioKeys.outputJob(portfolio.id, job.id), job);
+      const next = { ...workspace, create: null, filing: null, jobId: job.id };
+      setWorkspace(next);
       setReceipt(null);
+      queryClient.setQueryData(researchPortfolioKeys.outputJob(portfolio.id, job.id), job);
+      try {
+        persistOutputWorkspace(storageKey, next);
+        setStorageError(null);
+      } catch {
+        setStorageError(
+          'The server accepted this output, but its recovery handle could not be retained. Keep this page open and record the job ID.',
+        );
+      }
     },
   });
   const act = useMutation({
@@ -656,9 +739,44 @@ function DurableOutputs({ portfolio }: { portfolio: ResearchPortfolioDetailDto }
       queryClient.setQueryData(researchPortfolioKeys.outputJob(portfolio.id, job.id), job),
   });
   const save = useMutation({
-    mutationFn: ({ artifactId }: { artifactId: string }) =>
-      saveResearchPortfolioOutputToClient(api, portfolio.id, artifactId, { clientId }),
-    onSuccess: setReceipt,
+    mutationFn: async ({ artifactId }: { artifactId: string }) => {
+      if (initial.error) throw Error(initial.error);
+      const attempt = workspace.filing ?? {
+        operationKey: newIdempotencyKey('output-client-file'),
+        artifactId,
+        clientId,
+        confirmed: false,
+      };
+      try {
+        retain({ ...workspace, filing: attempt });
+      } catch {
+        setStorageError(
+          'The exact filing request could not be retained. No filing was sent. Free browser storage and retry.',
+        );
+        throw Error('Filing storage unavailable');
+      }
+      const saved = await saveResearchPortfolioOutputToClient(
+        api,
+        portfolio.id,
+        attempt.artifactId,
+        { clientId: attempt.clientId },
+        attempt.operationKey,
+      );
+      return { saved, attempt };
+    },
+    onSuccess: ({ saved, attempt }) => {
+      setReceipt(saved);
+      const next = { ...workspace, filing: { ...attempt, confirmed: true } };
+      setWorkspace(next);
+      try {
+        persistOutputWorkspace(storageKey, next);
+        setStorageError(null);
+      } catch {
+        setStorageError(
+          'The server confirmed this filing, but its retry identity could not be retained. Keep this receipt open.',
+        );
+      }
+    },
   });
   const job = output.data ?? createdJob.data;
   const linkedClient = useMemo(
@@ -707,7 +825,13 @@ function DurableOutputs({ portfolio }: { portfolio: ResearchPortfolioDetailDto }
       >
         <label>
           Projection
-          <select value={snapshotId} onChange={(event) => setSnapshotId(event.target.value)}>
+          <select
+            disabled={
+              Boolean(workspace.create) || Boolean(workspace.filing && !workspace.filing.confirmed)
+            }
+            value={snapshotId}
+            onChange={(event) => setSnapshotId(event.target.value)}
+          >
             <option value="">Current qualified projection</option>
             {snapshots.data?.map((item) => (
               <option key={item.id} value={item.id}>
@@ -719,15 +843,36 @@ function DurableOutputs({ portfolio }: { portfolio: ResearchPortfolioDetailDto }
         <label className="rp-checkbox">
           <input
             type="checkbox"
+            disabled={
+              Boolean(workspace.create) || Boolean(workspace.filing && !workspace.filing.confirmed)
+            }
             checked={includeSourceAppendix}
             onChange={(event) => setIncludeSourceAppendix(event.target.checked)}
           />{' '}
           Include source appendix
         </label>
-        <button className="rp-button rp-button--primary" disabled={createdJob.isPending}>
-          Build CSV
+        <button
+          className="rp-button rp-button--primary"
+          disabled={
+            createdJob.isPending ||
+            Boolean(initial.error) ||
+            Boolean(workspace.filing && !workspace.filing.confirmed)
+          }
+        >
+          {workspace.create ? 'Retry exact CSV request' : 'Build CSV'}
         </button>
       </form>
+      {storageError ? (
+        <p className="rp-error" role="alert">
+          {storageError}
+        </p>
+      ) : null}
+      {workspace.create ? (
+        <p className="rp-notice">
+          The prior output request may have committed. Its original payload and key are retained;
+          retry to recover it.
+        </p>
+      ) : null}
       {createdJob.error || output.error ? (
         <p className="rp-error" role="alert">
           The output job could not be created or restored.
@@ -787,7 +932,11 @@ function DurableOutputs({ portfolio }: { portfolio: ResearchPortfolioDetailDto }
             <div className="rp-client-file-save">
               <label>
                 Authorized destination
-                <select value={clientId} onChange={(event) => setClientId(event.target.value)}>
+                <select
+                  disabled={Boolean(workspace.filing)}
+                  value={clientId}
+                  onChange={(event) => setClientId(event.target.value)}
+                >
                   {portfolio.clientLinks.map((client) => (
                     <option key={client.clientId} value={client.clientId}>
                       {client.clientName}
@@ -797,16 +946,19 @@ function DurableOutputs({ portfolio }: { portfolio: ResearchPortfolioDetailDto }
               </label>
               <button
                 className="rp-button"
-                disabled={!clientId || save.isPending}
+                disabled={!clientId || save.isPending || Boolean(initial.error) || Boolean(receipt)}
                 onClick={() => save.mutate({ artifactId: job.artifact!.id })}
               >
-                Save exact file to {linkedClient?.clientName ?? 'Client Files'}
+                {workspace.filing
+                  ? 'Reconcile exact client filing'
+                  : `Save exact file to ${linkedClient?.clientName ?? 'Client Files'}`}
               </button>
             </div>
           ) : null}
           {save.error ? (
             <p className="rp-error" role="alert">
-              The artifact could not be saved to that client under your current access.
+              The client filing outcome is unconfirmed. Its original artifact, destination and key
+              are retained. Reconcile the same request; no replacement upload is started.
             </p>
           ) : null}
           {receipt ? (

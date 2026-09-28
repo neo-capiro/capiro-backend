@@ -12,8 +12,8 @@
  * (Phase 3 lesson #2); the first test proves exactly that.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { PeProfileVNext } from './PeProfileVNext.js';
 import type { ProgramElementDetail } from '../../../../pages/program-element/types.js';
@@ -24,6 +24,11 @@ const apiPost = vi.fn();
 let tenantSlug = 'capiro-internal';
 let sourceItems: ProgramElementSourceItem[] = [];
 let sourcesFail = false;
+let dossierMode: 'empty'|'pending'|'error'|'fields' = 'empty';
+let dossierFailRefresh = false;
+let profileClient: QueryClient;
+const fieldNames=['mission','plans','accomplishments','strategy_alignment','performance_measures','related_program_funding','remarks','analyst_questions'];
+const dossier={subject:{type:'program_element',id:'0601102A',label:'Defense Research Sciences'},projectionVersion:'defense-dossier-v1',fields:fieldNames.map((field,index)=>({field,value:'Actual '+field,availability:index===0?'available':'partial',reason:index===0?'Field-bound evidence accepted':'canonical_value_field_provenance_unavailable',fiscalPeriod:null,metric:null,unit:null,evidence:[{evidenceRefId:'ref-'+field,sourceDocumentId:'doc-'+field,sourceRevisionId:'rev-'+field,sourceFamily:'budget',publisher:'Qualified publisher',sourceUrl:'https://example.gov/'+field,nativeLocator:{page:index+1,section:'Section '+field,occurrenceId:'occ-'+field},contentHash:'hash-'+field,edition:null,observedAt:null,availability:'partial',reason:'Context only'}]})),coverage:{state:'partial',reason:'Field-specific provenance is partial.',expectedFields:8,availableFields:1,partialFields:7,unavailableFields:0}};
 
 vi.mock('../../../../lib/use-api.js', () => ({
   useApi: () => ({ get: apiGet, post: apiPost }),
@@ -72,6 +77,11 @@ const DETAIL: ProgramElementDetail = {
 
 function mockEndpoints(detail: ProgramElementDetail | (() => Promise<never>) = DETAIL) {
   apiGet.mockImplementation(async (url: string) => {
+    if (url === '/api/defense-budget/dossiers/program_element/0601102A') {
+      if(dossierMode==='pending') return new Promise(()=>{});
+      if(dossierMode==='error'||dossierFailRefresh) throw Error('dossier down');
+      return {data:dossierMode==='fields'?dossier:{...dossier,fields:[],coverage:{state:'unavailable',expectedFields:8,availableFields:0,partialFields:0,unavailableFields:8}}};
+    }
     if (url === '/api/program-elements/0601102A') {
       if (typeof detail === 'function') return detail();
       return { data: detail };
@@ -81,7 +91,8 @@ function mockEndpoints(detail: ProgramElementDetail | (() => Promise<never>) = D
       return { data: sourceItems };
     }
     if (url.includes('/deltas')) return { data: { data: [], total: 0, page: 1, limit: 25 } };
-    if (url === '/api/intelligence/actions') return { data: { data: [], total: 0, page: 1, limit: 100 } };
+    if (url === '/api/intelligence/actions')
+      return { data: { data: [], total: 0, page: 1, limit: 100 } };
     if (url.includes('/client-relevance')) return { data: [] };
     return { data: [] };
   });
@@ -89,18 +100,19 @@ function mockEndpoints(detail: ProgramElementDetail | (() => Promise<never>) = D
 }
 
 function LocationProbe() {
-  const location = useLocation();
-  return <div data-testid="location-probe">{`${location.pathname}${location.search}`}</div>;
+  const location = useLocation(); const navigate=useNavigate();
+  return <><div data-testid="location-probe">{`${location.pathname}${location.search}`}</div><button onClick={()=>navigate('?tab=funding')}>URL funding</button><button onClick={()=>navigate(-1)}>History back</button><button onClick={()=>navigate(1)}>History forward</button></>;
 }
 
-function renderProfile(initialEntry = '/program-elements/0601102a') {
+function renderProfile(initialEntry = '/program-elements/0601102A', peCodeOverride?: string) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
+  profileClient=queryClient;
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[initialEntry]}>
-        <PeProfileVNext />
+        <PeProfileVNext peCode={peCodeOverride} />
         <LocationProbe />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -114,16 +126,15 @@ describe('PeProfileVNext', () => {
     tenantSlug = 'capiro-internal';
     sourceItems = [];
     sourcesFail = false;
+    dossierMode='empty';dossierFailRefresh=false;
   });
 
   test('parses the PE code from the pathname (useParams is empty under VNextRouter) and renders real derived figures', async () => {
     mockEndpoints();
-    renderProfile('/program-elements/0601102a');
+    renderProfile('/program-elements/0601102A');
 
-    // Detail fetched with the UPPERCASED code parsed from the path.
-    await waitFor(() =>
-      expect(apiGet).toHaveBeenCalledWith('/api/program-elements/0601102A'),
-    );
+    // Detail fetched with the canonical uppercase code parsed from the path.
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/api/program-elements/0601102A'));
 
     expect(await screen.findByText('Defense Research Sciences')).toBeInTheDocument();
     expect(screen.getByText('0601102A')).toBeInTheDocument();
@@ -139,7 +150,9 @@ describe('PeProfileVNext', () => {
     expect(screen.getByText('3 verified sources')).toBeInTheDocument();
     expect(screen.getByText('No blocking conflicts')).toBeInTheDocument();
     // Overview tab is the default and renders the FY bar chart with real bars.
-    expect(screen.getByRole('img', { name: 'Funding by fiscal year bar chart' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('img', { name: 'Funding by fiscal year bar chart' }),
+    ).toBeInTheDocument();
     // FY26 enacted bar (250) + FY27 current bar (310.5): both money labels present.
     expect(screen.getByText('$250.0M')).toBeInTheDocument();
   });
@@ -177,7 +190,9 @@ describe('PeProfileVNext', () => {
       '/program-elements/0601102A?tab=sources',
     );
     expect(await screen.findByText(/evidence coverage/)).toBeInTheDocument();
-    expect(screen.getByText('MISSING IS NEVER ZERO · EVERY CELL STATES WHAT EXISTS')).toBeInTheDocument();
+    expect(
+      screen.getByText('MISSING IS NEVER ZERO · EVERY CELL STATES WHAT EXISTS'),
+    ).toBeInTheDocument();
 
     // Back to Overview clears the param (canonical behavior).
     fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
@@ -196,14 +211,30 @@ describe('PeProfileVNext', () => {
   test('source ledger keeps unknown verification unknown and marks linked unverified URLs as candidates', async () => {
     sourceItems = [
       {
-        id: 'candidate-source', docType: 'committee_report', exhibitType: null, fy: 2027,
-        sourceUrl: 'https://example.gov/report', pageNumber: 12, pageEnd: null, snippet: null,
-        publisher: 'House Appropriations', confidence: null, sourceDocument: null,
+        id: 'candidate-source',
+        docType: 'committee_report',
+        exhibitType: null,
+        fy: 2027,
+        sourceUrl: 'https://example.gov/report',
+        pageNumber: 12,
+        pageEnd: null,
+        snippet: null,
+        publisher: 'House Appropriations',
+        confidence: null,
+        sourceDocument: null,
       },
       {
-        id: 'verified-source', docType: 'budget_justification', exhibitType: 'R-1', fy: 2027,
-        sourceUrl: 'https://example.gov/verified', pageNumber: 4, pageEnd: null, snippet: null,
-        publisher: null, confidence: 0.9, sourceDocument: { title: 'R-1 Book', budgetCycle: 'FY2027', sha256: null },
+        id: 'verified-source',
+        docType: 'budget_justification',
+        exhibitType: 'R-1',
+        fy: 2027,
+        sourceUrl: 'https://example.gov/verified',
+        pageNumber: 4,
+        pageEnd: null,
+        snippet: null,
+        publisher: null,
+        confidence: 0.9,
+        sourceDocument: { title: 'R-1 Book', budgetCycle: 'FY2027', sha256: null },
       },
     ];
     mockEndpoints();
@@ -211,7 +242,9 @@ describe('PeProfileVNext', () => {
 
     expect(await screen.findByText('STATUS UNKNOWN')).toBeInTheDocument();
     expect(screen.getByText('CANDIDATE →')).toBeInTheDocument();
-    expect(screen.getByText('Link is a candidate; source verification is not established.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Link is a candidate; source verification is not established.'),
+    ).toBeInTheDocument();
     expect(screen.getByText('✓ VERIFIED')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'CANDIDATE →' })).toHaveAttribute('rel', 'noreferrer');
   });
@@ -221,8 +254,12 @@ describe('PeProfileVNext', () => {
     mockEndpoints();
     renderProfile('/program-elements/0601102A?tab=sources');
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Source records could not be loaded');
-    expect(screen.queryByText('No page-level sources are attached to this line yet.')).not.toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Source records could not be loaded',
+    );
+    expect(
+      screen.queryByText('No page-level sources are attached to this line yet.'),
+    ).not.toBeInTheDocument();
   });
 
   test('Monitor toggles the watch state through the canonical endpoint', async () => {
@@ -283,7 +320,9 @@ describe('PeProfileVNext', () => {
       ),
     );
     // Modal closes after success.
-    await waitFor(() => expect(screen.queryByTestId('pe-data-issue-modal')).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByTestId('pe-data-issue-modal')).not.toBeInTheDocument(),
+    );
   });
 
   test('a 404 renders the not-found state, never an empty profile', async () => {
@@ -325,4 +364,60 @@ describe('PeProfileVNext', () => {
     // NO POSITION headline — a missing figure is stated, never zeroed.
     expect(screen.getByText('NO POSITION')).toBeInTheDocument();
   });
+});
+
+describe('PeProfileVNext canonical pathname and explicit legacy override', () => {
+  beforeEach(() => {
+    apiGet.mockReset();
+    apiPost.mockReset();
+    tenantSlug = 'capiro-internal';
+    sourceItems = [];
+    sourcesFail = false;
+    dossierMode='empty';dossierFailRefresh=false;
+  });
+  test('a lowercase pathname is not claimed and does not request a profile', async () => {
+    mockEndpoints();
+    renderProfile('/program-elements/0601102a');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Missing Program Element code');
+    expect(apiGet).not.toHaveBeenCalledWith('/api/program-elements/0601102A');
+  });
+  test('an explicit legacy lowercase code override retains core normalization without changing route ownership', async () => {
+    mockEndpoints();
+    renderProfile('/program-elements/0601102a', '0601102a');
+    expect(await screen.findByText('Defense Research Sciences')).toBeInTheDocument();
+    expect(apiGet).toHaveBeenCalledWith('/api/program-elements/0601102A');
+    expect(screen.getByText('0601102A')).toBeInTheDocument();
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/program-elements/0601102a');
+  });
+});
+
+describe('Native dossier and URL authority regressions',()=>{
+ beforeEach(()=>{apiGet.mockReset();apiPost.mockReset();sourceItems=[];sourcesFail=false;dossierMode='empty';dossierFailRefresh=false;});
+ test('external URL/history controls the selected tab after a previous tab click',async()=>{
+  tenantSlug='maven';mockEndpoints();renderProfile();await screen.findByText('Defense Research Sciences');fireEvent.click(screen.getByRole('tab',{name:'Sources & proof'}));await screen.findByText(/evidence coverage/);
+  fireEvent.click(screen.getByRole('button',{name:'URL funding'}));await waitFor(()=>expect(screen.getByRole('tab',{name:'Funding & lifecycle'})).toHaveAttribute('aria-selected','true'));
+  fireEvent.click(screen.getByRole('button',{name:'History back'}));await waitFor(()=>expect(screen.getByRole('tab',{name:'Sources & proof'})).toHaveAttribute('aria-selected','true'));
+  fireEvent.click(screen.getByRole('button',{name:'History forward'}));await waitFor(()=>expect(screen.getByRole('tab',{name:'Funding & lifecycle'})).toHaveAttribute('aria-selected','true'));
+ });
+ test.each(['pending','error'] as const)('shows honest %s dossier state and useful partial canonical description',async mode=>{
+  dossierMode=mode;mockEndpoints();renderProfile();await screen.findByText('Defense Research Sciences');expect(await screen.findByText('Basic research program.')).toBeInTheDocument();expect(screen.getByText('Canonical description · partial provenance')).toBeInTheDocument();
+  expect(await screen.findByText(mode==='pending'?'Loading dossier fields…':/Dossier fields could not be refreshed/)).toBeInTheDocument();expect(screen.queryByText(/Dossier coverage: available/)).not.toBeInTheDocument();
+ });
+ test('renders all eight native field values and distinct availability with exact contextual citations',async()=>{
+  dossierMode='fields';mockEndpoints();renderProfile();await screen.findByText('Actual mission');for(const name of fieldNames)expect(screen.getByText('Actual '+name)).toBeInTheDocument();
+  const mission=screen.getByRole('region',{name:'Mission'}),plans=screen.getByRole('region',{name:'Plans'});expect(within(mission).getByText('Availability: available')).toBeInTheDocument();expect(within(plans).getByText('Availability: partial')).toBeInTheDocument();
+  expect(within(plans).getByText('canonical_value_field_provenance_unavailable')).toBeInTheDocument();fireEvent.click(within(plans).getByText('Source context (1)'));expect(within(plans).getByRole('link',{name:'Qualified publisher'})).toHaveAttribute('href','https://example.gov/plans');expect(within(plans).getByText(/occurrence occ-plans/)).toBeInTheDocument();expect(within(plans).getByText(/revision rev-plans/)).toBeInTheDocument();
+ });
+ test('retains partial useful fields and labels current freshness unknown on failed dossier refresh',async()=>{
+  dossierMode='fields';mockEndpoints();renderProfile();await screen.findByText('Actual plans');dossierFailRefresh=true;await act(async()=>{await profileClient.invalidateQueries({queryKey:['defense-dossier']});});expect(await screen.findByText(/Dossier fields could not be refreshed/)).toBeInTheDocument();expect(screen.getByText('Actual plans')).toBeInTheDocument();expect(screen.queryByRole('region',{name:'Canonical description fallback'})).not.toBeInTheDocument();
+ });
+});
+
+describe('Dossier citation URL safety',()=>{
+ beforeEach(()=>{apiGet.mockReset();apiPost.mockReset();tenantSlug='maven';sourceItems=[];sourcesFail=false;dossierMode='fields';dossierFailRefresh=false;});
+ test.each(['javascript:alert(1)','https://name:secret@example.gov/doc','https://example.gov/\ncontrol','https://example.gov/\\path'])('renders unsafe citation %s as unavailable plain text',async url=>{
+  const evidence=dossier.fields[0]!.evidence[0]!,original=evidence.sourceUrl;
+  try{evidence.sourceUrl=url;mockEndpoints();renderProfile();await screen.findByText('Actual mission');const mission=screen.getByRole('region',{name:'Mission'});fireEvent.click(within(mission).getByText('Source context (1)'));expect(within(mission).queryByRole('link')).not.toBeInTheDocument();expect(within(mission).getByText(/source URL unavailable/)).toBeInTheDocument();expect(screen.getByText('Field-specific provenance is partial.')).toBeInTheDocument();}
+  finally{evidence.sourceUrl=original;}
+ });
 });

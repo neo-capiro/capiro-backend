@@ -1,3 +1,4 @@
+import { ResearchPortfolioAuthorityBoundary } from './research-portfolio-authority.js';
 import { useMemo, useState, type FormEvent } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type {
@@ -15,7 +16,19 @@ import { newIdempotencyKey } from './research-portfolios-api.js';
 
 const DEFAULT_EXPRESSION = JSON.stringify({ kind: 'condition', field: 'component', operator: 'eq', value: 'Army' }, null, 2);
 
-export function ResearchPortfolioRulesPanel({ portfolio, canEdit, onDone }: {
+export function ResearchPortfolioRulesPanel(props: {
+  portfolio: ResearchPortfolioDetailDto;
+  canEdit: boolean;
+  onDone: (message: string) => Promise<void>;
+}) {
+  return (
+    <ResearchPortfolioAuthorityBoundary>
+      <ResearchPortfolioRulesPanelContent key={props.portfolio.id} {...props} />
+    </ResearchPortfolioAuthorityBoundary>
+  );
+}
+
+function ResearchPortfolioRulesPanelContent({ portfolio, canEdit, onDone }: {
   portfolio: ResearchPortfolioDetailDto;
   canEdit: boolean;
   onDone: (message: string) => Promise<void>;
