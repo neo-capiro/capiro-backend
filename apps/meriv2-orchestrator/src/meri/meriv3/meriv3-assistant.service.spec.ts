@@ -18,6 +18,8 @@ import {
   MeriV3AssistantService,
   resetMeriV3RolloutDiagnosticsForTest,
 } from './meriv3-assistant.service.js';
+import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
+import { OpenAiResponsesClient } from './openai-responses.client.js';
 
 const context = {
   tenantId: 'tenant-1',
@@ -150,7 +152,7 @@ function response(overrides: Record<string, unknown> = {}) {
 
 function build(
   registry: ToolRegistry,
-  complete: jest.Mock,
+  complete: jest.Mock | OpenAiResponsesClient,
   createProposal = jest.fn(),
   llmOverrides: Record<string, jest.Mock> = {},
 ) {
@@ -165,7 +167,7 @@ function build(
       ...llmOverrides,
     },
   };
-  const openai = { complete };
+  const openai = complete instanceof OpenAiResponsesClient ? complete : { complete };
   const prisma = {
     withTenant: jest.fn(async (_tenantId: string, callback: (tx: unknown) => unknown) =>
       callback({
@@ -222,9 +224,12 @@ const SHADOW_EVENTS = new Set(['meri.evidence_shadow', 'meri.evidence_shadow.tur
 
 describe('MeriV3AssistantService', () => {
   const originalFetch = global.fetch;
+  const originalOpenAiKey = process.env.OPENAI_API_KEY;
 
   afterEach(() => {
     global.fetch = originalFetch;
+    if (originalOpenAiKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = originalOpenAiKey;
     delete process.env.MERI_AUDITOR_MODE;
     delete process.env.MERI_RELEASE_GATE;
     delete process.env.MERI_CLAIM_ASSESSMENT_MODE;
@@ -314,6 +319,165 @@ describe('MeriV3AssistantService', () => {
     expect(result.reply).toContain('Verified answer.');
     expect(result.reply).not.toContain('Partial answer');
   });
+
+  test.each([
+    [
+      'an incomplete envelope with malformed arguments',
+      {
+        id: 'resp-invalid',
+        status: 'incomplete',
+        incomplete_details: { reason: 'max_output_tokens' },
+        model: 'gpt-5.6',
+        output: [
+          {
+            type: 'message',
+            role: 'assistant',
+            content: [{ type: 'output_text', text: 'STALE PARTIAL DRAFT' }],
+          },
+          {
+            type: 'function_call',
+            call_id: 'call-invalid',
+            name: 'search_memory',
+            arguments: '{"query":',
+            status: 'incomplete',
+          },
+        ],
+      },
+    ],
+    [
+      'a completed envelope containing a malformed call',
+      {
+        id: 'resp-invalid',
+        status: 'completed',
+        model: 'gpt-5.6',
+        output: [
+          {
+            type: 'message',
+            role: 'assistant',
+            content: [{ type: 'output_text', text: 'STALE MALFORMED DRAFT' }],
+          },
+          {
+            type: 'function_call',
+            call_id: 'call-valid-looking',
+            name: 'search_memory',
+            arguments: '{"query":"Kestrel"}',
+            status: 'completed',
+          },
+          {
+            type: 'function_call',
+            call_id: 'call-invalid',
+            name: 'search_memory',
+            arguments: '{"query":',
+            status: 'completed',
+          },
+        ],
+      },
+    ],
+  ])(
+    'keeps %s out of research finalization and performs one fresh repair',
+    async (_label, invalidProviderResponse) => {
+      process.env.OPENAI_API_KEY = 'test-key';
+      const providerResponses = [
+        invalidProviderResponse,
+        {
+          id: 'resp-repaired',
+          status: 'completed',
+          model: 'gpt-5.6',
+          output: [
+            {
+              type: 'message',
+              role: 'assistant',
+              content: [{ type: 'output_text', text: 'Fresh repaired draft.' }],
+            },
+          ],
+        },
+        {
+          id: 'resp-critic',
+          status: 'completed',
+          model: 'gpt-5.6',
+          output: [
+            {
+              type: 'message',
+              role: 'assistant',
+              content: [{ type: 'output_text', text: '{"missingSections":[]}' }],
+            },
+          ],
+        },
+        {
+          id: 'resp-synthesis',
+          status: 'completed',
+          model: 'gpt-5.6',
+          output: [
+            {
+              type: 'message',
+              role: 'assistant',
+              content: [{ type: 'output_text', text: 'Fresh final answer.' }],
+            },
+          ],
+        },
+      ];
+      const providerRequests: Record<string, unknown>[] = [];
+      global.fetch = jest.fn(async (input, init) => {
+        if (String(input).startsWith('http://api.test')) {
+          return new Response(
+            JSON.stringify({
+              schemas: [
+                {
+                  name: 'search_memory',
+                  description: 'Search memory',
+                  input_schema: { type: 'object', properties: { query: { type: 'string' } } },
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
+        providerRequests.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify(providerResponses.shift()), { status: 200 });
+      }) as typeof fetch;
+      const invoke = jest.fn();
+      const assistant = build(
+        registry([{ name: 'search_memory', readOnly: true }], invoke),
+        new OpenAiResponsesClient(),
+      );
+
+      const observed = await MeriV3ResearchRuntimeStore.run(
+        {
+          forcedFirstTool: 'search_memory',
+          criticInstructions: 'RESEARCH CRITIC',
+          synthesisInstructions: 'RESEARCH SYNTHESIS',
+        },
+        async () => {
+          const result = await RequestCredentialsStore.run(
+            { bearerToken: 'bearer' },
+            () => assistant.run(context, { messages: [{ role: 'user', text: 'Check Kestrel.' }] }),
+          );
+          return {
+            result,
+            finalizationConsumed: MeriV3ResearchRuntimeStore.current()?.finalizationConsumed,
+          };
+        },
+      );
+
+      expect(invoke).not.toHaveBeenCalled();
+      expect(providerRequests).toHaveLength(4);
+      expect(providerRequests[1]?.input).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            role: 'developer',
+            content: expect.stringContaining('Start that response again'),
+          }),
+        ]),
+      );
+      const finalizationRequests = providerRequests.slice(2);
+      expect(finalizationRequests[0]?.instructions).toContain('RESEARCH CRITIC');
+      expect(finalizationRequests[1]?.instructions).toContain('RESEARCH SYNTHESIS');
+      expect(JSON.stringify(finalizationRequests)).not.toContain('STALE');
+      expect(observed.finalizationConsumed).toBe(true);
+      expect(observed.result.reply).toContain('Fresh final answer.');
+      expect(observed.result.reply).not.toContain('STALE');
+    },
+  );
 
   test.each([
     [
