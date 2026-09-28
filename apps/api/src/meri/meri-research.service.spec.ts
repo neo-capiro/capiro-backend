@@ -3,6 +3,8 @@ import { TextEncoder } from 'node:util';
 import type { TenantContext } from '@capiro/shared';
 import { MeriResearchService } from './meri-research.service.js';
 import { ACTIVE_RESEARCH_RUN_FENCE_SQL } from './meri-research-run-state.js';
+import { MeriV3ResearchRunner } from './meri-v3-research-runner.js';
+import type { MeriV3ChatStreamEvent } from './meriv3-chat.client.js';
 
 // These dependencies are supplied explicitly by this service unit harness.
 jest.mock('./meri-tools.service.js', () => ({ MeriToolsService: class {} }));
@@ -11,7 +13,6 @@ jest.mock('../reviews/reviews.service.js', () => ({ ReviewsService: class {} }))
 jest.mock('../engagement/ai-credential-resolver.service.js', () => ({
   AiCredentialResolverService: class {},
 }));
-jest.mock('./meri-v3-research-runner.js', () => ({ MeriV3ResearchRunner: class {} }));
 
 /**
  * Unit test for the FORCED-SYNTHESIS fallback in MeriResearchService.
@@ -94,10 +95,7 @@ function proseRound(text: string): Array<Record<string, unknown>> {
   ];
 }
 
-function thinkingProseRound(
-  text: string,
-  privateThinking: string,
-): Array<Record<string, unknown>> {
+function thinkingProseRound(text: string, privateThinking: string): Array<Record<string, unknown>> {
   const events = proseRound(text);
   return [
     events[0]!,
@@ -107,9 +105,11 @@ function thinkingProseRound(
       index: 0,
       delta: { type: 'thinking_delta', thinking: privateThinking },
     },
-    ...events.slice(1).map((event) =>
-      typeof event.index === 'number' ? { ...event, index: event.index + 1 } : event,
-    ),
+    ...events
+      .slice(1)
+      .map((event) =>
+        typeof event.index === 'number' ? { ...event, index: event.index + 1 } : event,
+      ),
   ];
 }
 
@@ -384,12 +384,48 @@ function makeTools() {
   } as unknown as ConstructorParameters<typeof MeriResearchService>[2];
 }
 
+function makeActualV3Runner(events: MeriV3ChatStreamEvent[]) {
+  const client = {
+    configured: true,
+    streamChat: jest.fn(
+      async ({ onEvent }: { onEvent: (event: MeriV3ChatStreamEvent) => void }) => {
+        for (const event of events) onEvent(event);
+      },
+    ),
+  };
+  const flags = { isMeriV3ChatEnabled: jest.fn(async () => true) };
+  const credentials = {
+    resolveProvider: jest.fn(async () => ({
+      provider: 'openai' as const,
+      apiKey: ['test', 'credential'].join('-'),
+      model: 'configured-chat-model',
+    })),
+  };
+  const prisma = {
+    withTenantUser: jest.fn(
+      async (_tenant: string, _user: string, callback: (tx: unknown) => unknown) =>
+        callback({ clioAttachment: { findMany: async () => [] } }),
+    ),
+  };
+  const evidence = {
+    load: jest.fn(async () => ({ citations: [], unavailable: 0, omitted: 0 })),
+  };
+  return new MeriV3ResearchRunner(
+    client as never,
+    flags as never,
+    credentials as never,
+    prisma as never,
+    evidence as never,
+  );
+}
+
 // ── Test ─────────────────────────────────────────────────────────────────────
 
 function makeReviews() {
   // G4: held reports emit a review_request; the service owns the held body.
   const reviews = { createSystem: jest.fn(async () => 'rr-1') };
-  return reviews as unknown as typeof reviews & ConstructorParameters<typeof MeriResearchService>[4];
+  return reviews as unknown as typeof reviews &
+    ConstructorParameters<typeof MeriResearchService>[4];
 }
 
 describe('MeriResearchService — forced synthesis', () => {
@@ -413,6 +449,276 @@ describe('MeriResearchService — forced synthesis', () => {
       fetchBodies.push({});
     }
   }
+
+  it('withholds typed V3 content through the actual runner and service callback before authorization', async () => {
+    const privateBody = 'RAW_PRIVATE_OWNER_DETAIL_IN_TYPED_FRAME';
+    const reportBody = 'UNAUTHORIZED_PROVIDER_REPORT';
+    const runner = makeActualV3Runner([
+      { type: 'reasoning', text: privateBody } as unknown as MeriV3ChatStreamEvent,
+      { type: 'progress', note: privateBody } as unknown as MeriV3ChatStreamEvent,
+      {
+        type: 'start',
+        runtime: 'meriv3',
+        privateExtra: privateBody,
+      } as unknown as MeriV3ChatStreamEvent,
+      {
+        type: 'runtime',
+        runtime: 'meriv3',
+        model: privateBody,
+        reasoningMode: 'deep',
+        reasoningEffort: privateBody,
+        privateExtra: privateBody,
+      } as unknown as MeriV3ChatStreamEvent,
+      {
+        type: 'tool_call',
+        tool: 'private_lowercase_owner',
+        label: privateBody,
+      } as MeriV3ChatStreamEvent,
+      {
+        type: 'pending_approval',
+        tool: 'send_email',
+        label: privateBody,
+        proposalId: privateBody,
+        status: privateBody,
+        reason: privateBody,
+        expiresAt: privateBody,
+        riskTier: null,
+        policyCode: null,
+        ruleId: null,
+        policy: { source: privateBody },
+        preview: { reason: privateBody },
+      } as unknown as MeriV3ChatStreamEvent,
+      { type: 'page_write', target: 'draft', body: privateBody },
+      {
+        type: 'artifact',
+        artifact: { id: 'draft-1', title: 'Draft', kind: 'text', bodyText: privateBody },
+      },
+      {
+        type: 'grounding_caveat',
+        topSeverity: 'low',
+        findings: [{ check: 'test', severity: 'low', detail: privateBody }],
+      },
+      { type: 'text', text: reportBody },
+      {
+        type: 'done',
+        reply: reportBody,
+        runtime: 'meriv3',
+        model: 'test',
+        reasoningMode: 'deep',
+        reasoningEffort: 'high',
+        steps: [],
+        ledgerEntries: [],
+        citations: [],
+      },
+    ]);
+    const handoff = {
+      version: 1,
+      capturedAt: '2026-09-28T00:00:00Z',
+      conversationId: 'conversation-1',
+      clientId: null,
+      reasoningMode: 'deep',
+      summary: 'other owner summary',
+      messages: [],
+      attachments: [],
+    };
+    const service = Object.assign(Object.create(MeriResearchService.prototype), {
+      v3Research: runner,
+      prisma: {
+        withTenant: async (_tenant: string, fn: (tx: unknown) => unknown) =>
+          fn({ tenant: { findFirst: async () => null } }),
+      },
+      ensureSession: async () => ({
+        id: 'session-1',
+        title: 'Research',
+        topic: 'Topic',
+        clientId: null,
+        plan: [],
+        clarifyingQuestions: [],
+        clarifyingAnswers: {},
+        metadata: { handoff },
+      }),
+      clientContext: async () => null,
+    }) as MeriResearchService;
+    const observed: Array<Record<string, unknown>> = [];
+    const sse = {
+      write: (data: string) => observed.push(JSON.parse(data.slice(6)) as Record<string, unknown>),
+    };
+    const progress = {
+      set: (note: string) => observed.push({ type: 'progress', note }),
+      stop: () => undefined,
+    };
+
+    await expect(
+      (service as any).runResearchStream(CTX, 'session-1', sse, progress, {
+        bearerToken: 'local-placeholder',
+        governedContext: { contextPacket: { items: [] } },
+      }),
+    ).rejects.toThrow('private producer inputs');
+
+    expect(JSON.stringify(observed)).not.toContain(privateBody);
+    expect(JSON.stringify(observed)).not.toContain(reportBody);
+    expect(
+      observed.some((frame) =>
+        [
+          'text',
+          'report',
+          'done',
+          'artifact',
+          'page_write',
+          'grounding_caveat',
+          'pending_approval',
+        ].includes(String(frame.type)),
+      ),
+    ).toBe(false);
+    expect(observed).toEqual(
+      expect.arrayContaining([
+        { type: 'progress', note: 'Reviewing evidence and preparing the report…' },
+        { type: 'progress', note: 'Starting the research runtime…' },
+        { type: 'progress', note: 'Reading an authorized research source…' },
+        { type: 'progress', note: 'Research is continuing in read-only mode.' },
+      ]),
+    );
+  });
+
+  it('publishes the actual V3 report body only after durable save', async () => {
+    const privateBody = 'RAW_PRIVATE_TYPED_DRAFT';
+    const reportBody =
+      '# Executive Summary\n\nAuthorized source-free report.\n\n## Recommended Actions\n\n1. Review the conclusion.';
+    const runner = makeActualV3Runner([
+      {
+        type: 'start',
+        runtime: 'meriv3',
+        privateExtra: privateBody,
+      } as unknown as MeriV3ChatStreamEvent,
+      { type: 'page_write', target: 'draft', body: privateBody },
+      {
+        type: 'artifact',
+        artifact: { id: 'draft-1', title: 'Draft', kind: 'text', bodyText: privateBody },
+      },
+      { type: 'text', text: reportBody },
+      {
+        type: 'done',
+        reply: reportBody,
+        runtime: 'meriv3',
+        model: 'configured-chat-model',
+        reasoningMode: 'deep',
+        reasoningEffort: 'high',
+        steps: [],
+        ledgerEntries: [],
+        citations: [],
+      },
+    ]);
+    const artifacts: Array<Record<string, any>> = [];
+    const service = new MeriResearchService(
+      makePrisma(artifacts),
+      makeConfig(),
+      makeTools(),
+      makeAiCredentials(),
+      makeReviews(),
+      runner,
+    );
+    const observed: Array<Record<string, unknown>> = [];
+    let bodyDeliveredBeforeSave = false;
+    const sse = {
+      write: (data: string) => {
+        const event = JSON.parse(data.replace(/^data: /, '').trim()) as Record<string, unknown>;
+        if (
+          artifacts.length === 0 &&
+          ((event.type === 'text' && String(event.text).includes(reportBody)) ||
+            (event.type === 'report' && String(event.body).includes(reportBody)))
+        )
+          bodyDeliveredBeforeSave = true;
+        observed.push(event);
+      },
+    };
+
+    await service.streamResearch(CTX, 'sess-1', sse, {
+      bearerToken: 'caller-token',
+      governedContext: {
+        version: 1,
+        operationId: 'research.generate-report',
+        contextPacket: { items: [] },
+      } as never,
+    });
+
+    expect(bodyDeliveredBeforeSave).toBe(false);
+    expect(artifacts).toHaveLength(1);
+    expect(artifacts[0]?.bodyText).toContain(reportBody);
+    expect(JSON.stringify(observed)).not.toContain(privateBody);
+    expect(observed.find((event) => event.type === 'text')?.text).toContain(reportBody);
+    expect(observed.find((event) => event.type === 'report')?.body).toContain(reportBody);
+    expect(observed.at(-1)).toEqual({ type: 'done' });
+  });
+
+  it.each([
+    [
+      'provider failure',
+      [{ type: 'error', message: 'RAW_PRIVATE_PROVIDER_ERROR' } as MeriV3ChatStreamEvent],
+      'Research provider failed before report publication.',
+    ],
+    [
+      'cancellation',
+      [
+        {
+          type: 'done',
+          reply: 'RAW_PRIVATE_CANCELLED_BODY',
+          runtime: 'meriv3',
+          model: 'configured-chat-model',
+          reasoningMode: 'deep',
+          reasoningEffort: 'high',
+          steps: [],
+          ledgerEntries: [],
+          citations: [],
+          aborted: true,
+        } as MeriV3ChatStreamEvent,
+      ],
+      'Research was cancelled.',
+    ],
+  ])(
+    'keeps actual V3 %s terminal ordering fixed and content-free',
+    async (_case, frames, expected) => {
+      const service = new MeriResearchService(
+        makePrisma(),
+        makeConfig(),
+        makeTools(),
+        makeAiCredentials(),
+        makeReviews(),
+        makeActualV3Runner(frames),
+      );
+      const observed: Array<Record<string, unknown>> = [];
+
+      await service.streamResearch(
+        CTX,
+        'sess-1',
+        {
+          write: (data: string) =>
+            observed.push(
+              JSON.parse(data.replace(/^data: /, '').trim()) as Record<string, unknown>,
+            ),
+        },
+        {
+          bearerToken: 'caller-token',
+          governedContext: {
+            version: 1,
+            operationId: 'research.generate-report',
+            contextPacket: { items: [] },
+          } as never,
+        },
+      );
+
+      expect(JSON.stringify(observed)).not.toContain('RAW_PRIVATE');
+      expect(observed.some((event) => event.type === 'text' || event.type === 'report')).toBe(
+        false,
+      );
+      const errorIndex = observed.findIndex(
+        (event) => event.type === 'error' && event.message === expected,
+      );
+      const doneIndex = observed.findIndex((event) => event.type === 'done');
+      expect(errorIndex).toBeGreaterThanOrEqual(0);
+      expect(doneIndex).toBeGreaterThan(errorIndex);
+      expect(observed.at(-1)).toEqual({ type: 'done' });
+    },
+  );
 
   it('emits a report after the tool loop exhausts without prose', async () => {
     const PRIVATE_THINKING = 'RAW_PRIVATE_OWNER_DETAIL_IN_FORCED_SYNTHESIS';
@@ -574,7 +880,9 @@ describe('MeriResearchService — forced synthesis', () => {
     Object.assign(svc as object, { logger });
 
     try {
-      await svc.streamResearch({ ...CTX, tenantId } as TenantContext, 'sess-1', { write: jest.fn() });
+      await svc.streamResearch({ ...CTX, tenantId } as TenantContext, 'sess-1', {
+        write: jest.fn(),
+      });
       expect(artifacts[0]?.bodyText).toContain(expected);
       if (mode === 'off') {
         expect(logger.warn).not.toHaveBeenCalledWith('meri.citation_integrity', expect.anything());

@@ -20,7 +20,14 @@ import {
 import type { MeriResearchHandoff } from './meri-research-handoff.js';
 import type { ResearchRunState } from './meri-research-run-state.js';
 import type { SourceAttribution } from './meri-research.service.js';
-import { certifyResearchProducerInputs } from './meri-report-provenance.js';
+import {
+  certifyResearchProducerInputs,
+  publicResearchSourceTool,
+} from './meri-report-provenance.js';
+import {
+  projectResearchObserverEvent,
+  RESEARCH_PROVIDER_FAILURE,
+} from './research-observer-projection.js';
 import type { ResearchPlanV1 } from './meri-research-plan.js';
 
 export interface ResearchRuntimeAuth {
@@ -57,8 +64,6 @@ type ResearchDoneFrame = DoneFrame & {
   producerInputMode?: 'source_free' | 'covered_inputs' | 'unsupported_private_inputs';
   clientContextSha256?: string | null;
 };
-
-const V3_RESEARCH_REASONING_STATUS = 'Reviewing evidence and preparing the report…';
 
 /** Reuse chat's provider-led Responses loop, credentials, tools and governance. */
 @Injectable()
@@ -114,6 +119,8 @@ export class MeriV3ResearchRunner {
     for (const entry of ledgerEntries) {
       const durable = entry.durableSafeRead;
       if (!durable) continue;
+      const publicTool = publicResearchSourceTool(durable.tool);
+      if (!publicTool) continue;
       const matchingSteps = result.steps.filter(
         (step) => step.durableSafeRead?.executionId === durable.executionId,
       );
@@ -133,23 +140,34 @@ export class MeriV3ResearchRunner {
       )
         continue;
       const source: SourceAttribution = {
-        tool: durable.tool,
-        label: matchedStep.label,
-        summary: `${durable.tool} returned a qualified ${durable.classifier} result.`,
+        tool: publicTool,
+        label: 'Research source',
+        summary: 'Authorized read completed',
         confidence: 'high',
       };
       sources.push(source);
-      toolsUsed.push(durable.tool);
-      onEvent({
-        type: 'source',
-        source,
-        durableSafeRead: {
-          ...durable,
-          outcome: 'complete',
-          persisted: true,
-          toolCallId: durable.providerCallId,
+      toolsUsed.push(publicTool);
+      const projected = projectResearchObserverEvent(
+        {
+          type: 'source',
+          source,
+          durableSafeRead: {
+            executionId: durable.executionId,
+            providerCallId: durable.providerCallId,
+            tool: publicTool,
+            toolVersion: durable.toolVersion,
+            classifier: durable.classifier,
+            sequence: durable.sequence,
+            receiptId: durable.receiptId,
+            replayed: durable.replayed,
+            outcome: 'complete',
+            persisted: true,
+            toolCallId: durable.providerCallId,
+          },
         },
-      });
+        { receiptCandidates: true },
+      );
+      if (projected) onEvent(projected);
     }
     return {
       reportBody: result.reply,
@@ -191,12 +209,18 @@ export class MeriV3ResearchRunner {
         'The conversation’s OpenAI provider is not configured.',
       );
     const currentTurnImages = await this.snapshotImages(ctx, input.handoff);
-    const inherited = toolPolicy === 'read-only'
-      ? await this.conversationEvidence.load(ctx, input.conversationId ?? input.handoff?.conversationId ?? undefined,
-          input.clientId, auth.signal, input.handoff?.messages)
-      : { citations: [], unavailable: 0, omitted: 0 };
+    const inherited =
+      toolPolicy === 'read-only'
+        ? await this.conversationEvidence.load(
+            ctx,
+            input.conversationId ?? input.handoff?.conversationId ?? undefined,
+            input.clientId,
+            auth.signal,
+            input.handoff?.messages,
+          )
+        : { citations: [], unavailable: 0, omitted: 0 };
     let frame: DoneFrame | undefined;
-    let errorMessage: string | undefined;
+    let providerFailed = false;
     await this.client.streamChat({
       bearerToken: auth.bearerToken,
       aiProvider,
@@ -223,7 +247,9 @@ export class MeriV3ResearchRunner {
         governedContext: auth.governedContext,
         inheritedDocumentEvidence: inherited.citations,
         ...(inherited.unavailable || inherited.omitted
-          ? { inheritedEvidenceNotice: `${inherited.unavailable} earlier document observations could not be reauthorized; ${inherited.omitted} were outside the bounded replay. Retrieve missing evidence before using it.` }
+          ? {
+              inheritedEvidenceNotice: `${inherited.unavailable} earlier document observations could not be reauthorized; ${inherited.omitted} were outside the bounded replay. Retrieve missing evidence before using it.`,
+            }
           : {}),
         toolPolicy,
         ...(toolPolicy === 'read-only' && auth.run
@@ -239,53 +265,23 @@ export class MeriV3ResearchRunner {
         ...(currentTurnImages.length ? { currentTurnImages } : {}),
       },
       onEvent: (event) => {
-        const eventType = (event as unknown as { type?: unknown }).type;
-        if (
-          eventType === 'thinking' ||
-          eventType === 'reasoning' ||
-          eventType === 'reasoning_delta' ||
-          eventType === 'reasoning_summary'
-        ) {
-          onEvent({ type: 'progress', note: V3_RESEARCH_REASONING_STATUS });
-          return;
-        }
         if (event.type === 'done') frame = event;
-        else if (event.type === 'error') errorMessage = event.message;
-        else if (event.type === 'tool_call')
-          onEvent({ type: 'step', tool: event.tool, label: event.label });
-        else if (event.type === 'tool_done')
-          onEvent({
-            // The current V3 event contract has no stable tool-call identity or
-            // execution classification. `tool_done` also covers pre-synthesis
-            // and blocked/error UI steps, so it cannot truthfully authorize a
-            // completed safe-read receipt. Keep it operational progress only.
-            type: 'progress',
-            note:
-              event.status === 'done'
-                ? `${event.label} finished`
-                : `${event.label} status: ${event.status}`,
-          });
-        else if (
-          event.type === 'start' ||
-          event.type === 'runtime' ||
-          event.type === 'pending_approval' ||
-          event.type === 'artifact' ||
-          event.type === 'text' ||
-          event.type === 'page_write' ||
-          event.type === 'grounding_caveat'
-        )
-          onEvent(event as unknown as Record<string, unknown>);
+        else if (event.type === 'error') providerFailed = true;
+        else {
+          const projected = projectResearchObserverEvent(event);
+          if (projected) onEvent(projected);
+        }
       },
     });
     // A truncated SSE stream is not a completed report. Do not persist streamed
     // partial text or a release-gate refusal as a successful research artifact.
-    if (errorMessage) throw new ServiceUnavailableException(errorMessage);
+    if (providerFailed) throw new ServiceUnavailableException(RESEARCH_PROVIDER_FAILURE);
     const result = frame as DoneFrame | undefined;
     if (auth.signal?.aborted || result?.aborted)
       throw new BadRequestException('Research was cancelled.');
     if (result?.telemetry?.partial)
       throw new ServiceUnavailableException(
-        `Research did not complete (${result.telemetry.finishReason}). Retry before using it as a report.`,
+        'Research did not complete. Retry before using it as a report.',
       );
     if (!result?.reply?.trim())
       throw new ServiceUnavailableException('Research ended without a completed response.');
@@ -309,7 +305,8 @@ export class MeriV3ResearchRunner {
         governedContextSha256: createHash('sha256')
           .update(JSON.stringify(auth.governedContext))
           .digest('hex'),
-        userPromptTurns: input.handoff?.messages.filter((message) => message.role === 'user').length ?? 0,
+        userPromptTurns:
+          input.handoff?.messages.filter((message) => message.role === 'user').length ?? 0,
         assistantHistoryTurns:
           input.handoff?.messages.filter((message) => message.role === 'assistant').length ?? 0,
       },

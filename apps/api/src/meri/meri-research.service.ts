@@ -11,10 +11,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import type { MeriCitation, TenantContext } from '@capiro/shared';
-import {
-  validateCitationMarkers,
-  validateFormBCitations,
-} from '@capiro/shared';
+import { validateCitationMarkers, validateFormBCitations } from '@capiro/shared';
 import { classifyApiToolReadOutcome } from '@capiro/shared/meri-read-outcome';
 import {
   runAuditor,
@@ -28,7 +25,11 @@ import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { isInternalClioArtifact } from '../common/internal-clio-artifact.js';
 import { MeriToolsService } from './meri-tools.service.js';
-import { clientScopeRefusal, CLIENT_ID_UUID_RE, isMeriMailReadTool } from './meri-prompt.helpers.js';
+import {
+  clientScopeRefusal,
+  CLIENT_ID_UUID_RE,
+  isMeriMailReadTool,
+} from './meri-prompt.helpers.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
 import { DELIVERABLE_RISK_TIERS } from '@capiro/shared';
@@ -109,6 +110,7 @@ import {
   certifyResearchProducerInputs,
   publicResearchSourceTool,
 } from './meri-report-provenance.js';
+import { projectResearchObserverEvent } from './research-observer-projection.js';
 
 const PRODUCT_NAME = 'Meri';
 
@@ -122,8 +124,7 @@ const PRODUCT_NAME = 'Meri';
  */
 const SYNTHESIS_FLOOR_MS = 180_000;
 
-const RESEARCH_GATHER_THINKING_STATUS =
-  'Reviewing evidence and planning the next research step…';
+const RESEARCH_GATHER_THINKING_STATUS = 'Reviewing evidence and planning the next research step…';
 const RESEARCH_SYNTHESIS_THINKING_STATUS = 'Writing the report…';
 
 export interface SourceAttribution {
@@ -295,7 +296,8 @@ export class MeriResearchService {
         const sessionId =
           typeof metadata.researchSessionId === 'string' && metadata.researchSessionId
             ? metadata.researchSessionId
-            : typeof linkedMetadata.researchSessionId === 'string' && linkedMetadata.researchSessionId
+            : typeof linkedMetadata.researchSessionId === 'string' &&
+                linkedMetadata.researchSessionId
               ? linkedMetadata.researchSessionId
               : null;
         const reportDerived =
@@ -364,13 +366,9 @@ export class MeriResearchService {
     const storedRun = readResearchRun(session.metadata);
     if (report) {
       try {
-        await this.assertReplayedReportSourcesAuthorized(
-          ctx,
-          session.id,
-          storedRun,
-          null,
-          { reportArtifactId: report.id },
-        );
+        await this.assertReplayedReportSourcesAuthorized(ctx, session.id, storedRun, null, {
+          reportArtifactId: report.id,
+        });
       } catch {
         reportBodyWithheld = true;
         report = {
@@ -536,13 +534,9 @@ export class MeriResearchService {
     if (researchMetadata(artifact.metadata).heldForReview === true)
       throw new BadRequestException('This research report is held for review');
     const storedRun = readResearchRun(session.metadata);
-    await this.assertReplayedReportSourcesAuthorized(
-      ctx,
-      session.id,
-      storedRun,
-      null,
-      { reportArtifactId: session.reportArtifactId },
-    );
+    await this.assertReplayedReportSourcesAuthorized(ctx, session.id, storedRun, null, {
+      reportArtifactId: session.reportArtifactId,
+    });
     return { title: artifact.title, markdown: artifact.bodyText ?? '' };
   }
 
@@ -709,7 +703,8 @@ export class MeriResearchService {
       if (!receipt?.resultRef || !receipt.resultBodySha256) return { replayed: false as const };
       const handoff = readResearchHandoff(current.metadata);
       const backing = researchMetadata(current.metadata).backingConversationId;
-      const conversationId = handoff?.conversationId ?? (typeof backing === 'string' ? backing : null);
+      const conversationId =
+        handoff?.conversationId ?? (typeof backing === 'string' ? backing : null);
       if (!conversationId) return { replayed: false as const };
       const artifact = await tx.clioArtifact.findFirst({
         where: {
@@ -742,19 +737,13 @@ export class MeriResearchService {
       )
         return { replayed: false as const };
       const classified = classifyApiToolReadOutcome(envelope.tool, envelope.result);
-      if (classified?.kind !== envelope.classifier)
-        return { replayed: false as const };
-      if (!supportsDurableOwnerReauthorization(envelope.tool))
-        return { replayed: false as const };
+      if (classified?.kind !== envelope.classifier) return { replayed: false as const };
+      if (!supportsDurableOwnerReauthorization(envelope.tool)) return { replayed: false as const };
       let currentOwnerResult: unknown;
       try {
         // The canonical owner path re-evaluates RLS/ACL, lifecycle and source
         // version now. This is an authorization proof read, not old coverage.
-        currentOwnerResult = await this.tools.execute(
-          ctx,
-          envelope.tool as never,
-          envelope.input,
-        );
+        currentOwnerResult = await this.tools.execute(ctx, envelope.tool as never, envelope.input);
       } catch {
         return { replayed: false as const };
       }
@@ -1006,7 +995,10 @@ export class MeriResearchService {
                 data = sseEvent({
                   ...event,
                   sequence: persisted.sequence,
-                  durableSafeRead: publicDurableSafeRead(persisted, qualification.replayed === true),
+                  durableSafeRead: publicDurableSafeRead(
+                    persisted,
+                    qualification.replayed === true,
+                  ),
                 });
               }
               safeWrite(data);
@@ -1122,7 +1114,9 @@ export class MeriResearchService {
     input: ResearchSafeReadOutcomeInput,
   ) {
     if (!input.executionId?.trim() || !input.providerCallId?.trim())
-      throw new ConflictException('A durable safe-read outcome requires exact invocation identity.');
+      throw new ConflictException(
+        'A durable safe-read outcome requires exact invocation identity.',
+      );
     this.assertCurrentSafeReadPolicy(ctx, input.tool, input.toolVersion);
     const readOutcome = classifyApiToolReadOutcome(input.tool, input.result);
     if (readOutcome?.kind !== 'complete' && readOutcome?.kind !== 'empty')
@@ -1141,7 +1135,9 @@ export class MeriResearchService {
         existing.inputSha256 !== researchJsonSha256(input.input) ||
         existing.resultSha256 !== researchJsonSha256(input.result)
       )
-        throw new ConflictException('Durable safe-read execution identity was reused inconsistently.');
+        throw new ConflictException(
+          'Durable safe-read execution identity was reused inconsistently.',
+        );
       return existing;
     }
 
@@ -1197,9 +1193,10 @@ export class MeriResearchService {
       },
       select: { id: true },
     });
-    const receiptBase = conversationId === metadata.backingConversationId
-      ? current.metadata
-      : { ...metadata, backingConversationId: conversationId };
+    const receiptBase =
+      conversationId === metadata.backingConversationId
+        ? current.metadata
+        : { ...metadata, backingConversationId: conversationId };
     const appended = appendDurableResearchResultReceipt(receiptBase, run, {
       receiptId: `${run.id}:${run.leaseEpoch}:${input.executionId}`,
       toolCallId: input.providerCallId,
@@ -1622,13 +1619,13 @@ export class MeriResearchService {
         },
         auth,
         (event) => {
+          const projected = projectResearchObserverEvent(event, { receiptCandidates: true });
+          if (!projected) return;
           // Progress follows observed provider/tool events, never an elapsed-time percentage.
-          if (event.type === 'step' && typeof event.label === 'string')
-            progress.set(`Reading ${event.label}…`);
-          else if (event.type === 'source')
+          if (projected.type === 'step') progress.set('Reading an authorized research source…');
+          else if (projected.type === 'source')
             progress.set('Reviewing the retrieved evidence for the report…');
-          // The shared report/audit tail delivers text after evidence checks.
-          if (event.type !== 'text' && event.type !== 'done') sse.write(sseEvent(event));
+          sse.write(sseEvent(projected));
         },
       );
       await this.finishResearch(ctx, acceptedSession, sse, progress, {
@@ -1793,18 +1790,20 @@ export class MeriResearchService {
               'anthropic-version': '2023-06-01',
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify(prepareAnthropicRequest({
-              model,
-              max_tokens: thinking.maxTokens,
-              // Zero-trust Wave 1 (RC8): temperature 0.2 on the figure-heavy
-              // research rounds — but ONLY when extended thinking is off
-              // (Anthropic rejects temperature != 1 alongside a thinking block).
-              ...(thinking.thinking ? { thinking: thinking.thinking } : { temperature: 0.2 }),
-              stream: true,
-              system,
-              tools: toolSchemas,
-              messages,
-            })),
+            body: JSON.stringify(
+              prepareAnthropicRequest({
+                model,
+                max_tokens: thinking.maxTokens,
+                // Zero-trust Wave 1 (RC8): temperature 0.2 on the figure-heavy
+                // research rounds — but ONLY when extended thinking is off
+                // (Anthropic rejects temperature != 1 alongside a thinking block).
+                ...(thinking.thinking ? { thinking: thinking.thinking } : { temperature: 0.2 }),
+                stream: true,
+                system,
+                tools: toolSchemas,
+                messages,
+              }),
+            ),
             signal: auth.signal
               ? AbortSignal.any([controller.signal, auth.signal])
               : controller.signal,
@@ -2024,10 +2023,10 @@ export class MeriResearchService {
             label: humanToolLabel(t.name),
             count: count ?? undefined,
             summary: isError
-              ? readOutcome?.reason ??
+              ? (readOutcome?.reason ??
                 (typeof (resultPayload as { error?: unknown })?.error === 'string'
                   ? (resultPayload as { error: string }).error
-                  : 'Tool error')
+                  : 'Tool error'))
               : (readOutcome?.reason ?? detail) || 'Completed',
             confidence: qualifiedSuccess ? 'high' : 'low',
           };
@@ -2041,18 +2040,16 @@ export class MeriResearchService {
               source,
               ...(qualifiedSuccess && this.tools.isConcurrencySafe(t.name) && t.id && toolVersion
                 ? {
-                    durableSafeRead:
-                      replayedReceipt ??
-                      {
-                        outcome: 'complete',
-                        executionId: randomUUID(),
-                        toolCallId: t.id,
-                        tool: t.name,
-                        toolVersion,
-                        input: parsedInput,
-                        result: resultPayload,
-                        ...(typeof count === 'number' ? { recordsReturned: count } : {}),
-                      },
+                    durableSafeRead: replayedReceipt ?? {
+                      outcome: 'complete',
+                      executionId: randomUUID(),
+                      toolCallId: t.id,
+                      tool: t.name,
+                      toolVersion,
+                      input: parsedInput,
+                      result: resultPayload,
+                      ...(typeof count === 'number' ? { recordsReturned: count } : {}),
+                    },
                   }
                 : {}),
             }),
@@ -2128,18 +2125,20 @@ export class MeriResearchService {
               'anthropic-version': '2023-06-01',
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify(prepareAnthropicRequest({
-              model,
-              max_tokens: thinking.maxTokens,
-              // Zero-trust Wave 1 (RC8): temperature 0.2 on the figure-heavy
-              // research rounds — but ONLY when extended thinking is off
-              // (Anthropic rejects temperature != 1 alongside a thinking block).
-              ...(thinking.thinking ? { thinking: thinking.thinking } : { temperature: 0.2 }),
-              stream: true,
-              system,
-              // No `tools` key → the model cannot call tools and must answer.
-              messages,
-            })),
+            body: JSON.stringify(
+              prepareAnthropicRequest({
+                model,
+                max_tokens: thinking.maxTokens,
+                // Zero-trust Wave 1 (RC8): temperature 0.2 on the figure-heavy
+                // research rounds — but ONLY when extended thinking is off
+                // (Anthropic rejects temperature != 1 alongside a thinking block).
+                ...(thinking.thinking ? { thinking: thinking.thinking } : { temperature: 0.2 }),
+                stream: true,
+                system,
+                // No `tools` key → the model cannot call tools and must answer.
+                messages,
+              }),
+            ),
             signal: auth.signal
               ? AbortSignal.any([controller.signal, auth.signal])
               : controller.signal,
@@ -2422,8 +2421,7 @@ export class MeriResearchService {
           inheritedCitationCount,
           inheritedUnavailableCount: 0,
           inheritedOmittedCount: 0,
-          contextPacketItemCount:
-            result.runAuth.governedContext?.contextPacket.items.length ?? 0,
+          contextPacketItemCount: result.runAuth.governedContext?.contextPacket.items.length ?? 0,
           unreceiptedLedgerEntryCount: ledgerEntries.filter(
             (entry) => !toolsUsed.includes(entry.tool),
           ).length,
@@ -2632,13 +2630,10 @@ export class MeriResearchService {
       return { artifactId: artifact.id, messageId: reportMessage?.id ?? null, conversationId };
     });
     // Persistence and network publication are separate revocation boundaries.
-    await this.assertReplayedReportSourcesAuthorized(
-      ctx,
-      session.id,
-      result.runAuth.run!,
-      null,
-      { reportArtifactId: artifactId, conversationId: persisted.conversationId },
-    );
+    await this.assertReplayedReportSourcesAuthorized(ctx, session.id, result.runAuth.run!, null, {
+      reportArtifactId: artifactId,
+      conversationId: persisted.conversationId,
+    });
 
     if (handoff?.conversationId) {
       try {
@@ -3116,12 +3111,14 @@ export class MeriResearchService {
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(prepareAnthropicRequest({
-          model,
-          max_tokens: 1500,
-          system,
-          messages: [{ role: 'user', content: user }],
-        })),
+        body: JSON.stringify(
+          prepareAnthropicRequest({
+            model,
+            max_tokens: 1500,
+            system,
+            messages: [{ role: 'user', content: user }],
+          }),
+        ),
         signal: signal ? AbortSignal.any([controller.signal, signal]) : controller.signal,
       });
       if (!response.ok) {
@@ -3257,8 +3254,7 @@ function publicDurableSafeRead(receipt: DurableResearchStepReceipt, replayed: bo
     tool,
     label: 'Research source',
     status: receipt.status,
-    summary:
-      receipt.status === 'complete' ? 'Authorized read completed' : 'Authorized read failed',
+    summary: receipt.status === 'complete' ? 'Authorized read completed' : 'Authorized read failed',
     completedAt: receipt.completedAt,
     outcome: 'complete',
     persisted: true,
@@ -3302,8 +3298,12 @@ function publicResearchSessionMetadata(value: unknown): Record<string, unknown> 
     handoff: {
       conversationId: readResearchHandoff(value)?.conversationId ?? null,
     },
-    ...(typeof metadata.planMessageId === 'string' ? { planMessageId: metadata.planMessageId } : {}),
-    ...(typeof metadata.reportMessageId === 'string' ? { reportMessageId: metadata.reportMessageId } : {}),
+    ...(typeof metadata.planMessageId === 'string'
+      ? { planMessageId: metadata.planMessageId }
+      : {}),
+    ...(typeof metadata.reportMessageId === 'string'
+      ? { reportMessageId: metadata.reportMessageId }
+      : {}),
     ...(Array.isArray(metadata.durableStepReceipts)
       ? {
           durableStepReceipts: readDurableResearchStepReceipts(metadata).map((receipt) =>
@@ -3371,9 +3371,7 @@ function withheldPublicResearchReportMetadata(
         const tool = publicResearchSourceTool(step.tool);
         const safe = {
           ...(tool ? { tool } : {}),
-          ...(typeof step.count === 'number' &&
-          Number.isSafeInteger(step.count) &&
-          step.count >= 0
+          ...(typeof step.count === 'number' && Number.isSafeInteger(step.count) && step.count >= 0
             ? { count: step.count }
             : {}),
           ...(['low', 'high'].includes(String(step.confidence))
