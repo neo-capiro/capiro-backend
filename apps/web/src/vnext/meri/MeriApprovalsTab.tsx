@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { PendingApproval } from '../../components/chat/useMeriChatController.js';
 import { clientSaveReceipt } from '../../components/chat/meri-client-save-receipt.js';
+import { outstandingApprovals } from '../../components/chat/meri-pending-approvals.js';
 import { MeriIcon } from './meri-icons.js';
 import type { MeriIconName } from './meri-icons.js';
 import { MeriPanelState } from './MeriPanelState.js';
@@ -67,6 +68,20 @@ function statusPresentation(proposal: PendingApproval, receiptLabel: string | nu
       label: `${receiptLabel.toUpperCase()} · ${(proposal.preview?.label ?? '').toUpperCase()}`,
       tone: STATUS_PRESENTATION[proposal.status]?.tone ?? 'gray',
       icon: STATUS_PRESENTATION[proposal.status]?.icon ?? ('InfoCircle' as MeriIconName),
+    };
+  }
+  if (proposal.approvalRecovery?.state === 'checking') {
+    return {
+      label: 'CHECKING APPROVAL STATUS',
+      tone: 'warning' as const,
+      icon: 'Loading01' as MeriIconName,
+    };
+  }
+  if (proposal.approvalRecovery?.state === 'unavailable') {
+    return {
+      label: 'APPROVAL OUTCOME UNCONFIRMED',
+      tone: 'warning' as const,
+      icon: 'AlertTriangle' as MeriIconName,
     };
   }
   // Generic lifecycle statuses show the status label alone; the readable
@@ -159,8 +174,10 @@ function policyRows(proposal: PendingApproval): Array<{ key: string; value: stri
   if (policy.recipientType) rows.push({ key: 'Recipient type', value: policy.recipientType });
   if (proposal.policyCode) rows.push({ key: 'Policy code', value: proposal.policyCode });
   if (proposal.ruleId) rows.push({ key: 'Rule', value: proposal.ruleId });
-  if (policy.decisionHash) rows.push({ key: 'Decision hash', value: truncateHash(policy.decisionHash) });
-  if (policy.contextHash) rows.push({ key: 'Context hash', value: truncateHash(policy.contextHash) });
+  if (policy.decisionHash)
+    rows.push({ key: 'Decision hash', value: truncateHash(policy.decisionHash) });
+  if (policy.contextHash)
+    rows.push({ key: 'Context hash', value: truncateHash(policy.contextHash) });
   rows.push({ key: 'Attempts', value: String(proposal.attemptCount ?? 0) });
   return rows;
 }
@@ -171,6 +188,7 @@ export interface MeriApprovalsTabProps {
   onApprove: (proposalId: string) => void;
   onApproveAll: () => void;
   onDismiss: (proposalId: string) => void;
+  onRefreshApprovalStatus?: (proposalId: string) => void;
 }
 
 export function MeriApprovalsTab({
@@ -179,12 +197,13 @@ export function MeriApprovalsTab({
   onApprove,
   onApproveAll,
   onDismiss,
+  onRefreshApprovalStatus = () => undefined,
 }: MeriApprovalsTabProps) {
   const actionBusy = Boolean(approvingProposalId);
   const [confirmFor, setConfirmFor] = useState<PendingApproval | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [policyOpenFor, setPolicyOpenFor] = useState<string | null>(null);
-  const proposedApprovals = approvals.filter((proposal) => proposal.status === 'proposed');
+  const proposedApprovals = outstandingApprovals(approvals);
   const proposedCount = proposedApprovals.length;
 
   // Drop a held dialog if the server retires the proposal underneath it.
@@ -220,10 +239,16 @@ export function MeriApprovalsTab({
       </p>
       <div className="vnext-meri__pending-approvals">
         {approvals.map((proposal) => {
+          const recoveryBlocksAction =
+            proposal.approvalRecovery?.state === 'checking' ||
+            proposal.approvalRecovery?.state === 'unavailable';
           const canApprove =
-            proposal.status === 'proposed' || proposal.status === 'failed_retryable';
+            !recoveryBlocksAction &&
+            (proposal.status === 'proposed' || proposal.status === 'failed_retryable');
           const canDismiss =
-            proposal.status === 'proposed' || proposal.status === 'failed_retryable';
+            !recoveryBlocksAction &&
+            (proposal.status === 'proposed' || proposal.status === 'failed_retryable');
+          const mayCheckStatus = proposal.approvalRecovery?.state === 'unavailable';
           const receipt = clientSaveReceipt(proposal);
           const briefingLocation = briefingDraftLocation(proposal);
           const outcome =
@@ -312,8 +337,12 @@ export function MeriApprovalsTab({
                 <div className="vnext-meri__pending-approval-fields">
                   {fields.map((field) => (
                     <div key={field.key} className="vnext-meri__pending-approval-field">
-                      <span className="vnext-meri__pending-approval-field-label">{field.label}</span>
-                      <span className="vnext-meri__pending-approval-field-value">{field.value}</span>
+                      <span className="vnext-meri__pending-approval-field-label">
+                        {field.label}
+                      </span>
+                      <span className="vnext-meri__pending-approval-field-value">
+                        {field.value}
+                      </span>
                     </div>
                   ))}
                   {counts.length ? (
@@ -334,6 +363,12 @@ export function MeriApprovalsTab({
               ) : null}
 
               {reason ? <div className="vnext-meri__pending-approval-reason">{reason}</div> : null}
+
+              {proposal.approvalRecovery ? (
+                <div className="vnext-meri__attachment-notice" role="alert" aria-live="assertive">
+                  {proposal.approvalRecovery.message}
+                </div>
+              ) : null}
 
               {outcome ? <div className="vnext-meri__attachment-notice">{outcome}</div> : null}
 
@@ -377,9 +412,18 @@ export function MeriApprovalsTab({
                 <div className="vnext-meri__attachment-notice">{proposal.error.message}</div>
               ) : null}
 
-              {canApprove || canDismiss ? (
+              {canApprove || canDismiss || mayCheckStatus ? (
                 <div className="vnext-meri__pending-approval-actions">
-                  {canApprove ? (
+                  {mayCheckStatus ? (
+                    <button
+                      type="button"
+                      className="vnext-meri__pending-approval-btn vnext-meri__pending-approval-btn--approve"
+                      disabled={actionBusy}
+                      onClick={() => onRefreshApprovalStatus(proposal.proposalId)}
+                    >
+                      {active ? 'Checking status…' : 'Check status'}
+                    </button>
+                  ) : canApprove ? (
                     <button
                       type="button"
                       className="vnext-meri__pending-approval-btn vnext-meri__pending-approval-btn--approve"
@@ -387,10 +431,12 @@ export function MeriApprovalsTab({
                       onClick={() => setConfirmFor(proposal)}
                     >
                       {active
-                        ? proposal.status === 'failed_retryable'
+                        ? proposal.status === 'failed_retryable' ||
+                          proposal.approvalRecovery?.state === 'safe_failure'
                           ? 'Retrying…'
                           : 'Approving…'
-                        : proposal.status === 'failed_retryable'
+                        : proposal.status === 'failed_retryable' ||
+                            proposal.approvalRecovery?.state === 'safe_failure'
                           ? 'Retry'
                           : 'Approve'}
                     </button>
@@ -417,9 +463,7 @@ export function MeriApprovalsTab({
                     type="button"
                     className="vnext-meri__pending-approval-policy-toggle"
                     aria-expanded={policyOpen}
-                    onClick={() =>
-                      setPolicyOpenFor(policyOpen ? null : proposal.proposalId)
-                    }
+                    onClick={() => setPolicyOpenFor(policyOpen ? null : proposal.proposalId)}
                   >
                     <MeriIcon name="ShieldTick" size={14} color="#667085" />
                     {`${policyOpen ? 'HIDE' : 'SHOW'} POLICY DECISION · ${policy.length} FIELDS`}
