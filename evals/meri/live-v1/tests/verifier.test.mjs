@@ -345,6 +345,111 @@ test('unimplemented row predicate remains NOT_RUN rather than trusting hard-gate
   assert.match(caseResult.reason, /row-specific deterministic predicate is not implemented/u);
 });
 
+test('cases 13-18 and 40-45 validate canonical saved UNIT evidence but remain NOT_RUN', (t) => {
+  const variantsById = new Map([
+    ...['13', '14', '15', '16', '17', '18', '40', '41', '43', '44', '45'].map((id) => [id, [{ id }]]),
+    ['42', [
+      { id: '42', runtimeMode: 'Standard', pairId: 'case42-pair' },
+      { id: '42', runtimeMode: 'Deep', pairId: 'case42-pair' },
+    ]],
+  ]);
+  for (const [id, variants] of variantsById) {
+    const { bundle } = unit(t, variants);
+    const caseResult = result(verifyCaptureBundle(bundle), id);
+    assert.equal(caseResult.status, 'NOT_RUN', id);
+    assert.match(caseResult.reason, /UNIT fixture.*NOT live/iu, id);
+    assert.deepEqual([...new Set(caseResult.details)], [
+      'saved artifact hashes and structural joins were checked, but capture/auth/source authority remains unverified',
+    ], id);
+  }
+});
+
+test('memory saved-evidence counterexamples fail closed across bytes, joins, actor, role, client, version, receipt, and effects', (t) => {
+  const counterexamples = [
+    ['payload bytes', '13', (root, capture) => {
+      const payload = writeArtifact(root, capture.evidence.effects.payloadRef, { kind: 'memory_proposal', sourceId: 'MEM-PROPOSAL-13', passed: true });
+      capture.evidence.effects.payloadSha256 = payload.sha256;
+      const sinkDescriptor = { ref: capture.evidence.effects.sinkRef, sha256: capture.evidence.effects.sinkSha256 };
+      mutateJson(root, sinkDescriptor, (sink) => { sink.payloadSha256 = payload.sha256; });
+      capture.evidence.effects.sinkSha256 = sinkDescriptor.sha256;
+      mutateJson(root, capture.evidence.run.traceArtifact, (trace) => {
+        trace.records.find((record) => record.kind === 'proposal').payloadSha256 = payload.sha256;
+      });
+    }, /actual payload bytes/u],
+    ['actor binding', '14', (root, capture) => {
+      mutateJson(root, capture.evidence.predicate.artifact, (receipt) => { receipt.actorId = 'PAT'; });
+    }, /actorId.*not bound/u],
+    ['current role', '16', (root, capture) => {
+      const descriptor = { ref: capture.evidence.auth.sessionEvidenceRef, sha256: capture.evidence.auth.sessionEvidenceSha256 };
+      mutateJson(root, descriptor, (auth) => { auth.currentRoles = ['ordinary_actor', 'institutional_memory_reviewer']; });
+      capture.evidence.auth.sessionEvidenceSha256 = descriptor.sha256;
+    }, /current role\/wall authority|current roles/u],
+    ['client binding', '14', (root, capture) => {
+      mutateJson(root, capture.evidence.predicate.artifact, (receipt) => { receipt.clientId = 'BLUEHAVEN'; });
+    }, /clientId.*not bound/u],
+    ['approved version', '18', (root, capture) => {
+      mutateJson(root, capture.evidence.predicate.artifact, (receipt) => {
+        receipt.memory.proposals.find((proposal) => proposal.sourceId === 'MEM-CONFLICT-18-B').versionId = 'wrong-version';
+      });
+    }, /versionId.*frozen contract|recall.*current version/u],
+    ['approval receipt', '14', (root, capture) => {
+      mutateJson(root, capture.evidence.predicate.artifact, (receipt) => {
+        receipt.memory.proposals[0].receiptId = 'self-reported-receipt';
+        receipt.memory.attempts[0].receiptId = 'self-reported-receipt';
+      });
+    }, /authoritative sink receipt\/effect/u],
+    ['extra effect', '14', (root, capture) => {
+      const sinkDescriptor = { ref: capture.evidence.effects.sinkRef, sha256: capture.evidence.effects.sinkSha256 };
+      const sink = mutateJson(root, sinkDescriptor, (value) => {
+        value.effects.push({ logicalEffectId: 'extra-memory-effect', type: 'memory_decision', status: 'succeeded' });
+        value.receipts.push({ receiptId: 'extra-memory-receipt', logicalEffectId: 'extra-memory-effect', status: 'succeeded' });
+      });
+      capture.evidence.effects.sinkSha256 = sinkDescriptor.sha256;
+      capture.evidence.effects.observedLogicalEffectCount = sink.effects.length;
+      capture.evidence.effects.receiptIds = sink.receipts.map((receipt) => receipt.receiptId);
+      mutateJson(root, capture.evidence.run.traceArtifact, (trace) => {
+        trace.records.push({ kind: 'effect', caseId: '14', runId: capture.evidence.run.runId, traceId: capture.evidence.run.traceId,
+          operationId: capture.evidence.effects.operationId, proposalId: capture.evidence.effects.proposalId,
+          receiptId: 'extra-memory-receipt', logicalEffectId: 'extra-memory-effect' });
+      });
+    }, /effect count 2 does not equal expected 1/u],
+  ];
+
+  for (const [label, id, mutate, expected] of counterexamples) {
+    const { root, bundle } = unit(t, [{ id }]);
+    mutate(root, bundle.captures[0]);
+    const caseResult = result(verifyCaptureBundle(bundle), id);
+    assert.notEqual(caseResult.status, 'PASS', label);
+    assert.match(caseResult.details.join('\n'), expected, label);
+  }
+});
+
+test('file saved-evidence counterexamples fail closed across source bytes, source calls, and page coverage', (t) => {
+  const counterexamples = [
+    ['owned source bytes', (root, capture) => {
+      const attachment = capture.evidence.sources.attachments[0];
+      const changed = writeArtifact(root, attachment.byteRef, 'changed controlled source bytes', { raw: true });
+      attachment.byteSha256 = changed.sha256;
+    }, /receipt is not bound to downloaded bytes|byte hash is not bound/u],
+    ['source call join', (root, capture) => {
+      mutateJson(root, capture.evidence.predicate.artifact, (receipt) => {
+        receipt.document.receipts[0].toolCallIds[0] = 'phantom-page-call';
+        receipt.document.receipts[0].readRanges[0].toolCallId = 'phantom-page-call';
+      });
+    }, /unbound source call/u],
+    ['pagination coverage', (root, capture) => {
+      mutateJson(root, capture.evidence.predicate.artifact, (receipt) => { receipt.document.receipts[0].readRanges.pop(); });
+    }, /page 1–80 range coverage/u],
+  ];
+  for (const [label, mutate, expected] of counterexamples) {
+    const { root, bundle } = unit(t, [{ id: '45' }]);
+    mutate(root, bundle.captures[0]);
+    const caseResult = result(verifyCaptureBundle(bundle), '45');
+    assert.notEqual(caseResult.status, 'PASS', label);
+    assert.match(caseResult.details.join('\n'), expected, label);
+  }
+});
+
 test('recorded provider refuses embedded write execution request', async () => {
   const output = 'saved output';
   const provider = new RecordedCaptureProvider([{ caseId: '51', output, outputSha256: sha256RawBytes(Buffer.from(output)), writeRequest: { send: true } }]);

@@ -57,3 +57,24 @@ export interface LiveCase {
   hardGates: readonly HardGate[];
   humanRubric: HumanRubric;
 }
+
+export interface SavedPredicateArtifactRef {
+  applicable: boolean;
+  notApplicableReason: string | null;
+  artifact: { ref: string; sha256: string } | null;
+}
+
+export type SavedEvidenceAuthorityClass = 'UNIT_FIXTURE_NOT_LIVE' | 'AUTHORITATIVE_CAPTURE';
+
+export interface SavedEvidenceBinding {
+  captureRunId: string;
+  caseId: LiveCaseId;
+  runId: string;
+  traceId: string;
+  sessionId: string;
+  actorId: ActorId;
+  tenantId: string;
+  clientId: ClientId;
+  route: string | null;
+  authorityClass: SavedEvidenceAuthorityClass;
+}

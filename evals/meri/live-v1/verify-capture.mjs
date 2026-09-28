@@ -42,6 +42,7 @@ function readCaptureArtifacts(reader, capture) {
   const adjudication = capture.rubric.adjudicationRef
     ? reader.readJson(artifact(capture.rubric.adjudicationRef, capture.rubric.adjudicationSha256))
     : null;
+  const acceptance = evidence.predicate.artifact ? reader.readJson(evidence.predicate.artifact) : null;
   return {
     answer: reader.readText(artifact(evidence.status.answerRef, evidence.status.answerSha256)),
     trace: reader.readJson(evidence.run.traceArtifact),
@@ -53,6 +54,7 @@ function readCaptureArtifacts(reader, capture) {
     sink,
     setup,
     adjudication,
+    acceptance,
     ui: evidence.ui.evidenceArtifacts.map((descriptor) => reader.readJson(descriptor)),
   };
 }
@@ -91,6 +93,8 @@ function validateDeclaredEvidence(capture, testCase, artifacts, captureRunId) {
   if (artifacts.setup && (artifacts.setup.schemaVersion !== 1 || artifacts.setup.captureRunId !== captureRunId || artifacts.setup.caseId !== capture.caseId)) {
     defects.push('setup artifact is not capture-run/case correlated');
   }
+  if (evidence.predicate.applicable === true && !artifacts.acceptance) defects.push('applicable row predicate artifact is missing');
+  if (evidence.predicate.applicable === false && artifacts.acceptance) defects.push('non-applicable row predicate unexpectedly has an artifact');
   for (const attachment of evidence.sources.attachments.filter((item) => item.applicable === true)) {
     const bytes = artifacts.downloads.get(attachment.attachmentId);
     const receipt = artifacts.downloadReceipts.get(attachment.attachmentId);
@@ -163,7 +167,7 @@ export function evaluateCapture(capture, testCase, context = {}) {
   let deterministic;
   let declaredDefects;
   try {
-    deterministic = evaluateDeterministicEvidence(capture, testCase, artifacts, context.captureRunId);
+    deterministic = evaluateDeterministicEvidence(capture, testCase, artifacts, context.captureRunId, context.provenance);
     if (deterministic.integrityDefects.length > 0) {
       return fail('BLOCKED', deterministic.reason || 'saved artifact correlation/integrity verification failed', deterministic.integrityDefects);
     }
