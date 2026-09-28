@@ -172,6 +172,7 @@ function makePrisma(
   capturedArtifacts?: Array<Record<string, any>>,
   tenantId = SESSION.tenantId,
 ) {
+  const artifacts = capturedArtifacts ?? [];
   const backingConversation = {
     id: 'conv-1',
     tenantId,
@@ -263,10 +264,11 @@ function makePrisma(
     clioArtifact: {
       create: async ({ data }: any) => {
         expect(reportRunFenced).toBe(true);
-        capturedArtifacts?.push(data);
-        return { id: 'artifact-1' };
+        artifacts.push(data);
+        return { id: data.id };
       },
-      findFirst: async () => null,
+      findFirst: async ({ where }: any) =>
+        artifacts.find((artifact) => !where?.id || artifact.id === where.id) ?? null,
     },
     client: {
       findFirst: async () => null,
@@ -310,7 +312,9 @@ function makeTools() {
       { name: 'searchBills', description: 'x', input_schema: { type: 'object', properties: {} } },
     ],
     isConcurrencySafe: (name: string) => !SIDE_EFFECTING_TEST.has(name),
-    execute: async () => ({ items: [{ id: 1 }], count: 1 }),
+    execute: async () => {
+      throw new Error('No qualified owner result in this source-free synthesis fixture.');
+    },
   } as unknown as ConstructorParameters<typeof MeriResearchService>[2];
 }
 
@@ -363,8 +367,9 @@ describe('MeriResearchService — forced synthesis', () => {
     }) as unknown as jest.Mock;
     global.fetch = fetchMock as unknown as typeof fetch;
 
+    const artifacts: Array<Record<string, any>> = [];
     const svc = new MeriResearchService(
-      makePrisma(),
+      makePrisma(artifacts),
       makeConfig(),
       makeTools(),
       makeAiCredentials(),
@@ -372,13 +377,16 @@ describe('MeriResearchService — forced synthesis', () => {
     );
 
     const events: Array<Record<string, unknown>> = [];
+    let bodyDeliveredBeforeSave = false;
     const sse = {
       write: (data: string) => {
         // Service writes "data: <json>\n\n"; parse the JSON payload back out.
         const line = data.split('\n').find((l) => l.startsWith('data: '));
         if (line) {
           try {
-            events.push(JSON.parse(line.slice(6)));
+            const event = JSON.parse(line.slice(6));
+            if (event.type === 'text' && artifacts.length === 0) bodyDeliveredBeforeSave = true;
+            events.push(event);
           } catch {
             /* ignore */
           }
@@ -401,11 +409,12 @@ describe('MeriResearchService — forced synthesis', () => {
     const lastMsg = synthMsgs[synthMsgs.length - 1];
     expect(String(lastMsg?.content ?? '')).toMatch(/write the decision-grade.*report now/i);
 
-    // 3. Report prose surfaced as `text` SSE events during synthesis.
+    // 3. Report prose surfaced only after durable save.
     const textEvents = events.filter((e) => e.type === 'text');
     expect(textEvents.length).toBeGreaterThan(0);
     const streamedText = textEvents.map((e) => String(e.text)).join('');
     expect(streamedText).toContain('Executive Summary');
+    expect(bodyDeliveredBeforeSave).toBe(false);
 
     // 4. A single `report` event with a non-empty body fired, before `done`.
     const reportIdx = events.findIndex((e) => e.type === 'report');
@@ -415,7 +424,7 @@ describe('MeriResearchService — forced synthesis', () => {
     expect(reportIdx).toBeGreaterThanOrEqual(0);
     const reportEvt = events[reportIdx] ?? {};
     expect(String(reportEvt.body ?? '')).toContain('Executive Summary');
-    expect(String(reportEvt.artifactId ?? '')).toBe('artifact-1');
+    expect(String(reportEvt.artifactId ?? '')).toMatch(/^[0-9a-f-]{36}$/);
     expect(doneIdx).toBeGreaterThan(reportIdx);
 
     // 5. A synthesize phase was announced.
@@ -477,7 +486,7 @@ describe('MeriResearchService — forced synthesis', () => {
     }
   });
 
-  it('strips unresolved FORM B citation tokens from the delivered report, keeping valid ones', async () => {
+  it('does not publish a report whose unsupported tool result lacks current owner authority', async () => {
     // FORM B tool names are lowercase snake_case (grammar [a-z][a-z0-9_]*), so use
     // a lowercase-named tool here. search_bills IS called this turn and its result
     // serializes "hr1234", so [S:search_bills:hr1234] resolves → kept. The other
@@ -528,12 +537,16 @@ describe('MeriResearchService — forced synthesis', () => {
 
     await svc.streamResearch(CTX, 'sess-1', sse);
 
-    const reportEvt = events.find((e) => e.type === 'report') ?? {};
-    const body = String(reportEvt.body ?? '');
-    expect(body).toContain('Findings'); // report was produced
-    expect(body).toContain('[S:search_bills:hr1234]'); // resolves → preserved verbatim
-    expect(body).not.toContain('nonesuch'); // record_id absent from the tool result → stripped
-    expect(body).not.toContain('ghost_tool'); // tool never called this turn → stripped
+    expect(events.some((event) => event.type === 'report')).toBe(false);
+    expect(events.filter((event) => event.type === 'text')).toHaveLength(0);
+    expect(events).toContainEqual({
+      type: 'error',
+      message:
+        'The research report includes private producer inputs without a current authorization adapter.',
+    });
+    expect(JSON.stringify(events)).not.toContain('Shipbuilding accounts diverge');
+    expect(JSON.stringify(events)).not.toContain('[S:search_bills:hr1234]');
+    expect(JSON.stringify(events)).not.toContain('ghost_tool');
   });
 
   it('forces synthesis (never sources-only) when a gather round times out', async () => {
@@ -837,15 +850,12 @@ describe('MeriResearchService — forced synthesis', () => {
     }
   });
 
-  it('does not emit the enforce notice when grounding enforcement is off', async () => {
+  it('delays report text until durable save even when grounding enforcement is off', async () => {
     const prevMode = process.env.MERI_AUDITOR_MODE;
     delete process.env.MERI_AUDITOR_MODE;
     try {
-      // Long enough that proseRound() splits it into several text_deltas, so
-      // "streamed as written" is actually observable (>1 text event).
       const REPORT =
-        '# Executive Summary\n\nUnenforced run: the report body streams to the reader ' +
-        'token-by-token because no grounding gate is withholding it. [searchBills]';
+        '# Executive Summary\n\nUnenforced run with publication-gated delivery. [searchBills]';
       fetchMock = jest.fn(async (_url: string, init?: RequestInit) => {
         captureBody(init);
         const body = JSON.parse(String(init?.body ?? '{}'));
@@ -854,8 +864,9 @@ describe('MeriResearchService — forced synthesis', () => {
       }) as unknown as jest.Mock;
       global.fetch = fetchMock as unknown as typeof fetch;
 
+      const artifacts: Array<Record<string, any>> = [];
       const svc = new MeriResearchService(
-        makePrisma(),
+        makePrisma(artifacts),
         makeConfig(),
         makeTools(),
         makeAiCredentials(),
@@ -866,8 +877,10 @@ describe('MeriResearchService — forced synthesis', () => {
       await svc.streamResearch(CTX, 'sess-1', sse);
 
       expect(events.find((e) => e.type === 'notice')).toBeUndefined();
-      // Unbuffered mode still streams prose as it is written.
-      expect(events.filter((e) => e.type === 'text').length).toBeGreaterThan(1);
+      const deliveredBodies = events.filter((e) => e.type === 'text');
+      expect(deliveredBodies).toHaveLength(1);
+      expect(String(deliveredBodies[0]?.text)).toContain(REPORT);
+      expect(artifacts).toHaveLength(1);
     } finally {
       if (prevMode !== undefined) process.env.MERI_AUDITOR_MODE = prevMode;
     }

@@ -223,6 +223,7 @@ import {
   assertCurrentResearchReportSourcesAuthorized,
   RESEARCH_REPORT_BODY_WITHHELD,
 } from './meri-research-replay-authorization.js';
+import { publicResearchSourceTool } from './meri-report-provenance.js';
 
 interface CreateConversationInput {
   clientId?: string;
@@ -6395,7 +6396,7 @@ function withheldResearchReportMetadata(
         const step = value && typeof value === 'object' && !Array.isArray(value)
           ? (value as Record<string, Prisma.JsonValue>)
           : {};
-        const tool = publicResearchToolName(step.tool);
+        const tool = publicResearchSourceTool(step.tool);
         const safe = {
           ...(tool ? { tool } : {}),
           ...(typeof step.count === 'number' &&
@@ -6431,9 +6432,6 @@ function withheldResearchReportMetadata(
   };
 }
 
-function publicResearchToolName(value: unknown): string | null {
-  return typeof value === 'string' && /^[a-z][a-z0-9_]{0,63}$/.test(value) ? value : null;
-}
 
 /**
  * Derive a count + human detail string from a tool result so the trust panel

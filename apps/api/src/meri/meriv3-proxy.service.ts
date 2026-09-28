@@ -293,6 +293,7 @@ export class MeriV3ProxyService {
       conversation.clientId,
       conversationSummary,
       conversationSummary?.length ?? 0,
+      true,
     );
     const inherited = await this.conversationEvidence.load(
       ctx,
@@ -783,6 +784,7 @@ export class MeriV3ProxyService {
     clientId: string | null = null,
     conversationSummary: string | null = null,
     protectedStateChars?: number,
+    summaryProvenanceVerified = false,
   ) {
     const boundary = summaryUpToMessageId
       ? await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -825,7 +827,7 @@ export class MeriV3ProxyService {
       ctx,
       { conversationId, clientId },
       messages,
-      conversationSummary,
+      summaryProvenanceVerified ? conversationSummary : null,
     );
     const authorizedMessages = reportContext.messages;
     const refsByMessage = new Map<string, AttachmentMetaRef[]>();

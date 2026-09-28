@@ -9,6 +9,10 @@ import {
 } from './meri-research-durable-result.js';
 import { RESEARCH_REPORT_BODY_WITHHELD } from './meri-research-replay-authorization.js';
 import {
+  buildResearchReportProvenance,
+  certifyResearchProducerInputs,
+} from './meri-report-provenance.js';
+import {
   buildProtocolCompactionState,
   MAX_REPLAY_HISTORY_CHARS,
   MERI_PROTOCOL_COMPACTION_METADATA_KEY,
@@ -240,6 +244,40 @@ function installActualReportAuthority(
       durableStepReceipts: mode === 'unsupported' || mode === 'missing' ? [] : [receipt],
     },
   };
+  if (mode !== 'missing' && mode !== 'unsupported') {
+    const producerInput = certifyResearchProducerInputs({
+      hashMaterial: { body: report.bodyText },
+      toolsUsed: ['search_memory'],
+      clientContext: null,
+      handoffSummaryPresent: false,
+      handoffAttachmentCount: 0,
+      assistantHandoffTurns: 0,
+      inheritedCitationCount: 0,
+      inheritedUnavailableCount: 0,
+      inheritedOmittedCount: 0,
+      contextPacketItemCount: 0,
+      unreceiptedLedgerEntryCount: 0,
+    });
+    const reportProvenance = buildResearchReportProvenance({
+      artifactId: report.id,
+      messageId: report.messageId,
+      sessionId: session.id,
+      tenantId: TENANT,
+      userId: USER,
+      clientId: null,
+      conversationId: CONVERSATION,
+      runId: 'run-1',
+      leaseEpoch: 1,
+      body: report.bodyText,
+      receipts: [receipt as never],
+      toolsUsed: ['search_memory'],
+      producerInputSha256: producerInput.producerInputSha256,
+      producerInputMode: producerInput.producerInputMode as 'covered_inputs',
+      clientContextSha256: producerInput.clientContextSha256,
+    });
+    Object.assign(report.metadata, { reportProvenance });
+    Object.assign(session.metadata, { reportProvenance });
+  }
   const reportMessage = {
     id: report.messageId,
     role: 'assistant',
@@ -292,6 +330,8 @@ describe('MeriV3ProxyService — report context authority', () => {
       null,
       null,
       REPORT_SUMMARY_MARKER,
+      undefined,
+      true,
     );
 
     expect(replay.history).toEqual([{ role: 'assistant', text: REPORT_MARKER }]);
@@ -331,6 +371,8 @@ describe('MeriV3ProxyService — report context authority', () => {
         null,
         null,
         REPORT_SUMMARY_MARKER,
+        undefined,
+        true,
       );
       const serialized = JSON.stringify(replay);
 

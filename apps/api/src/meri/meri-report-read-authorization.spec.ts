@@ -5,6 +5,10 @@ import {
   assertCurrentResearchReportSourcesAuthorized,
 } from './meri-research-replay-authorization';
 import { researchToolVersion, sealDurableResearchResult } from './meri-research-durable-result';
+import {
+  buildResearchReportProvenance,
+  certifyResearchProducerInputs,
+} from './meri-report-provenance';
 
 const ctx = { tenantId: 'tenant-1', userId: 'user-1', tenantSlug: 'tenant' } as TenantContext;
 const marker = 'REVOKED_MEMORY_REPORT_BODY';
@@ -174,6 +178,40 @@ function harness(options: {
     [ordinary.id, ordinary],
     [safeResult.id, safeResult],
   ]);
+  if (options.proof !== false && (options.toolsUsed ?? ['search_memory']).every((tool) => tool === 'search_memory')) {
+    const producerInput = certifyResearchProducerInputs({
+      hashMaterial: { body: report.bodyText },
+      toolsUsed: [...(options.toolsUsed ?? ['search_memory'])],
+      clientContext: null,
+      handoffSummaryPresent: false,
+      handoffAttachmentCount: 0,
+      assistantHandoffTurns: 0,
+      inheritedCitationCount: 0,
+      inheritedUnavailableCount: 0,
+      inheritedOmittedCount: 0,
+      contextPacketItemCount: 0,
+      unreceiptedLedgerEntryCount: 0,
+    });
+    const reportProvenance = buildResearchReportProvenance({
+      artifactId: report.id,
+      messageId: report.messageId,
+      sessionId: session.id,
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+      clientId: null,
+      conversationId: 'conversation-1',
+      runId: 'run-1',
+      leaseEpoch: 1,
+      body: report.bodyText,
+      receipts: [receipt as never],
+      toolsUsed: [...(options.toolsUsed ?? ['search_memory'])],
+      producerInputSha256: producerInput.producerInputSha256,
+      producerInputMode: producerInput.producerInputMode as 'covered_inputs',
+      clientContextSha256: producerInput.clientContextSha256,
+    });
+    Object.assign(report.metadata, { reportProvenance });
+    Object.assign(session.metadata, { reportProvenance });
+  }
   const tx = {
     clioResearchSession: { findFirst: jest.fn(async () => session) },
     clioConversation: {
@@ -264,7 +302,7 @@ describe('ordinary research report read authorization', () => {
         prisma: h.prisma as never,
         tools: { execute: h.execute } as never,
         ctx,
-        scope: { sessionId: 'session-1', toolsUsed: ['search_memory'] },
+        scope: { sessionId: 'session-1', reportArtifactId: 'report-1' },
       }),
     ).rejects.toThrow('no longer authorized');
     expect(h.execute).toHaveBeenCalledTimes(1);
@@ -322,12 +360,13 @@ describe('ordinary research report read authorization', () => {
       researchSessionId: 'session-1',
       researchReport: true,
       intent: marker,
-      trustSteps: [{ tool: marker, label: marker, count: 1, status: 'done' }],
+      trustSteps: [{ tool: 'private_source_detail', label: marker, count: 1, status: 'done' }],
     };
 
     const messages = await h.service.listMessages(ctx, 'conversation-1');
 
     expect(JSON.stringify(messages)).not.toContain(marker);
+    expect(JSON.stringify(messages)).not.toContain('private_source_detail');
     expect(messages[0]!.metadata).toMatchObject({
       researchSessionId: 'session-1',
       trustSteps: [{ count: 1, status: 'done' }],

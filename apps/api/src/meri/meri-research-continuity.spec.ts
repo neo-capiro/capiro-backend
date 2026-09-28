@@ -3,6 +3,8 @@ import { MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT } from '@capiro/meriv2-core';
 import { MeriResearchService } from './meri-research.service.js';
 import { readResearchHandoff } from './meri-research-handoff.js';
 import type { ResearchRuntimeAuth } from './meri-v3-research-runner.js';
+import { researchToolVersion, sealDurableResearchResult } from './meri-research-durable-result.js';
+import { certifyResearchProducerInputs } from './meri-report-provenance.js';
 
 jest.mock('./meri-tools.service.js', () => ({ MeriToolsService: class {} }));
 jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class {} }));
@@ -13,6 +15,37 @@ jest.mock('../engagement/ai-credential-resolver.service.js', () => ({
 jest.mock('./meri-v3-research-runner.js', () => ({ MeriV3ResearchRunner: class {} }));
 
 const ctx = { tenantId: 'tenant-a', userId: 'user-a' } as TenantContext;
+const DOCUMENT_TOOL_SCHEMA = {
+  type: 'object',
+  properties: { documentId: { type: 'string' } },
+};
+
+function completeDocumentResult() {
+  return {
+    tool: 'read_client_documents',
+    clientId: 'client-a',
+    document: { id: 'prior-file', contentHash: 'a'.repeat(64) },
+    coverage: {
+      complete: true,
+      truncated: false,
+      extractedSectionEmpty: false,
+      continuationBlocked: false,
+      matched: null,
+      nextCursor: null,
+    },
+    records: [
+      {
+        recordId: 'prior-file',
+        provenance: {
+          sectionHash: 'b'.repeat(64),
+          section: 1,
+          characterStart: 0,
+          characterEnd: 50,
+        },
+      },
+    ],
+  };
+}
 
 function providerBody(events: Array<Record<string, unknown>>): AsyncIterable<Uint8Array> {
   const bytes = new TextEncoder().encode(
@@ -34,7 +67,8 @@ function providerResponse(events: Array<Record<string, unknown>>): Response {
   } as unknown as Response;
 }
 
-function fixture() {
+function fixture(options: { privateInheritedInputs?: boolean } = {}) {
+  const privateInheritedInputs = options.privateInheritedInputs === true;
   let session: any;
   let allowed = true;
   let originAvailable = true;
@@ -46,7 +80,7 @@ function fixture() {
     id: 'thread-a',
     clientId: 'client-a',
     metadata: { meriv3: { reasoningMode: 'max' } },
-    summary: 'Keep the memo about enacted amounts.',
+    summary: privateInheritedInputs ? 'Keep the memo about enacted amounts.' : null,
     summaryUpToMessageId: null,
   };
   const messages: any[] = [
@@ -55,27 +89,34 @@ function fixture() {
       role: 'user',
       clientId: 'client-a',
       body: 'Exclude forecasted opportunities.',
-      metadata: {
-        attachments: [{ id: 'prior-file', filename: 'brief.txt', kind: 'text', status: 'parsed' }],
-      },
+      metadata: privateInheritedInputs
+        ? {
+            attachments: [
+              { id: 'prior-file', filename: 'brief.txt', kind: 'text', status: 'parsed' },
+            ],
+          }
+        : {},
       createdAt: new Date('2026-09-01'),
     },
   ];
-  const attachments = [
-    {
-      id: 'prior-file',
-      messageId: 'early-user',
-      filename: 'brief.txt',
-      kind: 'text',
-      status: 'parsed',
-      textContent: 'Client has three sensor manufacturing facilities.',
-      reason: null,
-      mediaType: 'text/plain',
-      byteSize: 50,
-      data: null,
-    },
-  ];
+  const attachments = privateInheritedInputs
+    ? [
+        {
+          id: 'prior-file',
+          messageId: 'early-user',
+          filename: 'brief.txt',
+          kind: 'text',
+          status: 'parsed',
+          textContent: 'Client has three sensor manufacturing facilities.',
+          reason: null,
+          mediaType: 'text/plain',
+          byteSize: 50,
+          data: null,
+        },
+      ]
+    : [];
   const artifacts: any[] = [];
+  let safeResultArtifact: any = null;
   const tx = {
     $queryRawUnsafe: jest.fn(async (sql: string, ...values: unknown[]) => {
       if (sql.includes('UPDATE clio_research_sessions')) {
@@ -143,7 +184,7 @@ function fixture() {
       ),
       findMany: jest.fn(async () => messages.map((message) => ({ ...message }))),
       create: jest.fn(async ({ data }: any) => {
-        const row = { ...data, id: `message-${messages.length}`, createdAt: new Date() };
+        const row = { ...data, id: data.id ?? `message-${messages.length}`, createdAt: new Date() };
         messages.push(row);
         return row;
       }),
@@ -208,9 +249,13 @@ function fixture() {
       }),
     },
     clioArtifact: {
-      findFirst: jest.fn(async () => artifacts[0] ?? null),
+      findFirst: jest.fn(async ({ where }: any) =>
+        (where?.id === safeResultArtifact?.id
+          ? safeResultArtifact
+          : artifacts.find((artifact) => !where?.id || artifact.id === where.id)) ?? null,
+      ),
       create: jest.fn(async ({ data }: any) => {
-        const artifact = { ...data, id: 'artifact-a' };
+        const artifact = { ...data, id: data.id ?? `artifact-${artifacts.length + 1}` };
         artifacts.push(artifact);
         return artifact;
       }),
@@ -229,6 +274,11 @@ function fixture() {
         description: 'Search governed memory',
         input_schema: { type: 'object', properties: { query: { type: 'string' } } },
       },
+      {
+        name: 'read_client_documents',
+        description: 'Read a governed client document',
+        input_schema: DOCUMENT_TOOL_SCHEMA,
+      },
     ]),
     isConcurrencySafe: jest.fn(() => true),
     execute: jest.fn(),
@@ -242,35 +292,87 @@ function fixture() {
         clarifyingQuestions: ['Who is the audience?'],
       }),
     ),
-    run: jest.fn(async (_ctx: unknown, _input: unknown) => ({
-      reportBody:
-        '# Client briefing\n\nUse the existing manufacturing footprint. [S:get_research_evidence:prior-file]',
-      model: 'same-chat-model',
-      sources: [],
-      toolsUsed: ['get_research_evidence'],
-      ledgerEntries: [
-        {
-          tool: 'get_research_evidence',
-          result: {
-            records: [
-              {
-                id: 'prior-file',
-                textContent: 'Client has three sensor manufacturing facilities.',
-              },
-            ],
-          },
-          serialized: JSON.stringify({
-            records: [
-              {
-                id: 'prior-file',
-                textContent: 'Client has three sensor manufacturing facilities.',
-              },
-            ],
-          }),
-        },
-      ],
-      citations: [],
-    })),
+    run: jest.fn(async (_ctx?: unknown, input?: any, auth?: ResearchRuntimeAuth) => {
+      const run = session.metadata.run;
+      const result = completeDocumentResult();
+      const sealed = sealDurableResearchResult({
+        executionId: 'execution-prior-file',
+        providerCallId: 'provider-prior-file',
+        runId: run.id,
+        leaseEpoch: run.leaseEpoch,
+        tool: 'read_client_documents',
+        toolVersion: researchToolVersion(DOCUMENT_TOOL_SCHEMA),
+        classifier: 'complete',
+        input: { documentId: 'prior-file' },
+        result,
+        completedAt: '2026-09-28T00:00:00.000Z',
+      });
+      const receipt = {
+        version: 2,
+        receiptId: 'receipt-prior-file',
+        runId: run.id,
+        leaseEpoch: run.leaseEpoch,
+        sequence: 1,
+        effectClass: 'safe_read',
+        toolCallId: 'provider-prior-file',
+        tool: 'read_client_documents',
+        label: 'Read client document',
+        status: 'complete',
+        summary: 'Authorized read completed',
+        completedAt: '2026-09-28T00:00:00.000Z',
+        executionId: 'execution-prior-file',
+        providerCallId: 'provider-prior-file',
+        toolVersion: sealed.envelope.toolVersion,
+        inputSha256: sealed.envelope.inputSha256,
+        resultSha256: sealed.envelope.resultSha256,
+        resultBodySha256: sealed.bodySha256,
+        resultRef: 'safe-result-prior-file',
+        resultByteSize: sealed.byteSize,
+        classifier: 'complete',
+      };
+      session.metadata = { ...session.metadata, durableStepReceipts: [receipt] };
+      safeResultArtifact = {
+        id: 'safe-result-prior-file',
+        tenantId: session.tenantId,
+        userId: session.userId,
+        clientId: session.clientId,
+        conversationId: 'thread-a',
+        kind: 'internal_research_safe_read_result',
+        bodyText: sealed.body,
+        metadata: { serverOnly: true },
+      };
+      tools.execute.mockResolvedValue(result);
+      const producerInput = certifyResearchProducerInputs({
+        hashMaterial: input,
+        toolsUsed: ['read_client_documents'],
+        clientContext: input?.clientContext,
+        handoffSummaryPresent: Boolean(input?.handoff?.summary),
+        handoffAttachmentCount: input?.handoff?.attachments?.length ?? 0,
+        assistantHandoffTurns:
+          input?.handoff?.messages?.filter((message: any) => message.role === 'assistant').length ?? 0,
+        inheritedCitationCount: 0,
+        inheritedUnavailableCount: 0,
+        inheritedOmittedCount: 0,
+        contextPacketItemCount: auth?.governedContext?.contextPacket.items.length ?? 0,
+        unreceiptedLedgerEntryCount: 0,
+      });
+      return {
+        reportBody:
+          '# Client briefing\n\nUse the existing manufacturing footprint. [S:read_client_documents:prior-file]',
+        model: 'same-chat-model',
+        sources: [{
+          tool: 'read_client_documents',
+          label: 'Read client document',
+          summary: 'Authorized read completed',
+          confidence: 'high',
+        }],
+        toolsUsed: ['read_client_documents'],
+        ledgerEntries: [{ tool: 'read_client_documents', result, serialized: JSON.stringify(result) }],
+        citations: [],
+        producerInputEvaluated: true,
+        ...producerInput,
+      };
+    }),
   };
   const maintenance = { scheduleAfterTurnMaintenance: jest.fn() };
   const service = new MeriResearchService(
@@ -367,7 +469,7 @@ function fixture() {
       new MeriResearchService(
         prisma as never,
         { get: () => undefined } as never,
-        { isConcurrencySafe: jest.fn(() => true) } as never,
+        tools as never,
         credentials as never,
         {} as never,
         runner as never,
@@ -394,6 +496,16 @@ function fixture() {
     afterReceipt: (callback: () => void) => {
       afterReceiptCommit = callback;
     },
+    durableDocumentRead: (toolCallId: string) => ({
+      outcome: 'complete' as const,
+      executionId: `execution-${toolCallId}`,
+      toolCallId,
+      tool: 'read_client_documents',
+      toolVersion: researchToolVersion(DOCUMENT_TOOL_SCHEMA),
+      input: { documentId: 'prior-file' },
+      result: completeDocumentResult(),
+      recordsReturned: 1,
+    }),
   };
 }
 
@@ -409,7 +521,8 @@ describe('Deep Research conversation continuity', () => {
       url: null,
       snippet: 'Client has three sensor manufacturing facilities.',
     };
-    const original = await f.runner.run(ctx, {});
+    await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+    const original = await f.runner.run(ctx, {}, f.auth);
     const reconciledRetrieval = {
       ...f.auth.governedContext!.retrieval,
       coverage: {
@@ -426,7 +539,6 @@ describe('Deep Research conversation continuity', () => {
       citations: [citation],
       retrieval: reconciledRetrieval,
     } as never);
-    await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
     await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
     const completed = f.events.find((event) => event.type === 'report');
     expect(completed.body).toContain('[7]');
@@ -443,8 +555,8 @@ describe('Deep Research conversation continuity', () => {
     expect(f.runner.run).toHaveBeenCalledTimes(callCount);
   });
 
-  it('carries stored context/evidence/effort into both phases and saves the completed report in its originating thread', async () => {
-    const f = fixture();
+  it('carries stored context/evidence/effort into both phases and withholds unsupported inherited private inputs', async () => {
+    const f = fixture({ privateInheritedInputs: true });
     await f.service.createSession(ctx, {
       topic: 'Write the client briefing',
       conversationId: 'thread-a',
@@ -469,25 +581,17 @@ describe('Deep Research conversation continuity', () => {
     expect(runInput.system).toContain('REPORT REQUIREMENTS:');
     expect(f.credentials.resolveProviderByTenantId).not.toHaveBeenCalled();
     expect(f.tx.clioConversation.create).not.toHaveBeenCalled();
-    expect(f.artifacts[0]).toMatchObject({ conversationId: 'thread-a', kind: 'research_report' });
-    const reportMessage = f.messages.find((message) => message.metadata?.researchReport);
-    expect(reportMessage.conversationId).toBe('thread-a');
-    expect(reportMessage.body).toContain('[S:get_research_evidence:prior-file]');
-    expect(f.artifacts[0].messageId).toBe(reportMessage.id);
-    expect(f.getSession().status).toBe('complete');
+    expect(f.artifacts).toHaveLength(0);
+    expect(f.getSession().status).toBe('failed');
     expect(readResearchHandoff(f.getSession().metadata)?.messages[0]?.body).toContain(
       'Exclude forecasted opportunities',
     );
-    expect(
-      f.events.some(
-        (event) =>
-          event.type === 'report' &&
-          event.artifactId === 'artifact-a' &&
-          event.messageId === reportMessage.id,
-      ),
-    ).toBe(true);
-    expect(f.maintenance.scheduleAfterTurnMaintenance).toHaveBeenCalledWith(ctx, 'thread-a');
-    expect(f.tx.clioConversation.update).toHaveBeenCalledTimes(2);
+    expect(f.events).toContainEqual({
+      type: 'error',
+      message:
+        'The research report includes private producer inputs without a current authorization adapter.',
+    });
+    expect(f.maintenance.scheduleAfterTurnMaintenance).not.toHaveBeenCalled();
   });
 
   it('does not mark a failed V3 run complete or switch provider', async () => {
@@ -536,7 +640,7 @@ describe('Deep Research conversation continuity', () => {
   });
 
   it('does not manufacture a tool evidence ledger from the attachment prompt snapshot', async () => {
-    const f = fixture();
+    const f = fixture({ privateInheritedInputs: true });
     await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
     const result = {
       reportBody: 'Client context [S:get_research_evidence:prior-file]',
@@ -546,10 +650,11 @@ describe('Deep Research conversation continuity', () => {
       ledgerEntries: [],
       citations: [],
     };
-    f.runner.run.mockResolvedValue(result);
+    f.runner.run.mockResolvedValue(result as never);
     await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
     expect(result.ledgerEntries).toHaveLength(0);
-    expect(f.artifacts[0].bodyText).not.toContain('[S:get_research_evidence:prior-file]');
+    expect(f.artifacts).toHaveLength(0);
+    expect(f.events.some((event) => event.type === 'report')).toBe(false);
   });
 });
 
@@ -567,7 +672,7 @@ describe('Durable research lease and recovery', () => {
     await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
     const ready = gate<void>();
     const release = gate<void>();
-    const result = await f.runner.run(ctx, {});
+    const result = await f.runner.run(ctx, {}, f.auth);
     f.runner.run.mockClear();
     f.runner.run.mockImplementation(async () => {
       ready.resolve();
@@ -606,7 +711,7 @@ describe('Durable research lease and recovery', () => {
     await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
     const ready = gate<void>();
     const release = gate<void>();
-    const result = await f.runner.run(ctx, {});
+    const result = await f.runner.run(ctx, {}, f.auth);
     f.runner.run.mockClear();
     f.runner.run.mockImplementation(async () => {
       ready.resolve();
@@ -631,7 +736,7 @@ describe('Durable research lease and recovery', () => {
     await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
     const ready = gate<void>();
     const release = gate<void>();
-    const result = await f.runner.run(ctx, {});
+    const result = await f.runner.run(ctx, {}, f.auth);
     f.runner.run.mockClear();
     f.runner.run.mockImplementationOnce(async () => {
       ready.resolve();
@@ -653,7 +758,7 @@ describe('Durable research lease and recovery', () => {
     expect(f.getSession().metadata.run).toMatchObject({ status: 'complete', leaseEpoch: 2 });
     expect(f.runner.run).toHaveBeenCalledTimes(2);
     const recovered = f.runner.run.mock.calls[1]?.[1] as any;
-    expect(recovered.handoff.attachments[0].id).toBe('prior-file');
+    expect(recovered.handoff.attachments).toEqual([]);
     expect(recovered.handoff.messages[0].body).toContain('Exclude forecasted');
   });
 
@@ -687,32 +792,28 @@ describe('Durable research lease and recovery', () => {
       f.auth,
     );
     expect(f.artifacts).toHaveLength(1);
-    expect((await f.service.getSession(ctx, 'research-a')).report?.bodyText).toContain(
-      'manufacturing footprint',
-    );
+    const recoveredBody = (await f.service.getSession(ctx, 'research-a')).report?.bodyText;
+    expect(recoveredBody).toContain('manufacturing footprint');
+    expect(recoveredBody).toContain('[S:read_client_documents:prior-file]');
   });
 
   it('persists a fenced safe-read receipt before notifying the observer and preserves it at terminal replay', async () => {
     const f = fixture();
     await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
-    const result = await f.runner.run(ctx, {});
+    const result = await f.runner.run(ctx, {}, f.auth);
+    delete f.getSession().metadata.durableStepReceipts;
     f.runner.run.mockClear();
     f.runner.run.mockImplementation(async (...args: any[]) => {
       const onEvent = args[3] as (event: Record<string, unknown>) => void;
       onEvent({
         type: 'source',
         source: {
-          tool: 'get_client_context',
-          label: 'Client context',
+          tool: 'read_client_documents',
+          label: 'Read client document',
           summary: 'SECRET_ROW_LABEL: raw client result',
           confidence: 'high',
         },
-        durableSafeRead: {
-          outcome: 'complete',
-          toolCallId: 'call-client-context-1',
-          tool: 'get_client_context',
-          recordsReturned: 3,
-        },
+        durableSafeRead: f.durableDocumentRead('call-client-context-1'),
       });
       return result;
     });
@@ -741,9 +842,9 @@ describe('Durable research lease and recovery', () => {
         sequence: 1,
         effectClass: 'safe_read',
         toolCallId: 'call-client-context-1',
-        tool: 'get_client_context',
+        tool: 'read_client_documents',
         status: 'complete',
-        summary: '3 authorized record(s) returned',
+        summary: 'Authorized read completed',
       }),
     ]);
     expect(JSON.stringify(f.getSession().metadata.durableStepReceipts)).not.toContain(
@@ -765,22 +866,19 @@ describe('Durable research lease and recovery', () => {
     async (change) => {
       const f = fixture();
       await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
-      const result = await f.runner.run(ctx, {});
+      const result = await f.runner.run(ctx, {}, f.auth);
+      delete f.getSession().metadata.durableStepReceipts;
       f.runner.run.mockImplementation(async (...args: any[]) => {
         const onEvent = args[3] as (event: Record<string, unknown>) => void;
         onEvent({
           type: 'source',
           source: {
-            tool: 'get_client_context',
-            label: 'Client context',
+            tool: 'read_client_documents',
+            label: 'Read client document',
             summary: 'private row label',
             confidence: 'high',
           },
-          durableSafeRead: {
-            outcome: 'complete',
-            toolCallId: `call-${change}`,
-            tool: 'get_client_context',
-          },
+          durableSafeRead: f.durableDocumentRead(`call-${change}`),
         });
         return result;
       });
@@ -796,22 +894,19 @@ describe('Durable research lease and recovery', () => {
   it('keeps terminal error and done notifications honest when receipt persistence fails', async () => {
     const f = fixture();
     await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
-    const result = await f.runner.run(ctx, {});
+    const result = await f.runner.run(ctx, {}, f.auth);
+    delete f.getSession().metadata.durableStepReceipts;
     f.runner.run.mockImplementation(async (...args: any[]) => {
       const onEvent = args[3] as (event: Record<string, unknown>) => void;
       onEvent({
         type: 'source',
         source: {
-          tool: 'get_client_context',
-          label: 'Client context',
+          tool: 'read_client_documents',
+          label: 'Read client document',
           summary: 'sensitive result',
           confidence: 'high',
         },
-        durableSafeRead: {
-          outcome: 'complete',
-          toolCallId: 'call-outage',
-          tool: 'get_client_context',
-        },
+        durableSafeRead: f.durableDocumentRead('call-outage'),
       });
       return result;
     });
@@ -842,16 +937,12 @@ describe('Durable research lease and recovery', () => {
           `data: ${JSON.stringify({
             type: 'source',
             source: {
-              tool: 'get_client_context',
-              label: 'Client context',
+              tool: 'read_client_documents',
+              label: 'Read client document',
               summary: 'Authorized client result',
               confidence: 'high',
             },
-            durableSafeRead: {
-              outcome: 'complete',
-              toolCallId: 'call-outer-catch',
-              tool: 'get_client_context',
-            },
+            durableSafeRead: f.durableDocumentRead('call-outer-catch'),
           })}\n\n`,
         );
         throw new Error('Outer execute failed');

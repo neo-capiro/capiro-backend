@@ -98,6 +98,11 @@ import {
   RESEARCH_REPORT_BODY_WITHHELD,
   supportsDurableOwnerReauthorization,
 } from './meri-research-replay-authorization.js';
+import {
+  buildResearchReportProvenance,
+  certifyResearchProducerInputs,
+  publicResearchSourceTool,
+} from './meri-report-provenance.js';
 
 const PRODUCT_NAME = 'Meri';
 
@@ -353,9 +358,8 @@ export class MeriResearchService {
           ctx,
           session.id,
           storedRun,
-          asDeclaredResearchTools(
-            researchMetadata(report.metadata as Prisma.JsonValue).toolsUsed as Prisma.JsonValue,
-          ),
+          null,
+          { reportArtifactId: report.id },
         );
       } catch {
         reportBodyWithheld = true;
@@ -386,8 +390,11 @@ export class MeriResearchService {
     }
     if (reportBodyWithheld)
       reportMetadata = withheldPublicResearchReportMetadata(reportMetadata, session.id);
+    if (report && !reportBodyWithheld)
+      report = { ...report, metadata: publicResearchReportMetadata(report.metadata) };
     return {
       ...session,
+      sources: publicResearchSources(session.sources),
       metadata: publicResearchSessionMetadata(session.metadata),
       run: readResearchRun(session.metadata),
       report,
@@ -523,9 +530,8 @@ export class MeriResearchService {
       ctx,
       session.id,
       storedRun,
-      asDeclaredResearchTools(
-        researchMetadata(artifact.metadata as Prisma.JsonValue).toolsUsed as Prisma.JsonValue,
-      ),
+      null,
+      { reportArtifactId: session.reportArtifactId },
     );
     return { title: artifact.title, markdown: artifact.bodyText ?? '' };
   }
@@ -1498,8 +1504,8 @@ export class MeriResearchService {
     sse: SseSink,
     auth: ResearchRuntimeAuth = {},
   ) {
-    // A research run is minutes long and — under MERI_AUDITOR_MODE=enforce — emits
-    // NO report text until the post-hoc audit clears it (see bufferReport below).
+    // A research run can take minutes and emits no report text until current
+    // publication authority is checked and the report is durably saved.
     // Without a heartbeat the reader stares at an empty assistant bubble for the
     // whole run with no way to tell "still gathering" from "dead stream". The
     // heartbeat lives out here so its interval is cleared on EVERY exit path,
@@ -1676,18 +1682,16 @@ export class MeriResearchService {
     // one — the S3 fabrication cluster). Accumulates successful tool results
     // across gather rounds; audited after synthesis.
     const ledgerEntries: LedgerEntry[] = [];
-    // Resolved ONCE up front because ENFORCE changes the streaming shape below:
-    // the post-hoc audit can only protect the READER if the report text hasn't
-    // already been streamed to them token-by-token. Under enforce we buffer the
-    // report deltas (thinking/steps/sources still stream live so the trust
-    // timeline works), audit, then deliver — the full body when cleared, a hold
-    // notice instead of the body when held. Shadow/annotate keep today's
-    // stream-as-generated behavior (the audit there never withholds anything).
+    // Report prose is a publication surface, unlike progress/thinking/source
+    // events. Buffer it for every auditor mode until current authorization and
+    // durable persistence both succeed. Enforce mode additionally explains the
+    // delayed delivery because its grounding audit may replace prose with a hold
+    // notice.
     const auditorMode = await resolveTenantAuditorMode(this.prisma, ctx.tenantId);
-    const bufferReport = auditorMode === 'enforce';
+    const bufferReport = true;
     // Say so, once, instead of letting the reader interpret a silent empty bubble
     // as a broken run. Unknown event types are ignored by older clients.
-    if (bufferReport) {
+    if (auditorMode === 'enforce') {
       sse.write(
         sseEvent({
           type: 'notice',
@@ -1803,8 +1807,8 @@ export class MeriResearchService {
                       sse.write(sseEvent({ type: 'phase', phase: 'synthesize' }));
                     }
                     reportBody += delta.text;
-                    // Enforce buffers report text until the post-hoc audit
-                    // clears it (see bufferReport above).
+                    // The publication tail releases report text after authorization
+                    // and durable persistence (see bufferReport above).
                     if (!bufferReport) sse.write(sseEvent({ type: 'text', text: delta.text }));
                   } else if (
                     delta.type === 'input_json_delta' &&
@@ -2121,8 +2125,8 @@ export class MeriResearchService {
                   typeof evt.delta.text === 'string'
                 ) {
                   reportBody += evt.delta.text;
-                  // Enforce buffers report text until the post-hoc audit
-                  // clears it (see bufferReport above).
+                  // The publication tail releases report text after authorization
+                  // and durable persistence (see bufferReport above).
                   if (!bufferReport) sse.write(sseEvent({ type: 'text', text: evt.delta.text }));
                 }
               } catch {
@@ -2162,6 +2166,7 @@ export class MeriResearchService {
       auditorMode,
       bufferReport,
       runAuth: auth,
+      producerClientContext: clientContext,
     });
   }
 
@@ -2184,6 +2189,11 @@ export class MeriResearchService {
       telemetry?: MeriV3ProviderTelemetry;
       providerCalls?: MeriV3ProviderTelemetry[];
       evidenceManifest?: MeriEvidenceManifest;
+      producerInputEvaluated?: true;
+      producerInputSha256?: string;
+      producerInputMode?: 'source_free' | 'covered_inputs' | 'unsupported_private_inputs';
+      clientContextSha256?: string | null;
+      producerClientContext?: string | null;
     },
   ) {
     // Source completions are fenced and saved before report persistence or observer delivery.
@@ -2302,22 +2312,14 @@ export class MeriResearchService {
       }
     }
 
-    // Reader-protection flush (enforce only): report deltas were withheld above,
-    // so deliver now — the full (banner-prefixed) body when the audit cleared
-    // it, or a hold notice INSTEAD of the body when held. The persisted artifact
-    // keeps the full text either way; approve in Reviews releases it.
+    // Report deltas were withheld above. Deliver only after publication checks
+    // and persistence below — the full body when cleared, or a hold notice
+    // instead when grounding enforcement held it.
     const heldNotice =
       `> ⏸️ **Report held for review.** The grounding auditor flagged this report under ` +
       `enforce mode and it was not delivered. A reviewer must approve it in Reviews before ` +
       `the content is released; the saved report is marked *held for review*.` +
       (heldReason ? `\n>\n> ${heldReason.slice(0, 500)}` : '');
-
-    await this.assertReplayedReportSourcesAuthorized(
-      ctx,
-      session.id,
-      result.runAuth.run!,
-      toolsUsed,
-    );
 
     // Persist the report artifact + link it to the session.
     progress.set('Saving the report…');
@@ -2330,6 +2332,54 @@ export class MeriResearchService {
       citations: result.citations,
       generatedAt: new Date(),
     });
+    const inheritedCitationCount =
+      handoff?.messages.reduce((count, message) => {
+        const citations = researchMetadata(message.metadata).citations;
+        return count + (Array.isArray(citations) ? citations.length : 0);
+      }, 0) ?? 0;
+    const producerInput = result.producerInputEvaluated
+      ? {
+          producerInputSha256: result.producerInputSha256,
+          producerInputMode: result.producerInputMode,
+          clientContextSha256: result.clientContextSha256 ?? null,
+        }
+      : certifyResearchProducerInputs({
+          hashMaterial: {
+            sessionId: session.id,
+            runId: result.runAuth.run!.id,
+            leaseEpoch: result.runAuth.run!.leaseEpoch,
+            topicSha256: researchJsonSha256(session.topic),
+            planSha256: researchJsonSha256(plan),
+            handoffSha256: researchJsonSha256(handoff),
+          },
+          toolsUsed,
+          clientContext: result.producerClientContext,
+          handoffSummaryPresent: Boolean(handoff?.summary),
+          handoffAttachmentCount: handoff?.attachments.length ?? 0,
+          assistantHandoffTurns:
+            handoff?.messages.filter((message) => message.role === 'assistant').length ?? 0,
+          inheritedCitationCount,
+          inheritedUnavailableCount: 0,
+          inheritedOmittedCount: 0,
+          contextPacketItemCount:
+            result.runAuth.governedContext?.contextPacket.items.length ?? 0,
+          unreceiptedLedgerEntryCount: ledgerEntries.filter(
+            (entry) => !toolsUsed.includes(entry.tool),
+          ).length,
+        });
+    if (!producerInput.producerInputSha256 || !producerInput.producerInputMode)
+      throw new ConflictException('The research report producer proof is unavailable.');
+    if (producerInput.producerInputMode === 'unsupported_private_inputs')
+      throw new ConflictException(
+        'The research report includes private producer inputs without a current authorization adapter.',
+      );
+    await this.assertReplayedReportSourcesAuthorized(
+      ctx,
+      session.id,
+      result.runAuth.run!,
+      toolsUsed,
+      producerInput,
+    );
 
     const retrieval = result.retrieval ?? result.runAuth.governedContext?.retrieval;
     const reportMetadata = {
@@ -2343,7 +2393,7 @@ export class MeriResearchService {
         tool: source.tool,
         label: source.label,
         detail: source.summary,
-        count: source.count,
+        ...(source.count !== undefined ? { count: source.count } : {}),
         confidence: source.confidence,
         status: source.confidence === 'low' ? 'error' : 'done',
       })),
@@ -2368,6 +2418,8 @@ export class MeriResearchService {
       ...(held ? { heldForReview: true } : {}),
     };
 
+    const artifactId = randomUUID();
+    const reportMessageId = handoff?.conversationId ? randomUUID() : null;
     const persisted = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const currentMetadata = await this.fenceRun(tx, ctx, session.id, result.runAuth);
       if (
@@ -2412,22 +2464,47 @@ export class MeriResearchService {
         conversationId = conversation.id;
       }
 
-      const reportMessage = handoff?.conversationId
+      const reportProvenance = buildResearchReportProvenance({
+        artifactId,
+        messageId: reportMessageId,
+        sessionId: session.id,
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        clientId: session.clientId,
+        conversationId,
+        runId: result.runAuth.run!.id,
+        leaseEpoch: result.runAuth.run!.leaseEpoch,
+        body: artifactBody,
+        receipts: readDurableResearchStepReceipts(currentMetadata),
+        toolsUsed,
+        producerInputSha256: producerInput.producerInputSha256!,
+        producerInputMode: producerInput.producerInputMode as 'source_free' | 'covered_inputs',
+        clientContextSha256: producerInput.clientContextSha256,
+      });
+      const persistedReportMetadata = {
+        ...reportMetadata,
+        researchSessionId: session.id,
+        reportArtifactId: artifactId,
+        reportProvenance,
+      };
+      const reportMessage = reportMessageId
         ? await tx.clioMessage.create({
             data: {
+              id: reportMessageId,
               tenantId: ctx.tenantId,
               userId: ctx.userId,
               clientId: session.clientId,
               conversationId,
               role: 'assistant',
               body: held ? heldNotice : artifactBody,
-              metadata: reportMetadata as unknown as Prisma.InputJsonObject,
+              metadata: persistedReportMetadata as unknown as Prisma.InputJsonObject,
             },
             select: { id: true },
           })
         : null;
       const artifact = await tx.clioArtifact.create({
         data: {
+          id: artifactId,
           tenantId: ctx.tenantId,
           userId: ctx.userId,
           clientId: session.clientId ?? null,
@@ -2438,7 +2515,7 @@ export class MeriResearchService {
           contentType: 'text/markdown',
           bodyText: artifactBody,
           metadata: {
-            ...reportMetadata,
+            ...persistedReportMetadata,
             researchSessionId: session.id,
             topic: session.topic,
             plan,
@@ -2481,6 +2558,7 @@ export class MeriResearchService {
             ...(result.providerCalls ? { providerCalls: result.providerCalls } : {}),
             ...(result.evidenceManifest ? { evidenceManifest: result.evidenceManifest } : {}),
             ...(reportMessage ? { reportMessageId: reportMessage.id } : {}),
+            reportProvenance,
           } as unknown as Prisma.InputJsonObject,
           updatedAt: new Date(),
         },
@@ -2492,13 +2570,13 @@ export class MeriResearchService {
         });
       return { artifactId: artifact.id, messageId: reportMessage?.id ?? null, conversationId };
     });
-    const artifactId = persisted.artifactId;
     // Persistence and network publication are separate revocation boundaries.
     await this.assertReplayedReportSourcesAuthorized(
       ctx,
       session.id,
       result.runAuth.run!,
-      toolsUsed,
+      null,
+      { reportArtifactId: artifactId, conversationId: persisted.conversationId },
     );
 
     if (handoff?.conversationId) {
@@ -2543,7 +2621,11 @@ export class MeriResearchService {
         messageId: persisted.messageId,
         conversationId: persisted.conversationId,
         body: held ? heldNotice : artifactBody,
-        reportMetadata: publicResearchReportMetadata(reportMetadata),
+        reportMetadata: publicResearchReportMetadata({
+          ...reportMetadata,
+          researchSessionId: session.id,
+          reportArtifactId: artifactId,
+        }),
       }),
     );
     sse.write(sseEvent({ type: 'done' }));
@@ -2642,14 +2724,45 @@ export class MeriResearchService {
   private async assertReplayedReportSourcesAuthorized(
     ctx: TenantContext,
     id: string,
-    _run: ResearchRunState | null,
+    run: ResearchRunState | null,
     toolsUsed: string[] | null,
+    options?: {
+      producerInputSha256?: string;
+      producerInputMode?: 'source_free' | 'covered_inputs' | 'unsupported_private_inputs';
+      clientContextSha256?: string | null;
+      reportArtifactId?: string;
+      conversationId?: string;
+    },
   ): Promise<void> {
+    if (
+      toolsUsed &&
+      (!run ||
+        !options?.producerInputSha256 ||
+        !options.producerInputMode ||
+        options.producerInputMode === 'unsupported_private_inputs')
+    )
+      throw new ConflictException('The research report producer proof is unavailable.');
     await assertCurrentResearchReportSourcesAuthorized({
       prisma: this.prisma,
       tools: this.tools,
       ctx,
-      scope: { sessionId: id, ...(toolsUsed ? { toolsUsed } : {}) },
+      scope: {
+        sessionId: id,
+        ...(options?.reportArtifactId ? { reportArtifactId: options.reportArtifactId } : {}),
+        ...(options?.conversationId ? { conversationId: options.conversationId } : {}),
+        ...(toolsUsed && run && options?.producerInputSha256
+          ? {
+              publication: {
+                runId: run.id,
+                leaseEpoch: run.leaseEpoch,
+                toolsUsed,
+                producerInputSha256: options.producerInputSha256,
+                producerInputMode: options.producerInputMode!,
+                clientContextSha256: options.clientContextSha256 ?? null,
+              },
+            }
+          : {}),
+      },
     });
   }
 
@@ -2852,24 +2965,6 @@ function asStringArray(value: Prisma.JsonValue | null | undefined): string[] {
   return value.filter((v): v is string => typeof v === 'string');
 }
 
-function asDeclaredResearchTools(
-  value: Prisma.JsonValue | null | undefined,
-): string[] | null {
-  if (
-    !Array.isArray(value) ||
-    !value.every(
-      (item) => typeof item === 'string' && item.length > 0 && item.trim() === item,
-    )
-  )
-    return null;
-  const tools = value as string[];
-  return new Set(tools).size === tools.length ? tools : null;
-}
-
-function publicResearchToolName(value: unknown): string | null {
-  return typeof value === 'string' && /^[a-z][a-z0-9_]{0,63}$/.test(value) ? value : null;
-}
-
 function asStringRecord(value: Prisma.JsonValue | null | undefined): Record<string, string> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   const out: Record<string, string> = {};
@@ -2880,7 +2975,7 @@ function asStringRecord(value: Prisma.JsonValue | null | undefined): Record<stri
 }
 
 function publicDurableSafeRead(receipt: DurableResearchStepReceipt, replayed: boolean) {
-  const tool = publicResearchToolName(receipt.tool) ?? 'research_source';
+  const tool = publicResearchSourceTool(receipt.tool) ?? 'research_source';
   return {
     version: receipt.version,
     receiptId: receipt.receiptId,
@@ -2905,6 +3000,31 @@ function publicDurableSafeRead(receipt: DurableResearchStepReceipt, replayed: bo
   };
 }
 
+/** Public source rows contain fixed owner vocabulary and status only, never owner prose. */
+function publicResearchSources(value: unknown): Array<Record<string, unknown>> {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((candidate) => {
+    const source = researchMetadata(candidate);
+    const tool = publicResearchSourceTool(source.tool);
+    if (!tool) return [];
+    return [
+      {
+        tool,
+        label: 'Research source',
+        summary: 'Authorized read completed',
+        ...(typeof source.count === 'number' &&
+        Number.isSafeInteger(source.count) &&
+        source.count >= 0
+          ? { count: source.count }
+          : {}),
+        ...(['low', 'high'].includes(String(source.confidence))
+          ? { confidence: source.confidence }
+          : {}),
+      },
+    ];
+  });
+}
+
 /** Public recovery metadata deliberately excludes result refs, hashes, inputs, and result bytes. */
 function publicResearchSessionMetadata(value: unknown): Record<string, unknown> {
   const metadata = researchMetadata(value);
@@ -2927,7 +3047,7 @@ function publicResearchSessionMetadata(value: unknown): Record<string, unknown> 
 /** Only user-facing evidence crosses the report stream/recovery boundary. */
 function publicResearchReportMetadata(value: unknown): Record<string, unknown> {
   const metadata = researchMetadata(value);
-  return Object.fromEntries(
+  const projected = Object.fromEntries(
     [
       'citations',
       'trustSteps',
@@ -2949,6 +3069,24 @@ function publicResearchReportMetadata(value: unknown): Record<string, unknown> {
       .filter((key) => key in metadata)
       .map((key) => [key, metadata[key]]),
   );
+  const toolsUsed = Array.isArray(metadata.toolsUsed)
+    ? metadata.toolsUsed.flatMap((tool) => {
+        const safe = publicResearchSourceTool(tool);
+        return safe ? [safe] : [];
+      })
+    : undefined;
+  return {
+    ...(typeof metadata.researchSessionId === 'string'
+      ? { researchSessionId: metadata.researchSessionId }
+      : {}),
+    ...(typeof metadata.reportArtifactId === 'string'
+      ? { reportArtifactId: metadata.reportArtifactId }
+      : {}),
+    ...(toolsUsed && toolsUsed.length === (metadata.toolsUsed as unknown[]).length
+      ? { toolsUsed }
+      : {}),
+    ...projected,
+  };
 }
 
 /** Withheld reads retain only structural recovery/status data, never source-derived prose. */
@@ -2960,7 +3098,7 @@ function withheldPublicResearchReportMetadata(
   const trustSteps = Array.isArray(metadata.trustSteps)
     ? metadata.trustSteps.flatMap((value) => {
         const step = researchMetadata(value);
-        const tool = publicResearchToolName(step.tool);
+        const tool = publicResearchSourceTool(step.tool);
         const safe = {
           ...(tool ? { tool } : {}),
           ...(typeof step.count === 'number' &&

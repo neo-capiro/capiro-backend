@@ -19,6 +19,7 @@ import {
 import type { MeriResearchHandoff } from './meri-research-handoff.js';
 import type { ResearchRunState } from './meri-research-run-state.js';
 import type { SourceAttribution } from './meri-research.service.js';
+import { certifyResearchProducerInputs } from './meri-report-provenance.js';
 
 export interface ResearchRuntimeAuth {
   bearerToken?: string;
@@ -43,6 +44,12 @@ interface ResearchRunInput {
 }
 
 type DoneFrame = Extract<MeriV3ChatStreamEvent, { type: 'done' }>;
+type ResearchDoneFrame = DoneFrame & {
+  producerInputEvaluated?: true;
+  producerInputSha256?: string;
+  producerInputMode?: 'source_free' | 'covered_inputs' | 'unsupported_private_inputs';
+  clientContextSha256?: string | null;
+};
 
 /** Reuse chat's provider-led Responses loop, credentials, tools and governance. */
 @Injectable()
@@ -86,6 +93,10 @@ export class MeriV3ResearchRunner {
     providerCalls?: MeriV3ProviderTelemetry[];
     evidenceManifest?: MeriEvidenceManifest;
     retrieval?: DoneFrame['retrieval'];
+    producerInputEvaluated: true;
+    producerInputSha256: string;
+    producerInputMode: 'source_free' | 'covered_inputs' | 'unsupported_private_inputs';
+    clientContextSha256: string | null;
   }> {
     const result = await this.complete(ctx, input, auth, 'read-only', onEvent);
     const ledgerEntries = result.ledgerEntries ?? [];
@@ -142,6 +153,10 @@ export class MeriV3ResearchRunner {
       ...(result.providerCalls ? { providerCalls: result.providerCalls } : {}),
       ...(result.evidenceManifest ? { evidenceManifest: result.evidenceManifest } : {}),
       ...(result.retrieval ? { retrieval: result.retrieval } : {}),
+      producerInputEvaluated: true,
+      producerInputSha256: result.producerInputSha256!,
+      producerInputMode: result.producerInputMode!,
+      clientContextSha256: result.clientContextSha256 ?? null,
     };
   }
 
@@ -151,7 +166,7 @@ export class MeriV3ResearchRunner {
     auth: ResearchRuntimeAuth,
     toolPolicy: 'none' | 'read-only',
     onEvent: (event: Record<string, unknown>) => void,
-  ): Promise<DoneFrame> {
+  ): Promise<ResearchDoneFrame> {
     if (!auth.bearerToken || !auth.governedContext) {
       throw new BadRequestException('Research requires the authenticated conversation context.');
     }
@@ -250,7 +265,38 @@ export class MeriV3ResearchRunner {
         'The research runtime must be upgraded to return its evidence ledger.',
       );
     }
-    return result;
+    const ledgerEntries = result.ledgerEntries ?? [];
+    const durableTools = ledgerEntries.flatMap((entry) =>
+      entry.durableSafeRead ? [entry.durableSafeRead.tool] : [],
+    );
+    const producerInput = certifyResearchProducerInputs({
+      hashMaterial: {
+        systemSha256: createHash('sha256').update(input.system).digest('hex'),
+        userSha256: createHash('sha256').update(input.user).digest('hex'),
+        governedContextSha256: createHash('sha256')
+          .update(JSON.stringify(auth.governedContext))
+          .digest('hex'),
+        userPromptTurns: input.handoff?.messages.filter((message) => message.role === 'user').length ?? 0,
+        assistantHistoryTurns:
+          input.handoff?.messages.filter((message) => message.role === 'assistant').length ?? 0,
+      },
+      toolsUsed: durableTools,
+      clientContext: input.clientContext,
+      handoffSummaryPresent: Boolean(input.handoff?.summary),
+      handoffAttachmentCount: input.handoff?.attachments.length ?? 0,
+      assistantHandoffTurns:
+        input.handoff?.messages.filter((message) => message.role === 'assistant').length ?? 0,
+      inheritedCitationCount: inherited.citations.length,
+      inheritedUnavailableCount: inherited.unavailable,
+      inheritedOmittedCount: inherited.omitted,
+      contextPacketItemCount: auth.governedContext.contextPacket?.items.length ?? 0,
+      unreceiptedLedgerEntryCount: ledgerEntries.filter((entry) => !entry.durableSafeRead).length,
+    });
+    return {
+      ...result,
+      producerInputEvaluated: true,
+      ...producerInput,
+    };
   }
 
   private async snapshotImages(ctx: TenantContext, handoff: MeriResearchHandoff | null) {

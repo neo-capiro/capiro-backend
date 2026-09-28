@@ -9,7 +9,14 @@ import {
   researchJsonSha256,
 } from './meri-research-durable-result.js';
 import { readResearchHandoff } from './meri-research-handoff.js';
-import { researchMetadata } from './meri-research-run-state.js';
+import { readResearchRun, researchMetadata } from './meri-research-run-state.js';
+import {
+  publicResearchSourceTool,
+  readResearchReportProvenance,
+  reportBodySha256,
+  reportReceiptManifestSha256,
+  sameResearchReportProvenance,
+} from './meri-report-provenance.js';
 
 const SUPPORTED_OWNER_TOOLS = new Set(['search_memory', 'read_client_documents']);
 
@@ -152,11 +159,18 @@ export const RESEARCH_REPORT_BODY_WITHHELD =
 
 export interface ResearchReportReadScope {
   sessionId: string;
-  /** Omit only before the report artifact has been persisted. */
-  toolsUsed?: string[];
   conversationId?: string;
   clientId?: string | null;
   reportArtifactId?: string;
+  /** Producer-only path before the report artifact exists. Public reads never supply declarations. */
+  publication?: {
+    runId: string;
+    leaseEpoch: number;
+    toolsUsed: string[];
+    producerInputSha256: string;
+    producerInputMode: 'source_free' | 'covered_inputs' | 'unsupported_private_inputs';
+    clientContextSha256: string | null;
+  };
 }
 
 interface CurrentOwnerTools {
@@ -176,6 +190,26 @@ function stringArray(value: unknown): string[] | null {
   )
     return null;
   return new Set(value).size === value.length ? value : null;
+}
+
+function sameStringSet(left: string[], right: string[]): boolean {
+  const sortedLeft = [...left].sort();
+  const sortedRight = [...right].sort();
+  return (
+    sortedLeft.length === sortedRight.length &&
+    sortedLeft.every((value, index) => value === sortedRight[index])
+  );
+}
+
+function canonicalClientContext(value: {
+  name: string;
+  description: string | null;
+  productDescription: string | null;
+}): string {
+  const parts = [`Client: ${value.name}`];
+  if (value.description) parts.push(`Description: ${value.description}`);
+  if (value.productDescription) parts.push(`Product/service: ${value.productDescription}`);
+  return parts.join('\n');
 }
 
 /**
@@ -234,35 +268,6 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
           'The originating conversation is no longer available in this client scope',
         );
 
-      let toolsUsed = scope.toolsUsed === undefined ? null : stringArray(scope.toolsUsed);
-      if (scope.toolsUsed !== undefined && !toolsUsed)
-        throw new ConflictException('The research report authorization proof is unavailable.');
-      if (scope.reportArtifactId && session.reportArtifactId !== scope.reportArtifactId)
-        throw new ConflictException('The research report identity changed.');
-      if (!toolsUsed) {
-        if (!session.reportArtifactId)
-          throw new ConflictException('The research report authorization proof is unavailable.');
-        const report = await tx.clioArtifact.findFirst({
-          where: {
-            id: session.reportArtifactId,
-            tenantId: ctx.tenantId,
-            userId: ctx.userId,
-            clientId: session.clientId,
-            conversationId,
-            kind: 'research_report',
-          },
-          select: { metadata: true },
-        });
-        if (!report)
-          throw new ConflictException('The research report authorization proof is unavailable.');
-        const reportMetadata = researchMetadata(report.metadata);
-        if (reportMetadata.researchSessionId !== session.id)
-          throw new ConflictException('The research report identity changed.');
-        toolsUsed = stringArray(reportMetadata.toolsUsed);
-      }
-      if (!toolsUsed)
-        throw new ConflictException('The research report authorization proof is unavailable.');
-
       const metadata = researchMetadata(session.metadata);
       const rawReceipts = metadata.durableStepReceipts;
       const allReceipts = readDurableResearchStepReceipts(session.metadata);
@@ -272,19 +277,98 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
       )
         throw new ConflictException('A research source authorization proof is unavailable.');
 
+      const storedRun = readResearchRun(session.metadata);
+      let toolsUsed: string[];
+      let runId: string;
+      let leaseEpoch: number;
+      let clientContextSha256: string | null;
+      if (scope.publication) {
+        const declared = stringArray(scope.publication.toolsUsed);
+        if (
+          !declared ||
+          declared.some((tool) => !publicResearchSourceTool(tool)) ||
+          !/^[a-f0-9]{64}$/.test(scope.publication.producerInputSha256) ||
+          !['source_free', 'covered_inputs'].includes(scope.publication.producerInputMode) ||
+          !(scope.publication.clientContextSha256 === null ||
+            /^[a-f0-9]{64}$/.test(scope.publication.clientContextSha256)) ||
+          (scope.publication.producerInputMode === 'source_free' &&
+            (declared.length > 0 || scope.publication.clientContextSha256 !== null)) ||
+          !storedRun ||
+          storedRun.status !== 'running' ||
+          storedRun.id !== scope.publication.runId ||
+          storedRun.leaseEpoch !== scope.publication.leaseEpoch ||
+          session.reportArtifactId
+        ) {
+          throw new ConflictException('The research report producer proof is unavailable.');
+        }
+        toolsUsed = declared;
+        runId = scope.publication.runId;
+        leaseEpoch = scope.publication.leaseEpoch;
+        clientContextSha256 = scope.publication.clientContextSha256;
+      } else {
+        const artifactId = scope.reportArtifactId ?? session.reportArtifactId;
+        if (!artifactId || session.reportArtifactId !== artifactId)
+          throw new ConflictException('The research report identity changed.');
+        const report = await tx.clioArtifact.findFirst({
+          where: {
+            id: artifactId,
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            clientId: session.clientId,
+            conversationId,
+            kind: 'research_report',
+          },
+          select: { id: true, messageId: true, bodyText: true, metadata: true },
+        });
+        const artifactProof = readResearchReportProvenance(report?.metadata);
+        const sessionProof = readResearchReportProvenance(session.metadata);
+        const reportMetadata = researchMetadata(report?.metadata);
+        const declaredTools = stringArray(reportMetadata.toolsUsed);
+        if (
+          !report ||
+          !artifactProof ||
+          !sessionProof ||
+          !sameResearchReportProvenance(artifactProof, sessionProof) ||
+          artifactProof.artifactId !== report.id ||
+          artifactProof.messageId !== (report.messageId ?? null) ||
+          artifactProof.sessionId !== session.id ||
+          artifactProof.tenantId !== ctx.tenantId ||
+          artifactProof.userId !== ctx.userId ||
+          artifactProof.clientId !== session.clientId ||
+          artifactProof.conversationId !== conversationId ||
+          reportMetadata.researchSessionId !== session.id ||
+          !declaredTools ||
+          !sameStringSet(declaredTools, artifactProof.toolsUsed) ||
+          reportBodySha256(report.bodyText ?? '') !== artifactProof.bodySha256 ||
+          !storedRun ||
+          storedRun.status !== 'complete' ||
+          storedRun.id !== artifactProof.runId ||
+          storedRun.leaseEpoch !== artifactProof.leaseEpoch
+        ) {
+          throw new ConflictException('The research report producer proof is unavailable.');
+        }
+        toolsUsed = artifactProof.toolsUsed;
+        runId = artifactProof.runId;
+        leaseEpoch = artifactProof.leaseEpoch;
+        clientContextSha256 = artifactProof.clientContextSha256;
+        if (
+          reportReceiptManifestSha256(allReceipts, { id: runId, leaseEpoch }, toolsUsed) !==
+          artifactProof.receiptManifestSha256
+        ) {
+          throw new ConflictException('The research report receipt manifest changed.');
+        }
+      }
+
       const toolSet = new Set(toolsUsed);
       const completedReceipts = allReceipts.filter(
-        (receipt) => receipt.status === 'complete',
+        (receipt) =>
+          receipt.status === 'complete' &&
+          receipt.version === 2 &&
+          toolSet.has(receipt.tool),
       );
       if (toolSet.size === 0 && completedReceipts.length > 0)
         throw new ConflictException('The research report source declaration is incomplete.');
-
-      const storedRun = record(metadata.run);
-      const storedRunId = typeof storedRun?.id === 'string' ? storedRun.id : null;
-      const receiptsToReconcile = storedRunId
-        ? completedReceipts.filter((receipt) => receipt.runId === storedRunId)
-        : completedReceipts;
-      if (receiptsToReconcile.some((receipt) => !toolSet.has(receipt.tool)))
+      if (completedReceipts.some((receipt) => !toolSet.has(receipt.tool)))
         throw new ConflictException('The research report source declaration is incomplete.');
 
       const receipts = completedReceipts.filter(
@@ -294,6 +378,17 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
       for (const tool of toolSet) {
         if (!receipts.some((receipt) => receipt.tool === tool))
           throw new ConflictException('A research source authorization proof is unavailable.');
+      }
+
+      if (clientContextSha256) {
+        const client = session.clientId
+          ? await tx.client.findFirst({
+              where: { id: session.clientId, tenantId: ctx.tenantId },
+              select: { name: true, description: true, productDescription: true },
+            })
+          : null;
+        if (!client || reportBodySha256(canonicalClientContext(client)) !== clientContextSha256)
+          throw new ConflictException('A research producer input version changed.');
       }
 
       const envelopes = [];

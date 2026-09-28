@@ -1,5 +1,10 @@
 import { MeriResearchService } from './meri-research.service';
 import { researchToolVersion } from './meri-research-durable-result';
+import { readDurableResearchStepReceipts } from './meri-research-durable-step';
+import {
+  buildResearchReportProvenance,
+  certifyResearchProducerInputs,
+} from './meri-report-provenance';
 
 const TOOL_SCHEMA = {
   type: 'object',
@@ -138,19 +143,71 @@ function harness() {
     tx,
     tools,
     artifacts,
-    completeReport: (toolsUsed: unknown = ['search_memory']) => {
+    completeReport: (toolsUsed: unknown = ['search_memory'], producerSourceFree = false) => {
       session.reportArtifactId = 'report-1';
       session.status = 'complete';
       session.metadata = {
         ...session.metadata,
         run: { ...session.metadata.run, status: 'complete', stage: 'Report saved' },
       };
+      const bodyText = producerSourceFree
+        ? 'SOURCE_FREE_REPORT_FROM_KNOWN_PROMPT_ONLY'
+        : 'REPORT_CITING_CURRENT_RUN_MEMORY';
+      const declaredTools = Array.isArray(toolsUsed) && toolsUsed.every((tool) => typeof tool === 'string')
+        ? toolsUsed as string[]
+        : null;
+      const producerInput = declaredTools
+        ? certifyResearchProducerInputs({
+            hashMaterial: { bodyText },
+            toolsUsed: declaredTools,
+            clientContext: null,
+            handoffSummaryPresent: false,
+            handoffAttachmentCount: 0,
+            assistantHandoffTurns: 0,
+            inheritedCitationCount: 0,
+            inheritedUnavailableCount: 0,
+            inheritedOmittedCount: 0,
+            contextPacketItemCount: 0,
+            unreceiptedLedgerEntryCount: 0,
+          })
+        : null;
+      const canProve = Boolean(
+        declaredTools &&
+        producerInput &&
+        (declaredTools.length === 0
+          ? producerSourceFree && readDurableResearchStepReceipts(session.metadata).length === 0
+          : readDurableResearchStepReceipts(session.metadata).length > 0),
+      );
+      const reportProvenance = canProve
+        ? buildResearchReportProvenance({
+            artifactId: 'report-1',
+            messageId: null,
+            sessionId: session.id,
+            tenantId: session.tenantId,
+            userId: session.userId,
+            clientId: null,
+            conversationId: 'conversation-1',
+            runId: 'run-1',
+            leaseEpoch: 1,
+            body: bodyText,
+            receipts: readDurableResearchStepReceipts(session.metadata),
+            toolsUsed: declaredTools!,
+            producerInputSha256: producerInput!.producerInputSha256,
+            producerInputMode: producerInput!.producerInputMode as 'source_free' | 'covered_inputs',
+            clientContextSha256: producerInput!.clientContextSha256,
+          })
+        : null;
+      if (reportProvenance) session.metadata = { ...session.metadata, reportProvenance };
       artifacts.set('report-1', {
         id: 'report-1',
         title: 'Durable report',
         kind: 'research_report',
-        bodyText: 'REPORT_CITING_CURRENT_RUN_MEMORY',
-        metadata: { researchSessionId: session.id, toolsUsed },
+        bodyText,
+        metadata: {
+          researchSessionId: session.id,
+          toolsUsed,
+          ...(reportProvenance ? { reportProvenance } : {}),
+        },
       });
     },
     revoke: () => {
@@ -390,7 +447,7 @@ describe('Meri durable safe-read commit and replay', () => {
 
   it('returns the actual source-free report shape when no receipt or source declaration exists', async () => {
     const h = harness();
-    h.completeReport([]);
+    h.completeReport([], true);
 
     const response = await h.service.getSession(ctx, 'session-1');
     const markdown = await h.service.getReportMarkdown(ctx, 'session-1');
@@ -399,14 +456,14 @@ describe('Meri durable safe-read commit and replay', () => {
       id: 'session-1',
       report: {
         id: 'report-1',
-        bodyText: 'REPORT_CITING_CURRENT_RUN_MEMORY',
+        bodyText: 'SOURCE_FREE_REPORT_FROM_KNOWN_PROMPT_ONLY',
         metadata: { researchSessionId: 'session-1', toolsUsed: [] },
       },
-      reportMetadata: {},
+      reportMetadata: { researchSessionId: 'session-1', toolsUsed: [] },
     });
     expect(markdown).toEqual({
       title: 'Durable report',
-      markdown: 'REPORT_CITING_CURRENT_RUN_MEMORY',
+      markdown: 'SOURCE_FREE_REPORT_FROM_KNOWN_PROMPT_ONLY',
     });
     expect(h.tools.execute).not.toHaveBeenCalled();
   });
@@ -458,7 +515,7 @@ describe('Meri durable safe-read commit and replay', () => {
       reportBodyAccess: { status: 'withheld', recovery: 'research_session' },
     });
     await expect(h.service.getReportMarkdown(ctx, 'session-1')).rejects.toThrow(
-      'no longer authorized',
+      'producer proof is unavailable',
     );
   });
 
@@ -475,7 +532,7 @@ describe('Meri durable safe-read commit and replay', () => {
     });
     expect(h.tools.execute).not.toHaveBeenCalled();
     await expect(h.service.getReportMarkdown(ctx, 'session-1')).rejects.toThrow(
-      'authorization proof is unavailable',
+      'producer proof is unavailable',
     );
   });
 
@@ -515,6 +572,60 @@ describe('Meri durable safe-read commit and replay', () => {
     expect(
       (response.metadata.durableStepReceipts as Array<{ summary: string }>)[0]?.summary,
     ).toBe('Authorized read completed');
+  });
+
+  it('projects recovery sources without returning persisted owner prose', async () => {
+    const h = harness();
+    await h.service.commitSafeReadOutcome(
+      ctx, 'session-1', 'run-1', outcome('execution-current-run', 'radar'),
+    );
+    h.completeReport();
+    h.session.sources = [{
+      tool: 'search_memory',
+      label: 'Memory',
+      summary: 'private owner result text',
+      confidence: 'high',
+    }];
+
+    const response = await h.service.getSession(ctx, 'session-1');
+
+    expect(JSON.stringify(response)).not.toContain('private owner result text');
+    expect(response.sources).toEqual([{
+      tool: 'search_memory',
+      label: 'Research source',
+      summary: 'Authorized read completed',
+      confidence: 'high',
+    }]);
+  });
+
+  it('binds recovery and export to the delivered report metadata identity', async () => {
+    const h = harness();
+    await h.service.commitSafeReadOutcome(
+      ctx, 'session-1', 'run-1', outcome('execution-current-run', 'radar'),
+    );
+    h.completeReport();
+    h.artifacts.get('report-1')!.metadata.researchSessionId = 'different-session';
+
+    const response = await h.service.getSession(ctx, 'session-1');
+
+    expect(response.report?.bodyText).toContain('current source authorization');
+    await expect(h.service.getReportMarkdown(ctx, 'session-1')).rejects.toThrow();
+  });
+
+  it('omits a malformed private receipt tool identifier from the public DTO', async () => {
+    const h = harness();
+    await h.service.commitSafeReadOutcome(
+      ctx, 'session-1', 'run-1', outcome('execution-current-run', 'radar'),
+    );
+    h.completeReport();
+    h.session.metadata.durableStepReceipts[0].tool = 'private_source_detail';
+
+    const response = await h.service.getSession(ctx, 'session-1');
+    const receipt = (response.metadata.durableStepReceipts as Array<{ tool: string }>)[0];
+
+    expect(JSON.stringify(response)).not.toContain('private_source_detail');
+    expect(receipt?.tool).toBe('research_source');
+    expect(response.report?.bodyText).toContain('current source authorization');
   });
 
   it.each([
