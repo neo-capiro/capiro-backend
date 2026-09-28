@@ -74,12 +74,16 @@ function make(options?: {
     ),
   };
   return {
-    service: new MeriV3VisualAnalysisService(prisma as never, tools as never, {
-      securityEnvelope: jest.fn(async () => ({
-        authorizedClientIds: ['client-1'],
-        authorizedMailboxConnectionIds: [],
-      })),
-    } as never),
+    service: new MeriV3VisualAnalysisService(
+      prisma as never,
+      tools as never,
+      {
+        securityEnvelope: jest.fn(async () => ({
+          authorizedClientIds: ['client-1'],
+          authorizedMailboxConnectionIds: [],
+        })),
+      } as never,
+    ),
     prisma,
     tools,
     tx,
@@ -290,7 +294,9 @@ describe('MeriV3VisualAnalysisService', () => {
         metadata: true,
         createdAt: true,
         clientId: true,
-        conversation: { select: { tenantId: true, userId: true, clientId: true, archivedAt: true } },
+        conversation: {
+          select: { tenantId: true, userId: true, clientId: true, archivedAt: true },
+        },
       },
     });
   });
@@ -314,7 +320,9 @@ describe('MeriV3VisualAnalysisService', () => {
         contentType: true,
         metadata: true,
         clientId: true,
-        conversation: { select: { tenantId: true, userId: true, clientId: true, archivedAt: true } },
+        conversation: {
+          select: { tenantId: true, userId: true, clientId: true, archivedAt: true },
+        },
       },
     });
   });
@@ -414,10 +422,14 @@ describe('MeriV3VisualAnalysisService', () => {
   });
 
   test('rejects malformed PNG structure and persisted digest mismatches at readback', async () => {
-    const malformed = make({ storedMetadata: { imageBase64: Buffer.concat([
-      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-      Buffer.from('not chunks'),
-    ]).toString('base64') } });
+    const malformed = make({
+      storedMetadata: {
+        imageBase64: Buffer.concat([
+          Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+          Buffer.from('not chunks'),
+        ]).toString('base64'),
+      },
+    });
     await expect(malformed.service.getArtifactImage(ctx, VISUAL_ID)).resolves.toBeNull();
     await expect(malformed.service.getArtifact(ctx, VISUAL_ID)).resolves.toBeNull();
 

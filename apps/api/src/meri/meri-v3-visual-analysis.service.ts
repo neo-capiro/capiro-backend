@@ -1,4 +1,10 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { assertMeriToolRequestActive } from './meri-tool-request-control.js';
@@ -165,12 +171,23 @@ export class MeriV3VisualAnalysisService {
     ctx: TenantContext,
     artifact: {
       clientId: string | null;
-      conversation: { tenantId: string; userId: string; clientId: string | null; archivedAt: Date | null } | null;
+      conversation: {
+        tenantId: string;
+        userId: string;
+        clientId: string | null;
+        archivedAt: Date | null;
+      } | null;
     },
   ): Promise<boolean> {
     const conversation = artifact.conversation;
-    if (!conversation || conversation.tenantId !== ctx.tenantId || conversation.userId !== ctx.userId ||
-        conversation.archivedAt || conversation.clientId !== artifact.clientId) return false;
+    if (
+      !conversation ||
+      conversation.tenantId !== ctx.tenantId ||
+      conversation.userId !== ctx.userId ||
+      conversation.archivedAt ||
+      conversation.clientId !== artifact.clientId
+    )
+      return false;
     if (!artifact.clientId) return true;
     if (!this.contextPlane) return false;
     const security = await this.contextPlane.securityEnvelope(ctx);
@@ -338,11 +355,13 @@ export class MeriV3VisualAnalysisService {
           ...(datasets.length ? { datasets } : {}),
           ...(filename ? { filename } : {}),
           ...(codeSha256 ? { codeSha256 } : {}),
-          ...(image ? {
-            imageBase64: image.base64,
-            imageSha256: image.sha256,
-            imageByteAuthority: PERSISTED_PNG_BYTE_AUTHORITY,
-          } : {}),
+          ...(image
+            ? {
+                imageBase64: image.base64,
+                imageSha256: image.sha256,
+                imageByteAuthority: PERSISTED_PNG_BYTE_AUTHORITY,
+              }
+            : {}),
           ...(visual
             ? {
                 visualization: visual,
@@ -431,7 +450,9 @@ export class MeriV3VisualAnalysisService {
           metadata: true,
           createdAt: true,
           clientId: true,
-          conversation: { select: { tenantId: true, userId: true, clientId: true, archivedAt: true } },
+          conversation: {
+            select: { tenantId: true, userId: true, clientId: true, archivedAt: true },
+          },
         },
       }),
     );
@@ -477,7 +498,9 @@ export class MeriV3VisualAnalysisService {
           contentType: true,
           metadata: true,
           clientId: true,
-          conversation: { select: { tenantId: true, userId: true, clientId: true, archivedAt: true } },
+          conversation: {
+            select: { tenantId: true, userId: true, clientId: true, archivedAt: true },
+          },
         },
       }),
     );
