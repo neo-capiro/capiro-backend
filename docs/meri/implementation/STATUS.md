@@ -1,6 +1,21 @@
 # Meri file 01 status
 
-## Current checkpoint — 2026-09-28 10:50 UTC
+## Current checkpoint — 2026-09-28 11:56 UTC
+
+File 01 remains IN_PROGRESS. Source before this documentation commit: a884d6445344fdce1ab94f3d7abe0589677dbf4c. Reviewed document fixture and sandbox chain are integrated through80961b462; reviewed bounded-compaction chain is integrated througha884d6445. Fresh integrated145tests/4suites exit0; integrated14guard tests and actual509-file guard exit0. Full API typecheck also exited 0 at this exact integrated source. Both mains and AWS remain unchanged; release/enablement held.
+
+- PASS, scoped document fixture: source03c25b71f integrated83edefcf1; invalid mock bytes replaced by existing valid DOCX fixture, added rejection-before-persistence control. Worker64tests/APItype0; independent3cases0; integrated included in145test run. Pre-existing fixture Prettier failure remains on parent and candidate, ESLint unavailable. No validator bypass or production change.
+- PASS, scoped sandbox: source0e4/2c9/6aac/968 integrated43bd/5cee/1534/80961. Exact6aac full hosted Actions36416414333 SUCCESS, including16containment checks, visual smoke,388orchestrator/45API tests,3web suites, typechecks and deployable builds. Python isolated mode and trusted warmup retain inner limits. Source968 fixes four independently reproduced computed-call/Map guard gaps and missing guarded-root triggers; independent14tests/509-file guard and hostile/allowed probes0. Fresh968 Actions36417798730 running. This is not outer Fargate/network isolation or shared deployment proof.
+- PASS, bounded compaction repairs only: a9/8ee/0bb/89/f910/725 integrated085/2d1/35e/3f5/9df/a884. Exact PostgreSQL microsecond revision preserved;19nativePG cases at0bb unchanged. Latest independent36helper tests and4864-case targeted boundary grid0. Contiguous complete pairs, pending identity, notice separators and protected-state character charge qualified within this slice. Full provider protocol pairing, total prompt/token budgets, current authorized source retrieval and live persistence remain incomplete.
+- HOLD, report authority: source4b34 fixed original review cases but independent review found actual getSession report.metadata/receipt-summary disclosures, empty/malformed toolsUsed authorization bypass, and summary-authorization lookup gaps. Repair active. V3 model-input replay/summary authority is separately under repair while combining durable chain with served procedures. No report/private-source release acceptance.
+- HOLD, procedures: manifest/current-version CAS sourceaa6/7ac already integrated92ce/e468 and independently reviewed. Served5a candidate passes15core/48API/104orchestrator independent checks but actual meetings reader omission and provider-controlled private names in stream/persisted trace remain. Five-minute binding does not prove immediate invocation-time revocation. Starter identity and progressive discovery remain incomplete. No selector/runtime flag changes.
+- IN_PROGRESS, scheduler recovery: actual runner still cannot recover a crashed running claim. New isolated implementation starts from1778 in cap-meri-fixture-hardening, using existing schedule authority and controlled local PostgreSQL/sinks; no shared DB/provider actions authorized.
+
+All75 authenticated cases, CD7, requiredCW8 and applicablememory acceptance remain NOT_RUN. Remaining mandatory work also includes durable plans, steering, Stop/detach/children, aggregate budgets, typed full document workarea, scheduler recovery, adaptive narrative/JEV/telemetry and source-adoption qualification. No file02 readiness. Database recovery remains active and release clearance is absent. Owner-approved two-tenant enablement remains unapplied.
+
+Evidence: review-boundary-followups-report.md; boundary-followups-lead-receipt.md; review-report-proof-final-report.md; review-served-procedure-report.md; integration-a884-compaction-document.log; integration-a884-api-typecheck.log; ci-sandbox-isolation-36416414333-full.log. External evidence root C:/dev/cap-meri-foundation-evidence.
+
+## Previous checkpoint — 2026-09-28 10:50 UTC
 
 File 01 remains IN_PROGRESS after restored OpenRouter credits. Integration source before this documentation commit is c719ae15e6a0dc969210d3a3f486c3a0fb1321a7; last published draft source is 9ffc9dbf9dbd1ddefaed393f58324f5351bf90c4. Both mains, shared AWS deployment and approved two-tenant enablement remain unchanged. Required live75/CD7/CW8 acceptance remains NOT_RUN. Separate database recovery and owner acceptance still hold release.
 
