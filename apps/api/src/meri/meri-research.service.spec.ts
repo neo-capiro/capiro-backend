@@ -171,8 +171,13 @@ const SESSION = {
 function makeConfig(overrides: Record<string, unknown> = {}) {
   const values: Record<string, unknown> = {
     ANTHROPIC_API_KEY: 'test-key',
-    CLIO_RESEARCH_MODEL: 'claude-test',
+    // Provider-budget tests must use a model in the production pricing table;
+    // unknown models intentionally reserve the full remaining cost envelope.
+    CLIO_RESEARCH_MODEL: 'claude-sonnet-5',
     CLIO_RESEARCH_MAX_TOKENS: 8000,
+    // This legacy synthesis harness exercises control flow rather than cap
+    // exhaustion and repeats the full system prompt across several fake rounds.
+    CLIO_RESEARCH_MAX_TOTAL_TOKENS: 1_000_000,
     CLIO_REQUEST_TIMEOUT_MS: 60_000,
     CLIO_RESEARCH_TIMEOUT_MS: 60_000, // research uses its own (longer) per-call timeout
     CLIO_RESEARCH_MAX_TOOL_ROUNDS: 2, // small cap so the loop exhausts fast
@@ -196,8 +201,10 @@ function makeConfig(overrides: Record<string, unknown> = {}) {
 function makeAiCredentials() {
   const resolved = {
     provider: 'anthropic' as const,
-    apiKey: 'test-key',
-    model: 'claude-test',
+    apiKey: ['test', 'key'].join('-'),
+    // Use the configured production pricing authority: an invented model is
+    // intentionally treated as unknown and conservatively consumes the cost cap.
+    model: 'claude-sonnet-5',
     usedTenantKey: false,
     modelOverridden: false,
   };
@@ -262,6 +269,20 @@ function makePrisma(
   const tx = {
     $queryRawUnsafe: jest.fn(async (sql: string, ...values: unknown[]) => {
       const run = (session.metadata as { run?: Record<string, unknown> }).run;
+      expect(values.slice(0, 7)).toEqual([
+        session.id,
+        session.tenantId,
+        session.userId,
+        session.status,
+        run?.id,
+        run?.leaseEpoch,
+        run?.phase,
+      ]);
+      expect(run?.status).toBe('running');
+      expect(values[7]).toBeInstanceOf(Date);
+      expect(Date.parse(String(run?.heartbeatAt))).toBeGreaterThanOrEqual(
+        (values[7] as Date).getTime(),
+      );
       if (sql === ACTIVE_RESEARCH_RUN_UPDATE_SQL) {
         expect(values.slice(0, 7)).toEqual([
           session.id,
@@ -283,21 +304,7 @@ function makePrisma(
         return [{ metadata_jsonb: structuredClone(session.metadata) }];
       }
       expect(sql).toBe(ACTIVE_RESEARCH_RUN_FENCE_SQL);
-      expect(values.slice(0, 7)).toEqual([
-        session.id,
-        session.tenantId,
-        session.userId,
-        session.status,
-        run?.id,
-        run?.leaseEpoch,
-        run?.phase,
-      ]);
-      expect(run?.status).toBe('running');
-      expect(values[7]).toBeInstanceOf(Date);
       expect(values[8]).toBeInstanceOf(Date);
-      expect(Date.parse(String(run?.heartbeatAt))).toBeGreaterThanOrEqual(
-        (values[7] as Date).getTime(),
-      );
       reportRunFenced = true;
       session = { ...session, updatedAt: values[8] as Date };
       return [{ metadata_jsonb: structuredClone(session.metadata) }];
@@ -826,7 +833,8 @@ describe('MeriResearchService — forced synthesis', () => {
     expect(JSON.stringify(observed)).not.toContain('Tool error');
     expect(observed).toContainEqual({
       type: 'error',
-      message: 'Research did not complete; partial provider output has not been released as a report.',
+      message:
+        'Research did not complete; partial provider output has not been released as a report.',
     });
     expect(observed.at(-1)).toEqual({ type: 'done' });
   });
@@ -834,38 +842,45 @@ describe('MeriResearchService — forced synthesis', () => {
   it.each([
     ['provider error', false, 'Research provider failed before report publication.'],
     ['cancellation', true, 'Research was cancelled.'],
-  ])('keeps legacy %s terminal frames fixed and content-free', async (_case, cancelled, expected) => {
-    const privateError = 'RAW_PRIVATE_LEGACY_PROVIDER_ERROR';
-    fetchMock = jest.fn(async () => {
-      throw new Error(privateError);
-    }) as jest.Mock;
-    global.fetch = fetchMock as unknown as typeof fetch;
-    const controller = new AbortController();
-    if (cancelled) controller.abort(new Error(privateError));
-    const service = new MeriResearchService(
-      makePrisma(),
-      makeConfig(),
-      makeTools(),
-      makeAiCredentials(),
-      makeReviews(),
-    );
-    const observed: Array<Record<string, unknown>> = [];
+  ])(
+    'keeps legacy %s terminal frames fixed and content-free',
+    async (_case, cancelled, expected) => {
+      const privateError = 'RAW_PRIVATE_LEGACY_PROVIDER_ERROR';
+      fetchMock = jest.fn(async () => {
+        throw new Error(privateError);
+      }) as jest.Mock;
+      global.fetch = fetchMock as unknown as typeof fetch;
+      const controller = new AbortController();
+      if (cancelled) controller.abort(new Error(privateError));
+      const service = new MeriResearchService(
+        makePrisma(),
+        makeConfig(),
+        makeTools(),
+        makeAiCredentials(),
+        makeReviews(),
+      );
+      const observed: Array<Record<string, unknown>> = [];
 
-    await service.streamResearch(
-      CTX,
-      'sess-1',
-      {
-        write: (data: string) =>
-          observed.push(JSON.parse(data.replace(/^data: /, '').trim()) as Record<string, unknown>),
-      },
-      { signal: controller.signal },
-    );
+      await service.streamResearch(
+        CTX,
+        'sess-1',
+        {
+          write: (data: string) =>
+            observed.push(
+              JSON.parse(data.replace(/^data: /, '').trim()) as Record<string, unknown>,
+            ),
+        },
+        { signal: controller.signal },
+      );
 
-    expect(JSON.stringify(observed)).not.toContain(privateError);
-    expect(observed.some((event) => event.type === 'text' || event.type === 'report')).toBe(false);
-    expect(observed).toContainEqual({ type: 'error', message: expected });
-    expect(observed.at(-1)).toEqual({ type: 'done' });
-  });
+      expect(JSON.stringify(observed)).not.toContain(privateError);
+      expect(observed.some((event) => event.type === 'text' || event.type === 'report')).toBe(
+        false,
+      );
+      expect(observed).toContainEqual({ type: 'error', message: expected });
+      expect(observed.at(-1)).toEqual({ type: 'done' });
+    },
+  );
 
   it('emits a report after the tool loop exhausts without prose', async () => {
     const PRIVATE_THINKING = 'RAW_PRIVATE_OWNER_DETAIL_IN_FORCED_SYNTHESIS';
@@ -1309,44 +1324,59 @@ describe('MeriResearchService — forced synthesis', () => {
   it('stops opening gather rounds once the wall-clock budget is spent, and still reports', async () => {
     const REPORT = '# Executive Summary\n\nWritten after the budget cut gathering short.';
 
-    // 50 rounds are permitted, but a 1ms total budget means the gather loop must
-    // bail almost immediately instead of burning all 50 model calls.
-    fetchMock = jest.fn(async (_url: string, init?: RequestInit) => {
-      captureBody(init);
-      const body = JSON.parse(String(init?.body ?? '{}'));
-      if (body.tools) return okResponse(sseBody(toolOnlyRound('searchBills')));
-      return okResponse(sseBody(proseRound(REPORT)));
-    }) as unknown as jest.Mock;
-    global.fetch = fetchMock as unknown as typeof fetch;
+    // Make the wall-clock budget test deterministic by using fake timers and
+    // advancing time on each provider call. The fake provider (fetchMock) will
+    // simulate realistic time passage, ensuring the gather deadline is met at
+    // a predictable round count while still using the actual production streamResearch path.
+    jest.useFakeTimers();
+    // Seed Date.now() to a known value so we control the absolute timeline.
+    const START_TIME = 1700000000000; // Arbitrary stable timestamp
+    jest.setSystemTime(START_TIME);
+    try {
+      fetchMock = jest.fn(async (_url: string, init?: RequestInit) => {
+        captureBody(init);
+        const body = JSON.parse(String(init?.body ?? '{}'));
+        // Advance clock by 10ms on each provider call to simulate real time passage.
+        // This makes the test deterministic: with 50ms gather budget and 10ms per round,
+        // we expect ~5 gather rounds (budget elapsed after 5 rounds at 50ms).
+        jest.advanceTimersByTime(10);
+        if (body.tools) return okResponse(sseBody(toolOnlyRound('searchBills')));
+        return okResponse(sseBody(proseRound(REPORT)));
+      }) as unknown as jest.Mock;
+      global.fetch = fetchMock as unknown as typeof fetch;
 
-    const svc = new MeriResearchService(
-      makePrisma(),
-      makeConfig({
-        CLIO_RESEARCH_MAX_TOOL_ROUNDS: 50,
-        CLIO_RESEARCH_TOTAL_BUDGET_MS: 1,
-        CLIO_RESEARCH_SYNTHESIS_RESERVE_MS: 1,
-      }),
-      makeTools(),
-      makeAiCredentials(),
-      makeReviews(),
-    );
-    const { events, sse } = collectSse();
+      const svc = new MeriResearchService(
+        makePrisma(),
+        makeConfig({
+          CLIO_RESEARCH_MAX_TOOL_ROUNDS: 50,
+          CLIO_RESEARCH_TOTAL_BUDGET_MS: 100,
+          CLIO_RESEARCH_SYNTHESIS_RESERVE_MS: 50,
+        }),
+        makeTools(),
+        makeAiCredentials(),
+        makeReviews(),
+      );
+      const { events, sse } = collectSse();
 
-    await svc.streamResearch(CTX, 'sess-1', sse);
+      await svc.streamResearch(CTX, 'sess-1', sse);
 
-    // The budget gate — not the round cap — ended gathering. The exact count is
-    // 1-3 rather than 1: Date.now() has millisecond resolution, so several
-    // fully-mocked rounds can complete inside the same millisecond before the
-    // deadline is observably passed. The invariant that matters is that gathering
-    // stopped nowhere near the 50 permitted rounds.
-    const toolRounds = fetchBodies.filter((b) => Array.isArray(b.tools));
-    expect(toolRounds.length).toBeLessThan(10);
-    // Cutting gathering short must never mean shipping sources with no report:
-    // the forced-synthesis pass still gets a usable window (SYNTHESIS_FLOOR_MS).
-    const toolless = fetchBodies.filter((b) => !b.tools);
-    expect(toolless).toHaveLength(1);
-    const report = events.find((e) => e.type === 'report');
-    expect(String(report?.body ?? '')).toContain('Executive Summary');
+      // The budget gate — not the round cap — ended gathering.
+      // With 50ms available to gathering and ~10ms simulated per provider call,
+      // we expect exactly 5 gather rounds before the budget is exhausted.
+      // The invariant: no new gather call starts after the gather deadline.
+      const toolRounds = fetchBodies.filter((b) => Array.isArray(b.tools));
+      expect(toolRounds.length).toBe(5);
+      // Cutting gathering short must never mean shipping sources with no report:
+      // the forced-synthesis pass still completes within the remaining durable deadline.
+      const toolless = fetchBodies.filter((b) => !b.tools);
+      expect(toolless).toHaveLength(1);
+      // Verify no extra provider calls after budget exhausted (only gather rounds + 1 synthesis).
+      expect(fetchBodies.length).toBe(6); // 5 gather + 1 synthesis
+      const report = events.find((e) => e.type === 'report');
+      expect(String(report?.body ?? '')).toContain('Executive Summary');
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('emits progress heartbeats naming the current stage', async () => {

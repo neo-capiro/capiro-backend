@@ -5,7 +5,7 @@ import {
   resolveMeriDocumentRequest,
 } from '@capiro/shared';
 import { classifyApiToolReadOutcome } from '@capiro/shared/meri-read-outcome';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
@@ -133,6 +133,8 @@ import {
   MeriRunBudgetExhaustedError,
   isLegitimatePollingObservation,
   isLogicalToolFailure,
+  type MeriDurableProviderAccounting,
+  type MeriProviderReservation,
   type MeriToolSignatureScope,
 } from './meriv3-run-budget.js';
 import { scheduleClaimInventoryShadow } from './meriv3-claim-inventory-shadow.js';
@@ -388,27 +390,15 @@ function isTurnAbortError(error: unknown, signal?: AbortSignal): boolean {
   );
 }
 
-function withModelBudget(
-  provider: DecisionProvider | null,
-  budget: MeriRunBudget,
-  phase: 'repair' | 'shadow',
-): DecisionProvider | null {
-  if (!provider) return null;
-  return {
-    name: provider.name,
-    available: () => provider.available(),
-    assess: (envelope, question, options) => {
-      budget.reserveModelAttempt(phase);
-      return provider.assess(envelope, question, options);
-    },
-  };
-}
-
 function withToolBudget(
   registry: ToolRegistry,
   budget: MeriRunBudget,
   scope: MeriToolSignatureScope,
-  beforeInvoke?: (name: string, control?: ToolExecutionControl) => Promise<void>,
+  beforeInvoke?: (
+    name: string,
+    input: Record<string, unknown>,
+    control?: ToolExecutionControl,
+  ) => Promise<void>,
   admittedReadCapabilities: ReadonlySet<string> | null = null,
 ): ToolRegistry {
   const invoke = async <O>(
@@ -435,7 +425,7 @@ function withToolBudget(
         toolName: name,
         readOnly: registry.get(name)?.readOnly,
       });
-      await beforeInvoke?.(name, control);
+      await beforeInvoke?.(name, validatedArgs, control);
       const result = await registry.invoke<O>(name, input, ctx, control);
       if (registry.get(name)?.readOnly === true) {
         budget.observeToolResult({
@@ -916,7 +906,11 @@ export class MeriV3AssistantService {
       ? requireMeriProcedureBinding({ governed, dto, tenantId: ctx.tenantId })
       : null;
     const profile = resolveMeriV3ReasoningProfile(dto.reasoningMode);
-    const runtimeBudget = MeriRunBudget.fromToolRoundCeiling(profile.maxToolRounds, opts);
+    const runtimeBudget = MeriRunBudget.fromToolRoundCeiling(
+      profile.maxToolRounds,
+      opts,
+      dto.researchRun ? this.durableProviderAccounting(dto.researchRun, opts) : undefined,
+    );
     const budgetScope: MeriToolSignatureScope = {
       actorId: ctx.userId,
       tenantId: ctx.tenantId,
@@ -2273,8 +2267,21 @@ export class MeriV3AssistantService {
               this.registry,
               runtimeBudget,
               budgetScope,
-              (name, control) =>
-                this.assertCurrentAlternateReadAuthority(dto, availableSchemas, name, control),
+              async (name, input, control) => {
+                await this.assertCurrentAlternateReadAuthority(
+                  dto,
+                  availableSchemas,
+                  name,
+                  control,
+                );
+                await this.reserveAuxiliaryResearchDispatch(
+                  dto,
+                  name,
+                  input,
+                  `status:${runtimeBudget.toolSignature(budgetScope, name, input)}`,
+                  control,
+                );
+              },
               admittedReadCapabilities,
             ),
             ctx,
@@ -2399,11 +2406,11 @@ export class MeriV3AssistantService {
             env: process.env,
             tenantId: ctx.tenantId,
             surface: 'chat',
-            llm: this.llm,
+            llm: this.llm.withProviderBudget(runtimeBudget, 'shadow', 'legacy-judge-shadow'),
             logger: this.structuredLogger,
             fetchImpl: runtimeBudget.budgetedFetch('shadow'),
           });
-          const shadowLegacy = withModelBudget(providers.legacyBaseline, runtimeBudget, 'shadow')!;
+          const shadowLegacy = providers.legacyBaseline;
           await assessReleasedClaims({
             claims,
             ledger: claimLedger,
@@ -2436,8 +2443,16 @@ export class MeriV3AssistantService {
           this.registry,
           runtimeBudget,
           budgetScope,
-          (name, control) =>
-            this.assertCurrentAlternateReadAuthority(dto, availableSchemas, name, control),
+          async (name, input, control) => {
+            await this.assertCurrentAlternateReadAuthority(dto, availableSchemas, name, control);
+            await this.reserveAuxiliaryResearchDispatch(
+              dto,
+              name,
+              input,
+              `status-shadow:${runtimeBudget.toolSignature(budgetScope, name, input)}`,
+              control,
+            );
+          },
           admittedReadCapabilities,
         ),
         ctx,
@@ -2739,18 +2754,27 @@ export class MeriV3AssistantService {
         env: process.env,
         tenantId: ctx.tenantId,
         surface: 'chat',
-        llm: this.llm,
+        llm: this.llm.withProviderBudget(args.runtimeBudget, 'repair', 'legacy-judge-repair'),
         logger: this.structuredLogger,
         fetchImpl: args.runtimeBudget.budgetedFetch('repair'),
       });
-      const budgetedLegacy = withModelBudget(providers.legacy, args.runtimeBudget, 'repair')!;
+      const budgetedLegacy = providers.legacy;
       // MeriRunBudget remains the aggregate owner. The typed ToolRegistry seam
       // keeps accounting outside the repair loop and ready for later durable hooks.
       const budgetedRepairRegistry = withToolBudget(
         this.registry,
         args.runtimeBudget,
         args.budgetScope,
-        (name, control) => this.assertCurrentProcedureAuthority(dto.conversationId, name, control),
+        async (name, input, control) => {
+          await this.assertCurrentProcedureAuthority(dto.conversationId, name, control);
+          await this.reserveAuxiliaryResearchDispatch(
+            dto,
+            name,
+            input,
+            `repair:${args.runtimeBudget.toolSignature(args.budgetScope, name, input)}`,
+            control,
+          );
+        },
         args.admittedReadCapabilities,
       );
       // Document references are built only from what this turn observed
@@ -2811,8 +2835,9 @@ export class MeriV3AssistantService {
             ? createRevisionGenerator(
                 {
                   completeWithSchema: async (params) => {
-                    args.runtimeBudget.reserveModelAttempt('repair');
-                    return this.llm.completeWithSchema(params);
+                    return this.llm
+                      .withProviderBudget(args.runtimeBudget, 'repair', 'claim-revision-repair')
+                      .completeWithSchema(params);
                   },
                 },
                 () => Math.max(1, deadlineAt - Date.now()),
@@ -3491,7 +3516,12 @@ export class MeriV3AssistantService {
         const replay = await this.researchSafeReadRequest(
           args.researchRun,
           'replay',
-          { tool: args.name, toolVersion, input: args.input },
+          {
+            providerCallId: args.providerCallId,
+            tool: args.name,
+            toolVersion,
+            input: args.input,
+          },
           args.control,
         );
         if (replay.replayed === true) {
@@ -3499,7 +3529,28 @@ export class MeriV3AssistantService {
           result = replay.result;
           durableSafeRead = this.durableOutcome(replay.durableSafeRead);
         } else {
+          if (replay.dispatchAllowed === false)
+            throw new Error(
+              'The durable attempt was already spent or its replay proof failed; no second dispatch is allowed.',
+            );
           await this.assertCurrentProcedureAuthority(args.conversationId, args.name, args.control);
+          const reservation = await this.researchSafeReadRequest(
+            args.researchRun,
+            'reservations',
+            {
+              providerCallId: args.providerCallId,
+              tool: args.name,
+              input: args.input,
+            },
+            args.control,
+          );
+          if (
+            reservation.dispatchAllowed !== true ||
+            typeof reservation.reservationId !== 'string' ||
+            reservation.tool !== args.name ||
+            reservation.toolVersion !== toolVersion
+          )
+            throw new Error('Research tool attempt was not admitted for dispatch.');
           result = await this.registry.invoke(args.name, args.input, args.ctx, args.control);
           const classification = classifyApiToolReadOutcome(args.name, result);
           if (
@@ -3511,11 +3562,12 @@ export class MeriV3AssistantService {
             args.emit({ type: 'tool_done', tool: args.name, label, status: 'error', detail });
             return result;
           }
-          const executionId = randomUUID();
+          const executionId = reservation.reservationId;
           const receipt = await this.researchSafeReadRequest(
             args.researchRun,
             'outcomes',
             {
+              reservationId: executionId,
               executionId,
               providerCallId: args.providerCallId,
               tool: args.name,
@@ -3828,7 +3880,7 @@ export class MeriV3AssistantService {
 
   private async researchSafeReadRequest(
     researchRun: { sessionId: string; runId: string; leaseEpoch: number },
-    operation: 'replay' | 'outcomes',
+    operation: 'reservations' | 'replay' | 'outcomes',
     body: Record<string, unknown>,
     control?: ToolExecutionControl,
   ): Promise<Record<string, unknown>> {
@@ -3855,6 +3907,90 @@ export class MeriV3AssistantService {
     if (!response.ok)
       throw new Error(`Research result authority rejected ${operation} (HTTP ${response.status}).`);
     return (await response.json()) as Record<string, unknown>;
+  }
+
+  private durableProviderAccounting(
+    researchRun: { sessionId: string; runId: string; leaseEpoch: number },
+    control?: ToolExecutionControl,
+  ): MeriDurableProviderAccounting {
+    return {
+      reserve: async (binding) => {
+        const result = await this.researchProviderBudgetRequest(
+          researchRun,
+          'reservations',
+          binding,
+          control,
+        );
+        if (
+          typeof result.reservationId !== 'string' ||
+          typeof result.deadlineAt !== 'string' ||
+          typeof result.dispatchAllowed !== 'boolean'
+        )
+          throw new Error('Research provider authority returned an invalid reservation.');
+        return {
+          reservationId: result.reservationId,
+          deadlineAt: result.deadlineAt,
+          dispatchAllowed: result.dispatchAllowed,
+        };
+      },
+      settle: async (reservation, outcome) => {
+        await this.researchProviderBudgetRequest(
+          researchRun,
+          'settlements',
+          providerSettlementBody(reservation, outcome),
+          control,
+        );
+      },
+    };
+  }
+
+  private async researchProviderBudgetRequest(
+    researchRun: { sessionId: string; runId: string; leaseEpoch: number },
+    operation: 'reservations' | 'settlements',
+    body: object,
+    control?: ToolExecutionControl,
+  ): Promise<Record<string, unknown>> {
+    const credentials = RequestCredentialsStore.get();
+    if (!credentials?.bearerToken || !this.serviceSecret)
+      throw new Error('Authenticated research provider budget authority is required.');
+    const response = await fetch(
+      `${this.apiBaseUrl}/api/clio/research/${encodeURIComponent(researchRun.sessionId)}/runs/${encodeURIComponent(researchRun.runId)}/provider-budget/${operation}`,
+      {
+        method: 'POST',
+        signal: control?.signal,
+        headers: {
+          authorization: 'Bearer ' + credentials.bearerToken,
+          'x-internal-service-secret': this.serviceSecret,
+          'content-type': 'application/json',
+          accept: 'application/json',
+          ...(credentials.impersonateTenantId
+            ? { 'x-capiro-impersonate-tenant': credentials.impersonateTenantId }
+            : {}),
+        },
+        body: JSON.stringify({ ...body, leaseEpoch: researchRun.leaseEpoch }),
+      },
+    );
+    if (!response.ok)
+      throw new Error(`Research provider budget rejected ${operation} (HTTP ${response.status}).`);
+    return (await response.json()) as Record<string, unknown>;
+  }
+
+  private async reserveAuxiliaryResearchDispatch(
+    dto: MeriV3ChatInput,
+    tool: string,
+    input: Record<string, unknown>,
+    providerCallId: string,
+    control?: ToolExecutionControl,
+  ): Promise<void> {
+    if (!dto.researchRun) return;
+    const reservation = await this.researchSafeReadRequest(
+      dto.researchRun,
+      'reservations',
+      { providerCallId, tool, input },
+      control,
+    );
+    if (reservation.dispatchAllowed !== true || typeof reservation.reservationId !== 'string')
+      throw new Error('Research tool attempt was not admitted for dispatch.');
   }
 
   private durableOutcome(value: unknown): DurableSafeReadOutcome {
@@ -3963,6 +4099,26 @@ export class MeriV3AssistantService {
       );
     }
   }
+}
+
+function providerSettlementBody(
+  reservation: MeriProviderReservation,
+  outcome:
+    | { kind: 'known'; inputTokens: number; outputTokens: number }
+    | { kind: 'rejected' }
+    | { kind: 'uncertain' },
+): Record<string, unknown> {
+  return {
+    reservationId: reservation.reservationId,
+    attemptId: reservation.attemptId,
+    kind: reservation.kind,
+    phase: reservation.phase,
+    provider: reservation.provider,
+    model: reservation.model,
+    outcome: outcome.kind,
+    inputTokens: outcome.kind === 'known' ? outcome.inputTokens : null,
+    outputTokens: outcome.kind === 'known' ? outcome.outputTokens : null,
+  };
 }
 
 function extractChatArtifacts(result: unknown): ChatArtifact[] {

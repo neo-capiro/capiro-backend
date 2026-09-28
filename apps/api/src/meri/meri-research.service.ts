@@ -11,9 +11,11 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import type { MeriCitation, TenantContext } from '@capiro/shared';
-import { validateCitationMarkers, validateFormBCitations } from '@capiro/shared';
+import { AI_PRICING, validateCitationMarkers, validateFormBCitations } from '@capiro/shared';
 import { classifyApiToolReadOutcome } from '@capiro/shared/meri-read-outcome';
 import {
+  BD_GATE_PRICE_INPUT_USD_PER_MILLION,
+  BD_GATE_PRICE_OUTPUT_USD_PER_MILLION,
   runAuditor,
   ledgerToToolResultMap,
   type LedgerEntry,
@@ -75,7 +77,7 @@ import type {
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import { MERI_TURN_MAINTENANCE, type MeriTurnMaintenance } from './meri-turn-maintenance.js';
 
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { withMeriToolExecutionControl } from './meri-tool-request-control.js';
 import {
   ACTIVE_RESEARCH_RUN_FENCE_SQL,
@@ -123,6 +125,20 @@ import {
   ResearchTerminalError,
   type ResearchTerminalFailure,
 } from './research-observer-projection.js';
+import {
+  admitResearchToolBudget,
+  completeResearchToolAttempt,
+  readResearchToolBudget,
+  reserveResearchProviderAttempt,
+  reserveResearchToolAttempt,
+  settleResearchProviderAttempt,
+  ResearchProviderBudgetError,
+  ResearchToolBudgetError,
+  type ResearchProviderAttemptKind,
+  type ResearchProviderBudgetLimitsV1,
+  type ResearchToolAttemptBinding,
+  type ResearchToolAttemptOutcome,
+} from './meri-research-tool-budget.js';
 
 const PRODUCT_NAME = 'Meri';
 
@@ -155,6 +171,7 @@ interface SseSink {
 }
 
 export interface ResearchSafeReadOutcomeInput {
+  reservationId: string;
   executionId: string;
   leaseEpoch?: number;
   providerCallId: string;
@@ -162,6 +179,41 @@ export interface ResearchSafeReadOutcomeInput {
   toolVersion: string;
   input: Record<string, unknown>;
   result: unknown;
+}
+
+export interface ResearchToolReservationInput {
+  leaseEpoch: number;
+  providerCallId: string;
+  tool: string;
+  input: Record<string, unknown>;
+}
+
+export interface ResearchProviderReservationInput {
+  leaseEpoch: number;
+  logicalOperationId: string;
+  attemptId: string;
+  retryOfAttemptId: string | null;
+  kind: ResearchProviderAttemptKind;
+  phase: string;
+  provider: string;
+  model: string;
+  maxInputTokens: number;
+  maxOutputTokens: number | null;
+}
+
+export interface ResearchProviderSettlementInput {
+  leaseEpoch: number;
+  reservationId: string;
+  logicalOperationId: string;
+  attemptId: string;
+  retryOfAttemptId: string | null;
+  kind: ResearchProviderAttemptKind;
+  phase: string;
+  provider: string;
+  model: string;
+  outcome: 'known' | 'rejected' | 'uncertain';
+  inputTokens: number | null;
+  outputTokens: number | null;
 }
 
 export interface MeriReportModelContextMessage {
@@ -644,6 +696,159 @@ export class MeriResearchService {
     return { active: true };
   }
 
+  /** Persist one aggregate model/provider/JEV reservation before external dispatch. */
+  async reserveProviderAttempt(
+    ctx: TenantContext,
+    id: string,
+    runId: string,
+    raw: ResearchProviderReservationInput,
+  ) {
+    const input = strictProviderReservationInput(raw);
+    for (let retry = 0; retry < 4; retry += 1) {
+      const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        const current = await tx.clioResearchSession.findFirst({
+          where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
+        });
+        const run = readResearchRun(current?.metadata);
+        if (
+          !current ||
+          !run ||
+          run.id !== runId ||
+          run.leaseEpoch !== input.leaseEpoch ||
+          run.status !== 'running'
+        )
+          throw new ConflictException('Research lease is no longer active.');
+        await this.assertResearchPublicationAuthorized(tx, ctx, current);
+        let reserved;
+        try {
+          reserved = reserveResearchProviderAttempt({
+            metadata: current.metadata,
+            run,
+            limits: this.researchProviderBudgetLimits(run),
+            binding: input,
+            price: researchProviderPrice(input.kind, input.model),
+          });
+        } catch (error) {
+          if (error instanceof ResearchProviderBudgetError) throw new ConflictException(error.code);
+          throw error;
+        }
+        if (!reserved.dispatchAllowed) return { retry: false as const, reserved };
+        const changed = await this.updateActiveResearchRun(
+          tx,
+          ctx,
+          current.id,
+          run,
+          current.metadata,
+          reserved.metadata,
+          current.status,
+          new Date(),
+        );
+        return changed ? { retry: false as const, reserved } : { retry: true as const };
+      });
+      if (result.retry) continue;
+      const { reservation, budget, dispatchAllowed } = result.reserved;
+      return {
+        version: 1 as const,
+        reservationId: reservation.reservationId,
+        dispatchAllowed,
+        status: reservation.status,
+        deadlineAt: budget.limits.deadlineAt,
+        chargedAttempts: budget.chargedAttempts,
+        chargedTokens: budget.chargedTokens,
+        chargedCostMicros: budget.chargedCostMicros,
+      };
+    }
+    throw new ConflictException(
+      'Research provider budget changed concurrently; retry with the same attempt identity.',
+    );
+  }
+
+  /** Idempotently settle known usage; uncertain responses retain their worst-case charge. */
+  async settleProviderAttempt(
+    ctx: TenantContext,
+    id: string,
+    runId: string,
+    raw: ResearchProviderSettlementInput,
+  ) {
+    const input = strictProviderSettlementInput(raw);
+    for (let retry = 0; retry < 4; retry += 1) {
+      const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        const current = await tx.clioResearchSession.findFirst({
+          where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
+        });
+        const run = readResearchRun(current?.metadata);
+        if (
+          !current ||
+          !run ||
+          run.id !== runId ||
+          run.leaseEpoch !== input.leaseEpoch ||
+          run.status !== 'running'
+        )
+          throw new ConflictException('Research lease is no longer active.');
+        let settled;
+        try {
+          settled = settleResearchProviderAttempt({
+            metadata: current.metadata,
+            run,
+            reservationId: input.reservationId,
+            binding: input,
+            outcome:
+              input.outcome === 'known'
+                ? {
+                    kind: 'known',
+                    inputTokens: input.inputTokens!,
+                    outputTokens: input.outputTokens!,
+                    price: researchProviderPrice(input.kind, input.model),
+                  }
+                : { kind: input.outcome },
+          });
+        } catch (error) {
+          if (error instanceof ResearchProviderBudgetError) throw new ConflictException(error.code);
+          throw error;
+        }
+        if (settled.metadata === current.metadata) return { retry: false as const, settled };
+        const changed = await this.updateActiveResearchRun(
+          tx,
+          ctx,
+          current.id,
+          run,
+          current.metadata,
+          settled.metadata,
+          current.status,
+          new Date(),
+        );
+        return changed ? { retry: false as const, settled } : { retry: true as const };
+      });
+      if (result.retry) continue;
+      return {
+        version: 1 as const,
+        status: result.settled.reservation.status,
+        chargedAttempts: result.settled.budget.chargedAttempts,
+        chargedTokens: result.settled.budget.chargedTokens,
+        chargedCostMicros: result.settled.budget.chargedCostMicros,
+      };
+    }
+    throw new ConflictException('Research provider usage changed concurrently; retry settlement.');
+  }
+
+  /** Reserve one server-owned attempt before a research runtime may dispatch it. */
+  async reserveSafeReadAttempt(
+    ctx: TenantContext,
+    id: string,
+    runId: string,
+    raw: ResearchToolReservationInput,
+  ) {
+    const input = strictReservationInput(raw);
+    const toolVersion = this.currentSafeReadToolVersion(ctx, input.tool);
+    return this.reserveBoundToolAttempt(ctx, id, runId, input.leaseEpoch, {
+      providerCallId: input.providerCallId,
+      kind: 'dispatch',
+      tool: input.tool,
+      toolVersion,
+      input: input.input,
+    });
+  }
+
   /** Server-to-server V3 hook; commits private result bytes and the public receipt atomically. */
   async commitSafeReadOutcome(
     ctx: TenantContext,
@@ -651,173 +856,143 @@ export class MeriResearchService {
     runId: string,
     input: ResearchSafeReadOutcomeInput,
   ) {
-    const committed = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const current = await tx.clioResearchSession.findFirst({
-        where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
-      });
-      const run = readResearchRun(current?.metadata);
-      if (
-        !current ||
-        !run ||
-        run.id !== runId ||
-        run.status !== 'running' ||
-        input.leaseEpoch !== run.leaseEpoch
-      )
-        throw new ConflictException('Research lease is no longer active.');
-      await this.assertResearchPublicationAuthorized(tx, ctx, current);
-      const receipt = await this.commitSafeReadOutcomeInTransaction(tx, ctx, current, run, input);
-      return { receipt, run };
-    });
+    if (input.executionId !== input.reservationId)
+      throw new ConflictException('Research outcome identity does not match its reservation.');
+    let committed: { receipt: DurableResearchStepReceipt; run: ResearchRunState } | null = null;
+    for (let attempt = 0; attempt < 4 && !committed; attempt += 1) {
+      try {
+        committed = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+          const current = await tx.clioResearchSession.findFirst({
+            where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
+          });
+          const run = readResearchRun(current?.metadata);
+          if (
+            !current ||
+            !run ||
+            run.id !== runId ||
+            run.status !== 'running' ||
+            input.leaseEpoch !== run.leaseEpoch
+          )
+            throw new ConflictException('Research lease is no longer active.');
+          await this.assertResearchPublicationAuthorized(tx, ctx, current);
+          const receipt = await this.commitSafeReadOutcomeInTransaction(
+            tx,
+            ctx,
+            current,
+            run,
+            input,
+          );
+          return { receipt, run };
+        });
+      } catch (error) {
+        if (error instanceof ResearchBudgetCasRetry) continue;
+        throw error;
+      }
+    }
+    if (!committed)
+      throw new ConflictException('Research lease changed while saving the reserved outcome.');
     // Commit and publication are separate failure boundaries. A revocation here
     // leaves the private result durable but withholds it from the caller.
     await this.assertReceiptPublicationAuthorized(ctx, id, committed.run);
     return committed.receipt;
   }
 
-  /** Reuse is limited to a prior ownership epoch and reauthorized on every request. */
+  /** Reuse is limited to a prior ownership epoch; its owner proof consumes one persisted attempt. */
   async replaySafeReadOutcome(
     ctx: TenantContext,
     id: string,
     runId: string,
     request: {
       leaseEpoch: number;
+      providerCallId?: string;
       tool: string;
       toolVersion: string;
       input: Record<string, unknown>;
     },
   ) {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const current = await tx.clioResearchSession.findFirst({
-        where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
-      });
-      const run = readResearchRun(current?.metadata);
-      if (
-        !current ||
-        !run ||
-        run.id !== runId ||
-        run.status !== 'running' ||
-        request.leaseEpoch !== run.leaseEpoch
-      )
-        throw new ConflictException('Research lease is no longer active.');
-      await this.assertResearchPublicationAuthorized(tx, ctx, current);
-      this.assertCurrentSafeReadPolicy(ctx, request.tool, request.toolVersion);
-      const inputSha256 = researchJsonSha256(request.input);
-      const receipt = readDurableResearchStepReceipts(current.metadata)
-        .filter(
-          (candidate) =>
-            candidate.version === 2 &&
-            candidate.status === 'complete' &&
-            candidate.leaseEpoch < run.leaseEpoch &&
-            candidate.runId !== run.id &&
-            candidate.tool === request.tool &&
-            candidate.toolVersion === request.toolVersion &&
-            candidate.inputSha256 === inputSha256,
-        )
-        .sort((a, b) => b.sequence - a.sequence)[0];
-      if (!receipt?.resultRef || !receipt.resultBodySha256) return { replayed: false as const };
-      const handoff = readResearchHandoff(current.metadata);
-      const backing = researchMetadata(current.metadata).backingConversationId;
-      const conversationId =
-        handoff?.conversationId ?? (typeof backing === 'string' ? backing : null);
-      if (!conversationId) return { replayed: false as const };
-      const artifact = await tx.clioArtifact.findFirst({
-        where: {
-          id: receipt.resultRef,
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
-          clientId: current.clientId,
-          conversationId,
-          kind: RESEARCH_SAFE_READ_ARTIFACT_KIND,
-        },
-        select: { bodyText: true },
-      });
-      let envelope;
-      try {
-        envelope = openDurableResearchResult(artifact?.bodyText, receipt.resultBodySha256);
-      } catch {
-        // A missing/corrupt private cache is a replay miss. The caller may perform
-        // a fresh owner read; cache damage must not turn the tool into an error.
-        return { replayed: false as const };
-      }
-      if (
-        envelope.executionId !== receipt.executionId ||
-        envelope.providerCallId !== receipt.providerCallId ||
-        envelope.runId !== receipt.runId ||
-        envelope.leaseEpoch !== receipt.leaseEpoch ||
-        envelope.tool !== receipt.tool ||
-        envelope.toolVersion !== receipt.toolVersion ||
-        envelope.inputSha256 !== receipt.inputSha256 ||
-        envelope.resultSha256 !== receipt.resultSha256
-      )
-        return { replayed: false as const };
-      const classified = classifyApiToolReadOutcome(envelope.tool, envelope.result);
-      if (classified?.kind !== envelope.classifier) return { replayed: false as const };
-      if (!supportsDurableOwnerReauthorization(envelope.tool)) return { replayed: false as const };
-      const isMailTool = ['list_emails', 'search_emails', 'get_email_thread'].includes(
-        envelope.tool,
+    const replayProviderCallId = boundedAttemptIdentity(request.providerCallId);
+    const candidate = await this.loadReplayCandidate(ctx, id, runId, {
+      ...request,
+      providerCallId: replayProviderCallId,
+    });
+    if (!candidate) return { replayed: false as const, dispatchAllowed: true as const };
+
+    const proofAttemptId = `reauthorize:${researchJsonSha256({
+      providerCallId: replayProviderCallId,
+      priorExecutionId: candidate.receipt.executionId,
+    })}`;
+    const binding: ResearchToolAttemptBinding = {
+      providerCallId: proofAttemptId,
+      kind: 'receipt_reauthorization',
+      tool: candidate.envelope.tool,
+      toolVersion: candidate.envelope.toolVersion,
+      input: candidate.executeInput,
+    };
+    const reservation = await this.reserveBoundToolAttempt(
+      ctx,
+      id,
+      runId,
+      request.leaseEpoch,
+      binding,
+    );
+    if (!reservation.dispatchAllowed) {
+      // A completed proof only records what was authorized for its original
+      // release. Reusing it would turn stale owner authority into permission.
+      // Reserved attempts also remain uncertain and cannot be dispatched again.
+      return {
+        replayed: false as const,
+        dispatchAllowed: false as const,
+        replayMiss:
+          reservation.status === 'completed'
+            ? ('completed_reauthorization_identity' as const)
+            : ('reauthorization_in_flight_or_uncertain' as const),
+      };
+    }
+
+    let authorized = false;
+    try {
+      // This actual owner query runs only after its transaction committed. A
+      // lost response remains spent and the same identity cannot run it twice.
+      const currentOwnerResult = await this.tools.execute(
+        ctx,
+        candidate.envelope.tool as never,
+        candidate.executeInput,
       );
-      const mailAuthorization = isMailTool
-        ? await currentMailSourceScopeAuthorization({
-            tx,
-            ctx,
-            sessionClientId: current.clientId,
-            tool: envelope.tool,
-            originalInput: envelope.input,
-            savedResult: envelope.result,
-          })
-        : null;
-      if (isMailTool && !mailAuthorization) return { replayed: false as const };
-      const isMeetingTool = envelope.tool === 'read_client_meetings';
-      const meetingAuthorization = isMeetingTool
-        ? await currentMeetingSourceScopeAuthorization({
-            tx,
-            ctx,
-            sessionClientId: current.clientId,
-            originalInput: envelope.input,
-            savedResult: envelope.result,
-          })
-        : null;
-      const isNativeWorkTool = ['query_tasks', 'query_action_items'].includes(envelope.tool);
-      const nativeWorkAuthorization = isNativeWorkTool
-        ? await currentNativeWorkSourceScopeAuthorization({
-            tx,
-            ctx,
-            sessionClientId: current.clientId,
-            tool: envelope.tool,
-            originalInput: envelope.input,
-            savedResult: envelope.result,
-          })
-        : null;
-      if (isMeetingTool && !meetingAuthorization) return { replayed: false as const };
-      if (isNativeWorkTool && !nativeWorkAuthorization) return { replayed: false as const };
-      const reauthorizationInput =
-        mailAuthorization?.executeInput ??
-        meetingAuthorization?.executeInput ??
-        nativeWorkAuthorization?.executeInput ??
-        currentOwnerReauthorizationInput(envelope.tool, envelope.input, envelope.result);
-      if (!reauthorizationInput) return { replayed: false as const };
-      let currentOwnerResult: unknown;
-      try {
-        // The canonical owner path re-evaluates RLS/ACL, lifecycle and source
-        // version now. This is an authorization proof read, not old coverage.
-        currentOwnerResult = await this.tools.execute(
-          ctx,
-          envelope.tool as never,
-          reauthorizationInput,
-        );
-      } catch {
-        return { replayed: false as const };
-      }
-      if (!currentOwnerResultAuthorizesReplay(envelope.tool, envelope.result, currentOwnerResult))
-        return { replayed: false as const };
+      authorized = currentOwnerResultAuthorizesReplay(
+        candidate.envelope.tool,
+        candidate.envelope.result,
+        currentOwnerResult,
+      );
+    } catch {
+      authorized = false;
+    }
+    await this.completeReservedAttempt(
+      ctx,
+      id,
+      runId,
+      request.leaseEpoch,
+      reservation.reservationId,
+      binding,
+      authorized ? 'replay_authorized' : 'replay_denied',
+    );
+    if (!authorized) return { replayed: false as const, dispatchAllowed: false as const };
+
+    const isMailTool = ['list_emails', 'search_emails', 'get_email_thread'].includes(
+      candidate.envelope.tool,
+    );
+    const isMeetingTool = candidate.envelope.tool === 'read_client_meetings';
+    const isNativeWorkTool = ['query_tasks', 'query_action_items'].includes(
+      candidate.envelope.tool,
+    );
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const final = await tx.clioResearchSession.findFirst({
         where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
       });
       const finalRun = readResearchRun(final?.metadata);
       if (
         !final ||
-        finalRun?.id !== run.id ||
-        finalRun.leaseEpoch !== run.leaseEpoch ||
+        finalRun?.id !== runId ||
+        finalRun.leaseEpoch !== request.leaseEpoch ||
         finalRun.status !== 'running'
       )
         throw new ConflictException('Research lease is no longer active.');
@@ -827,40 +1002,41 @@ export class MeriResearchService {
           tx,
           ctx,
           sessionClientId: final.clientId,
-          tool: envelope.tool,
-          originalInput: envelope.input,
-          savedResult: envelope.result,
+          tool: candidate.envelope.tool,
+          originalInput: candidate.envelope.input,
+          savedResult: candidate.envelope.result,
         }))
       )
-        return { replayed: false as const };
+        return { replayed: false as const, dispatchAllowed: false as const };
       if (
         isMeetingTool &&
         !(await currentMeetingSourceScopeAuthorization({
           tx,
           ctx,
           sessionClientId: final.clientId,
-          originalInput: envelope.input,
-          savedResult: envelope.result,
+          originalInput: candidate.envelope.input,
+          savedResult: candidate.envelope.result,
         }))
       )
-        return { replayed: false as const };
+        return { replayed: false as const, dispatchAllowed: false as const };
       if (
         isNativeWorkTool &&
         !(await currentNativeWorkSourceScopeAuthorization({
           tx,
           ctx,
           sessionClientId: final.clientId,
-          tool: envelope.tool,
-          originalInput: envelope.input,
-          savedResult: envelope.result,
+          tool: candidate.envelope.tool,
+          originalInput: candidate.envelope.input,
+          savedResult: candidate.envelope.result,
         }))
       )
-        return { replayed: false as const };
+        return { replayed: false as const, dispatchAllowed: false as const };
       await this.assertResearchPublicationAuthorized(tx, ctx, final);
       return {
         replayed: true as const,
-        result: envelope.result,
-        durableSafeRead: publicDurableSafeRead(receipt, true),
+        dispatchAllowed: false as const,
+        result: candidate.envelope.result,
+        durableSafeRead: publicDurableSafeRead(candidate.receipt, true),
       };
     });
   }
@@ -1206,55 +1382,329 @@ export class MeriResearchService {
     source: Record<string, unknown>,
     qualification: Record<string, unknown>,
   ) {
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      try {
+        return await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+          const current = await tx.clioResearchSession.findFirst({
+            where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
+          });
+          const currentRun = readResearchRun(current?.metadata);
+          if (
+            !current ||
+            currentRun?.id !== run.id ||
+            currentRun.leaseEpoch !== run.leaseEpoch ||
+            currentRun.status !== 'running'
+          )
+            throw new ConflictException('Research lease is no longer active.');
+          await this.assertResearchPublicationAuthorized(tx, ctx, current);
+
+          const toolCallId = qualification.toolCallId as string;
+          const tool = qualification.tool as string;
+          if (
+            !toolCallId.trim() ||
+            source.tool !== tool ||
+            source.confidence !== 'high' ||
+            !this.tools.isConcurrencySafe(tool) ||
+            typeof qualification.executionId !== 'string' ||
+            typeof qualification.toolVersion !== 'string' ||
+            !qualification.input ||
+            typeof qualification.input !== 'object' ||
+            Array.isArray(qualification.input) ||
+            !('result' in qualification)
+          )
+            throw new ConflictException(
+              'Research source completion was not qualified for durability.',
+            );
+          return this.commitSafeReadOutcomeInTransaction(tx, ctx, current, run, {
+            reservationId: qualification.executionId,
+            executionId: qualification.executionId,
+            providerCallId: toolCallId,
+            tool,
+            toolVersion: qualification.toolVersion,
+            input: qualification.input as Record<string, unknown>,
+            result: qualification.result,
+          });
+        });
+      } catch (error) {
+        if (error instanceof ResearchBudgetCasRetry) continue;
+        throw error;
+      }
+    }
+    throw new ConflictException('Research lease changed while saving progress.');
+  }
+
+  private async loadReplayCandidate(
+    ctx: TenantContext,
+    id: string,
+    runId: string,
+    request: {
+      leaseEpoch: number;
+      providerCallId: string;
+      tool: string;
+      toolVersion: string;
+      input: Record<string, unknown>;
+    },
+  ) {
+    boundedAttemptIdentity(request.providerCallId);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const current = await tx.clioResearchSession.findFirst({
         where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
       });
-      const currentRun = readResearchRun(current?.metadata);
+      const run = readResearchRun(current?.metadata);
       if (
         !current ||
-        currentRun?.id !== run.id ||
-        currentRun.leaseEpoch !== run.leaseEpoch ||
-        currentRun.status !== 'running'
+        !run ||
+        run.id !== runId ||
+        run.status !== 'running' ||
+        request.leaseEpoch !== run.leaseEpoch
       )
         throw new ConflictException('Research lease is no longer active.');
       await this.assertResearchPublicationAuthorized(tx, ctx, current);
-
-      const toolCallId = qualification.toolCallId as string;
-      const tool = qualification.tool as string;
-      if (
-        !toolCallId.trim() ||
-        source.tool !== tool ||
-        source.confidence !== 'high' ||
-        !this.tools.isConcurrencySafe(tool) ||
-        typeof qualification.executionId !== 'string' ||
-        typeof qualification.toolVersion !== 'string' ||
-        !qualification.input ||
-        typeof qualification.input !== 'object' ||
-        Array.isArray(qualification.input) ||
-        !('result' in qualification)
-      )
-        throw new ConflictException('Research source completion was not qualified for durability.');
-      return this.commitSafeReadOutcomeInTransaction(tx, ctx, current, run, {
-        executionId: qualification.executionId,
-        providerCallId: toolCallId,
-        tool,
-        toolVersion: qualification.toolVersion,
-        input: qualification.input as Record<string, unknown>,
-        result: qualification.result,
+      this.assertCurrentSafeReadPolicy(ctx, request.tool, request.toolVersion);
+      const inputSha256 = researchJsonSha256(request.input);
+      const receipt = readDurableResearchStepReceipts(current.metadata)
+        .filter(
+          (candidate) =>
+            candidate.version === 2 &&
+            candidate.status === 'complete' &&
+            candidate.leaseEpoch < run.leaseEpoch &&
+            candidate.runId !== run.id &&
+            candidate.tool === request.tool &&
+            candidate.toolVersion === request.toolVersion &&
+            candidate.inputSha256 === inputSha256,
+        )
+        .sort((a, b) => b.sequence - a.sequence)[0];
+      if (!receipt?.resultRef || !receipt.resultBodySha256) return null;
+      const metadata = researchMetadata(current.metadata);
+      const handoff = readResearchHandoff(current.metadata);
+      const conversationId =
+        handoff?.conversationId ??
+        (typeof metadata.backingConversationId === 'string'
+          ? metadata.backingConversationId
+          : null);
+      if (!conversationId) return null;
+      const artifact = await tx.clioArtifact.findFirst({
+        where: {
+          id: receipt.resultRef,
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          clientId: current.clientId,
+          conversationId,
+          kind: RESEARCH_SAFE_READ_ARTIFACT_KIND,
+        },
+        select: { bodyText: true },
       });
+      let envelope;
+      try {
+        envelope = openDurableResearchResult(artifact?.bodyText, receipt.resultBodySha256);
+      } catch {
+        return null;
+      }
+      if (
+        envelope.executionId !== receipt.executionId ||
+        envelope.providerCallId !== receipt.providerCallId ||
+        envelope.runId !== receipt.runId ||
+        envelope.leaseEpoch !== receipt.leaseEpoch ||
+        envelope.tool !== receipt.tool ||
+        envelope.toolVersion !== receipt.toolVersion ||
+        envelope.inputSha256 !== receipt.inputSha256 ||
+        envelope.resultSha256 !== receipt.resultSha256 ||
+        classifyApiToolReadOutcome(envelope.tool, envelope.result)?.kind !== envelope.classifier ||
+        !supportsDurableOwnerReauthorization(envelope.tool)
+      )
+        return null;
+      const isMailTool = ['list_emails', 'search_emails', 'get_email_thread'].includes(
+        envelope.tool,
+      );
+      const mailAuthorization = isMailTool
+        ? await currentMailSourceScopeAuthorization({
+            tx,
+            ctx,
+            sessionClientId: current.clientId,
+            tool: envelope.tool,
+            originalInput: envelope.input,
+            savedResult: envelope.result,
+          })
+        : null;
+      if (isMailTool && !mailAuthorization) return null;
+      const isMeetingTool = envelope.tool === 'read_client_meetings';
+      const meetingAuthorization = isMeetingTool
+        ? await currentMeetingSourceScopeAuthorization({
+            tx,
+            ctx,
+            sessionClientId: current.clientId,
+            originalInput: envelope.input,
+            savedResult: envelope.result,
+          })
+        : null;
+      const isNativeWorkTool = ['query_tasks', 'query_action_items'].includes(envelope.tool);
+      const nativeWorkAuthorization = isNativeWorkTool
+        ? await currentNativeWorkSourceScopeAuthorization({
+            tx,
+            ctx,
+            sessionClientId: current.clientId,
+            tool: envelope.tool,
+            originalInput: envelope.input,
+            savedResult: envelope.result,
+          })
+        : null;
+      if (isMeetingTool && !meetingAuthorization) return null;
+      if (isNativeWorkTool && !nativeWorkAuthorization) return null;
+      const reauthorizationInput =
+        mailAuthorization?.executeInput ??
+        meetingAuthorization?.executeInput ??
+        nativeWorkAuthorization?.executeInput ??
+        currentOwnerReauthorizationInput(envelope.tool, envelope.input, envelope.result);
+      if (!reauthorizationInput) return null;
+      return { receipt, envelope, executeInput: reauthorizationInput };
     });
   }
 
-  private assertCurrentSafeReadPolicy(ctx: TenantContext, tool: string, toolVersion: string) {
+  private async reserveBoundToolAttempt(
+    ctx: TenantContext,
+    id: string,
+    runId: string,
+    leaseEpoch: number,
+    binding: ResearchToolAttemptBinding,
+  ) {
+    for (let retry = 0; retry < 4; retry += 1) {
+      const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        const current = await tx.clioResearchSession.findFirst({
+          where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
+        });
+        const run = readResearchRun(current?.metadata);
+        if (
+          !current ||
+          !run ||
+          run.id !== runId ||
+          run.leaseEpoch !== leaseEpoch ||
+          run.status !== 'running'
+        )
+          throw new ConflictException('Research lease is no longer active.');
+        await this.assertResearchPublicationAuthorized(tx, ctx, current);
+        this.assertCurrentSafeReadPolicy(ctx, binding.tool, binding.toolVersion);
+        const rawPlan = researchMetadata(current.metadata).researchPlan;
+        let plan: ResearchPlanV1;
+        try {
+          plan = validateResearchPlan(rawPlan, this.researchPlanAdmissionContext(ctx, current));
+        } catch {
+          throw new ConflictException('The current admitted research plan is unavailable.');
+        }
+        let reserved;
+        try {
+          reserved = reserveResearchToolAttempt({
+            metadata: current.metadata,
+            run,
+            plan,
+            binding,
+          });
+        } catch (error) {
+          if (error instanceof ResearchToolBudgetError) throw new ConflictException(error.code);
+          throw error;
+        }
+        if (!reserved.dispatchAllowed) return { retry: false as const, reserved };
+        const changed = await this.updateActiveResearchRun(
+          tx,
+          ctx,
+          current.id,
+          run,
+          current.metadata,
+          reserved.metadata,
+          current.status,
+          new Date(),
+        );
+        return changed ? { retry: false as const, reserved } : { retry: true as const };
+      });
+      if (result.retry) continue;
+      const { reservation, budget, dispatchAllowed } = result.reserved;
+      return {
+        version: 1 as const,
+        reservationId: reservation.reservationId,
+        tool: reservation.tool,
+        toolVersion: reservation.toolVersion,
+        kind: reservation.kind,
+        status: reservation.status,
+        outcome: reservation.outcome,
+        dispatchAllowed,
+        spent: budget.spent,
+        limit: budget.limit,
+      };
+    }
+    throw new ConflictException(
+      'Research budget changed concurrently; retry with the same attempt identity.',
+    );
+  }
+
+  private async completeReservedAttempt(
+    ctx: TenantContext,
+    id: string,
+    runId: string,
+    leaseEpoch: number,
+    reservationId: string,
+    binding: ResearchToolAttemptBinding,
+    outcome: ResearchToolAttemptOutcome,
+  ): Promise<void> {
+    for (let retry = 0; retry < 4; retry += 1) {
+      const done = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        const current = await tx.clioResearchSession.findFirst({
+          where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
+        });
+        const run = readResearchRun(current?.metadata);
+        if (
+          !current ||
+          !run ||
+          run.id !== runId ||
+          run.leaseEpoch !== leaseEpoch ||
+          run.status !== 'running'
+        )
+          throw new ConflictException('Research lease is no longer active.');
+        await this.assertResearchPublicationAuthorized(tx, ctx, current);
+        let completed;
+        try {
+          completed = completeResearchToolAttempt({
+            metadata: current.metadata,
+            run,
+            reservationId,
+            binding: {
+              kind: binding.kind,
+              tool: binding.tool,
+              toolVersion: binding.toolVersion,
+              input: binding.input,
+            },
+            outcome,
+          });
+        } catch (error) {
+          if (error instanceof ResearchToolBudgetError) throw new ConflictException(error.code);
+          throw error;
+        }
+        if (completed.metadata === current.metadata) return true;
+        return this.updateActiveResearchRun(
+          tx,
+          ctx,
+          current.id,
+          run,
+          current.metadata,
+          completed.metadata,
+          current.status,
+          new Date(),
+        );
+      });
+      if (done) return;
+    }
+    throw new ConflictException('Research lease changed while completing a reserved attempt.');
+  }
+
+  private currentSafeReadToolVersion(ctx: TenantContext, tool: string): string {
     const schema = this.tools
       .anthropicToolSchemas({ tenantId: ctx.tenantId, surface: 'chat' })
       .find((candidate) => candidate.name === tool);
-    if (
-      !schema ||
-      !this.tools.isConcurrencySafe(tool) ||
-      researchToolVersion(schema.input_schema) !== toolVersion
-    )
+    if (!schema || !this.tools.isConcurrencySafe(tool))
+      throw new ConflictException('The read tool is no longer authorized by the current policy.');
+    return researchToolVersion(schema.input_schema);
+  }
+
+  private assertCurrentSafeReadPolicy(ctx: TenantContext, tool: string, toolVersion: string) {
+    if (this.currentSafeReadToolVersion(ctx, tool) !== toolVersion)
       throw new ConflictException('The read tool is no longer authorized by the current policy.');
   }
 
@@ -1265,7 +1715,11 @@ export class MeriResearchService {
     run: ResearchRunState,
     input: ResearchSafeReadOutcomeInput,
   ) {
-    if (!input.executionId?.trim() || !input.providerCallId?.trim())
+    if (
+      !input.reservationId?.trim() ||
+      input.executionId !== input.reservationId ||
+      !input.providerCallId?.trim()
+    )
       throw new ConflictException(
         'A durable safe-read outcome requires exact invocation identity.',
       );
@@ -1290,6 +1744,12 @@ export class MeriResearchService {
         throw new ConflictException(
           'Durable safe-read execution identity was reused inconsistently.',
         );
+      const budget = readResearchToolBudget(current.metadata);
+      const reservation = budget?.attempts.find(
+        (attempt) => attempt.reservationId === input.reservationId,
+      );
+      if (reservation?.status !== 'completed' || reservation.outcome !== 'result_committed')
+        throw new ConflictException('The durable result is not paired to a completed reservation.');
       return existing;
     }
 
@@ -1367,17 +1827,36 @@ export class MeriResearchService {
       resultByteSize: sealed.byteSize,
       classifier: sealed.envelope.classifier,
     });
+    let completed;
+    try {
+      completed = completeResearchToolAttempt({
+        metadata: appended.metadata,
+        run,
+        reservationId: input.reservationId,
+        binding: {
+          kind: 'dispatch',
+          tool: input.tool,
+          toolVersion: input.toolVersion,
+          input: input.input,
+        },
+        outcome: 'result_committed',
+        now: new Date(completedAt),
+      });
+    } catch (error) {
+      if (error instanceof ResearchToolBudgetError) throw new ConflictException(error.code);
+      throw error;
+    }
     const changed = await this.updateActiveResearchRun(
       tx,
       ctx,
       current.id,
       run,
       current.metadata,
-      appended.metadata,
+      completed.metadata,
       current.status,
       new Date(),
     );
-    if (!changed) throw new ConflictException('Research lease changed while saving progress.');
+    if (!changed) throw new ResearchBudgetCasRetry();
     return appended.receipt;
   }
 
@@ -1591,8 +2070,18 @@ export class MeriResearchService {
       });
       const admitted = validateResearchPlan(proposal, currentAdmissionContext);
       const stringPlan = researchPlanStringProjection(admitted);
+      let budgetedMetadata: Record<string, unknown>;
+      try {
+        budgetedMetadata = admitResearchToolBudget(
+          currentMetadata,
+          admitted.budget.toolCalls,
+        ).metadata;
+      } catch (error) {
+        if (error instanceof ResearchToolBudgetError) throw new ConflictException(error.code);
+        throw error;
+      }
       const persistedMetadata = {
-        ...researchMetadata(currentMetadata),
+        ...budgetedMetadata,
         researchPlan: admitted,
         run: terminalResearchRun(
           auth.run!,
@@ -1937,6 +2426,30 @@ export class MeriResearchService {
         const thinkingState = createThinkingState();
         let thinkingStatusSent = false;
         let stopReason: string | null = null;
+        if (!auth.run) throw new ConflictException('Legacy research requires an active run lease.');
+        const requestBody = JSON.stringify(
+          prepareAnthropicRequest({
+            model,
+            max_tokens: thinking.maxTokens,
+            ...(thinking.thinking ? { thinking: thinking.thinking } : { temperature: 0.2 }),
+            stream: true,
+            system,
+            tools: toolSchemas,
+            messages,
+          }),
+        );
+        const providerReservation = await this.reserveLegacyProviderAttempt(
+          ctx,
+          id,
+          auth.run,
+          'acquisition',
+          model,
+          requestBody,
+          thinking.maxTokens,
+        );
+        let providerSettlementAttempted = false;
+        let providerInputTokens: number | null = null;
+        let providerOutputTokens: number | null = null;
 
         try {
           const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -1946,20 +2459,7 @@ export class MeriResearchService {
               'anthropic-version': '2023-06-01',
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify(
-              prepareAnthropicRequest({
-                model,
-                max_tokens: thinking.maxTokens,
-                // Zero-trust Wave 1 (RC8): temperature 0.2 on the figure-heavy
-                // research rounds — but ONLY when extended thinking is off
-                // (Anthropic rejects temperature != 1 alongside a thinking block).
-                ...(thinking.thinking ? { thinking: thinking.thinking } : { temperature: 0.2 }),
-                stream: true,
-                system,
-                tools: toolSchemas,
-                messages,
-              }),
-            ),
+            body: requestBody,
             signal: auth.signal
               ? AbortSignal.any([controller.signal, auth.signal])
               : controller.signal,
@@ -1975,6 +2475,13 @@ export class MeriResearchService {
 
           const responseBody = response.body as unknown as AsyncIterable<Uint8Array>;
           for await (const evt of anthropicStreamEvents(responseBody)) {
+            if (
+              evt.type === 'message_start' &&
+              Number.isSafeInteger(evt.message?.usage?.input_tokens)
+            )
+              providerInputTokens = Number(evt.message.usage.input_tokens);
+            if (evt.type === 'message_delta' && Number.isSafeInteger(evt.usage?.output_tokens))
+              providerOutputTokens = Number(evt.usage.output_tokens);
             // Provider thinking is retained only for the signed replay block
             // required by the next provider round. Observer frames receive a
             // fixed source-independent status, never provider reasoning text.
@@ -2014,7 +2521,27 @@ export class MeriResearchService {
               stopReason = evt.delta?.stop_reason ?? stopReason;
             }
           }
+          providerSettlementAttempted = true;
+          await this.settleLegacyProviderAttempt(
+            ctx,
+            id,
+            auth.run,
+            providerReservation,
+            providerInputTokens !== null && providerOutputTokens !== null
+              ? {
+                  kind: 'known',
+                  inputTokens: providerInputTokens,
+                  outputTokens: providerOutputTokens,
+                }
+              : { kind: 'uncertain' },
+          );
         } catch (roundErr) {
+          if (!providerSettlementAttempted) {
+            providerSettlementAttempted = true;
+            await this.settleLegacyProviderAttempt(ctx, id, auth.run, providerReservation, {
+              kind: 'uncertain',
+            });
+          }
           // A per-round abort means this model turn exceeded the (long) research
           // timeout. Don't let it kill the whole run — stop gathering and fall
           // through to the forced-synthesis pass so we still write a report
@@ -2117,6 +2644,7 @@ export class MeriResearchService {
           if (step?.type === 'step') sse.write(sseEvent(step));
           progress.set(RESEARCH_OBSERVER_STATUS.readingSource);
           let replayedReceipt: Record<string, unknown> | undefined;
+          let dispatchReservationId: string | undefined;
           if (scopeViolation) {
             isError = true;
             resultPayload = { error: scopeViolation };
@@ -2144,6 +2672,7 @@ export class MeriResearchService {
                 auth.run && toolVersion
                   ? await this.replaySafeReadOutcome(ctx, id, auth.run.id, {
                       leaseEpoch: auth.run.leaseEpoch,
+                      providerCallId: t.id,
                       tool: t.name,
                       toolVersion,
                       input: parsedInput,
@@ -2153,6 +2682,28 @@ export class MeriResearchService {
                 resultPayload = replay.result;
                 replayedReceipt = replay.durableSafeRead;
               } else {
+                if ('dispatchAllowed' in replay && replay.dispatchAllowed === false)
+                  throw new ConflictException(
+                    'This research attempt was already spent or its replay proof failed; it was not dispatched again.',
+                  );
+                const reservation = await this.reserveBoundToolAttempt(
+                  ctx,
+                  id,
+                  auth.run!.id,
+                  auth.run!.leaseEpoch,
+                  {
+                    providerCallId: t.id,
+                    kind: 'dispatch',
+                    tool: t.name,
+                    toolVersion,
+                    input: parsedInput,
+                  },
+                );
+                if (!reservation.dispatchAllowed)
+                  throw new ConflictException(
+                    'This research attempt was already reserved; it was not dispatched again.',
+                  );
+                dispatchReservationId = reservation.reservationId;
                 resultPayload = await withMeriToolExecutionControl(
                   { signal: auth.signal, deadlineAt },
                   () => this.tools.execute(ctx, t.name as never, parsedInput),
@@ -2199,7 +2750,7 @@ export class MeriResearchService {
                 source,
                 durableSafeRead: replayedReceipt ?? {
                   outcome: 'complete',
-                  executionId: randomUUID(),
+                  executionId: dispatchReservationId,
                   toolCallId: t.id,
                   tool: publicTool,
                   toolVersion,
@@ -2259,22 +2810,37 @@ export class MeriResearchService {
         });
         progress.set(RESEARCH_OBSERVER_STATUS.writingReport);
         const controller = new AbortController();
-        // Synthesis gets whatever budget remains, but never less than a floor: if
-        // gathering already blew through the budget, handing the writer a 0ms
-        // window would abort instantly and deliver sources with no report — the
-        // exact failure this forced pass exists to prevent. So the worst-case
-        // ceiling is budget + floor, not budget exactly. The floor itself never
-        // exceeds the configured per-call timeout.
-        const synthesisFloorMs = Math.min(
-          timeoutMs,
-          Math.max(synthesisReserveMs, SYNTHESIS_FLOOR_MS),
-        );
-        const synthesisTimeoutMs = Math.max(
-          synthesisFloorMs,
-          Math.min(timeoutMs, deadlineAt - Date.now()),
-        );
+        // The persisted absolute deadline is authoritative across resume and
+        // forced synthesis; this pass may not create a post-deadline grace window.
+        const synthesisTimeoutMs = Math.min(timeoutMs, deadlineAt - Date.now());
+        if (synthesisTimeoutMs <= 0)
+          throw new BadRequestException(
+            'Research deadline reached before final synthesis; no complete report was fabricated.',
+          );
         const timer = setTimeout(() => controller.abort(), synthesisTimeoutMs);
         let thinkingStatusSent = false;
+        const synthesisRequestBody = JSON.stringify(
+          prepareAnthropicRequest({
+            model,
+            max_tokens: thinking.maxTokens,
+            ...(thinking.thinking ? { thinking: thinking.thinking } : { temperature: 0.2 }),
+            stream: true,
+            system,
+            messages,
+          }),
+        );
+        const synthesisReservation = await this.reserveLegacyProviderAttempt(
+          ctx,
+          id,
+          auth.run,
+          'synthesis',
+          model,
+          synthesisRequestBody,
+          thinking.maxTokens,
+        );
+        let synthesisSettlementAttempted = false;
+        let synthesisInputTokens: number | null = null;
+        let synthesisOutputTokens: number | null = null;
         try {
           const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
@@ -2283,20 +2849,7 @@ export class MeriResearchService {
               'anthropic-version': '2023-06-01',
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify(
-              prepareAnthropicRequest({
-                model,
-                max_tokens: thinking.maxTokens,
-                // Zero-trust Wave 1 (RC8): temperature 0.2 on the figure-heavy
-                // research rounds — but ONLY when extended thinking is off
-                // (Anthropic rejects temperature != 1 alongside a thinking block).
-                ...(thinking.thinking ? { thinking: thinking.thinking } : { temperature: 0.2 }),
-                stream: true,
-                system,
-                // No `tools` key → the model cannot call tools and must answer.
-                messages,
-              }),
-            ),
+            body: synthesisRequestBody,
             signal: auth.signal
               ? AbortSignal.any([controller.signal, auth.signal])
               : controller.signal,
@@ -2314,6 +2867,13 @@ export class MeriResearchService {
           }
           const responseBody = response.body as unknown as AsyncIterable<Uint8Array>;
           for await (const evt of anthropicStreamEvents(responseBody)) {
+            if (
+              evt.type === 'message_start' &&
+              Number.isSafeInteger(evt.message?.usage?.input_tokens)
+            )
+              synthesisInputTokens = Number(evt.message.usage.input_tokens);
+            if (evt.type === 'message_delta' && Number.isSafeInteger(evt.usage?.output_tokens))
+              synthesisOutputTokens = Number(evt.usage.output_tokens);
             if (evt.type === 'message_delta' && evt.delta?.stop_reason === 'end_turn')
               endedCleanly = true;
             if (
@@ -2338,7 +2898,27 @@ export class MeriResearchService {
               if (!bufferReport) sse.write(sseEvent({ type: 'text', text: evt.delta.text }));
             }
           }
+          synthesisSettlementAttempted = true;
+          await this.settleLegacyProviderAttempt(
+            ctx,
+            id,
+            auth.run,
+            synthesisReservation,
+            synthesisInputTokens !== null && synthesisOutputTokens !== null
+              ? {
+                  kind: 'known',
+                  inputTokens: synthesisInputTokens,
+                  outputTokens: synthesisOutputTokens,
+                }
+              : { kind: 'uncertain' },
+          );
         } catch (synthErr) {
+          if (!synthesisSettlementAttempted) {
+            synthesisSettlementAttempted = true;
+            await this.settleLegacyProviderAttempt(ctx, id, auth.run, synthesisReservation, {
+              kind: 'uncertain',
+            });
+          }
           // Keep whatever prose streamed before an abort rather than discarding
           // it — a partial report is still more useful than sources alone.
           if (isControllerAbort(synthErr, controller.signal) && !auth.signal?.aborted) {
@@ -2834,6 +3414,100 @@ export class MeriResearchService {
 
   // ── internals ───────────────────────────────────────────────────────────
 
+  private researchProviderBudgetLimits(run: ResearchRunState): ResearchProviderBudgetLimitsV1 {
+    if (this.config.get('CLIO_RESEARCH_PROVIDER_BUDGET_ENABLED', { infer: true }) === false)
+      throw new ConflictException('research_provider_budget_disabled');
+    const maxAttempts = positiveNumberOr(
+      this.config.get('CLIO_RESEARCH_MAX_PROVIDER_ATTEMPTS', { infer: true }),
+      23,
+    );
+    const maxTokens = positiveNumberOr(
+      this.config.get('CLIO_RESEARCH_MAX_TOTAL_TOKENS', { infer: true }),
+      120_000,
+    );
+    const maxCostUsd = positiveNumberOr(
+      this.config.get('CLIO_RESEARCH_MAX_COST_USD', { infer: true }),
+      (120_000 / 1_000_000) * Math.max(...Object.values(AI_PRICING).map((p) => p.outputPerM)),
+    );
+    const budgetMs = positiveNumberOr(
+      this.config.get('CLIO_RESEARCH_TOTAL_BUDGET_MS', { infer: true }),
+      1_800_000,
+    );
+    return {
+      maxAttempts: Math.floor(maxAttempts),
+      maxTokens: Math.floor(maxTokens),
+      maxCostMicros: Math.max(1, Math.floor(maxCostUsd * 1_000_000)),
+      deadlineAt: new Date(Date.parse(run.startedAt) + budgetMs).toISOString(),
+    };
+  }
+
+  private async reserveLegacyProviderAttempt(
+    ctx: TenantContext,
+    sessionId: string,
+    run: ResearchRunState,
+    phase: string,
+    model: string,
+    requestBody: string,
+    maxOutputTokens: number,
+  ) {
+    const logicalOperationId = `legacy:${createHash('sha256')
+      .update(JSON.stringify({ phase, model, requestBody }))
+      .digest('hex')}`;
+    const attemptId = `${logicalOperationId}:0`;
+    const reserved = await this.reserveProviderAttempt(ctx, sessionId, run.id, {
+      leaseEpoch: run.leaseEpoch,
+      logicalOperationId,
+      attemptId,
+      retryOfAttemptId: null,
+      kind: 'anthropic_messages',
+      phase,
+      provider: 'anthropic',
+      model,
+      maxInputTokens: Buffer.byteLength(requestBody, 'utf8'),
+      maxOutputTokens,
+    });
+    if (!reserved.dispatchAllowed)
+      throw new ConflictException('Research provider attempt was not admitted for dispatch.');
+    return {
+      reservationId: reserved.reservationId,
+      logicalOperationId,
+      attemptId,
+      retryOfAttemptId: null,
+      kind: 'anthropic_messages' as const,
+      phase,
+      provider: 'anthropic',
+      model,
+    };
+  }
+
+  private async settleLegacyProviderAttempt(
+    ctx: TenantContext,
+    sessionId: string,
+    run: ResearchRunState,
+    reservation: {
+      reservationId: string;
+      logicalOperationId: string;
+      attemptId: string;
+      retryOfAttemptId: string | null;
+      kind: 'anthropic_messages';
+      phase: string;
+      provider: string;
+      model: string;
+    },
+    outcome:
+      | { kind: 'known'; inputTokens: number; outputTokens: number }
+      | { kind: 'rejected' }
+      | { kind: 'uncertain' },
+  ): Promise<void> {
+    await this.settleProviderAttempt(ctx, sessionId, run.id, {
+      leaseEpoch: run.leaseEpoch,
+      ...reservation,
+      outcome: outcome.kind,
+      inputTokens: outcome.kind === 'known' ? outcome.inputTokens : null,
+      outputTokens: outcome.kind === 'known' ? outcome.outputTokens : null,
+    });
+  }
+
   private researchPlanAdmissionContext(
     ctx: TenantContext,
     session: {
@@ -2929,7 +3603,7 @@ export class MeriResearchService {
             },
             auth,
           )
-        : this.anthropicComplete(ctx.tenantId, nextSystem, nextUser, auth.signal);
+        : this.anthropicComplete(ctx, session.id, auth, nextSystem, nextUser);
 
     const raw = await complete(system, user);
     try {
@@ -3015,8 +3689,18 @@ export class MeriResearchService {
         proposed,
         this.researchPlanAdmissionContext(ctx, current),
       );
+      let budgetedMetadata: Record<string, unknown>;
+      try {
+        budgetedMetadata = admitResearchToolBudget(
+          current.metadata,
+          admitted.budget.toolCalls,
+        ).metadata;
+      } catch (error) {
+        if (error instanceof ResearchToolBudgetError) throw new ConflictException(error.code);
+        throw error;
+      }
       const nextMetadata = {
-        ...researchMetadata(current.metadata),
+        ...budgetedMetadata,
         researchPlan: admitted,
       };
       const updated = await this.updateActiveResearchRun(
@@ -3235,17 +3919,37 @@ export class MeriResearchService {
 
   /** Single non-streaming Anthropic completion (used for the PLAN phase). */
   private async anthropicComplete(
-    tenantId: string,
+    ctx: TenantContext,
+    sessionId: string,
+    auth: ResearchRuntimeAuth,
     system: string,
     user: string,
-    signal?: AbortSignal,
   ): Promise<string> {
+    if (!auth.run) throw new ConflictException('Research planning requires an active run lease.');
     // BYOK: tenant key (or global fallback) via resolver; model unchanged.
-    const resolved = await this.aiCredentials.resolveProviderByTenantId(tenantId, 'anthropic');
+    const resolved = await this.aiCredentials.resolveProviderByTenantId(ctx.tenantId, 'anthropic');
     if (!resolved) throw new Error('ANTHROPIC_API_KEY not configured');
     const anthropicKey = resolved.apiKey;
     const model = this.config.get('CLIO_RESEARCH_PLAN_MODEL', { infer: true });
     const timeoutMs = this.config.get('CLIO_REQUEST_TIMEOUT_MS', { infer: true });
+    const requestBody = JSON.stringify(
+      prepareAnthropicRequest({
+        model,
+        max_tokens: 1500,
+        system,
+        messages: [{ role: 'user', content: user }],
+      }),
+    );
+    const reservation = await this.reserveLegacyProviderAttempt(
+      ctx,
+      sessionId,
+      auth.run,
+      'repair',
+      model,
+      requestBody,
+      1500,
+    );
+    let settlementAttempted = false;
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -3257,27 +3961,56 @@ export class MeriResearchService {
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(
-          prepareAnthropicRequest({
-            model,
-            max_tokens: 1500,
-            system,
-            messages: [{ role: 'user', content: user }],
-          }),
-        ),
-        signal: signal ? AbortSignal.any([controller.signal, signal]) : controller.signal,
+        body: requestBody,
+        signal: auth.signal ? AbortSignal.any([controller.signal, auth.signal]) : controller.signal,
       });
       if (!response.ok) {
         const errText = await response.text().catch(() => '');
+        settlementAttempted = true;
+        await this.settleLegacyProviderAttempt(
+          ctx,
+          sessionId,
+          auth.run,
+          reservation,
+          [401, 403, 408, 409, 422, 429].includes(response.status)
+            ? { kind: 'rejected' }
+            : { kind: 'uncertain' },
+        );
         throw new Error(
           `Anthropic HTTP ${response.status}${errText ? `: ${errText.slice(0, 300)}` : ''}`,
         );
       }
-      const json = (await response.json()) as { content?: Array<{ type: string; text?: string }> };
+      const json = (await response.json()) as {
+        content?: Array<{ type: string; text?: string }>;
+        usage?: { input_tokens?: number; output_tokens?: number };
+      };
+      settlementAttempted = true;
+      await this.settleLegacyProviderAttempt(
+        ctx,
+        sessionId,
+        auth.run,
+        reservation,
+        Number.isSafeInteger(json.usage?.input_tokens) &&
+          Number.isSafeInteger(json.usage?.output_tokens)
+          ? {
+              kind: 'known',
+              inputTokens: Number(json.usage!.input_tokens),
+              outputTokens: Number(json.usage!.output_tokens),
+            }
+          : { kind: 'uncertain' },
+      );
       return (json.content ?? [])
         .filter((b) => b.type === 'text' && typeof b.text === 'string')
         .map((b) => b.text)
         .join('');
+    } catch (error) {
+      if (!settlementAttempted) {
+        settlementAttempted = true;
+        await this.settleLegacyProviderAttempt(ctx, sessionId, auth.run, reservation, {
+          kind: 'uncertain',
+        });
+      }
+      throw error;
     } finally {
       clearTimeout(timer);
     }
@@ -3290,6 +4023,167 @@ function researchLeaseError(message: string): Error {
   const error = new Error(message);
   error.name = 'ResearchLeaseError';
   return error;
+}
+
+class ResearchBudgetCasRetry extends Error {
+  constructor() {
+    super('research_budget_cas_retry');
+    this.name = 'ResearchBudgetCasRetry';
+  }
+}
+
+function strictReservationInput(raw: unknown): ResearchToolReservationInput {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw))
+    throw new BadRequestException('Research tool reservation is malformed.');
+  const value = raw as Record<string, unknown>;
+  const keys = Object.keys(value);
+  const expected = ['leaseEpoch', 'providerCallId', 'tool', 'input'];
+  if (
+    keys.length !== expected.length ||
+    keys.some((key) => !expected.includes(key)) ||
+    !Number.isSafeInteger(value.leaseEpoch) ||
+    Number(value.leaseEpoch) < 0 ||
+    typeof value.tool !== 'string' ||
+    !/^[a-z][a-z0-9_]{0,159}$/.test(value.tool) ||
+    !value.input ||
+    typeof value.input !== 'object' ||
+    Array.isArray(value.input)
+  )
+    throw new BadRequestException('Research tool reservation is malformed.');
+  return {
+    leaseEpoch: value.leaseEpoch as number,
+    providerCallId: boundedAttemptIdentity(value.providerCallId),
+    tool: value.tool,
+    input: value.input as Record<string, unknown>,
+  };
+}
+
+function strictProviderReservationInput(raw: unknown): ResearchProviderReservationInput {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw))
+    throw new BadRequestException('Research provider reservation is malformed.');
+  const value = raw as Record<string, unknown>;
+  const expected = [
+    'leaseEpoch',
+    'logicalOperationId',
+    'attemptId',
+    'retryOfAttemptId',
+    'kind',
+    'phase',
+    'provider',
+    'model',
+    'maxInputTokens',
+    'maxOutputTokens',
+  ];
+  if (
+    Object.keys(value).length !== expected.length ||
+    Object.keys(value).some((key) => !expected.includes(key)) ||
+    !Number.isSafeInteger(value.leaseEpoch) ||
+    Number(value.leaseEpoch) < 0 ||
+    !(value.retryOfAttemptId === null || boundedProviderString(value.retryOfAttemptId, 500)) ||
+    !['openai_responses', 'anthropic_messages', 'jev'].includes(String(value.kind)) ||
+    !boundedProviderString(value.phase, 64) ||
+    !boundedProviderString(value.provider, 64) ||
+    !boundedProviderString(value.model, 160) ||
+    !Number.isSafeInteger(value.maxInputTokens) ||
+    Number(value.maxInputTokens) < 0 ||
+    !(
+      value.maxOutputTokens === null ||
+      (Number.isSafeInteger(value.maxOutputTokens) && Number(value.maxOutputTokens) >= 0)
+    )
+  )
+    throw new BadRequestException('Research provider reservation is malformed.');
+  return {
+    leaseEpoch: value.leaseEpoch as number,
+    logicalOperationId: boundedAttemptIdentity(value.logicalOperationId),
+    attemptId: boundedAttemptIdentity(value.attemptId),
+    retryOfAttemptId: value.retryOfAttemptId as string | null,
+    kind: value.kind as ResearchProviderAttemptKind,
+    phase: value.phase as string,
+    provider: value.provider as string,
+    model: value.model as string,
+    maxInputTokens: value.maxInputTokens as number,
+    maxOutputTokens: value.maxOutputTokens as number | null,
+  };
+}
+
+function strictProviderSettlementInput(raw: unknown): ResearchProviderSettlementInput {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw))
+    throw new BadRequestException('Research provider settlement is malformed.');
+  const value = raw as Record<string, unknown>;
+  const expected = [
+    'leaseEpoch',
+    'reservationId',
+    'logicalOperationId',
+    'attemptId',
+    'retryOfAttemptId',
+    'kind',
+    'phase',
+    'provider',
+    'model',
+    'outcome',
+    'inputTokens',
+    'outputTokens',
+  ];
+  const known = value.outcome === 'known';
+  if (
+    Object.keys(value).length !== expected.length ||
+    Object.keys(value).some((key) => !expected.includes(key)) ||
+    !Number.isSafeInteger(value.leaseEpoch) ||
+    Number(value.leaseEpoch) < 0 ||
+    !(value.retryOfAttemptId === null || boundedProviderString(value.retryOfAttemptId, 500)) ||
+    !['openai_responses', 'anthropic_messages', 'jev'].includes(String(value.kind)) ||
+    !boundedProviderString(value.phase, 64) ||
+    !boundedProviderString(value.provider, 64) ||
+    !boundedProviderString(value.model, 160) ||
+    !['known', 'rejected', 'uncertain'].includes(String(value.outcome)) ||
+    (known &&
+      (!Number.isSafeInteger(value.inputTokens) ||
+        Number(value.inputTokens) < 0 ||
+        !Number.isSafeInteger(value.outputTokens) ||
+        Number(value.outputTokens) < 0)) ||
+    (!known && (value.inputTokens !== null || value.outputTokens !== null))
+  )
+    throw new BadRequestException('Research provider settlement is malformed.');
+  return {
+    leaseEpoch: value.leaseEpoch as number,
+    reservationId: boundedAttemptIdentity(value.reservationId),
+    logicalOperationId: boundedAttemptIdentity(value.logicalOperationId),
+    attemptId: boundedAttemptIdentity(value.attemptId),
+    retryOfAttemptId: value.retryOfAttemptId as string | null,
+    kind: value.kind as ResearchProviderAttemptKind,
+    phase: value.phase as string,
+    provider: value.provider as string,
+    model: value.model as string,
+    outcome: value.outcome as ResearchProviderSettlementInput['outcome'],
+    inputTokens: value.inputTokens as number | null,
+    outputTokens: value.outputTokens as number | null,
+  };
+}
+
+function boundedProviderString(value: unknown, max: number): value is string {
+  return (
+    typeof value === 'string' && value.length > 0 && value.length <= max && value.trim() === value
+  );
+}
+
+function researchProviderPrice(
+  kind: ResearchProviderAttemptKind,
+  model: string,
+): { inputPerM: number; outputPerM: number } | null {
+  if (kind === 'jev' && /^jev-\d+\.\d+\.\d+$/.test(model)) {
+    return {
+      inputPerM: BD_GATE_PRICE_INPUT_USD_PER_MILLION,
+      outputPerM: BD_GATE_PRICE_OUTPUT_USD_PER_MILLION,
+    };
+  }
+  const prices = AI_PRICING as Record<string, { inputPerM: number; outputPerM: number }>;
+  return prices[model] ?? null;
+}
+
+function boundedAttemptIdentity(value: unknown): string {
+  if (typeof value !== 'string' || !value.length || value.length > 256 || value.trim() !== value)
+    throw new BadRequestException('Research attempt identity is malformed.');
+  return value;
 }
 
 function sseEvent(payload: Record<string, unknown>): string {

@@ -25,6 +25,9 @@ export function requireMeriV3ResearchPlanExecution(
   const hasRun = dto.researchRun !== undefined;
   const hasEnvelope = dto.researchPlanExecution !== undefined;
   if (!hasRun && !hasEnvelope) return null;
+  // Provider-only plan generation is charged to the authenticated parent run
+  // before an admitted execution envelope exists. It grants no tool authority.
+  if (hasRun && !hasEnvelope && dto.toolPolicy === 'none') return null;
   if (!hasRun || !hasEnvelope || dto.toolPolicy !== 'read-only') invalid();
 
   let envelope: MeriResearchPlanExecutionEnvelopeV1;

@@ -4,6 +4,7 @@ import { MeriResearchService } from './meri-research.service';
 import { researchToolVersion } from './meri-research-durable-result';
 import { readDurableResearchStepReceipts } from './meri-research-durable-step';
 import { MeriToolsService } from './meri-tools.service';
+import { readResearchToolBudget, reserveResearchToolAttempt } from './meri-research-tool-budget';
 import {
   buildResearchReportProvenance,
   certifyResearchProducerInputs,
@@ -140,6 +141,10 @@ function completeDebriefResult(
     sourceReason: null,
     nextAfter: null,
   });
+}
+
+function emptyMemoryResult() {
+  return { ...completeMemoryResult('memory-1'), contentStatus: 'empty', results: [], records: [] };
 }
 
 function completeMemoryResult(id: string, body = `body-${id}`) {
@@ -395,7 +400,8 @@ function harness(
       | 'get_email_thread'
       | 'search_emails'
       | 'list_emails'
-      | 'read_client_meetings';
+      | 'read_client_meetings'
+      | 'query_debriefs';
     schema?: Record<string, unknown>;
     source?: unknown;
     clientId?: string | null;
@@ -420,6 +426,31 @@ function harness(
     status: 'researching',
     reportArtifactId: null,
     metadata: {
+      researchPlan: {
+        version: 1,
+        title: 'Durable replay test',
+        scope: {
+          sessionId: 'session-1',
+          tenantId: 'tenant-1',
+          actorId: 'user-1',
+          clientId: options.clientId ?? null,
+          conversationId: 'conversation-1',
+        },
+        budget: { toolCalls: 48, tokens: 1_000 },
+        steps: [
+          {
+            id: 'read',
+            objective: 'Read memory',
+            dependsOn: [],
+            requiredEvidenceDomains: ['institutional_memory'],
+            allowedCapabilities: [ownerTool],
+            effect: 'read',
+            completionCondition: 'Evidence captured',
+            budget: { toolCalls: 48, tokens: 1_000 },
+          },
+        ],
+        clarifyingQuestions: [],
+      },
       handoff: {
         version: 1,
         conversationId: 'conversation-1',
@@ -499,6 +530,51 @@ function harness(
     {} as never,
     {} as never,
   );
+  const commit = service.commitSafeReadOutcome.bind(service);
+  service.commitSafeReadOutcome = (async (
+    actor: typeof ctx,
+    sessionId: string,
+    runId: string,
+    input: Parameters<typeof commit>[3],
+  ) => {
+    const currentRun = session.metadata.run;
+    if (
+      currentRun?.id === runId &&
+      currentRun?.leaseEpoch === input.leaseEpoch &&
+      currentRun?.status === 'running'
+    ) {
+      const reserved = reserveResearchToolAttempt({
+        metadata: session.metadata,
+        run: currentRun,
+        plan: session.metadata.researchPlan,
+        binding: {
+          providerCallId: input.providerCallId,
+          kind: 'dispatch',
+          tool: input.tool,
+          toolVersion: input.toolVersion,
+          input: input.input,
+        },
+        reservationId: input.executionId,
+      });
+      session.metadata = reserved.metadata;
+    }
+    return commit(actor, sessionId, runId, { ...input, reservationId: input.executionId });
+  }) as typeof service.commitSafeReadOutcome;
+  const replay = service.replaySafeReadOutcome.bind(service);
+  let replayAttempt = 0;
+  service.replaySafeReadOutcome = (async (
+    actor: typeof ctx,
+    sessionId: string,
+    runId: string,
+    input: Parameters<typeof replay>[3],
+  ) => {
+    const hadIdentity = typeof input.providerCallId === 'string';
+    const result = await replay(actor, sessionId, runId, {
+      ...input,
+      providerCallId: input.providerCallId ?? `legacy-test-replay-${++replayAttempt}`,
+    });
+    return !hadIdentity && result.replayed === false ? { replayed: false as const } : result;
+  }) as typeof service.replaySafeReadOutcome;
   return {
     service,
     session,
@@ -606,6 +682,7 @@ function harness(
 
 function outcome(executionId: string, query: string, result = completeMemoryResult(executionId)) {
   return {
+    reservationId: executionId,
     executionId,
     leaseEpoch: 1,
     providerCallId: `provider-${executionId}`,
@@ -618,6 +695,7 @@ function outcome(executionId: string, query: string, result = completeMemoryResu
 
 function mailOutcome(result = completeMailThreadResult(), clientId?: string) {
   return {
+    reservationId: 'mail-execution-1',
     executionId: 'mail-execution-1',
     leaseEpoch: 1,
     providerCallId: 'provider-mail-execution-1',
@@ -630,6 +708,7 @@ function mailOutcome(result = completeMailThreadResult(), clientId?: string) {
 
 function mailSearchOutcome(result = completeMailSearchResult()) {
   return {
+    reservationId: 'mail-search-execution-1',
     executionId: 'mail-search-execution-1',
     leaseEpoch: 1,
     providerCallId: 'provider-mail-search-execution-1',
@@ -645,6 +724,7 @@ function mappedMailSearchOutcome(
   result: Record<string, unknown>,
 ) {
   return {
+    reservationId: `mail-${tool}-execution-1`,
     executionId: `mail-${tool}-execution-1`,
     leaseEpoch: 1,
     providerCallId: `provider-mail-${tool}-execution-1`,
@@ -670,14 +750,24 @@ describe('Meri durable safe-read commit and replay', () => {
     h.resume();
     const replay = await h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', {
       leaseEpoch: 2,
+      providerCallId: 'provider-replay-1',
       tool: 'search_memory',
       toolVersion: TOOL_VERSION,
       input: { query: 'radar' },
     });
 
     expect(replay.replayed).toBe(true);
-    expect(replay.result).toEqual(executed);
+    expect(replay.dispatchAllowed).toBe(false);
+    expect((replay as { result: unknown }).result).toEqual(executed);
     expect(toolExecute).toHaveBeenCalledTimes(1);
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+    expect(readResearchToolBudget(h.session.metadata)).toMatchObject({
+      spent: 2,
+      attempts: [
+        { kind: 'dispatch', outcome: 'result_committed' },
+        { kind: 'receipt_reauthorization', outcome: 'replay_authorized' },
+      ],
+    });
     expect(h.artifacts.size).toBe(1);
   });
 
@@ -916,7 +1006,7 @@ describe('Meri durable safe-read commit and replay', () => {
         toolVersion: MAIL_TOOL_VERSION,
         input: { threadId: sourceB.threadId },
       }),
-    ).resolves.toEqual({ replayed: false });
+    ).rejects.toThrow('The originating conversation is no longer available in this client scope');
     expect(changed.tools.execute).toHaveBeenCalledTimes(1);
 
     const personalSource = await mappedMailThread(null);
@@ -941,6 +1031,102 @@ describe('Meri durable safe-read commit and replay', () => {
         input: { threadId: personalSource.threadId },
       }),
     ).resolves.toMatchObject({ replayed: true });
+  });
+
+  it.each([
+    ['positive to delete', completeMemoryResult('memory-1'), emptyMemoryResult(), false],
+    [
+      'positive to edit',
+      completeMemoryResult('memory-1'),
+      completeMemoryResult('memory-1', 'corrected body'),
+      false,
+    ],
+    ['positive to source wall', completeMemoryResult('memory-1'), null, true],
+    ['empty to source wall', emptyMemoryResult(), null, true],
+    [
+      'unchanged positive owner',
+      completeMemoryResult('memory-1'),
+      completeMemoryResult('memory-1'),
+      false,
+    ],
+  ])(
+    'withholds a repeated completed reauthorization identity: %s',
+    async (_label, original, replacement, sourceWall) => {
+      const h = harness();
+      await h.service.commitSafeReadOutcome(
+        ctx,
+        'session-1',
+        'run-1',
+        outcome('execution-1', 'radar', original),
+      );
+      h.replaceSource(original);
+      h.resume();
+      const request = {
+        leaseEpoch: 2,
+        providerCallId: 'same-replay-request',
+        tool: 'search_memory',
+        toolVersion: TOOL_VERSION,
+        input: { query: 'radar' },
+      };
+
+      await expect(
+        h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
+      ).resolves.toMatchObject({ replayed: true, result: original });
+      if (replacement) h.replaceSource(replacement);
+      if (sourceWall) h.revokeSource();
+
+      const repeated = await h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request);
+
+      expect(repeated).toEqual({
+        replayed: false,
+        dispatchAllowed: false,
+        replayMiss: 'completed_reauthorization_identity',
+      });
+      expect(repeated).not.toHaveProperty('result');
+      expect(repeated).not.toHaveProperty('durableSafeRead');
+      expect(h.tools.execute).toHaveBeenCalledTimes(1);
+      expect(readResearchToolBudget(h.session.metadata)).toMatchObject({ spent: 2 });
+    },
+  );
+
+  it('uses a fresh budgeted owner read for a new reauthorization operation', async () => {
+    const h = harness();
+    const original = completeMemoryResult('memory-1');
+    await h.service.commitSafeReadOutcome(
+      ctx,
+      'session-1',
+      'run-1',
+      outcome('execution-1', 'radar', original),
+    );
+    h.replaceSource(original);
+    h.resume();
+    const request = {
+      leaseEpoch: 2,
+      providerCallId: 'replay-operation-1',
+      tool: 'search_memory',
+      toolVersion: TOOL_VERSION,
+      input: { query: 'radar' },
+    };
+    await expect(
+      h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
+    ).resolves.toMatchObject({ replayed: true });
+
+    h.replaceSource(emptyMemoryResult());
+    await expect(
+      h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', {
+        ...request,
+        providerCallId: 'replay-operation-2',
+      }),
+    ).resolves.toEqual({ replayed: false, dispatchAllowed: false });
+    expect(h.tools.execute).toHaveBeenCalledTimes(2);
+    expect(readResearchToolBudget(h.session.metadata)).toMatchObject({
+      spent: 3,
+      attempts: [
+        { kind: 'dispatch', outcome: 'result_committed' },
+        { kind: 'receipt_reauthorization', outcome: 'replay_authorized' },
+        { kind: 'receipt_reauthorization', outcome: 'replay_denied' },
+      ],
+    });
   });
 
   it('treats an absent or corrupt private result as a replay miss', async () => {
@@ -991,8 +1177,13 @@ describe('Meri durable safe-read commit and replay', () => {
     });
 
     expect(replay.replayed).toBe(true);
-    expect(replay.durableSafeRead?.executionId).toBe('execution-a');
-    expect((replay.result as any).records[0].recordId).toBe('execution-a');
+    expect(replay.dispatchAllowed).toBe(false);
+    expect(
+      (replay as { durableSafeRead?: { executionId?: string } }).durableSafeRead?.executionId,
+    ).toBe('execution-a');
+    expect(
+      (replay as { result?: { records: { recordId: string }[] } }).result?.records[0]?.recordId,
+    ).toBe('execution-a');
     expect(h.artifacts.size).toBe(2);
   });
 
@@ -1272,6 +1463,7 @@ describe('Meri durable safe-read commit and replay', () => {
       clientId: MEETING_CLIENT_ID,
     });
     await h.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', {
+      reservationId: 'meeting-source-execution-1',
       executionId: 'meeting-source-execution-1',
       leaseEpoch: 1,
       providerCallId: 'meeting-source-provider-1',
@@ -1319,6 +1511,7 @@ describe('Meri durable safe-read commit and replay', () => {
     const initial = completeMeetingSourceResult();
     const clientA = '55555555-5555-4555-8555-555555555555';
     const committed = {
+      reservationId: 'meeting-scope-execution',
       executionId: 'meeting-scope-execution',
       leaseEpoch: 1,
       providerCallId: 'meeting-scope-provider',
@@ -1369,7 +1562,7 @@ describe('Meri durable safe-read commit and replay', () => {
     changedAfterOwner.changeSessionClientDuringExecute(clientA);
     await expect(
       changedAfterOwner.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request),
-    ).resolves.toEqual({ replayed: false });
+    ).rejects.toThrow('The originating conversation is no longer available in this client scope');
     expect(changedAfterOwner.tools.execute).toHaveBeenCalledTimes(1);
   });
 
@@ -1382,6 +1575,7 @@ describe('Meri durable safe-read commit and replay', () => {
       clientId: MEETING_CLIENT_ID,
     });
     await h.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', {
+      reservationId: 'meeting-report-execution',
       executionId: 'meeting-report-execution',
       leaseEpoch: 1,
       providerCallId: 'meeting-report-provider',
@@ -1446,7 +1640,7 @@ describe('Meri durable safe-read commit and replay', () => {
   });
 
   it('commits the actual debrief owner page and replays an old lease only while current bytes remain exact', async () => {
-    const h = harness();
+    const h = harness({ tool: 'query_debriefs', schema: DEBRIEF_SCHEMA });
     let current: unknown = completeDebriefResult();
     let revoked = false;
     h.tools.anthropicToolSchemas.mockReturnValue([
@@ -1458,6 +1652,7 @@ describe('Meri durable safe-read commit and replay', () => {
       return current;
     });
     await h.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', {
+      reservationId: 'debrief-execution-1',
       executionId: 'debrief-execution-1',
       leaseEpoch: 1,
       providerCallId: 'debrief-provider-1',
@@ -1506,7 +1701,7 @@ describe('Meri durable safe-read commit and replay', () => {
   });
 
   it('reauthorizes debrief-backed report read/export and withholds it after edit or revoke', async () => {
-    const h = harness();
+    const h = harness({ tool: 'query_debriefs', schema: DEBRIEF_SCHEMA });
     let current: unknown = completeDebriefResult();
     let revoked = false;
     h.tools.anthropicToolSchemas.mockReturnValue([
@@ -1518,6 +1713,7 @@ describe('Meri durable safe-read commit and replay', () => {
       return current;
     });
     await h.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', {
+      reservationId: 'debrief-report-execution',
       executionId: 'debrief-report-execution',
       leaseEpoch: 1,
       providerCallId: 'debrief-report-provider',

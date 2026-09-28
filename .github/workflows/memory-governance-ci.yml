@@ -91,6 +91,8 @@ jobs:
         run: pnpm --filter @capiro/infra-cdk typecheck
 
       - name: Test API governed-memory Phases 1-16
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: >
           pnpm --filter @capiro/api exec jest --ci --silent --runInBand
           src/memory

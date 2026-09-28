@@ -1,5 +1,17 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-28 provider integration
+
+Full File 01 remains incomplete. Provider candidate d437df2bf is now consolidated with foundation e945cad88: current combined API tests 97/7 suites, shared/core builds and API/runtime typechecks all exit 0. Reviewed provider source is hash-identical to the qualified candidate; runtime269 and independent runtime18 tests remain applicable to those unchanged runtime sources. Independent API semantic review is scoped static PASS. See provider-foundation-integration-qualification.md for evidence and boundaries.
+
+Hosted A1 e1e94 memory tests exhausted the actual4GB heap; a reviewed step-local6GB correction is published at ce1b816cb without changing test selection or gates. The foundation release-matrix seven-file formatting failure is corrected by exact Prettier transformations and its full formatting command exits0. Fresh hosted checks are still required; no global CI success is claimed.
+
+Remaining: finish source-owner/coverage and secure web transport repairs; consolidate durable coordinator/UI/child execution; complete telemetry/export and native fixture/capture bindings; run all required offline/live acceptance. The latest source-owner donor still failed compilation after an incomplete worker change and is not integrated. No main merge, deployment, synthetic-cohort enablement or release acceptance has occurred.
+
+## User scope clarification — 2026-09-28
+
+Neo explicitly removed a separate Defense chat feature and its dedicated planning/engineering from scope: Meri is the existing assistant. Do not create a separate Defense chat shell, route, agent, conversation store, or backlog. The inspected Meri and Defense branches contain no separately identified Defense chat implementation to delete. Existing Meri Defense Budget and Research Portfolio capabilities, current-turn authorization, and their required acceptance remain in scope. This clarification does not authorize deleting the Defense domain, Meri chat, or unrelated work. No message was sent to the Defense task.
+
 ## Current checkpoint — 2026-09-28 19:55 UTC
 
 File01 remains incomplete. Hermes uses AWS Bedrock Qwen3 Coder Next for implementation and Kimi K2.5 for independent review; effective reasoning is model-default. Meeting/task authority is integrated at f766e859e with 424 combined tests passing. Narrative source integrity is integrated at a55f21470 with 408 combined tests, shared/core builds, API/runtime types and formatting passing; Kimi reran 23 original donor probes and separately reviewed preserved integration authority gates (static only).

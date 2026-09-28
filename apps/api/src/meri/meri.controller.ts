@@ -39,6 +39,7 @@ import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
+import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js';
 import { MeriService } from './meri.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { MeriResearchService } from './meri-research.service.js';
@@ -416,10 +417,7 @@ export class MeriController {
    * in the orchestrator. Read-only; tenant-guarded like every /api/clio route.
    */
   @Get('tool-schemas')
-  toolSchemas(
-    @CurrentTenant() ctx: TenantContext,
-    @Query('surface') requestedSurface?: string,
-  ) {
+  toolSchemas(@CurrentTenant() ctx: TenantContext, @Query('surface') requestedSurface?: string) {
     const surface: AssuranceSurface = requestedSurface === 'in-editor' ? 'in-editor' : 'chat';
     return { schemas: this.tools.anthropicToolSchemas({ tenantId: ctx.tenantId, surface }) };
   }
@@ -868,6 +866,45 @@ export class MeriController {
     return this.research.assertRunActive(ctx, id, runId);
   }
 
+  @Post('research/:id/runs/:runId/safe-read/reservations')
+  @UseGuards(MeriV3InternalServiceGuard)
+  reserveResearchSafeRead(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('runId') runId: string,
+    @Body()
+    body: {
+      leaseEpoch: number;
+      providerCallId: string;
+      tool: string;
+      input: Record<string, unknown>;
+    },
+  ) {
+    return this.research.reserveSafeReadAttempt(ctx, id, runId, body);
+  }
+
+  @Post('research/:id/runs/:runId/provider-budget/reservations')
+  @UseGuards(MeriV3InternalServiceGuard)
+  reserveResearchProviderAttempt(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('runId') runId: string,
+    @Body() body: Parameters<MeriResearchService['reserveProviderAttempt']>[3],
+  ) {
+    return this.research.reserveProviderAttempt(ctx, id, runId, body);
+  }
+
+  @Post('research/:id/runs/:runId/provider-budget/settlements')
+  @UseGuards(MeriV3InternalServiceGuard)
+  settleResearchProviderAttempt(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('runId') runId: string,
+    @Body() body: Parameters<MeriResearchService['settleProviderAttempt']>[3],
+  ) {
+    return this.research.settleProviderAttempt(ctx, id, runId, body);
+  }
+
   @Post('research/:id/runs/:runId/safe-read/replay')
   @UseGuards(ToolServiceSecretGuard)
   replayResearchSafeRead(
@@ -877,6 +914,7 @@ export class MeriController {
     @Body()
     body: {
       leaseEpoch: number;
+      providerCallId: string;
       tool: string;
       toolVersion: string;
       input: Record<string, unknown>;
@@ -893,6 +931,7 @@ export class MeriController {
     @Param('runId') runId: string,
     @Body()
     body: {
+      reservationId: string;
       executionId: string;
       leaseEpoch: number;
       providerCallId: string;
@@ -971,7 +1010,8 @@ export class MeriController {
     }
     let buffer: Buffer;
     try {
-      buffer = doc.persistedBytes ?? await this.tools.renderStoredDocument(doc.format, doc.specJson);
+      buffer =
+        doc.persistedBytes ?? (await this.tools.renderStoredDocument(doc.format, doc.specJson));
       await validateDocumentArtifactBytes(doc.format, buffer);
       if (doc.persistedSha256 && sha256Bytes(buffer) !== doc.persistedSha256) {
         throw new Error('persisted_document_digest_mismatch');
@@ -981,9 +1021,10 @@ export class MeriController {
         code: 'MERI_DOCUMENT_RENDER_FAILED',
         format: doc.format,
         reason: error instanceof MeriPdfRenderError ? error.reason : 'render_failed',
-        message: error instanceof MeriPdfRenderError
-          ? `${error.message} Download Word or adjust the document and try again.`
-          : 'The document could not be rendered. Try again or choose another available format.',
+        message:
+          error instanceof MeriPdfRenderError
+            ? `${error.message} Download Word or adjust the document and try again.`
+            : 'The document could not be rendered. Try again or choose another available format.',
       });
     }
     res.setHeader('Content-Type', doc.mimeType);

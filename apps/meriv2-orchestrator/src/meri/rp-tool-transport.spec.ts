@@ -69,10 +69,14 @@ describe('Research Portfolio tool transport envelope', () => {
       buildResearchPortfolioToolTransport('get_research_portfolio', {}, undefined),
     ).toThrow('Trusted current-turn scope is unavailable');
     expect(() =>
-      buildResearchPortfolioToolTransport('get_research_portfolio', {}, {
-        ...scope,
-        conversationId: null,
-      }),
+      buildResearchPortfolioToolTransport(
+        'get_research_portfolio',
+        {},
+        {
+          ...scope,
+          conversationId: null,
+        },
+      ),
     ).toThrow('Trusted current conversation is unavailable');
     expect(() =>
       buildResearchPortfolioToolTransport(
@@ -82,16 +86,24 @@ describe('Research Portfolio tool transport envelope', () => {
       ),
     ).toThrow('cannot target another conversation');
     expect(() =>
-      buildResearchPortfolioToolTransport('get_research_portfolio', {}, {
-        ...scope,
-        tenantId: 'not-a-uuid',
-      }),
+      buildResearchPortfolioToolTransport(
+        'get_research_portfolio',
+        {},
+        {
+          ...scope,
+          tenantId: 'not-a-uuid',
+        },
+      ),
     ).toThrow('Trusted current-turn scope is invalid');
     expect(() =>
-      buildResearchPortfolioToolTransport('manage_research_portfolio', {}, {
-        ...scope,
-        selectedClientId: 'not-a-uuid',
-      }),
+      buildResearchPortfolioToolTransport(
+        'manage_research_portfolio',
+        {},
+        {
+          ...scope,
+          selectedClientId: 'not-a-uuid',
+        },
+      ),
     ).toThrow('Trusted current-turn scope is invalid');
   });
 

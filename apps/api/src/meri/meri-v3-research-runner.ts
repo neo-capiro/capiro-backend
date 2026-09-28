@@ -198,9 +198,7 @@ export class MeriV3ResearchRunner {
       throw new BadRequestException('Research requires the authenticated conversation context.');
     }
     const researchPlanExecution =
-      toolPolicy === 'read-only'
-        ? this.researchPlanExecutionEnvelope(ctx, input, auth)
-        : undefined;
+      toolPolicy === 'read-only' ? this.researchPlanExecutionEnvelope(ctx, input, auth) : undefined;
     if (!this.client.configured)
       throw new ServiceUnavailableException('MeriV3 research runtime is not configured.');
     const aiProvider = await this.credentials.resolveProvider(ctx, 'openai');
@@ -252,14 +250,14 @@ export class MeriV3ResearchRunner {
             }
           : {}),
         toolPolicy,
-        ...(toolPolicy === 'read-only' && auth.run
+        ...(auth.run
           ? {
               researchRun: {
                 sessionId: input.sessionId,
                 runId: auth.run.id,
                 leaseEpoch: auth.run.leaseEpoch,
               },
-              researchPlanExecution,
+              ...(toolPolicy === 'read-only' ? { researchPlanExecution } : {}),
             }
           : {}),
         ...(currentTurnImages.length ? { currentTurnImages } : {}),
@@ -277,12 +275,9 @@ export class MeriV3ResearchRunner {
     // partial text or a release-gate refusal as a successful research artifact.
     if (providerFailed) throw new ResearchTerminalError('provider');
     const result = frame as DoneFrame | undefined;
-    if (auth.signal?.aborted || result?.aborted)
-      throw new ResearchTerminalError('cancelled');
-    if (result?.telemetry?.partial)
-      throw new ResearchTerminalError('partial');
-    if (!result?.reply?.trim())
-      throw new ResearchTerminalError('partial');
+    if (auth.signal?.aborted || result?.aborted) throw new ResearchTerminalError('cancelled');
+    if (result?.telemetry?.partial) throw new ResearchTerminalError('partial');
+    if (!result?.reply?.trim()) throw new ResearchTerminalError('partial');
     if (result.held)
       throw new BadRequestException(
         'Research could not pass evidence verification. Please review the source gaps and retry.',

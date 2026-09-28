@@ -1,5 +1,9 @@
 # File 01 requirements ledger
 
+## User scope clarification — 2026-09-28
+
+Neo explicitly removed a separate Defense chat feature and its dedicated planning/engineering from scope: Meri is the existing assistant. Do not create a separate Defense chat shell, route, agent, conversation store, or backlog. The inspected Meri and Defense branches contain no separately identified Defense chat implementation to delete. Existing Meri Defense Budget and Research Portfolio capabilities, current-turn authorization, and their required acceptance remain in scope. This clarification does not authorize deleting the Defense domain, Meri chat, or unrelated work. No message was sent to the Defense task.
+
 ### Evidence update — 2026-09-28 19:55 UTC
 
 All original requirement identities and acceptance obligations remain unchanged. Current integration and bounded test evidence are recorded in STATUS.md, narrative-integration-qualification.md, meeting-task-integration-qualification.md and ci-migration-replay-qualification.md. File01 remains incomplete; no main merge or deployment is claimed.

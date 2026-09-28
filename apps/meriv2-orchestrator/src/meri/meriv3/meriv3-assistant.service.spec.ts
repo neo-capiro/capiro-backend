@@ -26,7 +26,11 @@ import {
 } from './meriv3-assistant.service.js';
 import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
 import { OpenAiResponsesClient } from './openai-responses.client.js';
-import { MeriRunBudgetExhaustedError } from './meriv3-run-budget.js';
+import {
+  MeriRunBudgetExhaustedError,
+  type MeriRunBudget,
+  type MeriModelBudgetPhase,
+} from './meriv3-run-budget.js';
 
 const context = {
   tenantId: 'tenant-1',
@@ -173,6 +177,20 @@ function build(
         usage: { inputTokens: 10, outputTokens: 2 },
       })),
       ...llmOverrides,
+      // This fake owns only unit-test responses. The real durable provider
+      // reservation wrapper is exercised separately by provider-budget-ingress.
+      withProviderBudget(budget: MeriRunBudget, phase: MeriModelBudgetPhase) {
+        return {
+          completeJson: (...args: unknown[]) => {
+            budget.reserveModelAttempt(phase);
+            return this.completeJson(...args);
+          },
+          completeWithSchema: (...args: unknown[]) => {
+            budget.reserveModelAttempt(phase);
+            return (this.completeWithSchema as jest.Mock)(...args);
+          },
+        };
+      },
     },
   };
   const openai = complete instanceof OpenAiResponsesClient ? complete : { complete };
@@ -2440,9 +2458,22 @@ describe('Durable research cancellation across API replicas', () => {
       complete,
     );
     const checks: any[] = [];
+    let replayToolVersion = '';
     global.fetch = jest.fn(async (url, init) => {
-      if (String(url).includes('/safe-read/replay'))
+      if (String(url).includes('/safe-read/replay')) {
+        replayToolVersion = String(JSON.parse(String(init?.body)).toolVersion ?? '');
         return new Response(JSON.stringify({ replayed: false }), { status: 200 });
+      }
+      if (String(url).includes('/safe-read/reservations'))
+        return new Response(
+          JSON.stringify({
+            dispatchAllowed: true,
+            reservationId: 'reservation-a',
+            tool: 'search_memory',
+            toolVersion: replayToolVersion,
+          }),
+          { status: 200 },
+        );
       if (String(url).includes('/runs/')) {
         checks.push({ url, headers: init?.headers });
         return new Response(JSON.stringify({ active }), { status: active ? 200 : 409 });
@@ -2565,6 +2596,7 @@ describe('Durable research cancellation across API replicas', () => {
       complete,
     );
     const committed: Array<Record<string, unknown>> = [];
+    let replayToolVersion = '';
     global.fetch = jest.fn(async (url, init) => {
       const href = String(url);
       if (href.endsWith('/tool-schemas'))
@@ -2582,8 +2614,20 @@ describe('Durable research cancellation across API replicas', () => {
         );
       if (href.endsWith('/active'))
         return new Response(JSON.stringify({ active: true }), { status: 200 });
-      if (href.endsWith('/safe-read/replay'))
+      if (href.endsWith('/safe-read/replay')) {
+        replayToolVersion = String(JSON.parse(String(init?.body)).toolVersion ?? '');
         return new Response(JSON.stringify({ replayed: false }), { status: 200 });
+      }
+      if (href.endsWith('/safe-read/reservations'))
+        return new Response(
+          JSON.stringify({
+            dispatchAllowed: true,
+            reservationId: 'reservation-a',
+            tool: 'search_memory',
+            toolVersion: replayToolVersion,
+          }),
+          { status: 200 },
+        );
       if (href.endsWith('/safe-read/outcomes')) {
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
         committed.push(body);
@@ -2621,6 +2665,136 @@ describe('Durable research cancellation across API replicas', () => {
     expect(stepIdentity?.executionId).toEqual(expect.any(String));
     expect(ledgerIdentity).toEqual(stepIdentity);
     expect(result.ledgerEntries?.[0]?.result).toEqual(ownerResult);
+  });
+
+  test('budget exhaustion prevents registry invocation and outcome side effects', async () => {
+    const call = {
+      type: 'function_call' as const,
+      call_id: 'provider-exhausted',
+      name: 'search_memory',
+      arguments: JSON.stringify({ query: 'radar' }),
+    };
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(response({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(response({ outputText: 'Budget exhausted.' }));
+    const invoke = jest.fn();
+    const assistant = build(
+      registry([{ name: 'search_memory', readOnly: true }], invoke),
+      complete,
+      jest.fn(),
+      {},
+      { INTERNAL_SERVICE_SECRET: 'service-secret' },
+    );
+    let reservationRequests = 0;
+    let outcomeRequests = 0;
+    global.fetch = jest.fn(async (url) => {
+      const href = String(url);
+      if (href.endsWith('/tool-schemas'))
+        return new Response(
+          JSON.stringify({
+            schemas: [
+              {
+                name: 'search_memory',
+                description: 'Memory',
+                input_schema: { type: 'object', properties: { query: { type: 'string' } } },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      if (href.endsWith('/active'))
+        return new Response(JSON.stringify({ active: true }), { status: 200 });
+      if (href.endsWith('/safe-read/replay'))
+        return new Response(JSON.stringify({ replayed: false, dispatchAllowed: true }), {
+          status: 200,
+        });
+      if (href.endsWith('/safe-read/reservations')) {
+        reservationRequests += 1;
+        return new Response(JSON.stringify({ code: 'research_tool_budget_exhausted' }), {
+          status: 409,
+        });
+      }
+      if (href.endsWith('/safe-read/outcomes')) outcomeRequests += 1;
+      return new Response('{}', { status: 404 });
+    }) as typeof fetch;
+
+    await RequestCredentialsStore.run({ bearerToken: 'user-token' }, () =>
+      assistant.run(context, {
+        messages: [{ role: 'user', text: 'Research radar.' }],
+        toolPolicy: 'read-only',
+        ...researchAuthority(['search_memory']),
+      }),
+    );
+
+    expect(reservationRequests).toBe(1);
+    expect(invoke).not.toHaveBeenCalled();
+    expect(outcomeRequests).toBe(0);
+  });
+
+  test('a completed replay-identity miss never falls through to duplicate execution', async () => {
+    const call = {
+      type: 'function_call' as const,
+      call_id: 'provider-completed-replay',
+      name: 'search_memory',
+      arguments: JSON.stringify({ query: 'radar' }),
+    };
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(response({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(response({ outputText: 'Replay withheld.' }));
+    const invoke = jest.fn();
+    const assistant = build(
+      registry([{ name: 'search_memory', readOnly: true }], invoke),
+      complete,
+      jest.fn(),
+      {},
+      { INTERNAL_SERVICE_SECRET: 'service-secret' },
+    );
+    let reservationRequests = 0;
+    let outcomeRequests = 0;
+    global.fetch = jest.fn(async (url) => {
+      const href = String(url);
+      if (href.endsWith('/tool-schemas'))
+        return new Response(
+          JSON.stringify({
+            schemas: [
+              {
+                name: 'search_memory',
+                description: 'Memory',
+                input_schema: { type: 'object', properties: { query: { type: 'string' } } },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      if (href.endsWith('/active'))
+        return new Response(JSON.stringify({ active: true }), { status: 200 });
+      if (href.endsWith('/safe-read/replay'))
+        return new Response(
+          JSON.stringify({
+            replayed: false,
+            dispatchAllowed: false,
+            replayMiss: 'completed_reauthorization_identity',
+          }),
+          { status: 200 },
+        );
+      if (href.endsWith('/safe-read/reservations')) reservationRequests += 1;
+      if (href.endsWith('/safe-read/outcomes')) outcomeRequests += 1;
+      return new Response('{}', { status: 404 });
+    }) as typeof fetch;
+
+    await RequestCredentialsStore.run({ bearerToken: 'user-token' }, () =>
+      assistant.run(context, {
+        messages: [{ role: 'user', text: 'Research radar.' }],
+        toolPolicy: 'read-only',
+        ...researchAuthority(['search_memory']),
+      }),
+    );
+
+    expect(invoke).not.toHaveBeenCalled();
+    expect(reservationRequests).toBe(0);
+    expect(outcomeRequests).toBe(0);
   });
 });
 
@@ -2846,21 +3020,50 @@ describe('MeriV3 client transcript task completion', () => {
       registry([{ name: 'get_research_evidence', readOnly: true }], invoke),
       complete,
     );
-    global.fetch = jest.fn(
-      async (url) =>
-        new Response(
-          JSON.stringify(
-            String(url).includes('/runs/')
-              ? { active: true }
-              : {
-                  schemas: clientDocumentSchemas.filter(
-                    (schema) => schema.name === 'get_research_evidence',
-                  ),
-                },
-          ),
+    let replayToolVersion = '';
+    global.fetch = jest.fn(async (url, init) => {
+      const href = String(url);
+      if (href.endsWith('/tool-schemas'))
+        return new Response(
+          JSON.stringify({
+            schemas: clientDocumentSchemas.filter(
+              (schema) => schema.name === 'get_research_evidence',
+            ),
+          }),
           { status: 200 },
-        ),
-    ) as typeof fetch;
+        );
+      if (href.endsWith('/active'))
+        return new Response(JSON.stringify({ active: true }), { status: 200 });
+      if (href.endsWith('/safe-read/replay')) {
+        replayToolVersion = String(JSON.parse(String(init?.body)).toolVersion ?? '');
+        return new Response(JSON.stringify({ replayed: false, dispatchAllowed: true }), {
+          status: 200,
+        });
+      }
+      if (href.endsWith('/safe-read/reservations'))
+        return new Response(
+          JSON.stringify({
+            dispatchAllowed: true,
+            reservationId: 'evidence-reservation-1',
+            tool: 'get_research_evidence',
+            toolVersion: replayToolVersion,
+          }),
+          { status: 200 },
+        );
+      if (href.endsWith('/safe-read/outcomes')) {
+        const body = JSON.parse(String(init?.body));
+        return new Response(
+          JSON.stringify({
+            ...body,
+            classifier: 'empty',
+            sequence: 1,
+            receiptId: 'evidence-receipt-1',
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response('{}', { status: 404 });
+    }) as typeof fetch;
     await RequestCredentialsStore.run({ bearerToken: 'user-token' }, () =>
       assistant.run(context, {
         messages: [{ role: 'user', text: 'Review the research evidence.' }],

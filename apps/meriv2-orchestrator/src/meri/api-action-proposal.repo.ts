@@ -95,10 +95,7 @@ export class ApiActionProposalRepo {
       if ((env === 'staging' || env === 'production') && !secret) {
         throw new Error('INTERNAL_SERVICE_SECRET is not configured for action authority.');
       }
-      const body = buildResearchPortfolioProposalTransport(
-        input,
-        currentTrustedCurrentTurnScope(),
-      );
+      const body = buildResearchPortfolioProposalTransport(input, currentTrustedCurrentTurnScope());
       const base = (
         this.config.get<string>('MERIV2_API_BASE_URL') ?? 'http://localhost:3000'
       ).replace(/\/+$/, '');

@@ -188,7 +188,8 @@ export class ChatAssistantService {
     const fetchedToolSchemas = await this.fetchToolSchemas();
     const toolSchemas = currentServerReadonlyCapturePolicy()
       ? fetchedToolSchemas.filter(
-          (schema) => this.registry.get(schema.name)?.readOnly === true && schema.name !== 'run_analysis',
+          (schema) =>
+            this.registry.get(schema.name)?.readOnly === true && schema.name !== 'run_analysis',
         )
       : fetchedToolSchemas;
     const verificationAvailable = toolSchemas.length > 0;

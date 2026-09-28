@@ -93,9 +93,7 @@ export function validateMeriResearchPlanExecutionEnvelope(
   if (
     !Array.isArray(raw.allowedReadCapabilities) ||
     raw.allowedReadCapabilities.length > MAX_CAPABILITIES ||
-    raw.allowedReadCapabilities.some(
-      (name) => typeof name !== 'string' || !TOOL_NAME_RE.test(name),
-    )
+    raw.allowedReadCapabilities.some((name) => typeof name !== 'string' || !TOOL_NAME_RE.test(name))
   )
     invalid();
   const capabilities = raw.allowedReadCapabilities as string[];

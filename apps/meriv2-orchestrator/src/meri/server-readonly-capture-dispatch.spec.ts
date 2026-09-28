@@ -32,7 +32,9 @@ function catalogSha256(): string {
     .digest('hex');
 }
 
-function policy(overrides: Partial<MeriServerReadonlyCapturePolicy> = {}): MeriServerReadonlyCapturePolicy {
+function policy(
+  overrides: Partial<MeriServerReadonlyCapturePolicy> = {},
+): MeriServerReadonlyCapturePolicy {
   const issuedAt = Date.now();
   return {
     version: 1,
@@ -135,7 +137,9 @@ describe('server read-only capture orchestrator dispatch enforcement', () => {
     const tools = new ApiToolExecutorRepo(config());
 
     await expect(
-      inCapturedTurn(() => tools.execute({} as never, 'query_intelligence', { query: 'appropriations' })),
+      inCapturedTurn(() =>
+        tools.execute({} as never, 'query_intelligence', { query: 'appropriations' }),
+      ),
     ).resolves.toEqual({ result: 'authorized' });
 
     expect(effects).toHaveLength(1);

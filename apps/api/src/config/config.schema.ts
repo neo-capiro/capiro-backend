@@ -1,4 +1,5 @@
 import { upgradeTextModel } from '@capiro/shared/ai-model-policy';
+import { AI_PRICING } from '@capiro/shared';
 import { z } from 'zod';
 import { ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT } from '../engagement/runtime/engagement-runtime-env.js';
 
@@ -16,6 +17,10 @@ const normalizeOptionalSwitch = (value: unknown): unknown =>
   typeof value === 'string' ? blankToUndefined(value.trim().toLowerCase()) : value;
 const rolloutModeSwitch = () =>
   z.preprocess(normalizeOptionalSwitch, z.enum(['off', 'shadow', 'enforce']).optional());
+const DEFAULT_RESEARCH_TOTAL_TOKENS = 120_000;
+const DEFAULT_RESEARCH_MAX_COST_USD =
+  (DEFAULT_RESEARCH_TOTAL_TOKENS / 1_000_000) *
+  Math.max(...Object.values(AI_PRICING).map((price) => price.outputPerM));
 
 export const configSchema = z.object({
   NODE_ENV: z.enum(['development', 'staging', 'production', 'test']).default('development'),
@@ -687,6 +692,21 @@ export const configSchema = z.object({
   CLIO_RESEARCH_PLAN_MODEL: z.string().default('claude-sonnet-5').transform(upgradeTextModel),
   CLIO_RESEARCH_MAX_TOKENS: z.coerce.number().int().positive().default(16_000),
   CLIO_RESEARCH_MAX_TOOL_ROUNDS: z.coerce.number().int().positive().default(20),
+  // Durable aggregate provider accounting. Enabled explicitly by default for
+  // research only; ordinary chat retains its request-local controller.
+  CLIO_RESEARCH_PROVIDER_BUDGET_ENABLED: z
+    .string()
+    .default('true')
+    .transform((value) => ['true', '1', 'yes', 'on'].includes(value.trim().toLowerCase())),
+  CLIO_RESEARCH_MAX_PROVIDER_ATTEMPTS: z.coerce.number().int().positive().max(64).default(23),
+  CLIO_RESEARCH_MAX_TOTAL_TOKENS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(DEFAULT_RESEARCH_TOTAL_TOKENS),
+  // Derived from the existing shared price schedule's highest output rate,
+  // rather than a second pricing table or an unpriced zero-cost fallback.
+  CLIO_RESEARCH_MAX_COST_USD: z.coerce.number().positive().default(DEFAULT_RESEARCH_MAX_COST_USD),
   // Per-request timeout for the deep-research model calls. A single research
   // turn legitimately runs many minutes (gathering across many tools, then
   // streaming a long report), so the 120s interactive chat timeout

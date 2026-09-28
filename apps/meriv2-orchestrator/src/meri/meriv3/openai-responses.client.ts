@@ -2,7 +2,11 @@ import { prepareOpenAiResponsesRequest, upgradeTextModel } from '@capiro/shared/
 import { Injectable, Logger } from '@nestjs/common';
 import type { ProviderUsage } from '@capiro/shared';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
-import type { MeriModelBudgetPhase, MeriRunBudget } from './meriv3-run-budget.js';
+import {
+  stableProviderOperationId,
+  type MeriModelBudgetPhase,
+  type MeriRunBudget,
+} from './meriv3-run-budget.js';
 import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
 import type {
   MeriV3ReasoningEffort,
@@ -82,6 +86,19 @@ export function parseOpenAiResponsesUsage(body: RawResponsesBody): ProviderUsage
     cacheReadTokens: Number(body.usage?.input_tokens_details?.cached_tokens ?? 0) || 0,
     cacheCreationTokens: 0,
   };
+}
+
+function knownOpenAiResponsesUsage(
+  body: RawResponsesBody,
+): { inputTokens: number; outputTokens: number } | null {
+  const inputTokens = body.usage?.input_tokens;
+  const outputTokens = body.usage?.output_tokens;
+  return Number.isSafeInteger(inputTokens) &&
+    Number(inputTokens) >= 0 &&
+    Number.isSafeInteger(outputTokens) &&
+    Number(outputTokens) >= 0
+    ? { inputTokens: Number(inputTokens), outputTokens: Number(outputTokens) }
+    : null;
 }
 
 function combinedUsage(...values: ProviderUsage[]): ProviderUsage {
@@ -320,12 +337,73 @@ export class OpenAiResponsesClient {
         },
       );
     let wireAttempts = 0;
+    const logicalOperationId = stableProviderOperationId('openai-responses', {
+      model,
+      phase: params.budgetPhase ?? 'acquisition',
+      instructions: params.instructions,
+      input: params.input,
+      tools: params.tools,
+      toolChoice: effectiveToolChoice,
+      maxOutputTokens: params.profile.maxOutputTokens,
+    });
+    let previousAttemptId: string | null = null;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
       if (params.signal?.aborted) {
         throw failedRequest(new DOMException('Aborted', 'AbortError'), 'cancelled');
       }
-      const timeoutMs = deadlineAt - Date.now();
+      const toolFields = params.tools.length
+        ? {
+            tools: params.tools,
+            tool_choice: effectiveToolChoice,
+            parallel_tool_calls: true,
+          }
+        : {};
+      const requestBody = JSON.stringify(
+        prepareOpenAiResponsesRequest(
+          {
+            model,
+            instructions: params.instructions,
+            input: params.input,
+            ...toolFields,
+            ...(reasoningUnsupported
+              ? {}
+              : {
+                  reasoning: {
+                    effort: activeReasoningEffort,
+                    summary: 'auto',
+                  },
+                }),
+            max_output_tokens: params.profile.maxOutputTokens,
+            store: false,
+            ...(params.safetyIdentifier ? { safety_identifier: params.safetyIdentifier } : {}),
+          },
+          { defaultReasoning: !reasoningUnsupported },
+        ),
+      );
+      const attemptId = `${logicalOperationId}:${wireAttempts}`;
+      const providerReservation = params.budget
+        ? await params.budget.reserveProviderAttempt({
+            logicalOperationId,
+            attemptId,
+            retryOfAttemptId: previousAttemptId,
+            kind: 'openai_responses',
+            phase: params.budgetPhase ?? 'acquisition',
+            provider: 'openai',
+            model,
+            maxInputTokens: Buffer.byteLength(requestBody, 'utf8'),
+            maxOutputTokens: params.profile.maxOutputTokens,
+            retry: wireAttempts > 0,
+          })
+        : null;
+      wireAttempts += 1;
+      previousAttemptId = attemptId;
+      const durableDeadline = providerReservation
+        ? Date.parse(providerReservation.deadlineAt)
+        : Number.POSITIVE_INFINITY;
+      const attemptDeadline = Math.min(deadlineAt, durableDeadline);
+      const timeoutMs = attemptDeadline - Date.now();
       if (timeoutMs <= 0) {
+        await params.budget?.settleProviderAttempt(providerReservation, { kind: 'rejected' });
         throw failedRequest(
           new Error('OpenAI Responses turn deadline exceeded'),
           'deadline_exceeded',
@@ -336,16 +414,8 @@ export class OpenAiResponsesClient {
       const abortFromCaller = () => controller.abort();
       params.signal?.addEventListener('abort', abortFromCaller, { once: true });
       let status: number | undefined;
+      let providerSettlementAttempted = false;
       try {
-        params.budget?.reserveModelAttempt(params.budgetPhase ?? 'acquisition', wireAttempts > 0);
-        wireAttempts += 1;
-        const toolFields = params.tools.length
-          ? {
-              tools: params.tools,
-              tool_choice: effectiveToolChoice,
-              parallel_tool_calls: true,
-            }
-          : {};
         const response = await fetch(RESPONSES_URL, {
           method: 'POST',
           headers: {
@@ -353,31 +423,7 @@ export class OpenAiResponsesClient {
             'content-type': 'application/json',
             accept: 'application/json',
           },
-          body: JSON.stringify(
-            prepareOpenAiResponsesRequest(
-              {
-                model,
-                instructions: params.instructions,
-                input: params.input,
-                ...toolFields,
-                ...(reasoningUnsupported
-                  ? {}
-                  : {
-                      reasoning: {
-                        effort: activeReasoningEffort,
-                        // Request a provider-authored bounded summary for continuity
-                        // in the current turn, but never emit or persist reasoning
-                        // items.
-                        summary: 'auto',
-                      },
-                    }),
-                max_output_tokens: params.profile.maxOutputTokens,
-                store: false,
-                ...(params.safetyIdentifier ? { safety_identifier: params.safetyIdentifier } : {}),
-              },
-              { defaultReasoning: !reasoningUnsupported },
-            ),
-          ),
+          body: requestBody,
           signal: controller.signal,
         });
         status = response.status;
@@ -385,10 +431,14 @@ export class OpenAiResponsesClient {
         if (params.signal?.aborted) {
           throw new DOMException('Aborted', 'AbortError');
         }
-        if (controller.signal.aborted || Date.now() >= deadlineAt) {
+        if (controller.signal.aborted || Date.now() >= attemptDeadline) {
           throw new DOMException('Timed out', 'AbortError');
         }
-        if (!response.ok) throw sanitizedProviderError(response.status, raw);
+        if (!response.ok) {
+          providerSettlementAttempted = true;
+          await params.budget?.settleProviderAttempt(providerReservation, { kind: 'uncertain' });
+          throw sanitizedProviderError(response.status, raw);
+        }
         const body = JSON.parse(raw) as RawResponsesBody;
         const output = Array.isArray(body.output) ? body.output : [];
         const outputText =
@@ -422,13 +472,20 @@ export class OpenAiResponsesClient {
           responseStatus === 'completed' && !incompleteReason && !callFailure
             ? validatedCalls.calls
             : [];
+        const parsedUsage = parseOpenAiResponsesUsage(body);
+        const knownUsage = knownOpenAiResponsesUsage(body);
+        providerSettlementAttempted = true;
+        await params.budget?.settleProviderAttempt(
+          providerReservation,
+          knownUsage ? { kind: 'known', ...knownUsage } : { kind: 'uncertain' },
+        );
         const draft: OpenAiResponsesResult = {
           id: String(body.id ?? ''),
           status: responseStatus,
           output,
           outputText,
           functionCalls,
-          usage: parseOpenAiResponsesUsage(body),
+          usage: parsedUsage,
           model: String(body.model ?? model),
           usedTenantKey,
           incompleteReason,
@@ -587,6 +644,10 @@ export class OpenAiResponsesClient {
           };
         }
       } catch (error) {
+        if (!providerSettlementAttempted) {
+          providerSettlementAttempted = true;
+          await params.budget?.settleProviderAttempt(providerReservation, { kind: 'uncertain' });
+        }
         lastError = error;
         if (params.signal?.aborted) {
           throw failedRequest(new DOMException('Aborted', 'AbortError'), 'cancelled');

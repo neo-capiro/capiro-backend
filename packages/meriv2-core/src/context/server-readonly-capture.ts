@@ -105,12 +105,16 @@ export function decodeAndVerifyMeriCapturePolicyTransport(
   }
   let envelope: MeriCapturePolicyTransport;
   try {
-    envelope = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as MeriCapturePolicyTransport;
+    envelope = JSON.parse(
+      Buffer.from(encoded, 'base64url').toString('utf8'),
+    ) as MeriCapturePolicyTransport;
   } catch {
     throw new Error('meri_capture_transport_authentication_failed');
   }
   const expectedTool =
-    typeof binding.toolName === 'string' && binding.toolName.trim() ? binding.toolName.trim() : null;
+    typeof binding.toolName === 'string' && binding.toolName.trim()
+      ? binding.toolName.trim()
+      : null;
   const policy = envelope?.policy;
   if (
     envelope?.version !== 1 ||
