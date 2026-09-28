@@ -158,7 +158,7 @@ import {
 import { MeriV2ChatClient, type MeriV2ChatStreamEvent } from './meriv2-chat.client.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
 import { ContextCompilerService } from '../context/context-compiler.service.js';
-import { extractMeriDocument } from './meri-attachment-document.js';
+import { extractMeriDocument, MeriXlsxValidationError, validateMeriXlsxPackage } from './meri-attachment-document.js';
 import { describeAttachmentContentState, retryAttachmentExtraction } from './meri-attachment-content-state.js';
 import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
 import {
@@ -5174,6 +5174,16 @@ export class MeriService implements MeriTurnMaintenance {
     if (validation.kind === 'unsupported') {
       return reject(validation.kind, 'Unsupported attachment type');
     }
+    if (validation.kind === 'xlsx') {
+      try {
+        await validateMeriXlsxPackage(file.buffer);
+      } catch (error) {
+        const reason = error instanceof MeriXlsxValidationError && error.code === 'macro_content'
+          ? 'Macro-enabled workbook content is not supported. Save a macro-free .xlsx copy and upload it again.'
+          : 'File is not a valid Excel .xlsx workbook or its OOXML package is damaged.';
+        return reject(validation.kind, reason);
+      }
+    }
 
     // Opportunistic sweep: unconsumed uploads older than 24h are dead weight.
     await this.prisma
@@ -5232,7 +5242,7 @@ export class MeriService implements MeriTurnMaintenance {
       });
     } catch {
       this.logger.warn(`Attachment extraction failed [${validation.kind}]`);
-      const reason = `Could not read this ${validation.kind === 'pdf' ? 'PDF' : 'document'} — it may be corrupted, encrypted, or password-protected.`;
+      const reason = `Could not read this ${validation.kind === 'pdf' ? 'PDF' : validation.kind === 'xlsx' ? 'workbook' : 'document'} — it may be corrupted, encrypted, or password-protected.`;
       if (!enforceContentState) return reject(validation.kind, reason);
       resolved = { status: 'failed', pages: null, text: null, truncated: false, reason };
     }
@@ -5291,6 +5301,7 @@ export class MeriService implements MeriTurnMaintenance {
           mediaType: kind === 'pdf' ? 'application/pdf'
             : kind === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             : kind === 'pptx' ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+            : kind === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             : 'text/plain',
           byteSize: file.buffer.length,
           data: file.buffer,

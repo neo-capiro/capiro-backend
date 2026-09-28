@@ -306,6 +306,7 @@ function guessAttachmentKind(file: File): StagedAttachment['kind'] {
   if (file.type === 'application/pdf' || name.endsWith('.pdf')) return 'pdf';
   if (name.endsWith('.docx')) return 'docx';
   if (name.endsWith('.pptx') || file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') return 'pptx';
+  if (name.endsWith('.xlsx') || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') return 'xlsx';
   if (file.type.startsWith('image/')) return 'image';
   if (
     file.type.startsWith('text/') ||

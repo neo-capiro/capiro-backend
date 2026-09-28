@@ -2,6 +2,7 @@ import { getDocumentProxy } from 'unpdf';
 import { Document, Packer, Paragraph } from 'docx';
 import PptxGenJS from 'pptxgenjs';
 import JSZip from 'jszip';
+import ExcelJS from 'exceljs';
 import { extractMeriDocument, ATTACHMENT_OCR_MAX_PAGES, ATTACHMENT_OCR_TIMEOUT_MS } from './meri-attachment-document.js';
 import { DOC_TEXT_MAX_CHARS, validateAttachment, verifyMagicBytes } from './meri-attachment.helpers.js';
 
@@ -28,6 +29,79 @@ describe('Meri document ingestion', () => {
     }
     return await deck.write({ outputType: 'nodebuffer' }) as Buffer;
   }
+
+  async function workbook(build: (value: ExcelJS.Workbook) => void): Promise<Buffer> {
+    const value = new ExcelJS.Workbook();
+    build(value);
+    return Buffer.from(await value.xlsx.writeBuffer());
+  }
+
+  it('reads actual XLSX sheets with exact coordinates and honest cached-formula semantics', async () => {
+    const base = await workbook((value) => {
+      const budget = value.addWorksheet('Budget Plan');
+      budget.getCell('A1').value = 'Program';
+      budget.getCell('C2').value = new Date('2026-10-15T00:00:00.000Z');
+      budget.getCell('D2').value = { formula: 'SUM(1,2)', result: 3 };
+      budget.getCell('E2').value = { formula: '1+1' };
+      budget.getCell('F2').value = { formula: "'[remote.xlsx]Sheet1'!A1", result: 'REMOTE-SECRET' };
+      value.addWorksheet('Empty');
+      const hidden = value.addWorksheet("Director's Notes", { state: 'hidden' });
+      hidden.getCell('B3').value = 'Internal draft';
+    });
+    const zip = await JSZip.loadAsync(base);
+    zip.file('xl/externalLinks/externalLink1.xml', '<externalLink/>');
+    const bytes = await zip.generateAsync({ type: 'nodebuffer' });
+
+    const result = await extractMeriDocument({ ...input, bytes, kind: 'xlsx' });
+
+    expect(result).toMatchObject({ status: 'truncated', truncated: true, pages: null });
+    expect(result.text).toContain('Worksheet 1: "Budget Plan" (visible)');
+    expect(result.text).toContain("'Budget Plan'!A1 = \"Program\"");
+    expect(result.text).toContain("'Budget Plan'!C2 = \"2026-10-15\"");
+    expect(result.text).toContain("'Budget Plan'!D2 = \"3\" (saved cached formula result; not recalculated)");
+    expect(result.text).toContain("'Budget Plan'!E2 = \"[formula result unavailable; recalculate and save the workbook]\"");
+    expect(result.text).toContain("'Budget Plan'!F2 = \"[external formula result unavailable; external links were not read]\"");
+    expect(result.text).not.toContain('REMOTE-SECRET');
+    expect(result.text).not.toContain('SUM(1,2)');
+    expect(result.text).toContain('Worksheet 2: "Empty" (visible)\n[no non-empty cells]');
+    expect(result.text).toContain('Worksheet 3: "Director\'s Notes" (hidden)');
+    expect(result.text).toContain("'Director''s Notes'!B3 = \"Internal draft\"");
+    expect(result.reason).toContain('not recalculated');
+    expect(result.reason).toContain('External workbook links');
+  });
+
+  it('bounds an actual sparse oversized workbook and discloses the omitted coordinate', async () => {
+    const bytes = await workbook((value) => {
+      const sheet = value.addWorksheet('Sparse');
+      sheet.getCell('A1').value = 'First';
+      sheet.getCell('A5001').value = 'Beyond bounded read';
+    });
+    const result = await extractMeriDocument({ ...input, bytes, kind: 'xlsx' });
+    expect(result).toMatchObject({ status: 'truncated', truncated: true });
+    expect(result.text).toContain("'Sparse'!A1 = \"First\"");
+    expect(result.text).not.toContain('Beyond bounded read');
+    expect(result.reason).toContain('row positions');
+  });
+
+  it('rejects malformed ZIPs, wrong OOXML roots, and macro package content without executing it', async () => {
+    const valid = await workbook((value) => {
+      value.addWorksheet('Data').getCell('A1').value = 'safe';
+    });
+    await expect(extractMeriDocument({ ...input, bytes: valid.subarray(0, valid.length - 30), kind: 'xlsx' }))
+      .rejects.toMatchObject({ code: 'invalid_package' });
+
+    const wrongRoot = new JSZip()
+      .file('[Content_Types].xml', '<Types/>')
+      .file('_rels/.rels', '<Relationships/>')
+      .file('word/document.xml', '<document/>');
+    await expect(extractMeriDocument({ ...input, bytes: await wrongRoot.generateAsync({ type: 'nodebuffer' }), kind: 'xlsx' }))
+      .rejects.toMatchObject({ code: 'invalid_package' });
+
+    const macroZip = await JSZip.loadAsync(valid);
+    macroZip.file('xl/vbaProject.bin', Buffer.from('never execute'));
+    await expect(extractMeriDocument({ ...input, bytes: await macroZip.generateAsync({ type: 'nodebuffer' }), kind: 'xlsx' }))
+      .rejects.toMatchObject({ code: 'macro_content' });
+  });
 
   it('accepts a real PowerPoint upload and reads its slide text without a provider call', async () => {
     const bytes = await presentation(['QA-PPTX-0911: Budget $42,000. Status: draft, not approved.', 'Second slide: requested evaluation.']);
