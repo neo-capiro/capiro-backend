@@ -1,3 +1,4 @@
+import { meriTelemetryIdentifier } from '@capiro/meriv2-core';
 import { describe, expect, it, jest } from '@jest/globals';
 import { MeriV3ProxyService } from './meriv3-proxy.service.js';
 import { MeriContextPlaneRuntimeService } from './meri-context-plane-runtime.js';
@@ -15,6 +16,8 @@ import {
   MAX_REPLAY_HISTORY_CHARS,
   MERI_PROTOCOL_COMPACTION_METADATA_KEY,
 } from './meri-compaction.helpers.js';
+import { createMeriTelemetryContext } from '@capiro/meriv2-core';
+import { runWithMeriApiTelemetry } from './meri-telemetry.runtime.js';
 
 // These injected collaborators already use harness instances below. Avoid
 // booting their unrelated tool/service graphs in this proxy unit suite.
@@ -1001,6 +1004,12 @@ describe('MeriV3ProxyService â€” done frame carries the persisted message i
 
   it('emits a provider failure as accepted work followed by canonical completion metadata', async () => {
     const { service, client, sse, frames, tx } = buildHarness();
+    const trace = createMeriTelemetryContext({
+      tenantId: TENANT,
+      actorId: USER,
+      conversationId: CONVERSATION,
+    });
+    const telemetryLines: string[] = [];
     client.streamChat.mockImplementationOnce(async ({ onEvent }: any) => {
       onEvent({ type: 'tool_call', tool: 'search_memory', label: 'Client memory' });
       onEvent({
@@ -1012,15 +1021,20 @@ describe('MeriV3ProxyService â€” done frame carries the persisted message i
       });
       onEvent({ type: 'error', message: 'The provider could not finish.' });
     });
-    await service.streamMessage(
-      CTX,
-      CONVERSATION,
-      'Prepare a brief',
-      sse,
-      undefined,
-      'new',
-      [],
-      'token',
+    await runWithMeriApiTelemetry(
+      trace,
+      (line) => telemetryLines.push(line),
+      () =>
+        service.streamMessage(
+          CTX,
+          CONVERSATION,
+          'Prepare a brief',
+          sse,
+          undefined,
+          'new',
+          [],
+          'token',
+        ),
     );
     const events = frames();
     const failure = events.find((frame) => frame.type === 'error');
@@ -1043,6 +1057,19 @@ describe('MeriV3ProxyService â€” done frame carries the persisted message i
         detail: 'Found three approved facts',
       }),
     ]);
+    expect(telemetryLines.map((line) => JSON.parse(line))).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          traceId: trace.traceId,
+          name: 'meri.api.turn.finalized',
+          outcome: 'error',
+          usage: expect.objectContaining({
+            status: 'unknown',
+            knownEstimatedCostUsd: null,
+          }),
+        }),
+      ]),
+    );
   });
 
   it('persists effective provider effort and fallback history without relabeling the requested mode', async () => {
@@ -1086,6 +1113,136 @@ describe('MeriV3ProxyService â€” done frame carries the persisted message i
       finishReason: 'completed',
       partial: false,
     });
+  });
+
+  it('joins proxy observations to the server trace with qualified refs and explicit unknown cost', async () => {
+    const { service, client, sse } = buildHarness();
+    client.streamChat.mockImplementationOnce(async ({ onEvent }: any) => {
+      onEvent({
+        type: 'runtime',
+        model: 'served-model',
+        reasoningEffort: 'high',
+        telemetry: {
+          requestedModel: 'requested-model',
+          effectiveModel: 'served-model',
+          requestedReasoningEffort: 'high',
+          effectiveReasoningEffort: 'high',
+          reasoningFallbackReasons: [],
+          finishReason: 'completed',
+          partial: false,
+        },
+      });
+      onEvent({ type: 'tool_call', tool: 'search_memory', label: 'Private query label' });
+      onEvent({
+        type: 'tool_done',
+        tool: 'search_memory',
+        label: 'Private query label',
+        status: 'done',
+        detail: 'Private tool body',
+      });
+      onEvent({
+        type: 'pending_approval',
+        tool: 'send_email',
+        proposalId: 'proposal-1',
+        status: 'proposed',
+      });
+      onEvent({ type: 'artifact', artifact: { id: 'artifact-1', title: 'Private title' } });
+      onEvent({
+        type: 'done',
+        reply: 'Private answer body',
+        model: 'served-model',
+        reasoningEffort: 'high',
+        usage: { inputTokens: 21, outputTokens: 8 },
+        steps: [],
+        citations: [
+          {
+            n: 1,
+            id: 'source-1',
+            stableId: 'stable-source-1',
+            title: 'Private source title',
+            snippet: 'Private source contents',
+            tool: 'search_memory',
+            type: 'memory',
+            url: null,
+            source: { version: 'v4' },
+            documentEvidence: { contentHash: 'a'.repeat(64) },
+          },
+        ],
+      });
+    });
+    const trace = createMeriTelemetryContext({
+      tenantId: TENANT,
+      actorId: USER,
+      conversationId: CONVERSATION,
+      browserRequestId: 'browser-request-1',
+    });
+    const lines: string[] = [];
+
+    await runWithMeriApiTelemetry(
+      trace,
+      (line) => lines.push(line),
+      () =>
+        service.streamMessage(
+          CTX,
+          CONVERSATION,
+          'Private query body',
+          sse,
+          undefined,
+          'new',
+          [],
+          'token',
+        ),
+    );
+
+    const events = lines.map((line) => JSON.parse(line) as Record<string, any>);
+    expect(new Set(events.map((event) => event.traceId))).toEqual(new Set([trace.traceId]));
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'meri.api.runtime.observed',
+          effectiveModel: 'served-model',
+        }),
+        expect.objectContaining({
+          name: 'meri.api.tool.observed',
+          invokedTools: ['search_memory'],
+        }),
+        expect.objectContaining({
+          name: 'meri.api.proposal.observed',
+          proposalId: meriTelemetryIdentifier('proposal-1'),
+        }),
+        expect.objectContaining({
+          name: 'meri.api.artifact.observed',
+          artifactIds: [meriTelemetryIdentifier('artifact-1')],
+        }),
+      ]),
+    );
+    expect(events.find((event) => event.name === 'meri.api.turn.finalized')).toMatchObject({
+      serverTurnId: trace.serverTurnId,
+      runId: trace.runId,
+      requestedModel: 'requested-model',
+      effectiveModel: 'served-model',
+      invokedTools: ['search_memory'],
+      sourceRefs: [
+        {
+          sourceId: meriTelemetryIdentifier('stable-source-1'),
+          version: meriTelemetryIdentifier('v4'),
+          hash: 'a'.repeat(64),
+          tool: 'search_memory',
+        },
+      ],
+      artifactIds: [meriTelemetryIdentifier('artifact-1')],
+      proposalId: meriTelemetryIdentifier('proposal-1'),
+      usage: {
+        status: 'unknown',
+        inputTokens: null,
+        outputTokens: null,
+        knownEstimatedCostUsd: null,
+        owner: 'AiUsageEvent',
+      },
+    });
+    expect(lines.join('\n')).not.toMatch(
+      /Private query body|Private query label|Private answer body|Private tool body|Private source/i,
+    );
   });
 
   it('preserves provider incomplete status in the saved message and completion event', async () => {

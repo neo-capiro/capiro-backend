@@ -61,7 +61,15 @@ import {
   type ToolExecutionControl,
   ReplayToolExecutor,
   classifyActionIntent,
+  meriTelemetryChildSpanId,
+  meriTelemetryConfigIdentity,
+  meriTelemetryOperationId,
 } from '@capiro/meriv2-core';
+import {
+  currentMeriTaskUsage,
+  emitMeriOrchestratorTelemetry,
+  setMeriTelemetryConfigIdentity,
+} from '../../telemetry/meri-telemetry.runtime.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
 import {
@@ -1210,6 +1218,34 @@ export class MeriV3AssistantService {
       invokedNames: [],
       invokedCount: 0,
       result: selection.decision.fallbackToLegacy ? 'fallback_legacy' : 'selected',
+    });
+    const configIdentity = meriTelemetryConfigIdentity({
+      runtime: 'meriv3',
+      profile: {
+        model: profile.model,
+        mode: profile.mode,
+        effort: profile.effort,
+        maxOutputTokens: profile.maxOutputTokens,
+        maxToolRounds: profile.maxToolRounds,
+      },
+      toolPolicy: dto.toolPolicy ?? 'default',
+      exposedTools: availableSchemas.map((schema) => schema.name).sort(),
+      assuranceMode,
+      evidenceAccuracyMode,
+    });
+    setMeriTelemetryConfigIdentity(configIdentity);
+    emitMeriOrchestratorTelemetry({
+      name: 'meri.orchestrator.tools.selected',
+      boundary: 'turn',
+      runtime: 'meriv3',
+      provider: 'openai',
+      requestedModel: profile.model,
+      effectiveModel: profile.model,
+      clientId: dto.clientId ?? null,
+      selectedTools: selection.schemas.map((schema) => schema.name),
+      exposedTools: availableSchemas.map((schema) => schema.name),
+      childRunId: dto.researchRun?.runId ?? null,
+      outcome: 'selected',
     });
 
     let tools = [...availableSchemas, ...progressiveDiscovery.controlSchemas()].map(
@@ -2512,6 +2548,29 @@ export class MeriV3AssistantService {
         runtimeBudget: runtimeBudget.snapshot(),
       }),
     );
+    emitMeriOrchestratorTelemetry({
+      name: 'meri.orchestrator.turn.finalized',
+      boundary: 'turn',
+      runtime: 'meriv3',
+      provider: 'openai',
+      requestedModel: profile.model,
+      effectiveModel: actualModel,
+      clientId: dto.clientId ?? null,
+      invokedTools: toolsUsed,
+      sourceRefs: released.citations.map((citation) => ({
+        sourceId: citation.stableId ?? citation.id,
+        version: citation.source?.version ?? null,
+        hash: citation.documentEvidence?.contentHash ?? null,
+        tool: citation.tool,
+      })),
+      proposalId: pendingApprovals[0]?.proposalId ?? null,
+      artifactIds: artifacts.map((artifact) => artifact.id),
+      childRunId: dto.researchRun?.runId ?? null,
+      outcome: opts.signal?.aborted ? 'aborted' : telemetry.partial ? 'partial' : 'completed',
+      durationMs: Date.now() - startedAt,
+      usage: currentMeriTaskUsage(),
+      integrationDependencies: ['captured_turn_audit_receipt_pending_capture_policy_8e'],
+    });
     emit({
       type: 'runtime',
       runtime: 'meriv3',
@@ -3188,30 +3247,57 @@ export class MeriV3AssistantService {
       }
       args.toolsUsed.push(call.name);
       let durableSafeRead: DurableSafeReadOutcome | undefined;
-      const result = await this.invokeTool({
-        ctx: args.ctx,
-        name: call.name,
-        input: augmented.input,
-        conversationId: args.dto.conversationId,
-        steps: args.steps,
-        pendingApprovals: args.pendingApprovals,
-        artifacts: args.artifacts,
-        emit: args.emit,
-        prePersistRefusal: args.prePersistRefusal,
-        userRequest: this.lastUserText(args.dto),
-        noteComplianceOutcome: args.noteComplianceOutcome,
-        scopeViolation: augmented.scopeViolation,
-        control: args.control,
-        citations: args.citations,
-        evidenceAccuracyMode: args.evidenceAccuracyMode,
-        providerCallId: call.call_id,
-        schema,
-        researchRun: args.dto.researchRun,
-        admittedReadCapabilities: args.admittedReadCapabilities,
-        captureDurableSafeRead: (outcome) => {
-          durableSafeRead = outcome;
-        },
+      const stepId = meriTelemetryChildSpanId();
+      const stepStartedAt = Date.now();
+      const citationStart = args.citations.length;
+      const artifactStart = args.artifacts.length;
+      const proposalStart = args.pendingApprovals.length;
+      emitMeriOrchestratorTelemetry({
+        name: 'meri.tool.step.started',
+        boundary: 'orchestrator_tool',
+        spanId: stepId,
+        stepId,
+        invokedTools: [call.name],
+        outcome: 'started',
       });
+      let result: unknown;
+      try {
+        result = await this.invokeTool({
+          ctx: args.ctx,
+          name: call.name,
+          input: augmented.input,
+          conversationId: args.dto.conversationId,
+          steps: args.steps,
+          pendingApprovals: args.pendingApprovals,
+          artifacts: args.artifacts,
+          emit: args.emit,
+          prePersistRefusal: args.prePersistRefusal,
+          userRequest: this.lastUserText(args.dto),
+          noteComplianceOutcome: args.noteComplianceOutcome,
+          scopeViolation: augmented.scopeViolation,
+          control: args.control,
+          citations: args.citations,
+          evidenceAccuracyMode: args.evidenceAccuracyMode,
+          providerCallId: call.call_id,
+          schema,
+          researchRun: args.dto.researchRun,
+          admittedReadCapabilities: args.admittedReadCapabilities,
+          captureDurableSafeRead: (outcome) => {
+            durableSafeRead = outcome;
+          },
+        });
+      } catch (error) {
+        emitMeriOrchestratorTelemetry({
+          name: 'meri.tool.step.finalized',
+          boundary: 'orchestrator_tool',
+          spanId: stepId,
+          stepId,
+          invokedTools: [call.name],
+          outcome: args.control?.signal?.aborted ? 'aborted' : 'error',
+          durationMs: Date.now() - stepStartedAt,
+        });
+        throw error;
+      }
       logDispatch(call, governedToolResult(result), true);
       const visibleResult = projectMeriToolEvidence({
         result,
@@ -3295,6 +3381,26 @@ export class MeriV3AssistantService {
         args.artifacts.push(releasedArtifact);
         args.emit({ type: 'artifact', artifact: releasedArtifact });
       }
+      emitMeriOrchestratorTelemetry({
+        name: 'meri.tool.step.finalized',
+        boundary: 'orchestrator_tool',
+        spanId: stepId,
+        stepId,
+        invokedTools: [call.name],
+        sourceRefs: args.citations.slice(citationStart).map((citation) => ({
+          sourceId: citation.stableId ?? citation.id,
+          version: citation.source?.version ?? null,
+          hash: citation.documentEvidence?.contentHash ?? null,
+          tool: citation.tool,
+        })),
+        proposalId: args.pendingApprovals[proposalStart]?.proposalId ?? null,
+        operationId: meriTelemetryOperationId(result),
+        artifactIds: args.artifacts.slice(artifactStart).map((artifact) => artifact.id),
+        outcome:
+          classifyApiToolReadOutcome(call.name, result)?.kind ??
+          (isLogicalToolFailure(result) ? 'error' : governedToolResult(result)),
+        durationMs: Date.now() - stepStartedAt,
+      });
       const body = wrapMeriToolEvidence(call.name, visibleResult);
       const serialized = cites.length ? `${formatCitationsForPrompt(cites)}\n\n${body}` : body;
       args.ledgerEntries.push({

@@ -1,5 +1,11 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-28 joined telemetry integration
+
+Reviewed trace joins and truthful usage observations are consolidated with the current durable/source/provider/child foundation. Combined validation passes 300 tests in 15 suites, shared/core builds, API/runtime/web types and scoped formatting; independent Hermes/Kimi static review passes its scope. Signed server trace metadata is authenticated through the existing governed-context MAC. See telemetry-foundation-qualification.md.
+
+Full File01 remains incomplete. OTel export and remaining durable/child/budget span coverage, synthetic fixture/capture/effect evidence, full offline/live acceptance, applicable hosted CI, database clearance, named owner acceptance, both-main integration, approved deploy/migrations and served SHA/digest proof remain open. Synthetic enablement remains approved but unapplied. No main or AWS changes.
+
 ## Current checkpoint — 2026-09-28 CI consolidation
 
 The foundation now includes the reviewed durable coordinator, provider/tool budget fencing, bounded source acquisition, child research, and Workstream A CI repairs through donor 9155e8d5c. Combined CI repair validation passes 127 tests in 13 suites, API types and scoped formatting; the scheduler wall extraction also passes independent Hermes/Kimi review. See ci-foundation-integration-qualification.md. Prior checkpoints below retain their historical scope.

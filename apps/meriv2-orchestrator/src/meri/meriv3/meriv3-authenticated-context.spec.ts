@@ -1,5 +1,6 @@
 import {
   attestMeriGovernedContext,
+  createMeriTelemetryContext,
   createMeriResearchPlanExecutionEnvelope,
   type MeriGovernedTurnContext,
 } from '@capiro/meriv2-core';
@@ -7,6 +8,7 @@ import { EventEmitter } from 'node:events';
 import { currentGovernedMeriContext } from '../meri-governed-context.runtime.js';
 import { currentTrustedCurrentTurnScope } from '../../request/trusted-current-turn-scope.js';
 import { MeriV3Controller } from './meriv3.controller.js';
+import { currentMeriOrchestratorTelemetry } from '../../telemetry/meri-telemetry.runtime.js';
 
 const actor = {
   tenantId: 'tenant-1',
@@ -137,6 +139,56 @@ describe('MeriV3 governed context HTTP trust boundary', () => {
       ),
     };
   }
+  it('joins only signed server telemetry and ignores a forged top-level carrier', async () => {
+    const { instance, run } = controller();
+    const trusted = createMeriTelemetryContext({
+      tenantId: actor.tenantId,
+      actorId: actor.userId,
+      conversationId: input.conversationId,
+    });
+    const forged = { ...trusted, traceId: 'a'.repeat(32) };
+    const seen: Array<string | undefined> = [];
+    run.mockImplementation(async () => {
+      seen.push(currentMeriOrchestratorTelemetry()?.traceId);
+      return { reply: '', steps: [] };
+    });
+    await instance.run(
+      {
+        ...input,
+        telemetryContext: forged,
+        governedContext: attestMeriGovernedContext(
+          { ...context(), telemetryContext: trusted },
+          input,
+          secret,
+        ),
+      },
+      tenant,
+      { headers: {} } as never,
+    );
+    expect(seen[0]).toBe(trusted.traceId);
+    await instance.run(
+      {
+        ...input,
+        telemetryContext: forged,
+        governedContext: attestMeriGovernedContext(context(), input, secret),
+      },
+      tenant,
+      { headers: {} } as never,
+    );
+    expect(seen[1]).not.toBe(forged.traceId);
+    expect(seen[1]).not.toBe(trusted.traceId);
+    const signed = attestMeriGovernedContext(
+      { ...context(), telemetryContext: trusted },
+      input,
+      secret,
+    );
+    await expect(
+      instance.run({ ...input, governedContext: { ...signed, telemetryContext: forged } }, tenant, {
+        headers: {},
+      } as never),
+    ).rejects.toThrow();
+    expect(run).toHaveBeenCalledTimes(2);
+  });
   it('passes only authenticated API context into the request-local runtime and returns a body-free manifest', async () => {
     const { instance, run } = controller();
     const governedContext = attestMeriGovernedContext(context(), input, secret);

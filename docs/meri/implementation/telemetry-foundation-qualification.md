@@ -1,0 +1,13 @@
+# Joined telemetry integration qualification
+
+Verdict: PASS for bounded integration checks; complete File01 observability and acceptance remain unfinished.
+
+Base d71ff9c0c1f7e6df195a0876f31261a3fb8c5ce8; telemetry donor 64bfd65bbf2e092d9758441b1b87d0ae84db7cd1. Browser request linkage now joins authenticated API, orchestrator, provider, delegated-tool, proposal and artifact events with a server-owned trace/run/turn context. Canonical IDs remain usable; potentially private identifier labels are hashed and raw prompt/result content is excluded from the new event projection. Missing provider usage and cost remain unknown; partial task observations retain only known subtotals. API final telemetry does not relabel legacy zero-default usage as an observation.
+
+The merge preserves current capture policy, signed procedures, current-authority output release, durable safe-read outcomes, provider reservation/settlement, progressive tool discovery and bounded children. The lead repaired an inherited trust gap: trace metadata is now included inside the whole-context governed MAC, and the orchestrator ignores unsigned top-level trace carriers. This retains the existing attestation algorithm and absent-metadata compatibility. Actual controller and MAC tests cover forged metadata. Initial fixture assertions expecting raw test labels and a carrier helper type mismatch were corrected; their failed outputs are retained.
+
+Validation: 34 core tests in two suites, 67 API tests in four suites, 198 runtime tests in eight suites, and one browser test all exit 0 (300 tests, 15 suites total). Shared/core builds, API/runtime/web types and scoped formatting exit 0. Independent Hermes/Bedrock Kimi static review passes its scope against the current immutable diff/manifest.
+
+Evidence: C:/dev/cap-meri-foundation-evidence/telemetry-foundation-gates.json and per-gate logs; telemetry-foundation-web-tests-exit.json; telemetry-foundation-web-types-exit.json; telemetry-foundation-source-manifest.json; telemetry-foundation-conflict-resolutions.json; review-telemetry-foundation-report.md and exit JSON.
+
+NOT RUN / incomplete: OTel export, complete durable/child/budget/source span coverage, live/deployed trace joins, synthetic acceptance and actual release identity/digest proof. Read-only source/ECS inspection found CloudWatch logging but no configured OTel exporter path in API task definition 483 or orchestrator 84; this prerequisite is not fabricated as complete. No main, AWS configuration, shared database, routing, model policy, cohort enablement or production canary changes. JEV experimentation remains a follow-up.

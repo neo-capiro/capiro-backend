@@ -1,3 +1,4 @@
+import type { MeriTelemetryContext } from '../observability/meri-joined-telemetry';
 import type { ZodType, ZodIssue } from 'zod';
 import type { MeriCitation, TenantRole } from '@capiro/shared';
 import type { MemoryAuthority } from '../memory/governance';
@@ -64,6 +65,8 @@ export interface MeriContextPacketSummary {
  */
 export interface MeriGovernedTurnContext {
   version: 1;
+  /** API-owned trace linkage, authenticated by the existing whole-context MAC. */
+  telemetryContext?: MeriTelemetryContext | null;
   operationId:
     | 'meri.chat'
     | 'meri.research'

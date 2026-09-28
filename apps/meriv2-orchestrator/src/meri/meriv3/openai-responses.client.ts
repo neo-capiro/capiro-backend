@@ -1,12 +1,18 @@
+import { meriTelemetryUsage } from '@capiro/meriv2-core';
 import { prepareOpenAiResponsesRequest, upgradeTextModel } from '@capiro/shared/ai-model-policy';
 import { Injectable, Logger } from '@nestjs/common';
-import type { ProviderUsage } from '@capiro/shared';
+import { AI_PRICING, computeAiCostUsd, type ProviderUsage } from '@capiro/shared';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
 import {
   stableProviderOperationId,
   type MeriModelBudgetPhase,
   type MeriRunBudget,
 } from './meriv3-run-budget.js';
+import {
+  emitMeriOrchestratorTelemetry,
+  noteMeriProviderUsage,
+  noteMeriUnknownProviderUsage,
+} from '../../telemetry/meri-telemetry.runtime.js';
 import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
 import type {
   MeriV3ReasoningEffort,
@@ -79,11 +85,24 @@ interface RawResponsesBody {
   };
 }
 
-export function parseOpenAiResponsesUsage(body: RawResponsesBody): ProviderUsage {
+/** Raw observations stay nullable; the legacy ProviderUsage contract stays compatible. */
+export function observedOpenAiResponsesUsage(body: RawResponsesBody) {
+  const tokens = (value: unknown): number | null =>
+    typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null;
   return {
-    inputTokens: Number(body.usage?.input_tokens ?? 0) || 0,
-    outputTokens: Number(body.usage?.output_tokens ?? 0) || 0,
-    cacheReadTokens: Number(body.usage?.input_tokens_details?.cached_tokens ?? 0) || 0,
+    inputTokens: tokens(body.usage?.input_tokens),
+    outputTokens: tokens(body.usage?.output_tokens),
+    cacheReadTokens: tokens(body.usage?.input_tokens_details?.cached_tokens),
+    cacheCreationTokens: null,
+  };
+}
+
+export function parseOpenAiResponsesUsage(body: RawResponsesBody): ProviderUsage {
+  const observed = observedOpenAiResponsesUsage(body);
+  return {
+    inputTokens: observed.inputTokens ?? 0,
+    outputTokens: observed.outputTokens ?? 0,
+    cacheReadTokens: observed.cacheReadTokens ?? 0,
     cacheCreationTokens: 0,
   };
 }
@@ -410,12 +429,16 @@ export class OpenAiResponsesClient {
         );
       }
       const controller = new AbortController();
+      const attemptStartedAt = Date.now();
+      let wireStarted = false;
+      let wireUsageRecorded = false;
       const timer = setTimeout(() => controller.abort(), timeoutMs);
       const abortFromCaller = () => controller.abort();
       params.signal?.addEventListener('abort', abortFromCaller, { once: true });
       let status: number | undefined;
       let providerSettlementAttempted = false;
       try {
+        wireStarted = true;
         const response = await fetch(RESPONSES_URL, {
           method: 'POST',
           headers: {
@@ -492,6 +515,32 @@ export class OpenAiResponsesClient {
           telemetry,
           providerCalls: [telemetry],
         };
+        const observedUsage = observedOpenAiResponsesUsage(body);
+        const hasKnownPrice = Boolean(
+          AI_PRICING[draft.model] ?? AI_PRICING[draft.model.replace(/-\d{8}$/, '')],
+        );
+        const estimatedCostUsd =
+          hasKnownPrice && observedUsage.inputTokens !== null && observedUsage.outputTokens !== null
+            ? computeAiCostUsd(draft.model, observedUsage.inputTokens, observedUsage.outputTokens)
+            : null;
+        noteMeriProviderUsage({ ...observedUsage, estimatedCostUsd });
+        emitMeriOrchestratorTelemetry({
+          name: 'meri.provider.attempt.finalized',
+          boundary: 'orchestrator_provider',
+          provider: 'openai',
+          requestedModel: model,
+          effectiveModel: draft.model,
+          attempt: wireAttempts,
+          retry: wireAttempts > 1,
+          outcome: telemetry.partial ? 'partial' : 'completed',
+          durationMs: Date.now() - attemptStartedAt,
+          usage: meriTelemetryUsage({
+            ...observedUsage,
+            knownEstimatedCostUsd: estimatedCostUsd,
+            unknownAttempts: estimatedCostUsd === null ? 1 : 0,
+          }),
+        });
+        wireUsageRecorded = true;
 
         // Finalization may only transform a closed, valid provider draft. An
         // incomplete envelope or invalid function-call batch must return to the
@@ -649,6 +698,30 @@ export class OpenAiResponsesClient {
           await params.budget?.settleProviderAttempt(providerReservation, { kind: 'uncertain' });
         }
         lastError = error;
+        if (wireStarted && !wireUsageRecorded) {
+          noteMeriUnknownProviderUsage();
+          emitMeriOrchestratorTelemetry({
+            name: 'meri.provider.attempt.finalized',
+            boundary: 'orchestrator_provider',
+            provider: 'openai',
+            requestedModel: model,
+            effectiveModel: model,
+            attempt: wireAttempts,
+            retry: wireAttempts > 1,
+            outcome: params.signal?.aborted ? 'aborted' : 'error',
+            durationMs: Date.now() - attemptStartedAt,
+            usage: {
+              status: 'unknown',
+              inputTokens: null,
+              outputTokens: null,
+              cacheReadTokens: null,
+              cacheCreationTokens: null,
+              knownEstimatedCostUsd: null,
+              unknownAttempts: 1,
+              owner: 'AiUsageEvent',
+            },
+          });
+        }
         if (params.signal?.aborted) {
           throw failedRequest(new DOMException('Aborted', 'AbortError'), 'cancelled');
         }

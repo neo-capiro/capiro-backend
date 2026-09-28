@@ -35,6 +35,7 @@ import {
 } from 'class-validator';
 import type { Request, Response } from 'express';
 import type { TenantContext } from '@capiro/shared';
+import { classifyApiToolReadOutcome } from '@capiro/shared/meri-read-outcome';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
@@ -64,6 +65,12 @@ import { MeriPdfRenderError } from './meri-docgen-pdf.js';
 import { sha256Bytes, validateDocumentArtifactBytes } from './meri-artifact-integrity.js';
 import type { AssuranceSurface } from '@capiro/meriv2-core';
 import { admitMeriServerReadonlyCaptureTransport } from './meri-server-readonly-capture.js';
+import {
+  admitMeriInternalTelemetry,
+  createMeriApiTelemetryContext,
+  emitMeriApiTelemetry,
+  runWithMeriApiTelemetry,
+} from './meri-telemetry.runtime.js';
 
 class CreateMeriConversationDto {
   @IsOptional()
@@ -371,6 +378,10 @@ export class MeriController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
+    const telemetry = createMeriApiTelemetryContext(req, ctx, id);
+    res.setHeader('x-request-id', telemetry.requestId);
+    res.setHeader('x-capiro-trace-id', telemetry.traceId);
+    res.setHeader('Access-Control-Expose-Headers', 'x-request-id, x-capiro-trace-id');
     // Cancel the model stream when the client disconnects or hits Stop, so we
     // stop burning tokens for an answer no one is reading (P0-4).
     const abort = new AbortController();
@@ -407,29 +418,53 @@ export class MeriController {
     // classified JSON response — not Nest's generic HTTP 500 after the
     // response has already been promoted to text/event-stream.
     try {
-      await runMeriStreamWithSetupGuard({
-        res,
-        stream: (sse) =>
-          this.service.streamMessage(
-            ctx,
-            id,
-            body.body,
-            sse,
-            abort.signal,
-            body.mode ?? 'new',
-            body.attachmentIds ?? [],
-            bearerToken,
-            impersonateTenantId,
-          ),
-        onError: (classified, err) => {
-          this.logger.error(
-            `Meri stream setup failed [${classified.code}] conversation=${id}: ${
-              err instanceof Error ? err.message : classified.message
-            }`,
-            err instanceof Error ? err.stack : undefined,
-          );
+      await runWithMeriApiTelemetry(
+        telemetry,
+        (line) => this.logger.log(line),
+        async () => {
+          const startedAt = Date.now();
+          let setupFailed = false;
+          emitMeriApiTelemetry({
+            name: 'meri.api.request.received',
+            boundary: 'browser_api',
+            outcome: 'accepted',
+            integrationDependencies: ['captured_turn_audit_receipt_pending_capture_policy_8e'],
+          });
+          try {
+            await runMeriStreamWithSetupGuard({
+              res,
+              stream: (sse) =>
+                this.service.streamMessage(
+                  ctx,
+                  id,
+                  body.body,
+                  sse,
+                  abort.signal,
+                  body.mode ?? 'new',
+                  body.attachmentIds ?? [],
+                  bearerToken,
+                  impersonateTenantId,
+                ),
+              onError: (classified, err) => {
+                setupFailed = true;
+                this.logger.error(
+                  `Meri stream setup failed [${classified.code}] conversation=${id}: ${
+                    err instanceof Error ? err.message : classified.message
+                  }`,
+                  err instanceof Error ? err.stack : undefined,
+                );
+              },
+            });
+          } finally {
+            emitMeriApiTelemetry({
+              name: 'meri.api.request.finalized',
+              boundary: 'browser_api',
+              outcome: abort.signal.aborted ? 'aborted' : setupFailed ? 'error' : 'completed',
+              durationMs: Date.now() - startedAt,
+            });
+          }
         },
-      });
+      );
     } finally {
       req.removeListener('aborted', onAbort);
       res.removeListener('close', onClose);
@@ -463,7 +498,7 @@ export class MeriController {
   // MERI_TOOLS_REQUIRE_SERVICE_SECRET=true. @CurrentTenant (user JWT) unchanged.
   @Post('tools/:name')
   @UseGuards(ToolServiceSecretGuard)
-  executeTool(
+  async executeTool(
     @CurrentTenant() ctx: TenantContext,
     @Param('name') name: string,
     @Body() body: Record<string, unknown>,
@@ -482,19 +517,53 @@ export class MeriController {
       ctx,
       req,
     );
-    return withMeriToolRequestControl(
-      req,
-      () => {
-        const execute = () => this.tools.executeFromAuthenticatedUser(ctx, name, admittedRp.input);
-        const executeRp = () =>
-          admittedRp.scope
-            ? withMeriResearchPortfolioToolTurnScope(admittedRp.scope, execute)
-            : execute();
-        return admittedAttachment.scope
-          ? withMeriChatAttachmentReadScope(admittedAttachment.scope, executeRp)
-          : executeRp();
+    const telemetry = admitMeriInternalTelemetry(req, ctx);
+    return runWithMeriApiTelemetry(
+      telemetry,
+      (line) => this.logger.log(line),
+      async () => {
+        const startedAt = Date.now();
+        emitMeriApiTelemetry({
+          name: 'meri.api.tool.started',
+          boundary: 'api_tool',
+          invokedTools: [name],
+          outcome: 'started',
+        });
+        try {
+          const result = await withMeriToolRequestControl(
+            req,
+            () => {
+              const execute = () =>
+                this.tools.executeFromAuthenticatedUser(ctx, name, admittedRp.input);
+              const executeRp = () =>
+                admittedRp.scope
+                  ? withMeriResearchPortfolioToolTurnScope(admittedRp.scope, execute)
+                  : execute();
+              return admittedAttachment.scope
+                ? withMeriChatAttachmentReadScope(admittedAttachment.scope, executeRp)
+                : executeRp();
+            },
+            capturePolicy,
+          );
+          emitMeriApiTelemetry({
+            name: 'meri.api.tool.finalized',
+            boundary: 'api_tool',
+            invokedTools: [name],
+            outcome: classifyApiToolReadOutcome(name, result)?.kind ?? 'returned',
+            durationMs: Date.now() - startedAt,
+          });
+          return result;
+        } catch (error) {
+          emitMeriApiTelemetry({
+            name: 'meri.api.tool.finalized',
+            boundary: 'api_tool',
+            invokedTools: [name],
+            outcome: 'error',
+            durationMs: Date.now() - startedAt,
+          });
+          throw error;
+        }
       },
-      capturePolicy,
     );
   }
 

@@ -1,4 +1,6 @@
 import { MeriV3ChatClient } from './meriv3-chat.client.js';
+import { createMeriTelemetryContext } from '@capiro/meriv2-core';
+import { runWithMeriApiTelemetry } from './meri-telemetry.runtime.js';
 
 function sseResponse(frames: unknown[]): Response {
   const body = frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join('');
@@ -73,28 +75,55 @@ describe('MeriV3ChatClient', () => {
     global.fetch = fetchMock as typeof fetch;
     const client = new MeriV3ChatClient();
     const events: unknown[] = [];
-    await client.streamChat({
-      bearerToken: 'bearer',
-      input: {
-        messages: [{ role: 'user', text: 'Analyze this' }],
-        reasoningMode: 'deep',
-      },
-      aiProvider: {
-        provider: 'openai',
-        apiKey: 'resolved-key',
-        model: 'gpt-5.1',
-        usedTenantKey: false,
-        modelOverridden: false,
-      },
-      onEvent: (event) => events.push(event),
+    const telemetry = createMeriTelemetryContext({
+      tenantId: 'tenant-a',
+      actorId: 'actor-a',
+      conversationId: 'conversation-a',
+      browserRequestId: 'browser-a',
     });
+    await runWithMeriApiTelemetry(
+      telemetry,
+      () => {},
+      () =>
+        client.streamChat({
+          bearerToken: 'bearer',
+          input: {
+            messages: [{ role: 'user', text: 'Analyze this' }],
+            reasoningMode: 'deep',
+          },
+          aiProvider: {
+            provider: 'openai',
+            apiKey: 'resolved-key',
+            model: 'gpt-5.1',
+            usedTenantKey: false,
+            modelOverridden: false,
+          },
+          onEvent: (event) => events.push(event),
+        }),
+    );
     expect(fetchMock).toHaveBeenCalledWith(
       'https://app.capiro.test/meri-api/v3/chat/stream',
       expect.objectContaining({ method: 'POST' }),
     );
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
-    expect(init.headers).toEqual(expect.objectContaining({ authorization: 'Bearer bearer' }));
-    expect(JSON.parse(String(init.body))).toMatchObject({ reasoningMode: 'deep' });
+    expect(init.headers).toEqual(
+      expect.objectContaining({
+        authorization: 'Bearer bearer',
+        'x-request-id': telemetry.requestId,
+        traceparent: expect.stringContaining(telemetry.traceId),
+      }),
+    );
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      reasoningMode: 'deep',
+      telemetryContext: {
+        traceId: telemetry.traceId,
+        requestId: telemetry.requestId,
+        serverTurnId: telemetry.serverTurnId,
+        runId: telemetry.runId,
+        tenantId: telemetry.tenantId,
+        actorId: telemetry.actorId,
+      },
+    });
     expect(events).toHaveLength(3);
     expect(events[2]).toEqual(expect.objectContaining({ type: 'done', retrieval }));
   });

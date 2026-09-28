@@ -9,6 +9,11 @@ import {
 } from '../request/trusted-current-turn-scope.js';
 import { isCurrentConversationResearchPortfolioTool } from './current-turn-tool-scope.js';
 import { buildResearchPortfolioProposalTransport } from './rp-action-proposal-transport.js';
+import {
+  emitMeriOrchestratorTelemetry,
+  meriOrchestratorTelemetryHeaders,
+} from '../telemetry/meri-telemetry.runtime.js';
+import { meriTelemetryOperationId } from '@capiro/meriv2-core';
 
 export interface CreateActionProposalInput {
   tool: string;
@@ -105,6 +110,7 @@ export class ApiActionProposalRepo {
           authorization: `Bearer ${credentials.bearerToken}`,
           'content-type': 'application/json',
           accept: 'application/json',
+          ...meriOrchestratorTelemetryHeaders(),
           ...(execution.deadlineAt ? { 'x-meri-deadline-at': String(execution.deadlineAt) } : {}),
           ...(secret ? { 'x-internal-service-secret': secret } : {}),
           ...(credentials.impersonateTenantId
@@ -118,7 +124,16 @@ export class ApiActionProposalRepo {
         const detail = await response.text().catch(() => '');
         throw new Error(`Action authority failed: ${response.status} ${detail}`.trim());
       }
-      return (await response.json()) as ActionAuthorityResult;
+      const result = (await response.json()) as ActionAuthorityResult;
+      emitMeriOrchestratorTelemetry({
+        name: 'meri.proposal.finalized',
+        boundary: 'orchestrator_tool',
+        invokedTools: [input.tool],
+        proposalId: result.proposal.proposalId,
+        operationId: meriTelemetryOperationId(result),
+        outcome: result.disposition,
+      });
+      return result;
     } finally {
       execution.dispose();
     }

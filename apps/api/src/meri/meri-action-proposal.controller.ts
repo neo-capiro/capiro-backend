@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Logger,
   Param,
   ParseUUIDPipe,
   Post,
@@ -9,16 +10,9 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import {
-  IsIn,
-  IsObject,
-  IsOptional,
-  IsString,
-  IsUUID,
-  Length,
-  ValidateIf,
-} from 'class-validator';
+import { IsIn, IsObject, IsOptional, IsString, IsUUID, Length, ValidateIf } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
+import { meriTelemetryOperationId } from '@capiro/meriv2-core';
 import type { Request } from 'express';
 import { withMeriToolRequestControl } from './meri-tool-request-control.js';
 import { Roles } from '../auth/roles.decorator.js';
@@ -28,6 +22,11 @@ import { MeriActionProposalService } from './meri-action-proposal.service.js';
 import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
 import { admitMeriActionProposalTransport } from './meri-rp-action-proposal-transport.js';
 import { admitMeriServerReadonlyCaptureTransport } from './meri-server-readonly-capture.js';
+import {
+  admitMeriInternalTelemetry,
+  emitMeriApiTelemetry,
+  runWithMeriApiTelemetry,
+} from './meri-telemetry.runtime.js';
 
 export class CreateMeriActionProposalDto {
   @ValidateIf((body: CreateMeriActionProposalDto) => body.version === undefined)
@@ -61,8 +60,10 @@ export class CreateMeriActionProposalDto {
 }
 
 export class ListMeriActionProposalDto {
-  @ValidateIf((query: ListMeriActionProposalDto) =>
-    query.conversationId !== undefined || query.proposalId !== undefined)
+  @ValidateIf(
+    (query: ListMeriActionProposalDto) =>
+      query.conversationId !== undefined || query.proposalId !== undefined,
+  )
   @IsUUID()
   conversationId?: string;
 
@@ -82,12 +83,14 @@ export class DecideMeriActionProposalDto {
 @UseGuards(RolesGuard)
 @Roles('capiro_admin', 'user_admin', 'standard_user')
 export class MeriActionProposalController {
+  private readonly logger = new Logger(MeriActionProposalController.name);
+
   constructor(private readonly proposals: MeriActionProposalService) {}
 
   /** Orchestrator-only: user JWT + internal service identity are both required. */
   @Post()
   @UseGuards(ToolServiceSecretGuard)
-  create(
+  async create(
     @CurrentTenant() ctx: TenantContext,
     @Body() body: CreateMeriActionProposalDto,
     @Req() req: Request,
@@ -99,10 +102,38 @@ export class MeriActionProposalController {
       toolName: null,
     });
     const admitted = admitMeriActionProposalTransport(body, ctx, req);
-    return withMeriToolRequestControl(req, () =>
-      admitted.trustedTurn
-        ? this.proposals.create(ctx, admitted.request, admitted.trustedTurn)
-        : this.proposals.create(ctx, admitted.request),
+    const telemetry = admitMeriInternalTelemetry(req, ctx, body.conversationId);
+    return runWithMeriApiTelemetry(
+      telemetry,
+      (line) => this.logger.log(line),
+      async () => {
+        const startedAt = Date.now();
+        try {
+          const result = await withMeriToolRequestControl(req, () =>
+            admitted.trustedTurn
+              ? this.proposals.create(ctx, admitted.request, admitted.trustedTurn)
+              : this.proposals.create(ctx, admitted.request),
+          );
+          emitMeriApiTelemetry({
+            name: 'meri.api.proposal.finalized',
+            boundary: 'api_proposal',
+            invokedTools: [result?.proposal?.tool ?? admitted.request.tool],
+            proposalId: result?.proposal?.proposalId ?? null,
+            operationId: meriTelemetryOperationId(result),
+            outcome: result?.disposition ?? 'completed',
+            durationMs: Date.now() - startedAt,
+          });
+          return result;
+        } catch (error) {
+          emitMeriApiTelemetry({
+            name: 'meri.api.proposal.finalized',
+            boundary: 'api_proposal',
+            outcome: 'error',
+            durationMs: Date.now() - startedAt,
+          });
+          throw error;
+        }
+      },
     );
   }
 

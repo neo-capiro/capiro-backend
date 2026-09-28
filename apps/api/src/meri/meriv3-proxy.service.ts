@@ -87,6 +87,8 @@ import {
   MAX_REPLAY_MESSAGES,
   protocolCompactionReplay,
 } from './meri-compaction.helpers.js';
+import { meriTelemetryUsage } from '@capiro/meriv2-core';
+import { emitMeriApiTelemetry } from './meri-telemetry.runtime.js';
 
 interface SseWriter {
   write(data: string): void;
@@ -160,6 +162,7 @@ export class MeriV3ProxyService {
     bearerToken?: string,
     impersonateTenantId?: string,
   ): Promise<void> {
+    const turnStartedAt = Date.now();
     const browserSse = sse;
     const emit = (event: Record<string, unknown>) => {
       const captureReceipt =
@@ -171,6 +174,12 @@ export class MeriV3ProxyService {
         })}\n\n`,
       );
     };
+    emitMeriApiTelemetry({
+      name: 'meri.api.turn.dispatch',
+      boundary: 'api_orchestrator',
+      runtime: 'meriv3',
+      outcome: 'started',
+    });
     if (!this.client.configured) {
       emit({
         type: 'error',
@@ -178,6 +187,14 @@ export class MeriV3ProxyService {
         message: 'MeriV3 is enabled but its isolated runtime URL is missing.',
       });
       emit({ type: 'done' });
+      emitMeriApiTelemetry({
+        name: 'meri.api.turn.finalized',
+        boundary: 'turn',
+        runtime: 'meriv3',
+        outcome: 'configuration_error',
+        durationMs: Date.now() - turnStartedAt,
+        usage: meriTelemetryUsage(),
+      });
       return;
     }
     if (!bearerToken) {
@@ -187,6 +204,14 @@ export class MeriV3ProxyService {
         message: 'MeriV3 could not authenticate this turn. No model or tool call was made.',
       });
       emit({ type: 'done' });
+      emitMeriApiTelemetry({
+        name: 'meri.api.turn.finalized',
+        boundary: 'turn',
+        runtime: 'meriv3',
+        outcome: 'authentication_error',
+        durationMs: Date.now() - turnStartedAt,
+        usage: meriTelemetryUsage(),
+      });
       return;
     }
 
@@ -433,9 +458,24 @@ export class MeriV3ProxyService {
           runtimeEffort = event.reasoningEffort;
           runtimeTelemetry = event.telemetry ?? runtimeTelemetry;
           providerCalls = event.providerCalls ?? providerCalls;
+          emitMeriApiTelemetry({
+            name: 'meri.api.runtime.observed',
+            boundary: 'api_orchestrator',
+            runtime: 'meriv3',
+            provider: 'openai',
+            requestedModel: event.telemetry?.requestedModel ?? null,
+            effectiveModel: event.telemetry?.effectiveModel ?? event.model,
+            outcome: event.telemetry?.finishReason ?? 'running',
+          });
           emit(event as unknown as Record<string, unknown>);
           return;
         case 'tool_call': {
+          emitMeriApiTelemetry({
+            name: 'meri.api.tool.observed',
+            boundary: 'api_orchestrator',
+            invokedTools: [event.tool],
+            outcome: 'started',
+          });
           const visible = publicWorkTool(event);
           emit({ type: 'tool_call', tool: visible.tool, label: visible.label });
           return;
@@ -465,11 +505,24 @@ export class MeriV3ProxyService {
         }
         case 'pending_approval':
           pendingApprovals.push(event as unknown as Record<string, unknown>);
+          emitMeriApiTelemetry({
+            name: 'meri.api.proposal.observed',
+            boundary: 'api_proposal',
+            invokedTools: [event.tool],
+            proposalId: event.proposalId,
+            outcome: event.status,
+          });
           emit(event as unknown as Record<string, unknown>);
           return;
         case 'artifact':
           assertMeriServerReadonlyCaptureNoArtifactWrites(capturePolicy, [event.artifact.id]);
           artifactIds.push(event.artifact.id);
+          emitMeriApiTelemetry({
+            name: 'meri.api.artifact.observed',
+            boundary: 'api_orchestrator',
+            artifactIds: [event.artifact.id],
+            outcome: 'persisted',
+          });
           emit(event as unknown as Record<string, unknown>);
           return;
         case 'text':
@@ -748,6 +801,31 @@ export class MeriV3ProxyService {
       ...(frame?.retrieval ? { retrieval: frame.retrieval } : {}),
       ...(procedure ? { procedure: procedure.receipt } : {}),
       turnScope,
+    });
+    emitMeriApiTelemetry({
+      name: 'meri.api.turn.finalized',
+      boundary: 'turn',
+      runtime: 'meriv3',
+      provider: 'openai',
+      requestedModel: telemetry?.requestedModel ?? null,
+      effectiveModel: telemetry?.effectiveModel ?? runtimeModel,
+      clientId: conversation.clientId,
+      invokedTools: steps.map((step) => step.tool),
+      sourceRefs: (frame?.citations ?? []).map((citation) => ({
+        sourceId: citation.stableId ?? citation.id,
+        version: citation.source?.version ?? null,
+        hash: citation.documentEvidence?.contentHash ?? null,
+        tool: citation.tool,
+      })),
+      artifactIds,
+      proposalId:
+        typeof pendingApprovals[0]?.proposalId === 'string' ? pendingApprovals[0].proposalId : null,
+      outcome: finishReason,
+      durationMs: Date.now() - turnStartedAt,
+      // Legacy stream usage defaults absent provider fields to zero. Exact observations
+      // belong to the joined orchestrator task event; do not manufacture them here.
+      usage: meriTelemetryUsage(),
+      integrationDependencies: ['captured_turn_audit_receipt_pending_capture_policy_8e'],
     });
     this.logger.log(
       `MeriV3 proxy turn tenant=${ctx.tenantId} conversation=${conversationId} mode=${reasoningMode} ` +

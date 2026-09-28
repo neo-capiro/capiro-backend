@@ -19,6 +19,10 @@ import {
   isCurrentConversationResearchPortfolioTool,
 } from './current-turn-tool-scope.js';
 import { buildResearchPortfolioToolTransport } from './rp-tool-transport.js';
+import {
+  emitMeriOrchestratorTelemetry,
+  meriOrchestratorTelemetryHeaders,
+} from '../telemetry/meri-telemetry.runtime.js';
 
 const RETRYABLE_MAIL_READS = new Set(['list_emails', 'search_emails', 'get_email_thread']);
 const MAX_MAIL_RETRY_DELAY_MS = 5_000;
@@ -147,6 +151,7 @@ export class ApiToolExecutorRepo implements ToolExecutor {
           authorization: `Bearer ${creds.bearerToken}`,
           'content-type': 'application/json',
           accept: 'application/json',
+          ...meriOrchestratorTelemetryHeaders(),
           ...(execution.deadlineAt ? { 'x-meri-deadline-at': String(execution.deadlineAt) } : {}),
           // Service identity: proves this call came from the orchestrator (after
           // its compliance gate), so apps/api can reject a rogue user hitting the
@@ -192,16 +197,49 @@ export class ApiToolExecutorRepo implements ToolExecutor {
       // existing single-attempt path; a 503 alone is not transient evidence.
       for (let attempt = 0; ; attempt += 1) {
         execution.assertActive();
-        const res = await fetch(url, request);
+        const attemptStartedAt = Date.now();
+        let res: Response;
+        try {
+          res = await fetch(url, request);
+        } catch (error) {
+          emitMeriOrchestratorTelemetry({
+            name: 'meri.tool.attempt.finalized',
+            boundary: 'orchestrator_tool',
+            invokedTools: [toolName],
+            attempt: attempt + 1,
+            retry: attempt > 0,
+            outcome: execution.signal.aborted ? 'aborted' : 'error',
+            durationMs: Date.now() - attemptStartedAt,
+          });
+          throw error;
+        }
         if (res.ok) {
           const payload = (await res.json()) as unknown;
           const outcome = classifyApiToolReadOutcome(toolName, payload);
           if (outcome?.kind === 'failed' || outcome?.kind === 'unavailable') {
+            emitMeriOrchestratorTelemetry({
+              name: 'meri.tool.attempt.finalized',
+              boundary: 'orchestrator_tool',
+              invokedTools: [toolName],
+              attempt: attempt + 1,
+              retry: attempt > 0,
+              outcome: outcome.kind,
+              durationMs: Date.now() - attemptStartedAt,
+            });
             this.logger.warn(`Delegated read "${toolName}" -> ${outcome.kind}`);
             throw new Error(
               `Delegated read "${toolName}" ${outcome.kind}: ${(outcome.reason ?? 'owner_result_unavailable').slice(0, 200)}`,
             );
           }
+          emitMeriOrchestratorTelemetry({
+            name: 'meri.tool.attempt.finalized',
+            boundary: 'orchestrator_tool',
+            invokedTools: [toolName],
+            attempt: attempt + 1,
+            retry: attempt > 0,
+            outcome: 'completed',
+            durationMs: Date.now() - attemptStartedAt,
+          });
           return payload;
         }
         const body = await res.text().catch(() => '');
@@ -211,9 +249,27 @@ export class ApiToolExecutorRepo implements ToolExecutor {
           retryDelay !== null &&
           (execution.deadlineAt === undefined || Date.now() + retryDelay < execution.deadlineAt)
         ) {
+          emitMeriOrchestratorTelemetry({
+            name: 'meri.tool.attempt.finalized',
+            boundary: 'orchestrator_tool',
+            invokedTools: [toolName],
+            attempt: attempt + 1,
+            retry: false,
+            outcome: 'retry_scheduled',
+            durationMs: Date.now() - attemptStartedAt,
+          });
           await waitForMailRetry(retryDelay, execution.signal);
           continue;
         }
+        emitMeriOrchestratorTelemetry({
+          name: 'meri.tool.attempt.finalized',
+          boundary: 'orchestrator_tool',
+          invokedTools: [toolName],
+          attempt: attempt + 1,
+          retry: attempt > 0,
+          outcome: 'error',
+          durationMs: Date.now() - attemptStartedAt,
+        });
         throw new Error(
           `Delegated tool "${toolName}" failed: ${res.status} ${res.statusText} ${body.slice(0, 200)}`,
         );

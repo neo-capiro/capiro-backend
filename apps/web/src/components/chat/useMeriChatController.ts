@@ -78,6 +78,7 @@ import {
   meriRuntimeStatus,
   type MeriRuntimeStatus,
 } from './meri-runtime-status.js';
+import { createMeriBrowserTelemetryHeaders } from '../../vnext/meri/meri-telemetry.js';
 
 import {
   readRecoveredResearch,
@@ -2157,7 +2158,10 @@ export function useMeriChatController({
           ? { body: outgoing, mode }
           : { body: outgoing };
         if (!mode && attachmentIds.length > 0) streamPayload.attachmentIds = attachmentIds;
-        const streamHeaders = await authHeaders();
+        const streamHeaders = {
+          ...(await authHeaders()),
+          ...createMeriBrowserTelemetryHeaders(),
+        };
         // PRE-DISPATCH: authHeaders() is async, so an identity switch can land
         // while it is pending. Never send this identity's request under the
         // credentials of the one that just authenticated.

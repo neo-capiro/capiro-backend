@@ -10,6 +10,8 @@ import type {
   MeriResearchPlanExecutionEnvelopeV1,
 } from '@capiro/meriv2-core';
 import type { ResolvedAiForChatHeader } from './meriv2-chat.client.js';
+import type { MeriTelemetryContext } from '@capiro/meriv2-core';
+import { currentMeriApiTelemetry, meriApiTelemetryHeaders } from './meri-telemetry.runtime.js';
 
 export const MERIV3_REASONING_MODES = ['fast', 'standard', 'deep', 'max'] as const;
 export type MeriV3ReasoningMode = (typeof MERIV3_REASONING_MODES)[number];
@@ -261,6 +263,8 @@ export class MeriV3ChatClient {
       /** Server-only observations from MeriConversationEvidenceService. */
       inheritedDocumentEvidence?: MeriCitation[];
       inheritedEvidenceNotice?: string;
+      /** API-authored only; covered by the governed-context attestation. */
+      telemetryContext?: MeriTelemetryContext;
     };
     aiProvider?: ResolvedAiForChatHeader;
     impersonateTenantId?: string;
@@ -276,12 +280,14 @@ export class MeriV3ChatClient {
     if (procedure && !params.input.governedContext) {
       throw new Error('meri_procedure_governed_context_required');
     }
+    const telemetryContext = currentMeriApiTelemetry();
     const response = await fetch(`${this.baseUrl}/meri-api/v3/chat/stream`, {
       method: 'POST',
       headers: {
         authorization: `Bearer ${params.bearerToken}`,
         'content-type': 'application/json',
         accept: 'text/event-stream',
+        ...meriApiTelemetryHeaders(),
         ...(params.aiProvider ? { 'x-capiro-ai-provider': JSON.stringify(params.aiProvider) } : {}),
         ...(params.impersonateTenantId
           ? { 'x-capiro-impersonate-tenant': params.impersonateTenantId }
@@ -289,11 +295,13 @@ export class MeriV3ChatClient {
       },
       body: JSON.stringify({
         ...transportInput,
+        ...(telemetryContext ? { telemetryContext } : {}),
         ...(params.input.governedContext
           ? {
               governedContext: attestMeriGovernedContext(
                 {
                   ...params.input.governedContext,
+                  telemetryContext: telemetryContext ?? null,
                   ...(procedure ? { procedure } : {}),
                   inheritedDocumentEvidence: params.input.inheritedDocumentEvidence ?? [],
                   prompt: [

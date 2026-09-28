@@ -1,3 +1,4 @@
+import { createMeriTelemetryContext } from '../observability/meri-joined-telemetry';
 import type { MeriGovernedTurnContext } from '../registry/types';
 import { attestMeriGovernedContext, verifyMeriGovernedContext } from './governed-evidence-auth';
 import { createMeriResearchPlanExecutionEnvelope } from './research-plan-execution';
@@ -173,5 +174,35 @@ describe('authenticated governed evidence transport', () => {
     expect(() => attestMeriGovernedContext(context(), binding, undefined, now)).toThrow(
       'service_identity_unavailable',
     );
+  });
+});
+
+describe('signed telemetry carrier', () => {
+  test('binds trace linkage inside the existing authenticated context payload', () => {
+    const telemetryContext = createMeriTelemetryContext({
+      tenantId: actor.tenantId,
+      actorId: actor.userId,
+      conversationId: binding.conversationId,
+    });
+    const signed = attestMeriGovernedContext(
+      { ...context(), telemetryContext },
+      binding,
+      secret,
+      now,
+    );
+    expect(() => verifyMeriGovernedContext(signed, binding, actor, secret, now)).not.toThrow();
+    expect(() =>
+      verifyMeriGovernedContext(
+        { ...signed, telemetryContext: { ...telemetryContext, traceId: 'a'.repeat(32) } },
+        binding,
+        actor,
+        secret,
+        now,
+      ),
+    ).toThrow('authentication_failed');
+    const unsigned = attestMeriGovernedContext(context(), binding, secret, now);
+    expect(() =>
+      verifyMeriGovernedContext({ ...unsigned, telemetryContext }, binding, actor, secret, now),
+    ).toThrow('authentication_failed');
   });
 });

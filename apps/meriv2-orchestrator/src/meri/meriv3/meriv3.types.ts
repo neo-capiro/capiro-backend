@@ -1,6 +1,7 @@
 import type { ProviderUsage } from '@capiro/shared';
 import type {
   LedgerEntry,
+  MeriTelemetryContext,
   MeriEvidenceManifest,
   MeriResearchPlanExecutionEnvelopeV1,
 } from '@capiro/meriv2-core';
@@ -58,6 +59,8 @@ export interface MeriV3ChatInput extends ChatInput {
   researchRun?: { sessionId: string; runId: string; leaseEpoch: number };
   /** API-admitted read authority; valid only under the governed-context MAC. */
   researchPlanExecution?: MeriResearchPlanExecutionEnvelopeV1;
+  /** API-authored linkage covered by the governed-context attestation. */
+  telemetryContext?: MeriTelemetryContext;
 }
 
 export interface MeriV3RetrievalSummary {

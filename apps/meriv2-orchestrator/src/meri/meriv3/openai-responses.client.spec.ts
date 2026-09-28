@@ -5,10 +5,16 @@ import {
   extractResponsesFunctionCalls,
   extractResponsesOutputText,
   parseOpenAiResponsesUsage,
+  observedOpenAiResponsesUsage,
   readOpenAiResponsesErrorTelemetry,
 } from './openai-responses.client.js';
 import { resolveMeriV3ReasoningProfile } from './meriv3-reasoning.js';
 import { MeriRunBudget } from './meriv3-run-budget.js';
+import { createMeriTelemetryContext } from '@capiro/meriv2-core';
+import {
+  currentMeriTaskUsage,
+  runWithMeriOrchestratorTelemetry,
+} from '../../telemetry/meri-telemetry.runtime.js';
 
 const responseBody = {
   id: 'resp_1',
@@ -60,6 +66,42 @@ describe('OpenAiResponsesClient', () => {
     });
   });
 
+  test('returns unknown usage (null tokens) when provider does not report usage', () => {
+    const responseWithoutUsage = {
+      id: 'resp_no_usage',
+      status: 'completed',
+      model: 'gpt-5.6',
+      output: [
+        { type: 'reasoning', summary: [{ type: 'summary_text', text: 'bounded summary' }] },
+        {
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: 'Answer.' }],
+        },
+      ],
+    };
+
+    // When usage is missing, tokens are null (unknown) not zero
+    const usage = observedOpenAiResponsesUsage(responseWithoutUsage as never);
+    expect(usage.inputTokens).toBeNull();
+    expect(usage.outputTokens).toBeNull();
+    expect(usage.cacheReadTokens).toBeNull();
+    expect(usage.cacheCreationTokens).toBeNull();
+
+    // Verify this distinguishes "no usage reported" from "usage of zero"
+    const responseWithZeroUsage = {
+      id: 'resp_zero_usage',
+      status: 'completed',
+      model: 'gpt-5.6',
+      output: [],
+      usage: { input_tokens: 0, output_tokens: 0, input_tokens_details: { cached_tokens: 0 } },
+    };
+    const zeroUsage = observedOpenAiResponsesUsage(responseWithZeroUsage as never);
+    expect(zeroUsage.inputTokens).toBe(0);
+    expect(zeroUsage.outputTokens).toBe(0);
+    expect(zeroUsage.cacheReadTokens).toBe(0);
+  });
+
   test('returns provider refusal prose but never the reasoning summary', () => {
     const output = [
       { type: 'reasoning', summary: [{ type: 'summary_text', text: 'private reasoning' }] },
@@ -72,6 +114,63 @@ describe('OpenAiResponsesClient', () => {
     expect(extractResponsesOutputText(output as never)).toBe('I cannot help with that request.');
     expect(extractResponsesOutputText(output as never)).not.toContain('private reasoning');
   });
+
+  test.each([
+    undefined,
+    {},
+    { input_tokens: null, output_tokens: '0' },
+    { input_tokens: -1, output_tokens: 0.5 },
+  ])('does not coerce missing or malformed observations into zero: %p', (usage) => {
+    expect(observedOpenAiResponsesUsage({ usage } as never)).toMatchObject({
+      inputTokens: null,
+      outputTokens: null,
+      cacheReadTokens: null,
+    });
+  });
+
+  test.each([
+    [undefined, 'unknown', null, null],
+    [{ input_tokens: 7 }, 'partial', 7, null],
+    [{ input_tokens: 0, output_tokens: 0 }, 'known', 0, 0],
+  ])(
+    'reports wire observations independently of legacy usage defaults: %p',
+    async (usage, status, inputTokens, outputTokens) => {
+      process.env.OPENAI_API_KEY = 'fixture-key';
+      global.fetch = jest.fn(
+        async () =>
+          new Response(JSON.stringify({ ...responseBody, model: 'gpt-5.6-terra', usage }), {
+            status: 200,
+          }),
+      ) as typeof fetch;
+      const lines: string[] = [];
+      await runWithMeriOrchestratorTelemetry(
+        createMeriTelemetryContext({ tenantId: 'tenant', actorId: 'actor' }),
+        (line) => lines.push(line),
+        async () => {
+          await new OpenAiResponsesClient().complete({
+            profile: resolveMeriV3ReasoningProfile('standard', {}),
+            instructions: 'private prompt',
+            input: [],
+            tools: [],
+          });
+          expect(currentMeriTaskUsage()).toMatchObject({
+            status,
+            inputTokens,
+            outputTokens,
+            knownEstimatedCostUsd: status === 'known' ? 0 : null,
+          });
+        },
+      );
+      expect(lines).toHaveLength(1);
+      expect(JSON.parse(lines[0]!).usage).toMatchObject({
+        status,
+        inputTokens,
+        outputTokens,
+        knownEstimatedCostUsd: status === 'known' ? 0 : null,
+      });
+      expect(lines.join('')).not.toContain('private prompt');
+    },
+  );
 
   test('sends store=false, native reasoning effort and developer function tools', async () => {
     process.env.OPENAI_API_KEY = 'global-openai-key';
@@ -127,12 +226,27 @@ describe('OpenAiResponsesClient', () => {
       );
     global.fetch = fetchMock as typeof fetch;
     const client = new OpenAiResponsesClient();
-    const result = await client.complete({
-      profile: resolveMeriV3ReasoningProfile('standard', {}),
-      instructions: 'Meri instructions',
-      input: [{ role: 'user', content: 'Help' }],
-      tools: [],
+    const trace = createMeriTelemetryContext({
+      tenantId: 'tenant-a',
+      actorId: 'actor-a',
+      conversationId: 'conversation-a',
     });
+    const telemetryLines: string[] = [];
+    let taskUsage: ReturnType<typeof currentMeriTaskUsage> | undefined;
+    const result = await runWithMeriOrchestratorTelemetry(
+      trace,
+      (line) => telemetryLines.push(line),
+      async () => {
+        const completed = await client.complete({
+          profile: resolveMeriV3ReasoningProfile('standard', {}),
+          instructions: 'Meri instructions',
+          input: [{ role: 'user', content: 'Help' }],
+          tools: [],
+        });
+        taskUsage = currentMeriTaskUsage();
+        return completed;
+      },
+    );
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const firstSent = JSON.parse(
       String((fetchMock.mock.calls[0]?.[1] as RequestInit).body),
@@ -149,6 +263,36 @@ describe('OpenAiResponsesClient', () => {
       effectiveModel: 'gpt-5.6-terra',
       reasoningFallbackReasons: ['reasoning_parameter_unsupported'],
     });
+    const attempts = telemetryLines.map((line) => JSON.parse(line) as Record<string, any>);
+    expect(attempts).toHaveLength(2);
+    expect(new Set(attempts.map((event) => event.traceId))).toEqual(new Set([trace.traceId]));
+    expect(attempts[0]).toMatchObject({
+      name: 'meri.provider.attempt.finalized',
+      provider: 'openai',
+      outcome: 'error',
+      usage: { status: 'unknown', knownEstimatedCostUsd: null, unknownAttempts: 1 },
+    });
+    expect(attempts[1]).toMatchObject({
+      name: 'meri.provider.attempt.finalized',
+      effectiveModel: 'gpt-5.6-terra',
+      outcome: 'completed',
+      usage: {
+        status: 'known',
+        inputTokens: 120,
+        outputTokens: 45,
+        knownEstimatedCostUsd: 0.0009750000000000001,
+      },
+    });
+    expect(taskUsage).toMatchObject({
+      status: 'partial',
+      inputTokens: 120,
+      outputTokens: 45,
+      knownEstimatedCostUsd: 0.0009750000000000001,
+      unknownAttempts: 1,
+      owner: 'AiUsageEvent',
+    });
+    expect(telemetryLines.join('\n')).not.toContain('Meri instructions');
+    expect(telemetryLines.join('\n')).not.toContain('Help');
   });
 
   test('does not retry indefinitely if the provider keeps rejecting reasoning.effort', async () => {
