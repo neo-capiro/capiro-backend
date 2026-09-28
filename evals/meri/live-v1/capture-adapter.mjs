@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { ArtifactCollector, verifyCollectedArtifacts } from './artifact-collector.mjs';
-import { CaptureBlockedError, collectLiveReadCase } from './capture-transport.mjs';
+import { assertLiveCaptureReadiness, CaptureBlockedError, collectLiveReadCase } from './capture-transport.mjs';
 import { frozenFixture } from './fixture.mjs';
 
 const lock = JSON.parse(readFileSync(new URL('./contract-lock.json', import.meta.url), 'utf8'));
@@ -37,6 +37,25 @@ export async function executeLiveCase({ config, caseId, runRoot, env = process.e
   if (typeof caseId !== 'string') throw new TypeError('caseId is required');
   if (typeof runRoot !== 'string') throw new TypeError('runRoot is required');
   if (typeof config.captureRunId !== 'string' || !config.captureRunId) throw new TypeError('config.captureRunId is required');
+
+  try {
+    assertLiveCaptureReadiness(config);
+  } catch (error) {
+    if (!(error instanceof CaptureBlockedError)) throw error;
+    return {
+      status: 'BLOCKED',
+      acceptanceStatus: 'BLOCKED',
+      acceptanceReason: error.message,
+      reason: error.code,
+      detail: error.detail,
+      caseId,
+      gaps: [],
+      requestCount: 0,
+      conversationId: null,
+      synthesisSubmissionCount: 0,
+      integrity: null,
+    };
+  }
 
   const secretValues = [env.MERI_LIVE_BEARER_TOKEN ?? ''];
   const owner = {

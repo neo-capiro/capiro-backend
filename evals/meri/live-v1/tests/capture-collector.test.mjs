@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
 import { executeLiveCase } from '../capture-adapter.mjs';
-import { verifyCollectedArtifacts } from '../artifact-collector.mjs';
+import { ArtifactCollector, verifyCollectedArtifacts } from '../artifact-collector.mjs';
+import { main as captureCli } from '../capture-cli.mjs';
 import { sourceMappingDigest } from '../capture-transport.mjs';
 
 const API_SHA = 'a'.repeat(40);
@@ -58,7 +59,7 @@ function json(res, status, body, headers = {}) {
 }
 
 async function server(options = {}) {
-  const counts = { total: 0, stream: 0, redirectedTarget: 0 };
+  const counts = { total: 0, conversation: 0, stream: 0, redirectedTarget: 0 };
   const instance = createServer(async (req, res) => {
     counts.total += 1;
     const url = new URL(req.url, 'http://127.0.0.1');
@@ -74,7 +75,10 @@ async function server(options = {}) {
     });
     if (url.pathname === '/api/clio/status') return json(res, 200, { configured: true, healthy: true });
     if (url.pathname === '/api/clients') return json(res, 200, options.missingClient ? [] : [{ id: CLIENT, name: 'Aster Defense' }]);
-    if (url.pathname === '/api/clio/conversations' && req.method === 'POST') return json(res, 201, { id: CONVERSATION, clientId: CLIENT });
+    if (url.pathname === '/api/clio/conversations' && req.method === 'POST') {
+      counts.conversation += 1;
+      return json(res, 201, { id: CONVERSATION, clientId: CLIENT });
+    }
     if (url.pathname === `/api/clio/conversations/${CONVERSATION}/stream`) {
       counts.stream += 1;
       res.writeHead(200, { 'content-type': 'text/event-stream' });
@@ -85,7 +89,7 @@ async function server(options = {}) {
         { type: 'tool_call', tool: 'search_institutional_memory', label: 'Memory' },
         { type: 'sources', sources: [{ tool: 'search_institutional_memory', summary: 'one current record', confidence: 'high' }] },
         { type: 'text', text: 'Observed current approved memory.' },
-        { type: 'usage', usage: { inputTokens: 10, outputTokens: 5 } },
+        { type: 'usage', usage: { inputTokens: 10, outputTokens: 5, ...(options.observedCostUsd === undefined ? {} : { costUsd: options.observedCostUsd }) } },
       ];
       if (!options.missingSource) events.push({
         type: 'citations',
@@ -93,6 +97,12 @@ async function server(options = {}) {
       });
       if (!options.interrupted) events.push({ type: 'done', messageId: MESSAGE, model: 'controlled-model', retrieval: { trace: { version: 1, observedToolCalls: 1 } } });
       for (const event of events) res.write(`data: ${JSON.stringify(event)}\n\n`);
+      if (options.malformedFrame) res.write('data: {not-json}\n\n');
+      if (options.unterminatedFrame) res.write('data: {"type":"text"');
+      if (options.duplicateDone) res.write(`data: ${JSON.stringify({ type: 'done', messageId: MESSAGE })}\n\n`);
+      if (options.postTerminal) res.write(`data: ${JSON.stringify({ type: 'runtime', model: 'after-terminal' })}\n\n`);
+      if (options.frameOverflow) for (let index = 0; index < 4_097; index += 1) res.write(`: frame-${index}\n\n`);
+      if (options.invalidUtf8) res.write(Buffer.from([0xc3, 0x28]));
       return res.end();
     }
     if (url.pathname === `/api/clio/conversations/${CONVERSATION}/messages`) return json(res, 200, [{ id: MESSAGE, role: 'assistant', body: 'Observed current approved memory.' }]);
@@ -214,6 +224,191 @@ test('artifact integrity detects tampering', async () => {
     assert.equal(integrity.valid, false);
     assert(integrity.errors.some((error) => error.includes('sha256 mismatch')));
   } finally { await value.cleanup(); }
+});
+
+test('LIVE_CAPTURE fails closed on missing server authority before any request, conversation, or synthesis', async () => {
+  const fixture = await server();
+  const scratch = await mkdtemp(join(tmpdir(), 'meri-live-guard-'));
+  const value = config('https://app.capiro.ai', {
+    provenance: 'LIVE_CAPTURE',
+    target: { environment: 'capiro-dev', apiOrigin: 'https://app.capiro.ai' },
+  });
+  value.fixture.mappingSha256 = sourceMappingDigest(value);
+  try {
+    const result = await executeLiveCase({ config: value, caseId: '01', runRoot: resolve(scratch, 'run'), env: { MERI_LIVE_BEARER_TOKEN: SECRET } });
+    assert.equal(result.status, 'BLOCKED');
+    assert.equal(result.reason, 'LIVE_SERVER_AUTHORITY_CONTRACT_MISSING');
+    assert.equal(result.requestCount, 0);
+    assert.equal(result.conversationId, null);
+    assert.equal(result.synthesisSubmissionCount, 0);
+    assert.deepEqual(result.detail.missingServerContracts, [
+      'predispatch read-only tool enforcement and incidental-write suppression receipt',
+      'server-authored current fixture/source ownership and version receipt',
+      'served API and orchestrator release identity receipt',
+      'server/provider-enforced cost reservation',
+    ]);
+    assert.equal(fixture.counts.total, 0);
+    assert.equal(fixture.counts.conversation, 0);
+    assert.equal(fixture.counts.stream, 0);
+  } finally {
+    await fixture.close();
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
+
+test('LIVE_CAPTURE rejects the UI-only os.capiro.ai origin before readiness evaluation', async () => {
+  const scratch = await mkdtemp(join(tmpdir(), 'meri-live-origin-'));
+  const value = config('https://os.capiro.ai', {
+    provenance: 'LIVE_CAPTURE',
+    target: { environment: 'capiro-dev', apiOrigin: 'https://os.capiro.ai' },
+  });
+  try {
+    const result = await executeLiveCase({ config: value, caseId: '01', runRoot: resolve(scratch, 'run'), env: { MERI_LIVE_BEARER_TOKEN: SECRET } });
+    assert.equal(result.status, 'BLOCKED');
+    assert.equal(result.reason, 'TARGET_NOT_APPROVED');
+    assert.equal(result.requestCount, 0);
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
+
+for (const [name, options, expectedGap] of [
+  ['malformed trailing SSE frame after done', { malformedFrame: true }, 'SSE_MALFORMED_FRAME'],
+  ['unterminated trailing SSE frame after done', { unterminatedFrame: true }, 'SSE_UNTERMINATED_TRAILING_FRAME'],
+  ['duplicate terminal event', { duplicateDone: true }, 'SSE_DUPLICATE_TERMINAL_EVENT'],
+  ['post-terminal event', { postTerminal: true }, 'SSE_POST_TERMINAL_EVENT'],
+]) {
+  test(`${name} is capture uncertainty, not quiet incompleteness`, async () => {
+    const value = await run(options);
+    try {
+      assert.equal(value.result.status, 'CAPTURE_UNCERTAIN');
+      assert.equal(value.result.synthesisSubmissionCount, 1);
+      assert.equal(value.fixture.counts.stream, 1);
+      assert(value.result.gaps.includes(expectedGap));
+    } finally { await value.cleanup(); }
+  });
+}
+
+test('invalid UTF-8 after done invalidates the stream without a retry', async () => {
+  const value = await run({ invalidUtf8: true });
+  try {
+    assert.equal(value.result.status, 'CAPTURE_UNCERTAIN');
+    assert.equal(value.result.synthesisSubmissionCount, 1);
+    assert.equal(value.fixture.counts.stream, 1);
+    assert(value.result.gaps.includes('SYNTHESIS_OUTCOME_UNKNOWN:RESPONSE_INVALID_UTF8'));
+  } finally { await value.cleanup(); }
+});
+
+test('SSE frame count is bounded and overflow remains a one-submission uncertainty', async () => {
+  const value = await run({ frameOverflow: true });
+  try {
+    assert.equal(value.result.status, 'CAPTURE_UNCERTAIN');
+    assert.equal(value.result.synthesisSubmissionCount, 1);
+    assert.equal(value.fixture.counts.stream, 1);
+    assert(value.result.gaps.includes('SYNTHESIS_OUTCOME_UNKNOWN:SSE_FRAME_LIMIT_EXCEEDED'));
+  } finally { await value.cleanup(); }
+});
+
+test('maxSpendUsd is only a post-hoc threshold and cannot claim provider reservation', async () => {
+  const value = await run({ observedCostUsd: 0.5 });
+  try {
+    assert.equal(value.result.status, 'CAPTURE_INCOMPLETE');
+    assert.equal(value.result.synthesisSubmissionCount, 1);
+    assert.equal(value.result.postHocSpendThresholdUsd, 0.25);
+    assert.equal(value.result.observedCostUsd, 0.5);
+    assert(value.result.gaps.includes('OBSERVED_COST_EXCEEDS_POST_HOC_THRESHOLD'));
+  } finally { await value.cleanup(); }
+});
+
+test('collector verifier rejects a same-byte external symlink substitution', async () => {
+  const scratch = await mkdtemp(join(tmpdir(), 'meri-artifact-link-read-'));
+  const root = resolve(scratch, 'root');
+  try {
+    const collector = new ArtifactCollector(root, { captureRunId: 'link-read', provenance: 'UNIT_FIXTURE_NOT_LIVE' });
+    await collector.init();
+    await collector.writeText('linked.txt', 'same bytes');
+    await collector.finalize({ status: 'NOT_RUN' });
+    const outside = resolve(scratch, 'outside.txt');
+    await writeFile(outside, 'same bytes');
+    await rm(resolve(root, 'linked.txt'));
+    await symlink(outside, resolve(root, 'linked.txt'));
+    const integrity = await verifyCollectedArtifacts(root);
+    assert.equal(integrity.valid, false);
+    assert(integrity.errors.some((error) => /symlink|linked/iu.test(error)));
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
+
+test('collector refuses a dangling symlink destination without writing outside the root', async () => {
+  const scratch = await mkdtemp(join(tmpdir(), 'meri-artifact-link-write-'));
+  const root = resolve(scratch, 'root');
+  try {
+    const collector = new ArtifactCollector(root, { captureRunId: 'link-write', provenance: 'UNIT_FIXTURE_NOT_LIVE' });
+    await collector.init();
+    const outside = resolve(scratch, 'escaped.txt');
+    await symlink(outside, resolve(root, 'escape.txt'));
+    await assert.rejects(collector.writeText('escape.txt', 'must stay owned'), /already exists or is linked/iu);
+    await assert.rejects(readFile(outside, 'utf8'), { code: 'ENOENT' });
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
+
+test('collector verifier rejects owned parent replacement with a directory reparse link', async () => {
+  const scratch = await mkdtemp(join(tmpdir(), 'meri-artifact-parent-link-'));
+  const root = resolve(scratch, 'root');
+  try {
+    const collector = new ArtifactCollector(root, { captureRunId: 'parent-link', provenance: 'UNIT_FIXTURE_NOT_LIVE' });
+    await collector.init();
+    await collector.writeText('cases/01/answer.txt', 'owned');
+    await collector.finalize({ status: 'NOT_RUN' });
+    const original = resolve(scratch, 'original-cases');
+    const outside = resolve(scratch, 'outside-cases');
+    await rename(resolve(root, 'cases'), original);
+    await mkdir(resolve(outside, '01'), { recursive: true });
+    await writeFile(resolve(outside, '01/answer.txt'), 'owned');
+    await symlink(outside, resolve(root, 'cases'), process.platform === 'win32' ? 'junction' : 'dir');
+    const integrity = await verifyCollectedArtifacts(root);
+    assert.equal(integrity.valid, false);
+    assert(integrity.errors.some((error) => /symlink|reparse|linked/iu.test(error)));
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
+
+test('portable collector refuses LIVE_CAPTURE path mode because directory handles are not pinned', async () => {
+  const scratch = await mkdtemp(join(tmpdir(), 'meri-artifact-live-path-'));
+  try {
+    assert.throws(
+      () => new ArtifactCollector(resolve(scratch, 'root'), { captureRunId: 'live-path', provenance: 'LIVE_CAPTURE' }),
+      (error) => error?.code === 'LIVE_ARTIFACT_PATH_UNSAFE',
+    );
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
+
+test('CLI returns nonzero for controlled incomplete and uncertain captures', async () => {
+  for (const [options, expectedExit] of [[{}, 4], [{ invalidUtf8: true }, 3]]) {
+    const fixture = await server(options);
+    const scratch = await mkdtemp(join(tmpdir(), 'meri-capture-cli-'));
+    const configPath = resolve(scratch, 'scope.json');
+    const outputRoot = resolve(scratch, 'output');
+    const value = config(fixture.origin);
+    await writeFile(configPath, `${JSON.stringify(value)}\n`);
+    await mkdir(outputRoot);
+    const originalLog = console.log;
+    console.log = () => {};
+    try {
+      const exitCode = await captureCli(['--config', configPath, '--case', '01', '--out', outputRoot], { MERI_LIVE_BEARER_TOKEN: SECRET });
+      assert.equal(exitCode, expectedExit);
+    } finally {
+      console.log = originalLog;
+      await fixture.close();
+      await rm(scratch, { recursive: true, force: true });
+    }
+  }
 });
 
 test('case 20 uses the same bounded API mechanism and exposes missing canonical source readback', async () => {

@@ -87,34 +87,39 @@ Live behavior must be captured exactly once. Writes may occur only in a separate
 
 ## Dedicated live read capture
 
-The bounded adapter implements the current public API sequence for Appendix F cases 01 and 20:
+This slice is an interim capture guard, not completion of the mandatory live-75 run or a server receipt. `LIVE_CAPTURE` currently returns `LIVE_SERVER_AUTHORITY_CONTRACT_MISSING` before any HTTP request, conversation creation, or synthesis. The guard is unconditional because the existing server does not expose authority for all of these preconditions:
 
-1. validate an explicit frozen-ID-to-physical-ID scope map and its SHA-256;
-2. preflight `/health`, `/api/me`, `/api/clio/status`, and `/api/clients`;
-3. create one synthetic conversation through `POST /api/clio/conversations` and record that setup effect separately;
-4. submit the frozen case prompt once to `POST /api/clio/conversations/:id/stream`;
-5. retain sanitized response bytes, SSE events, timings, source links, and exact hashes;
-6. read the canonical assistant message back from `/api/clio/conversations/:id/messages`; and
-7. when a citation carries a supported current-owner locator, read it back from `/api/clio/sources`.
+1. predispatch read-only tool enforcement plus suppression or sandboxing of incidental after-turn writes;
+2. a server-authored current fixture/source ownership and version receipt for the authenticated actor, tenant, client, and frozen-to-physical mapping;
+3. the exact served API and orchestrator release identities; and
+4. a server/provider-enforced cost reservation.
 
-It does not accept a prompt, endpoint path, tenant, or URL from CLI arguments. `LIVE_CAPTURE` is restricted to the exact `capiro-dev` API origins `https://app.capiro.ai` and `https://os.capiro.ai`, the fixture namespace `meri-foundation-20260928`, and tenant slugs/UUIDs `meri-foundation-20260928-t1`/`f2d6cf8f-057c-479a-8110-62fe5086d43f` or `meri-foundation-20260928-t2`/`52e91176-08f0-4d89-9633-bc212f5bdbbf`. Controlled tests must declare `UNIT_FIXTURE_NOT_LIVE` and use loopback HTTP. Redirects are never followed.
+A caller-owned boolean, `expectedOperation`, scope-file SHA, configured release SHA, model instruction, or absence of late SSE write events cannot satisfy the guard. `maxSpendUsd` is only a configured post-hoc comparison threshold in the current controlled collector. It is not a provider ceiling or reservation, and an over-threshold observation can only be reported after cost has been incurred. Do not run the CLI with a live bearer while this guard is present.
 
-The collector has a single synthesis submission slot, concurrency 1, one whole-run deadline, an explicit spend cap, and no retry path after chat submission. An interrupted stream is `CAPTURE_UNCERTAIN`; it is never resubmitted. Browser, write, approval, fault-injection, restart, research, and compaction cases fail closed with a specific unsupported reason. A write-like tool/event in a read capture blocks the result. Conversation creation is reported as a synthetic setup effect, not silently treated as zero effects.
+`UNIT_FIXTURE_NOT_LIVE` remains available as a controlled loopback diagnostic for cases 01 and 20. It exercises the reviewed `/health`, `/api/me`, `/api/clio/status`, `/api/clients`, conversation, stream, message-readback, and supported source-readback sequence, but it remains `NOT_RUN`. It submits synthesis at most once and never retries an ambiguous submission. Redirects are never followed. Strict UTF-8, a 4,096-frame SSE bound, complete frame termination, exactly one terminal event, and no post-terminal event are required; violations are `CAPTURE_UNCERTAIN`. The only permitted live API origin is `https://app.capiro.ai`; `https://os.capiro.ai` is UI-only.
+
+Controlled artifact writes reject linked roots, parents, refs, dangling destinations, root/parent identity changes, and external same-byte substitutions. New files use a temporary plain file plus an atomic no-replace hard-link commit and are checked before and after access. These checks are not claimed to be fully race-proof: portable Node path APIs do not pin every traversed directory handle, especially across Windows reparse substitution. `ArtifactCollector` therefore refuses `LIVE_CAPTURE` path mode with `LIVE_ARTIFACT_PATH_UNSAFE`; only the controlled diagnostic uses this writer.
 
 Copy `capture-scope.example.json` outside the repository, replace every placeholder with the existing synthetic fixture's physical IDs and current seed/deployment receipts, then bind the mapping:
 
 ```bash
 node evals/meri/live-v1/capture-cli.mjs --scope-hash C:/path/to/scope.json
 # Put the printed hash in fixture.mappingSha256.
-export MERI_LIVE_BEARER_TOKEN='<existing synthetic Clerk JWT>'
-node evals/meri/live-v1/capture-cli.mjs --config C:/path/to/scope.json --case 01 --out C:/owned/evidence-root
+# LIVE_CAPTURE execution remains blocked; do not supply a live bearer.
 ```
 
-The bearer is read only from `MERI_LIVE_BEARER_TOKEN`; credentials, cookies, provider headers, and known secret values are redacted before persistence. Do not put tokens in the scope file. The CLI creates a fresh owned run directory under `--out`; it refuses an existing run path. Exit 0 means collection completed, not that acceptance passed. `BLOCKED` exits 2 and ambiguous/interrupted capture exits 3.
+The bearer is read only from `MERI_LIVE_BEARER_TOKEN`; credentials, cookies, provider headers, JWT-shaped values, and exact known secret values are redacted before controlled persistence. This is bounded redaction, not a categorical guarantee for unknown secret forms or caller-provided logging. Do not put tokens in the scope file. The CLI creates a fresh owned run directory under `--out`; it refuses an existing run path. Exit 0 is reserved for `CAPTURE_COMPLETE` only. `BLOCKED` exits 2, `CAPTURE_UNCERTAIN` exits 3, and `CAPTURE_INCOMPLETE` exits 4. No collector exit is acceptance.
 
-Current server integration gaps remain explicit. The main API source currently does not set `X-Capiro-Release-Sha`, so the deployment-authority preflight blocks unless the actually served `capiro-dev` response supplies that header. Public stream events do not expose a server trace ID, durable tool-call IDs, or cost USD. Budget citations do not have a supported `/api/clio/sources` owner readback. Missing effective model, token usage, cost, source, or trace evidence remains a capture gap and `NOT_RUN`/`BLOCKED`; it is never converted to PASS. The existing verifier's all-live source/auth authority gate is unchanged. Human adjudication is absent until a real human supplies it.
+Current server integration gaps remain explicit. The main API source does not emit the release SHA, public stream events do not expose an authoritative orchestrator identity, server trace ID, durable tool-call IDs, logical-effect audit, or complete model/token/cost receipt, and budget citations have no supported `/api/clio/sources` owner readback. Missing authority remains `BLOCKED`; it is never converted to PASS. The existing verifier's all-live source/auth authority gate and human rubric are unchanged.
 
-The next server binding needed for acceptance is a read-only capture receipt on the existing chat/read contract (not a caller-asserted test fixture): served API/orchestrator release identities; trace and tool-call IDs; effective model, token and cost records; canonical source version/locator/passage hashes; and a current fixture ownership/scope receipt for the physical source IDs. Case 20 additionally needs a canonical current-owner readback for budget records. No network endpoint was invented in this collector to fill those gaps.
+The precise next integration is an extension of existing API ownership paths, not a new evaluation framework:
+
+1. `/health` must expose the actual served API SHA, and authenticated `/api/clio/status` must return a server-authored, short-lived capture-readiness receipt. Its bytes must bind the served orchestrator SHA, authenticated actor/tenant/client, exact allowed read-tool registry, dispatch-boundary write denial, incidental-job policy, and a server/provider cost reservation amount and identity. A readiness boolean is insufficient.
+2. Before conversation creation, the existing `/api/clio/sources` owner path must return a current authority receipt for each mapped physical source, binding frozen ID, owner tenant/client, canonical version, locator, and content/passage hash. The owner must add equivalent budget-record support for case 20; until then that case remains blocked.
+3. The existing conversation/stream request contract must consume the single-use readiness receipt, reject stale or mismatched scope before assistant dispatch, and emit a durable terminal receipt binding API/orchestrator identities, request/trace/tool-call IDs, effective model, token and actual cost records, source versions/locators/passage hashes, and a zero-logical-effect audit covering incidental writes.
+4. The collector can then validate those server-authored receipts before conversation creation and after the one stream submission. It must not accept scope-config declarations as substitutes. The portable LIVE artifact path still requires an owner implementation that can pin directory handles or an equivalently safe existing storage primitive.
+
+No endpoint or trusted config switch is fabricated in this collector. App/API owners must implement the above on the existing contracts before the unconditional guard can be removed.
 
 ## Narrow local commands
 

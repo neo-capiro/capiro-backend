@@ -53,13 +53,14 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     runRoot,
     status: result.status,
     acceptanceStatus: result.acceptanceStatus,
-    reason: result.acceptanceReason ?? result.reason ?? null,
+    reason: result.reason ?? result.acceptanceReason ?? null,
     gaps: result.gaps ?? [],
     manifestSha256: result.integrity?.manifestSha256 ?? null,
   }, null, 2));
-  if (result.status === 'BLOCKED') return 2;
+  if (result.status === 'CAPTURE_COMPLETE') return 0;
   if (result.status === 'CAPTURE_UNCERTAIN') return 3;
-  return 0;
+  if (result.status === 'CAPTURE_INCOMPLETE') return 4;
+  return 2;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

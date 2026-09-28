@@ -4,7 +4,7 @@ import { cases } from './cases.mjs';
 import { frozenFixture } from './fixture.mjs';
 import { sha256Bytes, sha256Stable, redactSecrets } from './artifact-collector.mjs';
 
-export const APPROVED_LIVE_ORIGINS = Object.freeze(['https://app.capiro.ai', 'https://os.capiro.ai']);
+export const APPROVED_LIVE_ORIGINS = Object.freeze(['https://app.capiro.ai']);
 export const AUTHORIZED_TENANTS = Object.freeze({
   'meri-foundation-20260928-t1': 'f2d6cf8f-057c-479a-8110-62fe5086d43f',
   'meri-foundation-20260928-t2': '52e91176-08f-4d89-9633-bc212f5bdbbf',
@@ -14,6 +14,7 @@ const READ_ONLY_TOOL_DENY = /(?:create|update|delete|send|write|approve|reject|a
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const GIT_SHA = /^[a-f0-9]{40}$/u;
 const MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
+const MAX_SSE_FRAMES = 4_096;
 const caseById = new Map(cases.map((item) => [item.id, item]));
 const contractLock = JSON.parse(readFileSync(new URL('./contract-lock.json', import.meta.url), 'utf8'));
 
@@ -42,6 +43,25 @@ function loopback(origin) {
   return url.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname);
 }
 
+export function assertLiveCaptureReadiness(config) {
+  if (config?.provenance !== 'LIVE_CAPTURE') return;
+  const origin = cleanOrigin(config?.target?.apiOrigin);
+  requireValue(config.target?.environment === 'capiro-dev', 'TARGET_NOT_APPROVED', 'live target must be capiro-dev');
+  requireValue(APPROVED_LIVE_ORIGINS.includes(origin), 'TARGET_NOT_APPROVED', 'live API origin must be exactly https://app.capiro.ai');
+  throw new CaptureBlockedError(
+    'LIVE_SERVER_AUTHORITY_CONTRACT_MISSING',
+    'LIVE_CAPTURE is disabled before conversation creation and synthesis because the existing server contract does not expose required capture authority',
+    {
+      missingServerContracts: [
+        'predispatch read-only tool enforcement and incidental-write suppression receipt',
+        'server-authored current fixture/source ownership and version receipt',
+        'served API and orchestrator release identity receipt',
+        'server/provider-enforced cost reservation',
+      ],
+    },
+  );
+}
+
 export function sourceMappingDigest(config) {
   return sha256Stable(config?.scope?.sources ?? {});
 }
@@ -55,15 +75,14 @@ export function validateCaptureConfig(config, caseId, env = process.env) {
   requireValue(['LIVE_CAPTURE', 'UNIT_FIXTURE_NOT_LIVE'].includes(config.provenance), 'PROVENANCE_INVALID', 'provenance must be explicit');
   const origin = cleanOrigin(config?.target?.apiOrigin);
   if (config.provenance === 'LIVE_CAPTURE') {
-    requireValue(config.target.environment === 'capiro-dev', 'TARGET_NOT_APPROVED', 'live target must be capiro-dev');
-    requireValue(APPROVED_LIVE_ORIGINS.includes(origin), 'TARGET_NOT_APPROVED', 'live origin is not an approved capiro-dev API origin');
+    assertLiveCaptureReadiness(config);
   } else {
     requireValue(config.target.environment === 'controlled-local-http', 'UNIT_TARGET_INVALID', 'unit provenance requires controlled-local-http');
     requireValue(loopback(origin), 'UNIT_TARGET_INVALID', 'unit fixture transport is loopback-only');
   }
   requireValue(config.limits?.concurrency === 1, 'CONCURRENCY_INVALID', 'capture concurrency must equal 1');
   requireValue(Number.isInteger(config.limits?.deadlineMs) && config.limits.deadlineMs >= 1_000 && config.limits.deadlineMs <= 900_000, 'DEADLINE_INVALID', 'deadlineMs must be between 1000 and 900000');
-  requireValue(typeof config.limits?.maxSpendUsd === 'number' && config.limits.maxSpendUsd > 0 && config.limits.maxSpendUsd <= 1, 'SPEND_CAP_INVALID', 'maxSpendUsd must be greater than zero and at most 1');
+  requireValue(typeof config.limits?.maxSpendUsd === 'number' && config.limits.maxSpendUsd > 0 && config.limits.maxSpendUsd <= 1, 'SPEND_THRESHOLD_INVALID', 'post-hoc maxSpendUsd threshold must be greater than zero and at most 1');
   requireValue(GIT_SHA.test(config.deployment?.apiSha ?? ''), 'DEPLOYMENT_INVALID', 'deployment.apiSha must be an exact git SHA');
   requireValue(GIT_SHA.test(config.deployment?.orchestratorSha ?? ''), 'DEPLOYMENT_INVALID', 'deployment.orchestratorSha must be an exact git SHA');
   requireValue(config.contract?.fixtureSha256 === contractLock.fixtureSha256, 'CONTRACT_LOCK_MISMATCH', 'scope config fixture hash does not match the immutable contract lock');
@@ -139,9 +158,52 @@ async function readBounded(response) {
   }
 }
 
+function decodeUtf8(bytes, label) {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    throw new CaptureBlockedError('RESPONSE_INVALID_UTF8', `${label} did not return strict UTF-8`);
+  }
+}
+
 function parseJson(bytes, label) {
-  try { return JSON.parse(bytes.toString('utf8')); }
-  catch { throw new CaptureBlockedError('RESPONSE_INVALID', `${label} did not return JSON`); }
+  try { return JSON.parse(decodeUtf8(bytes, label)); }
+  catch (error) {
+    if (error instanceof CaptureBlockedError) throw error;
+    throw new CaptureBlockedError('RESPONSE_INVALID', `${label} did not return JSON`);
+  }
+}
+
+function parseSse(body) {
+  const normalized = body.replace(/\r\n?/gu, '\n');
+  const chunks = normalized.split('\n\n');
+  const trailing = chunks.pop() ?? '';
+  const issues = [];
+  if (trailing.trim()) issues.push('SSE_UNTERMINATED_TRAILING_FRAME');
+  const frames = chunks.filter((frame) => frame.trim());
+  if (frames.length > MAX_SSE_FRAMES) {
+    throw new CaptureBlockedError('SSE_FRAME_LIMIT_EXCEEDED', `SSE response exceeded the ${MAX_SSE_FRAMES} frame bound`);
+  }
+  const events = [];
+  for (const frame of frames) {
+    const data = frame.split('\n')
+      .filter((line) => line.startsWith('data:'))
+      .map((line) => line.slice(5).replace(/^ /u, ''));
+    if (data.length === 0) continue;
+    const payload = data.join('\n');
+    try {
+      const event = JSON.parse(payload);
+      if (!event || typeof event !== 'object' || Array.isArray(event)) throw new TypeError('SSE data is not an event object');
+      events.push(event);
+    } catch {
+      issues.push('SSE_MALFORMED_FRAME');
+      events.push({ type: 'capture_parse_error', rawSha256: sha256Bytes(payload) });
+    }
+  }
+  const firstTerminal = events.findIndex((event) => event?.type === 'done');
+  if (firstTerminal >= 0 && firstTerminal < events.length - 1) issues.push('SSE_POST_TERMINAL_EVENT');
+  if (events.filter((event) => event?.type === 'done').length > 1) issues.push('SSE_DUPLICATE_TERMINAL_EVENT');
+  return { events, issues: [...new Set(issues)] };
 }
 
 export class CaptureTransport {
@@ -189,7 +251,7 @@ export class CaptureTransport {
     }
     const read = await readBounded(response);
     const bytes = read.bytes;
-    const exchange = { sequence, purpose, method, path, startedAt, finishedAt: new Date().toISOString(), durationMs: performance.now() - startedMs, status: response.status, headers, body: bytes.toString('utf8'), interrupted: read.interrupted };
+    const exchange = { sequence, purpose, method, path, startedAt, finishedAt: new Date().toISOString(), durationMs: performance.now() - startedMs, status: response.status, headers, body: decodeUtf8(bytes, purpose), interrupted: read.interrupted };
     await this.onExchange(exchange);
     if (!response.ok) throw new CaptureBlockedError('HTTP_REJECTED', `${purpose} returned HTTP ${response.status}`, { status: response.status, body: exchange.body.slice(0, 500) });
     return { ...exchange, bytes };
@@ -203,15 +265,8 @@ export class CaptureTransport {
     requireValue(this.streamSubmissions === 0, 'DUPLICATE_SYNTHESIS_PREVENTED', 'ambiguous submitted chat is never retried');
     this.streamSubmissions += 1;
     const result = await this.request(path, { method: 'POST', body, accept: 'text/event-stream', purpose });
-    const events = [];
-    for (const line of result.body.replace(/\r\n?/gu, '\n').split('\n')) {
-      if (!line.startsWith('data:')) continue;
-      const payload = line.slice(5).trim();
-      if (!payload) continue;
-      try { events.push(JSON.parse(payload)); }
-      catch { events.push({ type: 'capture_parse_error', rawSha256: sha256Bytes(payload) }); }
-    }
-    return { ...result, events };
+    const parsed = parseSse(result.body);
+    return { ...result, events: parsed.events, parseIssues: parsed.issues };
   }
 }
 
@@ -267,7 +322,7 @@ export async function collectLiveReadCase({ config, caseId, env = process.env, f
         conversationId: conversation.json.id, setupEffects,
         gaps: [`SYNTHESIS_OUTCOME_UNKNOWN:${error.code}`], events: [], answer: '',
         links: { schemaVersion: 1, ownerRunId: config.captureRunId, caseId, conversationId: conversation.json.id, clientPhysicalId: client?.physicalId ?? null, scopeMappingSha256: config.fixture.mappingSha256, sourceLinks: [], toolCallEventHashes: [], retrievalTraceSha256: null, serverTraceId: null, messageReadback: null },
-        usage: null, spendCapUsd: config.limits.maxSpendUsd, observedCostUsd: null,
+        usage: null, postHocSpendThresholdUsd: config.limits.maxSpendUsd, observedCostUsd: null,
         requestCount: transport.sequence, synthesisSubmissionCount: transport.streamSubmissions,
       };
     }
@@ -284,13 +339,14 @@ export async function collectLiveReadCase({ config, caseId, env = process.env, f
 
     if (!accepted) gaps.push('TURN_ACCEPTANCE_RECEIPT_MISSING');
     if (doneEvents.length !== 1) gaps.push(doneEvents.length === 0 ? 'TERMINAL_DONE_MISSING_CAPTURE_UNCERTAIN' : 'MULTIPLE_TERMINAL_DONE_EVENTS');
+    gaps.push(...stream.parseIssues);
     if (errors.length) gaps.push('SERVER_ERROR_EVENT_OBSERVED');
     if (prohibited.length) gaps.push('MUTATING_OR_APPROVAL_EVENT_OBSERVED');
     if (toolCalls.some((event) => READ_ONLY_TOOL_DENY.test(event.tool ?? ''))) gaps.push('MUTATING_TOOL_CALL_OBSERVED');
     if (!done?.model && !stream.events.some((event) => event?.type === 'runtime' && event.model)) gaps.push('EFFECTIVE_MODEL_MISSING');
     if (!usage || !Number.isFinite(usage.inputTokens) || !Number.isFinite(usage.outputTokens)) gaps.push('TOKEN_USAGE_MISSING');
     if (observedCostUsd === null) gaps.push('SERVER_COST_USD_MISSING');
-    else requireValue(observedCostUsd <= config.limits.maxSpendUsd, 'SPEND_CAP_EXCEEDED', 'observed server cost exceeds configured capture spend cap');
+    else if (observedCostUsd > config.limits.maxSpendUsd) gaps.push('OBSERVED_COST_EXCEEDS_POST_HOC_THRESHOLD');
     if (stream.interrupted) gaps.push('SSE_TRANSPORT_INTERRUPTED');
     if (!done?.retrieval?.trace) gaps.push('SERVER_RETRIEVAL_TRACE_MISSING');
     gaps.push('SERVER_TRACE_ID_MISSING', 'SERVER_TOOL_CALL_IDS_MISSING');
@@ -351,7 +407,7 @@ export async function collectLiveReadCase({ config, caseId, env = process.env, f
       scopeMappingSha256: config.fixture.mappingSha256,
       messageReadback,
     };
-    const uncertain = !done || !accepted;
+    const uncertain = !done || !accepted || Boolean(stream.interrupted) || stream.parseIssues.length > 0 || doneEvents.length !== 1;
     return {
       status: uncertain ? 'CAPTURE_UNCERTAIN' : gaps.length ? 'CAPTURE_INCOMPLETE' : 'CAPTURE_COMPLETE',
       acceptanceStatus: 'NOT_RUN',
@@ -366,7 +422,7 @@ export async function collectLiveReadCase({ config, caseId, env = process.env, f
       answer,
       links,
       usage,
-      spendCapUsd: config.limits.maxSpendUsd,
+      postHocSpendThresholdUsd: config.limits.maxSpendUsd,
       observedCostUsd,
       requestCount: transport.sequence,
       synthesisSubmissionCount: transport.streamSubmissions,
