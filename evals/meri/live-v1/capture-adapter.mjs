@@ -1,9 +1,10 @@
 import { frozenFixture } from './fixture.mjs';
 
-export const CAPTURE_ADAPTER_VERSION = 'starter-schema-only-v1';
+export const CAPTURE_ADAPTER_VERSION = 'artifact-offline-v2';
 
-export function createCaptureEnvelope({ contract, runManifest, captures = [] }) {
+export function createCaptureEnvelope({ contract, runManifest, artifactRoot, ownerSha256, captures = [] }) {
   if (!contract || !runManifest) throw new TypeError('contract and runManifest are required');
+  if (typeof artifactRoot !== 'string' || typeof ownerSha256 !== 'string') throw new TypeError('artifactRoot and ownerSha256 are required');
   if (!Array.isArray(captures)) throw new TypeError('captures must be an array');
   return {
     schemaVersion: 1,
@@ -12,6 +13,8 @@ export function createCaptureEnvelope({ contract, runManifest, captures = [] }) 
       fixtureSha256: contract.fixtureSha256,
       contractSourceSha256: contract.contractSourceSha256,
     },
+    artifactRoot,
+    ownerSha256,
     runManifest: {
       ...runManifest,
       captureAdapter: {

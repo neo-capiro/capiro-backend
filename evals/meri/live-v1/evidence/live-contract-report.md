@@ -22,8 +22,8 @@ Missing captures are NOT_RUN. Missing prerequisites or stale deployment/fixture 
 
 - `node derive-lock.mjs C:/Users/Administrator/Downloads/01-Meri-Foundation-and-Reliability.md` — exit 0; frozen Appendix F matched the authoritative downloaded source
 - `node validate-contract.mjs` — exit 0; valid=true; exactly 75 cases; source and fixture hashes matched
-- `node --test tests/*.test.mjs` — exit 0; 12 passed, 0 failed; missing/malformed run evidence, leak, duplicate-effect, false-success, and recorded-write rejection covered
-- `node ../../../node_modules/typescript/bin/tsc --allowJs --checkJs --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --skipLibCheck cases.mjs fixture.mjs` — exit 0; typed manifest and frozen fixture check passed
+- `node --test tests/*.test.mjs` — exit 0; 28 passed, 0 failed; controlled UNIT fixtures are explicitly NOT live and cover fake captures, byte hashes, correlations, priority predicates, mode/fault setup, traversal/symlink refusal, and recorded-output drift
+- `node --check artifact-reader.mjs && node --check capture-adapter.mjs && node --check deterministic-predicates.mjs && node --check execution-requirements.mjs && node --check verify-capture.mjs && node --check recorded-provider.mjs && node --check lib/schema-validator.mjs` — exit 0; verifier modules parsed successfully; no dependency install was used
 
 ## Remaining implementation gaps
 

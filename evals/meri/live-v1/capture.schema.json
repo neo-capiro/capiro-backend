@@ -4,7 +4,7 @@
   "title": "Meri live-v1 single-capture evidence bundle",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "contract", "runManifest", "captures"],
+  "required": ["schemaVersion", "contract", "runManifest", "artifactRoot", "ownerSha256", "captures"],
   "properties": {
     "schemaVersion": { "const": 1 },
     "contract": {
@@ -17,6 +17,8 @@
         "contractSourceSha256": { "$ref": "#/$defs/sha256" }
       }
     },
+    "artifactRoot": { "$ref": "#/$defs/nonempty" },
+    "ownerSha256": { "$ref": "#/$defs/sha256" },
     "runManifest": {
       "type": "object",
       "additionalProperties": false,
@@ -91,6 +93,15 @@
     "nonempty": { "type": "string", "minLength": 1 },
     "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "gitSha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "sha256"],
+      "properties": {
+        "ref": { "$ref": "#/$defs/nonempty" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
     "explicitApplicability": {
       "type": "object",
       "required": ["applicable", "notApplicableReason"],
@@ -119,12 +130,12 @@
         "evidence": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["run", "auth", "runtime", "sources", "effects", "status", "ui"],
+          "required": ["run", "auth", "runtime", "setup", "execution", "sources", "effects", "status", "ui"],
           "properties": {
             "run": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["runId", "conversationId", "traceId", "planId", "stepIds", "startedAt", "finishedAt"],
+              "required": ["runId", "conversationId", "traceId", "planId", "stepIds", "startedAt", "finishedAt", "traceArtifact"],
               "properties": {
                 "runId": { "$ref": "#/$defs/nonempty" },
                 "conversationId": { "$ref": "#/$defs/nonempty" },
@@ -132,19 +143,21 @@
                 "planId": { "type": ["string", "null"] },
                 "stepIds": { "type": "array", "items": { "$ref": "#/$defs/nonempty" } },
                 "startedAt": { "$ref": "#/$defs/nonempty" },
-                "finishedAt": { "$ref": "#/$defs/nonempty" }
+                "finishedAt": { "$ref": "#/$defs/nonempty" },
+                "traceArtifact": { "$ref": "#/$defs/artifact" }
               }
             },
             "auth": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["actorId", "actorTenantId", "selectedTenantId", "selectedClientId", "sessionEvidenceRef", "actorProven", "tenantProven", "clientProven"],
+              "required": ["actorId", "actorTenantId", "selectedTenantId", "selectedClientId", "sessionEvidenceRef", "sessionEvidenceSha256", "actorProven", "tenantProven", "clientProven"],
               "properties": {
                 "actorId": { "$ref": "#/$defs/nonempty" },
                 "actorTenantId": { "$ref": "#/$defs/nonempty" },
                 "selectedTenantId": { "$ref": "#/$defs/nonempty" },
                 "selectedClientId": { "type": ["string", "null"] },
                 "sessionEvidenceRef": { "$ref": "#/$defs/nonempty" },
+                "sessionEvidenceSha256": { "$ref": "#/$defs/sha256" },
                 "actorProven": { "const": true },
                 "tenantProven": { "const": true },
                 "clientProven": { "const": true }
@@ -177,6 +190,26 @@
                 }
               }
             },
+            "setup": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["applicable", "notApplicableReason", "artifact"],
+              "properties": {
+                "applicable": { "type": "boolean" },
+                "notApplicableReason": { "type": ["string", "null"] },
+                "artifact": { "anyOf": [{ "$ref": "#/$defs/artifact" }, { "type": "null" }] }
+              }
+            },
+            "execution": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["runtimeMode", "verificationMode", "pairId"],
+              "properties": {
+                "runtimeMode": { "$ref": "#/$defs/nonempty" },
+                "verificationMode": { "$ref": "#/$defs/nonempty" },
+                "pairId": { "$ref": "#/$defs/nonempty" }
+              }
+            },
             "sources": {
               "type": "object",
               "additionalProperties": false,
@@ -190,11 +223,12 @@
                   "items": {
                     "type": "object",
                     "additionalProperties": false,
-                    "required": ["sourceId", "version", "locator", "passageSha256", "consulted"],
+                    "required": ["sourceId", "version", "locator", "passageRef", "passageSha256", "consulted"],
                     "properties": {
                       "sourceId": { "$ref": "#/$defs/nonempty" },
                       "version": { "$ref": "#/$defs/nonempty" },
                       "locator": { "$ref": "#/$defs/nonempty" },
+                      "passageRef": { "$ref": "#/$defs/nonempty" },
                       "passageSha256": { "$ref": "#/$defs/sha256" },
                       "consulted": { "const": true }
                     }
@@ -208,11 +242,13 @@
                       { "$ref": "#/$defs/explicitApplicability" },
                       {
                         "type": "object",
-                        "required": ["attachmentId", "byteSha256", "downloadReceiptRef"],
+                        "required": ["attachmentId", "byteRef", "byteSha256", "downloadReceiptRef", "downloadReceiptSha256"],
                         "properties": {
                           "attachmentId": { "type": ["string", "null"] },
+                          "byteRef": { "type": ["string", "null"] },
                           "byteSha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
-                          "downloadReceiptRef": { "type": ["string", "null"] }
+                          "downloadReceiptRef": { "type": ["string", "null"] },
+                          "downloadReceiptSha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] }
                         }
                       }
                     ]
@@ -223,14 +259,17 @@
             "effects": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["applicable", "notApplicableReason", "approvalRequired", "proposalId", "operationId", "payloadSha256", "receiptIds", "observedLogicalEffectCount", "authoritativeReadback", "status"],
+              "required": ["applicable", "notApplicableReason", "approvalRequired", "proposalId", "operationId", "payloadRef", "payloadSha256", "sinkRef", "sinkSha256", "receiptIds", "observedLogicalEffectCount", "authoritativeReadback", "status"],
               "properties": {
                 "applicable": { "type": "boolean" },
                 "notApplicableReason": { "type": ["string", "null"] },
                 "approvalRequired": { "type": "boolean" },
                 "proposalId": { "type": ["string", "null"] },
                 "operationId": { "type": ["string", "null"] },
+                "payloadRef": { "type": ["string", "null"] },
                 "payloadSha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+                "sinkRef": { "type": ["string", "null"] },
+                "sinkSha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
                 "receiptIds": { "type": "array", "items": { "$ref": "#/$defs/nonempty" } },
                 "observedLogicalEffectCount": { "type": "integer", "minimum": 0 },
                 "authoritativeReadback": { "type": "boolean" },
@@ -252,12 +291,13 @@
             "ui": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["applicable", "notApplicableReason", "route", "evidenceRefs", "approvalVisible", "approvalErrorVisible", "persistedAfterReload", "stayedInsideMeri"],
+              "required": ["applicable", "notApplicableReason", "route", "evidenceRefs", "evidenceArtifacts", "approvalVisible", "approvalErrorVisible", "persistedAfterReload", "stayedInsideMeri"],
               "properties": {
                 "applicable": { "type": "boolean" },
                 "notApplicableReason": { "type": ["string", "null"] },
                 "route": { "type": ["string", "null"] },
                 "evidenceRefs": { "type": "array", "items": { "$ref": "#/$defs/nonempty" } },
+                "evidenceArtifacts": { "type": "array", "items": { "$ref": "#/$defs/artifact" } },
                 "approvalVisible": { "type": ["boolean", "null"] },
                 "approvalErrorVisible": { "type": ["boolean", "null"] },
                 "persistedAfterReload": { "type": ["boolean", "null"] },
@@ -282,11 +322,13 @@
         "rubric": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["status", "grader", "humanAdjudication", "dimensions"],
+          "required": ["status", "grader", "humanAdjudication", "adjudicationRef", "adjudicationSha256", "dimensions"],
           "properties": {
             "status": { "enum": ["GRADED", "NOT_GRADED", "UNAVAILABLE"] },
             "grader": { "type": ["string", "null"] },
             "humanAdjudication": { "type": ["string", "null"] },
+            "adjudicationRef": { "type": ["string", "null"] },
+            "adjudicationSha256": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
             "dimensions": {
               "type": "object",
               "additionalProperties": false,

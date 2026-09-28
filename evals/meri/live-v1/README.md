@@ -26,8 +26,10 @@ The existing `evals/meri/` 26-case offline suite is separate and unchanged. `CD-
 - `source/appendix-f.md`, `contract-lock.json` — frozen source and hash lock.
 - `validate-contract.mjs` — exact ID, duplicate, verbatim source, source-ID, role/clock, prompt hash, source hash, fixture hash, and artifact-byte validation.
 - `capture.schema.json` — capture evidence schema with explicit setup/stale/runtime/product boundaries.
+- `artifact-reader.mjs` — owned-root artifact reader that recomputes raw-byte hashes and refuses absolute, traversal, URL and symlink references.
+- `deterministic-predicates.mjs`, `execution-requirements.mjs` — implemented row predicates plus structured prior-turn, fault, transition and mode-matrix requirements.
 - `capture-adapter.mjs` — schema-only starter; live execution deliberately throws `NOT_IMPLEMENTED`.
-- `verify-capture.mjs` — fail-closed capture verifier and status classifier.
+- `verify-capture.mjs` — runtime-schema, artifact, correlation, predicate and status verifier. Caller `passed`, proof booleans and arbitrary 64-hex strings are not PASS evidence.
 - `recorded-provider.mjs` — read-only recorded-output provider that refuses network/write request fields.
 - `report.mjs` — deterministic JSON/Markdown reporter.
 - `tests/` — narrow Node tests against the actual validator/verifier.
@@ -70,6 +72,10 @@ Status is fail-closed:
 
 A setup failure is not reported as a Meri defect. A real defect requires a ready setup and captured execution. `BLOCKED` and `NOT_RUN` never enter the pass-rate denominator and never become PASS.
 
+This offline implementation deliberately returns `BLOCKED` for purported live captures until capture/auth/source authority verification exists. Controlled test artifacts are marked `UNIT_FIXTURE_NOT_LIVE` and remain `NOT_RUN`, even when their byte hashes and implemented predicates validate.
+
+Artifact references are relative to an absolute owned bundle root containing a hash-bound `bundle-owner.json`. The verifier reads answer, cited passage, trace, auth, setup, payload, sink, download, UI and adjudication files from that root, computes hashes from their bytes, and checks stable capture-run/case/run/trace/tool/source/proposal/effect/UI bindings. Missing row predicates remain `NOT_RUN`; hard-gate `passed: true` values are never a fallback.
+
 ## Offline grading safety
 
 Live behavior must be captured exactly once. Writes may occur only in a separately authorized disposable sink through a future live capture adapter. Offline grading then consumes saved records through `recorded-provider.mjs`; that provider has no network client and rejects embedded network/write/operation request fields. An evaluator must not repeat a write to obtain answer text.
@@ -104,5 +110,7 @@ Before any live case can be scored:
 6. Capture downloads, raw byte hashes, UI approval/error/reload evidence, and sanitized traces.
 7. Add human adjudication and version-pinned recorded-output Promptfoo configuration without write execution.
 8. Extract CD and affected CW contracts into separate namespaces when their harness work starts.
+
+The repaired verifier currently has row-specific predicates for priority cases 01, 03, 12, 19, 20, 46, 51, 56 and 72. Other rows remain explicitly `NOT_RUN` rather than inheriting caller assertions. Case 12 still requires a saved setup artifact containing 500 distinct newer eligible distractor rows; `fixture.mjs` is only a specification and does not supply that seeded corpus.
 
 No live API/cloud/provider/browser/write execution, shared-AWS fault, deployment, Phase 19 destructive seed, global budget/bill mutation, merge, or push is part of this foundation.

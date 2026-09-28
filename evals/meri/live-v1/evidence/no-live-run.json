@@ -22,12 +22,12 @@
     {
       "command": "node --test tests/*.test.mjs",
       "exitCode": 0,
-      "summary": "12 passed, 0 failed; missing/malformed run evidence, leak, duplicate-effect, false-success, and recorded-write rejection covered"
+      "summary": "28 passed, 0 failed; controlled UNIT fixtures are explicitly NOT live and cover fake captures, byte hashes, correlations, priority predicates, mode/fault setup, traversal/symlink refusal, and recorded-output drift"
     },
     {
-      "command": "node ../../../node_modules/typescript/bin/tsc --allowJs --checkJs --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --skipLibCheck cases.mjs fixture.mjs",
+      "command": "node --check artifact-reader.mjs && node --check capture-adapter.mjs && node --check deterministic-predicates.mjs && node --check execution-requirements.mjs && node --check verify-capture.mjs && node --check recorded-provider.mjs && node --check lib/schema-validator.mjs",
       "exitCode": 0,
-      "summary": "typed manifest and frozen fixture check passed"
+      "summary": "verifier modules parsed successfully; no dependency install was used"
     }
   ]
 }

@@ -1,3 +1,5 @@
+import { sha256RawBytes } from './artifact-reader.mjs';
+
 export class RecordedCaptureProvider {
   constructor(records) {
     if (!Array.isArray(records)) throw new TypeError('records must be an array');
@@ -19,11 +21,15 @@ export class RecordedCaptureProvider {
     if (typeof record.output !== 'string' || !record.outputSha256) {
       throw new Error(`recorded output/hash missing for case ${String(caseId)}`);
     }
+    const actualOutputSha256 = sha256RawBytes(Buffer.from(record.output, 'utf8'));
+    if (actualOutputSha256 !== record.outputSha256) {
+      throw new Error(`recorded output hash drift for case ${String(caseId)}: declared ${record.outputSha256}, actual ${actualOutputSha256}`);
+    }
     return {
       output: record.output,
       metadata: {
         caseId,
-        outputSha256: record.outputSha256,
+        outputSha256: actualOutputSha256,
         source: 'recorded-capture',
         writeExecution: false,
       },
