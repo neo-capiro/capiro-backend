@@ -988,5 +988,519 @@
       "error": "HTTP Error 404: Not Found",
       "productionImport": false
     }
+  ],
+  "adoptionReview": {
+    "reviewedAt": "2026-09-28",
+    "capiroSourceSha": "71efe006a7c120f157a90a6dac6adaf743353937",
+    "scope": "Implemented file-01 H1, H2 and H5 increments plus held H4 candidate and explicit pending/conditional dispositions; docs-only review",
+    "originalAcquiredIdentityCount": 103,
+    "originalInventoryRecordCount": 110,
+    "originalIdentityFieldsPreserved": true,
+    "classificationVocabulary": [
+      "COPIED",
+      "ADAPTED",
+      "DEPENDENCY",
+      "RETAINED_EQUIVALENT",
+      "CANDIDATE_HELD_NOT_INTEGRATED",
+      "CONDITIONAL_DEFERRED",
+      "NOT_YET_IMPLEMENTED"
+    ],
+    "acquisitionIsAdoption": false,
+    "fullAcceptanceClaimed": false
+  },
+  "adoptionRecords": [
+    {
+      "id": "H1",
+      "classification": "ADAPTED",
+      "integrationStatus": "INTEGRATED_BOUNDED",
+      "reason": "Canonical scoped signatures, unchanged failure-cycle detection, revision-aware retests, explicit pending polls and pre-dispatch aggregate admission were deliberately translated into the native served MeriV3 turn; this is not a conclusion from shared wording.",
+      "sourceRefs": [
+        {
+          "collection": "hermes",
+          "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+          "path": "agent/tool_guardrails.py",
+          "sha256": "cbbf453b3fa2c8f6080b262117d40de430c4c469b28beb4630169bb43abcb0f4"
+        },
+        {
+          "collection": "hermes",
+          "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+          "path": "agent/tool_guardrails.py",
+          "sha256": "cbbf453b3fa2c8f6080b262117d40de430c4c469b28beb4630169bb43abcb0f4"
+        },
+        {
+          "collection": "hermes",
+          "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+          "path": "tests/agent/test_tool_guardrails.py",
+          "sha256": "c67c7288fa65feab2f8201a955a419dc90c89100f14585f780f56a8d12cb8af9"
+        },
+        {
+          "collection": "hermes",
+          "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+          "path": "tests/agent/test_tool_call_guardrail_runtime.py",
+          "sha256": "1f05878c366da3e56bdcd53cc5cd35958bc69540455020ebaecf83bbc77748c3"
+        }
+      ],
+      "license": {
+        "spdx": "MIT",
+        "copyright": "Copyright (c) 2025 Nous Research",
+        "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+        "path": "LICENSE",
+        "sha256": "821556e6336796450ab852d375117b48a4887e71d255794fd6318d99982a5ab6",
+        "noticePath": "THIRD_PARTY_NOTICES",
+        "distributionScope": "Capiro source/product distributions containing the integrated H1 adaptation"
+      },
+      "capiroSource": {
+        "sha": "71efe006a7c120f157a90a6dac6adaf743353937",
+        "implementationCommits": [
+          "854a5fc30b2e88badc986134355ee1969699649e",
+          "f2151de654926ef8950029cc9226aceff7426a02",
+          "170f73c43e0583f27eb8aad0ddaec085cbc009d2"
+        ],
+        "targets": [
+          {
+            "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-run-budget.ts",
+            "sha256": "fe79cce7339e4074742613a1d8397c9fca6e498484aaa9e263c398243c052b75"
+          },
+          {
+            "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+            "sha256": "2e15bfd7e86f4ed20e9f61af70185316bd365abfd091022d40b3706bffe184cd"
+          },
+          {
+            "path": "apps/meriv2-orchestrator/src/meri/meriv3/openai-responses.client.ts",
+            "sha256": "82a84aa72b3525c0f24be62ecd39d75aa6800e7d075da2155a4120abde6f8df2"
+          }
+        ]
+      },
+      "testMappings": [
+        {
+          "upstream": "tests/agent/test_tool_guardrails.py",
+          "capiroPath": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-run-budget.spec.ts",
+          "capiroTests": [
+            "bounds an unchanged alternating A/B failure cycle across rounds",
+            "a changed artifact revision is a new bounded experiment",
+            "changed pagination routes and explicit pending polling do not false-block"
+          ]
+        },
+        {
+          "upstream": "tests/agent/test_tool_call_guardrail_runtime.py",
+          "capiroPath": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts",
+          "capiroTests": [
+            "bounds alternating unchanged read failures across real provider rounds and synthesizes retained partial evidence"
+          ]
+        }
+      ],
+      "observedTestReceipt": {
+        "status": "PASS_BOUNDED_ONLY",
+        "report": "C:/dev/cap-meri-foundation-evidence/review-status-provenance-residual-report.md",
+        "sourceSha": "1f6dcdfa02ef93d2443638eac56a1775e7bff809",
+        "result": "10 core + 19 runtime + 81 assistant tests and 22 additional direct probes exited 0",
+        "notRun": ["authenticated live cases 71-72", "CW-07"]
+      },
+      "remainingGap": "No token/cost reservation, durable or child-shared budget, tenant metering, queue admission, restart-safe state, universal provider retry accounting or live acceptance.",
+      "rollback": "File-01 lead/P1C native-runtime owner reverts the application replay commits; preserve action receipts and do not replay exhausted effects.",
+      "updatePolicy": "Record a new donor pin and translated-test mapping; never silently replace either Hermes pin.",
+      "recordPath": "docs/meri/implementation/acquisitions/runtime-guardrails.md"
+    },
+    {
+      "id": "H2",
+      "classification": "ADAPTED",
+      "integrationStatus": "INTEGRATED_BOUNDED",
+      "reason": "Donor source and later tests were deliberately translated into deterministic protected state, a complete contiguous replay suffix and fail-closed publication through Capiro's existing conversation/PostgreSQL authority; no Python was copied.",
+      "sourceRefs": [
+        {
+          "collection": "hermes",
+          "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+          "path": "agent/context_compressor.py",
+          "sha256": "2414082ba0a3984412d544ec22073a3ee6a89a4dbcc46037a2628f6e7b84f837"
+        },
+        {
+          "collection": "hermes",
+          "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+          "path": "agent/conversation_compression.py",
+          "sha256": "9cfc32dfefade45d49a1b37691be4d64dd2d416792bb4da8ca418b8f80051e48"
+        },
+        {
+          "collection": "hermes",
+          "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+          "path": "tests/agent/test_compression_adoption_preserves_live_tail.py",
+          "sha256": "28f8b154252ed717ab5269eafaf4b3a47affbbc02b00ae9a101d19235c139694"
+        },
+        {
+          "collection": "hermes",
+          "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+          "path": "tests/agent/test_compression_stall_deterministic_fallback.py",
+          "sha256": "698c1d3f0f5f1e19e06133884b844c1cfb95b38ddfb43845b5e0406668eb6f65"
+        },
+        {
+          "collection": "hermes",
+          "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+          "path": "tests/agent/test_compressor_tail_cut_tool_pair_floor.py",
+          "sha256": "feba841ffe8bcd42cc661b00eb557221f7ef442c9095aa3fd3011ad708917d8e"
+        },
+        {
+          "collection": "hermes",
+          "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+          "path": "tests/agent/test_context_compressor_cross_session_guard.py",
+          "sha256": "4819a1b14b6dd06aa4e0103935f507a2ca3b4840a2a062861c446b1a0a16632c"
+        },
+        {
+          "collection": "hermes",
+          "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+          "path": "tests/agent/test_steer_compaction_persistence.py",
+          "sha256": "b8e3f01dabb2830121c2f6ff0535a97ecbb6fe44197025023ac7dec471d8fbd6"
+        }
+      ],
+      "license": {
+        "spdx": "MIT",
+        "copyright": "Copyright (c) 2025 Nous Research",
+        "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+        "path": "LICENSE",
+        "sha256": "821556e6336796450ab852d375117b48a4887e71d255794fd6318d99982a5ab6",
+        "noticePath": "THIRD_PARTY_NOTICES",
+        "distributionScope": "Capiro source/product distributions containing the integrated H2 adaptation"
+      },
+      "capiroSource": {
+        "sha": "71efe006a7c120f157a90a6dac6adaf743353937",
+        "rejectedOnlyCommit": "a9f5819557f6a7fde1c839f86a3504a44a087f34",
+        "originalRepairCommits": [
+          "8ee5c2e0b601d7f53a166735cb66075002cf37a5",
+          "0bb847e7d91d48fccebf1d323e4de35e3af35a26",
+          "89b3612073809fd894ffc8b69341f27b8028c15c",
+          "f910369fcef9802509670140a792ff96e183fcf6",
+          "72519696d84ebb5b83a39c357524d68a5d1fe978"
+        ],
+        "integratedRepairCommits": [
+          "085db54ed09eb007277efab00c937a5721985ee0",
+          "2d1b33ff95393818255d33d49eab91a9c49f5d53",
+          "35e76021b908f430d74ac9885f917b5cefde2d74",
+          "3f5adcf1c1b44898f89419c3d78c47343d288df2",
+          "9df51eb883858de00f32f8f77b6b7d92adb6fa2e",
+          "a884d6445344fdce1ab94f3d7abe0589677dbf4c"
+        ],
+        "targets": [
+          {
+            "path": "apps/api/src/meri/meri-compaction.helpers.ts",
+            "sha256": "86e0766a6ec3adb739b71c708fb9117f6fded4a16bf2571bd99ec235b31b2f3c"
+          },
+          {
+            "path": "apps/api/src/meri/meri.service.ts",
+            "sha256": "bde8f24f64b3399fc8b7444b20f9c6a6feef971e68ffbc65044a434ad3a2b6f9"
+          },
+          {
+            "path": "apps/api/src/meri/meriv3-proxy.service.ts",
+            "sha256": "65e1c4fa255dec133967cb0be399b22f1fd895a429081b30c3c6a4085afd133d"
+          }
+        ]
+      },
+      "testMappings": [
+        {
+          "upstream": "tests/agent/test_compression_adoption_preserves_live_tail.py",
+          "capiroPath": "apps/api/src/meri/meri-protocol-compaction.service.spec.ts",
+          "capiroTests": ["allows only the concurrent boundary-CAS winner to report a committed compaction"]
+        },
+        {
+          "upstream": "tests/agent/test_compressor_tail_cut_tool_pair_floor.py",
+          "capiroPath": "apps/api/src/meri/meri-compaction.helpers.spec.ts",
+          "capiroTests": [
+            "moves the watermark backward instead of splitting a user/assistant protocol unit",
+            "retains a contiguous newest suffix instead of backfilling around an oversized middle unit"
+          ]
+        },
+        {
+          "upstream": "tests/agent/test_context_compressor_cross_session_guard.py",
+          "capiroPath": "apps/api/src/meri/meri-compaction.helpers.spec.ts",
+          "capiroTests": ["fails closed when historical metadata cannot prove the boundary or current client"]
+        },
+        {
+          "upstream": "tests/agent/test_steer_compaction_persistence.py",
+          "capiroPath": "apps/api/src/meri/meri-compaction.helpers.spec.ts",
+          "capiroTests": ["preserves objective, corrections, source versions, partial status and pending proposal handles"]
+        },
+        {
+          "upstream": "tests/agent/test_compression_stall_deterministic_fallback.py",
+          "capiroPath": "apps/api/src/meri/meri-compaction.helpers.spec.ts",
+          "capiroTests": ["keeps bounded state across many short turns without another model call"]
+        }
+      ],
+      "observedTestReceipt": {
+        "status": "PASS_BOUNDED_ONLY",
+        "report": "C:/dev/cap-meri-foundation-evidence/foundation-pr-body-1219.md",
+        "sourceSha": "a884d6445344fdce1ab94f3d7abe0589677dbf4c",
+        "result": "145 API tests across four suites and full API typecheck exited 0; independent exact-boundary review and 4,864-case grid exited 0; earlier native PostgreSQL fence checks passed",
+        "notRun": ["full provider protocol-pair persistence", "authenticated cases 25, 42, 71", "CW-06"]
+      },
+      "remainingGap": "No durable provider call/output groups, token/current-provider envelope authority, source-current-authority hydration, semantic user-quoted revocation, whole-request budget or live-provider qualification.",
+      "rollback": "File-01 lead/P1C API conversation owner reverts the H2 application chain while retaining conversation rows; never promote protected receipts to source authority.",
+      "updatePolicy": "Keep 516535 source and 062dc1 tests separate; record any new donor pin explicitly.",
+      "recordPath": "docs/meri/implementation/acquisitions/context-compaction.md"
+    },
+    {
+      "id": "H3",
+      "classification": "NOT_YET_IMPLEMENTED",
+      "integrationStatus": "PENDING_MANDATORY",
+      "reason": "Acquired citation files do not establish exact source/version/passage or consulted-versus-discovered behavior in current integration.",
+      "remainingGap": "Implement and test the mandatory citation/evidence adaptation through existing Capiro evidence/JEV authority.",
+      "noticeRequiredNow": false
+    },
+    {
+      "id": "H4",
+      "classification": "ADAPTED",
+      "integrationStatus": "CANDIDATE_HELD_NOT_INTEGRATED",
+      "reason": "The candidate deliberately translates request-scoped catalog construction, required capability retention, exact-name scope intersection and unknown-name rejection; current integration does not contain it and the candidate remains static rather than progressive discovery.",
+      "sourceRefs": [
+        {
+          "collection": "hermes",
+          "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+          "path": "tools/tool_search.py",
+          "sha256": "1f3598a0cd221e77132bc20636e57bc10dc7fb6c2fc12b93f4427bc9019eac44"
+        },
+        {
+          "collection": "hermes",
+          "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+          "path": "tools/tool_search_catalog.py",
+          "sha256": "7ecbeef40ce88a2932fc261b881923a808004876d8425e668c3c829162552722"
+        },
+        {
+          "collection": "hermes",
+          "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+          "path": "tools/tool_search_validation.py",
+          "sha256": "495d75b44fcaa1f694ac9dc3cae86d5d22d1d964f76c46df022b345fe818dbc0"
+        },
+        {
+          "collection": "hermes",
+          "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+          "path": "tests/tools/test_tool_search.py",
+          "sha256": "abd8d6ebdaf8a0364f695caa3f40fa5792e00c185a2258b003df9fe6441d0564"
+        },
+        {
+          "collection": "hermes",
+          "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+          "path": "tests/tools/test_tool_search_context_provider.py",
+          "sha256": "3d2cffb736714e1984e20f29f18694a921101934654b85174f9a0dcce303ad5c"
+        },
+        {
+          "collection": "hermes",
+          "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+          "path": "tests/tools/test_tool_search_multiquery.py",
+          "sha256": "e67020d8ae3c886fece392180d1d31a7775ecd070af2be58257dd2084c8bae09"
+        }
+      ],
+      "license": {
+        "spdx": "MIT",
+        "copyright": "Copyright (c) 2025 Nous Research",
+        "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+        "path": "LICENSE",
+        "sha256": "821556e6336796450ab852d375117b48a4887e71d255794fd6318d99982a5ab6",
+        "noticePath": null,
+        "distributionScope": "Held candidate only; current integration does not distribute H4 candidate code"
+      },
+      "candidateSource": {
+        "sha": "9a651d5fae1f240a36fc9b04c7007d76d8cba172",
+        "inspectionMode": "GIT_BLOBS_ONLY",
+        "presentInCurrentIntegration": false,
+        "targets": [
+          {
+            "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-tool-selection.ts",
+            "sha256": "928f3e8c09d57d45607eda77b30e48846cbdb0060c17064103accfa2abe3b9a5"
+          },
+          {
+            "path": "apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.ts",
+            "sha256": "c40b80b3f9c93fbf89c0ba1e1d54e820665b7147862d945d2f4ed3d6cd87e017"
+          },
+          {
+            "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-tool-selection.spec.ts",
+            "sha256": "5a70fad9ab58938cbac6480b64bedbd70d146a186a23689c4ff082f3817ff96d"
+          }
+        ]
+      },
+      "testMappings": [
+        {
+          "upstream": "tests/tools/test_tool_search.py",
+          "candidatePath": "apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.spec.ts",
+          "candidateTests": [
+            "enabled mode exposes only the semantic proposal for an allowlisted tenant",
+            "protects every authorized required capability without recreating unavailable names"
+          ]
+        },
+        {
+          "upstream": "tests/tools/test_tool_search_context_provider.py",
+          "candidatePath": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-tool-selection.spec.ts",
+          "candidateTests": [
+            "protects evidence, document, coverage, and exact trusted-procedure capabilities",
+            "does not name-enable a capability from user text"
+          ]
+        },
+        {
+          "upstream": "tests/tools/test_tool_search_multiquery.py",
+          "candidatePath": "apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.spec.ts",
+          "candidateTests": ["bounds fallback discovery and intersects it with the live authorized surface"]
+        }
+      ],
+      "observedTestReceipt": {
+        "status": "CANDIDATE_OBSERVED_NOT_INTEGRATION_PASS",
+        "reports": [
+          "C:/dev/cap-meri-foundation-evidence/review-governed-selector-report.md",
+          "C:/dev/cap-meri-foundation-evidence/review-served-procedure-report.md"
+        ],
+        "result": "Selector ancestry observed 132 focused tests; served ancestry observed 141 orchestrator + 48 API + 15 context tests, followed by independently reproduced privacy/coverage/freshness gaps; 9a candidate was not rerun here",
+        "notRun": ["integrated current-source H4 tests", "progressive discovery", "actual provider-schema recall", "full privacy/freshness qualification"]
+      },
+      "remainingGap": "Integrate a repaired candidate and prove progressive discovery or approved equivalent, actual schemas, required-capability recall, authorization/current freshness, source coverage, invocation freshness and telemetry privacy.",
+      "rollback": "File-01 lead/P1B selector owner keeps the candidate unintegrated and flags unchanged; a future rollout must stop new admissions and revert without replacing the canonical registry.",
+      "updatePolicy": "Any integration adds H4 to THIRD_PARTY_NOTICES and records a new pin rather than following upstream head.",
+      "recordPath": "docs/meri/implementation/acquisitions/governed-tool-selection.md"
+    },
+    {
+      "id": "H5",
+      "classification": "ADAPTED",
+      "integrationStatus": "METADATA_SERVICE_INTEGRATED_SERVED_BINDING_HELD",
+      "reason": "Evidence classification, citations, unknown owner/date, modality, duplicate checks and approval separation were deliberately translated into a protected read-only C&D procedure over the existing versioned firm-skill service.",
+      "sourceRefs": [
+        {
+          "collection": "hermes",
+          "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+          "path": "skills/productivity/meeting-action-items/SKILL.md",
+          "sha256": "1902f782551da96ee1f9b34d6f13af627f06150a498d874b0cc2a75d06d35aa8"
+        },
+        {
+          "collection": "hermes",
+          "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+          "path": "skills/productivity/document-to-action-items/SKILL.md",
+          "sha256": "8a7556754aca2a7d04d38847131fb4db8d6705fa2106fcb154279e26117b41ee"
+        }
+      ],
+      "license": {
+        "spdx": "MIT",
+        "copyright": "Copyright (c) 2025 Nous Research",
+        "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+        "path": "LICENSE",
+        "sha256": "821556e6336796450ab852d375117b48a4887e71d255794fd6318d99982a5ab6",
+        "noticePath": "THIRD_PARTY_NOTICES",
+        "distributionScope": "Capiro source/product distributions containing the integrated H5 manifest/service adaptation"
+      },
+      "capiroSource": {
+        "sha": "71efe006a7c120f157a90a6dac6adaf743353937",
+        "originalCommits": [
+          "aa6c161f73786eb3fdbdca5709cef4b0df63a8c5",
+          "7acbf3607247ee5d7e9968b8ca5083331809785c"
+        ],
+        "integratedCommits": [
+          "92cecbef3ea16370460901ee77589079352db7cb",
+          "e4680ada973f4b8ceb2a2a65cadb7f7ab0b09c49"
+        ],
+        "heldServedCandidate": "5a1985ce9ccf2f6e33a91b95fc0b36a85adfc645",
+        "targets": [
+          {
+            "path": "apps/api/src/meri/skills/commitments-audit.procedure.ts",
+            "sha256": "0634e22cb494ea69fd3d857e9375ce63f2543d5af8d9292a7a58a95d455dca28"
+          },
+          {
+            "path": "apps/api/src/meri/meri-firm-skills.helpers.ts",
+            "sha256": "65dc0285b46d90116c7ccc81dcc7b0f33c6f94b16271f558f545a70f0ab5f6cf"
+          },
+          {
+            "path": "apps/api/src/meri/meri-firm-skills.service.ts",
+            "sha256": "2f769139ea8ddbb31a55cf34b87e02ba08f9772c7c451554ff4d9ebf35e76e29"
+          }
+        ]
+      },
+      "testMappings": [
+        {
+          "upstream": "meeting-action-items/SKILL.md and document-to-action-items/SKILL.md verification clauses",
+          "capiroPath": "apps/api/src/meri/skills/commitments-audit.procedure.spec.ts",
+          "capiroTests": [
+            "fixes all CD output fields, statuses, coverage, and requested-window policy",
+            "preserves modality and leaves unsupported owner and due date unknown",
+            "is a zero-write contract across capabilities, policy, guidance, and completion",
+            "retains all seven CD benchmark IDs without claiming execution"
+          ]
+        }
+      ],
+      "observedTestReceipt": {
+        "status": "PASS_METADATA_SERVICE_ONLY",
+        "report": "C:/dev/cap-meri-foundation-evidence/review-procedure-version-repair-report.md",
+        "sourceSha": "7acbf3607247ee5d7e9968b8ca5083331809785c",
+        "result": "4 suites / 51 tests exited 0; independent PostgreSQL 16/Prisma version-conflict and current-binding probes exited 0",
+        "notRun": ["CD-01", "CD-02", "CD-03", "CD-04", "CD-05", "CD-06", "CD-07"]
+      },
+      "remainingGap": "No integrated served binding, durable selected starter identity, complete meetings/source coverage, invocation freshness or authenticated CD execution.",
+      "rollback": "File-01 lead/P1B firm-skill owner reverts the application slice and stops publishing the canonical procedure; review persisted procedure JSON before fallback.",
+      "updatePolicy": "A new donor revision requires a new immutable pin and behavior/test mapping.",
+      "recordPath": "docs/meri/implementation/acquisitions/procedure-manifests.md"
+    },
+    {
+      "id": "T1",
+      "classification": "NOT_YET_IMPLEMENTED",
+      "integrationStatus": "PENDING_MANDATORY",
+      "reason": "The acquired GenAI convention license does not establish compatible joined/redacted Capiro telemetry or cost authority.",
+      "remainingGap": "Implement redacted run/step/child/source/artifact/proposal joins, actual usage/cost and release identity through the existing OpenTelemetry path.",
+      "noticeRequiredNow": false
+    },
+    {
+      "id": "HERMES-COWORKER-ADDITIONS",
+      "classification": "NOT_YET_IMPLEMENTED",
+      "integrationStatus": "PENDING_MANDATORY_WHERE_REQUIRED",
+      "reason": "Acquired child, steering, todo, background-review and delivery sources are not implemented by the reviewed increments.",
+      "rejectedPatterns": [
+        "local SQLite as Fargate durability authority",
+        "warning-only spending limits",
+        "optional output validation",
+        "automatic memory promotion",
+        "unbounded recursion"
+      ],
+      "remainingGap": "Persist Capiro-owned children, ordered steering, shared budgets and delivery authority with recovery tests before claiming adoption.",
+      "noticeRequiredNow": false
+    }
+  ],
+  "conditionalActivationDecisions": [
+    {
+      "id": "I1_I2_CLEAN_NATIVE_RUNTIME",
+      "decision": "NOT_ACTIVATED",
+      "trigger": "Read-only live drift inventory establishes operational separation, followed by same-image caller/recovery/rollback parity and persisted cohort routing.",
+      "currentReason": "No live inventory or measured compute need in this docs-only review; current native runtime remains authoritative.",
+      "mandatorySubstitute": false
+    },
+    {
+      "id": "GPU_SPECIALIST_SERVING",
+      "decision": "NOT_ACTIVATED",
+      "trigger": "File-03 role/model evidence demonstrates task-quality benefit with qualified capacity, full cost and fallback; existing NVIDIA owners remain primary.",
+      "currentReason": "No measured model gap, candidate, capacity evidence or activation authority.",
+      "mandatorySubstitute": false
+    },
+    {
+      "id": "D1_DOCLING",
+      "decision": "NOT_ACTIVATED",
+      "trigger": "A concrete failed table/OCR fixture plus rights/weights review and correct page-coordinate improvement over the qualified pipeline.",
+      "currentReason": "No qualifying failed fixture or measured benefit.",
+      "mandatorySubstitute": false
+    },
+    {
+      "id": "G1_X1_LANGGRAPH",
+      "decision": "NOT_ACTIVATED",
+      "trigger": "A documented native recovery/maintainability failure after delivery cycles, then a bounded same-provider/source/tool/budget comparison with recovery, RLS, completion and cost evidence.",
+      "currentReason": "Mandatory native recovery work remains incomplete; no fair comparison exists.",
+      "mandatorySubstitute": false
+    },
+    {
+      "id": "X2_MODEL_MIGRATION",
+      "decision": "NOT_ACTIVATED",
+      "trigger": "A candidate beats repaired native under identical inputs and then satisfies full replacement-runtime compatibility, acceptance and rollback gates.",
+      "currentReason": "No qualifying X1/model result, full 75/CD gate or release authority.",
+      "mandatorySubstitute": false
+    },
+    {
+      "id": "M1_SERVICE_RELOCATION",
+      "decision": "NOT_ACTIVATED",
+      "trigger": "A separate operational case plus complete authority, caller, job and ownership inventories.",
+      "currentReason": "No measured relocation need or ownership transfer evidence.",
+      "mandatorySubstitute": false
+    },
+    {
+      "id": "F1_BREADTH_EXPANSION",
+      "decision": "NOT_ACTIVATED",
+      "trigger": "Relevant workflow contracts are qualified and added jurisdiction, connector or model-role breadth shows independent measured benefit.",
+      "currentReason": "Mandatory current workflow/source boundaries remain open.",
+      "mandatorySubstitute": false
+    }
   ]
 }
