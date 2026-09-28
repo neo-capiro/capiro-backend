@@ -107,6 +107,9 @@ export function ActionProposalCard({
   const isProposed = proposal.status === 'proposed';
   const isRetryable = proposal.status === 'failed_retryable';
   const isExecuting = proposal.status === 'executing';
+  const recoveryBlocksAction =
+    proposal.approvalRecovery?.state === 'checking' ||
+    proposal.approvalRecovery?.state === 'unavailable';
   const mayRepropose = proposal.status === 'expired' || proposal.status === 'blocked';
   const expiresAt = formatDate(proposal.expiresAt);
   const approvedAt = formatDate(proposal.approvedAt);
@@ -188,6 +191,11 @@ export function ActionProposalCard({
           Executing this exact approved proposal…
         </div>
       )}
+      {proposal.approvalRecovery && (
+        <div className="action-proposal__error" role="alert" aria-live="assertive">
+          {proposal.approvalRecovery.message}
+        </div>
+      )}
 
       <button
         type="button"
@@ -257,25 +265,33 @@ export function ActionProposalCard({
               ref={approveTriggerRef}
               type="button"
               className="action-proposal__approve"
-              disabled={busy}
+              disabled={busy || recoveryBlocksAction}
               onClick={() => setConfirmOpen(true)}
             >
-              {busy ? 'Working…' : isRetryable ? 'Retry' : 'Approve & run'}
+              {busy
+                ? 'Working…'
+                : proposal.approvalRecovery?.state === 'checking'
+                  ? 'Checking status…'
+                  : proposal.approvalRecovery?.state === 'unavailable'
+                    ? 'Retry blocked'
+                    : isRetryable
+                      ? 'Retry'
+                      : 'Approve & run'}
             </button>
           )
         )}
         {isProposed && onEditProposal && (
-          <button type="button" disabled={busy} onClick={() => onEditProposal(proposal)}>
+          <button type="button" disabled={busy || recoveryBlocksAction} onClick={() => onEditProposal(proposal)}>
             Edit proposal
           </button>
         )}
         {mayRepropose && onRepropose && (
-          <button type="button" disabled={busy} onClick={() => onRepropose(proposal)}>
+          <button type="button" disabled={busy || recoveryBlocksAction} onClick={() => onRepropose(proposal)}>
             Re-propose
           </button>
         )}
         {!isExecuting && (
-          <button type="button" disabled={busy} onClick={() => void onDismiss(proposal.proposalId)}>
+          <button type="button" disabled={busy || recoveryBlocksAction} onClick={() => void onDismiss(proposal.proposalId)}>
             {isProposed ? 'Dismiss' : 'Clear'}
           </button>
         )}

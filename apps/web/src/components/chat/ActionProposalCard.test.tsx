@@ -120,6 +120,25 @@ describe('ActionProposalCard', () => {
     expect(repropose).toHaveBeenCalledOnce();
     expect(screen.queryByRole('button', { name: 'Approve & run' })).toBeNull();
   });
+
+  it('shows an unconfirmed approval outcome and blocks another execution attempt', () => {
+    render(
+      <ActionProposalCard
+        proposal={proposal({
+          approvalRecovery: {
+            state: 'unavailable',
+            message: 'Outcome is not confirmed; this action may have already happened.',
+          },
+        })}
+        onApprove={vi.fn()}
+        onDismiss={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent('may have already happened');
+    expect(screen.getByRole('button', { name: 'Retry blocked' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Dismiss' })).toBeDisabled();
+  });
 });
 
 describe('ActionProposalList', () => {
