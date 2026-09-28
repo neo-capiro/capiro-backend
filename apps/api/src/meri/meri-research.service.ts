@@ -69,7 +69,11 @@ import {
   type ResearchHandoffInput,
 } from './meri-research-handoff.js';
 import { attachmentMetaRef } from './meri-attachment.helpers.js';
-import { MeriV3ResearchRunner, type ResearchRuntimeAuth } from './meri-v3-research-runner.js';
+import {
+  MeriV3ResearchRunner,
+  type ResearchChildRuntimeResult,
+  type ResearchRuntimeAuth,
+} from './meri-v3-research-runner.js';
 import type {
   MeriV3ProviderTelemetry,
   MeriV3RetrievalStreamSummary,
@@ -154,6 +158,18 @@ import {
   reserveDurableResearchStep,
   DurableResearchCoordinatorError,
 } from './meri-research-coordinator.js';
+import {
+  ResearchChildTaskError,
+  completeResearchChildTask,
+  createResearchChildTaskBatch,
+  currentResearchGoalRevision,
+  failResearchChildTask,
+  persistResearchChildTaskBatch,
+  readResearchChildTasks,
+  researchChildEvidenceHandles,
+  type ResearchChildFailureV1,
+  type ResearchChildTaskV1,
+} from './meri-research-child-task.js';
 
 const PRODUCT_NAME = 'Meri';
 
@@ -844,6 +860,65 @@ export class MeriResearchService {
       };
     }
     throw new ConflictException('Research provider usage changed concurrently; retry settlement.');
+  }
+
+  /** Persist the complete two-leaf batch under the current lease before dispatch. */
+  async persistChildTaskBatch(
+    ctx: TenantContext,
+    id: string,
+    runId: string,
+    leaseEpoch: number,
+    tasks: ResearchChildTaskV1[],
+  ): Promise<ResearchChildTaskV1[]> {
+    return this.updateResearchChildMetadata(ctx, id, runId, leaseEpoch, (metadata, run) =>
+      persistResearchChildTaskBatch({ metadata, run, tasks }),
+    );
+  }
+
+  /** Persist a validated structured result before parent synthesis can observe it. */
+  async persistChildTaskResult(
+    ctx: TenantContext,
+    id: string,
+    runId: string,
+    leaseEpoch: number,
+    taskId: string,
+    result: ResearchChildRuntimeResult,
+  ): Promise<ResearchChildTaskV1[]> {
+    return this.updateResearchChildMetadata(ctx, id, runId, leaseEpoch, (metadata, run) => {
+      const goalRevision = currentResearchGoalRevision(metadata);
+      return completeResearchChildTask({
+        metadata,
+        run,
+        goalRevision,
+        taskId,
+        output: result.output,
+        model: result.model,
+        provider: 'openai',
+        allowedEvidenceHandles: researchChildEvidenceHandles(result.citations),
+      });
+    });
+  }
+
+  /** Persist a typed child failure; raw provider text never becomes a finding. */
+  async persistChildTaskFailure(
+    ctx: TenantContext,
+    id: string,
+    runId: string,
+    leaseEpoch: number,
+    taskId: string,
+    failure: Omit<ResearchChildFailureV1, 'failedAt'>,
+  ): Promise<ResearchChildTaskV1[]> {
+    return this.updateResearchChildMetadata(ctx, id, runId, leaseEpoch, (metadata, run) => {
+      const goalRevision = currentResearchGoalRevision(metadata);
+      return failResearchChildTask({
+        metadata,
+        run,
+        goalRevision,
+        taskId,
+        failure,
+        status: failure.code === 'cancelled' ? 'cancelled' : 'failed',
+      });
+    });
   }
 
   /** Reserve one server-owned attempt before a research runtime may dispatch it. */
@@ -2632,7 +2707,8 @@ export class MeriResearchService {
     const session = await this.ensureSession(ctx, id);
     const admittedPlan = await this.admitResearchPlanForDispatch(ctx, session, auth);
     if (!auth.run) throw new ConflictException('Research dispatch requires an active run lease.');
-    await this.assertRunActive(ctx, id, auth.run.id);
+    const activeRunId = auth.run.id;
+    await this.assertRunActive(ctx, id, activeRunId);
 
     const plan = researchPlanStringProjection(admittedPlan);
     const clarifyingQuestions = asStringArray(session.clarifyingQuestions);
@@ -2669,7 +2745,7 @@ export class MeriResearchService {
       ) {
         throw new ConflictException('Research scope changed during dispatch preparation.');
       }
-      const acceptedUser = [
+      const baseAcceptedUser = [
         buildResearchUserPrompt({
           topic: acceptedSession.topic,
           plan: researchPlanStringProjection(acceptedPlan),
@@ -2682,6 +2758,44 @@ export class MeriResearchService {
       ]
         .filter(Boolean)
         .join('\n\n');
+      progress.set('Running two bounded read-only evidence reviews…');
+      const childResults = await this.runBoundedResearchChildren(
+        ctx,
+        acceptedSession,
+        acceptedPlan,
+        clientContext,
+        auth,
+      );
+      if (auth.signal?.aborted) throw new BadRequestException('Research was cancelled.');
+      // Child execution and source reauthorization can span multiple awaits.
+      // Rebind the parent dispatch after them, before admitting child prose.
+      const currentDispatch = await this.admitFreshResearchPlanForDispatch(ctx, id, auth);
+      if (
+        currentResearchGoalRevision(currentDispatch.session.metadata) !==
+          currentResearchGoalRevision(acceptedSession.metadata) ||
+        researchJsonSha256(currentDispatch.plan) !== researchJsonSha256(acceptedPlan)
+      ) {
+        throw new ConflictException(
+          'Research goal or scope changed while child findings were running.',
+        );
+      }
+      const acceptedUser = [
+        baseAcceptedUser,
+        childResults.length
+          ? [
+              'PERSISTED CURRENTLY-AUTHORIZED BOUNDED CHILD FINDINGS:',
+              JSON.stringify(
+                childResults.map((child) => ({
+                  taskId: child.taskId,
+                  goalRevision: child.output.goalRevision,
+                  findings: child.output.findings,
+                  limitations: child.output.limitations,
+                })),
+              ),
+              'Synthesize these findings as evidence summaries, not as a final answer. Preserve their exact source handles and report contradictions or limitations.',
+            ].join('\n')
+          : 'No bounded child finding passed the typed result and current-source gates. Research directly and report the gap truthfully.',
+      ].join('\n\n');
       progress.set(RESEARCH_OBSERVER_STATUS.startingRuntime);
       const result = await this.v3Research.run(
         ctx,
@@ -2716,8 +2830,9 @@ export class MeriResearchService {
           else sse.write(sseEvent(projected));
         },
       );
+      const joinedResult = joinResearchChildEvidence(result, childResults);
       await this.finishResearch(ctx, acceptedSession, sse, progress, {
-        ...result,
+        ...joinedResult,
         runAuth: auth,
         auditorMode: await resolveTenantAuditorMode(this.prisma, ctx.tenantId),
         bufferReport: true,
@@ -3861,6 +3976,246 @@ export class MeriResearchService {
 
   // ── internals ───────────────────────────────────────────────────────────
 
+  private async runBoundedResearchChildren(
+    ctx: TenantContext,
+    session: Awaited<ReturnType<MeriResearchService['ensureSession']>>,
+    plan: ResearchPlanV1,
+    clientContext: string | null,
+    auth: ResearchRuntimeAuth,
+  ): Promise<ResearchChildRuntimeResult[]> {
+    if (!this.v3Research || !auth.run)
+      throw new ConflictException('Bounded child research requires the active V3 run.');
+    const run = auth.run;
+    const handoff = readResearchHandoff(session.metadata);
+    const allowed = [
+      ...new Set(
+        plan.steps
+          .filter((step) => step.effect === 'read')
+          .flatMap((step) => step.allowedCapabilities)
+          .filter(
+            (capability) =>
+              this.tools.isConcurrencySafe(capability) &&
+              !this.tools.isSideEffecting(capability) &&
+              Boolean(publicResearchSourceTool(capability)),
+          ),
+      ),
+    ].sort();
+    // Child findings must remain compatible with the existing report provenance
+    // owner. Plans without a currently reauthorizable source stay parent-only.
+    if (!allowed.length) return [];
+    const left = allowed.filter((_capability, index) => index % 2 === 0);
+    const right = allowed.filter((_capability, index) => index % 2 === 1);
+    if (!right.length) right.push(...left);
+    const goalRevision = currentResearchGoalRevision(session.metadata);
+    const providerDeadline = this.researchProviderBudgetLimits(run).deadlineAt;
+    const coordinatorDeadline = researchMetadata(
+      researchMetadata(session.metadata).durableCoordinator,
+    ).deadlineAt;
+    const deadlineAt =
+      typeof coordinatorDeadline === 'string' &&
+      Number.isFinite(Date.parse(coordinatorDeadline)) &&
+      Date.parse(coordinatorDeadline) < Date.parse(providerDeadline)
+        ? coordinatorDeadline
+        : providerDeadline;
+    const tasks = createResearchChildTaskBatch({
+      specs: [
+        {
+          id: `${run.id}:child:${goalRevision}:1`,
+          role: 'evidence_reviewer',
+          goal: `Review the admitted evidence for: ${plan.steps
+            .filter((step) => step.effect === 'read')
+            .map((step) => step.objective)
+            .join('; ')}`.slice(0, 2_000),
+          allowedCapabilities: left,
+        },
+        {
+          id: `${run.id}:child:${goalRevision}:2`,
+          role: 'scope_analyst',
+          goal: `Independently identify scope gaps and contradictions for: ${plan.steps
+            .filter((step) => step.effect === 'read')
+            .map((step) => step.objective)
+            .join('; ')}`.slice(0, 2_000),
+          allowedCapabilities: right,
+        },
+      ],
+      run,
+      scope: plan.scope,
+      parentPlan: plan,
+      parentAllowedReadCapabilities: allowed,
+      evidenceHandles: [],
+      goalRevision,
+      modelConfig: {
+        policy: 'current_approved_research_model',
+        provider: 'openai',
+        modelSelection: 'server_resolved',
+        reasoningMode: handoff?.reasoningMode ?? 'deep',
+        allowProviderFallback: false,
+      },
+      deadlineAt,
+    });
+    await this.persistChildTaskBatch(ctx, session.id, run.id, run.leaseEpoch, tasks);
+
+    const outcomes = await Promise.all(
+      tasks.map(async (task): Promise<ResearchChildRuntimeResult | null> => {
+        try {
+          const result = await this.v3Research!.runChild(
+            ctx,
+            task,
+            {
+              sessionId: session.id,
+              conversationId: handoff?.conversationId ?? null,
+              clientId: session.clientId,
+              system: '',
+              user: '',
+              handoff,
+              clientContext,
+              admittedPlanExecution: {
+                plan,
+                allowedReadCapabilities: task.allowedCapabilities,
+              },
+            },
+            auth,
+          );
+          await this.persistChildTaskResult(
+            ctx,
+            session.id,
+            run.id,
+            run.leaseEpoch,
+            task.id,
+            result,
+          );
+          return result;
+        } catch (error) {
+          const failure = researchChildFailure(error, auth.signal);
+          try {
+            await this.persistChildTaskFailure(
+              ctx,
+              session.id,
+              run.id,
+              run.leaseEpoch,
+              task.id,
+              failure,
+            );
+          } catch {
+            // Stop, lease loss, or steering already owns the authoritative state.
+          }
+          return null;
+        }
+      }),
+    );
+    if (auth.signal?.aborted) throw new BadRequestException('Research was cancelled.');
+    const successful = outcomes.filter(
+      (outcome): outcome is ResearchChildRuntimeResult => outcome !== null,
+    );
+    const current = await this.ensureSession(ctx, session.id);
+    const currentRun = readResearchRun(current.metadata);
+    if (
+      currentRun?.id !== run.id ||
+      currentRun.leaseEpoch !== run.leaseEpoch ||
+      currentRun.status !== 'running'
+    ) {
+      throw new ConflictException('Research lease is no longer active.');
+    }
+    if (currentResearchGoalRevision(current.metadata) !== goalRevision)
+      throw new ConflictException('Research goal changed while child findings were running.');
+    const persisted = new Map(
+      readResearchChildTasks(current.metadata).map((task) => [task.id, task]),
+    );
+    const eligible = successful.filter(
+      (child) => persisted.get(child.taskId)?.status === 'completed',
+    );
+    if (!eligible.length) return [];
+
+    const toolsUsed = [...new Set(eligible.flatMap((child) => child.toolsUsed))].sort();
+    try {
+      await assertCurrentResearchReportSourcesAuthorized({
+        prisma: this.prisma,
+        tools: this.tools,
+        ctx,
+        scope: {
+          sessionId: session.id,
+          clientId: session.clientId,
+          conversationId: handoff?.conversationId ?? undefined,
+          publication: {
+            runId: run.id,
+            leaseEpoch: run.leaseEpoch,
+            toolsUsed,
+            producerInputSha256: researchJsonSha256({
+              version: 1,
+              childTasks: eligible.map((child) => ({
+                taskId: child.taskId,
+                output: child.output,
+              })),
+            }),
+            producerInputMode: 'covered_inputs',
+            clientContextSha256: eligible[0]?.clientContextSha256 ?? null,
+          },
+        },
+      });
+    } catch (error) {
+      await Promise.all(
+        eligible.map((child) =>
+          this.persistChildTaskFailure(ctx, session.id, run.id, run.leaseEpoch, child.taskId, {
+            code: 'source_not_current',
+            message: 'A child source could not be reauthorized by its current owner.',
+          }).catch(() => undefined),
+        ),
+      );
+      this.logger.warn(
+        `Bounded child source proof failed: ${error instanceof Error ? error.message : 'unknown error'}`,
+      );
+      return [];
+    }
+    return eligible;
+  }
+
+  private async updateResearchChildMetadata(
+    ctx: TenantContext,
+    id: string,
+    runId: string,
+    leaseEpoch: number,
+    mutate: (metadata: unknown, run: ResearchRunState) => Record<string, unknown>,
+  ): Promise<ResearchChildTaskV1[]> {
+    for (let retry = 0; retry < 4; retry += 1) {
+      const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        const current = await tx.clioResearchSession.findFirst({
+          where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
+        });
+        const run = readResearchRun(current?.metadata);
+        if (
+          !current ||
+          !run ||
+          run.id !== runId ||
+          run.leaseEpoch !== leaseEpoch ||
+          run.status !== 'running'
+        ) {
+          throw new ConflictException('Research lease is no longer active.');
+        }
+        const nextMetadata = mutate(current.metadata, run);
+        if (nextMetadata === current.metadata) {
+          return { retry: false as const, tasks: readResearchChildTasks(current.metadata) };
+        }
+        const changed = await this.updateActiveResearchRun(
+          tx,
+          ctx,
+          current.id,
+          run,
+          current.metadata,
+          nextMetadata,
+          current.status,
+          new Date(),
+        );
+        return changed
+          ? { retry: false as const, tasks: readResearchChildTasks(nextMetadata) }
+          : { retry: true as const };
+      });
+      if (!result.retry) return result.tasks;
+    }
+    throw new ConflictException(
+      'Research child state changed concurrently; retry with the same child identity.',
+    );
+  }
+
   private researchProviderBudgetLimits(run: ResearchRunState): ResearchProviderBudgetLimitsV1 {
     if (this.config.get('CLIO_RESEARCH_PROVIDER_BUDGET_ENABLED', { infer: true }) === false)
       throw new ConflictException('research_provider_budget_disabled');
@@ -4628,6 +4983,87 @@ export class MeriResearchService {
 }
 
 /* ── module-private pure helpers ─────────────────────────────────────────── */
+
+function researchChildFailure(
+  error: unknown,
+  signal: AbortSignal | undefined,
+): Omit<ResearchChildFailureV1, 'failedAt'> {
+  if (signal?.aborted)
+    return { code: 'cancelled', message: 'The parent research run was stopped.' };
+  if (error instanceof ResearchChildTaskError) {
+    if (error.code === 'research_child_deadline_exceeded')
+      return { code: 'deadline_exceeded', message: 'The bounded child deadline elapsed.' };
+    if (error.code === 'research_child_goal_revision_mismatch')
+      return {
+        code: 'superseded_goal_revision',
+        message: 'A newer research goal revision superseded the child result.',
+      };
+    return {
+      code: 'schema_invalid',
+      message: `Strict bounded child validation rejected the result (${error.code}).`.slice(0, 600),
+    };
+  }
+  return {
+    code: 'provider_failed',
+    message: 'The approved research provider runtime did not return a usable child result.',
+  };
+}
+
+function joinResearchChildEvidence<
+  T extends {
+    sources: SourceAttribution[];
+    toolsUsed: string[];
+    ledgerEntries: LedgerEntry[];
+    citations: MeriCitation[];
+  },
+>(parent: T, children: readonly ResearchChildRuntimeResult[]): T {
+  if (!children.length) return parent;
+  const sources = [...parent.sources];
+  const sourceKeys = new Set(sources.map((source) => `${source.tool}\u0000${source.summary}`));
+  for (const source of children.flatMap((child) => child.sources)) {
+    const key = `${source.tool}\u0000${source.summary}`;
+    if (!sourceKeys.has(key)) {
+      sourceKeys.add(key);
+      sources.push(source);
+    }
+  }
+  const ledgerEntries = [...parent.ledgerEntries];
+  const ledgerKeys = new Set(ledgerEntries.map(researchChildLedgerKey));
+  for (const entry of children.flatMap((child) => child.ledgerEntries)) {
+    const key = researchChildLedgerKey(entry);
+    if (!ledgerKeys.has(key)) {
+      ledgerKeys.add(key);
+      ledgerEntries.push(entry);
+    }
+  }
+  const citations = [...parent.citations];
+  const citationKeys = new Set(
+    citations.map((citation) => `${citation.tool}:${citation.id || citation.stableId || ''}`),
+  );
+  let citationNumber = citations.reduce((max, citation) => Math.max(max, citation.n), 0);
+  for (const citation of children.flatMap((child) => child.citations)) {
+    const key = `${citation.tool}:${citation.id || citation.stableId || ''}`;
+    if (!citationKeys.has(key)) {
+      citationKeys.add(key);
+      citationNumber += 1;
+      citations.push({ ...citation, n: citationNumber });
+    }
+  }
+  return {
+    ...parent,
+    sources,
+    toolsUsed: [...new Set([...parent.toolsUsed, ...children.flatMap((child) => child.toolsUsed)])],
+    ledgerEntries,
+    citations,
+  };
+}
+
+function researchChildLedgerKey(entry: LedgerEntry): string {
+  const durable = researchMetadata(researchMetadata(entry).durableSafeRead);
+  return typeof durable.executionId === 'string' && typeof durable.receiptId === 'string'
+    ? `${durable.executionId}:${durable.receiptId}`
+    : JSON.stringify(entry);
+}
 
 function researchLeaseError(message: string): Error {
   const error = new Error(message);

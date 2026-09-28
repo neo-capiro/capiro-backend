@@ -8,6 +8,7 @@ import type {
   MeriV3RetrievalStreamSummary,
 } from './meriv3-chat.client.js';
 import { researchHandoffPrompt, type MeriResearchHandoff } from './meri-research-handoff.js';
+import { createResearchChildTaskBatch } from './meri-research-child-task.js';
 
 // Infrastructure is replaced at its constructor boundary; the production runner
 // and its actual event/credential/evidence logic execute unchanged.
@@ -21,7 +22,11 @@ jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class {} }));
 jest.mock('./meri-feature-flags.service.js', () => ({ MeriFeatureFlagsService: class {} }));
 
 const ctx = { tenantId: 'tenant-a', userId: 'user-a', tenantSlug: 'internal' } as TenantContext;
-const governedContext = { version: 1, prompt: 'Authorized client evidence', operationId: 'research.generate-report' } as MeriGovernedTurnContext;
+const governedContext = {
+  version: 1,
+  prompt: 'Authorized client evidence',
+  operationId: 'research.generate-report',
+} as MeriGovernedTurnContext;
 const auth = {
   bearerToken: 'caller-token',
   impersonateTenantId: 'tenant-a',
@@ -87,6 +92,123 @@ const input = {
   },
 };
 
+const childPlan = {
+  ...admittedPlan,
+  steps: [
+    {
+      ...admittedPlan.steps[0]!,
+      id: 'read-memory',
+      objective: 'Read current memory',
+      requiredEvidenceDomains: ['institutional_memory' as const],
+      allowedCapabilities: ['search_memory'],
+    },
+  ],
+};
+const childInput = {
+  ...input,
+  admittedPlanExecution: { plan: childPlan, allowedReadCapabilities: ['search_memory'] },
+};
+const childDurable = {
+  executionId: 'child-execution-a',
+  providerCallId: 'child-provider-call-a',
+  tool: 'search_memory',
+  toolVersion: 'sha256:child-schema',
+  classifier: 'complete' as const,
+  sequence: 11,
+  receiptId: 'child-receipt-a',
+  replayed: false,
+};
+const childMemoryResult = {
+  tool: 'search_memory',
+  coverage: {
+    complete: true,
+    paginationComplete: true,
+    sources: [
+      {
+        domain: 'institutional_knowledge',
+        sourceStatus: 'healthy',
+        hasMore: false,
+        truncated: false,
+        paginationComplete: true,
+        coverageComplete: true,
+      },
+    ],
+  },
+  factContentUnavailableCount: 0,
+  contentStatus: 'available',
+  contentTruncated: false,
+  nextCursor: null,
+  results: [{ id: 'memory-a', content: 'bounded content' }],
+  records: [{ id: 'memory-a', content: 'bounded content' }],
+};
+
+function childDoneFrame(base: MeriV3ChatStreamEvent, reply: string): MeriV3ChatStreamEvent {
+  return {
+    ...base,
+    reply,
+    steps: [
+      {
+        tool: 'search_memory',
+        label: 'Search memory',
+        status: 'done',
+        durableSafeRead: childDurable,
+      },
+    ],
+    ledgerEntries: [
+      {
+        tool: 'search_memory',
+        result: childMemoryResult,
+        serialized: '{}',
+        durableSafeRead: childDurable,
+      },
+    ],
+    citations: [
+      {
+        n: 1,
+        id: 'memory-a',
+        tool: 'search_memory',
+        title: 'Memory',
+        type: 'memory',
+        url: null,
+        snippet: null,
+      },
+    ],
+  } as MeriV3ChatStreamEvent;
+}
+
+function childTask() {
+  return createResearchChildTaskBatch({
+    specs: [
+      {
+        id: 'child-one',
+        role: 'evidence_reviewer',
+        goal: 'Review the admitted memory evidence.',
+        allowedCapabilities: ['search_memory'],
+      },
+      {
+        id: 'child-two',
+        role: 'scope_analyst',
+        goal: 'Independently review gaps in the admitted memory evidence.',
+        allowedCapabilities: ['search_memory'],
+      },
+    ],
+    run: auth.run,
+    scope: admittedPlan.scope,
+    parentPlan: childPlan,
+    parentAllowedReadCapabilities: ['search_memory'],
+    evidenceHandles: [],
+    goalRevision: 0,
+    modelConfig: {
+      policy: 'current_approved_research_model',
+      provider: 'openai',
+      modelSelection: 'server_resolved',
+      reasoningMode: 'max',
+      allowProviderFallback: false,
+    },
+    deadlineAt: '2099-09-06T00:00:00.000Z',
+  })[0]!;
+}
+
 function fixture(events?: MeriV3ChatStreamEvent[]) {
   const done = {
     type: 'done',
@@ -141,31 +263,181 @@ function fixture(events?: MeriV3ChatStreamEvent[]) {
 }
 
 describe('MeriV3ResearchRunner primary runtime', () => {
+  it('executes a bounded leaf on the approved parent runtime with strict structured output', async () => {
+    const base = fixture();
+    const childDone = childDoneFrame(
+      base.done,
+      JSON.stringify({
+        version: 1,
+        goalRevision: 0,
+        findings: [
+          {
+            id: 'memory-finding',
+            statement: 'The admitted memory record supports the bounded finding.',
+            evidenceHandles: ['search_memory:memory-a'],
+            confidence: 'high',
+          },
+        ],
+        limitations: ['Only the admitted memory record was reviewed.'],
+      }),
+    );
+    const { runner, client } = fixture([childDone]);
+
+    const result = await runner.runChild(ctx, childTask(), childInput, auth);
+
+    expect(result.output.findings[0]?.evidenceHandles).toEqual(['search_memory:memory-a']);
+    expect(result.schemaCorrections).toBe(0);
+    expect(client.streamChat).toHaveBeenCalledTimes(1);
+    expect(client.streamChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          toolPolicy: 'read-only',
+          researchRun: { sessionId: 'research-a', runId: 'run-a', leaseEpoch: 3 },
+          researchPlanExecution: expect.objectContaining({
+            allowedReadCapabilities: ['search_memory'],
+          }),
+          skillAddendum: expect.stringContaining('cannot write, delegate, or change scope'),
+        }),
+      }),
+    );
+  });
+
+  it('allows one bounded schema correction without widening capability or parent budget scope', async () => {
+    const base = fixture();
+    let call = 0;
+    const { runner, client } = fixture();
+    client.streamChat.mockImplementation(async (params) => {
+      call += 1;
+      params.onEvent(
+        childDoneFrame(
+          base.done,
+          call === 1
+            ? '{malformed'
+            : JSON.stringify({
+                version: 1,
+                goalRevision: 0,
+                findings: [
+                  {
+                    id: 'corrected-finding',
+                    statement: 'The corrected result remains evidence-bound.',
+                    evidenceHandles: ['search_memory:memory-a'],
+                    confidence: 'medium',
+                  },
+                ],
+                limitations: [],
+              }),
+        ),
+      );
+    });
+
+    const result = await runner.runChild(ctx, childTask(), childInput, auth);
+
+    expect(result.schemaCorrections).toBe(1);
+    expect(client.streamChat).toHaveBeenCalledTimes(2);
+    for (const request of client.streamChat.mock.calls) {
+      expect(request[0].input.researchRun).toEqual({
+        sessionId: 'research-a',
+        runId: 'run-a',
+        leaseEpoch: 3,
+      });
+      expect(request[0].input.researchPlanExecution?.allowedReadCapabilities).toEqual([
+        'search_memory',
+      ]);
+    }
+  });
+
+  it('aborts a pending provider stream at the child deadline without aborting the parent', async () => {
+    const { runner, client } = fixture();
+    const parent = new AbortController();
+    let observedSignal: AbortSignal | undefined;
+    client.streamChat.mockImplementation(async (params) => {
+      observedSignal = params.signal;
+      await new Promise<void>((_resolve, reject) => {
+        params.signal!.addEventListener('abort', () => reject(params.signal!.reason), {
+          once: true,
+        });
+      });
+    });
+    await expect(
+      runner.runChild(
+        ctx,
+        {
+          ...childTask(),
+          deadlineAt: new Date(Date.now() + 100).toISOString(),
+        },
+        childInput,
+        { ...auth, signal: parent.signal },
+      ),
+    ).rejects.toThrow('research_child_deadline_exceeded');
+    expect(observedSignal?.aborted).toBe(true);
+    expect(parent.signal.aborted).toBe(false);
+    expect(client.streamChat).toHaveBeenCalledTimes(1);
+  });
+
+  it('forwards a parent cancellation to a running child stream', async () => {
+    const { runner, client } = fixture();
+    const parent = new AbortController();
+    client.streamChat.mockImplementation(async (params) => {
+      parent.abort();
+      expect(params.signal?.aborted).toBe(true);
+    });
+    await expect(
+      runner.runChild(ctx, childTask(), childInput, {
+        ...auth,
+        signal: parent.signal,
+      }),
+    ).rejects.toThrow('research_child_cancelled');
+    expect(client.streamChat).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects stale child ownership before credential or provider dispatch', async () => {
+    const { runner, client, credentials } = fixture();
+    await expect(
+      runner.runChild(ctx, { ...childTask(), leaseEpoch: 2 }, childInput, auth),
+    ).rejects.toThrow('research_child_runtime_binding_invalid');
+    expect(credentials.resolveProvider).not.toHaveBeenCalled();
+    expect(client.streamChat).not.toHaveBeenCalled();
+  });
+
   it('uses the same V3 gate and caller OpenAI credential, forwarding server scope, reasoning and governed context', async () => {
     const { runner, client, flags, credentials } = fixture();
     expect(await runner.enabled(ctx)).toBe(true);
     const result = await runner.run(ctx, input, auth, () => {});
     expect(flags.isMeriV3ChatEnabled).toHaveBeenCalledWith('tenant-a', 'internal');
     expect(credentials.resolveProvider).toHaveBeenCalledWith(ctx, 'openai');
-    expect(client.streamChat).toHaveBeenCalledWith(expect.objectContaining({
-      bearerToken: 'caller-token', impersonateTenantId: 'tenant-a',
-      input: expect.objectContaining({
-        conversationId: 'thread-a', clientId: 'client-a', reasoningMode: 'max', governedContext,
-        toolPolicy: 'read-only', messages: [{ role: 'user', text: input.user }],
-        researchRun: { sessionId: 'research-a', runId: 'run-a', leaseEpoch: 3 },
-        researchPlanExecution: expect.objectContaining({
-          version: 1,
-          planVersion: 1,
-          planSha256: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
-          allowedReadCapabilities: ['get_client_context'],
-          scope: expect.objectContaining({
-            sessionId: 'research-a', runId: 'run-a', leaseEpoch: 3,
-            tenantId: 'tenant-a', actorId: 'user-a', clientId: 'client-a', conversationId: 'thread-a',
+    expect(client.streamChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bearerToken: 'caller-token',
+        impersonateTenantId: 'tenant-a',
+        input: expect.objectContaining({
+          conversationId: 'thread-a',
+          clientId: 'client-a',
+          reasoningMode: 'max',
+          governedContext,
+          toolPolicy: 'read-only',
+          messages: [{ role: 'user', text: input.user }],
+          researchRun: { sessionId: 'research-a', runId: 'run-a', leaseEpoch: 3 },
+          researchPlanExecution: expect.objectContaining({
+            version: 1,
+            planVersion: 1,
+            planSha256: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+            allowedReadCapabilities: ['get_client_context'],
+            scope: expect.objectContaining({
+              sessionId: 'research-a',
+              runId: 'run-a',
+              leaseEpoch: 3,
+              tenantId: 'tenant-a',
+              actorId: 'user-a',
+              clientId: 'client-a',
+              conversationId: 'thread-a',
+            }),
           }),
         }),
       }),
-    }));
-    expect(JSON.stringify(client.streamChat.mock.calls[0]?.[0].input)).not.toContain('completionCondition');
+    );
+    expect(JSON.stringify(client.streamChat.mock.calls[0]?.[0].input)).not.toContain(
+      'completionCondition',
+    );
     expect(result.model).toBe('configured-chat-model');
     expect(result.ledgerEntries).toHaveLength(1);
   });
@@ -240,7 +512,11 @@ describe('MeriV3ResearchRunner primary runtime', () => {
   it('plans on the same runtime with tools disabled and honors Standard explicitly', async () => {
     const { runner, client } = fixture();
     await runner.plan(ctx, { ...input, handoff: { ...handoff, reasoningMode: 'standard' } }, auth);
-    expect(client.streamChat).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining({ toolPolicy: 'none', reasoningMode: 'standard' }) }));
+    expect(client.streamChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({ toolPolicy: 'none', reasoningMode: 'standard' }),
+      }),
+    );
     expect(client.streamChat.mock.calls[0]?.[0].input).not.toHaveProperty('researchRun');
     expect(client.streamChat.mock.calls[0]?.[0].input).not.toHaveProperty('researchPlanExecution');
   });

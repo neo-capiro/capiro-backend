@@ -655,6 +655,34 @@ function fixture(
 }
 
 describe('Deep Research conversation continuity', () => {
+  it.each(['goal', 'plan'] as const)(
+    'withholds child findings from parent dispatch after a newer %s arrives',
+    async (change) => {
+      const f = fixture();
+      await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+      jest.spyOn(f.service as any, 'runBoundedResearchChildren').mockImplementation(async () => {
+        const session = f.getSession();
+        session.metadata = {
+          ...session.metadata,
+          ...(change === 'goal'
+            ? {
+                durableCoordinator: {
+                  ...session.metadata.durableCoordinator,
+                  goalRevision: session.metadata.durableCoordinator.goalRevision + 1,
+                },
+              }
+            : {
+                researchPlan: { ...session.metadata.researchPlan, title: 'A newer approved goal' },
+              }),
+        };
+        return [];
+      });
+      await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
+      expect(f.runner.run).not.toHaveBeenCalled();
+      expect(f.artifacts).toHaveLength(0);
+    },
+  );
+
   it('sends the same numbered source objects on completion, replay, and saved report recovery', async () => {
     const f = fixture();
     const citation = {

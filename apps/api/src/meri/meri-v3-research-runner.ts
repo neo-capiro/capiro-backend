@@ -29,6 +29,14 @@ import {
   ResearchTerminalError,
 } from './research-observer-projection.js';
 import type { ResearchPlanV1 } from './meri-research-plan.js';
+import {
+  ResearchChildTaskError,
+  researchChildEvidenceHandles,
+  researchChildOutputContract,
+  validateResearchChildOutput,
+  type ResearchChildStructuredOutputV1,
+  type ResearchChildTaskV1,
+} from './meri-research-child-task.js';
 
 export interface ResearchRuntimeAuth {
   bearerToken?: string;
@@ -50,6 +58,8 @@ interface ResearchRunInput {
   user: string;
   handoff: MeriResearchHandoff | null;
   clientContext?: string | null;
+  /** Child leaves cannot inherit conversational evidence outside their persisted task. */
+  inheritConversationEvidence?: boolean;
   /** API-admitted authority. Present only for execution, never model planning. */
   admittedPlanExecution?: {
     plan: ResearchPlanV1;
@@ -64,6 +74,20 @@ type ResearchDoneFrame = DoneFrame & {
   producerInputMode?: 'source_free' | 'covered_inputs' | 'unsupported_private_inputs';
   clientContextSha256?: string | null;
 };
+
+export interface ResearchChildRuntimeResult {
+  taskId: string;
+  output: ResearchChildStructuredOutputV1;
+  model: string;
+  sources: SourceAttribution[];
+  toolsUsed: string[];
+  ledgerEntries: LedgerEntry[];
+  citations: NonNullable<DoneFrame['citations']>;
+  producerInputSha256: string;
+  producerInputMode: 'source_free' | 'covered_inputs' | 'unsupported_private_inputs';
+  clientContextSha256: string | null;
+  schemaCorrections: 0 | 1;
+}
 
 /** Reuse chat's provider-led Responses loop, credentials, tools and governance. */
 @Injectable()
@@ -87,7 +111,14 @@ export class MeriV3ResearchRunner {
     input: ResearchRunInput,
     auth: ResearchRuntimeAuth,
   ): Promise<string> {
-    const result = await this.complete(ctx, input, auth, 'none', () => {});
+    const { admittedPlanExecution: _execution, ...planningInput } = input;
+    const result = await this.complete(
+      ctx,
+      planningInput,
+      { ...auth, run: undefined },
+      'none',
+      () => {},
+    );
     return result.reply;
   }
 
@@ -187,6 +218,167 @@ export class MeriV3ResearchRunner {
     };
   }
 
+  /**
+   * Execute one persisted leaf child through the same approved V3 provider/tool
+   * runtime and parent research budget. The API owns task persistence; this
+   * adapter owns only bounded provider calls and strict output validation.
+   */
+  async runChild(
+    ctx: TenantContext,
+    task: ResearchChildTaskV1,
+    input: ResearchRunInput,
+    auth: ResearchRuntimeAuth,
+  ): Promise<ResearchChildRuntimeResult> {
+    if (
+      task.generation !== 1 ||
+      task.delegationAllowed ||
+      !auth.run ||
+      task.parentRunId !== auth.run.id ||
+      task.leaseEpoch !== auth.run.leaseEpoch ||
+      task.scope.sessionId !== input.sessionId ||
+      task.scope.tenantId !== ctx.tenantId ||
+      task.scope.actorId !== ctx.userId ||
+      task.scope.clientId !== input.clientId ||
+      task.scope.conversationId !== (input.conversationId ?? null) ||
+      task.modelConfig.policy !== 'current_approved_research_model' ||
+      task.modelConfig.provider !== 'openai' ||
+      task.modelConfig.modelSelection !== 'server_resolved' ||
+      task.modelConfig.reasoningMode !== (input.handoff?.reasoningMode ?? 'deep') ||
+      task.modelConfig.allowProviderFallback
+    ) {
+      throw new ResearchChildTaskError('research_child_runtime_binding_invalid');
+    }
+    if (
+      !Number.isFinite(Date.parse(task.deadlineAt)) ||
+      Date.now() >= Date.parse(task.deadlineAt)
+    ) {
+      throw new ResearchChildTaskError('research_child_deadline_exceeded');
+    }
+
+    const controller = new AbortController();
+    const cancel = () => controller.abort(new ResearchChildTaskError('research_child_cancelled'));
+    auth.signal?.addEventListener('abort', cancel, { once: true });
+    if (auth.signal?.aborted) cancel();
+    const timeout = setTimeout(
+      () => controller.abort(new ResearchChildTaskError('research_child_deadline_exceeded')),
+      Math.min(2_147_483_647, Date.parse(task.deadlineAt) - Date.now()),
+    );
+    timeout.unref();
+    let rejectAbort!: () => void;
+    const aborted = new Promise<never>((_resolve, reject) => {
+      rejectAbort = () => reject(controller.signal.reason);
+      controller.signal.addEventListener('abort', rejectAbort, { once: true });
+    });
+    try {
+      if (controller.signal.aborted) throw controller.signal.reason;
+      const result = await Promise.race([
+        this.runChildWithinDeadline(ctx, task, input, { ...auth, signal: controller.signal }),
+        aborted,
+      ]);
+      if (Date.now() >= Date.parse(task.deadlineAt))
+        throw new ResearchChildTaskError('research_child_deadline_exceeded');
+      return result;
+    } finally {
+      clearTimeout(timeout);
+      auth.signal?.removeEventListener('abort', cancel);
+      controller.signal.removeEventListener('abort', rejectAbort);
+    }
+  }
+
+  private async runChildWithinDeadline(
+    ctx: TenantContext,
+    task: ResearchChildTaskV1,
+    input: ResearchRunInput,
+    auth: ResearchRuntimeAuth,
+  ): Promise<ResearchChildRuntimeResult> {
+    const childInput: ResearchRunInput = {
+      ...input,
+      clientContext: null,
+      inheritConversationEvidence: false,
+      handoff: input.handoff
+        ? {
+            ...input.handoff,
+            requestedDeliverable: task.goal,
+            summary: null,
+            summaryUpToMessageId: null,
+            messages: [],
+            attachments: [],
+          }
+        : null,
+      system: [
+        'You are a bounded read-only Meri research leaf. You cannot write, delegate, or change scope.',
+        `Role: ${task.role}@${task.roleVersion}. Goal revision: ${task.goalRevision}.`,
+        `Use only these admitted read capabilities: ${task.allowedCapabilities.join(', ')}.`,
+        'Every finding must name one or more exact tool_name:record-id evidence handles observed in this turn.',
+        'Return only strict JSON. Extra fields, prose, markdown fences, larger permissions, and guessed evidence IDs are invalid.',
+        `OUTPUT CONTRACT: ${researchChildOutputContract(task.goalRevision)}`,
+      ].join('\n'),
+      user: [
+        `Bounded child goal: ${task.goal}`,
+        `Previously admitted evidence handles: ${task.evidenceHandles.join(', ') || '(none)'}.`,
+        `Absolute deadline: ${task.deadlineAt}. Attempt: ${task.attempt}.`,
+      ].join('\n'),
+    };
+
+    let frame = await this.complete(ctx, childInput, auth, 'read-only', () => {});
+    let qualified = qualifyResearchChildFrame(frame);
+    let handles = researchChildEvidenceHandles(frame.citations ?? []).filter((handle) =>
+      qualified.toolsUsed.includes(handle.slice(0, handle.indexOf(':'))),
+    );
+    let output: ResearchChildStructuredOutputV1;
+    let schemaCorrections: 0 | 1 = 0;
+    try {
+      output = validateResearchChildOutput(frame.reply, {
+        goalRevision: task.goalRevision,
+        allowedEvidenceHandles: handles,
+      });
+    } catch (error) {
+      if (!(error instanceof ResearchChildTaskError)) throw error;
+      if (Date.now() >= Date.parse(task.deadlineAt) || auth.signal?.aborted) throw error;
+      schemaCorrections = 1;
+      frame = await this.complete(
+        ctx,
+        {
+          ...childInput,
+          system: [
+            childInput.system,
+            'This is the single allowed correction. Do not run a broader task or request more permission.',
+          ].join('\n'),
+          user: [
+            `The previous output was rejected: ${error.code}.`,
+            `Currently valid evidence handles: ${handles.join(', ') || '(none)'}.`,
+            `Return only the corrected JSON for goal revision ${task.goalRevision}.`,
+          ].join('\n'),
+        },
+        auth,
+        'read-only',
+        () => {},
+      );
+      qualified = qualifyResearchChildFrame(frame);
+      handles = researchChildEvidenceHandles(frame.citations ?? []).filter((handle) =>
+        qualified.toolsUsed.includes(handle.slice(0, handle.indexOf(':'))),
+      );
+      output = validateResearchChildOutput(frame.reply, {
+        goalRevision: task.goalRevision,
+        allowedEvidenceHandles: handles,
+      });
+    }
+
+    return {
+      taskId: task.id,
+      output,
+      model: frame.model,
+      sources: qualified.sources,
+      toolsUsed: qualified.toolsUsed,
+      ledgerEntries: qualified.ledgerEntries,
+      citations: frame.citations ?? [],
+      producerInputSha256: frame.producerInputSha256!,
+      producerInputMode: frame.producerInputMode!,
+      clientContextSha256: frame.clientContextSha256 ?? null,
+      schemaCorrections,
+    };
+  }
+
   private async complete(
     ctx: TenantContext,
     input: ResearchRunInput,
@@ -208,7 +400,7 @@ export class MeriV3ResearchRunner {
       );
     const currentTurnImages = await this.snapshotImages(ctx, input.handoff);
     const inherited =
-      toolPolicy === 'read-only'
+      toolPolicy === 'read-only' && input.inheritConversationEvidence !== false
         ? await this.conversationEvidence.load(
             ctx,
             input.conversationId ?? input.handoff?.conversationId ?? undefined,
@@ -376,4 +568,41 @@ export class MeriV3ResearchRunner {
       return { mediaType: row.mediaType, dataBase64: Buffer.from(row.data).toString('base64') };
     });
   }
+}
+
+function qualifyResearchChildFrame(frame: ResearchDoneFrame): {
+  sources: SourceAttribution[];
+  toolsUsed: string[];
+  ledgerEntries: LedgerEntry[];
+} {
+  const ledgerEntries = frame.ledgerEntries ?? [];
+  const sources: SourceAttribution[] = [];
+  const toolsUsed: string[] = [];
+  for (const entry of ledgerEntries) {
+    const durable = entry.durableSafeRead;
+    if (!durable) continue;
+    const matchingSteps = frame.steps.filter(
+      (step) => step.durableSafeRead?.executionId === durable.executionId,
+    );
+    const matchedStep = matchingSteps.length === 1 ? matchingSteps[0] : undefined;
+    const ownerClassification = classifyApiToolReadOutcome(durable.tool, entry.result);
+    if (
+      !matchedStep ||
+      matchedStep.status !== 'done' ||
+      matchedStep.durableSafeRead?.receiptId !== durable.receiptId ||
+      matchedStep.durableSafeRead.tool !== durable.tool ||
+      !ownerClassification ||
+      (ownerClassification.kind !== 'complete' && ownerClassification.kind !== 'empty') ||
+      ownerClassification.kind !== durable.classifier
+    )
+      continue;
+    sources.push({
+      tool: durable.tool,
+      label: matchedStep.label,
+      summary: `${durable.tool} returned a qualified ${durable.classifier} result.`,
+      confidence: 'high',
+    });
+    toolsUsed.push(durable.tool);
+  }
+  return { sources, toolsUsed: [...new Set(toolsUsed)], ledgerEntries };
 }

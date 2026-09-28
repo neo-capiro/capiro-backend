@@ -1,5 +1,13 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-28 child integration
+
+Full File01 remains incomplete. Reviewed source-family/web integration is published at c4fbb2198. Bounded child tasks are now consolidated with that source, durable coordinator, and provider-budget foundation: 150 combined API tests in nine suites (including owned PostgreSQL), shared/core builds, API types, and scoped formatting exit 0. Final Hermes/Kimi static review passes its scope. The lead reproduced and repaired a missing late-child-completion deadline fence, added bounded stream cancellation, and rechecks the current plan/goal before parent synthesis. See child-foundation-qualification.md and finite-source-foundation-qualification.md.
+
+Workstream A's memory/Strategy CI repair is separately published at c3b1d6af7: 811 memory tests, five Strategy integration tests, eight actual news authorization SQL assertions, and API/Strategy types pass. Consolidating those CI repairs here and fresh hosted verification remain pending. Newly observed Knowledge workflow setup/capacity and broader CI failures are being audited without waiving gates.
+
+Still open: telemetry/export, native fixture/capture bindings and complete side-effect evidence, all required offline/live acceptance, database clearance, named owner acceptance, both-main integration, approved deployment/migrations, and served commit/digest verification. Synthetic-cohort enablement is approved but unapplied. No main or AWS changes. Codex direct repair with independent Hermes/Kimi review is authorized; JEV experimentation is a separate follow-up.
+
 ## Current checkpoint — 2026-09-28 provider integration
 
 Full File 01 remains incomplete. Provider candidate d437df2bf is now consolidated with foundation e945cad88: current combined API tests 97/7 suites, shared/core builds and API/runtime typechecks all exit 0. Reviewed provider source is hash-identical to the qualified candidate; runtime269 and independent runtime18 tests remain applicable to those unchanged runtime sources. Independent API semantic review is scoped static PASS. See provider-foundation-integration-qualification.md for evidence and boundaries.
@@ -35,8 +43,6 @@ Meeting candidatee77e724599ae5c9c261e3c2439769fdf3ec31d42 has independent scoped
 Provider-budget API22tests including owned native PostgreSQL pass; assistant unit fixtures lacked the new scoped client method and produced12 failures, now undergoing narrow contract repair and requalification. Remaining-source, joined-telemetry and native fixture workers ended with incomplete dirty work, preserved and not promoted. No full runtime fixture assembly or live provisioning result is established by their reports. No shared database/provider writes occurred in these checks.
 
 Neither main, AWS deployment nor synthetic tenant enablement changed. All75 live cases, CD7, CW8, applicable memory acceptance, original26 offline and historical AppendixH26 remain separate full-plan requirements. Both-main integration, database clearance, named owner acceptance and approved deployment remain required. No File01 completion or readiness for File02 is claimed.
-
-
 
 ## Current checkpoint — 2026-09-28 18:38 UTC
 
@@ -113,7 +119,6 @@ File 01 remains IN_PROGRESS. User requested the concrete path to ship 01-A separ
 Evidence: `C:/dev/cap-meri-foundation-evidence/integrated-rp-normalization-api.log`, `integrated-rp-normalization-ork.log`, `review-legacy-terminal-truth-final-report.md`, `review-durable-research-tool-budget-report.md`, `queue-current.json`; independent normalized-RP review at `C:/dev/defense-completion-20260928/review-api-rp-transport-closeout-review.md`.
 
 All live baseline acceptance remains NOT_RUN. Full durable execution/children/aggregate budgets, source coverage, narrative/JEV/telemetry, authenticated fixtures/sinks, final acceptance, both-main integration and controlled release remain unfinished. File02 has not started.
-
 
 ## Current checkpoint â€” 2026-09-28 15:15 UTC
 
@@ -333,13 +338,13 @@ Recovered original P0A baseline 0ddab91669cb9eae2f2f3b7757424fe98212d52a and P0B
 
 Command-local gh credential helper recovered stalled Git publication without changing shared authentication. These exact commits are now backed up on matching GitHub topic branches:
 
-| Branch | SHA | Qualification |
-|---|---|---|
-| codex/meri-baseline-recovery | 5daff1e4671984b6f2397afb48dc5a1472972a8d | Draft PR 1902; offline baseline only |
-| codex/meri-outcomes-validation | aeec5a81639980972e9ebdf4919a52f80b8cc62f | Focused tests pass; review findings still being repaired |
-| codex/meri-approval-recovery | dfbb967383e5fff73e801c33f2204a1444d31ea7 | Focused tests/typecheck pass; review pending |
-| codex/meri-memory-recall | 18ade62642fbe0d24886a20265a2c29419b5cd3d | 45 tests pass; independent review and SQL/live qualification pending |
-| codex/meri-synthetic-fixtures | a3b159fcdffd6e1bf177bf63eb41d0f236142647 | Five offline tests pass; pre-apply review requires repairs |
+| Branch                         | SHA                                      | Qualification                                                        |
+| ------------------------------ | ---------------------------------------- | -------------------------------------------------------------------- |
+| codex/meri-baseline-recovery   | 5daff1e4671984b6f2397afb48dc5a1472972a8d | Draft PR 1902; offline baseline only                                 |
+| codex/meri-outcomes-validation | aeec5a81639980972e9ebdf4919a52f80b8cc62f | Focused tests pass; review findings still being repaired             |
+| codex/meri-approval-recovery   | dfbb967383e5fff73e801c33f2204a1444d31ea7 | Focused tests/typecheck pass; review pending                         |
+| codex/meri-memory-recall       | 18ade62642fbe0d24886a20265a2c29419b5cd3d | 45 tests pass; independent review and SQL/live qualification pending |
+| codex/meri-synthetic-fixtures  | a3b159fcdffd6e1bf177bf63eb41d0f236142647 | Five offline tests pass; pre-apply review requires repairs           |
 
 Integration branch codex/meri-foundation-20260928 currently retains recovered P0A/P0B, dependency cleanup and the full supplied plans/ledger. No main merge, deployment, migration or shared flag/routing change has been performed.
 
@@ -388,13 +393,13 @@ Authenticated Playwright sign-in as synthetic Pat succeeded at os.capiro.ai. The
 
 Additional published candidate commits:
 
-| Slice | Candidate | Evidence / disposition |
-|---|---|---|
-| Read coverage | `4bedfaacbab3735fe7092f6a827887d2fe2e4c1c` | 71 focused tests exit 0; corrects reviewed coverage, final-page and context-section gaps; final review pending |
-| Actual served approval UI | `932e9c37933f1e64adc82bf8a7adf6866cab3b0b` | 126 focused tests, web typecheck, changed-file format exit 0; independent review pending; historical reload gap still open |
-| Canonical memory SQL | `2a8d5d96cc2d14c812ac92d9578befffd97c1e5a` | 52 tests and API build exit 0; real PGlite production lexical SQL over 1,009 rows retrieves older target at rank 1 and excludes scoped controls; native pgvector/live performance unqualified |
-| Scheduler stable receipt | `d87405cae684600c0f16cb80772d730c78065fa3` | 64 focused tests exit 0; trusted proposal UUID primary key, scoped fingerprint, read-only unknown recovery; independent review and DB race proof pending |
-| CI loopback binding | `7c139ac0bd1a70420cbd7d66525fa19330559181` | 8 local contracts + independent review; PR 1902 updated; actual role-bootstrap step passes, migration replay now exposes missing pre-existing append-only function |
+| Slice                     | Candidate                                  | Evidence / disposition                                                                                                                                                                        |
+| ------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Read coverage             | `4bedfaacbab3735fe7092f6a827887d2fe2e4c1c` | 71 focused tests exit 0; corrects reviewed coverage, final-page and context-section gaps; final review pending                                                                                |
+| Actual served approval UI | `932e9c37933f1e64adc82bf8a7adf6866cab3b0b` | 126 focused tests, web typecheck, changed-file format exit 0; independent review pending; historical reload gap still open                                                                    |
+| Canonical memory SQL      | `2a8d5d96cc2d14c812ac92d9578befffd97c1e5a` | 52 tests and API build exit 0; real PGlite production lexical SQL over 1,009 rows retrieves older target at rank 1 and excludes scoped controls; native pgvector/live performance unqualified |
+| Scheduler stable receipt  | `d87405cae684600c0f16cb80772d730c78065fa3` | 64 focused tests exit 0; trusted proposal UUID primary key, scoped fingerprint, read-only unknown recovery; independent review and DB race proof pending                                      |
+| CI loopback binding       | `7c139ac0bd1a70420cbd7d66525fa19330559181` | 8 local contracts + independent review; PR 1902 updated; actual role-bootstrap step passes, migration replay now exposes missing pre-existing append-only function                            |
 
 Direct CI evidence at 7c139: `ci-recovery-memory-7c139-failed.log` records PostgreSQL 42883 for `reject_append_only_mutation()`. Read-only live schema inspection confirms that function and its delivery table already exist without the matching Phase 10 migration ledger entry. No migration or live repair was attempted. An attempted additive prerequisite commit `d6feceb10` failed the existing migration-order guard and is NOT accepted; the correction is restricted to explicit disposable CI baseline setup and must preserve every existing migration byte and the guard.
 
