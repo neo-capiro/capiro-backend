@@ -2088,13 +2088,18 @@ export class MeriToolsService {
     };
   }
 
-  executeFromAuthenticatedUser(ctx: TenantContext, rawName: string, rawInput: unknown) {
+  executeFromAuthenticatedUser(
+    ctx: TenantContext,
+    rawName: string,
+    rawInput: unknown,
+    execution?: { logicalOperationId?: string },
+  ) {
     assertMeriToolRequestActive();
     const name = normalizeToolName(rawName);
     const input = this.isSideEffecting(name)
       ? this.validateSideEffectingInput(name, rawInput)
       : objectInput(rawInput);
-    return this.execute(ctx, name, input);
+    return this.execute(ctx, name, input, execution);
   }
 
   /**
@@ -2185,7 +2190,12 @@ export class MeriToolsService {
     };
   }
 
-  async execute(ctx: TenantContext, name: MeriToolName, input: Record<string, unknown>) {
+  async execute(
+    ctx: TenantContext,
+    name: MeriToolName,
+    input: Record<string, unknown>,
+    execution?: { logicalOperationId?: string },
+  ) {
     assertMeriToolRequestActive();
     switch (name) {
       case 'get_research_portfolio':
@@ -2368,7 +2378,7 @@ export class MeriToolsService {
       case 'create_powerpoint':
         return this.createDocument(ctx, input, 'pptx');
       case 'schedule_task':
-        return this.scheduleTask(ctx, input);
+        return this.scheduleTask(ctx, input, execution?.logicalOperationId);
       case 'list_scheduled_tasks':
         return this.listScheduledTasks(ctx);
       case 'cancel_scheduled_task':
@@ -6819,26 +6829,44 @@ export class MeriToolsService {
       ? thread.subject
       : `Re: ${thread.subject ?? ''}`;
 
-    await this.mailSender.sendMail(ctx, connection, {
+    const sendReceipt = await this.mailSender.sendMail(ctx, connection, {
       subject: replySubject,
       body,
       toRecipients: [{ email: lastMsg.fromEmail }],
     });
 
+    let artifactPersistence:
+      | { persisted: true }
+      | { persisted: false; error?: string; reason?: string } = conversationId
+      ? { persisted: true }
+      : { persisted: false, reason: 'No conversationId was supplied; no artifact was requested.' };
     if (conversationId) {
-      await this.persistArtifact(ctx, {
-        conversationId,
-        clientId,
-        title: `Reply: ${replySubject}`,
-        kind: 'email_reply',
-        bodyText: `Reply to: ${lastMsg.fromEmail}\nSubject: ${replySubject}\n\n${body}`,
-        metadata: {
-          to: lastMsg.fromEmail,
-          subject: replySubject,
-          sentFrom: connection.accountEmail,
-          threadId,
-        },
-      });
+      try {
+        await this.persistArtifact(ctx, {
+          conversationId,
+          clientId,
+          title: `Reply: ${replySubject}`,
+          kind: 'email_reply',
+          bodyText: `Reply to: ${lastMsg.fromEmail}\nSubject: ${replySubject}\n\n${body}`,
+          metadata: {
+            to: lastMsg.fromEmail,
+            subject: replySubject,
+            sentFrom: connection.accountEmail,
+            threadId,
+          },
+        });
+      } catch (error) {
+        // The provider has already acknowledged the irreversible send. Preserve
+        // that receipt and report only the ancillary artifact failure; throwing
+        // here would falsely classify a delivered reply as safe to retry.
+        artifactPersistence = {
+          persisted: false,
+          error:
+            error instanceof Error && error.message.trim()
+              ? error.message.slice(0, 500)
+              : 'The sent-reply artifact could not be persisted.',
+        };
+      }
     }
 
     return {
@@ -6846,6 +6874,8 @@ export class MeriToolsService {
       sentFrom: connection.accountEmail,
       to: lastMsg.fromEmail,
       subject: replySubject,
+      sendReceipt,
+      artifactPersistence,
     };
   }
 
@@ -7043,7 +7073,39 @@ export class MeriToolsService {
 
   // ── Scheduled tasks (W3) ────────────────────
 
-  private async scheduleTask(ctx: TenantContext, input: Record<string, unknown>) {
+  private async scheduleTask(
+    ctx: TenantContext,
+    input: Record<string, unknown>,
+    logicalOperationId?: string,
+  ) {
+    const operationWhere = logicalOperationId
+      ? {
+          tenantId: ctx.tenantId,
+          ownerUserId: ctx.userId,
+          metadata: { path: ['logicalOperationId'], equals: logicalOperationId },
+        }
+      : null;
+    const selectReceipt = {
+      id: true,
+      name: true,
+      intervalMinutes: true,
+      nextRunAt: true,
+    } as const;
+    const authoritativeReceipt = operationWhere
+      ? await this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.clioScheduledTask.findFirst({ where: operationWhere, select: selectReceipt }),
+        )
+      : null;
+    if (authoritativeReceipt) {
+      return {
+        tool: 'schedule_task',
+        scheduled: true,
+        task: authoritativeReceipt,
+        logicalOperationId,
+        reconciled: true,
+        note: 'The existing scheduled task receipt was recovered; no second task was created.',
+      };
+    }
     const existingTaskCount = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioScheduledTask.count({ where: { tenantId: ctx.tenantId, ownerUserId: ctx.userId } }),
     );
@@ -7068,6 +7130,7 @@ export class MeriToolsService {
     const metadata: Record<string, string | number> = { createdVia: 'schedule_task_tool' };
     if (runAtMinutesUtc != null) metadata.runAtMinutesUtc = runAtMinutesUtc;
     if (clientId) metadata.clientId = clientId;
+    if (logicalOperationId) metadata.logicalOperationId = logicalOperationId;
 
     // Optional fixed email delivery of the finished briefing. The recipient is
     // resolved + frozen NOW (not at run time): an explicit deliverEmailTo if
@@ -7095,23 +7158,39 @@ export class MeriToolsService {
     }
 
     const nextRunAt = computeNextRunAtAnchored(new Date(), intervalMinutes, runAtMinutesUtc);
-    const task = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioScheduledTask.create({
-        data: {
-          tenantId: ctx.tenantId,
-          ownerUserId: ctx.userId,
-          scope: 'user_private',
-          name: String(input.name).slice(0, 200),
-          prompt: String(input.prompt).slice(0, 8000),
-          intervalMinutes,
-          toolAllowList: allowList,
-          nextRunAt,
-          createdBy: 'meri',
-          metadata,
-        },
-        select: { id: true, name: true, intervalMinutes: true, nextRunAt: true },
-      }),
-    );
+    let task: { id: string; name: string; intervalMinutes: number; nextRunAt: Date };
+    let reconciled = false;
+    try {
+      task = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.clioScheduledTask.create({
+          data: {
+            tenantId: ctx.tenantId,
+            ownerUserId: ctx.userId,
+            scope: 'user_private',
+            name: String(input.name).slice(0, 200),
+            prompt: String(input.prompt).slice(0, 8000),
+            intervalMinutes,
+            toolAllowList: allowList,
+            nextRunAt,
+            createdBy: 'meri',
+            metadata,
+          },
+          select: selectReceipt,
+        }),
+      );
+    } catch (error) {
+      // A transaction/connection failure can arrive after commit. Reconcile by
+      // the proposal-stable operation identity before allowing the ambiguity to
+      // escape; the proposal layer keeps an unreconciled outcome non-retryable.
+      const recovered = operationWhere
+        ? await this.prisma.withTenant(ctx.tenantId, (tx) =>
+            tx.clioScheduledTask.findFirst({ where: operationWhere, select: selectReceipt }),
+          )
+        : null;
+      if (!recovered) throw error;
+      task = recovered;
+      reconciled = true;
+    }
     const cadence =
       runAtMinutesUtc != null
         ? `daily at ${String(Math.floor(runAtMinutesUtc / 60)).padStart(2, '0')}:${String(runAtMinutesUtc % 60).padStart(2, '0')} UTC`
@@ -7120,6 +7199,8 @@ export class MeriToolsService {
       tool: 'schedule_task',
       scheduled: true,
       task,
+      ...(logicalOperationId ? { logicalOperationId } : {}),
+      ...(reconciled ? { reconciled: true } : {}),
       note: `Scheduled as a READ-ONLY recurring research task (${cadence}; no autonomous email/writes). Meri runs it automatically and delivers each briefing to your inbox.${emailDeliveryNote} Use list_scheduled_tasks to review or cancel_scheduled_task to stop it.`,
     };
   }
