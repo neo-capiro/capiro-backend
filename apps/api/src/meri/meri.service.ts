@@ -1,4 +1,4 @@
-import { isResearchPortfolioArtifact, authorizeResearchPortfolioArtifact } from '../research-portfolios/research-portfolio-artifact-authority.js';
+import { isResearchPortfolioArtifact, authorizeResearchPortfolioArtifact, authorizeResearchPortfolioConversation } from '../research-portfolios/research-portfolio-artifact-authority.js';
 import { prepareAnthropicRequest, anthropicResponseText } from '@capiro/shared/ai-model-policy';
 import { assertAttachmentConversation, authorizedAttachmentSources, compactedAttachmentContext } from './meri-attachment-continuity.js';
 import { randomUUID } from 'node:crypto';
@@ -379,7 +379,12 @@ export class MeriService implements MeriTurnMaintenance {
           artifacts: { orderBy: { createdAt: 'desc' }, take: 4 },
         },
       });
-      return conversations.map((conversation) => ({
+      const visible=[];
+      for(const conversation of conversations){
+        try{await authorizeResearchPortfolioConversation(tx,ctx,conversation);visible.push(conversation);}
+        catch(error){if(error instanceof ForbiddenException||error instanceof NotFoundException)continue;throw error;}
+      }
+      return visible.map((conversation) => ({
         ...conversation,
         latestMessage: conversation.messages[0] ?? null,
         messages: undefined,
@@ -576,19 +581,17 @@ export class MeriService implements MeriTurnMaintenance {
   }
 
   async listMessages(ctx: TenantContext, conversationId: string) {
-    await this.ensureConversation(ctx, conversationId);
-    return this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioMessage.findMany({
-        where: { tenantId: ctx.tenantId, userId: ctx.userId, conversationId },
-        orderBy: { createdAt: 'asc' },
-        include: { artifacts: { orderBy: { createdAt: 'asc' } } },
-      }),
-    );
+    return this.prisma.withTenant(ctx.tenantId,async(tx)=>{
+      const conversation=await tx.clioConversation.findFirst({where:{id:conversationId,tenantId:ctx.tenantId,userId:ctx.userId,archivedAt:null}});
+      if(!conversation)throw new NotFoundException('Meri conversation not found');
+      await authorizeResearchPortfolioConversation(tx,ctx,conversation);
+      return tx.clioMessage.findMany({where:{tenantId:ctx.tenantId,userId:ctx.userId,conversationId},orderBy:{createdAt:'asc'},include:{artifacts:{orderBy:{createdAt:'asc'}}}});
+    });
   }
 
   private async ensureConversation(ctx: TenantContext, conversationId: string) {
-    const conversation = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioConversation.findFirst({
+    const conversation = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const row=await tx.clioConversation.findFirst({
         where: {
           id: conversationId,
           tenantId: ctx.tenantId,
@@ -596,23 +599,27 @@ export class MeriService implements MeriTurnMaintenance {
           archivedAt: null,
         },
         include: { client: { select: { id: true, name: true } } },
-      }),
-    );
+      });
+      if(row)await authorizeResearchPortfolioConversation(tx,ctx,row);
+      return row;
+    });
     if (!conversation) throw new NotFoundException('Meri conversation not found');
     return conversation;
   }
 
   private async ensureConversationAnyStatus(ctx: TenantContext, conversationId: string) {
-    const conversation = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioConversation.findFirst({
+    const conversation = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const row=await tx.clioConversation.findFirst({
         where: {
           id: conversationId,
           tenantId: ctx.tenantId,
           userId: ctx.userId,
         },
         include: { client: { select: { id: true, name: true } } },
-      }),
-    );
+      });
+      if(row)await authorizeResearchPortfolioConversation(tx,ctx,row);
+      return row;
+    });
     if (!conversation) throw new NotFoundException('Meri conversation not found');
     return conversation;
   }
@@ -3111,7 +3118,7 @@ export class MeriService implements MeriTurnMaintenance {
           createdAt: new Date(r.created_at),
           score: Number(r.score),
         }));
-      if (hits.length) return groupHitsByConversation(hits, q, limit);
+      if (hits.length) return groupHitsByConversation(await this.authorizedResearchPortfolioHistory(ctx,hits), q, limit);
     } catch (err) {
       this.logger.debug(
         `Semantic history search unavailable, falling back to keywords: ${err instanceof Error ? err.message : err}`,
@@ -3146,7 +3153,18 @@ export class MeriService implements MeriTurnMaintenance {
       createdAt: r.createdAt,
       score: null,
     }));
-    return groupHitsByConversation(hits, q, limit);
+    return groupHitsByConversation(await this.authorizedResearchPortfolioHistory(ctx,hits), q, limit);
+  }
+
+
+  private async authorizedResearchPortfolioHistory(ctx:TenantContext,hits:HistorySearchHit[]):Promise<HistorySearchHit[]>{
+    return this.prisma.withTenant(ctx.tenantId,async(tx)=>{
+      const ids=[...new Set(hits.map(hit=>hit.conversationId))];
+      const rows=await tx.clioConversation.findMany({where:{id:{in:ids},tenantId:ctx.tenantId,userId:ctx.userId,archivedAt:null}});
+      const allowed=new Set<string>();
+      for(const row of rows){try{await authorizeResearchPortfolioConversation(tx,ctx,row);allowed.add(row.id);}catch(error){if(error instanceof ForbiddenException||error instanceof NotFoundException)continue;throw error;}}
+      return hits.filter(hit=>allowed.has(hit.conversationId));
+    });
   }
 
   private async orchestrateContext(
