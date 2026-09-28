@@ -144,6 +144,8 @@ jobs:
           src/common/meriv3-flags.spec.ts
 
       - name: Test capability, retrieval and conversation continuity contracts
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144 --experimental-vm-modules
         run: >
           pnpm --filter @capiro/api exec jest
           --runInBand --forceExit
