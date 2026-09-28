@@ -62,6 +62,11 @@ jobs:
       - name: Generate Prisma clients
         run: pnpm --filter @capiro/api exec prisma generate
 
+      - name: Bootstrap disposable Postgres migration roles
+        env:
+          CI_DISPOSABLE_POSTGRES: '1'
+        run: bash scripts/ci/bootstrap-disposable-postgres-roles.sh
+
       - name: Apply apps/api migrations to clean Postgres
         id: migrate
         continue-on-error: true

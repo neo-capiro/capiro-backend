@@ -57,6 +57,10 @@ jobs:
           node scripts/check-migration-integrity.mjs
           --base ${{ github.event.pull_request.base.sha }}
       - run: pnpm install --frozen-lockfile
+      - name: Test disposable PostgreSQL migration prerequisites
+        run: >
+          node --test scripts/ci/bootstrap-disposable-postgres-roles.test.mjs
+          scripts/ci/research-portfolio-migration-prerequisite.test.mjs
 
       # Supply-chain (blocker #4): advisory dependency audit. `|| true` keeps it
       # NON-blocking for now — it surfaces known high/critical CVEs in the PR log
