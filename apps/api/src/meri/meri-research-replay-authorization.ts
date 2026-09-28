@@ -32,6 +32,7 @@ import {
   canonicalActionItemOwnerProof,
   canonicalActionItemReauthorizationInput,
 } from './meri-action-item-read.proof.js';
+import { withMeriChatAttachmentReadScope } from './meri-chat-attachment-read-scope.js';
 
 const SUPPORTED_OWNER_TOOLS = new Set([
   'search_memory',
@@ -43,6 +44,12 @@ const SUPPORTED_OWNER_TOOLS = new Set([
   'list_emails',
   'search_emails',
   'get_email_thread',
+  'read_monday_client_boards',
+  'get_bill_status',
+  'read_bill_text',
+  'scrape_web_page',
+  'read_chat_attachments',
+  'get_research_evidence',
 ]);
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -150,6 +157,59 @@ function documentProof(value: unknown): string[] | null {
     }),
     ...proofs,
   ].sort();
+}
+
+function remainingSourceFamilyProof(tool: string, value: unknown): string[] | null {
+  const supplied = record(value);
+  const root = supplied ? record(JSON.parse(JSON.stringify(supplied)) as unknown) : null;
+  if (!root || root.tool !== tool) return null;
+  const coverage = record(root.coverage);
+  if (tool === 'read_monday_client_boards') {
+    const sourceRows = rows(coverage?.sources);
+    if (!coverage || !sourceRows || !Array.isArray(root.records)) return null;
+    return [
+      researchJsonSha256({
+        authoritativeOwner: root.authoritativeOwner,
+        currentStatus: root.currentStatus,
+        clientId: root.clientId,
+        records: root.records,
+        complete: coverage.complete,
+        returned: coverage.returned,
+        sources: sourceRows.map((source) => ({
+          domain: source.domain,
+          sourceStatus: source.sourceStatus,
+          recordsEvaluated: source.recordsEvaluated,
+          returned: source.returned,
+          hasMore: source.hasMore,
+          truncated: source.truncated,
+          paginationComplete: source.paginationComplete,
+          coverageComplete: source.coverageComplete,
+          stopReason: source.stopReason,
+          nextCursor: source.nextCursor ?? null,
+        })),
+      }),
+    ];
+  }
+  if (tool === 'get_bill_status') {
+    const { generatedAt, ...rest } = root;
+    return [researchJsonSha256(rest)];
+  }
+  if (tool === 'read_bill_text') {
+    if (!coverage) return null;
+    const { generatedAt, ...rest } = root;
+    return [researchJsonSha256(rest)];
+  }
+  if (tool === 'scrape_web_page') {
+    if (!coverage) return null;
+    const { generatedAt, ...rest } = root;
+    return [researchJsonSha256(rest)];
+  }
+  if (tool === 'read_chat_attachments' || tool === 'get_research_evidence') {
+    if (!coverage || !Array.isArray(root.records)) return null;
+    const { generatedAt, ...rest } = root;
+    return [researchJsonSha256(rest)];
+  }
+  return null;
 }
 
 export function supportsDurableOwnerReauthorization(tool: string): boolean {
@@ -271,7 +331,16 @@ export function currentOwnerResultAuthorizesReplay(
                 ? canonicalActionItemOwnerProof
                 : ['list_emails', 'search_emails', 'get_email_thread'].includes(tool)
                   ? (value: unknown) => canonicalMailOwnerProof(tool, value)
-                  : null;
+                  : [
+                        'read_monday_client_boards',
+                        'get_bill_status',
+                        'read_bill_text',
+                        'scrape_web_page',
+                        'read_chat_attachments',
+                        'get_research_evidence',
+                      ].includes(tool)
+                    ? (value: unknown) => remainingSourceFamilyProof(tool, value)
+                    : null;
   if (!project) return false;
   const saved = project(savedResult);
   const current = project(currentResult);
@@ -589,7 +658,12 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
           sourceAuthorization: mailAuthorization ?? meetingAuthorization ?? nativeWorkAuthorization,
         });
       }
-      return { envelopes, sessionId: session.id };
+      return {
+        envelopes,
+        sessionId: session.id,
+        conversationId,
+        clientId: session.clientId,
+      };
     });
 
   const loaded = await load();
@@ -597,11 +671,23 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
     const { envelope, sourceAuthorization } = authorized;
     let currentResult: unknown;
     try {
-      currentResult = await tools.execute(
-        ctx,
-        envelope.tool as never,
-        sourceAuthorization?.executeInput ?? envelope.input,
-      );
+      const executeInput =
+        envelope.tool === 'read_chat_attachments'
+          ? { ...envelope.input, conversationId: loaded.conversationId }
+          : (sourceAuthorization?.executeInput ?? envelope.input);
+      const executeCurrentOwner = () => tools.execute(ctx, envelope.tool as never, executeInput);
+      currentResult =
+        envelope.tool === 'read_chat_attachments'
+          ? await withMeriChatAttachmentReadScope(
+              {
+                tenantId: ctx.tenantId,
+                userId: ctx.userId,
+                conversationId: loaded.conversationId,
+                selectedClientId: loaded.clientId,
+              },
+              executeCurrentOwner,
+            )
+          : await executeCurrentOwner();
     } catch {
       throw new ConflictException('A research source is no longer authorized.');
     }

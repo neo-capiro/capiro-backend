@@ -102,6 +102,7 @@ const EXPECTED_TOOLS = [
   'search_capiro_data',
   'get_research_evidence',
   'read_chat_attachments',
+  'read_monday_client_boards',
   'search_research_sources',
   // Defense Intelligence Research Portfolios — one domain service surface.
   'get_research_portfolio',
@@ -135,6 +136,7 @@ const EXPECTED_TOOLS = [
   'search_congress_bills',
   // Vote/status truth layer (LegiWatch A5)
   'get_bill_status',
+  'read_bill_text',
   'get_certification_status',
   'search_floor_votes',
   // Budget-score spine (Bucket-#3 C4.F1, SC2.4)
@@ -282,6 +284,7 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   search_capiro_data: ['query', 'domains'],
   get_research_evidence: ['sessionId'],
   read_chat_attachments: [],
+  read_monday_client_boards: ['clientId'],
   search_research_sources: ['query'],
   get_research_portfolio: ['conversationId'],
   get_research_portfolio_analytics: ['conversationId'],
@@ -362,6 +365,7 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   query_global_data: ['dataset', 'select'],
   resolve_entity: ['query'],
   get_bill_status: ['billId'],
+  read_bill_text: ['billId'],
   get_certification_status: ['program', 'query'],
   get_state_bill_status: ['billId'],
   get_state_legislator: ['query'],

@@ -11,10 +11,7 @@ import type { TenantContext } from '@capiro/shared';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { extractPptxSlide } from '../engagement/pptx-extract.js';
-import {
-  extractMeriXlsxSection,
-  MeriXlsxValidationError,
-} from './meri-attachment-document.js';
+import { extractMeriXlsxSection, MeriXlsxValidationError } from './meri-attachment-document.js';
 import { extractPdfText } from './meri-attachment-extract.js';
 import {
   attachmentRefsFromMetadata,
@@ -22,10 +19,7 @@ import {
   verifyMagicBytes,
   type AttachmentKind,
 } from './meri-attachment.helpers.js';
-import {
-  sha256Bytes,
-  validateDocumentArtifactBytes,
-} from './meri-artifact-integrity.js';
+import { sha256Bytes, validateDocumentArtifactBytes } from './meri-artifact-integrity.js';
 import { currentMeriChatAttachmentReadScope } from './meri-chat-attachment-read-scope.js';
 import {
   assertMeriToolRequestActive,
@@ -160,7 +154,8 @@ function decodeCursor(value: unknown): CursorPayload {
     if (
       encodedPayload.toString('base64url') !== parts[0] ||
       supplied.toString('base64url') !== parts[1]
-    ) throw new Error('noncanonical');
+    )
+      throw new Error('noncanonical');
   } catch {
     throw new BadRequestException('Invalid chat attachment cursor');
   }
@@ -178,22 +173,28 @@ function decodeCursor(value: unknown): CursorPayload {
       (payload.clientId !== null && !UUID.test(payload.clientId)) ||
       typeof payload.conversationVersion !== 'string' ||
       typeof payload.query !== 'string'
-    ) throw new Error('shape');
+    )
+      throw new Error('shape');
     if (payload.mode === 'read') {
       if (
         !UUID.test(payload.attachmentId) ||
         !UUID.test(payload.messageId) ||
         !HASH.test(payload.originalBytesHash) ||
-        !Number.isSafeInteger(payload.locator.section) || payload.locator.section < 1 ||
-        !Number.isSafeInteger(payload.locator.rowStart) || payload.locator.rowStart < 1 ||
-        !Number.isSafeInteger(payload.locator.offset) || payload.locator.offset < 0
-      ) throw new Error('shape');
+        !Number.isSafeInteger(payload.locator.section) ||
+        payload.locator.section < 1 ||
+        !Number.isSafeInteger(payload.locator.rowStart) ||
+        payload.locator.rowStart < 1 ||
+        !Number.isSafeInteger(payload.locator.offset) ||
+        payload.locator.offset < 0
+      )
+        throw new Error('shape');
     } else if (
       !UUID.test(payload.locator.messageId) ||
       !Number.isSafeInteger(payload.locator.attachmentIndex) ||
       payload.locator.attachmentIndex < 0 ||
       Number.isNaN(Date.parse(payload.locator.createdAt))
-    ) throw new Error('shape');
+    )
+      throw new Error('shape');
     return payload;
   } catch {
     throw new BadRequestException('Invalid chat attachment cursor');
@@ -202,37 +203,53 @@ function decodeCursor(value: unknown): CursorPayload {
 
 function parseInput(raw: Record<string, unknown>): ParsedInput {
   const allowed = new Set([
-    'conversationId', 'attachmentId', 'query', 'section', 'rowStart',
-    'characterOffset', 'cursor', 'limit',
+    'conversationId',
+    'attachmentId',
+    'query',
+    'section',
+    'rowStart',
+    'characterOffset',
+    'cursor',
+    'limit',
   ]);
   if (Object.keys(raw).some((key) => !allowed.has(key)))
     throw new BadRequestException('Unknown chat attachment read input');
   const conversationId = exactString(raw.conversationId, 'conversationId', 80);
   if (!UUID.test(conversationId)) throw new BadRequestException('conversationId must be a UUID');
-  const attachmentId = raw.attachmentId === undefined
-    ? undefined
-    : exactString(raw.attachmentId, 'attachmentId', 80);
+  const attachmentId =
+    raw.attachmentId === undefined ? undefined : exactString(raw.attachmentId, 'attachmentId', 80);
   if (attachmentId && !UUID.test(attachmentId))
     throw new BadRequestException('attachmentId must be a UUID');
   const query = raw.query === undefined ? '' : exactString(raw.query, 'query', 240);
-  const limit = raw.limit === undefined
-    ? (attachmentId ? 5000 : 10)
-    : safeInteger(raw.limit, 'limit', 1, attachmentId ? 6000 : 20);
+  const limit =
+    raw.limit === undefined
+      ? attachmentId
+        ? 5000
+        : 10
+      : safeInteger(raw.limit, 'limit', 1, attachmentId ? 6000 : 20);
   let locator: SectionLocator = {
     section: raw.section === undefined ? 1 : safeInteger(raw.section, 'section', 1, 500),
     rowStart: raw.rowStart === undefined ? 1 : safeInteger(raw.rowStart, 'rowStart', 1, 1_000_000),
-    offset: raw.characterOffset === undefined
-      ? 0
-      : safeInteger(raw.characterOffset, 'characterOffset', 0, MAX_DECODED_TEXT_CHARS),
+    offset:
+      raw.characterOffset === undefined
+        ? 0
+        : safeInteger(raw.characterOffset, 'characterOffset', 0, MAX_DECODED_TEXT_CHARS),
   };
   let cursor: CursorPayload | undefined;
   if (raw.cursor !== undefined) {
-    if (raw.section !== undefined || raw.rowStart !== undefined || raw.characterOffset !== undefined)
+    if (
+      raw.section !== undefined ||
+      raw.rowStart !== undefined ||
+      raw.characterOffset !== undefined
+    )
       throw new BadRequestException('Use cursor or an explicit locator, not both');
     cursor = decodeCursor(raw.cursor);
     locator = cursor.mode === 'read' ? cursor.locator : locator;
   }
-  if (!attachmentId && (raw.section !== undefined || raw.rowStart !== undefined || raw.characterOffset !== undefined))
+  if (
+    !attachmentId &&
+    (raw.section !== undefined || raw.rowStart !== undefined || raw.characterOffset !== undefined)
+  )
     throw new BadRequestException('Section locators require attachmentId');
   if (cursor?.mode === 'read' && attachmentId !== cursor.attachmentId)
     throw new BadRequestException('Cursor does not match attachmentId');
@@ -267,7 +284,8 @@ export class MeriChatAttachmentReadService {
       served.tenantId !== ctx.tenantId ||
       served.userId !== ctx.userId ||
       served.conversationId !== conversationId
-    ) throw new NotFoundException('Chat attachment scope is unavailable');
+    )
+      throw new NotFoundException('Chat attachment scope is unavailable');
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const conversation = await tx.clioConversation.findFirst({
         where: {
@@ -283,7 +301,8 @@ export class MeriChatAttachmentReadService {
       if (
         conversation.clientId &&
         !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, conversation.clientId))
-      ) throw new NotFoundException('Chat attachment scope is unavailable');
+      )
+        throw new NotFoundException('Chat attachment scope is unavailable');
       return {
         id: conversation.id,
         clientId: conversation.clientId,
@@ -305,7 +324,8 @@ export class MeriChatAttachmentReadService {
       cursor.conversationId !== conversation.id ||
       cursor.clientId !== conversation.clientId ||
       cursor.conversationVersion !== conversation.version
-    ) throw new BadRequestException('Chat attachment cursor is stale or outside the current scope');
+    )
+      throw new BadRequestException('Chat attachment cursor is stale or outside the current scope');
   }
 
   private async authorizeSource(
@@ -346,15 +366,21 @@ export class MeriChatAttachmentReadService {
       if (
         !message ||
         !attachmentRefsFromMetadata(message.metadata).some((reference) => reference.id === row.id)
-      ) throw new NotFoundException('Attachment not found in the current chat');
+      )
+        throw new NotFoundException('Attachment not found in the current chat');
       const data = Buffer.from(row.data);
       const originalBytesHash = sha256Bytes(data);
       if (
         expected &&
         (row.messageId !== expected.messageId || originalBytesHash !== expected.originalBytesHash)
-      ) throw new BadRequestException('Attachment changed since the previous page; restart the read');
+      )
+        throw new BadRequestException(
+          'Attachment changed since the previous page; restart the read',
+        );
       if (row.byteSize !== data.length)
-        throw new UnprocessableEntityException('Attachment byte receipt does not match the persisted source');
+        throw new UnprocessableEntityException(
+          'Attachment byte receipt does not match the persisted source',
+        );
       if (data.length > MAX_ATTACHMENT_BYTES)
         throw new UnprocessableEntityException(
           `Attachment exceeds the ${MAX_ATTACHMENT_BYTES / 1024 / 1024}MB reading limit`,
@@ -362,7 +388,9 @@ export class MeriChatAttachmentReadService {
       const kind = row.kind as AttachmentKind;
       const magic = verifyMagicBytes(kind, data);
       if (!magic.ok)
-        throw new UnprocessableEntityException(`Attachment bytes are not readable: ${magic.reason}`);
+        throw new UnprocessableEntityException(
+          `Attachment bytes are not readable: ${magic.reason}`,
+        );
       return {
         id: row.id,
         messageId: row.messageId,
@@ -394,12 +422,14 @@ export class MeriChatAttachmentReadService {
           userId: ctx.userId,
           clientId: conversation.clientId,
           role: 'user',
-          ...(locator ? {
-            OR: [
-              { createdAt: { lt: new Date(locator.createdAt) } },
-              { createdAt: new Date(locator.createdAt), id: { lte: locator.messageId } },
-            ],
-          } : {}),
+          ...(locator
+            ? {
+                OR: [
+                  { createdAt: { lt: new Date(locator.createdAt) } },
+                  { createdAt: new Date(locator.createdAt), id: { lte: locator.messageId } },
+                ],
+              }
+            : {}),
         },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: MESSAGE_SCAN_PAGE + 1,
@@ -456,19 +486,21 @@ export class MeriChatAttachmentReadService {
       );
       if (!row) return [];
       const bytes = row.data ? Buffer.from(row.data) : null;
-      return [{
-        attachmentId: row.id,
-        filename: row.filename,
-        kind: row.kind,
-        sourceMessageId: candidate.messageId,
-        uploadedAt: row.createdAt,
-        extractionStatus: row.status,
-        extractionReason: row.reason,
-        byteSize: row.byteSize,
-        pages: row.pages,
-        originalBytesAvailable: Boolean(bytes),
-        originalBytesHash: bytes ? sha256Bytes(bytes) : null,
-      }];
+      return [
+        {
+          attachmentId: row.id,
+          filename: row.filename,
+          kind: row.kind,
+          sourceMessageId: candidate.messageId,
+          uploadedAt: row.createdAt,
+          extractionStatus: row.status,
+          extractionReason: row.reason,
+          byteSize: row.byteSize,
+          pages: row.pages,
+          originalBytesAvailable: Boolean(bytes),
+          originalBytesHash: bytes ? sha256Bytes(bytes) : null,
+        },
+      ];
     });
     let nextLocator: ManifestLocator | null = null;
     if (candidates.length > pageCandidates.length) {
@@ -480,7 +512,11 @@ export class MeriChatAttachmentReadService {
       };
     } else if (messages.length > MESSAGE_SCAN_PAGE) {
       const next = messages[MESSAGE_SCAN_PAGE]!;
-      nextLocator = { createdAt: next.createdAt.toISOString(), messageId: next.id, attachmentIndex: 0 };
+      nextLocator = {
+        createdAt: next.createdAt.toISOString(),
+        messageId: next.id,
+        attachmentIndex: 0,
+      };
     }
     const nextCursor = nextLocator
       ? signCursor({
@@ -507,6 +543,8 @@ export class MeriChatAttachmentReadService {
       throw new BadRequestException('Chat attachment manifest changed; restart the listing');
     return {
       tool: 'read_chat_attachments',
+      authoritativeOwner: 'clio_chat_attachment',
+      currentStatus: 'available',
       generatedAt: new Date().toISOString(),
       conversationId: conversation.id,
       clientId: conversation.clientId,
@@ -549,9 +587,12 @@ export class MeriChatAttachmentReadService {
     } catch (error) {
       if (error instanceof BadRequestException || error instanceof UnprocessableEntityException)
         throw error;
-      const reason = error instanceof MeriXlsxValidationError
-        ? error.code
-        : error instanceof Error ? error.message : 'section_decode_failed';
+      const reason =
+        error instanceof MeriXlsxValidationError
+          ? error.code
+          : error instanceof Error
+            ? error.message
+            : 'section_decode_failed';
       throw new UnprocessableEntityException(`Attachment section could not be read: ${reason}`);
     }
     assertMeriToolRequestActive();
@@ -569,12 +610,9 @@ export class MeriChatAttachmentReadService {
     if (localOffset < 0 || localOffset > extracted.text.length)
       throw new BadRequestException('characterOffset is outside this attachment section');
     const lower = extracted.text.toLowerCase();
-    const match = input.query
-      ? lower.indexOf(input.query.toLowerCase(), localOffset)
-      : localOffset;
-    const start = match < 0
-      ? extracted.text.length
-      : Math.max(localOffset, match - (input.query ? 240 : 0));
+    const match = input.query ? lower.indexOf(input.query.toLowerCase(), localOffset) : localOffset;
+    const start =
+      match < 0 ? extracted.text.length : Math.max(localOffset, match - (input.query ? 240 : 0));
     let end = Math.min(
       extracted.text.length,
       Math.max(start + input.limit, match + input.query.length),
@@ -583,11 +621,12 @@ export class MeriChatAttachmentReadService {
     const characterStart = textStart + start;
     const characterEnd = textStart + end;
     const moreText = end < extracted.text.length;
-    const nextLocator = match < 0
-      ? extracted.nextLocator
-      : moreText
-        ? { ...extracted.locator, offset: characterEnd }
-        : extracted.nextLocator;
+    const nextLocator =
+      match < 0
+        ? extracted.nextLocator
+        : moreText
+          ? { ...extracted.locator, offset: characterEnd }
+          : extracted.nextLocator;
     const nextCursor = nextLocator
       ? signCursor({
           v: 1,
@@ -605,12 +644,16 @@ export class MeriChatAttachmentReadService {
         })
       : null;
     const text = extracted.text.slice(start, end);
-    const sectionComplete = characterStart === 0 && characterEnd === sectionCharacters &&
+    const sectionComplete =
+      characterStart === 0 &&
+      characterEnd === sectionCharacters &&
       extracted.extractionStatus === 'complete';
     const contentComplete = sectionComplete && extracted.locator.section === 1 && !nextCursor;
     const reference = `${source.id}:${source.originalBytesHash.slice(0, 16)}:${extracted.sectionKind}:${extracted.locator.section}:${characterStart}-${characterEnd}`;
     return {
       tool: 'read_chat_attachments',
+      authoritativeOwner: 'clio_chat_attachment',
+      currentStatus: 'available',
       generatedAt: new Date().toISOString(),
       conversationId: conversation.id,
       clientId: conversation.clientId,
@@ -647,32 +690,36 @@ export class MeriChatAttachmentReadService {
         nextCursor,
         note: 'Content was decoded from the currently authorized original persisted bytes. Follow nextCursor for remaining text or typed sections; an empty or partial section is not evidence that later sections are empty.',
       },
-      records: text.trim() ? [{
-        domain: 'chat_attachments',
-        recordId: reference,
-        payload: {
-          id: reference,
-          attachmentId: source.id,
-          title: source.filename,
-          sourceKind: source.kind,
-          sectionKind: extracted.sectionKind,
-          sectionLabel: extracted.sectionLabel,
-          coordinates: extracted.coordinates ?? null,
-          characterStart,
-          characterEnd,
-          text,
-        },
-        provenance: {
-          sourceType: 'ordinary_chat_attachment_original_bytes',
-          sourceRecordId: source.id,
-          sourceMessageId: source.messageId,
-          conversationId: conversation.id,
-          clientId: conversation.clientId,
-          originalBytesHash: source.originalBytesHash,
-          locator: extracted.locator,
-          trust: 'external_untrusted',
-        },
-      }] : [],
+      records: text.trim()
+        ? [
+            {
+              domain: 'chat_attachments',
+              recordId: reference,
+              payload: {
+                id: reference,
+                attachmentId: source.id,
+                title: source.filename,
+                sourceKind: source.kind,
+                sectionKind: extracted.sectionKind,
+                sectionLabel: extracted.sectionLabel,
+                coordinates: extracted.coordinates ?? null,
+                characterStart,
+                characterEnd,
+                text,
+              },
+              provenance: {
+                sourceType: 'ordinary_chat_attachment_original_bytes',
+                sourceRecordId: source.id,
+                sourceMessageId: source.messageId,
+                conversationId: conversation.id,
+                clientId: conversation.clientId,
+                originalBytesHash: source.originalBytesHash,
+                locator: extracted.locator,
+                trust: 'external_untrusted',
+              },
+            },
+          ]
+        : [],
     };
   }
 
@@ -686,7 +733,10 @@ export class MeriChatAttachmentReadService {
       const remainingReadableCharacters = Math.max(0, MAX_DECODED_TEXT_CHARS - locator.offset);
       const extracted = await extractPdfText(source.data, {
         firstPage: locator.section,
-        limits: { pages: 1, characters: Math.min(PDF_PAGE_WINDOW_CHARS, remainingReadableCharacters) },
+        limits: {
+          pages: 1,
+          characters: Math.min(PDF_PAGE_WINDOW_CHARS, remainingReadableCharacters),
+        },
         pageWindow: { offset: locator.offset },
         preserveLineBreaks: true,
         ...(signal ? { signal } : {}),
@@ -699,13 +749,15 @@ export class MeriChatAttachmentReadService {
         throw new BadRequestException('characterOffset is outside this attachment section');
       const unreadable = extracted.unreadablePages.includes(locator.section);
       const readableCharacters = Math.min(selectedPage.nativeCharacters, MAX_DECODED_TEXT_CHARS);
-      const hardLimitReached = selectedPage.nativeCharacters > MAX_DECODED_TEXT_CHARS &&
+      const hardLimitReached =
+        selectedPage.nativeCharacters > MAX_DECODED_TEXT_CHARS &&
         selectedPage.characterEnd >= MAX_DECODED_TEXT_CHARS;
-      const nextLocator = selectedPage.characterEnd < readableCharacters
-        ? { ...locator, offset: selectedPage.characterEnd }
-        : !hardLimitReached && locator.section < extracted.pages
-          ? { section: locator.section + 1, rowStart: 1, offset: 0 }
-          : null;
+      const nextLocator =
+        selectedPage.characterEnd < readableCharacters
+          ? { ...locator, offset: selectedPage.characterEnd }
+          : !hardLimitReached && locator.section < extracted.pages
+            ? { section: locator.section + 1, rowStart: 1, offset: 0 }
+            : null;
       return {
         text: extracted.text,
         textStart: selectedPage.characterStart,
@@ -743,9 +795,10 @@ export class MeriChatAttachmentReadService {
         sectionKind: 'slide_with_notes',
         sectionLabel: `PowerPoint slide ${locator.section} with speaker notes`,
         sectionCount: slide.slideCount,
-        nextLocator: locator.section < slide.slideCount
-          ? { section: locator.section + 1, rowStart: 1, offset: 0 }
-          : null,
+        nextLocator:
+          locator.section < slide.slideCount
+            ? { section: locator.section + 1, rowStart: 1, offset: 0 }
+            : null,
         extractionStatus: !slide.readable ? 'unreadable' : slide.truncated ? 'partial' : 'complete',
         limitation: !slide.readable
           ? 'No readable slide text or speaker notes were found. Images and charts are not transcribed.'
@@ -761,11 +814,12 @@ export class MeriChatAttachmentReadService {
         rowStart: locator.rowStart,
         rowLimit: XLSX_ROWS_PER_SECTION,
       });
-      const nextLocator = sheet.rowEnd < sheet.rowCount
-        ? { section: sheet.sheet, rowStart: sheet.rowEnd + 1, offset: 0 }
-        : sheet.sheet < sheet.sheetCount
-          ? { section: sheet.sheet + 1, rowStart: 1, offset: 0 }
-          : null;
+      const nextLocator =
+        sheet.rowEnd < sheet.rowCount
+          ? { section: sheet.sheet, rowStart: sheet.rowEnd + 1, offset: 0 }
+          : sheet.sheet < sheet.sheetCount
+            ? { section: sheet.sheet + 1, rowStart: 1, offset: 0 }
+            : null;
       return {
         text: sheet.text,
         locator,
@@ -798,7 +852,8 @@ export class MeriChatAttachmentReadService {
     const sourceTruncated = raw.length > MAX_DECODED_TEXT_CHARS;
     raw = raw.slice(0, MAX_DECODED_TEXT_CHARS);
     const sectionCount = Math.max(1, Math.ceil(raw.length / TEXT_SECTION_CHARS));
-    if (locator.section > sectionCount) throw new BadRequestException('Text section does not exist');
+    if (locator.section > sectionCount)
+      throw new BadRequestException('Text section does not exist');
     const start = (locator.section - 1) * TEXT_SECTION_CHARS;
     const text = raw.slice(start, start + TEXT_SECTION_CHARS);
     return {
@@ -807,9 +862,10 @@ export class MeriChatAttachmentReadService {
       sectionKind: 'text_section',
       sectionLabel: `Text section ${locator.section}`,
       sectionCount,
-      nextLocator: locator.section < sectionCount
-        ? { section: locator.section + 1, rowStart: 1, offset: 0 }
-        : null,
+      nextLocator:
+        locator.section < sectionCount
+          ? { section: locator.section + 1, rowStart: 1, offset: 0 }
+          : null,
       extractionStatus: sourceTruncated ? 'partial' : 'complete',
       limitation: sourceTruncated
         ? `Decoded text exceeds the ${MAX_DECODED_TEXT_CHARS}-character safety limit; later content is unavailable.`

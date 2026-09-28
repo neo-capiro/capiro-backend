@@ -458,6 +458,270 @@ function classifyMemorySearch(payload: unknown): ApiToolReadOutcome {
   return { kind: 'complete' };
 }
 
+function classifyCanonicalFiniteRead(toolName: string, payload: unknown): ApiToolReadOutcome {
+  const failure = ownerFailure(payload);
+  if (failure) return { kind: 'failed', reason: toolName + '_read_failed' };
+  const value = record(payload);
+  const coverage = record(value?.coverage);
+  if (!value || value.tool !== toolName) return invalidResult(toolName);
+
+  // Canonical owner validation (must be present and match expected)
+  if (typeof value.authoritativeOwner !== 'string' || !value.authoritativeOwner.trim()) {
+    return invalidResult(toolName);
+  }
+  const authoritativeOwner = value.authoritativeOwner;
+
+  // Expected owner per tool
+  const expectedOwner =
+    toolName === 'read_monday_client_boards'
+      ? 'managed_monday_mcp'
+      : toolName === 'read_bill_text'
+        ? 'federal_evidence_current'
+        : toolName === 'scrape_web_page'
+          ? 'public_url'
+          : toolName === 'read_chat_attachments' || toolName === 'get_research_evidence'
+            ? 'clio_chat_attachment'
+            : null;
+  if (authoritativeOwner !== expectedOwner) return invalidResult(toolName);
+
+  // Canonical currentStatus validation (must be present)
+  if (typeof value.currentStatus !== 'string' || !value.currentStatus.trim()) {
+    return invalidResult(toolName);
+  }
+  const currentStatus = value.currentStatus;
+
+  // Early shared guard: root unavailable or unsupported returns unavailable
+  if (currentStatus === 'unavailable' || currentStatus === 'unsupported') {
+    return { kind: 'unavailable', reason: toolName + '_unavailable' };
+  }
+  // Root error or unauthorized returns failed
+  if (currentStatus === 'error' || currentStatus === 'unauthorized') {
+    return { kind: 'failed', reason: toolName + '_read_failed' };
+  }
+  // Required currentStatus: healthy for Monday, available for remaining tools
+  if (toolName === 'read_monday_client_boards') {
+    if (currentStatus !== 'healthy') return invalidResult(toolName);
+  } else {
+    if (currentStatus !== 'available') return invalidResult(toolName);
+  }
+  // Coverage required for all success branches
+  if (!coverage) return invalidResult(toolName);
+
+  if (toolName === 'read_monday_client_boards') {
+    // Monday: success path after early guards covers healthy status.
+    // Note: unavailable/unsupported/error/unauthorized already handled above.
+    // Monday sourceStatus should match currentStatus for consistency
+    // For available/healthy/other valid statuses, proceed with coverage validation
+    //Monday sourceStatus should match currentStatus for consistency
+    const sources = Array.isArray(coverage.sources) ? coverage.sources.map(record) : [];
+    const monday = sources.find((source) => source?.domain === 'monday');
+    const nonnegativeInteger = (v: unknown): v is number =>
+      typeof v === 'number' && Number.isInteger(v) && v >= 0;
+    if (
+      !monday ||
+      typeof coverage.complete !== 'boolean' ||
+      !nonnegativeInteger(coverage.returned) ||
+      typeof monday.sourceStatus !== 'string' ||
+      !RETRIEVAL_SOURCE_STATUSES.has(monday.sourceStatus as RetrievalSourceStatus) ||
+      typeof monday.coverageComplete !== 'boolean' ||
+      typeof monday.paginationComplete !== 'boolean' ||
+      typeof monday.hasMore !== 'boolean' ||
+      typeof monday.truncated !== 'boolean' ||
+      (monday.nextCursor !== undefined &&
+        monday.nextCursor !== null &&
+        typeof monday.nextCursor !== 'string') ||
+      !Array.isArray(value.records) ||
+      value.records.length !== coverage.returned
+    )
+      return invalidResult(toolName);
+    //Monday sourceStatus must be 'healthy' for valid success (complete/empty)
+    // available/unavailable/error/unauthorized/unsupported statuses are handled above
+    // unsupported is already rejected; unavailable/error/unauthorized would have returned earlier
+    if (monday.sourceStatus !== 'healthy') {
+      return { kind: 'partial', reason: 'monday_coverage_incomplete' };
+    }
+    // Ensure nextCursor is null default for healthy sources (matching actual owner contract)
+    const nextCursor = monday.nextCursor ?? null;
+    // For full-source complete, Monday root coverage.complete must be true AND all Monday source flags
+    // must be correct. The source must be healthy with complete coverage and no pending pagination.
+    // nextCursor must be null (no more pages), hasMore must be false, truncated must be false.
+    // coverageComplete and paginationComplete must both be true to confirm entire source is complete.
+    if (
+      !coverage.complete ||
+      !monday.coverageComplete ||
+      !monday.paginationComplete ||
+      nextCursor !== null ||
+      monday.hasMore ||
+      monday.truncated
+    )
+      return { kind: 'partial', reason: 'monday_coverage_incomplete' };
+    return value.records.length ? { kind: 'complete' } : { kind: 'empty' };
+  }
+
+  if (toolName === 'read_bill_text') {
+    // bill_text: currentStatus unavailable/unsupported => unavailable; available requires boolean found, found=false unavailable
+    // unknown/missing invalid
+    if (currentStatus === 'available') {
+      // For available status, check found boolean first
+      if (typeof value.found !== 'boolean') return invalidResult(toolName);
+      if (!value.found) return { kind: 'unavailable', reason: 'bill_text_unavailable' };
+    } else {
+      return invalidResult(toolName);
+    }
+    // Now validate remaining fields
+    if (
+      typeof value.found !== 'boolean' ||
+      typeof coverage.complete !== 'boolean' ||
+      typeof coverage.truncated !== 'boolean' ||
+      !(coverage.nextCursor === null || typeof coverage.nextCursor === 'string') ||
+      typeof coverage.pageComplete !== 'boolean' ||
+      typeof coverage.contentComplete !== 'boolean' ||
+      typeof coverage.paginationComplete !== 'boolean'
+    )
+      return invalidResult(toolName);
+    if (
+      typeof value.billId !== 'string' ||
+      typeof value.versionCode !== 'string' ||
+      typeof value.versionHash !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(value.versionHash) ||
+      typeof value.textHash !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(value.textHash) ||
+      typeof value.text !== 'string'
+    )
+      return invalidResult(toolName);
+    // For full-source complete read, all coverage flags must be true and nextCursor must be null.
+    // truncated=false confirms we have the full bill without truncation.
+    // pageComplete, contentComplete, paginationComplete together ensure the entire source is complete,
+    // not just a bounded page within it.
+    if (
+      coverage.complete &&
+      coverage.pageComplete &&
+      coverage.contentComplete &&
+      coverage.paginationComplete &&
+      !coverage.truncated &&
+      coverage.nextCursor === null
+    )
+      return value.text.length ? { kind: 'complete' } : { kind: 'empty' };
+    return { kind: 'partial', reason: 'bill_text_coverage_incomplete' };
+  }
+
+  if (toolName === 'scrape_web_page') {
+    if (!currentStatus) return invalidResult(toolName);
+    if (currentStatus !== 'available') return invalidResult(toolName);
+    if (
+      typeof value.url !== 'string' ||
+      typeof value.contentHash !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(value.contentHash) ||
+      typeof value.text !== 'string' ||
+      value.trust !== 'external_untrusted' ||
+      typeof coverage.complete !== 'boolean' ||
+      typeof coverage.truncated !== 'boolean' ||
+      (value.finalUrl !== undefined && typeof value.finalUrl !== 'string') ||
+      (coverage.locator !== undefined &&
+        (typeof coverage.locator !== 'object' || coverage.locator === null))
+    )
+      return invalidResult(toolName);
+    // Validate finalUrl matches the original locator url (no redirect to different source)
+    if (value.finalUrl !== undefined && value.finalUrl !== value.url) {
+      return { kind: 'partial', reason: 'web_page_redirect_differs_from_locator' };
+    }
+    // locator.url must match the requested url to ensure we're reading the expected source
+    const locator = coverage.locator as Record<string, unknown> | undefined;
+    if (locator?.url !== undefined && locator.url !== value.url) {
+      return { kind: 'partial', reason: 'web_page_locator_url_mismatch' };
+    }
+    return coverage.complete && !coverage.truncated
+      ? value.text.length
+        ? { kind: 'complete' }
+        : { kind: 'empty' }
+      : { kind: 'partial', reason: 'public_web_content_incomplete' };
+  }
+
+  if (toolName === 'read_chat_attachments') {
+    if (!currentStatus) return invalidResult(toolName);
+    if (currentStatus !== 'available') return invalidResult(toolName);
+    if (coverage.mode === 'manifest')
+      return { kind: 'partial', reason: 'attachment_manifest_is_discovery_only' };
+    if (
+      coverage.mode !== 'section' ||
+      typeof coverage.sectionComplete !== 'boolean' ||
+      typeof coverage.contentComplete !== 'boolean' ||
+      typeof coverage.extractionStatus !== 'string' ||
+      typeof coverage.truncated !== 'boolean' ||
+      !Array.isArray(value.records)
+    )
+      return invalidResult(toolName);
+    if (coverage.extractionStatus === 'unreadable')
+      return { kind: 'unavailable', reason: 'attachment_section_unreadable' };
+    // sectionComplete=true means the section boundary is complete, but contentComplete=true
+    // is required to qualify as a full-source complete read (not just a bounded section).
+    // Also need extractionStatus='complete' and truncated=false for healthy complete.
+    if (
+      coverage.sectionComplete &&
+      coverage.contentComplete &&
+      coverage.extractionStatus === 'complete' &&
+      !coverage.truncated
+    )
+      return value.records.length ? { kind: 'complete' } : { kind: 'empty' };
+    return { kind: 'partial', reason: 'attachment_section_coverage_incomplete' };
+  }
+
+  if (toolName === 'get_research_evidence') {
+    if (!currentStatus) return invalidResult(toolName);
+    if (currentStatus !== 'available') return invalidResult(toolName);
+    if (
+      !['complete', 'partial', 'unavailable'].includes(String(coverage.status)) ||
+      typeof coverage.complete !== 'boolean' ||
+      typeof coverage.paginationComplete !== 'boolean' ||
+      typeof coverage.truncated !== 'boolean' ||
+      !(coverage.nextCursor === null || typeof coverage.nextCursor === 'string') ||
+      !Array.isArray(value.records)
+    )
+      return invalidResult(toolName);
+    if (coverage.status === 'unavailable')
+      return {
+        kind: 'unavailable',
+        reason: 'research_evidence_unavailable',
+      };
+    // research_evidence requires status='complete' and all coverage flags true for full-source complete
+    if (
+      coverage.status !== 'complete' ||
+      !coverage.complete ||
+      !coverage.paginationComplete ||
+      coverage.truncated ||
+      coverage.nextCursor !== null
+    )
+      return { kind: 'partial', reason: 'research_evidence_coverage_incomplete' };
+    return value.records.length ? { kind: 'complete' } : { kind: 'empty' };
+  }
+
+  return invalidResult(toolName);
+}
+
+function classifyBillStatus(payload: unknown): ApiToolReadOutcome {
+  const failure = ownerFailure(payload);
+  if (failure) return { kind: 'failed', reason: 'get_bill_status_read_failed' };
+  const value = record(payload);
+  if (!value || value.tool !== 'get_bill_status') return invalidResult('get_bill_status');
+  if (value.authoritativeOwner !== 'congress_bill_status') return invalidResult('get_bill_status');
+  const currentStatus = value.currentStatus;
+  // unavailable/unsupported for bill_status returns unavailable immediately
+  if (currentStatus === 'unavailable' || currentStatus === 'unsupported') {
+    return { kind: 'unavailable', reason: 'bill_status_unavailable' };
+  }
+  if (!currentStatus) return invalidResult('get_bill_status');
+  if (currentStatus !== 'available') return invalidResult('get_bill_status');
+  if (typeof value.found !== 'boolean') return invalidResult('get_bill_status');
+  if (!value.found) {
+    // Missing bill text/status with found=false is unavailable, not empty.
+    // Empty would require explicit healthy/exhaustive content-scoped evidence.
+    return { kind: 'unavailable', reason: 'bill_status_unavailable' };
+  }
+  return typeof value.billId === 'string' && typeof value.status === 'string'
+    ? { kind: 'complete' }
+    : invalidResult('get_bill_status');
+}
+
 /**
  * Normalize only API read contracts whose owner-produced output shapes are
  * validated here. Unqualified tools return null and retain their existing path;
@@ -487,6 +751,18 @@ export function classifyApiToolReadOutcome(
       return classifyClientContext(payload);
     case 'search_memory':
       return classifyMemorySearch(payload);
+    case 'search_public_web': {
+      const failure = ownerFailure(payload);
+      return failure ?? { kind: 'partial', reason: 'public_web_search_is_discovery_only' };
+    }
+    case 'get_bill_status':
+      return classifyBillStatus(payload);
+    case 'read_monday_client_boards':
+    case 'read_bill_text':
+    case 'scrape_web_page':
+    case 'read_chat_attachments':
+    case 'get_research_evidence':
+      return classifyCanonicalFiniteRead(toolName, payload);
     default:
       return null;
   }

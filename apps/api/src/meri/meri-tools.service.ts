@@ -144,6 +144,23 @@ import {
 } from './meri-defense-budget-tool.helpers.js';
 import { buildWebSearchRequest, normalizeWebResults } from '../common/web-search.helpers.js';
 import { looksLikePdf } from './meri-scrape.helpers.js';
+import { extractWebPdfText } from './meri-web-pdf-worker.js';
+
+// Hardened transport for web scraping - SSRF mitigation, size limits, and
+// deadline enforcement for HTML/PDF content retrieval.
+import {
+  withGuardedWebResponse,
+  type WebReadScope,
+  readBodyWithSizeLimit,
+  getContentType,
+  looksLikePdf as looksLikePdfTransport,
+  validateUrlBeforeRequest,
+} from './hardenedWebTransport.js';
+
+// Size limits for web content (bytes)
+const MAX_HTML_BYTES = 5 * 1024 * 1024;
+const MAX_PDF_BYTES = 15 * 1024 * 1024;
+
 import {
   buildKnowledgeGraph,
   restrictGraphToClient,
@@ -163,6 +180,7 @@ import {
 } from './meri-client-context.helpers.js';
 import { MeriContextPlaneService } from './meri-context-plane.service.js';
 import { RETRIEVAL_DOMAINS } from '../retrieval/retrieval-v2.types.js';
+import { RetrievalV2Service } from '../retrieval/retrieval-v2.service.js';
 import { MERI_DATA_QUERY_CLASSES, searchCapiroData } from './meri-data-search.helpers.js';
 import { projectMemoryContent } from './meri-memory-content.helpers.js';
 import { getResearchEvidence } from './meri-research-evidence.helpers.js';
@@ -261,6 +279,23 @@ interface ToolArtifactInput {
   kind: string;
   bodyText: string;
   metadata?: Prisma.InputJsonValue;
+}
+
+interface FederalBillTextRow {
+  revisionId: string;
+  sourceKey: string;
+  provider: string;
+  packageId: string;
+  billId: string;
+  versionCode: string;
+  lineageKey: string;
+  contentHash: string;
+  extractionHash: string;
+  sourceUrl: string;
+  sourceModifiedAt: Date | null;
+  publishedAt: Date | null;
+  fetchedAt: Date;
+  extractedText: string;
 }
 
 interface ScheduleTaskReceipt {
@@ -379,6 +414,7 @@ export class MeriToolsService {
     @Optional() private readonly districtTools?: R5MeriDistrictTools,
     @Optional() private readonly chatAttachmentReader?: MeriChatAttachmentReadService,
     @Optional() private readonly researchPortfolioScope?: ResearchPortfolioMeriScopeService,
+    @Optional() private readonly retrieval?: RetrievalV2Service,
   ) {}
 
   manifest() {
@@ -410,6 +446,47 @@ export class MeriToolsService {
   private readChatAttachments(ctx: TenantContext, input: Record<string, unknown>) {
     if (!this.chatAttachmentReader) throw new NotFoundException('Meri tool not found');
     return this.chatAttachmentReader.read(ctx, input);
+  }
+
+  private async readMondayClientBoards(ctx: TenantContext, input: Record<string, unknown>) {
+    if (!this.retrieval) throw new NotFoundException('Meri tool not found');
+    const clientId = requiredString(input, 'clientId', 80);
+    if (!CLIENT_ID_UUID_RE.test(clientId)) throw new BadRequestException('clientId must be a UUID');
+    const boardContext = optionalString(input, 'boardContext', 2000);
+    const cursor = optionalString(input, 'cursor', 512);
+    const pageSize =
+      input.pageSize === undefined ? undefined : clampInt(input.pageSize, 1, 100, 100);
+    const assertCurrentWall = async () => {
+      const allowed = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+        clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId),
+      );
+      if (!allowed) throw new NotFoundException('Client not found');
+    };
+    await assertCurrentWall();
+    const response = await this.retrieval.retrieve({
+      caller: {
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        clientIds: [clientId],
+        authorizedClientIds: [clientId],
+      },
+      queryClass: 'lookup',
+      requestedDomains: ['monday'],
+      ...(boardContext ? { mondayBoardContext: boardContext } : {}),
+      ...(pageSize ? { pageSize } : {}),
+      ...(cursor ? { cursors: { monday: cursor } } : {}),
+      requireComplete: !pageSize && !cursor,
+      deadlineAt: meriToolRequestControl()?.deadlineAt,
+    });
+    await assertCurrentWall();
+    return {
+      tool: 'read_monday_client_boards',
+      authoritativeOwner: 'managed_monday_mcp',
+      currentStatus: response.coverage.sources[0]?.sourceStatus ?? 'unavailable',
+      clientId,
+      records: response.records,
+      coverage: response.coverage,
+    };
   }
 
   /**
@@ -842,6 +919,23 @@ export class MeriToolsService {
         },
         [],
       ),
+      read_monday_client_boards: obj(
+        {
+          clientId: str(
+            'Selected client UUID; required and reauthorized against current tenant, membership, and memory wall.',
+          ),
+          boardContext: str(
+            'Optional exact Monday.com board ID or board URL supplied by the user. This narrows scope but never grants provider access.',
+          ),
+          pageSize: int(
+            'Optional returned item count from 1-100. Omit for a bounded exhaustive read.',
+          ),
+          cursor: str(
+            'Opaque Monday continuation from coverage.sources[0].nextCursor for the same current scope.',
+          ),
+        },
+        ['clientId'],
+      ),
       search_capiro_data: obj(
         {
           query: {
@@ -1022,6 +1116,18 @@ export class MeriToolsService {
       get_bill_status: obj(
         {
           billId: str('Bill id ("119-hr-8800") or designation ("H.R. 8800")'),
+        },
+        ['billId'],
+      ),
+      read_bill_text: obj(
+        {
+          billId: str(
+            'Exact canonical federal bill ID or designation, including Congress when needed.',
+          ),
+          versionCode: str(
+            'Optional exact publisher bill version code. Omit to read the current canonical revision.',
+          ),
+          cursor: str('Opaque continuation from the prior read of this exact current revision.'),
         },
         ['billId'],
       ),
@@ -2449,6 +2555,8 @@ export class MeriToolsService {
         return getResearchEvidence(ctx, input, this.prisma);
       case 'read_chat_attachments':
         return this.readChatAttachments(ctx, input);
+      case 'read_monday_client_boards':
+        return this.readMondayClientBoards(ctx, input);
       case 'search_capiro_data':
         return searchCapiroData(ctx, input, this.contextPlane);
       case 'get_client_context':
@@ -2471,6 +2579,8 @@ export class MeriToolsService {
         return this.searchCongressBills(input);
       case 'get_bill_status':
         return this.getBillStatus(input);
+      case 'read_bill_text':
+        return this.readBillText(input);
       case 'get_certification_status':
         return this.getCertificationStatus(input);
       case 'search_floor_votes':
@@ -3677,12 +3787,140 @@ export class MeriToolsService {
     };
   }
 
+  private async readBillText(input: Record<string, unknown>) {
+    const raw = requiredString(input, 'billId', 60);
+    const billId = this.resolveBillId(raw);
+    if (!billId)
+      throw new BadRequestException('Use an exact canonical federal bill ID or designation.');
+    const requestedVersion = optionalString(input, 'versionCode', 32);
+    let expectedRevisionId: string | null = null;
+    let expectedTextHash: string | null = null;
+    let offset = 0;
+    if (input.cursor !== undefined) {
+      try {
+        if (
+          typeof input.cursor !== 'string' ||
+          input.cursor.length > 1024 ||
+          !/^[A-Za-z0-9_-]+$/.test(input.cursor)
+        )
+          throw new Error('shape');
+        const bytes = Buffer.from(input.cursor, 'base64url');
+        if (bytes.toString('base64url') !== input.cursor) throw new Error('canonical');
+        const cursor = JSON.parse(bytes.toString('utf8')) as unknown;
+        if (!Array.isArray(cursor) || cursor.length !== 5) throw new Error('shape');
+        const [cursorBillId, cursorVersion, revisionId, textHash, cursorOffset] = cursor;
+        if (
+          cursorBillId !== billId ||
+          typeof cursorVersion !== 'string' ||
+          (requestedVersion && requestedVersion !== cursorVersion) ||
+          typeof revisionId !== 'string' ||
+          !UUID_V4_RE.test(revisionId) ||
+          typeof textHash !== 'string' ||
+          !/^[a-f0-9]{64}$/.test(textHash) ||
+          !Number.isSafeInteger(cursorOffset) ||
+          cursorOffset < 1 ||
+          cursorOffset > 30_000_000
+        )
+          throw new Error('scope');
+        expectedRevisionId = revisionId;
+        expectedTextHash = textHash;
+        offset = cursorOffset;
+      } catch {
+        throw new BadRequestException('Invalid or stale bill-text continuation.');
+      }
+    }
+
+    const versionCode = requestedVersion ?? null;
+    const rows = await this.prisma.$queryRawUnsafe<FederalBillTextRow[]>(
+      `SELECT r.id AS "revisionId", r.source_key AS "sourceKey", r.provider,
+              r.package_id AS "packageId", r.bill_id AS "billId",
+              r.version_code AS "versionCode", r.lineage_key AS "lineageKey",
+              r.content_hash AS "contentHash", r.extraction_hash AS "extractionHash",
+              r.source_url AS "sourceUrl", r.source_modified_at AS "sourceModifiedAt",
+              r.published_at AS "publishedAt", r.fetched_at AS "fetchedAt",
+              r.extracted_text AS "extractedText"
+         FROM federal_evidence_current c
+         JOIN federal_evidence_revision r ON r.id = c.revision_id
+        WHERE c.state = 'present' AND c.bill_id = $1
+          AND r.completeness = 'complete' AND r.version_code IS NOT NULL
+          AND ($2::text IS NULL OR r.version_code = $2)
+        ORDER BY COALESCE(r.source_modified_at, r.published_at, r.fetched_at) DESC,
+                 r.fetched_at DESC, r.source_key ASC
+        LIMIT 20`,
+      billId,
+      versionCode,
+    );
+    const row = expectedRevisionId
+      ? rows.find((candidate) => candidate.revisionId === expectedRevisionId)
+      : rows[0];
+    if (!row) {
+      return {
+        tool: 'read_bill_text',
+        authoritativeOwner: 'federal_evidence_current',
+        currentStatus: 'unavailable',
+        billId,
+        requestedVersionCode: requestedVersion ?? null,
+        found: false,
+        coverage: { complete: true, truncated: false, nextCursor: null },
+        note: requestedVersion
+          ? `No current complete bill-text revision ${requestedVersion} is available for ${billId}.`
+          : `No current complete bill-text revision is available for ${billId}.`,
+      };
+    }
+    if (expectedTextHash && row.extractionHash !== expectedTextHash)
+      throw new BadRequestException('Bill text changed since the previous page; restart the read.');
+    if (offset > row.extractedText.length)
+      throw new BadRequestException('Bill-text continuation is outside the current revision.');
+    let end = Math.min(row.extractedText.length, offset + 12_000);
+    if (end < row.extractedText.length && /[\uD800-\uDBFF]/.test(row.extractedText.charAt(end - 1)))
+      end -= 1;
+    const nextCursor =
+      end < row.extractedText.length
+        ? Buffer.from(
+            JSON.stringify([billId, row.versionCode, row.revisionId, row.extractionHash, end]),
+          ).toString('base64url')
+        : null;
+    return {
+      tool: 'read_bill_text',
+      authoritativeOwner: 'federal_evidence_current',
+      currentStatus: 'available',
+      found: true,
+      billId,
+      versionCode: row.versionCode,
+      revisionId: row.revisionId,
+      packageId: row.packageId,
+      provider: row.provider,
+      lineageKey: row.lineageKey,
+      versionHash: row.contentHash,
+      textHash: row.extractionHash,
+      sourceLocator: row.sourceUrl,
+      sourceModifiedAt: row.sourceModifiedAt,
+      publishedAt: row.publishedAt,
+      fetchedAt: row.fetchedAt,
+      text: row.extractedText.slice(offset, end),
+      trust: 'external_untrusted',
+      coverage: {
+        locator: { offset, endOffset: end },
+        totalCharacters: row.extractedText.length,
+        pageComplete: true,
+        contentComplete: nextCursor === null && offset === 0,
+        paginationComplete: nextCursor === null,
+        complete: true,
+        truncated: nextCursor !== null || offset > 0,
+        nextCursor,
+      },
+      note: 'This is exact bill-version text from the current federal evidence owner. It is not amendment text or bill status.',
+    };
+  }
+
   private async getBillStatus(input: Record<string, unknown>) {
     const raw = optionalString(input, 'billId', 60) ?? optionalString(input, 'query', 60);
     const billId = this.resolveBillId(raw);
     if (!billId) {
       return {
         tool: 'get_bill_status',
+        authoritativeOwner: 'congress_bill_status',
+        currentStatus: 'invalid_request',
         generatedAt: new Date().toISOString(),
         found: false,
         note: 'Provide a bill id ("119-hr-8800") or designation ("H.R. 8800").',
@@ -3707,6 +3945,8 @@ export class MeriToolsService {
     if (!bill) {
       return {
         tool: 'get_bill_status',
+        authoritativeOwner: 'congress_bill_status',
+        currentStatus: 'unavailable',
         generatedAt: new Date().toISOString(),
         billId,
         found: false,
@@ -3790,6 +4030,8 @@ export class MeriToolsService {
 
     return {
       tool: 'get_bill_status',
+      authoritativeOwner: 'congress_bill_status',
+      currentStatus: 'available',
       generatedAt: new Date().toISOString(),
       billId,
       found: true,
@@ -6205,6 +6447,7 @@ export class MeriToolsService {
           const results = normalizeWebResults(provider, await response.json()).slice(0, limit);
           return {
             tool: 'search_public_web',
+            contentStatus: 'discovered',
             generatedAt: new Date().toISOString(),
             provider,
             total: results.length,
@@ -6221,6 +6464,7 @@ export class MeriToolsService {
     const results = await queryDuckDuckGoNews(query, limit);
     return {
       tool: 'search_public_web',
+      contentStatus: 'discovered',
       generatedAt: new Date().toISOString(),
       provider: 'duckduckgo',
       total: results.length,
@@ -6233,60 +6477,74 @@ export class MeriToolsService {
     const mode = optionalString(input, 'mode', 20) ?? 'summary';
     const maxChars = clampInt(input.maxChars, 500, 20000, mode === 'extract' ? 12000 : 4000);
 
-    const parsed = parseAndValidatePublicUrl(rawUrl);
-    const response = await fetchWithTimeout(
+    // Validate URL before ANY network I/O (pre-fetch SSRF prevention)
+    const parsed = validateUrlBeforeRequest(rawUrl);
+
+    return withGuardedWebResponse(
       parsed.toString(),
+      async (response, finalUrl, scope) => {
+        if (!response.ok) {
+          throw new BadGatewayException(`Web scrape failed (${response.status})`);
+        }
+
+        // Use the final URL from the response (after any redirects we followed)
+        // Validate the final URL as well
+        validateUrlBeforeRequest(finalUrl);
+
+        const contentType = getContentType(response);
+
+        if (looksLikePdfTransport(contentType, finalUrl)) {
+          return this.extractPdfText(response, finalUrl, contentType, maxChars, scope);
+        }
+
+        if (!contentType.includes('text/html') && !contentType.includes('application/xhtml+xml')) {
+          throw new BadRequestException(
+            `Unsupported content type for scraping: ${contentType || 'unknown'}`,
+          );
+        }
+
+        // Streambounded bytes BEFORE allocation - validate before reading
+        const htmlBytes = await readBodyWithSizeLimit(response, MAX_HTML_BYTES, scope);
+        const html = new TextDecoder('utf-8', { fatal: true }).decode(htmlBytes);
+        const title = extractHtmlTitle(html);
+        const readableProbe = extractReadableText(html, maxChars + 1);
+        const text = summarizeText(readableProbe, maxChars);
+        const truncated = readableProbe.length > maxChars;
+        const links = extractTopLinks(html, finalUrl, 8);
+
+        return {
+          tool: 'scrape_web_page',
+          generatedAt: new Date().toISOString(),
+          url: finalUrl,
+          title,
+          contentType,
+          text,
+          totalChars: truncated ? null : text.length,
+          truncated,
+          links,
+          contentHash: sha256Bytes(htmlBytes),
+          authoritativeOwner: 'public_url',
+          currentStatus: 'available',
+          trust: 'external_untrusted',
+          coverage: {
+            locator: { url: finalUrl, characterStart: 0, characterEnd: text.length },
+            complete: !truncated,
+            truncated,
+          },
+        };
+      },
       {
-        method: 'GET',
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible; Capiro-Meri/1.0; +https://capiro.ai)',
           Accept: 'text/html,application/xhtml+xml,application/pdf',
         },
-        redirect: 'follow',
       },
-      10000,
     );
-
-    if (!response.ok) {
-      throw new BadGatewayException(`Web scrape failed (${response.status})`);
-    }
-
-    const finalUrl = response.url || parsed.toString();
-    const finalParsed = parseAndValidatePublicUrl(finalUrl);
-
-    const contentType = (response.headers.get('content-type') ?? '').toLowerCase();
-
-    if (looksLikePdf(contentType, finalParsed.toString())) {
-      return this.extractPdfText(response, finalParsed.toString(), contentType, maxChars);
-    }
-
-    if (!contentType.includes('text/html') && !contentType.includes('application/xhtml+xml')) {
-      throw new BadRequestException(
-        `Unsupported content type for scraping: ${contentType || 'unknown'}`,
-      );
-    }
-
-    const html = await response.text();
-    const title = extractHtmlTitle(html);
-    const text = extractReadableText(html, maxChars);
-    const links = extractTopLinks(html, finalParsed.origin, 8);
-
-    return {
-      tool: 'scrape_web_page',
-      generatedAt: new Date().toISOString(),
-      url: finalParsed.toString(),
-      title,
-      contentType,
-      text,
-      totalChars: text.length,
-      truncated: text.length >= maxChars,
-      links,
-    };
   }
 
   /**
    * PDF branch of scrape_web_page. The response already passed the SSRF guard
-   * (parseAndValidatePublicUrl on the original AND final URL) before we get
+   * (validateUrlBeforeRequest on the original AND final URL) before we get
    * here; this only buffers (size-capped) and extracts text.
    */
   private async extractPdfText(
@@ -6294,34 +6552,16 @@ export class MeriToolsService {
     url: string,
     contentType: string,
     maxChars: number,
+    scope: WebReadScope,
   ) {
-    const MAX_PDF_BYTES = 15 * 1024 * 1024;
-    const declaredLength = Number(response.headers.get('content-length') ?? 0);
-    if (declaredLength > MAX_PDF_BYTES) {
-      throw new BadRequestException('PDF too large to extract (limit 15MB)');
-    }
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.byteLength > MAX_PDF_BYTES) {
-      throw new BadRequestException('PDF too large to extract (limit 15MB)');
-    }
+    // Streambounded bytes BEFORE allocation - validate before reading
+    const buffer = await readBodyWithSizeLimit(response, MAX_PDF_BYTES, scope);
 
-    // Lazy-loaded: pdf-parse pulls in pdfjs-dist, which is heavy at module
-    // load and only needed when a PDF is actually scraped.
-    const { PDFParse } = await import('pdf-parse');
-    const parser = new PDFParse({ data: buffer });
-    let rawText: string;
-    let pages: number;
-    try {
-      const parsed = await parser.getText();
-      rawText = parsed.text ?? '';
-      pages = parsed.total ?? 0;
-    } catch (err) {
-      throw new BadGatewayException(`PDF text extraction failed: ${(err as Error).message}`);
-    } finally {
-      await parser.destroy().catch(() => {});
-    }
-
-    const text = summarizeText(rawText, maxChars);
+    const { text: rawText, totalChars, pages } = await extractWebPdfText(buffer, scope, maxChars);
+    scope.check();
+    const normalizedText = rawText.replace(/\s+/g, ' ').trim();
+    const text = summarizeText(normalizedText, maxChars);
+    const truncated = totalChars > maxChars;
     return {
       tool: 'scrape_web_page',
       generatedAt: new Date().toISOString(),
@@ -6331,9 +6571,19 @@ export class MeriToolsService {
       contentType,
       pages,
       text,
-      totalChars: text.length,
-      truncated: text.length >= maxChars,
+      totalChars,
+      truncated,
       links: [],
+      contentHash: sha256Bytes(buffer),
+      authoritativeOwner: 'public_url',
+      currentStatus: 'available',
+      trust: 'external_untrusted',
+      coverage: {
+        locator: { url, characterStart: 0, characterEnd: text.length },
+        pages,
+        complete: !truncated,
+        truncated,
+      },
     };
   }
 

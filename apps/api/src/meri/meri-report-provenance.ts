@@ -13,6 +13,12 @@ export const PUBLIC_RESEARCH_SOURCE_TOOLS = [
   'read_client_meetings',
   'query_tasks',
   'query_action_items',
+  'read_monday_client_boards',
+  'get_bill_status',
+  'read_bill_text',
+  'scrape_web_page',
+  'read_chat_attachments',
+  'get_research_evidence',
 ] as const;
 
 const PUBLIC_RESEARCH_SOURCE_TOOL_SET = new Set<string>(PUBLIC_RESEARCH_SOURCE_TOOLS);
