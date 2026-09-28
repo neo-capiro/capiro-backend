@@ -38,6 +38,8 @@ jobs:
           pnpm --filter @capiro/onboard-api exec prisma generate
           pnpm --filter @capiro/api-strategy exec prisma generate
           pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
           pnpm --filter @capiro/auth build
           pnpm --filter @capiro/meriv2-core build
           pnpm --filter @capiro/strategy-verifier build
