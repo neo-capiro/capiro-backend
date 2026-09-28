@@ -215,6 +215,8 @@ jobs:
         run: pnpm --filter @capiro/meriv2-orchestrator test
 
       - name: Test Strategy API
+        env:
+          CI_DISPOSABLE_POSTGRES: '1'
         run: pnpm --filter @capiro/api-strategy test
 
       - name: Test API

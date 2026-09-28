@@ -86,6 +86,7 @@ function harness(input: {
     args.select?.sourceKind ? { sourceKind } : { payload },
   );
   const tx = {
+    client: { findMany: jest.fn(async () => []) },
     memoryCandidate: {
       findMany: jest.fn(async () => [row]),
       findFirst,

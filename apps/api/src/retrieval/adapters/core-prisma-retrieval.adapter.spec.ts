@@ -68,8 +68,8 @@ function setup(txOverrides: Record<string, unknown> = {}) {
     },
     ...txOverrides,
   };
-  const withTenant = jest.fn(async (tenantId: string, callback: (value: unknown) => Promise<unknown>) =>
-    callback(tx),
+  const withTenant = jest.fn(
+    async (tenantId: string, callback: (value: unknown) => Promise<unknown>) => callback(tx),
   );
   const prisma = { withTenant } as unknown as PrismaService;
   const adapter = new CorePrismaRetrievalAdapter(prisma);
@@ -93,10 +93,7 @@ describe('CorePrismaRetrievalAdapter', () => {
     expect(tx.client.findMany).toHaveBeenNthCalledWith(1, {
       where: {
         id: { in: ['client-visible'] },
-        OR: [
-          { memoryWall: false },
-          { memoryAccessGrants: { some: { userId: 'user-1' } } },
-        ],
+        OR: [{ memoryWall: false }, { memoryAccessGrants: { some: { userId: 'user-1' } } }],
       },
       select: { id: true },
       orderBy: { id: 'asc' },
@@ -107,7 +104,10 @@ describe('CorePrismaRetrievalAdapter', () => {
     const { adapter, catalog, tx } = setup();
     tx.client.findMany.mockReset().mockResolvedValue([]);
 
-    const result = await adapter.retrieve(catalog.get('mail'), request({ requestedDomains: ['mail'] }));
+    const result = await adapter.retrieve(
+      catalog.get('mail'),
+      request({ requestedDomains: ['mail'] }),
+    );
 
     expect(result).toMatchObject({
       sourceStatus: 'unauthorized',
@@ -159,10 +159,7 @@ describe('CorePrismaRetrievalAdapter', () => {
         AND: [
           { clientId: { in: ['client-visible'] } },
           {
-            OR: [
-              { createdByUserId: 'user-1' },
-              { connection: { createdByUserId: 'user-1' } },
-            ],
+            OR: [{ createdByUserId: 'user-1' }, { connection: { createdByUserId: 'user-1' } }],
             status: { not: 'deleted' },
           },
         ],
@@ -211,7 +208,10 @@ describe('CorePrismaRetrievalAdapter', () => {
     const { adapter, catalog, tx } = setup();
     tx.integrationConnection.findMany.mockReset().mockResolvedValue([]);
 
-    const result = await adapter.retrieve(catalog.get('mail'), request({ requestedDomains: ['mail'] }));
+    const result = await adapter.retrieve(
+      catalog.get('mail'),
+      request({ requestedDomains: ['mail'] }),
+    );
 
     expect(result).toMatchObject({
       returned: 0,
@@ -224,12 +224,17 @@ describe('CorePrismaRetrievalAdapter', () => {
 
   it('marks mail coverage degraded when one authorized mailbox is not connected', async () => {
     const { adapter, catalog, tx } = setup();
-    tx.integrationConnection.findMany.mockReset().mockResolvedValue([
-      mailConnection('mail-1'),
-      { ...mailConnection('mail-2'), status: 'error', lastSyncAt: null },
-    ]);
+    tx.integrationConnection.findMany
+      .mockReset()
+      .mockResolvedValue([
+        mailConnection('mail-1'),
+        { ...mailConnection('mail-2'), status: 'error', lastSyncAt: null },
+      ]);
 
-    const result = await adapter.retrieve(catalog.get('mail'), request({ requestedDomains: ['mail'] }));
+    const result = await adapter.retrieve(
+      catalog.get('mail'),
+      request({ requestedDomains: ['mail'] }),
+    );
 
     expect(result).toMatchObject({
       sourceStatus: 'degraded',
@@ -241,12 +246,14 @@ describe('CorePrismaRetrievalAdapter', () => {
   it('reports the stalest completed authorized mailbox sync rather than a fresher unrelated connection', async () => {
     const { adapter, catalog, tx } = setup();
     const older = new Date('2026-08-15T13:00:00.000Z');
-    tx.integrationConnection.findMany.mockReset().mockResolvedValue([
-      mailConnection('mail-1'),
-      mailConnection('mail-2', older),
-    ]);
+    tx.integrationConnection.findMany
+      .mockReset()
+      .mockResolvedValue([mailConnection('mail-1'), mailConnection('mail-2', older)]);
 
-    const result = await adapter.retrieve(catalog.get('mail'), request({ requestedDomains: ['mail'] }));
+    const result = await adapter.retrieve(
+      catalog.get('mail'),
+      request({ requestedDomains: ['mail'] }),
+    );
 
     expect(result).toMatchObject({
       sourceStatus: 'healthy',
@@ -260,7 +267,10 @@ describe('CorePrismaRetrievalAdapter', () => {
     tx.integrationConnection.findMany.mockResolvedValue([
       mailConnection('mail-stale', new Date('2026-08-10T12:00:00.000Z')),
     ]);
-    const result = await adapter.retrieve(catalog.get('mail'), request({ requestedDomains: ['mail'] }));
+    const result = await adapter.retrieve(
+      catalog.get('mail'),
+      request({ requestedDomains: ['mail'] }),
+    );
     expect(result).toMatchObject({
       sourceStatus: 'degraded',
       coverageComplete: false,
@@ -272,10 +282,16 @@ describe('CorePrismaRetrievalAdapter', () => {
   it('does not claim empty mail coverage is complete after a calendar-only connection sync', async () => {
     const { adapter, catalog, tx } = setup();
     tx.integrationConnection.findMany.mockResolvedValue([
-      { ...mailConnection(), syncState: { calendar: { updatedAt: DEFAULT_MAIL_SYNC.toISOString() } } },
+      {
+        ...mailConnection(),
+        syncState: { calendar: { updatedAt: DEFAULT_MAIL_SYNC.toISOString() } },
+      },
     ]);
 
-    const result = await adapter.retrieve(catalog.get('mail'), request({ requestedDomains: ['mail'] }));
+    const result = await adapter.retrieve(
+      catalog.get('mail'),
+      request({ requestedDomains: ['mail'] }),
+    );
 
     expect(result).toMatchObject({
       returned: 0,
@@ -290,10 +306,16 @@ describe('CorePrismaRetrievalAdapter', () => {
     const { adapter, catalog, tx } = setup();
     const connection = mailConnection();
     tx.integrationConnection.findMany.mockResolvedValue([
-      { ...connection, syncState: { mail: { ...connection.syncState.mail, captureVersion: undefined } } },
+      {
+        ...connection,
+        syncState: { mail: { ...connection.syncState.mail, captureVersion: undefined } },
+      },
     ]);
 
-    const result = await adapter.retrieve(catalog.get('mail'), request({ requestedDomains: ['mail'] }));
+    const result = await adapter.retrieve(
+      catalog.get('mail'),
+      request({ requestedDomains: ['mail'] }),
+    );
 
     expect(result).toMatchObject({
       sourceStatus: 'degraded',
@@ -307,10 +329,16 @@ describe('CorePrismaRetrievalAdapter', () => {
     const { adapter, catalog, tx } = setup();
     const connection = mailConnection();
     tx.integrationConnection.findMany.mockResolvedValue([
-      { ...connection, syncState: { mail: { ...connection.syncState.mail, lastStats: { hasMore: true } } } },
+      {
+        ...connection,
+        syncState: { mail: { ...connection.syncState.mail, lastStats: { hasMore: true } } },
+      },
     ]);
 
-    const result = await adapter.retrieve(catalog.get('mail'), request({ requestedDomains: ['mail'] }));
+    const result = await adapter.retrieve(
+      catalog.get('mail'),
+      request({ requestedDomains: ['mail'] }),
+    );
 
     expect(result).toMatchObject({
       returned: 0,
@@ -325,14 +353,22 @@ describe('CorePrismaRetrievalAdapter', () => {
     const { adapter, catalog, tx } = setup();
     const connection = mailConnection();
     tx.integrationConnection.findMany.mockResolvedValue([
-      { ...connection, syncState: { mail: {
-        ...connection.syncState.mail,
-        captureReplayCatchupPending: true,
-        lastStats: { hasMore: false },
-      } } },
+      {
+        ...connection,
+        syncState: {
+          mail: {
+            ...connection.syncState.mail,
+            captureReplayCatchupPending: true,
+            lastStats: { hasMore: false },
+          },
+        },
+      },
     ]);
 
-    const result = await adapter.retrieve(catalog.get('mail'), request({ requestedDomains: ['mail'] }));
+    const result = await adapter.retrieve(
+      catalog.get('mail'),
+      request({ requestedDomains: ['mail'] }),
+    );
 
     expect(result).toMatchObject({
       returned: 0,
@@ -346,10 +382,7 @@ describe('CorePrismaRetrievalAdapter', () => {
   it('keeps soft-deleted, foreign-owner, and reserved internal outreach out', async () => {
     const { adapter, catalog, tx } = setup();
 
-    await adapter.retrieve(
-      catalog.get('outreach'),
-      request({ requestedDomains: ['outreach'] }),
-    );
+    await adapter.retrieve(catalog.get('outreach'), request({ requestedDomains: ['outreach'] }));
 
     expect(tx.outreachRecord.count).toHaveBeenCalledWith({
       where: {

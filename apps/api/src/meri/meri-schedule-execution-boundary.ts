@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
-import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
+import {
+  clientMemoryAllowed,
+  clientMemoryAllowedForRowOwnerSql,
+} from '../memory/memory-wall.helpers.js';
 
 export const SCHEDULED_TASK_LEASE_MS = 120_000;
 export const SCHEDULED_TASK_HEARTBEAT_MS = 10_000;
@@ -1020,14 +1023,7 @@ export async function advanceScheduledTaskExecution(
                    AND c.tenant_id = st.tenant_id
                    AND c.status <> 'archived'
                    AND (
-                     NOT c.memory_wall
-                     OR EXISTS (
-                       SELECT 1
-                         FROM client_memory_access a
-                        WHERE a.tenant_id = c.tenant_id
-                          AND a.client_id = c.id
-                          AND a.user_id = st.owner_user_id
-                     )
+                     ${clientMemoryAllowedForRowOwnerSql('c', 'st', 'owner_user_id')}
                    )
               )
             )
@@ -1063,14 +1059,7 @@ export async function advanceScheduledTaskExecution(
                  AND c.tenant_id = st.tenant_id
                  AND c.status <> 'archived'
                  AND (
-                   NOT c.memory_wall
-                   OR EXISTS (
-                     SELECT 1
-                       FROM client_memory_access a
-                      WHERE a.tenant_id = c.tenant_id
-                        AND a.client_id = c.id
-                        AND a.user_id = st.owner_user_id
-                   )
+                   ${clientMemoryAllowedForRowOwnerSql('c', 'st', 'owner_user_id')}
                  )
             )
           )

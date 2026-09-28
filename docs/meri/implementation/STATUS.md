@@ -1,5 +1,11 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-28 CI consolidation
+
+The foundation now includes the reviewed durable coordinator, provider/tool budget fencing, bounded source acquisition, child research, and Workstream A CI repairs through donor 9155e8d5c. Combined CI repair validation passes 127 tests in 13 suites, API types and scoped formatting; the scheduler wall extraction also passes independent Hermes/Kimi review. See ci-foundation-integration-qualification.md. Prior checkpoints below retain their historical scope.
+
+Full File01 is still incomplete: telemetry/export, native fixture and capture bindings, complete offline/live acceptance, hosted CI, database clearance, named owner acceptance, both-main integration, approved deployment/migrations and deployed SHA/digest evidence remain. Synthetic-cohort enablement is approved but unapplied. No main or AWS changes.
+
 ## Current checkpoint — 2026-09-28 child integration
 
 Full File01 remains incomplete. Reviewed source-family/web integration is published at c4fbb2198. Bounded child tasks are now consolidated with that source, durable coordinator, and provider-budget foundation: 150 combined API tests in nine suites (including owned PostgreSQL), shared/core builds, API types, and scoped formatting exit 0. Final Hermes/Kimi static review passes its scope. The lead reproduced and repaired a missing late-child-completion deadline fence, added bounded stream cancellation, and rechecks the current plan/goal before parent synthesis. See child-foundation-qualification.md and finite-source-foundation-qualification.md.

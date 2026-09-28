@@ -93,7 +93,12 @@ describe('Phase 3 (3a) — memory private rows are fail-closed', () => {
     expect(meri).toMatch(/scope = 'user_private' AND owner_user_id = \$3::uuid/);
 
     const engagement = readFileSync(join(SRC_ROOT, 'engagement', 'engagement.service.ts'), 'utf8');
-    expect(engagement).toMatch(/loadUserVoiceBlock[\s\S]{0,900}contextCompiler\.compile\(/);
+    // The legacy engagement loader is now disabled: the context-plane path is
+    // required, and a call into the old loader must fail before reading memory.
+    const legacyVoice = engagement.match(/private async loadUserVoiceBlock\([\s\S]*?\n  }/)?.[0];
+    expect(legacyVoice).toBeDefined();
+    expect(legacyVoice).toContain("throw new Error('phase26_engagement_context_plane_required')");
+    expect(legacyVoice).not.toMatch(/\$queryRaw|return\s/);
     expect(engagement).not.toMatch(/FROM memory_items[\s\S]{0,200}'user-voice'/);
   });
 
