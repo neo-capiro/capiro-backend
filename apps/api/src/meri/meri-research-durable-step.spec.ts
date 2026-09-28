@@ -22,6 +22,7 @@ describe('durable research step receipts', () => {
       run,
       {
         receiptId: 'receipt-a',
+        toolCallId: 'call-a',
         tool: 'search_congress_bills',
         label: 'Search Congress bills',
         status: 'complete',
@@ -37,6 +38,7 @@ describe('durable research step receipts', () => {
       leaseEpoch: 4,
       sequence: 7,
       effectClass: 'safe_read',
+      toolCallId: 'call-a',
       status: 'complete',
     });
     expect(JSON.stringify(appended.metadata)).not.toContain('bearer');
@@ -51,6 +53,7 @@ describe('durable research step receipts', () => {
         { id: 'run-old', leaseEpoch: 3 },
         {
           receiptId: 'receipt-old',
+          toolCallId: 'call-old',
           tool: 'search_congress_bills',
           label: 'Search Congress bills',
           status: 'complete',

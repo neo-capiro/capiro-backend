@@ -145,16 +145,32 @@ describe('MeriV3ResearchRunner primary runtime', () => {
     expect(client.streamChat).toHaveBeenCalledTimes(1);
   });
 
-  it('translates V3 tool progress into the established research UI events', async () => {
+  it('keeps generic V3 tool completion operational and preserves final source archive data', async () => {
     const base = fixture();
     const { runner } = fixture([
       { type: 'tool_call', tool: 'get_client_context', label: 'Client' },
       { type: 'tool_done', tool: 'get_client_context', label: 'Client', status: 'done', detail: '3 capabilities' },
-      base.done,
+      { type: 'tool_done', tool: 'synthesize', label: 'Synthesize', status: 'done' },
+      { type: 'tool_done', tool: 'send_email', label: 'Send email', status: 'blocked' },
+      {
+        ...base.done,
+        steps: [
+          { tool: 'get_client_context', label: 'Client', status: 'done' },
+          { tool: 'synthesize', label: 'Synthesize', status: 'done' },
+          { tool: 'send_email', label: 'Send email', status: 'blocked' },
+        ],
+      } as MeriV3ChatStreamEvent,
     ]);
     const onEvent = jest.fn();
-    await runner.run(ctx, input, auth, onEvent);
+    const result = await runner.run(ctx, input, auth, onEvent);
     expect(onEvent).toHaveBeenCalledWith({ type: 'step', tool: 'get_client_context', label: 'Client' });
-    expect(onEvent).toHaveBeenCalledWith({ type: 'source', source: { tool: 'get_client_context', label: 'Client', summary: '3 capabilities', confidence: 'high' } });
+    expect(onEvent).toHaveBeenCalledWith({ type: 'progress', note: 'Client finished' });
+    expect(onEvent).toHaveBeenCalledWith({ type: 'progress', note: 'Synthesize finished' });
+    expect(onEvent).toHaveBeenCalledWith({ type: 'progress', note: 'Send email status: blocked' });
+    expect(onEvent.mock.calls.flat().some((event) => event.type === 'source')).toBe(false);
+    expect(result.sources).toEqual([
+      expect.objectContaining({ tool: 'get_client_context', confidence: 'high' }),
+    ]);
+    expect(result.toolsUsed).toEqual(['get_client_context']);
   });
 });

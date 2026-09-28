@@ -88,7 +88,11 @@ export class MeriV3ResearchRunner {
   }> {
     const result = await this.complete(ctx, input, auth, 'read-only', onEvent);
     const ledgerEntries = result.ledgerEntries ?? [];
-    const sources: SourceAttribution[] = result.steps.map((step) => ({
+    const evidencedTools = new Set(ledgerEntries.map((entry) => entry.tool));
+    const sourceSteps = result.steps.filter(
+      (step) => step.status === 'done' && evidencedTools.has(step.tool),
+    );
+    const sources: SourceAttribution[] = sourceSteps.map((step) => ({
       tool: step.tool,
       label: step.label,
       summary:
@@ -102,7 +106,7 @@ export class MeriV3ResearchRunner {
       reportBody: result.reply,
       model: result.model,
       sources,
-      toolsUsed: [...new Set(result.steps.map((step) => step.tool))],
+      toolsUsed: [...new Set(sourceSteps.map((step) => step.tool))],
       ledgerEntries,
       citations: result.citations ?? [],
       ...(result.telemetry ? { telemetry: result.telemetry } : {}),
@@ -175,13 +179,15 @@ export class MeriV3ResearchRunner {
           onEvent({ type: 'step', tool: event.tool, label: event.label });
         else if (event.type === 'tool_done')
           onEvent({
-            type: 'source',
-            source: {
-              tool: event.tool,
-              label: event.label,
-              summary: event.detail ?? event.status,
-              confidence: event.status === 'done' ? 'high' : 'low',
-            },
+            // The current V3 event contract has no stable tool-call identity or
+            // execution classification. `tool_done` also covers pre-synthesis
+            // and blocked/error UI steps, so it cannot truthfully authorize a
+            // completed safe-read receipt. Keep it operational progress only.
+            type: 'progress',
+            note:
+              event.status === 'done'
+                ? `${event.label} finished`
+                : `${event.label} status: ${event.status}`,
           });
         else onEvent(event as unknown as Record<string, unknown>);
       },

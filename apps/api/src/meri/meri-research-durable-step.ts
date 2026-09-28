@@ -17,6 +17,8 @@ export interface DurableResearchStepReceipt {
   leaseEpoch: number;
   sequence: number;
   effectClass: 'safe_read';
+  /** Stable provider/tool-dispatch identity. Legacy version-1 rows may omit it. */
+  toolCallId?: string;
   tool: string;
   label: string;
   status: DurableResearchStepStatus;
@@ -26,6 +28,8 @@ export interface DurableResearchStepReceipt {
 
 export interface DurableResearchStepInput {
   receiptId: string;
+  /** Required for new qualified writes; optional only for call-site compatibility. */
+  toolCallId?: string;
   tool: string;
   label: string;
   status: DurableResearchStepStatus;
@@ -53,6 +57,7 @@ export function readDurableResearchStepReceipts(value: unknown): DurableResearch
       !nonNegativeInteger(row.leaseEpoch) ||
       !nonNegativeInteger(row.sequence) ||
       row.effectClass !== 'safe_read' ||
+      (row.toolCallId !== undefined && typeof row.toolCallId !== 'string') ||
       typeof row.tool !== 'string' ||
       typeof row.label !== 'string' ||
       !['complete', 'failed'].includes(String(row.status)) ||
@@ -100,6 +105,7 @@ export function appendDurableResearchStepReceipt(
     leaseEpoch: run.leaseEpoch,
     sequence,
     effectClass: 'safe_read',
+    ...(boundedText(input.toolCallId) ? { toolCallId: boundedText(input.toolCallId) } : {}),
     tool: boundedText(input.tool),
     label: boundedText(input.label),
     status: input.status,

@@ -1,5 +1,47 @@
 /** Durable public progress only. Provider reasoning and bearer credentials never enter this record. */
 export const RESEARCH_RUN_LEASE_MS = 120_000;
+/**
+ * Production PostgreSQL CAS for every owner-authored lease mutation. Keep this
+ * statement exported so the embedded-Postgres contract suite executes the same
+ * SQL used by the service rather than a test-only approximation.
+ */
+export const ACTIVE_RESEARCH_RUN_UPDATE_SQL = `
+UPDATE clio_research_sessions
+   SET metadata_jsonb = $10::jsonb,
+       status = $11,
+       updated_at = $12::timestamptz
+ WHERE id = $1::uuid
+   AND tenant_id = $2::uuid
+   AND user_id = $3::uuid
+   AND status = $4
+   AND report_artifact_id IS NULL
+   AND metadata_jsonb #>> '{run,id}' = $5
+   AND metadata_jsonb #>> '{run,leaseEpoch}' = $6::bigint::text
+   AND metadata_jsonb #>> '{run,phase}' = $7
+   AND metadata_jsonb #>> '{run,status}' = 'running'
+   AND (metadata_jsonb #>> '{run,heartbeatAt}')::timestamptz >= $8::timestamptz
+   AND metadata_jsonb = $9::jsonb
+ RETURNING metadata_jsonb`;
+
+/** Lock and return a live lease without allowing an expired owner to touch it. */
+export const ACTIVE_RESEARCH_RUN_FENCE_SQL = `
+UPDATE clio_research_sessions
+   SET updated_at = $9::timestamptz
+ WHERE id = $1::uuid
+   AND tenant_id = $2::uuid
+   AND user_id = $3::uuid
+   AND status = $4
+   AND report_artifact_id IS NULL
+   AND metadata_jsonb #>> '{run,id}' = $5
+   AND metadata_jsonb #>> '{run,leaseEpoch}' = $6::bigint::text
+   AND metadata_jsonb #>> '{run,phase}' = $7
+   AND metadata_jsonb #>> '{run,status}' = 'running'
+   AND (metadata_jsonb #>> '{run,heartbeatAt}')::timestamptz >= $8::timestamptz
+ RETURNING metadata_jsonb`;
+
+export function researchLeaseCutoff(now = new Date()): Date {
+  return new Date(now.getTime() - RESEARCH_RUN_LEASE_MS);
+}
 export type ResearchRunPhase = 'plan' | 'research';
 export type ResearchRunStatus =
   | 'running'

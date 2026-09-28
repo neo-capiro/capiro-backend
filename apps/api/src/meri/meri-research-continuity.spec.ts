@@ -18,6 +18,8 @@ function fixture() {
   let session: any;
   let allowed = true;
   let originAvailable = true;
+  let failReceiptWrites = false;
+  let afterReceiptCommit: (() => void) | undefined;
   const conversation = {
     id: 'thread-a',
     clientId: 'client-a',
@@ -53,7 +55,42 @@ function fixture() {
   ];
   const artifacts: any[] = [];
   const tx = {
-    $queryRawUnsafe: jest.fn(async () => [{ allowed }]),
+    $queryRawUnsafe: jest.fn(async (sql: string, ...values: unknown[]) => {
+      if (sql.includes('UPDATE clio_research_sessions')) {
+        const run = session?.metadata?.run;
+        const matches =
+          session &&
+          values[0] === session.id &&
+          values[1] === session.tenantId &&
+          values[2] === session.userId &&
+          values[3] === session.status &&
+          values[4] === run?.id &&
+          String(values[5]) === String(run?.leaseEpoch) &&
+          values[6] === run?.phase &&
+          run?.status === 'running' &&
+          Date.parse(run?.heartbeatAt ?? '') >= new Date(values[7] as string | Date).getTime();
+        if (!matches) return [];
+        if (sql.includes('SET metadata_jsonb')) {
+          if (JSON.stringify(session.metadata) !== String(values[8])) return [];
+          const nextMetadata = JSON.parse(String(values[9]));
+          const addsReceipt =
+            (nextMetadata.durableStepReceipts?.length ?? 0) >
+            (session.metadata?.durableStepReceipts?.length ?? 0);
+          if (addsReceipt && failReceiptWrites) throw new Error('Receipt database unavailable');
+          session = {
+            ...session,
+            metadata: nextMetadata,
+            status: values[10],
+            updatedAt: new Date(values[11] as string | Date),
+          };
+          if (addsReceipt) afterReceiptCommit?.();
+        } else {
+          session = { ...session, updatedAt: new Date(values[8] as string | Date) };
+        }
+        return [{ metadata_jsonb: structuredClone(session.metadata) }];
+      }
+      return [{ allowed }];
+    }),
     tenant: { findFirst: jest.fn(async () => ({ settings: {} })) },
     client: {
       findFirst: jest.fn(async () => ({
@@ -64,7 +101,13 @@ function fixture() {
       })),
     },
     clioConversation: {
-      findFirst: jest.fn(async () => (originAvailable ? conversation : null)),
+      findFirst: jest.fn(async ({ where }: any) =>
+        originAvailable &&
+        (!where?.id || where.id === conversation.id) &&
+        (!('clientId' in (where ?? {})) || where.clientId === conversation.clientId)
+          ? conversation
+          : null,
+      ),
       create: jest.fn(async () => ({ id: 'unexpected-backing-thread' })),
       update: jest.fn(async () => conversation),
     },
@@ -196,7 +239,7 @@ function fixture() {
   const service = new MeriResearchService(
     prisma as never,
     { get: () => undefined } as never,
-    {} as never,
+    { isConcurrencySafe: jest.fn(() => true) } as never,
     credentials as never,
     {} as never,
     runner as never,
@@ -268,11 +311,14 @@ function fixture() {
     archive: () => {
       originAvailable = false;
     },
+    changeClient: () => {
+      conversation.clientId = 'client-b';
+    },
     replica: () =>
       new MeriResearchService(
         prisma as never,
         { get: () => undefined } as never,
-        {} as never,
+        { isConcurrencySafe: jest.fn(() => true) } as never,
         credentials as never,
         {} as never,
         runner as never,
@@ -280,6 +326,12 @@ function fixture() {
       ),
     revoke: () => {
       allowed = false;
+    },
+    failReceipts: () => {
+      failReceiptWrites = true;
+    },
+    afterReceipt: (callback: () => void) => {
+      afterReceiptCommit = callback;
     },
   };
 }
@@ -591,8 +643,14 @@ describe('Durable research lease and recovery', () => {
         source: {
           tool: 'get_client_context',
           label: 'Client context',
-          summary: '3 authorized records',
+          summary: 'SECRET_ROW_LABEL: raw client result',
           confidence: 'high',
+        },
+        durableSafeRead: {
+          outcome: 'complete',
+          toolCallId: 'call-client-context-1',
+          tool: 'get_client_context',
+          recordsReturned: 3,
         },
       });
       return result;
@@ -621,10 +679,15 @@ describe('Durable research lease and recovery', () => {
         leaseEpoch: 1,
         sequence: 1,
         effectClass: 'safe_read',
+        toolCallId: 'call-client-context-1',
         tool: 'get_client_context',
         status: 'complete',
+        summary: '3 authorized record(s) returned',
       }),
     ]);
+    expect(JSON.stringify(f.getSession().metadata.durableStepReceipts)).not.toContain(
+      'SECRET_ROW_LABEL',
+    );
     expect(f.getSession().metadata.run).toMatchObject({
       status: 'complete',
       leaseEpoch: 1,
@@ -633,6 +696,84 @@ describe('Durable research lease and recovery', () => {
 
     await f.replica().streamResearch(ctx, 'research-a', f.sse, f.auth);
     expect(f.runner.run).toHaveBeenCalledTimes(1);
+    expect(f.events.at(-1)).toEqual({ type: 'done' });
+  });
+
+  it.each(['revoke', 'archive', 'changeClient'] as const)(
+    'rechecks %s after receipt commit and before publishing its source frame',
+    async (change) => {
+      const f = fixture();
+      await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+      const result = await f.runner.run(ctx, {});
+      f.runner.run.mockImplementation(async (...args: any[]) => {
+        const onEvent = args[3] as (event: Record<string, unknown>) => void;
+        onEvent({
+          type: 'source',
+          source: {
+            tool: 'get_client_context',
+            label: 'Client context',
+            summary: 'private row label',
+            confidence: 'high',
+          },
+          durableSafeRead: {
+            outcome: 'complete',
+            toolCallId: `call-${change}`,
+            tool: 'get_client_context',
+          },
+        });
+        return result;
+      });
+      f.afterReceipt(() => f[change]());
+      await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
+      expect(f.getSession().metadata.durableStepReceipts).toHaveLength(1);
+      expect(f.events.some((event) => event.type === 'source')).toBe(false);
+      expect(f.events.some((event) => event.type === 'error')).toBe(true);
+      expect(f.events.at(-1)).toEqual({ type: 'done' });
+    },
+  );
+
+  it('keeps terminal error and done notifications honest when receipt persistence fails', async () => {
+    const f = fixture();
+    await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+    const result = await f.runner.run(ctx, {});
+    f.runner.run.mockImplementation(async (...args: any[]) => {
+      const onEvent = args[3] as (event: Record<string, unknown>) => void;
+      onEvent({
+        type: 'source',
+        source: {
+          tool: 'get_client_context',
+          label: 'Client context',
+          summary: 'sensitive result',
+          confidence: 'high',
+        },
+        durableSafeRead: {
+          outcome: 'complete',
+          toolCallId: 'call-outage',
+          tool: 'get_client_context',
+        },
+      });
+      return result;
+    });
+    f.failReceipts();
+    await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
+    expect(f.getSession().metadata.durableStepReceipts).toBeUndefined();
+    expect(f.getSession().metadata.run.status).toBe('interrupted');
+    expect(f.events).toContainEqual({ type: 'error', message: 'Receipt database unavailable' });
+    expect(f.events.at(-1)).toEqual({ type: 'done' });
+  });
+
+  it('does not let an expired owner write failure state before any successor exists', async () => {
+    const f = fixture();
+    await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+    f.runner.run.mockImplementation(async () => {
+      f.getSession().metadata.run.heartbeatAt = new Date(Date.now() - 180_000).toISOString();
+      throw new Error('Provider failed after suspension');
+    });
+    await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
+    expect(f.getSession().status).toBe('researching');
+    expect(f.getSession().metadata.run.status).toBe('running');
+    expect((await f.service.getSession(ctx, 'research-a')).run?.status).toBe('interrupted');
+    expect(f.events).toContainEqual({ type: 'error', message: 'Provider failed after suspension' });
     expect(f.events.at(-1)).toEqual({ type: 'done' });
   });
 
