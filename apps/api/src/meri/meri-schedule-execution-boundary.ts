@@ -17,6 +17,7 @@ export interface ScheduledTaskExecutionClaim {
 
 export type ScheduledTaskClaimResult =
   | { state: 'inactive' }
+  | { state: 'already_running' }
   | { state: 'wall_denied'; claim: ScheduledTaskExecutionClaim }
   | { state: 'claimed'; claim: ScheduledTaskExecutionClaim };
 
@@ -86,9 +87,12 @@ export async function checkScheduledTaskExecutionBoundary(
 }
 
 /**
- * Atomically claim one due occurrence by moving its next run forward. The
- * updated_at value returned by PostgreSQL is the completion fence; a concurrent
- * cancellation or later claim changes the row and invalidates this runner.
+ * Atomically claim one due occurrence by moving its next run forward. A task
+ * already marked running is deliberately not reclaimed, even after its next
+ * cadence is due: without a lease and durable effect receipts, the runner cannot
+ * distinguish a live execution from a crash after an external effect began.
+ * The updated_at value returned by PostgreSQL is the completion fence; a
+ * concurrent cancellation changes the row and invalidates this runner.
  */
 export async function claimScheduledTaskExecution(
   tx: Prisma.TransactionClient,
@@ -107,6 +111,7 @@ export async function claimScheduledTaskExecution(
         AND owner_user_id = $3::uuid
         AND enabled = true
         AND next_run_at <= $4::timestamptz
+        AND last_status IS DISTINCT FROM 'running'
       RETURNING updated_at::text AS fence`,
     task.id,
     task.tenantId,
@@ -115,7 +120,23 @@ export async function claimScheduledTaskExecution(
     nextRunAt,
   );
   const row = rows[0];
-  if (!row) return { state: 'inactive' };
+  if (!row) {
+    const current = (await tx.$queryRawUnsafe<Array<{ status: string | null }>>(
+      `SELECT last_status AS status
+         FROM clio_scheduled_task
+        WHERE id = $1::uuid
+          AND tenant_id = $2::uuid
+          AND owner_user_id = $3::uuid
+          AND enabled = true
+        LIMIT 1`,
+      task.id,
+      task.tenantId,
+      task.ownerUserId,
+    ))[0];
+    return current?.status === 'running'
+      ? { state: 'already_running' }
+      : { state: 'inactive' };
+  }
 
   const claim: ScheduledTaskExecutionClaim = {
     claimedAt,

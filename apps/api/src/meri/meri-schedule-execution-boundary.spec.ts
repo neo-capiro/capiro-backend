@@ -103,6 +103,9 @@ describe('scheduled task execution boundary', () => {
         claimedAt: Date,
         nextRunAtOrFence: Date | string,
       ) => {
+        if (sql.includes('SELECT last_status AS status')) {
+          return row.enabled ? [{ status: row.lastStatus }] : [];
+        }
         if (sql.includes('FROM clio_scheduled_task')) {
           return row.enabled
             && row.lastStatus === 'running'
@@ -112,7 +115,11 @@ describe('scheduled task execution boundary', () => {
             : [];
         }
         if (sql.includes('FROM clients c')) return [{ allowed: wallAllowed }];
-        if (!row.enabled || row.nextRunAt.getTime() > claimedAt.getTime()) return [];
+        if (
+          !row.enabled
+          || row.nextRunAt.getTime() > claimedAt.getTime()
+          || row.lastStatus === 'running'
+        ) return [];
         fenceSequence += 1;
         row.lastRunAt = claimedAt;
         row.nextRunAt = nextRunAtOrFence as Date;
@@ -171,9 +178,44 @@ describe('scheduled task execution boundary', () => {
     };
 
     await expect(Promise.all([run(), run()])).resolves.toEqual(
-      expect.arrayContaining(['delivered', 'inactive']),
+      expect.arrayContaining(['delivered', 'already_running']),
     );
     expect(sink).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects the next due cadence while the prior claim remains active', async () => {
+    const h = claimHarness();
+    const first = await claimScheduledTaskExecution(
+      h.transaction,
+      task,
+      new Date('2026-09-28T10:00:00.000Z'),
+      new Date('2026-09-28T11:00:00.000Z'),
+    );
+    if (first.state !== 'claimed') throw new Error('expected first claim');
+    const sink = jest.fn(async () => 'started');
+    await expect(executeScheduledTaskEffect(
+      () => checkScheduledTaskExecutionBoundary(h.transaction, task, first.claim),
+      sink,
+    )).resolves.toEqual({ executed: true, value: 'started' });
+
+    await expect(claimScheduledTaskExecution(
+      h.transaction,
+      task,
+      new Date('2026-09-28T11:00:00.000Z'),
+      new Date('2026-09-28T12:00:00.000Z'),
+    )).resolves.toEqual({ state: 'already_running' });
+    await expect(
+      checkScheduledTaskExecutionBoundary(h.transaction, task, first.claim),
+    ).resolves.toBe('runnable');
+    expect(sink).toHaveBeenCalledTimes(1);
+    expect(h.row).toMatchObject({
+      lastStatus: 'running',
+      nextRunAt: new Date('2026-09-28T11:00:00.000Z'),
+      runCount: 0,
+    });
+    await expect(
+      advanceScheduledTaskExecution(h.transaction, task, first.claim, 'ok'),
+    ).resolves.toBe(true);
   });
 
   it('keeps canceled status when stale completion tries to advance the claim', async () => {
@@ -233,6 +275,20 @@ describe('scheduled task execution boundary', () => {
       () => checkScheduledTaskExecutionBoundary(h.transaction, task, result.claim),
       sink,
     )).resolves.toEqual({ executed: false, boundary: 'wall_denied' });
+    expect(sink).not.toHaveBeenCalled();
+  });
+
+  it('propagates guard infrastructure failure instead of reporting wall denial', async () => {
+    const transaction = tx({ taskExists: true });
+    (transaction.clioScheduledTask.findFirst as jest.Mock).mockRejectedValueOnce(
+      new Error('guard database unavailable'),
+    );
+    const sink = jest.fn(async () => undefined);
+
+    await expect(executeScheduledTaskEffect(
+      () => checkScheduledTaskExecutionBoundary(transaction, task),
+      sink,
+    )).rejects.toThrow('guard database unavailable');
     expect(sink).not.toHaveBeenCalled();
   });
 });

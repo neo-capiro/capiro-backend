@@ -6,6 +6,7 @@ import type { TenantContext } from '@capiro/shared';
 import { MeriToolsService } from './meri-tools.service.js';
 import {
   advanceScheduledTaskExecution,
+  checkScheduledTaskExecutionBoundary,
   claimScheduledTaskExecution,
   executeScheduledTaskEffect,
 } from './meri-schedule-execution-boundary.js';
@@ -480,6 +481,53 @@ describeLocal('Meri schedule handler — native PostgreSQL receipt boundary', ()
     );
     expect(stored.rows[0]).toMatchObject({ enabled: true, last_status: 'ok', run_count: 1 });
     expect(stored.rows[0]?.next_run_at).toEqual(nextRunAt);
+  }, 30_000);
+
+  test('native next-cadence claim fails closed while the prior controlled effect is active', async () => {
+    await insertDueExecutionTask();
+    const sink = jest.fn(async () => 'started');
+    const identity = { id: PROPOSAL, tenantId: ctx.tenantId, ownerUserId: ctx.userId };
+    const first = await withExecutionTransaction((tx) =>
+      claimScheduledTaskExecution(
+        tx,
+        identity,
+        new Date('2026-09-28T10:00:00.000Z'),
+        new Date('2026-09-28T11:00:00.000Z'),
+      ),
+    );
+    expect(first.state).toBe('claimed');
+    if (first.state !== 'claimed') throw new Error('expected first claim');
+    await expect(withExecutionTransaction((tx) => executeScheduledTaskEffect(
+      () => checkScheduledTaskExecutionBoundary(tx, identity, first.claim),
+      sink,
+    ))).resolves.toEqual({ executed: true, value: 'started' });
+
+    await expect(withExecutionTransaction((tx) =>
+      claimScheduledTaskExecution(
+        tx,
+        identity,
+        new Date('2026-09-28T11:00:00.000Z'),
+        new Date('2026-09-28T12:00:00.000Z'),
+      ),
+    )).resolves.toEqual({ state: 'already_running' });
+    expect(sink).toHaveBeenCalledTimes(1);
+    const running = await pool.query<{
+      last_status: string;
+      run_count: number;
+      next_run_at: Date;
+    }>(
+      `SELECT last_status, run_count, next_run_at
+         FROM "${schemaName}".clio_scheduled_task WHERE id = $1::uuid`,
+      [PROPOSAL],
+    );
+    expect(running.rows[0]).toEqual({
+      last_status: 'running',
+      run_count: 0,
+      next_run_at: new Date('2026-09-28T11:00:00.000Z'),
+    });
+    await expect(withExecutionTransaction((tx) =>
+      advanceScheduledTaskExecution(tx, identity, first.claim, 'ok'),
+    )).resolves.toBe(true);
   }, 30_000);
 
   test('native cancellation after claim defeats fenced completion and retains canceled status', async () => {

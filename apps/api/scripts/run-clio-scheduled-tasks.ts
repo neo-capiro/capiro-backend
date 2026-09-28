@@ -353,15 +353,32 @@ async function main(): Promise<void> {
         failed += 1;
         continue;
       }
+      if (claimResult.state === 'already_running') {
+        logger.warn(
+          `[task ${task.id}] existing running claim retained; execution may still be active ` +
+          'or may have stopped with an unknown external-effect outcome; no automatic recovery attempted',
+        );
+        failed += 1;
+        continue;
+      }
       const claim: ScheduledTaskExecutionClaim = claimResult.claim;
       const finish = (status: string) =>
         prisma.withTenant(task.tenant_id, (tx: any) =>
           advanceScheduledTaskExecution(tx, identity, claim, status),
         );
-      const checkExecutionBoundary = (): Promise<ScheduledTaskExecutionBoundary> =>
-        prisma.withTenant(task.tenant_id, (tx: any) =>
-          checkScheduledTaskExecutionBoundary(tx, identity, claim),
-        ).catch(() => 'wall_denied' as const);
+      const checkExecutionBoundary = async (): Promise<ScheduledTaskExecutionBoundary> => {
+        try {
+          return await prisma.withTenant(task.tenant_id, (tx: any) =>
+            checkScheduledTaskExecutionBoundary(tx, identity, claim),
+          );
+        } catch (err) {
+          logger.warn(
+            `[task ${task.id}] execution boundary check failed; authority is unknown: ` +
+            (err as Error).message,
+          );
+          throw err;
+        }
+      };
       const stopAtBoundary = async (
         boundary: Exclude<ScheduledTaskExecutionBoundary, 'runnable'>,
       ) => {
