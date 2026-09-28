@@ -1127,10 +1127,13 @@ describe('MeriResearchService — forced synthesis', () => {
       captureBody(init);
       const body = JSON.parse(String(init?.body ?? '{}'));
       if (body.tools) {
-        // Simulate the per-round AbortController firing on the research timeout.
-        const err = new Error('This operation was aborted');
-        err.name = 'AbortError';
-        throw err;
+        // Wait for the actual per-round controller rather than trusting an
+        // arbitrary provider error that merely uses the AbortError name.
+        return new Promise<Response>((_resolve, reject) => {
+          const signal = init?.signal;
+          if (!signal) return reject(new Error('Missing gather signal'));
+          signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+        });
       }
       // The no-tools forced-synthesis call writes the report.
       return okResponse(sseBody(proseRound(REPORT)));
@@ -1139,7 +1142,7 @@ describe('MeriResearchService — forced synthesis', () => {
 
     const svc = new MeriResearchService(
       makePrisma(),
-      makeConfig(),
+      makeConfig({ CLIO_RESEARCH_TIMEOUT_MS: 10 }),
       makeTools(),
       makeAiCredentials(),
       makeReviews(),

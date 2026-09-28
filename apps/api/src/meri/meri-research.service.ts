@@ -1975,7 +1975,10 @@ export class MeriResearchService {
           // timeout. Don't let it kill the whole run — stop gathering and fall
           // through to the forced-synthesis pass so we still write a report
           // rather than persisting only the sources gathered so far.
-          if (isAbortError(roundErr)) {
+          if (
+            isControllerAbort(roundErr, controller.signal) &&
+            !auth.signal?.aborted
+          ) {
             this.logger.warn(`Research gather round ${round} timed out; forcing synthesis`);
             break;
           }
@@ -2297,7 +2300,10 @@ export class MeriResearchService {
         } catch (synthErr) {
           // Keep whatever prose streamed before an abort rather than discarding
           // it — a partial report is still more useful than sources alone.
-          if (isAbortError(synthErr)) {
+          if (
+            isControllerAbort(synthErr, controller.signal) &&
+            !auth.signal?.aborted
+          ) {
             this.logger.warn('Forced research synthesis timed out; keeping partial report');
           } else {
             if (synthErr instanceof ResearchTerminalError) throw synthErr;
@@ -3253,12 +3259,16 @@ function sseEvent(payload: Record<string, unknown>): string {
 }
 
 /** Decode Anthropic SSE without allowing a logical/protocol failure to become a clean turn. */
+const MAX_ANTHROPIC_STREAM_BYTES = 8 * 1024 * 1024;
+const MAX_ANTHROPIC_SSE_LINE_CHARS = 1024 * 1024;
+
 async function* anthropicStreamEvents(
   body: AsyncIterable<Uint8Array>,
 ): AsyncGenerator<Record<string, any>> {
-  const decoder = new TextDecoder();
+  const decoder = new TextDecoder('utf-8', { fatal: true });
   let buffer = '';
   let sawEvent = false;
+  let responseBytes = 0;
 
   const parseLine = (rawLine: string): Record<string, any> | null => {
     const line = rawLine.replace(/\r$/, '').trim();
@@ -3290,22 +3300,45 @@ async function* anthropicStreamEvents(
     return event;
   };
 
+  const decode = (chunk?: Uint8Array): string => {
+    try {
+      return chunk ? decoder.decode(chunk, { stream: true }) : decoder.decode();
+    } catch {
+      throw new ResearchTerminalError('partial', 'Malformed UTF-8 in Anthropic stream.');
+    }
+  };
+
+  const parseText = function* (text: string): Generator<Record<string, any>> {
+    let start = 0;
+    for (;;) {
+      const newline = text.indexOf('\n', start);
+      if (newline < 0) break;
+      const segment = text.slice(start, newline);
+      if (buffer.length + segment.length > MAX_ANTHROPIC_SSE_LINE_CHARS)
+        throw new ResearchTerminalError('partial', 'Anthropic stream line exceeded the limit.');
+      const line = buffer + segment;
+      buffer = '';
+      const event = parseLine(line);
+      if (event) yield event;
+      start = newline + 1;
+    }
+    const remainder = text.slice(start);
+    if (buffer.length + remainder.length > MAX_ANTHROPIC_SSE_LINE_CHARS)
+      throw new ResearchTerminalError('partial', 'Anthropic stream line exceeded the limit.');
+    buffer += remainder;
+  };
+
   try {
     for await (const chunk of body) {
-      buffer += decoder.decode(chunk, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
-      for (const line of lines) {
-        const event = parseLine(line);
-        if (event) yield event;
-      }
+      responseBytes += chunk.byteLength;
+      if (responseBytes > MAX_ANTHROPIC_STREAM_BYTES)
+        throw new ResearchTerminalError('partial', 'Anthropic stream exceeded the response limit.');
+      yield* parseText(decode(chunk));
     }
-    buffer += decoder.decode();
+    yield* parseText(decode());
     if (buffer.trim()) {
-      for (const line of buffer.split('\n')) {
-        const event = parseLine(line);
-        if (event) yield event;
-      }
+      const event = parseLine(buffer);
+      if (event) yield event;
     }
   } catch (error) {
     if (error instanceof ResearchTerminalError) throw error;
@@ -3388,12 +3421,18 @@ function createProgressReporter(
 }
 
 /**
- * True for an AbortController-driven timeout. fetch/undici surface these as a
- * DOMException/Error named 'AbortError'. The name is transport control state;
- * arbitrary provider prose containing "abort" is not.
+ * True only for an abort surfaced after this specific controller fired.
+ * fetch/undici use DOMException/Error named 'AbortError', but the name alone is
+ * provider-controlled data and is not sufficient timeout authority.
  */
-function isAbortError(err: unknown): boolean {
-  return err instanceof Error && err.name === 'AbortError';
+function isControllerAbort(err: unknown, signal: AbortSignal): boolean {
+  return (
+    signal.aborted &&
+    typeof err === 'object' &&
+    err !== null &&
+    'name' in err &&
+    err.name === 'AbortError'
+  );
 }
 
 function asStringArray(value: Prisma.JsonValue | null | undefined): string[] {

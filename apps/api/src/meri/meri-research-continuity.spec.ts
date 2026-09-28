@@ -73,7 +73,25 @@ function providerResponse(events: Array<Record<string, unknown>>): Response {
   } as unknown as Response;
 }
 
-function fixture(options: { privateInheritedInputs?: boolean } = {}) {
+function rawProviderResponse(chunks: Uint8Array[]): Response {
+  return {
+    ok: true,
+    status: 200,
+    body: {
+      async *[Symbol.asyncIterator]() {
+        for (const chunk of chunks) yield chunk;
+      },
+    } as unknown as ReadableStream<Uint8Array>,
+    text: async () => '',
+  } as unknown as Response;
+}
+
+function fixture(
+  options: {
+    privateInheritedInputs?: boolean;
+    legacyConfig?: Record<string, unknown>;
+  } = {},
+) {
   const privateInheritedInputs = options.privateInheritedInputs === true;
   let session: any;
   let allowed = true;
@@ -424,6 +442,7 @@ function fixture(options: { privateInheritedInputs?: boolean } = {}) {
           CLIO_RESEARCH_TOTAL_BUDGET_MS: 60_000,
           CLIO_RESEARCH_SYNTHESIS_RESERVE_MS: 10_000,
           CLIO_RESEARCH_PROGRESS_INTERVAL_MS: 5_000,
+          ...options.legacyConfig,
         })[key],
     } as never,
     tools as never,
@@ -1188,6 +1207,202 @@ describe('Durable research lease and recovery', () => {
       }
     },
   );
+
+  it('does not authorize forced synthesis for a name-only AbortError from the provider', async () => {
+    const originalFetch = global.fetch;
+    const f = fixture();
+    f.runner.enabled.mockResolvedValue(false);
+    f.credentials.resolveProvider.mockResolvedValue({
+      provider: 'anthropic',
+      apiKey: 'local-provider-key',
+      model: 'legacy-test-model',
+    });
+    const providerError = new Error('PRIVATE_ABORT_NAMED_PROVIDER_FAILURE');
+    providerError.name = 'AbortError';
+    global.fetch = jest
+      .fn()
+      .mockRejectedValueOnce(providerError)
+      .mockResolvedValueOnce(
+        providerResponse([
+          {
+            type: 'content_block_delta',
+            index: 0,
+            delta: { type: 'text_delta', text: '# Unauthorized synthesis' },
+          },
+          { type: 'message_delta', delta: { stop_reason: 'end_turn' } },
+        ]),
+      ) as unknown as typeof fetch;
+
+    try {
+      await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+      await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
+
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(f.getSession().status).toBe('failed');
+      expect(f.getSession().metadata.run).toMatchObject({
+        status: 'failed',
+        failureReason: RESEARCH_PROVIDER_FAILURE,
+      });
+      expect(f.artifacts).toHaveLength(0);
+      expect(f.messages.some((message) => message.role === 'assistant')).toBe(false);
+      expect(f.events.some((event) => event.type === 'text' || event.type === 'report')).toBe(
+        false,
+      );
+      expect(f.events).toContainEqual({ type: 'error', message: RESEARCH_PROVIDER_FAILURE });
+      expect(JSON.stringify(f.events)).not.toContain('PRIVATE_');
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it.each([
+    {
+      name: 'invalid UTF-8 inside an otherwise valid JSON event',
+      chunks: () => [
+        new TextEncoder().encode(
+          'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"bad',
+        ),
+        Uint8Array.of(0xff),
+        new TextEncoder().encode(
+          'bytes"}}\n\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}\n\n',
+        ),
+      ],
+    },
+    {
+      name: 'an over-limit SSE line',
+      chunks: () => [new TextEncoder().encode(`data: ${'x'.repeat(1024 * 1024)}\n`)],
+    },
+    {
+      name: 'an over-limit total response made of bounded lines',
+      chunks: () =>
+        Array.from({ length: 17 }, () =>
+          new TextEncoder().encode(`:${'x'.repeat(512 * 1024 - 2)}\n`),
+        ),
+    },
+  ])('does not save or publish after $name', async ({ chunks }) => {
+    const originalFetch = global.fetch;
+    const f = fixture();
+    f.runner.enabled.mockResolvedValue(false);
+    f.credentials.resolveProvider.mockResolvedValue({
+      provider: 'anthropic',
+      apiKey: 'local-provider-key',
+      model: 'legacy-test-model',
+    });
+    global.fetch = jest.fn(async () => rawProviderResponse(chunks())) as unknown as typeof fetch;
+
+    try {
+      await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+      await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
+
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(f.getSession().status).toBe('failed');
+      expect(f.getSession().metadata.run).toMatchObject({
+        status: 'partial',
+        failureReason: RESEARCH_PARTIAL,
+      });
+      expect(f.artifacts).toHaveLength(0);
+      expect(f.messages.some((message) => message.role === 'assistant')).toBe(false);
+      expect(f.events.some((event) => event.type === 'text' || event.type === 'report')).toBe(
+        false,
+      );
+      expect(f.events).toContainEqual({ type: 'error', message: RESEARCH_PARTIAL });
+      expect(f.events.at(-1)).toEqual({ type: 'done' });
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it('forces synthesis only after the gather controller actually times out', async () => {
+    const originalFetch = global.fetch;
+    const f = fixture({ legacyConfig: { CLIO_RESEARCH_TIMEOUT_MS: 10 } });
+    f.runner.enabled.mockResolvedValue(false);
+    f.credentials.resolveProvider.mockResolvedValue({
+      provider: 'anthropic',
+      apiKey: 'local-provider-key',
+      model: 'legacy-test-model',
+    });
+    const report = '# Report\n\nAuthorized synthesis after a real gather timeout.';
+    global.fetch = jest
+      .fn()
+      .mockImplementationOnce(
+        async (_url: string, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            const signal = init?.signal;
+            if (!signal) return reject(new Error('Missing gather signal'));
+            signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+          }),
+      )
+      .mockResolvedValueOnce(
+        providerResponse([
+          {
+            type: 'content_block_delta',
+            index: 0,
+            delta: { type: 'text_delta', text: report },
+          },
+          { type: 'message_delta', delta: { stop_reason: 'end_turn' } },
+        ]),
+      ) as unknown as typeof fetch;
+
+    try {
+      await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+      await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
+
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+      expect(f.getSession().status).toBe('complete');
+      expect(f.getSession().metadata.run.status).toBe('complete');
+      expect(f.artifacts).toHaveLength(1);
+      expect(f.artifacts[0]?.bodyText).toContain(report);
+      expect(f.messages.filter((message) => message.role === 'assistant')).toHaveLength(1);
+      expect(f.events.find((event) => event.type === 'text')?.text).toContain(report);
+      expect(f.events.find((event) => event.type === 'report')?.body).toContain(report);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it('persists intact fragmented UTF-8 with Anthropic metadata, pings, CRLF, and end marker', async () => {
+    const originalFetch = global.fetch;
+    const f = fixture();
+    f.runner.enabled.mockResolvedValue(false);
+    f.credentials.resolveProvider.mockResolvedValue({
+      provider: 'anthropic',
+      apiKey: 'local-provider-key',
+      model: 'legacy-test-model',
+    });
+    const report = '# Report\n\nCafé evidence.';
+    const wire =
+      'event: message_start\r\ndata: {"type":"message_start","message":{"id":"msg-1"}}\r\n\r\n' +
+      'event: ping\r\ndata: {"type":"ping"}\r\n\r\n' +
+      `event: content_block_delta\r\ndata: ${JSON.stringify({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: report } })}\r\n\r\n` +
+      'event: message_delta\r\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}\r\n\r\n' +
+      'event: message_stop\r\ndata: {"type":"message_stop"}\r\n\r\ndata: [DONE]\r\n\r\n';
+    const bytes = new TextEncoder().encode(wire);
+    const split = bytes.indexOf(0xc3) + 1;
+    global.fetch = jest.fn(async () =>
+      rawProviderResponse([
+        bytes.subarray(0, split),
+        bytes.subarray(split, split + 1),
+        bytes.subarray(split + 1),
+      ]),
+    ) as unknown as typeof fetch;
+
+    try {
+      await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+      await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
+
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(f.getSession().status).toBe('complete');
+      expect(f.getSession().metadata.run.status).toBe('complete');
+      expect(f.artifacts).toHaveLength(1);
+      expect(f.artifacts[0]?.bodyText).toContain(report);
+      expect(f.artifacts[0]?.bodyText).not.toContain('\ufffd');
+      expect(f.messages.filter((message) => message.role === 'assistant')).toHaveLength(1);
+      expect(f.events.find((event) => event.type === 'text')?.text).toContain(report);
+      expect(f.events.find((event) => event.type === 'report')?.body).toContain(report);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
 
   it('does not save or publish when the forced-synthesis stream returns a logical error', async () => {
     const originalFetch = global.fetch;
