@@ -22,6 +22,17 @@ const SYNTHETIC_TENANTS: ReadonlyMap<
   ['52e91176-08f0-4d89-9633-bc212f5bdbbf', 'meri-foundation-20260928-t2'],
 ] as const);
 const POLICY_TTL_MS = 30 * 60_000;
+const CAPTURE_OUTPUT_MAX_BYTES = 8 * 1024 * 1024;
+const CAPTURE_OUTPUT_MAX_CHUNKS = 8_192;
+
+interface MeriCaptureOutputWriter {
+  write(data: string): void;
+}
+
+export interface MeriServerReadonlyCaptureOutputFence {
+  writer: MeriCaptureOutputWriter;
+  release(): Promise<void>;
+}
 
 export function meriReadonlyCaptureCatalogSha256(): string {
   return createHash('sha256')
@@ -157,6 +168,57 @@ export function assertMeriServerReadonlyCaptureNoArtifactWrites(
   artifactIds: readonly string[],
 ): void {
   if (policy && artifactIds.length) throw captureDenied('artifact_writes_not_authorized');
+}
+
+/**
+ * Holds the explicitly server-owned synthetic capture stream until the turn's
+ * asynchronous work is complete and current authority has been re-read. This
+ * is intentionally not used for ordinary chat streaming.
+ *
+ * Release is a point-in-time authority check followed by a synchronous flush;
+ * it is not a database lock or an atomic revocation protocol across processes.
+ */
+export function createMeriServerReadonlyCaptureOutputFence(args: {
+  prisma: PrismaService;
+  ctx: TenantContext;
+  policy: MeriServerReadonlyCapturePolicy;
+  destination: MeriCaptureOutputWriter;
+}): MeriServerReadonlyCaptureOutputFence {
+  const chunks: string[] = [];
+  let bufferedBytes = 0;
+  let exceeded = false;
+  let released = false;
+
+  return {
+    writer: {
+      write(data: string): void {
+        if (released || exceeded) return;
+        const value = String(data);
+        const nextBytes = bufferedBytes + Buffer.byteLength(value, 'utf8');
+        if (nextBytes > CAPTURE_OUTPUT_MAX_BYTES || chunks.length >= CAPTURE_OUTPUT_MAX_CHUNKS) {
+          exceeded = true;
+          chunks.length = 0;
+          bufferedBytes = 0;
+          return;
+        }
+        chunks.push(value);
+        bufferedBytes = nextBytes;
+      },
+    },
+    async release(): Promise<void> {
+      if (released) return;
+      if (exceeded) throw captureDenied('private_output_buffer_limit_exceeded');
+      await assertMeriServerReadonlyCaptureCurrentAuthority({
+        prisma: args.prisma,
+        ctx: args.ctx,
+        policy: args.policy,
+      });
+      released = true;
+      const ready = chunks.splice(0);
+      bufferedBytes = 0;
+      for (const chunk of ready) args.destination.write(chunk);
+    },
+  };
 }
 
 export function assertMeriServerReadonlyCaptureToolAllowed(

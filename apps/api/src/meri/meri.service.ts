@@ -207,6 +207,7 @@ import {
   assertMeriServerReadonlyCaptureCurrentAuthority,
   assertMeriServerReadonlyCaptureNoArtifactWrites,
   assertMeriServerReadonlyCaptureTurnInput,
+  createMeriServerReadonlyCaptureOutputFence,
 } from './meri-server-readonly-capture.js';
 import {
   buildMessageEmbeddingText,
@@ -964,6 +965,7 @@ export class MeriService implements MeriTurnMaintenance {
     // they route legacy and this stays unused — threaded for the eventual flip.
     impersonateTenantId?: string,
   ) {
+    const browserSse = sse;
     const conversation = await this.ensureConversation(ctx, conversationId);
     // Phase 4 prospect-scope authorization re-check: BEFORE any user-message
     // write, model dispatch, native tool dispatch, or isolated MeriV2
@@ -987,6 +989,15 @@ export class MeriService implements MeriTurnMaintenance {
       ctx,
       policy: capturePolicy,
     });
+    const captureOutputFence = capturePolicy
+      ? createMeriServerReadonlyCaptureOutputFence({
+          prisma: this.prisma,
+          ctx,
+          policy: capturePolicy,
+          destination: browserSse,
+        })
+      : null;
+    if (captureOutputFence) sse = captureOutputFence.writer;
     const streamControl = this.extractStreamControl(body);
 
     // Compliance pre-screen (P1-7): audit-log clearly high-risk asks. Does not
@@ -1177,6 +1188,7 @@ export class MeriService implements MeriTurnMaintenance {
             ...(assistantMessageId ? { messageId: assistantMessageId } : {}),
           })}\n\n`,
         );
+        await captureOutputFence?.release();
         return;
       }
     }
@@ -1438,6 +1450,7 @@ export class MeriService implements MeriTurnMaintenance {
           ...(assistantMessageId ? { messageId: assistantMessageId } : {}),
         })}\n\n`,
       );
+      await captureOutputFence?.release();
       return;
     }
 
@@ -1498,6 +1511,7 @@ export class MeriService implements MeriTurnMaintenance {
         researchScope,
         ...(clientSignal ? { clientSignal } : {}),
       });
+      await captureOutputFence?.release();
       return;
     }
 
@@ -2677,6 +2691,7 @@ export class MeriService implements MeriTurnMaintenance {
           : {}),
       })}\n\n`,
     );
+    await captureOutputFence?.release();
   }
 
   /**

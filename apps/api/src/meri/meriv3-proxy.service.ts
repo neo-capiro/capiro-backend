@@ -79,6 +79,7 @@ import {
   assertMeriServerReadonlyCaptureCurrentAuthority,
   assertMeriServerReadonlyCaptureNoArtifactWrites,
   assertMeriServerReadonlyCaptureTurnInput,
+  createMeriServerReadonlyCaptureOutputFence,
 } from './meri-server-readonly-capture.js';
 import {
   allocateBoundedReplayHistory,
@@ -159,6 +160,7 @@ export class MeriV3ProxyService {
     bearerToken?: string,
     impersonateTenantId?: string,
   ): Promise<void> {
+    const browserSse = sse;
     const emit = (event: Record<string, unknown>) => {
       const captureReceipt =
         event.type === 'done' ? currentMeriServerReadonlyCaptureReceipt() : null;
@@ -212,6 +214,15 @@ export class MeriV3ProxyService {
       ctx,
       policy: capturePolicy,
     });
+    const captureOutputFence = capturePolicy
+      ? createMeriServerReadonlyCaptureOutputFence({
+          prisma: this.prisma,
+          ctx,
+          policy: capturePolicy,
+          destination: browserSse,
+        })
+      : null;
+    if (captureOutputFence) sse = captureOutputFence.writer;
     const control = extractStreamControl(body);
     const complianceScreen = screenComplianceRisk(control.cleanContent);
     let content: string;
@@ -289,6 +300,7 @@ export class MeriV3ProxyService {
           },
         );
         emit({ type: 'done', messageId: refusalMessage.id });
+        await captureOutputFence?.release();
         return;
       }
     }
@@ -320,6 +332,7 @@ export class MeriV3ProxyService {
         },
       );
       emit({ type: 'done', messageId: offerMessage.id });
+      await captureOutputFence?.release();
       return;
     }
 
@@ -498,7 +511,7 @@ export class MeriV3ProxyService {
     // only "data: " lines as frames, so this is invisible to it by construction.
     const keepAlive = setInterval(() => {
       try {
-        sse.write(': ping\n\n');
+        browserSse.write(': ping\n\n');
       } catch {
         /* client already gone; the abort signal handles teardown */
       }
@@ -743,6 +756,7 @@ export class MeriV3ProxyService {
           procedure?.receipt,
         )}`,
     );
+    await captureOutputFence?.release();
   }
 
   private async ensureConversation(ctx: TenantContext, conversationId: string) {

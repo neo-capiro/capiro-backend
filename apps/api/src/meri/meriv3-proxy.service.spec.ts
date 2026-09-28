@@ -548,6 +548,7 @@ describe('MeriV3ProxyService â€” done frame carries the persisted message i
         reasoningMode: 'fast',
         reasoningEffort: 'low',
       });
+      expect(frames()).toEqual([]);
     });
 
     await runtime.runChatTurn(
@@ -590,6 +591,27 @@ describe('MeriV3ProxyService â€” done frame carries the persisted message i
     expect(tx.clioMessage.update).not.toHaveBeenCalled();
     expect(tx.clioMessage.deleteMany).not.toHaveBeenCalled();
     expect(actualWriteCounts).toEqual([0, 1, 2, 2]);
+  });
+
+  it('keeps ordinary chat streaming immediate instead of applying the capture-only fence', async () => {
+    const { service, client, sse, frames } = buildHarness();
+    client.streamChat.mockImplementationOnce(async ({ onEvent }: any) => {
+      onEvent({ type: 'text', text: 'ordinary immediate text' });
+      expect(frames()).toContainEqual({ type: 'text', text: 'ordinary immediate text' });
+      onEvent({
+        type: 'done',
+        reply: 'ordinary immediate text',
+        citations: [],
+        steps: [],
+        runtime: 'meriv3',
+        model: 'configured-model',
+        reasoningMode: 'fast',
+        reasoningEffort: 'low',
+      });
+    });
+    await service.streamMessage(CTX, CONVERSATION, 'Ordinary chat', sse, undefined, 'new', [], 'token');
+    expect(frames().at(-1)?.type).toBe('done');
+    expect(frames().at(-1)?.serverReadonlyCaptureReceipt).toBeUndefined();
   });
 
   it('rejects capture attachment/rerun writes and artifact linking outside the exact policy', async () => {
@@ -669,46 +691,75 @@ describe('MeriV3ProxyService â€” done frame carries the persisted message i
     expect(artifact.maintenance.scheduleAfterTurnMaintenance).not.toHaveBeenCalled();
   });
 
-  it.each(['membership_revoked', 'client_rebound'] as const)(
-    'fails closed after the runtime await when current authority is %s',
-    async (change) => {
+  it.each<
+    [
+      change: 'membership_revoked' | 'wall_revoked' | 'client_rebound',
+      timing: 'before_first_frame' | 'between_frames',
+    ]
+  >([
+    ['membership_revoked', 'before_first_frame'],
+    ['wall_revoked', 'before_first_frame'],
+    ['client_rebound', 'before_first_frame'],
+    ['membership_revoked', 'between_frames'],
+    ['wall_revoked', 'between_frames'],
+    ['client_rebound', 'between_frames'],
+  ])(
+    'withholds every private frame after %s %s',
+    async (change, timing) => {
       const h = buildHarness();
-      let rebound = false;
+      const authority = { membership: true, wall: true, clientId: 'capture-client' };
+      h.tx.tenantMembership.findFirst.mockImplementation(
+        async () => (authority.membership ? { id: 'capture-membership' } : (null as never)),
+      );
       h.tx.clioConversation.findFirst.mockImplementation(
         (async () => ({
           id: CONVERSATION,
-          clientId: rebound ? 'client-rebound' : null,
+          clientId: authority.clientId,
           summaryUpToMessageId: null,
           summary: null,
           metadata: null,
-          client: rebound
-            ? {
-                id: 'client-rebound',
-                tenantId: CAPTURE_TENANT,
-                name: 'Rebound Client',
-                memoryWall: false,
-                memoryAccessGrants: [],
-              }
-            : null,
+          client: {
+            id: authority.clientId,
+            tenantId: CAPTURE_TENANT,
+            name: 'Private Client',
+            memoryWall: true,
+            memoryAccessGrants: authority.wall ? [{ id: 'wall-grant' }] : [],
+          },
         })) as never,
       );
+      const withdraw = () => {
+        if (change === 'membership_revoked') authority.membership = false;
+        else if (change === 'wall_revoked') authority.wall = false;
+        else authority.clientId = 'client-rebound';
+      };
       h.client.streamChat.mockImplementationOnce(async ({ onEvent }: any) => {
-        onEvent({ type: 'text', text: 'Result before revocation.' });
+        await Promise.resolve();
+        if (timing === 'before_first_frame') withdraw();
+        onEvent({ type: 'text', text: 'PRIVATE_FRAME_ONE' });
+        onEvent({
+          type: 'pending_approval',
+          tool: 'untrusted_tool',
+          label: 'PRIVATE_PROPOSAL',
+          proposalId: 'untrusted-proposal',
+          status: 'pending',
+          reason: 'PRIVATE_REASON',
+        });
+        if (timing === 'between_frames') {
+          await Promise.resolve();
+          withdraw();
+        }
+        onEvent({ type: 'text', text: 'PRIVATE_FRAME_TWO' });
         onEvent({
           type: 'done',
-          reply: 'Result before revocation.',
-          citations: [],
+          reply: 'PRIVATE_FRAME_ONEPRIVATE_FRAME_TWO',
+          citations: [{ id: 'private-source', snippet: 'PRIVATE_CONTEXT' }],
           steps: [],
+          contextPacket: { packetId: 'private-packet', items: [{ text: 'PRIVATE_METADATA' }] },
           runtime: 'meriv3',
           model: 'configured-model',
           reasoningMode: 'fast',
           reasoningEffort: 'low',
         });
-        if (change === 'membership_revoked') {
-          h.tx.tenantMembership.findFirst.mockResolvedValue(null as never);
-        } else {
-          rebound = true;
-        }
       });
       const runtime = new MeriContextPlaneRuntimeService(
         h.prisma as never,
@@ -743,6 +794,7 @@ describe('MeriV3ProxyService â€” done frame carries the persisted message i
       expect(h.tx.clioMessage.create.mock.calls.map(([arg]: any) => arg.data.role)).toEqual(['user']);
       expect(h.tx.clioArtifact.updateMany).not.toHaveBeenCalled();
       expect(h.maintenance.scheduleAfterTurnMaintenance).not.toHaveBeenCalled();
+      expect(h.frames()).toEqual([]);
       await new Promise<void>((resolve) => setImmediate(resolve));
       expect(h.tx.clioMessage.create).toHaveBeenCalledTimes(1);
     },
