@@ -19,6 +19,13 @@ import {
 import { MeriToolsService } from './meri-tools.service.js';
 import { assertMeriToolRequestActive } from './meri-tool-request-control.js';
 import { classifyMeriActionLogicalFailure } from './meri-action-logical-outcome.js';
+import { ResearchPortfolioMeriScopeService } from '../research-portfolios/research-portfolio-meri-scope.service.js';
+import {
+  authorizeResearchPortfolioProposalConversation,
+  bindResearchPortfolioProposalInput,
+  bindStoredResearchPortfolioProposalInput,
+  isResearchPortfolioProposalTool,
+} from './meri-rp-proposal-binding.js';
 
 export const MERI_ACTION_PROPOSAL_STATUSES = [
   'proposed', 'approved', 'executing', 'succeeded', 'failed_retryable',
@@ -295,6 +302,7 @@ export class MeriActionProposalService {
     private readonly tools: MeriToolsService,
     private readonly config: ConfigService<AppConfig, true>,
     private readonly policyPacks: MeriPolicyPackService,
+    private readonly researchPortfolioScopes: ResearchPortfolioMeriScopeService,
   ) {}
 
   private assertEnabled(): void {
@@ -416,7 +424,21 @@ export class MeriActionProposalService {
     assertMeriToolRequestActive();
     this.assertEnabled();
     const tool = request.tool.trim();
-    const input = this.tools.validateSideEffectingInput(tool, request.input);
+    const boundInput = bindResearchPortfolioProposalInput(
+      tool,
+      request.input,
+      request.conversationId,
+    );
+    const input = this.tools.validateSideEffectingInput(tool, boundInput);
+    if (isResearchPortfolioProposalTool(tool)) {
+      await authorizeResearchPortfolioProposalConversation(
+        this.prisma,
+        this.researchPortfolioScopes,
+        ctx,
+        request.conversationId!,
+        typeof input.clientId === 'string' ? input.clientId : null,
+      );
+    }
     const decision = await this.policyPacks.decideForAction(ctx, tool, input);
     const status: MeriActionProposalStatus = decision.outcome === 'BLOCK'
       ? 'blocked' : decision.outcome === 'WARN' ? 'proposed' : 'executing';
@@ -693,10 +715,24 @@ export class MeriActionProposalService {
 
     let canonical: Record<string, unknown>;
     try {
-      canonical = this.tools.validateSideEffectingInput(row.tool, row.input);
+      const boundInput = bindStoredResearchPortfolioProposalInput(
+        row.tool,
+        row.input,
+        row.conversationId,
+      );
+      canonical = this.tools.validateSideEffectingInput(row.tool, boundInput);
     } catch {
       return this.transitionWithoutExecution(ctx, row, 'blocked', 'stored_input_invalid',
         'The stored action no longer passes the canonical write-input parser.');
+    }
+    if (isResearchPortfolioProposalTool(row.tool)) {
+      await authorizeResearchPortfolioProposalConversation(
+        this.prisma,
+        this.researchPortfolioScopes,
+        ctx,
+        row.conversationId!,
+        row.policyClientId,
+      );
     }
     const recomputed = computeActionFingerprintV2({
       effectiveTenantId: ctx.tenantId,
