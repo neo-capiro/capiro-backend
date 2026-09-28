@@ -56,6 +56,10 @@ on:
         description: 'For rollback only: prior apply workflow run ID; no task definition input is accepted'
         required: false
         default: ''
+      receipt_run_attempt:
+        description: 'For rollback only: exact prior apply workflow run attempt'
+        required: false
+        default: ''
 
 permissions:
   actions: read
@@ -81,6 +85,7 @@ env:
   INPUT_APPLY_CONFIRMATION: ${{ inputs.apply_confirmation }}
   INPUT_ROLLBACK_CONFIRMATION: ${{ inputs.rollback_confirmation }}
   INPUT_RECEIPT_RUN_ID: ${{ inputs.receipt_run_id }}
+  INPUT_RECEIPT_RUN_ATTEMPT: ${{ inputs.receipt_run_attempt }}
 
 jobs:
   cohort-configuration:
@@ -115,29 +120,45 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$INPUT_RECEIPT_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$INPUT_RECEIPT_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
           mkdir -p /tmp/meri-synthetic-cohort-metadata
           gh api --method GET \
-            "repos/${GITHUB_REPOSITORY}/actions/runs/${INPUT_RECEIPT_RUN_ID}" \
-            > /tmp/meri-synthetic-cohort-metadata/run.json
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${INPUT_RECEIPT_RUN_ID}/attempts/${INPUT_RECEIPT_RUN_ATTEMPT}" \
+            > /tmp/meri-synthetic-cohort-metadata/run-attempt.json
           gh api --method GET \
             "repos/${GITHUB_REPOSITORY}/actions/runs/${INPUT_RECEIPT_RUN_ID}/artifacts?per_page=100" \
             > /tmp/meri-synthetic-cohort-metadata/artifacts.json
+
+      - name: Validate exact prior attempt and select one artifact ID
+        if: inputs.mode == 'rollback'
+        run: |
+          set -euo pipefail
+          python3 scripts/meri-synthetic-cohort.py \
+            --select-rollback-artifact \
+            --receipt-run-id "$INPUT_RECEIPT_RUN_ID" \
+            --receipt-run-attempt "$INPUT_RECEIPT_RUN_ATTEMPT" \
+            --run-metadata /tmp/meri-synthetic-cohort-metadata/run-attempt.json \
+            --artifact-metadata /tmp/meri-synthetic-cohort-metadata/artifacts.json \
+            --artifact-selection /tmp/meri-synthetic-cohort-metadata/selection.json
+
+      - name: Download only the validated artifact ID archive
+        if: inputs.mode == 'rollback'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          artifact_id="$(python3 -c 'import json; print(json.load(open("/tmp/meri-synthetic-cohort-metadata/selection.json", encoding="utf-8"))["artifactId"])')"
+          [[ "$artifact_id" =~ ^[1-9][0-9]*$ ]]
+          gh api --method GET \
+            -H 'Accept: application/vnd.github+json' \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
+            > /tmp/meri-synthetic-cohort-metadata/artifact.zip
 
       - name: Configure fixed dev AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_DEV_GHA_ROLE_ARN }}
           aws-region: us-east-1
-
-      - name: Download exact prior workflow receipt for guarded rollback
-        if: inputs.mode == 'rollback'
-        uses: actions/download-artifact@v4
-        with:
-          name: synthetic-cohort-receipt
-          path: /tmp/meri-synthetic-cohort-source
-          github-token: ${{ github.token }}
-          repository: neo-capiro/capirov2
-          run-id: ${{ inputs.receipt_run_id }}
 
       - name: Validate plan or execute explicitly confirmed configuration change
         run: |
@@ -155,14 +176,16 @@ jobs:
             --apply-confirmation "$INPUT_APPLY_CONFIRMATION"
             --rollback-confirmation "$INPUT_ROLLBACK_CONFIRMATION"
             --receipt-run-id "$INPUT_RECEIPT_RUN_ID"
+            --receipt-run-attempt "$INPUT_RECEIPT_RUN_ATTEMPT"
             --output-dir "$COHORT_OUTPUT_DIR"
             --wait-timeout-seconds 900
           )
           if [[ "$INPUT_MODE" == rollback ]]; then
             args+=(
-              --receipt /tmp/meri-synthetic-cohort-source/receipt.json
-              --run-metadata /tmp/meri-synthetic-cohort-metadata/run.json
+              --run-metadata /tmp/meri-synthetic-cohort-metadata/run-attempt.json
               --artifact-metadata /tmp/meri-synthetic-cohort-metadata/artifacts.json
+              --artifact-selection /tmp/meri-synthetic-cohort-metadata/selection.json
+              --artifact-archive /tmp/meri-synthetic-cohort-metadata/artifact.zip
             )
           fi
           python3 scripts/meri-synthetic-cohort.py "${args[@]}"
@@ -171,7 +194,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: synthetic-cohort-receipt
+          name: synthetic-cohort-receipt-${{ github.run_id }}-${{ github.run_attempt }}
           path: /tmp/meri-synthetic-cohort
           if-no-files-found: warn
           retention-days: 30

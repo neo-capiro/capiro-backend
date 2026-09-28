@@ -5,12 +5,14 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
 import importlib.util
 import json
 import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -205,6 +207,7 @@ def arguments(**overrides: Any) -> argparse.Namespace:
         "lead_preflight_confirmation": "LEAD_CONFIRMED_DB_FLAGS_AND_RESEARCH_DRAIN",
         "lead_preflight_receipt": "lead-receipt-20260928",
         "receipt_run_id": "",
+        "receipt_run_attempt": "1",
     }
     values.update(overrides)
     return argparse.Namespace(**values)
@@ -224,6 +227,7 @@ def bind_receipt(
         {
             "runId": run_id,
             "runAttempt": "1",
+            "artifactName": cohort.artifact_name(run_id, "1"),
             "workflowSha": "f" * 40,
             "actor": "release-lead",
             "actorId": "42",
@@ -241,14 +245,20 @@ def bind_receipt(
         "repository": {"id": 10, "full_name": cohort.REPOSITORY},
         "head_repository": {"id": 10, "full_name": cohort.REPOSITORY},
         "actor": {"id": 42, "login": "release-lead"},
+        "created_at": "2026-09-28T00:00:00Z",
+        "run_started_at": "2026-09-28T00:00:01Z",
+        "updated_at": "2026-09-28T00:10:00Z",
     }
     artifacts = {
         "total_count": 1,
         "artifacts": [
             {
                 "id": 99,
-                "name": cohort.ARTIFACT_NAME,
+                "name": cohort.artifact_name(run_id, "1"),
+                "digest": f"sha256:{'a' * 64}",
                 "expired": False,
+                "created_at": "2026-09-28T00:09:00Z",
+                "updated_at": "2026-09-28T00:09:30Z",
                 "workflow_run": {
                     "id": int(run_id),
                     "repository_id": 10,
@@ -403,6 +413,22 @@ class CohortMutationTests(unittest.TestCase):
         )
         self.assertEqual(receipt["result"], "APPLIED_AND_VERIFIED")
         self.assertTrue(all(item["verified"] for item in receipt["services"].values()))
+        for name, entry in receipt["services"].items():
+            observation = entry["observation"]
+            self.assertEqual(observation["taskDefinition"], entry["registeredTaskDefinition"])
+            self.assertEqual(observation["runningImageDigests"], [cohort.EXPECTED[name]["digest"]])
+            self.assertEqual(
+                (
+                    observation["desiredCount"],
+                    observation["runningCount"],
+                    observation["pendingCount"],
+                ),
+                (
+                    observation["primaryDesiredCount"],
+                    observation["primaryRunningCount"],
+                    observation["primaryPendingCount"],
+                ),
+            )
         api = receipt["services"]["capiro-dev-api"]
         self.assertNotEqual(api["rollbackTaskDefinition"], api["priorTaskDefinition"])
         rollback = aws.describe_task_definition(api["rollbackTaskDefinition"])
@@ -415,6 +441,34 @@ class CohortMutationTests(unittest.TestCase):
         aws.definitions["capiro-dev-api"] = task_definition("capiro-dev-api", cohort_value="wrong")
         with self.assertRaises(cohort.ReleaseError):
             cohort.apply_release(aws, arguments(), self.capture(aws), 60)
+        self.assertEqual(aws.writes, [])
+
+    def test_primary_zero_counts_against_service_one_fail_closed(self) -> None:
+        class InconsistentPrimaryAws(FakeAws):
+            def describe_services(self, services: Sequence[str]) -> dict[str, Any]:
+                result = super().describe_services(services)
+                result["services"][0]["deployments"][0].update(
+                    {"desiredCount": 0, "runningCount": 0}
+                )
+                return result
+
+        aws = InconsistentPrimaryAws()
+        tds, digests = original_expectations()
+        with self.assertRaisesRegex(cohort.ReleaseError, "PRIMARY deployment counts"):
+            cohort.capture_snapshot(aws, tds, digests)
+        self.assertEqual(aws.writes, [])
+
+    def test_running_digest_drift_fails_closed(self) -> None:
+        class DigestDriftAws(FakeAws):
+            def describe_tasks(self, task_arns: Sequence[str]) -> dict[str, Any]:
+                result = super().describe_tasks(task_arns)
+                result["tasks"][0]["containers"][0]["imageDigest"] = f"sha256:{'0' * 64}"
+                return result
+
+        aws = DigestDriftAws()
+        tds, digests = original_expectations()
+        with self.assertRaisesRegex(cohort.ReleaseError, "reviewed digest"):
+            cohort.capture_snapshot(aws, tds, digests)
         self.assertEqual(aws.writes, [])
 
     def test_concurrent_service_change_fails_before_any_mutation(self) -> None:
@@ -497,6 +551,82 @@ class CohortMutationTests(unittest.TestCase):
         self.assertTrue(api["verified"])
         self.assertNotEqual(api["toTaskDefinition"], cohort.full_td("capiro-dev-api:483"))
 
+    def test_apply_final_authoritative_999_drift_cannot_be_verified(self) -> None:
+        class FinalDriftAws(FakeAws):
+            def __init__(self) -> None:
+                super().__init__()
+                self.armed: str | None = None
+                self.post_update_reads = 0
+
+            def update_service(self, service: str, task_definition_name: str) -> None:
+                super().update_service(service, task_definition_name)
+                self.armed = service
+                self.post_update_reads = 0
+
+            def describe_services(self, services: Sequence[str]) -> dict[str, Any]:
+                result = super().describe_services(services)
+                if self.armed in services:
+                    self.post_update_reads += 1
+                    if self.post_update_reads == 2:
+                        value = next(
+                            item for item in result["services"] if item["serviceName"] == self.armed
+                        )
+                        value["taskDefinition"] = cohort.full_td(f"{self.armed}:999")
+                        value["deployments"][0]["taskDefinition"] = value["taskDefinition"]
+                        self.armed = None
+                return result
+
+        aws = FinalDriftAws()
+        with self.assertRaisesRegex(cohort.ReleaseError, "drifted") as caught:
+            cohort.apply_release(aws, arguments(), self.capture(aws), 60)
+        receipt = caught.exception.release_receipt
+        entry = receipt["services"]["capiro-dev-meriv2-orchestrator"]
+        self.assertEqual(receipt["result"], "PARTIAL_FAILURE")
+        self.assertFalse(entry["verified"])
+
+    def test_rollback_final_authoritative_999_drift_cannot_be_verified(self) -> None:
+        class FinalDriftAws(FakeAws):
+            drift_enabled = False
+
+            def __init__(self) -> None:
+                super().__init__()
+                self.armed: str | None = None
+                self.post_update_reads = 0
+
+            def update_service(self, service: str, task_definition_name: str) -> None:
+                super().update_service(service, task_definition_name)
+                if self.drift_enabled:
+                    self.armed = service
+                    self.post_update_reads = 0
+
+            def describe_services(self, services: Sequence[str]) -> dict[str, Any]:
+                result = super().describe_services(services)
+                if self.armed in services:
+                    self.post_update_reads += 1
+                    if self.post_update_reads == 2:
+                        value = next(
+                            item for item in result["services"] if item["serviceName"] == self.armed
+                        )
+                        value["taskDefinition"] = cohort.full_td(f"{self.armed}:999")
+                        value["deployments"][0]["taskDefinition"] = value["taskDefinition"]
+                        self.armed = None
+                return result
+
+        aws = FinalDriftAws()
+        apply_receipt = cohort.apply_release(aws, arguments(), self.capture(aws), 60)
+        run, artifacts = bind_receipt(apply_receipt)
+        aws.drift_enabled = True
+        rollback_args = arguments(
+            mode="rollback",
+            receipt_run_id="123",
+            rollback_confirmation="ROLLBACK_FIXED_SYNTHETIC_MERI_COHORT",
+        )
+        with self.assertRaisesRegex(cohort.ReleaseError, "drifted") as caught:
+            cohort.rollback_release(aws, rollback_args, apply_receipt, run, artifacts, 60)
+        receipt = caught.exception.release_receipt
+        self.assertEqual(receipt["result"], "PARTIAL_FAILURE")
+        self.assertFalse(receipt["services"]["capiro-dev-api"]["verified"])
+
     def test_forged_receipt_wrong_run_and_wrong_workflow_metadata_are_refused(self) -> None:
         aws = FakeAws()
         receipt = cohort.apply_release(aws, arguments(), self.capture(aws), 60)
@@ -517,7 +647,42 @@ class CohortMutationTests(unittest.TestCase):
         for candidate, run_value, artifact_value in cases:
             with self.subTest(candidate=candidate["workflowSha"], run=run_value["id"], path=run_value["path"]):
                 with self.assertRaises(cohort.ReleaseError):
-                    cohort.validate_receipt(candidate, "123", run_value, artifact_value)
+                    cohort.validate_receipt(candidate, "123", "1", run_value, artifact_value)
+
+    def test_attempt_binding_uses_exact_attempt_metadata_and_unique_name(self) -> None:
+        aws = FakeAws()
+        receipt = cohort.apply_release(aws, arguments(), self.capture(aws), 60)
+        run, artifacts = bind_receipt(receipt)
+        self.assertNotIn("run_attempt", artifacts["artifacts"][0])
+        selected = cohort.select_rollback_artifact("123", "1", run, artifacts)
+        self.assertEqual(selected["artifactId"], 99)
+        wrong_attempt = copy.deepcopy(run)
+        wrong_attempt["run_attempt"] = 2
+        with self.assertRaises(cohort.ReleaseError):
+            cohort.select_rollback_artifact("123", "1", wrong_attempt, artifacts)
+        wrong_receipt_attempt = copy.deepcopy(receipt)
+        wrong_receipt_attempt["runAttempt"] = "2"
+        wrong_receipt_attempt["artifactName"] = cohort.artifact_name("123", "2")
+        with self.assertRaises(cohort.ReleaseError):
+            cohort.validate_receipt(wrong_receipt_attempt, "123", "1", run, artifacts)
+        previous_attempt = copy.deepcopy(artifacts)
+        previous_attempt["artifacts"][0]["name"] = cohort.artifact_name("123", "2")
+        with self.assertRaisesRegex(cohort.ReleaseError, "unique run-attempt"):
+            cohort.select_rollback_artifact("123", "1", run, previous_attempt)
+
+    def test_artifact_timestamp_and_duplicate_name_are_refused(self) -> None:
+        aws = FakeAws()
+        receipt = cohort.apply_release(aws, arguments(), self.capture(aws), 60)
+        run, artifacts = bind_receipt(receipt)
+        stale = copy.deepcopy(artifacts)
+        stale["artifacts"][0]["created_at"] = "2026-09-27T23:59:00Z"
+        with self.assertRaisesRegex(cohort.ReleaseError, "timestamps"):
+            cohort.select_rollback_artifact("123", "1", run, stale)
+        duplicate = copy.deepcopy(artifacts)
+        duplicate["artifacts"].append(copy.deepcopy(duplicate["artifacts"][0]))
+        duplicate["total_count"] = 2
+        with self.assertRaisesRegex(cohort.ReleaseError, "unique run-attempt"):
+            cohort.select_rollback_artifact("123", "1", run, duplicate)
 
     def test_rollback_refuses_receipt_bound_new_td_with_changed_config(self) -> None:
         aws = FakeAws()
@@ -562,9 +727,63 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertIn("gh api --method GET", text)
         self.assertIn("--run-metadata", text)
         self.assertIn("--artifact-metadata", text)
+        self.assertIn("/attempts/${INPUT_RECEIPT_RUN_ATTEMPT}", text)
+        self.assertIn("actions/artifacts/${artifact_id}/zip", text)
+        self.assertIn("synthetic-cohort-receipt-${{ github.run_id }}-${{ github.run_attempt }}", text)
+        self.assertNotIn("actions/download-artifact", text)
         lowered = text.lower()
         for forbidden in ("docker build", "build-push-action", "cdk deploy", "prisma migrate", "ecs run-task"):
             self.assertNotIn(forbidden, lowered)
+
+
+class ArtifactArchiveTests(unittest.TestCase):
+    def write_archive(
+        self, path: Path, receipt: Mapping[str, Any], plan: Mapping[str, Any], *, extra: bool = False
+    ) -> dict[str, Any]:
+        with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("plan.json", json.dumps(plan))
+            archive.writestr("receipt.json", json.dumps(receipt))
+            if extra:
+                archive.writestr("../unexpected.json", "{}")
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        return {
+            "artifactId": 99,
+            "artifactName": cohort.artifact_name("123", "1"),
+            "archiveDigest": f"sha256:{digest}",
+            "runId": "123",
+            "runAttempt": "1",
+        }
+
+    def test_exact_archive_bytes_and_expected_files_are_accepted(self) -> None:
+        aws = FakeAws()
+        receipt = cohort.apply_release(
+            aws, arguments(), cohort.capture_snapshot(aws, *original_expectations()), 60
+        )
+        bind_receipt(receipt)
+        plan = cohort.make_plan(cohort.capture_snapshot(FakeAws(), *original_expectations()))
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "artifact.zip"
+            selected = self.write_archive(path, receipt, plan)
+            loaded, loaded_plan = cohort.load_rollback_archive(path, selected, selected)
+        self.assertEqual(loaded, receipt)
+        self.assertEqual(loaded_plan, plan)
+
+    def test_archive_selection_tamper_digest_tamper_and_unexpected_file_fail_closed(self) -> None:
+        plan = cohort.make_plan(cohort.capture_snapshot(FakeAws(), *original_expectations()))
+        receipt = {"bounded": True}
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "artifact.zip"
+            selected = self.write_archive(path, receipt, plan)
+            changed_selection = dict(selected)
+            changed_selection["artifactId"] = 100
+            with self.assertRaisesRegex(cohort.ReleaseError, "selection"):
+                cohort.load_rollback_archive(path, changed_selection, selected)
+            path.write_bytes(path.read_bytes() + b"tamper")
+            with self.assertRaisesRegex(cohort.ReleaseError, "SHA-256"):
+                cohort.load_rollback_archive(path, selected, selected)
+            selected = self.write_archive(path, receipt, plan, extra=True)
+            with self.assertRaisesRegex(cohort.ReleaseError, "exact expected files"):
+                cohort.load_rollback_archive(path, selected, selected)
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import datetime
 import hashlib
 import json
 import os
@@ -17,6 +18,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import zipfile
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
@@ -26,7 +28,10 @@ CLUSTER = "capiro-dev"
 REPOSITORY = "neo-capiro/capirov2"
 WORKFLOW_PATH = ".github/workflows/meri-synthetic-cohort.yml"
 WORKFLOW_NAME = "meri-synthetic-cohort"
-ARTIFACT_NAME = "synthetic-cohort-receipt"
+ARTIFACT_NAME_PREFIX = "synthetic-cohort-receipt"
+EXPECTED_ARTIFACT_FILES = frozenset(("plan.json", "receipt.json"))
+MAX_ARTIFACT_ARCHIVE_BYTES = 2 * 1024 * 1024
+MAX_ARTIFACT_FILE_BYTES = 512 * 1024
 ENV_NAME = "MERIV3_CANARY_TENANT_SLUGS"
 TENANTS = ("meri-foundation-20260928-t1", "meri-foundation-20260928-t2")
 EXISTING_COHORT = (
@@ -58,6 +63,7 @@ EXPECTED = {
 }
 SERVICES = tuple(EXPECTED)
 DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+POSITIVE_INTEGER_RE = re.compile(r"^[1-9][0-9]*$")
 TD_ARN_RE = re.compile(
     rf"^arn:aws:ecs:{REGION}:{ACCOUNT_ID}:task-definition/"
     r"(?P<family>capiro-dev-(?:api|meriv2-orchestrator)):(?P<revision>[1-9][0-9]*)$"
@@ -202,6 +208,12 @@ def full_td(task_definition: str) -> str:
     return f"arn:aws:ecs:{REGION}:{ACCOUNT_ID}:task-definition/{task_definition}"
 
 
+def artifact_name(run_id: str, run_attempt: str) -> str:
+    if not POSITIVE_INTEGER_RE.fullmatch(run_id) or not POSITIVE_INTEGER_RE.fullmatch(run_attempt):
+        raise ReleaseError("artifact run ID and attempt must be positive decimal integers")
+    return f"{ARTIFACT_NAME_PREFIX}-{run_id}-{run_attempt}"
+
+
 def image_repository(image: str) -> str:
     without_digest = image.split("@", 1)[0]
     leaf = without_digest.rsplit("/", 1)[-1]
@@ -322,6 +334,11 @@ def assert_service_shape(service: Mapping[str, Any], expected_td: str) -> None:
         raise ReleaseError(f"{service.get('serviceName')} PRIMARY deployment drifted")
     if current.get("rolloutState") not in (None, "COMPLETED"):
         raise ReleaseError(f"{service.get('serviceName')} has a concurrent deployment")
+    for key in ("desiredCount", "runningCount", "pendingCount"):
+        if current.get(key) != service.get(key):
+            raise ReleaseError(
+                f"{service.get('serviceName')} PRIMARY deployment counts disagree with service counts"
+            )
     for deployment in deployments:
         if deployment is current:
             continue
@@ -657,6 +674,35 @@ def observe_service_state(aws: AwsCli, service: str) -> dict[str, Any]:
     }
 
 
+def snapshot_observation(item: Mapping[str, Any]) -> dict[str, Any]:
+    service = item["service"]
+    primary = [deployment for deployment in service.get("deployments", []) if deployment.get("status") == "PRIMARY"]
+    if len(primary) != 1:
+        raise ReleaseError("verified snapshot lost its exact PRIMARY deployment")
+    target_name = item["targetContainer"]
+    target_digests = sorted(
+        {
+            str(container.get("imageDigest"))
+            for task in item["tasks"]
+            for container in task.get("containers", [])
+            if container.get("name") == target_name
+        }
+    )
+    return {
+        "taskDefinition": str(service["taskDefinition"]),
+        "runningTaskDefinitions": sorted(
+            {str(task.get("taskDefinitionArn", "")) for task in item["tasks"]}
+        ),
+        "runningImageDigests": target_digests,
+        "desiredCount": service.get("desiredCount"),
+        "runningCount": service.get("runningCount"),
+        "pendingCount": service.get("pendingCount"),
+        "primaryDesiredCount": primary[0].get("desiredCount"),
+        "primaryRunningCount": primary[0].get("runningCount"),
+        "primaryPendingCount": primary[0].get("pendingCount"),
+    }
+
+
 def validate_new_td_arn(service: str, arn: str) -> None:
     match = TD_ARN_RE.fullmatch(arn)
     if not match or match.group("family") != service:
@@ -667,13 +713,20 @@ def validate_new_td_arn(service: str, arn: str) -> None:
 
 
 def base_receipt(args: argparse.Namespace, mode: str) -> dict[str, Any]:
+    run_id = os.environ.get("GITHUB_RUN_ID", "local")
+    run_attempt = os.environ.get("GITHUB_RUN_ATTEMPT", "local")
     return {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "workflow": WORKFLOW_NAME,
         "workflowPath": WORKFLOW_PATH,
         "repository": REPOSITORY,
-        "runId": os.environ.get("GITHUB_RUN_ID", "local"),
-        "runAttempt": os.environ.get("GITHUB_RUN_ATTEMPT", "local"),
+        "runId": run_id,
+        "runAttempt": run_attempt,
+        "artifactName": (
+            artifact_name(run_id, run_attempt)
+            if POSITIVE_INTEGER_RE.fullmatch(run_id) and POSITIVE_INTEGER_RE.fullmatch(run_attempt)
+            else f"{ARTIFACT_NAME_PREFIX}-{run_id}-{run_attempt}"
+        ),
         "workflowSha": os.environ.get("GITHUB_SHA", "local"),
         "actor": os.environ.get("GITHUB_ACTOR", "local"),
         "actorId": os.environ.get("GITHUB_ACTOR_ID", "local"),
@@ -780,8 +833,9 @@ def apply_release(
                 if entry["observedState"] != "NEW_TASK_DEFINITION":
                     raise update_error
             current_tds[name] = new_td
-            last_verified = wait_for_exact(aws, current_tds, digests, timeout_seconds)
-            entry["observation"] = observe_service_state(aws, name)
+            wait_for_exact(aws, current_tds, digests, timeout_seconds)
+            last_verified = capture_snapshot(aws, current_tds, digests)
+            entry["observation"] = snapshot_observation(last_verified[name])
             entry["observedState"] = "NEW_TASK_DEFINITION"
             entry["verified"] = True
         receipt["result"] = "APPLIED_AND_VERIFIED"
@@ -794,56 +848,58 @@ def apply_release(
         raise
 
 
-def validate_receipt(
-    receipt: Mapping[str, Any],
+def github_timestamp(value: Any, field: str) -> datetime.datetime:
+    if not isinstance(value, str):
+        raise ReleaseError(f"trusted GitHub {field} timestamp is missing")
+    try:
+        parsed = datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ReleaseError(f"trusted GitHub {field} timestamp is invalid") from exc
+    if parsed.tzinfo is None:
+        raise ReleaseError(f"trusted GitHub {field} timestamp has no timezone")
+    return parsed
+
+
+def select_rollback_artifact(
     expected_run_id: str,
+    expected_run_attempt: str,
     run_metadata: Mapping[str, Any],
     artifact_metadata: Mapping[str, Any],
-) -> None:
-    if receipt.get("schemaVersion") != 2 or receipt.get("workflow") != WORKFLOW_NAME:
-        raise ReleaseError("rollback receipt is not a synthetic cohort workflow receipt")
-    if (
-        receipt.get("workflowPath") != WORKFLOW_PATH
-        or receipt.get("repository") != REPOSITORY
-        or str(receipt.get("runId")) != expected_run_id
-    ):
-        raise ReleaseError("rollback receipt repository/run does not match the downloaded workflow run")
-    if receipt.get("mode") != "apply" or receipt.get("result") not in (
-        "APPLIED_AND_VERIFIED",
-        "PARTIAL_FAILURE",
-    ):
-        raise ReleaseError("rollback receipt does not describe an applied or partially applied release")
+) -> dict[str, Any]:
+    expected_name = artifact_name(expected_run_id, expected_run_attempt)
     if (
         str(run_metadata.get("id")) != expected_run_id
+        or str(run_metadata.get("run_attempt")) != expected_run_attempt
         or run_metadata.get("event") != "workflow_dispatch"
         or run_metadata.get("head_branch") != "main"
         or run_metadata.get("path") != WORKFLOW_PATH
         or (run_metadata.get("repository") or {}).get("full_name") != REPOSITORY
         or (run_metadata.get("head_repository") or {}).get("full_name") != REPOSITORY
         or run_metadata.get("status") != "completed"
+        or run_metadata.get("conclusion") not in ("success", "failure")
     ):
-        raise ReleaseError("trusted GitHub run metadata is not the exact fixed workflow identity")
-    workflow_sha = str(receipt.get("workflowSha", ""))
-    if not re.fullmatch(r"[0-9a-f]{40}", workflow_sha) or run_metadata.get("head_sha") != workflow_sha:
-        raise ReleaseError("trusted GitHub run metadata does not bind the source workflow SHA")
-    if str(run_metadata.get("run_attempt")) != str(receipt.get("runAttempt")):
-        raise ReleaseError("trusted GitHub run metadata does not bind the run attempt")
-    actor = run_metadata.get("actor") or {}
-    if actor.get("login") != receipt.get("actor") or str(actor.get("id")) != str(receipt.get("actorId")):
-        raise ReleaseError("trusted GitHub run metadata does not bind the workflow actor identity")
-    expected_conclusion = "success" if receipt.get("result") == "APPLIED_AND_VERIFIED" else "failure"
-    if run_metadata.get("conclusion") != expected_conclusion:
-        raise ReleaseError("trusted GitHub run conclusion contradicts the apply receipt")
+        raise ReleaseError("trusted GitHub attempt metadata is not the exact fixed workflow identity")
+    run_created = github_timestamp(run_metadata.get("created_at"), "run created_at")
+    run_started = github_timestamp(run_metadata.get("run_started_at"), "run_started_at")
+    run_updated = github_timestamp(run_metadata.get("updated_at"), "run updated_at")
+    if not run_created <= run_started <= run_updated:
+        raise ReleaseError("trusted GitHub attempt timestamps are inconsistent")
     artifacts = artifact_metadata.get("artifacts")
     if not isinstance(artifacts, list) or artifact_metadata.get("total_count") != len(artifacts):
         raise ReleaseError("trusted GitHub artifact metadata is incomplete")
-    matches = [item for item in artifacts if item.get("name") == ARTIFACT_NAME]
+    matches = [item for item in artifacts if item.get("name") == expected_name]
     if len(matches) != 1:
-        raise ReleaseError("trusted GitHub metadata does not identify one exact receipt artifact")
+        raise ReleaseError("trusted GitHub metadata does not identify the unique run-attempt receipt artifact")
     artifact = matches[0]
     artifact_run = artifact.get("workflow_run") or {}
+    workflow_sha = str(run_metadata.get("head_sha", ""))
+    artifact_id = artifact.get("id")
+    digest = artifact.get("digest")
     if (
-        artifact.get("expired") is not False
+        not isinstance(artifact_id, int)
+        or artifact_id <= 0
+        or not DIGEST_RE.fullmatch(str(digest or ""))
+        or artifact.get("expired") is not False
         or str(artifact_run.get("id")) != expected_run_id
         or artifact_run.get("head_branch") != "main"
         or artifact_run.get("head_sha") != workflow_sha
@@ -851,6 +907,55 @@ def validate_receipt(
         or artifact_run.get("head_repository_id") != (run_metadata.get("head_repository") or {}).get("id")
     ):
         raise ReleaseError("trusted GitHub artifact metadata is not bound to the exact apply run")
+    artifact_created = github_timestamp(artifact.get("created_at"), "artifact created_at")
+    artifact_updated = github_timestamp(artifact.get("updated_at"), "artifact updated_at")
+    if not run_started <= artifact_created <= artifact_updated <= run_updated:
+        raise ReleaseError("trusted GitHub artifact timestamps are outside the exact run attempt")
+    return {
+        "artifactId": artifact_id,
+        "artifactName": expected_name,
+        "archiveDigest": digest,
+        "runId": expected_run_id,
+        "runAttempt": expected_run_attempt,
+    }
+
+
+def validate_receipt(
+    receipt: Mapping[str, Any],
+    expected_run_id: str,
+    expected_run_attempt: str,
+    run_metadata: Mapping[str, Any],
+    artifact_metadata: Mapping[str, Any],
+) -> None:
+    selected = select_rollback_artifact(
+        expected_run_id, expected_run_attempt, run_metadata, artifact_metadata
+    )
+    if receipt.get("schemaVersion") != 3 or receipt.get("workflow") != WORKFLOW_NAME:
+        raise ReleaseError("rollback receipt is not a synthetic cohort workflow receipt")
+    if (
+        receipt.get("workflowPath") != WORKFLOW_PATH
+        or receipt.get("repository") != REPOSITORY
+        or str(receipt.get("runId")) != expected_run_id
+        or str(receipt.get("runAttempt")) != expected_run_attempt
+        or receipt.get("artifactName") != selected["artifactName"]
+    ):
+        raise ReleaseError("rollback receipt repository/run does not match the downloaded workflow run")
+    if receipt.get("mode") != "apply" or receipt.get("result") not in (
+        "APPLIED_AND_VERIFIED",
+        "PARTIAL_FAILURE",
+    ):
+        raise ReleaseError("rollback receipt does not describe an applied or partially applied release")
+    workflow_sha = str(receipt.get("workflowSha", ""))
+    if not re.fullmatch(r"[0-9a-f]{40}", workflow_sha) or run_metadata.get("head_sha") != workflow_sha:
+        raise ReleaseError("trusted GitHub run metadata does not bind the source workflow SHA")
+
+    actor = run_metadata.get("actor") or {}
+    if actor.get("login") != receipt.get("actor") or str(actor.get("id")) != str(receipt.get("actorId")):
+        raise ReleaseError("trusted GitHub run metadata does not bind the workflow actor identity")
+    expected_conclusion = "success" if receipt.get("result") == "APPLIED_AND_VERIFIED" else "failure"
+    if run_metadata.get("conclusion") != expected_conclusion:
+        raise ReleaseError("trusted GitHub run conclusion contradicts the apply receipt")
+
     if receipt.get("target") != {"account": ACCOUNT_ID, "region": REGION, "cluster": CLUSTER}:
         raise ReleaseError("rollback receipt target is not exact")
     if receipt.get("tenants") != list(TENANTS):
@@ -916,6 +1021,68 @@ def validate_receipt_task_definitions(aws: AwsCli, receipt: Mapping[str, Any]) -
             raise ReleaseError(f"{name} receipt rollback task definition content is not exact and immutable")
 
 
+def load_rollback_archive(
+    archive_path: Path,
+    selection: Mapping[str, Any],
+    expected_selection: Mapping[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    if dict(selection) != dict(expected_selection):
+        raise ReleaseError("artifact selection does not exactly match validated GitHub metadata")
+    try:
+        archive_size = archive_path.stat().st_size
+    except OSError as exc:
+        raise ReleaseError("validated artifact archive is unavailable") from exc
+    if archive_size <= 0 or archive_size > MAX_ARTIFACT_ARCHIVE_BYTES:
+        raise ReleaseError("validated artifact archive exceeds the bounded size")
+    digest = hashlib.sha256()
+    with archive_path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(64 * 1024), b""):
+            digest.update(chunk)
+    if f"sha256:{digest.hexdigest()}" != expected_selection.get("archiveDigest"):
+        raise ReleaseError("validated artifact archive SHA-256 does not match GitHub metadata")
+    try:
+        with zipfile.ZipFile(archive_path) as archive:
+            entries = archive.infolist()
+            names = [entry.filename for entry in entries]
+            if len(entries) != len(EXPECTED_ARTIFACT_FILES) or set(names) != EXPECTED_ARTIFACT_FILES:
+                raise ReleaseError("validated artifact archive does not contain the exact expected files")
+            if len(names) != len(set(names)):
+                raise ReleaseError("validated artifact archive contains duplicate entries")
+            values: dict[str, dict[str, Any]] = {}
+            for entry in entries:
+                mode = (entry.external_attr >> 16) & 0o170000
+                if (
+                    entry.is_dir()
+                    or mode == 0o120000
+                    or entry.flag_bits & 0x1
+                    or entry.file_size < 1
+                    or entry.file_size > MAX_ARTIFACT_FILE_BYTES
+                    or entry.compress_size > MAX_ARTIFACT_FILE_BYTES
+                ):
+                    raise ReleaseError("validated artifact archive contains an unsafe or oversized entry")
+                raw = archive.read(entry)
+                if len(raw) != entry.file_size:
+                    raise ReleaseError("validated artifact archive entry length changed while reading")
+                try:
+                    value = json.loads(raw.decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                    raise ReleaseError("validated artifact archive contains invalid JSON") from exc
+                if not isinstance(value, dict):
+                    raise ReleaseError("validated artifact archive JSON has an unexpected shape")
+                values[entry.filename] = value
+    except (OSError, zipfile.BadZipFile) as exc:
+        raise ReleaseError("validated artifact archive is not a readable ZIP") from exc
+    plan = values["plan.json"]
+    if (
+        plan.get("schemaVersion") != 1
+        or plan.get("status") != "VALIDATED_PLAN_NOT_APPLIED"
+        or plan.get("target") != {"account": ACCOUNT_ID, "region": REGION, "cluster": CLUSTER}
+        or plan.get("tenants") != list(TENANTS)
+    ):
+        raise ReleaseError("validated artifact plan is not the exact bounded cohort plan")
+    return values["receipt.json"], plan
+
+
 def rollback_release(
     aws: AwsCli,
     args: argparse.Namespace,
@@ -924,7 +1091,13 @@ def rollback_release(
     artifact_metadata: Mapping[str, Any],
     timeout_seconds: int,
 ) -> dict[str, Any]:
-    validate_receipt(source_receipt, args.receipt_run_id, run_metadata, artifact_metadata)
+    validate_receipt(
+        source_receipt,
+        args.receipt_run_id,
+        args.receipt_run_attempt,
+        run_metadata,
+        artifact_metadata,
+    )
     validate_receipt_task_definitions(aws, source_receipt)
     receipt = base_receipt(args, "rollback")
     receipt["sourceApplyRunId"] = args.receipt_run_id
@@ -950,7 +1123,7 @@ def rollback_release(
             "responseState": "NOT_ATTEMPTED",
             "observedState": "ROLLBACK_NOT_REQUIRED" if not needs_rollback else "OBSERVED_ALLOWED_SOURCE",
             "observation": observation,
-            "verified": not needs_rollback,
+            "verified": False,
         }
     digests = {name: EXPECTED[name]["digest"] for name in SERVICES}
     try:
@@ -964,6 +1137,10 @@ def rollback_release(
             )
             if initial[name]["cohort"] != expected_cohort:
                 raise ReleaseError(f"{name} observed cohort does not match its receipt-bound task definition")
+            entry = receipt["services"][name]
+            if not entry["rollbackAttempted"] and entry["observedState"] == "ROLLBACK_NOT_REQUIRED":
+                entry["observation"] = snapshot_observation(initial[name])
+                entry["verified"] = True
         last_verified = initial
         for name in ("capiro-dev-api", "capiro-dev-meriv2-orchestrator"):
             entry = receipt["services"][name]
@@ -989,8 +1166,9 @@ def rollback_release(
                 if entry["observedState"] != "ROLLBACK_TASK_DEFINITION":
                     raise update_error
             current_tds[name] = target
-            last_verified = wait_for_exact(aws, current_tds, digests, timeout_seconds)
-            entry["observation"] = observe_service_state(aws, name)
+            wait_for_exact(aws, current_tds, digests, timeout_seconds)
+            last_verified = capture_snapshot(aws, current_tds, digests)
+            entry["observation"] = snapshot_observation(last_verified[name])
             entry["observedState"] = "ROLLBACK_TASK_DEFINITION"
             entry["verified"] = True
         receipt["result"] = "ROLLED_BACK_AND_VERIFIED"
@@ -1029,11 +1207,14 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--rollback-confirmation", default="")
     parser.add_argument("--lead-preflight-confirmation", default="")
     parser.add_argument("--lead-preflight-receipt", default="")
-    parser.add_argument("--receipt", type=Path)
     parser.add_argument("--run-metadata", type=Path)
     parser.add_argument("--artifact-metadata", type=Path)
+    parser.add_argument("--artifact-selection", type=Path)
+    parser.add_argument("--artifact-archive", type=Path)
+    parser.add_argument("--select-rollback-artifact", action="store_true")
     parser.add_argument("--receipt-run-id", default="")
-    parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--receipt-run-attempt", default="")
+    parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--wait-timeout-seconds", type=int, default=900)
     return parser.parse_args(argv)
 
@@ -1042,29 +1223,75 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     receipt: dict[str, Any] | None = None
     try:
+        if args.select_rollback_artifact:
+            if (
+                not args.run_metadata
+                or not args.artifact_metadata
+                or not args.artifact_selection
+                or not args.receipt_run_id
+                or not args.receipt_run_attempt
+            ):
+                raise ReleaseError("artifact selection requires exact run, attempt, and metadata paths")
+            verify_execution_context(os.environ, GitCli())
+            selector_run_metadata = json.loads(args.run_metadata.read_text(encoding="utf-8"))
+            selector_artifact_metadata = json.loads(args.artifact_metadata.read_text(encoding="utf-8"))
+            selected = select_rollback_artifact(
+                args.receipt_run_id,
+                args.receipt_run_attempt,
+                selector_run_metadata,
+                selector_artifact_metadata,
+            )
+            write_json(args.artifact_selection, selected)
+            print(f"Validated artifact ID {selected['artifactId']} for the exact run attempt.")
+            return 0
+        if not args.output_dir:
+            raise ReleaseError("release execution requires an output directory")
         require_fixed_inputs(args)
         verify_execution_context(os.environ, GitCli())
         if not 60 <= args.wait_timeout_seconds <= 1200:
             raise ReleaseError("wait timeout must be between 60 and 1200 seconds")
+        original_tds = {name: EXPECTED[name]["taskDefinition"] for name in SERVICES}
+        digests = {name: EXPECTED[name]["digest"] for name in SERVICES}
+        source: dict[str, Any] | None = None
+        run_metadata: dict[str, Any] | None = None
+        artifact_metadata: dict[str, Any] | None = None
+        if args.mode == "rollback":
+            if (
+                not args.run_metadata
+                or not args.artifact_metadata
+                or not args.artifact_selection
+                or not args.artifact_archive
+                or not args.receipt_run_id
+                or not args.receipt_run_attempt
+            ):
+                raise ReleaseError(
+                    "rollback requires an exact run attempt and validated GitHub artifact archive"
+                )
+            run_metadata = json.loads(args.run_metadata.read_text(encoding="utf-8"))
+            artifact_metadata = json.loads(args.artifact_metadata.read_text(encoding="utf-8"))
+            selection = json.loads(args.artifact_selection.read_text(encoding="utf-8"))
+            expected_selection = select_rollback_artifact(
+                args.receipt_run_id,
+                args.receipt_run_attempt,
+                run_metadata,
+                artifact_metadata,
+            )
+            source, _ = load_rollback_archive(
+                args.artifact_archive, selection, expected_selection
+            )
+            validate_receipt(
+                source,
+                args.receipt_run_id,
+                args.receipt_run_attempt,
+                run_metadata,
+                artifact_metadata,
+            )
         aws = AwsCli()
         identity = aws.identity()
         if identity.get("Account") != ACCOUNT_ID:
             raise ReleaseError("OIDC credentials are not for the fixed dev AWS account")
-        original_tds = {name: EXPECTED[name]["taskDefinition"] for name in SERVICES}
-        digests = {name: EXPECTED[name]["digest"] for name in SERVICES}
         if args.mode == "rollback":
-            if (
-                not args.receipt
-                or not args.run_metadata
-                or not args.artifact_metadata
-                or not args.receipt_run_id
-            ):
-                raise ReleaseError(
-                    "rollback requires a downloaded receipt and trusted GitHub run/artifact metadata"
-                )
-            source = json.loads(args.receipt.read_text(encoding="utf-8"))
-            run_metadata = json.loads(args.run_metadata.read_text(encoding="utf-8"))
-            artifact_metadata = json.loads(args.artifact_metadata.read_text(encoding="utf-8"))
+            assert source is not None and run_metadata is not None and artifact_metadata is not None
             receipt = rollback_release(
                 aws,
                 args,
