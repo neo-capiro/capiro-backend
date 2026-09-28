@@ -72,6 +72,7 @@ const evidenceSourceSchema = z.object({
   evidenceId: z.string().min(1),
   sourceType: z.string().min(1),
   sourceId: z.string().min(1),
+  clientId: z.string().min(1).nullable().optional(),
   documentId: z.string().min(1).nullable(),
   version: z.string().min(1).nullable(),
   locator: z.string().min(1).nullable(),
@@ -80,6 +81,10 @@ const evidenceSourceSchema = z.object({
   publishedAt: z.string().nullable(),
   effectiveAt: z.string().nullable(),
   retrievedAt: z.string().nullable(),
+  acquisitionState: z.enum(['discovered', 'consulted']).optional(),
+  evidenceKind: z.enum(['source_passage', 'structured_record']).optional(),
+  contentHash: z.string().min(1).nullable().optional(),
+  ownerVerified: z.boolean().optional(),
   authority: z
     .object({
       sourceAuthority: z.string().min(1),
@@ -137,6 +142,7 @@ export interface EvidenceEnvelope {
     evidenceId: string;
     sourceType: string;
     sourceId: string;
+    clientId?: string | null;
     documentId: string | null;
     version: string | null;
     locator: string | null;
@@ -145,6 +151,10 @@ export interface EvidenceEnvelope {
     publishedAt: string | null;
     effectiveAt: string | null;
     retrievedAt: string | null;
+    acquisitionState?: 'discovered' | 'consulted';
+    evidenceKind?: 'source_passage' | 'structured_record';
+    contentHash?: string | null;
+    ownerVerified?: boolean;
     authority?: {
       sourceAuthority: string;
       publisher: string | null;

@@ -15,6 +15,19 @@ export interface AssuredEvidence {
   publishedAt?: string;
   effectiveAt?: string;
   retrievedAt?: string;
+  /** Exact upstream revision/hash when the source owner supplied one. */
+  version?: string;
+  /** Exact page, section, chunk, or citation marker when supplied. */
+  locator?: string;
+  /** Discovery snippets are not promoted to a source read. */
+  acquisitionState?: 'discovered' | 'consulted';
+  /** The canonical shape returned by the source owner; structured rows are not document quotes. */
+  evidenceKind?: 'source_passage' | 'structured_record';
+  /** Exact owner scope retained with the cited row/span. */
+  clientId?: string;
+  documentId?: string;
+  /** True only when the current owner payload was structurally matched to this evidence item. */
+  ownerVerified?: boolean;
   primary: boolean;
   authoritative: boolean;
   requirementIds: string[];
@@ -115,7 +128,10 @@ export function buildAssuredClaimLedger(
     ? options.plan.requiredRequirementIds.filter(
         (requirementId) =>
           !evidence.some(
-            (item) => item.authoritative && item.requirementIds.includes(requirementId),
+            (item) =>
+              evidenceEligibleForSupport(item) &&
+              item.authoritative &&
+              item.requirementIds.includes(requirementId),
           ),
       )
     : [];
@@ -179,11 +195,18 @@ export function claimLedgerReleaseable(ledger: ClaimLedger): boolean {
 export function evidenceSupportsNegativeClaim(evidence: readonly AssuredEvidence[]): boolean {
   return evidence.some(
     (item) =>
+      evidenceEligibleForSupport(item) &&
       item.authoritative &&
       item.coverage?.complete === true &&
       item.coverage.truncated === false &&
       item.coverage.failedSources.length === 0,
   );
+}
+
+/** Discovery records and owner-invalidated bindings can inform retrieval, never prove a claim. */
+export function evidenceEligibleForSupport(item: AssuredEvidence | undefined): boolean {
+  if (!item) return false;
+  return item.acquisitionState !== 'discovered' && item.ownerVerified !== false;
 }
 
 function normalizeCandidate(
@@ -206,7 +229,7 @@ function normalizeCandidate(
 
   if (candidate.type === 'fact') {
     if (!resolved.length) unsupportedReason = 'No cited evidence resolves for this factual claim.';
-    else if (!resolved.some((item) => item.authoritative)) {
+    else if (!resolved.some((item) => evidenceEligibleForSupport(item) && item.authoritative)) {
       unsupportedReason =
         'The cited material is not authoritative enough to support this factual claim.';
     } else if (unresolvedCount > 0) {
@@ -216,13 +239,15 @@ function normalizeCandidate(
         'This absence or exhaustive claim lacks complete, non-truncated source coverage.';
     }
   } else if (candidate.type === 'inference' || candidate.type === 'recommendation') {
-    if (!resolved.length)
+    if (!resolved.some(evidenceEligibleForSupport))
       unsupportedReason = 'No evidence basis resolves for this analytical claim.';
     else if (unresolvedCount > 0)
       unsupportedReason = 'One or more evidence identifiers do not resolve.';
   }
 
-  const primarySourcePresent = resolved.some((item) => item.primary && item.authoritative);
+  const primarySourcePresent = resolved.some(
+    (item) => evidenceEligibleForSupport(item) && item.primary && item.authoritative,
+  );
   const confidence = calibratedConfidence(
     candidate.confidence,
     candidate.type,
@@ -266,6 +291,13 @@ function normalizeEvidence(input: readonly AssuredEvidence[]): AssuredEvidence[]
       ...(raw.publishedAt ? { publishedAt: safeIso(raw.publishedAt) } : {}),
       ...(raw.effectiveAt ? { effectiveAt: safeIso(raw.effectiveAt) } : {}),
       ...(raw.retrievedAt ? { retrievedAt: safeIso(raw.retrievedAt) } : {}),
+      ...(raw.version ? { version: bounded(raw.version, 300) } : {}),
+      ...(raw.locator ? { locator: bounded(raw.locator, 500) } : {}),
+      ...(raw.acquisitionState ? { acquisitionState: raw.acquisitionState } : {}),
+      ...(raw.evidenceKind ? { evidenceKind: raw.evidenceKind } : {}),
+      ...(raw.clientId ? { clientId: bounded(raw.clientId, 300) } : {}),
+      ...(raw.documentId ? { documentId: bounded(raw.documentId, 300) } : {}),
+      ...(raw.ownerVerified !== undefined ? { ownerVerified: raw.ownerVerified === true } : {}),
       primary: raw.primary === true,
       authoritative: raw.authoritative === true,
       requirementIds: orderedUnique(raw.requirementIds ?? []),
@@ -296,7 +328,9 @@ function calibratedConfidence(
 ): AssuredConfidence {
   if (unsupportedReason || conflict) return 'unknown';
   if (type === 'uncertainty') return 'unknown';
-  const authoritative = evidence.filter((item) => item.authoritative);
+  const authoritative = evidence.filter(
+    (item) => evidenceEligibleForSupport(item) && item.authoritative,
+  );
   const primary = authoritative.filter((item) => item.primary);
   const ceiling: AssuredConfidence = primary.length
     ? 'high'

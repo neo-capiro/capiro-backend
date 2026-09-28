@@ -62,6 +62,57 @@ describe('buildChatSystemPrompt', () => {
     expect(parts.base).not.toContain('trace to a tool result you retrieved this turn');
   });
 
+  it('adapts a simple lookup to a concise, current named-client narrative', () => {
+    const parts = composeChatSystemPrompt(
+      {
+        clientId: 'client-1',
+        messages: [{ role: 'user', text: 'What is the current status of H.R. 1?' }],
+      },
+      {
+        ...ctx,
+        contextPacket: {
+          packetId: 'packet-1',
+          compiledAt: '2026-09-28T12:00:00.000Z',
+          clientId: 'client-1',
+          items: [
+            {
+              id: 'profile-1',
+              label: 'Profile',
+              type: 'client-profile',
+              scope: 'client',
+              authority: 'system-of-record',
+              clientName: 'Northstar Systems',
+              selection: 'explicit',
+            },
+          ],
+          exclusions: [],
+          unauthorizedCount: 0,
+          degraded: false,
+        },
+      },
+    );
+    expect(parts.dynamic).toContain('Response depth: lookup.');
+    expect(parts.dynamic).toContain('Focused client: Northstar Systems (client id client-1).');
+    expect(parts.dynamic).toContain('compiled at 2026-09-28T12:00:00.000Z');
+  });
+
+  it('adapts analysis without inventing a client name absent from the current packet', () => {
+    const parts = composeChatSystemPrompt(
+      {
+        clientId: 'client-2',
+        messages: [
+          { role: 'user', text: 'Compare the options and recommend a strategy for the client.' },
+        ],
+      },
+      ctx,
+    );
+    expect(parts.dynamic).toContain('Response depth: analysis.');
+    expect(parts.dynamic).toContain(
+      'client id client-2; the current packet did not establish a client name',
+    );
+    expect(parts.dynamic).toContain('Localize unsupported claims');
+  });
+
   it('injects the real conversation id so save_chat_attachments/save_note never have to ask the user for it', () => {
     const prompt = buildChatSystemPrompt({ clientId: 'c1', conversationId: 'conv-42' }, ctx);
     expect(prompt).toContain('The current conversation id is: conv-42');

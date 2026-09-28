@@ -21,6 +21,7 @@ import {
 } from '@capiro/shared';
 import {
   AUTO_CORRECTION_CAPABILITY,
+  bindCitationToLedgerEntries,
   COVERAGE_RETRIEVAL_CAPABILITY,
   PASSAGE_SELECTION_CAPABILITY,
   JEV_TASK_REGISTRY,
@@ -581,107 +582,86 @@ function settleWithinBudget<T>(
   });
 }
 
-const CITABLE_SOURCES_HEADER = 'Citable sources (cite these in prose as [N] when you use them):';
-
-/** The `[n]` numbers a tool execution listed above its own result body. */
-function citableNumbersOf(serialized: string): Set<number> | null {
-  if (!serialized.startsWith(CITABLE_SOURCES_HEADER)) return null;
-  const end = serialized.indexOf('\n\n');
-  const block = end < 0 ? serialized : serialized.slice(0, end);
-  const numbers = new Set<number>();
-  for (const line of block.split('\n').slice(1)) {
-    const match = /^\[(\d{1,3})\] /.exec(line);
-    if (match) numbers.add(Number(match[1]));
-  }
-  return numbers;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-/**
- * The ledger entry that produced a citation. Tool executions list their own
- * citations in a `Citable sources` header, so the entry whose header carries
- * the citation number is its origin even when the tool ran several times.
- * Inherited document observations share the citation's record identity.
- */
-function ledgerEntryForCitation(
-  citation: MeriCitation,
-  ledgerEntries: readonly LedgerEntry[],
-): LedgerEntry | undefined {
-  const sameTool = ledgerEntries.filter((entry) => entry.tool === citation.tool);
-  const numbered = sameTool.find((entry) => citableNumbersOf(entry.serialized)?.has(citation.n));
-  if (numbered) return numbered;
-  const documentId = citation.documentEvidence?.documentId;
-  const recordId = asRecord(citation.documentEvidence?.record)?.recordId;
-  if (documentId) {
-    const byDocument = sameTool.find((entry) => {
-      const result = asRecord(entry.result);
-      if (asRecord(result?.document)?.id !== documentId) return false;
-      if (typeof recordId !== 'string') return true;
-      return entry.serialized.includes(recordId);
-    });
-    if (byDocument) return byDocument;
-  }
-  if (citation.id) return sameTool.find((entry) => entry.serialized.includes(citation.id));
-  return undefined;
-}
-
-/**
- * Passage text per claim-ledger evidence item, bound to the ledger ENTRY the
- * evidence came from and carrying that entry's full text. A 240-character
- * citation snippet or the first same-tool entry would declare supported exact
- * values absent.
- */
-function buildRepairPassages(
+/** Exact owner row/span only: no serialized-entry, snippet, substring, or marker fallback. */
+export function buildRepairPassages(
   evidence: readonly AssuredEvidence[],
   citations: readonly MeriCitation[],
   ledgerEntries: readonly LedgerEntry[],
-): Record<string, { text: string }> {
-  const passages: Record<string, { text: string }> = {};
-  for (const item of evidence) {
-    let text: string | undefined;
-    if (item.id.startsWith('citation:')) {
-      const citation =
-        citations.find(
-          (candidate) => `citation:${candidate.n}:${candidate.tool}:${candidate.id}` === item.id,
-        ) ??
-        citations.find(
-          (candidate) => candidate.tool === item.sourceType && candidate.id === item.sourceId,
-        );
-      const entry = citation ? ledgerEntryForCitation(citation, ledgerEntries) : undefined;
-      text = entry?.serialized ?? citation?.snippet ?? undefined;
-      if (citation && text) {
-        // `extractMaterialClaims` keys a marker's evidence as `${tool}:${id}` (or
-        // the stable id); expose the same passage under those ids too.
-        const aliases = [
-          `${citation.tool}:${citation.id}`,
-          ...(citation.stableId ? [citation.stableId] : []),
-        ];
-        for (const alias of aliases) passages[alias] ??= { text };
-      }
-    } else if (item.id.startsWith('formb:')) {
-      const token = `[S:${item.sourceType}:${item.sourceId}]`;
-      const entry =
-        ledgerEntries.find(
-          (candidate) => candidate.tool === item.sourceType && candidate.serialized.includes(token),
-        ) ??
-        ledgerEntries.find(
-          (candidate) =>
-            candidate.tool === item.sourceType && candidate.serialized.includes(item.sourceId),
-        );
-      text = entry?.serialized;
-    } else {
-      const entry = ledgerEntries.find(
-        (candidate) =>
-          candidate.tool === item.sourceType && candidate.serialized.includes(item.sourceId),
-      );
-      text = entry?.serialized;
+  expectedClientId?: string | null,
+): Record<
+  string,
+  {
+    text: string;
+    clientId?: string;
+    documentId?: string;
+    version?: string;
+    locator?: string;
+    acquisitionState?: 'discovered' | 'consulted';
+    evidenceKind?: 'source_passage' | 'structured_record';
+    contentHash?: string;
+    ownerVerified?: boolean;
+  }
+> {
+  const passages: Record<
+    string,
+    {
+      text: string;
+      clientId?: string;
+      documentId?: string;
+      version?: string;
+      locator?: string;
+      acquisitionState?: 'discovered' | 'consulted';
+      evidenceKind?: 'source_passage' | 'structured_record';
+      contentHash?: string;
+      ownerVerified?: boolean;
     }
-    passages[item.id] = { text: text ?? '' };
+  > = {};
+  for (const item of evidence) {
+    let citation: MeriCitation | undefined;
+    if (item.id.startsWith('citation:')) {
+      citation = citations.find(
+        (candidate) => `citation:${candidate.n}:${candidate.tool}:${candidate.id}` === item.id,
+      );
+    } else if (item.id.startsWith('formb:')) {
+      citation = {
+        n: 0,
+        tool: item.sourceType,
+        id: item.sourceId,
+        type: 'source',
+        title: item.title ?? item.sourceId,
+        url: item.url ?? null,
+        snippet: null,
+      };
+    }
+    if (!citation) continue;
+    const binding = bindCitationToLedgerEntries(citation, ledgerEntries, { expectedClientId });
+    if (
+      !binding ||
+      (item.version && item.version !== binding.version) ||
+      (item.clientId && item.clientId !== binding.clientId) ||
+      (item.documentId && item.documentId !== binding.documentId) ||
+      (item.contentHash && item.contentHash !== binding.contentHash)
+    )
+      continue;
+    const receipt = {
+      text: binding.text,
+      ...(binding.clientId ? { clientId: binding.clientId } : {}),
+      ...(binding.documentId ? { documentId: binding.documentId } : {}),
+      ...(binding.version ? { version: binding.version } : {}),
+      ...(binding.locator ? { locator: binding.locator } : {}),
+      acquisitionState: binding.acquisitionState,
+      evidenceKind: binding.evidenceKind,
+      contentHash: binding.contentHash,
+      ownerVerified: true,
+    };
+    passages[item.id] = receipt;
+    if (citation.n > 0) {
+      for (const alias of [
+        `${citation.tool}:${citation.id}`,
+        ...(citation.stableId ? [citation.stableId] : []),
+      ])
+        passages[alias] ??= receipt;
+    }
   }
   return passages;
 }
@@ -2409,12 +2389,11 @@ export class MeriV3AssistantService {
             ledger: claimLedger,
             asOf,
           }).filter((claim) => claim.material);
-          const passages = Object.fromEntries(
-            claimLedger.evidence.map((evidence) => {
-              const citation = released.citations.find((item) => item.id === evidence.sourceId);
-              const entry = ledgerEntries.find((item) => item.tool === evidence.sourceType);
-              return [evidence.id, { text: citation?.snippet ?? entry?.serialized ?? '' }];
-            }),
+          const passages = buildRepairPassages(
+            claimLedger.evidence,
+            released.citations,
+            ledgerEntries,
+            dto.clientId,
           );
           const providers = createChatDecisionProviders({
             env: process.env,
@@ -2748,12 +2727,13 @@ export class MeriV3AssistantService {
           assessed: claims.length,
         });
       }
-      // Passages are bound to the ledger entry each evidence item came from and
-      // carry that entry's full text, so exact comparison sees the cited values.
+      // Bind only the exact current owner row/span; metadata and whole tool
+      // entries cannot become consulted evidence.
       const passages = buildRepairPassages(
         claimLedger.evidence,
         released.citations,
         args.ledgerEntries,
+        dto.clientId,
       );
       const providers = createChatDecisionProviders({
         env: process.env,
@@ -2764,6 +2744,15 @@ export class MeriV3AssistantService {
         fetchImpl: args.runtimeBudget.budgetedFetch('repair'),
       });
       const budgetedLegacy = withModelBudget(providers.legacy, args.runtimeBudget, 'repair')!;
+      // MeriRunBudget remains the aggregate owner. The typed ToolRegistry seam
+      // keeps accounting outside the repair loop and ready for later durable hooks.
+      const budgetedRepairRegistry = withToolBudget(
+        this.registry,
+        args.runtimeBudget,
+        args.budgetScope,
+        (name, control) => this.assertCurrentProcedureAuthority(dto.conversationId, name, control),
+        args.admittedReadCapabilities,
+      );
       // Document references are built only from what this turn observed
       // (readable content reads, selected or named listings); a turn that
       // touched no document passes none. The repair loop reads their
@@ -2778,7 +2767,7 @@ export class MeriV3AssistantService {
       const executor =
         args.mode === 'enforce'
           ? createOrchestratorToolExecutor({
-              registry: this.registry,
+              registry: budgetedRepairRegistry,
               schemas: args.availableSchemas,
               context: {
                 tenantId: ctx.tenantId,
@@ -2789,45 +2778,10 @@ export class MeriV3AssistantService {
               citations: released.citations,
               ledgerEntries: args.ledgerEntries,
               invoke: async (name, input, signal) => {
-                assertMeriV3ResearchCapability(args.admittedReadCapabilities, name);
-                if (!args.runtimeBudget.reserveToolBatch(1)) {
-                  throw new MeriRunBudgetExhaustedError(args.runtimeBudget.reason ?? 'tool_calls');
-                }
-                const signature = args.runtimeBudget.toolSignature(args.budgetScope, name, input);
-                if (!args.runtimeBudget.beginTool(signature)) {
-                  throw new MeriRunBudgetExhaustedError(args.runtimeBudget.reason ?? 'retry_calls');
-                }
-                try {
-                  assertMeriProcedureToolDispatch({
-                    procedure: currentGovernedMeriContext()?.procedure,
-                    toolName: name,
-                    readOnly: this.registry.get(name)?.readOnly,
-                  });
-                  const dispatchControl = {
-                    signal: signal ?? controller.signal,
-                    deadlineAt,
-                  };
-                  await this.assertCurrentProcedureAuthority(
-                    dto.conversationId,
-                    name,
-                    dispatchControl,
-                  );
-                  const result = await this.registry.invoke(name, input, ctx, dispatchControl);
-                  args.runtimeBudget.observeToolResult({
-                    signature,
-                    result,
-                    failed: isLogicalToolFailure(result),
-                    repeatable: isLegitimatePollingObservation(input, result),
-                  });
-                  return result;
-                } catch (error) {
-                  args.runtimeBudget.observeToolResult({
-                    signature,
-                    result: { error: errorReason(error) },
-                    failed: true,
-                  });
-                  throw error;
-                }
+                return budgetedRepairRegistry.invoke(name, input, ctx, {
+                  signal: signal ?? controller.signal,
+                  deadlineAt,
+                });
               },
               evidenceAccuracyMode: args.evidenceAccuracyMode,
               documentReferences,

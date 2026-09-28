@@ -1,4 +1,4 @@
-import type { AssuredClaim } from '../assurance/claim-ledger';
+import { evidenceEligibleForSupport, type AssuredClaim } from '../assurance/claim-ledger';
 import { buildClaimSupportQuestion } from '../jev/claim-support-question';
 import type { DecisionProvider, EvidenceEnvelope } from '../jev/decision-contract';
 import { splitSentences } from './revise';
@@ -23,10 +23,12 @@ export async function recheckRevision(input: RecheckInput): Promise<RecheckResul
   for (const claim of claims) {
     if (input.signal?.aborted) throw input.signal.reason ?? new Error('cancelled');
     const envelope = envelopeFor(claim, input);
-    const decision = await input.provider.assess(envelope, buildClaimSupportQuestion(envelope), {
-      signal: input.signal,
-      deadlineAt: input.deadlineAt,
-    });
+    const decision = envelope.sources.length
+      ? await input.provider.assess(envelope, buildClaimSupportQuestion(envelope), {
+          signal: input.signal,
+          deadlineAt: input.deadlineAt,
+        })
+      : insufficientEvidenceDecision();
     decisions.push({ claim, envelope, decision });
   }
   const unresolvedClaims = decisions
@@ -66,23 +68,55 @@ function envelopeFor(claim: AssuredClaim, input: RecheckInput): EvidenceEnvelope
     asOf: claim.asOf ?? null,
     sources: claim.sourceIds.flatMap((id) => {
       const item = evidence.get(id);
-      if (!item) return [];
+      const passage = input.ledger.passages[id] ?? '';
+      if (
+        !item ||
+        !evidenceEligibleForSupport(item) ||
+        item.acquisitionState !== 'consulted' ||
+        item.ownerVerified !== true ||
+        !passage.trim() ||
+        (input.clientId && item.clientId && item.clientId !== input.clientId)
+      )
+        return [];
       return [
         {
           evidenceId: id,
           sourceType: item.evidenceClass,
           sourceId: item.sourceId,
-          documentId: null,
-          version: null,
-          locator: null,
-          passage: input.ledger.passages[id] ?? '',
+          ...(item.clientId ? { clientId: item.clientId } : {}),
+          documentId: item.documentId ?? null,
+          version: item.version ?? null,
+          locator: item.locator ?? null,
+          passage,
           sourceDate: item.asOf ?? null,
           publishedAt: item.publishedAt ?? null,
           effectiveAt: item.effectiveAt ?? null,
           retrievedAt: item.retrievedAt ?? null,
+          ...(item.acquisitionState ? { acquisitionState: item.acquisitionState } : {}),
+          ...(item.evidenceKind ? { evidenceKind: item.evidenceKind } : {}),
+          ...(item.contentHash ? { contentHash: item.contentHash } : {}),
+          ...(item.ownerVerified !== undefined ? { ownerVerified: item.ownerVerified } : {}),
         },
       ];
     }),
+  };
+}
+
+function insufficientEvidenceDecision(): import('../jev/decision-contract').EvidenceDecision {
+  return {
+    kind: 'outcome',
+    outcome: 'insufficient_evidence',
+    probabilities: {
+      supported: 0,
+      contradicted: 0,
+      insufficient_evidence: 1,
+      conflicting_evidence: 0,
+    },
+    confidence: 1,
+    reasonCodes: ['source_integrity:no_consulted_evidence'],
+    evidenceIds: [],
+    provider: { name: 'source-integrity', model: 'rules', questionVersion: 'claim_support.v1' },
+    latencyMs: 0,
   };
 }
 

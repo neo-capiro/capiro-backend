@@ -3103,6 +3103,7 @@ function citationRowsOf(tool: string, payload: Record<string, unknown>): unknown
     const profileRows = clientContextCitationRows(payload);
     if (profileRows.length) return profileRows;
   }
+  if (tool === 'query_tasks' && Array.isArray(payload.tasks)) return payload.tasks;
   const market = federalMarketCitationRows(tool, payload);
   if (market) return market;
   if (Array.isArray(payload.data)) return payload.data as unknown[];

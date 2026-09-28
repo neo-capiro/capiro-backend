@@ -97,6 +97,32 @@ describe('buildEvidenceEnvelope', () => {
     ).not.toBe(hashEvidenceEnvelope(legacy));
   });
 
+  it('serializes explicit owner revocation and keeps legacy absence distinct', () => {
+    const input = {
+      claim,
+      ledger,
+      citations: [],
+      tenantId: 'tenant-1',
+    };
+    const revoked = buildEvidenceEnvelope({
+      ...input,
+      passages: { e1: { text: 'The amount is 42.', ownerVerified: false } },
+    }).envelope;
+    const legacy = buildEvidenceEnvelope({
+      ...input,
+      passages: { e1: { text: 'The amount is 42.' } },
+    }).envelope;
+    expect(revoked.sources[0]).toHaveProperty('ownerVerified', false);
+    expect(envelopeSourcesForJev(revoked, { includeProvenance: false })[0]).toHaveProperty(
+      'ownerVerified',
+      false,
+    );
+    expect(legacy.sources[0]).not.toHaveProperty('ownerVerified');
+    expect(envelopeSourcesForJev(legacy, { includeProvenance: false })[0]).not.toHaveProperty(
+      'ownerVerified',
+    );
+  });
+
   it('exposes provenance to Jev only when requested', () => {
     const envelope = buildEvidenceEnvelope({
       claim,

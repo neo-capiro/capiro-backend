@@ -2,6 +2,7 @@ import {
   MERI_GROUNDING_INVARIANT,
   MERI_COMPLIANCE_GUARDRAILS,
   MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT,
+  buildAdaptiveClientNarrative,
   meriGroundingSurfaceBlock,
   meriGroundingDateBlock,
   planModeSteering,
@@ -344,6 +345,15 @@ export function composeChatSystemPrompt(
 ): SystemPromptParts {
   const firm = ctx.firmMemory;
   const voice = ctx.userVoice;
+  const currentRequest = [...(dto.messages ?? [])]
+    .reverse()
+    .find((message) => message.role === 'user' && typeof message.text === 'string')?.text;
+  const focusedClientName =
+    dto.clientId && ctx.contextPacket?.clientId === dto.clientId
+      ? ctx.contextPacket.items.find(
+          (item) => item.scope === 'client' && typeof item.clientName === 'string',
+        )?.clientName
+      : undefined;
 
   const base = [
     'You are Meri, an AI copilot for a U.S. federal government-affairs (lobbying) firm.',
@@ -423,6 +433,12 @@ export function composeChatSystemPrompt(
     dto.clientId
       ? `\nThe conversation is focused on client id: ${dto.clientId} (use it for client tools).`
       : '',
+    `\n${buildAdaptiveClientNarrative({
+      request: typeof currentRequest === 'string' ? currentRequest : '',
+      clientId: dto.clientId,
+      clientName: focusedClientName,
+      contextAsOf: ctx.contextPacket?.compiledAt,
+    })}`,
     dto.clientKbSnapshot
       ? `\n# Focused client knowledge base (profile, key people, facilities, recent docs)\n${dto.clientKbSnapshot}`
       : '',
