@@ -6,8 +6,13 @@ import type {
   EvidenceQuestion,
 } from './decision-contract';
 import type { JevTaskRegistration } from './task-registry';
-import { assessWithJevCache, jevDecisionCacheKey, JevDecisionCache,
-  type JevCacheMode, type JevCacheObservation } from './decision-cache';
+import {
+  assessWithJevCache,
+  jevDecisionCacheKey,
+  JevDecisionCache,
+  type JevCacheMode,
+  type JevCacheObservation,
+} from './decision-cache';
 
 export const CASCADE_ESCALATION_REASONS = [
   'jev_unavailable',
@@ -52,7 +57,9 @@ export interface CalibratedCascadeResult {
   cache?: JevCacheObservation & { mode: JevCacheMode };
 }
 
-export async function runCalibratedCascade(input: CalibratedCascadeInput): Promise<CalibratedCascadeResult> {
+export async function runCalibratedCascade(
+  input: CalibratedCascadeInput,
+): Promise<CalibratedCascadeResult> {
   const cascade = input.registration.cascade;
   if (!cascade) throw new Error(`Jev task ${input.registration.task} has no cascade registration`);
 
@@ -68,12 +75,17 @@ export async function runCalibratedCascade(input: CalibratedCascadeInput): Promi
       const assessed = await assessWithJevCache({
         mode: input.cache.mode,
         cache: input.cache.instance,
-        key: jevDecisionCacheKey({ task: input.registration.task,
-          tenantId: input.envelope.tenantId, clientId: input.envelope.clientId,
-          envelope: input.envelope, claim: { id: input.claim.id, text: input.envelope.claimText },
-          questionVersion: input.registration.questionVersion, question: input.question,
+        key: jevDecisionCacheKey({
+          task: input.registration.task,
+          tenantId: input.envelope.tenantId,
+          clientId: input.envelope.clientId,
+          envelope: input.envelope,
+          claim: { id: input.claim.id, text: input.envelope.claimText },
+          questionVersion: input.registration.questionVersion,
+          question: input.question,
           modelVersion: input.registration.modelVersion,
-          cacheIdentityVersion: input.registration.cacheIdentity.version }),
+          cacheIdentityVersion: input.registration.cacheIdentity.version,
+        }),
         assess: () => safeAssess(input.jev!, input),
       });
       jev = assessed.decision;
@@ -88,19 +100,29 @@ export async function runCalibratedCascade(input: CalibratedCascadeInput): Promi
     if (jev.confidence < cascade.escalateBelowConfidence) reasons.push('low_confidence');
     if (cascade.escalateCompound && input.claim.compound) reasons.push('compound_claim');
     if (!input.legacyLiveRepairCompatibility) {
-      const highImpactCategory = input.claim.category !== 'unclassified'
-        && cascade.highImpactCategories.includes(input.claim.category);
-      if (jev.outcome === 'conflicting_evidence' || (jev.outcome === 'contradicted' && highImpactCategory)) {
+      const highImpactCategory =
+        input.claim.category !== 'unclassified' &&
+        cascade.highImpactCategories.includes(input.claim.category);
+      if (
+        jev.outcome === 'conflicting_evidence' ||
+        (jev.outcome === 'contradicted' && highImpactCategory)
+      ) {
         reasons.push('conflict');
       }
-      if (input.claim.materialHighImpact || highImpactCategory) reasons.push('high_impact_category');
+      if (input.claim.materialHighImpact || highImpactCategory)
+        reasons.push('high_impact_category');
       const evaluated = input.registration.calibration.evaluatedCategories;
-      if (evaluated?.length
-        && (input.claim.category === 'unclassified' || !evaluated.includes(input.claim.category))) {
+      if (
+        evaluated?.length &&
+        (input.claim.category === 'unclassified' || !evaluated.includes(input.claim.category))
+      ) {
         reasons.push('out_of_distribution');
       }
     }
-    if (jev.outcome === 'supported' && sampledCascadeKey(input.sampleKey, cascade.auditSampleRate)) {
+    if (
+      jev.outcome === 'supported' &&
+      sampledCascadeKey(input.sampleKey, cascade.auditSampleRate)
+    ) {
       reasons.push('audit_sample');
     }
   } else if (cascade.escalateCompound && input.claim.compound) {
@@ -120,7 +142,10 @@ export async function runCalibratedCascade(input: CalibratedCascadeInput): Promi
     escalationReasons: reasons,
     audited,
     auditDisagreement: Boolean(
-      audited && jev?.kind === 'outcome' && legacy?.kind === 'outcome' && jev.outcome !== legacy.outcome,
+      audited &&
+      jev?.kind === 'outcome' &&
+      legacy?.kind === 'outcome' &&
+      jev.outcome !== legacy.outcome,
     ),
     ...(cache ? { cache } : {}),
   };
@@ -177,7 +202,10 @@ async function settleBeforeAbort(
   });
 }
 
-function abortedOrExpired(signal: AbortSignal | undefined, deadlineAt: number | undefined): boolean {
+function abortedOrExpired(
+  signal: AbortSignal | undefined,
+  deadlineAt: number | undefined,
+): boolean {
   return Boolean(signal?.aborted || (deadlineAt !== undefined && Date.now() >= deadlineAt));
 }
 

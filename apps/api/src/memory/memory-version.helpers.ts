@@ -57,11 +57,7 @@ export function isLearningSignalConflictResolution(
 }
 
 export type MemoryCandidateKind =
-  | 'standard'
-  | 'correction'
-  | 'restore'
-  | 'contradiction'
-  | 'learning_signal_conflict';
+  'standard' | 'correction' | 'restore' | 'contradiction' | 'learning_signal_conflict';
 
 const VERSION_SOURCE_KIND_TO_CANDIDATE_KIND: Record<string, MemoryCandidateKind> = {
   memory_correction: 'correction',

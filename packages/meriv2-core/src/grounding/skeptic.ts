@@ -47,9 +47,7 @@ export interface SkepticVerdict {
  * tool / returns strict JSON). A thrown error or malformed return is treated as
  * `refuted` by `runSkeptic` (fail-closed).
  */
-export type SkepticJudge = (
-  prompt: string,
-) => Promise<{
+export type SkepticJudge = (prompt: string) => Promise<{
   refuted?: unknown;
   confidence?: unknown;
   reason?: unknown;

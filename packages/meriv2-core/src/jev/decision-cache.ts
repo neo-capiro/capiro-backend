@@ -30,26 +30,36 @@ export interface JevCacheableOutcomeDecision {
   usage?: { inputTokens: number; outputTokens: number };
   cached?: boolean;
 }
-export interface JevCacheableFailureDecision { kind: 'failure' }
+export interface JevCacheableFailureDecision {
+  kind: 'failure';
+}
 export type JevCacheableDecision = JevCacheableOutcomeDecision | JevCacheableFailureDecision;
 
 export type JevCacheMode = 'shadow' | 'enforce';
-export interface JevCacheObservation { lookups: number; hits: number; agreements: number }
+export interface JevCacheObservation {
+  lookups: number;
+  hits: number;
+  agreements: number;
+}
 
 export function jevDecisionCacheKey(input: JevDecisionCacheKeyInput): string {
-  return createHash('sha256').update(JSON.stringify({
-    task: input.task,
-    tenantId: input.tenantId,
-    clientId: input.clientId,
-    envelopeHash: hashEvidenceEnvelope(input.envelope),
-    claim: input.claim,
-    questionVersion: input.questionVersion,
-    questionHash: createHash('sha256').update(JSON.stringify(input.question)).digest('hex'),
-    modelVersion: input.modelVersion,
-    registryVersion: input.registryVersion ?? JEV_TASK_REGISTRY_VERSION,
-    cacheIdentityVersion: input.cacheIdentityVersion ?? null,
-    candidateIdentity: input.candidateIdentity ?? null,
-  })).digest('hex');
+  return createHash('sha256')
+    .update(
+      JSON.stringify({
+        task: input.task,
+        tenantId: input.tenantId,
+        clientId: input.clientId,
+        envelopeHash: hashEvidenceEnvelope(input.envelope),
+        claim: input.claim,
+        questionVersion: input.questionVersion,
+        questionHash: createHash('sha256').update(JSON.stringify(input.question)).digest('hex'),
+        modelVersion: input.modelVersion,
+        registryVersion: input.registryVersion ?? JEV_TASK_REGISTRY_VERSION,
+        cacheIdentityVersion: input.cacheIdentityVersion ?? null,
+        candidateIdentity: input.candidateIdentity ?? null,
+      }),
+    )
+    .digest('hex');
 }
 
 export class JevDecisionCache<TOutcome extends JevCacheableOutcomeDecision = JevOutcomeDecision> {
@@ -102,10 +112,16 @@ export async function assessWithJevCache<TDecision extends JevCacheableDecision>
   if (cached) observation.hits = 1;
   if (input.mode === 'enforce' && cached) {
     const { usage: _usage, ...withoutUsage } = cached;
-    return { decision: { ...withoutUsage, cached: true, latencyMs: 0 } as unknown as TDecision, observation };
+    return {
+      decision: { ...withoutUsage, cached: true, latencyMs: 0 } as unknown as TDecision,
+      observation,
+    };
   }
   const fresh = await input.assess();
   if (cached && decisionsAgree(cached, fresh)) observation.agreements = 1;
-  input.cache.set(input.key, fresh as Extract<TDecision, { kind: 'outcome' }> | JevCacheableFailureDecision);
+  input.cache.set(
+    input.key,
+    fresh as Extract<TDecision, { kind: 'outcome' }> | JevCacheableFailureDecision,
+  );
   return { decision: fresh, observation };
 }

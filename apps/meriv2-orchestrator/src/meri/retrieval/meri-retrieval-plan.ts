@@ -96,8 +96,7 @@ const PE_DEEP_DIVE_RE =
 const BILL_WATCH_RE =
   /\bbills?\b.*\b(?:affect(?:ing)?|touching|relevant\s+to)\b|\b(?:tracked|watch(?:ed|ing)?)\s+bills?\b|\b(?:what\s+happened|what'?s\s+new|status)\b.*\b(?:bills?|legislation)\b|\bblegislative\s+(?:update|watch|status)\b/i;
 
-const HEARING_WATCH_RE =
-  /\bhearings?\b|\bcommittee\s+hearings?\b/i;
+const HEARING_WATCH_RE = /\bhearings?\b|\bcommittee\s+hearings?\b/i;
 
 const REPRESENTATION_RE =
   /\bwho\s+(?:represents|is\s+our\s+representative|are\s+our\s+representatives)\b|\b(?:house|senate)\s+representative\b|\brepresentatives?\s+(?:for|of)\b|\bcongressional\s+district\b|\bmembers\s+of\s+(?:congress|the\s+house|the\s+senate)\b/i;

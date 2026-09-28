@@ -114,7 +114,9 @@ describe('createLlmSkepticJudge', () => {
     const judge = createLlmSkepticJudge(llm);
     const v = await runSkeptic({ claim: 'x', evidence: 'y' }, judge);
     expect(v).toEqual({
-      refuted: true, confidence: 'high', reason: 'not stated in evidence',
+      refuted: true,
+      confidence: 'high',
+      reason: 'not stated in evidence',
       usage: { inputTokens: 10, outputTokens: 5 },
     });
   });

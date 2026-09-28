@@ -6,11 +6,7 @@ import type { ToolExecutionMetadata } from './tool-execution-metadata';
 export type MeriContextScope = 'personal' | 'client' | 'firm';
 
 export type MeriContextAuthority =
-  | 'human-authored'
-  | 'system-of-record'
-  | 'derived'
-  | 'unknown'
-  | MemoryAuthority;
+  'human-authored' | 'system-of-record' | 'derived' | 'unknown' | MemoryAuthority;
 
 export interface MeriContextPacketItem {
   id: string;

@@ -131,21 +131,36 @@ describe('client filing confirmations', () => {
     'Upload this document to the selected profile',
     'Put these attachments in their Files tab',
   ])('requires a real filing result for the request: %s', (request) => {
-    expect(enforceClientFilingConfirmation({ request, reply: 'Done.', entries: [] }))
-      .toContain('I have not saved');
-    expect(enforceClientFilingConfirmation({ request, reply: 'Done.', entries: [
-      { tool: 'save_chat_attachments', result: { pendingApproval: true } },
-    ] })).toContain('awaits your approval');
+    expect(enforceClientFilingConfirmation({ request, reply: 'Done.', entries: [] })).toContain(
+      'I have not saved',
+    );
+    expect(
+      enforceClientFilingConfirmation({
+        request,
+        reply: 'Done.',
+        entries: [{ tool: 'save_chat_attachments', result: { pendingApproval: true } }],
+      }),
+    ).toContain('awaits your approval');
   });
 
   test('a successful profile filing points to Files and reports only persisted originals', () => {
     const location = '/clients?clientId=c1&tab=files';
     const reply = enforceClientFilingConfirmation({
-      request: 'Send it to the client profile', reply: 'Done.', entries: [
-        { tool: 'save_chat_attachments', result: {
-          status: 'saved', clientId: 'c1', clientName: 'Sightline', location,
-          files: [{ attachmentId: 'a1', documentId: 'd1', fileName: 'brief.pdf', status: 'saved' }],
-        } },
+      request: 'Send it to the client profile',
+      reply: 'Done.',
+      entries: [
+        {
+          tool: 'save_chat_attachments',
+          result: {
+            status: 'saved',
+            clientId: 'c1',
+            clientName: 'Sightline',
+            location,
+            files: [
+              { attachmentId: 'a1', documentId: 'd1', fileName: 'brief.pdf', status: 'saved' },
+            ],
+          },
+        },
       ],
     });
     expect(reply).toContain('under Sightline: 1 saved, 0 still processing, 0 failed');
@@ -154,10 +169,13 @@ describe('client filing confirmations', () => {
 
   test('does not reinterpret an ordinary email completion as client filing', () => {
     for (const request of ['Send the email to Jordan', 'Send the attachments to Jordan by email']) {
-      expect(enforceClientFilingConfirmation({
-        request, reply: 'Done.',
-        entries: [{ tool: 'send_email', result: { status: 'sent' } }],
-      })).toBe('Done.');
+      expect(
+        enforceClientFilingConfirmation({
+          request,
+          reply: 'Done.',
+          entries: [{ tool: 'send_email', result: { status: 'sent' } }],
+        }),
+      ).toBe('Done.');
     }
   });
 });

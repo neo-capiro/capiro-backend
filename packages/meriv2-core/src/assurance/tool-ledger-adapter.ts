@@ -82,9 +82,11 @@ export function evidenceFromToolResults(
   options: { classification?: EvidenceClassification } = {},
 ): AssuredEvidence[] {
   const classification = options.classification ?? 'legacy';
-  const classify = classification === 'profiles' ? evidenceClassForTool : legacyEvidenceClassForTool;
+  const classify =
+    classification === 'profiles' ? evidenceClassForTool : legacyEvidenceClassForTool;
   const isPrimary = classification === 'profiles' ? primaryTool : legacyPrimaryTool;
-  const isAuthoritative = classification === 'profiles' ? authoritativeTool : legacyAuthoritativeTool;
+  const isAuthoritative =
+    classification === 'profiles' ? authoritativeTool : legacyAuthoritativeTool;
   const evidence: AssuredEvidence[] = [];
   const entryByTool = new Map<string, LedgerEntry[]>();
   for (const entry of ledgerEntries) {
@@ -95,7 +97,9 @@ export function evidenceFromToolResults(
   for (const citation of citations) {
     const entries = entryByTool.get(citation.tool) ?? [];
     const resolves = entries.some((entry) => entry.serialized.includes(citation.id));
-    const dates = deriveEvidenceDates({ citation: citation as Parameters<typeof deriveEvidenceDates>[0]['citation'] });
+    const dates = deriveEvidenceDates({
+      citation: citation as Parameters<typeof deriveEvidenceDates>[0]['citation'],
+    });
     evidence.push({
       id: citationEvidenceId(citation),
       sourceType: citation.tool,
@@ -455,10 +459,11 @@ export function compareEvidenceClassification(input: {
   const profileEvidence = new Map(profiles.evidence.map((item) => [item.id, item]));
   const changedEvidence = legacy.evidence.filter((item) => {
     const other = profileEvidence.get(item.id);
-    return Boolean(other) && (
-      item.evidenceClass !== other!.evidenceClass ||
-      item.primary !== other!.primary ||
-      item.authoritative !== other!.authoritative
+    return (
+      Boolean(other) &&
+      (item.evidenceClass !== other!.evidenceClass ||
+        item.primary !== other!.primary ||
+        item.authoritative !== other!.authoritative)
     );
   });
   const profileClaims = new Map(profiles.claims.map((claim) => [claim.id, claim]));
@@ -468,7 +473,8 @@ export function compareEvidenceClassification(input: {
   for (const claim of legacy.claims) {
     const other = profileClaims.get(claim.id);
     if (!other) continue;
-    if (Boolean(claim.unsupportedReason) !== Boolean(other.unsupportedReason)) claimSupportChanged += 1;
+    if (Boolean(claim.unsupportedReason) !== Boolean(other.unsupportedReason))
+      claimSupportChanged += 1;
     if (claim.confidence !== other.confidence) claimConfidenceChanged += 1;
     if (claim.primarySourcePresent !== other.primarySourcePresent) primarySourcePresentChanged += 1;
   }

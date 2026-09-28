@@ -77,9 +77,9 @@ export function enforceClientFilingConfirmation(args: {
   entries: FilingEvidence[];
 }): string {
   const writes = args.entries.filter((entry) => FILING_TOOLS.has(entry.tool));
-  const filingRequest = /\b(?:notes?|log|logging|files?|filing|save|saving)\b/i.test(args.request) ||
-    (/\b(?:send|put|add|upload)\b/i.test(args.request) &&
-      /\bprofile\b/i.test(args.request));
+  const filingRequest =
+    /\b(?:notes?|log|logging|files?|filing|save|saving)\b/i.test(args.request) ||
+    (/\b(?:send|put|add|upload)\b/i.test(args.request) && /\bprofile\b/i.test(args.request));
   if (!writes.length && !filingRequest) return args.reply;
   const claim = (line: string) => {
     const text = line

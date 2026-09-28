@@ -55,9 +55,13 @@ export function requestIdentities(request: string | undefined): Record<string, s
   const bill = request.match(/\b(?:H\.?\s?R\.?|S\.)\s*\d{1,5}\b/i)?.[0];
   const piid = request.match(/\b[A-Z0-9]{4,6}-\d{2}-[A-Z]-\d{4}\b/i)?.[0];
   const opportunity = idToken(
-    request.match(/\b(?:opportunity|notice|solicitation)\s*(?:id|number|no\.?)?\s*[:#]?\s*([A-Z0-9][A-Z0-9_.-]{3,})\b/i)?.[1],
+    request.match(
+      /\b(?:opportunity|notice|solicitation)\s*(?:id|number|no\.?)?\s*[:#]?\s*([A-Z0-9][A-Z0-9_.-]{3,})\b/i,
+    )?.[1],
   );
-  const award = idToken(request.match(/\baward\s*(?:id|number|no\.?)?\s*[:#]?\s*([A-Z0-9][A-Z0-9_.-]{3,})\b/i)?.[1]);
+  const award = idToken(
+    request.match(/\baward\s*(?:id|number|no\.?)?\s*[:#]?\s*([A-Z0-9][A-Z0-9_.-]{3,})\b/i)?.[1],
+  );
   return {
     ...(pe ? { peCode: pe.toUpperCase(), code: pe.toUpperCase() } : {}),
     ...(bill ? { billId: bill.replace(/\s+/g, ' ').trim().toUpperCase() } : {}),
@@ -84,7 +88,8 @@ export function projectRemedyArgs(
   const properties = schema.input_schema.properties ?? {};
   const supplied = Object.fromEntries(
     Object.entries(call.args).filter(
-      ([key, value]) => !ABSTRACT_FIELDS.has(key) && key in properties && value !== undefined && value !== null,
+      ([key, value]) =>
+        !ABSTRACT_FIELDS.has(key) && key in properties && value !== undefined && value !== null,
     ),
   );
   const candidates: Record<string, unknown> = {
@@ -96,7 +101,11 @@ export function projectRemedyArgs(
     ...context.identities,
   };
   for (const name of Object.keys(properties)) {
-    if (supplied[name] === undefined && candidates[name] !== undefined && candidates[name] !== null) {
+    if (
+      supplied[name] === undefined &&
+      candidates[name] !== undefined &&
+      candidates[name] !== null
+    ) {
       supplied[name] = candidates[name];
     }
   }
@@ -140,7 +149,10 @@ export interface OrchestratorToolExecutorInput {
 class GovernedRepairToolExecutor implements RepairToolExecutor {
   constructor(private readonly input: OrchestratorToolExecutorInput) {}
 
-  async execute(call: RepairToolCall, options: { signal?: AbortSignal }): Promise<RepairToolResult> {
+  async execute(
+    call: RepairToolCall,
+    options: { signal?: AbortSignal },
+  ): Promise<RepairToolResult> {
     if (options.signal?.aborted) return failed('cancelled');
     const definition = this.input.registry.get(call.name);
     const metadata = this.input.registry.executionMetadata(call.name);
@@ -150,13 +162,20 @@ class GovernedRepairToolExecutor implements RepairToolExecutor {
     const schema = this.input.schemas.find((item) => item.name === call.name);
     if (!schema) return failed('tool_schema_unavailable');
     const documentRoute = isDocumentRoute(call.name, schema);
-    const args = projectRemedyArgs(call, schema, this.input.context, { omitRequestText: documentRoute });
+    const args = projectRemedyArgs(call, schema, this.input.context, {
+      omitRequestText: documentRoute,
+    });
     if (!args) return failed('no_concrete_route');
     if (documentRoute) {
       // Without the document id the call would be a file listing, not content.
-      if (typeof args.documentId !== 'string' || !args.documentId.trim()) return failed('no_concrete_route');
+      if (typeof args.documentId !== 'string' || !args.documentId.trim())
+        return failed('no_concrete_route');
       const known = this.input.documentReferences?.find((item) => item.id === args.documentId);
-      if (known && (known.readable === false || (known.contentState !== undefined && UNREADABLE_STATES.has(known.contentState)))) {
+      if (
+        known &&
+        (known.readable === false ||
+          (known.contentState !== undefined && UNREADABLE_STATES.has(known.contentState)))
+      ) {
         return unavailable('document_not_readable');
       }
     }
@@ -168,7 +187,8 @@ class GovernedRepairToolExecutor implements RepairToolExecutor {
       return documentRoute ? unavailable(reason) : failed(reason);
     }
     if (options.signal?.aborted) return failed('cancelled');
-    if (documentRoute && !documentContentReadable(result)) return unavailable('document_content_unavailable');
+    if (documentRoute && !documentContentReadable(result))
+      return unavailable('document_content_unavailable');
     try {
       const projected = projectMeriToolEvidence({
         result,
@@ -223,13 +243,17 @@ class GovernedRepairToolExecutor implements RepairToolExecutor {
   }
 }
 
-export function createOrchestratorToolExecutor(input: OrchestratorToolExecutorInput): RepairToolExecutor {
+export function createOrchestratorToolExecutor(
+  input: OrchestratorToolExecutorInput,
+): RepairToolExecutor {
   return new DeduplicatingToolExecutor(new GovernedRepairToolExecutor(input));
 }
 
 function isDocumentRoute(name: string, schema: RepairToolSchema): boolean {
-  return 'documentId' in (schema.input_schema.properties ?? {}) &&
-    (name === 'read_client_documents' || DOCUMENT_TOOL.test(name));
+  return (
+    'documentId' in (schema.input_schema.properties ?? {}) &&
+    (name === 'read_client_documents' || DOCUMENT_TOOL.test(name))
+  );
 }
 
 function failed(reason: string): RepairToolResult {

@@ -18,9 +18,16 @@ export function resolveStatusProvenanceMode(
   tenantId: string | null | undefined,
   surface: AssuranceSurface,
 ): CapabilityRolloutMode {
-  return resolveCapabilityRollout({ capability: STATUS_PROVENANCE_CAPABILITY, env, tenantId, surface }).mode;
+  return resolveCapabilityRollout({
+    capability: STATUS_PROVENANCE_CAPABILITY,
+    env,
+    tenantId,
+    surface,
+  }).mode;
 }
 
-export function validateStatusProvenanceConfig(env: CapabilityRolloutEnvironment): CapabilityRolloutValidation {
+export function validateStatusProvenanceConfig(
+  env: CapabilityRolloutEnvironment,
+): CapabilityRolloutValidation {
   return validateCapabilityRolloutConfig({ capability: STATUS_PROVENANCE_CAPABILITY, env });
 }

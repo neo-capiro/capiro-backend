@@ -11,10 +11,22 @@ import {
 export const AUTO_CORRECTION_CAPABILITY = 'AUTO_CORRECTION' as const;
 
 const CLAIM_CATEGORIES: readonly ClaimCategory[] = [
-  'bill_status', 'member_vote', 'current_role', 'budget_amount', 'budget_delta',
-  'enactment', 'report_language', 'regulatory_deadline', 'schedule_commitment',
-  'regulatory_stage', 'district_representation', 'grant_opportunity', 'grant_award',
-  'procurement_opportunity', 'client_recommendation', 'negative_or_exhaustive',
+  'bill_status',
+  'member_vote',
+  'current_role',
+  'budget_amount',
+  'budget_delta',
+  'enactment',
+  'report_language',
+  'regulatory_deadline',
+  'schedule_commitment',
+  'regulatory_stage',
+  'district_representation',
+  'grant_opportunity',
+  'grant_award',
+  'procurement_opportunity',
+  'client_recommendation',
+  'negative_or_exhaustive',
   'general_background',
 ];
 

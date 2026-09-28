@@ -53,16 +53,22 @@ export interface CanaryTurnEvent {
   };
   tokens: { synthesis: number; jev: number; legacy: number; repair: number };
   cost: {
-    retrievalToolCalls: number; retrievalLatencyMs: number; coverageFollowUpTokens: number;
-    jevCalls: number; legacyCalls: number; repairLoops: number;
+    retrievalToolCalls: number;
+    retrievalLatencyMs: number;
+    coverageFollowUpTokens: number;
+    jevCalls: number;
+    legacyCalls: number;
+    repairLoops: number;
   };
   cache?: { mode: 'shadow' | 'enforce'; lookups: number; hits: number; agreements: number };
   estimatedCostUsd: number;
   sampled: boolean;
 }
 
-type MutableMetrics = Pick<CanaryTurnEvent,
-  'coverage' | 'passageSelection' | 'repair' | 'latencyMs' | 'tokens' | 'cost' | 'cache'> & {
+type MutableMetrics = Pick<
+  CanaryTurnEvent,
+  'coverage' | 'passageSelection' | 'repair' | 'latencyMs' | 'tokens' | 'cost' | 'cache'
+> & {
   estimatedCostUsd: number;
   sampled: boolean;
 };
@@ -74,45 +80,81 @@ export class CanaryTurnCollector {
   private readonly metrics: MutableMetrics = {
     coverage: { gaps: 0, followUps: 0, residual: 0 },
     passageSelection: {
-      candidates: 0, kept: 0, dropped: 0, requiredCandidates: 0, requiredRetained: 0,
-      contradictoryRetained: 0, fallback: false,
+      candidates: 0,
+      kept: 0,
+      dropped: 0,
+      requiredCandidates: 0,
+      requiredRetained: 0,
+      contradictoryRetained: 0,
+      fallback: false,
       safetyIntervention: { evaluated: false, intervened: false, reasons: [] },
     },
     repair: {
-      attempted: 0, corrected: 0, qualified: 0, omitted: 0,
-      documentRequested: 0, budgetExhausted: 0, timedOut: false,
+      attempted: 0,
+      corrected: 0,
+      qualified: 0,
+      omitted: 0,
+      documentRequested: 0,
+      budgetExhausted: 0,
+      timedOut: false,
     },
     latencyMs: {
-      timeToText: 0, assessment: 0, passageSelection: 0,
-      coverageFollowUp: 0, repair: 0, total: 0,
+      timeToText: 0,
+      assessment: 0,
+      passageSelection: 0,
+      coverageFollowUp: 0,
+      repair: 0,
+      total: 0,
     },
     tokens: { synthesis: 0, jev: 0, legacy: 0, repair: 0 },
-    cost: { retrievalToolCalls: 0, retrievalLatencyMs: 0, coverageFollowUpTokens: 0,
-      jevCalls: 0, legacyCalls: 0, repairLoops: 0 },
+    cost: {
+      retrievalToolCalls: 0,
+      retrievalLatencyMs: 0,
+      coverageFollowUpTokens: 0,
+      jevCalls: 0,
+      legacyCalls: 0,
+      repairLoops: 0,
+    },
     estimatedCostUsd: 0,
     sampled: false,
   };
 
   constructor(
-    private readonly identity: Pick<CanaryTurnEvent, 'conversationId' | 'tenantId' | 'surface' | 'modes'>,
+    private readonly identity: Pick<
+      CanaryTurnEvent,
+      'conversationId' | 'tenantId' | 'surface' | 'modes'
+    >,
     private readonly now: () => number = Date.now,
   ) {
     this.startedAt = now();
   }
 
-  noteCoverage(value: CanaryTurnEvent['coverage'] & {
-    latencyMs: number; retrievalToolCalls?: number; coverageFollowUpTokens?: number;
-  }): void {
-    this.metrics.coverage = { gaps: value.gaps, followUps: value.followUps, residual: value.residual };
+  noteCoverage(
+    value: CanaryTurnEvent['coverage'] & {
+      latencyMs: number;
+      retrievalToolCalls?: number;
+      coverageFollowUpTokens?: number;
+    },
+  ): void {
+    this.metrics.coverage = {
+      gaps: value.gaps,
+      followUps: value.followUps,
+      residual: value.residual,
+    };
     this.metrics.latencyMs.coverageFollowUp = value.latencyMs;
     this.metrics.cost.retrievalToolCalls += value.retrievalToolCalls ?? value.followUps;
     this.metrics.cost.retrievalLatencyMs += value.latencyMs;
     this.metrics.cost.coverageFollowUpTokens += value.coverageFollowUpTokens ?? 0;
   }
 
-  notePassageSelection(value: CanaryTurnEvent['passageSelection'] & {
-    latencyMs: number; tokens: number; costUsd: number; calls?: number;
-  }): void {
+  notePassageSelection(
+    value: CanaryTurnEvent['passageSelection'] & {
+      latencyMs: number;
+      tokens: number;
+      costUsd: number;
+      calls?: number;
+    },
+  ): void {
     const { latencyMs, tokens, costUsd, calls, ...selection } = value;
     this.metrics.passageSelection = selection;
     this.metrics.latencyMs.passageSelection = latencyMs;
@@ -121,12 +163,31 @@ export class CanaryTurnCollector {
     this.metrics.cost.jevCalls += calls ?? (tokens > 0 ? 1 : 0);
   }
 
-  noteRepair(value: CanaryTurnEvent['repair'] & {
-    assessmentMs: number; repairMs: number; tokens: number; costUsd: number; sampled?: boolean;
-    jevCalls?: number; legacyCalls?: number; repairLoops?: number;
-    cache?: CanaryTurnEvent['cache'];
-  }): void {
-    const { assessmentMs, repairMs, tokens, costUsd, sampled, jevCalls, legacyCalls, repairLoops, cache, ...repair } = value;
+  noteRepair(
+    value: CanaryTurnEvent['repair'] & {
+      assessmentMs: number;
+      repairMs: number;
+      tokens: number;
+      costUsd: number;
+      sampled?: boolean;
+      jevCalls?: number;
+      legacyCalls?: number;
+      repairLoops?: number;
+      cache?: CanaryTurnEvent['cache'];
+    },
+  ): void {
+    const {
+      assessmentMs,
+      repairMs,
+      tokens,
+      costUsd,
+      sampled,
+      jevCalls,
+      legacyCalls,
+      repairLoops,
+      cache,
+      ...repair
+    } = value;
     this.metrics.repair = repair;
     this.metrics.latencyMs.assessment = assessmentMs;
     this.metrics.latencyMs.repair = repairMs;
@@ -165,18 +226,27 @@ export class CanaryTurnCollector {
       this.textEmittedAt === null ? total : Math.max(0, this.textEmittedAt - this.startedAt);
     const usedTasks = [
       ...(this.identity.modes.passageSelection !== 'off' ? ['passage_relevance' as const] : []),
-      ...(this.identity.modes.claimAssessment !== 'off' || this.identity.modes.autoCorrection !== 'off'
-        ? ['claim_support' as const] : []),
+      ...(this.identity.modes.claimAssessment !== 'off' ||
+      this.identity.modes.autoCorrection !== 'off'
+        ? ['claim_support' as const]
+        : []),
     ];
     return {
       event: 'meri.canary.turn',
       ...this.identity,
       registryVersion: JEV_TASK_REGISTRY_VERSION,
-      jevTasks: Object.fromEntries(usedTasks.map((task) => {
-        const registration = JEV_TASK_REGISTRY[task];
-        return [task, { questionVersion: registration.questionVersion,
-          modelVersion: registration.modelVersion }];
-      })),
+      jevTasks: Object.fromEntries(
+        usedTasks.map((task) => {
+          const registration = JEV_TASK_REGISTRY[task];
+          return [
+            task,
+            {
+              questionVersion: registration.questionVersion,
+              modelVersion: registration.modelVersion,
+            },
+          ];
+        }),
+      ),
       outcome: input.outcome,
       clarificationRequested: input.clarificationRequested,
       heldReason: input.heldReason ?? null,
@@ -191,5 +261,7 @@ export function replyRequestsClarification(reply: string, documentRequested: num
   if (documentRequested > 0) return true;
   const normalized = reply.trim();
   if (!normalized.endsWith('?')) return false;
-  return /(?:^|\b)(?:which|what|who|where|when|could you|can you|would you|please clarify|do you mean)\b[^?]*\?$/i.test(normalized);
+  return /(?:^|\b)(?:which|what|who|where|when|could you|can you|would you|please clarify|do you mean)\b[^?]*\?$/i.test(
+    normalized,
+  );
 }

@@ -14,7 +14,12 @@ export function resolvePassageSelectionMode(
   tenantId: string | null | undefined,
   surface: AssuranceSurface,
 ): CapabilityRolloutMode {
-  return resolveCapabilityRollout({ capability: PASSAGE_SELECTION_CAPABILITY, env, tenantId, surface }).mode;
+  return resolveCapabilityRollout({
+    capability: PASSAGE_SELECTION_CAPABILITY,
+    env,
+    tenantId,
+    surface,
+  }).mode;
 }
 
 export function validatePassageSelectionConfig(
