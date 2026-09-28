@@ -14,12 +14,34 @@ jest.mock('./meri-v3-research-runner.js', () => ({ MeriV3ResearchRunner: class {
 
 const ctx = { tenantId: 'tenant-a', userId: 'user-a' } as TenantContext;
 
+function providerBody(events: Array<Record<string, unknown>>): AsyncIterable<Uint8Array> {
+  const bytes = new TextEncoder().encode(
+    events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(''),
+  );
+  return {
+    async *[Symbol.asyncIterator]() {
+      yield bytes;
+    },
+  };
+}
+
+function providerResponse(events: Array<Record<string, unknown>>): Response {
+  return {
+    ok: true,
+    status: 200,
+    body: providerBody(events) as unknown as ReadableStream<Uint8Array>,
+    text: async () => '',
+  } as unknown as Response;
+}
+
 function fixture() {
   let session: any;
   let allowed = true;
   let originAvailable = true;
   let failReceiptWrites = false;
   let afterReceiptCommit: (() => void) | undefined;
+  let receiptBarrier: Promise<void> | undefined;
+  let receiptBarrierEntered: (() => void) | undefined;
   const conversation = {
     id: 'thread-a',
     clientId: 'client-a',
@@ -76,6 +98,10 @@ function fixture() {
           const addsReceipt =
             (nextMetadata.durableStepReceipts?.length ?? 0) >
             (session.metadata?.durableStepReceipts?.length ?? 0);
+          if (addsReceipt && receiptBarrier) {
+            receiptBarrierEntered?.();
+            await receiptBarrier;
+          }
           if (addsReceipt && failReceiptWrites) throw new Error('Receipt database unavailable');
           session = {
             ...session,
@@ -196,6 +222,17 @@ function fixture() {
       callback(tx),
   };
   const credentials = { resolveProvider: jest.fn(), resolveProviderByTenantId: jest.fn() };
+  const tools = {
+    anthropicToolSchemas: jest.fn(() => [
+      {
+        name: 'search_memory',
+        description: 'Search governed memory',
+        input_schema: { type: 'object', properties: { query: { type: 'string' } } },
+      },
+    ]),
+    isConcurrencySafe: jest.fn(() => true),
+    execute: jest.fn(),
+  };
   const runner = {
     enabled: jest.fn(async () => true),
     plan: jest.fn(async (_ctx: unknown, _input: unknown) =>
@@ -238,8 +275,19 @@ function fixture() {
   const maintenance = { scheduleAfterTurnMaintenance: jest.fn() };
   const service = new MeriResearchService(
     prisma as never,
-    { get: () => undefined } as never,
-    { isConcurrencySafe: jest.fn(() => true) } as never,
+    {
+      get: (key: string) =>
+        ({
+          CLIO_RESEARCH_MODEL: 'legacy-test-model',
+          CLIO_RESEARCH_MAX_TOKENS: 2_000,
+          CLIO_RESEARCH_TIMEOUT_MS: 30_000,
+          CLIO_RESEARCH_MAX_TOOL_ROUNDS: 1,
+          CLIO_RESEARCH_TOTAL_BUDGET_MS: 60_000,
+          CLIO_RESEARCH_SYNTHESIS_RESERVE_MS: 10_000,
+          CLIO_RESEARCH_PROGRESS_INTERVAL_MS: 5_000,
+        })[key],
+    } as never,
+    tools as never,
     credentials as never,
     {} as never,
     runner as never,
@@ -300,6 +348,7 @@ function fixture() {
     runner,
     maintenance,
     credentials,
+    tools,
     tx,
     conversation,
     messages,
@@ -329,6 +378,18 @@ function fixture() {
     },
     failReceipts: () => {
       failReceiptWrites = true;
+    },
+    holdReceipts: () => {
+      let release!: () => void;
+      let entered!: () => void;
+      const enteredPromise = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      receiptBarrier = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      receiptBarrierEntered = entered;
+      return { entered: enteredPromise, release };
     },
     afterReceipt: (callback: () => void) => {
       afterReceiptCommit = callback;
@@ -760,6 +821,112 @@ describe('Durable research lease and recovery', () => {
     expect(f.getSession().metadata.run.status).toBe('interrupted');
     expect(f.events).toContainEqual({ type: 'error', message: 'Receipt database unavailable' });
     expect(f.events.at(-1)).toEqual({ type: 'done' });
+  });
+
+  it('orders direct outer-catch terminal frames behind an outstanding receipt', async () => {
+    const f = fixture();
+    await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+    const barrier = f.holdReceipts();
+    const observed: Array<Record<string, unknown>> = [];
+    const output = {
+      write: (data: string) => observed.push(JSON.parse(data.replace(/^data: /, '').trim())),
+    };
+    const run = (f.service as any).withResearchRun(
+      ctx,
+      'research-a',
+      'research',
+      output,
+      f.auth,
+      async (sink: { write: (data: string) => void }) => {
+        sink.write(
+          `data: ${JSON.stringify({
+            type: 'source',
+            source: {
+              tool: 'get_client_context',
+              label: 'Client context',
+              summary: 'Authorized client result',
+              confidence: 'high',
+            },
+            durableSafeRead: {
+              outcome: 'complete',
+              toolCallId: 'call-outer-catch',
+              tool: 'get_client_context',
+            },
+          })}\n\n`,
+        );
+        throw new Error('Outer execute failed');
+      },
+    );
+
+    await barrier.entered;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    const terminalReleasedWhileReceiptPending = observed.some(
+      (event) => event.type === 'error' || event.type === 'done',
+    );
+    barrier.release();
+    await run;
+    expect(terminalReleasedWhileReceiptPending).toBe(false);
+    const sourceIndex = observed.findIndex((event) => event.type === 'source');
+    const errorIndex = observed.findIndex((event) => event.type === 'error');
+    expect(errorIndex).toBeGreaterThan(sourceIndex);
+    expect(observed.at(-1)).toEqual({ type: 'done' });
+  });
+
+  it('does not mint a durable receipt or archived source from a resolved search_memory error', async () => {
+    const originalFetch = global.fetch;
+    const f = fixture();
+    f.runner.enabled.mockResolvedValue(false);
+    f.credentials.resolveProvider.mockResolvedValue({
+      provider: 'anthropic',
+      apiKey: 'test-key',
+      model: 'legacy-test-model',
+    });
+    f.tools.execute.mockResolvedValue({ error: 'Provide a search query.' });
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        providerResponse([
+          {
+            type: 'content_block_start',
+            index: 0,
+            content_block: {
+              type: 'tool_use',
+              id: 'call-memory-error',
+              name: 'search_memory',
+            },
+          },
+          {
+            type: 'content_block_delta',
+            index: 0,
+            delta: { type: 'input_json_delta', partial_json: '{}' },
+          },
+          { type: 'message_delta', delta: { stop_reason: 'tool_use' } },
+        ]),
+      )
+      .mockResolvedValueOnce(
+        providerResponse([
+          {
+            type: 'content_block_delta',
+            index: 0,
+            delta: { type: 'text_delta', text: '# Report\n\nNo memory evidence was available.' },
+          },
+          { type: 'message_delta', delta: { stop_reason: 'end_turn' } },
+        ]),
+      ) as unknown as typeof fetch;
+
+    try {
+      await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+      await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
+
+      expect(f.getSession().metadata.durableStepReceipts).toBeUndefined();
+      expect(f.getSession().sources).toEqual([]);
+      expect(f.artifacts[0]?.metadata).toMatchObject({ sourceCount: 0, toolsUsed: [] });
+      const source = f.events.find((event) => event.type === 'source');
+      expect(source?.source).toMatchObject({ tool: 'search_memory', confidence: 'low' });
+      expect(source).not.toHaveProperty('durableSafeRead');
+    } finally {
+      global.fetch = originalFetch;
+    }
   });
 
   it('does not let an expired owner write failure state before any successor exists', async () => {

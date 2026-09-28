@@ -145,7 +145,7 @@ describe('MeriV3ResearchRunner primary runtime', () => {
     expect(client.streamChat).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps generic V3 tool completion operational and preserves final source archive data', async () => {
+  it('keeps generic V3 tool completion operational without treating name-only ledger membership as source proof', async () => {
     const base = fixture();
     const { runner } = fixture([
       { type: 'tool_call', tool: 'get_client_context', label: 'Client' },
@@ -168,9 +168,30 @@ describe('MeriV3ResearchRunner primary runtime', () => {
     expect(onEvent).toHaveBeenCalledWith({ type: 'progress', note: 'Synthesize finished' });
     expect(onEvent).toHaveBeenCalledWith({ type: 'progress', note: 'Send email status: blocked' });
     expect(onEvent.mock.calls.flat().some((event) => event.type === 'source')).toBe(false);
-    expect(result.sources).toEqual([
-      expect.objectContaining({ tool: 'get_client_context', confidence: 'high' }),
+    expect(result.sources).toEqual([]);
+    expect(result.toolsUsed).toEqual([]);
+  });
+
+  it('does not archive an owner-classified error ledger as a high-confidence source', async () => {
+    const base = fixture();
+    const { runner } = fixture([
+      {
+        ...base.done,
+        steps: [{ tool: 'search_memory', label: 'Search memory', status: 'done' }],
+        ledgerEntries: [
+          {
+            tool: 'search_memory',
+            result: { error: 'Provide a search query.' },
+            serialized: '{"error":"Provide a search query."}',
+          },
+        ],
+      } as MeriV3ChatStreamEvent,
     ]);
-    expect(result.toolsUsed).toEqual(['get_client_context']);
+
+    const result = await runner.run(ctx, input, auth, () => {});
+
+    expect(result.ledgerEntries[0]?.result).toEqual({ error: 'Provide a search query.' });
+    expect(result.sources).toEqual([]);
+    expect(result.toolsUsed).toEqual([]);
   });
 });

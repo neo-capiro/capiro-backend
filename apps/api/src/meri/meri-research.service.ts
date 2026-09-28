@@ -11,7 +11,11 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import type { MeriCitation, TenantContext } from '@capiro/shared';
-import { validateCitationMarkers, validateFormBCitations } from '@capiro/shared';
+import {
+  classifyApiToolReadOutcome,
+  validateCitationMarkers,
+  validateFormBCitations,
+} from '@capiro/shared';
 import {
   runAuditor,
   ledgerToToolResultMap,
@@ -680,8 +684,14 @@ export class MeriResearchService {
           { ...auth, run: claimed, signal: controller.signal },
           message,
         );
-      safeWrite(sseEvent({ type: 'error', message }));
-      safeWrite(sseEvent({ type: 'done' }));
+      const terminal = [sseEvent({ type: 'error', message }), sseEvent({ type: 'done' })];
+      // A direct execute/setup failure can race a receipt already queued by the
+      // sink. Publish terminal control only after that receipt settles, using
+      // the rejection path too so a failed receipt cannot poison error/done.
+      pending = pending.then(
+        () => terminal.forEach(safeWrite),
+        () => terminal.forEach(safeWrite),
+      );
     } finally {
       stopping = true;
       if (timer) clearInterval(timer);
@@ -1440,7 +1450,6 @@ export class MeriResearchService {
               }
             }
           }
-          toolsUsed.push(t.name);
           sse.write(sseEvent({ type: 'step', tool: t.name, label: humanToolLabel(t.name) }));
           progress.set(`Running ${humanToolLabel(t.name)}…`);
 
@@ -1475,24 +1484,34 @@ export class MeriResearchService {
             }
           }
 
+          const readOutcome = isError ? null : classifyApiToolReadOutcome(t.name, resultPayload);
+          const qualifiedSuccess =
+            readOutcome?.kind === 'complete' || readOutcome?.kind === 'empty';
+          if (readOutcome?.kind === 'failed' || readOutcome?.kind === 'unavailable') {
+            isError = true;
+          }
           const { count, detail } = summarizeToolResultForTrust(resultPayload);
           const source: SourceAttribution = {
             tool: t.name,
             label: humanToolLabel(t.name),
             count: count ?? undefined,
             summary: isError
-              ? typeof (resultPayload as { error?: unknown })?.error === 'string'
-                ? (resultPayload as { error: string }).error
-                : 'Tool error'
-              : detail || 'Completed',
-            confidence: isError ? 'low' : 'high',
+              ? readOutcome?.reason ??
+                (typeof (resultPayload as { error?: unknown })?.error === 'string'
+                  ? (resultPayload as { error: string }).error
+                  : 'Tool error')
+              : (readOutcome?.reason ?? detail) || 'Completed',
+            confidence: qualifiedSuccess ? 'high' : 'low',
           };
-          sources.push(source);
+          if (qualifiedSuccess) {
+            sources.push(source);
+            toolsUsed.push(t.name);
+          }
           sse.write(
             sseEvent({
               type: 'source',
               source,
-              ...(!isError && this.tools.isConcurrencySafe(t.name) && t.id
+              ...(qualifiedSuccess && this.tools.isConcurrencySafe(t.name) && t.id
                 ? {
                     durableSafeRead: {
                       outcome: 'complete',

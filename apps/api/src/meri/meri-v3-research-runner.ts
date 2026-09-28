@@ -88,25 +88,19 @@ export class MeriV3ResearchRunner {
   }> {
     const result = await this.complete(ctx, input, auth, 'read-only', onEvent);
     const ledgerEntries = result.ledgerEntries ?? [];
-    const evidencedTools = new Set(ledgerEntries.map((entry) => entry.tool));
-    const sourceSteps = result.steps.filter(
-      (step) => step.status === 'done' && evidencedTools.has(step.tool),
-    );
-    const sources: SourceAttribution[] = sourceSteps.map((step) => ({
-      tool: step.tool,
-      label: step.label,
-      summary:
-        step.detail ??
-        (step.status === 'done'
-          ? 'Source retrieved; see cited evidence.'
-          : `Source status: ${step.status}`),
-      confidence: step.status === 'done' ? 'high' : 'low',
-    }));
+    // The current done frame has no stable post-execution call identity on
+    // either a step or its ledger entry. Tool-name membership cannot prove
+    // which invocation produced which result, even when an owner classifier
+    // could qualify the payload. Fail closed and archive no V3 sources. The
+    // required future contract is one server-authored execution ID present on
+    // both records, plus the exact owner payload captured after execution; only
+    // an ID-equal entry classified complete/empty may become a source.
+    const sources: SourceAttribution[] = [];
     return {
       reportBody: result.reply,
       model: result.model,
       sources,
-      toolsUsed: [...new Set(sourceSteps.map((step) => step.tool))],
+      toolsUsed: [],
       ledgerEntries,
       citations: result.citations ?? [],
       ...(result.telemetry ? { telemetry: result.telemetry } : {}),
