@@ -103,6 +103,18 @@ node derive-lock.mjs C:/Users/Administrator/Downloads/01-Meri-Foundation-and-Rel
 
 These commands do not call APIs, browsers, databases, providers, AWS, or write sinks. Do not run root test/build/lint for this narrow contract-only change.
 
+## Bounded source-binary fixture generation
+
+Cases 40–45 have deterministic synthetic PDF, PPTX and XLSX input preparation under `source-binaries/`. Regenerate only that owned directory, using the repository's existing `apps/api` dependencies:
+
+```bash
+node evals/meri/live-v1/source-binaries/generator.mjs --out evals/meri/live-v1/source-binaries
+node --test evals/meri/live-v1/tests/source-binaries.test.mjs
+node evals/meri/live-v1/validate-contract.mjs
+```
+
+The generator performs no network, API, browser, cloud, database or sink work. `asset-manifest.json` is a fixture definition, not a current-access attestation, canonical source-authority receipt, or production hash match. The binaries do not make cases 40–45 pass: trusted capture and a canonical API loader must still establish source identity, authorization, parser receipts and current-version authority.
+
 ## Required future capture work
 
 Before any live case can be scored:
