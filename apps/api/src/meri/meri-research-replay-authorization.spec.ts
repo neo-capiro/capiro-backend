@@ -52,11 +52,14 @@ function document(contentHash = 'a'.repeat(64)) {
 }
 
 describe('durable replay current-owner authorization adapters', () => {
-  it('supports only finite canonical memory, document, and debrief owners', () => {
+  it('supports only finite canonical memory, document, debrief, and mail owners', () => {
     expect(supportsDurableOwnerReauthorization('search_memory')).toBe(true);
     expect(supportsDurableOwnerReauthorization('read_client_documents')).toBe(true);
     expect(supportsDurableOwnerReauthorization('query_debriefs')).toBe(true);
-    expect(supportsDurableOwnerReauthorization('search_emails')).toBe(false);
+    expect(supportsDurableOwnerReauthorization('list_emails')).toBe(true);
+    expect(supportsDurableOwnerReauthorization('search_emails')).toBe(true);
+    expect(supportsDurableOwnerReauthorization('get_email_thread')).toBe(true);
+    expect(supportsDurableOwnerReauthorization('provider_mail_read')).toBe(false);
   });
 
   it('requires every canonical memory identity and current version/hash to match', () => {

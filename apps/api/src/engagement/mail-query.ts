@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { getMailSyncCoverage } from './mail-sync-coverage.js';
@@ -8,6 +9,8 @@ const MAIL_PROVIDERS = ['microsoft_365', 'google_workspace'];
 type MailRow = {
   id: string;
   thread_id: string;
+  connection_id: string;
+  message_updated_at: Date;
   subject: string | null;
   from_email: string | null;
   from_name: string | null;
@@ -140,7 +143,8 @@ export async function queryMailMessages(
     const rows = await tx.$queryRaw<MailRow[]>(Prisma.sql`
       SELECT * FROM (
         SELECT DISTINCT ON (m.connection_id, COALESCE(NULLIF(m.metadata_jsonb->>'internetMessageId', ''), m.id::text))
-          m.id::text AS id, m.thread_id::text AS thread_id, m.subject,
+          m.id::text AS id, m.thread_id::text AS thread_id,
+          m.connection_id::text AS connection_id, m.updated_at AS message_updated_at, m.subject,
           m.from_email::text AS from_email, m.from_name,
           m.to_recipients_jsonb AS to_recipients, m.cc_recipients_jsonb AS cc_recipients,
           m.sent_at, m.received_at, left(m.body_text, 400) AS preview, m.has_attachments,
@@ -161,6 +165,7 @@ export async function queryMailMessages(
     const coverage = await tx.$queryRaw<
       Array<{
         account_email: string | null;
+        connection_id: string;
         provider: string;
         status: string;
         last_sync_at: Date | null;
@@ -170,7 +175,8 @@ export async function queryMailMessages(
         newest_synced: Date | null;
       }>
     >(Prisma.sql`
-      SELECT c.account_email::text AS account_email, c.provider::text AS provider,
+      SELECT c.account_email::text AS account_email, c.id::text AS connection_id,
+             c.provider::text AS provider,
              c.status::text AS status, c.last_sync_at, c.sync_state_jsonb AS sync_state,
              count(m.id)::int AS synced_messages,
              min(COALESCE(m.received_at, m.sent_at)) AS oldest_synced,
@@ -192,6 +198,7 @@ export async function queryMailMessages(
     });
     return {
       accountEmail: c.account_email,
+      sourceProof: { version: 1, mailboxId: c.connection_id },
       provider: c.provider,
       status: c.status,
       lastSyncAt: mailCoverage.lastMailSyncAt,
@@ -221,6 +228,14 @@ export async function queryMailMessages(
     hasAttachments: row.has_attachments,
     mailbox: row.account_email,
     client: row.client_id ? { id: row.client_id, name: row.client_name } : null,
+    sourceProof: {
+      version: 1,
+      mailboxId: row.connection_id,
+      threadId: row.thread_id,
+      messageId: row.id,
+      messageUpdatedAt: row.message_updated_at.toISOString(),
+      previewSha256: createHash('sha256').update(row.preview ?? '', 'utf8').digest('hex'),
+    },
   }));
   const hasMore = offset + messages.length < total;
   const nextOffset =

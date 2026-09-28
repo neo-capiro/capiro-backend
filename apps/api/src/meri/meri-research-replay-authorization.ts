@@ -9,6 +9,7 @@ import {
   researchJsonSha256,
 } from './meri-research-durable-result.js';
 import { readResearchHandoff } from './meri-research-handoff.js';
+import { canonicalMailOwnerProof } from './meri-research-mail-proof.js';
 import { readResearchRun, researchMetadata } from './meri-research-run-state.js';
 import {
   publicResearchSourceTool,
@@ -23,6 +24,9 @@ const SUPPORTED_OWNER_TOOLS = new Set([
   'search_memory',
   'read_client_documents',
   'query_debriefs',
+  'list_emails',
+  'search_emails',
+  'get_email_thread',
 ]);
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -154,7 +158,9 @@ export function currentOwnerResultAuthorizesReplay(
       ? documentProof
       : tool === 'query_debriefs'
         ? debriefOwnerProof
-        : null;
+        : ['list_emails', 'search_emails', 'get_email_thread'].includes(tool)
+          ? (value: unknown) => canonicalMailOwnerProof(tool, value)
+          : null;
   if (!project) return false;
   const saved = project(savedResult);
   const current = project(currentResult);

@@ -6851,6 +6851,19 @@ export class MeriToolsService {
           typeof metadata.bodyCompleteness === 'string' ? metadata.bodyCompleteness : 'unknown',
         bodyTruncated: bodyOffset > 0 || bodyEnd < body.length,
         nextBodyOffset: bodyEnd < body.length ? bodyEnd : null,
+        sourceProof: {
+          version: 1,
+          mailboxId: message.connectionId,
+          threadId,
+          messageId: message.id,
+          messageUpdatedAt:
+            message.updatedAt instanceof Date
+              ? message.updatedAt.toISOString()
+              : typeof message.updatedAt === 'string'
+                ? message.updatedAt
+                : null,
+          bodySha256: createHash('sha256').update(body, 'utf8').digest('hex'),
+        },
       };
     });
     const hasMore = messageOffset + messages.length < matching.length;
@@ -6865,6 +6878,19 @@ export class MeriToolsService {
       hasMore,
       nextMessageOffset: hasMore ? messageOffset + messages.length : null,
       messages,
+      sourceProof: {
+        version: 1,
+        threadId: thread.id,
+        mailboxId: thread.connectionId,
+        mailboxStatus: thread.connectionStatus,
+        clientId: thread.clientId,
+        threadUpdatedAt:
+          thread.updatedAt instanceof Date
+            ? thread.updatedAt.toISOString()
+            : typeof thread.updatedAt === 'string'
+              ? thread.updatedAt
+              : null,
+      },
       notes: [
         'Read remaining message pages and each nextBodyOffset before claiming the full thread was read. Body continuation uses the same threadId, exact messageId, messageOffset=0 and bodyOffset=nextBodyOffset. Provider bodies may themselves be truncated or unavailable; bodyCompleteness reports the stored state.',
       ],

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { MeriResearchService } from './meri-research.service';
 import { researchToolVersion } from './meri-research-durable-result';
 import { readDurableResearchStepReceipts } from './meri-research-durable-step';
@@ -13,6 +14,12 @@ const TOOL_SCHEMA = {
   required: ['query'],
 };
 const TOOL_VERSION = researchToolVersion(TOOL_SCHEMA);
+const MAIL_TOOL_SCHEMA = {
+  type: 'object',
+  properties: { threadId: { type: 'string' } },
+  required: ['threadId'],
+};
+const MAIL_TOOL_VERSION = researchToolVersion(MAIL_TOOL_SCHEMA);
 const ctx = { tenantId: 'tenant-1', userId: 'user-1', tenantSlug: 'tenant' } as never;
 
 const DEBRIEF_SCHEMA = {
@@ -96,10 +103,65 @@ function completeMemoryResult(id: string, body = `body-${id}`) {
   };
 }
 
-function harness() {
+function completeMailThreadResult(
+  body = 'Exact complete canonical mail body.',
+  messageUpdatedAt = '2026-09-28T00:01:00.000Z',
+) {
+  const threadId = '11111111-1111-4111-8111-111111111111';
+  const messageId = '22222222-2222-4222-8222-222222222222';
+  return {
+    threadId,
+    subject: 'Canonical source',
+    mailbox: 'owner@example.test',
+    messageId: null,
+    messageOffset: 0,
+    totalMessages: 1,
+    returned: 1,
+    hasMore: false,
+    nextMessageOffset: null,
+    sourceProof: {
+      version: 1,
+      threadId,
+      mailboxId: 'mailbox-1',
+      mailboxStatus: 'connected',
+      clientId: null,
+      threadUpdatedAt: '2026-09-28T00:00:00.000Z',
+    },
+    messages: [{
+      id: messageId,
+      threadId,
+      subject: 'Canonical source',
+      from: { email: 'sender@example.test', name: 'Sender' },
+      to: [{ email: 'owner@example.test', name: 'Owner' }],
+      cc: [],
+      bodyText: body,
+      bodyOffset: 0,
+      bodyLength: body.length,
+      bodyCompleteness: 'full',
+      bodyTruncated: false,
+      nextBodyOffset: null,
+      sourceProof: {
+        version: 1,
+        mailboxId: 'mailbox-1',
+        threadId,
+        messageId,
+        messageUpdatedAt,
+        bodySha256: createHash('sha256').update(body, 'utf8').digest('hex'),
+      },
+    }],
+  };
+}
+
+function harness(options: {
+  tool?: 'search_memory' | 'get_email_thread';
+  schema?: Record<string, unknown>;
+  source?: unknown;
+} = {}) {
+  const ownerTool = options.tool ?? 'search_memory';
+  const ownerSchema = options.schema ?? TOOL_SCHEMA;
   let authorizationAllowed = true;
   let sourceAllowed = true;
-  let currentSource = completeMemoryResult('execution-1');
+  let currentSource: unknown = options.source ?? completeMemoryResult('execution-1');
   const artifacts = new Map<string, Record<string, any>>();
   const session: Record<string, any> = {
     id: 'session-1',
@@ -166,14 +228,16 @@ function harness() {
   };
   const tools: any = {
     anthropicToolSchemas: jest.fn(() => [
-      { name: 'search_memory', description: 'search', input_schema: TOOL_SCHEMA },
+      { name: ownerTool, description: 'search', input_schema: ownerSchema },
     ]),
-    isConcurrencySafe: jest.fn((tool: string) => tool === 'search_memory'),
-    isSideEffecting: jest.fn((tool: string) => tool !== 'search_memory'),
+    isConcurrencySafe: jest.fn((tool: string) => tool === ownerTool),
+    isSideEffecting: jest.fn((tool: string) => tool !== ownerTool),
     execute: jest.fn(async (_ctx: unknown, _tool: string, input: Record<string, unknown>) => {
       if (!sourceAllowed) throw new Error('memory source revoked');
-      if (input.query === 'alpha') return completeMemoryResult('execution-a');
-      if (input.query === 'beta') return completeMemoryResult('execution-b');
+      if (ownerTool === 'search_memory' && input.query === 'alpha')
+        return completeMemoryResult('execution-a');
+      if (ownerTool === 'search_memory' && input.query === 'beta')
+        return completeMemoryResult('execution-b');
       return currentSource;
     }),
   };
@@ -190,7 +254,7 @@ function harness() {
     tx,
     tools,
     artifacts,
-    completeReport: (toolsUsed: unknown = ['search_memory'], producerSourceFree = false) => {
+    completeReport: (toolsUsed: unknown = [ownerTool], producerSourceFree = false) => {
       session.reportArtifactId = 'report-1';
       session.status = 'complete';
       session.metadata = {
@@ -263,7 +327,7 @@ function harness() {
     revokeSource: () => {
       sourceAllowed = false;
     },
-    replaceSource: (result: ReturnType<typeof completeMemoryResult>) => {
+    replaceSource: (result: unknown) => {
       currentSource = result;
     },
     resume: () => {
@@ -290,6 +354,18 @@ function outcome(executionId: string, query: string, result = completeMemoryResu
     tool: 'search_memory',
     toolVersion: TOOL_VERSION,
     input: { query },
+    result,
+  };
+}
+
+function mailOutcome(result = completeMailThreadResult()) {
+  return {
+    executionId: 'mail-execution-1',
+    leaseEpoch: 1,
+    providerCallId: 'provider-mail-execution-1',
+    tool: 'get_email_thread',
+    toolVersion: MAIL_TOOL_VERSION,
+    input: { threadId: result.threadId },
     result,
   };
 }
@@ -799,6 +875,66 @@ describe('Meri durable safe-read commit and replay', () => {
     expect(denied.report?.bodyText).toContain('current source authorization');
     await expect(h.service.getReportMarkdown(ctx, 'session-1')).rejects.toThrow(
       'no longer authorized',
+      );
+    });
+
+  it('reauthorizes canonical full mail through retained replay, report read and export, then denies mutation and mailbox revocation', async () => {
+    const replay = harness({
+      tool: 'get_email_thread',
+      schema: MAIL_TOOL_SCHEMA,
+      source: completeMailThreadResult(),
+    });
+    await replay.service.commitSafeReadOutcome(
+      ctx,
+      'session-1',
+      'run-1',
+      mailOutcome(),
+    );
+    replay.resume();
+    await expect(replay.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', {
+      leaseEpoch: 2,
+      tool: 'get_email_thread',
+      toolVersion: MAIL_TOOL_VERSION,
+      input: { threadId: '11111111-1111-4111-8111-111111111111' },
+    })).resolves.toMatchObject({ replayed: true, result: { totalMessages: 1 } });
+
+    const report = harness({
+      tool: 'get_email_thread',
+      schema: MAIL_TOOL_SCHEMA,
+      source: completeMailThreadResult(),
+    });
+    await report.service.commitSafeReadOutcome(
+      ctx,
+      'session-1',
+      'run-1',
+      mailOutcome(),
+    );
+    report.completeReport();
+    await expect(report.service.getSession(ctx, 'session-1')).resolves.toMatchObject({
+      report: { bodyText: 'REPORT_CITING_CURRENT_RUN_MEMORY' },
+    });
+    await expect(report.service.getReportMarkdown(ctx, 'session-1')).resolves.toEqual({
+      title: 'Durable report',
+      markdown: 'REPORT_CITING_CURRENT_RUN_MEMORY',
+    });
+
+    report.replaceSource(completeMailThreadResult(
+      'Corrected canonical mail body.',
+      '2026-09-28T00:02:00.000Z',
+    ));
+    await expect(report.service.getSession(ctx, 'session-1')).resolves.toMatchObject({
+      report: { bodyText: expect.stringContaining('current source authorization') },
+      reportMetadata: { reportBodyAccess: { status: 'withheld' } },
+    });
+    await expect(report.service.getReportMarkdown(ctx, 'session-1')).rejects.toThrow(
+      'version changed',
+    );
+
+    const revoked = completeMailThreadResult();
+    revoked.sourceProof.mailboxStatus = 'needs_configuration';
+    report.replaceSource(revoked);
+    await expect(report.service.getReportMarkdown(ctx, 'session-1')).rejects.toThrow(
+      'version changed',
     );
   });
 });

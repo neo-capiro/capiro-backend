@@ -4,7 +4,10 @@ import { researchJsonSha256 } from './meri-research-durable-result.js';
 import { researchMetadata, type ResearchRunState } from './meri-research-run-state.js';
 
 export const PUBLIC_RESEARCH_SOURCE_TOOLS = [
+  'get_email_thread',
+  'list_emails',
   'read_client_documents',
+  'search_emails',
   'search_memory',
   'query_debriefs',
 ] as const;

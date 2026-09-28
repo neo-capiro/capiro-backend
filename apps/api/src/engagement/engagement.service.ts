@@ -2472,7 +2472,7 @@ export class EngagementService {
           // reply to (see EngagementService.getMailThread callers), since a
           // thread's own participants/messages carry no notion of "which one
           // of these is me".
-          connection: { select: { accountEmail: true } },
+          connection: { select: { accountEmail: true, status: true } },
           messages: {
             where: activeMailMessageWhere(),
             orderBy: [{ sentAt: 'asc' }, { receivedAt: 'asc' }, { createdAt: 'asc' }],
@@ -2482,7 +2482,11 @@ export class EngagementService {
     );
     if (!thread) throw new NotFoundException('Mail thread not found');
     const { connection, ...rest } = thread;
-    return { ...rest, connectionEmail: connection?.accountEmail ?? null };
+    return {
+      ...rest,
+      connectionEmail: connection?.accountEmail ?? null,
+      connectionStatus: connection?.status ?? null,
+    };
   }
 
   /** Shared, bounded mailbox retrieval for assistant list/search tools. */

@@ -1,5 +1,6 @@
 import type { TenantContext } from '@capiro/shared';
 import { MeriToolsService } from './meri-tools.service.js';
+import { currentOwnerResultAuthorizesReplay } from './meri-research-replay-authorization.js';
 
 // This mail delegation fixture never instantiates unrelated program-element
 // dependencies (whose package subpath is not resolved by ts-jest's CJS mode).
@@ -17,19 +18,59 @@ function service(result: unknown) {
 }
 
 describe('Meri canonical mailbox tools', () => {
+  it('emits server body evidence that the durable owner adapter accepts unchanged', async () => {
+    const threadId = '11111111-1111-4111-8111-111111111111';
+    const messageId = '22222222-2222-4222-8222-222222222222';
+    const { tools } = service({});
+    tools.engagement.getMailThread = jest.fn().mockResolvedValue({
+      id: threadId,
+      subject: 'Canonical source',
+      clientId: '33333333-3333-4333-8333-333333333333',
+      connectionId: '44444444-4444-4444-8444-444444444444',
+      connectionEmail: 'owner@example.com',
+      connectionStatus: 'connected',
+      updatedAt: new Date('2026-09-28T00:00:00.000Z'),
+      messages: [{
+        id: messageId,
+        connectionId: '44444444-4444-4444-8444-444444444444',
+        subject: 'Canonical source',
+        bodyText: 'Exact complete source body.',
+        metadata: { bodyCompleteness: 'full' },
+        fromEmail: 'sender@example.com',
+        fromName: 'Sender',
+        toRecipients: [],
+        ccRecipients: [],
+        updatedAt: new Date('2026-09-28T00:01:00.000Z'),
+      }],
+    });
+
+    const result = await tools.getEmailThread(ctx, { threadId });
+
+    expect(currentOwnerResultAuthorizesReplay('get_email_thread', result, structuredClone(result)))
+      .toBe(true);
+    expect(result.messages[0].sourceProof.bodySha256).toMatch(/^[a-f0-9]{64}$/);
+  });
+
   it('reads stored details beyond the inventory preview through the canonical authorized thread reader', async () => {
     const threadId = '11111111-1111-4111-8111-111111111111';
     const messageId = '22222222-2222-4222-8222-222222222222';
     const { tools } = service({});
     const body = 'Background. '.repeat(100) + 'Please send the draft by Friday.';
     tools.engagement.getMailThread = jest.fn().mockResolvedValue({
+      id: threadId,
       subject: 'Action needed',
+      clientId: null,
+      connectionId: 'mailbox-1',
       connectionEmail: 'owner@example.com',
+      connectionStatus: 'connected',
+      updatedAt: new Date('2026-09-28T00:00:00.000Z'),
       messages: [
         {
           id: messageId,
           subject: 'Action needed',
           bodyText: body,
+          connectionId: 'mailbox-1',
+          updatedAt: new Date('2026-09-28T00:01:00.000Z'),
           metadata: { bodyCompleteness: 'full' },
           fromEmail: 'sender@example.com',
         },
