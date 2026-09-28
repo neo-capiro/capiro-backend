@@ -848,9 +848,7 @@ describe('MeriV3 protocol-safe provider composition', () => {
           body: 'PRIVATE REVOKED SOURCE BODY',
           metadata: {
             finishReason: 'completed',
-            citations: [
-              { sourceId: 'source-9', sourceVersion: 'v9', snippet: 'REVOKED EXCERPT' },
-            ],
+            citations: [{ sourceId: 'source-9', sourceVersion: 'v9', snippet: 'REVOKED EXCERPT' }],
             pendingApprovals: [
               { proposalId: 'proposal-9', tool: 'send_email', status: 'proposed' },
             ],
@@ -871,7 +869,12 @@ describe('MeriV3 protocol-safe provider composition', () => {
       query?.where?.metadata
         ? []
         : [
-            { id: 'tail-user', role: 'user', body: 'Correction: use only enacted amounts.', metadata: {} },
+            {
+              id: 'tail-user',
+              role: 'user',
+              body: 'Correction: use only enacted amounts.',
+              metadata: {},
+            },
             {
               id: 'tail-assistant',
               role: 'assistant',
@@ -886,7 +889,16 @@ describe('MeriV3 protocol-safe provider composition', () => {
       onEvent({ type: 'done', reply: 'Current answer.', model: 'test', reasoningEffort: 'low' });
     });
 
-    await h.service.streamMessage(CTX, CONVERSATION, 'Continue', h.sse, undefined, 'new', [], 'token');
+    await h.service.streamMessage(
+      CTX,
+      CONVERSATION,
+      'Continue',
+      h.sse,
+      undefined,
+      'new',
+      [],
+      'token',
+    );
 
     expect(providerInput.conversationSummary).toContain('Prepare the client briefing.');
     expect(providerInput.conversationSummary).toContain('source-9 version=v9');
@@ -918,7 +930,16 @@ describe('MeriV3 protocol-safe provider composition', () => {
       onEvent({ type: 'done', reply: 'Bounded answer.', model: 'test', reasoningEffort: 'low' });
     });
 
-    await h.service.streamMessage(CTX, CONVERSATION, 'Continue', h.sse, undefined, 'new', [], 'token');
+    await h.service.streamMessage(
+      CTX,
+      CONVERSATION,
+      'Continue',
+      h.sse,
+      undefined,
+      'new',
+      [],
+      'token',
+    );
 
     expect(providerInput.messages[0]?.role).toBe('user');
     expect(providerInput.messages.at(-1)?.role).toBe('user');
@@ -929,9 +950,9 @@ describe('MeriV3 protocol-safe provider composition', () => {
         providerInput.conversationSummary?.length ?? 0,
       ),
     ).toBeLessThanOrEqual(MAX_REPLAY_HISTORY_CHARS);
-    expect(providerInput.messages.map((message: { text: string }) => message.text).join('\n')).toContain(
-      'Ask the user to restate',
-    );
+    expect(
+      providerInput.messages.map((message: { text: string }) => message.text).join('\n'),
+    ).toContain('Ask the user to restate');
   });
 
   it('fails closed when a historical summary has no matching protected-state receipt', async () => {
@@ -956,11 +977,22 @@ describe('MeriV3 protocol-safe provider composition', () => {
       onEvent({ type: 'done', reply: 'Safe continuation.', model: 'test', reasoningEffort: 'low' });
     });
 
-    await h.service.streamMessage(CTX, CONVERSATION, 'Continue', h.sse, undefined, 'new', [], 'token');
+    await h.service.streamMessage(
+      CTX,
+      CONVERSATION,
+      'Continue',
+      h.sse,
+      undefined,
+      'new',
+      [],
+      'token',
+    );
 
     expect(providerInput.conversationSummary).toContain('PARTIAL (fail closed)');
     expect(providerInput.conversationSummary).toContain('was not replayed');
-    expect(providerInput.conversationSummary).not.toContain('PRIVATE BODY FROM A NOW-REVOKED SOURCE');
+    expect(providerInput.conversationSummary).not.toContain(
+      'PRIVATE BODY FROM A NOW-REVOKED SOURCE',
+    );
   });
 });
 
