@@ -29,8 +29,8 @@ The workflow requires the exact confirmation `LEAD_CONFIRMED_DB_FLAGS_AND_RESEAR
 
 Dispatch `.github/workflows/meri-synthetic-cohort.yml` from `main` with `mode=plan` and leave every reviewed baseline at its default. The runner:
 
-1. proves the workflow is the copy merged into current `origin/main` in `neo-capiro/capirov2`;
-2. proves served API source `42942dedad59382f4b4aac6f904b9aee0e02efa6` and orchestrator source `c2bc41a86ef087e4b163c556595507ec08b396cf` are ancestors of `origin/main`;
+1. fetches complete `main` history, refuses a shallow checkout, and proves the workflow is the copy merged into current `origin/main` in `neo-capiro/capirov2` using Git's supported object-existence check;
+2. proves served API source `42942dedad59382f4b4aac6f904b9aee0e02efa6` and orchestrator source `c2bc41a86ef087e4b163c556595507ec08b396cf` are ancestors of that fetched `origin/main`; the corrected ancestry evidence requires no exception;
 3. checks any recognized source-commit `dockerLabels` captured in each ECS task definition against those SHAs;
 4. validates the fixed AWS account, region, cluster, two service names, exact task definitions, steady deployments, and exact nine-slug cohort;
 5. lists and describes the actual `RUNNING` tasks for each service, requiring every task to use the service's current task definition and the reviewed image digest;
@@ -56,14 +56,14 @@ Apply is intentionally not a generic deployment interface. Set:
 - `lead_preflight_receipt` to the non-secret lead receipt reference;
 - `apply_confirmation=ENABLE_FIXED_SYNTHETIC_MERI_COHORT`.
 
-After validating both targets completely, the runner re-reads both services before its first mutation. It registers derived task definitions that preserve all registerable fields, tags, environment entries, model controls, IAM role references, and secret references. It changes only:
+After validating both targets completely, the runner re-reads both services before its first mutation. It registers derived task definitions that preserve all registerable fields, tags, environment entries, model controls, IAM role references, and secret references. In addition to the two apply definitions, it registers an API rollback definition derived from `capiro-dev-api:483`: the exact original nine-slug configuration with only `:latest` replaced by the exact previously observed digest. This immutable rollback definition prevents a later mutable-tag race. It changes only:
 
 - `MERIV3_CANARY_TENANT_SLUGS`, appending the two approved slugs to the exact nine-slug value;
 - the API container image from its reviewed `:latest` reference to the same immutable digest observed on every running API task.
 
-The orchestrator image must already be pinned to its reviewed digest and is not changed. The service update order is orchestrator, then API. Before each update the runner rejects service drift. Each update has a bounded 15-minute wait and succeeds only after actual running tasks use the exact new task definition and reviewed digest with steady deployment counts.
+The orchestrator image must already be pinned to its reviewed digest and is not changed. The service update order is orchestrator, then API. Immediately before each update the runner rejects service drift. ECS has no native compare-and-swap for this operation, so the receipt records that unavoidable limitation; repository concurrency plus the immediate rechecks do not claim cross-actor atomicity. Each update has a bounded 15-minute wait and succeeds only after actual running tasks use the exact new task definition and reviewed digest with steady deployment counts.
 
-The workflow uploads a sanitized `receipt.json`. On failure it records whether each update was requested/verified and emits reviewable rollback commands; it never blindly executes those commands or replays application work.
+The workflow uploads a sanitized `receipt.json`. Each service records attempt, response confirmation, authoritative read-back, and steady-state verification separately. An accepted update whose response is lost is read back before any next step; the run may proceed only when the fixed service authoritatively reports the receipt-bound new definition and the exact definition/digest subsequently verifies. It never emits or accepts an arbitrary rollback target and never replays application work.
 
 ## Guarded rollback
 
@@ -74,14 +74,16 @@ Rollback accepts no task-definition input. Dispatch from `main` with:
 - the same lead preflight confirmation and receipt requirements;
 - `rollback_confirmation=ROLLBACK_FIXED_SYNTHETIC_MERI_COHORT`.
 
-The workflow downloads the named artifact from that exact repository run. The runner accepts only its own apply receipt, exact fixed account/region/cluster/services/tenants/priors/digests, and derived task-definition ARNs in the fixed families. It requires current services to match the receipt before changing anything. Because the prior API task definition refers to `:latest`, rollback also refuses unless ECR `latest` still resolves to the reviewed API digest. It then rolls API back before orchestrator and verifies exact prior task definitions and running digests after each update.
+Before downloading the receipt, the workflow uses the official `gh api` client with only the existing process-environment `GITHUB_TOKEN`; the token is never placed in an argument or artifact. The runner strictly binds the downloaded receipt to trusted run and artifact metadata: exact repository, workflow path, `main`, `workflow_dispatch`, run ID/attempt, actor identity, source workflow SHA, conclusion, one unexpired named artifact, and that artifact's run/repository/branch/SHA identity.
+
+The runner then independently describes every receipt-bound task definition and refuses unless the apply definitions are exact derivations of the reviewed priors and the rollback definitions are exact immutable derivations. The API rollback target is the dedicated digest-pinned nine-slug definition registered during apply planning, never mutable `capiro-dev-api:483`; the orchestrator rollback target remains its already pinned reviewed prior. For an indeterminate prior attempt, actual current state must be in the receipt-bound original-prior/apply-new/immutable-rollback set. No other task definition is accepted. Rollback marks its attempt before calling ECS, authoritatively reads back a lost response, rolls API back before orchestrator, and verifies exact rollback definitions and running digests after each update. A lost rollback response therefore cannot be reported as `FAILED_BEFORE_SERVICE_UPDATE`.
 
 The lead owns removal of only the two separately added `fullChat` keys, preserving fixture metadata and all other settings. Service rollback does not alter the database, delete synthetic records, or replay jobs.
 
 ## IAM and verification limitations
 
-The OIDC role named by repository variable `AWS_DEV_GHA_ROLE_ARN` must already trust this repository's `main` subject and must have only the required target permissions. The runner needs read access for STS identity, ECS services/task definitions/tasks, and ECR image metadata; apply additionally needs `ecs:RegisterTaskDefinition`, tagging of preserved task-definition tags where required, `ecs:UpdateService` on exactly the two dev services, and `iam:PassRole` only for the already referenced task/execution roles. This change does not grant or widen any IAM permission. A missing permission causes refusal and may leave a registered but unused task-definition revision; the receipt distinguishes this from a service update.
+The OIDC role named by repository variable `AWS_DEV_GHA_ROLE_ARN` must already trust this repository's `main` subject and must have only the required target permissions. The runner needs read access for STS identity and ECS services/task definitions/tasks; apply additionally needs `ecs:RegisterTaskDefinition`, tagging of preserved task-definition tags where required, `ecs:UpdateService` on exactly the two dev services, and `iam:PassRole` only for the already referenced task/execution roles. This change does not grant or widen any IAM permission. A missing permission causes refusal and may leave a registered but unused task-definition revision; the receipt distinguishes this from a service update.
 
-Offline tests use a fake AWS adapter and exercise planning, transformations, target/family guards, model environment and secret-reference preservation, fail-before-mutation behavior, concurrent service change, partial outcome, guarded rollback, and immutable API pinning. They do not contact AWS.
+Offline tests use a fake AWS adapter and exercise planning, transformations, target/family guards, model environment and secret-reference preservation, fail-before-mutation behavior, concurrent service change, apply and rollback commit-response loss, immutable rollback derivation, forged receipt/wrong-run/wrong-workflow refusal, changed receipt-bound task-definition refusal, and arbitrary-current-definition refusal. A separate temporary bare remote/clone test executes the real Git context gate with complete ancestry and the supported object check. They do not contact AWS or GitHub.
 
 Infrastructure/IAM integration tests were **NOT RUN** by this configuration-only implementation. No cloud-provider, network, database, deployment, install, push, or merge operation was performed while preparing it. Runtime success still depends on the existing OIDC trust and least-privilege role having the permissions above. ECS steady state confirms deployment/task identity and image bytes only; it does not guarantee preservation of active research jobs, which is why the separate lead read-only preflight/drain gate is mandatory.

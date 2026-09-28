@@ -26,6 +26,7 @@ CLUSTER = "capiro-dev"
 REPOSITORY = "neo-capiro/capirov2"
 WORKFLOW_PATH = ".github/workflows/meri-synthetic-cohort.yml"
 WORKFLOW_NAME = "meri-synthetic-cohort"
+ARTIFACT_NAME = "synthetic-cohort-receipt"
 ENV_NAME = "MERIV3_CANARY_TENANT_SLUGS"
 TENANTS = ("meri-foundation-20260928-t1", "meri-foundation-20260928-t2")
 EXISTING_COHORT = (
@@ -178,15 +179,14 @@ class AwsCli:
             ]
         )
 
-    def describe_ecr_tag(self, repository: str, tag: str) -> dict[str, Any]:
-        return self._json(
-            ["ecr", "describe-images", "--repository-name", repository, "--image-ids", f"imageTag={tag}"]
-        )
-
-
 class GitCli:
+    def __init__(self, cwd: Path | None = None) -> None:
+        self.cwd = cwd
+
     def run(self, args: Sequence[str]) -> str:
-        completed = subprocess.run(["git", *args], capture_output=True, text=True, check=False)
+        completed = subprocess.run(
+            ["git", *args], cwd=self.cwd, capture_output=True, text=True, check=False
+        )
         if completed.returncode != 0:
             raise ReleaseError(f"Git provenance check failed: {' '.join(args[:2])}")
         return completed.stdout.strip()
@@ -256,7 +256,9 @@ def require_fixed_inputs(args: argparse.Namespace) -> None:
         raise ReleaseError("rollback requires the fixed explicit rollback confirmation")
 
 
-def verify_execution_context(env: Mapping[str, str], git: GitCli) -> None:
+def verify_execution_context(
+    env: Mapping[str, str], git: GitCli, source_shas: Sequence[str] | None = None
+) -> None:
     if env.get("GITHUB_REPOSITORY") != REPOSITORY:
         raise ReleaseError("workflow repository is not the fixed neo-capiro/capirov2 repository")
     if env.get("GITHUB_EVENT_NAME") != "workflow_dispatch":
@@ -271,9 +273,12 @@ def verify_execution_context(env: Mapping[str, str], git: GitCli) -> None:
         raise ReleaseError("checked out HEAD does not equal the workflow SHA")
     if git.run(["rev-parse", "origin/main"]) != head:
         raise ReleaseError("checked out workflow SHA is not current origin/main")
-    git.run(["ls-tree", "--error-unmatch", "HEAD", WORKFLOW_PATH])
-    for expected in EXPECTED.values():
-        git.run(["merge-base", "--is-ancestor", expected["sourceSha"], "origin/main"])
+    if git.run(["rev-parse", "--is-shallow-repository"]) != "false":
+        raise ReleaseError("checked out repository does not contain complete fetched history")
+    git.run(["cat-file", "-e", f"HEAD:{WORKFLOW_PATH}"])
+    ancestry = source_shas or tuple(str(item["sourceSha"]) for item in EXPECTED.values())
+    for source_sha in ancestry:
+        git.run(["merge-base", "--is-ancestor", source_sha, "origin/main"])
 
 
 def relevant_source_label(container: Mapping[str, Any], expected_sha: str) -> str | None:
@@ -398,6 +403,48 @@ def transform_task_definition(
     return request
 
 
+def transform_rollback_task_definition(
+    response: Mapping[str, Any], service: str, target_container_name: str
+) -> dict[str, Any]:
+    request = task_registration_request(response)
+    containers = request.get("containerDefinitions") or []
+    targets = [container for container in containers if container.get("name") == target_container_name]
+    if len(targets) != 1:
+        raise ReleaseError("rollback target container became ambiguous during transformation")
+    target = targets[0]
+    if read_cohort(target) != EXISTING_COHORT:
+        raise ReleaseError(f"{service} rollback cohort differs from the exact reviewed baseline")
+    image = str(target.get("image", ""))
+    if ecr_repository_name(image) != EXPECTED[service]["repository"]:
+        raise ReleaseError(f"{service} rollback image repository is not the fixed reviewed repository")
+    digest = str(EXPECTED[service]["digest"])
+    if service == "capiro-dev-api":
+        if not image.endswith(":latest"):
+            raise ReleaseError("API prior task definition is not the reviewed :latest shape")
+        target["image"] = pin_image(image, digest)
+    elif not image.endswith(f"@{digest}"):
+        raise ReleaseError("orchestrator rollback image is not already digest pinned")
+    return request
+
+
+def find_config_target(response: Mapping[str, Any], service: str) -> str:
+    task_definition = response.get("taskDefinition") or {}
+    matches: list[str] = []
+    for container in task_definition.get("containerDefinitions") or []:
+        try:
+            cohort_value = read_cohort(container)
+            repository = ecr_repository_name(str(container.get("image", "")))
+        except ReleaseError:
+            continue
+        if cohort_value == EXISTING_COHORT and repository == EXPECTED[service]["repository"]:
+            name = container.get("name")
+            if isinstance(name, str):
+                matches.append(name)
+    if len(matches) != 1:
+        raise ReleaseError(f"{service} reviewed prior target container is not exact")
+    return matches[0]
+
+
 def assert_only_approved_changes(
     before_response: Mapping[str, Any], after_request: Mapping[str, Any], target_name: str, service: str
 ) -> None:
@@ -415,6 +462,19 @@ def assert_only_approved_changes(
         before_target["image"] = pin_image(str(before_target["image"]), EXPECTED[service]["digest"])
     if expected != after_request:
         raise ReleaseError("derived task definition changed fields outside the approved cohort/image pin")
+
+
+def assert_only_rollback_changes(
+    before_response: Mapping[str, Any], after_request: Mapping[str, Any], target_name: str, service: str
+) -> None:
+    expected = task_registration_request(before_response)
+    target = next(
+        item for item in expected["containerDefinitions"] if item.get("name") == target_name
+    )
+    if service == "capiro-dev-api":
+        target["image"] = pin_image(str(target["image"]), str(EXPECTED[service]["digest"]))
+    if expected != after_request:
+        raise ReleaseError("derived rollback task definition changed unapproved fields")
 
 
 def capture_snapshot(aws: AwsCli, expected_tds: Mapping[str, str], expected_digests: Mapping[str, str]) -> dict[str, Any]:
@@ -555,6 +615,48 @@ def wait_for_exact(
     raise ReleaseError(f"bounded ECS verification timed out: {detail}")
 
 
+def observe_service_state(aws: AwsCli, service: str) -> dict[str, Any]:
+    described = aws.describe_services((service,))
+    services = described.get("services") or []
+    if described.get("failures") or len(services) != 1:
+        raise ReleaseError(f"{service} authoritative read-back failed")
+    value = services[0]
+    expected_cluster = f"arn:aws:ecs:{REGION}:{ACCOUNT_ID}:cluster/{CLUSTER}"
+    expected_service = f"arn:aws:ecs:{REGION}:{ACCOUNT_ID}:service/{CLUSTER}/{service}"
+    if (
+        value.get("serviceName") != service
+        or value.get("clusterArn") != expected_cluster
+        or value.get("serviceArn") != expected_service
+    ):
+        raise ReleaseError(f"{service} authoritative read-back escaped the fixed target")
+    current_td = str(value.get("taskDefinition", ""))
+    if not TD_ARN_RE.fullmatch(current_td):
+        raise ReleaseError(f"{service} authoritative read-back returned an invalid task definition")
+    task_arns = aws.list_tasks(service)
+    task_response = aws.describe_tasks(task_arns)
+    if task_response.get("failures"):
+        raise ReleaseError(f"{service} authoritative task read-back returned failures")
+    tasks = task_response.get("tasks") or []
+    digests = sorted(
+        {
+            str(container.get("imageDigest"))
+            for task in tasks
+            for container in task.get("containers", [])
+            if DIGEST_RE.fullmatch(str(container.get("imageDigest", "")))
+        }
+    )
+    return {
+        "taskDefinition": current_td,
+        "runningTaskDefinitions": sorted(
+            {str(task.get("taskDefinitionArn", "")) for task in tasks}
+        ),
+        "runningImageDigests": digests,
+        "desiredCount": value.get("desiredCount"),
+        "runningCount": value.get("runningCount"),
+        "pendingCount": value.get("pendingCount"),
+    }
+
+
 def validate_new_td_arn(service: str, arn: str) -> None:
     match = TD_ARN_RE.fullmatch(arn)
     if not match or match.group("family") != service:
@@ -566,11 +668,15 @@ def validate_new_td_arn(service: str, arn: str) -> None:
 
 def base_receipt(args: argparse.Namespace, mode: str) -> dict[str, Any]:
     return {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "workflow": WORKFLOW_NAME,
+        "workflowPath": WORKFLOW_PATH,
         "repository": REPOSITORY,
         "runId": os.environ.get("GITHUB_RUN_ID", "local"),
+        "runAttempt": os.environ.get("GITHUB_RUN_ATTEMPT", "local"),
         "workflowSha": os.environ.get("GITHUB_SHA", "local"),
+        "actor": os.environ.get("GITHUB_ACTOR", "local"),
+        "actorId": os.environ.get("GITHUB_ACTOR_ID", "local"),
         "mode": mode,
         "result": "STARTED",
         "target": {"account": ACCOUNT_ID, "region": REGION, "cluster": CLUSTER},
@@ -579,6 +685,7 @@ def base_receipt(args: argparse.Namespace, mode: str) -> dict[str, Any]:
             args.lead_preflight_receipt.encode("utf-8")
         ).hexdigest(),
         "databaseChanges": "NOT_PERFORMED",
+        "atomicity": "ECS_HAS_NO_COMPARE_AND_SWAP; EXACT_STATE_RECHECKED_IMMEDIATELY_BEFORE_EACH_UPDATE",
         "services": {},
     }
 
@@ -601,10 +708,16 @@ def apply_release(
             "priorTaskDefinition": full_td(EXPECTED[name]["taskDefinition"]),
             "priorDigest": EXPECTED[name]["digest"],
             "registeredTaskDefinition": None,
+            "rollbackTaskDefinition": (
+                full_td(EXPECTED[name]["taskDefinition"])
+                if name != "capiro-dev-api"
+                else None
+            ),
             "updateAttempted": False,
-            "updateRequested": False,
+            "responseState": "NOT_ATTEMPTED",
+            "observedState": "NOT_OBSERVED",
+            "observation": None,
             "verified": False,
-            "rollbackCommand": None,
         }
     requests: dict[str, dict[str, Any]] = {}
     for name in SERVICES:
@@ -616,32 +729,61 @@ def apply_release(
             item["taskDefinitionResponse"], request, item["targetContainer"], name
         )
         requests[name] = request
+    api_item = initial["capiro-dev-api"]
+    api_rollback_request = transform_rollback_task_definition(
+        api_item["taskDefinitionResponse"], "capiro-dev-api", api_item["targetContainer"]
+    )
+    assert_only_rollback_changes(
+        api_item["taskDefinitionResponse"],
+        api_rollback_request,
+        api_item["targetContainer"],
+        "capiro-dev-api",
+    )
     original_tds = {name: EXPECTED[name]["taskDefinition"] for name in SERVICES}
     digests = {name: EXPECTED[name]["digest"] for name in SERVICES}
     try:
         recheck = capture_snapshot(aws, original_tds, digests)
         if snapshot_fingerprint(recheck) != snapshot_fingerprint(initial):
             raise ReleaseError("service state changed between validation and registration")
+        rollback_arn = aws.register_task_definition(api_rollback_request)
+        validate_new_td_arn("capiro-dev-api", rollback_arn)
+        receipt["services"]["capiro-dev-api"]["rollbackTaskDefinition"] = rollback_arn
         for name in ("capiro-dev-meriv2-orchestrator", "capiro-dev-api"):
             arn = aws.register_task_definition(requests[name])
             validate_new_td_arn(name, arn)
             receipt["services"][name]["registeredTaskDefinition"] = arn
-            receipt["services"][name]["rollbackCommand"] = (
-                f"aws ecs update-service --region {REGION} --cluster {CLUSTER} "
-                f"--service {name} --task-definition {full_td(EXPECTED[name]['taskDefinition'])}"
-            )
         recheck = capture_snapshot(aws, original_tds, digests)
         if snapshot_fingerprint(recheck) != snapshot_fingerprint(initial):
             raise ReleaseError("service state changed while derived task definitions were registered")
         current_tds = dict(original_tds)
+        last_verified = recheck
         for name in ("capiro-dev-meriv2-orchestrator", "capiro-dev-api"):
-            new_td = receipt["services"][name]["registeredTaskDefinition"]
-            receipt["services"][name]["updateAttempted"] = True
-            aws.update_service(name, new_td)
-            receipt["services"][name]["updateRequested"] = True
+            immediate = capture_snapshot(aws, current_tds, digests)
+            if snapshot_fingerprint(immediate) != snapshot_fingerprint(last_verified):
+                raise ReleaseError("service state changed immediately before an apply update")
+            entry = receipt["services"][name]
+            new_td = str(entry["registeredTaskDefinition"])
+            entry["updateAttempted"] = True
+            entry["responseState"] = "UNCONFIRMED"
+            try:
+                aws.update_service(name, new_td)
+                entry["responseState"] = "CONFIRMED"
+            except BaseException as update_error:
+                observation = observe_service_state(aws, name)
+                entry["observation"] = observation
+                if observation["taskDefinition"] == full_td(new_td):
+                    entry["observedState"] = "NEW_TASK_DEFINITION"
+                elif observation["taskDefinition"] == full_td(original_tds[name]):
+                    entry["observedState"] = "PRIOR_TASK_DEFINITION"
+                else:
+                    entry["observedState"] = "UNEXPECTED_TASK_DEFINITION"
+                if entry["observedState"] != "NEW_TASK_DEFINITION":
+                    raise update_error
             current_tds[name] = new_td
-            wait_for_exact(aws, current_tds, digests, timeout_seconds)
-            receipt["services"][name]["verified"] = True
+            last_verified = wait_for_exact(aws, current_tds, digests, timeout_seconds)
+            entry["observation"] = observe_service_state(aws, name)
+            entry["observedState"] = "NEW_TASK_DEFINITION"
+            entry["verified"] = True
         receipt["result"] = "APPLIED_AND_VERIFIED"
         return receipt
     except BaseException as exc:
@@ -652,16 +794,63 @@ def apply_release(
         raise
 
 
-def validate_receipt(receipt: Mapping[str, Any], expected_run_id: str) -> None:
-    if receipt.get("schemaVersion") != 1 or receipt.get("workflow") != WORKFLOW_NAME:
+def validate_receipt(
+    receipt: Mapping[str, Any],
+    expected_run_id: str,
+    run_metadata: Mapping[str, Any],
+    artifact_metadata: Mapping[str, Any],
+) -> None:
+    if receipt.get("schemaVersion") != 2 or receipt.get("workflow") != WORKFLOW_NAME:
         raise ReleaseError("rollback receipt is not a synthetic cohort workflow receipt")
-    if receipt.get("repository") != REPOSITORY or str(receipt.get("runId")) != expected_run_id:
+    if (
+        receipt.get("workflowPath") != WORKFLOW_PATH
+        or receipt.get("repository") != REPOSITORY
+        or str(receipt.get("runId")) != expected_run_id
+    ):
         raise ReleaseError("rollback receipt repository/run does not match the downloaded workflow run")
     if receipt.get("mode") != "apply" or receipt.get("result") not in (
         "APPLIED_AND_VERIFIED",
         "PARTIAL_FAILURE",
     ):
         raise ReleaseError("rollback receipt does not describe an applied or partially applied release")
+    if (
+        str(run_metadata.get("id")) != expected_run_id
+        or run_metadata.get("event") != "workflow_dispatch"
+        or run_metadata.get("head_branch") != "main"
+        or run_metadata.get("path") != WORKFLOW_PATH
+        or (run_metadata.get("repository") or {}).get("full_name") != REPOSITORY
+        or (run_metadata.get("head_repository") or {}).get("full_name") != REPOSITORY
+        or run_metadata.get("status") != "completed"
+    ):
+        raise ReleaseError("trusted GitHub run metadata is not the exact fixed workflow identity")
+    workflow_sha = str(receipt.get("workflowSha", ""))
+    if not re.fullmatch(r"[0-9a-f]{40}", workflow_sha) or run_metadata.get("head_sha") != workflow_sha:
+        raise ReleaseError("trusted GitHub run metadata does not bind the source workflow SHA")
+    if str(run_metadata.get("run_attempt")) != str(receipt.get("runAttempt")):
+        raise ReleaseError("trusted GitHub run metadata does not bind the run attempt")
+    actor = run_metadata.get("actor") or {}
+    if actor.get("login") != receipt.get("actor") or str(actor.get("id")) != str(receipt.get("actorId")):
+        raise ReleaseError("trusted GitHub run metadata does not bind the workflow actor identity")
+    expected_conclusion = "success" if receipt.get("result") == "APPLIED_AND_VERIFIED" else "failure"
+    if run_metadata.get("conclusion") != expected_conclusion:
+        raise ReleaseError("trusted GitHub run conclusion contradicts the apply receipt")
+    artifacts = artifact_metadata.get("artifacts")
+    if not isinstance(artifacts, list) or artifact_metadata.get("total_count") != len(artifacts):
+        raise ReleaseError("trusted GitHub artifact metadata is incomplete")
+    matches = [item for item in artifacts if item.get("name") == ARTIFACT_NAME]
+    if len(matches) != 1:
+        raise ReleaseError("trusted GitHub metadata does not identify one exact receipt artifact")
+    artifact = matches[0]
+    artifact_run = artifact.get("workflow_run") or {}
+    if (
+        artifact.get("expired") is not False
+        or str(artifact_run.get("id")) != expected_run_id
+        or artifact_run.get("head_branch") != "main"
+        or artifact_run.get("head_sha") != workflow_sha
+        or artifact_run.get("repository_id") != (run_metadata.get("repository") or {}).get("id")
+        or artifact_run.get("head_repository_id") != (run_metadata.get("head_repository") or {}).get("id")
+    ):
+        raise ReleaseError("trusted GitHub artifact metadata is not bound to the exact apply run")
     if receipt.get("target") != {"account": ACCOUNT_ID, "region": REGION, "cluster": CLUSTER}:
         raise ReleaseError("rollback receipt target is not exact")
     if receipt.get("tenants") != list(TENANTS):
@@ -676,82 +865,138 @@ def validate_receipt(receipt: Mapping[str, Any], expected_run_id: str) -> None:
         if item.get("priorDigest") != EXPECTED[name]["digest"]:
             raise ReleaseError("rollback receipt prior digest is not the fixed reviewed digest")
         new_td = item.get("registeredTaskDefinition")
-        if new_td is not None:
-            validate_new_td_arn(name, new_td)
-        if item.get("updateRequested") and not new_td:
-            raise ReleaseError("rollback receipt says a service changed without a registered task definition")
+        if not isinstance(new_td, str):
+            raise ReleaseError("rollback receipt omitted the registered apply task definition")
+        validate_new_td_arn(name, new_td)
+        rollback_td = item.get("rollbackTaskDefinition")
+        if name == "capiro-dev-api":
+            if not isinstance(rollback_td, str):
+                raise ReleaseError("rollback receipt omitted the immutable API rollback task definition")
+            validate_new_td_arn(name, rollback_td)
+            if rollback_td == new_td:
+                raise ReleaseError("API apply and rollback task definitions are not distinct")
+        elif rollback_td != full_td(EXPECTED[name]["taskDefinition"]):
+            raise ReleaseError("orchestrator rollback target is not the fixed immutable prior")
+        if item.get("updateAttempted") not in (True, False):
+            raise ReleaseError("rollback receipt has an invalid update-attempt state")
+        if item.get("responseState") not in ("NOT_ATTEMPTED", "CONFIRMED", "UNCONFIRMED"):
+            raise ReleaseError("rollback receipt has an invalid response state")
+        if item.get("observedState") not in (
+            "NOT_OBSERVED",
+            "PRIOR_TASK_DEFINITION",
+            "NEW_TASK_DEFINITION",
+            "UNEXPECTED_TASK_DEFINITION",
+        ):
+            raise ReleaseError("rollback receipt has an invalid observed state")
+        if item.get("verified") not in (True, False):
+            raise ReleaseError("rollback receipt has an invalid verification state")
+        if item.get("verified") and item.get("observedState") != "NEW_TASK_DEFINITION":
+            raise ReleaseError("rollback receipt verification is not backed by observed new state")
 
 
-def verify_api_latest_for_rollback(aws: AwsCli, snapshot: Mapping[str, Any]) -> None:
-    item = snapshot["capiro-dev-api"]
-    td = item["taskDefinitionResponse"]["taskDefinition"]
-    target = next(c for c in td["containerDefinitions"] if c.get("name") == item["targetContainer"])
-    image = str(target.get("image", ""))
-    if not image.endswith(":latest"):
-        raise ReleaseError("reviewed prior API task definition no longer has its expected :latest image")
-    response = aws.describe_ecr_tag(ecr_repository_name(image), "latest")
-    details = response.get("imageDetails") or []
-    if len(details) != 1 or details[0].get("imageDigest") != EXPECTED["capiro-dev-api"]["digest"]:
-        raise ReleaseError("API latest no longer resolves to the reviewed rollback digest")
+def validate_receipt_task_definitions(aws: AwsCli, receipt: Mapping[str, Any]) -> None:
+    for name in SERVICES:
+        source = aws.describe_task_definition(EXPECTED[name]["taskDefinition"])
+        target_name = find_config_target(source, name)
+        expected_apply = transform_task_definition(source, name, target_name)
+        actual_apply = aws.describe_task_definition(receipt["services"][name]["registeredTaskDefinition"])
+        if (
+            (actual_apply.get("taskDefinition") or {}).get("taskDefinitionArn")
+            != full_td(receipt["services"][name]["registeredTaskDefinition"])
+            or task_registration_request(actual_apply) != expected_apply
+        ):
+            raise ReleaseError(f"{name} receipt apply task definition content is not exact")
+        rollback_td = receipt["services"][name]["rollbackTaskDefinition"]
+        actual_rollback = aws.describe_task_definition(rollback_td)
+        expected_rollback = transform_rollback_task_definition(source, name, target_name)
+        if (
+            (actual_rollback.get("taskDefinition") or {}).get("taskDefinitionArn") != full_td(rollback_td)
+            or task_registration_request(actual_rollback) != expected_rollback
+        ):
+            raise ReleaseError(f"{name} receipt rollback task definition content is not exact and immutable")
 
 
 def rollback_release(
     aws: AwsCli,
     args: argparse.Namespace,
     source_receipt: Mapping[str, Any],
+    run_metadata: Mapping[str, Any],
+    artifact_metadata: Mapping[str, Any],
     timeout_seconds: int,
 ) -> dict[str, Any]:
-    validate_receipt(source_receipt, args.receipt_run_id)
+    validate_receipt(source_receipt, args.receipt_run_id, run_metadata, artifact_metadata)
+    validate_receipt_task_definitions(aws, source_receipt)
     receipt = base_receipt(args, "rollback")
     receipt["sourceApplyRunId"] = args.receipt_run_id
     source_services = source_receipt["services"]
     current_tds: dict[str, str] = {}
     for name in SERVICES:
-        changed = bool(source_services[name].get("updateRequested"))
-        current_tds[name] = (
-            source_services[name]["registeredTaskDefinition"]
-            if changed
-            else EXPECTED[name]["taskDefinition"]
-        )
+        source = source_services[name]
+        observation = observe_service_state(aws, name)
+        current = str(observation["taskDefinition"])
+        prior = full_td(EXPECTED[name]["taskDefinition"])
+        rollback_target = full_td(source["rollbackTaskDefinition"])
+        allowed = {prior, rollback_target}
+        if source.get("updateAttempted"):
+            allowed.add(full_td(source["registeredTaskDefinition"]))
+        if current not in allowed:
+            raise ReleaseError(f"{name} current task definition is outside the receipt-bound prior/new set")
+        current_tds[name] = current
+        needs_rollback = bool(source.get("updateAttempted")) and current != rollback_target
         receipt["services"][name] = {
-            "fromTaskDefinition": current_tds[name],
-            "toTaskDefinition": full_td(EXPECTED[name]["taskDefinition"]),
-            "rollbackRequested": False,
-            "verified": not changed,
+            "fromTaskDefinition": current,
+            "toTaskDefinition": rollback_target,
+            "rollbackAttempted": False,
+            "responseState": "NOT_ATTEMPTED",
+            "observedState": "ROLLBACK_NOT_REQUIRED" if not needs_rollback else "OBSERVED_ALLOWED_SOURCE",
+            "observation": observation,
+            "verified": not needs_rollback,
         }
     digests = {name: EXPECTED[name]["digest"] for name in SERVICES}
     try:
-        initial = capture_snapshot(aws, current_tds, digests)
-        prior_api = aws.describe_task_definition(EXPECTED["capiro-dev-api"]["taskDefinition"])
-        prior_orch = aws.describe_task_definition(
-            EXPECTED["capiro-dev-meriv2-orchestrator"]["taskDefinition"]
-        )
-        prior_snapshot = copy.deepcopy(initial)
-        prior_snapshot["capiro-dev-api"]["taskDefinitionResponse"] = prior_api
-        prior_snapshot["capiro-dev-meriv2-orchestrator"]["taskDefinitionResponse"] = prior_orch
-        # The mutable old API definition is safe to restart only while latest still resolves
-        # to the digest captured in the reviewed proposal.
-        api_td = prior_api.get("taskDefinition") or {}
-        api_tasks = initial["capiro-dev-api"]["tasks"]
-        api_target = find_target_container(api_td, api_tasks, digests["capiro-dev-api"])
-        prior_snapshot["capiro-dev-api"]["targetContainer"] = api_target
-        verify_api_latest_for_rollback(aws, prior_snapshot)
-        recheck = capture_snapshot(aws, current_tds, digests)
-        if snapshot_fingerprint(recheck) != snapshot_fingerprint(initial):
-            raise ReleaseError("service state changed before guarded rollback")
+        initial = wait_for_exact(aws, current_tds, digests, timeout_seconds)
+        for name in SERVICES:
+            current = full_td(current_tds[name])
+            expected_cohort = (
+                (*EXISTING_COHORT, *TENANTS)
+                if current == full_td(source_services[name]["registeredTaskDefinition"])
+                else EXISTING_COHORT
+            )
+            if initial[name]["cohort"] != expected_cohort:
+                raise ReleaseError(f"{name} observed cohort does not match its receipt-bound task definition")
+        last_verified = initial
         for name in ("capiro-dev-api", "capiro-dev-meriv2-orchestrator"):
-            if not source_services[name].get("updateRequested"):
+            entry = receipt["services"][name]
+            target = str(entry["toTaskDefinition"])
+            if entry["verified"]:
                 continue
-            prior = full_td(EXPECTED[name]["taskDefinition"])
-            aws.update_service(name, prior)
-            receipt["services"][name]["rollbackRequested"] = True
-            current_tds[name] = prior
-            wait_for_exact(aws, current_tds, digests, timeout_seconds)
-            receipt["services"][name]["verified"] = True
+            immediate = capture_snapshot(aws, current_tds, digests)
+            if snapshot_fingerprint(immediate) != snapshot_fingerprint(last_verified):
+                raise ReleaseError("service state changed immediately before a rollback update")
+            entry["rollbackAttempted"] = True
+            entry["responseState"] = "UNCONFIRMED"
+            try:
+                aws.update_service(name, target)
+                entry["responseState"] = "CONFIRMED"
+            except BaseException as update_error:
+                observation = observe_service_state(aws, name)
+                entry["observation"] = observation
+                entry["observedState"] = (
+                    "ROLLBACK_TASK_DEFINITION"
+                    if observation["taskDefinition"] == full_td(target)
+                    else "UNEXPECTED_AFTER_ROLLBACK_ATTEMPT"
+                )
+                if entry["observedState"] != "ROLLBACK_TASK_DEFINITION":
+                    raise update_error
+            current_tds[name] = target
+            last_verified = wait_for_exact(aws, current_tds, digests, timeout_seconds)
+            entry["observation"] = observe_service_state(aws, name)
+            entry["observedState"] = "ROLLBACK_TASK_DEFINITION"
+            entry["verified"] = True
         receipt["result"] = "ROLLED_BACK_AND_VERIFIED"
         return receipt
     except BaseException as exc:
-        changed = [name for name in SERVICES if receipt["services"][name]["rollbackRequested"]]
+        changed = [name for name in SERVICES if receipt["services"][name]["rollbackAttempted"]]
         receipt["result"] = "PARTIAL_FAILURE" if changed else "FAILED_BEFORE_SERVICE_UPDATE"
         receipt["error"] = sanitized_error(exc)
         setattr(exc, "release_receipt", receipt)
@@ -785,6 +1030,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--lead-preflight-confirmation", default="")
     parser.add_argument("--lead-preflight-receipt", default="")
     parser.add_argument("--receipt", type=Path)
+    parser.add_argument("--run-metadata", type=Path)
+    parser.add_argument("--artifact-metadata", type=Path)
     parser.add_argument("--receipt-run-id", default="")
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--wait-timeout-seconds", type=int, default=900)
@@ -806,10 +1053,26 @@ def main(argv: Sequence[str] | None = None) -> int:
         original_tds = {name: EXPECTED[name]["taskDefinition"] for name in SERVICES}
         digests = {name: EXPECTED[name]["digest"] for name in SERVICES}
         if args.mode == "rollback":
-            if not args.receipt or not args.receipt_run_id:
-                raise ReleaseError("rollback requires a downloaded receipt and its workflow run ID")
+            if (
+                not args.receipt
+                or not args.run_metadata
+                or not args.artifact_metadata
+                or not args.receipt_run_id
+            ):
+                raise ReleaseError(
+                    "rollback requires a downloaded receipt and trusted GitHub run/artifact metadata"
+                )
             source = json.loads(args.receipt.read_text(encoding="utf-8"))
-            receipt = rollback_release(aws, args, source, args.wait_timeout_seconds)
+            run_metadata = json.loads(args.run_metadata.read_text(encoding="utf-8"))
+            artifact_metadata = json.loads(args.artifact_metadata.read_text(encoding="utf-8"))
+            receipt = rollback_release(
+                aws,
+                args,
+                source,
+                run_metadata,
+                artifact_metadata,
+                args.wait_timeout_seconds,
+            )
             write_json(args.output_dir / "receipt.json", receipt)
             print("Guarded rollback completed and exact task definitions/digests were verified.")
             return 0

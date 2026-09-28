@@ -7,7 +7,9 @@ import argparse
 import copy
 import importlib.util
 import json
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -100,6 +102,7 @@ class FakeAws:
         self.current = {name: cohort.EXPECTED[name]["taskDefinition"] for name in cohort.SERVICES}
         self.definitions = {name: task_definition(name) for name in cohort.SERVICES}
         self.registered: dict[str, dict[str, Any]] = {}
+        self.next_revision = {name: prior_revision(name) + 1 for name in cohort.SERVICES}
         self.writes: list[tuple[Any, ...]] = []
         self.list_counts = {name: 0 for name in cohort.SERVICES}
 
@@ -170,7 +173,8 @@ class FakeAws:
 
     def register_task_definition(self, request: Mapping[str, Any]) -> str:
         family = str(request["family"])
-        revision = prior_revision(family) + 1
+        revision = self.next_revision[family]
+        self.next_revision[family] += 1
         arn = td_arn(family, revision)
         response = {
             "taskDefinition": {**copy.deepcopy(request), "taskDefinitionArn": arn, "revision": revision},
@@ -184,10 +188,6 @@ class FakeAws:
     def update_service(self, service: str, task_definition_name: str) -> None:
         self.writes.append(("update", service, task_definition_name))
         self.current[service] = cohort.short_td(task_definition_name)
-
-    def describe_ecr_tag(self, repository: str, tag: str) -> dict[str, Any]:
-        return {"imageDetails": [{"imageDigest": cohort.EXPECTED["capiro-dev-api"]["digest"]}]}
-
 
 def arguments(**overrides: Any) -> argparse.Namespace:
     values = {
@@ -215,6 +215,51 @@ def original_expectations() -> tuple[dict[str, str], dict[str, str]]:
         {name: cohort.EXPECTED[name]["taskDefinition"] for name in cohort.SERVICES},
         {name: cohort.EXPECTED[name]["digest"] for name in cohort.SERVICES},
     )
+
+
+def bind_receipt(
+    receipt: dict[str, Any], run_id: str = "123"
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    receipt.update(
+        {
+            "runId": run_id,
+            "runAttempt": "1",
+            "workflowSha": "f" * 40,
+            "actor": "release-lead",
+            "actorId": "42",
+        }
+    )
+    run = {
+        "id": int(run_id),
+        "run_attempt": 1,
+        "event": "workflow_dispatch",
+        "head_branch": "main",
+        "head_sha": receipt["workflowSha"],
+        "path": cohort.WORKFLOW_PATH,
+        "status": "completed",
+        "conclusion": "success" if receipt["result"] == "APPLIED_AND_VERIFIED" else "failure",
+        "repository": {"id": 10, "full_name": cohort.REPOSITORY},
+        "head_repository": {"id": 10, "full_name": cohort.REPOSITORY},
+        "actor": {"id": 42, "login": "release-lead"},
+    }
+    artifacts = {
+        "total_count": 1,
+        "artifacts": [
+            {
+                "id": 99,
+                "name": cohort.ARTIFACT_NAME,
+                "expired": False,
+                "workflow_run": {
+                    "id": int(run_id),
+                    "repository_id": 10,
+                    "head_repository_id": 10,
+                    "head_branch": "main",
+                    "head_sha": receipt["workflowSha"],
+                },
+            }
+        ],
+    }
+    return run, artifacts
 
 
 class CohortTransformTests(unittest.TestCase):
@@ -248,6 +293,15 @@ class CohortTransformTests(unittest.TestCase):
         image = request["containerDefinitions"][0]["image"]
         self.assertTrue(image.endswith("@" + cohort.EXPECTED["capiro-dev-api"]["digest"]))
         self.assertNotIn(":latest", image)
+
+    def test_api_rollback_derivation_pins_digest_and_keeps_exact_nine_slugs(self) -> None:
+        before = task_definition("capiro-dev-api")
+        request = cohort.transform_rollback_task_definition(before, "capiro-dev-api", "api")
+        cohort.assert_only_rollback_changes(before, request, "api", "capiro-dev-api")
+        target = request["containerDefinitions"][0]
+        self.assertEqual(cohort.read_cohort(target), cohort.EXISTING_COHORT)
+        self.assertTrue(target["image"].endswith("@" + cohort.EXPECTED["capiro-dev-api"]["digest"]))
+        self.assertNotIn(":latest", target["image"])
 
     def test_orchestrator_image_stays_already_pinned(self) -> None:
         before = task_definition("capiro-dev-meriv2-orchestrator")
@@ -286,6 +340,48 @@ class CohortTransformTests(unittest.TestCase):
             cohort.require_fixed_inputs(arguments(expected_api_task_definition="capiro-dev-api:999"))
 
 
+class GitExecutionContextTests(unittest.TestCase):
+    def test_real_git_gate_uses_complete_temp_repo_history_and_supported_object_check(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            origin = root / "origin.git"
+            seed = root / "seed"
+            checkout = root / "checkout"
+
+            def git(*args: str, cwd: Path | None = None) -> str:
+                completed = subprocess.run(
+                    ["git", *args], cwd=cwd, text=True, capture_output=True, check=True
+                )
+                return completed.stdout.strip()
+
+            git("init", "--bare", str(origin))
+            git("init", "-b", "main", str(seed))
+            git("config", "user.email", "cohort-test@example.invalid", cwd=seed)
+            git("config", "user.name", "Cohort Test", cwd=seed)
+            (seed / "source.txt").write_text("served source\n", encoding="utf-8")
+            git("add", "source.txt", cwd=seed)
+            git("commit", "-m", "served source", cwd=seed)
+            source_sha = git("rev-parse", "HEAD", cwd=seed)
+            workflow = seed / cohort.WORKFLOW_PATH
+            workflow.parent.mkdir(parents=True)
+            workflow.write_text("name: temp cohort gate\n", encoding="utf-8")
+            git("add", cohort.WORKFLOW_PATH, cwd=seed)
+            git("commit", "-m", "workflow", cwd=seed)
+            git("remote", "add", "origin", str(origin), cwd=seed)
+            git("push", "-u", "origin", "main", cwd=seed)
+            git("symbolic-ref", "HEAD", "refs/heads/main", cwd=origin)
+            git("clone", "--branch", "main", str(origin), str(checkout))
+            head = git("rev-parse", "HEAD", cwd=checkout)
+            env = {
+                "GITHUB_REPOSITORY": cohort.REPOSITORY,
+                "GITHUB_EVENT_NAME": "workflow_dispatch",
+                "GITHUB_REF": "refs/heads/main",
+                "GITHUB_WORKFLOW_REF": f"{cohort.REPOSITORY}/{cohort.WORKFLOW_PATH}@refs/heads/main",
+                "GITHUB_SHA": head,
+            }
+            cohort.verify_execution_context(env, cohort.GitCli(checkout), (source_sha,))
+
+
 class CohortMutationTests(unittest.TestCase):
     def capture(self, aws: FakeAws) -> dict[str, Any]:
         tds, digests = original_expectations()
@@ -298,6 +394,7 @@ class CohortMutationTests(unittest.TestCase):
         self.assertEqual(
             operations,
             [
+                ("register", "capiro-dev-api"),
                 ("register", "capiro-dev-meriv2-orchestrator"),
                 ("register", "capiro-dev-api"),
                 ("update", "capiro-dev-meriv2-orchestrator"),
@@ -306,6 +403,12 @@ class CohortMutationTests(unittest.TestCase):
         )
         self.assertEqual(receipt["result"], "APPLIED_AND_VERIFIED")
         self.assertTrue(all(item["verified"] for item in receipt["services"].values()))
+        api = receipt["services"]["capiro-dev-api"]
+        self.assertNotEqual(api["rollbackTaskDefinition"], api["priorTaskDefinition"])
+        rollback = aws.describe_task_definition(api["rollbackTaskDefinition"])
+        target = rollback["taskDefinition"]["containerDefinitions"][0]
+        self.assertEqual(cohort.read_cohort(target), cohort.EXISTING_COHORT)
+        self.assertTrue(target["image"].endswith("@" + cohort.EXPECTED["capiro-dev-api"]["digest"]))
 
     def test_drift_fails_before_any_mutation(self) -> None:
         aws = FakeAws()
@@ -334,7 +437,7 @@ class CohortMutationTests(unittest.TestCase):
             cohort.apply_release(aws, arguments(), initial, 60)
         self.assertEqual(aws.writes, [])
 
-    def test_partial_outcome_records_orchestrator_and_rollback_command(self) -> None:
+    def test_rejected_api_update_separates_attempt_response_observation_and_verification(self) -> None:
         class ApiFailureAws(FakeAws):
             def update_service(self, service: str, task_definition_name: str) -> None:
                 if service == "capiro-dev-api":
@@ -347,11 +450,13 @@ class CohortMutationTests(unittest.TestCase):
         receipt = caught.exception.release_receipt
         self.assertEqual(receipt["result"], "PARTIAL_FAILURE")
         orchestrator = receipt["services"]["capiro-dev-meriv2-orchestrator"]
-        self.assertTrue(orchestrator["updateRequested"])
+        self.assertEqual(orchestrator["responseState"], "CONFIRMED")
         self.assertTrue(orchestrator["verified"])
-        self.assertIn("capiro-dev-meriv2-orchestrator:84", orchestrator["rollbackCommand"])
-        self.assertTrue(receipt["services"]["capiro-dev-api"]["updateAttempted"])
-        self.assertFalse(receipt["services"]["capiro-dev-api"]["updateRequested"])
+        api = receipt["services"]["capiro-dev-api"]
+        self.assertTrue(api["updateAttempted"])
+        self.assertEqual(api["responseState"], "UNCONFIRMED")
+        self.assertEqual(api["observedState"], "PRIOR_TASK_DEFINITION")
+        self.assertFalse(api["verified"])
 
     def test_unapproved_service_family_cannot_be_registered(self) -> None:
         with self.assertRaises(cohort.ReleaseError):
@@ -360,39 +465,89 @@ class CohortMutationTests(unittest.TestCase):
                 f"arn:aws:ecs:{cohort.REGION}:{cohort.ACCOUNT_ID}:task-definition/capiro-prod-api:484",
             )
 
-    def test_rollback_receipt_cannot_supply_arbitrary_prior(self) -> None:
-        receipt = {
-            "schemaVersion": 1,
-            "workflow": cohort.WORKFLOW_NAME,
-            "repository": cohort.REPOSITORY,
-            "runId": "123",
-            "mode": "apply",
-            "result": "APPLIED_AND_VERIFIED",
-            "target": {"account": cohort.ACCOUNT_ID, "region": cohort.REGION, "cluster": cohort.CLUSTER},
-            "tenants": list(cohort.TENANTS),
-            "services": {},
-        }
-        for name in cohort.SERVICES:
-            receipt["services"][name] = {
-                "priorTaskDefinition": cohort.full_td(cohort.EXPECTED[name]["taskDefinition"]),
-                "priorDigest": cohort.EXPECTED[name]["digest"],
-                "registeredTaskDefinition": td_arn(name, prior_revision(name) + 1),
-                "updateRequested": True,
-            }
-        receipt["services"]["capiro-dev-api"]["priorTaskDefinition"] = td_arn("capiro-dev-api", 1)
-        with self.assertRaisesRegex(cohort.ReleaseError, "fixed reviewed prior"):
-            cohort.validate_receipt(receipt, "123")
+    def test_apply_and_rollback_commit_response_loss_are_read_back_and_verified(self) -> None:
+        class ResponseLossAws(FakeAws):
+            lose_service: str | None = "capiro-dev-meriv2-orchestrator"
 
-    def test_rollback_refuses_mutable_latest_drift_before_update(self) -> None:
-        class LatestDriftAws(FakeAws):
-            def describe_ecr_tag(self, repository: str, tag: str) -> dict[str, Any]:
-                return {"imageDetails": [{"imageDigest": f"sha256:{'b' * 64}"}]}
+            def update_service(self, service: str, task_definition_name: str) -> None:
+                super().update_service(service, task_definition_name)
+                if service == self.lose_service:
+                    self.lose_service = None
+                    raise cohort.ReleaseError("simulated accepted update with lost response")
 
-        aws = LatestDriftAws()
-        snapshot = self.capture(aws)
-        with self.assertRaisesRegex(cohort.ReleaseError, "latest no longer resolves"):
-            cohort.verify_api_latest_for_rollback(aws, snapshot)
-        self.assertEqual(aws.writes, [])
+        aws = ResponseLossAws()
+        apply_receipt = cohort.apply_release(aws, arguments(), self.capture(aws), 60)
+        orchestrator = apply_receipt["services"]["capiro-dev-meriv2-orchestrator"]
+        self.assertEqual(orchestrator["responseState"], "UNCONFIRMED")
+        self.assertEqual(orchestrator["observedState"], "NEW_TASK_DEFINITION")
+        self.assertTrue(orchestrator["verified"])
+        run, artifacts = bind_receipt(apply_receipt)
+        aws.lose_service = "capiro-dev-api"
+        rollback_args = arguments(
+            mode="rollback",
+            receipt_run_id="123",
+            rollback_confirmation="ROLLBACK_FIXED_SYNTHETIC_MERI_COHORT",
+        )
+        rollback = cohort.rollback_release(aws, rollback_args, apply_receipt, run, artifacts, 60)
+        api = rollback["services"]["capiro-dev-api"]
+        self.assertEqual(rollback["result"], "ROLLED_BACK_AND_VERIFIED")
+        self.assertTrue(api["rollbackAttempted"])
+        self.assertEqual(api["responseState"], "UNCONFIRMED")
+        self.assertEqual(api["observedState"], "ROLLBACK_TASK_DEFINITION")
+        self.assertTrue(api["verified"])
+        self.assertNotEqual(api["toTaskDefinition"], cohort.full_td("capiro-dev-api:483"))
+
+    def test_forged_receipt_wrong_run_and_wrong_workflow_metadata_are_refused(self) -> None:
+        aws = FakeAws()
+        receipt = cohort.apply_release(aws, arguments(), self.capture(aws), 60)
+        run, artifacts = bind_receipt(receipt)
+        cases = []
+        forged = copy.deepcopy(receipt)
+        forged["workflowSha"] = "e" * 40
+        cases.append((forged, run, artifacts))
+        wrong_run = copy.deepcopy(run)
+        wrong_run["id"] = 124
+        cases.append((receipt, wrong_run, artifacts))
+        wrong_workflow = copy.deepcopy(run)
+        wrong_workflow["path"] = ".github/workflows/other.yml"
+        cases.append((receipt, wrong_workflow, artifacts))
+        wrong_artifact = copy.deepcopy(artifacts)
+        wrong_artifact["artifacts"][0]["workflow_run"]["id"] = 124
+        cases.append((receipt, run, wrong_artifact))
+        for candidate, run_value, artifact_value in cases:
+            with self.subTest(candidate=candidate["workflowSha"], run=run_value["id"], path=run_value["path"]):
+                with self.assertRaises(cohort.ReleaseError):
+                    cohort.validate_receipt(candidate, "123", run_value, artifact_value)
+
+    def test_rollback_refuses_receipt_bound_new_td_with_changed_config(self) -> None:
+        aws = FakeAws()
+        receipt = cohort.apply_release(aws, arguments(), self.capture(aws), 60)
+        run, artifacts = bind_receipt(receipt)
+        api_td = cohort.short_td(receipt["services"]["capiro-dev-api"]["registeredTaskDefinition"])
+        target = aws.registered[api_td]["taskDefinition"]["containerDefinitions"][0]
+        target["environment"][0]["value"] = "forged-model"
+        writes_before = list(aws.writes)
+        rollback_args = arguments(
+            mode="rollback",
+            receipt_run_id="123",
+            rollback_confirmation="ROLLBACK_FIXED_SYNTHETIC_MERI_COHORT",
+        )
+        with self.assertRaisesRegex(cohort.ReleaseError, "content is not exact"):
+            cohort.rollback_release(aws, rollback_args, receipt, run, artifacts, 60)
+        self.assertEqual(aws.writes, writes_before)
+
+    def test_rollback_refuses_arbitrary_current_task_definition(self) -> None:
+        aws = FakeAws()
+        receipt = cohort.apply_release(aws, arguments(), self.capture(aws), 60)
+        run, artifacts = bind_receipt(receipt)
+        aws.current["capiro-dev-api"] = "capiro-dev-api:999"
+        rollback_args = arguments(
+            mode="rollback",
+            receipt_run_id="123",
+            rollback_confirmation="ROLLBACK_FIXED_SYNTHETIC_MERI_COHORT",
+        )
+        with self.assertRaisesRegex(cohort.ReleaseError, "prior/new set"):
+            cohort.rollback_release(aws, rollback_args, receipt, run, artifacts, 60)
 
 
 class WorkflowContractTests(unittest.TestCase):
@@ -403,6 +558,10 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertIn("github.ref != 'refs/heads/main'", text)
         self.assertIn("github.repository != 'neo-capiro/capirov2'", text)
         self.assertIn("vars.AWS_DEV_GHA_ROLE_ARN", text)
+        self.assertIn("GITHUB_TOKEN: ${{ github.token }}", text)
+        self.assertIn("gh api --method GET", text)
+        self.assertIn("--run-metadata", text)
+        self.assertIn("--artifact-metadata", text)
         lowered = text.lower()
         for forbidden in ("docker build", "build-push-action", "cdk deploy", "prisma migrate", "ecs run-task"):
             self.assertNotIn(forbidden, lowered)

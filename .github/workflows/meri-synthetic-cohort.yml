@@ -98,8 +98,30 @@ jobs:
           ref: main
           fetch-depth: 0
 
+      - name: Prove complete fetched main history
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse --is-shallow-repository)" = false
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+
       - name: Run offline release-runner tests
         run: python3 scripts/meri-synthetic-cohort.test.py
+
+      - name: Download trusted prior-run metadata for guarded rollback
+        if: inputs.mode == 'rollback'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$INPUT_RECEIPT_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          mkdir -p /tmp/meri-synthetic-cohort-metadata
+          gh api --method GET \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${INPUT_RECEIPT_RUN_ID}" \
+            > /tmp/meri-synthetic-cohort-metadata/run.json
+          gh api --method GET \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${INPUT_RECEIPT_RUN_ID}/artifacts?per_page=100" \
+            > /tmp/meri-synthetic-cohort-metadata/artifacts.json
 
       - name: Configure fixed dev AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -137,7 +159,11 @@ jobs:
             --wait-timeout-seconds 900
           )
           if [[ "$INPUT_MODE" == rollback ]]; then
-            args+=(--receipt /tmp/meri-synthetic-cohort-source/receipt.json)
+            args+=(
+              --receipt /tmp/meri-synthetic-cohort-source/receipt.json
+              --run-metadata /tmp/meri-synthetic-cohort-metadata/run.json
+              --artifact-metadata /tmp/meri-synthetic-cohort-metadata/artifacts.json
+            )
           fi
           python3 scripts/meri-synthetic-cohort.py "${args[@]}"
 
