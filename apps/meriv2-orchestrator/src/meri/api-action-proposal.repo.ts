@@ -3,7 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { RequestCredentialsStore } from '../request/request-credentials.store.js';
 import type { ToolExecutionControl } from '@capiro/meriv2-core';
 import { createMeriExecutionControl } from './meri-execution-control.js';
-import { currentTrustedCurrentTurnScope } from '../request/trusted-current-turn-scope.js';
+import {
+  currentServerReadonlyCapturePolicy,
+  currentTrustedCurrentTurnScope,
+} from '../request/trusted-current-turn-scope.js';
 import { isCurrentConversationResearchPortfolioTool } from './current-turn-tool-scope.js';
 import { buildResearchPortfolioProposalTransport } from './rp-action-proposal-transport.js';
 
@@ -77,6 +80,9 @@ export class ApiActionProposalRepo {
       const credentials = RequestCredentialsStore.get();
       if (!credentials?.bearerToken)
         throw new Error('No forwarded credential is available for action authority.');
+      if (currentServerReadonlyCapturePolicy()) {
+        throw new Error('Server-owned read-only capture denied action proposal creation.');
+      }
       const env = this.config.get<string>('NODE_ENV') ?? process.env.NODE_ENV ?? 'development';
       const secret =
         this.config.get<string>('INTERNAL_SERVICE_SECRET') ?? process.env.INTERNAL_SERVICE_SECRET;

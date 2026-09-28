@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { MeriV3ProxyService } from './meriv3-proxy.service.js';
+import { MeriContextPlaneRuntimeService } from './meri-context-plane-runtime.js';
 import { scheduleMeriTurnMaintenance } from './meri-turn-maintenance.js';
 import { commitmentsAuditProcedureSkill } from './skills/commitments-audit.procedure.js';
 import { MeriResearchService } from './meri-research.service.js';
@@ -30,15 +31,17 @@ jest.mock('./meriv3-chat.client.js', () => ({ MeriV3ChatClient: class {} }));
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
 const CONVERSATION = '33333333-3333-4333-8333-333333333333';
+const CAPTURE_TENANT = 'f2d6cf8f-057c-479a-8110-62fe5086d43f';
+const CAPTURE_USER = '44444444-4444-4444-8444-444444444444';
 
 /**
- * Phase 27 post-launch P1 (MeriV3 front) — found live in the Capiro-internal
+ * Phase 27 post-launch P1 (MeriV3 front) â€” found live in the Capiro-internal
  * canary: this tenant is routed through MeriV3ProxyService.streamMessage
  * (meriv3-runtime.proxy.ts's Proxy dispatches here whenever
  * MeriFeatureFlagsService.isMeriV3ChatEnabled is true), a completely separate
  * implementation from MeriService.streamMessage. The PR #1214 fix only
  * patched the latter, so feedback rated immediately after a MeriV3 turn
- * still posted the client's stale optimistic id and 400'd — reproduced
+ * still posted the client's stale optimistic id and 400'd â€” reproduced
  * against the live capiro-dev-api right after #1214 deployed. These tests
  * pin the same contract here: every `done` frame this service ever emits
  * must carry the persisted assistant message id whenever one was written.
@@ -70,7 +73,25 @@ function buildHarness() {
       updateMany: jest.fn(async () => ({})),
     },
   };
-  const prisma = { withTenant: jest.fn((_t: string, cb: (tx: unknown) => unknown) => cb(tx)) };
+  const prisma = {
+    withTenant: jest.fn((_t: string, cb: (tx: unknown) => unknown) => cb(tx)),
+    tenant: {
+      findUnique: jest.fn(async () => ({
+        id: CAPTURE_TENANT,
+        slug: 'meri-foundation-20260928-t1',
+        settings: { meriFoundationFixture: { fixtureNamespace: 'meri-foundation-20260928' } },
+      })),
+    },
+    user: {
+      findUnique: jest.fn(async () => ({
+        id: CAPTURE_USER,
+        clerkUserId: 'clerk-capture-user',
+        email: 'capture.synthetic@example.com',
+        firstName: 'Capture',
+        lastName: 'Synthetic',
+      })),
+    },
+  };
   const flags = {
     isMeriV3ChatEnabled: jest.fn(async () => true),
     // compliance-block / deepResearchPromote off by default
@@ -316,7 +337,7 @@ function installActualReportAuthority(
   return { execute };
 }
 
-describe('MeriV3ProxyService — report context authority', () => {
+describe('MeriV3ProxyService â€” report context authority', () => {
   it('preserves authorized same-run report history and summary after current owner checks', async () => {
     const h = buildHarness();
     const { execute } = installActualReportAuthority(h, 'authorized');
@@ -414,7 +435,7 @@ describe('MeriV3ProxyService — report context authority', () => {
   });
 });
 
-describe('MeriV3ProxyService — done frame carries the persisted message id', () => {
+describe('MeriV3ProxyService â€” done frame carries the persisted message id', () => {
   it('binds an exact current client procedure and emits only its redacted contract receipt', async () => {
     const { service, client, sse, tx, frames, firmSkills } = buildHarness();
     const selected = {
@@ -473,6 +494,75 @@ describe('MeriV3ProxyService — done frame carries the persisted message id', (
       coverageStates: ['checked', 'disconnected', 'unavailable', 'not mapped'],
     });
     expect(JSON.stringify(receipt)).not.toContain('Audit every evidenced commitment');
+  });
+
+  it('persists only the expected conversation messages, emits the receipt, and schedules no maintenance for capture', async () => {
+    const { service, client, sse, tx, frames, prisma, maintenance } = buildHarness();
+    const captureCtx = {
+      tenantId: CAPTURE_TENANT,
+      tenantSlug: 'meri-foundation-20260928-t1',
+      userId: CAPTURE_USER,
+      clerkUserId: 'clerk-capture-user',
+      role: 'standard_user',
+    } as const;
+    const contextPlane = {
+      resolveChat: jest.fn(async () => ({
+        version: 1,
+        operationId: 'meri.chat',
+        prompt: 'governed context',
+        contextPacket: { items: [], exclusions: [], unauthorizedCount: 0, degraded: false },
+        retrieval: { plan: { subjectScope: 'firm' }, coverage: { sourceHealth: [] } },
+      })),
+    };
+    const runtime = new MeriContextPlaneRuntimeService(prisma as never, contextPlane as never);
+    client.streamChat.mockImplementationOnce(async ({ onEvent }: any) => {
+      onEvent({ type: 'text', text: 'Authorized read result.' });
+      onEvent({
+        type: 'done',
+        reply: 'Authorized read result.',
+        citations: [],
+        steps: [],
+        runtime: 'meriv3',
+        model: 'configured-model',
+        reasoningMode: 'fast',
+        reasoningEffort: 'low',
+      });
+    });
+
+    await runtime.runChatTurn(
+      captureCtx as never,
+      { conversationId: CONVERSATION, body: 'Read only', mode: 'new' },
+      () =>
+        service.streamMessage(
+          captureCtx as never,
+          CONVERSATION,
+          'Read only',
+          sse,
+          undefined,
+          'new',
+          [],
+          'token',
+        ),
+    );
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    const persisted = tx.clioMessage.create.mock.calls.map(([arg]: any) => arg.data);
+    expect(persisted.map((row: any) => row.role)).toEqual(['user', 'assistant']);
+    const receipt = persisted[1]?.metadata.serverReadonlyCaptureReceipt;
+    expect(receipt).toMatchObject({
+      authority: 'server_current',
+      tenantId: CAPTURE_TENANT,
+      actorUserId: CAPTURE_USER,
+      conversationId: CONVERSATION,
+      dispatchBoundary: 'read_only_enforced',
+      dynamicMcpAllowed: false,
+      incidentalWriters: 'suppressed',
+    });
+    expect(frames().find((frame) => frame.type === 'done')?.serverReadonlyCaptureReceipt).toEqual(
+      receipt,
+    );
+    expect(maintenance.scheduleAfterTurnMaintenance).not.toHaveBeenCalled();
+    expect(tx.clioArtifact.updateMany).not.toHaveBeenCalled();
   });
 
   it('persists and streams the same actual turn scope when the selected client differs', async () => {
@@ -1008,7 +1098,7 @@ describe('MeriV3ProxyService — done frame carries the persisted message id', (
     );
     // The stale-optimistic-id bug this pins: a client-generated id like
     // `mt4nmadw-siemgnk5ck` must never be what the frontend has to fall back
-    // to — the server-persisted id must always be present when content or
+    // to â€” the server-persisted id must always be present when content or
     // tool steps were produced.
   });
 

@@ -1,9 +1,10 @@
-// @capiro/meriv2-core — the shared MeriV2 orchestrator core.
+// @capiro/meriv2-core â€” the shared MeriV2 orchestrator core.
 // Pure, importable logic: tool registry, scoping wrapper, intent router, and
 // claim-map grounding. Hosted over HTTP by `apps/meriv2-orchestrator`.
 export * from './registry/types';
 export * from './context/governed-evidence-auth';
 export * from './context/research-plan-execution';
+export * from './context/server-readonly-capture';
 export * from './context/meri-explicit-subject';
 export * from './registry/tool-registry';
 export * from './registry/tool-execution-metadata';

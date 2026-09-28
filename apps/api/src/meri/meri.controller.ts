@@ -62,6 +62,7 @@ import {
 import { MeriPdfRenderError } from './meri-docgen-pdf.js';
 import { sha256Bytes, validateDocumentArtifactBytes } from './meri-artifact-integrity.js';
 import type { AssuranceSurface } from '@capiro/meriv2-core';
+import { admitMeriServerReadonlyCaptureTransport } from './meri-server-readonly-capture.js';
 
 class CreateMeriConversationDto {
   @IsOptional()
@@ -437,6 +438,12 @@ export class MeriController {
     @Body() body: Record<string, unknown>,
     @Req() req: Request,
   ) {
+    const capturePolicy = admitMeriServerReadonlyCaptureTransport({
+      ctx,
+      req,
+      purpose: 'tool',
+      toolName: name,
+    });
     const admittedAttachment = admitMeriChatAttachmentTransport(name, body, ctx, req);
     const admittedRp = admitMeriResearchPortfolioToolTransport(
       name,
@@ -444,16 +451,20 @@ export class MeriController {
       ctx,
       req,
     );
-    return withMeriToolRequestControl(req, () => {
-      const execute = () => this.tools.executeFromAuthenticatedUser(ctx, name, admittedRp.input);
-      const executeRp = () =>
-        admittedRp.scope
-          ? withMeriResearchPortfolioToolTurnScope(admittedRp.scope, execute)
-          : execute();
-      return admittedAttachment.scope
-        ? withMeriChatAttachmentReadScope(admittedAttachment.scope, executeRp)
-        : executeRp();
-    });
+    return withMeriToolRequestControl(
+      req,
+      () => {
+        const execute = () => this.tools.executeFromAuthenticatedUser(ctx, name, admittedRp.input);
+        const executeRp = () =>
+          admittedRp.scope
+            ? withMeriResearchPortfolioToolTurnScope(admittedRp.scope, execute)
+            : execute();
+        return admittedAttachment.scope
+          ? withMeriChatAttachmentReadScope(admittedAttachment.scope, executeRp)
+          : executeRp();
+      },
+      capturePolicy,
+    );
   }
 
   /**

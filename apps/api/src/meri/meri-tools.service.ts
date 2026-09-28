@@ -8,8 +8,11 @@ import {
 } from '@capiro/shared';
 import {
   assertMeriToolRequestActive,
+  currentMeriToolCapturePolicy,
   meriToolRequestControl,
 } from './meri-tool-request-control.js';
+import { currentMeriServerReadonlyCapturePolicy } from './meri-context-plane-runtime.js';
+import { assertMeriServerReadonlyCaptureToolAllowed } from './meri-server-readonly-capture.js';
 import {
   BadGatewayException,
   BadRequestException,
@@ -2340,6 +2343,10 @@ export class MeriToolsService {
     execution?: { actionProposalId?: string },
   ) {
     assertMeriToolRequestActive();
+    assertMeriServerReadonlyCaptureToolAllowed(
+      String(name),
+      currentMeriToolCapturePolicy() ?? currentMeriServerReadonlyCapturePolicy(),
+    );
     switch (name) {
       case 'get_research_portfolio':
       case 'get_research_portfolio_analytics':

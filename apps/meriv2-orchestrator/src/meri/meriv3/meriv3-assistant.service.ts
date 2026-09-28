@@ -63,6 +63,10 @@ import {
 } from '@capiro/meriv2-core';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
+import {
+  assertServerReadonlyCaptureToolAllowed,
+  currentServerReadonlyCapturePolicy,
+} from '../../request/trusted-current-turn-scope.js';
 import { ApiActionProposalRepo } from '../api-action-proposal.repo.js';
 import { MeriRegistryService } from '../meri-registry.service.js';
 import { createMeriExecutionControl } from '../meri-execution-control.js';
@@ -335,7 +339,7 @@ function safetyIdentifier(ctx: MeriContext): string {
 
 function finishInstructions(): string {
   return [
-    '# FINISH NOW — answer the user',
+    '# FINISH NOW â€” answer the user',
     'Do not call any more tools.',
     'Write the complete answer using only admitted governed context evidence, facts returned by tools in this turn, or explicit user-provided context. Preserve their source references and the government-affairs output requirements above; label any remaining material gap.',
     'Separate verified facts from inference and recommendations.',
@@ -352,7 +356,7 @@ function finishInstructions(): string {
  * Standard mode's old 60s floor/ceiling was tuned for a normal chat reply. A
  * broad "audit every commitment, cross-check every source" question gathers
  * fine (up to maxToolRounds) but then needs to *write* a large structured
- * table from everything it found — 60s repeatedly wasn't enough, forcing a
+ * table from everything it found â€” 60s repeatedly wasn't enough, forcing a
  * second forced-synthesis attempt that also timed out and fell back to the
  * "hit a model time limit" apology. Raised the sub-10-minute floor and
  * loosened the ceiling to half the turn budget so Standard/Fast reserve more
@@ -370,7 +374,7 @@ function isModelTimeoutError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   if (/timed out after \d+ms/i.test(message) || /AbortError/i.test(message)) return true;
   // The Responses client throws a plain Error for its own shared turn deadline
-  // (no "timed out"/AbortError text) but tags it with structured telemetry —
+  // (no "timed out"/AbortError text) but tags it with structured telemetry â€”
   // recognize that so this is treated as a recoverable timeout too.
   return readOpenAiResponsesErrorTelemetry(error)?.finishReason === 'deadline_exceeded';
 }
@@ -488,7 +492,7 @@ function boundedPartialReply(
 ): string {
   const retained = ledgerEntries.slice(-4).map((entry) => {
     const summary = entry.serialized.replace(/\s+/g, ' ').trim().slice(0, 320);
-    return `- ${entry.tool}: ${summary}${entry.serialized.length > summary.length ? '…' : ''}`;
+    return `- ${entry.tool}: ${summary}${entry.serialized.length > summary.length ? 'â€¦' : ''}`;
   });
   return [
     `I stopped this turn at its aggregate runtime bound${reason ? ` (${reason.replaceAll('_', ' ')})` : ''}.`,
@@ -502,7 +506,7 @@ function boundedPartialReply(
 function incompleteSynthesisPartialReply(ledgerEntries: LedgerEntry[]): string {
   const retained = ledgerEntries.slice(-4).map((entry) => {
     const summary = entry.serialized.replace(/\s+/g, ' ').trim().slice(0, 320);
-    return `- ${entry.tool}: ${summary}${entry.serialized.length > summary.length ? '…' : ''}`;
+    return `- ${entry.tool}: ${summary}${entry.serialized.length > summary.length ? 'â€¦' : ''}`;
   });
   return [
     'The synthesis response was incomplete, so I did not release its partial text.',
@@ -885,7 +889,7 @@ export class MeriV3AssistantService {
    *
    * Standard's budget (180s, 10 rounds) is tuned for a normal chat reply.
    * A broad audit-everything ask legitimately needs dozens of tool calls
-   * and a large structured write — under Standard that gathers fine and
+   * and a large structured write â€” under Standard that gathers fine and
    * then times out writing the answer (see synthesisReserveMs above). The
    * user should not have to know to switch to Deep/Research mode first;
    * Meri should recognize the shape of the request and just do it.
@@ -1087,7 +1091,9 @@ export class MeriV3AssistantService {
     // This tool reads a research snapshot, not client Files. Its session comes
     // from the authenticated research lease, never a guessed chat/client UUID.
     const leaseAuthorizedSchemas = toolSchemas.filter(
-      (schema) => schema.name !== 'get_research_evidence' || Boolean(dto.researchRun),
+      (schema) =>
+        (schema.name !== 'get_research_evidence' || Boolean(dto.researchRun)) &&
+        (!currentServerReadonlyCapturePolicy() || schema.name !== 'run_analysis'),
     );
     const procedureSchemas = bindMeriProcedureSchemas({
       procedure,
@@ -1803,7 +1809,7 @@ export class MeriV3AssistantService {
           finalText = response.outputText;
           if (response.incompleteReason === 'max_output_tokens' && finalText) {
             finalText +=
-              '\n\n_(I reached this mode’s output limit. Ask me to continue if needed.)_';
+              '\n\n_(I reached this modeâ€™s output limit. Ask me to continue if needed.)_';
           }
           break;
         }
@@ -2125,7 +2131,7 @@ export class MeriV3AssistantService {
       };
       finalText =
         telemetry.finishReason === 'deadline_exceeded'
-          ? 'I reached this turn’s time limit before completing the answer. Ask me to continue from the evidence collected so far.'
+          ? 'I reached this turnâ€™s time limit before completing the answer. Ask me to continue from the evidence collected so far.'
           : '';
     }
     const completionGaps = documentCompletion?.gaps() ?? [];
@@ -2314,7 +2320,7 @@ export class MeriV3AssistantService {
       emit({ type: 'text', text: released.reply });
       canary.noteTextEmitted();
     }
-    if (matchLabelMode === 'shadow' && released.reply) {
+    if (!currentServerReadonlyCapturePolicy() && matchLabelMode === 'shadow' && released.reply) {
       const reply = released.reply;
       const releasedCitations = released.citations;
       const started = Date.now();
@@ -2376,7 +2382,7 @@ export class MeriV3AssistantService {
     this.logStructured('log', 'meri.canary.turn', { ...canaryEvent });
     // Always schedule after text emission. Stage 1 enforce is intentionally
     // shadow-only: this cannot hold, delay, retrieve for, or rewrite the answer.
-    if (claimAssessmentMode !== 'off') {
+    if (!currentServerReadonlyCapturePolicy() && claimAssessmentMode !== 'off') {
       const asOf = new Date().toISOString();
       scheduleClaimInventoryShadow({
         conversationId: dto.conversationId,
@@ -2437,7 +2443,11 @@ export class MeriV3AssistantService {
       });
     }
     // Shadow starts only after text emission and is deliberately not awaited.
-    if (statusProvenanceMode === 'shadow' && released.reply) {
+    if (
+      !currentServerReadonlyCapturePolicy() &&
+      statusProvenanceMode === 'shadow' &&
+      released.reply
+    ) {
       void runStatusProvenance({
         reply: released.reply,
         mode: 'shadow',
@@ -3140,6 +3150,7 @@ export class MeriV3AssistantService {
         continue;
       }
       await this.assertResearchRunActive(args.dto, args.control);
+      assertServerReadonlyCaptureToolAllowed(call.name);
       let parsed: Record<string, unknown>;
       try {
         parsed = parseArguments(call.arguments);
@@ -3951,6 +3962,7 @@ export class MeriV3AssistantService {
     usage: ProviderUsage,
     usedTenantKey: boolean,
   ): Promise<void> {
+    if (currentServerReadonlyCapturePolicy()) return;
     try {
       await recordAiUsageEvent(
         { prisma: this.prisma, logger: this.logger },
@@ -3971,6 +3983,7 @@ export class MeriV3AssistantService {
     verdict: ReturnType<typeof runAuditor>,
     reply: string,
   ): Promise<void> {
+    if (currentServerReadonlyCapturePolicy()) return;
     try {
       await this.prisma.withTenant(tenantId, (tx) =>
         tx.meriAuditLedger.create({

@@ -2,6 +2,7 @@ import type { ZodType, ZodIssue } from 'zod';
 import type { MeriCitation, TenantRole } from '@capiro/shared';
 import type { MemoryAuthority } from '../memory/governance';
 import type { ToolExecutionMetadata } from './tool-execution-metadata';
+import type { MeriServerReadonlyCapturePolicy } from '../context/server-readonly-capture';
 
 export type MeriContextScope = 'personal' | 'client' | 'firm';
 
@@ -78,6 +79,8 @@ export interface MeriGovernedTurnContext {
   inheritedDocumentEvidence?: MeriCitation[];
   /** API-resolved procedure authority. This entire projection is covered by the context attestation. */
   procedure?: MeriGovernedProcedureBinding;
+  /** API-issued, actor/conversation-bound capture authority. Never accepted from a client. */
+  serverReadonlyCapturePolicy?: MeriServerReadonlyCapturePolicy;
   attestation?: { version: 1; issuedAt: number; signature: string };
   contextPacket: MeriContextPacketSummary;
   retrieval: {

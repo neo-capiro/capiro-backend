@@ -200,6 +200,10 @@ import {
 } from './meri-compaction.helpers.js';
 import { scheduleMeriTurnMaintenance, type MeriTurnMaintenance } from './meri-turn-maintenance.js';
 import {
+  currentMeriServerReadonlyCapturePolicy,
+  currentMeriServerReadonlyCaptureReceipt,
+} from './meri-context-plane-runtime.js';
+import {
   buildMessageEmbeddingText,
   groupHitsByConversation,
   type HistorySearchHit,
@@ -2200,23 +2204,25 @@ export class MeriService implements MeriTurnMaintenance {
     // alongside outreach. Best-effort — recordAiUsageEvent swallows + logs any
     // failure so metering can never break a turn. cache tokens are billed at
     // the input rate by the pricing model, so fold them into inputTokens.
-    await recordAiUsageEvent(
-      { prisma: this.prisma, logger: this.logger },
-      { tenantId: ctx.tenantId, userId: ctx.userId },
-      'clio_chat',
-      {
-        provider: 'anthropic',
-        model,
-        usage: {
-          inputTokens:
-            usageTotals.inputTokens +
-            usageTotals.cacheReadInputTokens +
-            usageTotals.cacheCreationInputTokens,
-          outputTokens: usageTotals.outputTokens,
+    if (!currentMeriServerReadonlyCapturePolicy()) {
+      await recordAiUsageEvent(
+        { prisma: this.prisma, logger: this.logger },
+        { tenantId: ctx.tenantId, userId: ctx.userId },
+        'clio_chat',
+        {
+          provider: 'anthropic',
+          model,
+          usage: {
+            inputTokens:
+              usageTotals.inputTokens +
+              usageTotals.cacheReadInputTokens +
+              usageTotals.cacheCreationInputTokens,
+            outputTokens: usageTotals.outputTokens,
+          },
+          usedTenantKey,
         },
-        usedTenantKey,
-      },
-    );
+      );
+    }
 
     // Validate citation markers against the numbered sources collected this turn:
     // keep real [N], strip hallucinated ones, surface the used citations (P0-3).
@@ -2476,6 +2482,12 @@ export class MeriService implements MeriTurnMaintenance {
             trace: turnTrace as unknown as Prisma.InputJsonValue,
             suggestions,
             actions: actionsTaken,
+            ...(currentMeriServerReadonlyCaptureReceipt()
+              ? {
+                  serverReadonlyCaptureReceipt:
+                    currentMeriServerReadonlyCaptureReceipt() as unknown as Prisma.InputJsonValue,
+                }
+              : {}),
             // Meri v6 thinking-persistence piece 1: the same plan/trust-step data
             // already streamed live this turn, additionally persisted so history
             // replay (SessionRail) can populate ChatMessage.planSteps/trustSteps
@@ -2533,7 +2545,7 @@ export class MeriService implements MeriTurnMaintenance {
     // Claim/Evidence store (Phase-0 tables, first writer): materialize the
     // verifier pass's claims against their numbered citations. Fire-and-forget +
     // fail-open — grounding audit must never block the stream.
-    if (verification?.claims?.length) {
+    if (!currentMeriServerReadonlyCapturePolicy() && verification?.claims?.length) {
       void this.claimWriter
         .persistClaimsSafe(
           ctx.tenantId,
@@ -2561,7 +2573,7 @@ export class MeriService implements MeriTurnMaintenance {
     // this turn — never learn a fact from a reply we already suspect is ungrounded
     // (closes the memory-laundering path where a fabricated claim is persisted and
     // later recalled as uncited firm knowledge).
-    if (assistantContent.length > 200) {
+    if (!currentMeriServerReadonlyCapturePolicy() && assistantContent.length > 200) {
       void this.maybeLearnFromConversation({
         ctx,
         conversationId,
@@ -2581,13 +2593,18 @@ export class MeriService implements MeriTurnMaintenance {
     // search and run compaction when the conversation outgrows its budget.
     // Scheduled off the response cycle and fail-open — it never blocks or
     // breaks the streaming reply.
-    if (assistantMessageId) this.scheduleAfterTurnMaintenance(ctx, conversationId);
+    if (assistantMessageId && !currentMeriServerReadonlyCapturePolicy()) {
+      this.scheduleAfterTurnMaintenance(ctx, conversationId);
+    }
 
     sse.write(
       `data: ${JSON.stringify({
         type: 'done',
         finishReason,
         partial,
+        ...(currentMeriServerReadonlyCaptureReceipt()
+          ? { serverReadonlyCaptureReceipt: currentMeriServerReadonlyCaptureReceipt() }
+          : {}),
         ...(assistantMessageId ? { messageId: assistantMessageId } : {}),
         ...(prospectScope ? { turnScope: prospectTurnScopeReceipt(prospectScope) } : {}),
         ...(!prospectScope && researchScope
@@ -3036,6 +3053,12 @@ export class MeriService implements MeriTurnMaintenance {
               // on this path — there's no plan concept in the MeriV2 orchestrator
               // loop, a pre-existing product gap, not something to invent here.
               trustSteps: steps as unknown as Prisma.InputJsonValue,
+              ...(currentMeriServerReadonlyCaptureReceipt()
+                ? {
+                    serverReadonlyCaptureReceipt:
+                      currentMeriServerReadonlyCaptureReceipt() as unknown as Prisma.InputJsonValue,
+                  }
+                : {}),
               // Phase 4: prospect-scoped turn receipt, captured from the
               // re-asserted server scope — never retrieval plans/model output.
               ...(args.prospectScope
@@ -3078,7 +3101,7 @@ export class MeriService implements MeriTurnMaintenance {
       });
     }
 
-    if (assistantContent.length > 200) {
+    if (!currentMeriServerReadonlyCapturePolicy() && assistantContent.length > 200) {
       void this.maybeLearnFromConversation({
         ctx,
         conversationId: args.conversationId,
@@ -3091,7 +3114,9 @@ export class MeriService implements MeriTurnMaintenance {
         groundingSeverity,
       }).catch(() => {});
     }
-    if (assistantMessageId) this.scheduleAfterTurnMaintenance(ctx, args.conversationId);
+    if (assistantMessageId && !currentMeriServerReadonlyCapturePolicy()) {
+      this.scheduleAfterTurnMaintenance(ctx, args.conversationId);
+    }
 
     if (errorMessage && !aborted) {
       emit({ type: 'error', message: errorMessage });
@@ -3099,6 +3124,9 @@ export class MeriService implements MeriTurnMaintenance {
     }
     emit({
       type: 'done',
+      ...(currentMeriServerReadonlyCaptureReceipt()
+        ? { serverReadonlyCaptureReceipt: currentMeriServerReadonlyCaptureReceipt() }
+        : {}),
       ...(assistantMessageId ? { messageId: assistantMessageId } : {}),
       ...(args.prospectScope ? { turnScope: prospectTurnScopeReceipt(args.prospectScope) } : {}),
       ...(!args.prospectScope && args.researchScope

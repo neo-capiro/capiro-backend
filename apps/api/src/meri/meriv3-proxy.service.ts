@@ -72,6 +72,10 @@ import {
 import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
 import { MeriResearchService } from './meri-research.service.js';
 import {
+  currentMeriServerReadonlyCapturePolicy,
+  currentMeriServerReadonlyCaptureReceipt,
+} from './meri-context-plane-runtime.js';
+import {
   allocateBoundedReplayHistory,
   boundReplayMessageBody,
   MAX_REPLAY_MESSAGES,
@@ -150,8 +154,16 @@ export class MeriV3ProxyService {
     bearerToken?: string,
     impersonateTenantId?: string,
   ): Promise<void> {
-    const emit = (event: Record<string, unknown>) =>
-      sse.write(`data: ${JSON.stringify(event)}\n\n`);
+    const emit = (event: Record<string, unknown>) => {
+      const captureReceipt =
+        event.type === 'done' ? currentMeriServerReadonlyCaptureReceipt() : null;
+      sse.write(
+        `data: ${JSON.stringify({
+          ...event,
+          ...(captureReceipt ? { serverReadonlyCaptureReceipt: captureReceipt } : {}),
+        })}\n\n`,
+      );
+    };
     if (!this.client.configured) {
       emit({
         type: 'error',
@@ -1029,6 +1041,7 @@ export class MeriV3ProxyService {
     body: string,
     metadata: Record<string, unknown>,
   ): Promise<{ id: string }> {
+    const captureReceipt = currentMeriServerReadonlyCaptureReceipt();
     const message = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioMessage.create({
         data: {
@@ -1038,12 +1051,17 @@ export class MeriV3ProxyService {
           conversationId,
           role: 'assistant',
           body,
-          metadata: metadata as Prisma.InputJsonValue,
+          metadata: {
+            ...metadata,
+            ...(captureReceipt ? { serverReadonlyCaptureReceipt: captureReceipt } : {}),
+          } as Prisma.InputJsonValue,
         },
         select: { id: true },
       }),
     );
-    this.maintenance.scheduleAfterTurnMaintenance(ctx, conversationId);
+    if (!currentMeriServerReadonlyCapturePolicy()) {
+      this.maintenance.scheduleAfterTurnMaintenance(ctx, conversationId);
+    }
     return message;
   }
 }

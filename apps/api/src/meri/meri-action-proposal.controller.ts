@@ -27,6 +27,7 @@ import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { MeriActionProposalService } from './meri-action-proposal.service.js';
 import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
 import { admitMeriActionProposalTransport } from './meri-rp-action-proposal-transport.js';
+import { admitMeriServerReadonlyCaptureTransport } from './meri-server-readonly-capture.js';
 
 export class CreateMeriActionProposalDto {
   @ValidateIf((body: CreateMeriActionProposalDto) => body.version === undefined)
@@ -91,6 +92,12 @@ export class MeriActionProposalController {
     @Body() body: CreateMeriActionProposalDto,
     @Req() req: Request,
   ) {
+    admitMeriServerReadonlyCaptureTransport({
+      ctx,
+      req,
+      purpose: 'action_proposal',
+      toolName: null,
+    });
     const admitted = admitMeriActionProposalTransport(body, ctx, req);
     return withMeriToolRequestControl(req, () =>
       admitted.trustedTurn

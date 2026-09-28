@@ -17,7 +17,10 @@ import { CurrentTenant } from '../../auth/current-tenant.decorator.js';
 import { TenantGuard } from '../../auth/tenant.guard.js';
 import type { OrchestratorTenantContext } from '../../auth/tenant-context.js';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
-import { withTrustedCurrentTurnScope } from '../../request/trusted-current-turn-scope.js';
+import {
+  validateServerReadonlyCapturePolicy,
+  withTrustedCurrentTurnScope,
+} from '../../request/trusted-current-turn-scope.js';
 import { parseAiProviderHeader } from '../meri.controller.js';
 import { MeriContextResolver } from '../meri-context.resolver.js';
 import {
@@ -78,17 +81,25 @@ export class MeriV3Controller {
       const governed = requireGovernedContext(dto);
       const meriContext = await this.resolver.resolveIdentity(tenant);
       authenticateGovernedContext(governed, dto, meriContext);
+      validateCapturePolicy(governed, dto, meriContext);
       authenticateResearchPlanExecution(dto, meriContext);
       const procedure = authenticateProcedureBinding(governed, dto, meriContext);
       meriContext.contextPacket = governed.contextPacket;
       const effectiveDto = {
         ...dto,
+        ...(governed.serverReadonlyCapturePolicy
+          ? {
+              toolPolicy: dto.toolPolicy === 'none' ? ('none' as const) : ('read-only' as const),
+              pageWrite: false,
+            }
+          : {}),
+
         // Bound turns consume only the server-resolved signed instruction.
         skillAddendum: withGovernedPrompt(procedure?.instruction ?? dto.skillAddendum, governed),
       };
       const run = async () => this.assistant.run(meriContext, effectiveDto);
       const result = await withTrustedCurrentTurnScope(
-        trustedCurrentTurnScope(meriContext, dto),
+        trustedCurrentTurnScope(meriContext, dto, governed),
         () => runWithGovernedMeriContext(governed, run),
       );
       return {
@@ -116,6 +127,7 @@ export class MeriV3Controller {
     authenticateGovernedContext(governed, dto, meriContext);
     authenticateResearchPlanExecution(dto, meriContext);
     const procedure = authenticateProcedureBinding(governed, dto, meriContext);
+    validateCapturePolicy(governed, dto, meriContext);
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
@@ -148,6 +160,12 @@ export class MeriV3Controller {
       meriContext.contextPacket = governed.contextPacket;
       const effectiveDto = {
         ...dto,
+        ...(governed.serverReadonlyCapturePolicy
+          ? {
+              toolPolicy: dto.toolPolicy === 'none' ? ('none' as const) : ('read-only' as const),
+              pageWrite: false,
+            }
+          : {}),
         skillAddendum: withGovernedPrompt(procedure?.instruction ?? dto.skillAddendum, governed),
       };
       frame({
@@ -162,7 +180,7 @@ export class MeriV3Controller {
             signal: abort.signal,
           });
         const result = await withTrustedCurrentTurnScope(
-          trustedCurrentTurnScope(meriContext, dto),
+          trustedCurrentTurnScope(meriContext, dto, governed),
           () => runWithGovernedMeriContext(governed, run),
         );
         frame({
@@ -186,6 +204,9 @@ export class MeriV3Controller {
           evidenceManifest:
             result.evidenceManifest ?? meriEvidenceManifest(governed, result.citations ?? []),
           aborted: abort.signal.aborted,
+          ...(governed.serverReadonlyCapturePolicy
+            ? { serverReadonlyCaptureReceipt: captureReceipt(governed.serverReadonlyCapturePolicy) }
+            : {}),
         });
       } catch (error) {
         frame({
@@ -295,12 +316,59 @@ function authenticateResearchPlanExecution(
 function trustedCurrentTurnScope(
   identity: { tenantId: string; userId: string },
   dto: MeriV3ChatInput,
+  governed: MeriGovernedTurnContext,
 ) {
   return {
     tenantId: identity.tenantId,
     userId: identity.userId,
     conversationId: dto.conversationId ?? null,
     selectedClientId: dto.clientId ?? null,
+    ...(governed.serverReadonlyCapturePolicy
+      ? { capturePolicy: governed.serverReadonlyCapturePolicy }
+      : {}),
+  };
+}
+
+function validateCapturePolicy(
+  governed: MeriGovernedTurnContext,
+  dto: MeriV3ChatInput,
+  identity: { tenantId: string; userId: string },
+): void {
+  const policy = governed.serverReadonlyCapturePolicy;
+  if (!policy) return;
+  try {
+    validateServerReadonlyCapturePolicy(policy, {
+      tenantId: identity.tenantId,
+      actorUserId: identity.userId,
+      conversationId: dto.conversationId ?? null,
+      clientId: dto.clientId ?? null,
+    });
+  } catch {
+    throw new ForbiddenException({
+      statusCode: 403,
+      error: 'Current server read-only capture authority required',
+      code: 'meri_server_readonly_capture_authentication_failed',
+    });
+  }
+}
+
+function captureReceipt(policy: NonNullable<MeriGovernedTurnContext['serverReadonlyCapturePolicy']>) {
+  return {
+    version: 1 as const,
+    policyId: policy.policyId,
+    fixtureNamespace: policy.fixtureNamespace,
+    authority: 'server_current' as const,
+    tenantId: policy.tenantId,
+    actorUserId: policy.actorUserId,
+    conversationId: policy.conversationId,
+    clientId: policy.clientId,
+    issuedAt: policy.issuedAt,
+    expiresAt: policy.expiresAt,
+    toolCatalogSha256: policy.toolCatalogSha256,
+    dispatchBoundary: 'read_only_enforced' as const,
+    dynamicMcpAllowed: false as const,
+    incidentalWriters: 'suppressed' as const,
+    expectedCaptureWrites: policy.expectedCaptureWrites,
   };
 }
 
