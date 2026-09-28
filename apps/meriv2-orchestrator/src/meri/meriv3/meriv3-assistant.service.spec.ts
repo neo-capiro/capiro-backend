@@ -320,6 +320,125 @@ describe('MeriV3AssistantService', () => {
     expect(result.reply).not.toContain('Partial answer');
   });
 
+  test('bounds alternating unchanged read failures across real provider rounds and synthesizes retained partial evidence', async () => {
+    const calls = Array.from({ length: 6 }, (_, index) => ({
+      type: 'function_call' as const,
+      call_id: `cycle-${index}`,
+      name: index % 2 === 0 ? 'search_memory' : 'get_bill_status',
+      arguments: JSON.stringify({ query: 'unchanged', sourceRevision: 'rev-1' }),
+      status: 'completed',
+    }));
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(
+        response({ output: [calls[0]], outputText: '', functionCalls: [calls[0]] }),
+      )
+      .mockResolvedValueOnce(
+        response({ output: [calls[1]], outputText: '', functionCalls: [calls[1]] }),
+      )
+      .mockResolvedValueOnce(
+        response({ output: [calls[2]], outputText: '', functionCalls: [calls[2]] }),
+      )
+      .mockResolvedValueOnce(
+        response({ output: [calls[3]], outputText: '', functionCalls: [calls[3]] }),
+      )
+      .mockResolvedValueOnce(
+        response({ output: [calls[4]], outputText: '', functionCalls: [calls[4]] }),
+      )
+      .mockResolvedValueOnce(
+        response({ output: [calls[5]], outputText: '', functionCalls: [calls[5]] }),
+      )
+      .mockResolvedValueOnce(
+        response({ outputText: 'Supported partial finding. Remaining comparison is incomplete.' }),
+      );
+    const invoke = jest.fn(async (name: string) => ({ error: `${name}-unchanged-failure` }));
+    const assistant = build(
+      registry(
+        [
+          { name: 'search_memory', readOnly: true },
+          { name: 'get_bill_status', readOnly: true },
+        ],
+        invoke,
+      ),
+      complete,
+    );
+    global.fetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            schemas: ['search_memory', 'get_bill_status'].map((name) => ({
+              name,
+              description: name,
+              input_schema: { type: 'object', properties: { query: {}, sourceRevision: {} } },
+            })),
+          }),
+          { status: 200 },
+        ),
+    ) as typeof fetch;
+
+    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      assistant.run(context, {
+        conversationId: 'cycle-thread',
+        reasoningMode: 'fast',
+        messages: [{ role: 'user', text: 'Compare the two sources.' }],
+      }),
+    );
+
+    expect(invoke).toHaveBeenCalledTimes(6);
+    expect(complete).toHaveBeenCalledTimes(7);
+    expect(complete.mock.calls[6]?.[0]).toMatchObject({ tools: [], toolChoice: 'none' });
+    expect(complete.mock.calls[6]?.[0].instructions).toContain('bounded no progress limit');
+    expect(result.reply).toBe('Supported partial finding. Remaining comparison is incomplete.');
+    expect(result.telemetry).toMatchObject({ partial: true, finishReason: 'runtime_no_progress' });
+  });
+
+  test('rejects an oversized parallel tool batch before dispatch and performs only terminal synthesis', async () => {
+    const calls = Array.from({ length: 60 }, (_, index) => ({
+      type: 'function_call' as const,
+      call_id: `parallel-${index}`,
+      name: 'search_memory',
+      arguments: JSON.stringify({ query: `q-${index}` }),
+      status: 'completed',
+    }));
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(response({ output: calls, outputText: '', functionCalls: calls }))
+      .mockResolvedValueOnce(response({ outputText: 'No oversized batch member was executed.' }));
+    const invoke = jest.fn();
+    const assistant = build(
+      registry([{ name: 'search_memory', readOnly: true }], invoke),
+      complete,
+    );
+    global.fetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            schemas: [
+              {
+                name: 'search_memory',
+                description: 'Search memory',
+                input_schema: { type: 'object', properties: { query: {} } },
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+    ) as typeof fetch;
+
+    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      assistant.run(context, {
+        conversationId: 'parallel-thread',
+        reasoningMode: 'fast',
+        messages: [{ role: 'user', text: 'Check one item.' }],
+      }),
+    );
+
+    expect(invoke).not.toHaveBeenCalled();
+    expect(complete).toHaveBeenCalledTimes(2);
+    expect(result.reply).toBe('No oversized batch member was executed.');
+    expect(result.telemetry).toMatchObject({ partial: true, finishReason: 'runtime_tool_calls' });
+  });
+
   test.each([
     [
       'an incomplete envelope with malformed arguments',

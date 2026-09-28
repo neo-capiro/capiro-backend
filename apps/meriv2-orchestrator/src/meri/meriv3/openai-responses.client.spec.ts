@@ -8,6 +8,7 @@ import {
   readOpenAiResponsesErrorTelemetry,
 } from './openai-responses.client.js';
 import { resolveMeriV3ReasoningProfile } from './meriv3-reasoning.js';
+import { MeriRunBudget } from './meriv3-run-budget.js';
 
 const responseBody = {
   id: 'resp_1',
@@ -170,6 +171,43 @@ describe('OpenAiResponsesClient', () => {
     ).rejects.toThrow(/reasoning\.effort/i);
     // Exactly one retry for the reasoning-param correction, regardless of MAX_RETRIES.
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  test('shares the turn retry ceiling with provider compatibility retries', async () => {
+    process.env.OPENAI_API_KEY = 'global-openai-key';
+    const rejection = JSON.stringify({
+      error: {
+        message: "Unsupported parameter: 'reasoning.effort' is not supported with this model.",
+      },
+    });
+    const fetchMock = jest.fn(async () => new Response(rejection, { status: 400 }));
+    global.fetch = fetchMock as typeof fetch;
+    const budget = new MeriRunBudget({
+      maxModelCalls: 4,
+      maxToolCalls: 4,
+      maxRetryCalls: 0,
+      synthesisModelCallReserve: 1,
+      noProgressLaps: 3,
+      maxCyclePeriod: 4,
+    });
+
+    await expect(
+      new OpenAiResponsesClient().complete({
+        profile: resolveMeriV3ReasoningProfile('standard', {}),
+        instructions: 'Meri instructions',
+        input: [{ role: 'user', content: 'Help' }],
+        tools: [],
+        budget,
+        budgetPhase: 'acquisition',
+      }),
+    ).rejects.toThrow('retry_calls');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(budget.snapshot()).toMatchObject({
+      modelCalls: 1,
+      retryCalls: 0,
+      acquisitionStopped: true,
+      stopReason: 'retry_calls',
+    });
   });
 
   test('omits every tool field for the final tool-free synthesis request', async () => {
