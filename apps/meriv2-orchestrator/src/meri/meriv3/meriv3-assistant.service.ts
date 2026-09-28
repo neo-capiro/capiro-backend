@@ -3508,6 +3508,7 @@ export class MeriV3AssistantService {
       }
     }
 
+    let dispatchedReservationId: string | undefined;
     try {
       let result: unknown;
       let durableSafeRead: DurableSafeReadOutcome | undefined;
@@ -3551,12 +3552,23 @@ export class MeriV3AssistantService {
             reservation.toolVersion !== toolVersion
           )
             throw new Error('Research tool attempt was not admitted for dispatch.');
+          dispatchedReservationId = reservation.reservationId;
           result = await this.registry.invoke(args.name, args.input, args.ctx, args.control);
           const classification = classifyApiToolReadOutcome(args.name, result);
           if (
             !classification ||
             (classification.kind !== 'complete' && classification.kind !== 'empty')
           ) {
+            dispatchedReservationId = undefined;
+            await this.researchSafeReadRequest(
+              args.researchRun,
+              'failures',
+              {
+                reservationId: reservation.reservationId,
+                code: classification?.kind ?? 'unknown_owner_result',
+              },
+              args.control,
+            );
             const detail = `Read result was not durably qualified (${classification?.kind ?? 'unknown'}).`;
             args.steps.push({ tool: args.name, label, status: 'error', detail });
             args.emit({ type: 'tool_done', tool: args.name, label, status: 'error', detail });
@@ -3595,6 +3607,19 @@ export class MeriV3AssistantService {
       });
       return result;
     } catch (error) {
+      if (args.researchRun && dispatchedReservationId) {
+        try {
+          await this.researchSafeReadRequest(
+            args.researchRun,
+            'failures',
+            { reservationId: dispatchedReservationId, code: 'owner_dispatch_failed' },
+            args.control,
+          );
+        } catch {
+          // Keep the reservation uncertain when the lifecycle owner cannot
+          // durably classify the failed dispatch.
+        }
+      }
       assertToolExecutionActive(args.control);
       const detail = error instanceof Error ? error.message.slice(0, 180) : 'Tool failed';
       args.steps.push({ tool: args.name, label, status: 'error', detail });
@@ -3880,7 +3905,7 @@ export class MeriV3AssistantService {
 
   private async researchSafeReadRequest(
     researchRun: { sessionId: string; runId: string; leaseEpoch: number },
-    operation: 'reservations' | 'replay' | 'outcomes',
+    operation: 'reservations' | 'replay' | 'outcomes' | 'failures',
     body: Record<string, unknown>,
     control?: ToolExecutionControl,
   ): Promise<Record<string, unknown>> {

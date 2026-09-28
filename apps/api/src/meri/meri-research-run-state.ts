@@ -45,6 +45,7 @@ export function researchLeaseCutoff(now = new Date()): Date {
 export type ResearchRunPhase = 'plan' | 'research';
 export type ResearchRunStatus =
   | 'running'
+  | 'cancel_requested'
   | 'awaiting_clarification'
   | 'complete'
   | 'failed'
@@ -79,6 +80,7 @@ export function readResearchRun(value: unknown, now = Date.now()): ResearchRunSt
     !['plan', 'research'].includes(String(run.phase)) ||
     ![
       'running',
+      'cancel_requested',
       'awaiting_clarification',
       'complete',
       'failed',

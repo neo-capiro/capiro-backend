@@ -6,6 +6,10 @@ import { readDurableResearchStepReceipts } from './meri-research-durable-step';
 import { MeriToolsService } from './meri-tools.service';
 import { readResearchToolBudget, reserveResearchToolAttempt } from './meri-research-tool-budget';
 import {
+  readDurableResearchCoordinator,
+  reserveDurableResearchStep,
+} from './meri-research-coordinator';
+import {
   buildResearchReportProvenance,
   certifyResearchProducerInputs,
 } from './meri-report-provenance';
@@ -556,7 +560,19 @@ function harness(
         },
         reservationId: input.executionId,
       });
-      session.metadata = reserved.metadata;
+      const coordinator = readDurableResearchCoordinator(reserved.metadata);
+      session.metadata = coordinator
+        ? reserveDurableResearchStep({
+            metadata: reserved.metadata,
+            run: currentRun,
+            reservationId: input.executionId,
+            providerCallId: input.providerCallId,
+            kind: 'dispatch',
+            tool: input.tool,
+            toolVersion: input.toolVersion,
+            toolInput: input.input,
+          }).metadata
+        : reserved.metadata;
     }
     return commit(actor, sessionId, runId, { ...input, reservationId: input.executionId });
   }) as typeof service.commitSafeReadOutcome;

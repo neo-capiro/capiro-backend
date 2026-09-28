@@ -157,6 +157,39 @@ class AnswerClarificationsDto {
   answers!: Record<string, string>;
 }
 
+class SteerResearchDto {
+  @IsIn([1])
+  version!: 1;
+
+  @IsString()
+  @Length(1, 256)
+  requestId!: string;
+
+  @IsInt()
+  @Min(0)
+  expectedGoalRevision!: number;
+
+  @IsString()
+  @Length(1, 4_000)
+  message!: string;
+}
+
+class CancelResearchDto {
+  @IsOptional()
+  @IsIn([1])
+  version?: 1;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 256)
+  requestId?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 500)
+  reason?: string;
+}
+
 class RecordComplianceCheckDto {
   @IsString()
   @Length(1, 120)
@@ -944,9 +977,42 @@ export class MeriController {
     return this.research.commitSafeReadOutcome(ctx, id, runId, body);
   }
 
+  @Post('research/:id/runs/:runId/safe-read/failures')
+  @UseGuards(ToolServiceSecretGuard)
+  failResearchSafeRead(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('runId') runId: string,
+    @Body() body: { leaseEpoch: number; reservationId: string; code?: string },
+  ) {
+    return this.research.failSafeReadAttempt(ctx, id, runId, body);
+  }
+
+  @Get('research/:id/coordinator')
+  researchCoordinator(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Query('afterSequence') afterSequence?: string,
+  ) {
+    return this.research.getCoordinatorSnapshot(ctx, id, afterSequence);
+  }
+
+  @Post('research/:id/steer')
+  steerResearch(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body: SteerResearchDto,
+  ) {
+    return this.research.steerRun(ctx, id, body);
+  }
+
   @Post('research/:id/cancel')
-  cancelResearch(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    return this.research.cancelRun(ctx, id);
+  cancelResearch(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body?: CancelResearchDto,
+  ) {
+    return this.research.cancelRun(ctx, id, body);
   }
 
   @Delete('research/:id')

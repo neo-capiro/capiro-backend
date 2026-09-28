@@ -11,6 +11,16 @@ import {
   RESEARCH_RUN_FAILURE,
   ResearchTerminalError,
 } from './research-observer-projection.js';
+import {
+  completeResearchToolAttempt,
+  reserveResearchToolAttempt,
+} from './meri-research-tool-budget.js';
+import {
+  completeDurableResearchStep,
+  readDurableResearchCoordinator,
+  reserveDurableResearchStep,
+} from './meri-research-coordinator.js';
+import type { ResearchPlanV1 } from './meri-research-plan.js';
 
 jest.mock('./meri-tools.service.js', () => ({ MeriToolsService: class {} }));
 jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class {} }));
@@ -273,10 +283,11 @@ function fixture(
       }),
     },
     clioArtifact: {
-      findFirst: jest.fn(async ({ where }: any) =>
-        (where?.id === safeResultArtifact?.id
-          ? safeResultArtifact
-          : artifacts.find((artifact) => !where?.id || artifact.id === where.id)) ?? null,
+      findFirst: jest.fn(
+        async ({ where }: any) =>
+          (where?.id === safeResultArtifact?.id
+            ? safeResultArtifact
+            : artifacts.find((artifact) => !where?.id || artifact.id === where.id)) ?? null,
       ),
       create: jest.fn(async ({ data }: any) => {
         const artifact = { ...data, id: data.id ?? `artifact-${artifacts.length + 1}` };
@@ -330,7 +341,8 @@ function fixture(
             requiredEvidenceDomains: ['client_context'],
             allowedCapabilities: ['search_memory'],
             effect: 'read',
-            completionCondition: 'Current client constraints are supported or reported unavailable.',
+            completionCondition:
+              'Current client constraints are supported or reported unavailable.',
             budget: { toolCalls: 1, tokens: 2_000 },
           },
           {
@@ -404,7 +416,8 @@ function fixture(
         handoffSummaryPresent: Boolean(input?.handoff?.summary),
         handoffAttachmentCount: input?.handoff?.attachments?.length ?? 0,
         assistantHandoffTurns:
-          input?.handoff?.messages?.filter((message: any) => message.role === 'assistant').length ?? 0,
+          input?.handoff?.messages?.filter((message: any) => message.role === 'assistant').length ??
+          0,
         inheritedCitationCount: 0,
         inheritedUnavailableCount: 0,
         inheritedOmittedCount: 0,
@@ -415,14 +428,18 @@ function fixture(
         reportBody:
           '# Client briefing\n\nUse the existing manufacturing footprint. [S:read_client_documents:prior-file]',
         model: 'same-chat-model',
-        sources: [{
-          tool: 'read_client_documents',
-          label: 'Read client document',
-          summary: 'Authorized read completed',
-          confidence: 'high',
-        }],
+        sources: [
+          {
+            tool: 'read_client_documents',
+            label: 'Read client document',
+            summary: 'Authorized read completed',
+            confidence: 'high',
+          },
+        ],
         toolsUsed: ['read_client_documents'],
-        ledgerEntries: [{ tool: 'read_client_documents', result, serialized: JSON.stringify(result) }],
+        ledgerEntries: [
+          { tool: 'read_client_documents', result, serialized: JSON.stringify(result) },
+        ],
         citations: [],
         producerInputEvaluated: true,
         ...producerInput,
@@ -435,7 +452,7 @@ function fixture(
     {
       get: (key: string) =>
         ({
-          CLIO_RESEARCH_MODEL: 'legacy-test-model',
+          CLIO_RESEARCH_MODEL: 'claude-sonnet-5',
           CLIO_RESEARCH_MAX_TOKENS: 2_000,
           CLIO_RESEARCH_TIMEOUT_MS: 30_000,
           CLIO_RESEARCH_MAX_TOOL_ROUNDS: 1,
@@ -552,16 +569,88 @@ function fixture(
     afterReceipt: (callback: () => void) => {
       afterReceiptCommit = callback;
     },
-    durableDocumentRead: (toolCallId: string) => ({
-      outcome: 'complete' as const,
-      executionId: `execution-${toolCallId}`,
-      toolCallId,
-      tool: 'read_client_documents',
-      toolVersion: researchToolVersion(DOCUMENT_TOOL_SCHEMA),
-      input: { documentId: 'prior-file' },
-      result: completeDocumentResult(),
-      recordsReturned: 1,
-    }),
+    durableDocumentRead: (toolCallId: string) => {
+      const run = session.metadata.run;
+      const toolVersion = researchToolVersion(DOCUMENT_TOOL_SCHEMA);
+      const coordinator = readDurableResearchCoordinator(session.metadata);
+      if (coordinator?.steps[0]?.outcome !== 'completed') {
+        const prerequisiteBinding = {
+          providerCallId: `prerequisite-${toolCallId}`,
+          kind: 'dispatch' as const,
+          tool: 'search_memory',
+          toolVersion: researchToolVersion({ type: 'object', properties: {} }),
+          input: {},
+        };
+        const prerequisiteBudget = reserveResearchToolAttempt({
+          metadata: session.metadata,
+          run,
+          plan: session.metadata.researchPlan as ResearchPlanV1,
+          binding: prerequisiteBinding,
+        });
+        if (!prerequisiteBudget.dispatchAllowed)
+          throw new Error('continuity prerequisite reservation was not admitted');
+        const prerequisiteStep = reserveDurableResearchStep({
+          metadata: prerequisiteBudget.metadata,
+          run,
+          reservationId: prerequisiteBudget.reservation.reservationId,
+          providerCallId: prerequisiteBinding.providerCallId,
+          kind: 'dispatch',
+          tool: prerequisiteBinding.tool,
+          toolVersion: prerequisiteBinding.toolVersion,
+          toolInput: prerequisiteBinding.input,
+        });
+        const prerequisiteSpent = completeResearchToolAttempt({
+          metadata: prerequisiteStep.metadata,
+          run,
+          reservationId: prerequisiteBudget.reservation.reservationId,
+          binding: prerequisiteBinding,
+          outcome: 'result_committed',
+        });
+        session.metadata = completeDurableResearchStep({
+          metadata: prerequisiteSpent.metadata,
+          run,
+          reservationId: prerequisiteBudget.reservation.reservationId,
+          receiptId: `fixture-prerequisite-${toolCallId}`,
+          resultRef: `fixture-prerequisite-${toolCallId}`,
+        }).metadata;
+      }
+      const binding = {
+        providerCallId: toolCallId,
+        kind: 'dispatch' as const,
+        tool: 'read_client_documents',
+        toolVersion,
+        input: { documentId: 'prior-file' },
+      };
+      const reserved = reserveResearchToolAttempt({
+        metadata: session.metadata,
+        run,
+        plan: session.metadata.researchPlan as ResearchPlanV1,
+        binding,
+      });
+      if (!reserved.dispatchAllowed)
+        throw new Error('continuity fixture reservation was not admitted');
+      const coordinated = reserveDurableResearchStep({
+        metadata: reserved.metadata,
+        run,
+        reservationId: reserved.reservation.reservationId,
+        providerCallId: toolCallId,
+        kind: 'dispatch',
+        tool: binding.tool,
+        toolVersion,
+        toolInput: binding.input,
+      });
+      session.metadata = coordinated.metadata;
+      return {
+        outcome: 'complete' as const,
+        executionId: reserved.reservation.reservationId,
+        toolCallId,
+        tool: binding.tool,
+        toolVersion,
+        input: binding.input,
+        result: completeDocumentResult(),
+        recordsReturned: 1,
+      };
+    },
   };
 }
 
@@ -915,11 +1004,13 @@ describe('Durable research lease and recovery', () => {
     );
 
     expect(persistedBeforeWrite).toBe(true);
-    expect(observed.find((event) => event.type === 'source')?.sequence).toBe(1);
+    const sourceSequence = observed.find((event) => event.type === 'source')?.sequence;
+    expect(sourceSequence).toEqual(expect.any(Number));
+    expect(sourceSequence).toBeGreaterThan(0);
     expect(f.getSession().metadata.durableStepReceipts).toEqual([
       expect.objectContaining({
         leaseEpoch: 1,
-        sequence: 1,
+        sequence: sourceSequence,
         effectClass: 'safe_read',
         toolCallId: 'call-client-context-1',
         tool: 'read_client_documents',
@@ -933,8 +1024,8 @@ describe('Durable research lease and recovery', () => {
     expect(f.getSession().metadata.run).toMatchObject({
       status: 'complete',
       leaseEpoch: 1,
-      eventSequence: 1,
     });
+    expect(f.getSession().metadata.run.eventSequence).toBeGreaterThanOrEqual(sourceSequence);
 
     await f.replica().streamResearch(ctx, 'research-a', f.sse, f.auth);
     expect(f.runner.run).toHaveBeenCalledTimes(1);
@@ -994,13 +1085,17 @@ describe('Durable research lease and recovery', () => {
     await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
     expect(f.getSession().metadata.durableStepReceipts).toBeUndefined();
     expect(f.getSession().metadata.run.status).toBe('interrupted');
-    expect(f.events).toContainEqual({ type: 'error', message: 'Research lease is no longer active.' });
+    expect(f.events).toContainEqual({
+      type: 'error',
+      message: 'Research lease is no longer active.',
+    });
     expect(f.events.at(-1)).toEqual({ type: 'done' });
   });
 
   it('orders direct outer-catch terminal frames behind an outstanding receipt', async () => {
     const f = fixture();
     await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+    await f.service.streamPlan(ctx, 'research-a', f.sse, f.auth);
     const barrier = f.holdReceipts();
     const observed: Array<Record<string, unknown>> = [];
     const output = {
@@ -1012,9 +1107,7 @@ describe('Durable research lease and recovery', () => {
       'research',
       output,
       f.auth,
-      async (sink: {
-        writeReceiptCandidate: (event: Record<string, unknown>) => void;
-      }) => {
+      async (sink: { writeReceiptCandidate: (event: Record<string, unknown>) => void }) => {
         sink.writeReceiptCandidate({
           type: 'source',
           source: {
@@ -1050,7 +1143,7 @@ describe('Durable research lease and recovery', () => {
     f.credentials.resolveProvider.mockResolvedValue({
       provider: 'anthropic',
       apiKey: 'local-placeholder',
-      model: 'legacy-test-model',
+      model: 'claude-sonnet-5',
     });
     f.tools.execute.mockResolvedValue(completeDocumentResult());
     global.fetch = jest
@@ -1094,6 +1187,7 @@ describe('Durable research lease and recovery', () => {
     try {
       await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
       const admitted = JSON.parse(await f.runner.plan(ctx, {}));
+      admitted.steps = [{ ...admitted.steps[1], dependsOn: [], budget: { ...admitted.budget } }];
       f.getSession().metadata.researchPlan = admitted;
       f.getSession().plan = admitted.steps.map((step: any) => step.objective);
       await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
@@ -1215,7 +1309,7 @@ describe('Durable research lease and recovery', () => {
     f.credentials.resolveProvider.mockResolvedValue({
       provider: 'anthropic',
       apiKey: 'local-provider-key',
-      model: 'legacy-test-model',
+      model: 'claude-sonnet-5',
     });
     const providerError = new Error('PRIVATE_ABORT_NAMED_PROVIDER_FAILURE');
     providerError.name = 'AbortError';
@@ -1289,7 +1383,7 @@ describe('Durable research lease and recovery', () => {
     f.credentials.resolveProvider.mockResolvedValue({
       provider: 'anthropic',
       apiKey: 'local-provider-key',
-      model: 'legacy-test-model',
+      model: 'claude-sonnet-5',
     });
     global.fetch = jest.fn(async () => rawProviderResponse(chunks())) as unknown as typeof fetch;
 
@@ -1325,7 +1419,7 @@ describe('Durable research lease and recovery', () => {
     f.credentials.resolveProvider.mockResolvedValue({
       provider: 'anthropic',
       apiKey: 'local-provider-key',
-      model: 'legacy-test-model',
+      model: 'claude-sonnet-5',
     });
     const report = '# Report\n\nAuthorized synthesis after a real gather timeout.';
     global.fetch = jest
@@ -1376,7 +1470,7 @@ describe('Durable research lease and recovery', () => {
     f.credentials.resolveProvider.mockResolvedValue({
       provider: 'anthropic',
       apiKey: 'local-provider-key',
-      model: 'legacy-test-model',
+      model: 'claude-sonnet-5',
     });
     const report = '# Report\n\nCafé evidence.';
     const wire =
@@ -1455,7 +1549,9 @@ describe('Durable research lease and recovery', () => {
       });
       expect(f.artifacts).toHaveLength(0);
       expect(f.messages.some((message) => message.role === 'assistant')).toBe(false);
-      expect(f.events.some((event) => event.type === 'text' || event.type === 'report')).toBe(false);
+      expect(f.events.some((event) => event.type === 'text' || event.type === 'report')).toBe(
+        false,
+      );
       expect(f.events).toContainEqual({ type: 'error', message: RESEARCH_PROVIDER_FAILURE });
       expect(JSON.stringify(f.events)).not.toContain('PRIVATE_');
     } finally {
@@ -1470,7 +1566,7 @@ describe('Durable research lease and recovery', () => {
     f.credentials.resolveProvider.mockResolvedValue({
       provider: 'anthropic',
       apiKey: 'test-key',
-      model: 'legacy-test-model',
+      model: 'claude-sonnet-5',
     });
     f.tools.execute.mockResolvedValue({ error: 'Provide a search query.' });
     global.fetch = jest
@@ -1536,7 +1632,10 @@ describe('Durable research lease and recovery', () => {
     expect(f.getSession().status).toBe('researching');
     expect(f.getSession().metadata.run.status).toBe('running');
     expect((await f.service.getSession(ctx, 'research-a')).run?.status).toBe('interrupted');
-    expect(f.events).toContainEqual({ type: 'error', message: 'Research failed before report publication.' });
+    expect(f.events).toContainEqual({
+      type: 'error',
+      message: 'Research failed before report publication.',
+    });
     expect(f.events.at(-1)).toEqual({ type: 'done' });
   });
 

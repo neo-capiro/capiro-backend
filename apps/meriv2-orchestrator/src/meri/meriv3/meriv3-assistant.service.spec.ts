@@ -2458,6 +2458,7 @@ describe('Durable research cancellation across API replicas', () => {
       complete,
     );
     const checks: any[] = [];
+    let failureReceipts = 0;
     let replayToolVersion = '';
     global.fetch = jest.fn(async (url, init) => {
       if (String(url).includes('/safe-read/replay')) {
@@ -2474,6 +2475,10 @@ describe('Durable research cancellation across API replicas', () => {
           }),
           { status: 200 },
         );
+      if (String(url).includes('/safe-read/failures')) {
+        failureReceipts += 1;
+        return new Response(JSON.stringify({ outcome: 'retryable_failure' }), { status: 200 });
+      }
       if (String(url).includes('/runs/')) {
         checks.push({ url, headers: init?.headers });
         return new Response(JSON.stringify({ active }), { status: active ? 200 : 409 });
@@ -2501,6 +2506,7 @@ describe('Durable research cancellation across API replicas', () => {
     );
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(complete).toHaveBeenCalledTimes(1);
+    expect(failureReceipts).toBe(1);
     expect(checks).toHaveLength(3); // provider round + first and second dispatch
     expect(checks[0]).toMatchObject({
       url: 'http://api.test/api/clio/research/session-a/runs/run-a/active',
@@ -2665,6 +2671,92 @@ describe('Durable research cancellation across API replicas', () => {
     expect(stepIdentity?.executionId).toEqual(expect.any(String));
     expect(ledgerIdentity).toEqual(stepIdentity);
     expect(result.ledgerEntries?.[0]?.result).toEqual(ownerResult);
+  });
+
+  test('records an HTTP-200 logical failure without committing coordinator step completion', async () => {
+    const call = {
+      type: 'function_call' as const,
+      call_id: 'provider-logical-failure',
+      name: 'search_memory',
+      arguments: JSON.stringify({ query: 'radar' }),
+    };
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(response({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(response({ outputText: 'The source failed; no result was claimed.' }));
+    const invoke = jest.fn(async () => ({
+      tool: 'search_memory',
+      error: 'owner returned a logical failure',
+      coverage: { complete: false, paginationComplete: false, sources: [] },
+    }));
+    const assistant = build(
+      registry([{ name: 'search_memory', readOnly: true }], invoke),
+      complete,
+    );
+    const failures: Array<Record<string, unknown>> = [];
+    let outcomes = 0;
+    let replayToolVersion = '';
+    global.fetch = jest.fn(async (url, init) => {
+      const href = String(url);
+      if (href.endsWith('/tool-schemas'))
+        return new Response(
+          JSON.stringify({
+            schemas: [
+              {
+                name: 'search_memory',
+                description: 'Memory',
+                input_schema: { type: 'object', properties: { query: { type: 'string' } } },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      if (href.endsWith('/active'))
+        return new Response(JSON.stringify({ active: true }), { status: 200 });
+      if (href.endsWith('/safe-read/replay')) {
+        replayToolVersion = String(JSON.parse(String(init?.body)).toolVersion ?? '');
+        return new Response(JSON.stringify({ replayed: false }), { status: 200 });
+      }
+      if (href.endsWith('/safe-read/reservations'))
+        return new Response(
+          JSON.stringify({
+            dispatchAllowed: true,
+            reservationId: 'reservation-logical-failure',
+            tool: 'search_memory',
+            toolVersion: replayToolVersion,
+          }),
+          { status: 200 },
+        );
+      if (href.endsWith('/safe-read/failures')) {
+        failures.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify({ outcome: 'retryable_failure' }), { status: 200 });
+      }
+      if (href.endsWith('/safe-read/outcomes')) outcomes += 1;
+      return new Response('{}', { status: 404 });
+    }) as typeof fetch;
+
+    const result = await RequestCredentialsStore.run({ bearerToken: 'user-token' }, () =>
+      assistant.run(context, {
+        messages: [{ role: 'user', text: 'Research radar.' }],
+        toolPolicy: 'read-only',
+        ...researchAuthority(['search_memory']),
+      }),
+    );
+
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(failures).toEqual([
+      {
+        leaseEpoch: 3,
+        reservationId: 'reservation-logical-failure',
+        code: 'failed',
+      },
+    ]);
+    expect(outcomes).toBe(0);
+    expect(result.steps).toEqual(
+      expect.arrayContaining([expect.objectContaining({ status: 'error' })]),
+    );
+    expect(result.ledgerEntries).toHaveLength(1);
+    expect(result.ledgerEntries?.[0]).not.toHaveProperty('durableSafeRead');
   });
 
   test('budget exhaustion prevents registry invocation and outcome side effects', async () => {

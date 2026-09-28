@@ -139,6 +139,21 @@ import {
   type ResearchToolAttemptBinding,
   type ResearchToolAttemptOutcome,
 } from './meri-research-tool-budget.js';
+import {
+  activateDurableResearchCoordinator,
+  admitDurableResearchCoordinator,
+  applyDurableResearchReplan,
+  completeDurableResearchStep,
+  failDurableResearchStep,
+  finishDurableResearchReauthorization,
+  observeDurableResearchCancellation,
+  publicDurableResearchCoordinator,
+  queueDurableResearchSteering,
+  readDurableResearchCoordinator,
+  requestDurableResearchCancellation,
+  reserveDurableResearchStep,
+  DurableResearchCoordinatorError,
+} from './meri-research-coordinator.js';
 
 const PRODUCT_NAME = 'Meri';
 
@@ -897,6 +912,73 @@ export class MeriResearchService {
     return committed.receipt;
   }
 
+  /** A logical/unavailable owner response is durable attempt evidence, never step completion. */
+  async failSafeReadAttempt(
+    ctx: TenantContext,
+    id: string,
+    runId: string,
+    input: { leaseEpoch: number; reservationId: string; code?: string },
+  ) {
+    if (
+      !Number.isSafeInteger(input.leaseEpoch) ||
+      input.leaseEpoch < 0 ||
+      typeof input.reservationId !== 'string' ||
+      !input.reservationId.trim()
+    )
+      throw new BadRequestException('Invalid research step failure identity.');
+    for (let retry = 0; retry < 4; retry += 1) {
+      const outcome = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        const current = await tx.clioResearchSession.findFirst({
+          where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
+        });
+        const run = readResearchRun(current?.metadata);
+        if (
+          !current ||
+          !run ||
+          run.id !== runId ||
+          run.leaseEpoch !== input.leaseEpoch ||
+          run.status !== 'running'
+        )
+          throw new ConflictException('Research lease is no longer active.');
+        await this.assertResearchPublicationAuthorized(tx, ctx, current);
+        let failed;
+        try {
+          failed = failDurableResearchStep({
+            metadata: current.metadata,
+            run,
+            reservationId: input.reservationId,
+            code: typeof input.code === 'string' ? input.code : 'owner_result_not_complete',
+          });
+        } catch (error) {
+          if (error instanceof DurableResearchCoordinatorError)
+            throw new ConflictException(error.code);
+          throw error;
+        }
+        const changed = await this.updateActiveResearchRun(
+          tx,
+          ctx,
+          current.id,
+          run,
+          current.metadata,
+          failed.metadata,
+          current.status,
+          new Date(),
+        );
+        return changed ? failed : null;
+      });
+      if (outcome)
+        return {
+          version: 1 as const,
+          stepId: outcome.coordinator.events.at(-1)?.stepId ?? null,
+          outcome:
+            outcome.coordinator.steps.find(
+              (step) => step.id === outcome.coordinator.events.at(-1)?.stepId,
+            )?.outcome ?? 'retryable_failure',
+        };
+    }
+    throw new ConflictException('Research lease changed while saving the failed attempt.');
+  }
+
   /** Reuse is limited to a prior ownership epoch; its owner proof consumes one persisted attempt. */
   async replaySafeReadOutcome(
     ctx: TenantContext,
@@ -934,6 +1016,7 @@ export class MeriResearchService {
       runId,
       request.leaseEpoch,
       binding,
+      candidate.envelope.input,
     );
     if (!reservation.dispatchAllowed) {
       // A completed proof only records what was authorized for its original
@@ -1041,36 +1124,194 @@ export class MeriResearchService {
     });
   }
 
-  /** Cancelling is an explicit action; a disconnected browser only detaches. */
-  async cancelRun(ctx: TenantContext, id: string) {
+  async getCoordinatorSnapshot(ctx: TenantContext, id: string, rawAfterSequence?: string) {
+    const afterSequence = rawAfterSequence === undefined ? 0 : Number(rawAfterSequence);
+    if (!Number.isSafeInteger(afterSequence) || afterSequence < 0)
+      throw new BadRequestException('afterSequence must be a non-negative integer.');
     const session = await this.ensureSession(ctx, id);
-    const run = readResearchRun(session.metadata);
-    if (!run || !['running', 'interrupted'].includes(run.status)) return { ok: true, run };
-    const cancelled = terminalResearchRun(run, 'cancelled', 'Research stopped at your request');
-    const changed = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioResearchSession.updateMany({
-        where: {
-          id,
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
-          metadata: { equals: session.metadata ?? {} },
-        },
-        data: {
-          status: 'cancelled',
-          metadata: {
-            ...researchMetadata(session.metadata),
-            run: cancelled,
-          } as unknown as Prisma.InputJsonObject,
-          updatedAt: new Date(),
-        },
-      }),
-    );
-    if (!changed.count)
+    const coordinator = readDurableResearchCoordinator(session.metadata);
+    if (!coordinator)
       throw new ConflictException(
-        'Research changed while cancelling; refresh its status and retry.',
+        'The durable research coordinator is not available for this session.',
       );
-    this.activeRuns.get(`${ctx.tenantId}:${ctx.userId}:${id}`)?.abort();
-    return { ok: true, run: cancelled };
+    const events = coordinator.events.filter((event) => event.sequence > afterSequence);
+    const firstRetained = coordinator.events[0]?.sequence ?? 0;
+    return {
+      version: 1 as const,
+      researchId: session.id,
+      run: readResearchRun(session.metadata),
+      coordinator: publicDurableResearchCoordinator(coordinator),
+      events,
+      nextSequence: Math.max(afterSequence, ...coordinator.events.map((event) => event.sequence)),
+      ...(coordinator.events.length >= 200 && afterSequence > 0 && firstRetained > afterSequence
+        ? { cursorResetRequired: true as const }
+        : {}),
+    };
+  }
+
+  async steerRun(
+    ctx: TenantContext,
+    id: string,
+    input: { version: number; requestId: string; expectedGoalRevision: number; message: string },
+  ) {
+    if (input.version !== 1) throw new BadRequestException('Unsupported steering DTO version.');
+    for (let retry = 0; retry < 4; retry += 1) {
+      const session = await this.ensureSession(ctx, id);
+      if (session.reportArtifactId)
+        throw new ConflictException(
+          'Completed research cannot be steered. Start a new research request.',
+        );
+      let queued;
+      try {
+        queued = queueDurableResearchSteering({
+          metadata: session.metadata,
+          expectedGoalRevision: input.expectedGoalRevision,
+          requestId: input.requestId,
+          message: input.message,
+        });
+      } catch (error) {
+        if (error instanceof DurableResearchCoordinatorError)
+          throw new ConflictException(error.code);
+        throw error;
+      }
+      if (queued.idempotentReplay)
+        return {
+          version: 1 as const,
+          accepted: true as const,
+          idempotentReplay: true as const,
+          receipt: queued.receipt,
+        };
+      const interrupted = {
+        ...terminalResearchRun(
+          queued.run,
+          'interrupted',
+          'Steering accepted; resume will validate the revised plan',
+        ),
+        readyToStart: true,
+        failureReason: undefined,
+      };
+      const metadata = { ...queued.metadata, run: interrupted };
+      const changed = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.clioResearchSession.updateMany({
+          where: {
+            id,
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            reportArtifactId: null,
+            metadata: { equals: session.metadata ?? {} },
+          },
+          data: {
+            status: 'researching',
+            metadata: metadata as unknown as Prisma.InputJsonObject,
+            updatedAt: new Date(),
+          },
+        }),
+      );
+      if (!changed.count) continue;
+      const controller = this.activeRuns.get(`${ctx.tenantId}:${ctx.userId}:${id}`);
+      if (controller) {
+        const reason = new Error('Research goal revision changed at an ordered safe boundary.');
+        reason.name = 'ResearchGoalRevisionError';
+        controller.abort(reason);
+      }
+      return {
+        version: 1 as const,
+        accepted: true as const,
+        idempotentReplay: false as const,
+        receipt: queued.receipt,
+      };
+    }
+    throw new ConflictException('Research changed while accepting steering; refresh and retry.');
+  }
+
+  /** Cancelling is explicit; disconnect only detaches. Request and observation are separate commits. */
+  async cancelRun(
+    ctx: TenantContext,
+    id: string,
+    input?: { version?: number; requestId?: string; reason?: string },
+  ) {
+    if (input?.version !== undefined && input.version !== 1)
+      throw new BadRequestException('Unsupported cancellation DTO version.');
+    for (let retry = 0; retry < 4; retry += 1) {
+      const session = await this.ensureSession(ctx, id);
+      const run = readResearchRun(session.metadata);
+      if (!run || ['complete', 'failed', 'partial', 'cancelled'].includes(run.status))
+        return { version: 1 as const, ok: true as const, idempotentReplay: true as const, run };
+      const coordinator = readDurableResearchCoordinator(session.metadata);
+      if (!coordinator) {
+        const cancelled = terminalResearchRun(run, 'cancelled', 'Research stopped at your request');
+        const changed = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.clioResearchSession.updateMany({
+            where: {
+              id,
+              tenantId: ctx.tenantId,
+              userId: ctx.userId,
+              metadata: { equals: session.metadata ?? {} },
+            },
+            data: {
+              status: 'cancelled',
+              metadata: {
+                ...researchMetadata(session.metadata),
+                run: cancelled,
+              } as unknown as Prisma.InputJsonObject,
+              updatedAt: new Date(),
+            },
+          }),
+        );
+        if (!changed.count) continue;
+        this.activeRuns.get(`${ctx.tenantId}:${ctx.userId}:${id}`)?.abort();
+        return {
+          version: 1 as const,
+          ok: true as const,
+          idempotentReplay: false as const,
+          run: cancelled,
+        };
+      }
+      let requested;
+      try {
+        requested = requestDurableResearchCancellation({
+          metadata: session.metadata,
+          requestId: input?.requestId ?? `legacy:${randomUUID()}`,
+          reason: input?.reason ?? 'User pressed Stop',
+        });
+      } catch (error) {
+        if (error instanceof DurableResearchCoordinatorError)
+          throw new ConflictException(error.code);
+        throw error;
+      }
+      if (requested.idempotentReplay)
+        return {
+          version: 1 as const,
+          ok: true as const,
+          idempotentReplay: true as const,
+          run: requested.run,
+        };
+      const changed = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.clioResearchSession.updateMany({
+          where: {
+            id,
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            metadata: { equals: session.metadata ?? {} },
+          },
+          data: {
+            metadata: requested.metadata as unknown as Prisma.InputJsonObject,
+            updatedAt: new Date(),
+          },
+        }),
+      );
+      if (!changed.count) continue;
+      const controller = this.activeRuns.get(`${ctx.tenantId}:${ctx.userId}:${id}`);
+      if (controller) controller.abort();
+      else await this.observeCancellation(ctx, id, requested.run.id, requested.run.leaseEpoch);
+      return {
+        version: 1 as const,
+        ok: true as const,
+        idempotentReplay: false as const,
+        run: requested.run,
+      };
+    }
+    throw new ConflictException('Research changed while cancelling; refresh its status and retry.');
   }
 
   private async withResearchRun(
@@ -1108,7 +1349,7 @@ export class MeriResearchService {
         await this.replaySession(ctx, id, { write: safeWrite }, phase);
         return;
       }
-      if (previous?.status === 'running') {
+      if (previous && ['running', 'cancel_requested'].includes(previous.status)) {
         safeWrite(sseEvent({ type: 'run', run: previous }));
         safeWrite(sseEvent({ type: 'done' }));
         return;
@@ -1137,6 +1378,26 @@ export class MeriResearchService {
         startedAt: now.toISOString(),
         heartbeatAt: now.toISOString(),
       };
+      let claimedMetadata: Record<string, unknown> = {
+        ...researchMetadata(session.metadata),
+        run: claimed,
+      };
+      if (phase === 'research' && readDurableResearchCoordinator(claimedMetadata)) {
+        const deadlineAt = new Date(
+          now.getTime() +
+            positiveNumberOr(
+              this.config.get('CLIO_RESEARCH_TOTAL_BUDGET_MS', { infer: true }),
+              1_800_000,
+            ),
+        ).toISOString();
+        const activated = activateDurableResearchCoordinator({
+          metadata: claimedMetadata,
+          run: claimed,
+          deadlineAt,
+          now,
+        });
+        claimedMetadata = activated.metadata;
+      }
       const result = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.clioResearchSession.updateMany({
           // Optimistic compare-and-swap: two API replicas cannot both own a run.
@@ -1149,10 +1410,7 @@ export class MeriResearchService {
           },
           data: {
             status: phase === 'plan' ? 'plan' : 'researching',
-            metadata: {
-              ...researchMetadata(session.metadata),
-              run: claimed,
-            } as unknown as Prisma.InputJsonObject,
+            metadata: claimedMetadata as unknown as Prisma.InputJsonObject,
             updatedAt: now,
           },
         }),
@@ -1566,6 +1824,7 @@ export class MeriResearchService {
     runId: string,
     leaseEpoch: number,
     binding: ResearchToolAttemptBinding,
+    coordinatorInput: ResearchToolAttemptBinding['input'] = binding.input,
   ) {
     for (let retry = 0; retry < 4; retry += 1) {
       const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
@@ -1603,17 +1862,53 @@ export class MeriResearchService {
           throw error;
         }
         if (!reserved.dispatchAllowed) return { retry: false as const, reserved };
+        let coordinated;
+        try {
+          let coordinatorMetadata = reserved.metadata;
+          const coordinator = readDurableResearchCoordinator(coordinatorMetadata);
+          if (coordinator && coordinator.leaseEpoch !== run.leaseEpoch) {
+            coordinatorMetadata = activateDurableResearchCoordinator({
+              metadata: coordinatorMetadata,
+              run,
+              deadlineAt:
+                coordinator.deadlineAt ??
+                new Date(
+                  Date.now() +
+                    positiveNumberOr(
+                      this.config.get('CLIO_RESEARCH_TOTAL_BUDGET_MS', { infer: true }),
+                      1_800_000,
+                    ),
+                ).toISOString(),
+            }).metadata;
+          }
+          coordinated = reserveDurableResearchStep({
+            metadata: coordinatorMetadata,
+            run,
+            reservationId: reserved.reservation.reservationId,
+            providerCallId: binding.providerCallId,
+            kind: binding.kind,
+            tool: binding.tool,
+            toolVersion: binding.toolVersion,
+            toolInput: coordinatorInput,
+          });
+        } catch (error) {
+          if (error instanceof DurableResearchCoordinatorError)
+            throw new ConflictException(error.code);
+          throw error;
+        }
         const changed = await this.updateActiveResearchRun(
           tx,
           ctx,
           current.id,
           run,
           current.metadata,
-          reserved.metadata,
+          coordinated.metadata,
           current.status,
           new Date(),
         );
-        return changed ? { retry: false as const, reserved } : { retry: true as const };
+        return changed
+          ? { retry: false as const, reserved, step: coordinated.step }
+          : { retry: true as const };
       });
       if (result.retry) continue;
       const { reservation, budget, dispatchAllowed } = result.reserved;
@@ -1628,6 +1923,16 @@ export class MeriResearchService {
         dispatchAllowed,
         spent: budget.spent,
         limit: budget.limit,
+        ...(result.step
+          ? {
+              step: {
+                id: result.step.id,
+                goalRevision: result.step.goalRevision,
+                attempt: result.step.attempt,
+                deadlineAt: result.step.deadlineAt,
+              },
+            }
+          : {}),
       };
     }
     throw new ConflictException(
@@ -1677,14 +1982,30 @@ export class MeriResearchService {
           if (error instanceof ResearchToolBudgetError) throw new ConflictException(error.code);
           throw error;
         }
-        if (completed.metadata === current.metadata) return true;
+        let nextMetadata = completed.metadata;
+        if (binding.kind === 'receipt_reauthorization') {
+          try {
+            nextMetadata = finishDurableResearchReauthorization({
+              metadata: nextMetadata,
+              run,
+              reservationId,
+              authorized: outcome === 'replay_authorized',
+              operationRef: `reauthorization:${binding.providerCallId}`,
+            }).metadata;
+          } catch (error) {
+            if (error instanceof DurableResearchCoordinatorError)
+              throw new ConflictException(error.code);
+            throw error;
+          }
+        }
+        if (nextMetadata === current.metadata) return true;
         return this.updateActiveResearchRun(
           tx,
           ctx,
           current.id,
           run,
           current.metadata,
-          completed.metadata,
+          nextMetadata,
           current.status,
           new Date(),
         );
@@ -1728,7 +2049,56 @@ export class MeriResearchService {
     if (readOutcome?.kind !== 'complete' && readOutcome?.kind !== 'empty')
       throw new ConflictException('The owner result is not a qualified complete safe read.');
 
-    const existing = readDurableResearchStepReceipts(current.metadata).find(
+    let outcomeMetadata: unknown = current.metadata;
+    if (!readDurableResearchCoordinator(outcomeMetadata)) {
+      let plan: ResearchPlanV1;
+      try {
+        plan = validateResearchPlan(
+          researchMetadata(current.metadata).researchPlan,
+          this.researchPlanAdmissionContext(ctx, current),
+        );
+        const admittedCoordinator = admitDurableResearchCoordinator({
+          metadata: outcomeMetadata,
+          plan,
+          objective: current.topic,
+          run,
+        });
+        const activated = activateDurableResearchCoordinator({
+          metadata: admittedCoordinator.metadata,
+          run: readResearchRun(admittedCoordinator.metadata) ?? run,
+          deadlineAt: new Date(
+            Date.now() +
+              positiveNumberOr(
+                this.config.get('CLIO_RESEARCH_TOTAL_BUDGET_MS', { infer: true }),
+                1_800_000,
+              ),
+          ).toISOString(),
+        });
+        outcomeMetadata = reserveDurableResearchStep({
+          metadata: activated.metadata,
+          run: readResearchRun(activated.metadata) ?? run,
+          reservationId: input.reservationId,
+          providerCallId: input.providerCallId,
+          kind: 'dispatch',
+          tool: input.tool,
+          toolVersion: input.toolVersion,
+          toolInput: input.input,
+        }).metadata;
+      } catch (error) {
+        if (
+          error instanceof ResearchPlanValidationError ||
+          error instanceof DurableResearchCoordinatorError
+        )
+          throw new ConflictException(
+            error instanceof DurableResearchCoordinatorError
+              ? error.code
+              : 'The current admitted research plan is unavailable.',
+          );
+        throw error;
+      }
+    }
+
+    const existing = readDurableResearchStepReceipts(outcomeMetadata).find(
       (receipt) => receipt.version === 2 && receipt.executionId === input.executionId,
     );
     if (existing) {
@@ -1744,7 +2114,7 @@ export class MeriResearchService {
         throw new ConflictException(
           'Durable safe-read execution identity was reused inconsistently.',
         );
-      const budget = readResearchToolBudget(current.metadata);
+      const budget = readResearchToolBudget(outcomeMetadata);
       const reservation = budget?.attempts.find(
         (attempt) => attempt.reservationId === input.reservationId,
       );
@@ -1766,8 +2136,8 @@ export class MeriResearchService {
       result: input.result,
       completedAt,
     });
-    const metadata = researchMetadata(current.metadata);
-    const handoff = readResearchHandoff(current.metadata);
+    const metadata = researchMetadata(outcomeMetadata);
+    const handoff = readResearchHandoff(outcomeMetadata);
     let conversationId =
       handoff?.conversationId ??
       (typeof metadata.backingConversationId === 'string' ? metadata.backingConversationId : null);
@@ -1807,7 +2177,7 @@ export class MeriResearchService {
     });
     const receiptBase =
       conversationId === metadata.backingConversationId
-        ? current.metadata
+        ? outcomeMetadata
         : { ...metadata, backingConversationId: conversationId };
     const appended = appendDurableResearchResultReceipt(receiptBase, run, {
       receiptId: `${run.id}:${run.leaseEpoch}:${input.executionId}`,
@@ -1846,13 +2216,28 @@ export class MeriResearchService {
       if (error instanceof ResearchToolBudgetError) throw new ConflictException(error.code);
       throw error;
     }
+    let coordinatedMetadata: Record<string, unknown>;
+    try {
+      coordinatedMetadata = completeDurableResearchStep({
+        metadata: completed.metadata,
+        run,
+        reservationId: input.reservationId,
+        receiptId: appended.receipt.receiptId,
+        resultRef: artifact.id,
+        sourceRef: `safe-read:${appended.receipt.receiptId}`,
+        now: new Date(completedAt),
+      }).metadata;
+    } catch (error) {
+      if (error instanceof DurableResearchCoordinatorError) throw new ConflictException(error.code);
+      throw error;
+    }
     const changed = await this.updateActiveResearchRun(
       tx,
       ctx,
       current.id,
       run,
       current.metadata,
-      completed.metadata,
+      coordinatedMetadata,
       current.status,
       new Date(),
     );
@@ -1938,6 +2323,14 @@ export class MeriResearchService {
       const current = await this.ensureSession(ctx, id);
       const currentRun = readResearchRun(current.metadata);
       if (
+        currentRun?.id === auth.run.id &&
+        currentRun.leaseEpoch === auth.run.leaseEpoch &&
+        currentRun.status === 'cancel_requested'
+      ) {
+        await this.observeCancellation(ctx, id, currentRun.id, currentRun.leaseEpoch);
+        return;
+      }
+      if (
         currentRun?.id !== auth.run.id ||
         currentRun.leaseEpoch !== auth.run.leaseEpoch ||
         currentRun.status !== 'running' ||
@@ -1974,6 +2367,46 @@ export class MeriResearchService {
         `Could not persist research failure: ${error instanceof Error ? error.message : 'unknown error'}`,
       );
     }
+  }
+
+  private async observeCancellation(
+    ctx: TenantContext,
+    id: string,
+    runId: string,
+    leaseEpoch: number,
+  ): Promise<ResearchRunState> {
+    for (let retry = 0; retry < 4; retry += 1) {
+      const session = await this.ensureSession(ctx, id);
+      const run = readResearchRun(session.metadata);
+      if (run?.status === 'cancelled') return run;
+      if (run?.id !== runId || run.leaseEpoch !== leaseEpoch || run.status !== 'cancel_requested')
+        throw new ConflictException('Cancellation observation no longer matches the active run.');
+      let observed;
+      try {
+        observed = observeDurableResearchCancellation({ metadata: session.metadata });
+      } catch (error) {
+        if (error instanceof DurableResearchCoordinatorError)
+          throw new ConflictException(error.code);
+        throw error;
+      }
+      const changed = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.clioResearchSession.updateMany({
+          where: {
+            id,
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            metadata: { equals: session.metadata ?? {} },
+          },
+          data: {
+            status: 'cancelled',
+            metadata: observed.metadata as unknown as Prisma.InputJsonObject,
+            updatedAt: new Date(),
+          },
+        }),
+      );
+      if (changed.count) return observed.run;
+    }
+    throw new ConflictException('Research changed while observing cancellation.');
   }
 
   // ── Phase 1: PLAN (streamed) ───────────────────────────────────────────────
@@ -2080,11 +2513,18 @@ export class MeriResearchService {
         if (error instanceof ResearchToolBudgetError) throw new ConflictException(error.code);
         throw error;
       }
+      const coordinated = admitDurableResearchCoordinator({
+        metadata: budgetedMetadata,
+        plan: admitted,
+        objective: session.topic,
+        run: auth.run!,
+      });
+      const coordinatedRun = readResearchRun(coordinated.metadata) ?? auth.run!;
       const persistedMetadata = {
-        ...budgetedMetadata,
+        ...coordinated.metadata,
         researchPlan: admitted,
         run: terminalResearchRun(
-          auth.run!,
+          coordinatedRun,
           'awaiting_clarification',
           admitted.clarifyingQuestions.length
             ? 'Waiting for your clarification answers'
@@ -2126,7 +2566,7 @@ export class MeriResearchService {
           data: {
             metadata: {
               ...persistedMetadata,
-              run: terminalResearchRun(auth.run!, 'awaiting_clarification', 'Plan ready'),
+              run: terminalResearchRun(coordinatedRun, 'awaiting_clarification', 'Plan ready'),
               planMessageId: planMessage.id,
             } as unknown as Prisma.InputJsonObject,
           },
@@ -2722,6 +3162,13 @@ export class MeriResearchService {
             readOutcome?.kind === 'complete' || readOutcome?.kind === 'empty';
           if (readOutcome?.kind === 'failed' || readOutcome?.kind === 'unavailable') {
             isError = true;
+          }
+          if (!qualifiedSuccess && dispatchReservationId && auth.run) {
+            await this.failSafeReadAttempt(ctx, id, auth.run.id, {
+              leaseEpoch: auth.run.leaseEpoch,
+              reservationId: dispatchReservationId,
+              code: readOutcome?.kind ?? 'unknown_owner_result',
+            });
           }
           const { count } = summarizeToolResultForTrust(resultPayload);
           const observerQualifiedSuccess = Boolean(
@@ -3635,10 +4082,167 @@ export class MeriResearchService {
     auth: ResearchRuntimeAuth,
   ): Promise<ResearchPlanV1> {
     const context = this.researchPlanAdmissionContext(ctx, session);
+    const coordinator = readDurableResearchCoordinator(session.metadata);
+    const pendingSteering = coordinator?.inbox.filter(
+      (message) => message.sequence > coordinator.appliedInboxSequence,
+    );
+    if (coordinator && pendingSteering?.length) {
+      if (!auth.run)
+        throw new ConflictException('Steering revalidation requires an active run lease.');
+      const clientContext = await this.clientContext(ctx, session.clientId);
+      const currentPlan = researchMetadata(session.metadata).researchPlan;
+      const system = buildResearchPlanSystemPrompt(PRODUCT_NAME, context);
+      const user = [
+        buildPlanUserPrompt(session.topic, clientContext),
+        `CURRENT ADMITTED PLAN (replace it; do not expand its tool-call budget):\n${JSON.stringify(currentPlan)}`,
+        `ORDERED STEERING INBOX THROUGH GOAL REVISION ${coordinator.goalRevision}:\n${pendingSteering
+          .map((message) => `${message.sequence}. ${message.message}`)
+          .join('\n')}`,
+        'Return a complete replacement plan. Preserve truthful prior effects, but do not treat old-revision pending work or model claims as completed evidence.',
+        researchHandoffPrompt(readResearchHandoff(session.metadata), session.id),
+      ]
+        .filter(Boolean)
+        .join('\n\n');
+      const proposed = await this.requestAdmittedResearchPlan(
+        ctx,
+        session,
+        context,
+        system,
+        user,
+        auth,
+      );
+      return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        const current = await tx.clioResearchSession.findFirst({
+          where: { id: session.id, tenantId: ctx.tenantId, userId: ctx.userId },
+        });
+        const currentRun = readResearchRun(current?.metadata);
+        const currentCoordinator = readDurableResearchCoordinator(current?.metadata);
+        if (
+          !current ||
+          !currentRun ||
+          currentRun.id !== auth.run!.id ||
+          currentRun.leaseEpoch !== auth.run!.leaseEpoch ||
+          currentRun.status !== 'running' ||
+          !currentCoordinator ||
+          currentCoordinator.goalRevision !== coordinator.goalRevision ||
+          !currentCoordinator.inbox.some(
+            (message) => message.sequence > currentCoordinator.appliedInboxSequence,
+          )
+        )
+          throw new ConflictException(
+            'Research goal revision changed while revalidating the plan.',
+          );
+        await this.assertResearchPublicationAuthorized(tx, ctx, current);
+        const admitted = validateResearchPlan(
+          proposed,
+          this.researchPlanAdmissionContext(ctx, current),
+        );
+        let budgetedMetadata: Record<string, unknown>;
+        try {
+          budgetedMetadata = admitResearchToolBudget(
+            current.metadata,
+            admitted.budget.toolCalls,
+          ).metadata;
+        } catch (error) {
+          if (error instanceof ResearchToolBudgetError) throw new ConflictException(error.code);
+          throw error;
+        }
+        const replanned = applyDurableResearchReplan({
+          metadata: budgetedMetadata,
+          plan: admitted,
+          run: currentRun,
+        });
+        const nextMetadata = { ...replanned.metadata, researchPlan: admitted };
+        const updated = await this.updateActiveResearchRun(
+          tx,
+          ctx,
+          current.id,
+          currentRun,
+          current.metadata,
+          nextMetadata,
+          current.status,
+          new Date(),
+        );
+        if (!updated)
+          throw new ConflictException('Research lease changed while applying steering.');
+        await tx.clioResearchSession.update({
+          where: { id: current.id },
+          data: {
+            title: clampTitle(admitted.title),
+            plan: researchPlanStringProjection(admitted) as Prisma.InputJsonValue,
+            clarifyingQuestions: admitted.clarifyingQuestions as Prisma.InputJsonValue,
+            updatedAt: new Date(),
+          },
+        });
+        return admitted;
+      });
+    }
     const stored = researchMetadata(session.metadata).researchPlan;
     if (stored !== undefined) {
       try {
-        return validateResearchPlan(stored, context);
+        const admitted = validateResearchPlan(stored, context);
+        if (coordinator) return admitted;
+        if (!auth.run)
+          throw new ConflictException(
+            'Research coordinator admission requires an active run lease.',
+          );
+        return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+          const current = await tx.clioResearchSession.findFirst({
+            where: { id: session.id, tenantId: ctx.tenantId, userId: ctx.userId },
+          });
+          const currentRun = readResearchRun(current?.metadata);
+          if (
+            !current ||
+            !currentRun ||
+            currentRun.id !== auth.run!.id ||
+            currentRun.leaseEpoch !== auth.run!.leaseEpoch ||
+            currentRun.status !== 'running'
+          )
+            throw new ConflictException('Research is no longer running.');
+          await this.assertResearchPublicationAuthorized(tx, ctx, current);
+          const currentPlan = validateResearchPlan(
+            researchMetadata(current.metadata).researchPlan,
+            this.researchPlanAdmissionContext(ctx, current),
+          );
+          const admittedCoordinator = admitDurableResearchCoordinator({
+            metadata: current.metadata,
+            plan: currentPlan,
+            objective: current.topic,
+            run: currentRun,
+          });
+          const activated = activateDurableResearchCoordinator({
+            metadata: admittedCoordinator.metadata,
+            run: readResearchRun(admittedCoordinator.metadata) ?? currentRun,
+            deadlineAt: new Date(
+              Date.now() +
+                positiveNumberOr(
+                  this.config.get('CLIO_RESEARCH_TOTAL_BUDGET_MS', { infer: true }),
+                  1_800_000,
+                ),
+            ).toISOString(),
+          });
+          const updated = await this.updateActiveResearchRun(
+            tx,
+            ctx,
+            current.id,
+            currentRun,
+            current.metadata,
+            activated.metadata,
+            current.status,
+            new Date(),
+          );
+          if (!updated)
+            throw new ConflictException('Research lease changed while admitting the coordinator.');
+          await tx.clioResearchSession.update({
+            where: { id: current.id },
+            data: {
+              title: clampTitle(currentPlan.title),
+              plan: researchPlanStringProjection(currentPlan) as Prisma.InputJsonValue,
+              updatedAt: new Date(),
+            },
+          });
+          return currentPlan;
+        });
       } catch (error) {
         if (!(error instanceof ResearchPlanValidationError)) throw error;
         throw new BadRequestException(
@@ -3699,8 +4303,14 @@ export class MeriResearchService {
         if (error instanceof ResearchToolBudgetError) throw new ConflictException(error.code);
         throw error;
       }
+      const coordinated = admitDurableResearchCoordinator({
+        metadata: budgetedMetadata,
+        plan: admitted,
+        objective: session.topic,
+        run: currentRun,
+      });
       const nextMetadata = {
-        ...budgetedMetadata,
+        ...coordinated.metadata,
         researchPlan: admitted,
       };
       const updated = await this.updateActiveResearchRun(
@@ -4434,6 +5044,7 @@ function publicResearchSources(value: unknown): Array<Record<string, unknown>> {
 /** Public recovery metadata deliberately excludes result refs, hashes, inputs, and result bytes. */
 function publicResearchSessionMetadata(value: unknown): Record<string, unknown> {
   const metadata = researchMetadata(value);
+  const coordinator = readDurableResearchCoordinator(value);
   return {
     handoff: {
       conversationId: readResearchHandoff(value)?.conversationId ?? null,
@@ -4451,6 +5062,7 @@ function publicResearchSessionMetadata(value: unknown): Record<string, unknown> 
           ),
         }
       : {}),
+    ...(coordinator ? { durableCoordinator: publicDurableResearchCoordinator(coordinator) } : {}),
   };
 }
 

@@ -211,46 +211,85 @@ describe('MeriV3 alternate registry current-authority boundary', () => {
     expect(result.reply).toContain('unverified against the FedRAMP Marketplace');
   });
 
-  test('allows a current catalog-selected read under an active admitted lease', async () => {
-    process.env.MERI_STATUS_PROVENANCE_MODE = 'enforce';
-    process.env.MERI_STATUS_PROVENANCE_TENANTS = tenantId;
-    process.env.MERI_STATUS_PROVENANCE_SURFACES = 'research';
-    const complete = response();
-    const invoke = jest.fn(async () => ({
-      found: true,
-      ambiguous: false,
-      record: {
-        productId: 'acme-cloud',
-        cspName: 'Acme',
-        csoName: 'Acme Cloud',
-        status: 'FedRAMP Authorized',
-        sourceUrl: 'https://marketplace.fedramp.gov/products/acme-cloud',
-        observedAt: '2026-09-28T00:00:00.000Z',
-      },
-    }));
-    const instance = assistant(true, invoke, complete);
-    global.fetch = jest.fn(async (url) => {
-      if (String(url).endsWith('/tool-schemas')) {
-        return new Response(JSON.stringify({ schemas: [certificationSchema] }), { status: 200 });
-      }
-      if (String(url).endsWith('/active')) {
-        return new Response(JSON.stringify({ active: true }), { status: 200 });
-      }
-      throw new Error(`Unexpected endpoint: ${String(url)}`);
-    });
+  test.each([true, false])(
+    'dispatches a current catalog-selected read only with reservation admission=%s',
+    async (dispatchAllowed) => {
+      process.env.MERI_STATUS_PROVENANCE_MODE = 'enforce';
+      process.env.MERI_STATUS_PROVENANCE_TENANTS = tenantId;
+      process.env.MERI_STATUS_PROVENANCE_SURFACES = 'research';
+      const complete = response();
+      const invoke = jest.fn(async () => ({
+        found: true,
+        ambiguous: false,
+        record: {
+          productId: 'acme-cloud',
+          cspName: 'Acme',
+          csoName: 'Acme Cloud',
+          status: 'FedRAMP Authorized',
+          sourceUrl: 'https://marketplace.fedramp.gov/products/acme-cloud',
+          observedAt: '2026-09-28T00:00:00.000Z',
+        },
+      }));
+      const instance = assistant(true, invoke, complete);
+      const reserve = jest.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              dispatchAllowed,
+              reservationId: 'owned-certification-reservation',
+            }),
+            { status: 200 },
+          ),
+      );
+      global.fetch = jest.fn(async (url) => {
+        if (String(url).endsWith('/tool-schemas')) {
+          return new Response(JSON.stringify({ schemas: [certificationSchema] }), { status: 200 });
+        }
+        if (String(url).endsWith('/active')) {
+          return new Response(JSON.stringify({ active: true }), { status: 200 });
+        }
+        if (String(url).endsWith('/safe-read/reservations')) return reserve();
+        throw new Error(`Unexpected endpoint: ${String(url)}`);
+      });
 
-    const result = await RequestCredentialsStore.run({ bearerToken: 'test-bearer' }, () =>
-      instance.run(context, input()),
-    );
+      const result = await RequestCredentialsStore.run({ bearerToken: 'test-bearer' }, () =>
+        instance.run(context, input()),
+      );
 
-    expect(invoke).toHaveBeenCalledTimes(1);
-    expect(invoke).toHaveBeenCalledWith(
-      'get_certification_status',
-      expect.objectContaining({ program: 'fedramp', query: 'Acme Cloud' }),
-      context,
-      expect.any(Object),
-    );
-    expect(result.reply).toContain('Acme Cloud is FedRAMP Authorized');
-    expect(result.reply).not.toContain('unverified against the FedRAMP Marketplace');
-  });
+      expect(reserve).toHaveBeenCalledTimes(1);
+      expect(global.fetch).toHaveBeenCalledWith(
+        `http://api.test/api/clio/research/${researchRun.sessionId}/runs/${researchRun.runId}/safe-read/reservations`,
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.any(String),
+        }),
+      );
+      const reservationCall = (global.fetch as jest.Mock).mock.calls.find(([url]) =>
+        String(url).endsWith('/safe-read/reservations'),
+      );
+      expect(JSON.parse(reservationCall![1].body)).toEqual(
+        expect.objectContaining({
+          leaseEpoch: researchRun.leaseEpoch,
+          providerCallId: expect.any(String),
+          tool: 'get_certification_status',
+          input: expect.objectContaining({ program: 'fedramp', query: 'Acme Cloud' }),
+        }),
+      );
+      if (!dispatchAllowed) {
+        expect(invoke).not.toHaveBeenCalled();
+        expect(result.reply).toContain('unverified against the FedRAMP Marketplace');
+        return;
+      }
+      expect(invoke).toHaveBeenCalledTimes(1);
+      expect(reserve.mock.invocationCallOrder[0]).toBeLessThan(invoke.mock.invocationCallOrder[0]!);
+      expect(invoke).toHaveBeenCalledWith(
+        'get_certification_status',
+        expect.objectContaining({ program: 'fedramp', query: 'Acme Cloud' }),
+        context,
+        expect.any(Object),
+      );
+      expect(result.reply).toContain('Acme Cloud is FedRAMP Authorized');
+      expect(result.reply).not.toContain('unverified against the FedRAMP Marketplace');
+    },
+  );
 });

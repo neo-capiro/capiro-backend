@@ -5,6 +5,9 @@ import { Pool } from 'pg';
 import type { TenantContext } from '@capiro/shared';
 import { MeriResearchService } from './meri-research.service.js';
 import { readResearchToolBudget } from './meri-research-tool-budget.js';
+import { admitDurableResearchCoordinator } from './meri-research-coordinator.js';
+import type { ResearchPlanV1 } from './meri-research-plan.js';
+import type { ResearchRunState } from './meri-research-run-state.js';
 
 const SESSION_ID = '11111111-1111-4111-8111-111111111111';
 const TENANT_ID = '22222222-2222-4222-8222-222222222222';
@@ -206,6 +209,12 @@ describeLocal('research tool budget — native PostgreSQL production CAS', () =>
   });
 
   async function insert(metadata: Record<string, unknown>) {
+    metadata = admitDurableResearchCoordinator({
+      metadata,
+      plan: metadata.researchPlan as ResearchPlanV1,
+      objective: 'Budget',
+      run: metadata.run as ResearchRunState,
+    }).metadata;
     await pool.query(
       `INSERT INTO "${schemaName}".clio_research_sessions
        (id, tenant_id, user_id, title, status, metadata_jsonb, updated_at)
