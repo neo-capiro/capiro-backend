@@ -55,13 +55,18 @@ describe('MeriAnalysisArtifactController', () => {
     expect(response.setHeader).toHaveBeenCalledWith('Content-Type', 'image/png');
     const bytes = response.send.mock.calls[0]![0] as Buffer;
     const sha256 = sha256Bytes(bytes);
-    expect(bytes.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    expect(bytes.subarray(0, 8)).toEqual(
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    );
     expect(response.setHeader).toHaveBeenCalledWith('Cache-Control', 'private, no-store');
     expect(response.setHeader).toHaveBeenCalledWith('X-Content-Type-Options', 'nosniff');
     expect(response.setHeader).toHaveBeenCalledWith('ETag', `"sha256-${sha256}"`);
     expect(response.setHeader).toHaveBeenCalledWith('Content-Length', bytes.length.toString());
     expect(response.setHeader).toHaveBeenCalledWith('X-Capiro-Artifact-Id', 'chart-1');
-    expect(response.setHeader).toHaveBeenCalledWith('X-Capiro-Image-Integrity', 'persisted_hash_match');
+    expect(response.setHeader).toHaveBeenCalledWith(
+      'X-Capiro-Image-Integrity',
+      'persisted_hash_match',
+    );
   });
 
   test('uses the same not-found shape for missing and unauthorized artifact ids', async () => {

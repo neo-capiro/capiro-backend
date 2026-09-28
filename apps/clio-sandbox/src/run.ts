@@ -2,7 +2,7 @@
  * One sandboxed analysis run (assistant-parity F4).
  *
  * The runner writes the user code + serialized datasets + harness into a
- * fresh temp directory, spawns `python3 harness.py` with a scrubbed
+ * fresh temp directory, spawns `python3 -I harness.py` with a scrubbed
  * environment, enforces a wall-clock kill, and collects capped outputs
  * (stdout/stderr, results.json, out/*.png). Tenant isolation lives OUTSIDE
  * this process (Fargate microVM + no-egress SG + no-credential task role —
@@ -157,11 +157,16 @@ export async function runSandboxed(req: SandboxRunRequest): Promise<SandboxRunRe
 
     const python =
       process.env.SANDBOX_PYTHON ?? (process.platform === 'win32' ? 'python' : 'python3');
-    const child = spawn(python, ['harness.py'], {
+    // Isolated mode is established by CPython before harness.py can import
+    // anything. It removes the attacker-controlled working directory, user
+    // site, and PYTHONPATH from sys.path while retaining pinned system-site
+    // packages used by the trusted warm stack.
+    const child = spawn(python, ['-I', 'harness.py'], {
       cwd: workdir,
       // Scrubbed environment: no inherited secrets, ever. The Windows-only
-      // passthroughs exist for local dev (user-site packages + CPython's
-      // SYSTEMROOT requirement); the production container is Linux.
+      // passthroughs exist for local compatibility (CPython's SYSTEMROOT and
+      // library/font configuration); -I still disables the user site. The
+      // production container is Linux.
       env: {
         PATH: process.env.PATH ?? '',
         HOME: workdir,
@@ -172,6 +177,11 @@ export async function runSandboxed(req: SandboxRunRequest): Promise<SandboxRunRe
         PYTHONDONTWRITEBYTECODE: '1',
         PYTHONIOENCODING: 'utf-8',
         ...NATIVE_ANALYSIS_THREAD_ENV,
+        // Test-only fault injection is inherited from trusted runner config,
+        // never from a SandboxRunRequest. It can only make setup fail closed.
+        ...(process.env.SANDBOX_TEST_FORCE_NPROC_FAILURE === '1'
+          ? { SANDBOX_TEST_FORCE_NPROC_FAILURE: '1' }
+          : {}),
         ...(process.platform === 'win32'
           ? {
               SYSTEMROOT: process.env.SYSTEMROOT ?? '',

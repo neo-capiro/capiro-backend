@@ -28,18 +28,18 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg16
         env:
-          POSTGRES_USER: capiro
-          POSTGRES_PASSWORD: capiro
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
           POSTGRES_DB: capiro
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U capiro -d capiro"
+          --health-cmd "pg_isready -U postgres -d capiro"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro
       NODE_OPTIONS: --max-old-space-size=6144
 
     steps:
@@ -90,6 +90,11 @@ jobs:
             exit 1
           fi
           echo "Full API typecheck exit: $status (unrelated baseline errors, if any, are not attributed to Phase 9)."
+
+      - name: Bootstrap disposable Postgres migration prerequisites
+        env:
+          CI_DISPOSABLE_POSTGRES: '1'
+        run: bash scripts/ci/bootstrap-disposable-postgres-roles.sh
 
       - name: Deploy full Prisma migration chain to disposable pgvector/Postgres
         run: pnpm --filter @capiro/api exec prisma migrate deploy

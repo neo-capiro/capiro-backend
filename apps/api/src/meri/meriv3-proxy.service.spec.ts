@@ -8,6 +8,11 @@ import {
   sealDurableResearchResult,
 } from './meri-research-durable-result.js';
 import { RESEARCH_REPORT_BODY_WITHHELD } from './meri-research-replay-authorization.js';
+import {
+  buildProtocolCompactionState,
+  MAX_REPLAY_HISTORY_CHARS,
+  MERI_PROTOCOL_COMPACTION_METADATA_KEY,
+} from './meri-compaction.helpers.js';
 
 // These injected collaborators already use harness instances below. Avoid
 // booting their unrelated tool/service graphs in this proxy unit suite.
@@ -51,6 +56,7 @@ function buildHarness() {
     },
     clioMessage: {
       create: jest.fn(async ({ data }: any) => ({ id: `msg-${data.role}-${Math.random()}` })),
+      findFirst: jest.fn(async () => null),
       findMany: jest.fn(async (): Promise<any[]> => []),
       update: jest.fn(async () => ({})),
       deleteMany: jest.fn(async () => ({})),
@@ -1161,6 +1167,170 @@ describe('MeriV3 public work receipt persistence', () => {
     expect(persisted).toMatchObject({
       id: frames().find((frame) => frame.type === 'done')?.messageId,
     });
+  });
+});
+
+describe('MeriV3 protocol-safe provider composition', () => {
+  it('sends protected directives and handles, not compacted assistant/source bodies', async () => {
+    const h = buildHarness();
+    const protectedState = buildProtocolCompactionState({
+      existingMetadata: {},
+      previousBoundaryMessageId: null,
+      boundaryMessageId: 'summary-end',
+      clientId: null,
+      messages: [
+        { id: 'old-user', role: 'user', body: 'Prepare the client briefing.' },
+        {
+          id: 'summary-end',
+          role: 'assistant',
+          body: 'PRIVATE REVOKED SOURCE BODY',
+          metadata: {
+            finishReason: 'completed',
+            citations: [{ sourceId: 'source-9', sourceVersion: 'v9', snippet: 'REVOKED EXCERPT' }],
+            pendingApprovals: [
+              { proposalId: 'proposal-9', tool: 'send_email', status: 'proposed' },
+            ],
+          },
+        },
+      ],
+    });
+    h.tx.clioConversation.findFirst.mockResolvedValue({
+      id: CONVERSATION,
+      clientId: null,
+      summaryUpToMessageId: 'summary-end',
+      summary: 'OLD MODEL SUMMARY WITH PRIVATE BODY',
+      metadata: { [MERI_PROTOCOL_COMPACTION_METADATA_KEY]: protectedState },
+      client: null,
+    } as never);
+    h.tx.clioMessage.findFirst.mockResolvedValue({ createdAt: new Date('2026-09-01') } as never);
+    h.tx.clioMessage.findMany.mockImplementation(async (query?: any) =>
+      query?.where?.metadata
+        ? []
+        : [
+            {
+              id: 'tail-user',
+              role: 'user',
+              body: 'Correction: use only enacted amounts.',
+              metadata: {},
+            },
+            {
+              id: 'tail-assistant',
+              role: 'assistant',
+              body: 'x'.repeat(100_000),
+              metadata: {},
+            },
+          ],
+    );
+    let providerInput: any;
+    h.client.streamChat.mockImplementationOnce(async ({ input, onEvent }: any) => {
+      providerInput = input;
+      onEvent({ type: 'done', reply: 'Current answer.', model: 'test', reasoningEffort: 'low' });
+    });
+
+    await h.service.streamMessage(
+      CTX,
+      CONVERSATION,
+      'Continue',
+      h.sse,
+      undefined,
+      'new',
+      [],
+      'token',
+    );
+
+    expect(providerInput.conversationSummary).toContain('Prepare the client briefing.');
+    expect(providerInput.conversationSummary).toContain('source-9 version=v9');
+    expect(providerInput.conversationSummary).toContain('proposal-9');
+    expect(providerInput.conversationSummary).not.toContain('PRIVATE REVOKED SOURCE BODY');
+    expect(providerInput.conversationSummary).not.toContain('OLD MODEL SUMMARY WITH PRIVATE BODY');
+    expect(providerInput.conversationSummary).not.toContain('REVOKED EXCERPT');
+    const boundedOutput = providerInput.messages.find((message: { text: string }) =>
+      message.text.includes('SERVER REPLAY NOTICE'),
+    );
+    expect(boundedOutput).toBeDefined();
+    expect(boundedOutput?.text.length).toBeLessThanOrEqual(12_000);
+    expect(boundedOutput?.text).toContain('Ask the user to restate');
+    expect(boundedOutput?.text).not.toContain('retrieve that message');
+  });
+
+  it('sends the long 81-message tail on a safe boundary under the aggregate history cap', async () => {
+    const h = buildHarness();
+    const chronological = Array.from({ length: 81 }, (_, index) => ({
+      id: `m${index}`,
+      role: index % 2 ? 'assistant' : 'user',
+      body: `${index}:`.padEnd(60_000, 'x'),
+      metadata: {},
+    }));
+    h.tx.clioMessage.findMany.mockResolvedValue([...chronological].reverse());
+    let providerInput: any;
+    h.client.streamChat.mockImplementationOnce(async ({ input, onEvent }: any) => {
+      providerInput = input;
+      onEvent({ type: 'done', reply: 'Bounded answer.', model: 'test', reasoningEffort: 'low' });
+    });
+
+    await h.service.streamMessage(
+      CTX,
+      CONVERSATION,
+      'Continue',
+      h.sse,
+      undefined,
+      'new',
+      [],
+      'token',
+    );
+
+    expect(providerInput.messages[0]?.role).toBe('user');
+    expect(providerInput.messages.at(-1)?.role).toBe('user');
+    expect(providerInput.messages.at(-1)?.text).toContain('80:');
+    expect(
+      providerInput.messages.reduce(
+        (sum: number, message: { text: string }) => sum + message.text.length,
+        providerInput.conversationSummary?.length ?? 0,
+      ),
+    ).toBeLessThanOrEqual(MAX_REPLAY_HISTORY_CHARS);
+    expect(
+      providerInput.messages.map((message: { text: string }) => message.text).join('\n'),
+    ).toContain('Ask the user to restate');
+  });
+
+  it('fails closed when a historical summary has no matching protected-state receipt', async () => {
+    const h = buildHarness();
+    h.tx.clioConversation.findFirst.mockResolvedValue({
+      id: CONVERSATION,
+      clientId: null,
+      summaryUpToMessageId: 'summary-end',
+      summary: 'PRIVATE BODY FROM A NOW-REVOKED SOURCE',
+      metadata: {},
+      client: null,
+    } as never);
+    h.tx.clioMessage.findFirst.mockResolvedValue({ createdAt: new Date('2026-09-01') } as never);
+    h.tx.clioMessage.findMany.mockImplementation(async (query?: any) =>
+      query?.where?.metadata
+        ? []
+        : [{ id: 'tail-user', role: 'user', body: 'Continue safely.', metadata: {} }],
+    );
+    let providerInput: any;
+    h.client.streamChat.mockImplementationOnce(async ({ input, onEvent }: any) => {
+      providerInput = input;
+      onEvent({ type: 'done', reply: 'Safe continuation.', model: 'test', reasoningEffort: 'low' });
+    });
+
+    await h.service.streamMessage(
+      CTX,
+      CONVERSATION,
+      'Continue',
+      h.sse,
+      undefined,
+      'new',
+      [],
+      'token',
+    );
+
+    expect(providerInput.conversationSummary).toContain('PARTIAL (fail closed)');
+    expect(providerInput.conversationSummary).toContain('was not replayed');
+    expect(providerInput.conversationSummary).not.toContain(
+      'PRIVATE BODY FROM A NOW-REVOKED SOURCE',
+    );
   });
 });
 

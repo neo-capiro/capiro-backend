@@ -188,14 +188,17 @@ import {
   type ThinkingSettings,
 } from './meri-thinking.helpers.js';
 import {
-  buildCompactionPrompt,
+  allocateBoundedReplayHistory,
+  buildProtocolCompactionState,
   estimateTokens,
   formatSummaryBlockForPrompt,
+  MERI_PROTOCOL_COMPACTION_METADATA_KEY,
+  MAX_REPLAY_HISTORY_CHARS,
+  MAX_REPLAY_MESSAGES,
   planCompaction,
-  sanitizeSummaryOutput,
+  protocolCompactionReplay,
 } from './meri-compaction.helpers.js';
 import { scheduleMeriTurnMaintenance, type MeriTurnMaintenance } from './meri-turn-maintenance.js';
-import { completeMeriSummary } from './meri-summary-completion.js';
 import {
   buildMessageEmbeddingText,
   groupHitsByConversation,
@@ -1150,16 +1153,28 @@ export class MeriService implements MeriTurnMaintenance {
     const summaryBoundary = conversation.summaryUpToMessageId
       ? await this.prisma.withTenant(ctx.tenantId, (tx) =>
           tx.clioMessage.findFirst({
-            where: { id: conversation.summaryUpToMessageId ?? undefined, conversationId },
+            where: {
+              id: conversation.summaryUpToMessageId ?? undefined,
+              conversationId,
+              tenantId: ctx.tenantId,
+              userId: ctx.userId,
+            },
             select: { createdAt: true },
           }),
         )
       : null;
-    const conversationSummary = summaryBoundary
+    const protocolSummary = summaryBoundary && conversation.summaryUpToMessageId
+      ? protocolCompactionReplay({
+          metadata: conversation.metadata,
+          boundaryMessageId: conversation.summaryUpToMessageId,
+          clientId: conversation.clientId ?? null,
+        })
+      : null;
+    const conversationSummary = protocolSummary
       ? await this.authorizeOrdinaryConversationSummary(
           ctx,
           { conversationId, clientId: conversation.clientId },
-          conversation.summary ?? null,
+          protocolSummary,
           new Map(),
         )
       : null;
@@ -1182,7 +1197,7 @@ export class MeriService implements MeriTurnMaintenance {
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         // Bound the DB read, with headroom while after-turn compaction runs.
         // The existing CLIO_HISTORY_CHAR_BUDGET still bounds model context.
-        take: 80,
+        take: MAX_REPLAY_MESSAGES + 1,
         select: { id: true, role: true, body: true, metadata: true },
       }),
     );
@@ -1256,7 +1271,7 @@ export class MeriService implements MeriTurnMaintenance {
         }
       }
     }
-    const replayHistory = history.map((m) => {
+    let replayHistory = history.map((m) => {
       const refs = attachmentRefsByMessage.get(m.id) ?? [];
       if (!refs.length) return { role: m.role as 'user' | 'assistant', body: m.body };
       const parts = [m.body];
@@ -1280,6 +1295,22 @@ export class MeriService implements MeriTurnMaintenance {
       const latest = [...replayHistory].reverse().find(message => message.role === 'user');
       if (carried && latest) latest.body += `\n\n${carried}`;
     }
+    const historyBudget = this.config.get('CLIO_HISTORY_CHAR_BUDGET', { infer: true });
+    const replayAllocation = allocateBoundedReplayHistory(
+      replayHistory.map((message, index) => ({
+        id: history[index]!.id,
+        role: message.role,
+        body: message.body,
+      })),
+      {
+        maxChars: Math.min(historyBudget, MAX_REPLAY_HISTORY_CHARS),
+        protectedStateChars: conversationSummary?.length ?? 0,
+      },
+    );
+    replayHistory = replayAllocation.history.map((message) => ({
+      role: message.role,
+      body: message.body,
+    }));
 
     // Deep-Research promote gate (2026-07-15): a "build me a full report/brief"
     // ask is a DELIVERABLE, not a chat turn. Ordinary chat — on BOTH the legacy
@@ -1495,8 +1526,7 @@ export class MeriService implements MeriTurnMaintenance {
 
     // Trim history to a char budget (oldest-first) so long sessions don't
     // silently exceed the model context window and 400.
-    const historyBudget = this.config.get('CLIO_HISTORY_CHAR_BUDGET', { infer: true });
-    const trimmedHistory = trimHistoryToBudget(replayHistory, historyBudget);
+    const trimmedHistory = replayHistory;
 
     let assistantContent = '';
     const producedArtifacts: Array<{
@@ -3217,27 +3247,55 @@ export class MeriService implements MeriTurnMaintenance {
   }
 
   /**
-   * Rolling-summary compaction (F2). When the un-summarized text beyond the
-   * verbatim tail reaches the trigger budget, fold it into the conversation's
-   * running summary with the small intent-tier model and advance the
-   * boundary. Incremental: old summary + turns since → new summary.
+   * Protocol-safe rolling compaction. Complete user/assistant units become a
+   * bounded server-authored receipt in conversation metadata; the matching
+   * boundary advances with the receipt under one compare-and-swap update.
    */
   private async maybeCompactConversation(
     ctx: TenantContext,
     conversationId: string,
   ): Promise<void> {
     if (!this.config.get('CLIO_COMPACTION_ENABLED', { infer: true })) return;
-    const conversation = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioConversation.findFirst({
-        where: { id: conversationId, tenantId: ctx.tenantId },
-        select: { summary: true, summaryUpToMessageId: true, clientId: true },
-      }),
+    const conversations = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      // Prisma materializes timestamptz as a JavaScript Date, which discards
+      // PostgreSQL's final three microsecond digits. Keep the exact revision as
+      // text in the same owned-row snapshot as every input that fences or
+      // shapes publication; parsing it back in PostgreSQL is lossless.
+      tx.$queryRaw<
+        Array<{
+          summary: string | null;
+          summaryUpToMessageId: string | null;
+          clientId: string | null;
+          userId: string;
+          updatedAtRevision: string;
+          metadata: Prisma.JsonValue;
+        }>
+      >(Prisma.sql`
+        SELECT summary,
+               summary_up_to_message_id::text AS "summaryUpToMessageId",
+               client_id::text AS "clientId",
+               user_id::text AS "userId",
+               updated_at::text AS "updatedAtRevision",
+               metadata_jsonb AS metadata
+        FROM clio_conversations
+        WHERE id = ${conversationId}::uuid
+          AND tenant_id = ${ctx.tenantId}::uuid
+          AND user_id = ${ctx.userId}::uuid
+          AND archived_at IS NULL
+        LIMIT 1
+      `),
     );
+    const conversation = conversations[0];
     if (!conversation) return;
     const boundary = conversation.summaryUpToMessageId
       ? await this.prisma.withTenant(ctx.tenantId, (tx) =>
           tx.clioMessage.findFirst({
-            where: { id: conversation.summaryUpToMessageId ?? undefined, conversationId },
+            where: {
+              id: conversation.summaryUpToMessageId ?? undefined,
+              conversationId,
+              tenantId: ctx.tenantId,
+              userId: ctx.userId,
+            },
             select: { createdAt: true },
           }),
         )
@@ -3246,6 +3304,8 @@ export class MeriService implements MeriTurnMaintenance {
       tx.clioMessage.findMany({
         where: {
           conversationId,
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
           role: { in: ['user', 'assistant'] },
           ...(boundary
             ? {
@@ -3261,44 +3321,50 @@ export class MeriService implements MeriTurnMaintenance {
         select: { id: true, role: true, body: true, clientId: true, metadata: true },
       }),
     );
-    const existingSummary = boundary ? conversation.summary : null;
     const plan = planCompaction({
       messages: since,
-      existingSummary,
+      existingSummary: conversation.summaryUpToMessageId ? conversation.summary : null,
       triggerTokens: this.config.get('CLIO_COMPACTION_TRIGGER_TOKENS', { infer: true }),
       tailMessages: this.config.get('CLIO_COMPACTION_TAIL_MESSAGES', { infer: true }),
     });
     if (!plan.compact || !plan.upToMessageId) return;
-    const prompt = buildCompactionPrompt({
-      existingSummary,
+    const protectedState = buildProtocolCompactionState({
+      existingMetadata: conversation.metadata,
+      previousBoundaryMessageId: conversation.summaryUpToMessageId,
+      boundaryMessageId: plan.upToMessageId,
       clientId: conversation.clientId,
-      turns: plan.toSummarize,
+      messages: plan.toSummarize,
     });
-    const raw = await completeMeriSummary({
-      runtime: (await this.meriFlags.isMeriV3ChatEnabled(ctx.tenantId, ctx.tenantSlug)) ? 'meriv3' : 'legacy',
-      system: prompt.system,
-      user: prompt.user,
-      resolveOpenAi: () => this.aiCredentials.resolveProvider(ctx, 'openai'),
-      completeLegacy: () => this.completeWithIntentModel(ctx.tenantId, prompt.system, prompt.user, 1200),
+    const summary = protocolCompactionReplay({
+      metadata: { [MERI_PROTOCOL_COMPACTION_METADATA_KEY]: protectedState },
+      boundaryMessageId: plan.upToMessageId,
+      clientId: conversation.clientId,
     });
-    const summary = raw ? sanitizeSummaryOutput(raw) : null;
-    if (!summary) return;
     const updated = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioConversation.updateMany({
-        // A slower overlapping maintenance job must not regress the boundary.
-        where: {
-          id: conversationId,
-          tenantId: ctx.tenantId,
-          summaryUpToMessageId: conversation.summaryUpToMessageId,
-        },
-        data: {
-          summary,
-          summaryUpToMessageId: plan.upToMessageId,
-          summaryTokens: estimateTokens(summary),
-        },
-      }),
+      // Merge one metadata key in SQL so concurrent reasoning/scope metadata is
+      // preserved. Tenant, actor, client, old boundary and concrete row
+      // revision jointly fence publication; a stale result cannot replace a
+      // newer objective or regress state.
+      tx.$executeRaw(Prisma.sql`
+        UPDATE clio_conversations
+        SET summary = ${summary},
+            summary_up_to_message_id = ${plan.upToMessageId}::uuid,
+            summary_tokens = ${estimateTokens(summary)},
+            metadata_jsonb =
+              (CASE WHEN jsonb_typeof(metadata_jsonb) = 'object'
+                THEN metadata_jsonb ELSE '{}'::jsonb END) ||
+              ${JSON.stringify({ [MERI_PROTOCOL_COMPACTION_METADATA_KEY]: protectedState })}::jsonb,
+            updated_at = NOW()
+        WHERE id = ${conversationId}::uuid
+          AND tenant_id = ${ctx.tenantId}::uuid
+          AND user_id = ${ctx.userId}::uuid
+          AND client_id IS NOT DISTINCT FROM ${conversation.clientId}::uuid
+          AND summary_up_to_message_id IS NOT DISTINCT FROM ${conversation.summaryUpToMessageId}::uuid
+          AND updated_at = ${conversation.updatedAtRevision}::timestamptz
+          AND archived_at IS NULL
+      `),
     );
-    if (!updated.count) return;
+    if (!updated) return;
     this.logger.log(
       `Meri compaction [conv ${conversationId}]: folded ${plan.toSummarize.length} messages into the running summary (~${estimateTokens(summary)} tokens)`,
     );
@@ -6248,27 +6314,6 @@ function truncateText(text: string, maxChars: number): string {
   if (cut <= 0) cut = maxChars;
   const omitted = text.length - cut;
   return `${text.slice(0, cut)}\n... [truncated ${omitted} chars at a safe boundary]`;
-}
-
-/**
- * Trim conversation history to a character budget, keeping the most recent
- * turns (oldest dropped first). Prevents silent context-limit 400s.
- */
-function trimHistoryToBudget(
-  history: Array<{ role: 'user' | 'assistant'; body: string }>,
-  budgetChars: number,
-): Array<{ role: 'user' | 'assistant'; body: string }> {
-  let total = 0;
-  const kept: Array<{ role: 'user' | 'assistant'; body: string }> = [];
-  for (let i = history.length - 1; i >= 0; i -= 1) {
-    const turn = history[i];
-    if (!turn) continue;
-    const len = turn.body.length;
-    if (total + len > budgetChars && kept.length > 0) break;
-    total += len;
-    kept.unshift(turn);
-  }
-  return kept;
 }
 
 /** Redact obviously sensitive fields before echoing tool input to the trace UI. */
