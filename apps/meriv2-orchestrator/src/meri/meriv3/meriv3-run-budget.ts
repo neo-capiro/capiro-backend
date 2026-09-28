@@ -49,6 +49,7 @@ interface FailureObservation {
 }
 
 const SYNTHESIS_PHASES = new Set<MeriModelBudgetPhase>(['synthesis', 'finalization']);
+const TERMINAL_CONTROL_REASONS = new Set<MeriRunBudgetStopReason>(['cancelled', 'deadline']);
 const REVISION_KEYS =
   /(?:^|_)(?:source|artifact|content|record)?(?:revision|version|hash|etag)(?:$|_)/i;
 
@@ -263,7 +264,8 @@ export class MeriRunBudget {
   }
 
   private close(reason: MeriRunBudgetStopReason): void {
-    this.stopReason ??= reason;
+    if (this.stopReason !== null && TERMINAL_CONTROL_REASONS.has(this.stopReason)) return;
+    if (TERMINAL_CONTROL_REASONS.has(reason) || this.stopReason === null) this.stopReason = reason;
   }
 }
 

@@ -37,6 +37,27 @@ function fail(
   controller.observeToolResult({ signature, result, failed: true, repeatable });
 }
 
+function exhaustAcquisition(
+  controller: MeriRunBudget,
+  reason: 'model_calls' | 'tool_calls' | 'no_progress',
+) {
+  if (reason === 'model_calls') {
+    controller.reserveModelAttempt('acquisition');
+    expect(() => controller.reserveModelAttempt('acquisition')).toThrow(
+      MeriRunBudgetExhaustedError,
+    );
+    return;
+  }
+  if (reason === 'tool_calls') {
+    expect(controller.reserveToolBatch(1)).toBe(false);
+    return;
+  }
+  const signature = controller.toolSignature(scope, 'read_alpha', { query: 'same' });
+  expect(controller.reserveToolBatch(1)).toBe(true);
+  expect(controller.beginTool(signature)).toBe(true);
+  controller.observeToolResult({ signature, result: { error: 'unchanged' }, failed: true });
+}
+
 describe('MeriRunBudget', () => {
   test('bounds an unchanged alternating A/B failure cycle across rounds', () => {
     const controller = budget();
@@ -119,6 +140,53 @@ describe('MeriRunBudget', () => {
       MeriRunBudgetExhaustedError,
     );
   });
+
+  test.each([
+    ['model_calls', 'cancelled'],
+    ['tool_calls', 'cancelled'],
+    ['no_progress', 'cancelled'],
+    ['model_calls', 'deadline'],
+    ['tool_calls', 'deadline'],
+    ['no_progress', 'deadline'],
+  ] as const)(
+    '%s exhaustion cannot mask a later %s control boundary',
+    (acquisitionReason, terminalReason) => {
+      const abort = new AbortController();
+      const control = { signal: abort.signal, deadlineAt: Date.now() + 60_000 };
+      const controller = new MeriRunBudget(
+        {
+          maxModelCalls: 3,
+          maxToolCalls: acquisitionReason === 'tool_calls' ? 0 : 3,
+          maxRetryCalls: 3,
+          synthesisModelCallReserve: 2,
+          noProgressLaps: acquisitionReason === 'no_progress' ? 1 : 3,
+          maxCyclePeriod: 1,
+        },
+        control,
+      );
+
+      exhaustAcquisition(controller, acquisitionReason);
+      expect(controller.snapshot().stopReason).toBe(acquisitionReason);
+      const modelCallsAtBoundary = controller.snapshot().modelCalls;
+
+      if (terminalReason === 'cancelled') abort.abort(new DOMException('Stopped', 'AbortError'));
+      else control.deadlineAt = Date.now() - 1;
+
+      expect(controller.snapshot().stopReason).toBe(terminalReason);
+      expect(controller.reserveToolBatch(1)).toBe(false);
+      expect(controller.beginTool('after-terminal-control')).toBe(false);
+      for (const phase of ['synthesis', 'finalization', 'repair'] as const) {
+        try {
+          controller.reserveModelAttempt(phase);
+          throw new Error(`${phase} was admitted after ${terminalReason}`);
+        } catch (error) {
+          expect(error).toBeInstanceOf(MeriRunBudgetExhaustedError);
+          expect((error as MeriRunBudgetExhaustedError).reason).toBe(terminalReason);
+        }
+      }
+      expect(controller.snapshot().modelCalls).toBe(modelCallsAtBoundary);
+    },
+  );
 
   test('shares retry calls while retaining dedicated synthesis attempts', () => {
     const controller = budget({ maxModelCalls: 5, synthesisModelCallReserve: 2, maxRetryCalls: 1 });

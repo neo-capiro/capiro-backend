@@ -20,6 +20,7 @@ import {
 } from './meriv3-assistant.service.js';
 import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
 import { OpenAiResponsesClient } from './openai-responses.client.js';
+import { MeriRunBudgetExhaustedError } from './meriv3-run-budget.js';
 
 const context = {
   tenantId: 'tenant-1',
@@ -444,6 +445,116 @@ describe('MeriV3AssistantService', () => {
     expect(result.reply).toBe('No oversized batch member was executed.');
     expect(result.telemetry).toMatchObject({ partial: true, finishReason: 'runtime_tool_calls' });
   });
+
+  test.each(['Stop', 'deadline'] as const)(
+    'dispatches no provider phase or tool after a late %s supersedes model-call exhaustion',
+    async (terminalControl) => {
+      process.env.OPENAI_API_KEY = 'test-key';
+      const abort = new AbortController();
+      let now = Date.now();
+      const deadlineAt = now + 60_000;
+      jest.spyOn(Date, 'now').mockImplementation(() => now);
+      let terminalObserved = false;
+      let providerDispatches = 0;
+      let providerDispatchesAfterTerminal = 0;
+      let toolDispatchesAfterTerminal = 0;
+
+      global.fetch = jest.fn(async (input) => {
+        if (String(input).startsWith('http://api.test')) {
+          return new Response(
+            JSON.stringify({
+              schemas: [
+                {
+                  name: 'search_memory',
+                  description: 'Search memory',
+                  input_schema: { type: 'object', properties: { query: { type: 'string' } } },
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
+        if (terminalObserved) providerDispatchesAfterTerminal += 1;
+        providerDispatches += 1;
+        if (providerDispatches === 1) {
+          return new Response(
+            JSON.stringify({
+              error: {
+                message: "Unsupported parameter: 'reasoning.effort' is not supported with this model.",
+              },
+            }),
+            { status: 400 },
+          );
+        }
+        const callId = `before-terminal-${providerDispatches}`;
+        return new Response(
+          JSON.stringify({
+            id: `response-${providerDispatches}`,
+            status: 'completed',
+            model: 'gpt-5.6',
+            output: [
+              {
+                type: 'function_call',
+                call_id: callId,
+                name: 'search_memory',
+                arguments: JSON.stringify({ query: callId }),
+                status: 'completed',
+              },
+            ],
+            usage: { input_tokens: 10, output_tokens: 5 },
+          }),
+          { status: 200 },
+        );
+      }) as typeof fetch;
+
+      const invoke = jest.fn(async () => {
+        if (terminalObserved) toolDispatchesAfterTerminal += 1;
+        return { records: [] };
+      });
+      const client = new OpenAiResponsesClient();
+      const complete = client.complete.bind(client);
+      jest.spyOn(client, 'complete').mockImplementation(async (params) => {
+        try {
+          return await complete(params);
+        } catch (error) {
+          if (
+            error instanceof MeriRunBudgetExhaustedError &&
+            error.reason === 'model_calls'
+          ) {
+            terminalObserved = true;
+            if (terminalControl === 'Stop') abort.abort(new DOMException('Stopped', 'AbortError'));
+            else now = deadlineAt;
+          }
+          throw error;
+        }
+      });
+
+      const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        build(
+          registry([{ name: 'search_memory', readOnly: true }], invoke),
+          client,
+        ).run(
+          context,
+          {
+            conversationId: `late-${terminalControl.toLowerCase()}-thread`,
+            reasoningMode: 'fast',
+            messages: [{ role: 'user', text: 'Find Kestrel in memory.' }],
+          },
+          { signal: abort.signal, deadlineAt },
+        ),
+      );
+
+      expect(terminalObserved).toBe(true);
+      expect(providerDispatches).toBe(6);
+      expect(invoke).toHaveBeenCalledTimes(5);
+      expect(providerDispatchesAfterTerminal).toBe(0);
+      expect(toolDispatchesAfterTerminal).toBe(0);
+      expect(result.telemetry).toMatchObject({
+        partial: true,
+        finishReason: terminalControl === 'Stop' ? 'cancelled' : 'deadline_exceeded',
+      });
+    },
+  );
 
   test.each([
     [
