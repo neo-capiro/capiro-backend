@@ -50,7 +50,25 @@ function isForbiddenImplementationPath(path, repositoryRoot) {
   );
 }
 
-function collectUniqueConstInitializers(sourceFile) {
+function createLexicalChecker(sourceFile, compilerOptions) {
+  const options = {
+    ...compilerOptions,
+    noLib: true,
+    noResolve: true,
+    types: [],
+  };
+  const sourcePath = normalizedPath(sourceFile.fileName);
+  const host = ts.createCompilerHost(options, true);
+  host.fileExists = (fileName) => normalizedPath(fileName) === sourcePath;
+  host.readFile = (fileName) =>
+    normalizedPath(fileName) === sourcePath ? sourceFile.text : undefined;
+  host.getSourceFile = (fileName) =>
+    normalizedPath(fileName) === sourcePath ? sourceFile : undefined;
+
+  return ts.createProgram([sourceFile.fileName], options, host).getTypeChecker();
+}
+
+function collectUniqueConstInitializers(sourceFile, checker) {
   const initializers = new Map();
   const ambiguous = new Set();
 
@@ -58,11 +76,14 @@ function collectUniqueConstInitializers(sourceFile) {
     if (ts.isVariableDeclarationList(node) && (node.flags & ts.NodeFlags.Const) !== 0) {
       for (const declaration of node.declarations) {
         if (ts.isIdentifier(declaration.name) && declaration.initializer) {
-          const name = declaration.name.text;
-          if (initializers.has(name)) {
-            ambiguous.add(name);
+          const symbol = checker.getSymbolAtLocation(declaration.name);
+          if (!symbol) {
+            continue;
+          }
+          if (initializers.has(symbol)) {
+            ambiguous.add(symbol);
           } else {
-            initializers.set(name, declaration.initializer);
+            initializers.set(symbol, declaration.initializer);
           }
         }
       }
@@ -71,8 +92,8 @@ function collectUniqueConstInitializers(sourceFile) {
   }
 
   visit(sourceFile);
-  for (const name of ambiguous) {
-    initializers.delete(name);
+  for (const symbol of ambiguous) {
+    initializers.delete(symbol);
   }
   return initializers;
 }
@@ -91,7 +112,7 @@ function unwrapExpression(node) {
   return current;
 }
 
-function staticStringEvaluator(initializers) {
+function staticStringEvaluator(initializers, checker) {
   const cache = new Map();
 
   function evaluate(node, resolving = new Set()) {
@@ -118,16 +139,19 @@ function staticStringEvaluator(initializers) {
       }
       return value;
     }
-    if (ts.isIdentifier(expression) && initializers.has(expression.text)) {
-      const name = expression.text;
-      if (cache.has(name)) {
-        return cache.get(name);
-      }
-      if (resolving.has(name)) {
+    if (ts.isIdentifier(expression)) {
+      const symbol = checker.getSymbolAtLocation(expression);
+      if (!symbol || !initializers.has(symbol)) {
         return undefined;
       }
-      const value = evaluate(initializers.get(name), new Set(resolving).add(name));
-      cache.set(name, value);
+      if (cache.has(symbol)) {
+        return cache.get(symbol);
+      }
+      if (resolving.has(symbol)) {
+        return undefined;
+      }
+      const value = evaluate(initializers.get(symbol), new Set(resolving).add(symbol));
+      cache.set(symbol, value);
       return value;
     }
     return undefined;
@@ -239,7 +263,11 @@ export function inspectSource(
     return violations;
   }
 
-  const evaluateStaticString = staticStringEvaluator(collectUniqueConstInitializers(sourceFile));
+  const checker = createLexicalChecker(sourceFile, compilerOptions);
+  const evaluateStaticString = staticStringEvaluator(
+    collectUniqueConstInitializers(sourceFile, checker),
+    checker,
+  );
 
   function inspectModuleReference(node, expression, kind, { failOnUnknown = false } = {}) {
     const specifier = evaluateStaticString(expression);
@@ -294,7 +322,12 @@ export function inspectSource(
             failOnUnknown: true,
           });
         }
-      } else if (ts.isIdentifier(node.expression) && node.expression.text === 'require') {
+      } else {
+        const callee = unwrapExpression(node.expression);
+        if (!ts.isIdentifier(callee) || callee.text !== 'require') {
+          ts.forEachChild(node, visit);
+          return;
+        }
         if (node.arguments[0]) {
           inspectModuleReference(node, node.arguments[0], 'require', { failOnUnknown: true });
         }

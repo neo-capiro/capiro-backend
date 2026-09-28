@@ -55,6 +55,49 @@ test('rejects a MeriV3 implementation require', () => {
   assertRejected(`const runtime = require('${RUNTIME_MODULE}');`, 'require');
 });
 
+test('rejects transparent wrappers around a MeriV3 implementation require callee', () => {
+  assertRejected(`const runtime = (require)('${RUNTIME_MODULE}');`, 'require');
+  assertRejected(`const runtime = (require as NodeRequire)('${RUNTIME_MODULE}');`, 'require');
+  assertRejected(`const runtime = (require!)('${RUNTIME_MODULE}');`, 'require');
+  assertRejected(
+    `const runtime = (require satisfies NodeRequire)('${RUNTIME_MODULE}');`,
+    'require',
+  );
+});
+
+test('fails closed when a safe const name is shadowed or cannot be bound safely', () => {
+  assertRejected(
+    `const path = './safe.js'; function load(path: string) { return import(path); }`,
+    'unsupported computed dynamic import',
+  );
+  assertRejected(
+    `const path = './safe.js'; { const path = getPath(); void import(path); }`,
+    'unsupported computed dynamic import',
+  );
+  assertRejected(
+    `const path = './safe.js'; try { run(); } catch (path) { void import(path); }`,
+    'unsupported computed dynamic import',
+  );
+  assertRejected(
+    `const path = './safe.js'; function load({ path }: { path: string }) { return import(path); }`,
+    'unsupported computed dynamic import',
+  );
+  assertRejected(
+    `const first = second; const second = first; void import(first);`,
+    'unsupported computed dynamic import',
+  );
+});
+
+test('allows a known harmless module path folded through lexical const aliases', () => {
+  const source = `
+    const directory = './';
+    const stem = 'safe' + '-module';
+    const modulePath = \`${'${directory}${stem}'}.js\`;
+    export const load = () => import(modulePath);
+  `;
+  assert.deepEqual(violationsFor(source), []);
+});
+
 test('rejects a MeriV3 implementation import-equals declaration', () => {
   assertRejected(`import runtime = require('${RUNTIME_MODULE}');`, 'import equals');
 });
