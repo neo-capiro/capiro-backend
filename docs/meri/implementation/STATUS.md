@@ -1,5 +1,20 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-28 14:22 UTC
+
+File 01 remains IN_PROGRESS. Verified integration source is `9cf6ca2a2098257146997c6b35a3fc1c17c37801`; this checkpoint changes documentation only. Both mains and AWS remain unchanged. Release still requires the missing acceptance work, database recovery and owner acceptance. Approved synthetic-tenant enablement remains unapplied.
+
+- PASS, bounded prior-turn attachment reader and trusted transport: reviewed sources `6ee4a8825`, `a944bed97` and `ed5f6dc27` integrated as `78f1cb58f`, `32ec3bf64` and `9cf6ca2a2`. All 20 files match the reviewed candidate. Review reproduced exact long-PDF text continuation across pages and rejected noncanonical cursor signatures. The two-million-character native-page cap is explicitly partial, not complete; parser allocation is not qualified. Integrated 96 API tests, 62 orchestrator tests and both typechecks exited 0. No live JWT/RLS/browser or report-owner adapter qualification is claimed.
+- PASS, reproducible source fixtures: source `892a098ba79850e8992f09d5f3e7409ab12b2ae1` integrated as `ca9a5955c`. Independent parser/determinism probes and 49 integrated tests exited 0. Seven PDF/PPTX/XLSX assets prepare evidence inputs; they do not satisfy live cases 40–45 or canonical source loading.
+- HOLD, research report streaming: independent review at `18c58b62c` confirmed thinking redaction but reproduced typed page/artifact/caveat content before current authorization and durable publication. A finite observer projection repair is being completed. Procedure `957e4b137` remains narrowly reviewed; the combined report/procedure candidate has 179 API and 106 orchestrator tests plus API typecheck exit 0, but remains excluded until the report boundary passes review.
+- IN_PROGRESS: typed plan admission `dbc50d806` needs duplicate-JSON rejection and a fresh current-scope check immediately before dispatch; repairs and actual authenticated V3 plan enforcement are active. Full per-step execution, steering, durable aggregate budgets and child execution remain mandatory. Canonical mail owner adapter `69b3b9727` has 55 tests and API typecheck exit 0 and is under independent review. RP proposal transport `de140b913` is also under independent review and remains excluded.
+
+At published `0adfe2e011abf3056a8a9a08f13d2867d53ff087`, full Meri canary Actions `36430449205`, visual Actions `36430448458`, memory PostgreSQL `36430448769` and connectors `36430449129` succeeded. Phase 17 `36430449389` failed historical migration `20281003010000_dedup_client_intel_mapping` at `min(uuid)`. No failed gate is waived and no infrastructure-outage fallback applies.
+
+All 75 live baseline cases, CD7, required CW8 and applicable memory acceptance remain NOT_RUN. Complete source/document coverage, progressive tool discovery, narrative/JEV, joined telemetry, durable coworker execution, trusted acceptance capture and authorized release remain unfinished. File 02 has not started.
+
+Evidence: `review-prior-attachment-page-cursor-repair-report.md`, `integration-9cf-attachment-api.log`, `integration-9cf-attachment-ork.log`, `integration-9cf-api-typecheck.log`, `integration-9cf-ork-typecheck.log`, `review-acceptance-source-binaries-report.md`, `integration-source-binaries-tests.log`, `ci-0adfe-canary-success.log`, `ci-0adfe-phase17-failed.log`, and `queue-current.json`, under `C:/dev/cap-meri-foundation-evidence`.
+
 ## Current checkpoint — 2026-09-28 13:40 UTC
 
 File 01 remains IN_PROGRESS. Reviewed integration source is `484f0a01b10bb8f7f4c11c1f88a1d517c2a3c0e4`; this checkpoint is documentation only. Both mains and AWS remain unchanged. Required verification, database recovery and owner acceptance hold release. The two synthetic tenants remain approved but not enabled.
