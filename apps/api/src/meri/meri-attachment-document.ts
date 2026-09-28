@@ -118,7 +118,7 @@ function directXmlElements(
 
 function parseXmlRoot(
   content: Buffer,
-  updateTag?: (name: string, path: string, attributes: Record<string, string>) => string,
+  updateTag?: (name: string, path: unknown, attributes: Record<string, string>) => string,
 ): XmlElement {
   let xml: string;
   try {
@@ -222,7 +222,7 @@ function inspectWorksheetXml(content: Buffer, totals: { rows: number; cells: num
   let implicitColumn = 0;
   const root = parseXmlRoot(content, (name, path, attributes) => {
     const element = xmlLocalName(name);
-    const hierarchy = path.split('.').map(xmlLocalName);
+    const hierarchy = (path as string).split('.').map(xmlLocalName);
     const parent = hierarchy[hierarchy.length - 2];
     const grandparent = hierarchy[hierarchy.length - 3];
     if (element === 'row' && parent === 'sheetData') {

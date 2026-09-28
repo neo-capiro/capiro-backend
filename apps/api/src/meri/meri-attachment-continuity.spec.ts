@@ -94,7 +94,7 @@ describe('attachment continuity authorization', () => {
   });
 
   test('fails closed when saved XLSX bytes are replaced, omitted, or disagree with cached source text', async () => {
-    const original = Buffer.from('original-xlsx-bytes');
+    const original: Buffer = Buffer.from('original-xlsx-bytes');
     const row = {
       id: 'xlsx',
       filename: 'source.xlsx',
