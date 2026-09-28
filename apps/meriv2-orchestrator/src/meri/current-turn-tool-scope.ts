@@ -30,7 +30,7 @@ const researchPortfolioTools = new Set<string>([
 ]);
 
 export function isCurrentConversationResearchPortfolioTool(toolName: string): boolean {
-  return researchPortfolioTools.has(toolName);
+  return researchPortfolioTools.has(toolName.trim());
 }
 
 /**

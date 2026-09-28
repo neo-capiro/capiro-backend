@@ -44,7 +44,7 @@ const RESEARCH_PORTFOLIO_TOOLS = new Set([
 ]);
 
 export function isResearchPortfolioProposalTool(tool: string): boolean {
-  return RESEARCH_PORTFOLIO_TOOLS.has(tool);
+  return RESEARCH_PORTFOLIO_TOOLS.has(tool.trim());
 }
 
 export function bindResearchPortfolioProposalInput(
