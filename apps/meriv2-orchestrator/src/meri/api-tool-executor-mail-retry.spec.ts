@@ -42,7 +42,7 @@ describe('mail read retry after explicit API capacity failure', () => {
               totalMessages: 1,
               returned: 1,
               hasMore: false,
-              messages: [{ bodyTruncated: false, bodyCompleteness: 'complete' }],
+              messages: [{ bodyTruncated: false, bodyCompleteness: 'full' }],
             }
           : {
               totalMatches: 389,

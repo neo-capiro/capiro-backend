@@ -22,6 +22,47 @@ function mockFetch() {
   return calls;
 }
 
+function memoryPayload(kind: 'complete' | 'empty' | 'partial') {
+  const partial = kind === 'partial';
+  const empty = kind === 'empty';
+  const source = {
+    domain: 'institutional_knowledge',
+    sourceStatus: partial ? 'degraded' : 'healthy',
+    returned: empty ? 0 : 1,
+    recordsEvaluated: empty ? 0 : 1,
+    requestedEntityCount: 0,
+    searchedEntityCount: 0,
+    pagesRead: 1,
+    hasMore: false,
+    truncated: false,
+    paginationComplete: true,
+    coverageComplete: !partial,
+    stopReason: partial ? 'governed_memory_semantic_projection_incomplete' : 'complete',
+  };
+  return {
+    tool: 'search_memory',
+    coverage: {
+      requestedDomains: ['institutional_knowledge'],
+      searchedDomains: ['institutional_knowledge'],
+      requestedEntityCount: 0,
+      searchedEntityCount: 0,
+      recordsEvaluated: source.recordsEvaluated,
+      recordsReturned: source.returned,
+      paginationComplete: true,
+      unavailableSources: [],
+      sources: [source],
+      complete: !partial,
+      stopReason: source.stopReason,
+    },
+    factContentUnavailableCount: 0,
+    contentStatus: empty ? 'empty' : 'available',
+    contentTruncated: false,
+    nextCursor: null,
+    results: empty ? [] : [{ memoryItemId: 'memory-1' }],
+    records: empty ? [] : [{ recordId: 'memory-1' }],
+  };
+}
+
 const CTX = {} as unknown as MeriContext;
 
 describe('ApiToolExecutorRepo — internal service-secret header', () => {
@@ -115,6 +156,56 @@ describe('ApiToolExecutorRepo — delegated read outcomes', () => {
         repo.execute(CTX, 'read_client_documents', { clientId: 'client-1' }),
       ),
     ).rejects.toThrow('document_content_unavailable');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a malformed discriminated client-context response after actual fetch parsing', async () => {
+    const malformed = {
+      tool: 'get_client_context',
+      context: { client: { id: 'client-1' } },
+    };
+    const fetchMock = jest.fn(async () => new Response(JSON.stringify(malformed)));
+    (global as unknown as { fetch: unknown }).fetch = fetchMock;
+    const repo = new ApiToolExecutorRepo(cfg({}));
+
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'user-tok' }, () =>
+        repo.execute(CTX, 'get_client_context', { clientId: 'client-1' }),
+      ),
+    ).rejects.toThrow('get_client_context_result_contract_invalid');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['partial', 'empty', 'complete'] as const)(
+    'preserves the owner search_memory %s payload through controlled fetch',
+    async (kind) => {
+      const payload = memoryPayload(kind);
+      const fetchMock = jest.fn(async () => new Response(JSON.stringify(payload)));
+      (global as unknown as { fetch: unknown }).fetch = fetchMock;
+      const repo = new ApiToolExecutorRepo(cfg({}));
+
+      await expect(
+        RequestCredentialsStore.run({ bearerToken: 'user-tok' }, () =>
+          repo.execute(CTX, 'search_memory', { query: 'funding' }),
+        ),
+      ).resolves.toEqual(payload);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('leaves an unknown tool nested error field unchanged after actual fetch parsing', async () => {
+    const payload = {
+      results: [{ title: 'Provider error handling', error: 'quoted source field' }],
+    };
+    const fetchMock = jest.fn(async () => new Response(JSON.stringify(payload)));
+    (global as unknown as { fetch: unknown }).fetch = fetchMock;
+    const repo = new ApiToolExecutorRepo(cfg({}));
+
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'user-tok' }, () =>
+        repo.execute(CTX, 'search_public_web', { query: 'provider errors' }),
+      ),
+    ).resolves.toEqual(payload);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

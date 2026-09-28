@@ -9,6 +9,14 @@ export interface ApiToolReadOutcome {
 
 const ownerErrorSchema = z.object({ error: z.string().trim().min(1) }).passthrough();
 const sourceStatusSchema = z.enum(['healthy', 'degraded', 'unavailable']);
+const retrievalSourceStatusSchema = z.enum([
+  'healthy',
+  'degraded',
+  'unavailable',
+  'unauthorized',
+  'unsupported',
+  'error',
+]);
 
 const mailSearchSchema = z
   .object({
@@ -35,7 +43,7 @@ const mailThreadSchema = z
       z
         .object({
           bodyTruncated: z.boolean(),
-          bodyCompleteness: z.string(),
+          bodyCompleteness: z.enum(['full', 'preview', 'truncated', 'unknown']),
         })
         .passthrough(),
     ),
@@ -90,9 +98,36 @@ const clientContextSchema = z
   })
   .passthrough();
 
+const legacyClientContextSchema = z
+  .object({
+    context: z.object({ client: z.object({ id: z.string().min(1) }).passthrough() }).passthrough(),
+  })
+  .passthrough();
+
 const memorySearchSchema = z
   .object({
     tool: z.literal('search_memory'),
+    coverage: z
+      .object({
+        complete: z.boolean(),
+        paginationComplete: z.boolean(),
+        sources: z
+          .array(
+            z
+              .object({
+                domain: z.literal('institutional_knowledge'),
+                sourceStatus: retrievalSourceStatusSchema,
+                hasMore: z.boolean(),
+                truncated: z.boolean(),
+                paginationComplete: z.boolean(),
+                coverageComplete: z.boolean(),
+              })
+              .passthrough(),
+          )
+          .min(1),
+      })
+      .passthrough(),
+    factContentUnavailableCount: z.number().int().nonnegative(),
     contentStatus: z.enum([
       'available',
       'empty',
@@ -144,7 +179,7 @@ function classifyMailThread(payload: unknown): ApiToolReadOutcome {
   if (totalMessages === 0 && returned === 0) return { kind: 'empty' };
   if (
     hasMore ||
-    messages.some((message) => message.bodyTruncated || message.bodyCompleteness !== 'complete')
+    messages.some((message) => message.bodyTruncated || message.bodyCompleteness !== 'full')
   ) {
     return { kind: 'partial', reason: 'mail_body_coverage_incomplete' };
   }
@@ -191,9 +226,25 @@ function classifyDocumentRead(payload: unknown): ApiToolReadOutcome {
 
 function classifyClientContext(payload: unknown): ApiToolReadOutcome | null {
   const parsed = clientContextSchema.safeParse(payload);
-  // The native ApiClientContextRepo retains its established validation for
-  // legacy envelopes without the owner's current tool discriminator.
-  if (!parsed.success) return null;
+  if (!parsed.success) {
+    // The native ApiClientContextRepo retains its established validation only
+    // for the pre-discriminator envelope it already accepted.
+    const legacy = legacyClientContextSchema.safeParse(payload);
+    if (legacy.success && !Object.prototype.hasOwnProperty.call(legacy.data, 'tool')) {
+      return null;
+    }
+    if (
+      payload !== null &&
+      typeof payload === 'object' &&
+      !Object.prototype.hasOwnProperty.call(payload, 'tool')
+    ) {
+      return {
+        kind: 'failed',
+        reason: 'Canonical client-context response is missing its client context',
+      };
+    }
+    return invalidResult('get_client_context');
+  }
   const statuses = Object.values(parsed.data.profileSections).map((section) => section.status);
   return statuses.some((status) => status === 'partial' || status === 'unavailable')
     ? { kind: 'partial', reason: 'client_context_coverage_incomplete' }
@@ -205,14 +256,31 @@ function classifyMemorySearch(payload: unknown): ApiToolReadOutcome {
   if (failure) return failure;
   const parsed = memorySearchSchema.safeParse(payload);
   if (!parsed.success) return invalidResult('search_memory');
-  const { contentStatus, contentTruncated, nextCursor } = parsed.data;
-  if (contentStatus === 'empty') return { kind: 'empty' };
+  const { contentStatus, contentTruncated, coverage, factContentUnavailableCount, nextCursor } =
+    parsed.data;
   if (contentStatus === 'unavailable' || contentStatus === 'unavailable_or_ineligible') {
     return { kind: 'unavailable', reason: 'memory_content_unavailable' };
   }
-  if (contentStatus === 'metadata_only' || contentTruncated || nextCursor !== null) {
+  const sourceCoverageIncomplete = coverage.sources.some(
+    (source) =>
+      source.sourceStatus !== 'healthy' ||
+      source.hasMore ||
+      source.truncated ||
+      !source.paginationComplete ||
+      !source.coverageComplete,
+  );
+  if (
+    !coverage.complete ||
+    !coverage.paginationComplete ||
+    sourceCoverageIncomplete ||
+    contentStatus === 'metadata_only' ||
+    factContentUnavailableCount > 0 ||
+    contentTruncated ||
+    nextCursor !== null
+  ) {
     return { kind: 'partial', reason: 'memory_coverage_incomplete' };
   }
+  if (contentStatus === 'empty') return { kind: 'empty' };
   return { kind: 'complete' };
 }
 
