@@ -19,6 +19,7 @@ import {
   COMMITMENTS_AUDIT_CAPABILITIES,
   COMMITMENTS_AUDIT_COVERAGE_STATES,
   COMMITMENTS_AUDIT_STATUSES,
+  commitmentsAuditProcedureSkill,
 } from './skills/commitments-audit.procedure.js';
 
 const LIMITS = {
@@ -117,6 +118,10 @@ function stringArray(
 
 function sameMembers(actual: readonly string[], expected: readonly string[]): boolean {
   return actual.length === expected.length && expected.every((item) => actual.includes(item));
+}
+
+function containsAll(actual: readonly string[], required: readonly string[]): boolean {
+  return required.every((item) => actual.includes(item));
 }
 
 function validateProcedureManifest(input: unknown, errors: string[]): MeriProcedureManifest | null {
@@ -274,26 +279,36 @@ function validateCommitmentsContract(skill: MeriSkill, errors: string[]): void {
   if (!sameMembers(procedure.output.coverageStates, COMMITMENTS_AUDIT_COVERAGE_STATES)) {
     errors.push('commitments_audit coverage states are fixed');
   }
-  const requiredFields = [
-    'source',
-    'sourceVersion',
-    'locator',
-    'observedAt',
-    'promise',
-    'madeAt',
-    'madeWhere',
-    'owner',
-    'dueDate',
-    'dependency',
-    'acceptance',
-    'linkedRecordId',
-    'nativeStatus',
-    'proposedFollowUp',
-    'auditStatus',
-    'citations',
-  ];
-  if (!requiredFields.every((field) => procedure.output.fields.includes(field))) {
-    errors.push('commitments_audit output fields are incomplete');
+  const canonical = commitmentsAuditProcedureSkill;
+  const canonicalProcedure = canonical.procedure!;
+  if (skill.systemAddendum !== canonical.systemAddendum) {
+    errors.push('commitments_audit canonical contract guidance is required');
+  }
+  if (!containsAll(skill.requiredTools, canonical.requiredTools)) {
+    errors.push('commitments_audit canonical contract read tools are required');
+  }
+  if (procedure.purpose !== canonicalProcedure.purpose) {
+    errors.push('commitments_audit canonical contract purpose is required');
+  }
+  if (!sameMembers(procedure.evidencePrerequisites, canonicalProcedure.evidencePrerequisites)) {
+    errors.push('commitments_audit canonical contract evidence prerequisites are required');
+  }
+  if (!sameMembers(procedure.output.fields, canonicalProcedure.output.fields)) {
+    errors.push('commitments_audit canonical contract output fields are incomplete');
+  }
+  if (!sameMembers(procedure.completion, canonicalProcedure.completion)) {
+    errors.push('commitments_audit canonical contract completion clauses are required');
+  }
+  if (
+    !sameMembers(
+      procedure.effectPolicy.prohibitedEffects,
+      canonicalProcedure.effectPolicy.prohibitedEffects,
+    )
+  ) {
+    errors.push('commitments_audit canonical contract zero-write clauses are required');
+  }
+  if (!sameMembers(procedure.examples, canonicalProcedure.examples)) {
+    errors.push('commitments_audit canonical contract evidence examples are required');
   }
   if (
     procedure.output.unknownValue !== 'unknown' ||

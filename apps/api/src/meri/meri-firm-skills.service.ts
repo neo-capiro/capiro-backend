@@ -1,4 +1,10 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { MERI_CAPABILITY_REGISTRY, type TenantContext } from '@capiro/shared';
@@ -130,12 +136,18 @@ export class MeriFirmSkillsService {
   }
 
   async update(ctx: TenantContext, id: string, input: Record<string, unknown>) {
-    const existing = await this.findOrThrow(ctx, id);
-    const skill = this.validate({ ...(input ?? {}), id: (input.id as string) ?? existing.skillId });
-    const history = this.pushVersion(existing);
-    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioFirmSkill.update({
-        where: { id },
+    const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const existing = await tx.clioFirmSkill.findFirst({
+        where: { id, tenantId: ctx.tenantId },
+      });
+      if (!existing) throw new NotFoundException('Firm skill not found');
+      const skill = this.validate({
+        ...(input ?? {}),
+        id: (input.id as string) ?? existing.skillId,
+      });
+      const history = this.pushVersion(existing);
+      const result = await tx.clioFirmSkill.updateMany({
+        where: { id, tenantId: ctx.tenantId, version: existing.version },
         data: {
           skillId: skill.id,
           name: skill.name,
@@ -144,10 +156,20 @@ export class MeriFirmSkillsService {
           versions: history as unknown as Prisma.InputJsonValue,
           updatedByUserId: ctx.userId,
         },
-      }),
-    );
+      });
+      if (result.count !== 1) {
+        throw new ConflictException('Firm skill changed concurrently; reload and retry');
+      }
+      const updated = await tx.clioFirmSkill.findFirst({
+        where: { id, tenantId: ctx.tenantId },
+      });
+      if (!updated) {
+        throw new ConflictException('Firm skill changed concurrently; reload and retry');
+      }
+      return updated;
+    });
     await this.audit(ctx, 'clio.firm_skill.update', id, {
-      skillId: skill.id,
+      skillId: row.skillId,
       version: row.version,
     });
     this.invalidate(ctx.tenantId);
@@ -174,17 +196,20 @@ export class MeriFirmSkillsService {
 
   /** Restore a prior version (current state is pushed into history first). */
   async restore(ctx: TenantContext, id: string, version: number) {
-    const existing = await this.findOrThrow(ctx, id);
-    const history = (existing.versions as unknown as SkillVersionSnapshot[] | null) ?? [];
-    const snapshot = history.find((v) => v.version === version);
-    if (!snapshot) throw new NotFoundException(`No stored version ${version}`);
-    // Re-validate the snapshot against TODAY's rules (a tool may have been
-    // removed since); restore must not resurrect an invalid skill.
-    const skill = this.validate(snapshot.skillJson as unknown as Record<string, unknown>);
-    const newHistory = this.pushVersion(existing);
-    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioFirmSkill.update({
-        where: { id },
+    const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const existing = await tx.clioFirmSkill.findFirst({
+        where: { id, tenantId: ctx.tenantId },
+      });
+      if (!existing) throw new NotFoundException('Firm skill not found');
+      const history = (existing.versions as unknown as SkillVersionSnapshot[] | null) ?? [];
+      const snapshot = history.find((candidate) => candidate.version === version);
+      if (!snapshot) throw new NotFoundException(`No stored version ${version}`);
+      // Re-validate the snapshot against TODAY's rules (a tool may have been
+      // removed since); restore must not resurrect an invalid skill.
+      const skill = this.validate(snapshot.skillJson as unknown as Record<string, unknown>);
+      const newHistory = this.pushVersion(existing);
+      const result = await tx.clioFirmSkill.updateMany({
+        where: { id, tenantId: ctx.tenantId, version: existing.version },
         data: {
           skillId: skill.id,
           name: skill.name,
@@ -193,8 +218,18 @@ export class MeriFirmSkillsService {
           versions: newHistory as unknown as Prisma.InputJsonValue,
           updatedByUserId: ctx.userId,
         },
-      }),
-    );
+      });
+      if (result.count !== 1) {
+        throw new ConflictException('Firm skill changed concurrently; reload and retry');
+      }
+      const updated = await tx.clioFirmSkill.findFirst({
+        where: { id, tenantId: ctx.tenantId },
+      });
+      if (!updated) {
+        throw new ConflictException('Firm skill changed concurrently; reload and retry');
+      }
+      return updated;
+    });
     await this.audit(ctx, 'clio.firm_skill.restore', id, { restoredVersion: version });
     this.invalidate(ctx.tenantId);
     return row;

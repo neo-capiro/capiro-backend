@@ -1,4 +1,4 @@
-Nous Research Hermes Agent
+Nous Research Hermes Agent (H1 runtime guardrails and H5 procedure playbook)
 
 This product includes a substantial TypeScript adaptation of tool-loop guardrail concepts from Hermes Agent. Adapted behavior is implemented in:
 
@@ -6,9 +6,22 @@ This product includes a substantial TypeScript adaptation of tool-loop guardrail
 - apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts
 - apps/meriv2-orchestrator/src/meri/meriv3/openai-responses.client.ts
 
+This product also includes an H5 adaptation of evidence classification, cited
+commitments, unresolved owner/date handling, modality preservation, duplicate
+checks, and approval separation from these pinned Hermes Agent playbooks:
+
+- NousResearch/hermes-agent@516535b54275e963a82b4c28f866338fb768e7bc
+- skills/productivity/meeting-action-items/SKILL.md
+- skills/productivity/document-to-action-items/SKILL.md
+
+The H5 adaptation is implemented in:
+
+- apps/api/src/meri/skills/commitments-audit.procedure.ts
+
 Pinned acquisition and behavior mapping:
 
 - docs/meri/implementation/acquisitions/runtime-guardrails.md
+- docs/meri/implementation/acquisitions/procedure-manifests.md
 
 MIT License
 

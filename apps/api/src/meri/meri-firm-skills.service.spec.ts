@@ -1,5 +1,5 @@
 import { describe, expect, jest, test } from '@jest/globals';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
 import { commitmentsAuditProcedureSkill } from './skills/commitments-audit.procedure.js';
 import type { MeriProcedureBinding } from './skills/skill.types.js';
@@ -11,72 +11,86 @@ import type { MeriProcedureBinding } from './skills/skill.types.js';
  */
 type Row = Record<string, unknown>;
 
-function makePrisma(seed: Row[] = []) {
+function makePrisma(seed: Row[] = [], options: { beforeVersionWrite?: () => Promise<void> } = {}) {
   const store: Row[] = [...seed];
-  let currentTenant: string | null = null;
   let idSeq = 1;
-  const scoped = () => store.filter((r) => r.tenantId === currentTenant);
+  const auditCreate = jest.fn(async () => ({}));
+  const copy = <T>(value: T): T => structuredClone(value);
 
-  const tx = {
-    clioFirmSkill: {
-      findMany: async ({ where }: { where: Row }) =>
-        scoped().filter(
-          (r) =>
-            (where.enabled === undefined || r.enabled === where.enabled) &&
-            (where.tenantId === undefined || r.tenantId === where.tenantId),
-        ),
-      findFirst: async ({ where }: { where: Row }) =>
-        scoped().find(
-          (r) =>
-            r.id === where.id &&
-            (where.tenantId === undefined || r.tenantId === where.tenantId) &&
-            (where.enabled === undefined || r.enabled === where.enabled),
-        ) ?? null,
-      create: async ({ data }: { data: Row }) => {
-        if (scoped().some((r) => r.skillId === data.skillId && r.tenantId === data.tenantId)) {
-          const err = new Error('unique') as Error & { code: string };
-          err.code = 'P2002';
-          // Mimic Prisma's known-request error shape closely enough for the catch.
-          Object.setPrototypeOf(err, PrismaKnownError.prototype);
-          throw err;
-        }
-        const row = {
-          id: `skill-${idSeq++}`,
-          version: 1,
-          versions: [],
-          enabled: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          ...data,
-        };
-        store.push(row);
-        return row;
+  const txForTenant = (tenantId: string) => {
+    const scoped = () => store.filter((r) => r.tenantId === tenantId);
+    return {
+      clioFirmSkill: {
+        findMany: async ({ where }: { where: Row }) =>
+          copy(
+            scoped().filter(
+              (r) =>
+                (where.enabled === undefined || r.enabled === where.enabled) &&
+                (where.tenantId === undefined || r.tenantId === where.tenantId),
+            ),
+          ),
+        findFirst: async ({ where }: { where: Row }) => {
+          const row = scoped().find(
+            (r) =>
+              (where.id === undefined || r.id === where.id) &&
+              (where.tenantId === undefined || r.tenantId === where.tenantId) &&
+              (where.enabled === undefined || r.enabled === where.enabled),
+          );
+          return row ? copy(row) : null;
+        },
+        create: async ({ data }: { data: Row }) => {
+          if (scoped().some((r) => r.skillId === data.skillId && r.tenantId === data.tenantId)) {
+            const err = new Error('unique') as Error & { code: string };
+            err.code = 'P2002';
+            // Mimic Prisma's known-request error shape closely enough for the catch.
+            Object.setPrototypeOf(err, PrismaKnownError.prototype);
+            throw err;
+          }
+          const row = {
+            id: `skill-${idSeq++}`,
+            version: 1,
+            versions: [],
+            enabled: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            ...data,
+          };
+          store.push(row);
+          return copy(row);
+        },
+        update: async ({ where, data }: { where: Row; data: Row }) => {
+          const row = scoped().find((r) => r.id === where.id);
+          if (!row) throw new Error('not found');
+          Object.assign(row, data, { updatedAt: new Date() });
+          return copy(row);
+        },
+        updateMany: async ({ where, data }: { where: Row; data: Row }) => {
+          await options.beforeVersionWrite?.();
+          const row = scoped().find(
+            (r) =>
+              r.id === where.id && (where.version === undefined || r.version === where.version),
+          );
+          if (!row) return { count: 0 };
+          Object.assign(row, data, { updatedAt: new Date() });
+          return { count: 1 };
+        },
+        delete: async ({ where }: { where: Row }) => {
+          const idx = store.findIndex((r) => r.id === where.id && r.tenantId === tenantId);
+          if (idx >= 0) store.splice(idx, 1);
+          return {};
+        },
       },
-      update: async ({ where, data }: { where: Row; data: Row }) => {
-        const row = scoped().find((r) => r.id === where.id);
-        if (!row) throw new Error('not found');
-        Object.assign(row, data, { updatedAt: new Date() });
-        return row;
-      },
-      delete: async ({ where }: { where: Row }) => {
-        const idx = store.findIndex((r) => r.id === where.id && r.tenantId === currentTenant);
-        if (idx >= 0) store.splice(idx, 1);
-        return {};
-      },
-    },
-    auditLog: { create: jest.fn(async () => ({})) },
+      auditLog: { create: auditCreate },
+    };
   };
 
   const prisma = {
     __store: store,
-    withTenant: async <T>(tenantId: string, fn: (t: typeof tx) => Promise<T>): Promise<T> => {
-      currentTenant = tenantId;
-      try {
-        return await fn(tx);
-      } finally {
-        currentTenant = null;
-      }
-    },
+    __auditCreate: auditCreate,
+    withTenant: async <T>(
+      tenantId: string,
+      fn: (t: ReturnType<typeof txForTenant>) => Promise<T>,
+    ) => fn(txForTenant(tenantId)),
   };
   return prisma;
 }
@@ -109,6 +123,41 @@ const COMMITMENTS_SKILL_INPUT = commitmentsAuditProcedureSkill as unknown as Rec
   string,
   unknown
 >;
+
+function concurrentGate(parties: number): () => Promise<void> {
+  let arrived = 0;
+  let release!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return async () => {
+    arrived += 1;
+    if (arrived === parties) release();
+    await ready;
+  };
+}
+
+function hollowCommitmentsSkill() {
+  const hollow = structuredClone(commitmentsAuditProcedureSkill);
+  hollow.systemAddendum = 'No audit instructions.';
+  hollow.requiredTools = [];
+  hollow.procedure!.purpose = 'Placeholder';
+  hollow.procedure!.evidencePrerequisites = ['Placeholder'];
+  hollow.procedure!.completion = ['Placeholder'];
+  hollow.procedure!.effectPolicy.prohibitedEffects = [];
+  hollow.procedure!.examples = ['Placeholder'];
+  return hollow;
+}
+
+function commitmentsWithHeading(heading: string) {
+  return {
+    ...commitmentsAuditProcedureSkill,
+    template: {
+      ...commitmentsAuditProcedureSkill.template!,
+      heading,
+    },
+  };
+}
 
 describe('MeriFirmSkillsService — validation at save', () => {
   test('creates a valid skill and serves it at turn time', async () => {
@@ -222,8 +271,7 @@ describe('MeriFirmSkillsService — current procedure binding', () => {
     expect(resolved.procedure?.caseIds).toContain('CD-07');
 
     await svc.update(ctx(TENANT_A), created.id, {
-      ...commitmentsAuditProcedureSkill,
-      systemAddendum: `${commitmentsAuditProcedureSkill.systemAddendum} Keep coverage explicit.`,
+      ...commitmentsWithHeading('Tenant Commitments Review'),
     });
     await expect(svc.resolveProcedureReference(TENANT_A, binding!)).rejects.toBeInstanceOf(
       NotFoundException,
@@ -263,5 +311,116 @@ describe('MeriFirmSkillsService — current procedure binding', () => {
     await expect(
       revokedSvc.resolveProcedureReference(TENANT_A, revokedBinding),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+describe('MeriFirmSkillsService — canonical procedure integrity', () => {
+  test('rejects hollow canonical updates, restores, and resolution of tampered stored JSON', async () => {
+    const prisma = makePrisma();
+    const svc = new MeriFirmSkillsService(prisma as never, config as never);
+    const created = (await svc.create(ctx(TENANT_A), COMMITMENTS_SKILL_INPUT)) as {
+      id: string;
+    };
+    await expect(
+      svc.update(ctx(TENANT_A), created.id, hollowCommitmentsSkill() as unknown as Row),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    await svc.update(ctx(TENANT_A), created.id, {
+      ...commitmentsWithHeading('Tenant Commitments Review'),
+    });
+    const stored = prisma.__store[0]!;
+    const history = stored.versions as Array<{ version: number; skillJson: Row }>;
+    history[0]!.skillJson = hollowCommitmentsSkill() as unknown as Row;
+    await expect(svc.restore(ctx(TENANT_A), created.id, 1)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+
+    const currentBinding = (await svc.skillsForTenant(TENANT_A))[0]!.procedureBinding!;
+    stored.skillJson = hollowCommitmentsSkill();
+    await expect(svc.resolveProcedureReference(TENANT_A, currentBinding)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+});
+
+describe('MeriFirmSkillsService — concurrent version compare-and-swap', () => {
+  test('update/update gives one writer version 2 and conflicts the loser without reusing its binding', async () => {
+    const gate = concurrentGate(2);
+    const prisma = makePrisma([], { beforeVersionWrite: gate });
+    const svc = new MeriFirmSkillsService(prisma as never, config as never);
+    const created = (await svc.create(ctx(TENANT_A), COMMITMENTS_SKILL_INPUT)) as { id: string };
+    const staleBinding = (await svc.skillsForTenant(TENANT_A))[0]!.procedureBinding!;
+    const first = 'First Commitments Review';
+    const second = 'Second Commitments Review';
+
+    const outcomes = await Promise.allSettled([
+      svc.update(ctx(TENANT_A), created.id, {
+        ...commitmentsWithHeading(first),
+      }),
+      svc.update(ctx(TENANT_A), created.id, {
+        ...commitmentsWithHeading(second),
+      }),
+    ]);
+    const fulfilled = outcomes.filter((outcome) => outcome.status === 'fulfilled');
+    const rejected = outcomes.filter((outcome) => outcome.status === 'rejected');
+    expect(fulfilled).toHaveLength(1);
+    expect(fulfilled[0]!.value.version).toBe(2);
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0]!.reason).toBeInstanceOf(ConflictException);
+    expect((rejected[0]!.reason as Error).message).toContain('retry');
+
+    await expect(svc.resolveProcedureReference(TENANT_A, staleBinding)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    const currentBinding = (await svc.skillsForTenant(TENANT_A))[0]!.procedureBinding!;
+    expect(currentBinding.version).toBe(2);
+    const resolved = await svc.resolveProcedureReference(TENANT_A, currentBinding);
+    expect([first, second]).toContain(resolved.template?.heading);
+    expect((prisma.__store[0]!.versions as Row[]).map((entry) => entry.version)).toEqual([1]);
+    expect(prisma.__auditCreate).toHaveBeenCalledTimes(2);
+  });
+
+  test('update/restore gives one writer version 3 and preserves a resolvable current binding', async () => {
+    let gateEnabled = false;
+    const gate = concurrentGate(2);
+    const prisma = makePrisma([], {
+      beforeVersionWrite: async () => {
+        if (gateEnabled) await gate();
+      },
+    });
+    const svc = new MeriFirmSkillsService(prisma as never, config as never);
+    const created = (await svc.create(ctx(TENANT_A), COMMITMENTS_SKILL_INPUT)) as { id: string };
+    await svc.update(ctx(TENANT_A), created.id, {
+      ...commitmentsWithHeading('Version Two Commitments Review'),
+    });
+    const staleBinding = (await svc.skillsForTenant(TENANT_A))[0]!.procedureBinding!;
+    const third = 'Concurrent Commitments Review';
+    gateEnabled = true;
+
+    const outcomes = await Promise.allSettled([
+      svc.update(ctx(TENANT_A), created.id, {
+        ...commitmentsWithHeading(third),
+      }),
+      svc.restore(ctx(TENANT_A), created.id, 1),
+    ]);
+    const fulfilled = outcomes.filter((outcome) => outcome.status === 'fulfilled');
+    const rejected = outcomes.filter((outcome) => outcome.status === 'rejected');
+    expect(fulfilled).toHaveLength(1);
+    expect((fulfilled[0] as PromiseFulfilledResult<Row>).value.version).toBe(3);
+    expect(rejected).toHaveLength(1);
+    expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(ConflictException);
+
+    await expect(svc.resolveProcedureReference(TENANT_A, staleBinding)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    const currentBinding = (await svc.skillsForTenant(TENANT_A))[0]!.procedureBinding!;
+    expect(currentBinding.version).toBe(3);
+    const resolved = await svc.resolveProcedureReference(TENANT_A, currentBinding);
+    expect([commitmentsAuditProcedureSkill.template?.heading, third]).toContain(
+      resolved.template?.heading,
+    );
+    const stored = prisma.__store[0]!;
+    expect((stored.versions as Row[]).map((entry) => entry.version)).toEqual([2, 1]);
+    expect(prisma.__auditCreate).toHaveBeenCalledTimes(3);
   });
 });
