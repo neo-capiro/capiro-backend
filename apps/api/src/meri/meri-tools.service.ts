@@ -6559,7 +6559,11 @@ export class MeriToolsService {
     }
   }
 
-  private async sendEmail(ctx: TenantContext, input: Record<string, unknown>, logicalOperationId?: string) {
+  private async sendEmail(
+    ctx: TenantContext,
+    input: Record<string, unknown>,
+    logicalOperationId?: string,
+  ) {
     const to = requiredString(input, 'to', 320);
     const subject = requiredString(input, 'subject', 500);
     const body = requiredString(input, 'body', 50_000);
@@ -6582,8 +6586,7 @@ export class MeriToolsService {
     });
 
     let artifactPersistence:
-      | { persisted: true }
-      | { persisted: false; error?: string; reason?: string } = conversationId
+      { persisted: true } | { persisted: false; error?: string; reason?: string } = conversationId
       ? { persisted: true }
       : { persisted: false, reason: 'No conversationId was supplied; no artifact was requested.' };
     if (conversationId) {
@@ -6602,14 +6605,22 @@ export class MeriToolsService {
         // turn a missing artifact into a second email.
         artifactPersistence = {
           persisted: false,
-          error: error instanceof Error && error.message.trim()
-            ? error.message.slice(0, 500) : 'The sent-email artifact could not be persisted.',
+          error:
+            error instanceof Error && error.message.trim()
+              ? error.message.slice(0, 500)
+              : 'The sent-email artifact could not be persisted.',
         };
       }
     }
 
-    return { ok: true, sentFrom: connection.accountEmail, to, subject,
-      sendReceipt, artifactPersistence };
+    return {
+      ok: true,
+      sentFrom: connection.accountEmail,
+      to,
+      subject,
+      sendReceipt,
+      artifactPersistence,
+    };
   }
 
   private async listEmails(ctx: TenantContext, input: Record<string, unknown>) {
@@ -6854,8 +6865,7 @@ export class MeriToolsService {
     });
 
     let artifactPersistence:
-      | { persisted: true }
-      | { persisted: false; error?: string; reason?: string } = conversationId
+      { persisted: true } | { persisted: false; error?: string; reason?: string } = conversationId
       ? { persisted: true }
       : { persisted: false, reason: 'No conversationId was supplied; no artifact was requested.' };
     if (conversationId) {

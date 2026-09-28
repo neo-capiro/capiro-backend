@@ -1,9 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
-import {
-  Injectable,
-  NotFoundException,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { MeriActionProposal, Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -20,8 +16,16 @@ import { assertMeriToolRequestActive } from './meri-tool-request-control.js';
 import { classifyMeriActionLogicalFailure } from './meri-action-logical-outcome.js';
 
 export const MERI_ACTION_PROPOSAL_STATUSES = [
-  'proposed', 'approved', 'executing', 'succeeded', 'failed_retryable',
-  'failed_terminal', 'outcome_unknown', 'blocked', 'dismissed', 'expired',
+  'proposed',
+  'approved',
+  'executing',
+  'succeeded',
+  'failed_retryable',
+  'failed_terminal',
+  'outcome_unknown',
+  'blocked',
+  'dismissed',
+  'expired',
 ] as const;
 export type MeriActionProposalStatus = (typeof MERI_ACTION_PROPOSAL_STATUSES)[number];
 
@@ -71,7 +75,12 @@ export type MeriActionAuthorityResult =
   | { disposition: 'failed'; proposal: PublicMeriActionProposal; executionResult?: unknown };
 
 const TERMINAL_STATUSES = new Set<MeriActionProposalStatus>([
-  'succeeded', 'failed_terminal', 'outcome_unknown', 'blocked', 'dismissed', 'expired',
+  'succeeded',
+  'failed_terminal',
+  'outcome_unknown',
+  'blocked',
+  'dismissed',
+  'expired',
 ]);
 const CLAIMABLE_STATUSES: MeriActionProposalStatus[] = ['proposed', 'failed_retryable'];
 const EXTERNAL_SEND_TOOLS = new Set(['send_email', 'reply_email']);
@@ -102,12 +111,42 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
   const source = result as Record<string, unknown>;
   const summary: Record<string, Prisma.InputJsonValue> = { ok: source.ok !== false };
   for (const key of [
-    'tool', 'id', 'status', 'name', 'title', 'clientId', 'clientName', 'documentId',
-    'location', 'indexingStatus', 'reused', 'savedCount', 'pendingCount', 'failedCount',
-    'message', 'portfolioId', 'portfolioRevision', 'resultingRevision', 'snapshotId',
-    'requestId', 'jobId', 'outputId', 'artifactId', 'operationKey', 'contentHash',
-    'attachmentId', 'attachmentName', 'openPath', 'draftId', 'sentFrom', 'to', 'subject', 'error',
-    'scheduled', 'canceled', 'taskId',
+    'tool',
+    'id',
+    'status',
+    'name',
+    'title',
+    'clientId',
+    'clientName',
+    'documentId',
+    'location',
+    'indexingStatus',
+    'reused',
+    'savedCount',
+    'pendingCount',
+    'failedCount',
+    'message',
+    'portfolioId',
+    'portfolioRevision',
+    'resultingRevision',
+    'snapshotId',
+    'requestId',
+    'jobId',
+    'outputId',
+    'artifactId',
+    'operationKey',
+    'contentHash',
+    'attachmentId',
+    'attachmentName',
+    'openPath',
+    'draftId',
+    'sentFrom',
+    'to',
+    'subject',
+    'error',
+    'scheduled',
+    'canceled',
+    'taskId',
   ]) {
     const value = source[key];
     if (typeof value === 'string') summary[key] = bounded(value, 300) ?? '';
@@ -122,7 +161,13 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
     };
   }
   const counts: Record<string, number> = {};
-  for (const key of ['fieldsWritten', 'peopleCreated', 'facilitiesCreated', 'capabilitiesCreated', 'recipients']) {
+  for (const key of [
+    'fieldsWritten',
+    'peopleCreated',
+    'facilitiesCreated',
+    'capabilitiesCreated',
+    'recipients',
+  ]) {
     if (Array.isArray(source[key])) counts[key] = source[key].length;
     else if (typeof source[key] === 'number') counts[key] = source[key] as number;
   }
@@ -132,17 +177,23 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
   // of the public action history.
   if (source.note && typeof source.note === 'object' && !Array.isArray(source.note)) {
     const note = source.note as Record<string, unknown>;
-    summary.note = Object.fromEntries(['id', 'clientId', 'title']
-      .filter((key) => typeof note[key] === 'string' || (key === 'clientId' && note[key] === null))
-      .map((key) => [key, note[key] === null ? null : bounded(note[key], 200) ?? '']));
+    summary.note = Object.fromEntries(
+      ['id', 'clientId', 'title']
+        .filter(
+          (key) => typeof note[key] === 'string' || (key === 'clientId' && note[key] === null),
+        )
+        .map((key) => [key, note[key] === null ? null : (bounded(note[key], 200) ?? '')]),
+    );
   }
   if (source.tool === 'save_chat_attachments' && Array.isArray(source.files)) {
     summary.files = source.files.slice(0, 10).map((file: unknown) => {
       if (!file || typeof file !== 'object' || Array.isArray(file)) return {};
       const row = file as Record<string, unknown>;
-      return Object.fromEntries(['attachmentId', 'fileName', 'status', 'documentId', 'location', 'reason', 'indexingStatus']
-        .filter((key) => typeof row[key] === 'string')
-        .map((key) => [key, bounded(row[key], key === 'reason' ? 500 : 300) ?? '']));
+      return Object.fromEntries(
+        ['attachmentId', 'fileName', 'status', 'documentId', 'location', 'reason', 'indexingStatus']
+          .filter((key) => typeof row[key] === 'string')
+          .map((key) => [key, bounded(row[key], key === 'reason' ? 500 : 300) ?? '']),
+      );
     });
   }
   for (const key of ['request', 'artifact', 'task']) {
@@ -151,32 +202,52 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
     const record = value as Record<string, unknown>;
     summary[key] = Object.fromEntries(
       [
-        'id', 'status', 'portfolioId', 'snapshotId', 'operationKey', 'requestId',
-        'artifactId', 'contentHash', 'attachmentId', 'openPath', 'title',
+        'id',
+        'status',
+        'portfolioId',
+        'snapshotId',
+        'operationKey',
+        'requestId',
+        'artifactId',
+        'contentHash',
+        'attachmentId',
+        'openPath',
+        'title',
       ]
-        .filter((field) =>
-          typeof record[field] === 'string' ||
-          typeof record[field] === 'number' ||
-          typeof record[field] === 'boolean' ||
-          record[field] === null,
+        .filter(
+          (field) =>
+            typeof record[field] === 'string' ||
+            typeof record[field] === 'number' ||
+            typeof record[field] === 'boolean' ||
+            record[field] === null,
         )
         .map((field) => [
           field,
           typeof record[field] === 'string'
-            ? bounded(record[field], 300) ?? ''
-            : record[field] as Prisma.InputJsonValue,
+            ? (bounded(record[field], 300) ?? '')
+            : (record[field] as Prisma.InputJsonValue),
         ]),
     );
   }
   const sendReceipt = source.sendReceipt;
   if (sendReceipt && typeof sendReceipt === 'object' && !Array.isArray(sendReceipt)) {
     const receipt = sendReceipt as Record<string, unknown>;
-    summary.sendReceipt = { ok: receipt.ok === true, ...Object.fromEntries(
-      ['provider', 'providerMessageId', 'providerThreadId', 'providerDraftId',
-        'providerConversationId', 'providerInternetMessageId', 'correlationId']
-        .filter((field) => typeof receipt[field] === 'string')
-        .map((field) => [field, bounded(receipt[field], 300) ?? '']),
-    ) };
+    summary.sendReceipt = {
+      ok: receipt.ok === true,
+      ...Object.fromEntries(
+        [
+          'provider',
+          'providerMessageId',
+          'providerThreadId',
+          'providerDraftId',
+          'providerConversationId',
+          'providerInternetMessageId',
+          'correlationId',
+        ]
+          .filter((field) => typeof receipt[field] === 'string')
+          .map((field) => [field, bounded(receipt[field], 300) ?? '']),
+      ),
+    };
   }
   const artifactPersistence = source.artifactPersistence;
   if (
@@ -198,55 +269,108 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
   return summary as Prisma.InputJsonValue;
 }
 
-function filingExecutionFailure(tool: string, result: unknown): {
-  status: 'failed_retryable' | 'outcome_unknown'; errorCode: string; errorMessage: string;
+function filingExecutionFailure(
+  tool: string,
+  result: unknown,
+): {
+  status: 'failed_retryable' | 'outcome_unknown';
+  errorCode: string;
+  errorMessage: string;
 } | null {
   if (tool !== 'save_note' && tool !== 'save_chat_attachments') return null;
-  const value = result && typeof result === 'object' && !Array.isArray(result)
-    ? result as Record<string, unknown> : {};
-  if (tool === 'save_chat_attachments' && (value.status === 'failed'
-    || (Array.isArray(value.files) && value.files.some((file: unknown) =>
-      !!file && typeof file === 'object' && (file as Record<string, unknown>).status === 'failed')))) {
-    return { status: 'failed_retryable', errorCode: 'client_filing_incomplete',
-      errorMessage: 'Some files could not be filed. Review each file result and retry the failed files; completed files will not be duplicated.' };
+  const value =
+    result && typeof result === 'object' && !Array.isArray(result)
+      ? (result as Record<string, unknown>)
+      : {};
+  if (
+    tool === 'save_chat_attachments' &&
+    (value.status === 'failed' ||
+      (Array.isArray(value.files) &&
+        value.files.some(
+          (file: unknown) =>
+            !!file &&
+            typeof file === 'object' &&
+            (file as Record<string, unknown>).status === 'failed',
+        )))
+  ) {
+    return {
+      status: 'failed_retryable',
+      errorCode: 'client_filing_incomplete',
+      errorMessage:
+        'Some files could not be filed. Review each file result and retry the failed files; completed files will not be duplicated.',
+    };
   }
-  const note = value.note && typeof value.note === 'object' ? value.note as Record<string, unknown> : {};
+  const note =
+    value.note && typeof value.note === 'object' ? (value.note as Record<string, unknown>) : {};
   if (tool === 'save_note' && value.status === 'failed') {
-    return { status: 'failed_retryable', errorCode: 'client_filing_incomplete',
-      errorMessage: bounded(value.message, 900) ?? 'The note is unavailable under the document readiness policy.' };
+    return {
+      status: 'failed_retryable',
+      errorCode: 'client_filing_incomplete',
+      errorMessage:
+        bounded(value.message, 900) ??
+        'The note is unavailable under the document readiness policy.',
+    };
   }
-  const confirmed = tool === 'save_note'
-    ? ['saved', 'pending'].includes(String(value.status)) && (typeof note.id === 'string' || typeof value.documentId === 'string')
-    : ['saved', 'pending', 'partial'].includes(String(value.status)) && Array.isArray(value.files) && value.files.length > 0
-      && value.files.every((file: unknown) => !!file && typeof file === 'object'
-        && ['saved', 'pending'].includes(String((file as Record<string, unknown>).status))
-        && typeof (file as Record<string, unknown>).documentId === 'string');
+  const confirmed =
+    tool === 'save_note'
+      ? ['saved', 'pending'].includes(String(value.status)) &&
+        (typeof note.id === 'string' || typeof value.documentId === 'string')
+      : ['saved', 'pending', 'partial'].includes(String(value.status)) &&
+        Array.isArray(value.files) &&
+        value.files.length > 0 &&
+        value.files.every(
+          (file: unknown) =>
+            !!file &&
+            typeof file === 'object' &&
+            ['saved', 'pending'].includes(String((file as Record<string, unknown>).status)) &&
+            typeof (file as Record<string, unknown>).documentId === 'string',
+        );
   if (confirmed) return null;
-  return { status: 'outcome_unknown', errorCode: 'client_filing_receipt_missing',
-    errorMessage: 'The save did not return a confirmed record. Check the client records before retrying.' };
+  return {
+    status: 'outcome_unknown',
+    errorCode: 'client_filing_receipt_missing',
+    errorMessage:
+      'The save did not return a confirmed record. Check the client records before retrying.',
+  };
 }
 
 function errorStatus(error: unknown): number | null {
   if (!error || typeof error !== 'object') return null;
-  const candidate = error as { status?: unknown; statusCode?: unknown; response?: { status?: unknown } };
+  const candidate = error as {
+    status?: unknown;
+    statusCode?: unknown;
+    response?: { status?: unknown };
+  };
   for (const value of [candidate.status, candidate.statusCode, candidate.response?.status]) {
     if (typeof value === 'number' && Number.isInteger(value)) return value;
   }
   return null;
 }
 
-function classifyExecutionFailure(tool: string, error: unknown): {
+function classifyExecutionFailure(
+  tool: string,
+  error: unknown,
+): {
   status: 'failed_retryable' | 'failed_terminal' | 'outcome_unknown';
   code: string;
   message: string;
 } {
   const httpStatus = errorStatus(error);
-  const rawCode = error && typeof error === 'object' && typeof (error as { code?: unknown }).code === 'string'
-    ? (error as { code: string }).code : null;
-  const message = bounded(error instanceof Error ? error.message : error, 900) ?? 'Execution failed';
+  const rawCode =
+    error && typeof error === 'object' && typeof (error as { code?: unknown }).code === 'string'
+      ? (error as { code: string }).code
+      : null;
+  const message =
+    bounded(error instanceof Error ? error.message : error, 900) ?? 'Execution failed';
   const terminal =
-    (httpStatus !== null && httpStatus >= 400 && httpStatus < 500 && httpStatus !== 408 && httpStatus !== 429) ||
-    /invalid|malformed|not found|forbidden|unauthorized|permission|validation|required/i.test(message);
+    (httpStatus !== null &&
+      httpStatus >= 400 &&
+      httpStatus < 500 &&
+      httpStatus !== 408 &&
+      httpStatus !== 429) ||
+    /invalid|malformed|not found|forbidden|unauthorized|permission|validation|required/i.test(
+      message,
+    );
   if (EXTERNAL_SEND_TOOLS.has(tool)) {
     return terminal
       ? { status: 'failed_terminal', code: rawCode ?? `http_${httpStatus ?? 400}`, message }
@@ -259,8 +383,11 @@ function classifyExecutionFailure(tool: string, error: unknown): {
       message: `${message} Check scheduled tasks before any retry.`,
     };
   }
-  if (terminal) return { status: 'failed_terminal', code: rawCode ?? `http_${httpStatus ?? 400}`, message };
-  const retryable = httpStatus === 408 || httpStatus === 429 ||
+  if (terminal)
+    return { status: 'failed_terminal', code: rawCode ?? `http_${httpStatus ?? 400}`, message };
+  const retryable =
+    httpStatus === 408 ||
+    httpStatus === 429 ||
     (httpStatus !== null && httpStatus >= 500) ||
     /timeout|temporar|unavailable|rate limit|ECONNRESET|ETIMEDOUT|deadlock/i.test(message);
   return retryable
@@ -383,25 +510,40 @@ export class MeriActionProposalService {
     });
   }
 
-  private async resolveClientName(ctx: TenantContext, input: Record<string, unknown>): Promise<string | null> {
+  private async resolveClientName(
+    ctx: TenantContext,
+    input: Record<string, unknown>,
+  ): Promise<string | null> {
     const clientId = typeof input.clientId === 'string' ? input.clientId : null;
     if (!clientId) return null;
     const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.client.findFirst({ where: { id: clientId, tenantId: ctx.tenantId }, select: { name: true } }),
+      tx.client.findFirst({
+        where: { id: clientId, tenantId: ctx.tenantId },
+        select: { name: true },
+      }),
     );
     return client?.name ?? null;
   }
 
-  async create(ctx: TenantContext, request: CreateMeriActionProposalInput): Promise<MeriActionAuthorityResult> {
+  async create(
+    ctx: TenantContext,
+    request: CreateMeriActionProposalInput,
+  ): Promise<MeriActionAuthorityResult> {
     assertMeriToolRequestActive();
     this.assertEnabled();
     const tool = request.tool.trim();
     const input = this.tools.validateSideEffectingInput(tool, request.input);
     const decision = await this.policyPacks.decideForAction(ctx, tool, input);
-    const status: MeriActionProposalStatus = decision.outcome === 'BLOCK'
-      ? 'blocked' : decision.outcome === 'WARN' ? 'proposed' : 'executing';
+    const status: MeriActionProposalStatus =
+      decision.outcome === 'BLOCK'
+        ? 'blocked'
+        : decision.outcome === 'WARN'
+          ? 'proposed'
+          : 'executing';
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + this.config.get('MERIV2_ACTION_PROPOSAL_TTL_MINUTES') * 60_000);
+    const expiresAt = new Date(
+      now.getTime() + this.config.get('MERIV2_ACTION_PROPOSAL_TTL_MINUTES') * 60_000,
+    );
     const fingerprint = computeActionFingerprintV2({
       effectiveTenantId: ctx.tenantId,
       userId: ctx.userId,
@@ -459,7 +601,11 @@ export class MeriActionProposalService {
           ...(decision.outcome === 'PASS'
             ? { executionStartedAt: now, attemptCount: 1 }
             : decision.outcome === 'BLOCK'
-              ? { executedAt: now, lastErrorCode: decision.code ?? 'policy_blocked', lastErrorMessage: decision.reason }
+              ? {
+                  executedAt: now,
+                  lastErrorCode: decision.code ?? 'policy_blocked',
+                  lastErrorMessage: decision.reason,
+                }
               : {}),
         },
       });
@@ -467,8 +613,10 @@ export class MeriActionProposalService {
       return created;
     });
 
-    if (decision.outcome === 'WARN') return { disposition: 'pending_approval', proposal: this.toPublic(row) };
-    if (decision.outcome === 'BLOCK') return { disposition: 'blocked', proposal: this.toPublic(row) };
+    if (decision.outcome === 'WARN')
+      return { disposition: 'pending_approval', proposal: this.toPublic(row) };
+    if (decision.outcome === 'BLOCK')
+      return { disposition: 'blocked', proposal: this.toPublic(row) };
 
     try {
       assertMeriToolRequestActive();
@@ -478,14 +626,21 @@ export class MeriActionProposalService {
       const incomplete =
         classifyMeriActionLogicalFailure(tool, result) ?? filingExecutionFailure(tool, result);
       if (incomplete) {
-        const failed = await this.finalize(ctx, row.id, { ...incomplete, resultSummary: resultSummary(result) });
+        const failed = await this.finalize(ctx, row.id, {
+          ...incomplete,
+          resultSummary: resultSummary(result),
+        });
         return { disposition: 'failed', proposal: this.toPublic(failed), executionResult: result };
       }
       const completed = await this.finalize(ctx, row.id, {
         status: 'succeeded',
         resultSummary: resultSummary(result),
       });
-      return { disposition: 'executed', proposal: this.toPublic(completed), executionResult: result };
+      return {
+        disposition: 'executed',
+        proposal: this.toPublic(completed),
+        executionResult: result,
+      };
     } catch (error) {
       const failure = classifyExecutionFailure(tool, error);
       const failed = await this.finalize(ctx, row.id, {
@@ -499,40 +654,63 @@ export class MeriActionProposalService {
 
   private async reconcileStaleExecuting(ctx: TenantContext): Promise<void> {
     const cutoff = new Date(Date.now() - 5 * 60_000);
-    await this.prisma.withTenant(ctx.tenantId, (tx) => tx.meriActionProposal.updateMany({
-      where: { tenantId: ctx.tenantId, userId: ctx.userId, status: 'executing', executionStartedAt: { lt: cutoff } },
-      data: {
-        status: 'outcome_unknown', executedAt: new Date(), lastErrorCode: 'stale_execution',
-        lastErrorMessage: 'Execution ended without a provable terminal result; reconciliation is required.',
-      },
-    }));
+    await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.meriActionProposal.updateMany({
+        where: {
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          status: 'executing',
+          executionStartedAt: { lt: cutoff },
+        },
+        data: {
+          status: 'outcome_unknown',
+          executedAt: new Date(),
+          lastErrorCode: 'stale_execution',
+          lastErrorMessage:
+            'Execution ended without a provable terminal result; reconciliation is required.',
+        },
+      }),
+    );
   }
 
   private async expireStale(ctx: TenantContext): Promise<void> {
-    await this.prisma.withTenant(ctx.tenantId, (tx) => tx.meriActionProposal.updateMany({
-      where: {
-        tenantId: ctx.tenantId, userId: ctx.userId,
-        status: { in: ['proposed', 'approved', 'failed_retryable'] }, expiresAt: { lte: new Date() },
-      },
-      data: { status: 'expired' },
-    }));
+    await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.meriActionProposal.updateMany({
+        where: {
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          status: { in: ['proposed', 'approved', 'failed_retryable'] },
+          expiresAt: { lte: new Date() },
+        },
+        data: { status: 'expired' },
+      }),
+    );
   }
 
   async list(ctx: TenantContext, conversationId?: string): Promise<PublicMeriActionProposal[]> {
     this.assertEnabled();
     await this.reconcileStaleExecuting(ctx);
     await this.expireStale(ctx);
-    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) => tx.meriActionProposal.findMany({
-      where: { tenantId: ctx.tenantId, userId: ctx.userId, ...(conversationId ? { conversationId } : {}) },
-      orderBy: { createdAt: 'desc' }, take: 100,
-    }));
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.meriActionProposal.findMany({
+        where: {
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          ...(conversationId ? { conversationId } : {}),
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+    );
     return rows.map((row) => this.toPublic(row));
   }
 
   private async owned(ctx: TenantContext, proposalId: string): Promise<MeriActionProposal> {
-    const row = await this.prisma.withTenant(ctx.tenantId, (tx) => tx.meriActionProposal.findFirst({
-      where: { id: proposalId, tenantId: ctx.tenantId, userId: ctx.userId },
-    }));
+    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.meriActionProposal.findFirst({
+        where: { id: proposalId, tenantId: ctx.tenantId, userId: ctx.userId },
+      }),
+    );
     if (!row) throw new NotFoundException('Action proposal not found.');
     return row;
   }
@@ -546,11 +724,30 @@ export class MeriActionProposalService {
   ): Promise<PublicMeriActionProposal> {
     const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await tx.meriActionProposal.updateMany({
-        where: { id: row.id, tenantId: ctx.tenantId, userId: ctx.userId, status: { in: CLAIMABLE_STATUSES } },
-        data: { status, lastErrorCode: code, lastErrorMessage: bounded(message, 900), executedAt: new Date() },
+        where: {
+          id: row.id,
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          status: { in: CLAIMABLE_STATUSES },
+        },
+        data: {
+          status,
+          lastErrorCode: code,
+          lastErrorMessage: bounded(message, 900),
+          executedAt: new Date(),
+        },
       });
-      await this.recordTransitionCheck(tx, ctx, row, status === 'blocked' ? 'BLOCK' : 'WARN', code, message);
-      return tx.meriActionProposal.findFirstOrThrow({ where: { id: row.id, tenantId: ctx.tenantId, userId: ctx.userId } });
+      await this.recordTransitionCheck(
+        tx,
+        ctx,
+        row,
+        status === 'blocked' ? 'BLOCK' : 'WARN',
+        code,
+        message,
+      );
+      return tx.meriActionProposal.findFirstOrThrow({
+        where: { id: row.id, tenantId: ctx.tenantId, userId: ctx.userId },
+      });
     });
     return this.toPublic(updated);
   }
@@ -560,14 +757,27 @@ export class MeriActionProposalService {
     row: MeriActionProposal,
     current: AuthoritativePolicyDecision,
   ): Promise<PublicMeriActionProposal> {
-    const message = 'The governing policy pack, rule, or server-resolved context changed after proposal creation. Review a new proposal.';
+    const message =
+      'The governing policy pack, rule, or server-resolved context changed after proposal creation. Review a new proposal.';
     const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await tx.meriActionProposal.updateMany({
-        where: { id: row.id, tenantId: ctx.tenantId, userId: ctx.userId, status: { in: CLAIMABLE_STATUSES } },
-        data: { status: 'blocked', lastErrorCode: 'policy_binding_changed', lastErrorMessage: message, executedAt: new Date() },
+        where: {
+          id: row.id,
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          status: { in: CLAIMABLE_STATUSES },
+        },
+        data: {
+          status: 'blocked',
+          lastErrorCode: 'policy_binding_changed',
+          lastErrorMessage: message,
+          executedAt: new Date(),
+        },
       });
       await this.recordDecisionInTx(tx, ctx, row.id, row.tool, current);
-      return tx.meriActionProposal.findFirstOrThrow({ where: { id: row.id, tenantId: ctx.tenantId, userId: ctx.userId } });
+      return tx.meriActionProposal.findFirstOrThrow({
+        where: { id: row.id, tenantId: ctx.tenantId, userId: ctx.userId },
+      });
     });
     return this.toPublic(updated);
   }
@@ -584,17 +794,30 @@ export class MeriActionProposalService {
   ): Promise<MeriActionProposal> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await tx.meriActionProposal.updateMany({
-        where: { id: proposalId, tenantId: ctx.tenantId, userId: ctx.userId, status: { in: ['executing', 'outcome_unknown'] } },
+        where: {
+          id: proposalId,
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          status: { in: ['executing', 'outcome_unknown'] },
+        },
         data: {
-          status: data.status, executedAt: new Date(), resultSummary: data.resultSummary,
-          lastErrorCode: data.errorCode ?? null, lastErrorMessage: data.errorMessage ?? null,
+          status: data.status,
+          executedAt: new Date(),
+          resultSummary: data.resultSummary,
+          lastErrorCode: data.errorCode ?? null,
+          lastErrorMessage: data.errorMessage ?? null,
         },
       });
-      return tx.meriActionProposal.findFirstOrThrow({ where: { id: proposalId, tenantId: ctx.tenantId, userId: ctx.userId } });
+      return tx.meriActionProposal.findFirstOrThrow({
+        where: { id: proposalId, tenantId: ctx.tenantId, userId: ctx.userId },
+      });
     });
   }
 
-  async approveAndExecute(ctx: TenantContext, proposalId: string): Promise<PublicMeriActionProposal> {
+  async approveAndExecute(
+    ctx: TenantContext,
+    proposalId: string,
+  ): Promise<PublicMeriActionProposal> {
     this.assertEnabled();
     await this.reconcileStaleExecuting(ctx);
     let row = await this.owned(ctx, proposalId);
@@ -602,16 +825,26 @@ export class MeriActionProposalService {
     if (TERMINAL_STATUSES.has(status) || status === 'executing') return this.toPublic(row);
     if (!CLAIMABLE_STATUSES.includes(status)) return this.toPublic(row);
     if (row.expiresAt.getTime() <= Date.now()) {
-      return this.transitionWithoutExecution(ctx, row, 'expired', 'proposal_expired',
-        'This proposal expired before approval and cannot execute.');
+      return this.transitionWithoutExecution(
+        ctx,
+        row,
+        'expired',
+        'proposal_expired',
+        'This proposal expired before approval and cannot execute.',
+      );
     }
 
     let canonical: Record<string, unknown>;
     try {
       canonical = this.tools.validateSideEffectingInput(row.tool, row.input);
     } catch {
-      return this.transitionWithoutExecution(ctx, row, 'blocked', 'stored_input_invalid',
-        'The stored action no longer passes the canonical write-input parser.');
+      return this.transitionWithoutExecution(
+        ctx,
+        row,
+        'blocked',
+        'stored_input_invalid',
+        'The stored action no longer passes the canonical write-input parser.',
+      );
     }
     const recomputed = computeActionFingerprintV2({
       effectiveTenantId: ctx.tenantId,
@@ -624,8 +857,13 @@ export class MeriActionProposalService {
       policyContextHash: row.policyContextHash,
     });
     if (!constantTimeHexEqual(row.fingerprint, recomputed)) {
-      return this.transitionWithoutExecution(ctx, row, 'blocked', 'fingerprint_mismatch',
-        'The immutable proposal payload or bound policy evidence does not match its server fingerprint.');
+      return this.transitionWithoutExecution(
+        ctx,
+        row,
+        'blocked',
+        'fingerprint_mismatch',
+        'The immutable proposal payload or bound policy evidence does not match its server fingerprint.',
+      );
     }
 
     const current = await this.policyPacks.decideForAction(ctx, row.tool, canonical);
@@ -634,8 +872,10 @@ export class MeriActionProposalService {
     // into an approval or accept a changed policy outcome.
     const sameOutcome =
       (row.policyDecision === 'WARN' && current.outcome === 'WARN') ||
-      (status === 'failed_retryable' && row.attemptCount > 0 &&
-        row.policyDecision === 'PASS' && current.outcome === 'PASS');
+      (status === 'failed_retryable' &&
+        row.attemptCount > 0 &&
+        row.policyDecision === 'PASS' &&
+        current.outcome === 'PASS');
     const sameAuthority =
       sameOutcome &&
       row.policyBinding === current.binding &&
@@ -648,17 +888,28 @@ export class MeriActionProposalService {
     const claimed = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const claim = await tx.meriActionProposal.updateMany({
         where: {
-          id: row.id, tenantId: ctx.tenantId, userId: ctx.userId,
-          status: { in: CLAIMABLE_STATUSES }, expiresAt: { gt: new Date() },
+          id: row.id,
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          status: { in: CLAIMABLE_STATUSES },
+          expiresAt: { gt: new Date() },
         },
         data: {
-          status: 'executing', approvedAt: new Date(), approvedBy: ctx.userId,
-          executionStartedAt: new Date(), executedAt: null, attemptCount: { increment: 1 },
-          lastErrorCode: null, lastErrorMessage: null, resultSummary: undefined,
+          status: 'executing',
+          approvedAt: new Date(),
+          approvedBy: ctx.userId,
+          executionStartedAt: new Date(),
+          executedAt: null,
+          attemptCount: { increment: 1 },
+          lastErrorCode: null,
+          lastErrorMessage: null,
+          resultSummary: undefined,
         },
       });
       if (claim.count === 1) await this.recordDecisionInTx(tx, ctx, row.id, row.tool, current);
-      const found = await tx.meriActionProposal.findFirstOrThrow({ where: { id: row.id, tenantId: ctx.tenantId, userId: ctx.userId } });
+      const found = await tx.meriActionProposal.findFirstOrThrow({
+        where: { id: row.id, tenantId: ctx.tenantId, userId: ctx.userId },
+      });
       return { won: claim.count === 1, row: found };
     });
     if (!claimed.won) return this.toPublic(claimed.row);
@@ -671,15 +922,28 @@ export class MeriActionProposalService {
       const incomplete =
         classifyMeriActionLogicalFailure(row.tool, result) ??
         filingExecutionFailure(row.tool, result);
-      if (incomplete) return this.toPublic(await this.finalize(ctx, row.id, {
-        ...incomplete, resultSummary: resultSummary(result),
-      }));
-      return this.toPublic(await this.finalize(ctx, row.id, { status: 'succeeded', resultSummary: resultSummary(result) }));
+      if (incomplete)
+        return this.toPublic(
+          await this.finalize(ctx, row.id, {
+            ...incomplete,
+            resultSummary: resultSummary(result),
+          }),
+        );
+      return this.toPublic(
+        await this.finalize(ctx, row.id, {
+          status: 'succeeded',
+          resultSummary: resultSummary(result),
+        }),
+      );
     } catch (error) {
       const failure = classifyExecutionFailure(row.tool, error);
-      return this.toPublic(await this.finalize(ctx, row.id, {
-        status: failure.status, errorCode: bounded(failure.code, 120), errorMessage: failure.message,
-      }));
+      return this.toPublic(
+        await this.finalize(ctx, row.id, {
+          status: failure.status,
+          errorCode: bounded(failure.code, 120),
+          errorMessage: failure.message,
+        }),
+      );
     }
   }
 
@@ -690,12 +954,26 @@ export class MeriActionProposalService {
     if (!CLAIMABLE_STATUSES.includes(status)) return this.toPublic(row);
     const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const result = await tx.meriActionProposal.updateMany({
-        where: { id: proposalId, tenantId: ctx.tenantId, userId: ctx.userId, status: { in: CLAIMABLE_STATUSES } },
+        where: {
+          id: proposalId,
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          status: { in: CLAIMABLE_STATUSES },
+        },
         data: { status: 'dismissed', executedAt: new Date() },
       });
-      if (result.count === 1) await this.recordTransitionCheck(tx, ctx, row, 'WARN', 'user_dismissed',
-        'The user dismissed the proposed action; it was not executed.');
-      return tx.meriActionProposal.findFirstOrThrow({ where: { id: proposalId, tenantId: ctx.tenantId, userId: ctx.userId } });
+      if (result.count === 1)
+        await this.recordTransitionCheck(
+          tx,
+          ctx,
+          row,
+          'WARN',
+          'user_dismissed',
+          'The user dismissed the proposed action; it was not executed.',
+        );
+      return tx.meriActionProposal.findFirstOrThrow({
+        where: { id: proposalId, tenantId: ctx.tenantId, userId: ctx.userId },
+      });
     });
     return this.toPublic(updated);
   }

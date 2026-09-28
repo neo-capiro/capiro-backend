@@ -30,40 +30,89 @@ type ScheduleTask = (
 
 describe('Meri write outcome reconciliation', () => {
   test('send_email retains the owned adapter acceptance when artifact persistence rejects', async () => {
-    const acceptedSink = jest.fn(async (_actor: TenantContext, _connectionId: string,
-      input: { correlationId?: string }) => ({ ok: true as const, provider: 'gmail' as const,
-      providerMessageId: 'gmail-message-1', providerThreadId: 'gmail-thread-1',
-      correlationId: input.correlationId ?? '' }));
-    const mailSender = new EngagementMailSender({ sendMail: jest.fn() } as never,
-      { sendMail: acceptedSink } as never, { assertExternalAction: jest.fn() } as never);
-    const persistArtifact = jest.fn().mockRejectedValue(
-      new BadRequestException('Tool clientId does not match the Meri conversation client'));
+    const acceptedSink = jest.fn(
+      async (_actor: TenantContext, _connectionId: string, input: { correlationId?: string }) => ({
+        ok: true as const,
+        provider: 'gmail' as const,
+        providerMessageId: 'gmail-message-1',
+        providerThreadId: 'gmail-thread-1',
+        correlationId: input.correlationId ?? '',
+      }),
+    );
+    const mailSender = new EngagementMailSender(
+      { sendMail: jest.fn() } as never,
+      { sendMail: acceptedSink } as never,
+      { assertExternalAction: jest.fn() } as never,
+    );
+    const persistArtifact = jest
+      .fn()
+      .mockRejectedValue(
+        new BadRequestException('Tool clientId does not match the Meri conversation client'),
+      );
     const service = Object.create(MeriToolsService.prototype) as MeriToolsService;
     (service as unknown as { mailSender: unknown }).mailSender = mailSender;
-    (service as unknown as { findUserEmailConnection: unknown }).findUserEmailConnection = jest.fn()
-      .mockResolvedValue({ id: 'connection-1', provider: 'google_workspace', accountEmail: 'owner@example.com' });
+    (service as unknown as { findUserEmailConnection: unknown }).findUserEmailConnection = jest
+      .fn()
+      .mockResolvedValue({
+        id: 'connection-1',
+        provider: 'google_workspace',
+        accountEmail: 'owner@example.com',
+      });
     (service as unknown as { persistArtifact: unknown }).persistArtifact = persistArtifact;
     const sendEmail = (service as unknown as { sendEmail: SendEmail }).sendEmail.bind(service);
-    const result = await sendEmail(ctx, { to: 'recipient@example.com', subject: 'Hello', body: 'Body',
-      clientId: 'client-1', conversationId: 'conversation-1' }, 'proposal-operation-1');
+    const result = await sendEmail(
+      ctx,
+      {
+        to: 'recipient@example.com',
+        subject: 'Hello',
+        body: 'Body',
+        clientId: 'client-1',
+        conversationId: 'conversation-1',
+      },
+      'proposal-operation-1',
+    );
     expect(acceptedSink).toHaveBeenCalledTimes(1);
-    expect(result).toMatchObject({ ok: true, sendReceipt: { ok: true, provider: 'gmail',
-      providerMessageId: 'gmail-message-1', correlationId: 'proposal-operation-1' },
-    artifactPersistence: { persisted: false,
-      error: 'Tool clientId does not match the Meri conversation client' } });
+    expect(result).toMatchObject({
+      ok: true,
+      sendReceipt: {
+        ok: true,
+        provider: 'gmail',
+        providerMessageId: 'gmail-message-1',
+        correlationId: 'proposal-operation-1',
+      },
+      artifactPersistence: {
+        persisted: false,
+        error: 'Tool clientId does not match the Meri conversation client',
+      },
+    });
   });
 
   test('send_email propagates adapter acknowledgement loss without fabricating a receipt', async () => {
-    const acceptedSink = jest.fn(async () => { throw new Error('socket closed after provider request'); });
-    const mailSender = new EngagementMailSender({ sendMail: jest.fn() } as never,
-      { sendMail: acceptedSink } as never, { assertExternalAction: jest.fn() } as never);
+    const acceptedSink = jest.fn(async () => {
+      throw new Error('socket closed after provider request');
+    });
+    const mailSender = new EngagementMailSender(
+      { sendMail: jest.fn() } as never,
+      { sendMail: acceptedSink } as never,
+      { assertExternalAction: jest.fn() } as never,
+    );
     const service = Object.create(MeriToolsService.prototype) as MeriToolsService;
     (service as unknown as { mailSender: unknown }).mailSender = mailSender;
-    (service as unknown as { findUserEmailConnection: unknown }).findUserEmailConnection = jest.fn()
-      .mockResolvedValue({ id: 'connection-1', provider: 'google_workspace', accountEmail: 'owner@example.com' });
+    (service as unknown as { findUserEmailConnection: unknown }).findUserEmailConnection = jest
+      .fn()
+      .mockResolvedValue({
+        id: 'connection-1',
+        provider: 'google_workspace',
+        accountEmail: 'owner@example.com',
+      });
     const sendEmail = (service as unknown as { sendEmail: SendEmail }).sendEmail.bind(service);
-    await expect(sendEmail(ctx, { to: 'recipient@example.com', subject: 'Hello', body: 'Body' },
-      'proposal-operation-1')).rejects.toThrow('socket closed after provider request');
+    await expect(
+      sendEmail(
+        ctx,
+        { to: 'recipient@example.com', subject: 'Hello', body: 'Body' },
+        'proposal-operation-1',
+      ),
+    ).rejects.toThrow('socket closed after provider request');
     expect(acceptedSink).toHaveBeenCalledTimes(1);
   });
 
@@ -135,16 +184,18 @@ describe('Meri write outcome reconciliation', () => {
   });
 
   test('schedule_task reconciles a post-commit acknowledgement loss before any retry effect', async () => {
-    const receipts = new Map<string, {
-      id: string;
-      name: string;
-      intervalMinutes: number;
-      nextRunAt: Date;
-    }>();
+    const receipts = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        intervalMinutes: number;
+        nextRunAt: Date;
+      }
+    >();
     let createAttempts = 0;
-    const findFirst = jest.fn(
-      async ({ where }: { where: { metadata?: { equals?: string } } }) =>
-        where.metadata?.equals ? receipts.get(where.metadata.equals) ?? null : null,
+    const findFirst = jest.fn(async ({ where }: { where: { metadata?: { equals?: string } } }) =>
+      where.metadata?.equals ? (receipts.get(where.metadata.equals) ?? null) : null,
     );
     const create = jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
       createAttempts += 1;

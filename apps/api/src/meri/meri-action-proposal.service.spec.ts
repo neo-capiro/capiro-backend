@@ -1,10 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import type { MeriActionProposal } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
-import {
-  CAPIRO_COMPLIANCE_POLICY_VERSION,
-  computeActionFingerprintV2,
-} from '@capiro/meriv2-core';
+import { CAPIRO_COMPLIANCE_POLICY_VERSION, computeActionFingerprintV2 } from '@capiro/meriv2-core';
 import type { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../config/config.schema.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -157,7 +154,7 @@ function statusMatches(statusFilter: unknown, status: string): boolean {
     typeof statusFilter === 'object' &&
     Array.isArray((statusFilter as { in?: unknown }).in)
   ) {
-    return ((statusFilter as { in: string[] }).in).includes(status);
+    return (statusFilter as { in: string[] }).in.includes(status);
   }
   return true;
 }
@@ -184,8 +181,9 @@ function harness(
   const execute = options.executeError
     ? jest.fn().mockRejectedValue(options.executeError)
     : jest.fn().mockResolvedValue(options.executeResult ?? { ok: true, id: 'result-1' });
-  const validate = jest.fn((_tool: string, input: unknown) =>
-    JSON.parse(JSON.stringify(input ?? {})) as Record<string, unknown>,
+  const validate = jest.fn(
+    (_tool: string, input: unknown) =>
+      JSON.parse(JSON.stringify(input ?? {})) as Record<string, unknown>,
   );
 
   function matches(where: Record<string, unknown>): boolean {
@@ -195,7 +193,10 @@ function harness(
     if (where.userId && where.userId !== row.userId) return false;
     if (where.status && !statusMatches(where.status, row.status)) return false;
     if (where.expiresAt && !dateMatches(where.expiresAt, row.expiresAt)) return false;
-    if (where.executionStartedAt && !dateMatches(where.executionStartedAt, row.executionStartedAt)) {
+    if (
+      where.executionStartedAt &&
+      !dateMatches(where.executionStartedAt, row.executionStartedAt)
+    ) {
       return false;
     }
     return true;
@@ -257,9 +258,7 @@ function harness(
     },
   };
   const prisma = {
-    withTenant: jest.fn((_tenantId: string, callback: (arg: typeof tx) => unknown) =>
-      callback(tx),
-    ),
+    withTenant: jest.fn((_tenantId: string, callback: (arg: typeof tx) => unknown) => callback(tx)),
   } as unknown as PrismaService;
   const tools = {
     validateSideEffectingInput: validate,
@@ -310,52 +309,125 @@ function harness(
 
 describe('MeriActionProposalService', () => {
   it('keeps a confirmed client note receipt without exposing its body', async () => {
-    const h = harness({ row: null, executeResult: { tool: 'save_note', status: 'saved',
-      note: { id: 'note-1', clientId: TENANT, title: 'Engagement notes', body: 'Private note body' },
-      documentId: 'note-1', clientId: TENANT, clientName: 'Sightline',
-      location: `/clients?clientId=${TENANT}&tab=documents`, indexingStatus: 'pending' } });
+    const h = harness({
+      row: null,
+      executeResult: {
+        tool: 'save_note',
+        status: 'saved',
+        note: {
+          id: 'note-1',
+          clientId: TENANT,
+          title: 'Engagement notes',
+          body: 'Private note body',
+        },
+        documentId: 'note-1',
+        clientId: TENANT,
+        clientName: 'Sightline',
+        location: `/clients?clientId=${TENANT}&tab=documents`,
+        indexingStatus: 'pending',
+      },
+    });
     h.setPolicy({ outcome: 'PASS', reasons: ['Internal note'] });
-    const result = await h.service.create(ctx, { tool: 'save_note', input: { body: 'Private note body', clientId: TENANT }, surface: 'chat' });
+    const result = await h.service.create(ctx, {
+      tool: 'save_note',
+      input: { body: 'Private note body', clientId: TENANT },
+      surface: 'chat',
+    });
     expect(result.disposition).toBe('executed');
-    expect(result.proposal.resultSummary).toMatchObject({ tool: 'save_note', status: 'saved',
-      documentId: 'note-1', clientName: 'Sightline', note: { id: 'note-1' } });
+    expect(result.proposal.resultSummary).toMatchObject({
+      tool: 'save_note',
+      status: 'saved',
+      documentId: 'note-1',
+      clientName: 'Sightline',
+      note: { id: 'note-1' },
+    });
     expect(JSON.stringify(result.proposal.resultSummary)).not.toContain('Private note body');
   });
 
   it('does not treat a resolved promise without a durable save receipt as success', async () => {
     const h = harness({ row: null, executeResult: { ok: true } });
     h.setPolicy({ outcome: 'PASS', reasons: ['Internal note'] });
-    const result = await h.service.create(ctx, { tool: 'save_note', input: { body: 'Notes' }, surface: 'chat' });
+    const result = await h.service.create(ctx, {
+      tool: 'save_note',
+      input: { body: 'Notes' },
+      surface: 'chat',
+    });
     expect(result.disposition).toBe('failed');
     expect(result.proposal.status).toBe('outcome_unknown');
     expect(result.proposal.error?.code).toBe('client_filing_receipt_missing');
   });
 
-  it.each(['create', 'approve'] as const)('preserves a partial batch and its retry state through %s', async (path) => {
-    const input = { clientId: TENANT, conversationId: PROPOSAL, attachmentIds: [USER, PROPOSAL] };
-    const h = harness({ row: path === 'approve' ? makeRow({ tool: 'save_chat_attachments', input }) : null,
-      executeResult: { tool: 'save_chat_attachments', status: 'partial', clientId: TENANT, clientName: 'Sightline',
-        savedCount: 1, pendingCount: 0, failedCount: 1,
-        files: [{ attachmentId: USER, fileName: 'letter.docx', status: 'saved', documentId: 'doc-1' },
-          { attachmentId: PROPOSAL, fileName: 'brief.pdf', status: 'failed', reason: 'Try again' }] } });
-    h.setPolicy({ outcome: path === 'approve' ? 'WARN' : 'PASS', reasons: ['File documents'] });
-    const result = path === 'approve' ? await h.service.approveAndExecute(ctx, PROPOSAL)
-      : (await h.service.create(ctx, { tool: 'save_chat_attachments', input, surface: 'chat' })).proposal;
-    expect(result.status).toBe('failed_retryable');
-    expect(result.resultSummary).toMatchObject({ status: 'partial', savedCount: 1, failedCount: 1, files: [
-      expect.objectContaining({ documentId: 'doc-1', status: 'saved' }), expect.objectContaining({ status: 'failed' }),
-    ] });
-  });
+  it.each(['create', 'approve'] as const)(
+    'preserves a partial batch and its retry state through %s',
+    async (path) => {
+      const input = { clientId: TENANT, conversationId: PROPOSAL, attachmentIds: [USER, PROPOSAL] };
+      const h = harness({
+        row: path === 'approve' ? makeRow({ tool: 'save_chat_attachments', input }) : null,
+        executeResult: {
+          tool: 'save_chat_attachments',
+          status: 'partial',
+          clientId: TENANT,
+          clientName: 'Sightline',
+          savedCount: 1,
+          pendingCount: 0,
+          failedCount: 1,
+          files: [
+            { attachmentId: USER, fileName: 'letter.docx', status: 'saved', documentId: 'doc-1' },
+            {
+              attachmentId: PROPOSAL,
+              fileName: 'brief.pdf',
+              status: 'failed',
+              reason: 'Try again',
+            },
+          ],
+        },
+      });
+      h.setPolicy({ outcome: path === 'approve' ? 'WARN' : 'PASS', reasons: ['File documents'] });
+      const result =
+        path === 'approve'
+          ? await h.service.approveAndExecute(ctx, PROPOSAL)
+          : (await h.service.create(ctx, { tool: 'save_chat_attachments', input, surface: 'chat' }))
+              .proposal;
+      expect(result.status).toBe('failed_retryable');
+      expect(result.resultSummary).toMatchObject({
+        status: 'partial',
+        savedCount: 1,
+        failedCount: 1,
+        files: [
+          expect.objectContaining({ documentId: 'doc-1', status: 'saved' }),
+          expect.objectContaining({ status: 'failed' }),
+        ],
+      });
+    },
+  );
 
   it('retains processing state when all original files are stored but some scans are pending', async () => {
-    const h = harness({ row: null, executeResult: { tool: 'save_chat_attachments', status: 'partial', clientId: TENANT,
-      files: [{ attachmentId: USER, status: 'saved', documentId: 'd1' }, { attachmentId: PROPOSAL, status: 'pending', documentId: 'd2' }] } });
+    const h = harness({
+      row: null,
+      executeResult: {
+        tool: 'save_chat_attachments',
+        status: 'partial',
+        clientId: TENANT,
+        files: [
+          { attachmentId: USER, status: 'saved', documentId: 'd1' },
+          { attachmentId: PROPOSAL, status: 'pending', documentId: 'd2' },
+        ],
+      },
+    });
     h.setPolicy({ outcome: 'PASS', reasons: ['File documents'] });
-    const result = await h.service.create(ctx, { tool: 'save_chat_attachments', input: {}, surface: 'chat' });
+    const result = await h.service.create(ctx, {
+      tool: 'save_chat_attachments',
+      input: {},
+      surface: 'chat',
+    });
     expect(result.disposition).toBe('executed');
-    expect(result.proposal.resultSummary).toMatchObject({ status: 'partial', files: [
-      expect.objectContaining({ status: 'saved' }), expect.objectContaining({ status: 'pending' }),
-    ] });
+    expect(result.proposal.resultSummary).toMatchObject({
+      status: 'partial',
+      files: [
+        expect.objectContaining({ status: 'saved' }),
+        expect.objectContaining({ status: 'pending' }),
+      ],
+    });
   });
 
   it('creates the trusted fingerprint, policy, tenant, user, and expiry server-side', async () => {
@@ -467,18 +539,31 @@ describe('MeriActionProposalService', () => {
     expect(result.attemptCount).toBe(1);
   });
 
-  it.each(['PASS', 'WARN'] as const)('keeps ambiguous send_email %s outcome unknown without retry', async (outcome) => {
-    const h = harness({ row: outcome === 'WARN' ? makeRow() : null,
-      executeError: new Error('socket closed after provider request') });
-    h.setPolicy({ outcome, reasons: ['Send policy'] });
-    const result = outcome === 'WARN' ? await h.service.approveAndExecute(ctx, PROPOSAL)
-      : (await h.service.create(ctx, { tool: 'send_email', input: makeRow().input, surface: 'chat' })).proposal;
-    const retry = await h.service.approveAndExecute(ctx, PROPOSAL);
-    expect(result.status).toBe('outcome_unknown');
-    expect(result.error?.code).toBe('external_outcome_unknown');
-    expect(retry.status).toBe('outcome_unknown');
-    expect(h.tools.execute).toHaveBeenCalledTimes(1);
-  });
+  it.each(['PASS', 'WARN'] as const)(
+    'keeps ambiguous send_email %s outcome unknown without retry',
+    async (outcome) => {
+      const h = harness({
+        row: outcome === 'WARN' ? makeRow() : null,
+        executeError: new Error('socket closed after provider request'),
+      });
+      h.setPolicy({ outcome, reasons: ['Send policy'] });
+      const result =
+        outcome === 'WARN'
+          ? await h.service.approveAndExecute(ctx, PROPOSAL)
+          : (
+              await h.service.create(ctx, {
+                tool: 'send_email',
+                input: makeRow().input,
+                surface: 'chat',
+              })
+            ).proposal;
+      const retry = await h.service.approveAndExecute(ctx, PROPOSAL);
+      expect(result.status).toBe('outcome_unknown');
+      expect(result.error?.code).toBe('external_outcome_unknown');
+      expect(retry.status).toBe('outcome_unknown');
+      expect(h.tools.execute).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it('keeps an ambiguous schedule acknowledgement non-retryable with the same operation id', async () => {
     const input = { name: 'Watch', prompt: 'Check', intervalMinutes: 60 };
@@ -513,26 +598,46 @@ describe('MeriActionProposalService', () => {
       { tool: 'cancel_scheduled_task', canceled: false, error: 'Task not found.' },
       'cancel_scheduled_task_rejected',
     ],
-  ])('classifies resolved %s handler errors as terminal failures', async (tool, executeResult, code) => {
-    const input = tool === 'reply_email'
-      ? { threadId: 'thread-1', body: 'Reply' }
-      : tool === 'schedule_task'
-        ? { name: 'Watch', prompt: 'Check', intervalMinutes: 60 }
-        : { taskId: 'task-1' };
-    const h = harness({ row: makeRow({ tool, input }), executeResult });
-    h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
+  ])(
+    'classifies resolved %s handler errors as terminal failures',
+    async (tool, executeResult, code) => {
+      const input =
+        tool === 'reply_email'
+          ? { threadId: 'thread-1', body: 'Reply' }
+          : tool === 'schedule_task'
+            ? { name: 'Watch', prompt: 'Check', intervalMinutes: 60 }
+            : { taskId: 'task-1' };
+      const h = harness({ row: makeRow({ tool, input }), executeResult });
+      h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
 
-    const result = await h.service.approveAndExecute(ctx, PROPOSAL);
+      const result = await h.service.approveAndExecute(ctx, PROPOSAL);
 
-    expect(result.status).toBe('failed_terminal');
-    expect(result.error?.code).toBe(code);
-    expect(result.resultSummary).toMatchObject(executeResult);
-  });
+      expect(result.status).toBe('failed_terminal');
+      expect(result.error?.code).toBe(code);
+      expect(result.resultSummary).toMatchObject(executeResult);
+    },
+  );
 
   it.each([
-    ['send_email', { ok: true, sentFrom: 'me@example.com', to: 'you@example.com', subject: 'Hi',
-      sendReceipt: { ok: true, provider: 'gmail', providerMessageId: 'message-1', correlationId: PROPOSAL } }],
-    ['reply_email', { ok: true, sentFrom: 'me@example.com', to: 'you@example.com', subject: 'Re: Hi' }],
+    [
+      'send_email',
+      {
+        ok: true,
+        sentFrom: 'me@example.com',
+        to: 'you@example.com',
+        subject: 'Hi',
+        sendReceipt: {
+          ok: true,
+          provider: 'gmail',
+          providerMessageId: 'message-1',
+          correlationId: PROPOSAL,
+        },
+      },
+    ],
+    [
+      'reply_email',
+      { ok: true, sentFrom: 'me@example.com', to: 'you@example.com', subject: 'Re: Hi' },
+    ],
     ['schedule_task', { tool: 'schedule_task', scheduled: true, task: { id: 'task-1' } }],
     ['cancel_scheduled_task', { tool: 'cancel_scheduled_task', canceled: true, taskId: 'task-1' }],
   ])('accepts the confirmed %s handler receipt', async (tool, executeResult) => {
@@ -541,20 +646,38 @@ describe('MeriActionProposalService', () => {
     expect((await h.service.approveAndExecute(ctx, PROPOSAL)).status).toBe('succeeded');
   });
 
-  it.each(['PASS', 'WARN'] as const)('keeps disconnected send_email truthful on the %s path', async (outcome) => {
-    const h = harness({ row: outcome === 'WARN' ? makeRow() : null,
-      executeResult: { error: 'No connected email account found.' } });
-    h.setPolicy({ outcome, reasons: ['Send policy'] });
-    const result = outcome === 'WARN' ? await h.service.approveAndExecute(ctx, PROPOSAL)
-      : (await h.service.create(ctx, { tool: 'send_email', input: makeRow().input, surface: 'chat' })).proposal;
-    expect(result.status).toBe('failed_terminal');
-    expect(result.error?.code).toBe('send_email_failed');
-    expect(h.tools.execute).toHaveBeenCalledTimes(1);
-  });
+  it.each(['PASS', 'WARN'] as const)(
+    'keeps disconnected send_email truthful on the %s path',
+    async (outcome) => {
+      const h = harness({
+        row: outcome === 'WARN' ? makeRow() : null,
+        executeResult: { error: 'No connected email account found.' },
+      });
+      h.setPolicy({ outcome, reasons: ['Send policy'] });
+      const result =
+        outcome === 'WARN'
+          ? await h.service.approveAndExecute(ctx, PROPOSAL)
+          : (
+              await h.service.create(ctx, {
+                tool: 'send_email',
+                input: makeRow().input,
+                surface: 'chat',
+              })
+            ).proposal;
+      expect(result.status).toBe('failed_terminal');
+      expect(result.error?.code).toBe('send_email_failed');
+      expect(h.tools.execute).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it('keeps send_email unknown without authoritative provider identity and does not retry', async () => {
-    const executeResult = { ok: true, sentFrom: 'me@example.com', to: 'you@example.com', subject: 'Hi',
-      sendReceipt: { ok: true, provider: 'gmail', correlationId: PROPOSAL } };
+    const executeResult = {
+      ok: true,
+      sentFrom: 'me@example.com',
+      to: 'you@example.com',
+      subject: 'Hi',
+      sendReceipt: { ok: true, provider: 'gmail', correlationId: PROPOSAL },
+    };
     const h = harness({ executeResult });
     h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
     const result = await h.service.approveAndExecute(ctx, PROPOSAL);
@@ -566,21 +689,47 @@ describe('MeriActionProposalService', () => {
     expect(h.tools.execute).toHaveBeenCalledTimes(1);
   });
 
-  it.each(['PASS', 'WARN'] as const)('retains accepted send and artifact failure on the %s path', async (outcome) => {
-    const executeResult = { ok: true, sentFrom: 'me@example.com', to: 'you@example.com', subject: 'Hi',
-      sendReceipt: { ok: true, provider: 'gmail', providerMessageId: 'message-1', correlationId: PROPOSAL },
-      artifactPersistence: { persisted: false, error: 'Artifact persistence failed after acceptance' } };
-    const h = harness({ row: outcome === 'WARN' ? makeRow() : null, executeResult });
-    h.setPolicy({ outcome, reasons: ['Send policy'] });
-    const result = outcome === 'WARN' ? await h.service.approveAndExecute(ctx, PROPOSAL)
-      : (await h.service.create(ctx, { tool: 'send_email', input: makeRow().input, surface: 'chat' })).proposal;
-    const retry = await h.service.approveAndExecute(ctx, PROPOSAL);
-    expect(result.status).toBe('succeeded');
-    expect(result.resultSummary).toMatchObject({ sendReceipt: executeResult.sendReceipt,
-      artifactPersistence: executeResult.artifactPersistence });
-    expect(retry.status).toBe('succeeded');
-    expect(h.tools.execute).toHaveBeenCalledTimes(1);
-  });
+  it.each(['PASS', 'WARN'] as const)(
+    'retains accepted send and artifact failure on the %s path',
+    async (outcome) => {
+      const executeResult = {
+        ok: true,
+        sentFrom: 'me@example.com',
+        to: 'you@example.com',
+        subject: 'Hi',
+        sendReceipt: {
+          ok: true,
+          provider: 'gmail',
+          providerMessageId: 'message-1',
+          correlationId: PROPOSAL,
+        },
+        artifactPersistence: {
+          persisted: false,
+          error: 'Artifact persistence failed after acceptance',
+        },
+      };
+      const h = harness({ row: outcome === 'WARN' ? makeRow() : null, executeResult });
+      h.setPolicy({ outcome, reasons: ['Send policy'] });
+      const result =
+        outcome === 'WARN'
+          ? await h.service.approveAndExecute(ctx, PROPOSAL)
+          : (
+              await h.service.create(ctx, {
+                tool: 'send_email',
+                input: makeRow().input,
+                surface: 'chat',
+              })
+            ).proposal;
+      const retry = await h.service.approveAndExecute(ctx, PROPOSAL);
+      expect(result.status).toBe('succeeded');
+      expect(result.resultSummary).toMatchObject({
+        sendReceipt: executeResult.sendReceipt,
+        artifactPersistence: executeResult.artifactPersistence,
+      });
+      expect(retry.status).toBe('succeeded');
+      expect(h.tools.execute).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it('retains an acknowledged reply receipt when only artifact persistence failed', async () => {
     const executeResult = {
@@ -629,9 +778,7 @@ describe('MeriActionProposalService', () => {
     });
     const h = harness({ row, executeError: new Error('temporarily unavailable') });
     h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
-    expect((await h.service.approveAndExecute(ctx, PROPOSAL)).status).toBe(
-      'failed_retryable',
-    );
+    expect((await h.service.approveAndExecute(ctx, PROPOSAL)).status).toBe('failed_retryable');
   });
 
   it('classifies a genuine validation failure as failed_terminal, never succeeded', async () => {
@@ -697,12 +844,7 @@ describe('MeriActionProposalService', () => {
     expect(h.tx.complianceCheck.create).not.toHaveBeenCalled();
   });
 
-  it.each<MeriActionProposalStatus>([
-    'succeeded',
-    'failed_terminal',
-    'dismissed',
-    'expired',
-  ])(
+  it.each<MeriActionProposalStatus>(['succeeded', 'failed_terminal', 'dismissed', 'expired'])(
     'dismiss: is a no-op against terminal status %s (cannot resurrect it)',
     async (status) => {
       const h = harness({ row: makeRow({ status }) });
@@ -715,16 +857,10 @@ describe('MeriActionProposalService', () => {
   it('dismiss: does not reveal or affect another user or tenant proposal', async () => {
     const h = harness();
     await expect(
-      h.service.dismiss(
-        { ...ctx, userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' },
-        PROPOSAL,
-      ),
+      h.service.dismiss({ ...ctx, userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' }, PROPOSAL),
     ).rejects.toBeInstanceOf(NotFoundException);
     await expect(
-      h.service.dismiss(
-        { ...ctx, tenantId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' },
-        PROPOSAL,
-      ),
+      h.service.dismiss({ ...ctx, tenantId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' }, PROPOSAL),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(h.getRow()?.status).toBe('proposed');
   });
