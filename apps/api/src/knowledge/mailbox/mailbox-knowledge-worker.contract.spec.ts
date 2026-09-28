@@ -3,7 +3,10 @@ import { join } from 'node:path';
 import { describe, expect, test } from '@jest/globals';
 
 function repositoryPath(relativePath: string): string {
-  const candidates = [join(process.cwd(), relativePath), join(process.cwd(), 'apps/api', relativePath)];
+  const candidates = [
+    join(process.cwd(), relativePath),
+    join(process.cwd(), 'apps/api', relativePath),
+  ];
   const found = candidates.find(existsSync);
   if (!found) throw new Error(`Could not resolve repository path: ${relativePath}`);
   return found;
@@ -19,26 +22,99 @@ function prismaModelHasFieldType(
   fieldName: string,
   fieldType: string,
 ): boolean {
+  function maskCommentsAndStrings(): string {
+    const masked = source.split('');
+    const mask = (index: number): void => {
+      if (source[index] !== '\n' && source[index] !== '\r') masked[index] = ' ';
+    };
+    let index = 0;
+
+    while (index < source.length) {
+      if (source.startsWith('//', index)) {
+        while (index < source.length && source[index] !== '\n' && source[index] !== '\r') {
+          mask(index);
+          index += 1;
+        }
+        continue;
+      }
+
+      if (source.startsWith('/*', index)) {
+        mask(index);
+        mask(index + 1);
+        index += 2;
+        while (index < source.length) {
+          if (source.startsWith('*/', index)) {
+            mask(index);
+            mask(index + 1);
+            index += 2;
+            break;
+          }
+          mask(index);
+          index += 1;
+        }
+        continue;
+      }
+
+      if (source[index] === '"') {
+        const delimiterLength = source.startsWith('"""', index) ? 3 : 1;
+        for (let offset = 0; offset < delimiterLength; offset += 1) mask(index + offset);
+        index += delimiterLength;
+
+        while (index < source.length) {
+          if (source[index] === '\\') {
+            mask(index);
+            index += 1;
+            if (index < source.length) {
+              mask(index);
+              index += 1;
+            }
+            continue;
+          }
+
+          const isEnd =
+            delimiterLength === 3 ? source.startsWith('"""', index) : source[index] === '"';
+          if (isEnd) {
+            for (let offset = 0; offset < delimiterLength; offset += 1) mask(index + offset);
+            index += delimiterLength;
+            break;
+          }
+
+          mask(index);
+          index += 1;
+        }
+        continue;
+      }
+
+      index += 1;
+    }
+
+    return masked.join('');
+  }
+
+  const lexicalSource = maskCommentsAndStrings();
   const modelStart = new RegExp(
     `^[\\t ]*model[\\t ]+${escapeRegExp(modelName)}[\\t ]*\\{[\\t ]*\\r?$`,
     'm',
-  ).exec(source);
+  ).exec(lexicalSource);
   if (!modelStart || modelStart.index === undefined) return false;
 
   const bodyStart = modelStart.index + modelStart[0].length;
   const modelEnd = /^[\t ]*}[\t ]*\r?$/gm;
   modelEnd.lastIndex = bodyStart;
-  const endMatch = modelEnd.exec(source);
+  const endMatch = modelEnd.exec(lexicalSource);
   if (!endMatch) return false;
 
-  const modelBody = source.slice(bodyStart, endMatch.index);
+  const modelBody = lexicalSource.slice(bodyStart, endMatch.index);
   return new RegExp(
     `^[\\t ]*${escapeRegExp(fieldName)}[\\t ]+${escapeRegExp(fieldType)}(?:[\\t ]+.*)?\\r?$`,
     'm',
   ).test(modelBody);
 }
 
-const consumer = readFileSync(repositoryPath('src/knowledge/mailbox/mailbox-knowledge.consumer.ts'), 'utf8');
+const consumer = readFileSync(
+  repositoryPath('src/knowledge/mailbox/mailbox-knowledge.consumer.ts'),
+  'utf8',
+);
 const flags = readFileSync(
   repositoryPath('src/knowledge/mailbox/mailbox-knowledge-flags.service.ts'),
   'utf8',
@@ -46,9 +122,15 @@ const flags = readFileSync(
 const drain = readFileSync(repositoryPath('scripts/drain-mailbox-knowledge.ts'), 'utf8');
 const dispatcher = readFileSync(repositoryPath('scripts/entrypoint-dispatcher.inc'), 'utf8');
 const schema = readFileSync(repositoryPath('prisma/schema.prisma'), 'utf8');
-const alignWorkflow = join(process.cwd(), '../../.github/workflows/knowledge-schema-align-once.yml');
+const alignWorkflow = join(
+  process.cwd(),
+  '../../.github/workflows/knowledge-schema-align-once.yml',
+);
 const alignScript = join(process.cwd(), '../../scripts/align-mailbox-knowledge-prisma-schema.mjs');
-const knowledgeCi = readFileSync(join(process.cwd(), '../../.github/workflows/knowledge-plane-ci.yml'), 'utf8');
+const knowledgeCi = readFileSync(
+  join(process.cwd(), '../../.github/workflows/knowledge-plane-ci.yml'),
+  'utf8',
+);
 
 describe('Phase 4 mailbox knowledge worker architecture', () => {
   test('does not start an in-process timer from the HTTP API process', () => {
@@ -147,5 +229,62 @@ model KnowledgeEvent {
         'KnowledgeMailboxJob[]',
       ),
     ).toBe(false);
+
+    const blockCommentedRelation = `model MailMessage {
+  id String
+  /*
+  knowledgeJobs KnowledgeMailboxJob[]
+  */
+}`;
+    expect(
+      prismaModelHasFieldType(
+        blockCommentedRelation,
+        'MailMessage',
+        'knowledgeJobs',
+        'KnowledgeMailboxJob[]',
+      ),
+    ).toBe(false);
+
+    const entirelyCommentedModel = `/*
+model MailMessage {
+  knowledgeJobs KnowledgeMailboxJob[]
+}
+*/`;
+    expect(
+      prismaModelHasFieldType(
+        entirelyCommentedModel,
+        'MailMessage',
+        'knowledgeJobs',
+        'KnowledgeMailboxJob[]',
+      ),
+    ).toBe(false);
+
+    const relationInMultilineString = `model MailMessage {
+  id String
+  note String @default("""
+  knowledgeJobs KnowledgeMailboxJob[]
+  """)
+}`;
+    expect(
+      prismaModelHasFieldType(
+        relationInMultilineString,
+        'MailMessage',
+        'knowledgeJobs',
+        'KnowledgeMailboxJob[]',
+      ),
+    ).toBe(false);
+
+    const relationWithAttributeStrings = `model MailMessage {
+  note String @default("escaped quote: \\"; // and /* remain string content */")
+  knowledgeJobs KnowledgeMailboxJob[] @relation("MailMessage // /* jobs */")
+}`;
+    expect(
+      prismaModelHasFieldType(
+        relationWithAttributeStrings,
+        'MailMessage',
+        'knowledgeJobs',
+        'KnowledgeMailboxJob[]',
+      ),
+    ).toBe(true);
   });
 });
