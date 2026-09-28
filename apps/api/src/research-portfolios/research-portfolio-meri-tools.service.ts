@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -12,6 +12,7 @@ import { ResearchPortfolioOutputService } from './research-portfolio-output.serv
 import { ResearchPortfolioReviewService } from './research-portfolio-review.service.js';
 import { ResearchPortfolioRulesService } from './research-portfolio-rules.service.js';
 import { ResearchPortfolioPhase11Service } from './research-portfolio-phase11.service.js';
+import { ResearchPortfolioImportService } from './research-portfolio-import.service.js';
 
 const requiredText = (input: Record<string, unknown>, key: string): string => {
   const value = input[key];
@@ -111,6 +112,7 @@ export class ResearchPortfolioMeriToolsService {
     private readonly reviews: ResearchPortfolioReviewService,
     private readonly rules: ResearchPortfolioRulesService,
     private readonly phase11: ResearchPortfolioPhase11Service,
+    @Optional() private readonly imports?: ResearchPortfolioImportService,
   ) {}
 
   async execute(
@@ -199,23 +201,17 @@ export class ResearchPortfolioMeriToolsService {
         });
       case 'get_research_portfolio_rules':
         return this.rules.listRules(ctx, portfolioId);
-      case 'get_research_portfolio_imports':
-        // Return the most recent import job if a jobId is given
-        if (input.jobId) {
-          return this.prisma.withTenant(ctx.tenantId, async (tx: any) => {
-            const job = await tx.researchPortfolioImportJob.findFirst({
-              where: { tenantId: ctx.tenantId, portfolioId, id: input.jobId as string },
-            });
-            return job ?? { message: 'Import job not found' };
-          });
-        }
-        return this.prisma.withTenant(ctx.tenantId, async (tx: any) => {
-          return tx.researchPortfolioImportJob.findMany({
-            where: { tenantId: ctx.tenantId, portfolioId },
-            orderBy: { createdAt: 'desc' },
-            take: 20,
-          });
-        });
+      case 'get_research_portfolio_imports': {
+        if (!this.imports) throw new ServiceUnavailableException('Research Portfolio import reader is unavailable');
+        const jobId = optionalText(input, 'jobId');
+        if (jobId) return this.imports.getJob(ctx, portfolioId, jobId);
+        const jobs = await this.prisma.withTenant(ctx.tenantId, async (tx: any) => tx.researchPortfolioImportJob.findMany({
+          where: { tenantId: ctx.tenantId, portfolioId }, select: { id: true }, orderBy: { createdAt: 'desc' }, take: 20,
+        }));
+        // Use the same current-authority all-row DTO as the ordinary product.
+        // Raw job records omit rows, outcomes and compensation receipts.
+        return Promise.all(jobs.map((job: { id: string }) => this.imports!.getJob(ctx, portfolioId, job.id)));
+      }
       case 'get_research_portfolio_operations':
         return this.phase11.getOperation(ctx, portfolioId, requiredText(input, 'operationId'));
       case 'prepare_research_portfolio_brief': {

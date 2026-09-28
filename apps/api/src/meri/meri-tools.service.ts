@@ -424,18 +424,20 @@ export class MeriToolsService {
       create_research_portfolio_bookmark: obj(
         {
           conversationId: str('Exact current Research Portfolio chat conversation UUID'),
-          targetKind: { type: 'string', enum: ['member', 'source', 'snapshot', 'output'] },
+          operationKey: str('Stable idempotency key for this intended bookmark'),
+          targetKind: { type: 'string', enum: ['member', 'snapshot', 'evidence', 'review', 'import', 'output', 'other'] },
           targetId: str('Exact bookmark target entity UUID'),
           label: str('Optional human-readable label'),
+          note: str('Optional private bookmark note'),
         },
-        ['conversationId', 'targetKind', 'targetId'],
+        ['conversationId', 'operationKey', 'targetKind', 'targetId'],
       ),
       get_research_portfolio_fit: obj(
         { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
         ['conversationId'],
       ),
       get_research_portfolio_reviews: obj(
-        { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
+        { conversationId: str('Exact current Research Portfolio chat conversation UUID'), lane: { type: 'string', enum: ['mine', 'team', 'deferred', 'resolved'] } },
         ['conversationId'],
       ),
       add_research_portfolio_review_note: obj(
@@ -443,21 +445,22 @@ export class MeriToolsService {
           conversationId: str('Exact current Research Portfolio chat conversation UUID'),
           reviewId: str('Exact review UUID'),
           body: str('Note content'),
-          parentNoteId: str('Optional parent note UUID for threading'),
+          operationKey: str('Stable idempotency key for this intended append-only note'),
+          expectedRevision: { type: 'integer', minimum: 0 },
         },
-        ['conversationId', 'reviewId', 'body'],
+        ['conversationId', 'operationKey', 'expectedRevision', 'reviewId', 'body'],
       ),
       get_research_portfolio_rules: obj(
         { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
         ['conversationId'],
       ),
       get_research_portfolio_imports: obj(
-        { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
+        { conversationId: str('Exact current Research Portfolio chat conversation UUID'), jobId: str('Optional exact authorized import job UUID for all-row detail and compensation receipt') },
         ['conversationId'],
       ),
       get_research_portfolio_operations: obj(
-        { conversationId: str('Exact current Research Portfolio chat conversation UUID') },
-        ['conversationId'],
+        { conversationId: str('Exact current Research Portfolio chat conversation UUID'), operationId: str('Exact authorized import, recompute, output job, or snapshot operation UUID') },
+        ['conversationId', 'operationId'],
       ),
       prepare_research_portfolio_brief: obj(
         {
