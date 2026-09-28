@@ -55,6 +55,20 @@ const MAX_RESULTS_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGES = 6;
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
+// The pinned NumPy/SciPy stack may otherwise size native worker pools from the
+// host CPU count when imported. Pass fixed values in the scrubbed child
+// environment so initialization stays within RLIMIT_NPROC without inheriting
+// any host thread configuration.
+const NATIVE_ANALYSIS_THREAD_ENV = {
+  OPENBLAS_NUM_THREADS: '1',
+  GOTO_NUM_THREADS: '1',
+  OMP_NUM_THREADS: '1',
+  MKL_NUM_THREADS: '1',
+  NUMEXPR_NUM_THREADS: '1',
+  VECLIB_MAXIMUM_THREADS: '1',
+  BLIS_NUM_THREADS: '1',
+} as const;
+
 const HARNESS_PATH = join(dirname(fileURLToPath(import.meta.url)), 'harness.py');
 
 function sanitizeDatasetName(name: string): string {
@@ -157,6 +171,7 @@ export async function runSandboxed(req: SandboxRunRequest): Promise<SandboxRunRe
         SANDBOX_MEM_BYTES: String(1024 * 1024 * 1024),
         PYTHONDONTWRITEBYTECODE: '1',
         PYTHONIOENCODING: 'utf-8',
+        ...NATIVE_ANALYSIS_THREAD_ENV,
         ...(process.platform === 'win32'
           ? {
               SYSTEMROOT: process.env.SYSTEMROOT ?? '',
