@@ -37,7 +37,7 @@ Regression evidence includes the prior 64 focused tests plus:
 
 ## Native PostgreSQL proof
 
-The focused PostgreSQL spec read credentials only at runtime from the private local file, asserted host `127.0.0.1`, port `55433`, a non-empty configured user, and connected-user equality before its first write. It did not print or copy credentials and never consulted `DATABASE_URL`.
+The focused PostgreSQL spec read credentials only at runtime from the private local file, asserted host `127.0.0.1`, port `55433`, a non-empty configured user, and connected-user equality before its first write. It never consulted `DATABASE_URL`, copied credentials, or stored them in the repository. An initial failed identity assertion exposed the configured database user (not the password or connection string) in Jest's diff; the accepted spec compares identity server-side and returns only a boolean so subsequent runs emit no credential value.
 
 It created one random, connection-user-owned `meri_scheduler_*` schema, created only a task-shaped test table in that schema, ran the production `MeriToolsService.scheduleTask` handler through a transparent Prisma-shaped SQL adapter, and dropped the schema afterward. A separate readback reported `ownedSchedulerSchemasRemaining: 0`.
 
