@@ -285,9 +285,12 @@ jobs:
         run: pnpm turbo run typecheck --filter=@capiro/api --filter=@capiro/web --concurrency=1
 
       # ---------------------------------------------------------------- api --
-      # Every module this feature owns, enumerated. `--runInBand` because the
-      # migration service is shared and parallel workers on one Postgres make
-      # failures non-deterministic.
+      # Every module this feature owns, enumerated. `--maxWorkers=1`
+      # with `--workerIdleMemoryLimit=1GB`: one sequential worker; Jest
+      # recycles the worker between suites when its heap exceeds the
+      # limit, avoiding OOM without collapsing to in-band (which lacks
+      # per-suite worker recycling). The migration service is shared and
+      # parallel workers on one Postgres make failures non-deterministic.
       - name: Validate isolated API test paths
         if: steps.scope.outputs.in_scope == 'true'
         shell: bash
@@ -308,8 +311,10 @@ jobs:
 
       - name: Tests — apps/api Funding Opportunities scope
         if: steps.scope.outputs.in_scope == 'true'
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: >
-          pnpm --filter @capiro/api exec jest --ci --silent --runInBand
+          pnpm --filter @capiro/api exec jest --ci --silent --maxWorkers=1 --workerIdleMemoryLimit=1GB
           --json --outputFile=$GITHUB_WORKSPACE/api-summary.json
           --testPathIgnorePatterns='src/funding-opportunities/(funding-opportunity-v2-search\.sql|funding-opportunity-v2-search\.http\.integration|funding-opportunity-v2-search\.integration|funding-opportunity-saved-search\.http\.integration|funding-opportunity-v2-detail\.http|funding-opportunity-v2-workflow\.http\.integration|funding-opportunity-pipeline\.http\.integration|funding-opportunity-pipeline-source-access\.integration)\.spec\.ts$'
           --

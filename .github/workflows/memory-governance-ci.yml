@@ -85,7 +85,7 @@ jobs:
 
       - name: Test API governed-memory Phases 1-16
         run: >
-          pnpm --filter @capiro/api exec jest --ci --silent --runInBand
+          pnpm --filter @capiro/api exec jest --ci --silent --maxWorkers=1 --workerIdleMemoryLimit=1GB
           src/memory
           scripts/lib/memory-governance-backfill.spec.ts
           src/context/context-compiler-v2.service.spec.ts
