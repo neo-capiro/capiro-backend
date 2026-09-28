@@ -55,6 +55,10 @@ import { runMeriStreamWithSetupGuard } from './meri-stream-preflight.helpers.js'
 import { withMeriToolRequestControl } from './meri-tool-request-control.js';
 import { withMeriChatAttachmentReadScope } from './meri-chat-attachment-read-scope.js';
 import { admitMeriChatAttachmentTransport } from './meri-chat-attachment-transport.js';
+import {
+  admitMeriResearchPortfolioToolTransport,
+  withMeriResearchPortfolioToolTurnScope,
+} from './meri-rp-tool-transport.js';
 import { MeriPdfRenderError } from './meri-docgen-pdf.js';
 import { sha256Bytes, validateDocumentArtifactBytes } from './meri-artifact-integrity.js';
 import type { AssuranceSurface } from '@capiro/meriv2-core';
@@ -433,12 +437,22 @@ export class MeriController {
     @Body() body: Record<string, unknown>,
     @Req() req: Request,
   ) {
-    const admitted = admitMeriChatAttachmentTransport(name, body, ctx, req);
+    const admittedAttachment = admitMeriChatAttachmentTransport(name, body, ctx, req);
+    const admittedRp = admitMeriResearchPortfolioToolTransport(
+      name,
+      admittedAttachment.input,
+      ctx,
+      req,
+    );
     return withMeriToolRequestControl(req, () => {
-      const execute = () => this.tools.executeFromAuthenticatedUser(ctx, name, admitted.input);
-      return admitted.scope
-        ? withMeriChatAttachmentReadScope(admitted.scope, execute)
-        : execute();
+      const execute = () => this.tools.executeFromAuthenticatedUser(ctx, name, admittedRp.input);
+      const executeRp = () =>
+        admittedRp.scope
+          ? withMeriResearchPortfolioToolTurnScope(admittedRp.scope, execute)
+          : execute();
+      return admittedAttachment.scope
+        ? withMeriChatAttachmentReadScope(admittedAttachment.scope, executeRp)
+        : executeRp();
     });
   }
 

@@ -2,6 +2,19 @@ import type { MeriContext } from '@capiro/meriv2-core';
 import { ApiToolExecutorRepo } from './api-tool-executor.repo';
 import { classifyApiToolReadOutcome } from './api-tool-read-outcome';
 import { RequestCredentialsStore } from '../request/request-credentials.store';
+import { withTrustedCurrentTurnScope } from '../request/trusted-current-turn-scope';
+
+const TENANT = '11111111-1111-4111-8111-111111111111';
+const USER = '22222222-2222-4222-8222-222222222222';
+const CONVERSATION = '33333333-3333-4333-8333-333333333333';
+const OTHER_CONVERSATION = '44444444-4444-4444-8444-444444444444';
+const CLIENT = '55555555-5555-4555-8555-555555555555';
+const currentTurn = {
+  tenantId: TENANT,
+  userId: USER,
+  conversationId: CONVERSATION,
+  selectedClientId: CLIENT,
+};
 
 const originalFetch = global.fetch;
 afterEach(() => {
@@ -85,6 +98,77 @@ describe('ApiToolExecutorRepo — internal service-secret header', () => {
     );
     expect(calls[0]?.headers['x-internal-service-secret']).toBeUndefined();
     expect(calls[0]?.headers['authorization']).toBe('Bearer user-tok');
+  });
+});
+
+describe('ApiToolExecutorRepo — Research Portfolio current-turn boundary', () => {
+  it('sends the finite RP envelope and derives an omitted model conversation', async () => {
+    let captured: Record<string, unknown> | undefined;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      async (_url: string, init: { body: string }) => {
+        captured = JSON.parse(init.body) as Record<string, unknown>;
+        return new Response(JSON.stringify({ authorized: true }));
+      },
+    );
+    const repo = new ApiToolExecutorRepo(cfg({ INTERNAL_SERVICE_SECRET: 'sec-123' }));
+
+    await RequestCredentialsStore.run({ bearerToken: 'user-tok' }, () =>
+      withTrustedCurrentTurnScope(currentTurn, () =>
+        repo.execute(CTX, 'get_research_portfolio', {}),
+      ),
+    );
+
+    expect(captured).toEqual({
+      version: 1,
+      input: { conversationId: CONVERSATION },
+      currentTurn,
+    });
+  });
+
+  it('fails missing scope, cross-model target, invalid context, and missing secret before network', async () => {
+    const fetchSpy = jest.fn();
+    (global as unknown as { fetch: unknown }).fetch = fetchSpy;
+    const repo = new ApiToolExecutorRepo(cfg({ INTERNAL_SERVICE_SECRET: 'sec-123' }));
+
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'user-tok' }, () =>
+        repo.execute(CTX, 'get_research_portfolio', {}),
+      ),
+    ).rejects.toThrow('Trusted current-turn scope is unavailable');
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'user-tok' }, () =>
+        withTrustedCurrentTurnScope(currentTurn, () =>
+          repo.execute(CTX, 'get_research_portfolio', {
+            conversationId: OTHER_CONVERSATION,
+          }),
+        ),
+      ),
+    ).rejects.toThrow('cannot target another conversation');
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'user-tok' }, () =>
+        withTrustedCurrentTurnScope({ ...currentTurn, userId: 'invalid' }, () =>
+          repo.execute(CTX, 'get_research_portfolio', {}),
+        ),
+      ),
+    ).rejects.toThrow('Trusted current-turn scope is invalid');
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'user-tok' }, () =>
+        withTrustedCurrentTurnScope(currentTurn, () =>
+          new ApiToolExecutorRepo(cfg({})).execute(CTX, 'get_research_portfolio', {}),
+        ),
+      ),
+    ).rejects.toThrow('INTERNAL_SERVICE_SECRET is not configured');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('keeps ordinary delegated tools compatible without trusted scope or service identity', async () => {
+    const calls = mockFetch();
+    const repo = new ApiToolExecutorRepo(cfg({}));
+    await RequestCredentialsStore.run({ bearerToken: 'user-tok' }, () =>
+      repo.execute(CTX, 'search_congress_bills', { query: 'NDAA' }),
+    );
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.headers['x-internal-service-secret']).toBeUndefined();
   });
 });
 

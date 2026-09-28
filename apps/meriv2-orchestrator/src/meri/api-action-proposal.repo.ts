@@ -3,6 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { RequestCredentialsStore } from '../request/request-credentials.store.js';
 import type { ToolExecutionControl } from '@capiro/meriv2-core';
 import { createMeriExecutionControl } from './meri-execution-control.js';
+import { currentTrustedCurrentTurnScope } from '../request/trusted-current-turn-scope.js';
+import { isCurrentConversationResearchPortfolioTool } from './current-turn-tool-scope.js';
+import { buildResearchPortfolioProposalTransport } from './rp-action-proposal-transport.js';
 
 export interface CreateActionProposalInput {
   tool: string;
@@ -77,9 +80,19 @@ export class ApiActionProposalRepo {
       const env = this.config.get<string>('NODE_ENV') ?? process.env.NODE_ENV ?? 'development';
       const secret =
         this.config.get<string>('INTERNAL_SERVICE_SECRET') ?? process.env.INTERNAL_SERVICE_SECRET;
+      const isResearchPortfolio = isCurrentConversationResearchPortfolioTool(input.tool.trim());
+      if (isResearchPortfolio && !secret) {
+        throw new Error(
+          'INTERNAL_SERVICE_SECRET is not configured for Research Portfolio action authority.',
+        );
+      }
       if ((env === 'staging' || env === 'production') && !secret) {
         throw new Error('INTERNAL_SERVICE_SECRET is not configured for action authority.');
       }
+      const body = buildResearchPortfolioProposalTransport(
+        input,
+        currentTrustedCurrentTurnScope(),
+      );
       const base = (
         this.config.get<string>('MERIV2_API_BASE_URL') ?? 'http://localhost:3000'
       ).replace(/\/+$/, '');
@@ -95,7 +108,7 @@ export class ApiActionProposalRepo {
             ? { 'x-capiro-impersonate-tenant': credentials.impersonateTenantId }
             : {}),
         },
-        body: JSON.stringify(input),
+        body: JSON.stringify(body),
         signal: execution.signal,
       });
       if (!response.ok) {

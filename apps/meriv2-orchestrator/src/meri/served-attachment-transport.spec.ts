@@ -218,13 +218,13 @@ describe('bounded Research Portfolio current-conversation contract', () => {
     },
   );
 
-  it('leaves non-RP business tools and calls without V3 scope unchanged', () => {
+  it('leaves non-RP business tools unchanged and fails RP closed without trusted scope', () => {
     const ordinary = { conversationId: OTHER_CONVERSATION, query: 'NDAA' };
     expect(bindCurrentConversationToolInput('search_congress_bills', ordinary, scope())).toBe(
       ordinary,
     );
-    expect(bindCurrentConversationToolInput('get_research_portfolio', ordinary, undefined)).toBe(
-      ordinary,
-    );
+    expect(() =>
+      bindCurrentConversationToolInput('get_research_portfolio', ordinary, undefined),
+    ).toThrow('Trusted current-turn scope is unavailable');
   });
 });
