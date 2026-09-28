@@ -11,6 +11,10 @@ export type ResearchRunStatus =
   | 'partial';
 export interface ResearchRunState {
   id: string;
+  /** Monotonic ownership generation; the UUID remains the opaque fencing token. */
+  leaseEpoch: number;
+  /** Last durable public progress receipt committed for this session. */
+  eventSequence: number;
   phase: ResearchRunPhase;
   status: ResearchRunStatus;
   stage: string;
@@ -45,7 +49,21 @@ export function readResearchRun(value: unknown, now = Date.now()): ResearchRunSt
     typeof run.stage !== 'string'
   )
     return null;
-  const result = run as unknown as ResearchRunState;
+  const result = {
+    ...run,
+    leaseEpoch:
+      typeof run.leaseEpoch === 'number' &&
+      Number.isSafeInteger(run.leaseEpoch) &&
+      run.leaseEpoch >= 0
+        ? run.leaseEpoch
+        : 0,
+    eventSequence:
+      typeof run.eventSequence === 'number' &&
+      Number.isSafeInteger(run.eventSequence) &&
+      run.eventSequence >= 0
+        ? run.eventSequence
+        : 0,
+  } as unknown as ResearchRunState;
   if (
     result.status === 'running' &&
     (!Number.isFinite(Date.parse(result.heartbeatAt)) ||

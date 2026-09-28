@@ -527,6 +527,7 @@ describe('Durable research lease and recovery', () => {
     });
     const old = f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
     await ready.promise;
+    expect(f.getSession().metadata.run.leaseEpoch).toBe(1);
     f.getSession().metadata.run.heartbeatAt = new Date(Date.now() - 180_000).toISOString();
     expect((await f.service.getSession(ctx, 'research-a')).run?.status).toBe('interrupted');
     await f.replica().streamResearch(ctx, 'research-a', f.sse, {
@@ -536,7 +537,7 @@ describe('Durable research lease and recovery', () => {
     release.resolve();
     await old;
     expect(f.artifacts).toHaveLength(1);
-    expect(f.getSession().metadata.run.status).toBe('complete');
+    expect(f.getSession().metadata.run).toMatchObject({ status: 'complete', leaseEpoch: 2 });
     expect(f.runner.run).toHaveBeenCalledTimes(2);
     const recovered = f.runner.run.mock.calls[1]?.[1] as any;
     expect(recovered.handoff.attachments[0].id).toBe('prior-file');
@@ -576,6 +577,63 @@ describe('Durable research lease and recovery', () => {
     expect((await f.service.getSession(ctx, 'research-a')).report?.bodyText).toContain(
       'manufacturing footprint',
     );
+  });
+
+  it('persists a fenced safe-read receipt before notifying the observer and preserves it at terminal replay', async () => {
+    const f = fixture();
+    await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+    const result = await f.runner.run(ctx, {});
+    f.runner.run.mockClear();
+    f.runner.run.mockImplementation(async (...args: any[]) => {
+      const onEvent = args[3] as (event: Record<string, unknown>) => void;
+      onEvent({
+        type: 'source',
+        source: {
+          tool: 'get_client_context',
+          label: 'Client context',
+          summary: '3 authorized records',
+          confidence: 'high',
+        },
+      });
+      return result;
+    });
+    let persistedBeforeWrite = false;
+    const observed: any[] = [];
+    await f.service.streamResearch(
+      ctx,
+      'research-a',
+      {
+        write: (data: string) => {
+          const event = JSON.parse(data.replace(/^data: /, '').trim());
+          observed.push(event);
+          if (event.type === 'source') {
+            persistedBeforeWrite = f.getSession().metadata.durableStepReceipts?.length === 1;
+          }
+        },
+      },
+      f.auth,
+    );
+
+    expect(persistedBeforeWrite).toBe(true);
+    expect(observed.find((event) => event.type === 'source')?.sequence).toBe(1);
+    expect(f.getSession().metadata.durableStepReceipts).toEqual([
+      expect.objectContaining({
+        leaseEpoch: 1,
+        sequence: 1,
+        effectClass: 'safe_read',
+        tool: 'get_client_context',
+        status: 'complete',
+      }),
+    ]);
+    expect(f.getSession().metadata.run).toMatchObject({
+      status: 'complete',
+      leaseEpoch: 1,
+      eventSequence: 1,
+    });
+
+    await f.replica().streamResearch(ctx, 'research-a', f.sse, f.auth);
+    expect(f.runner.run).toHaveBeenCalledTimes(1);
+    expect(f.events.at(-1)).toEqual({ type: 'done' });
   });
 
   it('keeps incomplete provider output partial and never labels it as a completed report', async () => {

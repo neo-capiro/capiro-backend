@@ -72,6 +72,7 @@ import {
   type ResearchRunState,
   type ResearchRunPhase,
 } from './meri-research-run-state.js';
+import { appendDurableResearchStepReceipt } from './meri-research-durable-step.js';
 
 const PRODUCT_NAME = 'Meri';
 
@@ -95,6 +96,7 @@ export interface SourceAttribution {
 
 interface SseSink {
   write: (data: string) => void;
+  flush?: () => Promise<void>;
 }
 
 /**
@@ -231,6 +233,8 @@ export class MeriResearchService {
             handoff,
             run: {
               id: randomUUID(),
+              leaseEpoch: 0,
+              eventSequence: 0,
               phase: 'plan',
               status: 'interrupted',
               readyToStart: true,
@@ -365,6 +369,8 @@ export class MeriResearchService {
             answersRevision: randomUUID(),
             run: {
               id: randomUUID(),
+              leaseEpoch: readResearchRun(session.metadata)?.leaseEpoch ?? 0,
+              eventSequence: readResearchRun(session.metadata)?.eventSequence ?? 0,
               phase: 'research',
               status: 'interrupted',
               readyToStart: true,
@@ -509,6 +515,8 @@ export class MeriResearchService {
       const now = new Date();
       claimed = {
         id: randomUUID(),
+        leaseEpoch: (previous?.leaseEpoch ?? 0) + 1,
+        eventSequence: previous?.eventSequence ?? 0,
         phase,
         status: 'running',
         stage: phase === 'plan' ? 'Planning the research' : 'Gathering evidence',
@@ -555,7 +563,12 @@ export class MeriResearchService {
               }),
             );
             const stored = readResearchRun(current?.metadata);
-            if (!current || stored?.id !== run.id || stored.status !== 'running') {
+            if (
+              !current ||
+              stored?.id !== run.id ||
+              stored.leaseEpoch !== run.leaseEpoch ||
+              stored.status !== 'running'
+            ) {
               controller.abort(researchLeaseError('Research lease is no longer active.'));
               return;
             }
@@ -592,10 +605,12 @@ export class MeriResearchService {
       };
       timer = setInterval(heartbeat, 10_000);
       timer.unref?.();
-      const sink = {
+      let pendingError: unknown;
+      const sink: SseSink = {
         write: (data: string) => {
+          let event: Record<string, unknown> | undefined;
           try {
-            const event = JSON.parse(data.replace(/^data: /, '').trim()) as Record<string, unknown>;
+            event = JSON.parse(data.replace(/^data: /, '').trim()) as Record<string, unknown>;
             if (event.type === 'progress' && typeof event.note === 'string') run.stage = event.note;
             if (event.type === 'step' && typeof event.label === 'string')
               run.stage = `Reading ${event.label}`;
@@ -603,7 +618,35 @@ export class MeriResearchService {
           } catch {
             /* non-data heartbeat */
           }
-          safeWrite(data);
+          pending = pending
+            .then(async () => {
+              if (pendingError) throw pendingError;
+              if (event?.type === 'source') {
+                const persisted = await this.persistDurableSourceReceipt(
+                  ctx,
+                  id,
+                  run,
+                  researchMetadata(event.source),
+                );
+                run.eventSequence = persisted.sequence;
+                data = sseEvent({ ...event, sequence: persisted.sequence });
+              }
+              safeWrite(data);
+            })
+            .catch((error) => {
+              pendingError = error;
+              controller.abort(
+                researchLeaseError(
+                  error instanceof Error
+                    ? error.message
+                    : 'Research progress could not be persisted.',
+                ),
+              );
+            });
+        },
+        flush: async () => {
+          await pending;
+          if (pendingError) throw pendingError;
         },
       };
       await execute(sink, { ...auth, run, signal: controller.signal });
@@ -625,6 +668,59 @@ export class MeriResearchService {
       auth.signal?.removeEventListener('abort', abort);
       if (this.activeRuns.get(key) === controller) this.activeRuns.delete(key);
     }
+  }
+
+  /** Commit a safe-read completion before its observer event is released. */
+  private async persistDurableSourceReceipt(
+    ctx: TenantContext,
+    id: string,
+    run: ResearchRunState,
+    source: Record<string, unknown>,
+  ) {
+    const receiptId = randomUUID();
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const current = await tx.clioResearchSession.findFirst({
+        where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
+      });
+      const currentRun = readResearchRun(current?.metadata);
+      if (
+        !current ||
+        currentRun?.id !== run.id ||
+        currentRun.leaseEpoch !== run.leaseEpoch ||
+        currentRun.status !== 'running'
+      )
+        throw new ConflictException('Research lease is no longer active.');
+      if (
+        current.clientId &&
+        !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, current.clientId))
+      )
+        throw new NotFoundException('Research session not found');
+
+      const appended = appendDurableResearchStepReceipt(current.metadata, run, {
+        receiptId,
+        tool: typeof source.tool === 'string' ? source.tool : '',
+        label: typeof source.label === 'string' ? source.label : '',
+        status: source.confidence === 'low' ? 'failed' : 'complete',
+        summary: typeof source.summary === 'string' ? source.summary : '',
+        completedAt: new Date().toISOString(),
+      });
+      const changed = await tx.clioResearchSession.updateMany({
+        where: {
+          id,
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          status: run.phase === 'plan' ? 'plan' : 'researching',
+          metadata: { equals: current.metadata ?? {} },
+        },
+        data: {
+          metadata: appended.metadata as unknown as Prisma.InputJsonObject,
+          updatedAt: new Date(),
+        },
+      });
+      if (!changed.count)
+        throw new ConflictException('Research lease changed while saving progress.');
+      return appended.receipt;
+    });
   }
 
   private async replaySession(
@@ -688,6 +784,21 @@ export class MeriResearchService {
       throw new ConflictException(
         'This research attempt no longer owns the run. Refresh to recover its current status.',
       );
+    const current = await tx.clioResearchSession.findFirst({
+      where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
+      select: { metadata: true },
+    });
+    const currentRun = readResearchRun(current?.metadata);
+    if (
+      !current ||
+      currentRun?.id !== auth.run.id ||
+      currentRun.leaseEpoch !== auth.run.leaseEpoch ||
+      currentRun.status !== 'running'
+    )
+      throw new ConflictException(
+        'This research attempt no longer owns the run. Refresh to recover its current status.',
+      );
+    return current.metadata;
   }
 
   private async markFailed(
@@ -699,7 +810,12 @@ export class MeriResearchService {
     if (!auth.run) return;
     try {
       const current = await this.ensureSession(ctx, id);
-      if (readResearchRun(current.metadata)?.id !== auth.run.id || current.status === 'complete')
+      const currentRun = readResearchRun(current.metadata);
+      if (
+        currentRun?.id !== auth.run.id ||
+        currentRun.leaseEpoch !== auth.run.leaseEpoch ||
+        current.status === 'complete'
+      )
         return;
       const leaseLost =
         auth.signal?.reason instanceof Error && auth.signal.reason.name === 'ResearchLeaseError';
@@ -813,7 +929,7 @@ export class MeriResearchService {
     }
 
     const planMessageId = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await this.fenceRun(tx, ctx, session.id, auth);
+      const currentMetadata = await this.fenceRun(tx, ctx, session.id, auth);
       if (
         session.clientId &&
         !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, session.clientId))
@@ -843,7 +959,7 @@ export class MeriResearchService {
           clarifyingQuestions: proposal.clarifyingQuestions as Prisma.InputJsonValue,
           status: 'awaiting_clarification',
           metadata: {
-            ...researchMetadata(session.metadata),
+            ...researchMetadata(currentMetadata),
             run: terminalResearchRun(
               auth.run!,
               'awaiting_clarification',
@@ -878,7 +994,7 @@ export class MeriResearchService {
           where: { id: session.id },
           data: {
             metadata: {
-              ...researchMetadata(session.metadata),
+              ...researchMetadata(currentMetadata),
               run: terminalResearchRun(auth.run!, 'awaiting_clarification', 'Plan ready'),
               planMessageId: planMessage.id,
             } as unknown as Prisma.InputJsonObject,
@@ -1543,6 +1659,8 @@ export class MeriResearchService {
       evidenceManifest?: MeriEvidenceManifest;
     },
   ) {
+    // Source completions are fenced and saved before report persistence or observer delivery.
+    await sse.flush?.();
     let { reportBody } = result;
     const { sources, toolsUsed, ledgerEntries, model, auditorMode, bufferReport } = result;
     const plan = asStringArray(session.plan);
@@ -1717,7 +1835,7 @@ export class MeriResearchService {
     };
 
     const persisted = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await this.fenceRun(tx, ctx, session.id, result.runAuth);
+      const currentMetadata = await this.fenceRun(tx, ctx, session.id, result.runAuth);
       if (
         session.clientId &&
         !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, session.clientId))
@@ -1726,10 +1844,7 @@ export class MeriResearchService {
       }
       // Research started in chat stays in that thread. Standalone/older sessions
       // retain their existing backing conversation behavior.
-      const existing =
-        session.metadata && typeof session.metadata === 'object' && !Array.isArray(session.metadata)
-          ? (session.metadata as Record<string, unknown>).backingConversationId
-          : undefined;
+      const existing = researchMetadata(currentMetadata).backingConversationId;
       let conversationId =
         handoff?.conversationId ?? (typeof existing === 'string' ? existing : null);
       if (handoff?.conversationId) {
@@ -1819,11 +1934,7 @@ export class MeriResearchService {
           reportArtifactId: artifact.id,
           sources: sources as unknown as Prisma.InputJsonValue,
           metadata: {
-            ...(session.metadata &&
-            typeof session.metadata === 'object' &&
-            !Array.isArray(session.metadata)
-              ? session.metadata
-              : {}),
+            ...researchMetadata(currentMetadata),
             backingConversationId: conversationId,
             ...(result.citations ? { citations: result.citations } : {}),
             run: terminalResearchRun(
