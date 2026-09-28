@@ -40,12 +40,17 @@ jobs:
       PSQL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+
+      - name: Run client-intel UUID deduplication replay test
+        run: node --test scripts/ci/client-intel-dedup-replay.test.mjs
 
       - name: Generate all Prisma clients used by the repository typecheck
         run: |

@@ -1,5 +1,15 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-28 19:55 UTC
+
+File01 remains incomplete. Hermes uses AWS Bedrock Qwen3 Coder Next for implementation and Kimi K2.5 for independent review; effective reasoning is model-default. Meeting/task authority is integrated at f766e859e with 424 combined tests passing. Narrative source integrity is integrated at a55f21470 with 408 combined tests, shared/core builds, API/runtime types and formatting passing; Kimi reran 23 original donor probes and separately reviewed preserved integration authority gates (static only).
+
+The previously reviewed UUID migration repair now has mandatory CI regression wiring and passes 2 actual PGlite/owned-PostgreSQL tests in each integration tree. See ci-migration-replay-qualification.md; full hosted migration replay is pending. Workstream A PR1908 at220aa2 passed Knowledge Phase17 run36473202783. Its remaining observed connector heap and missing disposable-role failures now receive exact previously reviewed foundation setup fragments. Those changes pass 9 local guard tests; the prior 23 API contract tests and actual controlled-sink approval/source-chain probe also passed. New hosted results must qualify the new commit; no failing gate is waived.
+
+Monday current-mapping repair fddae0ff0 passes 57 tests; independent review/type qualification is in progress, and other source-family defects remain open. Native fixture review claims of meeting collision risk and 41-family coverage were unsupported; the lead reproduced only the dropped MemoryItem version guard with an actual controlled spy. Runtime owner assembly/provisioning remains unproved. Provider6329 has 221 local tests and scoped static independent review; combined durable/child integration, telemetry/export, complete fixture/capture binding, all75 live/CD7/CW8 and original offline/memory acceptance remain pending.
+
+No main merge, deployment or approved synthetic-cohort enablement has occurred. This is a task-branch checkpoint, not File01 completion or release acceptance.
+
 ## Current checkpoint — 2026-09-28 19:16 UTC
 
 File01 remains incomplete across all original A/B/C/D requirements. The task-specific Hermes implementation provider is now AWS Bedrock Qwen3 Coder Next; independent review is Kimi K2.5. Both passed actual file/terminal/process smoke with exit0. Neo authorized these substitutions. Requested High effort is not forwarded by the installed Converse adapter; effective reasoning is model-default. Production models and unrelated Hermes profiles were not changed.

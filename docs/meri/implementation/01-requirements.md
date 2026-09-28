@@ -1,5 +1,9 @@
 # File 01 requirements ledger
 
+### Evidence update — 2026-09-28 19:55 UTC
+
+All original requirement identities and acceptance obligations remain unchanged. Current integration and bounded test evidence are recorded in STATUS.md, narrative-integration-qualification.md, meeting-task-integration-qualification.md and ci-migration-replay-qualification.md. File01 remains incomplete; no main merge or deployment is claimed.
+
 ### Evidence update — 2026-09-28 19:16 UTC
 
 File01 remains incomplete across all original A/B/C/D requirements. The task-specific Hermes implementation provider is now AWS Bedrock Qwen3 Coder Next; independent review is Kimi K2.5. Both passed actual file/terminal/process smoke with exit0. Neo authorized these substitutions. Requested High effort is not forwarded by the installed Converse adapter; effective reasoning is model-default. Production models and unrelated Hermes profiles were not changed.
