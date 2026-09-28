@@ -277,6 +277,28 @@ test('sink receipt IDs bind exactly to proposal/effect trace records', (t) => {
   assert.match(caseResult.details.join('\n'), /exact proposal→effect→receipt|no exact authoritative sink receipt/u);
 });
 
+test('same-run trace effects cannot hide behind a different operation/proposal filtered join', (t) => {
+  const { root, bundle } = unit(t, [
+    { id: '51', runtimeMode: 'Standard', pairId: 'case51-pair' },
+    { id: '51', runtimeMode: 'Deep', pairId: 'case51-pair' },
+  ]);
+  for (const capture of bundle.captures) {
+    mutateJson(root, capture.evidence.run.traceArtifact, (trace) => {
+      const effect = trace.records.find((record) => record.kind === 'effect');
+      trace.records.push({
+        ...effect,
+        operationId: 'trace-only-extra-operation',
+        proposalId: 'trace-only-extra-proposal',
+        receiptId: 'trace-only-extra-receipt',
+        logicalEffectId: 'trace-only-extra-effect',
+      });
+    });
+  }
+  const caseResult = result(verifyCaptureBundle(bundle), '51');
+  assert.equal(caseResult.status, 'BLOCKED');
+  assert.match(caseResult.details.join('\n'), /unexpected extra effect.*not accounted for exactly once/u);
+});
+
 test('incomplete mode matrix retains underlying BLOCKED artifact diagnostics', (t) => {
   const { bundle } = unit(t, [{ id: '20', runtimeMode: 'Standard' }]);
   bundle.captures[0].evidence.status.answerRef = '../invalid';

@@ -98,8 +98,8 @@ function validateCorrelations(capture, artifacts, captureRunId) {
     if (sink.captureRunId !== captureRunId || sink.runId !== run.runId || sink.traceId !== run.traceId || sink.caseId !== capture.caseId) {
       defects.push('sink artifact is not run/case correlated');
     }
-    const proposal = records.find((record) => record.kind === 'proposal' && record.proposalId === effects.proposalId && record.payloadSha256 === artifacts.payload.sha256);
-    if (!proposal) defects.push('proposal→effect trace correlation is incomplete');
+    const proposals = records.filter((record) => record.kind === 'proposal' && record.proposalId === effects.proposalId && record.payloadSha256 === artifacts.payload.sha256);
+    if (proposals.length !== 1) defects.push('proposal→effect trace correlation is incomplete');
     if (new Set(sink.receipts.map((receipt) => receipt.receiptId)).size !== sink.receipts.length) defects.push('authoritative sink receipt IDs are not unique');
     for (const receipt of sink.receipts) {
       const sinkEffect = sink.effects.find((item) => item.logicalEffectId === receipt.logicalEffectId);
@@ -111,12 +111,22 @@ function validateCorrelations(capture, artifacts, captureRunId) {
         defects.push(`sink receipt ${receipt.receiptId} lacks exact proposal→effect→receipt trace correlation`);
       }
     }
-    const sinkReceiptIds = new Set(sink.receipts.map((receipt) => receipt.receiptId));
-    const unmatchedTraceEffect = records.find((record) => record.kind === 'effect'
-      && record.operationId === effects.operationId
-      && record.proposalId === effects.proposalId
-      && !sinkReceiptIds.has(record.receiptId));
-    if (unmatchedTraceEffect) defects.push(`effect trace receipt ${unmatchedTraceEffect.receiptId} has no exact authoritative sink receipt`);
+    const traceEffects = records.filter((record) => record.kind === 'effect');
+    for (const traceEffect of traceEffects) {
+      const sinkReceipts = sink.receipts.filter((receipt) => receipt.receiptId === traceEffect.receiptId
+        && receipt.logicalEffectId === traceEffect.logicalEffectId);
+      const sinkEffects = sink.effects.filter((item) => item.logicalEffectId === traceEffect.logicalEffectId);
+      if (traceEffect.operationId !== effects.operationId
+        || traceEffect.proposalId !== effects.proposalId
+        || sinkReceipts.length !== 1
+        || sinkEffects.length !== 1) {
+        defects.push(`unexpected extra effect trace record ${traceEffect.receiptId} is not accounted for exactly once by the authoritative sink operation/proposal/effect/receipt`);
+      }
+    }
+  } else {
+    for (const traceEffect of records.filter((record) => record.kind === 'effect')) {
+      defects.push(`unexpected extra effect trace record ${traceEffect.receiptId} has no authoritative sink operation/proposal/effect/receipt`);
+    }
   }
   for (const ui of artifacts.ui) {
     if (ui.captureRunId !== captureRunId || ui.runId !== run.runId || ui.traceId !== run.traceId || ui.caseId !== capture.caseId) {
