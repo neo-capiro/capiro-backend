@@ -1,3 +1,4 @@
+import { isResearchPortfolioArtifact, authorizeResearchPortfolioArtifact } from '../research-portfolios/research-portfolio-artifact-authority.js';
 import { prepareAnthropicRequest, anthropicResponseText } from '@capiro/shared/ai-model-policy';
 import { assertAttachmentConversation, authorizedAttachmentSources, compactedAttachmentContext } from './meri-attachment-continuity.js';
 import { randomUUID } from 'node:crypto';
@@ -4847,6 +4848,19 @@ export class MeriService implements MeriTurnMaintenance {
       }),
     );
     if (!parent) throw new NotFoundException('Artifact not found');
+
+    if (isResearchPortfolioArtifact(parent.kind)) {
+      if (typeof bodyText !== 'string' || bodyText.length > 500_000) throw new BadRequestException('Edited artifact text is invalid or too long');
+      return this.prisma.withTenant(ctx.tenantId, async tx => {
+        await tx.$executeRaw`SELECT id FROM clio_artifacts WHERE id=${parentId}::uuid AND tenant_id=${ctx.tenantId}::uuid AND user_id=${ctx.userId}::uuid FOR SHARE`;
+        const current = await tx.clioArtifact.findFirst({where:{id:parentId,tenantId:ctx.tenantId,userId:ctx.userId}});
+        if (!current) throw new NotFoundException('Research Portfolio artifact not found');
+        const {metadata} = await authorizeResearchPortfolioArtifact(tx,ctx,current);
+        return tx.clioArtifact.create({data:{tenantId:ctx.tenantId,userId:ctx.userId,clientId:null,conversationId:current.conversationId,parentArtifactId:current.id,title:current.title,kind:current.kind,contentType:current.contentType,bodyText,metadata:{...metadata,versionOf:current.id,editedBy:ctx.userId,reviewStatus:'unreviewed_edit',editedAt:new Date().toISOString()}}});
+      });
+    }
+
+
 
     return this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioArtifact.create({
