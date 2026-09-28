@@ -14,7 +14,12 @@ export function ConnectorMark({ id, size = 16 }: { id: MeriConnectorId; size?: n
     return (
       <svg {...props} fill="none">
         <circle cx="8" cy="16" r="4.5" stroke="#FF7A59" strokeWidth="2.25" />
-        <path d="M9.7 13L15 8.3M10.5 16H14" stroke="#FF7A59" strokeWidth="2" strokeLinecap="round" />
+        <path
+          d="M9.7 13L15 8.3M10.5 16H14"
+          stroke="#FF7A59"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
         <circle cx="16.5" cy="7" r="2.25" fill="#FF7A59" />
         <circle cx="16.5" cy="16" r="2.25" fill="#FF7A59" />
       </svg>
@@ -34,8 +39,24 @@ export function ConnectorMark({ id, size = 16 }: { id: MeriConnectorId; size?: n
   if (id === 'monday') {
     return (
       <svg {...props}>
-        <rect x="3" y="5" width="5" height="15" rx="2.5" fill="#F62B54" transform="rotate(25 5.5 12.5)" />
-        <rect x="11" y="5" width="5" height="15" rx="2.5" fill="#FFCC00" transform="rotate(25 13.5 12.5)" />
+        <rect
+          x="3"
+          y="5"
+          width="5"
+          height="15"
+          rx="2.5"
+          fill="#F62B54"
+          transform="rotate(25 5.5 12.5)"
+        />
+        <rect
+          x="11"
+          y="5"
+          width="5"
+          height="15"
+          rx="2.5"
+          fill="#FFCC00"
+          transform="rotate(25 13.5 12.5)"
+        />
         <circle cx="20" cy="17" r="2.5" fill="#00CA72" />
       </svg>
     );

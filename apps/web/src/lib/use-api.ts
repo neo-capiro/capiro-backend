@@ -11,11 +11,7 @@ export function useApi() {
   const { getToken, orgId, userId } = useAuth();
   const { actAsTenantSlug } = useImpersonation();
   return useMemo(
-    () =>
-      buildApiClient(
-        () => getToken({ template: 'capiro' }),
-        actAsTenantSlug ?? undefined,
-      ),
+    () => buildApiClient(() => getToken({ template: 'capiro' }), actAsTenantSlug ?? undefined),
     [getToken, orgId, userId, actAsTenantSlug],
   );
 }

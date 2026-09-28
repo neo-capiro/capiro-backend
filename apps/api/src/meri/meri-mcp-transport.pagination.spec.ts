@@ -2,12 +2,24 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { createMcpClient } from './meri-mcp-transport.js';
 
 jest.mock('@modelcontextprotocol/sdk/client/index.js', () => ({ Client: jest.fn() }));
-jest.mock('@modelcontextprotocol/sdk/client/streamableHttp.js', () => ({ StreamableHTTPClientTransport: jest.fn() }));
+jest.mock('@modelcontextprotocol/sdk/client/streamableHttp.js', () => ({
+  StreamableHTTPClientTransport: jest.fn(),
+}));
 
 function make() {
-  const sdk = { connect: jest.fn(async () => undefined), close: jest.fn(async () => undefined), listTools: jest.fn() };
+  const sdk = {
+    connect: jest.fn(async () => undefined),
+    close: jest.fn(async () => undefined),
+    listTools: jest.fn(),
+  };
   jest.mocked(Client).mockImplementation(() => sdk as unknown as Client);
-  return { sdk, client: createMcpClient({ transport: 'http', endpoint: 'https://provider.example/mcp' }, undefined) };
+  return {
+    sdk,
+    client: createMcpClient(
+      { transport: 'http', endpoint: 'https://provider.example/mcp' },
+      undefined,
+    ),
+  };
 }
 
 describe('authenticated MCP tool pagination', () => {

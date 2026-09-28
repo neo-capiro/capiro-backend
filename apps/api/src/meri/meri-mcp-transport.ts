@@ -119,7 +119,10 @@ async function withClient<T>(
   const timeoutMs = conn.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`MCP operation timed out after ${timeoutMs}ms`)), timeoutMs);
+    timer = setTimeout(
+      () => reject(new Error(`MCP operation timed out after ${timeoutMs}ms`)),
+      timeoutMs,
+    );
   });
   try {
     await Promise.race([client.connect(transport), timeout]);
