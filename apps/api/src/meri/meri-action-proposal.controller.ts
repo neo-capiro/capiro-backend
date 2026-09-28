@@ -16,6 +16,7 @@ import {
   IsString,
   IsUUID,
   Length,
+  ValidateIf,
 } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import type { Request } from 'express';
@@ -25,21 +26,37 @@ import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { MeriActionProposalService } from './meri-action-proposal.service.js';
 import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
+import { admitMeriActionProposalTransport } from './meri-rp-action-proposal-transport.js';
 
 export class CreateMeriActionProposalDto {
+  @ValidateIf((body: CreateMeriActionProposalDto) => body.version === undefined)
   @IsString()
   @Length(1, 120)
-  tool!: string;
+  tool?: string;
 
+  @ValidateIf((body: CreateMeriActionProposalDto) => body.version === undefined)
   @IsObject()
-  input!: Record<string, unknown>;
+  input?: Record<string, unknown>;
 
   @IsOptional()
   @IsUUID()
   conversationId?: string;
 
+  @ValidateIf((body: CreateMeriActionProposalDto) => body.version === undefined)
   @IsIn(['chat'])
-  surface!: 'chat';
+  surface?: 'chat';
+
+  @IsOptional()
+  @IsIn([1])
+  version?: 1;
+
+  @IsOptional()
+  @IsObject()
+  proposal?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsObject()
+  currentTurn?: Record<string, unknown>;
 }
 
 export class ListMeriActionProposalDto {
@@ -69,7 +86,12 @@ export class MeriActionProposalController {
     @Body() body: CreateMeriActionProposalDto,
     @Req() req: Request,
   ) {
-    return withMeriToolRequestControl(req, () => this.proposals.create(ctx, body));
+    const admitted = admitMeriActionProposalTransport(body, ctx, req);
+    return withMeriToolRequestControl(req, () =>
+      admitted.trustedTurn
+        ? this.proposals.create(ctx, admitted.request, admitted.trustedTurn)
+        : this.proposals.create(ctx, admitted.request),
+    );
   }
 
   /** Browser-safe recovery surface. Only the current user's tenant-scoped rows return. */

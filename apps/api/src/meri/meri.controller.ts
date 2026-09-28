@@ -49,6 +49,10 @@ import { MeriClaimWriterService } from './meri-claim-writer.js';
 import { renderReportToBrowserHtml, renderReportToWordHtml } from './meri-research.helpers.js';
 import { runMeriStreamWithSetupGuard } from './meri-stream-preflight.helpers.js';
 import { withMeriToolRequestControl } from './meri-tool-request-control.js';
+import {
+  admitMeriResearchPortfolioToolTransport,
+  withMeriResearchPortfolioToolTurnScope,
+} from './meri-rp-tool-transport.js';
 import { MeriPdfRenderError } from './meri-docgen-pdf.js';
 import type { AssuranceSurface } from '@capiro/meriv2-core';
 
@@ -392,9 +396,13 @@ export class MeriController {
     @Body() body: Record<string, unknown>,
     @Req() req: Request,
   ) {
-    return withMeriToolRequestControl(req, () =>
-      this.tools.executeFromAuthenticatedUser(ctx, name, body),
-    );
+    const admitted = admitMeriResearchPortfolioToolTransport(name, body, ctx, req);
+    return withMeriToolRequestControl(req, () => {
+      const execute = () => this.tools.executeFromAuthenticatedUser(ctx, name, admitted.input);
+      return admitted.scope
+        ? withMeriResearchPortfolioToolTurnScope(admitted.scope, execute)
+        : execute();
+    });
   }
 
   // ── MeriV2 legacy write-tool approvals (Workstream B4 + B4.1) — RETIRED ──

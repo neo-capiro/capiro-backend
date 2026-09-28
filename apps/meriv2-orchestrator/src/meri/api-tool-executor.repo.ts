@@ -3,6 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import type { MeriContext, ToolExecutor, ToolExecutionControl } from '@capiro/meriv2-core';
 import { createMeriExecutionControl } from './meri-execution-control.js';
 import { RequestCredentialsStore } from '../request/request-credentials.store.js';
+import { currentTrustedCurrentTurnScope } from '../request/trusted-current-turn-scope.js';
+import {
+  bindCurrentConversationToolInput,
+  isCurrentConversationResearchPortfolioTool,
+} from './current-turn-tool-scope.js';
+import { buildResearchPortfolioToolTransport } from './rp-tool-transport.js';
 
 const RETRYABLE_MAIL_READS = new Set(['list_emails', 'search_emails', 'get_email_thread']);
 const MAX_MAIL_RETRY_DELAY_MS = 5_000;
@@ -98,6 +104,12 @@ export class ApiToolExecutorRepo implements ToolExecutor {
     if (!creds?.bearerToken) {
       throw new Error(`No forwarded credential available for delegated tool "${toolName}"`);
     }
+    const currentTurn = currentTrustedCurrentTurnScope();
+    const boundedInput = bindCurrentConversationToolInput(toolName, input, currentTurn);
+    const researchPortfolioTool = isCurrentConversationResearchPortfolioTool(toolName);
+    if (researchPortfolioTool && !this.serviceSecret) {
+      throw new Error(`INTERNAL_SERVICE_SECRET is not configured for Research Portfolio tool "${toolName}"`);
+    }
     const execution = createMeriExecutionControl(control, this.timeoutMs);
     try {
       execution.assertActive();
@@ -120,7 +132,11 @@ export class ApiToolExecutorRepo implements ToolExecutor {
             ? { 'x-capiro-impersonate-tenant': creds.impersonateTenantId }
             : {}),
         },
-        body: JSON.stringify(input),
+        body: JSON.stringify(
+          researchPortfolioTool
+            ? buildResearchPortfolioToolTransport(toolName, boundedInput, currentTurn)
+            : boundedInput,
+        ),
         signal: execution.signal,
       } satisfies RequestInit;
       // One retry only, inside the original deadline and cancellation signal.

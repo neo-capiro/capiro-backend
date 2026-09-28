@@ -17,6 +17,7 @@ import { CurrentTenant } from '../../auth/current-tenant.decorator.js';
 import { TenantGuard } from '../../auth/tenant.guard.js';
 import type { OrchestratorTenantContext } from '../../auth/tenant-context.js';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
+import { withTrustedCurrentTurnScope } from '../../request/trusted-current-turn-scope.js';
 import { parseAiProviderHeader } from '../meri.controller.js';
 import { MeriContextResolver } from '../meri-context.resolver.js';
 import {
@@ -75,7 +76,10 @@ export class MeriV3Controller {
         skillAddendum: withGovernedPrompt(dto.skillAddendum, governed),
       };
       const run = async () => this.assistant.run(meriContext, effectiveDto);
-      const result = await runWithGovernedMeriContext(governed, run);
+      const result = await withTrustedCurrentTurnScope(
+        trustedCurrentTurnScope(meriContext, dto),
+        () => runWithGovernedMeriContext(governed, run),
+      );
       return {
         ...result,
         contextPacket: governed.contextPacket,
@@ -144,7 +148,10 @@ export class MeriV3Controller {
             onEvent: frame,
             signal: abort.signal,
           });
-        const result = await runWithGovernedMeriContext(governed, run);
+        const result = await withTrustedCurrentTurnScope(
+          trustedCurrentTurnScope(meriContext, dto),
+          () => runWithGovernedMeriContext(governed, run),
+        );
         frame({
           type: 'done',
           reply: result.reply,
@@ -237,6 +244,18 @@ function authenticateGovernedContext(
       code: 'meri_governed_context_authentication_failed',
     });
   }
+}
+
+function trustedCurrentTurnScope(
+  identity: { tenantId: string; userId: string },
+  dto: MeriV3ChatInput,
+) {
+  return {
+    tenantId: identity.tenantId,
+    userId: identity.userId,
+    conversationId: dto.conversationId ?? null,
+    selectedClientId: dto.clientId ?? null,
+  };
 }
 
 function extractBearerToken(req: Request): string | null {
