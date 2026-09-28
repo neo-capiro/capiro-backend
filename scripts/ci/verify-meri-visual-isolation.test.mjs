@@ -61,6 +61,49 @@ const HOSTILE_FIXTURES = [
       export { executeLocally };
     `,
   },
+  {
+    name: 'split visual-analysis HTTP endpoint through constant aliases and a template',
+    reason: /visual-analysis execution endpoint/,
+    source: `
+      const endpointName = 'visual-' + 'analysis';
+      const endpoint = \`/api/clio/v3/\${endpointName}\`;
+      const route = endpoint;
+      export const executeVisual = (baseUrl, input) =>
+        fetch(baseUrl + route, { method: 'POST', body: JSON.stringify(input) });
+    `,
+  },
+  {
+    name: 'split dynamic sandbox import through constant aliases',
+    reason: /direct analysis-sandbox import/,
+    source: `
+      const sandboxRoot = '../../../clio-' + 'sandbox/src/';
+      const moduleName = 'run.js';
+      const sandboxModule = sandboxRoot + moduleName;
+      export async function execute(input) {
+        const { runSandboxed: go } = await import(sandboxModule);
+        return go(input);
+      }
+    `,
+  },
+  {
+    name: 'split dynamic visual-service import through a template and alias',
+    reason: /direct MeriV3 visual-analysis service import/,
+    source: `
+      const serviceName = 'meri-v3-visual-' + 'analysis.service';
+      const extension = 'js';
+      const modulePath = \`../../../api/src/meri/\${serviceName}.\${extension}\`;
+      export const loadVisualService = () => import(modulePath);
+    `,
+  },
+  {
+    name: 'run_analysis Map registry registration',
+    reason: /run_analysis tool-surface registration/,
+    source: `
+      const registry = new Map();
+      const toolName = 'run_' + 'analysis';
+      registry.set(toolName, handler);
+    `,
+  },
 ];
 
 for (const fixture of HOSTILE_FIXTURES) {
@@ -90,6 +133,33 @@ test('allows the legitimate shared MeriV3 reasoning HTTP gateway', () => {
     }
   `;
   assert.deepEqual(inspectSource(source, 'workspace-reasoning.gateway.ts'), []);
+});
+
+test('allows a split legitimate reasoning gateway and non-analysis Map registration', () => {
+  const source = `
+    const api = '/meri-api/';
+    const operation = 'reason' + 'ing';
+    const route = \`\${api}\${operation}\`;
+    const registry = new Map();
+    registry.set('request_reasoning', handler);
+
+    export async function requestReasoning(baseUrl, body) {
+      return fetch(baseUrl + route, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+    }
+  `;
+  assert.deepEqual(inspectSource(source, 'workspace-reasoning.gateway.ts'), []);
+});
+
+test('allows an unrelated dynamic service import assembled from constants', () => {
+  const source = `
+    const service = 'workspace-reasoning.' + 'service';
+    const modulePath = \`./\${service}.js\`;
+    export const loadReasoning = () => import(modulePath);
+  `;
+  assert.deepEqual(inspectSource(source, 'workspace-reasoning.loader.ts'), []);
 });
 
 test('ignores comments that describe forbidden visual-analysis boundaries', () => {
