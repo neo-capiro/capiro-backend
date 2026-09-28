@@ -12,6 +12,7 @@ import { MeriResearchService } from './meri-research.service.js';
 import { MeriMcpService } from './meri-mcp.service.js';
 import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
+import { MeriProcedureRuntimeValidationService } from './meri-procedure-runtime-validation.service.js';
 import { MeriApprovalService } from './meri-approval.service.js';
 import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
@@ -56,6 +57,9 @@ describe('served attachment real API controller dispatch', () => {
   const tools = Object.assign(Object.create(MeriToolsService.prototype), {
     chatAttachmentReader: { read },
   }) as MeriToolsService;
+  const validateProcedureRuntime = jest.fn(async () => {
+    throw new Error('Procedure runtime validation was not expected for an attachment read');
+  });
   const priorSecret = process.env.INTERNAL_SERVICE_SECRET;
 
   beforeAll(async () => {
@@ -84,6 +88,10 @@ describe('served attachment real API controller dispatch', () => {
         { provide: MeriMcpService, useValue: {} },
         { provide: MeriMcpOAuthService, useValue: {} },
         { provide: MeriFirmSkillsService, useValue: {} },
+        {
+          provide: MeriProcedureRuntimeValidationService,
+          useValue: { validate: validateProcedureRuntime },
+        },
         { provide: MeriApprovalService, useValue: {} },
         { provide: MeriComplianceAuditService, useValue: {} },
         { provide: MeriClaimWriterService, useValue: {} },
@@ -115,12 +123,19 @@ describe('served attachment real API controller dispatch', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
     if (priorSecret === undefined) delete process.env.INTERNAL_SERVICE_SECRET;
     else process.env.INTERNAL_SERVICE_SECRET = priorSecret;
   });
 
-  beforeEach(() => read.mockClear());
+  beforeEach(() => {
+    read.mockClear();
+    validateProcedureRuntime.mockClear();
+  });
+
+  afterEach(() => {
+    expect(validateProcedureRuntime).not.toHaveBeenCalled();
+  });
 
   const post = (body: Record<string, unknown>, secret: string | null | undefined = SECRET) => {
     const pending = request(app.getHttpServer())

@@ -1167,8 +1167,12 @@ describe('Durable research lease and recovery', () => {
 
       try {
         await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+        const admitted = JSON.parse(await f.runner.plan(ctx, {}));
+        f.getSession().metadata.researchPlan = admitted;
+        f.getSession().plan = admitted.steps.map((step: any) => step.objective);
         await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
 
+        expect(global.fetch).toHaveBeenCalledTimes(1);
         expect(f.getSession().metadata.run.status).toBe(expectedStatus);
         expect(f.getSession().metadata.run.failureReason).toBe(expectedMessage);
         expect(f.artifacts).toHaveLength(0);
@@ -1212,8 +1216,12 @@ describe('Durable research lease and recovery', () => {
 
     try {
       await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+      const admitted = JSON.parse(await f.runner.plan(ctx, {}));
+      f.getSession().metadata.researchPlan = admitted;
+      f.getSession().plan = admitted.steps.map((step: any) => step.objective);
       await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
 
+      expect(global.fetch).toHaveBeenCalledTimes(2);
       expect(f.getSession().metadata.run).toMatchObject({
         status: 'failed',
         failureReason: RESEARCH_PROVIDER_FAILURE,

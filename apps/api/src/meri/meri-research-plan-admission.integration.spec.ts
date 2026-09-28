@@ -458,8 +458,11 @@ describe('MeriResearchService typed-plan admission', () => {
     expect(f.runner.run).not.toHaveBeenCalled();
     expect(f.tools.execute).not.toHaveBeenCalled();
     expect(JSON.stringify(f.events)).not.toContain('Private context for original-client');
-    expect(f.events.find((event) => event.type === 'error')?.message).toContain(
-      'scope changed during dispatch preparation',
+    expect(f.events.find((event) => event.type === 'error')?.message).toBe(
+      'Research failed before report publication.',
+    );
+    expect(f.logger.warn).toHaveBeenCalledWith(
+      'Research run failed: Research scope changed during dispatch preparation.',
     );
   });
 

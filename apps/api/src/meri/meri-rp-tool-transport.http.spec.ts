@@ -15,6 +15,7 @@ import { MeriResearchService } from './meri-research.service.js';
 import { MeriMcpService } from './meri-mcp.service.js';
 import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
+import { MeriProcedureRuntimeValidationService } from './meri-procedure-runtime-validation.service.js';
 import { MeriApprovalService } from './meri-approval.service.js';
 import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
@@ -93,6 +94,9 @@ describe('Research Portfolio actual repo -> HTTP -> controller -> canonical owne
     withTenant: jest.fn((_tenantId: string, run: (value: typeof tx) => unknown) => run(tx)),
   } as unknown as PrismaService;
   const scopeService = { authorize } as unknown as ResearchPortfolioMeriScopeService;
+  const validateProcedureRuntime = jest.fn(async () => {
+    throw new Error('Procedure runtime validation was not expected for a Research Portfolio tool');
+  });
   const owner = new ResearchPortfolioMeriToolsService(
     prisma,
     scopeService,
@@ -137,6 +141,10 @@ describe('Research Portfolio actual repo -> HTTP -> controller -> canonical owne
         { provide: MeriMcpService, useValue: {} },
         { provide: MeriMcpOAuthService, useValue: {} },
         { provide: MeriFirmSkillsService, useValue: {} },
+        {
+          provide: MeriProcedureRuntimeValidationService,
+          useValue: { validate: validateProcedureRuntime },
+        },
         { provide: MeriApprovalService, useValue: {} },
         { provide: MeriComplianceAuditService, useValue: {} },
         { provide: MeriClaimWriterService, useValue: {} },
@@ -169,7 +177,7 @@ describe('Research Portfolio actual repo -> HTTP -> controller -> canonical owne
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
     if (priorSecret === undefined) delete process.env.INTERNAL_SERVICE_SECRET;
     else process.env.INTERNAL_SERVICE_SECRET = priorSecret;
   });
@@ -179,6 +187,11 @@ describe('Research Portfolio actual repo -> HTTP -> controller -> canonical owne
     detail.mockClear();
     authorize.mockReset().mockResolvedValue(grantedScope);
     findFirst.mockClear();
+    validateProcedureRuntime.mockClear();
+  });
+
+  afterEach(() => {
+    expect(validateProcedureRuntime).not.toHaveBeenCalled();
   });
 
   function repo(): OrchestratorRepo {
