@@ -1,6 +1,22 @@
 # Meri file 01 status
 
-## Current checkpoint — 2026-09-28 03:35 UTC
+## Current checkpoint — 2026-09-28 04:15 UTC
+
+File 01 remains IN_PROGRESS. Reviewed integration source is 55b4b84ac29027002e35c0c44dcc727900e4848e before this checkpoint and the shared-build CI prerequisite. Draft PR1904 is for qualification only. Both mains, shared deployment, migrations and approved synthetic enablement remain unchanged; database recovery remains a release hold.
+
+- Runtime/provider/status corrections through source 1f6dcdfa0 are integrated through b040afa27. Independent current-identity review passed its narrow scope. Integrated runtime tests: 152 across ten suites plus five reasoning-fallback tests; API approval/outcome tests: 68 across three suites. API and orchestrator typechecks exit 0. Request-local bounds do not complete aggregate cost, durable, child or tenant budgets.
+- Memory workspace source fd3ea2d8 is integrated through e5abd8ca6. Integrated web tests 40/4 and API tests 11/2 exit 0. Web typecheck exits 0; the initial API typecheck found three widened string literals in a new test, corrected by e75fc517e, and its rerun exits 0. Independent multiple-ambiguous-action/reload review passed its window-local scope. Authenticated memory acceptance remains NOT_RUN.
+- Reviewed CI semantic fixes cfe96ec59 and core-build ordering dca9ccea8 are integrated at 9d4bc4c3f and afeaebfa5. Mechanical formatter 4b74ad8eb has exact tree 7e2f4af1799c0802caeda7d206211b923d08eca1: 218 TypeScript source/emit ASTs and ordered comments plus five JSON values match base e75fc517e; no scope/mode changes. Both exact formatter gates exit 0. A remaining whitespace-sensitive PWA contract assertion has a narrow repair in progress; no gate is waived.
+- Native PostgreSQL qualification 0bf8224c7 and fail-closed gate repair 75e37738f are integrated at 0ff0c7f68/55b4b84ac. Independent actual local run: five passed/five skipped; required-vector missing extension exits 1 and cleans up. Invalid/missing endpoint configuration refuses before writes. Semantic pgvector remains NOT_RUN until the new CI job actually passes.
+- Artifact candidate 9276bd489 passed 48 API and 84 web tests plus web typecheck; independent review is active. Its old-base API typecheck still has eleven unchanged BizDev fixture errors already repaired on integration. Candidate is not integrated or live-qualified. The previous wrong-checkout edit was preserved and transferred; no bytes were discarded.
+- Scheduler source 9ee6f4eb0 passed independent 83 tests, but a direct native probe found next-cadence overlap while the old run remains active. A focused repair is active; no single-active-run or exactly-once delivery claim.
+- Capture verifier dcf1944c4 passed 35 tests and fixes malformed artifacts, exact joins and bounded reads; independent review is active. It has no trusted live adapter/auth/source authority. All 75 authenticated cases remain NOT_RUN, score unset; CD7/CW8 remain unrun.
+- Cohort 8ca56777e remains narrowly reviewed offline. Authorized two-tenant fullChat workflow is being implemented through the existing flag owner; no shared routing/flag mutation or release dispatch occurred.
+- Source acquisition inventory now records 103 pinned source/license files. Acquisition is not adoption; translated tests, notices and per-component dispositions remain required.
+
+Pinned Hermes GPT-5.6 Sol High implementation and separate GPT-6 Sol High review continue. Remaining work includes full result replay/current authorization, plans/steering/children/aggregate budgets, governed selection/versioned procedures, prior-turn attachment reads, scheduler delivery/recovery, JEV/narrative/telemetry, all required acceptance checks and both-main release. No file-02 readiness is claimed.
+
+## Previous checkpoint — 2026-09-28 03:35 UTC
 
 File 01 remains IN_PROGRESS. Draft PR1904 is the combined review candidate; neither main has changed and no shared deployment, migration, synthetic Meri enablement or production canary has run. Database recovery remains an independent release hold.
 

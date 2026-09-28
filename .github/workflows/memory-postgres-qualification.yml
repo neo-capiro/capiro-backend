@@ -53,6 +53,7 @@ jobs:
       - name: Generate the API Prisma client and build governed-memory core
         run: |
           pnpm --filter @capiro/api exec prisma generate
+          pnpm --filter @capiro/shared build
           pnpm --filter @capiro/meriv2-core build
       - name: Review DB-free qualification guards and DDL manifest
         env:
