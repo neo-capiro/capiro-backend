@@ -1,5 +1,19 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-28 15:55 UTC
+
+File 01 remains IN_PROGRESS. User requested the concrete path to ship 01-A separately. A focused release inventory is separating reviewed outcomes/approvals/files fixes and necessary dependencies from this mixed foundation PR. Section 01-A names 17 baseline cases (13–19, 40–46, 51, 72, 75) plus CD-05; full75/CD7/CW8 remain final File-01 closeout requirements, not automatic prerequisites for every focused fix. No main or AWS changes; synthetic enablement remains approved but unapplied.
+
+- Portfolio whitespace admission: independently reviewed Defense source `477f1e9b1e49bc00bb31ee718273c3211aaa0ac9` selectively ported as `d169f4b396a791d3c3b7468b287cb2e39487d250`. Only two classifier trims plus regression tests; Foundation's18 canonical names and separately guarded future management name, existing P0B outcome/receipt behavior, and cohorts preserved.20 API tests including actual localhost HTTP rejection and28 orchestrator tests passed with exit0. This closes the directly observed normalization bypass; no live/RLS/global revocation claim.
+- At published152c, Meri canary36441909078, visual36441908717, memory PostgreSQL36441908957 and connectors36441909221 succeeded. Phase17 36441908905 failed historical migration20281003010000 at min(uuid). No waiver or Actions-outage fallback.
+- Independently scoped PASS: plan-current-boundary0095 and debrief wall/approved-only coveragef6ee. Combined report/plan/debrief candidate remains isolated;242 tests had241pass/one missing wallfixture, APItype0. Fixture-only correction then passed64tests. Legacy617 has scoped PASS for earlier failures but new direct AbortError/UTF8 counterexamples; repair active. No full report-release qualification.
+- Mail6f725 and capture8a81 candidates are under final review. Discovery41f3517 awaits review. Durable tool-budget1e87 counter reservation passed scoped checks, but same-ID replay after source revocation returned stale private content in a direct probe; isolated repair active. Server-owned capture enforcement continues; live collector guard remains closed.
+
+Evidence: `C:/dev/cap-meri-foundation-evidence/integrated-rp-normalization-api.log`, `integrated-rp-normalization-ork.log`, `review-legacy-terminal-truth-final-report.md`, `review-durable-research-tool-budget-report.md`, `queue-current.json`; independent normalized-RP review at `C:/dev/defense-completion-20260928/review-api-rp-transport-closeout-review.md`.
+
+All live baseline acceptance remains NOT_RUN. Full durable execution/children/aggregate budgets, source coverage, narrative/JEV/telemetry, authenticated fixtures/sinks, final acceptance, both-main integration and controlled release remain unfinished. File02 has not started.
+
+
 ## Current checkpoint â€” 2026-09-28 15:15 UTC
 
 File 01 remains IN_PROGRESS. Qualified integration source is `edcd2d1b0461fb4a18730d21a05c54776b180170`; this checkpoint adds documentation. Both mains and AWS remain unchanged. Approved synthetic tenant enablement remains unapplied. Release still requires missing implementation/acceptance, database recovery and owner acceptance.
