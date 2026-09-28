@@ -5,6 +5,8 @@
   "scripts": {
     "capture": "node capture-cli.mjs",
     "capture:scope-hash": "node capture-cli.mjs --scope-hash",
+    "fixture:provision": "node fixture-provisioning/cli.mjs",
+    "test:fixture-provisioning": "node --test tests/fixture-provisioning*.test.mjs",
     "validate": "node validate-contract.mjs",
     "test": "node --test tests/*.test.mjs",
     "report:not-run": "node report.mjs evidence/no-live-run.json evidence/live-contract-report.json evidence/live-contract-report.md"
