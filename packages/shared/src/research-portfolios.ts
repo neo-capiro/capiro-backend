@@ -683,6 +683,8 @@ export interface ResearchPortfolioContributionDto {
   basis: ResearchPortfolioFinancialBasisDto | null;
   value: string | null;
   disposition: ResearchPortfolioContributionDisposition;
+  /** Absent in legacy v1 snapshots; never infer qualification from value alone. */
+  sourceDisposition?: 'observed' | 'missing' | 'partial' | 'unavailable' | 'withheld' | null;
   reason: string;
   sourceObservationId: string | null;
   sourceRevisionIds: readonly string[];
@@ -700,7 +702,7 @@ export interface ResearchPortfolioCompatibleTotalDto {
 export interface ResearchPortfolioAnalyticsDto {
   portfolioId: string;
   portfolioRevision: number;
-  calculationVersion: 'research-portfolio-analytics-v1';
+  calculationVersion: 'research-portfolio-analytics-v1' | 'research-portfolio-analytics-v2';
   availability: 'available' | 'partial' | 'unavailable';
   totals: readonly ResearchPortfolioCompatibleTotalDto[];
   contributions: readonly ResearchPortfolioContributionDto[];

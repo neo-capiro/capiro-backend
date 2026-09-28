@@ -76,3 +76,40 @@ describe('ResearchPortfolioProjectionView', () => {
     expect(screen.getByText('overlap')).toBeVisible();
   });
 });
+
+
+describe('corrected v2 projection compatibility', () => {
+  it('keeps partial qualified funding visible with its source limitation', () => {
+    const basis = {
+      requestEdition: 'PB27', fundingFiscalYear: 2027, stage: 'request', metric: 'funding' as const,
+      unit: 'usd_millions' as const, currency: 'USD' as const, priceBasis: null, knownAt: null,
+    };
+    render(<ResearchPortfolioProjectionView analytics={projection({
+      calculationVersion: 'research-portfolio-analytics-v2', availability: 'partial',
+      totals: [{ basis, value: '2.5', contributionCount: 1 }],
+      contributions: [{ ...projection().contributions[0]!, basis, value: '2.5', disposition: 'included', sourceDisposition: 'partial', reason: 'Included with partial evidence' }],
+    })} />);
+    expect(screen.getByText('partial')).toBeVisible();
+    expect(screen.getByText('Included with partial evidence')).toBeVisible();
+    expect(within(screen.getByRole('table', { name: 'Compatible qualified totals' })).getByText('2.5 usd millions')).toBeVisible();
+  });
+
+  it('shows retained unit costs without manufacturing a total', () => {
+    const basis = {
+      requestEdition: 'PB27', fundingFiscalYear: 2027, stage: 'request', metric: 'unit_cost' as const,
+      unit: 'usd_millions_per_unit' as const, currency: 'USD' as const, priceBasis: null, knownAt: null,
+    };
+    render(<ResearchPortfolioProjectionView analytics={projection({
+      calculationVersion: 'research-portfolio-analytics-v2', availability: 'partial', totals: [],
+      contributions: [
+        { ...projection().contributions[0]!, basis, value: '2', disposition: 'incompatible', sourceDisposition: 'observed', reason: 'Unit cost is nonadditive' },
+        { ...projection().contributions[0]!, contributionId: 'cost-2', basis, value: '3', disposition: 'incompatible', sourceDisposition: 'observed', reason: 'Unit cost is nonadditive' },
+      ],
+    })} />);
+    expect(screen.queryByRole('table', { name: 'Compatible qualified totals' })).not.toBeInTheDocument();
+    const ledger = screen.getByRole('table', { name: 'Contribution and exclusion ledger' });
+    expect(within(ledger).getByText('2')).toBeVisible();
+    expect(within(ledger).getByText('3')).toBeVisible();
+    expect(within(ledger).queryByText('5')).not.toBeInTheDocument();
+  });
+});

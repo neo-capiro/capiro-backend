@@ -16,7 +16,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { DefenseResearchService } from '../defense-research/defense-research.service.js';
 import { loadAuthorizedResearchPortfolio } from './research-portfolio-access.js';
 
-const CALCULATION_VERSION = 'research-portfolio-analytics-v1' as const;
+const CALCULATION_VERSION = 'research-portfolio-analytics-v2' as const;
 const SUPPORTED_KINDS = new Set(['program', 'program_element', 'project', 'budget_line']);
 
 function stable(value: unknown): string {
@@ -142,7 +142,7 @@ export class ResearchPortfolioAnalyticsService {
         sourceVersions,
         calculationVersion: CALCULATION_VERSION,
         limitations: projection.limitations,
-        // This v1 projection contains source-qualified public research only.
+        // This projection contains public research only, with explicit source qualification.
         // Linking a client never makes every snapshot depend on that client's
         // memory wall or expose the linked-client identifiers in snapshot data.
         clientAccessRequirements: [],
@@ -212,6 +212,15 @@ export class ResearchPortfolioAnalyticsService {
       }
     }
 
+    // A unit cost is a per-subject rate, not an additive amount. Retain the
+    // observed value/evidence without inventing a weighted aggregate.
+    for (const contribution of contributions) {
+      if (contribution.disposition === 'included' && contribution.basis?.metric === 'unit_cost') {
+        contribution.disposition = 'incompatible';
+        contribution.reason = 'Unit cost is nonadditive; no qualified compatible quantity weights are available';
+      }
+    }
+
     const seenObservation = new Map<string, string>();
     for (const contribution of contributions) {
       if (contribution.disposition !== 'included' || !contribution.sourceObservationId) continue;
@@ -252,10 +261,17 @@ export class ResearchPortfolioAnalyticsService {
     const totalDtos = [...totals.values()].map(({ basis, values }) => ({ basis, value: sumDecimals(values), contributionCount: values.length }));
     const supportedMemberIds = new Set(contributions.filter((item) => item.basis !== null && item.disposition !== 'unavailable').map((item) => item.memberId));
     const unavailableMemberIds = new Set(contributions.filter((item) => item.disposition === 'unavailable').map((item) => item.memberId));
-    const availability = totalDtos.length === 0 ? 'unavailable' : unavailableMemberIds.size || contributions.some((item) => ['missing', 'withheld'].includes(item.disposition)) ? 'partial' : 'available';
+    const hasObservedValues = contributions.some((item) => item.value !== null && ['included', 'incompatible'].includes(item.disposition));
+    const hasPartialCoverage = unavailableMemberIds.size > 0 || contributions.some((item) =>
+      ['missing', 'withheld', 'incompatible'].includes(item.disposition) || item.sourceDisposition === 'partial');
+    const availability = totalDtos.length === 0
+      ? hasObservedValues ? 'partial' : 'unavailable'
+      : hasPartialCoverage ? 'partial' : 'available';
     const limitations = [
       'Totals are partitioned by request edition, fiscal year, stage, metric, unit, currency, price basis, and knowledge time.',
       'Missing, withheld, unsupported, and unpublished values are not converted to zero.',
+      ...(contributions.some((item) => item.sourceDisposition === 'partial') ? ['Some retained values have partial source qualification.'] : []),
+      ...(contributions.some((item) => item.basis?.metric === 'unit_cost' && item.disposition === 'incompatible') ? ['Unit costs remain per-subject values and are not summed without qualified quantity weights.'] : []),
       ...(contributions.some((item) => item.disposition === 'overlap') ? ['Repeated observations and parent/project overlap are excluded from totals.'] : []),
       ...(members.some((member) => member.targetKind === 'award') ? ['Award financial aggregation remains unsupported in this projection.'] : []),
     ];
@@ -291,7 +307,9 @@ export class ResearchPortfolioAnalyticsService {
       priceBasis: cell.basis.priceBasis,
       knownAt: cell.basis.knownAt,
     };
-    const disposition = cell.disposition === 'observed' || (cell.disposition === 'partial' && cell.value !== null)
+    const disposition = cell.value === null && ['observed', 'partial'].includes(cell.disposition)
+      ? 'missing'
+      : cell.disposition === 'observed' || (cell.disposition === 'partial' && cell.value !== null)
       ? 'included'
       : cell.disposition === 'missing' ? 'missing' : cell.disposition === 'withheld' ? 'withheld' : 'unavailable';
     const evidence = cell.evidence as unknown as readonly Readonly<Record<string, unknown>>[];
@@ -305,6 +323,7 @@ export class ResearchPortfolioAnalyticsService {
       basis,
       value: cell.value,
       disposition,
+      sourceDisposition: cell.disposition,
       reason: disposition === 'included' ? (cell.disposition === 'partial' ? 'Included with partial evidence' : 'Source-qualified compatible contribution') : `Source cell is ${cell.disposition}`,
       sourceObservationId: cell.sourceObservationId,
       sourceRevisionIds,
@@ -324,6 +343,7 @@ export class ResearchPortfolioAnalyticsService {
       basis: null,
       value: null,
       disposition,
+      sourceDisposition: null,
       reason,
       sourceObservationId: null,
       sourceRevisionIds: [],

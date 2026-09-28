@@ -125,7 +125,12 @@ function projectionCsv(
         '',
         '',
         '',
-        JSON.stringify({ contributionCount: total.contributionCount }),
+        JSON.stringify({
+          contributionCount: total.contributionCount,
+          ...(projection.calculationVersion === 'research-portfolio-analytics-v2'
+            ? { availability: projection.availability, calculationVersion: projection.calculationVersion }
+            : {}),
+        }),
       ]);
     }
   }
@@ -150,7 +155,7 @@ function projectionCsv(
         item.reason,
         item.sourceObservationId,
         item.sourceRevisionIds.join('|'),
-        '',
+        item.sourceDisposition === undefined ? '' : JSON.stringify({ sourceDisposition: item.sourceDisposition }),
       ]);
     }
   }
@@ -373,33 +378,61 @@ export class ResearchPortfolioOutputService {
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');
       const row = await tx.researchPortfolioOutputJob.findFirst({
-        where: { id: jobId, portfolioId },
-        include: { artifacts: { take: 1 } },
+        where: { id: jobId, portfolioId, tenantId: ctx.tenantId },
+        include: {
+          artifacts: { take: 1 },
+          attempts: {
+            where: { action: { in: ['process', 'retry'] }, outcome: { in: ['completed', 'partial'] } },
+            orderBy: { attemptNumber: 'desc' },
+          },
+        },
       });
       if (!row) throw new NotFoundException('Research portfolio output job not found');
-      const next = row.artifacts.length ? 'completed' : 'outcome_unknown';
-      await tx.researchPortfolioOutputJob.update({ where: { id: row.id }, data: { status: next } });
+      // Known outcomes and unstarted work do not become unknown or more qualified.
+      if (['queued', 'completed', 'partial', 'failed', 'cancelled'].includes(row.status)) return;
+      if (row.status === 'running' && row.leaseUntil && row.leaseUntil.getTime() > Date.now()) {
+        throw new ConflictException('Output job still has an active worker lease');
+      }
+      const artifact = row.artifacts[0];
+      const validBytes = artifact && artifact.byteSize === artifact.bytes.length
+        && sha256(Buffer.from(artifact.bytes)) === artifact.contentHash;
+      const proven = artifact && validBytes ? row.attempts.find((attempt) => {
+        const receipt = attempt.receipt as Record<string, unknown> | null;
+        const checkpoint = attempt.checkpoint as Record<string, unknown> | null;
+        return ['process', 'retry'].includes(attempt.action)
+          && ['completed', 'partial'].includes(attempt.outcome) && attempt.completedAt
+          && checkpoint?.leaseFence === row.leaseFence
+          && receipt?.artifactId === artifact.id && receipt.contentHash === artifact.contentHash
+          && receipt.byteSize === artifact.byteSize;
+      }) : undefined;
+      const next = proven?.outcome ?? 'outcome_unknown';
+      const updated = await tx.researchPortfolioOutputJob.updateMany({
+        where: {
+          id: row.id, tenantId: ctx.tenantId, portfolioId, status: row.status,
+          leaseOwner: row.leaseOwner, leaseUntil: row.leaseUntil,
+          leaseFence: row.leaseFence, attemptCount: row.attemptCount,
+        },
+        data: {
+          status: next, attemptCount: { increment: 1 }, leaseFence: { increment: 1 },
+          leaseOwner: null, leaseUntil: null,
+        },
+      });
+      if (updated.count !== 1) throw new ConflictException('Output job changed during reconciliation');
       await tx.researchPortfolioOutputRequest.update({
-        where: { id: row.requestId },
-        data: { status: next },
+        where: { id: row.requestId, tenantId: ctx.tenantId }, data: { status: next },
       });
       await tx.researchPortfolioOutputAttempt.create({
         data: {
-          tenantId: ctx.tenantId,
-          portfolioId,
-          jobId,
+          tenantId: ctx.tenantId, portfolioId, jobId,
           attemptNumber: row.attemptCount + 1,
           operationKey: `${row.operationKey}:reconcile:${row.attemptCount + 1}`,
-          action: 'reconcile',
-          outcome: next,
-          checkpoint: { artifactObserved: row.artifacts.length === 1 },
-          actorUserId: ctx.userId,
-          completedAt: new Date(),
+          action: 'reconcile', outcome: next,
+          checkpoint: {
+            artifactObserved: Boolean(artifact), validatedExecutionAttemptId: proven?.id ?? null,
+            leaseFence: row.leaseFence, reconciliationFence: row.leaseFence + 1,
+          },
+          actorUserId: ctx.userId, completedAt: new Date(),
         },
-      });
-      await tx.researchPortfolioOutputJob.update({
-        where: { id: row.id },
-        data: { attemptCount: { increment: 1 } },
       });
     });
     return this.get(ctx, portfolioId, jobId);
@@ -545,6 +578,7 @@ export class ResearchPortfolioOutputService {
       const fileName = `research-portfolio-${portfolioId}-${claimed.request.snapshotId ?? 'current'}.csv`;
       const terminal = projection.availability === 'available' ? 'completed' : 'partial';
       await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        await loadAuthorizedResearchPortfolio(tx, ctx, portfolioId, 'viewer');
         const artifact = await tx.researchPortfolioOutputArtifact.create({
           data: {
             tenantId: ctx.tenantId,
@@ -578,6 +612,7 @@ export class ResearchPortfolioOutputService {
             leaseOwner: leaseToken,
             leaseFence: claimed.fence,
             status: 'running',
+            leaseUntil: { gt: new Date() },
           },
           data: { status: terminal, leaseOwner: null, leaseUntil: null },
         });
@@ -591,8 +626,8 @@ export class ResearchPortfolioOutputService {
     } catch (error) {
       await this.prisma.withTenant(ctx.tenantId, async (tx) => {
         const message = error instanceof Error ? error.message : 'Output processing failed';
-        await tx.researchPortfolioOutputJob.updateMany({
-          where: { id: jobId, leaseOwner: leaseToken },
+        const failed = await tx.researchPortfolioOutputJob.updateMany({
+          where: { id: jobId, tenantId: ctx.tenantId, portfolioId, leaseOwner: leaseToken, leaseFence: claimed.fence, status: 'running' },
           data: {
             status: 'failed',
             leaseOwner: null,
@@ -601,6 +636,8 @@ export class ResearchPortfolioOutputService {
             lastError: message,
           },
         });
+        // A cancelled or superseded worker cannot rewrite the winning outcome.
+        if (failed.count !== 1) return;
         await tx.researchPortfolioOutputRequest.update({
           where: { id: claimed.request.id },
           data: { status: 'failed' },
