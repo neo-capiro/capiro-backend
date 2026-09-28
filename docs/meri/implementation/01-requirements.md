@@ -1,5 +1,9 @@
 # File 01 requirements ledger
 
+### Evidence update — 2026-09-28 12:44 UTC
+
+Reviewed web fixture sourceb285 integrated55217eb65 with exacttree parity and83independent tests exit0. Full visual Actions71/4ade succeeded;71canary API/ork/core/types passed then3invalidwebfixtures failed, now repaired locally. Historical min(uuid) migration still fails. Schedulerde18 independentreview found4actual defects despite91passing tests; excluded/follow-up active. Procedure737 implementation30API/99assistant tests/types/build0, independentreview active. Reportproof/typedattachment/capture/source-adoption work remains unqualified. Bothmains/AWS unchanged; all original live acceptance remainsNOT_RUN. LatestSTATUS details scope and source-bound evidence.
+
 ### Evidence update â€” 2026-09-28 11:56 UTC
 
 Reviewed document/sandbox/bounded-compaction changes integrated througha884d6445; fresh145tests/4suites, full API typecheck and14guard tests/509-file scan exit0. Independentcompaction4864-case grid0. FullLinuxsandbox Actions36416414333 at6aac succeeded; latestguard968 CI running. Private report source authority and served-procedure gaps remain HOLD. New scheduler-crash implementation active; both mains/AWS untouched. All original live acceptance remains NOT_RUN. See latest STATUS checkpoint for exact scope and limits.
