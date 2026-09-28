@@ -18,6 +18,10 @@ import type {
   MeriPolicyPackService,
 } from './meri-policy-pack.service.js';
 import type { ResearchPortfolioMeriScopeService } from '../research-portfolios/research-portfolio-meri-scope.service.js';
+import {
+  researchPortfolioProposalFingerprintInput,
+  storeResearchPortfolioProposalTurnScope,
+} from './meri-rp-proposal-binding.js';
 
 // This suite exercises action authority with the explicit tool/policy doubles
 // below; their unrelated Nest dependency graphs are covered in module tests.
@@ -909,14 +913,37 @@ describe('MeriActionProposalService — Research Portfolio conversation binding'
     expectedRevision: 3,
   };
 
-  function rpRow(overrides: Partial<MeriActionProposal> = {}) {
-    return makeRow({
+  function rpRow(
+    overrides: Partial<MeriActionProposal> = {},
+    selectedClientId: string | null = null,
+  ) {
+    const input = (overrides.input ?? snapshotInput) as Record<string, unknown>;
+    const scope = { conversationId: RP_CONVERSATION, selectedClientId };
+    const row = makeRow({
       tool: 'create_research_portfolio_snapshot',
-      input: snapshotInput,
+      input: input as MeriActionProposal['input'],
       conversationId: RP_CONVERSATION,
       policyChannel: 'crm',
+      preview: storeResearchPortfolioProposalTurnScope(
+        'create_research_portfolio_snapshot',
+        makeRow().preview as Record<string, unknown>,
+        scope,
+      ) as MeriActionProposal['preview'],
       ...overrides,
     });
+    if (!overrides.fingerprint) {
+      row.fingerprint = computeActionFingerprintV2({
+        effectiveTenantId: TENANT,
+        userId: USER,
+        tool: row.tool,
+        input: researchPortfolioProposalFingerprintInput(row.tool, input, scope),
+        policyVersion: row.policyPackVersion,
+        policyBinding: row.policyBinding,
+        policyDecisionHash: row.policyDecisionHash,
+        policyContextHash: row.policyContextHash,
+      });
+    }
+    return row;
   }
 
   it.each([
@@ -929,21 +956,33 @@ describe('MeriActionProposalService — Research Portfolio conversation binding'
       const h = harness({ row: null });
       h.setPolicy({ outcome, reasons: [`${outcome} RP action`] });
 
-      const result = await h.service.create(ctx, {
-        tool: 'create_research_portfolio_snapshot',
-        input: {
-          operationKey: snapshotInput.operationKey,
-          name: snapshotInput.name,
-          expectedRevision: snapshotInput.expectedRevision,
+      const result = await h.service.create(
+        ctx,
+        {
+          tool: 'create_research_portfolio_snapshot',
+          input: {
+            operationKey: snapshotInput.operationKey,
+            name: snapshotInput.name,
+            expectedRevision: snapshotInput.expectedRevision,
+          },
+          conversationId: RP_CONVERSATION,
+          surface: 'chat',
         },
-        conversationId: RP_CONVERSATION,
-        surface: 'chat',
-      });
+        { conversationId: RP_CONVERSATION, selectedClientId: null },
+      );
 
       expect(result.disposition).toBe(disposition);
       expect(result.proposal.status).toBe(status);
       expect(h.getRow()?.conversationId).toBe(RP_CONVERSATION);
       expect(h.getRow()?.input).toMatchObject({ conversationId: RP_CONVERSATION });
+      expect(h.getRow()?.preview).toMatchObject({
+        __meriRpCurrentTurnScope: {
+          version: 1,
+          conversationId: RP_CONVERSATION,
+          selectedClientId: null,
+        },
+      });
+      expect(JSON.stringify(result.proposal.preview)).not.toContain('__meriRpCurrentTurnScope');
       expect(h.tools.validate).toHaveBeenCalledWith(
         'create_research_portfolio_snapshot',
         snapshotInput,
@@ -957,12 +996,16 @@ describe('MeriActionProposalService — Research Portfolio conversation binding'
     const h = harness({ row: null });
     h.setPolicy({ outcome: 'WARN', reasons: ['Review snapshot'] });
 
-    await h.service.create(ctx, {
-      tool: 'create_research_portfolio_snapshot',
-      input: snapshotInput,
-      conversationId: RP_CONVERSATION,
-      surface: 'chat',
-    });
+    await h.service.create(
+      ctx,
+      {
+        tool: 'create_research_portfolio_snapshot',
+        input: snapshotInput,
+        conversationId: RP_CONVERSATION,
+        surface: 'chat',
+      },
+      { conversationId: RP_CONVERSATION, selectedClientId: null },
+    );
 
     expect(h.policyPacks.decideForAction).toHaveBeenCalledWith(
       ctx,
@@ -975,12 +1018,16 @@ describe('MeriActionProposalService — Research Portfolio conversation binding'
     const h = harness({ row: null });
 
     await expect(
-      h.service.create(ctx, {
-        tool: 'create_research_portfolio_snapshot',
-        input: { ...snapshotInput, conversationId: OTHER_RP_CONVERSATION },
-        conversationId: RP_CONVERSATION,
-        surface: 'chat',
-      }),
+      h.service.create(
+        ctx,
+        {
+          tool: 'create_research_portfolio_snapshot',
+          input: { ...snapshotInput, conversationId: OTHER_RP_CONVERSATION },
+          conversationId: RP_CONVERSATION,
+          surface: 'chat',
+        },
+        { conversationId: RP_CONVERSATION, selectedClientId: null },
+      ),
     ).rejects.toBeInstanceOf(BadRequestException);
 
     expect(h.tools.validate).not.toHaveBeenCalled();
@@ -993,14 +1040,33 @@ describe('MeriActionProposalService — Research Portfolio conversation binding'
   it('fails closed when the RP proposal has no outer conversation', async () => {
     const h = harness({ row: null });
     await expect(
+      h.service.create(
+        ctx,
+        {
+          tool: 'create_research_portfolio_snapshot',
+          input: snapshotInput,
+          surface: 'chat',
+        },
+        { conversationId: RP_CONVERSATION, selectedClientId: null },
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(h.tools.validate).not.toHaveBeenCalled();
+    expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+
+  it('rejects an RP create without trusted transport scope before validation or policy', async () => {
+    const h = harness({ row: null });
+    await expect(
       h.service.create(ctx, {
         tool: 'create_research_portfolio_snapshot',
         input: snapshotInput,
+        conversationId: RP_CONVERSATION,
         surface: 'chat',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(h.tools.validate).not.toHaveBeenCalled();
-    expect(h.tools.execute).not.toHaveBeenCalled();
+    expect(h.policyPacks.decideForAction).not.toHaveBeenCalled();
+    expect(h.tx.meriActionProposal.create).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -1024,27 +1090,32 @@ describe('MeriActionProposalService — Research Portfolio conversation binding'
   ] as const)('rejects a %s current RP conversation before policy or execution', async (_label, conversation) => {
     const h = harness({ row: null, conversation: conversation as never });
     await expect(
-      h.service.create(ctx, {
-        tool: 'create_research_portfolio_snapshot',
-        input: snapshotInput,
-        conversationId: RP_CONVERSATION,
-        surface: 'chat',
-      }),
+      h.service.create(
+        ctx,
+        {
+          tool: 'create_research_portfolio_snapshot',
+          input: snapshotInput,
+          conversationId: RP_CONVERSATION,
+          surface: 'chat',
+        },
+        { conversationId: RP_CONVERSATION, selectedClientId: null },
+      ),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(h.policyPacks.decideForAction).not.toHaveBeenCalled();
     expect(h.tx.meriActionProposal.create).not.toHaveBeenCalled();
     expect(h.tools.execute).not.toHaveBeenCalled();
   });
 
-  it('reauthorizes current RP membership at approval and retry', async () => {
+  it.each([
+    ['stale scope', new BadRequestException('Research portfolio scope is stale')],
+    ['ethical wall', new NotFoundException('Research portfolio is blocked by an ethical wall')],
+  ])('reauthorizes current RP membership at approval/retry and rejects %s', async (_label, error) => {
     const h = harness({
       row: rpRow({ status: 'failed_retryable', attemptCount: 1 }),
-      scopeError: new NotFoundException('Research portfolio not found'),
+      scopeError: error,
     });
 
-    await expect(h.service.approveAndExecute(ctx, PROPOSAL)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(h.service.approveAndExecute(ctx, PROPOSAL)).rejects.toBe(error);
     expect(h.getRow()?.status).toBe('failed_retryable');
     expect(h.getRow()?.attemptCount).toBe(1);
     expect(h.policyPacks.decideForAction).not.toHaveBeenCalled();
@@ -1073,7 +1144,7 @@ describe('MeriActionProposalService — Research Portfolio conversation binding'
     expect(h.tools.execute).not.toHaveBeenCalled();
   });
 
-  it('rejects a changed current conversation client when policy bound a client', async () => {
+  it('rejects a changed current conversation client against the stored selected client', async () => {
     const input = {
       conversationId: RP_CONVERSATION,
       outputId: PROPOSAL,
@@ -1081,12 +1152,15 @@ describe('MeriActionProposalService — Research Portfolio conversation binding'
       operationKey: 'save-output:1',
     };
     const h = harness({
-      row: makeRow({
-        tool: 'save_research_portfolio_output_to_client',
-        input,
-        conversationId: RP_CONVERSATION,
-        policyClientId: RP_CLIENT,
-      }),
+      row: rpRow(
+        {
+          tool: 'save_research_portfolio_output_to_client',
+          input,
+          conversationId: RP_CONVERSATION,
+          policyClientId: RP_CLIENT,
+        },
+        RP_CLIENT,
+      ),
       conversation: {
         id: RP_CONVERSATION,
         tenantId: TENANT,
@@ -1107,16 +1181,56 @@ describe('MeriActionProposalService — Research Portfolio conversation binding'
   });
 
   it.each([
-    [{ ...snapshotInput, conversationId: OTHER_RP_CONVERSATION }, RP_CONVERSATION],
-    [snapshotInput, OTHER_RP_CONVERSATION],
-    [{ operationKey: 'legacy-without-conversation' }, RP_CONVERSATION],
-  ])('blocks an inconsistent stored RP row without retargeting or execution', async (input, conversationId) => {
+    [null, RP_CLIENT],
+    [RP_CLIENT, null],
+  ])(
+    'rejects selected-client drift from %s to %s before policy or execution',
+    async (selectedClientId, currentClientId) => {
+      const h = harness({
+        row: rpRow({}, selectedClientId),
+        conversation: {
+          id: RP_CONVERSATION,
+          tenantId: TENANT,
+          userId: USER,
+          archivedAt: null,
+          clientId: currentClientId,
+          metadata: researchPortfolioMetadata(),
+        },
+      });
+
+      await expect(h.service.approveAndExecute(ctx, PROPOSAL)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(h.getRow()?.status).toBe('proposed');
+      expect(h.getRow()?.attemptCount).toBe(0);
+      expect(h.policyPacks.decideForAction).not.toHaveBeenCalled();
+      expect(h.tools.execute).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    [{ ...snapshotInput, conversationId: OTHER_RP_CONVERSATION }, RP_CONVERSATION, 'stored_input_invalid'],
+    [snapshotInput, OTHER_RP_CONVERSATION, 'stored_scope_invalid'],
+    [{ operationKey: 'legacy-without-conversation' }, RP_CONVERSATION, 'stored_input_invalid'],
+  ])('blocks an inconsistent stored RP row without retargeting or execution', async (input, conversationId, code) => {
     const h = harness({ row: rpRow({ input, conversationId }) });
 
     const result = await h.service.approveAndExecute(ctx, PROPOSAL);
 
     expect(result.status).toBe('blocked');
-    expect(result.error?.code).toBe('stored_input_invalid');
+    expect(result.error?.code).toBe(code);
+    expect(result.attemptCount).toBe(0);
+    expect(h.policyPacks.decideForAction).not.toHaveBeenCalled();
+    expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+
+  it('blocks a legacy RP row with no persisted trusted turn scope', async () => {
+    const h = harness({ row: rpRow({ preview: makeRow().preview }) });
+
+    const result = await h.service.approveAndExecute(ctx, PROPOSAL);
+
+    expect(result.status).toBe('blocked');
+    expect(result.error?.code).toBe('stored_scope_invalid');
     expect(result.attemptCount).toBe(0);
     expect(h.policyPacks.decideForAction).not.toHaveBeenCalled();
     expect(h.tools.execute).not.toHaveBeenCalled();
@@ -1148,12 +1262,16 @@ describe('MeriActionProposalService — Research Portfolio conversation binding'
     });
 
     await expect(
-      h.service.create(ctx, {
-        tool: 'manage_research_portfolio',
-        input: {},
-        conversationId: RP_CONVERSATION,
-        surface: 'chat',
-      }),
+      h.service.create(
+        ctx,
+        {
+          tool: 'manage_research_portfolio',
+          input: {},
+          conversationId: RP_CONVERSATION,
+          surface: 'chat',
+        },
+        { conversationId: RP_CONVERSATION, selectedClientId: null },
+      ),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(h.authorizeScope).not.toHaveBeenCalled();
     expect(h.policyPacks.decideForAction).not.toHaveBeenCalled();

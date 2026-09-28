@@ -7,6 +7,12 @@ import {
 } from '../research-portfolios/research-portfolio-meri-scope.service.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const TRUSTED_SCOPE_KEY = '__meriRpCurrentTurnScope';
+
+export interface ResearchPortfolioProposalTurnScope {
+  conversationId: string;
+  selectedClientId: string | null;
+}
 
 const RESEARCH_PORTFOLIO_TOOLS = new Set([
   'manage_research_portfolio',
@@ -80,11 +86,112 @@ export function bindStoredResearchPortfolioProposalInput(
   return bindResearchPortfolioProposalInput(tool, rawInput, outerConversationId ?? undefined);
 }
 
+export function assertResearchPortfolioProposalTurnScope(
+  tool: string,
+  scope: ResearchPortfolioProposalTurnScope | undefined,
+  outerConversationId: string | undefined,
+): ResearchPortfolioProposalTurnScope | undefined {
+  if (!isResearchPortfolioProposalTool(tool)) return undefined;
+  if (
+    !scope ||
+    !UUID.test(scope.conversationId) ||
+    scope.conversationId !== outerConversationId ||
+    (scope.selectedClientId !== null && !UUID.test(scope.selectedClientId))
+  ) {
+    throw new BadRequestException(
+      'Trusted current-turn scope is required for a Research Portfolio action proposal.',
+    );
+  }
+  return scope;
+}
+
+export function storeResearchPortfolioProposalTurnScope(
+  tool: string,
+  preview: Record<string, unknown>,
+  scope: ResearchPortfolioProposalTurnScope | undefined,
+): Record<string, unknown> {
+  if (!isResearchPortfolioProposalTool(tool)) return preview;
+  const trusted = assertResearchPortfolioProposalTurnScope(
+    tool,
+    scope,
+    scope?.conversationId,
+  )!;
+  return {
+    ...preview,
+    [TRUSTED_SCOPE_KEY]: {
+      version: 1,
+      conversationId: trusted.conversationId,
+      selectedClientId: trusted.selectedClientId,
+    },
+  };
+}
+
+export function readStoredResearchPortfolioProposalTurnScope(
+  tool: string,
+  preview: unknown,
+  outerConversationId: string | null,
+): ResearchPortfolioProposalTurnScope | undefined {
+  if (!isResearchPortfolioProposalTool(tool)) return undefined;
+  if (!preview || typeof preview !== 'object' || Array.isArray(preview)) {
+    throw new BadRequestException('Stored Research Portfolio current-turn scope is missing.');
+  }
+  const value = (preview as Record<string, unknown>)[TRUSTED_SCOPE_KEY];
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new BadRequestException('Stored Research Portfolio current-turn scope is missing.');
+  }
+  const scope = value as Record<string, unknown>;
+  if (
+    Object.keys(scope).some(
+      (key) => !['version', 'conversationId', 'selectedClientId'].includes(key),
+    ) ||
+    scope.version !== 1 ||
+    typeof scope.conversationId !== 'string' ||
+    !UUID.test(scope.conversationId) ||
+    scope.conversationId !== outerConversationId ||
+    (scope.selectedClientId !== null &&
+      (typeof scope.selectedClientId !== 'string' || !UUID.test(scope.selectedClientId)))
+  ) {
+    throw new BadRequestException('Stored Research Portfolio current-turn scope is invalid.');
+  }
+  return {
+    conversationId: scope.conversationId,
+    selectedClientId: scope.selectedClientId as string | null,
+  };
+}
+
+export function publicResearchPortfolioProposalPreview(
+  preview: unknown,
+): Record<string, unknown> {
+  if (!preview || typeof preview !== 'object' || Array.isArray(preview)) return {};
+  const { [TRUSTED_SCOPE_KEY]: _scope, ...publicPreview } = preview as Record<string, unknown>;
+  return publicPreview;
+}
+
+export function researchPortfolioProposalFingerprintInput(
+  tool: string,
+  input: Record<string, unknown>,
+  scope: ResearchPortfolioProposalTurnScope | undefined,
+): Record<string, unknown> {
+  if (!isResearchPortfolioProposalTool(tool)) return input;
+  if (!scope) {
+    throw new BadRequestException('Research Portfolio current-turn scope is unavailable.');
+  }
+  return {
+    ...input,
+    [TRUSTED_SCOPE_KEY]: {
+      version: 1,
+      conversationId: scope.conversationId,
+      selectedClientId: scope.selectedClientId,
+    },
+  };
+}
+
 export async function authorizeResearchPortfolioProposalConversation(
   prisma: PrismaService,
   scopeService: ResearchPortfolioMeriScopeService,
   ctx: TenantContext,
   conversationId: string,
+  trustedSelectedClientId: string | null | undefined,
   policyClientId?: string | null,
 ): Promise<void> {
   const conversation = await prisma.withTenant(ctx.tenantId, (tx) =>
@@ -107,6 +214,14 @@ export async function authorizeResearchPortfolioProposalConversation(
   );
   if (!scope) {
     throw new BadRequestException('This conversation is not scoped to a Research Portfolio');
+  }
+  if (
+    trustedSelectedClientId !== undefined &&
+    conversation.clientId !== trustedSelectedClientId
+  ) {
+    throw new BadRequestException(
+      'The current conversation client changed after the Research Portfolio proposal turn.',
+    );
   }
   if (
     policyClientId &&

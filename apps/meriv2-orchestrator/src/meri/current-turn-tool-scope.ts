@@ -22,7 +22,12 @@ export const CURRENT_CONVERSATION_RESEARCH_PORTFOLIO_TOOLS = Object.freeze([
   'prepare_research_portfolio_meeting',
 ] as const);
 
-const researchPortfolioTools = new Set<string>(CURRENT_CONVERSATION_RESEARCH_PORTFOLIO_TOOLS);
+const researchPortfolioTools = new Set<string>([
+  ...CURRENT_CONVERSATION_RESEARCH_PORTFOLIO_TOOLS,
+  // Defense owns this future name. Guard it before registry enablement so a
+  // later catalog addition cannot accidentally bypass current-turn binding.
+  'manage_research_portfolio',
+]);
 
 export function isCurrentConversationResearchPortfolioTool(toolName: string): boolean {
   return researchPortfolioTools.has(toolName);

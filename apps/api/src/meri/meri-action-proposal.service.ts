@@ -21,10 +21,16 @@ import { assertMeriToolRequestActive } from './meri-tool-request-control.js';
 import { classifyMeriActionLogicalFailure } from './meri-action-logical-outcome.js';
 import { ResearchPortfolioMeriScopeService } from '../research-portfolios/research-portfolio-meri-scope.service.js';
 import {
+  assertResearchPortfolioProposalTurnScope,
   authorizeResearchPortfolioProposalConversation,
   bindResearchPortfolioProposalInput,
   bindStoredResearchPortfolioProposalInput,
   isResearchPortfolioProposalTool,
+  publicResearchPortfolioProposalPreview,
+  readStoredResearchPortfolioProposalTurnScope,
+  researchPortfolioProposalFingerprintInput,
+  storeResearchPortfolioProposalTurnScope,
+  type ResearchPortfolioProposalTurnScope,
 } from './meri-rp-proposal-binding.js';
 
 export const MERI_ACTION_PROPOSAL_STATUSES = [
@@ -312,7 +318,9 @@ export class MeriActionProposalService {
   }
 
   private toPublic(row: MeriActionProposal): PublicMeriActionProposal {
-    const preview = row.preview as unknown as MeriActionPreview;
+    const preview = publicResearchPortfolioProposalPreview(
+      row.preview,
+    ) as unknown as MeriActionPreview;
     return {
       proposalId: row.id,
       status: row.status as MeriActionProposalStatus,
@@ -420,10 +428,19 @@ export class MeriActionProposalService {
     return client?.name ?? null;
   }
 
-  async create(ctx: TenantContext, request: CreateMeriActionProposalInput): Promise<MeriActionAuthorityResult> {
+  async create(
+    ctx: TenantContext,
+    request: CreateMeriActionProposalInput,
+    trustedTurn?: ResearchPortfolioProposalTurnScope,
+  ): Promise<MeriActionAuthorityResult> {
     assertMeriToolRequestActive();
     this.assertEnabled();
     const tool = request.tool.trim();
+    const proposalTurn = assertResearchPortfolioProposalTurnScope(
+      tool,
+      trustedTurn,
+      request.conversationId,
+    );
     const boundInput = bindResearchPortfolioProposalInput(
       tool,
       request.input,
@@ -436,6 +453,7 @@ export class MeriActionProposalService {
         this.researchPortfolioScopes,
         ctx,
         request.conversationId!,
+        proposalTurn!.selectedClientId,
         typeof input.clientId === 'string' ? input.clientId : null,
       );
     }
@@ -448,7 +466,7 @@ export class MeriActionProposalService {
       effectiveTenantId: ctx.tenantId,
       userId: ctx.userId,
       tool,
-      input,
+      input: researchPortfolioProposalFingerprintInput(tool, input, proposalTurn),
       policyVersion: decision.packVersion,
       policyBinding: decision.binding,
       policyDecisionHash: decision.decisionHash,
@@ -462,6 +480,11 @@ export class MeriActionProposalService {
       reason: decision.reason,
       clientName,
     });
+    const storedPreview = storeResearchPortfolioProposalTurnScope(
+      tool,
+      preview as unknown as Record<string, unknown>,
+      proposalTurn,
+    );
 
     const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       assertMeriToolRequestActive();
@@ -495,7 +518,7 @@ export class MeriActionProposalService {
           policyDecision: decision.outcome,
           policyCode: decision.code ?? null,
           riskTier: decision.tier ?? null,
-          preview: preview as unknown as Prisma.InputJsonValue,
+          preview: storedPreview as unknown as Prisma.InputJsonValue,
           status,
           expiresAt,
           ...(decision.outcome === 'PASS'
@@ -713,6 +736,19 @@ export class MeriActionProposalService {
         'This proposal expired before approval and cannot execute.');
     }
 
+    let proposalTurn: ResearchPortfolioProposalTurnScope | undefined;
+    if (isResearchPortfolioProposalTool(row.tool)) {
+      try {
+        proposalTurn = readStoredResearchPortfolioProposalTurnScope(
+          row.tool,
+          row.preview,
+          row.conversationId,
+        );
+      } catch {
+        return this.transitionWithoutExecution(ctx, row, 'blocked', 'stored_scope_invalid',
+          'The stored Research Portfolio proposal has no valid trusted current-turn scope.');
+      }
+    }
     let canonical: Record<string, unknown>;
     try {
       const boundInput = bindStoredResearchPortfolioProposalInput(
@@ -731,6 +767,7 @@ export class MeriActionProposalService {
         this.researchPortfolioScopes,
         ctx,
         row.conversationId!,
+        proposalTurn!.selectedClientId,
         row.policyClientId,
       );
     }
@@ -738,7 +775,7 @@ export class MeriActionProposalService {
       effectiveTenantId: ctx.tenantId,
       userId: ctx.userId,
       tool: row.tool,
-      input: canonical,
+      input: researchPortfolioProposalFingerprintInput(row.tool, canonical, proposalTurn),
       policyVersion: row.policyPackVersion,
       policyBinding: row.policyBinding,
       policyDecisionHash: row.policyDecisionHash,

@@ -5,6 +5,9 @@ import {
   bindResearchPortfolioProposalInput,
   bindStoredResearchPortfolioProposalInput,
   isResearchPortfolioProposalTool,
+  publicResearchPortfolioProposalPreview,
+  readStoredResearchPortfolioProposalTurnScope,
+  storeResearchPortfolioProposalTurnScope,
 } from './meri-rp-proposal-binding.js';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
@@ -112,6 +115,50 @@ describe('Research Portfolio proposal binding', () => {
     expect(bindResearchPortfolioProposalInput('save_note', input, CONVERSATION)).toBe(input);
   });
 
+  it('stores null and non-null selected-client scope while keeping it out of the public preview', () => {
+    for (const selectedClientId of [null, CLIENT]) {
+      const stored = storeResearchPortfolioProposalTurnScope(
+        'create_research_portfolio_snapshot',
+        { label: 'Create snapshot', fields: {}, counts: {} },
+        { conversationId: CONVERSATION, selectedClientId },
+      );
+      expect(
+        readStoredResearchPortfolioProposalTurnScope(
+          'create_research_portfolio_snapshot',
+          stored,
+          CONVERSATION,
+        ),
+      ).toEqual({ conversationId: CONVERSATION, selectedClientId });
+      expect(publicResearchPortfolioProposalPreview(stored)).toEqual({
+        label: 'Create snapshot',
+        fields: {},
+        counts: {},
+      });
+    }
+  });
+
+  it('rejects missing, malformed, and conversation-inconsistent stored turn scope', () => {
+    expect(() =>
+      readStoredResearchPortfolioProposalTurnScope(
+        'create_research_portfolio_snapshot',
+        {},
+        CONVERSATION,
+      ),
+    ).toThrow(BadRequestException);
+    const stored = storeResearchPortfolioProposalTurnScope(
+      'create_research_portfolio_snapshot',
+      {},
+      { conversationId: CONVERSATION, selectedClientId: null },
+    );
+    expect(() =>
+      readStoredResearchPortfolioProposalTurnScope(
+        'create_research_portfolio_snapshot',
+        stored,
+        OTHER_CONVERSATION,
+      ),
+    ).toThrow(BadRequestException);
+  });
+
   it('uses the existing owned, unarchived conversation and current RP membership authority', async () => {
     const findFirst = jest.fn().mockResolvedValue({
       metadata,
@@ -129,6 +176,7 @@ describe('Research Portfolio proposal binding', () => {
       { authorize } as never,
       ctx,
       CONVERSATION,
+      CLIENT,
       CLIENT,
     );
 
@@ -158,6 +206,7 @@ describe('Research Portfolio proposal binding', () => {
         scope as never,
         ctx,
         CONVERSATION,
+        undefined,
       ),
     ).rejects.toBeInstanceOf(NotFoundException);
     await expect(
@@ -166,8 +215,37 @@ describe('Research Portfolio proposal binding', () => {
         scope as never,
         ctx,
         CONVERSATION,
+        undefined,
         CLIENT,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
+
+  it.each([
+    [null, CLIENT],
+    [CLIENT, null],
+    [CLIENT, OTHER_CLIENT],
+  ])(
+    'rejects selected-client drift from %s to %s',
+    async (trustedSelectedClientId, currentClientId) => {
+      const prisma = {
+        withTenant: jest.fn((_tenantId: string, callback: (tx: unknown) => unknown) =>
+          callback({
+            clioConversation: {
+              findFirst: jest.fn().mockResolvedValue({ metadata, clientId: currentClientId }),
+            },
+          }),
+        ),
+      };
+      await expect(
+        authorizeResearchPortfolioProposalConversation(
+          prisma as never,
+          { authorize: jest.fn().mockResolvedValue({ researchPortfolioId: 'portfolio-1' }) } as never,
+          ctx,
+          CONVERSATION,
+          trustedSelectedClientId,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    },
+  );
 });
