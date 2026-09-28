@@ -62,6 +62,7 @@ jobs:
           node --test scripts/ci/bootstrap-disposable-postgres-roles.test.mjs
           scripts/ci/research-portfolio-migration-prerequisite.test.mjs
           scripts/ci/additional-disposable-bootstrap.test.mjs
+          scripts/ci/remaining-rehearsal-bootstrap.test.mjs
 
       # Supply-chain (blocker #4): advisory dependency audit. `|| true` keeps it
       # NON-blocking for now — it surfaces known high/critical CVEs in the PR log
