@@ -1,0 +1,992 @@
+{
+  "acquiredAt": "2026-09-28",
+  "productionImport": false,
+  "hermes": [
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "LICENSE",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "821556e6336796450ab852d375117b48a4887e71d255794fd6318d99982a5ab6",
+      "bytes": 1070,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/LICENSE"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "agent/background_review.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "0457a5110f1afb4a9fcbe32fcd02eda8fb7d160f7e44a2c10109a320fd23656e",
+      "bytes": 80400,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/agent/background_review.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "agent/context_compressor.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "3872ea20c03d51a31ce96474ed48ffd37900c63c88537c7400974d81f2285aa8",
+      "bytes": 329843,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/agent/context_compressor.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "agent/conversation_compression.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "9cfc32dfefade45d49a1b37691be4d64dd2d416792bb4da8ca418b8f80051e48",
+      "bytes": 253954,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/agent/conversation_compression.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "agent/interrupt_control.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "c21bd388750d5677af0dbfa5abdf9a2a24515238d73039cdad7f97610bc79e7b",
+      "bytes": 18288,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/agent/interrupt_control.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "agent/tool_guardrails.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "cbbf453b3fa2c8f6080b262117d40de430c4c469b28beb4630169bb43abcb0f4",
+      "bytes": 33439,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/agent/tool_guardrails.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "cron/delivery_queue.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "556e81530df3c90ffbd33acf22c8e840631e7c1852d61dd031cd50e7c6a30e93",
+      "bytes": 15494,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/cron/delivery_queue.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/agent/test_background_review_cost_controls.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "22f5be30fc8a5a155667cc161952325bb45bfeb80b71d2ade02c2f203b6805f3",
+      "bytes": 7806,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/agent/test_background_review_cost_controls.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/agent/test_background_review_memory_scope.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "d7a42583dca1af0f81350964eb339e955abc7404f592bc8d163b73cc43db2ab0",
+      "bytes": 9557,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/agent/test_background_review_memory_scope.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/agent/test_background_review_toolset_restriction.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "1b1e0c1acc50edca0e84a63b00f38b6ef3e1801881f8c18b4d0b999be99c5d2b",
+      "bytes": 10249,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/agent/test_background_review_toolset_restriction.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/agent/test_compression_adoption_preserves_live_tail.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "28f8b154252ed717ab5269eafaf4b3a47affbbc02b00ae9a101d19235c139694",
+      "bytes": 8662,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/agent/test_compression_adoption_preserves_live_tail.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/agent/test_compression_stall_deterministic_fallback.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "698c1d3f0f5f1e19e06133884b844c1cfb95b38ddfb43845b5e0406668eb6f65",
+      "bytes": 14899,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/agent/test_compression_stall_deterministic_fallback.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/agent/test_compressor_tail_cut_tool_pair_floor.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "feba841ffe8bcd42cc661b00eb557221f7ef442c9095aa3fd3011ad708917d8e",
+      "bytes": 6420,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/agent/test_compressor_tail_cut_tool_pair_floor.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/agent/test_context_compressor_cross_session_guard.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "4819a1b14b6dd06aa4e0103935f507a2ca3b4840a2a062861c446b1a0a16632c",
+      "bytes": 5039,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/agent/test_context_compressor_cross_session_guard.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/agent/test_skill_todo_retention_parity.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "3276be7bffa85ab0a878b5c9365d6948a85b9f903617e8ea47c6a7bf86a25b83",
+      "bytes": 13077,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/agent/test_skill_todo_retention_parity.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/agent/test_steer.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "3111e3f2d53a9d30cb0a2a95d38f7e591858eba7375c2c803327a01bb8b5411c",
+      "bytes": 38993,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/agent/test_steer.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/agent/test_steer_compaction_persistence.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "b8e3f01dabb2830121c2f6ff0535a97ecbb6fe44197025023ac7dec471d8fbd6",
+      "bytes": 1547,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/agent/test_steer_compaction_persistence.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/agent/test_tool_call_guardrail_runtime.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "1f05878c366da3e56bdcd53cc5cd35958bc69540455020ebaecf83bbc77748c3",
+      "bytes": 19571,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/agent/test_tool_call_guardrail_runtime.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/agent/test_tool_guardrails.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "c67c7288fa65feab2f8201a955a419dc90c89100f14585f780f56a8d12cb8af9",
+      "bytes": 15810,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/agent/test_tool_guardrails.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/cron/test_delivery_queue.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "45a1cab6aa9e285cde5c7fb630a970c0c18e4853a4e25e9d258ddd66c3463b4f",
+      "bytes": 7242,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/cron/test_delivery_queue.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/cron/test_delivery_queue_retention_race.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "57c1a4c44c67bd7d192414b12f8ab0effd384ec5d3f3c5776cba683798e4284f",
+      "bytes": 2459,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/cron/test_delivery_queue_retention_race.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/gateway/test_steer_fifo_overwrite.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "f24d810db0816e9407eaf66062f7eb984a0d1c08b80f0b6e29e9bf20fe8d44e1",
+      "bytes": 3263,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/gateway/test_steer_fifo_overwrite.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/tools/test_delegate_interrupted_partial_output.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "d17fd55aef806be4b225504739325bd3e63fd5c170ce9ba7aebdc8b53501c10c",
+      "bytes": 1696,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/tools/test_delegate_interrupted_partial_output.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/tools/test_delegate_late_child_inherits_stop.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "d69cae135b1d0b7bde2b6ce8d0cc1112f8a441da4a99eaf1a2bfdc4347e73e0e",
+      "bytes": 2809,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/tools/test_delegate_late_child_inherits_stop.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/tools/test_delegate_output_schema.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "309ea7cdec7613c71acf5db79b4f5a3a8077e843c39c8cf22000a079a8ca4f65",
+      "bytes": 14272,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/tools/test_delegate_output_schema.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/tools/test_delegate_timeout_cleanup.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "c1aa6790a640ef3fc740ec7106ac358fb7e8b0d883920f41727294cb6291ec24",
+      "bytes": 3540,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/tools/test_delegate_timeout_cleanup.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/tools/test_delegate_toolset_scope.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "398df9eec8353feb8a741adbd2ed636487fb6fca94905e598122bc55a2359c49",
+      "bytes": 1748,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/tools/test_delegate_toolset_scope.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/tools/test_todo_nested.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "06f500288f3d1e8ee3134f42a361b59aaaae2770d075926de0deee4be463459f",
+      "bytes": 4991,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/tools/test_todo_nested.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/tools/test_todo_tool.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "8657f1e5761e040c1612c5f86024a6f55c1a69f1401ac800bbabc33b6fca7b42",
+      "bytes": 7221,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/tools/test_todo_tool.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/tools/test_tool_search.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "abd8d6ebdaf8a0364f695caa3f40fa5792e00c185a2258b003df9fe6441d0564",
+      "bytes": 35265,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/tools/test_tool_search.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/tools/test_tool_search_context_provider.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "3d2cffb736714e1984e20f29f18694a921101934654b85174f9a0dcce303ad5c",
+      "bytes": 5354,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/tools/test_tool_search_context_provider.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tests/tools/test_tool_search_multiquery.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "e67020d8ae3c886fece392180d1d31a7775ecd070af2be58257dd2084c8bae09",
+      "bytes": 21775,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tests/tools/test_tool_search_multiquery.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tools/delegate_tool_child_run.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "15cbcac25d3304c5e6587afb7da4103616ec0a7302f6ab2a84e54c7358a71a72",
+      "bytes": 61259,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tools/delegate_tool_child_run.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tools/delegate_tool_results.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "bbd8517b4e49d7fa55ffed36fdabf898c2a41292619be4777af55060b19440c5",
+      "bytes": 20948,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tools/delegate_tool_results.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tools/delegation_output_schema.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "314424a7edf1a2e0d4dbebbd50a5237a5d164db4f868ecfff7692895d42984ca",
+      "bytes": 5722,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tools/delegation_output_schema.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tools/todo_tool.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "9ad77d9d72f75c1de9e9f133f5ec86639c5140657ef2c11e001c6ffa05e18368",
+      "bytes": 15171,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tools/todo_tool.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tools/tool_search.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "1f3598a0cd221e77132bc20636e57bc10dc7fb6c2fc12b93f4427bc9019eac44",
+      "bytes": 31840,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tools/tool_search.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tools/tool_search_catalog.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "7ecbeef40ce88a2932fc261b881923a808004876d8425e668c3c829162552722",
+      "bytes": 15124,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tools/tool_search_catalog.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "tools/tool_search_validation.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "495d75b44fcaa1f694ac9dc3cae86d5d22d1d964f76c46df022b345fe818dbc0",
+      "bytes": 11806,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/tools/tool_search_validation.py"
+    },
+    {
+      "pin": "062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f",
+      "path": "website/docs/developer-guide/subagent-lifecycle-api.md",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "627a7e88653f0353314a62c7eb5eefbb6083a55312cbfd585eddc1d6b46226c7",
+      "bytes": 2947,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f/website/docs/developer-guide/subagent-lifecycle-api.md"
+    },
+    {
+      "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+      "path": "LICENSE",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "821556e6336796450ab852d375117b48a4887e71d255794fd6318d99982a5ab6",
+      "bytes": 1070,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/516535b54275e963a82b4c28f866338fb768e7bc/LICENSE"
+    },
+    {
+      "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+      "path": "agent/context_compressor.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "2414082ba0a3984412d544ec22073a3ee6a89a4dbcc46037a2628f6e7b84f837",
+      "bytes": 331665,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/516535b54275e963a82b4c28f866338fb768e7bc/agent/context_compressor.py"
+    },
+    {
+      "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+      "path": "agent/conversation_compression.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "9cfc32dfefade45d49a1b37691be4d64dd2d416792bb4da8ca418b8f80051e48",
+      "bytes": 253954,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/516535b54275e963a82b4c28f866338fb768e7bc/agent/conversation_compression.py"
+    },
+    {
+      "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+      "path": "agent/tool_guardrails.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "cbbf453b3fa2c8f6080b262117d40de430c4c469b28beb4630169bb43abcb0f4",
+      "bytes": 33439,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/516535b54275e963a82b4c28f866338fb768e7bc/agent/tool_guardrails.py"
+    },
+    {
+      "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+      "path": "skills/productivity/document-to-action-items/SKILL.md",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "8a7556754aca2a7d04d38847131fb4db8d6705fa2106fcb154279e26117b41ee",
+      "bytes": 3910,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/516535b54275e963a82b4c28f866338fb768e7bc/skills/productivity/document-to-action-items/SKILL.md"
+    },
+    {
+      "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+      "path": "skills/productivity/meeting-action-items/SKILL.md",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "1902f782551da96ee1f9b34d6f13af627f06150a498d874b0cc2a75d06d35aa8",
+      "bytes": 3808,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/516535b54275e963a82b4c28f866338fb768e7bc/skills/productivity/meeting-action-items/SKILL.md"
+    },
+    {
+      "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+      "path": "skills/research/grounded-citations/SKILL.md",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "19fba3a4ceedf768af6851e094b268a66b62af750d4d0689c5d62d5d50c032b6",
+      "bytes": 12652,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/516535b54275e963a82b4c28f866338fb768e7bc/skills/research/grounded-citations/SKILL.md"
+    },
+    {
+      "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+      "path": "skills/research/grounded-citations/scripts/sources.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "a867ae6ba99166b4114bfef1c15b57036e286fe22c48534caec28cc8335bde0c",
+      "bytes": 25808,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/516535b54275e963a82b4c28f866338fb768e7bc/skills/research/grounded-citations/scripts/sources.py"
+    },
+    {
+      "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+      "path": "tools/tool_search.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "1f3598a0cd221e77132bc20636e57bc10dc7fb6c2fc12b93f4427bc9019eac44",
+      "bytes": 31840,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/516535b54275e963a82b4c28f866338fb768e7bc/tools/tool_search.py"
+    },
+    {
+      "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+      "path": "tools/tool_search_catalog.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "7ecbeef40ce88a2932fc261b881923a808004876d8425e668c3c829162552722",
+      "bytes": 15124,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/516535b54275e963a82b4c28f866338fb768e7bc/tools/tool_search_catalog.py"
+    },
+    {
+      "pin": "516535b54275e963a82b4c28f866338fb768e7bc",
+      "path": "tools/tool_search_validation.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "495d75b44fcaa1f694ac9dc3cae86d5d22d1d964f76c46df022b345fe818dbc0",
+      "bytes": 11806,
+      "url": "https://github.com/NousResearch/hermes-agent/blob/516535b54275e963a82b4c28f866338fb768e7bc/tools/tool_search_validation.py"
+    }
+  ],
+  "additional": [
+    {
+      "repository": "LibreChat-AI/LibreChat",
+      "pin": "3c72c3fb4a791855bdf7d30ea3c365ac0faaa370",
+      "path": "client/src/components/Chat/Messages/Content/ApprovalContext.tsx",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "720e2c218500c3a2629c076bb7f071427142da04be7659e1d385b6ca97f05fca",
+      "bytes": 21575,
+      "source": "https://raw.githubusercontent.com/LibreChat-AI/LibreChat/3c72c3fb4a791855bdf7d30ea3c365ac0faaa370/client/src/components/Chat/Messages/Content/ApprovalContext.tsx",
+      "productionImport": false
+    },
+    {
+      "repository": "LibreChat-AI/LibreChat",
+      "pin": "3c72c3fb4a791855bdf7d30ea3c365ac0faaa370",
+      "path": "client/src/components/Chat/Messages/Content/ToolApproval.tsx",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "cc79f1bcef76f9638ed3be71f991a60c447dabdfadee121fd026a36760282da9",
+      "bytes": 10718,
+      "source": "https://raw.githubusercontent.com/LibreChat-AI/LibreChat/3c72c3fb4a791855bdf7d30ea3c365ac0faaa370/client/src/components/Chat/Messages/Content/ToolApproval.tsx",
+      "productionImport": false
+    },
+    {
+      "repository": "LibreChat-AI/LibreChat",
+      "pin": "3c72c3fb4a791855bdf7d30ea3c365ac0faaa370",
+      "path": "packages/api/src/agents/hitl/resume.ts",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "9fb798731c45a310d3deb88407e9f74d74116c006f8fc21186686dc0aad00ec5",
+      "bytes": 30275,
+      "source": "https://raw.githubusercontent.com/LibreChat-AI/LibreChat/3c72c3fb4a791855bdf7d30ea3c365ac0faaa370/packages/api/src/agents/hitl/resume.ts",
+      "productionImport": false
+    },
+    {
+      "repository": "docling-project/docling",
+      "pin": "2d5c590c34b6378fd8a47c65b534b280aa40c93c",
+      "path": "docs/examples/export_tables.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "0e101ff6d4c41e03f8abcddbe02350783a9728b03580f50ab6fb8f714a4b2d2a",
+      "bytes": 2724,
+      "source": "https://raw.githubusercontent.com/docling-project/docling/2d5c590c34b6378fd8a47c65b534b280aa40c93c/docs/examples/export_tables.py",
+      "productionImport": false
+    },
+    {
+      "repository": "langchain-ai/langgraphjs",
+      "pin": "2478e098ae1c2f7f353dfd8d6ff32ae7c20444a8",
+      "path": "docs/docs/concepts/functional_api.md",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "05e04112f14959346b3781b80ef5e63102d0e95f8ccd8f605d027079a44260e0",
+      "bytes": 32636,
+      "source": "https://raw.githubusercontent.com/langchain-ai/langgraphjs/2478e098ae1c2f7f353dfd8d6ff32ae7c20444a8/docs/docs/concepts/functional_api.md",
+      "productionImport": false
+    },
+    {
+      "repository": "langchain-ai/langgraphjs",
+      "pin": "2478e098ae1c2f7f353dfd8d6ff32ae7c20444a8",
+      "path": "libs/checkpoint-postgres/src/index.ts",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "50e8478b1a1c8564eb59e570ec97569bc9f3fa0a093782bc5c9e8ab97e140b7c",
+      "bytes": 20479,
+      "source": "https://raw.githubusercontent.com/langchain-ai/langgraphjs/2478e098ae1c2f7f353dfd8d6ff32ae7c20444a8/libs/checkpoint-postgres/src/index.ts",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "2d831d9cd7472ea0d24fcb8e4157216f86a5633f",
+      "path": "docs/meri/native-v3-quality-plan-2026-09-27.md",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "92e764796d1e27a21116ac68c1a0425123cb4b774a7b902299a5e6d8c1715504",
+      "bytes": 33815,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/2d831d9cd7472ea0d24fcb8e4157216f86a5633f/docs/meri/native-v3-quality-plan-2026-09-27.md",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "2d831d9cd7472ea0d24fcb8e4157216f86a5633f",
+      "path": "docs/meri/source-reuse-register-2026-09-27.md",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "3f0dcfdc0145ffef65c14c07fa25fd9ea01650e7e77af25ff2e82c0dd65e286f",
+      "bytes": 15077,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/2d831d9cd7472ea0d24fcb8e4157216f86a5633f/docs/meri/source-reuse-register-2026-09-27.md",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "2d831d9cd7472ea0d24fcb8e4157216f86a5633f",
+      "path": "evals/meri/commitments-deliverables-extension.md",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "4758e1b4a650506dd2b22c23db91919374a372438a992cdbfa50da8998ad0b25",
+      "bytes": 7348,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/2d831d9cd7472ea0d24fcb8e4157216f86a5633f/evals/meri/commitments-deliverables-extension.md",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "2d831d9cd7472ea0d24fcb8e4157216f86a5633f",
+      "path": "evals/meri/live-75-agent-handoff.md",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "f54e3f06ac17da132bed3a7a9b68b15dc3c35cedacd153a7188e312c444118c9",
+      "bytes": 17691,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/2d831d9cd7472ea0d24fcb8e4157216f86a5633f/evals/meri/live-75-agent-handoff.md",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "2d831d9cd7472ea0d24fcb8e4157216f86a5633f",
+      "path": "evals/meri/live-75-case-spec.md",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "b7761f5e986c7c360a2e68a98f573dcc0c4889fbdf6a8a3012d51b6d4dd44520",
+      "bytes": 28539,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/2d831d9cd7472ea0d24fcb8e4157216f86a5633f/evals/meri/live-75-case-spec.md",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "63c214e9bb3c1ca376aaf233f034df83cb3662df",
+      "path": ".github/workflows/meriv2-orchestrator-image.yml",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "47973756213a9d67e392316178540e923544b1ab337e119b81799920e92f2c98",
+      "bytes": 2593,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/63c214e9bb3c1ca376aaf233f034df83cb3662df/.github/workflows/meriv2-orchestrator-image.yml",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "63c214e9bb3c1ca376aaf233f034df83cb3662df",
+      "path": "apps/api/src/meri/meri-action-proposal.service.ts",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "74baccb9eda99eee72f9a5afb40ddb3b3a1a91ade28fd04b6f2029d54f783a97",
+      "bytes": 29692,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/63c214e9bb3c1ca376aaf233f034df83cb3662df/apps/api/src/meri/meri-action-proposal.service.ts",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "63c214e9bb3c1ca376aaf233f034df83cb3662df",
+      "path": "apps/api/src/meri/meri-context-plane.service.ts",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "de411f4b25500d4a1b3416c3164d83d91c4fb35a8772ca5ddad1126de772ae0b",
+      "bytes": 47275,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/63c214e9bb3c1ca376aaf233f034df83cb3662df/apps/api/src/meri/meri-context-plane.service.ts",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "63c214e9bb3c1ca376aaf233f034df83cb3662df",
+      "path": "apps/api/src/meri/meri-research-run-state.ts",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "b54124e206fd75aabd4fece465cdaf99803002b4096404909e832b91221cf6d1",
+      "bytes": 2155,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/63c214e9bb3c1ca376aaf233f034df83cb3662df/apps/api/src/meri/meri-research-run-state.ts",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "63c214e9bb3c1ca376aaf233f034df83cb3662df",
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "041d286c9e4738a8814c5dcbff3ff0821ba0078e9beb8da2eac3fe672ce082ac",
+      "bytes": 350168,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/63c214e9bb3c1ca376aaf233f034df83cb3662df/apps/api/src/meri/meri-tools.service.ts",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "63c214e9bb3c1ca376aaf233f034df83cb3662df",
+      "path": "apps/api/src/meri/meri-v3-research-runner.ts",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "b0e5eb09afe1a87d8aa3b5657a000ccf83e87a64679b85cb50d93d3e0fb0c65b",
+      "bytes": 10263,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/63c214e9bb3c1ca376aaf233f034df83cb3662df/apps/api/src/meri/meri-v3-research-runner.ts",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "63c214e9bb3c1ca376aaf233f034df83cb3662df",
+      "path": "apps/api/src/meri/sources/firecrawl.client.ts",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "1cb29079a98716fc01ce3b3f0b7913c8a1176305dd38b489cee132eb7659dc65",
+      "bytes": 5652,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/63c214e9bb3c1ca376aaf233f034df83cb3662df/apps/api/src/meri/sources/firecrawl.client.ts",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "63c214e9bb3c1ca376aaf233f034df83cb3662df",
+      "path": "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "d7b7a6888be4ad11c5398a8aa984f61ac69dd2925a415857a3624489532e85f2",
+      "bytes": 28254,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/63c214e9bb3c1ca376aaf233f034df83cb3662df/apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "63c214e9bb3c1ca376aaf233f034df83cb3662df",
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "958127c54d45dbef2132225ac66681411def3337c53456abfa1ef8000561bc5a",
+      "bytes": 114381,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/63c214e9bb3c1ca376aaf233f034df83cb3662df/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "63c214e9bb3c1ca376aaf233f034df83cb3662df",
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-reasoning.ts",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "4f35f3de2ec0b6e76aa9144c74fa7efcc34e295f0cefcac3cca8bc26e888687b",
+      "bytes": 5015,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/63c214e9bb3c1ca376aaf233f034df83cb3662df/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-reasoning.ts",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "63c214e9bb3c1ca376aaf233f034df83cb3662df",
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-retrieval-assistant.service.ts",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "e93cb83a0ab6a7fc83afe4c1006823e92aa63eb1bcb0744a4dca3c98a9cba40e",
+      "bytes": 22759,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/63c214e9bb3c1ca376aaf233f034df83cb3662df/apps/meriv2-orchestrator/src/meri/meriv3/meriv3-retrieval-assistant.service.ts",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "63c214e9bb3c1ca376aaf233f034df83cb3662df",
+      "path": "apps/web/src/components/chat/useMeriChatController.ts",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "b2cf16e40343c3a3feb38d475f42f926b0d838967404e6e0a5233c85270ff63f",
+      "bytes": 146644,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/63c214e9bb3c1ca376aaf233f034df83cb3662df/apps/web/src/components/chat/useMeriChatController.ts",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "63c214e9bb3c1ca376aaf233f034df83cb3662df",
+      "path": "infra/cdk/lib/compute-stack.ts",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "e130d7e86a97459e476ae29890d26d3861524468ec7cfdf5aea14eaef0cd1ea4",
+      "bytes": 107253,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/63c214e9bb3c1ca376aaf233f034df83cb3662df/infra/cdk/lib/compute-stack.ts",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "63c214e9bb3c1ca376aaf233f034df83cb3662df",
+      "path": "packages/shared/src/index.ts",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "5c58eecee2c0d13502e31bc817f9ea5d9513bac3234e04a8f9f0a1276e66c2d4",
+      "bytes": 256780,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/63c214e9bb3c1ca376aaf233f034df83cb3662df/packages/shared/src/index.ts",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "63c214e9bb3c1ca376aaf233f034df83cb3662df",
+      "path": "packages/shared/src/meri-skills.ts",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "8c23514721ad84242de330fa90a1f2d5d2ed4b48ca609e3222f6e57414e020b0",
+      "bytes": 15699,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/63c214e9bb3c1ca376aaf233f034df83cb3662df/packages/shared/src/meri-skills.ts",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "d86b0662d1c6c6eb559ce2a74ea3e7244233672b",
+      "path": ".github/workflows/meriv2-phase19-browser-acceptance.yml",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "010d504094ef9abcf49d8ec3447f234d19f0c898b67a55408b1cc35ee2794fe8",
+      "bytes": 10313,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/d86b0662d1c6c6eb559ce2a74ea3e7244233672b/.github/workflows/meriv2-phase19-browser-acceptance.yml",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "d86b0662d1c6c6eb559ce2a74ea3e7244233672b",
+      "path": "apps/api/scripts/seed-meriv2-phase19-browser-fixtures.ts",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "477705fdfd222f7fa4c2a9dd23ad19d2cd13f116fc6bfe0a64e9633ae1ae291c",
+      "bytes": 14585,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/d86b0662d1c6c6eb559ce2a74ea3e7244233672b/apps/api/scripts/seed-meriv2-phase19-browser-fixtures.ts",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "d86b0662d1c6c6eb559ce2a74ea3e7244233672b",
+      "path": "apps/web/scripts/meriv2-phase19-browser-acceptance.mjs",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "78fdb4454154f0f30e42fb4c7c3675781dbc6fd1efc418da71bff4b592528046",
+      "bytes": 22221,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/d86b0662d1c6c6eb559ce2a74ea3e7244233672b/apps/web/scripts/meriv2-phase19-browser-acceptance.mjs",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "d86b0662d1c6c6eb559ce2a74ea3e7244233672b",
+      "path": "apps/web/src/vnext/app/VNextApp.tsx",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "d26380dc16ae86a786de54fdce6db420b9cf504aacf64c5ad6f34bc9cc0ec77e",
+      "bytes": 2952,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/d86b0662d1c6c6eb559ce2a74ea3e7244233672b/apps/web/src/vnext/app/VNextApp.tsx",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "d86b0662d1c6c6eb559ce2a74ea3e7244233672b",
+      "path": "docs/meri-government-affairs-evaluation.md",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "81e9597007a4534ae56b7548e5aa19cd83c682f8f5486afb239e6363ca6e67dc",
+      "bytes": 13885,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/d86b0662d1c6c6eb559ce2a74ea3e7244233672b/docs/meri-government-affairs-evaluation.md",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "d86b0662d1c6c6eb559ce2a74ea3e7244233672b",
+      "path": "evals/meri/README.md",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "d2add832306c5d8b5363580341bc51b02d388df7e54b22a6032b345f44b68fe9",
+      "bytes": 7218,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/d86b0662d1c6c6eb559ce2a74ea3e7244233672b/evals/meri/README.md",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "d86b0662d1c6c6eb559ce2a74ea3e7244233672b",
+      "path": "evals/meri/verify_report.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "2b5b6473e49bf4198e67bc2110a6d3920ffc4d925cc06972ccf84226f6982564",
+      "bytes": 13912,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/d86b0662d1c6c6eb559ce2a74ea3e7244233672b/evals/meri/verify_report.py",
+      "productionImport": false
+    },
+    {
+      "repository": "neo-capiro/capirov2",
+      "pin": "d86b0662d1c6c6eb559ce2a74ea3e7244233672b",
+      "path": "scripts/run-meriv2-phase19-local.mjs",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "135595c7293ab81f8e5d7a77386b9cd0b82792b183c0c7065b2005002eb6fa9d",
+      "bytes": 11231,
+      "source": "https://raw.githubusercontent.com/neo-capiro/capirov2/d86b0662d1c6c6eb559ce2a74ea3e7244233672b/scripts/run-meriv2-phase19-local.mjs",
+      "productionImport": false
+    },
+    {
+      "repository": "openai/openai-knowledge-retrieval",
+      "pin": "f62c5dd49955d2bc793e0a55989863dca61f1ead",
+      "path": "evals/harness.py",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "b166a60df91fa247c93d9803ac9cb5d8fb82faf1ebd6272960c79a100e08363c",
+      "bytes": 5716,
+      "source": "https://raw.githubusercontent.com/openai/openai-knowledge-retrieval/f62c5dd49955d2bc793e0a55989863dca61f1ead/evals/harness.py",
+      "productionImport": false
+    },
+    {
+      "repository": "openai/openai-node",
+      "pin": "dbe7ffb868dcb875e5af4ded1b188a9d9d70969c",
+      "path": "docs/tools.md",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "860d5cb5fd9de375c2c06e1e3f83c17d01d296e141c497b6328fccbe0af5fbc8",
+      "bytes": 8570,
+      "source": "https://raw.githubusercontent.com/openai/openai-node/dbe7ffb868dcb875e5af4ded1b188a9d9d70969c/docs/tools.md",
+      "productionImport": false
+    },
+    {
+      "repository": "pgvector/pgvector-node",
+      "pin": "d0e5a86c6905f54af66ce030287facb33d1ea6eb",
+      "path": "examples/hybrid-search/example.js",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "c722dea22a8525efe6a82e3472f3a433489fe1ae3ee02ef681e479eea21f02bf",
+      "bytes": 2140,
+      "source": "https://raw.githubusercontent.com/pgvector/pgvector-node/d0e5a86c6905f54af66ce030287facb33d1ea6eb/examples/hybrid-search/example.js",
+      "productionImport": false
+    },
+    {
+      "repository": "LibreChat-AI/LibreChat",
+      "pin": "3c72c3fb4a791855bdf7d30ea3c365ac0faaa370",
+      "path": "LICENSE",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "1ce5c9d51e5ab764b44142cd44d1e687f5bfe32f807c7221c14d061007309b97",
+      "bytes": 1066,
+      "source": "https://raw.githubusercontent.com/LibreChat-AI/LibreChat/3c72c3fb4a791855bdf7d30ea3c365ac0faaa370/LICENSE",
+      "productionImport": false
+    },
+    {
+      "repository": "LibreChat-AI/LibreChat",
+      "pin": "3c72c3fb4a791855bdf7d30ea3c365ac0faaa370",
+      "path": "package.json",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "d871fe2a3887bd5175f95168eb00fb6c08e499752457cd063cd89ae85eb91ff5",
+      "bytes": 15897,
+      "source": "https://raw.githubusercontent.com/LibreChat-AI/LibreChat/3c72c3fb4a791855bdf7d30ea3c365ac0faaa370/package.json",
+      "productionImport": false
+    },
+    {
+      "repository": "docling-project/docling",
+      "pin": "2d5c590c34b6378fd8a47c65b534b280aa40c93c",
+      "path": "LICENSE",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "edb765d1e3e60d0c7a7d5fba5f2bb2c3c29f7465cecb5c22cf1185c884954e4c",
+      "bytes": 1072,
+      "source": "https://raw.githubusercontent.com/docling-project/docling/2d5c590c34b6378fd8a47c65b534b280aa40c93c/LICENSE",
+      "productionImport": false
+    },
+    {
+      "repository": "docling-project/docling",
+      "pin": "2d5c590c34b6378fd8a47c65b534b280aa40c93c",
+      "path": "package.json",
+      "status": "UNAVAILABLE",
+      "error": "HTTP Error 404: Not Found",
+      "productionImport": false
+    },
+    {
+      "repository": "langchain-ai/langgraphjs",
+      "pin": "2478e098ae1c2f7f353dfd8d6ff32ae7c20444a8",
+      "path": "LICENSE",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "dbeab89f4ab409184f943dd1b882c3ece706b365eabc3569844e095cea247cde",
+      "bytes": 1069,
+      "source": "https://raw.githubusercontent.com/langchain-ai/langgraphjs/2478e098ae1c2f7f353dfd8d6ff32ae7c20444a8/LICENSE",
+      "productionImport": false
+    },
+    {
+      "repository": "langchain-ai/langgraphjs",
+      "pin": "2478e098ae1c2f7f353dfd8d6ff32ae7c20444a8",
+      "path": "package.json",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "a08b123fc1e8a3dd1ce34051b1d3320f367dc355cd661577ea175150f6dab425",
+      "bytes": 4670,
+      "source": "https://raw.githubusercontent.com/langchain-ai/langgraphjs/2478e098ae1c2f7f353dfd8d6ff32ae7c20444a8/package.json",
+      "productionImport": false
+    },
+    {
+      "repository": "open-telemetry/semantic-conventions-genai",
+      "pin": "e57c543b4889619eb2a05702471937db5119165d",
+      "path": "LICENSE",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "bytes": 11357,
+      "source": "https://raw.githubusercontent.com/open-telemetry/semantic-conventions-genai/e57c543b4889619eb2a05702471937db5119165d/LICENSE",
+      "productionImport": false
+    },
+    {
+      "repository": "open-telemetry/semantic-conventions-genai",
+      "pin": "e57c543b4889619eb2a05702471937db5119165d",
+      "path": "package.json",
+      "status": "UNAVAILABLE",
+      "error": "HTTP Error 404: Not Found",
+      "productionImport": false
+    },
+    {
+      "repository": "openai/openai-knowledge-retrieval",
+      "pin": "f62c5dd49955d2bc793e0a55989863dca61f1ead",
+      "path": "LICENSE",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "13df7812ca53ecaae1cb4a868844bb598373047ae1d580e4debfbef1dd5b6915",
+      "bytes": 1063,
+      "source": "https://raw.githubusercontent.com/openai/openai-knowledge-retrieval/f62c5dd49955d2bc793e0a55989863dca61f1ead/LICENSE",
+      "productionImport": false
+    },
+    {
+      "repository": "openai/openai-knowledge-retrieval",
+      "pin": "f62c5dd49955d2bc793e0a55989863dca61f1ead",
+      "path": "package.json",
+      "status": "UNAVAILABLE",
+      "error": "HTTP Error 404: Not Found",
+      "productionImport": false
+    },
+    {
+      "repository": "openai/openai-node",
+      "pin": "dbe7ffb868dcb875e5af4ded1b188a9d9d70969c",
+      "path": "LICENSE",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "636eb7d79da9bb6d515a4b3fd417aa26679eb3cf16396ddab4bc55fa74e616e4",
+      "bytes": 11336,
+      "source": "https://raw.githubusercontent.com/openai/openai-node/dbe7ffb868dcb875e5af4ded1b188a9d9d70969c/LICENSE",
+      "productionImport": false
+    },
+    {
+      "repository": "openai/openai-node",
+      "pin": "dbe7ffb868dcb875e5af4ded1b188a9d9d70969c",
+      "path": "package.json",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "220828c69877dc67f25fe8afff7a3a081692abb143186930c4c8a8312eebcee4",
+      "bytes": 4837,
+      "source": "https://raw.githubusercontent.com/openai/openai-node/dbe7ffb868dcb875e5af4ded1b188a9d9d70969c/package.json",
+      "productionImport": false
+    },
+    {
+      "repository": "pcwebster/ODBA",
+      "pin": "5e2637841d6d9535d7bec2c588f190858cfb6757",
+      "path": "LICENSE",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "7dda0cc2efe40e693e03fae972322d65fe2aeacdd71978187847c74b4a13bf36",
+      "bytes": 1066,
+      "source": "https://raw.githubusercontent.com/pcwebster/ODBA/5e2637841d6d9535d7bec2c588f190858cfb6757/LICENSE",
+      "productionImport": false
+    },
+    {
+      "repository": "pcwebster/ODBA",
+      "pin": "5e2637841d6d9535d7bec2c588f190858cfb6757",
+      "path": "package.json",
+      "status": "UNAVAILABLE",
+      "error": "HTTP Error 404: Not Found",
+      "productionImport": false
+    },
+    {
+      "repository": "pgvector/pgvector-node",
+      "pin": "d0e5a86c6905f54af66ce030287facb33d1ea6eb",
+      "path": "LICENSE",
+      "status": "UNAVAILABLE",
+      "error": "HTTP Error 404: Not Found",
+      "productionImport": false
+    },
+    {
+      "repository": "pgvector/pgvector-node",
+      "pin": "d0e5a86c6905f54af66ce030287facb33d1ea6eb",
+      "path": "LICENSE.md",
+      "status": "UNAVAILABLE",
+      "error": "HTTP Error 404: Not Found",
+      "productionImport": false
+    },
+    {
+      "repository": "pgvector/pgvector-node",
+      "pin": "d0e5a86c6905f54af66ce030287facb33d1ea6eb",
+      "path": "LICENSE.txt",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "8a631592536e9967bae49aaa121c1312c1571eab9544ab288ff96b08c21d5893",
+      "bytes": 1083,
+      "source": "https://raw.githubusercontent.com/pgvector/pgvector-node/d0e5a86c6905f54af66ce030287facb33d1ea6eb/LICENSE.txt",
+      "productionImport": false
+    },
+    {
+      "repository": "pgvector/pgvector-node",
+      "pin": "d0e5a86c6905f54af66ce030287facb33d1ea6eb",
+      "path": "package.json",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "417d85c2d7465fe6fcb62c244296e4656a241c789037c8a84e42e2412dafe818",
+      "bytes": 1891,
+      "source": "https://raw.githubusercontent.com/pgvector/pgvector-node/d0e5a86c6905f54af66ce030287facb33d1ea6eb/package.json",
+      "productionImport": false
+    },
+    {
+      "repository": "promptfoo/promptfoo",
+      "pin": "68ce0f7be992d85095190c37d5fb9c6eaa298b76",
+      "path": "LICENSE",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "bf813686553f451e1b833fbd827488aee49b60b189626915bf3108d10b754e44",
+      "bytes": 1053,
+      "source": "https://raw.githubusercontent.com/promptfoo/promptfoo/68ce0f7be992d85095190c37d5fb9c6eaa298b76/LICENSE",
+      "productionImport": false
+    },
+    {
+      "repository": "promptfoo/promptfoo",
+      "pin": "68ce0f7be992d85095190c37d5fb9c6eaa298b76",
+      "path": "package.json",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "27267ddb2157d2807ee00298098e06a163cf373e9895442b0532137f085ea636",
+      "bytes": 14601,
+      "source": "https://raw.githubusercontent.com/promptfoo/promptfoo/68ce0f7be992d85095190c37d5fb9c6eaa298b76/package.json",
+      "productionImport": false
+    },
+    {
+      "repository": "twinturbosystems/govcon-starter-harness",
+      "pin": "ab58f66a85dbadf8b24c73d2e2c6ca32fd7ca592",
+      "path": "LICENSE",
+      "status": "ACQUIRED_FOR_INSPECTION",
+      "sha256": "0f08e6715bb05177d2f5dc9ca77a60ce544d48ef2671f29ac27de32c13845841",
+      "bytes": 1072,
+      "source": "https://raw.githubusercontent.com/twinturbosystems/govcon-starter-harness/ab58f66a85dbadf8b24c73d2e2c6ca32fd7ca592/LICENSE",
+      "productionImport": false
+    },
+    {
+      "repository": "twinturbosystems/govcon-starter-harness",
+      "pin": "ab58f66a85dbadf8b24c73d2e2c6ca32fd7ca592",
+      "path": "package.json",
+      "status": "UNAVAILABLE",
+      "error": "HTTP Error 404: Not Found",
+      "productionImport": false
+    }
+  ]
+}

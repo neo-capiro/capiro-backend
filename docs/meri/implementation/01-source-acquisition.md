@@ -1,0 +1,27 @@
+# File 01 acquisition status
+
+2026-09-28. Acquisition means exact source bytes saved for inspection, not code adoption, compatibility, acceptance or deployment. The supplied plan remains authoritative. `01-source-inventory.json` records pins, source paths, byte hashes and acquisition status. Raw files are retained under `C:/dev/cap-meri-foundation-evidence/upstream`; none was executed by the acquisition scripts.
+
+The original two Hermes pins remain separate. All 51 selected Hermes source/license/test files were exported from exact local Git objects. An additional 52 files were acquired from the plan's other exact pins, including historical Capiro source references and ten upstream root licenses. URL line fragments were stripped before Git path lookup; initial fragment lookup failures were setup errors. Non-JavaScript repositories without `package.json`, and alternate license filenames preceding a successful `LICENSE.txt`, are recorded metadata probes, not missing source licenses.
+
+| Source | Current disposition | Destination / remaining proof |
+|---|---|---|
+| H1 guardrails | Runtime adaptation candidate, not released | Existing native dispatch and run-budget helpers; retain MIT notice, review exact translated guardrail tests and live cases 71–72. |
+| H2 compaction | Acquired, implementation pending | Existing compaction; protocol pairing, retained source handles, revocation, live-tail and stalled-summary tests required. |
+| H3 citations | Acquired, implementation pending | Existing evidence ledger/JEV; exact source/version/passage and discovered-versus-consulted tests required. |
+| H4 discovery | Acquired, implementation pending | Existing governed selector/registry; served-route schemas and required capability recall remain required. |
+| H5 commitments | Acquired, implementation pending | Existing versioned firm skills; all seven original CD cases remain NOT RUN. |
+| O1 OpenAI tools | Exact pinned guidance and Apache-2.0 license acquired | Pinned package metadata is 7.23.0; this does not authorize upgrading the installed SDK. Existing adapters must prove completed-output checks, argument validation and call-ID correlation. |
+| E1 Promptfoo | Pinned source metadata/root MIT license acquired | Plan pin and repository CLI both specify 0.123.1. Existing 26-case baseline passed; 75-case capture and seven CD cases are separate, incomplete contracts. |
+| E2 Playwright | Existing authenticated fixture login used; complete workspace qualification pending | Record the exact test runtime/package/browser versions with each actual capture. No source-head or dependency upgrade inferred. |
+| L1 LibreChat | Three pinned source files and MIT license acquired; study only | Reuse pending-call identity and visible recovery concepts with Meri's existing proposal backend. Do not adopt permissive malformed-edit defaults or replace Aurora/authorization. Existing Meri approval tests do not prove full L1 adaptation. |
+| T1 telemetry | Pinned GenAI repository root Apache-2.0 license acquired | Convention/component file selection and installed OpenTelemetry compatibility still pending. Extend existing redacted trace joins; no new trace platform. |
+| R1 pgvector example | Pinned SQL example and MIT license inspected | Independent candidate generation and RRF comparison are distinct from the mandated current rank baseline. No RRF swap, model download or example database script executed. Native vector qualification still NOT RUN. |
+| R2 retrieval harness | Pinned harness/root MIT license acquired; comparison pending | Activate for measured held-out retrieval gaps; never treat its placeholder evaluator as a complete integration. |
+| W1 Firecrawl | Historical Capiro adapter acquired from exact Git object | Reuse current adapter for measured extraction gaps. No Firecrawl server adoption; component-specific SDK/server terms remain separate. |
+| D1 Docling | Pinned example/root MIT license acquired; experiment not activated | Requires a failed table-extraction fixture and separate weights/dependency review; preserve the qualified existing pipeline. |
+| G1 LangGraph | Pinned functional API/PostgresSaver/root MIT license acquired; dependency not installed | Conditional native-versus-framework comparison requires a demonstrated native limitation and measured scoped restart/approval/RLS/cost advantage. Native recovery repairs are still in progress. |
+| G2 GovCon / ODBA | Pinned root MIT licenses acquired; optional procedures not adopted | A relevant domain fixture and permission/provenance evaluation are required before a playbook import. |
+| Additional coworker sources | Acquired at the second Hermes pin; per-adaptation proof pending | Persist Capiro run/child/steering/delivery authority; no local SQLite authority, warning-only spending limits, automatic memory promotion or unbounded recursion. |
+
+All mandatory adaptation rows remain open until implementation, translated tests, permission tests, cost/outcome evidence and rollback are recorded against exact Capiro commits. Conditional experiment deferral is not a substitute for mandatory file-01 behavior. No licenses or upstream tests are inferred solely from repository popularity or a successful download.
