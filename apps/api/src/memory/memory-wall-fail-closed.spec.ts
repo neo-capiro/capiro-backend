@@ -59,7 +59,39 @@ describe('Ethical walls — every memory read surface applies the wall', () => {
     expect(
       text.match(/fetchDeniedClientIds\(tx, ctx\.tenantId, ctx\.userId\)/g)?.length ?? 0,
     ).toBeGreaterThanOrEqual(2);
-    expect(text).toContain("wallExclusionSql(denied, 'mi.client_id')");
+    // search_memory moved to governed retrieval; keep the wall checks at the
+    // enforcing adapter as well as the separate legacy graph read below.
+    const start = text.indexOf('private async searchMemory(');
+    const end = text.indexOf('\n  private ', start + 1);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const search = text.slice(start, end);
+    expect(search).toMatch(/searchCapiroData\(\s*ctx,/);
+    expect(search).toContain("domains: ['institutional_knowledge']");
+    expect(search).toContain('...(clientId ? { clientId } : {})');
+    expect(search).toContain('this.contextPlane');
+    expect(search).not.toMatch(/FROM\s+memory_items/i);
+    const adapter = read(
+      join(SRC_ROOT, 'retrieval', 'adapters', 'institutional-knowledge-retrieval.adapter.ts'),
+    );
+    expect(adapter).toMatch(
+      /withTenantUser\(\s*request\.caller\.tenantId,\s*request\.caller\.userId,/,
+    );
+    expect(adapter).toContain('requested_client_scope_not_authorized');
+    expect(adapter).toMatch(
+      /clientMemoryAllowed\(\s*tx,\s*request\.caller\.tenantId,\s*request\.caller\.userId,\s*clientId,/,
+    );
+    expect(adapter).toMatch(
+      /if \(allowedClientIds\.length !== requestedClientIds\.length\)\s*\{\s*return this\.memoryUnauthorized\(/,
+    );
+    expect(adapter).toContain('requested_client_scope_failed_ethical_wall');
+    expect(adapter).toContain('WHERE mi.tenant_id = ${request.caller.tenantId}::uuid');
+    expect(adapter).toContain(
+      "AND (mi.visibility = 'tenant' OR mi.owner_user_id = ${request.caller.userId}::uuid)",
+    );
+    expect(adapter).toContain(
+      'AND (mi.client_id IS NULL OR mi.client_id = ANY(${allowedClientIds}::uuid[]))',
+    );
     expect(text).toContain("wallExclusionSql(denied, 'client_id')");
     expect(text).toContain('deniedSet.has(r.srcSlug)');
   });

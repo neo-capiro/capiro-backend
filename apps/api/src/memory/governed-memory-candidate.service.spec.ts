@@ -88,6 +88,9 @@ function harness(
   const findFirst = jest.fn(async () => ({ payload }));
 
   const tx = {
+    client: {
+      findMany: jest.fn(async () => [{ id: CLIENT, name: 'Test Client' }]),
+    },
     memoryCandidate: {
       update: jest.fn(async (args: { data: Record<string, unknown> }) => {
         state.status = String(args.data.status ?? state.status);
@@ -217,9 +220,15 @@ describe('GovernedMemoryCandidateService Phase 13 dispositions', () => {
           expect.objectContaining({
             id: CANDIDATE,
             status: 'withdrawn',
+            clientName: 'Test Client',
             capabilities: { withdraw: false },
           }),
         ],
+      });
+
+      expect(withdrawn.tx.client.findMany).toHaveBeenCalledWith({
+        where: { tenantId: TENANT, id: { in: [CLIENT] } },
+        select: { id: true, name: true },
       });
 
       const rejected = harness();
@@ -230,6 +239,7 @@ describe('GovernedMemoryCandidateService Phase 13 dispositions', () => {
           expect.objectContaining({
             id: CANDIDATE,
             status: 'rejected',
+            clientName: 'Test Client',
             capabilities: { withdraw: false },
           }),
         ],
@@ -295,12 +305,14 @@ describe('GovernedMemoryCandidateService Phase 13 dispositions', () => {
             id: CANDIDATE,
             status: 'pending',
             restricted: true,
+            clientName: null,
             proposal: null,
             capabilities: { withdraw: true },
           }),
         ],
       });
       expect(h.findFirst).not.toHaveBeenCalled();
+      expect(h.tx.client.findMany).not.toHaveBeenCalled();
       await expect(h.service.withdraw(proposerCtx, CANDIDATE)).resolves.toBeUndefined();
     });
   });

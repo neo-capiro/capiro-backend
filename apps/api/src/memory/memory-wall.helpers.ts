@@ -127,3 +127,21 @@ export async function clientMemoryAllowed(
   );
   return rows[0]?.allowed === true;
 }
+
+/**
+ * Visible, active client revisions for a Clerk actor with active membership.
+ * Keep Clerk actor resolution inside the tenant query: it is not a database
+ * user UUID. Revision hashes intentionally retain the dashboard cache contract.
+ */
+export async function fetchAccessibleClientRevisionsForClerkActor(
+  tx: Tx,
+  tenantId: string,
+  actorId: string,
+): Promise<Array<{ id: string; revision: string }>> {
+  return tx.$queryRaw<Array<{ id: string; revision: string }>>`
+      SELECT c.id::text, md5(to_jsonb(c)::text) AS revision FROM clients c
+      JOIN tenant_memberships m ON m.tenant_id=c.tenant_id AND m.status::text='active'
+      JOIN users u ON u.id=m.user_id AND u.clerk_user_id=${actorId}
+      WHERE c.tenant_id=${tenantId}::uuid AND c.status::text<>'archived'
+      AND (NOT c.memory_wall OR EXISTS(SELECT 1 FROM client_memory_access a WHERE a.tenant_id=c.tenant_id AND a.client_id=c.id AND a.user_id=u.id)) ORDER BY c.id`;
+}
