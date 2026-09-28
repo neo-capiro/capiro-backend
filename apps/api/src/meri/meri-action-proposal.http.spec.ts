@@ -149,6 +149,7 @@ describe('MeriV2 Phase 0 HTTP adversarial boundary', () => {
     executeTool.mockClear();
     createProposal.mockClear();
     approve.mockClear();
+    proposalService.list.mockClear();
   });
 
   it('normal user cannot POST arbitrary legacy pending action data', async () => {
@@ -262,5 +263,33 @@ describe('MeriV2 Phase 0 HTTP adversarial boundary', () => {
       expect.objectContaining({ tenantId: TENANT, userId: USER }),
       PROPOSAL,
     );
+  });
+
+  it('passes an authorized exact-receipt filter through the existing list route', async () => {
+    await request(app.getHttpServer())
+      .get(`/api/clio/action-proposals?conversationId=${OTHER}&proposalId=${PROPOSAL}`)
+      .expect(200);
+
+    expect(proposalService.list).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: TENANT, userId: USER }),
+      OTHER,
+      PROPOSAL,
+    );
+  });
+
+  it('rejects malformed exact-receipt ids before the list service runs', async () => {
+    await request(app.getHttpServer())
+      .get(`/api/clio/action-proposals?conversationId=${OTHER}&proposalId=not-a-proposal-id`)
+      .expect(400);
+
+    expect(proposalService.list).not.toHaveBeenCalled();
+  });
+
+  it('requires the conversation authorization fence for an exact receipt', async () => {
+    await request(app.getHttpServer())
+      .get(`/api/clio/action-proposals?proposalId=${PROPOSAL}`)
+      .expect(400);
+
+    expect(proposalService.list).not.toHaveBeenCalled();
   });
 });

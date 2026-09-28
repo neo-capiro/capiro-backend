@@ -16,6 +16,7 @@ import {
   IsString,
   IsUUID,
   Length,
+  ValidateIf,
 } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import type { Request } from 'express';
@@ -43,9 +44,14 @@ export class CreateMeriActionProposalDto {
 }
 
 export class ListMeriActionProposalDto {
-  @IsOptional()
+  @ValidateIf((query: ListMeriActionProposalDto) =>
+    query.conversationId !== undefined || query.proposalId !== undefined)
   @IsUUID()
   conversationId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  proposalId?: string;
 }
 
 export class DecideMeriActionProposalDto {
@@ -75,7 +81,7 @@ export class MeriActionProposalController {
   /** Browser-safe recovery surface. Only the current user's tenant-scoped rows return. */
   @Get()
   list(@CurrentTenant() ctx: TenantContext, @Query() query: ListMeriActionProposalDto) {
-    return this.proposals.list(ctx, query.conversationId);
+    return this.proposals.list(ctx, query.conversationId, query.proposalId);
   }
 
   /** Browser approval carries only the opaque proposal id and an optional note. */

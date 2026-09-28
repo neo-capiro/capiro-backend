@@ -110,6 +110,7 @@ export function ActionProposalCard({
   const recoveryBlocksAction =
     proposal.approvalRecovery?.state === 'checking' ||
     proposal.approvalRecovery?.state === 'unavailable';
+  const mayCheckStatus = proposal.approvalRecovery?.state === 'unavailable';
   const mayRepropose = proposal.status === 'expired' || proposal.status === 'blocked';
   const expiresAt = formatDate(proposal.expiresAt);
   const approvedAt = formatDate(proposal.approvedAt);
@@ -255,7 +256,16 @@ export function ActionProposalCard({
       )}
 
       <footer className="action-proposal__actions">
-        {isExecuting ? (
+        {mayCheckStatus ? (
+          <button
+            type="button"
+            className="action-proposal__approve"
+            disabled={busy}
+            onClick={() => void onApprove(proposal.proposalId)}
+          >
+            {busy ? 'Checking status…' : 'Check status'}
+          </button>
+        ) : isExecuting ? (
           <button type="button" disabled>
             Executing…
           </button>

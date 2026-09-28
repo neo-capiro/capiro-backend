@@ -75,6 +75,7 @@ describe('Meri approval status recovery', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.clearAllMocks();
   });
@@ -183,6 +184,173 @@ describe('Meri approval status recovery', () => {
     });
     await act(async () => finishPoll(json([row])));
     await waitFor(() => expect(view.result.current.pendingApprovals[0]?.status).toBe('succeeded'));
+    expect(approvals).toBe(1);
+  });
+
+  test('continues exact status recovery through executing then a transient 503 without another POST', async () => {
+    vi.useFakeTimers();
+    let row = proposal({
+      preview: { ...proposal().preview, fields: { effectIdentity: 'original-effect-1' } },
+    });
+    let approvals = 0;
+    let statusReads = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith('/approve')) {
+          approvals += 1;
+          row = proposal({
+            status: 'executing',
+            attemptCount: 1,
+            preview: { ...row.preview },
+            updatedAt: '2026-09-28T00:01:00.000Z',
+          });
+          throw new TypeError('approval acknowledgment lost');
+        }
+        if (url.includes('/action-proposals?')) {
+          statusReads += 1;
+          if (statusReads === 1) return json([row]);
+          expect(url).toContain('proposalId=proposal-1');
+          if (statusReads === 3) return new Response('temporary outage', { status: 503 });
+          if (statusReads >= 4) {
+            row = proposal({
+              status: 'succeeded',
+              attemptCount: 1,
+              preview: { ...row.preview },
+              resultSummary: { messageId: 'mail-effect-1' },
+              updatedAt: '2026-09-28T00:02:00.000Z',
+            });
+          }
+          return json([row]);
+        }
+        return json([]);
+      }),
+    );
+
+    const view = renderHook(() => useMeriChatController({ selectedClientName: null }), { wrapper });
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    expect(view.result.current.pendingApprovals[0]?.status).toBe('proposed');
+
+    await act(async () => view.result.current.handleApprovePending('proposal-1'));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    expect(view.result.current.pendingApprovals[0]?.approvalRecovery?.state).toBe('checking');
+
+    await act(async () => vi.advanceTimersByTimeAsync(2_000));
+    expect(view.result.current.pendingApprovals[0]).toMatchObject({
+      proposalId: 'proposal-1',
+      status: 'succeeded',
+      tool: 'send_email',
+      preview: { fields: { effectIdentity: 'original-effect-1' } },
+      resultSummary: { messageId: 'mail-effect-1' },
+    });
+    expect(approvals).toBe(1);
+  });
+
+  test('preserves the visible failed attempt when the first status read is down then proposed is authoritative', async () => {
+    const row = proposal();
+    let approvals = 0;
+    let statusReads = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith('/approve')) {
+          approvals += 1;
+          return new Response('provider unavailable', { status: 503 });
+        }
+        if (url.includes('/action-proposals?')) {
+          statusReads += 1;
+          if (statusReads === 2) return new Response('status unavailable', { status: 503 });
+          return json([row]);
+        }
+        return json([]);
+      }),
+    );
+
+    const view = renderHook(() => useMeriChatController({ selectedClientName: null }), { wrapper });
+    await waitFor(() => expect(view.result.current.pendingApprovals).toHaveLength(1));
+    await act(async () => view.result.current.handleApprovePending('proposal-1'));
+
+    await waitFor(() =>
+      expect(view.result.current.pendingApprovals[0]?.approvalRecovery?.state).toBe('safe_failure'),
+    );
+    expect(view.result.current.pendingApprovals[0]?.approvalRecovery?.message).toContain('HTTP 503');
+    expect(view.result.current.pendingApprovals[0]?.status).toBe('proposed');
+    expect(approvals).toBe(1);
+  });
+
+  test('bounds exponential status polling, aborts owned reads, and manual refresh remains read-only', async () => {
+    vi.useFakeTimers();
+    let row = proposal();
+    let approvals = 0;
+    let statusReads = 0;
+    let outage = true;
+    const statusSignals: AbortSignal[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith('/approve')) {
+          approvals += 1;
+          row = proposal({
+            status: 'executing',
+            attemptCount: 1,
+            updatedAt: '2026-09-28T00:01:00.000Z',
+          });
+          throw new TypeError('acknowledgment lost');
+        }
+        if (url.includes('/action-proposals?')) {
+          statusReads += 1;
+          if (statusReads === 1) return json([proposal()]);
+          expect(url).toContain('proposalId=proposal-1');
+          if (init?.signal) statusSignals.push(init.signal);
+          if (statusReads === 2) return json([row]);
+          if (outage) return new Response('status unavailable', { status: 503 });
+          return json([row]);
+        }
+        return json([]);
+      }),
+    );
+
+    const view = renderHook(() => useMeriChatController({ selectedClientName: null }), { wrapper });
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    await act(async () => view.result.current.handleApprovePending('proposal-1'));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    const firstFailedRead = statusReads;
+    await act(async () => vi.advanceTimersByTimeAsync(1_999));
+    expect(statusReads).toBe(firstFailedRead);
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(statusReads).toBe(firstFailedRead + 1);
+    await act(async () => vi.advanceTimersByTimeAsync(3_999));
+    expect(statusReads).toBe(firstFailedRead + 1);
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(statusReads).toBe(firstFailedRead + 2);
+    await act(async () => vi.advanceTimersByTimeAsync(7_999));
+    expect(statusReads).toBe(firstFailedRead + 2);
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(statusReads).toBe(firstFailedRead + 3);
+
+    expect(view.result.current.pendingApprovals[0]?.approvalRecovery).toMatchObject({
+      state: 'unavailable',
+      message: expect.stringContaining('Status checks paused'),
+    });
+    const readsAtExhaustion = statusReads;
+    await act(async () => vi.advanceTimersByTimeAsync(60_000));
+    expect(statusReads).toBe(readsAtExhaustion);
+    expect(statusSignals.length).toBeGreaterThanOrEqual(4);
+    expect(statusSignals.every((signal) => signal instanceof AbortSignal)).toBe(true);
+
+    outage = false;
+    row = proposal({
+      status: 'outcome_unknown',
+      attemptCount: 1,
+      updatedAt: '2026-09-28T00:03:00.000Z',
+    });
+    await act(async () => view.result.current.handleApprovePending('proposal-1'));
+    expect(view.result.current.pendingApprovals[0]?.status).toBe('outcome_unknown');
+    expect(view.result.current.pendingApprovals[0]?.approvalRecovery).toBeUndefined();
+    await act(async () => view.result.current.handleApprovePending('proposal-1'));
     expect(approvals).toBe(1);
   });
 

@@ -423,8 +423,13 @@ export interface PendingApproval {
   approvalRecovery?: {
     state: 'safe_failure' | 'checking' | 'unavailable';
     message: string;
+    failureMessage?: string;
   };
 }
+
+const APPROVAL_STATUS_MAX_POLLS = 4;
+const APPROVAL_STATUS_BASE_DELAY_MS = 2_000;
+const APPROVAL_STATUS_MAX_DELAY_MS = 16_000;
 
 export function useMeriChatController({
   selectedClientName,
@@ -502,6 +507,7 @@ export function useMeriChatController({
   const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>([]);
   const [proposalRecoveryVersion, setProposalRecoveryVersion] = useState(0);
   const proposalMutationEpochRef = useRef(0);
+  const approvalStatusPollAttemptsRef = useRef(new Map<string, number>());
   // React state cannot close the same-tick double-click window. This synchronous
   // guard ensures one browser dispatch per proposal until reconciliation ends.
   const approvalRequestsInFlightRef = useRef(new Set<string>());
@@ -537,6 +543,8 @@ export function useMeriChatController({
   // sessionClientId tracks the visual selection; persistedClientId tracks the
   // durable server PATCH. They diverge while scope persistence is pending.
   const [persistedClientId, setPersistedClientId] = useState<string | null>(null);
+  const persistedClientIdRef = useRef<string | null>(persistedClientId);
+  persistedClientIdRef.current = persistedClientId;
   const [scopePersistStatus, setScopePersistStatus] = useState<ScopePersistStatus>('idle');
   // Monotonically increasing scope intent. Each changeSessionClient captures
   // the current value; on resolution it must still match to prevent an
@@ -2870,11 +2878,24 @@ export function useMeriChatController({
       proposalId: string,
       state: NonNullable<PendingApproval['approvalRecovery']>['state'],
       message: string,
+      failureMessage?: string,
     ) => {
       setPendingApprovals((previous) =>
         previous.map((proposal) =>
           proposal.proposalId === proposalId
-            ? { ...proposal, approvalRecovery: { state, message } }
+            ? {
+                ...proposal,
+                approvalRecovery: {
+                  state,
+                  message,
+                  ...((failureMessage ?? proposal.approvalRecovery?.failureMessage)
+                    ? {
+                        failureMessage:
+                          failureMessage ?? proposal.approvalRecovery?.failureMessage,
+                      }
+                    : {}),
+                },
+              }
             : proposal,
         ),
       );
@@ -2903,7 +2924,7 @@ export function useMeriChatController({
         );
       try {
         const response = await fetch(
-          `${config.apiBaseUrl}/api/clio/action-proposals?conversationId=${encodeURIComponent(approvalSessionId)}`,
+          `${config.apiBaseUrl}/api/clio/action-proposals?conversationId=${encodeURIComponent(approvalSessionId)}&proposalId=${encodeURIComponent(proposalId)}`,
           { headers },
         );
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -2933,7 +2954,8 @@ export function useMeriChatController({
         markApprovalRecovery(
           proposalId,
           'unavailable',
-          'Approval outcome could not be confirmed. Retry is blocked because this action may have already happened. Meri will keep checking the authoritative status.',
+          `${failureMessage} Approval outcome could not be confirmed. Retry is blocked because this action may have already happened. Meri will keep checking the authoritative status.`,
+          failureMessage,
         );
       }
     },
@@ -3007,11 +3029,11 @@ export function useMeriChatController({
       const current = pendingApprovalsRef.current.find(
         (proposal) => proposal.proposalId === proposalId,
       );
+      const manualStatusCheck = current?.approvalRecovery?.state === 'unavailable';
       if (
         !current ||
-        !['proposed', 'failed_retryable'].includes(current.status) ||
+        (!manualStatusCheck && !['proposed', 'failed_retryable'].includes(current.status)) ||
         current.approvalRecovery?.state === 'checking' ||
-        current.approvalRecovery?.state === 'unavailable' ||
         approvalRequestsInFlightRef.current.has(proposalId)
       ) {
         return;
@@ -3036,6 +3058,23 @@ export function useMeriChatController({
             routeEpochRef.current,
           )
         ) {
+          return;
+        }
+        if (manualStatusCheck) {
+          approvalStatusPollAttemptsRef.current.delete(proposalId);
+          markApprovalRecovery(
+            proposalId,
+            'checking',
+            'Checking the authoritative status. No approval is being sent.',
+          );
+          await reconcileApproval(
+            proposalId,
+            approvalSessionId,
+            approvalRouteEpoch,
+            headers,
+            current.approvalRecovery?.failureMessage ??
+              'The prior approval attempt did not claim execution. The action was not marked complete.',
+          );
           return;
         }
         dispatched = true;
@@ -3237,8 +3276,10 @@ export function useMeriChatController({
   );
 
   // Recover outstanding/recent proposals from the server whenever the active
-  // conversation changes and after each turn. Policy-approved writes run
-  // without a pending_approval frame, so their results need this same lookup.
+  // conversation changes and after each turn. Once an approval is uncertain or
+  // executing, poll its exact receipt so the default 100-row window cannot
+  // evict it. Polling is bounded; the card then offers an explicit read-only
+  // status refresh instead of silently retrying approval.
   useEffect(() => {
     // A stream can finish while a dismiss POST is still pending. Wait for all
     // dismissals so an older server list cannot restore an optimistically hidden card.
@@ -3247,14 +3288,52 @@ export function useMeriChatController({
     );
     if (!sessionId || isStreaming || approvingProposalId || hasCurrentDismissal) return;
     const requestIdentityKey = identityKey;
+    const requestClientId = persistedClientId;
     const requestRouteEpoch = routeEpochRef.current;
     const requestMutationEpoch = proposalMutationEpochRef.current;
     const stillCurrent = () =>
       mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current) &&
       mayApplyApprovalResult(sessionId, currentSessionRef.current, requestRouteEpoch, routeEpochRef.current) &&
+      requestClientId === persistedClientIdRef.current &&
       requestMutationEpoch === proposalMutationEpochRef.current;
     let cancelled = false;
     let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
+    const controller = new AbortController();
+    const tracked = pendingApprovalsRef.current.filter(
+      (proposal) =>
+        proposal.status === 'executing' ||
+        proposal.approvalRecovery?.state === 'checking' ||
+        proposal.approvalRecovery?.state === 'unavailable',
+    );
+
+    const nextAttempt = (proposalId: string) => {
+      const attempt = (approvalStatusPollAttemptsRef.current.get(proposalId) ?? 0) + 1;
+      approvalStatusPollAttemptsRef.current.set(proposalId, attempt);
+      return attempt;
+    };
+
+    const pauseRecovery = (proposalId: string) => {
+      markApprovalRecovery(
+        proposalId,
+        'unavailable',
+        'Status checks paused after repeated failures. The approval outcome remains unconfirmed; use Check status to make another read-only status request. Do not approve again.',
+      );
+    };
+
+    const scheduleRecovery = (attempts: number[]) => {
+      const retryable = attempts.filter((attempt) => attempt < APPROVAL_STATUS_MAX_POLLS);
+      if (cancelled || !stillCurrent() || retryable.length === 0) return;
+      const attempt = Math.max(...retryable);
+      const delay = Math.min(
+        APPROVAL_STATUS_BASE_DELAY_MS * 2 ** Math.max(0, attempt - 1),
+        APPROVAL_STATUS_MAX_DELAY_MS,
+      );
+      recoveryTimer = setTimeout(
+        () => setProposalRecoveryVersion((version) => version + 1),
+        delay,
+      );
+    };
+
     void (async () => {
       try {
         // authHeaders() is async — an identity switch can land while it is
@@ -3263,62 +3342,130 @@ export function useMeriChatController({
         const headers = await authHeaders();
         if (cancelled || !stillCurrent())
           return;
+        if (tracked.length > 0) {
+          const attempts = await Promise.all(
+            tracked.map(async (local) => {
+              try {
+                const res = await fetch(
+                  `${config.apiBaseUrl}/api/clio/action-proposals?conversationId=${encodeURIComponent(sessionId)}&proposalId=${encodeURIComponent(local.proposalId)}`,
+                  { headers, signal: controller.signal },
+                );
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const rows = (await res.json()) as PendingApproval[];
+                const authoritative = Array.isArray(rows)
+                  ? rows.find((proposal) => proposal.proposalId === local.proposalId)
+                  : undefined;
+                if (!authoritative) throw new Error('Proposal status was not returned.');
+                if (cancelled || !stillCurrent()) return null;
+                const preserveFailure =
+                  authoritative.status === 'proposed' &&
+                  Boolean(local.approvalRecovery) &&
+                  authoritative.attemptCount === local.attemptCount &&
+                  authoritative.updatedAt === local.updatedAt;
+                const recovered: PendingApproval = preserveFailure
+                  ? {
+                      ...authoritative,
+                      approvalRecovery: {
+                        state: 'safe_failure',
+                        message:
+                          local.approvalRecovery!.failureMessage ??
+                          local.approvalRecovery!.message,
+                      },
+                    }
+                  : authoritative;
+                setPendingApprovals((previous) => upsertProposal(previous, recovered));
+                recordApprovalOutcome(authoritative);
+                if (authoritative.status !== 'executing') {
+                  approvalStatusPollAttemptsRef.current.delete(local.proposalId);
+                  return null;
+                }
+                const attempt = nextAttempt(local.proposalId);
+                if (attempt >= APPROVAL_STATUS_MAX_POLLS) pauseRecovery(local.proposalId);
+                return attempt;
+              } catch {
+                if (cancelled || controller.signal.aborted || !stillCurrent()) return null;
+                const attempt = nextAttempt(local.proposalId);
+                if (attempt >= APPROVAL_STATUS_MAX_POLLS) {
+                  pauseRecovery(local.proposalId);
+                } else {
+                  markApprovalRecovery(
+                    local.proposalId,
+                    'checking',
+                    'The status service is temporarily unavailable. The outcome remains unconfirmed; Meri will retry without sending another approval.',
+                  );
+                }
+                return attempt;
+              }
+            }),
+          );
+          scheduleRecovery(attempts.filter((attempt): attempt is number => attempt !== null));
+          return;
+        }
+
         const res = await fetch(
           `${config.apiBaseUrl}/api/clio/action-proposals?conversationId=${encodeURIComponent(sessionId)}`,
-          { headers },
+          { headers, signal: controller.signal },
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        if (cancelled) return;
         const data = (await res.json()) as PendingApproval[];
-        // Approval cards authorize real server-side actions. A prior identity's
-        // recovery must never restore them under a newly authenticated one.
-        if (
-          !cancelled &&
-          stillCurrent() &&
-          Array.isArray(data)
-        ) {
-          setPendingApprovals((previous) =>
-            data.map((proposal) => {
+        // Approval cards authorize real server-side actions. A prior identity,
+        // conversation, or client recovery must never restore them here.
+        if (!cancelled && stillCurrent() && Array.isArray(data)) {
+          setPendingApprovals((previous) => {
+            const recovered = data.map((proposal) => {
               const local = previous.find((row) => row.proposalId === proposal.proposalId);
-              return local?.approvalRecovery?.state === 'safe_failure' &&
+              return local?.approvalRecovery &&
                 proposal.status === 'proposed' &&
                 proposal.attemptCount === local.attemptCount &&
                 proposal.updatedAt === local.updatedAt
-                ? { ...proposal, approvalRecovery: local.approvalRecovery }
+                ? {
+                    ...proposal,
+                    approvalRecovery: {
+                      state: 'safe_failure' as const,
+                      message:
+                        local.approvalRecovery.failureMessage ??
+                        local.approvalRecovery.message,
+                    },
+                  }
                 : proposal;
-            }),
-          );
-          if (data.some((proposal) => proposal.status === 'executing')) {
-            recoveryTimer = setTimeout(
-              () => setProposalRecoveryVersion((version) => version + 1),
-              2_000,
+            });
+            const knownUncertain = previous.filter(
+              (proposal) =>
+                Boolean(proposal.approvalRecovery) &&
+                !recovered.some((row) => row.proposalId === proposal.proposalId),
             );
-          }
+            return [...recovered, ...knownUncertain];
+          });
+          const attempts = data
+            .filter((proposal) => proposal.status === 'executing')
+            .map((proposal) => {
+              const attempt = nextAttempt(proposal.proposalId);
+              if (attempt >= APPROVAL_STATUS_MAX_POLLS) pauseRecovery(proposal.proposalId);
+              return attempt;
+            });
+          scheduleRecovery(attempts);
         }
       } catch {
-        // A locally uncertain approval must keep reconciling. Ordinary initial
-        // recovery remains best-effort because there may be no proposal to show.
-        if (
-          !cancelled &&
-          stillCurrent() &&
-          pendingApprovalsRef.current.some(
-            (proposal) =>
-              proposal.approvalRecovery?.state === 'checking' ||
-              proposal.approvalRecovery?.state === 'unavailable',
-          )
-        ) {
-          recoveryTimer = setTimeout(
-            () => setProposalRecoveryVersion((version) => version + 1),
-            3_000,
-          );
-        }
+        // Ordinary initial recovery is best-effort because there may be no
+        // proposal to show. Exact known receipts use the bounded branch above.
       }
     })();
     return () => {
       cancelled = true;
+      controller.abort();
       if (recoveryTimer) clearTimeout(recoveryTimer);
     };
-  }, [sessionId, authHeaders, identityKey, isStreaming, approvingProposalId, proposalRecoveryVersion]);
+  }, [
+    sessionId,
+    authHeaders,
+    identityKey,
+    persistedClientId,
+    isStreaming,
+    approvingProposalId,
+    proposalRecoveryVersion,
+    markApprovalRecovery,
+    recordApprovalOutcome,
+  ]);
 
   // Held-approval cards belong to ONE conversation — switching sessions must
   // not carry them over (approving would re-run the WRONG conversation's
@@ -3330,6 +3477,7 @@ export function useMeriChatController({
     executedThisRoundRef.current = [];
     recordedApprovalOutcomesRef.current.clear();
     approvalRequestsInFlightRef.current.clear();
+    approvalStatusPollAttemptsRef.current.clear();
   }, [sessionId]);
 
   const handleEditResend = useCallback(() => {

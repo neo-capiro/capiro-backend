@@ -121,7 +121,8 @@ describe('ActionProposalCard', () => {
     expect(screen.queryByRole('button', { name: 'Approve & run' })).toBeNull();
   });
 
-  it('shows an unconfirmed approval outcome and blocks another execution attempt', () => {
+  it('shows an unconfirmed approval outcome and offers only a read-only status check', () => {
+    const checkStatus = vi.fn();
     render(
       <ActionProposalCard
         proposal={proposal({
@@ -130,13 +131,15 @@ describe('ActionProposalCard', () => {
             message: 'Outcome is not confirmed; this action may have already happened.',
           },
         })}
-        onApprove={vi.fn()}
+        onApprove={checkStatus}
         onDismiss={vi.fn()}
       />,
     );
 
     expect(screen.getByRole('alert')).toHaveTextContent('may have already happened');
-    expect(screen.getByRole('button', { name: 'Retry blocked' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Check status' }));
+    expect(checkStatus).toHaveBeenCalledWith('proposal-1');
+    expect(screen.queryByRole('button', { name: 'Approve & run' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Dismiss' })).toBeDisabled();
   });
 });
@@ -176,5 +179,36 @@ describe('ActionProposalList', () => {
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Confirm and run all' }));
     expect(approveAll).toHaveBeenCalledOnce();
+  });
+
+  it('excludes uncertain blocked cards from the bulk count and confirmation list', () => {
+    render(
+      <ActionProposalList
+        proposals={[
+          proposal({ proposalId: 'ready-1' }),
+          proposal({
+            proposalId: 'ready-2',
+            preview: { ...proposal().preview, label: 'Ready two' },
+          }),
+          proposal({
+            proposalId: 'uncertain',
+            preview: { ...proposal().preview, label: 'Uncertain prior attempt' },
+            approvalRecovery: {
+              state: 'unavailable',
+              message: 'The prior outcome is unconfirmed.',
+            },
+          }),
+        ]}
+        busyProposalId={null}
+        onApprove={vi.fn()}
+        onApproveAll={vi.fn()}
+        onDismiss={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Approve all (2)' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveTextContent('Ready two');
+    expect(dialog).not.toHaveTextContent('Uncertain prior attempt');
   });
 });

@@ -1,5 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
@@ -479,12 +480,24 @@ export class MeriActionProposalService {
     }));
   }
 
-  async list(ctx: TenantContext, conversationId?: string): Promise<PublicMeriActionProposal[]> {
+  async list(
+    ctx: TenantContext,
+    conversationId?: string,
+    proposalId?: string,
+  ): Promise<PublicMeriActionProposal[]> {
     this.assertEnabled();
+    if (proposalId && !conversationId) {
+      throw new BadRequestException('conversationId is required for an exact proposal receipt.');
+    }
     await this.reconcileStaleExecuting(ctx);
     await this.expireStale(ctx);
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) => tx.meriActionProposal.findMany({
-      where: { tenantId: ctx.tenantId, userId: ctx.userId, ...(conversationId ? { conversationId } : {}) },
+      where: {
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        ...(conversationId ? { conversationId } : {}),
+        ...(proposalId ? { id: proposalId } : {}),
+      },
       orderBy: { createdAt: 'desc' }, take: 100,
     }));
     return rows.map((row) => this.toPublic(row));

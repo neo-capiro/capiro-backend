@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { MeriActionProposal } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import {
@@ -815,19 +815,26 @@ describe('MeriActionProposalService — note storage and readiness', () => {
 });
 
 describe('MeriActionProposalService.list', () => {
-  it("never returns another tenant or user's proposals", async () => {
-    const own = makeRow({ id: PROPOSAL });
-    const foreign = makeRow({
-      id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
-      tenantId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-      userId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
-    });
-    const rows = [own, foreign];
+  const CONVERSATION = '44444444-4444-4444-8444-444444444444';
+  const OTHER_CONVERSATION = '55555555-5555-4555-8555-555555555555';
+
+  function listHarness(rows: MeriActionProposal[]) {
+    const execute = jest.fn();
     const tx = {
       meriActionProposal: {
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
-        findMany: jest.fn(async ({ where }: { where: Record<string, unknown> }) =>
-          rows.filter((r) => r.tenantId === where.tenantId && r.userId === where.userId),
+        findMany: jest.fn(
+          async ({ where, take }: { where: Record<string, unknown>; take: number }) =>
+            rows
+              .filter(
+                (row) =>
+                  row.tenantId === where.tenantId &&
+                  row.userId === where.userId &&
+                  (!where.conversationId || row.conversationId === where.conversationId) &&
+                  (!where.id || row.id === where.id),
+              )
+              .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+              .slice(0, take),
         ),
       },
     };
@@ -836,7 +843,7 @@ describe('MeriActionProposalService.list', () => {
         callback(tx),
       ),
     } as unknown as PrismaService;
-    const tools = {} as unknown as MeriToolsService;
+    const tools = { executeFromAuthenticatedUser: execute } as unknown as MeriToolsService;
     const config = {
       get: (key: string) => (key === 'MERIV2_ACTION_PROPOSALS_ENABLED' ? true : undefined),
     } as unknown as ConfigService<AppConfig, true>;
@@ -846,15 +853,75 @@ describe('MeriActionProposalService.list', () => {
       config,
       {} as unknown as MeriPolicyPackService,
     );
+    return { service, tx, execute };
+  }
 
-    const result = await service.list(ctx);
+  it('keeps tenant, actor, and conversation authorization predicates on an exact read', async () => {
+    const own = makeRow({ id: PROPOSAL, conversationId: CONVERSATION });
+    const foreign = makeRow({
+      id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+      tenantId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      userId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      conversationId: CONVERSATION,
+    });
+    const h = listHarness([own, foreign]);
 
-    expect(result).toHaveLength(1);
-    expect(result[0]?.proposalId).toBe(PROPOSAL);
-    expect(tx.meriActionProposal.findMany).toHaveBeenCalledWith(
+    const result = await h.service.list(ctx, CONVERSATION, PROPOSAL);
+
+    expect(result.map((row) => row.proposalId)).toEqual([PROPOSAL]);
+    expect(h.tx.meriActionProposal.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ tenantId: TENANT, userId: USER }),
+        where: {
+          tenantId: TENANT,
+          userId: USER,
+          conversationId: CONVERSATION,
+          id: PROPOSAL,
+        },
       }),
     );
+    await expect(
+      h.service.list(
+        { ...ctx, userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' },
+        CONVERSATION,
+        PROPOSAL,
+      ),
+    ).resolves.toEqual([]);
+    await expect(
+      h.service.list(
+        { ...ctx, tenantId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' },
+        CONVERSATION,
+        PROPOSAL,
+      ),
+    ).resolves.toEqual([]);
+    await expect(h.service.list(ctx, OTHER_CONVERSATION, PROPOSAL)).resolves.toEqual([]);
+    await expect(h.service.list(ctx, undefined, PROPOSAL)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(h.execute).not.toHaveBeenCalled();
+  });
+
+  it('recovers an exact original receipt beyond 100 newer rows without widening the default list', async () => {
+    const original = makeRow({
+      id: PROPOSAL,
+      conversationId: CONVERSATION,
+      status: 'succeeded',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+    const newer = Array.from({ length: 100 }, (_, index) =>
+      makeRow({
+        id: `aaaaaaaa-aaaa-4aaa-8aaa-${String(index).padStart(12, '0')}`,
+        conversationId: CONVERSATION,
+        createdAt: new Date(Date.UTC(2026, 1, 1, 0, index)),
+      }),
+    );
+    const h = listHarness([original, ...newer]);
+
+    const defaultRows = await h.service.list(ctx, CONVERSATION);
+    const exactRows = await h.service.list(ctx, CONVERSATION, PROPOSAL);
+
+    expect(defaultRows).toHaveLength(100);
+    expect(defaultRows.some((row) => row.proposalId === PROPOSAL)).toBe(false);
+    expect(exactRows.map((row) => row.proposalId)).toEqual([PROPOSAL]);
+    expect(h.execute).not.toHaveBeenCalled();
   });
 });

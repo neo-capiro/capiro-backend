@@ -55,6 +55,16 @@ describe('outstandingApprovals', () => {
       card({ proposalId: 'f', status: 'blocked' }),
       card({ proposalId: 'g', status: 'expired' }),
       card({ proposalId: 'h', status: 'outcome_unknown' }),
+      card({
+        proposalId: 'i',
+        status: 'proposed',
+        approvalRecovery: { state: 'unavailable', message: 'Outcome unknown.' },
+      }),
+      card({
+        proposalId: 'j',
+        status: 'proposed',
+        approvalRecovery: { state: 'checking', message: 'Checking.' },
+      }),
     ];
     // failed_retryable is offered its own explicit Retry action, not folded
     // into "Approve all" or the header count — retrying is a deliberate,
