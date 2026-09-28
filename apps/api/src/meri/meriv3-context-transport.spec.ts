@@ -77,20 +77,66 @@ describe('API authenticated governed context transport', () => {
     expect(JSON.stringify(body)).not.toContain('test-only-service-secret');
   });
   it('signs reauthorized document observations and rejects any altered excerpt', async () => {
-    const fetch = jest.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true,
-      body: new ReadableStream({ start(controller) { controller.close(); } }),
+    const fetch = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      body: new ReadableStream({
+        start(controller) {
+          controller.close();
+        },
+      }),
     } as Response);
-    const original = { ...input(), inheritedDocumentEvidence: [{ n: 56, type: 'source', tool: 'read_client_documents',
-      id: 'doc-page-22', title: 'Capiro 2.0.pdf', url: null, snippet: 'Original snippet',
-      documentEvidence: { clientId: 'client-1', documentId: 'doc-1', contentHash: 'a'.repeat(64),
-        record: { recordId: 'doc-page-22', payload: { text: 'Exact earlier excerpt', section: 22 } },
-        coverage: { complete: false, disclosure: 'Page only' }, observedAt: '2026-09-07T00:00:00Z' } }] };
-    await new MeriV3ChatClient().streamChat({ bearerToken: 'test-user-token', input: original, onEvent: jest.fn() });
+    const original = {
+      ...input(),
+      inheritedDocumentEvidence: [
+        {
+          n: 56,
+          type: 'source',
+          tool: 'read_client_documents',
+          id: 'doc-page-22',
+          title: 'Capiro 2.0.pdf',
+          url: null,
+          snippet: 'Original snippet',
+          documentEvidence: {
+            clientId: 'client-1',
+            documentId: 'doc-1',
+            contentHash: 'a'.repeat(64),
+            record: {
+              recordId: 'doc-page-22',
+              payload: { text: 'Exact earlier excerpt', section: 22 },
+            },
+            coverage: { complete: false, disclosure: 'Page only' },
+            observedAt: '2026-09-07T00:00:00Z',
+          },
+        },
+      ],
+    };
+    await new MeriV3ChatClient().streamChat({
+      bearerToken: 'test-user-token',
+      input: original,
+      onEvent: jest.fn(),
+    });
     const body = JSON.parse(String(fetch.mock.calls[0]?.[1]?.body));
-    expect(body.governedContext.inheritedDocumentEvidence).toEqual(original.inheritedDocumentEvidence);
-    expect(() => verifyMeriGovernedContext(body.governedContext, body, actor, process.env.INTERNAL_SERVICE_SECRET)).not.toThrow();
-    body.governedContext.inheritedDocumentEvidence[0].documentEvidence.record.payload.text = 'Forged evidence';
-    expect(() => verifyMeriGovernedContext(body.governedContext, body, actor, process.env.INTERNAL_SERVICE_SECRET)).toThrow('authentication_failed');
+    expect(body.governedContext.inheritedDocumentEvidence).toEqual(
+      original.inheritedDocumentEvidence,
+    );
+    expect(() =>
+      verifyMeriGovernedContext(
+        body.governedContext,
+        body,
+        actor,
+        process.env.INTERNAL_SERVICE_SECRET,
+      ),
+    ).not.toThrow();
+    body.governedContext.inheritedDocumentEvidence[0].documentEvidence.record.payload.text =
+      'Forged evidence';
+    expect(() =>
+      verifyMeriGovernedContext(
+        body.governedContext,
+        body,
+        actor,
+        process.env.INTERNAL_SERVICE_SECRET,
+      ),
+    ).toThrow('authentication_failed');
   });
 
   it('fails closed before sending evidence if service identity is unavailable', async () => {

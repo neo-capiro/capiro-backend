@@ -7,7 +7,9 @@ import { scheduleMeriTurnMaintenance } from './meri-turn-maintenance.js';
 jest.mock('../engagement/ai-credential-resolver.service.js', () => ({
   AiCredentialResolverService: class {},
 }));
-jest.mock('./meri-conversation-evidence.service.js', () => ({ MeriConversationEvidenceService: class {} }));
+jest.mock('./meri-conversation-evidence.service.js', () => ({
+  MeriConversationEvidenceService: class {},
+}));
 jest.mock('../embeddings/client-kb.service.js', () => ({ ClientKbService: class {} }));
 jest.mock('./meri-firm-skills.service.js', () => ({ MeriFirmSkillsService: class {} }));
 jest.mock('./meriv3-chat.client.js', () => ({ MeriV3ChatClient: class {} }));
@@ -68,7 +70,9 @@ function buildHarness() {
   const clientKb = { buildSnapshot: jest.fn(async () => null) };
   const firmSkills = { skillsForTenant: jest.fn(async () => []) };
   const maintenance = { scheduleAfterTurnMaintenance: jest.fn() };
-  const conversationEvidence = { load: jest.fn(async () => ({ citations: [], unavailable: 0, omitted: 0 })) };
+  const conversationEvidence = {
+    load: jest.fn(async () => ({ citations: [], unavailable: 0, omitted: 0 })),
+  };
 
   const service = new MeriV3ProxyService(
     prisma as never,
@@ -96,33 +100,96 @@ const CTX = { tenantId: TENANT, userId: USER } as never;
 describe('MeriV3ProxyService — done frame carries the persisted message id', () => {
   it('persists and streams the same actual turn scope when the selected client differs', async () => {
     const { service, client, sse, tx, frames } = buildHarness();
-    tx.clioConversation.findFirst.mockResolvedValue({ id: CONVERSATION, clientId: 'l3', client: { id: 'l3', name: 'L3 Harris' } } as never);
+    tx.clioConversation.findFirst.mockResolvedValue({
+      id: CONVERSATION,
+      clientId: 'l3',
+      client: { id: 'l3', name: 'L3 Harris' },
+    } as never);
     client.streamChat.mockImplementationOnce(async ({ onEvent }: any) => {
-      onEvent({ type: 'done', reply: 'Anduril evidence.', citations: [], steps: [],
-        retrieval: { plan: { subjectScope: 'external_entity', targetHint: 'Anduril' }, coverage: { complete: true } },
+      onEvent({
+        type: 'done',
+        reply: 'Anduril evidence.',
+        citations: [],
+        steps: [],
+        retrieval: {
+          plan: { subjectScope: 'external_entity', targetHint: 'Anduril' },
+          coverage: { complete: true },
+        },
         contextPacket: { packetId: 'packet-anduril', clientId: null },
-        runtime: 'meriv3', model: 'configured-model', reasoningMode: 'fast', reasoningEffort: 'low' });
+        runtime: 'meriv3',
+        model: 'configured-model',
+        reasoningMode: 'fast',
+        reasoningEffort: 'low',
+      });
     });
-    await service.streamMessage(CTX, CONVERSATION, 'Research Anduril', sse, undefined, 'new', [], 'token');
-    const saved = tx.clioMessage.create.mock.calls.map(([arg]: any) => arg.data).find((data: any) => data.role === 'assistant');
-    const expected = { kind: 'external_entity', targetHint: 'Anduril', clientId: null, clientName: null };
+    await service.streamMessage(
+      CTX,
+      CONVERSATION,
+      'Research Anduril',
+      sse,
+      undefined,
+      'new',
+      [],
+      'token',
+    );
+    const saved = tx.clioMessage.create.mock.calls
+      .map(([arg]: any) => arg.data)
+      .find((data: any) => data.role === 'assistant');
+    const expected = {
+      kind: 'external_entity',
+      targetHint: 'Anduril',
+      clientId: null,
+      clientName: null,
+    };
     expect(saved.metadata.turnScope).toEqual(expected);
     expect(frames().find((frame) => frame.type === 'done')?.turnScope).toEqual(expected);
   });
 
   it('forwards reauthorized [56] and persists it on the new message after completion', async () => {
     const { service, client, conversationEvidence, sse, tx, frames } = buildHarness();
-    const citation = { n: 56, id: 'doc-1:aaaaaaaaaaaaaaaa:22:0-840', title: 'Capiro 2.0.pdf',
-      tool: 'read_client_documents', type: 'source', snippet: 'Exact excerpt', url: null };
-    conversationEvidence.load.mockResolvedValue({ citations: [citation], unavailable: 0, omitted: 0 } as never);
+    const citation = {
+      n: 56,
+      id: 'doc-1:aaaaaaaaaaaaaaaa:22:0-840',
+      title: 'Capiro 2.0.pdf',
+      tool: 'read_client_documents',
+      type: 'source',
+      snippet: 'Exact excerpt',
+      url: null,
+    };
+    conversationEvidence.load.mockResolvedValue({
+      citations: [citation],
+      unavailable: 0,
+      omitted: 0,
+    } as never);
     client.streamChat.mockImplementationOnce(async ({ input, onEvent }: any) => {
       expect(input.inheritedDocumentEvidence).toEqual([citation]);
-      onEvent({ type: 'done', reply: 'Briefing created.', citations: [citation], steps: [],
-        runtime: 'meriv3', model: 'configured-model', reasoningMode: 'fast', reasoningEffort: 'low' });
+      onEvent({
+        type: 'done',
+        reply: 'Briefing created.',
+        citations: [citation],
+        steps: [],
+        runtime: 'meriv3',
+        model: 'configured-model',
+        reasoningMode: 'fast',
+        reasoningEffort: 'low',
+      });
     });
-    await service.streamMessage(CTX, CONVERSATION, 'Create the briefing', sse, undefined, 'new', [], 'token');
-    expect(frames().find((frame) => frame.type === 'citations')).toMatchObject({ citations: [citation] });
-    const saved = tx.clioMessage.create.mock.calls.map(([arg]: any) => arg.data).find((data: any) => data.role === 'assistant');
+    await service.streamMessage(
+      CTX,
+      CONVERSATION,
+      'Create the briefing',
+      sse,
+      undefined,
+      'new',
+      [],
+      'token',
+    );
+    expect(frames().find((frame) => frame.type === 'citations')).toMatchObject({
+      citations: [citation],
+    });
+    const saved = tx.clioMessage.create.mock.calls
+      .map(([arg]: any) => arg.data)
+      .find((data: any) => data.role === 'assistant');
     expect(JSON.parse(JSON.stringify(saved.metadata)).citations).toEqual([citation]);
   });
 
@@ -761,20 +828,44 @@ describe('MeriV3 public work receipt persistence', () => {
 
 describe('MeriV3 attachment source continuity', () => {
   const ref = { id: 'attachment-1', filename: 'TAG-letter.docx', kind: 'docx', status: 'parsed' };
-  const document = { ...ref, textContent: 'FortressHUMS / UH-72 LUT. Requested evaluation in FY2027, not enacted.', reason: null, messageId: 'upload-turn', byteSize: 240 };
+  const document = {
+    ...ref,
+    textContent: 'FortressHUMS / UH-72 LUT. Requested evaluation in FY2027, not enacted.',
+    reason: null,
+    messageId: 'upload-turn',
+    byteSize: 240,
+  };
   const ctx = { tenantId: TENANT, userId: USER } as never;
 
   it('keeps a current image source ID beside its pixels so an explicit save can file the original', async () => {
     const h = buildHarness();
-    const image = { id: 'image-source', filename: 'client-logo.png', kind: 'image', status: 'image', messageId: 'image-turn',
-      reason: null, textContent: null, mediaType: 'image/png', data: Buffer.from('image-bytes') };
-    h.tx.clioMessage.findMany.mockResolvedValue([{ id: 'image-turn', role: 'user', body: 'Save this under the selected client.', metadata: { attachments: [image] } }]);
+    const image = {
+      id: 'image-source',
+      filename: 'client-logo.png',
+      kind: 'image',
+      status: 'image',
+      messageId: 'image-turn',
+      reason: null,
+      textContent: null,
+      mediaType: 'image/png',
+      data: Buffer.from('image-bytes'),
+    };
+    h.tx.clioMessage.findMany.mockResolvedValue([
+      {
+        id: 'image-turn',
+        role: 'user',
+        body: 'Save this under the selected client.',
+        metadata: { attachments: [image] },
+      },
+    ]);
     h.tx.clioAttachment.findMany.mockResolvedValue([image]);
     const replay = await (h.service as any).buildReplay(ctx, CONVERSATION, null);
     expect(replay.history[0].text).toContain('"attachmentId":"image-source"');
     expect(replay.history[0].text).toContain('image is included for this turn');
     expect(replay.history[0].text).not.toContain(image.data.toString('base64'));
-    expect(replay.currentTurnImages).toEqual([{ mediaType: image.mediaType, dataBase64: image.data.toString('base64') }]);
+    expect(replay.currentTurnImages).toEqual([
+      { mediaType: image.mediaType, dataBase64: image.data.toString('base64') },
+    ]);
     for (const [query] of h.tx.clioAttachment.findMany.mock.calls as unknown as Array<[any]>) {
       expect(query.where).toMatchObject({ tenantId: TENANT, userId: USER });
       if (query.select.data) expect(query.where.messageId).toEqual({ in: ['image-turn'] });
@@ -784,10 +875,23 @@ describe('MeriV3 attachment source continuity', () => {
 
   it('preserves an earlier image filing ID on follow-up without loading or claiming to read old pixels', async () => {
     const h = buildHarness();
-    const image = { id: 'image-source', filename: 'client-logo.png', kind: 'image', status: 'image', messageId: 'image-turn', reason: null, textContent: null };
+    const image = {
+      id: 'image-source',
+      filename: 'client-logo.png',
+      kind: 'image',
+      status: 'image',
+      messageId: 'image-turn',
+      reason: null,
+      textContent: null,
+    };
     h.tx.clioMessage.findMany.mockResolvedValue([
       { id: 'followup', role: 'user', body: 'Send the logo to the client profile.', metadata: {} },
-      { id: 'image-turn', role: 'user', body: 'Here is the logo.', metadata: { attachments: [image] } },
+      {
+        id: 'image-turn',
+        role: 'user',
+        body: 'Here is the logo.',
+        metadata: { attachments: [image] },
+      },
     ]);
     h.tx.clioAttachment.findMany.mockResolvedValue([image]);
     const replay = await (h.service as any).buildReplay(ctx, CONVERSATION, null);
@@ -802,28 +906,52 @@ describe('MeriV3 attachment source continuity', () => {
 
   it('reauthorizes image references older than the summary boundary for later filing', async () => {
     const h = buildHarness();
-    const image = { id: 'image-source', filename: 'client-logo.png', kind: 'image', status: 'image', messageId: 'image-turn', reason: null, textContent: null };
-    (h.tx.clioMessage as any).findFirst = jest.fn(async () => ({ createdAt: new Date('2026-09-09') }));
-    h.tx.clioMessage.findMany.mockImplementation(async (query?: any) => query?.where?.metadata
-      ? [{ id: 'image-turn', metadata: { attachments: [image] } }]
-      : [{ id: 'followup', role: 'user', body: 'Save the logo to the client.', metadata: {} }]);
+    const image = {
+      id: 'image-source',
+      filename: 'client-logo.png',
+      kind: 'image',
+      status: 'image',
+      messageId: 'image-turn',
+      reason: null,
+      textContent: null,
+    };
+    (h.tx.clioMessage as any).findFirst = jest.fn(async () => ({
+      createdAt: new Date('2026-09-09'),
+    }));
+    h.tx.clioMessage.findMany.mockImplementation(async (query?: any) =>
+      query?.where?.metadata
+        ? [{ id: 'image-turn', metadata: { attachments: [image] } }]
+        : [{ id: 'followup', role: 'user', body: 'Save the logo to the client.', metadata: {} }],
+    );
     h.tx.clioAttachment.findMany.mockResolvedValue([image]);
     const replay = await (h.service as any).buildReplay(ctx, CONVERSATION, 'summary-end');
     expect(replay.history[0].text).toContain('"attachmentId":"image-source"');
     expect(replay.history[0].text).toContain('retained after chat summary');
     expect(replay.history[0].text).toContain('image pixels are not included');
-    expect(h.tx.clioAttachment.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: { in: ['image-source'] }, tenantId: TENANT, userId: USER },
-    }));
+    expect(h.tx.clioAttachment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: { in: ['image-source'] }, tenantId: TENANT, userId: USER },
+      }),
+    );
     expect(replay.currentTurnImages).toEqual([]);
   });
 
   it('does not authorize a guessed image source or assistant metadata as a filing reference', async () => {
     const h = buildHarness();
-    const image = { id: 'unavailable-image', filename: 'hidden.png', kind: 'image', status: 'image' };
+    const image = {
+      id: 'unavailable-image',
+      filename: 'hidden.png',
+      kind: 'image',
+      status: 'image',
+    };
     h.tx.clioMessage.findMany.mockResolvedValue([
       { id: 'request', role: 'user', body: 'Save it.', metadata: { attachments: [image] } },
-      { id: 'assistant', role: 'assistant', body: 'Previous answer', metadata: { attachments: [{ ...image, id: 'invented-by-assistant' }] } },
+      {
+        id: 'assistant',
+        role: 'assistant',
+        body: 'Previous answer',
+        metadata: { attachments: [{ ...image, id: 'invented-by-assistant' }] },
+      },
     ]);
     const replay = await (h.service as any).buildReplay(ctx, CONVERSATION, null);
     expect(replay.history[1].text).toContain('unavailable for this turn');
@@ -835,58 +963,135 @@ describe('MeriV3 attachment source continuity', () => {
     }
   });
 
-  it.each([true, false])('reauthorizes the original message when an image is reused outside visible history (authorized=%s)', async (authorized) => {
-    const h = buildHarness();
-    const image = { id: 'reused-image', filename: 'logo.png', kind: 'image', status: 'image',
-      reason: null, textContent: null, messageId: 'original-message', mediaType: 'image/png', data: Buffer.from('pixels') };
-    h.tx.clioMessage.findMany.mockImplementation(async (query?: any) => query.where.id?.in
-      ? authorized ? [{ id: 'original-message' }] : []
-      : [{ id: 'current-message', role: 'user', body: 'Save the logo.', metadata: { attachments: [image] } }]);
-    h.tx.clioAttachment.findMany.mockResolvedValue([image]);
-    const replay = await (h.service as any).buildReplay(ctx, CONVERSATION, null);
-    expect(h.tx.clioMessage.findMany).toHaveBeenCalledWith({
-      where: { id: { in: ['original-message'] }, conversationId: CONVERSATION, tenantId: TENANT, userId: USER, role: 'user' },
-      select: { id: true },
-    });
-    if (authorized) {
-      expect(replay.history[0].text).toContain('"attachmentId":"reused-image"');
-      expect(replay.currentTurnImages).toHaveLength(1);
-    } else {
-      expect(replay.history[0].text).toContain('unavailable for this turn');
-      expect(replay.history[0].text).not.toContain('Source:');
-      expect(replay.currentTurnImages).toEqual([]);
-      expect(h.tx.clioAttachment.findMany).toHaveBeenCalledTimes(1);
-    }
-  });
+  it.each([true, false])(
+    'reauthorizes the original message when an image is reused outside visible history (authorized=%s)',
+    async (authorized) => {
+      const h = buildHarness();
+      const image = {
+        id: 'reused-image',
+        filename: 'logo.png',
+        kind: 'image',
+        status: 'image',
+        reason: null,
+        textContent: null,
+        messageId: 'original-message',
+        mediaType: 'image/png',
+        data: Buffer.from('pixels'),
+      };
+      h.tx.clioMessage.findMany.mockImplementation(async (query?: any) =>
+        query.where.id?.in
+          ? authorized
+            ? [{ id: 'original-message' }]
+            : []
+          : [
+              {
+                id: 'current-message',
+                role: 'user',
+                body: 'Save the logo.',
+                metadata: { attachments: [image] },
+              },
+            ],
+      );
+      h.tx.clioAttachment.findMany.mockResolvedValue([image]);
+      const replay = await (h.service as any).buildReplay(ctx, CONVERSATION, null);
+      expect(h.tx.clioMessage.findMany).toHaveBeenCalledWith({
+        where: {
+          id: { in: ['original-message'] },
+          conversationId: CONVERSATION,
+          tenantId: TENANT,
+          userId: USER,
+          role: 'user',
+        },
+        select: { id: true },
+      });
+      if (authorized) {
+        expect(replay.history[0].text).toContain('"attachmentId":"reused-image"');
+        expect(replay.currentTurnImages).toHaveLength(1);
+      } else {
+        expect(replay.history[0].text).toContain('unavailable for this turn');
+        expect(replay.history[0].text).not.toContain('Source:');
+        expect(replay.currentTurnImages).toEqual([]);
+        expect(h.tx.clioAttachment.findMany).toHaveBeenCalledTimes(1);
+      }
+    },
+  );
 
-  it.each([true, false])('reauthorizes a compacted reused image whose original is outside the older-message window (authorized=%s)', async (authorized) => {
-    const h = buildHarness();
-    const image = { id: 'reused-image', filename: 'logo.png', kind: 'image', status: 'image',
-      reason: null, textContent: null, messageId: 'oldest-original' };
-    (h.tx.clioMessage as any).findFirst = jest.fn(async () => ({ createdAt: new Date('2026-09-09') }));
-    h.tx.clioMessage.findMany.mockImplementation(async (query?: any) => query.where.id?.in
-      ? authorized ? [{ id: 'oldest-original' }] : []
-      : query.where.metadata
-        ? [{ id: 'recent-copy', metadata: { attachments: [image] } }]
-        : [{ id: 'current-message', role: 'user', body: 'Save the earlier logo.', metadata: {} }]);
-    h.tx.clioAttachment.findMany.mockResolvedValue([image]);
-    const replay = await (h.service as any).buildReplay(ctx, CONVERSATION, 'summary-end');
-    expect(h.tx.clioMessage.findMany).toHaveBeenCalledWith({
-      where: { id: { in: ['oldest-original'] }, conversationId: CONVERSATION, tenantId: TENANT, userId: USER, role: 'user' },
-      select: { id: true },
-    });
-    if (authorized) expect(replay.history[0].text).toContain('"attachmentId":"reused-image"');
-    else expect(replay.history[0].text).not.toContain('Source:');
-    expect(replay.currentTurnImages).toEqual([]);
-  });
+  it.each([true, false])(
+    'reauthorizes a compacted reused image whose original is outside the older-message window (authorized=%s)',
+    async (authorized) => {
+      const h = buildHarness();
+      const image = {
+        id: 'reused-image',
+        filename: 'logo.png',
+        kind: 'image',
+        status: 'image',
+        reason: null,
+        textContent: null,
+        messageId: 'oldest-original',
+      };
+      (h.tx.clioMessage as any).findFirst = jest.fn(async () => ({
+        createdAt: new Date('2026-09-09'),
+      }));
+      h.tx.clioMessage.findMany.mockImplementation(async (query?: any) =>
+        query.where.id?.in
+          ? authorized
+            ? [{ id: 'oldest-original' }]
+            : []
+          : query.where.metadata
+            ? [{ id: 'recent-copy', metadata: { attachments: [image] } }]
+            : [
+                {
+                  id: 'current-message',
+                  role: 'user',
+                  body: 'Save the earlier logo.',
+                  metadata: {},
+                },
+              ],
+      );
+      h.tx.clioAttachment.findMany.mockResolvedValue([image]);
+      const replay = await (h.service as any).buildReplay(ctx, CONVERSATION, 'summary-end');
+      expect(h.tx.clioMessage.findMany).toHaveBeenCalledWith({
+        where: {
+          id: { in: ['oldest-original'] },
+          conversationId: CONVERSATION,
+          tenantId: TENANT,
+          userId: USER,
+          role: 'user',
+        },
+        select: { id: true },
+      });
+      if (authorized) expect(replay.history[0].text).toContain('"attachmentId":"reused-image"');
+      else expect(replay.history[0].text).not.toContain('Source:');
+      expect(replay.currentTurnImages).toEqual([]);
+    },
+  );
 
   it('does not mark an older in-window message as including a reused image only the current turn actually carries', async () => {
     const h = buildHarness();
-    const image = { id: 'reused-image', filename: 'logo.png', kind: 'image', status: 'image',
-      reason: null, textContent: null, messageId: 'original-message', mediaType: 'image/png', data: Buffer.from('pixels') };
+    const image = {
+      id: 'reused-image',
+      filename: 'logo.png',
+      kind: 'image',
+      status: 'image',
+      reason: null,
+      textContent: null,
+      messageId: 'original-message',
+      mediaType: 'image/png',
+      data: Buffer.from('pixels'),
+    };
     h.tx.clioMessage.findMany.mockResolvedValue([
-      { id: 'current-message', role: 'user', body: 'Save that logo again.', metadata: { attachments: [image] } },
-      { id: 'original-message', role: 'user', body: 'Here is the logo.', metadata: { attachments: [image] } },
+      {
+        id: 'current-message',
+        role: 'user',
+        body: 'Save that logo again.',
+        metadata: { attachments: [image] },
+      },
+      {
+        id: 'original-message',
+        role: 'user',
+        body: 'Here is the logo.',
+        metadata: { attachments: [image] },
+      },
     ]);
     h.tx.clioAttachment.findMany.mockResolvedValue([image]);
     const replay = await (h.service as any).buildReplay(ctx, CONVERSATION, null);
@@ -901,51 +1106,98 @@ describe('MeriV3 attachment source continuity', () => {
     for (let reload = 0; reload < 2; reload += 1) {
       const h = buildHarness();
       h.tx.clioMessage.findMany.mockResolvedValue([
-        { id: 'followup', role: 'user', body: 'Draft the letter from that attachment.', metadata: {} },
-        { id: 'upload-turn', role: 'user', body: 'Read this file.', metadata: { attachments: [ref] } },
+        {
+          id: 'followup',
+          role: 'user',
+          body: 'Draft the letter from that attachment.',
+          metadata: {},
+        },
+        {
+          id: 'upload-turn',
+          role: 'user',
+          body: 'Read this file.',
+          metadata: { attachments: [ref] },
+        },
       ]);
       h.tx.clioAttachment.findMany.mockResolvedValue([document]);
       const replay = await (h.service as any).buildReplay(ctx, CONVERSATION, null);
       expect(replay.history[0].text).toContain(document.textContent);
       expect(replay.history[0].text).toContain('"attachmentId":"attachment-1"');
       expect(replay.history[0].text).toContain('Reading this attachment does not save');
-      expect(h.tx.clioAttachment.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({ tenantId: TENANT, userId: USER }),
-      }));
+      expect(h.tx.clioAttachment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ tenantId: TENANT, userId: USER }),
+        }),
+      );
     }
   });
 
   it('retains original attachment metadata during regeneration and passes the source text to the provider', async () => {
     const h = buildHarness();
-    const user = { id: 'upload-turn', role: 'user', body: 'Draft from the attachment.', metadata: { attachments: [ref] } };
+    const user = {
+      id: 'upload-turn',
+      role: 'user',
+      body: 'Draft from the attachment.',
+      metadata: { attachments: [ref] },
+    };
     h.tx.clioMessage.findMany.mockResolvedValue([user]);
     h.tx.clioAttachment.findMany.mockResolvedValue([document]);
-    await h.service.streamMessage(ctx, CONVERSATION, '', h.sse, undefined, 'regenerate', [], 'token');
+    await h.service.streamMessage(
+      ctx,
+      CONVERSATION,
+      '',
+      h.sse,
+      undefined,
+      'regenerate',
+      [],
+      'token',
+    );
     expect(h.tx.clioMessage.update).not.toHaveBeenCalled();
     expect(h.tx.clioAttachment.updateMany).not.toHaveBeenCalled();
-    expect(h.client.streamChat).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining({
-      messages: [expect.objectContaining({ text: expect.stringContaining(document.textContent) })],
-    }) }));
+    expect(h.client.streamChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          messages: [
+            expect.objectContaining({ text: expect.stringContaining(document.textContent) }),
+          ],
+        }),
+      }),
+    );
   });
 
   it('rehydrates an attachment older than the summary boundary without treating the summary as the original', async () => {
     const h = buildHarness();
-    (h.tx.clioMessage as any).findFirst = jest.fn(async () => ({ createdAt: new Date('2026-09-09') }));
-    h.tx.clioMessage.findMany.mockImplementation(async (query?: any) => query?.where?.metadata
-      ? [{ id: 'upload-turn', metadata: { attachments: [ref] } }]
-      : [{ id: 'followup', role: 'user', body: 'What exact program was in the letter?', metadata: {} }]);
+    (h.tx.clioMessage as any).findFirst = jest.fn(async () => ({
+      createdAt: new Date('2026-09-09'),
+    }));
+    h.tx.clioMessage.findMany.mockImplementation(async (query?: any) =>
+      query?.where?.metadata
+        ? [{ id: 'upload-turn', metadata: { attachments: [ref] } }]
+        : [
+            {
+              id: 'followup',
+              role: 'user',
+              body: 'What exact program was in the letter?',
+              metadata: {},
+            },
+          ],
+    );
     h.tx.clioAttachment.findMany.mockResolvedValue([document]);
     const replay = await (h.service as any).buildReplay(ctx, CONVERSATION, 'summary-end');
     expect(replay.history[0].text).toContain(document.textContent);
     expect(replay.history[0].text).toContain('retained after chat summary');
-    expect(h.tx.clioAttachment.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ tenantId: TENANT, userId: USER, id: { in: [ref.id] } }),
-    }));
+    expect(h.tx.clioAttachment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ tenantId: TENANT, userId: USER, id: { in: [ref.id] } }),
+      }),
+    );
   });
 
   it('discloses a missing attachment instead of silently omitting it from the provider input', async () => {
     const h = buildHarness();
-    h.tx.clioMessage.findMany.mockResolvedValue([{ id: 'upload-turn', role: 'user', body: 'Read the file.', metadata: { attachments: [ref] } }]);
+    h.tx.clioMessage.findMany.mockResolvedValue([
+      { id: 'upload-turn', role: 'user', body: 'Read the file.', metadata: { attachments: [ref] } },
+    ]);
     const replay = await (h.service as any).buildReplay(ctx, CONVERSATION, null);
     expect(replay.history[0].text).toContain('TAG-letter.docx');
     expect(replay.history[0].text).toContain('unavailable for this turn');
@@ -953,8 +1205,14 @@ describe('MeriV3 attachment source continuity', () => {
 
   it('rejects a foreign-chat source before persisting a user turn and never moves the attachment', async () => {
     const h = buildHarness();
-    h.tx.clioAttachment.findMany.mockResolvedValue([{ ...document, messageId: 'other-chat-message' }]);
-    await expect((h.service as any).persistUserMessage(ctx, { id: CONVERSATION, clientId: null }, 'Read it', [ref.id])).rejects.toThrow('another chat');
+    h.tx.clioAttachment.findMany.mockResolvedValue([
+      { ...document, messageId: 'other-chat-message' },
+    ]);
+    await expect(
+      (h.service as any).persistUserMessage(ctx, { id: CONVERSATION, clientId: null }, 'Read it', [
+        ref.id,
+      ]),
+    ).rejects.toThrow('another chat');
     expect(h.tx.clioMessage.create).not.toHaveBeenCalled();
     expect(h.tx.clioAttachment.updateMany).not.toHaveBeenCalled();
   });
@@ -964,12 +1222,19 @@ describe('MeriV3 attachment source continuity', () => {
       const h = buildHarness();
       h.tx.clioAttachment.findMany.mockResolvedValue([{ ...document, messageId: null }]);
       h.tx.clioAttachment.updateMany.mockResolvedValue({ count });
-      const persisted = (h.service as any).persistUserMessage(ctx, { id: CONVERSATION, clientId: null }, 'Read it', [ref.id]);
+      const persisted = (h.service as any).persistUserMessage(
+        ctx,
+        { id: CONVERSATION, clientId: null },
+        'Read it',
+        [ref.id],
+      );
       if (count === 1) await expect(persisted).resolves.toEqual(expect.any(String));
       else await expect(persisted).rejects.toThrow('used in another chat');
-      expect(h.tx.clioAttachment.updateMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({ messageId: null, tenantId: TENANT, userId: USER }),
-      }));
+      expect(h.tx.clioAttachment.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ messageId: null, tenantId: TENANT, userId: USER }),
+        }),
+      );
     }
   });
 });

@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('./managed-mcp-apps.js', async (importOriginal) => ({
-  ...await importOriginal<typeof import('./managed-mcp-apps.js')>(),
+  ...(await importOriginal<typeof import('./managed-mcp-apps.js')>()),
   useManagedMcpApps: () =>
     mocks.managed
       ? {
@@ -24,9 +24,14 @@ vi.mock('./managed-mcp-apps.js', async (importOriginal) => ({
               lastError: null,
             },
             ...(['monday', 'google-drive'] as const).map((id) => ({
-              id, name: id === 'monday' ? 'monday.com' : 'Google Drive',
-              description: 'Read your information', status: 'disconnected', connected: false,
-              available: true, needsReauth: false, lastError: null,
+              id,
+              name: id === 'monday' ? 'monday.com' : 'Google Drive',
+              description: 'Read your information',
+              status: 'disconnected',
+              connected: false,
+              available: true,
+              needsReauth: false,
+              lastError: null,
             })),
             {
               id: 'airtable',
