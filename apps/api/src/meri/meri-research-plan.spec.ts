@@ -51,7 +51,7 @@ function validPlan() {
         budget: { toolCalls: 2, tokens: 5_000 },
       },
     ],
-    clarifyingQuestions: [],
+    clarifyingQuestions: [] as string[],
   };
 }
 
@@ -80,6 +80,43 @@ describe('typed research plan admission', () => {
       'plan_must_be_strict_json',
     );
     expect(issuesFor('not json')).toContain('plan_must_be_strict_json');
+  });
+
+  it('rejects duplicate object members at the root and in nested objects and arrays', () => {
+    const serialized = JSON.stringify(validPlan());
+    expect(
+      issuesFor(serialized.replace('"version":1', '"version":99,"version":1')),
+    ).toContain('duplicate_object_key:"version"');
+    expect(
+      issuesFor(
+        serialized.replace(
+          '"budget":{"toolCalls":3',
+          '"budget":{"toolCalls":99,"toolC\\u0061lls":3',
+        ),
+      ),
+    ).toContain('duplicate_object_key:"toolCalls"');
+    expect(
+      issuesFor(
+        serialized.replace(
+          '"id":"verify-client-record"',
+          '"id":"shadowed","\\u0069d":"verify-client-record"',
+        ),
+      ),
+    ).toContain('duplicate_object_key:"id"');
+  });
+
+  it('preserves valid strings, escapes, Unicode, arrays, and JSON number spellings', () => {
+    const plan = validPlan();
+    plan.title = 'Literal {"version":99,"version":1}, quote: " and Unicode: café 東京';
+    plan.clarifyingQuestions = ['Does text like ] }, { "id":"id" stay text?'];
+    const raw = JSON.stringify(plan)
+      .replace('café 東京', 'caf\\u00e9 \\u6771\\u4eac')
+      .replace('"tokens":7000', '"tokens":7e3');
+    expect(validateResearchPlan(raw, context)).toMatchObject({
+      title: plan.title,
+      budget: { tokens: 7_000 },
+      clarifyingQuestions: plan.clarifyingQuestions,
+    });
   });
 
   it('rejects duplicate IDs, dependencies that do not resolve, and cycles', () => {

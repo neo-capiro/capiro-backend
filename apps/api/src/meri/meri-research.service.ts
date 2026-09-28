@@ -1578,22 +1578,42 @@ export class MeriResearchService {
 
     sse.write(sseEvent({ type: 'phase', phase: 'gather' }));
     if (this.v3Research && (await this.v3Research.enabled(ctx))) {
+      // enabled() and the preparation above are asynchronous. Bind dispatch to
+      // one fresh authorized row and the catalog observed after those awaits,
+      // then carry only that accepted snapshot into the runner.
+      const accepted = await this.admitFreshResearchPlanForDispatch(ctx, id, auth);
+      const acceptedSession = accepted.session;
+      const acceptedPlan = accepted.plan;
+      const acceptedHandoff = readResearchHandoff(acceptedSession.metadata);
+      const acceptedUser = [
+        buildResearchUserPrompt({
+          topic: acceptedSession.topic,
+          plan: researchPlanStringProjection(acceptedPlan),
+          clarifyingQuestions: asStringArray(acceptedSession.clarifyingQuestions),
+          clarifyingAnswers: asStringRecord(acceptedSession.clarifyingAnswers),
+          clientContext,
+        }),
+        `ADMITTED RESEARCH PLAN CONTRACT v${acceptedPlan.version}:\n${JSON.stringify(acceptedPlan)}`,
+        researchHandoffPrompt(acceptedHandoff, acceptedSession.id),
+      ]
+        .filter(Boolean)
+        .join('\n\n');
       progress.set('Researching with the conversation’s selected reasoning mode…');
       const result = await this.v3Research.run(
         ctx,
         {
-          sessionId: session.id,
-          conversationId: handoff?.conversationId ?? null,
-          clientId: session.clientId,
+          sessionId: acceptedSession.id,
+          conversationId: acceptedHandoff?.conversationId ?? null,
+          clientId: acceptedSession.clientId,
           system: buildResearchSystemPrompt(PRODUCT_NAME, { inheritChatOutputContract: true }),
-          user,
-          handoff,
+          user: acceptedUser,
+          handoff: acceptedHandoff,
           clientContext,
           admittedPlanExecution: {
-            plan: admittedPlan,
+            plan: acceptedPlan,
             allowedReadCapabilities: [
               ...new Set(
-                admittedPlan.steps
+                acceptedPlan.steps
                   .flatMap((step) => step.allowedCapabilities)
                   .filter((name) => this.tools.isConcurrencySafe(name)),
               ),
@@ -1611,7 +1631,7 @@ export class MeriResearchService {
           if (event.type !== 'text' && event.type !== 'done') sse.write(sseEvent(event));
         },
       );
-      await this.finishResearch(ctx, session, sse, progress, {
+      await this.finishResearch(ctx, acceptedSession, sse, progress, {
         ...result,
         runAuth: auth,
         auditorMode: await resolveTenantAuditorMode(this.prisma, ctx.tenantId),
@@ -2698,6 +2718,45 @@ export class MeriResearchService {
           sideEffecting: this.tools.isSideEffecting(schema.name),
         })),
     };
+  }
+
+  /** Final V3 gate: no asynchronous preparation may follow this accepted observation. */
+  private async admitFreshResearchPlanForDispatch(
+    ctx: TenantContext,
+    id: string,
+    auth: ResearchRuntimeAuth,
+  ): Promise<{
+    session: Awaited<ReturnType<MeriResearchService['ensureSession']>>;
+    plan: ResearchPlanV1;
+  }> {
+    if (!auth.run) throw new ConflictException('Research dispatch requires an active run lease.');
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const current = await tx.clioResearchSession.findFirst({
+        where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
+      });
+      const currentRun = readResearchRun(current?.metadata);
+      if (
+        !current ||
+        current.status !== 'researching' ||
+        currentRun?.id !== auth.run!.id ||
+        currentRun.leaseEpoch !== auth.run!.leaseEpoch ||
+        currentRun.phase !== auth.run!.phase ||
+        currentRun.status !== 'running'
+      )
+        throw new ConflictException('Research is no longer running.');
+
+      await this.assertResearchPublicationAuthorized(tx, ctx, current);
+      const stored = researchMetadata(current.metadata).researchPlan;
+      try {
+        const plan = validateResearchPlan(stored, this.researchPlanAdmissionContext(ctx, current));
+        return { session: current, plan };
+      } catch (error) {
+        if (!(error instanceof ResearchPlanValidationError)) throw error;
+        throw new BadRequestException(
+          `Saved research plan is not admitted for the current scope and capabilities: ${error.issues.join('; ')}`,
+        );
+      }
+    });
   }
 
   /** Strict provider boundary with one validation-triggered repair and no fallback plan. */

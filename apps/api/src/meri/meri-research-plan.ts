@@ -292,11 +292,128 @@ function parseStrictJson(raw: unknown, issues: string[]): unknown {
     return null;
   }
   try {
-    return JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
+    for (const key of duplicateJsonObjectKeys(raw))
+      issues.push(`duplicate_object_key:${JSON.stringify(key)}`);
+    return parsed;
   } catch {
     issues.push('plan_must_be_strict_json');
     return null;
   }
+}
+
+type JsonScanFrame =
+  | {
+      kind: 'object';
+      keys: Set<string>;
+      state: 'keyOrEnd' | 'colon' | 'value' | 'commaOrEnd';
+    }
+  | { kind: 'array'; state: 'valueOrEnd' | 'commaOrEnd' };
+
+/**
+ * JSON.parse intentionally applies last-member-wins semantics. Walk the already
+ * syntax-checked source so escaped-equivalent names are compared within each
+ * object without mistaking object-like text inside strings for members.
+ */
+function duplicateJsonObjectKeys(raw: string): string[] {
+  const duplicates: string[] = [];
+  const frames: JsonScanFrame[] = [];
+  let index = 0;
+  let rootComplete = false;
+
+  const skipWhitespace = () => {
+    while (/\s/.test(raw[index] ?? '')) index += 1;
+  };
+  const readString = (): string => {
+    const start = index;
+    index += 1;
+    while (index < raw.length) {
+      if (raw[index] === '\\') {
+        index += 2;
+      } else if (raw[index] === '"') {
+        index += 1;
+        return JSON.parse(raw.slice(start, index)) as string;
+      } else {
+        index += 1;
+      }
+    }
+    return '';
+  };
+  const completeValue = () => {
+    const parent = frames.at(-1);
+    if (!parent) {
+      rootComplete = true;
+    } else {
+      parent.state = 'commaOrEnd';
+    }
+  };
+  const readValue = () => {
+    const token = raw[index];
+    if (token === '{') {
+      index += 1;
+      frames.push({ kind: 'object', keys: new Set<string>(), state: 'keyOrEnd' });
+    } else if (token === '[') {
+      index += 1;
+      frames.push({ kind: 'array', state: 'valueOrEnd' });
+    } else if (token === '"') {
+      readString();
+      completeValue();
+    } else {
+      while (index < raw.length && !/[\s,\]}]/.test(raw[index] ?? '')) index += 1;
+      completeValue();
+    }
+  };
+
+  while (!rootComplete) {
+    skipWhitespace();
+    const frame = frames.at(-1);
+    if (!frame) {
+      readValue();
+      continue;
+    }
+    if (frame.kind === 'object') {
+      if (frame.state === 'keyOrEnd') {
+        if (raw[index] === '}') {
+          index += 1;
+          frames.pop();
+          completeValue();
+        } else {
+          const key = readString();
+          if (frame.keys.has(key)) duplicates.push(key);
+          frame.keys.add(key);
+          frame.state = 'colon';
+        }
+      } else if (frame.state === 'colon') {
+        index += 1;
+        frame.state = 'value';
+      } else if (frame.state === 'value') {
+        readValue();
+      } else if (raw[index] === ',') {
+        index += 1;
+        frame.state = 'keyOrEnd';
+      } else {
+        index += 1;
+        frames.pop();
+        completeValue();
+      }
+    } else if (frame.state === 'valueOrEnd') {
+      if (raw[index] === ']') {
+        index += 1;
+        frames.pop();
+        completeValue();
+      } else {
+        readValue();
+      }
+    } else if (raw[index] === ',') {
+      index += 1;
+      frame.state = 'valueOrEnd';
+    } else {
+      index += 1;
+      frames.pop();
+      completeValue();
+    }
+  }
+  return duplicates;
 }
 
 function parseScope(raw: unknown, expected: ResearchPlanScopeV1, issues: string[]): ResearchPlanScopeV1 {

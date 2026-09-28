@@ -9,10 +9,13 @@ jest.mock('../engagement/ai-credential-resolver.service.js', () => ({
   AiCredentialResolverService: class {},
 }));
 jest.mock('./meri-v3-research-runner.js', () => ({ MeriV3ResearchRunner: class {} }));
+jest.mock('../memory/memory-wall.helpers.js', () => ({
+  clientMemoryAllowed: jest.fn(async () => true),
+}));
 
 const ctx = { tenantId: 'tenant-plan', userId: 'user-plan' } as TenantContext;
 
-function validPlan() {
+function validPlan(clientId: string | null = null) {
   return {
     version: 1,
     title: 'Validated research plan',
@@ -20,7 +23,7 @@ function validPlan() {
       sessionId: 'session-plan',
       tenantId: ctx.tenantId,
       actorId: ctx.userId,
-      clientId: null,
+      clientId,
       conversationId: null,
     },
     budget: { toolCalls: 2, tokens: 4_000 },
@@ -44,12 +47,15 @@ function fixture(options: {
   storedPlan?: unknown;
   providerOutputs?: string[];
   staleBeforeDispatch?: boolean;
+  clientId?: string | null;
+  switchClientOnRead?: number;
+  removeCapabilityDuringEnabled?: boolean;
 } = {}) {
   let session: any = {
     id: 'session-plan',
     tenantId: ctx.tenantId,
     userId: ctx.userId,
-    clientId: null,
+    clientId: options.clientId ?? null,
     title: 'Legacy research',
     topic: 'Assess the current authorization outlook',
     status: 'researching',
@@ -106,6 +112,9 @@ function fixture(options: {
     clioResearchSession: {
       findFirst: jest.fn(async ({ where }: any) => {
         findCount += 1;
+        if (options.switchClientOnRead === findCount) {
+          session = { ...session, clientId: 'different-client' };
+        }
         if (
           !session ||
           where.id !== session.id ||
@@ -151,19 +160,25 @@ function fixture(options: {
         callback(tx),
     ),
   };
+  let capabilityNames = ['search_memory', 'send_email'];
   const tools = {
-    anthropicToolSchemas: jest.fn(() => [
-      { name: 'search_memory', description: 'Search memory', input_schema: { type: 'object' } },
-      { name: 'send_email', description: 'Send email', input_schema: { type: 'object' } },
-    ]),
+    anthropicToolSchemas: jest.fn(() =>
+      capabilityNames.map((name) => ({
+        name,
+        description: name,
+        input_schema: { type: 'object' },
+      }))),
     isConcurrencySafe: jest.fn((name: string) => name !== 'send_email'),
     isSideEffecting: jest.fn((name: string) => name === 'send_email'),
     execute: jest.fn(),
   };
   const outputs = [...(options.providerOutputs ?? [])];
   const runner = {
-    enabled: jest.fn(async () => true),
-    plan: jest.fn(async () => outputs.shift() ?? JSON.stringify(validPlan())),
+    enabled: jest.fn(async () => {
+      if (options.removeCapabilityDuringEnabled) capabilityNames = ['send_email'];
+      return true;
+    }),
+    plan: jest.fn(async () => outputs.shift() ?? JSON.stringify(validPlan(session.clientId))),
     run: jest.fn(async (..._args: unknown[]) => {
       expect(session.metadata.researchPlan).toMatchObject({ version: 1 });
       expect(session.plan).toEqual(['Verify the current status from authorized evidence.']);
@@ -193,7 +208,19 @@ function fixture(options: {
   const sse = {
     write: (data: string) => events.push(JSON.parse(data.replace(/^data: /, '').trim())),
   };
-  return { service, runner, tools, tx, events, sse, getSession: () => session };
+  return {
+    service,
+    runner,
+    tools,
+    tx,
+    events,
+    sse,
+    getSession: () => session,
+  };
+}
+
+function duplicateVersionJson(plan: ReturnType<typeof validPlan>): string {
+  return JSON.stringify(plan).replace('"version":1', '"version":99,"version":1');
 }
 
 function invalidCases(): Array<[string, () => unknown, string]> {
@@ -269,6 +296,33 @@ describe('MeriResearchService typed-plan admission', () => {
     );
   });
 
+  it('spends the one repair on duplicate-key provider JSON before dispatching the valid repair', async () => {
+    const f = fixture({
+      providerOutputs: [duplicateVersionJson(validPlan()), JSON.stringify(validPlan())],
+    });
+    await f.service.streamResearch(ctx, 'session-plan', f.sse);
+    expect(f.runner.plan).toHaveBeenCalledTimes(2);
+    expect(f.runner.run).toHaveBeenCalledTimes(1);
+    expect(f.tools.execute).not.toHaveBeenCalled();
+  });
+
+  it('rejects a duplicate-key repair with no dispatch or tool effects', async () => {
+    const nestedDuplicate = JSON.stringify(validPlan()).replace(
+      '"budget":{"toolCalls":2',
+      '"budget":{"toolCalls":99,"toolCalls":2',
+    );
+    const f = fixture({
+      providerOutputs: [duplicateVersionJson(validPlan()), nestedDuplicate],
+    });
+    await f.service.streamResearch(ctx, 'session-plan', f.sse);
+    expect(f.runner.plan).toHaveBeenCalledTimes(2);
+    expect(f.runner.run).not.toHaveBeenCalled();
+    expect(f.tools.execute).not.toHaveBeenCalled();
+    expect(f.events.find((event) => event.type === 'error')?.message).toContain(
+      'duplicate_object_key',
+    );
+  });
+
   it('migrates a legacy string plan through planning, persists v1 and its UI projection, then dispatches', async () => {
     const f = fixture({ providerOutputs: [JSON.stringify(validPlan())] });
     await f.service.streamResearch(ctx, 'session-plan', f.sse);
@@ -292,6 +346,37 @@ describe('MeriResearchService typed-plan admission', () => {
     expect(f.tools.execute).not.toHaveBeenCalled();
     expect(f.events.find((event) => event.type === 'error')?.message).toContain(
       'no longer running',
+    );
+  });
+
+  it('uses the unchanged current client row and admitted scope at V3 dispatch', async () => {
+    const clientId = 'client-current';
+    const f = fixture({ storedPlan: validPlan(clientId), clientId });
+    await f.service.streamResearch(ctx, 'session-plan', f.sse);
+    expect(f.runner.run).toHaveBeenCalledTimes(1);
+    expect(f.runner.run.mock.calls[0]?.[1]).toMatchObject({ clientId });
+    expect(f.getSession().metadata.researchPlan.scope.clientId).toBe(clientId);
+    expect(f.tools.execute).not.toHaveBeenCalled();
+  });
+
+  it('rejects the original third-read client mutation with zero V3 or tool calls', async () => {
+    const f = fixture({ storedPlan: validPlan(), switchClientOnRead: 3 });
+    await f.service.streamResearch(ctx, 'session-plan', f.sse);
+    expect(f.getSession().clientId).toBe('different-client');
+    expect(f.runner.run).not.toHaveBeenCalled();
+    expect(f.tools.execute).not.toHaveBeenCalled();
+    expect(f.events.find((event) => event.type === 'error')?.message).toContain(
+      'scope_mismatch:clientId',
+    );
+  });
+
+  it('rejects current-catalog removal during asynchronous dispatch preparation', async () => {
+    const f = fixture({ storedPlan: validPlan(), removeCapabilityDuringEnabled: true });
+    await f.service.streamResearch(ctx, 'session-plan', f.sse);
+    expect(f.runner.run).not.toHaveBeenCalled();
+    expect(f.tools.execute).not.toHaveBeenCalled();
+    expect(f.events.find((event) => event.type === 'error')?.message).toContain(
+      'capability_unavailable:search_memory',
     );
   });
 });
