@@ -806,6 +806,42 @@ export class MeriV3AssistantService {
     }
   }
 
+  private async assertCurrentAlternateReadAuthority(
+    dto: MeriV3ChatInput,
+    selectedSchemas: readonly ToolSchema[],
+    toolName: string,
+    control?: ToolExecutionControl,
+  ): Promise<void> {
+    assertToolExecutionActive(control);
+    if (!selectedSchemas.some((schema) => schema.name === toolName)) {
+      throw new Error(`Tool is not authorized for this turn: ${toolName}`);
+    }
+    const currentSchemas = await this.fetchToolSchemas(control);
+    assertToolExecutionActive(control);
+    const definition = this.registry.get(toolName);
+    const metadata = this.registry.executionMetadata?.(toolName);
+    if (
+      !currentSchemas.some((schema) => schema.name === toolName) ||
+      definition?.readOnly !== true ||
+      metadata?.readOnly !== true ||
+      metadata.executionMode !== 'read'
+    ) {
+      throw new Error(`Tool is not currently authorized as a read: ${toolName}`);
+    }
+    await this.assertCurrentProcedureAuthority(dto.conversationId, toolName, control);
+    await this.assertResearchRunActive(dto, control);
+    assertToolExecutionActive(control);
+    const currentDefinition = this.registry.get(toolName);
+    const currentMetadata = this.registry.executionMetadata?.(toolName);
+    if (
+      currentDefinition?.readOnly !== true ||
+      currentMetadata?.readOnly !== true ||
+      currentMetadata.executionMode !== 'read'
+    ) {
+      throw new Error(`Tool is not currently authorized as a read: ${toolName}`);
+    }
+  }
+
   async run(
     ctx: MeriContext,
     dto: MeriV3ChatInput,
@@ -2077,7 +2113,7 @@ export class MeriV3AssistantService {
               runtimeBudget,
               budgetScope,
               (name, control) =>
-                this.assertCurrentProcedureAuthority(dto.conversationId, name, control),
+                this.assertCurrentAlternateReadAuthority(dto, availableSchemas, name, control),
               admittedReadCapabilities,
             ),
             ctx,
@@ -2237,7 +2273,7 @@ export class MeriV3AssistantService {
           runtimeBudget,
           budgetScope,
           (name, control) =>
-            this.assertCurrentProcedureAuthority(dto.conversationId, name, control),
+            this.assertCurrentAlternateReadAuthority(dto, availableSchemas, name, control),
           admittedReadCapabilities,
         ),
         ctx,

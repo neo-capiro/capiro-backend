@@ -15,7 +15,7 @@ jest.mock('../memory/memory-wall.helpers.js', () => ({
 
 const ctx = { tenantId: 'tenant-plan', userId: 'user-plan' } as TenantContext;
 
-function validPlan(clientId: string | null = null) {
+function validPlan(clientId: string | null = null, capability = 'search_memory') {
   return {
     version: 1,
     title: 'Validated research plan',
@@ -33,7 +33,7 @@ function validPlan(clientId: string | null = null) {
         objective: 'Verify the current status from authorized evidence.',
         dependsOn: [] as string[],
         requiredEvidenceDomains: ['institutional_memory'],
-        allowedCapabilities: ['search_memory'],
+        allowedCapabilities: [capability],
         effect: 'read',
         completionCondition: 'Current status is supported or the source gap is explicit.',
         budget: { toolCalls: 2, tokens: 4_000 },
@@ -49,6 +49,8 @@ function fixture(options: {
   staleBeforeDispatch?: boolean;
   clientId?: string | null;
   switchClientOnRead?: number;
+  replaceClientAndPlanOnRead?: number;
+  replacePlanDuringEnabled?: unknown;
   removeCapabilityDuringEnabled?: boolean;
 } = {}) {
   let session: any = {
@@ -122,6 +124,14 @@ function fixture(options: {
         if (options.switchClientOnRead === findCount) {
           session = { ...session, clientId: 'different-client' };
         }
+        if (options.replaceClientAndPlanOnRead === findCount) {
+          const clientId = 'replacement-client';
+          session = {
+            ...session,
+            clientId,
+            metadata: { ...session.metadata, researchPlan: validPlan(clientId) },
+          };
+        }
         if (
           !session ||
           where.id !== session.id ||
@@ -155,7 +165,13 @@ function fixture(options: {
         return structuredClone(session);
       }),
     },
-    client: { findFirst: jest.fn(async () => null) },
+    client: {
+      findFirst: jest.fn(async ({ where }: any) => ({
+        name: where.id,
+        description: `Private context for ${where.id}`,
+        productDescription: null,
+      })),
+    },
     clioConversation: { findFirst: jest.fn(async () => null) },
   };
   const prisma = {
@@ -167,7 +183,7 @@ function fixture(options: {
         callback(tx),
     ),
   };
-  let capabilityNames = ['search_memory', 'send_email'];
+  let capabilityNames = ['search_memory', 'get_client_context', 'send_email'];
   const tools = {
     anthropicToolSchemas: jest.fn(() =>
       capabilityNames.map((name) => ({
@@ -183,6 +199,12 @@ function fixture(options: {
   const runner = {
     enabled: jest.fn(async () => {
       if (options.removeCapabilityDuringEnabled) capabilityNames = ['send_email'];
+      if (options.replacePlanDuringEnabled) {
+        session = {
+          ...session,
+          metadata: { ...session.metadata, researchPlan: options.replacePlanDuringEnabled },
+        };
+      }
       return true;
     }),
     plan: jest.fn(async () => outputs.shift() ?? JSON.stringify(validPlan(session.clientId))),
@@ -386,6 +408,27 @@ describe('MeriResearchService typed-plan admission', () => {
     expect(f.tools.execute).not.toHaveBeenCalled();
   });
 
+  it('carries a valid same-scope plan revision and current read union into V3 dispatch', async () => {
+    const replacement = validPlan(null, 'get_client_context');
+    const f = fixture({
+      storedPlan: validPlan(),
+      replacePlanDuringEnabled: replacement,
+    });
+    await f.service.streamResearch(ctx, 'session-plan', f.sse);
+    expect(f.runner.run).toHaveBeenCalledTimes(1);
+    expect(f.runner.run.mock.calls[0]?.[1]).toMatchObject({
+      admittedPlanExecution: {
+        plan: replacement,
+        allowedReadCapabilities: ['get_client_context'],
+      },
+    });
+    expect(f.runner.run.mock.calls[0]?.[1].user).toContain('get_client_context');
+    expect(f.runner.run.mock.calls[0]?.[1].user).not.toContain(
+      '\"allowedCapabilities\":[\"search_memory\"]',
+    );
+    expect(f.tools.execute).not.toHaveBeenCalled();
+  });
+
   it('rejects the original third-read client mutation with zero V3 or tool calls', async () => {
     const f = fixture({ storedPlan: validPlan(), switchClientOnRead: 3 });
     await f.service.streamResearch(ctx, 'session-plan', f.sse);
@@ -397,6 +440,24 @@ describe('MeriResearchService typed-plan admission', () => {
     );
     expect(f.logger.warn).toHaveBeenCalledWith(
       'Research run failed: Saved research plan is not admitted for the current scope and capabilities: scope_mismatch:clientId',
+    );
+  });
+
+  it('rejects a matching third-read client and plan rebind before private input dispatch', async () => {
+    const f = fixture({
+      storedPlan: validPlan('original-client'),
+      clientId: 'original-client',
+      replaceClientAndPlanOnRead: 3,
+    });
+    await f.service.streamResearch(ctx, 'session-plan', f.sse);
+    expect(f.getSession().clientId).toBe('replacement-client');
+    expect(f.getSession().metadata.researchPlan.scope.clientId).toBe('replacement-client');
+    expect(f.runner.plan).not.toHaveBeenCalled();
+    expect(f.runner.run).not.toHaveBeenCalled();
+    expect(f.tools.execute).not.toHaveBeenCalled();
+    expect(JSON.stringify(f.events)).not.toContain('Private context for original-client');
+    expect(f.events.find((event) => event.type === 'error')?.message).toContain(
+      'scope changed during dispatch preparation',
     );
   });
 

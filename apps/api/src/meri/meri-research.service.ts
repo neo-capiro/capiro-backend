@@ -1647,6 +1647,12 @@ export class MeriResearchService {
       const acceptedSession = accepted.session;
       const acceptedPlan = accepted.plan;
       const acceptedHandoff = readResearchHandoff(acceptedSession.metadata);
+      if (
+        acceptedSession.clientId !== session.clientId ||
+        (acceptedHandoff?.conversationId ?? null) !== (handoff?.conversationId ?? null)
+      ) {
+        throw new ConflictException('Research scope changed during dispatch preparation.');
+      }
       const acceptedUser = [
         buildResearchUserPrompt({
           topic: acceptedSession.topic,
