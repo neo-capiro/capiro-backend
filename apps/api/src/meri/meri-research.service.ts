@@ -101,6 +101,7 @@ import {
 } from './meri-research-durable-result.js';
 import {
   assertCurrentResearchReportSourcesAuthorized,
+  currentOwnerReauthorizationInput,
   currentOwnerResultAuthorizesReplay,
   RESEARCH_REPORT_BODY_WITHHELD,
   supportsDurableOwnerReauthorization,
@@ -747,13 +748,34 @@ export class MeriResearchService {
       )
         return { replayed: false as const };
       const classified = classifyApiToolReadOutcome(envelope.tool, envelope.result);
+<<<<<<< HEAD
       if (classified?.kind !== envelope.classifier) return { replayed: false as const };
       if (!supportsDurableOwnerReauthorization(envelope.tool)) return { replayed: false as const };
+=======
+      if (classified?.kind !== envelope.classifier)
+        return { replayed: false as const };
+      if (!supportsDurableOwnerReauthorization(envelope.tool))
+        return { replayed: false as const };
+      const reauthorizationInput = currentOwnerReauthorizationInput(
+        envelope.tool,
+        envelope.input,
+        envelope.result,
+      );
+      if (!reauthorizationInput) return { replayed: false as const };
+>>>>>>> d2e54cafd (fix(meri): bind mail evidence to current scope)
       let currentOwnerResult: unknown;
       try {
         // The canonical owner path re-evaluates RLS/ACL, lifecycle and source
         // version now. This is an authorization proof read, not old coverage.
+<<<<<<< HEAD
         currentOwnerResult = await this.tools.execute(ctx, envelope.tool as never, envelope.input);
+=======
+        currentOwnerResult = await this.tools.execute(
+          ctx,
+          envelope.tool as never,
+          reauthorizationInput,
+        );
+>>>>>>> d2e54cafd (fix(meri): bind mail evidence to current scope)
       } catch {
         return { replayed: false as const };
       }

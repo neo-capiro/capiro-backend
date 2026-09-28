@@ -234,6 +234,8 @@ describe('canonical mailbox query', () => {
     expect(msg.to).toEqual([{ email: 'jeff.j.burton@mavenadvocacy.com', name: 'Jeff Burton' }]);
     expect(msg.preview).toMatch(/John Howell/);
     expect(msg.mailbox).toBe('jeff.j.burton@mavenadvocacy.com');
+    expect(msg.sentAt).toBe('2026-07-08T17:41:06.000Z');
+    expect(msg.receivedAt).toBe('2026-07-08T17:41:32.000Z');
   });
 
   it('calls out a connected-but-never-synced mailbox instead of silently "searching" it', async () => {

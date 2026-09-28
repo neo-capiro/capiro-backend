@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import {
+  currentOwnerReauthorizationInput,
   currentOwnerResultAuthorizesReplay,
   supportsDurableOwnerReauthorization,
 } from './meri-research-replay-authorization';
@@ -34,6 +35,8 @@ function threadResult(body = 'Complete canonical message body.') {
       from: { email: 'sender@example.test', name: 'Sender' },
       to: [{ email: 'owner@example.test', name: 'Owner' }],
       cc: [],
+      sentAt: '2026-09-27T12:00:00.000Z',
+      receivedAt: null,
       bodyText: body,
       bodyOffset: 0,
       bodyLength: body.length,
@@ -105,15 +108,24 @@ function searchResult(tool: 'list_emails' | 'search_emails' = 'search_emails', e
       sourceProof: { version: 1, mailboxId: 'mailbox-1' },
       provider: 'microsoft_365',
       status: 'connected',
+      lastSyncAt: '2026-09-28T00:00:00.000Z',
+      connectionLastSyncAt: '2026-09-28T00:00:00.000Z',
       syncedMessages: 10,
+      syncedRange: {
+        oldest: '2026-08-28T00:00:00.000Z',
+        newest: '2026-09-28T00:00:00.000Z',
+      },
       mailCoverage: {
         sourceStatus: 'healthy',
         reason: null,
+        lastMailSyncAt: '2026-09-28T00:00:00.000Z',
+        lastConnectionSyncAt: '2026-09-28T00:00:00.000Z',
         backfillComplete: true,
         hasMore: false,
         captureRepair: 'complete',
       },
     }],
+    notes: ['Canonical bounded mail result.'],
   };
   if (tool === 'list_emails') {
     root.count = messages.length;
@@ -127,6 +139,8 @@ function searchResult(tool: 'list_emails' | 'search_emails' = 'search_emails', e
         fromEmail: messages[0]!.from.email,
         fromName: messages[0]!.from.name,
         bodyText: messages[0]!.preview,
+        sentAt: messages[0]!.sentAt,
+        receivedAt: messages[0]!.receivedAt,
       }],
     }];
   }
@@ -157,6 +171,16 @@ describe('canonical durable mail owner proof', () => {
       const changedClient = clone(saved) as any;
       changedClient.messages[0].client.id = 'client-2';
       expect(currentOwnerResultAuthorizesReplay(tool, saved, changedClient)).toBe(false);
+
+      const changedSentAt = clone(saved) as any;
+      changedSentAt.messages[0].sentAt = '2026-09-27T13:00:00.000Z';
+      if (tool === 'list_emails')
+        changedSentAt.threads[0].messages[0].sentAt = changedSentAt.messages[0].sentAt;
+      expect(currentOwnerResultAuthorizesReplay(tool, saved, changedSentAt)).toBe(false);
+
+      const changedSync = clone(saved) as any;
+      changedSync.searchedMailboxes[0].lastSyncAt = '2026-09-28T00:05:00.000Z';
+      expect(currentOwnerResultAuthorizesReplay(tool, saved, changedSync)).toBe(false);
     },
   );
 
@@ -173,6 +197,25 @@ describe('canonical durable mail owner proof', () => {
     const noOwner = clone(empty) as any;
     noOwner.searchedMailboxes = [];
     expect(currentOwnerResultAuthorizesReplay('search_emails', empty, noOwner)).toBe(false);
+  });
+
+  it('reconstructs an omitted search asOf from the validated canonical result only', () => {
+    const saved = searchResult('search_emails');
+    const input = {
+      query: 'action', folder: 'inbox', withinDays: 30, clientId: 'client-1',
+    };
+    expect(currentOwnerReauthorizationInput('search_emails', input, saved)).toEqual({
+      ...input,
+      asOf: '2026-09-28T00:00:00.000Z',
+    });
+    expect(currentOwnerReauthorizationInput('search_emails', {
+      ...input,
+      query: 'different',
+    }, saved)).toBeNull();
+    expect(currentOwnerReauthorizationInput('search_emails', {
+      ...input,
+      asOf: '2026-09-28T00:00:00.000Z',
+    }, saved)).toEqual({ ...input, asOf: '2026-09-28T00:00:00.000Z' });
   });
 
   it('binds complete thread bodies and rejects revoked, removed, edited, partial and malformed owners', () => {

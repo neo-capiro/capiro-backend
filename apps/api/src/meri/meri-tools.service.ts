@@ -1356,6 +1356,9 @@ export class MeriToolsService {
       get_email_thread: obj(
         {
           threadId: str('Exact threadId from list_emails or search_emails'),
+          clientId: str(
+            'Optional explicit client UUID scope. Include only for explicitly client-specific mail; omit for the user’s personal inbox.',
+          ),
           messageId: str('Optional exact message id to read one message body'),
           messageOffset: int('Message page offset, default 0; reuse nextMessageOffset'),
           limit: int('Messages per page, default 3, maximum 10'),
@@ -6757,7 +6760,7 @@ export class MeriToolsService {
         id: string;
         subject: string | null;
         snippet: string | null;
-        lastMessageAt: Date | null;
+        lastMessageAt: string | null;
         client: { id: string; name: string | null } | null;
         messages: Array<Record<string, unknown>>;
       }
@@ -6792,13 +6795,14 @@ export class MeriToolsService {
   private async getEmailThread(ctx: TenantContext, input: Record<string, unknown>) {
     const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const threadId = typeof input.threadId === 'string' ? input.threadId.trim() : '';
+    const clientId = typeof input.clientId === 'string' ? input.clientId.trim() : '';
     const messageId = typeof input.messageId === 'string' ? input.messageId.trim() : '';
     const messageOffset = input.messageOffset == null ? 0 : Number(input.messageOffset);
     const bodyOffset = input.bodyOffset == null ? 0 : Number(input.bodyOffset);
     const limit = input.limit == null ? 3 : Number(input.limit);
     const maxCharacters = input.maxCharacters == null ? 2000 : Number(input.maxCharacters);
-    if (!uuid.test(threadId) || (messageId && !uuid.test(messageId))) {
-      return { error: 'Use exact threadId and messageId UUIDs returned by the mail tools.' };
+    if (!uuid.test(threadId) || (clientId && !uuid.test(clientId)) || (messageId && !uuid.test(messageId))) {
+      return { error: 'Use exact threadId, clientId and messageId UUIDs returned by the mail tools.' };
     }
     if (
       !Number.isInteger(messageOffset) ||
@@ -6822,7 +6826,8 @@ export class MeriToolsService {
     }
     // Reuse the endpoint's tenant, owner and active-message authorization. No
     // provider network call, read-receipt mutation, or message send is involved.
-    const thread = await this.engagement.getMailThread(ctx, threadId);
+    const thread = await this.engagement.getMailThread(ctx, threadId, clientId || undefined);
+    if (clientId && thread.clientId !== clientId) throw new NotFoundException('Mail thread not found');
     const matching = messageId
       ? thread.messages.filter((message) => message.id === messageId)
       : thread.messages;
@@ -6842,8 +6847,18 @@ export class MeriToolsService {
         from: { email: message.fromEmail, name: message.fromName },
         to: message.toRecipients,
         cc: message.ccRecipients,
-        sentAt: message.sentAt,
-        receivedAt: message.receivedAt,
+        sentAt:
+          message.sentAt instanceof Date
+            ? message.sentAt.toISOString()
+            : typeof message.sentAt === 'string'
+              ? message.sentAt
+              : null,
+        receivedAt:
+          message.receivedAt instanceof Date
+            ? message.receivedAt.toISOString()
+            : typeof message.receivedAt === 'string'
+              ? message.receivedAt
+              : null,
         bodyText: body.slice(bodyOffset, bodyEnd),
         bodyOffset,
         bodyLength: body.length,

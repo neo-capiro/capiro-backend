@@ -26,6 +26,10 @@ function validDate(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && Number.isFinite(Date.parse(value));
 }
 
+function validDateOrNull(value: unknown): value is string | null {
+  return value === null || validDate(value);
+}
+
 function rawTextSha256(value: string): string {
   return createHash('sha256').update(value, 'utf8').digest('hex');
 }
@@ -36,6 +40,7 @@ function mailSearchProof(tool: string, value: unknown): string[] | null {
   const mailboxes = records(root?.searchedMailboxes);
   const queryScope = record(root?.queryScope);
   const timeWindow = record(root?.timeWindow);
+  const notes = root && Array.isArray(root.notes) ? root.notes : null;
   const offset = root?.offset === undefined ? 0 : root.offset;
   if (
     !root ||
@@ -43,6 +48,8 @@ function mailSearchProof(tool: string, value: unknown): string[] | null {
     !mailboxes ||
     !queryScope ||
     !timeWindow ||
+    !notes ||
+    !notes.every((note) => typeof note === 'string') ||
     !Number.isSafeInteger(root.totalMatches) ||
     !Number.isSafeInteger(root.returned) ||
     root.totalMatches !== root.returned ||
@@ -75,6 +82,7 @@ function mailSearchProof(tool: string, value: unknown): string[] | null {
   for (const mailbox of mailboxes) {
     const sourceProof = record(mailbox.sourceProof);
     const coverage = record(mailbox.mailCoverage);
+    const syncedRange = mailbox.syncedRange === null ? null : record(mailbox.syncedRange);
     const mailboxId = sourceProof?.mailboxId;
     if (
       sourceProof?.version !== 1 ||
@@ -84,9 +92,20 @@ function mailSearchProof(tool: string, value: unknown): string[] | null {
       stringOrNull(mailbox.accountEmail) === undefined ||
       typeof mailbox.provider !== 'string' ||
       mailbox.status !== 'connected' ||
+      !validDateOrNull(mailbox.lastSyncAt) ||
+      !validDateOrNull(mailbox.connectionLastSyncAt) ||
+      !Number.isSafeInteger(mailbox.syncedMessages) ||
+      Number(mailbox.syncedMessages) < 0 ||
+      (Number(mailbox.syncedMessages) === 0 && syncedRange !== null) ||
+      (Number(mailbox.syncedMessages) > 0 &&
+        (!syncedRange ||
+          !validDateOrNull(syncedRange.oldest) ||
+          !validDateOrNull(syncedRange.newest))) ||
       !coverage ||
       coverage.sourceStatus !== 'healthy' ||
       coverage.reason !== null ||
+      !validDateOrNull(coverage.lastMailSyncAt) ||
+      !validDateOrNull(coverage.lastConnectionSyncAt) ||
       coverage.backfillComplete !== true ||
       coverage.hasMore !== false ||
       coverage.captureRepair !== 'complete'
@@ -99,7 +118,14 @@ function mailSearchProof(tool: string, value: unknown): string[] | null {
       accountEmail: mailbox.accountEmail,
       provider: mailbox.provider,
       status: mailbox.status,
+      lastSyncAt: mailbox.lastSyncAt,
+      connectionLastSyncAt: mailbox.connectionLastSyncAt,
+      syncedMessages: mailbox.syncedMessages,
+      syncedRange,
       sourceStatus: coverage.sourceStatus,
+      reason: coverage.reason,
+      lastMailSyncAt: coverage.lastMailSyncAt,
+      lastConnectionSyncAt: coverage.lastConnectionSyncAt,
       backfillComplete: coverage.backfillComplete,
       hasMore: coverage.hasMore,
       captureRepair: coverage.captureRepair,
@@ -131,6 +157,8 @@ function mailSearchProof(tool: string, value: unknown): string[] | null {
       messageIds.has(message.id) ||
       preview === undefined ||
       stringOrNull(message.subject) === undefined ||
+      !validDateOrNull(message.sentAt) ||
+      !validDateOrNull(message.receivedAt) ||
       !from ||
       stringOrNull(from.email) === undefined ||
       stringOrNull(from.name) === undefined ||
@@ -152,6 +180,8 @@ function mailSearchProof(tool: string, value: unknown): string[] | null {
       from,
       to,
       cc,
+      sentAt: message.sentAt,
+      receivedAt: message.receivedAt,
       folder: message.folder,
       preview,
       hasAttachments: message.hasAttachments,
@@ -192,7 +222,9 @@ function mailSearchProof(tool: string, value: unknown): string[] | null {
           nestedMessage.subject !== sourceMessage.subject ||
           nestedMessage.fromEmail !== sourceFrom?.email ||
           nestedMessage.fromName !== sourceFrom?.name ||
-          nestedMessage.bodyText !== sourceMessage.preview
+          nestedMessage.bodyText !== sourceMessage.preview ||
+          nestedMessage.sentAt !== sourceMessage.sentAt ||
+          nestedMessage.receivedAt !== sourceMessage.receivedAt
         ) {
           return null;
         }
@@ -208,6 +240,8 @@ function mailSearchProof(tool: string, value: unknown): string[] | null {
           fromEmail: message.fromEmail,
           fromName: message.fromName,
           bodyText: message.bodyText,
+          sentAt: message.sentAt,
+          receivedAt: message.receivedAt,
         })),
       });
     }
@@ -235,6 +269,7 @@ function mailSearchProof(tool: string, value: unknown): string[] | null {
       mailboxes: mailboxProof.sort((left, right) => left.mailboxId.localeCompare(right.mailboxId)),
       messages: messageProof,
       threads: threadProof,
+      notes,
     }),
   ];
 }
@@ -297,6 +332,8 @@ function mailThreadProof(value: unknown): string[] | null {
       (root.messageId !== null && root.messageId !== message.id) ||
       ids.has(message.id) ||
       stringOrNull(message.subject) === undefined ||
+      !validDateOrNull(message.sentAt) ||
+      !validDateOrNull(message.receivedAt) ||
       !from ||
       stringOrNull(from.email) === undefined ||
       stringOrNull(from.name) === undefined ||
@@ -313,6 +350,8 @@ function mailThreadProof(value: unknown): string[] | null {
       from,
       to,
       cc,
+      sentAt: message.sentAt,
+      receivedAt: message.receivedAt,
       bodyText: message.bodyText,
       bodyLength: message.bodyLength,
       bodyCompleteness: message.bodyCompleteness,
@@ -350,4 +389,91 @@ function mailThreadProof(value: unknown): string[] | null {
 export function canonicalMailOwnerProof(tool: string, value: unknown): string[] | null {
   if (!MAIL_SEARCH_TOOLS.has(tool) && tool !== 'get_email_thread') return null;
   return MAIL_SEARCH_TOOLS.has(tool) ? mailSearchProof(tool, value) : mailThreadProof(value);
+}
+
+export interface CanonicalMailReauthorization {
+  executeInput: Record<string, unknown>;
+  requestedClientId: string | null;
+  returnedClientIds: string[];
+}
+
+function inputTerm(input: Record<string, unknown>, key: string, max = 200): string {
+  return typeof input[key] === 'string' ? input[key].trim().slice(0, max) : '';
+}
+
+/**
+ * Bind a durable mail result to the exact logical call that produced it. For a
+ * search whose original call omitted asOf, the canonical server result owns the
+ * timestamp used only for the current authorization re-read; the durable input
+ * and its hash remain unchanged.
+ */
+export function canonicalMailReauthorization(
+  tool: string,
+  input: Record<string, unknown>,
+  savedResult: unknown,
+): CanonicalMailReauthorization | null {
+  if (!canonicalMailOwnerProof(tool, savedResult)) return null;
+  const root = record(savedResult)!;
+
+  if (MAIL_SEARCH_TOOLS.has(tool)) {
+    const queryScope = record(root.queryScope)!;
+    const messages = records(root.messages)!;
+    const query = inputTerm(input, 'query') || null;
+    const from = inputTerm(input, 'from') || null;
+    const participant = inputTerm(input, 'participant') || null;
+    const requestedClientId = inputTerm(input, 'clientId') || null;
+    const folder = inputTerm(input, 'folder') || 'all';
+    const withinDays = input.withinDays == null ? null : Number(input.withinDays);
+    const offset = input.offset == null ? 0 : Number(input.offset);
+    const explicitAsOf = input.asOf == null ? null : new Date(String(input.asOf));
+    if (
+      queryScope.query !== query ||
+      queryScope.from !== from ||
+      queryScope.participant !== participant ||
+      queryScope.clientId !== requestedClientId ||
+      queryScope.folder !== folder ||
+      queryScope.withinDays !== withinDays ||
+      root.offset !== offset ||
+      (explicitAsOf &&
+        (!Number.isFinite(explicitAsOf.getTime()) || explicitAsOf.toISOString() !== root.asOf))
+    ) {
+      return null;
+    }
+    const returnedClientIds = [
+      ...new Set(
+        messages.flatMap((message) => {
+          const client = message.client === null ? null : record(message.client);
+          return typeof client?.id === 'string' ? [client.id] : [];
+        }),
+      ),
+    ].sort();
+    return {
+      executeInput: explicitAsOf ? input : { ...input, asOf: root.asOf },
+      requestedClientId,
+      returnedClientIds,
+    };
+  }
+
+  if (tool !== 'get_email_thread') return null;
+  const proof = record(root.sourceProof)!;
+  const threadId = inputTerm(input, 'threadId');
+  const messageId = inputTerm(input, 'messageId') || null;
+  const requestedClientId = inputTerm(input, 'clientId') || null;
+  const messageOffset = input.messageOffset == null ? 0 : Number(input.messageOffset);
+  const bodyOffset = input.bodyOffset == null ? 0 : Number(input.bodyOffset);
+  const returnedClientId = typeof proof.clientId === 'string' ? proof.clientId : null;
+  if (
+    threadId !== root.threadId ||
+    messageId !== root.messageId ||
+    messageOffset !== root.messageOffset ||
+    bodyOffset !== 0 ||
+    (requestedClientId !== null && requestedClientId !== returnedClientId)
+  ) {
+    return null;
+  }
+  return {
+    executeInput: input,
+    requestedClientId,
+    returnedClientIds: returnedClientId ? [returnedClientId] : [],
+  };
 }

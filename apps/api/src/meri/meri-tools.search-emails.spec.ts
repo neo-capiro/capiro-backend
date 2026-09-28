@@ -49,6 +49,7 @@ describe('Meri canonical mailbox tools', () => {
     expect(currentOwnerResultAuthorizesReplay('get_email_thread', result, structuredClone(result)))
       .toBe(true);
     expect(result.messages[0].sourceProof.bodySha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(tools.engagement.getMailThread).toHaveBeenCalledWith(ctx, threadId, undefined);
   });
 
   it('reads stored details beyond the inventory preview through the canonical authorized thread reader', async () => {
@@ -77,7 +78,7 @@ describe('Meri canonical mailbox tools', () => {
       ],
     });
     const first = await tools.getEmailThread(ctx, { threadId, maxCharacters: 600 });
-    expect(tools.engagement.getMailThread).toHaveBeenCalledWith(ctx, threadId);
+    expect(tools.engagement.getMailThread).toHaveBeenCalledWith(ctx, threadId, undefined);
     expect(first.messages[0]).toMatchObject({
       bodyTruncated: true,
       nextBodyOffset: 600,
@@ -102,6 +103,35 @@ describe('Meri canonical mailbox tools', () => {
     await expect(
       tools.getEmailThread(ctx, { threadId: '11111111-1111-4111-8111-111111111111' }),
     ).rejects.toThrow('Mail thread not found');
+  });
+
+  it('enforces an explicit client scope while preserving unscoped personal mail', async () => {
+    const threadId = '11111111-1111-4111-8111-111111111111';
+    const clientA = '33333333-3333-4333-8333-333333333333';
+    const clientB = '55555555-5555-4555-8555-555555555555';
+    const { tools } = service({});
+    tools.engagement.getMailThread = jest.fn().mockResolvedValue({
+      id: threadId,
+      subject: 'Scoped source',
+      clientId: clientA,
+      connectionId: 'mailbox-1',
+      connectionEmail: 'owner@example.test',
+      connectionStatus: 'connected',
+      updatedAt: new Date('2026-09-28T00:00:00.000Z'),
+      messages: [],
+    });
+
+    await expect(tools.getEmailThread(ctx, { threadId, clientId: clientA })).resolves.toMatchObject({
+      sourceProof: { clientId: clientA },
+    });
+    expect(tools.engagement.getMailThread).toHaveBeenLastCalledWith(ctx, threadId, clientA);
+    await expect(tools.getEmailThread(ctx, { threadId, clientId: clientB })).rejects.toThrow(
+      'Mail thread not found',
+    );
+    await expect(tools.getEmailThread(ctx, { threadId })).resolves.toMatchObject({
+      sourceProof: { clientId: clientA },
+    });
+    expect(tools.engagement.getMailThread).toHaveBeenLastCalledWith(ctx, threadId, undefined);
   });
 
   it('requires an exact message for body continuation and rejects unbounded reads', async () => {

@@ -2461,10 +2461,15 @@ export class EngagementService {
    * drawer's message history). Same ownership + active-message filtering as
    * the list.
    */
-  async getMailThread(ctx: TenantContext, threadId: string) {
+  async getMailThread(ctx: TenantContext, threadId: string, clientId?: string) {
     const thread = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.mailThread.findFirst({
-        where: { id: threadId, tenantId: ctx.tenantId, ...ownMailThreadWhere(ctx.userId) },
+        where: {
+          id: threadId,
+          tenantId: ctx.tenantId,
+          ...(clientId ? { clientId } : {}),
+          ...ownMailThreadWhere(ctx.userId),
+        },
         include: {
           client: clientSummarySelect(),
           // The caller's own connected mailbox address for this thread — the

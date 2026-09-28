@@ -9,7 +9,10 @@ import {
   researchJsonSha256,
 } from './meri-research-durable-result.js';
 import { readResearchHandoff } from './meri-research-handoff.js';
-import { canonicalMailOwnerProof } from './meri-research-mail-proof.js';
+import {
+  canonicalMailOwnerProof,
+  canonicalMailReauthorization,
+} from './meri-research-mail-proof.js';
 import { readResearchRun, researchMetadata } from './meri-research-run-state.js';
 import {
   publicResearchSourceTool,
@@ -144,6 +147,17 @@ function documentProof(value: unknown): string[] | null {
 
 export function supportsDurableOwnerReauthorization(tool: string): boolean {
   return SUPPORTED_OWNER_TOOLS.has(tool);
+}
+
+/** Exact current-owner input; mail may pin a server-owned implicit asOf. */
+export function currentOwnerReauthorizationInput(
+  tool: string,
+  originalInput: Record<string, unknown>,
+  savedResult: unknown,
+): Record<string, unknown> | null {
+  if (!supportsDurableOwnerReauthorization(tool)) return null;
+  if (!['list_emails', 'search_emails', 'get_email_thread'].includes(tool)) return originalInput;
+  return canonicalMailReauthorization(tool, originalInput, savedResult)?.executeInput ?? null;
 }
 
 /** Compare only current owner identity/version evidence, never old coverage flags. */
@@ -436,16 +450,44 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
           envelope.resultSha256 !== receipt.resultSha256
         )
           throw new ConflictException('A research source identity changed.');
-        envelopes.push(envelope);
+        const mailAuthorization = ['list_emails', 'search_emails', 'get_email_thread'].includes(
+          envelope.tool,
+        )
+          ? canonicalMailReauthorization(envelope.tool, envelope.input, envelope.result)
+          : null;
+        if (
+          ['list_emails', 'search_emails', 'get_email_thread'].includes(envelope.tool) &&
+          !mailAuthorization
+        ) {
+          throw new ConflictException('A research source authorization proof is unavailable.');
+        }
+        if (mailAuthorization) {
+          const evidenceClientIds = new Set([
+            ...(mailAuthorization.requestedClientId ? [mailAuthorization.requestedClientId] : []),
+            ...mailAuthorization.returnedClientIds,
+          ]);
+          for (const clientId of evidenceClientIds) {
+            if (session.clientId && clientId !== session.clientId)
+              throw new ConflictException('A research source is outside the report client scope.');
+            if (!(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId)))
+              throw new ConflictException('A research source is no longer authorized.');
+          }
+        }
+        envelopes.push({ envelope, mailAuthorization });
       }
       return { envelopes, sessionId: session.id };
     });
 
   const loaded = await load();
-  for (const envelope of loaded.envelopes) {
+  for (const authorized of loaded.envelopes) {
+    const { envelope, mailAuthorization } = authorized;
     let currentResult: unknown;
     try {
-      currentResult = await tools.execute(ctx, envelope.tool as never, envelope.input);
+      currentResult = await tools.execute(
+        ctx,
+        envelope.tool as never,
+        mailAuthorization?.executeInput ?? envelope.input,
+      );
     } catch {
       throw new ConflictException('A research source is no longer authorized.');
     }

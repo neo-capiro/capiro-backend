@@ -20,6 +20,11 @@ const MAIL_TOOL_SCHEMA = {
   required: ['threadId'],
 };
 const MAIL_TOOL_VERSION = researchToolVersion(MAIL_TOOL_SCHEMA);
+const MAIL_SEARCH_TOOL_SCHEMA = {
+  type: 'object',
+  properties: { query: { type: 'string' }, asOf: { type: 'string' } },
+};
+const MAIL_SEARCH_TOOL_VERSION = researchToolVersion(MAIL_SEARCH_TOOL_SCHEMA);
 const ctx = { tenantId: 'tenant-1', userId: 'user-1', tenantSlug: 'tenant' } as never;
 
 const DEBRIEF_SCHEMA = {
@@ -106,6 +111,7 @@ function completeMemoryResult(id: string, body = `body-${id}`) {
 function completeMailThreadResult(
   body = 'Exact complete canonical mail body.',
   messageUpdatedAt = '2026-09-28T00:01:00.000Z',
+  clientId: string | null = null,
 ) {
   const threadId = '11111111-1111-4111-8111-111111111111';
   const messageId = '22222222-2222-4222-8222-222222222222';
@@ -124,7 +130,7 @@ function completeMailThreadResult(
       threadId,
       mailboxId: 'mailbox-1',
       mailboxStatus: 'connected',
-      clientId: null,
+      clientId,
       threadUpdatedAt: '2026-09-28T00:00:00.000Z',
     },
     messages: [{
@@ -134,6 +140,8 @@ function completeMailThreadResult(
       from: { email: 'sender@example.test', name: 'Sender' },
       to: [{ email: 'owner@example.test', name: 'Owner' }],
       cc: [],
+      sentAt: '2026-09-27T12:00:00.000Z',
+      receivedAt: null,
       bodyText: body,
       bodyOffset: 0,
       bodyLength: body.length,
@@ -152,14 +160,53 @@ function completeMailThreadResult(
   };
 }
 
+function completeMailSearchResult(asOf = '2026-09-28T00:00:00.000Z') {
+  return {
+    totalMatches: 0,
+    returned: 0,
+    hasMore: false,
+    offset: 0,
+    nextOffset: null,
+    asOf,
+    queryScope: {
+      query: 'Report', from: null, participant: null, clientId: null,
+      folder: 'all', withinDays: null, asOf,
+    },
+    timeWindow: { start: null, end: asOf },
+    folder: 'all',
+    clientId: null,
+    messages: [],
+    searchedMailboxes: [{
+      accountEmail: 'owner@example.test',
+      sourceProof: { version: 1, mailboxId: 'mailbox-1' },
+      provider: 'google_workspace',
+      status: 'connected',
+      lastSyncAt: '2026-09-28T00:00:00.000Z',
+      connectionLastSyncAt: '2026-09-28T00:00:00.000Z',
+      syncedMessages: 0,
+      syncedRange: null,
+      mailCoverage: {
+        sourceStatus: 'healthy', reason: null,
+        lastMailSyncAt: '2026-09-28T00:00:00.000Z',
+        lastConnectionSyncAt: '2026-09-28T00:00:00.000Z',
+        backfillComplete: true, hasMore: false, captureRepair: 'complete',
+      },
+    }],
+    notes: ['Canonical bounded mail result.'],
+  };
+}
+
 function harness(options: {
-  tool?: 'search_memory' | 'get_email_thread';
+  tool?: 'search_memory' | 'get_email_thread' | 'search_emails';
   schema?: Record<string, unknown>;
   source?: unknown;
+  clientId?: string | null;
+  wallAllowed?: boolean;
 } = {}) {
   const ownerTool = options.tool ?? 'search_memory';
   const ownerSchema = options.schema ?? TOOL_SCHEMA;
   let authorizationAllowed = true;
+  let wallAllowed = options.wallAllowed !== false;
   let sourceAllowed = true;
   let currentSource: unknown = options.source ?? completeMemoryResult('execution-1');
   const artifacts = new Map<string, Record<string, any>>();
@@ -167,7 +214,7 @@ function harness(options: {
     id: 'session-1',
     tenantId: 'tenant-1',
     userId: 'user-1',
-    clientId: null,
+    clientId: options.clientId ?? null,
     title: 'Durable replay',
     topic: 'topic',
     status: 'researching',
@@ -176,7 +223,7 @@ function harness(options: {
       handoff: {
         version: 1,
         conversationId: 'conversation-1',
-        clientId: null,
+        clientId: options.clientId ?? null,
         messages: [],
         attachments: [],
         reasoningMode: 'deep',
@@ -213,8 +260,11 @@ function harness(options: {
         const value = artifacts.get(where.id);
         return value ?? null;
       }),
+      findMany: jest.fn(async () => artifacts.has('report-1') ? [artifacts.get('report-1')] : []),
     },
     $queryRawUnsafe: jest.fn(async (...args: any[]) => {
+      if (String(args[0]).startsWith('SELECT (NOT c.memory_wall'))
+        return [{ allowed: wallAllowed }];
       // query text is arg 0; next_metadata_jsonb is positional arg 10.
       session.metadata = JSON.parse(args[10]);
       return [{ metadata_jsonb: session.metadata }];
@@ -296,7 +346,7 @@ function harness(options: {
             sessionId: session.id,
             tenantId: session.tenantId,
             userId: session.userId,
-            clientId: null,
+            clientId: session.clientId,
             conversationId: 'conversation-1',
             runId: 'run-1',
             leaseEpoch: 1,
@@ -323,6 +373,9 @@ function harness(options: {
     },
     revoke: () => {
       authorizationAllowed = false;
+    },
+    revokeWall: () => {
+      wallAllowed = false;
     },
     revokeSource: () => {
       sourceAllowed = false;
@@ -358,14 +411,26 @@ function outcome(executionId: string, query: string, result = completeMemoryResu
   };
 }
 
-function mailOutcome(result = completeMailThreadResult()) {
+function mailOutcome(result = completeMailThreadResult(), clientId?: string) {
   return {
     executionId: 'mail-execution-1',
     leaseEpoch: 1,
     providerCallId: 'provider-mail-execution-1',
     tool: 'get_email_thread',
     toolVersion: MAIL_TOOL_VERSION,
-    input: { threadId: result.threadId },
+    input: { threadId: result.threadId, ...(clientId ? { clientId } : {}) },
+    result,
+  };
+}
+
+function mailSearchOutcome(result = completeMailSearchResult()) {
+  return {
+    executionId: 'mail-search-execution-1',
+    leaseEpoch: 1,
+    providerCallId: 'provider-mail-search-execution-1',
+    tool: 'search_emails',
+    toolVersion: MAIL_SEARCH_TOOL_VERSION,
+    input: { query: 'Report' },
     result,
   };
 }
@@ -475,6 +540,30 @@ describe('Meri durable safe-read commit and replay', () => {
     changed.replaceSource(completeMemoryResult('execution-1', 'corrected body'));
     await expect(changed.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', request))
       .resolves.toEqual({ replayed: false });
+  });
+
+  it('reauthorizes an unchanged implicit-asOf mail search at its saved server window', async () => {
+    const source = completeMailSearchResult();
+    const h = harness({
+      tool: 'search_emails',
+      schema: MAIL_SEARCH_TOOL_SCHEMA,
+      source,
+    });
+    await h.service.commitSafeReadOutcome(
+      ctx, 'session-1', 'run-1', mailSearchOutcome(source),
+    );
+    h.resume();
+
+    await expect(h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', {
+      leaseEpoch: 2,
+      tool: 'search_emails',
+      toolVersion: MAIL_SEARCH_TOOL_VERSION,
+      input: { query: 'Report' },
+    })).resolves.toMatchObject({ replayed: true, result: { asOf: source.asOf } });
+    expect(h.tools.execute).toHaveBeenLastCalledWith(ctx, 'search_emails', {
+      query: 'Report',
+      asOf: source.asOf,
+    });
   });
 
   it('treats an absent or corrupt private result as a replay miss', async () => {
@@ -777,6 +866,7 @@ describe('Meri durable safe-read commit and replay', () => {
     expect(h.tools.execute).not.toHaveBeenCalled();
   });
 
+<<<<<<< HEAD
   it('commits the actual debrief owner page and replays an old lease only while current bytes remain exact', async () => {
     const h = harness();
     let current: unknown = completeDebriefResult();
@@ -877,6 +967,90 @@ describe('Meri durable safe-read commit and replay', () => {
       'no longer authorized',
       );
     });
+=======
+  it('rejects legacy cross-client mail from replay, report export and restored model context', async () => {
+    const clientA = '33333333-3333-4333-8333-333333333333';
+    const clientB = '55555555-5555-4555-8555-555555555555';
+    const source = completeMailThreadResult(
+      'Exact cross-client body.',
+      '2026-09-28T00:01:00.000Z',
+      clientB,
+    );
+    const h = harness({
+      tool: 'get_email_thread', schema: MAIL_TOOL_SCHEMA, source, clientId: clientA,
+    });
+    await h.service.commitSafeReadOutcome(
+      ctx, 'session-1', 'run-1', mailOutcome(source, clientA),
+    );
+    h.resume();
+    await expect(h.service.replaySafeReadOutcome(ctx, 'session-1', 'run-2', {
+      leaseEpoch: 2,
+      tool: 'get_email_thread',
+      toolVersion: MAIL_TOOL_VERSION,
+      input: { threadId: source.threadId, clientId: clientA },
+    })).resolves.toEqual({ replayed: false });
+
+    h.session.metadata = {
+      ...h.session.metadata,
+      run: { ...h.session.metadata.run, id: 'run-1', leaseEpoch: 1, status: 'running' },
+    };
+    h.completeReport();
+    await expect(h.service.getSession(ctx, 'session-1')).resolves.toMatchObject({
+      report: { bodyText: expect.stringContaining('current source authorization') },
+    });
+    await expect(h.service.getReportMarkdown(ctx, 'session-1')).rejects.toThrow(
+      'authorization proof is unavailable',
+    );
+    const model = await h.service.authorizeModelContext(
+      ctx,
+      { conversationId: 'conversation-1', clientId: clientA },
+      [{ id: 'report-message', role: 'assistant', body: 'CROSS_CLIENT_REPORT', metadata: {
+        researchReport: true, researchSessionId: 'session-1',
+      } }],
+      'CROSS_CLIENT_SUMMARY',
+    );
+    expect(model.messages[0]?.body).toContain('current source authorization');
+    expect(model.summary).toBeNull();
+  });
+
+  it('preserves explicitly matching and unscoped personal thread authority', async () => {
+    const clientA = '33333333-3333-4333-8333-333333333333';
+    for (const [source, explicitClient] of [
+      [completeMailThreadResult(undefined, undefined, clientA), clientA],
+      [completeMailThreadResult(), undefined],
+    ] as const) {
+      const h = harness({
+        tool: 'get_email_thread', schema: MAIL_TOOL_SCHEMA, source, clientId: clientA,
+      });
+      await h.service.commitSafeReadOutcome(
+        ctx, 'session-1', 'run-1', mailOutcome(source, explicitClient),
+      );
+      h.completeReport();
+      await expect(h.service.getSession(ctx, 'session-1')).resolves.toMatchObject({
+        report: { bodyText: 'REPORT_CITING_CURRENT_RUN_MEMORY' },
+      });
+    }
+  });
+
+  it('withholds matching client mail when the current ethical-wall grant is revoked', async () => {
+    const clientA = '33333333-3333-4333-8333-333333333333';
+    const source = completeMailThreadResult(undefined, undefined, clientA);
+    const h = harness({
+      tool: 'get_email_thread', schema: MAIL_TOOL_SCHEMA, source, clientId: clientA,
+    });
+    await h.service.commitSafeReadOutcome(
+      ctx, 'session-1', 'run-1', mailOutcome(source, clientA),
+    );
+    h.completeReport();
+    h.revokeWall();
+    await expect(h.service.getSession(ctx, 'session-1')).rejects.toThrow(
+      'Research session not found',
+    );
+    await expect(h.service.getReportMarkdown(ctx, 'session-1')).rejects.toThrow(
+      'Research session not found',
+    );
+  });
+>>>>>>> d2e54cafd (fix(meri): bind mail evidence to current scope)
 
   it('reauthorizes canonical full mail through retained replay, report read and export, then denies mutation and mailbox revocation', async () => {
     const replay = harness({

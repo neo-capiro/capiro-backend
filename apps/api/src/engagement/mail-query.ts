@@ -201,12 +201,21 @@ export async function queryMailMessages(
       sourceProof: { version: 1, mailboxId: c.connection_id },
       provider: c.provider,
       status: c.status,
-      lastSyncAt: mailCoverage.lastMailSyncAt,
-      connectionLastSyncAt: mailCoverage.lastConnectionSyncAt,
+      lastSyncAt: mailCoverage.lastMailSyncAt?.toISOString() ?? null,
+      connectionLastSyncAt: mailCoverage.lastConnectionSyncAt?.toISOString() ?? null,
       syncedMessages: c.synced_messages,
       syncedRange:
-        c.synced_messages > 0 ? { oldest: c.oldest_synced, newest: c.newest_synced } : null,
-      mailCoverage,
+        c.synced_messages > 0
+          ? {
+              oldest: c.oldest_synced?.toISOString() ?? null,
+              newest: c.newest_synced?.toISOString() ?? null,
+            }
+          : null,
+      mailCoverage: {
+        ...mailCoverage,
+        lastMailSyncAt: mailCoverage.lastMailSyncAt?.toISOString() ?? null,
+        lastConnectionSyncAt: mailCoverage.lastConnectionSyncAt?.toISOString() ?? null,
+      },
     };
   });
   const capRecipients = (value: unknown) =>
@@ -221,8 +230,8 @@ export async function queryMailMessages(
     from: { email: row.from_email, name: row.from_name },
     to: capRecipients(row.to_recipients),
     cc: capRecipients(row.cc_recipients),
-    sentAt: row.sent_at,
-    receivedAt: row.received_at,
+    sentAt: row.sent_at?.toISOString() ?? null,
+    receivedAt: row.received_at?.toISOString() ?? null,
     folder: row.folder,
     preview: row.preview,
     hasAttachments: row.has_attachments,
