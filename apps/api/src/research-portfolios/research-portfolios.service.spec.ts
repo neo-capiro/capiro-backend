@@ -56,10 +56,34 @@ function harness(role: 'owner' | 'editor' | 'viewer' = 'owner') {
       findFirst: jest.fn().mockResolvedValue({ id: clientId }),
     },
     programElement: {
-      findUnique: jest.fn(async ({ where }: any) => ({ peCode: where.peCode, title: 'Canonical PE', service: 'ARMY', serviceCode: null, appropriationType: 'RDT&E', source: 'jbook', sourceConfidence: 0.95, firstSeenFy: 2026, raw: {} })),
+      findUnique: jest.fn(async ({ where }: any) => ({
+        peCode: where.peCode,
+        title: 'Canonical PE',
+        service: 'ARMY',
+        serviceCode: null,
+        appropriationType: 'RDT&E',
+        source: 'jbook',
+        sourceConfidence: 0.95,
+        firstSeenFy: 2026,
+        raw: {},
+      })),
     },
     capabilityBudgetLineMatch: { findMany: jest.fn().mockResolvedValue([]) },
-    federalAward: { findUnique: jest.fn(async ({ where }: any) => ({ id: where.id, awardUniqueId: 'CONT_AWD_123', piid: 'CONT_AWD_123', contractorName: 'Resolved award', awardingAgency: 'DoD', awardingSubTier: 'Army', fundingTas: null, peCode: null, fundingFy: 2026, description: null })) },
+    federalAward: {
+      findUnique: jest.fn(async ({ where }: any) => ({
+        id: where.id,
+        awardUniqueId: 'CONT_AWD_123',
+        piid: 'CONT_AWD_123',
+        contractorName: 'Resolved award',
+        awardingAgency: 'DoD',
+        awardingSubTier: 'Army',
+        fundingTas: null,
+        peCode: null,
+        fundingFy: 2026,
+        description: null,
+      })),
+    },
+    $queryRaw: jest.fn<any, any>().mockResolvedValue([]),
     $queryRawUnsafe: jest.fn().mockResolvedValue([{ allowed: true }]),
   };
   const prisma = {
@@ -219,10 +243,15 @@ describe('ResearchPortfoliosService Phase 1 authorization and recovery', () => {
   it('rejects an invented canonical target unless the original input is preserved as unresolved', async () => {
     const h = harness('editor');
     h.tx.programElement.findUnique.mockResolvedValueOnce(null as never);
-    await expect(h.service.createMember(ctx, portfolioId, {
-      idempotencyKey: 'member-create-missing', expectedRevision: 1,
-      targetKind: 'program_element', targetId: 'NOT-A-REAL-PE', label: 'Invented',
-    })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      h.service.createMember(ctx, portfolioId, {
+        idempotencyKey: 'member-create-missing',
+        expectedRevision: 1,
+        targetKind: 'program_element',
+        targetId: 'NOT-A-REAL-PE',
+        label: 'Invented',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
     expect(h.tx.researchPortfolioMember.create).not.toHaveBeenCalled();
   });
 
@@ -272,5 +301,200 @@ describe('ResearchPortfoliosService Phase 1 authorization and recovery', () => {
         }),
       }),
     );
+  });
+});
+
+describe('Research portfolio current authority on durable replay and client links', () => {
+  async function committedUpdate() {
+    const h = harness('editor');
+    const input = {
+      idempotencyKey: 'authority-update-1',
+      expectedRevision: 1,
+      name: 'Reviewed update',
+    };
+    await h.service.update(ctx, portfolioId, input);
+    const data = h.tx.researchPortfolioEvent.create.mock.calls[0][0].data;
+    h.tx.researchPortfolioEvent.findUnique.mockResolvedValue({
+      id: 'event-1',
+      occurredAt: now,
+      ...data,
+    });
+    h.tx.researchPortfolio.updateMany.mockClear();
+    h.tx.researchPortfolioEvent.create.mockClear();
+    return { h, input };
+  }
+
+  it('masks denied client links while preserving independently allowed links', async () => {
+    const h = harness('viewer');
+    const links = [
+      {
+        id: 'denied-link',
+        clientId,
+        client: { name: 'Denied client' },
+        linkedByUserId: userId,
+        createdAt: now,
+      },
+      {
+        id: 'allowed-link',
+        clientId: otherUserId,
+        client: { name: 'Allowed client' },
+        linkedByUserId: userId,
+        createdAt: now,
+      },
+    ];
+    (h.tx.researchPortfolioClientLink as any).findMany = jest.fn().mockResolvedValue(links);
+    h.tx.$queryRawUnsafe
+      .mockResolvedValueOnce([{ allowed: false }])
+      .mockResolvedValueOnce([{ allowed: true }]);
+    await expect(h.service.listClientLinks(ctx, portfolioId)).resolves.toEqual([
+      expect.objectContaining({ id: 'allowed-link', clientName: 'Allowed client' }),
+    ]);
+    expect(h.tx.$queryRawUnsafe).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects a committed replay after the actor loses the portfolio grant', async () => {
+    const { h, input } = await committedUpdate();
+    h.tx.researchPortfolio.findFirst.mockResolvedValue(null as never);
+    await expect(h.service.update(ctx, portfolioId, input)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(h.tx.researchPortfolio.updateMany).not.toHaveBeenCalled();
+    expect(h.tx.researchPortfolioEvent.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects a different actor using an identical key and content', async () => {
+    const { h, input } = await committedUpdate();
+    await expect(
+      h.service.update({ ...ctx, userId: otherUserId }, portfolioId, input),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(h.tx.researchPortfolio.updateMany).not.toHaveBeenCalled();
+  });
+
+  it.each(['active', 'archived'] as const)(
+    'replays the same actor receipt after revision drift while %s',
+    async (lifecycle) => {
+      const { h, input } = await committedUpdate();
+      h.tx.researchPortfolio.findFirst.mockResolvedValue({
+        id: portfolioId,
+        lifecycle,
+        revision: 7,
+        grants: [{ role: 'editor' }],
+      });
+      await expect(h.service.update(ctx, portfolioId, input)).resolves.toMatchObject({
+        replayed: true,
+        actorUserId: userId,
+        resultingRevision: 2,
+      });
+      expect(h.tx.researchPortfolio.updateMany).not.toHaveBeenCalled();
+      expect(h.tx.researchPortfolioEvent.create).not.toHaveBeenCalled();
+      if (lifecycle === 'archived') {
+        h.tx.researchPortfolioEvent.findUnique.mockResolvedValue(null);
+        await expect(
+          h.service.update(ctx, portfolioId, { ...input, idempotencyKey: 'fresh-archived-key' }),
+        ).rejects.toBeInstanceOf(ConflictException);
+      }
+    },
+  );
+
+  it('still requires the operation role on replay', async () => {
+    const { h, input } = await committedUpdate();
+    h.tx.researchPortfolio.findFirst.mockResolvedValue({
+      id: portfolioId,
+      lifecycle: 'active',
+      revision: 7,
+      grants: [{ role: 'viewer' }],
+    });
+    await expect(h.service.update(ctx, portfolioId, input)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
+
+  it('still rejects changed replay content', async () => {
+    const { h, input } = await committedUpdate();
+    await expect(
+      h.service.update(ctx, portfolioId, { ...input, name: 'Different request' }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(h.tx.researchPortfolio.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('reauthorizes create replay and preserves authorized retry after revision drift', async () => {
+    const h = harness('owner');
+    (h.tx.researchPortfolio as any).create = jest
+      .fn()
+      .mockResolvedValue({ id: portfolioId, revision: 1 });
+    (h.tx.researchPortfolioGrant as any).create = jest
+      .fn()
+      .mockResolvedValue({ id: 'grant-created' });
+    const input = { idempotencyKey: 'authority-create-1', name: 'Created portfolio' };
+    await h.service.create(ctx, input);
+    const data = h.tx.researchPortfolioEvent.create.mock.calls[0][0].data;
+    h.tx.researchPortfolioEvent.findUnique.mockResolvedValue({
+      id: 'event-1',
+      occurredAt: now,
+      ...data,
+    });
+    h.tx.researchPortfolio.findFirst.mockResolvedValue({
+      id: portfolioId,
+      lifecycle: 'active',
+      revision: 7,
+      grants: [{ role: 'viewer' }],
+    });
+    await expect(h.service.create(ctx, input)).resolves.toMatchObject({
+      replayed: true,
+      resultingRevision: 1,
+    });
+    await expect(h.service.create({ ...ctx, userId: otherUserId }, input)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    h.tx.researchPortfolio.findFirst.mockResolvedValue(null as never);
+    await expect(h.service.create(ctx, input)).rejects.toBeInstanceOf(NotFoundException);
+    expect((h.tx.researchPortfolio as any).create).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Research portfolio grant mutation serialization', () => {
+  it('locks the tenant-scoped parent before checking current grant authority', async () => {
+    const h = harness('owner');
+    await h.service.update(ctx, portfolioId, {
+      idempotencyKey: 'locked-update',
+      expectedRevision: 1,
+      name: 'Serialized update',
+    });
+    expect(h.tx.$queryRaw).toHaveBeenCalledTimes(1);
+    const query = h.tx.$queryRaw.mock.calls[0][0] as any;
+    expect(query.sql).toContain('FOR UPDATE');
+    expect(query.values).toEqual([portfolioId, tenantId]);
+    const lockOrder = h.tx.$queryRaw.mock.invocationCallOrder[0];
+    const authorityOrder = h.tx.researchPortfolio.findFirst.mock.invocationCallOrder[0];
+    const replayOrder = h.tx.researchPortfolioEvent.findUnique.mock.invocationCallOrder[0];
+    expect([lockOrder, authorityOrder, replayOrder]).toEqual(
+      expect.arrayContaining([expect.any(Number)]),
+    );
+    if (lockOrder === undefined || authorityOrder === undefined || replayOrder === undefined)
+      throw new Error('Expected lock, authority and replay calls to all occur');
+    expect(lockOrder).toBeLessThan(authorityOrder);
+    expect(authorityOrder).toBeLessThan(replayOrder);
+  });
+  it('reauthorizes after a waited-for parent lock and rejects the former owner', async () => {
+    const h = harness('owner');
+    let releaseLock!: () => void;
+    h.tx.$queryRaw.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseLock = resolve;
+        }),
+    );
+    const result = h.service.deleteGrant(ctx, portfolioId, otherUserId, {
+      idempotencyKey: 'waiting-owner-delete',
+      expectedRevision: 2,
+    });
+    await Promise.resolve();
+    expect(h.tx.researchPortfolio.findFirst).not.toHaveBeenCalled();
+    h.tx.researchPortfolio.findFirst.mockResolvedValue(null as never);
+    releaseLock();
+    await expect(result).rejects.toBeInstanceOf(NotFoundException);
+    expect(h.tx.researchPortfolioGrant.count).not.toHaveBeenCalled();
+    expect(h.tx.researchPortfolioGrant.delete).not.toHaveBeenCalled();
+    expect(h.tx.researchPortfolioEvent.create).not.toHaveBeenCalled();
   });
 });

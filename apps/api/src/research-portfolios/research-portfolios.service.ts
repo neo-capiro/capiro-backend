@@ -93,17 +93,21 @@ export class ResearchPortfoliosService {
       const hasMore = rows.length > boundedLimit;
       const page = hasMore ? rows.slice(0, boundedLimit) : rows;
       return {
-        items: await Promise.all(page.map(async (row) => {
-          const allowedClientCount = (await Promise.all(
-            row.clientLinks.map((link) =>
-              clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, link.clientId),
-            ),
-          )).filter(Boolean).length;
-          return this.summary(
-            { ...row, _count: { ...row._count, clientLinks: allowedClientCount } },
-            row.grants[0]!.role as ResearchPortfolioGrantRole,
-          );
-        })),
+        items: await Promise.all(
+          page.map(async (row) => {
+            const allowedClientCount = (
+              await Promise.all(
+                row.clientLinks.map((link) =>
+                  clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, link.clientId),
+                ),
+              )
+            ).filter(Boolean).length;
+            return this.summary(
+              { ...row, _count: { ...row._count, clientLinks: allowedClientCount } },
+              row.grants[0]!.role as ResearchPortfolioGrantRole,
+            );
+          }),
+        ),
         nextCursor: hasMore ? page.at(-1)!.id : null,
       };
     });
@@ -116,7 +120,10 @@ export class ResearchPortfoliosService {
         where: { id },
         include: {
           grants: { orderBy: [{ role: 'asc' }, { createdAt: 'asc' }] },
-          clientLinks: { include: { client: { select: { name: true } } }, orderBy: { createdAt: 'asc' } },
+          clientLinks: {
+            include: { client: { select: { name: true } } },
+            orderBy: { createdAt: 'asc' },
+          },
           members: { orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }] },
           events: { orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }], take: 100 },
           _count: { select: { members: true, clientLinks: true } },
@@ -214,21 +221,34 @@ export class ResearchPortfoliosService {
       ...(input.name !== undefined ? { name: this.validateName(input.name) } : {}),
       ...(input.purpose !== undefined ? { purpose: input.purpose?.trim() || null } : {}),
     };
-    return this.mutatePortfolio(ctx, id, 'portfolio.update', normalized, 'editor', 'updated', async (tx) => {
-      const result = await tx.researchPortfolio.updateMany({
-        where: { id, tenantId: ctx.tenantId, lifecycle: 'active', revision: input.expectedRevision },
-        data: {
-          ...(normalized.name !== undefined ? { name: normalized.name } : {}),
-          ...(normalized.purpose !== undefined ? { purpose: normalized.purpose } : {}),
-          ...(input.mode !== undefined ? { mode: input.mode } : {}),
-          revision: { increment: 1 },
-        },
-      });
-      this.assertUpdated(result.count, input.expectedRevision);
-      return [
-        { targetId: id, targetType: 'portfolio', status: 'updated', id },
-      ] satisfies ResearchPortfolioMutationOutcomeDto[];
-    });
+    return this.mutatePortfolio(
+      ctx,
+      id,
+      'portfolio.update',
+      normalized,
+      'editor',
+      'updated',
+      async (tx) => {
+        const result = await tx.researchPortfolio.updateMany({
+          where: {
+            id,
+            tenantId: ctx.tenantId,
+            lifecycle: 'active',
+            revision: input.expectedRevision,
+          },
+          data: {
+            ...(normalized.name !== undefined ? { name: normalized.name } : {}),
+            ...(normalized.purpose !== undefined ? { purpose: normalized.purpose } : {}),
+            ...(input.mode !== undefined ? { mode: input.mode } : {}),
+            revision: { increment: 1 },
+          },
+        });
+        this.assertUpdated(result.count, input.expectedRevision);
+        return [
+          { targetId: id, targetType: 'portfolio', status: 'updated', id },
+        ] satisfies ResearchPortfolioMutationOutcomeDto[];
+      },
+    );
   }
 
   archive(ctx: TenantContext, id: string, input: ChangeResearchPortfolioLifecycleDto) {
@@ -295,12 +315,14 @@ export class ResearchPortfoliosService {
           update: { role: input.role, grantedByUserId: ctx.userId },
         });
         await this.bumpRevision(tx, ctx.tenantId, id, input.expectedRevision);
-        return [{
-          targetId: principalUserId,
-          targetType: 'grant',
-          status: existing ? 'updated' : 'created',
-          id: grant.id,
-        }];
+        return [
+          {
+            targetId: principalUserId,
+            targetType: 'grant',
+            status: existing ? 'updated' : 'created',
+            id: grant.id,
+          },
+        ];
       },
     );
   }
@@ -332,7 +354,9 @@ export class ResearchPortfoliosService {
         if (grant.role === 'owner') await this.assertNotLastOwner(tx, ctx.tenantId, id);
         await tx.researchPortfolioGrant.delete({ where: { id: grant.id } });
         await this.bumpRevision(tx, ctx.tenantId, id, input.expectedRevision);
-        return [{ targetId: principalUserId, targetType: 'grant', status: 'deleted', id: grant.id }];
+        return [
+          { targetId: principalUserId, targetType: 'grant', status: 'deleted', id: grant.id },
+        ];
       },
     );
   }
@@ -348,7 +372,13 @@ export class ResearchPortfoliosService {
         include: { client: { select: { name: true } } },
         orderBy: { createdAt: 'asc' },
       });
-      return links.map((link) => ({
+      const visibleLinks = [];
+      for (const link of links) {
+        if (await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, link.clientId)) {
+          visibleLinks.push(link);
+        }
+      }
+      return visibleLinks.map((link) => ({
         id: link.id,
         clientId: link.clientId,
         clientName: link.client.name,
@@ -387,21 +417,25 @@ export class ResearchPortfoliosService {
             },
           },
         });
-        const link = existing ?? await tx.researchPortfolioClientLink.create({
-          data: {
-            tenantId: ctx.tenantId,
-            portfolioId: id,
-            clientId: input.clientId,
-            linkedByUserId: ctx.userId,
-          },
-        });
+        const link =
+          existing ??
+          (await tx.researchPortfolioClientLink.create({
+            data: {
+              tenantId: ctx.tenantId,
+              portfolioId: id,
+              clientId: input.clientId,
+              linkedByUserId: ctx.userId,
+            },
+          }));
         await this.bumpRevision(tx, ctx.tenantId, id, input.expectedRevision);
-        return [{
-          targetId: input.clientId,
-          targetType: 'client_link',
-          status: existing ? 'unchanged' : 'created',
-          id: link.id,
-        }];
+        return [
+          {
+            targetId: input.clientId,
+            targetType: 'client_link',
+            status: existing ? 'unchanged' : 'created',
+            id: link.id,
+          },
+        ];
       },
     );
   }
@@ -437,7 +471,10 @@ export class ResearchPortfoliosService {
     );
   }
 
-  async listMembers(ctx: TenantContext, id: string): Promise<readonly ResearchPortfolioMemberDto[]> {
+  async listMembers(
+    ctx: TenantContext,
+    id: string,
+  ): Promise<readonly ResearchPortfolioMemberDto[]> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.loadAuthorized(tx, ctx, id, 'viewer');
       const members = await tx.researchPortfolioMember.findMany({
@@ -462,8 +499,13 @@ export class ResearchPortfoliosService {
       'editor',
       'member_added',
       async (tx) => {
-        const canonical = input.unresolvedInput ? null : await readCanonicalResearchTarget(tx, input.targetKind, targetId);
-        if (!input.unresolvedInput && !canonical) throw new BadRequestException('Typed member target does not resolve to a canonical record; preserve it as unresolved input instead');
+        const canonical = input.unresolvedInput
+          ? null
+          : await readCanonicalResearchTarget(tx, input.targetKind, targetId);
+        if (!input.unresolvedInput && !canonical)
+          throw new BadRequestException(
+            'Typed member target does not resolve to a canonical record; preserve it as unresolved input instead',
+          );
         const existing = await tx.researchPortfolioMember.findUnique({
           where: {
             tenantId_portfolioId_targetKind_targetId: {
@@ -475,7 +517,9 @@ export class ResearchPortfoliosService {
           },
         });
         if (existing) {
-          throw new ConflictException('That typed member already exists; use a decision to reinstate it');
+          throw new ConflictException(
+            'That typed member already exists; use a decision to reinstate it',
+          );
         }
         const member = await tx.researchPortfolioMember.create({
           data: {
@@ -528,7 +572,8 @@ export class ResearchPortfoliosService {
           },
           select: { id: true, targetId: true },
         });
-        if (rows.length !== decisions.length) throw new NotFoundException('Portfolio member not found');
+        if (rows.length !== decisions.length)
+          throw new NotFoundException('Portfolio member not found');
         const targetById = new Map(rows.map((row) => [row.id, row.targetId]));
         for (const decision of decisions) {
           await tx.researchPortfolioMember.update({
@@ -569,7 +614,8 @@ export class ResearchPortfoliosService {
       'member_resolved',
       async (tx) => {
         const canonical = await readCanonicalResearchTarget(tx, input.targetKind, targetId);
-        if (!canonical) throw new BadRequestException('Resolved target does not identify a canonical record');
+        if (!canonical)
+          throw new BadRequestException('Resolved target does not identify a canonical record');
         const member = await tx.researchPortfolioMember.findFirst({
           where: { id: memberId, tenantId: ctx.tenantId, portfolioId: id },
         });
@@ -650,14 +696,21 @@ export class ResearchPortfoliosService {
     }
     const operationFingerprint = fingerprint(operation, { portfolioId: id, ...input });
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // Serialize grant mutations, then reauthorize after any competing owner change.
+      await tx.$queryRaw(
+        Prisma.sql`SELECT id FROM research_portfolios WHERE id = ${id}::uuid AND tenant_id = ${ctx.tenantId}::uuid FOR UPDATE`,
+      );
+      const authorized = await this.loadAuthorized(tx, ctx, id, role);
       const replay = await this.replay(tx, ctx, input.idempotencyKey, operationFingerprint);
       if (replay) return replay;
-      const authorized = await this.loadAuthorized(tx, ctx, id, role);
       if (!options.allowArchived && authorized.lifecycle === 'archived') {
         throw new ConflictException('Archived portfolios are read-only');
       }
       const outcomes = await mutation(tx);
-      const updated = await tx.researchPortfolio.findUniqueOrThrow({ where: { id }, select: { revision: true } });
+      const updated = await tx.researchPortfolio.findUniqueOrThrow({
+        where: { id },
+        select: { revision: true },
+      });
       return this.recordMutation(tx, ctx, {
         portfolioId: id,
         eventKind,
@@ -674,7 +727,12 @@ export class ResearchPortfoliosService {
     ctx: TenantContext,
     id: string,
     requiredRole: RequiredRole,
-  ): Promise<{ id: string; lifecycle: 'active' | 'archived'; revision: number; role: ResearchPortfolioGrantRole }> {
+  ): Promise<{
+    id: string;
+    lifecycle: 'active' | 'archived';
+    revision: number;
+    role: ResearchPortfolioGrantRole;
+  }> {
     const row = await tx.researchPortfolio.findFirst({
       where: {
         id,
@@ -688,7 +746,8 @@ export class ResearchPortfoliosService {
         grants: { where: { principalUserId: ctx.userId }, select: { role: true }, take: 1 },
       },
     });
-    if (!row || row.grants.length === 0) throw new NotFoundException('Research portfolio not found');
+    if (!row || row.grants.length === 0)
+      throw new NotFoundException('Research portfolio not found');
     const role = row.grants[0]!.role as ResearchPortfolioGrantRole;
     if (ROLE_LEVEL[role] < ROLE_LEVEL[requiredRole]) {
       throw new ForbiddenException(`Research portfolio ${requiredRole} access required`);
@@ -701,14 +760,16 @@ export class ResearchPortfoliosService {
       where: { tenantId, userId, status: 'active' },
       select: { id: true },
     });
-    if (!member) throw new BadRequestException('Grant recipients must be active members of this tenant');
+    if (!member)
+      throw new BadRequestException('Grant recipients must be active members of this tenant');
   }
 
   private async assertNotLastOwner(tx: Tx, tenantId: string, portfolioId: string): Promise<void> {
     const owners = await tx.researchPortfolioGrant.count({
       where: { tenantId, portfolioId, role: 'owner' },
     });
-    if (owners <= 1) throw new BadRequestException('A research portfolio must retain at least one owner');
+    if (owners <= 1)
+      throw new BadRequestException('A research portfolio must retain at least one owner');
   }
 
   private async bumpRevision(tx: Tx, tenantId: string, id: string, expectedRevision: number) {
@@ -735,10 +796,16 @@ export class ResearchPortfoliosService {
       where: { tenantId_idempotencyKey: { tenantId: ctx.tenantId, idempotencyKey } },
     });
     if (!existing) return null;
+    if (existing.actorUserId !== ctx.userId) {
+      throw new ConflictException('This idempotency key was already used by another actor');
+    }
+    await this.loadAuthorized(tx, ctx, existing.portfolioId, 'viewer');
     if (existing.payloadFingerprint !== operationFingerprint) {
       throw new ConflictException('This idempotency key was already used for different content');
     }
-    const payload = existing.payload as { outcomes?: readonly ResearchPortfolioMutationOutcomeDto[] };
+    const payload = existing.payload as {
+      outcomes?: readonly ResearchPortfolioMutationOutcomeDto[];
+    };
     return {
       portfolioId: existing.portfolioId,
       eventId: existing.id,

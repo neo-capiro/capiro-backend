@@ -1,5 +1,7 @@
+import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import type {
+  TenantContext,
   DefenseContextDocumentDetailDto,
   DefenseContextDocumentListDto,
   DefenseContextDocumentRevisionDto,
@@ -33,17 +35,26 @@ export class DefenseResearchController {
   constructor(private readonly service: DefenseResearchService) {}
 
   @Get('dossiers/:subjectType/:subjectId/milestones')
-  milestones(@Param('subjectType') subjectType: string, @Param('subjectId') subjectId: string): Promise<DefenseMilestoneResponseDto> {
+  milestones(
+    @Param('subjectType') subjectType: string,
+    @Param('subjectId') subjectId: string,
+  ): Promise<DefenseMilestoneResponseDto> {
     return this.service.milestones(subjectType, subjectId);
   }
 
   @Get('dossiers/:subjectType/:subjectId')
-  dossier(@Param('subjectType') subjectType: string, @Param('subjectId') subjectId: string): Promise<DefenseDossierDto> {
+  dossier(
+    @Param('subjectType') subjectType: string,
+    @Param('subjectId') subjectId: string,
+  ): Promise<DefenseDossierDto> {
     return this.service.dossier(subjectType, subjectId);
   }
 
   @Get('funding-matrix/:subjectType/:subjectId/editions')
-  async fundingEditions(@Param('subjectType') subjectType: string, @Param('subjectId') subjectId: string): Promise<readonly string[]> {
+  async fundingEditions(
+    @Param('subjectType') subjectType: string,
+    @Param('subjectId') subjectId: string,
+  ): Promise<readonly string[]> {
     return (await this.service.fundingMatrix(subjectType, subjectId)).supported.editions;
   }
 
@@ -73,32 +84,44 @@ export class DefenseResearchController {
   }
 
   @Get('context-documents/:documentId/revisions')
-  contextRevisions(@Param('documentId') documentId: string): Promise<readonly DefenseContextDocumentRevisionDto[]> {
+  contextRevisions(
+    @Param('documentId') documentId: string,
+  ): Promise<readonly DefenseContextDocumentRevisionDto[]> {
     return this.service.contextRevisions(documentId);
   }
 
   @Get('context-documents/:documentId/sections')
-  contextSections(@Param('documentId') documentId: string): Promise<readonly DefenseContextSectionDto[]> {
+  contextSections(
+    @Param('documentId') documentId: string,
+  ): Promise<readonly DefenseContextSectionDto[]> {
     return this.service.contextSections(documentId);
   }
 
   @Get('context-documents/:documentId/references')
-  references(@Param('documentId') documentId: string): Promise<readonly DefenseReferenceOccurrenceDto[]> {
+  references(
+    @Param('documentId') documentId: string,
+  ): Promise<readonly DefenseReferenceOccurrenceDto[]> {
     return this.service.references(documentId);
   }
 
   @Get('context-documents/:documentId/cited-by')
-  citedBy(@Param('documentId') documentId: string): Promise<readonly DefenseReferenceOccurrenceDto[]> {
+  citedBy(
+    @Param('documentId') documentId: string,
+  ): Promise<readonly DefenseReferenceOccurrenceDto[]> {
     return this.service.citedBy(documentId);
   }
 
   @Get('context-documents/:documentId')
-  contextDocument(@Param('documentId') documentId: string): Promise<DefenseContextDocumentDetailDto> {
+  contextDocument(
+    @Param('documentId') documentId: string,
+  ): Promise<DefenseContextDocumentDetailDto> {
     return this.service.contextDocument(documentId);
   }
 
   @Get('reference-occurrences/:occurrenceId')
-  referenceOccurrence(@Param('occurrenceId') occurrenceId: string): Promise<DefenseReferenceOccurrenceDto> {
+  referenceOccurrence(
+    @Param('occurrenceId') occurrenceId: string,
+  ): Promise<DefenseReferenceOccurrenceDto> {
     return this.service.referenceOccurrence(occurrenceId);
   }
 
@@ -181,12 +204,17 @@ export class DefenseResearchController {
   }
 
   @Get('acquisition-records/:identityKey/actions')
-  getAcquisitionActions(@Param('identityKey') identityKey: string): Promise<readonly DefenseAcquisitionRecordActionDto[]> {
+  getAcquisitionActions(
+    @Param('identityKey') identityKey: string,
+  ): Promise<readonly DefenseAcquisitionRecordActionDto[]> {
     return this.service.getAcquisitionActions(identityKey);
   }
 
   @Get('acquisition-records/:identityKey')
-  getAcquisitionRecord(@Param('identityKey') identityKey: string, @Query('includeSpeculative') includeSpeculative?: string): Promise<DefenseAcquisitionRecordDetailDto> {
+  getAcquisitionRecord(
+    @Param('identityKey') identityKey: string,
+    @Query('includeSpeculative') includeSpeculative?: string,
+  ): Promise<DefenseAcquisitionRecordDetailDto> {
     return this.service.getAcquisitionRecord(identityKey, includeSpeculative === 'true');
   }
 
@@ -205,17 +233,21 @@ export class DefenseResearchController {
 
   @Get('search')
   search(
+    @CurrentTenant() ctx: TenantContext,
     @Query('q') q: string,
     @Query('semanticEnabled') semanticEnabled?: string,
   ): Promise<DefenseSearchResponseDto> {
-    return this.service.search(q, semanticEnabled === 'true');
+    return this.service.search(q, semanticEnabled === 'true', ctx);
   }
 
   @Get('compare')
-  compare(
-    @Query('subjects') subjects: string,
-  ): Promise<DefenseComparisonResponseDto> {
-    return this.service.compare(subjects.split(',').map(s => s.trim()).filter(Boolean));
+  compare(@Query('subjects') subjects: string): Promise<DefenseComparisonResponseDto> {
+    return this.service.compare(
+      subjects
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    );
   }
 
   @Get('product-coverage')
