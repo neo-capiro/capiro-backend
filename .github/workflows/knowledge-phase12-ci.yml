@@ -70,6 +70,9 @@ jobs:
           pnpm --filter @capiro/meriv2-core build
 
       - name: Validate and generate Prisma client
+        # Validation/generation require a URL but do not connect to a database.
+        env:
+          DATABASE_URL: postgresql://unused:unused@127.0.0.1:1/unused?schema=public
         run: |
           pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
           pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
