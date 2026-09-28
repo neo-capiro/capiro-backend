@@ -6,7 +6,12 @@ import { fileURLToPath } from 'node:url';
 import { validateOwnershipFixture } from './engagement-runtime-ownership.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const PHASE1_BASE_SHA = process.env.OUTREACH_V3_P1_BASE_SHA || '46e029dad5c27bf44c7920cd5a4000716621671f';
+export const PHASE1_BASE_SHA =
+  process.env.OUTREACH_V3_P1_BASE_SHA || '46e029dad5c27bf44c7920cd5a4000716621671f';
+// Immutable original Phase 1 security closeout; later phases legitimately extend
+// the product. Current architecture and catalog metadata remain checked below.
+export const PHASE1_SCOPE_END =
+  process.env.OUTREACH_V3_P1_SCOPE_END ?? 'cf0aa80d8d16fbd1e775fc054e8de34570535e23';
 export const REQUIRED_CAPABILITIES = [
   'search_capiro',
   'get_capiro_record',
@@ -29,15 +34,20 @@ function exists(relative) {
   return fs.existsSync(path.join(ROOT, relative));
 }
 
-export function validateCapabilityCatalog(catalog) {
+export function validateCapabilityCatalog(catalog, { allowExtensions = false } = {}) {
   const problems = [];
   const names = catalog.map((entry) => entry.name);
   if (new Set(names).size !== names.length) problems.push('duplicate capability name');
-  if (JSON.stringify([...names].sort()) !== JSON.stringify(REQUIRED_CAPABILITIES)) {
+  if (allowExtensions) {
+    for (const name of REQUIRED_CAPABILITIES) {
+      if (!names.includes(name)) problems.push(`current capability catalog missing ${name}`);
+    }
+  } else if (JSON.stringify([...names].sort()) !== JSON.stringify(REQUIRED_CAPABILITIES)) {
     problems.push('capability catalog names do not match the required closed set');
   }
   for (const name of names) {
-    if (/^(meri|outreach)_/.test(name)) problems.push(`consumer-prefixed duplicate capability: ${name}`);
+    if (/^(meri|outreach)_/.test(name))
+      problems.push(`consumer-prefixed duplicate capability: ${name}`);
   }
   for (const required of ['get_client_context', 'get_recent_activity', 'get_capiro_record']) {
     if (catalog.find((entry) => entry.name === required)?.status !== 'implemented') {
@@ -100,17 +110,33 @@ function providerImportProblem(source, file) {
 
 export function architectureProblems() {
   const problems = [];
-  const scopeEnd = process.env.OUTREACH_V3_P1_SCOPE_END;
+  const scopeEnd = PHASE1_SCOPE_END;
   let catalog;
   if (scopeEnd) {
-    const result = execFileSync('git', ['show', `${scopeEnd}:apps/api/src/capabilities/__fixtures__/capiro-capability-catalog.v1.json`], {
-      cwd: ROOT, encoding: 'utf8',
-    });
+    const result = execFileSync(
+      'git',
+      [
+        'show',
+        `${scopeEnd}:apps/api/src/capabilities/__fixtures__/capiro-capability-catalog.v1.json`,
+      ],
+      {
+        cwd: ROOT,
+        encoding: 'utf8',
+      },
+    );
     catalog = JSON.parse(result);
   } else {
     catalog = json('apps/api/src/capabilities/__fixtures__/capiro-capability-catalog.v1.json');
   }
   problems.push(...validateCapabilityCatalog(catalog));
+  // Validate the complete current catalog too: extensions cannot hide missing
+  // foundation entries, duplicate names, consumer forks, or authority metadata.
+  problems.push(
+    ...validateCapabilityCatalog(
+      json('apps/api/src/capabilities/__fixtures__/capiro-capability-catalog.v1.json'),
+      { allowExtensions: true },
+    ),
+  );
 
   const reverse = json(
     'apps/api/src/engagement/__fixtures__/outreach-v3-p1-reverse-dependencies.v1.json',
@@ -151,12 +177,8 @@ export function architectureProblems() {
   }
 
   const alertMemoModule = read('apps/api/src/intelligence/alert-memo/alert-memo.module.ts');
-  const districtBriefModule = read(
-    'apps/api/src/intelligence/alert-memo/district-brief.module.ts',
-  );
-  const hearingRecapService = read(
-    'apps/api/src/intelligence/alert-memo/hearing-recap.service.ts',
-  );
+  const districtBriefModule = read('apps/api/src/intelligence/alert-memo/district-brief.module.ts');
+  const hearingRecapService = read('apps/api/src/intelligence/alert-memo/hearing-recap.service.ts');
   if (/^import\s+\{[^}]*EngagementModule/m.test(alertMemoModule)) {
     problems.push('AlertMemoModule still imports broad EngagementModule');
   }
@@ -171,7 +193,7 @@ export function architectureProblems() {
   if (!meriModule.includes('AiCredentialsModule')) {
     problems.push('MeriModule does not consume the neutral AiCredentialsModule');
   }
-  if (meriModule.includes("../engagement/ai-credential-resolver.service")) {
+  if (meriModule.includes('../engagement/ai-credential-resolver.service')) {
     problems.push('MeriModule still resolves credentials through the Engagement path');
   }
 
@@ -221,13 +243,17 @@ export function architectureProblems() {
     if (!exists(requiredFile)) problems.push(`missing ${requiredFile}`);
   }
 
-  const phase1ScopeEnd = process.env.OUTREACH_V3_P1_SCOPE_END ?? 'HEAD';
+  const phase1ScopeEnd = PHASE1_SCOPE_END;
   let changed = [];
   try {
-    changed = execFileSync('git', ['diff', '--name-only', `${PHASE1_BASE_SHA}..${phase1ScopeEnd}`], {
-      cwd: ROOT,
-      encoding: 'utf8',
-    })
+    changed = execFileSync(
+      'git',
+      ['diff', '--name-only', `${PHASE1_BASE_SHA}..${phase1ScopeEnd}`],
+      {
+        cwd: ROOT,
+        encoding: 'utf8',
+      },
+    )
       .split(/\r?\n/)
       .filter(Boolean);
   } catch {

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { previewGateProblems } from './outreach-v3-preview-gate-contract.mjs';
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
@@ -6,6 +7,9 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PHASE5_HEAD = '835cdef35cd8ecb23faf1b100ecfc743bcd31128';
+// Retain the original phase-only scope; all source/functional checks use this checkout.
+const PHASE6_SCOPE_END =
+  process.env.OUTREACH_V3_PHASE6_SCOPE_END ?? 'ab45f984f33f56da7ad2ab9dbbaae6cab831fbda';
 
 function fail(message, status = 1) {
   console.error(`OUTREACH_V3_PHASE6_FINAL_FAILED:${message}`);
@@ -70,9 +74,10 @@ const required = [
   'apps/web/src/pages/engagement/outreach/v3/context-review-surface.css',
   'apps/web/src/pages/engagement/outreach/v3/planning-surfaces.css',
 ];
-for (const relative of required) assert(existsSync(path.join(ROOT, relative)), `MISSING:${relative}`);
+for (const relative of required)
+  assert(existsSync(path.join(ROOT, relative)), `MISSING:${relative}`);
 
-const changed = output('git', ['diff', '--name-only', `${PHASE5_HEAD}...${exactHead}`])
+const changed = output('git', ['diff', '--name-only', `${PHASE5_HEAD}...${PHASE6_SCOPE_END}`])
   .split(/\r?\n/)
   .filter(Boolean);
 assert(changed.length > 0, 'EMPTY_DIFF');
@@ -137,7 +142,7 @@ assert(!production.includes('X-Capiro-Engagement-Preview'), 'PREVIEW_HEADER_LEAK
 assert(!/localStorage\.setItem\([^)]*campaign/i.test(production), 'BROWSER_CAMPAIGN_STORE');
 assert(!/useState<OutreachV3CampaignSpec/.test(production), 'DUPLICATE_CAMPAIGN_SPEC');
 
-assert(router.includes("previewMode === 'v3' && isEngagementPreviewActive() && !hasClassicDraft"), 'DUAL_PREVIEW_GATE');
+assert(previewGateProblems(router).length === 0, 'DUAL_PREVIEW_GATE');
 assert(router.includes('<ClassicOutreachWizard {...props} />'), 'CLASSIC_FALLBACK');
 assert(router.includes('initialRecord || props.initialDraftId'), 'CLASSIC_DRAFT_ROUTE');
 assert(route.includes('session={session}'), 'CANONICAL_SESSION_PROJECTION');
@@ -151,7 +156,10 @@ assert(sponsor.includes('Sponsor and target audience are separate'), 'SPONSOR_AU
 assert(!sponsor.includes('ADD_TARGET_REFS'), 'SPONSOR_ADDS_TARGET');
 assert(!sponsor.includes("selectedClientId ? 'client' : 'firm'"), 'SPONSOR_INFERENCE');
 
-assert(targets.includes('Read-only recommendations are allowed to load automatically'), 'READ_ONLY_RECOMMENDATIONS');
+assert(
+  targets.includes('Read-only recommendations are allowed to load automatically'),
+  'READ_ONLY_RECOMMENDATIONS',
+);
 assert(!targets.includes('void runSearch();'), 'TARGET_STAGE_AUTO_COMMIT');
 assert(targets.includes('Saving to the shared Directory remains'), 'MANUAL_DIRECTORY_DEFAULT');
 assert(targets.includes('getOutreachV3TargetRelationships'), 'RELATIONSHIP_READ');
@@ -159,21 +167,36 @@ assert(targets.includes('Add target'), 'EXPLICIT_TARGET_ADD');
 assert(targets.includes('Not relevant'), 'TARGET_REJECTION');
 
 assert(delivery.includes('Cards select. Continue commits'), 'DELIVERY_EXPLICIT_COMMIT');
-assert(delivery.includes("pattern === 'shared_thread' && !sharedVisibilityAccepted"), 'SHARED_VISIBILITY_ACK');
-assert(delivery.includes("disabled={pattern === 'shared_thread' && value === 'high'}"), 'SHARED_HIGH_PERSONALIZATION_BLOCK');
-assert(!delivery.includes('applyCommands(deliveryCommands(recommended'), 'DELIVERY_RECOMMENDATION_AUTO_APPLY');
+assert(
+  delivery.includes("pattern === 'shared_thread' && !sharedVisibilityAccepted"),
+  'SHARED_VISIBILITY_ACK',
+);
+assert(
+  delivery.includes("disabled={pattern === 'shared_thread' && value === 'high'}"),
+  'SHARED_HIGH_PERSONALIZATION_BLOCK',
+);
+assert(
+  !delivery.includes('applyCommands(deliveryCommands(recommended'),
+  'DELIVERY_RECOMMENDATION_AUTO_APPLY',
+);
 
 assert(context.includes('Style is not evidence'), 'GUIDANCE_EVIDENCE_SEPARATION');
 assert(context.includes('Applies to ${scopeTarget} only'), 'TARGET_CONTEXT_SCOPE');
 assert(context.includes("entry.contextClass === 'required_policy'"), 'REQUIRED_POLICY_LOCK');
-assert(context.includes('Group-safe context requires a named audience group'), 'GROUP_SAFE_FAIL_CLOSED');
+assert(
+  context.includes('Group-safe context requires a named audience group'),
+  'GROUP_SAFE_FAIL_CLOSED',
+);
 assert(context.includes('never commits'), 'MEMORY_AUTO_COMMIT_COPY');
 
 assert(strategy.includes('Recommendations remain editable'), 'STRATEGY_EDITABLE');
 assert(strategy.includes('strategyCommands'), 'STRATEGY_COMMANDS');
 assert(!strategy.match(/REQUEST_(?:SAMPLE|FULL)_GENERATION/), 'STRATEGY_GENERATION');
 assert(ready.includes('The product stops safely here'), 'PLANNING_BOUNDARY');
-assert(ready.includes('No sender, test send, final send, provider call, or delivery retry'), 'LATER_AUTHORITY_COPY');
+assert(
+  ready.includes('No sender, test send, final send, provider call, or delivery retry'),
+  'LATER_AUTHORITY_COPY',
+);
 assert(!ready.match(/onGenerate|createSendIntent|sendCampaign/), 'READY_BOUNDARY_ACTION_LEAK');
 
 assert(proposal.includes('Why this proposal?'), 'PROPOSAL_RATIONALE');
@@ -186,6 +209,10 @@ assert(!hook.includes('archiveOutreachV3Session(api, priorId).catch'), 'ARCHIVE_
 run('Preview route manifest drift', 'node', [
   'scripts/engagement-phase3-preview-route-patterns.mjs',
   '--check',
+]);
+run('Preview gate negative controls', 'node', [
+  '--test',
+  'scripts/outreach-v3-preview-gate-contract.spec.mjs',
 ]);
 run('Web typecheck', 'pnpm', ['--filter', '@capiro/web', 'typecheck']);
 run('Outreach V3 final focused tests', 'pnpm', [
@@ -215,6 +242,8 @@ run('Outreach V3 final focused tests', 'pnpm', [
   'src/lib/engagement-api-preview.spec.ts',
 ]);
 run('Web production build', 'pnpm', ['--filter', '@capiro/web', 'build']);
-run('Diff whitespace', 'git', ['diff', '--check', `${PHASE5_HEAD}...${exactHead}`]);
+run('Diff whitespace', 'git', ['diff', '--check', `${PHASE5_HEAD}...${PHASE6_SCOPE_END}`]);
+
+run('Current PR whitespace', 'git', ['diff', '--check', 'origin/main...HEAD']);
 
 console.log(`\nOUTREACH_V3_PHASE6_CODE_COMPLETE:${exactHead}`);

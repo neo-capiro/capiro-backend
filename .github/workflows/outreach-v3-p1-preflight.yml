@@ -21,6 +21,8 @@ jobs:
     name: Revised Phase 1 DB-free closeout
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
     steps:
       - uses: actions/checkout@v4
         with:
