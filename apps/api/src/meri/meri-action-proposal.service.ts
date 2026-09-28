@@ -108,7 +108,7 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
     'message', 'portfolioId', 'portfolioRevision', 'resultingRevision', 'snapshotId',
     'requestId', 'jobId', 'outputId', 'artifactId', 'operationKey', 'contentHash',
     'attachmentId', 'attachmentName', 'openPath', 'draftId', 'sentFrom', 'to', 'subject', 'error',
-    'scheduled', 'canceled', 'taskId',
+    'scheduled', 'reconciled', 'canceled', 'taskId',
   ]) {
     const value = source[key];
     if (typeof value === 'string') summary[key] = bounded(value, 300) ?? '';
@@ -481,7 +481,7 @@ export class MeriActionProposalService {
     try {
       assertMeriToolRequestActive();
       const result = await this.tools.executeFromAuthenticatedUser(ctx, tool, input, {
-        logicalOperationId: row.id,
+        actionProposalId: row.id,
       });
       const incomplete =
         classifyMeriActionLogicalFailure(tool, result) ?? filingExecutionFailure(tool, result);
@@ -516,6 +516,55 @@ export class MeriActionProposalService {
     }));
   }
 
+  private async reconcileUnknownScheduleReceipts(ctx: TenantContext): Promise<void> {
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.meriActionProposal.findMany({
+        where: {
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          tool: 'schedule_task',
+          status: 'outcome_unknown',
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+    );
+    for (const row of rows) {
+      // Re-check the immutable proposal/policy binding before exposing a durable
+      // receipt through status recovery. This is evidence lookup, not renewed
+      // authority, and it never redispatches the tool.
+      if (row.tool !== 'schedule_task' || row.status !== 'outcome_unknown') continue;
+      let canonical: Record<string, unknown>;
+      try {
+        canonical = this.tools.validateSideEffectingInput(row.tool, row.input);
+      } catch {
+        continue;
+      }
+      const recomputed = computeActionFingerprintV2({
+        effectiveTenantId: ctx.tenantId,
+        userId: ctx.userId,
+        tool: row.tool,
+        input: canonical,
+        policyVersion: row.policyPackVersion,
+        policyBinding: row.policyBinding,
+        policyDecisionHash: row.policyDecisionHash,
+        policyContextHash: row.policyContextHash,
+      });
+      if (!constantTimeHexEqual(row.fingerprint, recomputed)) continue;
+      const receipt = await this.tools.readScheduleTaskReceipt(ctx, row.id, canonical);
+      if (!receipt) continue;
+      await this.finalize(ctx, row.id, {
+        status: 'succeeded',
+        resultSummary: resultSummary({
+          tool: 'schedule_task',
+          scheduled: true,
+          reconciled: true,
+          task: receipt,
+        }),
+      });
+    }
+  }
+
   private async expireStale(ctx: TenantContext): Promise<void> {
     await this.prisma.withTenant(ctx.tenantId, (tx) => tx.meriActionProposal.updateMany({
       where: {
@@ -536,6 +585,7 @@ export class MeriActionProposalService {
       throw new BadRequestException('conversationId is required for an exact proposal receipt.');
     }
     await this.reconcileStaleExecuting(ctx);
+    await this.reconcileUnknownScheduleReceipts(ctx);
     await this.expireStale(ctx);
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) => tx.meriActionProposal.findMany({
       where: {
@@ -686,7 +736,7 @@ export class MeriActionProposalService {
 
     try {
       const result = await this.tools.executeFromAuthenticatedUser(ctx, row.tool, canonical, {
-        logicalOperationId: row.id,
+        actionProposalId: row.id,
       });
       const incomplete =
         classifyMeriActionLogicalFailure(row.tool, result) ??

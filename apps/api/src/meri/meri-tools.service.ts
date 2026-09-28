@@ -229,6 +229,53 @@ interface ToolArtifactInput {
   metadata?: Prisma.InputJsonValue;
 }
 
+interface ScheduleTaskReceipt {
+  id: string;
+  name: string;
+  intervalMinutes: number;
+  nextRunAt: Date;
+}
+
+interface NormalizedScheduleEffect {
+  name: string;
+  prompt: string;
+  intervalMinutes: number;
+  allowList: string[];
+  runAtMinutesUtc: number | null;
+  clientId: string | null;
+  emailRecipientIntent: 'none' | 'explicit' | 'owner_connection';
+  emailTo: string | null;
+  fingerprint: string;
+}
+
+const SCHEDULE_EFFECT_FINGERPRINT_VERSION = 1;
+const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function scheduleEffectFingerprint(
+  ctx: TenantContext,
+  effect: Omit<NormalizedScheduleEffect, 'fingerprint'>,
+): string {
+  return createHash('sha256')
+    .update(JSON.stringify({
+      version: SCHEDULE_EFFECT_FINGERPRINT_VERSION,
+      tenantId: ctx.tenantId,
+      actorUserId: ctx.userId,
+      clientId: effect.clientId,
+      schedule: {
+        name: effect.name,
+        prompt: effect.prompt,
+        intervalMinutes: effect.intervalMinutes,
+        runAtMinutesUtc: effect.runAtMinutesUtc,
+        toolAllowList: effect.allowList,
+      },
+      emailRecipient: {
+        intent: effect.emailRecipientIntent,
+        address: effect.emailTo,
+      },
+    }))
+    .digest('hex');
+}
+
 interface MeetingForBrief {
   clientId: string | null;
   subject: string;
@@ -2092,7 +2139,7 @@ export class MeriToolsService {
     ctx: TenantContext,
     rawName: string,
     rawInput: unknown,
-    execution?: { logicalOperationId?: string },
+    execution?: { actionProposalId?: string },
   ) {
     assertMeriToolRequestActive();
     const name = normalizeToolName(rawName);
@@ -2194,7 +2241,7 @@ export class MeriToolsService {
     ctx: TenantContext,
     name: MeriToolName,
     input: Record<string, unknown>,
-    execution?: { logicalOperationId?: string },
+    execution?: { actionProposalId?: string },
   ) {
     assertMeriToolRequestActive();
     switch (name) {
@@ -2378,7 +2425,7 @@ export class MeriToolsService {
       case 'create_powerpoint':
         return this.createDocument(ctx, input, 'pptx');
       case 'schedule_task':
-        return this.scheduleTask(ctx, input, execution?.logicalOperationId);
+        return this.scheduleTask(ctx, input, execution?.actionProposalId);
       case 'list_scheduled_tasks':
         return this.listScheduledTasks(ctx);
       case 'cancel_scheduled_task':
@@ -7073,35 +7120,231 @@ export class MeriToolsService {
 
   // ── Scheduled tasks (W3) ────────────────────
 
+  private async normalizeScheduleEffect(
+    ctx: TenantContext,
+    input: Record<string, unknown>,
+  ): Promise<
+    | { ok: true; effect: NormalizedScheduleEffect }
+    | { ok: false; error: string }
+  > {
+    // Receipt verification must not depend on the current task count. The quota
+    // is checked separately immediately before a genuinely new insert.
+    const validation = validateScheduleRequest({
+      name: input.name,
+      prompt: input.prompt,
+      intervalMinutes: input.intervalMinutes,
+      toolAllowList: input.toolAllowList,
+      existingTaskCount: 0,
+    });
+    if (!validation.ok) return { ok: false, error: validation.error! };
+
+    const requestedClient =
+      typeof input.clientId === 'string' && input.clientId.trim()
+        ? input.clientId.trim()
+        : null;
+    const clientId = requestedClient
+      ? await this.ensureClientVisible(ctx, requestedClient)
+      : null;
+    const requestedEmail = normalizeDeliveryEmail(input.deliverEmailTo);
+    let emailRecipientIntent: NormalizedScheduleEffect['emailRecipientIntent'] = 'none';
+    let emailTo: string | null = null;
+    if (input.emailBriefing === true) {
+      if (requestedEmail) {
+        emailRecipientIntent = 'explicit';
+        emailTo = requestedEmail;
+      } else {
+        emailRecipientIntent = 'owner_connection';
+        const connection = await this.findUserEmailConnection(ctx);
+        emailTo = connection?.accountEmail
+          ? normalizeDeliveryEmail(connection.accountEmail)
+          : null;
+      }
+      if (!emailTo) {
+        return {
+          ok: false,
+          error:
+            'Email delivery requested but no valid recipient: provide deliverEmailTo, or connect a Microsoft 365 account in Settings → Integrations so the briefing can be sent to your own address.',
+        };
+      }
+    }
+
+    const withoutFingerprint: Omit<NormalizedScheduleEffect, 'fingerprint'> = {
+      name: String(input.name).trim().slice(0, 200),
+      prompt: String(input.prompt).trim().slice(0, 8000),
+      intervalMinutes: validation.intervalMinutes!,
+      allowList: [...new Set(validation.allowList!)].sort(),
+      runAtMinutesUtc: parseTimeOfDayUtc(input.dailyAtUtc),
+      clientId,
+      emailRecipientIntent,
+      emailTo,
+    };
+    return {
+      ok: true,
+      effect: {
+        ...withoutFingerprint,
+        fingerprint: scheduleEffectFingerprint(ctx, withoutFingerprint),
+      },
+    };
+  }
+
+  private scheduleCandidateMatches(
+    candidate: {
+      id: string;
+      scope: string;
+      name: string;
+      prompt: string;
+      intervalMinutes: number;
+      toolAllowList: Prisma.JsonValue;
+      createdBy: string;
+      metadata: Prisma.JsonValue;
+    },
+    actionProposalId: string,
+    effect: NormalizedScheduleEffect,
+  ): boolean {
+    const metadata = candidate.metadata && typeof candidate.metadata === 'object'
+      && !Array.isArray(candidate.metadata)
+      ? candidate.metadata as Record<string, unknown>
+      : {};
+    const allowList = Array.isArray(candidate.toolAllowList)
+      ? candidate.toolAllowList.filter((value): value is string => typeof value === 'string')
+      : [];
+    const boundProposalId = typeof metadata.actionProposalId === 'string'
+      ? metadata.actionProposalId
+      : metadata.logicalOperationId;
+    return candidate.scope === 'user_private'
+      && candidate.createdBy === 'meri'
+      && boundProposalId === actionProposalId
+      && metadata.scheduleEffectFingerprintVersion === SCHEDULE_EFFECT_FINGERPRINT_VERSION
+      && metadata.scheduleEffectFingerprint === effect.fingerprint
+      && candidate.name === effect.name
+      && candidate.prompt === effect.prompt
+      && candidate.intervalMinutes === effect.intervalMinutes
+      && JSON.stringify([...new Set(allowList)].sort()) === JSON.stringify(effect.allowList)
+      && (typeof metadata.runAtMinutesUtc === 'number' ? metadata.runAtMinutesUtc : null)
+        === effect.runAtMinutesUtc
+      && (typeof metadata.clientId === 'string' ? metadata.clientId : null) === effect.clientId
+      && (typeof metadata.emailRecipientIntent === 'string'
+        ? metadata.emailRecipientIntent
+        : 'none') === effect.emailRecipientIntent
+      && (typeof metadata.emailTo === 'string' ? metadata.emailTo : null) === effect.emailTo;
+  }
+
+  private async findScheduleTaskReceipt(
+    ctx: TenantContext,
+    actionProposalId: string,
+    effect: NormalizedScheduleEffect,
+  ): Promise<ScheduleTaskReceipt | null> {
+    const select = {
+      id: true,
+      scope: true,
+      name: true,
+      prompt: true,
+      intervalMinutes: true,
+      toolAllowList: true,
+      nextRunAt: true,
+      createdBy: true,
+      metadata: true,
+    } as const;
+    const deterministic = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioScheduledTask.findFirst({
+        where: {
+          id: actionProposalId,
+          tenantId: ctx.tenantId,
+          ownerUserId: ctx.userId,
+          scope: 'user_private',
+        },
+        select,
+      }),
+    );
+    if (deterministic) {
+      return this.scheduleCandidateMatches(deterministic, actionProposalId, effect)
+        ? {
+            id: deterministic.id,
+            name: deterministic.name,
+            intervalMinutes: deterministic.intervalMinutes,
+            nextRunAt: deterministic.nextRunAt,
+          }
+        : null;
+    }
+
+    // Compatibility is deliberately narrow: older proposal-owned rows used a
+    // random task id and kept the proposal id only in metadata. A known-version
+    // exact fingerprint and exact current scope are mandatory; metadata-only
+    // rows from before fingerprints existed remain unprovable.
+    const legacy = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioScheduledTask.findMany({
+        where: {
+          id: { not: actionProposalId },
+          tenantId: ctx.tenantId,
+          ownerUserId: ctx.userId,
+          scope: 'user_private',
+          OR: [
+            { metadata: { path: ['actionProposalId'], equals: actionProposalId } },
+            { metadata: { path: ['logicalOperationId'], equals: actionProposalId } },
+          ],
+        },
+        select,
+        take: 3,
+      }),
+    );
+    const verified = legacy.filter((candidate) =>
+      this.scheduleCandidateMatches(candidate, actionProposalId, effect),
+    );
+    if (verified.length !== 1) return null;
+    const [candidate] = verified;
+    return {
+      id: candidate!.id,
+      name: candidate!.name,
+      intervalMinutes: candidate!.intervalMinutes,
+      nextRunAt: candidate!.nextRunAt,
+    };
+  }
+
+  /** Read-only durable-receipt lookup for action-proposal status recovery. */
+  async readScheduleTaskReceipt(
+    ctx: TenantContext,
+    actionProposalId: string,
+    input: Record<string, unknown>,
+  ): Promise<ScheduleTaskReceipt | null> {
+    if (!UUID_V4_RE.test(actionProposalId)) return null;
+    try {
+      const normalized = await this.normalizeScheduleEffect(ctx, input);
+      if (!normalized.ok) return null;
+      return await this.findScheduleTaskReceipt(ctx, actionProposalId, normalized.effect);
+    } catch {
+      // Access changes, malformed legacy rows, and unavailable evidence all mean
+      // "not proved". Status recovery must never turn those into a redispatch.
+      return null;
+    }
+  }
+
   private async scheduleTask(
     ctx: TenantContext,
     input: Record<string, unknown>,
-    logicalOperationId?: string,
+    actionProposalId?: string,
   ) {
-    const operationWhere = logicalOperationId
-      ? {
-          tenantId: ctx.tenantId,
-          ownerUserId: ctx.userId,
-          metadata: { path: ['logicalOperationId'], equals: logicalOperationId },
-        }
-      : null;
+    if (actionProposalId && !UUID_V4_RE.test(actionProposalId)) {
+      throw new BadRequestException('Invalid server action proposal identity');
+    }
     const selectReceipt = {
       id: true,
       name: true,
       intervalMinutes: true,
       nextRunAt: true,
     } as const;
-    const authoritativeReceipt = operationWhere
-      ? await this.prisma.withTenant(ctx.tenantId, (tx) =>
-          tx.clioScheduledTask.findFirst({ where: operationWhere, select: selectReceipt }),
-        )
+    const normalized = await this.normalizeScheduleEffect(ctx, input);
+    if (!normalized.ok) {
+      return { tool: 'schedule_task', scheduled: false, error: normalized.error };
+    }
+    const effect = normalized.effect;
+    const authoritativeReceipt = actionProposalId
+      ? await this.findScheduleTaskReceipt(ctx, actionProposalId, effect)
       : null;
     if (authoritativeReceipt) {
       return {
         tool: 'schedule_task',
         scheduled: true,
         task: authoritativeReceipt,
-        logicalOperationId,
         reconciled: true,
         note: 'The existing scheduled task receipt was recovered; no second task was created.',
       };
@@ -7109,68 +7352,46 @@ export class MeriToolsService {
     const existingTaskCount = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioScheduledTask.count({ where: { tenantId: ctx.tenantId, ownerUserId: ctx.userId } }),
     );
-    const validation = validateScheduleRequest({
+    const quotaValidation = validateScheduleRequest({
       name: input.name,
       prompt: input.prompt,
       intervalMinutes: input.intervalMinutes,
       toolAllowList: input.toolAllowList,
       existingTaskCount,
     });
-    if (!validation.ok) {
-      return { tool: 'schedule_task', scheduled: false, error: validation.error };
+    if (!quotaValidation.ok) {
+      return { tool: 'schedule_task', scheduled: false, error: quotaValidation.error };
     }
-    const intervalMinutes = validation.intervalMinutes!;
-    const allowList = validation.allowList!;
-    // Optional clock-anchored time-of-day (UTC) + client scope.
-    const runAtMinutesUtc = parseTimeOfDayUtc(input.dailyAtUtc);
-    const clientId =
-      typeof input.clientId === 'string' && input.clientId.trim()
-        ? input.clientId.trim()
-        : undefined;
-    const metadata: Record<string, string | number> = { createdVia: 'schedule_task_tool' };
-    if (runAtMinutesUtc != null) metadata.runAtMinutesUtc = runAtMinutesUtc;
-    if (clientId) metadata.clientId = clientId;
-    if (logicalOperationId) metadata.logicalOperationId = logicalOperationId;
+    const metadata: Record<string, string | number> = {
+      createdVia: 'schedule_task_tool',
+      scheduleEffectFingerprintVersion: SCHEDULE_EFFECT_FINGERPRINT_VERSION,
+      scheduleEffectFingerprint: effect.fingerprint,
+      emailRecipientIntent: effect.emailRecipientIntent,
+    };
+    if (actionProposalId) metadata.actionProposalId = actionProposalId;
+    if (effect.runAtMinutesUtc != null) metadata.runAtMinutesUtc = effect.runAtMinutesUtc;
+    if (effect.clientId) metadata.clientId = effect.clientId;
+    if (effect.emailTo) metadata.emailTo = effect.emailTo;
 
-    // Optional fixed email delivery of the finished briefing. The recipient is
-    // resolved + frozen NOW (not at run time): an explicit deliverEmailTo if
-    // valid, else the owner's own connected Microsoft 365 address. The scheduled
-    // runner only ever emails its own briefing to this one pre-set address — the
-    // model never gets a send tool, so there is no autonomous-send surface.
-    let emailDeliveryNote = '';
-    if (input.emailBriefing === true) {
-      const requested = normalizeDeliveryEmail(input.deliverEmailTo);
-      let emailTo = requested;
-      if (!emailTo) {
-        const conn = await this.findUserEmailConnection(ctx);
-        emailTo = conn?.accountEmail ? normalizeDeliveryEmail(conn.accountEmail) : null;
-      }
-      if (!emailTo) {
-        return {
-          tool: 'schedule_task',
-          scheduled: false,
-          error:
-            'Email delivery requested but no valid recipient: provide deliverEmailTo, or connect a Microsoft 365 account in Settings → Integrations so the briefing can be sent to your own address.',
-        };
-      }
-      metadata.emailTo = emailTo;
-      emailDeliveryNote = ` Each briefing is also emailed to ${emailTo}.`;
-    }
-
-    const nextRunAt = computeNextRunAtAnchored(new Date(), intervalMinutes, runAtMinutesUtc);
-    let task: { id: string; name: string; intervalMinutes: number; nextRunAt: Date };
+    const nextRunAt = computeNextRunAtAnchored(
+      new Date(),
+      effect.intervalMinutes,
+      effect.runAtMinutesUtc,
+    );
+    let task: ScheduleTaskReceipt;
     let reconciled = false;
     try {
       task = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.clioScheduledTask.create({
           data: {
+            ...(actionProposalId ? { id: actionProposalId } : {}),
             tenantId: ctx.tenantId,
             ownerUserId: ctx.userId,
             scope: 'user_private',
-            name: String(input.name).slice(0, 200),
-            prompt: String(input.prompt).slice(0, 8000),
-            intervalMinutes,
-            toolAllowList: allowList,
+            name: effect.name,
+            prompt: effect.prompt,
+            intervalMinutes: effect.intervalMinutes,
+            toolAllowList: effect.allowList,
             nextRunAt,
             createdBy: 'meri',
             metadata,
@@ -7182,24 +7403,24 @@ export class MeriToolsService {
       // A transaction/connection failure can arrive after commit. Reconcile by
       // the proposal-stable operation identity before allowing the ambiguity to
       // escape; the proposal layer keeps an unreconciled outcome non-retryable.
-      const recovered = operationWhere
-        ? await this.prisma.withTenant(ctx.tenantId, (tx) =>
-            tx.clioScheduledTask.findFirst({ where: operationWhere, select: selectReceipt }),
-          )
+      const recovered = actionProposalId
+        ? await this.findScheduleTaskReceipt(ctx, actionProposalId, effect)
         : null;
       if (!recovered) throw error;
       task = recovered;
       reconciled = true;
     }
     const cadence =
-      runAtMinutesUtc != null
-        ? `daily at ${String(Math.floor(runAtMinutesUtc / 60)).padStart(2, '0')}:${String(runAtMinutesUtc % 60).padStart(2, '0')} UTC`
-        : `every ${intervalMinutes} minutes`;
+      effect.runAtMinutesUtc != null
+        ? `daily at ${String(Math.floor(effect.runAtMinutesUtc / 60)).padStart(2, '0')}:${String(effect.runAtMinutesUtc % 60).padStart(2, '0')} UTC`
+        : `every ${effect.intervalMinutes} minutes`;
+    const emailDeliveryNote = effect.emailTo
+      ? ` Each briefing is also emailed to ${effect.emailTo}.`
+      : '';
     return {
       tool: 'schedule_task',
       scheduled: true,
       task,
-      ...(logicalOperationId ? { logicalOperationId } : {}),
       ...(reconciled ? { reconciled: true } : {}),
       note: `Scheduled as a READ-ONLY recurring research task (${cadence}; no autonomous email/writes). Meri runs it automatically and delivers each briefing to your inbox.${emailDeliveryNote} Use list_scheduled_tasks to review or cancel_scheduled_task to stop it.`,
     };

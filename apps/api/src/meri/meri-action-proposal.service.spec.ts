@@ -177,6 +177,7 @@ function harness(
     forceClaimLoss?: boolean;
     executeResult?: unknown;
     executeError?: unknown;
+    scheduleReceipt?: unknown;
   } = {},
 ) {
   let row = options.row === undefined ? makeRow() : options.row;
@@ -264,6 +265,7 @@ function harness(
   const tools = {
     validateSideEffectingInput: validate,
     executeFromAuthenticatedUser: execute,
+    readScheduleTaskReceipt: jest.fn().mockResolvedValue(options.scheduleReceipt ?? null),
   } as unknown as MeriToolsService;
   const config = {
     get: (key: string) =>
@@ -301,7 +303,13 @@ function harness(
   return {
     service,
     tx,
-    tools: { execute, validate },
+    tools: {
+      execute,
+      validate,
+      readScheduleTaskReceipt: (tools as unknown as {
+        readScheduleTaskReceipt: jest.Mock;
+      }).readScheduleTaskReceipt,
+    },
     policyPacks,
     getRow: () => row,
     setPolicy,
@@ -461,7 +469,7 @@ describe('MeriActionProposalService', () => {
     h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
     const result = await h.service.approveAndExecute(ctx, PROPOSAL);
     expect(h.tools.execute).toHaveBeenCalledWith(ctx, 'update_client_profile', row.input, {
-      logicalOperationId: PROPOSAL,
+      actionProposalId: PROPOSAL,
     });
     expect(result.status).toBe('succeeded');
     expect(result.attemptCount).toBe(1);
@@ -475,7 +483,7 @@ describe('MeriActionProposalService', () => {
     expect(result.error?.code).toBe('external_outcome_unknown');
   });
 
-  it('keeps an ambiguous schedule acknowledgement non-retryable with the same operation id', async () => {
+  it('keeps an ambiguous schedule acknowledgement non-retryable with the same proposal id', async () => {
     const input = { name: 'Watch', prompt: 'Check', intervalMinutes: 60 };
     const h = harness({
       row: makeRow({ tool: 'schedule_task', input }),
@@ -491,8 +499,81 @@ describe('MeriActionProposalService', () => {
     expect(reconnected.status).toBe('outcome_unknown');
     expect(h.tools.execute).toHaveBeenCalledTimes(1);
     expect(h.tools.execute).toHaveBeenCalledWith(ctx, 'schedule_task', input, {
-      logicalOperationId: PROPOSAL,
+      actionProposalId: PROPOSAL,
     });
+  });
+
+  it('GET/list recovers a stale unknown schedule from read-only durable receipt evidence', async () => {
+    const input = { name: 'Watch', prompt: 'Check', intervalMinutes: 60 };
+    const h = harness({
+      row: makeRow({
+        tool: 'schedule_task',
+        input,
+        status: 'executing',
+        executionStartedAt: new Date(Date.now() - 10 * 60_000),
+      }),
+      scheduleReceipt: {
+        id: PROPOSAL,
+        name: 'Watch',
+        intervalMinutes: 60,
+        nextRunAt: new Date('2026-09-29T00:00:00.000Z'),
+      },
+    });
+
+    const [result] = await h.service.list(ctx);
+
+    expect(result?.status).toBe('succeeded');
+    expect(result?.resultSummary).toMatchObject({
+      tool: 'schedule_task',
+      scheduled: true,
+      reconciled: true,
+      task: { id: PROPOSAL },
+    });
+    expect(h.tools.readScheduleTaskReceipt).toHaveBeenCalledWith(ctx, PROPOSAL, input);
+    expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+
+  it('GET/list leaves a stale unknown schedule unchanged when receipt evidence is absent', async () => {
+    const input = { name: 'Watch', prompt: 'Check', intervalMinutes: 60 };
+    const h = harness({
+      row: makeRow({
+        tool: 'schedule_task',
+        input,
+        status: 'executing',
+        executionStartedAt: new Date(Date.now() - 10 * 60_000),
+      }),
+    });
+
+    const [result] = await h.service.list(ctx);
+
+    expect(result?.status).toBe('outcome_unknown');
+    expect(result?.error?.code).toBe('stale_execution');
+    expect(h.tools.readScheduleTaskReceipt).toHaveBeenCalledTimes(1);
+    expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+
+  it('GET/list refuses receipt visibility when the proposal policy-bound fingerprint is invalid', async () => {
+    const input = { name: 'Watch', prompt: 'Check', intervalMinutes: 60 };
+    const h = harness({
+      row: makeRow({
+        tool: 'schedule_task',
+        input,
+        fingerprint: '0'.repeat(64),
+        status: 'outcome_unknown',
+      }),
+      scheduleReceipt: {
+        id: PROPOSAL,
+        name: 'Watch',
+        intervalMinutes: 60,
+        nextRunAt: new Date('2026-09-29T00:00:00.000Z'),
+      },
+    });
+
+    const [result] = await h.service.list(ctx);
+
+    expect(result?.status).toBe('outcome_unknown');
+    expect(h.tools.readScheduleTaskReceipt).not.toHaveBeenCalled();
+    expect(h.tools.execute).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -749,7 +830,7 @@ describe('MeriActionProposalService — retries retain the original policy autho
       input,
     );
     expect(h.tools.execute).toHaveBeenNthCalledWith(2, ctx, 'save_chat_attachments', input, {
-      logicalOperationId: PROPOSAL,
+      actionProposalId: PROPOSAL,
     });
   });
 
