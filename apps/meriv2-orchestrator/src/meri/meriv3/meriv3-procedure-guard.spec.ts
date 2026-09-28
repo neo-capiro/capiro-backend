@@ -6,7 +6,9 @@ import {
 } from './meriv3-procedure-guard.js';
 
 const now = 1_000_000;
-function procedure(overrides: Partial<MeriGovernedProcedureBinding> = {}): MeriGovernedProcedureBinding {
+function procedure(
+  overrides: Partial<MeriGovernedProcedureBinding> = {},
+): MeriGovernedProcedureBinding {
   return {
     version: 1,
     tenantId: 'tenant-1',

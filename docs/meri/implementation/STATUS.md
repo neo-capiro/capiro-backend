@@ -1,5 +1,13 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-28 16:32 UTC
+
+File 01 remains in progress. The consolidated branch at f92 has successful hosted memory PostgreSQL and connector checks. Hosted canary and visual checks stopped at formatting before code validation. Seven affected files are now mechanically formatted; source AST, emitted JavaScript AST and ordered comments are equivalent in all seven, and both complete workflow format commands exit 0. Evidence: `ci-f92-canary-failed.log`, `ci-f92-visual-failed.log`, `f92-format-proof.json`, `integration-additional-format-gates.json`. This is not a code-check waiver.
+
+Durable replay correction80445 has independent scoped PASS (34 API,104 orchestrator and five additional authority-transition probes; both typechecks exit0). Discovery repair8da6 has implementation156 tests/four new probes/types/build exit0 and is under independent review. Adaptive narrative and existing JEV repaire056 is committed with164 runtime tests/typecheck exit0; independent review is next. Server capture8e remains held for current membership/conversation/client authority and extra attachment/artifact/rerun writes; a repair worker is active. Its earlier API review setup failure came from the wrong checkout; prepared donor dependencies exist. LIVE remains closed.
+
+A separate focused Workstream A outcome candidate7003610 is built from actual origin/main42942de, preserving the larger original scope in PR1904. Its56 API and133 runtime tests, runtime typecheck and shared/core builds exit0. Full API typecheck exits2 on11 diagnostics in unchanged business-development test fixtures; the known fixture repair78d5 is absent from this main-based candidate. Independent review is verifying the candidate and baseline provenance. No release readiness is claimed. Both mains, AWS and approved synthetic enablement remain unchanged.
+
 ## Current checkpoint — 2026-09-28 16:15 UTC
 
 The reviewed report/source/plan/procedure candidate is now consolidated into the task integration branch at `94a0faaf6a170d6416ded65c45ce0ee05a55205c`. This is task-branch integration, not a merge to either main or an AWS release. Full original File01 scope remains active.

@@ -189,9 +189,12 @@ describe('MeriV3 alternate registry current-authority boundary', () => {
     const instance = assistant(scenario.readOnly, invoke, complete);
     global.fetch = jest.fn(async (url) => {
       if (String(url).endsWith('/tool-schemas')) {
-        return new Response(JSON.stringify({ schemas: catalogCurrent ? [certificationSchema] : [] }), {
-          status: 200,
-        });
+        return new Response(
+          JSON.stringify({ schemas: catalogCurrent ? [certificationSchema] : [] }),
+          {
+            status: 200,
+          },
+        );
       }
       if (String(url).endsWith('/active')) {
         return new Response(JSON.stringify({ active }), { status: active ? 200 : 409 });

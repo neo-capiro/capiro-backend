@@ -744,7 +744,9 @@ export class MeriV3AssistantService {
     });
     const creds = RequestCredentialsStore.get();
     if (!conversationId || !creds?.bearerToken || !this.serviceSecret) {
-      throw new MeriProcedureBindingError('Served procedure binding is invalid or no longer current');
+      throw new MeriProcedureBindingError(
+        'Served procedure binding is invalid or no longer current',
+      );
     }
 
     const execution = createMeriExecutionControl(control, PROCEDURE_AUTHORITY_TIMEOUT_MS);
@@ -800,7 +802,9 @@ export class MeriV3AssistantService {
       }
     } catch {
       execution.assertActive();
-      throw new MeriProcedureBindingError('Served procedure binding is invalid or no longer current');
+      throw new MeriProcedureBindingError(
+        'Served procedure binding is invalid or no longer current',
+      );
     } finally {
       execution.dispose();
     }
@@ -3307,22 +3311,17 @@ export class MeriV3AssistantService {
           args.control,
         );
         if (replay.replayed === true) {
-          await this.assertCurrentProcedureAuthority(
-            args.conversationId,
-            args.name,
-            args.control,
-          );
+          await this.assertCurrentProcedureAuthority(args.conversationId, args.name, args.control);
           result = replay.result;
           durableSafeRead = this.durableOutcome(replay.durableSafeRead);
         } else {
-          await this.assertCurrentProcedureAuthority(
-            args.conversationId,
-            args.name,
-            args.control,
-          );
+          await this.assertCurrentProcedureAuthority(args.conversationId, args.name, args.control);
           result = await this.registry.invoke(args.name, args.input, args.ctx, args.control);
           const classification = classifyApiToolReadOutcome(args.name, result);
-          if (!classification || (classification.kind !== 'complete' && classification.kind !== 'empty')) {
+          if (
+            !classification ||
+            (classification.kind !== 'complete' && classification.kind !== 'empty')
+          ) {
             const detail = `Read result was not durably qualified (${classification?.kind ?? 'unknown'}).`;
             args.steps.push({ tool: args.name, label, status: 'error', detail });
             args.emit({ type: 'tool_done', tool: args.name, label, status: 'error', detail });

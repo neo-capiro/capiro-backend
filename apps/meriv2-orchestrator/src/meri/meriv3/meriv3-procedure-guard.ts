@@ -104,7 +104,7 @@ export function bindMeriProcedureSchemas<T extends { name: string }>(input: {
     const definition = input.registry.get(schema.name);
     return Boolean(
       definition &&
-        (input.procedure!.policy.effectMode !== 'read_only' || definition.readOnly === true),
+      (input.procedure!.policy.effectMode !== 'read_only' || definition.readOnly === true),
     );
   });
   const available = new Set(schemas.map((schema) => schema.name));

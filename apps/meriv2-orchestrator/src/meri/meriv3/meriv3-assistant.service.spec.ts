@@ -2301,7 +2301,10 @@ describe('Admitted research plan execution', () => {
     const invoke = jest.fn();
     const fetchMock = jest.fn();
     global.fetch = fetchMock as typeof fetch;
-    const assistant = build(registry([{ name: 'search_memory', readOnly: true }], invoke), complete);
+    const assistant = build(
+      registry([{ name: 'search_memory', readOnly: true }], invoke),
+      complete,
+    );
 
     await expect(
       assistant.run(context, {
@@ -2325,7 +2328,9 @@ describe('Admitted research plan execution', () => {
     };
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(response({ output: [unlisted], outputText: '', functionCalls: [unlisted] }))
+      .mockResolvedValueOnce(
+        response({ output: [unlisted], outputText: '', functionCalls: [unlisted] }),
+      )
       .mockResolvedValueOnce(response({ outputText: 'The unlisted read was not executed.' }));
     const invoke = jest.fn();
     const replayRequests: string[] = [];
@@ -2343,8 +2348,10 @@ describe('Admitted research plan execution', () => {
           { status: 200 },
         );
       }
-      if (href.endsWith('/active')) return new Response(JSON.stringify({ active: true }), { status: 200 });
-      if (href.includes('/safe-read/') || href.includes('/api/clio/tools/')) replayRequests.push(href);
+      if (href.endsWith('/active'))
+        return new Response(JSON.stringify({ active: true }), { status: 200 });
+      if (href.includes('/safe-read/') || href.includes('/api/clio/tools/'))
+        replayRequests.push(href);
       return new Response('{}', { status: 500 });
     }) as typeof fetch;
     const assistant = build(
@@ -2366,23 +2373,28 @@ describe('Admitted research plan execution', () => {
       }),
     );
 
-    expect((complete.mock.calls[0]?.[0].tools as Array<{ name: string }>).map((tool) => tool.name)).toEqual([
-      'search_memory',
-    ]);
+    expect(
+      (complete.mock.calls[0]?.[0].tools as Array<{ name: string }>).map((tool) => tool.name),
+    ).toEqual(['search_memory']);
     expect(invoke).not.toHaveBeenCalled();
     expect(replayRequests).toEqual([]);
     expect(result.reply).toBe('The unlisted read was not executed.');
   });
 
   test('does not expose a plan-admitted capability that the current API catalog denies', async () => {
-    const complete = jest.fn().mockResolvedValue(response({ outputText: 'Catalog denied the read.' }));
+    const complete = jest
+      .fn()
+      .mockResolvedValue(response({ outputText: 'Catalog denied the read.' }));
     global.fetch = jest.fn(async (url) =>
       String(url).endsWith('/tool-schemas')
         ? new Response(JSON.stringify({ schemas: [] }), { status: 200 })
         : new Response(JSON.stringify({ active: true }), { status: 200 }),
     ) as typeof fetch;
     const invoke = jest.fn();
-    const assistant = build(registry([{ name: 'search_memory', readOnly: true }], invoke), complete);
+    const assistant = build(
+      registry([{ name: 'search_memory', readOnly: true }], invoke),
+      complete,
+    );
 
     await RequestCredentialsStore.run({ bearerToken: 'user-token' }, () =>
       assistant.run(context, {
@@ -2521,18 +2533,48 @@ describe('Durable research cancellation across API replicas', () => {
       .mockResolvedValueOnce(response({ outputText: 'Done.' }));
     const ownerResult = {
       tool: 'search_memory',
-      coverage: { complete: true, paginationComplete: true, sources: [{ domain: 'institutional_knowledge', sourceStatus: 'healthy', hasMore: false, truncated: false, paginationComplete: true, coverageComplete: true }] },
-      factContentUnavailableCount: 0, contentStatus: 'available', contentTruncated: false,
-      nextCursor: null, results: [{ id: 'fact-a', content: 'full content' }],
+      coverage: {
+        complete: true,
+        paginationComplete: true,
+        sources: [
+          {
+            domain: 'institutional_knowledge',
+            sourceStatus: 'healthy',
+            hasMore: false,
+            truncated: false,
+            paginationComplete: true,
+            coverageComplete: true,
+          },
+        ],
+      },
+      factContentUnavailableCount: 0,
+      contentStatus: 'available',
+      contentTruncated: false,
+      nextCursor: null,
+      results: [{ id: 'fact-a', content: 'full content' }],
       records: [{ id: 'fact-a', content: 'full content' }],
     };
     const invoke = jest.fn(async () => ownerResult);
-    const assistant = build(registry([{ name: 'search_memory', readOnly: true }], invoke), complete);
+    const assistant = build(
+      registry([{ name: 'search_memory', readOnly: true }], invoke),
+      complete,
+    );
     const committed: Array<Record<string, unknown>> = [];
     global.fetch = jest.fn(async (url, init) => {
       const href = String(url);
       if (href.endsWith('/tool-schemas'))
-        return new Response(JSON.stringify({ schemas: [{ name: 'search_memory', description: 'Memory', input_schema: { type: 'object', properties: { query: { type: 'string' } } } }] }), { status: 200 });
+        return new Response(
+          JSON.stringify({
+            schemas: [
+              {
+                name: 'search_memory',
+                description: 'Memory',
+                input_schema: { type: 'object', properties: { query: { type: 'string' } } },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
       if (href.endsWith('/active'))
         return new Response(JSON.stringify({ active: true }), { status: 200 });
       if (href.endsWith('/safe-read/replay'))
@@ -2540,12 +2582,15 @@ describe('Durable research cancellation across API replicas', () => {
       if (href.endsWith('/safe-read/outcomes')) {
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
         committed.push(body);
-        return new Response(JSON.stringify({
-          ...body,
-          classifier: 'complete',
-          sequence: 9,
-          receiptId: 'receipt-a',
-        }), { status: 200 });
+        return new Response(
+          JSON.stringify({
+            ...body,
+            classifier: 'complete',
+            sequence: 9,
+            receiptId: 'receipt-a',
+          }),
+          { status: 200 },
+        );
       }
       return new Response('{}', { status: 404 });
     }) as typeof fetch;
@@ -2561,7 +2606,10 @@ describe('Durable research cancellation across API replicas', () => {
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(committed).toHaveLength(1);
     expect(committed[0]).toMatchObject({
-      providerCallId: 'provider-call-a', leaseEpoch: 3, input: { query: 'radar' }, result: ownerResult,
+      providerCallId: 'provider-call-a',
+      leaseEpoch: 3,
+      input: { query: 'radar' },
+      result: ownerResult,
     });
     const stepIdentity = result.steps?.[0]?.durableSafeRead;
     const ledgerIdentity = result.ledgerEntries?.[0]?.durableSafeRead;
@@ -4107,14 +4155,13 @@ describe('Stage 2 orchestrator hardening', () => {
         { ...selectorConfig('enabled'), INTERNAL_SERVICE_SECRET: 'service-secret' },
       );
       const governed = servedProcedureContext();
-      global.fetch = jest.fn(
-        async (url: string | URL | Request) =>
-          String(url).includes('/procedure-runtime/validate')
-            ? currentProcedureDecision(governed)
-            : new Response(
-                JSON.stringify({ schemas: [toolSchema('query_tasks'), toolSchema('send_email')] }),
-                { status: 200 },
-              ),
+      global.fetch = jest.fn(async (url: string | URL | Request) =>
+        String(url).includes('/procedure-runtime/validate')
+          ? currentProcedureDecision(governed)
+          : new Response(
+              JSON.stringify({ schemas: [toolSchema('query_tasks'), toolSchema('send_email')] }),
+              { status: 200 },
+            ),
       ) as typeof fetch;
 
       await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
@@ -4163,7 +4210,10 @@ describe('Stage 2 orchestrator hardening', () => {
       const governed = servedProcedureContext();
       governed.procedure!.policy.allowedCapabilities.push('meetings.read');
       governed.procedure!.policy.allowedTools = ['query_tasks', 'list_upcoming_meetings'];
-      const validationRequests: Array<{ headers: Record<string, string>; body: Record<string, unknown> }> = [];
+      const validationRequests: Array<{
+        headers: Record<string, string>;
+        body: Record<string, unknown>;
+      }> = [];
       global.fetch = jest.fn(async (url: string | URL | Request, init?: RequestInit) => {
         if (String(url).includes('/procedure-runtime/validate')) {
           validationRequests.push({
@@ -4226,8 +4276,12 @@ describe('Stage 2 orchestrator hardening', () => {
       };
       const complete = jest
         .fn()
-        .mockResolvedValueOnce(response({ output: [first], outputText: '', functionCalls: [first] }))
-        .mockResolvedValueOnce(response({ output: [second], outputText: '', functionCalls: [second] }))
+        .mockResolvedValueOnce(
+          response({ output: [first], outputText: '', functionCalls: [first] }),
+        )
+        .mockResolvedValueOnce(
+          response({ output: [second], outputText: '', functionCalls: [second] }),
+        )
         .mockResolvedValueOnce(response({ outputText: 'Authority changed; stopped.' }));
       const invoke = jest.fn().mockResolvedValue({ tasks: [] });
       const assistant = build(
@@ -4334,7 +4388,9 @@ describe('Stage 2 orchestrator hardening', () => {
         } else {
           expect(Date.now() - startedAt).toBeGreaterThanOrEqual(4_500);
           expect(complete).toHaveBeenCalledTimes(2);
-          expect(JSON.stringify(complete.mock.calls[1]?.[0]).toLowerCase()).toContain('tool failed');
+          expect(JSON.stringify(complete.mock.calls[1]?.[0]).toLowerCase()).toContain(
+            'tool failed',
+          );
         }
       },
       10_000,
@@ -4487,10 +4543,7 @@ describe('Stage 2 orchestrator hardening', () => {
         {},
         { INTERNAL_SERVICE_SECRET: 'service-secret' },
       );
-      const withoutSecret = build(
-        registry([{ name: 'query_tasks', readOnly: true }]),
-        jest.fn(),
-      );
+      const withoutSecret = build(registry([{ name: 'query_tasks', readOnly: true }]), jest.fn());
       const callback = (assistant: MeriV3AssistantService) =>
         (
           assistant as unknown as {
@@ -4499,10 +4552,7 @@ describe('Stage 2 orchestrator hardening', () => {
               toolName: string,
             ) => Promise<void>;
           }
-        ).assertCurrentProcedureAuthority(
-          '33333333-3333-4333-8333-333333333333',
-          'query_tasks',
-        );
+        ).assertCurrentProcedureAuthority('33333333-3333-4333-8333-333333333333', 'query_tasks');
 
       await expect(
         runWithGovernedMeriContext(governed, () => callback(withSecret)),
@@ -4590,8 +4640,16 @@ describe('Stage 2 orchestrator hardening', () => {
       expect(publicTrace).not.toContain('private argument');
       expect(publicTrace).not.toContain('private reason');
       expect(result.steps).toEqual([
-        expect.objectContaining({ tool: 'unknown_tool', label: 'Unavailable tool', status: 'blocked' }),
-        expect.objectContaining({ tool: 'unknown_tool', label: 'Unavailable tool', status: 'blocked' }),
+        expect.objectContaining({
+          tool: 'unknown_tool',
+          label: 'Unavailable tool',
+          status: 'blocked',
+        }),
+        expect.objectContaining({
+          tool: 'unknown_tool',
+          label: 'Unavailable tool',
+          status: 'blocked',
+        }),
       ]);
       const providerContinuation = JSON.stringify(complete.mock.calls[1]);
       expect(providerContinuation).toContain('undeclared-private-name');

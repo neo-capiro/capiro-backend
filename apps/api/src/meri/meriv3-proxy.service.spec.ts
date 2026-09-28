@@ -3,10 +3,7 @@ import { MeriV3ProxyService } from './meriv3-proxy.service.js';
 import { scheduleMeriTurnMaintenance } from './meri-turn-maintenance.js';
 import { commitmentsAuditProcedureSkill } from './skills/commitments-audit.procedure.js';
 import { MeriResearchService } from './meri-research.service.js';
-import {
-  researchToolVersion,
-  sealDurableResearchResult,
-} from './meri-research-durable-result.js';
+import { researchToolVersion, sealDurableResearchResult } from './meri-research-durable-result.js';
 import { RESEARCH_REPORT_BODY_WITHHELD } from './meri-research-replay-authorization.js';
 import {
   buildResearchReportProvenance,
@@ -355,11 +352,7 @@ describe('MeriV3ProxyService — report context authority', () => {
     ['changed owner version', 'changed', true],
     ['missing proof', 'missing', false],
     ['unsupported proof', 'unsupported', false],
-  ] as Array<[
-    string,
-    'revoked' | 'changed' | 'missing' | 'unsupported',
-    boolean,
-  ]>)(
+  ] as Array<[string, 'revoked' | 'changed' | 'missing' | 'unsupported', boolean]>)(
     'withholds report history, derived summary, and source-derived metadata for %s',
     async (_label, mode, ownerCalled) => {
       const h = buildHarness();
@@ -376,9 +369,7 @@ describe('MeriV3ProxyService — report context authority', () => {
       );
       const serialized = JSON.stringify(replay);
 
-      expect(replay.history).toEqual([
-        { role: 'assistant', text: RESEARCH_REPORT_BODY_WITHHELD },
-      ]);
+      expect(replay.history).toEqual([{ role: 'assistant', text: RESEARCH_REPORT_BODY_WITHHELD }]);
       expect(replay.conversationSummary).toBeNull();
       expect(replay.withheldReports).toEqual([
         expect.objectContaining({

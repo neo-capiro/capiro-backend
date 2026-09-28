@@ -652,7 +652,9 @@ export class MeriV3ProxyService {
           ...(frame?.retrieval
             ? { retrieval: frame.retrieval as unknown as Prisma.InputJsonValue }
             : {}),
-          ...(procedure ? { procedure: procedure.receipt as unknown as Prisma.InputJsonValue } : {}),
+          ...(procedure
+            ? { procedure: procedure.receipt as unknown as Prisma.InputJsonValue }
+            : {}),
           finishReason,
           partial,
           trace: steps as unknown as Prisma.InputJsonValue,
@@ -859,7 +861,8 @@ export class MeriV3ProxyService {
       const refs = attachmentRefsFromMetadata(message.metadata);
       if (refs.length) refsByMessage.set(message.id, refs);
     }
-    const lastUser = [...authorizedMessages].reverse().find((message) => message.role === 'user') ?? null;
+    const lastUser =
+      [...authorizedMessages].reverse().find((message) => message.role === 'user') ?? null;
     const allIds = [...refsByMessage.values()].flat().map((ref) => ref.id);
     const documentText = new Map<
       string,
