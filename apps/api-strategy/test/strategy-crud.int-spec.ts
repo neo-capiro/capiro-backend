@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
+import { randomUUID } from 'node:crypto';
+import { assertDisposableDatabase } from './disposable-database.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { StrategyService } from '../src/strategy/strategy.service.js';
 import { NodeService } from '../src/strategy/node.service.js';
@@ -14,8 +16,8 @@ import { VersioningService } from '../src/strategy/versioning.service.js';
 const hasDb = Boolean(process.env.DATABASE_URL);
 const suite = hasDb ? describe : describe.skip;
 
-const TENANT = '00000000-0000-0000-0000-0000000000e3';
-const CLIENT = '00000000-0000-0000-0000-0000000000e4';
+const TENANT = randomUUID();
+const CLIENT = randomUUID();
 const USER = 'user_g3';
 
 suite('G3 node CRUD + versioning + restore (integration)', () => {
@@ -25,30 +27,44 @@ suite('G3 node CRUD + versioning + restore (integration)', () => {
   let versions: VersionService;
 
   beforeAll(async () => {
+    assertDisposableDatabase();
     prisma = new PrismaService();
     await prisma.onModuleInit();
     const versioning = new VersioningService();
     strategies = new StrategyService(prisma, versioning);
     nodes = new NodeService(prisma, versioning);
     versions = new VersionService(prisma, versioning);
-    await prisma.withSystem(async (tx) => {
-      await tx.spStrategy.deleteMany({ where: { tenantId: TENANT } });
-    });
-    // create() now validates clientId belongs to the tenant, so seed a client
-    // row for the fake test tenant (only name + tenant_id lack DB defaults).
+    // The API migration owns the client-to-tenant FK. Create our parent row
+    // explicitly rather than depending on a global seed or a previous run.
     await prisma.$executeRawUnsafe(
-      `INSERT INTO clients (id, tenant_id, name, updated_at) VALUES ($1::uuid, $2::uuid, 'G3 int-spec client', now()) ON CONFLICT (id) DO NOTHING`,
+      `INSERT INTO tenants (id, slug, name, updated_at) VALUES ($1::uuid, $2, 'G3 integration tenant', now())`,
+      TENANT,
+      `strategy-test-${TENANT}`,
+    );
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO clients (id, tenant_id, name, updated_at) VALUES ($1::uuid, $2::uuid, 'G3 int-spec client', now())`,
       CLIENT,
       TENANT,
     );
   });
 
   afterAll(async () => {
-    await prisma.withSystem(async (tx) => {
-      await tx.spStrategy.deleteMany({ where: { tenantId: TENANT } });
-    });
-    await prisma.$executeRawUnsafe(`DELETE FROM clients WHERE id = $1::uuid`, CLIENT);
-    await prisma.onModuleDestroy();
+    if (!prisma) return;
+    try {
+      await prisma.withSystem(async (tx) => {
+        await tx.$executeRawUnsafe("SET LOCAL app.allow_audit_purge = 'on'");
+        await tx.spStrategy.deleteMany({ where: { tenantId: TENANT } });
+        await tx.spActivityLog.deleteMany({ where: { tenantId: TENANT } });
+      });
+      await prisma.$executeRawUnsafe(
+        `DELETE FROM clients WHERE id = $1::uuid AND tenant_id = $2::uuid`,
+        CLIENT,
+        TENANT,
+      );
+      await prisma.$executeRawUnsafe(`DELETE FROM tenants WHERE id = $1::uuid`, TENANT);
+    } finally {
+      await prisma.onModuleDestroy();
+    }
   });
 
   it('runs the full lifecycle with a faithful versioning policy', async () => {

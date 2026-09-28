@@ -59,7 +59,22 @@ describe('Ethical walls — every memory read surface applies the wall', () => {
     expect(
       text.match(/fetchDeniedClientIds\(tx, ctx\.tenantId, ctx\.userId\)/g)?.length ?? 0,
     ).toBeGreaterThanOrEqual(2);
-    expect(text).toContain("wallExclusionSql(denied, 'mi.client_id')");
+    const searchStart = text.indexOf('private async searchMemory(');
+    const searchEnd = text.indexOf('const source = evidence.coverage.sources.find(', searchStart);
+    expect(searchStart).toBeGreaterThan(-1);
+    expect(searchEnd).toBeGreaterThan(searchStart);
+    const search = text.slice(searchStart, searchEnd);
+    expect(search).toContain('searchCapiroData(');
+    expect(search).toContain("domains: ['institutional_knowledge']");
+    expect(search).toContain('this.contextPlane');
+    expect(search).not.toMatch(/\$queryRaw|clio_memory/);
+    const adapter = read(
+      join(SRC_ROOT, 'retrieval', 'adapters', 'institutional-knowledge-retrieval.adapter.ts'),
+    );
+    expect(adapter).toContain('this.prisma.withTenantUser(');
+    expect(adapter).toContain('await clientMemoryAllowed(');
+    expect(adapter).toContain('requested_client_scope_failed_ethical_wall');
+    expect(text).toContain("wallExclusionSql(denied, 'i.client_id')");
     expect(text).toContain("wallExclusionSql(denied, 'client_id')");
     expect(text).toContain('deniedSet.has(r.srcSlug)');
   });

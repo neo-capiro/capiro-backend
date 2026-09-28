@@ -88,6 +88,7 @@ function harness(
   const findFirst = jest.fn(async () => ({ payload }));
 
   const tx = {
+    client: { findMany: jest.fn(async () => []) },
     memoryCandidate: {
       update: jest.fn(async (args: { data: Record<string, unknown> }) => {
         state.status = String(args.data.status ?? state.status);
