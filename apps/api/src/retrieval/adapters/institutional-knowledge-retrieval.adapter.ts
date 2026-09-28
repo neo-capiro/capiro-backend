@@ -256,11 +256,14 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
 
           const hardTruncated =
             rows.length > MAX_MEMORY_ROWS_PER_CALL ||
-            rows.some(
-              (row) =>
-                Number(row.lexicalRank) > MAX_MEMORY_ROWS_PER_CALL ||
-                Number(row.semanticRank) > MAX_MEMORY_ROWS_PER_CALL,
-            );
+            rows.some((row) => {
+              const lexicalRank = finiteMemoryNumber(row.lexicalRank);
+              const semanticRank = finiteMemoryNumber(row.semanticRank);
+              return (
+                (lexicalRank !== null && lexicalRank > MAX_MEMORY_ROWS_PER_CALL) ||
+                (semanticRank !== null && semanticRank > MAX_MEMORY_ROWS_PER_CALL)
+              );
+            });
           const eligible = rows
             .filter(
               (row) =>
@@ -437,36 +440,24 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
         .sort((a, b) => compareMemoryRank(a.row, b.row, lexical));
     }
 
-    const lexicalOrder = [...rows].sort((a, b) => compareMemoryRank(a, b, lexical));
-    const lexicalRankById = new Map(lexicalOrder.map((row, index) => [row.id, index + 1]));
-    const semanticOrder = rows
-      .filter((row) => Number.isFinite(Number(row.semanticScore)))
-      .sort((a, b) => {
-        const delta = Number(b.semanticScore) - Number(a.semanticScore);
-        return delta || compareMemoryRank(a, b, lexical);
-      });
-    const semanticRankById = new Map(semanticOrder.map((row, index) => [row.id, index + 1]));
     return rows
       .map((row) => {
-        const score = Number(row.semanticScore);
+        const semanticScore = finiteMemoryNumber(row.semanticScore);
         // A row with no embedding match is a SPARSE projection gap, not a
         // degraded source: it falls back to lexical ranking and stays
         // available. semanticMissing is informational; only
         // semanticUnavailable (provider down, above) degrades the source.
         return {
           row,
-          semanticScore: Number.isFinite(score) ? score : null,
-          semanticMissing: !Number.isFinite(score),
+          semanticScore,
+          semanticMissing: semanticScore === null,
           semanticUnavailable: false,
-          lexicalScore: Number.isFinite(Number(row.lexicalScore))
-            ? Number(row.lexicalScore)
-            : (lexical.get(row.id) ?? 0),
-          lexicalRank: Number.isFinite(Number(row.lexicalRank))
-            ? Number(row.lexicalRank)
-            : (lexicalRankById.get(row.id) ?? Number.POSITIVE_INFINITY),
-          semanticRank: Number.isFinite(Number(row.semanticRank))
-            ? Number(row.semanticRank)
-            : (semanticRankById.get(row.id) ?? Number.POSITIVE_INFINITY),
+          lexicalScore: finiteMemoryNumber(row.lexicalScore) ?? lexical.get(row.id) ?? 0,
+          // Candidate ranks are authoritative stream-membership signals from
+          // SQL. Missing or malformed ranks must not be reconstructed from the
+          // union because that turns an absent stream into a synthetic rank.
+          lexicalRank: finiteMemoryNumber(row.lexicalRank) ?? Number.POSITIVE_INFINITY,
+          semanticRank: finiteMemoryNumber(row.semanticRank) ?? Number.POSITIVE_INFINITY,
         };
       })
       .sort((a, b) => {
@@ -807,6 +798,13 @@ function lexicalScores(rows: GovernedMemoryRow[], query: string): Map<string, nu
     scores.set(row.id, score);
   }
   return scores;
+}
+
+function finiteMemoryNumber(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'bigint') return null;
+  const converted = Number(value);
+  return Number.isSafeInteger(converted) ? converted : null;
 }
 
 function memoryLexicalScoreSql(query: string, alias: string): Prisma.Sql {

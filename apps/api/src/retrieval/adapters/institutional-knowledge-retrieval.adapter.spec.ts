@@ -135,10 +135,11 @@ function setup(
       },
     ]),
   );
-  const queryRaw = jest.fn(async (query: { text?: string }) =>
-    query.text?.includes('mi.sections_jsonb AS sections')
-      ? canonical.map((row) => ({ ...row, ...semanticById.get(String(row.id)) }))
-      : [],
+  const queryRaw = jest.fn(
+    async (query: { text?: string }): Promise<Array<Record<string, unknown>>> =>
+      query.text?.includes('mi.sections_jsonb AS sections')
+        ? canonical.map((row) => ({ ...row, ...semanticById.get(String(row.id)) }))
+        : [],
   );
   const tx = {
     clioMemory: { findMany: clioMemoryFindMany },
@@ -739,6 +740,159 @@ describe('canonical memory semantic fallback status', () => {
     expect(sql.values).toContain('test-memory-model');
     expect(queryRaw).toHaveBeenCalledTimes(1);
     expect(result.records[0]?.retrievalSignals).toEqual({ semanticSimilarity: 0.91 });
+  });
+
+  it('keeps an old semantic-only hit inside the final 500 after 501 sparse lexical candidates', async () => {
+    const sparseLexical = Array.from({ length: 501 }, (_, index) =>
+      approved({
+        id: `sparse-lexical-${index.toString().padStart(3, '0')}`,
+        key: `Sparse lexical candidate ${index}`,
+        lexicalScore: 1,
+        lexicalRank: index + 1,
+        semanticScore: null,
+        semanticRank: null,
+      }),
+    );
+    const semanticOnly = approved({
+      id: 'old-semantic-only',
+      key: 'Old semantic-only result',
+      updatedAt: new Date('2020-01-01T00:00:00Z'),
+      lexicalScore: 0,
+      lexicalRank: null,
+      semanticScore: 0.99,
+      semanticRank: 1,
+      embeddingContentHash: 'old-semantic-projection',
+    });
+    const { adapter, dataset } = setup({ governed: [...sparseLexical, semanticOnly] });
+
+    const result = await adapter.retrieve(dataset, {
+      ...selectedClientRequest(),
+      queryClass: 'semantic_recall',
+      query: 'sparse lexical candidate',
+      pageSize: 500,
+    });
+
+    expect(result.records).toHaveLength(500);
+    expect(result.records.map((record) => record.recordId)).toContain('old-semantic-only');
+    expect(
+      result.records.find((record) => record.recordId === 'old-semantic-only')?.retrievalSignals,
+    ).toEqual({ semanticSimilarity: 0.99 });
+  });
+
+  it('preserves numeric zero semantic scores while treating missing and invalid scores as absent', async () => {
+    const invalidScores: unknown[] = [null, undefined, '0', Number.NaN, Infinity, -Infinity];
+    const rows = [
+      approved({
+        id: 'numeric-zero-score',
+        semanticScore: 0,
+        semanticRank: 1,
+        lexicalScore: 0,
+        lexicalRank: 1,
+      }),
+      ...invalidScores.map((semanticScore, index) =>
+        approved({
+          id: `invalid-score-${index}`,
+          semanticScore,
+          semanticRank: index + 2,
+          lexicalScore: 0,
+          lexicalRank: index + 2,
+        }),
+      ),
+    ];
+    const { adapter, dataset } = setup({ governed: rows });
+
+    const result = await adapter.retrieve(dataset, {
+      ...selectedClientRequest(),
+      queryClass: 'semantic_recall',
+    });
+    const signalsById = new Map(
+      result.records.map((record) => [record.recordId, record.retrievalSignals]),
+    );
+
+    expect(signalsById.get('numeric-zero-score')).toEqual({ semanticSimilarity: 0 });
+    for (let index = 0; index < invalidScores.length; index += 1) {
+      expect(signalsById.get(`invalid-score-${index}`)).toEqual({});
+    }
+  });
+
+  it('does not synthesize lexical rank zero for semantic rows with a missing or invalid rank', async () => {
+    const invalidRanks: unknown[] = [null, undefined, '0', Number.NaN, Infinity, -Infinity];
+    const rows = [
+      approved({
+        id: 'actual-zero-lexical-rank',
+        lexicalScore: 1,
+        lexicalRank: 0,
+        semanticScore: null,
+        semanticRank: null,
+      }),
+      approved({
+        id: 'lexical-rank-one',
+        lexicalScore: 1,
+        lexicalRank: 1,
+        semanticScore: null,
+        semanticRank: null,
+      }),
+      ...invalidRanks.map((lexicalRank, index) =>
+        approved({
+          id: `semantic-without-lexical-rank-${index}`,
+          lexicalScore: 100,
+          lexicalRank,
+          semanticScore: 0.9 - index / 100,
+          semanticRank: index + 2,
+        }),
+      ),
+    ];
+    const { adapter, dataset } = setup({ governed: rows });
+
+    const result = await adapter.retrieve(dataset, {
+      ...selectedClientRequest(),
+      queryClass: 'semantic_recall',
+    });
+
+    expect(result.records.map((record) => record.recordId).slice(0, 2)).toEqual([
+      'actual-zero-lexical-rank',
+      'lexical-rank-one',
+    ]);
+  });
+
+  it('preserves numeric zero semantic rank while treating missing and invalid ranks as absent', async () => {
+    const invalidRanks: unknown[] = [null, undefined, '0', Number.NaN, Infinity, -Infinity];
+    const rows = [
+      approved({
+        id: 'actual-zero-semantic-rank',
+        lexicalScore: 0,
+        lexicalRank: null,
+        semanticScore: 0.2,
+        semanticRank: 0,
+      }),
+      approved({
+        id: 'semantic-rank-one',
+        lexicalScore: 0,
+        lexicalRank: null,
+        semanticScore: 0.5,
+        semanticRank: 1,
+      }),
+      ...invalidRanks.map((semanticRank, index) =>
+        approved({
+          id: `invalid-semantic-rank-${index}`,
+          lexicalScore: 0,
+          lexicalRank: null,
+          semanticScore: 0.99 - index / 100,
+          semanticRank,
+        }),
+      ),
+    ];
+    const { adapter, dataset } = setup({ governed: rows });
+
+    const result = await adapter.retrieve(dataset, {
+      ...selectedClientRequest(),
+      queryClass: 'semantic_recall',
+    });
+
+    expect(result.records.map((record) => record.recordId).slice(0, 2)).toEqual([
+      'actual-zero-semantic-rank',
+      'semantic-rank-one',
+    ]);
   });
 });
 
