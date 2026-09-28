@@ -170,7 +170,9 @@ describe('Meri installable-app contract', () => {
       ts.ScriptKind.TSX,
     );
 
-    const effectiveChrome = findVariableInitializer(sourceFile, 'effectiveWindowChrome');
+    const effectiveChrome = unwrapParentheses(
+      findVariableInitializer(sourceFile, 'effectiveWindowChrome'),
+    );
     expect(ts.isConditionalExpression(effectiveChrome)).toBe(true);
     if (!ts.isConditionalExpression(effectiveChrome)) return;
     expect(isPropertyAccessNamed(effectiveChrome.condition, 'install', 'isStandalone')).toBe(true);
