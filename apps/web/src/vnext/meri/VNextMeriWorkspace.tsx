@@ -86,6 +86,10 @@ interface ArchivedRouteThread {
 }
 
 type SendArgs = Parameters<MeriChatController['sendMessage']>;
+const researchPortfolioDraftScopeKey = (identity: string) =>
+  'capiro:meri:research-portfolio-draft-scope:v1:' + identity;
+const researchPortfolioScopeUuid =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function historyMessage(value: unknown): ChatMessage | null {
   if (!value || typeof value !== 'object') return null;
@@ -199,6 +203,8 @@ export function VNextMeriWorkspace() {
   // launch. Claimed and cleared by the first durable conversation creation.
   const pendingProspectLaunchRef = useRef<string | null>(null);
   const pendingResearchPortfolioLaunchRef = useRef<string | null>(null);
+  const pendingResearchPortfolioScopeErrorRef = useRef<string | null>(null);
+  const pendingResearchPortfolioDraftRestoreRef = useRef(false);
   const handledContextRef = useRef<string | null>(null);
   const bootSequenceRef = useRef(0);
   const previousRoutePathRef = useRef<string | null>(null);
@@ -255,6 +261,8 @@ export function VNextMeriWorkspace() {
     activeFirstSendTokenRef.current = null;
     pendingProspectLaunchRef.current = null;
     pendingResearchPortfolioLaunchRef.current = null;
+    pendingResearchPortfolioScopeErrorRef.current = null;
+    pendingResearchPortfolioDraftRestoreRef.current = false;
     setIsCreatingThread(false);
     setRouteClients([]);
     setSelectedClientId(null);
@@ -452,7 +460,7 @@ export function VNextMeriWorkspace() {
       const requestProspectId = pendingProspectLaunchRef.current;
       pendingProspectLaunchRef.current = null;
       const requestResearchPortfolioId = pendingResearchPortfolioLaunchRef.current;
-      pendingResearchPortfolioLaunchRef.current = null;
+      // A denied first Send must retain the chosen RP scope for its retry.
       const draftReasoningMode = readDraftReasoningMode(requestIdentityKey);
       const headers = await authHeaders();
       if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return null;
@@ -500,6 +508,19 @@ export function VNextMeriWorkspace() {
         !mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)
       ) {
         return null;
+      }
+
+      // The same explicit Send now has a durable server-authorized RP scope.
+      if (requestResearchPortfolioId) {
+        try {
+          const key = researchPortfolioDraftScopeKey(requestIdentityKey);
+          if (sessionStorage.getItem(key) === requestResearchPortfolioId)
+            sessionStorage.removeItem(key);
+          if (pendingResearchPortfolioLaunchRef.current === requestResearchPortfolioId)
+            pendingResearchPortfolioLaunchRef.current = null;
+        } catch {
+          /* A leftover key has no authority without a record-free draft. */
+        }
       }
 
       // A newly created row has no reasoning override, so its mode is already
@@ -786,6 +807,8 @@ export function VNextMeriWorkspace() {
   // ref lock closes the double-click gap before React can publish the busy state.
   const sendMessage = useCallback(
     async (...args: SendArgs) => {
+      if (pendingResearchPortfolioScopeErrorRef.current)
+        throw new Error(pendingResearchPortfolioScopeErrorRef.current);
       const scopeError = hearingDraftScopeError(
         identityKey,
         args[0],
@@ -844,6 +867,9 @@ export function VNextMeriWorkspace() {
         pendingSendEpochRef.current = null;
         pendingSendSessionIdRef.current = null;
         setIsCreatingThread(false);
+        pendingResearchPortfolioDraftRestoreRef.current = Boolean(
+          pendingResearchPortfolioLaunchRef.current,
+        );
         const message = errorMessage(error, 'Meri could not create the thread. Nothing was sent.');
         setRouteError(message);
         throw new Error(message);
@@ -957,8 +983,39 @@ export function VNextMeriWorkspace() {
       pendingProspectLaunchRef.current = request.prospectId;
     }
     if (request.researchPortfolioId) {
+      // Preserve an existing intent and its scope rather than assigning a new
+      // Research Portfolio to text the user had already staged.
+      if (hearingDraft.trim()) {
+        handledContextRef.current = requestKey;
+        navigate(
+          { pathname: location.pathname, search: withoutMeriContext(location.search) },
+          { replace: true },
+        );
+        setRouteError(
+          'You already have an unsent draft. Send it or clear it, then choose Ask Meri from the Research Portfolio again. Your draft was preserved.',
+        );
+        return;
+      }
       if (selectedClientId !== null) {
         setSelectedClientId(null);
+        return;
+      }
+      try {
+        // The composer already persists its identity-scoped draft. Pair that
+        // draft with an ID, so refresh cannot silently send it as general chat.
+        sessionStorage.setItem(
+          researchPortfolioDraftScopeKey(identityKey),
+          request.researchPortfolioId,
+        );
+      } catch {
+        handledContextRef.current = requestKey;
+        navigate(
+          { pathname: location.pathname, search: withoutMeriContext(location.search) },
+          { replace: true },
+        );
+        setRouteError(
+          'The Research Portfolio draft scope could not be retained. Nothing was sent. Enable session storage and choose Ask Meri again.',
+        );
         return;
       }
       pendingResearchPortfolioLaunchRef.current = request.researchPortfolioId;
@@ -994,11 +1051,18 @@ export function VNextMeriWorkspace() {
       { replace: true },
     );
     if (!request.prompt) return;
+    if (request.researchPortfolioId) {
+      setHearingDraft(request.prompt);
+      return; // Research Portfolio starters wait for the user's explicit Send.
+    }
     void sendMessage(request.prompt).catch((error) => {
       setRouteError(errorMessage(error, 'Meri could not send the contextual request.'));
     });
   }, [
     controller.clients,
+    hearingDraft,
+    identityKey,
+    setHearingDraft,
     isNewRoute,
     location.pathname,
     location.search,
@@ -1008,6 +1072,59 @@ export function VNextMeriWorkspace() {
     routeReady,
     selectedClientId,
     sendMessage,
+    setSelectedClientId,
+  ]);
+
+  // Restore only the scope paired with this identity's nonempty record-free
+  // draft. The server still resolves and authorizes it at explicit first Send.
+  useEffect(() => {
+    if (
+      !routeReady ||
+      !isNewRoute ||
+      meriContextRequest(location.search)?.researchPortfolioId ||
+      isCreatingThread
+    )
+      return;
+    const key = researchPortfolioDraftScopeKey(identityKey);
+    try {
+      const retained = sessionStorage.getItem(key);
+      if (!retained) return;
+      if (!hearingDraft.trim()) {
+        // Clearing text during an owned first Send does not clear its chosen
+        // scope. A fresh mount with no draft has no retained intent to restore.
+        if (pendingResearchPortfolioDraftRestoreRef.current) return;
+        sessionStorage.removeItem(key);
+        pendingResearchPortfolioLaunchRef.current = null;
+        pendingResearchPortfolioScopeErrorRef.current = null;
+        return;
+      }
+      pendingResearchPortfolioDraftRestoreRef.current = false;
+      if (!researchPortfolioScopeUuid.test(retained)) {
+        const error =
+          'The retained Research Portfolio scope is invalid. Nothing was sent. Clear this draft and choose Ask Meri again.';
+        pendingResearchPortfolioScopeErrorRef.current = error;
+        setRouteError(error);
+        return;
+      }
+      pendingResearchPortfolioScopeErrorRef.current = null;
+      pendingResearchPortfolioLaunchRef.current = retained;
+      if (selectedClientId !== null) setSelectedClientId(null);
+    } catch {
+      if (hearingDraft.trim()) {
+        const error =
+          'The retained Research Portfolio scope could not be read. Nothing was sent. Reopen this Research Portfolio starter.';
+        pendingResearchPortfolioScopeErrorRef.current = error;
+        setRouteError(error);
+      }
+    }
+  }, [
+    hearingDraft,
+    identityKey,
+    isCreatingThread,
+    isNewRoute,
+    location.search,
+    routeReady,
+    selectedClientId,
     setSelectedClientId,
   ]);
 
