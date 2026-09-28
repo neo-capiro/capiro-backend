@@ -116,6 +116,10 @@ const PRODUCT_NAME = 'Meri';
  */
 const SYNTHESIS_FLOOR_MS = 180_000;
 
+const RESEARCH_GATHER_THINKING_STATUS =
+  'Reviewing evidence and planning the next research step…';
+const RESEARCH_SYNTHESIS_THINKING_STATUS = 'Writing the report…';
+
 export interface SourceAttribution {
   tool: string;
   label: string;
@@ -1734,6 +1738,7 @@ export class MeriResearchService {
         const timer = setTimeout(() => controller.abort(), Math.min(timeoutMs, gatherRemainingMs));
         const toolUseById = new Map<number, { id: string; name: string; jsonParts: string[] }>();
         const thinkingState = createThinkingState();
+        let thinkingStatusSent = false;
         let stopReason: string | null = null;
 
         try {
@@ -1783,11 +1788,13 @@ export class MeriResearchService {
               if (!payload || payload === '[DONE]') continue;
               try {
                 const evt = JSON.parse(payload);
-                // Extended thinking (F3): relay reasoning to the research
-                // timeline; blocks replay in the loop but never persist.
+                // Provider thinking is retained only for the signed replay block
+                // required by the next provider round. Observer frames receive a
+                // fixed source-independent status, never provider reasoning text.
                 const thinkingDelta = applyThinkingStreamEvent(thinkingState, evt);
-                if (thinkingDelta.thinkingTextDelta) {
-                  sse.write(sseEvent({ type: 'thinking', text: thinkingDelta.thinkingTextDelta }));
+                if (thinkingDelta.thinkingTextDelta && !thinkingStatusSent) {
+                  thinkingStatusSent = true;
+                  progress.set(RESEARCH_GATHER_THINKING_STATUS);
                 }
                 if (evt.type === 'content_block_start') {
                   const block = evt.content_block ?? {};
@@ -2062,6 +2069,7 @@ export class MeriResearchService {
           Math.min(timeoutMs, deadlineAt - Date.now()),
         );
         const timer = setTimeout(() => controller.abort(), synthesisTimeoutMs);
+        let thinkingStatusSent = false;
         try {
           const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
@@ -2116,9 +2124,12 @@ export class MeriResearchService {
                   evt.delta?.type === 'thinking_delta' &&
                   typeof evt.delta.thinking === 'string'
                 ) {
-                  // Thinking from the forced pass streams to the timeline only;
-                  // it never enters reportBody (redaction guarantee, F3).
-                  sse.write(sseEvent({ type: 'thinking', text: evt.delta.thinking }));
+                  // Do not put provider reasoning on the observer stream. A fixed
+                  // status preserves liveness without revealing source content.
+                  if (!thinkingStatusSent) {
+                    thinkingStatusSent = true;
+                    progress.set(RESEARCH_SYNTHESIS_THINKING_STATUS);
+                  }
                 } else if (
                   evt.type === 'content_block_delta' &&
                   evt.delta?.type === 'text_delta' &&

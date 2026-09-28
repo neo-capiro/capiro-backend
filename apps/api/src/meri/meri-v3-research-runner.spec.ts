@@ -172,6 +172,30 @@ describe('MeriV3ResearchRunner primary runtime', () => {
     expect(result.toolsUsed).toEqual([]);
   });
 
+  it('replaces unexpected V3 provider reasoning with fixed progress', async () => {
+    const privateThinking = 'RAW_PRIVATE_OWNER_DETAIL_IN_V3_REASONING';
+    const base = fixture();
+    const { runner } = fixture([
+      { type: 'thinking', text: privateThinking } as unknown as MeriV3ChatStreamEvent,
+      base.done,
+    ]);
+    const onEvent = jest.fn();
+
+    const result = await runner.run(ctx, input, auth, onEvent);
+
+    expect(result.reportBody).toContain('Briefing');
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'progress',
+      note: 'Reviewing evidence and preparing the report…',
+    });
+    expect(JSON.stringify(onEvent.mock.calls)).not.toContain(privateThinking);
+    expect(
+      onEvent.mock.calls
+        .flat()
+        .some((event) => event.type === 'thinking' || event.type === 'reasoning'),
+    ).toBe(false);
+  });
+
   it('does not archive an owner-classified error ledger as a high-confidence source', async () => {
     const base = fixture();
     const { runner } = fixture([

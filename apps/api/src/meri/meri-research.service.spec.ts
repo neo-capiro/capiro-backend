@@ -94,6 +94,43 @@ function proseRound(text: string): Array<Record<string, unknown>> {
   ];
 }
 
+function thinkingProseRound(
+  text: string,
+  privateThinking: string,
+): Array<Record<string, unknown>> {
+  const events = proseRound(text);
+  return [
+    events[0]!,
+    { type: 'content_block_start', index: 0, content_block: { type: 'thinking' } },
+    {
+      type: 'content_block_delta',
+      index: 0,
+      delta: { type: 'thinking_delta', thinking: privateThinking },
+    },
+    ...events.slice(1).map((event) =>
+      typeof event.index === 'number' ? { ...event, index: event.index + 1 } : event,
+    ),
+  ];
+}
+
+function failingThinkingBody(privateThinking: string): AsyncIterable<Uint8Array> {
+  const enc = new TextEncoder();
+  const events = [
+    { type: 'content_block_start', index: 0, content_block: { type: 'thinking' } },
+    {
+      type: 'content_block_delta',
+      index: 0,
+      delta: { type: 'thinking_delta', thinking: privateThinking },
+    },
+  ];
+  return {
+    async *[Symbol.asyncIterator]() {
+      yield enc.encode(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(''));
+      throw new Error('provider stopped before report authorization');
+    },
+  };
+}
+
 function okResponse(body: AsyncIterable<Uint8Array>): Response {
   return {
     ok: true,
@@ -349,6 +386,7 @@ describe('MeriResearchService — forced synthesis', () => {
   }
 
   it('emits a report after the tool loop exhausts without prose', async () => {
+    const PRIVATE_THINKING = 'RAW_PRIVATE_OWNER_DETAIL_IN_FORCED_SYNTHESIS';
     const REPORT =
       '# Executive Summary\n\nThe FY26 defense markup shows meaningful divergence ' +
       'between the House and Senate on shipbuilding accounts, creating a window for ' +
@@ -363,7 +401,7 @@ describe('MeriResearchService — forced synthesis', () => {
       if (body.tools) {
         return okResponse(sseBody(toolOnlyRound('searchBills')));
       }
-      return okResponse(sseBody(proseRound(REPORT)));
+      return okResponse(sseBody(thinkingProseRound(REPORT, PRIVATE_THINKING)));
     }) as unknown as jest.Mock;
     global.fetch = fetchMock as unknown as typeof fetch;
 
@@ -427,8 +465,53 @@ describe('MeriResearchService — forced synthesis', () => {
     expect(String(reportEvt.artifactId ?? '')).toMatch(/^[0-9a-f-]{36}$/);
     expect(doneIdx).toBeGreaterThan(reportIdx);
 
+    // Provider reasoning is never an observer frame; liveness remains a fixed,
+    // source-independent progress status while the authorized body is buffered.
+    expect(events.some((event) => event.type === 'thinking')).toBe(false);
+    expect(JSON.stringify(events)).not.toContain(PRIVATE_THINKING);
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: 'progress', note: 'Writing the report…' }),
+    );
+
     // 5. A synthesize phase was announced.
     expect(events.some((e) => e.type === 'phase' && e.phase === 'synthesize')).toBe(true);
+  });
+
+  it('replaces gather thinking with fixed progress and preserves failure terminal ordering', async () => {
+    const PRIVATE_THINKING = 'RAW_PRIVATE_OWNER_DETAIL_IN_REASONING';
+    fetchMock = jest.fn(async () =>
+      okResponse(failingThinkingBody(PRIVATE_THINKING)),
+    ) as unknown as jest.Mock;
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const svc = new MeriResearchService(
+      makePrisma(),
+      makeConfig({
+        CLIO_EXTENDED_THINKING: true,
+        CLIO_THINKING_MODE: 'adaptive',
+        CLIO_RESEARCH_THINKING_BUDGET_TOKENS: 2_000,
+      }),
+      makeTools(),
+      makeAiCredentials(),
+      makeReviews(),
+    );
+    const { events, sse } = collectSse();
+
+    await svc.streamResearch(CTX, 'sess-1', sse);
+
+    expect(JSON.stringify(events)).not.toContain(PRIVATE_THINKING);
+    expect(events.some((event) => event.type === 'thinking')).toBe(false);
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: 'progress',
+        note: 'Reviewing evidence and planning the next research step…',
+      }),
+    );
+    expect(events.some((event) => event.type === 'text' || event.type === 'report')).toBe(false);
+    const doneIndex = events.findIndex((event) => event.type === 'done');
+    const errorIndexes = events.flatMap((event, index) => (event.type === 'error' ? [index] : []));
+    expect(errorIndexes.length).toBeGreaterThan(0);
+    expect(errorIndexes.every((index) => index < doneIndex)).toBe(true);
+    expect(events.at(-1)).toEqual({ type: 'done' });
   });
 
   it.each([

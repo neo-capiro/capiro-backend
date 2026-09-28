@@ -51,6 +51,8 @@ type ResearchDoneFrame = DoneFrame & {
   clientContextSha256?: string | null;
 };
 
+const V3_RESEARCH_REASONING_STATUS = 'Reviewing evidence and preparing the report…';
+
 /** Reuse chat's provider-led Responses loop, credentials, tools and governance. */
 @Injectable()
 export class MeriV3ResearchRunner {
@@ -225,6 +227,16 @@ export class MeriV3ResearchRunner {
         ...(currentTurnImages.length ? { currentTurnImages } : {}),
       },
       onEvent: (event) => {
+        const eventType = (event as unknown as { type?: unknown }).type;
+        if (
+          eventType === 'thinking' ||
+          eventType === 'reasoning' ||
+          eventType === 'reasoning_delta' ||
+          eventType === 'reasoning_summary'
+        ) {
+          onEvent({ type: 'progress', note: V3_RESEARCH_REASONING_STATUS });
+          return;
+        }
         if (event.type === 'done') frame = event;
         else if (event.type === 'error') errorMessage = event.message;
         else if (event.type === 'tool_call')
@@ -241,7 +253,16 @@ export class MeriV3ResearchRunner {
                 ? `${event.label} finished`
                 : `${event.label} status: ${event.status}`,
           });
-        else onEvent(event as unknown as Record<string, unknown>);
+        else if (
+          event.type === 'start' ||
+          event.type === 'runtime' ||
+          event.type === 'pending_approval' ||
+          event.type === 'artifact' ||
+          event.type === 'text' ||
+          event.type === 'page_write' ||
+          event.type === 'grounding_caveat'
+        )
+          onEvent(event as unknown as Record<string, unknown>);
       },
     });
     // A truncated SSE stream is not a completed report. Do not persist streamed
