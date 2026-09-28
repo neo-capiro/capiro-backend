@@ -213,6 +213,27 @@ function parseArguments(raw: string): Record<string, unknown> {
   return parsed as Record<string, unknown>;
 }
 
+function functionCallBatchIsComplete(calls: OpenAiResponsesFunctionCall[]): boolean {
+  const callIds = new Set<string>();
+  return calls.every((call) => {
+    if (
+      (call.status !== undefined && call.status !== 'completed') ||
+      !call.call_id.trim() ||
+      !call.name.trim() ||
+      callIds.has(call.call_id)
+    ) {
+      return false;
+    }
+    callIds.add(call.call_id);
+    try {
+      parseArguments(call.arguments);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+}
+
 function safetyIdentifier(ctx: MeriContext): string {
   return createHash('sha256').update(`${ctx.tenantId}:${ctx.userId}`).digest('hex');
 }
@@ -807,6 +828,7 @@ export class MeriV3AssistantService {
     const reserveMs = synthesisReserveMs(profile.turnBudgetMs);
     let gatheredToolOutput = false;
     let completionRepairs = 0;
+    let providerCallRepairs = 0;
     let automaticReads = 0;
     let residualCoverageGaps: CoverageGap[] = [];
     let latestCoverageGaps: CoverageGap[] = [];
@@ -1107,9 +1129,34 @@ export class MeriV3AssistantService {
         );
         void this.meterRound(ctx, response.model, response.usage, response.usedTenantKey);
 
-        // The Responses API requires reasoning/function-call output items to be
-        // replayed on the next request. They remain request-local only: none is
-        // emitted to the browser or persisted as a message/audit body.
+        const providerCallBoundaryFailed =
+          response.status !== 'completed' ||
+          response.incompleteReason != null ||
+          response.telemetry.finishReason === 'incomplete_function_call' ||
+          response.telemetry.finishReason === 'malformed_function_call' ||
+          !functionCallBatchIsComplete(response.functionCalls);
+        if (providerCallBoundaryFailed) {
+          if (
+            providerCallRepairs < 1 &&
+            rounds + 1 < profile.maxToolRounds &&
+            (opts.deadlineAt ?? startedAt + profile.turnBudgetMs) - Date.now() > reserveMs
+          ) {
+            providerCallRepairs++;
+            input.push({
+              role: 'developer',
+              content:
+                'The previous provider response was incomplete or contained an invalid function call. Start that response again. Do not reuse or present partial prose. Emit only complete function calls with unique call IDs and valid JSON-object arguments.',
+            });
+            continue;
+          }
+          finalText =
+            'I could not complete this response, so I did not execute any calls from the incomplete provider turn. Please ask me to continue.';
+          break;
+        }
+
+        // The Responses API requires completed reasoning/function-call output
+        // items to be replayed on the next request. Incomplete output is never
+        // replayed, emitted to the browser, or persisted as a message/audit body.
         input.push(...(response.output as Array<Record<string, unknown>>));
 
         if (!response.functionCalls.length) {
@@ -1134,14 +1181,6 @@ export class MeriV3AssistantService {
           break;
         }
 
-        // Incomplete provider responses are not authorized to dispatch tool calls.
-        // Preserve the partial outcome for the caller without creating any effect.
-        if (response.status !== 'completed' || response.incompleteReason != null || response.telemetry.partial) {
-          finalText = response.outputText
-            ? response.outputText + '\n\n_(This response is incomplete; no pending tool calls were executed.)_'
-            : 'I could not complete this response, so I did not execute the pending tool calls. Please ask me to continue.';
-          break;
-        }
         await executeCalls(response.functionCalls);
         await continueDocumentReads();
       }

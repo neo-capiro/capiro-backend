@@ -473,6 +473,44 @@ describe('MeriActionProposalService', () => {
     expect(result.error?.code).toBe('external_outcome_unknown');
   });
 
+  it.each([
+    ['reply_email', { error: 'Thread not found.' }, 'reply_email_failed'],
+    [
+      'schedule_task',
+      { tool: 'schedule_task', scheduled: false, error: 'The interval is invalid.' },
+      'schedule_task_rejected',
+    ],
+    [
+      'cancel_scheduled_task',
+      { tool: 'cancel_scheduled_task', canceled: false, error: 'Task not found.' },
+      'cancel_scheduled_task_rejected',
+    ],
+  ])('classifies resolved %s handler errors as terminal failures', async (tool, executeResult, code) => {
+    const input = tool === 'reply_email'
+      ? { threadId: 'thread-1', body: 'Reply' }
+      : tool === 'schedule_task'
+        ? { name: 'Watch', prompt: 'Check', intervalMinutes: 60 }
+        : { taskId: 'task-1' };
+    const h = harness({ row: makeRow({ tool, input }), executeResult });
+    h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
+
+    const result = await h.service.approveAndExecute(ctx, PROPOSAL);
+
+    expect(result.status).toBe('failed_terminal');
+    expect(result.error?.code).toBe(code);
+    expect(result.resultSummary).toMatchObject(executeResult);
+  });
+
+  it.each([
+    ['reply_email', { ok: true, sentFrom: 'me@example.com', to: 'you@example.com', subject: 'Re: Hi' }],
+    ['schedule_task', { tool: 'schedule_task', scheduled: true, task: { id: 'task-1' } }],
+    ['cancel_scheduled_task', { tool: 'cancel_scheduled_task', canceled: true, taskId: 'task-1' }],
+  ])('accepts the confirmed %s handler receipt', async (tool, executeResult) => {
+    const h = harness({ row: makeRow({ tool }), executeResult });
+    h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
+    expect((await h.service.approveAndExecute(ctx, PROPOSAL)).status).toBe('succeeded');
+  });
+
   it('classifies safe internal transient errors as failed_retryable', async () => {
     const row = makeRow({
       tool: 'update_client_profile',

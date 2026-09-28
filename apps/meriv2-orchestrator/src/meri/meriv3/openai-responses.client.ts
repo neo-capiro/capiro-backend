@@ -122,6 +122,39 @@ export function extractResponsesFunctionCalls(
   );
 }
 
+function validateResponsesFunctionCallBatch(output: OpenAiResponsesOutputItem[]): {
+  calls: OpenAiResponsesFunctionCall[];
+  failure?: 'incomplete_function_call' | 'malformed_function_call';
+} {
+  const items = output.filter((item) => item.type === 'function_call');
+  if (!items.length) return { calls: [] };
+  if (
+    items.some(
+      (item) => 'status' in item && item.status !== undefined && item.status !== 'completed',
+    )
+  ) {
+    return { calls: [], failure: 'incomplete_function_call' };
+  }
+  const calls = extractResponsesFunctionCalls(output);
+  if (calls.length !== items.length) return { calls: [], failure: 'malformed_function_call' };
+  const callIds = new Set<string>();
+  for (const call of calls) {
+    if (!call.call_id.trim() || !call.name.trim() || callIds.has(call.call_id)) {
+      return { calls: [], failure: 'malformed_function_call' };
+    }
+    callIds.add(call.call_id);
+    try {
+      const parsed = JSON.parse(call.arguments) as unknown;
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return { calls: [], failure: 'malformed_function_call' };
+      }
+    } catch {
+      return { calls: [], failure: 'malformed_function_call' };
+    }
+  }
+  return { calls };
+}
+
 export function anthropicSchemaToResponsesTool(schema: {
   name: string;
   description: string;
@@ -325,22 +358,28 @@ export class OpenAiResponsesClient {
             : extractResponsesOutputText(output);
         const responseStatus = String(body.status ?? 'unknown');
         const incompleteReason = body.incomplete_details?.reason ?? null;
+        const validatedCalls = validateResponsesFunctionCallBatch(output);
+        const callFailure =
+          responseStatus === 'completed' && incompleteReason === null
+            ? validatedCalls.failure
+            : undefined;
         const telemetry: MeriV3ProviderTelemetry = {
           requestedModel: model,
           effectiveModel: String(body.model ?? model),
           requestedReasoningEffort: params.profile.effort,
           effectiveReasoningEffort: reasoningUnsupported ? null : activeReasoningEffort,
           reasoningFallbackReasons: [...reasoningFallbackReasons],
-          finishReason: incompleteReason ?? body.error?.code ?? responseStatus,
-          partial: responseStatus !== 'completed' || incompleteReason !== null,
+          finishReason: callFailure ?? incompleteReason ?? body.error?.code ?? responseStatus,
+          partial:
+            responseStatus !== 'completed' || incompleteReason !== null || callFailure !== undefined,
         };
         // Do not extract or return function calls when response is incomplete.
         // The provider may have emitted partial tool calls before hitting a limit.
         // Replay is required (output items stay request-local) and no tool should
         // dispatch from an unclosed turn.
         const functionCalls =
-          responseStatus === 'completed' && !incompleteReason
-            ? extractResponsesFunctionCalls(output)
+          responseStatus === 'completed' && !incompleteReason && !callFailure
+            ? validatedCalls.calls
             : [];
         const draft: OpenAiResponsesResult = {
           id: String(body.id ?? ''),
