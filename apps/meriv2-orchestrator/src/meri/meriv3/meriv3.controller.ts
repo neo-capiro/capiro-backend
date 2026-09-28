@@ -352,7 +352,9 @@ function validateCapturePolicy(
   }
 }
 
-function captureReceipt(policy: NonNullable<MeriGovernedTurnContext['serverReadonlyCapturePolicy']>) {
+function captureReceipt(
+  policy: NonNullable<MeriGovernedTurnContext['serverReadonlyCapturePolicy']>,
+) {
   return {
     version: 1 as const,
     policyId: policy.policyId,

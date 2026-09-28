@@ -1,5 +1,16 @@
 # Meri file 01 status
 
+
+## Current checkpoint — 2026-09-28 18:38 UTC
+
+File01 remains incomplete across original A/B/C/D. At published 04cc5d1577331972c7e76f0efd16f8587efed513, hosted visual/sandbox run36464235328, memory PostgreSQL36464235513, connectors36464235512 and Knowledge Phase17 run36464235200 passed. Canary36464235478 stopped at formatting in exactly the controller and proxy test; both are now formatted, full workflow format command exits0, and source/emitted AST plus ordered-comment equivalence passes with a second-declaration negative control. Evidence: foundation-04cc-format-proof.json and foundation-04cc-full-format.log. This formatting-only integration change does not alter behavior. Meriv2 Phase17 run36464235514 reaches and fails the historical min(uuid) migration; other failed gates remain unwaived.
+
+Neo directed the Hermes workers to AWS Bedrock. All eight task profiles and the launcher now use Bedrock Runtime with the pinned US GPT inference profiles and requested High reasoning. Both actual Hermes calls and independent IAM-signed requests returned HTTP403 account model unavailability. Catalog AUTHORIZED/AVAILABLE is not inference proof. No model substitution occurred. Workers are stopped, partial work is snapshotted, and model-substitution approval or AWS access is pending. Tool-call/High verification on Bedrock is NOT RUN. Exact evidence: bedrock-provider-migration-report.md and queue-current.json.
+
+Joined telemetry fdbd85b review is HOLD, not active: direct probes found unknown provider usage represented as zero, unsafe identifier serialization, missing canonical join bindings, incomplete outcome/stream cleanup, and absent actual OTel export evidence. Its report is recovered as review-joined-telemetry-report.md. Capture evidence producer4a28d04 is published but independent review and full live binding remain pending. Focused A1 remains published af564; local f4bb mechanical formatting and b572 sandbox prerequisite integration are preserved while catalog repair awaits a worker. The corrected full187-file formatting proof passes; the original short-circuiting verifier is superseded.
+
+No main integration, deployment or synthetic tenant enablement occurred. Full75 live/CD7/CW8, applicable memory/source acceptance, AppendixH, owned fixtures, trusted cost/effect/build receipts, database clearance and named owner acceptance remain required. Partial tests do not close these requirements.
+
 ## Current checkpoint — 2026-09-28 18:17 UTC
 
 File01 remains IN_PROGRESS. The independently reviewed capture policy, current-authority checks and bounded private-output fence are consolidated from 8e0bbba/dc83983/e6ff15a as 646014fb2/e7bfb3c12/be175dc78. The independently reviewed two-line Knowledge Phase17 heap fix is integrated as94e4b3df. Combined source bdf1daf05 additionally preserves the capture-only analysis exclusion in fresh progressive discovery and current disclosure, and fixes the current controller test-constructor dependency.

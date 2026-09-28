@@ -609,7 +609,16 @@ describe('MeriV3ProxyService â€” done frame carries the persisted message i
         reasoningEffort: 'low',
       });
     });
-    await service.streamMessage(CTX, CONVERSATION, 'Ordinary chat', sse, undefined, 'new', [], 'token');
+    await service.streamMessage(
+      CTX,
+      CONVERSATION,
+      'Ordinary chat',
+      sse,
+      undefined,
+      'new',
+      [],
+      'token',
+    );
     expect(frames().at(-1)?.type).toBe('done');
     expect(frames().at(-1)?.serverReadonlyCaptureReceipt).toBeUndefined();
   });
@@ -686,7 +695,10 @@ describe('MeriV3ProxyService â€” done frame carries the persisted message i
     expect(artifact.tx.clioArtifact.updateMany).not.toHaveBeenCalled();
     expect(artifact.frames().some((frame) => frame.type === 'artifact')).toBe(false);
     expect(artifact.frames()).toContainEqual(
-      expect.objectContaining({ type: 'error', message: 'Server-owned read-only capture authority was denied before dispatch.' }),
+      expect.objectContaining({
+        type: 'error',
+        message: 'Server-owned read-only capture authority was denied before dispatch.',
+      }),
     );
     expect(artifact.maintenance.scheduleAfterTurnMaintenance).not.toHaveBeenCalled();
   });
@@ -703,102 +715,97 @@ describe('MeriV3ProxyService â€” done frame carries the persisted message i
     ['membership_revoked', 'between_frames'],
     ['wall_revoked', 'between_frames'],
     ['client_rebound', 'between_frames'],
-  ])(
-    'withholds every private frame after %s %s',
-    async (change, timing) => {
-      const h = buildHarness();
-      const authority = { membership: true, wall: true, clientId: 'capture-client' };
-      h.tx.tenantMembership.findFirst.mockImplementation(
-        async () => (authority.membership ? { id: 'capture-membership' } : (null as never)),
-      );
-      h.tx.clioConversation.findFirst.mockImplementation(
-        (async () => ({
-          id: CONVERSATION,
-          clientId: authority.clientId,
-          summaryUpToMessageId: null,
-          summary: null,
-          metadata: null,
-          client: {
-            id: authority.clientId,
-            tenantId: CAPTURE_TENANT,
-            name: 'Private Client',
-            memoryWall: true,
-            memoryAccessGrants: authority.wall ? [{ id: 'wall-grant' }] : [],
-          },
-        })) as never,
-      );
-      const withdraw = () => {
-        if (change === 'membership_revoked') authority.membership = false;
-        else if (change === 'wall_revoked') authority.wall = false;
-        else authority.clientId = 'client-rebound';
-      };
-      h.client.streamChat.mockImplementationOnce(async ({ onEvent }: any) => {
-        await Promise.resolve();
-        if (timing === 'before_first_frame') withdraw();
-        onEvent({ type: 'text', text: 'PRIVATE_FRAME_ONE' });
-        onEvent({
-          type: 'pending_approval',
-          tool: 'untrusted_tool',
-          label: 'PRIVATE_PROPOSAL',
-          proposalId: 'untrusted-proposal',
-          status: 'pending',
-          reason: 'PRIVATE_REASON',
-        });
-        if (timing === 'between_frames') {
-          await Promise.resolve();
-          withdraw();
-        }
-        onEvent({ type: 'text', text: 'PRIVATE_FRAME_TWO' });
-        onEvent({
-          type: 'done',
-          reply: 'PRIVATE_FRAME_ONEPRIVATE_FRAME_TWO',
-          citations: [{ id: 'private-source', snippet: 'PRIVATE_CONTEXT' }],
-          steps: [],
-          contextPacket: { packetId: 'private-packet', items: [{ text: 'PRIVATE_METADATA' }] },
-          runtime: 'meriv3',
-          model: 'configured-model',
-          reasoningMode: 'fast',
-          reasoningEffort: 'low',
-        });
+  ])('withholds every private frame after %s %s', async (change, timing) => {
+    const h = buildHarness();
+    const authority = { membership: true, wall: true, clientId: 'capture-client' };
+    h.tx.tenantMembership.findFirst.mockImplementation(async () =>
+      authority.membership ? { id: 'capture-membership' } : (null as never),
+    );
+    h.tx.clioConversation.findFirst.mockImplementation((async () => ({
+      id: CONVERSATION,
+      clientId: authority.clientId,
+      summaryUpToMessageId: null,
+      summary: null,
+      metadata: null,
+      client: {
+        id: authority.clientId,
+        tenantId: CAPTURE_TENANT,
+        name: 'Private Client',
+        memoryWall: true,
+        memoryAccessGrants: authority.wall ? [{ id: 'wall-grant' }] : [],
+      },
+    })) as never);
+    const withdraw = () => {
+      if (change === 'membership_revoked') authority.membership = false;
+      else if (change === 'wall_revoked') authority.wall = false;
+      else authority.clientId = 'client-rebound';
+    };
+    h.client.streamChat.mockImplementationOnce(async ({ onEvent }: any) => {
+      await Promise.resolve();
+      if (timing === 'before_first_frame') withdraw();
+      onEvent({ type: 'text', text: 'PRIVATE_FRAME_ONE' });
+      onEvent({
+        type: 'pending_approval',
+        tool: 'untrusted_tool',
+        label: 'PRIVATE_PROPOSAL',
+        proposalId: 'untrusted-proposal',
+        status: 'pending',
+        reason: 'PRIVATE_REASON',
       });
-      const runtime = new MeriContextPlaneRuntimeService(
-        h.prisma as never,
-        {
-          resolveChat: jest.fn(async () => ({
-            version: 1,
-            operationId: 'meri.chat',
-            prompt: 'governed context',
-            contextPacket: { items: [], exclusions: [], unauthorizedCount: 0, degraded: false },
-            retrieval: { plan: { subjectScope: 'firm' }, coverage: { sourceHealth: [] } },
-          })),
-        } as never,
-      );
+      if (timing === 'between_frames') {
+        await Promise.resolve();
+        withdraw();
+      }
+      onEvent({ type: 'text', text: 'PRIVATE_FRAME_TWO' });
+      onEvent({
+        type: 'done',
+        reply: 'PRIVATE_FRAME_ONEPRIVATE_FRAME_TWO',
+        citations: [{ id: 'private-source', snippet: 'PRIVATE_CONTEXT' }],
+        steps: [],
+        contextPacket: { packetId: 'private-packet', items: [{ text: 'PRIVATE_METADATA' }] },
+        runtime: 'meriv3',
+        model: 'configured-model',
+        reasoningMode: 'fast',
+        reasoningEffort: 'low',
+      });
+    });
+    const runtime = new MeriContextPlaneRuntimeService(
+      h.prisma as never,
+      {
+        resolveChat: jest.fn(async () => ({
+          version: 1,
+          operationId: 'meri.chat',
+          prompt: 'governed context',
+          contextPacket: { items: [], exclusions: [], unauthorizedCount: 0, degraded: false },
+          retrieval: { plan: { subjectScope: 'firm' }, coverage: { sourceHealth: [] } },
+        })),
+      } as never,
+    );
 
-      await expect(
-        runtime.runChatTurn(
-          CAPTURE_CTX as never,
-          { conversationId: CONVERSATION, body: 'Read only', mode: 'new' },
-          () =>
-            h.service.streamMessage(
-              CAPTURE_CTX as never,
-              CONVERSATION,
-              'Read only',
-              h.sse,
-              undefined,
-              'new',
-              [],
-              'token',
-            ),
-        ),
-      ).rejects.toMatchObject({ status: 403 });
-      expect(h.tx.clioMessage.create.mock.calls.map(([arg]: any) => arg.data.role)).toEqual(['user']);
-      expect(h.tx.clioArtifact.updateMany).not.toHaveBeenCalled();
-      expect(h.maintenance.scheduleAfterTurnMaintenance).not.toHaveBeenCalled();
-      expect(h.frames()).toEqual([]);
-      await new Promise<void>((resolve) => setImmediate(resolve));
-      expect(h.tx.clioMessage.create).toHaveBeenCalledTimes(1);
-    },
-  );
+    await expect(
+      runtime.runChatTurn(
+        CAPTURE_CTX as never,
+        { conversationId: CONVERSATION, body: 'Read only', mode: 'new' },
+        () =>
+          h.service.streamMessage(
+            CAPTURE_CTX as never,
+            CONVERSATION,
+            'Read only',
+            h.sse,
+            undefined,
+            'new',
+            [],
+            'token',
+          ),
+      ),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(h.tx.clioMessage.create.mock.calls.map(([arg]: any) => arg.data.role)).toEqual(['user']);
+    expect(h.tx.clioArtifact.updateMany).not.toHaveBeenCalled();
+    expect(h.maintenance.scheduleAfterTurnMaintenance).not.toHaveBeenCalled();
+    expect(h.frames()).toEqual([]);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(h.tx.clioMessage.create).toHaveBeenCalledTimes(1);
+  });
 
   it('persists and streams the same actual turn scope when the selected client differs', async () => {
     const { service, client, sse, tx, frames } = buildHarness();
