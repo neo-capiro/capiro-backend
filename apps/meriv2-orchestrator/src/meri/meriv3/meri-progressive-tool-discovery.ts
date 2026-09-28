@@ -88,6 +88,22 @@ function validSchema(schema: MeriProgressiveToolSchema): boolean {
   );
 }
 
+function canonicalValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalValue);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, nested]) => [key, canonicalValue(nested)]),
+    );
+  }
+  return value;
+}
+
+function sameSchema(left: MeriProgressiveToolSchema, right: MeriProgressiveToolSchema): boolean {
+  return JSON.stringify(canonicalValue(left)) === JSON.stringify(canonicalValue(right));
+}
+
 function controlSchema(name: string): MeriProgressiveToolSchema {
   if (name === MERI_TOOL_SEARCH) {
     return {
@@ -142,7 +158,7 @@ function controlSchema(name: string): MeriProgressiveToolSchema {
  * caller before a schema is loaded.
  */
 export class MeriProgressiveToolDiscovery {
-  private readonly searchable: SearchableSchema[];
+  private readonly searchableNames: Set<string>;
   private readonly initialSchemas: MeriProgressiveToolSchema[];
   private readonly discoveredNames = new Set<string>();
   private readonly loaded = new Map<string, MeriProgressiveToolSchema>();
@@ -155,37 +171,36 @@ export class MeriProgressiveToolDiscovery {
     authorizedSchemas: readonly MeriProgressiveToolSchema[];
     exposedSchemas: readonly MeriProgressiveToolSchema[];
     budget: MeriRunBudget;
-    authorizeLoad: (schema: MeriProgressiveToolSchema) => boolean;
+    resolveCurrentSchemas: () => Promise<readonly MeriProgressiveToolSchema[]>;
+    authorizeCurrentSchema?: (schema: MeriProgressiveToolSchema) => Promise<boolean>;
   }) {
-    this.authorizeLoad = args.authorizeLoad;
+    this.resolveCurrentSchemas = args.resolveCurrentSchemas;
+    this.authorizeCurrentSchema = args.authorizeCurrentSchema ?? (async () => true);
     const exposed = new Set(args.exposedSchemas.map((schema) => schema.name));
     this.initialSchemas = args.exposedSchemas.filter(validSchema);
-    this.searchable = args.authorizedSchemas
-      .filter((schema) => validSchema(schema) && !exposed.has(schema.name))
-      .map((schema) => ({
-        schema,
-        nameTokens: new Set(tokens(schema.name)),
-        descriptionTokens: new Set(tokens(schema.description)),
-        parameterTokens: new Set(tokens(schemaParameterNames(schema).join(' '))),
-      }));
+    this.searchableNames = new Set(
+      args.authorizedSchemas
+        .filter((schema) => validSchema(schema) && !exposed.has(schema.name))
+        .map((schema) => schema.name),
+    );
     const gatherModelCalls = Math.max(
       0,
       args.budget.limits.maxModelCalls - args.budget.limits.synthesisModelCallReserve,
     );
-    this.maximumAttempts = Math.min(
-      MAX_SEARCH_ATTEMPTS + MAX_DESCRIBE_ATTEMPTS,
-      gatherModelCalls,
-    );
+    this.maximumAttempts = Math.min(MAX_SEARCH_ATTEMPTS + MAX_DESCRIBE_ATTEMPTS, gatherModelCalls);
   }
 
-  private readonly authorizeLoad: (schema: MeriProgressiveToolSchema) => boolean;
+  private readonly resolveCurrentSchemas: () => Promise<readonly MeriProgressiveToolSchema[]>;
+  private readonly authorizeCurrentSchema: (schema: MeriProgressiveToolSchema) => Promise<boolean>;
 
   active(): boolean {
-    return this.searchable.length > 0;
+    return this.searchableNames.size > 0;
   }
 
   controlSchemas(): MeriProgressiveToolSchema[] {
-    return this.active() ? [controlSchema(MERI_TOOL_SEARCH), controlSchema(MERI_TOOL_DESCRIBE)] : [];
+    return this.active()
+      ? [controlSchema(MERI_TOOL_SEARCH), controlSchema(MERI_TOOL_DESCRIBE)]
+      : [];
   }
 
   exposedSchemas(): MeriProgressiveToolSchema[] {
@@ -196,7 +211,10 @@ export class MeriProgressiveToolDiscovery {
     return this.active() && MERI_PROGRESSIVE_DISCOVERY_CONTROL_NAMES.has(name);
   }
 
-  execute(name: string, input: Record<string, unknown>): MeriProgressiveDiscoveryOutcome {
+  async execute(
+    name: string,
+    input: Record<string, unknown>,
+  ): Promise<MeriProgressiveDiscoveryOutcome> {
     if (!this.handles(name)) return this.failure('unavailable');
     if (this.searchAttempts + this.describeAttempts >= this.maximumAttempts) {
       return this.failure('attempt_limit');
@@ -204,24 +222,59 @@ export class MeriProgressiveToolDiscovery {
     return name === MERI_TOOL_SEARCH ? this.search(input) : this.describe(input);
   }
 
-  private search(input: Record<string, unknown>): MeriProgressiveDiscoveryOutcome {
+  async refreshLoaded(): Promise<void> {
+    if (!this.loaded.size) return;
+    const current = await this.currentSearchable();
+    const byName = new Map(current.map((entry) => [entry.schema.name, entry.schema]));
+    for (const [name, loaded] of this.loaded) {
+      const schema = byName.get(name);
+      if (!schema || !sameSchema(schema, loaded) || !(await this.authorizeCurrentSchema(schema))) {
+        this.loaded.delete(name);
+        this.loadedCharacters -= JSON.stringify(loaded).length;
+      }
+    }
+  }
+
+  isLoaded(name: string): boolean {
+    return this.loaded.has(name);
+  }
+
+  private async currentSearchable(): Promise<SearchableSchema[]> {
+    let schemas: readonly MeriProgressiveToolSchema[];
+    try {
+      schemas = await this.resolveCurrentSchemas();
+    } catch {
+      return [];
+    }
+    const byName = new Map<string, MeriProgressiveToolSchema>();
+    for (const schema of schemas) {
+      if (validSchema(schema) && this.searchableNames.has(schema.name))
+        byName.set(schema.name, schema);
+    }
+    return [...byName.values()].map((schema) => ({
+      schema,
+      nameTokens: new Set(tokens(schema.name)),
+      descriptionTokens: new Set(tokens(schema.description)),
+      parameterTokens: new Set(tokens(schemaParameterNames(schema).join(' '))),
+    }));
+  }
+
+  private async search(input: Record<string, unknown>): Promise<MeriProgressiveDiscoveryOutcome> {
     this.searchAttempts += 1;
     if (this.searchAttempts > MAX_SEARCH_ATTEMPTS) return this.failure('search_attempt_limit');
-    const queries = boundedStringList(
-      input.queries,
-      MAX_QUERIES_PER_CALL,
-      MAX_QUERY_CHARACTERS,
-    );
+    const queries = boundedStringList(input.queries, MAX_QUERIES_PER_CALL, MAX_QUERY_CHARACTERS);
     if (!queries) return this.failure('invalid_queries');
     const requestedLimit = typeof input.limit === 'number' ? Math.floor(input.limit) : 5;
     const limit = Math.max(1, Math.min(MAX_RESULTS_PER_QUERY, requestedLimit));
+    const searchable = await this.currentSearchable();
     const matchedNames: string[] = [];
     const tools: Record<string, unknown> = {};
-    const results = queries.map((query, queryIndex) => {
+    const results: Array<{ queryIndex: number; matches: string[] }> = [];
+    for (const [queryIndex, query] of queries.entries()) {
       const queryTokens = [...new Set(tokens(query))];
       const exact = query.trim().toLowerCase();
       const hits = queryTokens.length
-        ? this.searchable
+        ? searchable
             .map((entry) => {
               const exactName = entry.schema.name.toLowerCase() === exact;
               const everyTermMatches = queryTokens.every(
@@ -243,9 +296,7 @@ export class MeriProgressiveToolDiscovery {
                   );
               return { entry, score };
             })
-            .filter(
-              (value): value is { entry: SearchableSchema; score: number } => value !== null,
-            )
+            .filter((value): value is { entry: SearchableSchema; score: number } => value !== null)
             .sort(
               (left, right) =>
                 right.score - left.score ||
@@ -253,8 +304,10 @@ export class MeriProgressiveToolDiscovery {
             )
             .slice(0, limit)
         : [];
-      const matches = hits.map(({ entry }) => entry.schema.name);
+      const matches: string[] = [];
       for (const { entry } of hits) {
+        if (!(await this.authorizeCurrentSchema(entry.schema))) continue;
+        matches.push(entry.schema.name);
         this.discoveredNames.add(entry.schema.name);
         if (!matchedNames.includes(entry.schema.name)) matchedNames.push(entry.schema.name);
         tools[entry.schema.name] = {
@@ -263,13 +316,13 @@ export class MeriProgressiveToolDiscovery {
           source: entry.schema.name.startsWith('mcp__') ? 'mcp' : 'native',
         };
       }
-      return { queryIndex, matches };
-    });
+      results.push({ queryIndex, matches });
+    }
     return {
       result: {
         results,
         tools,
-        totalAvailable: this.searchable.length,
+        totalAvailable: new Set(results.flatMap((result) => result.matches)).size,
         limits: {
           queries: MAX_QUERIES_PER_CALL,
           resultsPerQuery: MAX_RESULTS_PER_QUERY,
@@ -282,25 +335,31 @@ export class MeriProgressiveToolDiscovery {
     };
   }
 
-  private describe(input: Record<string, unknown>): MeriProgressiveDiscoveryOutcome {
+  private async describe(input: Record<string, unknown>): Promise<MeriProgressiveDiscoveryOutcome> {
     this.describeAttempts += 1;
     if (this.describeAttempts > MAX_DESCRIBE_ATTEMPTS) {
       return this.failure('describe_attempt_limit');
     }
     const names = boundedStringList(input.names, MAX_DESCRIBE_NAMES, 128);
     if (!names) return this.failure('invalid_names');
-    const byName = new Map(this.searchable.map((entry) => [entry.schema.name, entry.schema]));
+    const current = await this.currentSearchable();
+    const byName = new Map(current.map((entry) => [entry.schema.name, entry.schema]));
     const tools: Record<string, unknown> = {};
     const loadedNames: string[] = [];
     let unavailableCount = 0;
     let capacityCount = 0;
     for (const name of names) {
       const schema = byName.get(name);
-      if (!schema || !this.discoveredNames.has(name) || !this.authorizeLoad(schema)) {
+      if (
+        !schema ||
+        !this.discoveredNames.has(name) ||
+        !(await this.authorizeCurrentSchema(schema))
+      ) {
         unavailableCount += 1;
         continue;
       }
-      if (this.loaded.has(name)) {
+      const previous = this.loaded.get(name);
+      if (previous && sameSchema(previous, schema)) {
         loadedNames.push(name);
         tools[name] = {
           description: schema.description,
@@ -310,12 +369,16 @@ export class MeriProgressiveToolDiscovery {
       }
       const schemaCharacters = JSON.stringify(schema).length;
       if (
-        this.loaded.size >= MAX_LOADED_SCHEMAS ||
-        this.loadedCharacters + schemaCharacters > MAX_SCHEMA_GROWTH_CHARACTERS
+        (!previous && this.loaded.size >= MAX_LOADED_SCHEMAS) ||
+        this.loadedCharacters -
+          (previous ? JSON.stringify(previous).length : 0) +
+          schemaCharacters >
+          MAX_SCHEMA_GROWTH_CHARACTERS
       ) {
         capacityCount += 1;
         continue;
       }
+      if (previous) this.loadedCharacters -= JSON.stringify(previous).length;
       this.loaded.set(name, schema);
       this.loadedCharacters += schemaCharacters;
       loadedNames.push(name);

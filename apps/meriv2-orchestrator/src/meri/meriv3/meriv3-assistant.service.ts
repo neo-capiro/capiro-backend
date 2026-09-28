@@ -325,6 +325,10 @@ function toolSchemaVersion(schema: ToolSchema): string {
   return `sha256:${createHash('sha256').update(canonicalSchemaJson(schema.input_schema)).digest('hex')}`;
 }
 
+function sameToolSchemaSurface(left: ToolSchema, right: ToolSchema): boolean {
+  return canonicalSchemaJson(left) === canonicalSchemaJson(right);
+}
+
 function safetyIdentifier(ctx: MeriContext): string {
   return createHash('sha256').update(`${ctx.tenantId}:${ctx.userId}`).digest('hex');
 }
@@ -1112,16 +1116,70 @@ export class MeriV3AssistantService {
       allowCanonicalResearchDirector: false,
     });
     MeriV3SemanticRuntimeStore.recordDecision(selection.decision);
-    const authorizedSchemaByName = new Map(authorizedSchemas.map((schema) => [schema.name, schema]));
-    const progressiveDiscovery = new MeriProgressiveToolDiscovery({
-      // Legacy and shadow remain behavior-identical. Progressive disclosure is
-      // served only where the existing enabled selector already narrows schemas.
-      authorizedSchemas:
-        selection.decision.mode === 'enabled' ? authorizedSchemas : selection.schemas,
-      exposedSchemas: selection.schemas,
-      budget: runtimeBudget,
-      authorizeLoad: (schema) => {
-        if (authorizedSchemaByName.get(schema.name) !== schema) return false;
+    let currentDiscoveryLookup: Promise<ToolSchema[]> | null = null;
+    const resolveCurrentDiscoverySchemas = async (): Promise<ToolSchema[]> => {
+      if (currentDiscoveryLookup) return currentDiscoveryLookup;
+      const lookup = (async () => {
+        try {
+          assertToolExecutionActive(opts);
+          const currentPlan = requireMeriV3ResearchPlanExecution(dto, ctx);
+          const currentAdmitted = currentPlan ? new Set(currentPlan.allowedReadCapabilities) : null;
+          await this.assertResearchRunActive(dto, opts);
+          const currentCatalog =
+            dto.toolPolicy === 'none'
+              ? []
+              : (await this.fetchToolSchemas(opts)).filter((schema) => {
+                  const definition = this.registry.get(schema.name);
+                  const canonical = MERI_CAPABILITY_REGISTRY.find(
+                    (item) => item.name === schema.name,
+                  );
+                  return Boolean(
+                    definition &&
+                    this.registry.list().includes(schema.name) &&
+                    canonical &&
+                    canonical.readOnly === definition.readOnly &&
+                    (dto.toolPolicy !== 'read-only' || definition.readOnly === true) &&
+                    (!currentAdmitted || currentAdmitted.has(schema.name)) &&
+                    (schema.name !== 'get_research_evidence' || dto.researchRun),
+                  );
+                });
+          const currentGoverned = currentGovernedMeriContext();
+          const currentProcedure = currentGoverned
+            ? requireMeriProcedureBinding({
+                governed: currentGoverned,
+                dto,
+                tenantId: ctx.tenantId,
+              })
+            : null;
+          if (
+            Boolean(currentProcedure) !== Boolean(procedure) ||
+            (currentProcedure &&
+              procedure &&
+              (currentProcedure.manifestDigest !== procedure.manifestDigest ||
+                currentProcedure.identity.recordId !== procedure.identity.recordId ||
+                currentProcedure.identity.version !== procedure.identity.version))
+          ) {
+            return [];
+          }
+          return bindMeriProcedureSchemas({
+            procedure: currentProcedure,
+            schemas: currentCatalog,
+            registry: this.registry,
+          }).schemas;
+        } catch {
+          return [];
+        }
+      })();
+      currentDiscoveryLookup = lookup;
+      try {
+        return await lookup;
+      } finally {
+        if (currentDiscoveryLookup === lookup) currentDiscoveryLookup = null;
+      }
+    };
+    const authorizeCurrentDiscoverySchema = async (schema: ToolSchema): Promise<boolean> => {
+      try {
+        assertToolExecutionActive(opts);
         const definition = this.registry.get(schema.name);
         const canonical = MERI_CAPABILITY_REGISTRY.find((item) => item.name === schema.name);
         if (
@@ -1136,17 +1194,26 @@ export class MeriV3AssistantService {
         ) {
           return false;
         }
-        try {
-          assertMeriProcedureToolDispatch({
-            procedure: currentGovernedMeriContext()?.procedure,
-            toolName: schema.name,
-            readOnly: definition.readOnly,
-          });
-          return true;
-        } catch {
-          return false;
-        }
-      },
+        assertMeriProcedureToolDispatch({
+          procedure: currentGovernedMeriContext()?.procedure,
+          toolName: schema.name,
+          readOnly: definition.readOnly,
+        });
+        await this.assertCurrentProcedureAuthority(dto.conversationId, schema.name, opts);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    const progressiveDiscovery = new MeriProgressiveToolDiscovery({
+      // Legacy and shadow remain behavior-identical. Progressive disclosure is
+      // served only where the existing enabled selector already narrows schemas.
+      authorizedSchemas:
+        selection.decision.mode === 'enabled' ? authorizedSchemas : selection.schemas,
+      exposedSchemas: selection.schemas,
+      budget: runtimeBudget,
+      resolveCurrentSchemas: resolveCurrentDiscoverySchemas,
+      authorizeCurrentSchema: authorizeCurrentDiscoverySchema,
     });
     let availableSchemas = progressiveDiscovery.exposedSchemas();
     this.logStructured('log', 'meri.semantic_tool_gateway.selection', {
@@ -1311,7 +1378,7 @@ export class MeriV3AssistantService {
         }
         let outcome;
         try {
-          outcome = progressiveDiscovery.execute(call.name, parseArguments(call.arguments));
+          outcome = await progressiveDiscovery.execute(call.name, parseArguments(call.arguments));
         } catch {
           outcome = {
             result: { error: 'Progressive discovery arguments were invalid.' },
@@ -1365,6 +1432,9 @@ export class MeriV3AssistantService {
             budgetScope,
             semanticDecisionId: selection.decision.decisionId,
             admittedReadCapabilities,
+            isProgressivelyLoaded: (name) => progressiveDiscovery.isLoaded(name),
+            resolveCurrentDiscoverySchemas,
+            authorizeCurrentDiscoverySchema,
           })
         : [];
       for (const execution of leafExecutions) {
@@ -1654,6 +1724,11 @@ export class MeriV3AssistantService {
         assertToolExecutionActive(opts);
         if (runtimeBudget.acquisitionStopped) break;
         await this.assertResearchRunActive(dto, opts);
+        await progressiveDiscovery.refreshLoaded();
+        availableSchemas = progressiveDiscovery.exposedSchemas();
+        tools = [...availableSchemas, ...progressiveDiscovery.controlSchemas()].map(
+          anthropicSchemaToResponsesTool,
+        );
         const remainingMs = (opts.deadlineAt ?? startedAt + profile.turnBudgetMs) - Date.now();
         // Stop opening new gather rounds once only the synthesis reserve remains.
         if (remainingMs <= reserveMs) break;
@@ -2928,6 +3003,9 @@ export class MeriV3AssistantService {
     budgetScope: MeriToolSignatureScope;
     semanticDecisionId: string;
     admittedReadCapabilities: ReadonlySet<string> | null;
+    isProgressivelyLoaded: (name: string) => boolean;
+    resolveCurrentDiscoverySchemas: () => Promise<ToolSchema[]>;
+    authorizeCurrentDiscoverySchema: (schema: ToolSchema) => Promise<boolean>;
   }): Promise<FunctionExecution[]> {
     const executions: FunctionExecution[] = [];
     const publicCall = (call: OpenAiResponsesFunctionCall) =>
@@ -3016,6 +3094,17 @@ export class MeriV3AssistantService {
         logDispatch(call, 'blocked_undeclared', false);
         continue;
       }
+      let currentProgressiveSchema = true;
+      if (args.isProgressivelyLoaded(call.name)) {
+        const current = (await args.resolveCurrentDiscoverySchemas()).find(
+          (candidate) => candidate.name === call.name,
+        );
+        currentProgressiveSchema = Boolean(
+          current &&
+          sameToolSchemaSurface(schema, current) &&
+          (await args.authorizeCurrentDiscoverySchema(current)),
+        );
+      }
       const currentDefinition = this.registry.get(call.name);
       const currentCapability = MERI_CAPABILITY_REGISTRY.find((item) => item.name === call.name);
       if (
@@ -3023,6 +3112,7 @@ export class MeriV3AssistantService {
         !this.registry.list().includes(call.name) ||
         !currentCapability ||
         currentCapability.readOnly !== currentDefinition.readOnly ||
+        !currentProgressiveSchema ||
         args.dto.toolPolicy === 'none' ||
         (args.dto.toolPolicy === 'read-only' && currentDefinition.readOnly !== true)
       ) {

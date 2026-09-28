@@ -4047,10 +4047,9 @@ describe('Stage 2 orchestrator hardening', () => {
       const rareSchema = toolSchema('search_procurement_forecasts');
       global.fetch = jest.fn(
         async () =>
-          new Response(
-            JSON.stringify({ schemas: [toolSchema('search_memory'), rareSchema] }),
-            { status: 200 },
-          ),
+          new Response(JSON.stringify({ schemas: [toolSchema('search_memory'), rareSchema] }), {
+            status: 200,
+          }),
       ) as typeof fetch;
 
       await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
@@ -4092,6 +4091,260 @@ describe('Stage 2 orchestrator hardening', () => {
       expect(trace).not.toContain('procurement forecasts');
     });
 
+    test('withholds a name, description, and telemetry when the registry withdraws it before search', async () => {
+      const search = {
+        type: 'function_call',
+        call_id: 'search-withdrawn-registry',
+        name: 'tool_search',
+        arguments: '{"queries":["procurement forecasts"]}',
+      };
+      const definitions = new Map([
+        ['search_memory', { name: 'search_memory', readOnly: true }],
+        ['search_procurement_forecasts', { name: 'search_procurement_forecasts', readOnly: true }],
+      ]);
+      const invoke = jest.fn();
+      const mutableRegistry = {
+        list: () => [...definitions.keys()],
+        get: (name: string) => definitions.get(name),
+        executionMetadata: (name: string) =>
+          definitions.has(name) ? { name, readOnly: true, executionMode: 'read' } : undefined,
+        invoke,
+      } as unknown as ToolRegistry;
+      const complete = jest
+        .fn()
+        .mockImplementationOnce(async () => {
+          definitions.delete('search_procurement_forecasts');
+          return response({ output: [search], outputText: '', functionCalls: [search] });
+        })
+        .mockResolvedValueOnce(response({ outputText: 'No current capability matched.' }));
+      const assistant = build(mutableRegistry, complete, jest.fn(), {}, selectorConfig('enabled'));
+      const log = jest.spyOn(
+        (assistant as unknown as { logger: { log: (...args: unknown[]) => void } }).logger,
+        'log',
+      );
+      const rareSchema = {
+        ...toolSchema('search_procurement_forecasts'),
+        description: 'Search confidential procurement forecasts.',
+      };
+      global.fetch = jest.fn(
+        async () =>
+          new Response(JSON.stringify({ schemas: [toolSchema('search_memory'), rareSchema] }), {
+            status: 200,
+          }),
+      ) as typeof fetch;
+
+      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        assistant.run(context, {
+          messages: [{ role: 'user', text: 'What do you remember about Kestrel?' }],
+        }),
+      );
+
+      const secondInput = JSON.stringify(complete.mock.calls[1]?.[0]?.input);
+      const trace = log.mock.calls.map(([message]) => String(message)).join('\n');
+      expect(secondInput).not.toContain(rareSchema.name);
+      expect(secondInput).not.toContain(rareSchema.description);
+      expect(trace).not.toContain(rareSchema.name);
+      expect(invoke).not.toHaveBeenCalled();
+    });
+
+    test('withholds an API-withdrawn schema between search and describe', async () => {
+      const rareSchema = toolSchema('search_procurement_forecasts');
+      let currentSchemas = [toolSchema('search_memory'), rareSchema];
+      const search = {
+        type: 'function_call',
+        call_id: 'search-api-withdrawal',
+        name: 'tool_search',
+        arguments: '{"queries":["procurement forecasts"]}',
+      };
+      const describe = {
+        type: 'function_call',
+        call_id: 'describe-api-withdrawal',
+        name: 'tool_describe',
+        arguments: '{"names":["search_procurement_forecasts"]}',
+      };
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(
+          response({ output: [search], outputText: '', functionCalls: [search] }),
+        )
+        .mockImplementationOnce(async () => {
+          currentSchemas = [toolSchema('search_memory')];
+          return response({ output: [describe], outputText: '', functionCalls: [describe] });
+        })
+        .mockResolvedValueOnce(response({ outputText: 'Current catalog withheld the schema.' }));
+      const invoke = jest.fn();
+      const assistant = build(
+        registry(
+          [
+            { name: 'search_memory', readOnly: true },
+            { name: rareSchema.name, readOnly: true },
+          ],
+          invoke,
+        ),
+        complete,
+        jest.fn(),
+        {},
+        selectorConfig('enabled'),
+      );
+      global.fetch = jest.fn(
+        async () => new Response(JSON.stringify({ schemas: currentSchemas }), { status: 200 }),
+      ) as typeof fetch;
+
+      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        assistant.run(context, {
+          messages: [{ role: 'user', text: 'What do you remember about Kestrel?' }],
+        }),
+      );
+
+      expect(JSON.stringify(complete.mock.calls[1]?.[0]?.input)).toContain(rareSchema.name);
+      expect(providerToolNames(complete, 2)).not.toContain(rareSchema.name);
+      expect(JSON.stringify(complete.mock.calls[2]?.[0]?.input)).toContain('unavailableCount');
+      expect(invoke).not.toHaveBeenCalled();
+    });
+
+    test('withholds a loaded leaf whose exact API schema changes before admission', async () => {
+      const rareSchema = toolSchema('search_procurement_forecasts');
+      const changedSchema = {
+        ...rareSchema,
+        input_schema: {
+          ...rareSchema.input_schema,
+          properties: { cursor: { type: 'string' } },
+          required: ['cursor'],
+        },
+      };
+      let catalogReads = 0;
+      const search = {
+        type: 'function_call',
+        call_id: 'search-schema-change',
+        name: 'tool_search',
+        arguments: '{"queries":["procurement forecasts"]}',
+      };
+      const describe = {
+        type: 'function_call',
+        call_id: 'describe-schema-change',
+        name: 'tool_describe',
+        arguments: '{"names":["search_procurement_forecasts"]}',
+      };
+      const staleLeaf = {
+        type: 'function_call',
+        call_id: 'invoke-stale-schema',
+        name: rareSchema.name,
+        arguments: '{"query":"autonomy"}',
+      };
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(
+          response({ output: [search], outputText: '', functionCalls: [search] }),
+        )
+        .mockResolvedValueOnce(
+          response({ output: [describe], outputText: '', functionCalls: [describe] }),
+        )
+        .mockResolvedValueOnce(
+          response({ output: [staleLeaf], outputText: '', functionCalls: [staleLeaf] }),
+        )
+        .mockResolvedValueOnce(response({ outputText: 'Stale schema was withheld.' }));
+      const invoke = jest.fn();
+      const assistant = build(
+        registry(
+          [
+            { name: 'search_memory', readOnly: true },
+            { name: rareSchema.name, readOnly: true },
+          ],
+          invoke,
+        ),
+        complete,
+        jest.fn(),
+        {},
+        selectorConfig('enabled'),
+      );
+      global.fetch = jest.fn(async () => {
+        catalogReads += 1;
+        return new Response(
+          JSON.stringify({
+            schemas: [toolSchema('search_memory'), catalogReads >= 4 ? changedSchema : rareSchema],
+          }),
+          { status: 200 },
+        );
+      }) as typeof fetch;
+
+      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        assistant.run(context, {
+          messages: [{ role: 'user', text: 'What do you remember about Kestrel?' }],
+        }),
+      );
+
+      expect(providerToolNames(complete, 2)).not.toContain(rareSchema.name);
+      expect(invoke).not.toHaveBeenCalled();
+      expect(JSON.stringify(complete.mock.calls[3]?.[0]?.input)).toContain(
+        'unavailable tool request was blocked',
+      );
+    });
+
+    test('rechecks API authority after describe and before invoking the loaded leaf', async () => {
+      const rareSchema = toolSchema('search_procurement_forecasts');
+      let currentSchemas = [toolSchema('search_memory'), rareSchema];
+      const search = {
+        type: 'function_call',
+        call_id: 'search-before-invoke-withdrawal',
+        name: 'tool_search',
+        arguments: '{"queries":["procurement forecasts"]}',
+      };
+      const describe = {
+        type: 'function_call',
+        call_id: 'describe-before-invoke-withdrawal',
+        name: 'tool_describe',
+        arguments: '{"names":["search_procurement_forecasts"]}',
+      };
+      const leaf = {
+        type: 'function_call',
+        call_id: 'invoke-after-api-withdrawal',
+        name: rareSchema.name,
+        arguments: '{"query":"autonomy"}',
+      };
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(
+          response({ output: [search], outputText: '', functionCalls: [search] }),
+        )
+        .mockResolvedValueOnce(
+          response({ output: [describe], outputText: '', functionCalls: [describe] }),
+        )
+        .mockImplementationOnce(async () => {
+          currentSchemas = [toolSchema('search_memory')];
+          return response({ output: [leaf], outputText: '', functionCalls: [leaf] });
+        })
+        .mockResolvedValueOnce(response({ outputText: 'Current catalog rejected the read.' }));
+      const invoke = jest.fn();
+      const assistant = build(
+        registry(
+          [
+            { name: 'search_memory', readOnly: true },
+            { name: rareSchema.name, readOnly: true },
+          ],
+          invoke,
+        ),
+        complete,
+        jest.fn(),
+        {},
+        selectorConfig('enabled'),
+      );
+      global.fetch = jest.fn(
+        async () => new Response(JSON.stringify({ schemas: currentSchemas }), { status: 200 }),
+      ) as typeof fetch;
+
+      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        assistant.run(context, {
+          messages: [{ role: 'user', text: 'What do you remember about Kestrel?' }],
+        }),
+      );
+
+      expect(providerToolNames(complete, 2)).toContain(rareSchema.name);
+      expect(invoke).not.toHaveBeenCalled();
+      expect(JSON.stringify(complete.mock.calls[3]?.[0]?.input)).toContain(
+        'no longer available under the current governed tool policy',
+      );
+    });
+
     test('does not dispatch a progressively loaded leaf removed from the current registry', async () => {
       const search = {
         type: 'function_call',
@@ -4113,10 +4366,7 @@ describe('Stage 2 orchestrator hardening', () => {
       };
       const definitions = new Map([
         ['search_memory', { name: 'search_memory', readOnly: true }],
-        [
-          'search_procurement_forecasts',
-          { name: 'search_procurement_forecasts', readOnly: true },
-        ],
+        ['search_procurement_forecasts', { name: 'search_procurement_forecasts', readOnly: true }],
       ]);
       const invoke = jest.fn();
       const mutableRegistry = {
@@ -4143,21 +4393,12 @@ describe('Stage 2 orchestrator hardening', () => {
           return response({ output: [leaf], outputText: '', functionCalls: [leaf] });
         })
         .mockResolvedValueOnce(response({ outputText: 'Current catalog rejected the read.' }));
-      const assistant = build(
-        mutableRegistry,
-        complete,
-        jest.fn(),
-        {},
-        selectorConfig('enabled'),
-      );
+      const assistant = build(mutableRegistry, complete, jest.fn(), {}, selectorConfig('enabled'));
       global.fetch = jest.fn(
         async () =>
           new Response(
             JSON.stringify({
-              schemas: [
-                toolSchema('search_memory'),
-                toolSchema('search_procurement_forecasts'),
-              ],
+              schemas: [toolSchema('search_memory'), toolSchema('search_procurement_forecasts')],
             }),
             { status: 200 },
           ),
