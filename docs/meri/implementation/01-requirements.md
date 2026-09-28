@@ -1,5 +1,9 @@
 # File 01 requirements ledger
 
+### Evidence update — 2026-09-28 15:15 UTC
+
+Reviewed RP current-turn and proposal claim repairs integrated through `edcd2d1b0`: independent 134 API + one actual HTTP race probe + eight API transport + 62 orchestrator checks; integrated 190 API + 83 orchestrator tests and both typechecks exited 0. Exact ff94 canary/visual/memory PostgreSQL/connectors Actions passed; historical min(uuid) migration remains failed. Bounded contract evidence does not qualify global revocation or live JWT/RLS/provider behavior. Report/mail/debrief/plan and capture candidates remain held or pending; persistent budgets are being implemented. All original live acceptance and aggregate requirement rows remain NOT_RUN. Both mains/AWS unchanged. See current STATUS for source SHAs, exclusions and complete mandatory remaining scope.
+
 ### Evidence update — 2026-09-28 14:22 UTC
 
 Reviewed source binaries and typed paged attachment reads/transport are integrated through `9cf6ca2a2`: 49 fixture tests, 96 API tests, 62 orchestrator tests and both typechecks exit 0. These are bounded implementation checks; live cases 40–45 remain unimplemented until canonical loading/current authority/capture are joined. All original live acceptance and aggregate requirement rows remain NOT_RUN. Last published `0adfe2e01` passed full canary, visual, memory PostgreSQL and connector CI; historical min(uuid) migration still fails. Report typed-frame leakage and plan admission counterexamples are under repair; mail and RP transport are under independent review. Both mains/AWS unchanged. See current STATUS for exact commits and limitations.
