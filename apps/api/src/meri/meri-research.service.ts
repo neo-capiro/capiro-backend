@@ -93,7 +93,9 @@ import {
   sealDurableResearchResult,
 } from './meri-research-durable-result.js';
 import {
+  assertCurrentResearchReportSourcesAuthorized,
   currentOwnerResultAuthorizesReplay,
+  RESEARCH_REPORT_BODY_WITHHELD,
   supportsDurableOwnerReauthorization,
 } from './meri-research-replay-authorization.js';
 
@@ -214,6 +216,7 @@ export class MeriResearchService {
     // Attach the report artifact body when complete.
     let report: { id: string; title: string; bodyText: string | null; metadata?: unknown } | null =
       null;
+    let reportBodyWithheld = false;
     if (session.reportArtifactId) {
       report = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.clioArtifact.findFirst({
@@ -235,14 +238,19 @@ export class MeriResearchService {
       };
     const storedRun = readResearchRun(session.metadata);
     if (report && storedRun) {
-      await this.assertReplayedReportSourcesAuthorized(
-        ctx,
-        session.id,
-        storedRun,
-        asStringArray(
-          researchMetadata(report.metadata as Prisma.JsonValue).toolsUsed as Prisma.JsonValue,
-        ),
-      );
+      try {
+        await this.assertReplayedReportSourcesAuthorized(
+          ctx,
+          session.id,
+          storedRun,
+          asStringArray(
+            researchMetadata(report.metadata as Prisma.JsonValue).toolsUsed as Prisma.JsonValue,
+          ),
+        );
+      } catch {
+        reportBodyWithheld = true;
+        report = { ...report, bodyText: RESEARCH_REPORT_BODY_WITHHELD };
+      }
     }
     let reportMetadata = publicResearchReportMetadata(report?.metadata);
     const reportMessageId = researchMetadata(session.metadata).reportMessageId;
@@ -262,6 +270,16 @@ export class MeriResearchService {
       const metadata = researchMetadata(message?.metadata);
       reportMetadata = publicResearchReportMetadata(metadata);
     }
+    if (reportBodyWithheld)
+      reportMetadata = {
+        ...reportMetadata,
+        reportBodyAccess: {
+          status: 'withheld',
+          reason: 'current_source_authorization_unavailable',
+          recovery: 'research_session',
+          researchSessionId: session.id,
+        },
+      };
     return {
       ...session,
       metadata: publicResearchSessionMetadata(session.metadata),
@@ -2520,62 +2538,15 @@ export class MeriResearchService {
   private async assertReplayedReportSourcesAuthorized(
     ctx: TenantContext,
     id: string,
-    run: ResearchRunState,
+    _run: ResearchRunState,
     toolsUsed: string[],
   ): Promise<void> {
-    const envelopes = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const current = await tx.clioResearchSession.findFirst({
-        where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
-      });
-      if (!current) throw new NotFoundException('Research session not found');
-      await this.assertResearchPublicationAuthorized(tx, ctx, current);
-      const handoff = readResearchHandoff(current.metadata);
-      const backing = researchMetadata(current.metadata).backingConversationId;
-      const conversationId = handoff?.conversationId ?? (typeof backing === 'string' ? backing : null);
-      if (!conversationId) return [];
-      const toolSet = new Set(toolsUsed);
-      const prior = readDurableResearchStepReceipts(current.metadata).filter(
-        (receipt) => receipt.version === 2 && receipt.status === 'complete' &&
-          receipt.runId !== run.id && toolSet.has(receipt.tool),
-      );
-      const loaded = [];
-      for (const receipt of prior) {
-        const artifact = await tx.clioArtifact.findFirst({
-          where: { id: receipt.resultRef, tenantId: ctx.tenantId, userId: ctx.userId,
-            clientId: current.clientId, conversationId, kind: RESEARCH_SAFE_READ_ARTIFACT_KIND },
-          select: { bodyText: true },
-        });
-        let envelope;
-        try {
-          envelope = openDurableResearchResult(artifact?.bodyText, receipt.resultBodySha256!);
-        } catch {
-          throw new ConflictException('A replayed research source is no longer available.');
-        }
-        if (envelope.executionId !== receipt.executionId ||
-            envelope.providerCallId !== receipt.providerCallId ||
-            envelope.runId !== receipt.runId || envelope.leaseEpoch !== receipt.leaseEpoch ||
-            envelope.tool !== receipt.tool || envelope.toolVersion !== receipt.toolVersion ||
-            envelope.inputSha256 !== receipt.inputSha256 ||
-            envelope.resultSha256 !== receipt.resultSha256) {
-          throw new ConflictException('A replayed research source identity changed.');
-        }
-        loaded.push(envelope);
-      }
-      return loaded;
+    await assertCurrentResearchReportSourcesAuthorized({
+      prisma: this.prisma,
+      tools: this.tools,
+      ctx,
+      scope: { sessionId: id, toolsUsed },
     });
-    for (const envelope of envelopes) {
-      if (!supportsDurableOwnerReauthorization(envelope.tool))
-        throw new ConflictException('A replayed research source cannot be currently authorized.');
-      let currentResult: unknown;
-      try {
-        currentResult = await this.tools.execute(ctx, envelope.tool as never, envelope.input);
-      } catch {
-        throw new ConflictException('A replayed research source is no longer authorized.');
-      }
-      if (!currentOwnerResultAuthorizesReplay(envelope.tool, envelope.result, currentResult))
-        throw new ConflictException('A replayed research source version changed.');
-    }
-    await this.ensureSession(ctx, id);
   }
 
   private async ensureSession(ctx: TenantContext, id: string) {

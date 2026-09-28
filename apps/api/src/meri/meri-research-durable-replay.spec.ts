@@ -49,7 +49,7 @@ function harness() {
   let authorizationAllowed = true;
   let sourceAllowed = true;
   let currentSource = completeMemoryResult('execution-1');
-  const artifacts = new Map<string, { bodyText: string }>();
+  const artifacts = new Map<string, Record<string, any>>();
   const session: Record<string, any> = {
     id: 'session-1',
     tenantId: 'tenant-1',
@@ -98,7 +98,7 @@ function harness() {
       }),
       findFirst: jest.fn(async ({ where }: any) => {
         const value = artifacts.get(where.id);
-        return value ? { bodyText: value.bodyText } : null;
+        return value ?? null;
       }),
     },
     $queryRawUnsafe: jest.fn(async (...args: any[]) => {
@@ -136,7 +136,23 @@ function harness() {
     service,
     session,
     tx,
+    tools,
     artifacts,
+    completeReport: () => {
+      session.reportArtifactId = 'report-1';
+      session.status = 'complete';
+      session.metadata = {
+        ...session.metadata,
+        run: { ...session.metadata.run, status: 'complete', stage: 'Report saved' },
+      };
+      artifacts.set('report-1', {
+        id: 'report-1',
+        title: 'Durable report',
+        kind: 'research_report',
+        bodyText: 'REPORT_CITING_CURRENT_RUN_MEMORY',
+        metadata: { researchSessionId: session.id, toolsUsed: ['search_memory'] },
+      });
+    },
     revoke: () => {
       authorizationAllowed = false;
     },
@@ -370,5 +386,33 @@ describe('Meri durable safe-read commit and replay', () => {
     expect(publicJson).not.toContain('never expose this owner body');
     expect(publicJson).not.toContain('Sha256');
     expect(publicJson).toContain('execution-private');
+  });
+
+  it('withholds a completed same-run report after current source authority is revoked', async () => {
+    const h = harness();
+    await h.service.commitSafeReadOutcome(
+      ctx,
+      'session-1',
+      'run-1',
+      outcome('execution-current-run', 'radar'),
+    );
+    h.completeReport();
+    h.revokeSource();
+
+    const response = await h.service.getSession(ctx, 'session-1');
+
+    expect(response.report?.bodyText).not.toContain('REPORT_CITING_CURRENT_RUN_MEMORY');
+    expect(response.report?.bodyText).toContain('current source authorization');
+    expect(response.reportMetadata).toMatchObject({
+      reportBodyAccess: {
+        status: 'withheld',
+        recovery: 'research_session',
+        researchSessionId: 'session-1',
+      },
+    });
+    expect(h.tools.execute).toHaveBeenCalled();
+    await expect(h.service.getReportMarkdown(ctx, 'session-1')).rejects.toThrow(
+      'no longer authorized',
+    );
   });
 });

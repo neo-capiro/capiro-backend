@@ -216,6 +216,10 @@ import {
 } from './meri-verifier.helpers.js';
 import { planTurnRerun } from './meri-turn.helpers.js';
 import { shouldRouteMeriV2FullChat } from './meriv2-routing.helpers.js';
+import {
+  assertCurrentResearchReportSourcesAuthorized,
+  RESEARCH_REPORT_BODY_WITHHELD,
+} from './meri-research-replay-authorization.js';
 
 interface CreateConversationInput {
   clientId?: string;
@@ -375,8 +379,8 @@ export class MeriService implements MeriTurnMaintenance {
   }
 
   async listConversations(ctx: TenantContext) {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const conversations = await tx.clioConversation.findMany({
+    const conversations = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioConversation.findMany({
         where: { tenantId: ctx.tenantId, userId: ctx.userId, archivedAt: null },
         orderBy: { updatedAt: 'desc' },
         include: {
@@ -389,13 +393,33 @@ export class MeriService implements MeriTurnMaintenance {
             take: 4,
           },
         },
-      });
-      return conversations.map((conversation) => ({
+      }),
+    );
+    const authorization = new Map<string, Promise<boolean>>();
+    return Promise.all(
+      conversations.map(async (conversation) => ({
         ...conversation,
-        latestMessage: conversation.messages[0] ?? null,
+        artifacts: await Promise.all(
+          conversation.artifacts.map((artifact) =>
+            this.authorizeOrdinaryReportArtifact(
+              ctx,
+              { conversationId: conversation.id, clientId: conversation.clientId },
+              artifact,
+              authorization,
+            ),
+          ),
+        ),
+        latestMessage: conversation.messages[0]
+          ? await this.authorizeOrdinaryReportMessage(
+              ctx,
+              { conversationId: conversation.id, clientId: conversation.clientId },
+              conversation.messages[0],
+              authorization,
+            )
+          : null,
         messages: undefined,
-      }));
-    });
+      })),
+    );
   }
 
   async createConversation(ctx: TenantContext, input: CreateConversationInput) {
@@ -588,8 +612,8 @@ export class MeriService implements MeriTurnMaintenance {
   }
 
   async listMessages(ctx: TenantContext, conversationId: string) {
-    await this.ensureConversation(ctx, conversationId);
-    return this.prisma.withTenant(ctx.tenantId, (tx) =>
+    const conversation = await this.ensureConversation(ctx, conversationId);
+    const messages = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioMessage.findMany({
         where: { tenantId: ctx.tenantId, userId: ctx.userId, conversationId },
         orderBy: { createdAt: 'asc' },
@@ -601,6 +625,139 @@ export class MeriService implements MeriTurnMaintenance {
         },
       }),
     );
+    return this.authorizeOrdinaryReportMessages(
+      ctx,
+      { conversationId, clientId: conversation.clientId },
+      messages,
+    );
+  }
+
+  private async authorizeOrdinaryReportMessages<
+    T extends {
+      body: string;
+      metadata?: Prisma.JsonValue | null;
+      artifacts?: Array<{
+        id: string;
+        kind: string;
+        bodyText: string | null;
+        metadata?: Prisma.JsonValue | null;
+      }>;
+    },
+  >(
+    ctx: TenantContext,
+    scope: { conversationId: string; clientId: string | null },
+    messages: T[],
+  ): Promise<T[]> {
+    const authorization = new Map<string, Promise<boolean>>();
+    return Promise.all(
+      messages.map((message) =>
+        this.authorizeOrdinaryReportMessage(ctx, scope, message, authorization),
+      ),
+    );
+  }
+
+  private async authorizeOrdinaryReportMessage<
+    T extends {
+      body: string;
+      metadata?: Prisma.JsonValue | null;
+      artifacts?: Array<{
+        id: string;
+        kind: string;
+        bodyText: string | null;
+        metadata?: Prisma.JsonValue | null;
+      }>;
+    },
+  >(
+    ctx: TenantContext,
+    scope: { conversationId: string; clientId: string | null },
+    message: T,
+    authorization: Map<string, Promise<boolean>>,
+  ): Promise<T> {
+    const artifacts = message.artifacts
+      ? await Promise.all(
+          message.artifacts.map((artifact) =>
+            this.authorizeOrdinaryReportArtifact(ctx, scope, artifact, authorization),
+          ),
+        )
+      : undefined;
+    const linkedReport = message.artifacts?.find((artifact) => artifact.kind === 'research_report');
+    const sessionId = researchReportSessionId(message) ?? researchReportSessionId(linkedReport);
+    const isReportMessage = researchReportMessage(message) || Boolean(linkedReport);
+    const authorized = sessionId
+      ? await this.currentReportReadAuthorized(
+          ctx,
+          scope,
+          sessionId,
+          linkedReport?.id,
+          authorization,
+        )
+      : !isReportMessage;
+    return {
+      ...message,
+      ...(artifacts ? { artifacts } : {}),
+      ...(!authorized && isReportMessage
+        ? {
+            body: RESEARCH_REPORT_BODY_WITHHELD,
+            metadata: withheldResearchReportMetadata(message.metadata, sessionId),
+          }
+        : {}),
+    };
+  }
+
+  private async authorizeOrdinaryReportArtifact<
+    T extends {
+      id: string;
+      kind: string;
+      bodyText: string | null;
+      metadata?: Prisma.JsonValue | null;
+    },
+  >(
+    ctx: TenantContext,
+    scope: { conversationId: string; clientId: string | null },
+    artifact: T,
+    authorization: Map<string, Promise<boolean>>,
+  ): Promise<T> {
+    if (artifact.kind !== 'research_report') return artifact;
+    const sessionId = researchReportSessionId(artifact);
+    const authorized = sessionId
+      ? await this.currentReportReadAuthorized(
+          ctx,
+          scope,
+          sessionId,
+          artifact.id,
+          authorization,
+        )
+      : false;
+    return authorized
+      ? artifact
+      : {
+          ...artifact,
+          bodyText: RESEARCH_REPORT_BODY_WITHHELD,
+          metadata: withheldResearchReportMetadata(artifact.metadata, sessionId),
+        };
+  }
+
+  private currentReportReadAuthorized(
+    ctx: TenantContext,
+    scope: { conversationId: string; clientId: string | null },
+    sessionId: string,
+    reportArtifactId: string | undefined,
+    authorization: Map<string, Promise<boolean>>,
+  ): Promise<boolean> {
+    const key = `${sessionId}:${reportArtifactId ?? ''}`;
+    const existing = authorization.get(key);
+    if (existing) return existing;
+    const checked = assertCurrentResearchReportSourcesAuthorized({
+      prisma: this.prisma,
+      tools: this.tools,
+      ctx,
+      scope: { sessionId, reportArtifactId, ...scope },
+    }).then(
+      () => true,
+      () => false,
+    );
+    authorization.set(key, checked);
+    return checked;
   }
 
   private async ensureConversation(ctx: TenantContext, conversationId: string) {
@@ -949,7 +1106,11 @@ export class MeriService implements MeriTurnMaintenance {
         select: { id: true, role: true, body: true, metadata: true },
       }),
     );
-    const history = historyDesc.reverse();
+    const history = await this.authorizeOrdinaryReportMessages(
+      ctx,
+      { conversationId, clientId: conversation.clientId },
+      historyDesc.reverse(),
+    );
 
     // Resolve attachment context for replay (F1): documents re-inject their
     // extracted text on every turn; images attach as native vision blocks on
@@ -3122,11 +3283,13 @@ export class MeriService implements MeriTurnMaintenance {
             title: string;
             client_id: string | null;
             body: string;
+            metadata: Prisma.JsonValue;
             created_at: Date;
             score: number;
           }>
         >(
-          `SELECT m.conversation_id, m.id AS message_id, c.title, c.client_id, m.body, m.created_at,
+          `SELECT m.conversation_id, m.id AS message_id, c.title, c.client_id, m.body,
+                  m.metadata_jsonb AS metadata, m.created_at,
                   1 - (ce.embedding <=> '${literal}'::vector) AS score
              FROM context_embeddings ce
              JOIN clio_messages m ON m.id::text = ce.source_id
@@ -3142,7 +3305,19 @@ export class MeriService implements MeriTurnMaintenance {
           ctx.userId,
         ),
       );
-      const hits: HistorySearchHit[] = rows
+      const authorization = new Map<string, Promise<boolean>>();
+      const authorizedRows = await Promise.all(
+        rows.map(async (row) => {
+          const message = await this.authorizeOrdinaryReportMessage(
+            ctx,
+            { conversationId: row.conversation_id, clientId: row.client_id },
+            { body: row.body, metadata: row.metadata },
+            authorization,
+          );
+          return { ...row, body: message.body };
+        }),
+      );
+      const hits: HistorySearchHit[] = authorizedRows
         .filter((r) => Number(r.score) > 0.25)
         .map((r) => ({
           conversationId: r.conversation_id,
@@ -3174,12 +3349,25 @@ export class MeriService implements MeriTurnMaintenance {
           conversationId: true,
           id: true,
           body: true,
+          metadata: true,
           createdAt: true,
           conversation: { select: { title: true, clientId: true } },
         },
       }),
     );
-    const hits: HistorySearchHit[] = rows.map((r) => ({
+    const authorization = new Map<string, Promise<boolean>>();
+    const authorizedRows = await Promise.all(
+      rows.map(async (row) => {
+        const message = await this.authorizeOrdinaryReportMessage(
+          ctx,
+          { conversationId: row.conversationId, clientId: row.conversation.clientId },
+          { body: row.body, metadata: row.metadata },
+          authorization,
+        );
+        return { ...row, body: message.body };
+      }),
+    );
+    const hits: HistorySearchHit[] = authorizedRows.map((r) => ({
       conversationId: r.conversationId,
       messageId: r.id,
       title: r.conversation.title,
@@ -6049,6 +6237,41 @@ function humanToolLabel(tool: string): string {
     reply_email: 'Replied to an email thread',
   };
   return labels[tool] ?? tool.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function researchReportMetadata(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const metadata = (value as { metadata?: unknown }).metadata;
+  return metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+    ? (metadata as Record<string, unknown>)
+    : {};
+}
+
+function researchReportSessionId(value: unknown): string | null {
+  const sessionId = researchReportMetadata(value).researchSessionId;
+  return typeof sessionId === 'string' && sessionId ? sessionId : null;
+}
+
+function researchReportMessage(value: unknown): boolean {
+  return researchReportMetadata(value).researchReport === true;
+}
+
+function withheldResearchReportMetadata(
+  value: unknown,
+  sessionId: string | null,
+): Prisma.JsonObject {
+  const metadata = value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, Prisma.JsonValue>)
+    : {};
+  return {
+    ...metadata,
+    reportBodyAccess: {
+      status: 'withheld',
+      reason: 'current_source_authorization_unavailable',
+      recovery: 'research_session',
+      ...(sessionId ? { researchSessionId: sessionId } : {}),
+    },
+  };
 }
 
 /**
