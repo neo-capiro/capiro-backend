@@ -2,7 +2,9 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { MeriService } from './meri.service.js';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
+const ACTOR = '22222222-2222-4222-8222-222222222222';
 const CONVERSATION = '33333333-3333-4333-8333-333333333333';
+const REVISION = new Date('2026-09-28T12:00:00.000Z');
 
 function harness() {
   const messages = Array.from({ length: 18 }, (_, index) => ({
@@ -18,6 +20,8 @@ function harness() {
         summary: null,
         summaryUpToMessageId: null,
         clientId: null,
+        userId: ACTOR,
+        updatedAt: REVISION,
         metadata: { meriv3: { reasoningMode: 'max' } },
       })),
     },
@@ -44,13 +48,18 @@ describe('MeriService protocol compaction commit', () => {
   it('uses the old boundary as a CAS token and atomically merges protected metadata', async () => {
     const { service, tx, logger } = harness();
 
-    await (service as any).maybeCompactConversation({ tenantId: TENANT }, CONVERSATION);
+    await (service as any).maybeCompactConversation({ tenantId: TENANT, userId: ACTOR }, CONVERSATION);
 
     expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
     const query = tx.$executeRaw.mock.calls[0]![0] as { strings: string[]; values: unknown[] };
     const sql = query.strings.join('?');
     expect(sql).toContain("jsonb_typeof(metadata_jsonb) = 'object'");
     expect(sql).toContain('summary_up_to_message_id IS NOT DISTINCT FROM');
+    expect(sql).toContain('user_id =');
+    expect(sql).toContain('client_id IS NOT DISTINCT FROM');
+    expect(sql).toContain('updated_at =');
+    expect(query.values).toContain(ACTOR);
+    expect(query.values).toContain(REVISION);
     expect(query.values.some((value) =>
       typeof value === 'string' && value.includes('meriProtocolCompaction'))).toBe(true);
     expect(query.values.some((value) =>
@@ -63,11 +72,27 @@ describe('MeriService protocol compaction commit', () => {
     tx.$executeRaw.mockResolvedValueOnce(1).mockResolvedValueOnce(0);
 
     await Promise.all([
-      (service as any).maybeCompactConversation({ tenantId: TENANT }, CONVERSATION),
-      (service as any).maybeCompactConversation({ tenantId: TENANT }, CONVERSATION),
+      (service as any).maybeCompactConversation({ tenantId: TENANT, userId: ACTOR }, CONVERSATION),
+      (service as any).maybeCompactConversation({ tenantId: TENANT, userId: ACTOR }, CONVERSATION),
     ]);
 
     expect(tx.$executeRaw).toHaveBeenCalledTimes(2);
     expect(logger.log).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects stale actor/client/revision publication instead of replacing the objective', async () => {
+    const { service, tx, logger } = harness();
+    tx.$executeRaw.mockResolvedValueOnce(0);
+
+    await (service as any).maybeCompactConversation(
+      { tenantId: TENANT, userId: ACTOR },
+      CONVERSATION,
+    );
+
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(logger.log).not.toHaveBeenCalled();
+    const query = tx.$executeRaw.mock.calls[0]![0] as { strings: string[]; values: unknown[] };
+    expect(query.strings.join('?')).toEqual(expect.stringContaining('updated_at ='));
+    expect(query.values).toEqual(expect.arrayContaining([TENANT, ACTOR, null, REVISION]));
   });
 });

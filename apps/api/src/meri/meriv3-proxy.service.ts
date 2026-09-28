@@ -69,7 +69,9 @@ import {
 } from './meri-attachment-content-state.js';
 import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
 import {
+  allocateBoundedReplayHistory,
   boundReplayMessageBody,
+  MAX_REPLAY_MESSAGES,
   protocolCompactionReplay,
 } from './meri-compaction.helpers.js';
 
@@ -273,10 +275,18 @@ export class MeriV3ProxyService {
       return;
     }
 
+    const conversationSummary = conversation.summaryUpToMessageId
+      ? protocolCompactionReplay({
+          metadata: conversation.metadata,
+          boundaryMessageId: conversation.summaryUpToMessageId,
+          clientId: conversation.clientId,
+        })
+      : null;
     const replay = await this.buildReplay(
       ctx,
       conversationId,
       conversation.summaryUpToMessageId ?? null,
+      conversationSummary?.length ?? 0,
     );
     const inherited = await this.conversationEvidence.load(
       ctx,
@@ -452,13 +462,9 @@ export class MeriV3ProxyService {
           ...(researchScope
             ? { researchDirective: researchPortfolioScopeDirective(researchScope) }
             : {}),
-          ...(conversation.summaryUpToMessageId && replay.hasSummaryBoundary
+          ...(conversationSummary && replay.hasSummaryBoundary
             ? {
-                conversationSummary: protocolCompactionReplay({
-                  metadata: conversation.metadata,
-                  boundaryMessageId: conversation.summaryUpToMessageId,
-                  clientId: conversation.clientId,
-                }),
+                conversationSummary,
               }
             : {}),
           ...(clientKbSnapshot ? { clientKbSnapshot } : {}),
@@ -752,11 +758,17 @@ export class MeriV3ProxyService {
     ctx: TenantContext,
     conversationId: string,
     summaryUpToMessageId: string | null,
+    protectedStateChars?: number,
   ) {
     const boundary = summaryUpToMessageId
       ? await this.prisma.withTenant(ctx.tenantId, (tx) =>
           tx.clioMessage.findFirst({
-            where: { id: summaryUpToMessageId, conversationId },
+            where: {
+              id: summaryUpToMessageId,
+              conversationId,
+              tenantId: ctx.tenantId,
+              userId: ctx.userId,
+            },
             select: { createdAt: true },
           }),
         )
@@ -780,7 +792,7 @@ export class MeriV3ProxyService {
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         // Maintenance starts before 40 messages; leave headroom while its
         // provider call is in flight. The boundary remains the only compaction.
-        take: 80,
+        take: MAX_REPLAY_MESSAGES + 1,
         select: { id: true, role: true, body: true, metadata: true },
       }),
     );
@@ -881,8 +893,8 @@ export class MeriV3ProxyService {
         }
       }
     }
-    const history = messages.map((message) => {
-      const parts = [boundReplayMessageBody(message)];
+    let history = messages.map((message) => {
+      const parts = [message.body];
       for (const ref of refsByMessage.get(message.id) ?? []) {
         const document = documentText.get(ref.id);
         const contentState =
@@ -925,6 +937,22 @@ export class MeriV3ProxyService {
       );
       const latest = [...history].reverse().find((message) => message.role === 'user');
       if (carried && latest) latest.text += `\n\n${carried}`;
+    }
+    if (protectedStateChars !== undefined) {
+      const allocation = allocateBoundedReplayHistory(
+        history.map((message, index) => ({
+          id: messages[index]!.id,
+          role: message.role,
+          body: message.text,
+        })),
+        { protectedStateChars },
+      );
+      history = allocation.history.map((message) => ({ role: message.role, text: message.body }));
+    } else {
+      history = history.map((message, index) => ({
+        ...message,
+        text: boundReplayMessageBody({ id: messages[index]!.id, body: message.text }),
+      }));
     }
     return { history, currentTurnImages, hasSummaryBoundary: Boolean(boundary) };
   }

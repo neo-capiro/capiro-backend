@@ -3,6 +3,7 @@ import { MeriV3ProxyService } from './meriv3-proxy.service.js';
 import { scheduleMeriTurnMaintenance } from './meri-turn-maintenance.js';
 import {
   buildProtocolCompactionState,
+  MAX_REPLAY_HISTORY_CHARS,
   MERI_PROTOCOL_COMPACTION_METADATA_KEY,
 } from './meri-compaction.helpers.js';
 
@@ -894,10 +895,43 @@ describe('MeriV3 protocol-safe provider composition', () => {
     expect(providerInput.conversationSummary).not.toContain('OLD MODEL SUMMARY WITH PRIVATE BODY');
     expect(providerInput.conversationSummary).not.toContain('REVOKED EXCERPT');
     const boundedOutput = providerInput.messages.find((message: { text: string }) =>
-      message.text.includes('authorized conversation message tail-assistant'),
+      message.text.includes('SERVER REPLAY NOTICE'),
     );
     expect(boundedOutput).toBeDefined();
-    expect(boundedOutput?.text.length).toBeLessThan(12_400);
+    expect(boundedOutput?.text.length).toBeLessThanOrEqual(12_000);
+    expect(boundedOutput?.text).toContain('Ask the user to restate');
+    expect(boundedOutput?.text).not.toContain('retrieve that message');
+  });
+
+  it('sends the long 81-message tail on a safe boundary under the aggregate history cap', async () => {
+    const h = buildHarness();
+    const chronological = Array.from({ length: 81 }, (_, index) => ({
+      id: `m${index}`,
+      role: index % 2 ? 'assistant' : 'user',
+      body: `${index}:`.padEnd(60_000, 'x'),
+      metadata: {},
+    }));
+    h.tx.clioMessage.findMany.mockResolvedValue([...chronological].reverse());
+    let providerInput: any;
+    h.client.streamChat.mockImplementationOnce(async ({ input, onEvent }: any) => {
+      providerInput = input;
+      onEvent({ type: 'done', reply: 'Bounded answer.', model: 'test', reasoningEffort: 'low' });
+    });
+
+    await h.service.streamMessage(CTX, CONVERSATION, 'Continue', h.sse, undefined, 'new', [], 'token');
+
+    expect(providerInput.messages[0]?.role).toBe('user');
+    expect(providerInput.messages.at(-1)?.role).toBe('user');
+    expect(providerInput.messages.at(-1)?.text).toContain('80:');
+    expect(
+      providerInput.messages.reduce(
+        (sum: number, message: { text: string }) => sum + message.text.length,
+        providerInput.conversationSummary?.length ?? 0,
+      ),
+    ).toBeLessThanOrEqual(MAX_REPLAY_HISTORY_CHARS);
+    expect(providerInput.messages.map((message: { text: string }) => message.text).join('\n')).toContain(
+      'Ask the user to restate',
+    );
   });
 
   it('fails closed when a historical summary has no matching protected-state receipt', async () => {

@@ -183,11 +183,13 @@ import {
   type ThinkingSettings,
 } from './meri-thinking.helpers.js';
 import {
-  boundReplayMessageBody,
+  allocateBoundedReplayHistory,
   buildProtocolCompactionState,
   estimateTokens,
   formatSummaryBlockForPrompt,
   MERI_PROTOCOL_COMPACTION_METADATA_KEY,
+  MAX_REPLAY_HISTORY_CHARS,
+  MAX_REPLAY_MESSAGES,
   planCompaction,
   protocolCompactionReplay,
 } from './meri-compaction.helpers.js';
@@ -906,7 +908,12 @@ export class MeriService implements MeriTurnMaintenance {
     const summaryBoundary = conversation.summaryUpToMessageId
       ? await this.prisma.withTenant(ctx.tenantId, (tx) =>
           tx.clioMessage.findFirst({
-            where: { id: conversation.summaryUpToMessageId ?? undefined, conversationId },
+            where: {
+              id: conversation.summaryUpToMessageId ?? undefined,
+              conversationId,
+              tenantId: ctx.tenantId,
+              userId: ctx.userId,
+            },
             select: { createdAt: true },
           }),
         )
@@ -937,7 +944,7 @@ export class MeriService implements MeriTurnMaintenance {
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         // Bound the DB read, with headroom while after-turn compaction runs.
         // The existing CLIO_HISTORY_CHAR_BUDGET still bounds model context.
-        take: 80,
+        take: MAX_REPLAY_MESSAGES + 1,
         select: { id: true, role: true, body: true, metadata: true },
       }),
     );
@@ -1007,11 +1014,10 @@ export class MeriService implements MeriTurnMaintenance {
         }
       }
     }
-    const replayHistory = history.map((m) => {
+    let replayHistory = history.map((m) => {
       const refs = attachmentRefsByMessage.get(m.id) ?? [];
-      const boundedBody = boundReplayMessageBody(m);
-      if (!refs.length) return { role: m.role as 'user' | 'assistant', body: boundedBody };
-      const parts = [boundedBody];
+      if (!refs.length) return { role: m.role as 'user' | 'assistant', body: m.body };
+      const parts = [m.body];
       for (const ref of refs) {
         const doc = docTextById.get(ref.id);
         const contentState = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat') === 'enforce'
@@ -1032,6 +1038,22 @@ export class MeriService implements MeriTurnMaintenance {
       const latest = [...replayHistory].reverse().find(message => message.role === 'user');
       if (carried && latest) latest.body += `\n\n${carried}`;
     }
+    const historyBudget = this.config.get('CLIO_HISTORY_CHAR_BUDGET', { infer: true });
+    const replayAllocation = allocateBoundedReplayHistory(
+      replayHistory.map((message, index) => ({
+        id: history[index]!.id,
+        role: message.role,
+        body: message.body,
+      })),
+      {
+        maxChars: Math.min(historyBudget, MAX_REPLAY_HISTORY_CHARS),
+        protectedStateChars: conversationSummary?.length ?? 0,
+      },
+    );
+    replayHistory = replayAllocation.history.map((message) => ({
+      role: message.role,
+      body: message.body,
+    }));
 
     // Deep-Research promote gate (2026-07-15): a "build me a full report/brief"
     // ask is a DELIVERABLE, not a chat turn. Ordinary chat — on BOTH the legacy
@@ -1247,8 +1269,7 @@ export class MeriService implements MeriTurnMaintenance {
 
     // Trim history to a char budget (oldest-first) so long sessions don't
     // silently exceed the model context window and 400.
-    const historyBudget = this.config.get('CLIO_HISTORY_CHAR_BUDGET', { infer: true });
-    const trimmedHistory = trimHistoryToBudget(replayHistory, historyBudget);
+    const trimmedHistory = replayHistory;
 
     let assistantContent = '';
     const producedArtifacts: Array<{
@@ -2977,15 +2998,27 @@ export class MeriService implements MeriTurnMaintenance {
     if (!this.config.get('CLIO_COMPACTION_ENABLED', { infer: true })) return;
     const conversation = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioConversation.findFirst({
-        where: { id: conversationId, tenantId: ctx.tenantId },
-        select: { summary: true, summaryUpToMessageId: true, clientId: true, metadata: true },
+        where: { id: conversationId, tenantId: ctx.tenantId, userId: ctx.userId },
+        select: {
+          summary: true,
+          summaryUpToMessageId: true,
+          clientId: true,
+          userId: true,
+          updatedAt: true,
+          metadata: true,
+        },
       }),
     );
     if (!conversation) return;
     const boundary = conversation.summaryUpToMessageId
       ? await this.prisma.withTenant(ctx.tenantId, (tx) =>
           tx.clioMessage.findFirst({
-            where: { id: conversation.summaryUpToMessageId ?? undefined, conversationId },
+            where: {
+              id: conversation.summaryUpToMessageId ?? undefined,
+              conversationId,
+              tenantId: ctx.tenantId,
+              userId: ctx.userId,
+            },
             select: { createdAt: true },
           }),
         )
@@ -2994,6 +3027,8 @@ export class MeriService implements MeriTurnMaintenance {
       tx.clioMessage.findMany({
         where: {
           conversationId,
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
           role: { in: ['user', 'assistant'] },
           ...(boundary
             ? {
@@ -3030,8 +3065,9 @@ export class MeriService implements MeriTurnMaintenance {
     });
     const updated = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       // Merge one metadata key in SQL so concurrent reasoning/scope metadata is
-      // preserved. The old boundary is the CAS token: only one overlapping
-      // maintenance pass can publish, and a stale result cannot regress state.
+      // preserved. Tenant, actor, client, old boundary and concrete row
+      // revision jointly fence publication; a stale result cannot replace a
+      // newer objective or regress state.
       tx.$executeRaw(Prisma.sql`
         UPDATE clio_conversations
         SET summary = ${summary},
@@ -3044,7 +3080,10 @@ export class MeriService implements MeriTurnMaintenance {
             updated_at = NOW()
         WHERE id = ${conversationId}::uuid
           AND tenant_id = ${ctx.tenantId}::uuid
+          AND user_id = ${ctx.userId}::uuid
+          AND client_id IS NOT DISTINCT FROM ${conversation.clientId}::uuid
           AND summary_up_to_message_id IS NOT DISTINCT FROM ${conversation.summaryUpToMessageId}::uuid
+          AND updated_at = ${conversation.updatedAt}
       `),
     );
     if (!updated) return;
@@ -5964,27 +6003,6 @@ function truncateText(text: string, maxChars: number): string {
   if (cut <= 0) cut = maxChars;
   const omitted = text.length - cut;
   return `${text.slice(0, cut)}\n... [truncated ${omitted} chars at a safe boundary]`;
-}
-
-/**
- * Trim conversation history to a character budget, keeping the most recent
- * turns (oldest dropped first). Prevents silent context-limit 400s.
- */
-function trimHistoryToBudget(
-  history: Array<{ role: 'user' | 'assistant'; body: string }>,
-  budgetChars: number,
-): Array<{ role: 'user' | 'assistant'; body: string }> {
-  let total = 0;
-  const kept: Array<{ role: 'user' | 'assistant'; body: string }> = [];
-  for (let i = history.length - 1; i >= 0; i -= 1) {
-    const turn = history[i];
-    if (!turn) continue;
-    const len = turn.body.length;
-    if (total + len > budgetChars && kept.length > 0) break;
-    total += len;
-    kept.unshift(turn);
-  }
-  return kept;
 }
 
 /** Redact obviously sensitive fields before echoing tool input to the trace UI. */

@@ -1,5 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 import {
+  allocateBoundedReplayHistory,
   boundReplayMessageBody,
   buildProtocolCompactionState,
   buildCompactionPrompt,
@@ -7,6 +8,7 @@ import {
   estimateTokens,
   formatSummaryBlockForPrompt,
   MERI_PROTOCOL_COMPACTION_METADATA_KEY,
+  MAX_REPLAY_HISTORY_CHARS,
   planCompaction,
   protocolCompactionReplay,
   sanitizeSummaryOutput,
@@ -367,14 +369,146 @@ describe('protocol-safe compaction receipts', () => {
     expect(replay).not.toContain('Revoked private body');
   });
 
-  test('bounds a huge provider payload with an honest exact-message handle', () => {
+  test('bounds a huge provider payload without claiming an unavailable message retriever', () => {
     const replay = boundReplayMessageBody(
       { id: 'huge-output', body: 'z'.repeat(100_000) },
       2000,
     );
-    expect(replay.length).toBeLessThan(2400);
-    expect(replay).toContain('98000 characters were omitted');
-    expect(replay).toContain('authorized conversation message huge-output');
+    expect(replay.length).toBeLessThanOrEqual(2000);
+    expect(replay).toContain('characters were omitted');
+    expect(replay).toContain('Ask the user to restate');
+    expect(replay).not.toContain('retrieve that message');
+  });
+
+  test('allocates the 81-message counterexample on a complete boundary under one aggregate cap', () => {
+    const messages = Array.from({ length: 81 }, (_, index) => ({
+      id: `m${index}`,
+      role: index % 2 ? 'assistant' as const : 'user' as const,
+      body: `${index}:`.padEnd(60_000, 'x'),
+    }));
+    const protectedStateChars = 12_000;
+    const allocation = allocateBoundedReplayHistory(messages, {
+      maxChars: MAX_REPLAY_HISTORY_CHARS,
+      protectedStateChars,
+    });
+
+    expect(allocation.history[0]?.role).toBe('user');
+    expect(allocation.history.at(-1)?.id).toBe('m80');
+    expect(allocation.history.at(-1)?.role).toBe('user');
+    expect(
+      allocation.history.reduce((sum, message) => sum + message.body.length, protectedStateChars),
+    ).toBeLessThanOrEqual(MAX_REPLAY_HISTORY_CHARS);
+    expect(allocation.omittedMessages).toBeGreaterThan(0);
+    expect(allocation.history.map((message) => message.body).join('\n')).toContain(
+      'Ask the user to restate',
+    );
+  });
+
+  test('marks a missing or unknown finish reason partial instead of completed', () => {
+    const state = buildProtocolCompactionState({
+      existingMetadata: {},
+      previousBoundaryMessageId: null,
+      boundaryMessageId: 'a2',
+      clientId: null,
+      messages: [
+        { id: 'u1', role: 'user', body: 'First request.' },
+        { id: 'a1', role: 'assistant', body: 'Unclassified legacy response.', metadata: {} },
+        { id: 'u2', role: 'user', body: 'Second request.' },
+        {
+          id: 'a2',
+          role: 'assistant',
+          body: 'Response with a future stop code.',
+          metadata: { finishReason: 'future_provider_reason' },
+        },
+      ],
+    });
+
+    expect(state.status).toBe('partial');
+    expect(state.completedUnits).toEqual([
+      expect.objectContaining({ finishReason: 'unknown', partial: true }),
+      expect.objectContaining({ finishReason: 'future_provider_reason', partial: true }),
+    ]);
+    expect(JSON.stringify(state)).not.toContain('"finishReason":"completed"');
+  });
+
+  test('preserves a fitting objective exactly and reports bounded active-constraint omissions', () => {
+    const objective = `Prepare the exact objective ${'O'.repeat(620)} CRITICAL_FINAL_CLAUSE`;
+    const messages = [
+      { id: 'u-objective', role: 'user', body: objective },
+      { id: 'a-objective', role: 'assistant', body: 'Acknowledged.', metadata: { finishReason: 'completed' } },
+      ...Array.from({ length: 70 }, (_, index) => [
+        {
+          id: `u-correction-${index}`,
+          role: 'user',
+          body: `Correction: constraint ${index} must remain exact.`,
+        },
+        {
+          id: `a-correction-${index}`,
+          role: 'assistant',
+          body: 'Acknowledged.',
+          metadata: { finishReason: 'completed' },
+        },
+      ]).flat(),
+    ];
+    const state = buildProtocolCompactionState({
+      existingMetadata: {},
+      previousBoundaryMessageId: null,
+      boundaryMessageId: 'a-correction-69',
+      clientId: null,
+      messages,
+    });
+    const replay = protocolCompactionReplay({
+      metadata: { [MERI_PROTOCOL_COMPACTION_METADATA_KEY]: state },
+      boundaryMessageId: 'a-correction-69',
+      clientId: null,
+    });
+
+    expect(state.objective).toMatchObject({ text: objective, truncated: false });
+    expect(state.corrections.map((item) => item.messageId)).toEqual(
+      Array.from({ length: 64 }, (_, index) => `u-correction-${index + 6}`),
+    );
+    expect(state.omittedConstraintCount).toBe(6);
+    expect(state.status).toBe('partial');
+    expect(replay).toContain('Omitted potentially active constraints: 6');
+    expect(replay).toContain('Ask the user to restate');
+    expect(replay).toContain('CRITICAL_FINAL_CLAUSE');
+  });
+
+  test('keeps source receipts as whole records and reports every bounded omission', () => {
+    const citations = Array.from({ length: 40 }, (_, index) => ({
+      sourceId: `source-${index}-${'s'.repeat(260)}`,
+      sourceVersion: `version-${index}`,
+    }));
+    const state = buildProtocolCompactionState({
+      existingMetadata: {},
+      previousBoundaryMessageId: null,
+      boundaryMessageId: 'a1',
+      clientId: null,
+      messages: [
+        { id: 'u1', role: 'user', body: 'Prepare the source audit.' },
+        {
+          id: 'a1',
+          role: 'assistant',
+          body: 'Source-backed response.',
+          metadata: { finishReason: 'completed', citations },
+        },
+      ],
+    });
+    const replay = protocolCompactionReplay({
+      metadata: { [MERI_PROTOCOL_COMPACTION_METADATA_KEY]: state },
+      boundaryMessageId: 'a1',
+      clientId: null,
+    });
+
+    expect(state.status).toBe('partial');
+    expect(state.omittedSourceReceiptCount).toBe(40 - state.sourceReceipts.length);
+    expect(state.omittedSourceReceiptCount).toBeGreaterThan(0);
+    for (const receipt of state.sourceReceipts) {
+      expect(replay).toContain(
+        `- ${receipt.handle} version=${receipt.version ?? 'unknown'} from=${receipt.messageId}`,
+      );
+    }
+    expect(replay).toContain(`Omitted source receipts: ${state.omittedSourceReceiptCount}`);
   });
 
   test('keeps bounded state across many short turns without another model call', () => {
@@ -397,7 +531,7 @@ describe('protocol-safe compaction receipts', () => {
       messages,
     });
     expect(state.objective?.text).toBe('Build the committee briefing.');
-    expect(state.corrections).toHaveLength(12);
+    expect(state.corrections).toHaveLength(64);
     expect(state.completedUnits).toHaveLength(24);
     expect(JSON.stringify(state).length).toBeLessThan(12_000);
   });
