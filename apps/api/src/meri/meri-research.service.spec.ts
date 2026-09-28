@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals
 import { TextEncoder } from 'node:util';
 import type { TenantContext } from '@capiro/shared';
 import { MeriResearchService } from './meri-research.service.js';
-import { ACTIVE_RESEARCH_RUN_FENCE_SQL } from './meri-research-run-state.js';
+import {
+  ACTIVE_RESEARCH_RUN_FENCE_SQL,
+  ACTIVE_RESEARCH_RUN_UPDATE_SQL,
+} from './meri-research-run-state.js';
 import { MeriV3ResearchRunner } from './meri-v3-research-runner.js';
 import type { MeriV3ChatStreamEvent } from './meriv3-chat.client.js';
 
@@ -209,6 +212,7 @@ function makePrisma(
   capturedArtifacts?: Array<Record<string, any>>,
   tenantId = SESSION.tenantId,
   planCapability = 'searchBills',
+  authority: Record<string, any> = {},
 ) {
   const artifacts = capturedArtifacts ?? [];
   const backingConversation = {
@@ -234,7 +238,7 @@ function makePrisma(
           tenantId,
           actorId: SESSION.userId,
           clientId: null,
-          conversationId: null,
+          conversationId: authority.handoff?.conversationId ?? null,
         },
         budget: { toolCalls: 2, tokens: 4_000 },
         steps: [
@@ -251,12 +255,33 @@ function makePrisma(
         ],
         clarifyingQuestions: [],
       },
+      ...structuredClone(authority),
     },
   };
   let reportRunFenced = false;
   const tx = {
     $queryRawUnsafe: jest.fn(async (sql: string, ...values: unknown[]) => {
       const run = (session.metadata as { run?: Record<string, unknown> }).run;
+      if (sql === ACTIVE_RESEARCH_RUN_UPDATE_SQL) {
+        expect(values.slice(0, 7)).toEqual([
+          session.id,
+          session.tenantId,
+          session.userId,
+          session.status,
+          run?.id,
+          run?.leaseEpoch,
+          run?.phase,
+        ]);
+        expect(values[7]).toBeInstanceOf(Date);
+        expect(values[8]).toBe(JSON.stringify(session.metadata));
+        session = {
+          ...session,
+          metadata: JSON.parse(String(values[9])),
+          status: values[10] as string,
+          updatedAt: values[11] as Date,
+        };
+        return [{ metadata_jsonb: structuredClone(session.metadata) }];
+      }
       expect(sql).toBe(ACTIVE_RESEARCH_RUN_FENCE_SQL);
       expect(values.slice(0, 7)).toEqual([
         session.id,
@@ -371,10 +396,21 @@ const SIDE_EFFECTING_TEST = new Set([
   'update_client_profile',
 ]);
 
-function makeTools() {
+function makeTools(capability = 'searchBills') {
   return {
     anthropicToolSchemas: () => [
-      { name: 'searchBills', description: 'x', input_schema: { type: 'object', properties: {} } },
+      {
+        name: capability,
+        description: 'x',
+        input_schema:
+          capability === 'search_memory'
+            ? {
+                type: 'object',
+                properties: { query: { type: 'string' } },
+                required: ['query'],
+              }
+            : { type: 'object', properties: {} },
+      },
     ],
     isConcurrencySafe: (name: string) => !SIDE_EFFECTING_TEST.has(name),
     isSideEffecting: (name: string) => SIDE_EFFECTING_TEST.has(name),
@@ -388,7 +424,12 @@ function makeActualV3Runner(events: MeriV3ChatStreamEvent[]) {
   const client = {
     configured: true,
     streamChat: jest.fn(
-      async ({ onEvent }: { onEvent: (event: MeriV3ChatStreamEvent) => void }) => {
+      async ({
+        onEvent,
+      }: {
+        input: Record<string, unknown>;
+        onEvent: (event: MeriV3ChatStreamEvent) => void;
+      }) => {
         for (const event of events) onEvent(event);
       },
     ),
@@ -410,13 +451,14 @@ function makeActualV3Runner(events: MeriV3ChatStreamEvent[]) {
   const evidence = {
     load: jest.fn(async () => ({ citations: [], unavailable: 0, omitted: 0 })),
   };
-  return new MeriV3ResearchRunner(
+  const runner = new MeriV3ResearchRunner(
     client as never,
     flags as never,
     credentials as never,
     prisma as never,
     evidence as never,
   );
+  return Object.assign(runner, { streamChatSpy: client.streamChat });
 }
 
 // ── Test ─────────────────────────────────────────────────────────────────────
@@ -514,31 +556,32 @@ describe('MeriResearchService — forced synthesis', () => {
     const handoff = {
       version: 1,
       capturedAt: '2026-09-28T00:00:00Z',
-      conversationId: 'conversation-1',
+      conversationId: 'conv-1',
       clientId: null,
       reasoningMode: 'deep',
       summary: 'other owner summary',
       messages: [],
       attachments: [],
     };
-    const service = Object.assign(Object.create(MeriResearchService.prototype), {
-      v3Research: runner,
-      prisma: {
-        withTenant: async (_tenant: string, fn: (tx: unknown) => unknown) =>
-          fn({ tenant: { findFirst: async () => null } }),
-      },
-      ensureSession: async () => ({
-        id: 'session-1',
-        title: 'Research',
-        topic: 'Topic',
-        clientId: null,
-        plan: [],
-        clarifyingQuestions: [],
-        clarifyingAnswers: {},
-        metadata: { handoff },
-      }),
-      clientContext: async () => null,
-    }) as MeriResearchService;
+    const run = {
+      id: 'actual-v3-private-run',
+      leaseEpoch: 1,
+      eventSequence: 0,
+      phase: 'research',
+      status: 'running',
+      stage: 'Gathering evidence',
+      startedAt: '2026-09-28T00:00:00.000Z',
+      heartbeatAt: new Date().toISOString(),
+    };
+    const service = new MeriResearchService(
+      makePrisma(undefined, SESSION.tenantId, 'search_memory', { handoff, run }),
+      makeConfig(),
+      makeTools('search_memory'),
+      makeAiCredentials(),
+      makeReviews(),
+      runner,
+    );
+    const runSpy = jest.spyOn(runner, 'run');
     const observed: Array<Record<string, unknown>> = [];
     const sse = {
       write: (data: string) => observed.push(JSON.parse(data.slice(6)) as Record<string, unknown>),
@@ -549,9 +592,10 @@ describe('MeriResearchService — forced synthesis', () => {
     };
 
     await expect(
-      (service as any).runResearchStream(CTX, 'session-1', sse, progress, {
+      (service as any).runResearchStream(CTX, 'sess-1', sse, progress, {
         bearerToken: 'local-placeholder',
         governedContext: { contextPacket: { items: [] } },
+        run,
       }),
     ).rejects.toThrow('private producer inputs');
 
@@ -578,6 +622,18 @@ describe('MeriResearchService — forced synthesis', () => {
         { type: 'progress', note: 'Research is continuing in read-only mode.' },
       ]),
     );
+    expect(runSpy).toHaveBeenCalledTimes(1);
+    expect(runner.streamChatSpy).toHaveBeenCalledTimes(1);
+    expect(runner.streamChatSpy.mock.calls[0]?.[0].input).toMatchObject({
+      toolPolicy: 'read-only',
+      researchRun: { sessionId: 'sess-1', runId: run.id, leaseEpoch: run.leaseEpoch },
+      researchPlanExecution: {
+        version: 1,
+        planVersion: 1,
+        allowedReadCapabilities: ['search_memory'],
+        scope: { conversationId: handoff.conversationId },
+      },
+    });
   });
 
   it('publishes the actual V3 report body only after durable save', async () => {
@@ -609,10 +665,11 @@ describe('MeriResearchService — forced synthesis', () => {
       },
     ]);
     const artifacts: Array<Record<string, any>> = [];
+    const runSpy = jest.spyOn(runner, 'run');
     const service = new MeriResearchService(
-      makePrisma(artifacts),
+      makePrisma(artifacts, SESSION.tenantId, 'search_memory'),
       makeConfig(),
-      makeTools(),
+      makeTools('search_memory'),
       makeAiCredentials(),
       makeReviews(),
       runner,
@@ -648,6 +705,16 @@ describe('MeriResearchService — forced synthesis', () => {
     expect(observed.find((event) => event.type === 'text')?.text).toContain(reportBody);
     expect(observed.find((event) => event.type === 'report')?.body).toContain(reportBody);
     expect(observed.at(-1)).toEqual({ type: 'done' });
+    expect(runSpy).toHaveBeenCalledTimes(1);
+    expect(runner.streamChatSpy).toHaveBeenCalledTimes(1);
+    expect(runner.streamChatSpy.mock.calls[0]?.[0].input).toMatchObject({
+      toolPolicy: 'read-only',
+      researchPlanExecution: {
+        version: 1,
+        planVersion: 1,
+        allowedReadCapabilities: ['search_memory'],
+      },
+    });
   });
 
   it.each([
@@ -677,13 +744,15 @@ describe('MeriResearchService — forced synthesis', () => {
   ])(
     'keeps actual V3 %s terminal ordering fixed and content-free',
     async (_case, frames, expected) => {
+      const runner = makeActualV3Runner(frames);
+      const runSpy = jest.spyOn(runner, 'run');
       const service = new MeriResearchService(
-        makePrisma(),
+        makePrisma(undefined, SESSION.tenantId, 'search_memory'),
         makeConfig(),
-        makeTools(),
+        makeTools('search_memory'),
         makeAiCredentials(),
         makeReviews(),
-        makeActualV3Runner(frames),
+        runner,
       );
       const observed: Array<Record<string, unknown>> = [];
 
@@ -717,6 +786,16 @@ describe('MeriResearchService — forced synthesis', () => {
       expect(errorIndex).toBeGreaterThanOrEqual(0);
       expect(doneIndex).toBeGreaterThan(errorIndex);
       expect(observed.at(-1)).toEqual({ type: 'done' });
+      expect(runSpy).toHaveBeenCalledTimes(1);
+      expect(runner.streamChatSpy).toHaveBeenCalledTimes(1);
+      expect(runner.streamChatSpy.mock.calls[0]?.[0].input).toMatchObject({
+        toolPolicy: 'read-only',
+        researchPlanExecution: {
+          version: 1,
+          planVersion: 1,
+          allowedReadCapabilities: ['search_memory'],
+        },
+      });
     },
   );
 
