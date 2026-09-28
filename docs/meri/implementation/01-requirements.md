@@ -1,5 +1,9 @@
 # File 01 requirements ledger
 
+### Evidence update — 2026-09-28 16:15 UTC
+
+The report/plan/procedure/mail/debrief candidates referenced below are now consolidated at task-branch source `94a0faaf6a170d6416ded65c45ce0ee05a55205c`. Final legacy11e85 and mail6f725 independent scoped reviews passed; combined164 source tests,78 stream/plan tests,39 transport/procedure tests, API and orchestrator types exited0. The previous candidate HOLDs for name-only abort, malformed UTF8 publication and omitted-client mail replay are closed on this source. Their full package/live requirements remain NOT_RUN; no production or whole-goal claim follows. Latest STATUS records exact scope, six implementation/two review assignments, remaining requirements, and exclusions. Neither main nor AWS is changed.
+
 ### Consolidation update — 2026-09-28 16:00 UTC
 
 The original attached File01 remains the full objective. 01-A, 01-B, 01-C and01-D below are sections of that document; a focused01-A release does not replace its remaining requirements. Reviewed work is partly consolidated in draftPR1904, while source candidates under review remain isolated. Neither localmain nor GitHubmain has been integrated, and AWS has not been changed. Overall requirement completion and all authenticated baseline acceptance remain NOT_RUN.
