@@ -14,6 +14,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -60,6 +61,7 @@ REGISTER_SOURCE_FILES = (
 MAX_ARCHIVE_BYTES = 1024 * 1024
 MAX_RECEIPT_BYTES = 512 * 1024
 MAX_GITHUB_METADATA_BYTES = 1024 * 1024
+GITHUB_API_ORIGIN = "https://api.github.com"
 DB_SECRET_NAMES = frozenset({"DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD"})
 DB_RESULT_KEYS = frozenset({"schemaVersion", "operation", "mode", "result", "flag", "tenants"})
 BUILD_RECORD_KEYS = frozenset({"schemaVersion", "source", "build", "image", "environment", "workflow"})
@@ -79,6 +81,19 @@ RECEIPT_SOURCE_KEYS = frozenset({"sourceRunId", "sourceRunAttempt", "sourceArtif
 
 class FullchatError(RuntimeError):
     pass
+
+
+class RejectGithubMetadataRedirects(urllib.request.HTTPRedirectHandler):
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: Any,
+        code: int,
+        msg: str,
+        headers: Any,
+        newurl: str,
+    ) -> None:
+        raise FullchatError("authenticated GitHub metadata redirect refused")
 
 
 class AwsCli:
@@ -188,10 +203,26 @@ class GithubApi:
         self.token = token if token is not None else os.environ.get("GITHUB_TOKEN", "")
         if not self.token:
             raise FullchatError("GITHUB_TOKEN is required for authenticated provenance retrieval")
+        self.opener = urllib.request.build_opener(RejectGithubMetadataRedirects())
+
+    @staticmethod
+    def _origin(url: str) -> tuple[str, str, int | None]:
+        parsed = urllib.parse.urlsplit(url)
+        if parsed.username is not None or parsed.password is not None:
+            raise FullchatError("authenticated GitHub metadata URL has an invalid origin")
+        try:
+            port = parsed.port
+        except ValueError as exc:
+            raise FullchatError("authenticated GitHub metadata URL has an invalid origin") from exc
+        return parsed.scheme.lower(), (parsed.hostname or "").lower(), port
 
     def _json(self, path: str) -> dict[str, Any]:
+        url = f"{GITHUB_API_ORIGIN}/repos/{REPOSITORY}/{path}"
+        expected_origin = self._origin(GITHUB_API_ORIGIN)
+        if self._origin(url) != expected_origin:
+            raise FullchatError("authenticated GitHub metadata URL has an invalid origin")
         request = urllib.request.Request(
-            f"https://api.github.com/repos/{REPOSITORY}/{path}",
+            url,
             headers={
                 "Accept": "application/vnd.github+json",
                 "Authorization": f"Bearer {self.token}",
@@ -200,7 +231,9 @@ class GithubApi:
             },
         )
         try:
-            with urllib.request.urlopen(request, timeout=30) as response:
+            with self.opener.open(request, timeout=30) as response:
+                if self._origin(response.geturl()) != expected_origin:
+                    raise FullchatError("authenticated GitHub metadata response changed origin")
                 payload = response.read(MAX_GITHUB_METADATA_BYTES + 1)
         except (OSError, urllib.error.HTTPError, urllib.error.URLError) as exc:
             raise FullchatError("authenticated GitHub metadata retrieval failed") from exc

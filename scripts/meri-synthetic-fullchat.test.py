@@ -5,11 +5,13 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import http.server
 import importlib.util
 import json
 import os
 import sys
 import tempfile
+import threading
 import unittest
 import zipfile
 from pathlib import Path
@@ -209,6 +211,82 @@ def trusted_metadata(mode: str = "plan") -> tuple[dict[str, Any], dict[str, Any]
             "sourceArtifactDigest": f"sha256:{'9' * 64}",
         })
     return run, artifacts, receipt
+
+
+class GithubMetadataTransportTests(unittest.TestCase):
+    def test_real_opener_refuses_all_redirects_without_forwarding_auth(self) -> None:
+        source_paths: list[str] = []
+        source_authenticated: list[bool] = []
+        sink_headers: list[dict[str, str]] = []
+
+        class SinkHandler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self) -> None:
+                sink_headers.append(dict(self.headers.items()))
+                self.send_response(200)
+                self.end_headers()
+
+            def log_message(self, format: str, *args: Any) -> None:
+                pass
+
+        sink = http.server.ThreadingHTTPServer(("127.0.0.1", 0), SinkHandler)
+        sink_thread = threading.Thread(target=sink.serve_forever, daemon=True)
+        sink_thread.start()
+        sink_url = f"http://127.0.0.1:{sink.server_port}"
+
+        class SourceHandler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self) -> None:
+                source_paths.append(self.path)
+                source_authenticated.append(self.headers.get("Authorization") == "Bearer offline-test-token")
+                if self.path.endswith("/metadata-ok"):
+                    body = b'{"status":"ok"}'
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+                self.send_response(302)
+                if self.path.endswith("/same-host-redirect"):
+                    self.send_header("Location", "/repos/neo-capiro/capirov2/metadata-ok")
+                else:
+                    self.send_header("Location", f"{sink_url}/cross-host-target")
+                self.end_headers()
+
+            def log_message(self, format: str, *args: Any) -> None:
+                pass
+
+        source = http.server.ThreadingHTTPServer(("127.0.0.1", 0), SourceHandler)
+        source_thread = threading.Thread(target=source.serve_forever, daemon=True)
+        source_thread.start()
+        source_origin = f"http://127.0.0.1:{source.server_port}"
+
+        try:
+            with patch.object(fullchat, "GITHUB_API_ORIGIN", source_origin):
+                github = fullchat.GithubApi("offline-test-token")
+                self.assertEqual(github._json("metadata-ok"), {"status": "ok"})
+                for path in ("same-host-redirect", "cross-host-redirect"):
+                    with self.subTest(path=path):
+                        with self.assertRaisesRegex(fullchat.FullchatError, "redirect refused") as raised:
+                            github._json(path)
+                        self.assertNotIn("offline-test-token", str(raised.exception))
+        finally:
+            source.shutdown()
+            sink.shutdown()
+            source.server_close()
+            sink.server_close()
+            source_thread.join(timeout=5)
+            sink_thread.join(timeout=5)
+
+        self.assertEqual(
+            source_paths,
+            [
+                "/repos/neo-capiro/capirov2/metadata-ok",
+                "/repos/neo-capiro/capirov2/same-host-redirect",
+                "/repos/neo-capiro/capirov2/cross-host-redirect",
+            ],
+        )
+        self.assertEqual(source_authenticated, [True, True, True])
+        self.assertEqual(sink_headers, [])
 
 
 class FixedCommandTests(unittest.TestCase):
