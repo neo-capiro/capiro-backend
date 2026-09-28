@@ -46,6 +46,8 @@ This product also includes a native, concept-level TypeScript adaptation of scop
 
 - apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.ts
 - apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-tool-selection.ts
+- apps/meriv2-orchestrator/src/meri/meriv3/meri-progressive-tool-discovery.ts
+- apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts
 
 Pinned acquisition and qualification:
 

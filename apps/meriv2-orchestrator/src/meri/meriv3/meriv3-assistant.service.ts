@@ -93,6 +93,7 @@ import {
 } from './openai-responses.client.js';
 import { resolveMeriV3ReasoningProfile } from './meriv3-reasoning.js';
 import { MeriSemanticToolGateway } from './meri-semantic-tool-gateway.js';
+import { MeriProgressiveToolDiscovery } from './meri-progressive-tool-discovery.js';
 import { buildMeriGovernedToolSelectionContext } from './meriv3-governed-tool-selection.js';
 import { MeriV3SemanticRuntimeStore } from './meriv3-semantic-runtime.store.js';
 import {
@@ -1111,7 +1112,43 @@ export class MeriV3AssistantService {
       allowCanonicalResearchDirector: false,
     });
     MeriV3SemanticRuntimeStore.recordDecision(selection.decision);
-    const availableSchemas = selection.schemas;
+    const authorizedSchemaByName = new Map(authorizedSchemas.map((schema) => [schema.name, schema]));
+    const progressiveDiscovery = new MeriProgressiveToolDiscovery({
+      // Legacy and shadow remain behavior-identical. Progressive disclosure is
+      // served only where the existing enabled selector already narrows schemas.
+      authorizedSchemas:
+        selection.decision.mode === 'enabled' ? authorizedSchemas : selection.schemas,
+      exposedSchemas: selection.schemas,
+      budget: runtimeBudget,
+      authorizeLoad: (schema) => {
+        if (authorizedSchemaByName.get(schema.name) !== schema) return false;
+        const definition = this.registry.get(schema.name);
+        const canonical = MERI_CAPABILITY_REGISTRY.find((item) => item.name === schema.name);
+        if (
+          !definition ||
+          !this.registry.list().includes(schema.name) ||
+          !canonical ||
+          canonical.readOnly !== definition.readOnly ||
+          dto.toolPolicy === 'none' ||
+          (dto.toolPolicy === 'read-only' && definition.readOnly !== true) ||
+          (admittedReadCapabilities && !admittedReadCapabilities.has(schema.name)) ||
+          (schema.name === 'get_research_evidence' && !dto.researchRun)
+        ) {
+          return false;
+        }
+        try {
+          assertMeriProcedureToolDispatch({
+            procedure: currentGovernedMeriContext()?.procedure,
+            toolName: schema.name,
+            readOnly: definition.readOnly,
+          });
+          return true;
+        } catch {
+          return false;
+        }
+      },
+    });
+    let availableSchemas = progressiveDiscovery.exposedSchemas();
     this.logStructured('log', 'meri.semantic_tool_gateway.selection', {
       decisionId: selection.decision.decisionId,
       mode: selection.decision.mode,
@@ -1126,7 +1163,9 @@ export class MeriV3AssistantService {
       result: selection.decision.fallbackToLegacy ? 'fallback_legacy' : 'selected',
     });
 
-    const tools = availableSchemas.map(anthropicSchemaToResponsesTool);
+    let tools = [...availableSchemas, ...progressiveDiscovery.controlSchemas()].map(
+      anthropicSchemaToResponsesTool,
+    );
     const verificationAvailable = availableSchemas.length > 0;
     const input: Array<Record<string, unknown>> = [...initialInput];
     const steps: ChatStep[] = [];
@@ -1260,36 +1299,91 @@ export class MeriV3AssistantService {
       this.registry.get('read_client_documents')?.readOnly === true;
 
     const executeCalls = async (calls: OpenAiResponsesFunctionCall[]) => {
-      const executions = await this.executeFunctionCalls({
-        ctx,
-        dto,
-        calls,
-        schemas: availableSchemas,
-        steps,
-        toolCoverage,
-        pendingApprovals,
-        artifacts,
-        citations,
-        ledgerEntries,
-        toolsUsed,
-        emit,
-        prePersistRefusal,
-        noteComplianceOutcome,
-        evidenceAccuracyMode,
-        control: opts,
-        runtimeBudget,
-        budgetScope,
-        semanticDecisionId: selection.decision.decisionId,
-        admittedReadCapabilities,
+      // A schema loaded by describe is eligible only on the next provider
+      // request. A hidden leaf emitted in the same batch remains undeclared.
+      const schemasAtRoundStart = [...availableSchemas];
+      const executionByCallId = new Map<string, FunctionExecution>();
+      const leafCalls: OpenAiResponsesFunctionCall[] = [];
+      for (const call of calls) {
+        if (!progressiveDiscovery.handles(call.name)) {
+          leafCalls.push(call);
+          continue;
+        }
+        let outcome;
+        try {
+          outcome = progressiveDiscovery.execute(call.name, parseArguments(call.arguments));
+        } catch {
+          outcome = {
+            result: { error: 'Progressive discovery arguments were invalid.' },
+            matchedNames: [],
+            loadedNames: [],
+            resultCode: 'invalid_arguments',
+          };
+        }
+        const serialized = JSON.stringify(outcome.result);
+        executionByCallId.set(call.call_id, { call, result: outcome.result, serialized });
+        availableSchemas = progressiveDiscovery.exposedSchemas();
+        tools = [...availableSchemas, ...progressiveDiscovery.controlSchemas()].map(
+          anthropicSchemaToResponsesTool,
+        );
+        const observedNames = [...outcome.matchedNames, ...outcome.loadedNames];
+        this.logStructured('log', 'meri.semantic_tool_gateway.discovery', {
+          decisionId: selection.decision.decisionId,
+          operation: call.name,
+          requestedNames: [],
+          requestedCount: call.name === 'tool_search' ? 0 : 1,
+          selectedNames: observedNames,
+          selectedCount: observedNames.length,
+          exposedNames: availableSchemas.map((schema) => schema.name),
+          exposedCount: availableSchemas.length,
+          invokedNames: [call.name],
+          invokedCount: 1,
+          observedNames,
+          observedCount: observedNames.length,
+          result: outcome.resultCode,
+        });
+      }
+      const leafExecutions = leafCalls.length
+        ? await this.executeFunctionCalls({
+            ctx,
+            dto,
+            calls: leafCalls,
+            schemas: schemasAtRoundStart,
+            steps,
+            toolCoverage,
+            pendingApprovals,
+            artifacts,
+            citations,
+            ledgerEntries,
+            toolsUsed,
+            emit,
+            prePersistRefusal,
+            noteComplianceOutcome,
+            evidenceAccuracyMode,
+            control: opts,
+            runtimeBudget,
+            budgetScope,
+            semanticDecisionId: selection.decision.decisionId,
+            admittedReadCapabilities,
+          })
+        : [];
+      for (const execution of leafExecutions) {
+        executionByCallId.set(execution.call.call_id, execution);
+      }
+      const executions = calls.flatMap((call) => {
+        const execution = executionByCallId.get(call.call_id);
+        return execution ? [execution] : [];
       });
-      gatheredToolOutput = gatheredToolOutput || executions.length > 0;
+      gatheredToolOutput = gatheredToolOutput || leafExecutions.length > 0;
       for (const execution of executions) {
-        MeriV3ResearchRuntimeStore.observeToolResult(execution.result);
+        const discoveryControl = progressiveDiscovery.handles(execution.call.name);
+        if (!discoveryControl) MeriV3ResearchRuntimeStore.observeToolResult(execution.result);
         input.push({
           type: 'function_call_output',
           call_id: execution.call.call_id,
           output: execution.serialized,
         });
+        if (discoveryControl) continue;
         // The observer receives the same bounded evidence that the model sees.
         try {
           documentCompletion?.observe(
@@ -2922,6 +3016,39 @@ export class MeriV3AssistantService {
         logDispatch(call, 'blocked_undeclared', false);
         continue;
       }
+      const currentDefinition = this.registry.get(call.name);
+      const currentCapability = MERI_CAPABILITY_REGISTRY.find((item) => item.name === call.name);
+      if (
+        !currentDefinition ||
+        !this.registry.list().includes(call.name) ||
+        !currentCapability ||
+        currentCapability.readOnly !== currentDefinition.readOnly ||
+        args.dto.toolPolicy === 'none' ||
+        (args.dto.toolPolicy === 'read-only' && currentDefinition.readOnly !== true)
+      ) {
+        const detail =
+          'This capability is no longer available under the current governed tool policy.';
+        args.steps.push({
+          tool: call.name,
+          label: toolLabel(call.name),
+          status: 'blocked',
+          detail,
+        });
+        args.emit({
+          type: 'tool_done',
+          tool: call.name,
+          label: toolLabel(call.name),
+          status: 'blocked',
+          detail,
+        });
+        executions.push({
+          call,
+          result: { blocked: true, error: detail },
+          serialized: JSON.stringify({ blocked: true, error: detail }),
+        });
+        logDispatch(call, 'blocked_current_policy', false);
+        continue;
+      }
       await this.assertResearchRunActive(args.dto, args.control);
       let parsed: Record<string, unknown>;
       try {
@@ -2961,7 +3088,7 @@ export class MeriV3AssistantService {
         stopWithoutDispatch(call);
         continue;
       }
-      const definition = this.registry.get(call.name);
+      const definition = currentDefinition;
       const intentKey =
         definition?.readOnly === false
           ? writeIntentKey({

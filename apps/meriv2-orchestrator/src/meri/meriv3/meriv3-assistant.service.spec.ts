@@ -3940,7 +3940,7 @@ describe('Stage 2 orchestrator hardening', () => {
     test.each([
       ['legacy', ['search_memory', 'get_bill_status', 'send_email']],
       ['shadow', ['search_memory', 'get_bill_status', 'send_email']],
-      ['enabled', ['search_memory']],
+      ['enabled', ['search_memory', 'tool_search', 'tool_describe']],
     ] as const)(
       'sends the expected %s schema payload to the ordinary provider turn',
       async (mode, expected) => {
@@ -3997,6 +3997,183 @@ describe('Stage 2 orchestrator hardening', () => {
 
       expect(providerToolNames(complete)).not.toContain('get_bill_status');
       expect(providerToolNames(complete)).not.toContain('search_floor_votes');
+    });
+
+    test('discovers, describes, exposes, and executes an omitted authorized leaf in later provider rounds', async () => {
+      const search = {
+        type: 'function_call',
+        call_id: 'discover-forecast',
+        name: 'tool_search',
+        arguments: '{"queries":["procurement forecasts"]}',
+      };
+      const describe = {
+        type: 'function_call',
+        call_id: 'describe-forecast',
+        name: 'tool_describe',
+        arguments: '{"names":["search_procurement_forecasts"]}',
+      };
+      const leaf = {
+        type: 'function_call',
+        call_id: 'invoke-forecast',
+        name: 'search_procurement_forecasts',
+        arguments: '{"query":"autonomy"}',
+      };
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(
+          response({ output: [search], outputText: '', functionCalls: [search] }),
+        )
+        .mockResolvedValueOnce(
+          response({ output: [describe], outputText: '', functionCalls: [describe] }),
+        )
+        .mockResolvedValueOnce(response({ output: [leaf], outputText: '', functionCalls: [leaf] }))
+        .mockResolvedValueOnce(response({ outputText: 'Observed forecast result.' }));
+      const invoke = jest.fn().mockResolvedValue({ records: [{ id: 'forecast-1' }] });
+      const definitions = [
+        { name: 'search_memory', readOnly: true },
+        { name: 'search_procurement_forecasts', readOnly: true },
+      ];
+      const assistant = build(
+        registry(definitions, invoke),
+        complete,
+        jest.fn(),
+        {},
+        selectorConfig('enabled'),
+      );
+      const log = jest.spyOn(
+        (assistant as unknown as { logger: { log: (...args: unknown[]) => void } }).logger,
+        'log',
+      );
+      const rareSchema = toolSchema('search_procurement_forecasts');
+      global.fetch = jest.fn(
+        async () =>
+          new Response(
+            JSON.stringify({ schemas: [toolSchema('search_memory'), rareSchema] }),
+            { status: 200 },
+          ),
+      ) as typeof fetch;
+
+      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        assistant.run(context, {
+          messages: [{ role: 'user', text: 'What do you remember about Kestrel?' }],
+        }),
+      );
+
+      expect(providerToolNames(complete, 0)).toEqual([
+        'search_memory',
+        'tool_search',
+        'tool_describe',
+      ]);
+      expect(providerToolNames(complete, 1)).not.toContain('search_procurement_forecasts');
+      expect(providerToolNames(complete, 2)).toContain('search_procurement_forecasts');
+      expect(complete.mock.calls[2]?.[0]?.tools).toContainEqual({
+        type: 'function',
+        name: rareSchema.name,
+        description: rareSchema.description,
+        parameters: rareSchema.input_schema,
+        strict: false,
+      });
+      expect(invoke).toHaveBeenCalledTimes(1);
+      expect(invoke).toHaveBeenCalledWith(
+        'search_procurement_forecasts',
+        { query: 'autonomy' },
+        context,
+        expect.any(Object),
+      );
+      expect(JSON.stringify(complete.mock.calls[3]?.[0]?.input)).toContain('forecast-1');
+      const trace = log.mock.calls
+        .map(([message]) => String(message))
+        .filter((message) => message.includes('meri.semantic_tool_gateway'))
+        .join('\n');
+      expect(trace).toContain('tool_search');
+      expect(trace).toContain('tool_describe');
+      expect(trace).toContain('search_procurement_forecasts');
+      expect(trace).toContain('"result":"done"');
+      expect(trace).not.toContain('procurement forecasts');
+    });
+
+    test('does not dispatch a progressively loaded leaf removed from the current registry', async () => {
+      const search = {
+        type: 'function_call',
+        call_id: 'discover-removed',
+        name: 'tool_search',
+        arguments: '{"queries":["procurement forecasts"]}',
+      };
+      const describe = {
+        type: 'function_call',
+        call_id: 'describe-removed',
+        name: 'tool_describe',
+        arguments: '{"names":["search_procurement_forecasts"]}',
+      };
+      const leaf = {
+        type: 'function_call',
+        call_id: 'invoke-removed',
+        name: 'search_procurement_forecasts',
+        arguments: '{"query":"autonomy"}',
+      };
+      const definitions = new Map([
+        ['search_memory', { name: 'search_memory', readOnly: true }],
+        [
+          'search_procurement_forecasts',
+          { name: 'search_procurement_forecasts', readOnly: true },
+        ],
+      ]);
+      const invoke = jest.fn();
+      const mutableRegistry = {
+        list: () => [...definitions.keys()],
+        get: (name: string) => definitions.get(name),
+        executionMetadata: (name: string) => {
+          const definition = definitions.get(name);
+          return definition
+            ? { name, readOnly: definition.readOnly, executionMode: 'read' }
+            : undefined;
+        },
+        invoke,
+      } as unknown as ToolRegistry;
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(
+          response({ output: [search], outputText: '', functionCalls: [search] }),
+        )
+        .mockResolvedValueOnce(
+          response({ output: [describe], outputText: '', functionCalls: [describe] }),
+        )
+        .mockImplementationOnce(async () => {
+          definitions.delete('search_procurement_forecasts');
+          return response({ output: [leaf], outputText: '', functionCalls: [leaf] });
+        })
+        .mockResolvedValueOnce(response({ outputText: 'Current catalog rejected the read.' }));
+      const assistant = build(
+        mutableRegistry,
+        complete,
+        jest.fn(),
+        {},
+        selectorConfig('enabled'),
+      );
+      global.fetch = jest.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              schemas: [
+                toolSchema('search_memory'),
+                toolSchema('search_procurement_forecasts'),
+              ],
+            }),
+            { status: 200 },
+          ),
+      ) as typeof fetch;
+
+      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        assistant.run(context, {
+          messages: [{ role: 'user', text: 'What do you remember about Kestrel?' }],
+        }),
+      );
+
+      expect(providerToolNames(complete, 2)).toContain('search_procurement_forecasts');
+      expect(invoke).not.toHaveBeenCalled();
+      expect(JSON.stringify(complete.mock.calls[3]?.[0]?.input)).toContain(
+        'no longer available under the current governed tool policy',
+      );
     });
 
     test('keeps enabled selection in selected-client scope and pins the executed input', async () => {

@@ -1,14 +1,14 @@
-> Local candidate integration note: this isolated report/plan branch combines the held selector implementation with later foundation work. It is not main, release, or H4 adoption acceptance. The source inventory below records its historical checkpoint; the appended implementation record preserves the original adaptation detail. Progressive discovery remains mandatory and unfinished.
+> Local implementation note: this isolated branch adds bounded progressive discovery to the held selector and later foundation work. It is not main, release, H4 adoption acceptance, CD7, or File-01 completion. Flags, tenant allowlists, provider/model routing, and rollout cohorts are unchanged.
 
 # H4 governed tool-selection adoption record
 
 ## Disposition
 
-Current integration source `71efe006a7c120f157a90a6dac6adaf743353937`: `CANDIDATE_HELD_NOT_INTEGRATED`.
+Current isolated base `c89fe84902d2833c5b376b72a8920a9d6343f9af`: `IMPLEMENTED_CANDIDATE_NOT_ACCEPTED`.
 
-The served candidate was inspected only as Git blobs at `9a651d5fae1f240a36fc9b04c7007d76d8cba172`. Its selector ancestry includes `b7ad92e260c98bebef95583b91857758464cbfc7` and replay `d2675758b5c19c373671322a6634b42e9f89b5ba`; served-procedure work at `5a1985ce9ccf2f6e33a91b95fc0b36a85adfc645` is also in that candidate line. The files `meriv3-governed-tool-selection.ts` and `meriv3-procedure-guard.ts` are absent from current integration. No candidate file or notice was copied into the current product by this bookkeeping change.
+The base already contains the held selector, report/plan/procedure work, and canonical registry/gateway dispatch. This change adds a request-local search/describe control in `meri-progressive-tool-discovery.ts` and integrates it only into the existing MeriV3 assistant loop. It does not add a second executable catalog, `tool_call`, generic execute-anything bridge, provider, model, route, database, migration, or UI surface.
 
-Acquired source plus a held candidate is not adoption PASS. Foundation 7.1 still requires integrated progressive discovery, actual provider-schema evidence, required-capability recall, authorization, source coverage, and privacy/freshness qualification.
+Implementation plus focused tests is not adoption PASS. Foundation 7.1 still requires full CD7, authenticated live acceptance, source coverage, privacy/freshness qualification, independent review, both-main integration, and release evidence.
 
 ## Exact donor source
 
@@ -34,7 +34,17 @@ The pins remain separate. The candidate used the `516535...` source; the `062dc1
 
 The candidate is a concept-level TypeScript adaptation, not copied Python and not a dependency. It translates live request-scoped catalog construction, required ambient capability retention, exact-name scope intersection, unknown-name rejection, canonical dispatch, bounded selection, and redacted event intent into Capiro's registry/authorization seam. This is deliberate donor-informed adaptation, not a conclusion based on one phrase.
 
-The candidate deliberately does not implement Hermes's provider-driven `tool_search` / `tool_describe` / `tool_call`, deferred searchable catalog, later-round schema loading, or bridge invocation. Its eight-name deterministic plan fallback is static selection. The current integration has neither the candidate nor full progressive discovery.
+The current candidate implements provider-driven `tool_search` and `tool_describe` over omitted schemas from the request's already authorized canonical `full_chat` surface. Describe loads the original exact leaf schema only for a later provider request. There is deliberately no `tool_call`: the provider invokes the loaded canonical leaf directly, and ordinary registry validation, client pinning, procedure checks, action approval, research capability/lease checks, and aggregate run-budget fences remain the only dispatch path. The earlier eight-name plan fallback remains initial selection input; it is not represented as progressive discovery.
+
+## Implemented bounds and authority
+
+- Search: at most four queries per call, five matches per query, 120 characters per query, and three search attempts.
+- Describe: at most eight exact names per call, eight loaded schemas total, 12,000 serialized schema-growth characters, and three describe attempts.
+- The combined discovery-attempt ceiling is also clamped to the existing `MeriRunBudget` gather-model-call allowance; provider rounds and leaf calls remain charged to that same run budget.
+- Unknown, malformed, control, undiscovered, removed, read-only-policy-incompatible, research-plan-incompatible, lease-incompatible, and procedure-incompatible names are never loaded.
+- Search/describe results grant no authority. Load rechecks the current registry definition and read-only metadata; every leaf invocation then repeats current procedure, research capability/lease, actor, selected-client, action/approval, schema, and registry checks.
+- Selector telemetry records only bounded decision IDs, canonical authorized names, counts, operation and result codes. It never records search queries, arguments, result bodies, or unknown provider-controlled names.
+- Native versus MCP origin is retained in search results. The exact owner schema preserves its filters, pagination, required fields, and parameter contract when loaded.
 
 ## Candidate targets and hashes
 
@@ -57,13 +67,13 @@ Saved observations only: selector candidate `b7ad92e...` passed 132 tests across
 
 ## Notice, rollback, update owner, and remaining gap
 
-The held candidate line contains a Hermes notice, but current integration does not distribute the H4 candidate. Therefore this record does not add H4 to current `THIRD_PARTY_NOTICES`. If a reviewed H4 adaptation is integrated, the integration commit must add the exact pin/files to that notice while retaining the existing full MIT text.
+`THIRD_PARTY_NOTICES` names the exact original pin/files, the native TypeScript adaptation targets, and retains the full MIT text and 2025 Nous Research attribution. The separate `062dc1...` files remain test specimens and do not replace the original source pin.
 
-Rollback owner: File-01 lead / P1B registry-selector owner. Current rollback is "do not integrate or enable the candidate"; existing selector flags remain unchanged. If later promoted, rollback must turn off new admissions and revert the application slice without replacing the canonical registry or authorization gateway.
+Rollback owner: File-01 lead / P1B registry-selector owner. Existing selector flags and tenant allowlists remain the rollback control; reverting this application slice removes progressive controls without replacing the canonical registry or authorization gateway.
 
 Update policy: no silent pin upgrade; compare a new donor pin and tests in a new record.
 
-Remaining mandatory work: integrate a reviewed candidate; repair private unknown-name propagation and required meetings coverage; prove actual current provider schemas, progressive search/describe/load/invoke or an explicitly approved equivalent, required-capability recall, current authorization/freshness, source coverage, telemetry privacy, invocation freshness, and rollback. H4 is not conditionalized and is not PASS.
+Remaining mandatory work: independent review, authenticated current-policy/live-source qualification, full CD7 and release evidence. Focused implementation tests do not satisfy acceptance and H4 is not claimed PASS.
 
 ## Preserved candidate implementation record
 
@@ -92,11 +102,11 @@ The implementation is a native TypeScript, concept-level adaptation, not a copy 
 6. Bound discovery work. Hermes caps searches/describes. Meri admits at most eight exact deterministic fallback names from the existing retrieval plan, after request-scope intersection; protected required capabilities are not displaced by the ordinary 20-tool selection budget.
 7. Redacted observability. Meri records decision IDs plus requested/selected/exposed/invoked names and counts and a result code. It does not log request text, tool arguments, or result bodies in selector events.
 
-## Native differences and exact remaining seam
+## Historical pre-progressive candidate seam
 
-This slice does not add `tool_search`, `tool_describe`, or `tool_call` provider tools. The fallback is deterministic request assembly from known plan names; it is static selection, not progressive model-driven discovery. Unlike Hermes, it does not defer schemas, expose a searchable request-local catalog, describe schemas in a later round, or unwrap a bridge call into canonical dispatch.
+The preserved selector candidate described below did not add `tool_search`, `tool_describe`, or `tool_call`. That historical limitation is repaired by the current isolated implementation record above; it is retained here to distinguish the static donor adaptation checkpoint from this progressive candidate.
 
-Actual progressive discovery would require a canonical request-local registry API that can:
+The required seam was:
 
 - search only the caller's post-policy/post-surface executable schema scope,
 - return exact canonical names and descriptions without creating a second catalog,
@@ -104,10 +114,12 @@ Actual progressive discovery would require a canonical request-local registry AP
 - bind discovered names to the same decision and request scope, and
 - route invocation through the existing validation, authorization, approval, lease, and budget path.
 
-The current `/api/clio/tool-schemas` response supplies the full authorized executable schemas but no scoped search/load operation. Adding that API is outside H4's allowed provider/schema surface, so this implementation documents the seam rather than representing static fallback selection as progressive discovery.
+The implementation uses the existing authenticated `/api/clio/tool-schemas` response after shared-registry, surface, tool-policy, research-plan, lease, and procedure filtering. Search indexes only that request-local exact schema set; describe returns and later exposes the original owner schema. No API or second catalog was added.
 
 ## Tests mapped to the acquisition
 
 - `meri-semantic-tool-gateway.spec.ts`: mode/allowlist compatibility, protected capability intersection, bounded known-name fallback, unavailable-name rejection, dynamic MCP selection, and native Research Director exclusion.
 - `meriv3-governed-tool-selection.spec.ts`: evidence/document/coverage/trusted-procedure pins, user-text non-enablement, and skipped Research Director removal.
 - `meriv3-assistant.service.spec.ts`: actual provider schema payloads for legacy/shadow/enabled, missing required tools, selected-client pinning, read-only/none policy, rejection of a dynamic MCP schema outside the current authorized `full_chat` surface, undeclared-call zero dispatch, and redacted selector lifecycle logs.
+- `meri-progressive-tool-discovery.spec.ts`: multi-query bounds, exact-schema identity, native/MCP boundaries, schema/handler control parity, unknown/malformed/undiscovered/disallowed rejection, attempt limits, and output/schema-growth bounds.
+- `meriv3-assistant.service.spec.ts`: first provider request omits a rare authorized leaf; search and describe occur in separate rounds; the next request contains the exact owner schema; the canonical leaf executes once; the following request observes its result; current registry removal fails closed with zero handler invocation.
