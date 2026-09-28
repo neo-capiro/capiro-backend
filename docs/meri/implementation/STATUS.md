@@ -1,6 +1,19 @@
 # Meri file 01 status
 
-## Current checkpoint — 2026-09-28 02:45 UTC
+## Current checkpoint — 2026-09-28 02:59 UTC
+
+File 01 remains IN_PROGRESS; all shared releases and both-main integration remain on hold. No synthetic Meri enablement, migration, deployment or production canary has run.
+
+- Runtime terminal-control correction `dab9c6a4950d0c9bb9e3b87abfae3f3d7bd004b0` is published. A lead exact-SHA probe reproduces cancellation being ignored after prior acquisition exhaustion at `d083cde77` (exit 1), then proves rejection at `dab9c6a49` (exit 0). Budget 12, assistant 81 and provider 16 tests pass; typecheck exits 0. Independent combined runtime/provider review is active.
+- Durable outcome candidate `fdb8db513b401267aaab0aee182dd06967bcf3eb` is published. Independent 50 durable and 71 delegated-read tests exit 0. The shared classifier replaced Zod checks with manual checks to preserve the shared package dependency boundary; lead comparison of 18,232 deterministic JSON-shaped mutations against the exact old classifier found zero discrepancies (exit 0), not exhaustive arbitrary-object equivalence. This narrow correction is accepted for isolated integration. V3 full execution identity, saved result bytes/replay and broader current-policy reauthorization remain required.
+- Scheduler independent review ran all 75 tests, including real owned PostgreSQL race/ack-loss tests, exit 0. The catch-path canceled receipt still can expose top-level active=true; runner claim/cancellation races remain static unqualified boundaries. Repairs are queued; no blanket scheduler acceptance.
+- Memory workspace review found four concrete source-contract gaps despite 30 passing tests: proposer queue beyond 50, changes-requested revision inside Meri, decision identity/attribution and ambiguous-write recovery after reload. The original owner is repairing these in isolation. Candidate `a97650f2d` is not accepted for integration yet.
+- Artifact readback work resumed from preserved source. Native pgvector harness and capture integrity remain queued preserved WIP; every live acceptance row is still NOT RUN.
+- Current catalog qualification ran four suites: 21 tests pass and three fail, exit 1. Expected lists omit ten existing Research Portfolio tools (eight read and two write). The existing API registry/handler contracts must be checked before fixtures change; tests are not waived.
+- Local-main preservation proof is `C:/dev/cap-meri-foundation-evidence/local-main-preservation-20260928-025326/manifest.json`, with raw copies and binary patch. All four dirty files match original P0B `1963efa25` after line-ending normalization; three are byte-identical. Main remains one local P0A commit ahead of origin/main; no local-main content/ref mutation occurred.
+- Defense owner independently ports accepted formatter `f23e06f43` without its held SQL parent and owns its CI fixture repairs. Cross-chat release coordination continues; this task does not merge/deploy Defense PR 1903.
+
+## Historical checkpoint — 2026-09-28 02:45 UTC
 
 This checkpoint supersedes dated assignments and evidence below. File 01 remains IN_PROGRESS. No main integration or shared release is complete.
 
