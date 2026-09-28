@@ -34,6 +34,7 @@ jobs:
           --health-retries 10
     env:
       CI: 'true'
+      NODE_OPTIONS: --max-old-space-size=6144
       DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro?schema=public
       DIRECT_URL: postgresql://capiro:capiro@localhost:5432/capiro?schema=public
       CLERK_SECRET_KEY: sk_test_meriv2_phase17_ci

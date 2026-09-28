@@ -111,6 +111,16 @@ const EXPECTED_TOOLS = [
   'save_research_portfolio_output_to_client',
   'watch_research_portfolio',
   'update_research_portfolio_change_state',
+  'get_research_portfolio_bookmarks',
+  'create_research_portfolio_bookmark',
+  'get_research_portfolio_fit',
+  'get_research_portfolio_reviews',
+  'add_research_portfolio_review_note',
+  'get_research_portfolio_rules',
+  'get_research_portfolio_imports',
+  'get_research_portfolio_operations',
+  'prepare_research_portfolio_brief',
+  'prepare_research_portfolio_meeting',
   // Client knowledge base (assistant-parity F5)
   'search_client_knowledge',
   // Analysis sandbox (assistant-parity F4; pilot-gated per tenant)
@@ -288,6 +298,16 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   ],
   watch_research_portfolio: ['conversationId'],
   update_research_portfolio_change_state: ['conversationId', 'eventId', 'action'],
+  get_research_portfolio_bookmarks: ['conversationId'],
+  create_research_portfolio_bookmark: ['conversationId', 'targetKind', 'targetId'],
+  get_research_portfolio_fit: ['conversationId'],
+  get_research_portfolio_reviews: ['conversationId'],
+  add_research_portfolio_review_note: ['conversationId', 'reviewId', 'body'],
+  get_research_portfolio_rules: ['conversationId'],
+  get_research_portfolio_imports: ['conversationId'],
+  get_research_portfolio_operations: ['conversationId'],
+  prepare_research_portfolio_brief: ['conversationId'],
+  prepare_research_portfolio_meeting: ['conversationId'],
   search_client_knowledge: ['query'],
   run_analysis: ['code'],
   search_public_web: ['query'],
@@ -685,6 +705,8 @@ describe('Meri tool registration', () => {
       'save_research_portfolio_output_to_client',
       'watch_research_portfolio',
       'update_research_portfolio_change_state',
+      'create_research_portfolio_bookmark',
+      'add_research_portfolio_review_note',
     ];
     // isSideEffecting flags exactly the write tools — and not read/compute tools.
     for (const t of writeTools) expect(svc.isSideEffecting(t)).toBe(true);
