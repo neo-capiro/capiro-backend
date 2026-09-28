@@ -555,6 +555,90 @@ async function extractMeriXlsxDocument(
   };
 }
 
+/** Bounded typed workbook read from original bytes. Formula cells expose only
+ * the saved cached value and an explicit label; formulas are never evaluated. */
+export async function extractMeriXlsxSection(
+  bytes: Buffer,
+  input: { sheet: number; rowStart: number; rowLimit: number },
+): Promise<{
+  text: string;
+  sheet: number;
+  sheetCount: number;
+  sheetName: string;
+  rowStart: number;
+  rowEnd: number;
+  rowCount: number;
+  truncated: boolean;
+  reason: string | null;
+}> {
+  if (
+    !Number.isSafeInteger(input.sheet) || input.sheet < 1 ||
+    !Number.isSafeInteger(input.rowStart) || input.rowStart < 1 ||
+    !Number.isSafeInteger(input.rowLimit) || input.rowLimit < 1 || input.rowLimit > 200
+  ) throw new Error('xlsx_section_invalid');
+  const packageInfo = await validateMeriXlsxPackage(bytes);
+  if (packageInfo.workLimit) throw new MeriXlsxValidationError(packageInfo.workLimit);
+  const ExcelJS = await import('exceljs');
+  const workbook = new (ExcelJS.default ?? ExcelJS).Workbook();
+  await workbook.xlsx.load(bytes as unknown as Parameters<typeof workbook.xlsx.load>[0]);
+  const sheet = workbook.worksheets[input.sheet - 1];
+  if (!sheet) throw new Error('xlsx_sheet_not_found');
+  const rowCount = Math.min(sheet.rowCount, MAX_SPREADSHEET_ROWS);
+  if (input.rowStart > Math.max(1, rowCount)) throw new Error('xlsx_row_not_found');
+  const rowEnd = Math.min(rowCount, input.rowStart + input.rowLimit - 1);
+  const lines: string[] = [];
+  let sawCachedFormula = false;
+  let sawMissingFormula = false;
+  let sawExternalFormula = false;
+  for (let rowNumber = input.rowStart; rowNumber <= rowEnd; rowNumber += 1) {
+    const row = sheet.getRow(rowNumber);
+    const lastColumn = Math.min(row.cellCount, MAX_SPREADSHEET_COLS);
+    for (let column = 1; column <= lastColumn; column += 1) {
+      const cell = row.getCell(column);
+      const master = (cell as unknown as { master?: { address?: string } }).master;
+      if (master?.address && master.address !== cell.address) continue;
+      const value = cell.value;
+      if (value == null) continue;
+      let text = '';
+      let suffix = '';
+      if (typeof value === 'object' && ('formula' in value || 'sharedFormula' in value)) {
+        const rendered = formulaText(
+          value as unknown as Record<string, unknown>,
+          packageInfo.hasExternalLinks,
+        );
+        text = rendered.text;
+        if (rendered.cached) {
+          sawCachedFormula = true;
+          suffix = ' (saved cached formula result; not recalculated)';
+        } else if (rendered.unavailable === 'external') sawExternalFormula = true;
+        else sawMissingFormula = true;
+      } else text = xlsxCellToText(value);
+      if (text)
+        lines.push(`${xlsxCoordinate(sheet.name, cell.address)} = ${JSON.stringify(text)}${suffix}`);
+    }
+  }
+  const reasons: string[] = [];
+  if (sawCachedFormula)
+    reasons.push('Formula cells use saved cached results; formulas were not recalculated.');
+  if (sawMissingFormula)
+    reasons.push('Some formulas had no saved result and are marked unavailable.');
+  if (sawExternalFormula || packageInfo.hasExternalLinks)
+    reasons.push('External workbook links and their cached values were not read.');
+  if (packageInfo.hasVisuals)
+    reasons.push('Spreadsheet charts and images are not represented by cell extraction.');
+  return {
+    text: lines.join('\n'),
+    sheet: input.sheet,
+    sheetCount: workbook.worksheets.length,
+    sheetName: sheet.name,
+    rowStart: input.rowStart,
+    rowEnd,
+    rowCount,
+    truncated: rowEnd < rowCount || input.sheet < workbook.worksheets.length || reasons.length > 0,
+    reason: reasons.length ? reasons.join(' ').slice(0, 300) : null,
+  };
+}
+
 /** Reuse the canonical provider page reader; persist its literal result once so
  * regeneration and follow-ups do not run nondeterministic OCR again. */
 export async function extractMeriDocument(

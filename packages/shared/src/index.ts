@@ -3894,6 +3894,14 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat'],
   },
   {
+    name: 'read_chat_attachments',
+    description:
+      'List and read bounded typed sections from original files uploaded earlier in this ordinary chat. The server binds every page to the current conversation, actor, tenant, selected client, memory wall, source message, and current byte hash. Supports PDF pages, PowerPoint slides with speaker notes, spreadsheet sheet/row/cell coordinates with saved formula values, and text sections; follow signed cursors and never treat partial coverage as complete.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
     name: 'search_capiro_data',
     description:
       'Search authorized Capiro data across supported domains, including strategies, budget lines, legislation, hearings, funding, federal awards, directory and District Nexus. Returns evidence references and explicit domain coverage; missing, stale or partial data must not be treated as proof of absence.',

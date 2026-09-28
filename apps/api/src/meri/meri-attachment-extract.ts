@@ -32,15 +32,20 @@ export async function extractPdfText(
     onPage?: (page: number, text: string) => void;
     /** Explicit bounded source-ingestion limits; ordinary uploads retain defaults. */
     limits?: { pages: number; characters: number };
+    /** First 1-based page to decode. Typed section readers use this to avoid
+     * walking every preceding page of a large document. */
+    firstPage?: number;
     preserveLineBreaks?: boolean;
   } = {},
 ): Promise<PdfExtraction> {
   const maxPages=options.limits?.pages??PDF_MAX_PAGES,maxChars=options.limits?.characters??DOC_TEXT_MAX_CHARS;
   if(!Number.isSafeInteger(maxPages)||maxPages<1||maxPages>500||!Number.isSafeInteger(maxChars)||maxChars<1||maxChars>2_000_000)throw Error('PDF_EXTRACTION_LIMITS_INVALID');
+  const firstPage=options.firstPage??1;
+  if(!Number.isSafeInteger(firstPage)||firstPage<1)throw Error('PDF_EXTRACTION_FIRST_PAGE_INVALID');
   const bytes =
     buffer instanceof Uint8Array && !(buffer instanceof Buffer) ? buffer : new Uint8Array(buffer);
   const pdf = await getDocumentProxy(bytes);
-  const pageCount = Math.min(pdf.numPages, maxPages);
+  const lastPage = Math.min(pdf.numPages, firstPage + maxPages - 1);
   const parts: string[] = [];
   let chars = 0;
   let pagesRead = 0;
@@ -48,7 +53,7 @@ export async function extractPdfText(
   const unreadablePages: number[] = [];
   const visuallyReadPages: number[] = [];
   try {
-    for (let i = 1; i <= pageCount && chars < maxChars; i += 1) {
+    for (let i = firstPage; i <= lastPage && chars < maxChars; i += 1) {
       if (options.signal?.aborted) {
         truncated = true;
         break;
@@ -86,7 +91,7 @@ export async function extractPdfText(
       text: parts.join('\n'),
       pages: pdf.numPages,
       pagesRead,
-      truncated: truncated || pagesRead < pdf.numPages,
+      truncated: truncated || firstPage > 1 || lastPage < pdf.numPages,
       unreadablePages,
       visuallyReadPages,
     };

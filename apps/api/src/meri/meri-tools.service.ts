@@ -160,6 +160,7 @@ import { MERI_DATA_QUERY_CLASSES, searchCapiroData } from './meri-data-search.he
 import { projectMemoryContent } from './meri-memory-content.helpers.js';
 import { getResearchEvidence } from './meri-research-evidence.helpers.js';
 import { buildDocumentReadPage, parseDocumentReadInput } from './meri-document-read.helpers.js';
+import { MeriChatAttachmentReadService } from './meri-chat-attachment-read.service.js';
 import { MeriClientFilingService } from './meri-client-filing.service.js';
 import { MeriBizDevToolsService } from './meri-bizdev-tools.service.js';
 import {
@@ -351,6 +352,7 @@ export class MeriToolsService {
     @Optional() private readonly bizDevTools?: MeriBizDevToolsService,
     @Optional() private readonly researchPortfolioTools?: ResearchPortfolioMeriToolsService,
     @Optional() private readonly districtTools?: R5MeriDistrictTools,
+    @Optional() private readonly chatAttachmentReader?: MeriChatAttachmentReadService,
   ) {}
 
   manifest() {
@@ -377,6 +379,11 @@ export class MeriToolsService {
     }
     if (!this.researchPortfolioTools) throw new NotFoundException('Meri tool not found');
     return this.researchPortfolioTools;
+  }
+
+  private readChatAttachments(ctx: TenantContext, input: Record<string, unknown>) {
+    if (!this.chatAttachmentReader) throw new NotFoundException('Meri tool not found');
+    return this.chatAttachmentReader.read(ctx, input);
   }
 
   /**
@@ -765,6 +772,49 @@ export class MeriToolsService {
           },
         },
         ['sessionId'],
+      ),
+      read_chat_attachments: obj(
+        {
+          conversationId: str(
+            'Current Meri conversation UUID. The server rejects it unless it exactly matches the served request scope.',
+          ),
+          attachmentId: str(
+            'Optional ordinary-chat attachment UUID from this conversation. Omit to page through the finite prior-attachment manifest.',
+          ),
+          query: str(
+            'Optional literal search within the selected typed section, or filename filter for the manifest.',
+          ),
+          section: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 500,
+            description:
+              '1-based PDF page, PowerPoint slide, workbook sheet, or text section. Defaults to 1.',
+          },
+          rowStart: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 1000000,
+            description: 'First worksheet row position for an XLSX typed section. Defaults to 1.',
+          },
+          characterOffset: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 2000000,
+            description: '0-based continuation offset inside the selected typed section.',
+          },
+          cursor: str(
+            'Signed nextCursor from the preceding manifest or section read. Repeat the same conversationId, attachmentId, and query.',
+          ),
+          limit: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 6000,
+            description:
+              'Maximum returned characters for a section (1-6000), or manifest records (1-20).',
+          },
+        },
+        ['conversationId'],
       ),
       search_capiro_data: obj(
         {
@@ -2293,6 +2343,8 @@ export class MeriToolsService {
         return this.legiwatchTool(ctx, name, input);
       case 'get_research_evidence':
         return getResearchEvidence(ctx, input, this.prisma);
+      case 'read_chat_attachments':
+        return this.readChatAttachments(ctx, input);
       case 'search_capiro_data':
         return searchCapiroData(ctx, input, this.contextPlane);
       case 'get_client_context':

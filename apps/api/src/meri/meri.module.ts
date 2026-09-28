@@ -77,6 +77,7 @@ import { MeriV3ResearchRunner } from './meri-v3-research-runner.js';
 import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js';
 import { MeriV3ProxyService } from './meriv3-proxy.service.js';
 import { MeriConversationEvidenceService } from './meri-conversation-evidence.service.js';
+import { MeriChatAttachmentReadService } from './meri-chat-attachment-read.service.js';
 import { MeriV3SettingsController } from './meriv3-settings.controller.js';
 import { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.js';
 import { MeriVNextLibraryController } from './meri-vnext-library.controller.js';
@@ -127,6 +128,7 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
   ],
   providers: [
     MeriClientFilingService,
+    MeriChatAttachmentReadService,
     MeriSourceService,
     MeriContextPlaneService,
     MeriContextPlaneRuntimeService,
