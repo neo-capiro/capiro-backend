@@ -1,3 +1,15 @@
+## Current checkpoint — 2026-09-29 source fidelity and partial release
+
+Repository main and `origin/main` are exact at `8014e141af01df2ff089fae115f4df08e9cc733c` after PR [#1910](https://github.com/neo-capiro/capirov2/pull/1910). The supplied foundation plan is now byte-for-byte identical to the repository copy; SHA-256 is `77C55B7484343A766C3BD17047C513B50C7C5D045E2018F03EA9DD0C08B622BD`. The orchestrator prompt already matched the supplied source.
+
+The merged application source used for the current capiro-dev release is `b2d99f04d8c485cb4b73a1f02aece9a60b945870` (the later repository change is documentation-only). Web-vNext is PASS at `capiro-dev-web-vnext:383`, digest `sha256:08332ee894c2c0f6d4d8cfecc02a4c52c0b7d00896917a220b48a4d97923f993`; Engagement API is PASS at `capiro-dev-engagement-api:127`, digest `sha256:b5ba8c108a47731104f856760dc1359c49c7fbca83cfe84f8ac2d1b97f5ccc95`. Both report healthy targets.
+
+API and Meri orchestrator images were built from the merged application source but remain held. Read-only task `capiro-dev-api-admin-migrate:83` (`718aadeae8934e86b8280df6ccc4a8b5`) exited 1 because the live Prisma ledger diverges after `20280913011000_legiwatch_record_checks`; no migration or ledger mutation was attempted. GitHub Actions continues to fail before runner creation with `startup_failure`, so the approved synthetic fullChat workflow has not been run. The two approved synthetic tenant flags remain `APPROVED_NOT_APPLIED`.
+
+Authenticated served Workstream A acceptance, the 75 baseline cases, CD-01–CD-07, CW-01–CW-08, and the remaining File01 owner/capture evidence remain NOT RUN or BLOCKED. The next release action is controlled database recovery with an incident/change ticket, named operator, separate approver, read-only schema/ledger evidence, and post-recovery verification. Direct `_prisma_migrations` edits, `migrate resolve` without that evidence, direct flag writes, and API/orchestrator rollout remain prohibited.
+
+Evidence: `C:/dev/cap-meri-foundation-evidence/foundation-doc-fidelity-merge-20260929.json`, `partial-release-b2d99f04.json`, `api-migration-recovery-packet-20260929.md`, `hermes-concurrent-review-20260929.md`.
+
 ## Current checkpoint — 2026-09-29 vNext migration and full web gate
 
 Verified topic commit `f106ada15` completes the remaining vNext LegiWatch migration edges: native memo composer and watchlist editor, a vNext-only live hearing controller, and direct vNext wiring for packet/live/settings surfaces. The full web gate passes with exit 0: 632 test files and 5,912 tests. Focused no-legacy, capture, packet, watchlist and typecheck gates also pass. Independent Bedrock Hermes reviews completed: Qwen recommended the lifecycle extraction that is now present; Kimi independently returned PASS, with only future unit-test coverage suggestions.
