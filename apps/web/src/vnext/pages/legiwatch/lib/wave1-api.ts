@@ -746,14 +746,16 @@ export interface CommitteeFollowInput {
 
 export function useSaveCommitteeFollow(systemCode: string) {
   const api = useApi();
-  const apiScope = useApiScope();
+  // Match the identity partition used by the notification and saved-hearing
+  // caches without requiring a Clerk provider during pre-auth rendering.
+  const { identity: apiScope } = useHearingQueryIdentity();
   const qc = useQueryClient();
   return useMutation<CommitteeFollowConfig, Error, CommitteeFollowInput>({
     mutationFn: async (input) =>
       (await api.put<CommitteeFollowConfig>(`${BASE}/committees/${enc(systemCode)}/follow`, input))
         .data,
     onSuccess: (data) => {
-      qc.setQueryData(w1Keys.committeeFollow(systemCode, apiScope), data);
+      qc.setQueryData(w1Keys.committeeFollow(systemCode, apiScope ?? 'anonymous'), data);
       // A follow lets the server generate catch-up notifications for recent
       // publications — refresh the shared inbox/bell/dashboard feed now.
       void qc.invalidateQueries({ queryKey: ['lw-w1', 'notifications'] });

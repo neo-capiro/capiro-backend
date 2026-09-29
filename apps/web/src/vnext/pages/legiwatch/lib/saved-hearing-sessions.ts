@@ -5,7 +5,17 @@ import { useImpersonation } from '../../../../state/impersonation.js';
 
 /** Match the API client's tenant context and the server's private-session owner. */
 export function useHearingQueryIdentity() {
-  const { orgId, userId, isLoaded } = useAuth();
+  let orgId: string | null = null;
+  let userId: string | null = null;
+  let isLoaded = false;
+  try {
+    const auth = useAuth();
+    orgId = auth.orgId ?? null;
+    userId = auth.userId ?? null;
+    isLoaded = Boolean(auth.isLoaded);
+  } catch {
+    // Pre-auth shells use the anonymous cache partition until Clerk mounts.
+  }
   const { actAsTenantSlug } = useImpersonation();
   const ready = Boolean(isLoaded && userId);
   // Distinct tuple fields avoid a tenant slug colliding with an organization ID.

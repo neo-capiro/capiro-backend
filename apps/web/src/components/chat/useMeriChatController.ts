@@ -2825,6 +2825,12 @@ export function useMeriChatController({
       (researchRecovery && ['running', 'cancel_requested'].includes(researchRecovery.run.status)
         ? researchRecovery.id
         : null);
+    // Planning is a pre-execution phase. Once the user stops it, the next
+    // Send must create a new research request rather than treating the
+    // aborted plan as a resumable session. Keep the captured id for the
+    // idempotent server cancellation below, but release the local session
+    // identity synchronously so callers do not race that network request.
+    if (researchMessageRef.current?.phase === 'plan') researchSessionRef.current = null;
     const requestIdentityKey = identityKeyRef.current;
     const requestConversationId = currentSessionRef.current;
     researchStoppedRef.current = true;

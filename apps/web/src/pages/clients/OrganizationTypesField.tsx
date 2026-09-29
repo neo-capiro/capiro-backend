@@ -6,7 +6,7 @@ import {
   getClientOrganizationTypes,
   getGrantsGovOrganizationTypeLabel,
 } from '@capiro/shared';
-import './organization-types-field.css';
+import '../../vnext/pages/client-crm/organization-types-field.css';
 
 /** Shared by both profile editors; submitted values retain their Grants.gov identity. */
 export function OrganizationTypesField({

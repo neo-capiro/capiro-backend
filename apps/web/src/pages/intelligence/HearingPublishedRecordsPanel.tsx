@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../lib/use-api.js';
 import { useApiScope } from '../../lib/use-api-scope.js';
 import { useIntelFeatureEnabled } from '../../lib/intel-feature-flags.js';
-import './hearing-published-records.css';
+import '../../vnext/pages/legiwatch/hearings/hearing-published-records.css';
 import { HearingSmsSetup } from './HearingPublicationsPanel.js';
 import { HearingRecordCorrectionReview } from './HearingRecordCorrectionReview.js';
 type Ref = { id: string; hash: string; locator: string };

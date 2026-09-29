@@ -21,7 +21,7 @@
   --m-gray-50: #f9fafb;
   --m-white: #ffffff;
 
-  --m-page-backdrop: #e7ecf1;
+  --m-page-backdrop: #E7ECF1;
   --m-surface: #ffffff;
   --m-canvas-standard: #ffffff;
   --m-canvas-busy: #f9fafb;
@@ -35,7 +35,7 @@
   --m-text-meta: #667085;
   --m-text-faint: #98a2b3;
   --m-accent-tint: #f2f4f7;
-  --m-focus-ring: #4e5ba6;
+  --m-focus-ring: #4E5BA6;
 
   --m-gradient-primary: linear-gradient(180deg, #39424f 0%, #1b2430 46%, #0e141c 100%);
   --m-gradient-primary-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.14);
@@ -161,7 +161,7 @@
   align-items: stretch;
   justify-content: center;
   padding: 22px;
-  background: #e7ecf1;
+  background: #E7ECF1;
   font-family: var(--m-font-sans);
   color: #101828;
 }
@@ -222,7 +222,7 @@
    whose wrapper owns the focus treatment (composer textarea, rail search)
    are excluded below so the ring does not double. */
 .capiro-vnext-root .vnext-meri :focus-visible {
-  outline: 2px solid #4e5ba6;
+   outline: 2px solid #4E5BA6;
   outline-offset: 2px;
   border-radius: 8px;
   box-shadow: none;
@@ -6521,13 +6521,7 @@
    typography and focus treatment so the global vNext root cannot leak in. */
 .capiro-vnext-root
   :is(.vnext-meri__palette-scrim, .vnext-meri__confirm-scrim, .vnext-meri__sheet-overlay) {
-  font-family:
-    Inter,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    Arial,
-    sans-serif;
+   font-family: Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
   color: #101828;
 }
 .capiro-vnext-root

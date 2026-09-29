@@ -581,14 +581,8 @@ export function VNextMeriContextRail({
                 <MeriIcon name="ChevronUp" size={14} color="#98A2B3" />
               </div>
               <div className="vnext-meri__rail-section-content">
-                {packetLoading ? (
-                  <MeriPanelState tone="loading">Loading compiled context…</MeriPanelState>
-                ) : null}
-                {packetError ? (
-                  <MeriPanelState tone="error">
-                    Context provenance could not be loaded.
-                  </MeriPanelState>
-                ) : null}
+                {packetLoading ? <MeriPanelState tone="loading">Loading compiled context…</MeriPanelState> : null}
+                {packetError ? <MeriPanelState tone="error">Context provenance could not be loaded.</MeriPanelState> : null}
                 {contextItems.length ? (
                   <div className="vnext-meri__ctx-list">
                     {contextItems.slice(0, showAllContext ? undefined : 5).map((item) => (
@@ -614,9 +608,7 @@ export function VNextMeriContextRail({
                       </button>
                     ))}
                   </div>
-                ) : !packetLoading && !packetError ? (
-                  <MeriPanelState tone="empty">{contextPacketSummary(packet)}</MeriPanelState>
-                ) : null}
+                ) : !packetLoading && !packetError ? <MeriPanelState tone="empty">{contextPacketSummary(packet)}</MeriPanelState> : null}
                 {contextItems.length > 5 ? (
                   <MeriContextListExpansion
                     label="context items"
