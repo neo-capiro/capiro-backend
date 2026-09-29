@@ -282,6 +282,9 @@ function main(): void {
   // Write COMPLETE unbuffered so redirected nested logs see it before Windows
   // process teardown can hang the parent (stdbuf alone is not enough for Node).
   writeSync(1, '\nENGAGEMENT_PHASE1_DB_FREE_COMPLETE\n');
+  // All checks have completed; exit explicitly so nested Windows callers do
+  // not remain alive on teardown handles after the completion marker.
+  process.exit(0);
 }
 
 try {
