@@ -16,11 +16,7 @@ import type { LlmClient } from '../../llm/llm-client';
  * Without it the recap is client-agnostic — the pre-2026-09 behaviour.
  */
 export type PostHearingClientRelevanceBand =
-  | 'HIGH'
-  | 'MEDIUM'
-  | 'LOW'
-  | 'NONE'
-  | 'INSUFFICIENT_EVIDENCE';
+  'HIGH' | 'MEDIUM' | 'LOW' | 'NONE' | 'INSUFFICIENT_EVIDENCE';
 
 export interface PostHearingClientContextInput {
   clientId: string;

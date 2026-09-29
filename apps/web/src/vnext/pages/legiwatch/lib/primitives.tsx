@@ -35,6 +35,7 @@ export function LwButton({
   onClick,
   disabled,
   title,
+  ariaLabel,
   className,
   type,
 }: {
@@ -44,6 +45,7 @@ export function LwButton({
   onClick?: () => void;
   disabled?: boolean;
   title?: string;
+  ariaLabel?: string;
   className?: string;
   type?: 'button' | 'submit';
 }) {
@@ -54,6 +56,7 @@ export function LwButton({
       onClick={onClick}
       disabled={disabled}
       title={title}
+      aria-label={ariaLabel}
     >
       {children}
     </button>

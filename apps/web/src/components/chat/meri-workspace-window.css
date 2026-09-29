@@ -35,7 +35,15 @@
   overflow: hidden;
   color: var(--v3-ink);
   background: var(--v3-bg);
-  font-family: 'Hanken Grotesk', Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    'Hanken Grotesk',
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -233,7 +241,9 @@
   color: var(--v3-text);
   text-align: left;
   cursor: pointer;
-  transition: background 0.13s ease, box-shadow 0.13s ease;
+  transition:
+    background 0.13s ease,
+    box-shadow 0.13s ease;
 }
 
 .meri-v3-thread-item:hover {
@@ -1088,12 +1098,16 @@
   border-radius: 0;
   background: #fff;
   box-shadow: 0 1px 2px rgba(19, 26, 36, 0.035);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .meri-v3-composer.is-focused {
   border-color: var(--v3-ink-2);
-  box-shadow: 0 0 0 3px rgba(38, 50, 67, 0.09), 0 1px 3px rgba(19, 26, 36, 0.05);
+  box-shadow:
+    0 0 0 3px rgba(38, 50, 67, 0.09),
+    0 1px 3px rgba(19, 26, 36, 0.05);
 }
 
 .meri-v3-composer textarea {
@@ -1241,7 +1255,10 @@
   font-size: 14px;
   cursor: default;
   transform: scale(0.96);
-  transition: background 0.16s ease, color 0.16s ease, transform 0.12s ease;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease,
+    transform 0.12s ease;
 }
 
 .meri-v3-send.is-ready,
@@ -1466,7 +1483,11 @@
   text-align: left;
   cursor: pointer;
   animation: meri-v3-in 0.18s ease-out;
-  transition: border-color 0.14s ease, background 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease,
+    box-shadow 0.14s ease,
+    transform 0.14s ease;
 }
 
 .meri-v3-prompt-grid > button:hover {

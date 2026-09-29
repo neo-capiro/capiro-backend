@@ -1,6 +1,11 @@
 import { clientAssociatedMeetingWhere } from './engagement-access.helpers.js';
 import {
+  guardSyntheticDocumentDeletionInTx,
+  type SyntheticDocumentDeletionGuard,
+} from './synthetic-document-deletion.helpers.js';
+import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   HttpException,
   HttpStatus,
@@ -163,6 +168,7 @@ import { outreachClientProfileEnabled } from '../common/tenant-flags.js';
 import { runAuditor, type LedgerEntry } from '@capiro/meriv2-core';
 import { resolveTenantAuditorMode } from '../common/auditor-mode.js';
 import { dateBoundsInZone } from '../intelligence/time-bounds.js';
+import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 
 export interface CreateIntegrationInput {
   provider: EngagementProvider;
@@ -512,8 +518,7 @@ export function assertGatewayContextContract(items: OutreachSelectedContextItemI
  * formatPeTruth already own that).
  */
 export type OutreachContextTruth =
-  | { kind: 'bill'; raw: BillTruth }
-  | { kind: 'programElement'; raw: PeTruth };
+  { kind: 'bill'; raw: BillTruth } | { kind: 'programElement'; raw: PeTruth };
 
 export interface GenerateBatchEmailInput {
   campaignId?: string;
@@ -1414,6 +1419,35 @@ export class EngagementService {
     });
   }
 
+  /** Resolve one meeting through the same current client association used by listMeetings. */
+  async getClientMeeting(ctx: TenantContext, clientId: string, id: string) {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const client = await tx.client.findFirst({
+        where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
+        select: { id: true },
+      });
+      if (!client) throw new NotFoundException('Client not found');
+      const clientAssociationWhere = await this.clientMeetingAssociationWhere(
+        tx,
+        ctx.tenantId,
+        clientId,
+      );
+      const meeting = await tx.meeting.findFirst({
+        where: {
+          AND: [
+            { id, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
+            clientAssociationWhere,
+          ],
+        },
+        include: meetingInclude(),
+      });
+      if (!meeting) throw new NotFoundException('Meeting not found');
+      if (!(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId)))
+        throw new NotFoundException('Client not found');
+      return meeting;
+    });
+  }
+
   async createMeeting(ctx: TenantContext, input: CreateMeetingInput) {
     const startsAt = parseDate(input.startsAt, 'startsAt');
     const endsAt = parseDate(input.endsAt, 'endsAt');
@@ -1492,7 +1526,8 @@ export class EngagementService {
   async updateMeeting(ctx: TenantContext, id: string, input: UpdateMeetingInput) {
     const attachmentIds: string[] = [];
     const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      if ('clientId' in input || input.expectedRevision) await this.lockMeetingClientAssignment(tx, ctx, id);
+      if ('clientId' in input || input.expectedRevision)
+        await this.lockMeetingClientAssignment(tx, ctx, id);
       const existing = await tx.meeting.findFirst({
         where: { id, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
       });
@@ -2460,10 +2495,15 @@ export class EngagementService {
    * drawer's message history). Same ownership + active-message filtering as
    * the list.
    */
-  async getMailThread(ctx: TenantContext, threadId: string) {
+  async getMailThread(ctx: TenantContext, threadId: string, clientId?: string) {
     const thread = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.mailThread.findFirst({
-        where: { id: threadId, tenantId: ctx.tenantId, ...ownMailThreadWhere(ctx.userId) },
+        where: {
+          id: threadId,
+          tenantId: ctx.tenantId,
+          ...(clientId ? { clientId } : {}),
+          ...ownMailThreadWhere(ctx.userId),
+        },
         include: {
           client: clientSummarySelect(),
           // The caller's own connected mailbox address for this thread — the
@@ -2471,7 +2511,7 @@ export class EngagementService {
           // reply to (see EngagementService.getMailThread callers), since a
           // thread's own participants/messages carry no notion of "which one
           // of these is me".
-          connection: { select: { accountEmail: true } },
+          connection: { select: { accountEmail: true, status: true } },
           messages: {
             where: activeMailMessageWhere(),
             orderBy: [{ sentAt: 'asc' }, { receivedAt: 'asc' }, { createdAt: 'asc' }],
@@ -2481,7 +2521,11 @@ export class EngagementService {
     );
     if (!thread) throw new NotFoundException('Mail thread not found');
     const { connection, ...rest } = thread;
-    return { ...rest, connectionEmail: connection?.accountEmail ?? null };
+    return {
+      ...rest,
+      connectionEmail: connection?.accountEmail ?? null,
+      connectionStatus: connection?.status ?? null,
+    };
   }
 
   /** Shared, bounded mailbox retrieval for assistant list/search tools. */
@@ -3348,21 +3392,19 @@ export class EngagementService {
 
     return [
       ...(SYSTEM_AI_TEMPLATES as unknown as AiTemplateItem[]),
-      ...userTemplates.map(
-        (t): UserAiTemplate => ({
-          id: t.id,
-          source: 'user' as const,
-          name: t.name,
-          category: t.category,
-          prompt: t.prompt,
-          description: t.description,
-          samplePreview: t.samplePreview,
-          tone: t.tone,
-          usageCount: t.usageCount,
-          createdAt: t.createdAt,
-          updatedAt: t.updatedAt,
-        }),
-      ),
+      ...userTemplates.map((t): UserAiTemplate => ({
+        id: t.id,
+        source: 'user' as const,
+        name: t.name,
+        category: t.category,
+        prompt: t.prompt,
+        description: t.description,
+        samplePreview: t.samplePreview,
+        tone: t.tone,
+        usageCount: t.usageCount,
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+      })),
     ];
   }
 
@@ -4877,6 +4919,170 @@ export class EngagementService {
     );
   }
 
+  /** Canonical client-scoped Meri task owner with exact counts and current wall checks. */
+  async readMeriTasksExact(
+    ctx: TenantContext,
+    query: {
+      clientId: string;
+      taskId: string | null;
+      status: EngagementTaskStatus | null;
+      openOnly: boolean;
+      dueBefore: Date | null;
+      offset: number;
+      limit: number;
+    },
+  ) {
+    const where: Prisma.EngagementTaskWhereInput = {
+      tenantId: ctx.tenantId,
+      clientId: query.clientId,
+      ...(query.taskId ? { id: query.taskId } : {}),
+      ...(query.status
+        ? { status: query.status }
+        : query.openOnly
+          ? {
+              status: {
+                in: [
+                  EngagementTaskStatus.todo,
+                  EngagementTaskStatus.in_progress,
+                  EngagementTaskStatus.blocked,
+                ],
+              },
+            }
+          : {}),
+      ...(query.dueBefore ? { dueDate: { lte: query.dueBefore } } : {}),
+    };
+    const include = {
+      client: { select: { id: true, name: true } },
+    } satisfies Prisma.EngagementTaskInclude;
+    const meetingSelect = {
+      id: true,
+      clientId: true,
+      subject: true,
+      isInternal: true,
+      visibility: true,
+      status: true,
+      updatedAt: true,
+    } satisfies Prisma.MeetingSelect;
+
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const authorize = async () => {
+        const client = await tx.client.findFirst({
+          where: { id: query.clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
+          select: { id: true },
+        });
+        if (!client || !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, query.clientId)))
+          throw new NotFoundException('Client not found');
+      };
+      await authorize();
+      const [candidates, initialTotal] = await Promise.all([
+        tx.engagementTask.findMany({
+          where,
+          include,
+          orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }, { id: 'asc' }],
+          skip: query.offset,
+          take: query.limit,
+        }),
+        tx.engagementTask.count({ where }),
+      ]);
+      const rows = [] as Array<
+        (typeof candidates)[number] & {
+          meeting: { id: string; subject: string } | null;
+          linkedSourceProofs: Array<{
+            owner: 'meetings';
+            sourceRecordId: string;
+            currentClientId: string;
+            sourceVersion: string;
+            contentSha256: string;
+          }>;
+        }
+      >;
+      let sourceChanged = false;
+      for (const candidate of candidates) {
+        const current = await tx.engagementTask.findFirst({
+          where: { ...where, id: candidate.id },
+          include,
+        });
+        await authorize();
+        if (!current) {
+          sourceChanged = true;
+          continue;
+        }
+        if (
+          current.updatedAt.getTime() !== candidate.updatedAt.getTime() ||
+          createHash('sha256').update(JSON.stringify(current)).digest('hex') !==
+            createHash('sha256').update(JSON.stringify(candidate)).digest('hex')
+        )
+          sourceChanged = true;
+
+        let meeting: { id: string; subject: string } | null = null;
+        const linkedSourceProofs = [] as Array<{
+          owner: 'meetings';
+          sourceRecordId: string;
+          currentClientId: string;
+          sourceVersion: string;
+          contentSha256: string;
+        }>;
+        if (current.meetingId) {
+          const meetingWhere: Prisma.MeetingWhereInput = {
+            id: current.meetingId,
+            tenantId: ctx.tenantId,
+            clientId: query.clientId,
+            isInternal: false,
+            ...ownMeetingWhere(ctx.userId),
+          };
+          const linkedCandidate = await tx.meeting.findFirst({
+            where: meetingWhere,
+            select: meetingSelect,
+          });
+          await authorize();
+          const linkedCurrent = await tx.meeting.findFirst({
+            where: meetingWhere,
+            select: meetingSelect,
+          });
+          await authorize();
+          if (!linkedCandidate || !linkedCurrent) {
+            sourceChanged = true;
+          } else {
+            const candidateHash = createHash('sha256')
+              .update(JSON.stringify(linkedCandidate))
+              .digest('hex');
+            const currentHash = createHash('sha256')
+              .update(JSON.stringify(linkedCurrent))
+              .digest('hex');
+            if (candidateHash !== currentHash) sourceChanged = true;
+            meeting = { id: linkedCurrent.id, subject: linkedCurrent.subject };
+            linkedSourceProofs.push({
+              owner: 'meetings',
+              sourceRecordId: linkedCurrent.id,
+              currentClientId: linkedCurrent.clientId!,
+              sourceVersion: linkedCurrent.updatedAt.toISOString(),
+              contentSha256: currentHash,
+            });
+          }
+        }
+        rows.push({
+          ...current,
+          meetingId: meeting ? current.meetingId : null,
+          sourceId:
+            current.sourceType === 'meeting' && current.sourceId === current.meetingId && !meeting
+              ? null
+              : current.sourceId,
+          meeting,
+          linkedSourceProofs,
+        });
+      }
+      const total = await tx.engagementTask.count({ where });
+      if (total !== initialTotal) sourceChanged = true;
+      await authorize();
+      return {
+        rows,
+        total,
+        sourceStatus: sourceChanged ? ('degraded' as const) : ('healthy' as const),
+        sourceReason: sourceChanged ? 'task_source_changed_during_read' : null,
+      };
+    });
+  }
+
   async reportOverview(ctx: TenantContext, query: EngagementReportQuery) {
     const period = normalizeReportPeriod(query.period);
     const cycle = reportPeriodWindow(period);
@@ -5389,14 +5595,26 @@ export class EngagementService {
     ctx: TenantContext,
     meetingId: string,
     noteId: string,
-    input: { body: string; confidential?: boolean; accessLevel?: string; expectedRevision?: string },
+    input: {
+      body: string;
+      confidential?: boolean;
+      accessLevel?: string;
+      expectedRevision?: string;
+    },
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.ensureOwnMeeting(tx, ctx, meetingId);
       const note = await tx.meetingNote.findFirst({
         where: { id: noteId, tenantId: ctx.tenantId, meetingId },
-        select: { id: true, authorUserId: true, updatedAt: true, status: true, confidential: true, accessLevel: true },
+        select: {
+          id: true,
+          authorUserId: true,
+          updatedAt: true,
+          status: true,
+          confidential: true,
+          accessLevel: true,
+        },
       });
       if (!note) throw new NotFoundException('Meeting note not found');
       if (!canEditEncryptedEntry(ctx, note)) {
@@ -5469,25 +5687,43 @@ export class EngagementService {
     ctx: TenantContext,
     meetingId: string,
     debriefId: string,
-    input: { body: string; confidential?: boolean; accessLevel?: string; expectedRevision?: string },
+    input: {
+      body: string;
+      confidential?: boolean;
+      accessLevel?: string;
+      expectedRevision?: string;
+    },
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.ensureOwnMeeting(tx, ctx, meetingId);
       const debrief = await tx.meetingDebrief.findFirst({
         where: { id: debriefId, tenantId: ctx.tenantId, meetingId },
-        select: { id: true, authorUserId: true, updatedAt: true, status: true, confidential: true, accessLevel: true },
+        select: {
+          id: true,
+          authorUserId: true,
+          updatedAt: true,
+          status: true,
+          confidential: true,
+          accessLevel: true,
+        },
       });
       if (!debrief) throw new NotFoundException('Meeting debrief not found');
       if (!canEditEncryptedEntry(ctx, debrief)) {
         throw new ForbiddenException('You can only edit your own meeting debriefs');
       }
-      assertExpectedRevision(input.expectedRevision, debrief.updatedAt, 'meeting_debrief', debriefId, {
-        id: debrief.id,
-        status: debrief.status,
-        confidential: debrief.confidential,
-        accessLevel: debrief.accessLevel,
-      });
+      assertExpectedRevision(
+        input.expectedRevision,
+        debrief.updatedAt,
+        'meeting_debrief',
+        debriefId,
+        {
+          id: debrief.id,
+          status: debrief.status,
+          confidential: debrief.confidential,
+          accessLevel: debrief.accessLevel,
+        },
+      );
 
       return tx.meetingDebrief.update({
         where: { id: debriefId },
@@ -5874,6 +6110,188 @@ export class EngagementService {
         updatedAt: debrief.updatedAt,
         restricted: !canReadBody,
       };
+    });
+  }
+
+  /**
+   * Canonical bounded owner read for Meri research. Unlike the Outreach list
+   * above, this excludes lifecycle-ineligible and body-restricted rows entirely,
+   * keyset-paginates the authorized source, and re-reads every row immediately
+   * before decrypting it. The existing Outreach behavior remains unchanged.
+   */
+  async readClientDebriefsExact(
+    ctx: TenantContext,
+    query: {
+      clientId: string;
+      debriefId: string | null;
+      from: Date | null;
+      to: Date | null;
+      limit: number;
+      listAfter: { createdAt: Date; id: string } | null;
+    },
+  ) {
+    const MAX_SCANNED_ROWS = 250;
+    const CHUNK_SIZE = 50;
+    const startsAt = {
+      ...(query.from ? { gte: query.from } : {}),
+      ...(query.to ? { lte: query.to } : {}),
+    };
+    const baseWhere: Prisma.MeetingDebriefWhereInput = {
+      tenantId: ctx.tenantId,
+      status: MeetingDebriefStatus.approved,
+      ...(query.debriefId ? { id: query.debriefId } : {}),
+      meeting: {
+        clientId: query.clientId,
+        client: { status: { not: 'archived' } },
+        status: { notIn: ['pending', 'deleted', 'archived'] },
+        ...(Object.keys(startsAt).length ? { startsAt } : {}),
+      },
+    };
+    // Policy basis: preserve listClientDebriefs' tenant-level internal semantics.
+    // The encrypted-entry ACL controls body access; the customer shared-meeting
+    // feed does not establish an owner/share-only rule for this research read.
+    const include = {
+      author: { select: { id: true, email: true, firstName: true, lastName: true } },
+      meeting: { select: { id: true, clientId: true, subject: true, startsAt: true } },
+    } satisfies Prisma.MeetingDebriefInclude;
+
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const currentClient = await tx.client.findFirst({
+        where: { id: query.clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
+        select: { id: true },
+      });
+      if (!currentClient) throw new NotFoundException('Client not found');
+      if (!(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, query.clientId)))
+        throw new NotFoundException('Client not found');
+
+      const authorized = [] as Array<{
+        id: string;
+        meetingId: string;
+        clientId: string;
+        body: string;
+        status: MeetingDebriefStatus;
+        authorUserId: string | null;
+        author: {
+          id: string;
+          email: string;
+          firstName: string | null;
+          lastName: string | null;
+        } | null;
+        createdAt: Date;
+        updatedAt: Date;
+        meeting: { id: string; clientId: string | null; subject: string; startsAt: Date };
+      }>;
+      let after = query.listAfter;
+      let lastScanned: { createdAt: Date; id: string } | null = null;
+      let sourceExhausted = false;
+      let sourceStatus: 'healthy' | 'degraded' = 'healthy';
+      let sourceReason: string | null = null;
+      let scanned = 0;
+
+      while (authorized.length <= query.limit && scanned < MAX_SCANNED_ROWS && !sourceExhausted) {
+        const take = Math.min(CHUNK_SIZE, MAX_SCANNED_ROWS - scanned);
+        const candidates = await tx.meetingDebrief.findMany({
+          where: {
+            ...baseWhere,
+            ...(after
+              ? {
+                  AND: [
+                    {
+                      OR: [
+                        { createdAt: { lt: after.createdAt } },
+                        { createdAt: after.createdAt, id: { lt: after.id } },
+                      ],
+                    },
+                  ],
+                }
+              : {}),
+          },
+          include,
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take,
+        });
+        sourceExhausted = candidates.length < take;
+        if (candidates.length === 0) break;
+
+        for (const candidate of candidates) {
+          scanned += 1;
+          lastScanned = { createdAt: candidate.createdAt, id: candidate.id };
+          after = lastScanned;
+
+          // Re-evaluate current parent/client/lifecycle and body ACL immediately
+          // before decrypting. A stale row from the scan is never returned.
+          const current = await tx.meetingDebrief.findFirst({
+            where: { ...baseWhere, id: candidate.id },
+            include,
+          });
+          if (!current) continue;
+          // Recheck the canonical ethical wall after the row await and before
+          // either body decryption or current-row metadata enters the result.
+          if (!(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, query.clientId)))
+            throw new NotFoundException('Client not found');
+          if (!canReadEncryptedEntry(ctx, current)) continue;
+          if (authorized.length >= query.limit) {
+            authorized.push({
+              id: current.id,
+              meetingId: current.meetingId,
+              clientId: current.meeting.clientId!,
+              body: '',
+              status: current.status,
+              authorUserId: current.authorUserId,
+              author: current.author,
+              createdAt: current.createdAt,
+              updatedAt: current.updatedAt,
+              meeting: current.meeting,
+            });
+            break;
+          }
+          try {
+            authorized.push({
+              id: current.id,
+              meetingId: current.meetingId,
+              clientId: current.meeting.clientId!,
+              body: this.notesCrypto.decrypt({
+                bodyCiphertext: current.bodyCiphertext,
+                iv: current.iv,
+                authTag: current.authTag,
+              }),
+              status: current.status,
+              authorUserId: current.authorUserId,
+              author: current.author,
+              createdAt: current.createdAt,
+              updatedAt: current.updatedAt,
+              meeting: current.meeting,
+            });
+          } catch {
+            sourceStatus = 'degraded';
+            sourceReason = 'authorized_debrief_body_unavailable';
+          }
+        }
+      }
+
+      const hasAuthorizedContinuation = authorized.length > query.limit;
+      const rows = authorized.slice(0, query.limit);
+      let nextAfter: { createdAt: Date; id: string } | null = null;
+      if (hasAuthorizedContinuation && rows.length) {
+        const last = rows[rows.length - 1]!;
+        nextAfter = { createdAt: last.createdAt, id: last.id };
+      } else if (!sourceExhausted && scanned >= MAX_SCANNED_ROWS && lastScanned) {
+        sourceStatus = 'degraded';
+        sourceReason = 'authorized_debrief_scan_bound_reached';
+        // Do not expose a keyset derived from a row whose body ACL failed. The
+        // page is explicitly partial/degraded instead of leaking hidden identity
+        // or timestamp metadata through a decodable continuation token.
+        nextAfter = null;
+      }
+
+      const finalClient = await tx.client.findFirst({
+        where: { id: query.clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
+        select: { id: true },
+      });
+      if (!finalClient) throw new NotFoundException('Client not found');
+      if (!(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, query.clientId)))
+        throw new NotFoundException('Client not found');
+      return { rows, sourceStatus, sourceReason, nextAfter };
     });
   }
 
@@ -6422,7 +6840,14 @@ export class EngagementService {
     const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const prep = await tx.meetingPrep.findFirst({
         where: { id: prepId, tenantId: ctx.tenantId },
-        select: { id: true, meetingId: true, generatedFrom: true, updatedAt: true, status: true, clientId: true },
+        select: {
+          id: true,
+          meetingId: true,
+          generatedFrom: true,
+          updatedAt: true,
+          status: true,
+          clientId: true,
+        },
       });
       if (!prep) throw new NotFoundException('Meeting prep not found');
       await this.ensureOwnMeeting(tx, ctx, prep.meetingId);
@@ -7209,6 +7634,7 @@ export class EngagementService {
         fileName,
         contentType,
         contentHash,
+        byteSize: bytes.byteLength,
         source: 'text' as const,
         text: '',
       };
@@ -7660,7 +8086,25 @@ export class EngagementService {
    * gate rejects it) but visible to reconciliation, which can retry.
    */
   async deleteAttachment(ctx: TenantContext, id: string) {
-    const attachment = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    return this.deleteAttachmentGuarded(ctx, id);
+  }
+
+  /** Internal owned-fixture erasure; never bound by a controller or DTO. */
+  async deleteSyntheticFixtureAttachment(
+    ctx: TenantContext,
+    id: string,
+    guard: SyntheticDocumentDeletionGuard,
+  ) {
+    if (!guard) throw new ForbiddenException('Synthetic document deletion guard is required');
+    return this.deleteAttachmentGuarded(ctx, id, guard);
+  }
+
+  private async deleteAttachmentGuarded(
+    ctx: TenantContext,
+    id: string,
+    guard?: SyntheticDocumentDeletionGuard,
+  ) {
+    let attachment = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const row = await tx.engagementAttachment.findFirst({
         where: { id, tenantId: ctx.tenantId },
       });
@@ -7680,12 +8124,21 @@ export class EngagementService {
     //    recorded, even while the row lingers in delete_pending/delete_failed
     //    for S3 retry. Clearing is unconditional (a harmless no-op when the
     //    attachment was already private).
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.engagementAttachment.updateMany({
-        where: { id, tenantId: ctx.tenantId },
-        data: { lifecycleStatus: 'delete_pending', sharedAt: null, sharedByUserId: null },
-      }),
-    );
+    let fixtureIntent: string | undefined;
+    if (guard) {
+      const claimed = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+        guardSyntheticDocumentDeletionInTx(tx, ctx, id, guard, this.bucket, 'claim'),
+      );
+      if (!claimed.attachment) throw new ForbiddenException('Synthetic document claim is missing');
+      attachment = claimed.attachment;
+      fixtureIntent = claimed.intent;
+    } else
+      await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.engagementAttachment.updateMany({
+          where: { id, tenantId: ctx.tenantId },
+          data: { lifecycleStatus: 'delete_pending', sharedAt: null, sharedByUserId: null },
+        }),
+      );
 
     // 2. Delete the object OUTSIDE any transaction.
     if (this.bucket) {
@@ -7694,18 +8147,24 @@ export class EngagementService {
       } catch (e) {
         // 3b. Retain the row for reconciliation. Never expose the object.
         await this.prisma
-          .withTenant(ctx.tenantId, (tx) =>
-            tx.engagementAttachment.updateMany({
-              where: { id, tenantId: ctx.tenantId },
-              data: {
-                lifecycleStatus: 'delete_failed',
-                extractionMetadata: {
-                  deleteError: (e as Error).message.slice(0, 300),
-                  deleteFailedAt: new Date().toISOString(),
-                } as unknown as Prisma.InputJsonValue,
-              },
-            }),
-          )
+          .withTenant(ctx.tenantId, async (tx) => {
+            if (fixtureIntent)
+              await tx.$executeRaw`UPDATE engagement_attachments SET lifecycle_status='delete_failed',
+                extraction_metadata_jsonb=extraction_metadata_jsonb || ${JSON.stringify({ deleteError: (e as Error).message.slice(0, 300), deleteFailedAt: new Date().toISOString() })}::jsonb
+                WHERE tenant_id=${ctx.tenantId}::uuid AND id=${id}::uuid AND lifecycle_status='delete_pending'
+                  AND extraction_metadata_jsonb->>'syntheticFixtureDeleteIntent'=${fixtureIntent}`;
+            else
+              await tx.engagementAttachment.updateMany({
+                where: { id, tenantId: ctx.tenantId },
+                data: {
+                  lifecycleStatus: 'delete_failed',
+                  extractionMetadata: {
+                    deleteError: (e as Error).message.slice(0, 300),
+                    deleteFailedAt: new Date().toISOString(),
+                  } as unknown as Prisma.InputJsonValue,
+                },
+              });
+          })
           .catch((markErr) =>
             this.logger.error(
               `could not mark attachment ${id} delete_failed: ${(markErr as Error).message}`,
@@ -7726,14 +8185,79 @@ export class EngagementService {
     }
 
     // 3a. Object gone: drop the row and purge KB chunks.
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.engagementAttachment.delete({ where: { id } }),
-    );
+    if (guard) {
+      await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+        await guardSyntheticDocumentDeletionInTx(tx, ctx, id, guard, this.bucket, 'finish');
+        // A fixture reset must not acknowledge deletion while searchable chunks
+        // survive. Index writers use this same attachment lock and recheck its
+        // lifecycle, so purge and row deletion commit or roll back together.
+        await this.clientKb.purgeAttachmentChunks(tx, ctx.tenantId, id);
+        await tx.engagementAttachment.delete({ where: { id } });
+      });
+    } else
+      await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.engagementAttachment.delete({ where: { id } }),
+      );
     // Client KB (F5): deleting a document removes its chunks from retrieval.
-    if (attachment.clientId) {
+    if (attachment.clientId && !guard) {
       this.clientKb.purgeFireAndForget(ctx.tenantId, 'client_doc_chunk', id);
     }
     return { ok: true };
+  }
+
+  /** Internal reset readback: current object and index absence, never a write. */
+  async inspectSyntheticFixtureAttachmentDeletion(
+    ctx: TenantContext,
+    id: string,
+    guard: SyntheticDocumentDeletionGuard,
+  ) {
+    const inspect = () =>
+      this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+        const result = await guardSyntheticDocumentDeletionInTx(
+          tx,
+          ctx,
+          id,
+          guard,
+          this.bucket,
+          'inspect',
+        );
+        if (
+          result.state === 'absent' &&
+          (await this.clientKb.hasAttachmentChunks(tx, ctx.tenantId, id))
+        )
+          throw new ConflictException('Synthetic document index cleanup is incomplete');
+        return result;
+      });
+    const before = await inspect();
+    if (before.state !== 'absent')
+      return {
+        state: before.state,
+        rowVersion: before.rowVersion,
+        originalRowVersion: before.state === 'pending' ? guard.expectedRowVersion : null,
+      };
+    let absent = false;
+    try {
+      await this.s3.send(new HeadObjectCommand({ Bucket: this.bucket, Key: before.s3Key }));
+    } catch (error) {
+      const failure = error as { name?: string; $metadata?: { httpStatusCode?: number } };
+      if (
+        failure?.$metadata?.httpStatusCode === 404 &&
+        ['NotFound', 'NoSuchKey'].includes(failure.name ?? '')
+      )
+        absent = true;
+      else throw error;
+    }
+    if (!absent) throw new ConflictException('Synthetic document storage cleanup is incomplete');
+    const after = await inspect();
+    if (after.state !== 'absent')
+      throw new ConflictException('Synthetic document changed during cleanup readback');
+    return {
+      state: 'absent' as const,
+      rowVersion: null,
+      originalRowVersion: null,
+      currentObjectAbsent: true,
+      indexedChunksAbsent: true,
+    };
   }
 
   /**
@@ -7874,7 +8398,12 @@ export class EngagementService {
     if (!this.bucket) return { retried: 0, deleted: 0, stillFailing: 0 };
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.engagementAttachment.findMany({
-        where: { tenantId: ctx.tenantId, lifecycleStatus: 'delete_failed' },
+        where: {
+          tenantId: ctx.tenantId,
+          lifecycleStatus: 'delete_failed',
+          // Owned fixture intents must retry with their exact guards and actor.
+          OR: [{ sourceEntityType: null }, { sourceEntityType: { not: 'meri_synthetic_fixture' } }],
+        },
         orderBy: { createdAt: 'asc' },
         take: Math.min(Math.max(limit, 1), 200),
         select: { id: true, s3Key: true, clientId: true },

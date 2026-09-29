@@ -1,10 +1,14 @@
 #!/usr/bin/env node
+import { previewGateProblems } from './outreach-v3-preview-gate-contract.mjs';
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const root = process.cwd();
 const phase5Base = '835cdef35cd8ecb23faf1b100ecfc743bcd31128';
+// Retain the original phase-only scope; all source/functional checks use this checkout.
+const phase6ScopeEnd =
+  process.env.OUTREACH_V3_PHASE6_SCOPE_END ?? 'ab45f984f33f56da7ad2ab9dbbaae6cab831fbda';
 
 function run(label, command, args, options = {}) {
   process.stdout.write(`\n== ${label} ==\n${[command, ...args].join(' ')}\n`);
@@ -61,7 +65,7 @@ const required = [
 ];
 for (const file of required) assert(existsSync(resolve(root, file)), `missing:${file}`);
 
-const changed = output('git', ['diff', '--name-only', `${phase5Base}...HEAD`])
+const changed = output('git', ['diff', '--name-only', `${phase5Base}...${phase6ScopeEnd}`])
   .split(/\r?\n/)
   .filter(Boolean);
 assert(changed.length > 0, 'empty-phase6-diff');
@@ -77,9 +81,13 @@ const phase45CloseoutApiFiles = new Set([
   'apps/api/src/capabilities/targets/outreach-target.contract.ts',
 ]);
 for (const file of changed) {
-  const isTestOrFixture = file.includes('.spec.') || file.includes('.test.') || file.includes('__fixtures__/');
+  const isTestOrFixture =
+    file.includes('.spec.') || file.includes('.test.') || file.includes('__fixtures__/');
   const isPhase45Closeout = phase45CloseoutApiFiles.has(file);
-  assert(!file.startsWith('apps/api/src/') || isTestOrFixture || isPhase45Closeout, `phase6-api-change:${file}`);
+  assert(
+    !file.startsWith('apps/api/src/') || isTestOrFixture || isPhase45Closeout,
+    `phase6-api-change:${file}`,
+  );
   assert(!file.startsWith('packages/'), `phase6-package-change:${file}`);
   assert(!file.startsWith('infra/'), `phase6-infrastructure-change:${file}`);
   assert(!file.includes('/prisma/migrations/'), `phase6-migration:${file}`);
@@ -111,24 +119,45 @@ assert(!/\/send(?:-|\/|')/.test(apiClient), 'send-client');
 assert(!productionCombined.includes('X-Capiro-Engagement-Preview'), 'preview-header-leak');
 assert(!/localStorage\.setItem\([^)]*campaign/i.test(productionCombined), 'browser-campaign-store');
 assert(!/useState<OutreachV3CampaignSpec/.test(productionCombined), 'duplicate-campaign-spec');
-assert(
-  router.includes("previewMode === 'v3' && isEngagementPreviewActive() && !hasClassicDraft"),
-  'missing-dual-preview-gate',
-);
+assert(previewGateProblems(router).length === 0, 'missing-dual-preview-gate');
 assert(router.includes('<ClassicOutreachWizard {...props} />'), 'classic-fallback-missing');
 assert(router.includes('initialRecord || props.initialDraftId'), 'classic-draft-routing-missing');
 assert(proposalReview.includes('Why this proposal?'), 'proposal-rationale-control-missing');
 assert(proposalReview.includes('Edit manually'), 'proposal-edit-control-missing');
 assert(proposalReview.includes('will not auto-rebase'), 'stale-proposal-no-rebase-copy-missing');
-assert(proposalReview.includes('disabled={proposalBusy || stale}'), 'stale-proposal-apply-guard-missing');
-assert(targets.includes('Read-only recommendations are allowed to load automatically'), 'target-read-only-load-contract-missing');
-assert(targets.includes('Saving to the shared Directory remains'), 'manual-directory-default-off-copy-missing');
+assert(
+  proposalReview.includes('disabled={proposalBusy || stale}'),
+  'stale-proposal-apply-guard-missing',
+);
+// These contracts are behavioral: comments and explanatory copy can change
+// while the no-write and scope boundaries stay intact. Exercise actual loading,
+// explicit acceptance and the unavailable group-safe selection here.
+run('Build shared web contracts', 'pnpm', ['--filter', '@capiro/shared', 'build']);
+run('Read-only target loading and governed context selection', 'pnpm', [
+  '--filter',
+  '@capiro/web',
+  'exec',
+  'vitest',
+  'run',
+  '--poolOptions.threads.singleThread',
+  '--testTimeout=20000',
+  '--hookTimeout=20000',
+  'src/pages/engagement/outreach/v3/TargetWorkspace.spec.tsx',
+  'src/pages/engagement/outreach/v3/ContextReviewSurface.spec.tsx',
+  'src/pages/engagement/outreach/v3/context-selection.spec.ts',
+]);
+assert(
+  targets.includes('Saving to the shared Directory remains'),
+  'manual-directory-default-off-copy-missing',
+);
 assert(targets.includes('getOutreachV3TargetRelationships'), 'relationship-inspection-missing');
 assert(!targets.includes('void runSearch();'), 'target-stage-auto-commit');
 assert(context.includes('Style is not evidence'), 'writing-guidance-separation-missing');
 assert(context.includes('Applies to ${scopeTarget} only'), 'target-scope-copy-missing');
-assert(context.includes("entry.contextClass === 'required_policy'"), 'required-policy-lock-missing');
-assert(context.includes('Group-safe context requires a named audience group'), 'group-safe-fail-closed-missing');
+assert(
+  context.includes("entry.contextClass === 'required_policy'"),
+  'required-policy-lock-missing',
+);
 
 for (const node of [
   '634:2703',
@@ -162,6 +191,10 @@ run('vNext outreach-decision css drift', 'node', [
   'scripts/port-outreach-decision-vnext-css.mjs',
   '--check',
 ]);
+run('Preview gate negative controls', 'node', [
+  '--test',
+  'scripts/outreach-v3-preview-gate-contract.spec.mjs',
+]);
 run('Web typecheck', 'pnpm', ['--filter', '@capiro/web', 'typecheck']);
 run('Outreach V3 focused tests', 'pnpm', [
   '--filter',
@@ -175,8 +208,6 @@ run('Outreach V3 focused tests', 'pnpm', [
   'src/pages/engagement/outreach/v3/outreach-v3-preview.spec.ts',
   'src/pages/engagement/outreach/v3/OutreachWizardRouter.spec.tsx',
   'src/pages/engagement/outreach/v3/CurrentDecisionSurface.spec.tsx',
-  'src/pages/engagement/outreach/v3/TargetWorkspace.spec.tsx',
-  'src/pages/engagement/outreach/v3/ContextReviewSurface.spec.tsx',
   'src/pages/engagement/outreach/v3/commands.spec.ts',
   'src/pages/engagement/outreach/v3/outreach-v3-api.spec.ts',
   'src/pages/engagement/outreach/v3/useOutreachV3Session.spec.ts',
@@ -185,10 +216,16 @@ run('Outreach V3 focused tests', 'pnpm', [
 ]);
 run('Web production build', 'pnpm', ['--filter', '@capiro/web', 'build']);
 run('Diff whitespace', 'git', [
-  'diff', '--check', `${phase5Base}...HEAD`, '--', '.',
+  'diff',
+  '--check',
+  `${phase5Base}...${phase6ScopeEnd}`,
+  '--',
+  '.',
   ':(exclude)docs/plans/**/*.md',
   ':(exclude).github/**/*.yml',
   ':(exclude).github/**/*.yaml',
 ]);
+
+run('Current PR whitespace', 'git', ['diff', '--check', 'origin/main...HEAD']);
 
 process.stdout.write('\nOUTREACH_V3_PHASE6_COMPLETE\n');

@@ -1,5 +1,9 @@
 import type { AssuranceSurface } from '../assurance/risk-gate';
-import { resolveCapabilityRollout, type CapabilityRolloutEnvironment, type CapabilityRolloutMode } from './capability-rollout';
+import {
+  resolveCapabilityRollout,
+  type CapabilityRolloutEnvironment,
+  type CapabilityRolloutMode,
+} from './capability-rollout';
 
 export const CLAIM_ASSESSMENT_CAPABILITY = 'CLAIM_ASSESSMENT' as const;
 
@@ -9,5 +13,10 @@ export function resolveClaimAssessmentMode(
   tenantId: string | null | undefined,
   surface: AssuranceSurface,
 ): CapabilityRolloutMode {
-  return resolveCapabilityRollout({ capability: CLAIM_ASSESSMENT_CAPABILITY, env, tenantId, surface }).mode;
+  return resolveCapabilityRollout({
+    capability: CLAIM_ASSESSMENT_CAPABILITY,
+    env,
+    tenantId,
+    surface,
+  }).mode;
 }

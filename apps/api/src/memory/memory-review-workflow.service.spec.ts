@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -114,8 +114,26 @@ function serviceHarness(tx: Record<string, unknown>, evaluate?: jest.Mock) {
 }
 
 describe('MemoryReviewWorkflowService', () => {
+  it('does not create review or audit records from a stale missing candidate descriptor', async () => {
+    const create = jest.fn(async () => workflowRow({ assignedTo: null }));
+    const auditCreate = jest.fn(async () => ({}));
+    const tx = {
+      $queryRaw: mockQueryRaw(),
+      reviewRequest: { create, update: jest.fn() },
+      auditLog: { create: auditCreate },
+    } as unknown as Prisma.TransactionClient;
+    const h = serviceHarness(tx as unknown as Record<string, unknown>);
+
+    await expect(
+      h.service.ensureAndDescribeInTx(tx, reviewerCtx, candidate, subject),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(create).not.toHaveBeenCalled();
+    expect(auditCreate).not.toHaveBeenCalled();
+  });
+
   it('creates one body-free workflow and deterministically assigns an eligible approver', async () => {
     const queryRaw = mockQueryRaw()
+      .mockResolvedValueOnce([{ id: CANDIDATE }])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
         activeMember(REVIEWER, 'user_admin', 'z@example.com', 'Riley', 'Reviewer'),
@@ -159,6 +177,7 @@ describe('MemoryReviewWorkflowService', () => {
   it('reassigns a pending workflow when the old reviewer is no longer eligible', async () => {
     const existing = workflowRow({ assignedTo: OTHER_REVIEWER });
     const queryRaw = mockQueryRaw()
+      .mockResolvedValueOnce([{ id: CANDIDATE }])
       .mockResolvedValueOnce([existing])
       .mockResolvedValueOnce([
         activeMember(REVIEWER, 'user_admin', 'reviewer@example.com', 'Riley', 'Reviewer'),

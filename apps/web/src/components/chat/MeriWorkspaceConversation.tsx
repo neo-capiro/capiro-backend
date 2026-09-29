@@ -25,7 +25,7 @@ import { config } from '../../env.js';
 import { useApi } from '../../lib/use-api.js';
 import type { MeriChatController } from './useMeriChatController.js';
 
-const ATTACH_ACCEPT = '.pdf,.docx,.txt,.md,.csv,image/png,image/jpeg,image/gif,image/webp';
+const ATTACH_ACCEPT = '.pdf,.docx,.xlsx,.txt,.md,.csv,image/png,image/jpeg,image/gif,image/webp';
 
 const PROMPT_LIBRARY = [
   { text: 'What changed across my clients this week?', tag: 'PORTFOLIO · ALL CLIENTS' },

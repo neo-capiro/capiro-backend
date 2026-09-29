@@ -49,35 +49,59 @@ export function evaluateFreshness(input: {
 }): FreshnessEvaluation {
   const asOf = timestamp(input.asOf);
   if (asOf == null) return unknown('The comparison date is invalid.');
-  const policy = FRESHNESS_POLICY[input.category as ClaimCategory]
-    ?? policyForRequirement(input.requirementFreshness);
+  const policy =
+    FRESHNESS_POLICY[input.category as ClaimCategory] ??
+    policyForRequirement(input.requirementFreshness);
 
   if (policy === 'durable') {
     const dated = datedBasis(input.evidence, asOf);
-    return { state: 'fresh', ageDays: dated.ageDays, basis: dated.basis,
-      reason: 'This category records a durable historical event; age does not invalidate it.' };
+    return {
+      state: 'fresh',
+      ageDays: dated.ageDays,
+      basis: dated.basis,
+      reason: 'This category records a durable historical event; age does not invalidate it.',
+    };
   }
 
   if (policy === 'deadline') {
     const deadline = input.evidence.effectiveAt ?? input.evidence.publishedAt;
     if (!deadline) return unknown('No deadline/effective date is available.');
-    const status = deadlineStatus(input.asOf, normalizeDeadline({
-      value: deadline, kind: 'datetime', source: 'assured_evidence',
-    }));
+    const status = deadlineStatus(
+      input.asOf,
+      normalizeDeadline({
+        value: deadline,
+        kind: 'datetime',
+        source: 'assured_evidence',
+      }),
+    );
     const ageDays = age(deadline, asOf);
-    if (status === 'closed') return { state: 'stale', ageDays, basis: input.evidence.effectiveAt ? 'effectiveAt' : 'publishedAt',
-      reason: 'The opportunity or commitment deadline has passed.' };
-    if (status === 'open') return { state: 'fresh', ageDays, basis: input.evidence.effectiveAt ? 'effectiveAt' : 'publishedAt',
-      reason: 'The deadline has not passed.' };
+    if (status === 'closed')
+      return {
+        state: 'stale',
+        ageDays,
+        basis: input.evidence.effectiveAt ? 'effectiveAt' : 'publishedAt',
+        reason: 'The opportunity or commitment deadline has passed.',
+      };
+    if (status === 'open')
+      return {
+        state: 'fresh',
+        ageDays,
+        basis: input.evidence.effectiveAt ? 'effectiveAt' : 'publishedAt',
+        reason: 'The deadline has not passed.',
+      };
     return unknown('The deadline could not be compared.');
   }
 
   if (policy === 'cycle') {
     const dated = datedBasis(input.evidence, asOf);
-    return { state: dated.basis === 'none' ? 'unknown' : 'fresh', ...dated,
-      reason: dated.basis === 'none'
-        ? 'No cycle date is available; later-stage detection requires exact comparison.'
-        : 'Age is recorded, but a later funding stage determines cycle staleness.' };
+    return {
+      state: dated.basis === 'none' ? 'unknown' : 'fresh',
+      ...dated,
+      reason:
+        dated.basis === 'none'
+          ? 'No cycle date is available; later-stage detection requires exact comparison.'
+          : 'Age is recorded, but a later funding stage determines cycle staleness.',
+    };
   }
 
   const statementDate = input.evidence.effectiveAt ?? input.evidence.publishedAt;
@@ -86,16 +110,36 @@ export function evaluateFreshness(input: {
     if (ageDays == null) return unknown('The statement date is invalid.');
     const basis = input.evidence.effectiveAt ? 'effectiveAt' : 'publishedAt';
     return ageDays > STATUS_STATEMENT_MAX_AGE_DAYS
-      ? { state: 'stale', ageDays, basis, reason: `The status statement is older than ${STATUS_STATEMENT_MAX_AGE_DAYS} days; a recent retrieval alone cannot refresh it.` }
-      : { state: 'fresh', ageDays, basis, reason: 'The dated statement is within the provisional status window.' };
+      ? {
+          state: 'stale',
+          ageDays,
+          basis,
+          reason: `The status statement is older than ${STATUS_STATEMENT_MAX_AGE_DAYS} days; a recent retrieval alone cannot refresh it.`,
+        }
+      : {
+          state: 'fresh',
+          ageDays,
+          basis,
+          reason: 'The dated statement is within the provisional status window.',
+        };
   }
 
   if (input.evidence.retrievedAt) {
     const ageDays = age(input.evidence.retrievedAt, asOf);
     if (ageDays == null) return unknown('The retrieval date is invalid.');
     return ageDays <= CURRENT_RETRIEVAL_MAX_AGE_DAYS
-      ? { state: 'unknown', ageDays, basis: 'retrievedAt', reason: 'The retrieval is recent, but no dated statement proves current status.' }
-      : { state: 'stale', ageDays, basis: 'retrievedAt', reason: `The only available observation is older than ${CURRENT_RETRIEVAL_MAX_AGE_DAYS} days.` };
+      ? {
+          state: 'unknown',
+          ageDays,
+          basis: 'retrievedAt',
+          reason: 'The retrieval is recent, but no dated statement proves current status.',
+        }
+      : {
+          state: 'stale',
+          ageDays,
+          basis: 'retrievedAt',
+          reason: `The only available observation is older than ${CURRENT_RETRIEVAL_MAX_AGE_DAYS} days.`,
+        };
   }
   return unknown('No publication, effective, or retrieval date is available.');
 }
@@ -105,14 +149,21 @@ function policyForRequirement(value?: EvidenceRequirement['freshness']): PolicyK
   if (value === 'current_cycle') return 'cycle';
   return value === 'same_turn' || value === 'current_session' ? 'status' : 'dated';
 }
-function datedBasis(evidence: Pick<AssuredEvidence, 'publishedAt' | 'effectiveAt' | 'retrievedAt'>, asOf: number) {
+function datedBasis(
+  evidence: Pick<AssuredEvidence, 'publishedAt' | 'effectiveAt' | 'retrievedAt'>,
+  asOf: number,
+) {
   const entries: Array<[FreshnessBasis, string | undefined]> = [
-    ['effectiveAt', evidence.effectiveAt], ['publishedAt', evidence.publishedAt], ['retrievedAt', evidence.retrievedAt],
+    ['effectiveAt', evidence.effectiveAt],
+    ['publishedAt', evidence.publishedAt],
+    ['retrievedAt', evidence.retrievedAt],
   ];
   for (const [basis, value] of entries) if (value) return { ageDays: age(value, asOf), basis };
   return { ageDays: null, basis: 'none' as const };
 }
-function unknown(reason: string): FreshnessEvaluation { return { state: 'unknown', ageDays: null, basis: 'none', reason }; }
+function unknown(reason: string): FreshnessEvaluation {
+  return { state: 'unknown', ageDays: null, basis: 'none', reason };
+}
 function age(value: string, asOf: number): number | null {
   const date = timestamp(value);
   return date == null ? null : Math.floor((asOf - date) / DAY_MS);

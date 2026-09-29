@@ -99,8 +99,10 @@ export function VNextMeriShell({
   const [threadSearch, setThreadSearch] = useState('');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const sourceSelection = useMeriSourceSelection({
-    tenantId: me.data?.tenant.id, userId: me.data?.user.id,
-    conversationId: controller.activeConversationId, messages: controller.messages,
+    tenantId: me.data?.tenant.id,
+    userId: me.data?.user.id,
+    conversationId: controller.activeConversationId,
+    messages: controller.messages,
   });
   const [contextSheet, setContextSheet] = useState<{
     open: boolean;
@@ -217,7 +219,9 @@ export function VNextMeriShell({
       skipInitialPreferenceSaveRef.current = false;
       return;
     }
-    void saveMeriVNextPreferences(api, { windowChrome, railCollapsed, openSection }).catch(() => undefined);
+    void saveMeriVNextPreferences(api, { windowChrome, railCollapsed, openSection }).catch(
+      () => undefined,
+    );
   }, [api, openSection, preferencesHydrated, railCollapsed, windowChrome]);
 
   const greetingName = shortGreetingName(me.data);
@@ -280,7 +284,13 @@ export function VNextMeriShell({
       {
         turnId: 'pending-approvals',
         thinking: { plan: '', steps: [], intent: null, tier: null },
-        evidence: { sources: [], verifyStats: [], claims: [], groundingCaveat: null, retrieval: null },
+        evidence: {
+          sources: [],
+          verifyStats: [],
+          claims: [],
+          groundingCaveat: null,
+          retrieval: null,
+        },
         approvals: controller.pendingApprovals,
       },
       'approvals',
@@ -322,11 +332,20 @@ export function VNextMeriShell({
     const next = meriTurnInspectorInitialTab(effectiveInspectorData.approvals);
     setTurnInspectorTab((current) => (current === next ? current : next));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveInspectorData.turnId, effectiveInspectorData.approvals, controller.activeConversationId]);
+  }, [
+    effectiveInspectorData.turnId,
+    effectiveInspectorData.approvals,
+    controller.activeConversationId,
+  ]);
 
-  const inspectedMessage = controller.messages.find((message) => message.id === effectiveInspectorData?.turnId);
+  const inspectedMessage = controller.messages.find(
+    (message) => message.id === effectiveInspectorData?.turnId,
+  );
   const inspectedRuntime = inspectedMessage?.runtimeStatus
-    ? mergeMeriRuntimeStatus(effectiveInspectorData?.thinking.runtimeStatus, inspectedMessage.runtimeStatus)
+    ? mergeMeriRuntimeStatus(
+        effectiveInspectorData?.thinking.runtimeStatus,
+        inspectedMessage.runtimeStatus,
+      )
     : effectiveInspectorData?.thinking.runtimeStatus;
   const activeTurnInspector: ActiveTurnInspector | null =
     effectiveInspectorData && railView === 'inspector'
@@ -343,15 +362,17 @@ export function VNextMeriShell({
           onApprove: (proposalId: string) => void controller.handleApprovePending(proposalId),
           onApproveAll: () => void controller.handleApproveAll(),
           onDismiss: (proposalId: string) => void controller.handleDismissPending(proposalId),
+          // Unavailable recovery rows take the controller's read-only status
+          // branch; this callback never dispatches another approval POST.
+          onRefreshApprovalStatus: (proposalId: string) =>
+            void controller.handleApprovePending(proposalId),
         }
       : null;
 
   // An installed Meri app is already its own OS window. Always present the
   // workspace edge-to-edge there, even if the browser-mode preference was
   // previously saved as docked; do not overwrite that browser preference.
-  const effectiveWindowChrome: MeriWindowChrome = install.isStandalone
-    ? 'maximized'
-    : windowChrome;
+  const effectiveWindowChrome: MeriWindowChrome = install.isStandalone ? 'maximized' : windowChrome;
 
   if (effectiveWindowChrome === 'docked') {
     return (
@@ -434,7 +455,13 @@ export function VNextMeriShell({
               onToggle={() => setRailCollapsed((collapsed) => !collapsed)}
               onExpandSection={expandSection}
               onOpenContext={(packet, loading, error, focusItemId) =>
-                setContextSheet({ open: true, packet, loading, error, focusItemId: focusItemId ?? null })
+                setContextSheet({
+                  open: true,
+                  packet,
+                  loading,
+                  error,
+                  focusItemId: focusItemId ?? null,
+                })
               }
               activeSourceDetail={sourceSelection.active}
               onCloseSourceDetail={sourceSelection.close}
@@ -464,9 +491,7 @@ export function VNextMeriShell({
         controller={controller}
         open={paletteOpen}
         onOpenChange={setPaletteOpen}
-        onOpenThread={(conversationId) =>
-          navigate(`/meri/t/${encodeURIComponent(conversationId)}`)
-        }
+        onOpenThread={(conversationId) => navigate(`/meri/t/${encodeURIComponent(conversationId)}`)}
         onSelectClient={(clientId) => void controller.changeSessionClient(clientId)}
       />
       {/*

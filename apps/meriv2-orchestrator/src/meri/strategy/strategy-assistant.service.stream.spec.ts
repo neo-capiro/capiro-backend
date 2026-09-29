@@ -1,5 +1,8 @@
 import type { MeriContext } from '@capiro/meriv2-core';
-import { StrategyAssistantService, type StrategyDraftProgressEvent } from './strategy-assistant.service.js';
+import {
+  StrategyAssistantService,
+  type StrategyDraftProgressEvent,
+} from './strategy-assistant.service.js';
 import type { MeriRegistryService } from '../meri-registry.service.js';
 import type { ConfigService } from '@nestjs/config';
 import type { PrismaService } from '../../prisma/prisma.service.js';
@@ -77,11 +80,16 @@ const VIOLATING_NODES = [
     startsOn: '2027-04-01',
     endsOn: '2027-01-05',
   },
-  { kind: 'action', subject: 'milestone', title: 'Host the strategy kickoff', startsOn: '2027-04-01' },
+  {
+    kind: 'action',
+    subject: 'milestone',
+    title: 'Host the strategy kickoff',
+    startsOn: '2027-04-01',
+  },
 ];
 
 describe('StrategyAssistantService.draft — streaming onProgress', () => {
-  it('emits onProgress deltas in order, tagged with the draft loop\'s own attempt/round counters', async () => {
+  it("emits onProgress deltas in order, tagged with the draft loop's own attempt/round counters", async () => {
     const { svc, completeWithTools } = build();
     // Attempt 1 (round 1): streams two deltas, then proposes a plan with a hard
     // verifier error -> triggers a repair (attempt 2).
@@ -139,7 +147,12 @@ describe('StrategyAssistantService.draft — streaming onProgress', () => {
           toolResp('propose_strategy_draft', {
             summary: 'Better pass.',
             nodes: [
-              { kind: 'action', subject: 'milestone', title: 'Host the strategy kickoff', startsOn: '2027-04-01' },
+              {
+                kind: 'action',
+                subject: 'milestone',
+                title: 'Host the strategy kickoff',
+                startsOn: '2027-04-01',
+              },
               {
                 kind: 'action',
                 subject: 'deliverable',
@@ -165,7 +178,12 @@ describe('StrategyAssistantService.draft — streaming onProgress', () => {
         toolResp('propose_strategy_draft', {
           summary: 'Better pass.',
           nodes: [
-            { kind: 'action', subject: 'milestone', title: 'Host the strategy kickoff', startsOn: '2027-04-01' },
+            {
+              kind: 'action',
+              subject: 'milestone',
+              title: 'Host the strategy kickoff',
+              startsOn: '2027-04-01',
+            },
             {
               kind: 'action',
               subject: 'deliverable',

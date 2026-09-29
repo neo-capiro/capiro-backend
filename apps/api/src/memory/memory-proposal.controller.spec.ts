@@ -37,11 +37,16 @@ describe('MemoryProposalController', () => {
       enabled: true,
       candidates: [],
     });
+    await expect(controller.listOwnProposals(ctx, undefined, '50')).resolves.toEqual({
+      enabled: true,
+      candidates: [],
+    });
     await expect(controller.withdraw(ctx, 'candidate-1')).resolves.toEqual({
       ok: true,
       status: 'withdrawn',
     });
     expect(listOwnProposals).toHaveBeenCalledWith(ctx);
+    expect(listOwnProposals).toHaveBeenCalledWith(ctx, { cursor: undefined, limit: '50' });
     expect(withdraw).toHaveBeenCalledWith(ctx, 'candidate-1');
   });
 });

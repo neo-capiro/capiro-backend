@@ -57,11 +57,22 @@ describe('composeReportNarrativePrompt — amendment conventions', () => {
   it('also triggers on the display label api-strategy sends ("Amendment ask")', () => {
     const { user } = composeReportNarrativePrompt(input('Amendment ask'));
     expect(user).toContain('# Amendment strategy conventions');
-    expect(user).toContain('Report: Program Acceleration Ask (Amendment ask) for Northstar Systems');
+    expect(user).toContain(
+      'Report: Program Acceleration Ask (Amendment ask) for Northstar Systems',
+    );
   });
 
   it('keeps every other type byte-identical to the pre-amendment composition', () => {
-    for (const type of ['Appropriations', 'Authorization', 'Regulatory / policy', 'Coalition / positioning', 'Contract / procurement', 'Grant / earmark', 'appropriations', 'Strategy']) {
+    for (const type of [
+      'Appropriations',
+      'Authorization',
+      'Regulatory / policy',
+      'Coalition / positioning',
+      'Contract / procurement',
+      'Grant / earmark',
+      'appropriations',
+      'Strategy',
+    ]) {
       const request = input(type);
       const { system, user } = composeReportNarrativePrompt(request);
       expect(system).toBe(REPORT_NARRATIVE_SYSTEM_BASE);
@@ -114,7 +125,16 @@ describe('isAmendmentStrategyType', () => {
   });
 
   it('does not match other types, prefixes of other words, or missing values', () => {
-    for (const type of ['appropriations', 'Authorization', 'amendments-adjacent', 'Amendmentx', 'Strategy', '', null, undefined]) {
+    for (const type of [
+      'appropriations',
+      'Authorization',
+      'amendments-adjacent',
+      'Amendmentx',
+      'Strategy',
+      '',
+      null,
+      undefined,
+    ]) {
       expect(isAmendmentStrategyType(type)).toBe(false);
     }
   });

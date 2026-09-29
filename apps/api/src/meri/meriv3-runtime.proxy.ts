@@ -57,7 +57,6 @@ import { MeriV3ProxyService } from './meriv3-proxy.service.js';
 import { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.js';
 import { withMeriTurnProgress } from './meri-turn-progress.js';
 
-
 export const RAW_MERI_SERVICE = Symbol('RAW_MERI_SERVICE');
 const PHASE19_PATCHED = Symbol('phase19-governed-context-patched');
 
@@ -260,9 +259,7 @@ function normalizeDoneFrame(
 ): Record<string, unknown> {
   if (event.type !== 'done') return event;
   const retrieval = event.retrieval as
-    | { coverage?: { phase?: unknown; toolReads?: unknown } }
-    | null
-    | undefined;
+    { coverage?: { phase?: unknown; toolReads?: unknown } } | null | undefined;
   // The authenticated orchestrator reconciles the signed initial packet with
   // later tool receipts. Retain that turn result: replacing it with the initial
   // packet loses successful reads and reintroduces already-restored failures in

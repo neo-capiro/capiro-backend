@@ -44,7 +44,12 @@ describe('claim inventory', () => {
     ['The bill passed.', 'bill_status'],
     ['Acme received $8 million.', 'budget_amount'],
   ])('keeps uncited positive assertions material: %s', (text, category) => {
-    expect(extract(text)[0]).toMatchObject({ material: true, uncited: true, category, evidenceIds: [] });
+    expect(extract(text)[0]).toMatchObject({
+      material: true,
+      uncited: true,
+      category,
+      evidenceIds: [],
+    });
   });
 
   it.each([

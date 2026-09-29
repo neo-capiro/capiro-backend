@@ -6,7 +6,8 @@ import { resolve } from 'node:path';
 const root = process.cwd();
 const phase3Base = 'b043a995928314f7085b7f9df94bdba02cee9640';
 const phase4Base = '208dae611d9f5636f3b7507f8782ff7cc864c4ed';
-const phase5ScopeEnd = process.env.OUTREACH_V3_PHASE5_SCOPE_END ?? 'HEAD';
+// Original closed phase scope; all functional/source checks still read this checkout.
+const phase5ScopeEnd = process.env.OUTREACH_V3_PHASE5_SCOPE_END ?? '835cdef35cd8ecb23faf1b100ecfc743bcd31128';
 
 function run(label, command, args, options = {}) {
   process.stdout.write(`\n== ${label} ==\n${[command, ...args].join(' ')}\n`);
@@ -181,5 +182,7 @@ run('Phase 5 focused tests', 'pnpm', [
 });
 run('API build', 'pnpm', ['--filter', '@capiro/api', 'build']);
 run('Diff whitespace', 'git', ['diff', '--check', `${phase4Base}...${phase5ScopeEnd}`]);
+
+run('Current PR whitespace', 'git', ['diff', '--check', 'origin/main...HEAD']);
 
 process.stdout.write('\nOUTREACH_V3_PHASE5_DB_FREE_COMPLETE\n');

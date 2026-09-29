@@ -17,6 +17,8 @@ import {
   GENERATED_PATH,
   PREFIX,
   SOURCES,
+  applyVNextDesign,
+  readCanonical,
   build,
   detectEol,
   extractBanner,
@@ -150,4 +152,108 @@ test('extractBanner refuses a file with no leading block comment', () => {
   assert.equal(extractBanner('.a {\n  color: red;\n}\n'), null);
   assert.equal(extractBanner('/* unterminated\n'), null);
   assert.equal(extractBanner('/* kept */\n.a {\n}\n'), '/* kept */\n');
+});
+
+// These fixtures exercise the actual canonical sources and explicit intended
+// vNext values, independent of the policy table's own expected strings.
+test('all four sources use foundation type and the existing responsive boundaries', () => {
+  for (const name of SOURCES) {
+    const adapted = applyVNextDesign(name, readCanonical(name));
+    assert.ok(adapted.includes('font-family: var(--capiro-type-family-mono,'), name);
+    assert.ok(adapted.includes('@media (max-width: 779px)'), name);
+    assert.doesNotMatch(adapted, /font-family: (?:['"]IBM|['"]Instrument|var\(--ov3-font)/);
+    assert.doesNotMatch(adapted, /@media \(max-width: (760|1180)px\)/);
+  }
+});
+
+test('the existing vNext surfaces, layers and clipped focus treatment survive', () => {
+  const target = applyVNextDesign('target-workspace.css', readCanonical('target-workspace.css'));
+  const outreach = applyVNextDesign('outreach-v3.css', readCanonical('outreach-v3.css'));
+  const planning = applyVNextDesign(
+    'planning-surfaces.css',
+    readCanonical('planning-surfaces.css'),
+  );
+  assert.match(target, /background: #faf9f6;\n  box-shadow: 0 0 0 1px #e8e5df;/);
+  assert.match(outreach, /background: #faf9f6;\n  box-shadow: 0 0 0 1px #e8e5df;/);
+  assert.ok(outreach.includes('z-index: var(--eng-layer-sticky, 20);'));
+  assert.ok(outreach.includes('box-shadow: var(--capiro-focus-ring-inset);'));
+  assert.ok(outreach.includes('background: var(--eng-surface-assistant, #fffdfa);'));
+  assert.ok(planning.includes('box-shadow: 0 0 0 1px var(--ov3-active);'));
+  assert.doesNotMatch(outreach, /outline: 3px solid|outline-offset: 2px/);
+});
+
+test('missing, changed and duplicate typography anchors fail closed', () => {
+  const name = 'context-review-surface.css';
+  const original = readCanonical(name);
+  const anchor = "  font-family: 'IBM Plex Mono', monospace;\n";
+  for (const mutated of [
+    original.replace(anchor, ''),
+    original.replace(anchor, '  font-family: unexpected;\n'),
+    `${original}\n.extra {\n${anchor}}\n`,
+  ]) {
+    assert.throws(() => applyVNextDesign(name, mutated), /anchor expected 2, found [13]/);
+  }
+});
+
+test('changed selector context, surface value and focus value cannot silently lose policy', () => {
+  const cases = [
+    ['target-workspace.css', '.ov3-target-workspace.is-compact .ov3-search-bar {', '.renamed {'],
+    ['target-workspace.css', 'background: #f9fafb;', 'background: #000000;'],
+    ['outreach-v3.css', 'outline-offset: 2px;', 'outline-offset: 4px;'],
+    ['outreach-v3.css', 'z-index: 4;', 'z-index: 5;'],
+  ];
+  for (const [name, before, after] of cases) {
+    const source = readCanonical(name);
+    assert.ok(source.includes(before));
+    assert.throws(
+      () => applyVNextDesign(name, source.replace(before, after)),
+      /anchor expected 1, found 0/,
+    );
+  }
+});
+
+test('request dialog omission is exact, while the mechanical legacy port retains its rules', () => {
+  const source = readCanonical('outreach-v3.css');
+  const adapted = applyVNextDesign('outreach-v3.css', source);
+  assert.doesNotMatch(adapted, /\.ov3-request-modal/);
+  const mechanical = transform(source, { dropOv3Tokens: true });
+  for (const selector of [
+    '.ov3-request-modal__backdrop',
+    '.ov3-request-modal',
+    '.ov3-request-modal > .ov3-panel-header',
+  ]) {
+    assert.ok(mechanical.includes(`${PREFIX} ${selector} {`));
+  }
+  // No constructor, file writer, or runtime component participates in adapting.
+  assert.equal(source, readCanonical('outreach-v3.css'));
+});
+
+test('changed, missing, duplicated or additional request dialog rules fail closed', () => {
+  const name = 'outreach-v3.css';
+  const source = readCanonical(name);
+  const start = source.indexOf('.ov3-request-modal__backdrop {');
+  const end = source.indexOf('.ov3-selection-box,', start);
+  assert.ok(start > 0 && end > start);
+  const block = source.slice(start, end);
+  for (const mutated of [
+    source.replace('max-height: min(760px, calc(100vh - 48px));', 'max-height: 10px;'),
+    source.replace(block, ''),
+    source + '\n' + block,
+    source + '\n.ov3-request-modal .new-control { color: red; }\n',
+    source + '\n.ov3-request-modal--new { color: red; }\n',
+  ]) {
+    assert.throws(
+      () => applyVNextDesign(name, mutated),
+      /anchor expected|unqualified request dialog/,
+    );
+  }
+});
+
+test('neutral declarations, dimensions and selectors keep their canonical meaning', () => {
+  const neutral =
+    '\n.neutral {\n  color: #f9fafb;\n  border: 1px solid #e4e7ec;\n  height: 760px;\n  font-family: serif;\n  z-index: 4;\n}\n';
+  const name = 'target-workspace.css';
+  const adapted = applyVNextDesign(name, readCanonical(name) + neutral);
+  assert.ok(adapted.endsWith(neutral), 'policy leaked beyond its qualified anchors');
+  assert.throws(() => applyVNextDesign('unknown.css', neutral), /No vNext design policy/);
 });

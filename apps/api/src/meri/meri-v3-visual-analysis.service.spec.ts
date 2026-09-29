@@ -1,6 +1,8 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.js';
+import { generatedPngBase64 } from './meri-artifact-test-fixtures.js';
+import { PERSISTED_PNG_BYTE_AUTHORITY, sha256Bytes } from './meri-artifact-integrity.js';
 
 const ctx = {
   tenantId: 'tenant-1',
@@ -12,6 +14,7 @@ const ctx = {
 
 const VISUAL_ID = 'a1111111-1111-4111-8111-111111111111';
 const OTHER_ID = 'b2222222-2222-4222-8222-222222222222';
+const PNG = generatedPngBase64();
 
 function make(options?: {
   conversation?: { id: string; clientId: string | null } | null;
@@ -36,6 +39,13 @@ function make(options?: {
           contentType: 'image/png',
           metadata: options.storedMetadata,
           createdAt: new Date('2026-08-08T10:00:00.000Z'),
+          clientId: 'client-1',
+          conversation: {
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            clientId: 'client-1',
+            archivedAt: null,
+          },
         }
       : null,
   );
@@ -64,7 +74,16 @@ function make(options?: {
     ),
   };
   return {
-    service: new MeriV3VisualAnalysisService(prisma as never, tools as never),
+    service: new MeriV3VisualAnalysisService(
+      prisma as never,
+      tools as never,
+      {
+        securityEnvelope: jest.fn(async () => ({
+          authorizedClientIds: ['client-1'],
+          authorizedMailboxConnectionIds: [],
+        })),
+      } as never,
+    ),
     prisma,
     tools,
     tx,
@@ -115,7 +134,7 @@ describe('MeriV3VisualAnalysisService', () => {
             title: 'Analysis chart 1',
             kind: 'analysis_chart',
             metadata: {
-              imageBase64: 'aGVsbG8=',
+              imageBase64: PNG,
               filename: 'fig_1.png',
               codeSha256: 'abc123',
             },
@@ -151,7 +170,9 @@ describe('MeriV3VisualAnalysisService', () => {
           metadata: expect.objectContaining({
             source: 'meri_v3_visual_analysis',
             evidence: 'derived',
-            imageBase64: 'aGVsbG8=',
+            imageBase64: PNG,
+            imageSha256: sha256Bytes(Buffer.from(PNG, 'base64')),
+            imageByteAuthority: PERSISTED_PNG_BYTE_AUTHORITY,
             datasets: [{ name: 'Capiro PE funding', rowCount: 1 }],
             resultSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
             visualizationSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
@@ -171,7 +192,7 @@ describe('MeriV3VisualAnalysisService', () => {
     expect(result.artifacts).toEqual([
       expect.objectContaining({ id: VISUAL_ID, kind: 'analysis_chart', persisted: true }),
     ]);
-    expect(JSON.stringify(result)).not.toContain('aGVsbG8=');
+    expect(JSON.stringify(result)).not.toContain(PNG);
   });
 
   test('keeps a static PNG fallback and reports an invalid interactive spec honestly', async () => {
@@ -191,7 +212,7 @@ describe('MeriV3VisualAnalysisService', () => {
             },
           ],
         },
-        artifacts: [{ metadata: { imageBase64: 'cG5n' } }],
+        artifacts: [{ metadata: { imageBase64: PNG } }],
       },
     });
     const result = (await service.run(ctx, {
@@ -236,7 +257,7 @@ describe('MeriV3VisualAnalysisService', () => {
     const { service, findArtifact } = make({
       storedMetadata: {
         visualization: lineVisual,
-        imageBase64: 'cG5n',
+        imageBase64: PNG,
         datasets: [
           { name: 'Capiro PE funding', rowCount: 14 },
           { name: 'SASC mark', rowCount: 4 },
@@ -267,15 +288,26 @@ describe('MeriV3VisualAnalysisService', () => {
         userId: 'user-1',
         kind: 'analysis_chart',
       },
-      select: { id: true, title: true, metadata: true, createdAt: true },
+      select: {
+        id: true,
+        title: true,
+        metadata: true,
+        createdAt: true,
+        clientId: true,
+        conversation: {
+          select: { tenantId: true, userId: true, clientId: true, archivedAt: true },
+        },
+      },
     });
   });
 
   test('returns PNG bytes only through the same tenant + user artifact predicate', async () => {
-    const { service, findArtifact } = make({ storedMetadata: { imageBase64: 'cG5n' } });
+    const { service, findArtifact } = make({ storedMetadata: { imageBase64: PNG } });
     await expect(service.getArtifactImage(ctx, VISUAL_ID)).resolves.toEqual({
-      buffer: Buffer.from('png'),
+      buffer: Buffer.from(PNG, 'base64'),
       contentType: 'image/png',
+      sha256: sha256Bytes(Buffer.from(PNG, 'base64')),
+      integrityPolicy: 'validated_legacy_no_persisted_hash',
     });
     expect(findArtifact).toHaveBeenCalledWith({
       where: {
@@ -284,7 +316,14 @@ describe('MeriV3VisualAnalysisService', () => {
         userId: 'user-1',
         kind: 'analysis_chart',
       },
-      select: { contentType: true, metadata: true },
+      select: {
+        contentType: true,
+        metadata: true,
+        clientId: true,
+        conversation: {
+          select: { tenantId: true, userId: true, clientId: true, archivedAt: true },
+        },
+      },
     });
   });
 
@@ -380,5 +419,22 @@ describe('MeriV3VisualAnalysisService', () => {
     const { service } = make({ storedMetadata: { visualization: { chartType: 'script' } } });
     await expect(service.getArtifact(ctx, VISUAL_ID)).resolves.toBeNull();
     await expect(service.getArtifactImage(ctx, VISUAL_ID)).resolves.toBeNull();
+  });
+
+  test('rejects malformed PNG structure and persisted digest mismatches at readback', async () => {
+    const malformed = make({
+      storedMetadata: {
+        imageBase64: Buffer.concat([
+          Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+          Buffer.from('not chunks'),
+        ]).toString('base64'),
+      },
+    });
+    await expect(malformed.service.getArtifactImage(ctx, VISUAL_ID)).resolves.toBeNull();
+    await expect(malformed.service.getArtifact(ctx, VISUAL_ID)).resolves.toBeNull();
+
+    const mismatch = make({ storedMetadata: { imageBase64: PNG, imageSha256: '0'.repeat(64) } });
+    await expect(mismatch.service.getArtifactImage(ctx, VISUAL_ID)).resolves.toBeNull();
+    await expect(mismatch.service.getArtifact(ctx, VISUAL_ID)).resolves.toBeNull();
   });
 });

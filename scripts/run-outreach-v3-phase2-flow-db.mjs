@@ -1,19 +1,23 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import {
+  assertPhase2DisposableInvocation,
+  createPhase2OwnedResources,
+} from './ci/outreach-phase2-owned-resources.mjs';
+
+const targetEnv = assertPhase2DisposableInvocation();
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PSQL = process.env.PSQL_BIN || 'psql';
-const PGHOST = process.env.PGHOST || '127.0.0.1';
-const PGPORT = process.env.PGPORT || '5432';
-const PGUSER = process.env.PGUSER || 'postgres';
-const PGPASSWORD = process.env.PGPASSWORD || '';
-const DB = `outreach_v3_p2_flow_${process.pid}_${Date.now().toString(36)}`.replace(
-  /[^a-zA-Z0-9_]/g,
-  '_',
-);
+const PGHOST = targetEnv.PGHOST;
+const PGPORT = targetEnv.PGPORT;
+const PGUSER = targetEnv.PGUSER;
+const PGPASSWORD = targetEnv.PGPASSWORD;
+const DB = `outreach_v3_p2_flow_${randomUUID().replaceAll('-', '')}`;
 
 let output = null;
 for (let i = 2; i < process.argv.length; i += 1) {
@@ -28,7 +32,7 @@ if (output) {
 function run(bin, args, options = {}) {
   const result = spawnSync(bin, args, {
     cwd: ROOT,
-    env: { ...process.env, ...(options.env || {}) },
+    env: { ...targetEnv, ...(options.env || {}) },
     encoding: 'utf8',
     stdio: options.capture ? ['ignore', 'pipe', 'pipe'] : 'inherit',
     maxBuffer: 32 * 1024 * 1024,
@@ -44,7 +48,22 @@ function run(bin, args, options = {}) {
 function psql(db, sql) {
   return run(
     PSQL,
-    ['-X', '-v', 'ON_ERROR_STOP=1', '-qAt', '-h', PGHOST, '-p', PGPORT, '-U', PGUSER, '-d', db, '-c', sql],
+    [
+      '-X',
+      '-v',
+      'ON_ERROR_STOP=1',
+      '-qAt',
+      '-h',
+      PGHOST,
+      '-p',
+      PGPORT,
+      '-U',
+      PGUSER,
+      '-d',
+      db,
+      '-c',
+      sql,
+    ],
     { env: { PGPASSWORD }, capture: true },
   );
 }
@@ -60,30 +79,37 @@ function databaseUrl(db) {
   return url.toString();
 }
 
-function dropDatabase() {
-  try {
-    psql(
-      'postgres',
-      `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${DB}' AND pid <> pg_backend_pid();`,
-    );
-  } catch {}
-  try {
-    psql('postgres', `DROP DATABASE IF EXISTS "${DB}";`);
-  } catch {}
-}
+const resources = createPhase2OwnedResources({
+  admin: (sql) => psql('postgres', sql),
+  psqlInput: psql,
+  freshDb: DB,
+  appendOnlySql: readFileSync(
+    resolve(ROOT, 'scripts/ci/research-portfolio-append-only-prerequisite.sql'),
+    'utf8',
+  ),
+});
 
 let exitCode = 0;
 try {
   run(PSQL, ['--version'], { capture: true });
   run('pnpm', ['--version'], { capture: true });
-  dropDatabase();
-  psql('postgres', `CREATE DATABASE "${DB}";`);
+  resources.verifyTarget();
+  resources.createDb(DB);
   console.log(`Created disposable Phase 2 flow database ${DB}`);
 
   const url = databaseUrl(DB);
   run(
     'pnpm',
-    ['--filter', '@capiro/api', 'exec', 'prisma', 'migrate', 'deploy', '--schema', 'prisma/schema.prisma'],
+    [
+      '--filter',
+      '@capiro/api',
+      'exec',
+      'prisma',
+      'migrate',
+      'deploy',
+      '--schema',
+      'prisma/schema.prisma',
+    ],
     { env: { DATABASE_URL: url } },
   );
 
@@ -109,13 +135,7 @@ try {
 
   const deleteOutput = run(
     'pnpm',
-    [
-      '-C',
-      'apps/api',
-      'exec',
-      'tsx',
-      'scripts/outreach-v3-phase2-delete-protection-rehearsal.ts',
-    ],
+    ['-C', 'apps/api', 'exec', 'tsx', 'scripts/outreach-v3-phase2-delete-protection-rehearsal.ts'],
     { env: { DATABASE_URL: url }, capture: true },
   );
   if (!deleteOutput.includes('OUTREACH_V3_PHASE2_DELETE_PROTECTION_COMPLETE')) {
@@ -128,9 +148,12 @@ try {
   console.log('OUTREACH_V3_PHASE2_FLOW_DB_COMPLETE');
 } catch (error) {
   exitCode = 1;
-  console.error(error instanceof Error ? error.stack ?? error.message : String(error));
+  console.error(error instanceof Error ? (error.stack ?? error.message) : String(error));
 } finally {
-  dropDatabase();
+  for (const error of resources.cleanup()) {
+    console.error(`Phase 2 flow owned cleanup failed: ${error.message}`);
+    exitCode = 1;
+  }
   // Never leave a misleading partial evidence file on a failed run.
   if (exitCode !== 0 && output) rmSync(output, { force: true });
 }

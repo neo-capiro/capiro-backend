@@ -42,6 +42,7 @@ function noticeSentence(approvals: PendingApproval[]): string {
   }
   const only = approvals[0];
   if (!only) return '';
+  if (only.approvalRecovery) return only.approvalRecovery.message;
   const receipt = clientSaveReceipt(only);
   if (receipt) return receipt.summary;
   const label = (only.preview.label || only.tool.replace(/_/g, ' ')).trim();
@@ -61,14 +62,17 @@ export function MeriApprovalNotice({ approvals, onReview }: MeriApprovalNoticePr
     const receipt = clientSaveReceipt(approval);
     if (!receipt) return [];
     return [
-      ...(receipt.location ? [{ location: receipt.location, label: 'Open saved note in Files' }] : []),
-      ...receipt.files.flatMap((file) => file.location
-        ? [{ location: file.location, label: `Open in Files: ${file.name}` }]
+      ...(receipt.location
+        ? [{ location: receipt.location, label: 'Open saved note in Files' }]
         : []),
+      ...receipt.files.flatMap((file) =>
+        file.location ? [{ location: file.location, label: `Open in Files: ${file.name}` }] : [],
+      ),
     ];
   });
-  const uniqueSavedLinks = savedLinks.filter((link, index) =>
-    savedLinks.findIndex((candidate) => candidate.location === link.location) === index,
+  const uniqueSavedLinks = savedLinks.filter(
+    (link, index) =>
+      savedLinks.findIndex((candidate) => candidate.location === link.location) === index,
   );
 
   return (
@@ -78,7 +82,9 @@ export function MeriApprovalNotice({ approvals, onReview }: MeriApprovalNoticePr
         {uniqueSavedLinks.length > 0 && (
           <ul className="vnext-meri__save-receipt-links">
             {uniqueSavedLinks.map((link) => (
-              <li key={link.location}><a href={link.location}>{link.label}</a></li>
+              <li key={link.location}>
+                <a href={link.location}>{link.label}</a>
+              </li>
             ))}
           </ul>
         )}

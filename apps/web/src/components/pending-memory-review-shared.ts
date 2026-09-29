@@ -27,6 +27,9 @@ export interface PendingMemoryReviewState {
   submittedAt: string;
   scope?: 'firm' | 'client';
   sourceKind?: string;
+  activeVersion?: number | null;
+  proposalVersion?: number | null;
+  conflict?: string | null;
   proposal?: {
     title: string;
     sections: MemoryReviewSection[];
@@ -41,6 +44,10 @@ export interface PendingMemoryReviewState {
   viewerCanApprove?: boolean;
   viewerCanReject?: boolean;
   auditReference?: string;
+}
+
+export function pendingReviewSourceLabel(sourceKind?: string): string {
+  return sourceKind?.trim() ? sourceKind.replace(/_/g, ' ') : 'Source unavailable';
 }
 
 export function pendingReviewHeadline(pending: PendingMemoryReviewState): string {

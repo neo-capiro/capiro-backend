@@ -39,13 +39,25 @@ export interface ClientFitEvaluatorInput {
   signal?: AbortSignal;
 }
 
-export function createClientFitEvaluator(input: ClientFitEvaluatorInput): NonNullable<MatchLabelControlInput['evaluate']> {
+export function createClientFitEvaluator(
+  input: ClientFitEvaluatorInput,
+): NonNullable<MatchLabelControlInput['evaluate']> {
   return async ({ findingText, evidence, citations }) => {
-    const citationById = new Map(citations.flatMap((citation) =>
-      [citation.id, citation.stableId].filter(Boolean).map((id) => [id as string, citation] as const)));
+    const citationById = new Map(
+      citations.flatMap((citation) =>
+        [citation.id, citation.stableId]
+          .filter(Boolean)
+          .map((id) => [id as string, citation] as const),
+      ),
+    );
     const envelope: EvidenceEnvelope = {
       envelopeVersion: 'meri-evidence-envelope-v1',
-      claimId: `client-fit-${evidence.map((item) => item.id).sort().join('-') || 'unresolved'}`,
+      claimId: `client-fit-${
+        evidence
+          .map((item) => item.id)
+          .sort()
+          .join('-') || 'unresolved'
+      }`,
       claimText: findingText,
       claimKind: 'recommendation',
       claimCategory: 'client_fit',
@@ -56,14 +68,22 @@ export function createClientFitEvaluator(input: ClientFitEvaluatorInput): NonNul
       sources: evidence.map((item) => {
         const citation = citationById.get(item.id) ?? citationById.get(item.sourceId);
         return {
-          evidenceId: item.id, sourceType: item.sourceType, sourceId: item.sourceId,
+          evidenceId: item.id,
+          sourceType: item.sourceType,
+          sourceId: item.sourceId,
           documentId: citation?.documentEvidence?.documentId ?? null,
           version: citation?.source?.version ?? null,
           locator: citation?.source?.section ?? null,
-          passage: citation?.snippet ?? '', sourceDate: item.asOf ?? null,
-          publishedAt: item.publishedAt ?? null, effectiveAt: item.effectiveAt ?? null,
+          passage: citation?.snippet ?? '',
+          sourceDate: item.asOf ?? null,
+          publishedAt: item.publishedAt ?? null,
+          effectiveAt: item.effectiveAt ?? null,
           retrievedAt: item.retrievedAt ?? citation?.source?.observedAt ?? null,
-          provenance: { evidenceClass: item.evidenceClass, primary: item.primary, authoritative: item.authoritative },
+          provenance: {
+            evidenceClass: item.evidenceClass,
+            primary: item.primary,
+            authoritative: item.authoritative,
+          },
         };
       }),
     };
@@ -77,7 +97,11 @@ export function createClientFitEvaluator(input: ClientFitEvaluatorInput): NonNul
       ...(input.signal ? { signal: input.signal } : {}),
     });
     if (decision.kind === 'failure') return { category: null, confidence: null, jevUsed: false };
-    return { category: decision.category.value, confidence: decision.category.confidence, jevUsed: true };
+    return {
+      category: decision.category.value,
+      confidence: decision.category.confidence,
+      jevUsed: true,
+    };
   };
 }
 
@@ -96,14 +120,21 @@ function evidenceForFinding(
   evidence: readonly AssuredEvidence[],
 ): { citations: MeriCitation[]; evidence: AssuredEvidence[] } {
   const cited = citations.filter((citation) => refs.includes(citation.n));
-  const ids = new Set(cited.flatMap((citation) => [citation.id, citation.stableId].filter(Boolean) as string[]));
+  const ids = new Set(
+    cited.flatMap((citation) => [citation.id, citation.stableId].filter(Boolean) as string[]),
+  );
   return {
     citations: cited,
     evidence: evidence.filter((item) => ids.has(item.id) || ids.has(item.sourceId)),
   };
 }
 
-function replaceTier(reply: string, findingText: string, asserted: string, derived: DerivedMatchLabel): string {
+function replaceTier(
+  reply: string,
+  findingText: string,
+  asserted: string,
+  derived: DerivedMatchLabel,
+): string {
   if (!derived.downgraded) return reply;
   const display = MATCH_LABEL_DISPLAY[derived.label];
   const findingAt = reply.indexOf(findingText);
@@ -117,13 +148,29 @@ function replaceTier(reply: string, findingText: string, asserted: string, deriv
   return `${relabelled.slice(0, findingEnd)} ${establishedRelationshipSentence(derived)}${relabelled.slice(findingEnd)}`;
 }
 
-export async function applyMatchLabelControl(input: MatchLabelControlInput): Promise<MatchLabelControlResult> {
+export async function applyMatchLabelControl(
+  input: MatchLabelControlInput,
+): Promise<MatchLabelControlResult> {
   if (input.mode === 'off') {
-    return { reply: input.reply, findings: 0, derived: [], jevUsed: false, failureReason: null, assertedTiers: {} };
+    return {
+      reply: input.reply,
+      findings: 0,
+      derived: [],
+      jevUsed: false,
+      failureReason: null,
+      assertedTiers: {},
+    };
   }
   const findings = extractMatchFindings(input.reply);
   if (!findings.length) {
-    return { reply: input.reply, findings: 0, derived: [], jevUsed: false, failureReason: null, assertedTiers: {} };
+    return {
+      reply: input.reply,
+      findings: 0,
+      derived: [],
+      jevUsed: false,
+      failureReason: null,
+      assertedTiers: {},
+    };
   }
   try {
     let reply = input.reply;
@@ -144,14 +191,26 @@ export async function applyMatchLabelControl(input: MatchLabelControlInput): Pro
       });
       derived.push(result);
       if (input.mode === 'enforce') {
-        const asserted = finding.tier === 'direct_match' ? 'Direct match'
-          : finding.tier === 'conditional_niche' ? 'Conditional niche' : 'Adjacency';
+        const asserted =
+          finding.tier === 'direct_match'
+            ? 'Direct match'
+            : finding.tier === 'conditional_niche'
+              ? 'Conditional niche'
+              : 'Adjacency';
         reply = replaceTier(reply, finding.findingText, asserted, result);
       }
     }
     const assertedTiers: Record<string, number> = {};
-    for (const finding of findings) assertedTiers[finding.tier] = (assertedTiers[finding.tier] ?? 0) + 1;
-    return { reply, findings: findings.length, derived, jevUsed, failureReason: null, assertedTiers };
+    for (const finding of findings)
+      assertedTiers[finding.tier] = (assertedTiers[finding.tier] ?? 0) + 1;
+    return {
+      reply,
+      findings: findings.length,
+      derived,
+      jevUsed,
+      failureReason: null,
+      assertedTiers,
+    };
   } catch (error) {
     return {
       reply: input.reply,

@@ -36,9 +36,7 @@ export interface PeRecordForValidation {
 }
 
 export type PeWarningCode =
-  | 'rdte_procurement_mismatch'
-  | 'capability_mission_mismatch'
-  | 'primary_vehicle_overclaim';
+  'rdte_procurement_mismatch' | 'capability_mission_mismatch' | 'primary_vehicle_overclaim';
 
 export interface PeStructuralWarning {
   code: PeWarningCode;

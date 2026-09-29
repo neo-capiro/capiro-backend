@@ -39,9 +39,7 @@ export type CandidateDecision = 'auto_committed' | 'approved' | 'rejected' | 'wi
  * preserve whether the proposer withdrew or an independent reviewer rejected.
  */
 export type CandidateTransitionReasonCode =
-  | MemoryTransitionReasonCode
-  | 'withdrawn_by_proposer'
-  | 'rejected_by_reviewer';
+  MemoryTransitionReasonCode | 'withdrawn_by_proposer' | 'rejected_by_reviewer';
 
 /** Legacy `memory_candidate.scope` vocabulary (personal | firm | client). */
 export type LegacyCandidateScope = 'personal' | 'firm' | 'client';

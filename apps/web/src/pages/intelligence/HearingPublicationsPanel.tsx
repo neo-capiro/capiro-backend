@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../lib/use-api.js';
 import { useApiScope } from '../../lib/use-api-scope.js';
-import './hearing-publications.css';
+import '../../vnext/pages/legiwatch/hearings/hearing-publications.css';
 
 type Kind = 'live_update' | 'hearing_recap';
 type Claim = {

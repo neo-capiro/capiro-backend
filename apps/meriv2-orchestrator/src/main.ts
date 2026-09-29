@@ -12,6 +12,7 @@ async function bootstrap() {
         ? ['error', 'warn', 'log', 'debug']
         : ['error', 'warn', 'log'],
   });
+  app.enableShutdownHooks();
   const logger = new Logger('Bootstrap');
 
   // Mount everything under `/meri-api/*` to match the ALB listener rule

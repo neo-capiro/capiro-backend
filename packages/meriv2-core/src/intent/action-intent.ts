@@ -21,40 +21,128 @@ const ACTIONS: Record<
   string,
   { category: ActionIntentCategory; verbs: RegExp; nouns: RegExp; directives?: RegExp }
 > = {
-  prepare_legiwatch_briefing: { category: 'legiwatch_change', verbs: /\b(create|generate|save)\b/i, nouns: /\b(legiwatch|briefing)\b/i },
-  save_legislative_research: { category: 'research_save', verbs: /\b(save|store)\b/i, nouns: /\b(legislative research|research)\b/i },
-  save_legiwatch_relevance: { category: 'legiwatch_change', verbs: /\b(save|store)\b/i, nouns: /\b(legiwatch|relevance)\b/i },
-  apply_legiwatch_suggestion: { category: 'legiwatch_change', verbs: /\b(apply|use)\b/i, nouns: /\b(legiwatch|suggestion)\b/i },
-  create_meeting_brief: { category: 'artifact_create', verbs: /\b(create|generate|export|download|produce|build)\b/i, nouns: /\b(meeting brief|brief)\b/i },
-  draft_policy_memo: { category: 'artifact_create', verbs: /\b(create|generate|export|download|produce|build)\b/i, nouns: /\b(policy memo|memo)\b/i },
-  save_note: { category: 'note_save', verbs: /\b(save|record|add|log|store)\b/i, nouns: /\b(note|notes)\b/i },
-  save_chat_attachments: { category: 'artifact_create', verbs: /\b(save|store|download|export)\b/i, nouns: /\b(attachment|attachments|file|files)\b/i },
+  prepare_legiwatch_briefing: {
+    category: 'legiwatch_change',
+    verbs: /\b(create|generate|save)\b/i,
+    nouns: /\b(legiwatch|briefing)\b/i,
+  },
+  save_legislative_research: {
+    category: 'research_save',
+    verbs: /\b(save|store)\b/i,
+    nouns: /\b(legislative research|research)\b/i,
+  },
+  save_legiwatch_relevance: {
+    category: 'legiwatch_change',
+    verbs: /\b(save|store)\b/i,
+    nouns: /\b(legiwatch|relevance)\b/i,
+  },
+  apply_legiwatch_suggestion: {
+    category: 'legiwatch_change',
+    verbs: /\b(apply|use)\b/i,
+    nouns: /\b(legiwatch|suggestion)\b/i,
+  },
+  create_meeting_brief: {
+    category: 'artifact_create',
+    verbs: /\b(create|generate|export|download|produce|build)\b/i,
+    nouns: /\b(meeting brief|brief)\b/i,
+  },
+  draft_policy_memo: {
+    category: 'artifact_create',
+    verbs: /\b(create|generate|export|download|produce|build)\b/i,
+    nouns: /\b(policy memo|memo)\b/i,
+  },
+  save_note: {
+    category: 'note_save',
+    verbs: /\b(save|record|add|log|store)\b/i,
+    nouns: /\b(note|notes)\b/i,
+  },
+  save_chat_attachments: {
+    category: 'artifact_create',
+    verbs: /\b(save|store|download|export)\b/i,
+    nouns: /\b(attachment|attachments|file|files)\b/i,
+  },
   send_email: {
     category: 'email_send',
     verbs: /\bsend\b/i,
     nouns: /\b(email|message)\b/i,
     directives: /(?:^|\b(?:can|could|would|will)\s+you\s+)email\b/i,
   },
-  reply_email: { category: 'email_reply', verbs: /\b(reply|respond|send)\b/i, nouns: /\b(email|message|thread)\b/i },
+  reply_email: {
+    category: 'email_reply',
+    verbs: /\b(reply|respond|send)\b/i,
+    nouns: /\b(email|message|thread)\b/i,
+  },
   save_memory: {
     category: 'memory_change',
     verbs: /\b(save|store)\b/i,
     nouns: /\b(memory|fact|preference|positioning|alias)\b/i,
     directives: /\bremember(?=\s+(?:that|this|these|the following|for future))\b/i,
   },
-  confirm_memory: { category: 'memory_change', verbs: /\b(confirm|remember|save)\b/i, nouns: /\b(memory|fact|preference)\b/i },
-  correct_memory: { category: 'memory_change', verbs: /\b(correct|update|change)\b/i, nouns: /\b(memory|fact|preference)\b/i },
-  forget_memory: { category: 'memory_change', verbs: /\b(forget|delete|remove)\b/i, nouns: /\b(memory|fact|preference)\b/i },
-  create_word: { category: 'artifact_create', verbs: /\b(create|generate|export|download|produce|build|make|revise|repair|update)\b/i, nouns: /\b(word|document|docx|file)\b/i },
-  create_excel: { category: 'artifact_create', verbs: /\b(create|generate|export|download|produce|build|make|revise|repair|update)\b/i, nouns: /\b(excel|spreadsheet|workbook|xlsx|file)\b/i },
-  create_powerpoint: { category: 'artifact_create', verbs: /\b(create|generate|export|download|produce|build|make|revise|repair|update)\b/i, nouns: /\b(powerpoint|presentation|slides|pptx|file)\b/i },
-  schedule_task: { category: 'task_change', verbs: /\b(schedule|create|add)\b/i, nouns: /\b(task|reminder|follow-up)\b/i },
-  cancel_scheduled_task: { category: 'task_change', verbs: /\b(cancel|delete|remove)\b/i, nouns: /\b(task|reminder|schedule)\b/i },
-  create_client: { category: 'client_change', verbs: /\b(create|add)\b/i, nouns: /\b(client|customer)\b/i },
-  create_task: { category: 'task_change', verbs: /\b(create|add)\b/i, nouns: /\b(task|todo|follow-up)\b/i },
-  update_task: { category: 'task_change', verbs: /\b(update|change|edit|complete)\b/i, nouns: /\b(task|todo|follow-up)\b/i },
-  update_client_profile: { category: 'client_change', verbs: /\b(update|change|edit)\b/i, nouns: /\b(client|profile|client profile)\b/i },
-  save_business_development_brief: { category: 'brief_save', verbs: /\b(save|store|update)\b/i, nouns: /\b(brief)\b/i },
+  confirm_memory: {
+    category: 'memory_change',
+    verbs: /\b(confirm|remember|save)\b/i,
+    nouns: /\b(memory|fact|preference)\b/i,
+  },
+  correct_memory: {
+    category: 'memory_change',
+    verbs: /\b(correct|update|change)\b/i,
+    nouns: /\b(memory|fact|preference)\b/i,
+  },
+  forget_memory: {
+    category: 'memory_change',
+    verbs: /\b(forget|delete|remove)\b/i,
+    nouns: /\b(memory|fact|preference)\b/i,
+  },
+  create_word: {
+    category: 'artifact_create',
+    verbs: /\b(create|generate|export|download|produce|build|make|revise|repair|update)\b/i,
+    nouns: /\b(word|document|docx|file)\b/i,
+  },
+  create_excel: {
+    category: 'artifact_create',
+    verbs: /\b(create|generate|export|download|produce|build|make|revise|repair|update)\b/i,
+    nouns: /\b(excel|spreadsheet|workbook|xlsx|file)\b/i,
+  },
+  create_powerpoint: {
+    category: 'artifact_create',
+    verbs: /\b(create|generate|export|download|produce|build|make|revise|repair|update)\b/i,
+    nouns: /\b(powerpoint|presentation|slides|pptx|file)\b/i,
+  },
+  schedule_task: {
+    category: 'task_change',
+    verbs: /\b(schedule|create|add)\b/i,
+    nouns: /\b(task|reminder|follow-up)\b/i,
+  },
+  cancel_scheduled_task: {
+    category: 'task_change',
+    verbs: /\b(cancel|delete|remove)\b/i,
+    nouns: /\b(task|reminder|schedule)\b/i,
+  },
+  create_client: {
+    category: 'client_change',
+    verbs: /\b(create|add)\b/i,
+    nouns: /\b(client|customer)\b/i,
+  },
+  create_task: {
+    category: 'task_change',
+    verbs: /\b(create|add)\b/i,
+    nouns: /\b(task|todo|follow-up)\b/i,
+  },
+  update_task: {
+    category: 'task_change',
+    verbs: /\b(update|change|edit|complete)\b/i,
+    nouns: /\b(task|todo|follow-up)\b/i,
+  },
+  update_client_profile: {
+    category: 'client_change',
+    verbs: /\b(update|change|edit)\b/i,
+    nouns: /\b(client|profile|client profile)\b/i,
+  },
+  save_business_development_brief: {
+    category: 'brief_save',
+    verbs: /\b(save|store|update)\b/i,
+    nouns: /\b(brief)\b/i,
+  },
   create_research_portfolio_snapshot: {
     category: 'research_save',
     verbs: /\b(create|capture|save)\b/i,
@@ -63,7 +151,8 @@ const ACTIONS: Record<
   request_research_portfolio_output: {
     category: 'artifact_create',
     verbs: /\b(create|generate|export|request|produce)\b/i,
-    nouns: /\b(research\s+portfolio\s+(?:output|export)|portfolio\s+(?:output|export)|csv|export)\b/i,
+    nouns:
+      /\b(research\s+portfolio\s+(?:output|export)|portfolio\s+(?:output|export)|csv|export)\b/i,
   },
   save_research_portfolio_output_to_client: {
     category: 'client_change',
@@ -85,7 +174,8 @@ const ACTIONS: Record<
 /** Deterministic authorization for a specific write tool from the current user request. */
 export function classifyActionIntent(userRequest: string, toolName: string): ActionIntentDecision {
   const action = ACTIONS[toolName];
-  if (!action) return { authorized: false, category: 'unknown_write_tool', reason: 'unknown_write_tool' };
+  if (!action)
+    return { authorized: false, category: 'unknown_write_tool', reason: 'unknown_write_tool' };
   const text = typeof userRequest === 'string' ? userRequest : '';
   const authorized =
     (action.nouns.test(text) && hasUnnegatedVerb(text, action.verbs)) ||

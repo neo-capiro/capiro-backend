@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import type { MeriRetrievalDomain, MeriRetrievalPlan } from '../retrieval/meri-retrieval-plan.js';
 import type {
@@ -22,9 +23,16 @@ export interface MeriSemanticToolSelectionInput {
   request: string;
   recentUserContext?: string;
   plan: MeriRetrievalPlan;
+  /** Exact known capabilities that must remain ambient when already authorized. */
+  protectedNames?: readonly string[];
+  /** Bounded exact-name fallback candidates from trusted plans/procedures. */
+  discoveryNames?: readonly string[];
+  /** The native governed route must not opt into the skipped Research Director. */
+  allowCanonicalResearchDirector?: boolean;
 }
 
 const MAX_MODEL_FACING_TOOLS = 20;
+const MAX_FALLBACK_DISCOVERY_TOOLS = 8;
 
 const RECIPE_SUPPORT: Record<string, readonly string[]> = {
   query_relationship_brief: [
@@ -92,7 +100,7 @@ const DOMAIN_SUPPORT: Partial<Record<MeriRetrievalDomain, readonly string[]>> = 
   documents: ['read_client_documents', 'search_client_knowledge'],
   mail: ['search_emails', 'list_emails', 'get_email_thread'],
   contacts: ['find_contacts'],
-  meetings: ['list_upcoming_meetings', 'query_debriefs'],
+  meetings: ['list_upcoming_meetings', 'read_client_meetings', 'query_debriefs'],
   tasks: ['query_tasks', 'list_scheduled_tasks'],
   action_items: ['query_action_items'],
   outreach: ['query_outreach'],
@@ -127,7 +135,11 @@ const ACTION_RULES: ReadonlyArray<{ pattern: RegExp; tools: readonly string[] }>
   {
     pattern:
       /\b(?:create|capture|save)\b.{0,40}\b(?:research\s+portfolio\s+snapshot|portfolio\s+snapshot)\b/i,
-    tools: ['get_research_portfolio', 'get_research_portfolio_analytics', 'create_research_portfolio_snapshot'],
+    tools: [
+      'get_research_portfolio',
+      'get_research_portfolio_analytics',
+      'create_research_portfolio_snapshot',
+    ],
   },
   {
     pattern:
@@ -304,13 +316,9 @@ function unique(values: readonly string[]): string[] {
   return [...new Set(values)];
 }
 
-function addAvailable(
-  bucket: string[],
-  names: readonly string[],
-  available: ReadonlySet<string>,
-): void {
+function addUnique(bucket: string[], names: readonly string[]): void {
   for (const name of names) {
-    if (available.has(name) && !bucket.includes(name)) bucket.push(name);
+    if (!bucket.includes(name)) bucket.push(name);
   }
 }
 
@@ -340,10 +348,14 @@ export class MeriSemanticToolGateway {
   }
 
   select(input: MeriSemanticToolSelectionInput): MeriSemanticToolSelection {
+    const decisionId = randomUUID();
     const legacyNames = unique(input.schemas.map((schema) => schema.name));
     const available = new Set(legacyNames);
     const mode = this.modeForTenant(input.tenantId);
-    const canonicalResearchDirector = this.canonicalResearchDirectorEnabled(input.tenantId);
+    const canonicalResearchDirector =
+      input.allowCanonicalResearchDirector !== false &&
+      this.canonicalResearchDirectorEnabled(input.tenantId);
+    const protectedNames = unique(input.protectedNames ?? []).filter((name) => available.has(name));
     const critical: string[] = [];
     const support: string[] = [];
     const requestContext = [input.recentUserContext, input.request].filter(Boolean).join('\n');
@@ -356,47 +368,38 @@ export class MeriSemanticToolGateway {
     ) {
       recipe = 'research_federal_market_strategy';
     }
-    if (recipe) addAvailable(critical, [recipe], available);
-    if (recipe) addAvailable(support, supportForPlan(input.plan, recipe), available);
+    if (recipe) addUnique(critical, [recipe]);
+    if (recipe) addUnique(support, supportForPlan(input.plan, recipe));
 
     if (!recipe) {
       const domains = unique([
         ...input.plan.requiredDomains,
         ...input.plan.optionalDomains,
       ]) as MeriRetrievalDomain[];
-      for (const domain of domains) addAvailable(support, DOMAIN_SUPPORT[domain] ?? [], available);
+      for (const domain of domains) addUnique(support, DOMAIN_SUPPORT[domain] ?? []);
 
       if (input.plan.subjectScope === 'client') {
-        addAvailable(support, ['get_client_context', 'search_client_knowledge'], available);
+        addUnique(support, ['get_client_context', 'search_client_knowledge']);
       } else if (input.plan.subjectScope === 'portfolio') {
-        addAvailable(support, ['search_research_sources', 'query_intelligence'], available);
+        addUnique(support, ['search_research_sources', 'query_intelligence']);
       } else if (input.plan.subjectScope === 'external_entity') {
-        addAvailable(
-          support,
-          ['resolve_entity', 'search_public_web', 'scrape_web_page'],
-          available,
-        );
+        addUnique(support, ['resolve_entity', 'search_public_web', 'scrape_web_page']);
       } else {
-        addAvailable(
-          support,
-          ['search_research_sources', 'query_intelligence', 'resolve_entity'],
-          available,
-        );
+        addUnique(support, ['search_research_sources', 'query_intelligence', 'resolve_entity']);
       }
     }
 
     for (const rule of ACTION_RULES) {
-      if (rule.pattern.test(requestContext)) addAvailable(critical, rule.tools, available);
+      if (rule.pattern.test(requestContext)) addUnique(critical, rule.tools);
     }
     for (const rule of TOPIC_RULES) {
-      if (rule.pattern.test(requestContext)) addAvailable(support, rule.tools, available);
+      if (rule.pattern.test(requestContext)) addUnique(support, rule.tools);
     }
 
     if (/\b(?:hubspot|airtable|connected\s+app|crm\s+record)\b/i.test(requestContext)) {
-      addAvailable(
+      addUnique(
         critical,
         legacyNames.filter((name) => name.startsWith('mcp__')),
-        available,
       );
     }
 
@@ -410,7 +413,23 @@ export class MeriSemanticToolGateway {
       }
     }
 
-    const proposedNames = unique([...critical, ...support]).slice(0, MAX_MODEL_FACING_TOOLS);
+    const fallbackDiscovery = unique(input.discoveryNames ?? []).slice(
+      0,
+      MAX_FALLBACK_DISCOVERY_TOOLS,
+    );
+    const requestedNames = unique([
+      ...(input.protectedNames ?? []),
+      ...critical,
+      ...support,
+      ...fallbackDiscovery,
+    ]);
+    const selectedCandidates = unique([...critical, ...support, ...fallbackDiscovery]).filter(
+      (name) => available.has(name) && !protectedNames.includes(name),
+    );
+    const proposedNames = unique([
+      ...protectedNames,
+      ...selectedCandidates.slice(0, Math.max(0, MAX_MODEL_FACING_TOOLS - protectedNames.length)),
+    ]);
     const schemaByName = new Map(input.schemas.map((schema) => [schema.name, schema]));
     const proposedSchemas = proposedNames
       .map((name) => schemaByName.get(name))
@@ -430,8 +449,11 @@ export class MeriSemanticToolGateway {
     return {
       schemas: exposedSchemas,
       decision: {
+        decisionId,
         mode,
+        requestedNames,
         legacyNames,
+        selectedNames: proposedSchemas.map((schema) => schema.name),
         proposedNames,
         exposedNames,
         removedNames,

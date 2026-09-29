@@ -65,8 +65,8 @@ function VNextMeriIntegrationsContent({ onBack }: { onBack: () => void }) {
         <div className="vnext-meri-integrations__notice">
           <MeriIcon name="InfoCircle" size={16} color="#98A2B3" />
           <span>
-            Connect your account to let Meri search and read information you can access.
-            You can disconnect any app here.
+            Connect your account to let Meri search and read information you can access. You can
+            disconnect any app here.
           </span>
         </div>
       </section>
@@ -97,9 +97,7 @@ function IntegrationCard({
       <div className="vnext-meri-integration-card__body">
         <div className="vnext-meri-integration-card__topline">
           <h2>{app.name}</h2>
-          <span className={`vnext-meri-integration-card__status ${statusTone}`}>
-            {status}
-          </span>
+          <span className={`vnext-meri-integration-card__status ${statusTone}`}>{status}</span>
         </div>
         <p>{app.description}</p>
         {app.lastError ? (
@@ -118,11 +116,19 @@ function IntegrationCard({
             onClick={onConnect}
             disabled={busy || !app.available}
           >
-            {busy ? 'Connecting…' : app.status === 'error' ? 'Try again' : reconnect ? 'Reconnect' : 'Connect'}
+            {busy
+              ? 'Connecting…'
+              : app.status === 'error'
+                ? 'Try again'
+                : reconnect
+                  ? 'Reconnect'
+                  : 'Connect'}
           </button>
         )}
         {!app.connected && app.status !== 'connected' && app.status !== 'disconnected' ? (
-          <button type="button" onClick={onDisconnect} disabled={busy}>Disconnect</button>
+          <button type="button" onClick={onDisconnect} disabled={busy}>
+            Disconnect
+          </button>
         ) : null}
       </div>
     </article>

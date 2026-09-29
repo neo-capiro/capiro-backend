@@ -142,9 +142,13 @@ describe('MeriSemanticToolGateway', () => {
     const selected = gateway.select({ schemas, tenantId: 'tenant-1', request, plan: plan(null) });
     expect(selected.decision.mode).toBe('enabled');
     expect(selected.decision.fallbackToLegacy).toBe(false);
-    expect(selected.decision.exposedNames).toEqual(expect.arrayContaining([
-      'save_chat_attachments', 'lookup_client_registry', 'read_client_documents',
-    ]));
+    expect(selected.decision.exposedNames).toEqual(
+      expect.arrayContaining([
+        'save_chat_attachments',
+        'lookup_client_registry',
+        'read_client_documents',
+      ]),
+    );
   });
 
   test.each([
@@ -478,5 +482,70 @@ describe('MeriSemanticToolGateway', () => {
 
     expect(selected.decision.fallbackToLegacy).toBe(true);
     expect(selected.schemas).toEqual(onlyUnknown);
+  });
+
+  test('protects every authorized required capability without recreating unavailable names', () => {
+    const gateway = new MeriSemanticToolGateway(
+      config({
+        MERI_SEMANTIC_TOOL_GATEWAY_ENABLED: 'true',
+        MERI_SEMANTIC_TOOL_GATEWAY_TENANTS: 'tenant-1',
+      }),
+    );
+    const selected = gateway.select({
+      schemas: [schema('get_bill_status'), schema('read_client_documents')],
+      tenantId: 'tenant-1',
+      request: 'Hello',
+      plan: plan(null),
+      protectedNames: ['get_bill_status', 'read_client_documents', 'excluded_write_tool'],
+    });
+
+    expect(selected.decision.requestedNames).toEqual(
+      expect.arrayContaining(['get_bill_status', 'read_client_documents', 'excluded_write_tool']),
+    );
+    expect(selected.decision.selectedNames).toEqual(['get_bill_status', 'read_client_documents']);
+    expect(selected.decision.exposedNames).not.toContain('excluded_write_tool');
+  });
+
+  test('bounds fallback discovery and intersects it with the live authorized surface', () => {
+    const gateway = new MeriSemanticToolGateway(
+      config({
+        MERI_SEMANTIC_TOOL_GATEWAY_ENABLED: 'true',
+        MERI_SEMANTIC_TOOL_GATEWAY_TENANTS: 'tenant-1',
+      }),
+    );
+    const live = Array.from({ length: 12 }, (_, index) => schema(`known_${index}`));
+    const selected = gateway.select({
+      schemas: live,
+      tenantId: 'tenant-1',
+      request: 'Hello',
+      plan: plan(null),
+      discoveryNames: [...live.map((item) => item.name), 'unknown_leaf_name'],
+    });
+
+    expect(
+      selected.decision.selectedNames.filter((name) => name.startsWith('known_')),
+    ).toHaveLength(8);
+    expect(selected.decision.exposedNames).not.toContain('unknown_leaf_name');
+  });
+
+  test('native selection can explicitly decline the skipped Research Director route', () => {
+    const gateway = new MeriSemanticToolGateway(
+      config({
+        MERI_SEMANTIC_TOOL_GATEWAY_ENABLED: 'true',
+        MERI_SEMANTIC_TOOL_GATEWAY_TENANTS: 'tenant-1',
+        MERI_RESEARCH_DIRECTOR_CANONICAL_ENABLED: 'true',
+        MERI_RESEARCH_DIRECTOR_CANONICAL_TENANTS: 'tenant-1',
+      }),
+    );
+    const selected = gateway.select({
+      schemas,
+      tenantId: 'tenant-1',
+      request: 'Research Victory Six.',
+      plan: plan('research_external_company'),
+      allowCanonicalResearchDirector: false,
+    });
+
+    expect(selected.decision.canonicalResearchDirector).toBe(false);
+    expect(selected.decision.exposedNames).not.toContain('research_federal_market_strategy');
   });
 });

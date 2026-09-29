@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -29,6 +30,10 @@ import {
 } from './memory-governance-lifecycle.helpers.js';
 import { memoryReviewSurfaceEnabled } from './memory-review-switch.js';
 import type { MemorySection } from './memory.types.js';
+import {
+  assertSyntheticCandidateWithdrawalInTx,
+  type SyntheticCandidateWithdrawalGuard,
+} from './synthetic-candidate-withdrawal.helpers.js';
 
 type CandidateActorContext = Pick<TenantContext, 'tenantId' | 'userId' | 'role'>;
 
@@ -49,11 +54,7 @@ interface CandidateGovernanceRow {
 }
 
 export type OwnedMemoryCandidateStatus =
-  | 'pending'
-  | 'withdrawn'
-  | 'rejected'
-  | 'approved'
-  | 'auto_committed';
+  'pending' | 'withdrawn' | 'rejected' | 'approved' | 'auto_committed';
 
 interface OwnCandidateRow {
   id: string;
@@ -64,6 +65,17 @@ interface OwnCandidateRow {
   status: OwnedMemoryCandidateStatus;
   createdAt: Date;
   decidedAt: Date | null;
+}
+
+export interface OwnProposalPageInput {
+  cursor?: string;
+  limit?: string | number;
+}
+
+export interface OwnedProposalPage {
+  enabled: boolean;
+  candidates: OwnedMemoryCandidate[];
+  nextCursor: string | null;
 }
 
 export interface OwnedMemoryCandidate {
@@ -137,6 +149,25 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
 
   /** Proposer-only, atomic withdrawal. It creates no canonical memory or outbox work. */
   async withdraw(ctx: CandidateActorContext, candidateId: string): Promise<void> {
+    return this.withdrawPending(ctx, candidateId);
+  }
+
+  /** Internal fixture command only; no controller/DTO binds this guarded entry point. */
+  async withdrawSyntheticFixture(
+    tenantId: string,
+    userId: string,
+    candidateId: string,
+    guard: SyntheticCandidateWithdrawalGuard,
+  ): Promise<void> {
+    if (!guard) throw new ForbiddenException('Synthetic candidate withdrawal guard is required');
+    return this.withdrawPending({ tenantId, userId, role: 'standard_user' }, candidateId, guard);
+  }
+
+  private async withdrawPending(
+    ctx: CandidateActorContext,
+    candidateId: string,
+    fixtureGuard?: SyntheticCandidateWithdrawalGuard,
+  ): Promise<void> {
     this.requireWithdrawalEnabled();
     await this.governedPrisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const candidate = await this.lockPendingDispositionCandidateInTx(
@@ -149,7 +180,23 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
           'Only the proposer may withdraw this pending memory proposal.',
         );
       }
-      await this.decideTerminalInTx(tx, ctx.tenantId, candidateId, 'withdrawn', ctx.userId);
+      const fixtureAudit = fixtureGuard
+        ? await assertSyntheticCandidateWithdrawalInTx(
+            tx,
+            ctx.tenantId,
+            ctx.userId,
+            candidateId,
+            fixtureGuard,
+          )
+        : undefined;
+      await this.decideTerminalInTx(
+        tx,
+        ctx.tenantId,
+        candidateId,
+        'withdrawn',
+        ctx.userId,
+        fixtureAudit,
+      );
     });
   }
 
@@ -160,86 +207,114 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
    */
   async listOwnProposals(
     ctx: CandidateActorContext,
-  ): Promise<{ enabled: boolean; candidates: OwnedMemoryCandidate[] }> {
-    if (!memoryReviewSurfaceEnabled()) return { enabled: false, candidates: [] };
+  ): Promise<{ enabled: boolean; candidates: OwnedMemoryCandidate[] }>;
+  async listOwnProposals(
+    ctx: CandidateActorContext,
+    input: OwnProposalPageInput,
+  ): Promise<OwnedProposalPage>;
+  async listOwnProposals(
+    ctx: CandidateActorContext,
+    input?: OwnProposalPageInput,
+  ): Promise<{ enabled: boolean; candidates: OwnedMemoryCandidate[]; nextCursor?: string | null }> {
+    const paged = input !== undefined;
+    const limit = paged ? parseOwnProposalPageSize(input.limit) : 50;
+    const cursor = paged ? decodeOwnProposalCursor(input.cursor) : null;
+    if (!memoryReviewSurfaceEnabled()) {
+      return paged
+        ? { enabled: false, candidates: [], nextCursor: null }
+        : { enabled: false, candidates: [] };
+    }
 
-    const candidates = await this.governedPrisma.withTenantUser(
-      ctx.tenantId,
-      ctx.userId,
-      async (tx) => {
-        const rows = (await tx.memoryCandidate.findMany({
-          where: {
-            tenantId: ctx.tenantId,
-            proposedBy: ctx.userId,
-            scope: { in: ['firm', 'client'] },
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 50,
-          select: {
-            id: true,
-            clientId: true,
-            proposedBy: true,
-            sourceKind: true,
-            scope: true,
-            status: true,
-            createdAt: true,
-            decidedAt: true,
-          },
-        })) as OwnCandidateRow[];
+    const page = await this.governedPrisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const rows = (await tx.memoryCandidate.findMany({
+        where: {
+          tenantId: ctx.tenantId,
+          proposedBy: ctx.userId,
+          scope: { in: ['firm', 'client'] },
+          ...(cursor
+            ? {
+                OR: [
+                  { createdAt: { lt: cursor.createdAt } },
+                  { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+                ],
+              }
+            : {}),
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: paged ? limit + 1 : limit,
+        select: {
+          id: true,
+          clientId: true,
+          proposedBy: true,
+          sourceKind: true,
+          scope: true,
+          status: true,
+          createdAt: true,
+          decidedAt: true,
+        },
+      })) as OwnCandidateRow[];
+      const pageRows = paged ? rows.slice(0, limit) : rows;
 
-        const own: OwnedMemoryCandidate[] = [];
-        for (const row of rows) {
-          const contentAllowed = row.clientId
-            ? await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, row.clientId)
-            : true;
-          const payloadRow = contentAllowed
-            ? await tx.memoryCandidate.findFirst({
-                where: { id: row.id, tenantId: ctx.tenantId },
-                select: { payload: true },
-              })
-            : null;
-          own.push({
-            id: row.id,
-            scope: row.scope,
-            clientId: row.clientId,
-            sourceKind: row.sourceKind,
-            status: row.status,
-            createdAt: row.createdAt.toISOString(),
-            decidedAt: row.decidedAt?.toISOString() ?? null,
-            restricted: !contentAllowed,
-            proposal: payloadRow ? proposalFromPayload(payloadRow.payload) : null,
-            capabilities: { withdraw: row.status === 'pending' },
-          });
-        }
-        // A restricted proposal keeps its status/withdrawal capability, but
-        // neither its body nor its client's name may cross the current wall.
-        const clientIds = [
-          ...new Set(
-            own.flatMap((candidate) =>
-              !candidate.restricted && candidate.scope === 'client' && candidate.clientId
-                ? [candidate.clientId]
-                : [],
-            ),
-          ),
-        ];
-        const clients = clientIds.length
-          ? await tx.client.findMany({
-              where: { tenantId: ctx.tenantId, id: { in: clientIds } },
-              select: { id: true, name: true },
+      const own: OwnedMemoryCandidate[] = [];
+      for (const row of pageRows) {
+        const contentAllowed = row.clientId
+          ? await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, row.clientId)
+          : true;
+        const payloadRow = contentAllowed
+          ? await tx.memoryCandidate.findFirst({
+              where: { id: row.id, tenantId: ctx.tenantId },
+              select: { payload: true },
             })
-          : [];
-        const names = new Map(clients.map((client) => [client.id, client.name]));
-        return own.map((candidate) => ({
+          : null;
+        own.push({
+          id: row.id,
+          scope: row.scope,
+          clientId: row.clientId,
+          sourceKind: row.sourceKind,
+          status: row.status,
+          createdAt: row.createdAt.toISOString(),
+          decidedAt: row.decidedAt?.toISOString() ?? null,
+          restricted: !contentAllowed,
+          proposal: payloadRow ? proposalFromPayload(payloadRow.payload) : null,
+          capabilities: { withdraw: row.status === 'pending' },
+        });
+      }
+      // A restricted proposal keeps its status/withdrawal capability, but
+      // neither its body nor its client's name may cross the current wall.
+      const clientIds = [
+        ...new Set(
+          own.flatMap((candidate) =>
+            !candidate.restricted && candidate.scope === 'client' && candidate.clientId
+              ? [candidate.clientId]
+              : [],
+          ),
+        ),
+      ];
+      const clients = clientIds.length
+        ? await tx.client.findMany({
+            where: { tenantId: ctx.tenantId, id: { in: clientIds } },
+            select: { id: true, name: true },
+          })
+        : [];
+      const names = new Map(clients.map((client) => [client.id, client.name]));
+      return {
+        candidates: own.map((candidate) => ({
           ...candidate,
           clientName:
             !candidate.restricted && candidate.clientId
               ? (names.get(candidate.clientId) ?? null)
               : null,
-        }));
-      },
-    );
+        })),
+        nextCursor:
+          paged && rows.length > limit && pageRows.length > 0
+            ? encodeOwnProposalCursor(pageRows[pageRows.length - 1]!)
+            : null,
+      };
+    });
 
-    return { enabled: true, candidates };
+    return paged
+      ? { enabled: true, candidates: page.candidates, nextCursor: page.nextCursor }
+      : { enabled: true, candidates: page.candidates };
   }
 
   private requireWithdrawalEnabled(): void {
@@ -320,6 +395,10 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
     candidateId: string,
     status: Extract<CandidateDecision, 'rejected' | 'withdrawn'>,
     decidedBy: string,
+    fixtureAudit?: {
+      syntheticFixtureMarkerSha256: string;
+      syntheticFixturePriorRowVersion: string;
+    },
   ): Promise<void> {
     const decidedAt = new Date();
     if (!governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE)) {
@@ -388,9 +467,51 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
           memoryClass: classification.memoryClass,
           sourceKind: row.source_kind,
           dispositionActor: status === 'withdrawn' ? 'proposer' : 'reviewer',
+          ...(fixtureAudit
+            ? { ...fixtureAudit, syntheticFixtureDecisionAt: decidedAt.toISOString() }
+            : {}),
         },
       });
     }
+  }
+}
+
+function parseOwnProposalPageSize(value: unknown): number {
+  if (value === undefined || value === null || value === '') return 50;
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 100) {
+    throw new BadRequestException('limit must be an integer from 1 to 100.');
+  }
+  return parsed;
+}
+
+function encodeOwnProposalCursor(row: Pick<OwnCandidateRow, 'createdAt' | 'id'>): string {
+  return Buffer.from(
+    JSON.stringify({ createdAt: row.createdAt.toISOString(), id: row.id }),
+    'utf8',
+  ).toString('base64url');
+}
+
+function decodeOwnProposalCursor(value: unknown): { createdAt: Date; id: string } | null {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string') throw new BadRequestException('cursor is invalid.');
+  try {
+    const decoded = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as {
+      createdAt?: unknown;
+      id?: unknown;
+    };
+    const createdAt = typeof decoded.createdAt === 'string' ? new Date(decoded.createdAt) : null;
+    if (
+      !createdAt ||
+      !Number.isFinite(createdAt.getTime()) ||
+      typeof decoded.id !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(decoded.id)
+    ) {
+      throw new Error('invalid cursor payload');
+    }
+    return { createdAt, id: decoded.id };
+  } catch {
+    throw new BadRequestException('cursor is invalid.');
   }
 }
 

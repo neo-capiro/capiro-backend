@@ -1,5 +1,7 @@
 import type { TenantContext } from '@capiro/shared';
+import { NotFoundException } from '@nestjs/common';
 import { ArtifactGeneratorService } from './artifact-generator.service.js';
+import { ArtifactController } from './artifact.controller.js';
 import type { ActionCard } from '../actions/action-recommendation-read.service.js';
 import type { ArtifactType, FactSheet } from './artifact-types.js';
 
@@ -120,6 +122,7 @@ function makePrisma() {
   const prisma = {
     __artifacts: artifacts,
     __tx: tx,
+    __insert: (row: ArtifactRow) => artifacts.push(row),
     withTenant: jest.fn(async (_t: string, fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
   };
   return prisma;
@@ -244,5 +247,84 @@ describe('ArtifactGeneratorService', () => {
       'artifact_client_email',
       'artifact_internal_brief',
     ]);
+  });
+
+  it('excludes a server-only marker even when its kind looks like an ordinary action artifact', async () => {
+    const { svc, prisma } = makeGenerator();
+    const base = {
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+      clientId: null,
+      conversationId: 'conversation-1',
+      contentType: 'text/markdown',
+      createdAt: new Date(),
+    };
+    prisma.__insert({
+      ...base,
+      id: 'ordinary-row',
+      title: 'Ordinary',
+      kind: 'artifact_internal_brief',
+      bodyText: 'ORDINARY_BODY',
+      metadata: { actionId: 'card-1', version: 1 },
+    });
+    prisma.__insert({
+      ...base,
+      id: 'server-only-row',
+      title: 'Private',
+      kind: 'artifact_internal_brief',
+      bodyText: 'PRIVATE_OWNER_RESULT',
+      metadata: { actionId: 'card-1', serverOnly: true },
+    });
+
+    const list = await svc.listForAction(ctx, 'card-1');
+
+    expect(list.map((row) => row.id)).toEqual(['ordinary-row']);
+    expect(JSON.stringify(list)).not.toContain('PRIVATE_OWNER_RESULT');
+    expect(prisma.__tx.clioArtifact.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            { NOT: { metadata: { path: ['serverOnly'], equals: true } } },
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it('does not expose or mutate a server-only research result through known-id ordinary routes', async () => {
+    const { svc, prisma } = makeGenerator();
+    const privateBody = '{"result":"PRIVATE OWNER RESULT"}';
+    prisma.__insert({
+      id: 'private-result',
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+      clientId: null,
+      conversationId: 'private-conversation',
+      title: 'Internal research safe-read result',
+      kind: 'internal_research_safe_read_result',
+      contentType: 'application/json',
+      bodyText: privateBody,
+      metadata: { serverOnly: true },
+      createdAt: new Date(),
+    });
+    const otherUser = { ...ctx, userId: '00000000-0000-0000-0000-0000000000c3' };
+    const response = { setHeader: jest.fn(), send: jest.fn() };
+    const controller = new ArtifactController(svc);
+
+    await expect(svc.renderDocx(otherUser, 'private-result')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    await expect(
+      svc.updateContent(otherUser, 'private-result', 'attacker replacement'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      controller.exportDocx(otherUser, 'private-result', response as never),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(response.setHeader).not.toHaveBeenCalled();
+    expect(response.send).not.toHaveBeenCalled();
+    expect(prisma.__tx.clioArtifact.updateMany).not.toHaveBeenCalled();
+    expect(prisma.__artifacts.find((row) => row.id === 'private-result')?.bodyText).toBe(
+      privateBody,
+    );
   });
 });

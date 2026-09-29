@@ -8,9 +8,7 @@ import {
 import type { DomainEvidencePlan } from './evidence-plan';
 import type { ClaimLedger } from './claim-ledger';
 import type { LedgerEntry } from '../grounding/auditor';
-import {
-  resolveEvidenceProfilesMode,
-} from '../rollout/evidence-profiles';
+import { resolveEvidenceProfilesMode } from '../rollout/evidence-profiles';
 import type { CapabilityRolloutEnvironment } from '../rollout/capability-rollout';
 
 export interface EvidenceProfilesShadowEvent extends EvidenceClassificationComparison {

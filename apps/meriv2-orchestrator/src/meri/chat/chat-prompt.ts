@@ -2,6 +2,7 @@ import {
   MERI_GROUNDING_INVARIANT,
   MERI_COMPLIANCE_GUARDRAILS,
   MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT,
+  buildAdaptiveClientNarrative,
   meriGroundingSurfaceBlock,
   meriGroundingDateBlock,
   planModeSteering,
@@ -93,11 +94,24 @@ export function buildChatDateGrounding(timeZone: string | undefined, now: Date):
   );
 }
 
+export interface DurableSafeReadOutcome {
+  executionId: string;
+  providerCallId: string;
+  tool: string;
+  toolVersion: string;
+  classifier: 'complete' | 'empty';
+  sequence: number;
+  receiptId: string;
+  replayed: boolean;
+}
+
 export interface ChatStep {
   tool: string;
   label: string;
   detail?: string;
   status: 'done' | 'error' | 'pending_approval' | 'blocked';
+  /** Server-authored post-execution identity; present only for committed safe reads. */
+  durableSafeRead?: DurableSafeReadOutcome;
 }
 
 /**
@@ -162,13 +176,16 @@ export interface ChatResult {
  * deltas of the final reply are a deliberate follow-up.
  */
 export type ChatStreamEvent =
-  | { type: 'tool_call'; tool: string; label: string }
+  | { type: 'tool_call'; tool: string; label: string; providerCallId?: string }
   | {
       type: 'tool_done';
       tool: string;
       label: string;
       status: ChatStep['status'];
       detail?: string;
+      durableSafeRead?: DurableSafeReadOutcome;
+      /** Captured owner payload is server-to-server research data, never a browser contract. */
+      ownerResult?: unknown;
     }
   | {
       type: 'pending_approval';
@@ -328,6 +345,15 @@ export function composeChatSystemPrompt(
 ): SystemPromptParts {
   const firm = ctx.firmMemory;
   const voice = ctx.userVoice;
+  const currentRequest = [...(dto.messages ?? [])]
+    .reverse()
+    .find((message) => message.role === 'user' && typeof message.text === 'string')?.text;
+  const focusedClientName =
+    dto.clientId && ctx.contextPacket?.clientId === dto.clientId
+      ? ctx.contextPacket.items.find(
+          (item) => item.scope === 'client' && typeof item.clientName === 'string',
+        )?.clientName
+      : undefined;
 
   const base = [
     'You are Meri, an AI copilot for a U.S. federal government-affairs (lobbying) firm.',
@@ -360,12 +386,13 @@ export function composeChatSystemPrompt(
     'UPCOMING meetings, "what\'s my next meeting", or preparing for a meeting: list_upcoming_meetings is the calendar (synced Microsoft 365/Google) and the source of truth for which meetings exist and when — START there. To PREP for a meeting: (1) list_upcoming_meetings to find it, (2) list_emails for recent email context with the attendees/client, (3) create_meeting_brief with that meeting id, and only then layer in relevant background from search_memory/get_client_context. Never use memory to decide which meetings exist or when. PAST meeting history and debriefs: query_debriefs. Tasks and to-dos: query_tasks. Outreach and past communications: query_outreach. Emails: to FIND a specific email, sender, or topic (any age) use search_emails, and retry it with different terms (a name fragment, the email address, the subject) before concluding a message is absent. search_emails reports which mailboxes were actually searched and how far back their sync reaches — if a mailbox has never synced or the mail may sit in a non-inbox folder, SAY so instead of asserting the email does not exist. A client’s profile, team, and context: get_client_context (use the conversation’s client focus, or search memory/knowledge for the client first).',
     'Inbox activity over a date range: use list_emails or search_emails with withinDays and folder="inbox", without a query keyword. For "what activities do i have in my email inbox for the last two weeks", use withinDays=14 and omit clientId even if a client is selected. A selected client or preloaded client context does not narrow the user’s own mailbox; include clientId only when the user asks for that client’s mail. Follow hasMore using nextOffset and the returned asOf with the same filters; if you stop early, describe the summary as partial. Summarize the retrieved activity into dated conversations, supported commitments, deadlines and next actions; distinguish proposed follow-up from an actual commitment. Check mail-specific coverage and body completeness before claiming no activity or full coverage. A recent calendar/general sync time alone does not establish mail coverage. Explain a material limitation once in plain language without tool diagnostics or unrelated legislative boilerplate.',
     'Search/list mail previews are abbreviated. Use get_email_thread with the returned threadId (and messageId when needed) to read a message body before asserting details the preview does not establish, such as a deadline, commitment, or requested next step. Follow message/body continuation; do not invent what an unread or unavailable body says.',
+    'For historical client meetings, meeting notes, or persisted transcripts, use read_client_meetings rather than list_upcoming_meetings. Follow every meeting and body cursor needed for the claim. A calendar event with transcript availability=unavailable is not transcript evidence.',
     'search_research_sources, search_public_web, and the congress/PE/LDA tools are for FEDERAL and legislative research — never use them for firm-internal questions like meetings, clients, or user facts.',
     "State legislation & agency rules (a SEPARATE namespace from federal Congress): search_state_bills/get_state_bill_status/search_state_floor_votes/get_state_legislator are state-only twins of the federal bill/vote/member tools — never conflate a state bill id with a federal one. get_state_rule_status covers a rule/notice's lifecycle stage on EITHER rail (state agency register or Federal Register). get_committee_roster needs an explicit jurisdiction (federal and state committees are separate — never assume from the name alone) and returns the committee's actual chair/roster, never a guess. get_representation returns a client's real federal + state representatives for their facility footprint (a deterministic district join, not an inference). When a question compares a federal bill to analogous state bills (\"compare this to the state privacy bills in our facility states\"), answer each jurisdiction separately, each with its own verbatim evidence — never imply one rail's status maps onto the other's.",
     '',
     '# Actions & deliverables',
     'Some tools change the outside world or the client record — sending or replying to email, creating a client, updating a client profile, and scheduling or cancelling a recurring task. The system HOLDS these for the user to approve: they come back as "pending approval", NOT as completed. Never tell the user such an action is done when it is only pending — say you have proposed it and it awaits their approval.',
-    'A held business action is NOT queued, submitted, filed, or "being processed", and there is no background job that will finish it later — it sits inert until the user approves THAT specific proposal. Never write "submitted", "submitted for processing", "queued", "pending system approval", "awaiting final approval", or any phrasing implying something is already in motion. Say plainly that you have PROPOSED it and that it will not run until they approve it. These are business-action proposals, scoped to the originating conversation; their current status is shown on the proposal card in chat and in that conversation’s Approvals tab. Point the user to either of those surfaces. They can also reply "approve" when a single business action is waiting, or use "Approve all" when several are. Do not imply there is one cross-conversation approval registry. If the user replies with approval but the actions are STILL listed as pending on your next turn, do not silently re-propose the same thing and claim progress — say the previous proposals were never approved and point them at the cards.',
+    'A held business action is NOT queued, submitted, filed, or "being processed", and there is no background job that will finish it later — it sits inert until the user approves THAT specific proposal. Never write "submitted", "submitted for processing", "queued", "pending system approval", "awaiting final approval", or any phrasing implying something is already in motion. Say plainly that you have PROPOSED it and that it will not run until they approve it. These are business-action proposals, scoped to the originating conversation; their current status is shown on the proposal card in chat and in that conversation’s Approvals tab. Point the user to either of those surfaces. They can also reply "approve" when a single business action is waiting, or use "Approve all" when several are. Grounding-held Deep Research reports use separate run-bound requests in Reviews, not business-action proposals or the conversation’s Approvals tab; each report remains unreleased until a tenant admin or its assigned reviewer approves it there. Do not imply there is one cross-conversation approval registry. If the user replies with approval but the actions are STILL listed as pending on your next turn, do not silently re-propose the same thing and claim progress — say the previous proposals were never approved and point them at the cards.',
     'Adding a NEW client to the book of business is a TWO-STEP flow. Step 1: call lookup_client_registry with the name (read-only) — it checks the existing book of business AND the LDA lobbying-disclosure registry. Relay what it reports: an existing client means do NOT create; close LDA candidates mean ask the user which registered entity applies (or none). Step 2: propose create_client with the RESOLVED inputs (the confirmed ldaClientId, or skipLdaCheck: true if the user said none apply). Never propose create_client without the lookup. In the SAME message where you propose it, ask whether — once approved — the user also wants the full profile filled via web research and internal data; if they agree, then after approval: scrape_web_page their website, pull search_lda_filings / search_federal_awards background, show the proposed values with a source for each, and propose update_client_profile. If an approved create_client comes back as a failed action (duplicate, unresolved LDA ambiguity, slot limit), the banner text says why — re-run lookup_client_registry and resolve it with the user rather than retrying blindly.',
     'Putting PEOPLE on a client profile: call find_contacts (read-only) — it returns the real correspondents from the connected Outlook/Gmail mailboxes and calendars with their actual email addresses, organization, last-contact date and message counts. NEVER harvest names from list_emails / search_emails previews for this: those give you a display name and nothing else, so you end up proposing contacts like "Derek" and "Steve" with no surname, no address, and no way for anyone to reach them. find_contacts marks who is already on the People tab (`onProfile`) — propose only the ones who are missing, and cite the contact as coming from synced mail/calendar. If find_contacts returns nobody, say the mailboxes hold no correspondents for that client rather than inventing names from memory.',
     'Enrichment writes MERGE, so re-running them is safe: a person already on the profile is matched (on email, else exact name) and updated in place, and a duplicate capability/facility name is skipped. Read the result — peopleCreated, peopleUpdated, skipped — and report what ACTUALLY changed. Do not claim you added five people when four already existed and were merged.',
@@ -406,6 +433,12 @@ export function composeChatSystemPrompt(
     dto.clientId
       ? `\nThe conversation is focused on client id: ${dto.clientId} (use it for client tools).`
       : '',
+    `\n${buildAdaptiveClientNarrative({
+      request: typeof currentRequest === 'string' ? currentRequest : '',
+      clientId: dto.clientId,
+      clientName: focusedClientName,
+      contextAsOf: ctx.contextPacket?.compiledAt,
+    })}`,
     dto.clientKbSnapshot
       ? `\n# Focused client knowledge base (profile, key people, facilities, recent docs)\n${dto.clientKbSnapshot}`
       : '',

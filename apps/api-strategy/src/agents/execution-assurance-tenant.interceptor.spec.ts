@@ -50,8 +50,9 @@ describe('ExecutionAssuranceTenantInterceptor', () => {
     ).resolves.toEqual({ mode: 'enforce', held: false });
 
     // A direct non-request caller still resolves mode off for an unselected tenant.
-    expect(generationReleaseModeForTenant('tenant-b', 'strategy', 'enforce', 'tenant-a', 'strategy'))
-      .toBe('off');
+    expect(
+      generationReleaseModeForTenant('tenant-b', 'strategy', 'enforce', 'tenant-a', 'strategy'),
+    ).toBe('off');
   });
 
   it('does not let another tenant inherit the selected canary', async () => {

@@ -1,5 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
@@ -17,6 +18,21 @@ import {
 } from './meri-policy-pack.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { assertMeriToolRequestActive } from './meri-tool-request-control.js';
+import { classifyMeriActionLogicalFailure } from './meri-action-logical-outcome.js';
+import { ResearchPortfolioMeriScopeService } from '../research-portfolios/research-portfolio-meri-scope.service.js';
+import {
+  assertResearchPortfolioProposalTurnScope,
+  authorizeResearchPortfolioProposalConversation,
+  bindResearchPortfolioProposalInput,
+  bindStoredResearchPortfolioProposalInput,
+  isResearchPortfolioProposalTool,
+  publicResearchPortfolioProposalPreview,
+  readStoredResearchPortfolioProposalTurnScope,
+  researchPortfolioProposalFingerprintInput,
+  storeResearchPortfolioProposalTurnScope,
+  type ResearchPortfolioProposalConversationCheckpoint,
+  type ResearchPortfolioProposalTurnScope,
+} from './meri-rp-proposal-binding.js';
 
 export const MERI_ACTION_PROPOSAL_STATUSES = [
   'proposed', 'approved', 'executing', 'succeeded', 'failed_retryable',
@@ -105,7 +121,8 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
     'location', 'indexingStatus', 'reused', 'savedCount', 'pendingCount', 'failedCount',
     'message', 'portfolioId', 'portfolioRevision', 'resultingRevision', 'snapshotId',
     'requestId', 'jobId', 'outputId', 'artifactId', 'operationKey', 'contentHash',
-    'attachmentId', 'attachmentName', 'openPath', 'draftId',
+    'attachmentId', 'attachmentName', 'openPath', 'draftId', 'sentFrom', 'to', 'subject', 'error',
+    'scheduled', 'active', 'creationConfirmed', 'reconciled', 'canceled', 'taskId',
   ]) {
     const value = source[key];
     if (typeof value === 'string') summary[key] = bounded(value, 300) ?? '';
@@ -151,6 +168,7 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
       [
         'id', 'status', 'portfolioId', 'snapshotId', 'operationKey', 'requestId',
         'artifactId', 'contentHash', 'attachmentId', 'openPath', 'title',
+        'enabled', 'lastStatus', 'active', 'creationConfirmed',
       ]
         .filter((field) =>
           typeof record[field] === 'string' ||
@@ -165,6 +183,40 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
             : record[field] as Prisma.InputJsonValue,
         ]),
     );
+  }
+  const sendReceipt = source.sendReceipt;
+  if (sendReceipt && typeof sendReceipt === 'object' && !Array.isArray(sendReceipt)) {
+    const receipt = sendReceipt as Record<string, unknown>;
+    summary.sendReceipt = Object.fromEntries(
+      [
+        'provider',
+        'providerMessageId',
+        'providerThreadId',
+        'providerDraftId',
+        'providerConversationId',
+        'providerInternetMessageId',
+        'correlationId',
+      ]
+        .filter((field) => typeof receipt[field] === 'string')
+        .map((field) => [field, bounded(receipt[field], 300) ?? '']),
+    );
+  }
+  const artifactPersistence = source.artifactPersistence;
+  if (
+    artifactPersistence &&
+    typeof artifactPersistence === 'object' &&
+    !Array.isArray(artifactPersistence)
+  ) {
+    const persistence = artifactPersistence as Record<string, unknown>;
+    summary.artifactPersistence = {
+      persisted: persistence.persisted === true,
+      ...(typeof persistence.error === 'string'
+        ? { error: bounded(persistence.error, 500) ?? '' }
+        : {}),
+      ...(typeof persistence.reason === 'string'
+        ? { reason: bounded(persistence.reason, 500) ?? '' }
+        : {}),
+    };
   }
   return summary as Prisma.InputJsonValue;
 }
@@ -223,6 +275,13 @@ function classifyExecutionFailure(tool: string, error: unknown): {
       ? { status: 'failed_terminal', code: rawCode ?? `http_${httpStatus ?? 400}`, message }
       : { status: 'outcome_unknown', code: rawCode ?? 'external_outcome_unknown', message };
   }
+  if (tool === 'schedule_task' && !terminal) {
+    return {
+      status: 'outcome_unknown',
+      code: rawCode ?? 'schedule_task_outcome_unknown',
+      message: `${message} Check scheduled tasks before any retry.`,
+    };
+  }
   if (terminal) return { status: 'failed_terminal', code: rawCode ?? `http_${httpStatus ?? 400}`, message };
   const retryable = httpStatus === 408 || httpStatus === 429 ||
     (httpStatus !== null && httpStatus >= 500) ||
@@ -232,6 +291,17 @@ function classifyExecutionFailure(tool: string, error: unknown): {
     : { status: 'failed_terminal', code: rawCode ?? 'execution_failed', message };
 }
 
+function confirmedScheduleCreation(tool: string, result: unknown): boolean {
+  if (tool !== 'schedule_task' || !result || typeof result !== 'object' || Array.isArray(result)) {
+    return false;
+  }
+  const value = result as Record<string, unknown>;
+  const task = value.task && typeof value.task === 'object' && !Array.isArray(value.task)
+    ? value.task as Record<string, unknown>
+    : null;
+  return value.creationConfirmed === true && typeof task?.id === 'string' && task.id.length > 0;
+}
+
 @Injectable()
 export class MeriActionProposalService {
   constructor(
@@ -239,6 +309,7 @@ export class MeriActionProposalService {
     private readonly tools: MeriToolsService,
     private readonly config: ConfigService<AppConfig, true>,
     private readonly policyPacks: MeriPolicyPackService,
+    private readonly researchPortfolioScopes: ResearchPortfolioMeriScopeService,
   ) {}
 
   private assertEnabled(): void {
@@ -248,7 +319,9 @@ export class MeriActionProposalService {
   }
 
   private toPublic(row: MeriActionProposal): PublicMeriActionProposal {
-    const preview = row.preview as unknown as MeriActionPreview;
+    const preview = publicResearchPortfolioProposalPreview(
+      row.preview,
+    ) as unknown as MeriActionPreview;
     return {
       proposalId: row.id,
       status: row.status as MeriActionProposalStatus,
@@ -356,11 +429,55 @@ export class MeriActionProposalService {
     return client?.name ?? null;
   }
 
-  async create(ctx: TenantContext, request: CreateMeriActionProposalInput): Promise<MeriActionAuthorityResult> {
+  private async lockResearchPortfolioProposalConversation(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    conversationId: string,
+    checkpoint: ResearchPortfolioProposalConversationCheckpoint,
+  ): Promise<boolean> {
+    const rows = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT "id"
+      FROM "clio_conversations"
+      WHERE "id" = ${conversationId}::uuid
+        AND "tenant_id" = ${ctx.tenantId}::uuid
+        AND "user_id" = ${ctx.userId}::uuid
+        AND "archived_at" IS NULL
+        AND "client_id" IS NOT DISTINCT FROM ${checkpoint.clientId}::uuid
+        AND "metadata_jsonb" = ${JSON.stringify(checkpoint.metadata)}::jsonb
+      FOR UPDATE
+    `;
+    return rows.length === 1;
+  }
+
+  async create(
+    ctx: TenantContext,
+    request: CreateMeriActionProposalInput,
+    trustedTurn?: ResearchPortfolioProposalTurnScope,
+  ): Promise<MeriActionAuthorityResult> {
     assertMeriToolRequestActive();
     this.assertEnabled();
     const tool = request.tool.trim();
-    const input = this.tools.validateSideEffectingInput(tool, request.input);
+    const proposalTurn = assertResearchPortfolioProposalTurnScope(
+      tool,
+      trustedTurn,
+      request.conversationId,
+    );
+    const boundInput = bindResearchPortfolioProposalInput(
+      tool,
+      request.input,
+      request.conversationId,
+    );
+    const input = this.tools.validateSideEffectingInput(tool, boundInput);
+    if (isResearchPortfolioProposalTool(tool)) {
+      await authorizeResearchPortfolioProposalConversation(
+        this.prisma,
+        this.researchPortfolioScopes,
+        ctx,
+        request.conversationId!,
+        proposalTurn!.selectedClientId,
+        typeof input.clientId === 'string' ? input.clientId : null,
+      );
+    }
     const decision = await this.policyPacks.decideForAction(ctx, tool, input);
     const status: MeriActionProposalStatus = decision.outcome === 'BLOCK'
       ? 'blocked' : decision.outcome === 'WARN' ? 'proposed' : 'executing';
@@ -370,7 +487,7 @@ export class MeriActionProposalService {
       effectiveTenantId: ctx.tenantId,
       userId: ctx.userId,
       tool,
-      input,
+      input: researchPortfolioProposalFingerprintInput(tool, input, proposalTurn),
       policyVersion: decision.packVersion,
       policyBinding: decision.binding,
       policyDecisionHash: decision.decisionHash,
@@ -384,9 +501,38 @@ export class MeriActionProposalService {
       reason: decision.reason,
       clientName,
     });
+    const storedPreview = storeResearchPortfolioProposalTurnScope(
+      tool,
+      preview as unknown as Record<string, unknown>,
+      proposalTurn,
+    );
+
+    const rpCheckpoint = isResearchPortfolioProposalTool(tool)
+      ? await authorizeResearchPortfolioProposalConversation(
+          this.prisma,
+          this.researchPortfolioScopes,
+          ctx,
+          request.conversationId!,
+          proposalTurn!.selectedClientId,
+          typeof input.clientId === 'string' ? input.clientId : null,
+        )
+      : undefined;
 
     const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       assertMeriToolRequestActive();
+      if (
+        rpCheckpoint &&
+        !(await this.lockResearchPortfolioProposalConversation(
+          tx,
+          ctx,
+          request.conversationId!,
+          rpCheckpoint,
+        ))
+      ) {
+        throw new BadRequestException(
+          'The current Research Portfolio conversation authority changed before proposal creation.',
+        );
+      }
       const created = await tx.meriActionProposal.create({
         data: {
           tenantId: ctx.tenantId,
@@ -417,7 +563,7 @@ export class MeriActionProposalService {
           policyDecision: decision.outcome,
           policyCode: decision.code ?? null,
           riskTier: decision.tier ?? null,
-          preview: preview as unknown as Prisma.InputJsonValue,
+          preview: storedPreview as unknown as Prisma.InputJsonValue,
           status,
           expiresAt,
           ...(decision.outcome === 'PASS'
@@ -436,8 +582,12 @@ export class MeriActionProposalService {
 
     try {
       assertMeriToolRequestActive();
-      const result = await this.tools.executeFromAuthenticatedUser(ctx, tool, input);
-      const incomplete = filingExecutionFailure(tool, result);
+      const result = await this.tools.executeFromAuthenticatedUser(ctx, tool, input, {
+        actionProposalId: row.id,
+      });
+      const incomplete = confirmedScheduleCreation(tool, result)
+        ? null
+        : classifyMeriActionLogicalFailure(tool, result) ?? filingExecutionFailure(tool, result);
       if (incomplete) {
         const failed = await this.finalize(ctx, row.id, { ...incomplete, resultSummary: resultSummary(result) });
         return { disposition: 'failed', proposal: this.toPublic(failed), executionResult: result };
@@ -469,6 +619,57 @@ export class MeriActionProposalService {
     }));
   }
 
+  private async reconcileUnknownScheduleReceipts(ctx: TenantContext): Promise<void> {
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.meriActionProposal.findMany({
+        where: {
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          tool: 'schedule_task',
+          status: 'outcome_unknown',
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+    );
+    for (const row of rows) {
+      // Re-check the immutable proposal/policy binding before exposing a durable
+      // receipt through status recovery. This is evidence lookup, not renewed
+      // authority, and it never redispatches the tool.
+      if (row.tool !== 'schedule_task' || row.status !== 'outcome_unknown') continue;
+      let canonical: Record<string, unknown>;
+      try {
+        canonical = this.tools.validateSideEffectingInput(row.tool, row.input);
+      } catch {
+        continue;
+      }
+      const recomputed = computeActionFingerprintV2({
+        effectiveTenantId: ctx.tenantId,
+        userId: ctx.userId,
+        tool: row.tool,
+        input: canonical,
+        policyVersion: row.policyPackVersion,
+        policyBinding: row.policyBinding,
+        policyDecisionHash: row.policyDecisionHash,
+        policyContextHash: row.policyContextHash,
+      });
+      if (!constantTimeHexEqual(row.fingerprint, recomputed)) continue;
+      const receipt = await this.tools.readScheduleTaskReceipt(ctx, row.id, canonical);
+      if (!receipt) continue;
+      await this.finalize(ctx, row.id, {
+        status: 'succeeded',
+        resultSummary: resultSummary({
+          tool: 'schedule_task',
+          scheduled: receipt.active,
+          active: receipt.active,
+          creationConfirmed: true,
+          reconciled: true,
+          task: receipt,
+        }),
+      });
+    }
+  }
+
   private async expireStale(ctx: TenantContext): Promise<void> {
     await this.prisma.withTenant(ctx.tenantId, (tx) => tx.meriActionProposal.updateMany({
       where: {
@@ -479,12 +680,25 @@ export class MeriActionProposalService {
     }));
   }
 
-  async list(ctx: TenantContext, conversationId?: string): Promise<PublicMeriActionProposal[]> {
+  async list(
+    ctx: TenantContext,
+    conversationId?: string,
+    proposalId?: string,
+  ): Promise<PublicMeriActionProposal[]> {
     this.assertEnabled();
+    if (proposalId && !conversationId) {
+      throw new BadRequestException('conversationId is required for an exact proposal receipt.');
+    }
     await this.reconcileStaleExecuting(ctx);
+    await this.reconcileUnknownScheduleReceipts(ctx);
     await this.expireStale(ctx);
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) => tx.meriActionProposal.findMany({
-      where: { tenantId: ctx.tenantId, userId: ctx.userId, ...(conversationId ? { conversationId } : {}) },
+      where: {
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        ...(conversationId ? { conversationId } : {}),
+        ...(proposalId ? { id: proposalId } : {}),
+      },
       orderBy: { createdAt: 'desc' }, take: 100,
     }));
     return rows.map((row) => this.toPublic(row));
@@ -567,18 +781,46 @@ export class MeriActionProposalService {
         'This proposal expired before approval and cannot execute.');
     }
 
+    let proposalTurn: ResearchPortfolioProposalTurnScope | undefined;
+    if (isResearchPortfolioProposalTool(row.tool)) {
+      try {
+        proposalTurn = readStoredResearchPortfolioProposalTurnScope(
+          row.tool,
+          row.preview,
+          row.conversationId,
+        );
+      } catch {
+        return this.transitionWithoutExecution(ctx, row, 'blocked', 'stored_scope_invalid',
+          'The stored Research Portfolio proposal has no valid trusted current-turn scope.');
+      }
+    }
     let canonical: Record<string, unknown>;
     try {
-      canonical = this.tools.validateSideEffectingInput(row.tool, row.input);
+      const boundInput = bindStoredResearchPortfolioProposalInput(
+        row.tool,
+        row.input,
+        row.conversationId,
+      );
+      canonical = this.tools.validateSideEffectingInput(row.tool, boundInput);
     } catch {
       return this.transitionWithoutExecution(ctx, row, 'blocked', 'stored_input_invalid',
         'The stored action no longer passes the canonical write-input parser.');
+    }
+    if (isResearchPortfolioProposalTool(row.tool)) {
+      await authorizeResearchPortfolioProposalConversation(
+        this.prisma,
+        this.researchPortfolioScopes,
+        ctx,
+        row.conversationId!,
+        proposalTurn!.selectedClientId,
+        row.policyClientId,
+      );
     }
     const recomputed = computeActionFingerprintV2({
       effectiveTenantId: ctx.tenantId,
       userId: ctx.userId,
       tool: row.tool,
-      input: canonical,
+      input: researchPortfolioProposalFingerprintInput(row.tool, canonical, proposalTurn),
       policyVersion: row.policyPackVersion,
       policyBinding: row.policyBinding,
       policyDecisionHash: row.policyDecisionHash,
@@ -606,7 +848,31 @@ export class MeriActionProposalService {
       row.policyPackVersion === current.packVersion;
     if (!sameAuthority) return this.invalidateForPolicyChange(ctx, row, current);
 
+    const rpCheckpoint = isResearchPortfolioProposalTool(row.tool)
+      ? await authorizeResearchPortfolioProposalConversation(
+          this.prisma,
+          this.researchPortfolioScopes,
+          ctx,
+          row.conversationId!,
+          proposalTurn!.selectedClientId,
+          row.policyClientId,
+        )
+      : undefined;
+
     const claimed = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      if (
+        rpCheckpoint &&
+        !(await this.lockResearchPortfolioProposalConversation(
+          tx,
+          ctx,
+          row.conversationId!,
+          rpCheckpoint,
+        ))
+      ) {
+        throw new BadRequestException(
+          'The current Research Portfolio conversation authority changed before execution claim.',
+        );
+      }
       const claim = await tx.meriActionProposal.updateMany({
         where: {
           id: row.id, tenantId: ctx.tenantId, userId: ctx.userId,
@@ -626,8 +892,13 @@ export class MeriActionProposalService {
     row = claimed.row;
 
     try {
-      const result = await this.tools.executeFromAuthenticatedUser(ctx, row.tool, canonical);
-      const incomplete = filingExecutionFailure(row.tool, result);
+      const result = await this.tools.executeFromAuthenticatedUser(ctx, row.tool, canonical, {
+        actionProposalId: row.id,
+      });
+      const incomplete = confirmedScheduleCreation(row.tool, result)
+        ? null
+        : classifyMeriActionLogicalFailure(row.tool, result) ??
+          filingExecutionFailure(row.tool, result);
       if (incomplete) return this.toPublic(await this.finalize(ctx, row.id, {
         ...incomplete, resultSummary: resultSummary(result),
       }));

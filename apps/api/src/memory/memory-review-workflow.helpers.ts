@@ -9,12 +9,7 @@ export const MEMORY_REVIEW_WORKFLOW_STATUSES = [
 
 export type MemoryReviewWorkflowStatus = (typeof MEMORY_REVIEW_WORKFLOW_STATUSES)[number];
 export type MemoryReviewWorkflowDbStatus =
-  | 'pending'
-  | 'changes_needed'
-  | 'approved'
-  | 'rejected'
-  | 'withdrawn'
-  | 'superseded';
+  'pending' | 'changes_needed' | 'approved' | 'rejected' | 'withdrawn' | 'superseded';
 
 const PUBLIC_STATUS_SET = new Set<string>(MEMORY_REVIEW_WORKFLOW_STATUSES);
 

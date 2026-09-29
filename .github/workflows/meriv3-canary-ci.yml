@@ -50,6 +50,8 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -103,6 +105,8 @@ jobs:
       - name: Build shared package prerequisites
         run: |
           pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
           pnpm --filter @capiro/auth build
           pnpm --filter @capiro/meriv2-core build
           # meriv2-orchestrator's strategy module imports this package; without
@@ -140,6 +144,8 @@ jobs:
           src/common/meriv3-flags.spec.ts
 
       - name: Test capability, retrieval and conversation continuity contracts
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144 --experimental-vm-modules
         run: >
           pnpm --filter @capiro/api exec jest
           --runInBand --forceExit
@@ -178,7 +184,7 @@ jobs:
 
       - name: Test document section extraction
         env:
-          NODE_OPTIONS: --experimental-vm-modules
+          NODE_OPTIONS: --max-old-space-size=6144 --experimental-vm-modules
         run: >
           pnpm --filter @capiro/api exec jest
           --runInBand --forceExit
@@ -227,13 +233,13 @@ jobs:
           src/vnext/meri/meri-workspace-import.test.ts
           --testTimeout=20000 --hookTimeout=20000
 
+      - name: Test MeriV3 import boundary guard
+        run: node --test scripts/verify-meriv3-import-boundary.spec.mjs
+
       - name: Boundary guard — adjacent runtimes remain independent
         run: |
           set -e
-          if grep -Rin "meriv3" apps/workspace/src apps/api-strategy/src apps/intel-api/src --include='*.ts' --include='*.tsx'; then
-            echo "MeriV3 must not be imported into Workspace, Strategy or intel-api during the chat canary."
-            exit 1
-          fi
+          node scripts/verify-meriv3-import-boundary.mjs
           if grep -Ein "type:[[:space:]]*['\"](thinking|reasoning)['\"]" \
             apps/meriv2-orchestrator/src/meri/meriv3/meriv3.controller.ts \
             apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts \

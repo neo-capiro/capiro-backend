@@ -10,58 +10,58 @@
 .capiro-vnext-root .vnext-meri-page,
 .capiro-vnext-root .vnext-meri {
   --m-gray-900: #101828;
-  --m-gray-800: #1D2939;
+  --m-gray-800: #1d2939;
   --m-gray-700: #344054;
   --m-gray-600: #475467;
   --m-gray-500: #667085;
-  --m-gray-400: #98A2B3;
-  --m-gray-300: #D0D5DD;
-  --m-gray-200: #EAECF0;
-  --m-gray-100: #F2F4F7;
-  --m-gray-50: #F9FAFB;
-  --m-white: #FFFFFF;
+  --m-gray-400: #98a2b3;
+  --m-gray-300: #d0d5dd;
+  --m-gray-200: #eaecf0;
+  --m-gray-100: #f2f4f7;
+  --m-gray-50: #f9fafb;
+  --m-white: #ffffff;
 
   --m-page-backdrop: #E7ECF1;
-  --m-surface: #FFFFFF;
-  --m-canvas-standard: #FFFFFF;
-  --m-canvas-busy: #F9FAFB;
-  --m-border: #EAECF0;
-  --m-border-strong: #D0D5DD;
-  --m-hairline: #F2F4F7;
-  --m-hover: #F9FAFB;
+  --m-surface: #ffffff;
+  --m-canvas-standard: #ffffff;
+  --m-canvas-busy: #f9fafb;
+  --m-border: #eaecf0;
+  --m-border-strong: #d0d5dd;
+  --m-hairline: #f2f4f7;
+  --m-hover: #f9fafb;
   --m-text: #101828;
   --m-text-body: #344054;
   --m-text-muted: #475467;
   --m-text-meta: #667085;
-  --m-text-faint: #98A2B3;
-  --m-accent-tint: #F2F4F7;
+  --m-text-faint: #98a2b3;
+  --m-accent-tint: #f2f4f7;
   --m-focus-ring: #4E5BA6;
 
-  --m-gradient-primary: linear-gradient(180deg, #39424F 0%, #1B2430 46%, #0E141C 100%);
+  --m-gradient-primary: linear-gradient(180deg, #39424f 0%, #1b2430 46%, #0e141c 100%);
   --m-gradient-primary-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.14);
   --m-gradient-primary-shadow: 0 1px 2px rgba(16, 24, 40, 0.12);
   --m-metal-bg: var(--m-gradient-primary);
-  --m-metal-bg-hover: linear-gradient(180deg, #4A5462 0%, #252F3C 46%, #161D26 100%);
-  --m-metal-bg-active: linear-gradient(180deg, #2B3340 0%, #141A22 46%, #080C11 100%);
+  --m-metal-bg-hover: linear-gradient(180deg, #4a5462 0%, #252f3c 46%, #161d26 100%);
+  --m-metal-bg-active: linear-gradient(180deg, #2b3340 0%, #141a22 46%, #080c11 100%);
   --m-metal-sheen: var(--m-gradient-primary-sheen);
   --m-metal-shadow: var(--m-gradient-primary-shadow);
   --m-surface-deep: var(--m-gradient-primary);
   --m-surface-deep-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 
-  --m-success-bg: #ECFDF3;
-  --m-success-border: #ABEFC6;
-  --m-success-text: #027A48;
-  --m-success-dot: #12B76A;
-  --m-warning-bg: #FFFAEB;
-  --m-warning-border: #FEDF89;
-  --m-warning-text: #B54708;
-  --m-warning-dot: #F79009;
-  --m-error-bg: #FEF3F2;
-  --m-error-border: #FECDCA;
-  --m-error-text: #B42318;
-  --m-error-dot: #F04438;
-  --m-neutral-bg: #F9FAFB;
-  --m-neutral-border: #EAECF0;
+  --m-success-bg: #ecfdf3;
+  --m-success-border: #abefc6;
+  --m-success-text: #027a48;
+  --m-success-dot: #12b76a;
+  --m-warning-bg: #fffaeb;
+  --m-warning-border: #fedf89;
+  --m-warning-text: #b54708;
+  --m-warning-dot: #f79009;
+  --m-error-bg: #fef3f2;
+  --m-error-border: #fecdca;
+  --m-error-text: #b42318;
+  --m-error-dot: #f04438;
+  --m-neutral-bg: #f9fafb;
+  --m-neutral-border: #eaecf0;
   --m-neutral-text: #344054;
   --m-neutral-dot: #667085;
 
@@ -74,12 +74,12 @@
   --m-radius-full: 9999px;
   --m-radius-user-bubble: 12px 12px 4px 12px;
 
-  --m-shadow-hairline: 0 0 0 1px #EAECF0;
-  --m-shadow-hairline-lift: 0 0 0 1px #EAECF0, 0 1px 2px rgba(16, 24, 40, 0.05);
-  --m-shadow-answer-card: 0 0 0 1px #EAECF0, 0 1px 3px rgba(16, 24, 40, 0.06);
-  --m-shadow-input-focus: inset 0 0 0 1px #98A2B3, 0 0 0 4px #F2F4F7;
-  --m-shadow-dropdown: 0 0 0 1px #E4E7EC, 0 12px 16px -4px rgba(16, 24, 40, 0.1);
-  --m-shadow-popover-lg: 0 0 0 1px #E4E7EC, 0 16px 24px -8px rgba(16, 24, 40, 0.14);
+  --m-shadow-hairline: 0 0 0 1px #eaecf0;
+  --m-shadow-hairline-lift: 0 0 0 1px #eaecf0, 0 1px 2px rgba(16, 24, 40, 0.05);
+  --m-shadow-answer-card: 0 0 0 1px #eaecf0, 0 1px 3px rgba(16, 24, 40, 0.06);
+  --m-shadow-input-focus: inset 0 0 0 1px #98a2b3, 0 0 0 4px #f2f4f7;
+  --m-shadow-dropdown: 0 0 0 1px #e4e7ec, 0 12px 16px -4px rgba(16, 24, 40, 0.1);
+  --m-shadow-popover-lg: 0 0 0 1px #e4e7ec, 0 16px 24px -8px rgba(16, 24, 40, 0.14);
   --m-shadow-modal: 0 24px 48px -12px rgba(16, 24, 40, 0.3);
   --m-shadow-toast: 0 12px 24px -8px rgba(16, 24, 40, 0.4);
   --m-scrim: rgba(12, 17, 29, 0.55);
@@ -117,39 +117,39 @@
   --meri-z-modal: 80;
   --meri-z-toast: 90;
 
-  --meri-surface: #FFFFFF;
-  --meri-surface-2: #F9FAFB;
-  --meri-surface-subtle: #F2F4F7;
-  --meri-canvas: #F2F4F7;
-  --meri-page-bg: #FFFFFF;
-  --meri-border: #EAECF0;
-  --meri-border-soft: #F2F4F7;
-  --meri-border-strong: #D0D5DD;
-  --meri-border-control: #D0D5DD;
+  --meri-surface: #ffffff;
+  --meri-surface-2: #f9fafb;
+  --meri-surface-subtle: #f2f4f7;
+  --meri-canvas: #f2f4f7;
+  --meri-page-bg: #ffffff;
+  --meri-border: #eaecf0;
+  --meri-border-soft: #f2f4f7;
+  --meri-border-strong: #d0d5dd;
+  --meri-border-control: #d0d5dd;
   --meri-ink: #101828;
   --meri-ink-heading: #101828;
   --meri-text-secondary: #475467;
   --meri-text-muted: #667085;
-  --meri-text-faint: #98A2B3;
+  --meri-text-faint: #98a2b3;
   --meri-accent: #101828;
-  --meri-accent-hover: #0E141C;
-  --meri-accent-soft: #F2F4F7;
-  --meri-accent-light: #98A2B3;
+  --meri-accent-hover: #0e141c;
+  --meri-accent-soft: #f2f4f7;
+  --meri-accent-light: #98a2b3;
   --meri-dark: #101828;
-  --meri-dark-2: #1D2939;
+  --meri-dark-2: #1d2939;
   --meri-dark-ink: #101828;
-  --meri-success: #027A48;
-  --meri-success-dot: #12B76A;
-  --meri-warning: #F79009;
-  --meri-warning-text: #B54708;
-  --meri-danger: #B42318;
+  --meri-success: #027a48;
+  --meri-success-dot: #12b76a;
+  --meri-warning: #f79009;
+  --meri-warning-text: #b54708;
+  --meri-danger: #b42318;
   --meri-info: #344054;
   --meri-font-sans: var(--m-font-sans);
   --meri-font-mono: var(--m-font-mono);
-  --meri-shadow-window: 0 0 0 1px #DDE2E9, 0 18px 44px -12px rgba(16, 24, 40, 0.22);
+  --meri-shadow-window: 0 0 0 1px #dde2e9, 0 18px 44px -12px rgba(16, 24, 40, 0.22);
   --meri-shadow-card: var(--m-shadow-answer-card);
   --meri-shadow-popover: var(--m-shadow-dropdown);
-  --meri-shadow-composer: inset 0 0 0 1px #D0D5DD, 0 1px 2px rgba(16, 24, 40, 0.05);
+  --meri-shadow-composer: inset 0 0 0 1px #d0d5dd, 0 1px 2px rgba(16, 24, 40, 0.05);
   --meri-shadow-composer-focus: var(--m-shadow-input-focus);
   --meri-shadow-button: 0 1px 2px rgba(16, 24, 40, 0.12);
 }
@@ -222,7 +222,7 @@
    whose wrapper owns the focus treatment (composer textarea, rail search)
    are excluded below so the ring does not double. */
 .capiro-vnext-root .vnext-meri :focus-visible {
-outline: 2px solid #4E5BA6;
+   outline: 2px solid #4E5BA6;
   outline-offset: 2px;
   border-radius: 8px;
   box-shadow: none;
@@ -238,7 +238,7 @@ outline: 2px solid #4E5BA6;
    position:relative (anchors its popovers). */
 
 .capiro-vnext-root .vnext-meri__topbar {
-position: relative;
+  position: relative;
   flex: 0 0 auto;
   height: 60px;
   padding: 0 12px 0 18px;
@@ -265,7 +265,7 @@ position: relative;
 }
 
 .capiro-vnext-root .vnext-meri__brand-divider {
-width: 1px;
+  width: 1px;
   height: 22px;
   background: var(--meri-border);
 }
@@ -284,7 +284,7 @@ width: 1px;
 }
 
 .capiro-vnext-root .vnext-meri__scope {
-flex: 0 0 auto;
+  flex: 0 0 auto;
   display: flex;
   min-width: 0;
   position: relative;
@@ -292,15 +292,15 @@ flex: 0 0 auto;
 }
 
 .capiro-vnext-root .vnext-meri__scope-trigger {
-display: inline-flex;
+  display: inline-flex;
   align-items: center;
   gap: 9px;
   height: 32px;
   padding: 0 10px 0 11px;
   border-radius: 8px;
-  background: #FFFFFF;
+  background: #ffffff;
   border: 0;
-  box-shadow: inset 0 0 0 1px #EAECF0;
+  box-shadow: inset 0 0 0 1px #eaecf0;
   white-space: nowrap;
   cursor: pointer;
 }
@@ -310,7 +310,7 @@ display: inline-flex;
 }
 
 .capiro-vnext-root .vnext-meri__scope-label {
-font-family: var(--meri-font-sans);
+  font-family: var(--meri-font-sans);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -324,7 +324,7 @@ font-family: var(--meri-font-sans);
 }
 
 .capiro-vnext-root .vnext-meri__scope-meta {
-font-family: var(--meri-font-sans);
+  font-family: var(--meri-font-sans);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -332,7 +332,7 @@ font-family: var(--meri-font-sans);
 }
 
 .capiro-vnext-root .vnext-meri__scope-menu {
-position: absolute;
+  position: absolute;
   top: 40px;
   left: 0;
   transform: none;
@@ -340,7 +340,9 @@ position: absolute;
   padding: 6px;
   background: var(--meri-surface);
   border-radius: 12px;
-  box-shadow: 0 0 0 1px #E4E7EC, 0 16px 24px -8px rgba(16,24,40,.14);
+  box-shadow:
+    0 0 0 1px #e4e7ec,
+    0 16px 24px -8px rgba(16, 24, 40, 0.14);
   z-index: var(--meri-z-popover);
 }
 
@@ -386,7 +388,7 @@ position: absolute;
 }
 
 .capiro-vnext-root .vnext-meri__topbar-actions {
-flex: 0 0 auto;
+  flex: 0 0 auto;
   margin-left: auto;
   display: flex;
   align-items: center;
@@ -394,7 +396,7 @@ flex: 0 0 auto;
 }
 
 .capiro-vnext-root .vnext-meri__icon-btn {
-display: flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   width: 34px;
@@ -421,7 +423,7 @@ display: flex;
   border: 0;
   border-radius: 8px;
   background: var(--meri-dark-ink);
-  color: #FFFFFF;
+  color: #ffffff;
   font-family: var(--meri-font-sans);
   font-size: 11px;
   font-weight: 600;
@@ -458,14 +460,14 @@ display: flex;
    (0,2,1) — hence the trailing `button` type selector (0,2,1 -> we add one
    more class to reach 0,3,1 via the repeated class trick below). */
 .capiro-vnext-root .vnext-meri button.vnext-meri__protip-trigger {
-display: inline-flex;
+  display: inline-flex;
   align-items: center;
   gap: 7px;
   height: 32px;
   padding: 0 11px;
   border-radius: 8px;
-  background: #FFFFFF;
-  box-shadow: inset 0 0 0 1px #EAECF0;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px #eaecf0;
   border: 0;
   color: #344054;
   font-family: var(--meri-font-sans);
@@ -483,13 +485,15 @@ display: inline-flex;
 }
 
 .capiro-vnext-root .vnext-meri__protip-panel {
-position: absolute;
+  position: absolute;
   top: 40px;
   right: 0;
   width: 392px;
   background: var(--meri-surface);
   border-radius: 12px;
-  box-shadow: 0 0 0 1px #E4E7EC, 0 16px 24px -8px rgba(16,24,40,.14);
+  box-shadow:
+    0 0 0 1px #e4e7ec,
+    0 16px 24px -8px rgba(16, 24, 40, 0.14);
   z-index: var(--meri-z-popover);
   overflow: hidden;
 }
@@ -614,7 +618,7 @@ position: absolute;
 }
 
 .capiro-vnext-root .vnext-meri__topbar-divider {
-width: 1px;
+  width: 1px;
   height: 22px;
   background: var(--meri-border);
   margin: 0 4px 0 6px;
@@ -634,10 +638,10 @@ width: 1px;
 /* ── Left thread rail ────────────────────────────────────────────────── */
 
 .capiro-vnext-root .vnext-meri__rail-left {
-flex: 0 0 auto;
+  flex: 0 0 auto;
   width: 282px;
   background: var(--meri-canvas);
-  border-right: 1px solid #E4E7EC;
+  border-right: 1px solid #e4e7ec;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -651,7 +655,7 @@ flex: 0 0 auto;
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  border-top: 1px solid #EAECF0;
+  border-top: 1px solid #eaecf0;
 }
 
 .capiro-vnext-root .vnext-meri__rail-foot-palette {
@@ -670,7 +674,7 @@ flex: 0 0 auto;
 }
 
 .capiro-vnext-root .vnext-meri__rail-foot-palette:hover {
-  background: #F2F4F7;
+  background: #f2f4f7;
 }
 
 .capiro-vnext-root .vnext-meri__rail-foot-hint {
@@ -679,7 +683,7 @@ flex: 0 0 auto;
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.05em;
-  color: #98A2B3;
+  color: #98a2b3;
 }
 
 /* Thread-rail expand toggle — handoff §"Three-column collapse rules" #2 and
@@ -1020,7 +1024,7 @@ flex: 0 0 auto;
 }
 
 .capiro-vnext-root .vnext-meri__workspace-none:hover:not(:disabled) {
-  background: #F2F4F7;
+  background: #f2f4f7;
   color: #344054;
 }
 
@@ -1087,7 +1091,7 @@ flex: 0 0 auto;
 
 /* Thread header */
 .capiro-vnext-root .vnext-meri__thread-header {
-flex: 0 0 auto;
+  flex: 0 0 auto;
   position: relative;
   display: flex;
   align-items: center;
@@ -1095,7 +1099,7 @@ flex: 0 0 auto;
   /* v6 reference: 60px total height (60 = 10+32+10+1 border). */
   height: 60px;
   padding: 9px 18px;
-  border-bottom: 1px solid #F2F4F7;
+  border-bottom: 1px solid #f2f4f7;
   z-index: 20;
 }
 
@@ -1109,7 +1113,7 @@ flex: 0 0 auto;
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: #F2F4F7;
+  background: #f2f4f7;
   color: #475467;
 }
 
@@ -1130,8 +1134,8 @@ flex: 0 0 auto;
   padding: 0 9px;
   border: 0;
   border-radius: 7px;
-  background: #F9FAFB;
-  box-shadow: inset 0 0 0 1px #D0D5DD;
+  background: #f9fafb;
+  box-shadow: inset 0 0 0 1px #d0d5dd;
   outline: none;
   font-size: 14px;
   font-weight: 600;
@@ -1166,7 +1170,7 @@ flex: 0 0 auto;
 }
 
 .capiro-vnext-meri-rename-cancel:hover {
-  background: #F2F4F7;
+  background: #f2f4f7;
 }
 
 .capiro-vnext-root .vnext-meri__thread-title-block {
@@ -1191,7 +1195,7 @@ flex: 0 0 auto;
 .capiro-vnext-root .vnext-meri__thread-sub {
   font-size: 12px;
   line-height: 18px;
-  color: #98A2B3;
+  color: #98a2b3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1205,7 +1209,7 @@ flex: 0 0 auto;
 }
 
 .capiro-vnext-root .vnext-meri__reasoning-trigger {
-display: inline-flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   height: 34px;
@@ -1213,7 +1217,9 @@ display: inline-flex;
   border-radius: 8px;
   background: var(--meri-surface);
   border: 0;
-  box-shadow: inset 0 0 0 1px #D0D5DD, 0 1px 2px rgba(16,24,40,.05);
+  box-shadow:
+    inset 0 0 0 1px #d0d5dd,
+    0 1px 2px rgba(16, 24, 40, 0.05);
   cursor: pointer;
 }
 
@@ -1222,23 +1228,25 @@ display: inline-flex;
 }
 
 .capiro-vnext-root .vnext-meri__reasoning-label {
-font-family: var(--meri-font-sans);
+  font-family: var(--meri-font-sans);
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: .04em;
+  letter-spacing: 0.04em;
   color: #101828;
   white-space: nowrap;
 }
 
 .capiro-vnext-root .vnext-meri__reasoning-menu {
-position: absolute;
+  position: absolute;
   top: 40px;
   right: 0;
   width: 286px;
   padding: 5px;
   background: var(--meri-surface);
   border-radius: 10px;
-  box-shadow: 0 0 0 1px #E4E7EC, 0 12px 16px -4px rgba(16,24,40,.1);
+  box-shadow:
+    0 0 0 1px #e4e7ec,
+    0 12px 16px -4px rgba(16, 24, 40, 0.1);
   z-index: var(--meri-z-popover);
 }
 
@@ -1268,9 +1276,9 @@ position: absolute;
   margin: 30px 0 4px;
   padding: 16px 18px;
   border-radius: 12px;
-  background: #FCFCFD;
+  background: #fcfcfd;
   border: 0;
-  box-shadow: 0 0 0 1px #EAECF0;
+  box-shadow: 0 0 0 1px #eaecf0;
 }
 
 .capiro-vnext-root .vnext-meri__landing-mode-copy {
@@ -1384,7 +1392,7 @@ position: absolute;
 
 /* Conversation scroll area */
 .capiro-vnext-root .vnext-meri__conversation-scroll {
-flex: 1;
+  flex: 1;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
@@ -1495,7 +1503,7 @@ flex: 1;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.07em;
-  color: #98A2B3;
+  color: #98a2b3;
 }
 
 .capiro-vnext-root .vnext-meri__landing-composer {
@@ -1585,7 +1593,8 @@ flex: 1;
   box-shadow: var(--meri-shadow-card);
   cursor: pointer;
   text-align: left;
-  transition: box-shadow var(--capiro-motion-fast) var(--capiro-motion-ease),
+  transition:
+    box-shadow var(--capiro-motion-fast) var(--capiro-motion-ease),
     border-color var(--capiro-motion-fast) var(--capiro-motion-ease),
     background var(--capiro-motion-fast) var(--capiro-motion-ease);
 }
@@ -1629,7 +1638,7 @@ flex: 1;
   overflow-wrap: anywhere;
   padding: 11px 14px;
   border-radius: 12px 12px 4px 12px;
-  background: #F2F4F7;
+  background: #f2f4f7;
   border: 0;
   font-size: 14.5px;
   line-height: 22px;
@@ -1645,7 +1654,7 @@ flex: 1;
   text-align: right;
   font-size: 11.5px;
   font-weight: 500;
-  color: #98A2B3;
+  color: #98a2b3;
 }
 
 /* Assistant message */
@@ -1698,7 +1707,7 @@ flex: 1;
   gap: 10px;
   font-size: 14.5px;
   line-height: 23px;
-  color: #1D2939;
+  color: #1d2939;
 }
 
 .capiro-vnext-root .vnext-meri__assistant-body p {
@@ -1746,7 +1755,7 @@ flex: 1;
   min-width: 0;
   font-size: 11.5px;
   line-height: 18px;
-  color: #98A2B3;
+  color: #98a2b3;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1767,7 +1776,7 @@ flex: 1;
   padding: 0 9px;
   border: 0;
   border-radius: 7px;
-  background: #F9FAFB;
+  background: #f9fafb;
   font-family: var(--meri-font-sans);
   font-size: 11.5px;
   font-weight: 600;
@@ -1777,15 +1786,15 @@ flex: 1;
 }
 
 .capiro-vnext-root .vnext-meri__reasoning-disclosure-toggle:hover {
-  background: #F2F4F7;
+  background: #f2f4f7;
 }
 
 .capiro-vnext-root .vnext-meri__reasoning-disclosure-body {
   margin-top: 6px;
   padding: 12px 14px;
   border-radius: 8px;
-  background: #FCFCFD;
-  box-shadow: inset 2px 0 0 #98A2B3;
+  background: #fcfcfd;
+  box-shadow: inset 2px 0 0 #98a2b3;
   font-size: 13px;
   line-height: 20px;
   color: #344054;
@@ -1844,13 +1853,13 @@ flex: 1;
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: #98A2B3;
+  color: #98a2b3;
   font-family: var(--meri-font-sans);
   font-size: 11px;
 }
 
 .capiro-vnext-root .vnext-meri__message-actions .vnext-meri__inline-action-btn:hover {
-  background: #F2F4F7;
+  background: #f2f4f7;
   color: #344054;
 }
 
@@ -1871,7 +1880,7 @@ flex: 1;
 }
 
 .capiro-vnext-root .vnext-meri__show-work:hover {
-  background: #F2F4F7;
+  background: #f2f4f7;
   color: #344054;
 }
 
@@ -1902,17 +1911,18 @@ flex: 1;
   border-radius: 8px;
   border: 0;
   background: var(--meri-surface);
-  box-shadow: inset 0 0 0 1px #E4E7EC;
+  box-shadow: inset 0 0 0 1px #e4e7ec;
   font-size: 12.5px;
   color: #344054;
   cursor: pointer;
-  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease),
+  transition:
+    background var(--capiro-motion-fast) var(--capiro-motion-ease),
     box-shadow var(--capiro-motion-fast) var(--capiro-motion-ease);
 }
 
 .capiro-vnext-root .vnext-meri__followup-chip:hover:not(:disabled) {
-  background: #F9FAFB;
-  box-shadow: inset 0 0 0 1px #D0D5DD;
+  background: #f9fafb;
+  box-shadow: inset 0 0 0 1px #d0d5dd;
 }
 
 .capiro-vnext-root .vnext-meri__followup-chip:disabled {
@@ -2172,7 +2182,9 @@ flex: 1;
    dropzone overlay covers the composer while a drag is active; the ring
    below (on .vnext-meri__composer) gets a matching highlight. */
 .capiro-vnext-root .vnext-meri__composer-wrap.is-drag-active .vnext-meri__composer {
-  box-shadow: 0 0 0 2px #294E68, 0 2px 8px -2px rgba(16, 24, 40, 0.08);
+  box-shadow:
+    0 0 0 2px #294e68,
+    0 2px 8px -2px rgba(16, 24, 40, 0.08);
 }
 
 .capiro-vnext-root .vnext-meri__composer-dropzone {
@@ -2185,7 +2197,7 @@ flex: 1;
   gap: 8px;
   border-radius: 12px;
   background: rgba(240, 244, 247, 0.94);
-  box-shadow: inset 0 0 0 2px #294E68;
+  box-shadow: inset 0 0 0 2px #294e68;
   font-family: var(--meri-font-sans);
   font-size: 13px;
   font-weight: 600;
@@ -2195,23 +2207,33 @@ flex: 1;
 
 .capiro-vnext-root .vnext-meri__composer {
   border-radius: 12px;
-  background: #EAF0F4;
-  box-shadow: 0 0 0 1px rgba(41, 78, 104, 0.16), 0 2px 8px -2px rgba(16, 24, 40, 0.08);
+  background: #eaf0f4;
+  box-shadow:
+    0 0 0 1px rgba(41, 78, 104, 0.16),
+    0 2px 8px -2px rgba(16, 24, 40, 0.08);
   padding: 0;
-  transition: box-shadow 140ms ease, background 140ms ease;
+  transition:
+    box-shadow 140ms ease,
+    background 140ms ease;
 }
 
 /* v6: once the draft is non-empty the ring deepens to the #294E68 ink. */
 .capiro-vnext-root .vnext-meri__composer.has-draft {
-  box-shadow: 0 0 0 1px #294E68, 0 2px 8px -2px rgba(16, 24, 40, 0.08);
+  box-shadow:
+    0 0 0 1px #294e68,
+    0 2px 8px -2px rgba(16, 24, 40, 0.08);
 }
 
 .capiro-vnext-root .vnext-meri__composer.is-focused {
-  box-shadow: 0 0 0 1px #98A2B3, 0 2px 8px -2px rgba(16, 24, 40, 0.08);
+  box-shadow:
+    0 0 0 1px #98a2b3,
+    0 2px 8px -2px rgba(16, 24, 40, 0.08);
 }
 
 .capiro-vnext-root .vnext-meri__composer.has-draft.is-focused {
-  box-shadow: 0 0 0 1px #294E68, 0 2px 8px -2px rgba(16, 24, 40, 0.08);
+  box-shadow:
+    0 0 0 1px #294e68,
+    0 2px 8px -2px rgba(16, 24, 40, 0.08);
 }
 
 .capiro-vnext-root .vnext-meri__composer-row {
@@ -2253,7 +2275,7 @@ flex: 1;
 }
 
 .capiro-vnext-root .vnext-meri__composer-textarea {
-display: block;
+  display: block;
   width: 100%;
   flex: 1;
   min-width: 0;
@@ -2280,7 +2302,7 @@ display: block;
 }
 
 .capiro-vnext-root .vnext-meri__composer-toolbar {
-display: flex;
+  display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
@@ -2312,7 +2334,8 @@ display: flex;
   letter-spacing: 0.07em;
   color: var(--meri-text-secondary);
   white-space: nowrap;
-  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease),
+  transition:
+    background var(--capiro-motion-fast) var(--capiro-motion-ease),
     border-color var(--capiro-motion-fast) var(--capiro-motion-ease);
 }
 
@@ -2369,19 +2392,19 @@ display: flex;
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.07em;
-  color: #98A2B3;
+  color: #98a2b3;
   white-space: nowrap;
 }
 
 .capiro-vnext-root .vnext-meri__composer-send-btn {
-display: flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   width: 36px;
   height: 36px;
   border-radius: 8px;
   background: var(--m-gradient-primary);
-  color: #FFFFFF;
+  color: #ffffff;
   box-shadow: var(--m-gradient-primary-sheen), var(--m-gradient-primary-shadow);
   border: 0;
   cursor: pointer;
@@ -2417,7 +2440,7 @@ display: flex;
   border-radius: 8px;
   background: var(--meri-surface);
   border: 0;
-  box-shadow: inset 0 0 0 1px #D0D5DD;
+  box-shadow: inset 0 0 0 1px #d0d5dd;
   font-size: 13px;
   font-weight: 600;
   color: #344054;
@@ -2426,7 +2449,7 @@ display: flex;
 }
 
 .capiro-vnext-root .vnext-meri__composer-stop-btn:hover {
-  background: #F9FAFB;
+  background: #f9fafb;
 }
 
 /* Attachment chip rows — shared by the composer (inside the #EAF0F4 card)
@@ -2458,7 +2481,7 @@ display: flex;
   padding: 0 6px 0 9px;
   border-radius: 8px;
   background: #ffffff;
-  box-shadow: inset 0 0 0 1px #E4E7EC;
+  box-shadow: inset 0 0 0 1px #e4e7ec;
   font-size: 12px;
 }
 
@@ -2490,7 +2513,7 @@ display: flex;
 }
 
 .capiro-vnext-root .vnext-meri__attachment-details [role='alert'] {
-  color: #B42318;
+  color: #b42318;
 }
 
 .capiro-vnext-root .vnext-meri__save-receipt-files {
@@ -2507,15 +2530,15 @@ display: flex;
 }
 
 .capiro-vnext-root .vnext-meri__attachment.is-truncated {
-  background: #FFFAEB;
-  box-shadow: inset 0 0 0 1px #FEDF89;
-  color: #B54708;
+  background: #fffaeb;
+  box-shadow: inset 0 0 0 1px #fedf89;
+  color: #b54708;
 }
 
 .capiro-vnext-root .vnext-meri__attachment.is-error {
-  background: #FEF3F2;
-  box-shadow: inset 0 0 0 1px #FECDCA;
-  color: #B42318;
+  background: #fef3f2;
+  box-shadow: inset 0 0 0 1px #fecdca;
+  color: #b42318;
 }
 
 .capiro-vnext-root .vnext-meri__attachment-name {
@@ -2536,14 +2559,14 @@ display: flex;
   width: 20px;
   height: 20px;
   border-radius: 5px;
-  color: #98A2B3;
+  color: #98a2b3;
   border: 0;
   background: transparent;
   cursor: pointer;
 }
 
 .capiro-vnext-root .vnext-meri__attachment-remove:hover {
-  background: #EAECF0;
+  background: #eaecf0;
   color: #344054;
 }
 
@@ -2555,7 +2578,7 @@ display: flex;
 
 /* Composer pinned (thread mode) */
 .capiro-vnext-root .vnext-meri__composer-pinned {
-flex: 0 0 auto;
+  flex: 0 0 auto;
   padding: 14px 18px 12px;
   border-top: 0;
   background: var(--meri-surface);
@@ -2662,7 +2685,7 @@ flex: 0 0 auto;
 .capiro-vnext-root .vnext-meri__add-popover-separator {
   height: 1px;
   margin: 6px 4px 4px;
-  background: #F2F4F7;
+  background: #f2f4f7;
 }
 
 /* LIBRARY sub-panes (v6 prototype addPanes()/addPane()): saved prompts,
@@ -2685,7 +2708,7 @@ flex: 0 0 auto;
 }
 
 .capiro-vnext-root .vnext-meri__add-popover-pane-trigger:hover {
-  background: #F9FAFB;
+  background: #f9fafb;
 }
 
 .capiro-vnext-root .vnext-meri__add-popover-pane-meta {
@@ -2698,7 +2721,7 @@ flex: 0 0 auto;
 .capiro-vnext-root .vnext-meri__add-popover-pane-count {
   font-size: 11px;
   font-weight: 600;
-  color: #98A2B3;
+  color: #98a2b3;
   font-variant-numeric: tabular-nums;
 }
 
@@ -2723,7 +2746,7 @@ flex: 0 0 auto;
 }
 
 .capiro-vnext-root .vnext-meri__add-popover-pane-back:hover {
-  background: #F2F4F7;
+  background: #f2f4f7;
   color: #101828;
 }
 
@@ -2748,7 +2771,7 @@ flex: 0 0 auto;
 }
 
 .capiro-vnext-root .vnext-meri__add-popover-pane-row:hover {
-  background: #F9FAFB;
+  background: #f9fafb;
 }
 
 .capiro-vnext-root .vnext-meri__add-popover-pane-item {
@@ -2796,29 +2819,29 @@ flex: 0 0 auto;
   border-radius: 6px;
   border: 0;
   background: transparent;
-  color: #98A2B3;
+  color: #98a2b3;
   cursor: pointer;
 }
 
 .capiro-vnext-root .vnext-meri__add-popover-pane-del:hover {
-  background: #FEF3F2;
-  color: #B42318;
+  background: #fef3f2;
+  color: #b42318;
 }
 
 .capiro-vnext-root .vnext-meri__add-popover-pane-empty {
   padding: 10px;
   font-size: 12px;
   line-height: 17px;
-  color: #98A2B3;
+  color: #98a2b3;
   text-wrap: pretty;
 }
 
 /* ── Right context rail ──────────────────────────────────────────────── */
 
 .capiro-vnext-root .vnext-meri__rail-right {
-flex: 0 0 auto;
+  flex: 0 0 auto;
   background: var(--meri-canvas);
-  border-left: 1px solid #E4E7EC;
+  border-left: 1px solid #e4e7ec;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -2826,13 +2849,13 @@ flex: 0 0 auto;
 }
 
 .capiro-vnext-root .vnext-meri__rail-right.is-expanded {
-width: 382px;
+  width: 382px;
   overflow-y: auto;
   overflow-x: hidden;
 }
 
 .capiro-vnext-root .vnext-meri__rail-right.is-collapsed {
-width: 46px;
+  width: 46px;
   overflow: hidden;
 }
 
@@ -2843,7 +2866,7 @@ width: 46px;
    dedicated var per override. See meri-rail-panel-structure.test.ts for the
    contract this reuses (.vnext-meri__rail-panel-tabs etc.). */
 .capiro-vnext-root .vnext-meri__rail-right.is-turn-inspector {
-width: 382px;
+  width: 382px;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -2858,7 +2881,7 @@ width: 382px;
 }
 
 .capiro-vnext-root .vnext-meri__rail-expand-btn {
-display: flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   width: 30px;
@@ -2927,7 +2950,7 @@ display: flex;
    `.vnext-meri__rail-panel-tabs` div (block-level by default, no flex) broke
    the row onto its own line, stacking title / tabs / collapse into three. */
 .capiro-vnext-root .vnext-meri__rail-panel-head {
-flex: 0 0 auto;
+  flex: 0 0 auto;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -2947,7 +2970,7 @@ flex: 0 0 auto;
 }
 
 .capiro-vnext-root .vnext-meri__rail-panel-tabs {
-order: 3;
+  order: 3;
   flex: 0 0 100%;
   display: flex;
   align-items: center;
@@ -2958,7 +2981,7 @@ order: 3;
 /* Specificity must beat the `.vnext-meri button { font: inherit }` reset
    (0,2,1) — addressed as a button type selector to reach 0,3,1. */
 .capiro-vnext-root .vnext-meri button.vnext-meri__rail-panel-tab {
-position: relative;
+  position: relative;
   flex: 1;
   display: flex;
   align-items: center;
@@ -2981,9 +3004,9 @@ position: relative;
    white background/ink text. */
 .capiro-vnext-root .vnext-meri button.vnext-meri__rail-panel-tab:hover,
 .capiro-vnext-root .vnext-meri button.vnext-meri__rail-panel-tab.is-active {
-  background: #FFFFFF;
+  background: #ffffff;
   color: #101828;
-  box-shadow: 0 0 0 1px #E4E7EC;
+  box-shadow: 0 0 0 1px #e4e7ec;
 }
 
 .capiro-vnext-root .vnext-meri__rail-panel-tab-badge {
@@ -3025,7 +3048,7 @@ position: relative;
 
 /* Expanded rail sections */
 .capiro-vnext-root .vnext-meri__rail-section {
-border-bottom: 1px solid var(--meri-border);
+  border-bottom: 1px solid var(--meri-border);
   padding: 14px 14px 20px;
 }
 
@@ -3579,19 +3602,19 @@ border-bottom: 1px solid var(--meri-border);
   color: var(--m-gray-700);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-stat-pill[data-tone="g"] {
+.capiro-vnext-root .vnext-meri__evidence-stat-pill[data-tone='g'] {
   background: var(--m-success-bg);
   border-color: var(--m-success-border);
   color: var(--m-success-text);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-stat-pill[data-tone="w"] {
+.capiro-vnext-root .vnext-meri__evidence-stat-pill[data-tone='w'] {
   background: var(--m-warning-bg);
   border-color: var(--m-warning-border);
   color: var(--m-warning-text);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-stat-pill[data-tone="b"] {
+.capiro-vnext-root .vnext-meri__evidence-stat-pill[data-tone='b'] {
   background: var(--m-error-bg);
   border-color: var(--m-error-border);
   color: var(--m-error-text);
@@ -3626,17 +3649,25 @@ border-bottom: 1px solid var(--meri-border);
   color: var(--m-gray-700);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-claim-row[data-state="verified"] .vnext-meri__evidence-claim-dot {
+.capiro-vnext-root
+  .vnext-meri__evidence-claim-row[data-state='verified']
+  .vnext-meri__evidence-claim-dot {
   background: var(--m-gray-900);
   color: var(--m-white);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-claim-row[data-state="low"] .vnext-meri__evidence-claim-dot {
+.capiro-vnext-root
+  .vnext-meri__evidence-claim-row[data-state='low']
+  .vnext-meri__evidence-claim-dot {
   color: var(--m-gray-500);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-claim-row[data-state="unsupported"] .vnext-meri__evidence-claim-dot,
-.capiro-vnext-root .vnext-meri__evidence-claim-row[data-state="conflict"] .vnext-meri__evidence-claim-dot {
+.capiro-vnext-root
+  .vnext-meri__evidence-claim-row[data-state='unsupported']
+  .vnext-meri__evidence-claim-dot,
+.capiro-vnext-root
+  .vnext-meri__evidence-claim-row[data-state='conflict']
+  .vnext-meri__evidence-claim-dot {
   background: var(--m-warning-bg);
   color: var(--m-warning-text);
 }
@@ -3663,16 +3694,24 @@ border-bottom: 1px solid var(--meri-border);
   color: var(--m-gray-700);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-claim-row[data-state="verified"] .vnext-meri__evidence-claim-state {
+.capiro-vnext-root
+  .vnext-meri__evidence-claim-row[data-state='verified']
+  .vnext-meri__evidence-claim-state {
   color: var(--m-success-text);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-claim-row[data-state="low"] .vnext-meri__evidence-claim-state {
+.capiro-vnext-root
+  .vnext-meri__evidence-claim-row[data-state='low']
+  .vnext-meri__evidence-claim-state {
   color: var(--m-gray-500);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-claim-row[data-state="unsupported"] .vnext-meri__evidence-claim-state,
-.capiro-vnext-root .vnext-meri__evidence-claim-row[data-state="conflict"] .vnext-meri__evidence-claim-state {
+.capiro-vnext-root
+  .vnext-meri__evidence-claim-row[data-state='unsupported']
+  .vnext-meri__evidence-claim-state,
+.capiro-vnext-root
+  .vnext-meri__evidence-claim-row[data-state='conflict']
+  .vnext-meri__evidence-claim-state {
   color: var(--m-warning-text);
 }
 
@@ -3696,12 +3735,12 @@ border-bottom: 1px solid var(--meri-border);
   border: 1px solid var(--m-border);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-step-row[data-state="running"] {
+.capiro-vnext-root .vnext-meri__evidence-step-row[data-state='running'] {
   border-color: var(--m-gray-300);
   box-shadow: 0 0 0 3px var(--m-gray-100);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-step-row[data-state="failed"] {
+.capiro-vnext-root .vnext-meri__evidence-step-row[data-state='failed'] {
   border-color: var(--m-error-border);
 }
 
@@ -3718,13 +3757,17 @@ border-bottom: 1px solid var(--meri-border);
   color: var(--m-gray-400);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-step-row[data-state="done"] .vnext-meri__evidence-step-dot,
-.capiro-vnext-root .vnext-meri__evidence-step-row[data-state="running"] .vnext-meri__evidence-step-dot {
+.capiro-vnext-root .vnext-meri__evidence-step-row[data-state='done'] .vnext-meri__evidence-step-dot,
+.capiro-vnext-root
+  .vnext-meri__evidence-step-row[data-state='running']
+  .vnext-meri__evidence-step-dot {
   background: var(--m-gray-900);
   color: var(--m-white);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-step-row[data-state="failed"] .vnext-meri__evidence-step-dot {
+.capiro-vnext-root
+  .vnext-meri__evidence-step-row[data-state='failed']
+  .vnext-meri__evidence-step-dot {
   background: var(--m-error-bg);
   color: var(--m-error-text);
 }
@@ -3766,13 +3809,19 @@ border-bottom: 1px solid var(--meri-border);
   color: var(--m-gray-700);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-step-row[data-state="queued"] .vnext-meri__evidence-step-pill,
-.capiro-vnext-root .vnext-meri__evidence-step-row[data-state="skipped"] .vnext-meri__evidence-step-pill {
+.capiro-vnext-root
+  .vnext-meri__evidence-step-row[data-state='queued']
+  .vnext-meri__evidence-step-pill,
+.capiro-vnext-root
+  .vnext-meri__evidence-step-row[data-state='skipped']
+  .vnext-meri__evidence-step-pill {
   background: var(--m-gray-50);
   color: var(--m-gray-500);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-step-row[data-state="failed"] .vnext-meri__evidence-step-pill {
+.capiro-vnext-root
+  .vnext-meri__evidence-step-row[data-state='failed']
+  .vnext-meri__evidence-step-pill {
   background: var(--m-error-bg);
   color: var(--m-error-text);
 }
@@ -3919,12 +3968,12 @@ border-bottom: 1px solid var(--meri-border);
   color: var(--m-gray-700);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-ctx-item-scope[data-scope="CLIENT"] {
+.capiro-vnext-root .vnext-meri__evidence-ctx-item-scope[data-scope='CLIENT'] {
   background: var(--m-success-bg);
   color: var(--m-success-text);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-ctx-item-scope[data-scope="PERSONAL"] {
+.capiro-vnext-root .vnext-meri__evidence-ctx-item-scope[data-scope='PERSONAL'] {
   background: var(--m-warning-bg);
   color: var(--m-warning-text);
 }
@@ -3996,12 +4045,12 @@ border-bottom: 1px solid var(--meri-border);
   color: var(--m-gray-700);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-ctx-exclusion-reason[data-tone="w"] {
+.capiro-vnext-root .vnext-meri__evidence-ctx-exclusion-reason[data-tone='w'] {
   background: var(--m-warning-bg);
   color: var(--m-warning-text);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-ctx-exclusion-reason[data-tone="b"] {
+.capiro-vnext-root .vnext-meri__evidence-ctx-exclusion-reason[data-tone='b'] {
   background: var(--m-error-bg);
   color: var(--m-error-text);
 }
@@ -4043,7 +4092,7 @@ border-bottom: 1px solid var(--meri-border);
   border: 1px solid var(--m-warning-border);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-warning[data-tone="missing"] {
+.capiro-vnext-root .vnext-meri__evidence-warning[data-tone='missing'] {
   background: var(--m-error-bg);
   border-color: var(--m-error-border);
 }
@@ -4055,7 +4104,9 @@ border-bottom: 1px solid var(--meri-border);
   color: var(--m-warning-text);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-warning[data-tone="missing"] .vnext-meri__evidence-warning-head {
+.capiro-vnext-root
+  .vnext-meri__evidence-warning[data-tone='missing']
+  .vnext-meri__evidence-warning-head {
   color: var(--m-error-text);
 }
 
@@ -4119,7 +4170,9 @@ border-bottom: 1px solid var(--meri-border);
   color: var(--m-warning-text);
 }
 
-.capiro-vnext-root .vnext-meri__evidence-warning[data-tone="missing"] .vnext-meri__evidence-warning-meta {
+.capiro-vnext-root
+  .vnext-meri__evidence-warning[data-tone='missing']
+  .vnext-meri__evidence-warning-meta {
   color: var(--m-error-text);
 }
 
@@ -4170,7 +4223,7 @@ border-bottom: 1px solid var(--meri-border);
   width: 100%;
   padding: 14px 16px;
   border-radius: 12px;
-  background: #F0F1F7;
+  background: #f0f1f7;
   border: 0;
   cursor: pointer;
   text-align: left;
@@ -4182,7 +4235,7 @@ border-bottom: 1px solid var(--meri-border);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #363F72;
+  color: #363f72;
 }
 
 .capiro-vnext-root .vnext-meri__memory-callout-copy {
@@ -4196,7 +4249,7 @@ border-bottom: 1px solid var(--meri-border);
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.08em;
-  color: #4E5BA6;
+  color: #4e5ba6;
 }
 
 .capiro-vnext-root .vnext-meri__memory-callout-value {
@@ -4210,7 +4263,7 @@ border-bottom: 1px solid var(--meri-border);
 .capiro-vnext-root .vnext-meri__memory-callout-scope {
   margin-top: 5px;
   font-size: 11.5px;
-  color: #5D6B98;
+  color: #5d6b98;
 }
 
 /* v6 approval row: quiet indented line under the turn — chat line + "Review"
@@ -4246,12 +4299,12 @@ border-bottom: 1px solid var(--meri-border);
   background: transparent;
   font-size: 12px;
   font-weight: 600;
-  color: #363F72;
+  color: #363f72;
   cursor: pointer;
 }
 
 .capiro-vnext-root .vnext-meri__approval-notice-link:hover {
-  background: #F2F4F7;
+  background: #f2f4f7;
 }
 
 .capiro-vnext-root .vnext-meri__save-receipt-links {
@@ -4264,7 +4317,7 @@ border-bottom: 1px solid var(--meri-border);
 }
 
 .capiro-vnext-root .vnext-meri__save-receipt-links a {
-  color: #363F72;
+  color: #363f72;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -4299,8 +4352,6 @@ border-bottom: 1px solid var(--meri-border);
 
 /* ---- Tablet and below: touch geometry ------------------------------- */
 
-
-
 /* Scoped override, not an edit to the canonical sheet. The route's loading and
    fail-closed screens (VNextMeriWorkspace) are styled by
    components/chat/meri-workspace-window-scope.css, which is shared with the
@@ -4308,10 +4359,7 @@ border-bottom: 1px solid var(--meri-border);
    control on those screens. Scoping to .capiro-vnext-root leaves the legacy
    window untouched. */
 
-
 /* ---- Mobile: <= 779 -------------------------------------------------- */
-
-
 
 /* v6 Start Work states: loading/empty on the #FCFCFD panel, error on the
    #FFFBFA/#FECDCA danger tint. */
@@ -4319,8 +4367,8 @@ border-bottom: 1px solid var(--meri-border);
   margin-top: 14px;
   padding: 22px;
   border-radius: 12px;
-  background: #FCFCFD;
-  box-shadow: 0 0 0 1px #EAECF0;
+  background: #fcfcfd;
+  box-shadow: 0 0 0 1px #eaecf0;
   font-size: 13px;
   color: #667085;
   display: flex;
@@ -4329,11 +4377,11 @@ border-bottom: 1px solid var(--meri-border);
 
 .capiro-vnext-root .vnext-meri__startwork-state.is-error {
   padding: 16px;
-  background: #FFFBFA;
-  box-shadow: 0 0 0 1px #FECDCA;
+  background: #fffbfa;
+  box-shadow: 0 0 0 1px #fecdca;
   font-size: 13px;
   font-weight: 500;
-  color: #B42318;
+  color: #b42318;
 }
 
 .capiro-vnext-root .vnext-meri__startwork-empty-title {
@@ -4379,7 +4427,7 @@ border-bottom: 1px solid var(--meri-border);
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.1em;
-  color: #98A2B3;
+  color: #98a2b3;
 }
 
 .capiro-vnext-root .vnext-meri__work-card-spacer {
@@ -4402,7 +4450,7 @@ border-bottom: 1px solid var(--meri-border);
   width: 6px;
   height: 6px;
   border-radius: 9999px;
-  background: #12B76A;
+  background: #12b76a;
 }
 
 .capiro-vnext-root .vnext-meri__work-card-badge-text {
@@ -4432,7 +4480,7 @@ border-bottom: 1px solid var(--meri-border);
   flex: 1;
   height: 6px;
   border-radius: 9999px;
-  background: #1D2939;
+  background: #1d2939;
   overflow: hidden;
   position: relative;
 }
@@ -4444,7 +4492,7 @@ border-bottom: 1px solid var(--meri-border);
   display: block;
   height: 100%;
   border-radius: 9999px;
-  background: linear-gradient(90deg, #98A2B3, #ffffff);
+  background: linear-gradient(90deg, #98a2b3, #ffffff);
 }
 
 .capiro-vnext-root .vnext-meri__work-card-progress-label {
@@ -4464,8 +4512,8 @@ border-bottom: 1px solid var(--meri-border);
   margin-top: 10px;
   padding: 11px 13px;
   border-radius: 9px;
-  background: #F9FAFB;
-  border: 1px solid #EAECF0;
+  background: #f9fafb;
+  border: 1px solid #eaecf0;
 }
 
 .capiro-vnext-root .vnext-meri__work-plan-label {
@@ -4488,7 +4536,7 @@ border-bottom: 1px solid var(--meri-border);
   margin-top: 10px;
   font-size: 11px;
   line-height: 16px;
-  color: #98A2B3;
+  color: #98a2b3;
 }
 
 /* ── Animations ──────────────────────────────────────────────────────── */
@@ -4587,7 +4635,7 @@ border-bottom: 1px solid var(--meri-border);
 .capiro-vnext-root .vnext-meri-page,
 .capiro-vnext-root .vnext-meri {
   scrollbar-width: thin;
-  scrollbar-color: #D0D5DD transparent;
+  scrollbar-color: #d0d5dd transparent;
 }
 
 .capiro-vnext-root .vnext-meri-page ::-webkit-scrollbar,
@@ -4598,7 +4646,7 @@ border-bottom: 1px solid var(--meri-border);
 
 .capiro-vnext-root .vnext-meri-page ::-webkit-scrollbar-thumb,
 .capiro-vnext-root .vnext-meri ::-webkit-scrollbar-thumb {
-  background: #D0D5DD;
+  background: #d0d5dd;
   border-radius: 9999px;
   border: 3px solid transparent;
   background-clip: content-box;
@@ -4615,7 +4663,7 @@ border-bottom: 1px solid var(--meri-border);
 }
 
 .capiro-vnext-root .vnext-meri-docked {
-margin: auto;
+  margin: auto;
   display: inline-flex;
   align-items: center;
   gap: 14px;
@@ -4623,17 +4671,19 @@ margin: auto;
   padding: 14px 20px 14px 16px;
   border: 0;
   border-radius: 12px;
-  background: #FFFFFF;
-  box-shadow: 0 0 0 1px #E4E7EC, 0 8px 24px -6px rgba(16,24,40,.14);
+  background: #ffffff;
+  box-shadow:
+    0 0 0 1px #e4e7ec,
+    0 8px 24px -6px rgba(16, 24, 40, 0.14);
   cursor: pointer;
 }
 
 .capiro-vnext-root .vnext-meri-docked__mark {
-width: 34px;
+  width: 34px;
   height: 34px;
   border-radius: 9px;
   background: var(--m-gradient-primary);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -4653,14 +4703,14 @@ width: 34px;
 }
 
 .capiro-vnext-root .vnext-meri-docked__title {
-font-size: 14px;
+  font-size: 14px;
   line-height: 18px;
   font-weight: 600;
   color: #101828;
 }
 
 .capiro-vnext-root .vnext-meri-docked__hint {
-font-family: var(--meri-font-sans);
+  font-family: var(--meri-font-sans);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.07em;
@@ -4673,7 +4723,7 @@ font-family: var(--meri-font-sans);
 }
 
 .capiro-vnext-root .vnext-meri__scope-menu-item.is-selected {
-  background: #F2F4F7;
+  background: #f2f4f7;
 }
 
 .capiro-vnext-root .vnext-meri__avatar {
@@ -4707,12 +4757,12 @@ font-family: var(--meri-font-sans);
   width: 8px;
   height: 8px;
   border-radius: 9999px;
-  background: #12B76A;
+  background: #12b76a;
   box-shadow: 0 0 0 2px #ffffff;
 }
 
 .capiro-vnext-root .vnext-meri__chrome-btn {
-width: 30px;
+  width: 30px;
   height: 30px;
   border-radius: 6px;
   border: 0;
@@ -4725,13 +4775,13 @@ width: 30px;
 }
 
 .capiro-vnext-root .vnext-meri__chrome-btn:hover {
-  background: #F9FAFB;
+  background: #f9fafb;
   color: #101828;
 }
 
 .capiro-vnext-root .vnext-meri__chrome-btn--close:hover {
-  background: #FEF3F2;
-  color: #B42318;
+  background: #fef3f2;
+  color: #b42318;
 }
 
 .capiro-vnext-root .vnext-meri__new-chat-btn {
@@ -4769,11 +4819,13 @@ width: 30px;
   padding: 0 11px;
   border-radius: 8px;
   background: #ffffff;
-  box-shadow: inset 0 0 0 1px #EAECF0;
+  box-shadow: inset 0 0 0 1px #eaecf0;
 }
 
 .capiro-vnext-root .vnext-meri__rail-search:focus-within {
-  box-shadow: inset 0 0 0 1px #98A2B3, 0 0 0 3px #F2F4F7;
+  box-shadow:
+    inset 0 0 0 1px #98a2b3,
+    0 0 0 3px #f2f4f7;
 }
 
 .capiro-vnext-root .vnext-meri__rail-search input {
@@ -4795,7 +4847,7 @@ width: 30px;
   height: 20px;
   border: 0;
   background: transparent;
-  color: #98A2B3;
+  color: #98a2b3;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -4806,7 +4858,7 @@ width: 30px;
   padding: 20px 14px;
   border-radius: 10px;
   background: #ffffff;
-  border: 1px solid #EAECF0;
+  border: 1px solid #eaecf0;
 }
 
 .capiro-vnext-root .vnext-meri__section-empty-label,
@@ -4814,7 +4866,7 @@ width: 30px;
   font-family: var(--meri-font-mono);
   font-size: 10px;
   letter-spacing: 0.1em;
-  color: #98A2B3;
+  color: #98a2b3;
 }
 
 .capiro-vnext-root .vnext-meri__thread-empty-label {
@@ -4871,7 +4923,7 @@ width: 30px;
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.1em;
-  color: #98A2B3;
+  color: #98a2b3;
 }
 
 .capiro-vnext-root .vnext-meri__thread-group-label.is-first {
@@ -4896,9 +4948,9 @@ width: 30px;
 .capiro-vnext-root .vnext-meri__thread-item.is-active {
   /* v6 reference: gray row with a dark 2px left inset edge — not an elevated
      white card. */
-  background: #F2F4F7;
+  background: #f2f4f7;
   border-color: transparent;
-  box-shadow: inset 2px 0 0 #1B2430;
+  box-shadow: inset 2px 0 0 #1b2430;
 }
 
 .capiro-vnext-root .vnext-meri__thread-item-main {
@@ -4945,7 +4997,9 @@ width: 30px;
   padding: 5px;
   border-radius: 10px;
   background: #ffffff;
-  box-shadow: 0 0 0 1px #e4e7ec, 0px 12px 16px -4px rgba(16, 24, 40, 0.1);
+  box-shadow:
+    0 0 0 1px #e4e7ec,
+    0px 12px 16px -4px rgba(16, 24, 40, 0.1);
   z-index: 45;
 }
 
@@ -4966,22 +5020,22 @@ width: 30px;
 }
 
 .capiro-vnext-root .vnext-meri__row-menu-item:hover {
-  background: #F9FAFB;
+  background: #f9fafb;
 }
 
 .capiro-vnext-root .vnext-meri__row-menu-item.is-danger {
-  color: #B42318;
+  color: #b42318;
 }
 
 .capiro-vnext-root .vnext-meri__row-menu-item.is-danger:hover {
-  background: #FEF3F2;
+  background: #fef3f2;
 }
 
 .capiro-vnext-root .vnext-meri__row-menu-rule {
   display: block;
   height: 1px;
   margin: 4px 6px;
-  background: #EAECF0;
+  background: #eaecf0;
 }
 
 .capiro-vnext-root .vnext-meri__confirm-scrim {
@@ -5006,7 +5060,7 @@ width: 30px;
   width: 36px;
   height: 36px;
   border-radius: 9px;
-  background: #FEF3F2;
+  background: #fef3f2;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -5055,9 +5109,9 @@ width: 30px;
   box-sizing: border-box;
   width: 100%;
   padding: 9px 11px;
-  border: 1px solid #D0D5DD;
+  border: 1px solid #d0d5dd;
   border-radius: 8px;
-  background: #FFFFFF;
+  background: #ffffff;
   font: inherit;
   line-height: 20px;
   color: #101828;
@@ -5069,7 +5123,7 @@ width: 30px;
 }
 
 .capiro-vnext-root .vnext-meri__client-note-field :is(input, select, textarea):focus-visible {
-  outline: 2px solid #4E5BA6;
+  outline: 2px solid #4e5ba6;
   outline-offset: 2px;
 }
 
@@ -5078,7 +5132,7 @@ width: 30px;
   border: 0;
   border-radius: 8px;
   background: #344054;
-  color: #FFFFFF;
+  color: #ffffff;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -5172,11 +5226,11 @@ width: 30px;
 
 .capiro-vnext-root .vnext-meri__workspace-import .vnext-meri__workspace-item:hover,
 .capiro-vnext-root .vnext-meri__workspace-import .vnext-meri__workspace-item:focus-visible {
-  background: #F9FAFB;
+  background: #f9fafb;
 }
 
 .capiro-vnext-root .vnext-meri__workspace-import .vnext-meri__workspace-item:focus-visible {
-  outline: 2px solid #4E5BA6;
+  outline: 2px solid #4e5ba6;
   outline-offset: -2px;
 }
 
@@ -5206,7 +5260,10 @@ width: 30px;
   color: #667085;
 }
 
-.capiro-vnext-root .vnext-meri__workspace-import .vnext-meri__workspace-item > .vnext-meri__workspace-meta {
+.capiro-vnext-root
+  .vnext-meri__workspace-import
+  .vnext-meri__workspace-item
+  > .vnext-meri__workspace-meta {
   flex: 0 0 auto;
 }
 
@@ -5263,7 +5320,7 @@ width: 30px;
   max-width: 100%;
   display: flex;
   flex-direction: column;
-  background: #FFFFFF;
+  background: #ffffff;
   box-shadow: -20px 0 40px -16px rgba(16, 24, 40, 0.28);
   animation: vnext-meri-slide-in 0.16s ease;
 }
@@ -5274,7 +5331,7 @@ width: 30px;
   align-items: center;
   gap: 10px;
   padding: 16px 18px;
-  border-bottom: 1px solid #EAECF0;
+  border-bottom: 1px solid #eaecf0;
 }
 
 .capiro-vnext-root .vnext-meri__sheet-header-copy {
@@ -5286,11 +5343,17 @@ width: 30px;
 }
 
 .capiro-vnext-root .vnext-meri__sheet-eyebrow {
-  font-family: Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  font-family:
+    Inter,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    Arial,
+    sans-serif;
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.08em;
-  color: #98A2B3;
+  color: #98a2b3;
 }
 
 .capiro-vnext-root .vnext-meri__sheet-title {
@@ -5314,7 +5377,7 @@ width: 30px;
 }
 
 .capiro-vnext-root .vnext-meri__sheet-close:hover {
-  background: #F2F4F7;
+  background: #f2f4f7;
   color: #101828;
 }
 
@@ -5338,8 +5401,8 @@ width: 30px;
 .capiro-vnext-root .vnext-meri__sheet-error {
   padding: 13px 14px;
   border-radius: 10px;
-  background: #FFFBFA;
-  box-shadow: inset 2px 0 0 #F04438;
+  background: #fffbfa;
+  box-shadow: inset 2px 0 0 #f04438;
   font-size: 13px;
   line-height: 20px;
   color: #912018;
@@ -5348,8 +5411,8 @@ width: 30px;
 .capiro-vnext-root .vnext-meri__sheet-unavailable {
   padding: 14px 15px;
   border-radius: 10px;
-  background: #F9FAFB;
-  box-shadow: inset 2px 0 0 #98A2B3;
+  background: #f9fafb;
+  box-shadow: inset 2px 0 0 #98a2b3;
 }
 
 .capiro-vnext-root .vnext-meri__sheet-unavailable-title {
@@ -5369,10 +5432,10 @@ width: 30px;
 .capiro-vnext-root .vnext-meri__sheet-meta {
   padding: 11px 13px;
   border-radius: 10px;
-  background: #F0F1F7;
+  background: #f0f1f7;
   font-size: 12px;
   line-height: 18px;
-  color: #4E5BA6;
+  color: #4e5ba6;
   text-wrap: pretty;
 }
 
@@ -5386,8 +5449,8 @@ width: 30px;
 .capiro-vnext-root .vnext-meri__sheet-item {
   padding: 13px 14px;
   border-radius: 10px;
-  background: #FFFFFF;
-  box-shadow: 0 0 0 1px #EAECF0;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px #eaecf0;
 }
 
 .capiro-vnext-root .vnext-meri__sheet-item-head {
@@ -5407,7 +5470,13 @@ width: 30px;
 
 .capiro-vnext-root .vnext-meri__sheet-item-selection {
   flex: 0 0 auto;
-  font-family: Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  font-family:
+    Inter,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    Arial,
+    sans-serif;
   font-size: 9.5px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -5429,7 +5498,7 @@ width: 30px;
 }
 
 .capiro-vnext-root .vnext-meri__sheet-item-row span:first-child {
-  color: #98A2B3;
+  color: #98a2b3;
 }
 
 .capiro-vnext-root .vnext-meri__sheet-item-row span:last-child {
@@ -5441,7 +5510,7 @@ width: 30px;
 .capiro-vnext-root .vnext-meri__sheet-item-rationale {
   margin-top: 9px;
   padding-top: 9px;
-  border-top: 1px solid #F2F4F7;
+  border-top: 1px solid #f2f4f7;
   font-size: 12px;
   line-height: 18px;
   color: #475467;
@@ -5449,7 +5518,13 @@ width: 30px;
 
 .capiro-vnext-root .vnext-meri__sheet-excluded-label {
   margin-top: 18px;
-  font-family: Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  font-family:
+    Inter,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    Arial,
+    sans-serif;
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.07em;
@@ -5468,7 +5543,7 @@ width: 30px;
   gap: 9px;
   padding: 10px 12px;
   border-radius: 9px;
-  background: #F9FAFB;
+  background: #f9fafb;
 }
 
 .capiro-vnext-root .vnext-meri__sheet-excluded-copy {
@@ -5488,7 +5563,7 @@ width: 30px;
 .capiro-vnext-root .vnext-meri__sheet-excluded-reason {
   font-size: 11.5px;
   line-height: 17px;
-  color: #98A2B3;
+  color: #98a2b3;
   text-wrap: pretty;
 }
 
@@ -5496,7 +5571,7 @@ width: 30px;
   margin-top: 16px;
   font-size: 11.5px;
   line-height: 17px;
-  color: #98A2B3;
+  color: #98a2b3;
   text-wrap: pretty;
 }
 
@@ -5504,17 +5579,19 @@ width: 30px;
   margin-top: 12px;
   padding: 10px 12px;
   border-radius: 9px;
-  background: #FFFAEB;
-  border: 1px solid #FEDF89;
+  background: #fffaeb;
+  border: 1px solid #fedf89;
 }
 
 .capiro-vnext-root .vnext-meri__context-sheet-degraded-item {
   font-size: 12.5px;
   line-height: 18px;
-  color: #B54708;
+  color: #b54708;
 }
 
-.capiro-vnext-root .vnext-meri__context-sheet-degraded-item + .vnext-meri__context-sheet-degraded-item {
+.capiro-vnext-root
+  .vnext-meri__context-sheet-degraded-item
+  + .vnext-meri__context-sheet-degraded-item {
   margin-top: 3px;
 }
 
@@ -5531,13 +5608,13 @@ width: 30px;
 .capiro-vnext-root .vnext-meri__confirm-cancel {
   padding: 0 14px;
   background: #ffffff;
-  border: 1px solid #D0D5DD;
+  border: 1px solid #d0d5dd;
   color: #344054;
 }
 
 .capiro-vnext-root .vnext-meri__confirm-delete {
   padding: 0 16px;
-  background: #B42318;
+  background: #b42318;
   color: #ffffff;
 }
 
@@ -5579,7 +5656,7 @@ width: 30px;
   align-items: center;
   gap: 10px;
   padding: 13px 14px;
-  border-bottom: 1px solid #F2F4F7;
+  border-bottom: 1px solid #f2f4f7;
 }
 
 .capiro-vnext-root .vnext-meri__palette-input {
@@ -5598,19 +5675,19 @@ width: 30px;
   height: 22px;
   padding: 0 7px;
   border-radius: 5px;
-  box-shadow: inset 0 0 0 1px #E4E7EC;
+  box-shadow: inset 0 0 0 1px #e4e7ec;
   background: transparent;
   border: 0;
   font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.06em;
-  color: #98A2B3;
+  color: #98a2b3;
   cursor: pointer;
 }
 
 .capiro-vnext-root .vnext-meri__palette-esc:hover {
-  background: #F9FAFB;
+  background: #f9fafb;
   color: #344054;
 }
 
@@ -5631,20 +5708,20 @@ width: 30px;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.08em;
-  color: #98A2B3;
+  color: #98a2b3;
 }
 
 .capiro-vnext-root .vnext-meri__palette-separator {
   height: 1px;
   margin: 6px 4px;
-  background: #F2F4F7;
+  background: #f2f4f7;
 }
 
 .capiro-vnext-root .vnext-meri__palette-empty {
   padding: 22px 12px;
   text-align: center;
   font-size: 13px;
-  color: #98A2B3;
+  color: #98a2b3;
 }
 
 .capiro-vnext-root .vnext-meri__palette-row {
@@ -5662,7 +5739,7 @@ width: 30px;
 
 .capiro-vnext-root .vnext-meri__palette-row:hover,
 .capiro-vnext-root .vnext-meri__palette-row.is-active {
-  background: #F2F4F7;
+  background: #f2f4f7;
 }
 
 .capiro-vnext-root .vnext-meri__palette-row-title {
@@ -5678,7 +5755,7 @@ width: 30px;
 .capiro-vnext-root .vnext-meri__palette-row-sub {
   flex: 0 0 auto;
   font-size: 11px;
-  color: #98A2B3;
+  color: #98a2b3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -5691,7 +5768,7 @@ width: 30px;
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.05em;
-  color: #98A2B3;
+  color: #98a2b3;
 }
 
 .capiro-vnext-root .vnext-meri__palette-footer {
@@ -5699,13 +5776,13 @@ width: 30px;
   align-items: center;
   gap: 14px;
   padding: 9px 14px;
-  border-top: 1px solid #F2F4F7;
-  background: #FCFCFD;
+  border-top: 1px solid #f2f4f7;
+  background: #fcfcfd;
   font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
   font-size: 10.5px;
   font-weight: 500;
   letter-spacing: 0.04em;
-  color: #98A2B3;
+  color: #98a2b3;
 }
 
 .capiro-vnext-root .vnext-meri__undo-bar {
@@ -5714,7 +5791,7 @@ width: 30px;
   justify-content: space-between;
   gap: 10px;
   padding: 10px 20px;
-  border-top: 1px solid #EAECF0;
+  border-top: 1px solid #eaecf0;
   font-size: 12px;
   color: #344054;
 }
@@ -5752,7 +5829,7 @@ width: 30px;
 }
 
 .capiro-vnext-root .vnext-meri__thread-action:hover:not(:disabled) {
-  background: #F2F4F7;
+  background: #f2f4f7;
   color: #101828;
 }
 
@@ -5766,7 +5843,9 @@ width: 30px;
   padding: 5px;
   border-radius: 10px;
   background: var(--meri-surface);
-  box-shadow: 0 0 0 1px #E4E7EC, 0 12px 16px -4px rgba(16, 24, 40, 0.1);
+  box-shadow:
+    0 0 0 1px #e4e7ec,
+    0 12px 16px -4px rgba(16, 24, 40, 0.1);
 }
 
 .capiro-vnext-root .vnext-meri__thread-menu-item {
@@ -5785,7 +5864,7 @@ width: 30px;
 }
 
 .capiro-vnext-root .vnext-meri__thread-menu-item:hover {
-  background: #F9FAFB;
+  background: #f9fafb;
 }
 
 .capiro-vnext-root .vnext-meri__conversation-scroll.is-standard,
@@ -5819,14 +5898,14 @@ width: 30px;
   padding: 12px 14px;
   border: 0;
   border-radius: 10px;
-  background: #FCFCFD;
-  box-shadow: 0 0 0 1px #EAECF0;
+  background: #fcfcfd;
+  box-shadow: 0 0 0 1px #eaecf0;
   cursor: pointer;
   text-align: left;
 }
 
 .capiro-vnext-root .vnext-meri__doc-card:hover {
-  background: #F9FAFB;
+  background: #f9fafb;
 }
 
 .capiro-vnext-root .vnext-meri__doc-card-icon {
@@ -5837,8 +5916,8 @@ width: 30px;
   width: 32px;
   height: 40px;
   border-radius: 6px;
-  background: #EFF4FF;
-  color: #3538CD;
+  background: #eff4ff;
+  color: #3538cd;
 }
 
 .capiro-vnext-root .vnext-meri__doc-card-body {
@@ -5870,7 +5949,7 @@ width: 30px;
   gap: 6px;
   font-size: 11.5px;
   font-weight: 600;
-  color: #363F72;
+  color: #363f72;
 }
 
 .capiro-vnext-root .vnext-meri__doc-card-downloads {
@@ -5888,7 +5967,7 @@ width: 30px;
    fill with the #98A2B3 glyph (Send01 color comes from the TSX prop). */
 .capiro-vnext-root .vnext-meri__composer-send-btn.is-empty {
   background-image: none;
-  background: #F2F4F7;
+  background: #f2f4f7;
   box-shadow: none;
   opacity: 1;
 }
@@ -5913,15 +5992,15 @@ width: 30px;
 }
 
 .capiro-vnext-root .vnext-meri__action-tile {
-  background: #F2F4F7;
+  background: #f2f4f7;
 }
 
 .capiro-vnext-root .vnext-meri__source-state.is-error {
-  color: #B42318;
+  color: #b42318;
 }
 
 .capiro-vnext-root .vnext-meri__source-dot.is-error {
-  background: #B42318;
+  background: #b42318;
 }
 
 .capiro-vnext-root .vnext-meri__rail-badge {
@@ -5935,7 +6014,7 @@ width: 30px;
      override it downward. */
   font-size: 14.5px;
   line-height: 23px;
-  color: #1D2939;
+  color: #1d2939;
   text-wrap: pretty;
 }
 
@@ -5962,14 +6041,14 @@ width: 30px;
   font-family: var(--meri-font-mono);
   font-size: 12.5px;
   color: #344054;
-  background: #F2F4F7;
+  background: #f2f4f7;
   padding: 1px 5px;
   border-radius: 5px;
 }
 
 .capiro-vnext-root .vnext-meri-md__pre {
-  background: #F9FAFB;
-  border: 1px solid #EAECF0;
+  background: #f9fafb;
+  border: 1px solid #eaecf0;
   border-radius: 10px;
   padding: 12px 14px;
   margin-top: 12px;
@@ -5995,7 +6074,7 @@ width: 30px;
   margin-top: 10px;
   font-size: 14.5px;
   line-height: 23px;
-  color: #1D2939;
+  color: #1d2939;
 }
 
 .capiro-vnext-root .vnext-meri-md__li:first-child {
@@ -6011,7 +6090,7 @@ width: 30px;
   height: 5px;
   border-radius: 9999px;
   /* v6 reference: bullets are the light gray marker, not ink. */
-  background: #D0D5DD;
+  background: #d0d5dd;
 }
 
 .capiro-vnext-root .vnext-meri-md__list.is-ordered {
@@ -6042,8 +6121,8 @@ width: 30px;
 
 .capiro-vnext-root .vnext-meri-md__quote {
   padding: 11px 13px;
-  background: #F9FAFB;
-  border: 1px solid #EAECF0;
+  background: #f9fafb;
+  border: 1px solid #eaecf0;
   border-left: 2px solid #101828;
   font-size: 13px;
   line-height: 20px;
@@ -6062,7 +6141,7 @@ width: 30px;
   letter-spacing: 0.08em;
   color: #667085;
   padding: 8px 10px;
-  border-bottom: 1px solid #EAECF0;
+  border-bottom: 1px solid #eaecf0;
   text-align: left;
 }
 
@@ -6070,7 +6149,7 @@ width: 30px;
   font-size: 13px;
   color: #344054;
   padding: 9px 10px;
-  border-bottom: 1px solid #F2F4F7;
+  border-bottom: 1px solid #f2f4f7;
 }
 
 /* Inline citation marker injected by injectCitations() — a plain <button>
@@ -6438,20 +6517,28 @@ width: 30px;
   cursor: not-allowed;
 }
 
-
 /* Portal-mounted Meri overlays are siblings of the window. Pin their
    typography and focus treatment so the global vNext root cannot leak in. */
-.capiro-vnext-root :is(.vnext-meri__palette-scrim, .vnext-meri__confirm-scrim, .vnext-meri__sheet-overlay) {
-  font-family: Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+.capiro-vnext-root
+  :is(.vnext-meri__palette-scrim, .vnext-meri__confirm-scrim, .vnext-meri__sheet-overlay) {
+   font-family: Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
   color: #101828;
 }
-.capiro-vnext-root :is(.vnext-meri__palette-scrim, .vnext-meri__confirm-scrim, .vnext-meri__sheet-overlay) *,
-.capiro-vnext-root :is(.vnext-meri__palette-scrim, .vnext-meri__confirm-scrim, .vnext-meri__sheet-overlay) *::before,
-.capiro-vnext-root :is(.vnext-meri__palette-scrim, .vnext-meri__confirm-scrim, .vnext-meri__sheet-overlay) *::after {
+.capiro-vnext-root
+  :is(.vnext-meri__palette-scrim, .vnext-meri__confirm-scrim, .vnext-meri__sheet-overlay)
+  *,
+.capiro-vnext-root
+  :is(.vnext-meri__palette-scrim, .vnext-meri__confirm-scrim, .vnext-meri__sheet-overlay)
+  *::before,
+.capiro-vnext-root
+  :is(.vnext-meri__palette-scrim, .vnext-meri__confirm-scrim, .vnext-meri__sheet-overlay)
+  *::after {
   box-sizing: border-box;
 }
-.capiro-vnext-root :is(.vnext-meri__palette-scrim, .vnext-meri__confirm-scrim, .vnext-meri__sheet-overlay) :focus-visible {
-  outline: 2px solid #4E5BA6;
+.capiro-vnext-root
+  :is(.vnext-meri__palette-scrim, .vnext-meri__confirm-scrim, .vnext-meri__sheet-overlay)
+  :focus-visible {
+  outline: 2px solid #4e5ba6;
   outline-offset: 2px;
   border-radius: 8px;
   box-shadow: none;
@@ -6470,8 +6557,8 @@ width: 30px;
   font-family: var(--meri-font-sans);
   font-size: 10.5px;
   font-weight: 600;
-  letter-spacing: .09em;
-  color: #98A2B3;
+  letter-spacing: 0.09em;
+  color: #98a2b3;
 }
 .capiro-vnext-root .vnext-meri__rail-panel-title-group {
   flex: 1;
@@ -6494,8 +6581,8 @@ width: 30px;
   font-family: var(--meri-font-sans);
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: .07em;
-  color: #98A2B3;
+  letter-spacing: 0.07em;
+  color: #98a2b3;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -6506,4 +6593,152 @@ width: 30px;
 
 .capiro-vnext-root .vnext-meri__rail-panel-head:not(:has(.vnext-meri__rail-panel-tabs)) {
   padding-bottom: 12px;
+}
+
+/* Durable research controls are deliberately part of the transcript column:
+   they supplement the saved report and never replace final answer rendering. */
+.capiro-vnext-root .vnext-meri__durable-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid var(--m-border);
+  border-radius: var(--m-radius-xl);
+  background: var(--m-gray-50);
+  color: var(--m-text-body);
+}
+.capiro-vnext-root .vnext-meri__durable-head,
+.capiro-vnext-root .vnext-meri__durable-meta,
+.capiro-vnext-root .vnext-meri__durable-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.capiro-vnext-root .vnext-meri__durable-head {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.capiro-vnext-root .vnext-meri__durable-head h3 {
+  margin: 3px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--m-text);
+}
+.capiro-vnext-root .vnext-meri__durable-kicker {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  color: var(--m-text-meta);
+}
+.capiro-vnext-root .vnext-meri__durable-status {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border: 1px solid var(--m-neutral-border);
+  border-radius: var(--m-radius-full);
+  background: var(--m-neutral-bg);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.capiro-vnext-root .vnext-meri__durable-status.is-running {
+  border-color: var(--m-success-border);
+  background: var(--m-success-bg);
+  color: var(--m-success-text);
+}
+.capiro-vnext-root .vnext-meri__durable-status.is-cancel_requested {
+  border-color: var(--m-warning-border);
+  background: var(--m-warning-bg);
+  color: var(--m-warning-text);
+}
+.capiro-vnext-root .vnext-meri__durable-meta {
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--m-text-meta);
+}
+.capiro-vnext-root .vnext-meri__durable-meta span + span::before {
+  content: '·';
+  margin-right: 10px;
+}
+.capiro-vnext-root
+  :is(
+    .vnext-meri__durable-stage,
+    .vnext-meri__durable-background,
+    .vnext-meri__durable-constraints,
+    .vnext-meri__durable-accepted,
+    .vnext-meri__durable-error
+  ) {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+}
+.capiro-vnext-root .vnext-meri__durable-background,
+.capiro-vnext-root .vnext-meri__durable-accepted {
+  color: var(--m-success-text);
+}
+.capiro-vnext-root .vnext-meri__durable-error {
+  color: var(--m-error-text);
+}
+.capiro-vnext-root .vnext-meri__durable-steps,
+.capiro-vnext-root .vnext-meri__durable-effects ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 12px;
+}
+.capiro-vnext-root .vnext-meri__durable-steps li {
+  padding: 3px 0;
+}
+.capiro-vnext-root .vnext-meri__durable-steps small {
+  margin-left: 8px;
+  color: var(--m-text-meta);
+  text-transform: capitalize;
+}
+.capiro-vnext-root .vnext-meri__durable-effects summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+.capiro-vnext-root .vnext-meri__durable-steer {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding-top: 2px;
+}
+.capiro-vnext-root .vnext-meri__durable-steer label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--m-text);
+}
+.capiro-vnext-root .vnext-meri__durable-steer textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 9px 10px;
+  border: 1px solid var(--m-border-strong);
+  border-radius: var(--m-radius-sm);
+  background: var(--m-white);
+  color: var(--m-text);
+  font-size: 13px;
+  line-height: 18px;
+}
+.capiro-vnext-root :is(.vnext-meri__durable-send, .vnext-meri__durable-stop) {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: var(--m-radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.capiro-vnext-root .vnext-meri__durable-send {
+  border: 1px solid var(--m-gray-800);
+  background: var(--m-gray-900);
+  color: var(--m-white);
+}
+.capiro-vnext-root .vnext-meri__durable-stop {
+  border: 1px solid var(--m-error-border);
+  background: var(--m-error-bg);
+  color: var(--m-error-text);
+}
+.capiro-vnext-root :is(.vnext-meri__durable-send, .vnext-meri__durable-stop):disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }

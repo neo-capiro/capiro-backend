@@ -4,6 +4,7 @@ import type { ChatMessage } from '../../components/chat/chat-store.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { meriRuntimeStatus } from '../../components/chat/meri-runtime-status.js';
 import type { TrustStep } from '../../components/chat/work-performed-shared.js';
+import { artifactDownloadResponse, artifactFixture } from '../../test/meri-artifact-download-fixtures.js';
 
 vi.mock('../../lib/use-api.js', () => ({ useApi: () => ({}) }));
 vi.mock('../components/feedback/toast.js', () => ({
@@ -98,12 +99,14 @@ describe('Meri message work performed', () => {
     ['', 'Word', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'docx'],
     ['?format=pdf', 'PDF', 'application/pdf', 'pdf'],
     ['?format=docx', 'Word', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'docx'],
-  ])('replays and downloads the observed historical sandbox artifact link %s through Markdown sanitation', async (query, label, mime, extension) => {
-    const route = '/api/clio/artifacts/829ed073-157b-4d51-856c-8fbc64ec98ab/download';
+  ] as const)('replays and downloads the observed historical sandbox artifact link %s through Markdown sanitation', async (query, label, mime, extension) => {
+    const artifactId = '829ed073-157b-4d51-856c-8fbc64ec98ab';
+    const route = `/api/clio/artifacts/${artifactId}/download`;
     const content = `[Download the ${label} briefing](sandbox:${route}${query})`;
-    const blob = new Blob([extension === 'pdf' ? '%PDF-1.7' : 'PK-document'], { type: mime });
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, headers: new Headers({ 'Content-Type': mime,
-      'Content-Disposition': `attachment; filename="briefing.${extension}"` }), blob: async () => blob });
+    const fixture = artifactFixture(mime);
+    const fetchMock = vi.fn().mockImplementation(async () => artifactDownloadResponse({
+      mime, artifactId, disposition: `attachment; filename="briefing.${extension}"`,
+    }));
     vi.stubGlobal('fetch', fetchMock);
     const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:saved-briefing');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
@@ -114,11 +117,20 @@ describe('Meri message work performed', () => {
     const view = render(<VNextMeriMessage {...original} />);
     expect(screen.queryByRole('link', { name: `Download the ${label} briefing` })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: `Download the ${label} briefing` }));
-    await waitFor(() => expect(create).toHaveBeenCalledWith(blob));
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
     view.unmount();
     render(<VNextMeriMessage {...original} message={{ ...original.message, content: JSON.parse(JSON.stringify(content)) }} />);
     fireEvent.click(screen.getByRole('button', { name: `Download the ${label} briefing` }));
     await waitFor(() => expect(create).toHaveBeenCalledTimes(2));
+    for (const [downloaded] of create.mock.calls) {
+      const downloadedBlob = downloaded as Blob;
+      const downloadedBuffer = await downloadedBlob.arrayBuffer();
+      const downloadedBytes = new Uint8Array(downloadedBuffer);
+      const digest = await crypto.subtle.digest('SHA-256', downloadedBuffer);
+      expect(downloadedBlob.type).toBe(mime);
+      expect(downloadedBytes).toEqual(fixture.bytes);
+      expect(Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')).toBe(fixture.sha256);
+    }
     expect(filename).toBe(`briefing.${extension}`);
     expect(authHeaders).toHaveBeenCalledTimes(2);
     for (const [url, options] of fetchMock.mock.calls) {

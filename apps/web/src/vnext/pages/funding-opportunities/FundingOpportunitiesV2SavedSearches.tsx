@@ -202,7 +202,7 @@ function changedCriteriaNote(
 }
 function keywordsLabel(criteria: OpportunitySearchCriteriaV2): string {
   const terms = [...(criteria.query ? [`“${criteria.query}”`] : []), ...(criteria.keywordTerms ?? [])];
-  return terms.length ? terms.join(', ') : 'No keywords — filters only';
+  return terms.length ? terms.join(', ') : 'None — this search would match on filters alone';
 }
 function warningText(search: SavedSearchRecordV2) {
   return search.warnings.length

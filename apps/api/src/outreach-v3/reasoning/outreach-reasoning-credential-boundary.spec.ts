@@ -39,7 +39,7 @@ describe('Outreach V3 reasoning credential boundary', () => {
     ).resolves.toMatchObject({
       provider: 'openai',
       apiKey: 'platform-openai-key',
-      model: 'gpt-5.6',
+      model: 'gpt-6-astra',
       usedTenantKey: false,
     });
     expect(runtimePolicy.assertExternalAction).toHaveBeenCalledWith('outreach_reasoning');

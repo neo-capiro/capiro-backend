@@ -14,9 +14,12 @@ export function resolveJevCacheMode(
   tenantId: string | null | undefined,
   surface: AssuranceSurface,
 ): CapabilityRolloutMode {
-  return resolveCapabilityRollout({ capability: JEV_CACHE_CAPABILITY, env, tenantId, surface }).mode;
+  return resolveCapabilityRollout({ capability: JEV_CACHE_CAPABILITY, env, tenantId, surface })
+    .mode;
 }
 
-export function validateJevCacheConfig(env: CapabilityRolloutEnvironment): CapabilityRolloutValidation {
+export function validateJevCacheConfig(
+  env: CapabilityRolloutEnvironment,
+): CapabilityRolloutValidation {
   return validateCapabilityRolloutConfig({ capability: JEV_CACHE_CAPABILITY, env });
 }

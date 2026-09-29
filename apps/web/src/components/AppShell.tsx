@@ -261,7 +261,9 @@ export function AppShell() {
   // the Defense Budget vNext workspace for capiro-internal (AppShellV2 branch
   // and PeWorkspacePage already say "Defense Budget"); the legacy shell label
   // must agree instead of shipping a second name for the same surface.
-  const isInternalTenant = me.data?.tenant.slug === 'capiro-internal';
+  const tenant = me.data?.tenant;
+  const tenantSlug = tenant?.slug;
+  const isInternalTenant = tenantSlug === 'capiro-internal';
   const peNavLabel = isInternalTenant ? 'Defense Budget' : 'Program Elements';
 
   useEffect(() => {
@@ -524,7 +526,7 @@ export function AppShell() {
   // left sider. The legacy shell below is untouched for every other tenant.
   // Meri is launched from the v2 band-1 control (separate window via Ctrl+J),
   // so the floating MeriOverlay/ChatDrawer FAB is suppressed on this path.
-  if (me.data?.tenant.slug === 'capiro-internal') {
+  if (me.data && tenant && tenant.slug === 'capiro-internal') {
     return (
       <div className="v2-root">
         <AppShellV2 me={me.data} />

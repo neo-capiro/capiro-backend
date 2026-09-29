@@ -148,7 +148,6 @@ export async function executeMeriFundingOpportunityMatch(
     answerDirective:
       'Answer the opportunity-fit question directly from the retrieved evidence. For each candidate: state what the opportunity funds, how it aligns with the client’s capabilities, past awards, and the agency/program landscape, and give the fit verdict with [N] citations. Use only the numbered [N] citations supplied with this tool result; never expose internal [S:tool:id] markers. The match/landscape tools return top-k evidence, not exhaustive coverage — do not claim the client was compared against every possible opportunity. Do not discuss tool execution, coverage plumbing, or failed optional sources unless the user asked.',
     nextRecommendedTools: [],
-    note:
-      'Deterministic four-tool fan-out: client context → opportunity search → per-candidate government landscape + match explanation. Comparison across multiple known opportunities (compare_funding_opportunities) and action-plan generation (build_opportunity_action_plan) are separate intents and intentionally not part of this recipe.',
+    note: 'Deterministic four-tool fan-out: client context → opportunity search → per-candidate government landscape + match explanation. Comparison across multiple known opportunities (compare_funding_opportunities) and action-plan generation (build_opportunity_action_plan) are separate intents and intentionally not part of this recipe.',
   };
 }

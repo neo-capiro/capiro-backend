@@ -4,8 +4,13 @@ import type { MeriRetrievalPlan } from '../retrieval/meri-retrieval-plan.js';
 export type MeriSemanticGatewayMode = 'legacy' | 'shadow' | 'enabled';
 
 export interface MeriSemanticGatewayDecision {
+  decisionId: string;
   mode: MeriSemanticGatewayMode;
+  /** Known capability names requested by routing/protection before scope intersection. */
+  requestedNames: string[];
   legacyNames: string[];
+  /** Requested names that survived the request's authoritative schema scope. */
+  selectedNames: string[];
   proposedNames: string[];
   exposedNames: string[];
   removedNames: string[];

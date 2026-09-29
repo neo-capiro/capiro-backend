@@ -15,6 +15,7 @@ export interface MeriResearchRun {
   phase: 'plan' | 'research';
   status:
     | 'running'
+    | 'cancel_requested'
     | 'complete'
     | 'failed'
     | 'cancelled'
@@ -26,6 +27,10 @@ export interface MeriResearchRun {
   heartbeatAt?: string;
   failureReason?: string;
   elapsedMs?: number;
+  leaseEpoch?: number;
+  eventSequence?: number;
+  deadlineAt?: string;
+  readyToStart?: boolean;
 }
 
 export interface MeriRecoveredResearch {
@@ -70,6 +75,7 @@ export function readResearchRun(value: unknown): MeriResearchRun | null {
     !['plan', 'research'].includes(String(run.phase)) ||
     ![
       'running',
+      'cancel_requested',
       'complete',
       'failed',
       'cancelled',
@@ -90,6 +96,14 @@ export function readResearchRun(value: unknown): MeriResearchRun | null {
     ...(typeof run.elapsedMs === 'number' && Number.isFinite(run.elapsedMs)
       ? { elapsedMs: Math.max(0, run.elapsedMs) }
       : {}),
+    ...(typeof run.leaseEpoch === 'number' && Number.isSafeInteger(run.leaseEpoch)
+      ? { leaseEpoch: Math.max(0, run.leaseEpoch) }
+      : {}),
+    ...(typeof run.eventSequence === 'number' && Number.isSafeInteger(run.eventSequence)
+      ? { eventSequence: Math.max(0, run.eventSequence) }
+      : {}),
+    ...(typeof run.deadlineAt === 'string' ? { deadlineAt: run.deadlineAt } : {}),
+    ...(run.readyToStart === true ? { readyToStart: true } : {}),
   };
 }
 
@@ -154,6 +168,8 @@ export function researchRecoveryLabel(run: MeriResearchRun): string {
   if (run.stage === 'Clarifications saved; research has not started')
     return 'Your answers are saved. Resume to begin research.';
   if (run.status === 'running') return `${run.stage}. Research continues on the server.`;
+  if (run.status === 'cancel_requested')
+    return 'Stopping… The worker has not confirmed termination yet.';
   if (run.status === 'awaiting_clarification') return 'Research is waiting for your answers.';
   if (run.phase === 'plan' && run.status === 'complete')
     return 'Your research plan is ready to continue.';

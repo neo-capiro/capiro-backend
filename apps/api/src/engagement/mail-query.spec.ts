@@ -30,6 +30,8 @@ function row(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: 'msg-1',
     thread_id: 'thread-1',
+    connection_id: 'mailbox-1',
+    message_updated_at: new Date('2026-07-08T17:42:00Z'),
     subject: 'RE: Adam Wilczewski <> Radiant Nuclear',
     from_email: 'awilczewski@porterwright.com',
     from_name: 'Wilczewski, Adam S.',
@@ -51,6 +53,7 @@ function row(overrides: Partial<Record<string, unknown>> = {}) {
 function healthyMailbox(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     account_email: 'jeff.j.burton@mavenadvocacy.com',
+    connection_id: 'mailbox-1',
     provider: 'microsoft_365',
     status: 'connected',
     last_sync_at: new Date('2026-07-18T21:18:48Z'),
@@ -231,6 +234,8 @@ describe('canonical mailbox query', () => {
     expect(msg.to).toEqual([{ email: 'jeff.j.burton@mavenadvocacy.com', name: 'Jeff Burton' }]);
     expect(msg.preview).toMatch(/John Howell/);
     expect(msg.mailbox).toBe('jeff.j.burton@mavenadvocacy.com');
+    expect(msg.sentAt).toBe('2026-07-08T17:41:06.000Z');
+    expect(msg.receivedAt).toBe('2026-07-08T17:41:32.000Z');
   });
 
   it('calls out a connected-but-never-synced mailbox instead of silently "searching" it', async () => {

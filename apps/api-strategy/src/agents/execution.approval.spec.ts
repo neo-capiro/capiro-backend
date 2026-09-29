@@ -357,7 +357,10 @@ async function reviewedPlan(store: Store, opts: Opts = {}, pinned = true) {
   seedMission(store);
   seedNode(store);
   const made = makeService(store, opts);
-  await made.svc.plan(T, U, 'bearer-x', { ...wsPlan(), ...(pinned ? { pinnedVersionId: 'v1' } : {}) });
+  await made.svc.plan(T, U, 'bearer-x', {
+    ...wsPlan(),
+    ...(pinned ? { pinnedVersionId: 'v1' } : {}),
+  });
   const runId = [...store.runs.keys()][0]!;
   return { ...made, runId };
 }
@@ -395,13 +398,17 @@ async function stagedOutreach(store: Store, opts: Opts = {}) {
     findings: {
       ...findings,
       sendApproval: {
-        tokenRunId: runId, artifactRef: 'or-1', status: 'pending', sendEnabled: false,
+        tokenRunId: runId,
+        artifactRef: 'or-1',
+        status: 'pending',
+        sendEnabled: false,
       },
     },
   });
   const legacy = store.runs.get(runId)!.findings as Record<string, unknown>;
-  (legacy.sendApproval as Record<string, unknown>).contentHash =
-    (await made.svc.approvalStatus(T, runId)).contentHash;
+  (legacy.sendApproval as Record<string, unknown>).contentHash = (
+    await made.svc.approvalStatus(T, runId)
+  ).contentHash;
   return { ...made, runId };
 }
 
@@ -673,7 +680,9 @@ describe('current plan freshness is independent of optional approval records', (
     expect(completed.state).toBe('completed');
     expect(store.artifacts.size).toBe(1);
     expect((await svc.approvalStatus(T, runId)).approvalValid).toBe(false);
-    expect(store.activity.some((row) => row.action === 'execution.approval_invalidated')).toBe(true);
+    expect(store.activity.some((row) => row.action === 'execution.approval_invalidated')).toBe(
+      true,
+    );
   });
 
   it('a historical outreach wait resumes directly without another approval', async () => {
@@ -696,7 +705,9 @@ describe('rejectApproval (P0-3)', () => {
     expect(done.state).toBe('completed');
     expect(done.waitingReason).toBeFalsy();
     expect(store.artifacts.size).toBe(1);
-    expect((store.runs.get(runId)!.findings as Record<string, unknown>).approvalRejection).toMatchObject({ reason: 'needs corrections' });
+    expect(
+      (store.runs.get(runId)!.findings as Record<string, unknown>).approvalRejection,
+    ).toMatchObject({ reason: 'needs corrections' });
   });
 
   it('finishes a refused draft directly and does not fabricate a replacement approval', async () => {

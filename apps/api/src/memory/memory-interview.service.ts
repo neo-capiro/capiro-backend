@@ -62,21 +62,23 @@ export class MemoryInterviewService {
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(prepareAnthropicRequest({
-          model: this.model,
-          max_tokens: 600,
-          system,
-          messages: [
-            {
-              role: 'user',
-              content:
-                `Draft the "${heading}" section from the user's answer below. ` +
-                `Return ONLY the section text (a tight paragraph or a few bullets), no heading, no preamble. ` +
-                `Do not invent any facts, names, numbers, or dates beyond what the user wrote.\n\n` +
-                `User's answer:\n${rawAnswer}`,
-            },
-          ],
-        })),
+        body: JSON.stringify(
+          prepareAnthropicRequest({
+            model: this.model,
+            max_tokens: 600,
+            system,
+            messages: [
+              {
+                role: 'user',
+                content:
+                  `Draft the "${heading}" section from the user's answer below. ` +
+                  `Return ONLY the section text (a tight paragraph or a few bullets), no heading, no preamble. ` +
+                  `Do not invent any facts, names, numbers, or dates beyond what the user wrote.\n\n` +
+                  `User's answer:\n${rawAnswer}`,
+              },
+            ],
+          }),
+        ),
       });
       if (!res.ok) throw new Error(`Anthropic HTTP ${res.status}`);
       const json = (await res.json()) as { content?: Array<{ text?: string }> };

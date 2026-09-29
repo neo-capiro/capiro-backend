@@ -1,6 +1,11 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import type { ClaimCategory } from '../assurance/evidence-plan';
-import type { DecisionProvider, EvidenceDecision, EvidenceEnvelope, EvidenceQuestion } from './decision-contract';
+import type {
+  DecisionProvider,
+  EvidenceDecision,
+  EvidenceEnvelope,
+  EvidenceQuestion,
+} from './decision-contract';
 import { runCalibratedCascade, sampledCascadeKey } from './calibrated-cascade';
 import { JEV_TASK_REGISTRY, type JevTaskRegistration } from './task-registry';
 import { JevDecisionCache } from './decision-cache';
@@ -12,40 +17,74 @@ const probabilities = {
   conflicting_evidence: 0.03,
 };
 const outcome = (
-  value: 'supported' | 'contradicted' | 'insufficient_evidence' | 'conflicting_evidence' = 'supported',
+  value:
+    'supported' | 'contradicted' | 'insufficient_evidence' | 'conflicting_evidence' = 'supported',
   confidence = 0.9,
 ): EvidenceDecision => ({
-  kind: 'outcome', outcome: value, confidence, probabilities, reasonCodes: [], evidenceIds: [],
-  provider: { name: 'provider', model: 'model', questionVersion: 'claim_support.v1' }, latencyMs: 1,
+  kind: 'outcome',
+  outcome: value,
+  confidence,
+  probabilities,
+  reasonCodes: [],
+  evidenceIds: [],
+  provider: { name: 'provider', model: 'model', questionVersion: 'claim_support.v1' },
+  latencyMs: 1,
 });
 const failure: EvidenceDecision = {
-  kind: 'failure', state: 'judge_unavailable', reasonCodes: ['failed'],
-  provider: { name: 'provider', model: 'model', questionVersion: 'claim_support.v1' }, latencyMs: 1,
+  kind: 'failure',
+  state: 'judge_unavailable',
+  reasonCodes: ['failed'],
+  provider: { name: 'provider', model: 'model', questionVersion: 'claim_support.v1' },
+  latencyMs: 1,
 };
 const provider = (decision: EvidenceDecision, available = true): DecisionProvider => ({
-  name: 'provider', available: () => available, assess: jest.fn(async () => decision),
+  name: 'provider',
+  available: () => available,
+  assess: jest.fn(async () => decision),
 });
 const envelope: EvidenceEnvelope = {
-  envelopeVersion: 'meri-evidence-envelope-v1', claimId: 'claim', claimText: 'Claim', claimKind: 'fact',
-  claimCategory: 'general_background', tenantId: 'tenant', clientId: null, scopeQualifiers: [], asOf: null, sources: [],
+  envelopeVersion: 'meri-evidence-envelope-v1',
+  claimId: 'claim',
+  claimText: 'Claim',
+  claimKind: 'fact',
+  claimCategory: 'general_background',
+  tenantId: 'tenant',
+  clientId: null,
+  scopeQualifiers: [],
+  asOf: null,
+  sources: [],
 };
 const question: EvidenceQuestion = { state: {}, questions: {} };
-const registration = (overrides: Partial<NonNullable<JevTaskRegistration['cascade']>> = {}, evaluatedCategories?: readonly ClaimCategory[]): JevTaskRegistration => ({
+const registration = (
+  overrides: Partial<NonNullable<JevTaskRegistration['cascade']>> = {},
+  evaluatedCategories?: readonly ClaimCategory[],
+): JevTaskRegistration => ({
   ...JEV_TASK_REGISTRY.claim_support,
   calibration: { ...JEV_TASK_REGISTRY.claim_support.calibration, evaluatedCategories },
   cascade: { ...JEV_TASK_REGISTRY.claim_support.cascade!, auditSampleRate: 0, ...overrides },
 });
-const run = (overrides: Partial<Parameters<typeof runCalibratedCascade>[0]> = {}) => runCalibratedCascade({
-  claim: { id: 'claim', category: 'general_background', compound: false },
-  jev: provider(outcome()), legacy: provider(outcome('contradicted')), envelope, question,
-  registration: registration(), sampleKey: 'not-sampled', ...overrides,
-});
+const run = (overrides: Partial<Parameters<typeof runCalibratedCascade>[0]> = {}) =>
+  runCalibratedCascade({
+    claim: { id: 'claim', category: 'general_background', compound: false },
+    jev: provider(outcome()),
+    legacy: provider(outcome('contradicted')),
+    envelope,
+    question,
+    registration: registration(),
+    sampleKey: 'not-sampled',
+    ...overrides,
+  });
 
 describe('runCalibratedCascade', () => {
   it('does not escalate a confident supported non-sampled claim', async () => {
     const legacy = provider(outcome('contradicted'));
     const result = await run({ legacy });
-    expect(result).toMatchObject({ escalated: false, escalationReasons: [], audited: false, legacy: null });
+    expect(result).toMatchObject({
+      escalated: false,
+      escalationReasons: [],
+      audited: false,
+      legacy: null,
+    });
     expect(result.decision).toEqual(result.jev);
     expect(legacy.assess).not.toHaveBeenCalled();
   });
@@ -53,12 +92,40 @@ describe('runCalibratedCascade', () => {
   it.each([
     ['jev_unavailable', null, outcome(), { registration: registration() }],
     ['jev_failure', provider(failure), outcome(), { registration: registration() }],
-    ['low_confidence', provider(outcome('supported', 0.49)), outcome(), { registration: registration({ escalateBelowConfidence: 0.5 }) }],
-    ['compound_claim', provider(outcome()), outcome(), { claim: { id: 'claim', category: 'general_background' as const, compound: true } }],
+    [
+      'low_confidence',
+      provider(outcome('supported', 0.49)),
+      outcome(),
+      { registration: registration({ escalateBelowConfidence: 0.5 }) },
+    ],
+    [
+      'compound_claim',
+      provider(outcome()),
+      outcome(),
+      { claim: { id: 'claim', category: 'general_background' as const, compound: true } },
+    ],
     ['conflict', provider(outcome('conflicting_evidence')), outcome(), {}],
-    ['high_impact_category', provider(outcome()), outcome(), { claim: { id: 'claim', category: 'bill_status' as const, compound: false }, registration: registration({ highImpactCategories: ['bill_status'] }) }],
-    ['out_of_distribution', provider(outcome()), outcome(), { registration: registration({}, ['bill_status']) }],
-    ['audit_sample', provider(outcome()), outcome(), { registration: registration({ auditSampleRate: 1 }) }],
+    [
+      'high_impact_category',
+      provider(outcome()),
+      outcome(),
+      {
+        claim: { id: 'claim', category: 'bill_status' as const, compound: false },
+        registration: registration({ highImpactCategories: ['bill_status'] }),
+      },
+    ],
+    [
+      'out_of_distribution',
+      provider(outcome()),
+      outcome(),
+      { registration: registration({}, ['bill_status']) },
+    ],
+    [
+      'audit_sample',
+      provider(outcome()),
+      outcome(),
+      { registration: registration({ auditSampleRate: 1 }) },
+    ],
   ])('emits the minimal %s escalation', async (reason, jev, legacyDecision, overrides) => {
     const result = await run({ jev, legacy: provider(legacyDecision), ...overrides });
     expect(result.escalationReasons).toEqual([reason]);
@@ -78,7 +145,8 @@ describe('runCalibratedCascade', () => {
   it('follows registry thresholds and preserves the legacy-first decision rule', async () => {
     const legacyDecision = outcome('contradicted');
     const result = await run({
-      jev: provider(outcome('supported', 0.8)), legacy: provider(legacyDecision),
+      jev: provider(outcome('supported', 0.8)),
+      legacy: provider(legacyDecision),
       registration: registration({ escalateBelowConfidence: 0.81 }),
     });
     expect(result.escalationReasons).toEqual(['low_confidence']);
@@ -108,7 +176,9 @@ describe('runCalibratedCascade', () => {
   it('degrades a provider availability failure to legacy', async () => {
     const broken: DecisionProvider = {
       name: 'broken',
-      available: () => { throw new Error('availability failed'); },
+      available: () => {
+        throw new Error('availability failed');
+      },
       assess: jest.fn(async () => outcome()),
     };
     const legacyDecision = outcome('contradicted');
@@ -124,8 +194,10 @@ describe('runCalibratedCascade', () => {
     const first = await run({ jev, cache: { mode: 'shadow', instance: cache } });
     const second = await run({ jev, cache: { mode: 'enforce', instance: cache } });
     expect(first.cache).toEqual({ mode: 'shadow', lookups: 1, hits: 0, agreements: 0 });
-    expect(second).toMatchObject({ cache: { mode: 'enforce', lookups: 1, hits: 1 },
-      decision: { cached: true, latencyMs: 0 } });
+    expect(second).toMatchObject({
+      cache: { mode: 'enforce', lookups: 1, hits: 1 },
+      decision: { cached: true, latencyMs: 0 },
+    });
     expect(jev.assess).toHaveBeenCalledTimes(1);
   });
 });

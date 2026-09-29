@@ -92,11 +92,18 @@ export function createClientFitProvider(options: ClientFitProviderOptions): Clie
         const result = await options.client.systemOne(question, callOptions);
         const category = result.response.answers[CLIENT_FIT_QUESTION_ID];
         const alignment = result.response.answers[CLIENT_FIT_ALIGNMENT_QUESTION_ID];
-        if (!category || category.type !== 'choice' || !MATCH_LABELS.includes(category.choice as MatchLabel)) {
+        if (
+          !category ||
+          category.type !== 'choice' ||
+          !MATCH_LABELS.includes(category.choice as MatchLabel)
+        ) {
           throw new JevMalformedResponseError();
         }
-        if (!alignment || alignment.type !== 'score'
-          || !CLIENT_FIT_ALIGNMENT_LEVELS.includes(alignment.level as ClientFitAlignmentLevel)) {
+        if (
+          !alignment ||
+          alignment.type !== 'score' ||
+          !CLIENT_FIT_ALIGNMENT_LEVELS.includes(alignment.level as ClientFitAlignmentLevel)
+        ) {
           throw new JevMalformedResponseError();
         }
         return {
@@ -124,10 +131,14 @@ export function createClientFitProvider(options: ClientFitProviderOptions): Clie
         };
       } catch (error) {
         const latencyMs = Math.max(0, Date.now() - startedAt);
-        if (error instanceof JevAuthError) return failure(options.model, 'judge_unavailable', ['auth_failed'], latencyMs);
-        if (error instanceof JevRequestError) return failure(options.model, 'judge_unavailable', ['request_rejected'], latencyMs);
-        if (error instanceof JevTimeoutError) return failure(options.model, 'timeout', ['timeout'], latencyMs);
-        if (error instanceof JevCancelledError) return failure(options.model, 'cancelled', ['cancelled'], latencyMs);
+        if (error instanceof JevAuthError)
+          return failure(options.model, 'judge_unavailable', ['auth_failed'], latencyMs);
+        if (error instanceof JevRequestError)
+          return failure(options.model, 'judge_unavailable', ['request_rejected'], latencyMs);
+        if (error instanceof JevTimeoutError)
+          return failure(options.model, 'timeout', ['timeout'], latencyMs);
+        if (error instanceof JevCancelledError)
+          return failure(options.model, 'cancelled', ['cancelled'], latencyMs);
         if (error instanceof JevMalformedResponseError) {
           return failure(options.model, 'malformed_response', ['malformed_response'], latencyMs);
         }
