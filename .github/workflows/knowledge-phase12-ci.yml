@@ -17,6 +17,9 @@ on:
       - 'apps/meriv2-orchestrator/package.json'
       - 'packages/meriv2-core/package.json'
       - 'docs/knowledge-plane/phase-12-embedding-provider-abstraction.md'
+      - 'docs/knowledge-plane/phase-12-titan-legacy-inventory.json'
+      - 'scripts/verify-phase12-provider-inventory.mjs'
+      - 'scripts/verify-phase12-provider-inventory.spec.mjs'
       - '.github/workflows/knowledge-phase12-ci.yml'
   pull_request:
     branches:
@@ -34,6 +37,9 @@ on:
       - 'apps/meriv2-orchestrator/package.json'
       - 'packages/meriv2-core/package.json'
       - 'docs/knowledge-plane/phase-12-embedding-provider-abstraction.md'
+      - 'docs/knowledge-plane/phase-12-titan-legacy-inventory.json'
+      - 'scripts/verify-phase12-provider-inventory.mjs'
+      - 'scripts/verify-phase12-provider-inventory.spec.mjs'
       - '.github/workflows/knowledge-phase12-ci.yml'
   workflow_dispatch:
 
@@ -79,14 +85,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          titan_literal_hits=$(git grep -n -E 'amazon\.titan-embed-text-v2:0' -- \
-            'apps/**' 'packages/**' 'scripts/**' \
-            ':!apps/api/src/embeddings/titan-embedding.provider.ts' || true)
-          if [ -n "$titan_literal_hits" ]; then
-            echo "Titan embedding model is coupled outside the provider adapter:" >&2
-            echo "$titan_literal_hits" >&2
-            exit 1
-          fi
+          node scripts/verify-phase12-provider-inventory.mjs
+          node --test scripts/verify-phase12-provider-inventory.spec.mjs
 
           direct_bedrock_hits=$(git grep -n -E '@aws-sdk/client-bedrock-runtime|new BedrockRuntimeClient|InvokeModelCommand' -- \
             'apps/api/src/embeddings/**' \
