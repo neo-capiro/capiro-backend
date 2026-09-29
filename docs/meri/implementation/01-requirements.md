@@ -1,5 +1,11 @@
 # File 01 requirements ledger
 
+## Current checkpoint — 2026-09-29 canonical document fixture readback
+
+Source 125cd2d4a adds a concrete reader for the existing document fixture port. It checks actual stored bytes through canonical source-only extraction, preserving current viewer/parent/readiness checks and independently rechecking fixture ownership, membership, client wall and row stability. Six real local PostgreSQL/sandbox-storage tests and eleven existing identity/content checks pass with exit 0, plus independent Hermes/Bedrock Kimi static review. See document-owner-readback-qualification.md for direct hashes, setup failures, runtime composition and limits.
+
+Document runtime/CLI wiring, guarded erasure, non-ready/versioned document states, parser receipts, other fixture owners and full served acceptance remain open. No production API, shared environment or release gate changed.
+
 ## Current checkpoint — 2026-09-29 approved fixture retirement commands
 
 Source 3ffa515fa integrates approved-memory revocation into the existing operator plan/apply/verify lifecycle alongside pending withdrawal. It binds current approved item/candidate versions, actual database roles and the configured original proposer, and retains approval history. API build, 47 fixture/runtime/CLI checks, six frozen-content checks, 30 actual PostgreSQL tests and independent Hermes/Bedrock Kimi reviews pass with exit 0. A focused added mutation-refusal assertion also passes. See approved-retirement-cli-qualification.md for exact timing, two corrected failures, real mixed-CLI receipts, configuration and review limits.
