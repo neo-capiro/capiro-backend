@@ -11,6 +11,7 @@ on:
       - 'apps/api/src/retrieval/**'
       - 'apps/api/scripts/embed-backfill.ts'
       - 'apps/api/scripts/backfill-client-kb.ts'
+      - 'apps/api/scripts/backfill-clio-memory-embeddings.ts'
       - 'apps/api/scripts/sync-congress.ts'
       - 'apps/api/scripts/sync-lda.ts'
       - 'apps/workspace/package.json'
@@ -31,6 +32,7 @@ on:
       - 'apps/api/src/retrieval/**'
       - 'apps/api/scripts/embed-backfill.ts'
       - 'apps/api/scripts/backfill-client-kb.ts'
+      - 'apps/api/scripts/backfill-clio-memory-embeddings.ts'
       - 'apps/api/scripts/sync-congress.ts'
       - 'apps/api/scripts/sync-lda.ts'
       - 'apps/workspace/package.json'
@@ -108,12 +110,20 @@ jobs:
           # Phase-12 audited legacy compatibility island: clio_memory.embedding is
           # a pre-existing 1536-dimension OpenAI space. Migrating/removing it here
           # would violate the no-re-embed/no-dimension-change acceptance rule and
-          # alter default Meri recall. Freeze it to the two inherited runtime call
-          # sites (+ config declaration) so no new direct provider coupling spreads.
+          # alter default Meri recall. Retain the two inherited runtime call sites
+          # (+ config), plus one byte-frozen historical maintenance caller.
+          legacy_backfill='apps/api/scripts/backfill-clio-memory-embeddings.ts'
+          legacy_backfill_expected_blob='09b2649b2e6b2cb6aae45bd20231783884bf6710'
+          legacy_backfill_actual_blob=$(git hash-object --path="$legacy_backfill" "$legacy_backfill")
+          if [ "$legacy_backfill_actual_blob" != "$legacy_backfill_expected_blob" ]; then
+            echo 'The inherited legacy memory backfill changed; its compatibility exception requires explicit re-audit.' >&2
+            exit 1
+          fi
+
           legacy_openai_hits=$(git grep -n -E 'api\.openai\.com/v1/embeddings|text-embedding-3-small' -- \
             'apps/api/src/**' 'apps/api/scripts/**' || true)
           unexpected_legacy_hits=$(printf '%s\n' "$legacy_openai_hits" | grep -v -E \
-            '^(apps/api/src/meri/meri\.service\.ts|apps/api/src/memory/memory-candidate\.service\.ts|apps/api/src/config/config\.schema\.ts):' || true)
+            '^(apps/api/src/meri/meri\.service\.ts|apps/api/src/memory/memory-candidate\.service\.ts|apps/api/src/config/config\.schema\.ts|apps/api/scripts/backfill-clio-memory-embeddings\.ts):' || true)
           if [ -n "$unexpected_legacy_hits" ]; then
             echo "New direct legacy OpenAI embedding coupling was introduced outside the grandfathered compatibility island:" >&2
             echo "$unexpected_legacy_hits" >&2

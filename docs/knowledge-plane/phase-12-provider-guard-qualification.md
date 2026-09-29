@@ -12,8 +12,9 @@ Phase 12 scopes its abstraction to the shared Context Plane
 (phase-12-embedding-provider-abstraction.md). Its literal-rejection acceptance
 rule is now qualified by this exact frozen legacy inventory, rather than broad
 file or subsystem exclusions. The sole existing shared Titan adapter exclusion
-is unchanged. The independent shared-API Bedrock SDK guard and inherited OpenAI
-compatibility guard remain byte-for-byte unchanged.
+is unchanged. The independent shared-API Bedrock SDK guard remains byte-for-byte
+unchanged. The OpenAI compatibility guard retains its scan and existing runtime
+exceptions, with one exact-content-frozen historical maintenance caller below.
 
 ## Qualified existing owners
 
@@ -64,9 +65,21 @@ Passing this local guard and its tests is not a claim that the entire Phase 12
 workflow, hosted CI, live service or Full File01 acceptance has passed. Exact
 command logs, exits and independent review are retained in the Meri task evidence.
 
-The exact complete provider-guard shell block was also run locally. The Titan
-guard and focused tests passed, then the unchanged legacy OpenAI guard failed
-on apps/api/scripts/backfill-clio-memory-embeddings.ts. That separate failure is
-retained; this patch does not waive or modify its guard. Full workflow green is
-not claimed. Both push and pull-request filters include the new validator,
-test and inventory paths so later standalone edits rerun this acceptance job.
+The first exact complete provider-guard shell run exposed the inherited
+apps/api/scripts/backfill-clio-memory-embeddings.ts caller, omitted from the old
+OpenAI exception inventory. The script is registered at
+apps/api/scripts/entrypoint-dispatcher.inc:532 and its trusted-job RLS behavior is
+named in migration 20260705120100_clio_memory_rls. Its entire Git blob is unchanged
+from the pinned main baseline: 09b2649b2e6b2cb6aae45bd20231783884bf6710.
+
+The follow-up admits that exact path only after an unconditional full-file
+Git-blob comparison. Any edit, added invocation, move, removal or invalid pin
+fails; any new endpoint/model caller elsewhere still fails the existing scan.
+The two runtime caller/config allowances are preserved. The backfill itself was
+not run or edited, and no new provider/storage policy is introduced. Separate
+temporary-Git tests execute this exact shell guard for positive and negative
+cases. Both push and pull-request filters now include the exact maintenance
+path as well as the validator, test and Titan inventory.
+
+The complete static provider-guard block must pass after this follow-up; that
+does not claim the rest of the hosted Phase 12 workflow or live acceptance green.

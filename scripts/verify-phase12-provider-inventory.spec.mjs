@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,6 +28,7 @@ test('standalone validator, test and inventory changes trigger push and PR accep
     'docs/knowledge-plane/phase-12-titan-legacy-inventory.json',
     'scripts/verify-phase12-provider-inventory.mjs',
     'scripts/verify-phase12-provider-inventory.spec.mjs',
+    'apps/api/scripts/backfill-clio-memory-embeddings.ts',
   ]) {
     assert.equal(workflow.split("      - '" + path + "'").length - 1, 2);
   }
@@ -137,6 +138,7 @@ function temporaryRepo(t) {
   });
   const git = (args) => spawnSync('git', args, { cwd: dir, encoding: 'utf8' });
   assert.equal(git(['init', '--quiet']).status, 0);
+  assert.equal(git(['config', 'core.autocrlf', 'false']).status, 0);
   return { dir, git };
 }
 
@@ -182,4 +184,111 @@ test('unchanged sensitive API Bedrock guard still detects SDK coupling without a
   assert.equal(result.status, 0);
   assert.ok(result.stdout.includes(path));
   assert.match(workflow, /if \[ -n "\$direct_bedrock_hits" \]; then[\s\S]*?exit 1/u);
+});
+
+const LEGACY_BACKFILL = 'apps/api/scripts/backfill-clio-memory-embeddings.ts';
+const LEGACY_BLOB = '09b2649b2e6b2cb6aae45bd20231783884bf6710';
+
+function legacyGuard() {
+  const workflow = readFileSync(join(root, '.github/workflows/knowledge-phase12-ci.yml'), 'utf8');
+  const start = workflow.indexOf("          legacy_backfill='");
+  assert.ok(start > 0, 'unconditional maintenance pin is present');
+  return workflow
+    .slice(start)
+    .split('\n      - name:', 1)[0]
+    .split('\n')
+    .map((line) => (line.startsWith('          ') ? line.slice(10) : line))
+    .join('\n');
+}
+
+function legacyFixture(t) {
+  const fixture = temporaryRepo(t);
+  const path = join(fixture.dir, LEGACY_BACKFILL);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, readFileSync(join(root, LEGACY_BACKFILL)));
+  assert.equal(fixture.git(['add', '--', LEGACY_BACKFILL]).status, 0);
+  const observed = fixture.git(['hash-object', '--path=' + LEGACY_BACKFILL, LEGACY_BACKFILL]);
+  assert.equal(observed.status, 0);
+  assert.equal(observed.stdout.trim(), LEGACY_BLOB);
+  return {
+    ...fixture,
+    path,
+    run(fragment = legacyGuard()) {
+      const script = join(fixture.dir, 'guard.sh');
+      writeFileSync(script, 'set -euo pipefail\n' + fragment + '\n');
+      const bash = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' : 'bash';
+      const result = spawnSync(bash, ['--noprofile', '--norc', script.replace(/\\/gu, '/')], {
+        cwd: fixture.dir,
+        encoding: 'utf8',
+      });
+      assert.equal(result.error, undefined);
+      assert.equal(result.signal, null);
+      return result;
+    },
+  };
+}
+
+test('exact maintenance blob and unchanged runtime/config exceptions pass the actual legacy guard', (t) => {
+  const fixture = legacyFixture(t);
+  for (const path of [
+    'apps/api/src/meri/meri.service.ts',
+    'apps/api/src/memory/memory-candidate.service.ts',
+    'apps/api/src/config/config.schema.ts',
+  ]) {
+    mkdirSync(dirname(join(fixture.dir, path)), { recursive: true });
+    writeFileSync(join(fixture.dir, path), "const model = 'text-embedding-3-small';\n");
+    assert.equal(fixture.git(['add', '--', path]).status, 0);
+  }
+  const result = fixture.run();
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test('any changed maintenance bytes, including an additional provider call, fail the exact blob guard', (t) => {
+  const fixture = legacyFixture(t);
+  const original = readFileSync(fixture.path);
+  for (const suffix of [
+    '\n// changed documentation alone also requires re-audit\n',
+    "\nfetch('https://api.openai.com/v1/embeddings');\n",
+  ]) {
+    writeFileSync(fixture.path, Buffer.concat([original, Buffer.from(suffix)]));
+    const result = fixture.run();
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /requires explicit re-audit/u);
+  }
+});
+
+test('additional legacy caller outside exact existing allowances still fails', (t) => {
+  const fixture = legacyFixture(t);
+  const path = 'apps/api/scripts/new-legacy-caller.ts';
+  writeFileSync(join(fixture.dir, path), "fetch('https://api.openai.com/v1/embeddings');\n");
+  assert.equal(fixture.git(['add', '--', path]).status, 0);
+  const result = fixture.run();
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stderr, /New direct legacy OpenAI embedding coupling/u);
+  assert.ok(result.stderr.includes(path));
+});
+
+test('moving or removing the maintenance file fails before any exception is admitted', (t) => {
+  const fixture = legacyFixture(t);
+  renameSync(fixture.path, join(dirname(fixture.path), 'moved-backfill.ts'));
+  const result = fixture.run();
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /backfill-clio-memory-embeddings/u);
+});
+
+test('malformed or different maintenance pin fails closed', (t) => {
+  const fixture = legacyFixture(t);
+  for (const pin of ['not-a-git-blob', '', '0'.repeat(40)]) {
+    const result = fixture.run(legacyGuard().replace(LEGACY_BLOB, pin));
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /requires explicit re-audit/u);
+  }
+});
+
+test('absent maintenance file cannot silently remove the frozen compatibility contract', (t) => {
+  const fixture = legacyFixture(t);
+  rmSync(fixture.path);
+  const result = fixture.run();
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /backfill-clio-memory-embeddings/u);
 });

@@ -24,19 +24,19 @@ Provider choice is an implementation detail. It does not own authorization, sour
 
 Phase 12 audited the requested runtime boundaries, including the legacy Meri path.
 
-| Surface | Audit result |
-| --- | --- |
-| `apps/api/src/embeddings/embedder.ts` | Previously created Bedrock/Titan directly; now provider-neutral through `EmbeddingProvider`. |
-| `apps/api/scripts/embed-backfill.ts` | Previously contained a second Bedrock/Titan implementation; duplicate removed and routed through the shared provider seam. |
-| `EmbeddingsService` capability indexing | Nest now injects `EMBEDDING_PROVIDER`; persistence/security remain outside the provider. |
-| `ClientKbService` | Uses the shared embedding helper/model metadata; tenant/client retrieval SQL is unchanged. |
-| `MemoryIngestService` / `memory_items` projection | Already used `embedAndUpsert`; now inherits the provider abstraction while retaining owner/tenant scope. |
-| Congress/LDA sync jobs | Already used the shared helper; no direct provider implementation found. |
-| client-KB backfill | Delegates to production `ClientKbService`; no separate provider implementation found. |
-| Meri conversation history search | Uses `context_embeddings` + shared `embedText`; provider-neutral after this phase. |
-| Workspace | No shared Context-Plane embedding provider implementation found in the Workspace context boundary. |
-| Meri V2 orchestrator/core | No embedding provider SDK implementation found in those package boundaries. |
-| **Legacy `clio_memory.embedding` recall** | Audited compatibility island: 1536-dimension OpenAI vectors remain in the inherited Meri-only path. It is intentionally **not migrated in Phase 12** because doing so requires a dimension/model migration or corpus re-embedding and changes the default memory-recall behavior. |
+| Surface                                           | Audit result                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/src/embeddings/embedder.ts`             | Previously created Bedrock/Titan directly; now provider-neutral through `EmbeddingProvider`.                                                                                                                                                                                      |
+| `apps/api/scripts/embed-backfill.ts`              | Previously contained a second Bedrock/Titan implementation; duplicate removed and routed through the shared provider seam.                                                                                                                                                        |
+| `EmbeddingsService` capability indexing           | Nest now injects `EMBEDDING_PROVIDER`; persistence/security remain outside the provider.                                                                                                                                                                                          |
+| `ClientKbService`                                 | Uses the shared embedding helper/model metadata; tenant/client retrieval SQL is unchanged.                                                                                                                                                                                        |
+| `MemoryIngestService` / `memory_items` projection | Already used `embedAndUpsert`; now inherits the provider abstraction while retaining owner/tenant scope.                                                                                                                                                                          |
+| Congress/LDA sync jobs                            | Already used the shared helper; no direct provider implementation found.                                                                                                                                                                                                          |
+| client-KB backfill                                | Delegates to production `ClientKbService`; no separate provider implementation found.                                                                                                                                                                                             |
+| Meri conversation history search                  | Uses `context_embeddings` + shared `embedText`; provider-neutral after this phase.                                                                                                                                                                                                |
+| Workspace                                         | No shared Context-Plane embedding provider implementation found in the Workspace context boundary.                                                                                                                                                                                |
+| Meri V2 orchestrator/core                         | No embedding provider SDK implementation found in those package boundaries.                                                                                                                                                                                                       |
+| **Legacy `clio_memory.embedding` recall**         | Audited compatibility island: 1536-dimension OpenAI vectors remain in the inherited Meri-only path. It is intentionally **not migrated in Phase 12** because doing so requires a dimension/model migration or corpus re-embedding and changes the default memory-recall behavior. |
 
 ### Legacy compatibility boundary
 
@@ -45,9 +45,17 @@ Two inherited runtime call sites still serve the old `clio_memory.embedding` com
 - `apps/api/src/meri/meri.service.ts` — semantic lookup for `clio_memory`.
 - `apps/api/src/memory/memory-candidate.service.ts` — write-side refresh of the legacy vector column.
 
+One historical maintenance caller also remains in that same legacy vector space:
+
+- `apps/api/scripts/backfill-clio-memory-embeddings.ts` — the registered,
+  dry-run-by-default missing-embedding reconciler. CI admits only the exact
+  inherited file pinned to Git blob `09b2649b2e6b2cb6aae45bd20231783884bf6710`;
+  any edit, move or removal requires deliberate re-audit. This is not permission
+  to execute the backfill or change its provider, credentials or RLS behavior.
+
 That path is not the shared Retrieval V2 / Context Plane vector architecture. The canonical projection already writes `memory_items` into the shared 1024-dimension `context_embeddings` substrate, and Meri has gated `projection` / `union` recall modes for cutover.
 
-Phase 12 deliberately does **not** collapse the legacy 1536-dimension OpenAI vector column into the 1024-dimension shared store. The master-plan exclusions forbid changing vector dimensions, re-embedding the corpus, or changing retrieval behavior in this phase. Instead the CI gate freezes the compatibility island to those two existing runtime call sites (plus its config declaration) and fails if direct legacy OpenAI embedding coupling spreads anywhere else.
+Phase 12 deliberately does **not** collapse the legacy 1536-dimension OpenAI vector column into the 1024-dimension shared store. The master-plan exclusions forbid changing vector dimensions, re-embedding the corpus, or changing retrieval behavior in this phase. Instead the CI gate retains those two existing runtime call sites (plus its config declaration), admits the one exact-content-frozen maintenance file, and fails if direct legacy OpenAI embedding coupling spreads anywhere else.
 
 Retiring that island belongs to the memory/Context-Plane cutover, where recall parity can be evaluated explicitly rather than hidden inside a provider refactor.
 
