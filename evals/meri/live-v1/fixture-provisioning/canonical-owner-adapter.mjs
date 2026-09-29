@@ -27,7 +27,10 @@ function assertGuard(record, guards) {
       `${record.logicalId} write guard mismatch`,
     );
   }
-  if (guards.expectedRowVersion !== null && guards.expectedRowVersion === undefined) {
+  if (
+    guards.expectedRowVersion !== null &&
+    (typeof guards.expectedRowVersion !== 'string' || guards.expectedRowVersion.length === 0)
+  ) {
     throw new FixtureProvisioningError(
       'ROW_VERSION_GUARD_MISSING',
       `${record.logicalId} row version guard missing`,
@@ -71,6 +74,14 @@ export class CanonicalOwnerAdapter {
       throw new FixtureProvisioningError('DELETE_VERSION_GUARD_MISSING', record.logicalId);
     }
     return requirePort(this.ownerPorts, record.owner, 'delete')(record, guards);
+  }
+
+  async inspectForReset(record, guards) {
+    assertGuard(record, guards);
+    const port = this.ownerPorts?.[record.owner];
+    return typeof port?.readForReset === 'function'
+      ? port.readForReset(record, guards)
+      : this.inspect(record);
   }
 
   async retireOwned(record, guards) {
@@ -131,6 +142,7 @@ export function createClientDocumentOwnerPort({
   reader,
   actorForTenant,
   assetRoot,
+  deletion,
 }) {
   if (typeof documentWriter?.createAttachmentFromBuffer !== 'function') {
     throw new FixtureProvisioningError(
@@ -219,14 +231,22 @@ export function createClientDocumentOwnerPort({
         'asset changes require a new source version, never in-place replacement',
       );
     },
-    async delete() {
-      // EngagementService.deleteAttachment currently performs a read followed by
-      // a later lifecycle mutation. It cannot atomically fence tenant + fixture
-      // marker + logical identity + expected row version, so fixture reset must
-      // fail closed until that canonical erasure owner exposes a guarded path.
+    async readForReset(record, guards) {
+      assertGuard(record, guards);
+      if (typeof deletion?.readForReset === 'function')
+        return deletion.readForReset(record, guards);
       throw new FixtureProvisioningError(
         'DOCUMENT_GUARDED_ERASURE_UNAVAILABLE',
-        'fixture-owned documents are immutable; guarded canonical erasure is not available',
+        'guarded deletion readback is not configured',
+      );
+    },
+    async delete(record, guards) {
+      assertGuard(record, guards);
+      if (typeof deletion?.delete === 'function' && typeof deletion?.readForReset === 'function')
+        return deletion.delete(record, guards);
+      throw new FixtureProvisioningError(
+        'DOCUMENT_GUARDED_ERASURE_UNAVAILABLE',
+        'guarded canonical erasure is not configured',
       );
     },
   };

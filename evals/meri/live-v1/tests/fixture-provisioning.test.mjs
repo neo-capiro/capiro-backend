@@ -6,11 +6,15 @@ import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 
 import { frozenFixture } from '../fixture.mjs';
-import { clientDocumentPhysicalId } from '../fixture-provisioning/canonical-owner-adapter.mjs';
+import {
+  CanonicalOwnerAdapter,
+  clientDocumentPhysicalId,
+} from '../fixture-provisioning/canonical-owner-adapter.mjs';
 import {
   APPLY_CONFIRMATION,
   AUTHORIZED_TENANTS,
   RESET_CONFIRMATION,
+  receiptWithHash,
 } from '../fixture-provisioning/contract.mjs';
 import { assertManifest, buildFixtureManifest } from '../fixture-provisioning/manifest.mjs';
 import {
@@ -114,6 +118,27 @@ function rehash(changed) {
   const { contentSha256: _old, ...body } = changed;
   return { ...body, contentSha256: sha256Stable(body) };
 }
+
+test('canonical owner adapter rejects an empty expected row version', async () => {
+  const adapter = new CanonicalOwnerAdapter({ ownerPorts: {} });
+  const record = {
+    logicalId: 'fixture',
+    tenantId: 'T1',
+    physicalId: 'physical-1',
+    owner: 'memory_item',
+    ownership: { markerSha256: 'marker' },
+  };
+
+  await assert.rejects(
+    adapter.replaceOwned(record, {
+      tenantId: record.tenantId,
+      physicalId: record.physicalId,
+      expectedOwnershipMarkerSha256: record.ownership.markerSha256,
+      expectedRowVersion: '',
+    }),
+    { code: 'ROW_VERSION_GUARD_MISSING' },
+  );
+});
 
 test('source map covers frozen sources plus CD7/CW8 additions and is honest about subsets', async () => {
   const mapped = await manifest(['memory_item', 'engagement_attachment']);
@@ -528,6 +553,56 @@ test('reset treats a lost acknowledgement after canonical deletion as an unknown
     seed.records.length,
     'retry does not delete the missing row twice',
   );
+});
+
+test('reset rejects rehashed missing or duplicated operations and incomplete seed coverage before mutations', async () => {
+  const sourceMap = await manifest();
+  const adapter = new TestCanonicalOwnerAdapter();
+  const plan = await planFixture({ manifest: sourceMap, adapter });
+  const seed = await applyFixture({
+    manifest: sourceMap,
+    plan,
+    adapter,
+    confirmation: APPLY_CONFIRMATION,
+  });
+  const resetPlan = await planOwnedReset({ manifest: sourceMap, seedReceipt: seed, adapter });
+  const rehash = (receipt, changes) => {
+    const { contentSha256, ...body } = receipt;
+    return receiptWithHash({ ...body, ...changes });
+  };
+  for (const operations of [
+    [],
+    resetPlan.operations.slice(1),
+    resetPlan.operations.map(() => resetPlan.operations[0]),
+  ]) {
+    await assert.rejects(
+      applyOwnedReset({
+        manifest: sourceMap,
+        seedReceipt: seed,
+        resetPlan: rehash(resetPlan, { operations }),
+        adapter,
+        confirmation: RESET_CONFIRMATION,
+      }),
+      { code: 'RESET_PLAN_COVERAGE' },
+    );
+  }
+  await assert.rejects(
+    planOwnedReset({
+      manifest: sourceMap,
+      seedReceipt: rehash(seed, { records: seed.records.slice(1) }),
+      adapter,
+    }),
+    { code: 'RESET_SEED_COVERAGE' },
+  );
+  await assert.rejects(
+    planOwnedReset({
+      manifest: sourceMap,
+      seedReceipt: rehash(seed, { unavailable: [] }),
+      adapter,
+    }),
+    { code: 'RESET_SEED_COVERAGE' },
+  );
+  assert.equal(adapter.deleteCalls, 0);
 });
 
 test('immutable source-byte mismatch fails before planning or uploader access', async () => {

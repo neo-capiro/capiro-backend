@@ -36,7 +36,8 @@ const shadowCases: Array<{
     | 'createAttachmentFromBuffer'
     | 'supersedeAttachment'
     | 'deleteAttachment'
-    | 'deleteSyntheticFixtureAttachment';
+    | 'deleteSyntheticFixtureAttachment'
+    | 'inspectSyntheticFixtureAttachmentDeletion';
   args: unknown[];
 }> = [
   {
@@ -53,6 +54,7 @@ const shadowCases: Array<{
   { method: 'supersedeAttachment', args: [ctx, 'old-id', 'new-id'] },
   { method: 'deleteAttachment', args: [ctx, 'attachment-id'] },
   { method: 'deleteSyntheticFixtureAttachment', args: [ctx, 'attachment-id', {}] },
+  { method: 'inspectSyntheticFixtureAttachmentDeletion', args: [ctx, 'attachment-id', {}] },
 ];
 
 describe('ClientDocumentWriterService runtime boundary', () => {

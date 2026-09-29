@@ -160,6 +160,7 @@ function guardsFor(operation) {
     tenantId: operation.tenantId,
     physicalId: operation.physicalId,
     expectedOwnershipMarkerSha256: operation.expectedOwnershipMarkerSha256,
+    expectedStorageBucket: operation.expectedStorageBucket,
     expectedRowVersion: operation.expectedRowVersion,
   });
 }
@@ -193,6 +194,7 @@ function appliedRecord(record, row) {
     rowVersion: version,
     byteSha256: row.byteSha256 ?? null,
     storageReceiptId: row.storageReceiptId ?? null,
+    ...(row.storageProof ? { storageProof: row.storageProof } : {}),
   };
 }
 
@@ -364,9 +366,20 @@ export async function verifyFixture({ manifest, adapter }) {
   });
 }
 
-export async function planOwnedReset({ manifest, seedReceipt, adapter }) {
-  assertManifest(manifest);
-  assertAdapter(adapter);
+function inspectReset(adapter, record, guards) {
+  return typeof adapter.inspectForReset === 'function'
+    ? adapter.inspectForReset(record, guards)
+    : adapter.inspect(record);
+}
+
+function matchesResetVersion(actual, actualVersion, expectedVersion) {
+  return (
+    actualVersion === expectedVersion ||
+    (actual.deletionState === 'pending' && actual.deletionOriginalRowVersion === expectedVersion)
+  );
+}
+
+function assertResetSeed(manifest, seedReceipt) {
   const seed = assertReceiptHash(seedReceipt, 'meri-synthetic-fixture-seed-receipt');
   if (seed.manifestContentSha256 !== manifest.contentSha256 || seed.status !== 'complete') {
     throw new FixtureProvisioningError(
@@ -374,6 +387,51 @@ export async function planOwnedReset({ manifest, seedReceipt, adapter }) {
       'only a complete matching seed receipt can reset',
     );
   }
+  const available = manifest.records.filter((row) => row.availability.status === 'available');
+  const unavailable = manifest.records
+    .filter((row) => row.availability.status !== 'available')
+    .map((row) => ({
+      logicalId: row.logicalId,
+      owner: row.owner,
+      reason: row.availability.reason,
+    }));
+  const seeded = new Map(
+    (Array.isArray(seed.records) ? seed.records : []).map((row) => [row.logicalId, row]),
+  );
+  // The receipt hash is not a signature. Re-derive unavailable coverage from
+  // the current manifest and require the caller's receipt to match it exactly.
+  if (
+    !Array.isArray(seed.records) ||
+    seed.records.length !== available.length ||
+    seeded.size !== available.length ||
+    sha256Stable(seed.unavailable) !== sha256Stable(unavailable)
+  )
+    throw new FixtureProvisioningError(
+      'RESET_SEED_COVERAGE',
+      'seed must cover every available record exactly once',
+    );
+  for (const record of available) {
+    const row = seeded.get(record.logicalId);
+    if (
+      !row ||
+      row.physicalId !== record.physicalId ||
+      row.tenantId !== record.tenantId ||
+      row.owner !== record.owner ||
+      (record.expectedPresence === 'absent'
+        ? row.outcome !== 'verified_absent'
+        : row.outcome !== 'committed' ||
+          !row.rowVersion ||
+          row.payloadSha256 !== record.payloadSha256)
+    )
+      throw new FixtureProvisioningError('RESET_SEED_COVERAGE', record.logicalId);
+  }
+  return seed;
+}
+
+export async function planOwnedReset({ manifest, seedReceipt, adapter }) {
+  assertManifest(manifest);
+  assertAdapter(adapter);
+  const seed = assertResetSeed(manifest, seedReceipt);
   const manifestRecords = new Map(manifest.records.map((record) => [record.logicalId, record]));
   const operations = [];
   for (const seeded of [...seed.records].reverse()) {
@@ -382,10 +440,16 @@ export async function planOwnedReset({ manifest, seedReceipt, adapter }) {
     if (!record || record.physicalId !== seeded.physicalId) {
       throw new FixtureProvisioningError('RESET_MANIFEST_JOIN_FAILED', seeded.logicalId);
     }
-    const actual = await adapter.inspect(record);
-    if (!actual) continue;
-    const actualVersion = assertExactOwnedRow(record, actual);
-    if (actualVersion !== String(seeded.rowVersion)) {
+    const expectedVersion = String(seeded.rowVersion);
+    const actual = await inspectReset(adapter, record, {
+      tenantId: record.tenantId,
+      physicalId: record.physicalId,
+      expectedOwnershipMarkerSha256: record.ownership.markerSha256,
+      expectedRowVersion: expectedVersion,
+      expectedStorageBucket: seeded.storageProof?.bucket,
+    });
+    const actualVersion = actual ? assertExactOwnedRow(record, actual) : expectedVersion;
+    if (actual && !matchesResetVersion(actual, actualVersion, expectedVersion)) {
       throw new FixtureProvisioningError(
         'RESET_ROW_VERSION_CHANGED',
         `${record.logicalId} changed since apply`,
@@ -397,7 +461,8 @@ export async function planOwnedReset({ manifest, seedReceipt, adapter }) {
       physicalId: record.physicalId,
       owner: record.owner,
       tenantId: record.tenantId,
-      expectedRowVersion: actualVersion,
+      expectedRowVersion: expectedVersion,
+      expectedStorageBucket: seeded.storageProof?.bucket,
       expectedOwnershipMarkerSha256: record.ownership.markerSha256,
     });
   }
@@ -413,7 +478,7 @@ export async function planOwnedReset({ manifest, seedReceipt, adapter }) {
 export async function applyOwnedReset({ manifest, seedReceipt, resetPlan, adapter, confirmation }) {
   assertManifest(manifest);
   assertAdapter(adapter);
-  assertReceiptHash(seedReceipt, 'meri-synthetic-fixture-seed-receipt');
+  const seed = assertResetSeed(manifest, seedReceipt);
   const plan = assertReceiptHash(resetPlan, 'meri-synthetic-fixture-reset-plan');
   if (confirmation !== RESET_CONFIRMATION) {
     throw new FixtureProvisioningError(
@@ -431,6 +496,33 @@ export async function applyOwnedReset({ manifest, seedReceipt, resetPlan, adapte
     );
   }
   const records = new Map(manifest.records.map((record) => [record.logicalId, record]));
+  const committed = new Map(
+    seed.records.filter((row) => row.outcome === 'committed').map((row) => [row.logicalId, row]),
+  );
+  const seen = new Set();
+  if (!Array.isArray(plan.operations) || plan.operations.length !== committed.size)
+    throw new FixtureProvisioningError(
+      'RESET_PLAN_COVERAGE',
+      'reset must cover every committed seed record',
+    );
+  for (const operation of plan.operations) {
+    const row = committed.get(operation.logicalId),
+      record = records.get(operation.logicalId);
+    if (
+      !row ||
+      !record ||
+      seen.has(operation.logicalId) ||
+      operation.action !== 'delete_owned' ||
+      operation.physicalId !== row.physicalId ||
+      operation.tenantId !== row.tenantId ||
+      operation.owner !== row.owner ||
+      operation.expectedRowVersion !== String(row.rowVersion) ||
+      operation.expectedOwnershipMarkerSha256 !== record.ownership.markerSha256 ||
+      operation.expectedStorageBucket !== row.storageProof?.bucket
+    )
+      throw new FixtureProvisioningError('RESET_PLAN_COVERAGE', operation.logicalId);
+    seen.add(operation.logicalId);
+  }
   const results = [];
   let status = 'complete';
   for (const operation of plan.operations) {
@@ -439,13 +531,13 @@ export async function applyOwnedReset({ manifest, seedReceipt, resetPlan, adapte
       throw new FixtureProvisioningError('RESET_MANIFEST_JOIN_FAILED', operation.logicalId);
     let mutationAttempted = false;
     try {
-      const actual = await adapter.inspect(record);
+      const actual = await inspectReset(adapter, record, guardsFor(operation));
       if (!actual) {
         results.push({ logicalId: record.logicalId, outcome: 'already_absent' });
         continue;
       }
       const actualVersion = assertExactOwnedRow(record, actual);
-      if (actualVersion !== operation.expectedRowVersion) {
+      if (!matchesResetVersion(actual, actualVersion, operation.expectedRowVersion)) {
         throw new FixtureProvisioningError(
           'RESET_ROW_VERSION_CHANGED',
           `${record.logicalId} changed after reset plan`,
@@ -453,7 +545,7 @@ export async function applyOwnedReset({ manifest, seedReceipt, resetPlan, adapte
       }
       mutationAttempted = true;
       await adapter.deleteOwned(record, guardsFor(operation));
-      const after = await adapter.inspect(record);
+      const after = await inspectReset(adapter, record, guardsFor(operation));
       if (after) {
         const error = new FixtureProvisioningError('DELETE_OUTCOME_UNKNOWN', record.logicalId);
         error.unknownCommit = true;

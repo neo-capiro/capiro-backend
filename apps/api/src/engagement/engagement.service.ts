@@ -5,6 +5,7 @@ import {
 } from './synthetic-document-deletion.helpers.js';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   HttpException,
   HttpStatus,
@@ -7633,6 +7634,7 @@ export class EngagementService {
         fileName,
         contentType,
         contentHash,
+        byteSize: bytes.byteLength,
         source: 'text' as const,
         text: '',
       };
@@ -8127,6 +8129,7 @@ export class EngagementService {
       const claimed = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
         guardSyntheticDocumentDeletionInTx(tx, ctx, id, guard, this.bucket, 'claim'),
       );
+      if (!claimed.attachment) throw new ForbiddenException('Synthetic document claim is missing');
       attachment = claimed.attachment;
       fixtureIntent = claimed.intent;
     } else
@@ -8200,6 +8203,61 @@ export class EngagementService {
       this.clientKb.purgeFireAndForget(ctx.tenantId, 'client_doc_chunk', id);
     }
     return { ok: true };
+  }
+
+  /** Internal reset readback: current object and index absence, never a write. */
+  async inspectSyntheticFixtureAttachmentDeletion(
+    ctx: TenantContext,
+    id: string,
+    guard: SyntheticDocumentDeletionGuard,
+  ) {
+    const inspect = () =>
+      this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+        const result = await guardSyntheticDocumentDeletionInTx(
+          tx,
+          ctx,
+          id,
+          guard,
+          this.bucket,
+          'inspect',
+        );
+        if (
+          result.state === 'absent' &&
+          (await this.clientKb.hasAttachmentChunks(tx, ctx.tenantId, id))
+        )
+          throw new ConflictException('Synthetic document index cleanup is incomplete');
+        return result;
+      });
+    const before = await inspect();
+    if (before.state !== 'absent')
+      return {
+        state: before.state,
+        rowVersion: before.rowVersion,
+        originalRowVersion: before.state === 'pending' ? guard.expectedRowVersion : null,
+      };
+    let absent = false;
+    try {
+      await this.s3.send(new HeadObjectCommand({ Bucket: this.bucket, Key: before.s3Key }));
+    } catch (error) {
+      const failure = error as { name?: string; $metadata?: { httpStatusCode?: number } };
+      if (
+        failure?.$metadata?.httpStatusCode === 404 &&
+        ['NotFound', 'NoSuchKey'].includes(failure.name ?? '')
+      )
+        absent = true;
+      else throw error;
+    }
+    if (!absent) throw new ConflictException('Synthetic document storage cleanup is incomplete');
+    const after = await inspect();
+    if (after.state !== 'absent')
+      throw new ConflictException('Synthetic document changed during cleanup readback');
+    return {
+      state: 'absent' as const,
+      rowVersion: null,
+      originalRowVersion: null,
+      currentObjectAbsent: true,
+      indexedChunksAbsent: true,
+    };
   }
 
   /**

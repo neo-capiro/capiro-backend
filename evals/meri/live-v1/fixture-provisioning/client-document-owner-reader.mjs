@@ -161,6 +161,7 @@ export function createClientDocumentOwnerReader({
       actual?.attachmentId !== record.physicalId ||
       actual.clientId !== record.clientPhysicalId ||
       actual.contentHash !== want.hash ||
+      actual.byteSize !== want.byteSize ||
       actual.fileName !== want.fileName ||
       actual.contentType !== want.contentType
     )
@@ -173,6 +174,17 @@ export function createClientDocumentOwnerReader({
     )
       fail('DOCUMENT_FIXTURE_READ_CHANGED', record);
     assertRow(record, want, after.row, userId);
+    const storageProof = {
+      kind: 'canonical-source-byte-readback-v1',
+      tenantId: record.tenantId,
+      attachmentId: record.physicalId,
+      actorId: userId,
+      rowVersion: after.row.row_version,
+      bucket: after.row.bucket,
+      objectKey: after.row.s3_key,
+      byteSha256: actual.contentHash,
+      byteSize: actual.byteSize,
+    };
     return {
       physicalId: record.physicalId,
       tenantId: record.tenantId,
@@ -181,6 +193,10 @@ export function createClientDocumentOwnerReader({
       payloadSha256: record.payloadSha256,
       rowVersion: after.row.row_version,
       contentSha256: actual.contentHash,
+      byteSha256: actual.contentHash,
+      byteSize: actual.byteSize,
+      storageReceiptId: `canonical-source-readback:${sha256Stable(storageProof)}`,
+      storageProof,
       lifecycleStatus: after.row.lifecycle_status,
       scanStatus: after.row.scan_status,
     };

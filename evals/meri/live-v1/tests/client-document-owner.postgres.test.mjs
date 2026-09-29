@@ -4,9 +4,25 @@ import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { before, after, describe, it } from 'node:test';
 import { buildFixtureManifest } from '../fixture-provisioning/manifest.mjs';
-import { createClientDocumentOwnerPort } from '../fixture-provisioning/canonical-owner-adapter.mjs';
+import {
+  createClientDocumentOwnerPort,
+  CanonicalOwnerAdapter,
+} from '../fixture-provisioning/canonical-owner-adapter.mjs';
 import { createClientDocumentOwnerReader } from '../fixture-provisioning/client-document-owner-reader.mjs';
-import { AUTHORIZED_TENANTS, FIXTURE_NAMESPACE } from '../fixture-provisioning/contract.mjs';
+import { createClientDocumentDeletionPort } from '../fixture-provisioning/client-document-deletion-owner.mjs';
+import {
+  planFixture,
+  applyFixture,
+  planOwnedReset,
+  applyOwnedReset,
+} from '../fixture-provisioning/provisioner.mjs';
+import {
+  AUTHORIZED_TENANTS,
+  FIXTURE_NAMESPACE,
+  receiptWithHash,
+  APPLY_CONFIRMATION,
+  RESET_CONFIRMATION,
+} from '../fixture-provisioning/contract.mjs';
 
 const require = createRequire(new URL('../../../../apps/api/package.json', import.meta.url));
 const { Pool } = require('pg');
@@ -36,12 +52,15 @@ describe(
       database: process.env.DATABASE_URL,
       namespace: process.env.MERI_SYNTHETIC_FIXTURE_NAMESPACE,
     };
-    let pool, prisma, service, port, reader, writer;
+    let pool, prisma, service, port, reader, writer, adapter;
     const objects = new Map(),
       calls = [];
     let duringGet = null,
       duringDelete = null,
       failDelete = false;
+    let headError = null,
+      duringHead = null,
+      loseDeleteAcknowledgment = false;
     const purges = [];
     before(async () => {
       const database = JSON.parse(await readFile(configPath, 'utf8'));
@@ -159,6 +178,16 @@ describe(
               if (duringDelete) await duringDelete();
               return {};
             }
+            if (kind === 'HeadObjectCommand') {
+              if (headError) throw headError;
+              const present = objects.has(command.input.Key);
+              if (duringHead) await duringHead();
+              if (present) return {};
+              const error = new Error('owned object is absent');
+              error.name = 'NotFound';
+              error.$metadata = { httpStatusCode: 404 };
+              throw error;
+            }
             assert.fail(`unsandboxed operation ${kind}`);
           },
         },
@@ -184,7 +213,24 @@ describe(
         reader,
         actorForTenant: () => USER,
         assetRoot: new URL('../source-binaries/', import.meta.url),
+        deletion: createClientDocumentDeletionPort({
+          prisma,
+          actorForTenant: () => USER,
+          documentWriter: {
+            inspectSyntheticFixtureAttachmentDeletion:
+              writer.inspectSyntheticFixtureAttachmentDeletion,
+            deleteSyntheticFixtureAttachment: async (...args) => {
+              const result = await writer.deleteSyntheticFixtureAttachment(...args);
+              if (loseDeleteAcknowledgment) {
+                loseDeleteAcknowledgment = false;
+                throw new Error('owned lost acknowledgement');
+              }
+              return result;
+            },
+          },
+        }),
       });
+      adapter = new CanonicalOwnerAdapter({ ownerPorts: { engagement_attachment: port } });
     });
     after(async () => {
       await prisma?.$disconnect();
@@ -237,6 +283,7 @@ describe(
       const asset = record.payload.sourceAsset;
       return {
         expectedRowVersion: (await stored(record)).version,
+        expectedBucket: 'owned-local-test-assets',
         fixtureVersion: record.ownership.marker.fixtureVersion,
         fixtureInstanceId: record.ownership.marker.fixtureInstanceId,
         logicalId: record.logicalId,
@@ -250,6 +297,220 @@ describe(
     }
     const erase = (record, guard) =>
       writer.deleteSyntheticFixtureAttachment(actor, record.physicalId, guard);
+    const resetGuard = (record, guard) => ({
+      tenantId: TENANT,
+      physicalId: record.physicalId,
+      expectedOwnershipMarkerSha256: record.ownership.markerSha256,
+      expectedRowVersion: guard.expectedRowVersion,
+      expectedStorageBucket: guard.expectedBucket ?? guard.expectedStorageBucket,
+    });
+    async function seededDocumentSlice() {
+      const built = await buildFixtureManifest({
+        fixtureInstanceId: randomUUID(),
+        clients: {
+          ASTER: { tenantId: 'T1', physicalId: CLIENT },
+          BLUEHAVEN: { tenantId: 'T1', physicalId: '22222222-2222-4222-8222-222222222222' },
+          CEDAR: { tenantId: 'T2', physicalId: '33333333-3333-4333-8333-333333333333' },
+        },
+        actors: { PAT: { tenantId: 'T1', userId: USER } },
+        uploaderActors: { T1: 'PAT' },
+        availableOwners: ['engagement_attachment'],
+      });
+      const { contentSha256, ...body } = built;
+      // Keep all frozen logical records, but qualify only these three ready
+      // documents. Other lifecycle states remain explicitly unavailable.
+      const manifest = receiptWithHash({
+        ...body,
+        records: body.records.map((record) =>
+          ['D-A-1', 'DECK-A-1', 'SHEET-A-1'].includes(record.logicalId)
+            ? record
+            : {
+                ...record,
+                availability: {
+                  status: 'unavailable',
+                  reason: 'outside this three-document lifecycle test',
+                },
+              },
+        ),
+      });
+      const plan = await planFixture({ manifest, adapter });
+      const seedReceipt = await applyFixture({
+        manifest,
+        plan,
+        adapter,
+        confirmation: APPLY_CONFIRMATION,
+      });
+      assert.equal(
+        seedReceipt.status,
+        'complete',
+        JSON.stringify({ status: seedReceipt.status, records: seedReceipt.records }),
+      );
+      assert.ok(
+        seedReceipt.records.every(
+          (row) =>
+            row.storageProof?.kind === 'canonical-source-byte-readback-v1' &&
+            row.storageProof.bucket === 'owned-local-test-assets',
+        ),
+      );
+      assert.equal(seedReceipt.fixtureComplete, false);
+      const resetPlan = await planOwnedReset({ manifest, seedReceipt, adapter });
+      assert.equal(resetPlan.operations.length, 3);
+      return { manifest, seedReceipt, resetPlan, adapter, confirmation: RESET_CONFIRMATION };
+    }
+    it('resets a real three-document owner slice and verifies current storage plus index absence', async () => {
+      const input = await seededDocumentSlice();
+      const result = await applyOwnedReset(input);
+      assert.equal(result.status, 'complete');
+      assert.equal(result.records.length, 3);
+      for (const operation of input.resetPlan.operations) {
+        const record = input.manifest.records.find((row) => row.logicalId === operation.logicalId);
+        assert.equal(await stored(record), null);
+        assert.equal(objects.has(objectKey(record)), false);
+      }
+      const before = calls.filter((kind) => kind === 'DeleteObjectCommand').length;
+      const retry = await applyOwnedReset(input);
+      assert.equal(retry.status, 'complete');
+      assert.ok(retry.records.every((row) => row.outcome === 'already_absent'));
+      assert.equal(calls.filter((kind) => kind === 'DeleteObjectCommand').length, before);
+      const newPlan = await planOwnedReset(input);
+      assert.equal(
+        newPlan.operations.length,
+        3,
+        'already-absent records remain subject to apply-time proof',
+      );
+      const firstRecord = input.manifest.records.find(
+        (row) => row.logicalId === newPlan.operations[0].logicalId,
+      );
+      objects.set(objectKey(firstRecord), Buffer.from('object reappeared after reset planning'));
+      try {
+        assert.equal((await applyOwnedReset({ ...input, resetPlan: newPlan })).status, 'failed');
+      } finally {
+        objects.delete(objectKey(firstRecord));
+      }
+    });
+    it('reconciles a retained storage-failure intent through the original reset plan', async () => {
+      const input = await seededDocumentSlice();
+      failDelete = true;
+      let failed;
+      try {
+        failed = await applyOwnedReset(input);
+      } finally {
+        failDelete = false;
+      }
+      assert.equal(failed.status, 'unknown_outcome');
+      const first = input.resetPlan.operations[0];
+      const record = input.manifest.records.find((row) => row.logicalId === first.logicalId);
+      const proof = await adapter.inspectForReset(record, resetGuard(record, first));
+      assert.equal(proof.deletionState, 'pending');
+      assert.notEqual(proof.rowVersion, first.expectedRowVersion);
+      assert.equal(proof.deletionOriginalRowVersion, first.expectedRowVersion);
+      await assert.rejects(
+        adapter.inspectForReset(record, {
+          ...resetGuard(record, first),
+          expectedRowVersion: proof.rowVersion,
+        }),
+        { status: 403 },
+      );
+      const retry = await applyOwnedReset(input);
+      assert.equal(retry.status, 'complete');
+      assert.equal(await stored(record), null);
+    });
+    it('reconciles a lost canonical deletion acknowledgement without repeating the effect', async () => {
+      const input = await seededDocumentSlice();
+      loseDeleteAcknowledgment = true;
+      const first = await applyOwnedReset(input);
+      assert.equal(first.status, 'unknown_outcome');
+      const before = calls.filter((kind) => kind === 'DeleteObjectCommand').length;
+      const retry = await applyOwnedReset(input);
+      assert.equal(retry.status, 'complete');
+      assert.equal(retry.records[0].outcome, 'already_absent');
+      assert.equal(calls.filter((kind) => kind === 'DeleteObjectCommand').length, before + 2);
+    });
+    it('never accepts row absence alone when storage or indexed chunks remain', async () => {
+      const record = await fixture();
+      await create(record);
+      const guard = await deletionGuard(record),
+        operation = resetGuard(record, guard);
+      await erase(record, guard);
+      objects.set(objectKey(record), Buffer.from('orphaned owned test bytes'));
+      await assert.rejects(adapter.inspectForReset(record, operation), { status: 409 });
+      objects.delete(objectKey(record));
+      await pool.query(
+        `INSERT INTO "${schema}".context_embeddings VALUES ($1,'client_doc_chunk',$2)`,
+        [TENANT, `${record.physicalId}:0`],
+      );
+      await assert.rejects(adapter.inspectForReset(record, operation), { status: 409 });
+      await pool.query(
+        `DELETE FROM "${schema}".context_embeddings WHERE tenant_id=$1 AND source_id=$2`,
+        [TENANT, `${record.physicalId}:0`],
+      );
+      assert.equal(await adapter.inspectForReset(record, operation), null);
+    });
+    it('refuses inaccessible storage and revoked authority during absence readback', async () => {
+      const record = await fixture();
+      await create(record);
+      const guard = await deletionGuard(record),
+        operation = resetGuard(record, guard);
+      await erase(record, guard);
+      for (const [name, code] of [
+        ['AccessDenied', 403],
+        ['NoSuchBucket', 404],
+        ['TimeoutError', 504],
+      ]) {
+        headError = Object.assign(new Error('owned storage fault'), {
+          name,
+          $metadata: { httpStatusCode: code },
+        });
+        try {
+          await assert.rejects(adapter.inspectForReset(record, operation), { name });
+        } finally {
+          headError = null;
+        }
+      }
+      service.bucket = 'changed-test-bucket';
+      const count = calls.length;
+      try {
+        await assert.rejects(adapter.inspectForReset(record, operation), { status: 403 });
+      } finally {
+        service.bucket = 'owned-local-test-assets';
+      }
+      assert.equal(calls.length, count, 'bucket mismatch refuses before storage access');
+      await assert.rejects(
+        adapter.inspectForReset(record, { ...operation, expectedStorageBucket: undefined }),
+        { code: 'DOCUMENT_DELETION_IDENTITY_INVALID' },
+      );
+      duringHead = () =>
+        pool.query(`UPDATE "${schema}".tenant_memberships SET status='inactive' WHERE user_id=$1`, [
+          USER,
+        ]);
+      try {
+        await assert.rejects(adapter.inspectForReset(record, operation), { status: 403 });
+      } finally {
+        duringHead = null;
+        await pool.query(
+          `UPDATE "${schema}".tenant_memberships SET status='active' WHERE user_id=$1`,
+          [USER],
+        );
+      }
+    });
+    it('rejects row recreation during storage-absence readback', async () => {
+      const record = await fixture();
+      await create(record);
+      const guard = await deletionGuard(record),
+        operation = resetGuard(record, guard);
+      await erase(record, guard);
+      duringHead = async () => {
+        duringHead = null;
+        await create(record);
+      };
+      try {
+        await assert.rejects(adapter.inspectForReset(record, operation), { status: 403 });
+      } finally {
+        duringHead = null;
+      }
+      assert.equal((await stored(record)).row.lifecycle_status, 'ready');
+      assert.equal(objects.has(objectKey(record)), true);
+    });
     it('deletes owned document chunks and row atomically while preserving neighboring sources', async () => {
       const record = await fixture();
       await create(record);

@@ -37,6 +37,7 @@ describe('EngagementService runtime boundary', () => {
       extractAttachmentText: { action: 'attachment_external_read' },
       deleteAttachment: { action: 'attachment_external_write' },
       deleteSyntheticFixtureAttachment: { action: 'attachment_external_write' },
+      inspectSyntheticFixtureAttachmentDeletion: { action: 'attachment_external_read' },
       eraseAttachmentAsSystem: { action: 'attachment_external_write' },
       readAttachmentBytes: { action: 'attachment_external_read' },
       reconcileFailedAttachmentDeletes: { action: 'attachment_external_write' },

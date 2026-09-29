@@ -478,6 +478,22 @@ export class ClientKbService {
     );
   }
 
+  /** Read current canonical index residue in the caller's tenant transaction. */
+  async hasAttachmentChunks(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    attachmentId: string,
+  ): Promise<boolean> {
+    const rows = await tx.$queryRawUnsafe<Array<{ present: boolean }>>(
+      `SELECT EXISTS (SELECT 1 FROM context_embeddings WHERE tenant_id=$1::uuid AND source_type=$2 AND (source_id=$3 OR source_id LIKE $4)) AS present`,
+      tenantId,
+      'client_doc_chunk',
+      attachmentId,
+      docChunkSourceIdPrefix(attachmentId),
+    );
+    return rows[0]?.present !== false;
+  }
+
   /** S3 download + text extraction; null for image/unsupported kinds. */
   private async extractAttachmentTextForKb(attachment: {
     fileName: string;

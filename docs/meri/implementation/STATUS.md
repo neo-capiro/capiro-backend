@@ -1,3 +1,8 @@
+## Current checkpoint — 2026-09-29 client-document reset and readback
+
+The current topic branch `codex/meri-foundation-20260928` at base `d77ab91dfcb117b935c2280f10798badeb9556a7` now includes a guarded canonical document fixture reset/reconciliation owner and source-byte readback, plus a scoped one-shot runtime adapter. API build, the 24-test Engagement boundary suite, the 26-test fixture-provisioning suite, and three new runtime contracts pass with actual exit 0 (29 Node checks across the exact commands); the independent focused Bedrock Kimi static review exits 0 with no blockers. Its empty row-version edge case is now rejected and covered by a regression. Review: `C:/dev/cap-meri-foundation-evidence/document-reset-runtime-concurrent-review-report.md`. Qualification: `document-reset-reconciliation-qualification.md`. Earlier owned PostgreSQL/sandbox-storage tests pass 21 checks for owner methods, but the new adapter against a database/AWS remains NOT RUN. The qualification explicitly distinguishes that limit and retains the earlier review attempts that exited 1.
+
+This advances one canonical document fixture lifecycle only. Other fixture owners, live trusted sink/capture qualification, authenticated served Workstream A acceptance (17 numbered cases plus CD-05), hosted CI/database release clearance, owner acceptance, GitHub-main integration and the approved Capiro Dev deployment are still open. The current patch is uncommitted and not integrated; no shared environment changed.
 # Meri file 01 status
 
 ## Current checkpoint — 2026-09-29 canonical document fixture readback

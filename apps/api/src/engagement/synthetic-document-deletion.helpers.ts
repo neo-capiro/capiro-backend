@@ -6,6 +6,7 @@ import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 
 export interface SyntheticDocumentDeletionGuard {
   expectedRowVersion: string;
+  expectedBucket?: string;
   fixtureVersion: string;
   fixtureInstanceId?: string;
   logicalId: string;
@@ -38,6 +39,7 @@ function identity(
   if (
     !guard ||
     !bucket ||
+    (guard.expectedBucket !== undefined && guard.expectedBucket !== bucket) ||
     process.env.MERI_SYNTHETIC_FIXTURE_NAMESPACE !== NAMESPACE ||
     !TENANTS[ctx.tenantId] ||
     !UUID.test(ctx.userId) ||
@@ -109,9 +111,12 @@ export async function guardSyntheticDocumentDeletionInTx(
   id: string,
   guard: SyntheticDocumentDeletionGuard,
   bucket: string | undefined,
-  phase: 'claim' | 'finish',
+  phase: 'claim' | 'finish' | 'inspect',
 ) {
   const expected = identity(ctx, id, guard, bucket);
+  // Normal public deletes may omit the fixture bucket pin. Inspect readback
+  // must always carry it so bucket/config drift cannot masquerade as absence.
+  if (phase === 'inspect' && guard.expectedBucket !== bucket) deny();
   const membership = await tx.$queryRaw<Array<{ id: string }>>`
     SELECT tm.user_id::text AS id FROM tenant_memberships tm JOIN tenants t ON t.id=tm.tenant_id
     WHERE tm.tenant_id=${ctx.tenantId}::uuid AND tm.user_id=${ctx.userId}::uuid AND tm.status='active' AND tm.role=${ctx.role}
@@ -123,6 +128,14 @@ export async function guardSyntheticDocumentDeletionInTx(
   const locked = await tx.$queryRaw<
     Array<{ version: string }>
   >`SELECT xmin::text AS version FROM engagement_attachments WHERE tenant_id=${ctx.tenantId}::uuid AND id=${id}::uuid FOR UPDATE`;
+  if (locked.length === 0 && phase === 'inspect')
+    return {
+      attachment: null,
+      intent: expected.intent,
+      rowVersion: null,
+      state: 'absent' as const,
+      s3Key: expected.s3Key,
+    };
   if (locked.length !== 1) deny();
   const row = await tx.engagementAttachment.findFirst({ where: { id, tenantId: ctx.tenantId } });
   if (
@@ -157,8 +170,10 @@ export async function guardSyntheticDocumentDeletionInTx(
   const resuming = ['delete_pending', 'delete_failed'].includes(row.lifecycleStatus);
   if (resuming) {
     if (saved !== expected.intent) deny();
+  // A non-pending row can be claimed only from its original version. `finish`
+  // is legal only after the persisted delete intent made it a resumable row.
   } else if (
-    phase !== 'claim' ||
+    phase === 'finish' ||
     saved !== undefined ||
     locked[0]?.version !== guard.expectedRowVersion ||
     !['ready', 'quarantined', 'blocked'].includes(row.lifecycleStatus)
@@ -178,5 +193,11 @@ export async function guardSyntheticDocumentDeletionInTx(
       },
     });
   }
-  return { attachment: row, intent: expected.intent };
+  return {
+    attachment: row,
+    intent: expected.intent,
+    rowVersion: locked[0]!.version,
+    state: resuming ? ('pending' as const) : ('present' as const),
+    s3Key: expected.s3Key,
+  };
 }
