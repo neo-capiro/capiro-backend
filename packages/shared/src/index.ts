@@ -1692,10 +1692,19 @@ export interface StateDeadlineRisk {
 }
 
 function daysBetweenDateStrings(fromISO: string, toISO: string): number {
-  const from = Date.UTC(
-    ...(fromISO.slice(0, 10).split('-').map(Number) as [number, number, number]),
-  );
-  const to = Date.UTC(...(toISO.slice(0, 10).split('-').map(Number) as [number, number, number]));
+  const [fromYear, fromMonth, fromDay] = fromISO.slice(0, 10).split('-').map(Number) as [
+    number,
+    number,
+    number,
+  ];
+  const [toYear, toMonth, toDay] = toISO.slice(0, 10).split('-').map(Number) as [
+    number,
+    number,
+    number,
+  ];
+  // ISO dates use months 1–12; Date.UTC expects months 0–11.
+  const from = Date.UTC(fromYear, fromMonth - 1, fromDay);
+  const to = Date.UTC(toYear, toMonth - 1, toDay);
   return Math.round((to - from) / 86_400_000);
 }
 

@@ -2,6 +2,7 @@ import { runVerifierProcess } from './engagement-verifier-process';
 import { existsSync, mkdtempSync, readFileSync, rmdirSync, statSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
+import { Writable } from 'node:stream';
 
 const options = { cwd: process.cwd(), stdout: () => {}, stderr: () => {} };
 const run = (code: string, extra: Partial<Parameters<typeof runVerifierProcess>[2]> = {}) =>
@@ -79,6 +80,94 @@ describe('Engagement verifier child lifecycle', () => {
     await expect(
       runVerifierProcess('engagement-verifier-definitely-missing-command', [], options),
     ).rejects.toThrow();
+  });
+  it('forwards large output through a slow small-buffer Writable without loss', async () => {
+    const chunks: Buffer[] = [];
+    let drains = 0;
+    const sink = new Writable({
+      highWaterMark: 32,
+      write(chunk, _encoding, callback) {
+        chunks.push(Buffer.from(chunk));
+        setTimeout(callback, 2);
+      },
+    });
+    sink.on('drain', () => {
+      drains++;
+    });
+    const result = await run("process.stdout.write('x'.repeat(2 * 1024 * 1024))", { stdout: sink });
+    expect(result.status).toBe(0);
+    expect(drains).toBeGreaterThan(0);
+    expect(Buffer.concat(chunks).toString()).toBe(result.stdout);
+    expect(result.stdout).toHaveLength(2 * 1024 * 1024);
+    expect(sink.writableLength).toBe(0);
+  });
+
+  it('does not resolve before the final pending write completes', async () => {
+    let release!: () => void;
+    let observe!: () => void;
+    const writing = new Promise<void>((resolve) => {
+      observe = resolve;
+    });
+    const sink = new Writable({
+      highWaterMark: 1,
+      write(_chunk, _encoding, callback) {
+        release = callback;
+        observe();
+      },
+    });
+    let finished = false;
+    const child = run("process.stdout.write('done')", { stdout: sink }).then((result) => {
+      finished = true;
+      return result;
+    });
+    await writing;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(finished).toBe(false);
+    release();
+    expect((await child).status).toBe(0);
+    expect(sink.writableLength).toBe(0);
+  });
+
+  it('rejects an asynchronous Writable EPIPE error', async () => {
+    const sink = new Writable({
+      highWaterMark: 1,
+      write(_chunk, _encoding, callback) {
+        setTimeout(
+          () => callback(Object.assign(new Error('async broken output pipe'), { code: 'EPIPE' })),
+          10,
+        );
+      },
+    });
+    await expect(
+      run("console.log('output'); setInterval(() => {}, 1000)", { stdout: sink }),
+    ).rejects.toThrow('async broken output pipe');
+  });
+
+  it('times out safely while the output Writable remains backpressured', async () => {
+    const sink = new Writable({ highWaterMark: 1, write() {} });
+    await expect(
+      run("console.log('output'); setInterval(() => {}, 1000)", { stdout: sink, timeoutMs: 250 }),
+    ).rejects.toThrow('timed out');
+    sink.destroy();
+  });
+
+  it('retains a child signal failure while waiting for a slow output write', async () => {
+    let wrote = false;
+    const sink = new Writable({
+      highWaterMark: 1,
+      write(_chunk, _encoding, callback) {
+        setTimeout(() => {
+          wrote = true;
+          callback();
+        }, 150);
+      },
+    });
+    const result = await run(
+      "process.stdout.write('output', () => process.kill(process.pid, 'SIGTERM'))",
+      { stdout: sink },
+    );
+    expect(wrote).toBe(true);
+    expect(result.status).not.toBe(0);
   });
   it('stops a descendant on timeout even if that descendant ignores SIGTERM', async () => {
     const directory = mkdtempSync(
