@@ -131,6 +131,8 @@ jobs:
           fi
 
       - name: Provider contract and storage regressions
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
           pnpm --filter @capiro/api exec jest --runInBand --forceExit \
             src/embeddings/embedding-provider.contract.spec.ts \
