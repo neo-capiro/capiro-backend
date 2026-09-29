@@ -1,6 +1,6 @@
 ## Current checkpoint — 2026-09-29 source fidelity and partial release
 
-Repository main and `origin/main` are exact at `8014e141af01df2ff089fae115f4df08e9cc733c` after PR [#1910](https://github.com/neo-capiro/capirov2/pull/1910). The supplied foundation plan is now byte-for-byte identical to the repository copy; SHA-256 is `77C55B7484343A766C3BD17047C513B50C7C5D045E2018F03EA9DD0C08B622BD`. The orchestrator prompt already matched the supplied source.
+Repository main and `origin/main` are exact at `3e2d0896164d04441d5ecfc1e506f8ca387cb71d` after PR [#1912](https://github.com/neo-capiro/capirov2/pull/1912). The supplied foundation plan is now byte-for-byte identical to the repository copy; SHA-256 is `77C55B7484343A766C3BD17047C513B50C7C5D045E2018F03EA9DD0C08B622BD`. The orchestrator prompt already matched the supplied source.
 
 The merged application source used for the current capiro-dev release is `b2d99f04d8c485cb4b73a1f02aece9a60b945870` (the later repository change is documentation-only). Web-vNext is PASS at `capiro-dev-web-vnext:383`, digest `sha256:08332ee894c2c0f6d4d8cfecc02a4c52c0b7d00896917a220b48a4d97923f993`; Engagement API is PASS at `capiro-dev-engagement-api:127`, digest `sha256:b5ba8c108a47731104f856760dc1359c49c7fbca83cfe84f8ac2d1b97f5ccc95`. Both report healthy targets.
 
@@ -8,9 +8,9 @@ API and Meri orchestrator images were built from the merged application source b
 
 Authenticated served Workstream A acceptance, the 75 baseline cases, CD-01–CD-07, CW-01–CW-08, and the remaining File01 owner/capture evidence remain NOT RUN or BLOCKED. The next release action is controlled database recovery with an incident/change ticket, named operator, separate approver, read-only schema/ledger evidence, and post-recovery verification. Direct `_prisma_migrations` edits, `migrate resolve` without that evidence, direct flag writes, and API/orchestrator rollout remain prohibited.
 
-The current offline deterministic suite is PASS: shared and Meri core builds exit 0; 53 Python contract tests and 40 Node provider/smoke tests pass; Promptfoo evaluates 26/26 cases with zero model tokens; and `verify_report.py` verifies 26/26. This is mechanism evidence only and does not close the live 75-case, CD, CW, owner, or served acceptance requirements. Report SHA-256 is `69d6768b2a4d0061d769f3f9e27f3e0fd0d4c931b51a0054feaf2e3e2e650032` at `C:/dev/cap-meri-foundation-evidence/meri-offline-20260929-1448/meri-offline.json`.
+The current offline deterministic suite is PASS: shared and Meri core builds exit 0; 53 Python contract tests and 40 Node provider/smoke tests pass; Promptfoo evaluates 26/26 cases with zero model tokens; and `verify_report.py` verifies 26/26. The fullChat workflow contract tests also pass 22/22, and the live-v1 contract validates all 75 IDs/hashes with 185 passing tests. These are mechanism/contract evidence only and do not close the live 75-case, CD, CW, owner, or served acceptance requirements; the generated live report correctly remains 75 `NOT_RUN`. Report SHA-256 is `69d6768b2a4d0061d769f3f9e27f3e0fd0d4c931b51a0054feaf2e3e2e650032` at `C:/dev/cap-meri-foundation-evidence/meri-offline-20260929-1448/meri-offline.json`.
 
-Evidence: `C:/dev/cap-meri-foundation-evidence/foundation-doc-fidelity-merge-20260929.json`, `partial-release-b2d99f04.json`, `api-migration-recovery-packet-20260929.md`, `hermes-concurrent-review-20260929.md`, `offline-suite-refresh-20260929.json`.
+Evidence: `C:/dev/cap-meri-foundation-evidence/foundation-doc-fidelity-merge-20260929.json`, `partial-release-b2d99f04.json`, `api-migration-recovery-packet-20260929.md`, `hermes-concurrent-review-20260929.md`, `offline-suite-refresh-20260929.json`, `fullchat-contract-refresh-20260929.json`, `live-contract-refresh-20260929.json`.
 
 ## Current checkpoint — 2026-09-29 vNext migration and full web gate
 
