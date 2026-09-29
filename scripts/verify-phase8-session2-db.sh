@@ -103,6 +103,22 @@ log "1. Migration-from-zero: the full authoritative ledger applies"
 run_sql "$(cat "$REPO_ROOT/docker/postgres/init/01-extensions.sql")"
 ok "extensions and capiro_app bootstrapped, matching local dev / CI exactly"
 
+# Only the container created by this invocation receives CI baseline fixtures.
+# An externally supplied URL receives no new bootstrap writes.
+if [ "$SELF_MANAGED" = "1" ]; then
+  fixture_psql() {
+    docker exec -i -e PGPASSWORD="$SUPERPASS" -e PGHOSTADDR=127.0.0.1 \
+      -e PGSERVICE= -e PGSERVICEFILE= -e PGOPTIONS= "$NAME" \
+      psql --no-psqlrc --set=ON_ERROR_STOP=1 --host=127.0.0.1 --port=5432 \
+      --username="$SUPERUSER" --dbname="$DB_NAME" "$@"
+  }
+  identity="$(fixture_psql -Atc "SELECT current_database(), current_user, inet_server_port(), current_setting('is_superuser')")"
+  [ "$identity" = 'capiro|capiro|5432|on' ] || fail "unexpected owned fixture identity: $identity"
+  fixture_psql < "$SCRIPT_DIR/ci/disposable-capiro-worker-prerequisite.sql"
+  fixture_psql < "$SCRIPT_DIR/ci/research-portfolio-append-only-prerequisite.sql"
+  ok "external baseline role and append-only helper installed in owned disposable container"
+fi
+
 (cd "$API_ROOT" && DATABASE_URL="$REHEARSAL_DATABASE_URL" npx prisma migrate deploy \
   --schema prisma/schema.prisma >/dev/null) \
   || fail "migration-from-zero failed: the ledger does not apply cleanly to an empty database"
