@@ -1,5 +1,9 @@
 import { clientAssociatedMeetingWhere } from './engagement-access.helpers.js';
 import {
+  guardSyntheticDocumentDeletionInTx,
+  type SyntheticDocumentDeletionGuard,
+} from './synthetic-document-deletion.helpers.js';
+import {
   BadRequestException,
   ForbiddenException,
   HttpException,
@@ -8080,7 +8084,25 @@ export class EngagementService {
    * gate rejects it) but visible to reconciliation, which can retry.
    */
   async deleteAttachment(ctx: TenantContext, id: string) {
-    const attachment = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    return this.deleteAttachmentGuarded(ctx, id);
+  }
+
+  /** Internal owned-fixture erasure; never bound by a controller or DTO. */
+  async deleteSyntheticFixtureAttachment(
+    ctx: TenantContext,
+    id: string,
+    guard: SyntheticDocumentDeletionGuard,
+  ) {
+    if (!guard) throw new ForbiddenException('Synthetic document deletion guard is required');
+    return this.deleteAttachmentGuarded(ctx, id, guard);
+  }
+
+  private async deleteAttachmentGuarded(
+    ctx: TenantContext,
+    id: string,
+    guard?: SyntheticDocumentDeletionGuard,
+  ) {
+    let attachment = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const row = await tx.engagementAttachment.findFirst({
         where: { id, tenantId: ctx.tenantId },
       });
@@ -8100,12 +8122,20 @@ export class EngagementService {
     //    recorded, even while the row lingers in delete_pending/delete_failed
     //    for S3 retry. Clearing is unconditional (a harmless no-op when the
     //    attachment was already private).
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.engagementAttachment.updateMany({
-        where: { id, tenantId: ctx.tenantId },
-        data: { lifecycleStatus: 'delete_pending', sharedAt: null, sharedByUserId: null },
-      }),
-    );
+    let fixtureIntent: string | undefined;
+    if (guard) {
+      const claimed = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+        guardSyntheticDocumentDeletionInTx(tx, ctx, id, guard, this.bucket, 'claim'),
+      );
+      attachment = claimed.attachment;
+      fixtureIntent = claimed.intent;
+    } else
+      await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.engagementAttachment.updateMany({
+          where: { id, tenantId: ctx.tenantId },
+          data: { lifecycleStatus: 'delete_pending', sharedAt: null, sharedByUserId: null },
+        }),
+      );
 
     // 2. Delete the object OUTSIDE any transaction.
     if (this.bucket) {
@@ -8114,18 +8144,24 @@ export class EngagementService {
       } catch (e) {
         // 3b. Retain the row for reconciliation. Never expose the object.
         await this.prisma
-          .withTenant(ctx.tenantId, (tx) =>
-            tx.engagementAttachment.updateMany({
-              where: { id, tenantId: ctx.tenantId },
-              data: {
-                lifecycleStatus: 'delete_failed',
-                extractionMetadata: {
-                  deleteError: (e as Error).message.slice(0, 300),
-                  deleteFailedAt: new Date().toISOString(),
-                } as unknown as Prisma.InputJsonValue,
-              },
-            }),
-          )
+          .withTenant(ctx.tenantId, async (tx) => {
+            if (fixtureIntent)
+              await tx.$executeRaw`UPDATE engagement_attachments SET lifecycle_status='delete_failed',
+                extraction_metadata_jsonb=extraction_metadata_jsonb || ${JSON.stringify({ deleteError: (e as Error).message.slice(0, 300), deleteFailedAt: new Date().toISOString() })}::jsonb
+                WHERE tenant_id=${ctx.tenantId}::uuid AND id=${id}::uuid AND lifecycle_status='delete_pending'
+                  AND extraction_metadata_jsonb->>'syntheticFixtureDeleteIntent'=${fixtureIntent}`;
+            else
+              await tx.engagementAttachment.updateMany({
+                where: { id, tenantId: ctx.tenantId },
+                data: {
+                  lifecycleStatus: 'delete_failed',
+                  extractionMetadata: {
+                    deleteError: (e as Error).message.slice(0, 300),
+                    deleteFailedAt: new Date().toISOString(),
+                  } as unknown as Prisma.InputJsonValue,
+                },
+              });
+          })
           .catch((markErr) =>
             this.logger.error(
               `could not mark attachment ${id} delete_failed: ${(markErr as Error).message}`,
@@ -8146,9 +8182,15 @@ export class EngagementService {
     }
 
     // 3a. Object gone: drop the row and purge KB chunks.
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.engagementAttachment.delete({ where: { id } }),
-    );
+    if (guard) {
+      await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+        await guardSyntheticDocumentDeletionInTx(tx, ctx, id, guard, this.bucket, 'finish');
+        await tx.engagementAttachment.delete({ where: { id } });
+      });
+    } else
+      await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.engagementAttachment.delete({ where: { id } }),
+      );
     // Client KB (F5): deleting a document removes its chunks from retrieval.
     if (attachment.clientId) {
       this.clientKb.purgeFireAndForget(ctx.tenantId, 'client_doc_chunk', id);
@@ -8294,7 +8336,12 @@ export class EngagementService {
     if (!this.bucket) return { retried: 0, deleted: 0, stillFailing: 0 };
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.engagementAttachment.findMany({
-        where: { tenantId: ctx.tenantId, lifecycleStatus: 'delete_failed' },
+        where: {
+          tenantId: ctx.tenantId,
+          lifecycleStatus: 'delete_failed',
+          // Owned fixture intents must retry with their exact guards and actor.
+          OR: [{ sourceEntityType: null }, { sourceEntityType: { not: 'meri_synthetic_fixture' } }],
+        },
         orderBy: { createdAt: 'asc' },
         take: Math.min(Math.max(limit, 1), 200),
         select: { id: true, s3Key: true, clientId: true },

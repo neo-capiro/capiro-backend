@@ -50,4 +50,13 @@ export class ClientDocumentWriterService {
     this.runtime.assertExternalAction('attachment_external_write');
     return this.engagement.deleteAttachment(ctx, id);
   };
+
+  deleteSyntheticFixtureAttachment = (
+    ctx: Parameters<EngagementService['deleteSyntheticFixtureAttachment']>[0],
+    id: string,
+    guard: Parameters<EngagementService['deleteSyntheticFixtureAttachment']>[2],
+  ): ReturnType<EngagementService['deleteSyntheticFixtureAttachment']> => {
+    this.runtime.assertExternalAction('attachment_external_write');
+    return this.engagement.deleteSyntheticFixtureAttachment(ctx, id, guard);
+  };
 }
