@@ -647,6 +647,116 @@ describe('built canonical memory candidate command runtime', { skip: !configPath
   const revoke = (fixture, ctx = fixture.ctx) =>
     tenantContext.run(ctx, () => memoryStore.forgetSyntheticFixture(fixture.itemId, fixture.guard));
 
+  const retirementProof = (fixture, ctx = fixture.ctx) =>
+    tenantContext.run(ctx, () =>
+      memoryStore.inspectSyntheticFixtureRetirement(fixture.itemId, fixture.guard),
+    );
+
+  it('reads stable audit-bound retirement evidence without changing canonical rows', async () => {
+    await withApprovedRetirement(async () => {
+      const f = await approvedFixture();
+      await assert.rejects(retirementProof(f), (error) => error.getStatus?.() === 403);
+      assert.equal((await revoke(f)).found, true);
+      const before = await approvedState(f);
+      const proof = await retirementProof(f);
+      assert.equal(proof.itemId, f.itemId);
+      assert.equal(proof.candidateId, f.record.physicalId);
+      assert.equal(proof.rowVersion, before.item.version);
+      assert.equal(proof.syntheticFixtureItemRowVersion, f.guard.expectedItemRowVersion);
+      assert.equal(proof.transitionAuditId, before.audits[0].id);
+      assert.equal(
+        proof.cleanupIntentId,
+        before.cleanup.find((row) => row.operation === 'revoke_projections').id,
+      );
+      assert.equal(proof.status, 'revoked');
+      assert.equal(proof.retained, true);
+      assert.deepEqual(await retirementProof(f), proof);
+      assert.deepEqual(await approvedState(f), before);
+      console.log(JSON.stringify({ retirementEvidence: proof }));
+    });
+  });
+
+  it('rechecks current membership, role and client wall when reading retained evidence', async () => {
+    await withApprovedRetirement(async () => {
+      const f = await approvedFixture();
+      await revoke(f);
+      await assert.rejects(
+        retirementProof(f, { ...f.ctx, role: 'standard_user' }),
+        (error) => error.getStatus?.() === 403,
+      );
+      for (const [change, restore] of [
+        [
+          `UPDATE "${schema}".clients SET memory_wall=true WHERE id='${CLIENT}'`,
+          `UPDATE "${schema}".clients SET memory_wall=false WHERE id='${CLIENT}'`,
+        ],
+        [
+          `UPDATE "${schema}".tenant_memberships SET status='inactive' WHERE user_id='${REVIEWER}'`,
+          `UPDATE "${schema}".tenant_memberships SET status='active' WHERE user_id='${REVIEWER}'`,
+        ],
+      ]) {
+        await pool.query(change);
+        try {
+          await assert.rejects(retirementProof(f), (error) => error.getStatus?.() === 403);
+        } finally {
+          await pool.query(restore);
+        }
+      }
+      assert.equal((await retirementProof(f)).retained, true);
+    });
+  });
+
+  it('refuses retained proof when canonical content, audit lineage or cleanup evidence has drifted', async () => {
+    await withApprovedRetirement(async () => {
+      // Fault injection in the owned minimal schema only; production audit immutability is not disabled.
+      const corruptions = [
+        (f) => [
+          `UPDATE "${schema}".memory_items SET revoked_at=revoked_at+interval '1 second' WHERE id=$1`,
+          [f.itemId],
+        ],
+        (f) => [`UPDATE "${schema}".memory_items SET sections_jsonb='[]' WHERE id=$1`, [f.itemId]],
+        (f) => [`UPDATE "${schema}".memory_items SET legal_hold=true WHERE id=$1`, [f.itemId]],
+        (f) => [`UPDATE "${schema}".memory_items SET revoked_by=$2 WHERE id=$1`, [f.itemId, USER]],
+        (f) => [
+          `UPDATE "${schema}".memory_candidate SET source_id='changed' WHERE id=$1`,
+          [f.record.physicalId],
+        ],
+        (f) => [
+          `UPDATE "${schema}".memory_transition_audit SET metadata_jsonb='{}' WHERE memory_item_id=$1`,
+          [f.itemId],
+        ],
+        (f) => [
+          `UPDATE "${schema}".memory_transition_audit SET from_status='stale' WHERE memory_item_id=$1`,
+          [f.itemId],
+        ],
+        (f) => [
+          `DELETE FROM "${schema}".memory_cleanup_outbox WHERE memory_item_id=$1 AND operation='revoke_projections'`,
+          [f.itemId],
+        ],
+        (f) => [
+          `UPDATE "${schema}".memory_cleanup_outbox SET clio_memory_id=$2 WHERE memory_item_id=$1`,
+          [f.itemId, randomUUID()],
+        ],
+        (f) => [
+          `INSERT INTO "${schema}".clio_memory(id,tenant_id) VALUES ($1,$2)`,
+          [f.clioId, TENANT],
+        ],
+        (f) => [
+          `INSERT INTO "${schema}".context_embeddings(source_type,source_id) VALUES ('memory_item',$1)`,
+          [f.itemId],
+        ],
+      ];
+      for (const corrupt of corruptions) {
+        const f = await approvedFixture();
+        await revoke(f);
+        assert.equal((await retirementProof(f)).retained, true);
+        await pool.query(...corrupt(f));
+        const before = await approvedState(f);
+        await assert.rejects(retirementProof(f), (error) => error.getStatus?.() === 403);
+        assert.deepEqual(await approvedState(f), before);
+      }
+    });
+  });
+
   for (const scope of ['client wall', 'private owner']) {
     it(`canonical approval preserves ${scope} authority before a fixture becomes active`, async () => {
       await withApprovedRetirement(async () => {
@@ -776,6 +886,13 @@ describe('built canonical memory candidate command runtime', { skip: !configPath
         assert.equal(after.item.row.governed_status, 'revoked');
         assert.equal(after.clio, 0);
         assert.equal(after.audits.length, 1);
+        assert.equal((await retirementProof(f)).retained, true);
+        if (scope === 'user_private') {
+          await assert.rejects(
+            retirementProof(f, { tenantId: TENANT, userId: REVIEWER, role: 'user_admin' }),
+            (error) => error.getStatus?.() === 403,
+          );
+        }
       });
     });
   }

@@ -35,8 +35,10 @@ import { MemoryCleanupOutboxService } from './memory-cleanup-outbox.service.js';
 import { memoryGovernanceCenterEnabled } from './memory-governance-center.switch.js';
 import {
   assertSyntheticApprovedMemoryInTx,
+  readSyntheticMemoryRetirementInTx,
   type SyntheticApprovedMemoryGuard,
   type SyntheticMemoryRevocationAudit,
+  type SyntheticMemoryRetirementProof,
 } from './synthetic-approved-memory.helpers.js';
 
 /** Result shape returned by the Phase 1 (1D) user-facing memory verbs. */
@@ -799,6 +801,29 @@ export class MemoryStoreService {
       );
     }
     return this.forgetMemoryGuarded(itemId, 'Retire owned Meri synthetic fixture', guard);
+  }
+
+  /** Internal evidence readback; current canonical read policy still applies. */
+  async inspectSyntheticFixtureRetirement(
+    itemId: string,
+    guard: SyntheticApprovedMemoryGuard,
+  ): Promise<SyntheticMemoryRetirementProof> {
+    if (!memoryGovernanceCenterEnabled()) {
+      throw new ServiceUnavailableException('Governed memory retirement evidence is not enabled.');
+    }
+    const ctx = this.tenantCtx.require();
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const proof = await readSyntheticMemoryRetirementInTx(tx, ctx, itemId, guard);
+      const subject = await this.authz.loadItemInTx(tx, ctx.tenantId, itemId);
+      if (
+        !subject ||
+        !(await this.authz.evaluateInTx(tx, ctx, subject, 'read', { emitDenialMetrics: false }))
+          .allowed
+      ) {
+        throw new ForbiddenException('Synthetic memory retirement evidence is not accessible');
+      }
+      return proof;
+    });
   }
 
   private async forgetMemoryGuarded(
