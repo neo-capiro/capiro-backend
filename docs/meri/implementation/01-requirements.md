@@ -1,5 +1,11 @@
 # File 01 requirements ledger
 
+## Current checkpoint — 2026-09-29 approved fixture owner and proposal authorization
+
+Source a6ce34ba5 adds canonical guarded approved-fixture revocation and repairs proposal authorization to use the actual proposal scope. Actual PostgreSQL output reproduced unauthorized client/private approvals before the repair; both now return HTTP 403 and preserve pending state. The API build, 25 actual PostgreSQL tests, 58 authorization/candidate regressions and independent Hermes/Bedrock Kimi static review pass with exit 0. See approved-fixture-revocation-qualification.md for separate ordinary-store test timing, setup failures, review corrections and minimal-schema limits.
+
+This qualifies an internal owner prerequisite. Approved-memory retirement adapter/CLI/readback integration, other fixture owners, trusted capture, original served acceptance and release gates remain open. No shared-environment change or deployment occurred.
+
 ## User scope clarification — 2026-09-28
 
 Neo explicitly removed a separate Defense chat feature and its dedicated planning/engineering from scope: Meri is the existing assistant. Do not create a separate Defense chat shell, route, agent, conversation store, or backlog. The inspected Meri and Defense branches contain no separately identified Defense chat implementation to delete. Existing Meri Defense Budget and Research Portfolio capabilities, current-turn authorization, and their required acceptance remain in scope. This clarification does not authorize deleting the Defense domain, Meri chat, or unrelated work. No message was sent to the Defense task.

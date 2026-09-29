@@ -1,5 +1,11 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-29 approved fixture owner and proposal authorization
+
+Source a6ce34ba5 adds canonical guarded approved-fixture revocation and repairs proposal authorization to use the actual proposal scope. Actual PostgreSQL output reproduced unauthorized client/private approvals before the repair; both now return HTTP 403 and preserve pending state. The API build, 25 actual PostgreSQL tests, 58 authorization/candidate regressions and independent Hermes/Bedrock Kimi static review pass with exit 0. See approved-fixture-revocation-qualification.md for separate ordinary-store test timing, setup failures, review corrections and minimal-schema limits.
+
+This qualifies an internal owner prerequisite. Approved-memory retirement adapter/CLI/readback integration, other fixture owners, trusted capture, original served acceptance and release gates remain open. No shared-environment change or deployment occurred.
+
 ## Current checkpoint — 2026-09-29 retained fixture lifecycle CLI
 
 Source 2f492ad9f connects pending-memory retirement to operator plan/apply/verify commands with distinct old/replacement manifest bindings and typed retained-state receipts. It preserves physical rows and audit history, reconciles same-plan retries and rechecks canonical evidence. The 47 contract/CLI checks and 15 actual PostgreSQL owner tests pass with exit 0; the latter includes retirement of 13 candidates, retry, retained audit verification and replacement seeding. See fixture-retirement-cli-qualification.md for review disposition, exact evidence and command usage.
