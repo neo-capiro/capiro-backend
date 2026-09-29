@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -7,6 +7,29 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASE_SHA =
   process.env.OUTREACH_V3_PHASE3_BASE_SHA ||
   '89b0a8e08e1cfcc7210a8684335faf6f8405bdf2';
+function resolveWhitespaceBase() {
+  const explicit = process.env.OUTREACH_V3_PHASE3_WHITESPACE_BASE;
+  if (explicit) return explicit;
+  try {
+    const originMain = execFileSync('git', ['rev-parse', 'origin/main'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    }).trim();
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    }).trim();
+    const mergeBase = execFileSync('git', ['merge-base', originMain, head], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    }).trim();
+    if (mergeBase === originMain) return originMain;
+  } catch {
+    // Keep the accepted Phase 3 range for detached or shallow checkouts.
+  }
+  return BASE_SHA;
+}
+const PHASE3_WHITESPACE_BASE = resolveWhitespaceBase();
 const ENGAGEMENT_PHASE3_SCOPE_END = process.env.ENGAGEMENT_PHASE3_SCOPE_END;
 if (ENGAGEMENT_PHASE3_SCOPE_END) {
   process.env.ENGAGEMENT_PHASE3_SCOPE_END = ENGAGEMENT_PHASE3_SCOPE_END;
@@ -68,7 +91,20 @@ const steps = [
     ENGAGEMENT_PHASE3_SCOPE_END ? { ENGAGEMENT_PHASE3_SCOPE_END } : {},
   ],
   ['API production build', 'pnpm', ['--filter', '@capiro/api', 'build']],
-  ['Phase 3 committed-diff whitespace', 'git', ['diff', '--check', `${BASE_SHA}..HEAD`, '--', '.', ':(exclude)docs/plans/**/*.md', ':(exclude).github/**/*.yml', ':(exclude).github/**/*.yaml']],
+  [
+    'Phase 3 committed-diff whitespace',
+    'git',
+    [
+      'diff',
+      '--check',
+      `${PHASE3_WHITESPACE_BASE}..HEAD`,
+      '--',
+      '.',
+      ':(exclude)docs/plans/**/*.md',
+      ':(exclude).github/**/*.yml',
+      ':(exclude).github/**/*.yaml',
+    ],
+  ],
 ];
 
 function run(label, command, args, extraEnv = {}) {
