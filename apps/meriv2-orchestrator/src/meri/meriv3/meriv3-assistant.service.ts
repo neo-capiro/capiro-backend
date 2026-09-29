@@ -64,6 +64,8 @@ import {
   meriTelemetryChildSpanId,
   meriTelemetryConfigIdentity,
   meriTelemetryOperationId,
+  observed,
+  unknown,
 } from '@capiro/meriv2-core';
 import {
   currentMeriTaskUsage,
@@ -98,6 +100,7 @@ import {
   observeMeriTurnToolCoverage,
   type MeriToolCoverageReceipt,
 } from './meriv3-turn-coverage.js';
+import { observeMeriV3CaptureExecution } from './meriv3-capture-evidence.js';
 import {
   OpenAiResponsesClient,
   anthropicSchemaToResponsesTool,
@@ -1267,6 +1270,9 @@ export class MeriV3AssistantService {
     let actualModel = profile.model;
     let actualEffort: MeriV3ChatResult['reasoningEffort'] = null;
     const providerCalls: MeriV3ProviderTelemetry[] = [];
+    const captureToolCalls: NonNullable<MeriV3ChatResult['captureEvidence']>['toolCalls'] = [];
+    const captureSources: NonNullable<MeriV3ChatResult['captureEvidence']>['sources'] = [];
+    let providerCallObserved = false;
     let telemetry: MeriV3ProviderTelemetry = {
       requestedModel: profile.model,
       effectiveModel: null,
@@ -1277,6 +1283,7 @@ export class MeriV3AssistantService {
       partial: false,
     };
     const recordProviderResult = (response: OpenAiResponsesResult): void => {
+      providerCallObserved = true;
       actualModel = response.model;
       actualEffort = response.telemetry?.effectiveReasoningEffort ?? null;
       const calls = response.providerCalls ?? (response.telemetry ? [response.telemetry] : []);
@@ -1471,6 +1478,25 @@ export class MeriV3AssistantService {
           call_id: execution.call.call_id,
           output: execution.serialized,
         });
+        const executionCitations = extractCitationsFromToolResult(
+          execution.call.name,
+          execution.result,
+          1,
+        );
+        const executionCoverage = observeMeriTurnToolCoverage(
+          execution.call.name,
+          execution.result,
+        );
+        const capture = observeMeriV3CaptureExecution({
+          callId: execution.call.call_id,
+          tool: execution.call.name,
+          readOnly: discoveryControl || this.registry.get(execution.call.name)?.readOnly === true,
+          result: execution.result,
+          citations: executionCitations,
+          coverage: executionCoverage,
+        });
+        captureToolCalls.push(...capture.toolCalls);
+        captureSources.push(...capture.sources);
         if (discoveryControl) continue;
         // The observer receives the same bounded evidence that the model sees.
         try {
@@ -2606,6 +2632,22 @@ export class MeriV3AssistantService {
       reasoningEffort: actualEffort,
       telemetry,
       providerCalls,
+      ...(currentServerReadonlyCapturePolicy()
+        ? {
+            captureEvidence: {
+              toolCalls: captureToolCalls,
+              sources: captureSources,
+              usage: currentMeriTaskUsage(),
+              estimatedCostUsd:
+                currentMeriTaskUsage().status === 'known'
+                  ? observed(currentMeriTaskUsage().knownEstimatedCostUsd!)
+                  : unknown('provider_usage_or_effective_model_price_not_fully_observed'),
+              providerCallObserved,
+              startedAt,
+              completedAt: Date.now(),
+            },
+          }
+        : {}),
       ...(evidenceAccuracyMode === 'enforce' ? { evidenceAccuracy: 'enforce' as const } : {}),
       ...(dto.toolPolicy ? { held: released.held } : {}),
       ...(dto.toolPolicy === 'read-only' ? { ledgerEntries } : {}),

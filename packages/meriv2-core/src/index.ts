@@ -5,6 +5,7 @@ export * from './registry/types';
 export * from './context/governed-evidence-auth';
 export * from './context/research-plan-execution';
 export * from './context/server-readonly-capture';
+export * from './context/capture-evidence-receipt';
 export * from './context/meri-explicit-subject';
 export * from './registry/tool-registry';
 export * from './registry/tool-execution-metadata';

@@ -48,6 +48,7 @@ import {
   emitMeriOrchestratorTelemetry,
   runWithMeriOrchestratorTelemetry,
 } from '../../telemetry/meri-telemetry.runtime.js';
+import { buildSignedOrchestratorCaptureEvidence } from './meriv3-capture-evidence.js';
 
 type GovernedMeriV3ChatInput = MeriV3ChatInput & { governedContext?: MeriGovernedTurnContext };
 
@@ -241,6 +242,20 @@ export class MeriV3Controller {
           () => runWithGovernedMeriContext(governed, run),
         );
         outcome = result.telemetry?.partial ? 'partial' : 'returned';
+        const orchestratorCaptureEvidence =
+          governed.serverReadonlyCapturePolicy && result.captureEvidence
+            ? buildSignedOrchestratorCaptureEvidence({
+                policy: governed.serverReadonlyCapturePolicy,
+                startedAt: result.captureEvidence.startedAt,
+                completedAt: result.captureEvidence.completedAt,
+                providerCallObserved: result.captureEvidence.providerCallObserved,
+                provider: 'openai',
+                model: result.model,
+                usage: result.captureEvidence.usage ?? null,
+                execution: result.captureEvidence,
+                secret: process.env.INTERNAL_SERVICE_SECRET,
+              })
+            : null;
         frame({
           type: 'done',
           reply: result.reply,
@@ -264,6 +279,9 @@ export class MeriV3Controller {
           aborted: abort.signal.aborted,
           ...(governed.serverReadonlyCapturePolicy
             ? { serverReadonlyCaptureReceipt: captureReceipt(governed.serverReadonlyCapturePolicy) }
+            : {}),
+          ...(orchestratorCaptureEvidence
+            ? { serverCaptureEvidenceObservation: orchestratorCaptureEvidence }
             : {}),
         });
       } catch (error) {
