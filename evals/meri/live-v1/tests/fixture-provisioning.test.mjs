@@ -461,6 +461,20 @@ test('owned reset is manifest-limited and blocks a changed row version', async (
 
   adapter.rows.get(seeded.physicalId).rowVersion = seeded.rowVersion;
   const resetPlan = await planOwnedReset({ manifest: sourceMap, seedReceipt: seed, adapter });
+  const firstReset = seed.records.find(
+    (record) => record.physicalId === resetPlan.operations[0].physicalId,
+  );
+  adapter.rows.get(firstReset.physicalId).rowVersion = '99';
+  const refused = await applyOwnedReset({
+    manifest: sourceMap,
+    seedReceipt: seed,
+    resetPlan,
+    adapter,
+    confirmation: RESET_CONFIRMATION,
+  });
+  assert.equal(refused.status, 'failed', 'pre-mutation version refusal is not an unknown write');
+  assert.equal(adapter.deleteCalls, 0);
+  adapter.rows.get(firstReset.physicalId).rowVersion = firstReset.rowVersion;
   const reset = await applyOwnedReset({
     manifest: sourceMap,
     seedReceipt: seed,
@@ -471,6 +485,49 @@ test('owned reset is manifest-limited and blocks a changed row version', async (
   assert.equal(reset.status, 'complete');
   assert.equal(adapter.rows.size, 0);
   assert.equal(adapter.deleteCalls, seed.records.length);
+});
+
+test('reset treats a lost acknowledgement after canonical deletion as an unknown outcome', async () => {
+  const sourceMap = await manifest();
+  const adapter = new TestCanonicalOwnerAdapter();
+  const plan = await planFixture({ manifest: sourceMap, adapter });
+  const seed = await applyFixture({
+    manifest: sourceMap,
+    plan,
+    adapter,
+    confirmation: APPLY_CONFIRMATION,
+  });
+  const resetPlan = await planOwnedReset({ manifest: sourceMap, seedReceipt: seed, adapter });
+  const originalDelete = adapter.deleteOwned.bind(adapter);
+  adapter.deleteOwned = async (record, guards) => {
+    await originalDelete(record, guards);
+    throw new Error('acknowledgement lost after committed deletion');
+  };
+  const reset = await applyOwnedReset({
+    manifest: sourceMap,
+    seedReceipt: seed,
+    resetPlan,
+    adapter,
+    confirmation: RESET_CONFIRMATION,
+  });
+  assert.equal(reset.status, 'unknown_outcome');
+  assert.equal(reset.records[0].outcome, 'unknown_outcome');
+  assert.equal(adapter.deleteCalls, 1);
+  adapter.deleteOwned = originalDelete;
+  const reconciled = await applyOwnedReset({
+    manifest: sourceMap,
+    seedReceipt: seed,
+    resetPlan,
+    adapter,
+    confirmation: RESET_CONFIRMATION,
+  });
+  assert.equal(reconciled.status, 'complete');
+  assert.equal(reconciled.records[0].outcome, 'already_absent');
+  assert.equal(
+    adapter.deleteCalls,
+    seed.records.length,
+    'retry does not delete the missing row twice',
+  );
 });
 
 test('immutable source-byte mismatch fails before planning or uploader access', async () => {

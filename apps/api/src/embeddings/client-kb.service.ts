@@ -460,12 +460,21 @@ export class ClientKbService {
       && current.meetingId === snapshot.meetingId && current.s3Key === snapshot.s3Key);
   }
 
-  private async purgeAttachmentChunks(tx: Prisma.TransactionClient, tenantId: string, attachmentId: string): Promise<void> {
+  /** Canonical document index cleanup. Caller holds the attachment row lock;
+   * keep this purge and the final source mutation in the same transaction. */
+  async purgeAttachmentChunks(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    attachmentId: string,
+  ): Promise<void> {
     await tx.$executeRawUnsafe(
       `DELETE FROM context_embeddings
         WHERE tenant_id = $1::uuid AND source_type = $2
           AND (source_id = $3 OR source_id LIKE $4)`,
-      tenantId, 'client_doc_chunk', attachmentId, docChunkSourceIdPrefix(attachmentId),
+      tenantId,
+      'client_doc_chunk',
+      attachmentId,
+      docChunkSourceIdPrefix(attachmentId),
     );
   }
 

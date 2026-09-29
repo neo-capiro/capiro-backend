@@ -17,6 +17,7 @@ const {
   ClientDocumentWriterService,
 } = require('./dist/client-documents/client-document-writer.service.js');
 const { AttachmentContentService } = require('./dist/engagement/attachment-content.service.js');
+const { ClientKbService } = require('./dist/embeddings/client-kb.service.js');
 const {
   EngagementRuntimePolicyService,
 } = require('./dist/engagement/runtime/engagement-runtime-policy.service.js');
@@ -52,7 +53,8 @@ describe(
       await pool.query(`CREATE TABLE "${schema}".tenants(id uuid PRIMARY KEY,slug text);
     CREATE TABLE "${schema}".tenant_memberships(tenant_id uuid,user_id uuid,status text,role text);
     CREATE TABLE "${schema}".clients(id uuid PRIMARY KEY,tenant_id uuid,memory_wall boolean DEFAULT false);
-    CREATE TABLE "${schema}".client_memory_access(tenant_id uuid,client_id uuid,user_id uuid);`);
+    CREATE TABLE "${schema}".client_memory_access(tenant_id uuid,client_id uuid,user_id uuid);
+    CREATE TABLE "${schema}".context_embeddings(tenant_id uuid,source_type text,source_id text);`);
       // Minimal isolated owner schema, not a migration/RLS qualification. Scalar
       // columns follow generated Prisma metadata so real owner queries execute.
       const uuidFields = new Set([
@@ -132,10 +134,10 @@ describe(
           getStatus: async () => 'clean',
         },
         logger: { error: () => {}, warn: () => {} },
-        clientKb: {
+        clientKb: Object.assign(Object.create(ClientKbService.prototype), {
           indexAttachmentFireAndForget: () => {},
           purgeFireAndForget: (...args) => purges.push(args),
-        },
+        }),
         s3: {
           send: async (command) => {
             const kind = command.constructor.name;
@@ -248,15 +250,111 @@ describe(
     }
     const erase = (record, guard) =>
       writer.deleteSyntheticFixtureAttachment(actor, record.physicalId, guard);
-    it('deletes canonical owned bytes and row and requests KB cleanup', async () => {
+    it('deletes owned document chunks and row atomically while preserving neighboring sources', async () => {
       const record = await fixture();
       await create(record);
       const guard = await deletionGuard(record);
+      const otherTenant = AUTHORIZED_TENANTS.T2.id;
+      const staleIndexSnapshot = await prisma.withTenant(TENANT, (tx) =>
+        tx.engagementAttachment.findFirst({ where: { id: record.physicalId, tenantId: TENANT } }),
+      );
+      await pool.query(
+        `INSERT INTO "${schema}".context_embeddings VALUES ($1,'client_doc_chunk',$2),($1,'client_doc_chunk',$3),($1,'client_profile',$2),($4,'client_doc_chunk',$2),($1,'client_doc_chunk',$5)`,
+        [
+          TENANT,
+          record.physicalId,
+          `${record.physicalId}:0`,
+          otherTenant,
+          `${record.physicalId}-neighbor:0`,
+        ],
+      );
+      await erase(record, guard);
+      const rows = (
+        await pool.query(
+          `SELECT tenant_id,source_type,source_id FROM "${schema}".context_embeddings WHERE source_id LIKE $1 ORDER BY tenant_id,source_type,source_id`,
+          [`${record.physicalId}%`],
+        )
+      ).rows;
+      assert.equal(rows.length, 3, 'only exact document and its chunk prefix are purged');
+      assert.equal(
+        rows.some(
+          (row) =>
+            row.tenant_id === TENANT &&
+            row.source_type === 'client_doc_chunk' &&
+            [record.physicalId, `${record.physicalId}:0`].includes(row.source_id),
+        ),
+        false,
+      );
+      assert.equal(await stored(record), null);
+      const mayWrite = await prisma.withTenant(TENANT, async (tx) => {
+        const current = await service.clientKb.lockAttachmentSnapshot(
+          tx,
+          TENANT,
+          staleIndexSnapshot,
+        );
+        if (current)
+          await tx.$executeRawUnsafe(
+            'INSERT INTO context_embeddings(tenant_id,source_type,source_id) VALUES ($1::uuid,$2,$3)',
+            TENANT,
+            'client_doc_chunk',
+            `${record.physicalId}:late`,
+          );
+        return current;
+      });
+      assert.equal(
+        mayWrite,
+        false,
+        'the actual index write guard rejects a stale job after deletion',
+      );
+    });
+    it('retains deletion intent on transactional index-cleanup failure and reconciles an exact retry', async () => {
+      const record = await fixture();
+      await create(record);
+      const guard = await deletionGuard(record);
+      await pool.query(
+        `INSERT INTO "${schema}".context_embeddings VALUES ($1,'client_doc_chunk',$2)`,
+        [TENANT, record.physicalId],
+      );
+      await pool.query(`CREATE FUNCTION "${schema}".reject_fixture_purge() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'owned purge fault'; END $$;
+        CREATE TRIGGER reject_fixture_purge BEFORE DELETE ON "${schema}".context_embeddings FOR EACH ROW EXECUTE FUNCTION "${schema}".reject_fixture_purge();`);
+      try {
+        await assert.rejects(erase(record, guard), /owned purge fault/);
+      } finally {
+        await pool.query(`DROP TRIGGER reject_fixture_purge ON "${schema}".context_embeddings`);
+      }
+      assert.equal(objects.has(objectKey(record)), false, 'storage deletion already happened');
+      assert.equal((await stored(record)).row.lifecycle_status, 'delete_pending');
+      assert.equal(
+        (
+          await pool.query(
+            `SELECT * FROM "${schema}".context_embeddings WHERE tenant_id=$1 AND source_id=$2`,
+            [TENANT, record.physicalId],
+          )
+        ).rowCount,
+        1,
+      );
+      await erase(record, guard);
+      assert.equal(await stored(record), null);
+      assert.equal(
+        (
+          await pool.query(
+            `SELECT * FROM "${schema}".context_embeddings WHERE tenant_id=$1 AND source_id=$2`,
+            [TENANT, record.physicalId],
+          )
+        ).rowCount,
+        0,
+      );
+    });
+    it('deletes canonical owned bytes and row without relying on asynchronous KB cleanup', async () => {
+      const record = await fixture();
+      await create(record);
+      const guard = await deletionGuard(record);
+      const purgeCount = purges.length;
       await erase(record, guard);
       assert.equal(await stored(record), null);
       assert.equal(objects.has(objectKey(record)), false);
       assert.equal(await reader(record), null);
-      assert.deepEqual(purges.at(-1), [TENANT, 'client_doc_chunk', record.physicalId]);
+      assert.equal(purges.length, purgeCount);
     });
     it('refuses stale versions and foreign metadata without deleting bytes or changing rows', async () => {
       for (const mutation of [

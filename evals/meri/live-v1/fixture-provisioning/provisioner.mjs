@@ -196,12 +196,12 @@ function appliedRecord(record, row) {
   };
 }
 
-function failureResult(operation, error) {
+function failureResult(operation, error, mutationAttempted = false) {
   return {
     logicalId: operation.logicalId,
     physicalId: operation.physicalId,
     action: operation.action,
-    outcome: error?.unknownCommit === true ? 'unknown_outcome' : 'failed',
+    outcome: mutationAttempted || error?.unknownCommit === true ? 'unknown_outcome' : 'failed',
     errorCode: error?.code ?? 'CANONICAL_OWNER_WRITE_FAILED',
   };
 }
@@ -437,6 +437,7 @@ export async function applyOwnedReset({ manifest, seedReceipt, resetPlan, adapte
     const record = records.get(operation.logicalId);
     if (!record)
       throw new FixtureProvisioningError('RESET_MANIFEST_JOIN_FAILED', operation.logicalId);
+    let mutationAttempted = false;
     try {
       const actual = await adapter.inspect(record);
       if (!actual) {
@@ -450,6 +451,7 @@ export async function applyOwnedReset({ manifest, seedReceipt, resetPlan, adapte
           `${record.logicalId} changed after reset plan`,
         );
       }
+      mutationAttempted = true;
       await adapter.deleteOwned(record, guardsFor(operation));
       const after = await adapter.inspect(record);
       if (after) {
@@ -463,7 +465,7 @@ export async function applyOwnedReset({ manifest, seedReceipt, resetPlan, adapte
         outcome: 'deleted',
       });
     } catch (error) {
-      const failed = failureResult(operation, error);
+      const failed = failureResult(operation, error, mutationAttempted);
       results.push(failed);
       status = failed.outcome;
       break;

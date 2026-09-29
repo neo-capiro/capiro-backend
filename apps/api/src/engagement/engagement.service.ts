@@ -8185,6 +8185,10 @@ export class EngagementService {
     if (guard) {
       await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
         await guardSyntheticDocumentDeletionInTx(tx, ctx, id, guard, this.bucket, 'finish');
+        // A fixture reset must not acknowledge deletion while searchable chunks
+        // survive. Index writers use this same attachment lock and recheck its
+        // lifecycle, so purge and row deletion commit or roll back together.
+        await this.clientKb.purgeAttachmentChunks(tx, ctx.tenantId, id);
         await tx.engagementAttachment.delete({ where: { id } });
       });
     } else
@@ -8192,7 +8196,7 @@ export class EngagementService {
         tx.engagementAttachment.delete({ where: { id } }),
       );
     // Client KB (F5): deleting a document removes its chunks from retrieval.
-    if (attachment.clientId) {
+    if (attachment.clientId && !guard) {
       this.clientKb.purgeFireAndForget(ctx.tenantId, 'client_doc_chunk', id);
     }
     return { ok: true };
