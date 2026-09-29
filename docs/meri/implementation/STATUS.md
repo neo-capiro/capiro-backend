@@ -8,7 +8,9 @@ API and Meri orchestrator images were built from the merged application source b
 
 Authenticated served Workstream A acceptance, the 75 baseline cases, CD-01–CD-07, CW-01–CW-08, and the remaining File01 owner/capture evidence remain NOT RUN or BLOCKED. The next release action is controlled database recovery with an incident/change ticket, named operator, separate approver, read-only schema/ledger evidence, and post-recovery verification. Direct `_prisma_migrations` edits, `migrate resolve` without that evidence, direct flag writes, and API/orchestrator rollout remain prohibited.
 
-Evidence: `C:/dev/cap-meri-foundation-evidence/foundation-doc-fidelity-merge-20260929.json`, `partial-release-b2d99f04.json`, `api-migration-recovery-packet-20260929.md`, `hermes-concurrent-review-20260929.md`.
+The current offline deterministic suite is PASS: shared and Meri core builds exit 0; 53 Python contract tests and 40 Node provider/smoke tests pass; Promptfoo evaluates 26/26 cases with zero model tokens; and `verify_report.py` verifies 26/26. This is mechanism evidence only and does not close the live 75-case, CD, CW, owner, or served acceptance requirements. Report SHA-256 is `69d6768b2a4d0061d769f3f9e27f3e0fd0d4c931b51a0054feaf2e3e2e650032` at `C:/dev/cap-meri-foundation-evidence/meri-offline-20260929-1448/meri-offline.json`.
+
+Evidence: `C:/dev/cap-meri-foundation-evidence/foundation-doc-fidelity-merge-20260929.json`, `partial-release-b2d99f04.json`, `api-migration-recovery-packet-20260929.md`, `hermes-concurrent-review-20260929.md`, `offline-suite-refresh-20260929.json`.
 
 ## Current checkpoint — 2026-09-29 vNext migration and full web gate
 
