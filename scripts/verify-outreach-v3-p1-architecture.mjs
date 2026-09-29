@@ -107,13 +107,14 @@ function providerImportProblem(source, file) {
 export function architectureProblems() {
   const problems = [];
   const scopeEnd = process.env.OUTREACH_V3_P1_SCOPE_END;
+  const catalogRef = process.env.OUTREACH_V3_P1_CATALOG_SHA;
   let catalog;
-  if (scopeEnd) {
+  if (catalogRef || scopeEnd) {
     const result = execFileSync(
       'git',
       [
         'show',
-        `${scopeEnd}:apps/api/src/capabilities/__fixtures__/capiro-capability-catalog.v1.json`,
+        `${catalogRef ?? scopeEnd}:apps/api/src/capabilities/__fixtures__/capiro-capability-catalog.v1.json`,
       ],
       {
         cwd: ROOT,
