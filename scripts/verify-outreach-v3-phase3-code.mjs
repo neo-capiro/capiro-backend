@@ -23,7 +23,9 @@ function resolveWhitespaceBase() {
       cwd: ROOT,
       encoding: 'utf8',
     }).trim();
-    if (mergeBase === originMain) return originMain;
+    // Use the actual branch base even when origin/main advanced during a
+    // long closeout run; this keeps the check scoped to this branch's diff.
+    if (mergeBase) return mergeBase;
   } catch {
     // Keep the accepted Phase 3 range for detached or shallow checkouts.
   }
