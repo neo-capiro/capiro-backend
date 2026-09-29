@@ -37,7 +37,28 @@ export function deterministicUuid(...parts) {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-export function ownedIdentity(logicalId, tenantId, owner, fixtureVersion) {
+export function assertFixtureInstanceId(instanceId) {
+  if (
+    instanceId !== undefined &&
+    (typeof instanceId !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(instanceId))
+  ) {
+    throw new FixtureProvisioningError(
+      'FIXTURE_INSTANCE_INVALID',
+      'Fixture instance must be a lowercase UUIDv4',
+    );
+  }
+}
+
+export function fixtureRecordKey(logicalId, instanceId) {
+  assertFixtureInstanceId(instanceId);
+  return instanceId === undefined
+    ? `${FIXTURE_NAMESPACE}:${logicalId}`
+    : `${FIXTURE_NAMESPACE}:${instanceId}:${logicalId}`;
+}
+
+export function ownedIdentity(logicalId, tenantId, owner, fixtureVersion, instanceId) {
+  assertFixtureInstanceId(instanceId);
   const marker = {
     contractVersion: PROVISIONING_CONTRACT_VERSION,
     fixtureNamespace: FIXTURE_NAMESPACE,
@@ -45,11 +66,19 @@ export function ownedIdentity(logicalId, tenantId, owner, fixtureVersion) {
     logicalId,
     owner,
     tenantId,
+    ...(instanceId === undefined ? {} : { fixtureInstanceId: instanceId }),
   };
   return Object.freeze({
     marker,
     markerSha256: sha256Stable(marker),
-    physicalId: deterministicUuid(FIXTURE_NAMESPACE, fixtureVersion, tenantId, owner, logicalId),
+    physicalId: deterministicUuid(
+      FIXTURE_NAMESPACE,
+      fixtureVersion,
+      tenantId,
+      owner,
+      logicalId,
+      ...(instanceId === undefined ? [] : [instanceId]),
+    ),
   });
 }
 

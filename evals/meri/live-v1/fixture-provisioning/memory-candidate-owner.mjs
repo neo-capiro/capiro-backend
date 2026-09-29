@@ -1,9 +1,9 @@
 import { sha256Stable, stableJson } from '../lib/stable.mjs';
 import {
   AUTHORIZED_TENANTS,
-  FIXTURE_NAMESPACE,
   FixtureProvisioningError,
   ownedIdentity,
+  fixtureRecordKey,
 } from './contract.mjs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -25,6 +25,7 @@ function assertRecord(record) {
     record.tenantId,
     record.owner,
     marker.fixtureVersion,
+    marker.fixtureInstanceId,
   );
   if (
     identity.physicalId !== record.physicalId ||
@@ -49,7 +50,7 @@ function proposalFor(record, actorId) {
     scope,
     ownerUserId: scope === 'user_private' ? actorId : null,
     clientId: scope === 'client' ? record.clientPhysicalId : null,
-    key: `${FIXTURE_NAMESPACE}:${record.logicalId}`,
+    key: fixtureRecordKey(record.logicalId, record.ownership.marker.fixtureInstanceId),
     value: text,
     source: 'meri_synthetic_fixture',
     sourceType: 'meri_synthetic_fixture',

@@ -13,6 +13,8 @@ import {
   PROVISIONING_CONTRACT_VERSION,
   PROVISIONING_SCHEMA_VERSION,
   assertAuthorizedTenant,
+  assertFixtureInstanceId,
+  fixtureRecordKey,
   ownedIdentity,
 } from './contract.mjs';
 
@@ -203,6 +205,7 @@ function recordFor(input, options) {
     tenant.id,
     input.owner,
     frozenFixture.version,
+    options.fixtureInstanceId,
   );
   const actorKey = options.uploaderActors[input.tenantId];
   const actor = actorKey ? options.actors[actorKey] : null;
@@ -222,7 +225,7 @@ function recordFor(input, options) {
             tenantId: tenant.id,
             userId: writerActor,
             clientId: client?.physicalId ?? null,
-            idempotencyKey: `${FIXTURE_NAMESPACE}:${input.logicalId}`,
+            idempotencyKey: fixtureRecordKey(input.logicalId, options.fixtureInstanceId),
             contentType: input.asset?.mediaType ?? 'text/plain',
             byteSha256: assetByteSha256,
           }),
@@ -262,6 +265,7 @@ function recordFor(input, options) {
 }
 
 export async function buildFixtureManifest({
+  fixtureInstanceId,
   tenants = AUTHORIZED_TENANTS,
   clients = {},
   actors = {},
@@ -270,6 +274,7 @@ export async function buildFixtureManifest({
   assetManifestUrl = ASSET_MANIFEST_URL,
   assetRootUrl = ASSET_ROOT_URL,
 } = {}) {
+  assertFixtureInstanceId(fixtureInstanceId);
   for (const [key, tenant] of Object.entries(tenants)) assertAuthorizedTenant(key, tenant);
   const ownerSet = new Set(availableOwners);
   const assets = await loadAssets(assetManifestUrl, assetRootUrl);
@@ -311,7 +316,7 @@ export async function buildFixtureManifest({
           facts: source.facts,
           asset,
         },
-        { tenants, clients, actors, uploaderActors, availableOwners: ownerSet },
+        { tenants, clients, actors, uploaderActors, availableOwners: ownerSet, fixtureInstanceId },
       ),
     );
   }
@@ -319,7 +324,7 @@ export async function buildFixtureManifest({
     records.push(
       recordFor(
         { ...extension, fixtureKind: 'acceptance_extension' },
-        { tenants, clients, actors, uploaderActors, availableOwners: ownerSet },
+        { tenants, clients, actors, uploaderActors, availableOwners: ownerSet, fixtureInstanceId },
       ),
     );
   }
@@ -330,6 +335,7 @@ export async function buildFixtureManifest({
     contractVersion: PROVISIONING_CONTRACT_VERSION,
     fixtureNamespace: FIXTURE_NAMESPACE,
     fixtureVersion: frozenFixture.version,
+    ...(fixtureInstanceId === undefined ? {} : { fixtureInstanceId }),
     fixtureSha256: contractLock.fixtureSha256,
     contractSourceSha256: contractLock.contractSourceSha256,
     tenants,
@@ -431,6 +437,7 @@ export function assertManifest(manifest) {
     );
   }
   const byPhysicalId = new Map();
+  assertFixtureInstanceId(body.fixtureInstanceId);
   for (const record of body.records ?? []) {
     assertAuthorizedTenant(record.tenantKey, body.tenants?.[record.tenantKey]);
     if (record.tenantId !== body.tenants[record.tenantKey].id) {
@@ -449,6 +456,7 @@ export function assertManifest(manifest) {
       record.tenantId,
       record.owner,
       body.fixtureVersion,
+      body.fixtureInstanceId,
     );
     if (
       record.ownership?.markerSha256 !== identity.markerSha256 ||
@@ -475,7 +483,7 @@ export function assertManifest(manifest) {
           tenantId: record.tenantId,
           userId: expectedActor,
           clientId: record.clientPhysicalId,
-          idempotencyKey: `${FIXTURE_NAMESPACE}:${record.logicalId}`,
+          idempotencyKey: fixtureRecordKey(record.logicalId, body.fixtureInstanceId),
           contentType: record.payload.sourceAsset?.mediaType ?? 'text/plain',
           byteSha256,
         });
@@ -528,6 +536,7 @@ export function assertManifest(manifest) {
       actors: body.actors,
       uploaderActors: body.uploaderActors,
       availableOwners: new Set(),
+      fixtureInstanceId: body.fixtureInstanceId,
     });
     // Availability is a declaration to be proved later by an owner. All identities,
     // frozen content, references and immutable bytes must match now.

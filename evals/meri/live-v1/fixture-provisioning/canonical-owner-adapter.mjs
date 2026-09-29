@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
 import { sha256Bytes } from '../lib/stable.mjs';
-import { FIXTURE_NAMESPACE, FixtureProvisioningError } from './contract.mjs';
+import { FixtureProvisioningError, fixtureRecordKey } from './contract.mjs';
 
 function requirePort(ports, owner, operation) {
   const port = ports?.[owner];
@@ -149,7 +149,10 @@ export function createClientDocumentOwnerPort({
       const bytes = await loadBytes(record);
       const asset = record.payload.sourceAsset;
       const contentType = asset?.mediaType ?? 'text/plain';
-      const idempotencyKey = `${FIXTURE_NAMESPACE}:${record.logicalId}`;
+      const idempotencyKey = fixtureRecordKey(
+        record.logicalId,
+        record.ownership.marker.fixtureInstanceId,
+      );
       const expectedId = clientDocumentPhysicalId({
         tenantId: record.tenantId,
         userId,

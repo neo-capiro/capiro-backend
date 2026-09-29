@@ -209,4 +209,40 @@ describe('built canonical memory candidate command runtime', { skip: !configPath
       await pool.query(`UPDATE "${schema}".clients SET memory_wall=false WHERE id=$1`, [CLIENT]);
     }
   });
+
+  it('seeds a fresh instance without overwriting earlier candidate content or governance', async () => {
+    const before = await pool.query(
+      `SELECT to_jsonb(mc) AS row, xmin::text AS version FROM "${schema}".memory_candidate mc ORDER BY id`,
+    );
+    const oldIds = before.rows.map(({ row }) => row.id);
+    const fresh = await buildFixtureManifest({
+      ...config,
+      fixtureInstanceId: 'aaaaaaa1-1111-4111-8111-111111111111',
+    });
+    const plan = await planFixture({ manifest: fresh, adapter });
+    assert.ok(plan.summary.creates > 0);
+    const seeded = await applyFixture({
+      manifest: fresh,
+      adapter,
+      plan,
+      confirmation: APPLY_CONFIRMATION,
+    });
+    assert.equal(seeded.status, 'complete');
+    assert.equal((await verifyFixture({ manifest: fresh, adapter })).status, 'complete');
+    assert.equal((await planFixture({ manifest: fresh, adapter })).summary.creates, 0);
+    const after = await pool.query(
+      `SELECT to_jsonb(mc) AS row, xmin::text AS version FROM "${schema}".memory_candidate mc
+       WHERE id=ANY($1::uuid[]) ORDER BY id`,
+      [oldIds],
+    );
+    assert.deepEqual(after.rows, before.rows);
+    const original = manifest.records.find((row) => row.logicalId === 'MEM-PROPOSAL-14');
+    const next = fresh.records.find((row) => row.logicalId === original.logicalId);
+    assert.notEqual(next.physicalId, original.physicalId);
+    const keys = await pool.query(
+      `SELECT payload_jsonb->>'key' AS key FROM "${schema}".memory_candidate WHERE id=ANY($1::uuid[])`,
+      [[original.physicalId, next.physicalId]],
+    );
+    assert.equal(new Set(keys.rows.map(({ key }) => key)).size, 2);
+  });
 });
