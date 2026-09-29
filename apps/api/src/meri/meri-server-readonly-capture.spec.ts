@@ -1,9 +1,11 @@
+import { validateMeriCapturePolicyPair } from './meri-capture-policy-readback.js';
 import { EventEmitter } from 'node:events';
 import type { Request } from 'express';
 import {
   encodeMeriCapturePolicyTransport,
   MERI_CAPTURE_POLICY_HEADER,
   verifyMeriCaptureEvidenceReceipt,
+  signMeriCaptureEvidenceReceipt,
   type MeriServerReadonlyCapturePolicy,
 } from '@capiro/meriv2-core';
 import type { TenantContext } from '@capiro/shared';
@@ -382,6 +384,8 @@ describe('server-owned read-only acceptance capture boundary', () => {
         { conversationId: CONVERSATION_ID, body: 'Read the source', mode: 'new' },
         async () => {
           await expect(persist()).resolves.toBeUndefined();
+          expect(state.messages[0].metadata.serverReadonlyCapturePolicy).toEqual(current);
+          expect(state.messages[0].metadata.serverReadonlyCapturePolicy).not.toBe(current);
           tamper = true;
           await expect(persist()).rejects.toThrow('meri_capture_receipt_readback_mismatch');
         },
@@ -1073,5 +1077,109 @@ describe('server-owned read-only acceptance capture boundary', () => {
       controller.executeTool(ordinaryCtx, 'send_email', { to: 'existing@example.com' }, request()),
     ).resolves.toEqual({ disposition: 'existing-path' });
     expect(sink).toHaveBeenCalledTimes(1);
+  });
+  function captureReadbackHarness() {
+    const { prisma, state } = authorityHarness();
+    const current = policy({ turnId: 'message-user' });
+    const envelope = buildApiOnlyMeriServerCaptureEvidence({
+      policy: current,
+      userMessageId: 'message-user',
+      assistantMessageId: 'message-assistant',
+      citations: [],
+      usage: null,
+      secret: SECRET,
+    });
+    const scope = {
+      tenantId: TENANT_ID,
+      userId: ACTOR_ID,
+      conversationId: CONVERSATION_ID,
+      clientId: CLIENT_ID,
+    };
+    state.messages.push({ ...scope, id: 'message-user', role: 'user', body: 'read', metadata: {} });
+    state.messages.push({
+      ...scope,
+      id: 'message-assistant',
+      role: 'assistant',
+      body: 'private answer',
+      metadata: {
+        serverReadonlyCapturePolicy: current,
+        serverCaptureEvidenceReceipt: envelope,
+      },
+    });
+    const authorizeOrdinaryReportMessages = jest.fn(async (_ctx, _scope, messages) => messages);
+    const service = Object.assign(Object.create(MeriService.prototype), {
+      prisma,
+      authorizeOrdinaryReportMessages,
+    }) as MeriService;
+    return { state, current, envelope, service, authorizeOrdinaryReportMessages };
+  }
+
+  test('existing messages GET independently reads the full policy and keeps report authorization', async () => {
+    const h = captureReadbackHarness();
+    const result = await h.service.listMessages(captureCtx, CONVERSATION_ID);
+    expect(result[1]?.metadata).toEqual({
+      serverReadonlyCapturePolicy: h.current,
+      serverCaptureEvidenceReceipt: h.envelope,
+    });
+    expect(JSON.stringify(result)).not.toContain(SECRET);
+    expect(h.authorizeOrdinaryReportMessages).toHaveBeenCalledTimes(1);
+  });
+
+  test.each(['membership', 'client-wall', 'conversation-client', 'turn-missing'])(
+    'existing messages GET denies capture evidence after current %s authority changes',
+    async (change) => {
+      const h = captureReadbackHarness();
+      if (change === 'membership') h.state.membershipActive = false;
+      if (change === 'client-wall') h.state.memoryAuthorized = false;
+      if (change === 'conversation-client') h.state.conversationClientId = 'other-client';
+      if (change === 'turn-missing') h.state.messages.shift();
+      await expect(h.service.listMessages(captureCtx, CONVERSATION_ID)).rejects.toMatchObject({
+        status: 403,
+      });
+      expect(h.authorizeOrdinaryReportMessages).not.toHaveBeenCalled();
+    },
+  );
+
+  test.each([
+    'policy-missing',
+    'receipt-missing',
+    'expired',
+    'trace',
+    'extra-secret',
+    'message-id',
+  ])(
+    'existing messages GET rejects %s without deriving a policy from the envelope',
+    async (change) => {
+      const h = captureReadbackHarness();
+      const metadata = h.state.messages[1].metadata;
+      if (change === 'policy-missing') delete metadata.serverReadonlyCapturePolicy;
+      if (change === 'receipt-missing') delete metadata.serverCaptureEvidenceReceipt;
+      if (change === 'expired') metadata.serverReadonlyCapturePolicy.expiresAt = Date.now() - 1;
+      if (change === 'trace') metadata.serverReadonlyCapturePolicy.traceId = 'different';
+      if (change === 'extra-secret') metadata.serverReadonlyCapturePolicy.serviceSecret = SECRET;
+      if (change === 'message-id') h.state.messages[1].id = 'another-assistant';
+      await expect(h.service.listMessages(captureCtx, CONVERSATION_ID)).rejects.toMatchObject({
+        status: 403,
+      });
+    },
+  );
+
+  test('a validly signed fixture mismatch is rejected against the independently issued policy', () => {
+    const h = captureReadbackHarness();
+    const changed = structuredClone(h.envelope.receipt);
+    changed.fixture.physicalMapSha256 = { status: 'OBSERVED', value: 'a'.repeat(64), reason: null };
+    const signed = signMeriCaptureEvidenceReceipt(changed, SECRET);
+    expect(() => validateMeriCapturePolicyPair(h.current, signed)).toThrow(
+      'meri_capture_policy_readback_denied',
+    );
+  });
+
+  test('ordinary messages need no capture service identity and retain their metadata', async () => {
+    const h = captureReadbackHarness();
+    h.state.messages[1].metadata = { ordinary: true };
+    delete process.env.INTERNAL_SERVICE_SECRET;
+    expect((await h.service.listMessages(captureCtx, CONVERSATION_ID))[1]?.metadata).toEqual({
+      ordinary: true,
+    });
   });
 });

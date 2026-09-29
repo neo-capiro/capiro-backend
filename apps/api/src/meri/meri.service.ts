@@ -1,3 +1,4 @@
+import { authorizeMeriCaptureMessageReadback } from './meri-capture-policy-readback.js';
 import { prepareAnthropicRequest, anthropicResponseText } from '@capiro/shared/ai-model-policy';
 import {
   assertAttachmentConversation,
@@ -667,6 +668,14 @@ export class MeriService implements MeriTurnMaintenance {
         },
       }),
     );
+    for (const message of messages) {
+      await authorizeMeriCaptureMessageReadback({
+        prisma: this.prisma,
+        ctx,
+        conversationId,
+        message,
+      });
+    }
     return this.authorizeOrdinaryReportMessages(
       ctx,
       { conversationId, clientId: conversation.clientId },

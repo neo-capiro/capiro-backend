@@ -12,6 +12,7 @@ import {
 } from '@capiro/meriv2-core';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { assertMeriServerReadonlyCaptureCurrentAuthority } from './meri-server-readonly-capture.js';
+import { validateMeriCapturePolicyPair } from './meri-capture-policy-readback.js';
 
 function runtimeRevision() {
   const value =
@@ -169,6 +170,11 @@ export async function persistMeriServerCaptureEvidenceReceipt(args: {
   assistantMessageId: string;
   receipt: SignedMeriCaptureEvidenceReceipt;
 }): Promise<void> {
+  const policy: MeriServerReadonlyCapturePolicy = {
+    ...args.policy,
+    expectedCaptureWrites: [...args.policy.expectedCaptureWrites],
+  };
+  validateMeriCapturePolicyPair(policy, args.receipt);
   await assertMeriServerReadonlyCaptureCurrentAuthority({
     prisma: args.prisma,
     ctx: args.ctx,
@@ -195,6 +201,7 @@ export async function persistMeriServerCaptureEvidenceReceipt(args: {
         metadata: {
           ...metadata,
           serverCaptureEvidenceReceipt: args.receipt,
+          serverReadonlyCapturePolicy: policy,
         } as unknown as import('@prisma/client').Prisma.InputJsonValue,
       },
     });
@@ -205,7 +212,10 @@ export async function persistMeriServerCaptureEvidenceReceipt(args: {
       !Array.isArray(readback.metadata)
         ? (readback.metadata as Record<string, unknown>)
         : null;
-    if (!isDeepStrictEqual(readbackMetadata?.serverCaptureEvidenceReceipt, args.receipt)) {
+    if (
+      !isDeepStrictEqual(readbackMetadata?.serverCaptureEvidenceReceipt, args.receipt) ||
+      !isDeepStrictEqual(readbackMetadata?.serverReadonlyCapturePolicy, policy)
+    ) {
       throw new Error('meri_capture_receipt_readback_mismatch');
     }
   });

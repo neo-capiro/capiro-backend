@@ -68,6 +68,15 @@ export function receiptWithHash(body) {
 
 export function assertReceiptHash(receipt, expectedKind) {
   const { contentSha256, ...body } = receipt ?? {};
+  if (
+    body.schemaVersion !== PROVISIONING_SCHEMA_VERSION ||
+    body.contractVersion !== PROVISIONING_CONTRACT_VERSION
+  ) {
+    throw new FixtureProvisioningError(
+      'RECEIPT_VERSION_MISMATCH',
+      'receipt contract version is not current',
+    );
+  }
   if (body.kind !== expectedKind) {
     throw new FixtureProvisioningError('RECEIPT_KIND_MISMATCH', `expected ${expectedKind} receipt`);
   }
@@ -88,4 +97,31 @@ export function assertAuthorizedTenant(tenantKey, tenant) {
       `tenant ${tenantKey} is not the exact authorized synthetic tenant`,
     );
   }
+}
+
+const RECEIPT_KINDS = new Set([
+  'meri-synthetic-fixture-plan',
+  'meri-synthetic-fixture-seed-receipt',
+  'meri-synthetic-fixture-verify-receipt',
+  'meri-synthetic-fixture-reset-plan',
+  'meri-synthetic-fixture-reset-receipt',
+]);
+
+/** Content identity only: a valid hash never substitutes for canonical readback. */
+export function fixtureReceiptId(receipt, expectedKind) {
+  if (!RECEIPT_KINDS.has(expectedKind)) {
+    throw new FixtureProvisioningError('RECEIPT_KIND_UNSUPPORTED', 'unknown fixture receipt kind');
+  }
+  assertReceiptHash(receipt, expectedKind);
+  return `${expectedKind}:sha256:${receipt.contentSha256}`;
+}
+
+export function assertFixtureReceiptId(id, receipt, expectedKind) {
+  if (id !== fixtureReceiptId(receipt, expectedKind)) {
+    throw new FixtureProvisioningError(
+      'RECEIPT_ID_MISMATCH',
+      'receipt identity does not match its typed content',
+    );
+  }
+  return receipt;
 }

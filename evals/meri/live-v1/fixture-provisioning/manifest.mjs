@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
 import contractLock from '../contract-lock.json' with { type: 'json' };
+import frozenAssets from '../source-binaries/asset-manifest.json' with { type: 'json' };
 import { frozenFixture } from '../fixture.mjs';
 import { sha256Stable } from '../lib/stable.mjs';
 import { clientDocumentPhysicalId } from './canonical-owner-adapter.mjs';
@@ -340,6 +341,50 @@ export async function buildFixtureManifest({
   return Object.freeze({ ...sourceMap, contentSha256: sha256Stable(sourceMap) });
 }
 
+// Definitions are frozen input, never owner availability or a live capture attestation.
+function frozenRecordInput(logicalId) {
+  const source = frozenFixture.sources[logicalId];
+  if (!source) {
+    const extension = EXTENSION_RECORDS.find((record) => record.logicalId === logicalId);
+    return extension ? { ...extension, fixtureKind: 'acceptance_extension' } : null;
+  }
+  const binary = frozenAssets.assets.find((asset) => asset.logicalSourceId === logicalId);
+  let asset = binary
+    ? {
+        byteSha256: binary.byteSha256,
+        byteSize: binary.byteSize,
+        fileName: binary.filename,
+        mediaType: binary.mediaType,
+        sourcePath: `source-binaries/${binary.filename}`,
+        version: binary.version,
+      }
+    : null;
+  if (
+    !asset &&
+    source.kind === 'generated_artifact_fixture' &&
+    typeof source.facts?.utf8Bytes === 'string'
+  ) {
+    const bytes = Buffer.from(source.facts.utf8Bytes, 'utf8');
+    asset = {
+      byteSha256: createHash('sha256').update(bytes).digest('hex'),
+      byteSize: bytes.byteLength,
+      fileName: source.facts.filename,
+      mediaType: 'text/plain',
+      sourcePath: null,
+      version: 'v1',
+    };
+  }
+  return {
+    logicalId,
+    tenantId: source.tenantId,
+    clientId: source.clientId,
+    owner: asset ? 'engagement_attachment' : canonicalOwner(logicalId, source),
+    fixtureKind: source.kind,
+    facts: source.facts,
+    asset,
+  };
+}
+
 export function assertManifest(manifest) {
   const { contentSha256, ...body } = manifest ?? {};
   if (
@@ -362,6 +407,28 @@ export function assertManifest(manifest) {
   }
   if (contentSha256 !== sha256Stable(body)) {
     throw new FixtureProvisioningError('MANIFEST_HASH_MISMATCH', 'manifest content hash mismatch');
+  }
+  if (
+    body.schemaVersion !== PROVISIONING_SCHEMA_VERSION ||
+    body.contractVersion !== PROVISIONING_CONTRACT_VERSION
+  ) {
+    throw new FixtureProvisioningError(
+      'MANIFEST_VERSION_MISMATCH',
+      'manifest contract version is not current',
+    );
+  }
+  const expectedIds = [
+    ...Object.keys(frozenFixture.sources),
+    ...EXTENSION_RECORDS.map((row) => row.logicalId),
+  ].sort();
+  const actualIds = Array.isArray(body.records)
+    ? body.records.map((row) => row?.logicalId).sort()
+    : [];
+  if (JSON.stringify(actualIds) !== JSON.stringify(expectedIds)) {
+    throw new FixtureProvisioningError(
+      'MANIFEST_INVENTORY_MISMATCH',
+      'manifest must contain each frozen source and extension exactly once',
+    );
   }
   const byPhysicalId = new Map();
   for (const record of body.records ?? []) {
@@ -455,6 +522,26 @@ export function assertManifest(manifest) {
         );
       }
     }
+    const expected = recordFor(frozenRecordInput(record.logicalId), {
+      tenants: body.tenants,
+      clients: body.clients,
+      actors: body.actors,
+      uploaderActors: body.uploaderActors,
+      availableOwners: new Set(),
+    });
+    // Availability is a declaration to be proved later by an owner. All identities,
+    // frozen content, references and immutable bytes must match now.
+    const { availability: _actualAvailability, ...actualDefinition } = record;
+    const { availability: _expectedAvailability, ...expectedDefinition } = expected;
+    if (sha256Stable(actualDefinition) !== sha256Stable(expectedDefinition)) {
+      throw new FixtureProvisioningError('RECORD_FROZEN_DEFINITION_MISMATCH', record.logicalId);
+    }
   }
   return body;
+}
+
+/** Full manifest content address, not the collector's configurable source projection. */
+export function fixturePhysicalMapSha256(manifest) {
+  assertManifest(manifest);
+  return manifest.contentSha256;
 }

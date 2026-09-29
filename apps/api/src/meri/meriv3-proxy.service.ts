@@ -1,4 +1,4 @@
-import { isDeepStrictEqual } from 'node:util';
+import { persistMeriServerCaptureEvidenceReceipt } from './meri-server-capture-evidence.js';
 import { captureMeriTurnScope } from './meri-turn-scope.js';
 import {
   authorizeMeriProspectScope,
@@ -1230,52 +1230,18 @@ export class MeriV3ProxyService {
       userMessageId: args.userMessageId,
       assistantMessageId: args.assistantMessageId,
     });
-    await this.prisma.withTenant(args.ctx.tenantId, async (tx) => {
-      const current = await tx.clioMessage.findFirst({
-        where: {
-          id: args.assistantMessageId,
-          tenantId: args.ctx.tenantId,
-          userId: args.ctx.userId,
-          conversationId: args.conversationId,
-          clientId: args.clientId,
-          role: 'assistant',
-        },
-        select: { metadata: true },
-      });
-      if (!current) throw new Error('meri_capture_assistant_message_readback_missing');
-      const metadata =
-        current.metadata && typeof current.metadata === 'object' && !Array.isArray(current.metadata)
-          ? (current.metadata as Record<string, unknown>)
-          : {};
-      await tx.clioMessage.update({
-        where: { id: args.assistantMessageId },
-        data: {
-          metadata: {
-            ...metadata,
-            serverCaptureEvidenceReceipt: receipt,
-          } as unknown as Prisma.InputJsonValue,
-        },
-      });
-      const readback = await tx.clioMessage.findFirst({
-        where: {
-          id: args.assistantMessageId,
-          tenantId: args.ctx.tenantId,
-          userId: args.ctx.userId,
-          conversationId: args.conversationId,
-          clientId: args.clientId,
-          role: 'assistant',
-        },
-        select: { metadata: true },
-      });
-      const readbackMetadata =
-        readback?.metadata &&
-        typeof readback.metadata === 'object' &&
-        !Array.isArray(readback.metadata)
-          ? (readback.metadata as Record<string, unknown>)
-          : null;
-      if (!isDeepStrictEqual(readbackMetadata?.serverCaptureEvidenceReceipt, receipt)) {
-        throw new Error('meri_capture_receipt_readback_mismatch');
-      }
+    if (
+      args.conversationId !== args.policy.conversationId ||
+      args.clientId !== args.policy.clientId
+    ) {
+      throw new Error('meri_capture_policy_scope_mismatch');
+    }
+    await persistMeriServerCaptureEvidenceReceipt({
+      prisma: this.prisma,
+      ctx: args.ctx,
+      policy: args.policy,
+      assistantMessageId: args.assistantMessageId,
+      receipt,
     });
     setCurrentMeriCaptureEvidenceReceipt(receipt);
   }
