@@ -5,6 +5,8 @@ import {
   expectedMemoryCandidatePayload,
 } from './memory-candidate-owner.mjs';
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+
 /** Read-only SQL resolves identities; canonical store methods own checks and mutations. */
 export function createApprovedMemoryRetirementPort({
   prisma,
@@ -19,12 +21,7 @@ export function createApprovedMemoryRetirementPort({
   async function context(record) {
     assertMemoryCandidateRecord(record);
     const userId = await retirementActorForTenant(record.tenantId);
-    if (
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
-        userId ?? '',
-      )
-    )
-      fail('APPROVED_RETIREMENT_ACTOR_UNAVAILABLE', record);
+    if (!UUID.test(userId ?? '')) fail('APPROVED_RETIREMENT_ACTOR_UNAVAILABLE', record);
     const rows = await prisma.withTenantUser(record.tenantId, userId, (tx) =>
       tx.$queryRawUnsafe(
         `SELECT role FROM tenant_memberships WHERE tenant_id=$1::uuid AND user_id=$2::uuid AND status='active'`,
@@ -39,14 +36,29 @@ export function createApprovedMemoryRetirementPort({
       fail('APPROVED_RETIREMENT_ACTOR_UNAVAILABLE', record);
     return { tenantId: record.tenantId, userId, role: rows[0].role };
   }
-  async function guard(record, operation) {
+  async function guard(record, operation, ctx) {
+    const proposerId = await proposerForTenant(record.tenantId);
+    if (!UUID.test(proposerId ?? '')) fail('APPROVED_RETIREMENT_PROPOSER_MISMATCH', record);
+    // Bind the configured fixture actor even for shared payloads with no owner.
+    // The canonical transaction rechecks this exact candidate version, so a
+    // proposer change between this read and the mutation cannot pass the guard.
+    const candidates = await prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+      tx.$queryRawUnsafe(
+        `SELECT id FROM memory_candidate WHERE tenant_id=$1::uuid AND id=$2::uuid AND proposed_by=$3::uuid AND xmin::text=$4`,
+        record.tenantId,
+        record.physicalId,
+        proposerId,
+        operation.expectedRowVersion,
+      ),
+    );
+    if (candidates.length !== 1) fail('APPROVED_RETIREMENT_PROPOSER_MISMATCH', record);
     return {
       candidateId: record.physicalId,
       expectedRowVersion: operation.expectedRowVersion,
       expectedItemRowVersion: operation.expectedItemRowVersion,
       expectedPayload: expectedMemoryCandidatePayload(
         record,
-        await proposerForTenant(record.tenantId),
+        proposerId,
         stableJson({ ownership: record.ownership, payload: record.payload }),
       ),
     };
@@ -72,7 +84,7 @@ export function createApprovedMemoryRetirementPort({
     );
     if (rows.length === 1 && rows[0].status === 'active')
       fail('MEMORY_CANDIDATE_RETIREMENT_UNVERIFIED', record);
-    const expected = await guard(record, operation);
+    const expected = await guard(record, operation, ctx);
     const proof = await tenantContext.run(ctx, () =>
       memoryStore.inspectSyntheticFixtureRetirement(operation.approvedItemId, expected),
     );
@@ -108,7 +120,7 @@ export function createApprovedMemoryRetirementPort({
         expectedRowVersion: row.candidate_version,
         expectedItemRowVersion: row.item_version,
       };
-      const expected = await guard(record, operation);
+      const expected = await guard(record, operation, ctx);
       await tenantContext.run(ctx, () =>
         memoryStore.inspectSyntheticFixture(row.item_id, expected),
       );
@@ -123,7 +135,7 @@ export function createApprovedMemoryRetirementPort({
     readRetirement,
     async retire(record, operation) {
       const ctx = await context(record);
-      const expected = await guard(record, operation);
+      const expected = await guard(record, operation, ctx);
       const result = await tenantContext.run(ctx, () =>
         memoryStore.forgetSyntheticFixture(operation.approvedItemId, expected),
       );

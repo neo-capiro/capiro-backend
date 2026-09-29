@@ -1053,6 +1053,25 @@ describe('built canonical memory candidate command runtime', { skip: !configPath
         expectedItemRowVersion: snapshot.itemRowVersion,
       };
       const before = await approvedState(f);
+      const wrongProposer = await createAdapter({
+        config: {
+          ...config,
+          actors: { ...config.actors, REVIEWER: { tenantId: 'T1', userId: REVIEWER } },
+          candidateActors: { T1: 'REVIEWER' },
+          retirementActors: { T1: 'REVIEWER' },
+        },
+      });
+      try {
+        await assert.rejects(wrongProposer.inspectForRetirement(f.record), {
+          code: 'APPROVED_RETIREMENT_PROPOSER_MISMATCH',
+        });
+        await assert.rejects(wrongProposer.retireOwned(f.record, guards), {
+          code: 'APPROVED_RETIREMENT_PROPOSER_MISMATCH',
+        });
+        assert.deepEqual(await approvedState(f), before);
+      } finally {
+        await wrongProposer.close();
+      }
       await assert.rejects(adapter.retireOwned(f.record, guards), {
         code: 'APPROVED_RETIREMENT_REFUSED',
       });
