@@ -192,6 +192,7 @@ assert(proposal.includes('disabled={proposalBusy || stale}'), 'STALE_APPLY_DISAB
 assert(hook.includes('await archiveOutreachV3Session(api, priorId);'), 'ARCHIVE_NOT_AWAITED');
 assert(!hook.includes('archiveOutreachV3Session(api, priorId).catch'), 'ARCHIVE_FAILURE_SWALLOWED');
 
+run('Build shared web contracts', 'pnpm', ['--filter', '@capiro/shared', 'build']);
 run('Preview route manifest drift', 'node', [
   'scripts/engagement-phase3-preview-route-patterns.mjs',
   '--check',

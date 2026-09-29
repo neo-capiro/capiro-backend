@@ -1,5 +1,13 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-29 admitted research spans and current CI repairs
+
+Research telemetry owner candidate 298fd19f8 is integrated as ab3c5f68e: fresh authenticated request scopes, admitted callback linkage, separate parallel child spans, persisted budget/result/report events and observed cancellation. Actual SDK owner/callback tests pass, including privacy and lease-loss assertions. Combined integration passes25 API tests, four callback tests and both app typechecks; donor authority regressions pass74 tests. The coordinator overlap is not additional unique coverage. Shared/core builds and independent Hermes/Kimi static reviews pass. See telemetry-research-owner-qualification.md for exact scope, initial failures and remaining trace-continuity/live requirements.
+
+Current hosted evidence distinguishes setup from product acceptance. Phase12 provider tests exhaust their default2GB heap; a step-only6GB setting passes the same10 tests locally. Standalone UI jobs lack built shared declarations; both complete verifiers now build shared first and pass142/164 tests, typechecks and builds. Phase2 full fresh migrations and invariants pass hosted, while its upgrade fixture retained dependent future migrations after deleting Phase2; the repaired historical-prefix copy passes32 local guards/copy checks and preserves all original rehearsal assertions. Fresh hosted results remain required.
+
+The full goal remains incomplete: canonical fixture lifecycles/trusted collector owners, remaining durable/source/provider telemetry coverage and deployed joins, original live acceptance, hosted CI and database recovery clearance, owner acceptance and approved deployment remain open. No shared database mutation, GitHub-main merge, deployment or synthetic enablement is claimed. Actual both-main/topic SHAs are recorded in C:/dev/cap-meri-foundation-evidence/c-drive-local-main-current.json.
+
 ## Current checkpoint — 2026-09-29 telemetry, policy and CI integration
 
 The verified batch following local main 7ac331dde includes bounded OpenTelemetry SDK export and shutdown, durable metadata projection, signed capture-policy readback with frozen fixture-content checks, an offline governance test repair, disposable Phase2/Federal prerequisites and UI CI portability. Export is disabled by default; no live endpoint or synthetic enablement is claimed. Exact local-main and published topic SHAs are recorded in C:/dev/cap-meri-foundation-evidence/c-drive-local-main-current.json. Integration follows local main first, then topic publication; GitHub-main merge still requires successful gates.

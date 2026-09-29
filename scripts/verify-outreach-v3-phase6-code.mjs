@@ -132,6 +132,7 @@ assert(
 // These contracts are behavioral: comments and explanatory copy can change
 // while the no-write and scope boundaries stay intact. Exercise actual loading,
 // explicit acceptance and the unavailable group-safe selection here.
+run('Build shared web contracts', 'pnpm', ['--filter', '@capiro/shared', 'build']);
 run('Read-only target loading and governed context selection', 'pnpm', [
   '--filter',
   '@capiro/web',
