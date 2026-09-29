@@ -1,5 +1,11 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-29 candidate review race
+
+Source2bf7bb185 locks pending memory candidates before review creation, orders list locks consistently, skips concurrently disappeared candidates and preserves storage errors. The pre-fix missing-candidate regression failed as expected. The repaired scope passes23 tests/three suites, API production build and three actual local PostgreSQL concurrency checks with no skips, all exit0. The owned local schema was removed; no shared database effects occurred. Independent Hermes/Bedrock Kimi static review passes the exact candidate. See memory-review-candidate-lock-qualification.md. This is a prerequisite repair; canonical fixture reset/reseed remains unimplemented and the prior raw-delete attempt remains excluded.
+
+The full goal is still incomplete. Hosted Actions startup, database release clearance, remaining fixture and collector owners, complete original served acceptance and approved deployment remain open. Exact local-main/topic/GitHub-main SHAs are recorded in C:/dev/cap-meri-foundation-evidence/c-drive-local-main-current.json; neither local qualification nor topic publication is GitHub-main or deployment completion.
+
 ## Current checkpoint — 2026-09-29 compiler capacity and merge gates
 
 The API/web package typechecks pass all seven forced Turbo tasks with serial scheduling and a step-scoped 6 GiB heap. The API production build also passes with that heap. These qualify the unchanged compiler commands behind confirmed hosted Federal-market, Engagement and nested Outreach Phase 2 heap failures. Independent Hermes/Bedrock Kimi static review passes the bounded workflow/runner diff; see ci-api-serial-capacity-qualification.md. No test scope or failure gate was removed.
