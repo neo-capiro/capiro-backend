@@ -16,7 +16,8 @@
     "src/outreach-v3/api/**/*.ts",
     "src/outreach-v3/reasoning/**/*.ts",
     "src/outreach-v3/targets/**/*.ts",
-    "src/engagement-api.app.module.ts"
+    "src/engagement-api.app.module.ts",
+    "src/types/word-extractor.d.ts"
   ],
   "exclude": [
     "node_modules",
