@@ -72,6 +72,18 @@ export class CanonicalOwnerAdapter {
     }
     return requirePort(this.ownerPorts, record.owner, 'delete')(record, guards);
   }
+
+  async retireOwned(record, guards) {
+    assertGuard(record, guards);
+    if (guards.expectedRowVersion === null) {
+      throw new FixtureProvisioningError('RETIRE_VERSION_GUARD_MISSING', record.logicalId);
+    }
+    return requirePort(this.ownerPorts, record.owner, 'retire')(record, guards);
+  }
+
+  async inspectRetirement(record) {
+    return requirePort(this.ownerPorts, record.owner, 'readRetirement')(record);
+  }
 }
 
 export function clientDocumentPhysicalId({

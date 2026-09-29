@@ -30,6 +30,10 @@ import {
 } from './memory-governance-lifecycle.helpers.js';
 import { memoryReviewSurfaceEnabled } from './memory-review-switch.js';
 import type { MemorySection } from './memory.types.js';
+import {
+  assertSyntheticCandidateWithdrawalInTx,
+  type SyntheticCandidateWithdrawalGuard,
+} from './synthetic-candidate-withdrawal.helpers.js';
 
 type CandidateActorContext = Pick<TenantContext, 'tenantId' | 'userId' | 'role'>;
 
@@ -145,6 +149,25 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
 
   /** Proposer-only, atomic withdrawal. It creates no canonical memory or outbox work. */
   async withdraw(ctx: CandidateActorContext, candidateId: string): Promise<void> {
+    return this.withdrawPending(ctx, candidateId);
+  }
+
+  /** Internal fixture command only; no controller/DTO binds this guarded entry point. */
+  async withdrawSyntheticFixture(
+    tenantId: string,
+    userId: string,
+    candidateId: string,
+    guard: SyntheticCandidateWithdrawalGuard,
+  ): Promise<void> {
+    if (!guard) throw new ForbiddenException('Synthetic candidate withdrawal guard is required');
+    return this.withdrawPending({ tenantId, userId, role: 'standard_user' }, candidateId, guard);
+  }
+
+  private async withdrawPending(
+    ctx: CandidateActorContext,
+    candidateId: string,
+    fixtureGuard?: SyntheticCandidateWithdrawalGuard,
+  ): Promise<void> {
     this.requireWithdrawalEnabled();
     await this.governedPrisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const candidate = await this.lockPendingDispositionCandidateInTx(
@@ -157,7 +180,23 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
           'Only the proposer may withdraw this pending memory proposal.',
         );
       }
-      await this.decideTerminalInTx(tx, ctx.tenantId, candidateId, 'withdrawn', ctx.userId);
+      const fixtureAudit = fixtureGuard
+        ? await assertSyntheticCandidateWithdrawalInTx(
+            tx,
+            ctx.tenantId,
+            ctx.userId,
+            candidateId,
+            fixtureGuard,
+          )
+        : undefined;
+      await this.decideTerminalInTx(
+        tx,
+        ctx.tenantId,
+        candidateId,
+        'withdrawn',
+        ctx.userId,
+        fixtureAudit,
+      );
     });
   }
 
@@ -356,6 +395,10 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
     candidateId: string,
     status: Extract<CandidateDecision, 'rejected' | 'withdrawn'>,
     decidedBy: string,
+    fixtureAudit?: {
+      syntheticFixtureMarkerSha256: string;
+      syntheticFixturePriorRowVersion: string;
+    },
   ): Promise<void> {
     const decidedAt = new Date();
     if (!governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE)) {
@@ -424,6 +467,9 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
           memoryClass: classification.memoryClass,
           sourceKind: row.source_kind,
           dispositionActor: status === 'withdrawn' ? 'proposer' : 'reviewer',
+          ...(fixtureAudit
+            ? { ...fixtureAudit, syntheticFixtureDecisionAt: decidedAt.toISOString() }
+            : {}),
         },
       });
     }

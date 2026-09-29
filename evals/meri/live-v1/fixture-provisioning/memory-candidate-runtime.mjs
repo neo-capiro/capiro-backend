@@ -35,6 +35,14 @@ export async function createAdapter({ config }) {
     ),
   );
   const prisma = new PrismaService();
+  const { MemoryTransitionAuditService } = require(
+    fileURLToPath(
+      new URL(
+        '../../../../apps/api/dist/memory/memory-transition-audit.service.js',
+        import.meta.url,
+      ),
+    ),
+  );
   const { clientMemoryAllowed } = require(
     fileURLToPath(
       new URL('../../../../apps/api/dist/memory/memory-wall.helpers.js', import.meta.url),
@@ -71,7 +79,7 @@ export async function createAdapter({ config }) {
       prisma,
       forbidden,
       forbidden,
-      forbidden,
+      new MemoryTransitionAuditService(),
       forbidden,
       forbidden,
       forbidden,

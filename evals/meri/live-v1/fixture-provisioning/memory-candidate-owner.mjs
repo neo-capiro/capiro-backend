@@ -123,7 +123,117 @@ export function createMemoryCandidateOwnerPort({
     }
   }
 
+  async function readRetirement(record) {
+    assertRecord(record);
+    const userId = await actor(record);
+    return prisma.withTenantUser(record.tenantId, userId, async (tx) => {
+      await assertMembership(tx, record, userId);
+      const rows = await tx.$queryRawUnsafe(
+        `SELECT mc.*, mc.xmin::text AS row_version FROM memory_candidate mc
+         WHERE mc.tenant_id=$1::uuid AND mc.id=$2::uuid`,
+        record.tenantId,
+        record.physicalId,
+      );
+      const row = rows[0];
+      const sourceExcerpt = stableJson({ ownership: record.ownership, payload: record.payload });
+      const payload = expectedStoredPayload(record, userId, sourceExcerpt);
+      const provenance = {
+        tool: 'save_memory',
+        tenantId: record.tenantId,
+        userId,
+        sourceConversationId: null,
+        sourceMessageId: null,
+        sourceExcerpt,
+      };
+      if (
+        !row ||
+        row.status !== 'withdrawn' ||
+        row.governed_status !== 'rejected' ||
+        row.proposed_by !== userId ||
+        row.decided_by !== userId ||
+        !row.decided_at ||
+        row.source_kind !== 'model_extraction' ||
+        row.source_type !== 'meri_synthetic_fixture' ||
+        row.source_id !== record.ownership.markerSha256 ||
+        row.scope !== (payload.scope === 'user_private' ? 'personal' : payload.scope) ||
+        (row.client_id ?? null) !== payload.clientId ||
+        row.committed_memory_id ||
+        row.committed_memory_item_id ||
+        sha256Stable(row.payload_jsonb) !== sha256Stable(payload) ||
+        sha256Stable(row.provenance_jsonb) !== sha256Stable(provenance)
+      ) {
+        throw new FixtureProvisioningError(
+          'MEMORY_CANDIDATE_RETIREMENT_UNVERIFIED',
+          record.logicalId,
+        );
+      }
+      const audits = await tx.$queryRawUnsafe(
+        `SELECT id::text AS id, metadata_jsonb->>'syntheticFixturePriorRowVersion' AS prior_version FROM memory_transition_audit
+         WHERE tenant_id=$1::uuid AND memory_candidate_id=$2::uuid AND actor_user_id=$3::uuid
+           AND reason_code='withdrawn_by_proposer' AND to_status='rejected'
+           AND metadata_jsonb->>'syntheticFixtureMarkerSha256'=$4
+           AND metadata_jsonb->>'syntheticFixtureDecisionAt'=$5`,
+        record.tenantId,
+        record.physicalId,
+        userId,
+        record.ownership.markerSha256,
+        new Date(row.decided_at).toISOString(),
+      );
+      if (audits.length !== 1 || !/^[0-9]{1,10}$/u.test(audits[0].prior_version ?? '')) {
+        throw new FixtureProvisioningError(
+          'MEMORY_CANDIDATE_RETIREMENT_AUDIT_MISSING',
+          record.logicalId,
+        );
+      }
+      return {
+        physicalId: record.physicalId,
+        tenantId: record.tenantId,
+        owner: record.owner,
+        ownership: record.ownership,
+        payloadSha256: record.payloadSha256,
+        rowVersion: row.row_version,
+        retained: true,
+        status: 'withdrawn',
+        governedStatus: 'rejected',
+        transitionAuditId: audits[0].id,
+        priorRowVersion: audits[0].prior_version,
+      };
+    });
+  }
+
   return {
+    readRetirement,
+    async retire(record, guards) {
+      assertRecord(record);
+      if (
+        guards?.tenantId !== record.tenantId ||
+        guards?.physicalId !== record.physicalId ||
+        guards?.expectedOwnershipMarkerSha256 !== record.ownership.markerSha256 ||
+        guards?.expectedRowVersion === null ||
+        guards?.expectedRowVersion === undefined
+      ) {
+        throw new FixtureProvisioningError('WRITE_GUARD_MISMATCH', record.logicalId);
+      }
+      if (typeof memoryCandidates.withdrawSyntheticFixture !== 'function') {
+        throw new FixtureProvisioningError(
+          'MEMORY_CANDIDATE_RETIREMENT_UNAVAILABLE',
+          record.logicalId,
+        );
+      }
+      const userId = await actor(record);
+      const sourceExcerpt = stableJson({ ownership: record.ownership, payload: record.payload });
+      await memoryCandidates.withdrawSyntheticFixture(record.tenantId, userId, record.physicalId, {
+        expectedRowVersion: guards.expectedRowVersion,
+        expectedPayload: expectedStoredPayload(record, userId, sourceExcerpt),
+      });
+      // Retained, terminal state plus its same-transaction audit; never physical absence.
+      try {
+        return await readRetirement(record);
+      } catch (error) {
+        error.unknownCommit = true;
+        throw error;
+      }
+    },
     async read(record) {
       // An absent fixture is still readable, but can never enter the create path.
       assertRecord({ ...record, expectedPresence: 'present' });

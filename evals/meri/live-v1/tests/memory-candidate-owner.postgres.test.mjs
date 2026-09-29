@@ -21,6 +21,9 @@ describe('built canonical memory candidate command runtime', { skip: !configPath
   const beforeEnv = {
     database: process.env.DATABASE_URL,
     namespace: process.env.MERI_SYNTHETIC_FIXTURE_NAMESPACE,
+    review: process.env.MEMORY_CLIENT_REVIEW,
+    lifecycle: process.env.MEMORY_GOVERNANCE_LIFECYCLE,
+    enforcement: process.env.MEMORY_GOVERNANCE_ENFORCE,
   };
 
   before(async () => {
@@ -46,8 +49,28 @@ describe('built canonical memory candidate command runtime', { skip: !configPath
         conflict_status text, committed_memory_id uuid, committed_memory_item_id uuid,
         decided_at timestamptz, created_at timestamptz DEFAULT now(),
         governed_status text DEFAULT 'suggested', instructions_allowed boolean DEFAULT false,
-        approved_at timestamptz, approved_by_user_id uuid
-      )`);
+        approved_at timestamptz, approved_by_user_id uuid,
+        revision_root_id uuid, predecessor_candidate_id uuid, revision_number int DEFAULT 1,
+        superseded_by_id uuid, contradicts_id uuid, decided_by uuid,
+        memory_scope text DEFAULT 'firm', source_ref text, source_excerpt text,
+        source_content_hash text, source_version text, asserted_by_user_id uuid,
+        second_approved_by_user_id uuid, second_approved_at timestamptz,
+        as_of timestamptz, effective_from timestamptz, valid_until timestamptz,
+        expires_at timestamptz, review_cadence_days int, review_due_at timestamptz,
+        conflict_group_id uuid, controlling_item_id uuid, sensitivity text DEFAULT 'normal',
+        retention_policy_jsonb jsonb, legal_hold boolean DEFAULT false,
+        origin_surface text, origin_trace_id text, origin_context_packet_id uuid,
+        origin_model text, origin_prompt_version text, duplicate_memory_item_id uuid
+      );
+      CREATE TABLE "${schema}".memory_transition_audit(
+        id uuid PRIMARY KEY, tenant_id uuid, memory_item_id uuid, memory_candidate_id uuid,
+        actor_user_id uuid, effective_tenant_id uuid, client_id uuid,
+        from_status text, to_status text, reason_code text, reason text, source_type text,
+        source_id text, proposal_id uuid, impersonation_session_id uuid,
+        metadata_jsonb jsonb DEFAULT '{}', occurred_at timestamptz DEFAULT now()
+      );
+      CREATE TABLE "${schema}".review_request(id uuid PRIMARY KEY, tenant_id uuid, subject_id text, status text)
+      `);
     await pool.query(`INSERT INTO "${schema}".tenants VALUES ($1,$2),($3,$4)`, [
       TENANT,
       AUTHORIZED_TENANTS.T1.slug,
@@ -90,6 +113,9 @@ describe('built canonical memory candidate command runtime', { skip: !configPath
     for (const [key, value] of [
       ['DATABASE_URL', beforeEnv.database],
       ['MERI_SYNTHETIC_FIXTURE_NAMESPACE', beforeEnv.namespace],
+      ['MEMORY_CLIENT_REVIEW', beforeEnv.review],
+      ['MEMORY_GOVERNANCE_LIFECYCLE', beforeEnv.lifecycle],
+      ['MEMORY_GOVERNANCE_ENFORCE', beforeEnv.enforcement],
     ]) {
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;
@@ -97,6 +123,7 @@ describe('built canonical memory candidate command runtime', { skip: !configPath
     if (pool) {
       assert.match(schema, /^meri_candidate_[a-f0-9]{32}$/u);
       await pool.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
+      console.info(`Removed owned local candidate schema ${schema}`);
       await pool.end();
     }
   });
@@ -244,5 +271,284 @@ describe('built canonical memory candidate command runtime', { skip: !configPath
       [[original.physicalId, next.physicalId]],
     );
     assert.equal(new Set(keys.rows.map(({ key }) => key)).size, 2);
+  });
+
+  async function retirementFixture() {
+    const fresh = await buildFixtureManifest({ ...config, fixtureInstanceId: randomUUID() });
+    const record = fresh.records.find((row) => row.logicalId === 'MEM-PROPOSAL-14');
+    const guards = {
+      tenantId: record.tenantId,
+      physicalId: record.physicalId,
+      expectedOwnershipMarkerSha256: record.ownership.markerSha256,
+      expectedRowVersion: null,
+    };
+    await adapter.createOwned(record, guards);
+    const readback = await adapter.inspect(record);
+    return { record, guards: { ...guards, expectedRowVersion: readback.rowVersion } };
+  }
+
+  async function withRetirementEnabled(work) {
+    const names = [
+      'MEMORY_CLIENT_REVIEW',
+      'MEMORY_GOVERNANCE_LIFECYCLE',
+      'MEMORY_GOVERNANCE_ENFORCE',
+      'MEMORY_GOVERNANCE_TENANTS',
+    ];
+    const old = names.map((name) => process.env[name]);
+    // This isolated operator runtime has no authenticated request tenant scope.
+    // Only this test process opts in; the runtime never arms its own gates.
+    for (const name of names)
+      process.env[name] = name === 'MEMORY_GOVERNANCE_TENANTS' ? 'all' : 'enforce';
+    try {
+      return await work();
+    } finally {
+      names.forEach((name, index) => {
+        if (old[index] === undefined) delete process.env[name];
+        else process.env[name] = old[index];
+      });
+    }
+  }
+
+  it('retires through canonical withdrawal, retaining content, review history and audit evidence', async () => {
+    await withRetirementEnabled(async () => {
+      const { record, guards } = await retirementFixture();
+      const previous = await pool.query(
+        `SELECT payload_jsonb,provenance_jsonb FROM "${schema}".memory_candidate WHERE id=$1`,
+        [record.physicalId],
+      );
+      const reviewId = randomUUID();
+      await pool.query(`INSERT INTO "${schema}".review_request VALUES($1,$2,$3,'pending')`, [
+        reviewId,
+        TENANT,
+        record.physicalId,
+      ]);
+      const proof = await adapter.retireOwned(record, guards);
+      assert.equal(proof.retained, true);
+      assert.equal(proof.status, 'withdrawn');
+      assert.equal(proof.governedStatus, 'rejected');
+      assert.notEqual(proof.rowVersion, guards.expectedRowVersion);
+      assert.deepEqual(await adapter.inspectRetirement(record), proof);
+      const retained = await pool.query(
+        `SELECT payload_jsonb,provenance_jsonb,status FROM "${schema}".memory_candidate WHERE id=$1`,
+        [record.physicalId],
+      );
+      assert.equal(retained.rowCount, 1);
+      assert.equal(retained.rows[0].status, 'withdrawn');
+      assert.deepEqual(retained.rows[0].payload_jsonb, previous.rows[0].payload_jsonb);
+      assert.deepEqual(retained.rows[0].provenance_jsonb, previous.rows[0].provenance_jsonb);
+      assert.equal(
+        (await pool.query(`SELECT id FROM "${schema}".review_request WHERE id=$1`, [reviewId]))
+          .rowCount,
+        1,
+      );
+      assert.equal(
+        (
+          await pool.query(
+            `SELECT id FROM "${schema}".memory_candidate WHERE id=$1 AND status='pending'`,
+            [record.physicalId],
+          )
+        ).rowCount,
+        0,
+      );
+      assert.equal(
+        (
+          await pool.query(
+            `SELECT id FROM "${schema}".memory_transition_audit WHERE id=$1 AND reason_code='withdrawn_by_proposer'`,
+            [proof.transitionAuditId],
+          )
+        ).rowCount,
+        1,
+      );
+    });
+  });
+
+  it('rejects changed, held, approved, linked or foreign-proposer rows even with their current version', async () => {
+    await withRetirementEnabled(async () => {
+      for (const mutation of [
+        'legal_hold=true',
+        "status='approved'",
+        "governed_status='active'",
+        'approved_at=now()',
+        'revision_number=2',
+        'revision_root_id=id',
+        'duplicate_of_id=id',
+        "proposed_by='55555555-5555-4555-8555-555555555555'",
+        "payload_jsonb=jsonb_set(payload_jsonb,'{value}','\"changed\"')",
+        "provenance_jsonb='{}'",
+        "source_id='changed'",
+        "retention_policy_jsonb='{}'",
+        "origin_trace_id='changed'",
+        "source_ref='changed'",
+        'confidence=0.5',
+        'review_due_at=now()',
+      ]) {
+        const { record, guards } = await retirementFixture();
+        await pool.query(`UPDATE "${schema}".memory_candidate SET ${mutation} WHERE id=$1`, [
+          record.physicalId,
+        ]);
+        const [{ version }] = (
+          await pool.query(
+            `SELECT xmin::text AS version FROM "${schema}".memory_candidate WHERE id=$1`,
+            [record.physicalId],
+          )
+        ).rows;
+        await assert.rejects(
+          adapter.retireOwned(record, { ...guards, expectedRowVersion: version }),
+          (error) => [403, 404].includes(error.getStatus?.()),
+          mutation,
+        );
+        assert.equal(
+          (
+            await pool.query(
+              `SELECT id FROM "${schema}".memory_transition_audit WHERE memory_candidate_id=$1`,
+              [record.physicalId],
+            )
+          ).rowCount,
+          0,
+        );
+      }
+    });
+  });
+
+  it('retires legacy fixture identities while preserving their original marker', async () => {
+    await withRetirementEnabled(async () => {
+      const record = manifest.records.find(
+        (row) =>
+          row.owner === 'memory_candidate' &&
+          row.expectedPresence === 'present' &&
+          !['MEM-PROPOSAL-14', 'MEM-PROPOSAL-15'].includes(row.logicalId),
+      );
+      assert.ok(record);
+      assert.equal(record.ownership.marker.fixtureInstanceId, undefined);
+      const before = await adapter.inspect(record);
+      const proof = await adapter.retireOwned(record, {
+        tenantId: record.tenantId,
+        physicalId: record.physicalId,
+        expectedOwnershipMarkerSha256: record.ownership.markerSha256,
+        expectedRowVersion: before.rowVersion,
+      });
+      assert.equal(proof.retained, true);
+      assert.deepEqual(proof.ownership, record.ownership);
+    });
+  });
+
+  it('refuses stale versions and revoked membership or client access without a transition', async () => {
+    await withRetirementEnabled(async () => {
+      const { record, guards } = await retirementFixture();
+      await pool.query(
+        `UPDATE "${schema}".memory_candidate SET confidence=confidence WHERE id=$1`,
+        [record.physicalId],
+      );
+      await assert.rejects(
+        adapter.retireOwned(record, guards),
+        (error) => error.getStatus?.() === 403,
+      );
+      const current = (await adapter.inspect(record)).rowVersion;
+      await pool.query(
+        `UPDATE "${schema}".tenant_memberships SET status='inactive' WHERE user_id=$1`,
+        [USER],
+      );
+      try {
+        await assert.rejects(
+          adapter.retireOwned(record, { ...guards, expectedRowVersion: current }),
+          (error) => error.getStatus?.() === 403,
+        );
+      } finally {
+        await pool.query(
+          `UPDATE "${schema}".tenant_memberships SET status='active' WHERE user_id=$1`,
+          [USER],
+        );
+      }
+      await pool.query(`UPDATE "${schema}".clients SET memory_wall=true WHERE id=$1`, [
+        record.clientPhysicalId,
+      ]);
+      try {
+        await assert.rejects(
+          adapter.retireOwned(record, { ...guards, expectedRowVersion: current }),
+          (error) => error.getStatus?.() === 403,
+        );
+      } finally {
+        await pool.query(`UPDATE "${schema}".clients SET memory_wall=false WHERE id=$1`, [
+          record.clientPhysicalId,
+        ]);
+      }
+      assert.equal(
+        (
+          await pool.query(`SELECT status FROM "${schema}".memory_candidate WHERE id=$1`, [
+            record.physicalId,
+          ])
+        ).rows[0].status,
+        'pending',
+      );
+    });
+  });
+
+  it('requires existing withdrawal feature gates and the exact synthetic namespace', async () => {
+    const { record, guards } = await retirementFixture();
+    await withRetirementEnabled(async () => {
+      delete process.env.MEMORY_CLIENT_REVIEW;
+      await assert.rejects(
+        adapter.retireOwned(record, guards),
+        (error) => error.getStatus?.() === 503,
+      );
+      process.env.MEMORY_CLIENT_REVIEW = 'enforce';
+      process.env.MEMORY_GOVERNANCE_TENANTS = TENANT;
+      await assert.rejects(
+        adapter.retireOwned(record, guards),
+        (error) => error.getStatus?.() === 503,
+      );
+      process.env.MEMORY_GOVERNANCE_TENANTS = 'all';
+      delete process.env.MERI_SYNTHETIC_FIXTURE_NAMESPACE;
+      try {
+        await assert.rejects(
+          adapter.retireOwned(record, guards),
+          (error) => error.getStatus?.() === 403,
+        );
+      } finally {
+        process.env.MERI_SYNTHETIC_FIXTURE_NAMESPACE = 'meri-foundation-20260928';
+      }
+    });
+  });
+
+  it('concurrent retirements produce one terminal transition and preserve the row', async () => {
+    await withRetirementEnabled(async () => {
+      const { record, guards } = await retirementFixture();
+      const results = await Promise.allSettled([
+        adapter.retireOwned(record, guards),
+        adapter.retireOwned(record, guards),
+      ]);
+      assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
+      assert.equal(results.filter((result) => result.status === 'rejected').length, 1);
+      assert.equal(
+        (
+          await pool.query(
+            `SELECT id FROM "${schema}".memory_transition_audit WHERE memory_candidate_id=$1 AND reason_code='withdrawn_by_proposer'`,
+            [record.physicalId],
+          )
+        ).rowCount,
+        1,
+      );
+      assert.equal((await adapter.inspectRetirement(record)).retained, true);
+    });
+  });
+
+  it('rolls the candidate transition back when the audit writer fails', async () => {
+    await withRetirementEnabled(async () => {
+      const { record, guards } = await retirementFixture();
+      await pool.query(`CREATE FUNCTION "${schema}".reject_audit() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN RAISE EXCEPTION 'controlled audit sink failure'; END $$;
+        CREATE TRIGGER reject_fixture_audit BEFORE INSERT ON "${schema}".memory_transition_audit
+        FOR EACH ROW EXECUTE FUNCTION "${schema}".reject_audit()`);
+      try {
+        await assert.rejects(adapter.retireOwned(record, guards), /controlled audit sink failure/u);
+        const row = await adapter.inspect(record);
+        assert.equal(row.rowVersion, guards.expectedRowVersion);
+        assert.equal(row.payloadSha256, record.payloadSha256);
+      } finally {
+        await pool.query(
+          `DROP TRIGGER reject_fixture_audit ON "${schema}".memory_transition_audit; DROP FUNCTION "${schema}".reject_audit()`,
+        );
+      }
+    });
   });
 });
