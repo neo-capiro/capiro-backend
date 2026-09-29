@@ -132,47 +132,52 @@ async function main() {
   }
 
   const adapter = await loadAdapter(args, config);
-  let receipt;
-  if (args.command === 'plan') {
-    receipt = await planFixture({ manifest, adapter });
-  } else if (args.command === 'apply') {
-    const plan = await readJson(requireAbsolute(args, 'plan'));
-    receipt = await applyFixture({
-      manifest,
-      plan,
-      adapter,
-      confirmation: args.confirm,
-    });
-  } else if (args.command === 'verify') {
-    receipt = await verifyFixture({ manifest, adapter });
-  } else if (args.command === 'reset-plan') {
-    const seedReceipt = await readJson(requireAbsolute(args, 'seed-receipt'));
-    receipt = await planOwnedReset({ manifest, seedReceipt, adapter });
-  } else if (args.command === 'owned-reset') {
-    const seedReceipt = await readJson(requireAbsolute(args, 'seed-receipt'));
-    const resetPlan = await readJson(requireAbsolute(args, 'reset-plan'));
-    receipt = await applyOwnedReset({
-      manifest,
-      seedReceipt,
-      resetPlan,
-      adapter,
-      confirmation: args.confirm,
-    });
-  } else {
-    throw new FixtureProvisioningError('COMMAND_INVALID', `unsupported command ${args.command}`);
+  try {
+    let receipt;
+    if (args.command === 'plan') {
+      receipt = await planFixture({ manifest, adapter });
+    } else if (args.command === 'apply') {
+      const plan = await readJson(requireAbsolute(args, 'plan'));
+      receipt = await applyFixture({
+        manifest,
+        plan,
+        adapter,
+        confirmation: args.confirm,
+      });
+    } else if (args.command === 'verify') {
+      receipt = await verifyFixture({ manifest, adapter });
+    } else if (args.command === 'reset-plan') {
+      const seedReceipt = await readJson(requireAbsolute(args, 'seed-receipt'));
+      receipt = await planOwnedReset({ manifest, seedReceipt, adapter });
+    } else if (args.command === 'owned-reset') {
+      const seedReceipt = await readJson(requireAbsolute(args, 'seed-receipt'));
+      const resetPlan = await readJson(requireAbsolute(args, 'reset-plan'));
+      receipt = await applyOwnedReset({
+        manifest,
+        seedReceipt,
+        resetPlan,
+        adapter,
+        confirmation: args.confirm,
+      });
+    } else {
+      throw new FixtureProvisioningError('COMMAND_INVALID', `unsupported command ${args.command}`);
+    }
+    await writeReceipt(outputPath, receipt);
+    return {
+      kind: receipt.kind,
+      status: receipt.status ?? 'planned',
+      contentSha256: receipt.contentSha256,
+      outputPath,
+    };
+  } finally {
+    await adapter.close?.();
   }
-  await writeReceipt(outputPath, receipt);
-  return {
-    kind: receipt.kind,
-    status: receipt.status ?? 'planned',
-    contentSha256: receipt.contentSha256,
-    outputPath,
-  };
 }
 
 main()
   .then((summary) => {
     process.stdout.write(`${JSON.stringify(summary)}\n`);
+    if (['failed', 'unknown_outcome'].includes(summary.status)) process.exitCode = 1;
   })
   .catch((error) => {
     process.stderr.write(

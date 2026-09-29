@@ -119,11 +119,8 @@ export function createClientDocumentOwnerPort({
       'ClientDocumentWriterService is required',
     );
   }
-  if (typeof documentWriter?.deleteAttachment !== 'function' || typeof reader !== 'function') {
-    throw new FixtureProvisioningError(
-      'DOCUMENT_OWNER_INCOMPLETE',
-      'document reader and eraser are required',
-    );
+  if (typeof reader !== 'function') {
+    throw new FixtureProvisioningError('DOCUMENT_OWNER_INCOMPLETE', 'document reader is required');
   }
 
   async function loadBytes(record) {
@@ -200,12 +197,17 @@ export function createClientDocumentOwnerPort({
         'asset changes require a new source version, never in-place replacement',
       );
     },
-    async delete(record) {
-      const userId = actorForTenant(record.tenantId);
-      return documentWriter.deleteAttachment(
-        { tenantId: record.tenantId, userId },
-        record.physicalId,
+    async delete() {
+      // EngagementService.deleteAttachment currently performs a read followed by
+      // a later lifecycle mutation. It cannot atomically fence tenant + fixture
+      // marker + logical identity + expected row version, so fixture reset must
+      // fail closed until that canonical erasure owner exposes a guarded path.
+      throw new FixtureProvisioningError(
+        'DOCUMENT_GUARDED_ERASURE_UNAVAILABLE',
+        'fixture-owned documents are immutable; guarded canonical erasure is not available',
       );
     },
   };
 }
+
+export { createMemoryCandidateOwnerPort } from './memory-candidate-owner.mjs';
