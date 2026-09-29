@@ -177,6 +177,20 @@ describe('isEngagementApiRequest', () => {
 });
 
 describe('engagementPreviewHeader', () => {
+  it('routes the exact client notetaker preference path only in explicit preview mode', () => {
+    const route = '/api/engagement/clients/client-1/notetaker';
+    expect(engagementPreviewHeader(route, BASE)).toBeNull();
+    activateEngagementPreview();
+    expect(engagementPreviewHeader(route, BASE)).toEqual({
+      name: 'X-Capiro-Engagement-Preview',
+      value: 'v3',
+    });
+    expect(engagementPreviewHeader(`${route}/extra`, BASE)).toBeNull();
+    expect(engagementPreviewHeader('/api/engagement/clients/notetaker', BASE)).toBeNull();
+    clearEngagementPreview();
+    expect(engagementPreviewHeader(route, BASE)).toBeNull();
+  });
+
   it('returns nothing while the mode is off, even for an Engagement route', () => {
     expect(engagementPreviewHeader('/api/engagement/meetings', BASE)).toBeNull();
   });
