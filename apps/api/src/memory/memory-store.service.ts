@@ -790,6 +790,7 @@ export class MemoryStoreService {
         WHERE id = ${itemId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
           AND status <> 'revoked'
         LIMIT 1
+        FOR UPDATE
       `;
       const row = rows[0];
       if (!row) return { found: false };
