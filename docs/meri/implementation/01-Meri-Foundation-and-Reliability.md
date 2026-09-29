@@ -1598,8 +1598,8 @@ For each case store `{caseId, fixtureVersion, deploymentSha, actor, selectedClie
 
 Preserved implementation baseline with historical source/package observations. Recheck actual packages, flags and routes before executing commands; do not overwrite newer code to match a historical snapshot. Current §12 controls release scope. Retain protected raw evidence outside the worktree; commit sanitized manifests/reports only under the repository’s policy.
 
-**Prepared:** September 26, 2026; reconciled to native V3 September 27, 2026 (America/New_York)\
-**Repository:** `neo-capiro/capirov2`; this handoff was updated after the Phase 4 revert, with main observed at `d86b0662d1c6c6eb559ce2a74ea3e7244233672b`. Recheck `main` and the deployed API/web image digests before editing; record the actual revisions in every report.\
+**Prepared:** September 26, 2026; reconciled to native V3 September 27, 2026 (America/New_York)  
+**Repository:** `neo-capiro/capirov2`; this handoff was updated after the Phase 4 revert, with main observed at `d86b0662d1c6c6eb559ce2a74ea3e7244233672b`. Recheck `main` and the deployed API/web image digests before editing; record the actual revisions in every report.  
 **Mission:** Build a repeatable, affordable **75-case live Meri evaluation** using Playwright and Promptfoo, run what the available isolated environment supports, and deliver a failing-case report plus a small reviewable PR. The complete [case specification](#appendix-f-original-75-case-live-benchmark) is supplied as a separate file. Implement and test the evaluation harness; do not claim a passing Meri product or enable a new runtime merely because its tests compile. Evaluate only the served native Meri V3 path; the earlier Hermes Phase 4 broker merge was reverted.
 
 #### Current repo facts and boundaries
