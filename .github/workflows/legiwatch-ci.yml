@@ -70,12 +70,12 @@ permissions:
 jobs:
   legiwatch:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     # The enumerated apps/api Jest run repeatedly exceeded Node's default
     # ~2 GiB heap before it could write its JSON summary. Keep one worker
     # and a bounded larger heap so the absolute-zero gate is deterministic.
     env:
-      NODE_OPTIONS: --max-old-space-size=4096
+      NODE_OPTIONS: --max-old-space-size=6144
       DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
       LEGIWATCH_COMMITTEE_TEST_DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro_committee_alerts_ci
       LEGIWATCH_RECORDING_TEST_DATABASE: disposable
@@ -139,7 +139,7 @@ jobs:
       # 100+ errors in code this gate does not own. Generated clients and
       # typechecked packages must agree; these two lists are that agreement.
       - name: Typecheck (apps/api, apps/intel-api, apps/web)
-        run: pnpm turbo run typecheck --filter=@capiro/api --filter=@capiro/intel-api --filter=@capiro/web
+        run: pnpm turbo run typecheck --concurrency=1 --filter=@capiro/api --filter=@capiro/intel-api --filter=@capiro/web
 
       - name: Tests — saved hearing association SQL
         env:

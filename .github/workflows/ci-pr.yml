@@ -14,9 +14,9 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     env:
-      NODE_OPTIONS: --max-old-space-size=4096
+      NODE_OPTIONS: --max-old-space-size=6144
     steps:
       - uses: actions/checkout@v4
         with:
@@ -127,7 +127,7 @@ jobs:
       # via the slower image build. (Follow-up: add an apps/api jest step; that
       # needs a CI Postgres service since much of the api suite is DB-backed.)
       - name: Typecheck (turbo)
-        run: pnpm turbo run typecheck
+        run: pnpm turbo run typecheck --concurrency=1
 
       # Unit tests for the new orchestrator core (DB-free). The api/workspace
       # suites need a live Postgres and run via their own image/e2e paths; the
@@ -194,9 +194,9 @@ jobs:
     # Every AWS/docker interaction the suite exercises runs against a fake
     # binary recorded and asserted on by the tests themselves.
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     env:
-      NODE_OPTIONS: --max-old-space-size=4096
+      NODE_OPTIONS: --max-old-space-size=6144
     steps:
       - uses: actions/checkout@v4
         with:
@@ -209,6 +209,15 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
+      - name: Build API verification workspace prerequisites
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/meriv2-core build
+          pnpm --filter @capiro/strategy-verifier build
+
       - name: Generate Prisma clients
         run: pnpm --filter @capiro/api exec prisma generate
 
@@ -218,3 +227,12 @@ jobs:
       # the same convention DB-backed suites use for a missing DATABASE_URL.
       - name: Engagement API Phase 2 — code-complete verification (2.0-2.12)
         run: pnpm verify:engagement-phase-2
+
+      - name: Retain Engagement verification diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: engagement-phase2-diagnostics
+          path: .artifacts/engagement-phase2-code/
+          include-hidden-files: true
+          if-no-files-found: ignore

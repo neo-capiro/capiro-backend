@@ -183,6 +183,7 @@ bold "2.3  Infrastructure config and read-only discovery"
 ts_test "config contract" test/engagement-api-config.spec.ts
 ts_test "deployment-surge DB budget" test/engagement-api-db-budget.spec.ts
 gate "discovery script syntax" bash -n scripts/engagement-api-infra-discover.sh
+node_test "current task config and security regressions" scripts/verify-engagement-api-task-config.spec.mjs
 node_test "discovery (fake AWS, read-only proven)" scripts/engagement-api-infra-discover.spec.mjs
 
 echo ""
