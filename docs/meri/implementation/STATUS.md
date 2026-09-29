@@ -1,5 +1,13 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-29 compiler capacity and merge gates
+
+The API/web package typechecks pass all seven forced Turbo tasks with serial scheduling and a step-scoped 6 GiB heap. The API production build also passes with that heap. These qualify the unchanged compiler commands behind confirmed hosted Federal-market, Engagement and nested Outreach Phase 2 heap failures. Independent Hermes/Bedrock Kimi static review passes the bounded workflow/runner diff; see ci-api-serial-capacity-qualification.md. No test scope or failure gate was removed.
+
+GitHub Actions returned startup_failure before creating jobs on foundation84c3465d7. A previously successful job rerun at unchanged b40d25e70 also failed before startup, so the observed startup problem is separate from product failures; its cause remains unconfirmed. GitHub main is not merged. Database recovery still reports migration-bearing releases blocked. Actual local-main/topic publication receipts remain in C:/dev/cap-meri-foundation-evidence/c-drive-local-main-current.json.
+
+A bounded Qwen pending-fixture reset attempt was stopped and rejected: it added adapter-level raw deletion without the requested canonical lifecycle guards. Its patch is preserved outside this branch for diagnosis and is not integrated. The canonical reset/reseed requirement remains open. Full original File01, Workstream A served acceptance and deployment remain incomplete; prior scoped passes do not replace those requirements.
+
 ## Current checkpoint — 2026-09-29 admitted research spans and current CI repairs
 
 Research telemetry owner candidate 298fd19f8 is integrated as ab3c5f68e: fresh authenticated request scopes, admitted callback linkage, separate parallel child spans, persisted budget/result/report events and observed cancellation. Actual SDK owner/callback tests pass, including privacy and lease-loss assertions. Combined integration passes25 API tests, four callback tests and both app typechecks; donor authority regressions pass74 tests. The coordinator overlap is not additional unique coverage. Shared/core builds and independent Hermes/Kimi static reviews pass. See telemetry-research-owner-qualification.md for exact scope, initial failures and remaining trace-continuity/live requirements.

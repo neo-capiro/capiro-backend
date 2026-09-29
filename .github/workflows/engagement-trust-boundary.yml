@@ -138,7 +138,9 @@ jobs:
           SQL
 
       - name: Typecheck Engagement packages
-        run: pnpm turbo run typecheck --filter=@capiro/api --filter=@capiro/web
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: pnpm turbo run typecheck --concurrency=1 --filter=@capiro/api --filter=@capiro/web
 
       - name: Tests — apps/api Engagement trust boundary
         id: api_tests

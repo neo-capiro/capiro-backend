@@ -92,7 +92,16 @@ const steps = [
     ['scripts/verify-outreach-v3-p1-architecture.mjs'],
     { OUTREACH_V3_P1_SCOPE_END: BASE_SHA },
   ],
-  ['API production build', 'pnpm', ['--filter', '@capiro/api', 'build']],
+  [
+    'API production build',
+    'pnpm',
+    ['--filter', '@capiro/api', 'build'],
+    {
+      NODE_OPTIONS: [process.env.NODE_OPTIONS, '--max-old-space-size=6144']
+        .filter(Boolean)
+        .join(' '),
+    },
+  ],
   [
     'Phase 2 committed-diff whitespace',
     'git',
