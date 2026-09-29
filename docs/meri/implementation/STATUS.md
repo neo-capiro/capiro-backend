@@ -1,5 +1,11 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-29 pending fixture retirement
+
+Source cb64973bea2b3a0e1d34b80eba25809c6924f1f2 adds guarded pending synthetic memory withdrawal through the canonical proposer transaction. It retains history and binds terminal readback to its transition audit. API production build, 14 actual local PostgreSQL checks, 33 existing candidate regressions and 33 fixture contract checks pass with exit 0; independent Hermes/Bedrock Kimi static review passes the exact candidate. See pending-fixture-retirement-qualification.md for test timing, the corrected local feature-gate setup, audit proof limits and owned-schema cleanup.
+
+This does not complete fixture reset or served acceptance. Approved-memory revocation, other owner lifecycles, retained-history manifest/capture binding and all release gates remain open. No production cohort or flag was enabled. The unscoped operator requires its existing governance gates; the local test opt-in supplies no shared-environment authorization. GitHub Actions still fails before jobs start, and database recovery has not cleared migration-bearing releases. Integration identities are recorded in the C-drive receipt; local-main/topic publication is not GitHub-main or AWS completion.
+
 ## Current checkpoint — 2026-09-29 fixture run identities
 
 Source92ecd07a8 adds optional fixture instance identities without changing frozen logical fixtures or legacy manifest hashes. The actual canonical memory owner can create a new instance while preserving prior row content, governance and row versions. Qualification passes33 Node contract/owner-dispatch checks and seven actual local PostgreSQL owner tests, formatting and independent Hermes/Bedrock Kimi static review, all exit0. See fixture-instance-qualification.md for the exact proof and review limits.
