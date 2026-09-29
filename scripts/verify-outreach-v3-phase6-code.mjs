@@ -129,10 +129,22 @@ assert(
   proposalReview.includes('disabled={proposalBusy || stale}'),
   'stale-proposal-apply-guard-missing',
 );
-assert(
-  targets.includes('Read-only recommendations are allowed to load automatically'),
-  'target-read-only-load-contract-missing',
-);
+// These contracts are behavioral: comments and explanatory copy can change
+// while the no-write and scope boundaries stay intact. Exercise actual loading,
+// explicit acceptance and the unavailable group-safe selection here.
+run('Read-only target loading and governed context selection', 'pnpm', [
+  '--filter',
+  '@capiro/web',
+  'exec',
+  'vitest',
+  'run',
+  '--poolOptions.threads.singleThread',
+  '--testTimeout=20000',
+  '--hookTimeout=20000',
+  'src/pages/engagement/outreach/v3/TargetWorkspace.spec.tsx',
+  'src/pages/engagement/outreach/v3/ContextReviewSurface.spec.tsx',
+  'src/pages/engagement/outreach/v3/context-selection.spec.ts',
+]);
 assert(
   targets.includes('Saving to the shared Directory remains'),
   'manual-directory-default-off-copy-missing',
@@ -144,10 +156,6 @@ assert(context.includes('Applies to ${scopeTarget} only'), 'target-scope-copy-mi
 assert(
   context.includes("entry.contextClass === 'required_policy'"),
   'required-policy-lock-missing',
-);
-assert(
-  context.includes('Group-safe context requires a named audience group'),
-  'group-safe-fail-closed-missing',
 );
 
 for (const node of [
@@ -199,8 +207,6 @@ run('Outreach V3 focused tests', 'pnpm', [
   'src/pages/engagement/outreach/v3/outreach-v3-preview.spec.ts',
   'src/pages/engagement/outreach/v3/OutreachWizardRouter.spec.tsx',
   'src/pages/engagement/outreach/v3/CurrentDecisionSurface.spec.tsx',
-  'src/pages/engagement/outreach/v3/TargetWorkspace.spec.tsx',
-  'src/pages/engagement/outreach/v3/ContextReviewSurface.spec.tsx',
   'src/pages/engagement/outreach/v3/commands.spec.ts',
   'src/pages/engagement/outreach/v3/outreach-v3-api.spec.ts',
   'src/pages/engagement/outreach/v3/useOutreachV3Session.spec.ts',

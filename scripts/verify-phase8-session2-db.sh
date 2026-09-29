@@ -107,8 +107,8 @@ ok "extensions and capiro_app bootstrapped, matching local dev / CI exactly"
 # An externally supplied URL receives no new bootstrap writes.
 if [ "$SELF_MANAGED" = "1" ]; then
   fixture_psql() {
-    docker exec -i -e PGPASSWORD="$SUPERPASS" -e PGHOSTADDR=127.0.0.1 \
-      -e PGSERVICE= -e PGSERVICEFILE= -e PGOPTIONS= "$NAME" \
+    docker exec -i -e PGPASSWORD="$SUPERPASS" -e PGHOSTADDR=127.0.0.1 "$NAME" \
+      env -u PGSERVICE -u PGSERVICEFILE -u PGOPTIONS \
       psql --no-psqlrc --set=ON_ERROR_STOP=1 --host=127.0.0.1 --port=5432 \
       --username="$SUPERUSER" --dbname="$DB_NAME" "$@"
   }
