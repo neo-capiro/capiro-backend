@@ -13,7 +13,8 @@
  * www.defense.gov/                                     403  Akamai
  * www.secnav.navy.mil/fmc/fmb/Pages/Fiscal-Year-*.aspx 200  no direct document links
  * armedservices.house.gov/legislation                  200  no direct document links
- * www.armed-services.senate.gov/legislation            200  2 document links
+ * www.armed-services.senate.gov/legislation            200  bill listing; no document links
+ * www.armed-services.senate.gov/committee-actions/library 200  extensionless downloads
  * appropriations.house.gov/                            200  2 document links
  * www.appropriations.senate.gov/legislation            200  no direct document links
  * ```
@@ -33,10 +34,7 @@ import type { RequestBudget } from '@capiro/defense-domain';
 import type { DiscoveredCandidate } from '../lifecycle-ports.js';
 import type { OfficialSourceAdapter } from '../source-adapter.registry.js';
 import type { DiscoveryCursor } from '@capiro/defense-domain';
-import type {
-  NewDiscoveryCandidate,
-  NewDiscoveryCrawl,
-} from './discovery-audit.port.js';
+import type { NewDiscoveryCandidate, NewDiscoveryCrawl } from './discovery-audit.port.js';
 
 export interface CrawlContext {
   readonly adapter: OfficialSourceAdapter;
@@ -71,19 +69,18 @@ export interface PublisherCrawler {
  * go stale — the same reason the Session 7 templates carry no URLs.
  */
 export const PUBLISHER_ENTRY_POINTS: Readonly<Record<string, readonly string[]>> = Object.freeze({
-  'dod-comptroller': Object.freeze([
-    'https://comptroller.defense.gov/Budget-Materials/',
-  ]),
+  'dod-comptroller': Object.freeze(['https://comptroller.defense.gov/Budget-Materials/']),
   'dod-comptroller-reprogramming': Object.freeze([
     'https://comptroller.defense.gov/Budget-Execution/Reprogramming/',
   ]),
   'army-budget': Object.freeze(['https://asafm.army.mil/Budget-Materials/']),
-  'navy-budget': Object.freeze([
-    'https://www.secnav.navy.mil/fmc/fmb/Pages/Fiscal-Year-{FY}.aspx',
-  ]),
+  'navy-budget': Object.freeze(['https://www.secnav.navy.mil/fmc/fmb/Pages/Fiscal-Year-{FY}.aspx']),
   'saf-fm-budget': Object.freeze(['https://www.saffm.hq.af.mil/FM-Resources/Budget/']),
   hasc: Object.freeze(['https://armedservices.house.gov/legislation']),
-  sasc: Object.freeze(['https://www.armed-services.senate.gov/legislation']),
+  sasc: Object.freeze([
+    'https://www.armed-services.senate.gov/legislation',
+    'https://www.armed-services.senate.gov/committee-actions/library',
+  ]),
   'house-appropriations': Object.freeze(['https://appropriations.house.gov/legislation']),
   'senate-appropriations': Object.freeze(['https://www.appropriations.senate.gov/legislation']),
   'dod-contract-announcements': Object.freeze([

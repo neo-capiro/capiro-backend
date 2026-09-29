@@ -70,7 +70,7 @@ const PE_STATIC_SEGMENTS = new Set([
  * route are uppercase alpha-numeric codes. Requiring a digit prevents future
  * static words from being swallowed by the dynamic matcher.
  */
-const PE_PROFILE_ID = /^(?=[A-Z0-9]{8,10}$)(?=.*\d)[A-Z0-9]+$/;
+const PE_PROFILE_ID = /^(?=[A-Z0-9]{8,10}$)(?=.*\d)[A-Z0-9]+$/i;
 
 /** Normalize a raw `?dest=` value to a destination, defaulting to Explore. */
 export function resolvePeDestination(raw: string | null | undefined): PeDestination {
@@ -119,7 +119,7 @@ export function matchPeProfilePath(pathname: string): string | null {
   if (segment.includes('/') || PE_STATIC_SEGMENTS.has(segment) || !PE_PROFILE_ID.test(segment)) {
     return null;
   }
-  return segment;
+  return segment.toUpperCase();
 }
 
 /**

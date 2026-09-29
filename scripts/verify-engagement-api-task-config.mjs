@@ -5,9 +5,15 @@
  * The accepted verifier is retained verbatim under scripts/lib and receives a
  * synthetic, in-memory Clerk-webhook binding only for backward-compatible
  * validation. The real rendered task must omit that secret; this wrapper proves
- * the omission first, then applies the stronger rolling-deployment DB budget.
+ * the omission and current exact provider bindings first, then applies the
+ * stronger rolling-deployment DB budget. Only the validated provider entries
+ * are removed from the compatibility copy; the real task is never changed.
  */
 import { spawnSync } from 'node:child_process';
+import {
+  REQUIRED_PROVIDER_SECRET_KEYS,
+  providerSecretProblems,
+} from './lib/engagement-api-required-provider-secrets.mjs';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -46,7 +52,8 @@ function taskContainer(document, kind) {
     );
     if (tasks.length !== 1) usage(`expected exactly one task definition, found ${tasks.length}`);
     const containers = tasks[0].Properties?.ContainerDefinitions ?? [];
-    if (containers.length !== 1) usage(`expected exactly one container, found ${containers.length}`);
+    if (containers.length !== 1)
+      usage(`expected exactly one container, found ${containers.length}`);
     return containers[0];
   }
   const task = document.taskDefinition ?? document;
@@ -65,10 +72,20 @@ const sourcePath = args.template ?? args.taskDefinition;
 const cfg = JSON.parse(readFileSync(args.config, 'utf8'));
 const original = JSON.parse(readFileSync(sourcePath, 'utf8'));
 const originalContainer = taskContainer(original, inputKind);
-const originalSecrets = inputKind === 'template' ? originalContainer.Secrets ?? [] : originalContainer.secrets ?? [];
+const originalSecrets =
+  inputKind === 'template' ? (originalContainer.Secrets ?? []) : (originalContainer.secrets ?? []);
 const originalNames = originalSecrets.map((entry) => entry.Name ?? entry.name);
 if (originalNames.includes(RETIRED_SECRET)) {
   console.error(`FAIL  ${RETIRED_SECRET} is injected into the real dark task`);
+  process.exit(2);
+}
+
+// The current CDK/IAM contract already requires these exact provider bindings.
+// Reject missing, duplicate, field-scoped or mismatched bindings on the REAL
+// task before stripping only these validated entries from the legacy copy.
+const providerProblems = providerSecretProblems(originalSecrets, cfg);
+if (providerProblems.length) {
+  for (const problem of providerProblems) console.error(`FAIL  ${problem}`);
   process.exit(2);
 }
 
@@ -78,12 +95,16 @@ const compatibility = structuredClone(original);
 const compatibilityContainer = taskContainer(compatibility, inputKind);
 if (inputKind === 'template') {
   compatibilityContainer.Secrets = [
-    ...(compatibilityContainer.Secrets ?? []),
+    ...(compatibilityContainer.Secrets ?? []).filter(
+      (entry) => !Object.hasOwn(REQUIRED_PROVIDER_SECRET_KEYS, entry.Name),
+    ),
     { Name: RETIRED_SECRET, ValueFrom: cfg.clerkWebhookSigningSecretArn },
   ];
 } else {
   compatibilityContainer.secrets = [
-    ...(compatibilityContainer.secrets ?? []),
+    ...(compatibilityContainer.secrets ?? []).filter(
+      (entry) => !Object.hasOwn(REQUIRED_PROVIDER_SECRET_KEYS, entry.name),
+    ),
     { name: RETIRED_SECRET, valueFrom: cfg.clerkWebhookSigningSecretArn },
   ];
 }
@@ -112,8 +133,7 @@ if (!budget) {
   process.exit(2);
 }
 const deploymentTaskCeiling = Math.ceil(cfg.maximumCount * 2); // ECS maxHealthyPercent=200
-const projected =
-  budget.observedSevenDayPeak + deploymentTaskCeiling * budget.perTaskPoolMaximum;
+const projected = budget.observedSevenDayPeak + deploymentTaskCeiling * budget.perTaskPoolMaximum;
 const safeCeiling = Math.floor(budget.databaseMaxConnections * 0.8);
 const headroom = budget.databaseMaxConnections - projected;
 const requiredHeadroom = budget.databaseMaxConnections * 0.1;

@@ -75,13 +75,15 @@ describe('FundingOpportunityV2ResultCard evidence and source facts', () => {
     expect(document.querySelector('.fo-v2-result-evidence > code')?.textContent).toContain(
       '541715',
     );
-    expect(screen.queryByText(/Capability match: vehicle sustainment/)).toBeNull();
+    expect(screen.queryByText('vehicle sustainment')).toBeNull();
     expect(screen.getByRole('button', { name: /Evidence \(3\) · relevance 78/ })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /Evidence \(3\) · relevance 78/ }));
 
-    expect(screen.getByText('Capability match')).toBeTruthy();
-    expect(screen.getByText('vehicle sustainment')).toBeTruthy();
+    expect(screen.getByText('Capability keywords')).toBeTruthy();
+    for (const signal of baseRow().matchedSignals) {
+      expect(screen.getByText(signal.matchedOn)).toBeTruthy();
+    }
     expect(screen.getByRole('button', { name: 'Hide evidence' })).toBeTruthy();
   });
 

@@ -25,7 +25,7 @@ vi.mock('../../../../lib/use-api.js', () => ({
     post: vi.fn().mockResolvedValue({ data: { ok: true } }),
   }),
 }));
-vi.mock('../../../../pages/clients/tracker/MemoComposerDrawer.js', () => ({
+vi.mock('./MemoComposerDrawerVNext.js', () => ({
   MemoComposerDrawer: () => <div role="dialog" aria-label="Existing memo composer" />,
 }));
 
@@ -185,7 +185,7 @@ describe('Feed rows — federal bill changes are labelled BILL, never DEADLINE',
     const row = title.closest('.lw-prow') as HTMLElement;
     expect(within(row).getByText('Official text updated')).toBeInTheDocument();
     expect(within(row).getByText('Client A')).toBeInTheDocument();
-    expect(within(row).getByText(/^(?:NOW|\d+ (?:MIN|HR|D))$/)).toBeInTheDocument();
+    expect(within(row).getByText(/^(?:now|\d+[mhd])$/)).toBeInTheDocument();
   });
 
   it('keeps a critical-severity bill alert as CRITICAL with the error tone', async () => {

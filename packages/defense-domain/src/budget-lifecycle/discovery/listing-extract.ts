@@ -12,7 +12,8 @@
  *  * Only absolute HTTPS links on the requesting adapter's own official hosts
  *    survive. A relative link is resolved against the page URL first, so a
  *    redirect to a third-party mirror cannot smuggle a host in.
- *  * Only document extensions are emitted. An index page is mostly navigation,
+ *  * Document extensions are emitted by default. A publisher may explicitly opt
+ *    into bounded extensionless download paths. An index page is mostly navigation,
  *    and a crawler that treated every anchor as a candidate would spend its
  *    budget on menus.
  *  * Output is deduplicated and sorted, so the same page always yields the same
@@ -45,7 +46,8 @@ export interface ExtractedLink {
   readonly text: string;
 }
 
-const ANCHOR_PATTERN = /<a\b[^>]*?href\s*=\s*("([^"]*)"|'([^']*)'|([^\s"'>]+))[^>]*>([\s\S]*?)<\/a>/gi;
+const ANCHOR_PATTERN =
+  /<a\b[^>]*?href\s*=\s*("([^"]*)"|'([^']*)'|([^\s"'>]+))[^>]*>([\s\S]*?)<\/a>/gi;
 
 function decodeEntities(value: string): string {
   return value
@@ -59,7 +61,9 @@ function decodeEntities(value: string): string {
 }
 
 function collapseText(html: string): string {
-  return decodeEntities(html.replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim();
+  return decodeEntities(html.replace(/<[^>]*>/g, ' '))
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 export function hasDocumentExtension(pathname: string): boolean {
@@ -80,6 +84,8 @@ export function extractDocumentLinks(input: {
   officialHosts: readonly string[];
   /** Optional extra path constraint, e.g. only `/Portals/45/Documents/defbudget`. */
   requiredPathPrefixes?: readonly string[];
+  /** Explicit publisher opt-in; default extraction remains extension-only. */
+  extensionlessDocumentPathPrefixes?: readonly string[];
 }): readonly ExtractedLink[] {
   const hosts = new Set(input.officialHosts);
   const byUrl = new Map<string, ExtractedLink>();
@@ -101,7 +107,15 @@ export function extractDocumentLinks(input: {
 
     if (resolved.protocol !== 'https:') continue;
     if (!hosts.has(resolved.hostname)) continue;
-    if (!hasDocumentExtension(resolved.pathname)) continue;
+    const extensionlessDocument =
+      input.extensionlessDocumentPathPrefixes?.some(
+        (prefix) =>
+          resolved.pathname.startsWith(prefix) &&
+          /^\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+$/.test(resolved.pathname) &&
+          resolved.pathname.length > prefix.length &&
+          !resolved.pathname.endsWith('/'),
+      ) === true;
+    if (!hasDocumentExtension(resolved.pathname) && !extensionlessDocument) continue;
 
     if (
       input.requiredPathPrefixes &&
@@ -139,9 +153,11 @@ export interface FeedItem {
 }
 
 const FEED_ITEM_PATTERN = /<(item|entry)\b[^>]*>([\s\S]*?)<\/\1>/gi;
-const FEED_LINK_PATTERN = /<link\b[^>]*?href\s*=\s*"([^"]+)"[^>]*\/?>|<link>\s*([^<]+?)\s*<\/link>/i;
+const FEED_LINK_PATTERN =
+  /<link\b[^>]*?href\s*=\s*"([^"]+)"[^>]*\/?>|<link>\s*([^<]+?)\s*<\/link>/i;
 const FEED_TITLE_PATTERN = /<title\b[^>]*>\s*([\s\S]*?)\s*<\/title>/i;
-const FEED_DATE_PATTERN = /<(?:pubDate|published|updated)\b[^>]*>\s*([^<]+?)\s*<\/(?:pubDate|published|updated)>/i;
+const FEED_DATE_PATTERN =
+  /<(?:pubDate|published|updated)\b[^>]*>\s*([^<]+?)\s*<\/(?:pubDate|published|updated)>/i;
 
 /**
  * Extract items from an RSS or Atom feed.

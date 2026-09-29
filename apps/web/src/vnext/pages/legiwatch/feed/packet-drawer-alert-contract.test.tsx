@@ -16,6 +16,7 @@
  * again returns the wrong shape.
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FeedItem } from '../../../../pages/clients/tracker/intel-feed-api.js';
@@ -31,7 +32,7 @@ vi.mock('../../../../lib/use-api.js', () => ({
     post: vi.fn().mockResolvedValue({ data: { ok: true } }),
   }),
 }));
-vi.mock('../../../../pages/clients/tracker/MemoComposerDrawer.js', () => ({
+vi.mock('./MemoComposerDrawerVNext.js', () => ({
   MemoComposerDrawer: ({ clientId, item }: { clientId: string; item: FeedItem }) => (
     <div role="dialog" aria-label="Existing memo composer">{clientId} · {item.id}</div>
   ),
@@ -61,9 +62,9 @@ const ALERT: FeedItem = {
 function renderDrawer() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false, refetchOnMount: false, refetchOnReconnect: false } } });
   return render(
-    <QueryClientProvider client={qc}>
+    <MemoryRouter><QueryClientProvider client={qc}>
       <PacketDrawer scope="" alertId="a1" onClose={() => {}} />
-    </QueryClientProvider>,
+    </QueryClientProvider></MemoryRouter>,
   );
 }
 
@@ -90,7 +91,7 @@ describe('PacketDrawer — the /feed/alerts/:alertId contract', () => {
     await waitFor(() => expect(within(dialog).getAllByText(/BILL/i).length).toBeGreaterThan(0));
   });
 
-  it('opens the existing memo composer for the alert client from the all-clients scope', async () => {
+  it('opens the native memo composer for the alert client from the all-clients scope', async () => {
     apiGet.mockImplementation(async (url = '') => ({ data: url.includes('/feed/alerts/') ? ALERT : null }));
     renderDrawer();
     const draft = await screen.findByRole('button', { name: 'Draft memo' });

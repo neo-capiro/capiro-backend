@@ -230,7 +230,7 @@ describe('LW-02 — independent capture and source status', () => {
     fireEvent.click(await screen.findByRole('tab', { name: 'Schedule' }));
     fireEvent.click(await screen.findByRole('tab', { name: 'Agenda' }));
     const schedule = screen.getByRole('region', { name: 'Schedule list' });
-    expect(within(schedule).getByText('No proceedings matched these filters')).toBeInTheDocument();
+    expect(within(schedule).getByText('No proceedings scheduled in this date range')).toBeInTheDocument();
     expect(within(schedule).queryByText(/alerts|sources are healthy|ingestion is still running/)).not.toBeInTheDocument();
   });
 });

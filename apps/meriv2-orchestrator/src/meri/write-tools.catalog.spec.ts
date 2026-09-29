@@ -35,13 +35,15 @@ const EXPECTED_WRITE_TOOLS = [
   'save_research_portfolio_output_to_client',
   'watch_research_portfolio',
   'update_research_portfolio_change_state',
+  'create_research_portfolio_bookmark',
+  'add_research_portfolio_review_note',
 ].sort();
 
 describe('WRITE_DELEGATED_TOOLS catalog', () => {
-  it('matches apps/api SIDE_EFFECTING_TOOLS exactly (29 tools)', () => {
+  it('matches apps/api SIDE_EFFECTING_TOOLS exactly (31 tools)', () => {
     const names = WRITE_DELEGATED_TOOLS.map((t) => t.name).sort();
     expect(names).toEqual(EXPECTED_WRITE_TOOLS);
-    expect(WRITE_DELEGATED_TOOLS).toHaveLength(29);
+    expect(WRITE_DELEGATED_TOOLS).toHaveLength(31);
   });
 
   it('is ALL write (readOnly:false) — the gate must fire for every one', () => {

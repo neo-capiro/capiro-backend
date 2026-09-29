@@ -264,11 +264,11 @@ describe('FundingOpportunitiesV2SavedSearches', () => {
     fireEvent.change(screen.getByLabelText('Name — required'), { target: { value: 'Filters only' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save without keywords' }));
 
-    expect(screen.getByText('None — this search would match on filters alone')).toBeInTheDocument();
+    expect(screen.getByText('No keywords — filters only')).toBeInTheDocument();
     expect(screen.getByText('Saved without keywords. The current discovery query remains unchanged.')).toBeInTheDocument();
     expect(screen.getByText('defense electronics')).toBeInTheDocument();
     expect(screen.queryByText('Sectors: defense electronics')).not.toBeInTheDocument();
-    expect(screen.getByText('None — this search would match on filters alone')).toBeInTheDocument();
+    expect(screen.getByText('No keywords — filters only')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save search' }));
     await waitFor(() => expect(saveSearch).toHaveBeenCalledWith(expect.objectContaining({ criteria: expect.objectContaining({ query: '' }) })));
     expect(saveSearch).toHaveBeenCalledWith(expect.objectContaining({ criteria: expect.objectContaining({ sectors: ['defense electronics'] }) }));

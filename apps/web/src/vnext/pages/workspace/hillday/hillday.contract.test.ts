@@ -99,7 +99,11 @@ describe('hillday prototype parity anchors', () => {
 
   it('editor: cover, summary table, per-section regenerate, quality + sources', () => {
     const ed = read('HillDayEditor.tsx');
-    expect(ed).toContain('The day at a glance');
+    const firstPage = read('HillDayFirstPage.tsx');
+    expect(ed).toContain("import { HillDayFirstPage } from './HillDayFirstPage.js'");
+    expect(ed).toMatch(/<HillDayFirstPage\s+doc=\{doc\}/);
+    expect(firstPage).toContain('The day at a glance');
+    expect(firstPage).toContain('role="table" aria-label="The day at a glance"');
     expect(ed).toContain('Focus');
     expect(ed).toContain('Background');
     expect(ed).toContain('Regenerate');

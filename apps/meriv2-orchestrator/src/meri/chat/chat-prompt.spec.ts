@@ -1,4 +1,8 @@
-import { buildChatDateGrounding, buildChatSystemPrompt, composeChatSystemPrompt } from './chat-prompt';
+import {
+  buildChatDateGrounding,
+  buildChatSystemPrompt,
+  composeChatSystemPrompt,
+} from './chat-prompt';
 import { KeywordIntentRouter, MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT } from '@capiro/meriv2-core';
 import type { MeriContext } from '@capiro/meriv2-core';
 
@@ -278,7 +282,7 @@ describe('held-write honesty (the "submitted for processing" fabrication)', () =
     expect(prompt).toContain('proposal card in chat');
     expect(prompt).toContain('originating conversation');
     expect(prompt).toContain('conversation’s Approvals tab');
-    expect(prompt).toContain('separate run-bound requests');
+    expect(prompt).toContain('business-action proposals, scoped to the originating conversation');
     expect(prompt).toContain('Do not imply there is one cross-conversation approval registry');
     expect(prompt).toContain('Approve all');
   });

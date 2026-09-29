@@ -107,6 +107,9 @@ jobs:
       - name: Build shared package prerequisites
         run: |
           pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/defense-client build
           pnpm --filter @capiro/auth build
           pnpm --filter @capiro/meriv2-core build
           # meriv2-orchestrator's strategy module imports this package; without

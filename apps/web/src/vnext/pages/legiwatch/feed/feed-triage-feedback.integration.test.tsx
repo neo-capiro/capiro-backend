@@ -88,7 +88,7 @@ function renderFeed() {
 
 async function rowSelects() {
   await screen.findByText('Alert one');
-  return screen.getAllByLabelText('Change work state') as HTMLSelectElement[];
+  return screen.getAllByRole('combobox', { name: 'Work state: NEW' }) as HTMLSelectElement[];
 }
 
 describe('LW-QA-019 — row-level triage in the All-clients view', () => {
@@ -122,7 +122,7 @@ describe('LW-QA-019 — row-level triage in the All-clients view', () => {
 
     await screen.findByText('Could not update — change reverted');
     await waitFor(() =>
-      expect((screen.getAllByLabelText('Change work state')[0] as HTMLSelectElement).value).toBe(
+      expect((screen.getAllByRole('combobox', { name: 'Work state: NEW' })[0] as HTMLSelectElement).value).toBe(
         'new',
       ),
     );

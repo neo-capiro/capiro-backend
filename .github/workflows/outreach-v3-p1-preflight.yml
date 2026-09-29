@@ -21,6 +21,8 @@ jobs:
     name: Revised Phase 1 DB-free closeout
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,34 +39,12 @@ jobs:
             echo 'scope_base=' >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          should_run=false
-          product_changed=false
-          changed_file_list=$(mktemp)
-          trap 'rm -f "$changed_file_list"' EXIT
-          git diff --name-only "${{ github.event.pull_request.base.sha }}...HEAD" > "$changed_file_list"
-          while IFS= read -r file; do
-            case "$file" in
-              .github/workflows/outreach-v3-p1-preflight.yml|scripts/*outreach-v3-p1*|scripts/*outreach-v3-phase1*|scripts/*engagement-runtime-ownership*|scripts/verify-engagement-phase3-code.mjs)
-                should_run=true
-                ;;
-              package.json|pnpm-lock.yaml|apps/api/package.json|apps/api/tsconfig.outreach-v3-phase1.json|apps/api/src/engagement/**|apps/api/src/engagement-api.app.module.ts|apps/api/src/engagement-api.app.module.spec.ts|apps/api/src/engagement-workers/**|apps/api/src/engagement-callbacks/**|apps/api/src/webhooks/**|apps/api/src/capabilities/**|apps/api/src/ai-credentials/**|apps/api/src/intelligence/alert-memo/**|apps/api/src/client-documents/**|apps/api/src/meeting-capture/**|apps/api/src/outreach-review/**|apps/api/src/reviews/**|apps/api/src/meri/meri.module.ts|apps/api/src/app.module.ts|infra/cdk/fixtures/engagement-runtime-ownership.v1.json|docs/contracts/capiro-capabilities-v1.md|docs/contracts/engagement-runtime-ownership-v1.md|docs/runbooks/capiro-capability-security.md|docs/runbooks/engagement-runtime-ownership.md|docs/plans/outreach-v3/revised-phase-1-*|docs/plans/outreach-v3/revised-phase-2-*)
-                should_run=true
-                product_changed=true
-                ;;
-            esac
-          done < "$changed_file_list"
-          if [ "$product_changed" = true ]; then
-            scope_base="${{ github.event.pull_request.base.sha }}"
-          else
-            # Gate-only maintenance still runs every current invariant and
-            # named test. An empty diff keeps Phase 1 path-attribution checks
-            # independent of unrelated files and commit ordering.
-            scope_base=$(git rev-parse HEAD)
-          fi
-          echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
-          echo "product_changed=$product_changed" >> "$GITHUB_OUTPUT"
-          echo "scope_base=$scope_base" >> "$GITHUB_OUTPUT"
-          echo "Revised Phase 1 owned changes: $should_run; product changes: $product_changed"
+          # Content-aware maintenance classification keeps full-PR attribution
+          # for runtime/contract changes. Every current invariant and named
+          # test still runs for gate maintenance.
+          node --test scripts/outreach-v3-p1-change-scope.spec.mjs
+          node scripts/outreach-v3-p1-change-scope.mjs \
+            --base "${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
 
       - name: Show exact execution head
         run: |

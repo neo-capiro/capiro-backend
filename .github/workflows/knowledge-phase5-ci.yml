@@ -91,6 +91,9 @@ jobs:
           pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
           pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
 
+      - name: Build shared package prerequisite
+        run: pnpm --filter @capiro/shared build
+
       - name: Test entity-resolution foundation
         run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/knowledge/entities
 

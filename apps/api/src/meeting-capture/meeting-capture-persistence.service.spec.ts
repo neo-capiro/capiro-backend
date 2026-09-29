@@ -1,11 +1,12 @@
 import { MeetingCapturePersistenceService } from './meeting-capture-persistence.service.js';
 
 describe('MeetingCapturePersistenceService', () => {
-  it('exposes only the six Notetaker persistence operations', () => {
+  it('exposes only the seven Notetaker persistence operations', () => {
     const methods = Object.getOwnPropertyNames(MeetingCapturePersistenceService.prototype)
       .filter((name) => name !== 'constructor')
       .sort();
     expect(methods).toEqual([
+      'clientMeetingAssociationWhere',
       'createAttachmentFromBuffer',
       'createMeetingDebrief',
       'createMeetingNote',
@@ -17,6 +18,7 @@ describe('MeetingCapturePersistenceService', () => {
 
   it('delegates without widening the input or changing lifecycle behavior', async () => {
     const engagement = {
+      clientMeetingAssociationWhere: jest.fn().mockResolvedValue({ clientId: 'client' }),
       createAttachmentFromBuffer: jest.fn().mockResolvedValue({ id: 'a1' }),
       deleteAttachment: jest.fn().mockResolvedValue({ ok: true }),
       eraseAttachmentAsSystem: jest.fn().mockResolvedValue({ ok: true }),
@@ -26,7 +28,9 @@ describe('MeetingCapturePersistenceService', () => {
     };
     const service = new MeetingCapturePersistenceService(engagement as never);
     const ctx = { tenantId: 'tenant' } as never;
+    const tx = { marker: 'tx' } as never;
 
+    const association = await service.clientMeetingAssociationWhere(tx, 'tenant', 'client');
     await service.createAttachmentFromBuffer(ctx, { buffer: Buffer.from('x') } as never);
     await service.deleteAttachment(ctx, 'a1');
     await service.eraseAttachmentAsSystem('tenant', 'a1');
@@ -34,6 +38,8 @@ describe('MeetingCapturePersistenceService', () => {
     await service.createMeetingNote(ctx, 'm1', { body: 'note' });
     await service.createMeetingDebrief(ctx, 'm1', { body: 'debrief' });
 
+    expect(association).toEqual({ clientId: 'client' });
+    expect(engagement.clientMeetingAssociationWhere).toHaveBeenCalledWith(tx, 'tenant', 'client');
     expect(engagement.createAttachmentFromBuffer).toHaveBeenCalledTimes(1);
     expect(engagement.deleteAttachment).toHaveBeenCalledWith(ctx, 'a1');
     expect(engagement.eraseAttachmentAsSystem).toHaveBeenCalledWith('tenant', 'a1');

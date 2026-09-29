@@ -93,7 +93,7 @@ describe('Feed URL-state restoration and client isolation', () => {
     expect(screen.getByRole('tab', { name: 'Group by client' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('button', { name: /^Hearings/ })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: /^In review/ })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('textbox', { name: 'Search the feed' })).toHaveValue('budget');
+    expect(screen.getByRole('textbox', { name: 'Filter updates' })).toHaveValue('budget');
     const request = new URL(apiGet.mock.calls.find(([url]) => url.includes('/feed?'))![0], 'https://example.test');
     expect(Object.fromEntries(request.searchParams)).toMatchObject({ order: 'score', sourceType: 'hearing', workState: 'in_review' });
 
@@ -101,13 +101,13 @@ describe('Feed URL-state restoration and client isolation', () => {
     await screen.findByText('Transport authorization');
     expect(screen.queryByText('Budget oversight')).toBeNull();
     expect(screen.getByRole('tab', { name: 'Newest' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('textbox', { name: 'Search the feed' })).toHaveValue('transport');
+    expect(screen.getByRole('textbox', { name: 'Filter updates' })).toHaveValue('transport');
 
     fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
     await screen.findByText('Budget oversight');
     expect(screen.getByRole('tab', { name: 'Priority' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Group by client' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('textbox', { name: 'Search the feed' })).toHaveValue('budget');
+    expect(screen.getByRole('textbox', { name: 'Filter updates' })).toHaveValue('budget');
   });
 
   it('writes controls to the URL and resets every filter atomically without losing the client', async () => {
@@ -116,7 +116,7 @@ describe('Feed URL-state restoration and client isolation', () => {
     fireEvent.click(await screen.findByRole('button', { name: /^Hearings/ }));
     fireEvent.click(await screen.findByRole('button', { name: /^In review/ }));
     fireEvent.click(await screen.findByRole('tab', { name: 'Group by client' }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'Search the feed' }), { target: { value: 'budget' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Filter updates' }), { target: { value: 'budget' } });
     expect(Object.fromEntries(viewParams())).toMatchObject({ tab: 'feed', client: 'client-A', order: 'score', filter: 'hearing', work: 'in_review', arrange: 'byClient', q: 'budget' });
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
     await screen.findByText('Transport authorization');
