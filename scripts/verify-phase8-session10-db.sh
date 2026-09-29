@@ -97,6 +97,10 @@ login_query() {
 }
 
 # ── 1. full migration ledger applies from scratch ───────────────────────────
+if [ "$SELF_MANAGED" = "1" ]; then
+  docker exec -i "$NAME" psql -X -U capiro -d capiro -v ON_ERROR_STOP=1 < "$REPO_ROOT/scripts/ci/disposable-capiro-worker-prerequisite.sql"
+  docker exec -i "$NAME" psql -X -U capiro -d capiro -v ON_ERROR_STOP=1 < "$REPO_ROOT/scripts/ci/research-portfolio-append-only-prerequisite.sql"
+fi
 
 log "1. applying the full migration ledger against a zero-state database"
 (

@@ -71,7 +71,7 @@ jobs:
           pnpm --filter @capiro/defense-api build
 
       - name: Live discovery control-loop tests
-        run: pnpm --filter @capiro/defense-api exec tsx --test src/budget-lifecycle/discovery/live-discovery.spec.ts
+        run: pnpm --filter @capiro/defense-api exec tsx --test src/budget-lifecycle/discovery/live-discovery.spec.ts src/budget-lifecycle/discovery/sasc-downloads.spec.ts
 
       # Downloads the real DISCOVERY CHANNEL - robots policies, sitemap indexes,
       # year sitemaps and MODS records - from GovInfo, congress.gov and the DoD

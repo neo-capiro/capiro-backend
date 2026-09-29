@@ -190,7 +190,7 @@ describe('only the adapter may import the SDK', () => {
     // whole job is that they cannot.
     const pkg = JSON.parse(readFileSync(join(__dirname, '../../..', 'package.json'), 'utf8'));
     const version = pkg.dependencies['@makegov/tango-node'];
-    expect(version).toBe('1.1.0');
+    expect(version).toBe('1.3.0');
     expect(version).not.toMatch(/[\^~*x]/);
   });
 });

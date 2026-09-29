@@ -153,6 +153,9 @@ jobs:
         env:
           DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
         run: |
+          # Existing migration prerequisites belong only to this disposable service.
+          docker exec -i "${{ job.services.folder-postgres.id }}" psql -U legiwatch_test -d capiro -v ON_ERROR_STOP=1 < scripts/ci/disposable-capiro-worker-prerequisite.sql
+          docker exec -i "${{ job.services.folder-postgres.id }}" psql -U legiwatch_test -d capiro -v ON_ERROR_STOP=1 < scripts/ci/research-portfolio-append-only-prerequisite.sql
           pnpm --filter @capiro/api exec prisma migrate deploy
           pnpm --filter @capiro/intel-api exec prisma migrate deploy
           pnpm --filter @capiro/intel-api exec jest --ci --runInBand --json --outputFile=$GITHUB_WORKSPACE/folder-pg-summary.json test/folder-tracker-postgres.spec.ts test/folder-import-postgres.spec.ts test/folder-corpus-search-postgres.spec.ts
@@ -178,6 +181,7 @@ jobs:
             }
           })().catch((error) => { console.error(error); process.exitCode = 1; });
           NODE
+          docker exec -i "${{ job.services.folder-postgres.id }}" psql -U legiwatch_test -d capiro_committee_alerts_ci -v ON_ERROR_STOP=1 < scripts/ci/research-portfolio-append-only-prerequisite.sql
           DATABASE_URL="$LEGIWATCH_COMMITTEE_TEST_DATABASE_URL" pnpm --filter @capiro/api exec prisma migrate deploy
           DATABASE_URL="$LEGIWATCH_COMMITTEE_TEST_DATABASE_URL" pnpm --filter @capiro/intel-api exec prisma migrate deploy
 

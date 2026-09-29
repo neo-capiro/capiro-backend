@@ -84,6 +84,10 @@ expect_ok() {
 hex64() { printf "$1%.0s" $(seq 1 64); }
 
 log "1. Apply the full authoritative migration ledger from zero"
+if [ "$SELF_MANAGED" = "1" ]; then
+  docker exec -i "$NAME" psql -X -U "$SUPERUSER" -d "$DB_NAME" -v ON_ERROR_STOP=1 < "$REPO_ROOT/scripts/ci/disposable-capiro-worker-prerequisite.sql"
+  docker exec -i "$NAME" psql -X -U "$SUPERUSER" -d "$DB_NAME" -v ON_ERROR_STOP=1 < "$REPO_ROOT/scripts/ci/research-portfolio-append-only-prerequisite.sql"
+fi
 run_sql "$(cat "$REPO_ROOT/docker/postgres/init/01-extensions.sql")"
 ok "extensions bootstrapped"
 (cd "$API_ROOT" && DATABASE_URL="$REHEARSAL_DATABASE_URL" npx prisma migrate deploy --schema prisma/schema.prisma >/dev/null) \

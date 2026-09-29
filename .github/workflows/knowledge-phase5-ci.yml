@@ -57,10 +57,14 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
+      NODE_OPTIONS: --max-old-space-size=6144
       DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro_ci
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Patch hygiene below compares the checked-out merge to its parent.
+          fetch-depth: 2
 
       - name: Check patch hygiene
         run: git diff --check HEAD^
@@ -82,6 +86,14 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Build API verification workspace prerequisites
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/meriv2-core build
 
       - name: Validate and generate Prisma client
         run: |
@@ -141,6 +153,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
+      NODE_OPTIONS: --max-old-space-size=6144
       DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro
 
     steps:
@@ -160,9 +173,19 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
+      - name: Build API verification workspace prerequisites
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/meriv2-core build
+
       - name: Deploy the full Prisma migration chain
         run: |
           set -o pipefail
+          docker exec -i "${{ job.services.postgres.id }}" psql -X -U capiro -d capiro -v ON_ERROR_STOP=1 < scripts/ci/disposable-capiro-worker-prerequisite.sql
+          docker exec -i "${{ job.services.postgres.id }}" psql -X -U capiro -d capiro -v ON_ERROR_STOP=1 < scripts/ci/research-portfolio-append-only-prerequisite.sql
           pnpm --filter @capiro/api exec prisma migrate deploy 2>&1 | tee /tmp/migrate-deploy.log
           grep -q '20261120143000_canonical_entity_backfill_checkpoints' /tmp/migrate-deploy.log || {
             echo "::error::canonical_entity_backfill_checkpoints migration was not applied" >&2

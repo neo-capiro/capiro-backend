@@ -154,7 +154,19 @@
       "expectedStatus": 200,
       "assertContains": [],
       "assertAbsent": [],
-      "note": "Reachable. Yields few direct document links because the page is largely script-rendered; whatever IS linked on-host is extracted, and nothing is invented for what is not."
+      "note": "Reachable; redirects to the current committee-actions bill listing. Off-host bill links are excluded; no document yield is assumed."
+    },
+    {
+      "resourceKey": "senate-armed-services-library",
+      "adapterId": "sasc",
+      "resourceKind": "listing",
+      "officialUrl": "https://www.armed-services.senate.gov/committee-actions/library",
+      "expectedStatus": 200,
+      "assertContains": [
+        "/download/"
+      ],
+      "assertAbsent": [],
+      "note": "Official document library. Same-host extensionless download aliases are explicitly enabled only for SASC; classification remains fail closed."
     }
   ]
 }
