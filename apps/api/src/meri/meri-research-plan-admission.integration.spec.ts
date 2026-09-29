@@ -43,16 +43,18 @@ function validPlan(clientId: string | null = null, capability = 'search_memory')
   };
 }
 
-function fixture(options: {
-  storedPlan?: unknown;
-  providerOutputs?: string[];
-  staleBeforeDispatch?: boolean;
-  clientId?: string | null;
-  switchClientOnRead?: number;
-  replaceClientAndPlanOnRead?: number;
-  replacePlanDuringEnabled?: unknown;
-  removeCapabilityDuringEnabled?: boolean;
-} = {}) {
+function fixture(
+  options: {
+    storedPlan?: unknown;
+    providerOutputs?: string[];
+    staleBeforeDispatch?: boolean;
+    clientId?: string | null;
+    switchClientOnRead?: number;
+    replaceClientAndPlanOnRead?: number;
+    replacePlanDuringEnabled?: unknown;
+    removeCapabilityDuringEnabled?: boolean;
+  } = {},
+) {
   let session: any = {
     id: 'session-plan',
     tenantId: ctx.tenantId,
@@ -139,7 +141,11 @@ function fixture(options: {
           where.userId !== session.userId
         )
           return null;
-        if (options.staleBeforeDispatch && findCount >= 3 && session.metadata.run.status === 'running') {
+        if (
+          options.staleBeforeDispatch &&
+          findCount >= 3 &&
+          session.metadata.run.status === 'running'
+        ) {
           session.metadata.run = {
             ...session.metadata.run,
             status: 'interrupted',
@@ -190,7 +196,8 @@ function fixture(options: {
         name,
         description: name,
         input_schema: { type: 'object' },
-      }))),
+      })),
+    ),
     isConcurrencySafe: jest.fn((name: string) => name !== 'send_email'),
     isSideEffecting: jest.fn((name: string) => name === 'send_email'),
     execute: jest.fn(),
@@ -441,7 +448,7 @@ describe('MeriResearchService typed-plan admission', () => {
       'Research failed before report publication.',
     );
     expect(f.logger.warn).toHaveBeenCalledWith(
-      'Research run failed: Saved research plan is not admitted for the current scope and capabilities: scope_mismatch:clientId',
+      'Research run failed: Research plan validation failed: scope_mismatch:clientId',
     );
   });
 

@@ -468,6 +468,38 @@ function makeActualV3Runner(events: MeriV3ChatStreamEvent[]) {
   return Object.assign(runner, { streamChatSpy: client.streamChat });
 }
 
+/** Distinguish the single parent publication attempt from bounded leaf dispatches. */
+function expectParentAndBoundedChildDispatches(
+  runner: ReturnType<typeof makeActualV3Runner>,
+  correctionCalls: 0 | 2,
+) {
+  const inputs = runner.streamChatSpy.mock.calls.map(([call]) => call.input);
+  const children = inputs.filter((input) =>
+    String(input.skillAddendum).includes('bounded read-only Meri research leaf'),
+  );
+  const parents = inputs.filter((input) => !children.includes(input));
+  expect(parents).toHaveLength(1);
+  expect(children).toHaveLength(2 + correctionCalls);
+  expect(inputs).toHaveLength(3 + correctionCalls);
+  expect(
+    children.filter((input) =>
+      String(input.skillAddendum).includes('This is the single allowed correction.'),
+    ),
+  ).toHaveLength(correctionCalls);
+  for (const role of ['evidence_reviewer', 'scope_analyst']) {
+    const roleCalls = children.filter((input) =>
+      String(input.skillAddendum).includes(`Role: ${role}@`),
+    );
+    expect(roleCalls).toHaveLength(1 + correctionCalls / 2);
+    expect(
+      roleCalls.filter((input) =>
+        String(input.skillAddendum).includes('This is the single allowed correction.'),
+      ),
+    ).toHaveLength(correctionCalls / 2);
+  }
+  return parents[0];
+}
+
 // ── Test ─────────────────────────────────────────────────────────────────────
 
 function makeReviews() {
@@ -713,8 +745,9 @@ describe('MeriResearchService — forced synthesis', () => {
     expect(observed.find((event) => event.type === 'report')?.body).toContain(reportBody);
     expect(observed.at(-1)).toEqual({ type: 'done' });
     expect(runSpy).toHaveBeenCalledTimes(1);
-    expect(runner.streamChatSpy).toHaveBeenCalledTimes(1);
-    expect(runner.streamChatSpy.mock.calls[0]?.[0].input).toMatchObject({
+    // The prose fixture is invalid leaf JSON: each of two children gets its
+    // one allowed correction before the parent report publication attempt.
+    expect(expectParentAndBoundedChildDispatches(runner, 2)).toMatchObject({
       toolPolicy: 'read-only',
       researchPlanExecution: {
         version: 1,
@@ -794,8 +827,9 @@ describe('MeriResearchService — forced synthesis', () => {
       expect(doneIndex).toBeGreaterThan(errorIndex);
       expect(observed.at(-1)).toEqual({ type: 'done' });
       expect(runSpy).toHaveBeenCalledTimes(1);
-      expect(runner.streamChatSpy).toHaveBeenCalledTimes(1);
-      expect(runner.streamChatSpy.mock.calls[0]?.[0].input).toMatchObject({
+      // Terminal provider/cancel frames end each leaf immediately; neither
+      // leaf receives a schema correction and the parent still dispatches once.
+      expect(expectParentAndBoundedChildDispatches(runner, 0)).toMatchObject({
         toolPolicy: 'read-only',
         researchPlanExecution: {
           version: 1,
