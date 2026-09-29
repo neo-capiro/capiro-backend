@@ -7,7 +7,7 @@ import { sha256Bytes, sha256Stable, redactSecrets } from './artifact-collector.m
 export const APPROVED_LIVE_ORIGINS = Object.freeze(['https://app.capiro.ai']);
 export const AUTHORIZED_TENANTS = Object.freeze({
   'meri-foundation-20260928-t1': 'f2d6cf8f-057c-479a-8110-62fe5086d43f',
-  'meri-foundation-20260928-t2': '52e91176-08f-4d89-9633-bc212f5bdbbf',
+  'meri-foundation-20260928-t2': '52e91176-08f0-4d89-9633-bc212f5bdbbf',
 });
 export const SUPPORTED_CASE_IDS = Object.freeze(['01', '20']);
 const READ_ONLY_TOOL_DENY = /(?:create|update|delete|send|write|approve|reject|apply|execute|mutate|upload|propose)/iu;
