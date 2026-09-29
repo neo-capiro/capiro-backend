@@ -2,6 +2,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { runApprovedPreviewMaintenance } from './outreach-phase6-approved-preview-maintenance.mjs';
 
 const root = process.cwd();
 const phase5Base = '835cdef35cd8ecb23faf1b100ecfc743bcd31128';
@@ -40,6 +41,8 @@ function assert(condition, message) {
   }
 }
 
+if (runApprovedPreviewMaintenance(root, run)) process.exit(0);
+
 const required = [
   'docs/plans/outreach-v3/revised-phase-6-design-to-state-manifest.md',
   'apps/web/src/pages/engagement/outreach/v3/OutreachWizardRouter.tsx',
@@ -77,9 +80,13 @@ const phase45CloseoutApiFiles = new Set([
   'apps/api/src/capabilities/targets/outreach-target.contract.ts',
 ]);
 for (const file of changed) {
-  const isTestOrFixture = file.includes('.spec.') || file.includes('.test.') || file.includes('__fixtures__/');
+  const isTestOrFixture =
+    file.includes('.spec.') || file.includes('.test.') || file.includes('__fixtures__/');
   const isPhase45Closeout = phase45CloseoutApiFiles.has(file);
-  assert(!file.startsWith('apps/api/src/') || isTestOrFixture || isPhase45Closeout, `phase6-api-change:${file}`);
+  assert(
+    !file.startsWith('apps/api/src/') || isTestOrFixture || isPhase45Closeout,
+    `phase6-api-change:${file}`,
+  );
   assert(!file.startsWith('packages/'), `phase6-package-change:${file}`);
   assert(!file.startsWith('infra/'), `phase6-infrastructure-change:${file}`);
   assert(!file.includes('/prisma/migrations/'), `phase6-migration:${file}`);
@@ -120,15 +127,30 @@ assert(router.includes('initialRecord || props.initialDraftId'), 'classic-draft-
 assert(proposalReview.includes('Why this proposal?'), 'proposal-rationale-control-missing');
 assert(proposalReview.includes('Edit manually'), 'proposal-edit-control-missing');
 assert(proposalReview.includes('will not auto-rebase'), 'stale-proposal-no-rebase-copy-missing');
-assert(proposalReview.includes('disabled={proposalBusy || stale}'), 'stale-proposal-apply-guard-missing');
-assert(targets.includes('Read-only recommendations are allowed to load automatically'), 'target-read-only-load-contract-missing');
-assert(targets.includes('Saving to the shared Directory remains'), 'manual-directory-default-off-copy-missing');
+assert(
+  proposalReview.includes('disabled={proposalBusy || stale}'),
+  'stale-proposal-apply-guard-missing',
+);
+assert(
+  targets.includes('Read-only recommendations are allowed to load automatically'),
+  'target-read-only-load-contract-missing',
+);
+assert(
+  targets.includes('Saving to the shared Directory remains'),
+  'manual-directory-default-off-copy-missing',
+);
 assert(targets.includes('getOutreachV3TargetRelationships'), 'relationship-inspection-missing');
 assert(!targets.includes('void runSearch();'), 'target-stage-auto-commit');
 assert(context.includes('Style is not evidence'), 'writing-guidance-separation-missing');
 assert(context.includes('Applies to ${scopeTarget} only'), 'target-scope-copy-missing');
-assert(context.includes("entry.contextClass === 'required_policy'"), 'required-policy-lock-missing');
-assert(context.includes('Group-safe context requires a named audience group'), 'group-safe-fail-closed-missing');
+assert(
+  context.includes("entry.contextClass === 'required_policy'"),
+  'required-policy-lock-missing',
+);
+assert(
+  context.includes('Group-safe context requires a named audience group'),
+  'group-safe-fail-closed-missing',
+);
 
 for (const node of [
   '634:2703',
@@ -185,7 +207,11 @@ run('Outreach V3 focused tests', 'pnpm', [
 ]);
 run('Web production build', 'pnpm', ['--filter', '@capiro/web', 'build']);
 run('Diff whitespace', 'git', [
-  'diff', '--check', `${phase5Base}...HEAD`, '--', '.',
+  'diff',
+  '--check',
+  `${phase5Base}...HEAD`,
+  '--',
+  '.',
   ':(exclude)docs/plans/**/*.md',
   ':(exclude).github/**/*.yml',
   ':(exclude).github/**/*.yaml',

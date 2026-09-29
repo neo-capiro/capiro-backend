@@ -55,7 +55,7 @@ function resolvePnpm(args: string[]): { command: string; args: string[] } {
 }
 
 function run(label: string, command: string, args: string[], cwd = REPO_ROOT): void {
-  console.log(`\n==> ${label}`);
+  writeSync(1, `\n==> ${label}\n`);
   const resolved =
     command === 'pnpm' || command === 'pnpm.cmd' ? resolvePnpm(args) : { command, args };
   // Windows nested spawn under the long Phase 2/4-6 verifier chain can
@@ -83,8 +83,8 @@ function run(label: string, command: string, args: string[], cwd = REPO_ROOT): v
     if (result.error) throw result.error;
     const stdout = result.stdout ?? '';
     const stderr = result.stderr ?? '';
-    if (stdout) process.stdout.write(stdout);
-    if (stderr) process.stderr.write(stderr);
+    if (stdout) writeSync(1, stdout);
+    if (stderr) writeSync(2, stderr);
     lastStatus = result.status;
     if (result.status === 0) return;
 
@@ -103,10 +103,14 @@ function run(label: string, command: string, args: string[], cwd = REPO_ROOT): v
       console.warn(
         `==> ${label}: infrastructure crash (status=${String(result.status)} worker=${String(isWorkerCrash)} dll=${String(isDllCrash)}) attempt ${attempt}/${maxAttempts}; retrying in ${delayMs}ms shell=${String(useShell)}`,
       );
-      spawnSync(process.execPath, ['-e', `Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,${delayMs})`], {
-        stdio: 'ignore',
-        windowsHide: true,
-      });
+      spawnSync(
+        process.execPath,
+        ['-e', `Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,${delayMs})`],
+        {
+          stdio: 'ignore',
+          windowsHide: true,
+        },
+      );
       continue;
     }
     throw new Error(`${label} failed with exit code ${String(result.status)}`);
@@ -133,11 +137,7 @@ function walk(dir: string): string[] {
 
 function assertNoWebPreviewRouting(): void {
   const webSource = path.join(REPO_ROOT, 'apps/web/src');
-  const forbidden = [
-    'VITE_ENGAGEMENT_API_URL',
-    'http://127.0.0.1:4500',
-    'http://localhost:4500',
-  ];
+  const forbidden = ['VITE_ENGAGEMENT_API_URL', 'http://127.0.0.1:4500', 'http://localhost:4500'];
   const findings: string[] = [];
   for (const filename of walk(webSource)) {
     if (!/\.(ts|tsx|js|jsx|mjs|cjs)$/.test(filename)) continue;
@@ -175,14 +175,15 @@ function main(): void {
     run(`Generate Prisma client: ${pkg}`, 'pnpm', ['--filter', pkg, 'exec', 'prisma', 'generate']);
   }
 
-  run('Build workspace packages required by API tests', 'pnpm', [
-    '--filter',
+  for (const pkg of [
     '@capiro/shared',
-    '--filter',
+    '@capiro/defense-contracts',
+    '@capiro/defense-domain',
+    '@capiro/auth',
     '@capiro/meriv2-core',
-    'run',
-    'build',
-  ]);
+  ]) {
+    run(`Build workspace package: ${pkg}`, 'pnpm', ['--filter', pkg, 'run', 'build']);
+  }
 
   run('Phase 0 contract prerequisite', 'pnpm', [
     '--filter',
@@ -193,15 +194,7 @@ function main(): void {
   run(
     'Phase 1 manifests, runtime, route, timer, provider, bootstrap, health, and image-entrypoint tests',
     'pnpm',
-    [
-      '--filter',
-      '@capiro/api',
-      'exec',
-      'jest',
-      '--runInBand',
-      '--forceExit',
-      ...TEST_TARGETS,
-    ],
+    ['--filter', '@capiro/api', 'exec', 'jest', '--runInBand', '--forceExit', ...TEST_TARGETS],
   );
   run('Build API entrypoints', 'pnpm', ['--filter', '@capiro/api', 'run', 'build']);
 
@@ -225,8 +218,12 @@ function main(): void {
   run('Web regression suite', 'pnpm', ['--filter', '@capiro/web', 'test']);
   assertNoWebPreviewRouting();
   run('Committed diff whitespace validation', GIT, [
-    'diff', '--check', 'origin/main...HEAD', '--',
-    '.', ':(exclude)docs/plans/**/*.md',
+    'diff',
+    '--check',
+    'origin/main...HEAD',
+    '--',
+    '.',
+    ':(exclude)docs/plans/**/*.md',
   ]);
 
   // Write COMPLETE unbuffered so redirected nested logs see it before Windows
@@ -238,6 +235,6 @@ try {
   main();
 } catch (error) {
   writeSync(2, '\nENGAGEMENT_PHASE1_DB_FREE_FAILED\n');
-  console.error(error instanceof Error ? error.stack ?? error.message : String(error));
+  writeSync(2, `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`);
   process.exit(1);
 }

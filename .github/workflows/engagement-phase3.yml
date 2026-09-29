@@ -87,6 +87,14 @@ jobs:
           git diff --check
           test -z "$(git status --short)"
 
+      - name: Preserve nested verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: engagement-phase3-verification-logs
+          path: .artifacts/engagement-phase2-code/
+          if-no-files-found: ignore
+
       - name: Publish final commit status
         if: always()
         env:

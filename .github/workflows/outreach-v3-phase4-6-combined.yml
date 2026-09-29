@@ -26,6 +26,8 @@ concurrency:
 jobs:
   combined-code:
     runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -33,8 +35,6 @@ jobs:
           fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v7
         with:
@@ -43,6 +43,14 @@ jobs:
 
       - name: Install
         run: pnpm install --frozen-lockfile
+
+      - name: Build verification workspace prerequisites
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/meriv2-core build
 
       - name: Prisma generate
         run: pnpm --filter @capiro/api exec prisma generate

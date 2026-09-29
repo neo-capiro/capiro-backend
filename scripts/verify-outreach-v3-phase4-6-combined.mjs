@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveApprovedPreviewScope } from './outreach-phase6-approved-preview-maintenance.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PHASE3_BASE = 'b043a995928314f7085b7f9df94bdba02cee9640';
@@ -40,10 +41,12 @@ function assert(condition, message) {
 }
 
 const exactHead = output('git', ['rev-parse', 'HEAD']);
+const previewMaintenanceBase = resolveApprovedPreviewScope(ROOT, exactHead)?.base;
 const requestedHead = process.argv.includes('--sha')
   ? process.argv[process.argv.indexOf('--sha') + 1]
   : null;
-if (requestedHead) assert(exactHead === requestedHead, `HEAD_MISMATCH:${exactHead}:${requestedHead}`);
+if (requestedHead)
+  assert(exactHead === requestedHead, `HEAD_MISMATCH:${exactHead}:${requestedHead}`);
 
 for (const sha of [PHASE3_BASE, PHASE4_HEAD, PHASE5_HEAD]) {
   run(`Ancestor ${sha.slice(0, 12)}`, 'git', ['merge-base', '--is-ancestor', sha, exactHead]);
@@ -87,11 +90,17 @@ run('API build', 'pnpm', ['--filter', '@capiro/api', 'build']);
 run('Web full test suite', 'pnpm', ['--filter', '@capiro/web', 'test']);
 run('Web production build', 'pnpm', ['--filter', '@capiro/web', 'build']);
 run('Repository whitespace', 'git', [
-  'diff', '--check', `${PHASE3_BASE}...${exactHead}`, '--', '.',
+  'diff',
+  '--check',
+  `${previewMaintenanceBase ?? PHASE3_BASE}...${exactHead}`,
+  '--',
+  '.',
   ':(exclude)docs/plans/**/*.md',
   ':(exclude).github/**/*.yml',
   ':(exclude).github/**/*.yaml',
 ]);
 
 console.log(`\nOUTREACH_V3_PHASE4_6_COMBINED_CODE_COMPLETE:${exactHead}`);
-console.log('NOTE: deployed authenticated browser acceptance and independent review remain separate gates.');
+console.log(
+  'NOTE: deployed authenticated browser acceptance and independent review remain separate gates.',
+);

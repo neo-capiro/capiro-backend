@@ -237,10 +237,8 @@ jobs:
       - name: Boundary guard — adjacent runtimes remain independent
         run: |
           set -e
-          if grep -Rin "meriv3" apps/workspace/src apps/api-strategy/src apps/intel-api/src --include='*.ts' --include='*.tsx'; then
-            echo "MeriV3 must not be imported into Workspace, Strategy or intel-api during the chat canary."
-            exit 1
-          fi
+          node --test scripts/verify-meriv3-adjacent-import-boundary.spec.mjs
+          node scripts/verify-meriv3-adjacent-import-boundary.mjs
           if grep -Ein "type:[[:space:]]*['\"](thinking|reasoning)['\"]" \
             apps/meriv2-orchestrator/src/meri/meriv3/meriv3.controller.ts \
             apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts \
