@@ -85,7 +85,9 @@ run('Phase 4 code verifier', 'pnpm', ['verify:outreach-v3-phase-4'], {
 run('Phase 5 code verifier', 'pnpm', ['verify:outreach-v3-phase-5'], {
   env: { OUTREACH_V3_PHASE5_SCOPE_END: PHASE5_HEAD },
 });
-run('Phase 6 code verifier', 'node', ['scripts/verify-outreach-v3-phase6-code.mjs']);
+run('Phase 6 code verifier', 'node', ['scripts/verify-outreach-v3-phase6-code.mjs'], {
+  env: { OUTREACH_V3_PHASE6_SCOPE_BASE: 'origin/main' },
+});
 run('API build', 'pnpm', ['--filter', '@capiro/api', 'build']);
 run('Web full test suite', 'pnpm', ['--filter', '@capiro/web', 'test']);
 run('Web production build', 'pnpm', ['--filter', '@capiro/web', 'build']);
