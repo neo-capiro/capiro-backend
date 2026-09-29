@@ -1,15 +1,27 @@
+import { writeControlledCaptureReceipt } from './controlled-capture-receipt.mjs';
 import { readFileSync } from 'node:fs';
 import { ArtifactCollector, verifyCollectedArtifacts } from './artifact-collector.mjs';
-import { assertLiveCaptureReadiness, CaptureBlockedError, collectLiveReadCase } from './capture-transport.mjs';
+import {
+  assertLiveCaptureReadiness,
+  CaptureBlockedError,
+  collectLiveReadCase,
+} from './capture-transport.mjs';
 import { frozenFixture } from './fixture.mjs';
 
 const lock = JSON.parse(readFileSync(new URL('./contract-lock.json', import.meta.url), 'utf8'));
 
 export const CAPTURE_ADAPTER_VERSION = 'live-read-capture-v1';
 
-export function createCaptureEnvelope({ contract, runManifest, artifactRoot, ownerSha256, captures = [] }) {
+export function createCaptureEnvelope({
+  contract,
+  runManifest,
+  artifactRoot,
+  ownerSha256,
+  captures = [],
+}) {
   if (!contract || !runManifest) throw new TypeError('contract and runManifest are required');
-  if (typeof artifactRoot !== 'string' || typeof ownerSha256 !== 'string') throw new TypeError('artifactRoot and ownerSha256 are required');
+  if (typeof artifactRoot !== 'string' || typeof ownerSha256 !== 'string')
+    throw new TypeError('artifactRoot and ownerSha256 are required');
   if (!Array.isArray(captures)) throw new TypeError('captures must be an array');
   return {
     schemaVersion: 1,
@@ -32,11 +44,19 @@ export function createCaptureEnvelope({ contract, runManifest, artifactRoot, own
   };
 }
 
-export async function executeLiveCase({ config, caseId, runRoot, env = process.env, fetchImpl = fetch }) {
+export async function executeLiveCase({
+  config,
+  caseId,
+  runRoot,
+  env = process.env,
+  fetchImpl = fetch,
+  controlledReceiptContext = null,
+}) {
   if (!config || typeof config !== 'object') throw new TypeError('config is required');
   if (typeof caseId !== 'string') throw new TypeError('caseId is required');
   if (typeof runRoot !== 'string') throw new TypeError('runRoot is required');
-  if (typeof config.captureRunId !== 'string' || !config.captureRunId) throw new TypeError('config.captureRunId is required');
+  if (typeof config.captureRunId !== 'string' || !config.captureRunId)
+    throw new TypeError('config.captureRunId is required');
 
   try {
     assertLiveCaptureReadiness(config);
@@ -57,7 +77,10 @@ export async function executeLiveCase({ config, caseId, runRoot, env = process.e
     };
   }
 
-  const secretValues = [env.MERI_LIVE_BEARER_TOKEN ?? ''];
+  const secretValues = [
+    env.MERI_LIVE_BEARER_TOKEN ?? '',
+    controlledReceiptContext?.serviceSecret ?? '',
+  ];
   const owner = {
     schemaVersion: 1,
     kind: 'meri-live-v1-read-capture',
@@ -80,6 +103,13 @@ export async function executeLiveCase({ config, caseId, runRoot, env = process.e
       caseId,
       env,
       fetchImpl,
+      controlledReceiptContext,
+      onControlledReceipt: (input) =>
+        writeControlledCaptureReceipt({
+          collector,
+          ref: `cases/${caseId}/server-capture-receipt.json`,
+          ...input,
+        }),
       onExchange: async (exchange) => {
         requestIndex += 1;
         const prefix = `requests/${String(requestIndex).padStart(3, '0')}`;
@@ -134,6 +164,7 @@ export async function executeLiveCase({ config, caseId, runRoot, env = process.e
     gaps: result.gaps ?? [],
   });
   const integrity = await verifyCollectedArtifacts(runRoot);
-  if (!integrity.valid) throw new Error(`collector artifact integrity failure: ${integrity.errors.join('; ')}`);
+  if (!integrity.valid)
+    throw new Error(`collector artifact integrity failure: ${integrity.errors.join('; ')}`);
   return { ...result, manifest: manifest.manifest, integrity };
 }

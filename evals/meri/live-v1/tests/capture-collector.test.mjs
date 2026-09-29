@@ -1,3 +1,7 @@
+import {
+  signed as signedCaptureReceipt,
+  context as captureReceiptContext,
+} from './controlled-capture-receipt-fixtures.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
@@ -41,11 +45,33 @@ function config(origin, overrides = {}) {
     limits: { concurrency: 1, deadlineMs: 5_000, maxSpendUsd: 0.25 },
     scope: {
       tenants: { T1: { physicalId: TENANT, slug: 'meri-foundation-20260928-t1' } },
-      actors: { PAT: { userId: USER, clerkUserId: 'user_synthetic_pat', tenantPhysicalId: TENANT, role: 'standard_user' } },
+      actors: {
+        PAT: {
+          userId: USER,
+          clerkUserId: 'user_synthetic_pat',
+          tenantPhysicalId: TENANT,
+          role: 'standard_user',
+        },
+      },
       clients: { ASTER: { physicalId: CLIENT, tenantPhysicalId: TENANT, name: 'Aster Defense' } },
       sources: {
-        'MA1-v2': { frozenFixtureId: 'MA1-v2', physicalId: SOURCE, tenantPhysicalId: TENANT, clientPhysicalId: CLIENT, kind: 'memory', version: 'content:v2' },
-        'R2-27': { frozenFixtureId: 'R2-27', physicalId: '66666666-6666-4666-8666-666666666666', tenantPhysicalId: TENANT, clientPhysicalId: null, kind: 'budget_document', version: 'r2-v1', locator: 'page 14' },
+        'MA1-v2': {
+          frozenFixtureId: 'MA1-v2',
+          physicalId: SOURCE,
+          tenantPhysicalId: TENANT,
+          clientPhysicalId: CLIENT,
+          kind: 'memory',
+          version: 'content:v2',
+        },
+        'R2-27': {
+          frozenFixtureId: 'R2-27',
+          physicalId: '66666666-6666-4666-8666-666666666666',
+          tenantPhysicalId: TENANT,
+          clientPhysicalId: null,
+          kind: 'budget_document',
+          version: 'r2-v1',
+          locator: 'page 14',
+        },
       },
     },
   };
@@ -64,18 +90,29 @@ async function server(options = {}) {
   const instance = createServer(async (req, res) => {
     counts.total += 1;
     const url = new URL(req.url, 'http://127.0.0.1');
-    if (url.pathname === '/redirect-target') { counts.redirectedTarget += 1; return json(res, 200, { status: 'ok' }); }
+    if (url.pathname === '/redirect-target') {
+      counts.redirectedTarget += 1;
+      return json(res, 200, { status: 'ok' });
+    }
     if (url.pathname === '/health') {
-      if (options.redirect) { res.writeHead(302, { location: '/redirect-target' }); return res.end(); }
+      if (options.redirect) {
+        res.writeHead(302, { location: '/redirect-target' });
+        return res.end();
+      }
       return json(res, 200, { status: 'ok' }, { 'x-capiro-release-sha': API_SHA });
     }
-    if (url.pathname === '/api/me') return json(res, 200, {
-      user: { id: USER, clerkUserId: 'user_synthetic_pat' },
-      tenant: { id: TENANT, slug: 'meri-foundation-20260928-t1' },
-      role: 'standard_user', features: { meriv3Chat: true }, debugToken: SECRET,
-    });
-    if (url.pathname === '/api/clio/status') return json(res, 200, { configured: true, healthy: true });
-    if (url.pathname === '/api/clients') return json(res, 200, options.missingClient ? [] : [{ id: CLIENT, name: 'Aster Defense' }]);
+    if (url.pathname === '/api/me')
+      return json(res, 200, {
+        user: { id: USER, clerkUserId: 'user_synthetic_pat' },
+        tenant: { id: TENANT, slug: 'meri-foundation-20260928-t1' },
+        role: 'standard_user',
+        features: { meriv3Chat: true },
+        debugToken: SECRET,
+      });
+    if (url.pathname === '/api/clio/status')
+      return json(res, 200, { configured: true, healthy: true });
+    if (url.pathname === '/api/clients')
+      return json(res, 200, options.missingClient ? [] : [{ id: CLIENT, name: 'Aster Defense' }]);
     if (url.pathname === '/api/clio/conversations' && req.method === 'POST') {
       counts.conversation += 1;
       return json(res, 201, { id: CONVERSATION, clientId: CLIENT });
@@ -90,44 +127,120 @@ async function server(options = {}) {
       const citationId = options.sourceMismatch ? '77777777-7777-4777-8777-777777777777' : SOURCE;
       const events = [
         { type: 'turn_accepted', messageId: '88888888-8888-4888-8888-888888888888' },
-        { type: 'runtime', model: 'controlled-model', telemetry: { effectiveModel: 'controlled-model' } },
+        {
+          type: 'runtime',
+          model: 'controlled-model',
+          telemetry: { effectiveModel: 'controlled-model' },
+        },
         { type: 'tool_call', tool: 'search_institutional_memory', label: 'Memory' },
-        { type: 'sources', sources: [{ tool: 'search_institutional_memory', summary: 'one current record', confidence: 'high' }] },
+        {
+          type: 'sources',
+          sources: [
+            {
+              tool: 'search_institutional_memory',
+              summary: 'one current record',
+              confidence: 'high',
+            },
+          ],
+        },
         { type: 'text', text: 'Observed current approved memory.' },
-        { type: 'usage', usage: { inputTokens: 10, outputTokens: 5, ...(options.observedCostUsd === undefined ? {} : { costUsd: options.observedCostUsd }) } },
+        {
+          type: 'usage',
+          usage: {
+            inputTokens: 10,
+            outputTokens: 5,
+            ...(options.observedCostUsd === undefined ? {} : { costUsd: options.observedCostUsd }),
+          },
+        },
       ];
-      if (!options.missingSource) events.push({
-        type: 'citations',
-        citations: [{ n: 1, type: 'memory', id: citationId, title: 'Current memory', url: null, snippet: 'Observed current value', tool: 'search_institutional_memory', source: { kind: 'memory', recordId: citationId, clientId: CLIENT, version: 'content:v2' } }],
-      });
-      if (!options.interrupted) events.push({ type: 'done', messageId: MESSAGE, model: 'controlled-model', retrieval: { trace: { version: 1, observedToolCalls: 1 } } });
+      if (!options.missingSource)
+        events.push({
+          type: 'citations',
+          citations: [
+            {
+              n: 1,
+              type: 'memory',
+              id: citationId,
+              title: 'Current memory',
+              url: null,
+              snippet: 'Observed current value',
+              tool: 'search_institutional_memory',
+              source: {
+                kind: 'memory',
+                recordId: citationId,
+                clientId: CLIENT,
+                version: 'content:v2',
+              },
+            },
+          ],
+        });
+      if (!options.interrupted)
+        events.push({
+          type: 'done',
+          messageId: MESSAGE,
+          model: 'controlled-model',
+          retrieval: { trace: { version: 1, observedToolCalls: 1 } },
+          ...(options.frameReceipt ? { serverCaptureEvidenceReceipt: options.frameReceipt } : {}),
+        });
       for (const event of events) res.write(`data: ${JSON.stringify(event)}\n\n`);
       if (options.malformedFrame) res.write('data: {not-json}\n\n');
       if (options.unterminatedFrame) res.write('data: {"type":"text"');
-      if (options.duplicateDone) res.write(`data: ${JSON.stringify({ type: 'done', messageId: MESSAGE })}\n\n`);
-      if (options.postTerminal) res.write(`data: ${JSON.stringify({ type: 'runtime', model: 'after-terminal' })}\n\n`);
-      if (options.postTerminalText) res.write(`data: ${JSON.stringify({ type: 'text', text: 'Late untrusted text.' })}\n\n`);
-      if (options.frameOverflow) for (let index = 0; index < 4_097; index += 1) res.write(`: frame-${index}\n\n`);
+      if (options.duplicateDone)
+        res.write(`data: ${JSON.stringify({ type: 'done', messageId: MESSAGE })}\n\n`);
+      if (options.postTerminal)
+        res.write(`data: ${JSON.stringify({ type: 'runtime', model: 'after-terminal' })}\n\n`);
+      if (options.postTerminalText)
+        res.write(`data: ${JSON.stringify({ type: 'text', text: 'Late untrusted text.' })}\n\n`);
+      if (options.frameOverflow)
+        for (let index = 0; index < 4_097; index += 1) res.write(`: frame-${index}\n\n`);
       if (options.invalidUtf8) res.write(Buffer.from([0xc3, 0x28]));
       return res.end();
     }
     if (url.pathname === `/api/clio/conversations/${CONVERSATION}/messages`) {
       counts.messageReadback += 1;
+      if (options.withdrawAuthority) return json(res, 403, { error: 'access withdrawn' });
       if (options.messageReadbackNetworkError) {
         req.socket.destroy();
         return;
       }
-      return json(res, 200, [{ id: MESSAGE, role: 'assistant', body: options.messageReadbackMismatch ? 'Different canonical answer.' : 'Observed current approved memory.' }]);
+      return json(res, 200, [
+        {
+          id: MESSAGE,
+          role: 'assistant',
+          body: options.messageReadbackMismatch
+            ? 'Different canonical answer.'
+            : 'Observed current approved memory.',
+          ...(options.metadataReceipt
+            ? { metadata: { serverCaptureEvidenceReceipt: options.metadataReceipt } }
+            : {}),
+        },
+      ]);
     }
-    if (url.pathname === '/api/clio/sources') return json(res, 200, { kind: 'memory', status: 'available', recordId: url.searchParams.get('recordId'), sourceVersion: 'v2', text: 'Current server readback' });
+    if (url.pathname === '/api/clio/sources')
+      return json(res, 200, {
+        kind: 'memory',
+        status: 'available',
+        recordId: url.searchParams.get('recordId'),
+        sourceVersion: 'v2',
+        text: 'Current server readback',
+      });
     return json(res, 404, { error: 'not found' });
   });
   await new Promise((resolveReady) => instance.listen(0, '127.0.0.1', resolveReady));
   const address = instance.address();
-  return { origin: `http://127.0.0.1:${address.port}`, counts, close: () => new Promise((done) => instance.close(done)) };
+  return {
+    origin: `http://127.0.0.1:${address.port}`,
+    counts,
+    close: () => new Promise((done) => instance.close(done)),
+  };
 }
 
-async function run(options = {}, mutate = null, env = { MERI_LIVE_BEARER_TOKEN: SECRET }) {
+async function run(
+  options = {},
+  mutate = null,
+  env = { MERI_LIVE_BEARER_TOKEN: SECRET },
+  controlledReceiptContext = null,
+) {
   const fixture = await server(options);
   const scratch = await mkdtemp(join(tmpdir(), 'meri-live-collector-'));
   const value = config(fixture.origin);
@@ -135,8 +248,22 @@ async function run(options = {}, mutate = null, env = { MERI_LIVE_BEARER_TOKEN: 
   value.fixture.mappingSha256 = sourceMappingDigest(value);
   const runRoot = resolve(scratch, 'run');
   try {
-    const result = await executeLiveCase({ config: value, caseId: '01', runRoot, env });
-    return { result, runRoot, fixture, cleanup: async () => { await fixture.close(); await rm(scratch, { recursive: true, force: true }); } };
+    const result = await executeLiveCase({
+      config: value,
+      caseId: '01',
+      runRoot,
+      env,
+      controlledReceiptContext,
+    });
+    return {
+      result,
+      runRoot,
+      fixture,
+      cleanup: async () => {
+        await fixture.close();
+        await rm(scratch, { recursive: true, force: true });
+      },
+    };
   } catch (error) {
     await fixture.close();
     await rm(scratch, { recursive: true, force: true });
@@ -153,7 +280,9 @@ test('controlled collector captures real HTTP/SSE/readback bytes but remains UNI
     assert.equal(value.result.synthesisSubmissionCount, 1);
     assert.equal(value.result.links.sourceLinks[0].physicalSourceId, SOURCE);
     assert.equal(value.result.integrity.valid, true);
-  } finally { await value.cleanup(); }
+  } finally {
+    await value.cleanup();
+  }
 });
 
 test('interrupted SSE preserves uncertainty and never retries an ambiguously submitted chat', async () => {
@@ -163,7 +292,9 @@ test('interrupted SSE preserves uncertainty and never retries an ambiguously sub
     assert.equal(value.fixture.counts.stream, 1);
     assert.equal(value.result.synthesisSubmissionCount, 1);
     assert(value.result.gaps.includes('TERMINAL_DONE_MISSING_CAPTURE_UNCERTAIN'));
-  } finally { await value.cleanup(); }
+  } finally {
+    await value.cleanup();
+  }
 });
 
 test('missing auth blocks before any HTTP request', async () => {
@@ -172,15 +303,21 @@ test('missing auth blocks before any HTTP request', async () => {
     assert.equal(value.result.status, 'BLOCKED');
     assert.equal(value.result.reason, 'AUTH_MISSING');
     assert.equal(value.fixture.counts.total, 0);
-  } finally { await value.cleanup(); }
+  } finally {
+    await value.cleanup();
+  }
 });
 
 test('missing scope mapping blocks before synthesis', async () => {
-  const value = await run({}, (cfg) => { delete cfg.scope.actors.PAT; });
+  const value = await run({}, (cfg) => {
+    delete cfg.scope.actors.PAT;
+  });
   try {
     assert.equal(value.result.reason, 'SCOPE_MAPPING_MISSING');
     assert.equal(value.fixture.counts.stream, 0);
-  } finally { await value.cleanup(); }
+  } finally {
+    await value.cleanup();
+  }
 });
 
 test('missing client preflight blocks before conversation or synthesis', async () => {
@@ -190,7 +327,9 @@ test('missing client preflight blocks before conversation or synthesis', async (
     assert.equal(value.result.reason, 'CLIENT_SCOPE_MISMATCH');
     assert.equal(value.result.synthesisSubmissionCount, 0);
     assert.equal(value.fixture.counts.stream, 0);
-  } finally { await value.cleanup(); }
+  } finally {
+    await value.cleanup();
+  }
 });
 
 test('missing source evidence is an explicit incomplete capture gap', async () => {
@@ -198,7 +337,9 @@ test('missing source evidence is an explicit incomplete capture gap', async () =
   try {
     assert.equal(value.result.status, 'CAPTURE_INCOMPLETE');
     assert(value.result.gaps.includes('SOURCE_EVIDENCE_MISSING:MA1-v2'));
-  } finally { await value.cleanup(); }
+  } finally {
+    await value.cleanup();
+  }
 });
 
 test('observed source mismatch remains uncertain after submission and cannot be repaired from expected fixture fields', async () => {
@@ -208,19 +349,25 @@ test('observed source mismatch remains uncertain after submission and cannot be 
     assert(value.result.gaps.includes('SYNTHESIS_OUTCOME_UNKNOWN:SOURCE_EVIDENCE_MISMATCH'));
     assert.equal(value.result.synthesisSubmissionCount, 1);
     assert.equal(value.fixture.counts.stream, 1);
-  } finally { await value.cleanup(); }
+  } finally {
+    await value.cleanup();
+  }
 });
 
 test('authorization and response secrets are redacted from every persisted artifact', async () => {
   const value = await run();
   try {
-    const manifest = JSON.parse(await readFile(join(value.runRoot, 'capture-manifest.json'), 'utf8'));
+    const manifest = JSON.parse(
+      await readFile(join(value.runRoot, 'capture-manifest.json'), 'utf8'),
+    );
     for (const entry of manifest.artifacts) {
       const text = await readFile(join(value.runRoot, entry.ref), 'utf8');
       assert.equal(text.includes(SECRET), false, `${entry.ref} serialized a secret`);
       assert.equal(/Bearer\s+eyJ/iu.test(text), false, `${entry.ref} serialized bearer auth`);
     }
-  } finally { await value.cleanup(); }
+  } finally {
+    await value.cleanup();
+  }
 });
 
 test('redirects are rejected without following their target', async () => {
@@ -229,7 +376,9 @@ test('redirects are rejected without following their target', async () => {
     assert.equal(value.result.reason, 'REDIRECT_REJECTED');
     assert.equal(value.fixture.counts.redirectedTarget, 0);
     assert.equal(value.fixture.counts.stream, 0);
-  } finally { await value.cleanup(); }
+  } finally {
+    await value.cleanup();
+  }
 });
 
 test('artifact integrity detects tampering', async () => {
@@ -239,7 +388,9 @@ test('artifact integrity detects tampering', async () => {
     const integrity = await verifyCollectedArtifacts(value.runRoot);
     assert.equal(integrity.valid, false);
     assert(integrity.errors.some((error) => error.includes('sha256 mismatch')));
-  } finally { await value.cleanup(); }
+  } finally {
+    await value.cleanup();
+  }
 });
 
 test('LIVE_CAPTURE fails closed on missing server authority before any request, conversation, or synthesis', async () => {
@@ -251,7 +402,12 @@ test('LIVE_CAPTURE fails closed on missing server authority before any request, 
   });
   value.fixture.mappingSha256 = sourceMappingDigest(value);
   try {
-    const result = await executeLiveCase({ config: value, caseId: '01', runRoot: resolve(scratch, 'run'), env: { MERI_LIVE_BEARER_TOKEN: SECRET } });
+    const result = await executeLiveCase({
+      config: value,
+      caseId: '01',
+      runRoot: resolve(scratch, 'run'),
+      env: { MERI_LIVE_BEARER_TOKEN: SECRET },
+    });
     assert.equal(result.status, 'BLOCKED');
     assert.equal(result.reason, 'LIVE_SERVER_AUTHORITY_CONTRACT_MISSING');
     assert.equal(result.requestCount, 0);
@@ -279,7 +435,12 @@ test('LIVE_CAPTURE rejects the UI-only os.capiro.ai origin before readiness eval
     target: { environment: 'capiro-dev', apiOrigin: 'https://os.capiro.ai' },
   });
   try {
-    const result = await executeLiveCase({ config: value, caseId: '01', runRoot: resolve(scratch, 'run'), env: { MERI_LIVE_BEARER_TOKEN: SECRET } });
+    const result = await executeLiveCase({
+      config: value,
+      caseId: '01',
+      runRoot: resolve(scratch, 'run'),
+      env: { MERI_LIVE_BEARER_TOKEN: SECRET },
+    });
     assert.equal(result.status, 'BLOCKED');
     assert.equal(result.reason, 'TARGET_NOT_APPROVED');
     assert.equal(result.requestCount, 0);
@@ -290,7 +451,11 @@ test('LIVE_CAPTURE rejects the UI-only os.capiro.ai origin before readiness eval
 
 for (const [name, options, expectedGap] of [
   ['malformed trailing SSE frame after done', { malformedFrame: true }, 'SSE_MALFORMED_FRAME'],
-  ['unterminated trailing SSE frame after done', { unterminatedFrame: true }, 'SSE_UNTERMINATED_TRAILING_FRAME'],
+  [
+    'unterminated trailing SSE frame after done',
+    { unterminatedFrame: true },
+    'SSE_UNTERMINATED_TRAILING_FRAME',
+  ],
   ['duplicate terminal event', { duplicateDone: true }, 'SSE_DUPLICATE_TERMINAL_EVENT'],
   ['post-terminal event', { postTerminal: true }, 'SSE_POST_TERMINAL_EVENT'],
 ]) {
@@ -301,7 +466,9 @@ for (const [name, options, expectedGap] of [
       assert.equal(value.result.synthesisSubmissionCount, 1);
       assert.equal(value.fixture.counts.stream, 1);
       assert(value.result.gaps.includes(expectedGap));
-    } finally { await value.cleanup(); }
+    } finally {
+      await value.cleanup();
+    }
   });
 }
 
@@ -319,7 +486,9 @@ test('valid text after done is uncertain before late bytes affect answer or cano
     assert.equal(value.result.answer, 'Observed current approved memory.');
     assert(value.result.gaps.includes('SSE_POST_TERMINAL_EVENT'));
     assert(value.result.gaps.includes('POST_SUBMISSION_EFFECTS_UNCERTAIN'));
-  } finally { await value.cleanup(); }
+  } finally {
+    await value.cleanup();
+  }
 });
 
 test('canonical message mismatch after submission retains one-submission uncertainty', async () => {
@@ -331,7 +500,9 @@ test('canonical message mismatch after submission retains one-submission uncerta
     assert.equal(value.fixture.counts.messageReadback, 1);
     assert(value.result.gaps.includes('SYNTHESIS_OUTCOME_UNKNOWN:MESSAGE_READBACK_MISMATCH'));
     assert(value.result.gaps.includes('POST_SUBMISSION_EFFECTS_UNCERTAIN'));
-  } finally { await value.cleanup(); }
+  } finally {
+    await value.cleanup();
+  }
 });
 
 test('message readback network failure after submission retains one-submission uncertainty', async () => {
@@ -342,7 +513,9 @@ test('message readback network failure after submission retains one-submission u
     assert.equal(value.fixture.counts.stream, 1);
     assert.equal(value.fixture.counts.messageReadback, 1);
     assert(value.result.gaps.includes('SYNTHESIS_OUTCOME_UNKNOWN:NETWORK_ERROR'));
-  } finally { await value.cleanup(); }
+  } finally {
+    await value.cleanup();
+  }
 });
 
 test('stream network failure after request start but before headers is never retried or reported as zero submissions', async () => {
@@ -353,7 +526,9 @@ test('stream network failure after request start but before headers is never ret
     assert.equal(value.fixture.counts.stream, 1);
     assert(value.result.gaps.includes('SYNTHESIS_OUTCOME_UNKNOWN:NETWORK_ERROR'));
     assert(value.result.gaps.includes('POST_SUBMISSION_EFFECTS_UNCERTAIN'));
-  } finally { await value.cleanup(); }
+  } finally {
+    await value.cleanup();
+  }
 });
 
 test('invalid UTF-8 after done invalidates the stream without a retry', async () => {
@@ -363,7 +538,9 @@ test('invalid UTF-8 after done invalidates the stream without a retry', async ()
     assert.equal(value.result.synthesisSubmissionCount, 1);
     assert.equal(value.fixture.counts.stream, 1);
     assert(value.result.gaps.includes('SYNTHESIS_OUTCOME_UNKNOWN:RESPONSE_INVALID_UTF8'));
-  } finally { await value.cleanup(); }
+  } finally {
+    await value.cleanup();
+  }
 });
 
 test('SSE frame count is bounded and overflow remains a one-submission uncertainty', async () => {
@@ -373,7 +550,9 @@ test('SSE frame count is bounded and overflow remains a one-submission uncertain
     assert.equal(value.result.synthesisSubmissionCount, 1);
     assert.equal(value.fixture.counts.stream, 1);
     assert(value.result.gaps.includes('SYNTHESIS_OUTCOME_UNKNOWN:SSE_FRAME_LIMIT_EXCEEDED'));
-  } finally { await value.cleanup(); }
+  } finally {
+    await value.cleanup();
+  }
 });
 
 test('maxSpendUsd is only a post-hoc threshold and cannot claim provider reservation', async () => {
@@ -384,14 +563,19 @@ test('maxSpendUsd is only a post-hoc threshold and cannot claim provider reserva
     assert.equal(value.result.postHocSpendThresholdUsd, 0.25);
     assert.equal(value.result.observedCostUsd, 0.5);
     assert(value.result.gaps.includes('OBSERVED_COST_EXCEEDS_POST_HOC_THRESHOLD'));
-  } finally { await value.cleanup(); }
+  } finally {
+    await value.cleanup();
+  }
 });
 
 test('collector verifier rejects a same-byte external symlink substitution', async () => {
   const scratch = await mkdtemp(join(tmpdir(), 'meri-artifact-link-read-'));
   const root = resolve(scratch, 'root');
   try {
-    const collector = new ArtifactCollector(root, { captureRunId: 'link-read', provenance: 'UNIT_FIXTURE_NOT_LIVE' });
+    const collector = new ArtifactCollector(root, {
+      captureRunId: 'link-read',
+      provenance: 'UNIT_FIXTURE_NOT_LIVE',
+    });
     await collector.init();
     await collector.writeText('linked.txt', 'same bytes');
     await collector.finalize({ status: 'NOT_RUN' });
@@ -411,11 +595,17 @@ test('collector refuses a dangling symlink destination without writing outside t
   const scratch = await mkdtemp(join(tmpdir(), 'meri-artifact-link-write-'));
   const root = resolve(scratch, 'root');
   try {
-    const collector = new ArtifactCollector(root, { captureRunId: 'link-write', provenance: 'UNIT_FIXTURE_NOT_LIVE' });
+    const collector = new ArtifactCollector(root, {
+      captureRunId: 'link-write',
+      provenance: 'UNIT_FIXTURE_NOT_LIVE',
+    });
     await collector.init();
     const outside = resolve(scratch, 'escaped.txt');
     await symlink(outside, resolve(root, 'escape.txt'));
-    await assert.rejects(collector.writeText('escape.txt', 'must stay owned'), /already exists or is linked/iu);
+    await assert.rejects(
+      collector.writeText('escape.txt', 'must stay owned'),
+      /already exists or is linked/iu,
+    );
     await assert.rejects(readFile(outside, 'utf8'), { code: 'ENOENT' });
   } finally {
     await rm(scratch, { recursive: true, force: true });
@@ -426,7 +616,10 @@ test('collector verifier rejects owned parent replacement with a directory repar
   const scratch = await mkdtemp(join(tmpdir(), 'meri-artifact-parent-link-'));
   const root = resolve(scratch, 'root');
   try {
-    const collector = new ArtifactCollector(root, { captureRunId: 'parent-link', provenance: 'UNIT_FIXTURE_NOT_LIVE' });
+    const collector = new ArtifactCollector(root, {
+      captureRunId: 'parent-link',
+      provenance: 'UNIT_FIXTURE_NOT_LIVE',
+    });
     await collector.init();
     await collector.writeText('cases/01/answer.txt', 'owned');
     await collector.finalize({ status: 'NOT_RUN' });
@@ -435,7 +628,11 @@ test('collector verifier rejects owned parent replacement with a directory repar
     await rename(resolve(root, 'cases'), original);
     await mkdir(resolve(outside, '01'), { recursive: true });
     await writeFile(resolve(outside, '01/answer.txt'), 'owned');
-    await symlink(outside, resolve(root, 'cases'), process.platform === 'win32' ? 'junction' : 'dir');
+    await symlink(
+      outside,
+      resolve(root, 'cases'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    );
     const integrity = await verifyCollectedArtifacts(root);
     assert.equal(integrity.valid, false);
     assert(integrity.errors.some((error) => /symlink|reparse|linked/iu.test(error)));
@@ -448,7 +645,11 @@ test('portable collector refuses LIVE_CAPTURE path mode because directory handle
   const scratch = await mkdtemp(join(tmpdir(), 'meri-artifact-live-path-'));
   try {
     assert.throws(
-      () => new ArtifactCollector(resolve(scratch, 'root'), { captureRunId: 'live-path', provenance: 'LIVE_CAPTURE' }),
+      () =>
+        new ArtifactCollector(resolve(scratch, 'root'), {
+          captureRunId: 'live-path',
+          provenance: 'LIVE_CAPTURE',
+        }),
       (error) => error?.code === 'LIVE_ARTIFACT_PATH_UNSAFE',
     );
   } finally {
@@ -457,7 +658,10 @@ test('portable collector refuses LIVE_CAPTURE path mode because directory handle
 });
 
 test('CLI returns nonzero for controlled incomplete and uncertain captures', async () => {
-  for (const [options, expectedExit] of [[{}, 4], [{ invalidUtf8: true }, 3]]) {
+  for (const [options, expectedExit] of [
+    [{}, 4],
+    [{ invalidUtf8: true }, 3],
+  ]) {
     const fixture = await server(options);
     const scratch = await mkdtemp(join(tmpdir(), 'meri-capture-cli-'));
     const configPath = resolve(scratch, 'scope.json');
@@ -468,7 +672,10 @@ test('CLI returns nonzero for controlled incomplete and uncertain captures', asy
     const originalLog = console.log;
     console.log = () => {};
     try {
-      const exitCode = await captureCli(['--config', configPath, '--case', '01', '--out', outputRoot], { MERI_LIVE_BEARER_TOKEN: SECRET });
+      const exitCode = await captureCli(
+        ['--config', configPath, '--case', '01', '--out', outputRoot],
+        { MERI_LIVE_BEARER_TOKEN: SECRET },
+      );
       assert.equal(exitCode, expectedExit);
     } finally {
       console.log = originalLog;
@@ -488,35 +695,222 @@ test('case 20 uses the same bounded API mechanism and exposes missing canonical 
   await original();
   const case20Server = createServer((req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1');
-    if (url.pathname === '/health') return json(res, 200, { status: 'ok' }, { 'x-capiro-release-sha': API_SHA });
-    if (url.pathname === '/api/me') return json(res, 200, { user: { id: USER, clerkUserId: 'user_synthetic_pat' }, tenant: { id: TENANT, slug: 'meri-foundation-20260928-t1' }, role: 'standard_user', features: { meriv3Chat: true } });
-    if (url.pathname === '/api/clio/status') return json(res, 200, { configured: true, healthy: true });
-    if (url.pathname === '/api/clients') return json(res, 200, [{ id: CLIENT, name: 'Aster Defense' }]);
-    if (url.pathname === '/api/clio/conversations' && req.method === 'POST') return json(res, 201, { id: CONVERSATION, clientId: CLIENT });
+    if (url.pathname === '/health')
+      return json(res, 200, { status: 'ok' }, { 'x-capiro-release-sha': API_SHA });
+    if (url.pathname === '/api/me')
+      return json(res, 200, {
+        user: { id: USER, clerkUserId: 'user_synthetic_pat' },
+        tenant: { id: TENANT, slug: 'meri-foundation-20260928-t1' },
+        role: 'standard_user',
+        features: { meriv3Chat: true },
+      });
+    if (url.pathname === '/api/clio/status')
+      return json(res, 200, { configured: true, healthy: true });
+    if (url.pathname === '/api/clients')
+      return json(res, 200, [{ id: CLIENT, name: 'Aster Defense' }]);
+    if (url.pathname === '/api/clio/conversations' && req.method === 'POST')
+      return json(res, 201, { id: CONVERSATION, clientId: CLIENT });
     if (url.pathname.endsWith('/stream')) {
       res.writeHead(200, { 'content-type': 'text/event-stream' });
       for (const event of [
-        { type: 'turn_accepted' }, { type: 'runtime', model: 'controlled-model' },
+        { type: 'turn_accepted' },
+        { type: 'runtime', model: 'controlled-model' },
         { type: 'tool_call', tool: 'get_pe_budget_timeline', label: 'PE budget' },
         { type: 'text', text: 'Observed budget response.' },
         { type: 'usage', usage: { inputTokens: 8, outputTokens: 4 } },
-        { type: 'citations', citations: [{ id: budgetSource.physicalId, title: 'Observed R-2 record', tool: 'get_pe_budget_timeline', snippet: 'Observed passage' }] },
-        { type: 'done', messageId: MESSAGE, model: 'controlled-model', retrieval: { trace: { version: 1 } } },
-      ]) res.write(`data: ${JSON.stringify(event)}\n\n`);
+        {
+          type: 'citations',
+          citations: [
+            {
+              id: budgetSource.physicalId,
+              title: 'Observed R-2 record',
+              tool: 'get_pe_budget_timeline',
+              snippet: 'Observed passage',
+            },
+          ],
+        },
+        {
+          type: 'done',
+          messageId: MESSAGE,
+          model: 'controlled-model',
+          retrieval: { trace: { version: 1 } },
+        },
+      ])
+        res.write(`data: ${JSON.stringify(event)}\n\n`);
       return res.end();
     }
-    if (url.pathname.endsWith('/messages')) return json(res, 200, [{ id: MESSAGE, role: 'assistant', body: 'Observed budget response.' }]);
+    if (url.pathname.endsWith('/messages'))
+      return json(res, 200, [
+        { id: MESSAGE, role: 'assistant', body: 'Observed budget response.' },
+      ]);
     return json(res, 404, {});
   });
   await new Promise((done) => case20Server.listen(0, '127.0.0.1', done));
   const address = case20Server.address();
   value.target.apiOrigin = `http://127.0.0.1:${address.port}`;
   try {
-    const result = await executeLiveCase({ config: value, caseId: '20', runRoot: resolve(scratch, 'run'), env: { MERI_LIVE_BEARER_TOKEN: SECRET } });
+    const result = await executeLiveCase({
+      config: value,
+      caseId: '20',
+      runRoot: resolve(scratch, 'run'),
+      env: { MERI_LIVE_BEARER_TOKEN: SECRET },
+    });
     assert.equal(result.status, 'CAPTURE_INCOMPLETE');
     assert(result.gaps.includes('CANONICAL_SOURCE_READBACK_UNAVAILABLE:R2-27'));
   } finally {
     await new Promise((done) => case20Server.close(done));
     await rm(scratch, { recursive: true, force: true });
+  }
+});
+
+function controlledReceiptOptions() {
+  const frameReceipt = signedCaptureReceipt();
+  return { frameReceipt, metadataReceipt: structuredClone(frameReceipt) };
+}
+const controlledRun = (value) => {
+  value.captureRunId = 'controlled-run';
+};
+
+test('controlled HTTP terminal receipt matches authorized metadata and survives separate artifact serialization', async () => {
+  const options = controlledReceiptOptions();
+  const value = await run(options, controlledRun, undefined, captureReceiptContext());
+  try {
+    assert.equal(value.result.serverCaptureEvidence.status, 'NOT_RUN');
+    assert.equal(
+      value.result.serverCaptureEvidence.signatureCheck,
+      'VALID_FOR_INDEPENDENTLY_SUPPLIED_POLICY',
+    );
+    assert.equal(value.result.serverCaptureEvidence.missingOwners.length, 4);
+    assert.equal(value.result.acceptanceStatus, 'NOT_RUN');
+    assert.equal(value.result.synthesisSubmissionCount, 1);
+    const stored = JSON.parse(
+      await readFile(join(value.runRoot, 'cases/01/server-capture-receipt.json'), 'utf8'),
+    );
+    assert.deepEqual(stored, options.frameReceipt);
+    assert.equal(value.result.integrity.valid, true);
+  } finally {
+    await value.cleanup();
+  }
+});
+
+test('controlled matching receipt cannot bootstrap authority from config or itself', async () => {
+  const value = await run(controlledReceiptOptions(), (conf) => {
+    controlledRun(conf);
+    conf.trustedPolicy = captureReceiptContext().trustedPolicy;
+  });
+  try {
+    assert.ok(value.result.gaps.includes('CAPTURE_RECEIPT_INDEPENDENT_POLICY_MISSING'));
+    await assert.rejects(
+      readFile(join(value.runRoot, 'cases/01/server-capture-receipt.json')),
+      /ENOENT/,
+    );
+    assert.equal(value.result.synthesisSubmissionCount, 1);
+  } finally {
+    await value.cleanup();
+  }
+});
+
+for (const [name, change, expected] of [
+  [
+    'missing frame',
+    (o) => {
+      delete o.frameReceipt;
+    },
+    'CAPTURE_RECEIPT_FRAME_MISSING',
+  ],
+  [
+    'missing metadata',
+    (o) => {
+      delete o.metadataReceipt;
+    },
+    'CAPTURE_RECEIPT_METADATA_MISSING',
+  ],
+  [
+    'nested metadata tamper',
+    (o) => {
+      o.metadataReceipt.receipt.usage.inputTokens.value++;
+    },
+    'CAPTURE_RECEIPT_PAIR_MISMATCH',
+  ],
+  [
+    'duplicate terminal',
+    (o) => {
+      o.duplicateDone = true;
+    },
+    'MULTIPLE_TERMINAL_DONE_EVENTS',
+  ],
+  [
+    'post-terminal frame',
+    (o) => {
+      o.postTerminal = true;
+    },
+    'SSE_POST_TERMINAL_EVENT',
+  ],
+  [
+    'withdrawn message authorization',
+    (o) => {
+      o.withdrawAuthority = true;
+    },
+    'HTTP',
+  ],
+])
+  test(
+    'controlled receipt transport refuses ' + name + ' without retry or signed artifact',
+    async () => {
+      const options = controlledReceiptOptions();
+      change(options);
+      const value = await run(options, controlledRun, undefined, captureReceiptContext());
+      try {
+        assert.equal(value.result.synthesisSubmissionCount, 1);
+        assert.equal(value.result.acceptanceStatus, 'NOT_RUN');
+        assert.ok(
+          value.result.gaps.some((gap) => gap.includes(expected)),
+          JSON.stringify(value.result.gaps),
+        );
+        await assert.rejects(
+          readFile(join(value.runRoot, 'cases/01/server-capture-receipt.json')),
+          /ENOENT/,
+        );
+      } finally {
+        await value.cleanup();
+      }
+    },
+  );
+
+test('independent policy must also match the observed transport conversation tuple', async () => {
+  const options = controlledReceiptOptions();
+  const trusted = captureReceiptContext();
+  trusted.trustedPolicy.conversationId = 'other';
+  const value = await run(options, controlledRun, undefined, trusted);
+  try {
+    assert.ok(value.result.gaps.some((gap) => gap.includes('TRANSPORT_TUPLE_MISMATCH')));
+    assert.equal(value.result.synthesisSubmissionCount, 1);
+  } finally {
+    await value.cleanup();
+  }
+});
+
+test('rejected signed secret is absent from every generic HTTP and stream artifact', async () => {
+  const options = controlledReceiptOptions();
+  options.frameReceipt.receipt.sources[0].locator.value = captureReceiptContext().serviceSecret;
+  options.frameReceipt = signedCaptureReceipt(options.frameReceipt.receipt);
+  options.metadataReceipt = structuredClone(options.frameReceipt);
+  const value = await run(options, controlledRun, undefined, captureReceiptContext());
+  try {
+    assert.ok(value.result.gaps.some((gap) => gap.includes('SECRET_DETECTED')));
+    const manifest = JSON.parse(
+      await readFile(join(value.runRoot, 'capture-manifest.json'), 'utf8'),
+    );
+    for (const artifact of manifest.artifacts) {
+      const text = await readFile(join(value.runRoot, artifact.ref), 'utf8');
+      assert.equal(text.includes(captureReceiptContext().serviceSecret), false, artifact.ref);
+    }
+    assert.equal(value.result.synthesisSubmissionCount, 1);
+    await assert.rejects(
+      readFile(join(value.runRoot, 'cases/01/server-capture-receipt.json')),
+      /ENOENT/,
+    );
+  } finally {
+    await value.cleanup();
   }
 });

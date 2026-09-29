@@ -237,6 +237,11 @@ export class ArtifactCollector {
     return descriptor;
   }
 
+  readBytes(ref) {
+    if (!this.initialized) throw new Error('collector is not initialized');
+    return readOwnedFile(this.root, this.rootIdentity, ref);
+  }
+
   writeText(ref, text) {
     return this.writeBytes(ref, Buffer.from(redactSecrets(String(text), this.secretValues), 'utf8'));
   }
