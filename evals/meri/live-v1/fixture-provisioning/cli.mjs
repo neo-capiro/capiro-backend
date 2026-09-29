@@ -7,6 +7,7 @@ import {
   APPLY_CONFIRMATION,
   FIXTURE_NAMESPACE,
   RESET_CONFIRMATION,
+  RETIRE_CONFIRMATION,
   FixtureProvisioningError,
 } from './contract.mjs';
 import { buildFixtureManifest } from './manifest.mjs';
@@ -17,6 +18,7 @@ import {
   planOwnedReset,
   verifyFixture,
 } from './provisioner.mjs';
+import { planOwnedRetirement, applyOwnedRetirement, verifyOwnedRetirement } from './retirement.mjs';
 
 function parseArgs(argv) {
   const args = { command: 'plan' };
@@ -160,6 +162,27 @@ async function main() {
         adapter,
         confirmation: args.confirm,
       });
+    } else if (
+      ['retirement-plan', 'owned-retirement', 'verify-retirement'].includes(args.command)
+    ) {
+      const seedReceipt = await readJson(requireAbsolute(args, 'seed-receipt'));
+      const replacementManifest = await readJson(requireAbsolute(args, 'replacement-manifest'));
+      const input = { manifest, replacementManifest, seedReceipt, adapter };
+      if (args.command === 'retirement-plan') {
+        receipt = await planOwnedRetirement(input);
+      } else {
+        const retirementPlan = await readJson(requireAbsolute(args, 'retirement-plan'));
+        if (args.command === 'owned-retirement') {
+          receipt = await applyOwnedRetirement({
+            ...input,
+            retirementPlan,
+            confirmation: args.confirm,
+          });
+        } else {
+          const retirementReceipt = await readJson(requireAbsolute(args, 'retirement-receipt'));
+          receipt = await verifyOwnedRetirement({ ...input, retirementPlan, retirementReceipt });
+        }
+      }
     } else {
       throw new FixtureProvisioningError('COMMAND_INVALID', `unsupported command ${args.command}`);
     }
@@ -191,4 +214,4 @@ main()
     process.exitCode = 1;
   });
 
-export { APPLY_CONFIRMATION, RESET_CONFIRMATION };
+export { APPLY_CONFIRMATION, RESET_CONFIRMATION, RETIRE_CONFIRMATION };

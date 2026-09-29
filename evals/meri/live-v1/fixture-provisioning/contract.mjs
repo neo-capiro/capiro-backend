@@ -8,6 +8,7 @@ export const FIXTURE_NAMESPACE = 'meri-foundation-20260928';
 export const OWNED_MARKER = `${FIXTURE_NAMESPACE}:${PROVISIONING_CONTRACT_VERSION}`;
 export const APPLY_CONFIRMATION = 'APPLY_OWNED_MERI_SYNTHETIC_FIXTURE';
 export const RESET_CONFIRMATION = 'RESET_MANIFEST_LISTED_MERI_SYNTHETIC_FIXTURE';
+export const RETIRE_CONFIRMATION = 'RETIRE_MANIFEST_LISTED_MERI_SYNTHETIC_FIXTURE';
 
 export const AUTHORIZED_TENANTS = Object.freeze({
   T1: Object.freeze({
@@ -134,6 +135,9 @@ const RECEIPT_KINDS = new Set([
   'meri-synthetic-fixture-verify-receipt',
   'meri-synthetic-fixture-reset-plan',
   'meri-synthetic-fixture-reset-receipt',
+  'meri-synthetic-fixture-retirement-plan',
+  'meri-synthetic-fixture-retirement-receipt',
+  'meri-synthetic-fixture-retirement-verify-receipt',
 ]);
 
 /** Content identity only: a valid hash never substitutes for canonical readback. */
