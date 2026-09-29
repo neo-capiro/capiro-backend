@@ -14,7 +14,8 @@
     "src/ai-credentials/ai-credential-resolver.service.ts",
     "src/engagement/runtime/engagement-runtime-policy.service.ts",
     "src/engagement/runtime/engagement-runtime.types.ts",
-    "src/engagement-api.app.module.ts"
+    "src/engagement-api.app.module.ts",
+    "src/types/word-extractor.d.ts"
   ],
   "exclude": [
     "node_modules",
