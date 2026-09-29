@@ -8,6 +8,18 @@ export interface MeriServerReadonlyCapturePolicy {
   version: typeof MERI_CAPTURE_POLICY_VERSION;
   kind: 'server_readonly_acceptance_capture';
   policyId: string;
+  /** Server-generated correlation identities; never accepted from model/tool text. */
+  requestId: string;
+  traceId: string;
+  /** Bound by the API after its authorized user-message write. */
+  turnId: string | null;
+  /** Current fixture-owner bindings. Null remains an explicit evidence blocker. */
+  caseId: string | null;
+  captureRunId: string | null;
+  fixtureVersion: string | null;
+  physicalMapSha256: string | null;
+  resetReceiptId: string | null;
+  seedReceiptId: string | null;
   fixtureNamespace: typeof MERI_CAPTURE_POLICY_NAMESPACE;
   tenantId: string;
   tenantSlug: 'meri-foundation-20260928-t1' | 'meri-foundation-20260928-t2';
@@ -136,6 +148,15 @@ export function decodeAndVerifyMeriCapturePolicyTransport(
     policy.expiresAt - policy.issuedAt > 30 * 60_000 ||
     !/^[a-f0-9]{64}$/.test(policy.toolCatalogSha256) ||
     !/^[a-f0-9-]{20,100}$/i.test(policy.policyId) ||
+    !/^[a-f0-9-]{20,100}$/i.test(policy.requestId) ||
+    !/^[a-f0-9-]{20,100}$/i.test(policy.traceId) ||
+    (policy.turnId !== null && !policy.turnId.trim()) ||
+    (policy.caseId !== null && !/^(0[1-9]|[1-6][0-9]|7[0-5])$/.test(policy.caseId)) ||
+    (policy.captureRunId !== null && !policy.captureRunId.trim()) ||
+    (policy.fixtureVersion !== null && !policy.fixtureVersion.trim()) ||
+    (policy.physicalMapSha256 !== null && !/^[a-f0-9]{64}$/.test(policy.physicalMapSha256)) ||
+    (policy.resetReceiptId !== null && !policy.resetReceiptId.trim()) ||
+    (policy.seedReceiptId !== null && !policy.seedReceiptId.trim()) ||
     !/^[a-f0-9]{64}$/.test(envelope.signature)
   ) {
     throw new Error('meri_capture_transport_authentication_failed');

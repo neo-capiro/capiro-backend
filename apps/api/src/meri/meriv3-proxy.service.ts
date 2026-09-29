@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util';
 import { captureMeriTurnScope } from './meri-turn-scope.js';
 import {
   authorizeMeriProspectScope,
@@ -29,6 +30,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { MERI_CAPABILITY_REGISTRY, type TenantContext } from '@capiro/shared';
+import type { SignedMeriCaptureEvidenceReceipt } from '@capiro/meriv2-core';
 import { MeriConversationEvidenceService } from './meri-conversation-evidence.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ordinaryClioArtifactWhere } from '../common/internal-clio-artifact.js';
@@ -72,14 +74,18 @@ import {
 import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
 import { MeriResearchService } from './meri-research.service.js';
 import {
+  bindCurrentMeriCaptureTurn,
+  currentMeriCaptureEvidenceReceipt,
   currentMeriServerReadonlyCapturePolicy,
   currentMeriServerReadonlyCaptureReceipt,
+  setCurrentMeriCaptureEvidenceReceipt,
 } from './meri-context-plane-runtime.js';
 import {
   assertMeriServerReadonlyCaptureCurrentAuthority,
   assertMeriServerReadonlyCaptureNoArtifactWrites,
   assertMeriServerReadonlyCaptureTurnInput,
   createMeriServerReadonlyCaptureOutputFence,
+  finalizeMeriServerCaptureEvidence,
 } from './meri-server-readonly-capture.js';
 import {
   allocateBoundedReplayHistory,
@@ -165,12 +171,14 @@ export class MeriV3ProxyService {
     const turnStartedAt = Date.now();
     const browserSse = sse;
     const emit = (event: Record<string, unknown>) => {
+      const captureEvidence = event.type === 'done' ? currentMeriCaptureEvidenceReceipt() : null;
       const captureReceipt =
         event.type === 'done' ? currentMeriServerReadonlyCaptureReceipt() : null;
       sse.write(
         `data: ${JSON.stringify({
           ...event,
           ...(captureReceipt ? { serverReadonlyCaptureReceipt: captureReceipt } : {}),
+          ...(captureEvidence ? { serverCaptureEvidenceReceipt: captureEvidence } : {}),
         })}\n\n`,
       );
     };
@@ -232,7 +240,7 @@ export class MeriV3ProxyService {
       ctx,
       conversation.metadata,
     );
-    const capturePolicy = currentMeriServerReadonlyCapturePolicy();
+    let capturePolicy = currentMeriServerReadonlyCapturePolicy();
     assertMeriServerReadonlyCaptureTurnInput({ policy: capturePolicy, mode, attachmentIds });
     await assertMeriServerReadonlyCaptureCurrentAuthority({
       prisma: this.prisma,
@@ -263,6 +271,9 @@ export class MeriV3ProxyService {
         );
       }
       sourceMessageId = await this.persistUserMessage(ctx, conversation, content, attachmentIds);
+      if (capturePolicy && sourceMessageId) {
+        capturePolicy = bindCurrentMeriCaptureTurn(sourceMessageId) ?? capturePolicy;
+      }
     } else {
       const prior = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.clioMessage.findMany({
@@ -436,6 +447,7 @@ export class MeriV3ProxyService {
     let runtimeTelemetry: MeriV3ProviderTelemetry | null = null;
     let providerCalls: MeriV3ProviderTelemetry[] = [];
     let doneFrame: Extract<MeriV3ChatStreamEvent, { type: 'done' }> | null = null;
+    let orchestratorCaptureEvidence: SignedMeriCaptureEvidenceReceipt | null = null;
     let groundingCaveat: {
       topSeverity: string | null;
       findings: Array<{ check: string; severity: string; detail: string }>;
@@ -541,6 +553,7 @@ export class MeriV3ProxyService {
           return;
         case 'done':
           doneFrame = event;
+          orchestratorCaptureEvidence = event.serverCaptureEvidenceObservation ?? null;
           runtimeModel = event.model;
           runtimeEffort = event.reasoningEffort;
           runtimeTelemetry = event.telemetry ?? runtimeTelemetry;
@@ -766,6 +779,17 @@ export class MeriV3ProxyService {
         },
       );
       assistantMessageId = message.id;
+      if (capturePolicy && sourceMessageId && orchestratorCaptureEvidence) {
+        await this.persistCaptureEvidenceReceipt({
+          ctx,
+          conversationId,
+          clientId: conversation.clientId,
+          policy: capturePolicy,
+          userMessageId: sourceMessageId,
+          assistantMessageId,
+          orchestrator: orchestratorCaptureEvidence,
+        });
+      }
       assertMeriServerReadonlyCaptureNoArtifactWrites(capturePolicy, artifactIds);
       if (artifactIds.length) {
         await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -1184,6 +1208,76 @@ export class MeriV3ProxyService {
       this.maintenance.scheduleAfterTurnMaintenance(ctx, conversationId);
     }
     return message;
+  }
+
+  private async persistCaptureEvidenceReceipt(args: {
+    ctx: TenantContext;
+    conversationId: string;
+    clientId: string | null;
+    policy: NonNullable<ReturnType<typeof currentMeriServerReadonlyCapturePolicy>>;
+    userMessageId: string;
+    assistantMessageId: string;
+    orchestrator: SignedMeriCaptureEvidenceReceipt;
+  }): Promise<void> {
+    await assertMeriServerReadonlyCaptureCurrentAuthority({
+      prisma: this.prisma,
+      ctx: args.ctx,
+      policy: args.policy,
+    });
+    const receipt = finalizeMeriServerCaptureEvidence({
+      policy: args.policy,
+      orchestrator: args.orchestrator,
+      userMessageId: args.userMessageId,
+      assistantMessageId: args.assistantMessageId,
+    });
+    await this.prisma.withTenant(args.ctx.tenantId, async (tx) => {
+      const current = await tx.clioMessage.findFirst({
+        where: {
+          id: args.assistantMessageId,
+          tenantId: args.ctx.tenantId,
+          userId: args.ctx.userId,
+          conversationId: args.conversationId,
+          clientId: args.clientId,
+          role: 'assistant',
+        },
+        select: { metadata: true },
+      });
+      if (!current) throw new Error('meri_capture_assistant_message_readback_missing');
+      const metadata =
+        current.metadata && typeof current.metadata === 'object' && !Array.isArray(current.metadata)
+          ? (current.metadata as Record<string, unknown>)
+          : {};
+      await tx.clioMessage.update({
+        where: { id: args.assistantMessageId },
+        data: {
+          metadata: {
+            ...metadata,
+            serverCaptureEvidenceReceipt: receipt,
+          } as unknown as Prisma.InputJsonValue,
+        },
+      });
+      const readback = await tx.clioMessage.findFirst({
+        where: {
+          id: args.assistantMessageId,
+          tenantId: args.ctx.tenantId,
+          userId: args.ctx.userId,
+          conversationId: args.conversationId,
+          clientId: args.clientId,
+          role: 'assistant',
+        },
+        select: { metadata: true },
+      });
+      const readbackMetadata =
+        readback?.metadata &&
+        typeof readback.metadata === 'object' &&
+        !Array.isArray(readback.metadata)
+          ? (readback.metadata as Record<string, unknown>)
+          : null;
+      if (!isDeepStrictEqual(readbackMetadata?.serverCaptureEvidenceReceipt, receipt)) {
+        throw new Error('meri_capture_receipt_readback_mismatch');
+      }
+    });
+    setCurrentMeriCaptureEvidenceReceipt(receipt);
   }
 }
 

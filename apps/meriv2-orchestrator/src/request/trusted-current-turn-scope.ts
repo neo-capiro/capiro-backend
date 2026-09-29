@@ -56,6 +56,9 @@ export function validateServerReadonlyCapturePolicy(
     policy.actorUserId !== binding.actorUserId ||
     policy.conversationId !== binding.conversationId ||
     policy.clientId !== binding.clientId ||
+    !policy.requestId.trim() ||
+    !policy.traceId.trim() ||
+    !policy.turnId?.trim() ||
     policy.dynamicMcpAllowed !== false ||
     policy.incidentalWriters !== 'suppressed'
   ) {

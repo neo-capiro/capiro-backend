@@ -5,12 +5,19 @@ import type { Request } from 'express';
 import type {
   MeriServerReadonlyCapturePolicy,
   MeriServerReadonlyCaptureReceipt,
+  SignedMeriCaptureEvidenceReceipt,
 } from '@capiro/meriv2-core';
 import {
+  completeMeriCaptureEvidenceReceipt,
   decodeAndVerifyMeriCapturePolicyTransport,
+  meriCaptureEvidenceEnvelopeSha256,
   MERI_CAPTURE_POLICY_HEADER,
   MERI_CAPTURE_POLICY_NAMESPACE,
+  observed,
+  signMeriCaptureEvidenceReceipt,
   type MeriCaptureTransportPurpose,
+  unknown,
+  verifyMeriCaptureEvidenceReceipt,
 } from '@capiro/meriv2-core';
 import type { PrismaService } from '../prisma/prisma.service.js';
 
@@ -45,7 +52,9 @@ export function meriReadonlyCaptureCatalogSha256(): string {
     .digest('hex');
 }
 
-export function isMeriReadonlyCaptureTenant(ctx: Pick<TenantContext, 'tenantId' | 'tenantSlug'>): boolean {
+export function isMeriReadonlyCaptureTenant(
+  ctx: Pick<TenantContext, 'tenantId' | 'tenantSlug'>,
+): boolean {
   return (
     SYNTHETIC_TENANTS.has(ctx.tenantId) ||
     (typeof ctx.tenantSlug === 'string' &&
@@ -101,11 +110,24 @@ export async function issueMeriServerReadonlyCapturePolicy(args: {
   if (!expectedSlug && !isMeriReadonlyCaptureTenant(args.ctx)) return null;
   if (expectedSlug !== args.ctx.tenantSlug) throw captureDenied('tenant_identity_rebound');
   const issuedAt = args.now ?? Date.now();
-  const conversation = await currentCaptureAuthorityRows(args.prisma, args.ctx, args.conversationId);
+  const conversation = await currentCaptureAuthorityRows(
+    args.prisma,
+    args.ctx,
+    args.conversationId,
+  );
   const policy: MeriServerReadonlyCapturePolicy = {
     version: 1,
     kind: 'server_readonly_acceptance_capture',
     policyId: randomUUID(),
+    requestId: randomUUID(),
+    traceId: randomUUID(),
+    turnId: null,
+    caseId: conversation?.captureBinding.caseId ?? null,
+    captureRunId: conversation?.captureBinding.captureRunId ?? null,
+    fixtureVersion: conversation?.captureBinding.fixtureVersion ?? null,
+    physicalMapSha256: conversation?.captureBinding.physicalMapSha256 ?? null,
+    resetReceiptId: conversation?.captureBinding.resetReceiptId ?? null,
+    seedReceiptId: conversation?.captureBinding.seedReceiptId ?? null,
     fixtureNamespace: MERI_CAPTURE_POLICY_NAMESPACE,
     tenantId: args.ctx.tenantId,
     tenantSlug: expectedSlug,
@@ -147,7 +169,16 @@ export async function assertMeriServerReadonlyCaptureCurrentAuthority(args: {
     args.ctx,
     policy.conversationId,
   );
-  if (!conversation || conversation.clientId !== policy.clientId) {
+  if (
+    !conversation ||
+    conversation.clientId !== policy.clientId ||
+    conversation.captureBinding.caseId !== policy.caseId ||
+    conversation.captureBinding.captureRunId !== policy.captureRunId ||
+    conversation.captureBinding.fixtureVersion !== policy.fixtureVersion ||
+    conversation.captureBinding.physicalMapSha256 !== policy.physicalMapSha256 ||
+    conversation.captureBinding.resetReceiptId !== policy.resetReceiptId ||
+    conversation.captureBinding.seedReceiptId !== policy.seedReceiptId
+  ) {
     throw captureDenied('server_current_conversation_or_client_authority_missing');
   }
   return { client: conversation.client };
@@ -262,6 +293,77 @@ export function meriServerReadonlyCaptureReceipt(
   };
 }
 
+export function finalizeMeriServerCaptureEvidence(args: {
+  policy: MeriServerReadonlyCapturePolicy;
+  orchestrator: SignedMeriCaptureEvidenceReceipt;
+  userMessageId: string;
+  assistantMessageId: string;
+  completedAt?: number;
+  secret?: string;
+}): SignedMeriCaptureEvidenceReceipt {
+  const secret = args.secret ?? process.env.INTERNAL_SERVICE_SECRET;
+  const orchestrator = verifyMeriCaptureEvidenceReceipt(
+    args.orchestrator,
+    args.policy,
+    secret,
+    args.completedAt,
+  );
+  const releaseRevision = currentReleaseRevision();
+  const receipt = completeMeriCaptureEvidenceReceipt({
+    ...orchestrator,
+    completedAt: args.completedAt ?? Date.now(),
+    releases: {
+      ...orchestrator.releases,
+      api: {
+        service: 'api',
+        releaseRevision: releaseRevision
+          ? observed(releaseRevision)
+          : unknown('runtime_release_revision_unavailable'),
+        identityContract: 'runtime_environment_v1',
+        deploymentProof: 'PENDING_APPROVED_BUILD_RECEIPT_CROSSCHECK',
+      },
+    },
+    effects: {
+      boundary: 'bounded_capture_path_hooks',
+      writes: [
+        ...orchestrator.effects.writes,
+        {
+          logicalWriteId: `${args.policy.requestId}:user-message`,
+          kind: 'conversation_user_message',
+          phase: 'during',
+          status: 'observed',
+          recordId: args.userMessageId,
+        },
+        {
+          logicalWriteId: `${args.policy.requestId}:assistant-message`,
+          kind: 'conversation_assistant_message',
+          phase: 'during',
+          status: 'observed',
+          recordId: args.assistantMessageId,
+        },
+        {
+          logicalWriteId: `${args.policy.requestId}:receipt-metadata`,
+          kind: 'assistant_receipt_metadata',
+          phase: 'after',
+          status: 'observed',
+          recordId: args.assistantMessageId,
+        },
+      ],
+      logicalEffects: orchestrator.effects.logicalEffects,
+    },
+    predecessorAttestationSha256: meriCaptureEvidenceEnvelopeSha256(args.orchestrator),
+  });
+  return signMeriCaptureEvidenceReceipt(receipt, secret);
+}
+
+function currentReleaseRevision(): string | null {
+  const value =
+    process.env.GIT_SHA ??
+    process.env.SOURCE_VERSION ??
+    process.env.CODEBUILD_RESOLVED_SOURCE_VERSION;
+  return typeof value === 'string' && /^[a-f0-9]{40}$/.test(value) ? value : null;
+}
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -275,6 +377,14 @@ async function currentCaptureAuthorityRows(
 ): Promise<{
   clientId: string | null;
   client: { id: string; name: string } | null;
+  captureBinding: {
+    caseId: string | null;
+    captureRunId: string | null;
+    fixtureVersion: string | null;
+    physicalMapSha256: string | null;
+    resetReceiptId: string | null;
+    seedReceiptId: string | null;
+  };
 } | null> {
   return prisma.withTenant(ctx.tenantId, async (tx) => {
     const [tenant, actor, membership, conversation] = await Promise.all([
@@ -317,6 +427,7 @@ async function currentCaptureAuthorityRows(
     ]);
     const settings = asRecord(tenant?.settings);
     const fixture = asRecord(settings?.meriFoundationFixture);
+    const captureBinding = asRecord(fixture?.captureEvidence);
     const actorName = `${actor?.firstName ?? ''} ${actor?.lastName ?? ''}`.trim();
     const expectedSlug = SYNTHETIC_TENANTS.get(ctx.tenantId);
     const client = conversation?.client;
@@ -341,8 +452,22 @@ async function currentCaptureAuthorityRows(
     return {
       clientId: conversation.clientId,
       client: client ? { id: client.id, name: client.name } : null,
+      captureBinding: {
+        caseId: captureString(captureBinding?.caseId, /^(0[1-9]|[1-6][0-9]|7[0-5])$/),
+        captureRunId: captureString(captureBinding?.captureRunId),
+        fixtureVersion: captureString(captureBinding?.fixtureVersion),
+        physicalMapSha256: captureString(captureBinding?.physicalMapSha256, /^[a-f0-9]{64}$/),
+        resetReceiptId: captureString(captureBinding?.resetReceiptId),
+        seedReceiptId: captureString(captureBinding?.seedReceiptId),
+      },
     };
   });
+}
+
+function captureString(value: unknown, pattern?: RegExp): string | null {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const normalized = value.trim();
+  return !pattern || pattern.test(normalized) ? normalized : null;
 }
 
 function assertExactCapturePolicy(
@@ -354,6 +479,9 @@ function assertExactCapturePolicy(
     policy.version !== 1 ||
     policy.kind !== 'server_readonly_acceptance_capture' ||
     policy.fixtureNamespace !== MERI_CAPTURE_POLICY_NAMESPACE ||
+    !/^[a-f0-9-]{20,100}$/i.test(policy.requestId) ||
+    !/^[a-f0-9-]{20,100}$/i.test(policy.traceId) ||
+    (policy.turnId !== null && !policy.turnId.trim()) ||
     policy.tenantId !== ctx.tenantId ||
     policy.tenantSlug !== ctx.tenantSlug ||
     policy.actorUserId !== ctx.userId ||

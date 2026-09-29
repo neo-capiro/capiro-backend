@@ -4532,6 +4532,15 @@ describe('Stage 2 orchestrator hardening', () => {
         version: 1,
         kind: 'server_readonly_acceptance_capture',
         policyId: 'capture-policy-1',
+        requestId: 'capture-request-1',
+        traceId: 'capture-trace-1',
+        turnId: null,
+        caseId: null,
+        captureRunId: null,
+        fixtureVersion: null,
+        physicalMapSha256: null,
+        resetReceiptId: null,
+        seedReceiptId: null,
         fixtureNamespace: 'meri-foundation-20260928',
         tenantId: context.tenantId,
         tenantSlug: 'meri-foundation-20260928-t1',
@@ -4558,7 +4567,7 @@ describe('Stage 2 orchestrator hardening', () => {
         ],
       };
 
-      await withTrustedCurrentTurnScope(
+      const captureResult = await withTrustedCurrentTurnScope(
         {
           tenantId: context.tenantId,
           userId: context.userId,
@@ -4583,6 +4592,23 @@ describe('Stage 2 orchestrator hardening', () => {
         'unavailable tool request was blocked',
       );
       expect(invoke).not.toHaveBeenCalled();
+      expect(captureResult.captureEvidence?.toolCalls).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            callId: 'capture-search-analysis',
+            name: 'tool_search',
+            readOnly: true,
+          }),
+          expect.objectContaining({
+            callId: 'capture-describe-analysis',
+            name: 'tool_describe',
+            readOnly: true,
+          }),
+          expect.objectContaining({ callId: 'capture-invoke-analysis', status: 'failed' }),
+        ]),
+      );
+      // Mock legacy usage zeros are not an actual provider usage observation.
+      expect(captureResult.captureEvidence?.estimatedCostUsd.status).toBe('UNKNOWN');
     });
 
     test('withholds a name, description, and telemetry when the registry withdraws it before search', async () => {

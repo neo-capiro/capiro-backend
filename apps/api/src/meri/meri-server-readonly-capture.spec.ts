@@ -3,6 +3,7 @@ import type { Request } from 'express';
 import {
   encodeMeriCapturePolicyTransport,
   MERI_CAPTURE_POLICY_HEADER,
+  verifyMeriCaptureEvidenceReceipt,
   type MeriServerReadonlyCapturePolicy,
 } from '@capiro/meriv2-core';
 import type { TenantContext } from '@capiro/shared';
@@ -10,6 +11,7 @@ import { MeriController } from './meri.controller.js';
 import { MeriService } from './meri.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import {
+  bindCurrentMeriCaptureTurn,
   currentMeriGovernedRuntime,
   MeriContextPlaneRuntimeService,
 } from './meri-context-plane-runtime.js';
@@ -20,6 +22,11 @@ import {
   issueMeriServerReadonlyCapturePolicy,
   meriReadonlyCaptureCatalogSha256,
 } from './meri-server-readonly-capture.js';
+import {
+  buildApiOnlyMeriServerCaptureEvidence,
+  persistMeriServerCaptureEvidenceReceipt,
+} from './meri-server-capture-evidence.js';
+import { MeriV3ProxyService } from './meriv3-proxy.service.js';
 
 const SECRET = 'capture-service-secret';
 const TENANT_ID = 'f2d6cf8f-057c-479a-8110-62fe5086d43f';
@@ -52,6 +59,15 @@ function policy(
     version: 1,
     kind: 'server_readonly_acceptance_capture',
     policyId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    requestId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    traceId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    turnId: null,
+    caseId: '01',
+    captureRunId: 'run-1',
+    fixtureVersion: 'fixture-v1',
+    physicalMapSha256: 'd'.repeat(64),
+    resetReceiptId: 'reset-1',
+    seedReceiptId: 'seed-1',
     fixtureNamespace: 'meri-foundation-20260928',
     tenantId: TENANT_ID,
     tenantSlug: TENANT_SLUG,
@@ -92,13 +108,26 @@ function authorityHarness() {
     membershipActive: true,
     conversationClientId: CLIENT_ID as string | null,
     memoryAuthorized: true,
+    messages: [] as any[],
   };
   const tx = {
     tenant: {
       findUnique: jest.fn(async () => ({
         id: TENANT_ID,
         slug: TENANT_SLUG,
-        settings: { meriFoundationFixture: { fixtureNamespace: 'meri-foundation-20260928' } },
+        settings: {
+          meriFoundationFixture: {
+            fixtureNamespace: 'meri-foundation-20260928',
+            captureEvidence: {
+              caseId: '01',
+              captureRunId: 'run-1',
+              fixtureVersion: 'fixture-v1',
+              physicalMapSha256: 'd'.repeat(64),
+              resetReceiptId: 'reset-1',
+              seedReceiptId: 'seed-1',
+            },
+          },
+        },
       })),
     },
     user: {
@@ -129,9 +158,26 @@ function authorityHarness() {
       })),
     },
     clioMessage: {
-      create: jest.fn(async ({ data }: any) => ({ id: `message-${data.role}` })),
-      findMany: jest.fn(async () => []),
-      update: jest.fn(async () => ({})),
+      create: jest.fn(async ({ data }: any) => {
+        const row = { ...data, id: `message-${data.role}` };
+        state.messages.push(row);
+        return row;
+      }),
+      findFirst: jest.fn(
+        async ({ where }: any) =>
+          state.messages.find(
+            (row) =>
+              (!where.id || row.id === where.id) &&
+              (!where.conversationId || row.conversationId === where.conversationId) &&
+              (!where.role || row.role === where.role),
+          ) ?? null,
+      ),
+      findMany: jest.fn(async () => state.messages),
+      update: jest.fn(async ({ where, data }: any) => {
+        const row = state.messages.find((candidate) => candidate.id === where.id);
+        if (row) Object.assign(row, data);
+        return row ?? {};
+      }),
       deleteMany: jest.fn(async () => ({ count: 0 })),
     },
     clioAttachment: {
@@ -184,6 +230,48 @@ describe('server-owned read-only acceptance capture boundary', () => {
     jest.restoreAllMocks();
   });
 
+  test('raw producer emits authenticated BLOCKED evidence with actual usage and write identities', () => {
+    const current = policy({ turnId: 'message-user' });
+    const signed = buildApiOnlyMeriServerCaptureEvidence({
+      policy: current,
+      userMessageId: 'message-user',
+      assistantMessageId: 'message-assistant',
+      citations: [{ id: 'private-source', snippet: 'actual observed passage' }],
+      usage: { inputTokens: 11, outputTokens: 7 },
+      secret: SECRET,
+    });
+    const verified = verifyMeriCaptureEvidenceReceipt(signed, current, SECRET);
+
+    expect(verified.status).toBe('BLOCKED');
+    expect(verified.blockers).toEqual(
+      expect.arrayContaining([
+        'orchestrator_release_unproved',
+        'source_tenant_authority_unproved:private-source',
+      ]),
+    );
+    expect(verified.usage).toMatchObject({
+      provider: { status: 'NOT_RUN', value: null },
+      model: { status: 'NOT_RUN', value: null },
+      inputTokens: { status: 'OBSERVED', value: 11 },
+      outputTokens: { status: 'OBSERVED', value: 7 },
+      estimatedCostUsd: { status: 'NOT_RUN', value: null },
+    });
+    expect(verified.effects.writes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'conversation_user_message',
+          recordId: 'message-user',
+          status: 'observed',
+        }),
+        expect.objectContaining({
+          kind: 'conversation_assistant_message',
+          recordId: 'message-assistant',
+          status: 'observed',
+        }),
+      ]),
+    );
+  });
+
   test('issues policy only from current synthetic fixture, actor, conversation, and client authority', async () => {
     const { prisma, state } = authorityHarness();
 
@@ -222,6 +310,85 @@ describe('server-owned read-only acceptance capture boundary', () => {
     ).rejects.toMatchObject({ status: 403 });
   });
 
+  test.each(['api-only', 'proxy'])(
+    'receipt readback in %s tolerates JSONB key order and rejects content tampering',
+    async (owner) => {
+      const { prisma, state, tx } = authorityHarness();
+      const current = policy({ turnId: 'message-user' });
+      const receipt = buildApiOnlyMeriServerCaptureEvidence({
+        policy: current,
+        userMessageId: 'message-user',
+        assistantMessageId: 'message-assistant',
+        citations: [],
+        usage: null,
+        secret: SECRET,
+      });
+      state.messages.push({
+        id: 'message-assistant',
+        conversationId: CONVERSATION_ID,
+        tenantId: TENANT_ID,
+        userId: ACTOR_ID,
+        clientId: CLIENT_ID,
+        role: 'assistant',
+        metadata: {},
+      });
+      const reorder = (value: any): any =>
+        Array.isArray(value)
+          ? value.map(reorder)
+          : value && typeof value === 'object'
+            ? Object.fromEntries(
+                Object.entries(value)
+                  .reverse()
+                  .map(([key, item]) => [key, reorder(item)]),
+              )
+            : value;
+      const update = tx.clioMessage.update.getMockImplementation()!;
+      let tamper = false;
+      tx.clioMessage.update.mockImplementation(async (args: any) => {
+        const result = await update(args);
+        result.metadata = reorder(result.metadata);
+        if (tamper) result.metadata.serverCaptureEvidenceReceipt.receipt.traceId = 'tampered';
+        return result;
+      });
+      const proxy = Object.assign(Object.create(MeriV3ProxyService.prototype), { prisma }) as any;
+      const persist = () =>
+        owner === 'api-only'
+          ? persistMeriServerCaptureEvidenceReceipt({
+              prisma: prisma as never,
+              ctx: captureCtx,
+              policy: current,
+              assistantMessageId: 'message-assistant',
+              receipt,
+            })
+          : proxy.persistCaptureEvidenceReceipt({
+              ctx: captureCtx,
+              conversationId: CONVERSATION_ID,
+              clientId: CLIENT_ID,
+              policy: current,
+              userMessageId: 'message-user',
+              assistantMessageId: 'message-assistant',
+              orchestrator: receipt,
+            });
+      const runtime = new MeriContextPlaneRuntimeService(
+        prisma as never,
+        {
+          resolveChat: async () => ({
+            retrieval: { plan: { subjectScope: 'client' } },
+          }),
+        } as never,
+      );
+      await runtime.runChatTurn(
+        captureCtx,
+        { conversationId: CONVERSATION_ID, body: 'Read the source', mode: 'new' },
+        async () => {
+          await expect(persist()).resolves.toBeUndefined();
+          tamper = true;
+          await expect(persist()).rejects.toThrow('meri_capture_receipt_readback_mismatch');
+        },
+      );
+    },
+  );
+
   test('runtime proxy prerequisite binds the issued policy before dispatch', async () => {
     const { prisma } = authorityHarness();
     const governed = {
@@ -254,6 +421,46 @@ describe('server-owned read-only acceptance capture boundary', () => {
     ).resolves.toBe('dispatched');
     expect(dispatch).toHaveBeenCalledTimes(1);
   });
+
+  test.each([false, true])(
+    'turn binding preserves output-fence current-authority checks (revoked=%s)',
+    async (revoked) => {
+      const { prisma, state } = authorityHarness();
+      const runtime = new MeriContextPlaneRuntimeService(
+        prisma as never,
+        {
+          resolveChat: async () => ({ retrieval: { plan: { subjectScope: 'client' } } }),
+        } as never,
+      );
+      await runtime.runChatTurn(
+        captureCtx,
+        { conversationId: CONVERSATION_ID, body: 'Read the source', mode: 'new' },
+        async () => {
+          const before = currentMeriGovernedRuntime()!.capturePolicy!;
+          expect(before.turnId).toBeNull();
+          const released: string[] = [];
+          const fence = createMeriServerReadonlyCaptureOutputFence({
+            prisma: prisma as never,
+            ctx: captureCtx,
+            policy: before,
+            destination: { write: (chunk) => released.push(chunk) },
+          });
+          const bound = bindCurrentMeriCaptureTurn('persisted-user-message');
+          expect(bound).toEqual({ ...before, turnId: 'persisted-user-message' });
+          expect(before.turnId).toBeNull();
+          fence.writer.write('private response');
+          state.membershipActive = !revoked;
+          if (revoked) {
+            await expect(fence.release()).rejects.toMatchObject({ status: 403 });
+            expect(released).toEqual([]);
+          } else {
+            await expect(fence.release()).resolves.toBeUndefined();
+            expect(released).toEqual(['private response']);
+          }
+        },
+      );
+    },
+  );
 
   test('capture output fence preserves exact parser chunks and order only after a current-authority release', async () => {
     const { prisma } = authorityHarness();

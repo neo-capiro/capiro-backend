@@ -5,6 +5,7 @@ import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import type {
   MeriServerReadonlyCapturePolicy,
   MeriServerReadonlyCaptureReceipt,
+  SignedMeriCaptureEvidenceReceipt,
 } from '@capiro/meriv2-core';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { planTurnRerun } from './meri-turn.helpers.js';
@@ -20,6 +21,7 @@ export interface MeriGovernedRuntimeState {
   context: MeriGovernedTurnContext;
   activeClient: { id: string; name: string } | null;
   capturePolicy?: MeriServerReadonlyCapturePolicy | null;
+  captureEvidenceReceipt?: SignedMeriCaptureEvidenceReceipt | null;
 }
 
 const runtime = new AsyncLocalStorage<MeriGovernedRuntimeState>();
@@ -34,6 +36,28 @@ export function currentMeriServerReadonlyCapturePolicy(): MeriServerReadonlyCapt
 
 export function currentMeriServerReadonlyCaptureReceipt(): MeriServerReadonlyCaptureReceipt | null {
   return meriServerReadonlyCaptureReceipt(currentMeriServerReadonlyCapturePolicy());
+}
+
+export function bindCurrentMeriCaptureTurn(turnId: string): MeriServerReadonlyCapturePolicy | null {
+  const state = runtime.getStore();
+  if (!state?.capturePolicy) return null;
+  if (!turnId.trim()) throw new Error('meri_capture_turn_id_missing');
+  const policy = Object.freeze({ ...state.capturePolicy, turnId: turnId.trim() });
+  state.capturePolicy = policy;
+  state.context = { ...state.context, serverReadonlyCapturePolicy: policy };
+  return policy;
+}
+
+export function setCurrentMeriCaptureEvidenceReceipt(
+  receipt: SignedMeriCaptureEvidenceReceipt,
+): void {
+  const state = runtime.getStore();
+  if (!state?.capturePolicy) throw new Error('meri_capture_runtime_missing');
+  state.captureEvidenceReceipt = receipt;
+}
+
+export function currentMeriCaptureEvidenceReceipt(): SignedMeriCaptureEvidenceReceipt | null {
+  return runtime.getStore()?.captureEvidenceReceipt ?? null;
 }
 
 @Injectable()
