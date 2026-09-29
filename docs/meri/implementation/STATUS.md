@@ -1,5 +1,9 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-29 canonical revocation contention
+
+Source f097ff4a8 locks memory items before the existing revocation checks. Actual PostgreSQL output reproduced revocation despite a concurrent legal hold and a second success/cleanup after a competing revocation. Both are repaired: four actual database checks, 51 existing regressions and the API production build pass with exit 0. See memory-revocation-lock-qualification.md for exact scope, minimal-schema limits and independent-review disposition. This is a canonical-owner prerequisite, not approved-fixture retirement or full original acceptance completion.
+
 ## Current checkpoint — 2026-09-29 fixture command identity propagation
 
 Source 334be4810 fixes a CLI configuration omission that silently reverted instance-based fixture requests to legacy physical identities. The actual CLI regression fails three of four checks before repair; all 37 CLI/fixture contract checks pass afterward, with separate Hermes/Bedrock Kimi static review exit 0. See fixture-instance-qualification.md. This restores the operator path for the existing identity feature; it does not complete fixture lifecycle, trusted capture or served acceptance.
