@@ -20,11 +20,12 @@ const { Pool } = require('pg');
 const configPath = process.env.MERI_FIXTURE_POSTGRES_CONFIG;
 const TENANT = AUTHORIZED_TENANTS.T1.id;
 const USER = '44444444-4444-4444-8444-444444444444';
+const REVIEWER = '66666666-6666-4666-8666-666666666666';
 const CLIENT = '11111111-1111-4111-8111-111111111111';
 
 describe('built canonical memory candidate command runtime', { skip: !configPath }, () => {
   const schema = `meri_candidate_${randomUUID().replaceAll('-', '')}`;
-  let pool, adapter, manifest, config;
+  let pool, adapter, manifest, config, approvalPrisma, approvalService, memoryStore, tenantContext;
   const beforeEnv = {
     database: process.env.DATABASE_URL,
     namespace: process.env.MERI_SYNTHETIC_FIXTURE_NAMESPACE,
@@ -43,10 +44,12 @@ describe('built canonical memory candidate command runtime', { skip: !configPath
     await pool.query(`CREATE SCHEMA "${schema}"`);
     await pool.query(`
       CREATE TABLE "${schema}".tenants(id uuid PRIMARY KEY, slug text);
-      CREATE TABLE "${schema}".tenant_memberships(tenant_id uuid, user_id uuid, status text);
-      CREATE TABLE "${schema}".clients(id uuid PRIMARY KEY, tenant_id uuid, memory_wall boolean NOT NULL DEFAULT false);
+      CREATE TABLE "${schema}".tenant_memberships(tenant_id uuid, user_id uuid, status text, role text DEFAULT 'standard_user');
+      CREATE TABLE "${schema}".clients(id uuid PRIMARY KEY, tenant_id uuid, memory_wall boolean NOT NULL DEFAULT false, status text DEFAULT 'active');
       CREATE TABLE "${schema}".client_memory_access(tenant_id uuid, client_id uuid, user_id uuid);
-      CREATE TABLE "${schema}".clio_memory(id uuid, tenant_id uuid, scope text, key text, owner_user_id uuid, client_id uuid);
+      CREATE TABLE "${schema}".clio_memory(id uuid PRIMARY KEY, tenant_id uuid, scope text, key text, owner_user_id uuid, client_id uuid,
+        value text, source text, metadata_jsonb jsonb DEFAULT '{}', expires_at timestamptz,
+        created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now());
       CREATE TABLE "${schema}".memory_candidate(
         id uuid PRIMARY KEY, tenant_id uuid, proposed_by uuid, source_kind text,
         scope text, client_id uuid, payload_jsonb jsonb, provenance_jsonb jsonb,
@@ -76,7 +79,30 @@ describe('built canonical memory candidate command runtime', { skip: !configPath
         source_id text, proposal_id uuid, impersonation_session_id uuid,
         metadata_jsonb jsonb DEFAULT '{}', occurred_at timestamptz DEFAULT now()
       );
-      CREATE TABLE "${schema}".review_request(id uuid PRIMARY KEY, tenant_id uuid, subject_id text, status text)
+      CREATE TABLE "${schema}".review_request(id uuid PRIMARY KEY, tenant_id uuid, subject_id text, status text);
+      CREATE TABLE "${schema}".memory_access_grant(id uuid PRIMARY KEY,tenant_id uuid,client_id uuid,user_id uuid,
+        permissions text[],status text,expires_at timestamptz,reason text,created_at timestamptz DEFAULT now());
+      CREATE TABLE "${schema}".memory_items(
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid,client_id uuid,owner_user_id uuid,
+        type text,visibility text,entity_id uuid,slug text,title text,aliases text[],tags text[],source text,
+        source_ref text,provenance text,sections_jsonb jsonb,schema_version int,status text,sensitivity text,
+        legal_hold boolean,exportable boolean,training_use text,expires_at timestamptz,confidence float,
+        memory_class text,memory_authority text,memory_scope text,governed_status text,source_type text,
+        source_id text,source_excerpt text,source_content_hash text,source_version text,asserted_by_user_id uuid,
+        approved_by_user_id uuid,approved_at timestamptz,second_approved_by_user_id uuid,second_approved_at timestamptz,
+        last_confirmed_at timestamptz,review_state text,review_due_at timestamptz,retention_policy_jsonb jsonb,
+        as_of timestamptz,effective_from timestamptz,valid_until timestamptz,conflict_status text,conflict_group_id uuid,
+        controlling_item_id uuid,origin_surface text,origin_trace_id text,origin_context_packet_id uuid,
+        origin_model text,origin_prompt_version text,instructions_allowed boolean,revoked_at timestamptz,revoked_by uuid,
+        created_at timestamptz DEFAULT now(),updated_at timestamptz DEFAULT now(),UNIQUE(tenant_id,type,slug)
+      );
+      CREATE TABLE "${schema}".memory_cleanup_outbox(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),tenant_id uuid,
+        memory_item_id uuid,clio_memory_id uuid,operation text,idempotency_key text,status text DEFAULT 'pending',
+        UNIQUE(tenant_id,idempotency_key));
+      CREATE TABLE "${schema}".context_embeddings(source_type text,source_id text);
+      CREATE TABLE "${schema}".audit_logs(id uuid PRIMARY KEY,tenant_id uuid,actor_user_id uuid,actor_role text,
+        action text,entity_type text,entity_id text,before_jsonb jsonb,after_jsonb jsonb,ip text,user_agent text,
+        request_id text,occurred_at timestamptz DEFAULT now())
       `);
     await pool.query(`INSERT INTO "${schema}".tenants VALUES ($1,$2),($3,$4)`, [
       TENANT,
@@ -84,10 +110,14 @@ describe('built canonical memory candidate command runtime', { skip: !configPath
       AUTHORIZED_TENANTS.T2.id,
       AUTHORIZED_TENANTS.T2.slug,
     ]);
-    await pool.query(`INSERT INTO "${schema}".tenant_memberships VALUES ($1,$2,'active')`, [
-      TENANT,
-      USER,
-    ]);
+    await pool.query(
+      `INSERT INTO "${schema}".tenant_memberships(tenant_id,user_id,status) VALUES ($1,$2,'active')`,
+      [TENANT, USER],
+    );
+    await pool.query(
+      `INSERT INTO "${schema}".tenant_memberships VALUES ($1,$2,'active','user_admin')`,
+      [TENANT, REVIEWER],
+    );
     await pool.query(`INSERT INTO "${schema}".clients(id,tenant_id) VALUES ($1,$2),($3,$2)`, [
       CLIENT,
       TENANT,
@@ -113,9 +143,24 @@ describe('built canonical memory candidate command runtime', { skip: !configPath
     };
     manifest = await buildFixtureManifest(config);
     adapter = await createAdapter({ config });
+    const built = (path) =>
+      require(fileURLToPath(new URL(`../../../../apps/api/dist/${path}.js`, import.meta.url)));
+    const { PrismaService } = built('prisma/prisma.service');
+    const { MemoryCandidateService } = built('memory/memory-candidate.service');
+    const { MemoryStoreService } = built('memory/memory-store.service');
+    const { TenantContextStore } = built('tenant/tenant-context.store');
+    approvalPrisma = new PrismaService();
+    await approvalPrisma.$connect();
+    tenantContext = new TenantContextStore();
+    memoryStore = new MemoryStoreService(approvalPrisma, tenantContext);
+    approvalService = new MemoryCandidateService(approvalPrisma, {}, { get: () => undefined });
+    // The canonical approval transaction and durable outbox are real. The
+    // post-commit provider/embedding fast path is a sandboxed test boundary.
+    approvalService.dispatchProjectionFastPath = () => {};
   });
 
   after(async () => {
+    await approvalPrisma?.$disconnect();
     await adapter?.close();
     for (const [key, value] of [
       ['DATABASE_URL', beforeEnv.database],
@@ -280,9 +325,9 @@ describe('built canonical memory candidate command runtime', { skip: !configPath
     assert.equal(new Set(keys.rows.map(({ key }) => key)).size, 2);
   });
 
-  async function retirementFixture() {
+  async function retirementFixture(logicalId = 'MEM-PROPOSAL-14') {
     const fresh = await buildFixtureManifest({ ...config, fixtureInstanceId: randomUUID() });
-    const record = fresh.records.find((row) => row.logicalId === 'MEM-PROPOSAL-14');
+    const record = fresh.records.find((row) => row.logicalId === logicalId);
     const guards = {
       tenantId: record.tenantId,
       physicalId: record.physicalId,
@@ -556,6 +601,312 @@ describe('built canonical memory candidate command runtime', { skip: !configPath
           `DROP TRIGGER reject_fixture_audit ON "${schema}".memory_transition_audit; DROP FUNCTION "${schema}".reject_audit()`,
         );
       }
+    });
+  });
+
+  async function withApprovedRetirement(work) {
+    const priorCenter = process.env.MEMORY_GOVERNANCE_CENTER;
+    process.env.MEMORY_GOVERNANCE_CENTER = 'enforce';
+    try {
+      return await withRetirementEnabled(work);
+    } finally {
+      if (priorCenter === undefined) delete process.env.MEMORY_GOVERNANCE_CENTER;
+      else process.env.MEMORY_GOVERNANCE_CENTER = priorCenter;
+    }
+  }
+
+  async function approvedFixture(
+    logicalId = 'MEM-PROPOSAL-14',
+    ctx = { tenantId: TENANT, userId: REVIEWER, role: 'user_admin' },
+  ) {
+    const { record } = await retirementFixture(logicalId);
+    await approvalService.approve(TENANT, record.physicalId, ctx.userId, ctx);
+    const pair = (
+      await pool.query(
+        `SELECT mc.committed_memory_item_id AS "itemId",mc.committed_memory_id AS "clioId",
+      mc.xmin::text AS "candidateVersion",mi.xmin::text AS "itemVersion",mc.payload_jsonb AS payload
+      FROM "${schema}".memory_candidate mc JOIN "${schema}".memory_items mi ON mi.id=mc.committed_memory_item_id
+      WHERE mc.id=$1`,
+        [record.physicalId],
+      )
+    ).rows[0];
+    assert.ok(pair);
+    return {
+      record,
+      ctx,
+      ...pair,
+      guard: {
+        candidateId: record.physicalId,
+        expectedRowVersion: pair.candidateVersion,
+        expectedItemRowVersion: pair.itemVersion,
+        expectedPayload: pair.payload,
+      },
+    };
+  }
+
+  const revoke = (fixture, ctx = fixture.ctx) =>
+    tenantContext.run(ctx, () => memoryStore.forgetSyntheticFixture(fixture.itemId, fixture.guard));
+
+  for (const scope of ['client wall', 'private owner']) {
+    it(`canonical approval preserves ${scope} authority before a fixture becomes active`, async () => {
+      await withApprovedRetirement(async () => {
+        const { record } = await retirementFixture(
+          scope === 'client wall' ? 'MEM-PROPOSAL-14' : 'MEM-PENDING-17-F',
+        );
+        if (scope === 'client wall')
+          await pool.query(`UPDATE "${schema}".clients SET memory_wall=true WHERE id=$1`, [CLIENT]);
+        try {
+          const ctx = { tenantId: TENANT, userId: REVIEWER, role: 'user_admin' };
+          const outcome = await approvalService
+            .approve(TENANT, record.physicalId, REVIEWER, ctx)
+            .then(
+              (value) => ({ value }),
+              (error) => ({ error }),
+            );
+          const state = (
+            await pool.query(
+              `SELECT status,committed_memory_id,committed_memory_item_id FROM "${schema}".memory_candidate WHERE id=$1`,
+              [record.physicalId],
+            )
+          ).rows[0];
+          console.info(
+            JSON.stringify({
+              probe: `approval ${scope}`,
+              errorStatus: outcome.error?.getStatus?.() ?? null,
+              state,
+            }),
+          );
+          assert.equal(outcome.error?.getStatus?.(), 403);
+          assert.equal(state.status, 'pending');
+          assert.equal(state.committed_memory_item_id, null);
+        } finally {
+          if (scope === 'client wall')
+            await pool.query(`UPDATE "${schema}".clients SET memory_wall=false WHERE id=$1`, [
+              CLIENT,
+            ]);
+        }
+      });
+    });
+  }
+
+  async function approvedState(fixture) {
+    return {
+      candidate: (
+        await pool.query(
+          `SELECT to_jsonb(mc) AS row,xmin::text AS version FROM "${schema}".memory_candidate mc WHERE id=$1`,
+          [fixture.record.physicalId],
+        )
+      ).rows[0],
+      item: (
+        await pool.query(
+          `SELECT to_jsonb(mi) AS row,xmin::text AS version FROM "${schema}".memory_items mi WHERE id=$1`,
+          [fixture.itemId],
+        )
+      ).rows[0],
+      clio: (
+        await pool.query(`SELECT id FROM "${schema}".clio_memory WHERE id=$1`, [fixture.clioId])
+      ).rowCount,
+      audits: (
+        await pool.query(
+          `SELECT * FROM "${schema}".memory_transition_audit WHERE memory_item_id=$1 ORDER BY id`,
+          [fixture.itemId],
+        )
+      ).rows,
+      cleanup: (
+        await pool.query(
+          `SELECT * FROM "${schema}".memory_cleanup_outbox WHERE memory_item_id=$1 ORDER BY id`,
+          [fixture.itemId],
+        )
+      ).rows,
+    };
+  }
+
+  it('revokes a canonically approved fixture, retaining its approval and item history with real audit/outbox writes', async () => {
+    await withApprovedRetirement(async () => {
+      const f = await approvedFixture();
+      const before = await approvedState(f);
+      assert.equal(before.candidate.row.status, 'approved');
+      assert.equal(before.item.row.governed_status, 'active');
+      assert.equal((await revoke(f)).found, true);
+      const after = await approvedState(f);
+      assert.deepEqual(after.candidate, before.candidate);
+      assert.deepEqual(after.item.row.sections_jsonb, before.item.row.sections_jsonb);
+      assert.equal(after.item.row.approved_by_user_id, REVIEWER);
+      assert.equal(after.item.row.status, 'revoked');
+      assert.equal(after.item.row.governed_status, 'revoked');
+      assert.equal(after.clio, 0);
+      assert.equal(after.audits.length, 1);
+      assert.equal(after.audits[0].reason_code, 'revoked');
+      assert.equal(after.audits[0].metadata_jsonb.syntheticFixtureCandidateId, f.record.physicalId);
+      assert.equal(
+        after.audits[0].metadata_jsonb.syntheticFixtureCandidateRowVersion,
+        f.guard.expectedRowVersion,
+      );
+      assert.equal(
+        after.audits[0].metadata_jsonb.syntheticFixtureItemRowVersion,
+        f.guard.expectedItemRowVersion,
+      );
+      assert.equal(after.cleanup.filter((row) => row.operation === 'revoke_projections').length, 1);
+    });
+  });
+
+  for (const [logicalId, scope] of [
+    ['MEM-PENDING-17-E', 'firm'],
+    ['MEM-PENDING-17-F', 'user_private'],
+  ]) {
+    it(`retains canonical ${scope} authorization when retiring an approved fixture`, async () => {
+      await withApprovedRetirement(async () => {
+        const ctx =
+          scope === 'user_private'
+            ? { tenantId: TENANT, userId: USER, role: 'standard_user' }
+            : { tenantId: TENANT, userId: REVIEWER, role: 'user_admin' };
+        const f = await approvedFixture(logicalId, ctx);
+        const before = await approvedState(f);
+        assert.equal(before.item.row.memory_scope, scope);
+        if (scope === 'user_private') {
+          assert.deepEqual(
+            await revoke(f, { tenantId: TENANT, userId: REVIEWER, role: 'user_admin' }),
+            { found: false },
+          );
+          assert.deepEqual(await approvedState(f), before);
+        }
+        assert.equal((await revoke(f)).found, true);
+        const after = await approvedState(f);
+        assert.deepEqual(after.candidate, before.candidate);
+        assert.equal(after.item.row.governed_status, 'revoked');
+        assert.equal(after.clio, 0);
+        assert.equal(after.audits.length, 1);
+      });
+    });
+  }
+
+  it('refuses altered approval, held rows, changed content or foreign lineage with current versions', async () => {
+    await withApprovedRetirement(async () => {
+      for (const [table, mutation] of [
+        ['memory_candidate', 'legal_hold=true'],
+        ['memory_candidate', "provenance_jsonb='{}'"],
+        ['memory_candidate', "committed_memory_item_id='77777777-7777-4777-8777-777777777777'"],
+        ['memory_items', 'legal_hold=true'],
+        ['memory_items', "sections_jsonb='[]'"],
+        ['memory_items', "source_id='unrelated'"],
+        ['memory_items', "retention_policy_jsonb='{}'"],
+        ['memory_items', 'second_approved_by_user_id=approved_by_user_id'],
+        ['clio_memory', "value='changed after approval'"],
+      ]) {
+        const f = await approvedFixture();
+        const id =
+          table === 'memory_items'
+            ? f.itemId
+            : table === 'clio_memory'
+              ? f.clioId
+              : f.record.physicalId;
+        await pool.query(`UPDATE "${schema}".${table} SET ${mutation} WHERE id=$1`, [id]);
+        const before = await approvedState(f);
+        f.guard.expectedRowVersion = before.candidate.version;
+        f.guard.expectedItemRowVersion = before.item.version;
+        await assert.rejects(
+          revoke(f),
+          (error) => error.getStatus?.() === 403,
+          `${table}:${mutation}`,
+        );
+        assert.deepEqual(await approvedState(f), before);
+      }
+    });
+  });
+
+  it('does not upgrade ordinary users, accept a forged role or cross a current client wall', async () => {
+    await withApprovedRetirement(async () => {
+      const f = await approvedFixture();
+      const before = await approvedState(f);
+      assert.deepEqual(await revoke(f, { tenantId: TENANT, userId: USER, role: 'standard_user' }), {
+        found: false,
+      });
+      await assert.rejects(
+        revoke(f, { tenantId: TENANT, userId: USER, role: 'user_admin' }),
+        (error) => error.getStatus?.() === 403,
+      );
+      await pool.query(`UPDATE "${schema}".clients SET memory_wall=true WHERE id=$1`, [CLIENT]);
+      try {
+        assert.deepEqual(await revoke(f), { found: false });
+      } finally {
+        await pool.query(`UPDATE "${schema}".clients SET memory_wall=false WHERE id=$1`, [CLIENT]);
+      }
+      await pool.query(
+        `UPDATE "${schema}".tenant_memberships SET status='inactive' WHERE user_id=$1`,
+        [REVIEWER],
+      );
+      try {
+        await assert.rejects(revoke(f), (error) => error.getStatus?.() === 403);
+      } finally {
+        await pool.query(
+          `UPDATE "${schema}".tenant_memberships SET status='active' WHERE user_id=$1`,
+          [REVIEWER],
+        );
+      }
+      assert.deepEqual(await approvedState(f), before);
+    });
+  });
+
+  it('requires existing approved-memory gates, namespace and current candidate/item versions', async () => {
+    await withApprovedRetirement(async () => {
+      const f = await approvedFixture();
+      const before = await approvedState(f);
+      delete process.env.MEMORY_GOVERNANCE_CENTER;
+      try {
+        await assert.rejects(revoke(f), (error) => error.getStatus?.() === 503);
+      } finally {
+        process.env.MEMORY_GOVERNANCE_CENTER = 'enforce';
+      }
+      delete process.env.MERI_SYNTHETIC_FIXTURE_NAMESPACE;
+      try {
+        await assert.rejects(revoke(f), (error) => error.getStatus?.() === 403);
+      } finally {
+        process.env.MERI_SYNTHETIC_FIXTURE_NAMESPACE = 'meri-foundation-20260928';
+      }
+      for (const key of ['expectedRowVersion', 'expectedItemRowVersion']) {
+        await assert.rejects(
+          revoke({ ...f, guard: { ...f.guard, [key]: '0' } }),
+          (error) => error.getStatus?.() === 403,
+        );
+      }
+      assert.deepEqual(await approvedState(f), before);
+    });
+  });
+
+  it('rolls approved fixture revocation back when audit or cleanup intent fails', async () => {
+    await withApprovedRetirement(async () => {
+      for (const table of ['memory_transition_audit', 'memory_cleanup_outbox']) {
+        const f = await approvedFixture();
+        const before = await approvedState(f);
+        await pool.query(`CREATE FUNCTION "${schema}".reject_retirement_sink() RETURNS trigger LANGUAGE plpgsql AS $$
+          BEGIN RAISE EXCEPTION 'controlled approved fixture sink failure'; END $$;
+          CREATE TRIGGER reject_retirement_sink BEFORE INSERT ON "${schema}".${table}
+          FOR EACH ROW EXECUTE FUNCTION "${schema}".reject_retirement_sink()`);
+        try {
+          await assert.rejects(revoke(f), /controlled approved fixture sink failure/u);
+          assert.deepEqual(await approvedState(f), before);
+        } finally {
+          await pool.query(
+            `DROP TRIGGER reject_retirement_sink ON "${schema}".${table}; DROP FUNCTION "${schema}".reject_retirement_sink()`,
+          );
+        }
+      }
+    });
+  });
+
+  it('concurrent approved-fixture revocations create one retained transition and one cleanup intent', async () => {
+    await withApprovedRetirement(async () => {
+      const f = await approvedFixture();
+      const results = await Promise.allSettled([revoke(f), revoke(f)]);
+      assert.equal(
+        results.filter((result) => result.status === 'fulfilled' && result.value.found).length,
+        1,
+      );
+      assert.equal(results.filter((result) => result.status === 'rejected').length, 1);
+      const after = await approvedState(f);
+      assert.equal(after.candidate.row.status, 'approved');
+      assert.equal(after.audits.length, 1);
+      assert.equal(after.cleanup.filter((row) => row.operation === 'revoke_projections').length, 1);
     });
   });
 

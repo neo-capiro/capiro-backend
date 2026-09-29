@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -27,6 +32,12 @@ import {
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
 import { MemoryCleanupOutboxService } from './memory-cleanup-outbox.service.js';
+import { memoryGovernanceCenterEnabled } from './memory-governance-center.switch.js';
+import {
+  assertSyntheticApprovedMemoryInTx,
+  type SyntheticApprovedMemoryGuard,
+  type SyntheticMemoryRevocationAudit,
+} from './synthetic-approved-memory.helpers.js';
 
 /** Result shape returned by the Phase 1 (1D) user-facing memory verbs. */
 export interface MemoryVerbResult {
@@ -640,6 +651,7 @@ export class MemoryStoreService {
     slug: string,
     clientId: string | null,
     reason?: string,
+    fixtureAudit?: SyntheticMemoryRevocationAudit,
   ): Promise<void> {
     if (!governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE)) return;
     const before = await this.governedStatusOf(tx, ctx.tenantId, itemId);
@@ -659,7 +671,7 @@ export class MemoryStoreService {
       toStatus: 'revoked',
       reasonCode: 'revoked',
       reason: reason ? `forget: ${reason}` : 'forget verb',
-      metadata: { verb: 'forget', priorGovernedStatus: before },
+      metadata: { verb: 'forget', priorGovernedStatus: before, ...(fixtureAudit ?? {}) },
     });
     await this.cleanupOutbox.enqueue(tx, ctx.tenantId, {
       memoryItemId: itemId,
@@ -772,8 +784,33 @@ export class MemoryStoreService {
    * (revoked), so an accidental forget is administratively recoverable.
    */
   async forgetMemory(itemId: string, reason?: string): Promise<MemoryVerbResult> {
+    return this.forgetMemoryGuarded(itemId, reason);
+  }
+
+  /** Internal fixture operation only; never exposed by a controller or DTO. */
+  async forgetSyntheticFixture(
+    itemId: string,
+    guard: SyntheticApprovedMemoryGuard,
+  ): Promise<MemoryVerbResult> {
+    if (!guard) throw new ForbiddenException('Approved synthetic memory guard is required');
+    if (!memoryGovernanceCenterEnabled()) {
+      throw new ServiceUnavailableException(
+        'Governed memory revocation is not enabled for this environment.',
+      );
+    }
+    return this.forgetMemoryGuarded(itemId, 'Retire owned Meri synthetic fixture', guard);
+  }
+
+  private async forgetMemoryGuarded(
+    itemId: string,
+    reason?: string,
+    fixtureGuard?: SyntheticApprovedMemoryGuard,
+  ): Promise<MemoryVerbResult> {
     const ctx = this.tenantCtx.require();
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const fixtureAudit = fixtureGuard
+        ? await assertSyntheticApprovedMemoryInTx(tx, ctx, itemId, fixtureGuard)
+        : undefined;
       const rows = await tx.$queryRaw<
         Array<{
           title: string;
@@ -825,7 +862,15 @@ export class MemoryStoreService {
       // Governed lifecycle (dark): flip the v2 status, evidence the transition and
       // enqueue durable secondary-projection cleanup — all in THIS transaction, so
       // suppression, evidence and cleanup intent commit or roll back together.
-      await this.recordGovernedRevocation(tx, ctx, itemId, row.slug, row.client_id, reason);
+      await this.recordGovernedRevocation(
+        tx,
+        ctx,
+        itemId,
+        row.slug,
+        row.client_id,
+        reason,
+        fixtureAudit,
+      );
       // Purge the semantic projection (no FK cascade from memory_items).
       await tx.$executeRaw`
         DELETE FROM context_embeddings WHERE source_type = 'memory_item' AND source_id = ${itemId}

@@ -26,7 +26,7 @@ function digest(value: unknown): string {
 }
 
 /** Content identity only. The transaction below still checks the current actor and row. */
-function validateGuard(
+export function validateSyntheticCandidateFixtureIdentity(
   tenantId: string,
   userId: string,
   candidateId: string,
@@ -118,6 +118,7 @@ function validateGuard(
     denied();
   return {
     payload,
+    tenantSlug: TENANTS[tenantId]!,
     markerSha256,
     sourceExcerpt: payload.sourceExcerpt as string,
     scope: payload.scope === 'user_private' ? 'personal' : String(payload.scope),
@@ -133,7 +134,7 @@ export async function assertSyntheticCandidateWithdrawalInTx(
   candidateId: string,
   guard: SyntheticCandidateWithdrawalGuard,
 ): Promise<{ syntheticFixtureMarkerSha256: string; syntheticFixturePriorRowVersion: string }> {
-  const expected = validateGuard(tenantId, userId, candidateId, guard);
+  const expected = validateSyntheticCandidateFixtureIdentity(tenantId, userId, candidateId, guard);
   const membership = await tx.$queryRaw<Array<{ user_id: string }>>`
     SELECT tm.user_id::text AS user_id FROM tenant_memberships tm
     JOIN tenants t ON t.id=tm.tenant_id
