@@ -124,6 +124,7 @@ async function main() {
     actors: config.actors,
     uploaderActors: config.uploaderActors,
     availableOwners: config.availableOwners,
+    fixtureInstanceId: config.fixtureInstanceId,
   });
 
   if (args.command === 'source-map') {
