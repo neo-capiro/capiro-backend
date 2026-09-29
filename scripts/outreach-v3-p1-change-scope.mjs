@@ -66,6 +66,42 @@ function onlyRouteSourceLines(before, after) {
   };
   return isDeepStrictEqual(strip(before), strip(after));
 }
+// This exact generated test-data addition is verifier maintenance. Every
+// existing row, role, access grant, state, schema field and count is retained.
+function onlyOwnedMailReadFixture(before, after) {
+  const previous = JSON.parse(before);
+  const current = JSON.parse(after);
+  if (
+    previous.schemaVersion !== 1 ||
+    previous.marker !== 'Phase 3 Parity' ||
+    previous.counts.mailThreads !== undefined ||
+    previous.plan.mailThreads !== undefined ||
+    !Number.isInteger(previous.totals.rows) ||
+    !Array.isArray(previous.cleanupOrder)
+  )
+    return false;
+  const row = {
+    key: 'mailThread.alpha',
+    id: 'e3000000-0000-4000-8000-0000001b0001',
+    tenantKey: 'tenant.primary',
+    clientKey: 'client.alpha',
+    connectionKey: 'connection.microsoftConnected',
+    subject: 'Phase 3 Parity — Owned synthetic mail-thread detail',
+    snippet: 'Phase 3 Parity — Local parity data; no provider message or credentials.',
+    participants: [
+      { email: 'jordan.staffer@example.gov', name: 'Phase 3 Parity — Jordan Staffer' },
+    ],
+    lastMessageAt: { kind: 'anchorOffset', minutes: -1440 },
+  };
+  const expected = structuredClone(previous);
+  expected.plan.mailThreads = [row];
+  expected.counts.mailThreads = 1;
+  expected.totals.rows += 1;
+  const position = expected.cleanupOrder.indexOf('engagement_contacts');
+  if (position < 0 || expected.cleanupOrder.includes('mail_threads')) return false;
+  expected.cleanupOrder.splice(position + 1, 0, 'mail_threads');
+  return isDeepStrictEqual(expected, current);
+}
 function onlyDeclarationInclude(before, after) {
   const previous = JSON.parse(before);
   const current = JSON.parse(after);
@@ -92,6 +128,11 @@ export function classifyChange(file, before, after) {
   if (before == null) return 'product';
   try {
     if (file === routeFixture && onlyRouteSourceLines(before, after)) return 'gate';
+    if (
+      file === 'apps/api/src/engagement/__fixtures__/engagement-phase3-fixture-contract.v1.json' &&
+      onlyOwnedMailReadFixture(before, after)
+    )
+      return 'gate';
     if (file === tsconfig && onlyDeclarationInclude(before, after)) return 'gate';
     if (
       file === persistenceService &&

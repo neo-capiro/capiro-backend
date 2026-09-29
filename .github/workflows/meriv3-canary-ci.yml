@@ -185,7 +185,7 @@ jobs:
 
       - name: Test document section extraction
         env:
-          NODE_OPTIONS: --experimental-vm-modules
+          NODE_OPTIONS: --max-old-space-size=6144 --experimental-vm-modules
         run: >
           pnpm --filter @capiro/api exec jest
           --runInBand --forceExit

@@ -16,7 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NODE_OPTIONS: --max-old-space-size=6144
-    timeout-minutes: 30
+    # The full typecheck, package suites, and complete web prerequisite exceeded
+    # the former 30-minute job budget. Retain every gate.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
@@ -225,6 +227,14 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+
+      - name: Build API verification workspace prerequisites
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/meriv2-core build
 
       - name: Generate Prisma clients
         run: pnpm --filter @capiro/api exec prisma generate

@@ -79,7 +79,9 @@ async function main(): Promise<void> {
   const issues = validateFixturePlan(plan);
   if (issues.length) {
     for (const issue of issues) console.error(`INVALID  [${issue.rule}] ${issue.detail}`);
-    throw new Error(`Fixture plan failed ${issues.length} validation check(s); nothing was written.`);
+    throw new Error(
+      `Fixture plan failed ${issues.length} validation check(s); nothing was written.`,
+    );
   }
 
   if (modes.has('write-contract')) {
@@ -109,14 +111,19 @@ async function main(): Promise<void> {
   try {
     if (modes.has('cleanup') || modes.has('apply')) {
       const deleted = await cleanup(prisma, plan);
-      console.log(`OK  cleanup removed ${deleted} fixture row(s) across ${plan.cleanupOrder.length} tables`);
+      console.log(
+        `OK  cleanup removed ${deleted} fixture row(s) across ${plan.cleanupOrder.length} tables`,
+      );
     }
     if (modes.has('apply')) {
       const inserted = await apply(prisma, plan, anchor, crypto);
       console.log(`OK  seeded ${inserted} fixture row(s); anchor ${anchor.toISOString()}`);
       const fixtureFile = process.env.ENGAGEMENT_PHASE3_FIXTURE_FILE?.trim();
       if (fixtureFile) {
-        await writeFile(fixtureFile, `${JSON.stringify(buildFixtureIndex(plan, anchor), null, 2)}\n`);
+        await writeFile(
+          fixtureFile,
+          `${JSON.stringify(buildFixtureIndex(plan, anchor), null, 2)}\n`,
+        );
         console.log(`OK  fixture index written to ${fixtureFile}`);
       }
     }
@@ -135,11 +142,16 @@ function readModes(argv: string[]): Set<Mode> {
   for (const arg of argv) {
     const name = arg.replace(/^--/, '') as Mode;
     if (!arg.startsWith('--') || !known.includes(name)) {
-      throw new Error(`Unknown argument ${arg}. Expected one or more of: ${known.map((m) => `--${m}`).join(' ')}`);
+      throw new Error(
+        `Unknown argument ${arg}. Expected one or more of: ${known.map((m) => `--${m}`).join(' ')}`,
+      );
     }
     modes.add(name);
   }
-  if (!modes.size) throw new Error(`No mode given. Expected one or more of: ${known.map((m) => `--${m}`).join(' ')}`);
+  if (!modes.size)
+    throw new Error(
+      `No mode given. Expected one or more of: ${known.map((m) => `--${m}`).join(' ')}`,
+    );
   return modes;
 }
 
@@ -157,7 +169,8 @@ function assertDisposableDatabase(): void {
   } catch {
     throw new Error('DATABASE_URL is not a parseable URL.');
   }
-  const loopback = host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
+  const loopback =
+    host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
   if (loopback) return;
   if (process.env.ENGAGEMENT_PHASE3_ALLOW_REMOTE_DB?.trim() === REMOTE_DB_ACK) {
     console.warn(`WARN  running against non-loopback host ${host} by explicit acknowledgement`);
@@ -197,7 +210,8 @@ function readAnchor(): Date {
   const raw = process.env.ENGAGEMENT_PHASE3_ANCHOR?.trim();
   if (!raw) return new Date();
   const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) throw new Error(`ENGAGEMENT_PHASE3_ANCHOR is not a date: ${raw}`);
+  if (Number.isNaN(parsed.getTime()))
+    throw new Error(`ENGAGEMENT_PHASE3_ANCHOR is not a date: ${raw}`);
   return parsed;
 }
 
@@ -210,7 +224,8 @@ async function apply(
   crypto: MeetingNotesCryptoService,
 ): Promise<number> {
   const id = buildKeyResolver(plan);
-  const when = (spec: TemporalSpec | null): Date | null => (spec ? resolveTemporal(spec, anchor) : null);
+  const when = (spec: TemporalSpec | null): Date | null =>
+    spec ? resolveTemporal(spec, anchor) : null;
   const at = (spec: TemporalSpec): Date => resolveTemporal(spec, anchor);
   let count = 0;
 
@@ -487,6 +502,27 @@ async function apply(
         count += 1;
       }
 
+      // Existing connection fixtures belong to actor.admin. Preserve the
+      // product's connection-owner gate; no provider adapter is invoked.
+      for (const row of plan.mailThreads) {
+        await tx.mailThread.create({
+          data: {
+            id: row.id,
+            tenantId: id.tenant(row.tenantKey),
+            clientId: id.client(row.clientKey),
+            connectionId: id.connection(row.connectionKey),
+            source: 'manual',
+            subject: row.subject,
+            snippet: row.snippet,
+            participants: row.participants as unknown as Prisma.InputJsonValue,
+            lastMessageAt: at(row.lastMessageAt),
+            status: 'open',
+            metadata: { phase3ParityFixture: true },
+          },
+        });
+        count += 1;
+      }
+
       for (const row of plan.outreachRecords) {
         await tx.outreachRecord.create({
           data: {
@@ -705,41 +741,63 @@ async function cleanup(prisma: PrismaService, plan: FixturePlan): Promise<number
   // over cleanupOrder — a table seeded without a delete entry throws below
   // rather than silently leaking rows into the next run.
   const deleters: Record<string, (tx: Prisma.TransactionClient) => Promise<{ count: number }>> = {
-    outreach_deliveries: (tx) => tx.outreachDelivery.deleteMany({ where: { tenantId: { in: tenantIds } } }),
-    outreach_send_intents: (tx) => tx.outreachSendIntent.deleteMany({ where: { tenantId: { in: tenantIds } } }),
-    outreach_draft_versions: (tx) => tx.outreachDraftVersion.deleteMany({ where: { tenantId: { in: tenantIds } } }),
-    outreach_draft_artifacts: (tx) => tx.outreachDraftArtifact.deleteMany({ where: { tenantId: { in: tenantIds } } }),
-    outreach_records: (tx) => tx.outreachRecord.deleteMany({ where: { tenantId: { in: tenantIds } } }),
-    outreach_audience_members: (tx) => tx.outreachAudienceMember.deleteMany({ where: { tenantId: { in: tenantIds } } }),
-    outreach_audiences: (tx) => tx.outreachAudience.deleteMany({ where: { tenantId: { in: tenantIds } } }),
-    outreach_templates: (tx) => tx.outreachTemplate.deleteMany({ where: { tenantId: { in: tenantIds } } }),
-    outreach_ai_template: (tx) => tx.outreachAiTemplate.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+    outreach_deliveries: (tx) =>
+      tx.outreachDelivery.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+    outreach_send_intents: (tx) =>
+      tx.outreachSendIntent.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+    outreach_draft_versions: (tx) =>
+      tx.outreachDraftVersion.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+    outreach_draft_artifacts: (tx) =>
+      tx.outreachDraftArtifact.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+    outreach_records: (tx) =>
+      tx.outreachRecord.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+    outreach_audience_members: (tx) =>
+      tx.outreachAudienceMember.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+    outreach_audiences: (tx) =>
+      tx.outreachAudience.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+    outreach_templates: (tx) =>
+      tx.outreachTemplate.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+    outreach_ai_template: (tx) =>
+      tx.outreachAiTemplate.deleteMany({ where: { tenantId: { in: tenantIds } } }),
     engagement_report_target_offices: (tx) =>
       tx.engagementReportTargetOffice.deleteMany({ where: { tenantId: { in: tenantIds } } }),
-    engagement_tasks: (tx) => tx.engagementTask.deleteMany({ where: { tenantId: { in: tenantIds } } }),
-    engagement_attachments: (tx) => tx.engagementAttachment.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+    engagement_tasks: (tx) =>
+      tx.engagementTask.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+    engagement_attachments: (tx) =>
+      tx.engagementAttachment.deleteMany({ where: { tenantId: { in: tenantIds } } }),
     meeting_notes: (tx) => tx.meetingNote.deleteMany({ where: { tenantId: { in: tenantIds } } }),
-    meeting_debriefs: (tx) => tx.meetingDebrief.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+    meeting_debriefs: (tx) =>
+      tx.meetingDebrief.deleteMany({ where: { tenantId: { in: tenantIds } } }),
     meeting_preps: (tx) => tx.meetingPrep.deleteMany({ where: { tenantId: { in: tenantIds } } }),
-    meeting_bot_sessions: (tx) => tx.meetingBotSession.deleteMany({ where: { tenantId: { in: tenantIds } } }),
-    meeting_attendees: (tx) => tx.meetingAttendee.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+    meeting_bot_sessions: (tx) =>
+      tx.meetingBotSession.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+    meeting_attendees: (tx) =>
+      tx.meetingAttendee.deleteMany({ where: { tenantId: { in: tenantIds } } }),
     meetings: (tx) => tx.meeting.deleteMany({ where: { tenantId: { in: tenantIds } } }),
-    engagement_contacts: (tx) => tx.engagementContact.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+    mail_threads: (tx) => tx.mailThread.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+    engagement_contacts: (tx) =>
+      tx.engagementContact.deleteMany({ where: { tenantId: { in: tenantIds } } }),
     engagement_connection_tokens: (tx) =>
       tx.integrationConnectionToken.deleteMany({ where: { tenantId: { in: tenantIds } } }),
-    engagement_connections: (tx) => tx.integrationConnection.deleteMany({ where: { tenantId: { in: tenantIds } } }),
-    client_memory_access: (tx) => tx.clientMemoryAccess.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+    engagement_connections: (tx) =>
+      tx.integrationConnection.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+    client_memory_access: (tx) =>
+      tx.clientMemoryAccess.deleteMany({ where: { tenantId: { in: tenantIds } } }),
     clients: (tx) => tx.client.deleteMany({ where: { tenantId: { in: tenantIds } } }),
-    impersonation_sessions: (tx) => tx.impersonationSession.deleteMany({ where: { tenantId: { in: tenantIds } } }),
-    tenant_memberships: (tx) => tx.tenantMembership.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+    impersonation_sessions: (tx) =>
+      tx.impersonationSession.deleteMany({ where: { tenantId: { in: tenantIds } } }),
+    tenant_memberships: (tx) =>
+      tx.tenantMembership.deleteMany({ where: { tenantId: { in: tenantIds } } }),
     users: (tx) => tx.user.deleteMany({ where: { id: { in: userIds } } }),
     tenants: (tx) => tx.tenant.deleteMany({ where: { id: { in: tenantIds } } }),
   };
 
   const missing = plan.cleanupOrder.filter((table) => !deleters[table]);
-  if (missing.length) throw new Error(`cleanupOrder names tables with no deleter: ${missing.join(', ')}`);
+  if (missing.length)
+    throw new Error(`cleanupOrder names tables with no deleter: ${missing.join(', ')}`);
   const extra = Object.keys(deleters).filter((table) => !plan.cleanupOrder.includes(table));
-  if (extra.length) throw new Error(`deleters cover tables absent from cleanupOrder: ${extra.join(', ')}`);
+  if (extra.length)
+    throw new Error(`deleters cover tables absent from cleanupOrder: ${extra.join(', ')}`);
 
   await prisma.withSystem(
     async (tx) => {
@@ -771,32 +829,93 @@ async function verify(
     };
     const scoped = { tenantId: { in: tenantIds } };
 
-    await check('tenants', plan.tenants.length, tx.tenant.count({ where: { id: { in: tenantIds } } }));
-    await check('users', plan.users.length, tx.user.count({ where: { id: { in: plan.users.map((r) => r.id) } } }));
-    await check('memberships', plan.memberships.length, tx.tenantMembership.count({ where: scoped }));
-    await check('impersonations', plan.impersonations.length, tx.impersonationSession.count({ where: scoped }));
+    await check(
+      'tenants',
+      plan.tenants.length,
+      tx.tenant.count({ where: { id: { in: tenantIds } } }),
+    );
+    await check(
+      'users',
+      plan.users.length,
+      tx.user.count({ where: { id: { in: plan.users.map((r) => r.id) } } }),
+    );
+    await check(
+      'memberships',
+      plan.memberships.length,
+      tx.tenantMembership.count({ where: scoped }),
+    );
+    await check(
+      'impersonations',
+      plan.impersonations.length,
+      tx.impersonationSession.count({ where: scoped }),
+    );
     await check('clients', plan.clients.length, tx.client.count({ where: scoped }));
-    await check('clientMemoryAccess', plan.clientMemoryAccess.length, tx.clientMemoryAccess.count({ where: scoped }));
+    await check(
+      'clientMemoryAccess',
+      plan.clientMemoryAccess.length,
+      tx.clientMemoryAccess.count({ where: scoped }),
+    );
     await check('contacts', plan.contacts.length, tx.engagementContact.count({ where: scoped }));
+    await check('mailThreads', plan.mailThreads.length, tx.mailThread.count({ where: scoped }));
     await check('meetings', plan.meetings.length, tx.meeting.count({ where: scoped }));
     await check('attendees', plan.attendees.length, tx.meetingAttendee.count({ where: scoped }));
-    await check('botSessions', plan.botSessions.length, tx.meetingBotSession.count({ where: scoped }));
+    await check(
+      'botSessions',
+      plan.botSessions.length,
+      tx.meetingBotSession.count({ where: scoped }),
+    );
     await check('preps', plan.preps.length, tx.meetingPrep.count({ where: scoped }));
     await check('notes', plan.notes.length, tx.meetingNote.count({ where: scoped }));
     await check('debriefs', plan.debriefs.length, tx.meetingDebrief.count({ where: scoped }));
     await check('tasks', plan.tasks.length, tx.engagementTask.count({ where: scoped }));
-    await check('attachments', plan.attachments.length, tx.engagementAttachment.count({ where: scoped }));
-    await check('outreachRecords', plan.outreachRecords.length, tx.outreachRecord.count({ where: scoped }));
-    await check('draftArtifacts', plan.draftArtifacts.length, tx.outreachDraftArtifact.count({ where: scoped }));
-    await check('draftVersions', plan.draftVersions.length, tx.outreachDraftVersion.count({ where: scoped }));
-    await check('sendIntents', plan.sendIntents.length, tx.outreachSendIntent.count({ where: scoped }));
+    await check(
+      'attachments',
+      plan.attachments.length,
+      tx.engagementAttachment.count({ where: scoped }),
+    );
+    await check(
+      'outreachRecords',
+      plan.outreachRecords.length,
+      tx.outreachRecord.count({ where: scoped }),
+    );
+    await check(
+      'draftArtifacts',
+      plan.draftArtifacts.length,
+      tx.outreachDraftArtifact.count({ where: scoped }),
+    );
+    await check(
+      'draftVersions',
+      plan.draftVersions.length,
+      tx.outreachDraftVersion.count({ where: scoped }),
+    );
+    await check(
+      'sendIntents',
+      plan.sendIntents.length,
+      tx.outreachSendIntent.count({ where: scoped }),
+    );
     await check('deliveries', plan.deliveries.length, tx.outreachDelivery.count({ where: scoped }));
     await check('audiences', plan.audiences.length, tx.outreachAudience.count({ where: scoped }));
-    await check('audienceMembers', plan.audienceMembers.length, tx.outreachAudienceMember.count({ where: scoped }));
+    await check(
+      'audienceMembers',
+      plan.audienceMembers.length,
+      tx.outreachAudienceMember.count({ where: scoped }),
+    );
     await check('templates', plan.templates.length, tx.outreachTemplate.count({ where: scoped }));
-    await check('aiTemplates', plan.aiTemplates.length, tx.outreachAiTemplate.count({ where: scoped }));
-    await check('reportTargets', plan.reportTargets.length, tx.engagementReportTargetOffice.count({ where: scoped }));
-    await check('connections', plan.connections.length, tx.integrationConnection.count({ where: scoped }));
+    await check(
+      'aiTemplates',
+      plan.aiTemplates.length,
+      tx.outreachAiTemplate.count({ where: scoped }),
+    );
+    await check(
+      'reportTargets',
+      plan.reportTargets.length,
+      tx.engagementReportTargetOffice.count({ where: scoped }),
+    );
+    await check(
+      'connections',
+      plan.connections.length,
+      tx.integrationConnection.count({ where: scoped }),
+    );
 
     // "No provider credential" is a checkable invariant, not a claim.
     await check('connectionTokens', 0, tx.integrationConnectionToken.count({ where: scoped }));
@@ -807,18 +926,34 @@ async function verify(
         await check(`absent ${absent.key}`, 0, tx.meeting.count({ where: { id: absent.id } }));
       }
       if (absent.key === 'absent.outreachRecord') {
-        await check(`absent ${absent.key}`, 0, tx.outreachRecord.count({ where: { id: absent.id } }));
+        await check(
+          `absent ${absent.key}`,
+          0,
+          tx.outreachRecord.count({ where: { id: absent.id } }),
+        );
       }
       if (absent.key === 'absent.connection') {
-        await check(`absent ${absent.key}`, 0, tx.integrationConnection.count({ where: { id: absent.id } }));
+        await check(
+          `absent ${absent.key}`,
+          0,
+          tx.integrationConnection.count({ where: { id: absent.id } }),
+        );
       }
     }
 
     // The second tenant renders the empty Outreach list and the empty
     // Integrations page — both are absence states, so assert the absence.
     const secondary = plan.tenants.find((row) => row.key === 'tenant.secondary')!.id;
-    await check('secondary tenant outreach records', 0, tx.outreachRecord.count({ where: { tenantId: secondary } }));
-    await check('secondary tenant connections', 0, tx.integrationConnection.count({ where: { tenantId: secondary } }));
+    await check(
+      'secondary tenant outreach records',
+      0,
+      tx.outreachRecord.count({ where: { tenantId: secondary } }),
+    );
+    await check(
+      'secondary tenant connections',
+      0,
+      tx.integrationConnection.count({ where: { tenantId: secondary } }),
+    );
 
     // Every encrypted body must decrypt back to its declared plaintext. A row
     // count alone would pass with ciphertext the reading code cannot open, which
@@ -925,7 +1060,9 @@ function buildFixtureIndex(plan: FixturePlan, anchor: Date): Record<string, unkn
 // helpers, and must not trigger a database connection by doing so.
 if (require.main === module) {
   main().catch((error) => {
-    console.error(`Phase 3 fixture seed failed: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(
+      `Phase 3 fixture seed failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
     process.exit(1);
   });
 }

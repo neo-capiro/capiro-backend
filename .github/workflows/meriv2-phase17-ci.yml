@@ -22,21 +22,21 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg16
         env:
-          POSTGRES_USER: capiro
+          POSTGRES_USER: postgres
           POSTGRES_PASSWORD: capiro
           POSTGRES_DB: capiro
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U capiro -d capiro"
+          --health-cmd "pg_isready -U postgres -d capiro"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
     env:
       NODE_OPTIONS: --max-old-space-size=6144
       CI: 'true'
-      DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro?schema=public
-      DIRECT_URL: postgresql://capiro:capiro@localhost:5432/capiro?schema=public
+      DATABASE_URL: postgresql://postgres:capiro@127.0.0.1:5432/capiro?schema=public
+      DIRECT_URL: postgresql://postgres:capiro@127.0.0.1:5432/capiro?schema=public
       CLERK_SECRET_KEY: sk_test_meriv2_phase17_ci
 
     steps:
@@ -164,6 +164,25 @@ jobs:
 
       - name: Test MeriV2 orchestrator
         run: pnpm --filter @capiro/meriv2-orchestrator test
+
+      - name: Prepare owned disposable integration database
+        env:
+          CI_DISPOSABLE_POSTGRES: '1'
+          CI_POSTGRES_PASSWORD: capiro
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$CI" = true
+          test "$DATABASE_URL" = 'postgresql://postgres:capiro@127.0.0.1:5432/capiro?schema=public'
+          test "$DIRECT_URL" = "$DATABASE_URL"
+          unset PGSERVICE PGSERVICEFILE PGOPTIONS
+          export PGHOST=127.0.0.1 PGHOSTADDR=127.0.0.1 PGPORT=5432 PGDATABASE=capiro PGUSER=postgres PGPASSWORD=capiro
+          bash scripts/ci/bootstrap-disposable-postgres-roles.sh
+          psql --no-psqlrc -v ON_ERROR_STOP=1 -f docker/postgres/init/01-extensions.sql
+          pnpm --filter @capiro/api exec prisma migrate deploy
+          pnpm --filter @capiro/api-strategy exec prisma migrate deploy
+          pnpm --filter @capiro/workspace exec prisma migrate deploy
 
       - name: Test Strategy API
         run: pnpm --filter @capiro/api-strategy test

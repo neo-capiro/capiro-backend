@@ -78,7 +78,7 @@ exit 79
   );
   return { result, log: existsSync(log) ? readFileSync(log, 'utf8') : '' };
 }
-for (const session of [7, 9, 10]) {
+for (const session of [7, 8, 9, 10]) {
   test(`Session ${session} supplies the restricted prerequisite before its owned replay`, () => {
     const { result, log } = rehearsal(session, 'owned');
     assert.notEqual(result.status, 0);

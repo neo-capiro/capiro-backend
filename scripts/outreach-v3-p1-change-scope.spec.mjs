@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { classifyChange, inspectChanges } from './outreach-v3-p1-change-scope.mjs';
@@ -123,4 +124,93 @@ test('unrelated product changes do not select Phase 1', () => {
   const result = inspectChanges([{ file: 'apps/web/src/x.tsx', before: 'old', after: 'new' }]);
   assert.equal(result.shouldRun, false);
   assert.equal(result.productChanged, false);
+});
+
+const parityFixturePath =
+  'apps/api/src/engagement/__fixtures__/engagement-phase3-fixture-contract.v1.json';
+const mailAfter = JSON.parse(
+  readFileSync(new URL('../' + parityFixturePath, import.meta.url), 'utf8'),
+);
+const mailBefore = structuredClone(mailAfter);
+delete mailBefore.plan.mailThreads;
+delete mailBefore.counts.mailThreads;
+mailBefore.totals.rows -= 1;
+mailBefore.cleanupOrder = mailBefore.cleanupOrder.filter((table) => table !== 'mail_threads');
+test('only the owned generated mail-detail fixture addition is maintenance', () => {
+  assert.equal(classifyChange(parityFixturePath, json(mailBefore), json(mailAfter)), 'gate');
+  assert.equal(
+    inspectChanges([{ file: parityFixturePath, before: json(mailBefore), after: json(mailAfter) }])
+      .shouldRun,
+    true,
+  );
+});
+for (const [name, mutate] of [
+  [
+    'tenant ownership',
+    (x) => {
+      x.plan.mailThreads[0].tenantKey = 'tenant.secondary';
+    },
+  ],
+  [
+    'mailbox ownership',
+    (x) => {
+      x.plan.mailThreads[0].connectionKey = 'connection.googleConnected';
+    },
+  ],
+  [
+    'provider credentials',
+    (x) => {
+      x.plan.mailThreads[0].accessToken = 'credential';
+    },
+  ],
+  [
+    'existing role',
+    (x) => {
+      x.plan.memberships[0].role = 'standard_user';
+    },
+  ],
+  [
+    'existing access grants',
+    (x) => {
+      x.plan.clientMemoryAccess = [];
+    },
+  ],
+  [
+    'extra row',
+    (x) => {
+      x.plan.mailThreads.push({ ...x.plan.mailThreads[0] });
+    },
+  ],
+  [
+    'count drift',
+    (x) => {
+      x.totals.rows += 1;
+    },
+  ],
+  [
+    'cleanup drift',
+    (x) => {
+      x.cleanupOrder = x.cleanupOrder.filter((table) => table !== 'mail_threads');
+    },
+  ],
+  [
+    'schema change',
+    (x) => {
+      x.schemaVersion = 2;
+    },
+  ],
+])
+  test(`mail fixture ${name} retains product attribution`, () => {
+    const changed = structuredClone(mailAfter);
+    mutate(changed);
+    assert.equal(classifyChange(parityFixturePath, json(mailBefore), json(changed)), 'product');
+  });
+test('mixed mail fixture and runtime changes retain full product attribution', () => {
+  assert.equal(
+    inspectChanges([
+      { file: parityFixturePath, before: json(mailBefore), after: json(mailAfter) },
+      { file: 'apps/api/src/engagement/engagement.service.ts', before: 'old', after: 'new' },
+    ]).productChanged,
+    true,
+  );
 });

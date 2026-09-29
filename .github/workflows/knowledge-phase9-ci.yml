@@ -28,18 +28,18 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg16
         env:
-          POSTGRES_USER: capiro
+          POSTGRES_USER: postgres
           POSTGRES_PASSWORD: capiro
           POSTGRES_DB: capiro
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U capiro -d capiro"
+          --health-cmd "pg_isready -U postgres -d capiro"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro
+      DATABASE_URL: postgresql://postgres:capiro@127.0.0.1:5432/capiro
 
     steps:
       - uses: actions/checkout@v4
@@ -92,6 +92,21 @@ jobs:
             exit 1
           fi
           echo "Full API typecheck exit: $status (unrelated baseline errors, if any, are not attributed to Phase 9)."
+
+      - name: Prepare owned disposable migration prerequisites
+        env:
+          CI_DISPOSABLE_POSTGRES: '1'
+          CI_POSTGRES_PASSWORD: capiro
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$CI" = true
+          test "$DATABASE_URL" = 'postgresql://postgres:capiro@127.0.0.1:5432/capiro'
+          unset PGSERVICE PGSERVICEFILE PGOPTIONS
+          export PGHOST=127.0.0.1 PGHOSTADDR=127.0.0.1 PGPORT=5432 PGDATABASE=capiro PGUSER=postgres PGPASSWORD=capiro
+          bash scripts/ci/bootstrap-disposable-postgres-roles.sh
+          psql --no-psqlrc -v ON_ERROR_STOP=1 -f docker/postgres/init/01-extensions.sql
 
       - name: Deploy full Prisma migration chain to disposable pgvector/Postgres
         run: pnpm --filter @capiro/api exec prisma migrate deploy

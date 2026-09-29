@@ -57,7 +57,9 @@ permissions:
 jobs:
   funding-opportunities:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # The serial API suites exceeded the former 45-minute job budget.
+    # Keep every suite, count floor, and disposable DB isolation check.
+    timeout-minutes: 90
     services:
       postgres:
         # pgvector, not plain postgres: early repository migrations create vector
