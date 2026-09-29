@@ -1,0 +1,11 @@
+# Outreach CI workspace prerequisites and reasoning heap
+
+Current hosted foundation7823 failed the Phase3 reasoning Jest step with Node heap exhaustion (job109217536438); Phase4 reached the reusable Phase2 API build and failed to resolve @capiro/defense-domain (job109217517961). These are captured setup/capacity failures, not evidence of served Meri behavior.
+
+Both reusable Phase2/Phase3 verifiers now build the existing shared, Meri core, Defense contracts and Defense domain workspaces before their checks. The actual dependency packages and resolutions are unchanged. Phase3 adds a6144MB heap allowance only to its11-suite reasoning Jest step, retaining any preexisting NODE_OPTIONS. All existing test paths, assertion programs, syntax/type/build/whitespace gates and child-exit propagation remain unchanged. Nested verifier calls may repeat existing dependency builds; this bounded repair does not refactor their orchestration.
+
+PASS: actual shared/core/contracts/domain/API production builds, all exit0. Exact reasoning selection:73 tests in11 suites, no skips, exit0 with6144MB. Both verifier syntax checks, scoped Prettier and diff checks exit0. Evidence: C:/dev/cap-meri-foundation-evidence/outreach-workspace-prerequisites/exits.json and per-package logs; outreach-phase3-heap-qualification-exit.json and log.
+
+Independent Hermes/Kimi static review returned SCOPED PASS with actual reviewer exit0. Lead disposition: accept only the source-diff assessment. The review's claims that the complete Phase2/3 verifiers were run, and its speculative hosted memory/dependency-chain descriptions, are not supported by the supplied evidence and are expressly rejected. The actual recorded evidence is the five builds and isolated73-test execution above. Complete hosted verifiers remain required and may expose further failures; no larger gate is waived or represented as green.
+
+No application logic, migration SQL, database state, AWS configuration, routing, model policy or deployment changed. This is a candidate qualification, not Workstream A or File01 completion.
