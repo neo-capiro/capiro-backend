@@ -1,5 +1,11 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-29 approved fixture retirement commands
+
+Source 3ffa515fa integrates approved-memory revocation into the existing operator plan/apply/verify lifecycle alongside pending withdrawal. It binds current approved item/candidate versions, actual database roles and the configured original proposer, and retains approval history. API build, 47 fixture/runtime/CLI checks, six frozen-content checks, 30 actual PostgreSQL tests and independent Hermes/Bedrock Kimi reviews pass with exit 0. A focused added mutation-refusal assertion also passes. See approved-retirement-cli-qualification.md for exact timing, two corrected failures, real mixed-CLI receipts, configuration and review limits.
+
+Approved-memory operator lifecycle now has bounded canonical evidence. Other fixture owners, whole-fixture query isolation, trusted collectors, original served acceptance and release gates remain open. No shared-environment change or deployment occurred.
+
 ## Current checkpoint — 2026-09-29 retained approved-memory evidence
 
 Source ef1517996 adds canonical retained-state proof readback with current membership/read authorization, content/version/lineage checks, immutable audit binding and observed projection absence. It explicitly records the database revocation epoch in the audit: an earlier assumption that the ordinary audit timestamp matched revoked_at was disproved by real output and rejected. See approved-retirement-proof-qualification.md for final qualification, failed-attempt evidence, independent review and limits.
