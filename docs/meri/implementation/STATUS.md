@@ -1,5 +1,13 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-29 telemetry, policy and CI integration
+
+The verified batch following local main 7ac331dde includes bounded OpenTelemetry SDK export and shutdown, durable metadata projection, signed capture-policy readback with frozen fixture-content checks, an offline governance test repair, disposable Phase2/Federal prerequisites and UI CI portability. Export is disabled by default; no live endpoint or synthetic enablement is claimed. Exact local-main and published topic SHAs are recorded in C:/dev/cap-meri-foundation-evidence/c-drive-local-main-current.json. Integration follows local main first, then topic publication; GitHub-main merge still requires successful gates.
+
+Combined API and orchestrator types and 40 core tests exit 0. Integrated capture qualification passes 90 API tests and six fixture tests; the governance repair passes 28 tests; Phase2 ownership guards pass 29 tests again after integration. Separate telemetry integration passes 19 core and 42 API tests. These overlapping scopes must not be summed as unique coverage. Donor Phase2 prerequisites also passed actual owned local PostgreSQL probes, with both UUID databases removed and no global role changes. Separate Hermes/Bedrock Kimi reviews pass their bounded scopes. Generated route portability changes only eight comments, preserving route exports and manifest hash.
+
+Full File01 remains incomplete. Actual durable-owner span wiring is preserved as unfinished work outside this integration. Canonical fixture reset/reseed and other owner lifecycles, trusted collector bindings, complete live75/CD7/CW8 and applicable memory acceptance, hosted CI, database recovery clearance, owner acceptance and approved AWS release remain open. Workstream A's original17 cases plus CD-05 have no complete served acceptance pass. UI shipping remains web-vnext to os.capiro.ai. No GitHub-main merge or deployment is claimed by this checkpoint. Historical checkpoints below retain their original scope.
+
 ## Current checkpoint — 2026-09-29 verified CI and capture consolidation
 
 Foundation through `b1cd67898` includes the exact inherited Phase12 provider inventory, controlled signed-receipt ingestion, the owner-approved client-notetaker preview entry, CSS generator preservation, workspace prerequisite builds, bounded test heaps, disposable Phase3 prerequisite ownership, and UI verifier maintenance. Current local-main/topic SHAs are recorded in `C:/dev/cap-meri-foundation-evidence/c-drive-local-main-current.json`; publication follows clean C-drive local-main integration. GitHub main remains `42942dedad59382f4b4aac6f904b9aee0e02efa6`. No deployment or synthetic enablement is claimed.

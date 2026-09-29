@@ -4,14 +4,14 @@
  * Primary source:
  *   apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json
  * Additive Outreach V3 sources:
- *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-route-manifest.v1.json
- *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-reasoning-route-manifest.v1.json
- *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-target-route-manifest.v1.json
- *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-context-route-manifest.v1.json
- *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-generation-route-manifest.v1.json
- *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-drafts-route-manifest.v1.json
- *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-send-route-manifest.v1.json
- *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-templates-route-manifest.v1.json
+ *   apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json
+ *   apps/api/src/outreach-v3/__fixtures__/outreach-v3-reasoning-route-manifest.v1.json
+ *   apps/api/src/outreach-v3/__fixtures__/outreach-v3-target-route-manifest.v1.json
+ *   apps/api/src/outreach-v3/__fixtures__/outreach-v3-context-route-manifest.v1.json
+ *   apps/api/src/outreach-v3/__fixtures__/outreach-v3-generation-route-manifest.v1.json
+ *   apps/api/src/outreach-v3/__fixtures__/outreach-v3-drafts-route-manifest.v1.json
+ *   apps/api/src/outreach-v3/__fixtures__/outreach-v3-send-route-manifest.v1.json
+ *   apps/api/src/outreach-v3/__fixtures__/outreach-v3-templates-route-manifest.v1.json
  * Generator: scripts/engagement-phase3-preview-route-patterns.mjs
  * Regenerate: node scripts/engagement-phase3-preview-route-patterns.mjs --write
  *
