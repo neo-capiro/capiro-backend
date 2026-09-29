@@ -85,6 +85,7 @@ export function createMemoryCandidateOwnerPort({
   prisma,
   actorForTenant,
   clientMemoryAllowed,
+  approvedRetirement,
 }) {
   if (
     typeof memoryCandidates?.proposeSaveMemory !== 'function' ||
@@ -202,7 +203,17 @@ export function createMemoryCandidateOwnerPort({
   }
 
   return {
-    readRetirement,
+    async readForRetirement(record) {
+      return (await approvedRetirement?.inspect(record)) ?? this.read(record);
+    },
+    async readRetirement(record, guards) {
+      if (guards?.action === 'revoke_approved') {
+        if (!approvedRetirement)
+          throw new FixtureProvisioningError('APPROVED_RETIREMENT_UNAVAILABLE', record.logicalId);
+        return approvedRetirement.readRetirement(record, guards);
+      }
+      return readRetirement(record);
+    },
     async retire(record, guards) {
       assertRecord(record);
       if (
@@ -213,6 +224,11 @@ export function createMemoryCandidateOwnerPort({
         guards?.expectedRowVersion === undefined
       ) {
         throw new FixtureProvisioningError('WRITE_GUARD_MISMATCH', record.logicalId);
+      }
+      if (guards.action === 'revoke_approved') {
+        if (!approvedRetirement)
+          throw new FixtureProvisioningError('APPROVED_RETIREMENT_UNAVAILABLE', record.logicalId);
+        return approvedRetirement.retire(record, guards);
       }
       if (typeof memoryCandidates.withdrawSyntheticFixture !== 'function') {
         throw new FixtureProvisioningError(
@@ -350,3 +366,8 @@ export function createMemoryCandidateOwnerPort({
     },
   };
 }
+
+export {
+  assertRecord as assertMemoryCandidateRecord,
+  expectedStoredPayload as expectedMemoryCandidatePayload,
+};

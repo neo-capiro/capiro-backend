@@ -138,14 +138,27 @@ function assertPending(record, operation, row) {
   ) {
     fail('RETIREMENT_ROW_CHANGED', record.logicalId);
   }
+  if (
+    operation.action === 'revoke_approved' &&
+    (row.lifecycle !== 'approved' ||
+      row.approvedItemId !== operation.approvedItemId ||
+      row.itemRowVersion !== operation.expectedItemRowVersion)
+  )
+    fail('RETIREMENT_ROW_CHANGED', record.logicalId);
 }
 
+const inspectCurrent = (adapter, record) =>
+  typeof adapter.inspectForRetirement === 'function'
+    ? adapter.inspectForRetirement(record)
+    : adapter.inspect(record);
+
 function retained(record, operation, row) {
+  const approved = operation.action === 'revoke_approved';
   if (
     !row ||
     row.retained !== true ||
-    row.status !== 'withdrawn' ||
-    row.governedStatus !== 'rejected' ||
+    row.status !== (approved ? 'approved' : 'withdrawn') ||
+    row.governedStatus !== (approved ? 'active' : 'rejected') ||
     row.physicalId !== record.physicalId ||
     row.tenantId !== record.tenantId ||
     row.owner !== record.owner ||
@@ -153,7 +166,17 @@ function retained(record, operation, row) {
     row.payloadSha256 !== record.payloadSha256 ||
     row.priorRowVersion !== operation.expectedRowVersion ||
     !version(row.rowVersion) ||
-    row.rowVersion === operation.expectedRowVersion ||
+    (approved
+      ? row.rowVersion !== operation.expectedRowVersion
+      : row.rowVersion === operation.expectedRowVersion) ||
+    (approved &&
+      (row.approvedItemId !== operation.approvedItemId ||
+        row.itemStatus !== 'revoked' ||
+        row.itemGovernedStatus !== 'revoked' ||
+        row.priorItemRowVersion !== operation.expectedItemRowVersion ||
+        !version(row.itemRowVersion) ||
+        row.itemRowVersion === operation.expectedItemRowVersion ||
+        !UUID.test(row.cleanupIntentId ?? ''))) ||
     !UUID.test(row.transitionAuditId ?? '')
   ) {
     fail('RETIREMENT_PROOF_MISMATCH', record.logicalId);
@@ -173,6 +196,17 @@ function retained(record, operation, row) {
     status: row.status,
     governedStatus: row.governedStatus,
     transitionAuditId: row.transitionAuditId,
+    ...(approved
+      ? {
+          terminalSubject: 'memory_item',
+          approvedItemId: row.approvedItemId,
+          itemStatus: row.itemStatus,
+          itemGovernedStatus: row.itemGovernedStatus,
+          itemRowVersion: row.itemRowVersion,
+          priorItemRowVersion: row.priorItemRowVersion,
+          cleanupIntentId: row.cleanupIntentId,
+        }
+      : {}),
   };
 }
 
@@ -188,24 +222,67 @@ async function assertAbsent(adapter, record, operation) {
 
 function assertPlan(args, data) {
   const plan = assertReceiptHash(args.retirementPlan, PLAN);
+  if (!Array.isArray(plan.operations) || plan.operations.length !== data.operations.length)
+    fail('RETIREMENT_PLAN_MISMATCH', 'plan operation coverage changed');
+  const expectedOperations = data.operations.map((base, index) => {
+    const operation = plan.operations[index];
+    if (operation?.action !== 'revoke_approved') return base;
+    if (
+      base.action !== 'withdraw_pending' ||
+      !version(operation.expectedRowVersion) ||
+      !version(operation.expectedItemRowVersion) ||
+      !UUID.test(operation.approvedItemId ?? '')
+    )
+      fail('RETIREMENT_PLAN_MISMATCH', 'invalid approved lifecycle binding');
+    // Approved versions differ from the seed after canonical approval. The
+    // snapshot is re-read before every write, then atomically guarded by its owner.
+    return {
+      ...base,
+      action: 'revoke_approved',
+      expectedRowVersion: operation.expectedRowVersion,
+      approvedItemId: operation.approvedItemId,
+      expectedItemRowVersion: operation.expectedItemRowVersion,
+    };
+  });
   if (
     plan.dryRun !== true ||
     plan.authority !== 'canonical_readback' ||
     Object.entries(binding(args)).some(([key, value]) => plan[key] !== value) ||
-    !same(plan.operations, data.operations) ||
+    !same(plan.operations, expectedOperations) ||
     !same(plan.unavailable, data.unavailable)
   ) {
     fail('RETIREMENT_PLAN_MISMATCH', 'plan must exactly match both manifests and seed coverage');
   }
+  data.operations = expectedOperations;
 }
 
 /** Content addresses bind inputs; only current canonical readback authorizes writes. */
 export async function planOwnedRetirement(args) {
   const data = inputs(args);
-  for (const operation of data.operations) {
+  for (const [index, base] of data.operations.entries()) {
+    let operation = base;
     const record = data.records.get(operation.logicalId);
     if (operation.action === 'verify_absent') await assertAbsent(args.adapter, record, operation);
-    else assertPending(record, operation, await args.adapter.inspect(record));
+    else {
+      const row = await inspectCurrent(args.adapter, record);
+      if (row?.lifecycle === 'approved') {
+        if (
+          !version(row.rowVersion) ||
+          !version(row.itemRowVersion) ||
+          !UUID.test(row.approvedItemId ?? '')
+        )
+          fail('RETIREMENT_ROW_CHANGED', record.logicalId);
+        operation = {
+          ...base,
+          action: 'revoke_approved',
+          expectedRowVersion: row.rowVersion,
+          approvedItemId: row.approvedItemId,
+          expectedItemRowVersion: row.itemRowVersion,
+        };
+        data.operations[index] = operation;
+      }
+      assertPending(record, operation, row);
+    }
   }
   return receiptWithHash({
     kind: PLAN,
@@ -235,7 +312,7 @@ export async function applyOwnedRetirement(args) {
       }
       let prior;
       try {
-        prior = await args.adapter.inspectRetirement(record);
+        prior = await args.adapter.inspectRetirement(record, operation);
       } catch (error) {
         if (error?.code !== 'MEMORY_CANDIDATE_RETIREMENT_UNVERIFIED') throw error;
       }
@@ -243,16 +320,19 @@ export async function applyOwnedRetirement(args) {
         records.push(retained(record, operation, prior));
         continue;
       }
-      assertPending(record, operation, await args.adapter.inspect(record));
+      assertPending(record, operation, await inspectCurrent(args.adapter, record));
       mutationAttempted = true;
       await args.adapter.retireOwned(record, {
+        ...operation,
         tenantId: record.tenantId,
         physicalId: record.physicalId,
         expectedOwnershipMarkerSha256: operation.expectedOwnershipMarkerSha256,
         expectedRowVersion: operation.expectedRowVersion,
       });
       // Never trust only the writer's return value for retained-state evidence.
-      records.push(retained(record, operation, await args.adapter.inspectRetirement(record)));
+      records.push(
+        retained(record, operation, await args.adapter.inspectRetirement(record, operation)),
+      );
     } catch (error) {
       status = mutationAttempted || error?.unknownCommit === true ? 'unknown_outcome' : 'failed';
       records.push({
@@ -299,7 +379,7 @@ export async function verifyOwnedRetirement(args) {
       const actual =
         operation.action === 'verify_absent'
           ? await assertAbsent(args.adapter, record, operation)
-          : retained(record, operation, await args.adapter.inspectRetirement(record));
+          : retained(record, operation, await args.adapter.inspectRetirement(record, operation));
       if (!same(actual, receipt.records[index]))
         fail('RETIREMENT_READBACK_CHANGED', record.logicalId);
       records.push(actual);

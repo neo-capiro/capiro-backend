@@ -1039,155 +1039,296 @@ describe('built canonical memory candidate command runtime', { skip: !configPath
     });
   });
 
-  it('runs the retirement CLI, reconciles a retry and seeds the bound replacement without deleting history', async () => {
-    await withRetirementEnabled(async () => {
-      const oldConfig = { ...config, fixtureInstanceId: randomUUID() };
-      const priorManifest = await buildFixtureManifest(oldConfig);
-      const replacement = await buildFixtureManifest({
-        ...config,
-        fixtureInstanceId: randomUUID(),
+  it('operator runtime derives the current database role and preserves private ownership', async () => {
+    await withApprovedRetirement(async () => {
+      const f = await approvedFixture();
+      const snapshot = await adapter.inspectForRetirement(f.record);
+      const guards = {
+        action: 'revoke_approved',
+        tenantId: TENANT,
+        physicalId: f.record.physicalId,
+        expectedOwnershipMarkerSha256: f.record.ownership.markerSha256,
+        expectedRowVersion: snapshot.rowVersion,
+        approvedItemId: snapshot.approvedItemId,
+        expectedItemRowVersion: snapshot.itemRowVersion,
+      };
+      const before = await approvedState(f);
+      await assert.rejects(adapter.retireOwned(f.record, guards), {
+        code: 'APPROVED_RETIREMENT_REFUSED',
       });
-      const seedReceipt = await applyFixture({
-        manifest: priorManifest,
-        adapter,
-        plan: await planFixture({ manifest: priorManifest, adapter }),
-        confirmation: APPLY_CONFIRMATION,
+      assert.deepEqual(await approvedState(f), before);
+      const reviewerAdapter = await createAdapter({
+        config: {
+          ...config,
+          actors: { ...config.actors, REVIEWER: { tenantId: 'T1', userId: REVIEWER } },
+          retirementActors: { T1: 'REVIEWER' },
+        },
       });
-      assert.equal(seedReceipt.status, 'complete');
-      const root = resolve(process.cwd());
-      const directory = await mkdtemp(join(root, '.meri-retirement-cli-'));
       try {
-        const configFile = join(directory, 'config.json');
-        const seedFile = join(directory, 'seed.json');
-        const nextFile = join(directory, 'replacement.json');
-        const planFile = join(directory, 'plan.json');
-        const retirementFile = join(directory, 'retirement.json');
-        const verifyFile = join(directory, 'verify.json');
-        await writeFile(configFile, JSON.stringify(oldConfig));
-        await writeFile(seedFile, JSON.stringify(seedReceipt));
-        await writeFile(nextFile, JSON.stringify(replacement));
-        const base = [
-          '--config',
-          configFile,
-          '--seed-receipt',
-          seedFile,
-          '--replacement-manifest',
-          nextFile,
-          '--adapter',
-          fileURLToPath(
-            new URL('../fixture-provisioning/memory-candidate-runtime.mjs', import.meta.url),
-          ),
-        ];
-        async function run(command, output, extra = []) {
-          const result = spawnSync(
-            process.execPath,
-            [
-              fileURLToPath(new URL('../fixture-provisioning/cli.mjs', import.meta.url)),
-              command,
-              ...base,
-              '--out',
-              output,
-              ...extra,
-            ],
-            {
-              encoding: 'utf8',
-              timeout: 30_000,
-            },
-          );
-          assert.ifError(result.error);
-          assert.equal(result.status, 0, result.stderr || result.stdout);
-          return JSON.parse(await readFile(output, 'utf8'));
-        }
-        const retirementPlan = await run('retirement-plan', planFile);
-        const retirement = await run('owned-retirement', retirementFile, [
-          '--retirement-plan',
-          planFile,
-          '--confirm',
-          RETIRE_CONFIRMATION,
-        ]);
-        assert.equal(retirement.status, 'complete');
-        assert.equal(retirement.fixtureComplete, false);
-        assert.equal(retirement.replacementManifestContentSha256, replacement.contentSha256);
-        assert.ok(retirement.unavailable.length > 0);
-        const oldIds = priorManifest.records
-          .filter(
-            (row) =>
-              row.owner === 'memory_candidate' &&
-              row.availability.status === 'available' &&
-              row.expectedPresence === 'present',
-          )
-          .map((row) => row.physicalId);
-        const oldRows = await pool.query(
-          `SELECT id,status,xmin::text AS version,payload_jsonb,provenance_jsonb FROM "${schema}".memory_candidate WHERE id=ANY($1::uuid[]) ORDER BY id`,
-          [oldIds],
+        await assert.rejects(
+          reviewerAdapter.retireOwned(f.record, { ...guards, expectedItemRowVersion: '1' }),
+          (error) => error.getStatus?.() === 403,
         );
-        assert.equal(oldRows.rowCount, oldIds.length);
-        assert.ok(oldRows.rows.every((row) => row.status === 'withdrawn'));
-        const auditCount = await pool.query(
-          `SELECT count(*)::int AS count FROM "${schema}".memory_transition_audit WHERE memory_candidate_id=ANY($1::uuid[])`,
-          [oldIds],
+        assert.deepEqual(await approvedState(f), before);
+        await reviewerAdapter.retireOwned(f.record, guards);
+        assert.equal(
+          (await reviewerAdapter.inspectRetirement(f.record, guards)).itemStatus,
+          'revoked',
         );
-        assert.equal(auditCount.rows[0].count, oldIds.length);
-        const retry = await run('owned-retirement', retirementFile, [
-          '--retirement-plan',
-          planFile,
-          '--confirm',
-          RETIRE_CONFIRMATION,
-        ]);
-        assert.deepEqual(retry, retirement);
-        const verified = await run('verify-retirement', verifyFile, [
-          '--retirement-plan',
-          planFile,
-          '--retirement-receipt',
-          retirementFile,
-        ]);
-        assert.equal(verified.status, 'complete');
-        const replacementSeed = await applyFixture({
-          manifest: replacement,
-          adapter,
-          plan: await planFixture({ manifest: replacement, adapter }),
-          confirmation: APPLY_CONFIRMATION,
+        const privateFixture = await approvedFixture('MEM-PENDING-17-F', {
+          tenantId: TENANT,
+          userId: USER,
+          role: 'standard_user',
         });
-        assert.equal(replacementSeed.status, 'complete');
-        assert.equal((await verifyFixture({ manifest: replacement, adapter })).status, 'complete');
-        const retained = await pool.query(
-          `SELECT id,status,xmin::text AS version,payload_jsonb,provenance_jsonb FROM "${schema}".memory_candidate WHERE id=ANY($1::uuid[]) ORDER BY id`,
-          [oldIds],
+        await assert.rejects(
+          reviewerAdapter.inspectForRetirement(privateFixture.record),
+          (error) => error.getStatus?.() === 403,
         );
-        assert.deepEqual(retained.rows, oldRows.rows);
-        assert.equal(
-          (
-            await pool.query(
-              `SELECT id FROM "${schema}".memory_candidate WHERE id=ANY($1::uuid[]) AND status='pending'`,
-              [oldIds],
-            )
-          ).rowCount,
-          0,
-        );
-        assert.equal(
-          (
-            await pool.query(
-              `SELECT count(*)::int AS count FROM "${schema}".memory_transition_audit WHERE memory_candidate_id=ANY($1::uuid[])`,
-              [oldIds],
-            )
-          ).rows[0].count,
-          oldIds.length,
-        );
-        console.info(
-          JSON.stringify({
-            retirementPlan: retirementPlan.contentSha256,
-            retirementReceipt: retirement.contentSha256,
-            verified: verified.status,
-            replacementSeed: replacementSeed.contentSha256,
-            retainedCandidates: oldIds.length,
-            retainedAudits: oldIds.length,
-          }),
-        );
+        const own = await adapter.inspectForRetirement(privateFixture.record);
+        const ownGuards = {
+          ...guards,
+          physicalId: privateFixture.record.physicalId,
+          expectedOwnershipMarkerSha256: privateFixture.record.ownership.markerSha256,
+          expectedRowVersion: own.rowVersion,
+          approvedItemId: own.approvedItemId,
+          expectedItemRowVersion: own.itemRowVersion,
+        };
+        const retired = await adapter.retireOwned(privateFixture.record, ownGuards);
+        assert.equal(retired.itemStatus, 'revoked');
+        assert.equal(retired.status, 'approved');
       } finally {
-        assert.equal(dirname(resolve(directory)), root);
-        assert.ok(basename(directory).startsWith('.meri-retirement-cli-'));
-        await rm(directory, { recursive: true, force: true });
+        await reviewerAdapter.close();
       }
     });
   });
+
+  for (const approveOne of [false, true]) {
+    it(`runs the ${approveOne ? 'mixed approved/pending' : 'pending'} retirement CLI, reconciles a retry and seeds the bound replacement without deleting history`, async () => {
+      await (approveOne ? withApprovedRetirement : withRetirementEnabled)(async () => {
+        const oldConfig = {
+          ...config,
+          fixtureInstanceId: randomUUID(),
+          ...(approveOne
+            ? {
+                actors: { ...config.actors, REVIEWER: { tenantId: 'T1', userId: REVIEWER } },
+                retirementActors: { T1: 'REVIEWER' },
+              }
+            : {}),
+        };
+        const priorManifest = await buildFixtureManifest(oldConfig);
+        const replacement = await buildFixtureManifest({
+          ...oldConfig,
+          fixtureInstanceId: randomUUID(),
+        });
+        const seedReceipt = await applyFixture({
+          manifest: priorManifest,
+          adapter,
+          plan: await planFixture({ manifest: priorManifest, adapter }),
+          confirmation: APPLY_CONFIRMATION,
+        });
+        assert.equal(seedReceipt.status, 'complete');
+        const approvedRecord = approveOne
+          ? priorManifest.records.find((row) => row.logicalId === 'MEM-PROPOSAL-14')
+          : null;
+        let approvedBefore;
+        let approvalAudits = [];
+        if (approvedRecord) {
+          await approvalService.approve(TENANT, approvedRecord.physicalId, REVIEWER, {
+            tenantId: TENANT,
+            userId: REVIEWER,
+            role: 'user_admin',
+          });
+          approvedBefore = (
+            await pool.query(
+              `SELECT to_jsonb(mc) AS row,xmin::text AS version FROM "${schema}".memory_candidate mc WHERE id=$1`,
+              [approvedRecord.physicalId],
+            )
+          ).rows[0];
+          approvalAudits = (
+            await pool.query(
+              `SELECT * FROM "${schema}".memory_transition_audit WHERE memory_candidate_id=$1 ORDER BY id`,
+              [approvedRecord.physicalId],
+            )
+          ).rows;
+          assert.ok(approvalAudits.length > 0);
+        }
+        const root = resolve(process.cwd());
+        const directory = await mkdtemp(join(root, '.meri-retirement-cli-'));
+        try {
+          const configFile = join(directory, 'config.json');
+          const seedFile = join(directory, 'seed.json');
+          const nextFile = join(directory, 'replacement.json');
+          const planFile = join(directory, 'plan.json');
+          const retirementFile = join(directory, 'retirement.json');
+          const verifyFile = join(directory, 'verify.json');
+          await writeFile(configFile, JSON.stringify(oldConfig));
+          await writeFile(seedFile, JSON.stringify(seedReceipt));
+          await writeFile(nextFile, JSON.stringify(replacement));
+          const base = [
+            '--config',
+            configFile,
+            '--seed-receipt',
+            seedFile,
+            '--replacement-manifest',
+            nextFile,
+            '--adapter',
+            fileURLToPath(
+              new URL('../fixture-provisioning/memory-candidate-runtime.mjs', import.meta.url),
+            ),
+          ];
+          async function run(command, output, extra = []) {
+            const result = spawnSync(
+              process.execPath,
+              [
+                fileURLToPath(new URL('../fixture-provisioning/cli.mjs', import.meta.url)),
+                command,
+                ...base,
+                '--out',
+                output,
+                ...extra,
+              ],
+              {
+                encoding: 'utf8',
+                timeout: 30_000,
+              },
+            );
+            assert.ifError(result.error);
+            assert.equal(result.status, 0, result.stderr || result.stdout);
+            return JSON.parse(await readFile(output, 'utf8'));
+          }
+          const retirementPlan = await run('retirement-plan', planFile);
+          assert.equal(
+            retirementPlan.operations.filter((row) => row.action === 'revoke_approved').length,
+            approveOne ? 1 : 0,
+          );
+          const retirement = await run('owned-retirement', retirementFile, [
+            '--retirement-plan',
+            planFile,
+            '--confirm',
+            RETIRE_CONFIRMATION,
+          ]);
+          assert.equal(retirement.status, 'complete');
+          assert.equal(retirement.fixtureComplete, false);
+          assert.equal(retirement.replacementManifestContentSha256, replacement.contentSha256);
+          assert.ok(retirement.unavailable.length > 0);
+          const oldIds = priorManifest.records
+            .filter(
+              (row) =>
+                row.owner === 'memory_candidate' &&
+                row.availability.status === 'available' &&
+                row.expectedPresence === 'present',
+            )
+            .map((row) => row.physicalId);
+          const oldRows = await pool.query(
+            `SELECT id,status,xmin::text AS version,payload_jsonb,provenance_jsonb FROM "${schema}".memory_candidate WHERE id=ANY($1::uuid[]) ORDER BY id`,
+            [oldIds],
+          );
+          assert.equal(oldRows.rowCount, oldIds.length);
+          assert.ok(
+            oldRows.rows.every(
+              (row) =>
+                row.status === (row.id === approvedRecord?.physicalId ? 'approved' : 'withdrawn'),
+            ),
+          );
+          if (approveOne) {
+            const proof = retirement.records.find(
+              (row) => row.physicalId === approvedRecord.physicalId,
+            );
+            assert.equal(proof.itemStatus, 'revoked');
+            assert.equal(proof.status, 'approved');
+            assert.ok(proof.cleanupIntentId);
+            assert.deepEqual(
+              (
+                await pool.query(
+                  `SELECT to_jsonb(mc) AS row,xmin::text AS version FROM "${schema}".memory_candidate mc WHERE id=$1`,
+                  [approvedRecord.physicalId],
+                )
+              ).rows[0],
+              approvedBefore,
+            );
+            assert.deepEqual(
+              (
+                await pool.query(
+                  `SELECT * FROM "${schema}".memory_transition_audit WHERE memory_candidate_id=$1 ORDER BY id`,
+                  [approvedRecord.physicalId],
+                )
+              ).rows,
+              approvalAudits,
+            );
+          }
+          const auditCount = await pool.query(
+            `SELECT count(*)::int AS count FROM "${schema}".memory_transition_audit WHERE memory_candidate_id=ANY($1::uuid[])`,
+            [oldIds],
+          );
+          assert.equal(
+            auditCount.rows[0].count,
+            oldIds.length - (approveOne ? 1 : 0) + approvalAudits.length,
+          );
+          const retry = await run('owned-retirement', retirementFile, [
+            '--retirement-plan',
+            planFile,
+            '--confirm',
+            RETIRE_CONFIRMATION,
+          ]);
+          assert.deepEqual(retry, retirement);
+          const verified = await run('verify-retirement', verifyFile, [
+            '--retirement-plan',
+            planFile,
+            '--retirement-receipt',
+            retirementFile,
+          ]);
+          assert.equal(verified.status, 'complete');
+          const replacementSeed = await applyFixture({
+            manifest: replacement,
+            adapter,
+            plan: await planFixture({ manifest: replacement, adapter }),
+            confirmation: APPLY_CONFIRMATION,
+          });
+          assert.equal(replacementSeed.status, 'complete');
+          assert.equal(
+            (await verifyFixture({ manifest: replacement, adapter })).status,
+            'complete',
+          );
+          const retained = await pool.query(
+            `SELECT id,status,xmin::text AS version,payload_jsonb,provenance_jsonb FROM "${schema}".memory_candidate WHERE id=ANY($1::uuid[]) ORDER BY id`,
+            [oldIds],
+          );
+          assert.deepEqual(retained.rows, oldRows.rows);
+          assert.equal(
+            (
+              await pool.query(
+                `SELECT id FROM "${schema}".memory_candidate WHERE id=ANY($1::uuid[]) AND status='pending'`,
+                [oldIds],
+              )
+            ).rowCount,
+            0,
+          );
+          assert.equal(
+            (
+              await pool.query(
+                `SELECT count(*)::int AS count FROM "${schema}".memory_transition_audit WHERE memory_candidate_id=ANY($1::uuid[])`,
+                [oldIds],
+              )
+            ).rows[0].count,
+            auditCount.rows[0].count,
+          );
+          console.info(
+            JSON.stringify({
+              retirementPlan: retirementPlan.contentSha256,
+              retirementReceipt: retirement.contentSha256,
+              verified: verified.status,
+              replacementSeed: replacementSeed.contentSha256,
+              retainedCandidates: oldIds.length,
+              retainedAudits: auditCount.rows[0].count,
+              approvedItemRevocations: approveOne ? 1 : 0,
+            }),
+          );
+        } finally {
+          assert.equal(dirname(resolve(directory)), root);
+          assert.ok(basename(directory).startsWith('.meri-retirement-cli-'));
+          await rm(directory, { recursive: true, force: true });
+        }
+      });
+    });
+  }
 });

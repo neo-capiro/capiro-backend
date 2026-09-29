@@ -820,6 +820,29 @@ export class MemoryStoreService {
   }
 
   /** Internal evidence readback; current canonical read policy still applies. */
+  async inspectSyntheticFixture(
+    itemId: string,
+    guard: SyntheticApprovedMemoryGuard,
+  ): Promise<SyntheticMemoryRevocationAudit> {
+    if (!memoryGovernanceCenterEnabled()) {
+      throw new ServiceUnavailableException('Governed memory fixture inspection is not enabled.');
+    }
+    const ctx = this.tenantCtx.require();
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const proof = await assertSyntheticApprovedMemoryInTx(tx, ctx, itemId, guard);
+      const subject = await this.authz.loadItemInTx(tx, ctx.tenantId, itemId);
+      if (
+        !subject ||
+        !(await this.authz.evaluateInTx(tx, ctx, subject, 'read', { emitDenialMetrics: false }))
+          .allowed
+      ) {
+        throw new ForbiddenException('Synthetic memory fixture is not accessible');
+      }
+      return proof;
+    });
+  }
+
+  /** Internal evidence readback; current canonical read policy still applies. */
   async inspectSyntheticFixtureRetirement(
     itemId: string,
     guard: SyntheticApprovedMemoryGuard,

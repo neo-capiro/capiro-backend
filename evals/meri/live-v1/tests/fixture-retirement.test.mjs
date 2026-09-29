@@ -134,6 +134,109 @@ test('retirement retains every available old row and binds both manifests withou
   });
 });
 
+async function approvedSetup() {
+  const h = await setup();
+  const [id, row] = h.rows.entries().next().value;
+  h.rows.set(id, {
+    ...row,
+    lifecycle: 'approved',
+    rowVersion: '3',
+    approvedItemId: randomUUID(),
+    itemRowVersion: '4',
+  });
+  const retirePending = h.adapter.retireOwned;
+  let loseResponse = false;
+  h.adapter.retireOwned = async (record, guards) => {
+    if (guards.action !== 'revoke_approved') return retirePending(record, guards);
+    const active = h.rows.get(record.physicalId);
+    assert.equal(active.approvedItemId, guards.approvedItemId);
+    assert.equal(active.rowVersion, guards.expectedRowVersion);
+    assert.equal(active.itemRowVersion, guards.expectedItemRowVersion);
+    h.rows.set(record.physicalId, {
+      ...active,
+      retained: true,
+      status: 'approved',
+      governedStatus: 'active',
+      priorRowVersion: active.rowVersion,
+      itemStatus: 'revoked',
+      itemGovernedStatus: 'revoked',
+      itemRowVersion: '5',
+      priorItemRowVersion: '4',
+      transitionAuditId: randomUUID(),
+      cleanupIntentId: randomUUID(),
+    });
+    h.calls.push(record.physicalId);
+    if (loseResponse) throw new Error('lost approved revocation response');
+  };
+  h.retirementPlan = await planOwnedRetirement(h);
+  return {
+    ...h,
+    approvedId: id,
+    loseResponse: () => {
+      loseResponse = true;
+    },
+  };
+}
+
+test('approved retirement uses current approved lineage and preserves candidate history in its typed proof', async () => {
+  const h = await approvedSetup();
+  const op = h.retirementPlan.operations.find((row) => row.physicalId === h.approvedId);
+  assert.equal(op.action, 'revoke_approved');
+  assert.equal(op.expectedRowVersion, '3');
+  assert.equal(op.expectedItemRowVersion, '4');
+  const receipt = await applyOwnedRetirement(h);
+  assert.equal(receipt.status, 'complete');
+  const proof = receipt.records.find((row) => row.physicalId === h.approvedId);
+  assert.equal(proof.status, 'approved');
+  assert.equal(proof.rowVersion, '3');
+  assert.equal(proof.terminalSubject, 'memory_item');
+  assert.equal(proof.itemStatus, 'revoked');
+  assert.equal(proof.itemRowVersion, '5');
+  assert.equal(
+    (await verifyOwnedRetirement({ ...h, retirementReceipt: receipt })).status,
+    'complete',
+  );
+});
+
+test('approved retirement reconciles a lost response without revoking again', async () => {
+  const h = await approvedSetup();
+  h.loseResponse();
+  assert.equal((await applyOwnedRetirement(h)).status, 'unknown_outcome');
+  assert.equal((await applyOwnedRetirement(h)).status, 'complete');
+  assert.equal(h.calls.filter((id) => id === h.approvedId).length, 1);
+});
+
+test('rehashing approved item identity or versions cannot bypass current canonical inspection', async () => {
+  for (const [key, value] of [
+    ['approvedItemId', randomUUID()],
+    ['expectedItemRowVersion', '9'],
+    ['expectedRowVersion', '9'],
+  ]) {
+    const h = await approvedSetup();
+    const plan = structuredClone(h.retirementPlan);
+    plan.operations.find((row) => row.physicalId === h.approvedId)[key] = value;
+    const result = await applyOwnedRetirement({ ...h, retirementPlan: rehash(plan) });
+    assert.equal(result.status, 'failed');
+    assert.equal(h.calls.length, 0);
+  }
+});
+
+test('approved retained proof refuses changed prior item version or missing cleanup intent', async () => {
+  for (const change of [
+    { priorItemRowVersion: '9' },
+    { cleanupIntentId: null },
+    { rowVersion: '9' },
+  ]) {
+    const h = await approvedSetup();
+    const receipt = await applyOwnedRetirement(h);
+    h.rows.set(h.approvedId, { ...h.rows.get(h.approvedId), ...change });
+    assert.equal(
+      (await verifyOwnedRetirement({ ...h, retirementReceipt: receipt })).status,
+      'failed',
+    );
+  }
+});
+
 test('same-plan retry reconciles a lost committed response and never repeats retired writes', async () => {
   const h = await setup();
   h.failAt(2);

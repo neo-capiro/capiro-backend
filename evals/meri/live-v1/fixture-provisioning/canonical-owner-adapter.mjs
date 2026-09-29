@@ -81,8 +81,15 @@ export class CanonicalOwnerAdapter {
     return requirePort(this.ownerPorts, record.owner, 'retire')(record, guards);
   }
 
-  async inspectRetirement(record) {
-    return requirePort(this.ownerPorts, record.owner, 'readRetirement')(record);
+  async inspectForRetirement(record) {
+    const port = this.ownerPorts?.[record.owner];
+    return typeof port?.readForRetirement === 'function'
+      ? port.readForRetirement(record)
+      : this.inspect(record);
+  }
+
+  async inspectRetirement(record, guards) {
+    return requirePort(this.ownerPorts, record.owner, 'readRetirement')(record, guards);
   }
 }
 

@@ -2,6 +2,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { CanonicalOwnerAdapter } from './canonical-owner-adapter.mjs';
 import { createMemoryCandidateOwnerPort } from './memory-candidate-owner.mjs';
+import { createApprovedMemoryRetirementPort } from './approved-memory-retirement-owner.mjs';
 import { AUTHORIZED_TENANTS, FIXTURE_NAMESPACE, FixtureProvisioningError } from './contract.mjs';
 
 /** Offline command runtime over the built application's canonical owner method.
@@ -86,19 +87,45 @@ export async function createAdapter({ config }) {
       forbidden,
       forbidden,
     );
+    const resolveActor = (mapping, tenantId) => {
+      const key = Object.keys(AUTHORIZED_TENANTS).find(
+        (key) => AUTHORIZED_TENANTS[key].id === tenantId,
+      );
+      const actorKey = mapping[key];
+      const actor = config.actors?.[actorKey];
+      if (actor?.tenantId !== key) return null;
+      return actor.physicalId ?? actor.userId;
+    };
+    const actorForTenant = (tenantId) =>
+      resolveActor(config.candidateActors ?? { T1: 'PAT' }, tenantId);
+    const { MemoryStoreService } = require(
+      fileURLToPath(
+        new URL('../../../../apps/api/dist/memory/memory-store.service.js', import.meta.url),
+      ),
+    );
+    const { TenantContextStore } = require(
+      fileURLToPath(
+        new URL('../../../../apps/api/dist/tenant/tenant-context.store.js', import.meta.url),
+      ),
+    );
+    const tenantContext = new TenantContextStore();
+    const memoryStore = new MemoryStoreService(prisma, tenantContext);
     const port = createMemoryCandidateOwnerPort({
       memoryCandidates,
       prisma,
       clientMemoryAllowed,
-      actorForTenant(tenantId) {
-        const key = Object.keys(AUTHORIZED_TENANTS).find(
-          (key) => AUTHORIZED_TENANTS[key].id === tenantId,
-        );
-        const actorKey = (config.candidateActors ?? { T1: 'PAT' })[key];
-        const actor = config.actors?.[actorKey];
-        if (actor?.tenantId !== key) return null;
-        return actor.physicalId ?? actor.userId;
-      },
+      actorForTenant,
+      approvedRetirement: createApprovedMemoryRetirementPort({
+        prisma,
+        memoryStore,
+        tenantContext,
+        proposerForTenant: actorForTenant,
+        retirementActorForTenant: (tenantId) =>
+          resolveActor(
+            config.retirementActors ?? config.candidateActors ?? { T1: 'PAT' },
+            tenantId,
+          ),
+      }),
     });
     const adapter = new CanonicalOwnerAdapter({ ownerPorts: { memory_candidate: port } });
     adapter.authority = 'canonical_readback';
