@@ -1,5 +1,15 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-29 verified C-drive integration and release authorization
+
+Foundation through `863c80b46e10a8421948c17ff06bf3f9c0e9cc50` consolidates the signed capture producers and JSONB-safe receipt verification, followed by Knowledge workspace builds, Phase 13 test heap correction, and exact canonical T2 identity in the collector. All application/Git work uses the C-drive repository; local main is checked out at `C:/dev/cap-meri-outcomes-validation` and shares `C:/dev/capirov2/.git`. Unrelated primary-checkout changes remain preserved. Exact subsequent main/topic SHAs are recorded in `C:/dev/cap-meri-foundation-evidence/c-drive-local-main-current.json`.
+
+Current bounded evidence: normal shared/core/API/runtime builds and 211 capture/catalog tests in seven suites exit 0; actual local PostgreSQL receipt round-trip and tamper checks pass. Four API dependency builds, API types and 331 Knowledge tests in 59 suites pass; Phase 13 passes 19 tests in five suites; collector tenant parity and existing collector tests pass 31 tests. Independent Hermes/Kimi reviews pass their stated scopes. These are distinct qualifications, not a complete served acceptance result. See capture-producer-foundation-qualification.md, ci-knowledge-workspace-build-qualification.md and ci-knowledge-phase13-heap-qualification.md.
+
+Neo explicitly authorized the current Meri work to proceed in order: verified C-drive local main, GitHub main, approved AWS release to capiro-dev, then deployed SHA/digest and behavior verification. This authorization is recorded in shared memory; another generic merge/deploy approval is not required. Failed gates, migration compatibility, current database clearance, rollback and served verification remain mandatory. No GitHub-main merge, shared deployment, migration or synthetic enablement is claimed at this checkpoint.
+
+Full File01 remains incomplete. The collector still needs independently trusted policy/fixture/source/build/effect bindings and signature-preserving artifact storage; live guards remain closed. Canonical fixture lifecycle/reset, telemetry export/span coverage, remaining CI and complete offline/authenticated live acceptance remain open. Workstream A's 17 numbered cases plus CD-05 have no complete served acceptance pass. The separate recovery branch remains active and is not merged or modified by this task. A six-file disposable-CI bootstrap proposal has static independent review but needs actual isolated PostgreSQL qualification before integration. Historical checkpoints below do not override this status.
+
 ## Current checkpoint — 2026-09-29 C-drive integration and canonical pending fixtures
 
 The user explicitly authorized local-main integration. Verified foundation3fd1a0cd1 was fast-forwarded into main at C:/dev/cap-meri-outcomes-validation; unrelated dirty work in C:/dev/capirov2 and the old user-directory checkout was preserved. Subsequent verified local-main advances are recorded in C:/dev/cap-meri-foundation-evidence/c-drive-local-main-current.json. GitHub main and AWS remain unchanged; topic-branch publication is separate from main integration.
