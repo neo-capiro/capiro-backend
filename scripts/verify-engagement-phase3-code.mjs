@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /** Permanent DB-free Phase 3 closeout gate. */
-import { spawnSync } from 'node:child_process';
+import { openSync, readFileSync, closeSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -166,8 +167,59 @@ function run(label, command, args, options = {}) {
   }
 }
 
+function runPhase1WithCompletionMarker() {
+  if (process.platform !== 'win32') {
+    run('Phase 1 prerequisite', 'pnpm', ['verify:engagement-phase-1']);
+    return;
+  }
+
+  const logPath = 'C:\\dev\\recovery-phase3-phase1-prerequisite.log';
+  const fd = openSync(logPath, 'w');
+  const child = spawn('pnpm', ['verify:engagement-phase-1'], {
+    cwd: ROOT,
+    shell: true,
+    stdio: ['ignore', fd, fd],
+    windowsHide: true,
+  });
+  closeSync(fd);
+  const deadline = Date.now() + 1_500_000;
+  let complete = false;
+  let failed = false;
+  while (Date.now() < deadline) {
+    const output = readFileSync(logPath, 'utf8');
+    if (output.includes('ENGAGEMENT_PHASE1_DB_FREE_COMPLETE')) {
+      complete = true;
+      break;
+    }
+    if (output.includes('ENGAGEMENT_PHASE1_DB_FREE_FAILED')) {
+      failed = true;
+      break;
+    }
+    if (child.exitCode !== null) break;
+    spawnSync(process.execPath, ['-e', 'Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,5000)'], {
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+  }
+
+  if (complete && child.exitCode === null) {
+    spawnSync('taskkill.exe', ['/F', '/T', '/PID', String(child.pid)], {
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+  }
+  if (!complete || failed) {
+    const output = readFileSync(logPath, 'utf8');
+    throw new Error(`Phase 1 prerequisite failed; see ${logPath}\n${output.slice(-8000)}`);
+  }
+  console.log(`Phase 1 prerequisite completed; evidence: ${logPath}`);
+}
+
 try {
-  for (const [label, command, args, options] of steps) run(label, command, args, options);
+  for (const [label, command, args, options] of steps) {
+    if (label === 'Phase 1 prerequisite') runPhase1WithCompletionMarker();
+    else run(label, command, args, options);
+  }
   console.log('\nENGAGEMENT_PHASE3_DB_FREE_COMPLETE');
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));

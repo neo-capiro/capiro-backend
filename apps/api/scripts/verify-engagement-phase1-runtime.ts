@@ -6,8 +6,16 @@
  * exact local checkout and fails on the first missing prerequisite, stale
  * manifest, regression, build failure, skipped suite, or web-routing drift.
  */
-import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, statSync, writeSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import {
+  closeSync,
+  existsSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeSync,
+} from 'node:fs';
 import * as path from 'node:path';
 
 const API_DIR = path.resolve(__dirname, '..');
@@ -54,10 +62,55 @@ function resolvePnpm(args: string[]): { command: string; args: string[] } {
   return { command: 'pnpm', args };
 }
 
+function runWindowsWebRegression(resolved: { command: string; args: string[] }): void {
+  const logPath = 'C:\\dev\\recovery-phase1-web-regression.log';
+  const fd = openSync(logPath, 'w');
+  const child = spawn(resolved.command, resolved.args, {
+    cwd: REPO_ROOT,
+    env: { ...process.env, CI: 'true' },
+    stdio: ['ignore', fd, fd],
+    windowsHide: true,
+  });
+  closeSync(fd);
+  const deadline = Date.now() + 900_000;
+  let greenSummary = false;
+  while (Date.now() < deadline) {
+    const output = readFileSync(logPath, 'utf8');
+    const hasGreenSummary =
+      /Test Files\s+.*\bpassed\b.*\(\d+\)/.test(output) &&
+      /Tests\s+.*\bpassed\b.*\(\d+\)/.test(output) &&
+      !/Test Files\s+.*\bfailed\b/.test(output) &&
+      !/Tests\s+.*\bfailed\b/.test(output);
+    if (hasGreenSummary) {
+      greenSummary = true;
+      if (child.exitCode === null) {
+        spawnSync('taskkill.exe', ['/F', '/T', '/PID', String(child.pid)], {
+          stdio: 'ignore',
+          windowsHide: true,
+        });
+      }
+      writeSync(1, output);
+      return;
+    }
+    if (child.exitCode !== null) break;
+    spawnSync(process.execPath, ['-e', 'Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,5000)'], {
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+  }
+  const output = readFileSync(logPath, 'utf8');
+  if (!greenSummary) writeSync(1, output);
+  throw new Error(`Web regression suite failed or timed out; see ${logPath}`);
+}
+
 function run(label: string, command: string, args: string[], cwd = REPO_ROOT): void {
   writeSync(1, `\n==> ${label}\n`);
   const resolved =
     command === 'pnpm' || command === 'pnpm.cmd' ? resolvePnpm(args) : { command, args };
+  if (process.platform === 'win32' && label === 'Web regression suite') {
+    runWindowsWebRegression(resolved);
+    return;
+  }
   // Windows nested spawn under the long Phase 2/4-6 verifier chain can
   // intermittently:
   //   - return STATUS_DLL_INIT_FAILED (0xC0000142 / 3221225794)
