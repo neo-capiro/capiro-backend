@@ -1,5 +1,11 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-29 fixture run identities
+
+Source92ecd07a8 adds optional fixture instance identities without changing frozen logical fixtures or legacy manifest hashes. The actual canonical memory owner can create a new instance while preserving prior row content, governance and row versions. Qualification passes33 Node contract/owner-dispatch checks and seven actual local PostgreSQL owner tests, formatting and independent Hermes/Bedrock Kimi static review, all exit0. See fixture-instance-qualification.md for the exact proof and review limits.
+
+This is not clean-state or retirement completion. Older active records remain visible; canonical retirement/revocation and truthful retained-history receipts must be implemented before new-instance live qualification. Existing physical-reset guards and LIVE gates are unchanged. Full File01 served acceptance and release requirements remain open; current local-main/topic/GitHub-main identities are in the C-drive evidence receipt.
+
 ## Current checkpoint — 2026-09-29 candidate review race
 
 Source2bf7bb185 locks pending memory candidates before review creation, orders list locks consistently, skips concurrently disappeared candidates and preserves storage errors. The pre-fix missing-candidate regression failed as expected. The repaired scope passes23 tests/three suites, API production build and three actual local PostgreSQL concurrency checks with no skips, all exit0. The owned local schema was removed; no shared database effects occurred. Independent Hermes/Bedrock Kimi static review passes the exact candidate. See memory-review-candidate-lock-qualification.md. This is a prerequisite repair; canonical fixture reset/reseed remains unimplemented and the prior raw-delete attempt remains excluded.
