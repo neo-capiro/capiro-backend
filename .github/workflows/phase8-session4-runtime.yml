@@ -88,6 +88,8 @@ jobs:
           pnpm --filter @capiro/defense-api test
 
       - name: Re-run trusted Phase 1-7 static gates
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
           pnpm --filter @capiro/api exec tsc -p tsconfig.budget-extraction-contract.json --noEmit
           pnpm --filter @capiro/api exec tsc -p tsconfig.budget-verification-v1.json --noEmit

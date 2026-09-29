@@ -6,6 +6,9 @@ import type { TenantContext } from '@capiro/shared';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { configureApiHttpApp } from '../bootstrap/configure-api-http-app.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { HearingBriefExportService } from './hearing-brief-export.service.js';
+import { HearingBriefGenerationService } from './hearing-brief-generation.service.js';
+import { HearingSpeakerAttributionService } from './hearing-speaker-attribution.service.js';
 import { LegiWatchWave1Controller } from './legiwatch-wave1.controller.js';
 import { LegiWatchWave1Service } from './legiwatch-wave1.service.js';
 
@@ -54,6 +57,28 @@ describe('LegiWatch Wave 1 committee routes through the real HTTP pipeline', () 
           },
         },
         { provide: ConfigService, useValue: { get: () => undefined } },
+        // Committee routes do not call these controller dependencies. Fail if
+        // the route unexpectedly reaches a brief or speaker service.
+        {
+          provide: HearingBriefGenerationService,
+          useValue: {
+            generate: jest.fn().mockRejectedValue(new Error('Unexpected brief generation')),
+          },
+        },
+        {
+          provide: HearingBriefExportService,
+          useValue: {
+            exportDocx: jest.fn().mockRejectedValue(new Error('Unexpected brief export')),
+            saveToClient: jest.fn().mockRejectedValue(new Error('Unexpected brief save')),
+          },
+        },
+        {
+          provide: HearingSpeakerAttributionService,
+          useValue: {
+            resolve: jest.fn().mockRejectedValue(new Error('Unexpected speaker resolution')),
+            rename: jest.fn().mockRejectedValue(new Error('Unexpected speaker rename')),
+          },
+        },
         {
           provide: PrismaService,
           useValue: {

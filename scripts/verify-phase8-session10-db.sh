@@ -52,9 +52,12 @@ if [ -z "${REHEARSAL_DATABASE_URL:-}" ]; then
 
   log "waiting for postgres to accept connections"
   for _ in $(seq 1 60); do
-    if docker exec "$NAME" pg_isready -U capiro -d capiro >/dev/null 2>&1; then break; fi
+    # The entrypoint's temporary Unix-socket server precedes database creation.
+    if docker exec "$NAME" pg_isready -h 127.0.0.1 -U capiro -d capiro >/dev/null 2>&1; then break; fi
     sleep 1
   done
+  docker exec "$NAME" pg_isready -h 127.0.0.1 -U capiro -d capiro >/dev/null 2>&1 \
+    || fail "PostgreSQL did not become ready"
   REHEARSAL_DATABASE_URL="postgresql://capiro:capiro@localhost:$PORT/capiro"
 fi
 

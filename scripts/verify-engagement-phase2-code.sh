@@ -25,6 +25,29 @@ PHASE2_BASE="${ENGAGEMENT_PHASE2_BASE_SHA:-47902517c7dd64a408a87cef57323812407c2
 mkdir -p "$LOG_DIR"
 PHASE2_HEAD="${ENGAGEMENT_PHASE2_HEAD_SHA:-3841a5ee}"
 
+# Windows PATH may resolve the unrelated System32 timeout.exe. GNU timeout
+# supplies the same bounded process-group cleanup on Linux and Git Bash.
+TIMEOUT_BIN="timeout"
+if [ -x /usr/bin/timeout ] && /usr/bin/timeout --version 2>/dev/null | grep -q 'GNU coreutils'; then
+  TIMEOUT_BIN="/usr/bin/timeout"
+fi
+if ! "$TIMEOUT_BIN" --version 2>/dev/null | grep -q 'GNU coreutils'; then
+  echo 'GNU timeout is required for bounded verifier execution.' >&2
+  exit 1
+fi
+
+phase1_gate() {
+  local log="$1" deadline="$2"
+  shift 2
+  local -a statuses
+  "$TIMEOUT_BIN" --signal=TERM --kill-after=10s "$deadline" "$@" 2>&1 | tee "$log"
+  statuses=("${PIPESTATUS[@]}")
+  # Output is evidence, never a substitute for the real process exit status.
+  [ "${statuses[0]}" -eq 0 ] && [ "${statuses[1]}" -eq 0 ] &&
+    grep -q '^ENGAGEMENT_PHASE1_DB_FREE_COMPLETE$' "$log" &&
+    ! grep -q 'ENGAGEMENT_PHASE1_DB_FREE_FAILED' "$log"
+}
+
 gate() {
   local name="$1"
   shift
@@ -47,10 +70,10 @@ node_test() {
   while [ "$attempt" -le "$max_attempts" ]; do
     : >"$log"
     set +e
-    timeout 1200 node "$file" >"$log" 2>&1
+    "$TIMEOUT_BIN" --signal=TERM --kill-after=10s 1200 node "$file" >"$log" 2>&1
     local rc=$?
     set -e
-    if grep -qE '(^# fail 0|^ℹ fail 0)' "$log"; then
+    if [ "$rc" -eq 0 ] && grep -qE '(^# fail 0|^ℹ fail 0)' "$log"; then
       local count
       count="$(grep -oE '(^# pass [0-9]+|^ℹ pass [0-9]+)' "$log" | grep -oE '[0-9]+' || echo '?')"
       pass "$name  (${count} assertions)"
@@ -102,52 +125,11 @@ if [ "$FAST" -eq 1 ]; then
   skip "Phase 1 DB-free verifier" "--fast"
 else
   gate "Phase 0 verifier" pnpm verify:engagement-phase-0
-  # Phase 1 can print ENGAGEMENT_PHASE1_DB_FREE_COMPLETE then hang forever on
-  # Windows nested teardown (0xC0000142). Poll the log for COMPLETE/FAILED and
-  # advance immediately — never block on pnpm exit or wait(1) after kill.
-  # ENGAGEMENT_PHASE1_DB_FREE_FAILED remains fail-closed.
+  # The complete 633-file web regression run and builds need a bounded 45-minute
+  # budget. A marker followed by failure, signal or timeout must remain red.
   p1_log="${LOG_DIR}/Phase_1_DB-free_verifier.log"
-  : >"$p1_log"
-  set +e
-  if command -v stdbuf >/dev/null 2>&1; then
-    stdbuf -oL -eL pnpm verify:engagement-phase-1 >"$p1_log" 2>&1 &
-  else
-    pnpm verify:engagement-phase-1 >"$p1_log" 2>&1 &
-  fi
-  p1_pid=$!
-  p1_deadline=$((SECONDS + 1500))
-  p1_rc=124
-  while true; do
-    if grep -q 'ENGAGEMENT_PHASE1_DB_FREE_COMPLETE' "$p1_log" 2>/dev/null; then
-      p1_rc=0
-      break
-    fi
-    if grep -q 'ENGAGEMENT_PHASE1_DB_FREE_FAILED' "$p1_log" 2>/dev/null; then
-      p1_rc=1
-      break
-    fi
-    if ! kill -0 "$p1_pid" 2>/dev/null; then
-      # Non-blocking reap: do not wait (can hang after Windows DLL teardown).
-      p1_rc=1
-      break
-    fi
-    if [ "$SECONDS" -ge "$p1_deadline" ]; then
-      p1_rc=124
-      break
-    fi
-    sleep 5
-  done
-  # Fire-and-forget kill of the process tree. Never wait.
-  if command -v taskkill.exe >/dev/null 2>&1; then
-    taskkill.exe //F //T //PID "$p1_pid" >/dev/null 2>&1 || true
-  fi
-  kill -9 "$p1_pid" 2>/dev/null || true
-  # Detach any residual wait state so the shell does not block on a zombie.
-  disown "$p1_pid" 2>/dev/null || true
-  set -e
-  if grep -q 'ENGAGEMENT_PHASE1_DB_FREE_COMPLETE' "$p1_log" && \
-     ! grep -q 'ENGAGEMENT_PHASE1_DB_FREE_FAILED' "$p1_log"; then
-    pass "Phase 1 DB-free verifier  (COMPLETE; poll-rc=${p1_rc})"
+  if phase1_gate "$p1_log" 2700 pnpm verify:engagement-phase-1; then
+    pass "Phase 1 DB-free verifier  (exit 0; COMPLETE)"
   else
     fail "Phase 1 DB-free verifier  (see $p1_log)"
   fi

@@ -68,10 +68,7 @@ describeDb('LegiWatch Phase 9 (Postgres)', () => {
       `DELETE FROM committee_source WHERE adapter_key=$1`,
       ADAPTER_KEY,
     );
-    await prisma.$executeRawUnsafe(
-      `DELETE FROM tenants WHERE id=$1::uuid`,
-      TENANT_ID,
-    );
+    await prisma.$executeRawUnsafe(`DELETE FROM tenants WHERE id=$1::uuid`, TENANT_ID);
   }
 
   it('seeds the complete runtime registry dark and a fail-closed SHADOW state', async () => {
@@ -108,11 +105,51 @@ describeDb('LegiWatch Phase 9 (Postgres)', () => {
               COUNT(*) FILTER (WHERE schedule_enabled)::int AS scheduled
        FROM legiwatch_runtime_heartbeat`,
     );
-    // The committee-follow alerts migration registers notification-drain dark.
-    expect(runtime[0]).toEqual({ total: 14, enabled: 0, scheduled: 0 });
+    // Notification drain and the 20280920070000 Florida jobs all ship dark.
+    expect(runtime[0]).toEqual({ total: 16, enabled: 0, scheduled: 0 });
+
+    const floridaJobs = await prisma.$queryRawUnsafe<
+      Array<{
+        jobKey: string;
+        jobType: string;
+        status: string;
+        enabled: boolean;
+        scheduleEnabled: boolean;
+        expectedIntervalSeconds: number;
+        maxLagSeconds: number;
+      }>
+    >(
+      `SELECT job_key AS "jobKey", job_type AS "jobType", status, enabled,
+              schedule_enabled AS "scheduleEnabled",
+              expected_interval_seconds AS "expectedIntervalSeconds",
+              max_lag_seconds AS "maxLagSeconds"
+       FROM legiwatch_runtime_heartbeat
+       WHERE job_key IN ('florida-calendar', 'florida-archive')
+       ORDER BY job_key`,
+    );
+    expect(floridaJobs).toEqual([
+      {
+        jobKey: 'florida-archive',
+        jobType: 'florida_archive',
+        status: 'disabled',
+        enabled: false,
+        scheduleEnabled: false,
+        expectedIntervalSeconds: 1800,
+        maxLagSeconds: 5400,
+      },
+      {
+        jobKey: 'florida-calendar',
+        jobType: 'florida_calendar',
+        status: 'disabled',
+        enabled: false,
+        scheduleEnabled: false,
+        expectedIntervalSeconds: 600,
+        maxLagSeconds: 1800,
+      },
+    ]);
   });
 
-  it('rejects production-default, kill-switch release, and capture-all in SHADOW', async () => {
+  it('keeps SHADOW cutover guards while allowing the independent capture-all switch', async () => {
     await expect(
       prisma.$executeRawUnsafe(
         `UPDATE legiwatch_cutover_state
@@ -130,10 +167,63 @@ describeDb('LegiWatch Phase 9 (Postgres)', () => {
     await expect(
       prisma.$executeRawUnsafe(
         `UPDATE legiwatch_cutover_state
-         SET capture_all_public_events=true
+         SET phase='CUTOVER'
          WHERE id='global'`,
       ),
     ).rejects.toThrow();
+
+    // Migration 20280922100000 makes capture-all independent of the phase
+    // ladder while retaining production-default and kill-switch guards.
+    const before = await prisma.$queryRawUnsafe<Array<{ captureAllPublicEvents: boolean }>>(
+      `SELECT capture_all_public_events AS "captureAllPublicEvents"
+       FROM legiwatch_cutover_state WHERE id='global'`,
+    );
+    expect(before).toEqual([{ captureAllPublicEvents: false }]);
+
+    try {
+      await expect(
+        prisma.$executeRawUnsafe(
+          `UPDATE legiwatch_cutover_state
+           SET capture_all_public_events=true WHERE id='global'`,
+        ),
+      ).resolves.toBe(1);
+
+      const during = await prisma.$queryRawUnsafe<
+        Array<{
+          phase: string;
+          productionDefault: boolean;
+          schedulesEnabled: boolean;
+          killSwitchEngaged: boolean;
+          captureAllPublicEvents: boolean;
+        }>
+      >(
+        `SELECT phase, production_default AS "productionDefault",
+                schedules_enabled AS "schedulesEnabled",
+                kill_switch_engaged AS "killSwitchEngaged",
+                capture_all_public_events AS "captureAllPublicEvents"
+         FROM legiwatch_cutover_state WHERE id='global'`,
+      );
+      expect(during).toEqual([
+        {
+          phase: 'SHADOW',
+          productionDefault: false,
+          schedulesEnabled: false,
+          killSwitchEngaged: true,
+          captureAllPublicEvents: true,
+        },
+      ]);
+    } finally {
+      await prisma.$executeRawUnsafe(
+        `UPDATE legiwatch_cutover_state
+         SET capture_all_public_events=false WHERE id='global'`,
+      );
+    }
+
+    const after = await prisma.$queryRawUnsafe<Array<{ captureAllPublicEvents: boolean }>>(
+      `SELECT capture_all_public_events AS "captureAllPublicEvents"
+       FROM legiwatch_cutover_state WHERE id='global'`,
+    );
+    expect(after).toEqual([{ captureAllPublicEvents: false }]);
   });
 
   it('rejects a passing readiness row without an evidence source', async () => {
@@ -390,10 +480,7 @@ describeDb('LegiWatch Phase 9 readiness evaluateAndPersist (Postgres, extended t
        )`,
       ACTOR,
     );
-    await prisma.$executeRawUnsafe(
-      `DELETE FROM legiwatch_cutover_run WHERE created_by=$1`,
-      ACTOR,
-    );
+    await prisma.$executeRawUnsafe(`DELETE FROM legiwatch_cutover_run WHERE created_by=$1`, ACTOR);
     await prisma.$executeRawUnsafe(
       `DELETE FROM hearing_source_observation
        WHERE source_id IN (
@@ -422,10 +509,7 @@ describeDb('LegiWatch Phase 9 readiness evaluateAndPersist (Postgres, extended t
       HEARING_PASS_ID,
       HEARING_PENDING_ID,
     );
-    await prisma.$executeRawUnsafe(
-      `DELETE FROM committee_source WHERE adapter_key=$1`,
-      ADAPTER,
-    );
+    await prisma.$executeRawUnsafe(`DELETE FROM committee_source WHERE adapter_key=$1`, ADAPTER);
     await prisma.$executeRawUnsafe(
       `DELETE FROM congress_committee WHERE system_code IN ($1, $2)`,
       SYSTEM_CODE,

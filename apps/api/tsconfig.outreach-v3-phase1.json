@@ -26,6 +26,7 @@
     "src/meri/meri.module.ts",
     "src/webhooks/recall-webhook.module.ts",
     "src/reviews/**/*.ts",
+    "src/types/word-extractor.d.ts",
     "src/app.module.ts",
     "src/engagement-api.app.module.ts",
     "src/engagement/engagement.module.ts"

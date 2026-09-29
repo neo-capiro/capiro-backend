@@ -425,18 +425,15 @@ jobs:
       # settings page.
       - name: Tests — apps/web Funding Opportunities scope
         if: steps.scope.outputs.in_scope == 'true'
-        run: >
-          pnpm --filter @capiro/web exec vitest run
-          --pool=threads --poolOptions.threads.singleThread
-          --testTimeout=20000 --hookTimeout=20000
-          --reporter=json --outputFile=$GITHUB_WORKSPACE/web-summary.json
+        run: |
+          web_tests=(
           src/vnext/pages/funding-opportunities/FundingOpportunitiesPage.test.tsx
           src/vnext/pages/funding-opportunities/FundingOpportunityPipeline.test.tsx
           src/vnext/pages/funding-opportunities/FundingOpportunityV2Detail.test.tsx
           src/vnext/pages/funding-opportunities/FundingOpportunitiesV2SavedSearches.test.tsx
           src/vnext/pages/funding-opportunities/FundingOpportunityV2ResultCard.test.tsx
           src/vnext/pages/funding-opportunities/funding-opportunities-v2-controls.test.ts
-          src/vnext/pages/funding-opportunities/funding-opportunities-v2-keyword.test.ts
+          src/vnext/pages/funding-opportunities/client-profile-keywords.test.ts
           src/vnext/adapters/legacy/useClientFundingOpportunitiesV2.test.ts
           src/vnext/adapters/legacy/useShellClientContext.funding.test.tsx
           src/vnext/adapters/legacy/useClientCrmOverviewModel.test.tsx
@@ -445,6 +442,15 @@ jobs:
           src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection.test.tsx
           src/pages/settings/IntelligenceMappingsPage.test.tsx
           src/App.funding-opportunities-nav.test.tsx
+          )
+          for test_file in "${web_tests[@]}"; do
+            test -f "apps/web/$test_file" || { echo "Missing required web test: $test_file" >&2; exit 1; }
+          done
+          pnpm --filter @capiro/web exec vitest run \
+            --pool=threads --poolOptions.threads.singleThread \
+            --testTimeout=20000 --hookTimeout=20000 \
+            --reporter=json --outputFile="$GITHUB_WORKSPACE/web-summary.json" \
+            "${web_tests[@]}"
 
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'

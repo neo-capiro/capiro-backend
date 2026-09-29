@@ -9,12 +9,14 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync, writeSync } from 'node:fs';
 import * as path from 'node:path';
+import { runVerifierProcess } from './lib/engagement-verifier-process';
 
 const API_DIR = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(API_DIR, '../..');
 const GIT = process.platform === 'win32' ? 'git.exe' : 'git';
 
 const TEST_TARGETS = [
+  'scripts/lib/engagement-verifier-process.spec.ts',
   'src/bootstrap/configure-api-http-app.spec.ts',
   'src/engagement-api.app.module.spec.ts',
   'src/engagement-api/engagement-api-health.controller.spec.ts',
@@ -54,7 +56,7 @@ function resolvePnpm(args: string[]): { command: string; args: string[] } {
   return { command: 'pnpm', args };
 }
 
-function run(label: string, command: string, args: string[], cwd = REPO_ROOT): void {
+async function run(label: string, command: string, args: string[], cwd = REPO_ROOT): Promise<void> {
   console.log(`\n==> ${label}`);
   const resolved =
     command === 'pnpm' || command === 'pnpm.cmd' ? resolvePnpm(args) : { command, args };
@@ -71,20 +73,14 @@ function run(label: string, command: string, args: string[], cwd = REPO_ROOT): v
   let lastStatus: number | null = null;
   let useShell = false;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const result = spawnSync(resolved.command, resolved.args, {
+    const result = await runVerifierProcess(resolved.command, resolved.args, {
       cwd,
       env: { ...process.env, CI: 'true' },
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
       shell: useShell,
-      windowsHide: true,
-      maxBuffer: 64 * 1024 * 1024,
+      maxBufferBytes: 64 * 1024 * 1024,
     });
-    if (result.error) throw result.error;
     const stdout = result.stdout ?? '';
     const stderr = result.stderr ?? '';
-    if (stdout) process.stdout.write(stdout);
-    if (stderr) process.stderr.write(stderr);
     lastStatus = result.status;
     if (result.status === 0) return;
 
@@ -103,10 +99,7 @@ function run(label: string, command: string, args: string[], cwd = REPO_ROOT): v
       console.warn(
         `==> ${label}: infrastructure crash (status=${String(result.status)} worker=${String(isWorkerCrash)} dll=${String(isDllCrash)}) attempt ${attempt}/${maxAttempts}; retrying in ${delayMs}ms shell=${String(useShell)}`,
       );
-      spawnSync(process.execPath, ['-e', `Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,${delayMs})`], {
-        stdio: 'ignore',
-        windowsHide: true,
-      });
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
       continue;
     }
     throw new Error(`${label} failed with exit code ${String(result.status)}`);
@@ -133,11 +126,7 @@ function walk(dir: string): string[] {
 
 function assertNoWebPreviewRouting(): void {
   const webSource = path.join(REPO_ROOT, 'apps/web/src');
-  const forbidden = [
-    'VITE_ENGAGEMENT_API_URL',
-    'http://127.0.0.1:4500',
-    'http://localhost:4500',
-  ];
+  const forbidden = ['VITE_ENGAGEMENT_API_URL', 'http://127.0.0.1:4500', 'http://localhost:4500'];
   const findings: string[] = [];
   for (const filename of walk(webSource)) {
     if (!/\.(ts|tsx|js|jsx|mjs|cjs)$/.test(filename)) continue;
@@ -153,7 +142,7 @@ function assertNoWebPreviewRouting(): void {
   }
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const head = spawnSync(GIT, ['rev-parse', 'HEAD'], {
     cwd: REPO_ROOT,
     encoding: 'utf8',
@@ -164,7 +153,7 @@ function main(): void {
   }
   console.log(`Engagement Phase 1 DB-free closeout: ${head.stdout.trim()}`);
 
-  run('Locked dependency install', 'pnpm', ['install', '--frozen-lockfile']);
+  await run('Locked dependency install', 'pnpm', ['install', '--frozen-lockfile']);
   for (const pkg of [
     '@capiro/api',
     '@capiro/intel-api',
@@ -172,10 +161,16 @@ function main(): void {
     '@capiro/onboard-api',
     '@capiro/api-strategy',
   ]) {
-    run(`Generate Prisma client: ${pkg}`, 'pnpm', ['--filter', pkg, 'exec', 'prisma', 'generate']);
+    await run(`Generate Prisma client: ${pkg}`, 'pnpm', [
+      '--filter',
+      pkg,
+      'exec',
+      'prisma',
+      'generate',
+    ]);
   }
 
-  run('Build workspace packages required by API tests', 'pnpm', [
+  await run('Build workspace packages required by API tests', 'pnpm', [
     '--filter',
     '@capiro/shared',
     '--filter',
@@ -184,26 +179,18 @@ function main(): void {
     'build',
   ]);
 
-  run('Phase 0 contract prerequisite', 'pnpm', [
+  await run('Phase 0 contract prerequisite', 'pnpm', [
     '--filter',
     '@capiro/api',
     'run',
     'verify:engagement-phase-0',
   ]);
-  run(
+  await run(
     'Phase 1 manifests, runtime, route, timer, provider, bootstrap, health, and image-entrypoint tests',
     'pnpm',
-    [
-      '--filter',
-      '@capiro/api',
-      'exec',
-      'jest',
-      '--runInBand',
-      '--forceExit',
-      ...TEST_TARGETS,
-    ],
+    ['--filter', '@capiro/api', 'exec', 'jest', '--runInBand', '--forceExit', ...TEST_TARGETS],
   );
-  run('Build API entrypoints', 'pnpm', ['--filter', '@capiro/api', 'run', 'build']);
+  await run('Build API entrypoints', 'pnpm', ['--filter', '@capiro/api', 'run', 'build']);
 
   assertFile('apps/api/dist/main.js');
   assertFile('apps/api/dist/engagement-main.js');
@@ -212,7 +199,7 @@ function main(): void {
 
   // The complete monorepo typecheck may contain unrelated main-branch failures;
   // Phase 1 gates the production API and web type surfaces it can affect.
-  run('API production typecheck', 'pnpm', [
+  await run('API production typecheck', 'pnpm', [
     '--filter',
     '@capiro/api',
     'exec',
@@ -221,12 +208,16 @@ function main(): void {
     'tsconfig.build.json',
     '--noEmit',
   ]);
-  run('Web typecheck', 'pnpm', ['--filter', '@capiro/web', 'run', 'typecheck']);
-  run('Web regression suite', 'pnpm', ['--filter', '@capiro/web', 'test']);
+  await run('Web typecheck', 'pnpm', ['--filter', '@capiro/web', 'run', 'typecheck']);
+  await run('Web regression suite', 'pnpm', ['--filter', '@capiro/web', 'test']);
   assertNoWebPreviewRouting();
-  run('Committed diff whitespace validation', GIT, [
-    'diff', '--check', 'origin/main...HEAD', '--',
-    '.', ':(exclude)docs/plans/**/*.md',
+  await run('Committed diff whitespace validation', GIT, [
+    'diff',
+    '--check',
+    'origin/main...HEAD',
+    '--',
+    '.',
+    ':(exclude)docs/plans/**/*.md',
   ]);
 
   // Write COMPLETE unbuffered so redirected nested logs see it before Windows
@@ -234,10 +225,8 @@ function main(): void {
   writeSync(1, '\nENGAGEMENT_PHASE1_DB_FREE_COMPLETE\n');
 }
 
-try {
-  main();
-} catch (error) {
+void main().catch((error) => {
   writeSync(2, '\nENGAGEMENT_PHASE1_DB_FREE_FAILED\n');
-  console.error(error instanceof Error ? error.stack ?? error.message : String(error));
+  console.error(error instanceof Error ? (error.stack ?? error.message) : String(error));
   process.exit(1);
-}
+});
