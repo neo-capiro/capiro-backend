@@ -12,7 +12,7 @@
  *      reintroduce a "current year" assumption Session 7 deliberately avoided.
  *   4. The new defense-api surface stays dark: no @Cron/ScheduleModule/
  *      EventBridge/setInterval, no new HTTP route, no NVIDIA/GPU naming.
- *   5. The frozen Session 7-9 files this session builds on are BYTE-IDENTICAL
+ *   5. When schedule product code changes, its Session 7-9 primitives are BYTE-IDENTICAL
  *      to origin/main — the only permitted diff under budget-lifecycle/ is the
  *      module registration file itself plus the new schedule/ directory.
  *   6. The coordinator's runAdapter() call site supplies no fiscalYear/
@@ -30,7 +30,8 @@
  * because `\r` is itself a line terminator a JS regex `.`/`$` will not cross.
  * Both strippers here normalise line endings FIRST, verbatim from Session 9.
  */
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
+import { frozenScheduleProblems } from './verify-phase8-session10-change-scope.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -199,7 +200,7 @@ if (!/exports:\s*\[[^\]]*ScheduleCoordinatorService/.test(stripComments(moduleCo
 
 // ── 5. The frozen Session 7-9 surface is untouched ──────────────────────────
 //
-// The only permitted diff under budget-lifecycle/ against origin/main is the
+// For schedule product changes, the only permitted diff under budget-lifecycle/ is the
 // module registration file itself (expected to gain new providers — Session 8
 // already did) and the new schedule/ directory. Every other file Session 10
 // builds on (leases, cursors, the classifier, discovery) must be
@@ -208,19 +209,26 @@ if (!/exports:\s*\[[^\]]*ScheduleCoordinatorService/.test(stripComments(moduleCo
 
 try {
   execSync('git rev-parse --verify origin/main', { cwd: root, stdio: 'ignore' });
-  const diffOutput = execSync('git diff --name-only origin/main -- apps/defense-api/src/budget-lifecycle', {
+  const diffOutput = execFileSync('git', ['diff', '--name-only', 'origin/main'], {
     cwd: root,
     encoding: 'utf8',
   });
-  const changed = diffOutput
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const unexpected = changed.filter(
-    (relativeToBudgetLifecycle) =>
-      relativeToBudgetLifecycle !== 'apps/defense-api/src/budget-lifecycle/budget-lifecycle.module.ts' &&
-      !relativeToBudgetLifecycle.startsWith('apps/defense-api/src/budget-lifecycle/schedule/'),
-  );
+  const changed = diffOutput.split(/\r?\n/).filter(Boolean);
+  const changes = changed.map((file) => {
+    if (file !== 'apps/api/prisma/schema.prisma') return { file };
+    let before = null;
+    try {
+      before = execFileSync('git', ['show', `origin/main:${file}`], {
+        cwd: root,
+        encoding: 'utf8',
+      });
+    } catch {}
+    return { file, before, after: exists(file) ? read(file) : null };
+  });
+  // Structural invariants always run. Attribute frozen-primitive changes to
+  // schedule work only when the change actually touches that product surface.
+  // Mixed schedule/discovery changes still fail; discovery has its own gate.
+  const unexpected = frozenScheduleProblems(changes);
   if (unexpected.length > 0) {
     fail(
       'Session 10 modified frozen Session 7-9 files outside budget-lifecycle.module.ts and schedule/: ' +
