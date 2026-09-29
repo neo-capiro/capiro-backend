@@ -42,6 +42,7 @@ function assert(condition, message) {
 
 const exactHead = output('git', ['rev-parse', 'HEAD']);
 const previewMaintenanceBase = resolveApprovedPreviewScope(ROOT, exactHead)?.base;
+const repositoryWhitespaceBase = previewMaintenanceBase ?? 'origin/main';
 const requestedHead = process.argv.includes('--sha')
   ? process.argv[process.argv.indexOf('--sha') + 1]
   : null;
@@ -94,7 +95,7 @@ run('Web production build', 'pnpm', ['--filter', '@capiro/web', 'build']);
 run('Repository whitespace', 'git', [
   'diff',
   '--check',
-  `${previewMaintenanceBase ?? PHASE3_BASE}...${exactHead}`,
+  `${repositoryWhitespaceBase}...${exactHead}`,
   '--',
   '.',
   ':(exclude)docs/plans/**/*.md',
