@@ -1,5 +1,9 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-29 fixture command identity propagation
+
+Source 334be4810 fixes a CLI configuration omission that silently reverted instance-based fixture requests to legacy physical identities. The actual CLI regression fails three of four checks before repair; all 37 CLI/fixture contract checks pass afterward, with separate Hermes/Bedrock Kimi static review exit 0. See fixture-instance-qualification.md. This restores the operator path for the existing identity feature; it does not complete fixture lifecycle, trusted capture or served acceptance.
+
 ## Current checkpoint — 2026-09-29 pending fixture retirement
 
 Source cb64973bea2b3a0e1d34b80eba25809c6924f1f2 adds guarded pending synthetic memory withdrawal through the canonical proposer transaction. It retains history and binds terminal readback to its transition audit. API production build, 14 actual local PostgreSQL checks, 33 existing candidate regressions and 33 fixture contract checks pass with exit 0; independent Hermes/Bedrock Kimi static review passes the exact candidate. See pending-fixture-retirement-qualification.md for test timing, the corrected local feature-gate setup, audit proof limits and owned-schema cleanup.

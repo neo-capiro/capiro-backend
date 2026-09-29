@@ -1,5 +1,7 @@
 # Fixture run identity qualification
 
+CLI correction: source 334be4810beda7f7743c613aa6b0a68b43c6e88d forwards the configured fixtureInstanceId into manifest construction. Before this repair, the command-line path silently used legacy identities despite the library supporting instances. Four actual child-process CLI checks reproduce three failures before the fix; all 37 CLI/fixture contract checks pass afterward, exit 0. Independent Hermes/Bedrock Kimi static review passes the exact source, exit 0. Legacy configuration remains compatible, and offline plans remain explicitly unverified. Evidence: fixture-cli-instance-{before,final}.log and exit receipts, review-fixture-cli-instance.jsonl and exit receipt under the C-drive evidence directory. No provider or shared database writes occurred.
+
 Source: 92ecd07a877871ff9f311d84241e932910d588d9.
 
 The original acceptance contract requires resetting relevant state before each case. The existing physical reset protocol accepts only unchanged seed rows; it is not a complete lifecycle for cases that approve, reject or otherwise change those rows. Deleting governance history to reuse one physical ID is not required by the original contract. This increment supplies distinct run identities while preserving the frozen logical fixture definitions. It does not implement retirement or qualify clean case state.
