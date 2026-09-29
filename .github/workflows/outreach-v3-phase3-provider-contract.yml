@@ -34,5 +34,9 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build shared
         run: pnpm --filter @capiro/shared build
+      - name: Generate canonical API Prisma client
+        env:
+          DATABASE_URL: postgresql://capiro:capiro@127.0.0.1:5432/capiro_ci
+        run: pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
       - name: Provider contract
         run: node scripts/verify-outreach-v3-phase3-provider-contract.mjs
