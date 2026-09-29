@@ -59,6 +59,8 @@ jobs:
           pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
 
       - name: Phase 13 provider and boundary tests
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
           pnpm --filter @capiro/api exec jest --runInBand --forceExit \
             src/reranking/nvidia-reranking.provider.spec.ts \
