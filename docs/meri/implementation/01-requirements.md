@@ -115,6 +115,8 @@ This ledger records mandatory scope; bounded candidate evidence is in STATUS.md 
 
 ## Original acceptance cases
 
+Current fixture-lifecycle evidence (2026-09-29): pending withdrawal cb64973be, actual CLI instance propagation 334be4810, canonical revocation lock f097ff4a8 and retirement CLI 2f492ad9f are bounded prerequisites. The latter has 47 contract/CLI checks, 15 actual PostgreSQL owner tests and independent Hermes/Bedrock Kimi static review, all exit 0. Its actual 13-candidate retained-history/replacement cycle does not qualify approved-memory retirement, other fixture owners, trusted capture or any original live case. See current STATUS and fixture-retirement-cli-qualification.md for source, review limits and integration receipts; all rows below retain their original acceptance scope.
+
 | Case | Source | Status | Evidence / residual gap |
 |---|---|---|---|
 | 01 | Appendix F | NOT_RUN | Authenticated isolated fixture target not qualified |

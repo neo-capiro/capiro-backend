@@ -1,5 +1,11 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-29 retained fixture lifecycle CLI
+
+Source 2f492ad9f connects pending-memory retirement to operator plan/apply/verify commands with distinct old/replacement manifest bindings and typed retained-state receipts. It preserves physical rows and audit history, reconciles same-plan retries and rechecks canonical evidence. The 47 contract/CLI checks and 15 actual PostgreSQL owner tests pass with exit 0; the latter includes retirement of 13 candidates, retry, retained audit verification and replacement seeding. See fixture-retirement-cli-qualification.md for review disposition, exact evidence and command usage.
+
+This does not qualify approved-memory retirement, other canonical owners, full fixture isolation or LIVE capture. Existing reset receipts still mean physical absence, and retirement receipts cannot substitute for them. Original 75/CD7/CW8 and applicable memory served acceptance, GitHub Actions startup, database release clearance and deployment remain open.
+
 ## Current checkpoint — 2026-09-29 canonical revocation contention
 
 Source f097ff4a8 locks memory items before the existing revocation checks. Actual PostgreSQL output reproduced revocation despite a concurrent legal hold and a second success/cleanup after a competing revocation. Both are repaired: four actual database checks, 51 existing regressions and the API production build pass with exit 0. See memory-revocation-lock-qualification.md for exact scope, minimal-schema limits and independent-review disposition. This is a canonical-owner prerequisite, not approved-fixture retirement or full original acceptance completion.
