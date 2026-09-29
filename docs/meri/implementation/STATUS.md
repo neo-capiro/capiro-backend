@@ -1,5 +1,11 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-29 retained approved-memory evidence
+
+Source ef1517996 adds canonical retained-state proof readback with current membership/read authorization, content/version/lineage checks, immutable audit binding and observed projection absence. It explicitly records the database revocation epoch in the audit: an earlier assumption that the ordinary audit timestamp matched revoked_at was disproved by real output and rejected. See approved-retirement-proof-qualification.md for final qualification, failed-attempt evidence, independent review and limits.
+
+This advances the required lifecycle evidence without completing the approved-fixture adapter/CLI or trusted capture. Full original acceptance and release gates remain open. No shared-environment state changed.
+
 ## Current checkpoint — 2026-09-29 approved fixture owner and proposal authorization
 
 Source a6ce34ba5 adds canonical guarded approved-fixture revocation and repairs proposal authorization to use the actual proposal scope. Actual PostgreSQL output reproduced unauthorized client/private approvals before the repair; both now return HTTP 403 and preserve pending state. The API build, 25 actual PostgreSQL tests, 58 authorization/candidate regressions and independent Hermes/Bedrock Kimi static review pass with exit 0. See approved-fixture-revocation-qualification.md for separate ordinary-store test timing, setup failures, review corrections and minimal-schema limits.
