@@ -39,4 +39,6 @@ jobs:
           DATABASE_URL: postgresql://capiro:capiro@127.0.0.1:5432/capiro_ci
         run: pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
       - name: Provider contract
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: node scripts/verify-outreach-v3-phase3-provider-contract.mjs
