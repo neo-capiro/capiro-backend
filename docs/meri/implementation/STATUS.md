@@ -1,5 +1,15 @@
 # Meri file 01 status
 
+## Current checkpoint — 2026-09-29 C-drive integration and canonical pending fixtures
+
+The user explicitly authorized local-main integration. Verified foundation3fd1a0cd1 was fast-forwarded into main at C:/dev/cap-meri-outcomes-validation; unrelated dirty work in C:/dev/capirov2 and the old user-directory checkout was preserved. Subsequent verified local-main advances are recorded in C:/dev/cap-meri-foundation-evidence/c-drive-local-main-current.json. GitHub main and AWS remain unchanged; topic-branch publication is separate from main integration.
+
+Canonical pending fixture candidate73c896469 is now integrated into the foundation task branch. Combined-source shared/core/API builds and API types,30 Node fixture tests including actual built API classes on owned local PostgreSQL, and56 memory regression tests all exit0. Separate Hermes/Kimi review passes the immutable candidate scope. Initial combined build failed against stale core outputs; rebuilding shared/core resolved it, and the original failure remains in evidence. See memory-candidate-fixture-qualification.md and memory-candidate-integrated-gates.json.
+
+Workstream A core outcome/approval/file repairs have controlled implementation evidence, but its original17 numbered acceptance cases plusCD-05 still lack complete authenticated served acceptance. Required fixture owners, actual effect/download capture, applicable hosted CI and database clearance, owner acceptance, GitHub-main integration and approved deployment remain open. A focused outcome release is a subset of Workstream A, not completion of the whole grouping. Full File01 also retains telemetry export, other source/fixture/capture and broader acceptance requirements. No percentage, ETA or live PASS is inferred from test counts.
+
+Three bounded parallel Hermes assignments reviewed acceptance and release evidence and proposed a CI capacity repair. Their reports retain failed worker exits and lead corrections; no unsupported report verdict was promoted. Prior checkpoints below are historical and do not override this current status.
+
 ## Current checkpoint — 2026-09-28 joined telemetry integration
 
 Reviewed trace joins and truthful usage observations are consolidated with the current durable/source/provider/child foundation. Combined validation passes 300 tests in 15 suites, shared/core builds, API/runtime/web types and scoped formatting; independent Hermes/Kimi static review passes its scope. Signed server trace metadata is authenticated through the existing governed-context MAC. See telemetry-foundation-qualification.md.
