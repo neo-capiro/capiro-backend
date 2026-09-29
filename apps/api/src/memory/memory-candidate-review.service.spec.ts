@@ -1,5 +1,9 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { ImmutableMemoryVersionService } from './immutable-memory-version.service.js';
@@ -228,6 +232,26 @@ describe('candidateKindForSource', () => {
 });
 
 describe('MemoryCandidateReviewService', () => {
+  it('skips a candidate that is no longer pending when its review lock is acquired', async () => {
+    await withGovernance(true, async () => {
+      const h = harness({ approveAllowed: true });
+      h.ensureAndDescribeInTx.mockRejectedValueOnce(new NotFoundException());
+      await expect(h.service.listReviewable(ctx)).resolves.toEqual({
+        enabled: true,
+        candidates: [],
+      });
+    });
+  });
+
+  it('does not hide a workflow storage failure as a missing candidate', async () => {
+    await withGovernance(true, async () => {
+      const h = harness({ approveAllowed: true });
+      const failure = new Error('database unavailable');
+      h.ensureAndDescribeInTx.mockRejectedValueOnce(failure);
+      await expect(h.service.listReviewable(ctx)).rejects.toBe(failure);
+    });
+  });
+
   it('stays dark until client review, lifecycle, and authorization are all explicitly armed', async () => {
     await withGovernance(false, async () => {
       const h = harness({ approveAllowed: true });
