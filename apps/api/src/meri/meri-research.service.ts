@@ -1,3 +1,9 @@
+import { emitMeriApiTelemetry, withMeriApiTelemetrySpan } from './meri-telemetry.runtime.js';
+import {
+  admittedResearchTelemetry,
+  admittedResearchReceiptTelemetry,
+  remainingResearchTelemetryBudget,
+} from './meri-research-telemetry.js';
 import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 import {
   BadRequestException,
@@ -778,6 +784,16 @@ export class MeriResearchService {
       });
       if (result.retry) continue;
       const { reservation, budget, dispatchAllowed } = result.reserved;
+      emitMeriApiTelemetry({
+        name: 'meri.research.budget.reserved',
+        boundary: 'research_budget',
+        researchSessionId: id,
+        durableRunId: runId,
+        leaseEpoch: input.leaseEpoch,
+        operationId: reservation.reservationId,
+        outcome: dispatchAllowed ? 'dispatch_allowed' : 'dispatch_denied',
+        remainingBudget: remainingResearchTelemetryBudget(budget),
+      });
       return {
         version: 1 as const,
         reservationId: reservation.reservationId,
@@ -851,6 +867,16 @@ export class MeriResearchService {
         return changed ? { retry: false as const, settled } : { retry: true as const };
       });
       if (result.retry) continue;
+      emitMeriApiTelemetry({
+        name: 'meri.research.budget.settled',
+        boundary: 'research_budget',
+        researchSessionId: id,
+        durableRunId: runId,
+        leaseEpoch: input.leaseEpoch,
+        operationId: result.settled.reservation.reservationId,
+        outcome: result.settled.reservation.status,
+        remainingBudget: remainingResearchTelemetryBudget(result.settled.budget),
+      });
       return {
         version: 1 as const,
         status: result.settled.reservation.status,
@@ -984,6 +1010,12 @@ export class MeriResearchService {
     // Commit and publication are separate failure boundaries. A revocation here
     // leaves the private result durable but withholds it from the caller.
     await this.assertReceiptPublicationAuthorized(ctx, id, committed.run);
+    emitMeriApiTelemetry({
+      name: 'meri.research.source.committed',
+      boundary: 'research_source',
+      ...admittedResearchReceiptTelemetry(id, committed.receipt),
+      outcome: 'committed',
+    });
     return committed.receipt;
   }
 
@@ -1588,6 +1620,12 @@ export class MeriResearchService {
                     );
               run.eventSequence = persisted.sequence;
               await this.assertReceiptPublicationAuthorized(ctx, id, run);
+              emitMeriApiTelemetry({
+                name: 'meri.research.source.published',
+                boundary: 'research_source',
+                ...admittedResearchReceiptTelemetry(id, persisted),
+                outcome: 'published',
+              });
               data = sseEvent({
                 ...event,
                 sequence: persisted.sequence,
@@ -1675,7 +1713,19 @@ export class MeriResearchService {
           if (pendingError) throw pendingError;
         },
       };
-      await execute(sink, { ...auth, run, signal: controller.signal });
+      await withMeriApiTelemetrySpan(
+        {
+          name: 'meri.research.execute',
+          boundary: 'research_run',
+          ...admittedResearchTelemetry(
+            id,
+            run,
+            readResearchHandoff(session.metadata)?.conversationId,
+            currentResearchGoalRevision(claimedMetadata),
+          ),
+        },
+        () => execute(sink, { ...auth, run, signal: controller.signal }),
+      );
     } catch (error) {
       const privateMessage = error instanceof Error ? error.message : 'Research failed';
       const failure = projectResearchTerminalFailure(error, controller.signal);
@@ -2328,6 +2378,18 @@ export class MeriResearchService {
   ) {
     const session = await this.getSession(ctx, id);
     const metadata = researchMetadata(session.metadata);
+    if (session.run)
+      emitMeriApiTelemetry({
+        name: 'meri.research.replay',
+        boundary: 'research_checkpoint',
+        ...admittedResearchTelemetry(
+          id,
+          session.run,
+          readResearchHandoff(session.metadata)?.conversationId,
+        ),
+        artifactIds: session.report ? [session.report.id] : [],
+        terminalReason: 'replayed',
+      });
     sse.write(sseEvent({ type: 'run', run: session.run }));
     if (session.report) {
       sse.write(
@@ -2425,7 +2487,7 @@ export class MeriResearchService {
         failureReason: failure.message,
       };
       const now = new Date();
-      await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      const persisted = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         this.updateActiveResearchRun(
           tx,
           ctx,
@@ -2437,6 +2499,18 @@ export class MeriResearchService {
           now,
         ),
       );
+      if (persisted)
+        emitMeriApiTelemetry({
+          name: 'meri.research.terminal',
+          boundary: 'research_checkpoint',
+          ...admittedResearchTelemetry(
+            id,
+            run,
+            readResearchHandoff(current.metadata)?.conversationId,
+          ),
+          terminalReason: status,
+          ...(failure.cause === 'lease' ? { cancellationIssuer: 'lease_lost' as const } : {}),
+        });
     } catch (error) {
       this.logger.warn(
         `Could not persist research failure: ${error instanceof Error ? error.message : 'unknown error'}`,
@@ -2479,7 +2553,20 @@ export class MeriResearchService {
           },
         }),
       );
-      if (changed.count) return observed.run;
+      if (changed.count) {
+        emitMeriApiTelemetry({
+          name: 'meri.research.cancelled',
+          boundary: 'research_checkpoint',
+          ...admittedResearchTelemetry(
+            id,
+            observed.run,
+            readResearchHandoff(session.metadata)?.conversationId,
+          ),
+          terminalReason: 'cancelled',
+          cancellationIssuer: 'user',
+        });
+        return observed.run;
+      }
     }
     throw new ConflictException('Research changed while observing cancellation.');
   }
@@ -3922,6 +4009,16 @@ export class MeriResearchService {
       conversationId: persisted.conversationId,
     });
 
+    emitMeriApiTelemetry({
+      name: 'meri.research.report.published',
+      boundary: 'research_checkpoint',
+      ...admittedResearchTelemetry(session.id, result.runAuth.run!, persisted.conversationId),
+      artifactIds: [artifactId],
+      terminalReason: 'completed',
+      verificationVerdict: held ? 'fail' : 'unknown',
+      outcome: 'saved_and_authorized',
+    });
+
     if (handoff?.conversationId) {
       try {
         this.turnMaintenance?.scheduleAfterTurnMaintenance(ctx, handoff.conversationId);
@@ -4056,52 +4153,80 @@ export class MeriResearchService {
     await this.persistChildTaskBatch(ctx, session.id, run.id, run.leaseEpoch, tasks);
 
     const outcomes = await Promise.all(
-      tasks.map(async (task): Promise<ResearchChildRuntimeResult | null> => {
-        try {
-          const result = await this.v3Research!.runChild(
-            ctx,
-            task,
-            {
-              sessionId: session.id,
-              conversationId: handoff?.conversationId ?? null,
-              clientId: session.clientId,
-              system: '',
-              user: '',
-              handoff,
-              clientContext,
-              admittedPlanExecution: {
-                plan,
-                allowedReadCapabilities: task.allowedCapabilities,
-              },
-            },
-            auth,
-          );
-          await this.persistChildTaskResult(
-            ctx,
-            session.id,
-            run.id,
-            run.leaseEpoch,
-            task.id,
-            result,
-          );
-          return result;
-        } catch (error) {
-          const failure = researchChildFailure(error, auth.signal);
-          try {
-            await this.persistChildTaskFailure(
-              ctx,
-              session.id,
-              run.id,
-              run.leaseEpoch,
-              task.id,
-              failure,
-            );
-          } catch {
-            // Stop, lease loss, or steering already owns the authoritative state.
-          }
-          return null;
-        }
-      }),
+      tasks.map(async (task): Promise<ResearchChildRuntimeResult | null> =>
+        withMeriApiTelemetrySpan(
+          {
+            name: 'meri.research.child',
+            boundary: 'research_child',
+            ...admittedResearchTelemetry(session.id, run, handoff?.conversationId, goalRevision),
+            childRunId: task.id,
+          },
+          async () => {
+            try {
+              const result = await this.v3Research!.runChild(
+                ctx,
+                task,
+                {
+                  sessionId: session.id,
+                  conversationId: handoff?.conversationId ?? null,
+                  clientId: session.clientId,
+                  system: '',
+                  user: '',
+                  handoff,
+                  clientContext,
+                  admittedPlanExecution: {
+                    plan,
+                    allowedReadCapabilities: task.allowedCapabilities,
+                  },
+                },
+                auth,
+              );
+              await this.persistChildTaskResult(
+                ctx,
+                session.id,
+                run.id,
+                run.leaseEpoch,
+                task.id,
+                result,
+              );
+              emitMeriApiTelemetry({
+                name: 'meri.research.child.persisted',
+                boundary: 'research_child',
+                childRunId: task.id,
+                outcome: 'persisted',
+                durableRunId: run.id,
+                goalRevision,
+                leaseEpoch: run.leaseEpoch,
+              });
+              return result;
+            } catch (error) {
+              const failure = researchChildFailure(error, auth.signal);
+              try {
+                await this.persistChildTaskFailure(
+                  ctx,
+                  session.id,
+                  run.id,
+                  run.leaseEpoch,
+                  task.id,
+                  failure,
+                );
+                emitMeriApiTelemetry({
+                  name: 'meri.research.child.failed',
+                  boundary: 'research_child',
+                  childRunId: task.id,
+                  outcome: failure.code,
+                  durableRunId: run.id,
+                  goalRevision,
+                  leaseEpoch: run.leaseEpoch,
+                });
+              } catch {
+                // Stop, lease loss, or steering already owns the authoritative state.
+              }
+              return null;
+            }
+          },
+        ),
+      ),
     );
     if (auth.signal?.aborted) throw new BadRequestException('Research was cancelled.');
     const successful = outcomes.filter(

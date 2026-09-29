@@ -8,6 +8,12 @@ import {
 } from './meri-research-run-state.js';
 import { MeriV3ResearchRunner } from './meri-v3-research-runner.js';
 import type { MeriV3ChatStreamEvent } from './meriv3-chat.client.js';
+import { createMeriOtelRuntime } from '@capiro/meriv2-core/observability/otel';
+import {
+  createMeriApiTelemetryContext,
+  runWithMeriApiTelemetry,
+  setMeriOtelRuntime,
+} from './meri-telemetry.runtime.js';
 
 // These dependencies are supplied explicitly by this service unit harness.
 jest.mock('./meri-tools.service.js', () => ({ MeriToolsService: class {} }));
@@ -518,7 +524,8 @@ describe('MeriResearchService — forced synthesis', () => {
     fetchBodies = [];
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await setMeriOtelRuntime(undefined);
     global.fetch = realFetch;
     jest.restoreAllMocks();
   });
@@ -676,6 +683,18 @@ describe('MeriResearchService — forced synthesis', () => {
   });
 
   it('publishes the actual V3 report body only after durable save', async () => {
+    const spans: any[] = [];
+    const sdk = createMeriOtelRuntime({
+      serviceName: 'research-owner-test',
+      exporter: {
+        export: (batch, done) => {
+          spans.push(...batch);
+          done({ code: 0 });
+        },
+        shutdown: async () => {},
+      },
+    });
+    await setMeriOtelRuntime(sdk);
     const privateBody = 'RAW_PRIVATE_TYPED_DRAFT';
     const reportBody =
       '# Executive Summary\n\nAuthorized source-free report.\n\n## Recommended Actions\n\n1. Review the conclusion.';
@@ -728,14 +747,46 @@ describe('MeriResearchService — forced synthesis', () => {
       },
     };
 
-    await service.streamResearch(CTX, 'sess-1', sse, {
-      bearerToken: 'caller-token',
-      governedContext: {
-        version: 1,
-        operationId: 'research.generate-report',
-        contextPacket: { items: [] },
-      } as never,
-    });
+    const trace = createMeriApiTelemetryContext({ headers: {} } as never, CTX, '');
+    await runWithMeriApiTelemetry(
+      trace,
+      () => {},
+      () =>
+        service.streamResearch(CTX, 'sess-1', sse, {
+          bearerToken: 'caller-token',
+          governedContext: {
+            version: 1,
+            operationId: 'research.generate-report',
+            contextPacket: { items: [] },
+          } as never,
+        }),
+    );
+    await sdk.forceFlush();
+    const execution = spans.find((span) => span.name === 'meri.research_run');
+    const children = spans.filter((span) => span.name === 'meri.research_child');
+    expect(execution).toBeDefined();
+    expect(execution.parentSpanContext.spanId).toBe(trace.spanId);
+    expect(execution.attributes['meri.durableRunId']).toBeTruthy();
+    expect(execution.attributes['meri.leaseEpoch']).toBe(1);
+    expect(children).toHaveLength(2);
+    expect(new Set(children.map((span) => span.spanContext().spanId)).size).toBe(2);
+    expect(new Set(children.map((span) => span.attributes['meri.childRunId'])).size).toBe(2);
+    for (const child of children) {
+      expect(child.parentSpanContext.spanId).toBe(execution.spanContext().spanId);
+      expect(child.spanContext().traceId).toBe(trace.traceId);
+      expect(child.attributes['meri.durableRunId']).toBe(execution.attributes['meri.durableRunId']);
+    }
+    const published = execution.events.find(
+      (event: any) => event.attributes['meri.name'] === 'meri.research.report.published',
+    );
+    expect(published).toBeDefined();
+    expect(published.attributes['meri.terminalReason']).toBe('completed');
+    expect(published.attributes['meri.artifactIds']).toBeTruthy();
+    const exported = JSON.stringify(
+      spans.map((span) => ({ attributes: span.attributes, events: span.events })),
+    );
+    for (const privateValue of [privateBody, reportBody, 'caller-token'])
+      expect(exported).not.toContain(privateValue);
 
     expect(bodyDeliveredBeforeSave).toBe(false);
     expect(artifacts).toHaveLength(1);

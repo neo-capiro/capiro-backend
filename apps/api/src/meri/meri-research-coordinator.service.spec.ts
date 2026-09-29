@@ -3,6 +3,12 @@ import { admitDurableResearchCoordinator } from './meri-research-coordinator';
 import { admitResearchToolBudget } from './meri-research-tool-budget';
 import type { ResearchPlanV1 } from './meri-research-plan';
 import type { ResearchRunState } from './meri-research-run-state';
+import { createMeriOtelRuntime } from '@capiro/meriv2-core/observability/otel';
+import {
+  createMeriApiTelemetryContext,
+  runWithMeriApiTelemetry,
+  setMeriOtelRuntime,
+} from './meri-telemetry.runtime';
 
 const ctx = { tenantId: 'tenant-1', userId: 'user-1', tenantSlug: 'tenant' } as never;
 
@@ -126,6 +132,9 @@ function fixture() {
 }
 
 describe('MeriResearchService coordinator HTTP contract', () => {
+  afterEach(async () => {
+    await setMeriOtelRuntime(undefined);
+  });
   it('persists one ordered steering receipt, fences the old run, and resumes the event cursor', async () => {
     const f = fixture();
     const accepted = await f.service.steerRun(ctx, 'session-1', {
@@ -178,11 +187,42 @@ describe('MeriResearchService coordinator HTTP contract', () => {
 
   it('commits cancel_requested before observed cancellation and retains prior state', async () => {
     const f = fixture();
-    const stopped = await f.service.cancelRun(ctx, 'session-1', {
-      version: 1,
-      requestId: 'stop-1',
-      reason: 'User pressed Stop',
+    const spans: any[] = [];
+    const sdk = createMeriOtelRuntime({
+      serviceName: 'cancel-owner-test',
+      exporter: {
+        export: (batch, done) => {
+          spans.push(...batch);
+          done({ code: 0 });
+        },
+        shutdown: async () => {},
+      },
     });
+    await setMeriOtelRuntime(sdk);
+    const trace = createMeriApiTelemetryContext({ headers: {} } as never, ctx, '');
+    const stopped = await runWithMeriApiTelemetry(
+      trace,
+      () => {},
+      () =>
+        f.service.cancelRun(ctx, 'session-1', {
+          version: 1,
+          requestId: 'stop-1',
+          reason: 'PRIVATE_CANCELLATION_REASON',
+        }),
+    );
+    await sdk.forceFlush();
+    const event = spans
+      .flatMap((span) => span.events)
+      .find((entry) => entry.attributes['meri.name'] === 'meri.research.cancelled');
+    expect(event).toBeDefined();
+    expect(event.attributes).toMatchObject({
+      'meri.terminalReason': 'cancelled',
+      'meri.cancellationIssuer': 'user',
+      'meri.leaseEpoch': 1,
+    });
+    expect(
+      JSON.stringify(spans.map((span) => ({ attributes: span.attributes, events: span.events }))),
+    ).not.toContain('PRIVATE_CANCELLATION_REASON');
     expect(stopped).toMatchObject({
       version: 1,
       ok: true,

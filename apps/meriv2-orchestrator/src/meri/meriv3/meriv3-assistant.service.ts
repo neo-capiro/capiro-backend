@@ -69,6 +69,8 @@ import {
 } from '@capiro/meriv2-core';
 import {
   currentMeriTaskUsage,
+  meriOrchestratorTelemetryHeaders,
+  withMeriOrchestratorTelemetrySpan,
   emitMeriOrchestratorTelemetry,
   setMeriTelemetryConfigIdentity,
 } from '../../telemetry/meri-telemetry.runtime.js';
@@ -4021,31 +4023,39 @@ export class MeriV3AssistantService {
     const execution = createMeriExecutionControl(control, 10_000);
     try {
       execution.assertActive();
-      const response = await fetch(
-        `${this.apiBaseUrl}/api/clio/research/${encodeURIComponent(sessionId)}/runs/${encodeURIComponent(runId)}/active`,
-        {
-          signal: execution.signal,
-          headers: {
-            authorization: `Bearer ${credentials.bearerToken}`,
-            accept: 'application/json',
-            ...(credentials.impersonateTenantId
-              ? { 'x-capiro-impersonate-tenant': credentials.impersonateTenantId }
-              : {}),
-          },
+      await withMeriOrchestratorTelemetrySpan(
+        { name: 'meri.research.active', boundary: 'research_checkpoint' },
+        async () => {
+          const response = await fetch(
+            `${this.apiBaseUrl}/api/clio/research/${encodeURIComponent(sessionId)}/runs/${encodeURIComponent(runId)}/active`,
+            {
+              signal: execution.signal,
+              headers: {
+                ...meriOrchestratorTelemetryHeaders(),
+                ...(this.serviceSecret ? { 'x-internal-service-secret': this.serviceSecret } : {}),
+                authorization: `Bearer ${credentials.bearerToken}`,
+                accept: 'application/json',
+                ...(credentials.impersonateTenantId
+                  ? { 'x-capiro-impersonate-tenant': credentials.impersonateTenantId }
+                  : {}),
+              },
+            },
+          );
+          if ([404, 409].includes(response.status)) {
+            const error = new Error(
+              'Research is stopped, superseded, or no longer accessible. No further calls were scheduled.',
+            );
+            error.name = 'ResearchRunInactiveError';
+            throw error;
+          }
+          if (!response.ok || ((await response.json()) as { active?: unknown }).active !== true)
+            throw new Error(
+              'Research run status could not be verified; no further calls were scheduled.',
+            );
+          execution.assertActive();
         },
+        'client',
       );
-      if ([404, 409].includes(response.status)) {
-        const error = new Error(
-          'Research is stopped, superseded, or no longer accessible. No further calls were scheduled.',
-        );
-        error.name = 'ResearchRunInactiveError';
-        throw error;
-      }
-      if (!response.ok || ((await response.json()) as { active?: unknown }).active !== true)
-        throw new Error(
-          'Research run status could not be verified; no further calls were scheduled.',
-        );
-      execution.assertActive();
     } finally {
       execution.dispose();
     }
@@ -4060,26 +4070,35 @@ export class MeriV3AssistantService {
     const credentials = RequestCredentialsStore.get();
     if (!credentials?.bearerToken)
       throw new Error('Authenticated research result authority is required.');
-    const response = await fetch(
-      `${this.apiBaseUrl}/api/clio/research/${encodeURIComponent(researchRun.sessionId)}/runs/${encodeURIComponent(researchRun.runId)}/safe-read/${operation}`,
-      {
-        method: 'POST',
-        signal: control?.signal,
-        headers: {
-          authorization: ['Bearer', credentials.bearerToken].join(' '),
-          'content-type': 'application/json',
-          accept: 'application/json',
-          ...(this.serviceSecret ? { 'x-internal-service-secret': this.serviceSecret } : {}),
-          ...(credentials.impersonateTenantId
-            ? { 'x-capiro-impersonate-tenant': credentials.impersonateTenantId }
-            : {}),
-        },
-        body: JSON.stringify({ ...body, leaseEpoch: researchRun.leaseEpoch }),
+    return withMeriOrchestratorTelemetrySpan(
+      { name: `meri.research.researchSafeReadRequest.${operation}`, boundary: 'research_source' },
+      async () => {
+        const response = await fetch(
+          `${this.apiBaseUrl}/api/clio/research/${encodeURIComponent(researchRun.sessionId)}/runs/${encodeURIComponent(researchRun.runId)}/safe-read/${operation}`,
+          {
+            method: 'POST',
+            signal: control?.signal,
+            headers: {
+              ...meriOrchestratorTelemetryHeaders(),
+              authorization: ['Bearer', credentials.bearerToken].join(' '),
+              'content-type': 'application/json',
+              accept: 'application/json',
+              ...(this.serviceSecret ? { 'x-internal-service-secret': this.serviceSecret } : {}),
+              ...(credentials.impersonateTenantId
+                ? { 'x-capiro-impersonate-tenant': credentials.impersonateTenantId }
+                : {}),
+            },
+            body: JSON.stringify({ ...body, leaseEpoch: researchRun.leaseEpoch }),
+          },
+        );
+        if (!response.ok)
+          throw new Error(
+            `Research result authority rejected ${operation} (HTTP ${response.status}).`,
+          );
+        return (await response.json()) as Record<string, unknown>;
       },
+      'client',
     );
-    if (!response.ok)
-      throw new Error(`Research result authority rejected ${operation} (HTTP ${response.status}).`);
-    return (await response.json()) as Record<string, unknown>;
   }
 
   private durableProviderAccounting(
@@ -4124,28 +4143,41 @@ export class MeriV3AssistantService {
     control?: ToolExecutionControl,
   ): Promise<Record<string, unknown>> {
     const credentials = RequestCredentialsStore.get();
-    if (!credentials?.bearerToken || !this.serviceSecret)
+    const serviceSecret = this.serviceSecret;
+    if (!credentials?.bearerToken || !serviceSecret)
       throw new Error('Authenticated research provider budget authority is required.');
-    const response = await fetch(
-      `${this.apiBaseUrl}/api/clio/research/${encodeURIComponent(researchRun.sessionId)}/runs/${encodeURIComponent(researchRun.runId)}/provider-budget/${operation}`,
+    return withMeriOrchestratorTelemetrySpan(
       {
-        method: 'POST',
-        signal: control?.signal,
-        headers: {
-          authorization: 'Bearer ' + credentials.bearerToken,
-          'x-internal-service-secret': this.serviceSecret,
-          'content-type': 'application/json',
-          accept: 'application/json',
-          ...(credentials.impersonateTenantId
-            ? { 'x-capiro-impersonate-tenant': credentials.impersonateTenantId }
-            : {}),
-        },
-        body: JSON.stringify({ ...body, leaseEpoch: researchRun.leaseEpoch }),
+        name: `meri.research.researchProviderBudgetRequest.${operation}`,
+        boundary: 'research_budget',
       },
+      async () => {
+        const response = await fetch(
+          `${this.apiBaseUrl}/api/clio/research/${encodeURIComponent(researchRun.sessionId)}/runs/${encodeURIComponent(researchRun.runId)}/provider-budget/${operation}`,
+          {
+            method: 'POST',
+            signal: control?.signal,
+            headers: {
+              ...meriOrchestratorTelemetryHeaders(),
+              authorization: 'Bearer ' + credentials.bearerToken,
+              'x-internal-service-secret': serviceSecret,
+              'content-type': 'application/json',
+              accept: 'application/json',
+              ...(credentials.impersonateTenantId
+                ? { 'x-capiro-impersonate-tenant': credentials.impersonateTenantId }
+                : {}),
+            },
+            body: JSON.stringify({ ...body, leaseEpoch: researchRun.leaseEpoch }),
+          },
+        );
+        if (!response.ok)
+          throw new Error(
+            `Research provider budget rejected ${operation} (HTTP ${response.status}).`,
+          );
+        return (await response.json()) as Record<string, unknown>;
+      },
+      'client',
     );
-    if (!response.ok)
-      throw new Error(`Research provider budget rejected ${operation} (HTTP ${response.status}).`);
-    return (await response.json()) as Record<string, unknown>;
   }
 
   private async reserveAuxiliaryResearchDispatch(

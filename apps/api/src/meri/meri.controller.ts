@@ -70,6 +70,7 @@ import {
   createMeriApiTelemetryContext,
   emitMeriApiTelemetry,
   runWithMeriApiTelemetry,
+  withMeriApiTelemetrySpan,
 } from './meri-telemetry.runtime.js';
 
 class CreateMeriConversationDto {
@@ -964,8 +965,16 @@ export class MeriController {
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
     @Param('runId') runId: string,
+    @Req() req?: Request,
   ) {
-    return this.research.assertRunActive(ctx, id, runId);
+    return this.withResearchRequestTelemetry(
+      ctx,
+      req,
+      'research_checkpoint',
+      'researchRunActive',
+      true,
+      () => this.research.assertRunActive(ctx, id, runId),
+    );
   }
 
   @Post('research/:id/runs/:runId/safe-read/reservations')
@@ -981,8 +990,16 @@ export class MeriController {
       tool: string;
       input: Record<string, unknown>;
     },
+    @Req() req?: Request,
   ) {
-    return this.research.reserveSafeReadAttempt(ctx, id, runId, body);
+    return this.withResearchRequestTelemetry(
+      ctx,
+      req,
+      'research_source',
+      'reserveResearchSafeRead',
+      true,
+      () => this.research.reserveSafeReadAttempt(ctx, id, runId, body),
+    );
   }
 
   @Post('research/:id/runs/:runId/provider-budget/reservations')
@@ -992,8 +1009,16 @@ export class MeriController {
     @Param('id') id: string,
     @Param('runId') runId: string,
     @Body() body: Parameters<MeriResearchService['reserveProviderAttempt']>[3],
+    @Req() req?: Request,
   ) {
-    return this.research.reserveProviderAttempt(ctx, id, runId, body);
+    return this.withResearchRequestTelemetry(
+      ctx,
+      req,
+      'research_budget',
+      'reserveResearchProviderAttempt',
+      true,
+      () => this.research.reserveProviderAttempt(ctx, id, runId, body),
+    );
   }
 
   @Post('research/:id/runs/:runId/provider-budget/settlements')
@@ -1003,8 +1028,16 @@ export class MeriController {
     @Param('id') id: string,
     @Param('runId') runId: string,
     @Body() body: Parameters<MeriResearchService['settleProviderAttempt']>[3],
+    @Req() req?: Request,
   ) {
-    return this.research.settleProviderAttempt(ctx, id, runId, body);
+    return this.withResearchRequestTelemetry(
+      ctx,
+      req,
+      'research_budget',
+      'settleResearchProviderAttempt',
+      true,
+      () => this.research.settleProviderAttempt(ctx, id, runId, body),
+    );
   }
 
   @Post('research/:id/runs/:runId/safe-read/replay')
@@ -1021,8 +1054,16 @@ export class MeriController {
       toolVersion: string;
       input: Record<string, unknown>;
     },
+    @Req() req?: Request,
   ) {
-    return this.research.replaySafeReadOutcome(ctx, id, runId, body);
+    return this.withResearchRequestTelemetry(
+      ctx,
+      req,
+      'research_source',
+      'replayResearchSafeRead',
+      true,
+      () => this.research.replaySafeReadOutcome(ctx, id, runId, body),
+    );
   }
 
   @Post('research/:id/runs/:runId/safe-read/outcomes')
@@ -1042,8 +1083,16 @@ export class MeriController {
       input: Record<string, unknown>;
       result: unknown;
     },
+    @Req() req?: Request,
   ) {
-    return this.research.commitSafeReadOutcome(ctx, id, runId, body);
+    return this.withResearchRequestTelemetry(
+      ctx,
+      req,
+      'research_source',
+      'commitResearchSafeRead',
+      true,
+      () => this.research.commitSafeReadOutcome(ctx, id, runId, body),
+    );
   }
 
   @Post('research/:id/runs/:runId/safe-read/failures')
@@ -1053,8 +1102,16 @@ export class MeriController {
     @Param('id') id: string,
     @Param('runId') runId: string,
     @Body() body: { leaseEpoch: number; reservationId: string; code?: string },
+    @Req() req?: Request,
   ) {
-    return this.research.failSafeReadAttempt(ctx, id, runId, body);
+    return this.withResearchRequestTelemetry(
+      ctx,
+      req,
+      'research_source',
+      'failResearchSafeRead',
+      true,
+      () => this.research.failSafeReadAttempt(ctx, id, runId, body),
+    );
   }
 
   @Get('research/:id/coordinator')
@@ -1062,8 +1119,16 @@ export class MeriController {
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
     @Query('afterSequence') afterSequence?: string,
+    @Req() req?: Request,
   ) {
-    return this.research.getCoordinatorSnapshot(ctx, id, afterSequence);
+    return this.withResearchRequestTelemetry(
+      ctx,
+      req,
+      'research_checkpoint',
+      'researchCoordinator',
+      false,
+      () => this.research.getCoordinatorSnapshot(ctx, id, afterSequence),
+    );
   }
 
   @Post('research/:id/steer')
@@ -1071,8 +1136,16 @@ export class MeriController {
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
     @Body() body: SteerResearchDto,
+    @Req() req?: Request,
   ) {
-    return this.research.steerRun(ctx, id, body);
+    return this.withResearchRequestTelemetry(
+      ctx,
+      req,
+      'research_checkpoint',
+      'steerResearch',
+      false,
+      () => this.research.steerRun(ctx, id, body),
+    );
   }
 
   @Post('research/:id/cancel')
@@ -1080,8 +1153,16 @@ export class MeriController {
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
     @Body() body?: CancelResearchDto,
+    @Req() req?: Request,
   ) {
-    return this.research.cancelRun(ctx, id, body);
+    return this.withResearchRequestTelemetry(
+      ctx,
+      req,
+      'research_checkpoint',
+      'cancelResearch',
+      false,
+      () => this.research.cancelRun(ctx, id, body),
+    );
   }
 
   @Delete('research/:id')
@@ -1199,6 +1280,28 @@ export class MeriController {
     res.send(image.buffer);
   }
 
+  private withResearchRequestTelemetry<T>(
+    ctx: TenantContext,
+    req: Request | undefined,
+    boundary: 'research_run' | 'research_checkpoint' | 'research_budget' | 'research_source',
+    operation: string,
+    internal: boolean,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    // Direct in-process callers have no HTTP carrier. Real ingress uses only the
+    // authenticated tenant/actor; session/conversation/run authority is added
+    // after the service's existing admission, never from route/body identifiers.
+    if (!req) return fn();
+    const context = internal
+      ? admitMeriInternalTelemetry(req, ctx)
+      : createMeriApiTelemetryContext(req, ctx, '');
+    return runWithMeriApiTelemetry(
+      context,
+      (line) => this.logger.log(line),
+      () => withMeriApiTelemetrySpan({ name: `meri.research.${operation}`, boundary }, fn),
+    );
+  }
+
   @Post('research/:id/plan/stream')
   async streamResearchPlan(
     @CurrentTenant() ctx: TenantContext,
@@ -1210,7 +1313,9 @@ export class MeriController {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
-    await this.research.streamPlan(ctx, id, res, researchRuntimeAuth(req, res));
+    await this.withResearchRequestTelemetry(ctx, req, 'research_run', 'streamPlan', false, () =>
+      this.research.streamPlan(ctx, id, res, researchRuntimeAuth(req, res)),
+    );
     res.end();
   }
 
@@ -1225,7 +1330,9 @@ export class MeriController {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
-    await this.research.streamResearch(ctx, id, res, researchRuntimeAuth(req, res));
+    await this.withResearchRequestTelemetry(ctx, req, 'research_run', 'streamResearch', false, () =>
+      this.research.streamResearch(ctx, id, res, researchRuntimeAuth(req, res)),
+    );
     res.end();
   }
 }
