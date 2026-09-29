@@ -18,6 +18,7 @@
     "src/outreach-v3/reasoning/**/*.ts",
     "src/outreach-v3/targets/**/*.ts",
     "src/outreach-v3/context/**/*.ts",
+    "src/types/word-extractor.d.ts",
     "src/engagement-api.app.module.ts"
   ],
   "exclude": [
