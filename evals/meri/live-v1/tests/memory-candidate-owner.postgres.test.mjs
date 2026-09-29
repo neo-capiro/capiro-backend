@@ -658,6 +658,18 @@ describe('built canonical memory candidate command runtime', { skip: !configPath
       await assert.rejects(retirementProof(f), (error) => error.getStatus?.() === 403);
       assert.equal((await revoke(f)).found, true);
       const before = await approvedState(f);
+      console.log(
+        JSON.stringify({
+          retirementTimestamps: (
+            await pool.query(
+              `SELECT mi.revoked_at::text AS revoked_at,a.occurred_at::text AS occurred_at,
+        a.occurred_at=mi.revoked_at AS exact_match FROM "${schema}".memory_items mi
+        JOIN "${schema}".memory_transition_audit a ON a.memory_item_id=mi.id WHERE mi.id=$1`,
+              [f.itemId],
+            )
+          ).rows,
+        }),
+      );
       const proof = await retirementProof(f);
       assert.equal(proof.itemId, f.itemId);
       assert.equal(proof.candidateId, f.record.physicalId);

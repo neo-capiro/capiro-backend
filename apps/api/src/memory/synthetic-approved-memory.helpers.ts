@@ -68,7 +68,7 @@ export async function readSyntheticMemoryRetirementInTx(
     WHERE mi.tenant_id=${ctx.tenantId}::uuid AND mi.id=${itemId}::uuid
       AND mi.revoked_by IS NOT NULL AND mi.revoked_at IS NOT NULL
       AND a.actor_user_id=mi.revoked_by AND a.effective_tenant_id=mi.tenant_id
-      AND a.occurred_at=mi.revoked_at
+      AND a.metadata_jsonb->>'syntheticFixtureRevokedAtEpoch'=extract(epoch from mi.revoked_at)::text
       AND a.memory_candidate_id IS NULL AND a.client_id IS NOT DISTINCT FROM mi.client_id
       AND a.from_status='active' AND a.to_status='revoked' AND a.reason_code='revoked'
       AND a.metadata_jsonb->>'verb'='forget' AND a.metadata_jsonb->>'priorGovernedStatus'='active'

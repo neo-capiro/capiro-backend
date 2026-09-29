@@ -661,6 +661,17 @@ export class MemoryStoreService {
       UPDATE memory_items SET governed_status = 'revoked', updated_at = now()
       WHERE id = ${itemId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
     `;
+    let fixtureRevokedAtEpoch: string | undefined;
+    if (fixtureAudit) {
+      const dates = await tx.$queryRaw<Array<{ epoch: string | null }>>`
+        SELECT extract(epoch from revoked_at)::text AS epoch FROM memory_items
+        WHERE id=${itemId}::uuid AND tenant_id=${ctx.tenantId}::uuid
+      `;
+      if (dates.length !== 1 || !dates[0]?.epoch) {
+        throw new ForbiddenException('Synthetic memory revocation timestamp is unavailable');
+      }
+      fixtureRevokedAtEpoch = dates[0].epoch;
+    }
     await this.transitionAudit.record(tx, ctx.tenantId, {
       subject: { memoryItemId: itemId },
       actorUserId: ctx.userId,
@@ -673,7 +684,12 @@ export class MemoryStoreService {
       toStatus: 'revoked',
       reasonCode: 'revoked',
       reason: reason ? `forget: ${reason}` : 'forget verb',
-      metadata: { verb: 'forget', priorGovernedStatus: before, ...(fixtureAudit ?? {}) },
+      metadata: {
+        verb: 'forget',
+        priorGovernedStatus: before,
+        ...(fixtureAudit ?? {}),
+        ...(fixtureRevokedAtEpoch ? { syntheticFixtureRevokedAtEpoch: fixtureRevokedAtEpoch } : {}),
+      },
     });
     await this.cleanupOutbox.enqueue(tx, ctx.tenantId, {
       memoryItemId: itemId,
