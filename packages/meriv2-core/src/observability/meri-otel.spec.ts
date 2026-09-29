@@ -1,7 +1,11 @@
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { InMemorySpanExporter, type SpanExporter } from '@opentelemetry/sdk-trace';
-import { createMeriTelemetryContext, meriTelemetryUsage } from './meri-joined-telemetry.js';
+import {
+  createMeriTelemetryContext,
+  meriTelemetryUsage,
+  meriTelemetryIdentifier,
+} from './meri-joined-telemetry.js';
 import { createMeriOtelRuntime } from './meri-otel.js';
 
 const rootInput = { name: 'meri.request', boundary: 'browser_api' as const };
@@ -15,6 +19,100 @@ function context(tenant = 'tenant-a') {
 }
 
 describe('Meri actual SDK export', () => {
+  test.each([
+    'research_run',
+    'research_child',
+    'research_budget',
+    'research_source',
+    'research_checkpoint',
+  ] as const)(
+    'exports projected durable metadata on actual %s spans and events',
+    async (boundary) => {
+      const exporter = new InMemorySpanExporter();
+      const runtime = createMeriOtelRuntime({ serviceName: 'api', exporter });
+      const root = context();
+      try {
+        await runtime.withSpan(
+          root,
+          rootInput,
+          async (parent) => {
+            await runtime.withSpan(
+              parent,
+              { name: 'meri.research.owner', boundary, durableRunId: 'private-run', leaseEpoch: 3 },
+              async (child) => {
+                runtime.recordEvent(child, {
+                  name: 'meri.research.result',
+                  boundary,
+                  checkpointSequence: 4,
+                  remainingBudget: {
+                    attempts: 0,
+                    tokens: 12,
+                    costMicros: null,
+                    timeMs: -1,
+                    privatePayload: 'PRIVATE',
+                  },
+                  sourceCoverage: 'partial',
+                  terminalReason: 'completed',
+                  verificationVerdict: 'pass',
+                  cancellationIssuer: 'user',
+                  modelEffort: 'low',
+                  promptVersion: 'private-prompt',
+                  toolVersion: 'private-tool',
+                  skillVersion: 'private-skill',
+                  artifactVersion: 'private-artifact',
+                  researchSessionId: 'private-session',
+                  authorizedConversationId: 'private-conversation',
+                  rawPrompt: 'PRIVATE',
+                } as never);
+              },
+            );
+          },
+          { preserveSpanIdentity: true },
+        );
+        await runtime.forceFlush();
+        const spans = exporter.getFinishedSpans();
+        expect(spans).toHaveLength(2);
+        const child = spans.find((span) => span.name === `meri.${boundary}`)!;
+        expect(child.parentSpanContext?.spanId).toBe(root.spanId);
+        expect(child.attributes).toMatchObject({
+          'meri.durableRunId': meriTelemetryIdentifier('private-run'),
+          'meri.leaseEpoch': 3,
+          'meri.checkpointSequence': 4,
+          'meri.remainingBudget.attempts': 0,
+          'meri.remainingBudget.tokens': 12,
+          'meri.sourceCoverage': 'partial',
+          'meri.verificationVerdict': 'pass',
+          'meri.terminalReason': 'completed',
+          'meri.promptVersion': meriTelemetryIdentifier('private-prompt'),
+          'meri.modelEffort': 'low',
+        });
+        expect(child.attributes['meri.remainingBudget.costMicros']).toBeUndefined();
+        expect(child.attributes['meri.remainingBudget.timeMs']).toBeUndefined();
+        expect(
+          child.events.some((event) => event.attributes?.['meri.checkpointSequence'] === 4),
+        ).toBe(true);
+        expect(
+          child.events.every((event) => event.attributes?.['meri.boundary'] === boundary),
+        ).toBe(true);
+        const exported = JSON.stringify(
+          spans.map((span) => ({ attributes: span.attributes, events: span.events })),
+        );
+        for (const secret of [
+          'PRIVATE',
+          'private-run',
+          'private-prompt',
+          'private-tool',
+          'private-skill',
+          'private-artifact',
+          'private-session',
+          'private-conversation',
+        ])
+          expect(exported).not.toContain(secret);
+      } finally {
+        await runtime.shutdown();
+      }
+    },
+  );
   test('disabled preserves the exact context and callback outcome once', async () => {
     const runtime = createMeriOtelRuntime({ serviceName: 'api' });
     const root = context();

@@ -54,7 +54,35 @@ export interface MeriTelemetryEventInput {
     | 'orchestrator_tool'
     | 'api_tool'
     | 'api_proposal'
+    | 'research_run'
+    | 'research_child'
+    | 'research_budget'
+    | 'research_source'
+    | 'research_checkpoint'
     | 'turn';
+  /** Server-owner metadata only, after existing authority/receipt admission. */
+  readonly durableRunId?: string | null;
+  readonly researchSessionId?: string | null;
+  readonly authorizedConversationId?: string | null;
+  readonly leaseEpoch?: number | null;
+  readonly checkpointSequence?: number | null;
+  readonly cancellationIssuer?: 'user' | 'deadline' | 'lease_lost' | 'runtime' | 'unknown';
+  readonly terminalReason?:
+    'completed' | 'cancelled' | 'failed' | 'partial' | 'interrupted' | 'lease_lost' | 'replayed';
+  readonly verificationVerdict?: 'pass' | 'fail' | 'unknown' | 'not_run';
+  readonly remainingBudget?: {
+    readonly attempts?: number | null;
+    readonly tokens?: number | null;
+    readonly costMicros?: number | null;
+    readonly timeMs?: number | null;
+  };
+  readonly sourceCoverage?: 'complete' | 'partial' | 'unavailable' | 'unknown';
+  readonly promptVersion?: string | null;
+  readonly toolVersion?: string | null;
+  readonly skillVersion?: string | null;
+  readonly artifactVersion?: string | null;
+  readonly modelEffort?:
+    'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'none' | 'unknown';
   readonly spanId?: string;
   readonly parentSpanId?: string | null;
   readonly stepId?: string | null;
@@ -312,6 +340,62 @@ function goalRevision(value: unknown): number | null {
     : null;
 }
 
+/** Explicit projection; unknown budget quantities remain absent, never zero. */
+function durableMetadata(input: MeriTelemetryEventInput): Record<string, unknown> {
+  const projected: Record<string, unknown> = {};
+  for (const key of [
+    'durableRunId',
+    'researchSessionId',
+    'authorizedConversationId',
+    'promptVersion',
+    'toolVersion',
+    'skillVersion',
+    'artifactVersion',
+  ] as const) {
+    const value = opaque(input[key]);
+    if (value !== null) projected[key] = value;
+  }
+  for (const key of ['leaseEpoch', 'checkpointSequence'] as const) {
+    const value = input[key];
+    if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)
+      projected[key] = value;
+  }
+  const enums = {
+    cancellationIssuer: ['user', 'deadline', 'lease_lost', 'runtime', 'unknown'],
+    terminalReason: [
+      'completed',
+      'cancelled',
+      'failed',
+      'partial',
+      'interrupted',
+      'lease_lost',
+      'replayed',
+    ],
+    verificationVerdict: ['pass', 'fail', 'unknown', 'not_run'],
+    sourceCoverage: ['complete', 'partial', 'unavailable', 'unknown'],
+    modelEffort: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'none', 'unknown'],
+  } as const;
+  for (const key of Object.keys(enums) as (keyof typeof enums)[]) {
+    const value = input[key];
+    if (typeof value === 'string' && (enums[key] as readonly string[]).includes(value))
+      projected[key] = value;
+  }
+  if (
+    input.remainingBudget &&
+    typeof input.remainingBudget === 'object' &&
+    !Array.isArray(input.remainingBudget)
+  ) {
+    const budget: Record<string, number> = {};
+    for (const key of ['attempts', 'tokens', 'costMicros', 'timeMs'] as const) {
+      const value = input.remainingBudget[key];
+      if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)
+        budget[key] = value;
+    }
+    if (Object.keys(budget).length) projected.remainingBudget = budget;
+  }
+  return projected;
+}
+
 export function buildMeriTelemetryEvent(
   context: MeriTelemetryContext,
   input: MeriTelemetryEventInput,
@@ -336,6 +420,7 @@ export function buildMeriTelemetryEvent(
     runId: context.runId,
     release: context.release,
     at: input.at ?? new Date().toISOString(),
+    ...durableMetadata(input),
     ...(opaque(input.stepId) ? { stepId: opaque(input.stepId) } : {}),
     ...(opaque(input.childRunId) ? { childRunId: opaque(input.childRunId) } : {}),
     ...(goalRevision(input.goalRevision) !== null

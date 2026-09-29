@@ -77,6 +77,20 @@ const identities = [
   'outcome',
   'durationMs',
   'recordTruncated',
+  'durableRunId',
+  'researchSessionId',
+  'authorizedConversationId',
+  'leaseEpoch',
+  'checkpointSequence',
+  'cancellationIssuer',
+  'terminalReason',
+  'verificationVerdict',
+  'sourceCoverage',
+  'promptVersion',
+  'toolVersion',
+  'skillVersion',
+  'artifactVersion',
+  'modelEffort',
 ] as const;
 const lists = [
   'selectedTools',
@@ -93,6 +107,11 @@ const boundaries = new Set([
   'api_tool',
   'api_proposal',
   'turn',
+  'research_run',
+  'research_child',
+  'research_budget',
+  'research_source',
+  'research_checkpoint',
 ]);
 
 /** OTel attributes cannot contain nested objects. Only projected, bounded fields enter export. */
@@ -115,6 +134,14 @@ function attributes(event: MeriTelemetryEvent): Attributes {
         .slice(0, 64);
   }
   if (Array.isArray(event.sourceRefs)) result['meri.sourceRefs'] = JSON.stringify(event.sourceRefs);
+  if (event.remainingBudget && typeof event.remainingBudget === 'object') {
+    const budget = event.remainingBudget as Record<string, unknown>;
+    for (const key of ['attempts', 'tokens', 'costMicros', 'timeMs']) {
+      const value = budget[key];
+      if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)
+        result[`meri.remainingBudget.${key}`] = value;
+    }
+  }
   if (event.usage && typeof event.usage === 'object') {
     const usage = event.usage as Record<string, unknown>;
     for (const key of [

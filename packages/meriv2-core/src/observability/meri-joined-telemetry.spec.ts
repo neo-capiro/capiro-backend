@@ -152,4 +152,109 @@ describe('Meri joined telemetry', () => {
       inputTokens: null,
     });
   });
+
+  test('projects admitted durable identities and known budget values without payloads or authority rebinding', () => {
+    const context = createMeriTelemetryContext({ tenantId: ID, actorId: ID });
+    const event = buildMeriTelemetryEvent(context, {
+      name: 'meri.research.checkpoint',
+      boundary: 'research_checkpoint',
+      durableRunId: ID,
+      researchSessionId: 'private-session',
+      authorizedConversationId: 'private-conversation',
+      leaseEpoch: 0,
+      checkpointSequence: 12,
+      cancellationIssuer: 'user',
+      terminalReason: 'partial',
+      verificationVerdict: 'not_run',
+      sourceCoverage: 'partial',
+      modelEffort: 'high',
+      promptVersion: 'private-prompt-version',
+      toolVersion: ID,
+      skillVersion: ID,
+      artifactVersion: ID,
+      remainingBudget: {
+        attempts: 0,
+        tokens: 20,
+        costMicros: null,
+        timeMs: 10,
+        privatePayload: 'PRIVATE',
+      },
+      rawPrompt: 'PRIVATE',
+      runId: 'forged',
+      tenantId: 'forged',
+    } as never);
+    expect(event).toMatchObject({
+      runId: context.runId,
+      tenantId: context.tenantId,
+      durableRunId: ID,
+      researchSessionId: meriTelemetryIdentifier('private-session'),
+      authorizedConversationId: meriTelemetryIdentifier('private-conversation'),
+      leaseEpoch: 0,
+      checkpointSequence: 12,
+      cancellationIssuer: 'user',
+      terminalReason: 'partial',
+      verificationVerdict: 'not_run',
+      sourceCoverage: 'partial',
+      modelEffort: 'high',
+      promptVersion: meriTelemetryIdentifier('private-prompt-version'),
+      toolVersion: ID,
+      skillVersion: ID,
+      artifactVersion: ID,
+      remainingBudget: { attempts: 0, tokens: 20, timeMs: 10 },
+    });
+    expect(event.remainingBudget).toEqual({ attempts: 0, tokens: 20, timeMs: 10 });
+    for (const secret of [
+      'PRIVATE',
+      'private-session',
+      'private-conversation',
+      'private-prompt-version',
+      'forged',
+    ])
+      expect(JSON.stringify(event)).not.toContain(secret);
+  });
+
+  test.each([null, undefined, -1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1, '3', {}, []])(
+    'omits invalid durable integers and unknown budget quantities %p',
+    (value) => {
+      const event = buildMeriTelemetryEvent(
+        createMeriTelemetryContext({ tenantId: ID, actorId: ID }),
+        {
+          name: 'meri.research.budget',
+          boundary: 'research_budget',
+          leaseEpoch: value,
+          checkpointSequence: value,
+          remainingBudget: { attempts: value, tokens: value, costMicros: value, timeMs: value },
+        } as never,
+      );
+      expect(event.leaseEpoch).toBeUndefined();
+      expect(event.checkpointSequence).toBeUndefined();
+      expect(event.remainingBudget).toBeUndefined();
+    },
+  );
+
+  test.each(['private-reason', '', null, {}, ['complete']])(
+    'rejects non-enum durable metadata %p',
+    (value) => {
+      const event = buildMeriTelemetryEvent(
+        createMeriTelemetryContext({ tenantId: ID, actorId: ID }),
+        {
+          name: 'meri.research.run',
+          boundary: 'research_run',
+          cancellationIssuer: value,
+          terminalReason: value,
+          verificationVerdict: value,
+          sourceCoverage: value,
+          modelEffort: value,
+        } as never,
+      );
+      for (const key of [
+        'cancellationIssuer',
+        'terminalReason',
+        'verificationVerdict',
+        'sourceCoverage',
+        'modelEffort',
+      ])
+        expect(event[key]).toBeUndefined();
+    },
+  );
 });
