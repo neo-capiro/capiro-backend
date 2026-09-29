@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApi } from '../../../../lib/use-api.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
-import { TrackerSurface } from '../../../../pages/clients/tracker/TrackerTab.js';
+import { WatchlistEditorVNext } from './WatchlistEditorVNext.js';
 import { LwButton } from '../lib/primitives.js';
 import { watchlistSetupPath } from '../lib/watchlist-navigation.js';
 
@@ -71,11 +71,10 @@ export function WatchlistSetup() {
       </section>
       {selected && !clients.isError ? (
         <div className="lw-card" style={{ padding: 18 }}>
-          <TrackerSurface
+          <WatchlistEditorVNext
             key={selected.id}
             clientId={selected.id}
             clientName={selected.name}
-            variant="watchlist"
           />
         </div>
       ) : null}
