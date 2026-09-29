@@ -159,3 +159,58 @@ describe('MeriV3ChatClient', () => {
     ).rejects.toThrow('requires an OpenAI credential');
   });
 });
+import { createMeriOtelRuntime } from '@capiro/meriv2-core/observability/otel';
+import { setMeriOtelRuntime } from './meri-telemetry.runtime.js';
+
+test('real proxy owner transmits the actual exported client span identity', async () => {
+  const savedFetch = global.fetch;
+  const savedUrl = process.env.MERIV2_ORCHESTRATOR_URL;
+  const spans: any[] = [];
+  let body: any;
+  let headers: Record<string, string> = {};
+  const sdk = createMeriOtelRuntime({
+    serviceName: 'proxy-owner-test',
+    exporter: {
+      export: (batch, done) => {
+        spans.push(...batch);
+        done({ code: 0 });
+      },
+      shutdown: async () => {},
+    },
+  });
+  await setMeriOtelRuntime(sdk);
+  process.env.MERIV2_ORCHESTRATOR_URL = 'https://orchestrator.test';
+  global.fetch = jest.fn(async (_url, init) => {
+    body = JSON.parse(String(init!.body));
+    headers = init!.headers as Record<string, string>;
+    return sseResponse([{ type: 'done' }]);
+  }) as typeof fetch;
+  const root = createMeriTelemetryContext({ tenantId: 'tenant', actorId: 'actor' });
+  try {
+    await runWithMeriApiTelemetry(
+      root,
+      () => {},
+      () =>
+        new MeriV3ChatClient().streamChat({
+          bearerToken: 'PRIVATE_BEARER',
+          input: {
+            messages: [{ role: 'user', text: 'PRIVATE_PROMPT' }],
+            reasoningMode: 'standard',
+          },
+          onEvent: () => {},
+        }),
+    );
+    await sdk.forceFlush();
+    const child = spans.find((span) => span.name === 'meri.api_orchestrator');
+    expect(child).toBeDefined();
+    expect(child.parentSpanContext.spanId).toBe(root.spanId);
+    expect(body.telemetryContext.spanId).toBe(child.spanContext().spanId);
+    expect(headers.traceparent).toBe(`00-${root.traceId}-${child.spanContext().spanId}-01`);
+    expect(JSON.stringify(spans.map((span) => span.attributes))).not.toContain('PRIVATE_');
+  } finally {
+    global.fetch = savedFetch;
+    if (savedUrl === undefined) delete process.env.MERIV2_ORCHESTRATOR_URL;
+    else process.env.MERIV2_ORCHESTRATOR_URL = savedUrl;
+    await setMeriOtelRuntime(undefined);
+  }
+});

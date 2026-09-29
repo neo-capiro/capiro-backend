@@ -1,3 +1,4 @@
+import type { MeriOtelRuntime } from '@capiro/meriv2-core/observability/otel';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import {
   buildMeriTelemetryEvent,
@@ -7,6 +8,19 @@ import {
   type MeriTelemetryContext,
   type MeriTelemetryEventInput,
 } from '@capiro/meriv2-core';
+
+let runtimeInstance: MeriOtelRuntime | undefined;
+
+/** Lifecycle/test replacement owns shutdown; no global OTel state is changed. */
+export async function setMeriOtelRuntime(next: MeriOtelRuntime | undefined): Promise<void> {
+  const previous = runtimeInstance;
+  runtimeInstance = next;
+  if (previous && previous !== next) await previous.shutdown();
+}
+
+export function getMeriOtelRuntime(): MeriOtelRuntime | undefined {
+  return runtimeInstance;
+}
 
 interface KnownUsage {
   inputTokens: number;
@@ -33,23 +47,42 @@ export function runWithMeriOrchestratorTelemetry<T>(
   emit: (line: string) => void,
   fn: () => Promise<T>,
 ): Promise<T> {
-  return runtime.run(
-    {
-      context,
-      emit,
-      usage: {
-        inputTokens: 0,
-        outputTokens: 0,
-        cacheReadTokens: 0,
-        cacheCreationTokens: 0,
-        estimatedCostUsd: 0,
-        observedFields: new Set(),
-        knownCostAttempts: 0,
-        unknownAttempts: 0,
-      },
-      configIdentity: null,
+  const state: RuntimeState = {
+    context,
+    emit,
+    usage: {
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheCreationTokens: 0,
+      estimatedCostUsd: 0,
+      observedFields: new Set(),
+      knownCostAttempts: 0,
+      unknownAttempts: 0,
     },
-    fn,
+    configIdentity: null,
+  };
+  if (!runtimeInstance?.isEnabled()) return runtime.run(state, fn);
+  return runtimeInstance.withSpan(
+    context,
+    { name: 'meri.orchestrator.request', boundary: 'api_orchestrator' },
+    (spanContext) => runtime.run({ ...state, context: spanContext }, fn),
+    { kind: 'server' },
+  );
+}
+
+export function withMeriOrchestratorTelemetrySpan<T>(
+  input: MeriTelemetryEventInput,
+  fn: () => Promise<T>,
+  kind: 'server' | 'client' | 'internal' = 'internal',
+): Promise<T> {
+  const state = runtime.getStore();
+  if (!state || !runtimeInstance?.isEnabled()) return fn();
+  return runtimeInstance.withSpan(
+    state.context,
+    input,
+    (spanContext) => runtime.run({ ...state, context: spanContext }, fn),
+    { kind },
   );
 }
 
@@ -80,6 +113,14 @@ export function emitMeriOrchestratorTelemetry(input: MeriTelemetryEventInput): v
     );
   } catch {
     // Telemetry sink failures cannot block model, tool, proposal, or artifact work.
+  }
+  try {
+    runtimeInstance?.recordEvent(state.context, {
+      ...input,
+      configIdentity: input.configIdentity ?? state.configIdentity,
+    });
+  } catch {
+    /* Independent sink. */
   }
 }
 
@@ -144,7 +185,8 @@ export function currentMeriTaskUsage() {
 export function meriOrchestratorTelemetryHeaders(): Record<string, string> {
   const context = currentMeriOrchestratorTelemetry();
   if (!context) return {};
-  const spanId = meriTelemetryChildSpanId();
+  const exporting = runtimeInstance?.isEnabled() === true;
+  const spanId = exporting ? context.spanId : meriTelemetryChildSpanId();
   return {
     traceparent: meriTelemetryTraceparent(context, spanId),
     'x-request-id': context.requestId,
@@ -152,7 +194,7 @@ export function meriOrchestratorTelemetryHeaders(): Record<string, string> {
       JSON.stringify({
         ...context,
         spanId,
-        parentSpanId: context.spanId,
+        parentSpanId: exporting ? context.parentSpanId : context.spanId,
       }),
     ),
   };

@@ -10,6 +10,7 @@ import {
 } from './meriv3-run-budget.js';
 import {
   emitMeriOrchestratorTelemetry,
+  withMeriOrchestratorTelemetrySpan,
   noteMeriProviderUsage,
   noteMeriUnknownProviderUsage,
 } from '../../telemetry/meri-telemetry.runtime.js';
@@ -439,108 +440,140 @@ export class OpenAiResponsesClient {
       let providerSettlementAttempted = false;
       try {
         wireStarted = true;
-        const response = await fetch(RESPONSES_URL, {
-          method: 'POST',
-          headers: {
-            authorization: `Bearer ${apiKey}`,
-            'content-type': 'application/json',
-            accept: 'application/json',
-          },
-          body: requestBody,
-          signal: controller.signal,
-        });
-        status = response.status;
-        const raw = await response.text();
-        if (params.signal?.aborted) {
-          throw new DOMException('Aborted', 'AbortError');
-        }
-        if (controller.signal.aborted || Date.now() >= attemptDeadline) {
-          throw new DOMException('Timed out', 'AbortError');
-        }
-        if (!response.ok) {
-          providerSettlementAttempted = true;
-          await params.budget?.settleProviderAttempt(providerReservation, { kind: 'uncertain' });
-          throw sanitizedProviderError(response.status, raw);
-        }
-        const body = JSON.parse(raw) as RawResponsesBody;
-        const output = Array.isArray(body.output) ? body.output : [];
-        const outputText =
-          typeof body.output_text === 'string'
-            ? body.output_text.trim()
-            : extractResponsesOutputText(output);
-        const responseStatus = String(body.status ?? 'unknown');
-        const incompleteReason = body.incomplete_details?.reason ?? null;
-        const validatedCalls = validateResponsesFunctionCallBatch(output);
-        const callFailure =
-          responseStatus === 'completed' && incompleteReason === null
-            ? validatedCalls.failure
-            : undefined;
-        const telemetry: MeriV3ProviderTelemetry = {
-          requestedModel: model,
-          effectiveModel: String(body.model ?? model),
-          requestedReasoningEffort: params.profile.effort,
-          effectiveReasoningEffort: reasoningUnsupported ? null : activeReasoningEffort,
-          reasoningFallbackReasons: [...reasoningFallbackReasons],
-          finishReason: callFailure ?? incompleteReason ?? body.error?.code ?? responseStatus,
-          partial:
-            responseStatus !== 'completed' ||
-            incompleteReason !== null ||
-            callFailure !== undefined,
-        };
-        // Do not extract or return function calls when response is incomplete.
-        // The provider may have emitted partial tool calls before hitting a limit.
-        // Replay is required (output items stay request-local) and no tool should
-        // dispatch from an unclosed turn.
-        const functionCalls =
-          responseStatus === 'completed' && !incompleteReason && !callFailure
-            ? validatedCalls.calls
-            : [];
-        const parsedUsage = parseOpenAiResponsesUsage(body);
-        const knownUsage = knownOpenAiResponsesUsage(body);
-        providerSettlementAttempted = true;
-        await params.budget?.settleProviderAttempt(
-          providerReservation,
-          knownUsage ? { kind: 'known', ...knownUsage } : { kind: 'uncertain' },
-        );
-        const draft: OpenAiResponsesResult = {
-          id: String(body.id ?? ''),
-          status: responseStatus,
-          output,
-          outputText,
-          functionCalls,
-          usage: parsedUsage,
-          model: String(body.model ?? model),
-          usedTenantKey,
-          incompleteReason,
-          telemetry,
-          providerCalls: [telemetry],
-        };
-        const observedUsage = observedOpenAiResponsesUsage(body);
-        const hasKnownPrice = Boolean(
-          AI_PRICING[draft.model] ?? AI_PRICING[draft.model.replace(/-\d{8}$/, '')],
-        );
-        const estimatedCostUsd =
-          hasKnownPrice && observedUsage.inputTokens !== null && observedUsage.outputTokens !== null
-            ? computeAiCostUsd(draft.model, observedUsage.inputTokens, observedUsage.outputTokens)
-            : null;
-        noteMeriProviderUsage({ ...observedUsage, estimatedCostUsd });
-        emitMeriOrchestratorTelemetry({
-          name: 'meri.provider.attempt.finalized',
-          boundary: 'orchestrator_provider',
-          provider: 'openai',
-          requestedModel: model,
-          effectiveModel: draft.model,
-          attempt: wireAttempts,
-          retry: wireAttempts > 1,
-          outcome: telemetry.partial ? 'partial' : 'completed',
-          durationMs: Date.now() - attemptStartedAt,
-          usage: meriTelemetryUsage({
-            ...observedUsage,
-            knownEstimatedCostUsd: estimatedCostUsd,
-            unknownAttempts: estimatedCostUsd === null ? 1 : 0,
-          }),
-        });
-        wireUsageRecorded = true;
+        const { draft, responseStatus, incompleteReason, callFailure, telemetry, functionCalls } =
+          await withMeriOrchestratorTelemetrySpan(
+            {
+              name: 'meri.provider.attempt',
+              boundary: 'orchestrator_provider',
+              provider: 'openai',
+              requestedModel: model,
+              effectiveModel: model,
+              attempt: wireAttempts,
+              retry: wireAttempts > 1,
+              usage: meriTelemetryUsage({ unknownAttempts: 1 }),
+            },
+            async () => {
+              const response = await fetch(RESPONSES_URL, {
+                method: 'POST',
+                headers: {
+                  authorization: `Bearer ${apiKey}`,
+                  'content-type': 'application/json',
+                  accept: 'application/json',
+                },
+                body: requestBody,
+                signal: controller.signal,
+              });
+              status = response.status;
+              const raw = await response.text();
+              if (params.signal?.aborted) {
+                throw new DOMException('Aborted', 'AbortError');
+              }
+              if (controller.signal.aborted || Date.now() >= attemptDeadline) {
+                throw new DOMException('Timed out', 'AbortError');
+              }
+              if (!response.ok) {
+                providerSettlementAttempted = true;
+                await params.budget?.settleProviderAttempt(providerReservation, {
+                  kind: 'uncertain',
+                });
+                throw sanitizedProviderError(response.status, raw);
+              }
+              const body = JSON.parse(raw) as RawResponsesBody;
+              const output = Array.isArray(body.output) ? body.output : [];
+              const outputText =
+                typeof body.output_text === 'string'
+                  ? body.output_text.trim()
+                  : extractResponsesOutputText(output);
+              const responseStatus = String(body.status ?? 'unknown');
+              const incompleteReason = body.incomplete_details?.reason ?? null;
+              const validatedCalls = validateResponsesFunctionCallBatch(output);
+              const callFailure =
+                responseStatus === 'completed' && incompleteReason === null
+                  ? validatedCalls.failure
+                  : undefined;
+              const telemetry: MeriV3ProviderTelemetry = {
+                requestedModel: model,
+                effectiveModel: String(body.model ?? model),
+                requestedReasoningEffort: params.profile.effort,
+                effectiveReasoningEffort: reasoningUnsupported ? null : activeReasoningEffort,
+                reasoningFallbackReasons: [...reasoningFallbackReasons],
+                finishReason: callFailure ?? incompleteReason ?? body.error?.code ?? responseStatus,
+                partial:
+                  responseStatus !== 'completed' ||
+                  incompleteReason !== null ||
+                  callFailure !== undefined,
+              };
+              // Do not extract or return function calls when response is incomplete.
+              // The provider may have emitted partial tool calls before hitting a limit.
+              // Replay is required (output items stay request-local) and no tool should
+              // dispatch from an unclosed turn.
+              const functionCalls =
+                responseStatus === 'completed' && !incompleteReason && !callFailure
+                  ? validatedCalls.calls
+                  : [];
+              const parsedUsage = parseOpenAiResponsesUsage(body);
+              const knownUsage = knownOpenAiResponsesUsage(body);
+              providerSettlementAttempted = true;
+              await params.budget?.settleProviderAttempt(
+                providerReservation,
+                knownUsage ? { kind: 'known', ...knownUsage } : { kind: 'uncertain' },
+              );
+              const draft: OpenAiResponsesResult = {
+                id: String(body.id ?? ''),
+                status: responseStatus,
+                output,
+                outputText,
+                functionCalls,
+                usage: parsedUsage,
+                model: String(body.model ?? model),
+                usedTenantKey,
+                incompleteReason,
+                telemetry,
+                providerCalls: [telemetry],
+              };
+              const observedUsage = observedOpenAiResponsesUsage(body);
+              const hasKnownPrice = Boolean(
+                AI_PRICING[draft.model] ?? AI_PRICING[draft.model.replace(/-\d{8}$/, '')],
+              );
+              const estimatedCostUsd =
+                hasKnownPrice &&
+                observedUsage.inputTokens !== null &&
+                observedUsage.outputTokens !== null
+                  ? computeAiCostUsd(
+                      draft.model,
+                      observedUsage.inputTokens,
+                      observedUsage.outputTokens,
+                    )
+                  : null;
+              noteMeriProviderUsage({ ...observedUsage, estimatedCostUsd });
+              emitMeriOrchestratorTelemetry({
+                name: 'meri.provider.attempt.finalized',
+                boundary: 'orchestrator_provider',
+                provider: 'openai',
+                requestedModel: model,
+                effectiveModel: draft.model,
+                attempt: wireAttempts,
+                retry: wireAttempts > 1,
+                outcome: telemetry.partial ? 'partial' : 'completed',
+                durationMs: Date.now() - attemptStartedAt,
+                usage: meriTelemetryUsage({
+                  ...observedUsage,
+                  knownEstimatedCostUsd: estimatedCostUsd,
+                  unknownAttempts: estimatedCostUsd === null ? 1 : 0,
+                }),
+              });
+              wireUsageRecorded = true;
+              return {
+                draft,
+                responseStatus,
+                incompleteReason,
+                callFailure,
+                telemetry,
+                functionCalls,
+              };
+            },
+            'client',
+          );
 
         // Finalization may only transform a closed, valid provider draft. An
         // incomplete envelope or invalid function-call batch must return to the

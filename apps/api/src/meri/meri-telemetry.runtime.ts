@@ -1,3 +1,4 @@
+import type { MeriOtelRuntime } from '@capiro/meriv2-core/observability/otel';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import type { Request } from 'express';
@@ -11,6 +12,19 @@ import {
   type MeriTelemetryContext,
   type MeriTelemetryEventInput,
 } from '@capiro/meriv2-core';
+
+let runtimeInstance: MeriOtelRuntime | undefined;
+
+/** Lifecycle/test replacement owns shutdown; no global OTel state is changed. */
+export async function setMeriOtelRuntime(next: MeriOtelRuntime | undefined): Promise<void> {
+  const previous = runtimeInstance;
+  runtimeInstance = next;
+  if (previous && previous !== next) await previous.shutdown();
+}
+
+export function getMeriOtelRuntime(): MeriOtelRuntime | undefined {
+  return runtimeInstance;
+}
 
 interface MeriTelemetryRuntimeState {
   context: MeriTelemetryContext;
@@ -48,7 +62,28 @@ export function runWithMeriApiTelemetry<T>(
   emit: (line: string) => void,
   fn: () => Promise<T>,
 ): Promise<T> {
-  return runtime.run({ context, emit }, fn);
+  if (!runtimeInstance?.isEnabled()) return runtime.run({ context, emit }, fn);
+  return runtimeInstance.withSpan(
+    context,
+    { name: 'meri.api.request', boundary: 'browser_api' },
+    (spanContext) => runtime.run({ context: spanContext, emit }, fn),
+    { kind: 'server', preserveSpanIdentity: true },
+  );
+}
+
+export function withMeriApiTelemetrySpan<T>(
+  input: MeriTelemetryEventInput,
+  fn: () => Promise<T>,
+  kind: 'server' | 'client' | 'internal' = 'internal',
+): Promise<T> {
+  const state = runtime.getStore();
+  if (!state || !runtimeInstance?.isEnabled()) return fn();
+  return runtimeInstance.withSpan(
+    state.context,
+    input,
+    (spanContext) => runtime.run({ ...state, context: spanContext }, fn),
+    { kind },
+  );
 }
 
 export function currentMeriApiTelemetry(): MeriTelemetryContext | null {
@@ -63,12 +98,18 @@ export function emitMeriApiTelemetry(input: MeriTelemetryEventInput): void {
   } catch {
     // Observability is never an authorization or effect boundary.
   }
+  try {
+    runtimeInstance?.recordEvent(state.context, input);
+  } catch {
+    /* Independent sink. */
+  }
 }
 
 export function meriApiTelemetryHeaders(): Record<string, string> {
   const context = currentMeriApiTelemetry();
   if (!context) return {};
-  const spanId = meriTelemetryChildSpanId();
+  const exporting = runtimeInstance?.isEnabled() === true;
+  const spanId = exporting ? context.spanId : meriTelemetryChildSpanId();
   return {
     traceparent: meriTelemetryTraceparent(context, spanId),
     'x-request-id': context.requestId,
@@ -76,7 +117,7 @@ export function meriApiTelemetryHeaders(): Record<string, string> {
       JSON.stringify({
         ...context,
         spanId,
-        parentSpanId: context.spanId,
+        parentSpanId: exporting ? context.parentSpanId : context.spanId,
       }),
     ),
   };
@@ -111,7 +152,10 @@ export function admitMeriInternalTelemetry(
           conversationId ??
           (typeof parsed.conversationId === 'string' ? parsed.conversationId : null),
       });
-      if (admitted) return admitted;
+      if (admitted)
+        return runtimeInstance?.isEnabled()
+          ? { ...admitted, spanId: meriTelemetryChildSpanId(), parentSpanId: admitted.spanId }
+          : admitted;
     } catch {
       // A malformed carrier is untrusted linkage, never an authorization failure.
     }

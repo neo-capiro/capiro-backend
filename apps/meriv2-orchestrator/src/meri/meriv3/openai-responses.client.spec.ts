@@ -612,3 +612,66 @@ describe('OpenAiResponsesClient', () => {
     expect(jest.getTimerCount()).toBe(0);
   });
 });
+import { createMeriOtelRuntime } from '@capiro/meriv2-core/observability/otel';
+import { setMeriOtelRuntime } from '../../telemetry/meri-telemetry.runtime.js';
+
+test('actual provider retries export distinct sibling attempt spans without request payloads', async () => {
+  const savedFetch = global.fetch;
+  const savedKey = process.env.OPENAI_API_KEY;
+  const spans: any[] = [];
+  const sdk = createMeriOtelRuntime({
+    serviceName: 'provider-owner-test',
+    exporter: {
+      export: (batch, done) => {
+        spans.push(...batch);
+        done({ code: 0 });
+      },
+      shutdown: async () => {},
+    },
+  });
+  await setMeriOtelRuntime(sdk);
+  process.env.OPENAI_API_KEY = 'PRIVATE_PROVIDER_KEY';
+  let attempts = 0;
+  global.fetch = jest.fn(async () =>
+    ++attempts === 1
+      ? new Response('{"error":{"message":"temporary capacity"}}', { status: 503 })
+      : new Response(JSON.stringify(responseBody), { status: 200 }),
+  ) as typeof fetch;
+  try {
+    await runWithMeriOrchestratorTelemetry(
+      createMeriTelemetryContext({ tenantId: 'tenant', actorId: 'actor' }),
+      () => {},
+      async () => {
+        await new OpenAiResponsesClient().complete({
+          profile: resolveMeriV3ReasoningProfile('standard', {}),
+          instructions: 'PRIVATE_PROMPT_SECRET',
+          input: [],
+          tools: [],
+        });
+      },
+    );
+    await sdk.forceFlush();
+    const providers = spans.filter((span) => span.name === 'meri.orchestrator_provider');
+    expect(providers).toHaveLength(2);
+    expect(providers[0].spanContext().spanId).not.toBe(providers[1].spanContext().spanId);
+    expect(providers[0].parentSpanContext.spanId).toBe(providers[1].parentSpanContext.spanId);
+    expect(providers.map((span) => span.attributes['meri.attempt'])).toEqual([1, 2]);
+    expect(providers.map((span) => span.status.code)).toEqual([2, 1]);
+    expect(providers[0].attributes['meri.usage.status']).toBe('unknown');
+    const serialized = JSON.stringify(
+      providers.map((span) => ({
+        attributes: span.attributes,
+        events: span.events,
+        status: span.status,
+      })),
+    );
+    expect(serialized).not.toContain('PRIVATE_PROMPT_SECRET');
+    expect(serialized).not.toContain('PRIVATE_PROVIDER_KEY');
+    expect(serialized).not.toContain('Grounded answer.');
+  } finally {
+    global.fetch = savedFetch;
+    if (savedKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = savedKey;
+    await setMeriOtelRuntime(undefined);
+  }
+});

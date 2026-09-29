@@ -64,6 +64,33 @@ afterEach(() => {
   global.fetch = originalFetch;
 });
 
+// The API owner returns a qualified manifest envelope even when no records exist.
+// A manifest remains discovery-only; transport tests must not invent content coverage.
+function attachmentManifest(conversationId = CONVERSATION) {
+  return {
+    tool: 'read_chat_attachments',
+    authoritativeOwner: 'clio_chat_attachment',
+    currentStatus: 'available',
+    generatedAt: '2026-09-29T00:00:00.000Z',
+    conversationId,
+    clientId: CLIENT,
+    coverage: {
+      mode: 'manifest',
+      total: null,
+      returned: 0,
+      unavailableInPage: 0,
+      scannedMessages: 0,
+      paginationComplete: true,
+      complete: true,
+      contentComplete: false,
+      nextCursor: null,
+      query: null,
+      queryAppliesTo: 'filename',
+    },
+    records: [],
+  };
+}
+
 describe('served attachment executor transport', () => {
   it('sends a bounded server envelope and derives conversationId when model input omits it', async () => {
     const calls: Array<{ headers: Record<string, string>; body: Record<string, unknown> }> = [];
@@ -72,7 +99,7 @@ describe('served attachment executor transport', () => {
         headers: init?.headers as Record<string, string>,
         body: JSON.parse(String(init?.body)) as Record<string, unknown>,
       });
-      return new Response(JSON.stringify({ tool: 'read_chat_attachments', records: [] }));
+      return new Response(JSON.stringify(attachmentManifest()));
     }) as typeof fetch;
 
     await expect(execute({ limit: 10 }, { current: scope() })).resolves.toMatchObject({
@@ -108,7 +135,7 @@ describe('served attachment executor transport', () => {
           body: JSON.parse(Buffer.concat(chunks).toString('utf8')) as Record<string, unknown>,
         };
         res.writeHead(200, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ tool: 'read_chat_attachments', records: [] }));
+        res.end(JSON.stringify(attachmentManifest()));
       });
     });
     server.listen(0, '127.0.0.1');
@@ -155,14 +182,14 @@ describe('served attachment executor transport', () => {
       await Promise.resolve();
       const body = JSON.parse(String(init?.body)) as Record<string, any>;
       bodies.push(body);
-      return new Response(JSON.stringify({ conversationId: body.currentTurn.conversationId }));
+      return new Response(JSON.stringify(attachmentManifest(body.currentTurn.conversationId)));
     }) as typeof fetch;
     const [first, second] = await Promise.all([
       execute({}, { current: scope(CONVERSATION) }),
       execute({}, { current: scope(OTHER_CONVERSATION) }),
     ]);
-    expect(first).toEqual({ conversationId: CONVERSATION });
-    expect(second).toEqual({ conversationId: OTHER_CONVERSATION });
+    expect(first).toEqual(attachmentManifest(CONVERSATION));
+    expect(second).toEqual(attachmentManifest(OTHER_CONVERSATION));
     expect(bodies.map((body) => body.input.conversationId).sort()).toEqual(
       [CONVERSATION, OTHER_CONVERSATION].sort(),
     );

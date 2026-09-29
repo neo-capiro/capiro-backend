@@ -351,3 +351,78 @@ describe('ApiToolExecutorRepo — delegated read outcomes', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
+import { createMeriTelemetryContext } from '@capiro/meriv2-core';
+import { createMeriOtelRuntime } from '@capiro/meriv2-core/observability/otel';
+import {
+  runWithMeriOrchestratorTelemetry,
+  setMeriOtelRuntime,
+} from '../telemetry/meri-telemetry.runtime.js';
+
+test('real tool owner retry exports distinct attempt IDs matching each transmitted carrier', async () => {
+  const spans: any[] = [];
+  const carriers: any[] = [];
+  const sdk = createMeriOtelRuntime({
+    serviceName: 'tool-owner-test',
+    exporter: {
+      export: (batch, done) => {
+        spans.push(...batch);
+        done({ code: 0 });
+      },
+      shutdown: async () => {},
+    },
+  });
+  await setMeriOtelRuntime(sdk);
+  global.fetch = jest.fn(async (_url, init) => {
+    const headers = init!.headers as Record<string, string>;
+    carriers.push(JSON.parse(decodeURIComponent(headers['x-capiro-telemetry-context']!)));
+    return carriers.length === 1
+      ? new Response(
+          JSON.stringify({
+            statusCode: 503,
+            message: 'The database is temporarily busy. Please retry.',
+          }),
+          { status: 503, headers: { 'retry-after': '0' } },
+        )
+      : new Response(
+          JSON.stringify({
+            totalMatches: 0,
+            returned: 0,
+            hasMore: false,
+            messages: [],
+            searchedMailboxes: [{ mailCoverage: { sourceStatus: 'healthy' } }],
+          }),
+          { status: 200 },
+        );
+  }) as typeof fetch;
+  try {
+    await runWithMeriOrchestratorTelemetry(
+      createMeriTelemetryContext({ tenantId: TENANT, actorId: USER }),
+      () => {},
+      () =>
+        RequestCredentialsStore.run({ bearerToken: 'PRIVATE_USER_TOKEN' }, () =>
+          new ApiToolExecutorRepo(
+            cfg({ INTERNAL_SERVICE_SECRET: 'PRIVATE_SERVICE_SECRET' }),
+          ).execute(CTX, 'list_emails', {}),
+        ),
+    );
+    await sdk.forceFlush();
+    const attempts = spans.filter((span) => span.name === 'meri.orchestrator_tool');
+    expect(attempts).toHaveLength(2);
+    expect(new Set(carriers.map((value) => value.spanId)).size).toBe(2);
+    for (const carrier of carriers)
+      expect(
+        attempts.some(
+          (span) =>
+            span.spanContext().spanId === carrier.spanId &&
+            span.parentSpanContext.spanId === carrier.parentSpanId,
+        ),
+      ).toBe(true);
+    expect(attempts.map((span) => span.attributes['meri.outcome'])).toEqual([
+      'retry_scheduled',
+      'completed',
+    ]);
+    expect(JSON.stringify(attempts.map((span) => span.attributes))).not.toContain('PRIVATE_');
+  } finally {
+    await setMeriOtelRuntime(undefined);
+  }
+});

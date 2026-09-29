@@ -66,12 +66,15 @@ describe('API tool-owned read outcome normalization', () => {
     });
   });
 
-  it('does not apply a global error-key scan to an unqualified tool result', () => {
-    expect(
-      classifyApiToolReadOutcome('search_public_web', {
-        results: [{ title: 'Provider error handling', error: 'quoted source field' }],
-      }),
-    ).toBeNull();
+  it('preserves quoted error fields while applying the explicit discovery-only owner contract', () => {
+    const payload = {
+      results: [{ title: 'Provider error handling', error: 'quoted source field' }],
+    };
+    expect(classifyApiToolReadOutcome('search_congress_bills', payload)).toBeNull();
+    expect(classifyApiToolReadOutcome('search_public_web', payload)).toEqual({
+      kind: 'partial',
+      reason: 'public_web_search_is_discovery_only',
+    });
   });
 
   it.each([

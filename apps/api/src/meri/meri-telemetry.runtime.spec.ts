@@ -92,3 +92,100 @@ describe('Meri API telemetry runtime', () => {
     ).resolves.toBe('served');
   });
 });
+import { createMeriOtelRuntime } from '@capiro/meriv2-core/observability/otel';
+import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
+import {
+  getMeriOtelRuntime,
+  setMeriOtelRuntime,
+  withMeriApiTelemetrySpan,
+} from './meri-telemetry.runtime.js';
+
+describe('API SDK adapter and lifecycle', () => {
+  afterEach(async () => {
+    await setMeriOtelRuntime(undefined);
+  });
+
+  test('actual exported server/client IDs match transported headers despite failing log sink', async () => {
+    const spans: any[] = [];
+    const sdk = createMeriOtelRuntime({
+      serviceName: 'api-test',
+      exporter: {
+        export: (batch, done) => {
+          spans.push(...batch);
+          done({ code: 0 });
+        },
+        shutdown: async () => {},
+      },
+    });
+    await setMeriOtelRuntime(sdk);
+    const root = createMeriApiTelemetryContext(request(), ctx, 'conversation-a');
+    let headers: Record<string, string> = {};
+    await runWithMeriApiTelemetry(
+      root,
+      () => {
+        throw new Error('private sink exception');
+      },
+      async () => {
+        await withMeriApiTelemetrySpan(
+          { name: 'meri.api.orchestrator', boundary: 'api_orchestrator' },
+          async () => {
+            headers = meriApiTelemetryHeaders();
+            emitMeriApiTelemetry({
+              name: 'meri.api.sent',
+              boundary: 'api_orchestrator',
+              outcome: 'completed',
+            });
+          },
+          'client',
+        );
+      },
+    );
+    await sdk.forceFlush();
+    expect(spans).toHaveLength(2);
+    const carrier = JSON.parse(decodeURIComponent(headers['x-capiro-telemetry-context']!));
+    const child = spans.find((span) => span.spanContext().spanId === carrier.spanId);
+    expect(child).toBeDefined();
+    expect(child.parentSpanContext.spanId).toBe(root.spanId);
+    expect(child.attributes['meri.outcome']).toBe('completed');
+    expect(headers.traceparent).toBe(`00-${root.traceId}-${child.spanContext().spanId}-01`);
+    process.env.INTERNAL_SERVICE_SECRET = 'secret';
+    try {
+      const admitted = admitMeriInternalTelemetry(
+        request({ ...headers, 'x-internal-service-secret': 'secret' }),
+        ctx,
+        'conversation-a',
+      );
+      expect(admitted.parentSpanId).toBe(carrier.spanId);
+      expect(admitted.spanId).not.toBe(carrier.spanId);
+      expect(admitted.traceId).toBe(root.traceId);
+    } finally {
+      delete process.env.INTERNAL_SERVICE_SECRET;
+    }
+  });
+
+  test('SDK lifecycle is endpoint opt-in, initializes once and shuts down idempotently', async () => {
+    const originalEndpoint = process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT;
+    try {
+      delete process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT;
+      const disabled = new MeriOtelLifecycleProvider();
+      await disabled.onModuleInit();
+      expect(getMeriOtelRuntime()).toBeUndefined();
+      await disabled.onApplicationShutdown();
+      process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT = 'http://127.0.0.1:4318/v1/traces';
+      const lifecycle = new MeriOtelLifecycleProvider();
+      await lifecycle.onModuleInit();
+      const runtime = getMeriOtelRuntime()!;
+      expect(runtime.isEnabled()).toBe(true);
+      await lifecycle.onModuleInit();
+      expect(getMeriOtelRuntime()).toBe(runtime);
+      const shutdown = jest.spyOn(runtime, 'shutdown');
+      await lifecycle.onApplicationShutdown();
+      await lifecycle.onApplicationShutdown();
+      expect(shutdown).toHaveBeenCalledTimes(1);
+      expect(getMeriOtelRuntime()).toBeUndefined();
+    } finally {
+      if (originalEndpoint === undefined) delete process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT;
+      else process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT = originalEndpoint;
+    }
+  });
+});

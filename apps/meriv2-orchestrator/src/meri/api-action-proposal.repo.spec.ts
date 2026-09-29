@@ -44,7 +44,7 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-const proposalBody = {
+const proposalDefinition = {
   proposalId: 'p1',
   status: 'proposed',
   tool: 'send_email',
@@ -67,6 +67,9 @@ const proposalBody = {
   createdAt: '2026-07-28T00:45:00.000Z',
   updatedAt: '2026-07-28T00:45:00.000Z',
 };
+
+// Match the API owner's ActionAuthorityResult envelope.
+const proposalBody = { disposition: 'pending_approval', proposal: proposalDefinition };
 
 describe('ApiActionProposalRepo', () => {
   it('posts tool/input/conversationId/surface, forwarding the caller bearer and internal service secret', async () => {
@@ -289,4 +292,52 @@ describe('ApiActionProposalRepo', () => {
       ),
     ).rejects.toThrow('ECONNRESET');
   });
+});
+import { createMeriTelemetryContext } from '@capiro/meriv2-core';
+import { createMeriOtelRuntime } from '@capiro/meriv2-core/observability/otel';
+import {
+  runWithMeriOrchestratorTelemetry,
+  setMeriOtelRuntime,
+} from '../telemetry/meri-telemetry.runtime.js';
+
+test('proposal owner exports the actual transported client span with opaque proposal identity', async () => {
+  const spans: any[] = [];
+  const sdk = createMeriOtelRuntime({
+    serviceName: 'proposal-owner-test',
+    exporter: {
+      export: (batch, done) => {
+        spans.push(...batch);
+        done({ code: 0 });
+      },
+      shutdown: async () => {},
+    },
+  });
+  await setMeriOtelRuntime(sdk);
+  const calls = mockFetch({ ok: true, body: proposalBody });
+  try {
+    await runWithMeriOrchestratorTelemetry(
+      createMeriTelemetryContext({ tenantId: TENANT, actorId: USER }),
+      () => {},
+      () =>
+        RequestCredentialsStore.run({ bearerToken: 'PRIVATE_USER_TOKEN' }, () =>
+          new ApiActionProposalRepo(cfg({ INTERNAL_SERVICE_SECRET: 'PRIVATE_SECRET' })).create({
+            tool: 'send_email',
+            input: { body: 'PRIVATE_EMAIL' },
+            surface: 'chat',
+          }),
+        ),
+    );
+    await sdk.forceFlush();
+    const carrier = JSON.parse(
+      decodeURIComponent(calls[0]!.headers['x-capiro-telemetry-context']!),
+    );
+    const span = spans.find((candidate) => candidate.spanContext().spanId === carrier.spanId);
+    expect(span).toBeDefined();
+    expect(span.parentSpanContext.spanId).toBe(carrier.parentSpanId);
+    expect(span.attributes['meri.outcome']).toBe('pending_approval');
+    expect(span.attributes['meri.proposalId']).toMatch(/^sha256:/);
+    expect(JSON.stringify(span.attributes)).not.toContain('PRIVATE_');
+  } finally {
+    await setMeriOtelRuntime(undefined);
+  }
 });
