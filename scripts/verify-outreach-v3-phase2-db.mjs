@@ -18,7 +18,7 @@
 
 import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -26,6 +26,7 @@ import {
   assertPhase2DisposableInvocation,
   createPhase2OwnedResources,
 } from './ci/outreach-phase2-owned-resources.mjs';
+import { includePrePhase2PrismaPath } from './ci/phase2-migration-baseline.mjs';
 
 // Refuse unsafe targets before any command, temporary resources or cleanup.
 const targetEnv = assertPhase2DisposableInvocation();
@@ -434,9 +435,11 @@ function seedLegacyOutreach(db) {
 
 function buildPrePhase2PrismaCopy() {
   const copyRoot = resolve(tempRoot, 'prisma');
-  cpSync(API_PRISMA, copyRoot, { recursive: true });
-  const phase2Copy = resolve(copyRoot, 'migrations', PHASE2_MIGRATION_NAME);
-  rmSync(phase2Copy, { recursive: true, force: true });
+  cpSync(API_PRISMA, copyRoot, {
+    recursive: true,
+    filter: (source) =>
+      includePrePhase2PrismaPath(relative(API_PRISMA, source), PHASE2_MIGRATION_NAME),
+  });
   // The focused projection is not part of the canonical migration chain and is
   // irrelevant to the baseline; remove generated output if a developer had it.
   rmSync(resolve(copyRoot, 'outreach-v3-phase2/generated'), { recursive: true, force: true });

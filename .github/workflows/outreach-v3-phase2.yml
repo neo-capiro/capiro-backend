@@ -111,7 +111,7 @@ jobs:
         run: pnpm -C apps/api exec prisma generate --schema prisma/schema.prisma
 
       - name: Verify disposable rehearsal ownership guards
-        run: node --test scripts/verify-outreach-v3-phase2-db.test.mjs
+        run: node --test scripts/verify-outreach-v3-phase2-db.test.mjs scripts/ci/phase2-migration-baseline.test.mjs
 
       - name: Bootstrap owned disposable migration prerequisites
         run: bash scripts/ci/bootstrap-disposable-postgres-roles.sh
