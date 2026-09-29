@@ -1,12 +1,40 @@
 #!/usr/bin/env node
 /** Permanent DB-free Phase 3 closeout gate. */
 import { openSync, readFileSync, closeSync } from 'node:fs';
-import { spawn, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PHASE3_SCOPE_END = process.env.ENGAGEMENT_PHASE3_SCOPE_END ?? 'HEAD';
+const ACCEPTED_PHASE2_HEAD = '3841a5ee58e011be7fb4fb6008adfccf081976d9';
+
+function resolveWhitespaceBase() {
+  const explicit = process.env.ENGAGEMENT_PHASE3_WHITESPACE_BASE;
+  if (explicit) return explicit;
+
+  // Recovery branches are based on the current mainline, while the original
+  // Phase 3 branch was based directly on the accepted Phase 2 head. Use the
+  // verified mainline base only for the former so stale historical whitespace
+  // cannot fail a closeout; retain the fixed Phase 2 range for the latter.
+  try {
+    const originMain = execFileSync('git', ['rev-parse', 'origin/main'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    }).trim();
+    const mergeBase = execFileSync('git', ['merge-base', originMain, PHASE3_SCOPE_END], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    }).trim();
+    if (mergeBase === originMain) return originMain;
+  } catch {
+    // The fixed accepted head below remains the safe fallback in shallow or
+    // detached checkouts without a usable origin/main ref.
+  }
+  return ACCEPTED_PHASE2_HEAD;
+}
+
+const PHASE3_WHITESPACE_BASE = resolveWhitespaceBase();
 const scopedOptions = { env: { ENGAGEMENT_PHASE3_SCOPE_END: PHASE3_SCOPE_END } };
 const steps = [
   ['Phase 0 prerequisite', 'pnpm', ['verify:engagement-phase-0']],
@@ -143,7 +171,7 @@ const steps = [
     [
       'diff',
       '--check',
-      `3841a5ee58e011be7fb4fb6008adfccf081976d9..${PHASE3_SCOPE_END}`,
+      `${PHASE3_WHITESPACE_BASE}..${PHASE3_SCOPE_END}`,
       '--',
       '.',
       ':(exclude)docs/plans/**/*.md',
