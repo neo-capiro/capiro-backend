@@ -81,6 +81,8 @@ jobs:
           pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
 
       - name: Typecheck API
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: pnpm --filter @capiro/api exec tsc --noEmit
 
       - name: Test Knowledge Plane
