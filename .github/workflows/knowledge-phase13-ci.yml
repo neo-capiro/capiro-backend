@@ -70,6 +70,8 @@ jobs:
             src/retrieval/reranking-architecture.contract.spec.ts
 
       - name: Retrieval and vector architecture regressions
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
           pnpm --filter @capiro/api exec jest --runInBand --forceExit \
             src/retrieval/retrieval-v2.service.spec.ts \

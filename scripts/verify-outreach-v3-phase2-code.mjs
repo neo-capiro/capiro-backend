@@ -46,9 +46,14 @@ const steps = [
       'src/outreach-v3/outreach-v3-supersession-audit.spec.ts',
       'src/capabilities/capability-authorization.service.spec.ts',
     ],
-    process.env.ENGAGEMENT_PHASE3_SCOPE_END
-      ? { ENGAGEMENT_PHASE3_SCOPE_END: process.env.ENGAGEMENT_PHASE3_SCOPE_END }
-      : {},
+    {
+      NODE_OPTIONS: [process.env.NODE_OPTIONS, '--max-old-space-size=6144']
+        .filter(Boolean)
+        .join(' '),
+      ...(process.env.ENGAGEMENT_PHASE3_SCOPE_END
+        ? { ENGAGEMENT_PHASE3_SCOPE_END: process.env.ENGAGEMENT_PHASE3_SCOPE_END }
+        : {}),
+    },
   ],
   [
     'Phase 2 focused TypeScript project',

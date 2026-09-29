@@ -93,4 +93,6 @@ jobs:
         run: pnpm --filter @capiro/api exec tsc --noEmit
 
       - name: Test Knowledge Plane
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/knowledge
