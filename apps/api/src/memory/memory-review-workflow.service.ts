@@ -125,6 +125,9 @@ export class MemoryReviewWorkflowService {
     candidate: MemoryReviewWorkflowCandidate,
     subject: GovernedMemorySubjectRow,
   ): Promise<MemoryReviewWorkflowSnapshot> {
+    // Listing can carry a descriptor read before a concurrent disposition.
+    // Hold the candidate until its review and assignment audit commit together.
+    await this.lockPendingCandidateInTx(tx, ctx.tenantId, candidate.id);
     const row = await this.ensureRowInTx(tx, ctx, candidate, subject);
     return this.describeRowInTx(tx, ctx, row);
   }

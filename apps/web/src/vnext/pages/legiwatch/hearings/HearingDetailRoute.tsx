@@ -53,8 +53,8 @@ import { useHearingWakeLock } from '../../../../lib/use-hearing-wake-lock.js';
 import { PreparationPanel } from './PreparationPanel.js';
 import { useIntelFeatureEnabled } from '../../../../lib/intel-feature-flags.js';
 import { PublicHearingAudioPanel } from '../../../../pages/intelligence/PublicHearingAudioPanel.js';
-import { PublicHearingReviewPanel } from '../../../../pages/intelligence/PublicHearingReviewPanel.js';
-import { HearingPublishedRecordsPanel } from '../../../../pages/intelligence/HearingPublishedRecordsPanel.js';
+import { PublicHearingReviewPanel } from './HearingReviewPanelsVNext.js';
+import { HearingPublishedRecordsPanel } from './HearingReviewPanelsVNext.js';
 
 const INTEL_LABEL: Record<string, string> = {
   QUESTION: 'Question',

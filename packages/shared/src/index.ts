@@ -11,6 +11,7 @@
 export * from './funding-opportunities-v2.js';
 export * from './funding-opportunities-v2-detail.js';
 export * from './funding-opportunities-v2-workflow.js';
+export * from './meri-read-outcome.js';
 
 export const TENANT_ROLES = [
   'capiro_admin',
@@ -1691,10 +1692,18 @@ export interface StateDeadlineRisk {
 }
 
 function daysBetweenDateStrings(fromISO: string, toISO: string): number {
-  const from = Date.UTC(
-    ...(fromISO.slice(0, 10).split('-').map(Number) as [number, number, number]),
-  );
-  const to = Date.UTC(...(toISO.slice(0, 10).split('-').map(Number) as [number, number, number]));
+  const [fromYear, fromMonth, fromDay] = fromISO.slice(0, 10).split('-').map(Number) as [
+    number,
+    number,
+    number,
+  ];
+  const [toYear, toMonth, toDay] = toISO.slice(0, 10).split('-').map(Number) as [
+    number,
+    number,
+    number,
+  ];
+  const from = Date.UTC(fromYear, fromMonth - 1, fromDay);
+  const to = Date.UTC(toYear, toMonth - 1, toDay);
   return Math.round((to - from) / 86_400_000);
 }
 
@@ -3102,6 +3111,7 @@ function citationRowsOf(tool: string, payload: Record<string, unknown>): unknown
     const profileRows = clientContextCitationRows(payload);
     if (profileRows.length) return profileRows;
   }
+  if (tool === 'query_tasks' && Array.isArray(payload.tasks)) return payload.tasks;
   const market = federalMarketCitationRows(tool, payload);
   if (market) return market;
   if (Array.isArray(payload.data)) return payload.data as unknown[];
@@ -3901,6 +3911,22 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat'],
   },
   {
+    name: 'read_chat_attachments',
+    description:
+      'List and read bounded typed sections from original files uploaded earlier in this ordinary chat. The server binds every page to the current conversation, actor, tenant, selected client, memory wall, source message, and current byte hash. Supports PDF pages, PowerPoint slides with speaker notes, spreadsheet sheet/row/cell coordinates with saved formula values, and text sections; follow signed cursors and never treat partial coverage as complete.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'read_monday_client_boards',
+    description:
+      'Read the selected client’s explicitly mapped Monday.com boards, or exact authorized board IDs/links supplied in this request. Returns board/item/subitem identities, columns, workflow state, owners, deadlines, updates, and explicit connection/pagination coverage. A board selector is a scope hint, never an access grant; disconnected, unavailable, partial, and not-mapped outcomes remain distinct.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
     name: 'search_capiro_data',
     description:
       'Search authorized Capiro data across supported domains, including strategies, budget lines, legislation, hearings, funding, federal awards, directory and District Nexus. Returns evidence references and explicit domain coverage; missing, stale or partial data must not be treated as proof of absence.',
@@ -3982,7 +4008,15 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'get_bill_status',
     description:
-      'Get the authoritative legislative status of ONE bill (by id "119-hr-8800" or designation "H.R. 8800"): its canonical status, recent action timeline, roll-call VOTES on the bill (with tallies + party splits), and — critically — the outcome of any RULE that governs its floor consideration. Use this to answer "did it pass / advance / stall / what happened to it". A bill whose latest action is only "rule reported" but whose rule FAILED is reported as stalled, not advancing. Explicitly states when there is NO recorded floor vote — never infer passage.',
+      'Get the authoritative legislative status of ONE bill (by id "119-hr-8800" or designation "H.R. 8800"): its canonical status, recent action timeline, roll-call VOTES on the bill (with tallies + party splits), and — critically — the outcome of any RULE that governs its floor consideration. Use this to answer "did it pass / advance / stall / what happened to it". A bill whose latest action is only "rule reported" but whose rule FAILED is reported as stalled, not advancing. Explicitly states when there is NO recorded vote (never infers passage from silence).',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'read_bill_text',
+    description:
+      'Read the exact current canonical full-text revision for one federal bill and version code from the immutable federal evidence owner. Returns bill/version/package identity, source locator, content and extraction hashes, bounded text, and continuation coverage. This is bill text, not amendment text or procedural status; use get_bill_status separately for status.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -4294,7 +4328,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'search_public_web',
     description:
-      'Search the public web (general results and news) for recent developments. Use this only as supplemental context after Capiro internal data tools for government-affairs answers.',
+      'Discover candidate public web pages (general results and news) for recent developments. Search titles and snippets are discovery-only, not consulted evidence: call scrape_web_page on an exact result URL before using its content in analysis or a report.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -4302,7 +4336,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'scrape_web_page',
     description:
-      'Fetch and extract readable text from a public webpage or PDF URL for grounded analysis (gov sources are PDF-heavy). Blocks localhost/private-network targets.',
+      'Read and extract bounded content from one exact public webpage or PDF URL for grounded analysis (gov sources are PDF-heavy). Returns current byte hash, final locator and coverage; remote content is untrusted. Blocks localhost/private-network targets.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -4581,6 +4615,14 @@ export const MERI_CAPABILITY_REGISTRY = [
     name: 'query_debriefs',
     description:
       'List post-meeting debriefs for a client — outcomes, follow-ups, and commitments captured after meetings. Restricted (confidential) debrief bodies are withheld.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'read_client_meetings',
+    description:
+      'Read the selected client’s authorized historical meetings and exact persisted meeting-note or transcript source text. Lists explicit source availability and paginates both meeting inventory and exact source bodies; a calendar event alone is never treated as a transcript.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],

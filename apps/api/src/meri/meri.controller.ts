@@ -23,19 +23,24 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
+  IsInt,
   IsObject,
   IsOptional,
   IsString,
   IsUUID,
   Length,
+  Matches,
+  Min,
   ValidateIf,
 } from 'class-validator';
 import type { Request, Response } from 'express';
 import type { TenantContext } from '@capiro/shared';
+import { classifyApiToolReadOutcome } from '@capiro/shared/meri-read-outcome';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
+import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js';
 import { MeriService } from './meri.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { MeriResearchService } from './meri-research.service.js';
@@ -43,18 +48,30 @@ import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { MeriMcpService, type CatalogAddInput, type McpServerInput } from './meri-mcp.service.js';
 import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
+import { MeriProcedureRuntimeValidationService } from './meri-procedure-runtime-validation.service.js';
 import { MeriApprovalService } from './meri-approval.service.js';
 import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
 import { renderReportToBrowserHtml, renderReportToWordHtml } from './meri-research.helpers.js';
 import { runMeriStreamWithSetupGuard } from './meri-stream-preflight.helpers.js';
 import { withMeriToolRequestControl } from './meri-tool-request-control.js';
+import { withMeriChatAttachmentReadScope } from './meri-chat-attachment-read-scope.js';
+import { admitMeriChatAttachmentTransport } from './meri-chat-attachment-transport.js';
 import {
   admitMeriResearchPortfolioToolTransport,
   withMeriResearchPortfolioToolTurnScope,
 } from './meri-rp-tool-transport.js';
 import { MeriPdfRenderError } from './meri-docgen-pdf.js';
+import { sha256Bytes, validateDocumentArtifactBytes } from './meri-artifact-integrity.js';
 import type { AssuranceSurface } from '@capiro/meriv2-core';
+import { admitMeriServerReadonlyCaptureTransport } from './meri-server-readonly-capture.js';
+import {
+  admitMeriInternalTelemetry,
+  createMeriApiTelemetryContext,
+  emitMeriApiTelemetry,
+  runWithMeriApiTelemetry,
+  withMeriApiTelemetrySpan,
+} from './meri-telemetry.runtime.js';
 
 class CreateMeriConversationDto {
   @IsOptional()
@@ -148,6 +165,39 @@ class AnswerClarificationsDto {
   answers!: Record<string, string>;
 }
 
+class SteerResearchDto {
+  @IsIn([1])
+  version!: 1;
+
+  @IsString()
+  @Length(1, 256)
+  requestId!: string;
+
+  @IsInt()
+  @Min(0)
+  expectedGoalRevision!: number;
+
+  @IsString()
+  @Length(1, 4_000)
+  message!: string;
+}
+
+class CancelResearchDto {
+  @IsOptional()
+  @IsIn([1])
+  version?: 1;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 256)
+  requestId?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 500)
+  reason?: string;
+}
+
 class RecordComplianceCheckDto {
   @IsString()
   @Length(1, 120)
@@ -213,6 +263,38 @@ class ResolveAttachmentTextDto {
   attachmentIds!: string[];
 }
 
+class ValidateMeriProcedureRuntimeDto {
+  @IsUUID()
+  conversationId!: string;
+
+  @ValidateIf((_, value) => value !== null)
+  @IsUUID()
+  clientId!: string | null;
+
+  @IsIn(['general', 'client', 'portfolio', 'external_entity'])
+  scope!: 'general' | 'client' | 'portfolio' | 'external_entity';
+
+  @IsString()
+  @Length(1, 200)
+  recordId!: string;
+
+  @IsString()
+  @Matches(/^[a-z0-9_]{2,48}$/)
+  canonicalId!: string;
+
+  @IsInt()
+  @Min(1)
+  procedureVersion!: number;
+
+  @IsString()
+  @Matches(/^[a-f0-9]{64}$/)
+  manifestDigest!: string;
+
+  @IsString()
+  @Matches(/^[a-z0-9_:-]{2,160}$/)
+  toolName!: string;
+}
+
 @Controller('clio')
 @UseGuards(RolesGuard)
 @Roles('standard_user')
@@ -227,6 +309,7 @@ export class MeriController {
     private readonly mcp: MeriMcpService,
     private readonly mcpOAuth: MeriMcpOAuthService,
     private readonly firmSkills: MeriFirmSkillsService,
+    private readonly procedureRuntime: MeriProcedureRuntimeValidationService,
     private readonly approvals: MeriApprovalService,
     private readonly complianceAudit: MeriComplianceAuditService,
     private readonly claimWriter: MeriClaimWriterService,
@@ -296,6 +379,10 @@ export class MeriController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
+    const telemetry = createMeriApiTelemetryContext(req, ctx, id);
+    res.setHeader('x-request-id', telemetry.requestId);
+    res.setHeader('x-capiro-trace-id', telemetry.traceId);
+    res.setHeader('Access-Control-Expose-Headers', 'x-request-id, x-capiro-trace-id');
     // Cancel the model stream when the client disconnects or hits Stop, so we
     // stop burning tokens for an answer no one is reading (P0-4).
     const abort = new AbortController();
@@ -332,29 +419,53 @@ export class MeriController {
     // classified JSON response — not Nest's generic HTTP 500 after the
     // response has already been promoted to text/event-stream.
     try {
-      await runMeriStreamWithSetupGuard({
-        res,
-        stream: (sse) =>
-          this.service.streamMessage(
-            ctx,
-            id,
-            body.body,
-            sse,
-            abort.signal,
-            body.mode ?? 'new',
-            body.attachmentIds ?? [],
-            bearerToken,
-            impersonateTenantId,
-          ),
-        onError: (classified, err) => {
-          this.logger.error(
-            `Meri stream setup failed [${classified.code}] conversation=${id}: ${
-              err instanceof Error ? err.message : classified.message
-            }`,
-            err instanceof Error ? err.stack : undefined,
-          );
+      await runWithMeriApiTelemetry(
+        telemetry,
+        (line) => this.logger.log(line),
+        async () => {
+          const startedAt = Date.now();
+          let setupFailed = false;
+          emitMeriApiTelemetry({
+            name: 'meri.api.request.received',
+            boundary: 'browser_api',
+            outcome: 'accepted',
+            integrationDependencies: ['captured_turn_audit_receipt_pending_capture_policy_8e'],
+          });
+          try {
+            await runMeriStreamWithSetupGuard({
+              res,
+              stream: (sse) =>
+                this.service.streamMessage(
+                  ctx,
+                  id,
+                  body.body,
+                  sse,
+                  abort.signal,
+                  body.mode ?? 'new',
+                  body.attachmentIds ?? [],
+                  bearerToken,
+                  impersonateTenantId,
+                ),
+              onError: (classified, err) => {
+                setupFailed = true;
+                this.logger.error(
+                  `Meri stream setup failed [${classified.code}] conversation=${id}: ${
+                    err instanceof Error ? err.message : classified.message
+                  }`,
+                  err instanceof Error ? err.stack : undefined,
+                );
+              },
+            });
+          } finally {
+            emitMeriApiTelemetry({
+              name: 'meri.api.request.finalized',
+              boundary: 'browser_api',
+              outcome: abort.signal.aborted ? 'aborted' : setupFailed ? 'error' : 'completed',
+              durationMs: Date.now() - startedAt,
+            });
+          }
         },
-      });
+      );
     } finally {
       req.removeListener('aborted', onAbort);
       res.removeListener('close', onClose);
@@ -375,10 +486,7 @@ export class MeriController {
    * in the orchestrator. Read-only; tenant-guarded like every /api/clio route.
    */
   @Get('tool-schemas')
-  toolSchemas(
-    @CurrentTenant() ctx: TenantContext,
-    @Query('surface') requestedSurface?: string,
-  ) {
+  toolSchemas(@CurrentTenant() ctx: TenantContext, @Query('surface') requestedSurface?: string) {
     const surface: AssuranceSurface = requestedSurface === 'in-editor' ? 'in-editor' : 'chat';
     return { schemas: this.tools.anthropicToolSchemas({ tenantId: ctx.tenantId, surface }) };
   }
@@ -386,23 +494,91 @@ export class MeriController {
   // ToolServiceSecretGuard: this endpoint runs write tools with no compliance
   // gate (that gate is in the orchestrator), so it must only be reachable by the
   // orchestrator (post-gate), never a rogue user bearer. Requires the internal
-  // service secret in addition to the user JWT. Observe-by-default; enforced when
+  // service secret in addition to the user JWT. Production and staging always
+  // enforce it; development/test observe by default unless
   // MERI_TOOLS_REQUIRE_SERVICE_SECRET=true. @CurrentTenant (user JWT) unchanged.
   @Post('tools/:name')
   @UseGuards(ToolServiceSecretGuard)
-  executeTool(
+  async executeTool(
     @CurrentTenant() ctx: TenantContext,
     @Param('name') name: string,
     @Body() body: Record<string, unknown>,
     @Req() req: Request,
   ) {
-    const admitted = admitMeriResearchPortfolioToolTransport(name, body, ctx, req);
-    return withMeriToolRequestControl(req, () => {
-      const execute = () => this.tools.executeFromAuthenticatedUser(ctx, name, admitted.input);
-      return admitted.scope
-        ? withMeriResearchPortfolioToolTurnScope(admitted.scope, execute)
-        : execute();
+    const capturePolicy = admitMeriServerReadonlyCaptureTransport({
+      ctx,
+      req,
+      purpose: 'tool',
+      toolName: name,
     });
+    const admittedAttachment = admitMeriChatAttachmentTransport(name, body, ctx, req);
+    const admittedRp = admitMeriResearchPortfolioToolTransport(
+      name,
+      admittedAttachment.input,
+      ctx,
+      req,
+    );
+    const telemetry = admitMeriInternalTelemetry(req, ctx);
+    return runWithMeriApiTelemetry(
+      telemetry,
+      (line) => this.logger.log(line),
+      async () => {
+        const startedAt = Date.now();
+        emitMeriApiTelemetry({
+          name: 'meri.api.tool.started',
+          boundary: 'api_tool',
+          invokedTools: [name],
+          outcome: 'started',
+        });
+        try {
+          const result = await withMeriToolRequestControl(
+            req,
+            () => {
+              const execute = () =>
+                this.tools.executeFromAuthenticatedUser(ctx, name, admittedRp.input);
+              const executeRp = () =>
+                admittedRp.scope
+                  ? withMeriResearchPortfolioToolTurnScope(admittedRp.scope, execute)
+                  : execute();
+              return admittedAttachment.scope
+                ? withMeriChatAttachmentReadScope(admittedAttachment.scope, executeRp)
+                : executeRp();
+            },
+            capturePolicy,
+          );
+          emitMeriApiTelemetry({
+            name: 'meri.api.tool.finalized',
+            boundary: 'api_tool',
+            invokedTools: [name],
+            outcome: classifyApiToolReadOutcome(name, result)?.kind ?? 'returned',
+            durationMs: Date.now() - startedAt,
+          });
+          return result;
+        } catch (error) {
+          emitMeriApiTelemetry({
+            name: 'meri.api.tool.finalized',
+            boundary: 'api_tool',
+            invokedTools: [name],
+            outcome: 'error',
+            durationMs: Date.now() - startedAt,
+          });
+          throw error;
+        }
+      },
+    );
+  }
+
+  /**
+   * Current-authority check. Production/staging require user JWT plus service
+   * identity; development/test retain the existing guard's observe-mode policy.
+   */
+  @Post('procedure-runtime/validate')
+  @UseGuards(ToolServiceSecretGuard)
+  validateProcedureRuntime(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() body: ValidateMeriProcedureRuntimeDto,
+  ) {
+    return this.procedureRuntime.validate(ctx, body);
   }
 
   // ── MeriV2 legacy write-tool approvals (Workstream B4 + B4.1) — RETIRED ──
@@ -789,13 +965,204 @@ export class MeriController {
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
     @Param('runId') runId: string,
+    @Req() req?: Request,
   ) {
-    return this.research.assertRunActive(ctx, id, runId);
+    return this.withResearchRequestTelemetry(
+      ctx,
+      req,
+      'research_checkpoint',
+      'researchRunActive',
+      true,
+      () => this.research.assertRunActive(ctx, id, runId),
+    );
+  }
+
+  @Post('research/:id/runs/:runId/safe-read/reservations')
+  @UseGuards(MeriV3InternalServiceGuard)
+  reserveResearchSafeRead(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('runId') runId: string,
+    @Body()
+    body: {
+      leaseEpoch: number;
+      providerCallId: string;
+      tool: string;
+      input: Record<string, unknown>;
+    },
+    @Req() req?: Request,
+  ) {
+    return this.withResearchRequestTelemetry(
+      ctx,
+      req,
+      'research_source',
+      'reserveResearchSafeRead',
+      true,
+      () => this.research.reserveSafeReadAttempt(ctx, id, runId, body),
+    );
+  }
+
+  @Post('research/:id/runs/:runId/provider-budget/reservations')
+  @UseGuards(MeriV3InternalServiceGuard)
+  reserveResearchProviderAttempt(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('runId') runId: string,
+    @Body() body: Parameters<MeriResearchService['reserveProviderAttempt']>[3],
+    @Req() req?: Request,
+  ) {
+    return this.withResearchRequestTelemetry(
+      ctx,
+      req,
+      'research_budget',
+      'reserveResearchProviderAttempt',
+      true,
+      () => this.research.reserveProviderAttempt(ctx, id, runId, body),
+    );
+  }
+
+  @Post('research/:id/runs/:runId/provider-budget/settlements')
+  @UseGuards(MeriV3InternalServiceGuard)
+  settleResearchProviderAttempt(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('runId') runId: string,
+    @Body() body: Parameters<MeriResearchService['settleProviderAttempt']>[3],
+    @Req() req?: Request,
+  ) {
+    return this.withResearchRequestTelemetry(
+      ctx,
+      req,
+      'research_budget',
+      'settleResearchProviderAttempt',
+      true,
+      () => this.research.settleProviderAttempt(ctx, id, runId, body),
+    );
+  }
+
+  @Post('research/:id/runs/:runId/safe-read/replay')
+  @UseGuards(ToolServiceSecretGuard)
+  replayResearchSafeRead(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('runId') runId: string,
+    @Body()
+    body: {
+      leaseEpoch: number;
+      providerCallId: string;
+      tool: string;
+      toolVersion: string;
+      input: Record<string, unknown>;
+    },
+    @Req() req?: Request,
+  ) {
+    return this.withResearchRequestTelemetry(
+      ctx,
+      req,
+      'research_source',
+      'replayResearchSafeRead',
+      true,
+      () => this.research.replaySafeReadOutcome(ctx, id, runId, body),
+    );
+  }
+
+  @Post('research/:id/runs/:runId/safe-read/outcomes')
+  @UseGuards(ToolServiceSecretGuard)
+  commitResearchSafeRead(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('runId') runId: string,
+    @Body()
+    body: {
+      reservationId: string;
+      executionId: string;
+      leaseEpoch: number;
+      providerCallId: string;
+      tool: string;
+      toolVersion: string;
+      input: Record<string, unknown>;
+      result: unknown;
+    },
+    @Req() req?: Request,
+  ) {
+    return this.withResearchRequestTelemetry(
+      ctx,
+      req,
+      'research_source',
+      'commitResearchSafeRead',
+      true,
+      () => this.research.commitSafeReadOutcome(ctx, id, runId, body),
+    );
+  }
+
+  @Post('research/:id/runs/:runId/safe-read/failures')
+  @UseGuards(ToolServiceSecretGuard)
+  failResearchSafeRead(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('runId') runId: string,
+    @Body() body: { leaseEpoch: number; reservationId: string; code?: string },
+    @Req() req?: Request,
+  ) {
+    return this.withResearchRequestTelemetry(
+      ctx,
+      req,
+      'research_source',
+      'failResearchSafeRead',
+      true,
+      () => this.research.failSafeReadAttempt(ctx, id, runId, body),
+    );
+  }
+
+  @Get('research/:id/coordinator')
+  researchCoordinator(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Query('afterSequence') afterSequence?: string,
+    @Req() req?: Request,
+  ) {
+    return this.withResearchRequestTelemetry(
+      ctx,
+      req,
+      'research_checkpoint',
+      'researchCoordinator',
+      false,
+      () => this.research.getCoordinatorSnapshot(ctx, id, afterSequence),
+    );
+  }
+
+  @Post('research/:id/steer')
+  steerResearch(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body: SteerResearchDto,
+    @Req() req?: Request,
+  ) {
+    return this.withResearchRequestTelemetry(
+      ctx,
+      req,
+      'research_checkpoint',
+      'steerResearch',
+      false,
+      () => this.research.steerRun(ctx, id, body),
+    );
   }
 
   @Post('research/:id/cancel')
-  cancelResearch(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    return this.research.cancelRun(ctx, id);
+  cancelResearch(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body?: CancelResearchDto,
+    @Req() req?: Request,
+  ) {
+    return this.withResearchRequestTelemetry(
+      ctx,
+      req,
+      'research_checkpoint',
+      'cancelResearch',
+      false,
+      () => this.research.cancelRun(ctx, id, body),
+    );
   }
 
   @Delete('research/:id')
@@ -843,8 +1210,9 @@ export class MeriController {
     res.send(html);
   }
 
-  // Download a Meri-generated document. Word/PDF share the same saved spec. The binary is
-  // regenerated on demand from the spec stored on the artifact — no blob storage.
+  // Download a Meri-generated document. Native bytes created by the current
+  // writer are immutable; legacy rows and alternate Word/PDF exports are
+  // regenerated from the same saved spec and labeled as such in the receipt.
   @Get('artifacts/:id/download')
   async downloadArtifact(
     @CurrentTenant() ctx: TenantContext,
@@ -858,22 +1226,36 @@ export class MeriController {
     }
     let buffer: Buffer;
     try {
-      buffer = await this.tools.renderStoredDocument(doc.format, doc.specJson);
+      buffer =
+        doc.persistedBytes ?? (await this.tools.renderStoredDocument(doc.format, doc.specJson));
+      await validateDocumentArtifactBytes(doc.format, buffer);
+      if (doc.persistedSha256 && sha256Bytes(buffer) !== doc.persistedSha256) {
+        throw new Error('persisted_document_digest_mismatch');
+      }
     } catch (error) {
       throw new UnprocessableEntityException({
         code: 'MERI_DOCUMENT_RENDER_FAILED',
         format: doc.format,
         reason: error instanceof MeriPdfRenderError ? error.reason : 'render_failed',
-        message: error instanceof MeriPdfRenderError
-          ? `${error.message} Download Word or adjust the document and try again.`
-          : 'The document could not be rendered. Try again or choose another available format.',
+        message:
+          error instanceof MeriPdfRenderError
+            ? `${error.message} Download Word or adjust the document and try again.`
+            : 'The document could not be rendered. Try again or choose another available format.',
       });
     }
     res.setHeader('Content-Type', doc.mimeType);
+    res.setHeader('Content-Length', String(buffer.length));
     res.setHeader('Content-Disposition', `attachment; filename="${doc.filename}"`);
     // The authenticated web client needs the canonical saved filename when
     // downloading from the API origin. Artifact bytes remain private.
-    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+    const sha256 = sha256Bytes(buffer);
+    res.setHeader('X-Capiro-Artifact-Id', id);
+    res.setHeader('X-Capiro-Artifact-Sha256', sha256);
+    res.setHeader('X-Capiro-Artifact-Byte-Authority', doc.byteAuthority);
+    res.setHeader(
+      'Access-Control-Expose-Headers',
+      'Content-Disposition, Content-Length, X-Capiro-Artifact-Id, X-Capiro-Artifact-Sha256, X-Capiro-Artifact-Byte-Authority',
+    );
     res.setHeader('Cache-Control', 'private, no-store');
     res.send(buffer);
   }
@@ -889,8 +1271,35 @@ export class MeriController {
     const image = await this.service.getArtifactImage(ctx, id);
     if (!image) throw new NotFoundException('Image artifact not found');
     res.setHeader('Content-Type', image.contentType);
-    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.setHeader('Content-Length', String(image.buffer.length));
+    res.setHeader('ETag', `"sha256-${image.sha256}"`);
+    res.setHeader('X-Capiro-Artifact-Id', id);
+    res.setHeader('X-Capiro-Image-Integrity', image.integrityPolicy);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.send(image.buffer);
+  }
+
+  private withResearchRequestTelemetry<T>(
+    ctx: TenantContext,
+    req: Request | undefined,
+    boundary: 'research_run' | 'research_checkpoint' | 'research_budget' | 'research_source',
+    operation: string,
+    internal: boolean,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    // Direct in-process callers have no HTTP carrier. Real ingress uses only the
+    // authenticated tenant/actor; session/conversation/run authority is added
+    // after the service's existing admission, never from route/body identifiers.
+    if (!req) return fn();
+    const context = internal
+      ? admitMeriInternalTelemetry(req, ctx)
+      : createMeriApiTelemetryContext(req, ctx, '');
+    return runWithMeriApiTelemetry(
+      context,
+      (line) => this.logger.log(line),
+      () => withMeriApiTelemetrySpan({ name: `meri.research.${operation}`, boundary }, fn),
+    );
   }
 
   @Post('research/:id/plan/stream')
@@ -904,7 +1313,9 @@ export class MeriController {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
-    await this.research.streamPlan(ctx, id, res, researchRuntimeAuth(req, res));
+    await this.withResearchRequestTelemetry(ctx, req, 'research_run', 'streamPlan', false, () =>
+      this.research.streamPlan(ctx, id, res, researchRuntimeAuth(req, res)),
+    );
     res.end();
   }
 
@@ -919,7 +1330,9 @@ export class MeriController {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
-    await this.research.streamResearch(ctx, id, res, researchRuntimeAuth(req, res));
+    await this.withResearchRequestTelemetry(ctx, req, 'research_run', 'streamResearch', false, () =>
+      this.research.streamResearch(ctx, id, res, researchRuntimeAuth(req, res)),
+    );
     res.end();
   }
 }

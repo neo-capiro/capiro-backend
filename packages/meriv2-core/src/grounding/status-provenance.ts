@@ -106,15 +106,63 @@ export function detectFedrampStatusClaims(reply: string): DetectedStatusClaim[] 
 }
 
 function usableEvidence(evidence: CertificationStatusEvidence): boolean {
-  return evidence.authoritative && evidence.primary && evidence.selfReported !== true;
+  return (
+    evidence.authoritative &&
+    evidence.primary &&
+    evidence.selfReported !== true &&
+    evidence.entityId.trim().length > 0
+  );
+}
+
+function normalizedIdentity(value: string): string {
+  return value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
 }
 
 function matchesEntity(claim: DetectedStatusClaim, evidence: CertificationStatusEvidence): boolean {
-  const mention = claim.entityMention.toLocaleLowerCase();
+  const mention = normalizedIdentity(claim.entityMention);
+  if (!mention) return false;
   return [evidence.entityId, ...(evidence.entityNames ?? [])].some((name) => {
-    const normalized = name.toLocaleLowerCase();
-    return mention.includes(normalized) || normalized.includes(mention);
+    return typeof name === 'string' && normalizedIdentity(name) === mention;
   });
+}
+
+function observedAtMillis(evidence: CertificationStatusEvidence): number | null {
+  const millis = Date.parse(evidence.observedAt);
+  return Number.isFinite(millis) ? millis : null;
+}
+
+function sameStatus(
+  left: CertificationStatusEvidence,
+  right: CertificationStatusEvidence,
+): boolean {
+  return left.status === right.status && (left.impactLevel ?? null) === (right.impactLevel ?? null);
+}
+
+function matchingEvidence(
+  claim: DetectedStatusClaim,
+  evidence: readonly CertificationStatusEvidence[],
+): CertificationStatusEvidence | null {
+  const matches = evidence.filter((item) => usableEvidence(item) && matchesEntity(claim, item));
+  const entityIds = new Set(matches.map((item) => normalizedIdentity(item.entityId)));
+  if (entityIds.size !== 1 || matches.length === 0) return null;
+  if (matches.length === 1) return matches[0] ?? null;
+
+  const statusConflict = matches.some((item) => !sameStatus(item, matches[0]!));
+  const dated = matches.map((item) => ({ item, observedAt: observedAtMillis(item) }));
+
+  // Conflicting records are usable only when every observation has comparable
+  // recency and one latest status wins. Unknown recency must not inherit array order.
+  if (statusConflict && dated.some(({ observedAt }) => observedAt === null)) return null;
+  const known = dated.filter(
+    (entry): entry is { item: CertificationStatusEvidence; observedAt: number } =>
+      entry.observedAt !== null,
+  );
+  if (known.length === 0) return statusConflict ? null : (matches[0] ?? null);
+
+  const latestAt = Math.max(...known.map(({ observedAt }) => observedAt));
+  const latest = known.filter(({ observedAt }) => observedAt === latestAt).map(({ item }) => item);
+  if (latest.some((item) => !sameStatus(item, latest[0]!))) return null;
+  return latest[0] ?? null;
 }
 
 function supportsNegative(evidence: CertificationStatusEvidence): boolean {
@@ -138,8 +186,7 @@ export function checkFedrampStatusClaims(
   evidence: readonly CertificationStatusEvidence[],
 ): CheckedStatusClaim[] {
   return claims.map((claim) => {
-    const match =
-      evidence.find((item) => usableEvidence(item) && matchesEntity(claim, item)) ?? null;
+    const match = matchingEvidence(claim, evidence);
     if (claim.negative) {
       return {
         claim,

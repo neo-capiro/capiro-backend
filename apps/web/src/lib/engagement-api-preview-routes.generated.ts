@@ -4,14 +4,14 @@
  * Primary source:
  *   apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json
  * Additive Outreach V3 sources:
- *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-route-manifest.v1.json
- *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-reasoning-route-manifest.v1.json
- *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-target-route-manifest.v1.json
- *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-context-route-manifest.v1.json
- *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-generation-route-manifest.v1.json
- *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-drafts-route-manifest.v1.json
- *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-send-route-manifest.v1.json
- *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-templates-route-manifest.v1.json
+ *   apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json
+ *   apps/api/src/outreach-v3/__fixtures__/outreach-v3-reasoning-route-manifest.v1.json
+ *   apps/api/src/outreach-v3/__fixtures__/outreach-v3-target-route-manifest.v1.json
+ *   apps/api/src/outreach-v3/__fixtures__/outreach-v3-context-route-manifest.v1.json
+ *   apps/api/src/outreach-v3/__fixtures__/outreach-v3-generation-route-manifest.v1.json
+ *   apps/api/src/outreach-v3/__fixtures__/outreach-v3-drafts-route-manifest.v1.json
+ *   apps/api/src/outreach-v3/__fixtures__/outreach-v3-send-route-manifest.v1.json
+ *   apps/api/src/outreach-v3/__fixtures__/outreach-v3-templates-route-manifest.v1.json
  * Generator: scripts/engagement-phase3-preview-route-patterns.mjs
  * Regenerate: node scripts/engagement-phase3-preview-route-patterns.mjs --write
  *
@@ -28,13 +28,13 @@
 
 /** sha256 of the primary Engagement parity manifest. */
 export const ENGAGEMENT_ROUTE_MANIFEST_SHA256 =
-  '0b96735bf88116aa636d8f136296cd84c6a1237b1499094d913e43fe3c428cba';
+  '28f69c4fe60373b39b6eff18eb1767a67e43b76702159bb30311ef1882311da1';
 
 /** Primary manifest schema version. */
 export const ENGAGEMENT_ROUTE_MANIFEST_SCHEMA_VERSION = 1;
 
 /** Distinct primary + additive manifest paths covered below. */
-export const ENGAGEMENT_PREVIEW_ROUTE_COUNT = 154;
+export const ENGAGEMENT_PREVIEW_ROUTE_COUNT = 155;
 
 export const ENGAGEMENT_PREVIEW_ROUTE_PATTERNS: readonly string[] = [
   '^/api/engagement/associations/override$',
@@ -53,6 +53,7 @@ export const ENGAGEMENT_PREVIEW_ROUTE_PATTERNS: readonly string[] = [
   '^/api/engagement/campaigns/[^/]+/send$',
   '^/api/engagement/campaigns/[^/]+/send-test$',
   '^/api/engagement/capabilities$',
+  '^/api/engagement/clients/[^/]+/notetaker$',
   '^/api/engagement/contacts$',
   '^/api/engagement/context/[^/]+$',
   '^/api/engagement/debriefs$',

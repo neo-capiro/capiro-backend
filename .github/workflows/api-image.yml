@@ -54,6 +54,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build and push (linux/arm64)
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -68,7 +69,27 @@ jobs:
           cache-to: type=gha,mode=max,scope=api
 
       - name: Output image digest
-        run: echo "Pushed capiro/${TARGET_ENV}/api:${GITHUB_SHA}"
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: echo "Pushed ${ECR_REGISTRY}/capiro/${TARGET_ENV}/api@${IMAGE_DIGEST} (tag ${GITHUB_SHA})"
+
+      - name: Create API image build record
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export CHECKED_OUT_SHA="$(git rev-parse HEAD)"
+          python scripts/api-image-build-record.py
+
+      - name: Upload API image build record
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-image-build-record-${{ github.run_id }}-${{ github.run_attempt }}
+          path: api-image-build-record.json
+          if-no-files-found: error
 
       - name: Deploy to ECS
         shell: bash

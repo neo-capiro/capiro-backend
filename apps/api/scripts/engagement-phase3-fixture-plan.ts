@@ -212,6 +212,18 @@ export interface ContactFixture {
   title: string;
 }
 
+export interface MailThreadFixture {
+  key: string;
+  id: string;
+  tenantKey: string;
+  clientKey: string;
+  connectionKey: string;
+  subject: string;
+  snippet: string;
+  participants: Array<{ email: string; name: string }>;
+  lastMessageAt: TemporalSpec;
+}
+
 export interface MeetingFixture {
   key: string;
   id: string;
@@ -500,6 +512,7 @@ export interface FixturePlan {
   clients: ClientFixture[];
   clientMemoryAccess: ClientMemoryAccessFixture[];
   contacts: ContactFixture[];
+  mailThreads: MailThreadFixture[];
   meetings: MeetingFixture[];
   attendees: AttendeeFixture[];
   botSessions: BotSessionFixture[];
@@ -559,6 +572,7 @@ const GROUP = {
   aiTemplate: 0x18,
   reportTarget: 0x19,
   connection: 0x1a,
+  mailThread: 0x1b,
   absent: 0x1f,
 } as const;
 
@@ -1031,7 +1045,11 @@ export function buildFixturePlan(): FixturePlan {
 
   const botSessions: BotSessionFixture[] = [
     { meetingKey: 'meeting.past', status: 'done', error: null },
-    { meetingKey: 'meeting.confidentialAccessible', status: 'failed', error: 'fixture: join failed' },
+    {
+      meetingKey: 'meeting.confidentialAccessible',
+      status: 'failed',
+      error: 'fixture: join failed',
+    },
     { meetingKey: 'meeting.confidentialDenied', status: 'no_show', error: null },
     { meetingKey: 'meeting.upcomingWithClient', status: 'requested', error: null },
     { meetingKey: 'meeting.multiAttendee', status: 'in_call', error: null },
@@ -1747,7 +1765,16 @@ export function buildFixturePlan(): FixturePlan {
       senderConnectionKey: 'connection.microsoftConnected',
       requestKey: 'phase3-parity-unknown-delivery',
       status: 'partial',
-      totals: { total: 1, pending: 0, sending: 0, sent: 0, failed: 0, unknown: 1, skipped: 0, held: 0 },
+      totals: {
+        total: 1,
+        pending: 0,
+        sending: 0,
+        sent: 0,
+        failed: 0,
+        unknown: 1,
+        skipped: 0,
+        held: 0,
+      },
     },
   ];
 
@@ -1786,8 +1813,16 @@ export function buildFixturePlan(): FixturePlan {
   }));
 
   const audienceMembers: AudienceMemberFixture[] = [
-    { audienceKey: 'audience.list', email: 'jordan.staffer@example.gov', name: label('Jordan Staffer') },
-    { audienceKey: 'audience.list', email: 'robin.member@example.gov', name: label('Robin Member') },
+    {
+      audienceKey: 'audience.list',
+      email: 'jordan.staffer@example.gov',
+      name: label('Jordan Staffer'),
+    },
+    {
+      audienceKey: 'audience.list',
+      email: 'robin.member@example.gov',
+      name: label('Robin Member'),
+    },
     { audienceKey: 'audience.group', email: 'group.a@example.gov', name: label('Group Member A') },
     { audienceKey: 'audience.group', email: 'group.b@example.gov', name: label('Group Member B') },
   ].map((row, index) => ({
@@ -1890,6 +1925,20 @@ export function buildFixturePlan(): FixturePlan {
     source: 'manual',
   }));
 
+  const mailThreads: MailThreadFixture[] = [
+    {
+      key: 'mailThread.alpha',
+      id: fid(GROUP.mailThread, 1),
+      tenantKey: 'tenant.primary',
+      clientKey: 'client.alpha',
+      connectionKey: 'connection.microsoftConnected',
+      subject: label('Owned synthetic mail-thread detail'),
+      snippet: label('Local parity data; no provider message or credentials.'),
+      participants: [{ email: 'jordan.staffer@example.gov', name: label('Jordan Staffer') }],
+      lastMessageAt: at(-DAY),
+    },
+  ];
+
   const absentIds = [
     {
       key: 'absent.meeting',
@@ -1925,6 +1974,7 @@ export function buildFixturePlan(): FixturePlan {
     clients,
     clientMemoryAccess,
     contacts,
+    mailThreads,
     meetings,
     attendees,
     botSessions,
@@ -1976,6 +2026,7 @@ const CLEANUP_ORDER: string[] = [
   'meeting_attendees',
   'meetings',
   'engagement_contacts',
+  'mail_threads',
   'engagement_connection_tokens',
   'engagement_connections',
   'client_memory_access',
@@ -2060,13 +2111,9 @@ function buildStates(): FixtureState[] {
     s('meetings.deepLinkOutsideRange', 'meetings', 'deep-linked meeting outside visible range', [
       'meeting.deepLinkOutsideRange',
     ]),
-    s(
-      'meetings.inaccessible',
-      'meetings',
-      'inaccessible meeting',
-      ['meeting.otherTenant'],
-      { note: 'A real row in the second tenant; must read as not-found to every primary actor.' },
-    ),
+    s('meetings.inaccessible', 'meetings', 'inaccessible meeting', ['meeting.otherTenant'], {
+      note: 'A real row in the second tenant; must read as not-found to every primary actor.',
+    }),
     s('meetings.deleted', 'meetings', 'deleted meeting', [], {
       absence: 'absent.meeting',
       note: 'A deleted meeting cannot be seeded; the fixture is an id with no row.',
@@ -2203,9 +2250,7 @@ function buildStates(): FixtureState[] {
       'reportTarget.beta',
       'reportTarget.manualOverrideAlpha',
     ]),
-    s('reports.manualOverride', 'reports', 'manual override', [
-      'reportTarget.manualOverrideAlpha',
-    ]),
+    s('reports.manualOverride', 'reports', 'manual override', ['reportTarget.manualOverrideAlpha']),
     s(
       'reports.meetingsAndPendingActions',
       'reports',
@@ -2349,6 +2394,7 @@ export function collectKeys(plan: FixturePlan): Map<string, string> {
   add('clients', plan.clients);
   add('clientMemoryAccess', plan.clientMemoryAccess);
   add('contacts', plan.contacts);
+  add('mailThreads', plan.mailThreads);
   add('meetings', plan.meetings);
   add('attendees', plan.attendees);
   add('botSessions', plan.botSessions);
@@ -2379,7 +2425,10 @@ function collectIds(plan: FixturePlan): Array<{ key: string; id: string }> {
     if (!Array.isArray(collection)) continue;
     for (const row of collection) {
       if (row && typeof row === 'object' && 'id' in row && 'key' in row) {
-        rows.push({ key: String((row as { key: unknown }).key), id: String((row as { id: unknown }).id) });
+        rows.push({
+          key: String((row as { key: unknown }).key),
+          id: String((row as { id: unknown }).id),
+        });
       }
     }
   }
@@ -2431,7 +2480,16 @@ export function validateFixturePlan(plan: FixturePlan): ValidationIssue[] {
   const reservedValues = new Set(RESERVED_IDENTIFIERS.map((entry) => entry.value));
 
   // 1 — Phase 3 marker on every row's human-readable label.
-  const labelFields = ['name', 'title', 'subject', 'fullName', 'firstName', 'memberPrincipal', 'displayName', 'fileName'];
+  const labelFields = [
+    'name',
+    'title',
+    'subject',
+    'fullName',
+    'firstName',
+    'memberPrincipal',
+    'displayName',
+    'fileName',
+  ];
   const checkLabels = (collection: string, rows: ReadonlyArray<Record<string, unknown>>) => {
     for (const row of rows) {
       if (!row || typeof row !== 'object') continue;
@@ -2454,11 +2512,17 @@ export function validateFixturePlan(plan: FixturePlan): ValidationIssue[] {
   const seenIds = new Map<string, string>();
   for (const { key, id } of collectIds(plan)) {
     if (!FIXTURE_ID_RE.test(id)) {
-      issues.push({ rule: 'fixture-id-space', detail: `${key} id ${id} is outside the fixture id space` });
+      issues.push({
+        rule: 'fixture-id-space',
+        detail: `${key} id ${id} is outside the fixture id space`,
+      });
     }
     const previous = seenIds.get(id);
     if (previous) {
-      issues.push({ rule: 'unique-fixture-id', detail: `${key} reuses the id of ${previous} (${id})` });
+      issues.push({
+        rule: 'unique-fixture-id',
+        detail: `${key} reuses the id of ${previous} (${id})`,
+      });
     } else {
       seenIds.set(id, key);
     }
@@ -2484,7 +2548,10 @@ export function validateFixturePlan(plan: FixturePlan): ValidationIssue[] {
     if (value && typeof value === 'object') {
       for (const [k, v] of Object.entries(value)) {
         if (credentialFields.test(k) && typeof v === 'string' && v.length > 0) {
-          issues.push({ rule: 'no-provider-credential', detail: `${path}.${k} carries a credential-shaped value` });
+          issues.push({
+            rule: 'no-provider-credential',
+            detail: `${path}.${k} carries a credential-shaped value`,
+          });
         }
         walkCredentials(v, `${path}.${k}`);
       }
@@ -2512,7 +2579,9 @@ export function validateFixturePlan(plan: FixturePlan): ValidationIssue[] {
 
   // 6 — Every plan-required state is covered by rows that actually exist.
   const keys = collectKeys(plan);
-  const byRequirement = new Map(plan.states.map((state) => [`${state.planSection}|${state.requirement}`, state]));
+  const byRequirement = new Map(
+    plan.states.map((state) => [`${state.planSection}|${state.requirement}`, state]),
+  );
   for (const required of REQUIRED_FIXTURE_STATES) {
     const state = byRequirement.get(`${required.planSection}|${required.requirement}`);
     if (!state) {
@@ -2632,6 +2701,7 @@ export function buildFixtureContract(plan: FixturePlan): Record<string, unknown>
       clients: plan.clients,
       clientMemoryAccess: plan.clientMemoryAccess,
       contacts: plan.contacts,
+      mailThreads: plan.mailThreads,
       meetings: plan.meetings,
       attendees: plan.attendees,
       botSessions: plan.botSessions,

@@ -73,7 +73,9 @@ export function prepareMemoryReviewRevision(
   }
 
   const valueChanged = nextValue !== existingValue;
-  if (!valueChanged && sectionBodiesChanged === 0) {
+  // Canonical sections are the authority; repairing a stale derived value is
+  // not a reviewer-authored content revision.
+  if (canonical ? sectionBodiesChanged === 0 : !valueChanged) {
     throw new BadRequestException('The revised proposal is identical to the prior revision.');
   }
 

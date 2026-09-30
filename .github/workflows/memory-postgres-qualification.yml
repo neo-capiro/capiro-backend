@@ -1,0 +1,73 @@
+name: memory-postgres-qualification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.ts'
+      - 'apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.postgres.spec.ts'
+      - 'apps/api/src/memory/memory-recall-suppression.helpers.ts'
+      - 'apps/api/src/memory/memory-wall.helpers.ts'
+      - 'apps/api/src/prisma/prisma.service.ts'
+      - 'apps/api/test/memory-postgres-qualification/**'
+      - 'apps/api/prisma/migrations/**memory**/**'
+      - 'apps/api/prisma/migrations/**context_embeddings**/**'
+      - 'packages/meriv2-core/src/memory/governance.ts'
+      - 'pnpm-lock.yaml'
+      - 'package.json'
+      - '.github/workflows/memory-postgres-qualification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  canonical-memory-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres?schema=public
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate the API Prisma client and build governed-memory core
+        run: |
+          pnpm --filter @capiro/api exec prisma generate
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/meriv2-core build
+      - name: Review DB-free qualification guards and DDL manifest
+        env:
+          MEMORY_POSTGRES_DB_FREE: '1'
+        run: >-
+          pnpm --filter @capiro/api exec jest --ci --runInBand
+          --runTestsByPath
+          src/retrieval/adapters/institutional-knowledge-retrieval.adapter.postgres.spec.ts
+      - name: Qualify production adapter SQL on disposable PostgreSQL 16 and pgvector
+        env:
+          MEMORY_POSTGRES_ADMIN_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+          MEMORY_POSTGRES_OWNED_ENDPOINT_ACK: '127.0.0.1:5432'
+          MEMORY_POSTGRES_REQUIRE_VECTOR: '1'
+        run: >-
+          pnpm --filter @capiro/api exec jest --ci --runInBand
+          --runTestsByPath
+          src/retrieval/adapters/institutional-knowledge-retrieval.adapter.postgres.spec.ts

@@ -61,12 +61,15 @@ class UpdateMeDto {
  *  no nested objects/arrays inside the prefs doc. Keeps the column a
  *  bounded scalar map, not an arbitrary nested blob. */
 function MaxJSONDepth1() {
-  return ValidateIf((_, value) => {
-    if (value == null) return false;
-    return Object.values(value as Record<string, unknown>).some(
-      (v) => v !== null && typeof v === 'object',
-    );
-  }, { message: 'legiwatchPrefs must be a flat JSON object of scalar values' });
+  return ValidateIf(
+    (_, value) => {
+      if (value == null) return false;
+      return Object.values(value as Record<string, unknown>).some(
+        (v) => v !== null && typeof v === 'object',
+      );
+    },
+    { message: 'legiwatchPrefs must be a flat JSON object of scalar values' },
+  );
 }
 
 class UpdateEmailSignatureDto {
@@ -171,12 +174,8 @@ export class UsersController {
         contextSteward: contextStewardActive(profile.tenant?.settings),
         strategyWatcher: strategyWatcherActive(profile.tenant?.settings),
         businessDevelopment: businessDevelopmentEnabled(profile.tenant?.settings),
-        businessDevelopmentDossier: businessDevelopmentDossierEnabled(
-          profile.tenant?.settings,
-        ),
-        businessDevelopmentBrief: businessDevelopmentBriefEnabled(
-          profile.tenant?.settings,
-        ),
+        businessDevelopmentDossier: businessDevelopmentDossierEnabled(profile.tenant?.settings),
+        businessDevelopmentBrief: businessDevelopmentBriefEnabled(profile.tenant?.settings),
         businessDevelopmentMeriProspectTools: businessDevelopmentMeriProspectToolsEnabled(
           profile.tenant?.settings,
         ),
@@ -306,12 +305,8 @@ export class UsersController {
         contextSteward: contextStewardActive(profile.tenant?.settings),
         strategyWatcher: strategyWatcherActive(profile.tenant?.settings),
         businessDevelopment: businessDevelopmentEnabled(profile.tenant?.settings),
-        businessDevelopmentDossier: businessDevelopmentDossierEnabled(
-          profile.tenant?.settings,
-        ),
-        businessDevelopmentBrief: businessDevelopmentBriefEnabled(
-          profile.tenant?.settings,
-        ),
+        businessDevelopmentDossier: businessDevelopmentDossierEnabled(profile.tenant?.settings),
+        businessDevelopmentBrief: businessDevelopmentBriefEnabled(profile.tenant?.settings),
         businessDevelopmentMeriProspectTools: businessDevelopmentMeriProspectToolsEnabled(
           profile.tenant?.settings,
         ),

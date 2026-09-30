@@ -189,7 +189,7 @@ export function researchPortfolioProposalFingerprintInput(
 
 export async function authorizeResearchPortfolioProposalConversation(
   prisma: PrismaService,
-  scopeService: ResearchPortfolioMeriScopeService | undefined,
+  scopeService: ResearchPortfolioMeriScopeService,
   ctx: TenantContext,
   conversationId: string,
   trustedSelectedClientId: string | null | undefined,

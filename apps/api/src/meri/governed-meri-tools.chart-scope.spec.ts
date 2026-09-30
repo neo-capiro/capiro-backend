@@ -62,6 +62,10 @@ describe('governed Meri tool proxy — analysis chart ownership', () => {
         tenantId: 'tenant-1',
         userId: 'user-1',
         kind: 'analysis_chart',
+        AND: [
+          { kind: { not: 'internal_research_safe_read_result' } },
+          { NOT: { metadata: { path: ['serverOnly'], equals: true } } },
+        ],
       },
       select: { id: true },
     });

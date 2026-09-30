@@ -1,6 +1,20 @@
 import type { ProviderUsage } from '@capiro/shared';
-import type { LedgerEntry, MeriEvidenceManifest } from '@capiro/meriv2-core';
-import type { ChatInput, ChatResult, ChatStreamEvent } from '../chat/chat-prompt.js';
+import type {
+  LedgerEntry,
+  MeriTelemetryContext,
+  MeriTelemetryUsage,
+  MeriCaptureObservedValue,
+  MeriCaptureSourceObservation,
+  MeriCaptureToolCallObservation,
+  MeriEvidenceManifest,
+  MeriResearchPlanExecutionEnvelopeV1,
+} from '@capiro/meriv2-core';
+import type {
+  ChatInput,
+  ChatResult,
+  ChatStreamEvent,
+  DurableSafeReadOutcome,
+} from '../chat/chat-prompt.js';
 import type { MeriCoverageManifest } from '../retrieval/meri-retrieval-coverage.js';
 import type { MeriRetrievalTrace } from '../retrieval/meri-retrieval-coordinator.js';
 import type {
@@ -46,7 +60,11 @@ export interface MeriV3ChatInput extends ChatInput {
   /** A caller may only narrow the normal governed full-chat capabilities. */
   toolPolicy?: 'none' | 'read-only';
   /** Server-owned durable research lease; reauthorized before each dispatch. */
-  researchRun?: { sessionId: string; runId: string };
+  researchRun?: { sessionId: string; runId: string; leaseEpoch: number };
+  /** API-admitted read authority; valid only under the governed-context MAC. */
+  researchPlanExecution?: MeriResearchPlanExecutionEnvelopeV1;
+  /** API-authored linkage covered by the governed-context attestation. */
+  telemetryContext?: MeriTelemetryContext;
 }
 
 export interface MeriV3RetrievalSummary {
@@ -69,7 +87,7 @@ export interface MeriV3ChatResult extends ChatResult {
   evidenceManifest?: MeriEvidenceManifest;
   providerCalls?: MeriV3ProviderTelemetry[];
   /** Tool evidence for the API research auditor; never provider reasoning. */
-  ledgerEntries?: LedgerEntry[];
+  ledgerEntries?: Array<LedgerEntry & { durableSafeRead?: DurableSafeReadOutcome }>;
   held?: boolean;
   runtime: 'meriv3';
   model: string;
@@ -78,6 +96,16 @@ export interface MeriV3ChatResult extends ChatResult {
   telemetry?: MeriV3ProviderTelemetry;
   retrieval?: MeriV3RetrievalSummary;
   evidenceAccuracy?: 'enforce';
+  /** Internal server capture observation; the controller signs it and the API verifies it. */
+  captureEvidence?: {
+    toolCalls: MeriCaptureToolCallObservation[];
+    sources: MeriCaptureSourceObservation[];
+    estimatedCostUsd: MeriCaptureObservedValue<number>;
+    usage: MeriTelemetryUsage;
+    providerCallObserved: boolean;
+    startedAt: number;
+    completedAt: number;
+  };
 }
 
 export type MeriV3ChatStreamEvent =

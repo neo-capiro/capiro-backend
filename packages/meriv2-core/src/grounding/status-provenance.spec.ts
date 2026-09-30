@@ -59,6 +59,52 @@ describe('FedRAMP status provenance', () => {
     ]);
   });
 
+  it('requires an exact canonical id or owner-supplied name rather than substring overlap', () => {
+    const claims = detectFedrampStatusClaims(
+      'FR123 is FedRAMP approved. Acme is FedRAMP approved. Acme Cloud is FedRAMP approved.',
+    );
+    expect(
+      checkFedrampStatusClaims(claims, [evidence({ entityNames: ['Acme'] })]).map(
+        (item) => item.outcome,
+      ),
+    ).toEqual(['paraphrased', 'paraphrased', 'unsupported']);
+  });
+
+  it('treats one owner name bound to multiple canonical records as ambiguous', () => {
+    const claims = detectFedrampStatusClaims('Acme is FedRAMP approved.');
+    expect(
+      checkFedrampStatusClaims(claims, [
+        evidence({ entityId: 'FR123', entityNames: ['Acme'] }),
+        evidence({ entityId: 'FR456', entityNames: ['Acme'] }),
+      ])[0],
+    ).toMatchObject({ outcome: 'unsupported', evidence: null });
+  });
+
+  it('selects the latest retained status for one canonical product independent of input order', () => {
+    const claims = detectFedrampStatusClaims('FR123 is FedRAMP approved.');
+    const checked = checkFedrampStatusClaims(claims, [
+      evidence({ status: 'FedRAMP Certified', observedAt: '2026-09-23T00:00:00.000Z' }),
+      evidence({ status: 'FedRAMP In Process', observedAt: '2026-09-24T00:00:00.000Z' }),
+    ]);
+    expect(checked[0]).toMatchObject({
+      outcome: 'mismatch',
+      evidence: { status: 'FedRAMP In Process', observedAt: '2026-09-24T00:00:00.000Z' },
+    });
+  });
+
+  it.each([
+    ['equal', '2026-09-23T00:00:00.000Z'],
+    ['unknown', 'not-a-timestamp'],
+  ])('fails closed for conflicting statuses with %s recency', (_label, observedAt) => {
+    const claims = detectFedrampStatusClaims('FR123 is FedRAMP approved.');
+    expect(
+      checkFedrampStatusClaims(claims, [
+        evidence({ status: 'FedRAMP Certified', observedAt }),
+        evidence({ status: 'FedRAMP In Process', observedAt }),
+      ])[0],
+    ).toMatchObject({ outcome: 'unsupported', evidence: null });
+  });
+
   it('never accepts self-reported fields as verification', () => {
     const claims = detectFedrampStatusClaims('Acme Cloud is FedRAMP Certified.');
     expect(checkFedrampStatusClaims(claims, [evidence({ selfReported: true })])[0]?.outcome).toBe(

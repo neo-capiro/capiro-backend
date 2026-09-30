@@ -26,7 +26,11 @@ import {
   validateFixturePlan,
   type FixturePlan,
 } from './engagement-phase3-fixture-plan.js';
-import { CONTRACT_PATH, REMOTE_DB_ACK, assertDisposableDatabase } from './seed-engagement-phase3-parity-fixtures.js';
+import {
+  CONTRACT_PATH,
+  REMOTE_DB_ACK,
+  assertDisposableDatabase,
+} from './seed-engagement-phase3-parity-fixtures.js';
 
 const SEED_SOURCE = readFileSync(
   path.join(__dirname, 'seed-engagement-phase3-parity-fixtures.ts'),
@@ -34,7 +38,8 @@ const SEED_SOURCE = readFileSync(
 );
 
 const clone = (plan: FixturePlan): FixturePlan => structuredClone(plan);
-const rulesOf = (plan: FixturePlan): string[] => validateFixturePlan(plan).map((issue) => issue.rule);
+const rulesOf = (plan: FixturePlan): string[] =>
+  validateFixturePlan(plan).map((issue) => issue.rule);
 
 describe('Phase 3 parity fixture plan', () => {
   const plan = buildFixturePlan();
@@ -48,7 +53,9 @@ describe('Phase 3 parity fixture plan', () => {
   });
 
   it('covers every fixture the plan requires, with no state left uncited', () => {
-    const covered = new Set(plan.states.map((state) => `${state.planSection}|${state.requirement}`));
+    const covered = new Set(
+      plan.states.map((state) => `${state.planSection}|${state.requirement}`),
+    );
     const missing = REQUIRED_FIXTURE_STATES.filter(
       (required) => !covered.has(`${required.planSection}|${required.requirement}`),
     );
@@ -141,7 +148,11 @@ describe('Phase 3 parity fixture plan', () => {
 
   it('covers every report status on a stored target', () => {
     const statuses = new Set(
-      plan.reportTargets.flatMap((row) => [row.prepStatus, row.outreachStatus, row.submissionStatus]),
+      plan.reportTargets.flatMap((row) => [
+        row.prepStatus,
+        row.outreachStatus,
+        row.submissionStatus,
+      ]),
     );
     expect(statuses).toEqual(new Set(['auto', 'not_started', 'in_progress', 'complete']));
   });
@@ -176,18 +187,27 @@ describe('Phase 3 parity fixture temporal descriptors', () => {
   const plan = buildFixturePlan();
 
   it('places cycle-relative meetings in the right calendar year from any anchor', () => {
-    for (const anchorIso of ['2026-01-01T00:05:00.000Z', '2026-08-06T12:00:00.000Z', '2026-12-31T23:55:00.000Z']) {
+    for (const anchorIso of [
+      '2026-01-01T00:05:00.000Z',
+      '2026-08-06T12:00:00.000Z',
+      '2026-12-31T23:55:00.000Z',
+    ]) {
       const anchor = new Date(anchorIso);
       const current = plan.meetings.find((row) => row.key === 'meeting.reportCurrentCycle')!;
       const previous = plan.meetings.find((row) => row.key === 'meeting.reportPreviousCycle')!;
-      expect(resolveTemporal(current.startsAt, anchor).getUTCFullYear()).toBe(anchor.getUTCFullYear());
-      expect(resolveTemporal(previous.startsAt, anchor).getUTCFullYear()).toBe(anchor.getUTCFullYear() - 1);
+      expect(resolveTemporal(current.startsAt, anchor).getUTCFullYear()).toBe(
+        anchor.getUTCFullYear(),
+      );
+      expect(resolveTemporal(previous.startsAt, anchor).getUTCFullYear()).toBe(
+        anchor.getUTCFullYear() - 1,
+      );
     }
   });
 
   it('keeps upcoming meetings ahead of the anchor and past meetings behind it', () => {
     const anchor = new Date('2026-08-06T12:00:00.000Z');
-    const after = (key: string) => resolveTemporal(plan.meetings.find((r) => r.key === key)!.startsAt, anchor);
+    const after = (key: string) =>
+      resolveTemporal(plan.meetings.find((r) => r.key === key)!.startsAt, anchor);
     expect(after('meeting.upcomingWithClient').getTime()).toBeGreaterThan(anchor.getTime());
     expect(after('meeting.upcomingNoClient').getTime()).toBeGreaterThan(anchor.getTime());
     expect(after('meeting.past').getTime()).toBeLessThan(anchor.getTime());
@@ -196,7 +216,8 @@ describe('Phase 3 parity fixture temporal descriptors', () => {
   it('puts the deep-link meeting far outside any plausible calendar window', () => {
     const anchor = new Date('2026-08-06T12:00:00.000Z');
     const meeting = plan.meetings.find((row) => row.key === 'meeting.deepLinkOutsideRange')!;
-    const days = (resolveTemporal(meeting.startsAt, anchor).getTime() - anchor.getTime()) / 86_400_000;
+    const days =
+      (resolveTemporal(meeting.startsAt, anchor).getTime() - anchor.getTime()) / 86_400_000;
     expect(days).toBeGreaterThan(365);
   });
 
@@ -263,7 +284,9 @@ describe('Phase 3 parity fixture contract artifact', () => {
 
 describe('Phase 3 parity fixture seed containment', () => {
   it('imports no provider adapter, S3 client, or AWS SDK', () => {
-    const imports = [...SEED_SOURCE.matchAll(/^import\s[\s\S]*?from\s+'([^']+)';$/gm)].map((m) => m[1]!);
+    const imports = [...SEED_SOURCE.matchAll(/^import\s[\s\S]*?from\s+'([^']+)';$/gm)].map(
+      (m) => m[1]!,
+    );
     expect(imports.length).toBeGreaterThan(4);
     for (const specifier of imports) {
       expect(specifier).not.toMatch(
@@ -310,16 +333,24 @@ describe('Phase 3 parity fixture seed containment', () => {
     // Every deleter in the seed appears in cleanupOrder and vice versa — the
     // seed asserts this at runtime too, but proving it here means a new table
     // cannot be seeded without a cleanup entry even if the seed never runs.
-    const deleterTables = [...SEED_SOURCE.matchAll(/^\s{4}([a-z_]+): \(tx\) =>/gm)].map((m) => m[1]!);
-    const multiline = [...SEED_SOURCE.matchAll(/^\s{4}([a-z_]+): \(tx\) =>\s*$/gm)].map((m) => m[1]!);
+    const deleterTables = [...SEED_SOURCE.matchAll(/^\s{4}([a-z_]+): \(tx\) =>/gm)].map(
+      (m) => m[1]!,
+    );
+    const multiline = [...SEED_SOURCE.matchAll(/^\s{4}([a-z_]+): \(tx\) =>\s*$/gm)].map(
+      (m) => m[1]!,
+    );
     const tables = new Set([...deleterTables, ...multiline]);
     expect([...tables].sort()).toEqual([...order].sort());
 
-    expect(order.indexOf('outreach_deliveries')).toBeLessThan(order.indexOf('outreach_send_intents'));
+    expect(order.indexOf('outreach_deliveries')).toBeLessThan(
+      order.indexOf('outreach_send_intents'),
+    );
     expect(order.indexOf('outreach_draft_versions')).toBeLessThan(order.indexOf('users'));
     expect(order.indexOf('meeting_attendees')).toBeLessThan(order.indexOf('meetings'));
     expect(order.indexOf('meetings')).toBeLessThan(order.indexOf('tenants'));
     expect(order.indexOf('users')).toBeLessThan(order.indexOf('tenants'));
+    expect(order.indexOf('mail_threads')).toBeLessThan(order.indexOf('engagement_connections'));
+    expect(order.indexOf('mail_threads')).toBeLessThan(order.indexOf('clients'));
   });
 });
 

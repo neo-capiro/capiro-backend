@@ -100,7 +100,7 @@ button.meri-app-menu-row:hover,
 .meri-app-menu-heading {
   padding: 5px 9px 3px;
   color: #8792a3;
-  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.08em;

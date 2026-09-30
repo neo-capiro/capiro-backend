@@ -4,6 +4,7 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  Logger,
   NotFoundException,
   Post,
   Req,
@@ -17,7 +18,10 @@ import { CurrentTenant } from '../../auth/current-tenant.decorator.js';
 import { TenantGuard } from '../../auth/tenant.guard.js';
 import type { OrchestratorTenantContext } from '../../auth/tenant-context.js';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
-import { withTrustedCurrentTurnScope } from '../../request/trusted-current-turn-scope.js';
+import {
+  validateServerReadonlyCapturePolicy,
+  withTrustedCurrentTurnScope,
+} from '../../request/trusted-current-turn-scope.js';
 import { parseAiProviderHeader } from '../meri.controller.js';
 import { MeriContextResolver } from '../meri-context.resolver.js';
 import {
@@ -30,12 +34,29 @@ import { listMeriV3ReasoningProfiles } from './meriv3-reasoning.js';
 import type { MeriV3ChatInput } from './meriv3.types.js';
 import { meriEvidenceManifest } from './meriv3-context-evidence.js';
 import { reconcileMeriTurnCoverage } from './meriv3-turn-coverage.js';
+import {
+  MeriProcedureBindingError,
+  requireMeriProcedureBinding,
+} from './meriv3-procedure-guard.js';
+import {
+  MeriV3ResearchPlanExecutionError,
+  requireMeriV3ResearchPlanExecution,
+} from './meriv3-plan-execution.js';
+import { admitMeriTelemetryContext, createMeriTelemetryContext } from '@capiro/meriv2-core';
+import {
+  currentMeriTaskUsage,
+  emitMeriOrchestratorTelemetry,
+  runWithMeriOrchestratorTelemetry,
+} from '../../telemetry/meri-telemetry.runtime.js';
+import { buildSignedOrchestratorCaptureEvidence } from './meriv3-capture-evidence.js';
 
 type GovernedMeriV3ChatInput = MeriV3ChatInput & { governedContext?: MeriGovernedTurnContext };
 
 @Controller('v3/chat')
 @UseGuards(TenantGuard)
 export class MeriV3Controller {
+  private readonly logger = new Logger(MeriV3Controller.name);
+
   constructor(
     private readonly access: MeriV3AccessService,
     private readonly resolver: MeriContextResolver,
@@ -70,23 +91,70 @@ export class MeriV3Controller {
       const governed = requireGovernedContext(dto);
       const meriContext = await this.resolver.resolveIdentity(tenant);
       authenticateGovernedContext(governed, dto, meriContext);
-      meriContext.contextPacket = governed.contextPacket;
-      const effectiveDto = {
-        ...dto,
-        skillAddendum: withGovernedPrompt(dto.skillAddendum, governed),
-      };
-      const run = async () => this.assistant.run(meriContext, effectiveDto);
-      const result = await withTrustedCurrentTurnScope(
-        trustedCurrentTurnScope(meriContext, dto),
-        () => runWithGovernedMeriContext(governed, run),
+      validateCapturePolicy(governed, dto, meriContext);
+      authenticateResearchPlanExecution(dto, meriContext);
+      const procedure = authenticateProcedureBinding(governed, dto, meriContext);
+      const telemetry = this.telemetryContext(dto, meriContext);
+      return runWithMeriOrchestratorTelemetry(
+        telemetry,
+        (line) => this.logger.log(line),
+        async () => {
+          const startedAt = Date.now();
+          let outcome = 'returned';
+          emitMeriOrchestratorTelemetry({
+            name: 'meri.orchestrator.request.received',
+            boundary: 'api_orchestrator',
+            runtime: 'meriv3',
+            clientId: dto.clientId ?? null,
+            outcome: 'accepted',
+          });
+          try {
+            meriContext.contextPacket = governed.contextPacket;
+            const effectiveDto = {
+              ...dto,
+              ...(governed.serverReadonlyCapturePolicy
+                ? {
+                    toolPolicy:
+                      dto.toolPolicy === 'none' ? ('none' as const) : ('read-only' as const),
+                    pageWrite: false,
+                  }
+                : {}),
+
+              // Bound turns consume only the server-resolved signed instruction.
+              skillAddendum: withGovernedPrompt(
+                procedure?.instruction ?? dto.skillAddendum,
+                governed,
+              ),
+            };
+            const run = async () => this.assistant.run(meriContext, effectiveDto);
+            const result = await withTrustedCurrentTurnScope(
+              trustedCurrentTurnScope(meriContext, dto, governed),
+              () => runWithGovernedMeriContext(governed, run),
+            );
+            outcome = result.telemetry?.partial ? 'partial' : 'returned';
+            return {
+              ...result,
+              contextPacket: governed.contextPacket,
+              retrieval: reconcileMeriTurnCoverage(governed.retrieval, result.toolCoverage ?? []),
+              evidenceManifest:
+                result.evidenceManifest ?? meriEvidenceManifest(governed, result.citations ?? []),
+            };
+          } catch (error) {
+            outcome = 'error';
+            throw error;
+          } finally {
+            emitMeriOrchestratorTelemetry({
+              name: 'meri.orchestrator.request.finalized',
+              boundary: 'api_orchestrator',
+              runtime: 'meriv3',
+              clientId: dto.clientId ?? null,
+              outcome,
+              durationMs: Date.now() - startedAt,
+              usage: currentMeriTaskUsage(),
+            });
+          }
+        },
       );
-      return {
-        ...result,
-        contextPacket: governed.contextPacket,
-        retrieval: reconcileMeriTurnCoverage(governed.retrieval, result.toolCoverage ?? []),
-        evidenceManifest:
-          result.evidenceManifest ?? meriEvidenceManifest(governed, result.citations ?? []),
-      };
     };
     return this.withRequestCredentials(req, execute);
   }
@@ -103,6 +171,12 @@ export class MeriV3Controller {
     const governed = requireGovernedContext(dto);
     const meriContext = await this.resolver.resolveIdentity(tenant);
     authenticateGovernedContext(governed, dto, meriContext);
+    authenticateResearchPlanExecution(dto, meriContext);
+    const procedure = authenticateProcedureBinding(governed, dto, meriContext);
+    validateCapturePolicy(governed, dto, meriContext);
+    const telemetry = this.telemetryContext(dto, meriContext);
+    res.setHeader('x-request-id', telemetry.requestId);
+    res.setHeader('x-capiro-trace-id', telemetry.traceId);
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
@@ -132,10 +206,25 @@ export class MeriV3Controller {
     }, 20_000);
 
     const execute = async () => {
+      const startedAt = Date.now();
+      let outcome = 'returned';
+      emitMeriOrchestratorTelemetry({
+        name: 'meri.orchestrator.request.received',
+        boundary: 'api_orchestrator',
+        runtime: 'meriv3',
+        clientId: dto.clientId ?? null,
+        outcome: 'accepted',
+      });
       meriContext.contextPacket = governed.contextPacket;
       const effectiveDto = {
         ...dto,
-        skillAddendum: withGovernedPrompt(dto.skillAddendum, governed),
+        ...(governed.serverReadonlyCapturePolicy
+          ? {
+              toolPolicy: dto.toolPolicy === 'none' ? ('none' as const) : ('read-only' as const),
+              pageWrite: false,
+            }
+          : {}),
+        skillAddendum: withGovernedPrompt(procedure?.instruction ?? dto.skillAddendum, governed),
       };
       frame({
         type: 'start',
@@ -149,9 +238,24 @@ export class MeriV3Controller {
             signal: abort.signal,
           });
         const result = await withTrustedCurrentTurnScope(
-          trustedCurrentTurnScope(meriContext, dto),
+          trustedCurrentTurnScope(meriContext, dto, governed),
           () => runWithGovernedMeriContext(governed, run),
         );
+        outcome = result.telemetry?.partial ? 'partial' : 'returned';
+        const orchestratorCaptureEvidence =
+          governed.serverReadonlyCapturePolicy && result.captureEvidence
+            ? buildSignedOrchestratorCaptureEvidence({
+                policy: governed.serverReadonlyCapturePolicy,
+                startedAt: result.captureEvidence.startedAt,
+                completedAt: result.captureEvidence.completedAt,
+                providerCallObserved: result.captureEvidence.providerCallObserved,
+                provider: 'openai',
+                model: result.model,
+                usage: result.captureEvidence.usage ?? null,
+                execution: result.captureEvidence,
+                secret: process.env.INTERNAL_SERVICE_SECRET,
+              })
+            : null;
         frame({
           type: 'done',
           reply: result.reply,
@@ -173,16 +277,30 @@ export class MeriV3Controller {
           evidenceManifest:
             result.evidenceManifest ?? meriEvidenceManifest(governed, result.citations ?? []),
           aborted: abort.signal.aborted,
+          ...(governed.serverReadonlyCapturePolicy
+            ? { serverReadonlyCaptureReceipt: captureReceipt(governed.serverReadonlyCapturePolicy) }
+            : {}),
+          ...(orchestratorCaptureEvidence
+            ? { serverCaptureEvidenceObservation: orchestratorCaptureEvidence }
+            : {}),
         });
       } catch (error) {
+        outcome = abort.signal.aborted ? 'aborted' : 'error';
         frame({
           type: 'error',
-          message:
-            error instanceof Error
-              ? error.message
-              : 'The MeriV3 reasoning runtime could not complete this turn.',
+          message: publicMeriRuntimeError(error),
         });
       } finally {
+        if (abort.signal.aborted) outcome = 'aborted';
+        emitMeriOrchestratorTelemetry({
+          name: 'meri.orchestrator.request.finalized',
+          boundary: 'api_orchestrator',
+          runtime: 'meriv3',
+          clientId: dto.clientId ?? null,
+          outcome,
+          durationMs: Date.now() - startedAt,
+          usage: currentMeriTaskUsage(),
+        });
         clearInterval(keepAlive);
         req.removeListener('aborted', onAbort);
         res.removeListener('close', onClose);
@@ -191,7 +309,11 @@ export class MeriV3Controller {
       }
     };
 
-    await this.withRequestCredentials(req, execute);
+    await runWithMeriOrchestratorTelemetry(
+      telemetry,
+      (line) => this.logger.log(line),
+      () => this.withRequestCredentials(req, execute),
+    );
   }
 
   private async assertAllowed(tenantId: string): Promise<void> {
@@ -217,6 +339,32 @@ export class MeriV3Controller {
         )
       : execute();
   }
+
+  private telemetryContext(
+    dto: GovernedMeriV3ChatInput,
+    identity: { tenantId: string; userId: string },
+  ) {
+    return (
+      admitMeriTelemetryContext(dto.governedContext?.telemetryContext, {
+        tenantId: identity.tenantId,
+        actorId: identity.userId,
+        conversationId: dto.conversationId ?? null,
+      }) ??
+      createMeriTelemetryContext({
+        tenantId: identity.tenantId,
+        actorId: identity.userId,
+        conversationId: dto.conversationId ?? null,
+        release: process.env.RELEASE_SHA ?? process.env.GIT_SHA ?? process.env.IMAGE_TAG ?? null,
+      })
+    );
+  }
+}
+
+function publicMeriRuntimeError(error: unknown): string {
+  if (error instanceof Error && error.name === 'ResearchRunInactiveError') {
+    return 'Research is stopped, superseded, or no longer accessible.';
+  }
+  return 'The MeriV3 reasoning runtime could not complete this turn.';
 }
 
 function requireGovernedContext(dto: GovernedMeriV3ChatInput): MeriGovernedTurnContext {
@@ -246,15 +394,97 @@ function authenticateGovernedContext(
   }
 }
 
+function authenticateProcedureBinding(
+  governed: MeriGovernedTurnContext,
+  dto: MeriV3ChatInput,
+  identity: { tenantId: string },
+) {
+  try {
+    return requireMeriProcedureBinding({ governed, dto, tenantId: identity.tenantId });
+  } catch (error) {
+    if (!(error instanceof MeriProcedureBindingError)) throw error;
+    throw new ForbiddenException({
+      statusCode: 403,
+      error: 'Current served procedure binding required',
+      code: 'meri_procedure_binding_invalid',
+    });
+  }
+}
+
+function authenticateResearchPlanExecution(
+  dto: MeriV3ChatInput,
+  identity: { tenantId: string; userId: string },
+): void {
+  try {
+    requireMeriV3ResearchPlanExecution(dto, identity);
+  } catch (error) {
+    if (!(error instanceof MeriV3ResearchPlanExecutionError)) throw error;
+    throw new ForbiddenException({
+      statusCode: 403,
+      error: 'Authenticated admitted research plan required',
+      code: 'meri_research_plan_execution_envelope_invalid',
+    });
+  }
+}
+
 function trustedCurrentTurnScope(
   identity: { tenantId: string; userId: string },
   dto: MeriV3ChatInput,
+  governed: MeriGovernedTurnContext,
 ) {
   return {
     tenantId: identity.tenantId,
     userId: identity.userId,
     conversationId: dto.conversationId ?? null,
     selectedClientId: dto.clientId ?? null,
+    ...(governed.serverReadonlyCapturePolicy
+      ? { capturePolicy: governed.serverReadonlyCapturePolicy }
+      : {}),
+  };
+}
+
+function validateCapturePolicy(
+  governed: MeriGovernedTurnContext,
+  dto: MeriV3ChatInput,
+  identity: { tenantId: string; userId: string },
+): void {
+  const policy = governed.serverReadonlyCapturePolicy;
+  if (!policy) return;
+  try {
+    validateServerReadonlyCapturePolicy(policy, {
+      tenantId: identity.tenantId,
+      actorUserId: identity.userId,
+      conversationId: dto.conversationId ?? null,
+      clientId: dto.clientId ?? null,
+    });
+  } catch {
+    throw new ForbiddenException({
+      statusCode: 403,
+      error: 'Current server read-only capture authority required',
+      code: 'meri_server_readonly_capture_authentication_failed',
+    });
+  }
+}
+
+function captureReceipt(
+  policy: NonNullable<MeriGovernedTurnContext['serverReadonlyCapturePolicy']>,
+) {
+  return {
+    version: 1 as const,
+    policyId: policy.policyId,
+    fixtureNamespace: policy.fixtureNamespace,
+    authority: 'server_current' as const,
+    tenantId: policy.tenantId,
+    actorUserId: policy.actorUserId,
+    conversationId: policy.conversationId,
+    clientId: policy.clientId,
+    issuedAt: policy.issuedAt,
+    expiresAt: policy.expiresAt,
+    toolCatalogSha256: policy.toolCatalogSha256,
+    dispatchBoundary: 'read_only_enforced' as const,
+    dynamicMcpAllowed: false as const,
+    incidentalWriters: 'suppressed' as const,
+    expectedCaptureWrites: policy.expectedCaptureWrites,
   };
 }
 

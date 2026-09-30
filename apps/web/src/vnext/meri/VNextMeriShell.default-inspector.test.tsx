@@ -10,10 +10,23 @@ const api = {};
 vi.mock('../../lib/use-api.js', () => ({ useApi: () => api }));
 vi.mock('../../lib/me.js', () => ({ useMe: () => ({ data: null }) }));
 vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
-vi.mock('../../components/chat/managed-mcp-apps.js', () => ({ ManagedMcpAppsProvider: ({ children }: { children: ReactNode }) => children }));
-vi.mock('./useMeriSourceSelection.js', () => ({ useMeriSourceSelection: () => ({ active: null, open: vi.fn(), close: vi.fn(), changeIndex: vi.fn() }) }));
+vi.mock('../../components/chat/managed-mcp-apps.js', () => ({
+  ManagedMcpAppsProvider: ({ children }: { children: ReactNode }) => children,
+}));
+vi.mock('./useMeriSourceSelection.js', () => ({
+  useMeriSourceSelection: () => ({
+    active: null,
+    open: vi.fn(),
+    close: vi.fn(),
+    changeIndex: vi.fn(),
+  }),
+}));
 vi.mock('./meri-vnext-api.js', () => ({
-  getMeriVNextPreferences: async () => ({ windowChrome: 'undocked', railCollapsed: false, openSection: null }),
+  getMeriVNextPreferences: async () => ({
+    windowChrome: 'undocked',
+    railCollapsed: false,
+    openSection: null,
+  }),
   saveMeriVNextPreferences: async () => undefined,
 }));
 vi.mock('./VNextMeriTopBar.js', () => ({ VNextMeriTopBar: () => null }));
@@ -47,16 +60,31 @@ vi.mock('./VNextMeriContextRail.js', () => ({
 // A conversation with a clickable "Show work" pin for a historical turn.
 let lastPin: { data: MeriTurnInspectorData; tab: MeriTurnInspectorTab } | null = null;
 vi.mock('./VNextMeriConversation.js', () => ({
-  VNextMeriConversation: ({ onOpenTurnInspector }: { onOpenTurnInspector: (d: MeriTurnInspectorData, t: MeriTurnInspectorTab) => void }) => (
+  VNextMeriConversation: ({
+    onOpenTurnInspector,
+  }: {
+    onOpenTurnInspector: (d: MeriTurnInspectorData, t: MeriTurnInspectorTab) => void;
+  }) => (
     <button
       onClick={() =>
         onOpenTurnInspector(
           {
             turnId: 'historical-turn',
-            turnScope: { kind: 'client', clientId: 'l3', clientName: 'L3 Harris', targetHint: null },
+            turnScope: {
+              kind: 'client',
+              clientId: 'l3',
+              clientName: 'L3 Harris',
+              targetHint: null,
+            },
             contextPacketId: 'historical-packet',
             thinking: { plan: 'Historical plan', steps: [], intent: null, tier: null },
-            evidence: { sources: [], verifyStats: [], claims: [], groundingCaveat: null, retrieval: null },
+            evidence: {
+              sources: [],
+              verifyStats: [],
+              claims: [],
+              groundingCaveat: null,
+              retrieval: null,
+            },
             approvals: [],
           },
           'evidence',
@@ -79,7 +107,9 @@ function assistantMsg(overrides: Partial<ChatMessage> = {}): ChatMessage {
 function makeController(overrides: Record<string, unknown> = {}) {
   return {
     activeConversationId: 'conv-1',
-    messages: [assistantMsg({ id: 'a1', planSteps: ['Latest plan'], orchestratorIntent: 'draft_document' })],
+    messages: [
+      assistantMsg({ id: 'a1', planSteps: ['Latest plan'], orchestratorIntent: 'draft_document' }),
+    ],
     pendingApprovals: [],
     isStreaming: false,
     planSteps: [],
@@ -113,18 +143,46 @@ describe('VNextMeriShell default turn inspector', () => {
   });
 
   it('defaults to Approvals when a conversation-level approval is awaiting a decision', async () => {
-    render(<VNextMeriShell {...shellProps(makeController({ pendingApprovals: [approval('proposed')] }))} />);
+    render(
+      <VNextMeriShell
+        {...shellProps(makeController({ pendingApprovals: [approval('proposed')] }))}
+      />,
+    );
     await act(async () => {});
     expect(screen.getByTestId('tab').textContent).toBe('approvals');
   });
 
+  it('keeps uncertain recovery out of the actionable default and wires read-only status refresh', async () => {
+    const handleApprovePending = vi.fn();
+    const uncertain = {
+      ...approval('proposed'),
+      approvalRecovery: { state: 'unavailable' as const, message: 'Outcome unconfirmed.' },
+    };
+    render(
+      <VNextMeriShell
+        {...shellProps(makeController({ pendingApprovals: [uncertain], handleApprovePending }))}
+      />,
+    );
+    await act(async () => {});
+    expect(screen.getByTestId('tab').textContent).toBe('thinking');
+
+    act(() => railProps?.activeTurnInspector?.onRefreshApprovalStatus('p1'));
+    expect(handleApprovePending).toHaveBeenCalledWith('p1');
+  });
+
   it('a new conversation resets to the default inspector without the prior thread stale turn', async () => {
-    const first = makeController({ activeConversationId: 'conv-1', messages: [assistantMsg({ id: 'a1', planSteps: ['First plan'] })] });
+    const first = makeController({
+      activeConversationId: 'conv-1',
+      messages: [assistantMsg({ id: 'a1', planSteps: ['First plan'] })],
+    });
     const view = render(<VNextMeriShell {...shellProps(first)} />);
     await act(async () => {});
     expect(screen.getByTestId('turn').textContent).toBe('a1');
     // Switch to a different conversation with its own latest turn.
-    const second = makeController({ activeConversationId: 'conv-2', messages: [assistantMsg({ id: 'b9', planSteps: ['Second plan'] })] });
+    const second = makeController({
+      activeConversationId: 'conv-2',
+      messages: [assistantMsg({ id: 'b9', planSteps: ['Second plan'] })],
+    });
     view.rerender(<VNextMeriShell {...shellProps(second)} />);
     await act(async () => {});
     expect(screen.getByTestId('turn').textContent).toBe('b9');

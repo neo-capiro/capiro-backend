@@ -24,6 +24,9 @@ import type {
 
 const MAX_GRAPH_ROWS_PER_CALL = 500;
 const MAX_MEMORY_ROWS_PER_CALL = 500;
+const MEMORY_CANDIDATE_LOOKAHEAD = MAX_MEMORY_ROWS_PER_CALL + 1;
+const MEMORY_VECTOR_DIMENSIONS = 1024;
+const MEMORY_RECALL_PROJECTION_VERSION = 'canonical-body-rrf-v3';
 const DEFAULT_MEMORY_PAGE_SIZE = 50;
 const MEMORY_EMBEDDING_BUDGET_MS = 2_000;
 const MEMORY_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -40,6 +43,11 @@ interface GovernedMemoryRow extends GovernedMemoryRecord {
   clientId: string | null;
   createdAt?: Date;
   updatedAt: Date;
+  lexicalScore?: number;
+  lexicalRank?: number;
+  semanticScore?: number | null;
+  semanticRank?: number | null;
+  embeddingContentHash?: string | null;
 }
 
 function edgePayload(edge: TemporalKnowledgeGraphEdge): KnowledgeJsonObject {
@@ -130,7 +138,6 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
     // Only the user's query is sent; canonical facts and access checks are read
     // freshly after this bounded attempt, including on every continuation.
     const vector = await this.queryEmbedding(request);
-    let canonicalRows: GovernedMemoryRow[] = [];
     try {
       return await this.prisma.withTenantUser(
         request.caller.tenantId,
@@ -158,6 +165,66 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
           }
 
           const rows = await tx.$queryRaw<GovernedMemoryRow[]>(Prisma.sql`
+          WITH eligible_base AS NOT MATERIALIZED (
+            SELECT mi.*,
+                   COALESCE(body_projection.body, '') AS recall_body
+            FROM memory_items mi
+            LEFT JOIN LATERAL (
+              SELECT STRING_AGG(section.value ->> 'body', E'\n\n' ORDER BY section.ordinality) AS body
+              FROM JSONB_ARRAY_ELEMENTS(
+                CASE
+                  WHEN JSONB_TYPEOF(mi.sections_jsonb) = 'array' THEN mi.sections_jsonb
+                  ELSE '[]'::jsonb
+                END
+              ) WITH ORDINALITY AS section(value, ordinality)
+              WHERE JSONB_TYPEOF(section.value) = 'object'
+                AND JSONB_TYPEOF(section.value -> 'body') = 'string'
+            ) body_projection ON TRUE
+            WHERE mi.tenant_id = ${request.caller.tenantId}::uuid
+              AND (mi.visibility = 'tenant' OR mi.owner_user_id = ${request.caller.userId}::uuid)
+              AND mi.status = 'active'
+              ${request.memoryItemId ? Prisma.sql`AND mi.id = ${request.memoryItemId}::uuid` : Prisma.empty}
+              AND mi.memory_class IN ('institutional_authoritative', 'client_steering', 'user_preference', 'episodic_working')
+              AND (mi.memory_scope <> 'user_private' OR mi.owner_user_id = ${request.caller.userId}::uuid)
+              AND (mi.memory_scope <> 'client' OR mi.client_id = ANY(${allowedClientIds}::uuid[]))
+              AND (
+                mi.memory_class NOT IN ('institutional_authoritative', 'client_steering')
+                OR mi.approved_by_user_id IS NOT NULL
+              )
+              AND (
+                mi.source_type <> 'unknown'
+                OR mi.source_ref IS NOT NULL
+                OR mi.source_id IS NOT NULL
+              )
+              AND (
+                mi.memory_class <> 'episodic_working'
+                OR mi.expires_at IS NOT NULL
+                OR mi.valid_until IS NOT NULL
+              )
+              AND COALESCE(mi.sensitivity, 'normal') = 'normal'
+              AND (mi.expires_at IS NULL OR mi.expires_at > now())
+              AND (mi.valid_until IS NULL OR mi.valid_until > now())
+              AND (mi.effective_from IS NULL OR mi.effective_from <= now())
+              AND (mi.client_id IS NULL OR mi.client_id = ANY(${allowedClientIds}::uuid[]))
+              AND ${Prisma.raw(governedRecallEligibilitySql('mi'))}
+          ), eligible AS NOT MATERIALIZED (
+            SELECT mi.*, ${memoryLexicalScoreSql(request.query ?? '', 'mi')} AS recall_lexical_score
+            FROM eligible_base mi
+          ), lexical_candidates AS (
+            SELECT mi.id,
+                   ROW_NUMBER() OVER (
+                     ORDER BY mi.recall_lexical_score DESC, mi.updated_at DESC, mi.id ASC
+                   ) AS lexical_rank
+            FROM eligible mi
+            ORDER BY mi.recall_lexical_score DESC, mi.updated_at DESC, mi.id ASC
+            LIMIT ${MEMORY_CANDIDATE_LOOKAHEAD}
+          ),
+          ${memorySemanticCandidatesSql(vector, embeddingModel(this.embeddingProvider))},
+          candidate_ids AS (
+            SELECT id FROM lexical_candidates
+            UNION
+            SELECT id FROM semantic_candidates
+          )
           SELECT mi.id::text AS id, mi.tenant_id::text AS "tenantId",
                  mi.client_id::text AS "clientId", mi.owner_user_id::text AS "ownerUserId",
                  mi.title AS key, mi.type, mi.slug, mi.sections_jsonb AS sections,
@@ -175,25 +242,29 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
                  mi.effective_from AS "effectiveFrom", mi.valid_until AS "validUntil",
                  mi.expires_at AS "expiresAt", mi.last_confirmed_at AS "lastConfirmedAt",
                  mi.review_due_at AS "reviewDueAt", mi.review_cadence_days AS "reviewCadenceDays",
-                 mi.instructions_allowed AS "instructionsAllowed"
-          FROM memory_items mi
-          WHERE mi.tenant_id = ${request.caller.tenantId}::uuid
-            AND (mi.visibility = 'tenant' OR mi.owner_user_id = ${request.caller.userId}::uuid)
-            AND mi.status = 'active'
-            ${request.memoryItemId ? Prisma.sql`AND mi.id = ${request.memoryItemId}::uuid` : Prisma.empty}
-            AND mi.memory_class IN ('institutional_authoritative', 'client_steering', 'user_preference', 'episodic_working')
-            AND (mi.expires_at IS NULL OR mi.expires_at > now())
-            AND (mi.valid_until IS NULL OR mi.valid_until > now())
-            AND (mi.effective_from IS NULL OR mi.effective_from <= now())
-            AND (mi.client_id IS NULL OR mi.client_id = ANY(${allowedClientIds}::uuid[]))
-            AND ${Prisma.raw(governedRecallEligibilitySql('mi'))}
-          ORDER BY mi.updated_at DESC, mi.id ASC
-          LIMIT ${MAX_MEMORY_ROWS_PER_CALL + 1}
+                 mi.instructions_allowed AS "instructionsAllowed",
+                 mi.recall_lexical_score AS "lexicalScore",
+                 lexical_candidates.lexical_rank AS "lexicalRank",
+                 semantic_candidates.semantic_score AS "semanticScore",
+                 semantic_candidates.semantic_rank AS "semanticRank",
+                 semantic_candidates.embedding_content_hash AS "embeddingContentHash"
+          FROM eligible mi
+          JOIN candidate_ids ON candidate_ids.id = mi.id
+          LEFT JOIN lexical_candidates ON lexical_candidates.id = mi.id
+          LEFT JOIN semantic_candidates ON semantic_candidates.id = mi.id
         `);
 
-          const hardTruncated = rows.length > MAX_MEMORY_ROWS_PER_CALL;
+          const hardTruncated =
+            rows.length > MAX_MEMORY_ROWS_PER_CALL ||
+            rows.some((row) => {
+              const lexicalRank = finiteMemoryNumber(row.lexicalRank);
+              const semanticRank = finiteMemoryNumber(row.semanticRank);
+              return (
+                (lexicalRank !== null && lexicalRank > MAX_MEMORY_ROWS_PER_CALL) ||
+                (semanticRank !== null && semanticRank > MAX_MEMORY_ROWS_PER_CALL)
+              );
+            });
           const eligible = rows
-            .slice(0, MAX_MEMORY_ROWS_PER_CALL)
             .filter(
               (row) =>
                 MEMORY_CLASSES.includes(row.memoryClass) &&
@@ -216,11 +287,13 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
                 .join('\n\n'),
             }));
 
-          canonicalRows = eligible;
-          const ranked = await this.rankMemories(tx, request, eligible, vector);
+          const rankedCandidates = this.rankMemories(request, eligible, vector);
+          const ranked = rankedCandidates.slice(0, MAX_MEMORY_ROWS_PER_CALL);
           const snapshot = memorySnapshot(
             request,
-            ranked.map(({ row }) => row),
+            allowedClientIds,
+            embeddingProjection(this.embeddingProvider),
+            ranked,
           );
           if (parsedCursor.snapshot && parsedCursor.snapshot !== snapshot) {
             return {
@@ -234,7 +307,7 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
           }
           const pageRows = ranked.slice(offset, offset + pageSize);
           const hasMore = offset + pageSize < ranked.length;
-          const nextCursor = hasMore ? `memory:v2:${offset + pageSize}:${snapshot}` : undefined;
+          const nextCursor = hasMore ? `memory:v3:${offset + pageSize}:${snapshot}` : undefined;
           // Degraded means the SEMANTIC PROJECTION itself could not run (the
           // embedding provider returned no usable vector), not that a sparse
           // subset of rows lacks an embedding. A single un-embedded approved row
@@ -285,7 +358,7 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
       // An SQL projection error can abort a PostgreSQL transaction even when
       // caught inside its callback. Read canonical evidence again without the
       // optional semantic query; do not turn that into an empty healthy scan.
-      if (canonicalRows.length && vector) {
+      if (vector) {
         return this.retrieveGovernedMemory(
           dataset,
           {
@@ -313,7 +386,11 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
           timer = setTimeout(() => resolve(null), MEMORY_EMBEDDING_BUDGET_MS);
         }),
       ]);
-      return vector?.length && vector.every(Number.isFinite) ? vector : null;
+      return vector?.length === MEMORY_VECTOR_DIMENSIONS &&
+        embeddingProjection(this.embeddingProvider).dimensions === MEMORY_VECTOR_DIMENSIONS &&
+        vector.every(Number.isFinite)
+        ? vector
+        : null;
     } catch {
       return null;
     } finally {
@@ -321,19 +398,16 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
     }
   }
 
-  private async rankMemories(
-    tx: Prisma.TransactionClient,
+  private rankMemories(
     request: RetrievalRequest,
     rows: GovernedMemoryRow[],
     vector: number[] | null,
-  ): Promise<
-    Array<{
-      row: GovernedMemoryRow;
-      semanticScore: number | null;
-      semanticMissing: boolean;
-      semanticUnavailable: boolean;
-    }>
-  > {
+  ): Array<{
+    row: GovernedMemoryRow;
+    semanticScore: number | null;
+    semanticMissing: boolean;
+    semanticUnavailable: boolean;
+  }> {
     const lexical = lexicalScores(rows, request.query ?? '');
     if (
       request.queryClass !== 'semantic_recall' ||
@@ -350,7 +424,10 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
         .sort((a, b) => compareMemoryRank(a.row, b.row, lexical));
     }
 
-    if (!vector?.length || vector.some((value) => !Number.isFinite(value))) {
+    if (
+      vector?.length !== MEMORY_VECTOR_DIMENSIONS ||
+      vector.some((value) => !Number.isFinite(value))
+    ) {
       // The semantic projection itself could not run — this IS a coverage
       // degradation (the caller treats the source as degraded).
       return rows
@@ -363,47 +440,54 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
         .sort((a, b) => compareMemoryRank(a.row, b.row, lexical));
     }
 
-    const ids = rows.map((row) => row.id);
-    const literal = `[${vector.join(',')}]`;
-    let scores: Array<{ id: string; score: number }> = [];
-    let semanticQueryUnavailable = false;
-    try {
-      scores = await tx.$queryRaw<Array<{ id: string; score: number }>>`
-        SELECT mi.id::text AS id,
-               1 - (ce.embedding <=> ${literal}::vector) AS score
-        FROM memory_items mi
-        JOIN context_embeddings ce
-          ON ce.source_type = 'memory_item'
-         AND ce.source_id = mi.id::text
-         AND ce.tenant_id = mi.tenant_id
-        WHERE mi.tenant_id = ${request.caller.tenantId}::uuid
-          AND mi.id = ANY(${ids}::uuid[])
-      `;
-    } catch {
-      scores = [];
-      semanticQueryUnavailable = true;
-    }
-    const scoreById = new Map(scores.map((entry) => [entry.id, Number(entry.score)] as const));
     return rows
       .map((row) => {
-        const score = scoreById.get(row.id);
+        const semanticScore = finiteMemoryNumber(row.semanticScore);
         // A row with no embedding match is a SPARSE projection gap, not a
         // degraded source: it falls back to lexical ranking and stays
         // available. semanticMissing is informational; only
         // semanticUnavailable (provider down, above) degrades the source.
         return {
           row,
-          semanticScore: Number.isFinite(score) ? (score as number) : null,
-          semanticMissing: !Number.isFinite(score),
-          semanticUnavailable: semanticQueryUnavailable,
+          semanticScore,
+          semanticMissing: semanticScore === null,
+          semanticUnavailable: false,
+          lexicalScore: finiteMemoryNumber(row.lexicalScore) ?? lexical.get(row.id) ?? 0,
+          // Candidate ranks are authoritative stream-membership signals from
+          // SQL. Missing or malformed ranks must not be reconstructed from the
+          // union because that turns an absent stream into a synthetic rank.
+          lexicalRank: finiteMemoryNumber(row.lexicalRank) ?? Number.POSITIVE_INFINITY,
+          semanticRank: finiteMemoryNumber(row.semanticRank) ?? Number.POSITIVE_INFINITY,
         };
       })
       .sort((a, b) => {
+        // Stable two-stream fusion: positive canonical-body lexical matches and
+        // current-model semantic matches each retain their independent rank.
+        // Zero-score lexical lookahead remains a bounded fallback, but cannot
+        // crowd a relevant old lexical fact merely by also being recent.
+        const aFusion = Math.min(
+          a.lexicalScore > 0 ? a.lexicalRank : Number.POSITIVE_INFINITY,
+          a.semanticRank,
+        );
+        const bFusion = Math.min(
+          b.lexicalScore > 0 ? b.lexicalRank : Number.POSITIVE_INFINITY,
+          b.semanticRank,
+        );
+        if (aFusion !== bFusion) return aFusion - bFusion;
+        if (a.lexicalScore !== b.lexicalScore) return b.lexicalScore - a.lexicalScore;
         const aSemantic = a.semanticScore ?? -1;
         const bSemantic = b.semanticScore ?? -1;
         if (aSemantic !== bSemantic) return bSemantic - aSemantic;
         return compareMemoryRank(a.row, b.row, lexical);
-      });
+      })
+      .map(
+        ({
+          lexicalScore: _lexicalScore,
+          lexicalRank: _lexicalRank,
+          semanticRank: _semanticRank,
+          ...entry
+        }) => entry,
+      );
   }
 
   private async retrieveTemporalGraph(
@@ -649,35 +733,59 @@ function memoryRecord(row: GovernedMemoryRow, semanticScore: number | null): Ret
 
 function parseMemoryCursor(cursor?: string): { offset: number; snapshot?: string } | null {
   if (!cursor) return { offset: 0 };
-  const match = /^memory:v2:(\d+):([a-f0-9]{64})$/.exec(cursor);
+  const match = /^memory:v3:(\d+):([a-f0-9]{64})$/.exec(cursor);
   if (!match) return null;
   const offset = Number(match[1]);
   return Number.isSafeInteger(offset) && offset >= 0 ? { offset, snapshot: match[2] } : null;
 }
 
-function memorySnapshot(request: RetrievalRequest, rows: GovernedMemoryRow[]): string {
+function memorySnapshot(
+  request: RetrievalRequest,
+  allowedClientIds: readonly string[],
+  projection: ReturnType<typeof embeddingProjection>,
+  ranked: ReadonlyArray<{
+    row: GovernedMemoryRow;
+    semanticScore: number | null;
+    semanticMissing: boolean;
+    semanticUnavailable: boolean;
+  }>,
+): string {
   return createHash('sha256')
     .update(
       JSON.stringify([
+        MEMORY_RECALL_PROJECTION_VERSION,
         request.caller.tenantId,
         request.caller.userId,
         [...(request.caller.clientIds ?? [])].sort(),
+        [...(request.caller.authorizedClientIds ?? [])].sort(),
+        [...allowedClientIds].sort(),
+        request.queryClass,
         request.query ?? '',
         request.memoryItemId ?? null,
-        rows.map((row) => [row.id, isoDate(row.updatedAt), row.status, row.value]),
+        projection,
+        ranked.map(({ row, semanticScore }) => [
+          row.id,
+          isoDate(row.updatedAt),
+          row.status,
+          row.memoryClass,
+          row.authority,
+          row.scope,
+          row.clientId,
+          row.ownerUserId,
+          row.sensitivity,
+          row.sourceContentHash ?? null,
+          row.embeddingContentHash ?? null,
+          semanticScore,
+          row.key,
+          row.value,
+        ]),
       ]),
     )
     .digest('hex');
 }
 
 function lexicalScores(rows: GovernedMemoryRow[], query: string): Map<string, number> {
-  const tokens = uniqueStrings(
-    query
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, ' ')
-      .split(/\s+/)
-      .filter((token) => token.length >= 3 && !STOP_WORDS.has(token)),
-  );
+  const tokens = memoryQueryTokens(query);
   const scores = new Map<string, number>();
   for (const row of rows) {
     const key = row.key.toLowerCase();
@@ -690,6 +798,94 @@ function lexicalScores(rows: GovernedMemoryRow[], query: string): Map<string, nu
     scores.set(row.id, score);
   }
   return scores;
+}
+
+function finiteMemoryNumber(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'bigint') return null;
+  const converted = Number(value);
+  return Number.isSafeInteger(converted) ? converted : null;
+}
+
+function memoryLexicalScoreSql(query: string, alias: string): Prisma.Sql {
+  const tokens = memoryQueryTokens(query);
+  if (!tokens.length) return Prisma.sql`0`;
+  const row = Prisma.raw(alias);
+  return Prisma.sql`(${Prisma.join(
+    tokens.map(
+      (token) => Prisma.sql`(
+        CASE WHEN STRPOS(LOWER(${row}.title), ${token}::text) > 0 THEN 4 ELSE 0 END
+        + CASE WHEN STRPOS(LOWER(${row}.recall_body), ${token}::text) > 0 THEN 1 ELSE 0 END
+      )`,
+    ),
+    ' + ',
+  )})`;
+}
+
+/**
+ * The semantic stream is independently bounded after the exact same governed
+ * eligibility relation as lexical recall. It uses only the active provider's
+ * model, whose physical uniqueness key makes one deterministic projection per
+ * memory item. The selected score and projection hash flow directly into final
+ * fusion/cursor continuity; there is no second, order-dependent duplicate map.
+ */
+function memorySemanticCandidatesSql(vector: number[] | null, model: string): Prisma.Sql {
+  if (vector?.length !== MEMORY_VECTOR_DIMENSIONS || !model) {
+    return Prisma.sql`semantic_candidates AS (
+      SELECT NULL::uuid AS id,
+             NULL::bigint AS semantic_rank,
+             NULL::double precision AS semantic_score,
+             NULL::text AS embedding_content_hash
+      WHERE FALSE
+    )`;
+  }
+  const literal = `[${vector.join(',')}]`;
+  return Prisma.sql`semantic_candidates AS (
+    SELECT mi.id,
+           ROW_NUMBER() OVER (
+             ORDER BY ce.embedding <=> ${literal}::vector, mi.updated_at DESC, mi.id ASC
+           ) AS semantic_rank,
+           1 - (ce.embedding <=> ${literal}::vector) AS semantic_score,
+           ce.content_hash AS embedding_content_hash
+    FROM eligible mi
+    JOIN context_embeddings ce
+      ON ce.source_type = 'memory_item'
+     AND ce.source_id = mi.id::text
+     AND ce.tenant_id = mi.tenant_id
+     AND ce.model = ${model}
+    ORDER BY ce.embedding <=> ${literal}::vector, mi.updated_at DESC, mi.id ASC
+    LIMIT ${MEMORY_CANDIDATE_LOOKAHEAD}
+  )`;
+}
+
+function embeddingProjection(provider: EmbeddingProvider | undefined): {
+  provider: string | null;
+  model: string | null;
+  modelVersion: string | null;
+  dimensions: number | null;
+} {
+  const metadata = provider?.metadata;
+  const dimensions = metadata?.dimensions;
+  return {
+    provider: metadata?.provider ?? null,
+    model: metadata?.model ?? null,
+    modelVersion: metadata?.modelVersion ?? null,
+    dimensions: Number.isSafeInteger(dimensions) ? (dimensions as number) : null,
+  };
+}
+
+function embeddingModel(provider: EmbeddingProvider | undefined): string {
+  return embeddingProjection(provider).model ?? '';
+}
+
+function memoryQueryTokens(query: string): string[] {
+  return uniqueStrings(
+    query
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .split(/\s+/)
+      .filter((token) => token.length >= 3 && !STOP_WORDS.has(token)),
+  );
 }
 
 function compareMemoryRank(

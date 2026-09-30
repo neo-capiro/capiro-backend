@@ -1,6 +1,15 @@
-import { BadRequestException, Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  ForbiddenException,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
-import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
+import { verifyMeriGovernedContext, type MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { TenantGuard } from '../../auth/tenant.guard.js';
 import { CurrentTenant } from '../../auth/current-tenant.decorator.js';
 import type { OrchestratorTenantContext } from '../../auth/tenant-context.js';
@@ -13,6 +22,10 @@ import { RequestCredentialsStore } from '../../request/request-credentials.store
 import { parseAiProviderHeader } from '../meri.controller.js';
 import { ChatAssistantService } from './chat-assistant.service.js';
 import type { ChatInput, ChatResult } from './chat-prompt.js';
+import {
+  validateServerReadonlyCapturePolicy,
+  withTrustedCurrentTurnScope,
+} from '../../request/trusted-current-turn-scope.js';
 
 type GovernedChatInput = ChatInput & { governedContext?: MeriGovernedTurnContext };
 
@@ -36,13 +49,17 @@ export class ChatController {
     const execute = async () => {
       const governed = requireGovernedContext(dto);
       const meriCtx = await this.resolver.resolveIdentity(tenant);
+      authenticateGovernedContext(governed, dto, meriCtx);
       meriCtx.contextPacket = governed.contextPacket;
       const effectiveDto = {
         ...dto,
         skillAddendum: withGovernedPrompt(dto.skillAddendum, governed),
       };
       const run = async () => this.chat.run(meriCtx, effectiveDto);
-      const result = await runWithGovernedMeriContext(governed, run);
+      const result = await withTrustedCurrentTurnScope(
+        trustedCurrentTurnScope(meriCtx, dto, governed),
+        () => runWithGovernedMeriContext(governed, run),
+      );
       return {
         ...result,
         contextPacket: governed.contextPacket,
@@ -88,6 +105,7 @@ export class ChatController {
     const execute = async () => {
       const governed = requireGovernedContext(dto);
       const meriCtx = await this.resolver.resolveIdentity(tenant);
+      authenticateGovernedContext(governed, dto, meriCtx);
       meriCtx.contextPacket = governed.contextPacket;
       const effectiveDto = {
         ...dto,
@@ -100,7 +118,10 @@ export class ChatController {
             onEvent: frame,
             signal: abort.signal,
           });
-        const result = await runWithGovernedMeriContext(governed, run);
+        const result = await withTrustedCurrentTurnScope(
+          trustedCurrentTurnScope(meriCtx, dto, governed),
+          () => runWithGovernedMeriContext(governed, run),
+        );
         frame({
           type: 'done',
           reply: result.reply,
@@ -141,6 +162,46 @@ function requireGovernedContext(dto: GovernedChatInput): MeriGovernedTurnContext
     });
   }
   return dto.governedContext;
+}
+
+function authenticateGovernedContext(
+  governed: MeriGovernedTurnContext,
+  dto: ChatInput,
+  identity: { tenantId: string; userId: string },
+): void {
+  try {
+    verifyMeriGovernedContext(governed, dto, identity, process.env.INTERNAL_SERVICE_SECRET);
+    if (governed.serverReadonlyCapturePolicy) {
+      validateServerReadonlyCapturePolicy(governed.serverReadonlyCapturePolicy, {
+        tenantId: identity.tenantId,
+        actorUserId: identity.userId,
+        conversationId: dto.conversationId ?? null,
+        clientId: dto.clientId ?? null,
+      });
+    }
+  } catch {
+    throw new ForbiddenException({
+      statusCode: 403,
+      error: 'Authenticated Context Plane input required',
+      code: 'meri_governed_context_authentication_failed',
+    });
+  }
+}
+
+function trustedCurrentTurnScope(
+  identity: { tenantId: string; userId: string },
+  dto: ChatInput,
+  governed: MeriGovernedTurnContext,
+) {
+  return {
+    tenantId: identity.tenantId,
+    userId: identity.userId,
+    conversationId: dto.conversationId ?? null,
+    selectedClientId: dto.clientId ?? null,
+    ...(governed.serverReadonlyCapturePolicy
+      ? { capturePolicy: governed.serverReadonlyCapturePolicy }
+      : {}),
+  };
 }
 
 function extractBearerToken(req: Request): string | null {

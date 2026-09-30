@@ -1138,9 +1138,9 @@ export function HearingsTab({ scope }: { scope: string }) {
                       title={
                         liveOnly
                           ? 'No proceedings are live in this range'
-                          : committee || kind || search
+                            : committee || kind || search
                             ? 'No proceedings matched your filters — try clearing the search or filter'
-                            : 'No proceedings scheduled in this date range'
+                            : 'No proceedings matched these filters'
                       }
                       onReset={() => {
                         setCommittee('');

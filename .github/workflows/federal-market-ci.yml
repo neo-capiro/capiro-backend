@@ -90,6 +90,12 @@ jobs:
         if: steps.scope.outputs.in_scope == 'true'
         run: pnpm --filter @capiro/api exec prisma validate
 
+      - name: Bootstrap owned disposable migration prerequisites
+        if: steps.scope.outputs.in_scope == 'true'
+        env:
+          CI_DISPOSABLE_POSTGRES: '1'
+        run: bash scripts/ci/bootstrap-disposable-postgres-roles.sh
+
       - name: Replay migrations into clean pgvector/PostgreSQL
         if: steps.scope.outputs.in_scope == 'true'
         shell: bash
@@ -119,14 +125,20 @@ jobs:
 
       - name: Typecheck provider sync and apps
         if: steps.scope.outputs.in_scope == 'true'
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
           pnpm --filter @capiro/api exec tsc -p tsconfig.funding-opportunities.json --noEmit
-          pnpm turbo run typecheck --filter=@capiro/api --filter=@capiro/web
+          pnpm turbo run typecheck --concurrency=1 --filter=@capiro/api --filter=@capiro/web
 
       - name: API tests — shared federal market
         if: steps.scope.outputs.in_scope == 'true'
+        # One recycled worker with the heap the API typecheck uses: in-band at
+        # Node's default heap, these suites ran out of memory.
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: >-
-          pnpm --filter @capiro/api exec jest --ci --runInBand
+          pnpm --filter @capiro/api exec jest --ci --maxWorkers=1 --workerIdleMemoryLimit=1GB
           src/external/tango/tango-subaward.client.spec.ts
           src/external/tango/tango-subaward.mapper.spec.ts
           scripts/sync-tango-subawards.spec.ts
@@ -147,6 +159,8 @@ jobs:
 
       - name: Build API and web
         if: steps.scope.outputs.in_scope == 'true'
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
           pnpm --filter @capiro/api build
           pnpm --filter @capiro/web build

@@ -33,6 +33,8 @@ This directory contains an offline, deterministic regression evaluation harness 
 
 ### Prerequisites and local tests
 
+The pinned Promptfoo CLI requires **Node.js >=22.22.0**, independently of the application's Node 20 minimum. Use a compatible Node runtime for this suite; the recovery run used Node 22.23.3. This tooling prerequisite does not change application container runtimes.
+
 Use the existing workspace dependencies (`pnpm install --offline --frozen-lockfile`), build `@capiro/shared` followed by `@capiro/meriv2-core`, and use Promptfoo **0.123.1** (`promptfoo --version`). The runner invokes the locally installed `tsx` from `packages/meriv2-core`, never `npx`. Python 3.14.7 is the tested interpreter; only its standard library is needed for assertions. Run from the worktree root:
 
 ```bash

@@ -150,6 +150,10 @@ export function useLwWeekCalendar(params: WeekRangeParams, enabled = true) {
     // Keep the selected week and filters stable while detecting hearings that
     // start live and capture requests that advance during an open session.
     staleTime: 60_000,
+    // Week navigation is user initiated; retain the current grid while the
+    // next range loads so the calendar does not collapse into a transient
+    // loading panel between the latest-hearing jump and its settled result.
+    placeholderData: (previous) => previous,
     retry: false,
     refetchInterval: 60_000,
     refetchIntervalInBackground: true,

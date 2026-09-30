@@ -73,7 +73,12 @@ import {
   type ScopePersistStatus,
 } from './meri-route-guards.js';
 import { formatMeriHttpError } from './meri-http-error.js';
-import { mergeMeriRuntimeStatus, meriRuntimeStatus, type MeriRuntimeStatus } from './meri-runtime-status.js';
+import {
+  mergeMeriRuntimeStatus,
+  meriRuntimeStatus,
+  type MeriRuntimeStatus,
+} from './meri-runtime-status.js';
+import { createMeriBrowserTelemetryHeaders } from '../../vnext/meri/meri-telemetry.js';
 
 import {
   readRecoveredResearch,
@@ -83,6 +88,7 @@ import {
   type MeriRecoveredResearch,
   type MeriResearchRun,
 } from './meri-research-recovery.js';
+import { cancelMeriDurableResearch, newMeriDurableRequestId } from './meri-durable-research.js';
 // UI-free shared modules — NOT the antd components. This controller is
 // mounted on the vNext surface (vnext/meri/**), so a value import of
 // ChatInput/WorkPerformed here would drag antd + legacy CSS into the
@@ -111,7 +117,6 @@ type SseEvent =
       intent: string;
       tier?: 'fast' | 'deep';
       reasoningMode?: string;
-
     }
   | {
       type: 'trace';
@@ -197,7 +202,6 @@ type SseEvent =
       contextPacketId?: string;
       turnScope?: MeriTurnScope;
       retrieval?: ChatMessageRetrieval;
-
     }
   | {
       type: 'error';
@@ -305,7 +309,16 @@ function guessAttachmentKind(file: File): StagedAttachment['kind'] {
   const name = file.name.toLowerCase();
   if (file.type === 'application/pdf' || name.endsWith('.pdf')) return 'pdf';
   if (name.endsWith('.docx')) return 'docx';
-  if (name.endsWith('.pptx') || file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') return 'pptx';
+  if (
+    name.endsWith('.pptx') ||
+    file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+  )
+    return 'pptx';
+  if (
+    name.endsWith('.xlsx') ||
+    file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  )
+    return 'xlsx';
   if (file.type.startsWith('image/')) return 'image';
   if (
     file.type.startsWith('text/') ||
@@ -415,7 +428,21 @@ export interface PendingApproval {
   error?: { code: string | null; message: string | null };
   createdAt: string;
   updatedAt: string;
+  /**
+   * Browser-only transport recovery state. `status` remains the exact
+   * server-authoritative lifecycle; this field only explains why another
+   * approval dispatch is temporarily unsafe after a response was lost.
+   */
+  approvalRecovery?: {
+    state: 'safe_failure' | 'checking' | 'unavailable';
+    message: string;
+    failureMessage?: string;
+  };
 }
+
+const APPROVAL_STATUS_MAX_POLLS = 4;
+const APPROVAL_STATUS_BASE_DELAY_MS = 2_000;
+const APPROVAL_STATUS_MAX_DELAY_MS = 16_000;
 
 export function useMeriChatController({
   selectedClientName,
@@ -493,7 +520,13 @@ export function useMeriChatController({
   const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>([]);
   const [proposalRecoveryVersion, setProposalRecoveryVersion] = useState(0);
   const proposalMutationEpochRef = useRef(0);
-  const pendingDismissalsRef = useRef(new Map<symbol, { sessionId: string | null; identityKey: string }>());
+  const approvalStatusPollAttemptsRef = useRef(new Map<string, number>());
+  // React state cannot close the same-tick double-click window. This synchronous
+  // guard ensures one browser dispatch per proposal until reconciliation ends.
+  const approvalRequestsInFlightRef = useRef(new Set<string>());
+  const pendingDismissalsRef = useRef(
+    new Map<symbol, { sessionId: string | null; identityKey: string }>(),
+  );
   // Mirror for reading the live set inside sequential loops (Approve all) and
   // async callbacks without tripping over a stale closure.
   const pendingApprovalsRef = useRef<PendingApproval[]>([]);
@@ -511,7 +544,6 @@ export function useMeriChatController({
   >(null);
   const [approvingProposalId, setApprovingProposalId] = useState<string | null>(null);
 
-
   const [orchestratorTemplate, setOrchestratorTemplate] = useState<{
     heading: string;
     sections: string[];
@@ -525,6 +557,8 @@ export function useMeriChatController({
   // sessionClientId tracks the visual selection; persistedClientId tracks the
   // durable server PATCH. They diverge while scope persistence is pending.
   const [persistedClientId, setPersistedClientId] = useState<string | null>(null);
+  const persistedClientIdRef = useRef<string | null>(persistedClientId);
+  persistedClientIdRef.current = persistedClientId;
   const [scopePersistStatus, setScopePersistStatus] = useState<ScopePersistStatus>('idle');
   // Monotonically increasing scope intent. Each changeSessionClient captures
   // the current value; on resolution it must still match to prevent an
@@ -544,6 +578,7 @@ export function useMeriChatController({
   }, [identityKey, sessionId]);
   const [researchRecoveryVersion, refreshResearchRecovery] = useState(0);
   const researchStoppedRef = useRef(false);
+  const researchCancelRequestRef = useRef<{ researchId: string; requestId: string } | null>(null);
   const researchMessageRef = useRef<{
     sessionId: string;
     messageId: string;
@@ -909,7 +944,9 @@ export function useMeriChatController({
           try {
             const body = JSON.parse(text) as { message?: unknown };
             if (typeof body.message === 'string') message = body.message;
-          } catch { /* Plain-text errors remain readable. */ }
+          } catch {
+            /* Plain-text errors remain readable. */
+          }
           throw new Error(message || `HTTP ${res.status}`);
         }
         const updated = await res.json();
@@ -1543,7 +1580,7 @@ export function useMeriChatController({
         updateChatMessage(
           assistantId,
           stopped
-            ? '_Research stopped._'
+            ? '_Stop requested. Waiting for the research worker to confirm termination…_'
             : '_The research connection was interrupted. Checking the saved run…_',
         );
         refreshResearchRecovery((version) => version + 1);
@@ -1708,7 +1745,7 @@ export function useMeriChatController({
             updateChatMessage(
               assistantId,
               researchStoppedRef.current
-                ? '_Research stopped._'
+                ? '_Stop requested. Waiting for the research worker to confirm termination…_'
                 : '_Research continues on the server. Checking its saved status…_',
             );
           refreshResearchRecovery((version) => version + 1);
@@ -1837,7 +1874,8 @@ export function useMeriChatController({
             content: `**${recovered.title}**`,
           });
         }
-        if (recovered.run.status === 'running') timer = setTimeout(() => void restore(), 5_000);
+        if (['running', 'cancel_requested'].includes(recovered.run.status))
+          timer = setTimeout(() => void restore(), 5_000);
       } catch (error) {
         if (!current() || controller.signal.aborted) return;
         if (researchSessionRef.current)
@@ -2120,7 +2158,10 @@ export function useMeriChatController({
           ? { body: outgoing, mode }
           : { body: outgoing };
         if (!mode && attachmentIds.length > 0) streamPayload.attachmentIds = attachmentIds;
-        const streamHeaders = await authHeaders();
+        const streamHeaders = {
+          ...(await authHeaders()),
+          ...createMeriBrowserTelemetryHeaders(),
+        };
         // PRE-DISPATCH: authHeaders() is async, so an identity switch can land
         // while it is pending. Never send this identity's request under the
         // credentials of the one that just authenticated.
@@ -2225,7 +2266,9 @@ export function useMeriChatController({
               // or on a session switch, and nowhere else.
             } else if (event.type === 'runtime') {
               const status = meriRuntimeStatus(event);
-              turnRuntimeStatus = status ? mergeMeriRuntimeStatus(turnRuntimeStatus, status) : turnRuntimeStatus;
+              turnRuntimeStatus = status
+                ? mergeMeriRuntimeStatus(turnRuntimeStatus, status)
+                : turnRuntimeStatus;
               if (status) setChatMessageRuntimeStatus(assistantId, status);
             } else if (event.type === 'pending_approval') {
               // MeriV2 gate-held write — the server already created the durable
@@ -2326,18 +2369,16 @@ export function useMeriChatController({
             } else if (event.type === 'citations') {
               turnCitations = Array.isArray(event.citations) ? event.citations : [];
               turnEvidenceAccuracy = event.evidenceAccuracy === 'enforce' ? 'enforce' : undefined;
-              setChatMessageCitations(
-                assistantId,
-                turnCitations,
-                turnEvidenceAccuracy,
+              setChatMessageCitations(assistantId, turnCitations, turnEvidenceAccuracy);
+              setActiveArtifact((artifact) =>
+                artifact
+                  ? {
+                      ...artifact,
+                      ...(turnCitations.length ? { citations: turnCitations } : {}),
+                      ...(turnEvidenceAccuracy ? { evidenceAccuracy: turnEvidenceAccuracy } : {}),
+                    }
+                  : null,
               );
-              setActiveArtifact((artifact) => artifact
-                ? {
-                    ...artifact,
-                    ...(turnCitations.length ? { citations: turnCitations } : {}),
-                    ...(turnEvidenceAccuracy ? { evidenceAccuracy: turnEvidenceAccuracy } : {}),
-                  }
-                : null);
             } else if (event.type === 'grounding_statement') {
               if (typeof event.statement === 'string' && event.statement.trim()) {
                 setChatMessageGroundingStatement(assistantId, event.statement);
@@ -2394,7 +2435,9 @@ export function useMeriChatController({
                   : event,
               );
               turnCompletionReceived = true;
-              turnRuntimeStatus = status ? mergeMeriRuntimeStatus(turnRuntimeStatus, status) : turnRuntimeStatus;
+              turnRuntimeStatus = status
+                ? mergeMeriRuntimeStatus(turnRuntimeStatus, status)
+                : turnRuntimeStatus;
               if (status) setChatMessageRuntimeStatus(assistantId, status);
               // Evidence must resolve the immutable packet from this response,
               // never whichever packet happened to be compiled most recently.
@@ -2433,7 +2476,11 @@ export function useMeriChatController({
                 });
               }
               break outer;
-            } else if (event.type === 'error' && event.code === 'conversation_occupied' && event.occupyingRunId) {
+            } else if (
+              event.type === 'error' &&
+              event.code === 'conversation_occupied' &&
+              event.occupyingRunId
+            ) {
               // A run is already live for this conversation (single-writer-per-
               // conversation admission, contracts.md §3) — most often this
               // tab's own earlier turn, still running server-side after a
@@ -2493,7 +2540,10 @@ export function useMeriChatController({
       } catch (err) {
         if (!isCurrentTurn() || (err instanceof Error && err.name === 'AbortError'))
           return accepted;
-        turnRuntimeStatus = mergeMeriRuntimeStatus(turnRuntimeStatus, meriRuntimeStatus({ type: 'error' })!);
+        turnRuntimeStatus = mergeMeriRuntimeStatus(
+          turnRuntimeStatus,
+          meriRuntimeStatus({ type: 'error' })!,
+        );
         updateChatMessage(assistantId, 'Failed to get a response. Please try again.');
       } finally {
         // Meri v6 thinking-persistence piece 1: attach whatever plan/trust-step/
@@ -2518,7 +2568,11 @@ export function useMeriChatController({
             effectiveEffort: null,
             adjusted: false,
             ...turnRuntimeStatus,
-            lifecycle: controller.signal.aborted ? 'stopped' : turnRuntimeStatus?.lifecycle === 'failed' ? 'failed' : 'incomplete',
+            lifecycle: controller.signal.aborted
+              ? 'stopped'
+              : turnRuntimeStatus?.lifecycle === 'failed'
+                ? 'failed'
+                : 'incomplete',
             partial: true,
             stopped: controller.signal.aborted,
           });
@@ -2626,7 +2680,8 @@ export function useMeriChatController({
       const key = `${requestIdentityKey}:${messageId}`;
       const stillOwnsMessage = () =>
         mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current) &&
-        currentSessionRef.current === requestSession && routeEpochRef.current === requestEpoch;
+        currentSessionRef.current === requestSession &&
+        routeEpochRef.current === requestEpoch;
       // Serialize changes to one message so network order matches user intent.
       // Read the rollback value from the live store after the prior save settles.
       const task = (feedbackRequestsRef.current.get(key) ?? Promise.resolve())
@@ -2698,6 +2753,8 @@ export function useMeriChatController({
     setIsResearchStreaming(false);
     setResearchProgress(null);
     researchSessionRef.current = null;
+    researchCancelRequestRef.current = null;
+    researchStoppedRef.current = false;
     setResearchRecovery(null);
     setResearchRecoveryError(null);
     refreshResearchRecovery((version) => version + 1);
@@ -2717,7 +2774,6 @@ export function useMeriChatController({
     executedThisRoundRef.current = [];
     setResearchOffers({});
     setLastRetrieval(null);
-
   }, [invalidateRouteStream]);
 
   // The shared store is claimed at the controller boundary as well as the vNext
@@ -2764,22 +2820,35 @@ export function useMeriChatController({
   }, [discardRouteState, identityKey]);
 
   const handleStop = useCallback(() => {
-
     const researchId =
       researchSessionRef.current ??
-      (researchRecovery?.run.status === 'running' ? researchRecovery.id : null);
+      (researchRecovery && ['running', 'cancel_requested'].includes(researchRecovery.run.status)
+        ? researchRecovery.id
+        : null);
+    // Planning is a pre-execution phase. Once the user stops it, the next
+    // Send must create a new research request rather than treating the
+    // aborted plan as a resumable session. Keep the captured id for the
+    // idempotent server cancellation below, but release the local session
+    // identity synchronously so callers do not race that network request.
+    if (researchMessageRef.current?.phase === 'plan') researchSessionRef.current = null;
     const requestIdentityKey = identityKeyRef.current;
     const requestConversationId = currentSessionRef.current;
     researchStoppedRef.current = true;
-    researchSessionRef.current = null;
     abortRef.current?.abort();
     if (!researchId && !isResearchStreaming) {
       const current = getChatStateSnapshot();
       const message = [...current.messages].reverse().find((entry) => entry.role === 'assistant');
-      if (current.isStreaming && message && (!message.runtimeStatus?.lifecycle || message.runtimeStatus.lifecycle === 'running')) {
+      if (
+        current.isStreaming &&
+        message &&
+        (!message.runtimeStatus?.lifecycle || message.runtimeStatus.lifecycle === 'running')
+      ) {
         // Stop is immediate even if an already-fulfilled stream read settles
         // later. Only this active ordinary turn gets the cancellation receipt.
-        setChatMessageRuntimeStatus(message.id, meriRuntimeStatus({ finishReason: 'aborted', partial: true })!);
+        setChatMessageRuntimeStatus(
+          message.id,
+          meriRuntimeStatus({ finishReason: 'aborted', partial: true })!,
+        );
       }
     }
     setStreaming(false);
@@ -2789,19 +2858,37 @@ export function useMeriChatController({
     setIsResearchStreaming(false);
     setResearchProgress(null);
     if (!researchId) return;
+    const existingCancelRequest = researchCancelRequestRef.current;
+    const cancelRequest =
+      existingCancelRequest?.researchId === researchId
+        ? existingCancelRequest
+        : { researchId, requestId: newMeriDurableRequestId() };
+    // Claim the idempotency identity before awaiting auth so two rapid Stop
+    // gestures cannot mint two cancellation requests.
+    researchCancelRequestRef.current = cancelRequest;
     // Closing a browser stream detaches it. Stop is an explicit durable cancel.
     void (async () => {
       try {
         const headers = await authHeaders();
         if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
-        const response = await fetch(
-          `${config.apiBaseUrl}/api/clio/research/${encodeURIComponent(researchId)}/cancel`,
-          {
-            method: 'POST',
-            headers,
-          },
-        );
-        if (!response.ok) throw new Error('Research cancellation was not confirmed.');
+        const cancelled = await cancelMeriDurableResearch({
+          apiBaseUrl: config.apiBaseUrl,
+          researchId,
+          headers,
+          requestId: cancelRequest.requestId,
+        });
+        if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
+        // The first response is only cancel_requested. Keep the durable identity
+        // attached and let coordinator/session polling observe true cancellation.
+        if (cancelled.run) {
+          setResearchRecovery((previous) =>
+            previous?.id === researchId
+              ? { ...previous, run: { ...previous.run, ...cancelled.run } }
+              : previous,
+          );
+          if (cancelled.run.status === 'cancelled') researchSessionRef.current = null;
+        }
+        researchCancelRequestRef.current = null;
       } catch {
         if (
           mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current) &&
@@ -2843,6 +2930,103 @@ export function useMeriChatController({
   // model turn — a result is shown on the card and the user decides what (if
   // anything) to say next.
   const executedThisRoundRef = useRef<PendingApproval[]>([]);
+  const recordedApprovalOutcomesRef = useRef(new Set<string>());
+
+  const recordApprovalOutcome = useCallback((proposal: PendingApproval) => {
+    if (proposal.status === 'proposed' || proposal.status === 'executing') return;
+    const key = `${proposal.proposalId}:${proposal.status}:${proposal.attemptCount}:${proposal.updatedAt}`;
+    if (recordedApprovalOutcomesRef.current.has(key)) return;
+    recordedApprovalOutcomesRef.current.add(key);
+    executedThisRoundRef.current = [...executedThisRoundRef.current, proposal];
+  }, []);
+
+  const markApprovalRecovery = useCallback(
+    (
+      proposalId: string,
+      state: NonNullable<PendingApproval['approvalRecovery']>['state'],
+      message: string,
+      failureMessage?: string,
+    ) => {
+      setPendingApprovals((previous) =>
+        previous.map((proposal) =>
+          proposal.proposalId === proposalId
+            ? {
+                ...proposal,
+                approvalRecovery: {
+                  state,
+                  message,
+                  ...((failureMessage ?? proposal.approvalRecovery?.failureMessage)
+                    ? {
+                        failureMessage: failureMessage ?? proposal.approvalRecovery?.failureMessage,
+                      }
+                    : {}),
+                },
+              }
+            : proposal,
+        ),
+      );
+    },
+    [],
+  );
+
+  /**
+   * A failed/lost approve response is never evidence that execution did not
+   * happen. Read the conversation's authoritative rows before enabling retry.
+   */
+  const reconcileApproval = useCallback(
+    async (
+      proposalId: string,
+      approvalSessionId: string,
+      approvalRouteEpoch: number,
+      headers: Record<string, string>,
+      failureMessage: string,
+    ): Promise<void> => {
+      const stillCurrent = () =>
+        mayApplyApprovalResult(
+          approvalSessionId,
+          currentSessionRef.current,
+          approvalRouteEpoch,
+          routeEpochRef.current,
+        );
+      try {
+        const response = await fetch(
+          `${config.apiBaseUrl}/api/clio/action-proposals?conversationId=${encodeURIComponent(approvalSessionId)}&proposalId=${encodeURIComponent(proposalId)}`,
+          { headers },
+        );
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const rows = (await response.json()) as PendingApproval[];
+        const authoritative = Array.isArray(rows)
+          ? rows.find((proposal) => proposal.proposalId === proposalId)
+          : undefined;
+        if (!authoritative) throw new Error('The proposal was not returned by status recovery.');
+        if (!stillCurrent()) return;
+        // An authoritative `proposed` row proves the execution claim was not
+        // taken. Preserve the visible transport failure while safely allowing
+        // an explicit retry. Every other server state replaces local recovery.
+        const recovered: PendingApproval =
+          authoritative.status === 'proposed'
+            ? {
+                ...authoritative,
+                approvalRecovery: {
+                  state: 'safe_failure',
+                  message: failureMessage,
+                },
+              }
+            : authoritative;
+        setPendingApprovals((previous) => upsertProposal(previous, recovered));
+        recordApprovalOutcome(authoritative);
+      } catch {
+        if (!stillCurrent()) return;
+        markApprovalRecovery(
+          proposalId,
+          'unavailable',
+          `${failureMessage} Approval outcome could not be confirmed. Retry is blocked because this action may have already happened. Meri will keep checking the authoritative status.`,
+          failureMessage,
+        );
+      }
+    },
+    [markApprovalRecovery, recordApprovalOutcome],
+  );
 
   const finishApprovalRound = useCallback(
     (approvalSessionId = currentSessionRef.current, approvalRouteEpoch = routeEpochRef.current) => {
@@ -2908,11 +3092,26 @@ export function useMeriChatController({
       ) {
         return;
       }
+      const current = pendingApprovalsRef.current.find(
+        (proposal) => proposal.proposalId === proposalId,
+      );
+      const manualStatusCheck = current?.approvalRecovery?.state === 'unavailable';
+      if (
+        !current ||
+        (!manualStatusCheck && !['proposed', 'failed_retryable'].includes(current.status)) ||
+        current.approvalRecovery?.state === 'checking' ||
+        approvalRequestsInFlightRef.current.has(proposalId)
+      ) {
+        return;
+      }
+      approvalRequestsInFlightRef.current.add(proposalId);
       proposalMutationEpochRef.current += 1;
       setApprovingProposalId(proposalId);
+      let dispatched = false;
+      let headers: Record<string, string> | null = null;
       try {
         // authHeaders() is async — a route change can occur while it is pending.
-        const headers = await authHeaders();
+        headers = await authHeaders();
 
         // PRE-DISPATCH CHECK: re-verify ownership immediately before the
         // server-write fetch. Without this, a stale approval POST can still
@@ -2927,6 +3126,24 @@ export function useMeriChatController({
         ) {
           return;
         }
+        if (manualStatusCheck) {
+          approvalStatusPollAttemptsRef.current.delete(proposalId);
+          markApprovalRecovery(
+            proposalId,
+            'checking',
+            'Checking the authoritative status. No approval is being sent.',
+          );
+          await reconcileApproval(
+            proposalId,
+            approvalSessionId,
+            approvalRouteEpoch,
+            headers,
+            current.approvalRecovery?.failureMessage ??
+              'The prior approval attempt did not claim execution. The action was not marked complete.',
+          );
+          return;
+        }
+        dispatched = true;
         const res = await fetch(
           `${config.apiBaseUrl}/api/clio/action-proposals/${proposalId}/approve`,
           {
@@ -2936,9 +3153,20 @@ export function useMeriChatController({
           },
         );
         if (!res.ok) {
-          // A network/HTTP failure talking to the approve endpoint itself — the
-          // server never even claimed the row. Leave the card in its last known
-          // state; the user can just click again.
+          const detail = await res.text().catch(() => '');
+          const failureMessage = `Approval failed (HTTP ${res.status})${detail ? ` — ${detail}` : ''}. The action was not marked complete.`;
+          markApprovalRecovery(
+            proposalId,
+            'checking',
+            'The approval response failed. Checking authoritative status before retry because this action may have happened.',
+          );
+          await reconcileApproval(
+            proposalId,
+            approvalSessionId,
+            approvalRouteEpoch,
+            headers,
+            failureMessage,
+          );
           return;
         }
         const proposal = (await res.json()) as PendingApproval;
@@ -2957,10 +3185,39 @@ export function useMeriChatController({
           return;
         }
         setPendingApprovals((prev) => upsertProposal(prev, proposal));
-        if (proposal.status !== 'proposed' && proposal.status !== 'executing') {
-          executedThisRoundRef.current = [...executedThisRoundRef.current, proposal];
+        recordApprovalOutcome(proposal);
+      } catch (error) {
+        if (
+          mayApplyApprovalResult(
+            approvalSessionId,
+            currentSessionRef.current,
+            approvalRouteEpoch,
+            routeEpochRef.current,
+          )
+        ) {
+          if (dispatched && headers) {
+            markApprovalRecovery(
+              proposalId,
+              'checking',
+              'The approval acknowledgment was lost. Checking authoritative status before retry because this action may have happened.',
+            );
+            await reconcileApproval(
+              proposalId,
+              approvalSessionId,
+              approvalRouteEpoch,
+              headers,
+              'The approval request failed before execution was claimed. The action was not marked complete.',
+            );
+          } else {
+            markApprovalRecovery(
+              proposalId,
+              'safe_failure',
+              `Approval could not be sent — ${error instanceof Error ? error.message : 'authentication failed'}. The action was not marked complete.`,
+            );
+          }
         }
       } finally {
+        approvalRequestsInFlightRef.current.delete(proposalId);
         // FINALLY CHECK: only clear the approving lock if this operation still
         // owns the current route/session. A stale approval must not unlock a
         // newer thread's controls.
@@ -2977,7 +3234,7 @@ export function useMeriChatController({
         }
       }
     },
-    [authHeaders],
+    [authHeaders, markApprovalRecovery, reconcileApproval, recordApprovalOutcome],
   );
 
   runApprovalRef.current = runApproval;
@@ -3057,7 +3314,10 @@ export function useMeriChatController({
       const requestIdentityKey = identityKeyRef.current;
       const requestSessionId = currentSessionRef.current;
       const dismissal = Symbol(proposalId);
-      pendingDismissalsRef.current.set(dismissal, { sessionId: requestSessionId, identityKey: requestIdentityKey });
+      pendingDismissalsRef.current.set(dismissal, {
+        sessionId: requestSessionId,
+        identityKey: requestIdentityKey,
+      });
       setPendingApprovals((prev) => prev.filter((p) => p.proposalId !== proposalId));
       try {
         const headers = await authHeaders();
@@ -3074,9 +3334,11 @@ export function useMeriChatController({
            dismissal state does not depend on this request succeeding */
       } finally {
         pendingDismissalsRef.current.delete(dismissal);
-        if (requestSessionId &&
+        if (
+          requestSessionId &&
           mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current) &&
-          requestSessionId === currentSessionRef.current) {
+          requestSessionId === currentSessionRef.current
+        ) {
           setProposalRecoveryVersion((version) => version + 1);
         }
       }
@@ -3085,54 +3347,195 @@ export function useMeriChatController({
   );
 
   // Recover outstanding/recent proposals from the server whenever the active
-  // conversation changes and after each turn. Policy-approved writes run
-  // without a pending_approval frame, so their results need this same lookup.
+  // conversation changes and after each turn. Once an approval is uncertain or
+  // executing, poll its exact receipt so the default 100-row window cannot
+  // evict it. Polling is bounded; the card then offers an explicit read-only
+  // status refresh instead of silently retrying approval.
   useEffect(() => {
     // A stream can finish while a dismiss POST is still pending. Wait for all
     // dismissals so an older server list cannot restore an optimistically hidden card.
-    const hasCurrentDismissal = [...pendingDismissalsRef.current.values()].some((pending) =>
-      pending.sessionId === sessionId && pending.identityKey === identityKey,
+    const hasCurrentDismissal = [...pendingDismissalsRef.current.values()].some(
+      (pending) => pending.sessionId === sessionId && pending.identityKey === identityKey,
     );
     if (!sessionId || isStreaming || approvingProposalId || hasCurrentDismissal) return;
     const requestIdentityKey = identityKey;
+    const requestClientId = persistedClientId;
     const requestRouteEpoch = routeEpochRef.current;
     const requestMutationEpoch = proposalMutationEpochRef.current;
     const stillCurrent = () =>
       mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current) &&
-      mayApplyApprovalResult(sessionId, currentSessionRef.current, requestRouteEpoch, routeEpochRef.current) &&
+      mayApplyApprovalResult(
+        sessionId,
+        currentSessionRef.current,
+        requestRouteEpoch,
+        routeEpochRef.current,
+      ) &&
+      requestClientId === persistedClientIdRef.current &&
       requestMutationEpoch === proposalMutationEpochRef.current;
     let cancelled = false;
+    let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
+    const controller = new AbortController();
+    const tracked = pendingApprovalsRef.current.filter(
+      (proposal) =>
+        proposal.status === 'executing' ||
+        proposal.approvalRecovery?.state === 'checking' ||
+        proposal.approvalRecovery?.state === 'unavailable',
+    );
+
+    const nextAttempt = (proposalId: string) => {
+      const attempt = (approvalStatusPollAttemptsRef.current.get(proposalId) ?? 0) + 1;
+      approvalStatusPollAttemptsRef.current.set(proposalId, attempt);
+      return attempt;
+    };
+
+    const pauseRecovery = (proposalId: string) => {
+      markApprovalRecovery(
+        proposalId,
+        'unavailable',
+        'Status checks paused after repeated failures. The approval outcome remains unconfirmed; use Check status to make another read-only status request. Do not approve again.',
+      );
+    };
+
+    const scheduleRecovery = (attempts: number[]) => {
+      const retryable = attempts.filter((attempt) => attempt < APPROVAL_STATUS_MAX_POLLS);
+      if (cancelled || !stillCurrent() || retryable.length === 0) return;
+      const attempt = Math.max(...retryable);
+      const delay = Math.min(
+        APPROVAL_STATUS_BASE_DELAY_MS * 2 ** Math.max(0, attempt - 1),
+        APPROVAL_STATUS_MAX_DELAY_MS,
+      );
+      recoveryTimer = setTimeout(() => setProposalRecoveryVersion((version) => version + 1), delay);
+    };
+
     void (async () => {
       try {
         // authHeaders() is async — an identity switch can land while it is
         // pending, which would send THIS tenant's conversation id under the
         // next tenant's credentials. Fence the dispatch, not just the commit.
         const headers = await authHeaders();
-        if (cancelled || !stillCurrent())
+        if (cancelled || !stillCurrent()) return;
+        if (tracked.length > 0) {
+          const attempts = await Promise.all(
+            tracked.map(async (local) => {
+              try {
+                const res = await fetch(
+                  `${config.apiBaseUrl}/api/clio/action-proposals?conversationId=${encodeURIComponent(sessionId)}&proposalId=${encodeURIComponent(local.proposalId)}`,
+                  { headers, signal: controller.signal },
+                );
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const rows = (await res.json()) as PendingApproval[];
+                const authoritative = Array.isArray(rows)
+                  ? rows.find((proposal) => proposal.proposalId === local.proposalId)
+                  : undefined;
+                if (!authoritative) throw new Error('Proposal status was not returned.');
+                if (cancelled || !stillCurrent()) return null;
+                const preserveFailure =
+                  authoritative.status === 'proposed' &&
+                  Boolean(local.approvalRecovery) &&
+                  authoritative.attemptCount === local.attemptCount &&
+                  authoritative.updatedAt === local.updatedAt;
+                const recovered: PendingApproval = preserveFailure
+                  ? {
+                      ...authoritative,
+                      approvalRecovery: {
+                        state: 'safe_failure',
+                        message:
+                          local.approvalRecovery!.failureMessage ?? local.approvalRecovery!.message,
+                      },
+                    }
+                  : authoritative;
+                setPendingApprovals((previous) => upsertProposal(previous, recovered));
+                recordApprovalOutcome(authoritative);
+                if (authoritative.status !== 'executing') {
+                  approvalStatusPollAttemptsRef.current.delete(local.proposalId);
+                  return null;
+                }
+                const attempt = nextAttempt(local.proposalId);
+                if (attempt >= APPROVAL_STATUS_MAX_POLLS) pauseRecovery(local.proposalId);
+                return attempt;
+              } catch {
+                if (cancelled || controller.signal.aborted || !stillCurrent()) return null;
+                const attempt = nextAttempt(local.proposalId);
+                if (attempt >= APPROVAL_STATUS_MAX_POLLS) {
+                  pauseRecovery(local.proposalId);
+                } else {
+                  markApprovalRecovery(
+                    local.proposalId,
+                    'checking',
+                    'The status service is temporarily unavailable. The outcome remains unconfirmed; Meri will retry without sending another approval.',
+                  );
+                }
+                return attempt;
+              }
+            }),
+          );
+          scheduleRecovery(attempts.filter((attempt): attempt is number => attempt !== null));
           return;
+        }
+
         const res = await fetch(
           `${config.apiBaseUrl}/api/clio/action-proposals?conversationId=${encodeURIComponent(sessionId)}`,
-          { headers },
+          { headers, signal: controller.signal },
         );
-        if (!res.ok || cancelled) return;
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as PendingApproval[];
-        // Approval cards authorize real server-side actions. A prior identity's
-        // recovery must never restore them under a newly authenticated one.
-        if (
-          !cancelled &&
-          stillCurrent() &&
-          Array.isArray(data)
-        ) {
-          setPendingApprovals(data);
+        // Approval cards authorize real server-side actions. A prior identity,
+        // conversation, or client recovery must never restore them here.
+        if (!cancelled && stillCurrent() && Array.isArray(data)) {
+          setPendingApprovals((previous) => {
+            const recovered = data.map((proposal) => {
+              const local = previous.find((row) => row.proposalId === proposal.proposalId);
+              return local?.approvalRecovery &&
+                proposal.status === 'proposed' &&
+                proposal.attemptCount === local.attemptCount &&
+                proposal.updatedAt === local.updatedAt
+                ? {
+                    ...proposal,
+                    approvalRecovery: {
+                      state: 'safe_failure' as const,
+                      message:
+                        local.approvalRecovery.failureMessage ?? local.approvalRecovery.message,
+                    },
+                  }
+                : proposal;
+            });
+            const knownUncertain = previous.filter(
+              (proposal) =>
+                Boolean(proposal.approvalRecovery) &&
+                !recovered.some((row) => row.proposalId === proposal.proposalId),
+            );
+            return [...recovered, ...knownUncertain];
+          });
+          const attempts = data
+            .filter((proposal) => proposal.status === 'executing')
+            .map((proposal) => {
+              const attempt = nextAttempt(proposal.proposalId);
+              if (attempt >= APPROVAL_STATUS_MAX_POLLS) pauseRecovery(proposal.proposalId);
+              return attempt;
+            });
+          scheduleRecovery(attempts);
         }
       } catch {
-        /* best-effort recovery; live SSE pending_approval events still work */
+        // Ordinary initial recovery is best-effort because there may be no
+        // proposal to show. Exact known receipts use the bounded branch above.
       }
     })();
     return () => {
       cancelled = true;
+      controller.abort();
+      if (recoveryTimer) clearTimeout(recoveryTimer);
     };
-  }, [sessionId, authHeaders, identityKey, isStreaming, approvingProposalId, proposalRecoveryVersion]);
+  }, [
+    sessionId,
+    authHeaders,
+    identityKey,
+    persistedClientId,
+    isStreaming,
+    approvingProposalId,
+    proposalRecoveryVersion,
+    markApprovalRecovery,
+    recordApprovalOutcome,
+  ]);
 
   // Held-approval cards belong to ONE conversation — switching sessions must
   // not carry them over (approving would re-run the WRONG conversation's
@@ -3142,6 +3545,9 @@ export function useMeriChatController({
     setResearchOffers({});
     setLastRetrieval(null);
     executedThisRoundRef.current = [];
+    recordedApprovalOutcomesRef.current.clear();
+    approvalRequestsInFlightRef.current.clear();
+    approvalStatusPollAttemptsRef.current.clear();
   }, [sessionId]);
 
   const handleEditResend = useCallback(() => {

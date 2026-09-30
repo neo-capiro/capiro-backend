@@ -253,6 +253,7 @@
     "apps/web/src/pages/engagement/meetings/meetings-api.ts",
     "apps/web/src/pages/engagement/outreach/LegiWatchOutreachHandoff.tsx",
     "apps/web/src/pages/engagement/outreach/v2/NewOutreachWizard.tsx",
+    "apps/web/src/pages/engagement/outreach/v2/StepGenerate.tsx",
     "apps/web/src/pages/engagement/outreach/v2/StepRecipientsSelect.tsx",
     "apps/web/src/pages/engagement/outreach/v2/StepTemplate.tsx",
     "apps/web/src/pages/engagement/outreach/v2/groups.tsx",
@@ -280,7 +281,6 @@
     "apps/web/src/vnext/pages/engagement/outreach-step-context.tsx",
     "apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts",
     "apps/web/src/vnext/pages/engagement/use-engagement-calendar-sync.ts",
-    "apps/web/src/vnext/pages/funding-opportunities/FundingOpportunitiesPage.tsx",
     "apps/web/src/vnext/pages/portfolio/PortfolioIndexPage.tsx",
     "apps/web/src/vnext/pages/portfolio/usePortfolioIndexModel.ts",
     "apps/web/src/vnext/pages/settings/VNextClientsPage.tsx",
@@ -308,6 +308,12 @@
       "status": "api_only",
       "consumers": [],
       "runtimeAction": null
+    },
+    {
+      "routeManifestKey": "DELETE /api/engagement/clients/:id/notetaker",
+      "status": "api_only",
+      "consumers": [],
+      "runtimeAction": "notetaker_remove"
     },
     {
       "routeManifestKey": "DELETE /api/engagement/integrations/google/:connectionId",
@@ -384,6 +390,7 @@
         "apps/web/src/pages/engagement/EngagementPage.tsx",
         "apps/web/src/pages/engagement/OutreachView.tsx",
         "apps/web/src/pages/engagement/outreach/v2/NewOutreachWizard.tsx",
+        "apps/web/src/pages/engagement/outreach/v2/StepGenerate.tsx",
         "apps/web/src/pages/workspace/ContextBuilderPage.tsx",
         "apps/web/src/vnext/pages/client-crm/CapabilityDrawerVNext.tsx",
         "apps/web/src/vnext/pages/client-crm/tabs/FilesTab.tsx",
@@ -412,6 +419,12 @@
         "apps/web/src/vnext/pages/engagement/VNextMeetingsWorkspace.tsx",
         "apps/web/src/vnext/pages/engagement/VNextOutreachClassic.tsx"
       ],
+      "runtimeAction": null
+    },
+    {
+      "routeManifestKey": "GET /api/engagement/clients/:id/notetaker",
+      "status": "api_only",
+      "consumers": [],
       "runtimeAction": null
     },
     {
@@ -445,6 +458,7 @@
         "apps/web/src/components/onboarding/OnboardingGates.tsx",
         "apps/web/src/pages/engagement/EngagementPage.tsx",
         "apps/web/src/pages/engagement/OutreachView.tsx",
+        "apps/web/src/pages/engagement/meetings/PrepTab.tsx",
         "apps/web/src/pages/engagement/outreach/LegiWatchOutreachHandoff.tsx",
         "apps/web/src/pages/settings/IntegrationsPage.tsx",
         "apps/web/src/vnext/adapters/legacy/useMailboxSyncStatus.ts",
@@ -893,6 +907,12 @@
       "runtimeAction": "outreach_test_send"
     },
     {
+      "routeManifestKey": "POST /api/engagement/clients/:id/notetaker",
+      "status": "api_only",
+      "consumers": [],
+      "runtimeAction": "notetaker_dispatch"
+    },
+    {
       "routeManifestKey": "POST /api/engagement/integrations",
       "status": "consumed",
       "consumers": [
@@ -980,8 +1000,7 @@
       "routeManifestKey": "POST /api/engagement/mail/send",
       "status": "consumed",
       "consumers": [
-        "apps/web/src/vnext/pages/client-crm/mail-api.ts",
-        "apps/web/src/vnext/pages/funding-opportunities/FundingOpportunitiesPage.tsx"
+        "apps/web/src/vnext/pages/client-crm/mail-api.ts"
       ],
       "runtimeAction": "outreach_send"
     },
@@ -2087,12 +2106,12 @@
     },
     {
       "consumerFile": "apps/web/src/pages/engagement/meetings/meetings-api.ts",
-      "consumerSymbol": "api",
+      "consumerSymbol": "identity",
       "method": "GET",
       "requestPath": "/api/engagement/capabilities",
       "routeManifestKey": "GET /api/engagement/capabilities",
       "surface": "engagement-meetings-api",
-      "userAction": "api",
+      "userAction": "identity",
       "classification": "read",
       "classificationReason": "read-only",
       "runtimeAction": null,
@@ -2451,16 +2470,29 @@
     },
     {
       "consumerFile": "apps/web/src/pages/engagement/meetings/meetings-api.ts",
-      "consumerSymbol": "save",
+      "consumerSymbol": "mapping",
       "method": "PUT",
       "requestPath": "/api/engagement/meetings/:param/prep-monday-mapping",
       "routeManifestKey": "PUT /api/engagement/meetings/:id/prep-monday-mapping",
       "surface": "engagement-meetings-api",
-      "userAction": "save",
+      "userAction": "mapping",
       "classification": "safe_local_write",
       "classificationReason": "database-local write, no declared external action",
       "runtimeAction": null,
       "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/pages/engagement/meetings/PrepTab.tsx",
+      "consumerSymbol": "mailboxes",
+      "method": "GET",
+      "requestPath": "/api/engagement/integrations",
+      "routeManifestKey": "GET /api/engagement/integrations",
+      "surface": null,
+      "userAction": "mailboxes",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
     },
     {
       "consumerFile": "apps/web/src/pages/engagement/meetings/PrepTab.tsx",
@@ -2825,6 +2857,19 @@
       "classificationReason": "database-local write, no declared external action",
       "runtimeAction": null,
       "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/pages/engagement/outreach/v2/StepGenerate.tsx",
+      "consumerSymbol": "clientFilesQuery",
+      "method": "GET",
+      "requestPath": "/api/engagement/attachments",
+      "routeManifestKey": "GET /api/engagement/attachments",
+      "surface": null,
+      "userAction": "client files query",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
     },
     {
       "consumerFile": "apps/web/src/pages/engagement/outreach/v2/StepRecipientsSelect.tsx",
@@ -3725,12 +3770,12 @@
     },
     {
       "consumerFile": "apps/web/src/vnext/pages/client-crm/mail-api.ts",
-      "consumerSymbol": "sendSingleMail",
+      "consumerSymbol": "result",
       "method": "POST",
       "requestPath": "/api/engagement/mail/send",
       "routeManifestKey": "POST /api/engagement/mail/send",
       "surface": null,
-      "userAction": "send single mail",
+      "userAction": "result",
       "classification": "external_action",
       "classificationReason": "@EngagementRuntimeAction('outreach_send')",
       "runtimeAction": "outreach_send",
@@ -4218,19 +4263,6 @@
       "heuristicClassification": "safe_local_write"
     },
     {
-      "consumerFile": "apps/web/src/vnext/pages/funding-opportunities/FundingOpportunitiesPage.tsx",
-      "consumerSymbol": "recipients",
-      "method": "POST",
-      "requestPath": "/api/engagement/mail/send",
-      "routeManifestKey": "POST /api/engagement/mail/send",
-      "surface": null,
-      "userAction": "recipients",
-      "classification": "external_action",
-      "classificationReason": "@EngagementRuntimeAction('outreach_send')",
-      "runtimeAction": "outreach_send",
-      "heuristicClassification": "external_action"
-    },
-    {
       "consumerFile": "apps/web/src/vnext/pages/portfolio/PortfolioIndexPage.tsx",
       "consumerSymbol": "presigned",
       "method": "POST",
@@ -4443,7 +4475,7 @@
     {
       "kind": "unresolvable_request_url",
       "consumerFile": "apps/web/src/pages/engagement/meetings/meetings-api.ts",
-      "line": 96,
+      "line": 98,
       "detail": "could not resolve the URL argument of api.get<MeetingLibraryResponse>(`${BASE}/meetings/library`, {"
     },
     {
@@ -4600,12 +4632,12 @@
   "totals": {
     "surfaces": 13,
     "consumerFiles": 48,
-    "requests": 236,
-    "routesTotal": 126,
+    "requests": 237,
+    "routesTotal": 129,
     "routesConsumed": 96,
-    "routesApiOnly": 30,
-    "read": 82,
+    "routesApiOnly": 33,
+    "read": 84,
     "safeLocalWrite": 72,
-    "externalAction": 82
+    "externalAction": 81
   }
 }

@@ -52,13 +52,26 @@ if [ -z "${REHEARSAL_DATABASE_URL:-}" ]; then
 
   log "waiting for postgres to accept connections"
   for _ in $(seq 1 60); do
-    if docker exec "$NAME" pg_isready -U capiro -d capiro >/dev/null 2>&1; then break; fi
+    if docker exec "$NAME" pg_isready -h 127.0.0.1 -U capiro -d capiro >/dev/null 2>&1; then break; fi
     sleep 1
   done
+  docker exec "$NAME" pg_isready -h 127.0.0.1 -U capiro -d capiro >/dev/null 2>&1 \
+    || fail "PostgreSQL did not become ready"
   REHEARSAL_DATABASE_URL="postgresql://capiro:capiro@localhost:$PORT/capiro"
 fi
 
-ADMIN() { docker exec -i "$NAME" psql -v ON_ERROR_STOP=1 -U capiro -d capiro "$@"; }
+if [ "$SELF_MANAGED" = "1" ]; then
+  unset PGSERVICE PGSERVICEFILE PGOPTIONS
+  export PGHOSTADDR=127.0.0.1
+fi
+
+ADMIN() {
+  if [ "$SELF_MANAGED" = "1" ]; then
+    docker exec -i "$NAME" psql --no-psqlrc -v ON_ERROR_STOP=1 -U capiro -d capiro "$@"
+  else
+    psql --no-psqlrc "$REHEARSAL_DATABASE_URL" -v ON_ERROR_STOP=1 "$@"
+  fi
+}
 LOGIN_URL() {
   local user="$1"
   node -e "
@@ -99,6 +112,13 @@ login_query() {
 # ── 1. full migration ledger applies from scratch ───────────────────────────
 
 log "1. applying the full migration ledger against a zero-state database"
+if [ "$SELF_MANAGED" = "1" ]; then
+  ADMIN < "$REPO_ROOT/scripts/ci/disposable-capiro-worker-role.sql"
+else
+  [ "$(ADMIN -tAc "SELECT NOT (r.rolsuper OR r.rolinherit OR r.rolcreaterole OR r.rolcreatedb OR r.rolcanlogin OR r.rolreplication OR r.rolbypassrls) AND NOT EXISTS (SELECT 1 FROM pg_auth_members m WHERE r.oid IN (m.roleid,m.member)) FROM pg_roles r WHERE r.rolname='capiro_worker';")" = "t" ] \
+    || fail "external rehearsal requires an existing safe capiro_worker prerequisite"
+fi
+ok "restricted worker prerequisite verified before migration replay"
 (
   cd "$REPO_ROOT/apps/api"
   DATABASE_URL="$REHEARSAL_DATABASE_URL" pnpm exec prisma migrate deploy

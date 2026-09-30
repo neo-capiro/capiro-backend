@@ -128,13 +128,19 @@ export const MERI_DATASET_CATALOG: MeriDatasetDefinition[] = [
     description: 'Upcoming meetings, completed meetings, notes and debrief records.',
     domains: ['meetings'],
     entities: ['meeting', 'person', 'company', 'client'],
-    tools: ['list_upcoming_meetings', 'query_debriefs'],
+    tools: ['list_upcoming_meetings', 'read_client_meetings', 'query_debriefs'],
     timeSemantics: {
       occurredAt: ['startsAt', 'endedAt', 'occurredAt'],
       changedAt: ['updatedAt'],
     },
     capabilities: caps(true, false),
-    authority: ['meeting occurrence', 'meeting participants', 'debrief content'],
+    authority: [
+      'meeting occurrence',
+      'meeting participants',
+      'exact persisted meeting-note content',
+      'exact persisted meeting-transcript content',
+      'debrief content',
+    ],
     scope: 'tenant_and_client',
   },
   {

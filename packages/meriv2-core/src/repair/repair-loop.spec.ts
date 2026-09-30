@@ -82,6 +82,8 @@ function evidence(passage = 'The authoritative total is 25.'): RepairEvidence {
     requirementIds: ['general.primary'],
     passage,
     asOf: '2026-09-22',
+    acquisitionState: 'consulted',
+    ownerVerified: true,
   };
 }
 function outcome(value: EvidenceOutcome): EvidenceDecision {

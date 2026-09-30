@@ -23,6 +23,7 @@
     "clients": 4,
     "clientMemoryAccess": 2,
     "contacts": 6,
+    "mailThreads": 1,
     "meetings": 12,
     "attendees": 10,
     "botSessions": 5,
@@ -45,7 +46,7 @@
     "absentIds": 3
   },
   "totals": {
-    "rows": 119,
+    "rows": 120,
     "states": 55,
     "requiredStates": 52,
     "conditionalStates": 1,
@@ -574,6 +575,7 @@
     "meeting_attendees",
     "meetings",
     "engagement_contacts",
+    "mail_threads",
     "engagement_connection_tokens",
     "engagement_connections",
     "client_memory_access",
@@ -866,6 +868,27 @@
         "email": "casey.clientside@example.com",
         "organization": "Phase 3 Parity — Beta Industries",
         "title": "VP Government Affairs"
+      }
+    ],
+    "mailThreads": [
+      {
+        "key": "mailThread.alpha",
+        "id": "e3000000-0000-4000-8000-0000001b0001",
+        "tenantKey": "tenant.primary",
+        "clientKey": "client.alpha",
+        "connectionKey": "connection.microsoftConnected",
+        "subject": "Phase 3 Parity — Owned synthetic mail-thread detail",
+        "snippet": "Phase 3 Parity — Local parity data; no provider message or credentials.",
+        "participants": [
+          {
+            "email": "jordan.staffer@example.gov",
+            "name": "Phase 3 Parity — Jordan Staffer"
+          }
+        ],
+        "lastMessageAt": {
+          "kind": "anchorOffset",
+          "minutes": -1440
+        }
       }
     ],
     "meetings": [

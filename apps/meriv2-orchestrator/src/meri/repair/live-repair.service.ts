@@ -1,6 +1,7 @@
 import {
   buildClaimSupportQuestion,
   checkExactSourceEligibility,
+  evidenceEligibleForSupport,
   evaluateClaimDeterministically,
   JEV_TASK_REGISTRY,
   JevDecisionCache,
@@ -28,6 +29,7 @@ import {
   type RepairToolExecutor,
   type JevCacheMode,
 } from '@capiro/meriv2-core';
+import { createHash } from 'node:crypto';
 import { MERI_CAPABILITY_REGISTRY, computeAiCostUsd, type MeriCitation } from '@capiro/shared';
 
 export interface LiveRepairLogger {
@@ -52,7 +54,20 @@ export interface LiveRepairInput {
   claims: readonly MaterialClaim[];
   ledger: ClaimLedger;
   citations: MeriCitation[];
-  passages: Record<string, { text: string }>;
+  passages: Record<
+    string,
+    {
+      text: string;
+      clientId?: string;
+      documentId?: string;
+      version?: string;
+      locator?: string;
+      acquisitionState?: 'discovered' | 'consulted';
+      evidenceKind?: 'source_passage' | 'structured_record';
+      contentHash?: string;
+      ownerVerified?: boolean;
+    }
+  >;
   evidencePlan: DomainEvidencePlan;
   residualGaps?: readonly unknown[];
   /**
@@ -124,12 +139,7 @@ export const DEFAULT_REPAIR_LLM_MODEL = 'claude-sonnet-4-5';
 
 /** Eligibility failures meaning the referenced document cannot be read as requested. */
 const DOCUMENT_UNAVAILABLE_REASONS: ReadonlySet<ExactSourceEligibilityReason> =
-  new Set<ExactSourceEligibilityReason>([
-    'metadata_only',
-    'unreadable',
-    'wrong_client',
-    'version_mismatch',
-  ]);
+  new Set<ExactSourceEligibilityReason>(['metadata_only', 'unreadable']);
 
 const object = (value: unknown): Record<string, unknown> | null =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -166,9 +176,20 @@ export function buildRepairDocumentReferences(
   const byId = new Map<string, DocumentReference>();
   const selected = new Set(input.selectedDocumentIds ?? []);
   const request = (input.request ?? '').toLowerCase();
-  const passageIds = (documentId: string): string[] =>
+  const passageIds = (
+    documentId: string,
+    clientId: string | null,
+    version: string | null,
+    recordIds: ReadonlySet<string>,
+  ): string[] =>
     input.citations
-      .filter((citation) => citation.documentEvidence?.documentId === documentId)
+      .filter(
+        (citation) =>
+          citation.documentEvidence?.documentId === documentId &&
+          citation.documentEvidence.clientId === clientId &&
+          citation.documentEvidence.contentHash === version &&
+          recordIds.has(citation.id),
+      )
       .flatMap((citation) => [citation.id, ...(citation.stableId ? [citation.stableId] : [])]);
   const scope = (result: Record<string, unknown>) => ({
     clientId: typeof result.clientId === 'string' ? result.clientId : (input.clientId ?? null),
@@ -206,6 +227,9 @@ export function buildRepairDocumentReferences(
       const recordIds = rows.flatMap((row) =>
         typeof row?.recordId === 'string' ? [row.recordId] : [],
       );
+      const ownerClientId =
+        typeof result.clientId === 'string' ? result.clientId : (input.clientId ?? null);
+      const ownerVersion = typeof document.contentHash === 'string' ? document.contentHash : null;
       const existing = byId.get(document.id);
       const state =
         existing?.readable && !readable
@@ -215,12 +239,12 @@ export function buildRepairDocumentReferences(
         kind: 'client_document',
         id: document.id,
         filename,
-        version: typeof document.contentHash === 'string' ? document.contentHash : null,
+        version: ownerVersion,
         ...state,
         relevantPassageIds: [
           ...new Set([
             ...(existing?.relevantPassageIds ?? []),
-            ...passageIds(document.id),
+            ...passageIds(document.id, ownerClientId, ownerVersion, new Set(recordIds)),
             ...recordIds,
           ]),
         ],
@@ -330,11 +354,13 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
     if (input.signal?.aborted) break;
     const current = toAssuredClaim(claim);
     assured.push(current);
-    const envelope = envelopeFor(current, input);
+    const eligibleSourceIds = current.sourceIds.filter((id) => sourceEligible(id, input));
+    const assessedClaim = { ...current, sourceIds: eligibleSourceIds };
+    const envelope = envelopeFor(assessedClaim, input);
     const evidence = input.ledger.evidence
-      .filter((item) => current.sourceIds.includes(item.id))
+      .filter((item) => eligibleSourceIds.includes(item.id))
       .map((item) => ({ ...item, passage: input.passages[item.id]?.text }));
-    const boundPassages = current.sourceIds.flatMap((id) =>
+    const boundPassages = eligibleSourceIds.flatMap((id) =>
       input.passages[id] ? [input.passages[id]!] : [],
     );
     const deterministic = evaluateClaimDeterministically({
@@ -354,7 +380,7 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
     // a bound passage, is assessed normally (and may be read during repair).
     let decision: EvidenceDecision | null = DOCUMENT_UNAVAILABLE_REASONS.has(exactSource.reason)
       ? failure('exact-source', exactSource.reason, 'document_unavailable')
-      : deterministicDecision(deterministic, current, boundPassages.length);
+      : deterministicDecision(deterministic, assessedClaim, boundPassages.length);
     let jev: EvidenceDecision | null = null;
     let legacy: EvidenceDecision | null = null;
     if (!decision) {
@@ -388,7 +414,12 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
       if (jev?.kind === 'outcome' && legacy?.kind === 'outcome' && jev.outcome !== legacy.outcome) {
         sampledDisagreements += 1;
       }
-      decision = cascadeResult.decision;
+      decision =
+        eligibleSourceIds.length === 0 &&
+        cascadeResult.decision.kind === 'outcome' &&
+        cascadeResult.decision.outcome === 'supported'
+          ? insufficientEvidenceDecision('source_integrity:no_consulted_evidence')
+          : cascadeResult.decision;
     }
     decisions[current.id] = decision;
     outcomes[current.id] = decision.kind === 'outcome' ? decision.outcome : decision.state;
@@ -442,7 +473,9 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
         claims: repairable,
         decisions,
         ledger,
-        providers: { decision: input.providers.legacy },
+        // Recheck with the configured Jev provider when it is present. Falling
+        // back to the legacy judge preserves the off/unavailable policy.
+        providers: { decision: input.providers.jev ?? input.providers.legacy },
         executor: input.executor,
         generate: input.generate,
         budget: {
@@ -491,12 +524,15 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
   };
   const jevRate = input.pricing?.jevUsdPerInputToken ?? JEV_COST_PER_INPUT_TOKEN_USD;
   const llmModel = input.pricing?.llmModel ?? DEFAULT_REPAIR_LLM_MODEL;
-  // Jev tokens at Jev's rate; legacy judge, recheck and revision tokens at the LLM's rate.
+  // Recheck follows the provider selected above: configured Jev stays at the
+  // Jev rate; the off/unavailable fallback remains an LLM-priced legacy call.
+  const jevRecheckInputTokens = input.providers.jev ? tokens.recheckInput : 0;
+  const legacyRecheckInputTokens = input.providers.jev ? 0 : tokens.recheckInput;
   const estimatedCostUsd =
-    jevInputTokens * jevRate +
+    (jevInputTokens + jevRecheckInputTokens) * jevRate +
     computeAiCostUsd(
       llmModel,
-      legacyInputTokens + tokens.recheckInput + tokens.revisionInput,
+      legacyInputTokens + legacyRecheckInputTokens + tokens.revisionInput,
       tokens.revisionOutput,
     );
   input.logger.log('meri.auto_correction.turn', {
@@ -605,14 +641,31 @@ function envelopeFor(claim: AssuredClaim, input: LiveRepairInput): EvidenceEnvel
               evidenceId: id,
               sourceType: item.sourceType,
               sourceId: item.sourceId,
-              documentId: null,
-              version: null,
-              locator: null,
+              ...(item.clientId ? { clientId: item.clientId } : {}),
+              documentId: input.passages[id]?.documentId ?? item.documentId ?? null,
+              version: input.passages[id]?.version ?? item.version ?? null,
+              locator: input.passages[id]?.locator ?? item.locator ?? null,
               passage: input.passages[id]?.text ?? '',
               sourceDate: item.asOf ?? null,
               publishedAt: item.publishedAt ?? null,
               effectiveAt: item.effectiveAt ?? null,
               retrievedAt: item.retrievedAt ?? null,
+              ...((input.passages[id]?.acquisitionState ?? item.acquisitionState)
+                ? {
+                    acquisitionState: input.passages[id]?.acquisitionState ?? item.acquisitionState,
+                  }
+                : {}),
+              ...((input.passages[id]?.evidenceKind ?? item.evidenceKind)
+                ? { evidenceKind: input.passages[id]?.evidenceKind ?? item.evidenceKind }
+                : {}),
+              ...((input.passages[id]?.contentHash ?? item.contentHash)
+                ? { contentHash: input.passages[id]?.contentHash ?? item.contentHash }
+                : {}),
+              ...(input.passages[id]?.ownerVerified !== undefined
+                ? { ownerVerified: input.passages[id].ownerVerified }
+                : item.ownerVerified !== undefined
+                  ? { ownerVerified: item.ownerVerified }
+                  : {}),
               provenance: {
                 evidenceClass: item.evidenceClass,
                 primary: item.primary,
@@ -622,6 +675,52 @@ function envelopeFor(claim: AssuredClaim, input: LiveRepairInput): EvidenceEnvel
           ]
         : [];
     }),
+  };
+}
+
+function sourceEligible(id: string, input: LiveRepairInput): boolean {
+  const item = input.ledger.evidence.find((candidate) => candidate.id === id);
+  const passage = input.passages[id];
+  if (!item || !passage?.text.trim() || !evidenceEligibleForSupport(item)) return false;
+  if (item.ownerVerified !== true || passage.ownerVerified !== true) return false;
+  if (passage.acquisitionState === 'discovered') return false;
+  if (item.clientId && input.clientId && item.clientId !== input.clientId) return false;
+  if (passage.clientId && input.clientId && passage.clientId !== input.clientId) return false;
+  if (item.version && passage.version && item.version !== passage.version) return false;
+  if (item.contentHash && sha256(passage.text) !== item.contentHash) return false;
+  if (passage.contentHash && sha256(passage.text) !== passage.contentHash) return false;
+  const documentId = passage.documentId ?? item.documentId;
+  if (!documentId) return true;
+  const reference = input.documentReferences?.find((candidate) => candidate.id === documentId);
+  return Boolean(
+    reference?.readable &&
+    (!input.clientId || !reference.clientId || reference.clientId === input.clientId) &&
+    (!passage.version || reference.version === passage.version) &&
+    reference.relevantPassageIds.some(
+      (passageId) => passageId === item.sourceId || passageId === item.id,
+    ),
+  );
+}
+
+function sha256(value: string): string {
+  return `sha256:${createHash('sha256').update(value, 'utf8').digest('hex')}`;
+}
+
+function insufficientEvidenceDecision(reason: string): EvidenceDecision {
+  return {
+    kind: 'outcome',
+    outcome: 'insufficient_evidence',
+    probabilities: {
+      supported: 0,
+      contradicted: 0,
+      insufficient_evidence: 1,
+      conflicting_evidence: 0,
+    },
+    confidence: 1,
+    reasonCodes: [reason],
+    evidenceIds: [],
+    provider: { name: 'source-integrity', model: 'rules', questionVersion: 'claim_support.v1' },
+    latencyMs: 0,
   };
 }
 

@@ -4,6 +4,7 @@ import {
   isMeriMailReadTool,
   resolveMeriDocumentRequest,
 } from '@capiro/shared';
+import { classifyApiToolReadOutcome } from '@capiro/shared/meri-read-outcome';
 import { createHash } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -20,6 +21,7 @@ import {
 } from '@capiro/shared';
 import {
   AUTO_CORRECTION_CAPABILITY,
+  bindCitationToLedgerEntries,
   COVERAGE_RETRIEVAL_CAPABILITY,
   PASSAGE_SELECTION_CAPABILITY,
   JEV_TASK_REGISTRY,
@@ -51,6 +53,7 @@ import {
   type AssuredEvidence,
   type AuditorMode,
   type CapabilityRolloutMode,
+  type DecisionProvider,
   type LedgerEntry,
   type MeriContext,
   type ToolRegistry,
@@ -58,9 +61,25 @@ import {
   type ToolExecutionControl,
   ReplayToolExecutor,
   classifyActionIntent,
+  meriTelemetryChildSpanId,
+  meriTelemetryConfigIdentity,
+  meriTelemetryOperationId,
+  observed,
+  unknown,
 } from '@capiro/meriv2-core';
+import {
+  currentMeriTaskUsage,
+  meriOrchestratorTelemetryHeaders,
+  withMeriOrchestratorTelemetrySpan,
+  emitMeriOrchestratorTelemetry,
+  setMeriTelemetryConfigIdentity,
+} from '../../telemetry/meri-telemetry.runtime.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
+import {
+  assertServerReadonlyCaptureToolAllowed,
+  currentServerReadonlyCapturePolicy,
+} from '../../request/trusted-current-turn-scope.js';
 import { ApiActionProposalRepo } from '../api-action-proposal.repo.js';
 import { MeriRegistryService } from '../meri-registry.service.js';
 import { createMeriExecutionControl } from '../meri-execution-control.js';
@@ -69,6 +88,7 @@ import {
   toolLabel,
   type ChatArtifact,
   type ChatStep,
+  type DurableSafeReadOutcome,
 } from '../chat/chat-prompt.js';
 import { flattenSystemParts } from '../prompt-cache.helpers.js';
 import { currentGovernedMeriContext } from '../meri-governed-context.runtime.js';
@@ -82,12 +102,28 @@ import {
   observeMeriTurnToolCoverage,
   type MeriToolCoverageReceipt,
 } from './meriv3-turn-coverage.js';
+import { observeMeriV3CaptureExecution } from './meriv3-capture-evidence.js';
 import {
   OpenAiResponsesClient,
   anthropicSchemaToResponsesTool,
+  completedTextResponseFailure,
   readOpenAiResponsesErrorTelemetry,
 } from './openai-responses.client.js';
 import { resolveMeriV3ReasoningProfile } from './meriv3-reasoning.js';
+import { MeriSemanticToolGateway } from './meri-semantic-tool-gateway.js';
+import { MeriProgressiveToolDiscovery } from './meri-progressive-tool-discovery.js';
+import { buildMeriGovernedToolSelectionContext } from './meriv3-governed-tool-selection.js';
+import { MeriV3SemanticRuntimeStore } from './meriv3-semantic-runtime.store.js';
+import {
+  assertMeriProcedureToolDispatch,
+  bindMeriProcedureSchemas,
+  MeriProcedureBindingError,
+  requireMeriProcedureBinding,
+} from './meriv3-procedure-guard.js';
+import {
+  assertMeriV3ResearchCapability,
+  requireMeriV3ResearchPlanExecution,
+} from './meriv3-plan-execution.js';
 import { enforceClientFilingConfirmation } from '../chat/client-filing-confirmation.js';
 import { MeriDocumentCompletion } from './meriv3-document-completion.js';
 import { classifyMeriRetrievalIntent } from '../retrieval/meri-retrieval-intent.js';
@@ -105,12 +141,24 @@ import type {
   OpenAiResponsesResult,
 } from './meriv3.types.js';
 import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
+import {
+  MeriRunBudget,
+  MeriRunBudgetExhaustedError,
+  isLegitimatePollingObservation,
+  isLogicalToolFailure,
+  type MeriDurableProviderAccounting,
+  type MeriProviderReservation,
+  type MeriToolSignatureScope,
+} from './meriv3-run-budget.js';
 import { scheduleClaimInventoryShadow } from './meriv3-claim-inventory-shadow.js';
 import {
   buildLiteralAuditContext,
   validateLiteralAuditCorrections,
 } from './meriv3-audit-contract.js';
-import { runStatusProvenance } from './status-provenance-runtime.js';
+import {
+  enforceRetainedStatusProvenance,
+  runStatusProvenance,
+} from './status-provenance-runtime.js';
 import {
   createChatDecisionProviders,
   createClientFitClient,
@@ -157,6 +205,7 @@ export interface MeriV3RunOptions {
 }
 
 const TOOL_RESULT_CHARS = 12_000;
+const PROCEDURE_AUTHORITY_TIMEOUT_MS = 5_000;
 /**
  * Stage 2c budget. The repair stage runs between finalization and the single
  * text emission, so `maxMs` is also the hard ceiling on how long that frame can
@@ -171,6 +220,11 @@ const AUTO_CORRECTION_BUDGET = {
 /** Promoted material claims assessed per turn; later claims stay byte-identical. */
 const AUTO_CORRECTION_MAX_CLAIMS = 12;
 const PAGE_WRITE_DRAFT_TOOLS = new Set(['draft_policy_memo', 'create_meeting_brief']);
+const UNKNOWN_PUBLIC_TOOL = {
+  tool: 'unknown_tool',
+  label: 'Unavailable tool',
+  detail: 'An unavailable tool request was blocked.',
+} as const;
 const MODEL_AUTHORED_PERSISTED_BODY_FIELDS: ReadonlyMap<string, string> = new Map([
   ['draft_policy_memo', 'body'],
   ['save_note', 'body'],
@@ -221,13 +275,87 @@ function parseArguments(raw: string): Record<string, unknown> {
   return parsed as Record<string, unknown>;
 }
 
+function canonicalJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalJsonValue);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, nested]) => [key, canonicalJsonValue(nested)]),
+    );
+  }
+  return value;
+}
+
+function writeIntentKey(args: {
+  ctx: MeriContext;
+  dto: MeriV3ChatInput;
+  tool: string;
+  input: Record<string, unknown>;
+}): string {
+  return JSON.stringify(
+    canonicalJsonValue({
+      tenantId: args.ctx.tenantId,
+      actorUserId: args.ctx.userId,
+      clientId: args.dto.clientId ?? args.input.clientId ?? null,
+      conversationId: args.dto.conversationId ?? null,
+      researchRunId: args.dto.researchRun?.runId ?? null,
+      tool: args.tool,
+      input: args.input,
+    }),
+  );
+}
+
+function functionCallBatchIsComplete(calls: OpenAiResponsesFunctionCall[]): boolean {
+  const callIds = new Set<string>();
+  return calls.every((call) => {
+    if (
+      (call.status !== undefined && call.status !== 'completed') ||
+      !call.call_id.trim() ||
+      !call.name.trim() ||
+      callIds.has(call.call_id)
+    ) {
+      return false;
+    }
+    callIds.add(call.call_id);
+    try {
+      parseArguments(call.arguments);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+}
+
+function canonicalSchemaJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalSchemaJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value as Record<string, unknown>)
+      .sort()
+      .map(
+        (key) =>
+          `${JSON.stringify(key)}:${canonicalSchemaJson((value as Record<string, unknown>)[key])}`,
+      )
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function toolSchemaVersion(schema: ToolSchema): string {
+  return `sha256:${createHash('sha256').update(canonicalSchemaJson(schema.input_schema)).digest('hex')}`;
+}
+
+function sameToolSchemaSurface(left: ToolSchema, right: ToolSchema): boolean {
+  return canonicalSchemaJson(left) === canonicalSchemaJson(right);
+}
+
 function safetyIdentifier(ctx: MeriContext): string {
   return createHash('sha256').update(`${ctx.tenantId}:${ctx.userId}`).digest('hex');
 }
 
 function finishInstructions(): string {
   return [
-    '# FINISH NOW — answer the user',
+    '# FINISH NOW â€” answer the user',
     'Do not call any more tools.',
     'Write the complete answer using only admitted governed context evidence, facts returned by tools in this turn, or explicit user-provided context. Preserve their source references and the government-affairs output requirements above; label any remaining material gap.',
     'Separate verified facts from inference and recommendations.',
@@ -244,7 +372,7 @@ function finishInstructions(): string {
  * Standard mode's old 60s floor/ceiling was tuned for a normal chat reply. A
  * broad "audit every commitment, cross-check every source" question gathers
  * fine (up to maxToolRounds) but then needs to *write* a large structured
- * table from everything it found — 60s repeatedly wasn't enough, forcing a
+ * table from everything it found â€” 60s repeatedly wasn't enough, forcing a
  * second forced-synthesis attempt that also timed out and fell back to the
  * "hit a model time limit" apology. Raised the sub-10-minute floor and
  * loosened the ceiling to half the turn budget so Standard/Fast reserve more
@@ -262,7 +390,7 @@ function isModelTimeoutError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   if (/timed out after \d+ms/i.test(message) || /AbortError/i.test(message)) return true;
   // The Responses client throws a plain Error for its own shared turn deadline
-  // (no "timed out"/AbortError text) but tags it with structured telemetry —
+  // (no "timed out"/AbortError text) but tags it with structured telemetry â€”
   // recognize that so this is treated as a recoverable timeout too.
   return readOpenAiResponsesErrorTelemetry(error)?.finishReason === 'deadline_exceeded';
 }
@@ -275,8 +403,122 @@ function isTurnAbortError(error: unknown, signal?: AbortSignal): boolean {
   );
 }
 
+function withToolBudget(
+  registry: ToolRegistry,
+  budget: MeriRunBudget,
+  scope: MeriToolSignatureScope,
+  beforeInvoke?: (
+    name: string,
+    input: Record<string, unknown>,
+    control?: ToolExecutionControl,
+  ) => Promise<void>,
+  admittedReadCapabilities: ReadonlySet<string> | null = null,
+): ToolRegistry {
+  const invoke = async <O>(
+    name: string,
+    input: unknown,
+    ctx: MeriContext,
+    control?: ToolExecutionControl,
+  ): Promise<O> => {
+    assertMeriV3ResearchCapability(admittedReadCapabilities, name);
+    if (!budget.reserveToolBatch(1)) {
+      throw new MeriRunBudgetExhaustedError(budget.reason ?? 'tool_calls');
+    }
+    const validatedArgs =
+      input && typeof input === 'object' && !Array.isArray(input)
+        ? (input as Record<string, unknown>)
+        : {};
+    const signature = budget.toolSignature(scope, name, validatedArgs);
+    if (!budget.beginTool(signature)) {
+      throw new MeriRunBudgetExhaustedError(budget.reason ?? 'retry_calls');
+    }
+    try {
+      assertMeriProcedureToolDispatch({
+        procedure: currentGovernedMeriContext()?.procedure,
+        toolName: name,
+        readOnly: registry.get(name)?.readOnly,
+      });
+      await beforeInvoke?.(name, validatedArgs, control);
+      const result = await registry.invoke<O>(name, input, ctx, control);
+      if (registry.get(name)?.readOnly === true) {
+        budget.observeToolResult({
+          signature,
+          result,
+          failed: isLogicalToolFailure(result),
+          repeatable: isLegitimatePollingObservation(validatedArgs, result),
+        });
+      }
+      return result;
+    } catch (error) {
+      if (registry.get(name)?.readOnly === true) {
+        budget.observeToolResult({
+          signature,
+          result: { error: errorReason(error) },
+          failed: true,
+        });
+      }
+      throw error;
+    }
+  };
+  return new Proxy(registry, {
+    get(target, property) {
+      if (property === 'invoke') return invoke;
+      const value = Reflect.get(target, property, target) as unknown;
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
+}
+
 function errorReason(error: unknown): string {
   return (error instanceof Error ? error.message : String(error)).slice(0, 300);
+}
+
+function governedToolResult(result: unknown): string {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) return 'done';
+  const record = result as Record<string, unknown>;
+  if (record.pendingApproval === true) return 'pending_approval';
+  if (record.blocked === true) return 'blocked';
+  if (record.error) return 'error';
+  return 'done';
+}
+
+class ForcedSynthesisBoundaryError extends Error {
+  readonly name = 'ForcedSynthesisBoundaryError';
+
+  constructor(readonly failure: string) {
+    super(`Forced synthesis response rejected: ${failure}`);
+  }
+}
+
+function boundedPartialReply(
+  reason: string | null | undefined,
+  ledgerEntries: LedgerEntry[],
+): string {
+  const retained = ledgerEntries.slice(-4).map((entry) => {
+    const summary = entry.serialized.replace(/\s+/g, ' ').trim().slice(0, 320);
+    return `- ${entry.tool}: ${summary}${entry.serialized.length > summary.length ? 'â€¦' : ''}`;
+  });
+  return [
+    `I stopped this turn at its aggregate runtime bound${reason ? ` (${reason.replaceAll('_', ' ')})` : ''}.`,
+    retained.length
+      ? ['Retained supported findings/evidence from completed reads:', ...retained].join('\n')
+      : 'No tool finding was completed before the bound was reached.',
+    'No additional tool or write was started after the stop. The remaining requested work is incomplete.',
+  ].join('\n\n');
+}
+
+function incompleteSynthesisPartialReply(ledgerEntries: LedgerEntry[]): string {
+  const retained = ledgerEntries.slice(-4).map((entry) => {
+    const summary = entry.serialized.replace(/\s+/g, ' ').trim().slice(0, 320);
+    return `- ${entry.tool}: ${summary}${entry.serialized.length > summary.length ? 'â€¦' : ''}`;
+  });
+  return [
+    'The synthesis response was incomplete, so I did not release its partial text.',
+    retained.length
+      ? ['Retained supported findings/evidence from completed reads:', ...retained].join('\n')
+      : 'No supported tool finding was retained for a partial answer.',
+    'No additional tool or write was started. The remaining requested work is incomplete.',
+  ].join('\n\n');
 }
 
 /**
@@ -343,107 +585,86 @@ function settleWithinBudget<T>(
   });
 }
 
-const CITABLE_SOURCES_HEADER = 'Citable sources (cite these in prose as [N] when you use them):';
-
-/** The `[n]` numbers a tool execution listed above its own result body. */
-function citableNumbersOf(serialized: string): Set<number> | null {
-  if (!serialized.startsWith(CITABLE_SOURCES_HEADER)) return null;
-  const end = serialized.indexOf('\n\n');
-  const block = end < 0 ? serialized : serialized.slice(0, end);
-  const numbers = new Set<number>();
-  for (const line of block.split('\n').slice(1)) {
-    const match = /^\[(\d{1,3})\] /.exec(line);
-    if (match) numbers.add(Number(match[1]));
-  }
-  return numbers;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-/**
- * The ledger entry that produced a citation. Tool executions list their own
- * citations in a `Citable sources` header, so the entry whose header carries
- * the citation number is its origin even when the tool ran several times.
- * Inherited document observations share the citation's record identity.
- */
-function ledgerEntryForCitation(
-  citation: MeriCitation,
-  ledgerEntries: readonly LedgerEntry[],
-): LedgerEntry | undefined {
-  const sameTool = ledgerEntries.filter((entry) => entry.tool === citation.tool);
-  const numbered = sameTool.find((entry) => citableNumbersOf(entry.serialized)?.has(citation.n));
-  if (numbered) return numbered;
-  const documentId = citation.documentEvidence?.documentId;
-  const recordId = asRecord(citation.documentEvidence?.record)?.recordId;
-  if (documentId) {
-    const byDocument = sameTool.find((entry) => {
-      const result = asRecord(entry.result);
-      if (asRecord(result?.document)?.id !== documentId) return false;
-      if (typeof recordId !== 'string') return true;
-      return entry.serialized.includes(recordId);
-    });
-    if (byDocument) return byDocument;
-  }
-  if (citation.id) return sameTool.find((entry) => entry.serialized.includes(citation.id));
-  return undefined;
-}
-
-/**
- * Passage text per claim-ledger evidence item, bound to the ledger ENTRY the
- * evidence came from and carrying that entry's full text. A 240-character
- * citation snippet or the first same-tool entry would declare supported exact
- * values absent.
- */
-function buildRepairPassages(
+/** Exact owner row/span only: no serialized-entry, snippet, substring, or marker fallback. */
+export function buildRepairPassages(
   evidence: readonly AssuredEvidence[],
   citations: readonly MeriCitation[],
   ledgerEntries: readonly LedgerEntry[],
-): Record<string, { text: string }> {
-  const passages: Record<string, { text: string }> = {};
-  for (const item of evidence) {
-    let text: string | undefined;
-    if (item.id.startsWith('citation:')) {
-      const citation =
-        citations.find(
-          (candidate) => `citation:${candidate.n}:${candidate.tool}:${candidate.id}` === item.id,
-        ) ??
-        citations.find(
-          (candidate) => candidate.tool === item.sourceType && candidate.id === item.sourceId,
-        );
-      const entry = citation ? ledgerEntryForCitation(citation, ledgerEntries) : undefined;
-      text = entry?.serialized ?? citation?.snippet ?? undefined;
-      if (citation && text) {
-        // `extractMaterialClaims` keys a marker's evidence as `${tool}:${id}` (or
-        // the stable id); expose the same passage under those ids too.
-        const aliases = [
-          `${citation.tool}:${citation.id}`,
-          ...(citation.stableId ? [citation.stableId] : []),
-        ];
-        for (const alias of aliases) passages[alias] ??= { text };
-      }
-    } else if (item.id.startsWith('formb:')) {
-      const token = `[S:${item.sourceType}:${item.sourceId}]`;
-      const entry =
-        ledgerEntries.find(
-          (candidate) => candidate.tool === item.sourceType && candidate.serialized.includes(token),
-        ) ??
-        ledgerEntries.find(
-          (candidate) =>
-            candidate.tool === item.sourceType && candidate.serialized.includes(item.sourceId),
-        );
-      text = entry?.serialized;
-    } else {
-      const entry = ledgerEntries.find(
-        (candidate) =>
-          candidate.tool === item.sourceType && candidate.serialized.includes(item.sourceId),
-      );
-      text = entry?.serialized;
+  expectedClientId?: string | null,
+): Record<
+  string,
+  {
+    text: string;
+    clientId?: string;
+    documentId?: string;
+    version?: string;
+    locator?: string;
+    acquisitionState?: 'discovered' | 'consulted';
+    evidenceKind?: 'source_passage' | 'structured_record';
+    contentHash?: string;
+    ownerVerified?: boolean;
+  }
+> {
+  const passages: Record<
+    string,
+    {
+      text: string;
+      clientId?: string;
+      documentId?: string;
+      version?: string;
+      locator?: string;
+      acquisitionState?: 'discovered' | 'consulted';
+      evidenceKind?: 'source_passage' | 'structured_record';
+      contentHash?: string;
+      ownerVerified?: boolean;
     }
-    passages[item.id] = { text: text ?? '' };
+  > = {};
+  for (const item of evidence) {
+    let citation: MeriCitation | undefined;
+    if (item.id.startsWith('citation:')) {
+      citation = citations.find(
+        (candidate) => `citation:${candidate.n}:${candidate.tool}:${candidate.id}` === item.id,
+      );
+    } else if (item.id.startsWith('formb:')) {
+      citation = {
+        n: 0,
+        tool: item.sourceType,
+        id: item.sourceId,
+        type: 'source',
+        title: item.title ?? item.sourceId,
+        url: item.url ?? null,
+        snippet: null,
+      };
+    }
+    if (!citation) continue;
+    const binding = bindCitationToLedgerEntries(citation, ledgerEntries, { expectedClientId });
+    if (
+      !binding ||
+      (item.version && item.version !== binding.version) ||
+      (item.clientId && item.clientId !== binding.clientId) ||
+      (item.documentId && item.documentId !== binding.documentId) ||
+      (item.contentHash && item.contentHash !== binding.contentHash)
+    )
+      continue;
+    const receipt = {
+      text: binding.text,
+      ...(binding.clientId ? { clientId: binding.clientId } : {}),
+      ...(binding.documentId ? { documentId: binding.documentId } : {}),
+      ...(binding.version ? { version: binding.version } : {}),
+      ...(binding.locator ? { locator: binding.locator } : {}),
+      acquisitionState: binding.acquisitionState,
+      evidenceKind: binding.evidenceKind,
+      contentHash: binding.contentHash,
+      ownerVerified: true,
+    };
+    passages[item.id] = receipt;
+    if (citation.n > 0) {
+      for (const alias of [
+        `${citation.tool}:${citation.id}`,
+        ...(citation.stableId ? [citation.stableId] : []),
+      ])
+        passages[alias] ??= receipt;
+    }
   }
   return passages;
 }
@@ -471,6 +692,8 @@ export class MeriV3AssistantService {
   private readonly registry: ToolRegistry;
   private readonly llm: MeriRegistryService['llm'];
   private readonly apiBaseUrl: string;
+  private readonly governedSemanticGateway: MeriSemanticToolGateway;
+  private readonly serviceSecret?: string;
   private readonly jevDecisionCache = new JevDecisionCache();
 
   private liveRepairCache(tenantId: string) {
@@ -487,9 +710,132 @@ export class MeriV3AssistantService {
   ) {
     this.registry = registryService.registry;
     this.llm = registryService.llm;
+    this.governedSemanticGateway = new MeriSemanticToolGateway(config);
     this.apiBaseUrl = (
       config.get<string>('MERIV2_API_BASE_URL') ?? 'http://localhost:3000'
     ).replace(/\/+$/, '');
+    this.serviceSecret = config.get<string>('INTERNAL_SERVICE_SECRET') || undefined;
+  }
+
+  /**
+   * Confirm the exact prepared procedure against the API owner immediately
+   * before dispatch. There is deliberately no cache, retry, or alternate
+   * authority path; the authenticated API may only narrow the signed binding.
+   */
+  private async assertCurrentProcedureAuthority(
+    conversationId: string | undefined,
+    toolName: string,
+    control?: ToolExecutionControl,
+  ): Promise<void> {
+    const procedure = currentGovernedMeriContext()?.procedure;
+    if (!procedure) return;
+    assertMeriProcedureToolDispatch({
+      procedure,
+      toolName,
+      readOnly: this.registry.get(toolName)?.readOnly,
+    });
+    const creds = RequestCredentialsStore.get();
+    if (!conversationId || !creds?.bearerToken || !this.serviceSecret) {
+      throw new MeriProcedureBindingError(
+        'Served procedure binding is invalid or no longer current',
+      );
+    }
+
+    const execution = createMeriExecutionControl(control, PROCEDURE_AUTHORITY_TIMEOUT_MS);
+    try {
+      execution.assertActive();
+      const response = await fetch(`${this.apiBaseUrl}/api/clio/procedure-runtime/validate`, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${creds.bearerToken}`,
+          'content-type': 'application/json',
+          accept: 'application/json',
+          'x-internal-service-secret': this.serviceSecret,
+          ...(execution.deadlineAt ? { 'x-meri-deadline-at': String(execution.deadlineAt) } : {}),
+          ...(creds.impersonateTenantId
+            ? { 'x-capiro-impersonate-tenant': creds.impersonateTenantId }
+            : {}),
+        },
+        body: JSON.stringify({
+          conversationId,
+          clientId: procedure.clientId,
+          scope: procedure.scope,
+          recordId: procedure.identity.recordId,
+          canonicalId: procedure.identity.canonicalId,
+          procedureVersion: procedure.identity.version,
+          manifestDigest: procedure.manifestDigest,
+          toolName,
+        }),
+        signal: execution.signal,
+      });
+      execution.assertActive();
+      if (!response.ok) {
+        throw new MeriProcedureBindingError(
+          'Served procedure binding is invalid or no longer current',
+        );
+      }
+      const decision = (await response.json()) as {
+        authorized?: unknown;
+        identity?: Record<string, unknown>;
+        manifestDigest?: unknown;
+      };
+      execution.assertActive();
+      if (
+        decision.authorized !== true ||
+        decision.identity?.source !== procedure.identity.source ||
+        decision.identity.recordId !== procedure.identity.recordId ||
+        decision.identity.canonicalId !== procedure.identity.canonicalId ||
+        decision.identity.version !== procedure.identity.version ||
+        decision.manifestDigest !== procedure.manifestDigest
+      ) {
+        throw new MeriProcedureBindingError(
+          'Served procedure binding is invalid or no longer current',
+        );
+      }
+    } catch {
+      execution.assertActive();
+      throw new MeriProcedureBindingError(
+        'Served procedure binding is invalid or no longer current',
+      );
+    } finally {
+      execution.dispose();
+    }
+  }
+
+  private async assertCurrentAlternateReadAuthority(
+    dto: MeriV3ChatInput,
+    selectedSchemas: readonly ToolSchema[],
+    toolName: string,
+    control?: ToolExecutionControl,
+  ): Promise<void> {
+    assertToolExecutionActive(control);
+    if (!selectedSchemas.some((schema) => schema.name === toolName)) {
+      throw new Error(`Tool is not authorized for this turn: ${toolName}`);
+    }
+    const currentSchemas = await this.fetchToolSchemas(control);
+    assertToolExecutionActive(control);
+    const definition = this.registry.get(toolName);
+    const metadata = this.registry.executionMetadata?.(toolName);
+    if (
+      !currentSchemas.some((schema) => schema.name === toolName) ||
+      definition?.readOnly !== true ||
+      metadata?.readOnly !== true ||
+      metadata.executionMode !== 'read'
+    ) {
+      throw new Error(`Tool is not currently authorized as a read: ${toolName}`);
+    }
+    await this.assertCurrentProcedureAuthority(dto.conversationId, toolName, control);
+    await this.assertResearchRunActive(dto, control);
+    assertToolExecutionActive(control);
+    const currentDefinition = this.registry.get(toolName);
+    const currentMetadata = this.registry.executionMetadata?.(toolName);
+    if (
+      currentDefinition?.readOnly !== true ||
+      currentMetadata?.readOnly !== true ||
+      currentMetadata.executionMode !== 'read'
+    ) {
+      throw new Error(`Tool is not currently authorized as a read: ${toolName}`);
+    }
   }
 
   async run(
@@ -526,7 +872,7 @@ export class MeriV3AssistantService {
    *
    * Standard's budget (180s, 10 rounds) is tuned for a normal chat reply.
    * A broad audit-everything ask legitimately needs dozens of tool calls
-   * and a large structured write — under Standard that gathers fine and
+   * and a large structured write â€” under Standard that gathers fine and
    * then times out writing the answer (see synthesisReserveMs above). The
    * user should not have to know to switch to Deep/Research mode first;
    * Meri should recognize the shape of the request and just do it.
@@ -564,7 +910,27 @@ export class MeriV3AssistantService {
     opts: MeriV3RunOptions,
   ): Promise<MeriV3ChatResult> {
     const emit = opts.onEvent ?? (() => {});
+    const researchPlanExecution = requireMeriV3ResearchPlanExecution(dto, ctx);
+    const admittedReadCapabilities = researchPlanExecution
+      ? new Set(researchPlanExecution.allowedReadCapabilities)
+      : null;
+    const governed = currentGovernedMeriContext();
+    const procedure = governed
+      ? requireMeriProcedureBinding({ governed, dto, tenantId: ctx.tenantId })
+      : null;
     const profile = resolveMeriV3ReasoningProfile(dto.reasoningMode);
+    const runtimeBudget = MeriRunBudget.fromToolRoundCeiling(
+      profile.maxToolRounds,
+      opts,
+      dto.researchRun ? this.durableProviderAccounting(dto.researchRun, opts) : undefined,
+    );
+    const budgetScope: MeriToolSignatureScope = {
+      actorId: ctx.userId,
+      tenantId: ctx.tenantId,
+      clientId: dto.clientId ?? null,
+      conversationId: dto.conversationId ?? null,
+      runId: dto.researchRun?.runId ?? null,
+    };
     const initialInput = this.toResponsesInput(dto);
     if (!initialInput.length || initialInput[initialInput.length - 1]?.role !== 'user') {
       return {
@@ -633,6 +999,7 @@ export class MeriV3AssistantService {
       tenantId: ctx.tenantId,
       surface,
       logger: { warn: (event, fields) => this.logStructured('warn', event, fields ?? {}) },
+      fetchImpl: runtimeBudget.budgetedFetch('selection'),
     });
     const buildEvidenceLedger = (
       input: Omit<
@@ -687,20 +1054,6 @@ export class MeriV3AssistantService {
       initialEvidence.citationPrompt,
     ].join('\n');
 
-    const readOnlyNames = new Set<string>(
-      MERI_CAPABILITY_REGISTRY.filter((tool) => tool.readOnly).map((tool) => tool.name),
-    );
-    const toolSchemas =
-      dto.toolPolicy === 'none'
-        ? []
-        : (await this.fetchToolSchemas(opts)).filter(
-            (schema) => dto.toolPolicy !== 'read-only' || readOnlyNames.has(schema.name),
-          );
-    // This tool reads a research snapshot, not client Files. Its session comes
-    // from the authenticated research lease, never a guessed chat/client UUID.
-    const availableSchemas = toolSchemas.filter(
-      (schema) => schema.name !== 'get_research_evidence' || Boolean(dto.researchRun),
-    );
     const coverageRequirements =
       coverageRetrievalMode === 'off'
         ? []
@@ -711,8 +1064,198 @@ export class MeriV3AssistantService {
             selectedDocumentIds: dto.selectedDocumentIds,
             clientId: dto.clientId,
           });
+    const readOnlyNames = new Set<string>(
+      MERI_CAPABILITY_REGISTRY.filter((tool) => tool.readOnly).map((tool) => tool.name),
+    );
+    const toolSchemas =
+      dto.toolPolicy === 'none'
+        ? []
+        : (await this.fetchToolSchemas(opts)).filter(
+            (schema) =>
+              (dto.toolPolicy !== 'read-only' || readOnlyNames.has(schema.name)) &&
+              (!admittedReadCapabilities || admittedReadCapabilities.has(schema.name)),
+          );
+    // This tool reads a research snapshot, not client Files. Its session comes
+    // from the authenticated research lease, never a guessed chat/client UUID.
+    const leaseAuthorizedSchemas = toolSchemas.filter(
+      (schema) =>
+        (schema.name !== 'get_research_evidence' || Boolean(dto.researchRun)) &&
+        (!currentServerReadonlyCapturePolicy() || schema.name !== 'run_analysis'),
+    );
+    const procedureSchemas = bindMeriProcedureSchemas({
+      procedure,
+      schemas: leaseAuthorizedSchemas,
+      registry: this.registry,
+    });
+    const authorizedSchemas = procedureSchemas.schemas;
+    const selectionContext = buildMeriGovernedToolSelectionContext({
+      ctx,
+      dto,
+      request: lastUserText,
+      authorizedNames: authorizedSchemas.map((schema) => schema.name),
+      evidencePlan,
+      coverageRequirements,
+      governedContext: currentGovernedMeriContext(),
+      documentReadRequired: Boolean(documentCompletion),
+    });
+    const selection = this.governedSemanticGateway.select({
+      schemas: authorizedSchemas,
+      tenantId: ctx.tenantId,
+      request: lastUserText,
+      recentUserContext: selectionContext.recentUserContext,
+      plan: selectionContext.plan,
+      protectedNames: [...selectionContext.protectedNames, ...procedureSchemas.requiredTools],
+      discoveryNames: selectionContext.discoveryNames,
+      allowCanonicalResearchDirector: false,
+    });
+    MeriV3SemanticRuntimeStore.recordDecision(selection.decision);
+    let currentDiscoveryLookup: Promise<ToolSchema[]> | null = null;
+    const resolveCurrentDiscoverySchemas = async (): Promise<ToolSchema[]> => {
+      if (currentDiscoveryLookup) return currentDiscoveryLookup;
+      const lookup = (async () => {
+        try {
+          assertToolExecutionActive(opts);
+          const currentPlan = requireMeriV3ResearchPlanExecution(dto, ctx);
+          const currentAdmitted = currentPlan ? new Set(currentPlan.allowedReadCapabilities) : null;
+          await this.assertResearchRunActive(dto, opts);
+          const currentCatalog =
+            dto.toolPolicy === 'none'
+              ? []
+              : (await this.fetchToolSchemas(opts)).filter((schema) => {
+                  const definition = this.registry.get(schema.name);
+                  const canonical = MERI_CAPABILITY_REGISTRY.find(
+                    (item) => item.name === schema.name,
+                  );
+                  return Boolean(
+                    definition &&
+                    this.registry.list().includes(schema.name) &&
+                    canonical &&
+                    canonical.readOnly === definition.readOnly &&
+                    (dto.toolPolicy !== 'read-only' || definition.readOnly === true) &&
+                    (!currentAdmitted || currentAdmitted.has(schema.name)) &&
+                    (schema.name !== 'get_research_evidence' || dto.researchRun) &&
+                    (!currentServerReadonlyCapturePolicy() || schema.name !== 'run_analysis'),
+                  );
+                });
+          const currentGoverned = currentGovernedMeriContext();
+          const currentProcedure = currentGoverned
+            ? requireMeriProcedureBinding({
+                governed: currentGoverned,
+                dto,
+                tenantId: ctx.tenantId,
+              })
+            : null;
+          if (
+            Boolean(currentProcedure) !== Boolean(procedure) ||
+            (currentProcedure &&
+              procedure &&
+              (currentProcedure.manifestDigest !== procedure.manifestDigest ||
+                currentProcedure.identity.recordId !== procedure.identity.recordId ||
+                currentProcedure.identity.version !== procedure.identity.version))
+          ) {
+            return [];
+          }
+          return bindMeriProcedureSchemas({
+            procedure: currentProcedure,
+            schemas: currentCatalog,
+            registry: this.registry,
+          }).schemas;
+        } catch {
+          return [];
+        }
+      })();
+      currentDiscoveryLookup = lookup;
+      try {
+        return await lookup;
+      } finally {
+        if (currentDiscoveryLookup === lookup) currentDiscoveryLookup = null;
+      }
+    };
+    const authorizeCurrentDiscoverySchema = async (schema: ToolSchema): Promise<boolean> => {
+      try {
+        assertToolExecutionActive(opts);
+        const definition = this.registry.get(schema.name);
+        const canonical = MERI_CAPABILITY_REGISTRY.find((item) => item.name === schema.name);
+        if (
+          !definition ||
+          !this.registry.list().includes(schema.name) ||
+          !canonical ||
+          canonical.readOnly !== definition.readOnly ||
+          dto.toolPolicy === 'none' ||
+          (dto.toolPolicy === 'read-only' && definition.readOnly !== true) ||
+          (admittedReadCapabilities && !admittedReadCapabilities.has(schema.name)) ||
+          (schema.name === 'get_research_evidence' && !dto.researchRun) ||
+          (currentServerReadonlyCapturePolicy() && schema.name === 'run_analysis')
+        ) {
+          return false;
+        }
+        assertMeriProcedureToolDispatch({
+          procedure: currentGovernedMeriContext()?.procedure,
+          toolName: schema.name,
+          readOnly: definition.readOnly,
+        });
+        await this.assertCurrentProcedureAuthority(dto.conversationId, schema.name, opts);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    const progressiveDiscovery = new MeriProgressiveToolDiscovery({
+      // Legacy and shadow remain behavior-identical. Progressive disclosure is
+      // served only where the existing enabled selector already narrows schemas.
+      authorizedSchemas:
+        selection.decision.mode === 'enabled' ? authorizedSchemas : selection.schemas,
+      exposedSchemas: selection.schemas,
+      budget: runtimeBudget,
+      resolveCurrentSchemas: resolveCurrentDiscoverySchemas,
+      authorizeCurrentSchema: authorizeCurrentDiscoverySchema,
+    });
+    let availableSchemas = progressiveDiscovery.exposedSchemas();
+    this.logStructured('log', 'meri.semantic_tool_gateway.selection', {
+      decisionId: selection.decision.decisionId,
+      mode: selection.decision.mode,
+      requestedNames: selection.decision.requestedNames,
+      requestedCount: selection.decision.requestedNames.length,
+      selectedNames: selection.decision.selectedNames,
+      selectedCount: selection.decision.selectedNames.length,
+      exposedNames: selection.decision.exposedNames,
+      exposedCount: selection.decision.exposedNames.length,
+      invokedNames: [],
+      invokedCount: 0,
+      result: selection.decision.fallbackToLegacy ? 'fallback_legacy' : 'selected',
+    });
+    const configIdentity = meriTelemetryConfigIdentity({
+      runtime: 'meriv3',
+      profile: {
+        model: profile.model,
+        mode: profile.mode,
+        effort: profile.effort,
+        maxOutputTokens: profile.maxOutputTokens,
+        maxToolRounds: profile.maxToolRounds,
+      },
+      toolPolicy: dto.toolPolicy ?? 'default',
+      exposedTools: availableSchemas.map((schema) => schema.name).sort(),
+      assuranceMode,
+      evidenceAccuracyMode,
+    });
+    setMeriTelemetryConfigIdentity(configIdentity);
+    emitMeriOrchestratorTelemetry({
+      name: 'meri.orchestrator.tools.selected',
+      boundary: 'turn',
+      runtime: 'meriv3',
+      provider: 'openai',
+      requestedModel: profile.model,
+      effectiveModel: profile.model,
+      clientId: dto.clientId ?? null,
+      selectedTools: selection.schemas.map((schema) => schema.name),
+      exposedTools: availableSchemas.map((schema) => schema.name),
+      childRunId: dto.researchRun?.runId ?? null,
+      outcome: 'selected',
+    });
 
-    const tools = availableSchemas.map(anthropicSchemaToResponsesTool);
+    let tools = [...availableSchemas, ...progressiveDiscovery.controlSchemas()].map(
+      anthropicSchemaToResponsesTool,
+    );
     const verificationAvailable = availableSchemas.length > 0;
     const input: Array<Record<string, unknown>> = [...initialInput];
     const steps: ChatStep[] = [];
@@ -729,6 +1272,9 @@ export class MeriV3AssistantService {
     let actualModel = profile.model;
     let actualEffort: MeriV3ChatResult['reasoningEffort'] = null;
     const providerCalls: MeriV3ProviderTelemetry[] = [];
+    const captureToolCalls: NonNullable<MeriV3ChatResult['captureEvidence']>['toolCalls'] = [];
+    const captureSources: NonNullable<MeriV3ChatResult['captureEvidence']>['sources'] = [];
+    let providerCallObserved = false;
     let telemetry: MeriV3ProviderTelemetry = {
       requestedModel: profile.model,
       effectiveModel: null,
@@ -739,6 +1285,7 @@ export class MeriV3AssistantService {
       partial: false,
     };
     const recordProviderResult = (response: OpenAiResponsesResult): void => {
+      providerCallObserved = true;
       actualModel = response.model;
       actualEffort = response.telemetry?.effectiveReasoningEffort ?? null;
       const calls = response.providerCalls ?? (response.telemetry ? [response.telemetry] : []);
@@ -834,6 +1381,7 @@ export class MeriV3AssistantService {
     const reserveMs = synthesisReserveMs(profile.turnBudgetMs);
     let gatheredToolOutput = false;
     let completionRepairs = 0;
+    let providerCallRepairs = 0;
     let automaticReads = 0;
     let residualCoverageGaps: CoverageGap[] = [];
     let latestCoverageGaps: CoverageGap[] = [];
@@ -845,32 +1393,113 @@ export class MeriV3AssistantService {
       this.registry.get('read_client_documents')?.readOnly === true;
 
     const executeCalls = async (calls: OpenAiResponsesFunctionCall[]) => {
-      const executions = await this.executeFunctionCalls({
-        ctx,
-        dto,
-        calls,
-        schemas: availableSchemas,
-        steps,
-        toolCoverage,
-        pendingApprovals,
-        artifacts,
-        citations,
-        ledgerEntries,
-        toolsUsed,
-        emit,
-        prePersistRefusal,
-        noteComplianceOutcome,
-        evidenceAccuracyMode,
-        control: opts,
+      // A schema loaded by describe is eligible only on the next provider
+      // request. A hidden leaf emitted in the same batch remains undeclared.
+      const schemasAtRoundStart = [...availableSchemas];
+      const executionByCallId = new Map<string, FunctionExecution>();
+      const leafCalls: OpenAiResponsesFunctionCall[] = [];
+      for (const call of calls) {
+        if (!progressiveDiscovery.handles(call.name)) {
+          leafCalls.push(call);
+          continue;
+        }
+        let outcome;
+        try {
+          outcome = await progressiveDiscovery.execute(call.name, parseArguments(call.arguments));
+        } catch {
+          outcome = {
+            result: { error: 'Progressive discovery arguments were invalid.' },
+            matchedNames: [],
+            loadedNames: [],
+            resultCode: 'invalid_arguments',
+          };
+        }
+        const serialized = JSON.stringify(outcome.result);
+        executionByCallId.set(call.call_id, { call, result: outcome.result, serialized });
+        availableSchemas = progressiveDiscovery.exposedSchemas();
+        tools = [...availableSchemas, ...progressiveDiscovery.controlSchemas()].map(
+          anthropicSchemaToResponsesTool,
+        );
+        const observedNames = [...outcome.matchedNames, ...outcome.loadedNames];
+        this.logStructured('log', 'meri.semantic_tool_gateway.discovery', {
+          decisionId: selection.decision.decisionId,
+          operation: call.name,
+          requestedNames: [],
+          requestedCount: call.name === 'tool_search' ? 0 : 1,
+          selectedNames: observedNames,
+          selectedCount: observedNames.length,
+          exposedNames: availableSchemas.map((schema) => schema.name),
+          exposedCount: availableSchemas.length,
+          invokedNames: [call.name],
+          invokedCount: 1,
+          observedNames,
+          observedCount: observedNames.length,
+          result: outcome.resultCode,
+        });
+      }
+      const leafExecutions = leafCalls.length
+        ? await this.executeFunctionCalls({
+            ctx,
+            dto,
+            calls: leafCalls,
+            schemas: schemasAtRoundStart,
+            steps,
+            toolCoverage,
+            pendingApprovals,
+            artifacts,
+            citations,
+            ledgerEntries,
+            toolsUsed,
+            emit,
+            prePersistRefusal,
+            noteComplianceOutcome,
+            evidenceAccuracyMode,
+            control: opts,
+            runtimeBudget,
+            budgetScope,
+            semanticDecisionId: selection.decision.decisionId,
+            admittedReadCapabilities,
+            isProgressivelyLoaded: (name) => progressiveDiscovery.isLoaded(name),
+            resolveCurrentDiscoverySchemas,
+            authorizeCurrentDiscoverySchema,
+          })
+        : [];
+      for (const execution of leafExecutions) {
+        executionByCallId.set(execution.call.call_id, execution);
+      }
+      const executions = calls.flatMap((call) => {
+        const execution = executionByCallId.get(call.call_id);
+        return execution ? [execution] : [];
       });
-      gatheredToolOutput = gatheredToolOutput || executions.length > 0;
+      gatheredToolOutput = gatheredToolOutput || leafExecutions.length > 0;
       for (const execution of executions) {
-        MeriV3ResearchRuntimeStore.observeToolResult(execution.result);
+        const discoveryControl = progressiveDiscovery.handles(execution.call.name);
+        if (!discoveryControl) MeriV3ResearchRuntimeStore.observeToolResult(execution.result);
         input.push({
           type: 'function_call_output',
           call_id: execution.call.call_id,
           output: execution.serialized,
         });
+        const executionCitations = extractCitationsFromToolResult(
+          execution.call.name,
+          execution.result,
+          1,
+        );
+        const executionCoverage = observeMeriTurnToolCoverage(
+          execution.call.name,
+          execution.result,
+        );
+        const capture = observeMeriV3CaptureExecution({
+          callId: execution.call.call_id,
+          tool: execution.call.name,
+          readOnly: discoveryControl || this.registry.get(execution.call.name)?.readOnly === true,
+          result: execution.result,
+          citations: executionCitations,
+          coverage: executionCoverage,
+        });
+        captureToolCalls.push(...capture.toolCalls);
+        captureSources.push(...capture.sources);
+        if (discoveryControl) continue;
         // The observer receives the same bounded evidence that the model sees.
         try {
           documentCompletion?.observe(
@@ -897,6 +1526,7 @@ export class MeriV3AssistantService {
       // still checks the user's current ACL and the shared turn deadline.
       while (
         automaticReads < MAX_AUTOMATIC_DOCUMENT_READS &&
+        !runtimeBudget.acquisitionStopped &&
         (opts.deadlineAt ?? startedAt + profile.turnBudgetMs) - Date.now() > reserveMs
       ) {
         const next = documentCompletion.nextRead();
@@ -964,6 +1594,7 @@ export class MeriV3AssistantService {
           tenantId: ctx.tenantId,
           surface: 'chat',
           logger: this.structuredLogger,
+          fetchImpl: runtimeBudget.budgetedFetch('selection'),
         });
         const remainingMs = turnDeadlineAt() - selectionStartedAt;
         const answers = await askPassageQuestions({
@@ -1102,7 +1733,11 @@ export class MeriV3AssistantService {
       });
       const synthesis = await this.openai.complete({
         profile,
-        instructions: `${selected.instructions}\n\n${finishInstructions()}`,
+        instructions: [
+          selected.instructions,
+          finishInstructions(),
+          ...(runtimeBudget.acquisitionStopped ? [runtimeBudget.partialInstruction()] : []),
+        ].join('\n\n'),
         input: selected.input,
         tools: [],
         toolChoice: 'none',
@@ -1110,6 +1745,8 @@ export class MeriV3AssistantService {
         deadlineAt: opts.deadlineAt,
         ...(opts.signal ? { signal: opts.signal } : {}),
         safetyIdentifier: safetyIdentifier(ctx),
+        budget: runtimeBudget,
+        budgetPhase: 'synthesis',
       });
       recordProviderResult(synthesis);
       addUsage(usage, synthesis.usage);
@@ -1122,6 +1759,8 @@ export class MeriV3AssistantService {
         ),
       );
       void this.meterRound(ctx, synthesis.model, synthesis.usage, synthesis.usedTenantKey);
+      const boundaryFailure = completedTextResponseFailure(synthesis);
+      if (boundaryFailure) throw new ForcedSynthesisBoundaryError(boundaryFailure);
       return synthesis.outputText;
     };
 
@@ -1129,7 +1768,13 @@ export class MeriV3AssistantService {
       await continueDocumentReads();
       for (rounds = 0; rounds < profile.maxToolRounds; rounds += 1) {
         assertToolExecutionActive(opts);
+        if (runtimeBudget.acquisitionStopped) break;
         await this.assertResearchRunActive(dto, opts);
+        await progressiveDiscovery.refreshLoaded();
+        availableSchemas = progressiveDiscovery.exposedSchemas();
+        tools = [...availableSchemas, ...progressiveDiscovery.controlSchemas()].map(
+          anthropicSchemaToResponsesTool,
+        );
         const remainingMs = (opts.deadlineAt ?? startedAt + profile.turnBudgetMs) - Date.now();
         // Stop opening new gather rounds once only the synthesis reserve remains.
         if (remainingMs <= reserveMs) break;
@@ -1145,6 +1790,8 @@ export class MeriV3AssistantService {
           deadlineAt: opts.deadlineAt,
           ...(opts.signal ? { signal: opts.signal } : {}),
           safetyIdentifier: safetyIdentifier(ctx),
+          budget: runtimeBudget,
+          budgetPhase: 'acquisition',
         });
         recordProviderResult(response);
         assertToolExecutionActive(opts);
@@ -1155,9 +1802,34 @@ export class MeriV3AssistantService {
         );
         void this.meterRound(ctx, response.model, response.usage, response.usedTenantKey);
 
-        // The Responses API requires reasoning/function-call output items to be
-        // replayed on the next request. They remain request-local only: none is
-        // emitted to the browser or persisted as a message/audit body.
+        const providerCallBoundaryFailed =
+          response.status !== 'completed' ||
+          response.incompleteReason != null ||
+          response.telemetry.finishReason === 'incomplete_function_call' ||
+          response.telemetry.finishReason === 'malformed_function_call' ||
+          !functionCallBatchIsComplete(response.functionCalls);
+        if (providerCallBoundaryFailed) {
+          if (
+            providerCallRepairs < 1 &&
+            rounds + 1 < profile.maxToolRounds &&
+            (opts.deadlineAt ?? startedAt + profile.turnBudgetMs) - Date.now() > reserveMs
+          ) {
+            providerCallRepairs++;
+            input.push({
+              role: 'developer',
+              content:
+                'The previous provider response was incomplete or contained an invalid function call. Start that response again. Do not reuse or present partial prose. Emit only complete function calls with unique call IDs and valid JSON-object arguments.',
+            });
+            continue;
+          }
+          finalText =
+            'I could not complete this response, so I did not execute any calls from the incomplete provider turn. Please ask me to continue.';
+          break;
+        }
+
+        // The Responses API requires completed reasoning/function-call output
+        // items to be replayed on the next request. Incomplete output is never
+        // replayed, emitted to the browser, or persisted as a message/audit body.
         input.push(...(response.output as Array<Record<string, unknown>>));
 
         if (!response.functionCalls.length) {
@@ -1177,16 +1849,17 @@ export class MeriV3AssistantService {
           finalText = response.outputText;
           if (response.incompleteReason === 'max_output_tokens' && finalText) {
             finalText +=
-              '\n\n_(I reached this mode’s output limit. Ask me to continue if needed.)_';
+              '\n\n_(I reached this modeâ€™s output limit. Ask me to continue if needed.)_';
           }
           break;
         }
 
         await executeCalls(response.functionCalls);
         await continueDocumentReads();
+        if (runtimeBudget.acquisitionStopped) break;
       }
 
-      if (coverageRetrievalMode !== 'off') {
+      if (coverageRetrievalMode !== 'off' && !runtimeBudget.acquisitionStopped) {
         const coverageStartedAt = Date.now();
         let gaps = compareCoverage({
           requirements: coverageRequirements,
@@ -1423,7 +2096,14 @@ export class MeriV3AssistantService {
         (error instanceof Error && error.name === 'ResearchRunInactiveError')
       )
         finalText = '';
-      else if (
+      else if (error instanceof ForcedSynthesisBoundaryError) {
+        telemetry = {
+          ...telemetry,
+          partial: true,
+          finishReason: 'incomplete_synthesis_response',
+        };
+        finalText = incompleteSynthesisPartialReply(ledgerEntries);
+      } else if (
         !finalText &&
         (gatheredToolOutput || toolsUsed.length > 0) &&
         isModelTimeoutError(error)
@@ -1446,6 +2126,20 @@ export class MeriV3AssistantService {
           finalText =
             'I gathered sources for this request but hit a model time limit before the final write finished. Retry the turn (or switch to Deep Research) so I can finish the report from the evidence already collected. No unapproved action was executed.';
         }
+      } else if (
+        !finalText &&
+        (error instanceof MeriRunBudgetExhaustedError || runtimeBudget.acquisitionStopped)
+      ) {
+        try {
+          finalText = await runForcedSynthesis('aggregate runtime bound reached');
+        } catch (synthesisError) {
+          this.logger.error(
+            `MeriV3 bounded partial synthesis failed: ${
+              synthesisError instanceof Error ? synthesisError.message : String(synthesisError)
+            }`,
+          );
+          finalText = boundedPartialReply(runtimeBudget.reason, ledgerEntries);
+        }
       } else {
         this.logger.error(
           `MeriV3 model loop failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -1455,6 +2149,17 @@ export class MeriV3AssistantService {
       }
     }
 
+    if (
+      runtimeBudget.acquisitionStopped &&
+      runtimeBudget.reason !== 'cancelled' &&
+      runtimeBudget.reason !== 'deadline'
+    ) {
+      telemetry = {
+        ...telemetry,
+        partial: true,
+        finishReason: `runtime_${runtimeBudget.reason}`,
+      };
+    }
     if (opts.signal?.aborted || (opts.deadlineAt !== undefined && Date.now() >= opts.deadlineAt)) {
       telemetry = {
         ...telemetry,
@@ -1466,7 +2171,7 @@ export class MeriV3AssistantService {
       };
       finalText =
         telemetry.finishReason === 'deadline_exceeded'
-          ? 'I reached this turn’s time limit before completing the answer. Ask me to continue from the evidence collected so far.'
+          ? 'I reached this turnâ€™s time limit before completing the answer. Ask me to continue from the evidence collected so far.'
           : '';
     }
     const completionGaps = documentCompletion?.gaps() ?? [];
@@ -1511,7 +2216,8 @@ export class MeriV3AssistantService {
     if (
       autoCorrectionMode !== 'off' &&
       released.reply &&
-      autoCorrectionCategories.categories.size
+      autoCorrectionCategories.categories.size &&
+      !runtimeBudget.acquisitionStopped
     ) {
       const corrected = await this.applyBoundedAutoCorrection({
         ctx,
@@ -1534,6 +2240,9 @@ export class MeriV3AssistantService {
         evidenceAccuracyMode,
         synthesisModel: actualModel,
         canary,
+        runtimeBudget,
+        budgetScope,
+        admittedReadCapabilities,
       });
       released = { ...released, reply: corrected.reply, citations: corrected.citations };
       documentRequests = corrected.documentRequests;
@@ -1571,12 +2280,12 @@ export class MeriV3AssistantService {
         },
         'matchLabelEnforce',
       );
-      const matchResult = await applyMatchLabelControl({
+      let matchResult = await applyMatchLabelControl({
         mode: 'enforce',
         reply: released.reply,
         citations: released.citations,
         evidence: matchLedger.evidence,
-        ...(clientFit.client
+        ...(!runtimeBudget.acquisitionStopped && clientFit.client
           ? {
               evaluate: createClientFitEvaluator({
                 provider: clientFit.client,
@@ -1587,6 +2296,16 @@ export class MeriV3AssistantService {
             }
           : {}),
       });
+      // A model-budget failure must not turn enforce into pass-through. Local
+      // evidence derivation remains valid after aggregate acquisition stops.
+      if (matchResult.failureReason) {
+        matchResult = await applyMatchLabelControl({
+          mode: 'enforce',
+          reply: released.reply,
+          citations: released.citations,
+          evidence: matchLedger.evidence,
+        });
+      }
       released = { ...released, reply: matchResult.reply };
       if (matchResult.failureReason) {
         this.logStructured('warn', 'meri.match_label.failed', {
@@ -1596,16 +2315,51 @@ export class MeriV3AssistantService {
       }
     }
 
-    // Enforce is pre-release and bounded. Any lookup/deadline failure returns the original reply.
     if (statusProvenanceMode === 'enforce' && released.reply) {
-      const statusResult = await runStatusProvenance({
-        reply: released.reply,
-        mode: 'enforce',
-        registry: this.registry,
-        ctx,
-        deadlineAt: Math.min(opts.deadlineAt ?? Date.now() + 8_000, Date.now() + 8_000),
-        signal: opts.signal,
-      });
+      const retainedStatusResults = ledgerEntries
+        .filter((entry) => entry.tool === 'get_certification_status')
+        .map((entry) => entry.result);
+      let statusResult = runtimeBudget.acquisitionStopped
+        ? enforceRetainedStatusProvenance({
+            reply: released.reply,
+            retainedResults: retainedStatusResults,
+          })
+        : await runStatusProvenance({
+            reply: released.reply,
+            mode: 'enforce',
+            registry: withToolBudget(
+              this.registry,
+              runtimeBudget,
+              budgetScope,
+              async (name, input, control) => {
+                await this.assertCurrentAlternateReadAuthority(
+                  dto,
+                  availableSchemas,
+                  name,
+                  control,
+                );
+                await this.reserveAuxiliaryResearchDispatch(
+                  dto,
+                  name,
+                  input,
+                  `status:${runtimeBudget.toolSignature(budgetScope, name, input)}`,
+                  control,
+                );
+              },
+              admittedReadCapabilities,
+            ),
+            ctx,
+            deadlineAt: Math.min(opts.deadlineAt ?? Date.now() + 8_000, Date.now() + 8_000),
+            signal: opts.signal,
+          });
+      // If authoritative lookup cannot fit or fails, use retained evidence and
+      // qualify unsupported claims rather than silently passing them through.
+      if (!statusResult.lookupOk) {
+        statusResult = enforceRetainedStatusProvenance({
+          reply: released.reply,
+          retainedResults: retainedStatusResults,
+        });
+      }
       released = { ...released, reply: statusResult.reply };
       if (!statusResult.lookupOk) {
         this.logStructured('warn', 'meri.status_provenance.failed', {
@@ -1619,7 +2373,7 @@ export class MeriV3AssistantService {
       emit({ type: 'text', text: released.reply });
       canary.noteTextEmitted();
     }
-    if (matchLabelMode === 'shadow' && released.reply) {
+    if (!currentServerReadonlyCapturePolicy() && matchLabelMode === 'shadow' && released.reply) {
       const reply = released.reply;
       const releasedCitations = released.citations;
       const started = Date.now();
@@ -1681,7 +2435,7 @@ export class MeriV3AssistantService {
     this.logStructured('log', 'meri.canary.turn', { ...canaryEvent });
     // Always schedule after text emission. Stage 1 enforce is intentionally
     // shadow-only: this cannot hold, delay, retrieve for, or rewrite the answer.
-    if (claimAssessmentMode !== 'off') {
+    if (!currentServerReadonlyCapturePolicy() && claimAssessmentMode !== 'off') {
       const asOf = new Date().toISOString();
       scheduleClaimInventoryShadow({
         conversationId: dto.conversationId,
@@ -1706,20 +2460,21 @@ export class MeriV3AssistantService {
             ledger: claimLedger,
             asOf,
           }).filter((claim) => claim.material);
-          const passages = Object.fromEntries(
-            claimLedger.evidence.map((evidence) => {
-              const citation = released.citations.find((item) => item.id === evidence.sourceId);
-              const entry = ledgerEntries.find((item) => item.tool === evidence.sourceType);
-              return [evidence.id, { text: citation?.snippet ?? entry?.serialized ?? '' }];
-            }),
+          const passages = buildRepairPassages(
+            claimLedger.evidence,
+            released.citations,
+            ledgerEntries,
+            dto.clientId,
           );
           const providers = createChatDecisionProviders({
             env: process.env,
             tenantId: ctx.tenantId,
             surface: 'chat',
-            llm: this.llm,
+            llm: this.llm.withProviderBudget(runtimeBudget, 'shadow', 'legacy-judge-shadow'),
             logger: this.structuredLogger,
+            fetchImpl: runtimeBudget.budgetedFetch('shadow'),
           });
+          const shadowLegacy = providers.legacyBaseline;
           await assessReleasedClaims({
             claims,
             ledger: claimLedger,
@@ -1730,7 +2485,7 @@ export class MeriV3AssistantService {
             conversationId: dto.conversationId,
             turnId: undefined,
             asOf,
-            providers: { jev: providers.jev, legacy: providers.legacyBaseline },
+            providers: { jev: providers.jev, legacy: shadowLegacy },
             routing: resolveJevConfig(process.env).routing,
             budget: JEV_TASK_REGISTRY.claim_support.shadowBudget!,
             signal: opts.requestSignal ?? opts.signal,
@@ -1740,11 +2495,30 @@ export class MeriV3AssistantService {
       });
     }
     // Shadow starts only after text emission and is deliberately not awaited.
-    if (statusProvenanceMode === 'shadow' && released.reply) {
+    if (
+      !currentServerReadonlyCapturePolicy() &&
+      statusProvenanceMode === 'shadow' &&
+      released.reply
+    ) {
       void runStatusProvenance({
         reply: released.reply,
         mode: 'shadow',
-        registry: this.registry,
+        registry: withToolBudget(
+          this.registry,
+          runtimeBudget,
+          budgetScope,
+          async (name, input, control) => {
+            await this.assertCurrentAlternateReadAuthority(dto, availableSchemas, name, control);
+            await this.reserveAuxiliaryResearchDispatch(
+              dto,
+              name,
+              input,
+              `status-shadow:${runtimeBudget.toolSignature(budgetScope, name, input)}`,
+              control,
+            );
+          },
+          admittedReadCapabilities,
+        ),
         ctx,
         deadlineAt: Date.now() + 8_000,
         signal: opts.requestSignal ?? opts.signal,
@@ -1759,7 +2533,13 @@ export class MeriV3AssistantService {
         })
         .catch(() => undefined);
     }
-    if (dto.pageWrite && pageWriteState.payload && !released.held && !opts.signal?.aborted) {
+    if (
+      dto.pageWrite &&
+      pageWriteState.payload &&
+      !released.held &&
+      !opts.signal?.aborted &&
+      !runtimeBudget.acquisitionStopped
+    ) {
       const pageWrite = this.validateCitationText(
         pageWriteState.payload.body,
         citations,
@@ -1793,8 +2573,32 @@ export class MeriV3AssistantService {
         aborted: Boolean(opts.signal?.aborted),
         telemetry,
         providerCalls,
+        runtimeBudget: runtimeBudget.snapshot(),
       }),
     );
+    emitMeriOrchestratorTelemetry({
+      name: 'meri.orchestrator.turn.finalized',
+      boundary: 'turn',
+      runtime: 'meriv3',
+      provider: 'openai',
+      requestedModel: profile.model,
+      effectiveModel: actualModel,
+      clientId: dto.clientId ?? null,
+      invokedTools: toolsUsed,
+      sourceRefs: released.citations.map((citation) => ({
+        sourceId: citation.stableId ?? citation.id,
+        version: citation.source?.version ?? null,
+        hash: citation.documentEvidence?.contentHash ?? null,
+        tool: citation.tool,
+      })),
+      proposalId: pendingApprovals[0]?.proposalId ?? null,
+      artifactIds: artifacts.map((artifact) => artifact.id),
+      childRunId: dto.researchRun?.runId ?? null,
+      outcome: opts.signal?.aborted ? 'aborted' : telemetry.partial ? 'partial' : 'completed',
+      durationMs: Date.now() - startedAt,
+      usage: currentMeriTaskUsage(),
+      integrationDependencies: ['captured_turn_audit_receipt_pending_capture_policy_8e'],
+    });
     emit({
       type: 'runtime',
       runtime: 'meriv3',
@@ -1830,6 +2634,22 @@ export class MeriV3AssistantService {
       reasoningEffort: actualEffort,
       telemetry,
       providerCalls,
+      ...(currentServerReadonlyCapturePolicy()
+        ? {
+            captureEvidence: {
+              toolCalls: captureToolCalls,
+              sources: captureSources,
+              usage: currentMeriTaskUsage(),
+              estimatedCostUsd:
+                currentMeriTaskUsage().status === 'known'
+                  ? observed(currentMeriTaskUsage().knownEstimatedCostUsd!)
+                  : unknown('provider_usage_or_effective_model_price_not_fully_observed'),
+              providerCallObserved,
+              startedAt,
+              completedAt: Date.now(),
+            },
+          }
+        : {}),
       ...(evidenceAccuracyMode === 'enforce' ? { evidenceAccuracy: 'enforce' as const } : {}),
       ...(dto.toolPolicy ? { held: released.held } : {}),
       ...(dto.toolPolicy === 'read-only' ? { ledgerEntries } : {}),
@@ -1931,6 +2751,9 @@ export class MeriV3AssistantService {
     /** Model that wrote this turn; prices legacy-judge, recheck and revision tokens. */
     synthesisModel: string;
     canary: CanaryTurnCollector;
+    runtimeBudget: MeriRunBudget;
+    budgetScope: MeriToolSignatureScope;
+    admittedReadCapabilities: ReadonlySet<string> | null;
   }): Promise<{ reply: string; citations: MeriCitation[]; documentRequests: number }> {
     const { ctx, dto, opts, released } = args;
     const original = { reply: released.reply, citations: released.citations, documentRequests: 0 };
@@ -1945,7 +2768,11 @@ export class MeriV3AssistantService {
       });
       return original;
     }
-    if (opts.signal?.aborted || opts.requestSignal?.aborted) {
+    if (
+      opts.signal?.aborted ||
+      opts.requestSignal?.aborted ||
+      args.runtimeBudget.acquisitionStopped
+    ) {
       this.logStructured('log', 'meri.auto_correction.skipped', {
         conversationId,
         mode: args.mode,
@@ -2018,20 +2845,41 @@ export class MeriV3AssistantService {
           assessed: claims.length,
         });
       }
-      // Passages are bound to the ledger entry each evidence item came from and
-      // carry that entry's full text, so exact comparison sees the cited values.
+      // Bind only the exact current owner row/span; metadata and whole tool
+      // entries cannot become consulted evidence.
       const passages = buildRepairPassages(
         claimLedger.evidence,
         released.citations,
         args.ledgerEntries,
+        dto.clientId,
       );
       const providers = createChatDecisionProviders({
         env: process.env,
         tenantId: ctx.tenantId,
         surface: 'chat',
-        llm: this.llm,
+        llm: this.llm.withProviderBudget(args.runtimeBudget, 'repair', 'legacy-judge-repair'),
         logger: this.structuredLogger,
+        fetchImpl: args.runtimeBudget.budgetedFetch('repair'),
       });
+      const budgetedLegacy = providers.legacy;
+      // MeriRunBudget remains the aggregate owner. The typed ToolRegistry seam
+      // keeps accounting outside the repair loop and ready for later durable hooks.
+      const budgetedRepairRegistry = withToolBudget(
+        this.registry,
+        args.runtimeBudget,
+        args.budgetScope,
+        async (name, input, control) => {
+          await this.assertCurrentProcedureAuthority(dto.conversationId, name, control);
+          await this.reserveAuxiliaryResearchDispatch(
+            dto,
+            name,
+            input,
+            `repair:${args.runtimeBudget.toolSignature(args.budgetScope, name, input)}`,
+            control,
+          );
+        },
+        args.admittedReadCapabilities,
+      );
       // Document references are built only from what this turn observed
       // (readable content reads, selected or named listings); a turn that
       // touched no document passes none. The repair loop reads their
@@ -2046,7 +2894,7 @@ export class MeriV3AssistantService {
       const executor =
         args.mode === 'enforce'
           ? createOrchestratorToolExecutor({
-              registry: this.registry,
+              registry: budgetedRepairRegistry,
               schemas: args.availableSchemas,
               context: {
                 tenantId: ctx.tenantId,
@@ -2056,11 +2904,12 @@ export class MeriV3AssistantService {
               },
               citations: released.citations,
               ledgerEntries: args.ledgerEntries,
-              invoke: (name, input, signal) =>
-                this.registry.invoke(name, input, ctx, {
+              invoke: async (name, input, signal) => {
+                return budgetedRepairRegistry.invoke(name, input, ctx, {
                   signal: signal ?? controller.signal,
                   deadlineAt,
-                }),
+                });
+              },
               evidenceAccuracyMode: args.evidenceAccuracyMode,
               documentReferences,
             })
@@ -2080,13 +2929,22 @@ export class MeriV3AssistantService {
         tenantId: ctx.tenantId,
         clientId: dto.clientId,
         conversationId: dto.conversationId,
-        providers,
+        providers: { jev: providers.jev, legacy: budgetedLegacy },
         executor,
         // Remaining time is measured from this stage's deadline, never from a
         // budget clock the repair loop restarts for itself.
         generate:
           args.mode === 'enforce'
-            ? createRevisionGenerator(this.llm, () => Math.max(1, deadlineAt - Date.now()))
+            ? createRevisionGenerator(
+                {
+                  completeWithSchema: async (params) => {
+                    return this.llm
+                      .withProviderBudget(args.runtimeBudget, 'repair', 'claim-revision-repair')
+                      .completeWithSchema(params);
+                  },
+                },
+                () => Math.max(1, deadlineAt - Date.now()),
+              )
             : async ({ affectedText }) => ({ replacementText: affectedText, citedEvidenceIds: [] }),
         promotedCategories: args.categories,
         budget: { ...AUTO_CORRECTION_BUDGET, maxMs: Math.max(1, deadlineAt - Date.now()) },
@@ -2235,16 +3093,125 @@ export class MeriV3AssistantService {
     noteComplianceOutcome: (outcome: 'PASS' | 'WARN' | 'BLOCK') => void;
     evidenceAccuracyMode: ReturnType<typeof resolveEvidenceAccuracyMode>;
     control?: ToolExecutionControl;
+    runtimeBudget: MeriRunBudget;
+    budgetScope: MeriToolSignatureScope;
+    semanticDecisionId: string;
+    admittedReadCapabilities: ReadonlySet<string> | null;
+    isProgressivelyLoaded: (name: string) => boolean;
+    resolveCurrentDiscoverySchemas: () => Promise<ToolSchema[]>;
+    authorizeCurrentDiscoverySchema: (schema: ToolSchema) => Promise<boolean>;
   }): Promise<FunctionExecution[]> {
     const executions: FunctionExecution[] = [];
+    const publicCall = (call: OpenAiResponsesFunctionCall) =>
+      args.schemas.some((schema) => schema.name === call.name)
+        ? { tool: call.name, label: toolLabel(call.name), detail: undefined }
+        : UNKNOWN_PUBLIC_TOOL;
+    const logDispatch = (
+      call: OpenAiResponsesFunctionCall,
+      result: string,
+      invoked: boolean,
+    ): void => {
+      const exposed = args.schemas.some((schema) => schema.name === call.name);
+      this.logStructured('log', 'meri.semantic_tool_gateway.dispatch', {
+        decisionId: args.semanticDecisionId,
+        // Provider-emitted undeclared names are untrusted text. Keep the
+        // attempted-call count/result, but never echo an unknown name into
+        // selector telemetry where it could carry copied private request text.
+        requestedNames: exposed ? [call.name] : [],
+        requestedCount: 1,
+        selectedNames: exposed ? [call.name] : [],
+        selectedCount: exposed ? 1 : 0,
+        exposedNames: exposed ? [call.name] : [],
+        exposedCount: exposed ? 1 : 0,
+        invokedNames: invoked ? [call.name] : [],
+        invokedCount: invoked ? 1 : 0,
+        result,
+      });
+    };
+    const stopWithoutDispatch = (call: OpenAiResponsesFunctionCall): void => {
+      const detail = `Aggregate runtime acquisition stopped: ${args.runtimeBudget.reason ?? 'tool_calls'}.`;
+      const visible = publicCall(call);
+      const result = {
+        error: detail,
+        code: 'MERI_RUNTIME_BUDGET_STOPPED',
+        partial: true,
+      };
+      args.steps.push({
+        tool: visible.tool,
+        label: visible.label,
+        status: 'blocked',
+        detail: visible.detail ?? detail,
+      });
+      args.emit({
+        type: 'tool_done',
+        tool: visible.tool,
+        label: visible.label,
+        status: 'blocked',
+        detail: visible.detail ?? detail,
+      });
+      executions.push({ call, result, serialized: JSON.stringify(result) });
+      logDispatch(call, 'blocked_budget', false);
+    };
+    if (!args.runtimeBudget.reserveToolBatch(args.calls.length)) {
+      for (const call of args.calls) stopWithoutDispatch(call);
+      return executions;
+    }
+    // This cache exists only for one provider-emitted batch. It prevents two
+    // distinct call IDs with the same scoped write intent from creating two
+    // effects/proposals while still returning one correlated output per call ID.
+    const batchWriteIntents = new Map<string, FunctionExecution>();
     for (const call of args.calls) {
       assertToolExecutionActive(args.control);
-      await this.assertResearchRunActive(args.dto, args.control);
       const schema = args.schemas.find((candidate) => candidate.name === call.name);
       // Enforce capability selection at execution too: a provider can emit an
       // undeclared call, but it cannot escape the caller's narrower tool policy.
       if (!schema) {
-        const detail = 'This tool is not available for this operation.';
+        const detail = UNKNOWN_PUBLIC_TOOL.detail;
+        args.steps.push({
+          tool: UNKNOWN_PUBLIC_TOOL.tool,
+          label: UNKNOWN_PUBLIC_TOOL.label,
+          status: 'blocked',
+          detail,
+        });
+        args.emit({
+          type: 'tool_done',
+          tool: UNKNOWN_PUBLIC_TOOL.tool,
+          label: UNKNOWN_PUBLIC_TOOL.label,
+          status: 'blocked',
+          detail,
+        });
+        executions.push({
+          call,
+          result: { error: detail },
+          serialized: JSON.stringify({ error: detail }),
+        });
+        logDispatch(call, 'blocked_undeclared', false);
+        continue;
+      }
+      let currentProgressiveSchema = true;
+      if (args.isProgressivelyLoaded(call.name)) {
+        const current = (await args.resolveCurrentDiscoverySchemas()).find(
+          (candidate) => candidate.name === call.name,
+        );
+        currentProgressiveSchema = Boolean(
+          current &&
+          sameToolSchemaSurface(schema, current) &&
+          (await args.authorizeCurrentDiscoverySchema(current)),
+        );
+      }
+      const currentDefinition = this.registry.get(call.name);
+      const currentCapability = MERI_CAPABILITY_REGISTRY.find((item) => item.name === call.name);
+      if (
+        !currentDefinition ||
+        !this.registry.list().includes(call.name) ||
+        !currentCapability ||
+        currentCapability.readOnly !== currentDefinition.readOnly ||
+        !currentProgressiveSchema ||
+        args.dto.toolPolicy === 'none' ||
+        (args.dto.toolPolicy === 'read-only' && currentDefinition.readOnly !== true)
+      ) {
+        const detail =
+          'This capability is no longer available under the current governed tool policy.';
         args.steps.push({
           tool: call.name,
           label: toolLabel(call.name),
@@ -2260,11 +3227,14 @@ export class MeriV3AssistantService {
         });
         executions.push({
           call,
-          result: { error: detail },
-          serialized: JSON.stringify({ error: detail }),
+          result: { blocked: true, error: detail },
+          serialized: JSON.stringify({ blocked: true, error: detail }),
         });
+        logDispatch(call, 'blocked_current_policy', false);
         continue;
       }
+      await this.assertResearchRunActive(args.dto, args.control);
+      assertServerReadonlyCaptureToolAllowed(call.name);
       let parsed: Record<string, unknown>;
       try {
         parsed = parseArguments(call.arguments);
@@ -2283,6 +3253,7 @@ export class MeriV3AssistantService {
           result: { error: detail },
           serialized: JSON.stringify({ error: detail }),
         });
+        logDispatch(call, 'invalid_arguments', false);
         continue;
       }
       const augmented = this.augmentToolInput(
@@ -2293,30 +3264,99 @@ export class MeriV3AssistantService {
       if (call.name === 'get_research_evidence' && args.dto.researchRun) {
         augmented.input.sessionId = args.dto.researchRun.sessionId;
       }
+      const signature = args.runtimeBudget.toolSignature(
+        args.budgetScope,
+        call.name,
+        augmented.input,
+      );
+      if (!args.runtimeBudget.beginTool(signature)) {
+        stopWithoutDispatch(call);
+        continue;
+      }
+      const definition = currentDefinition;
+      const intentKey =
+        definition?.readOnly === false
+          ? writeIntentKey({
+              ctx: args.ctx,
+              dto: args.dto,
+              tool: call.name,
+              input: augmented.input,
+            })
+          : null;
+      const prior = intentKey ? batchWriteIntents.get(intentKey) : undefined;
+      if (prior) {
+        executions.push({ call, result: prior.result, serialized: prior.serialized });
+        logDispatch(call, 'deduplicated', false);
+        continue;
+      }
       args.toolsUsed.push(call.name);
-      const result = await this.invokeTool({
-        ctx: args.ctx,
-        name: call.name,
-        input: augmented.input,
-        conversationId: args.dto.conversationId,
-        steps: args.steps,
-        pendingApprovals: args.pendingApprovals,
-        artifacts: args.artifacts,
-        emit: args.emit,
-        prePersistRefusal: args.prePersistRefusal,
-        userRequest: this.lastUserText(args.dto),
-        noteComplianceOutcome: args.noteComplianceOutcome,
-        scopeViolation: augmented.scopeViolation,
-        control: args.control,
-        citations: args.citations,
-        evidenceAccuracyMode: args.evidenceAccuracyMode,
+      let durableSafeRead: DurableSafeReadOutcome | undefined;
+      const stepId = meriTelemetryChildSpanId();
+      const stepStartedAt = Date.now();
+      const citationStart = args.citations.length;
+      const artifactStart = args.artifacts.length;
+      const proposalStart = args.pendingApprovals.length;
+      emitMeriOrchestratorTelemetry({
+        name: 'meri.tool.step.started',
+        boundary: 'orchestrator_tool',
+        spanId: stepId,
+        stepId,
+        invokedTools: [call.name],
+        outcome: 'started',
       });
+      let result: unknown;
+      try {
+        result = await this.invokeTool({
+          ctx: args.ctx,
+          name: call.name,
+          input: augmented.input,
+          conversationId: args.dto.conversationId,
+          steps: args.steps,
+          pendingApprovals: args.pendingApprovals,
+          artifacts: args.artifacts,
+          emit: args.emit,
+          prePersistRefusal: args.prePersistRefusal,
+          userRequest: this.lastUserText(args.dto),
+          noteComplianceOutcome: args.noteComplianceOutcome,
+          scopeViolation: augmented.scopeViolation,
+          control: args.control,
+          citations: args.citations,
+          evidenceAccuracyMode: args.evidenceAccuracyMode,
+          providerCallId: call.call_id,
+          schema,
+          researchRun: args.dto.researchRun,
+          admittedReadCapabilities: args.admittedReadCapabilities,
+          captureDurableSafeRead: (outcome) => {
+            durableSafeRead = outcome;
+          },
+        });
+      } catch (error) {
+        emitMeriOrchestratorTelemetry({
+          name: 'meri.tool.step.finalized',
+          boundary: 'orchestrator_tool',
+          spanId: stepId,
+          stepId,
+          invokedTools: [call.name],
+          outcome: args.control?.signal?.aborted ? 'aborted' : 'error',
+          durationMs: Date.now() - stepStartedAt,
+        });
+        throw error;
+      }
+      logDispatch(call, governedToolResult(result), true);
       const visibleResult = projectMeriToolEvidence({
         result,
         maxCharacters: TOOL_RESULT_CHARS,
         readOnly: this.registry.get(call.name)?.readOnly === true,
         inputProperties: schema.input_schema.properties as Record<string, unknown> | undefined,
       });
+      if (definition?.readOnly === true) {
+        args.runtimeBudget.observeToolResult({
+          signature,
+          result: visibleResult,
+          failed: isLogicalToolFailure(visibleResult),
+          repeatable: isLegitimatePollingObservation(augmented.input, visibleResult),
+        });
+      }
       if (this.registry.get(call.name)?.readOnly === true) {
         const routeKeys = new Set([
           'clientId',
@@ -2385,10 +3425,39 @@ export class MeriV3AssistantService {
         args.artifacts.push(releasedArtifact);
         args.emit({ type: 'artifact', artifact: releasedArtifact });
       }
+      emitMeriOrchestratorTelemetry({
+        name: 'meri.tool.step.finalized',
+        boundary: 'orchestrator_tool',
+        spanId: stepId,
+        stepId,
+        invokedTools: [call.name],
+        sourceRefs: args.citations.slice(citationStart).map((citation) => ({
+          sourceId: citation.stableId ?? citation.id,
+          version: citation.source?.version ?? null,
+          hash: citation.documentEvidence?.contentHash ?? null,
+          tool: citation.tool,
+        })),
+        proposalId: args.pendingApprovals[proposalStart]?.proposalId ?? null,
+        operationId: meriTelemetryOperationId(result),
+        artifactIds: args.artifacts.slice(artifactStart).map((artifact) => artifact.id),
+        outcome:
+          classifyApiToolReadOutcome(call.name, result)?.kind ??
+          (isLogicalToolFailure(result) ? 'error' : governedToolResult(result)),
+        durationMs: Date.now() - stepStartedAt,
+      });
       const body = wrapMeriToolEvidence(call.name, visibleResult);
       const serialized = cites.length ? `${formatCitationsForPrompt(cites)}\n\n${body}` : body;
-      args.ledgerEntries.push({ tool: call.name, serialized, result: visibleResult });
-      executions.push({ call, result: visibleResult, serialized });
+      args.ledgerEntries.push({
+        tool: call.name,
+        serialized,
+        // A committed research read retains the exact owner payload; prompt
+        // projection remains `visibleResult` in the Responses call below.
+        result: durableSafeRead ? result : visibleResult,
+        ...(durableSafeRead ? { durableSafeRead } : {}),
+      } as LedgerEntry);
+      const execution = { call, result: visibleResult, serialized };
+      executions.push(execution);
+      if (intentKey) batchWriteIntents.set(intentKey, execution);
     }
     return executions;
   }
@@ -2445,10 +3514,16 @@ export class MeriV3AssistantService {
     control?: ToolExecutionControl;
     citations: MeriCitation[];
     evidenceAccuracyMode: ReturnType<typeof resolveEvidenceAccuracyMode>;
+    providerCallId: string;
+    schema: ToolSchema;
+    researchRun?: { sessionId: string; runId: string; leaseEpoch: number };
+    admittedReadCapabilities: ReadonlySet<string> | null;
+    captureDurableSafeRead: (outcome: DurableSafeReadOutcome) => void;
   }): Promise<unknown> {
     assertToolExecutionActive(args.control);
+    assertMeriV3ResearchCapability(args.admittedReadCapabilities, args.name);
     const label = toolLabel(args.name);
-    args.emit({ type: 'tool_call', tool: args.name, label });
+    args.emit({ type: 'tool_call', tool: args.name, label, providerCallId: args.providerCallId });
     if (args.scopeViolation) {
       args.steps.push({
         tool: args.name,
@@ -2472,6 +3547,11 @@ export class MeriV3AssistantService {
       args.emit({ type: 'tool_done', tool: args.name, label, status: 'error', detail });
       return { error: detail };
     }
+    assertMeriProcedureToolDispatch({
+      procedure: currentGovernedMeriContext()?.procedure,
+      toolName: args.name,
+      readOnly: definition.readOnly,
+    });
     const refusal = args.prePersistRefusal(args.name, args.input);
     if (refusal) {
       args.steps.push({ tool: args.name, label, status: 'blocked', detail: refusal });
@@ -2578,12 +3658,118 @@ export class MeriV3AssistantService {
       }
     }
 
+    let dispatchedReservationId: string | undefined;
     try {
-      const result = await this.registry.invoke(args.name, args.input, args.ctx, args.control);
-      args.steps.push({ tool: args.name, label, status: 'done' });
-      args.emit({ type: 'tool_done', tool: args.name, label, status: 'done' });
+      let result: unknown;
+      let durableSafeRead: DurableSafeReadOutcome | undefined;
+      if (args.researchRun) {
+        const toolVersion = toolSchemaVersion(args.schema);
+        const replay = await this.researchSafeReadRequest(
+          args.researchRun,
+          'replay',
+          {
+            providerCallId: args.providerCallId,
+            tool: args.name,
+            toolVersion,
+            input: args.input,
+          },
+          args.control,
+        );
+        if (replay.replayed === true) {
+          await this.assertCurrentProcedureAuthority(args.conversationId, args.name, args.control);
+          result = replay.result;
+          durableSafeRead = this.durableOutcome(replay.durableSafeRead);
+        } else {
+          if (replay.dispatchAllowed === false)
+            throw new Error(
+              'The durable attempt was already spent or its replay proof failed; no second dispatch is allowed.',
+            );
+          await this.assertCurrentProcedureAuthority(args.conversationId, args.name, args.control);
+          const reservation = await this.researchSafeReadRequest(
+            args.researchRun,
+            'reservations',
+            {
+              providerCallId: args.providerCallId,
+              tool: args.name,
+              input: args.input,
+            },
+            args.control,
+          );
+          if (
+            reservation.dispatchAllowed !== true ||
+            typeof reservation.reservationId !== 'string' ||
+            reservation.tool !== args.name ||
+            reservation.toolVersion !== toolVersion
+          )
+            throw new Error('Research tool attempt was not admitted for dispatch.');
+          dispatchedReservationId = reservation.reservationId;
+          result = await this.registry.invoke(args.name, args.input, args.ctx, args.control);
+          const classification = classifyApiToolReadOutcome(args.name, result);
+          if (
+            !classification ||
+            (classification.kind !== 'complete' && classification.kind !== 'empty')
+          ) {
+            dispatchedReservationId = undefined;
+            await this.researchSafeReadRequest(
+              args.researchRun,
+              'failures',
+              {
+                reservationId: reservation.reservationId,
+                code: classification?.kind ?? 'unknown_owner_result',
+              },
+              args.control,
+            );
+            const detail = `Read result was not durably qualified (${classification?.kind ?? 'unknown'}).`;
+            args.steps.push({ tool: args.name, label, status: 'error', detail });
+            args.emit({ type: 'tool_done', tool: args.name, label, status: 'error', detail });
+            return result;
+          }
+          const executionId = reservation.reservationId;
+          const receipt = await this.researchSafeReadRequest(
+            args.researchRun,
+            'outcomes',
+            {
+              reservationId: executionId,
+              executionId,
+              providerCallId: args.providerCallId,
+              tool: args.name,
+              toolVersion,
+              input: args.input,
+              result,
+            },
+            args.control,
+          );
+          durableSafeRead = this.durableOutcome({ ...receipt, replayed: false });
+        }
+      } else {
+        await this.assertCurrentProcedureAuthority(args.conversationId, args.name, args.control);
+        result = await this.registry.invoke(args.name, args.input, args.ctx, args.control);
+      }
+      if (durableSafeRead) args.captureDurableSafeRead(durableSafeRead);
+      args.steps.push({ tool: args.name, label, status: 'done', durableSafeRead });
+      args.emit({
+        type: 'tool_done',
+        tool: args.name,
+        label,
+        status: 'done',
+        durableSafeRead,
+        ...(durableSafeRead ? { ownerResult: result } : {}),
+      });
       return result;
     } catch (error) {
+      if (args.researchRun && dispatchedReservationId) {
+        try {
+          await this.researchSafeReadRequest(
+            args.researchRun,
+            'failures',
+            { reservationId: dispatchedReservationId, code: 'owner_dispatch_failed' },
+            args.control,
+          );
+        } catch {
+          // Keep the reservation uncertain when the lifecycle owner cannot
+          // durably classify the failed dispatch.
+        }
+      }
       assertToolExecutionActive(args.control);
       const detail = error instanceof Error ? error.message.slice(0, 180) : 'Tool failed';
       args.steps.push({ tool: args.name, label, status: 'error', detail });
@@ -2837,34 +4023,204 @@ export class MeriV3AssistantService {
     const execution = createMeriExecutionControl(control, 10_000);
     try {
       execution.assertActive();
-      const response = await fetch(
-        `${this.apiBaseUrl}/api/clio/research/${encodeURIComponent(sessionId)}/runs/${encodeURIComponent(runId)}/active`,
-        {
-          signal: execution.signal,
-          headers: {
-            authorization: `Bearer ${credentials.bearerToken}`,
-            accept: 'application/json',
-            ...(credentials.impersonateTenantId
-              ? { 'x-capiro-impersonate-tenant': credentials.impersonateTenantId }
-              : {}),
-          },
+      await withMeriOrchestratorTelemetrySpan(
+        { name: 'meri.research.active', boundary: 'research_checkpoint' },
+        async () => {
+          const response = await fetch(
+            `${this.apiBaseUrl}/api/clio/research/${encodeURIComponent(sessionId)}/runs/${encodeURIComponent(runId)}/active`,
+            {
+              signal: execution.signal,
+              headers: {
+                ...meriOrchestratorTelemetryHeaders(),
+                ...(this.serviceSecret ? { 'x-internal-service-secret': this.serviceSecret } : {}),
+                authorization: `Bearer ${credentials.bearerToken}`,
+                accept: 'application/json',
+                ...(credentials.impersonateTenantId
+                  ? { 'x-capiro-impersonate-tenant': credentials.impersonateTenantId }
+                  : {}),
+              },
+            },
+          );
+          if ([404, 409].includes(response.status)) {
+            const error = new Error(
+              'Research is stopped, superseded, or no longer accessible. No further calls were scheduled.',
+            );
+            error.name = 'ResearchRunInactiveError';
+            throw error;
+          }
+          if (!response.ok || ((await response.json()) as { active?: unknown }).active !== true)
+            throw new Error(
+              'Research run status could not be verified; no further calls were scheduled.',
+            );
+          execution.assertActive();
         },
+        'client',
       );
-      if ([404, 409].includes(response.status)) {
-        const error = new Error(
-          'Research is stopped, superseded, or no longer accessible. No further calls were scheduled.',
-        );
-        error.name = 'ResearchRunInactiveError';
-        throw error;
-      }
-      if (!response.ok || ((await response.json()) as { active?: unknown }).active !== true)
-        throw new Error(
-          'Research run status could not be verified; no further calls were scheduled.',
-        );
-      execution.assertActive();
     } finally {
       execution.dispose();
     }
+  }
+
+  private async researchSafeReadRequest(
+    researchRun: { sessionId: string; runId: string; leaseEpoch: number },
+    operation: 'reservations' | 'replay' | 'outcomes' | 'failures',
+    body: Record<string, unknown>,
+    control?: ToolExecutionControl,
+  ): Promise<Record<string, unknown>> {
+    const credentials = RequestCredentialsStore.get();
+    if (!credentials?.bearerToken)
+      throw new Error('Authenticated research result authority is required.');
+    return withMeriOrchestratorTelemetrySpan(
+      { name: `meri.research.researchSafeReadRequest.${operation}`, boundary: 'research_source' },
+      async () => {
+        const response = await fetch(
+          `${this.apiBaseUrl}/api/clio/research/${encodeURIComponent(researchRun.sessionId)}/runs/${encodeURIComponent(researchRun.runId)}/safe-read/${operation}`,
+          {
+            method: 'POST',
+            signal: control?.signal,
+            headers: {
+              ...meriOrchestratorTelemetryHeaders(),
+              authorization: ['Bearer', credentials.bearerToken].join(' '),
+              'content-type': 'application/json',
+              accept: 'application/json',
+              ...(this.serviceSecret ? { 'x-internal-service-secret': this.serviceSecret } : {}),
+              ...(credentials.impersonateTenantId
+                ? { 'x-capiro-impersonate-tenant': credentials.impersonateTenantId }
+                : {}),
+            },
+            body: JSON.stringify({ ...body, leaseEpoch: researchRun.leaseEpoch }),
+          },
+        );
+        if (!response.ok)
+          throw new Error(
+            `Research result authority rejected ${operation} (HTTP ${response.status}).`,
+          );
+        return (await response.json()) as Record<string, unknown>;
+      },
+      'client',
+    );
+  }
+
+  private durableProviderAccounting(
+    researchRun: { sessionId: string; runId: string; leaseEpoch: number },
+    control?: ToolExecutionControl,
+  ): MeriDurableProviderAccounting {
+    return {
+      reserve: async (binding) => {
+        const result = await this.researchProviderBudgetRequest(
+          researchRun,
+          'reservations',
+          binding,
+          control,
+        );
+        if (
+          typeof result.reservationId !== 'string' ||
+          typeof result.deadlineAt !== 'string' ||
+          typeof result.dispatchAllowed !== 'boolean'
+        )
+          throw new Error('Research provider authority returned an invalid reservation.');
+        return {
+          reservationId: result.reservationId,
+          deadlineAt: result.deadlineAt,
+          dispatchAllowed: result.dispatchAllowed,
+        };
+      },
+      settle: async (reservation, outcome) => {
+        await this.researchProviderBudgetRequest(
+          researchRun,
+          'settlements',
+          providerSettlementBody(reservation, outcome),
+          control,
+        );
+      },
+    };
+  }
+
+  private async researchProviderBudgetRequest(
+    researchRun: { sessionId: string; runId: string; leaseEpoch: number },
+    operation: 'reservations' | 'settlements',
+    body: object,
+    control?: ToolExecutionControl,
+  ): Promise<Record<string, unknown>> {
+    const credentials = RequestCredentialsStore.get();
+    const serviceSecret = this.serviceSecret;
+    if (!credentials?.bearerToken || !serviceSecret)
+      throw new Error('Authenticated research provider budget authority is required.');
+    return withMeriOrchestratorTelemetrySpan(
+      {
+        name: `meri.research.researchProviderBudgetRequest.${operation}`,
+        boundary: 'research_budget',
+      },
+      async () => {
+        const response = await fetch(
+          `${this.apiBaseUrl}/api/clio/research/${encodeURIComponent(researchRun.sessionId)}/runs/${encodeURIComponent(researchRun.runId)}/provider-budget/${operation}`,
+          {
+            method: 'POST',
+            signal: control?.signal,
+            headers: {
+              ...meriOrchestratorTelemetryHeaders(),
+              authorization: 'Bearer ' + credentials.bearerToken,
+              'x-internal-service-secret': serviceSecret,
+              'content-type': 'application/json',
+              accept: 'application/json',
+              ...(credentials.impersonateTenantId
+                ? { 'x-capiro-impersonate-tenant': credentials.impersonateTenantId }
+                : {}),
+            },
+            body: JSON.stringify({ ...body, leaseEpoch: researchRun.leaseEpoch }),
+          },
+        );
+        if (!response.ok)
+          throw new Error(
+            `Research provider budget rejected ${operation} (HTTP ${response.status}).`,
+          );
+        return (await response.json()) as Record<string, unknown>;
+      },
+      'client',
+    );
+  }
+
+  private async reserveAuxiliaryResearchDispatch(
+    dto: MeriV3ChatInput,
+    tool: string,
+    input: Record<string, unknown>,
+    providerCallId: string,
+    control?: ToolExecutionControl,
+  ): Promise<void> {
+    if (!dto.researchRun) return;
+    const reservation = await this.researchSafeReadRequest(
+      dto.researchRun,
+      'reservations',
+      { providerCallId, tool, input },
+      control,
+    );
+    if (reservation.dispatchAllowed !== true || typeof reservation.reservationId !== 'string')
+      throw new Error('Research tool attempt was not admitted for dispatch.');
+  }
+
+  private durableOutcome(value: unknown): DurableSafeReadOutcome {
+    if (!value || typeof value !== 'object') throw new Error('Invalid durable safe-read receipt.');
+    const receipt = value as Record<string, unknown>;
+    if (
+      typeof receipt.executionId !== 'string' ||
+      typeof receipt.providerCallId !== 'string' ||
+      typeof receipt.tool !== 'string' ||
+      typeof receipt.toolVersion !== 'string' ||
+      (receipt.classifier !== 'complete' && receipt.classifier !== 'empty') ||
+      typeof receipt.sequence !== 'number' ||
+      typeof receipt.receiptId !== 'string'
+    )
+      throw new Error('Incomplete durable safe-read receipt.');
+    return {
+      executionId: receipt.executionId,
+      providerCallId: receipt.providerCallId,
+      tool: receipt.tool,
+      toolVersion: receipt.toolVersion,
+      classifier: receipt.classifier,
+      sequence: receipt.sequence,
+      receiptId: receipt.receiptId,
+      replayed: receipt.replayed === true,
+    };
   }
 
   private async fetchToolSchemas(control?: ToolExecutionControl): Promise<ToolSchema[]> {
@@ -2903,6 +4259,7 @@ export class MeriV3AssistantService {
     usage: ProviderUsage,
     usedTenantKey: boolean,
   ): Promise<void> {
+    if (currentServerReadonlyCapturePolicy()) return;
     try {
       await recordAiUsageEvent(
         { prisma: this.prisma, logger: this.logger },
@@ -2923,6 +4280,7 @@ export class MeriV3AssistantService {
     verdict: ReturnType<typeof runAuditor>,
     reply: string,
   ): Promise<void> {
+    if (currentServerReadonlyCapturePolicy()) return;
     try {
       await this.prisma.withTenant(tenantId, (tx) =>
         tx.meriAuditLedger.create({
@@ -2946,6 +4304,26 @@ export class MeriV3AssistantService {
       );
     }
   }
+}
+
+function providerSettlementBody(
+  reservation: MeriProviderReservation,
+  outcome:
+    | { kind: 'known'; inputTokens: number; outputTokens: number }
+    | { kind: 'rejected' }
+    | { kind: 'uncertain' },
+): Record<string, unknown> {
+  return {
+    reservationId: reservation.reservationId,
+    attemptId: reservation.attemptId,
+    kind: reservation.kind,
+    phase: reservation.phase,
+    provider: reservation.provider,
+    model: reservation.model,
+    outcome: outcome.kind,
+    inputTokens: outcome.kind === 'known' ? outcome.inputTokens : null,
+    outputTokens: outcome.kind === 'known' ? outcome.outputTokens : null,
+  };
 }
 
 function extractChatArtifacts(result: unknown): ChatArtifact[] {

@@ -1,0 +1,76 @@
+Nous Research Hermes Agent (H1 runtime guardrails, H2 context compaction, H4 governed discovery, and H5 procedure playbook)
+
+This product includes a substantial TypeScript adaptation of tool-loop guardrail concepts from Hermes Agent. Adapted behavior is implemented in:
+
+- apps/meriv2-orchestrator/src/meri/meriv3/meriv3-run-budget.ts
+- apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts
+- apps/meriv2-orchestrator/src/meri/meriv3/openai-responses.client.ts
+
+This product also includes a native TypeScript adaptation of context-compaction
+behavior from these pinned Hermes Agent sources and tests:
+
+- NousResearch/hermes-agent@516535b54275e963a82b4c28f866338fb768e7bc
+- agent/context_compressor.py
+- agent/conversation_compression.py
+- NousResearch/hermes-agent@062dc1e7f0f5faa5114b4d98b94c48f5ec5df36f
+- tests/agent/test_compression_adoption_preserves_live_tail.py
+- tests/agent/test_compression_stall_deterministic_fallback.py
+- tests/agent/test_compressor_tail_cut_tool_pair_floor.py
+- tests/agent/test_context_compressor_cross_session_guard.py
+- tests/agent/test_steer_compaction_persistence.py
+
+The H2 adaptation is implemented in:
+
+- apps/api/src/meri/meri-compaction.helpers.ts
+- apps/api/src/meri/meri.service.ts
+- apps/api/src/meri/meriv3-proxy.service.ts
+
+This product also includes an H5 adaptation of evidence classification, cited
+commitments, unresolved owner/date handling, modality preservation, duplicate
+checks, and approval separation from these pinned Hermes Agent playbooks:
+
+- NousResearch/hermes-agent@516535b54275e963a82b4c28f866338fb768e7bc
+- skills/productivity/meeting-action-items/SKILL.md
+- skills/productivity/document-to-action-items/SKILL.md
+
+The H5 adaptation is implemented in:
+
+- apps/api/src/meri/skills/commitments-audit.procedure.ts
+
+Pinned acquisition and behavior mapping:
+
+- docs/meri/implementation/acquisitions/runtime-guardrails.md
+- docs/meri/implementation/acquisitions/procedure-manifests.md
+
+This product also includes a native, concept-level TypeScript adaptation of scoped tool-selection concepts from Hermes Agent commit `516535b54275e963a82b4c28f866338fb768e7bc`, specifically `tools/tool_search.py`, `tools/tool_search_catalog.py`, and `tools/tool_search_validation.py`. No Python bridge code was copied or ported. The adapted behavior is implemented in:
+
+- apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.ts
+- apps/meriv2-orchestrator/src/meri/meriv3/meriv3-governed-tool-selection.ts
+- apps/meriv2-orchestrator/src/meri/meriv3/meri-progressive-tool-discovery.ts
+- apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts
+
+Pinned acquisition and qualification:
+
+- docs/meri/implementation/acquisitions/governed-tool-selection.md
+
+MIT License
+
+Copyright (c) 2025 Nous Research
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

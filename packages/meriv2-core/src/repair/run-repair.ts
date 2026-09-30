@@ -1,4 +1,4 @@
-import type { AssuredClaim } from '../assurance/claim-ledger';
+import { evidenceEligibleForSupport, type AssuredClaim } from '../assurance/claim-ledger';
 import type { EvidenceDecision, EvidenceEnvelope } from '../jev/decision-contract';
 import { assembleAnswer } from './assemble';
 import { deriveRequirement, planRemedy } from './plan-remedy';
@@ -183,22 +183,30 @@ export async function runRepairLoop(input: RunRepairLoopInput): Promise<RepairOu
         }
         continue;
       }
-      if (!result.evidence.length) {
+      const eligibleEvidence = result.evidence.filter(
+        (item) =>
+          evidenceEligibleForSupport(item) &&
+          item.acquisitionState === 'consulted' &&
+          item.ownerVerified === true &&
+          item.passage.trim().length > 0 &&
+          (!input.clientId || !item.clientId || item.clientId === input.clientId),
+      );
+      if (!eligibleEvidence.length) {
         unresolvedReasons.set(claim.id, 'no_new_evidence');
         break;
       }
       hadNewEvidence = true;
-      ledger = addEvidence(ledger, result.evidence);
+      ledger = addEvidence(ledger, eligibleEvidence);
       const revisedClaim: AssuredClaim = {
         ...claim,
-        sourceIds: result.evidence.map((item) => item.id),
+        sourceIds: eligibleEvidence.map((item) => item.id),
         unsupportedReason: undefined,
         conflict: undefined,
       };
       const revised = await reviseAffectedClaim({
         reply: input.reply,
         claim,
-        evidence: result.evidence,
+        evidence: eligibleEvidence,
         ledgerEvidenceIds: new Set(ledger.ledger.evidence.map((item) => item.id)),
         generate: input.generate,
         signal: input.signal,
@@ -439,13 +447,16 @@ function ledgerMarksSupported(claim: AssuredClaim, ledger: RepairLedgerVersion):
   const recorded = ledger.ledger.claims.find((item) => item.id === claim.id);
   if (recorded) {
     return (
-      recorded.sourceIds.length > 0 &&
+      recorded.sourceIds.some((id) =>
+        evidenceEligibleForSupport(ledger.ledger.evidence.find((item) => item.id === id)),
+      ) &&
       !ledger.ledger.unsupportedClaimIds.includes(claim.id) &&
       !ledger.ledger.conflictedClaimIds.includes(claim.id)
     );
   }
-  const evidence = new Set(ledger.ledger.evidence.map((item) => item.id));
-  return claim.sourceIds.some((id) => evidence.has(id));
+  return claim.sourceIds.some((id) =>
+    evidenceEligibleForSupport(ledger.ledger.evidence.find((item) => item.id === id)),
+  );
 }
 
 function fallbackRevision(
@@ -491,14 +502,7 @@ function cloneLedger(version: RepairLedgerVersion): RepairLedgerVersion {
 
 function addEvidence(ledger: RepairLedgerVersion, evidence: RepairEvidence[]): RepairLedgerVersion {
   const byId = new Map(ledger.ledger.evidence.map((item) => [item.id, item]));
-  for (const {
-    passage: _passage,
-    documentId: _documentId,
-    version: _version,
-    locator: _locator,
-    ...item
-  } of evidence)
-    byId.set(item.id, item);
+  for (const { passage: _passage, ...item } of evidence) byId.set(item.id, item);
   const passages = {
     ...ledger.passages,
     ...Object.fromEntries(evidence.map((item) => [item.id, item.passage])),
@@ -540,14 +544,19 @@ function envelopeFor(
               evidenceId: id,
               sourceType: item.evidenceClass,
               sourceId: item.sourceId,
-              documentId: null,
-              version: null,
-              locator: null,
+              ...(item.clientId ? { clientId: item.clientId } : {}),
+              documentId: item.documentId ?? null,
+              version: item.version ?? null,
+              locator: item.locator ?? null,
               passage: ledger.passages[id] ?? '',
               sourceDate: item.asOf ?? null,
               publishedAt: item.publishedAt ?? null,
               effectiveAt: item.effectiveAt ?? null,
               retrievedAt: item.retrievedAt ?? null,
+              ...(item.acquisitionState ? { acquisitionState: item.acquisitionState } : {}),
+              ...(item.evidenceKind ? { evidenceKind: item.evidenceKind } : {}),
+              ...(item.contentHash ? { contentHash: item.contentHash } : {}),
+              ...(item.ownerVerified !== undefined ? { ownerVerified: item.ownerVerified } : {}),
             },
           ]
         : [];

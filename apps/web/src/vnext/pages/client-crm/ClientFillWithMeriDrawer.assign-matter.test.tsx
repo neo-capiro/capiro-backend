@@ -116,7 +116,7 @@ describe('ClientFillWithMeriDrawer — Attach to Matter / Create new Matter on a
     await waitFor(() => expect(screen.getByText('Attach to a Matter')).toBeInTheDocument());
     const dialogs = screen.getAllByRole('dialog');
     const modal = dialogs[dialogs.length - 1]!;
-    fireEvent.change(within(modal).getByRole('combobox'), { target: { value: 'matter-1' } });
+    fireEvent.change(await within(modal).findByRole('combobox'), { target: { value: 'matter-1' } });
     fireEvent.click(within(modal).getByRole('button', { name: 'Attach now' }));
 
     await waitFor(() =>
@@ -160,7 +160,7 @@ describe('ClientFillWithMeriDrawer — Attach to Matter / Create new Matter on a
     fireEvent.click(screen.getByText('Attach to Matter'));
     await waitFor(() => expect(screen.getByText('Attach to a Matter')).toBeInTheDocument());
     const modal = screen.getAllByRole('dialog').at(-1)!;
-    fireEvent.change(within(modal).getByRole('combobox'), { target: { value: 'matter-1' } });
+    fireEvent.change(await within(modal).findByRole('combobox'), { target: { value: 'matter-1' } });
     fireEvent.click(within(modal).getByRole('button', { name: 'Attach now' }));
 
     await waitFor(() => expect(onOpenMatter).toHaveBeenCalledWith('matter-new'));
@@ -180,7 +180,7 @@ describe('ClientFillWithMeriDrawer — Attach to Matter / Create new Matter on a
     fireEvent.click(screen.getByText('Attach to Matter'));
     await waitFor(() => expect(screen.getByText('Attach to a Matter')).toBeInTheDocument());
     const modal = screen.getAllByRole('dialog').at(-1)!;
-    fireEvent.change(within(modal).getByRole('combobox'), { target: { value: 'matter-1' } });
+    fireEvent.change(await within(modal).findByRole('combobox'), { target: { value: 'matter-1' } });
     fireEvent.click(within(modal).getByRole('button', { name: 'Attach now' }));
 
     // The modal's own submit button is the "Applying…" indicator — no
@@ -203,7 +203,7 @@ describe('ClientFillWithMeriDrawer — Attach to Matter / Create new Matter on a
     fireEvent.click(screen.getByText('Attach to Matter'));
     await waitFor(() => expect(screen.getByText('Attach to a Matter')).toBeInTheDocument());
     const modal = screen.getAllByRole('dialog').at(-1)!;
-    fireEvent.change(within(modal).getByRole('combobox'), { target: { value: 'matter-1' } });
+    fireEvent.change(await within(modal).findByRole('combobox'), { target: { value: 'matter-1' } });
     fireEvent.click(within(modal).getByRole('button', { name: 'Attach now' }));
 
     await waitFor(() => expect(within(modal).getByText('Target advocacy matter not found')).toBeInTheDocument());

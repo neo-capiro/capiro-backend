@@ -1,14 +1,29 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { MeriContext, ToolExecutor, ToolExecutionControl } from '@capiro/meriv2-core';
+import {
+  encodeMeriCapturePolicyTransport,
+  MERI_CAPTURE_POLICY_HEADER,
+  type MeriContext,
+  type ToolExecutor,
+  type ToolExecutionControl,
+} from '@capiro/meriv2-core';
 import { createMeriExecutionControl } from './meri-execution-control.js';
+import { classifyApiToolReadOutcome } from './api-tool-read-outcome.js';
 import { RequestCredentialsStore } from '../request/request-credentials.store.js';
-import { currentTrustedCurrentTurnScope } from '../request/trusted-current-turn-scope.js';
+import {
+  assertServerReadonlyCaptureToolAllowed,
+  currentTrustedCurrentTurnScope,
+} from '../request/trusted-current-turn-scope.js';
 import {
   bindCurrentConversationToolInput,
   isCurrentConversationResearchPortfolioTool,
 } from './current-turn-tool-scope.js';
 import { buildResearchPortfolioToolTransport } from './rp-tool-transport.js';
+import {
+  emitMeriOrchestratorTelemetry,
+  withMeriOrchestratorTelemetrySpan,
+  meriOrchestratorTelemetryHeaders,
+} from '../telemetry/meri-telemetry.runtime.js';
 
 const RETRYABLE_MAIL_READS = new Set(['list_emails', 'search_emails', 'get_email_thread']);
 const MAX_MAIL_RETRY_DELAY_MS = 5_000;
@@ -105,10 +120,27 @@ export class ApiToolExecutorRepo implements ToolExecutor {
       throw new Error(`No forwarded credential available for delegated tool "${toolName}"`);
     }
     const currentTurn = currentTrustedCurrentTurnScope();
+    assertServerReadonlyCaptureToolAllowed(toolName);
     const boundedInput = bindCurrentConversationToolInput(toolName, input, currentTurn);
     const researchPortfolioTool = isCurrentConversationResearchPortfolioTool(toolName);
     if (researchPortfolioTool && !this.serviceSecret) {
-      throw new Error(`INTERNAL_SERVICE_SECRET is not configured for Research Portfolio tool "${toolName}"`);
+      throw new Error(
+        `INTERNAL_SERVICE_SECRET is not configured for Research Portfolio tool "${toolName}"`,
+      );
+    }
+    if (toolName === 'read_chat_attachments') {
+      if (!this.serviceSecret) {
+        throw new Error('Internal service identity is not configured for chat attachment reads');
+      }
+      if (!currentTurn?.conversationId) {
+        throw new Error('Trusted current conversation is unavailable for chat attachment reads');
+      }
+      if (
+        boundedInput.conversationId !== undefined &&
+        boundedInput.conversationId !== currentTurn.conversationId
+      ) {
+        throw new Error('Chat attachment reads cannot target another conversation');
+      }
     }
     const execution = createMeriExecutionControl(control, this.timeoutMs);
     try {
@@ -125,6 +157,16 @@ export class ApiToolExecutorRepo implements ToolExecutor {
           // its compliance gate), so apps/api can reject a rogue user hitting the
           // raw tool endpoint directly. See ToolServiceSecretGuard.
           ...(this.serviceSecret ? { 'x-internal-service-secret': this.serviceSecret } : {}),
+          ...(currentTurn?.capturePolicy
+            ? {
+                [MERI_CAPTURE_POLICY_HEADER]: encodeMeriCapturePolicyTransport(
+                  currentTurn.capturePolicy,
+                  'tool',
+                  toolName,
+                  this.serviceSecret,
+                ),
+              }
+            : {}),
           // Impersonation passthrough (2.5): re-send the effective-tenant header
           // so apps/api scopes THIS delegated tool call to the impersonated
           // tenant (it re-validates the caller's impersonation rights).
@@ -133,9 +175,20 @@ export class ApiToolExecutorRepo implements ToolExecutor {
             : {}),
         },
         body: JSON.stringify(
-          researchPortfolioTool
-            ? buildResearchPortfolioToolTransport(toolName, boundedInput, currentTurn)
-            : boundedInput,
+          toolName === 'read_chat_attachments'
+            ? {
+                version: 1,
+                input: { ...boundedInput, conversationId: currentTurn!.conversationId },
+                currentTurn: {
+                  tenantId: currentTurn!.tenantId,
+                  userId: currentTurn!.userId,
+                  conversationId: currentTurn!.conversationId,
+                  selectedClientId: currentTurn!.selectedClientId,
+                },
+              }
+            : researchPortfolioTool
+              ? buildResearchPortfolioToolTransport(toolName, boundedInput, currentTurn)
+              : boundedInput,
         ),
         signal: execution.signal,
       } satisfies RequestInit;
@@ -144,21 +197,103 @@ export class ApiToolExecutorRepo implements ToolExecutor {
       // existing single-attempt path; a 503 alone is not transient evidence.
       for (let attempt = 0; ; attempt += 1) {
         execution.assertActive();
-        const res = await fetch(url, request);
-        if (res.ok) return (await res.json()) as unknown;
-        const body = await res.text().catch(() => '');
-        this.logger.warn(`Delegated tool "${toolName}" -> ${res.status}`);
-        const retryDelay = attempt === 0 ? mailCapacityRetryDelay(toolName, res, body) : null;
-        if (
-          retryDelay !== null &&
-          (execution.deadlineAt === undefined || Date.now() + retryDelay < execution.deadlineAt)
-        ) {
-          await waitForMailRetry(retryDelay, execution.signal);
+        const attemptStartedAt = Date.now();
+        const result = await withMeriOrchestratorTelemetrySpan<
+          { retryDelay: number; payload?: never } | { retryDelay: null; payload: unknown }
+        >(
+          {
+            name: 'meri.tool.attempt',
+            boundary: 'orchestrator_tool',
+            invokedTools: [toolName],
+            attempt: attempt + 1,
+            retry: attempt > 0,
+          },
+          async () => {
+            let res: Response;
+            try {
+              res = await fetch(url, {
+                ...request,
+                headers: { ...request.headers, ...meriOrchestratorTelemetryHeaders() },
+              });
+            } catch (error) {
+              emitMeriOrchestratorTelemetry({
+                name: 'meri.tool.attempt.finalized',
+                boundary: 'orchestrator_tool',
+                invokedTools: [toolName],
+                attempt: attempt + 1,
+                retry: attempt > 0,
+                outcome: execution.signal.aborted ? 'aborted' : 'error',
+                durationMs: Date.now() - attemptStartedAt,
+              });
+              throw error;
+            }
+            if (res.ok) {
+              const payload = (await res.json()) as unknown;
+              const outcome = classifyApiToolReadOutcome(toolName, payload);
+              if (outcome?.kind === 'failed' || outcome?.kind === 'unavailable') {
+                emitMeriOrchestratorTelemetry({
+                  name: 'meri.tool.attempt.finalized',
+                  boundary: 'orchestrator_tool',
+                  invokedTools: [toolName],
+                  attempt: attempt + 1,
+                  retry: attempt > 0,
+                  outcome: outcome.kind,
+                  durationMs: Date.now() - attemptStartedAt,
+                });
+                this.logger.warn(`Delegated read "${toolName}" -> ${outcome.kind}`);
+                throw new Error(
+                  `Delegated read "${toolName}" ${outcome.kind}: ${(outcome.reason ?? 'owner_result_unavailable').slice(0, 200)}`,
+                );
+              }
+              emitMeriOrchestratorTelemetry({
+                name: 'meri.tool.attempt.finalized',
+                boundary: 'orchestrator_tool',
+                invokedTools: [toolName],
+                attempt: attempt + 1,
+                retry: attempt > 0,
+                outcome: 'completed',
+                durationMs: Date.now() - attemptStartedAt,
+              });
+              return { retryDelay: null, payload };
+            }
+            const body = await res.text().catch(() => '');
+            this.logger.warn(`Delegated tool "${toolName}" -> ${res.status}`);
+            const retryDelay = attempt === 0 ? mailCapacityRetryDelay(toolName, res, body) : null;
+            if (
+              retryDelay !== null &&
+              (execution.deadlineAt === undefined || Date.now() + retryDelay < execution.deadlineAt)
+            ) {
+              emitMeriOrchestratorTelemetry({
+                name: 'meri.tool.attempt.finalized',
+                boundary: 'orchestrator_tool',
+                invokedTools: [toolName],
+                attempt: attempt + 1,
+                retry: false,
+                outcome: 'retry_scheduled',
+                durationMs: Date.now() - attemptStartedAt,
+              });
+              return { retryDelay };
+            }
+            emitMeriOrchestratorTelemetry({
+              name: 'meri.tool.attempt.finalized',
+              boundary: 'orchestrator_tool',
+              invokedTools: [toolName],
+              attempt: attempt + 1,
+              retry: attempt > 0,
+              outcome: 'error',
+              durationMs: Date.now() - attemptStartedAt,
+            });
+            throw new Error(
+              `Delegated tool "${toolName}" failed: ${res.status} ${res.statusText} ${body.slice(0, 200)}`,
+            );
+          },
+          'client',
+        );
+        if (result.retryDelay !== null) {
+          await waitForMailRetry(result.retryDelay, execution.signal);
           continue;
         }
-        throw new Error(
-          `Delegated tool "${toolName}" failed: ${res.status} ${res.statusText} ${body.slice(0, 200)}`,
-        );
+        return result.payload;
       }
     } finally {
       execution.dispose();

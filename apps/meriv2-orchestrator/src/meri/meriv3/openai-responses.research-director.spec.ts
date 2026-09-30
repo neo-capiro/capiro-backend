@@ -171,6 +171,56 @@ describe('OpenAI Responses Research Director runtime', () => {
     expect(result.telemetry).toMatchObject({ finishReason: 'completed', partial: false });
   });
 
+  test('rejects an incomplete critic before synthesis and returns a qualified closed draft', async () => {
+    process.env.OPENAI_API_KEY = 'test-key';
+    const incompleteCritic = {
+      ...messageResponse('PARTIAL CRITIC MUST NOT REACH SYNTHESIS', 'resp-critic-incomplete'),
+      status: 'incomplete',
+      incomplete_details: { reason: 'max_output_tokens' },
+    };
+    const responses = [
+      messageResponse('Closed grounded draft.', 'resp-draft'),
+      incompleteCritic,
+      messageResponse('Synthesis must not run.', 'resp-final'),
+    ];
+    const requests: Record<string, unknown>[] = [];
+    global.fetch = jest.fn(async (_input, init) => {
+      requests.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      return new Response(JSON.stringify(responses.shift()), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) as typeof fetch;
+
+    const result = await MeriV3ResearchRuntimeStore.run(
+      {
+        forcedFirstTool: 'research_federal_market_strategy',
+        criticInstructions: 'Run the silent senior-reviewer audit.',
+        synthesisInstructions: 'Write the final artifact-quality strategy.',
+      },
+      () =>
+        new OpenAiResponsesClient().complete({
+          profile: resolveMeriV3ReasoningProfile('deep', {}),
+          instructions: 'Research.',
+          input: [],
+          tools: [],
+          timeoutMs: 120_000,
+        }),
+    );
+
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(requests).toHaveLength(2);
+    expect(JSON.stringify(requests)).not.toContain('PARTIAL CRITIC MUST NOT REACH SYNTHESIS');
+    expect(result.outputText).toContain('Closed grounded draft.');
+    expect(result.outputText).toContain('Research finalization was incomplete');
+    expect(result.outputText).not.toContain('PARTIAL CRITIC');
+    expect(result.telemetry).toMatchObject({
+      finishReason: 'research_finalization_failed',
+      partial: true,
+    });
+    expect(result.providerCalls).toHaveLength(2);
+  });
+
   test('does not release the draft as a completed answer when Stop interrupts finalization', async () => {
     process.env.OPENAI_API_KEY = 'test-key';
     const controller = new AbortController();
@@ -238,7 +288,8 @@ describe('OpenAI Responses Research Director runtime', () => {
           timeoutMs: 120_000,
         }),
     );
-    expect(result.outputText).toBe('Draft.');
+    expect(result.outputText).toContain('Draft.');
+    expect(result.outputText).toContain('Research finalization was incomplete');
     expect(result.telemetry).toMatchObject({
       finishReason: 'research_finalization_failed',
       partial: true,

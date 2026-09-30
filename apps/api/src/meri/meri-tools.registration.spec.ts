@@ -101,6 +101,8 @@ const EXPECTED_TOOLS = [
   'get_client_context',
   'search_capiro_data',
   'get_research_evidence',
+  'read_chat_attachments',
+  'read_monday_client_boards',
   'search_research_sources',
   // Defense Intelligence Research Portfolios — one domain service surface.
   'get_research_portfolio',
@@ -135,6 +137,7 @@ const EXPECTED_TOOLS = [
   'search_congress_bills',
   // Vote/status truth layer (LegiWatch A5)
   'get_bill_status',
+  'read_bill_text',
   'get_certification_status',
   'search_floor_votes',
   // Budget-score spine (Bucket-#3 C4.F1, SC2.4)
@@ -213,6 +216,7 @@ const EXPECTED_TOOLS = [
   'query_regulatory_dockets',
   'search_sam_opportunities',
   'query_debriefs',
+  'read_client_meetings',
   'read_client_documents',
   'query_outreach',
   // Client creation (LDA-first): read-only pre-check + approval-gated write
@@ -280,6 +284,8 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   get_client_context: ['clientId'],
   search_capiro_data: ['query', 'domains'],
   get_research_evidence: ['sessionId'],
+  read_chat_attachments: [],
+  read_monday_client_boards: ['clientId'],
   search_research_sources: ['query'],
   get_research_portfolio: ['conversationId'],
   get_research_portfolio_analytics: ['conversationId'],
@@ -367,6 +373,7 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   query_global_data: ['dataset', 'select'],
   resolve_entity: ['query'],
   get_bill_status: ['billId'],
+  read_bill_text: ['billId'],
   get_certification_status: ['program', 'query'],
   get_state_bill_status: ['billId'],
   get_state_legislator: ['query'],
@@ -380,6 +387,7 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   cancel_scheduled_task: ['taskId'],
   search_tracked_bills: ['clientId'],
   query_debriefs: ['clientId'],
+  read_client_meetings: ['clientId'],
   read_client_documents: ['clientId'],
   lookup_client_registry: ['name'],
   create_client: ['name'],
@@ -418,6 +426,19 @@ function schemas() {
 }
 
 describe('Meri tool registration', () => {
+  it('dispatches read_chat_attachments only through the dedicated owner service', async () => {
+    const read = jest.fn(async () => ({ tool: 'read_chat_attachments', records: [] }));
+    const service = Object.assign(Object.create(MeriToolsService.prototype), {
+      chatAttachmentReader: { read },
+    }) as MeriToolsService;
+    const ctx = { tenantId: 'tenant-1', userId: 'user-1' } as never;
+    const input = { conversationId: '11111111-1111-4111-8111-111111111111' };
+    await expect(service.execute(ctx, 'read_chat_attachments', input)).resolves.toMatchObject({
+      tool: 'read_chat_attachments',
+    });
+    expect(read).toHaveBeenCalledWith(ctx, input);
+  });
+
   it.each(['get_legiwatch_review', 'apply_legiwatch_suggestion'] as const)(
     '%s injects authenticated identity and validates the client before the owner-service call',
     async (name) => {
@@ -510,6 +531,51 @@ describe('Meri tool registration', () => {
     await service.execute(actor as never, 'get_funding_opportunity', body);
     expect(opportunityTools.getFundingOpportunity).toHaveBeenCalledWith(actor, body);
   });
+
+  it.each([
+    'get_research_portfolio',
+    'get_research_portfolio_analytics',
+    'get_research_portfolio_changes',
+    'create_research_portfolio_snapshot',
+    'request_research_portfolio_output',
+    'save_research_portfolio_output_to_client',
+    'watch_research_portfolio',
+    'update_research_portfolio_change_state',
+    'get_research_portfolio_bookmarks',
+    'create_research_portfolio_bookmark',
+    'get_research_portfolio_fit',
+    'get_research_portfolio_reviews',
+    'add_research_portfolio_review_note',
+    'get_research_portfolio_rules',
+    'get_research_portfolio_imports',
+    'get_research_portfolio_operations',
+    'prepare_research_portfolio_brief',
+    'prepare_research_portfolio_meeting',
+  ] as const)(
+    '%s delegates authorization and handling to the canonical portfolio adapter',
+    async (name) => {
+      const actor = {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        role: 'standard_user',
+      } as const;
+      const input = { conversationId: '11111111-1111-4111-8111-111111111111' };
+      const execute = jest.fn().mockResolvedValue({ authorized: true });
+      const service = Object.assign(Object.create(MeriToolsService.prototype), {
+        researchPortfolioTools: { execute },
+      }) as MeriToolsService;
+
+      await expect(service.execute(actor as never, name, input)).resolves.toEqual({
+        authorized: true,
+      });
+      expect(execute).toHaveBeenCalledWith(actor, name, input);
+
+      execute.mockRejectedValueOnce(new Error('portfolio scope denied'));
+      await expect(service.execute(actor as never, name, input)).rejects.toThrow(
+        'portfolio scope denied',
+      );
+    },
+  );
 
   it('every advertised core schema dispatches to an existing callable handler', async () => {
     const sentinel = { dispatched: true };
@@ -619,7 +685,9 @@ describe('Meri tool registration', () => {
           ? { query: 'strategy', domains: ['strategies_work'] }
           : schema.name === 'get_research_evidence'
             ? { sessionId: '11111111-1111-4111-8111-111111111111' }
-            : {},
+            : schema.name === 'read_chat_attachments'
+              ? { conversationId: '11111111-1111-4111-8111-111111111111' }
+              : {},
       );
       expect(result).toMatchObject(sentinel);
       expect(calls).toHaveLength(1);
@@ -719,6 +787,8 @@ describe('Meri tool registration', () => {
       'save_research_portfolio_output_to_client',
       'watch_research_portfolio',
       'update_research_portfolio_change_state',
+      'create_research_portfolio_bookmark',
+      'add_research_portfolio_review_note',
     ];
     // isSideEffecting flags exactly the write tools — and not read/compute tools.
     for (const t of writeTools) expect(svc.isSideEffecting(t)).toBe(true);

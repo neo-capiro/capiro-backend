@@ -1,7 +1,19 @@
+import { meriTelemetryUsage } from '@capiro/meriv2-core';
 import { prepareOpenAiResponsesRequest, upgradeTextModel } from '@capiro/shared/ai-model-policy';
 import { Injectable, Logger } from '@nestjs/common';
-import type { ProviderUsage } from '@capiro/shared';
+import { AI_PRICING, computeAiCostUsd, type ProviderUsage } from '@capiro/shared';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
+import {
+  stableProviderOperationId,
+  type MeriModelBudgetPhase,
+  type MeriRunBudget,
+} from './meriv3-run-budget.js';
+import {
+  emitMeriOrchestratorTelemetry,
+  withMeriOrchestratorTelemetrySpan,
+  noteMeriProviderUsage,
+  noteMeriUnknownProviderUsage,
+} from '../../telemetry/meri-telemetry.runtime.js';
 import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
 import type {
   MeriV3ReasoningEffort,
@@ -55,6 +67,8 @@ interface CompleteParams {
   deadlineAt?: number;
   signal?: AbortSignal;
   safetyIdentifier?: string;
+  budget?: MeriRunBudget;
+  budgetPhase?: MeriModelBudgetPhase;
 }
 
 interface RawResponsesBody {
@@ -72,13 +86,39 @@ interface RawResponsesBody {
   };
 }
 
-export function parseOpenAiResponsesUsage(body: RawResponsesBody): ProviderUsage {
+/** Raw observations stay nullable; the legacy ProviderUsage contract stays compatible. */
+export function observedOpenAiResponsesUsage(body: RawResponsesBody) {
+  const tokens = (value: unknown): number | null =>
+    typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null;
   return {
-    inputTokens: Number(body.usage?.input_tokens ?? 0) || 0,
-    outputTokens: Number(body.usage?.output_tokens ?? 0) || 0,
-    cacheReadTokens: Number(body.usage?.input_tokens_details?.cached_tokens ?? 0) || 0,
+    inputTokens: tokens(body.usage?.input_tokens),
+    outputTokens: tokens(body.usage?.output_tokens),
+    cacheReadTokens: tokens(body.usage?.input_tokens_details?.cached_tokens),
+    cacheCreationTokens: null,
+  };
+}
+
+export function parseOpenAiResponsesUsage(body: RawResponsesBody): ProviderUsage {
+  const observed = observedOpenAiResponsesUsage(body);
+  return {
+    inputTokens: observed.inputTokens ?? 0,
+    outputTokens: observed.outputTokens ?? 0,
+    cacheReadTokens: observed.cacheReadTokens ?? 0,
     cacheCreationTokens: 0,
   };
+}
+
+function knownOpenAiResponsesUsage(
+  body: RawResponsesBody,
+): { inputTokens: number; outputTokens: number } | null {
+  const inputTokens = body.usage?.input_tokens;
+  const outputTokens = body.usage?.output_tokens;
+  return Number.isSafeInteger(inputTokens) &&
+    Number(inputTokens) >= 0 &&
+    Number.isSafeInteger(outputTokens) &&
+    Number(outputTokens) >= 0
+    ? { inputTokens: Number(inputTokens), outputTokens: Number(outputTokens) }
+    : null;
 }
 
 function combinedUsage(...values: ProviderUsage[]): ProviderUsage {
@@ -120,6 +160,63 @@ export function extractResponsesFunctionCalls(
       typeof item.name === 'string' &&
       typeof item.arguments === 'string',
   );
+}
+
+/**
+ * A text boundary is usable only when the provider closed the entire response.
+ * Checking both the normalized call list and raw output prevents a malformed
+ * tool item suppressed by the adapter from being mistaken for tool-free prose.
+ */
+export function completedTextResponseFailure(response: OpenAiResponsesResult): string | null {
+  if (response.status !== 'completed') return `status_${response.status}`;
+  if (response.incompleteReason !== null) {
+    return `incomplete_${response.incompleteReason ?? 'unknown'}`;
+  }
+  if (response.telemetry.partial) return `partial_${response.telemetry.finishReason}`;
+  if (response.telemetry.finishReason !== 'completed') {
+    return `finish_${response.telemetry.finishReason}`;
+  }
+  if (
+    response.functionCalls.length > 0 ||
+    response.output.some((item) => item.type === 'function_call')
+  ) {
+    return 'unexpected_function_call';
+  }
+  if (!response.outputText.trim()) return 'empty_output';
+  return null;
+}
+
+function validateResponsesFunctionCallBatch(output: OpenAiResponsesOutputItem[]): {
+  calls: OpenAiResponsesFunctionCall[];
+  failure?: 'incomplete_function_call' | 'malformed_function_call';
+} {
+  const items = output.filter((item) => item.type === 'function_call');
+  if (!items.length) return { calls: [] };
+  if (
+    items.some(
+      (item) => 'status' in item && item.status !== undefined && item.status !== 'completed',
+    )
+  ) {
+    return { calls: [], failure: 'incomplete_function_call' };
+  }
+  const calls = extractResponsesFunctionCalls(output);
+  if (calls.length !== items.length) return { calls: [], failure: 'malformed_function_call' };
+  const callIds = new Set<string>();
+  for (const call of calls) {
+    if (!call.call_id.trim() || !call.name.trim() || callIds.has(call.call_id)) {
+      return { calls: [], failure: 'malformed_function_call' };
+    }
+    callIds.add(call.call_id);
+    try {
+      const parsed = JSON.parse(call.arguments) as unknown;
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return { calls: [], failure: 'malformed_function_call' };
+      }
+    } catch {
+      return { calls: [], failure: 'malformed_function_call' };
+    }
+  }
+  return { calls };
 }
 
 export function anthropicSchemaToResponsesTool(schema: {
@@ -190,6 +287,15 @@ function criticProfile(profile: MeriV3ReasoningProfile): MeriV3ReasoningProfile 
   };
 }
 
+function qualifiedResearchDraft(text: string): string {
+  return [
+    text.trim(),
+    'Research finalization was incomplete. This is the last closed grounded draft; requested sections or cross-checks may still be missing.',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+}
+
 @Injectable()
 export class OpenAiResponsesClient {
   private readonly logger = new Logger(OpenAiResponsesClient.name);
@@ -250,107 +356,238 @@ export class OpenAiResponsesClient {
           } satisfies MeriV3ProviderTelemetry,
         },
       );
+    let wireAttempts = 0;
+    const logicalOperationId = stableProviderOperationId('openai-responses', {
+      model,
+      phase: params.budgetPhase ?? 'acquisition',
+      instructions: params.instructions,
+      input: params.input,
+      tools: params.tools,
+      toolChoice: effectiveToolChoice,
+      maxOutputTokens: params.profile.maxOutputTokens,
+    });
+    let previousAttemptId: string | null = null;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
       if (params.signal?.aborted) {
         throw failedRequest(new DOMException('Aborted', 'AbortError'), 'cancelled');
       }
-      const timeoutMs = deadlineAt - Date.now();
+      const toolFields = params.tools.length
+        ? {
+            tools: params.tools,
+            tool_choice: effectiveToolChoice,
+            parallel_tool_calls: true,
+          }
+        : {};
+      const requestBody = JSON.stringify(
+        prepareOpenAiResponsesRequest(
+          {
+            model,
+            instructions: params.instructions,
+            input: params.input,
+            ...toolFields,
+            ...(reasoningUnsupported
+              ? {}
+              : {
+                  reasoning: {
+                    effort: activeReasoningEffort,
+                    summary: 'auto',
+                  },
+                }),
+            max_output_tokens: params.profile.maxOutputTokens,
+            store: false,
+            ...(params.safetyIdentifier ? { safety_identifier: params.safetyIdentifier } : {}),
+          },
+          { defaultReasoning: !reasoningUnsupported },
+        ),
+      );
+      const attemptId = `${logicalOperationId}:${wireAttempts}`;
+      const providerReservation = params.budget
+        ? await params.budget.reserveProviderAttempt({
+            logicalOperationId,
+            attemptId,
+            retryOfAttemptId: previousAttemptId,
+            kind: 'openai_responses',
+            phase: params.budgetPhase ?? 'acquisition',
+            provider: 'openai',
+            model,
+            maxInputTokens: Buffer.byteLength(requestBody, 'utf8'),
+            maxOutputTokens: params.profile.maxOutputTokens,
+            retry: wireAttempts > 0,
+          })
+        : null;
+      wireAttempts += 1;
+      previousAttemptId = attemptId;
+      const durableDeadline = providerReservation
+        ? Date.parse(providerReservation.deadlineAt)
+        : Number.POSITIVE_INFINITY;
+      const attemptDeadline = Math.min(deadlineAt, durableDeadline);
+      const timeoutMs = attemptDeadline - Date.now();
       if (timeoutMs <= 0) {
+        await params.budget?.settleProviderAttempt(providerReservation, { kind: 'rejected' });
         throw failedRequest(
           new Error('OpenAI Responses turn deadline exceeded'),
           'deadline_exceeded',
         );
       }
       const controller = new AbortController();
+      const attemptStartedAt = Date.now();
+      let wireStarted = false;
+      let wireUsageRecorded = false;
       const timer = setTimeout(() => controller.abort(), timeoutMs);
       const abortFromCaller = () => controller.abort();
       params.signal?.addEventListener('abort', abortFromCaller, { once: true });
       let status: number | undefined;
+      let providerSettlementAttempted = false;
       try {
-        const toolFields = params.tools.length
-          ? {
-              tools: params.tools,
-              tool_choice: effectiveToolChoice,
-              parallel_tool_calls: true,
-            }
-          : {};
-        const response = await fetch(RESPONSES_URL, {
-          method: 'POST',
-          headers: {
-            authorization: `Bearer ${apiKey}`,
-            'content-type': 'application/json',
-            accept: 'application/json',
-          },
-          body: JSON.stringify(
-            prepareOpenAiResponsesRequest(
-              {
-                model,
-                instructions: params.instructions,
-                input: params.input,
-                ...toolFields,
-                ...(reasoningUnsupported
-                  ? {}
-                  : {
-                      reasoning: {
-                        effort: activeReasoningEffort,
-                        // Request a provider-authored bounded summary for continuity
-                        // in the current turn, but never emit or persist reasoning
-                        // items.
-                        summary: 'auto',
-                      },
-                    }),
-                max_output_tokens: params.profile.maxOutputTokens,
-                store: false,
-                ...(params.safetyIdentifier ? { safety_identifier: params.safetyIdentifier } : {}),
-              },
-              { defaultReasoning: !reasoningUnsupported },
-            ),
-          ),
-          signal: controller.signal,
-        });
-        status = response.status;
-        const raw = await response.text();
-        if (params.signal?.aborted) {
-          throw new DOMException('Aborted', 'AbortError');
-        }
-        if (controller.signal.aborted || Date.now() >= deadlineAt) {
-          throw new DOMException('Timed out', 'AbortError');
-        }
-        if (!response.ok) throw sanitizedProviderError(response.status, raw);
-        const body = JSON.parse(raw) as RawResponsesBody;
-        const output = Array.isArray(body.output) ? body.output : [];
-        const outputText =
-          typeof body.output_text === 'string'
-            ? body.output_text.trim()
-            : extractResponsesOutputText(output);
-        const responseStatus = String(body.status ?? 'unknown');
-        const incompleteReason = body.incomplete_details?.reason ?? null;
-        const telemetry: MeriV3ProviderTelemetry = {
-          requestedModel: model,
-          effectiveModel: String(body.model ?? model),
-          requestedReasoningEffort: params.profile.effort,
-          effectiveReasoningEffort: reasoningUnsupported ? null : activeReasoningEffort,
-          reasoningFallbackReasons: [...reasoningFallbackReasons],
-          finishReason: incompleteReason ?? body.error?.code ?? responseStatus,
-          partial: responseStatus !== 'completed' || incompleteReason !== null,
-        };
-        const draft: OpenAiResponsesResult = {
-          id: String(body.id ?? ''),
-          status: responseStatus,
-          output,
-          outputText,
-          functionCalls: extractResponsesFunctionCalls(output),
-          usage: parseOpenAiResponsesUsage(body),
-          model: String(body.model ?? model),
-          usedTenantKey,
-          incompleteReason,
-          telemetry,
-          providerCalls: [telemetry],
-        };
+        wireStarted = true;
+        const { draft, responseStatus, incompleteReason, callFailure, telemetry, functionCalls } =
+          await withMeriOrchestratorTelemetrySpan(
+            {
+              name: 'meri.provider.attempt',
+              boundary: 'orchestrator_provider',
+              provider: 'openai',
+              requestedModel: model,
+              effectiveModel: model,
+              attempt: wireAttempts,
+              retry: wireAttempts > 1,
+              usage: meriTelemetryUsage({ unknownAttempts: 1 }),
+            },
+            async () => {
+              const response = await fetch(RESPONSES_URL, {
+                method: 'POST',
+                headers: {
+                  authorization: `Bearer ${apiKey}`,
+                  'content-type': 'application/json',
+                  accept: 'application/json',
+                },
+                body: requestBody,
+                signal: controller.signal,
+              });
+              status = response.status;
+              const raw = await response.text();
+              if (params.signal?.aborted) {
+                throw new DOMException('Aborted', 'AbortError');
+              }
+              if (controller.signal.aborted || Date.now() >= attemptDeadline) {
+                throw new DOMException('Timed out', 'AbortError');
+              }
+              if (!response.ok) {
+                providerSettlementAttempted = true;
+                await params.budget?.settleProviderAttempt(providerReservation, {
+                  kind: 'uncertain',
+                });
+                throw sanitizedProviderError(response.status, raw);
+              }
+              const body = JSON.parse(raw) as RawResponsesBody;
+              const output = Array.isArray(body.output) ? body.output : [];
+              const outputText =
+                typeof body.output_text === 'string'
+                  ? body.output_text.trim()
+                  : extractResponsesOutputText(output);
+              const responseStatus = String(body.status ?? 'unknown');
+              const incompleteReason = body.incomplete_details?.reason ?? null;
+              const validatedCalls = validateResponsesFunctionCallBatch(output);
+              const callFailure =
+                responseStatus === 'completed' && incompleteReason === null
+                  ? validatedCalls.failure
+                  : undefined;
+              const telemetry: MeriV3ProviderTelemetry = {
+                requestedModel: model,
+                effectiveModel: String(body.model ?? model),
+                requestedReasoningEffort: params.profile.effort,
+                effectiveReasoningEffort: reasoningUnsupported ? null : activeReasoningEffort,
+                reasoningFallbackReasons: [...reasoningFallbackReasons],
+                finishReason: callFailure ?? incompleteReason ?? body.error?.code ?? responseStatus,
+                partial:
+                  responseStatus !== 'completed' ||
+                  incompleteReason !== null ||
+                  callFailure !== undefined,
+              };
+              // Do not extract or return function calls when response is incomplete.
+              // The provider may have emitted partial tool calls before hitting a limit.
+              // Replay is required (output items stay request-local) and no tool should
+              // dispatch from an unclosed turn.
+              const functionCalls =
+                responseStatus === 'completed' && !incompleteReason && !callFailure
+                  ? validatedCalls.calls
+                  : [];
+              const parsedUsage = parseOpenAiResponsesUsage(body);
+              const knownUsage = knownOpenAiResponsesUsage(body);
+              providerSettlementAttempted = true;
+              await params.budget?.settleProviderAttempt(
+                providerReservation,
+                knownUsage ? { kind: 'known', ...knownUsage } : { kind: 'uncertain' },
+              );
+              const draft: OpenAiResponsesResult = {
+                id: String(body.id ?? ''),
+                status: responseStatus,
+                output,
+                outputText,
+                functionCalls,
+                usage: parsedUsage,
+                model: String(body.model ?? model),
+                usedTenantKey,
+                incompleteReason,
+                telemetry,
+                providerCalls: [telemetry],
+              };
+              const observedUsage = observedOpenAiResponsesUsage(body);
+              const hasKnownPrice = Boolean(
+                AI_PRICING[draft.model] ?? AI_PRICING[draft.model.replace(/-\d{8}$/, '')],
+              );
+              const estimatedCostUsd =
+                hasKnownPrice &&
+                observedUsage.inputTokens !== null &&
+                observedUsage.outputTokens !== null
+                  ? computeAiCostUsd(
+                      draft.model,
+                      observedUsage.inputTokens,
+                      observedUsage.outputTokens,
+                    )
+                  : null;
+              noteMeriProviderUsage({ ...observedUsage, estimatedCostUsd });
+              emitMeriOrchestratorTelemetry({
+                name: 'meri.provider.attempt.finalized',
+                boundary: 'orchestrator_provider',
+                provider: 'openai',
+                requestedModel: model,
+                effectiveModel: draft.model,
+                attempt: wireAttempts,
+                retry: wireAttempts > 1,
+                outcome: telemetry.partial ? 'partial' : 'completed',
+                durationMs: Date.now() - attemptStartedAt,
+                usage: meriTelemetryUsage({
+                  ...observedUsage,
+                  knownEstimatedCostUsd: estimatedCostUsd,
+                  unknownAttempts: estimatedCostUsd === null ? 1 : 0,
+                }),
+              });
+              wireUsageRecorded = true;
+              return {
+                draft,
+                responseStatus,
+                incompleteReason,
+                callFailure,
+                telemetry,
+                functionCalls,
+              };
+            },
+            'client',
+          );
 
-        const researchFinalization = draft.functionCalls.length
-          ? null
-          : MeriV3ResearchRuntimeStore.beginFinalization();
+        // Finalization may only transform a closed, valid provider draft. An
+        // incomplete envelope or invalid function-call batch must return to the
+        // assistant's bounded fresh-repair path without consuming the one-shot
+        // research finalization or exposing its partial output to critic/synthesis.
+        const draftCanFinalize =
+          responseStatus === 'completed' &&
+          incompleteReason === null &&
+          callFailure === undefined &&
+          !telemetry.partial;
+        const researchFinalization =
+          draftCanFinalize && functionCalls.length === 0
+            ? MeriV3ResearchRuntimeStore.beginFinalization()
+            : null;
         if (!researchFinalization) return draft;
 
         const remainingBudgetMs = deadlineAt - Date.now();
@@ -363,6 +600,7 @@ export class OpenAiResponsesClient {
           }
           return {
             ...draft,
+            outputText: qualifiedResearchDraft(draft.outputText),
             telemetry: {
               ...draft.telemetry,
               finishReason: 'research_finalization_skipped',
@@ -382,6 +620,7 @@ export class OpenAiResponsesClient {
         ];
 
         let criticResult: OpenAiResponsesResult | undefined;
+        let synthesisResult: OpenAiResponsesResult | undefined;
         try {
           const critic = await this.complete({
             profile: criticProfile(params.profile),
@@ -393,8 +632,15 @@ export class OpenAiResponsesClient {
             deadlineAt,
             ...(params.signal ? { signal: params.signal } : {}),
             ...(params.safetyIdentifier ? { safetyIdentifier: params.safetyIdentifier } : {}),
+            ...(params.budget
+              ? { budget: params.budget, budgetPhase: 'finalization' as const }
+              : {}),
           });
           criticResult = critic;
+          const criticBoundaryFailure = completedTextResponseFailure(critic);
+          if (criticBoundaryFailure) {
+            throw new Error(`Research Director critic response rejected: ${criticBoundaryFailure}`);
+          }
           const synthesisInput: Array<Record<string, unknown>> = [
             ...evidenceInput,
             {
@@ -414,7 +660,17 @@ export class OpenAiResponsesClient {
             deadlineAt,
             ...(params.signal ? { signal: params.signal } : {}),
             ...(params.safetyIdentifier ? { safetyIdentifier: params.safetyIdentifier } : {}),
+            ...(params.budget
+              ? { budget: params.budget, budgetPhase: 'finalization' as const }
+              : {}),
           });
+          synthesisResult = synthesis;
+          const synthesisBoundaryFailure = completedTextResponseFailure(synthesis);
+          if (synthesisBoundaryFailure) {
+            throw new Error(
+              `Research Director synthesis response rejected: ${synthesisBoundaryFailure}`,
+            );
+          }
           const validatedSynthesis = MeriV3ResearchRuntimeStore.validateDraft(synthesis.outputText);
           if (validatedSynthesis.issueCount > 0) {
             this.logger.warn(
@@ -446,7 +702,12 @@ export class OpenAiResponsesClient {
           );
           return {
             ...draft,
-            usage: criticResult ? combinedUsage(draft.usage, criticResult.usage) : draft.usage,
+            outputText: qualifiedResearchDraft(draft.outputText),
+            usage: combinedUsage(
+              draft.usage,
+              ...(criticResult ? [criticResult.usage] : []),
+              ...(synthesisResult ? [synthesisResult.usage] : []),
+            ),
             telemetry: {
               ...draft.telemetry,
               finishReason:
@@ -456,6 +717,8 @@ export class OpenAiResponsesClient {
             providerCalls: [
               ...(draft.providerCalls ?? [draft.telemetry]),
               ...(criticResult?.providerCalls ?? (criticResult ? [criticResult.telemetry] : [])),
+              ...(synthesisResult?.providerCalls ??
+                (synthesisResult ? [synthesisResult.telemetry] : [])),
               ...(readOpenAiResponsesErrorTelemetry(finalizationError)
                 ? [readOpenAiResponsesErrorTelemetry(finalizationError)!]
                 : []),
@@ -463,7 +726,35 @@ export class OpenAiResponsesClient {
           };
         }
       } catch (error) {
+        if (!providerSettlementAttempted) {
+          providerSettlementAttempted = true;
+          await params.budget?.settleProviderAttempt(providerReservation, { kind: 'uncertain' });
+        }
         lastError = error;
+        if (wireStarted && !wireUsageRecorded) {
+          noteMeriUnknownProviderUsage();
+          emitMeriOrchestratorTelemetry({
+            name: 'meri.provider.attempt.finalized',
+            boundary: 'orchestrator_provider',
+            provider: 'openai',
+            requestedModel: model,
+            effectiveModel: model,
+            attempt: wireAttempts,
+            retry: wireAttempts > 1,
+            outcome: params.signal?.aborted ? 'aborted' : 'error',
+            durationMs: Date.now() - attemptStartedAt,
+            usage: {
+              status: 'unknown',
+              inputTokens: null,
+              outputTokens: null,
+              cacheReadTokens: null,
+              cacheCreationTokens: null,
+              knownEstimatedCostUsd: null,
+              unknownAttempts: 1,
+              owner: 'AiUsageEvent',
+            },
+          });
+        }
         if (params.signal?.aborted) {
           throw failedRequest(new DOMException('Aborted', 'AbortError'), 'cancelled');
         }

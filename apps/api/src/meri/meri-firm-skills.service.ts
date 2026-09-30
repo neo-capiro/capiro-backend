@@ -1,17 +1,18 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
-import type { TenantContext } from '@capiro/shared';
+import { MERI_CAPABILITY_REGISTRY, type TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { validateFirmSkill } from './meri-firm-skills.helpers.js';
 import { CLIO_SKILLS } from './skills/skill-registry.js';
-import type { MeriSkill } from './skills/skill.types.js';
+import type { MeriProcedureBinding, MeriSkill } from './skills/skill.types.js';
 import { TOOL_DEFINITIONS } from './meri-tools.service.js';
 
 const VERSION_HISTORY_CAP = 10;
@@ -51,9 +52,17 @@ export class MeriFirmSkillsService {
     return TOOL_DEFINITIONS.map((t) => t.name);
   }
 
+  private readOnlyTools(): string[] {
+    return MERI_CAPABILITY_REGISTRY.filter((capability) => capability.readOnly).map(
+      (capability) => capability.name,
+    );
+  }
+
   /** Built-in triggers are reserved too — a firm skill may never claim them. */
   private validate(input: Record<string, unknown>) {
-    const validation = validateFirmSkill(input, this.allowedTools());
+    const validation = validateFirmSkill(input, this.allowedTools(), {
+      readOnlyTools: this.readOnlyTools(),
+    });
     if (!validation.ok || !validation.skill) {
       throw new BadRequestException(validation.errors.join('; ') || 'Invalid skill');
     }
@@ -86,10 +95,11 @@ export class MeriFirmSkillsService {
       name: row.name,
       skill: row.skillJson,
       version: row.version,
-      versions: (row.versions as unknown as SkillVersionSnapshot[] | null)?.map((v) => ({
-        version: v.version,
-        savedAt: v.savedAt,
-      })) ?? [],
+      versions:
+        (row.versions as unknown as SkillVersionSnapshot[] | null)?.map((v) => ({
+          version: v.version,
+          savedAt: v.savedAt,
+        })) ?? [],
       enabled: row.enabled,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -111,7 +121,10 @@ export class MeriFirmSkillsService {
           },
         }),
       );
-      await this.audit(ctx, 'clio.firm_skill.create', row.id, { skillId: skill.id, name: skill.name });
+      await this.audit(ctx, 'clio.firm_skill.create', row.id, {
+        skillId: skill.id,
+        name: skill.name,
+      });
       this.invalidate(ctx.tenantId);
       return row;
     } catch (err) {
@@ -123,12 +136,18 @@ export class MeriFirmSkillsService {
   }
 
   async update(ctx: TenantContext, id: string, input: Record<string, unknown>) {
-    const existing = await this.findOrThrow(ctx, id);
-    const skill = this.validate({ ...(input ?? {}), id: (input.id as string) ?? existing.skillId });
-    const history = this.pushVersion(existing);
-    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioFirmSkill.update({
-        where: { id },
+    const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const existing = await tx.clioFirmSkill.findFirst({
+        where: { id, tenantId: ctx.tenantId },
+      });
+      if (!existing) throw new NotFoundException('Firm skill not found');
+      const skill = this.validate({
+        ...(input ?? {}),
+        id: (input.id as string) ?? existing.skillId,
+      });
+      const history = this.pushVersion(existing);
+      const result = await tx.clioFirmSkill.updateMany({
+        where: { id, tenantId: ctx.tenantId, version: existing.version },
         data: {
           skillId: skill.id,
           name: skill.name,
@@ -137,9 +156,22 @@ export class MeriFirmSkillsService {
           versions: history as unknown as Prisma.InputJsonValue,
           updatedByUserId: ctx.userId,
         },
-      }),
-    );
-    await this.audit(ctx, 'clio.firm_skill.update', id, { skillId: skill.id, version: row.version });
+      });
+      if (result.count !== 1) {
+        throw new ConflictException('Firm skill changed concurrently; reload and retry');
+      }
+      const updated = await tx.clioFirmSkill.findFirst({
+        where: { id, tenantId: ctx.tenantId },
+      });
+      if (!updated) {
+        throw new ConflictException('Firm skill changed concurrently; reload and retry');
+      }
+      return updated;
+    });
+    await this.audit(ctx, 'clio.firm_skill.update', id, {
+      skillId: row.skillId,
+      version: row.version,
+    });
     this.invalidate(ctx.tenantId);
     return row;
   }
@@ -164,17 +196,20 @@ export class MeriFirmSkillsService {
 
   /** Restore a prior version (current state is pushed into history first). */
   async restore(ctx: TenantContext, id: string, version: number) {
-    const existing = await this.findOrThrow(ctx, id);
-    const history = (existing.versions as unknown as SkillVersionSnapshot[] | null) ?? [];
-    const snapshot = history.find((v) => v.version === version);
-    if (!snapshot) throw new NotFoundException(`No stored version ${version}`);
-    // Re-validate the snapshot against TODAY's rules (a tool may have been
-    // removed since); restore must not resurrect an invalid skill.
-    const skill = this.validate(snapshot.skillJson as unknown as Record<string, unknown>);
-    const newHistory = this.pushVersion(existing);
-    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioFirmSkill.update({
-        where: { id },
+    const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const existing = await tx.clioFirmSkill.findFirst({
+        where: { id, tenantId: ctx.tenantId },
+      });
+      if (!existing) throw new NotFoundException('Firm skill not found');
+      const history = (existing.versions as unknown as SkillVersionSnapshot[] | null) ?? [];
+      const snapshot = history.find((candidate) => candidate.version === version);
+      if (!snapshot) throw new NotFoundException(`No stored version ${version}`);
+      // Re-validate the snapshot against TODAY's rules (a tool may have been
+      // removed since); restore must not resurrect an invalid skill.
+      const skill = this.validate(snapshot.skillJson as unknown as Record<string, unknown>);
+      const newHistory = this.pushVersion(existing);
+      const result = await tx.clioFirmSkill.updateMany({
+        where: { id, tenantId: ctx.tenantId, version: existing.version },
         data: {
           skillId: skill.id,
           name: skill.name,
@@ -183,8 +218,18 @@ export class MeriFirmSkillsService {
           versions: newHistory as unknown as Prisma.InputJsonValue,
           updatedByUserId: ctx.userId,
         },
-      }),
-    );
+      });
+      if (result.count !== 1) {
+        throw new ConflictException('Firm skill changed concurrently; reload and retry');
+      }
+      const updated = await tx.clioFirmSkill.findFirst({
+        where: { id, tenantId: ctx.tenantId },
+      });
+      if (!updated) {
+        throw new ConflictException('Firm skill changed concurrently; reload and retry');
+      }
+      return updated;
+    });
     await this.audit(ctx, 'clio.firm_skill.restore', id, { restoredVersion: version });
     this.invalidate(ctx.tenantId);
     return row;
@@ -219,9 +264,19 @@ export class MeriFirmSkillsService {
       const validation = validateFirmSkill(
         row.skillJson as unknown as Record<string, unknown>,
         this.allowedTools(),
+        { readOnlyTools: this.readOnlyTools() },
       );
-      if (validation.ok && validation.skill) skills.push(validation.skill);
-      else {
+      if (validation.ok && validation.skill) {
+        skills.push({
+          ...validation.skill,
+          procedureBinding: {
+            source: 'firm',
+            recordId: row.id,
+            canonicalId: row.skillId,
+            version: row.version,
+          },
+        });
+      } else {
         this.logger.warn(
           `Skipping invalid stored firm skill [${row.skillId}]: ${validation.errors.join('; ')}`,
         );
@@ -229,6 +284,50 @@ export class MeriFirmSkillsService {
     }
     this.cache.set(tenantId, { skills, fetchedAt: Date.now() });
     return skills;
+  }
+
+  /**
+   * Resolve an untrusted binding against the current tenant row. This read is
+   * deliberately uncached: disable, delete/revoke, tenant mismatch, ID change,
+   * or version drift must fail closed before procedure content is used.
+   */
+  async resolveProcedureReference(
+    tenantId: string,
+    binding: MeriProcedureBinding,
+  ): Promise<MeriSkill> {
+    if (!this.enabled() || !this.validBinding(binding)) {
+      throw new NotFoundException('Procedure binding is unavailable');
+    }
+    const row = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.clioFirmSkill.findFirst({
+        where: { id: binding.recordId, tenantId, enabled: true },
+      }),
+    );
+    if (
+      !row ||
+      !row.enabled ||
+      row.skillId !== binding.canonicalId ||
+      row.version !== binding.version
+    ) {
+      throw new NotFoundException('Procedure binding is unavailable');
+    }
+    const validation = validateFirmSkill(
+      row.skillJson as unknown as Record<string, unknown>,
+      this.allowedTools(),
+      { readOnlyTools: this.readOnlyTools() },
+    );
+    if (!validation.ok || !validation.skill?.procedure || validation.skill.id !== row.skillId) {
+      throw new NotFoundException('Procedure binding is unavailable');
+    }
+    return {
+      ...validation.skill,
+      procedureBinding: {
+        source: 'firm',
+        recordId: row.id,
+        canonicalId: row.skillId,
+        version: row.version,
+      },
+    };
   }
 
   // ── Internals ────────────────────────────────────────────────────────────
@@ -239,6 +338,19 @@ export class MeriFirmSkillsService {
     );
     if (!row) throw new NotFoundException('Firm skill not found');
     return row;
+  }
+
+  private validBinding(binding: MeriProcedureBinding): boolean {
+    return Boolean(
+      binding &&
+      binding.source === 'firm' &&
+      typeof binding.recordId === 'string' &&
+      binding.recordId.length > 0 &&
+      typeof binding.canonicalId === 'string' &&
+      /^[a-z0-9_]{2,48}$/.test(binding.canonicalId) &&
+      Number.isInteger(binding.version) &&
+      binding.version > 0,
+    );
   }
 
   private pushVersion(existing: {

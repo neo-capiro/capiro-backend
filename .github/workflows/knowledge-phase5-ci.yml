@@ -57,10 +57,13 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
+      NODE_OPTIONS: --max-old-space-size=6144
       DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro_ci
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Check patch hygiene
         run: git diff --check HEAD^
@@ -87,6 +90,9 @@ jobs:
         run: |
           pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
           pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
+
+      - name: Build shared package prerequisite
+        run: pnpm --filter @capiro/shared build
 
       - name: Test entity-resolution foundation
         run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/knowledge/entities
@@ -159,6 +165,14 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+
+      # Provision only inside this job's own disposable service container.
+      - name: Bootstrap restricted worker in the disposable service
+        run: |
+          docker exec -i "${{ job.services.postgres.id }}" \
+            psql --no-psqlrc --set=ON_ERROR_STOP=1 --host=127.0.0.1 \
+              --username=capiro --dbname=capiro \
+            < scripts/ci/disposable-capiro-worker-role.sql
 
       - name: Deploy the full Prisma migration chain
         run: |

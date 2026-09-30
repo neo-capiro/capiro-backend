@@ -1773,6 +1773,9 @@ export function NewOutreachWizard({
       const detail = apiErrorMessage(err);
       const localReason = err instanceof Error && err.message ? err.message : null;
       const reason = detail ?? localReason ?? undefined;
+      const isProtectedDraftPreflightFailure = reason?.startsWith(
+        'Could not create the protected draft record',
+      );
       setState((prev) => {
         const generatedEmails = { ...prev.generatedEmails };
         for (const s of vars.slots) {
@@ -1785,7 +1788,12 @@ export function NewOutreachWizard({
         return { ...prev, generatedEmails };
       });
       setGeneratingKey(null);
-      message.error(reason ?? 'Generation failed. Edit or regenerate the flagged drafts.');
+      // The generate-step banner renders this exact preflight reason on the
+      // affected draft. Avoid a second Ant message with the same text, which
+      // makes the actionable server error appear twice in the UI.
+      if (!isProtectedDraftPreflightFailure) {
+        message.error(reason ?? 'Generation failed. Edit or regenerate the flagged drafts.');
+      }
     },
   });
 

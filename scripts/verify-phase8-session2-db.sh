@@ -68,6 +68,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
+if [ "$SELF_MANAGED" = "1" ]; then
+  unset PGSERVICE PGSERVICEFILE PGOPTIONS
+  export PGHOSTADDR=127.0.0.1
+fi
+
 ADMIN=(psql "$REHEARSAL_DATABASE_URL" -v ON_ERROR_STOP=1 -q)
 run_sql()   { "${ADMIN[@]}" -c "$1" >/dev/null || fail "expected success: $1"; }
 q()         { "${ADMIN[@]}" -tAc "$1"; }
@@ -102,6 +107,27 @@ log "1. Migration-from-zero: the full authoritative ledger applies"
 # =============================================================================
 run_sql "$(cat "$REPO_ROOT/docker/postgres/init/01-extensions.sql")"
 ok "extensions and capiro_app bootstrapped, matching local dev / CI exactly"
+
+# Only the container created by this invocation receives CI baseline fixtures.
+# An externally supplied URL receives no new bootstrap writes; it must already
+# hold a safe restricted worker, which is verified read-only before replay.
+if [ "$SELF_MANAGED" = "1" ]; then
+  fixture_psql() {
+    docker exec -i -e PGPASSWORD="$SUPERPASS" -e PGHOSTADDR=127.0.0.1 "$NAME" \
+      env -u PGSERVICE -u PGSERVICEFILE -u PGOPTIONS \
+      psql --no-psqlrc --set=ON_ERROR_STOP=1 --host=127.0.0.1 --port=5432 \
+      --username="$SUPERUSER" --dbname="$DB_NAME" "$@"
+  }
+  identity="$(fixture_psql -Atc "SELECT current_database(), current_user, inet_server_port(), current_setting('is_superuser')")"
+  [ "$identity" = 'capiro|capiro|5432|on' ] || fail "unexpected owned fixture identity: $identity"
+  fixture_psql < "$SCRIPT_DIR/ci/disposable-capiro-worker-prerequisite.sql"
+  fixture_psql < "$SCRIPT_DIR/ci/research-portfolio-append-only-prerequisite.sql"
+  ok "external baseline role and append-only helper installed in owned disposable container"
+else
+  [ "$(q "SELECT NOT (r.rolsuper OR r.rolinherit OR r.rolcreaterole OR r.rolcreatedb OR r.rolcanlogin OR r.rolreplication OR r.rolbypassrls) AND NOT EXISTS (SELECT 1 FROM pg_auth_members m WHERE r.oid IN (m.roleid,m.member)) FROM pg_roles r WHERE r.rolname='capiro_worker';")" = "t" ] \
+    || fail "external rehearsal requires an existing safe capiro_worker prerequisite"
+fi
+ok "restricted worker prerequisite verified before migration replay"
 
 (cd "$API_ROOT" && DATABASE_URL="$REHEARSAL_DATABASE_URL" npx prisma migrate deploy \
   --schema prisma/schema.prisma >/dev/null) \

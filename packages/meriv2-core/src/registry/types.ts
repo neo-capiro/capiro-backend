@@ -1,7 +1,9 @@
+import type { MeriTelemetryContext } from '../observability/meri-joined-telemetry';
 import type { ZodType, ZodIssue } from 'zod';
 import type { MeriCitation, TenantRole } from '@capiro/shared';
 import type { MemoryAuthority } from '../memory/governance';
 import type { ToolExecutionMetadata } from './tool-execution-metadata';
+import type { MeriServerReadonlyCapturePolicy } from '../context/server-readonly-capture';
 
 export type MeriContextScope = 'personal' | 'client' | 'firm';
 
@@ -63,6 +65,8 @@ export interface MeriContextPacketSummary {
  */
 export interface MeriGovernedTurnContext {
   version: 1;
+  /** API-owned trace linkage, authenticated by the existing whole-context MAC. */
+  telemetryContext?: MeriTelemetryContext | null;
   operationId:
     | 'meri.chat'
     | 'meri.research'
@@ -76,6 +80,10 @@ export interface MeriGovernedTurnContext {
   evidence?: MeriContextEvidenceEnvelope;
   /** Server-saved document observations; canonical source authorization and hash checked this turn. */
   inheritedDocumentEvidence?: MeriCitation[];
+  /** API-resolved procedure authority. This entire projection is covered by the context attestation. */
+  procedure?: MeriGovernedProcedureBinding;
+  /** API-issued, actor/conversation-bound capture authority. Never accepted from a client. */
+  serverReadonlyCapturePolicy?: MeriServerReadonlyCapturePolicy;
   attestation?: { version: 1; issuedAt: number; signature: string };
   contextPacket: MeriContextPacketSummary;
   retrieval: {
@@ -123,6 +131,41 @@ export interface MeriGovernedTurnContext {
       toolsInvoked: string[];
       stopReason: string;
     };
+  };
+}
+
+/**
+ * Narrow execution projection of a tenant procedure. The API derives it from
+ * the current canonical row and tool registry; browser input is never copied
+ * into this authority object.
+ */
+export interface MeriGovernedProcedureBinding {
+  version: 1;
+  tenantId: string;
+  identity: {
+    source: 'firm';
+    recordId: string;
+    canonicalId: string;
+    version: number;
+  };
+  manifestDigest: string;
+  instruction: string;
+  scope: 'general' | 'client' | 'portfolio' | 'external_entity';
+  clientId: string | null;
+  clientRequired: boolean;
+  resolvedAt: number;
+  validUntil: number;
+  policy: {
+    effectMode: 'read_only' | 'approval_required';
+    allowedCapabilities: string[];
+    allowedTools: string[];
+    requiredTools: string[];
+  };
+  contract: {
+    outputFields: string[];
+    completionChecks: string[];
+    coverageStates: string[];
+    caseIds: string[];
   };
 }
 

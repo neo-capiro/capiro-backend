@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runApprovedPreviewMaintenance } from './outreach-phase6-approved-preview-maintenance.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PHASE5_HEAD = '835cdef35cd8ecb23faf1b100ecfc743bcd31128';
@@ -50,6 +51,8 @@ if (shaIndex !== -1) {
 }
 run('Phase 5 ancestry', 'git', ['merge-base', '--is-ancestor', PHASE5_HEAD, exactHead]);
 
+if (runApprovedPreviewMaintenance(ROOT, run, exactHead)) process.exit(0);
+
 const required = [
   'docs/plans/outreach-v3/revised-phase-6-design-to-state-manifest.md',
   'apps/web/src/pages/engagement/outreach/v3/OutreachWizardRouter.tsx',
@@ -63,7 +66,6 @@ const required = [
   'apps/web/src/pages/engagement/outreach/v3/DeliveryDecisionSurface.tsx',
   'apps/web/src/pages/engagement/outreach/v3/ContextReviewSurface.tsx',
   'apps/web/src/pages/engagement/outreach/v3/StrategyDecisionSurface.tsx',
-  'apps/web/src/pages/engagement/outreach/v3/ReadyForGenerationSurface.tsx',
   'apps/web/src/pages/engagement/outreach/v3/decision-surface-contract.ts',
   'apps/web/src/pages/engagement/outreach/v3/target-intelligence-contracts.ts',
   'apps/web/src/pages/engagement/outreach/v3/useOutreachV3Session.ts',
@@ -123,8 +125,8 @@ const sponsor = read('SponsorDecisionSurface.tsx');
 const targets = read('TargetWorkspace.tsx');
 const delivery = read('DeliveryDecisionSurface.tsx');
 const context = read('ContextReviewSurface.tsx');
+const contextSelection = read('context-selection.ts');
 const strategy = read('StrategyDecisionSurface.tsx');
-const ready = read('ReadyForGenerationSurface.tsx');
 
 for (const forbidden of [
   'send-intents',
@@ -143,6 +145,11 @@ assert(!/localStorage\.setItem\([^)]*campaign/i.test(production), 'BROWSER_CAMPA
 assert(!/useState<OutreachV3CampaignSpec/.test(production), 'DUPLICATE_CAMPAIGN_SPEC');
 
 assert(previewGateProblems(router).length === 0, 'DUAL_PREVIEW_GATE');
+// Current spelling of the same gate (mirrors verify-outreach-v3-phase6-code.mjs).
+assert(
+  /!hasClassicDraft\s*&&\s*previewMode === 'v3'\s*&&\s*isEngagementPreviewActive\(\)/.test(router),
+  'DUAL_PREVIEW_GATE',
+);
 assert(router.includes('<ClassicOutreachWizard {...props} />'), 'CLASSIC_FALLBACK');
 assert(router.includes('initialRecord || props.initialDraftId'), 'CLASSIC_DRAFT_ROUTE');
 assert(route.includes('session={session}'), 'CANONICAL_SESSION_PROJECTION');
@@ -156,10 +163,10 @@ assert(sponsor.includes('Sponsor and target audience are separate'), 'SPONSOR_AU
 assert(!sponsor.includes('ADD_TARGET_REFS'), 'SPONSOR_ADDS_TARGET');
 assert(!sponsor.includes("selectedClientId ? 'client' : 'firm'"), 'SPONSOR_INFERENCE');
 
-assert(
-  targets.includes('Read-only recommendations are allowed to load automatically'),
-  'READ_ONLY_RECOMMENDATIONS',
-);
+// Current wording of the read-only recommendation contract (mirrors
+// verify-outreach-v3-phase6-code.mjs); the behavior is also exercised by
+// TargetWorkspace.spec.tsx below.
+assert(targets.includes('Read-only: this never calls applyCommands'), 'READ_ONLY_RECOMMENDATIONS');
 assert(!targets.includes('void runSearch();'), 'TARGET_STAGE_AUTO_COMMIT');
 assert(targets.includes('Saving to the shared Directory remains'), 'MANUAL_DIRECTORY_DEFAULT');
 assert(targets.includes('getOutreachV3TargetRelationships'), 'RELATIONSHIP_READ');
@@ -183,8 +190,12 @@ assert(
 assert(context.includes('Style is not evidence'), 'GUIDANCE_EVIDENCE_SEPARATION');
 assert(context.includes('Applies to ${scopeTarget} only'), 'TARGET_CONTEXT_SCOPE');
 assert(context.includes("entry.contextClass === 'required_policy'"), 'REQUIRED_POLICY_LOCK');
+// Current form of the group-safe fail-closed contract (mirrors
+// verify-outreach-v3-phase6-code.mjs); context-selection.spec.ts covers it too.
 assert(
-  context.includes('Group-safe context requires a named audience group'),
+  context.includes('Group-safe') &&
+    contextSelection.includes('group_safe') &&
+    contextSelection.includes('no representation here'),
   'GROUP_SAFE_FAIL_CLOSED',
 );
 assert(context.includes('never commits'), 'MEMORY_AUTO_COMMIT_COPY');
@@ -192,12 +203,8 @@ assert(context.includes('never commits'), 'MEMORY_AUTO_COMMIT_COPY');
 assert(strategy.includes('Recommendations remain editable'), 'STRATEGY_EDITABLE');
 assert(strategy.includes('strategyCommands'), 'STRATEGY_COMMANDS');
 assert(!strategy.match(/REQUEST_(?:SAMPLE|FULL)_GENERATION/), 'STRATEGY_GENERATION');
-assert(ready.includes('The product stops safely here'), 'PLANNING_BOUNDARY');
-assert(
-  ready.includes('No sender, test send, final send, provider call, or delivery retry'),
-  'LATER_AUTHORITY_COPY',
-);
-assert(!ready.match(/onGenerate|createSendIntent|sendCampaign/), 'READY_BOUNDARY_ACTION_LEAK');
+// The unreachable ReadyForGenerationSurface and its spec were removed in main
+// by c6ef14da7 (#1252). Current API generation/send boundaries above remain enforced.
 
 assert(proposal.includes('Why this proposal?'), 'PROPOSAL_RATIONALE');
 assert(proposal.includes('Edit manually'), 'PROPOSAL_EDIT');
@@ -206,6 +213,7 @@ assert(proposal.includes('disabled={proposalBusy || stale}'), 'STALE_APPLY_DISAB
 assert(hook.includes('await archiveOutreachV3Session(api, priorId);'), 'ARCHIVE_NOT_AWAITED');
 assert(!hook.includes('archiveOutreachV3Session(api, priorId).catch'), 'ARCHIVE_FAILURE_SWALLOWED');
 
+run('Build shared web contracts', 'pnpm', ['--filter', '@capiro/shared', 'build']);
 run('Preview route manifest drift', 'node', [
   'scripts/engagement-phase3-preview-route-patterns.mjs',
   '--check',
@@ -232,8 +240,8 @@ run('Outreach V3 final focused tests', 'pnpm', [
   'src/pages/engagement/outreach/v3/TargetWorkspace.spec.tsx',
   'src/pages/engagement/outreach/v3/DeliveryDecisionSurface.spec.tsx',
   'src/pages/engagement/outreach/v3/ContextReviewSurface.spec.tsx',
+  'src/pages/engagement/outreach/v3/context-selection.spec.ts',
   'src/pages/engagement/outreach/v3/StrategyDecisionSurface.spec.tsx',
-  'src/pages/engagement/outreach/v3/ReadyForGenerationSurface.spec.tsx',
   'src/pages/engagement/outreach/v3/commands.spec.ts',
   'src/pages/engagement/outreach/v3/outreach-v3-api.spec.ts',
   'src/pages/engagement/outreach/v3/useOutreachV3Session.spec.ts',
@@ -242,7 +250,18 @@ run('Outreach V3 final focused tests', 'pnpm', [
   'src/lib/engagement-api-preview.spec.ts',
 ]);
 run('Web production build', 'pnpm', ['--filter', '@capiro/web', 'build']);
-run('Diff whitespace', 'git', ['diff', '--check', `${PHASE5_HEAD}...${PHASE6_SCOPE_END}`]);
+// Match the code verifier's frozen historical scope. Current PR whitespace below
+// still checks every changed path, including plans and workflow files.
+run('Diff whitespace', 'git', [
+  'diff',
+  '--check',
+  `${PHASE5_HEAD}...${PHASE6_SCOPE_END}`,
+  '--',
+  '.',
+  ':(exclude)docs/plans/**/*.md',
+  ':(exclude).github/**/*.yml',
+  ':(exclude).github/**/*.yaml',
+]);
 
 run('Current PR whitespace', 'git', ['diff', '--check', 'origin/main...HEAD']);
 

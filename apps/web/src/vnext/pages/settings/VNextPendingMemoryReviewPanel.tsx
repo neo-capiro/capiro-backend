@@ -8,6 +8,7 @@ import {
   activeMemoryReviewExplanation,
   activeMemoryVersionPresentation,
   pendingReviewHeadline,
+  pendingReviewSourceLabel,
   pendingReviewTone,
   type MemoryReviewSection,
   type PendingMemoryReviewState,
@@ -71,6 +72,19 @@ export function VNextPendingMemoryReviewPanel({
               label: 'Approver needed',
               value: pending.reviewerRequirement ?? 'An authorized administrator or reviewer',
             },
+            { label: 'Source', value: pendingReviewSourceLabel(pending.sourceKind) },
+            {
+              label: 'Version',
+              value: `Current ${pending.activeVersion ?? 'not reported'} · Proposed ${pending.proposalVersion ?? 'pending'}`,
+            },
+            ...(pending.conflict
+              ? [
+                  {
+                    label: 'Conflict',
+                    value: <span className="stv-danger-text">{pending.conflict}</span>,
+                  },
+                ]
+              : []),
             {
               label: 'Eligible approvers',
               value:
