@@ -199,4 +199,148 @@ describe('MeriRunBudget', () => {
     controller.reserveModelAttempt('synthesis');
     expect(controller.snapshot().modelCalls).toBe(3);
   });
+
+  test('reserves at the actual JEV fetch boundary and accounts a 429 retry separately', async () => {
+    const reserve = jest
+      .fn()
+      .mockResolvedValueOnce({
+        reservationId: 'r1',
+        dispatchAllowed: true,
+        deadlineAt: '2099-01-01T00:00:00.000Z',
+      })
+      .mockResolvedValueOnce({
+        reservationId: 'r2',
+        dispatchAllowed: true,
+        deadlineAt: '2099-01-01T00:00:00.000Z',
+      });
+    const settle = jest.fn(async () => undefined);
+    const controller = new MeriRunBudget(
+      {
+        maxModelCalls: 8,
+        maxToolCalls: 8,
+        maxRetryCalls: 4,
+        synthesisModelCallReserve: 2,
+        noProgressLaps: 3,
+        maxCyclePeriod: 4,
+      },
+      {},
+      { reserve, settle },
+    );
+    const providerFetch = jest
+      .fn()
+      .mockResolvedValueOnce(new Response('{"error":"rate_limited"}', { status: 429 }))
+      .mockResolvedValueOnce(
+        new Response('{"usage":{"input_tokens":12,"output_tokens":7}}', {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    const bounded = controller.budgetedFetch('selection', providerFetch as typeof fetch);
+    await bounded('https://jev.test/evaluate', {
+      method: 'POST',
+      body: JSON.stringify({ model: 'jev-1.13.0', claim: 'bounded' }),
+    });
+    await bounded('https://jev.test/evaluate', {
+      method: 'POST',
+      body: JSON.stringify({ model: 'jev-1.13.0', claim: 'bounded' }),
+    });
+
+    expect(providerFetch).toHaveBeenCalledTimes(2);
+    expect(reserve).toHaveBeenCalledTimes(2);
+    expect(reserve).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ kind: 'jev', maxOutputTokens: 8_000 }),
+    );
+    expect((settle.mock.calls as unknown[][]).map((call) => call[1])).toEqual([
+      { kind: 'uncertain' },
+      { kind: 'known', inputTokens: 12, outputTokens: 7 },
+    ]);
+    const bindings = reserve.mock.calls.map(([value]) => value);
+    expect(bindings[0]).toMatchObject({ retryOfAttemptId: null, maxOutputTokens: 8_000 });
+    expect(bindings[1]).toMatchObject({
+      logicalOperationId: bindings[0]!.logicalOperationId,
+      retryOfAttemptId: bindings[0]!.attemptId,
+    });
+  });
+
+  test('retains a conservative uncertain reservation after a lost provider response', async () => {
+    const settle = jest.fn(async () => undefined);
+    const controller = new MeriRunBudget(
+      {
+        maxModelCalls: 4,
+        maxToolCalls: 4,
+        maxRetryCalls: 2,
+        synthesisModelCallReserve: 1,
+        noProgressLaps: 3,
+        maxCyclePeriod: 4,
+      },
+      {},
+      {
+        reserve: jest.fn(async () => ({
+          reservationId: 'lost',
+          dispatchAllowed: true,
+          deadlineAt: '2099-01-01T00:00:00.000Z',
+        })),
+        settle,
+      },
+    );
+    const bounded = controller.budgetedFetch(
+      'selection',
+      jest.fn(async () => {
+        throw new Error('socket closed after dispatch');
+      }) as unknown as typeof fetch,
+    );
+    await expect(
+      bounded('https://jev.test/evaluate', { method: 'POST', body: '{"model":"jev"}' }),
+    ).rejects.toThrow('socket closed after dispatch');
+    expect(settle).toHaveBeenCalledWith(expect.objectContaining({ reservationId: 'lost' }), {
+      kind: 'uncertain',
+    });
+  });
+
+  test('bounds the actual fetch by the durable deadline and releases no late response', async () => {
+    const settle = jest.fn(async () => undefined);
+    const fetchImpl = jest.fn(
+      async () =>
+        new Promise<Response>((resolve) =>
+          setTimeout(
+            () =>
+              resolve(
+                new Response('{"usage":{"input_tokens":4,"output_tokens":2}}', { status: 200 }),
+              ),
+            100,
+          ),
+        ),
+    ) as unknown as typeof fetch;
+    const controller = new MeriRunBudget(
+      {
+        maxModelCalls: 4,
+        maxToolCalls: 4,
+        maxRetryCalls: 2,
+        synthesisModelCallReserve: 1,
+        noProgressLaps: 3,
+        maxCyclePeriod: 4,
+      },
+      {},
+      {
+        reserve: jest.fn(async () => ({
+          reservationId: 'deadline',
+          dispatchAllowed: true,
+          deadlineAt: new Date(Date.now() + 20).toISOString(),
+        })),
+        settle,
+      },
+    );
+    const before = Date.now();
+    await expect(
+      controller.budgetedFetch('repair', fetchImpl)('https://jev.test/evaluate', {
+        method: 'POST',
+        body: '{"model":"jev-1.13.0"}',
+      }),
+    ).rejects.toBeDefined();
+    expect(Date.now() - before).toBeLessThan(80);
+    expect(settle).toHaveBeenCalledWith(expect.objectContaining({ reservationId: 'deadline' }), {
+      kind: 'uncertain',
+    });
+  });
 });

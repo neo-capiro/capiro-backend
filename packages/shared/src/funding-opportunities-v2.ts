@@ -61,7 +61,8 @@ export interface OpportunityProfileGapsV2 {
   actualUnscoredCount: number | null;
   profileLink: string;
 }
-export type OpportunityPostedV2 = 'last_7_days' | 'last_30_days' | 'last_90_days' | 'this_fiscal_year' | 'any';
+export type OpportunityPostedV2 =
+  'last_7_days' | 'last_30_days' | 'last_90_days' | 'this_fiscal_year' | 'any';
 export type OpportunityDeadlineWindowV2 = 'any' | '14d' | '30d' | '90d' | '180d';
 
 export interface OpportunitySearchCriteriaV2 {
@@ -134,7 +135,11 @@ export interface OpportunitySearchRecordV2 {
   valueBasis: 'source_backed' | 'not_stated_by_source';
   sourceFacts: { provenance: string; [key: string]: unknown };
   relevanceScore: number | null;
-  matchedSignals: Array<{ signal: string; strength: 'strong' | 'moderate' | 'weak'; matchedOn: string }>;
+  matchedSignals: Array<{
+    signal: string;
+    strength: 'strong' | 'moderate' | 'weak';
+    matchedOn: string;
+  }>;
   eligibility: { state: OpportunityEligibilityV2; reason: string } | null;
   clientId: string | null;
   /** Client-specific live capability; independent of display mode/ranking suppression. */
@@ -145,7 +150,16 @@ export interface OpportunitySearchRecordV2 {
 
 export interface OpportunitySourceFreshnessV2 {
   source: OpportunitySourceV2;
-  state: 'current' | 'degraded' | 'stale' | 'never_synced' | 'initial_partial' | 'error_cached' | 'unavailable' | 'not_enabled' | 'unknown';
+  state:
+    | 'current'
+    | 'degraded'
+    | 'stale'
+    | 'never_synced'
+    | 'initial_partial'
+    | 'error_cached'
+    | 'unavailable'
+    | 'not_enabled'
+    | 'unknown';
   recordCount: number | null;
   activeRecordCount: number | null;
   lastSyncedAt: string | null;
@@ -170,11 +184,22 @@ export interface OpportunitySearchResponseV2 {
   totalIsCapped: boolean;
   /** True only when every queried enabled source reports current catalog health. */
   catalogComplete: boolean;
-  counts: { grants: number | null; contracts: number | null; active: number | null; closed: number | null };
+  counts: {
+    grants: number | null;
+    contracts: number | null;
+    active: number | null;
+    closed: number | null;
+  };
   mode: OpportunitySearchMode;
   clientId: string | null;
   freshness: OpportunitySourceFreshnessV2[];
-  provenance: Array<{ source: OpportunitySourceV2; queried: boolean; returned: number; count: number | null; capped: boolean }>;
+  provenance: Array<{
+    source: OpportunitySourceV2;
+    queried: boolean;
+    returned: number;
+    count: number | null;
+    capped: boolean;
+  }>;
   emptyReason: string | null;
   /** Present only for matched searches with an authorized selected client. */
   profileGaps: OpportunityProfileGapsV2 | null;
@@ -195,17 +220,69 @@ export interface SavedSearchSummaryV2 {
 }
 
 const DEFAULT_CRITERIA: OpportunitySearchCriteriaV2 = {
-  schemaVersion: 2, mode: 'all', clientId: null, query: '', sources: [], types: [], lifecycle: ['active'],
-  agencies: [], sectors: [], naicsCodes: [], pscCodes: [], setAsideCodes: [], eligibility: [], posted: [],
-  geography: [], applicantTypes: [], funding: [], costShare: [], methods: [], disbursement: [],
-  grantPrerequisites: [], codes: [], deadlineWindow: 'any', deadlineFrom: null, deadlineTo: null, sort: 'deadline', direction: 'asc', page: 1, pageSize: 20,
+  schemaVersion: 2,
+  mode: 'all',
+  clientId: null,
+  query: '',
+  sources: [],
+  types: [],
+  lifecycle: ['active'],
+  agencies: [],
+  sectors: [],
+  naicsCodes: [],
+  pscCodes: [],
+  setAsideCodes: [],
+  eligibility: [],
+  posted: [],
+  geography: [],
+  applicantTypes: [],
+  funding: [],
+  costShare: [],
+  methods: [],
+  disbursement: [],
+  grantPrerequisites: [],
+  codes: [],
+  deadlineWindow: 'any',
+  deadlineFrom: null,
+  deadlineTo: null,
+  sort: 'deadline',
+  direction: 'asc',
+  page: 1,
+  pageSize: 20,
 };
 
 const SUPPORTED_KEYS = new Set([
-  'schemaVersion', 'mode', 'clientId', 'query', 'queryMatch', 'keywordTerms', 'sources', 'types', 'lifecycle', 'agencies', 'sectors',
-  'naicsCodes', 'pscCodes', 'setAsideCodes', 'eligibility', 'posted', 'geography', 'applicantTypes',
-  'funding', 'costShare', 'methods', 'disbursement', 'grantPrerequisites', 'codes', 'deadlineFrom',
-  'deadlineWindow', 'deadlineTo', 'sort', 'direction', 'page', 'pageSize',
+  'schemaVersion',
+  'mode',
+  'clientId',
+  'query',
+  'queryMatch',
+  'keywordTerms',
+  'sources',
+  'types',
+  'lifecycle',
+  'agencies',
+  'sectors',
+  'naicsCodes',
+  'pscCodes',
+  'setAsideCodes',
+  'eligibility',
+  'posted',
+  'geography',
+  'applicantTypes',
+  'funding',
+  'costShare',
+  'methods',
+  'disbursement',
+  'grantPrerequisites',
+  'codes',
+  'deadlineFrom',
+  'deadlineWindow',
+  'deadlineTo',
+  'sort',
+  'direction',
+  'page',
+  'pageSize',
 ]);
 
 function text(value: unknown): string {
@@ -233,7 +310,9 @@ function enumListWithWarnings<T extends string>(
   }
   return raw.filter((item): item is T => allowedSet.has(item as T));
 }
-function codeList(value: unknown): string[] { return [...new Set(list(value).map((item) => item.toUpperCase()))]; }
+function codeList(value: unknown): string[] {
+  return [...new Set(list(value).map((item) => item.toUpperCase()))];
+}
 function keywordTerms(value: unknown, warnings: OpportunityCriteriaWarning[]): string[] {
   const values = Array.isArray(value) ? value : value == null ? [] : [value];
   const terms: string[] = [];
@@ -263,12 +342,18 @@ function isoOrNull(value: unknown): string | null {
   return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
 }
 
-export function normalizeOpportunitySearchCriteria(input: unknown): NormalizedOpportunitySearchCriteria {
+export function normalizeOpportunitySearchCriteria(
+  input: unknown,
+): NormalizedOpportunitySearchCriteria {
   const raw = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
   const warnings: OpportunityCriteriaWarning[] = [];
   const unsupported: Record<string, unknown> = {};
   const storedSchemaVersion = raw.schemaVersion;
-  if (typeof storedSchemaVersion === 'number' && Number.isFinite(storedSchemaVersion) && storedSchemaVersion > 2) {
+  if (
+    typeof storedSchemaVersion === 'number' &&
+    Number.isFinite(storedSchemaVersion) &&
+    storedSchemaVersion > 2
+  ) {
     warnings.push({ key: 'schemaVersion', reason: 'unsupported' });
     unsupported.schemaVersion = storedSchemaVersion;
   }
@@ -278,42 +363,102 @@ export function normalizeOpportunitySearchCriteria(input: unknown): NormalizedOp
       unsupported[key] = value;
     }
   }
-  const mode = OPPORTUNITY_SEARCH_MODES.includes(raw.mode as OpportunitySearchMode) ? raw.mode as OpportunitySearchMode : DEFAULT_CRITERIA.mode;
-  const queryMatch = OPPORTUNITY_QUERY_MATCHES_V2.includes(raw.queryMatch as OpportunityQueryMatchV2)
-    ? raw.queryMatch as OpportunityQueryMatchV2
+  const mode = OPPORTUNITY_SEARCH_MODES.includes(raw.mode as OpportunitySearchMode)
+    ? (raw.mode as OpportunitySearchMode)
+    : DEFAULT_CRITERIA.mode;
+  const queryMatch = OPPORTUNITY_QUERY_MATCHES_V2.includes(
+    raw.queryMatch as OpportunityQueryMatchV2,
+  )
+    ? (raw.queryMatch as OpportunityQueryMatchV2)
     : undefined;
   const lifecycleProvided = raw.lifecycle !== undefined;
-  const lifecycle = enumListWithWarnings(raw.lifecycle, OPPORTUNITY_LIFECYCLES_V2, 'lifecycle', warnings);
-  const sort = OPPORTUNITY_SORTS_V2.includes(raw.sort as OpportunitySortV2) ? raw.sort as OpportunitySortV2 : DEFAULT_CRITERIA.sort;
+  const lifecycle = enumListWithWarnings(
+    raw.lifecycle,
+    OPPORTUNITY_LIFECYCLES_V2,
+    'lifecycle',
+    warnings,
+  );
+  const sort = OPPORTUNITY_SORTS_V2.includes(raw.sort as OpportunitySortV2)
+    ? (raw.sort as OpportunitySortV2)
+    : DEFAULT_CRITERIA.sort;
   const deadlineWindow = ['any', '14d', '30d', '90d', '180d'].includes(String(raw.deadlineWindow))
-    ? String(raw.deadlineWindow) as OpportunityDeadlineWindowV2
+    ? (String(raw.deadlineWindow) as OpportunityDeadlineWindowV2)
     : DEFAULT_CRITERIA.deadlineWindow;
   const direction: OpportunitySortDirectionV2 = raw.direction === 'desc' ? 'desc' : 'asc';
   const page = Math.min(Math.max(Number(raw.page) || 1, 1), 10_000);
   const pageSize = Math.min(Math.max(Number(raw.pageSize) || 20, 1), 100);
   const client = text(raw.clientId);
   const criteria: OpportunitySearchCriteriaV2 = {
-    schemaVersion: 2, mode, clientId: client || null, query: text(raw.query),
+    schemaVersion: 2,
+    mode,
+    clientId: client || null,
+    query: text(raw.query),
     ...(queryMatch ? { queryMatch } : {}),
     keywordTerms: keywordTerms(raw.keywordTerms, warnings),
     sources: enumListWithWarnings(raw.sources, OPPORTUNITY_SOURCES_V2, 'sources', warnings),
     types: enumListWithWarnings(raw.types, OPPORTUNITY_TYPES_V2, 'types', warnings),
-    lifecycle: lifecycleProvided ? lifecycle : DEFAULT_CRITERIA.lifecycle, agencies: list(raw.agencies), sectors: list(raw.sectors),
-    naicsCodes: codeList(raw.naicsCodes), pscCodes: codeList(raw.pscCodes), setAsideCodes: codeList(raw.setAsideCodes),
-    eligibility: enumListWithWarnings(raw.eligibility, ['eligible', 'ineligible', 'needs_review', 'unknown'] as const, 'eligibility', warnings),
-    posted: enumListWithWarnings(raw.posted, ['last_7_days', 'last_30_days', 'last_90_days', 'this_fiscal_year', 'any'] as const, 'posted', warnings),
-    geography: list(raw.geography), applicantTypes: list(raw.applicantTypes), funding: list(raw.funding), costShare: list(raw.costShare),
-    methods: list(raw.methods), disbursement: list(raw.disbursement), grantPrerequisites: list(raw.grantPrerequisites), codes: codeList(raw.codes),
-    deadlineWindow, deadlineFrom: isoOrNull(raw.deadlineFrom), deadlineTo: isoOrNull(raw.deadlineTo), sort, direction, page, pageSize,
+    lifecycle: lifecycleProvided ? lifecycle : DEFAULT_CRITERIA.lifecycle,
+    agencies: list(raw.agencies),
+    sectors: list(raw.sectors),
+    naicsCodes: codeList(raw.naicsCodes),
+    pscCodes: codeList(raw.pscCodes),
+    setAsideCodes: codeList(raw.setAsideCodes),
+    eligibility: enumListWithWarnings(
+      raw.eligibility,
+      ['eligible', 'ineligible', 'needs_review', 'unknown'] as const,
+      'eligibility',
+      warnings,
+    ),
+    posted: enumListWithWarnings(
+      raw.posted,
+      ['last_7_days', 'last_30_days', 'last_90_days', 'this_fiscal_year', 'any'] as const,
+      'posted',
+      warnings,
+    ),
+    geography: list(raw.geography),
+    applicantTypes: list(raw.applicantTypes),
+    funding: list(raw.funding),
+    costShare: list(raw.costShare),
+    methods: list(raw.methods),
+    disbursement: list(raw.disbursement),
+    grantPrerequisites: list(raw.grantPrerequisites),
+    codes: codeList(raw.codes),
+    deadlineWindow,
+    deadlineFrom: isoOrNull(raw.deadlineFrom),
+    deadlineTo: isoOrNull(raw.deadlineTo),
+    sort,
+    direction,
+    page,
+    pageSize,
   };
-  if (raw.mode !== undefined && mode !== raw.mode) warnings.push({ key: 'mode', reason: 'invalid' });
-  if (raw.queryMatch !== undefined && queryMatch === undefined) warnings.push({ key: 'queryMatch', reason: 'invalid' });
+  if (raw.mode !== undefined && mode !== raw.mode)
+    warnings.push({ key: 'mode', reason: 'invalid' });
+  if (raw.queryMatch !== undefined && queryMatch === undefined)
+    warnings.push({ key: 'queryMatch', reason: 'invalid' });
   if (queryMatch && criteria.query.length > 512) warnings.push({ key: 'query', reason: 'invalid' });
-  if (queryMatch === 'keywords' && new Set((criteria.query.match(/"([^"]*)"|(\S+)/g) ?? []).map((term) => term.replace(/^"|"$/g, '').trim().toLowerCase()).filter(Boolean)).size > 20) warnings.push({ key: 'query', reason: 'invalid' });
-  if (lifecycleProvided && lifecycle.length === 0 && Array.isArray(raw.lifecycle) && raw.lifecycle.length > 0) warnings.push({ key: 'lifecycle', reason: 'invalid' });
-  if (raw.sort !== undefined && sort !== raw.sort) warnings.push({ key: 'sort', reason: 'invalid' });
-  if (raw.deadlineWindow !== undefined && deadlineWindow !== raw.deadlineWindow) warnings.push({ key: 'deadlineWindow', reason: 'invalid' });
-  if (raw.deadlineFrom != null && criteria.deadlineFrom == null) warnings.push({ key: 'deadlineFrom', reason: 'invalid' });
-  if (raw.deadlineTo != null && criteria.deadlineTo == null) warnings.push({ key: 'deadlineTo', reason: 'invalid' });
+  if (
+    queryMatch === 'keywords' &&
+    new Set(
+      (criteria.query.match(/"([^"]*)"|(\S+)/g) ?? [])
+        .map((term) => term.replace(/^"|"$/g, '').trim().toLowerCase())
+        .filter(Boolean),
+    ).size > 20
+  )
+    warnings.push({ key: 'query', reason: 'invalid' });
+  if (
+    lifecycleProvided &&
+    lifecycle.length === 0 &&
+    Array.isArray(raw.lifecycle) &&
+    raw.lifecycle.length > 0
+  )
+    warnings.push({ key: 'lifecycle', reason: 'invalid' });
+  if (raw.sort !== undefined && sort !== raw.sort)
+    warnings.push({ key: 'sort', reason: 'invalid' });
+  if (raw.deadlineWindow !== undefined && deadlineWindow !== raw.deadlineWindow)
+    warnings.push({ key: 'deadlineWindow', reason: 'invalid' });
+  if (raw.deadlineFrom != null && criteria.deadlineFrom == null)
+    warnings.push({ key: 'deadlineFrom', reason: 'invalid' });
+  if (raw.deadlineTo != null && criteria.deadlineTo == null)
+    warnings.push({ key: 'deadlineTo', reason: 'invalid' });
   return { criteria, warnings, unsupported };
 }

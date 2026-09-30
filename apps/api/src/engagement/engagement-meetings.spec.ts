@@ -20,6 +20,8 @@ const ctx: TenantContext = {
 function serviceWith(tx: Record<string, unknown>): EngagementService {
   const prisma = {
     withTenant: (_tenantId: string, fn: (scoped: unknown) => unknown) => fn(tx),
+    withTenantUser: (_tenantId: string, _userId: string, fn: (scoped: unknown) => unknown) =>
+      fn(tx),
   };
   const service = Object.create(EngagementService.prototype) as EngagementService;
   (service as unknown as { prisma: unknown }).prisma = prisma;
@@ -60,6 +62,64 @@ const tenantFlag = (crossUser: boolean) => ({
       settings: crossUser ? { clioFeatureFlags: { 'meetingsCrossUser.enabled': true } } : {},
     }),
   },
+});
+
+describe('getClientMeeting', () => {
+  test('resolves a null-client meeting through the canonical contact association and current wall', async () => {
+    let meetingWhere: Record<string, unknown> | undefined;
+    const row = meetingRow({ clientId: null, subject: 'Associated meeting' });
+    const service = serviceWith({
+      client: {
+        findFirst: async () => ({ id: 'c1', primaryContactEmail: 'contact@example.test' }),
+      },
+      clientPerson: { findMany: async () => [{ email: 'person@example.test' }] },
+      meeting: {
+        findFirst: async (args: { where: Record<string, unknown> }) => {
+          meetingWhere = args.where;
+          return row;
+        },
+      },
+      $queryRawUnsafe: async () => [{ allowed: true }],
+    });
+
+    await expect(service.getClientMeeting(ctx, 'c1', 'm1')).resolves.toBe(row);
+    expect(meetingWhere).toEqual({
+      AND: [
+        {
+          id: 'm1',
+          tenantId: 'tenant-1',
+          OR: [{ createdByUserId: 'user-1' }, { connection: { createdByUserId: 'user-1' } }],
+          status: { not: 'deleted' },
+        },
+        expect.objectContaining({
+          OR: expect.arrayContaining([
+            { clientId: 'c1' },
+            expect.objectContaining({ clientId: null, isInternal: false }),
+          ]),
+        }),
+      ],
+    });
+  });
+
+  test('fails closed for a current parent/link mismatch or wall revocation', async () => {
+    const base = {
+      client: { findFirst: async () => ({ id: 'c1', primaryContactEmail: null }) },
+      clientPerson: { findMany: async () => [] },
+    };
+    const missing = serviceWith({
+      ...base,
+      meeting: { findFirst: async () => null },
+      $queryRawUnsafe: async () => [{ allowed: true }],
+    });
+    await expect(missing.getClientMeeting(ctx, 'c1', 'm1')).rejects.toThrow('Meeting not found');
+
+    const revoked = serviceWith({
+      ...base,
+      meeting: { findFirst: async () => meetingRow() },
+      $queryRawUnsafe: async () => [{ allowed: false }],
+    });
+    await expect(revoked.getClientMeeting(ctx, 'c1', 'm1')).rejects.toThrow('Client not found');
+  });
 });
 
 describe('shareMeeting', () => {
@@ -239,7 +299,13 @@ describe('listMeetingLibrary', () => {
     // Trimmed, case-insensitive, and over metadata only — never artifact bodies,
     // which are stored encrypted and are not decrypted on list endpoints.
     expect(where.AND).toEqual([
-      { OR: [{ preps: { some: { status: 'approved' } } }, { debriefs: { some: { status: 'approved' } } }, { notes: { some: { status: 'approved' } } }] },
+      {
+        OR: [
+          { preps: { some: { status: 'approved' } } },
+          { debriefs: { some: { status: 'approved' } } },
+          { notes: { some: { status: 'approved' } } },
+        ],
+      },
       {
         OR: [
           { subject: { contains: 'HASC', mode: 'insensitive' } },
@@ -442,7 +508,12 @@ describe('listSharedMeetingsForClient', () => {
     >;
 
     const where = findArgs!.where as Record<string, unknown>;
-    expect(where).toEqual({ tenantId: 'tenant-1', clientId: 'c1', visibility: 'shared', status: { not: 'deleted' } });
+    expect(where).toEqual({
+      tenantId: 'tenant-1',
+      clientId: 'c1',
+      visibility: 'shared',
+      status: { not: 'deleted' },
+    });
     // Deliberately NO ownMeetingWhere — shared material is org-visible.
     expect(where).not.toHaveProperty('OR');
     expect(findArgs!.orderBy).toEqual([{ sharedAt: 'desc' }, { startsAt: 'desc' }]);
@@ -495,31 +566,38 @@ describe('decorateMeetings (via listSharedMeetingsForClient)', () => {
       null,
       "Meri didn't make it into the call — it may not have been admitted from the waiting room in time.",
     ],
-    ['failed', 'Recall reported a fatal error mid-call.', 'Recall reported a fatal error mid-call.'],
+    [
+      'failed',
+      'Recall reported a fatal error mid-call.',
+      'Recall reported a fatal error mid-call.',
+    ],
     ['failed', null, 'Meri hit an unexpected error and could not capture this meeting.'],
-  ])('meri: %s / error: %s surfaces as failed with an explanation', async (status, error, expected) => {
-    const service = serviceWith({
-      meeting: {
-        findMany: async () => [
-          meetingRow({
-            notes: [],
-            debriefs: [],
-            preps: [],
-          }),
-        ],
-      },
-      ...decorateStubs,
-      meetingBotSession: { findMany: async () => [{ meetingId: 'm1', status, error }] },
-      ...tenantFlag(false),
-    });
+  ])(
+    'meri: %s / error: %s surfaces as failed with an explanation',
+    async (status, error, expected) => {
+      const service = serviceWith({
+        meeting: {
+          findMany: async () => [
+            meetingRow({
+              notes: [],
+              debriefs: [],
+              preps: [],
+            }),
+          ],
+        },
+        ...decorateStubs,
+        meetingBotSession: { findMany: async () => [{ meetingId: 'm1', status, error }] },
+        ...tenantFlag(false),
+      });
 
-    const [row] = (await service.listSharedMeetingsForClient(ctx, 'c1')) as Array<
-      Record<string, unknown>
-    >;
+      const [row] = (await service.listSharedMeetingsForClient(ctx, 'c1')) as Array<
+        Record<string, unknown>
+      >;
 
-    expect(row!.meri).toBe('failed');
-    expect(row!.meriError).toBe(expected);
-  });
+      expect(row!.meri).toBe('failed');
+      expect(row!.meriError).toBe(expected);
+    },
+  );
 
   // `removed` is the user's OWN "Cancel Meri" kill switch — unlike the failure
   // statuses above, this must stay silent (meri null, no meriError) so the UI

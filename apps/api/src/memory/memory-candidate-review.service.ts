@@ -119,7 +119,7 @@ export class MemoryCandidateReviewService {
     const candidates = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const rows = await tx.memoryCandidate.findMany({
         where: { tenantId: ctx.tenantId, status: 'pending' },
-        orderBy: { createdAt: 'asc' },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         select: {
           id: true,
           clientId: true,
@@ -158,21 +158,28 @@ export class MemoryCandidateReviewService {
           contradictsMemoryItemId: row.contradictsMemoryItemId,
           conflictStatus: row.conflictStatus,
         });
-        const workflow = await this.workflow.ensureAndDescribeInTx(
-          tx,
-          ctx,
-          {
-            id: row.id,
-            tenantId: ctx.tenantId,
-            clientId: row.clientId,
-            proposedByUserId: row.proposedBy,
-            sourceKind: row.sourceKind,
-            scope: row.scope,
-            candidateKind,
-            title: proposal.canonicalItem?.title ?? proposal.key ?? 'Memory proposal',
-          },
-          subject,
-        );
+        const workflow = await this.workflow
+          .ensureAndDescribeInTx(
+            tx,
+            ctx,
+            {
+              id: row.id,
+              tenantId: ctx.tenantId,
+              clientId: row.clientId,
+              proposedByUserId: row.proposedBy,
+              sourceKind: row.sourceKind,
+              scope: row.scope,
+              candidateKind,
+              title: proposal.canonicalItem?.title ?? proposal.key ?? 'Memory proposal',
+            },
+            subject,
+          )
+          .catch((error: unknown) => {
+            // A concurrent disposition may win after the initial pending scan.
+            if (error instanceof NotFoundException) return null;
+            throw error;
+          });
+        if (!workflow) continue;
 
         if (
           workflow.status !== 'pending' ||

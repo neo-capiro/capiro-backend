@@ -95,6 +95,63 @@ function harness(adapters: RetrievalSourceAdapter[]) {
 }
 
 describe('Meri tool reads through the adopted Context Plane gateway', () => {
+  it('preserves Monday board selectors and continuations through enforced, audited retrieval', async () => {
+    const source = {
+      key: 'monday-managed-mcp',
+      domains: ['monday'],
+      retrieve: jest.fn().mockResolvedValue(page('monday')),
+    } satisfies RetrievalSourceAdapter;
+    const h = harness([source]);
+    const deadlineAt = Date.now() + 30_000;
+    const result = await h.service.searchToolData(ctx, {
+      clientId,
+      queryClass: 'lookup',
+      requestedDomains: ['monday'],
+      mondayBoardContext: 'board:42',
+      cursors: { monday: 'source-next' },
+      pageSize: 1,
+      requireComplete: false,
+      deadlineAt,
+    });
+    expect(h.requestContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operationId: 'meri.chat',
+        resolverRequest: expect.objectContaining({ clientId, subjectScope: 'client' }),
+      }),
+    );
+    expect(h.retrieve).toHaveBeenCalledWith(
+      expect.objectContaining({
+        caller: expect.objectContaining({
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          clientIds: [clientId],
+        }),
+        mondayBoardContext: 'board:42',
+        cursors: { monday: 'source-next' },
+        pageSize: 1,
+        requireComplete: false,
+        deadlineAt,
+      }),
+    );
+    expect(h.audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        decision: expect.objectContaining({ allowed: true }),
+      }),
+    );
+    expect(result.records[0]?.payload).toEqual({ text: evidence });
+    expect(result.coverage.sources[0]).toMatchObject({ nextCursor: 'source-next', hasMore: true });
+    h.security.mockResolvedValue({ authorizedClientIds: [], authorizedMailboxConnectionIds: [] });
+    await expect(
+      h.service.searchToolData(ctx, {
+        clientId,
+        queryClass: 'lookup',
+        requestedDomains: ['monday'],
+        cursors: { monday: 'source-next' },
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(source.retrieve).toHaveBeenCalledTimes(1);
+  });
+
   it('preserves exact memory narrowing, dates, cursors and full source content after packet enforcement', async () => {
     const source = {
       key: 'knowledge-plane-temporal-graph',

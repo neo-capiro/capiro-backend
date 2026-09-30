@@ -1,0 +1,30 @@
+[
+  {
+    "migration": "20260810010000_funding_opportunities",
+    "sql": "CREATE UNIQUE INDEX IF NOT EXISTS \"client_funding_opportunity_grant_uniq\"\n    ON \"client_funding_opportunity\" (\"tenant_id\", \"client_id\", \"grant_opportunity_id\")\n    WHERE \"grant_opportunity_id\" IS NOT NULL;"
+  },
+  {
+    "migration": "20260810010000_funding_opportunities",
+    "sql": "CREATE UNIQUE INDEX IF NOT EXISTS \"client_funding_opportunity_sam_uniq\"\n    ON \"client_funding_opportunity\" (\"tenant_id\", \"client_id\", \"sam_opportunity_id\")\n    WHERE \"sam_opportunity_id\" IS NOT NULL;"
+  },
+  {
+    "migration": "20260819010000_funding_opportunity_decisions",
+    "sql": "CREATE INDEX IF NOT EXISTS \"client_funding_opportunity_decision_idx\"\n    ON \"client_funding_opportunity\" (\"tenant_id\", \"human_decision\", \"next_action_due_at\")\n    WHERE \"human_decision\" IS NOT NULL;"
+  },
+  {
+    "migration": "20260821010000_tango_source_substrate",
+    "sql": "CREATE UNIQUE INDEX IF NOT EXISTS \"tango_resource_snapshot_one_active_uniq\"\n    ON \"tango_resource_snapshot\" (\"resource_type\", \"external_id\")\n    WHERE \"active\" = true;"
+  },
+  {
+    "migration": "20260902010000_tango_budget_context",
+    "sql": "CREATE UNIQUE INDEX IF NOT EXISTS \"tango_budget_vendor_flow_grain_uniq\"\n  ON \"tango_budget_vendor_flow\" (\n    \"budget_account_id\",\n    \"recipient_uei\",\n    COALESCE(\"funding_organization_id\", '')\n  );"
+  },
+  {
+    "migration": "20260916180000_opportunity_bookmarks",
+    "sql": "CREATE UNIQUE INDEX \"client_funding_opportunity_generic_uniq\"\n  ON \"client_funding_opportunity\" (\"tenant_id\", \"client_id\", \"source\", \"source_record_type\", \"source_record_key\")\n  WHERE \"source_record_key\" IS NOT NULL AND \"source_record_type\" IS NOT NULL;"
+  },
+  {
+    "migration": "20280211010000_engagement_task_action_source_uniq",
+    "sql": "CREATE UNIQUE INDEX IF NOT EXISTS \"engagement_tasks_tenant_source_uniq\"\n    ON \"engagement_tasks\" (\"tenant_id\", \"source_type\", \"source_id\")\n    WHERE \"source_type\" IS NOT NULL AND \"source_id\" IS NOT NULL;"
+  }
+]

@@ -1,5 +1,9 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { ImmutableMemoryVersionService } from './immutable-memory-version.service.js';
@@ -86,7 +90,9 @@ function harness(input: {
     args.select?.sourceKind ? { sourceKind } : { payload },
   );
   const tx = {
-    client: { findMany: jest.fn(async () => []) },
+    client: {
+      findMany: jest.fn(async () => [{ id: CLIENT, name: 'Test Client' }]),
+    },
     memoryCandidate: {
       findMany: jest.fn(async () => [row]),
       findFirst,
@@ -228,6 +234,26 @@ describe('candidateKindForSource', () => {
 });
 
 describe('MemoryCandidateReviewService', () => {
+  it('skips a candidate that is no longer pending when its review lock is acquired', async () => {
+    await withGovernance(true, async () => {
+      const h = harness({ approveAllowed: true });
+      h.ensureAndDescribeInTx.mockRejectedValueOnce(new NotFoundException());
+      await expect(h.service.listReviewable(ctx)).resolves.toEqual({
+        enabled: true,
+        candidates: [],
+      });
+    });
+  });
+
+  it('does not hide a workflow storage failure as a missing candidate', async () => {
+    await withGovernance(true, async () => {
+      const h = harness({ approveAllowed: true });
+      const failure = new Error('database unavailable');
+      h.ensureAndDescribeInTx.mockRejectedValueOnce(failure);
+      await expect(h.service.listReviewable(ctx)).rejects.toBe(failure);
+    });
+  });
+
   it('stays dark until client review, lifecycle, and authorization are all explicitly armed', async () => {
     await withGovernance(false, async () => {
       const h = harness({ approveAllowed: true });
@@ -255,6 +281,7 @@ describe('MemoryCandidateReviewService', () => {
         expect.objectContaining({
           id: 'candidate-1',
           candidateKind: 'correction',
+          clientName: 'Test Client',
           workflow: expect.objectContaining({
             submittedBy: { userId: 'proposer-1', name: 'Pat Proposer' },
             assignedReviewer: { userId: USER, name: 'Riley Reviewer' },
@@ -272,6 +299,10 @@ describe('MemoryCandidateReviewService', () => {
         }),
       ]);
       expect(h.ensureAndDescribeInTx).toHaveBeenCalled();
+      expect(h.tx.client.findMany).toHaveBeenCalledWith({
+        where: { tenantId: TENANT, id: { in: [CLIENT] } },
+        select: { id: true, name: true },
+      });
     });
   });
 
@@ -286,6 +317,7 @@ describe('MemoryCandidateReviewService', () => {
         enabled: true,
         candidates: [],
       });
+      expect(h.tx.client.findMany).not.toHaveBeenCalled();
     });
   });
 
@@ -298,6 +330,7 @@ describe('MemoryCandidateReviewService', () => {
       });
       expect(h.findFirst).not.toHaveBeenCalled();
       expect(h.ensureAndDescribeInTx).not.toHaveBeenCalled();
+      expect(h.tx.client.findMany).not.toHaveBeenCalled();
     });
   });
 

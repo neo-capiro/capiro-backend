@@ -57,7 +57,9 @@ permissions:
 jobs:
   funding-opportunities:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # The serial API suites exceeded the former 45-minute job budget.
+    # Keep every suite, count floor, and disposable DB isolation check.
+    timeout-minutes: 90
     services:
       postgres:
         # pgvector, not plain postgres: early repository migrations create vector
@@ -79,6 +81,9 @@ jobs:
           --health-retries 10
 
     env:
+      # In-band Jest groups, nest build and the web build (tsc + vite) all run
+      # on this heap; 6 GB is the level at which all of them have completed.
+      NODE_OPTIONS: --max-old-space-size=6144
       DATABASE_URL: postgresql://fo_test:fo_test_local@127.0.0.1:5486/fo_v2_test?schema=public
       FUNDING_OPPORTUNITIES_TEST_DATABASE_URL: postgresql://fo_test:fo_test_local@127.0.0.1:5486/fo_v2_test?schema=public
       PSQL_DATABASE_URL: postgresql://fo_test:fo_test_local@127.0.0.1:5486/fo_v2_test
@@ -106,7 +111,7 @@ jobs:
           base="${{ github.event.pull_request.base.sha }}"
           changed=$(git diff --name-only "$base"...HEAD)
           echo "$changed" | sed 's/^/  /'
-          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/california-grants/|apps/api/src/external/tango/|packages/shared/|apps/api/src/bootstrap/|apps/api/src/config/config\.schema\.(ts|spec\.ts)|apps/api/src/webhooks/tango-webhook|apps/api/src/webhooks/webhooks\.module\.ts|apps/api/src/bootstrap/configure-api-http-app|infra/cdk/lib/config\.ts|infra/cdk/lib/compute-stack\.ts|infra/cdk/test/compute-stack.*\.spec\.ts|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/src/meri/(meri-tools\.service\.ts|meri-tools\.registration\.spec\.ts|meri\.module\.ts|meri-mcp\.catalog\.(ts|spec\.ts)|meri-mcp-transport\.(ts|spec\.ts)|meri-mcp\.service\.ts)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher|reconcile-tango-webhook-alerts|process-tango-events|diag-funding-opportunities-makegov|diag-tango-webhook-contract|diag-tango-dibbs-sbir-ingestion|sync-tango-dibbs|sync-tango-entities|sync-tango-vehicles)|apps/api/package\.json|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/vnext/pages/funding-opportunities/|apps/web/src/vnext/adapters/legacy/|apps/web/src/vnext/pages/client-crm/|apps/web/src/vnext/shell/AppShellUui/|apps/web/src/vnext/foundations/reset\.css|apps/web/src/vnext/testing/visual/(funding-opportunities-v2-fixture-api|funding-opportunities-v2-main|funding-opportunities-v2-pursuit-fixtures|funding-opportunities-v2-reference-data)\.(ts|tsx)|apps/web/public/assets/capiro-reference-logo\.png|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/App\.tsx|apps/web/src/App\.funding-opportunities-nav|scripts/ci/(bootstrap-funding-opportunities-test-dbs|verify-funding-opportunity-schema)\.sh|scripts/ci/intel-feature-flag-test-schema\.sql|\.github/workflows/funding-opportunities-ci\.yml)'; then
+          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/california-grants/|apps/api/src/external/tango/|packages/shared/|apps/api/src/bootstrap/|apps/api/src/config/config\.schema\.(ts|spec\.ts)|apps/api/src/webhooks/tango-webhook|apps/api/src/webhooks/webhooks\.module\.ts|apps/api/src/bootstrap/configure-api-http-app|infra/cdk/lib/config\.ts|infra/cdk/lib/compute-stack\.ts|infra/cdk/test/compute-stack.*\.spec\.ts|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/src/meri/(meri-tools\.service\.ts|meri-tools\.registration\.spec\.ts|meri\.module\.ts|meri-mcp\.catalog\.(ts|spec\.ts)|meri-mcp-transport\.(ts|spec\.ts)|meri-mcp\.service\.ts)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher|reconcile-tango-webhook-alerts|process-tango-events|diag-funding-opportunities-makegov|diag-tango-webhook-contract|diag-tango-dibbs-sbir-ingestion|sync-tango-dibbs|sync-tango-entities|sync-tango-vehicles)|apps/api/package\.json|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/vnext/pages/funding-opportunities/|apps/web/src/vnext/adapters/legacy/|apps/web/src/vnext/pages/client-crm/|apps/web/src/vnext/shell/AppShellUui/|apps/web/src/vnext/foundations/reset\.css|apps/web/src/vnext/testing/visual/(funding-opportunities-v2-fixture-api|funding-opportunities-v2-main|funding-opportunities-v2-pursuit-fixtures|funding-opportunities-v2-reference-data)\.(ts|tsx)|apps/web/public/assets/capiro-reference-logo\.png|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/App\.tsx|apps/web/src/App\.funding-opportunities-nav|scripts/ci/(bootstrap-funding-opportunities-test-dbs|verify-funding-opportunity-schema)\.sh|scripts/ci/(intel-feature-flag-test-schema|disposable-capiro-worker-prerequisite|disposable-capiro-worker-role|research-portfolio-append-only-prerequisite)\.sql|scripts/ci/verify-funding-indexes(\.test)?\.mjs|scripts/ci/funding-sql-owned-indexes\.json|\.github/workflows/funding-opportunities-ci\.yml)'; then
             echo "in_scope=true" >> "$GITHUB_OUTPUT"
             echo "In scope — running the full gate."
           else
@@ -166,6 +171,8 @@ jobs:
       - name: Bootstrap isolated Funding Opportunities databases
         if: steps.scope.outputs.in_scope == 'true'
         id: migrate
+        env:
+          CI_DISPOSABLE_POSTGRES: '1'
         shell: bash
         run: |
           set -o pipefail
@@ -257,49 +264,17 @@ jobs:
         shell: bash
         run: bash --noprofile --norc -e -o pipefail scripts/ci/verify-funding-opportunity-schema.sh
 
-      # The narrow, enforceable half of a drift check: every index the funding
-      # migrations CREATE must also be declared in schema.prisma. An index that exists
-      # only in SQL reads as drift to anyone running `prisma migrate dev`; one declared
-      # only in Prisma never gets created at all.
-      - name: Assert this feature's indexes are declared in schema.prisma
+      # Verify final index definitions, including later DROP/replacement migrations.
+      # Prisma owns representable indexes; an explicit SQL contract owns partial
+      # and expression indexes. Both are checked against the migrated catalog.
+      - name: Verify Funding index contracts
         if: steps.scope.outputs.in_scope == 'true'
         shell: bash
         run: |
-          set -uo pipefail
-          fail=0
-          # Glob on `_funding_opportunit*`, not `_funding_opportunities*`. The
-          # original three migrations are named ...opportunitIES; P07 and P13 are
-          # named ...opportunitY_<thing>, so the narrower glob silently stopped
-          # covering every migration added after the first three — the exact quiet
-          # shrink this gate exists to prevent.
-          #
-          # A SECOND glob for `_tango_*`, added at P15: `tango_source_substrate`
-          # matches NEITHER pattern above, so without this the exact same class of
-          # gap D-19 found for P07/P13 would have reopened immediately for the
-          # Tango migrations — caught this time before merging rather than after,
-          # by asking "does the new migration's directory name actually match one
-          # of these globs" instead of assuming a prior fix generalizes.
-          # UNIQUE indexes use `CREATE UNIQUE INDEX`, not bare `CREATE INDEX`.
-          # Without the optional UNIQUE token this gate silently stops covering
-          # partial unique indexes such as engagement_tasks_tenant_source_uniq.
-          names=$(grep -Eho 'CREATE (UNIQUE )?INDEX IF NOT EXISTS "[a-z_]*"' \
-                    apps/api/prisma/migrations/*_funding_opportunit*/migration.sql \
-                    apps/api/prisma/migrations/*_tango_*/migration.sql \
-                    apps/api/prisma/migrations/*_engagement_task*/migration.sql \
-                  | sed 's/.*"\(.*\)"/\1/' | sort -u)
-          if [ -z "$names" ]; then
-            echo "::error::found no CREATE INDEX statements in the funding migrations — the glob is wrong."
-            exit 1
-          fi
-          for name in $names; do
-            if grep -q "$name" apps/api/prisma/schema.prisma; then
-              echo "ok: $name declared in schema.prisma"
-            else
-              echo "::error::index $name is created by a migration but not declared in schema.prisma"
-              fail=1
-            fi
-          done
-          exit $fail
+          set -euo pipefail
+          pnpm --filter @capiro/api exec prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > "$RUNNER_TEMP/funding-schema.sql"
+          FUNDING_GENERATED_SCHEMA_SQL="$RUNNER_TEMP/funding-schema.sql" node --test scripts/ci/verify-funding-indexes.test.mjs
+          node scripts/ci/verify-funding-indexes.mjs --schema-sql "$RUNNER_TEMP/funding-schema.sql"
 
       # The Funding Opportunities script typecheck. apps/api/tsconfig.json excludes
       # `scripts`, so this config is the ONLY thing that typechecks the producers,
@@ -312,12 +287,20 @@ jobs:
       # transition coverage remains in funding-opportunity-pipeline.spec.ts.
       - name: Typecheck — apps/api and apps/web
         if: steps.scope.outputs.in_scope == 'true'
-        run: pnpm turbo run typecheck --filter=@capiro/api --filter=@capiro/web
+        # The API typecheck's first program alone now exceeds 4 GB. Run the
+        # projects one at a time through pnpm, which passes NODE_OPTIONS to the
+        # scripts; every workspace package was built above.
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: |
+          pnpm --filter @capiro/api typecheck
+          pnpm --filter @capiro/web typecheck
 
       # ---------------------------------------------------------------- api --
-      # Every module this feature owns, enumerated. `--runInBand` because the
-      # migration service is shared and parallel workers on one Postgres make
-      # failures non-deterministic.
+      # Every module this feature owns, enumerated. `--runInBand` on the
+      # 6 GB job heap: the migration service is shared and parallel workers
+      # on one Postgres make failures non-deterministic. A 1 GB idle limit
+      # restarts the worker after every suite (~30 s ts-jest reload each).
       - name: Validate isolated API test paths
         if: steps.scope.outputs.in_scope == 'true'
         shell: bash
@@ -465,7 +448,6 @@ jobs:
           src/vnext/pages/funding-opportunities/FundingOpportunitiesV2SavedSearches.test.tsx
           src/vnext/pages/funding-opportunities/FundingOpportunityV2ResultCard.test.tsx
           src/vnext/pages/funding-opportunities/funding-opportunities-v2-controls.test.ts
-          src/vnext/pages/funding-opportunities/funding-opportunities-v2-keyword.test.ts
           src/vnext/adapters/legacy/useClientFundingOpportunitiesV2.test.ts
           src/vnext/adapters/legacy/useShellClientContext.funding.test.tsx
           src/vnext/adapters/legacy/useClientCrmOverviewModel.test.tsx
@@ -475,9 +457,13 @@ jobs:
           src/pages/settings/IntelligenceMappingsPage.test.tsx
           src/App.funding-opportunities-nav.test.tsx
 
+      # The suite floor drops from 46 on purpose: funding-opportunities-v2-keyword
+      # (1 file + 1 describe = 2 vitest suites) was deleted with its module in
+      # d0f126146; keyword/phrase coverage lives in the controls and page tests.
+      # The test floor rises from 137 to the 146 that now run.
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 46 137
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 44 146
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`

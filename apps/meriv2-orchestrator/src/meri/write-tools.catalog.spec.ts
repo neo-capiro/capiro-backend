@@ -30,12 +30,12 @@ const EXPECTED_WRITE_TOOLS = [
   'update_task',
   'update_client_profile',
   'save_business_development_brief',
-  'create_research_portfolio_snapshot',
+  'add_research_portfolio_review_note',
   'create_research_portfolio_bookmark',
+  'create_research_portfolio_snapshot',
   'request_research_portfolio_output',
   'save_research_portfolio_output_to_client',
   'watch_research_portfolio',
-  'add_research_portfolio_review_note',
   'update_research_portfolio_change_state',
 ].sort();
 

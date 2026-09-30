@@ -45,6 +45,8 @@ export interface OwnedMemoryCandidate {
 export interface OwnedProposalQueueResponse {
   enabled: boolean;
   candidates: OwnedMemoryCandidate[];
+  /** Present only for the additive paged producer contract. */
+  nextCursor?: string | null;
 }
 
 export function ownedMemoryCandidateTitle(candidate: OwnedMemoryCandidate): string {
@@ -74,7 +76,24 @@ export function shouldRenderMemoryProposalQueue(
 
 // ── Reviewer queue (MemoryReviewQueue) ──────────────────────────────────────
 
-export type MemoryCandidateKind = 'standard' | 'correction' | 'restore' | 'contradiction';
+export type MemoryCandidateKind =
+  | 'standard'
+  | 'correction'
+  | 'restore'
+  | 'contradiction'
+  | 'learning_signal_conflict';
+
+export interface MemoryReviewWorkflowSummary {
+  requestId: string;
+  status: string;
+  submittedBy: { userId: string; name: string };
+  assignedReviewer: { userId: string; name: string } | null;
+  decidedBy: { userId: string; name: string } | null;
+  feedbackReason: string | null;
+  createdAt: string;
+  decidedAt: string | null;
+  capabilities: { requestChanges: boolean; reassign: boolean };
+}
 
 export interface ReviewableMemoryCandidate {
   id: string;
@@ -100,9 +119,14 @@ export interface ReviewableMemoryCandidate {
       }>;
     } | null;
   };
+  conflict?: { contradictsMemoryItemId: string; conflictStatus: string } | null;
+  workflow?: MemoryReviewWorkflowSummary;
   capabilities: {
     approve: boolean;
     reject: boolean;
+    requestChanges?: boolean;
+    reassign?: boolean;
+    resolveConflict?: boolean;
   };
 }
 
@@ -139,6 +163,7 @@ export function memoryCandidateKindLabel(kind: MemoryCandidateKind): string {
     correction: 'Correction',
     restore: 'Restore',
     contradiction: 'Contradiction',
+    learning_signal_conflict: 'Source conflict',
   };
   return labels[kind];
 }

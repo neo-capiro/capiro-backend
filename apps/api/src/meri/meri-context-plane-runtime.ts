@@ -2,19 +2,62 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { Injectable } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
+import type {
+  MeriServerReadonlyCapturePolicy,
+  MeriServerReadonlyCaptureReceipt,
+  SignedMeriCaptureEvidenceReceipt,
+} from '@capiro/meriv2-core';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { planTurnRerun } from './meri-turn.helpers.js';
 import { MeriContextPlaneService } from './meri-context-plane.service.js';
+import {
+  assertMeriServerReadonlyCaptureCurrentAuthority,
+  assertMeriServerReadonlyCaptureTurnInput,
+  issueMeriServerReadonlyCapturePolicy,
+  meriServerReadonlyCaptureReceipt,
+} from './meri-server-readonly-capture.js';
 
 export interface MeriGovernedRuntimeState {
   context: MeriGovernedTurnContext;
   activeClient: { id: string; name: string } | null;
+  capturePolicy?: MeriServerReadonlyCapturePolicy | null;
+  captureEvidenceReceipt?: SignedMeriCaptureEvidenceReceipt | null;
 }
 
 const runtime = new AsyncLocalStorage<MeriGovernedRuntimeState>();
 
 export function currentMeriGovernedRuntime(): MeriGovernedRuntimeState | null {
   return runtime.getStore() ?? null;
+}
+
+export function currentMeriServerReadonlyCapturePolicy(): MeriServerReadonlyCapturePolicy | null {
+  return currentMeriGovernedRuntime()?.capturePolicy ?? null;
+}
+
+export function currentMeriServerReadonlyCaptureReceipt(): MeriServerReadonlyCaptureReceipt | null {
+  return meriServerReadonlyCaptureReceipt(currentMeriServerReadonlyCapturePolicy());
+}
+
+export function bindCurrentMeriCaptureTurn(turnId: string): MeriServerReadonlyCapturePolicy | null {
+  const state = runtime.getStore();
+  if (!state?.capturePolicy) return null;
+  if (!turnId.trim()) throw new Error('meri_capture_turn_id_missing');
+  const policy = Object.freeze({ ...state.capturePolicy, turnId: turnId.trim() });
+  state.capturePolicy = policy;
+  state.context = { ...state.context, serverReadonlyCapturePolicy: policy };
+  return policy;
+}
+
+export function setCurrentMeriCaptureEvidenceReceipt(
+  receipt: SignedMeriCaptureEvidenceReceipt,
+): void {
+  const state = runtime.getStore();
+  if (!state?.capturePolicy) throw new Error('meri_capture_runtime_missing');
+  state.captureEvidenceReceipt = receipt;
+}
+
+export function currentMeriCaptureEvidenceReceipt(): SignedMeriCaptureEvidenceReceipt | null {
+  return runtime.getStore()?.captureEvidenceReceipt ?? null;
 }
 
 @Injectable()
@@ -37,15 +80,32 @@ export class MeriContextPlaneRuntimeService {
     input.signal?.throwIfAborted();
     const prepared = await this.prepareTurn(ctx, input);
     input.signal?.throwIfAborted();
-    const governed = await this.contextPlane.resolveChat(ctx, {
+    const resolved = await this.contextPlane.resolveChat(ctx, {
       conversationId: input.conversationId,
       task: prepared.task,
     });
     // Retrieval owns its database work. Stop must prevent the next stage from
     // starting, even when that work finishes after the browser disconnected.
     input.signal?.throwIfAborted();
-    const activeClient = governed.retrieval.plan.subjectScope === 'client' ? prepared.client : null;
-    return runtime.run({ context: governed, activeClient }, fn);
+    assertMeriServerReadonlyCaptureTurnInput({
+      policy: prepared.capturePolicy,
+      mode: input.mode,
+      attachmentIds: [],
+    });
+    const currentAuthority = await assertMeriServerReadonlyCaptureCurrentAuthority({
+      prisma: this.prisma,
+      ctx,
+      policy: prepared.capturePolicy,
+    });
+    input.signal?.throwIfAborted();
+    const activeClient =
+      resolved.retrieval.plan.subjectScope === 'client'
+        ? (currentAuthority?.client ?? prepared.client)
+        : null;
+    const context = prepared.capturePolicy
+      ? { ...resolved, serverReadonlyCapturePolicy: prepared.capturePolicy }
+      : resolved;
+    return runtime.run({ context, activeClient, capturePolicy: prepared.capturePolicy }, fn);
   }
 
   private async prepareTurn(
@@ -58,6 +118,7 @@ export class MeriContextPlaneRuntimeService {
   ): Promise<{
     task: string;
     client: { id: string; name: string } | null;
+    capturePolicy: MeriServerReadonlyCapturePolicy | null;
   }> {
     const conversation = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioConversation.findFirst({
@@ -71,18 +132,25 @@ export class MeriContextPlaneRuntimeService {
       }),
     );
     if (!conversation) throw new Error('meri_context_plane_conversation_not_found');
+    const capturePolicy = await issueMeriServerReadonlyCapturePolicy({
+      prisma: this.prisma,
+      ctx,
+      conversationId: input.conversationId,
+    });
 
     const cleanBody = cleanStreamControl(input.body);
     if (input.mode === 'new') {
       return {
         task: cleanBody.trim() || '(See the attached file(s).)',
         client: conversation.client ?? null,
+        capturePolicy,
       };
     }
     if (input.mode === 'resend') {
       return {
         task: cleanBody.trim(),
         client: conversation.client ?? null,
+        capturePolicy,
       };
     }
 
@@ -102,6 +170,7 @@ export class MeriContextPlaneRuntimeService {
     return {
       task: plan?.contentToUse?.trim() || cleanBody.trim() || '(Regenerate previous turn.)',
       client: conversation.client ?? null,
+      capturePolicy,
     };
   }
 }

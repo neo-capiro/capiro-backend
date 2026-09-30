@@ -1,5 +1,6 @@
 import type { TenantContext } from '@capiro/shared';
 import { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.js';
+import { generatedPngBase64 } from './meri-artifact-test-fixtures.js';
 
 const ctx = {
   tenantId: 'tenant-1',
@@ -55,11 +56,11 @@ describe('MeriV3 visual/PNG alignment', () => {
         artifacts: [
           {
             title: 'Static first figure',
-            metadata: { imageBase64: 'ZmlnMQ==', filename: 'fig_1.png' },
+            metadata: { imageBase64: generatedPngBase64(31), filename: 'fig_1.png' },
           },
           {
             title: 'Static second figure',
-            metadata: { imageBase64: 'ZmlnMg==', filename: 'fig_2.png' },
+            metadata: { imageBase64: generatedPngBase64(63), filename: 'fig_2.png' },
           },
         ],
       })),
@@ -78,7 +79,7 @@ describe('MeriV3 visual/PNG alignment', () => {
         title: 'Static first figure',
         metadata: expect.objectContaining({
           filename: 'fig_1.png',
-          imageBase64: 'ZmlnMQ==',
+          imageBase64: generatedPngBase64(31),
         }),
       }),
     );
@@ -91,7 +92,7 @@ describe('MeriV3 visual/PNG alignment', () => {
         title: 'Valid second visual',
         metadata: expect.objectContaining({
           filename: 'fig_2.png',
-          imageBase64: 'ZmlnMg==',
+          imageBase64: generatedPngBase64(63),
           visualization: expect.objectContaining({ title: 'Valid second visual' }),
         }),
       }),

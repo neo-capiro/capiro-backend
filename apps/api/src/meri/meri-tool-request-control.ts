@@ -1,8 +1,13 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { Request } from 'express';
 import { assertToolExecutionActive, type ToolExecutionControl } from '@capiro/meriv2-core';
+import type { MeriServerReadonlyCapturePolicy } from '@capiro/meriv2-core';
 
-const execution = new AsyncLocalStorage<ToolExecutionControl>();
+interface MeriToolRequestState extends ToolExecutionControl {
+  capturePolicy?: MeriServerReadonlyCapturePolicy;
+}
+
+const execution = new AsyncLocalStorage<MeriToolRequestState>();
 
 /** Cooperative dispatch guard. Already-started database work is not rolled back. */
 export function assertMeriToolRequestActive(): void {
@@ -11,6 +16,10 @@ export function assertMeriToolRequestActive(): void {
 
 export function meriToolRequestControl(): ToolExecutionControl | undefined {
   return execution.getStore();
+}
+
+export function currentMeriToolCapturePolicy(): MeriServerReadonlyCapturePolicy | null {
+  return execution.getStore()?.capturePolicy ?? null;
 }
 
 export async function withMeriToolExecutionControl<T>(
@@ -26,6 +35,7 @@ export async function withMeriToolExecutionControl<T>(
 export async function withMeriToolRequestControl<T>(
   req: Request,
   run: () => Promise<T>,
+  capturePolicy?: MeriServerReadonlyCapturePolicy | null,
 ): Promise<T> {
   const controller = new AbortController();
   const raw = req.headers['x-meri-deadline-at'];
@@ -47,10 +57,17 @@ export async function withMeriToolRequestControl<T>(
         )
       : undefined;
   try {
-    return await execution.run({ signal: controller.signal, deadlineAt }, async () => {
-      assertMeriToolRequestActive();
-      return run();
-    });
+    return await execution.run(
+      {
+        signal: controller.signal,
+        deadlineAt,
+        ...(capturePolicy ? { capturePolicy } : {}),
+      },
+      async () => {
+        assertMeriToolRequestActive();
+        return run();
+      },
+    );
   } finally {
     if (timer !== undefined) clearTimeout(timer);
     req.removeListener('aborted', onAbort);

@@ -3,15 +3,15 @@
  *
  * Long threads replay full message history into the model; without compaction
  * the history trimmer silently drops the oldest turns once the char budget is
- * hit, losing early facts. Instead, an after-turn async job (never on the
- * streaming path) maintains a rolling summary per conversation:
+ * hit, losing early constraints. Instead, an after-turn async job (never on
+ * the streaming path) maintains bounded protected state per conversation:
  *
- *   [summary of turns <= summaryUpToMessageId] + [verbatim tail of recent turns]
+ *   [server-authored state <= summaryUpToMessageId] + [verbatim tail]
  *
- * The summary regenerates incrementally — old summary + turns since — with a
- * small (intent-tier) model, roughly one call per trigger-budget of new text,
- * and is injected into the DYNAMIC system tail (never the cached base, so the
- * prompt-cache split is preserved).
+ * State regenerates deterministically from the prior protected receipt and
+ * complete user/assistant protocol units. Free-form historical summaries are
+ * never replayed as authority. The state is injected into the DYNAMIC system
+ * tail (never the cached base, so the prompt-cache split is preserved).
  *
  * Only ClioMessage user/assistant bodies and their source-reference metadata enter the prompt builder —
  * encrypted meeting notes live in a different table and have no path in
@@ -56,6 +56,71 @@ export interface CompactionPlan {
   upToMessageId: string | null;
 }
 
+export const MERI_PROTOCOL_COMPACTION_METADATA_KEY = 'meriProtocolCompaction';
+
+const PROTOCOL_STATE_VERSION = 1 as const;
+const MAX_OBJECTIVE_CHARS = 4000;
+const MAX_DIRECTIVE_CHARS = 1200;
+const MAX_DIRECTIVES = 64;
+const MAX_RECEIPTS = 24;
+const MAX_SOURCE_RECEIPTS = 24;
+const MAX_PENDING_PROPOSALS = 16;
+const MAX_REPLAY_BODY_CHARS = 12_000;
+const MAX_CORRECTION_RECORD_CHARS = 5000;
+const MAX_RECEIPT_RECORD_CHARS = 3500;
+const MAX_SOURCE_RECORD_CHARS = 1800;
+const MAX_PROPOSAL_RECORD_CHARS = 2400;
+export const MAX_REPLAY_HISTORY_CHARS = 80_000;
+export const MAX_REPLAY_MESSAGES = 80;
+
+export interface ProtectedDirective {
+  messageId: string;
+  text: string;
+  originalChars: number;
+  truncated: boolean;
+}
+
+export interface ProtectedProtocolReceipt {
+  userMessageId: string;
+  assistantMessageId: string;
+  finishReason: string;
+  partial: boolean;
+  completedTools: string[];
+}
+
+export interface ProtectedSourceReceipt {
+  messageId: string;
+  handle: string;
+  version: string | null;
+  authorization: 'reauthorize_before_use';
+}
+
+export interface ProtectedProposalReceipt {
+  messageId: string;
+  proposalId: string;
+  tool: string | null;
+  status: string;
+  authorization: 'read_current_receipt_before_use';
+}
+
+export interface MeriProtocolCompactionState {
+  version: typeof PROTOCOL_STATE_VERSION;
+  boundaryMessageId: string;
+  clientId: string | null;
+  objective: ProtectedDirective | null;
+  latestUserDirection: ProtectedDirective | null;
+  corrections: ProtectedDirective[];
+  completedUnits: ProtectedProtocolReceipt[];
+  sourceReceipts: ProtectedSourceReceipt[];
+  pendingProposals: ProtectedProposalReceipt[];
+  omittedConstraintCount: number;
+  omittedCompletedUnitCount: number;
+  omittedSourceReceiptCount: number;
+  omittedProposalReceiptCount: number;
+  status: 'complete' | 'partial';
+  limitations: string[];
+}
+
 const NO_COMPACTION: CompactionPlan = {
   compact: false,
   toSummarize: [],
@@ -77,12 +142,35 @@ export function planCompaction(input: CompactionPlanInput): CompactionPlan {
   if (beyondTailTokens < input.triggerTokens && input.messages.length < replayLimit - 2) {
     return NO_COMPACTION;
   }
-  const last = beyondTail[beyondTail.length - 1];
+  // Provider tool calls/results are persisted inside their assistant receipt,
+  // so a user+assistant pair is the smallest complete protocol unit. Align the
+  // watermark backward rather than stranding half a turn across compaction.
+  const completedEnd = completedProtocolPrefixLength(beyondTail);
+  const toSummarize = beyondTail.slice(0, completedEnd);
+  if (toSummarize.length < minMessages) return NO_COMPACTION;
+  const last = toSummarize[toSummarize.length - 1];
   return {
     compact: true,
-    toSummarize: beyondTail,
+    toSummarize,
     upToMessageId: last?.id ?? null,
   };
+}
+
+function completedProtocolPrefixLength(messages: CompactionMessage[]): number {
+  let completedEnd = 0;
+  let openUser = false;
+  for (let index = 0; index < messages.length; index += 1) {
+    const role = messages[index]?.role;
+    if (!openUser) {
+      if (role !== 'user') break;
+      openUser = true;
+      continue;
+    }
+    if (role !== 'assistant') break;
+    openUser = false;
+    completedEnd = index + 1;
+  }
+  return completedEnd;
 }
 
 /** Per-turn clamp inside the summarization prompt so one giant paste can't
@@ -90,6 +178,250 @@ export function planCompaction(input: CompactionPlanInput): CompactionPlan {
 export function clampTurnForSummary(body: string, maxChars = 2000): string {
   const trimmed = body.trim();
   return trimmed.length > maxChars ? `${trimmed.slice(0, maxChars).trimEnd()}…` : trimmed;
+}
+
+/**
+ * Bound a replay payload without pretending the clipped prefix is complete.
+ * This path has no callable full-message owner, so the notice asks for a
+ * restatement instead of advertising an unusable message-ID recovery path.
+ */
+export function boundReplayMessageBody(
+  message: Pick<CompactionMessage, 'id' | 'body'>,
+  maxChars = MAX_REPLAY_BODY_CHARS,
+): string {
+  return boundReplayBody(message.body ?? '', maxChars).body;
+}
+
+interface BoundedReplayBody {
+  body: string;
+  keptCharacters: number;
+}
+
+function boundReplayBody(body: string, maxChars: number): BoundedReplayBody {
+  if (!Number.isFinite(maxChars) || maxChars < 0) {
+    throw new RangeError('maxChars must be a finite non-negative number');
+  }
+  const limit = Math.floor(maxChars);
+  if (body.length <= limit) return { body, keptCharacters: body.length };
+  if (limit === 0) return { body: '', keptCharacters: 0 };
+  const notice = (omitted: number) =>
+    `\n\n[SERVER REPLAY NOTICE: ${omitted} characters were omitted from this bounded history request. No callable full-message retriever is available here. Ask the user to restate omitted objective or constraint text before relying on it.]`;
+  let keptCharacters = Math.max(0, limit - notice(body.length).length);
+  for (let attempt = 0; attempt < 32; attempt += 1) {
+    const suffix = notice(body.length - keptCharacters);
+    const nextKeptCharacters = limit - suffix.length;
+    if (nextKeptCharacters < 1) break;
+    if (nextKeptCharacters === keptCharacters) {
+      return {
+        body: `${body.slice(0, keptCharacters)}${suffix}`,
+        keptCharacters,
+      };
+    }
+    keptCharacters = nextKeptCharacters;
+  }
+
+  // A clipped warning is neither useful nor honest. For a tiny valid budget,
+  // retain a marked prefix so the pending request still carries partial meaning;
+  // aggregate allocation metadata reports the exact omitted character count.
+  const prefixCharacters = Math.max(0, limit - 1);
+  return {
+    body: `${body.slice(0, prefixCharacters)}…`,
+    keptCharacters: prefixCharacters,
+  };
+}
+
+export interface BoundedReplayMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  body: string;
+}
+
+export interface BoundedReplayAllocation {
+  history: BoundedReplayMessage[];
+  omittedMessages: number;
+  omittedCharacters: number;
+  totalChars: number;
+}
+
+/**
+ * Allocate only persisted history (plus protected-state charge) under one
+ * deterministic character cap. Complete user/assistant units are indivisible;
+ * the newest unpaired user is separately protected so an in-flight request is
+ * never evicted. This is not a whole-provider-input budget.
+ */
+export function allocateBoundedReplayHistory(
+  messages: BoundedReplayMessage[],
+  options: {
+    maxChars?: number;
+    protectedStateChars?: number;
+    maxMessages?: number;
+  } = {},
+): BoundedReplayAllocation {
+  const maxChars = options.maxChars ?? MAX_REPLAY_HISTORY_CHARS;
+  const protectedStateChars = options.protectedStateChars ?? 0;
+  const maxMessagesOption = options.maxMessages ?? MAX_REPLAY_MESSAGES;
+  if (!Number.isFinite(maxChars) || maxChars <= 0) {
+    throw new RangeError('maxChars must be a finite positive number');
+  }
+  if (!Number.isFinite(protectedStateChars) || protectedStateChars < 0) {
+    throw new RangeError('protectedStateChars must be a finite non-negative number');
+  }
+  if (protectedStateChars > maxChars) {
+    throw new RangeError('protectedStateChars cannot exceed maxChars');
+  }
+  if (!Number.isFinite(maxMessagesOption) || maxMessagesOption < 1) {
+    throw new RangeError('maxMessages must be a finite positive number');
+  }
+  const historyBudget = Math.floor(maxChars - protectedStateChars);
+  const maxMessages = Math.floor(maxMessagesOption);
+  const pendingUser = messages.at(-1)?.role === 'user' ? messages.at(-1)! : null;
+  let cursor = messages.length - (pendingUser ? 1 : 0);
+  const completePairs: Array<[BoundedReplayMessage, BoundedReplayMessage]> = [];
+  while (
+    cursor >= 2 &&
+    messages[cursor - 2]?.role === 'user' &&
+    messages[cursor - 1]?.role === 'assistant'
+  ) {
+    completePairs.unshift([messages[cursor - 2]!, messages[cursor - 1]!]);
+    cursor -= 2;
+  }
+
+  type BoundedEntry = {
+    message: BoundedReplayMessage;
+    keptCharacters: number;
+  };
+  const boundedEntry = (message: BoundedReplayMessage, limit = MAX_REPLAY_BODY_CHARS) => {
+    const bounded = boundReplayBody(message.body, limit);
+    return {
+      message: { ...message, body: bounded.body },
+      keptCharacters: bounded.keptCharacters,
+    } satisfies BoundedEntry;
+  };
+  const boundedPairs = completePairs.map(
+    ([user, assistant]) =>
+      [boundedEntry(user), boundedEntry(assistant)] as [BoundedEntry, BoundedEntry],
+  );
+  let boundedPending = pendingUser
+    ? boundedEntry(pendingUser, Math.min(MAX_REPLAY_BODY_CHARS, historyBudget))
+    : null;
+  const selectedPairs: Array<[BoundedEntry, BoundedEntry]> = [];
+  let selectedChars = boundedPending?.message.body.length ?? 0;
+  const pairMessageLimit = Math.floor((maxMessages - (boundedPending ? 1 : 0)) / 2) * 2;
+  for (let index = boundedPairs.length - 1; index >= 0; index -= 1) {
+    const pair = boundedPairs[index]!;
+    const pairChars = pair[0].message.body.length + pair[1].message.body.length;
+    if (selectedPairs.length * 2 >= pairMessageLimit || selectedChars + pairChars > historyBudget) {
+      // Selection is a newest-first suffix. Once this unit cannot fit, no
+      // older unit may backfill around it and create an interior omission.
+      break;
+    }
+    selectedPairs.unshift(pair);
+    selectedChars += pairChars;
+  }
+
+  const originalCandidateChars = messages.reduce((sum, message) => sum + message.body.length, 0);
+  const omissionStats = () => {
+    const keptCharacters = [
+      ...selectedPairs.flat(),
+      ...(boundedPending ? [boundedPending] : []),
+    ].reduce((sum, entry) => sum + entry.keptCharacters, 0);
+    return {
+      omittedMessages: cursor + (boundedPairs.length - selectedPairs.length) * 2,
+      omittedCharacters: Math.max(0, originalCandidateChars - keptCharacters),
+    };
+  };
+  let { omittedMessages, omittedCharacters } = omissionStats();
+  const wholeMessageNotice = () =>
+    `[SERVER REPLAY NOTICE: ${omittedMessages} older conversation message(s) and ${omittedCharacters} characters were omitted by bounded history allocation. No callable full-message retriever is available in this request. Ask the user to restate any missing objective or constraint; do not infer omitted content.]`;
+  const noticeSeparatorChars = () => {
+    const recipient = selectedPairs[0]?.[0] ?? boundedPending;
+    return recipient?.message.body.length ? 2 : 0;
+  };
+
+  let aggregateNotice: string | null = null;
+  if (omittedMessages > 0) {
+    let notice = wholeMessageNotice();
+    while (
+      selectedPairs.length &&
+      selectedChars + notice.length + noticeSeparatorChars() > historyBudget
+    ) {
+      // Notice growth may only trim the oldest edge of the selected suffix.
+      const removed = selectedPairs.shift()!;
+      selectedChars -= removed[0].message.body.length + removed[1].message.body.length;
+      ({ omittedMessages, omittedCharacters } = omissionStats());
+      notice = wholeMessageNotice();
+    }
+
+    if (boundedPending) {
+      const pairChars = selectedPairs
+        .flat()
+        .reduce((sum, entry) => sum + entry.message.body.length, 0);
+      for (let attempt = 0; attempt < 32; attempt += 1) {
+        const roomAfterNotice = historyBudget - pairChars - notice.length;
+        const pairRecipientSeparatorChars = selectedPairs[0]?.[0].message.body.length ? 2 : 0;
+        const pendingLimit = selectedPairs.length
+          ? Math.max(0, roomAfterNotice - pairRecipientSeparatorChars)
+          : roomAfterNotice > 2
+            ? roomAfterNotice - 2
+            : 0;
+        boundedPending = boundedEntry(pendingUser!, Math.min(MAX_REPLAY_BODY_CHARS, pendingLimit));
+        ({ omittedMessages, omittedCharacters } = omissionStats());
+        const nextNotice = wholeMessageNotice();
+        if (
+          nextNotice.length +
+            noticeSeparatorChars() +
+            boundedPending.message.body.length +
+            pairChars <=
+          historyBudget
+        ) {
+          notice = nextNotice;
+          aggregateNotice = notice;
+          break;
+        }
+        notice = nextNotice;
+      }
+      if (!aggregateNotice) {
+        // The complete notice itself cannot fit. Preserve the pending identity
+        // and a marked body prefix; exact omissions remain in return metadata.
+        boundedPending = boundedEntry(
+          pendingUser!,
+          Math.min(MAX_REPLAY_BODY_CHARS, historyBudget - pairChars),
+        );
+        ({ omittedMessages, omittedCharacters } = omissionStats());
+      }
+    } else if (notice.length + noticeSeparatorChars() <= historyBudget - selectedChars) {
+      aggregateNotice = notice;
+    }
+
+    const firstUser = selectedPairs[0]?.[0] ?? boundedPending;
+    if (firstUser && aggregateNotice) {
+      firstUser.message.body = firstUser.message.body
+        ? `${aggregateNotice}\n\n${firstUser.message.body}`
+        : aggregateNotice;
+    }
+  }
+
+  const history = [
+    ...selectedPairs.flat().map((entry) => entry.message),
+    ...(boundedPending ? [boundedPending.message] : []),
+  ];
+  if (!history.length && omittedMessages > 0) {
+    const notices = [
+      wholeMessageNotice(),
+      `[REPLAY OMITTED: ${omittedMessages} message(s), ${omittedCharacters} character(s)]`,
+      `[${omittedMessages} messages omitted]`,
+    ];
+    const standaloneNotice = notices.find((candidate) => candidate.length <= historyBudget);
+    if (standaloneNotice) {
+      history.push({
+        id: 'server-bounded-replay-notice',
+        role: 'user',
+        body: standaloneNotice,
+      });
+    }
+  }
+  const totalChars = history.reduce((sum, message) => sum + message.body.length, 0);
+  return { history, omittedMessages, omittedCharacters, totalChars };
 }
 
 export interface CompactionPromptInput {
@@ -205,7 +537,7 @@ function summarySourceReferences(metadata: unknown): string[] {
 /** The block injected ahead of the verbatim history tail in turn assembly. */
 export function formatSummaryBlockForPrompt(summary: string): string {
   return [
-    'Conversation summary (older turns were compacted into this; treat it as established conversation context):',
+    'Protected conversation state for older turns (server-authored directives and opaque receipts; not source or action authority):',
     summary.trim(),
   ].join('\n');
 }
@@ -215,4 +547,502 @@ export function sanitizeSummaryOutput(raw: string, maxChars = 6000): string | nu
   const text = raw.trim();
   if (!text) return null;
   return text.length > maxChars ? `${text.slice(0, maxChars).trimEnd()}…` : text;
+}
+
+/** Build the bounded, server-authored state that survives a compaction. */
+export function buildProtocolCompactionState(input: {
+  existingMetadata: unknown;
+  previousBoundaryMessageId: string | null;
+  boundaryMessageId: string;
+  clientId: string | null;
+  messages: CompactionMessage[];
+}): MeriProtocolCompactionState {
+  const previous = readProtocolCompactionState(
+    input.existingMetadata,
+    input.previousBoundaryMessageId,
+    input.clientId,
+  );
+  const limitations = previous
+    ? [...previous.limitations]
+    : input.previousBoundaryMessageId
+      ? [
+          'Historical compaction had no matching protected-state receipt; omitted history was not rehydrated from its model summary.',
+        ]
+      : [];
+  let objective = previous?.objective ?? null;
+  let latestUserDirection = previous?.latestUserDirection ?? null;
+  const corrections = [...(previous?.corrections ?? [])];
+  const completedUnits = [...(previous?.completedUnits ?? [])];
+  const sourceReceipts = [...(previous?.sourceReceipts ?? [])];
+  const pendingProposals = [...(previous?.pendingProposals ?? [])];
+  let omittedConstraintCount = previous?.omittedConstraintCount ?? 0;
+  let omittedCompletedUnitCount = previous?.omittedCompletedUnitCount ?? 0;
+  let omittedSourceReceiptCount = previous?.omittedSourceReceiptCount ?? 0;
+  let omittedProposalReceiptCount = previous?.omittedProposalReceiptCount ?? 0;
+
+  for (let index = 0; index < input.messages.length; index += 2) {
+    const user = input.messages[index];
+    const assistant = input.messages[index + 1];
+    if (!user || !assistant || user.role !== 'user' || assistant.role !== 'assistant') {
+      limitations.push(
+        'A malformed or half-paired protocol unit was left outside protected state.',
+      );
+      break;
+    }
+    const directive = protectedDirective(
+      user,
+      objective ? MAX_DIRECTIVE_CHARS : MAX_OBJECTIVE_CHARS,
+    );
+    if (!objective && directive) objective = directive;
+    if (directive) {
+      latestUserDirection = directive;
+      if (isCorrectionOrConstraint(directive.text)) corrections.push(directive);
+      if (directive.truncated) {
+        limitations.push(
+          `User direction ${directive.messageId} exceeded the protected-state record bound; ask the user to restate omitted objective or constraint text.`,
+        );
+      }
+    }
+    const metadata = record(assistant.metadata);
+    const finishReason = text(metadata.finishReason, 80) || 'unknown';
+    const partial = metadata.partial === true || !completeFinishReason(finishReason);
+    completedUnits.push({
+      userMessageId: user.id,
+      assistantMessageId: assistant.id,
+      finishReason,
+      partial,
+      completedTools: completedToolNames(metadata).slice(0, 12),
+    });
+    if (partial) {
+      limitations.push(
+        `Protocol unit ${user.id}/${assistant.id} ended ${finishReason}; no assistant claim from that unit was promoted into protected state.`,
+      );
+    }
+    sourceReceipts.push(...sourceHandles(assistant));
+    pendingProposals.push(...proposalHandles(assistant));
+  }
+
+  const boundedCorrections = boundedNewestRecords(
+    uniqueBy(corrections, (item) => item.messageId),
+    MAX_DIRECTIVES,
+    MAX_CORRECTION_RECORD_CHARS,
+    (item) => `${item.messageId}:${item.text}`,
+  );
+  omittedConstraintCount += boundedCorrections.omitted;
+  const boundedCompletedUnits = boundedNewestRecords(
+    uniqueBy(completedUnits, (item) => `${item.userMessageId}:${item.assistantMessageId}`),
+    MAX_RECEIPTS,
+    MAX_RECEIPT_RECORD_CHARS,
+    (item) => JSON.stringify(item),
+  );
+  omittedCompletedUnitCount += boundedCompletedUnits.omitted;
+  const boundedSourceReceipts = boundedNewestRecords(
+    uniqueBy(sourceReceipts, (item) => `${item.messageId}:${item.handle}:${item.version ?? ''}`),
+    MAX_SOURCE_RECEIPTS,
+    MAX_SOURCE_RECORD_CHARS,
+    (item) => JSON.stringify(item),
+  );
+  omittedSourceReceiptCount += boundedSourceReceipts.omitted;
+  const boundedPendingProposals = boundedNewestRecords(
+    uniqueBy(pendingProposals, (item) => item.proposalId),
+    MAX_PENDING_PROPOSALS,
+    MAX_PROPOSAL_RECORD_CHARS,
+    (item) => JSON.stringify(item),
+  );
+  omittedProposalReceiptCount += boundedPendingProposals.omitted;
+  const hasOmissions =
+    omittedConstraintCount > 0 ||
+    omittedCompletedUnitCount > 0 ||
+    omittedSourceReceiptCount > 0 ||
+    omittedProposalReceiptCount > 0;
+
+  return {
+    version: PROTOCOL_STATE_VERSION,
+    boundaryMessageId: input.boundaryMessageId,
+    clientId: input.clientId,
+    objective,
+    latestUserDirection,
+    corrections: boundedCorrections.values,
+    completedUnits: boundedCompletedUnits.values,
+    sourceReceipts: boundedSourceReceipts.values,
+    pendingProposals: boundedPendingProposals.values,
+    omittedConstraintCount,
+    omittedCompletedUnitCount,
+    omittedSourceReceiptCount,
+    omittedProposalReceiptCount,
+    status: limitations.length || hasOmissions ? 'partial' : 'complete',
+    limitations: [...new Set(limitations)].slice(-8),
+  };
+}
+
+/** Parse only a state receipt bound to the exact current boundary and client. */
+export function readProtocolCompactionState(
+  metadata: unknown,
+  expectedBoundaryMessageId: string | null,
+  expectedClientId: string | null,
+): MeriProtocolCompactionState | null {
+  if (!expectedBoundaryMessageId) return null;
+  const raw = record(metadata)[MERI_PROTOCOL_COMPACTION_METADATA_KEY];
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const state = raw as Partial<MeriProtocolCompactionState>;
+  if (
+    state.version !== PROTOCOL_STATE_VERSION ||
+    state.boundaryMessageId !== expectedBoundaryMessageId ||
+    (state.clientId ?? null) !== expectedClientId ||
+    !Array.isArray(state.corrections) ||
+    !Array.isArray(state.completedUnits) ||
+    !Array.isArray(state.sourceReceipts) ||
+    !Array.isArray(state.pendingProposals) ||
+    !Array.isArray(state.limitations)
+  ) {
+    return null;
+  }
+  return {
+    version: PROTOCOL_STATE_VERSION,
+    boundaryMessageId: state.boundaryMessageId,
+    clientId: state.clientId ?? null,
+    objective: parseDirective(state.objective),
+    latestUserDirection: parseDirective(state.latestUserDirection),
+    corrections: state.corrections
+      .flatMap((item) => {
+        const parsed = parseDirective(item);
+        return parsed ? [parsed] : [];
+      })
+      .slice(-MAX_DIRECTIVES),
+    completedUnits: state.completedUnits.flatMap(parseProtocolReceipt).slice(-MAX_RECEIPTS),
+    sourceReceipts: state.sourceReceipts.flatMap(parseSourceReceipt).slice(-MAX_SOURCE_RECEIPTS),
+    pendingProposals: state.pendingProposals
+      .flatMap(parseProposalReceipt)
+      .slice(-MAX_PENDING_PROPOSALS),
+    omittedConstraintCount: nonnegativeCount(state.omittedConstraintCount),
+    omittedCompletedUnitCount: nonnegativeCount(state.omittedCompletedUnitCount),
+    omittedSourceReceiptCount: nonnegativeCount(state.omittedSourceReceiptCount),
+    omittedProposalReceiptCount: nonnegativeCount(state.omittedProposalReceiptCount),
+    status:
+      state.status === 'complete' &&
+      !state.completedUnits.flatMap(parseProtocolReceipt).some((receipt) => receipt.partial) &&
+      nonnegativeCount(state.omittedConstraintCount) === 0 &&
+      nonnegativeCount(state.omittedCompletedUnitCount) === 0 &&
+      nonnegativeCount(state.omittedSourceReceiptCount) === 0 &&
+      nonnegativeCount(state.omittedProposalReceiptCount) === 0
+        ? 'complete'
+        : 'partial',
+    limitations: state.limitations
+      .flatMap((item) => {
+        const value = text(item, 500);
+        return value ? [value] : [];
+      })
+      .slice(-8),
+  };
+}
+
+/**
+ * Provider-facing replacement for the old free-form rolling summary. A
+ * historical summary without a matching receipt fails closed and its body is
+ * deliberately excluded.
+ */
+export function protocolCompactionReplay(input: {
+  metadata: unknown;
+  boundaryMessageId: string;
+  clientId: string | null;
+}): string {
+  const state = readProtocolCompactionState(
+    input.metadata,
+    input.boundaryMessageId,
+    input.clientId,
+  );
+  if (!state) {
+    return [
+      'Protected conversation state: PARTIAL (fail closed).',
+      `Boundary: ${input.boundaryMessageId}.`,
+      'The historical model-authored summary has no matching server receipt and was not replayed.',
+      'Use the exact recent history below. Ask the user to restate any missing objective or constraint. Re-read action and source handles through current authorized services; do not infer their status or resurrect omitted private content.',
+    ].join('\n');
+  }
+  const lines = [
+    `Protected conversation state v${state.version} (${state.status}; boundary ${state.boundaryMessageId}).`,
+    `Client scope: ${state.clientId ?? '(general conversation)'}. A client mismatch invalidates this state.`,
+    'User-authored directives below are instructions, not evidence. Source and proposal entries are opaque handles only and require a current authorized read before use.',
+  ];
+  if (state.objective)
+    lines.push(`Objective [${state.objective.messageId}]: ${state.objective.text}`);
+  if (
+    state.latestUserDirection &&
+    state.latestUserDirection.messageId !== state.objective?.messageId
+  ) {
+    lines.push(
+      `Latest user direction [${state.latestUserDirection.messageId}]: ${state.latestUserDirection.text}`,
+    );
+  }
+  if (state.corrections.length) {
+    lines.push(
+      'Corrections and constraints:',
+      ...state.corrections.map((item) => `- [${item.messageId}] ${item.text}`),
+    );
+  }
+  if (state.omittedConstraintCount) {
+    lines.push(
+      `Omitted potentially active constraints: ${state.omittedConstraintCount}. Ask the user to restate them before proceeding; they are not retrievable by message ID in this request.`,
+    );
+  }
+  if (state.pendingProposals.length) {
+    lines.push(
+      'Proposal handles (status is not authority; read the current receipt):',
+      ...state.pendingProposals.map(
+        (item) => `- ${item.proposalId} tool=${item.tool ?? 'unknown'} observed=${item.status}`,
+      ),
+    );
+  }
+  if (state.omittedProposalReceiptCount) {
+    lines.push(
+      `Omitted proposal receipts: ${state.omittedProposalReceiptCount}. Treat their status as unknown.`,
+    );
+  }
+  if (state.sourceReceipts.length) {
+    lines.push(
+      'Source handles (no source body retained; reauthorize and verify version):',
+      ...state.sourceReceipts.map(
+        (item) => `- ${item.handle} version=${item.version ?? 'unknown'} from=${item.messageId}`,
+      ),
+    );
+  }
+  if (state.omittedSourceReceiptCount) {
+    lines.push(
+      `Omitted source receipts: ${state.omittedSourceReceiptCount}. Re-run an authorized source lookup before making source-dependent claims.`,
+    );
+  }
+  if (state.completedUnits.length) {
+    lines.push(
+      'Protocol receipts:',
+      ...state.completedUnits.map(
+        (item) =>
+          `- ${item.userMessageId}/${item.assistantMessageId} finish=${item.finishReason} partial=${item.partial} completedTools=${item.completedTools.join(',') || 'none'}`,
+      ),
+    );
+  }
+  if (state.omittedCompletedUnitCount) {
+    lines.push(
+      `Omitted protocol receipts: ${state.omittedCompletedUnitCount}. Do not infer completion for those units.`,
+    );
+  }
+  if (state.limitations.length) {
+    lines.push('Limitations:', ...state.limitations.map((item) => `- ${item}`));
+  }
+  return lines.join('\n');
+}
+
+function protectedDirective(
+  message: CompactionMessage,
+  maxChars = MAX_DIRECTIVE_CHARS,
+): ProtectedDirective | null {
+  const normalized = message.body.replace(/\s+/g, ' ').trim();
+  if (!normalized) return null;
+  const oversized = normalized.length > maxChars;
+  const textValue = oversized
+    ? `${normalized.slice(0, maxChars).trimEnd()}… [${normalized.length - maxChars} characters omitted; ask the user to restate the omitted objective or constraint text.]`
+    : normalized;
+  return {
+    messageId: message.id,
+    text: textValue,
+    originalChars: normalized.length,
+    truncated: oversized,
+  };
+}
+
+function isCorrectionOrConstraint(value: string): boolean {
+  return /\b(?:actually|correction|correct(?:ion|ed)?|instead|must|never|only|exclude|include|do not|don't|cannot|can't|not\s+(?:use|include|treat|claim|assume))\b/i.test(
+    value,
+  );
+}
+
+function completeFinishReason(value: unknown): boolean {
+  return /^(?:completed|stop|end_turn)$/i.test(text(value, 80));
+}
+
+function completedToolNames(metadata: Record<string, unknown>): string[] {
+  const steps = Array.isArray(metadata.trustSteps)
+    ? metadata.trustSteps
+    : Array.isArray(metadata.trace)
+      ? metadata.trace
+      : [];
+  return uniqueBy(
+    steps.flatMap((item) => {
+      const step = record(item);
+      const tool = text(step.tool, 120);
+      return tool && step.status === 'done' ? [tool] : [];
+    }),
+    (item) => item,
+  );
+}
+
+function sourceHandles(message: CompactionMessage): ProtectedSourceReceipt[] {
+  const metadata = record(message.metadata);
+  const rows: unknown[] = [
+    ...(Array.isArray(metadata.citations) ? metadata.citations : []),
+    ...(Array.isArray(record(metadata.evidenceManifest).sources)
+      ? (record(metadata.evidenceManifest).sources as unknown[])
+      : []),
+  ];
+  const contextPacketId =
+    text(metadata.contextPacketId, 200) || text(record(metadata.contextPacket).packetId, 200);
+  if (contextPacketId) rows.push({ id: `context-packet:${contextPacketId}` });
+  return rows.flatMap((item) => {
+    const source = record(item);
+    const handle =
+      text(source.sourceId, 300) ||
+      text(source.id, 300) ||
+      text(source.documentId, 300) ||
+      text(source.attachmentId, 300);
+    if (!handle) return [];
+    return [
+      {
+        messageId: message.id,
+        handle,
+        version:
+          text(source.sourceVersion, 200) ||
+          text(source.version, 200) ||
+          text(source.contentHash, 200) ||
+          null,
+        authorization: 'reauthorize_before_use' as const,
+      },
+    ];
+  });
+}
+
+function proposalHandles(message: CompactionMessage): ProtectedProposalReceipt[] {
+  const values = record(message.metadata).pendingApprovals;
+  if (!Array.isArray(values)) return [];
+  return values.flatMap((item) => {
+    const proposal = record(item);
+    const proposalId = text(proposal.proposalId, 200);
+    if (!proposalId) return [];
+    return [
+      {
+        messageId: message.id,
+        proposalId,
+        tool: text(proposal.tool, 120) || null,
+        status: text(proposal.status, 80) || 'observed_pending',
+        authorization: 'read_current_receipt_before_use' as const,
+      },
+    ];
+  });
+}
+
+function parseDirective(value: unknown): ProtectedDirective | null {
+  const item = record(value);
+  const messageId = text(item.messageId, 200);
+  const directive = text(item.text, MAX_OBJECTIVE_CHARS + 300);
+  if (!messageId || !directive) return null;
+  return {
+    messageId,
+    text: directive,
+    originalChars:
+      typeof item.originalChars === 'number' && Number.isFinite(item.originalChars)
+        ? Math.max(0, Math.floor(item.originalChars))
+        : directive.length,
+    truncated: item.truncated === true,
+  };
+}
+
+function parseProtocolReceipt(value: unknown): ProtectedProtocolReceipt[] {
+  const item = record(value);
+  const userMessageId = text(item.userMessageId, 200);
+  const assistantMessageId = text(item.assistantMessageId, 200);
+  if (!userMessageId || !assistantMessageId) return [];
+  const finishReason = text(item.finishReason, 80) || 'unknown';
+  return [
+    {
+      userMessageId,
+      assistantMessageId,
+      finishReason,
+      partial: item.partial === true || !completeFinishReason(finishReason),
+      completedTools: Array.isArray(item.completedTools)
+        ? item.completedTools
+            .flatMap((tool) => {
+              const valueText = text(tool, 120);
+              return valueText ? [valueText] : [];
+            })
+            .slice(0, 12)
+        : [],
+    },
+  ];
+}
+
+function parseSourceReceipt(value: unknown): ProtectedSourceReceipt[] {
+  const item = record(value);
+  const messageId = text(item.messageId, 200);
+  const handle = text(item.handle, 300);
+  if (!messageId || !handle) return [];
+  return [
+    {
+      messageId,
+      handle,
+      version: text(item.version, 200) || null,
+      authorization: 'reauthorize_before_use',
+    },
+  ];
+}
+
+function parseProposalReceipt(value: unknown): ProtectedProposalReceipt[] {
+  const item = record(value);
+  const messageId = text(item.messageId, 200);
+  const proposalId = text(item.proposalId, 200);
+  if (!messageId || !proposalId) return [];
+  return [
+    {
+      messageId,
+      proposalId,
+      tool: text(item.tool, 120) || null,
+      status: text(item.status, 80) || 'unknown',
+      authorization: 'read_current_receipt_before_use',
+    },
+  ];
+}
+
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function text(value: unknown, maxChars: number): string {
+  return typeof value === 'string' ? value.trim().slice(0, maxChars) : '';
+}
+
+function nonnegativeCount(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+}
+
+function boundedNewestRecords<T>(
+  values: T[],
+  maxRecords: number,
+  maxChars: number,
+  serialize: (value: T) => string,
+): { values: T[]; omitted: number } {
+  const kept: T[] = [];
+  let chars = 0;
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    const value = values[index]!;
+    const recordChars = serialize(value).length;
+    if (kept.length >= maxRecords || chars + recordChars > maxChars) continue;
+    kept.unshift(value);
+    chars += recordChars;
+  }
+  return { values: kept, omitted: values.length - kept.length };
+}
+
+function uniqueBy<T>(values: T[], key: (value: T) => string): T[] {
+  const result: T[] = [];
+  const positions = new Map<string, number>();
+  for (const value of values) {
+    const identity = key(value);
+    const prior = positions.get(identity);
+    if (prior === undefined) {
+      positions.set(identity, result.length);
+      result.push(value);
+    } else {
+      result[prior] = value;
+    }
+  }
+  return result;
 }

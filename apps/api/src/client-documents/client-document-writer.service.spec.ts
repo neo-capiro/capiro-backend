@@ -32,7 +32,12 @@ function activePolicy(): EngagementRuntimePolicyService {
 }
 
 const shadowCases: Array<{
-  method: 'createAttachmentFromBuffer' | 'supersedeAttachment' | 'deleteAttachment';
+  method:
+    | 'createAttachmentFromBuffer'
+    | 'supersedeAttachment'
+    | 'deleteAttachment'
+    | 'deleteSyntheticFixtureAttachment'
+    | 'inspectSyntheticFixtureAttachmentDeletion';
   args: unknown[];
 }> = [
   {
@@ -48,18 +53,23 @@ const shadowCases: Array<{
   },
   { method: 'supersedeAttachment', args: [ctx, 'old-id', 'new-id'] },
   { method: 'deleteAttachment', args: [ctx, 'attachment-id'] },
+  { method: 'deleteSyntheticFixtureAttachment', args: [ctx, 'attachment-id', {}] },
+  { method: 'inspectSyntheticFixtureAttachmentDeletion', args: [ctx, 'attachment-id', {}] },
 ];
 
 describe('ClientDocumentWriterService runtime boundary', () => {
-  it.each(shadowCases)('blocks $method before the authoritative implementation in shadow', ({ method, args }) => {
-    const implementation = jest.fn(async () => ({ unsafe: true }));
-    const engagement = { [method]: implementation };
-    const service = new ClientDocumentWriterService(engagement as never, shadowPolicy());
-    const call = service[method] as unknown as (...values: unknown[]) => unknown;
+  it.each(shadowCases)(
+    'blocks $method before the authoritative implementation in shadow',
+    ({ method, args }) => {
+      const implementation = jest.fn(async () => ({ unsafe: true }));
+      const engagement = { [method]: implementation };
+      const service = new ClientDocumentWriterService(engagement as never, shadowPolicy());
+      const call = service[method] as unknown as (...values: unknown[]) => unknown;
 
-    expect(() => call(...args)).toThrow(ServiceUnavailableException);
-    expect(implementation).not.toHaveBeenCalled();
-  });
+      expect(() => call(...args)).toThrow(ServiceUnavailableException);
+      expect(implementation).not.toHaveBeenCalled();
+    },
+  );
 
   it('delegates unchanged in the active main runtime', async () => {
     const createAttachmentFromBuffer = jest.fn(async () => ({
@@ -87,6 +97,7 @@ describe('ClientDocumentWriterService runtime boundary', () => {
       createAttachmentFromBuffer: { action: 'attachment_external_write' },
       supersedeAttachment: { action: 'attachment_external_write' },
       deleteAttachment: { action: 'attachment_external_write' },
+      deleteSyntheticFixtureAttachment: { action: 'attachment_external_write' },
       reconcileFailedAttachmentDeletes: { action: 'attachment_external_write' },
       extractAttachmentText: { action: 'attachment_external_read' },
       readAttachmentBytes: { action: 'attachment_external_read' },

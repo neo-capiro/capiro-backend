@@ -1,4 +1,5 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { JEV_TASK_REGISTRY } from '@capiro/meriv2-core';
 
 export type MeriModelBudgetPhase =
   'acquisition' | 'selection' | 'repair' | 'synthesis' | 'finalization' | 'shadow';
@@ -32,6 +33,40 @@ export interface MeriRunBudgetSnapshot {
   maxRetryCalls: number;
   acquisitionStopped: boolean;
   stopReason: MeriRunBudgetStopReason | null;
+}
+
+export type MeriProviderAttemptKind = 'openai_responses' | 'anthropic_messages' | 'jev';
+
+export interface MeriProviderAttemptBinding {
+  logicalOperationId: string;
+  attemptId: string;
+  retryOfAttemptId: string | null;
+  kind: MeriProviderAttemptKind;
+  phase: MeriModelBudgetPhase;
+  provider: string;
+  model: string;
+  maxInputTokens: number;
+  maxOutputTokens: number | null;
+}
+
+export interface MeriProviderReservation extends MeriProviderAttemptBinding {
+  reservationId: string;
+  deadlineAt: string;
+}
+
+export interface MeriDurableProviderAccounting {
+  reserve: (binding: MeriProviderAttemptBinding) => Promise<{
+    reservationId: string;
+    dispatchAllowed: boolean;
+    deadlineAt: string;
+  }>;
+  settle: (
+    reservation: MeriProviderReservation,
+    outcome:
+      | { kind: 'known'; inputTokens: number; outputTokens: number }
+      | { kind: 'rejected' }
+      | { kind: 'uncertain' },
+  ) => Promise<void>;
 }
 
 export class MeriRunBudgetExhaustedError extends Error {
@@ -71,11 +106,13 @@ export class MeriRunBudget {
   constructor(
     readonly limits: MeriRunBudgetLimits,
     private readonly control: { signal?: AbortSignal; deadlineAt?: number } = {},
+    private readonly providerAccounting?: MeriDurableProviderAccounting,
   ) {}
 
   static fromToolRoundCeiling(
     maxToolRounds: number,
     control: { signal?: AbortSignal; deadlineAt?: number } = {},
+    providerAccounting?: MeriDurableProviderAccounting,
   ): MeriRunBudget {
     const rounds = Math.max(1, Math.floor(maxToolRounds));
     return new MeriRunBudget(
@@ -94,6 +131,7 @@ export class MeriRunBudget {
         maxCyclePeriod: 4,
       },
       control,
+      providerAccounting,
     );
   }
 
@@ -137,14 +175,144 @@ export class MeriRunBudget {
     this.modelCalls += 1;
   }
 
+  async reserveProviderAttempt(
+    input: Omit<
+      MeriProviderAttemptBinding,
+      'attemptId' | 'logicalOperationId' | 'retryOfAttemptId'
+    > & {
+      logicalOperationId?: string;
+      attemptId?: string;
+      retryOfAttemptId?: string | null;
+      retry?: boolean;
+    },
+  ): Promise<MeriProviderReservation | null> {
+    this.reserveModelAttempt(input.phase, input.retry === true);
+    if (!this.providerAccounting) return null;
+    const attemptId = input.attemptId ?? randomUUID();
+    const binding: MeriProviderAttemptBinding = {
+      logicalOperationId: input.logicalOperationId ?? attemptId,
+      attemptId,
+      retryOfAttemptId: input.retryOfAttemptId ?? null,
+      kind: input.kind,
+      phase: input.phase,
+      provider: input.provider,
+      model: input.model,
+      maxInputTokens: input.maxInputTokens,
+      maxOutputTokens: input.maxOutputTokens,
+    };
+    const reserved = await this.providerAccounting.reserve(binding);
+    if (!reserved.dispatchAllowed) throw new MeriRunBudgetExhaustedError('model_calls');
+    return { ...binding, reservationId: reserved.reservationId, deadlineAt: reserved.deadlineAt };
+  }
+
+  async settleProviderAttempt(
+    reservation: MeriProviderReservation | null,
+    outcome:
+      | { kind: 'known'; inputTokens: number; outputTokens: number }
+      | { kind: 'rejected' }
+      | { kind: 'uncertain' },
+  ): Promise<void> {
+    if (reservation && this.providerAccounting)
+      await this.providerAccounting.settle(reservation, outcome);
+  }
+
   budgetedFetch(
     phase: MeriModelBudgetPhase,
     fetchImpl: typeof fetch = globalThis.fetch,
   ): typeof fetch {
-    return ((...args: Parameters<typeof fetch>) => {
-      this.reserveModelAttempt(phase);
-      return fetchImpl(...args);
+    const attempts = new Map<string, { count: number; previousAttemptId: string | null }>();
+    return (async (...args: Parameters<typeof fetch>) => {
+      const fetchBudget = providerFetchBudgetInput(args, phase);
+      const operationState = attempts.get(fetchBudget.logicalOperationId) ?? {
+        count: 0,
+        previousAttemptId: null,
+      };
+      const attemptId = `${fetchBudget.logicalOperationId}:${operationState.count}`;
+      const reservation = await this.reserveProviderAttempt({
+        ...fetchBudget,
+        attemptId,
+        retryOfAttemptId: operationState.previousAttemptId,
+        retry: operationState.count > 0,
+      });
+      let settled = false;
+      const durableDeadline = reservation
+        ? Date.parse(reservation.deadlineAt)
+        : Number.POSITIVE_INFINITY;
+      const deadlineAt = Math.min(
+        this.control.deadlineAt ?? Number.POSITIVE_INFINITY,
+        durableDeadline,
+      );
+      const remainingMs = deadlineAt - Date.now();
+      if (remainingMs <= 0) {
+        await this.settleProviderAttempt(reservation, { kind: 'rejected' });
+        throw new MeriRunBudgetExhaustedError('deadline');
+      }
+      const controller = new AbortController();
+      const abortFromControl = () => controller.abort(this.control.signal?.reason);
+      this.control.signal?.addEventListener('abort', abortFromControl, { once: true });
+      const timer = setTimeout(
+        () => controller.abort(new DOMException('Timed out', 'TimeoutError')),
+        Math.min(remainingMs, 2_147_483_647),
+      );
+      const init = args[1] ?? {};
+      const abortFromRequest = () => controller.abort(init.signal?.reason);
+      init.signal?.addEventListener('abort', abortFromRequest, { once: true });
+      if (this.control.signal?.aborted) abortFromControl();
+      if (init.signal?.aborted) abortFromRequest();
+      let dispatched = false;
+      try {
+        dispatched = true;
+        const response = await raceWithAbort(
+          fetchImpl(args[0], { ...init, signal: controller.signal }),
+          controller.signal,
+        );
+        if (controller.signal.aborted || Date.now() >= deadlineAt) {
+          throw controller.signal.reason ?? new DOMException('Timed out', 'TimeoutError');
+        }
+        if (response.ok) {
+          const usage = await responseUsage(response);
+          if (usage) {
+            await this.settleProviderAttempt(reservation, { kind: 'known', ...usage });
+            settled = true;
+          }
+        }
+        if (!settled) {
+          await this.settleProviderAttempt(reservation, { kind: 'uncertain' });
+          settled = true;
+        }
+        attempts.set(fetchBudget.logicalOperationId, {
+          count: operationState.count + 1,
+          previousAttemptId: attemptId,
+        });
+        return response;
+      } catch (error) {
+        if (!settled) {
+          await this.settleProviderAttempt(
+            reservation,
+            dispatched ? { kind: 'uncertain' } : { kind: 'rejected' },
+          );
+        }
+        attempts.set(fetchBudget.logicalOperationId, {
+          count: operationState.count + 1,
+          previousAttemptId: attemptId,
+        });
+        throw error;
+      } finally {
+        clearTimeout(timer);
+        this.control.signal?.removeEventListener('abort', abortFromControl);
+        init.signal?.removeEventListener('abort', abortFromRequest);
+      }
     }) as typeof fetch;
+  }
+
+  providerControl(deadlineAt?: string): { signal?: AbortSignal; deadlineAt: number } {
+    return {
+      ...(this.control.signal ? { signal: this.control.signal } : {}),
+      deadlineAt: Math.min(
+        this.control.deadlineAt ?? Number.POSITIVE_INFINITY,
+        deadlineAt ? Date.parse(deadlineAt) : Number.POSITIVE_INFINITY,
+      ),
+    };
   }
 
   /** Admit a provider-emitted batch atomically before any call can dispatch. */
@@ -315,6 +483,10 @@ function collectRevisions(value: unknown, path = '$'): Array<{ path: string; val
   });
 }
 
+export function stableProviderOperationId(scope: string, value: unknown): string {
+  return `${scope}:${hashCanonical(value)}`;
+}
+
 function hashCanonical(value: unknown): string {
   return createHash('sha256')
     .update(JSON.stringify(canonicalValue(value)))
@@ -333,4 +505,108 @@ function canonicalValue(value: unknown): unknown {
   }
   if (typeof value === 'number' && !Number.isFinite(value)) return String(value);
   return value;
+}
+
+function providerFetchBudgetInput(
+  args: Parameters<typeof fetch>,
+  phase: MeriModelBudgetPhase,
+): Omit<MeriProviderAttemptBinding, 'attemptId' | 'retryOfAttemptId'> {
+  const request = args[0];
+  const init = args[1];
+  const url =
+    typeof request === 'string' ? request : request instanceof URL ? request.href : request.url;
+  const body = typeof init?.body === 'string' ? init.body : '';
+  let parsed: Record<string, unknown> = {};
+  try {
+    const candidate = body ? JSON.parse(body) : {};
+    if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) parsed = candidate;
+  } catch {
+    // The byte reservation remains conservative even when the body is not JSON.
+  }
+  const kind: MeriProviderAttemptKind = url.includes('/v1/responses')
+    ? 'openai_responses'
+    : url.includes('/v1/messages')
+      ? 'anthropic_messages'
+      : 'jev';
+  const configuredOutput = parsed.max_output_tokens ?? parsed.max_tokens;
+  const model =
+    typeof parsed.model === 'string' && parsed.model.length > 0
+      ? parsed.model
+      : kind === 'jev'
+        ? 'jev'
+        : 'unknown';
+  const jevOutputCeiling =
+    kind === 'jev'
+      ? Math.max(
+          0,
+          ...Object.values(JEV_TASK_REGISTRY)
+            .filter((registration) => registration.modelVersion === model)
+            .map((registration) => registration.costBudget.maxOutputTokens),
+        ) || null
+      : null;
+  return {
+    logicalOperationId: stableProviderOperationId('provider-fetch', {
+      url,
+      method:
+        init?.method ??
+        (typeof request === 'string' || request instanceof URL ? 'GET' : request.method),
+      body,
+      phase,
+    }),
+    kind,
+    phase,
+    provider: kind === 'jev' ? 'jev' : kind === 'openai_responses' ? 'openai' : 'anthropic',
+    model,
+    // UTF-8 bytes are a conservative upper bound for provider tokenizer units.
+    maxInputTokens: Buffer.byteLength(body, 'utf8'),
+    maxOutputTokens:
+      typeof configuredOutput === 'number' &&
+      Number.isSafeInteger(configuredOutput) &&
+      configuredOutput >= 0
+        ? configuredOutput
+        : jevOutputCeiling,
+  };
+}
+
+async function responseUsage(
+  response: Response,
+): Promise<{ inputTokens: number; outputTokens: number } | null> {
+  try {
+    const json = (await response.clone().json()) as Record<string, unknown>;
+    const usage =
+      json.usage && typeof json.usage === 'object' && !Array.isArray(json.usage)
+        ? (json.usage as Record<string, unknown>)
+        : json;
+    const input = usage.input_tokens ?? usage.inputTokens ?? usage.prompt_tokens;
+    const output = usage.output_tokens ?? usage.outputTokens ?? usage.completion_tokens;
+    return Number.isSafeInteger(input) &&
+      Number(input) >= 0 &&
+      Number.isSafeInteger(output) &&
+      Number(output) >= 0
+      ? { inputTokens: Number(input), outputTokens: Number(output) }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function raceWithAbort<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const abort = () => reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+    signal.addEventListener('abort', abort, { once: true });
+    work.then(
+      (value) => {
+        signal.removeEventListener('abort', abort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener('abort', abort);
+        reject(error);
+      },
+    );
+  });
 }

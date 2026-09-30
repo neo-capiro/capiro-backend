@@ -72,7 +72,7 @@ describe('assessGeneratedSectionsForRelease', () => {
     { n: 1, token: '[S:pe:0604270F]', kind: 'pe', refId: '0604270F', label: 'PE 0604270F' },
   ];
 
-  it('selects legacy/shadow/profile classification from the request tenant control', () => {
+  it('keeps locator-only evidence unbound across tenant-controlled off/shadow/enforce modes', () => {
     const previous = {
       mode: process.env.MERI_EVIDENCE_PROFILES_MODE,
       tenants: process.env.MERI_EVIDENCE_PROFILES_TENANTS,
@@ -105,12 +105,24 @@ describe('assessGeneratedSectionsForRelease', () => {
         assessGeneratedSectionsForRelease(args),
       );
       expect(log).not.toHaveBeenCalled();
+      expect(off.verdicts[0]?.envelope.claimLedger.evidence[0]).toMatchObject({
+        sourceId: 'client-1',
+        ownerVerified: false,
+        primary: false,
+        authoritative: false,
+      });
 
       process.env.MERI_EVIDENCE_PROFILES_MODE = 'shadow';
       const shadow = runWithGenerationAssuranceTenant(tenant, () =>
         assessGeneratedSectionsForRelease(args),
       );
       expect(shadow.heldSections).toEqual(off.heldSections);
+      expect(shadow.verdicts[0]?.envelope.claimLedger.evidence[0]).toMatchObject({
+        sourceId: 'client-1',
+        ownerVerified: false,
+        primary: false,
+        authoritative: false,
+      });
       expect(
         shadow.verdicts.map(({ decision, held, blockers, riskLevel }) => ({
           decision,
@@ -140,13 +152,11 @@ describe('assessGeneratedSectionsForRelease', () => {
       const enforce = runWithGenerationAssuranceTenant(tenant, () =>
         assessGeneratedSectionsForRelease(args),
       );
-      expect(off.verdicts[0]?.envelope.claimLedger.evidence[0]).toMatchObject({
-        primary: true,
-        authoritative: true,
-      });
       expect(enforce.verdicts[0]?.envelope.claimLedger.evidence[0]).toMatchObject({
-        primary: true,
-        authoritative: true,
+        sourceId: 'client-1',
+        ownerVerified: false,
+        primary: false,
+        authoritative: false,
       });
     } finally {
       if (previous.mode === undefined) delete process.env.MERI_EVIDENCE_PROFILES_MODE;
@@ -234,10 +244,15 @@ describe('assessGeneratedSectionsForRelease', () => {
       generated: [{ section: 'Ask', html: '   ' }],
     });
     expect(out.heldSections).toEqual([]);
-    expect(out.verdicts[0]?.decision).toBe('deliver');
+    expect(out.verdicts[0]?.held).toBe(false);
+    expect(out.verdicts[0]?.blockers).toEqual([]);
+    // The empty output is not held, but its unspecified operating frame still
+    // requires review. Do not turn that honest flag into a clean delivery.
+    expect(out.verdicts[0]?.envelope.evidencePlan.incomplete).toBe(true);
+    expect(out.verdicts[0]?.decision).toBe('deliver_with_flags');
   });
 
-  it('a resolving citation to an authoritative PE record reduces blockers', () => {
+  it('a locator-only PE citation cannot gain authority or clear a budget-claim hold', () => {
     const withCitation = assessGeneratedSectionsForRelease({
       generated: [
         { section: 'Funding', html: '<p>The FY27 request is $412.5 million.<sup>[1]</sup></p>' },
@@ -248,9 +263,21 @@ describe('assessGeneratedSectionsForRelease', () => {
       generated: [{ section: 'Funding', html: '<p>The FY27 request is $412.5 million.</p>' }],
       sectionCitations: { Funding: [] },
     });
-    expect(withCitation.verdicts[0]?.blockers).not.toEqual(withoutCitation.verdicts[0]?.blockers);
-    expect(withoutCitation.verdicts[0]?.blockers.length).toBeGreaterThan(
-      withCitation.verdicts[0]?.blockers.length ?? 0,
+    expect(withCitation.verdicts[0]?.envelope.claimLedger.evidence[0]).toMatchObject({
+      sourceId: '0604270F',
+      ownerVerified: false,
+      primary: false,
+      authoritative: false,
+    });
+    expect(withCitation.heldSections).toEqual(['Funding']);
+    expect(withoutCitation.heldSections).toEqual(['Funding']);
+    expect(withCitation.verdicts[0]?.decision).toBe('hold');
+    expect(withCitation.verdicts[0]?.blockers).toEqual(withoutCitation.verdicts[0]?.blockers);
+    expect(withCitation.verdicts[0]?.blockers).toEqual(
+      expect.arrayContaining([
+        'Unsupported high-risk claims: sentence-1.',
+        'Missing required evidence: budget-amount.official, surface.high-risk-primary-basis.',
+      ]),
     );
   });
 

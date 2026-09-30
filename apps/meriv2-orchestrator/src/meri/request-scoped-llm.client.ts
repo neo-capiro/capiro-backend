@@ -4,6 +4,11 @@ import { AnthropicLlmClient, OpenAiLlmClient, type LlmClient } from '@capiro/mer
 import { parseProviderUsage, type ProviderUsage } from '@capiro/shared';
 import { RequestCredentialsStore } from '../request/request-credentials.store.js';
 import {
+  stableProviderOperationId,
+  type MeriModelBudgetPhase,
+  type MeriRunBudget,
+} from './meriv3/meriv3-run-budget.js';
+import {
   applyToolCacheControl,
   buildSystemBlocks,
   flattenSystemParts,
@@ -99,6 +104,14 @@ interface ResolvedCred {
   model: string;
   usedTenantKey: boolean;
   provider: 'anthropic' | 'openai';
+}
+
+interface ProviderBudgetContext {
+  budget: MeriRunBudget;
+  phase: MeriModelBudgetPhase;
+  logicalOperationId: string;
+  maxInputTokens: number;
+  maxOutputTokens: number;
 }
 
 /** Optional global other-provider fallback (activated only when configured). */
@@ -202,11 +215,48 @@ export class RequestScopedLlmClient implements LlmClient {
 
   /** Build the schema-capable client for the resolved provider (reasoning-tool
    *  paths only — completeJson / completeWithSchema). */
-  private buildClient(apiKey: string, model: string, provider: 'anthropic' | 'openai'): LlmClient {
+  private buildClient(
+    apiKey: string,
+    model: string,
+    provider: 'anthropic' | 'openai',
+    control?: { signal?: AbortSignal; timeoutMs: number },
+  ): LlmClient {
+    const boundedFetch: typeof fetch | undefined = control
+      ? async (request, init) => {
+          const controller = new AbortController();
+          const abortFromProvider = () => controller.abort(init?.signal?.reason);
+          const abortFromTurn = () => controller.abort(control.signal?.reason);
+          const timer = setTimeout(
+            () => controller.abort(new DOMException('Provider deadline exceeded', 'TimeoutError')),
+            Math.min(control.timeoutMs, 2_147_483_647),
+          );
+          init?.signal?.addEventListener('abort', abortFromProvider, { once: true });
+          control.signal?.addEventListener('abort', abortFromTurn, { once: true });
+          if (init?.signal?.aborted) abortFromProvider();
+          if (control.signal?.aborted) abortFromTurn();
+          try {
+            return await fetch(request, { ...init, signal: controller.signal });
+          } finally {
+            clearTimeout(timer);
+            init?.signal?.removeEventListener('abort', abortFromProvider);
+            control.signal?.removeEventListener('abort', abortFromTurn);
+          }
+        }
+      : undefined;
     const opts = {
       apiKey,
       model,
-      ...(this.timeoutMs !== undefined ? { timeoutMs: this.timeoutMs } : {}),
+      ...(control
+        ? {
+            timeoutMs: Math.max(
+              1,
+              Math.min(this.timeoutMs ?? control.timeoutMs, control.timeoutMs),
+            ),
+          }
+        : this.timeoutMs !== undefined
+          ? { timeoutMs: this.timeoutMs }
+          : {}),
+      ...(boundedFetch ? { fetchImpl: boundedFetch } : {}),
     };
     return provider === 'openai' ? new OpenAiLlmClient(opts) : new AnthropicLlmClient(opts);
   }
@@ -224,7 +274,8 @@ export class RequestScopedLlmClient implements LlmClient {
    */
   private async runWithFailover<T>(
     label: string,
-    op: (client: LlmClient) => Promise<T>,
+    op: (client: LlmClient, timeoutMs?: number) => Promise<T>,
+    providerBudget?: ProviderBudgetContext,
   ): Promise<T> {
     const primary = this.resolve();
     const attempts: ResolvedCred[] = [primary];
@@ -241,20 +292,71 @@ export class RequestScopedLlmClient implements LlmClient {
       });
     }
     let lastErr: unknown;
+    let providerAttempt = 0;
+    let previousAttemptId: string | null = null;
     for (let i = 0; i < attempts.length; i += 1) {
       const cred = attempts[i]!;
       const hasFallback = i < attempts.length - 1;
       for (let retry = 0; ; retry += 1) {
+        const attemptId = providerBudget
+          ? `${providerBudget.logicalOperationId}:${providerAttempt}`
+          : null;
+        const reservation = providerBudget
+          ? await providerBudget.budget.reserveProviderAttempt({
+              logicalOperationId: providerBudget.logicalOperationId,
+              attemptId: attemptId!,
+              retryOfAttemptId: previousAttemptId,
+              kind: cred.provider === 'openai' ? 'openai_responses' : 'anthropic_messages',
+              phase: providerBudget.phase,
+              provider: cred.provider,
+              model: cred.model,
+              maxInputTokens: providerBudget.maxInputTokens,
+              maxOutputTokens: providerBudget.maxOutputTokens,
+              retry: providerAttempt > 0,
+            })
+          : null;
+        providerAttempt += 1;
+        if (attemptId) previousAttemptId = attemptId;
+        const providerControl = providerBudget?.budget.providerControl(reservation?.deadlineAt);
+        const remainingMs = providerControl ? providerControl.deadlineAt - Date.now() : undefined;
+        if (providerBudget && remainingMs !== undefined && remainingMs <= 0) {
+          await providerBudget.budget.settleProviderAttempt(reservation, { kind: 'rejected' });
+          throw new DOMException('Provider deadline exceeded', 'TimeoutError');
+        }
+        let providerSettlementAttempted = false;
         try {
           this.logger.debug(
             `${label} (provider=${cred.provider}, model=${cred.model}, usedTenantKey=${cred.usedTenantKey})`,
           );
-          return await op(this.buildClient(cred.apiKey, cred.model, cred.provider));
+          const result = await op(
+            this.buildClient(
+              cred.apiKey,
+              cred.model,
+              cred.provider,
+              providerControl && remainingMs !== undefined
+                ? { ...providerControl, timeoutMs: remainingMs }
+                : undefined,
+            ),
+            remainingMs,
+          );
+          if (providerBudget) {
+            const usage = readKnownUsage(result);
+            providerSettlementAttempted = true;
+            await providerBudget.budget.settleProviderAttempt(
+              reservation,
+              usage ? { kind: 'known', ...usage } : { kind: 'uncertain' },
+            );
+          }
+          return result;
         } catch (err) {
+          if (providerBudget && !providerSettlementAttempted) {
+            providerSettlementAttempted = true;
+            await providerBudget.budget.settleProviderAttempt(reservation, { kind: 'uncertain' });
+          }
           lastErr = err;
           const { retryable, failover } = classifyLlmError(err);
           if (retryable && retry < MAX_LLM_RETRIES) {
-            await delay(retryBackoffMs(retry));
+            await waitForProviderRetry(retryBackoffMs(retry), providerBudget?.budget);
             continue;
           }
           if (hasFallback && failover) {
@@ -309,6 +411,33 @@ export class RequestScopedLlmClient implements LlmClient {
     return this.runWithFailover('LLM schema completion', (client) =>
       client.completeWithSchema(params),
     );
+  }
+
+  withProviderBudget(
+    budget: MeriRunBudget,
+    phase: MeriModelBudgetPhase,
+    operationScope: string,
+  ): LlmClient {
+    return {
+      completeJson: (params) =>
+        this.runWithFailover(
+          'LLM completion',
+          (client) => client.completeJson(params),
+          providerBudgetContext(budget, phase, operationScope, 'json', params),
+        ),
+      completeWithSchema: (params) =>
+        this.runWithFailover(
+          'LLM schema completion',
+          (client, timeoutMs) =>
+            client.completeWithSchema({
+              ...params,
+              ...(timeoutMs !== undefined
+                ? { timeoutMs: Math.min(params.timeoutMs ?? timeoutMs, timeoutMs) }
+                : {}),
+            }),
+          providerBudgetContext(budget, phase, operationScope, 'schema', params),
+        ),
+    };
   }
 
   /**
@@ -519,6 +648,60 @@ export class RequestScopedLlmClient implements LlmClient {
       params.signal?.removeEventListener('abort', onExternalAbort);
     }
   }
+}
+
+function providerBudgetContext(
+  budget: MeriRunBudget,
+  phase: MeriModelBudgetPhase,
+  operationScope: string,
+  method: 'json' | 'schema',
+  params: Record<string, unknown>,
+): ProviderBudgetContext {
+  return {
+    budget,
+    phase,
+    logicalOperationId: stableProviderOperationId(operationScope, { method, params }),
+    maxInputTokens: Buffer.byteLength(JSON.stringify(params), 'utf8'),
+    maxOutputTokens:
+      typeof params.maxTokens === 'number' && Number.isSafeInteger(params.maxTokens)
+        ? Math.max(0, params.maxTokens)
+        : 1024,
+  };
+}
+
+function readKnownUsage(value: unknown): { inputTokens: number; outputTokens: number } | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const usage = (value as Record<string, unknown>).usage;
+  if (!usage || typeof usage !== 'object' || Array.isArray(usage)) return null;
+  const { inputTokens, outputTokens } = usage as Record<string, unknown>;
+  return Number.isSafeInteger(inputTokens) &&
+    Number(inputTokens) >= 0 &&
+    Number.isSafeInteger(outputTokens) &&
+    Number(outputTokens) >= 0
+    ? { inputTokens: Number(inputTokens), outputTokens: Number(outputTokens) }
+    : null;
+}
+
+function waitForProviderRetry(ms: number, budget?: MeriRunBudget): Promise<void> {
+  if (!budget) return delay(ms);
+  const control = budget.providerControl();
+  const remainingMs = control.deadlineAt - Date.now();
+  if (remainingMs <= 0)
+    return Promise.reject(new DOMException('Provider deadline exceeded', 'TimeoutError'));
+  return new Promise<void>((resolve, reject) => {
+    const finish = () => {
+      control.signal?.removeEventListener('abort', abort);
+      resolve();
+    };
+    const timer = setTimeout(finish, Math.min(ms, remainingMs));
+    const abort = () => {
+      clearTimeout(timer);
+      control.signal?.removeEventListener('abort', abort);
+      reject(control.signal?.reason ?? new DOMException('Aborted', 'AbortError'));
+    };
+    control.signal?.addEventListener('abort', abort, { once: true });
+    if (control.signal?.aborted) abort();
+  });
 }
 
 function sseNumber(v: unknown): number {

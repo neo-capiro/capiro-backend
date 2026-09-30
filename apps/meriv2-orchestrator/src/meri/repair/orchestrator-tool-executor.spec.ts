@@ -262,7 +262,7 @@ describe('orchestrator repair tool executor', () => {
 
     it('reports document_unavailable when the document read itself fails', async () => {
       const invoke = jest.fn(async () => {
-        throw new Error('Attachment is not ready');
+        throw new Error('document_content_unavailable');
       });
       const result = await documentExecutor(invoke).execute(
         { name: documentSchema.name, args: remedyArgs({ documentId: 'doc-7' }) },
@@ -271,7 +271,77 @@ describe('orchestrator repair tool executor', () => {
       expect(result).toMatchObject({
         ok: false,
         state: 'document_unavailable',
-        reason: 'Attachment is not ready',
+        reason: 'document_content_unavailable',
+      });
+    });
+
+    it('keeps an ordinary transport outage separate from unavailable document content', async () => {
+      const invoke = jest.fn(async () => {
+        throw new Error('upstream timeout');
+      });
+      const call = { name: documentSchema.name, args: remedyArgs({ documentId: 'doc-7' }) };
+      expect(await documentExecutor(invoke).execute(call, {})).toMatchObject({
+        ok: false,
+        state: 'retrieval_failed',
+        reason: 'upstream timeout',
+      });
+      const logicalError = documentExecutor(jest.fn(async () => ({ error: 'gateway timeout' })));
+      expect(await logicalError.execute(call, {})).toMatchObject({
+        ok: false,
+        state: 'retrieval_failed',
+      });
+    });
+
+    it('retains the owner document hash without inventing a section', async () => {
+      const result = await documentExecutor(jest.fn(async () => contentRead)).execute(
+        { name: documentSchema.name, args: remedyArgs({ documentId: 'doc-7' }) },
+        {},
+      );
+      expect(result).toMatchObject({
+        ok: true,
+        evidence: [
+          expect.objectContaining({
+            sourceId: 'doc-7:abc:1:0-38',
+            clientId: 'client-1',
+            documentId: 'doc-7',
+            version: 'abc',
+            contentHash: expect.any(String),
+            evidenceKind: 'source_passage',
+            acquisitionState: 'consulted',
+            ownerVerified: true,
+          }),
+        ],
+      });
+      if (result.ok) expect(result.evidence[0]?.locator).toBeUndefined();
+    });
+
+    it('keeps a large canonical document read useful and owner-bound after projection', async () => {
+      const result = await documentExecutor(
+        jest.fn(async () => ({
+          ...contentRead,
+          coverage: {
+            ...contentRead.coverage,
+            nextCursor: null,
+            section: 1,
+            characterStart: 0,
+            characterEnd: 38,
+            extractionMetadata: 'diagnostic '.repeat(2_000),
+          },
+        })),
+      ).execute({ name: documentSchema.name, args: remedyArgs({ documentId: 'doc-7' }) }, {});
+      expect(result).toMatchObject({
+        ok: true,
+        evidence: [
+          expect.objectContaining({
+            sourceId: 'doc-7:abc:1:0-38',
+            clientId: 'client-1',
+            documentId: 'doc-7',
+            version: 'abc',
+            evidenceKind: 'source_passage',
+            acquisitionState: 'consulted',
+            ownerVerified: true,
+          }),
+        ],
       });
     });
 
@@ -301,6 +371,40 @@ describe('orchestrator repair tool executor', () => {
       expect(documentContentReadable({ error: 'forbidden' })).toBe(false);
     });
   });
+
+  it.each(['search_public_web', 'search_intel_articles'])(
+    'registers a %s summary as discovery but refuses to use it as repair evidence',
+    async (toolName) => {
+      const citations: import('@capiro/shared').MeriCitation[] = [];
+      const ledgerEntries: import('@capiro/meriv2-core').LedgerEntry[] = [];
+      const searchSchema = {
+        name: toolName,
+        input_schema: { properties: { query: {} }, required: ['query'] },
+      };
+      const executor = createOrchestratorToolExecutor({
+        registry: registry(),
+        schemas: [searchSchema],
+        context: productionContext('What is the status of H.R. 1?'),
+        citations,
+        ledgerEntries,
+        invoke: async () => ({
+          data: [{ id: 'web-1', title: 'Official-looking result', snippet: 'H.R. 1 passed.' }],
+        }),
+      });
+      await expect(
+        executor.execute(
+          { name: searchSchema.name, args: { ...remedyArgs(), query: 'H.R. 1 status' } },
+          {},
+        ),
+      ).resolves.toMatchObject({
+        ok: false,
+        state: 'retrieval_failed',
+        reason: 'discovery_requires_consulted_source',
+      });
+      expect(citations).toHaveLength(1);
+      expect(ledgerEntries).toHaveLength(1);
+    },
+  );
 
   it('numbers repaired evidence with the mode the caller resolved, defaulting to stable numbering', async () => {
     const spy = jest.spyOn(contextEvidence, 'numberMeriEvidenceCitationsForMode');
@@ -363,8 +467,9 @@ describe('orchestrator repair tool executor', () => {
     if (!result.ok) throw new Error(result.reason);
     expect(result).toMatchObject({
       ok: true,
-      evidence: [expect.objectContaining({ locator: '[1]' })],
+      evidence: [expect.objectContaining({ sourceId: '119-hr-1' })],
     });
+    if (result.ok) expect(result.evidence[0]?.locator).toBeUndefined();
     expect(citations).toHaveLength(1);
     expect(ledgerEntries).toEqual([
       expect.objectContaining({

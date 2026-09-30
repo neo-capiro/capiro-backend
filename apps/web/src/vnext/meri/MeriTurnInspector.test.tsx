@@ -1,7 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 import type { PendingApproval } from '../../components/chat/useMeriChatController.js';
-import { MeriTurnInspector, meriTurnInspectorInitialTab, type MeriTurnInspectorData } from './MeriTurnInspector.js';
+import {
+  MeriTurnInspector,
+  meriTurnInspectorInitialTab,
+  type MeriTurnInspectorData,
+} from './MeriTurnInspector.js';
 
 function approval(overrides: Partial<PendingApproval> = {}): PendingApproval {
   return {
@@ -55,13 +59,22 @@ function data(overrides: Partial<MeriTurnInspectorData> = {}): MeriTurnInspector
 describe('meriTurnInspectorInitialTab', () => {
   test('opens to Approvals when this turn has one awaiting a decision', () => {
     expect(meriTurnInspectorInitialTab([approval({ status: 'proposed' })])).toBe('approvals');
-    expect(meriTurnInspectorInitialTab([approval({ status: 'failed_retryable' })])).toBe('approvals');
+    expect(meriTurnInspectorInitialTab([approval({ status: 'failed_retryable' })])).toBe(
+      'approvals',
+    );
   });
 
   test('opens to Thinking when nothing is awaiting a decision', () => {
     expect(meriTurnInspectorInitialTab([])).toBe('thinking');
     expect(meriTurnInspectorInitialTab([approval({ status: 'succeeded' })])).toBe('thinking');
     expect(meriTurnInspectorInitialTab([approval({ status: 'dismissed' })])).toBe('thinking');
+    expect(
+      meriTurnInspectorInitialTab([
+        approval({
+          approvalRecovery: { state: 'unavailable', message: 'Outcome unconfirmed.' },
+        }),
+      ]),
+    ).toBe('thinking');
   });
 });
 
@@ -84,7 +97,15 @@ describe('MeriTurnInspector', () => {
   test('renders the Evidence tab body when active', () => {
     render(
       <MeriTurnInspector
-        data={data({ evidence: { sources: [], verifyStats: [{ label: 'CLAIMS CHECKED · 1', tone: 'n' }], claims: [], groundingCaveat: null, retrieval: null } })}
+        data={data({
+          evidence: {
+            sources: [],
+            verifyStats: [{ label: 'CLAIMS CHECKED · 1', tone: 'n' }],
+            claims: [],
+            groundingCaveat: null,
+            retrieval: null,
+          },
+        })}
         activeTab="evidence"
         onClose={vi.fn()}
         approvingProposalId={null}
@@ -96,20 +117,28 @@ describe('MeriTurnInspector', () => {
     expect(screen.getByText('CLAIMS CHECKED · 1')).toBeTruthy();
   });
 
-  test('renders the Approvals tab body when active, wired to the approve/dismiss callbacks', () => {
-    const onApprove = vi.fn();
+  test('renders the Approvals tab body with the read-only recovery callback', () => {
+    const onRefreshApprovalStatus = vi.fn();
     render(
       <MeriTurnInspector
-        data={data({ approvals: [approval()] })}
+        data={data({
+          approvals: [
+            approval({
+              approvalRecovery: { state: 'unavailable', message: 'Outcome unconfirmed.' },
+            }),
+          ],
+        })}
         activeTab="approvals"
         onClose={vi.fn()}
         approvingProposalId={null}
-        onApprove={onApprove}
+        onApprove={vi.fn()}
         onApproveAll={vi.fn()}
         onDismiss={vi.fn()}
+        onRefreshApprovalStatus={onRefreshApprovalStatus}
       />,
     );
-    expect(screen.getByText('AWAITING YOUR APPROVAL')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Check status' }));
+    expect(onRefreshApprovalStatus).toHaveBeenCalledWith('proposal-1');
   });
 
   test('the back control calls onClose', () => {

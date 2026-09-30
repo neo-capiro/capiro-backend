@@ -13,6 +13,7 @@ const MAX_TOTAL_CHARS = 96_000;
 
 export interface EvidencePassage {
   text: string;
+  clientId?: string;
   locator?: string;
   documentId?: string;
   version?: string;
@@ -20,6 +21,10 @@ export interface EvidencePassage {
   publishedAt?: string;
   effectiveAt?: string;
   retrievedAt?: string;
+  acquisitionState?: 'discovered' | 'consulted';
+  evidenceKind?: 'source_passage' | 'structured_record';
+  contentHash?: string;
+  ownerVerified?: boolean;
   authority?: { sourceAuthority: string; publisher?: string | null; jurisdiction?: string | null };
   documentCompleteness?: DocumentCompleteness;
   relationScope?: EvidenceRelationScope;
@@ -44,6 +49,7 @@ export type JevEvidenceSource = Pick<
   | 'evidenceId'
   | 'sourceType'
   | 'sourceId'
+  | 'clientId'
   | 'documentId'
   | 'version'
   | 'locator'
@@ -52,6 +58,10 @@ export type JevEvidenceSource = Pick<
   | 'publishedAt'
   | 'effectiveAt'
   | 'retrievedAt'
+  | 'acquisitionState'
+  | 'evidenceKind'
+  | 'contentHash'
+  | 'ownerVerified'
   | 'authority'
   | 'documentCompleteness'
   | 'relationScope'
@@ -68,6 +78,7 @@ export function envelopeSourcesForJev(
     evidenceId: source.evidenceId,
     sourceType: source.sourceType,
     sourceId: source.sourceId,
+    ...(source.clientId !== undefined ? { clientId: source.clientId } : {}),
     documentId: source.documentId,
     version: source.version,
     locator: source.locator,
@@ -76,6 +87,10 @@ export function envelopeSourcesForJev(
     publishedAt: source.publishedAt,
     effectiveAt: source.effectiveAt,
     retrievedAt: source.retrievedAt,
+    ...(source.acquisitionState ? { acquisitionState: source.acquisitionState } : {}),
+    ...(source.evidenceKind ? { evidenceKind: source.evidenceKind } : {}),
+    ...(source.contentHash !== undefined ? { contentHash: source.contentHash } : {}),
+    ...(source.ownerVerified !== undefined ? { ownerVerified: source.ownerVerified } : {}),
     ...(source.authority ? { authority: source.authority } : {}),
     ...(source.documentCompleteness ? { documentCompleteness: source.documentCompleteness } : {}),
     ...(source.relationScope ? { relationScope: source.relationScope } : {}),
@@ -148,6 +163,9 @@ export function buildEvidenceEnvelope(input: BuildEvidenceEnvelopeInput): {
       evidenceId,
       sourceType: evidence.sourceType,
       sourceId: evidence.sourceId,
+      ...((passage?.clientId ?? evidence.clientId)
+        ? { clientId: passage?.clientId ?? evidence.clientId }
+        : {}),
       documentId: passage?.documentId ?? citation?.documentEvidence?.documentId ?? null,
       version: passage?.version ?? citation?.source?.version ?? null,
       locator: passage?.locator ?? citation?.source?.section ?? null,
@@ -161,6 +179,20 @@ export function buildEvidenceEnvelope(input: BuildEvidenceEnvelopeInput): {
         citation?.source?.observedAt ??
         citation?.documentEvidence?.observedAt ??
         null,
+      ...((passage?.acquisitionState ?? evidence.acquisitionState)
+        ? { acquisitionState: passage?.acquisitionState ?? evidence.acquisitionState }
+        : {}),
+      ...((passage?.evidenceKind ?? evidence.evidenceKind)
+        ? { evidenceKind: passage?.evidenceKind ?? evidence.evidenceKind }
+        : {}),
+      ...((passage?.contentHash ?? evidence.contentHash)
+        ? { contentHash: passage?.contentHash ?? evidence.contentHash }
+        : {}),
+      ...(passage?.ownerVerified !== undefined
+        ? { ownerVerified: passage.ownerVerified }
+        : evidence.ownerVerified !== undefined
+          ? { ownerVerified: evidence.ownerVerified }
+          : {}),
       ...(passage?.authority
         ? {
             authority: {

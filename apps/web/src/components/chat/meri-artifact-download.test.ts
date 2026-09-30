@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { canonicalMeriArtifactSandboxUrl, fetchMeriArtifactDownload, meriArtifactDownloadFromUrl, meriArtifactIdFromDownloadUrl, saveMeriDownloadBlob } from './meri-artifact-download.js';
+import { canonicalMeriArtifactSandboxUrl, fetchMeriArtifactDownload, meriArtifactDownloadFromUrl, meriArtifactIdFromDownloadUrl, meriDocumentBytesMatchFormat, saveMeriDownloadBlob } from './meri-artifact-download.js';
+import { artifactDownloadResponse, artifactFixture, type ArtifactFixtureMime } from '../../test/meri-artifact-download-fixtures.js';
 
 const apiBaseUrl = 'https://api.example.test';
 const route = '/api/clio/artifacts/saved-artifact-1/download';
 const docxMime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const getAuthHeaders = vi.fn(async () => ({ Authorization: 'Bearer fresh-token', 'x-capiro-impersonate-tenant': 'qa-tenant' }));
 const input = () => ({ artifactId: 'saved-artifact-1', apiBaseUrl, getAuthHeaders, signal: new AbortController().signal });
-function response(type = docxMime, disposition?: string, bytes = 'PK-document') {
-  const blob = new Blob([bytes], { type });
-  return { ok: true, headers: new Headers({ 'Content-Type': type, ...(disposition ? { 'Content-Disposition': disposition } : {}) }), blob: async () => blob };
+function response(type: ArtifactFixtureMime = docxMime, disposition?: string) {
+  return artifactDownloadResponse({ mime: type, disposition });
 }
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
@@ -48,13 +48,16 @@ describe('canonical authenticated Meri downloads', () => {
     ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'xlsx'],
     ['application/vnd.openxmlformats-officedocument.presentationml.presentation', 'pptx'],
     ['application/pdf', 'pdf'],
-  ])('preserves %s bytes and canonical filename', async (type, extension) => {
+  ] as const)('preserves valid generated %s bytes, digest and canonical filename', async (type, extension) => {
+    const expected = artifactFixture(type);
     const res = response(type, `attachment; filename="original-saved-name.${extension}"`);
     const fetchMock = vi.fn().mockResolvedValue(res);
     vi.stubGlobal('fetch', fetchMock);
     const options = input();
     const result = await fetchMeriArtifactDownload(options);
-    expect(result.blob).toBe(await res.blob());
+    const digest = await crypto.subtle.digest('SHA-256', await result.blob.arrayBuffer());
+    expect(Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')).toBe(expected.sha256);
+    expect(result.blob.size).toBe(expected.bytes.byteLength);
     expect(result.filename).toBe(`original-saved-name.${extension}`);
     expect(fetchMock).toHaveBeenCalledWith(`${apiBaseUrl}${route}`, {
       headers: { Authorization: 'Bearer fresh-token', 'x-capiro-impersonate-tenant': 'qa-tenant' },
@@ -66,7 +69,7 @@ describe('canonical authenticated Meri downloads', () => {
   test('preserves only an explicit PDF format from a decorated saved link and uses current auth', async () => {
     const link = meriArtifactDownloadFromUrl(`${route}?format=pdf&token=never-forward#document`, apiBaseUrl);
     expect(link).toEqual({ artifactId: 'saved-artifact-1', format: 'pdf' });
-    const fetchMock = vi.fn().mockResolvedValue(response('application/pdf', 'attachment; filename="saved.pdf"', '%PDF-1.7'));
+    const fetchMock = vi.fn().mockResolvedValue(response('application/pdf', 'attachment; filename="saved.pdf"'));
     vi.stubGlobal('fetch', fetchMock);
     expect((await fetchMeriArtifactDownload({ ...input(), ...link })).filename).toBe('saved.pdf');
     expect(fetchMock).toHaveBeenCalledWith(`${apiBaseUrl}${route}?format=pdf`, expect.objectContaining({
@@ -79,8 +82,8 @@ describe('canonical authenticated Meri downloads', () => {
       .mockResolvedValueOnce({ Authorization: 'Bearer token-1' })
       .mockResolvedValueOnce({ Authorization: 'Bearer token-2' });
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(response(docxMime, undefined, 'PK-first-document'))
-      .mockResolvedValueOnce(response(docxMime, undefined, 'PK-second-document'));
+      .mockResolvedValueOnce(response())
+      .mockResolvedValueOnce(response());
     vi.stubGlobal('fetch', fetchMock);
 
     const first = await fetchMeriArtifactDownload({ ...input(), getAuthHeaders: getFreshAuth });
@@ -115,6 +118,69 @@ describe('canonical authenticated Meri downloads', () => {
     await expect(fetchMeriArtifactDownload({ ...input(), format: 'pdf' })).rejects.toThrow('expected document');
   });
 
+  test('rejects a missing or mismatched server integrity receipt', async () => {
+    const missing = response();
+    missing.headers.delete('X-Capiro-Artifact-Sha256');
+    const mismatch = artifactDownloadResponse({ sha256: '0'.repeat(64) });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(missing).mockResolvedValueOnce(mismatch));
+    await expect(fetchMeriArtifactDownload(input())).rejects.toThrow('integrity receipt');
+    await expect(fetchMeriArtifactDownload(input())).rejects.toThrow('did not match');
+  });
+
+  test('checks the byte-format envelope after the response hash matches', async () => {
+    const fakePdf = new TextEncoder().encode('%PDF-1.7\nFAKE-PDF\n%%EOF');
+    const digest = await crypto.subtle.digest('SHA-256', fakePdf);
+    const sha256 = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(artifactDownloadResponse({
+      mime: 'application/pdf',
+      bytes: fakePdf,
+      sha256,
+    })));
+
+    expect(meriDocumentBytesMatchFormat(fakePdf, 'pdf')).toBe(false);
+    await expect(fetchMeriArtifactDownload({ ...input(), expectedFormat: 'pdf' }))
+      .rejects.toThrow('expected document format');
+
+    const generated = artifactFixture('application/pdf').bytes;
+    expect(meriDocumentBytesMatchFormat(generated, 'pdf')).toBe(true);
+  });
+
+  test('rejects same-format bytes carrying another saved artifact identity', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(artifactDownloadResponse({ artifactId: 'different-artifact' })));
+    await expect(fetchMeriArtifactDownload(input())).rejects.toThrow('different saved document');
+  });
+
+  test('bounds declared and streamed bytes before constructing the browser Blob', async () => {
+    const declared = response();
+    declared.headers.set('Content-Length', String(20 * 1024 * 1024 + 1));
+    let cancelled = false;
+    let chunks = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        chunks += 1;
+        controller.enqueue(new Uint8Array(1024 * 1024));
+      },
+      cancel() { cancelled = true; },
+    });
+    const streamed = new Response(stream, { headers: {
+      'Content-Type': docxMime,
+      'X-Capiro-Artifact-Id': 'saved-artifact-1',
+      'X-Capiro-Artifact-Sha256': artifactFixture(docxMime).sha256,
+    } });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(declared).mockResolvedValueOnce(streamed));
+    await expect(fetchMeriArtifactDownload(input())).rejects.toThrow('too large');
+    await expect(fetchMeriArtifactDownload(input())).rejects.toThrow('too large');
+    // The stream implementation may prefetch one chunk, but the reader never
+    // accumulates beyond the first chunk that crosses the 20 MiB ceiling.
+    expect(chunks).toBeLessThanOrEqual(22);
+    expect(cancelled).toBe(true);
+  });
+
+  test('turns a fetch failure into a visible retryable network error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+    await expect(fetchMeriArtifactDownload(input())).rejects.toThrow('network connection');
+  });
+
   test.each([
     [422, 'MERI_DOCUMENT_RENDER_FAILED', 'PDF conversion failed'],
     [400, 'MERI_DOCUMENT_FORMAT_UNSUPPORTED', 'requested format'],
@@ -147,9 +213,13 @@ describe('canonical authenticated Meri downloads', () => {
     expect((await fetchMeriArtifactDownload({ ...input(), fallbackFilename: 'briefing.docx' })).filename).toBe('briefing.docx');
   });
 
-  test.each([['application/json', 'expected document'], ['text/html', 'expected document'], [docxMime, 'empty']])('rejects a successful HTTP response that is %s', async (type, error) => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(type, undefined, type === docxMime ? '' : '{"error":"not a document"}')));
+  test.each([['application/json', 'expected document'], ['text/html', 'expected document']])('rejects a successful HTTP response that is %s', async (type, error) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{"error":"not a document"}', { headers: { 'Content-Type': type } })));
     await expect(fetchMeriArtifactDownload(input())).rejects.toThrow(error);
+  });
+  test('rejects an empty successful document response', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(artifactDownloadResponse({ bytes: new Uint8Array(), contentLength: '0' })));
+    await expect(fetchMeriArtifactDownload(input())).rejects.toThrow('empty');
   });
   test('rejects a file format that disagrees with the saved artifact kind', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response()));

@@ -9,7 +9,7 @@
  * `src/**.spec.ts`.
  */
 
-export type AttachmentKind = 'pdf' | 'docx' | 'pptx' | 'image' | 'text' | 'unsupported';
+export type AttachmentKind = 'pdf' | 'docx' | 'pptx' | 'xlsx' | 'image' | 'text' | 'unsupported';
 
 export type AttachmentStatus = 'parsed' | 'truncated' | 'scanned' | 'image_ready' | 'unsupported' | 'failed' | 'pending';
 
@@ -30,6 +30,7 @@ export const TRUNCATION_MARKER = '…[truncated]';
 
 const DOCX_CT = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 export const PPTX_CT = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+export const XLSX_CT = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 export function detectAttachmentKind(contentType: string, filename = ''): AttachmentKind {
   const ct = (contentType || '').split(';')[0]!.trim().toLowerCase();
@@ -37,6 +38,7 @@ export function detectAttachmentKind(contentType: string, filename = ''): Attach
   if (ct === 'application/pdf' || ext === 'pdf') return 'pdf';
   if (ct === DOCX_CT || ext === 'docx') return 'docx';
   if (ct === PPTX_CT || ext === 'pptx') return 'pptx';
+  if (ct === XLSX_CT || ext === 'xlsx') return 'xlsx';
   if (ct.startsWith('image/') || ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext))
     return 'image';
   if (ct.startsWith('text/') || ['txt', 'md', 'csv'].includes(ext)) return 'text';
@@ -45,7 +47,7 @@ export function detectAttachmentKind(contentType: string, filename = ''): Attach
 
 /** True for kinds whose text we can currently extract server-side. */
 export function isExtractableKind(kind: AttachmentKind): boolean {
-  return kind === 'docx' || kind === 'pptx' || kind === 'text' || kind === 'pdf';
+  return kind === 'docx' || kind === 'pptx' || kind === 'xlsx' || kind === 'text' || kind === 'pdf';
 }
 
 export interface AttachmentValidation {
@@ -147,6 +149,10 @@ export function verifyMagicBytes(kind: AttachmentKind, bytes: Uint8Array): Magic
       return sniffed === 'zip'
         ? { ok: true, reason: null, sniffed }
         : { ok: false, reason: `File does not look like a PowerPoint presentation (detected: ${sniffed})`, sniffed };
+    case 'xlsx':
+      return sniffed === 'zip'
+        ? { ok: true, reason: null, sniffed }
+        : { ok: false, reason: `File does not look like an Excel workbook (detected: ${sniffed})`, sniffed };
     case 'image':
       return imageMediaTypeFromSniff(sniffed)
         ? { ok: true, reason: null, sniffed }

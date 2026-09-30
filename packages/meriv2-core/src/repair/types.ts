@@ -56,8 +56,6 @@ export interface RepairBudget {
 export interface RepairEvidence extends AssuredEvidence {
   passage: string;
   documentId?: string;
-  version?: string;
-  locator?: string;
 }
 
 export type RepairToolResult =

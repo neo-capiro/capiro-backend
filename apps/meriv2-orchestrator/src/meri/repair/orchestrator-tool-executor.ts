@@ -1,5 +1,7 @@
 import {
   DeduplicatingToolExecutor,
+  bindCitationToLedgerEntries,
+  evidenceProfileForTool,
   type RepairDocumentReference,
   type RepairEvidence,
   type RepairToolCall,
@@ -184,9 +186,16 @@ class GovernedRepairToolExecutor implements RepairToolExecutor {
       result = await this.input.invoke(call.name, args, options.signal);
     } catch (error) {
       const reason = error instanceof Error ? error.message : 'repair_retrieval_failed';
-      return documentRoute ? unavailable(reason) : failed(reason);
+      return documentRoute && explicitDocumentUnavailable(reason)
+        ? unavailable(reason)
+        : failed(reason);
     }
     if (options.signal?.aborted) return failed('cancelled');
+    const ownerError = object(result)?.error;
+    if (ownerError)
+      return documentRoute && explicitDocumentUnavailable(ownerError)
+        ? unavailable(String(ownerError))
+        : failed('repair_retrieval_failed');
     if (documentRoute && !documentContentReadable(result))
       return unavailable('document_content_unavailable');
     try {
@@ -202,22 +211,38 @@ class GovernedRepairToolExecutor implements RepairToolExecutor {
         this.input.citations,
         this.input.evidenceAccuracyMode ?? 'enforce',
       );
-      const evidence: RepairEvidence[] = numbered.citations.map((citation) => {
+      const ownerEntry: LedgerEntry = {
+        tool: call.name,
+        result,
+        serialized: JSON.stringify(result),
+      };
+      const profile = evidenceProfileForTool(call.name);
+      const evidence: RepairEvidence[] = numbered.citations.flatMap((citation) => {
         const id = citation.stableId || `${citation.tool}:${citation.id}`;
-        const passage = citation.snippet?.trim() || JSON.stringify(projected);
+        const binding = bindCitationToLedgerEntries(citation, [ownerEntry], {
+          expectedClientId: this.input.context.clientId,
+        });
+        if (!binding) return [];
         const item: RepairEvidence = {
           id,
-          evidenceClass: 'official_government_data',
-          sourceId: citation.id || id,
+          evidenceClass: profile.evidenceClass,
+          sourceId: binding.recordId,
           sourceType: citation.tool,
-          passage,
-          primary: true,
-          authoritative: true,
+          passage: binding.text,
+          primary: binding.acquisitionState === 'consulted' && profile.primary,
+          authoritative: binding.acquisitionState === 'consulted' && profile.authoritative,
           requirementIds: [],
           retrievedAt: new Date().toISOString(),
-          locator: `[${citation.n}]`,
+          ...(binding.version ? { version: binding.version } : {}),
+          ...(binding.locator ? { locator: binding.locator } : {}),
+          ...(binding.clientId ? { clientId: binding.clientId } : {}),
+          ...(binding.documentId ? { documentId: binding.documentId } : {}),
+          acquisitionState: binding.acquisitionState,
+          evidenceKind: binding.evidenceKind,
+          contentHash: binding.contentHash,
+          ownerVerified: true,
         };
-        return item;
+        return [item];
       });
       for (const citation of numbered.citations) {
         const prior = this.input.citations.findIndex((item) =>
@@ -236,7 +261,10 @@ class GovernedRepairToolExecutor implements RepairToolExecutor {
           rowCount: evidence.length,
         });
       }
-      return evidence.length ? { ok: true, evidence } : failed('no_usable_evidence');
+      if (!evidence.length) return failed('no_usable_evidence');
+      if (evidence.every((item) => item.acquisitionState === 'discovered'))
+        return failed('discovery_requires_consulted_source');
+      return { ok: true, evidence };
     } catch (error) {
       return failed(error instanceof Error ? error.message : 'repair_retrieval_failed');
     }
@@ -262,4 +290,10 @@ function failed(reason: string): RepairToolResult {
 
 function unavailable(reason: string): RepairToolResult {
   return { ok: false, state: 'document_unavailable', reason };
+}
+
+function explicitDocumentUnavailable(reason: unknown): boolean {
+  return /^(?:document_content_unavailable|document_not_readable|document_not_ready|attachment_not_ready)$/i.test(
+    String(reason ?? '').trim(),
+  );
 }

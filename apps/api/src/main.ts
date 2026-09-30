@@ -17,6 +17,7 @@ async function bootstrap() {
   assertEngagementRuntimeEnvironment(process.env as Record<string, unknown>);
 
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.enableShutdownHooks();
   const logger = new Logger('Bootstrap');
 
   configureApiHttpApp(app, {

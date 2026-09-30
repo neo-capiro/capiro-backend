@@ -22,6 +22,10 @@ vi.mock('../../../../lib/use-api.js', () => ({
   }),
 }));
 
+vi.mock('@clerk/clerk-react', () => ({
+  useAuth: () => ({ isLoaded: true, orgId: 'tenant-1', userId: 'user-1' }),
+}));
+
 // Identity is the query-key partition; fake a signed-in user.
 vi.mock('./saved-hearing-sessions.js', () => ({
   useHearingQueryIdentity: () => ({ identity: 'tenant-1:user-1', ready: true }),
@@ -206,6 +210,9 @@ describe('committee follow catch-up', () => {
 
     const putBody = apiPut.mock.calls[0]![1] as { notifyOnPublication?: boolean };
     expect(putBody.notifyOnPublication).toBe(true);
+    expect(qc.getQueryData(w1Keys.committeeFollow('HLIG01', 'tenant-1:self:user-1'))).toEqual(save.result.current.data);
+    expect(qc.getQueryData(w1Keys.committeeFollow('HLIG01', 'tenant-2:self:user-1'))).toBeUndefined();
+    expect(qc.getQueryData(w1Keys.committeeFollow('HLIG01', 'tenant-1:self:user-2'))).toBeUndefined();
     await waitFor(() => expect(apiGet.mock.calls.length).toBeGreaterThan(callsBefore));
   });
 });

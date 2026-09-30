@@ -9,3 +9,5 @@ A bounded Hermes/Qwen session supplied the exact step name, environment key and 
 Evidence: C:/dev/cap-meri-foundation-evidence/focused-phase9-failed-job.json, focused-release-ci-audit/job-109212356817.log, focused-phase9-heap-proposal-validated.json, focused-phase9-semantic-validation.json, focused-phase9-tests-exit.json, focused-phase9-tests.log, and review-focused-phase9-heap-report.md.
 
 Fresh hosted success remains unverified. Later workflow steps and other failing checks remain open. This qualification does not establish full Workstream A/File01 completion, and includes no deployment, production model, routing or database change.
+
+Foundation integration retains its existing `--max-old-space-size=6144 --experimental-vm-modules` setting. The focused branch lacked the heap setting; no foundation workflow option is removed or changed by this backport.

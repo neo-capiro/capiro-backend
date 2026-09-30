@@ -5,6 +5,10 @@ import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import {
+  isInternalClioArtifact,
+  ordinaryClioArtifactWhere,
+} from '../../common/internal-clio-artifact.js';
 import { ActionRecommendationReadService } from '../actions/action-recommendation-read.service.js';
 import type { ActionCard } from '../actions/action-recommendation-read.service.js';
 import { buildFactSheet, describeSourceRef } from './fact-sheet.js';
@@ -234,12 +238,13 @@ export class ArtifactGeneratorService {
           tenantId: ctx.tenantId,
           kind: { startsWith: ARTIFACT_KIND_PREFIX },
           metadata: { path: ['actionId'], equals: actionId },
+          ...ordinaryClioArtifactWhere(),
         },
         orderBy: { createdAt: 'desc' },
         select: { id: true, title: true, kind: true, bodyText: true, metadata: true },
       }),
     );
-    return rows.map((row) => ({
+    return rows.filter((row) => !isInternalClioArtifact(row)).map((row) => ({
       id: row.id,
       title: row.title,
       kind: row.kind,
@@ -262,7 +267,8 @@ export class ArtifactGeneratorService {
         where: { id: artifactId, tenantId: ctx.tenantId },
         select: { id: true, title: true, kind: true, metadata: true },
       });
-      if (!existing) throw new NotFoundException(`Artifact ${artifactId} not found`);
+      if (!existing || isInternalClioArtifact(existing))
+        throw new NotFoundException(`Artifact ${artifactId} not found`);
 
       const prevMeta =
         existing.metadata &&
@@ -280,7 +286,11 @@ export class ArtifactGeneratorService {
       };
 
       const { count } = await tx.clioArtifact.updateMany({
-        where: { id: artifactId, tenantId: ctx.tenantId },
+        where: {
+          id: artifactId,
+          tenantId: ctx.tenantId,
+          ...ordinaryClioArtifactWhere(),
+        },
         data: {
           bodyText,
           metadata: nextMeta as Prisma.InputJsonObject,
@@ -311,10 +321,11 @@ export class ArtifactGeneratorService {
     const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioArtifact.findFirst({
         where: { id: artifactId, tenantId: ctx.tenantId },
-        select: { title: true, bodyText: true },
+        select: { title: true, bodyText: true, kind: true, metadata: true },
       }),
     );
-    if (!artifact) throw new NotFoundException(`Artifact ${artifactId} not found`);
+    if (!artifact || isInternalClioArtifact(artifact))
+      throw new NotFoundException(`Artifact ${artifactId} not found`);
 
     const title = artifact.title || 'Intelligence Artifact';
     const buffer = await renderArtifactDocx({ title, bodyText: artifact.bodyText ?? '' });

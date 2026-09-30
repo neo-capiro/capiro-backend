@@ -3,6 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { MeriArtifactCanvas } from './MeriArtifactCanvas.js';
 import { MeriCanvas } from '../../components/chat/MeriCanvas.js';
+import { artifactDownloadResponse, VALID_GENERATED_PNG_BASE64 } from '../../test/meri-artifact-download-fixtures.js';
 
 vi.mock('./meri-icons.js', () => ({ MeriIcon: () => null }));
 
@@ -45,11 +46,11 @@ afterEach(() => {
 
 describe('MeriArtifactCanvas Word preview', () => {
   test.each([['workspace', MeriArtifactCanvas], ['drawer', MeriCanvas]] as const)('%s offers PDF and Word from one saved document without downloading its JSON spec', async (_surface, Canvas) => {
-    const pdf = new Blob(['%PDF-1.7'], { type: 'application/pdf' });
-    const word = new Blob(['PK-document'], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
-      const blob = url.endsWith('format=pdf') ? pdf : word;
-      return { ok: true, headers: new Headers({ 'Content-Type': blob.type }), blob: async () => blob };
+      const mime = url.endsWith('format=pdf')
+        ? 'application/pdf'
+        : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      return artifactDownloadResponse({ mime, artifactId: artifact.id });
     });
     vi.stubGlobal('fetch', fetchMock);
     const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:saved-document');
@@ -59,9 +60,9 @@ describe('MeriArtifactCanvas Word preview', () => {
     const getAuthHeaders = async () => ({ Authorization: 'Bearer current-user' });
     const view = render(<Canvas artifact={artifact} onClose={vi.fn()} apiBaseUrl="https://api.example.test" getAuthHeaders={getAuthHeaders} />);
     fireEvent.click(screen.getByText('Download .pdf'));
-    await waitFor(() => expect(create).toHaveBeenCalledWith(pdf));
+    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ type: 'application/pdf' })));
     fireEvent.click(screen.getByText('Download .docx'));
-    await waitFor(() => expect(create).toHaveBeenCalledWith(word));
+    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })));
     expect(filenames.map((filename) => filename.split('.').pop())).toEqual(['pdf', 'docx']);
     expect(artifact.bodyText).toBe(JSON.stringify(wordSpec));
     view.unmount();
@@ -76,9 +77,9 @@ describe('MeriArtifactCanvas Word preview', () => {
   });
 
   test('reopens a native PDF artifact with its readable preview and a Word alternative', async () => {
-    const word = new Blob(['PK-document'], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-    const fetchMock = vi.fn().mockResolvedValueOnce({ ok: true, headers: new Headers({ 'Content-Type': 'application/pdf' }), blob: async () => new Blob(['%PDF-1.7']) })
-      .mockResolvedValueOnce({ ok: true, headers: new Headers({ 'Content-Type': word.type }), blob: async () => word });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(artifactDownloadResponse({ mime: 'application/pdf', artifactId: artifact.id }))
+      .mockResolvedValueOnce(artifactDownloadResponse({ artifactId: artifact.id }));
     vi.stubGlobal('fetch', fetchMock);
     const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:saved-pdf');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
@@ -92,14 +93,14 @@ describe('MeriArtifactCanvas Word preview', () => {
     expect(fetchMock.mock.calls[0]![0]).toBe('https://api.example.test/api/clio/artifacts/artifact-qa-briefing/download');
     expect(filename).toMatch(/\.pdf$/);
     fireEvent.click(screen.getByRole('button', { name: 'Download .docx' }));
-    await waitFor(() => expect(create).toHaveBeenCalledWith(word));
+    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })));
     expect(fetchMock.mock.calls[1]![0]).toBe('https://api.example.test/api/clio/artifacts/artifact-qa-briefing/download?format=docx');
     expect(filename).toMatch(/\.docx$/);
   });
 
   test('keeps conversion failure visible, preserves the document and offers a retry or Word download', async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce({ ok: false, status: 422, json: async () => ({ code: 'MERI_DOCUMENT_RENDER_FAILED' }) })
-      .mockResolvedValueOnce({ ok: true, headers: new Headers({ 'Content-Type': 'application/pdf' }), blob: async () => new Blob(['%PDF-1.7']) });
+      .mockResolvedValueOnce(artifactDownloadResponse({ mime: 'application/pdf', artifactId: artifact.id }));
     vi.stubGlobal('fetch', fetchMock);
     const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:saved-pdf');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
@@ -159,11 +160,10 @@ describe('MeriArtifactCanvas Word preview', () => {
   });
 
   test('downloads the authenticated canonical DOCX binary without replacing its persisted spec', async () => {
-    const blob = new Blob(['PK'], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, headers: new Headers({
-      'Content-Type': blob.type,
-      'Content-Disposition': 'attachment; filename="saved-qa-briefing.docx"',
-    }), blob: async () => blob });
+    const fetchMock = vi.fn().mockResolvedValue(artifactDownloadResponse({
+      artifactId: artifact.id,
+      disposition: 'attachment; filename="saved-qa-briefing.docx"',
+    }));
     vi.stubGlobal('fetch', fetchMock);
     const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:word-document');
     const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
@@ -172,7 +172,7 @@ describe('MeriArtifactCanvas Word preview', () => {
     const getAuthHeaders = vi.fn().mockResolvedValue({ Authorization: 'Bearer test' });
     render(<MeriArtifactCanvas artifact={artifact} onClose={vi.fn()} apiBaseUrl="https://api.example.test" getAuthHeaders={getAuthHeaders} />);
     fireEvent.click(screen.getByRole('button', { name: 'Download .docx' }));
-    await waitFor(() => expect(createObjectURL).toHaveBeenCalledWith(blob));
+    await waitFor(() => expect(createObjectURL).toHaveBeenCalledWith(expect.objectContaining({ type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })));
     expect(fetchMock).toHaveBeenCalledWith('https://api.example.test/api/clio/artifacts/artifact-qa-briefing/download', {
       headers: { Authorization: 'Bearer test' },
       signal: expect.any(AbortSignal), cache: 'no-store', redirect: 'error',
@@ -216,7 +216,7 @@ describe('MeriArtifactCanvas Word preview', () => {
   });
 
   test('renders embedded PNGs and escapes document text rather than executing HTML or remote images', () => {
-    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6GQAAAAASUVORK5CYII=';
+    const png = VALID_GENERATED_PNG_BASE64;
     const bodyText = JSON.stringify({
       ...wordSpec,
       sections: [{

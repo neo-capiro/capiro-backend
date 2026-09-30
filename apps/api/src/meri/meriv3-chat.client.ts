@@ -5,9 +5,18 @@ import type {
   LedgerEntry,
   MeriEvidenceManifest,
   MeriContextPacketSummary,
+  MeriGovernedProcedureBinding,
   MeriGovernedTurnContext,
+  MeriResearchPlanExecutionEnvelopeV1,
+  SignedMeriCaptureEvidenceReceipt,
 } from '@capiro/meriv2-core';
 import type { ResolvedAiForChatHeader } from './meriv2-chat.client.js';
+import type { MeriTelemetryContext } from '@capiro/meriv2-core';
+import {
+  currentMeriApiTelemetry,
+  meriApiTelemetryHeaders,
+  withMeriApiTelemetrySpan,
+} from './meri-telemetry.runtime.js';
 
 export const MERIV3_REASONING_MODES = ['fast', 'standard', 'deep', 'max'] as const;
 export type MeriV3ReasoningMode = (typeof MERIV3_REASONING_MODES)[number];
@@ -21,6 +30,17 @@ export interface MeriV3ProviderTelemetry {
   reasoningFallbackReasons: string[];
   finishReason: string;
   partial: boolean;
+}
+
+export interface MeriV3DurableSafeReadOutcome {
+  executionId: string;
+  providerCallId: string;
+  tool: string;
+  toolVersion: string;
+  classifier: 'complete' | 'empty';
+  sequence: number;
+  receiptId: string;
+  replayed: boolean;
 }
 
 export interface MeriV3RetrievalStreamSummary {
@@ -107,13 +127,15 @@ export type MeriV3ChatStreamEvent =
       telemetry?: MeriV3ProviderTelemetry;
       providerCalls?: MeriV3ProviderTelemetry[];
     }
-  | { type: 'tool_call'; tool: string; label: string }
+  | { type: 'tool_call'; tool: string; label: string; providerCallId?: string }
   | {
       type: 'tool_done';
       tool: string;
       label: string;
       status: 'done' | 'error' | 'pending_approval' | 'blocked';
       detail?: string;
+      durableSafeRead?: MeriV3DurableSafeReadOutcome;
+      ownerResult?: unknown;
     }
   | {
       type: 'pending_approval';
@@ -193,6 +215,7 @@ export type MeriV3ChatStreamEvent =
         label: string;
         detail?: string;
         status: 'done' | 'error' | 'pending_approval' | 'blocked';
+        durableSafeRead?: MeriV3DurableSafeReadOutcome;
       }>;
       pendingApprovals?: Array<{
         tool: string;
@@ -203,8 +226,9 @@ export type MeriV3ChatStreamEvent =
       contextPacket?: MeriContextPacketSummary;
       retrieval?: MeriV3RetrievalStreamSummary;
       aborted?: boolean;
-      ledgerEntries?: LedgerEntry[];
+      ledgerEntries?: Array<LedgerEntry & { durableSafeRead?: MeriV3DurableSafeReadOutcome }>;
       held?: boolean;
+      serverCaptureEvidenceObservation?: SignedMeriCaptureEvidenceReceipt;
     }
   | { type: 'error'; message: string };
 
@@ -236,80 +260,104 @@ export class MeriV3ChatClient {
       /** Server-authored Defense Intelligence Research Portfolio directive. */
       researchDirective?: string;
       toolPolicy?: 'none' | 'read-only';
-      researchRun?: { sessionId: string; runId: string };
+      researchRun?: { sessionId: string; runId: string; leaseEpoch: number };
+      /** Server-authored and covered by the governed-context turn attestation. */
+      researchPlanExecution?: MeriResearchPlanExecutionEnvelopeV1;
       governedContext?: MeriGovernedTurnContext;
+      /** API-only authority; moved inside the signed governed context before transport. */
+      procedure?: MeriGovernedProcedureBinding;
       /** Server-only observations from MeriConversationEvidenceService. */
       inheritedDocumentEvidence?: MeriCitation[];
       inheritedEvidenceNotice?: string;
+      /** API-authored only; covered by the governed-context attestation. */
+      telemetryContext?: MeriTelemetryContext;
     };
     aiProvider?: ResolvedAiForChatHeader;
     impersonateTenantId?: string;
     signal?: AbortSignal;
     onEvent: (event: MeriV3ChatStreamEvent) => void;
   }): Promise<void> {
-    if (!this.configured) throw new Error('MERIV2_ORCHESTRATOR_URL is not configured');
-    if (!params.bearerToken) throw new Error('MeriV3 chat proxy requires the caller bearer token');
-    if (params.aiProvider && params.aiProvider.provider !== 'openai') {
-      throw new Error('MeriV3 requires an OpenAI credential');
-    }
-    const response = await fetch(`${this.baseUrl}/meri-api/v3/chat/stream`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${params.bearerToken}`,
-        'content-type': 'application/json',
-        accept: 'text/event-stream',
-        ...(params.aiProvider ? { 'x-capiro-ai-provider': JSON.stringify(params.aiProvider) } : {}),
-        ...(params.impersonateTenantId
-          ? { 'x-capiro-impersonate-tenant': params.impersonateTenantId }
-          : {}),
-      },
-      body: JSON.stringify({
-        ...params.input,
-        ...(params.input.governedContext
-          ? {
-              governedContext: attestMeriGovernedContext(
-                {
-                  ...params.input.governedContext,
-                  inheritedDocumentEvidence: params.input.inheritedDocumentEvidence ?? [],
-                  prompt: [
-                    params.input.governedContext.prompt,
-                    params.input.inheritedEvidenceNotice ?? '',
-                  ]
-                    .filter(Boolean)
-                    .join('\n\n'),
-                },
-                params.input,
-                process.env.INTERNAL_SERVICE_SECRET,
-              ),
-            }
-          : {}),
-      }),
-      ...(params.signal ? { signal: params.signal } : {}),
-    });
-    if (!response.ok || !response.body) {
-      const detail = await response.text().catch(() => response.statusText);
-      throw new Error(`MeriV3 chat stream failed: ${response.status} ${detail.slice(0, 240)}`);
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const payload = line.slice(6).trim();
-        if (!payload) continue;
-        try {
-          params.onEvent(JSON.parse(payload) as MeriV3ChatStreamEvent);
-        } catch {
-          this.logger.debug('MeriV3 chat stream: skipped unparseable frame');
+    return withMeriApiTelemetrySpan(
+      { name: 'meri.api.orchestrator', boundary: 'api_orchestrator' },
+      async () => {
+        if (!this.configured) throw new Error('MERIV2_ORCHESTRATOR_URL is not configured');
+        if (!params.bearerToken)
+          throw new Error('MeriV3 chat proxy requires the caller bearer token');
+        if (params.aiProvider && params.aiProvider.provider !== 'openai') {
+          throw new Error('MeriV3 requires an OpenAI credential');
         }
-      }
-    }
+        const { procedure, ...transportInput } = params.input;
+        if (procedure && !params.input.governedContext) {
+          throw new Error('meri_procedure_governed_context_required');
+        }
+        const telemetryContext = currentMeriApiTelemetry();
+        const response = await fetch(`${this.baseUrl}/meri-api/v3/chat/stream`, {
+          method: 'POST',
+          headers: {
+            authorization: `Bearer ${params.bearerToken}`,
+            'content-type': 'application/json',
+            accept: 'text/event-stream',
+            ...meriApiTelemetryHeaders(),
+            ...(params.aiProvider
+              ? { 'x-capiro-ai-provider': JSON.stringify(params.aiProvider) }
+              : {}),
+            ...(params.impersonateTenantId
+              ? { 'x-capiro-impersonate-tenant': params.impersonateTenantId }
+              : {}),
+          },
+          body: JSON.stringify({
+            ...transportInput,
+            ...(telemetryContext ? { telemetryContext } : {}),
+            ...(params.input.governedContext
+              ? {
+                  governedContext: attestMeriGovernedContext(
+                    {
+                      ...params.input.governedContext,
+                      telemetryContext: telemetryContext ?? null,
+                      ...(procedure ? { procedure } : {}),
+                      inheritedDocumentEvidence: params.input.inheritedDocumentEvidence ?? [],
+                      prompt: [
+                        params.input.governedContext.prompt,
+                        params.input.inheritedEvidenceNotice ?? '',
+                      ]
+                        .filter(Boolean)
+                        .join('\n\n'),
+                    },
+                    transportInput,
+                    process.env.INTERNAL_SERVICE_SECRET,
+                  ),
+                }
+              : {}),
+          }),
+          ...(params.signal ? { signal: params.signal } : {}),
+        });
+        if (!response.ok || !response.body) {
+          const detail = await response.text().catch(() => response.statusText);
+          throw new Error(`MeriV3 chat stream failed: ${response.status} ${detail.slice(0, 240)}`);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const payload = line.slice(6).trim();
+            if (!payload) continue;
+            try {
+              params.onEvent(JSON.parse(payload) as MeriV3ChatStreamEvent);
+            } catch {
+              this.logger.debug('MeriV3 chat stream: skipped unparseable frame');
+            }
+          }
+        }
+      },
+      'client',
+    );
   }
 }

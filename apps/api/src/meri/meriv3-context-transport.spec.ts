@@ -58,7 +58,38 @@ describe('API authenticated governed context transport', () => {
         },
       }),
     } as Response);
-    const original = input();
+    const original = {
+      ...input(),
+      procedure: {
+        version: 1 as const,
+        tenantId: actor.tenantId,
+        identity: {
+          source: 'firm' as const,
+          recordId: 'procedure-row-1',
+          canonicalId: 'commitments_audit',
+          version: 4,
+        },
+        manifestDigest: 'a'.repeat(64),
+        instruction: 'Signed procedure instruction',
+        scope: 'client' as const,
+        clientId: 'client-1',
+        clientRequired: true,
+        resolvedAt: 1,
+        validUntil: 300_001,
+        policy: {
+          effectMode: 'read_only' as const,
+          allowedCapabilities: ['tasks.read'],
+          allowedTools: ['query_tasks'],
+          requiredTools: ['query_tasks'],
+        },
+        contract: {
+          outputFields: ['auditStatus'],
+          completionChecks: ['Report coverage'],
+          coverageStates: ['checked'],
+          caseIds: ['CD-01'],
+        },
+      },
+    };
     await new MeriV3ChatClient().streamChat({
       bearerToken: 'test-user-token',
       input: original,
@@ -73,6 +104,8 @@ describe('API authenticated governed context transport', () => {
         process.env.INTERNAL_SERVICE_SECRET,
       ),
     ).not.toThrow();
+    expect(body.procedure).toBeUndefined();
+    expect(body.governedContext.procedure).toEqual(original.procedure);
     expect(original.governedContext.attestation).toBeUndefined();
     expect(JSON.stringify(body)).not.toContain('test-only-service-secret');
   });

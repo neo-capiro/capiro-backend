@@ -112,7 +112,7 @@ export function renderModule(primaryManifest, primaryManifestSha256, built) {
     (entry) => ` *   ${entry.path}\n *     ${entry.reason}`,
   ).join('\n');
   const additiveSources = ADDITIVE_ROUTE_MANIFEST_PATHS.map(
-    (manifestPath) => ` *   ${path.relative(ROOT, manifestPath)}`,
+    (manifestPath) => ` *   ${path.relative(ROOT, manifestPath).split(path.sep).join('/')}`,
   ).join('\n');
 
   return `/**

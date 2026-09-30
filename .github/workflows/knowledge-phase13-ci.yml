@@ -52,17 +52,19 @@ jobs:
           pnpm --filter @capiro/meriv2-core build
 
       - name: Validate and generate Prisma client
+        # Validation/generation require a URL but do not connect to a database.
         env:
           DATABASE_URL: postgresql://ci_dummy:ci_dummy@127.0.0.1:1/ci_schema_validation_only?schema=public
         run: |
           pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
           pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
 
+      # One worker preserves sequential execution and recycles its heap between suites.
       - name: Phase 13 provider and boundary tests
         env:
           NODE_OPTIONS: --max-old-space-size=6144
         run: |
-          pnpm --filter @capiro/api exec jest --runInBand --forceExit \
+          pnpm --filter @capiro/api exec jest --maxWorkers=1 --workerIdleMemoryLimit=1GB --forceExit \
             src/reranking/nvidia-reranking.provider.spec.ts \
             src/reranking/reranking-provider.factory.spec.ts \
             src/retrieval/retrieval-reranker.service.spec.ts \
@@ -70,8 +72,10 @@ jobs:
             src/retrieval/reranking-architecture.contract.spec.ts
 
       - name: Retrieval and vector architecture regressions
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
-          pnpm --filter @capiro/api exec jest --runInBand --forceExit \
+          pnpm --filter @capiro/api exec jest --maxWorkers=1 --workerIdleMemoryLimit=1GB --forceExit \
             src/retrieval/retrieval-v2.service.spec.ts \
             src/retrieval/retrieval-v2-exact-lexical.spec.ts \
             src/retrieval/coverage-manifest.spec.ts \

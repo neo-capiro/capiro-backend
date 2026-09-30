@@ -1,12 +1,12 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { MeriArtifactDownloadLink } from './MeriArtifactDownloadLink.js';
+import { artifactDownloadResponse } from '../../test/meri-artifact-download-fixtures.js';
 
 const apiBaseUrl = 'https://api.example.test';
 const href = '/api/clio/artifacts/saved-artifact-1/download';
-const docxMime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 function success() {
-  return { ok: true, headers: new Headers({ 'Content-Type': docxMime, 'Content-Disposition': 'attachment; filename="saved-briefing.docx"' }), blob: async () => new Blob(['PK-document'], { type: docxMime }) };
+  return artifactDownloadResponse({ disposition: 'attachment; filename="saved-briefing.docx"' });
 }
 function setupBlob() {
   const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:saved-document');
@@ -26,7 +26,7 @@ describe('inline Meri artifact download', () => {
   });
 
   test('intercepts the protected Markdown link and downloads the same saved artifact after reopening', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(success());
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(success()));
     vi.stubGlobal('fetch', fetchMock);
     const { click } = setupBlob();
     const getAuthHeaders = vi.fn(async () => ({ Authorization: 'Bearer current-user' }));
@@ -58,8 +58,18 @@ describe('inline Meri artifact download', () => {
     expect(fetchMock.mock.calls[1]![0]).toBe(`${apiBaseUrl}${href}`);
   });
 
+  test('keeps a network failure visible without creating a file', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+    const { click } = setupBlob();
+    render(<MeriArtifactDownloadLink href={href} apiBaseUrl={apiBaseUrl} getAuthHeaders={async () => ({ Authorization: 'Bearer current-user' })}>Download Word</MeriArtifactDownloadLink>);
+    fireEvent.click(screen.getByRole('button', { name: 'Download Word' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('network connection failed');
+    expect(click).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Download Word' })).toBeEnabled();
+  });
+
   test('downloads PDF through the same protected inline link after history replay', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, headers: new Headers({ 'Content-Type': 'application/pdf' }), blob: async () => new Blob(['%PDF-1.7'], { type: 'application/pdf' }) });
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(artifactDownloadResponse({ mime: 'application/pdf' })));
     vi.stubGlobal('fetch', fetchMock);
     const { click } = setupBlob();
     const getAuthHeaders = vi.fn(async () => ({ Authorization: 'Bearer current-user' }));

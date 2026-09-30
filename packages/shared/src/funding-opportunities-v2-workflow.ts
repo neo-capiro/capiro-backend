@@ -3,7 +3,11 @@ import type { OpportunityEligibilityV2, OpportunitySourceV2 } from './funding-op
 /** Canonical matched evidence exposed by current-source pipeline enrichment. */
 export interface OpportunityCurrentEvidenceV2 {
   relevanceScore: number | null;
-  matchedSignals: Array<{ signal: string; strength: 'strong' | 'moderate' | 'weak'; matchedOn: string }>;
+  matchedSignals: Array<{
+    signal: string;
+    strength: 'strong' | 'moderate' | 'weak';
+    matchedOn: string;
+  }>;
   eligibility: { state: OpportunityEligibilityV2; reason: string } | null;
 }
 

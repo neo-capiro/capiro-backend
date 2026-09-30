@@ -42,3 +42,29 @@ test('reverse dependency missing tenant-neutral target metadata fails', () => {
   const problems = validateReverseDependencies([{ consumerFile: 'x.ts' }]);
   assert.ok(problems.length > 0);
 });
+
+test('current catalog permits later entries while retaining authority checks', () => {
+  const value = catalog();
+  value.push({ ...value[0], name: 'later_shared_capability' });
+  assert.deepEqual(validateCapabilityCatalog(value, { allowExtensions: true }), []);
+  assert.match(validateCapabilityCatalog(value).join('\n'), /closed set/);
+  value.pop();
+  value.pop();
+  assert.match(validateCapabilityCatalog(value, { allowExtensions: true }).join('\n'), /missing/);
+});
+
+test('current catalog extensions cannot bypass duplicate, metadata or consumer checks', () => {
+  const value = catalog();
+  value.push({
+    ...value[0],
+    name: 'meri_duplicate',
+    authorizationLayer: '',
+    outreachConsumer: false,
+  });
+  value.push({ ...value[0] });
+  const problems = validateCapabilityCatalog(value, { allowExtensions: true }).join('\n');
+  assert.match(problems, /duplicate capability/);
+  assert.match(problems, /consumer-prefixed/);
+  assert.match(problems, /missing authorizationLayer/);
+  assert.match(problems, /shared by Meri and Outreach/);
+});

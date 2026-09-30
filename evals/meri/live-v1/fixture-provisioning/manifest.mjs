@@ -1,0 +1,556 @@
+import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+
+import contractLock from '../contract-lock.json' with { type: 'json' };
+import frozenAssets from '../source-binaries/asset-manifest.json' with { type: 'json' };
+import { frozenFixture } from '../fixture.mjs';
+import { sha256Stable } from '../lib/stable.mjs';
+import { clientDocumentPhysicalId } from './canonical-owner-adapter.mjs';
+import {
+  AUTHORIZED_TENANTS,
+  FIXTURE_NAMESPACE,
+  FixtureProvisioningError,
+  PROVISIONING_CONTRACT_VERSION,
+  PROVISIONING_SCHEMA_VERSION,
+  assertAuthorizedTenant,
+  assertFixtureInstanceId,
+  fixtureRecordKey,
+  ownedIdentity,
+} from './contract.mjs';
+
+const ASSET_MANIFEST_URL = new URL('../source-binaries/asset-manifest.json', import.meta.url);
+const ASSET_ROOT_URL = new URL('../source-binaries/', import.meta.url);
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+
+const MEMORY_ITEM_KINDS = new Set([
+  'institutional_memory',
+  'memory_governance_receipt',
+  'private_preference',
+]);
+const MEMORY_CANDIDATE_KINDS = new Set(['memory_candidate_fixture']);
+const RESEARCH_EVENT_KINDS = new Set([
+  'research_snapshot',
+  'research_output',
+  'research_event',
+  'research_evidence',
+]);
+const BILL_KINDS = new Set(['bill_text', 'bill_status', 'amendment_status', 'report_passage']);
+const BUDGET_KINDS = new Set([
+  'budget_document',
+  'house_report',
+  'senate_committee_report',
+  'enacted_appropriation',
+  'program_element_identity',
+  'project_identity',
+  'budget_row',
+  'complete_budget_index',
+]);
+const EXTERNAL_KINDS = new Set([
+  'disposable_effect_sink',
+  'search_snippet',
+  'primary_public_page',
+  'primary_public_notice',
+  'untrusted_public_page',
+  'stubbed_company_enrichment',
+]);
+
+const EXTENSION_RECORDS = Object.freeze([
+  {
+    logicalId: 'CD-M-OLDER',
+    tenantId: 'T1',
+    clientId: 'ASTER',
+    owner: 'meeting',
+    facts: { caseIds: ['CD-02', 'CD-03', 'CD-04', 'CD-07'], olderThanSevenDays: true },
+  },
+  {
+    logicalId: 'CD-DEBRIEF-LATER',
+    tenantId: 'T1',
+    clientId: 'ASTER',
+    owner: 'meeting_debrief',
+    facts: { caseIds: ['CD-02', 'CD-07'], confirmsPromise: true },
+  },
+  {
+    logicalId: 'CD-NATIVE-TASK-BEYOND-FIRST-PAGE',
+    tenantId: 'T1',
+    clientId: 'ASTER',
+    owner: 'engagement_task',
+    facts: { caseIds: ['CD-03'], paginationPosition: 'beyond_first_page' },
+  },
+  {
+    logicalId: 'CD-SEPARATE-ACTION-SINK',
+    tenantId: 'T1',
+    clientId: 'ASTER',
+    owner: 'controlled_action_adapter',
+    facts: { caseIds: ['CD-05'], firstResponse: 'non_2xx', expectedLogicalEffects: 1 },
+  },
+  {
+    logicalId: 'CD-MONDAY-AVAILABILITY',
+    tenantId: 'T1',
+    clientId: 'ASTER',
+    owner: 'monday_test_adapter',
+    facts: { caseIds: ['CD-02', 'CD-03', 'CD-04', 'CD-06', 'CD-07'] },
+  },
+  {
+    logicalId: 'CD-MAIL-AVAILABILITY',
+    tenantId: 'T1',
+    clientId: 'ASTER',
+    owner: 'mail_test_adapter',
+    facts: { caseIds: ['CD-02', 'CD-03', 'CD-04', 'CD-07'] },
+  },
+  ...Array.from({ length: 8 }, (_, index) => ({
+    logicalId: `CW-${String(index + 1).padStart(2, '0')}-FAULT-ADAPTER`,
+    tenantId: 'T1',
+    clientId: 'ASTER',
+    owner: 'coworker_fault_adapter',
+    facts: { caseIds: [`CW-${String(index + 1).padStart(2, '0')}`] },
+  })),
+]);
+
+function canonicalOwner(logicalId, source) {
+  if (source.kind === 'institutional_memory' && source.facts?.lifecycle === 'pending') {
+    return 'memory_candidate';
+  }
+  if (source.kind === 'memory_governance_receipt') return 'memory_transition_audit';
+  if (MEMORY_ITEM_KINDS.has(source.kind)) return 'memory_item';
+  if (MEMORY_CANDIDATE_KINDS.has(source.kind)) return 'memory_candidate';
+  if (source.kind === 'meeting') return 'meeting';
+  if (source.kind === 'meeting_media') return 'meeting_media_test_adapter';
+  if (source.kind === 'transcript') {
+    return logicalId === 'MEETING-TRANSCRIPT-OWNERS'
+      ? 'meeting_debrief'
+      : 'hearing_transcript_test_adapter';
+  }
+  if (source.kind === 'research_portfolio') return 'research_portfolio';
+  if (RESEARCH_EVENT_KINDS.has(source.kind)) return 'research_portfolio_event';
+  if (BILL_KINDS.has(source.kind)) return 'federal_legislative_evidence';
+  if (source.kind === 'legislative_event') return 'federal_legislative_evidence';
+  if (BUDGET_KINDS.has(source.kind)) return 'defense_budget_source';
+  if (EXTERNAL_KINDS.has(source.kind)) return `${source.kind}_test_adapter`;
+  if (source.kind === 'client_profile') return 'client';
+  if (source.kind === 'client_facility_evidence') return 'client_facility';
+  if (source.kind === 'business_development_record') return 'business_development_prospect';
+  if (source.kind === 'program_record') return 'client_capability';
+  if (source.kind === 'generated_artifact_fixture') return 'engagement_attachment';
+  return 'canonical_source_adapter';
+}
+
+function unavailableReason(owner) {
+  if (owner.endsWith('_test_adapter') || owner === 'coworker_fault_adapter') {
+    return 'explicit controlled test adapter is not configured; real provider credentials and network effects are forbidden';
+  }
+  if (owner === 'federal_legislative_evidence' || owner === 'defense_budget_source') {
+    return 'shared global canonical source owner is read-only for this tenant fixture; bind reviewed existing evidence or a controlled test adapter';
+  }
+  if (owner === 'engagement_attachment') {
+    return 'canonical ClientDocumentWriterService uploader and authoritative readback are not configured';
+  }
+  // memory_transition_audit is read-only - it references pre-existing audit records
+  if (owner === 'memory_transition_audit') {
+    return 'memory transition audit is read-only; bind reviewed existing records or a controlled test adapter';
+  }
+  return `canonical owner ${owner} is not declared available`;
+}
+
+async function loadAssets(assetManifestUrl, assetRootUrl) {
+  const manifest = JSON.parse(await readFile(assetManifestUrl, 'utf8'));
+  if (manifest.fixtureVersion !== frozenFixture.version) {
+    throw new FixtureProvisioningError(
+      'ASSET_FIXTURE_VERSION_MISMATCH',
+      'asset manifest fixture version mismatch',
+    );
+  }
+  const assets = new Map();
+  for (const asset of manifest.assets) {
+    const bytes = await readFile(new URL(asset.filename, assetRootUrl));
+    const actual = createHash('sha256').update(bytes).digest('hex');
+    if (actual !== asset.byteSha256 || bytes.byteLength !== asset.byteSize) {
+      throw new FixtureProvisioningError(
+        'ASSET_BYTE_HASH_MISMATCH',
+        `immutable source bytes do not match manifest for ${asset.logicalSourceId}`,
+      );
+    }
+    assets.set(asset.logicalSourceId, {
+      byteSha256: actual,
+      byteSize: bytes.byteLength,
+      fileName: asset.filename,
+      mediaType: asset.mediaType,
+      sourcePath: `source-binaries/${asset.filename}`,
+      version: asset.version,
+    });
+  }
+  return assets;
+}
+
+function availabilityFor(owner, availableOwners) {
+  if (availableOwners.has(owner)) return { status: 'available', reason: null };
+  return { status: 'unavailable', reason: unavailableReason(owner) };
+}
+
+function recordFor(input, options) {
+  const tenant = options.tenants[input.tenantId];
+  assertAuthorizedTenant(input.tenantId, tenant);
+  const client = input.clientId ? options.clients[input.clientId] : null;
+  const availability = availabilityFor(input.owner, options.availableOwners);
+  let reason = availability.reason;
+  let status = availability.status;
+  if (
+    input.clientId &&
+    (!client || client.tenantId !== input.tenantId || !UUID.test(client.physicalId ?? ''))
+  ) {
+    status = 'unavailable';
+    reason = `canonical client binding for ${input.clientId} is absent or crosses tenants`;
+  }
+  const baseIdentity = ownedIdentity(
+    input.logicalId,
+    tenant.id,
+    input.owner,
+    frozenFixture.version,
+    options.fixtureInstanceId,
+  );
+  const actorKey = options.uploaderActors[input.tenantId];
+  const actor = actorKey ? options.actors[actorKey] : null;
+  const actorId = actor?.physicalId ?? actor?.userId ?? null;
+  const writerActor =
+    actor?.tenantId === input.tenantId && UUID.test(actorId ?? '') ? actorId : null;
+  const assetByteSha256 = input.asset?.byteSha256 ?? input.facts?.byteSha256 ?? null;
+  if (input.owner === 'engagement_attachment' && !writerActor) {
+    status = 'unavailable';
+    reason = 'canonical uploader actor binding is absent, invalid, or crosses tenants';
+  }
+  const identity =
+    input.owner === 'engagement_attachment' && writerActor && assetByteSha256
+      ? {
+          ...baseIdentity,
+          physicalId: clientDocumentPhysicalId({
+            tenantId: tenant.id,
+            userId: writerActor,
+            clientId: client?.physicalId ?? null,
+            idempotencyKey: fixtureRecordKey(input.logicalId, options.fixtureInstanceId),
+            contentType: input.asset?.mediaType ?? 'text/plain',
+            byteSha256: assetByteSha256,
+          }),
+        }
+      : baseIdentity;
+  const payload = {
+    facts: input.facts,
+    fixtureKind: input.fixtureKind,
+    sourceAsset: input.asset ?? null,
+  };
+  return {
+    logicalId: input.logicalId,
+    physicalId: identity.physicalId,
+    tenantKey: input.tenantId,
+    tenantId: tenant.id,
+    clientLogicalId: input.clientId ?? null,
+    clientPhysicalId: client?.physicalId ?? null,
+    owner: input.owner,
+    expectedPresence: input.facts?.initialState === 'absent' ? 'absent' : 'present',
+    uploaderActorId: input.owner === 'engagement_attachment' ? writerActor : null,
+    ownership: identity,
+    expectedRowVersion: null,
+    availability: { status, reason },
+    payload,
+    payloadSha256: sha256Stable(payload),
+    references: input.clientId
+      ? [
+          {
+            kind: 'client',
+            logicalId: input.clientId,
+            physicalId: client?.physicalId ?? null,
+            tenantId: tenant.id,
+          },
+        ]
+      : [],
+  };
+}
+
+export async function buildFixtureManifest({
+  fixtureInstanceId,
+  tenants = AUTHORIZED_TENANTS,
+  clients = {},
+  actors = {},
+  uploaderActors = { T1: 'PAT' },
+  availableOwners = [],
+  assetManifestUrl = ASSET_MANIFEST_URL,
+  assetRootUrl = ASSET_ROOT_URL,
+} = {}) {
+  assertFixtureInstanceId(fixtureInstanceId);
+  for (const [key, tenant] of Object.entries(tenants)) assertAuthorizedTenant(key, tenant);
+  const ownerSet = new Set(availableOwners);
+  const assets = await loadAssets(assetManifestUrl, assetRootUrl);
+  const records = [];
+
+  for (const [logicalId, source] of Object.entries(frozenFixture.sources)) {
+    let asset = assets.get(logicalId) ?? null;
+    if (
+      !asset &&
+      source.kind === 'generated_artifact_fixture' &&
+      typeof source.facts?.utf8Bytes === 'string'
+    ) {
+      const bytes = Buffer.from(source.facts.utf8Bytes, 'utf8');
+      const actual = createHash('sha256').update(bytes).digest('hex');
+      if (actual !== source.facts.byteSha256) {
+        throw new FixtureProvisioningError(
+          'ASSET_BYTE_HASH_MISMATCH',
+          `inline generated bytes do not match fixture for ${logicalId}`,
+        );
+      }
+      asset = {
+        byteSha256: actual,
+        byteSize: bytes.byteLength,
+        fileName: source.facts.filename,
+        mediaType: 'text/plain',
+        sourcePath: null,
+        version: 'v1',
+      };
+    }
+    const owner = asset ? 'engagement_attachment' : canonicalOwner(logicalId, source);
+    records.push(
+      recordFor(
+        {
+          logicalId,
+          tenantId: source.tenantId,
+          clientId: source.clientId,
+          owner,
+          fixtureKind: source.kind,
+          facts: source.facts,
+          asset,
+        },
+        { tenants, clients, actors, uploaderActors, availableOwners: ownerSet, fixtureInstanceId },
+      ),
+    );
+  }
+  for (const extension of EXTENSION_RECORDS) {
+    records.push(
+      recordFor(
+        { ...extension, fixtureKind: 'acceptance_extension' },
+        { tenants, clients, actors, uploaderActors, availableOwners: ownerSet, fixtureInstanceId },
+      ),
+    );
+  }
+
+  records.sort((left, right) => left.logicalId.localeCompare(right.logicalId));
+  const sourceMap = {
+    schemaVersion: PROVISIONING_SCHEMA_VERSION,
+    contractVersion: PROVISIONING_CONTRACT_VERSION,
+    fixtureNamespace: FIXTURE_NAMESPACE,
+    fixtureVersion: frozenFixture.version,
+    ...(fixtureInstanceId === undefined ? {} : { fixtureInstanceId }),
+    fixtureSha256: contractLock.fixtureSha256,
+    contractSourceSha256: contractLock.contractSourceSha256,
+    tenants,
+    clients,
+    actors,
+    uploaderActors,
+    records,
+  };
+  return Object.freeze({ ...sourceMap, contentSha256: sha256Stable(sourceMap) });
+}
+
+// Definitions are frozen input, never owner availability or a live capture attestation.
+function frozenRecordInput(logicalId) {
+  const source = frozenFixture.sources[logicalId];
+  if (!source) {
+    const extension = EXTENSION_RECORDS.find((record) => record.logicalId === logicalId);
+    return extension ? { ...extension, fixtureKind: 'acceptance_extension' } : null;
+  }
+  const binary = frozenAssets.assets.find((asset) => asset.logicalSourceId === logicalId);
+  let asset = binary
+    ? {
+        byteSha256: binary.byteSha256,
+        byteSize: binary.byteSize,
+        fileName: binary.filename,
+        mediaType: binary.mediaType,
+        sourcePath: `source-binaries/${binary.filename}`,
+        version: binary.version,
+      }
+    : null;
+  if (
+    !asset &&
+    source.kind === 'generated_artifact_fixture' &&
+    typeof source.facts?.utf8Bytes === 'string'
+  ) {
+    const bytes = Buffer.from(source.facts.utf8Bytes, 'utf8');
+    asset = {
+      byteSha256: createHash('sha256').update(bytes).digest('hex'),
+      byteSize: bytes.byteLength,
+      fileName: source.facts.filename,
+      mediaType: 'text/plain',
+      sourcePath: null,
+      version: 'v1',
+    };
+  }
+  return {
+    logicalId,
+    tenantId: source.tenantId,
+    clientId: source.clientId,
+    owner: asset ? 'engagement_attachment' : canonicalOwner(logicalId, source),
+    fixtureKind: source.kind,
+    facts: source.facts,
+    asset,
+  };
+}
+
+export function assertManifest(manifest) {
+  const { contentSha256, ...body } = manifest ?? {};
+  if (
+    body.fixtureNamespace !== FIXTURE_NAMESPACE ||
+    body.fixtureVersion !== frozenFixture.version
+  ) {
+    throw new FixtureProvisioningError(
+      'MANIFEST_FIXTURE_MISMATCH',
+      'manifest is not bound to the frozen fixture',
+    );
+  }
+  if (
+    body.fixtureSha256 !== contractLock.fixtureSha256 ||
+    body.contractSourceSha256 !== contractLock.contractSourceSha256
+  ) {
+    throw new FixtureProvisioningError(
+      'MANIFEST_CONTRACT_MISMATCH',
+      'manifest contract hashes are not current',
+    );
+  }
+  if (contentSha256 !== sha256Stable(body)) {
+    throw new FixtureProvisioningError('MANIFEST_HASH_MISMATCH', 'manifest content hash mismatch');
+  }
+  if (
+    body.schemaVersion !== PROVISIONING_SCHEMA_VERSION ||
+    body.contractVersion !== PROVISIONING_CONTRACT_VERSION
+  ) {
+    throw new FixtureProvisioningError(
+      'MANIFEST_VERSION_MISMATCH',
+      'manifest contract version is not current',
+    );
+  }
+  const expectedIds = [
+    ...Object.keys(frozenFixture.sources),
+    ...EXTENSION_RECORDS.map((row) => row.logicalId),
+  ].sort();
+  const actualIds = Array.isArray(body.records)
+    ? body.records.map((row) => row?.logicalId).sort()
+    : [];
+  if (JSON.stringify(actualIds) !== JSON.stringify(expectedIds)) {
+    throw new FixtureProvisioningError(
+      'MANIFEST_INVENTORY_MISMATCH',
+      'manifest must contain each frozen source and extension exactly once',
+    );
+  }
+  const byPhysicalId = new Map();
+  assertFixtureInstanceId(body.fixtureInstanceId);
+  for (const record of body.records ?? []) {
+    assertAuthorizedTenant(record.tenantKey, body.tenants?.[record.tenantKey]);
+    if (record.tenantId !== body.tenants[record.tenantKey].id) {
+      throw new FixtureProvisioningError(
+        'RECORD_TENANT_MISMATCH',
+        `${record.logicalId} tenant binding mismatch`,
+      );
+    }
+    const frozenSource = frozenFixture.sources[record.logicalId];
+    const expectedPresence = frozenSource?.facts?.initialState === 'absent' ? 'absent' : 'present';
+    if (record.expectedPresence !== expectedPresence) {
+      throw new FixtureProvisioningError('RECORD_PRESENCE_MISMATCH', record.logicalId);
+    }
+    const identity = ownedIdentity(
+      record.logicalId,
+      record.tenantId,
+      record.owner,
+      body.fixtureVersion,
+      body.fixtureInstanceId,
+    );
+    if (
+      record.ownership?.markerSha256 !== identity.markerSha256 ||
+      sha256Stable(record.ownership?.marker ?? null) !== identity.markerSha256
+    ) {
+      throw new FixtureProvisioningError('RECORD_OWNERSHIP_MISMATCH', record.logicalId);
+    }
+    let physicalId = identity.physicalId;
+    if (record.owner === 'engagement_attachment') {
+      const actorKey = body.uploaderActors?.[record.tenantKey];
+      const actor = actorKey ? body.actors?.[actorKey] : null;
+      const actorId = actor?.physicalId ?? actor?.userId ?? null;
+      const expectedActor =
+        actor?.tenantId === record.tenantKey && UUID.test(actorId ?? '') ? actorId : null;
+      if (
+        record.uploaderActorId !== expectedActor ||
+        (record.availability.status === 'available' && !expectedActor)
+      ) {
+        throw new FixtureProvisioningError('DOCUMENT_ACTOR_BINDING_MISMATCH', record.logicalId);
+      }
+      const byteSha256 = record.payload.sourceAsset?.byteSha256 ?? record.payload.facts?.byteSha256;
+      if (expectedActor && byteSha256) {
+        physicalId = clientDocumentPhysicalId({
+          tenantId: record.tenantId,
+          userId: expectedActor,
+          clientId: record.clientPhysicalId,
+          idempotencyKey: fixtureRecordKey(record.logicalId, body.fixtureInstanceId),
+          contentType: record.payload.sourceAsset?.mediaType ?? 'text/plain',
+          byteSha256,
+        });
+      }
+    }
+    if (record.physicalId !== physicalId || record.ownership?.physicalId !== physicalId) {
+      throw new FixtureProvisioningError('RECORD_PHYSICAL_ID_MISMATCH', record.logicalId);
+    }
+    if (
+      !['available', 'unavailable'].includes(record.availability?.status) ||
+      (record.availability.status === 'unavailable' && !record.availability.reason)
+    ) {
+      throw new FixtureProvisioningError('RECORD_AVAILABILITY_INVALID', record.logicalId);
+    }
+    if (record.payloadSha256 !== sha256Stable(record.payload)) {
+      throw new FixtureProvisioningError(
+        'RECORD_PAYLOAD_HASH_MISMATCH',
+        `${record.logicalId} payload hash mismatch`,
+      );
+    }
+    if (byPhysicalId.has(record.physicalId)) {
+      throw new FixtureProvisioningError(
+        'PHYSICAL_ID_COLLISION',
+        `${record.logicalId} physical ID collision`,
+      );
+    }
+    byPhysicalId.set(record.physicalId, record);
+    for (const reference of record.references) {
+      if (!UUID.test(reference.physicalId ?? '') || reference.tenantId !== record.tenantId) {
+        throw new FixtureProvisioningError(
+          'CROSS_CLIENT_REFERENCE',
+          `${record.logicalId} has an absent or cross-tenant client reference`,
+        );
+      }
+      const binding = body.clients?.[reference.logicalId];
+      if (
+        !binding ||
+        binding.physicalId !== reference.physicalId ||
+        binding.tenantId !== record.tenantKey
+      ) {
+        throw new FixtureProvisioningError(
+          'CROSS_CLIENT_REFERENCE',
+          `${record.logicalId} client reference does not match the source map`,
+        );
+      }
+    }
+    const expected = recordFor(frozenRecordInput(record.logicalId), {
+      tenants: body.tenants,
+      clients: body.clients,
+      actors: body.actors,
+      uploaderActors: body.uploaderActors,
+      availableOwners: new Set(),
+      fixtureInstanceId: body.fixtureInstanceId,
+    });
+    // Availability is a declaration to be proved later by an owner. All identities,
+    // frozen content, references and immutable bytes must match now.
+    const { availability: _actualAvailability, ...actualDefinition } = record;
+    const { availability: _expectedAvailability, ...expectedDefinition } = expected;
+    if (sha256Stable(actualDefinition) !== sha256Stable(expectedDefinition)) {
+      throw new FixtureProvisioningError('RECORD_FROZEN_DEFINITION_MISMATCH', record.logicalId);
+    }
+  }
+  return body;
+}
+
+/** Full manifest content address, not the collector's configurable source projection. */
+export function fixturePhysicalMapSha256(manifest) {
+  assertManifest(manifest);
+  return manifest.contentSha256;
+}

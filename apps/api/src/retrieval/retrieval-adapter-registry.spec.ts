@@ -12,6 +12,7 @@ import { DistrictNexusRetrievalAdapter } from './adapters/district-nexus-retriev
 import { MondayManagedMcpAdapter } from './adapters/monday-managed-mcp.adapter.js';
 
 jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class {} }));
+jest.mock('../meri/meri-managed-mcp.service.js', () => ({ MeriManagedMcpService: class {} }));
 jest.mock('../knowledge/graph/temporal-knowledge-graph.service.js', () => ({
   TemporalKnowledgeGraphService: class {},
 }));
@@ -66,6 +67,7 @@ function adapters() {
     new PublicDomainRetrievalAdapter(undefined as never, undefined as never, undefined as never),
     new ActionRecommendationsRetrievalAdapter(undefined as never),
     new HearingsRetrievalAdapter(undefined as never),
+    new MondayManagedMcpAdapter(undefined as never, undefined as never),
     new DistrictNexusRetrievalAdapter(
       undefined as never,
       undefined as never,
@@ -77,7 +79,6 @@ function adapters() {
       undefined as never,
       undefined as never,
     ),
-    new MondayManagedMcpAdapter(undefined as never, undefined as never),
   ];
 }
 

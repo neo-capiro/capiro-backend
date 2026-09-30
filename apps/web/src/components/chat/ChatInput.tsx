@@ -45,7 +45,7 @@ export function attachmentKindIcon(kind: string): ReactNode {
   }
 }
 
-const ATTACH_ACCEPT = '.pdf,.docx,.txt,.md,.csv,image/png,image/jpeg,image/gif,image/webp';
+const ATTACH_ACCEPT = '.pdf,.docx,.xlsx,.txt,.md,.csv,image/png,image/jpeg,image/gif,image/webp';
 
 interface ChatInputProps {
   disabled?: boolean;

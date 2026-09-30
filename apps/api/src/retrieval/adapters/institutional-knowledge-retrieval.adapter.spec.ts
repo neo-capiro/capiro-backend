@@ -125,10 +125,21 @@ function setup(
       approvedByUserId: 'reviewer-1',
       approvedAt: new Date('2026-08-18T09:00:00Z'),
     }));
-  const queryRaw = jest.fn(async (query: { text?: string }) =>
-    query.text?.includes('mi.sections_jsonb AS sections')
-      ? canonical
-      : (options.semanticScores ?? []),
+  const semanticById = new Map(
+    (options.semanticScores ?? []).map((entry, index) => [
+      entry.id,
+      {
+        semanticScore: entry.score,
+        semanticRank: index + 1,
+        embeddingContentHash: 'projection-hash',
+      },
+    ]),
+  );
+  const queryRaw = jest.fn(
+    async (query: { text?: string }): Promise<Array<Record<string, unknown>>> =>
+      query.text?.includes('mi.sections_jsonb AS sections')
+        ? canonical.map((row) => ({ ...row, ...semanticById.get(String(row.id)) }))
+        : [],
   );
   const tx = {
     clioMemory: { findMany: clioMemoryFindMany },
@@ -140,7 +151,14 @@ function setup(
   );
   const prisma = { withTenantUser } as unknown as PrismaService;
   const embeddingProvider = {
-    embed: jest.fn(options.embed ?? (async () => [0.1, 0.2, 0.3])),
+    metadata: {
+      provider: 'test',
+      model: 'test-memory-model',
+      modelVersion: '1',
+      dimensions: 1024,
+    },
+    embed: jest.fn(options.embed ?? (async () => Array<number>(1024).fill(0.1))),
+    embedBatch: jest.fn(),
   } as unknown as EmbeddingProvider;
   const adapter = new InstitutionalKnowledgeRetrievalAdapter(graph, prisma, embeddingProvider);
   const dataset = new SemanticDataCatalogService().get('institutional_knowledge');
@@ -424,7 +442,7 @@ describe('InstitutionalKnowledgeRetrievalAdapter', () => {
         },
       ],
       // Embedding provider works fine.
-      embed: async () => [0.1, 0.2, 0.3],
+      embed: async () => Array<number>(1024).fill(0.1),
     });
     // Only memory-1 has an embedding score; memory-2 has none.
 
@@ -486,6 +504,45 @@ const selectedClientRequest = () =>
   });
 
 describe('canonical institutional recall governance', () => {
+  it('recalls an older approved MA510 candidate beyond 500 newer eligible rows', async () => {
+    const newer = Array.from({ length: 500 }, (_, index) =>
+      approved({
+        id: `newer-${index}`,
+        key: `Routine update ${index}`,
+        sections: [{ key: 'memory', heading: 'Memory', body: `Routine update ${index}` }],
+        updatedAt: new Date(2026, 7, 20, 0, index),
+      }),
+    );
+    const ma510 = approved({
+      id: 'MA510',
+      key: 'Aster demonstration policy',
+      sections: [
+        {
+          key: 'memory',
+          heading: 'Memory',
+          body: 'The autonomous maritime demo requires an approved safety review.',
+        },
+      ],
+      updatedAt: new Date('2020-01-01T00:00:00Z'),
+    });
+    const { adapter, dataset, queryRaw } = setup({ governed: [...newer, ma510] });
+
+    const result = await adapter.retrieve(dataset, {
+      ...selectedClientRequest(),
+      query: 'What did we approve about the autonomous maritime demo?',
+    });
+
+    expect(result.records[0]).toMatchObject({ recordId: 'MA510' });
+    const candidateSql = queryRaw.mock.calls[0]![0] as { text: string; values: unknown[] };
+    expect(candidateSql.text.indexOf('governed_status')).toBeLessThan(
+      candidateSql.text.indexOf('lexical_candidates AS'),
+    );
+    expect(candidateSql.text.indexOf('lexical_candidates AS')).toBeLessThan(
+      candidateSql.text.indexOf('LIMIT'),
+    );
+    expect(candidateSql.values).toEqual(expect.arrayContaining(['autonomous', 'maritime', 'demo']));
+  });
+
   it('reads canonical approved content without a Clio projection or embedding', async () => {
     const { adapter, dataset, clioMemoryFindMany, queryRaw } = setup({ governed: [approved()] });
     const result = await adapter.retrieve(dataset, selectedClientRequest());
@@ -571,7 +628,7 @@ describe('canonical institutional recall governance', () => {
     });
     const request = { ...selectedClientRequest(), pageSize: 1 };
     const first = await adapter.retrieve(dataset, request);
-    expect(first.nextCursor).toMatch(/^memory:v2:1:[a-f0-9]{64}$/);
+    expect(first.nextCursor).toMatch(/^memory:v3:1:[a-f0-9]{64}$/);
     queryRaw.mockResolvedValue([
       approved({ status: 'revoked' }),
       approved({ id: 'memory-next', status: 'revoked' }),
@@ -582,6 +639,31 @@ describe('canonical institutional recall governance', () => {
     const denied = await adapter.retrieve(dataset, request, first.nextCursor);
     expect(denied.sourceStatus).toBe('unauthorized');
     expect(denied.records).toEqual([]);
+  });
+
+  it('withholds pending, superseded, revoked, cross-tenant, cross-client and private rows on continuation', async () => {
+    const rows = [
+      approved({ id: 'first', key: 'alpha' }),
+      approved({ id: 'second', key: 'beta', updatedAt: new Date('2026-08-19T10:00:00Z') }),
+      approved({ id: 'pending', status: 'pending_review' }),
+      approved({ id: 'superseded', status: 'superseded' }),
+      approved({ id: 'revoked', status: 'revoked' }),
+      approved({ id: 'other-tenant', tenantId: 'tenant-2' }),
+      approved({ id: 'other-client', clientId: 'client-2' }),
+      approved({ id: 'other-private', visibility: 'user', ownerUserId: 'user-2' }),
+    ];
+    const { adapter, dataset } = setup({ governed: rows });
+    const request = { ...selectedClientRequest(), query: '', pageSize: 1 };
+
+    const first = await adapter.retrieve(dataset, request);
+    const second = await adapter.retrieve(dataset, request, first.nextCursor);
+
+    expect([...first.records, ...second.records].map((record) => record.recordId).sort()).toEqual([
+      'first',
+      'second',
+    ]);
+    expect(second.hasMore).toBe(false);
+    expect(second.coverageComplete).toBe(true);
   });
 
   it('marks the safety cap incomplete instead of claiming all memory was searched', async () => {
@@ -600,10 +682,10 @@ describe('canonical institutional recall governance', () => {
 
 describe('canonical memory semantic fallback status', () => {
   it('reports query-wide embedding-index failure as degraded, while retaining approved lexical evidence', async () => {
-    const { adapter, dataset, queryRaw } = setup({ governed: [approved()] });
+    const { adapter, dataset, queryRaw, withTenantUser } = setup({ governed: [approved()] });
     queryRaw.mockImplementation(async (query) => {
-      if (query.text?.includes('mi.sections_jsonb AS sections')) return [approved()];
-      throw new Error('embedding index unavailable');
+      if (query.text?.includes('<=>')) throw new Error('embedding index unavailable');
+      return [approved()];
     });
     const result = await adapter.retrieve(dataset, {
       ...selectedClientRequest(),
@@ -615,6 +697,8 @@ describe('canonical memory semantic fallback status', () => {
       coverageComplete: false,
       stopReason: 'governed_memory_semantic_projection_incomplete',
     });
+    expect(withTenantUser).toHaveBeenCalledTimes(2);
+    expect(queryRaw.mock.calls[1]![0].text).not.toContain('<=>');
   });
 
   it('treats an empty provider vector as unavailable semantic projection', async () => {
@@ -625,6 +709,190 @@ describe('canonical memory semantic fallback status', () => {
     });
     expect(result.records).toHaveLength(1);
     expect(result.sourceStatus).toBe('degraded');
+  });
+
+  it('rejects a non-1024 provider vector before SQL and uses a lexical transaction', async () => {
+    const { adapter, dataset, queryRaw, withTenantUser } = setup({
+      governed: [approved()],
+      embed: async () => Array<number>(1023).fill(0.1),
+    });
+    const result = await adapter.retrieve(dataset, {
+      ...selectedClientRequest(),
+      queryClass: 'semantic_recall',
+    });
+    expect(result).toMatchObject({ returned: 1, sourceStatus: 'degraded' });
+    expect(withTenantUser).toHaveBeenCalledTimes(1);
+    expect(queryRaw.mock.calls[0]![0].text).not.toContain('<=>');
+  });
+
+  it('selects one exact embedding model in the governed candidate query and has no MIN/map rescore', async () => {
+    const { adapter, dataset, queryRaw } = setup({
+      governed: [approved()],
+      semanticScores: [{ id: 'memory-approved', score: 0.91 }],
+    });
+    const result = await adapter.retrieve(dataset, {
+      ...selectedClientRequest(),
+      queryClass: 'semantic_recall',
+    });
+    const sql = queryRaw.mock.calls[0]![0] as { text: string; values: unknown[] };
+    expect(sql.text).toContain('ce.model =');
+    expect(sql.text).not.toContain('MIN(ce.embedding');
+    expect(sql.values).toContain('test-memory-model');
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+    expect(result.records[0]?.retrievalSignals).toEqual({ semanticSimilarity: 0.91 });
+  });
+
+  it('keeps an old semantic-only hit inside the final 500 after 501 sparse lexical candidates', async () => {
+    const sparseLexical = Array.from({ length: 501 }, (_, index) =>
+      approved({
+        id: `sparse-lexical-${index.toString().padStart(3, '0')}`,
+        key: `Sparse lexical candidate ${index}`,
+        lexicalScore: 1,
+        lexicalRank: index + 1,
+        semanticScore: null,
+        semanticRank: null,
+      }),
+    );
+    const semanticOnly = approved({
+      id: 'old-semantic-only',
+      key: 'Old semantic-only result',
+      updatedAt: new Date('2020-01-01T00:00:00Z'),
+      lexicalScore: 0,
+      lexicalRank: null,
+      semanticScore: 0.99,
+      semanticRank: 1,
+      embeddingContentHash: 'old-semantic-projection',
+    });
+    const { adapter, dataset } = setup({ governed: [...sparseLexical, semanticOnly] });
+
+    const result = await adapter.retrieve(dataset, {
+      ...selectedClientRequest(),
+      queryClass: 'semantic_recall',
+      query: 'sparse lexical candidate',
+      pageSize: 500,
+    });
+
+    expect(result.records).toHaveLength(500);
+    expect(result.records.map((record) => record.recordId)).toContain('old-semantic-only');
+    expect(
+      result.records.find((record) => record.recordId === 'old-semantic-only')?.retrievalSignals,
+    ).toEqual({ semanticSimilarity: 0.99 });
+  });
+
+  it('preserves numeric zero semantic scores while treating missing and invalid scores as absent', async () => {
+    const invalidScores: unknown[] = [null, undefined, '0', Number.NaN, Infinity, -Infinity];
+    const rows = [
+      approved({
+        id: 'numeric-zero-score',
+        semanticScore: 0,
+        semanticRank: 1,
+        lexicalScore: 0,
+        lexicalRank: 1,
+      }),
+      ...invalidScores.map((semanticScore, index) =>
+        approved({
+          id: `invalid-score-${index}`,
+          semanticScore,
+          semanticRank: index + 2,
+          lexicalScore: 0,
+          lexicalRank: index + 2,
+        }),
+      ),
+    ];
+    const { adapter, dataset } = setup({ governed: rows });
+
+    const result = await adapter.retrieve(dataset, {
+      ...selectedClientRequest(),
+      queryClass: 'semantic_recall',
+    });
+    const signalsById = new Map(
+      result.records.map((record) => [record.recordId, record.retrievalSignals]),
+    );
+
+    expect(signalsById.get('numeric-zero-score')).toEqual({ semanticSimilarity: 0 });
+    for (let index = 0; index < invalidScores.length; index += 1) {
+      expect(signalsById.get(`invalid-score-${index}`)).toEqual({});
+    }
+  });
+
+  it('does not synthesize lexical rank zero for semantic rows with a missing or invalid rank', async () => {
+    const invalidRanks: unknown[] = [null, undefined, '0', Number.NaN, Infinity, -Infinity];
+    const rows = [
+      approved({
+        id: 'actual-zero-lexical-rank',
+        lexicalScore: 1,
+        lexicalRank: 0,
+        semanticScore: null,
+        semanticRank: null,
+      }),
+      approved({
+        id: 'lexical-rank-one',
+        lexicalScore: 1,
+        lexicalRank: 1,
+        semanticScore: null,
+        semanticRank: null,
+      }),
+      ...invalidRanks.map((lexicalRank, index) =>
+        approved({
+          id: `semantic-without-lexical-rank-${index}`,
+          lexicalScore: 100,
+          lexicalRank,
+          semanticScore: 0.9 - index / 100,
+          semanticRank: index + 2,
+        }),
+      ),
+    ];
+    const { adapter, dataset } = setup({ governed: rows });
+
+    const result = await adapter.retrieve(dataset, {
+      ...selectedClientRequest(),
+      queryClass: 'semantic_recall',
+    });
+
+    expect(result.records.map((record) => record.recordId).slice(0, 2)).toEqual([
+      'actual-zero-lexical-rank',
+      'lexical-rank-one',
+    ]);
+  });
+
+  it('preserves numeric zero semantic rank while treating missing and invalid ranks as absent', async () => {
+    const invalidRanks: unknown[] = [null, undefined, '0', Number.NaN, Infinity, -Infinity];
+    const rows = [
+      approved({
+        id: 'actual-zero-semantic-rank',
+        lexicalScore: 0,
+        lexicalRank: null,
+        semanticScore: 0.2,
+        semanticRank: 0,
+      }),
+      approved({
+        id: 'semantic-rank-one',
+        lexicalScore: 0,
+        lexicalRank: null,
+        semanticScore: 0.5,
+        semanticRank: 1,
+      }),
+      ...invalidRanks.map((semanticRank, index) =>
+        approved({
+          id: `invalid-semantic-rank-${index}`,
+          lexicalScore: 0,
+          lexicalRank: null,
+          semanticScore: 0.99 - index / 100,
+          semanticRank,
+        }),
+      ),
+    ];
+    const { adapter, dataset } = setup({ governed: rows });
+
+    const result = await adapter.retrieve(dataset, {
+      ...selectedClientRequest(),
+      queryClass: 'semantic_recall',
+    });
+
+    expect(result.records.map((record) => record.recordId).slice(0, 2)).toEqual([
+      'actual-zero-semantic-rank',
+      'semantic-rank-one',
+    ]);
   });
 });
 
@@ -749,6 +1017,42 @@ describe('Phase 3 fact content and bounded recall', () => {
       stopReason: 'governed_memory_changed_restart_search',
     });
   });
+
+  it.each(['source_hash', 'embedding_model', 'authorization_envelope'] as const)(
+    'binds continuation cursors to %s',
+    async (change) => {
+      const rows = [approved(), approved({ id: 'second' })];
+      const { adapter, dataset, queryRaw, embeddingProvider } = setup({ governed: rows });
+      const firstRequest = { ...selectedClientRequest(), pageSize: 1 };
+      const first = await adapter.retrieve(dataset, firstRequest);
+
+      if (change === 'source_hash') {
+        queryRaw.mockResolvedValue([
+          approved({ sourceContentHash: 'changed-hash' }),
+          approved({ id: 'second' }),
+        ]);
+      } else if (change === 'embedding_model') {
+        (embeddingProvider.metadata as { model: string }).model = 'replacement-memory-model';
+      }
+      const nextRequest =
+        change === 'authorization_envelope'
+          ? {
+              ...firstRequest,
+              caller: {
+                ...firstRequest.caller,
+                authorizedClientIds: ['client-1', 'client-2'],
+              },
+            }
+          : firstRequest;
+      const next = await adapter.retrieve(dataset, nextRequest, first.nextCursor);
+
+      expect(next).toMatchObject({
+        records: [],
+        coverageComplete: false,
+        stopReason: 'governed_memory_changed_restart_search',
+      });
+    },
+  );
 
   it('bounds a hung embedding provider before opening the fresh authorized transaction', async () => {
     jest.useFakeTimers();

@@ -93,6 +93,9 @@ export class IndexPageCrawler implements PublisherCrawler {
               html: result.body,
               pageUrl: entryPoint,
               officialHosts: context.adapter.officialHosts,
+              // SASC's official library now publishes same-host download aliases.
+              extensionlessDocumentPathPrefixes:
+                context.adapter.adapterId === 'sasc' ? ['/download/'] : undefined,
             }).map((link) => ({ url: link.url, text: link.text }));
 
       crawls.push(

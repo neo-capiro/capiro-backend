@@ -232,7 +232,7 @@ describe('Hearings calendar jurisdiction (public Florida feed)', () => {
       ).toBe(true),
     );
     expect(
-      await within(screen.getByLabelText('Week calendar')).findByRole('button', {
+      await within(await screen.findByLabelText('Week calendar')).findByRole('button', {
         name: /Joint Legislative Budget Commission/i,
       }),
     ).toBeTruthy();

@@ -1,6 +1,6 @@
 # Runtime guardrails acquisition and implementation checkpoint
 
-Pre-implementation checkpoint
+Original pre-implementation boundary and current adoption record
 
 - Scope: the served MeriV3 assistant turn only. The increment will add one request-local aggregate controller for model attempts, tool dispatches, repeated logical failures, and alternating no-progress observations. It will not create a second runtime or change provider/model/pricing configuration.
 - Ownership: existing mode deadlines, round ceilings, synthesis reserve, P0B validation, and write-intent deduplication remain authoritative. The controller may stop new model/tool work, but it cannot approve, execute, or reinterpret a write.
@@ -66,3 +66,29 @@ Actual exhaustion paths
 Residuals / non-claims
 
 This is the first native aggregate-bound increment, not completion of Foundation 5.3. It does not add token or cost reservation, cross-process/durable budget state, child-run budget delegation, queue-level admission, or tenant-wide metering. Legacy `RequestScopedLlmClient` providers are charged as logical model calls at the available decision/revision seams; opaque provider-internal retries outside the native OpenAI and JEV fetch boundaries are not individually visible. Detached work outside the served MeriV3 assistant turn and budgets surviving process restarts require separate increments.
+
+## Concrete integrated source record
+
+Disposition at Capiro source `71efe006a7c120f157a90a6dac6adaf743353937`: `ADAPTED_INTEGRATED_BOUNDED`. Original implementation `854a5fc30b2e88badc986134355ee1969699649e` is integrated through replay `f2151de654926ef8950029cc9226aceff7426a02`; terminal-control repair is integrated through replay `170f73c43e0583f27eb8aad0ddaec085cbc009d2`. This is not Foundation 5.3 PASS.
+
+Exact donor hashes:
+
+- both pinned `agent/tool_guardrails.py` files: SHA-256 `cbbf453b3fa2c8f6080b262117d40de430c4c469b28beb4630169bb43abcb0f4`
+- `062dc1.../tests/agent/test_tool_guardrails.py`: `c67c7288fa65feab2f8201a955a419dc90c89100f14585f780f56a8d12cb8af9`
+- `062dc1.../tests/agent/test_tool_call_guardrail_runtime.py`: `1f05878c366da3e56bdcd53cc5cd35958bc69540455020ebaecf83bbc77748c3`
+- pinned MIT `LICENSE`: `821556e6336796450ab852d375117b48a4887e71d255794fd6318d99982a5ab6`
+
+Current Capiro target SHA-256 values:
+
+- `meriv3-run-budget.ts`: `fe79cce7339e4074742613a1d8397c9fca6e498484aaa9e263c398243c052b75`
+- `meriv3-assistant.service.ts`: `2e15bfd7e86f4ed20e9f61af70185316bd365abfd091022d40b3706bffe184cd`
+- `openai-responses.client.ts`: `82a84aa72b3525c0f24be62ecd39d75aa6800e7d075da2155a4120abde6f8df2`
+- `meriv3-run-budget.spec.ts`: `3a3df6decfb0f035db2279a5209a0cf52737afa029f6bb9d2bd0cda37b71dbcc`
+
+The donor's canonical signature and unchanged period-1..4 cycle behavior map to `bounds an unchanged alternating A/B failure cycle across rounds`; progress/reset behavior maps to `a changed artifact revision is a new bounded experiment` and `changed pagination routes and explicit pending polling do not false-block`; runtime admission maps to `rejects a parallel/provider batch atomically when it would oversubscribe`, `Stop closes acquisition and permits no later tool admission`, and the actual assistant test `bounds alternating unchanged read failures across real provider rounds and synthesizes retained partial evidence`. No donor test code or fixture was copied.
+
+Observed saved receipts: original focused implementation reported 6/6 run-budget tests, one provider retry test and five assistant composition tests; independent repaired status-provenance review at `1f6dcdfa02ef93d2443638eac56a1775e7bff809` passed 10 core + 19 runtime + 81 assistant tests and 22 additional direct probes. See external `runtime-bounds-report.md` and `review-status-provenance-residual-report.md`. These are focused local receipts, not live cases 71–72.
+
+License/distribution: this is a substantial behavior adaptation, not copied Python or a package dependency. Root `THIRD_PARTY_NOTICES` lists H1 and retains the complete pinned MIT text for source/product distributions containing the adaptation.
+
+Rollback owner: File-01 lead / P1C native-runtime owner. Revert the H1 replay commits as an application rollback; no H1 schema/dependency was added. Preserve existing action receipts and do not restart exhausted work as a new effect. Upstream updates require a new explicit pin/test mapping; never silently move either Hermes pin.

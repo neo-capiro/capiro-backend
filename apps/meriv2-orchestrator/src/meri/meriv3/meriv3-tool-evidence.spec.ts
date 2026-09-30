@@ -229,6 +229,87 @@ describe('model-visible tool evidence budgets', () => {
     expect(result.projection.continuation.overrides).toEqual({ maxChars: 6000 });
     expect(extractCitationsFromToolResult('read_client_documents', result, 1)).toEqual([]);
   });
+  it('keeps a large canonical document row bound to its client, revision, coverage and span', () => {
+    const source = {
+      tool: 'read_client_documents',
+      generatedAt: '2026-09-28T00:00:00.000Z',
+      clientId: 'client-1',
+      document: { id: 'doc-1', fileName: 'hearing.txt', contentHash: 'version-1' },
+      coverage: {
+        complete: true,
+        nextCursor: null,
+        section: 1,
+        sectionCount: 1,
+        characterStart: 0,
+        characterEnd: 29,
+        sectionComplete: true,
+        extractionMetadata: 'diagnostic '.repeat(2_000),
+      },
+      records: [
+        {
+          recordId: 'doc-1:version-1:1:0-29',
+          payload: {
+            id: 'doc-1:version-1:1:0-29',
+            documentId: 'doc-1',
+            section: 1,
+            characterStart: 0,
+            characterEnd: 29,
+            title: 'hearing.txt',
+            text: 'The chair promised action.',
+          },
+          provenance: {
+            clientId: 'client-1',
+            contentHash: 'version-1',
+            section: 1,
+            characterStart: 0,
+            characterEnd: 29,
+          },
+        },
+      ],
+    };
+    const result = projectMeriToolEvidence({
+      result: source,
+      maxCharacters: 12_000,
+      readOnly: true,
+    }) as Record<string, any>;
+    expect(JSON.stringify(source).length).toBeGreaterThan(12_000);
+    expect(JSON.stringify(result).length).toBeLessThanOrEqual(12_000);
+    expect(result).toMatchObject({
+      clientId: 'client-1',
+      document: { id: 'doc-1', contentHash: 'version-1' },
+      coverage: {
+        complete: true,
+        nextCursor: null,
+        section: 1,
+        characterStart: 0,
+        characterEnd: 29,
+      },
+      records: [source.records[0]],
+      projection: {
+        ownerEnvelopePreserved: true,
+        shownRecordCount: 1,
+        omittedCoverageFields: ['extractionMetadata'],
+      },
+    });
+    const citation = extractCitationsFromToolResult('read_client_documents', result, 1)[0]!;
+    expect(citation.documentEvidence).toMatchObject({
+      clientId: 'client-1',
+      documentId: 'doc-1',
+      contentHash: 'version-1',
+      record: source.records[0],
+    });
+  });
+  it('extracts the actual query_tasks collection as canonical structured rows', () => {
+    const result = {
+      tool: 'query_tasks',
+      generatedAt: '2026-09-28T00:00:00.000Z',
+      total: 1,
+      tasks: [{ id: 'task-1', title: 'Follow up', status: 'todo', clientId: 'client-1' }],
+    };
+    expect(extractCitationsFromToolResult('query_tasks', result, 1)).toEqual([
+      expect.objectContaining({ id: 'task-1', title: 'Follow up', tool: 'query_tasks' }),
+    ]);
+  });
   it('retains an action outcome and never recommends repeating a write', () => {
     const result = projectMeriToolEvidence({
       result: {

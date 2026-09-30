@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import * as ts from 'typescript';
 import { describe, expect, test } from 'vitest';
 
 interface ManifestIcon {
@@ -30,6 +31,89 @@ function pngDimensions(path: string): { width: number; height: number } {
   const bytes = readFileSync(path);
   expect(bytes.subarray(1, 4).toString('ascii')).toBe('PNG');
   return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+}
+
+function findVariableInitializer(sourceFile: ts.SourceFile, name: string): ts.Expression {
+  let initializer: ts.Expression | undefined;
+  const visit = (node: ts.Node) => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === name &&
+      node.initializer
+    ) {
+      initializer = node.initializer;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  if (!initializer) throw new Error(`Missing initializer for ${name}`);
+  return initializer;
+}
+
+function unwrapParentheses(expression: ts.Expression): ts.Expression {
+  let current = expression;
+  while (ts.isParenthesizedExpression(current)) current = current.expression;
+  return current;
+}
+
+function isIdentifierNamed(expression: ts.Expression, name: string): boolean {
+  const candidate = unwrapParentheses(expression);
+  return ts.isIdentifier(candidate) && candidate.text === name;
+}
+
+function isPropertyAccessNamed(
+  expression: ts.Expression,
+  receiverName: string,
+  propertyName: string,
+): boolean {
+  const candidate = unwrapParentheses(expression);
+  return (
+    ts.isPropertyAccessExpression(candidate) &&
+    isIdentifierNamed(candidate.expression, receiverName) &&
+    candidate.name.text === propertyName
+  );
+}
+
+function isStringLiteralWithText(expression: ts.Expression, text: string): boolean {
+  const candidate = unwrapParentheses(expression);
+  return ts.isStringLiteral(candidate) && candidate.text === text;
+}
+
+function isLogicalNotOfPropertyAccess(
+  expression: ts.Expression,
+  receiverName: string,
+  propertyName: string,
+): boolean {
+  const candidate = unwrapParentheses(expression);
+  return (
+    ts.isPrefixUnaryExpression(candidate) &&
+    candidate.operator === ts.SyntaxKind.ExclamationToken &&
+    isPropertyAccessNamed(candidate.operand, receiverName, propertyName)
+  );
+}
+
+function findJsxAttributeExpression(
+  sourceFile: ts.SourceFile,
+  tagName: string,
+  attributeName: string,
+): ts.Expression {
+  let expression: ts.Expression | undefined;
+  const visit = (node: ts.Node) => {
+    if (ts.isJsxOpeningLikeElement(node) && node.tagName.getText(sourceFile) === tagName) {
+      const attribute = node.attributes.properties.find(
+        (property): property is ts.JsxAttribute =>
+          ts.isJsxAttribute(property) && property.name.getText(sourceFile) === attributeName,
+      );
+      if (attribute?.initializer && ts.isJsxExpression(attribute.initializer)) {
+        expression = attribute.initializer.expression;
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  if (!expression) throw new Error(`Missing ${tagName}.${attributeName} JSX expression`);
+  return expression;
 }
 
 describe('Meri installable-app contract', () => {
@@ -78,9 +162,33 @@ describe('Meri installable-app contract', () => {
     const shell = readFileSync(resolve(webRoot, 'src/vnext/meri/VNextMeriShell.tsx'), 'utf8');
     const topBar = readFileSync(resolve(webRoot, 'src/vnext/meri/VNextMeriTopBar.tsx'), 'utf8');
     const button = readFileSync(resolve(webRoot, 'src/vnext/meri/MeriInstallButton.tsx'), 'utf8');
+    const sourceFile = ts.createSourceFile(
+      'VNextMeriShell.tsx',
+      shell,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TSX,
+    );
 
-    expect(shell).toContain("install.isStandalone\n    ? 'maximized'");
-    expect(shell).toContain('showWindowControls={!install.isStandalone}');
+    const effectiveChrome = unwrapParentheses(
+      findVariableInitializer(sourceFile, 'effectiveWindowChrome'),
+    );
+    expect(ts.isConditionalExpression(effectiveChrome)).toBe(true);
+    if (!ts.isConditionalExpression(effectiveChrome)) return;
+    expect(isPropertyAccessNamed(effectiveChrome.condition, 'install', 'isStandalone')).toBe(true);
+    expect(isStringLiteralWithText(effectiveChrome.whenTrue, 'maximized')).toBe(true);
+    expect(isIdentifierNamed(effectiveChrome.whenFalse, 'windowChrome')).toBe(true);
+
+    const topBarChrome = findJsxAttributeExpression(sourceFile, 'VNextMeriTopBar', 'windowChrome');
+    expect(isIdentifierNamed(topBarChrome, 'effectiveWindowChrome')).toBe(true);
+
+    const controls = findJsxAttributeExpression(
+      sourceFile,
+      'VNextMeriTopBar',
+      'showWindowControls',
+    );
+    expect(isLogicalNotOfPropertyAccess(controls, 'install', 'isStandalone')).toBe(true);
+
     expect(shell).toContain("install.isStandalone ? 'Meri' : 'Meri — Capiro'");
     expect(topBar).toContain('<MeriInstallButton />');
     expect(button).toContain('aria-label="Install Meri"');

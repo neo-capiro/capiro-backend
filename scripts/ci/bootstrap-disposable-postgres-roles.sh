@@ -11,6 +11,7 @@ readonly PG_DATABASE="capiro"
 readonly PG_ADMIN_ROLE="postgres"
 readonly REQUIRED_ROLE="capiro_worker"
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly WORKER_ROLE_PREREQUISITE_SQL="${SCRIPT_DIR}/disposable-capiro-worker-prerequisite.sql"
 readonly APPEND_ONLY_PREREQUISITE_SQL="${SCRIPT_DIR}/research-portfolio-append-only-prerequisite.sql"
 
 usage() {
@@ -91,41 +92,7 @@ connection_identity="$(run_psql --tuples-only --no-align --command \
 [[ "$connection_identity" == 'capiro|postgres|5432|on' ]] ||
   fail "refusing unexpected PostgreSQL target identity '$connection_identity'"
 
-run_psql <<'SQL'
-DO $bootstrap$
-DECLARE
-  role_is_safe boolean;
-  role_has_memberships boolean;
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'capiro_worker') THEN
-    CREATE ROLE capiro_worker
-      NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS NOREPLICATION;
-  ELSE
-    SELECT NOT (
-      rolsuper OR rolinherit OR rolcreaterole OR rolcreatedb OR rolcanlogin OR
-      rolreplication OR rolbypassrls
-    )
-    INTO role_is_safe
-    FROM pg_roles
-    WHERE rolname = 'capiro_worker';
-
-    SELECT EXISTS (
-      SELECT 1
-      FROM pg_auth_members memberships
-      JOIN pg_roles fixture_role
-        ON fixture_role.oid IN (memberships.roleid, memberships.member)
-      WHERE fixture_role.rolname = 'capiro_worker'
-    )
-    INTO role_has_memberships;
-
-    IF NOT role_is_safe OR role_has_memberships THEN
-      RAISE EXCEPTION
-        'existing capiro_worker role is not the expected least-privilege CI fixture';
-    END IF;
-  END IF;
-END
-$bootstrap$;
-SQL
+run_psql < "$WORKER_ROLE_PREREQUISITE_SQL"
 
 run_psql --file="$APPEND_ONLY_PREREQUISITE_SQL"
 

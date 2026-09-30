@@ -1,6 +1,7 @@
 import { ApiToolExecutorRepo } from './api-tool-executor.repo.js';
 import { RequestCredentialsStore } from '../request/request-credentials.store.js';
-import type { ToolExecutionControl } from '@capiro/meriv2-core';
+import { createMeriTelemetryContext, type ToolExecutionControl } from '@capiro/meriv2-core';
+import { runWithMeriOrchestratorTelemetry } from '../telemetry/meri-telemetry.runtime.js';
 
 const CAPACITY = { statusCode: 503, message: 'The database is temporarily busy. Please retry.' };
 const config = { get: (key: string) => (key === 'MERIV2_TOOL_TIMEOUT_MS' ? '60000' : undefined) };
@@ -36,7 +37,21 @@ describe('mail read retry after explicit API capacity failure', () => {
   test.each(['list_emails', 'search_emails', 'get_email_thread'])(
     '%s recovers once, retaining request scope, identity and original deadline',
     async (tool) => {
-      const receipt = { totalMatches: 389, returned: 15, hasMore: true };
+      const receipt =
+        tool === 'get_email_thread'
+          ? {
+              totalMessages: 1,
+              returned: 1,
+              hasMore: false,
+              messages: [{ bodyTruncated: false, bodyCompleteness: 'full' }],
+            }
+          : {
+              totalMatches: 389,
+              returned: 15,
+              hasMore: true,
+              messages: Array.from({ length: 15 }, (_, id) => ({ id })),
+              searchedMailboxes: [{ mailCoverage: { sourceStatus: 'healthy' } }],
+            };
       const fetchMock = jest
         .fn()
         .mockResolvedValueOnce(busy())
@@ -67,6 +82,61 @@ describe('mail read retry after explicit API capacity failure', () => {
     await result;
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(jest.getTimerCount()).toBe(0);
+  });
+
+  test('keeps both retry attempts and delegated headers on one redacted trace', async () => {
+    const receipt = {
+      returned: 0,
+      totalMatches: 0,
+      hasMore: false,
+      messages: [],
+      searchedMailboxes: [{ mailCoverage: { sourceStatus: 'healthy' } }],
+    };
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce(busy())
+      .mockResolvedValueOnce(new Response(JSON.stringify(receipt)));
+    global.fetch = fetchMock;
+    const trace = createMeriTelemetryContext({
+      tenantId: 'tenant-a',
+      actorId: 'actor-a',
+      conversationId: 'conversation-a',
+    });
+    const lines: string[] = [];
+    const result = runWithMeriOrchestratorTelemetry(
+      trace,
+      (line) => lines.push(line),
+      () => execute('search_emails'),
+    );
+
+    await jest.advanceTimersByTimeAsync(2_000);
+    await expect(result).resolves.toEqual(receipt);
+
+    const request = fetchMock.mock.calls[0]![1] as RequestInit;
+    expect(request.headers).toMatchObject({
+      'x-request-id': trace.requestId,
+      traceparent: expect.stringContaining(trace.traceId),
+    });
+    const events = lines.map((line) => JSON.parse(line) as Record<string, unknown>);
+    expect(events).toEqual([
+      expect.objectContaining({
+        traceId: trace.traceId,
+        name: 'meri.tool.attempt.finalized',
+        invokedTools: ['search_emails'],
+        attempt: 1,
+        retry: false,
+        outcome: 'retry_scheduled',
+      }),
+      expect.objectContaining({
+        traceId: trace.traceId,
+        name: 'meri.tool.attempt.finalized',
+        invokedTools: ['search_emails'],
+        attempt: 2,
+        retry: true,
+        outcome: 'completed',
+      }),
+    ]);
+    expect(lines.join('\n')).not.toMatch(/withinDays|folder|caller-bearer/i);
   });
 
   test.each([
@@ -146,11 +216,27 @@ describe('mail read retry after explicit API capacity failure', () => {
     const fetchMock = jest
       .fn()
       .mockResolvedValueOnce(busy(retryAt))
-      .mockResolvedValueOnce(new Response('{"returned":0,"totalMatches":0}'));
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            returned: 0,
+            totalMatches: 0,
+            hasMore: false,
+            messages: [],
+            searchedMailboxes: [{ mailCoverage: { sourceStatus: 'healthy' } }],
+          }),
+        ),
+      );
     global.fetch = fetchMock;
     const result = execute();
     await jest.advanceTimersByTimeAsync(2_000);
-    await expect(result).resolves.toEqual({ returned: 0, totalMatches: 0 });
+    await expect(result).resolves.toEqual({
+      returned: 0,
+      totalMatches: 0,
+      hasMore: false,
+      messages: [],
+      searchedMailboxes: [{ mailCoverage: { sourceStatus: 'healthy' } }],
+    });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { describe, expect, jest, test } from '@jest/globals';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -164,7 +165,15 @@ function makeVersionHarness(
         fn: (arg: Prisma.TransactionClient) => Promise<T>,
       ) => fn(tx),
     ),
-    $queryRawUnsafe: jest.fn(async () => [{ content_hash: 'irrelevant' }]),
+    // Governance is under test, not provider embedding. The existing projection
+    // hash makes the real post-commit embedder return before any network call.
+    $queryRawUnsafe: jest.fn(async () => [
+      {
+        content_hash: createHash('sha256')
+          .update(`${created.title}: ${candidate.payload_jsonb.value}`)
+          .digest('hex'),
+      },
+    ]),
   } as unknown as PrismaService;
 
   const tenantCtx = { require: jest.fn(() => proposerContext) } as unknown as TenantContextStore;

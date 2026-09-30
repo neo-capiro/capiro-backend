@@ -19,7 +19,7 @@
     "congressGovCrawlDelaySeconds": 2,
     "congressGovRegistryIntervalMs": 1000,
     "congressGovEffectiveIntervalMs": 2000,
-    "sascListingOnHostDocuments": 1,
+    "sascListingOnHostDocuments": 12,
     "publisherNativeAdapters": [
       "army-budget",
       "dod-comptroller",

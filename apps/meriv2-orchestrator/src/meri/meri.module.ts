@@ -1,3 +1,4 @@
+import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
 import { Module } from '@nestjs/common';
 import { MeriController } from './meri.controller.js';
 import { MeriRegistryService } from './meri-registry.service.js';
@@ -47,6 +48,7 @@ import { OpenAiResponsesClient } from './meriv3/openai-responses.client.js';
     StewardController,
   ],
   providers: [
+    MeriOtelLifecycleProvider,
     // PrismaService is NOT listed here: it comes from the @Global PrismaModule.
     // Re-providing it would create a second PrismaClient and connection pool.
     MeriContextResolver,

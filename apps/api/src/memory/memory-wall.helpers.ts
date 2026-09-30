@@ -129,11 +129,14 @@ export async function clientMemoryAllowed(
 }
 
 /**
- * Current client scope for a Clerk actor. Resolve active tenant membership and
- * ethical-wall grants in the same read; callers recheck this scope after async
- * work before returning cached or provider-derived client content.
+ * Current client scope for a Clerk actor: visible, active client revisions for
+ * an actor with active tenant membership. Resolve membership and ethical-wall
+ * grants in the same read, and keep Clerk actor resolution inside the tenant
+ * query: it is not a database user UUID. Callers recheck this scope after
+ * async work before returning cached or provider-derived client content.
+ * Revision hashes intentionally retain the dashboard cache contract.
  */
-export async function clientMemoryScopeForClerkActor(
+export async function fetchAccessibleClientRevisionsForClerkActor(
   tx: Tx,
   tenantId: string,
   actorId: string,
@@ -147,4 +150,25 @@ export async function clientMemoryScopeForClerkActor(
       SELECT 1 FROM client_memory_access a
       WHERE a.tenant_id=c.tenant_id AND a.client_id=c.id AND a.user_id=u.id
     )) ORDER BY c.id`;
+}
+
+/**
+ * Embed the wall decision in an atomic write predicate. All parameters are SQL
+ * identifiers supplied by code, never values; reject anything outside that grammar.
+ * The caller still owns tenant/client/archive predicates and bound actor values.
+ */
+export function clientMemoryAllowedForRowOwnerSql(
+  clientAlias: string,
+  ownerAlias: string,
+  ownerColumn: string,
+): string {
+  for (const identifier of [clientAlias, ownerAlias, ownerColumn]) {
+    if (!/^[a-z][a-z0-9_]*$/.test(identifier)) throw new Error('invalid wall SQL identifier');
+  }
+  return `NOT ${clientAlias}.memory_wall OR EXISTS (
+    SELECT 1 FROM client_memory_access wall_grant
+    WHERE wall_grant.tenant_id = ${clientAlias}.tenant_id
+      AND wall_grant.client_id = ${clientAlias}.id
+      AND wall_grant.user_id = ${ownerAlias}.${ownerColumn}
+  )`;
 }

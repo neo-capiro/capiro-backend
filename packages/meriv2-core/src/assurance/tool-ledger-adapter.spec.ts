@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import type { LedgerEntry } from '../grounding/auditor';
 import {
   buildClaimLedgerFromToolResults,
+  bindCitationToLedgerEntries,
   compareEvidenceClassification,
   evidenceFromToolResults,
   legacyAuthoritativeTool,
@@ -203,6 +204,159 @@ describe('legacy evidence classification compatibility', () => {
       claimSupportChanged: 1,
       claimConfidenceChanged: 1,
       primarySourcePresentChanged: 1,
+    });
+  });
+});
+
+describe('exact source-integrity binding', () => {
+  it.each(['search_public_web', 'search_intel_articles'])(
+    'keeps a discovered %s summary ineligible despite an authoritative-looking marker',
+    (tool) => {
+      const result = {
+        data: [{ id: 'web-1', title: 'Official result', snippet: 'H.R. 1 passed.' }],
+      };
+      const ledger = buildClaimLedgerFromToolResults({
+        output: 'H.R. 1 passed [1].',
+        citations: [{ n: 1, tool, id: 'web-1' }],
+        ledgerEntries: [{ tool, result, serialized: JSON.stringify(result) }],
+      });
+      expect(ledger.evidence[0]).toMatchObject({
+        acquisitionState: 'discovered',
+        primary: false,
+        authoritative: false,
+        ownerVerified: true,
+      });
+      expect(ledger.unsupportedClaimIds).toContain('sentence-1');
+    },
+  );
+
+  it('does not reinterpret a document row without its owner envelope as a structured record', () => {
+    const result = {
+      clientId: 'client-1',
+      records: [{ recordId: 'row-1', payload: { text: 'Orphaned document text.' } }],
+    };
+    expect(
+      bindCitationToLedgerEntries(
+        { n: 1, tool: 'read_client_documents', id: 'row-1' },
+        [{ tool: 'read_client_documents', result, serialized: JSON.stringify(result) }],
+        { expectedClientId: 'client-1' },
+      ),
+    ).toBeNull();
+  });
+
+  it.each([
+    [
+      'get_bill_status',
+      { billId: '119-hr-1', found: true, title: 'H.R. 1', status: 'enacted' },
+      '119-hr-1',
+    ],
+    [
+      'query_tasks',
+      {
+        tool: 'query_tasks',
+        total: 1,
+        tasks: [{ id: 'task-1', title: 'Follow up', status: 'todo', clientId: 'client-1' }],
+      },
+      'task-1',
+    ],
+  ])('binds the actual %s owner shape as a consulted structured record', (tool, result, id) => {
+    expect(
+      bindCitationToLedgerEntries(
+        { n: 1, tool, id },
+        [{ tool, result, serialized: JSON.stringify(result) }],
+        { expectedClientId: 'client-1' },
+      ),
+    ).toMatchObject({
+      recordId: id,
+      evidenceKind: 'structured_record',
+      acquisitionState: 'consulted',
+    });
+  });
+
+  it('does not bind an id found only inside another row or metadata blob', () => {
+    const entry = {
+      tool: 'get_bill_status',
+      result: { metadata: { selectedId: 'bill-1' }, data: [{ id: 'bill-2', title: 'bill-1' }] },
+      serialized: '{"metadata":{"selectedId":"bill-1"},"data":[{"id":"bill-2","title":"bill-1"}]}',
+    };
+    expect(
+      bindCitationToLedgerEntries({ n: 1, tool: entry.tool, id: 'bill-1' }, [entry]),
+    ).toBeNull();
+  });
+
+  it('binds one exact document row and rejects wrong client, document, and version receipts', () => {
+    const result = {
+      clientId: 'client-1',
+      document: { id: 'doc-1', contentHash: 'version-1' },
+      coverage: { complete: true },
+      records: [
+        { recordId: 'row-1', payload: { text: 'Exact consulted span.' } },
+        { recordId: 'row-2', payload: { text: 'Wrong row.' } },
+      ],
+    };
+    const entry = { tool: 'read_client_documents', result, serialized: JSON.stringify(result) };
+    const citation = {
+      n: 1,
+      tool: entry.tool,
+      id: 'row-1',
+      documentEvidence: {
+        clientId: 'client-1',
+        documentId: 'doc-1',
+        contentHash: 'version-1',
+        record: result.records[0]!,
+        coverage: result.coverage,
+        observedAt: null,
+      },
+    };
+    expect(
+      bindCitationToLedgerEntries(citation, [entry], { expectedClientId: 'client-1' }),
+    ).toMatchObject({
+      recordId: 'row-1',
+      text: 'Exact consulted span.',
+      clientId: 'client-1',
+      documentId: 'doc-1',
+      version: 'version-1',
+      evidenceKind: 'source_passage',
+    });
+    expect(
+      bindCitationToLedgerEntries(citation, [entry], { expectedClientId: 'client-2' }),
+    ).toBeNull();
+    expect(
+      bindCitationToLedgerEntries(
+        { ...citation, documentEvidence: { ...citation.documentEvidence, contentHash: 'stale' } },
+        [entry],
+      ),
+    ).toBeNull();
+    expect(
+      bindCitationToLedgerEntries(
+        { ...citation, documentEvidence: { ...citation.documentEvidence, documentId: 'doc-2' } },
+        [entry],
+      ),
+    ).toBeNull();
+  });
+
+  it('retains approved governed memory as a structured record, not a document passage', () => {
+    const result = {
+      records: [
+        {
+          recordId: 'memory-1',
+          payload: {
+            sourceKind: 'governed_memory',
+            value: 'Approved client objective.',
+            content: { hash: 'approved-v1' },
+          },
+        },
+      ],
+    };
+    expect(
+      bindCitationToLedgerEntries({ n: 1, tool: 'search_memory', id: 'memory-1' }, [
+        { tool: 'search_memory', result, serialized: JSON.stringify(result) },
+      ]),
+    ).toMatchObject({
+      evidenceKind: 'structured_record',
+      recordId: 'memory-1',
+      version: 'content:approved-v1',
+      acquisitionState: 'consulted',
     });
   });
 });

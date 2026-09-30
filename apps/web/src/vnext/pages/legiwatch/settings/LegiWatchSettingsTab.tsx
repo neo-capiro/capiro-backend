@@ -20,7 +20,7 @@
  * Display preference changes SECONDARY rendering only — hearing detail always
  * preserves and shows the OFFICIAL event timezone (lib/hearing-datetime.ts).
  */
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
@@ -196,6 +196,17 @@ function LegiWatchPreferences() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [savedFlash, setSavedFlash] = useState(false);
+  const savedFlashTimer = useRef<number | null>(null);
+  const preferencesMounted = useRef(false);
+
+  useEffect(() => {
+    preferencesMounted.current = true;
+    return () => {
+      preferencesMounted.current = false;
+      if (savedFlashTimer.current !== null) window.clearTimeout(savedFlashTimer.current);
+      savedFlashTimer.current = null;
+    };
+  }, []);
 
   const me = useQuery({
     queryKey: SETTINGS_ME_KEY,
@@ -245,8 +256,13 @@ function LegiWatchPreferences() {
       if (data?.user) qc.setQueryData(SETTINGS_ME_KEY, data);
       void qc.invalidateQueries({ queryKey: SETTINGS_ME_KEY, refetchType: 'active' });
       void qc.invalidateQueries({ queryKey: ['me'] });
+      if (!preferencesMounted.current) return;
       setSavedFlash(true);
-      window.setTimeout(() => setSavedFlash(false), 2200);
+      if (savedFlashTimer.current !== null) window.clearTimeout(savedFlashTimer.current);
+      savedFlashTimer.current = window.setTimeout(() => {
+        savedFlashTimer.current = null;
+        setSavedFlash(false);
+      }, 2200);
     },
     // The server is the authority: on failure drop the optimistic value rather
     // than leaving the control showing a preference that was never stored.

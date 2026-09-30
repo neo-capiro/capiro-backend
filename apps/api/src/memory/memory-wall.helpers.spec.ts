@@ -2,6 +2,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 import type { Prisma } from '@prisma/client';
 import {
   clientMemoryAllowed,
+  clientMemoryAllowedForRowOwnerSql,
   fetchDeniedClientIds,
   toUuidArrayLiteral,
   wallExclusionSql,
@@ -11,6 +12,16 @@ const TENANT = '11111111-1111-1111-1111-111111111111';
 const USER = '22222222-2222-2222-2222-222222222222';
 const CLIENT_A = '33333333-3333-3333-3333-333333333333';
 const CLIENT_B = '44444444-4444-4444-4444-444444444444';
+
+describe('atomic row-owner wall predicate', () => {
+  it('rejects expressions and values where only SQL identifiers are allowed', () => {
+    for (const invalid of ['st; DROP TABLE clients', 'st.owner_user_id', '', '$3']) {
+      expect(() => clientMemoryAllowedForRowOwnerSql(invalid, 'st', 'owner_user_id')).toThrow();
+      expect(() => clientMemoryAllowedForRowOwnerSql('c', invalid, 'owner_user_id')).toThrow();
+      expect(() => clientMemoryAllowedForRowOwnerSql('c', 'st', invalid)).toThrow();
+    }
+  });
+});
 
 /** Minimal tx double: $queryRawUnsafe resolves the given rows. */
 function txReturning(rows: unknown[]): Prisma.TransactionClient {

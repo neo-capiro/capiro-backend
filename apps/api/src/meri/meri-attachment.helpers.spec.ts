@@ -5,6 +5,7 @@ import {
   MAX_IMAGES_PER_MESSAGE,
   MAX_IMAGE_BYTES,
   PPTX_CT,
+  XLSX_CT,
   SCANNED_PDF_MIN_CHARS,
   attachmentMetaRef,
   clampExtractedText,
@@ -38,6 +39,7 @@ describe('detectAttachmentKind', () => {
     expect(detectAttachmentKind('application/pdf')).toBe('pdf');
     expect(detectAttachmentKind(DOCX)).toBe('docx');
     expect(detectAttachmentKind(`${PPTX_CT}; charset=binary`)).toBe('pptx');
+    expect(detectAttachmentKind(`${XLSX_CT}; charset=binary`)).toBe('xlsx');
     expect(detectAttachmentKind('image/png')).toBe('image');
     expect(detectAttachmentKind('text/plain')).toBe('text');
     expect(detectAttachmentKind('application/zip')).toBe('unsupported');
@@ -46,6 +48,7 @@ describe('detectAttachmentKind', () => {
     expect(detectAttachmentKind('', 'memo.pdf')).toBe('pdf');
     expect(detectAttachmentKind('', 'brief.docx')).toBe('docx');
     expect(detectAttachmentKind('application/octet-stream', 'Strat Discussion.PPTX')).toBe('pptx');
+    expect(detectAttachmentKind('application/octet-stream', 'FY27 Budget.XLSX')).toBe('xlsx');
     expect(detectAttachmentKind('application/vnd.ms-powerpoint', 'old.ppt')).toBe('unsupported');
     expect(detectAttachmentKind('', 'logo.jpg')).toBe('image');
     expect(detectAttachmentKind('', 'notes.md')).toBe('text');
@@ -54,9 +57,10 @@ describe('detectAttachmentKind', () => {
 });
 
 describe('isExtractableKind', () => {
-  test('pdf + docx + pptx + text are extractable; image/unsupported are not', () => {
+  test('pdf + docx + pptx + xlsx + text are extractable; image/unsupported are not', () => {
     expect(isExtractableKind('docx')).toBe(true);
     expect(isExtractableKind('pptx')).toBe(true);
+    expect(isExtractableKind('xlsx')).toBe(true);
     expect(isExtractableKind('text')).toBe(true);
     expect(isExtractableKind('pdf')).toBe(true);
     expect(isExtractableKind('image')).toBe(false);
@@ -76,6 +80,13 @@ describe('validateAttachment', () => {
     expect(validateAttachment({ contentType: DOCX, byteSize: 1000, filename: 'a.docx' }).ok).toBe(
       true,
     );
+  });
+  test('accepts xlsx by exact OOXML MIME or extension while preserving the size limit', () => {
+    expect(validateAttachment({ contentType: XLSX_CT, byteSize: 1000, filename: 'budget' }))
+      .toEqual({ ok: true, reason: null, kind: 'xlsx' });
+    expect(validateAttachment({ contentType: 'application/octet-stream', byteSize: 1000, filename: 'budget.xlsx' }))
+      .toEqual({ ok: true, reason: null, kind: 'xlsx' });
+    expect(validateAttachment({ contentType: XLSX_CT, byteSize: MAX_ATTACHMENT_BYTES + 1 }).ok).toBe(false);
   });
   test('rejects empty, oversized, and unsupported', () => {
     expect(validateAttachment({ contentType: 'text/plain', byteSize: 0 }).ok).toBe(false);
@@ -111,6 +122,11 @@ describe('verifyMagicBytes (spoof rejection)', () => {
     expect(verifyMagicBytes('pptx', bytes(0x50, 0x4b, 0x03, 0x04)).ok).toBe(true);
     expect(verifyMagicBytes('pptx', bytes('%PDF-1.7')).ok).toBe(false);
     expect(verifyMagicBytes('pptx', bytes('<html>fake deck')).ok).toBe(false);
+  });
+  test('requires an OOXML container for Excel before deeper package validation', () => {
+    expect(verifyMagicBytes('xlsx', bytes(0x50, 0x4b, 0x03, 0x04)).ok).toBe(true);
+    expect(verifyMagicBytes('xlsx', bytes('%PDF-1.7')).ok).toBe(false);
+    expect(verifyMagicBytes('xlsx', bytes('<html>fake workbook')).ok).toBe(false);
   });
   test('a .pdf that is actually HTML is rejected', () => {
     const check = verifyMagicBytes('pdf', bytes('<!DOCTYPE html><html><body>fake</body>'));

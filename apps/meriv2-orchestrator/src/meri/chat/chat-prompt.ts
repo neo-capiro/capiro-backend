@@ -2,6 +2,7 @@ import {
   MERI_GROUNDING_INVARIANT,
   MERI_COMPLIANCE_GUARDRAILS,
   MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT,
+  buildAdaptiveClientNarrative,
   meriGroundingSurfaceBlock,
   meriGroundingDateBlock,
   planModeSteering,
@@ -93,11 +94,24 @@ export function buildChatDateGrounding(timeZone: string | undefined, now: Date):
   );
 }
 
+export interface DurableSafeReadOutcome {
+  executionId: string;
+  providerCallId: string;
+  tool: string;
+  toolVersion: string;
+  classifier: 'complete' | 'empty';
+  sequence: number;
+  receiptId: string;
+  replayed: boolean;
+}
+
 export interface ChatStep {
   tool: string;
   label: string;
   detail?: string;
   status: 'done' | 'error' | 'pending_approval' | 'blocked';
+  /** Server-authored post-execution identity; present only for committed safe reads. */
+  durableSafeRead?: DurableSafeReadOutcome;
 }
 
 /**
@@ -162,13 +176,16 @@ export interface ChatResult {
  * deltas of the final reply are a deliberate follow-up.
  */
 export type ChatStreamEvent =
-  | { type: 'tool_call'; tool: string; label: string }
+  | { type: 'tool_call'; tool: string; label: string; providerCallId?: string }
   | {
       type: 'tool_done';
       tool: string;
       label: string;
       status: ChatStep['status'];
       detail?: string;
+      durableSafeRead?: DurableSafeReadOutcome;
+      /** Captured owner payload is server-to-server research data, never a browser contract. */
+      ownerResult?: unknown;
     }
   | {
       type: 'pending_approval';
@@ -328,6 +345,15 @@ export function composeChatSystemPrompt(
 ): SystemPromptParts {
   const firm = ctx.firmMemory;
   const voice = ctx.userVoice;
+  const currentRequest = [...(dto.messages ?? [])]
+    .reverse()
+    .find((message) => message.role === 'user' && typeof message.text === 'string')?.text;
+  const focusedClientName =
+    dto.clientId && ctx.contextPacket?.clientId === dto.clientId
+      ? ctx.contextPacket.items.find(
+          (item) => item.scope === 'client' && typeof item.clientName === 'string',
+        )?.clientName
+      : undefined;
 
   const base = [
     'You are Meri, an AI copilot for a U.S. federal government-affairs (lobbying) firm.',
@@ -360,6 +386,7 @@ export function composeChatSystemPrompt(
     'UPCOMING meetings, "what\'s my next meeting", or preparing for a meeting: list_upcoming_meetings is the calendar (synced Microsoft 365/Google) and the source of truth for which meetings exist and when — START there. To PREP for a meeting: (1) list_upcoming_meetings to find it, (2) list_emails for recent email context with the attendees/client, (3) create_meeting_brief with that meeting id, and only then layer in relevant background from search_memory/get_client_context. Never use memory to decide which meetings exist or when. PAST meeting history and debriefs: query_debriefs. Tasks and to-dos: query_tasks. Outreach and past communications: query_outreach. Emails: to FIND a specific email, sender, or topic (any age) use search_emails, and retry it with different terms (a name fragment, the email address, the subject) before concluding a message is absent. search_emails reports which mailboxes were actually searched and how far back their sync reaches — if a mailbox has never synced or the mail may sit in a non-inbox folder, SAY so instead of asserting the email does not exist. A client’s profile, team, and context: get_client_context (use the conversation’s client focus, or search memory/knowledge for the client first).',
     'Inbox activity over a date range: use list_emails or search_emails with withinDays and folder="inbox", without a query keyword. For "what activities do i have in my email inbox for the last two weeks", use withinDays=14 and omit clientId even if a client is selected. A selected client or preloaded client context does not narrow the user’s own mailbox; include clientId only when the user asks for that client’s mail. Follow hasMore using nextOffset and the returned asOf with the same filters; if you stop early, describe the summary as partial. Summarize the retrieved activity into dated conversations, supported commitments, deadlines and next actions; distinguish proposed follow-up from an actual commitment. Check mail-specific coverage and body completeness before claiming no activity or full coverage. A recent calendar/general sync time alone does not establish mail coverage. Explain a material limitation once in plain language without tool diagnostics or unrelated legislative boilerplate.',
     'Search/list mail previews are abbreviated. Use get_email_thread with the returned threadId (and messageId when needed) to read a message body before asserting details the preview does not establish, such as a deadline, commitment, or requested next step. Follow message/body continuation; do not invent what an unread or unavailable body says.',
+    'For historical client meetings, meeting notes, or persisted transcripts, use read_client_meetings rather than list_upcoming_meetings. Follow every meeting and body cursor needed for the claim. A calendar event with transcript availability=unavailable is not transcript evidence.',
     'search_research_sources, search_public_web, and the congress/PE/LDA tools are for FEDERAL and legislative research — never use them for firm-internal questions like meetings, clients, or user facts.',
     "State legislation & agency rules (a SEPARATE namespace from federal Congress): search_state_bills/get_state_bill_status/search_state_floor_votes/get_state_legislator are state-only twins of the federal bill/vote/member tools — never conflate a state bill id with a federal one. get_state_rule_status covers a rule/notice's lifecycle stage on EITHER rail (state agency register or Federal Register). get_committee_roster needs an explicit jurisdiction (federal and state committees are separate — never assume from the name alone) and returns the committee's actual chair/roster, never a guess. get_representation returns a client's real federal + state representatives for their facility footprint (a deterministic district join, not an inference). When a question compares a federal bill to analogous state bills (\"compare this to the state privacy bills in our facility states\"), answer each jurisdiction separately, each with its own verbatim evidence — never imply one rail's status maps onto the other's.",
     '',
@@ -409,6 +436,12 @@ export function composeChatSystemPrompt(
     dto.clientId
       ? `\nThe conversation is focused on client id: ${dto.clientId} (use it for client tools).`
       : '',
+    `\n${buildAdaptiveClientNarrative({
+      request: typeof currentRequest === 'string' ? currentRequest : '',
+      clientId: dto.clientId,
+      clientName: focusedClientName,
+      contextAsOf: ctx.contextPacket?.compiledAt,
+    })}`,
     dto.clientKbSnapshot
       ? `\n# Focused client knowledge base (profile, key people, facilities, recent docs)\n${dto.clientKbSnapshot}`
       : '',

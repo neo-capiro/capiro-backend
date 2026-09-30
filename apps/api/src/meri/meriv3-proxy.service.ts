@@ -1,3 +1,4 @@
+import { persistMeriServerCaptureEvidenceReceipt } from './meri-server-capture-evidence.js';
 import { captureMeriTurnScope } from './meri-turn-scope.js';
 import {
   authorizeMeriProspectScope,
@@ -28,15 +29,18 @@ import {
   Optional,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import type { TenantContext } from '@capiro/shared';
+import { MERI_CAPABILITY_REGISTRY, type TenantContext } from '@capiro/shared';
+import type { SignedMeriCaptureEvidenceReceipt } from '@capiro/meriv2-core';
 import { MeriConversationEvidenceService } from './meri-conversation-evidence.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { ordinaryClioArtifactWhere } from '../common/internal-clio-artifact.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
 import { CLIO_SKILLS } from './skills/skill-registry.js';
 import { matchFirmSkillForTurn } from './meri-firm-skills.helpers.js';
+import { resolveServedProcedure, type ServedProcedureReceipt } from './meri-procedure-runtime.js';
 import {
   MAX_ATTACHMENTS_PER_MESSAGE,
   attachmentMetaRef,
@@ -68,6 +72,29 @@ import {
   retryAttachmentExtraction,
 } from './meri-attachment-content-state.js';
 import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
+import { MeriResearchService } from './meri-research.service.js';
+import {
+  bindCurrentMeriCaptureTurn,
+  currentMeriCaptureEvidenceReceipt,
+  currentMeriServerReadonlyCapturePolicy,
+  currentMeriServerReadonlyCaptureReceipt,
+  setCurrentMeriCaptureEvidenceReceipt,
+} from './meri-context-plane-runtime.js';
+import {
+  assertMeriServerReadonlyCaptureCurrentAuthority,
+  assertMeriServerReadonlyCaptureNoArtifactWrites,
+  assertMeriServerReadonlyCaptureTurnInput,
+  createMeriServerReadonlyCaptureOutputFence,
+  finalizeMeriServerCaptureEvidence,
+} from './meri-server-readonly-capture.js';
+import {
+  allocateBoundedReplayHistory,
+  boundReplayMessageBody,
+  MAX_REPLAY_MESSAGES,
+  protocolCompactionReplay,
+} from './meri-compaction.helpers.js';
+import { meriTelemetryUsage } from '@capiro/meriv2-core';
+import { emitMeriApiTelemetry } from './meri-telemetry.runtime.js';
 
 interface SseWriter {
   write(data: string): void;
@@ -79,6 +106,26 @@ interface StreamControl {
   cleanContent: string;
   traceEnabled: boolean;
   pageWriteEnabled: boolean;
+}
+
+const PUBLIC_WORK_TOOL_NAMES = new Set([
+  ...MERI_CAPABILITY_REGISTRY.map((tool) => tool.name),
+  'synthesize',
+  'unknown_tool',
+]);
+const UNKNOWN_PUBLIC_TOOL = {
+  tool: 'unknown_tool',
+  label: 'Unavailable tool',
+  detail: 'An unavailable tool request was blocked.',
+} as const;
+
+function publicWorkTool<T extends { tool: string; label: string; detail?: string }>(event: T): T {
+  if (PUBLIC_WORK_TOOL_NAMES.has(event.tool)) return event;
+  return {
+    ...event,
+    ...UNKNOWN_PUBLIC_TOOL,
+    ...('status' in event ? { status: 'blocked' } : {}),
+  };
 }
 
 @Injectable()
@@ -94,6 +141,7 @@ export class MeriV3ProxyService {
     private readonly firmSkills: MeriFirmSkillsService,
     @Inject(MERI_TURN_MAINTENANCE) private readonly maintenance: MeriTurnMaintenance,
     private readonly conversationEvidence: MeriConversationEvidenceService,
+    private readonly research: MeriResearchService,
     // Phase 4 prospect dispatch: optional so existing direct-construction
     // specs keep compiling; Nest wiring provides it via BusinessDevelopmentModule.
     // A prospect-scoped conversation with it unavailable fails closed below.
@@ -120,8 +168,26 @@ export class MeriV3ProxyService {
     bearerToken?: string,
     impersonateTenantId?: string,
   ): Promise<void> {
-    const emit = (event: Record<string, unknown>) =>
-      sse.write(`data: ${JSON.stringify(event)}\n\n`);
+    const turnStartedAt = Date.now();
+    const browserSse = sse;
+    const emit = (event: Record<string, unknown>) => {
+      const captureEvidence = event.type === 'done' ? currentMeriCaptureEvidenceReceipt() : null;
+      const captureReceipt =
+        event.type === 'done' ? currentMeriServerReadonlyCaptureReceipt() : null;
+      sse.write(
+        `data: ${JSON.stringify({
+          ...event,
+          ...(captureReceipt ? { serverReadonlyCaptureReceipt: captureReceipt } : {}),
+          ...(captureEvidence ? { serverCaptureEvidenceReceipt: captureEvidence } : {}),
+        })}\n\n`,
+      );
+    };
+    emitMeriApiTelemetry({
+      name: 'meri.api.turn.dispatch',
+      boundary: 'api_orchestrator',
+      runtime: 'meriv3',
+      outcome: 'started',
+    });
     if (!this.client.configured) {
       emit({
         type: 'error',
@@ -129,6 +195,14 @@ export class MeriV3ProxyService {
         message: 'MeriV3 is enabled but its isolated runtime URL is missing.',
       });
       emit({ type: 'done' });
+      emitMeriApiTelemetry({
+        name: 'meri.api.turn.finalized',
+        boundary: 'turn',
+        runtime: 'meriv3',
+        outcome: 'configuration_error',
+        durationMs: Date.now() - turnStartedAt,
+        usage: meriTelemetryUsage(),
+      });
       return;
     }
     if (!bearerToken) {
@@ -138,6 +212,14 @@ export class MeriV3ProxyService {
         message: 'MeriV3 could not authenticate this turn. No model or tool call was made.',
       });
       emit({ type: 'done' });
+      emitMeriApiTelemetry({
+        name: 'meri.api.turn.finalized',
+        boundary: 'turn',
+        runtime: 'meriv3',
+        outcome: 'authentication_error',
+        durationMs: Date.now() - turnStartedAt,
+        usage: meriTelemetryUsage(),
+      });
       return;
     }
 
@@ -158,6 +240,22 @@ export class MeriV3ProxyService {
       ctx,
       conversation.metadata,
     );
+    let capturePolicy = currentMeriServerReadonlyCapturePolicy();
+    assertMeriServerReadonlyCaptureTurnInput({ policy: capturePolicy, mode, attachmentIds });
+    await assertMeriServerReadonlyCaptureCurrentAuthority({
+      prisma: this.prisma,
+      ctx,
+      policy: capturePolicy,
+    });
+    const captureOutputFence = capturePolicy
+      ? createMeriServerReadonlyCaptureOutputFence({
+          prisma: this.prisma,
+          ctx,
+          policy: capturePolicy,
+          destination: browserSse,
+        })
+      : null;
+    if (captureOutputFence) sse = captureOutputFence.writer;
     const control = extractStreamControl(body);
     const complianceScreen = screenComplianceRisk(control.cleanContent);
     let content: string;
@@ -173,6 +271,9 @@ export class MeriV3ProxyService {
         );
       }
       sourceMessageId = await this.persistUserMessage(ctx, conversation, content, attachmentIds);
+      if (capturePolicy && sourceMessageId) {
+        capturePolicy = bindCurrentMeriCaptureTurn(sourceMessageId) ?? capturePolicy;
+      }
     } else {
       const prior = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.clioMessage.findMany({
@@ -235,6 +336,7 @@ export class MeriV3ProxyService {
           },
         );
         emit({ type: 'done', messageId: refusalMessage.id });
+        await captureOutputFence?.release();
         return;
       }
     }
@@ -266,13 +368,25 @@ export class MeriV3ProxyService {
         },
       );
       emit({ type: 'done', messageId: offerMessage.id });
+      await captureOutputFence?.release();
       return;
     }
 
+    const conversationSummary = conversation.summaryUpToMessageId
+      ? protocolCompactionReplay({
+          metadata: conversation.metadata,
+          boundaryMessageId: conversation.summaryUpToMessageId,
+          clientId: conversation.clientId,
+        })
+      : null;
     const replay = await this.buildReplay(
       ctx,
       conversationId,
       conversation.summaryUpToMessageId ?? null,
+      conversation.clientId,
+      conversationSummary,
+      conversationSummary?.length ?? 0,
+      true,
     );
     const inherited = await this.conversationEvidence.load(
       ctx,
@@ -294,13 +408,18 @@ export class MeriV3ProxyService {
           .catch(() => null)) ?? undefined;
     }
     let skillAddendum: string | undefined;
-    try {
-      const tenantSkills = await this.firmSkills.skillsForTenant(ctx.tenantId).catch(() => []);
-      const matched = matchFirmSkillForTurn('', content, tenantSkills, CLIO_SKILLS);
-      if (matched?.systemAddendum) skillAddendum = matched.systemAddendum;
-    } catch {
-      // Firm-authored steering is best effort; the governed runtime still works.
-    }
+    const tenantSkills = await this.firmSkills.skillsForTenant(ctx.tenantId).catch(() => []);
+    const matched = matchFirmSkillForTurn('', content, tenantSkills, CLIO_SKILLS);
+    // A selected procedure is authority, not optional steering. Exact
+    // resolution errors propagate; they never become unrestricted chat.
+    const procedure = await resolveServedProcedure({
+      tenantId: ctx.tenantId,
+      clientId: conversation.clientId,
+      selected: matched,
+      firmSkills: this.firmSkills,
+    });
+    // Procedure instructions travel only in the signed governed context.
+    if (!procedure && matched?.systemAddendum) skillAddendum = matched.systemAddendum;
 
     emit({
       type: 'start',
@@ -308,6 +427,7 @@ export class MeriV3ProxyService {
       tier: reasoningMode === 'fast' ? 'fast' : 'deep',
       runtime: 'meriv3',
       reasoningMode,
+      ...(procedure ? { procedure: procedure.receipt } : {}),
     });
     if (control.pageWriteEnabled) {
       emit({
@@ -327,6 +447,7 @@ export class MeriV3ProxyService {
     let runtimeTelemetry: MeriV3ProviderTelemetry | null = null;
     let providerCalls: MeriV3ProviderTelemetry[] = [];
     let doneFrame: Extract<MeriV3ChatStreamEvent, { type: 'done' }> | null = null;
+    let orchestratorCaptureEvidence: SignedMeriCaptureEvidenceReceipt | null = null;
     let groundingCaveat: {
       topSeverity: string | null;
       findings: Array<{ check: string; severity: string; detail: string }>;
@@ -349,28 +470,46 @@ export class MeriV3ProxyService {
           runtimeEffort = event.reasoningEffort;
           runtimeTelemetry = event.telemetry ?? runtimeTelemetry;
           providerCalls = event.providerCalls ?? providerCalls;
+          emitMeriApiTelemetry({
+            name: 'meri.api.runtime.observed',
+            boundary: 'api_orchestrator',
+            runtime: 'meriv3',
+            provider: 'openai',
+            requestedModel: event.telemetry?.requestedModel ?? null,
+            effectiveModel: event.telemetry?.effectiveModel ?? event.model,
+            outcome: event.telemetry?.finishReason ?? 'running',
+          });
           emit(event as unknown as Record<string, unknown>);
           return;
-        case 'tool_call':
-          emit({ type: 'tool_call', tool: event.tool, label: event.label });
+        case 'tool_call': {
+          emitMeriApiTelemetry({
+            name: 'meri.api.tool.observed',
+            boundary: 'api_orchestrator',
+            invokedTools: [event.tool],
+            outcome: 'started',
+          });
+          const visible = publicWorkTool(event);
+          emit({ type: 'tool_call', tool: visible.tool, label: visible.label });
           return;
+        }
         case 'tool_done': {
-          steps.push(event);
+          const visible = publicWorkTool(event);
+          steps.push(visible);
           const summary =
-            event.status === 'done'
-              ? (event.detail ?? 'Completed')
-              : event.status === 'pending_approval'
+            visible.status === 'done'
+              ? (visible.detail ?? 'Completed')
+              : visible.status === 'pending_approval'
                 ? 'Held for your approval'
-                : (event.detail ?? (event.status === 'blocked' ? 'Blocked' : 'Errored'));
+                : (visible.detail ?? (visible.status === 'blocked' ? 'Blocked' : 'Errored'));
           emit({
             type: 'sources',
             sources: [
               {
-                tool: event.tool,
-                label: event.label,
+                tool: visible.tool,
+                label: visible.label,
                 count: null,
                 summary,
-                confidence: event.status === 'done' ? 'high' : 'low',
+                confidence: visible.status === 'done' ? 'high' : 'low',
               },
             ],
           });
@@ -378,10 +517,24 @@ export class MeriV3ProxyService {
         }
         case 'pending_approval':
           pendingApprovals.push(event as unknown as Record<string, unknown>);
+          emitMeriApiTelemetry({
+            name: 'meri.api.proposal.observed',
+            boundary: 'api_proposal',
+            invokedTools: [event.tool],
+            proposalId: event.proposalId,
+            outcome: event.status,
+          });
           emit(event as unknown as Record<string, unknown>);
           return;
         case 'artifact':
+          assertMeriServerReadonlyCaptureNoArtifactWrites(capturePolicy, [event.artifact.id]);
           artifactIds.push(event.artifact.id);
+          emitMeriApiTelemetry({
+            name: 'meri.api.artifact.observed',
+            boundary: 'api_orchestrator',
+            artifactIds: [event.artifact.id],
+            outcome: 'persisted',
+          });
           emit(event as unknown as Record<string, unknown>);
           return;
         case 'text':
@@ -400,6 +553,7 @@ export class MeriV3ProxyService {
           return;
         case 'done':
           doneFrame = event;
+          orchestratorCaptureEvidence = event.serverCaptureEvidenceObservation ?? null;
           runtimeModel = event.model;
           runtimeEffort = event.reasoningEffort;
           runtimeTelemetry = event.telemetry ?? runtimeTelemetry;
@@ -423,22 +577,33 @@ export class MeriV3ProxyService {
     // only "data: " lines as frames, so this is invisible to it by construction.
     const keepAlive = setInterval(() => {
       try {
-        sse.write(': ping\n\n');
+        browserSse.write(': ping\n\n');
       } catch {
         /* client already gone; the abort signal handles teardown */
       }
     }, 20_000);
     const stopKeepAlive = () => clearInterval(keepAlive);
+    const inheritedEvidenceNotices = [
+      inherited.unavailable || inherited.omitted
+        ? `${inherited.unavailable} earlier document observations could not be reauthorized; ${inherited.omitted} were outside the bounded replay. Retrieve missing evidence through current tools before using it.`
+        : null,
+      replay.withheldReports.length
+        ? 'Earlier research report context was withheld because current source authorization could not be confirmed. Reopen the research session to refresh or rerun it; do not infer the withheld contents.'
+        : null,
+    ].filter((notice): notice is string => Boolean(notice));
     try {
+      await assertMeriServerReadonlyCaptureCurrentAuthority({
+        prisma: this.prisma,
+        ctx,
+        policy: capturePolicy,
+      });
       await this.client.streamChat({
         bearerToken,
         input: {
           messages: replay.history,
           inheritedDocumentEvidence: inherited.citations,
-          ...(inherited.unavailable || inherited.omitted
-            ? {
-                inheritedEvidenceNotice: `${inherited.unavailable} earlier document observations could not be reauthorized; ${inherited.omitted} were outside the bounded replay. Retrieve missing evidence through current tools before using it.`,
-              }
+          ...(inheritedEvidenceNotices.length
+            ? { inheritedEvidenceNotice: inheritedEvidenceNotices.join(' ') }
             : {}),
           ...(conversation.clientId ? { clientId: conversation.clientId } : {}),
           conversationId,
@@ -448,11 +613,12 @@ export class MeriV3ProxyService {
           ...(researchScope
             ? { researchDirective: researchPortfolioScopeDirective(researchScope) }
             : {}),
-          ...(conversation.summary && replay.hasSummaryBoundary
-            ? { conversationSummary: conversation.summary }
+          ...(replay.conversationSummary && replay.hasSummaryBoundary
+            ? { conversationSummary: replay.conversationSummary }
             : {}),
           ...(clientKbSnapshot ? { clientKbSnapshot } : {}),
           ...(skillAddendum ? { skillAddendum } : {}),
+          ...(procedure ? { procedure: procedure.binding } : {}),
           ...(control.pageWriteEnabled ? { pageWrite: true } : {}),
           ...(replay.currentTurnImages.length
             ? { currentTurnImages: replay.currentTurnImages }
@@ -595,6 +761,9 @@ export class MeriV3ProxyService {
           ...(frame?.retrieval
             ? { retrieval: frame.retrieval as unknown as Prisma.InputJsonValue }
             : {}),
+          ...(procedure
+            ? { procedure: procedure.receipt as unknown as Prisma.InputJsonValue }
+            : {}),
           finishReason,
           partial,
           trace: steps as unknown as Prisma.InputJsonValue,
@@ -610,6 +779,18 @@ export class MeriV3ProxyService {
         },
       );
       assistantMessageId = message.id;
+      if (capturePolicy && sourceMessageId && orchestratorCaptureEvidence) {
+        await this.persistCaptureEvidenceReceipt({
+          ctx,
+          conversationId,
+          clientId: conversation.clientId,
+          policy: capturePolicy,
+          userMessageId: sourceMessageId,
+          assistantMessageId,
+          orchestrator: orchestratorCaptureEvidence,
+        });
+      }
+      assertMeriServerReadonlyCaptureNoArtifactWrites(capturePolicy, artifactIds);
       if (artifactIds.length) {
         await this.prisma.withTenant(ctx.tenantId, (tx) =>
           tx.clioArtifact.updateMany({
@@ -619,6 +800,7 @@ export class MeriV3ProxyService {
               userId: ctx.userId,
               conversationId,
               messageId: null,
+              ...ordinaryClioArtifactWhere(),
             },
             data: { messageId: message.id },
           }),
@@ -641,13 +823,42 @@ export class MeriV3ProxyService {
       ...(assistantMessageId ? { messageId: assistantMessageId } : {}),
       ...(frame?.contextPacket?.packetId ? { contextPacketId: frame.contextPacket.packetId } : {}),
       ...(frame?.retrieval ? { retrieval: frame.retrieval } : {}),
+      ...(procedure ? { procedure: procedure.receipt } : {}),
       turnScope,
+    });
+    emitMeriApiTelemetry({
+      name: 'meri.api.turn.finalized',
+      boundary: 'turn',
+      runtime: 'meriv3',
+      provider: 'openai',
+      requestedModel: telemetry?.requestedModel ?? null,
+      effectiveModel: telemetry?.effectiveModel ?? runtimeModel,
+      clientId: conversation.clientId,
+      invokedTools: steps.map((step) => step.tool),
+      sourceRefs: (frame?.citations ?? []).map((citation) => ({
+        sourceId: citation.stableId ?? citation.id,
+        version: citation.source?.version ?? null,
+        hash: citation.documentEvidence?.contentHash ?? null,
+        tool: citation.tool,
+      })),
+      artifactIds,
+      proposalId:
+        typeof pendingApprovals[0]?.proposalId === 'string' ? pendingApprovals[0].proposalId : null,
+      outcome: finishReason,
+      durationMs: Date.now() - turnStartedAt,
+      // Legacy stream usage defaults absent provider fields to zero. Exact observations
+      // belong to the joined orchestrator task event; do not manufacture them here.
+      usage: meriTelemetryUsage(),
+      integrationDependencies: ['captured_turn_audit_receipt_pending_capture_policy_8e'],
     });
     this.logger.log(
       `MeriV3 proxy turn tenant=${ctx.tenantId} conversation=${conversationId} mode=${reasoningMode} ` +
         `model=${runtimeModel} tools=${steps.length} coverage=${frame?.retrieval?.coverage.complete ?? 'n/a'} ` +
-        `aborted=${aborted} sourceMessage=${sourceMessageId}`,
+        `aborted=${aborted} sourceMessage=${sourceMessageId} procedure=${procedureLogIdentity(
+          procedure?.receipt,
+        )}`,
     );
+    await captureOutputFence?.release();
   }
 
   private async ensureConversation(ctx: TenantContext, conversationId: string) {
@@ -742,11 +953,20 @@ export class MeriV3ProxyService {
     ctx: TenantContext,
     conversationId: string,
     summaryUpToMessageId: string | null,
+    clientId: string | null = null,
+    conversationSummary: string | null = null,
+    protectedStateChars?: number,
+    summaryProvenanceVerified = false,
   ) {
     const boundary = summaryUpToMessageId
       ? await this.prisma.withTenant(ctx.tenantId, (tx) =>
           tx.clioMessage.findFirst({
-            where: { id: summaryUpToMessageId, conversationId },
+            where: {
+              id: summaryUpToMessageId,
+              conversationId,
+              tenantId: ctx.tenantId,
+              userId: ctx.userId,
+            },
             select: { createdAt: true },
           }),
         )
@@ -770,18 +990,26 @@ export class MeriV3ProxyService {
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         // Maintenance starts before 40 messages; leave headroom while its
         // provider call is in flight. The boundary remains the only compaction.
-        take: 80,
+        take: MAX_REPLAY_MESSAGES + 1,
         select: { id: true, role: true, body: true, metadata: true },
       }),
     );
     messages.reverse();
+    const reportContext = await this.research.authorizeModelContext(
+      ctx,
+      { conversationId, clientId },
+      messages,
+      summaryProvenanceVerified ? conversationSummary : null,
+    );
+    const authorizedMessages = reportContext.messages;
     const refsByMessage = new Map<string, AttachmentMetaRef[]>();
-    for (const message of messages) {
+    for (const message of authorizedMessages) {
       if (message.role !== 'user') continue;
       const refs = attachmentRefsFromMetadata(message.metadata);
       if (refs.length) refsByMessage.set(message.id, refs);
     }
-    const lastUser = [...messages].reverse().find((message) => message.role === 'user') ?? null;
+    const lastUser =
+      [...authorizedMessages].reverse().find((message) => message.role === 'user') ?? null;
     const allIds = [...refsByMessage.values()].flat().map((ref) => ref.id);
     const documentText = new Map<
       string,
@@ -792,7 +1020,7 @@ export class MeriV3ProxyService {
       { id: string; filename: string; kind: string; status: string; reason: string | null }
     >();
     const visibleImageIds = new Set<string>();
-    const sourceMessageIds = messages
+    const sourceMessageIds = authorizedMessages
       .filter((message) => message.role === 'user')
       .map((message) => message.id);
     const currentTurnImages: Array<{ mediaType: string; dataBase64: string }> = [];
@@ -809,7 +1037,12 @@ export class MeriV3ProxyService {
       );
       for (const document of documents) {
         const initial = describeAttachmentContentState(document);
-        if (enforceContentState && !initial.readable && document.data) {
+        if (
+          !currentMeriServerReadonlyCapturePolicy() &&
+          enforceContentState &&
+          !initial.readable &&
+          document.data
+        ) {
           await retryAttachmentExtraction(this.prisma, document.id, ctx.tenantId, ctx.userId, () =>
             this.aiCredentials.resolveProvider(ctx, 'openai'),
           );
@@ -871,7 +1104,7 @@ export class MeriV3ProxyService {
         }
       }
     }
-    const history = messages.map((message) => {
+    let history = authorizedMessages.map((message) => {
       const parts = [message.body];
       for (const ref of refsByMessage.get(message.id) ?? []) {
         const document = documentText.get(ref.id);
@@ -906,17 +1139,39 @@ export class MeriV3ProxyService {
         text: parts.join('\n\n'),
       };
     });
-    if (boundary || messages.length >= 80) {
+    if (boundary || authorizedMessages.length >= 80) {
       const carried = await compactedAttachmentContext(
         this.prisma,
         ctx,
         conversationId,
-        messages.map((message) => message.id),
+        authorizedMessages.map((message) => message.id),
       );
       const latest = [...history].reverse().find((message) => message.role === 'user');
       if (carried && latest) latest.text += `\n\n${carried}`;
     }
-    return { history, currentTurnImages, hasSummaryBoundary: Boolean(boundary) };
+    if (protectedStateChars !== undefined) {
+      const allocation = allocateBoundedReplayHistory(
+        history.map((message, index) => ({
+          id: authorizedMessages[index]!.id,
+          role: message.role,
+          body: message.text,
+        })),
+        { protectedStateChars: reportContext.summary?.length ?? 0 },
+      );
+      history = allocation.history.map((message) => ({ role: message.role, text: message.body }));
+    } else {
+      history = history.map((message, index) => ({
+        ...message,
+        text: boundReplayMessageBody({ id: authorizedMessages[index]!.id, body: message.text }),
+      }));
+    }
+    return {
+      history,
+      currentTurnImages,
+      hasSummaryBoundary: Boolean(boundary),
+      conversationSummary: reportContext.summary,
+      withheldReports: reportContext.withheldReports,
+    };
   }
 
   private async persistAssistantMessage(
@@ -926,6 +1181,12 @@ export class MeriV3ProxyService {
     body: string,
     metadata: Record<string, unknown>,
   ): Promise<{ id: string }> {
+    await assertMeriServerReadonlyCaptureCurrentAuthority({
+      prisma: this.prisma,
+      ctx,
+      policy: currentMeriServerReadonlyCapturePolicy(),
+    });
+    const captureReceipt = currentMeriServerReadonlyCaptureReceipt();
     const message = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioMessage.create({
         data: {
@@ -935,13 +1196,54 @@ export class MeriV3ProxyService {
           conversationId,
           role: 'assistant',
           body,
-          metadata: metadata as Prisma.InputJsonValue,
+          metadata: {
+            ...metadata,
+            ...(captureReceipt ? { serverReadonlyCaptureReceipt: captureReceipt } : {}),
+          } as Prisma.InputJsonValue,
         },
         select: { id: true },
       }),
     );
-    this.maintenance.scheduleAfterTurnMaintenance(ctx, conversationId);
+    if (!currentMeriServerReadonlyCapturePolicy()) {
+      this.maintenance.scheduleAfterTurnMaintenance(ctx, conversationId);
+    }
     return message;
+  }
+
+  private async persistCaptureEvidenceReceipt(args: {
+    ctx: TenantContext;
+    conversationId: string;
+    clientId: string | null;
+    policy: NonNullable<ReturnType<typeof currentMeriServerReadonlyCapturePolicy>>;
+    userMessageId: string;
+    assistantMessageId: string;
+    orchestrator: SignedMeriCaptureEvidenceReceipt;
+  }): Promise<void> {
+    await assertMeriServerReadonlyCaptureCurrentAuthority({
+      prisma: this.prisma,
+      ctx: args.ctx,
+      policy: args.policy,
+    });
+    const receipt = finalizeMeriServerCaptureEvidence({
+      policy: args.policy,
+      orchestrator: args.orchestrator,
+      userMessageId: args.userMessageId,
+      assistantMessageId: args.assistantMessageId,
+    });
+    if (
+      args.conversationId !== args.policy.conversationId ||
+      args.clientId !== args.policy.clientId
+    ) {
+      throw new Error('meri_capture_policy_scope_mismatch');
+    }
+    await persistMeriServerCaptureEvidenceReceipt({
+      prisma: this.prisma,
+      ctx: args.ctx,
+      policy: args.policy,
+      assistantMessageId: args.assistantMessageId,
+      receipt,
+    });
+    setCurrentMeriCaptureEvidenceReceipt(receipt);
   }
 }
 
@@ -953,4 +1255,9 @@ function extractStreamControl(body: string): StreamControl {
   const pageWriteEnabled = prefix.test(cleanContent);
   if (pageWriteEnabled) cleanContent = cleanContent.replace(prefix, '').trim();
   return { cleanContent, traceEnabled, pageWriteEnabled };
+}
+
+function procedureLogIdentity(receipt: ServedProcedureReceipt | undefined): string {
+  if (!receipt) return 'none';
+  return `${receipt.id}@${receipt.version}:${receipt.scope}:${receipt.effectMode}`;
 }

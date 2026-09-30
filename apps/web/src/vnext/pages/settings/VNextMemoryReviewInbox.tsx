@@ -377,6 +377,33 @@ export function VNextMemoryReviewInbox({ isAdmin }: { isAdmin: boolean }) {
               />
             )}
 
+            {!['pending', 'changes_requested'].includes(detail.data.status) && (
+              <SvCard title="Decision receipt" aria-label="Memory decision receipt">
+                <SvDescriptions
+                  items={[
+                    { label: 'Review reference', value: <code>{detail.data.candidateId}</code> },
+                    { label: 'Decision', value: memoryReviewStatusLabel(detail.data.status) },
+                    {
+                      label: 'Decided by',
+                      value: detail.data.decidedBy?.name ?? 'Canonical review service',
+                    },
+                    {
+                      label: 'Decided at',
+                      value: detail.data.decidedAt
+                        ? new Date(detail.data.decidedAt).toLocaleString()
+                        : 'Timestamp unavailable',
+                    },
+                    {
+                      label: 'Controlling version',
+                      value: detail.data.controllingMemory
+                        ? `${detail.data.controllingMemory.itemId} · version ${detail.data.controllingMemory.version ?? 'unreported'}`
+                        : 'No controlling memory version reported',
+                    },
+                  ]}
+                />
+              </SvCard>
+            )}
+
             <SvCard title="Proposed memory">
               {detail.data.proposal.canonicalItem?.sections.map((section) => (
                 <div key={section.key} style={{ marginBottom: 16 }}>
