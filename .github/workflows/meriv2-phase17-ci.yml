@@ -263,14 +263,17 @@ jobs:
 
       # The package's `jest --detectOpenHandles --forceExit` implies in-band, and
       # all ~1,760 apps/api spec files in one process ran out of heap. Run the
-      # same command as four sequential shards, each a fresh process.
+      # same command as four sequential shards, each a fresh process. Every
+      # shard runs so one CI pass reports the complete failure set.
       - name: Test API
         env:
           NODE_OPTIONS: --max-old-space-size=6144 --experimental-vm-modules
         run: |
+          status=0
           for shard in 1 2 3 4; do
-            pnpm --filter @capiro/api exec jest --detectOpenHandles --forceExit --shard="$shard/4" || exit 1
+            pnpm --filter @capiro/api exec jest --detectOpenHandles --forceExit --shard="$shard/4" || status=1
           done
+          exit "$status"
 
       - name: Test Workspace
         run: pnpm --filter @capiro/workspace test
