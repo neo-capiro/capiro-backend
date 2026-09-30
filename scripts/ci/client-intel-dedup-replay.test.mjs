@@ -14,8 +14,9 @@ const migrationPath =
   'apps/api/prisma/migrations/20281003010000_dedup_client_intel_mapping/migration.sql';
 // *.sql has no eol attribute, so an autocrlf checkout (Windows) holds CRLF
 // bytes; the committed migration is LF-only.
-const repairedSql = (await readFile(new URL(`../../${migrationPath}`, import.meta.url), 'utf8'))
-  .replace(/\r\n/g, '\n');
+const repairedSql = (
+  await readFile(new URL(`../../${migrationPath}`, import.meta.url), 'utf8')
+).replace(/\r\n/g, '\n');
 // The incident merge base is an ancestor of every branch carrying this repair.
 const originalSql = execFileSync(
   'git',
@@ -34,7 +35,11 @@ assert.equal(
   'the migration must remain the reviewed fail-closed replacement',
 );
 assert.doesNotMatch(repairedSql, /\bMIN\s*\(/i);
-assert.doesNotMatch(repairedSql, /\bDELETE\b/i, 'duplicate deletion is a reviewed maintenance step');
+assert.doesNotMatch(
+  repairedSql,
+  /\bDELETE\b/i,
+  'duplicate deletion is a reviewed maintenance step',
+);
 
 // The migration carries its own BEGIN/COMMIT. Tests run its body inside an
 // outer transaction that is always rolled back, so nothing persists.
@@ -54,9 +59,27 @@ const historyTable = `
   )
 `;
 const rows = [
-  ['00000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'sam', 'alpha', 'a'],
-  ['00000000-0000-0000-0000-000000000007', '11111111-1111-1111-1111-111111111111', 'sam', 'beta', 'b'],
-  ['00000000-0000-0000-0000-000000000008', '22222222-2222-2222-2222-222222222222', 'fec', 'singleton', 'c'],
+  [
+    '00000000-0000-0000-0000-000000000003',
+    '11111111-1111-1111-1111-111111111111',
+    'sam',
+    'alpha',
+    'a',
+  ],
+  [
+    '00000000-0000-0000-0000-000000000007',
+    '11111111-1111-1111-1111-111111111111',
+    'sam',
+    'beta',
+    'b',
+  ],
+  [
+    '00000000-0000-0000-0000-000000000008',
+    '22222222-2222-2222-2222-222222222222',
+    'fec',
+    'singleton',
+    'c',
+  ],
 ];
 
 // PGlite's query() uses the extended protocol, which accepts one statement;
@@ -129,20 +152,33 @@ async function exerciseMigration(db) {
     await db.query(historyTable.replace(',\n    UNIQUE (client_id, source, external_id)', ''));
     const duplicates = [
       ...rows,
-      ['00000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'sam', 'alpha', 'dup'],
+      [
+        '00000000-0000-0000-0000-000000000001',
+        '11111111-1111-1111-1111-111111111111',
+        'sam',
+        'alpha',
+        'dup',
+      ],
     ];
     await insert(db, duplicates);
     const before = await snapshot(db);
     await db.query('SAVEPOINT missing_invariant');
     await assert.rejects(runScript(db, migrationBody), /Global dedup uniqueness is unproven/);
     await db.query('ROLLBACK TO SAVEPOINT missing_invariant');
-    assert.deepEqual(await snapshot(db), before, 'a missing invariant fails closed and deletes nothing');
+    assert.deepEqual(
+      await snapshot(db),
+      before,
+      'a missing invariant fails closed and deletes nothing',
+    );
   });
 
   await rolledBack(db, async () => {
     await db.query(historyTable.replace('external_id text NOT NULL', 'external_id text'));
     await db.query('SAVEPOINT nullable_key');
-    await assert.rejects(runScript(db, migrationBody), /Dedup key columns must exist and be non-null/);
+    await assert.rejects(
+      runScript(db, migrationBody),
+      /Dedup key columns must exist and be non-null/,
+    );
     await db.query('ROLLBACK TO SAVEPOINT nullable_key');
   });
 }
@@ -151,7 +187,9 @@ test('PGlite replays the original failure and proves the fail-closed invariant w
   const db = new PGlite();
   try {
     await exerciseMigration(db);
-    const residue = await db.query(`SELECT to_regclass('public.client_intel_mapping')::text AS name`);
+    const residue = await db.query(
+      `SELECT to_regclass('public.client_intel_mapping')::text AS name`,
+    );
     assert.equal(residue.rows[0].name, null);
   } finally {
     await db.close();
@@ -203,11 +241,19 @@ if (postgresConfigPath) {
       assert.equal(identity.port, allowedTarget.port);
       assert.equal(identity.user, allowedTarget.user);
       assert.equal(identity.database, allowedTarget.database);
-      const existing = await db.query(`SELECT to_regclass('public.client_intel_mapping')::text AS name`);
-      assert.equal(existing.rows[0].name, null, 'refusing a cluster that already holds the real table');
+      const existing = await db.query(
+        `SELECT to_regclass('public.client_intel_mapping')::text AS name`,
+      );
+      assert.equal(
+        existing.rows[0].name,
+        null,
+        'refusing a cluster that already holds the real table',
+      );
 
       await exerciseMigration(db);
-      const residue = await db.query(`SELECT to_regclass('public.client_intel_mapping')::text AS name`);
+      const residue = await db.query(
+        `SELECT to_regclass('public.client_intel_mapping')::text AS name`,
+      );
       assert.equal(residue.rows[0].name, null);
     } finally {
       await db.end();

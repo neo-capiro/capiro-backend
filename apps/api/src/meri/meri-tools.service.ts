@@ -2668,7 +2668,7 @@ export class MeriToolsService {
       case 'save_chat_attachments':
         return this.saveChatAttachments(ctx, input);
       case 'send_email':
-        return this.sendEmail(ctx, input);
+        return this.sendEmail(ctx, input, execution?.actionProposalId);
       case 'list_emails':
         return this.listEmails(ctx, input);
       case 'search_emails':
@@ -7040,7 +7040,11 @@ export class MeriToolsService {
     }
   }
 
-  private async sendEmail(ctx: TenantContext, input: Record<string, unknown>) {
+  private async sendEmail(
+    ctx: TenantContext,
+    input: Record<string, unknown>,
+    actionProposalId?: string,
+  ) {
     const to = requiredString(input, 'to', 320);
     const subject = requiredString(input, 'subject', 500);
     const body = requiredString(input, 'body', 50_000);
@@ -7055,24 +7059,49 @@ export class MeriToolsService {
       };
     }
 
-    await this.mailSender.sendMail(ctx, connection, {
+    const sendReceipt = await this.mailSender.sendMail(ctx, connection, {
       subject,
       body,
       toRecipients: [{ email: to }],
+      ...(actionProposalId ? { correlationId: actionProposalId } : {}),
     });
 
+    let artifactPersistence:
+      { persisted: true } | { persisted: false; error?: string; reason?: string } = conversationId
+      ? { persisted: true }
+      : { persisted: false, reason: 'No conversationId was supplied; no artifact was requested.' };
     if (conversationId) {
-      await this.persistArtifact(ctx, {
-        conversationId,
-        clientId,
-        title: `Email: ${subject}`,
-        kind: 'email_sent',
-        bodyText: `To: ${to}\nSubject: ${subject}\n\n${body}`,
-        metadata: { to, subject, sentFrom: connection.accountEmail },
-      });
+      try {
+        await this.persistArtifact(ctx, {
+          conversationId,
+          clientId,
+          title: `Email: ${subject}`,
+          kind: 'email_sent',
+          bodyText: `To: ${to}\nSubject: ${subject}\n\n${body}`,
+          metadata: { to, subject, sentFrom: connection.accountEmail },
+        });
+      } catch (error) {
+        // Provider acceptance is the authoritative irreversible effect. Keep it
+        // separate from the ancillary artifact failure so proposal retries never
+        // turn a missing artifact into a second email.
+        artifactPersistence = {
+          persisted: false,
+          error:
+            error instanceof Error && error.message.trim()
+              ? error.message.slice(0, 500)
+              : 'The sent-email artifact could not be persisted.',
+        };
+      }
     }
 
-    return { ok: true, sentFrom: connection.accountEmail, to, subject };
+    return {
+      ok: true,
+      sentFrom: connection.accountEmail,
+      to,
+      subject,
+      sendReceipt,
+      artifactPersistence,
+    };
   }
 
   private async listEmails(ctx: TenantContext, input: Record<string, unknown>) {
