@@ -1,0 +1,209 @@
+{
+  "schemaVersion": 1,
+  "policyRepository": "neo-capiro/capiro-agent-ops",
+  "policySha": "fe8adaa858ee2391b42697311ce91cf787e080b8",
+  "preparedAtUtc": "2026-09-30T00:17:26.7402365Z",
+  "repository": "neo-capiro/capirov2",
+  "baselineSha": "0607ebb6857908ddca00d6763881b66d2700aebb",
+  "reviewedRepairSha": "c785e566321943470978d66325952ed916951346",
+  "reviewedRepairCi": "NOT RUN",
+  "verdict": "BLOCKED",
+  "runId": 36639089697,
+  "jobId": 109646986970,
+  "jobUrl": "https://github.com/neo-capiro/capirov2/actions/runs/36639089697/job/109646986970",
+  "completedAtUtc": "2026-09-29T23:34:16Z",
+  "apiExitCode": 134,
+  "apiCompletedSuiteHeaders": {
+    "pass": 747,
+    "fail": 22
+  },
+  "localDiscovery": {
+    "exitCode": 0,
+    "sourceSha": "c785e566321943470978d66325952ed916951346",
+    "duplicates": 0,
+    "shardCounts": [441, 441, 440, 440],
+    "exactUnion": true,
+    "executedTests": false,
+    "missingCompletedHeadersComparedWithLocalDiscovery": 993,
+    "suites": 1762,
+    "normalizedListSha256": "4d59db9c184d18a80e16d0cfb8761d86823faaf730557024ee6db185d89f8a17"
+  },
+  "failures": [
+    {
+      "sourcePath": "apps/api/src/defense-budget/verification/persistence/lifecycle-bridge-source-metadata-agreement.integration.spec.ts",
+      "baselineLogLine": 7729,
+      "classification": "CI_SETUP",
+      "observedCause": "Parser runtime preflight cannot start uv/Python in the clean runner.",
+      "recommendedScopedRepair": "Provision the repository-locked parser runtime and retain real parser and metadata-agreement assertions.",
+      "repairAppliedInC785": false
+    },
+    {
+      "sourcePath": "apps/api/src/external/tango/tango.client.spec.ts",
+      "baselineLogLine": 9422,
+      "classification": "CI_SETUP",
+      "observedCause": "The workflow's experimental VM module flag conflicts with the API Jest CommonJS transform for Tango's ESM SDK.",
+      "recommendedScopedRepair": "Remove only the incompatible flag from the API test step; both complete Tango suites passed 140 tests without it.",
+      "repairAppliedInC785": false
+    },
+    {
+      "sourcePath": "apps/api/src/meri/meri-tools.scheduler-postgres.spec.ts",
+      "baselineLogLine": 10556,
+      "classification": "TEST_HARNESS",
+      "observedCause": "Scheduler integration assumes a private local configuration file and a particular loopback PostgreSQL port.",
+      "recommendedScopedRepair": "Add a portable explicitly owned disposable CI fixture configuration; preserve endpoint identity, schema ownership, transaction and receipt assertions; no arbitrary DATABASE_URL fallback.",
+      "repairAppliedInC785": false
+    },
+    {
+      "sourcePath": "apps/api/src/defense-budget/verification/persistence/lifecycle-bridge-candidate-cycle-identity.integration.spec.ts",
+      "baselineLogLine": 10805,
+      "classification": "CI_SETUP",
+      "observedCause": "The phase6_audit_projection relation from a separate existing Prisma tree is absent.",
+      "recommendedScopedRepair": "Prepare the existing Phase 6 projection schema in the owned disposable database with service-ownership checks; do not edit historical SQL.",
+      "repairAppliedInC785": false
+    },
+    {
+      "sourcePath": "apps/api/src/external/tango/tango-capability-probe.service.spec.ts",
+      "baselineLogLine": 11624,
+      "classification": "CI_SETUP",
+      "observedCause": "The workflow's experimental VM module flag conflicts with the API Jest CommonJS transform for Tango's ESM SDK.",
+      "recommendedScopedRepair": "Use the same flag-only repair as tango.client; retain real SDK execution with fake transport.",
+      "repairAppliedInC785": false
+    },
+    {
+      "sourcePath": "apps/api/src/defense-budget/rdte/cycle/r1-text-reconstruction-e2e-acceptance.spec.ts",
+      "baselineLogLine": 12157,
+      "classification": "CI_SETUP",
+      "observedCause": "The real deterministic parser cannot start uv: ENOENT.",
+      "recommendedScopedRepair": "Provision locked uv/Python parser prerequisites; preserve the archived real-document reconstruction acceptance case.",
+      "repairAppliedInC785": false
+    },
+    {
+      "sourcePath": "apps/api/src/live-hearings/legiwatch-wave2-pg.integration.spec.ts",
+      "baselineLogLine": 12630,
+      "classification": "CI_SETUP",
+      "observedCause": "The intel_watchlist_term relation is absent from the disposable service database.",
+      "recommendedScopedRepair": "Replay the existing Intel schema prerequisites in the owned fixture database; retain Wave 2 integration tests and migration integrity checks.",
+      "repairAppliedInC785": false
+    },
+    {
+      "sourcePath": "apps/api/scripts/run-clio-scheduled-tasks.postgres.spec.ts",
+      "baselineLogLine": 13028,
+      "classification": "TEST_HARNESS",
+      "observedCause": "Scheduler runner integration assumes private local PostgreSQL configuration and a Windows Node executable; failed setup also causes teardown errors.",
+      "recommendedScopedRepair": "Use process.execPath and portable explicitly attested disposable fixture configuration, preserving real kill/restart behavior and ownership checks.",
+      "repairAppliedInC785": false
+    },
+    {
+      "sourcePath": "apps/api/src/meri/meri-attachment-document.spec.ts",
+      "baselineLogLine": 13220,
+      "classification": "TIMING_UNRESOLVED",
+      "observedCause": "The dense XLSX linked-parts case exceeded the default five-second test timeout in the long-lived API process.",
+      "recommendedScopedRepair": "Both extraction suites passed 33 tests unchanged in a fresh process. Recheck fresh-shard CI before changing deadlines or extraction behavior.",
+      "repairAppliedInC785": false
+    },
+    {
+      "sourcePath": "apps/api/src/meri/meri-debrief-wall-authority.spec.ts",
+      "baselineLogLine": 18801,
+      "classification": "TEST_HARNESS",
+      "observedCause": "The replay harness omits providerCallId now required by the fail-closed attempt-identity guard.",
+      "recommendedScopedRepair": "Supply a valid replay identity and current persisted-attempt reservation setup. Retain actual owner reauthorization, ethical-wall revocation and denial checks.",
+      "repairAppliedInC785": false
+    },
+    {
+      "sourcePath": "apps/api/src/meri/meri-native-work-read.helpers.spec.ts",
+      "baselineLogLine": 19094,
+      "classification": "TEST_HARNESS",
+      "observedCause": "The native work replay harness omits providerCallId now required by the fail-closed attempt-identity guard.",
+      "recommendedScopedRepair": "Supply current replay identity and budget setup while preserving focused current-owner authorization and denial assertions.",
+      "repairAppliedInC785": false
+    },
+    {
+      "sourcePath": "apps/api/src/live-hearings/legiwatch-wave3-pg.integration.spec.ts",
+      "baselineLogLine": 19136,
+      "classification": "CI_SETUP",
+      "observedCause": "The intel_live_hearing_session relation is absent from the disposable service database.",
+      "recommendedScopedRepair": "Prepare the existing Intel migration prerequisites; preserve real digest and analytics integration assertions.",
+      "repairAppliedInC785": false
+    },
+    {
+      "sourcePath": "apps/api/src/context/phase26-production-readiness-architecture.contract.spec.ts",
+      "baselineLogLine": 21185,
+      "classification": "TEST_HARNESS",
+      "observedCause": "The source-string assertion expects the older three-adapter array although runtime now validates an eight-adapter registry.",
+      "recommendedScopedRepair": "Check the current registry structurally while preserving Strategy adapter registration, forbidden-table exclusions and absence of execution authority.",
+      "repairAppliedInC785": false
+    },
+    {
+      "sourcePath": "apps/api/src/government-data/community-funding/community-funding.cross-source-dedup.spec.ts",
+      "baselineLogLine": 21328,
+      "classification": "TEST_HARNESS",
+      "observedCause": "The real PDF rehearsal hardcodes a user-specific Windows Python executable on an Ubuntu runner.",
+      "recommendedScopedRepair": "Provide an explicit portable test interpreter and locked dependencies, retaining the real committed PDF/XLSX corpus and deduplication/provenance assertions.",
+      "repairAppliedInC785": false
+    },
+    {
+      "sourcePath": "apps/api/src/engagement/pptx-extract.spec.ts",
+      "baselineLogLine": 21431,
+      "classification": "TIMING_UNRESOLVED",
+      "observedCause": "The bounded PPTX XML-parsing case exceeded the default five-second test timeout in the long-lived API process.",
+      "recommendedScopedRepair": "Both extraction suites passed 33 tests unchanged in a fresh process. Recheck fresh-shard CI before changing deadlines or extraction behavior.",
+      "repairAppliedInC785": false
+    },
+    {
+      "sourcePath": "apps/api/src/government-data/community-funding/community-funding.geography-repair.spec.ts",
+      "baselineLogLine": 21459,
+      "classification": "TEST_HARNESS",
+      "observedCause": "The invalid-geography case expects older error wording rather than the current source-backed geography diagnostic.",
+      "recommendedScopedRepair": "Update the diagnostic expectation only after confirming behavior; preserve invalid classification, null resolved state and prohibition on invented geography.",
+      "repairAppliedInC785": false
+    },
+    {
+      "sourcePath": "apps/api/src/live-hearings/legiwatch-calendar-query-postgres.spec.ts",
+      "baselineLogLine": 21570,
+      "classification": "CI_SETUP",
+      "observedCause": "The intel_feature_flag relation is absent from the disposable service database.",
+      "recommendedScopedRepair": "Prepare existing Intel schema prerequisites and retain exact-selection, pagination and full-export assertions.",
+      "repairAppliedInC785": false
+    },
+    {
+      "sourcePath": "apps/api/scripts/prune-stale-assistance-recipient-candidates.spec.ts",
+      "baselineLogLine": 21740,
+      "classification": "SOURCE_SYNTAX",
+      "observedCause": "Raw backticks inside two tagged SQL template comments break parsing in the maintenance script.",
+      "recommendedScopedRepair": "Repair only comment escaping at source lines 231 and 255. Keep SQL predicates, rejected-row protection and RLS behavior; run existing fake-client tests, never the script against a database.",
+      "repairAppliedInC785": false
+    },
+    {
+      "sourcePath": "apps/api/src/federal-spending/federal-market.identity.integration.spec.ts",
+      "baselineLogLine": 21884,
+      "classification": "TEST_HARNESS",
+      "observedCause": "The isolated federal_award fixture table lacks latest_action_date selected by the current service.",
+      "recommendedScopedRepair": "Align only the owned test schema with required production query columns and retain own-UEI/identity precedence assertions.",
+      "repairAppliedInC785": false
+    },
+    {
+      "sourcePath": "apps/api/scripts/lib/memory-phase2-persistence-contract.spec.ts",
+      "baselineLogLine": 22046,
+      "classification": "TEST_HARNESS",
+      "observedCause": "The CommonJS Jest fixture uses import.meta.url for source path resolution.",
+      "recommendedScopedRepair": "Use __dirname plus path.resolve to read the same source inputs; retain every persistence-contract assertion and leave migration SQL unchanged.",
+      "repairAppliedInC785": false
+    },
+    {
+      "sourcePath": "apps/api/src/defense-budget/parser-router/lifecycle-bridge-manifest-cycle-id-v1.real-resolver.spec.ts",
+      "baselineLogLine": 22156,
+      "classification": "CI_SETUP",
+      "observedCause": "The real resolver cannot start uv: ENOENT.",
+      "recommendedScopedRepair": "Provision the locked parser runtime while retaining real manifest, handoff and filesystem-proof validation.",
+      "repairAppliedInC785": false
+    },
+    {
+      "sourcePath": "apps/api/src/government-data/community-funding/community-funding.senate-joint.spec.ts",
+      "baselineLogLine": 22224,
+      "classification": "TEST_HARNESS",
+      "observedCause": "The real Senate joint-table extraction test hardcodes a user-specific Windows Python executable on an Ubuntu runner.",
+      "recommendedScopedRepair": "Provide an explicit portable test interpreter with locked dependencies and keep real-document row/header assertions.",
+      "repairAppliedInC785": false
+    }
+  ]
+}

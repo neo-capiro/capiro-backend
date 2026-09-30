@@ -1,0 +1,27 @@
+diff --git a/apps/api/src/clients/client-facilities.service.ts b/apps/api/src/clients/client-facilities.service.ts
+index c9f2505d1f90f20a5c4a5bcdb5011be7a3e53938..a4c726035e62682c70d735b55c7ecac3bcde7d9d 100644
+--- a/apps/api/src/clients/client-facilities.service.ts
++++ b/apps/api/src/clients/client-facilities.service.ts
+@@ -231,7 +231,13 @@ export class ClientFacilitiesService {
+     });
+   }
+ 
+-  async createFacility(ctx: TenantContext, clientId: string, input: CreateFacilityInput) {
++  async createFacility(
++    ctx: TenantContext,
++    clientId: string,
++    input: CreateFacilityInput,
++    /** Internal fixture-only primary key; public controllers never bind it. */
++    fixturePhysicalId?: string,
++  ) {
+     this.validateStateDistricts(input);
+     const facility = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+       const client = await tx.client.findFirst({
+@@ -241,6 +247,7 @@ export class ClientFacilitiesService {
+       if (!client) throw new NotFoundException('Client not found');
+       return tx.clientFacility.create({
+         data: {
++          ...(fixturePhysicalId ? { id: fixturePhysicalId } : {}),
+           tenantId: ctx.tenantId,
+           clientId,
+           name: input.name,

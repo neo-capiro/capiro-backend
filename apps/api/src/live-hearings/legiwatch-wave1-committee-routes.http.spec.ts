@@ -57,6 +57,28 @@ describe('LegiWatch Wave 1 committee routes through the real HTTP pipeline', () 
           },
         },
         { provide: ConfigService, useValue: { get: () => undefined } },
+        // Committee routes do not call these controller dependencies. Fail if
+        // the route unexpectedly reaches a brief or speaker service.
+        {
+          provide: HearingBriefGenerationService,
+          useValue: {
+            generate: jest.fn().mockRejectedValue(new Error('Unexpected brief generation')),
+          },
+        },
+        {
+          provide: HearingBriefExportService,
+          useValue: {
+            exportDocx: jest.fn().mockRejectedValue(new Error('Unexpected brief export')),
+            saveToClient: jest.fn().mockRejectedValue(new Error('Unexpected brief save')),
+          },
+        },
+        {
+          provide: HearingSpeakerAttributionService,
+          useValue: {
+            resolve: jest.fn().mockRejectedValue(new Error('Unexpected speaker resolution')),
+            rename: jest.fn().mockRejectedValue(new Error('Unexpected speaker rename')),
+          },
+        },
         {
           provide: PrismaService,
           useValue: {

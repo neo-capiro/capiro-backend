@@ -1,0 +1,126 @@
+'use strict';
+// Offline tests only. Real saved step61 inputs; synthetic completed-failure fixture
+// is explicitly identified until the original failure snapshot is published.
+const fs=require('node:fs'),crypto=require('node:crypto'),assert=require('node:assert/strict');
+let forbiddenProcessCalls=0,forbiddenNetworkCalls=0;
+const cp=require('node:child_process');for(const k of ['spawn','spawnSync','exec','execSync','execFile','execFileSync','fork'])cp[k]=()=>{forbiddenProcessCalls++;throw new Error('OFFLINE_PROCESS_FORBIDDEN');};
+const net=require('node:net');net.connect=net.createConnection=net.Socket.prototype.connect=()=>{forbiddenNetworkCalls++;throw new Error('OFFLINE_NETWORK_FORBIDDEN');};
+const E='C:/dev/cap-meri-foundation-evidence/',R=E+'isolated-migration-rehearsal/';
+const script=E+'qualify-reconciliation-supplement.cjs';const hash=b=>crypto.createHash('sha256').update(b).digest('hex'),read=p=>JSON.parse(fs.readFileSync(p)),clone=x=>structuredClone(x);
+const lib=E+'rehearse-full-reconciliation.cjs',original=E+'rehearse-integrated-reconciliation.cjs';
+const supplementStartHash=hash(fs.readFileSync(script));
+assert.equal(hash(fs.readFileSync(lib)),'8ae7313df4c83c3c3ee58e6dcb2355a0c68d7fedd88b514b6f0e96a0c109df42');
+assert.equal(hash(fs.readFileSync(original)),'f569c531f6d6ea2bc07c4f6b0c0757fe7c9a6495efe7a8bbf53a898bf8e45d5b');
+const s=require(script),g=require(lib),i=require(original),c=s.constants;
+const step={before:read(R+'integrated-061-four-normal-migrations-before.json'),after:read(R+'integrated-061-four-normal-migrations-after.json'),execution:read(R+'integrated-061-four-normal-migrations-execution.json')};
+const initial=read(R+'integrated-full-reconciliation-before.json'),manifest=read(E+'clone-full-reconciliation-decision-manifest.json'),sql=fs.readFileSync(c.SQL17),inspection=read(R+'inspection.json');
+const rows=[];function positive(name,fn){try{fn();rows.push({name,expected:'accept',result:'PASS'});}catch(e){rows.push({name,expected:'accept',result:'FAIL',code:e.code??e.message});}}
+function negative(name,fn,expectedCode){try{fn();rows.push({name,expected:'reject',result:'FAIL',code:'UNEXPECTED_ACCEPT'});}catch(e){if(expectedCode&&!String(e.code??e.message).includes(expectedCode))rows.push({name,expected:'reject',result:'FAIL',code:e.code??e.message,expectedCode});else rows.push({name,expected:'reject',result:'PASS',code:e.code??e.message});}}
+function physicalMutation(name,mutate,code){negative(name,()=>{const a=clone(step.before),b=clone(step.after);mutate(a,b);return s.correctedPhysical(g,a,b,sql);},code);}
+positive('actual step61 exact helper mapping and allowed delta',()=>{const p=s.correctedPhysical(g,step.before,step.after,sql);assert.equal(p.removedSchemaBlocks.length,28);assert.equal(p.changedSchemaBlocks.length,1);assert.equal(p.originalValidatorAmended,false);});
+negative('SQL byte mutation rejected',()=>s.correctedPhysical(g,step.before,step.after,Buffer.concat([sql,Buffer.from('\n')])), 'EXACT_HELPER_DROP_SQL');
+negative('CRLF substitution rejected',()=>s.correctedPhysical(g,step.before,step.after,Buffer.from(sql.toString().replace(/\n/g,'\r\n'))), 'EXACT_HELPER_DROP_SQL');
+negative('different SQL source rejected',()=>s.correctedPhysical(g,step.before,step.after,Buffer.from('DROP FUNCTION public.other(jsonb);\n')), 'EXACT_HELPER_DROP_SQL');
+physicalMutation('different catalog display rejected',(a)=>a.targetMeta.helperDumpName='legiwatch_watch_conditions_valid(other jsonb)','EXACT_HELPER_CATALOG_DISPLAY');
+physicalMutation('unexpected surviving helper rejected',(a,b)=>b.targetMeta.helperDumpName=c.HELPER_DISPLAY,'EXACT_HELPER_CATALOG_DISPLAY');
+for(const [field,value] of [['name','legiwatch_watch_conditions_valid(integer)'],['schema','other'],['type','PROCEDURE'],['owner','capiro_app'],['key','f'.repeat(64)],['sha256','a'.repeat(64)]])physicalMutation('helper '+field+' mutation rejected',a=>{a.schemaMap.parts.find(p=>p.type==='FUNCTION'&&p.name===c.HELPER_DUMP)[field]=value;},'EXACT_HELPER_DUMP_BLOCK');
+physicalMutation('helper added back rejected',(a,b)=>b.schemaMap.parts.push(clone(a.schemaMap.parts.find(p=>p.name===c.HELPER_DUMP))),'HELPER_NOT_REMOVED');
+physicalMutation('unrelated removal rejected',(a,b)=>{const p=b.schemaMap.parts.find(p=>p.type==='TABLE'&&p.schema==='public');b.schemaMap.parts=b.schemaMap.parts.filter(q=>q.key!==p.key);},'ONLY_KNOWN_SIGNATURE_MISMATCH');
+physicalMutation('unrelated addition rejected',(a,b)=>b.schemaMap.parts.push({key:'b'.repeat(64),name:'unexpected_relation',type:'TABLE',schema:'public',owner:'capiro_master',sha256:'c'.repeat(64)}),'UNEXPECTED_SCHEMA_ADDITION');
+physicalMutation('unrelated function body change rejected',(a,b)=>{b.schemaMap.parts.find(p=>p.type==='FUNCTION'&&p.name!=='enforce_legiwatch_cutover_transition()').sha256='d'.repeat(64);},'UNEXPECTED_SCHEMA_CHANGE');
+physicalMutation('view body change rejected',(a,b)=>{b.targetMeta.view[0].definitionSha256='d'.repeat(64);},'VIEW_OR_CAPTURE_GATE_CHANGE');
+physicalMutation('view ACL change rejected',(a,b)=>{b.targetMeta.view[0].acl='{unexpected=X/capiro_master}';},'VIEW_OR_CAPTURE_GATE_CHANGE');
+physicalMutation('function owner change rejected',(a,b)=>b.targetMeta.cutover.owner='capiro_app','FUNCTION_SECURITY_CHANGE');
+physicalMutation('function ACL change rejected',(a,b)=>b.targetMeta.cutover.acl='{unexpected=X/capiro_master}','FUNCTION_SECURITY_CHANGE');
+physicalMutation('function search path change rejected',(a,b)=>b.targetMeta.cutover.proconfig=['search_path=public'],'FUNCTION_SECURITY_CHANGE');
+physicalMutation('function definition hash change rejected',(a,b)=>b.targetMeta.cutover.definitionSha256='d'.repeat(64),'FINAL_FUNCTION_HASH');
+physicalMutation('global role privilege mutation rejected',(a,b)=>b.roles[0].rolsuper=!b.roles[0].rolsuper,'NORMAL_SECURITY_CHANGE');
+physicalMutation('default ACL change rejected',(a,b)=>b.security.push({role:'bad',schema:'public',acl:'bad'}),'NORMAL_SECURITY_CHANGE');
+physicalMutation('new enabled subscription rejected',(a,b)=>b.subscriptions.push({subname:'bad',subenabled:true}),'NORMAL_SECURITY_CHANGE');
+physicalMutation('unexpected extension rejected',(a,b)=>b.extensions.push({extname:'pg_cron',extversion:'x'}),'NORMAL_SECURITY_CHANGE');
+physicalMutation('nonempty retired table rejected',a=>a.targetMeta.retiredRelations[0].rowCount=1,'NONZERO_DELETION');
+physicalMutation('nonzero dedup deletion target rejected',a=>a.targetMeta.dedup.wouldDelete=1,'NONZERO_DELETION');
+physicalMutation('dedup total change rejected',(a,b)=>b.targetMeta.dedup.total++,'NONZERO_DELETION');
+physicalMutation('retired Meri table resurrection rejected',(a,b)=>b.targetMeta.legacyPresent.push({name:'meri_hermes_run'}),'DROP_TARGETS_REMAIN');
+physicalMutation('schema prologue drift rejected',(a,b)=>b.schemaMap.prologueSha256='d'.repeat(64),'NORMAL_SCHEMA_PROLOGUE');
+physicalMutation('schema epilogue drift rejected',(a,b)=>b.schemaMap.epilogueSha256='d'.repeat(64),'NORMAL_SCHEMA_PROLOGUE');
+
+const cli=manifest.pins.cliPath,args=(service,verb)=>[cli,'migrate',verb,'--schema',(service==='API'?c.API:c.WS)+'/schema.prisma'];
+for(const service of ['API','Workspace'])for(const verb of ['status','deploy'])positive('exact '+service+' '+verb+' args accepted',()=>assert.deepEqual(s.validateNoopArgs(args(service,verb),cli),{service,verb}));
+const badArgs={resolve:[cli,'migrate','resolve','--schema',c.API+'/schema.prisma'],seed:[cli,'db','seed','--schema',c.API+'/schema.prisma'],reset:[cli,'migrate','reset','--schema',c.API+'/schema.prisma'],extraFlag:[...args('API','deploy'),'--force'],wrongCLI:['C:/other/prisma.js',...args('API','deploy').slice(1)],differentSchema:[cli,'migrate','deploy','--schema','C:/other/schema.prisma'],missingSchema:[cli,'migrate','deploy'],schemaURL:[cli,'migrate','deploy','--schema','postgresql://placeholder/other'],duplicateSchema:[...args('API','deploy'),'--schema',c.WS+'/schema.prisma']};
+for(const [name,a] of Object.entries(badArgs))negative('no-op args reject '+name,()=>s.validateNoopArgs(a,cli),'ONLY_EXACT_STATUS_OR_NOOP_DEPLOY');
+const actualFinalExists=fs.existsSync(c.FAILED_RECEIPT);let prior,x,fixtureProvenance;
+if(actualFinalExists){prior=read(c.FAILED_RECEIPT);fixtureProvenance='ACTUAL_FAILED_FINAL_RECEIPT';}
+else{
+ const steps=[];for(let n=1;n<=60;n++){const file=fs.readdirSync(R).find(p=>p.startsWith('integrated-'+String(n).padStart(3,'0')+'-')&&p.endsWith('-receipt.json'));assert.ok(file);const r=read(R+file);steps.push({number:r.number,label:r.label,file,sha256:hash(fs.readFileSync(R+file)),actualExit:r.actualCommand.exitCode,proof:r.proof});}
+ prior={contract:'INTEGRATED_CLONE_RECONCILIATION_V1',scriptSha256:c.ORIGINAL_HASH,librarySha256:c.LIB_HASH,manifestSha256:hash(fs.readFileSync(E+'clone-full-reconciliation-decision-manifest.json')),complete:false,rehearsalVerdict:'BLOCKED',releaseVerdict:'BLOCKED',liveAuthorized:false,failure:{code:'UNEXPECTED_SCHEMA_REMOVAL'},fullDataProof:'PASS_DATA_ONLY_ATTEMPT_FAILED',failureState:{...clone(step.after),dataAdjusted:clone(initial.dataAdjusted)},finishedAt:new Date().toISOString(),steps,before:clone(initial),beforeNormal:clone(step.before),source:inspection.source,workspaceSource:{unitFixture:true,manifestSha256:hash(fs.readFileSync(R+'frozen-workspace-source-manifest.json'))},runtimeBindingSha256:hash(fs.readFileSync(E+'runtime-database-bindings.json')),probeIds:[steps[1].proof.failedId,steps[3].proof.failedId]};fixtureProvenance='UNIT_SYNTHETIC_FINAL_STATE_NOT_ACTUAL_DATA_PROOF';
+}
+x={h:{CLI:cli},manifest,resolve:manifest.decisions.filter(d=>d.recommendedAction==='INDIVIDUAL_PRISMA_RESOLVE_APPLIED'),deploy:manifest.decisions.filter(d=>d.recommendedAction==='LEAVE_PENDING_FOR_NORMAL_API_MIGRATE_DEPLOY'),source:clone(prior.source),workspaceSource:clone(prior.workspaceSource)};
+positive('prior failed receipt fixture with exact step61 bindings accepted',()=>assert.equal(s.validatePrior(g,i,prior,step,x).originalAttemptStillFailed,true));
+positive('all60 actual saved command receipt chain accepted',()=>assert.equal(s.priorStepChain(g,i,prior,x).verifiedOriginalCommandReceipts,60));
+if(actualFinalExists&&/^[a-f0-9]{64}$/.test(c.FAILED_RECEIPT_HASH)){
+ positive('exact pinned raw failed receipt and full chain accepted',()=>assert.equal(s.loadPrior(g,i,x).chain.verifiedOriginalCommandReceipts,60));
+ const readOriginal=fs.readFileSync,existsOriginal=fs.existsSync;
+ function simulatedByteChange(target,fn){fs.readFileSync=function(file,...args){const bytes=readOriginal.call(this,file,...args);if(String(file).replace(/\\/g,'/')===target.replace(/\\/g,'/'))return Buffer.concat([Buffer.from(bytes),Buffer.from('\n')]);return bytes;};try{return fn();}finally{fs.readFileSync=readOriginal;}}
+ for(const [name,file,code] of [['failed final receipt',c.FAILED_RECEIPT,'SAVED_EVIDENCE_PIN'],['step61 before',R+'integrated-061-four-normal-migrations-before.json','SAVED_EVIDENCE_PIN'],['step61 after',R+'integrated-061-four-normal-migrations-after.json','SAVED_EVIDENCE_PIN'],['step61 execution',R+'integrated-061-four-normal-migrations-execution.json','SAVED_EVIDENCE_PIN'],['step61 stdout',R+'integrated-061-four-normal-migrations-stdout-sanitized.log','COMMAND_LOG_HASH'],['prior receipt chain',R+prior.steps[1].file,'SAVED_EVIDENCE_PIN'],['runtime binding',E+'runtime-database-bindings.json','PRIOR_RUNTIME_BINDING']])negative('raw byte tamper rejected: '+name,()=>simulatedByteChange(file,()=>s.loadPrior(g,i,x)),code);
+ negative('fabricated step61 acceptance receipt presence rejected',()=>{fs.existsSync=function(file){if(String(file).replace(/\\/g,'/')===R+'integrated-061-four-normal-migrations-receipt.json')return true;return existsOriginal.call(this,file);};try{return s.loadPrior(g,i,x);}finally{fs.existsSync=existsOriginal;}},'ORIGINAL_STEP61_RECEIPT_MUST_REMAIN_ABSENT');
+}
+function priorMutation(name,mutate,code){negative(name,()=>{const r=clone(prior),ss=clone(step),xx=clone(x);mutate(r,ss,xx);return s.validatePrior(g,i,r,ss,xx);},code);}
+for(const field of ['scriptSha256','librarySha256','manifestSha256'])priorMutation('prior '+field+' mismatch rejected',r=>r[field]='a'.repeat(64),'FAILED_RECEIPT_CODE_PINS');
+for(const [field,value] of [['complete',true],['rehearsalVerdict','PASS'],['releaseVerdict','PASS'],['liveAuthorized',true]])priorMutation('prior '+field+' promotion rejected',r=>r[field]=value,'EXPECTED_FAILED_ATTEMPT_ONLY');
+priorMutation('different original failure rejected',r=>r.failure.code='DUMP_FAILED','EXPECTED_FAILED_ATTEMPT_ONLY');
+priorMutation('missing final data proof rejected',r=>r.fullDataProof='NOT_RUN','COMPLETE_FAILURE_DATA_PROOF_REQUIRED');
+priorMutation('incomplete final snapshot rejected',r=>delete r.failureState,'COMPLETE_FAILURE_DATA_PROOF_REQUIRED');
+priorMutation('failure snapshot error rejected',r=>r.failureSnapshotError={code:'DUMP_FAILED'},'COMPLETE_FAILURE_DATA_PROOF_REQUIRED');
+priorMutation('early finished timestamp rejected',r=>r.finishedAt='2026-09-29T20:00:00.000Z','COMPLETE_FAILURE_DATA_PROOF_REQUIRED');
+priorMutation('unexpected prior terminal checks rejected',r=>r.terminalChecks=[],'NO_TERMINAL_CHECKS_ALREADY_RUN');
+priorMutation('missing prior step rejected',r=>r.steps.pop(),'NO_TERMINAL_CHECKS_ALREADY_RUN');
+priorMutation('different frozen API identity rejected',r=>r.source={wrong:true},'PRIOR_FROZEN_SOURCE_PINS');
+priorMutation('different frozen Workspace identity rejected',r=>r.workspaceSource={wrong:true},'PRIOR_FROZEN_SOURCE_PINS');
+priorMutation('different runtime credential binding rejected',r=>r.runtimeBindingSha256='d'.repeat(64),'PRIOR_RUNTIME_BINDING');
+priorMutation('changed step61 before bytes rejected',(r,ss)=>ss.before.label+='tampered','STEP61_BEFORE_BINDING');
+priorMutation('normal deploy principal mismatch rejected',(r,ss)=>ss.execution.principal='capiro_app','STEP61_EXACT_COMMAND');
+priorMutation('normal deploy schema mismatch rejected',(r,ss)=>ss.execution.argv[4]=c.WS+'/schema.prisma','STEP61_EXACT_COMMAND');
+priorMutation('changed prior ledger record rejected',(r,ss)=>{const row=ss.after.ledger.find(row=>ss.before.ledger.some(old=>old.id===row.id));row.logsIsNull=!row.logsIsNull;},'PRIOR_LEDGER_CHANGED');
+priorMutation('missing normal completion row rejected',(r,ss)=>ss.after.ledger.splice(ss.after.ledger.findIndex(row=>!ss.before.ledger.some(old=>old.id===row.id)),1),'LEDGER_ADDITION_COUNT');
+priorMutation('new normal row checksum mismatch rejected',(r,ss)=>ss.after.ledger.find(row=>!ss.before.ledger.some(old=>old.id===row.id)).checksum='d'.repeat(64),'NEW_LEDGER_FIELDS');
+priorMutation('new normal row log nullness mismatch rejected',(r,ss)=>ss.after.ledger.find(row=>!ss.before.ledger.some(old=>old.id===row.id)).logsIsNull=false,'DEPLOY_ROW_LOG_NULLNESS');
+priorMutation('new normal row steps mismatch rejected',(r,ss)=>ss.after.ledger.find(row=>!ss.before.ledger.some(old=>old.id===row.id)).applied_steps_count=0,'NEW_LEDGER_FIELDS');
+priorMutation('failure final ledger change rejected',r=>r.failureState.ledger[0].checksum='d'.repeat(64),'NOOP_LEDGER_CHANGED');
+priorMutation('failure final schema change rejected',r=>r.failureState.schema.sha256='d'.repeat(64),'UNCHANGED_SCHEMA');
+priorMutation('failure final data hash mismatch rejected',r=>r.failureState.dataAdjusted.sha256='d'.repeat(64),'UNCHANGED_COMPLETE_DATA');
+priorMutation('failure final data byte mismatch rejected',r=>r.failureState.dataAdjusted.bytes++,'UNCHANGED_COMPLETE_DATA');
+priorMutation('failure final data nonzero exit rejected',r=>r.failureState.dataAdjusted.exitCode=1,'UNCHANGED_COMPLETE_DATA');
+priorMutation('original ledger history change rejected',r=>r.before.ledger[0].checksum='d'.repeat(64),'INITIAL_LEDGER_CHANGED');
+priorMutation('probe failure identity substitution rejected',r=>r.probeIds[0]='11111111-1111-4111-8111-111111111111','PROBE_FAILURE_NOT_RETAINED');
+for(const mutation of [r=>r.steps[0].actualExit=1,r=>r.steps[2].sha256='d'.repeat(64),r=>r.steps[3].label='wrong'])negative('prior command-chain mutation '+String(rows.length),()=>{const r=clone(prior);mutation(r);return s.priorStepChain(g,i,r,x);});
+
+positive('exact fresh baseline accepted',()=>s.matchBaseline(g,step.after,clone(step.after)));
+for(const key of ['identity','columns','constraints','indexes','effectivePrivileges','schemaMap','roles','memberships','subscriptions','extensions','security','targetMeta'])negative('fresh baseline rejects '+key+' drift',()=>{const a=clone(step.after);if(Array.isArray(a[key]))a[key].push({unexpected:true});else a[key].unexpected=true;return s.matchBaseline(g,step.after,a);});
+negative('fresh baseline rejects missing row',()=>{const a=clone(step.after);a.ledger.pop();return s.matchBaseline(g,step.after,a);},'QUALIFICATION_LEDGER_COUNT');
+negative('fresh baseline rejects changed failed-row logs',()=>{const a=clone(step.after);a.ledger.find(r=>r.id===prior.probeIds[0]).logsSha256='d'.repeat(64);return s.matchBaseline(g,step.after,a);},'NOOP_LEDGER_CHANGED');
+const terminalExecution=(service,verb)=>({...clone(step.execution),argv:args(service,verb),principal:'capiro_app',noPendingMessage:true,upToDate:true});
+for(const service of ['API','Workspace'])for(const verb of ['status','deploy'])positive('unchanged '+service+' '+verb+' terminal proof',()=>assert.equal(s.terminalProof(g,step.after,clone(step.after),terminalExecution(service,verb),x,'capiro_app').verdict,'PASS'));
+function terminalMutation(name,mutate,verb='deploy',code){negative(name,()=>{const b=clone(step.after),a=clone(step.after),e=terminalExecution('API',verb);mutate(b,a,e);return s.terminalProof(g,b,a,e,x,'capiro_app');},code);}
+terminalMutation('nonzero deploy rejected',(b,a,e)=>e.exitCode=1,'deploy','COMMAND_NONZERO');
+positive('known foreign-history status exit1 retained as non-PASS limitation',()=>{const e=terminalExecution('API','status');e.exitCode=1;e.foreignHistoryOnlyCandidate=true;const p=s.terminalProof(g,step.after,clone(step.after),e,x,'capiro_app');assert.equal(p.actualExit,1);assert.equal(p.verdict,'ACCEPTED_LIMITATION_FOREIGN_HISTORY_REQUIRES_REVIEW');assert.notEqual(p.verdict,'PASS');});
+terminalMutation('unknown status failure rejected',(b,a,e)=>e.exitCode=1,'status','STATUS_UNEXPECTED_FAILURE');
+terminalMutation('status Prisma error rejected',(b,a,e)=>{e.exitCode=1;e.foreignHistoryOnlyCandidate=true;e.prismaCodes=['P3009'];},'status','STATUS_UNEXPECTED_FAILURE');
+terminalMutation('status process error rejected',(b,a,e)=>e.processErrorCode='ENOENT','status','STATUS_PROCESS_FAILURE');
+terminalMutation('signal rejected',(b,a,e)=>e.signal='SIGTERM','deploy','COMMAND_NONZERO');
+terminalMutation('timeout rejected',(b,a,e)=>e.timedOut=true,'deploy','COMMAND_NONZERO');
+terminalMutation('spawn/process error rejected',(b,a,e)=>e.processErrorCode='ENOENT','deploy','COMMAND_NONZERO');
+terminalMutation('missing no-pending message rejected',(b,a,e)=>e.noPendingMessage=false,'deploy','NOOP_MESSAGE_REQUIRED');
+terminalMutation('pending migration before no-op rejected',(b)=>{b.ledger=b.ledger.filter(r=>r.migration_name!==x.deploy[0].migrationName);},'deploy','SERVICE_PENDING');
+terminalMutation('unresolved failure before no-op rejected',(b)=>{const r=b.ledger.find(r=>r.migration_name===x.deploy[0].migrationName);r.finished_at=null;},'deploy','UNRESOLVED_LEDGER_ROW');
+terminalMutation('new ledger entry during no-op rejected',(b,a)=>a.ledger.push({...a.ledger[0],id:'11111111-1111-4111-8111-111111111111'}),'deploy');
+terminalMutation('prior ledger log change during no-op rejected',(b,a)=>a.ledger[0].logsSha256='d'.repeat(64),'deploy','NOOP_LEDGER_CHANGED');
+terminalMutation('role expansion during no-op rejected',(b,a)=>a.roles[0].rolsuper=!a.roles[0].rolsuper,'deploy','UNCHANGED_ROLES');
+terminalMutation('schema drift during no-op rejected',(b,a)=>a.schema.sha256='d'.repeat(64),'deploy','UNCHANGED_SCHEMA');
+terminalMutation('no-op call changed to resolve rejected',(b,a,e)=>e.argv[2]='resolve','deploy','ONLY_EXACT_STATUS_OR_NOOP_DEPLOY');
+terminalMutation('unexpected execution principal rejected',(b,a,e)=>e.principal='capiro_master','deploy','TERMINAL_PRINCIPAL');
+negative('missing expected runtime principal rejected',()=>s.terminalProof(g,step.after,step.after,terminalExecution('API','deploy'),x),'TERMINAL_PRINCIPAL');
+negative('unapproved runtime principal rejected',()=>{const e=terminalExecution('API','deploy');e.principal='postgres';return s.terminalProof(g,step.after,step.after,e,x,'postgres');},'TERMINAL_PRINCIPAL');
+positive('exact expected master principal accepted',()=>{const e=terminalExecution('API','deploy');e.principal='capiro_master';assert.equal(s.terminalProof(g,step.after,step.after,e,x,'capiro_master').verdict,'PASS');});
+const supplementEndHash=hash(fs.readFileSync(script));positive('supplement source unchanged throughout tests',()=>assert.equal(supplementStartHash,supplementEndHash));
+const failed=rows.filter(r=>r.result==='FAIL');const stamp=new Date().toISOString().replace(/[-:.]/g,'');const out=E+'supplemental-verifier-guard-tests-'+stamp+'.json';const report={observedAt:new Date().toISOString(),testScriptSha256:hash(fs.readFileSync(__filename)),supplementScriptSha256:supplementStartHash,supplementEndSha256:supplementEndHash,librarySha256:hash(fs.readFileSync(lib)),originalRunnerSha256:hash(fs.readFileSync(original)),fixtureProvenance,priorReceiptSha256:actualFinalExists?hash(fs.readFileSync(c.FAILED_RECEIPT)):null,total:rows.length,passed:rows.length-failed.length,failed:failed.length,rows,forbiddenProcessCalls,forbiddenNetworkCalls,cloudCalls:0,databaseCalls:0,scope:'Pure offline guard qualification only; no original receipt or source changes; not clone execution or release PASS'};fs.writeFileSync(out,JSON.stringify(report,null,2)+'\n',{flag:'wx'});console.log(JSON.stringify({report:out,total:rows.length,passed:report.passed,failed:failed.length,fixtureProvenance,failures:failed,forbiddenProcessCalls,forbiddenNetworkCalls}));if(failed.length||forbiddenProcessCalls||forbiddenNetworkCalls)process.exitCode=1;

@@ -105,28 +105,51 @@ describeDb('LegiWatch Phase 9 (Postgres)', () => {
               COUNT(*) FILTER (WHERE schedule_enabled)::int AS scheduled
        FROM legiwatch_runtime_heartbeat`,
     );
-    // The committee-follow alerts migration registers notification-drain dark.
-    // The Florida calendar/archive migration adds two dark jobs (20280920070000).
+    // Notification drain and the 20280920070000 Florida jobs all ship dark.
     expect(runtime[0]).toEqual({ total: 16, enabled: 0, scheduled: 0 });
 
-    // Assert Florida job keys, types, intervals are present.
     const floridaJobs = await prisma.$queryRawUnsafe<
-      Array<{ jobKey: string; jobType: string; expectedIntervalSeconds: number }>
+      Array<{
+        jobKey: string;
+        jobType: string;
+        status: string;
+        enabled: boolean;
+        scheduleEnabled: boolean;
+        expectedIntervalSeconds: number;
+        maxLagSeconds: number;
+      }>
     >(
-      `SELECT job_key AS "jobKey",
-              job_type AS "jobType",
-              expected_interval_seconds AS "expectedIntervalSeconds"
+      `SELECT job_key AS "jobKey", job_type AS "jobType", status, enabled,
+              schedule_enabled AS "scheduleEnabled",
+              expected_interval_seconds AS "expectedIntervalSeconds",
+              max_lag_seconds AS "maxLagSeconds"
        FROM legiwatch_runtime_heartbeat
        WHERE job_key IN ('florida-calendar', 'florida-archive')
        ORDER BY job_key`,
     );
     expect(floridaJobs).toEqual([
-      { jobKey: 'florida-archive', jobType: 'florida_archive', expectedIntervalSeconds: 1800 },
-      { jobKey: 'florida-calendar', jobType: 'florida_calendar', expectedIntervalSeconds: 600 },
+      {
+        jobKey: 'florida-archive',
+        jobType: 'florida_archive',
+        status: 'disabled',
+        enabled: false,
+        scheduleEnabled: false,
+        expectedIntervalSeconds: 1800,
+        maxLagSeconds: 5400,
+      },
+      {
+        jobKey: 'florida-calendar',
+        jobType: 'florida_calendar',
+        status: 'disabled',
+        enabled: false,
+        scheduleEnabled: false,
+        expectedIntervalSeconds: 600,
+        maxLagSeconds: 1800,
+      },
     ]);
   });
 
-  it('rejects production-default and kill-switch release in SHADOW; allows capture-all as system-wide switch', async () => {
+  it('keeps SHADOW cutover guards while allowing the independent capture-all switch', async () => {
     await expect(
       prisma.$executeRawUnsafe(
         `UPDATE legiwatch_cutover_state
@@ -149,59 +172,58 @@ describeDb('LegiWatch Phase 9 (Postgres)', () => {
       ),
     ).rejects.toThrow();
 
-    // As of PR1748 (merged 2026-09-22, migration 20280922100000),
-    // capture_all_public_events is independent of the Phase 9 ladder
-    // and can be toggled in any phase. Verify the flag can be set in
-    // SHADOW while production-default and kill-switch guards still hold.
+    // Migration 20280922100000 makes capture-all independent of the phase
+    // ladder while retaining production-default and kill-switch guards.
     const before = await prisma.$queryRawUnsafe<Array<{ captureAllPublicEvents: boolean }>>(
       `SELECT capture_all_public_events AS "captureAllPublicEvents"
-       FROM legiwatch_cutover_state
-       WHERE id='global'`,
+       FROM legiwatch_cutover_state WHERE id='global'`,
     );
-    expect(before[0]?.captureAllPublicEvents).toBe(false);
+    expect(before).toEqual([{ captureAllPublicEvents: false }]);
 
     try {
-      const setResult = await prisma.$executeRawUnsafe(
-        `UPDATE legiwatch_cutover_state
-         SET capture_all_public_events=true
-         WHERE id='global'`,
-      );
-      expect(setResult).toBe(1);
+      await expect(
+        prisma.$executeRawUnsafe(
+          `UPDATE legiwatch_cutover_state
+           SET capture_all_public_events=true WHERE id='global'`,
+        ),
+      ).resolves.toBe(1);
 
       const during = await prisma.$queryRawUnsafe<
         Array<{
-          captureAllPublicEvents: boolean;
           phase: string;
           productionDefault: boolean;
+          schedulesEnabled: boolean;
           killSwitchEngaged: boolean;
+          captureAllPublicEvents: boolean;
         }>
       >(
-        `SELECT capture_all_public_events AS "captureAllPublicEvents",
-                phase,
-                production_default AS "productionDefault",
-                kill_switch_engaged AS "killSwitchEngaged"
-         FROM legiwatch_cutover_state
-         WHERE id='global'`,
+        `SELECT phase, production_default AS "productionDefault",
+                schedules_enabled AS "schedulesEnabled",
+                kill_switch_engaged AS "killSwitchEngaged",
+                capture_all_public_events AS "captureAllPublicEvents"
+         FROM legiwatch_cutover_state WHERE id='global'`,
       );
-      expect(during[0]?.captureAllPublicEvents).toBe(true);
-      expect(during[0]?.phase).toBe('SHADOW');
-      expect(during[0]?.productionDefault).toBe(false);
-      expect(during[0]?.killSwitchEngaged).toBe(true);
+      expect(during).toEqual([
+        {
+          phase: 'SHADOW',
+          productionDefault: false,
+          schedulesEnabled: false,
+          killSwitchEngaged: true,
+          captureAllPublicEvents: true,
+        },
+      ]);
     } finally {
-      // Reset to avoid cross-test state leakage, even if assertions fail.
       await prisma.$executeRawUnsafe(
         `UPDATE legiwatch_cutover_state
-         SET capture_all_public_events=false
-         WHERE id='global'`,
+         SET capture_all_public_events=false WHERE id='global'`,
       );
     }
 
     const after = await prisma.$queryRawUnsafe<Array<{ captureAllPublicEvents: boolean }>>(
       `SELECT capture_all_public_events AS "captureAllPublicEvents"
-       FROM legiwatch_cutover_state
-       WHERE id='global'`,
+       FROM legiwatch_cutover_state WHERE id='global'`,
     );
-    expect(after[0]?.captureAllPublicEvents).toBe(false);
+    expect(after).toEqual([{ captureAllPublicEvents: false }]);
   });
 
   it('rejects a passing readiness row without an evidence source', async () => {
