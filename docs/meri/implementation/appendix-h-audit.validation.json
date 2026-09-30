@@ -12,11 +12,12 @@
   "files": [
     {
       "name": "appendix-h-audit.json",
-      "sha256": "c5be96a1e4d3a78cd0c026e5835bd80e2732a8920a22428e1c5c388f718ff3f1"
+      "sha256": "2cd7a8632b8e731e0e579adf7ce33654a3b44e9cb6d80da5945adab48ca1bff3"
     },
     {
       "name": "appendix-h-audit.md",
-      "sha256": "0982ee0bd3d817abe16439129d6a4d7bba64634e81fdcae31488c375f2fb49e1"
+      "sha256": "4149d738140c8e3a525bcb34a2cde0b8c64de835fe6ad509d0b8eb1f5608df01"
     }
-  ]
+  ],
+  "artifactRepresentation": "Committed UTF-8 LF files; hashes normalized after protected-host artifact copy"
 }
