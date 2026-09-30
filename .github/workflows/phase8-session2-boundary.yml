@@ -104,14 +104,21 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      # public.ecr.aws intermittently answers the base-image manifest request
-      # with an unexpected status; the build then uses the pulled local copy.
-      - name: Pull the defense-api image base with retries
+      - name: Pull the image base with retries and mirror fallback
         run: |
+          # public.ecr.aws throttles anonymous pulls from shared runner IPs
+          # ("toomanyrequests: Data limit exceeded"). Fall back to other
+          # mirrors of the same official image and tag it under the name the
+          # Dockerfile uses, so the build resolves the local copy.
           image=public.ecr.aws/docker/library/node:20.16.0-bookworm-slim
-          for attempt in 1 2 3 4 5; do
-            docker pull "$image" && exit 0
-            sleep $((attempt * 15))
+          for attempt in 1 2 3; do
+            for source in "$image" mirror.gcr.io/library/node:20.16.0-bookworm-slim docker.io/library/node:20.16.0-bookworm-slim; do
+              if docker pull "$source"; then
+                [ "$source" = "$image" ] || docker tag "$source" "$image"
+                exit 0
+              fi
+            done
+            sleep $((attempt * 20))
           done
           exit 1
       - name: Build defense-api image
