@@ -2,6 +2,8 @@
 
 **Verdict: `01_BLOCKED`; the original stabilization plan is not complete.** This is a requirement and evidence audit, not a claim that every untested behavior is broken. It supersedes older statements about integration and the release tooling; it does not replace the original acceptance contracts.
 
+Later bounded repairs and local database qualification are recorded in the [September 30 continuation](01-continuation-2026-09-30.md). The audit below preserves its original baseline and historical results; consult that continuation for subsequent owner/capture work. Full served acceptance remains open.
+
 [Machine-readable results and evidence hashes](01-completion-audit-2026-09-30.json) preserve the audit baseline, separate suite counts, repaired source hashes and release limits.
 
 ## Original plan and audit identity

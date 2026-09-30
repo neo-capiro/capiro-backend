@@ -13,6 +13,10 @@ import {
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { assertMeriServerReadonlyCaptureCurrentAuthority } from './meri-server-readonly-capture.js';
 import { validateMeriCapturePolicyPair } from './meri-capture-policy-readback.js';
+import {
+  readMeriApiCaptureObservations,
+  type MeriApiCaptureObservations,
+} from './meri-api-capture-observations.js';
 
 function runtimeRevision() {
   const value =
@@ -35,10 +39,19 @@ export function buildApiOnlyMeriServerCaptureEvidence(args: {
     documentEvidence?: { contentHash?: string | null; clientId?: string | null } | null;
   }>;
   usage: { inputTokens: number; outputTokens: number } | null;
+  observations?: MeriApiCaptureObservations;
   completedAt?: number;
   secret?: string;
 }): SignedMeriCaptureEvidenceReceipt {
   const policy = args.policy;
+  const facts = args.observations
+    ? readMeriApiCaptureObservations(args.observations, policy)
+    : null;
+  const sourceCalls = new Map<string, string[]>();
+  for (const call of facts?.toolCalls ?? []) {
+    for (const sourceId of call.sourceIds)
+      sourceCalls.set(sourceId, [...(sourceCalls.get(sourceId) ?? []), call.callId]);
+  }
   const captureString = (value: string | null | undefined, reason: string) =>
     value?.trim() ? observed(value.trim()) : unknown<string>(reason);
   const receipt = completeMeriCaptureEvidenceReceipt({
@@ -60,7 +73,10 @@ export function buildApiOnlyMeriServerCaptureEvidence(args: {
     expiresAt: policy.expiresAt,
     sources: args.citations.map((citation) => ({
       sourceId: citation.id,
-      toolCallId: 'NOT_RUN',
+      toolCallId:
+        sourceCalls.get(citation.id)?.length === 1
+          ? (sourceCalls.get(citation.id)?.[0] ?? 'NOT_RUN')
+          : 'NOT_RUN',
       tenantId: unknown('canonical_source_tenant_owner_not_bound_on_raw_path'),
       clientId:
         citation.documentEvidence?.clientId !== undefined || citation.source?.clientId !== undefined
@@ -82,8 +98,8 @@ export function buildApiOnlyMeriServerCaptureEvidence(args: {
           ? observed(citation.documentEvidence.contentHash)
           : unknown('canonical_source_bytes_not_reported'),
     })),
-    toolCalls: [],
-    usage: {
+    toolCalls: facts?.toolCalls ?? [],
+    usage: facts?.usage ?? {
       provider: notRun('provider_owner_adapter_not_bound_on_raw_path'),
       model: notRun('effective_model_owner_adapter_not_bound_on_raw_path'),
       inputTokens: args.usage

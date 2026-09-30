@@ -38,6 +38,7 @@ import {
 } from '@capiro/meriv2-core';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { createMeriApiCaptureObservations } from './meri-api-capture-observations.js';
 import { LearningSignalCaptureService } from '../learning/learning-signal-capture.service.js';
 import { buildMeriFeedbackSignal } from '../learning/adapters/meri-feedback.adapter.js';
 import { QualityTelemetryCaptureService } from '../quality-telemetry/quality-telemetry-capture.service.js';
@@ -1337,6 +1338,9 @@ export class MeriService implements MeriTurnMaintenance {
     if (capturePolicy && lastUserMessage) {
       capturePolicy = bindCurrentMeriCaptureTurn(lastUserMessage.id) ?? capturePolicy;
     }
+    const captureObservations = capturePolicy
+      ? createMeriApiCaptureObservations(capturePolicy, currentMeriServerReadonlyCapturePolicy)
+      : undefined;
     const docTextById = new Map<
       string,
       { id: string; filename: string; text: string; status: string; reason: string | null }
@@ -1929,6 +1933,18 @@ export class MeriService implements MeriTurnMaintenance {
             ctx,
             policy: capturePolicy,
           });
+          const providerRequestBody = JSON.stringify(
+            prepareAnthropicRequest({
+              model,
+              max_tokens: thinking.maxTokens,
+              ...(thinking.thinking ? { thinking: thinking.thinking } : {}),
+              stream: true,
+              system: systemBlocks,
+              tools: toolSchemas,
+              messages,
+            }),
+          );
+          const observeProviderEvent = captureObservations?.startAnthropicRequest();
           const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
@@ -1936,17 +1952,7 @@ export class MeriService implements MeriTurnMaintenance {
               'anthropic-version': '2023-06-01',
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify(
-              prepareAnthropicRequest({
-                model,
-                max_tokens: thinking.maxTokens,
-                ...(thinking.thinking ? { thinking: thinking.thinking } : {}),
-                stream: true,
-                system: systemBlocks,
-                tools: toolSchemas,
-                messages,
-              }),
-            ),
+            body: providerRequestBody,
             signal: controller.signal,
           });
 
@@ -1973,6 +1979,7 @@ export class MeriService implements MeriTurnMaintenance {
               let providerError = false;
               try {
                 const evt = JSON.parse(payload);
+                observeProviderEvent?.(evt);
                 providerError = evt.type === 'error';
                 applyRoundUsageEvent(roundUsage, evt);
                 // Extended thinking (F3): relay reasoning deltas to the UI
@@ -2270,6 +2277,7 @@ export class MeriService implements MeriTurnMaintenance {
         for (const item of preparedTools) {
           const t = item.tool;
           const outcome = outcomes[item.index];
+          const captureSourceIds: string[] = [];
           let resultPayload: unknown;
           let isError = false;
           if (outcome && outcome.ok) {
@@ -2312,6 +2320,7 @@ export class MeriService implements MeriTurnMaintenance {
               citations.length + 1,
             );
             if (cites.length) {
+              captureSourceIds.push(...cites.map((citation) => citation.id));
               // Capture rich grounding for the SAME marker numbers before we push
               // the citations (startN must match the citation extractor's startN).
               const grounding = extractGroundingFromToolResult(resultPayload, citations.length + 1);
@@ -2320,6 +2329,13 @@ export class MeriService implements MeriTurnMaintenance {
               toolContent = `${formatCitationsForPrompt(cites)}\n\n${toolContent}`;
             }
           }
+          captureObservations?.recordTool({
+            callId: t.id,
+            name: t.name,
+            outcome,
+            sourceIds: captureSourceIds,
+            denied: Boolean(item.scopeViolation),
+          });
           // Emit a real source with a human detail (counts / sample titles) so
           // the trust panel can show actual citations, not just a tool name.
           const { count, detail } = summarizeToolResultForTrust(resultPayload);
@@ -2764,6 +2780,7 @@ export class MeriService implements MeriTurnMaintenance {
     if (capturePolicy && lastUserMessage && assistantMessageId) {
       const evidenceReceipt = buildApiOnlyMeriServerCaptureEvidence({
         policy: capturePolicy,
+        observations: captureObservations,
         userMessageId: lastUserMessage.id,
         assistantMessageId,
         citations: finalCitations.map((citation) => ({

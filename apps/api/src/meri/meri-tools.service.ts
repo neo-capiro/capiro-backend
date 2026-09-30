@@ -99,6 +99,7 @@ import {
 } from './analytics/query-spec-compiler.js';
 import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
+import { FederalMarketService } from '../federal-spending/federal-market.service.js';
 import { ProgramElementReadService } from '../program-element/program-element-read.service.js';
 import { BuyerWorkspaceService } from '../program-element/buyer-workspace/buyer-workspace.service.js';
 import {
@@ -414,6 +415,7 @@ export class MeriToolsService {
     @Optional() private readonly districtTools?: R5MeriDistrictTools,
     @Optional() private readonly chatAttachmentReader?: MeriChatAttachmentReadService,
     @Optional() private readonly researchPortfolioScope?: ResearchPortfolioMeriScopeService,
+    @Optional() private readonly federalMarket?: FederalMarketService,
   ) {}
 
   manifest() {
@@ -1255,7 +1257,8 @@ export class MeriToolsService {
         query: str('Keyword search across description/contractor/agency'),
         agency: str('Awarding agency filter'),
         peCode: str('Program Element (PE) code filter, e.g. 0604201A'),
-        limit: int('Max results (1-50)'),
+        page: int('Result page (1-10000, default 1); follow nextPage with the same filters'),
+        limit: int('Max results (1-50, default 20)'),
       }),
       search_gao_reports: obj({
         query: str('Keyword search across title/summary/topics/agencies'),
@@ -4789,24 +4792,26 @@ export class MeriToolsService {
     const agency = optionalString(input, 'agency', 240);
     const peCode = optionalString(input, 'peCode', 16);
     const limit = clampInt(input.limit, 1, 50, 20);
-
-    const where: Record<string, unknown> = {};
-    if (query) {
-      where.OR = [
-        { description: { contains: query, mode: 'insensitive' } },
-        { contractorName: { contains: query, mode: 'insensitive' } },
-        { awardingAgency: { contains: query, mode: 'insensitive' } },
-      ];
+    const pageRaw = input.page ?? 1;
+    const page =
+      typeof pageRaw === 'number'
+        ? pageRaw
+        : typeof pageRaw === 'string' && /^[1-9]\d*$/.test(pageRaw)
+          ? Number(pageRaw)
+          : NaN;
+    if (!Number.isInteger(page) || page < 1 || page > 10_000) {
+      throw new BadRequestException('page must be an integer from 1 to 10000');
     }
-    if (agency) where.awardingAgency = { contains: agency, mode: 'insensitive' };
-    if (peCode) where.peCode = peCode.toUpperCase();
-
-    const [data, total] = await Promise.all([
-      this.prisma.withSystem((tx) =>
-        tx.federalAward.findMany({ where, orderBy: { actionDate: 'desc' }, take: limit }),
-      ),
-      this.prisma.withSystem((tx) => tx.federalAward.count({ where })),
-    ]);
+    if (!this.federalMarket) throw new NotFoundException('Federal Market reader is not configured');
+    const { data, total } = await this.federalMarket.listLegacyGlobalContracts({
+      q: query ?? undefined,
+      agency: agency ?? undefined,
+      peCode: peCode ?? undefined,
+      page,
+      pageSize: limit,
+    });
+    const hasMore = page * limit < total;
+    const paginationLimitReached = hasMore && page >= 10_000;
 
     const mode = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat');
     if (mode === 'shadow') {
@@ -4821,6 +4826,11 @@ export class MeriToolsService {
       tool: 'search_federal_awards',
       generatedAt: new Date().toISOString(),
       total,
+      page,
+      pageSize: limit,
+      hasMore,
+      nextPage: hasMore && !paginationLimitReached ? page + 1 : null,
+      paginationLimitReached,
       data: data.map((a) =>
         serializeFederalAwardDates(
           {

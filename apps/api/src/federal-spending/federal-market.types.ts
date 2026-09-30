@@ -12,6 +12,15 @@ export interface FederalMarketQuery {
   pageSize?: number;
 }
 
+/** Compatibility input for the public, global legacy award reader. */
+export interface LegacyFederalAwardQuery {
+  q?: string;
+  agency?: string;
+  peCode?: string;
+  page?: number;
+  pageSize?: number;
+}
+
 export interface FederalMarketPage<T> {
   items: T[];
   total: number;

@@ -45,6 +45,26 @@ function serviceWith(market = marketMock(), geography = geographyMock()) {
 }
 
 describe('FederalMarketMeriToolsService', () => {
+  it('does not advertise an unsupported vehicle fiscal-year filter', () => {
+    const { service } = serviceWith();
+    const schema = service
+      .anthropicSchemas()
+      .find((tool) => tool.name === 'search_contract_vehicles')!;
+    expect(schema.input_schema.properties).not.toHaveProperty('fiscalYear');
+    expect(schema.input_schema.properties).toHaveProperty('page');
+  });
+
+  it.each([2026, '2026', null, undefined, 'unknown'])(
+    'rejects explicitly supplied vehicle fiscalYear %p before owner dispatch',
+    async (fiscalYear) => {
+      const { service, market } = serviceWith();
+      await expect(
+        service.execute(ctx, 'search_contract_vehicles', { fiscalYear }),
+      ).rejects.toThrow('fiscalYear is not supported for contract vehicles');
+      expect(market.listVehicles).not.toHaveBeenCalled();
+    },
+  );
+
   it.each([
     ['search_federal_contract_awards', 'listContracts'],
     ['search_federal_subawards', 'listSubawards'],
