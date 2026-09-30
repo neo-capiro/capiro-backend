@@ -43,8 +43,12 @@ jobs:
           # for runtime/contract changes. Every current invariant and named
           # test still runs for gate maintenance.
           node --test scripts/outreach-v3-p1-change-scope.spec.mjs
+          # pull_request.base.sha is the base tip when the PR was opened and is
+          # not refreshed as the base branch advances. Attribute only this PR's
+          # changes by using its merge base with the current base branch.
+          base="$(git merge-base "origin/${{ github.event.pull_request.base.ref }}" HEAD)"
           node scripts/outreach-v3-p1-change-scope.mjs \
-            --base "${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+            --base "$base" >> "$GITHUB_OUTPUT"
 
       - name: Show exact execution head
         run: |
