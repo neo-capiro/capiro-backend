@@ -564,16 +564,24 @@ describe('Meri tool registration', () => {
       const service = Object.assign(Object.create(MeriToolsService.prototype), {
         researchPortfolioTools: { execute },
       }) as MeriToolsService;
+      // Research Portfolio tools are strict opt-in (default OFF); delegation is
+      // only reachable with the gate explicitly enabled.
+      const priorToolsFlag = process.env.RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED;
+      process.env.RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED = 'true';
+      try {
+        await expect(service.execute(actor as never, name, input)).resolves.toEqual({
+          authorized: true,
+        });
+        expect(execute).toHaveBeenCalledWith(actor, name, input);
 
-      await expect(service.execute(actor as never, name, input)).resolves.toEqual({
-        authorized: true,
-      });
-      expect(execute).toHaveBeenCalledWith(actor, name, input);
-
-      execute.mockRejectedValueOnce(new Error('portfolio scope denied'));
-      await expect(service.execute(actor as never, name, input)).rejects.toThrow(
-        'portfolio scope denied',
-      );
+        execute.mockRejectedValueOnce(new Error('portfolio scope denied'));
+        await expect(service.execute(actor as never, name, input)).rejects.toThrow(
+          'portfolio scope denied',
+        );
+      } finally {
+        if (priorToolsFlag === undefined) delete process.env.RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED;
+        else process.env.RESEARCH_PORTFOLIO_MERI_TOOLS_ENABLED = priorToolsFlag;
+      }
     },
   );
 
