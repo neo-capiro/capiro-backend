@@ -79,12 +79,27 @@ async function main() {
       throw new Error('Unexpected client authorization call in no-client Phase 2 flow');
     },
   } as unknown as CapabilityAuthorizationService;
+  // Restoring a version re-authorizes its target and context snapshots. This
+  // flow selects none, so only empty re-authorizations are expected.
+  const noReferences = (kind: string) => ({
+    reauthorizeSnapshotsWithinTx: async (
+      _tx: unknown,
+      _ctx: unknown,
+      snapshots: readonly unknown[],
+    ) => {
+      if (snapshots.length) {
+        throw new Error(
+          `Unexpected ${kind} reference re-authorization in no-reference Phase 2 flow`,
+        );
+      }
+    },
+  });
   const engine = new OutreachCommandEngineService(
     prisma,
     repository,
     authorization,
-    {} as unknown as OutreachTargetReferenceService,
-    {} as unknown as OutreachContextReferenceService,
+    noReferences('target') as unknown as OutreachTargetReferenceService,
+    noReferences('context') as unknown as OutreachContextReferenceService,
   );
   const sessions = new OutreachSessionService(prisma, repository);
   const proposals = new OutreachCommandProposalService(prisma, repository, engine);

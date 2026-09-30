@@ -108,10 +108,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base="${{ github.event.pull_request.base.sha }}"
-          if [ -z "$base" ]; then
-            base=$(git merge-base origin/main HEAD 2>/dev/null || git rev-parse HEAD^)
-          fi
+          # pull_request.base.sha is the base tip when the PR was opened and is
+          # not refreshed as main advances; format only this PR's own changes.
+          base=$(git merge-base origin/main HEAD 2>/dev/null || git rev-parse HEAD^)
           changed_file_list=$(mktemp)
           trap 'rm -f "$changed_file_list"' EXIT
           git diff --name-only -z --diff-filter=ACMR "$base...HEAD" -- \

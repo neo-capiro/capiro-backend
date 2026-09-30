@@ -254,6 +254,8 @@ function main(): void {
     '@capiro/defense-contracts',
     '@capiro/defense-domain',
     '@capiro/auth',
+    // The web typecheck below imports it; not every calling workflow builds it.
+    '@capiro/strategy-verifier',
     '@capiro/meriv2-core',
   ]) {
     run(`Build workspace package: ${pkg}`, 'pnpm', ['--filter', pkg, 'run', 'build']);
@@ -268,7 +270,18 @@ function main(): void {
   run(
     'Phase 1 manifests, runtime, route, timer, provider, bootstrap, health, and image-entrypoint tests',
     'pnpm',
-    ['--filter', '@capiro/api', 'exec', 'jest', '--runInBand', '--forceExit', ...TEST_TARGETS],
+    // One recycled worker instead of --runInBand: the in-band process kept
+    // every suite's modules and exhausted CI's 4 GB heap.
+    [
+      '--filter',
+      '@capiro/api',
+      'exec',
+      'jest',
+      '--maxWorkers=1',
+      '--workerIdleMemoryLimit=1GB',
+      '--forceExit',
+      ...TEST_TARGETS,
+    ],
   );
   run('Build API entrypoints', 'pnpm', ['--filter', '@capiro/api', 'run', 'build']);
 
