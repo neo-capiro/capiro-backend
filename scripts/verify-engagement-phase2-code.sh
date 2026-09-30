@@ -47,7 +47,16 @@ node_test() {
   while [ "$attempt" -le "$max_attempts" ]; do
     : >"$log"
     set +e
-    timeout 1200 node "$file" >"$log" 2>&1
+    # On Windows/MSYS, PATH can resolve the native System32 timeout.exe
+    # instead of GNU coreutils timeout. The native command interprets the
+    # first numeric argument as an option and aborts before starting Node.
+    # Prefer the explicit MSYS GNU binary when present; retain the generic
+    # command fallback for Linux CI.
+    if [ -x /usr/bin/timeout ] && /usr/bin/timeout --version 2>/dev/null | grep -q 'GNU coreutils'; then
+      /usr/bin/timeout 1200 node "$file" >"$log" 2>&1
+    else
+      timeout 1200 node "$file" >"$log" 2>&1
+    fi
     local rc=$?
     set -e
     if grep -qE '(^# fail 0|^ℹ fail 0)' "$log"; then
@@ -183,6 +192,7 @@ bold "2.3  Infrastructure config and read-only discovery"
 ts_test "config contract" test/engagement-api-config.spec.ts
 ts_test "deployment-surge DB budget" test/engagement-api-db-budget.spec.ts
 gate "discovery script syntax" bash -n scripts/engagement-api-infra-discover.sh
+node_test "current task config and security regressions" scripts/verify-engagement-api-task-config.spec.mjs
 node_test "discovery (fake AWS, read-only proven)" scripts/engagement-api-infra-discover.spec.mjs
 
 echo ""

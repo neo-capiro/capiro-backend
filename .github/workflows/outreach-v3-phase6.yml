@@ -25,6 +25,8 @@ jobs:
   verify:
     name: Verify conversational planning UI
     runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
     timeout-minutes: 30
     steps:
       - name: Checkout stacked branch
@@ -45,6 +47,15 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build verification workspace prerequisites
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/strategy-verifier build
+          pnpm --filter @capiro/meriv2-core build
 
       - name: Verify Outreach V3 Phase 6
         run: pnpm verify:outreach-v3-phase-6

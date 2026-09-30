@@ -1,3 +1,37 @@
+BEGIN;
+-- Recovery candidate: preserve existing matching prerequisite; never overwrite unknown code.
+DO $prerequisites$
+DECLARE existing_oid oid;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'capiro_worker') THEN
+    RAISE EXCEPTION 'Required capiro_worker role must be provisioned before API migrations';
+  END IF;
+  existing_oid := to_regprocedure('public.reject_append_only_mutation()');
+  IF existing_oid IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_proc p JOIN pg_language l ON l.oid = p.prolang
+      WHERE p.oid = existing_oid AND p.prokind = 'f'
+        AND p.prorettype = 'trigger'::regtype AND l.lanname = 'plpgsql'
+        AND NOT p.prosecdef AND p.pronargs = 0
+        AND replace(p.prosrc, E'\r\n', E'\n') = $expected$
+    BEGIN
+      RAISE EXCEPTION 'Append-only table: updates and deletes are not allowed on %', TG_TABLE_NAME;
+    END;
+    $expected$
+    ) THEN
+      RAISE EXCEPTION 'Existing reject_append_only_mutation differs from reviewed recovery definition';
+    END IF;
+  ELSE
+    EXECUTE $create$CREATE FUNCTION public.reject_append_only_mutation()
+RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER AS $function$
+    BEGIN
+      RAISE EXCEPTION 'Append-only table: updates and deletes are not allowed on %', TG_TABLE_NAME;
+    END;
+    $function$$create$;
+  END IF;
+END;
+$prerequisites$;
+
 CREATE TYPE "research_portfolio_delivery_status" AS ENUM (
   'queued', 'delivered', 'partial', 'failed', 'withheld', 'cancelled', 'outcome_unknown'
 );
@@ -48,3 +82,5 @@ GRANT SELECT, INSERT ON "research_portfolio_subscription_deliveries" TO capiro_w
 CREATE TRIGGER "research_portfolio_subscription_deliveries_append_only"
   BEFORE UPDATE OR DELETE ON "research_portfolio_subscription_deliveries"
   FOR EACH ROW EXECUTE FUNCTION "reject_append_only_mutation"();
+
+COMMIT;

@@ -51,12 +51,14 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
     timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Patch hygiene
         run: git diff --check HEAD^
@@ -76,6 +78,7 @@ jobs:
           pnpm --filter @capiro/meriv2-core build
 
       - name: Validate and generate Prisma client
+        # Validation/generation require a URL but do not connect to a database.
         env:
           DATABASE_URL: postgresql://ci_dummy:ci_dummy@127.0.0.1:1/ci_schema_validation_only?schema=public
         run: |
@@ -87,8 +90,34 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Exact inventory: every tracked Titan literal outside the adapter must be
+          # one of the 14 independently reviewed baseline owners.
           node scripts/verify-phase12-provider-inventory.mjs
           node --test scripts/verify-phase12-provider-inventory.spec.mjs
+
+          base="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$base" ]; then
+            base=$(git merge-base origin/main HEAD 2>/dev/null || git rev-parse HEAD^)
+          fi
+
+          # Reject newly-added coupling. Existing cross-domain defaults and
+          # historical fixtures remain visible baseline debt, but do not make
+          # every unrelated PR fail this Phase 12 ownership gate.
+          titan_diff=$(mktemp)
+          trap 'rm -f "$titan_diff"' EXIT
+          git diff --unified=0 --no-ext-diff "$base...HEAD" -- \
+            'apps/**' 'packages/**' 'scripts/**' \
+            ':!apps/api/src/embeddings/titan-embedding.provider.ts' > "$titan_diff"
+          titan_literal_hits=$(awk '
+              /^diff --git / { path=$4; sub(/^b\//, "", path) }
+              /^\+\+\+/ { next }
+              /^\+[^+]/ && /amazon\.titan-embed-text-v2:0/ { print path ":" substr($0, 2) }
+            ' "$titan_diff")
+          if [ -n "$titan_literal_hits" ]; then
+            echo "Titan embedding model is coupled outside the provider adapter:" >&2
+            echo "$titan_literal_hits" >&2
+            exit 1
+          fi
 
           direct_bedrock_hits=$(git grep -n -E '@aws-sdk/client-bedrock-runtime|new BedrockRuntimeClient|InvokeModelCommand' -- \
             'apps/api/src/embeddings/**' \
@@ -111,7 +140,9 @@ jobs:
           # a pre-existing 1536-dimension OpenAI space. Migrating/removing it here
           # would violate the no-re-embed/no-dimension-change acceptance rule and
           # alter default Meri recall. Retain the two inherited runtime call sites
-          # (+ config), plus one byte-frozen historical maintenance caller.
+          # (+ config), plus one byte-frozen historical maintenance caller (the
+          # pre-existing 1536-dimension backfill reconciler), so no new direct
+          # provider coupling spreads.
           legacy_backfill='apps/api/scripts/backfill-clio-memory-embeddings.ts'
           legacy_backfill_expected_blob='09b2649b2e6b2cb6aae45bd20231783884bf6710'
           legacy_backfill_actual_blob=$(git hash-object --path="$legacy_backfill" "$legacy_backfill")

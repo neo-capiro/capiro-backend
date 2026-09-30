@@ -333,6 +333,7 @@ describe('held-write honesty (the "submitted for processing" fabrication)', () =
     expect(prompt).toContain('proposal card in chat');
     expect(prompt).toContain('originating conversation');
     expect(prompt).toContain('conversation’s Approvals tab');
+    expect(prompt).toContain('business-action proposals, scoped to the originating conversation');
     expect(prompt).toContain('separate run-bound requests');
     expect(prompt).toContain('Grounding-held Deep Research reports');
     expect(prompt).toContain('separate run-bound requests in Reviews');

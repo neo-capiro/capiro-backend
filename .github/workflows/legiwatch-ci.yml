@@ -149,6 +149,14 @@ jobs:
           --json --outputFile=$GITHUB_WORKSPACE/saved-session-sql-summary.json
           src/live-hearings/legiwatch-saved-sessions-pg.integration.spec.ts
 
+      # Cluster roles also apply to the committee fixture created below.
+      - name: Bootstrap restricted worker in the owned LegiWatch service
+        run: |
+          docker exec -i "${{ job.services['folder-postgres'].id }}" \
+            psql --no-psqlrc --set=ON_ERROR_STOP=1 --host=127.0.0.1 \
+              --username=legiwatch_test --dbname=capiro \
+            < scripts/ci/disposable-capiro-worker-role.sql
+
       - name: LegiWatch additive migrations and PostgreSQL recovery
         env:
           DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
@@ -222,7 +230,7 @@ jobs:
 
       - name: Assert saved hearing association SQL is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/saved-session-sql-summary.json" saved-session-sql 1 17
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/saved-session-sql-summary.json" saved-session-sql 1 26
 
       # ---------------------------------------------------------------- api --
       # Gate H (memo lifecycle), Gate I (entailment/filing), Gate J (integrity),

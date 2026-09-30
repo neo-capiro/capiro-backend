@@ -158,6 +158,8 @@ describe('Phase 4 mailbox knowledge worker architecture', () => {
     expect(schema).toContain('model KnowledgeAssertion {');
     expect(schema).toContain('model KnowledgeEvidence {');
     expect(schema).toContain('knowledgeMailboxJobs');
+    expect(schema).toMatch(/\bknowledgeJobs\s+KnowledgeMailboxJob\[\]/);
+    expect(schema).toMatch(/\bmailboxJobs\s+KnowledgeMailboxJob\[\]/);
     expect(
       prismaModelHasFieldType(schema, 'MailMessage', 'knowledgeJobs', 'KnowledgeMailboxJob[]'),
     ).toBe(true);

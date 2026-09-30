@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync, renameSync, unlinkSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { mkdirSync, mkdtempSync, writeFileSync, renameSync, unlinkSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -73,4 +74,86 @@ test('unrelated base fails closed', () => {
 test('running outside a Git checkout fails closed', () => {
   const cwd = mkdtempSync(join(root, 'non-repo-'));
   result(spawnSync(process.execPath, [guard], { cwd, encoding: 'utf8' }), 2);
+});
+
+
+const repository = fileURLToPath(new URL('../', import.meta.url));
+const incidentBase = '42942dedad59382f4b4aac6f904b9aee0e02efa6';
+const incidentPaths = [
+  'apps/api/prisma/migrations/20281002010000_research_portfolios_phase10_watch_delivery/migration.sql',
+  'apps/api/prisma/migrations/20281003010000_dedup_client_intel_mapping/migration.sql',
+];
+function incidentBytes(path) {
+  return {
+    before: execFileSync('git', ['-C', repository, 'show', `${incidentBase}:${path}`]),
+    // *.sql has no eol attribute, so an autocrlf checkout (Windows) holds CRLF
+    // bytes; the committed replacement blobs are LF-only.
+    after: Buffer.from(readFileSync(join(repository, path), 'utf8').replace(/\r\n/g, '\n')),
+  };
+}
+for (const path of incidentPaths) {
+  test('exact incident replacement is recognized: ' + path, () => {
+    const sql = incidentBytes(path), f = fixture(sql.before, path);
+    f.write(path, sql.after); f.commit();
+    const actual = f.run(); result(actual, 0);
+    assert.match(actual.stdout, /1 exact incident replacement/);
+  });
+  test('incident replacement with one extra newline fails: ' + path, () => {
+    const sql = incidentBytes(path), f = fixture(sql.before, path);
+    f.write(path, Buffer.concat([sql.after, Buffer.from('\n')])); f.commit(); result(f.run(), 1);
+  });
+  test('incident replacement cannot match a different original: ' + path, () => {
+    const sql = incidentBytes(path), f = fixture(Buffer.concat([sql.before, Buffer.from('\n')]), path);
+    f.write(path, sql.after); f.commit(); result(f.run(), 1);
+  });
+  test('future edits to the repaired migration fail: ' + path, () => {
+    const sql = incidentBytes(path), f = fixture(sql.after, path);
+    f.write(path, sql.before); f.commit(); result(f.run(), 1);
+  });
+}
+test('incident SQL at another path has no exception', () => {
+  const sql = incidentBytes(incidentPaths[0]), f = fixture(sql.before);
+  f.write(f.path, sql.after); f.commit(); result(f.run(), 1);
+});
+test('recognized incident edit does not hide unrelated changes', () => {
+  const path = incidentPaths[0], sql = incidentBytes(path), f = fixture(sql.before, path);
+  f.write(standard, 'SELECT 1;\n'); f.commit();
+  const base = f.git('rev-parse', 'HEAD');
+  f.write(path, sql.after); f.write(standard, 'SELECT 2;\n'); f.commit();
+  result(f.run(['--base', base]), 1);
+});
+test('recognized incident bytes do not permit a file-mode change', () => {
+  const path = incidentPaths[0], sql = incidentBytes(path), f = fixture(sql.before, path);
+  f.write(path, sql.after); f.commit(); f.git('update-index', '--chmod=+x', path);
+  f.git('-c', 'commit.gpgsign=false', 'commit', '-m', 'mode'); result(f.run(), 1);
+});
+
+// main carried an interim ROW_NUMBER() DELETE repair of the dedup migration
+// (ae095ad13) before the reviewed replacement landed on top of it.
+const interimDedupCommit = 'ae095ad1351af9652daf73130d1b60fabb270309';
+function interimDedupBytes() {
+  const bytes = execFileSync('git', ['-C', repository, 'show', `${interimDedupCommit}:${incidentPaths[1]}`]);
+  assert.equal(
+    createHash('sha256').update(bytes).digest('hex'),
+    '57352c011c97da81e38b8b6601b9331198f02209a0587206e3d2724f7ea2117c',
+  );
+  return bytes;
+}
+test('the interim dedup repair is a recognized original for the replacement', () => {
+  const path = incidentPaths[1], f = fixture(interimDedupBytes(), path);
+  f.write(path, incidentBytes(path).after); f.commit();
+  const actual = f.run(); result(actual, 0);
+  assert.match(actual.stdout, /1 exact incident replacement/);
+});
+test('the dedup replacement cannot be changed back to the interim repair', () => {
+  const path = incidentPaths[1], f = fixture(incidentBytes(path).after, path);
+  f.write(path, interimDedupBytes()); f.commit(); result(f.run(), 1);
+});
+test('the interim repair plus one byte is not a recognized original', () => {
+  const path = incidentPaths[1], f = fixture(Buffer.concat([interimDedupBytes(), Buffer.from('\n')]), path);
+  f.write(path, incidentBytes(path).after); f.commit(); result(f.run(), 1);
+});
+test('the interim dedup original is not recognized for the delivery migration', () => {
+  const path = incidentPaths[0], f = fixture(interimDedupBytes(), path);
+  f.write(path, incidentBytes(path).after); f.commit(); result(f.run(), 1);
 });

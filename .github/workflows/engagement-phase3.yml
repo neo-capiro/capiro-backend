@@ -67,6 +67,15 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Build API verification workspace prerequisites
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/strategy-verifier build
+          pnpm --filter @capiro/meriv2-core build
+
       - name: Generate Prisma client
         run: pnpm --filter @capiro/api exec prisma generate
 
@@ -78,6 +87,14 @@ jobs:
           pnpm verify:engagement-phase-3
           git diff --check
           test -z "$(git status --short)"
+
+      - name: Preserve nested verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: engagement-phase3-verification-logs
+          path: .artifacts/engagement-phase2-code/
+          if-no-files-found: ignore
 
       - name: Publish final commit status
         if: always()

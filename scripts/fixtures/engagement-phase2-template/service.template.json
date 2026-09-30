@@ -335,6 +335,54 @@
         "Value": "false"
        },
        {
+        "Name": "OUTREACH_V3_STATE_ENABLED",
+        "Value": "true"
+       },
+       {
+        "Name": "OUTREACH_V3_REASONING_ENABLED",
+        "Value": "true"
+       },
+       {
+        "Name": "OUTREACH_V3_TARGETS_ENABLED",
+        "Value": "true"
+       },
+       {
+        "Name": "OUTREACH_V3_CONTEXT_ENABLED",
+        "Value": "true"
+       },
+       {
+        "Name": "OUTREACH_V3_GENERATION_ENABLED",
+        "Value": "true"
+       },
+       {
+        "Name": "OUTREACH_V3_DRAFTS_ENABLED",
+        "Value": "true"
+       },
+       {
+        "Name": "OUTREACH_V3_SEND_ENABLED",
+        "Value": "true"
+       },
+       {
+        "Name": "OUTREACH_V3_FULL_GENERATION_ENABLED",
+        "Value": "true"
+       },
+       {
+        "Name": "ENGAGEMENT_GENERATION_GATEWAY",
+        "Value": "true"
+       },
+       {
+        "Name": "ENGAGEMENT_VERSIONED_OUTREACH",
+        "Value": "true"
+       },
+       {
+        "Name": "OUTREACH_V3_GENERATION_EFFORT",
+        "Value": "max"
+       },
+       {
+        "Name": "OUTREACH_V3_GENERATION_MODEL",
+        "Value": "gpt-6-astra"
+       },
+       {
         "Name": "AWS_REGION_DEFAULT",
         "Value": "us-east-1"
        },
@@ -423,16 +471,20 @@
         "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/clerk/secret-key-GGGGGG"
        },
        {
-        "Name": "CLERK_WEBHOOK_SIGNING_SECRET",
-        "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/clerk/webhook-signing-secret-HHHHHH"
-       },
-       {
         "Name": "OAUTH_TOKEN_ENCRYPTION_KEY",
         "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/oauth-token-encryption-key-IIIIII"
        },
        {
         "Name": "NOTES_ENCRYPTION_KEY",
         "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/notes-encryption-key-JJJJJJ"
+       },
+       {
+        "Name": "OPENAI_API_KEY",
+        "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/openai-api-key-KKKKKK"
+       },
+       {
+        "Name": "ANTHROPIC_API_KEY",
+        "ValueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/anthropic-api-key-LLLLLL"
        }
       ]
      }
@@ -616,12 +668,13 @@
        ],
        "Effect": "Allow",
        "Resource": [
+        "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/anthropic-api-key-LLLLLL",
         "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/aurora/app-FFFFFF",
         "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/aurora/master-AAAAAA",
         "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/clerk/secret-key-GGGGGG",
-        "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/clerk/webhook-signing-secret-HHHHHH",
         "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/notes-encryption-key-JJJJJJ",
-        "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/oauth-token-encryption-key-IIIIII"
+        "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/oauth-token-encryption-key-IIIIII",
+        "arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/test/openai-api-key-KKKKKK"
        ]
       }
      ],
@@ -1678,19 +1731,44 @@
       ]
      ]
     },
-    "DashboardName": "capiro-dev-engagement-api"
+    "DashboardName": "capiro-dev-engagement-api",
+    "Tags": [
+     {
+      "Key": "capiro:component",
+      "Value": "engagement-api"
+     },
+     {
+      "Key": "capiro:iam-posture",
+      "Value": "least-privilege-shadow"
+     },
+     {
+      "Key": "capiro:phase",
+      "Value": "2"
+     },
+     {
+      "Key": "capiro:release-sha",
+      "Value": "0000000000000000000000000000000000000000"
+     },
+     {
+      "Key": "capiro:ui-contract",
+      "Value": "0ed86fbe2df0"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "cdk"
+     },
+     {
+      "Key": "Project",
+      "Value": "capiro"
+     }
+    ]
    },
    "Metadata": {
     "aws:cdk:path": "Capiro-dev-EngagementApiService/Observability/Dashboard/Resource"
-   }
-  },
-  "CDKMetadata": {
-   "Type": "AWS::CDK::Metadata",
-   "Properties": {
-    "Analytics": "v2:deflate64:H4sIAAAAAAAA/11QS24CMQw9C/uQtlP1ABREF23VamBfmWAGMyEexQkIRbl7lRnKp6v3sf0su9LVS6UfR3CUsVm3Y0srnRYBTKtqFI7eoIKj/CQ0XtfYsVBgf3oFQdXuRad3PKnpxhWYWAIpoidZWW5Epw9u3jzHrhQu/BODJzMnG9CXwq3OCo3oNAffQMAlSDvDDTkKxK70/nfYBSCH/sY7zy7QH8hgGfqjCwMWVraPnXJ0ISuCvU41276vx2+2ZPqzBpYVdJ0lAyUcYmAxYMk1Ol3jfIOhX3TvDLD0YFpyzWKYu+bfGVmJE73kjkz/X2M5ro8QzFaniQW/H35byAxku2Lw62JdRFZ4QBdEpzqez4kWcy7sK4Yuhqwcr1Hv5OFQVbp61k+jnRCNfXSB9qjrAX8B+KO5YRYCAAA="
-   },
-   "Metadata": {
-    "aws:cdk:path": "Capiro-dev-EngagementApiService/CDKMetadata/Default"
    }
   }
  },

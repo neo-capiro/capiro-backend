@@ -101,7 +101,11 @@ describe('hillday prototype parity anchors', () => {
     const ed = read('HillDayEditor.tsx');
     // The cover and glance table live in the extracted first-page component;
     // the editor owns the surrounding canvas and section controls.
-    expect(read('HillDayFirstPage.tsx')).toContain('The day at a glance');
+    const firstPage = read('HillDayFirstPage.tsx');
+    expect(ed).toContain("import { HillDayFirstPage } from './HillDayFirstPage.js'");
+    expect(ed).toMatch(/<HillDayFirstPage\s+doc=\{doc\}/);
+    expect(firstPage).toContain('The day at a glance');
+    expect(firstPage).toContain('role="table" aria-label="The day at a glance"');
     expect(ed).toContain('Focus');
     expect(ed).toContain('Background');
     expect(ed).toContain('Regenerate');

@@ -92,6 +92,7 @@ function fixtureKeyForParameter(pathname: string, parameter: string): string {
       if (pathname.includes('/integrations/google/')) return 'connection.googleConnected';
       return 'connection.microsoftConnected';
     case 'id':
+      if (pathname === '/api/engagement/mail-threads/:id') return 'mailThread.alpha';
       if (/\/meetings\/:id(?:\/|$)/.test(pathname)) return 'meeting.past';
       if (/\/meeting-preps\/:id(?:\/|$)/.test(pathname)) return 'prep.approved.1';
       if (/\/attachments\/:id(?:\/|$)/.test(pathname)) return 'attachment.meetingReady';

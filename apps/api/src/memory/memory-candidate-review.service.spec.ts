@@ -90,7 +90,9 @@ function harness(input: {
     args.select?.sourceKind ? { sourceKind } : { payload },
   );
   const tx = {
-    client: { findMany: jest.fn(async () => []) },
+    client: {
+      findMany: jest.fn(async () => [{ id: CLIENT, name: 'Test Client' }]),
+    },
     memoryCandidate: {
       findMany: jest.fn(async () => [row]),
       findFirst,
@@ -279,6 +281,7 @@ describe('MemoryCandidateReviewService', () => {
         expect.objectContaining({
           id: 'candidate-1',
           candidateKind: 'correction',
+          clientName: 'Test Client',
           workflow: expect.objectContaining({
             submittedBy: { userId: 'proposer-1', name: 'Pat Proposer' },
             assignedReviewer: { userId: USER, name: 'Riley Reviewer' },
@@ -296,6 +299,10 @@ describe('MemoryCandidateReviewService', () => {
         }),
       ]);
       expect(h.ensureAndDescribeInTx).toHaveBeenCalled();
+      expect(h.tx.client.findMany).toHaveBeenCalledWith({
+        where: { tenantId: TENANT, id: { in: [CLIENT] } },
+        select: { id: true, name: true },
+      });
     });
   });
 
@@ -310,6 +317,7 @@ describe('MemoryCandidateReviewService', () => {
         enabled: true,
         candidates: [],
       });
+      expect(h.tx.client.findMany).not.toHaveBeenCalled();
     });
   });
 
@@ -322,6 +330,7 @@ describe('MemoryCandidateReviewService', () => {
       });
       expect(h.findFirst).not.toHaveBeenCalled();
       expect(h.ensureAndDescribeInTx).not.toHaveBeenCalled();
+      expect(h.tx.client.findMany).not.toHaveBeenCalled();
     });
   });
 

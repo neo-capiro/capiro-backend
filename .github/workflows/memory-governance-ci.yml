@@ -35,7 +35,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      NODE_OPTIONS: --max-old-space-size=4096
+      NODE_OPTIONS: --max-old-space-size=6144
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro?schema=public
       PSQL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro
     steps:
@@ -94,7 +94,7 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=6144
         run: >
-          pnpm --filter @capiro/api exec jest --ci --silent --runInBand
+          pnpm --filter @capiro/api exec jest --ci --silent --maxWorkers=1 --workerIdleMemoryLimit=1GB
           src/memory
           scripts/lib/memory-governance-backfill.spec.ts
           src/context/context-compiler-v2.service.spec.ts

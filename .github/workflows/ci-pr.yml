@@ -14,9 +14,11 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     env:
-      NODE_OPTIONS: --max-old-space-size=4096
+      NODE_OPTIONS: --max-old-space-size=6144
+    # The full typecheck, package suites, and complete web prerequisite exceeded
+    # the former 30-minute job budget. Retain every gate.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
@@ -59,6 +61,13 @@ jobs:
           node scripts/check-migration-integrity.mjs
           --base ${{ github.event.pull_request.base.sha }}
       - run: pnpm install --frozen-lockfile
+      - name: Test disposable PostgreSQL migration prerequisites
+        run: >
+          node --test scripts/ci/bootstrap-disposable-postgres-roles.test.mjs
+          scripts/ci/research-portfolio-migration-prerequisite.test.mjs
+          scripts/ci/additional-disposable-bootstrap.test.mjs
+          scripts/ci/remaining-rehearsal-bootstrap.test.mjs
+          scripts/ci/disposable-postgres-invocation-guards.test.mjs
 
       # Supply-chain (blocker #4): advisory dependency audit. `|| true` keeps it
       # NON-blocking for now — it surfaces known high/critical CVEs in the PR log
@@ -96,6 +105,25 @@ jobs:
           "packages/meriv2-core/**/*.ts"
           "apps/meriv2-orchestrator/**/*.ts"
           "packages/shared/**/*.ts"
+
+      # Every changed file of any type in the same MeriV2/shared scope.
+      - name: Prettier (changed files in the MeriV2 + shared core scope)
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          changed_file_list=$(mktemp)
+          trap 'rm -f "$changed_file_list"' EXIT
+          git diff --name-only -z --diff-filter=ACMR "$base...HEAD" -- \
+            'packages/meriv2-core/**' \
+            'apps/meriv2-orchestrator/**' \
+            'packages/shared/**' > "$changed_file_list"
+          mapfile -d '' -t files < "$changed_file_list"
+          if (( ${#files[@]} == 0 )); then
+            echo 'No changed files in the MeriV2/shared formatting scope.'
+          else
+            pnpm exec prettier --check "${files[@]}"
+          fi
 
       # BYOK4 guard: no MeriV2 code may read the global Anthropic key directly.
       # The ONLY permitted reference is the orchestrator's resolver wiring
@@ -194,9 +222,9 @@ jobs:
     # Every AWS/docker interaction the suite exercises runs against a fake
     # binary recorded and asserted on by the tests themselves.
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     env:
-      NODE_OPTIONS: --max-old-space-size=4096
+      NODE_OPTIONS: --max-old-space-size=6144
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -208,6 +236,15 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+
+      - name: Build API verification workspace prerequisites
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/strategy-verifier build
+          pnpm --filter @capiro/meriv2-core build
 
       - name: Generate Prisma clients
         run: pnpm --filter @capiro/api exec prisma generate
