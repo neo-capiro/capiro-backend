@@ -99,6 +99,9 @@ const recoveryCloseoutFiles = new Set([
   'apps/api/src/memory/memory-ingest.service.ts',
   'apps/api/src/memory/memory-store.service.ts',
   'apps/api/src/memory/memory-wall.helpers.ts',
+  // Value import of PrismaService so Nest can inject it; the type-only import
+  // left the service unresolvable and the API unable to boot.
+  'apps/api/src/meri/meri-chat-attachment-read.service.ts',
   'packages/defense-domain/src/budget-lifecycle/discovery/listing-extract.ts',
   'packages/shared/src/index.ts',
 ]);
