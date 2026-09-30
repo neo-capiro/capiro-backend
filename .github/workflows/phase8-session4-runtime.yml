@@ -107,6 +107,17 @@ jobs:
           docker system prune -af >/dev/null
           df -h /
 
+      # public.ecr.aws intermittently answers the base-image manifest request
+      # with an unexpected status; the build then uses the pulled local copy.
+      - name: Pull the dark image base with retries
+        run: |
+          image=public.ecr.aws/docker/library/node:20.16.0-bookworm-slim
+          for attempt in 1 2 3 4 5; do
+            docker pull "$image" && exit 0
+            sleep $((attempt * 15))
+          done
+          exit 1
+
       - name: Build dark image and prove source mirror is absent
         run: |
           docker build -f apps/defense-api/Dockerfile -t capiro-defense-api:phase8-session4 .

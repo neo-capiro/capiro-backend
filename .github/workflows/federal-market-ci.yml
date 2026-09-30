@@ -159,6 +159,8 @@ jobs:
 
       - name: Build API and web
         if: steps.scope.outputs.in_scope == 'true'
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
           pnpm --filter @capiro/api build
           pnpm --filter @capiro/web build
