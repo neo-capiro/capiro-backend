@@ -306,7 +306,7 @@ async function main() {
         commands: [command('SET_TOPIC', { value: 'Should not persist' })],
       });
     } catch (error) {
-      archivedCode = expectCommandError(error, 'OUTREACH_COMMAND_BLOCKED').code;
+      archivedCode = expectCommandError(error, 'OUTREACH_SESSION_ARCHIVED').code;
     }
     assert(archivedCode, 'Archived session must reject mutation');
 
