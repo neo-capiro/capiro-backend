@@ -124,7 +124,9 @@ else
     pnpm verify:engagement-phase-1 >"$p1_log" 2>&1 &
   fi
   p1_pid=$!
-  p1_deadline=$((SECONDS + 1500))
+  # The standalone Phase 1 step in ci-pr takes ~32 minutes on hosted runners
+  # (in-band Jest, API build, web suite); 25 minutes cut it off mid-run.
+  p1_deadline=$((SECONDS + 2700))
   p1_rc=124
   while true; do
     if grep -q 'ENGAGEMENT_PHASE1_DB_FREE_COMPLETE' "$p1_log" 2>/dev/null; then
@@ -158,7 +160,9 @@ else
      ! grep -q 'ENGAGEMENT_PHASE1_DB_FREE_FAILED' "$p1_log"; then
     pass "Phase 1 DB-free verifier  (COMPLETE; poll-rc=${p1_rc})"
   else
-    fail "Phase 1 DB-free verifier  (see $p1_log)"
+    fail "Phase 1 DB-free verifier  (see $p1_log; poll-rc=${p1_rc})"
+    # CI keeps no artifact of this log, so surface why it failed.
+    tail -n 60 "$p1_log" | sed "s/^/    | /"
   fi
 fi
 

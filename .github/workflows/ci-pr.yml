@@ -227,7 +227,8 @@ jobs:
       NODE_OPTIONS: --max-old-space-size=6144
     # verify:engagement-phase-2 re-runs the complete Phase 1 verifier (install,
     # Jest, API build, web typecheck and full web suite) before its own gates.
-    timeout-minutes: 60
+    # Phase 1 alone takes ~32 minutes on hosted runners.
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
         with:

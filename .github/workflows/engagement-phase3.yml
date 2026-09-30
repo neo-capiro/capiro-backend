@@ -31,7 +31,9 @@ jobs:
   db-free:
     name: Phase 3 DB-free closeout
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # The nested Phase 1 verifier alone takes ~32 minutes (25 of them the
+    # single-threaded web suite); 60 cut the chain off.
+    timeout-minutes: 120
     env:
       # The nested Phase 1/2 verifiers run nest build, the production tsc
       # project and the web build on this heap; 4 GB is no longer enough.
