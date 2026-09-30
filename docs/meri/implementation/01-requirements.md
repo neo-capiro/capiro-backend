@@ -1,5 +1,9 @@
 # File 01 requirements ledger
 
+## Current reconciliation — 2026-09-30
+
+Read the [current completion audit](01-completion-audit-2026-09-30.md) for source `ac6b66aaf3d77c9b009ebdeb6a78b1394846580f` before interpreting the historical candidate/merge columns below. The original uploaded plan is exact in main; #1905/#1908/#1915 are merged, but full File01 remains `01_BLOCKED`. This reconciliation preserves every requirement and acceptance ID. No NOT_RUN row is promoted by source presence, a merge or an offline test. Current code gaps, acceptance coverage, fresh test exits and deployment identities are recorded separately in the audit.
+
 ## Current checkpoint — 2026-09-29 canonical document fixture readback
 
 Source 125cd2d4a adds a concrete reader for the existing document fixture port. It checks actual stored bytes through canonical source-only extraction, preserving current viewer/parent/readiness checks and independently rechecking fixture ownership, membership, client wall and row stability. Six real local PostgreSQL/sandbox-storage tests and eleven existing identity/content checks pass with exit 0, plus independent Hermes/Bedrock Kimi static review. See document-owner-readback-qualification.md for direct hashes, setup failures, runtime composition and limits.

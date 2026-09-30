@@ -1,3 +1,11 @@
+## Current checkpoint — 2026-09-30 original-plan completion audit
+
+**File01 remains `01_BLOCKED`.** The [current completion audit](01-completion-audit-2026-09-30.md) verifies the original attachment's exact bytes and reconciles A/B/C/D, all acceptance namespaces, current main and deployed components. Local/GitHub main were both `ac6b66aaf3d77c9b009ebdeb6a78b1394846580f`; #1905/#1908/#1915 are merged. Older candidate/unmerged statements below are historical.
+
+Fresh offline qualification passed shared/core builds, 53 Python tests, 40 Node tests, Promptfoo 26/26 and its verifier. The live contract preserves 75 exact cases. The live harness initially passed 184 tests with one unavailable local PostgreSQL setup; restoring only the owned disposable cluster let that test pass separately. This is 185 passing unique observations, not a claimed fresh single-suite 185/185 run. All75 live/CD7/CW8 and applicable M acceptance remain NOT RUN.
+
+The audit found and repaired ignored federal-award fiscalYear and fixed-page-one Meri searches in the isolated task branch: 40 focused tests and six actual PostgreSQL tests passed, with independent Hermes/Kimi source review. Merge/release remains separate. All26 historical Appendix H findings now have explicit source dispositions, with no invented served passes. Award-alias consolidation, fixture/capture completion, served qualification and release remain open. API/web have newer releases, but the orchestrator remains task84 from September27; synthetic Meri allowlists remain unapplied. The safe release operator and fullChat workflow now exist. See the audit for exact evidence, source/config discrepancies and remaining gates; no deployment occurred in this audit.
+
 ## Current checkpoint — 2026-09-29 source fidelity and partial release
 
 Repository main and `origin/main` are exact at `3e2d0896164d04441d5ecfc1e506f8ca387cb71d` after PR [#1912](https://github.com/neo-capiro/capirov2/pull/1912). The supplied foundation plan is now byte-for-byte identical to the repository copy; SHA-256 is `77C55B7484343A766C3BD17047C513B50C7C5D045E2018F03EA9DD0C08B622BD`. The orchestrator prompt already matched the supplied source.

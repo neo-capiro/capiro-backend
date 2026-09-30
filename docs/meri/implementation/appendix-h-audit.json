@@ -1,0 +1,1078 @@
+{
+  "schemaVersion": 1,
+  "kind": "meri_original_appendix_h_disposition_audit",
+  "createdAtUtc": "2026-09-30T20:42:01.9235749Z",
+  "sourceRepository": "neo-capiro/capirov2",
+  "sourceCommit": "ac6b66aaf3d77c9b009ebdeb6a78b1394846580f",
+  "sourcePlan": "docs/meri/implementation/01-Meri-Foundation-and-Reliability.md",
+  "sourcePlanSha256": "77c55b7484343a766c3bd17047c513b50c7c5d045e2018f03ea9dd0c08b622bd",
+  "policyRepository": "neo-capiro/capiro-agent-ops",
+  "policyMainCommit": "39590a3bfc57ce03b0411ff7912a7c8d99deb70c",
+  "policyCheckoutCommit": "2f4c1bf166d9941a115a9fe8678f0a8c5808fd25",
+  "machineMapDateUtc": "2026-09-30T00:21:48.2698715Z",
+  "namespace": "H01-H26 historical findings; distinct from baseline 01-75 and 26 offline cases",
+  "auditMethod": "Read-only source and test-source inspection; exact original table parsed and preserved. No historical incident, application test, browser flow, model call or cloud action executed by this audit.",
+  "aggregate": {
+    "total": 26,
+    "historicalSourceMappings": 24,
+    "separateProductBacklog": 1,
+    "nonblockingAdoptionTracking": 1,
+    "servedPass": 0,
+    "newlyReproducedProductDefects": 0
+  },
+  "limits": [
+    "Source/test presence does not establish execution, deployed enablement or user-visible correction.",
+    "Related baseline IDs identify shared acceptance boundaries, not one-to-one historical reproductions.",
+    "Historical reported findings are not asserted as current product defects.",
+    "H25 remains explicit separate Strategy/action product backlog; H26 is separate nonblocking adoption tracking.",
+    "No production/customer/authentication data or credentials are included."
+  ],
+  "findings": [
+    {
+      "id": "H01",
+      "sourceMitigation": "Exact authorized attachment reads and repair document references distinguish available content from missing/unreadable documents.",
+      "implementationPaths": [
+        "apps/api/src/meri/meri-chat-attachment-read.service.ts",
+        "apps/meriv2-orchestrator/src/meri/repair/live-repair.service.ts"
+      ],
+      "testSourcePaths": [
+        "apps/api/src/meri/meri-chat-attachment-read.service.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/repair/live-repair.service.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "40",
+        "42",
+        "43",
+        "44",
+        "47"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Reproduce unattached-transcript denial through the served governed path; prove no transcript-specific claims without actual authorized content.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "Answer implied access to an unattached Sightline transcript",
+      "originalPlannedWork": "Stage 0c and Stage 1: exact-source access; Stage 2 automatic retrieval or a specific missing-document response",
+      "originalSourceLine": 1706,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H02",
+      "sourceMitigation": "Claim-support questions, bounded correction and registered citation exposure have implementation and regression-source coverage.",
+      "implementationPaths": [
+        "apps/meriv2-orchestrator/src/meri/repair/live-repair.service.ts",
+        "packages/meriv2-core/src/jev/claim-support-question.ts",
+        "apps/api/src/meri/meri-citations.helpers.ts",
+        "apps/web/src/components/chat/citation-rendering.tsx"
+      ],
+      "testSourcePaths": [
+        "apps/meriv2-orchestrator/src/meri/repair/live-repair.service.spec.ts",
+        "packages/meriv2-core/src/jev/claim-support-question.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-citation-exposure.spec.ts",
+        "apps/web/src/vnext/meri/MeriEvidenceTab.citations.test.tsx"
+      ],
+      "relatedBaselineCases": [
+        "47",
+        "56",
+        "58"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Capture exact transcript/source support and citation registration through rendered final output; specific historical markers34–36 are not newly replayed.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "Transcript-specific claims and unestablished citations [34]–[36]",
+      "originalPlannedWork": "Stage 0c structural integrity; Stage 1 Jev claim support; Stage 2 correction",
+      "originalSourceLine": 1707,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H03",
+      "sourceMitigation": "Bounded repair can retrieve additional read-only evidence and revise supported claims; generic mitigation, not Tradewinds-specific qualification.",
+      "implementationPaths": [
+        "apps/meriv2-orchestrator/src/meri/repair/live-repair.service.ts",
+        "packages/meriv2-core/src/jev/claim-support-question.ts"
+      ],
+      "testSourcePaths": [
+        "apps/meriv2-orchestrator/src/meri/repair/live-repair.service.spec.ts",
+        "packages/meriv2-core/src/jev/claim-support-question.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "52",
+        "57"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Use an authorized Tradewinds or equivalent frozen primary listing; prove targeted fetch removes an unnecessary unverified claim only when source support exists.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "Public Tradewinds listing described as not verified",
+      "originalPlannedWork": "Stage 1 Jev assessment; Stage 2 scoped verification and targeted retrieval",
+      "originalSourceLine": 1708,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H04",
+      "sourceMitigation": "Domain evidence plans include report-language/budget claims and coverage requirements; bounded repair can retrieve missing evidence.",
+      "implementationPaths": [
+        "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-requirements.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-turn-coverage.ts",
+        "packages/meriv2-core/src/assurance/evidence-plan.ts",
+        "apps/meriv2-orchestrator/src/meri/repair/live-repair.service.ts",
+        "packages/meriv2-core/src/jev/claim-support-question.ts"
+      ],
+      "testSourcePaths": [
+        "apps/meriv2-orchestrator/src/meri/retrieval/meri-retrieval-coverage.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-turn-coverage.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/repair/live-repair.service.spec.ts",
+        "packages/meriv2-core/src/jev/claim-support-question.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "20",
+        "22",
+        "32",
+        "56"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Reproduce transfer amount and committee justification against exact committee passages; $81.51M historical incident is not newly validated.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "Committee justification omitted for a reported $81.51M transfer",
+      "originalPlannedWork": "Stage 1 shadow detection; Stage 2 retrieve the committee evidence and revise",
+      "originalSourceLine": 1709,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H05",
+      "sourceMitigation": "Truthful document references and normalized read outcomes distinguish unreadable, metadata-only, partial and actually read content.",
+      "implementationPaths": [
+        "apps/api/src/meri/meri-chat-attachment-read.service.ts",
+        "apps/meriv2-orchestrator/src/meri/repair/live-repair.service.ts",
+        "packages/shared/src/meri-read-outcome.ts"
+      ],
+      "testSourcePaths": [
+        "apps/api/src/meri/meri-chat-attachment-read.service.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/repair/live-repair.service.spec.ts",
+        "apps/api/src/meri/meri-source-outcome-contract.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "44",
+        "45",
+        "54"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Exercise original/alternate content retrieval for the MDI-style case and capture precise residual extraction limits.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "Public MDI detail described as unreadable",
+      "originalPlannedWork": "Stage 0c extraction-state distinction; Stage 1 detection; Stage 2 alternate retrieval",
+      "originalSourceLine": 1710,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H06",
+      "sourceMitigation": "Repair has a readable-document retrieval branch; exact source reads preserve content state rather than relying on titles.",
+      "implementationPaths": [
+        "apps/api/src/meri/meri-chat-attachment-read.service.ts",
+        "apps/meriv2-orchestrator/src/meri/repair/live-repair.service.ts"
+      ],
+      "testSourcePaths": [
+        "apps/api/src/meri/meri-chat-attachment-read.service.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/repair/live-repair.service.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "40",
+        "45",
+        "52",
+        "54",
+        "57"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Capture actual retrieved content for the entity and inspect supported final claims; historical Anduril output is not reproduced.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "Anduril evidence described as title-only despite retrievable content",
+      "originalPlannedWork": "Stage 1 detection; Stage 2 retrieve actual content and report residual limits precisely",
+      "originalSourceLine": 1711,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H07",
+      "sourceMitigation": "Freshness policy treats budget amounts by cycle and durable report language separately from current status timestamps.",
+      "implementationPaths": [
+        "packages/meriv2-core/src/assurance/freshness.ts",
+        "apps/api/src/meri/meri-defense-budget-tool.helpers.ts",
+        "packages/shared/src/funding-claim.ts"
+      ],
+      "testSourcePaths": [
+        "packages/meriv2-core/src/assurance/freshness-exact.spec.ts",
+        "apps/api/src/meri/meri-tools.defense-budget.spec.ts",
+        "apps/api/src/meri/meri-defense-budget-tool.helpers.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "20",
+        "21",
+        "24"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Prove current year/stage/source handling on served budget responses; document age alone must not invalidate a valid budget fact.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "Budget rows incorrectly characterized as dated",
+      "originalPlannedWork": "Stage 0a source semantics; Stage 1 Jev assessment; Stage 2 correction",
+      "originalSourceLine": 1712,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H08",
+      "sourceMitigation": "Evidence requirements carry route/chamber constraints and budget helpers preserve distinct stages and source-linked values.",
+      "implementationPaths": [
+        "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-requirements.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-turn-coverage.ts",
+        "packages/meriv2-core/src/assurance/evidence-plan.ts",
+        "apps/api/src/meri/meri-defense-budget-tool.helpers.ts",
+        "packages/shared/src/funding-claim.ts"
+      ],
+      "testSourcePaths": [
+        "apps/meriv2-orchestrator/src/meri/retrieval/meri-retrieval-coverage.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-turn-coverage.spec.ts",
+        "apps/api/src/meri/meri-tools.defense-budget.spec.ts",
+        "apps/api/src/meri/meri-defense-budget-tool.helpers.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "22",
+        "32",
+        "56"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Reproduce both chamber figures and cited justification; absence of a chamber must remain an explicit gap, not implicit agreement.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "House CDAO $22.197M figure omitted alongside SASC $11.197M",
+      "originalPlannedWork": "Stage 2: explicit comparison requirements and missing-source retrieval",
+      "originalSourceLine": 1713,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H09",
+      "sourceMitigation": "Turn coverage, incomplete-source detection and localized repair limitations exist; no claim that this alone guarantees calibrated answer confidence.",
+      "implementationPaths": [
+        "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-requirements.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-turn-coverage.ts",
+        "packages/meriv2-core/src/assurance/evidence-plan.ts",
+        "apps/meriv2-orchestrator/src/meri/repair/live-repair.service.ts",
+        "packages/meriv2-core/src/jev/claim-support-question.ts"
+      ],
+      "testSourcePaths": [
+        "apps/meriv2-orchestrator/src/meri/retrieval/meri-retrieval-coverage.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-turn-coverage.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/repair/live-repair.service.spec.ts",
+        "packages/meriv2-core/src/jev/claim-support-question.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "45",
+        "54",
+        "58",
+        "72"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Run degraded-source cases and review actual output for complete/partial truthfulness and narrowly scoped uncertainty.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "Confident answer despite incomplete retrieval health",
+      "originalPlannedWork": "Stage 1 assess affected claims; Stage 2 repair and disclose only remaining gaps",
+      "originalSourceLine": 1714,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H10",
+      "sourceMitigation": "Evidence plan distinguishes approved client context from public evidence; turn coverage carries missing requirements.",
+      "implementationPaths": [
+        "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-requirements.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-turn-coverage.ts",
+        "packages/meriv2-core/src/assurance/evidence-plan.ts"
+      ],
+      "testSourcePaths": [
+        "apps/meriv2-orchestrator/src/meri/retrieval/meri-retrieval-coverage.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-turn-coverage.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "01",
+        "05",
+        "53",
+        "58"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Capture a client-domain retrieval failure and prove useful public facts remain separate from missing client-specific support.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "Profense assessment omitted client-domain retrieval limitation",
+      "originalPlannedWork": "Stage 2: required client evidence and targeted coverage disclosure",
+      "originalSourceLine": 1715,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H11",
+      "sourceMitigation": "Assistant has bounded tool acquisition, reserved synthesis budget and partial-outcome handling; coverage mechanism records unmet prerequisites.",
+      "implementationPaths": [
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+        "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-requirements.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-turn-coverage.ts",
+        "packages/meriv2-core/src/assurance/evidence-plan.ts"
+      ],
+      "testSourcePaths": [
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-clean-turn-coverage.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/retrieval/meri-retrieval-coverage.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-turn-coverage.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "49",
+        "71",
+        "72"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Measure actual degraded meeting-preparation behavior, prerequisite assessment and usage/cost; no historical spend reduction is established.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "Meeting preparation generated with degraded sources and unnecessary spend",
+      "originalPlannedWork": "Stage 2: assess prerequisites before costly synthesis; preserve useful partial preparation",
+      "originalSourceLine": 1716,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H12",
+      "sourceMitigation": "Current-status freshness uses effective/publication time; bounded repair tests explicitly contain a stale TITAN production claim.",
+      "implementationPaths": [
+        "packages/meriv2-core/src/assurance/freshness.ts",
+        "apps/meriv2-orchestrator/src/meri/repair/live-repair.service.ts",
+        "packages/meriv2-core/src/jev/claim-support-question.ts"
+      ],
+      "testSourcePaths": [
+        "packages/meriv2-core/src/assurance/freshness-exact.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/repair/live-repair.service.spec.ts",
+        "packages/meriv2-core/src/jev/claim-support-question.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/repair/revision-generator.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "11",
+        "52",
+        "57",
+        "58"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Capture current authorized source and the corrected final production-status claim; fixture source presence is not a served TITAN qualification.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "TITAN production status reported as outdated",
+      "originalPlannedWork": "Stage 2: current-status retrieval and event/effective-date handling",
+      "originalSourceLine": 1717,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H13",
+      "sourceMitigation": "Award date serialization separates original signing, latest action, source modification, performance period and Capiro sync timestamps.",
+      "implementationPaths": [
+        "apps/api/src/common/federal-award-date-serialization.ts"
+      ],
+      "testSourcePaths": [
+        "apps/api/src/federal-spending/federal-market-meri-tools.service.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "52",
+        "57"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Use exact award/modification records and verify served prose preserves date meanings; unknown fields remain unknown.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "Award, modification, and record-update dates confused",
+      "originalPlannedWork": "Stage 0b: source-backed, separate date semantics",
+      "originalSourceLine": 1718,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H14",
+      "sourceMitigation": "Award date serialization and Program Element classification expose separate identity/date semantics; exact historical transaction proof is still needed.",
+      "implementationPaths": [
+        "apps/api/src/common/federal-award-date-serialization.ts",
+        "apps/api/src/meri/meri-defense-budget-tool.helpers.ts",
+        "packages/shared/src/funding-claim.ts"
+      ],
+      "testSourcePaths": [
+        "apps/api/src/federal-spending/federal-market-meri-tools.service.spec.ts",
+        "apps/api/src/meri/meri-tools.defense-budget.spec.ts",
+        "apps/api/src/meri/meri-defense-budget-tool.helpers.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "20",
+        "25",
+        "57"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Reproduce Air Force program identity and base-order/modification sources; check that program linkage is evidenced, not inferred from similar labels.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "Air Force program identity and base-order/modification dates understated",
+      "originalPlannedWork": "Stage 0b: source identity and transaction/base-award distinctions",
+      "originalSourceLine": 1719,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H15",
+      "sourceMitigation": "Canonical funding claims expose stage, vehicle, enactment and fiscal-year semantics; tests distinguish HAC-D from established enactment.",
+      "implementationPaths": [
+        "apps/api/src/meri/meri-defense-budget-tool.helpers.ts",
+        "packages/shared/src/funding-claim.ts"
+      ],
+      "testSourcePaths": [
+        "apps/api/src/meri/meri-tools.defense-budget.spec.ts",
+        "apps/api/src/meri/meri-defense-budget-tool.helpers.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "20",
+        "22",
+        "23",
+        "24",
+        "56"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Exercise served answer with committee-mark-only evidence and prove it does not call the mark enacted law.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "HAC-D label could be interpreted as enacted funding",
+      "originalPlannedWork": "Stage 0a: canonical stage, vehicle, and enactment semantics",
+      "originalSourceLine": 1720,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H16",
+      "sourceMitigation": "Meri program tools expose reviewed lineage separately from candidate relationships; tests name 020400INTL and reject unsupported consolidation wording.",
+      "implementationPaths": [
+        "apps/api/src/meri/meri-tools.service.ts",
+        "apps/api/src/meri/meri-defense-budget-tool.helpers.ts",
+        "packages/shared/src/funding-claim.ts"
+      ],
+      "testSourcePaths": [
+        "apps/api/src/meri/meri-tools.defense-budget.spec.ts",
+        "apps/api/src/meri/meri-defense-budget-tool.helpers.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "25"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Validate actual lineage source/version/year bounds; candidate same-program relationships cannot prove DCGS consolidation.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "Old DCGS line reportedly consolidated into `020400INTL`",
+      "originalPlannedWork": "Stage 0a: separate source-backed program-lineage mapping",
+      "originalSourceLine": 1721,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H17",
+      "sourceMitigation": "FedRAMP runtime verifies product/CSO status from source-backed Marketplace results and enforces exact terminology.",
+      "implementationPaths": [
+        "apps/meriv2-orchestrator/src/meri/meriv3/status-provenance-runtime.ts",
+        "packages/meriv2-core/src/grounding/status-provenance.ts"
+      ],
+      "testSourcePaths": [
+        "apps/meriv2-orchestrator/src/meri/meriv3/status-provenance-runtime.spec.ts",
+        "apps/api/src/meri/meri-certification-status-tool.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "52",
+        "57",
+        "58"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Capture actual configured status enforcement and source date; prove product authorization is not generalized to the CSP company.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "FedRAMP terminology imprecise",
+      "originalPlannedWork": "Stage 4: preserve exact source terminology; bounded candidate selection if needed",
+      "originalSourceLine": 1722,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H18",
+      "sourceMitigation": "Match-label control derives/downgrades labels using explicit evidence and a bounded client-fit evaluation.",
+      "implementationPaths": [
+        "apps/meriv2-orchestrator/src/meri/meriv3/match-label-control.ts",
+        "packages/meriv2-core/src/grounding/match-label.ts"
+      ],
+      "testSourcePaths": [
+        "apps/meriv2-orchestrator/src/meri/meriv3/match-label-control.spec.ts",
+        "packages/meriv2-core/src/grounding/match-label.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "38",
+        "58"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Reproduce AIDP/CDAO-style linkage with insufficient evidence and prove DIRECT MATCH is withheld or downgraded; verified linkage needs a positive control.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "AIDP/CDAO labeled DIRECT MATCH without sufficient linkage",
+      "originalPlannedWork": "Stage 4: explicit evidence prerequisites for match labels",
+      "originalSourceLine": 1723,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H19",
+      "sourceMitigation": "Coverage requirements distinguish required source families and incomplete reads; strategy narrative code remains source-dependent.",
+      "implementationPaths": [
+        "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-requirements.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-turn-coverage.ts",
+        "packages/meriv2-core/src/assurance/evidence-plan.ts",
+        "apps/meriv2-orchestrator/src/meri/strategy/strategy-report-narrative.prompt.ts"
+      ],
+      "testSourcePaths": [
+        "apps/meriv2-orchestrator/src/meri/retrieval/meri-retrieval-coverage.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-turn-coverage.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/strategy/strategy-report-narrative.prompt.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "45",
+        "53",
+        "58"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Inspect actual strategy output under partial coverage; no comprehensive/exhaustive assertion may exceed checked sources.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "Strategy framework described as comprehensive without sufficient coverage",
+      "originalPlannedWork": "Stage 2 and 4: scope-aware completeness language",
+      "originalSourceLine": 1724,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H20",
+      "sourceMitigation": "Evidence classes separate primary government evidence, Capiro system-of-record and inference; FedRAMP-specific provenance enforcement is narrower than a universal status guarantee.",
+      "implementationPaths": [
+        "packages/meriv2-core/src/assurance/evidence-plan.ts",
+        "packages/meriv2-core/src/grounding/status-provenance.ts"
+      ],
+      "testSourcePaths": [
+        "packages/meriv2-core/src/grounding/status-provenance.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/status-provenance-runtime.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "35",
+        "52",
+        "53",
+        "57"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Capture derived-status versus primary-status provenance across affected domains; broad Capiro-derived status wording remains unqualified.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "Capiro-derived status described as authoritative",
+      "originalPlannedWork": "Stage 4: primary-source provenance and derived-data wording",
+      "originalSourceLine": 1725,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H21",
+      "sourceMitigation": "Domain evidence requirements and coverage-driven retrieval exist; no DIU-specific historical checklist completion is established.",
+      "implementationPaths": [
+        "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-requirements.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-turn-coverage.ts",
+        "packages/meriv2-core/src/assurance/evidence-plan.ts"
+      ],
+      "testSourcePaths": [
+        "apps/meriv2-orchestrator/src/meri/retrieval/meri-retrieval-coverage.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-turn-coverage.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "35",
+        "36",
+        "38"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Replay complete/partial opportunity requirements against an authoritative notice; exact eligibility and missing criteria must remain explicit.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "DIU opportunity requirements incomplete",
+      "originalPlannedWork": "Stage 2: requirement checklist and targeted retrieval",
+      "originalSourceLine": 1726,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H22",
+      "sourceMitigation": "Citation helpers, runtime citation exposure and vNext evidence rendering have targeted regression sources, including orphan 53.",
+      "implementationPaths": [
+        "apps/api/src/meri/meri-citations.helpers.ts",
+        "apps/web/src/components/chat/citation-rendering.tsx"
+      ],
+      "testSourcePaths": [
+        "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-citation-exposure.spec.ts",
+        "apps/web/src/vnext/meri/MeriEvidenceTab.citations.test.tsx"
+      ],
+      "relatedBaselineCases": [
+        "20",
+        "46",
+        "52",
+        "56",
+        "58"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Run rendered citation/link checks through the final UI, including wrapped URLs and orphan 53/61/62; source-only tests do not prove end-to-end links.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "Orphan citations [53]/[61]/[62] and broken wrapped URLs",
+      "originalPlannedWork": "Stage 0c: citation registration and rendering are end-to-end acceptance dependencies",
+      "originalSourceLine": 1727,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H23",
+      "sourceMitigation": "Shared deadline normalization/validation and strategy computed schedule constraints are implemented; strategy test explicitly supplies a DIU deadline.",
+      "implementationPaths": [
+        "packages/shared/src/schedule/deadline.ts",
+        "packages/shared/src/schedule/validate.ts",
+        "apps/api/src/meri/meri-briefing-schedule.helpers.ts"
+      ],
+      "testSourcePaths": [
+        "apps/api/src/meri/meri-briefing-schedule.helpers.spec.ts",
+        "apps/api/src/meri/meri-tools.federal-grants-deadline.spec.ts",
+        "apps/meriv2-orchestrator/src/meri/strategy/strategy-prompt.schedule.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "37",
+        "49",
+        "58"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Capture DIU/NIH deadline facts and a proposed 90-day schedule; verify computed date/timezone/arithmetic prevents conflicting commitments.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "Ninety-day schedule conflicted with DIU/NIH deadlines",
+      "originalPlannedWork": "Stage 0d: deadline arithmetic and schedule validation in code",
+      "originalSourceLine": 1728,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H24",
+      "sourceMitigation": "Ordinary prior-chat attachment reader reauthorizes conversation, reads persisted original bytes, provides typed sections and version-bound continuation.",
+      "implementationPaths": [
+        "apps/api/src/meri/meri-chat-attachment-read.service.ts",
+        "apps/api/src/meri/meri-attachment-continuity.ts"
+      ],
+      "testSourcePaths": [
+        "apps/api/src/meri/meri-chat-attachment-read.service.spec.ts",
+        "apps/api/src/meri/meri-attachment-continuity.spec.ts"
+      ],
+      "relatedBaselineCases": [
+        "40",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45"
+      ],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Exercise actual uploaded/prior-turn bytes, compaction and current permissions; preserve memory governance instead of promoting attachments into approved memory.",
+      "classification": "HISTORICAL_FINDING_REQUIRED_RECONCILIATION",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "Legacy chat attachments absent from governed Context",
+      "originalPlannedWork": "Stage 0c: authorized attachment retrieval/ingestion path; retain Institutional Memory governance",
+      "originalSourceLine": 1729,
+      "owningArea": "Meri evidence/runtime and relevant canonical source owner"
+    },
+    {
+      "id": "H25",
+      "sourceMitigation": "No dedicated Create strategy from research action was established by this bounded source search; existing Strategy/research helpers are not equivalent completion evidence.",
+      "implementationPaths": [],
+      "testSourcePaths": [],
+      "relatedBaselineCases": [],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Track under the Strategy/action product owner with a concrete task and explicit acceptance; original AppendixH makes this separate backlog, not a prerequisite for the accuracy release.",
+      "classification": "SEPARATE_PRODUCT_BACKLOG",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "No Create strategy from research action",
+      "originalPlannedWork": "Separate product backlog; not required for this accuracy release",
+      "originalSourceLine": 1730,
+      "owningArea": "Strategy/action product backlog"
+    },
+    {
+      "id": "H26",
+      "sourceMitigation": "No adoption improvement is claimed by engineering changes or this audit.",
+      "implementationPaths": [],
+      "testSourcePaths": [],
+      "relatedBaselineCases": [],
+      "caseRelationship": "Relevant original boundaries; not a claim these baseline cases reproduce the exact historical incident.",
+      "remainingEvidence": "Product/onboarding owner should track completion friction and usage under existing authorized analytics. Recruitment/adoption improvement is not an accuracy-release gate.",
+      "classification": "NONBLOCKING_ADOPTION_TRACKING",
+      "productCompletionVerdict": "NOT_RUN",
+      "testExecution": "NOT_RUN_IN_THIS_AUDIT",
+      "servedEvidence": "NOT_RUN_IN_THIS_AUDIT",
+      "historicalIncidentReproduced": false,
+      "originalFinding": "Adoption concentrated on one user",
+      "originalPlannedWork": "Separate onboarding/product work; track completion friction but do not claim accuracy changes solve adoption",
+      "originalSourceLine": 1731,
+      "owningArea": "Product/onboarding adoption tracking"
+    }
+  ],
+  "sourceReferences": [
+    {
+      "path": "apps/api/src/common/federal-award-date-serialization.ts",
+      "sha256": "8b0dd25032fee5c3fa3e7aff2b87eaa3f6907d45b2a9fb13a89f9825d6b88cb1",
+      "gitBlob": "06a20f6b7fd27b5f8072576928faa083aa740dc0",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/api/src/federal-spending/federal-market-meri-tools.service.spec.ts",
+      "sha256": "d9be12c6ce39983773f1dfc7662613f55de8036e7c6e3d3b201014e070cd918f",
+      "gitBlob": "bbfd8a18e6d598efa9ea5f7184cdd588c831dca3",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/api/src/meri/meri-attachment-continuity.spec.ts",
+      "sha256": "55d058f100e8d391c61a99cbf2eea5d79a0227f8e64b2503ccb6f54fc367114b",
+      "gitBlob": "753881d9c18c4e5c44ef822070e0eaaa30196bfb",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/api/src/meri/meri-attachment-continuity.ts",
+      "sha256": "9789a7f2349c5ec7050f70d7a25687b25b53fcfc81fc65e786f623fc3d4e522a",
+      "gitBlob": "a33233e5180178ea575c680a524ae36c85fadcdc",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/api/src/meri/meri-briefing-schedule.helpers.spec.ts",
+      "sha256": "429c60a2ff3d20c5be7fac7dedb9d0cd6a93ff6a7a6cbd94c41242aa69be43ff",
+      "gitBlob": "f6f41b00a9c92659f4e6bf9a6fb975b3dc69bbca",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/api/src/meri/meri-briefing-schedule.helpers.ts",
+      "sha256": "0adf06ffc0c4ce5e5dad7bbbcea5483d5ac07c7ea08bcdeb589b0bd610aa1387",
+      "gitBlob": "45a8a369fc74a35721df6a232d93975bf9584894",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/api/src/meri/meri-certification-status-tool.spec.ts",
+      "sha256": "9a26e9ed040fb2d73453e4e34163856caa1d8c4515db7023da7a67b601fa37c7",
+      "gitBlob": "f125d2f3c61f64637291b267dfb184c70c07b34b",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/api/src/meri/meri-chat-attachment-read.service.spec.ts",
+      "sha256": "b5a1f44703e5522f4c2391fc513d80c5beac7a35249189c11d73474f06b52993",
+      "gitBlob": "d6c923223b26f637693855a6ce5e86b21463c8f1",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/api/src/meri/meri-chat-attachment-read.service.ts",
+      "sha256": "8c62643bf0fba10b348639ead01ee9b0f0a0cfed2962471d4a4342ea7aa4524f",
+      "gitBlob": "91b93fde3957370613e067464d9b261ccc1da0d4",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/api/src/meri/meri-citations.helpers.ts",
+      "sha256": "8a975a8ee1cd3f41e75285ff236b566205b335106f2e5c09946de6a0586a12dc",
+      "gitBlob": "42272eb9eebcc6bc215bb109d1a3724d01273812",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/api/src/meri/meri-defense-budget-tool.helpers.spec.ts",
+      "sha256": "77e8dec72baca3bf43ef315c5ae65bfbb765f04e4e36d67e106e2d45ca779c72",
+      "gitBlob": "f0a4062a9e2333f4827d340ccd6a62c2d3a5210a",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/api/src/meri/meri-defense-budget-tool.helpers.ts",
+      "sha256": "debfa5525c2cc48a280e907646cbd802e3a83c54b3d1ad9997e1e448ee5a4b0c",
+      "gitBlob": "ea718e05cef88f99a9f65b4dc8bf8983e11653e7",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/api/src/meri/meri-source-outcome-contract.spec.ts",
+      "sha256": "f4c60df45b5a7e19be7e66d52b255c2494e8546ca6eaabb0a72842b6bf877fce",
+      "gitBlob": "a4629c819a152ae94166e12762d1791dbfa8aebb",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.defense-budget.spec.ts",
+      "sha256": "6effbc1abdf3079d349ebc73a0c3f75e6015b75f7662fc6aeb5947c24748f061",
+      "gitBlob": "49129af96503e990dfcaf1cca0b716ccec063564",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.federal-grants-deadline.spec.ts",
+      "sha256": "04e99a20377c70f2a8c34dbdd0d2ffd3fd6a19fc0047df31080250e1d1f55e26",
+      "gitBlob": "b1bf4839e785d85d1bdf70c91e9706c4106e76ee",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "sha256": "a3a4a45b73037ec92258e42be1041af30d3e401dbbab2d947b299ecb05eac530",
+      "gitBlob": "7264684ff985a9529d2b341dd78f6098cdc3db0b",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/match-label-control.spec.ts",
+      "sha256": "d91490569b0d247e64b7f2200402fa19b426a7f49ccf23af166817465aa0c5e3",
+      "gitBlob": "5c1e8fe590eb2a5dee478cbef618ef5c537e37fc",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/match-label-control.ts",
+      "sha256": "bf1b6d13f71ddcffa39d756e2401490b2158a74da2759b2c5d5b8711536d25de",
+      "gitBlob": "16c11d76426fb95a3a53cb216c09c0129cfcd6ec",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "sha256": "fa19df4c2c132e50e312b4d6ff366ad256049fed034195250ad7e2d83b28345b",
+      "gitBlob": "3d752edbe1401f0dacb7b017f06032466d15eb28",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-citation-exposure.spec.ts",
+      "sha256": "1238fc58258ce8d9b175823b88d3cc5b57c32f7532123a94a2312b8afde8c2db",
+      "gitBlob": "56333f072e3df2a2adefc23e040fe6bd74eaa9e9",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-clean-turn-coverage.spec.ts",
+      "sha256": "3010cfb3dfa4a32bedca553dd156ade833739910d67b2fb1222837601506ff3a",
+      "gitBlob": "90badd6d208eb21c47224c70f3c106d1d5749635",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-turn-coverage.spec.ts",
+      "sha256": "ebd4ce2b84d858178f231b6707db5f9fe449c26f11ae53b5873dee3b73029dc3",
+      "gitBlob": "7229b116bd863335a32f1d4b2e82df0cf9c50850",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-turn-coverage.ts",
+      "sha256": "8fec042eb5bfef166d20314c9bcd5aa9dc27985501bd0f3703b059e14a17e355",
+      "gitBlob": "3cf950bb5be4da657bf5e5a74f20739886271e94",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/status-provenance-runtime.spec.ts",
+      "sha256": "0b2e9a11d620d75803c568dd4b6b738dc454aa22485fa14f5d2cc3bbdd7428ed",
+      "gitBlob": "3df45987e3b71caa5c8877a4c47fd9ed39bf735c",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/status-provenance-runtime.ts",
+      "sha256": "e41e260bdd93617298ce51f05b8e87d1ecbef3ba79fcfce4ad169e2effef7f67",
+      "gitBlob": "0bb67a3bd619f06ad2698632537704cff08f1d7c",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/repair/live-repair.service.spec.ts",
+      "sha256": "704c84b16f52a91ea04666a4d8fb3077177029640c1efa46b0265da8c2b42ebe",
+      "gitBlob": "f7d68c133977c6d9bc30fe6d996039c5a5d13d83",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/repair/live-repair.service.ts",
+      "sha256": "f0aebcaec5d0e8a1e406887b4daff008f285ba042785b705ede4eb4524a65e36",
+      "gitBlob": "b80882aa9b762729a24d39034f00522f95187212",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/repair/revision-generator.spec.ts",
+      "sha256": "5408f7cbf95d6e9c8d344abbe257185136ec8d7b4e79e6ba99ae83b4abc01637",
+      "gitBlob": "cc21166d959af6ebf30b5a572dd291cec7cd14e5",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/retrieval/meri-evidence-requirements.ts",
+      "sha256": "283fe236f5804b8f2fdc91bbed3515c6a59b10e101d91aa5389515edcc9debc9",
+      "gitBlob": "22c19c1650ba70be5b7a25d08a5b4eb5f699702d",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/retrieval/meri-retrieval-coverage.spec.ts",
+      "sha256": "cdbdeab5b9a919846bc729b59abb372d81b5d46f293b4e4b77d35711fe7c2631",
+      "gitBlob": "3921f689268008c81191648388eac64a57988c91",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/strategy/strategy-prompt.schedule.spec.ts",
+      "sha256": "4754bb684a77767c9326122930d5da8183a1f10bc5c61cea716d0b27be90f8e1",
+      "gitBlob": "53ba9546dc76fd54a97ae299659905f0e1a73d8f",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/strategy/strategy-report-narrative.prompt.spec.ts",
+      "sha256": "c8b30c2d91dc5634ef83a937f7a6ea7b7c853ab6eb6519eabec088a24d868dc7",
+      "gitBlob": "8745d50095ca4a0f133e40e44b78d3b56de8bd1b",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/strategy/strategy-report-narrative.prompt.ts",
+      "sha256": "33f4fe1d2f7c8fc5a88c58566b0f5ef803fa354d772a3b6121e4f48067610a77",
+      "gitBlob": "d48ec0f0c7368ef24a8c10e857eb5f6464eeda7a",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/web/src/components/chat/citation-rendering.tsx",
+      "sha256": "a7d38b9667cf19eb555e1e00ff9863f579305d961b3a849da5982b8c1c679104",
+      "gitBlob": "608b4a4e9f285751a9e00ed6664c1e79a1735b62",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "apps/web/src/vnext/meri/MeriEvidenceTab.citations.test.tsx",
+      "sha256": "255ee1dab9317143f32f370d4daf40cb5e5b8d3394c74b8a55c068549bf66389",
+      "gitBlob": "3ab78c94668ceabdc692a62688a32b3b040ea1a5",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/evidence-plan.ts",
+      "sha256": "7f0739293e16e8e6e576bad09a0fd4d4759a8d1c5408afd84048a3e393d48f6e",
+      "gitBlob": "beaea07034e4d53ce39cecffc2179db4b960eaa9",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/freshness-exact.spec.ts",
+      "sha256": "139eaaec61f2c0b091cfee92f29b5b50dd6980d43cc3e710c83bc1de50ce2354",
+      "gitBlob": "21aad8a3d26930a01801e8e6e9ceaafb145ce596",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/freshness.ts",
+      "sha256": "5116efbd1e5841def8dbbe399df13c6af5ddb6d6ac5c30dd5f4070d93fdd265f",
+      "gitBlob": "5d684dd31646cd62a01d1523744b499a35726f50",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/match-label.spec.ts",
+      "sha256": "e2be5f71656819320060de397e175af1c0a7ab938b7d68c0c941c2898a540080",
+      "gitBlob": "6652d2a3b2bf1e26023098f41ec664489272f2a9",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/match-label.ts",
+      "sha256": "53dcf514ceabdd038f46397127ab91e0c641fdcafc858414aae349873865143b",
+      "gitBlob": "8f29d39b8d560da04dd81d6aefee49a07be0d4a5",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/status-provenance.spec.ts",
+      "sha256": "32d1d0c85d8c59f6267b75f17e9dc30b07871fdd9670a09c516e0173b6fa5a4c",
+      "gitBlob": "7979205e1e5e1513f73d95ae4b5e07dda87e6dd8",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/status-provenance.ts",
+      "sha256": "a3caeeb4026024b3bbc5dcfd73c4fa19ac4b4e9f50955cf35bf4beca9c232aad",
+      "gitBlob": "2ba4385f88b894c2fc529ca27e1048c5a0c92ab5",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/claim-support-question.spec.ts",
+      "sha256": "bcf17fd7c1dac5263475688d10745a138b216d52b346f8641e3c8774edf9eb6b",
+      "gitBlob": "01c013557a86ee4313418955c4c64e51deeee084",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/claim-support-question.ts",
+      "sha256": "d0873dcdeb2d930a444316593d04208c4d91a9ec745749461153a6e3d1748349",
+      "gitBlob": "362639f3decf93f9ac30b52277483ff02427d096",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "packages/shared/src/funding-claim.ts",
+      "sha256": "2f820f5891ff140038224b4a8114c4ec83f3353c4083ec362e0730f2a14a77ab",
+      "gitBlob": "834cfdc097ac170d4f96b79edc88fa669bb56039",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "packages/shared/src/meri-read-outcome.ts",
+      "sha256": "e9450afffac6cda2b12d5e8d743c9ca700118b7a0b1f88738652560309294ecf",
+      "gitBlob": "cb5a7164471d0586058268684a19780a400c2d01",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "packages/shared/src/schedule/deadline.ts",
+      "sha256": "69aab17c2a329fcfded00e7f3e8ebf3ebffebb1800b37e555efacb6901f08c9e",
+      "gitBlob": "f16e2aee4f71a5b0bd2b57b881a189e6e64a496f",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    },
+    {
+      "path": "packages/shared/src/schedule/validate.ts",
+      "sha256": "ff321d0b38f9034ac1c1b30c3511742be75024d6eb6a750926c0da50efa3bae7",
+      "gitBlob": "b7e7cdacfb7f3063871a13e7a517f4d5dddfbc94",
+      "evidenceClass": "SOURCE_PRESENT_NOT_EXECUTED"
+    }
+  ]
+}

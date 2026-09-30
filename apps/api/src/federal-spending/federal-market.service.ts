@@ -638,6 +638,13 @@ export class FederalMarketService {
     if (query.recipient) clauses.push(Prisma.sql`contractor_name ILIKE ${`%${query.recipient}%`}`);
     if (query.state) clauses.push(Prisma.sql`pop_state = ${query.state.toUpperCase()}`);
     if (query.district) clauses.push(Prisma.sql`pop_congressional_district = ${query.district}`);
+    // Filter the stored action date; this does not allocate award totals to a fiscal year.
+    if (query.fiscalYear != null) {
+      const fyStart = new Date(Date.UTC(query.fiscalYear - 1, 9, 1));
+      const fyEnd = new Date(Date.UTC(query.fiscalYear, 9, 1));
+      clauses.push(Prisma.sql`action_date >= ${fyStart}`);
+      clauses.push(Prisma.sql`action_date < ${fyEnd}`);
+    }
     if (query.dateFrom) clauses.push(Prisma.sql`action_date >= ${new Date(query.dateFrom)}`);
     if (query.dateTo) clauses.push(Prisma.sql`action_date <= ${new Date(query.dateTo)}`);
     return clauses;

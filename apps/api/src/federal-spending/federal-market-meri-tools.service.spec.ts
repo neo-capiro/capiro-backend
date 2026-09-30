@@ -45,6 +45,91 @@ function serviceWith(market = marketMock(), geography = geographyMock()) {
 }
 
 describe('FederalMarketMeriToolsService', () => {
+  it.each([
+    ['search_federal_contract_awards', 'listContracts'],
+    ['search_federal_subawards', 'listSubawards'],
+    ['search_contract_vehicles', 'listVehicles'],
+    ['search_procurement_forecasts', 'listForecasts'],
+  ] as const)('exposes and dispatches page two for %s with continuation', async (name, method) => {
+    const { service, market } = serviceWith();
+    market[method].mockResolvedValue({ items: [], total: 23, page: 2, pageSize: 7 });
+    const schema = service.anthropicSchemas().find((entry) => entry.name === name)!;
+    expect(schema.input_schema.properties.page).toMatchObject({ type: 'integer', minimum: 1 });
+    const result = await service.execute(ctx, name, { page: 2, limit: 7, agency: 'Army' });
+    const expected = expect.objectContaining({ page: 2, pageSize: 7, agency: 'Army' });
+    if (method === 'listForecasts') expect(market[method]).toHaveBeenCalledWith(expected);
+    else expect(market[method]).toHaveBeenCalledWith(ctx.tenantId, expected);
+    expect(result).toMatchObject({
+      page: 2,
+      pageSize: 7,
+      total: 23,
+      hasMore: true,
+      nextPage: 3,
+      paginationLimitReached: false,
+    });
+  });
+
+  it.each([0, -1, 1.5, NaN, Infinity, true, false, '', '2.5', {}, [], 10_001])(
+    'rejects invalid page %p before dispatch',
+    async (page) => {
+      const { service, market } = serviceWith();
+      await expect(
+        service.execute(ctx, 'search_federal_contract_awards', { page }),
+      ).rejects.toThrow('page must be an integer');
+      expect(market.listContracts).not.toHaveBeenCalled();
+    },
+  );
+
+  it('preserves defaults and reports exhausted pages without inventing continuation', async () => {
+    const { service, market } = serviceWith();
+    const result = await service.execute(ctx, 'search_federal_contract_awards', {});
+    expect(market.listContracts).toHaveBeenCalledWith(
+      ctx.tenantId,
+      expect.objectContaining({ page: 1, pageSize: 10 }),
+    );
+    expect(result).toMatchObject({ hasMore: false, nextPage: null, paginationLimitReached: false });
+  });
+
+  it('reports remaining rows honestly when the bounded page limit is reached', async () => {
+    const { service, market } = serviceWith();
+    market.listContracts.mockResolvedValue({
+      items: [],
+      total: 250_001,
+      page: 10_000,
+      pageSize: 25,
+    });
+    const result = await service.execute(ctx, 'search_federal_contract_awards', {
+      page: 10_000,
+      limit: 25,
+    });
+    expect(result).toMatchObject({ hasMore: true, nextPage: null, paginationLimitReached: true });
+  });
+
+  it('documents the contract fiscal-year basis and preserves fiscal/date/client filters', async () => {
+    const { service, market } = serviceWith();
+    const schema = service
+      .anthropicSchemas()
+      .find((entry) => entry.name === 'search_federal_contract_awards')!;
+    expect(schema.input_schema.properties.fiscalYear?.description).toContain(
+      'stored award action date',
+    );
+    await service.execute(ctx, 'search_federal_contract_awards', {
+      clientId: 'client-1',
+      fiscalYear: 2026,
+      dateFrom: '2026-01-01',
+      page: 2,
+    });
+    expect(market.listContracts).toHaveBeenCalledWith(
+      ctx.tenantId,
+      expect.objectContaining({
+        clientId: 'client-1',
+        fiscalYear: 2026,
+        dateFrom: '2026-01-01',
+        page: 2,
+      }),
+    );
+  });
+
   const originalEnv = process.env;
 
   afterEach(() => {
@@ -57,15 +142,22 @@ describe('FederalMarketMeriToolsService', () => {
     ['search_contract_vehicles', 'listVehicles'],
     ['search_procurement_forecasts', 'listForecasts'],
     ['get_district_federal_market', 'geography'],
-  ] as const)('advertised %s schema dispatches to its existing domain handler', async (name, method) => {
-    const { service, market, geography } = serviceWith();
-    expect(service.anthropicSchemas().some((schema) => schema.name === name)).toBe(true);
-    expect(service.has(name)).toBe(true);
-    const result = await service.execute(ctx, name, { state: 'VA', district: '10', query: 'autonomy' });
-    const handler = method === 'geography' ? geography.geography : market[method];
-    expect(handler).toHaveBeenCalledTimes(1);
-    expect(result.tool).toBe(name);
-  });
+  ] as const)(
+    'advertised %s schema dispatches to its existing domain handler',
+    async (name, method) => {
+      const { service, market, geography } = serviceWith();
+      expect(service.anthropicSchemas().some((schema) => schema.name === name)).toBe(true);
+      expect(service.has(name)).toBe(true);
+      const result = await service.execute(ctx, name, {
+        state: 'VA',
+        district: '10',
+        query: 'autonomy',
+      });
+      const handler = method === 'geography' ? geography.geography : market[method];
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(result.tool).toBe(name);
+    },
+  );
 
   it('registers five bounded read-only local tools', () => {
     const { service } = serviceWith();
