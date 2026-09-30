@@ -79,7 +79,9 @@ const schemas: Record<FederalMarketMeriToolName, JsonSchema> = {
   },
   search_contract_vehicles: {
     type: 'object',
-    properties: commonProperties,
+    properties: Object.fromEntries(
+      Object.entries(commonProperties).filter(([key]) => key !== 'fiscalYear'),
+    ),
   },
   search_procurement_forecasts: {
     type: 'object',
@@ -204,6 +206,9 @@ export class FederalMarketMeriToolsService {
 
   async execute(ctx: TenantContext, name: FederalMarketMeriToolName, rawInput: unknown) {
     const input = objectInput(rawInput);
+    if (name === 'search_contract_vehicles' && Object.hasOwn(input, 'fiscalYear')) {
+      throw new BadRequestException('fiscalYear is not supported for contract vehicles');
+    }
     const query = queryOf(input);
     const generatedAt = new Date().toISOString();
 

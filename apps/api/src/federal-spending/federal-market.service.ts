@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -23,6 +23,7 @@ import type {
   FederalMarketQuery,
   FederalSubawardMarketRow,
   FederalVehicleMarketRow,
+  LegacyFederalAwardQuery,
 } from './federal-market.types.js';
 
 const DEFAULT_PAGE_SIZE = 25;
@@ -148,6 +149,38 @@ function stringValue(value: unknown): string | null {
 @Injectable()
 export class FederalMarketService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Legacy Meri/editor compatibility read, owned alongside the canonical market
+   * reader. It deliberately stays global: a pinned conversation client must not
+   * silently narrow this public-data tool. Preserve its PE and keyword semantics
+   * and raw fields until its callers migrate to the canonical result contract.
+   */
+  async listLegacyGlobalContracts(query: LegacyFederalAwardQuery) {
+    const { page, pageSize, offset } = paging(query);
+    const where: Prisma.FederalAwardWhereInput = {};
+    if (query.q) {
+      where.OR = [
+        { description: { contains: query.q, mode: 'insensitive' } },
+        { contractorName: { contains: query.q, mode: 'insensitive' } },
+        { awardingAgency: { contains: query.q, mode: 'insensitive' } },
+      ];
+    }
+    if (query.agency) where.awardingAgency = { contains: query.agency, mode: 'insensitive' };
+    if (query.peCode) where.peCode = query.peCode.toUpperCase();
+    const [data, total] = await Promise.all([
+      this.prisma.withSystem((tx) =>
+        tx.federalAward.findMany({
+          where,
+          orderBy: [{ actionDate: 'desc' }, { id: 'desc' }],
+          take: pageSize,
+          skip: offset,
+        }),
+      ),
+      this.prisma.withSystem((tx) => tx.federalAward.count({ where })),
+    ]);
+    return { data, total, page, pageSize };
+  }
 
   async listContracts(
     tenantId: string,
@@ -316,6 +349,9 @@ export class FederalMarketService {
     tenantId: string,
     query: FederalMarketQuery,
   ): Promise<FederalMarketPage<FederalVehicleMarketRow>> {
+    if (query.fiscalYear != null) {
+      throw new BadRequestException('fiscalYear is not supported for contract vehicles');
+    }
     const { page, pageSize, offset } = paging(query);
     if (query.clientId) {
       await this.clientScope(tenantId, query.clientId);
