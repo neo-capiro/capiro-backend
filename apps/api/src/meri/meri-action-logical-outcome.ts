@@ -21,8 +21,46 @@ function message(value: unknown, fallback: string): string {
 export function classifyMeriActionLogicalFailure(
   tool: string,
   result: unknown,
+  expectedLogicalOperationId?: string,
 ): MeriActionLogicalFailure | null {
   const value = record(result);
+  if (tool === 'send_email') {
+    if (typeof value.error === 'string') {
+      return {
+        status: 'failed_terminal',
+        errorCode: 'send_email_failed',
+        errorMessage: message(value.error, 'The email was not sent.'),
+      };
+    }
+    const receipt = record(value.sendReceipt);
+    const providerIdentityConfirmed =
+      (receipt.provider === 'gmail' &&
+        typeof receipt.providerMessageId === 'string' &&
+        receipt.providerMessageId.trim().length > 0) ||
+      (receipt.provider === 'microsoft_graph' &&
+        typeof receipt.providerDraftId === 'string' &&
+        receipt.providerDraftId.trim().length > 0);
+    if (
+      value.ok === true &&
+      typeof value.sentFrom === 'string' &&
+      typeof value.to === 'string' &&
+      typeof value.subject === 'string' &&
+      receipt.ok === true &&
+      typeof receipt.correlationId === 'string' &&
+      typeof expectedLogicalOperationId === 'string' &&
+      expectedLogicalOperationId.length > 0 &&
+      receipt.correlationId === expectedLogicalOperationId &&
+      providerIdentityConfirmed
+    )
+      return null;
+    return {
+      status: 'outcome_unknown',
+      errorCode: 'send_email_receipt_missing',
+      errorMessage:
+        'The send handler did not return an authoritative provider acceptance receipt. Check Sent Items before retrying.',
+    };
+  }
+
   if (tool === 'reply_email') {
     if (typeof value.error === 'string') {
       return {
@@ -73,7 +111,8 @@ export function classifyMeriActionLogicalFailure(
         errorMessage: message(value.error, 'The scheduled task was not canceled.'),
       };
     }
-    if (value.canceled === true && typeof value.taskId === 'string' && value.taskId.trim()) return null;
+    if (value.canceled === true && typeof value.taskId === 'string' && value.taskId.trim())
+      return null;
     return {
       status: 'outcome_unknown',
       errorCode: 'cancel_scheduled_task_receipt_missing',

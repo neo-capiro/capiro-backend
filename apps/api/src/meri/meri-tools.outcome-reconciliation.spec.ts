@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
+import { EngagementMailSender } from '../engagement/mail-sender.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 
 jest.mock('../program-element/program-element-read.service.js', () => ({
@@ -15,6 +16,11 @@ const ctx = {
 type ReplyEmail = (
   actor: TenantContext,
   input: Record<string, unknown>,
+) => Promise<Record<string, unknown>>;
+type SendEmail = (
+  actor: TenantContext,
+  input: Record<string, unknown>,
+  actionProposalId?: string,
 ) => Promise<Record<string, unknown>>;
 type ScheduleTask = (
   actor: TenantContext,
@@ -41,14 +47,16 @@ interface StoredTask {
   metadata: Record<string, unknown>;
 }
 
-function scheduleHarness(options: {
-  ackLossId?: string;
-  cancelOnAckLoss?: boolean;
-  gateProposalId?: string;
-  initialTaskCount?: number;
-  quotaRace?: boolean;
-  wallAllowed?: boolean;
-} = {}) {
+function scheduleHarness(
+  options: {
+    ackLossId?: string;
+    cancelOnAckLoss?: boolean;
+    gateProposalId?: string;
+    initialTaskCount?: number;
+    quotaRace?: boolean;
+    wallAllowed?: boolean;
+  } = {},
+) {
   const rows = new Map<string, StoredTask>();
   let wallAllowed = options.wallAllowed ?? true;
   let createAttempts = 0;
@@ -82,17 +90,13 @@ function scheduleHarness(options: {
     });
   }
   const scoped = (where: Record<string, any>, row: StoredTask | undefined) =>
-    row
-    && (!where.tenantId || row.tenantId === where.tenantId)
-    && (!where.ownerUserId || row.ownerUserId === where.ownerUserId)
-    && (!where.scope || row.scope === where.scope);
+    row &&
+    (!where.tenantId || row.tenantId === where.tenantId) &&
+    (!where.ownerUserId || row.ownerUserId === where.ownerUserId) &&
+    (!where.scope || row.scope === where.scope);
   const findFirst = jest.fn(async ({ where }: { where: Record<string, any> }) => {
     const row = rows.get(String(where.id));
-    if (
-      options.gateProposalId === where.id
-      && !row
-      && gatedReads < 2
-    ) {
+    if (options.gateProposalId === where.id && !row && gatedReads < 2) {
       gatedReads += 1;
       if (gatedReads === 2) releaseGate();
       await gate;
@@ -100,13 +104,13 @@ function scheduleHarness(options: {
     return scoped(where, rows.get(String(where.id))) ? rows.get(String(where.id)) : null;
   });
   const findMany = jest.fn(async ({ where }: { where: Record<string, any> }) =>
-    [...rows.values()].filter((row) => {
-      if (!scoped(where, row) || row.id === where.id?.not) return false;
-      const proposalId = row.metadata.actionProposalId ?? row.metadata.logicalOperationId;
-      return where.OR?.some((term: Record<string, any>) =>
-        term.metadata?.equals === proposalId,
-      );
-    }).slice(0, 3),
+    [...rows.values()]
+      .filter((row) => {
+        if (!scoped(where, row) || row.id === where.id?.not) return false;
+        const proposalId = row.metadata.actionProposalId ?? row.metadata.logicalOperationId;
+        return where.OR?.some((term: Record<string, any>) => term.metadata?.equals === proposalId);
+      })
+      .slice(0, 3),
   );
   const create = jest.fn(async ({ data }: { data: Record<string, any> }) => {
     createAttempts += 1;
@@ -189,6 +193,89 @@ function scheduleHarness(options: {
 }
 
 describe('Meri write outcome reconciliation', () => {
+  test('send_email retains the owned adapter acceptance when artifact persistence rejects', async () => {
+    const acceptedSink = jest.fn(
+      async (_actor: TenantContext, _connectionId: string, input: { correlationId?: string }) => ({
+        ok: true as const,
+        provider: 'gmail' as const,
+        providerMessageId: 'gmail-message-1',
+        providerThreadId: 'gmail-thread-1',
+        correlationId: input.correlationId ?? '',
+      }),
+    );
+    const mailSender = new EngagementMailSender(
+      { sendMail: jest.fn() } as never,
+      { sendMail: acceptedSink } as never,
+      { assertExternalAction: jest.fn() } as never,
+    );
+    const persistArtifact = jest
+      .fn()
+      .mockRejectedValue(
+        new BadRequestException('Tool clientId does not match the Meri conversation client'),
+      );
+    const service = Object.create(MeriToolsService.prototype) as MeriToolsService;
+    (service as unknown as { mailSender: unknown }).mailSender = mailSender;
+    (service as unknown as { findUserEmailConnection: unknown }).findUserEmailConnection = jest
+      .fn()
+      .mockResolvedValue({
+        id: 'connection-1',
+        provider: 'google_workspace',
+        accountEmail: 'owner@example.com',
+      });
+    (service as unknown as { persistArtifact: unknown }).persistArtifact = persistArtifact;
+    const sendEmail = (service as unknown as { sendEmail: SendEmail }).sendEmail.bind(service);
+    const result = await sendEmail(
+      ctx,
+      {
+        to: 'recipient@example.com',
+        subject: 'Hello',
+        body: 'Body',
+        clientId: 'client-1',
+        conversationId: 'conversation-1',
+      },
+      PROPOSAL_A,
+    );
+    expect(acceptedSink).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({
+      ok: true,
+      sendReceipt: {
+        ok: true,
+        provider: 'gmail',
+        providerMessageId: 'gmail-message-1',
+        correlationId: PROPOSAL_A,
+      },
+      artifactPersistence: {
+        persisted: false,
+        error: 'Tool clientId does not match the Meri conversation client',
+      },
+    });
+  });
+
+  test('send_email propagates adapter acknowledgement loss without fabricating a receipt', async () => {
+    const acceptedSink = jest.fn(async () => {
+      throw new Error('socket closed after provider request');
+    });
+    const mailSender = new EngagementMailSender(
+      { sendMail: jest.fn() } as never,
+      { sendMail: acceptedSink } as never,
+      { assertExternalAction: jest.fn() } as never,
+    );
+    const service = Object.create(MeriToolsService.prototype) as MeriToolsService;
+    (service as unknown as { mailSender: unknown }).mailSender = mailSender;
+    (service as unknown as { findUserEmailConnection: unknown }).findUserEmailConnection = jest
+      .fn()
+      .mockResolvedValue({
+        id: 'connection-1',
+        provider: 'google_workspace',
+        accountEmail: 'owner@example.com',
+      });
+    const sendEmail = (service as unknown as { sendEmail: SendEmail }).sendEmail.bind(service);
+    await expect(
+      sendEmail(ctx, { to: 'recipient@example.com', subject: 'Hello', body: 'Body' }, PROPOSAL_A),
+    ).rejects.toThrow('socket closed after provider request');
+    expect(acceptedSink).toHaveBeenCalledTimes(1);
+  });
+
   test('reply_email retains the provider receipt when post-send artifact persistence rejects', async () => {
     const sendReceipt = {
       ok: true as const,
@@ -359,8 +446,9 @@ describe('Meri write outcome reconciliation', () => {
     const h = scheduleHarness();
     await h.scheduleTask(ctx, { ...input, logicalOperationId: PROPOSAL_B }, PROPOSAL_A);
 
-    await expect(h.scheduleTask(ctx, { ...input, prompt: 'Changed effect' }, PROPOSAL_A))
-      .rejects.toThrow('Unique constraint failed');
+    await expect(
+      h.scheduleTask(ctx, { ...input, prompt: 'Changed effect' }, PROPOSAL_A),
+    ).rejects.toThrow('Unique constraint failed');
     expect(h.rows.get(PROPOSAL_A)?.metadata).toMatchObject({ actionProposalId: PROPOSAL_A });
     expect(h.rows.get(PROPOSAL_A)?.metadata).not.toHaveProperty('logicalOperationId');
     expect(h.rows.has(PROPOSAL_B)).toBe(false);
@@ -384,7 +472,9 @@ describe('Meri write outcome reconciliation', () => {
       metadata: {},
     });
 
-    await expect(h.scheduleTask(ctx, input, PROPOSAL_A)).rejects.toThrow('Unique constraint failed');
+    await expect(h.scheduleTask(ctx, input, PROPOSAL_A)).rejects.toThrow(
+      'Unique constraint failed',
+    );
     expect(h.rows.get(PROPOSAL_A)?.tenantId).not.toBe(ctx.tenantId);
   });
 
@@ -417,8 +507,7 @@ describe('Meri write outcome reconciliation', () => {
     await expect(h.service.readScheduleTaskReceipt(ctx, PROPOSAL_A, input)).resolves.toMatchObject({
       id: '55555555-5555-4555-8555-555555555555',
     });
-    delete h.rows.get('55555555-5555-4555-8555-555555555555')!.metadata
-      .scheduleEffectFingerprint;
+    delete h.rows.get('55555555-5555-4555-8555-555555555555')!.metadata.scheduleEffectFingerprint;
     await expect(h.service.readScheduleTaskReceipt(ctx, PROPOSAL_A, input)).resolves.toBeNull();
     expect(h.create).toHaveBeenCalledTimes(1);
   });
@@ -427,8 +516,9 @@ describe('Meri write outcome reconciliation', () => {
     const clientId = '66666666-6666-4666-8666-666666666666';
     const h = scheduleHarness({ wallAllowed: false });
 
-    await expect(h.scheduleTask(ctx, { ...input, clientId }, PROPOSAL_A))
-      .rejects.toThrow('Client not found');
+    await expect(h.scheduleTask(ctx, { ...input, clientId }, PROPOSAL_A)).rejects.toThrow(
+      'Client not found',
+    );
     expect(h.create).not.toHaveBeenCalled();
 
     h.setWallAllowed(true);
@@ -476,8 +566,9 @@ describe('Meri write outcome reconciliation', () => {
     stored.lastStatus = 'canceled';
     stored.prompt = 'Mutated after cancellation';
 
-    await expect(h.scheduleTask(ctx, input, PROPOSAL_A))
-      .rejects.toThrow('Unique constraint failed');
+    await expect(h.scheduleTask(ctx, input, PROPOSAL_A)).rejects.toThrow(
+      'Unique constraint failed',
+    );
     await expect(h.service.readScheduleTaskReceipt(ctx, PROPOSAL_A, input)).resolves.toBeNull();
     expect(h.create).toHaveBeenCalledTimes(2);
     expect(h.rows.size).toBe(1);

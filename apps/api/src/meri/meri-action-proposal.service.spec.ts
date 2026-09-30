@@ -2,13 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaClient, type MeriActionProposal } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
-import {
-  CAPIRO_COMPLIANCE_POLICY_VERSION,
-  computeActionFingerprintV2,
-} from '@capiro/meriv2-core';
+import { CAPIRO_COMPLIANCE_POLICY_VERSION, computeActionFingerprintV2 } from '@capiro/meriv2-core';
 import type { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../config/config.schema.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
+import { classifyMeriActionLogicalFailure } from './meri-action-logical-outcome.js';
 import {
   MeriActionProposalService,
   type MeriActionProposalStatus,
@@ -168,7 +166,7 @@ function statusMatches(statusFilter: unknown, status: string): boolean {
     typeof statusFilter === 'object' &&
     Array.isArray((statusFilter as { in?: unknown }).in)
   ) {
-    return ((statusFilter as { in: string[] }).in).includes(status);
+    return (statusFilter as { in: string[] }).in.includes(status);
   }
   return true;
 }
@@ -213,22 +211,24 @@ function harness(
   } = {},
 ) {
   let row = options.row === undefined ? makeRow() : options.row;
-  let conversation = options.conversation === undefined
-    ? {
-        id: RP_CONVERSATION,
-        tenantId: TENANT,
-        userId: USER,
-        archivedAt: null,
-        clientId: null,
-        metadata: researchPortfolioMetadata(),
-      }
-    : options.conversation;
+  let conversation =
+    options.conversation === undefined
+      ? {
+          id: RP_CONVERSATION,
+          tenantId: TENANT,
+          userId: USER,
+          archivedAt: null,
+          clientId: null,
+          metadata: researchPortfolioMetadata(),
+        }
+      : options.conversation;
   const complianceCreate = jest.fn().mockResolvedValue({ id: 'audit' });
   const execute = options.executeError
     ? jest.fn().mockRejectedValue(options.executeError)
     : jest.fn().mockResolvedValue(options.executeResult ?? { ok: true, id: 'result-1' });
-  const validate = jest.fn((_tool: string, input: unknown) =>
-    JSON.parse(JSON.stringify(input ?? {})) as Record<string, unknown>,
+  const validate = jest.fn(
+    (_tool: string, input: unknown) =>
+      JSON.parse(JSON.stringify(input ?? {})) as Record<string, unknown>,
   );
 
   function matches(where: Record<string, unknown>): boolean {
@@ -238,7 +238,10 @@ function harness(
     if (where.userId && where.userId !== row.userId) return false;
     if (where.status && !statusMatches(where.status, row.status)) return false;
     if (where.expiresAt && !dateMatches(where.expiresAt, row.expiresAt)) return false;
-    if (where.executionStartedAt && !dateMatches(where.executionStartedAt, row.executionStartedAt)) {
+    if (
+      where.executionStartedAt &&
+      !dateMatches(where.executionStartedAt, row.executionStartedAt)
+    ) {
       return false;
     }
     return true;
@@ -324,9 +327,7 @@ function harness(
     },
   };
   const prisma = {
-    withTenant: jest.fn((_tenantId: string, callback: (arg: typeof tx) => unknown) =>
-      callback(tx),
-    ),
+    withTenant: jest.fn((_tenantId: string, callback: (arg: typeof tx) => unknown) => callback(tx)),
   } as unknown as PrismaService;
   const tools = {
     validateSideEffectingInput: validate,
@@ -384,9 +385,11 @@ function harness(
     tools: {
       execute,
       validate,
-      readScheduleTaskReceipt: (tools as unknown as {
-        readScheduleTaskReceipt: jest.Mock;
-      }).readScheduleTaskReceipt,
+      readScheduleTaskReceipt: (
+        tools as unknown as {
+          readScheduleTaskReceipt: jest.Mock;
+        }
+      ).readScheduleTaskReceipt,
     },
     policyPacks,
     authorizeScope,
@@ -400,52 +403,125 @@ function harness(
 
 describe('MeriActionProposalService', () => {
   it('keeps a confirmed client note receipt without exposing its body', async () => {
-    const h = harness({ row: null, executeResult: { tool: 'save_note', status: 'saved',
-      note: { id: 'note-1', clientId: TENANT, title: 'Engagement notes', body: 'Private note body' },
-      documentId: 'note-1', clientId: TENANT, clientName: 'Sightline',
-      location: `/clients?clientId=${TENANT}&tab=documents`, indexingStatus: 'pending' } });
+    const h = harness({
+      row: null,
+      executeResult: {
+        tool: 'save_note',
+        status: 'saved',
+        note: {
+          id: 'note-1',
+          clientId: TENANT,
+          title: 'Engagement notes',
+          body: 'Private note body',
+        },
+        documentId: 'note-1',
+        clientId: TENANT,
+        clientName: 'Sightline',
+        location: `/clients?clientId=${TENANT}&tab=documents`,
+        indexingStatus: 'pending',
+      },
+    });
     h.setPolicy({ outcome: 'PASS', reasons: ['Internal note'] });
-    const result = await h.service.create(ctx, { tool: 'save_note', input: { body: 'Private note body', clientId: TENANT }, surface: 'chat' });
+    const result = await h.service.create(ctx, {
+      tool: 'save_note',
+      input: { body: 'Private note body', clientId: TENANT },
+      surface: 'chat',
+    });
     expect(result.disposition).toBe('executed');
-    expect(result.proposal.resultSummary).toMatchObject({ tool: 'save_note', status: 'saved',
-      documentId: 'note-1', clientName: 'Sightline', note: { id: 'note-1' } });
+    expect(result.proposal.resultSummary).toMatchObject({
+      tool: 'save_note',
+      status: 'saved',
+      documentId: 'note-1',
+      clientName: 'Sightline',
+      note: { id: 'note-1' },
+    });
     expect(JSON.stringify(result.proposal.resultSummary)).not.toContain('Private note body');
   });
 
   it('does not treat a resolved promise without a durable save receipt as success', async () => {
     const h = harness({ row: null, executeResult: { ok: true } });
     h.setPolicy({ outcome: 'PASS', reasons: ['Internal note'] });
-    const result = await h.service.create(ctx, { tool: 'save_note', input: { body: 'Notes' }, surface: 'chat' });
+    const result = await h.service.create(ctx, {
+      tool: 'save_note',
+      input: { body: 'Notes' },
+      surface: 'chat',
+    });
     expect(result.disposition).toBe('failed');
     expect(result.proposal.status).toBe('outcome_unknown');
     expect(result.proposal.error?.code).toBe('client_filing_receipt_missing');
   });
 
-  it.each(['create', 'approve'] as const)('preserves a partial batch and its retry state through %s', async (path) => {
-    const input = { clientId: TENANT, conversationId: PROPOSAL, attachmentIds: [USER, PROPOSAL] };
-    const h = harness({ row: path === 'approve' ? makeRow({ tool: 'save_chat_attachments', input }) : null,
-      executeResult: { tool: 'save_chat_attachments', status: 'partial', clientId: TENANT, clientName: 'Sightline',
-        savedCount: 1, pendingCount: 0, failedCount: 1,
-        files: [{ attachmentId: USER, fileName: 'letter.docx', status: 'saved', documentId: 'doc-1' },
-          { attachmentId: PROPOSAL, fileName: 'brief.pdf', status: 'failed', reason: 'Try again' }] } });
-    h.setPolicy({ outcome: path === 'approve' ? 'WARN' : 'PASS', reasons: ['File documents'] });
-    const result = path === 'approve' ? await h.service.approveAndExecute(ctx, PROPOSAL)
-      : (await h.service.create(ctx, { tool: 'save_chat_attachments', input, surface: 'chat' })).proposal;
-    expect(result.status).toBe('failed_retryable');
-    expect(result.resultSummary).toMatchObject({ status: 'partial', savedCount: 1, failedCount: 1, files: [
-      expect.objectContaining({ documentId: 'doc-1', status: 'saved' }), expect.objectContaining({ status: 'failed' }),
-    ] });
-  });
+  it.each(['create', 'approve'] as const)(
+    'preserves a partial batch and its retry state through %s',
+    async (path) => {
+      const input = { clientId: TENANT, conversationId: PROPOSAL, attachmentIds: [USER, PROPOSAL] };
+      const h = harness({
+        row: path === 'approve' ? makeRow({ tool: 'save_chat_attachments', input }) : null,
+        executeResult: {
+          tool: 'save_chat_attachments',
+          status: 'partial',
+          clientId: TENANT,
+          clientName: 'Sightline',
+          savedCount: 1,
+          pendingCount: 0,
+          failedCount: 1,
+          files: [
+            { attachmentId: USER, fileName: 'letter.docx', status: 'saved', documentId: 'doc-1' },
+            {
+              attachmentId: PROPOSAL,
+              fileName: 'brief.pdf',
+              status: 'failed',
+              reason: 'Try again',
+            },
+          ],
+        },
+      });
+      h.setPolicy({ outcome: path === 'approve' ? 'WARN' : 'PASS', reasons: ['File documents'] });
+      const result =
+        path === 'approve'
+          ? await h.service.approveAndExecute(ctx, PROPOSAL)
+          : (await h.service.create(ctx, { tool: 'save_chat_attachments', input, surface: 'chat' }))
+              .proposal;
+      expect(result.status).toBe('failed_retryable');
+      expect(result.resultSummary).toMatchObject({
+        status: 'partial',
+        savedCount: 1,
+        failedCount: 1,
+        files: [
+          expect.objectContaining({ documentId: 'doc-1', status: 'saved' }),
+          expect.objectContaining({ status: 'failed' }),
+        ],
+      });
+    },
+  );
 
   it('retains processing state when all original files are stored but some scans are pending', async () => {
-    const h = harness({ row: null, executeResult: { tool: 'save_chat_attachments', status: 'partial', clientId: TENANT,
-      files: [{ attachmentId: USER, status: 'saved', documentId: 'd1' }, { attachmentId: PROPOSAL, status: 'pending', documentId: 'd2' }] } });
+    const h = harness({
+      row: null,
+      executeResult: {
+        tool: 'save_chat_attachments',
+        status: 'partial',
+        clientId: TENANT,
+        files: [
+          { attachmentId: USER, status: 'saved', documentId: 'd1' },
+          { attachmentId: PROPOSAL, status: 'pending', documentId: 'd2' },
+        ],
+      },
+    });
     h.setPolicy({ outcome: 'PASS', reasons: ['File documents'] });
-    const result = await h.service.create(ctx, { tool: 'save_chat_attachments', input: {}, surface: 'chat' });
+    const result = await h.service.create(ctx, {
+      tool: 'save_chat_attachments',
+      input: {},
+      surface: 'chat',
+    });
     expect(result.disposition).toBe('executed');
-    expect(result.proposal.resultSummary).toMatchObject({ status: 'partial', files: [
-      expect.objectContaining({ status: 'saved' }), expect.objectContaining({ status: 'pending' }),
-    ] });
+    expect(result.proposal.resultSummary).toMatchObject({
+      status: 'partial',
+      files: [
+        expect.objectContaining({ status: 'saved' }),
+        expect.objectContaining({ status: 'pending' }),
+      ],
+    });
   });
 
   it('creates the trusted fingerprint, policy, tenant, user, and expiry server-side', async () => {
@@ -557,12 +633,283 @@ describe('MeriActionProposalService', () => {
     expect(result.attemptCount).toBe(1);
   });
 
+  it.each(['PASS', 'WARN'] as const)(
+    'keeps ambiguous send_email %s outcome unknown without retry',
+    async (outcome) => {
+      const h = harness({
+        row: outcome === 'WARN' ? makeRow() : null,
+        executeError: new Error('socket closed after provider request'),
+      });
+      h.setPolicy({ outcome, reasons: ['Send policy'] });
+      const result =
+        outcome === 'WARN'
+          ? await h.service.approveAndExecute(ctx, PROPOSAL)
+          : (
+              await h.service.create(ctx, {
+                tool: 'send_email',
+                input: makeRow().input,
+                surface: 'chat',
+              })
+            ).proposal;
+      const retry = await h.service.approveAndExecute(ctx, PROPOSAL);
+      expect(result.status).toBe('outcome_unknown');
+      expect(result.error?.code).toBe('external_outcome_unknown');
+      expect(retry.status).toBe('outcome_unknown');
+      expect(h.tools.execute).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it('classifies an ambiguous external-send error as outcome_unknown and not retryable', async () => {
     const h = harness({ executeError: new Error('socket closed after provider request') });
     h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
     const result = await h.service.approveAndExecute(ctx, PROPOSAL);
     expect(result.status).toBe('outcome_unknown');
     expect(result.error?.code).toBe('external_outcome_unknown');
+  });
+
+  it('keeps an ambiguous schedule acknowledgement non-retryable with the same proposal id', async () => {
+    const input = { name: 'Watch', prompt: 'Check', intervalMinutes: 60 };
+    const h = harness({
+      row: makeRow({ tool: 'schedule_task', input }),
+      executeError: new Error('connection reset after commit acknowledgement was lost'),
+    });
+    h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
+
+    const first = await h.service.approveAndExecute(ctx, PROPOSAL);
+    const reconnected = await h.service.approveAndExecute(ctx, PROPOSAL);
+
+    expect(first.status).toBe('outcome_unknown');
+    expect(first.error?.code).toBe('schedule_task_outcome_unknown');
+    expect(reconnected.status).toBe('outcome_unknown');
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+    expect(h.tools.execute).toHaveBeenCalledWith(ctx, 'schedule_task', input, {
+      actionProposalId: PROPOSAL,
+    });
+  });
+
+  it.each([
+    ['send_email', { error: 'No connected email account found.' }, 'send_email_failed'],
+    ['reply_email', { error: 'Thread not found.' }, 'reply_email_failed'],
+    [
+      'schedule_task',
+      { tool: 'schedule_task', scheduled: false, error: 'The interval is invalid.' },
+      'schedule_task_rejected',
+    ],
+    [
+      'cancel_scheduled_task',
+      { tool: 'cancel_scheduled_task', canceled: false, error: 'Task not found.' },
+      'cancel_scheduled_task_rejected',
+    ],
+  ])(
+    'classifies resolved %s handler errors as terminal failures',
+    async (tool, executeResult, code) => {
+      const input =
+        tool === 'reply_email'
+          ? { threadId: 'thread-1', body: 'Reply' }
+          : tool === 'schedule_task'
+            ? { name: 'Watch', prompt: 'Check', intervalMinutes: 60 }
+            : { taskId: 'task-1' };
+      const h = harness({ row: makeRow({ tool, input }), executeResult });
+      h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
+
+      const result = await h.service.approveAndExecute(ctx, PROPOSAL);
+
+      expect(result.status).toBe('failed_terminal');
+      expect(result.error?.code).toBe(code);
+      expect(result.resultSummary).toMatchObject(executeResult);
+    },
+  );
+
+  it.each([
+    [
+      'send_email',
+      {
+        ok: true,
+        sentFrom: 'me@example.com',
+        to: 'you@example.com',
+        subject: 'Hi',
+        sendReceipt: {
+          ok: true,
+          provider: 'gmail',
+          providerMessageId: 'message-1',
+          correlationId: PROPOSAL,
+        },
+      },
+    ],
+    [
+      'reply_email',
+      { ok: true, sentFrom: 'me@example.com', to: 'you@example.com', subject: 'Re: Hi' },
+    ],
+    ['schedule_task', { tool: 'schedule_task', scheduled: true, task: { id: 'task-1' } }],
+    ['cancel_scheduled_task', { tool: 'cancel_scheduled_task', canceled: true, taskId: 'task-1' }],
+  ])('accepts the confirmed %s handler receipt', async (tool, executeResult) => {
+    const h = harness({ row: makeRow({ tool }), executeResult });
+    h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
+    expect((await h.service.approveAndExecute(ctx, PROPOSAL)).status).toBe('succeeded');
+  });
+
+  it.each(['PASS', 'WARN'] as const)(
+    'keeps disconnected send_email truthful on the %s path',
+    async (outcome) => {
+      const h = harness({
+        row: outcome === 'WARN' ? makeRow() : null,
+        executeResult: { error: 'No connected email account found.' },
+      });
+      h.setPolicy({ outcome, reasons: ['Send policy'] });
+      const result =
+        outcome === 'WARN'
+          ? await h.service.approveAndExecute(ctx, PROPOSAL)
+          : (
+              await h.service.create(ctx, {
+                tool: 'send_email',
+                input: makeRow().input,
+                surface: 'chat',
+              })
+            ).proposal;
+      expect(result.status).toBe('failed_terminal');
+      expect(result.error?.code).toBe('send_email_failed');
+      expect(h.tools.execute).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('keeps send_email unknown without authoritative provider identity and does not retry', async () => {
+    const executeResult = {
+      ok: true,
+      sentFrom: 'me@example.com',
+      to: 'you@example.com',
+      subject: 'Hi',
+      sendReceipt: { ok: true, provider: 'gmail', correlationId: PROPOSAL },
+    };
+    const h = harness({ executeResult });
+    h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
+    const result = await h.service.approveAndExecute(ctx, PROPOSAL);
+    const retry = await h.service.approveAndExecute(ctx, PROPOSAL);
+    expect(result.status).toBe('outcome_unknown');
+    expect(result.error?.code).toBe('send_email_receipt_missing');
+    expect(result.resultSummary).toMatchObject({ sendReceipt: executeResult.sendReceipt });
+    expect(retry.status).toBe('outcome_unknown');
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['PASS', 'WARN'] as const)(
+    'binds accepted send and artifact failure to the exact operation on the %s path',
+    async (outcome) => {
+      const executeResult = {
+        ok: true,
+        sentFrom: 'me@example.com',
+        to: 'you@example.com',
+        subject: 'Hi',
+        sendReceipt: {
+          ok: true,
+          provider: 'gmail',
+          providerMessageId: 'message-1',
+          correlationId: PROPOSAL,
+        },
+        artifactPersistence: {
+          persisted: false,
+          error: 'Artifact persistence failed after acceptance',
+        },
+      };
+      const h = harness({ row: outcome === 'WARN' ? makeRow() : null, executeResult });
+      h.setPolicy({ outcome, reasons: ['Send policy'] });
+      const result =
+        outcome === 'WARN'
+          ? await h.service.approveAndExecute(ctx, PROPOSAL)
+          : (
+              await h.service.create(ctx, {
+                tool: 'send_email',
+                input: makeRow().input,
+                surface: 'chat',
+              })
+            ).proposal;
+      const retry = await h.service.approveAndExecute(ctx, PROPOSAL);
+      expect(result.status).toBe('succeeded');
+      expect(result.resultSummary).toMatchObject({
+        sendReceipt: executeResult.sendReceipt,
+        artifactPersistence: executeResult.artifactPersistence,
+      });
+      expect(retry.status).toBe('succeeded');
+      expect(h.tools.execute).toHaveBeenCalledTimes(1);
+
+      const wrongOperationResult = {
+        ...executeResult,
+        sendReceipt: {
+          ...executeResult.sendReceipt,
+          correlationId: '44444444-4444-4444-8444-444444444444',
+        },
+      };
+      expect(classifyMeriActionLogicalFailure('send_email', executeResult, PROPOSAL)).toBeNull();
+      expect(
+        classifyMeriActionLogicalFailure('send_email', wrongOperationResult, PROPOSAL),
+      ).toMatchObject({
+        status: 'outcome_unknown',
+        errorCode: 'send_email_receipt_missing',
+      });
+
+      const wrong = harness({
+        row: outcome === 'WARN' ? makeRow() : null,
+        executeResult: wrongOperationResult,
+      });
+      wrong.setPolicy({ outcome, reasons: ['Send policy'] });
+      const mismatched =
+        outcome === 'WARN'
+          ? await wrong.service.approveAndExecute(ctx, PROPOSAL)
+          : (
+              await wrong.service.create(ctx, {
+                tool: 'send_email',
+                input: makeRow().input,
+                surface: 'chat',
+              })
+            ).proposal;
+      const mismatchedRetry = await wrong.service.approveAndExecute(ctx, PROPOSAL);
+      expect(mismatched.status).toBe('outcome_unknown');
+      expect(mismatched.error?.code).toBe('send_email_receipt_missing');
+      expect(mismatched.resultSummary).toMatchObject({
+        sendReceipt: wrongOperationResult.sendReceipt,
+        artifactPersistence: wrongOperationResult.artifactPersistence,
+      });
+      expect(mismatchedRetry.status).toBe('outcome_unknown');
+      expect(wrong.tools.execute).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('retains an acknowledged reply receipt when only artifact persistence failed', async () => {
+    const executeResult = {
+      ok: true,
+      sentFrom: 'me@example.com',
+      to: 'you@example.com',
+      subject: 'Re: Hi',
+      sendReceipt: {
+        provider: 'gmail',
+        providerMessageId: 'message-1',
+        providerThreadId: 'thread-1',
+        correlationId: 'correlation-1',
+      },
+      artifactPersistence: {
+        persisted: false,
+        error: 'Tool clientId does not match the Meri conversation client',
+      },
+    };
+    const h = harness({
+      row: makeRow({ tool: 'reply_email', input: { threadId: 'thread-1', body: 'Reply' } }),
+      executeResult,
+    });
+    h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
+
+    const result = await h.service.approveAndExecute(ctx, PROPOSAL);
+
+    expect(result.status).toBe('succeeded');
+    expect(result.resultSummary).toMatchObject({
+      sendReceipt: {
+        provider: 'gmail',
+        providerMessageId: 'message-1',
+        correlationId: 'correlation-1',
+      },
+      artifactPersistence: {
+        persisted: false,
+        error: 'Tool clientId does not match the Meri conversation client',
+      },
+    });
   });
 
   it('keeps an ambiguous schedule acknowledgement non-retryable with the same proposal id', async () => {
@@ -714,24 +1061,31 @@ describe('MeriActionProposalService', () => {
       { tool: 'cancel_scheduled_task', canceled: false, error: 'Task not found.' },
       'cancel_scheduled_task_rejected',
     ],
-  ])('classifies resolved %s handler errors as terminal failures', async (tool, executeResult, code) => {
-    const input = tool === 'reply_email'
-      ? { threadId: 'thread-1', body: 'Reply' }
-      : tool === 'schedule_task'
-        ? { name: 'Watch', prompt: 'Check', intervalMinutes: 60 }
-        : { taskId: 'task-1' };
-    const h = harness({ row: makeRow({ tool, input }), executeResult });
-    h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
+  ])(
+    'classifies resolved %s handler errors as terminal failures',
+    async (tool, executeResult, code) => {
+      const input =
+        tool === 'reply_email'
+          ? { threadId: 'thread-1', body: 'Reply' }
+          : tool === 'schedule_task'
+            ? { name: 'Watch', prompt: 'Check', intervalMinutes: 60 }
+            : { taskId: 'task-1' };
+      const h = harness({ row: makeRow({ tool, input }), executeResult });
+      h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
 
-    const result = await h.service.approveAndExecute(ctx, PROPOSAL);
+      const result = await h.service.approveAndExecute(ctx, PROPOSAL);
 
-    expect(result.status).toBe('failed_terminal');
-    expect(result.error?.code).toBe(code);
-    expect(result.resultSummary).toMatchObject(executeResult);
-  });
+      expect(result.status).toBe('failed_terminal');
+      expect(result.error?.code).toBe(code);
+      expect(result.resultSummary).toMatchObject(executeResult);
+    },
+  );
 
   it.each([
-    ['reply_email', { ok: true, sentFrom: 'me@example.com', to: 'you@example.com', subject: 'Re: Hi' }],
+    [
+      'reply_email',
+      { ok: true, sentFrom: 'me@example.com', to: 'you@example.com', subject: 'Re: Hi' },
+    ],
     ['schedule_task', { tool: 'schedule_task', scheduled: true, task: { id: 'task-1' } }],
     ['cancel_scheduled_task', { tool: 'cancel_scheduled_task', canceled: true, taskId: 'task-1' }],
   ])('accepts the confirmed %s handler receipt', async (tool, executeResult) => {
@@ -818,9 +1172,7 @@ describe('MeriActionProposalService', () => {
     });
     const h = harness({ row, executeError: new Error('temporarily unavailable') });
     h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
-    expect((await h.service.approveAndExecute(ctx, PROPOSAL)).status).toBe(
-      'failed_retryable',
-    );
+    expect((await h.service.approveAndExecute(ctx, PROPOSAL)).status).toBe('failed_retryable');
   });
 
   it('classifies a genuine validation failure as failed_terminal, never succeeded', async () => {
@@ -886,12 +1238,7 @@ describe('MeriActionProposalService', () => {
     expect(h.tx.complianceCheck.create).not.toHaveBeenCalled();
   });
 
-  it.each<MeriActionProposalStatus>([
-    'succeeded',
-    'failed_terminal',
-    'dismissed',
-    'expired',
-  ])(
+  it.each<MeriActionProposalStatus>(['succeeded', 'failed_terminal', 'dismissed', 'expired'])(
     'dismiss: is a no-op against terminal status %s (cannot resurrect it)',
     async (status) => {
       const h = harness({ row: makeRow({ status }) });
@@ -904,16 +1251,10 @@ describe('MeriActionProposalService', () => {
   it('dismiss: does not reveal or affect another user or tenant proposal', async () => {
     const h = harness();
     await expect(
-      h.service.dismiss(
-        { ...ctx, userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' },
-        PROPOSAL,
-      ),
+      h.service.dismiss({ ...ctx, userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' }, PROPOSAL),
     ).rejects.toBeInstanceOf(NotFoundException);
     await expect(
-      h.service.dismiss(
-        { ...ctx, tenantId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' },
-        PROPOSAL,
-      ),
+      h.service.dismiss({ ...ctx, tenantId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' }, PROPOSAL),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(h.getRow()?.status).toBe('proposed');
   });
@@ -1085,56 +1426,68 @@ describe('MeriActionProposalService — Research Portfolio conversation binding'
 
   it.each([
     ['missing', null],
-    ['foreign-owned', {
-      id: RP_CONVERSATION,
-      tenantId: TENANT,
-      userId: OTHER_RP_CLIENT,
-      archivedAt: null,
-      clientId: null,
-      metadata: researchPortfolioMetadata(),
-    }],
-    ['archived', {
-      id: RP_CONVERSATION,
-      tenantId: TENANT,
-      userId: USER,
-      archivedAt: new Date(),
-      clientId: null,
-      metadata: researchPortfolioMetadata(),
-    }],
-  ] as const)('rejects a %s current RP conversation before policy or execution', async (_label, conversation) => {
-    const h = harness({ row: null, conversation: conversation as never });
-    await expect(
-      h.service.create(
-        ctx,
-        {
-          tool: 'create_research_portfolio_snapshot',
-          input: snapshotInput,
-          conversationId: RP_CONVERSATION,
-          surface: 'chat',
-        },
-        { conversationId: RP_CONVERSATION, selectedClientId: null },
-      ),
-    ).rejects.toBeInstanceOf(NotFoundException);
-    expect(h.policyPacks.decideForAction).not.toHaveBeenCalled();
-    expect(h.tx.meriActionProposal.create).not.toHaveBeenCalled();
-    expect(h.tools.execute).not.toHaveBeenCalled();
-  });
+    [
+      'foreign-owned',
+      {
+        id: RP_CONVERSATION,
+        tenantId: TENANT,
+        userId: OTHER_RP_CLIENT,
+        archivedAt: null,
+        clientId: null,
+        metadata: researchPortfolioMetadata(),
+      },
+    ],
+    [
+      'archived',
+      {
+        id: RP_CONVERSATION,
+        tenantId: TENANT,
+        userId: USER,
+        archivedAt: new Date(),
+        clientId: null,
+        metadata: researchPortfolioMetadata(),
+      },
+    ],
+  ] as const)(
+    'rejects a %s current RP conversation before policy or execution',
+    async (_label, conversation) => {
+      const h = harness({ row: null, conversation: conversation as never });
+      await expect(
+        h.service.create(
+          ctx,
+          {
+            tool: 'create_research_portfolio_snapshot',
+            input: snapshotInput,
+            conversationId: RP_CONVERSATION,
+            surface: 'chat',
+          },
+          { conversationId: RP_CONVERSATION, selectedClientId: null },
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(h.policyPacks.decideForAction).not.toHaveBeenCalled();
+      expect(h.tx.meriActionProposal.create).not.toHaveBeenCalled();
+      expect(h.tools.execute).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([
     ['stale scope', new BadRequestException('Research portfolio scope is stale')],
     ['ethical wall', new NotFoundException('Research portfolio is blocked by an ethical wall')],
-  ])('reauthorizes current RP membership at approval/retry and rejects %s', async (_label, error) => {
-    const h = harness({
-      row: rpRow({ status: 'failed_retryable', attemptCount: 1 }),
-      scopeError: error,
-    });
+  ])(
+    'reauthorizes current RP membership at approval/retry and rejects %s',
+    async (_label, error) => {
+      const h = harness({
+        row: rpRow({ status: 'failed_retryable', attemptCount: 1 }),
+        scopeError: error,
+      });
 
-    await expect(h.service.approveAndExecute(ctx, PROPOSAL)).rejects.toBe(error);
-    expect(h.getRow()?.status).toBe('failed_retryable');
-    expect(h.getRow()?.attemptCount).toBe(1);
-    expect(h.policyPacks.decideForAction).not.toHaveBeenCalled();
-    expect(h.tools.execute).not.toHaveBeenCalled();
-  });
+      await expect(h.service.approveAndExecute(ctx, PROPOSAL)).rejects.toBe(error);
+      expect(h.getRow()?.status).toBe('failed_retryable');
+      expect(h.getRow()?.attemptCount).toBe(1);
+      expect(h.policyPacks.decideForAction).not.toHaveBeenCalled();
+      expect(h.tools.execute).not.toHaveBeenCalled();
+    },
+  );
 
   it('rechecks that the stored RP conversation is still owned and unarchived before approval', async () => {
     const h = harness({
@@ -1223,20 +1576,27 @@ describe('MeriActionProposalService — Research Portfolio conversation binding'
   );
 
   it.each([
-    [{ ...snapshotInput, conversationId: OTHER_RP_CONVERSATION }, RP_CONVERSATION, 'stored_input_invalid'],
+    [
+      { ...snapshotInput, conversationId: OTHER_RP_CONVERSATION },
+      RP_CONVERSATION,
+      'stored_input_invalid',
+    ],
     [snapshotInput, OTHER_RP_CONVERSATION, 'stored_scope_invalid'],
     [{ operationKey: 'legacy-without-conversation' }, RP_CONVERSATION, 'stored_input_invalid'],
-  ])('blocks an inconsistent stored RP row without retargeting or execution', async (input, conversationId, code) => {
-    const h = harness({ row: rpRow({ input, conversationId }) });
+  ])(
+    'blocks an inconsistent stored RP row without retargeting or execution',
+    async (input, conversationId, code) => {
+      const h = harness({ row: rpRow({ input, conversationId }) });
 
-    const result = await h.service.approveAndExecute(ctx, PROPOSAL);
+      const result = await h.service.approveAndExecute(ctx, PROPOSAL);
 
-    expect(result.status).toBe('blocked');
-    expect(result.error?.code).toBe(code);
-    expect(result.attemptCount).toBe(0);
-    expect(h.policyPacks.decideForAction).not.toHaveBeenCalled();
-    expect(h.tools.execute).not.toHaveBeenCalled();
-  });
+      expect(result.status).toBe('blocked');
+      expect(result.error?.code).toBe(code);
+      expect(result.attemptCount).toBe(0);
+      expect(h.policyPacks.decideForAction).not.toHaveBeenCalled();
+      expect(h.tools.execute).not.toHaveBeenCalled();
+    },
+  );
 
   it('blocks a legacy RP row with no persisted trusted turn scope', async () => {
     const h = harness({ row: rpRow({ preview: makeRow().preview }) });
@@ -1295,52 +1655,55 @@ describe('MeriActionProposalService — Research Portfolio conversation binding'
   it.each([
     ['creation', false],
     ['approval', true],
-  ] as const)('rejects RP %s when selected client changes during awaited policy', async (_label, approval) => {
-    const conversation = {
-      id: RP_CONVERSATION,
-      tenantId: TENANT,
-      userId: USER,
-      archivedAt: null,
-      clientId: RP_CLIENT,
-      metadata: researchPortfolioMetadata(),
-    };
-    const h = harness({ row: approval ? rpRow({}, RP_CLIENT) : null, conversation });
-    let release!: () => void;
-    const waiting = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    let entered!: () => void;
-    const started = new Promise<void>((resolve) => {
-      entered = resolve;
-    });
-    h.policyPacks.decideForAction = jest.fn(async () => {
-      entered();
-      await waiting;
-      return authoritativeDecision('create_research_portfolio_snapshot', {
-        outcome: 'WARN',
-        reasons: ['Review snapshot'],
+  ] as const)(
+    'rejects RP %s when selected client changes during awaited policy',
+    async (_label, approval) => {
+      const conversation = {
+        id: RP_CONVERSATION,
+        tenantId: TENANT,
+        userId: USER,
+        archivedAt: null,
+        clientId: RP_CLIENT,
+        metadata: researchPortfolioMetadata(),
+      };
+      const h = harness({ row: approval ? rpRow({}, RP_CLIENT) : null, conversation });
+      let release!: () => void;
+      const waiting = new Promise<void>((resolve) => {
+        release = resolve;
       });
-    });
-    const action = approval
-      ? h.service.approveAndExecute(ctx, PROPOSAL)
-      : h.service.create(
-          ctx,
-          {
-            tool: 'create_research_portfolio_snapshot',
-            input: snapshotInput,
-            conversationId: RP_CONVERSATION,
-            surface: 'chat',
-          },
-          { conversationId: RP_CONVERSATION, selectedClientId: RP_CLIENT },
-        );
-    await started;
-    h.setConversation({ ...conversation, clientId: null });
-    release();
+      let entered!: () => void;
+      const started = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      h.policyPacks.decideForAction = jest.fn(async () => {
+        entered();
+        await waiting;
+        return authoritativeDecision('create_research_portfolio_snapshot', {
+          outcome: 'WARN',
+          reasons: ['Review snapshot'],
+        });
+      });
+      const action = approval
+        ? h.service.approveAndExecute(ctx, PROPOSAL)
+        : h.service.create(
+            ctx,
+            {
+              tool: 'create_research_portfolio_snapshot',
+              input: snapshotInput,
+              conversationId: RP_CONVERSATION,
+              surface: 'chat',
+            },
+            { conversationId: RP_CONVERSATION, selectedClientId: RP_CLIENT },
+          );
+      await started;
+      h.setConversation({ ...conversation, clientId: null });
+      release();
 
-    await expect(action).rejects.toBeInstanceOf(BadRequestException);
-    expect(h.getRow()?.status ?? null).toBe(approval ? 'proposed' : null);
-    expect(h.tools.execute).not.toHaveBeenCalled();
-  });
+      await expect(action).rejects.toBeInstanceOf(BadRequestException);
+      expect(h.getRow()?.status ?? null).toBe(approval ? 'proposed' : null);
+      expect(h.tools.execute).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([
     ['grant', new BadRequestException('Research Portfolio grant was revoked')],
@@ -1400,8 +1763,9 @@ describe('MeriActionProposalService — Research Portfolio conversation binding'
     ]);
 
     expect([first.status, second.status]).toContain('succeeded');
-    expect([first.status, second.status].every((value) => /^(?:executing|succeeded)$/.test(value)))
-      .toBe(true);
+    expect(
+      [first.status, second.status].every((value) => /^(?:executing|succeeded)$/.test(value)),
+    ).toBe(true);
     expect(h.tools.execute).toHaveBeenCalledTimes(1);
     expect(h.getRow()?.attemptCount).toBe(1);
   });
