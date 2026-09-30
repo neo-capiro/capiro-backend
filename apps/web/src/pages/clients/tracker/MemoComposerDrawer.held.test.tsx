@@ -201,8 +201,12 @@ describe.each([
 
       renderDrawer(makeItem());
 
-      await waitFor(() => expect(screen.getByText('Not yet filed')).toBeInTheDocument());
-      expect(screen.getByRole('button', { name: 'Save to Documents' })).not.toBeDisabled();
+      // "Not yet filed" also renders for an instant before generation starts,
+      // while Save is still disabled; wait for the generated state.
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Save to Documents' })).not.toBeDisabled(),
+      );
+      expect(screen.getByText('Not yet filed')).toBeInTheDocument();
       await waitFor(() =>
         expect(
           screen.getByText('Memo drafted (auto-file to Documents failed — use Save to retry)'),
@@ -231,6 +235,8 @@ describe.each([
 
       await waitFor(() => expect(screen.getByText('Not yet filed')).toBeInTheDocument());
       const saveButton = screen.getByRole('button', { name: 'Save to Documents' });
+      // A click before generation completes lands on the disabled button.
+      await waitFor(() => expect(saveButton).not.toBeDisabled());
       saveButton.click();
 
       await waitFor(() =>
@@ -463,7 +469,9 @@ describe.each([
       renderDrawer(makeItem());
 
       await waitFor(() => expect(screen.getByText('Not yet filed')).toBeInTheDocument());
-      screen.getByRole('button', { name: 'Save to Documents' }).click();
+      const saveButton = screen.getByRole('button', { name: 'Save to Documents' });
+      await waitFor(() => expect(saveButton).not.toBeDisabled());
+      saveButton.click();
 
       await waitFor(() =>
         expect(apiPostMock).toHaveBeenCalledWith(
