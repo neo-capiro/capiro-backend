@@ -172,6 +172,7 @@ function harness(opts: {
   return {
     service: new ClientProfileFillContextPlaneService(prisma as never, gateway as never),
     gateway,
+    tx,
   };
 }
 
@@ -226,6 +227,28 @@ describe('ClientProfileFillContextPlaneService Phase 23', () => {
             'client-people',
           ],
         }),
+      }),
+    );
+  });
+
+  test('the wall decision is read off the actor-keyed wall filter, never asserted', async () => {
+    const h = harness();
+    await h.service.resolve({ tenantId: TENANT, userId: USER } as never, { clientId: CLIENT });
+
+    // Both the canonical-client read and the retrieval scope carry the wall
+    // predicate for THIS actor; the packet's ethical-wall flag is derived from them.
+    const wall = [{ memoryWall: false }, { memoryAccessGrants: { some: { userId: USER } } }];
+    expect(h.tx.client.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: CLIENT, tenantId: TENANT, OR: wall }),
+      }),
+    );
+    expect(h.tx.client.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ tenantId: TENANT, OR: wall }) }),
+    );
+    expect(h.gateway.requestContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contextRequest: expect.objectContaining({ ethicalWallAllowed: true }),
       }),
     );
   });

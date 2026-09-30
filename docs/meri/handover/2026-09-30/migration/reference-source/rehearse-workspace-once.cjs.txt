@@ -1,0 +1,94 @@
+'use strict';
+// Two separately invoked clone-only operations. Never loops, resolves Workspace, or targets live.
+const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto');
+const E='C:/dev/cap-meri-foundation-evidence',ROOT=E+'/isolated-migration-rehearsal';
+const API_SCRIPT=E+'/rehearse-api-deploy-once.cjs',API_HASH='d044ab138eac02c64b3ad797d5b9f35b9730565334b95d1f1605dd7336bc6c5e',HELPER_HASH='89dee667f7ff4cdab26a1ced6da07f0667ab062a4f811de3efd0cefd0de9a310';
+const WS=path.join(ROOT,'frozen-workspace-25d1339c'),WS_MANIFEST='7aebd240c6cfbb042902164294e951a903809c08fa1f004e73fe784665ba33a5';
+const API_NAME='20280913012000_legiwatch_official_transcript_revisions',API_SQL='a69aab9c6cc1044c815b4b5f502e4eb95182629a5c9dfa87c09e1b755e1289a6';
+const WS_NAME='20260911160000_hillday_first_page_edits',WS_SQL='1ce43fc806e400a5e543686711cf2286d8c06d0d01f66874572852169033d10a';
+const WS_SECOND='20260913020000_legiwatch_preparation_actions';
+const HOST='capiro-dev-meri-rehearsal-20260929.cluster-csryw28ai752.us-east-1.rds.amazonaws.com',CLUSTER='capiro-dev-meri-rehearsal-20260929',RESOURCE='cluster-3PE7KKIRXQVJYXSXLBI5M2R7IY';
+const hash=x=>crypto.createHash('sha256').update(x).digest('hex'),jh=x=>hash(JSON.stringify(x));
+const guard=(ok,code)=>{if(!ok)throw Object.assign(new Error(code),{code});};
+const uuid=x=>/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(x);
+function load(){guard(hash(fs.readFileSync(API_SCRIPT))===API_HASH,'API_HELPER_HASH');const api=require(API_SCRIPT),h=api.loadReviewedHelpers();guard(h.HOST===HOST&&h.CLUSTER===CLUSTER,'HELPER_TARGET');return {api,h};}
+function verifyWorkspace(){
+ const raw=fs.readFileSync(path.join(ROOT,'frozen-workspace-source-manifest.json'));guard(hash(raw)===WS_MANIFEST,'WORKSPACE_MANIFEST_HASH');const m=JSON.parse(raw);
+ guard(m.commit==='25d1339c0c0e21fe0c3c0148787fad772e5096e8'&&m.owner==='apps/workspace'&&m.migrationCount===13&&m.files.length===15&&path.resolve(m.source)===path.resolve(WS),'WORKSPACE_MANIFEST');
+ const actual=[];function walk(dir){for(const e of fs.readdirSync(dir,{withFileTypes:true})){guard(!e.isSymbolicLink(),'WORKSPACE_SYMLINK');const target=path.join(dir,e.name);if(e.isDirectory())walk(target);else{guard(e.isFile(),'WORKSPACE_NONFILE');actual.push(path.relative(WS,target).replace(/\\/g,'/'));}}}walk(WS);
+ guard(jh(actual.sort())===jh(m.files.map(f=>f.file).sort()),'WORKSPACE_EXTRA_FILES');for(const f of m.files){const b=fs.readFileSync(path.join(WS,f.file));guard(f.mode==='100644'&&b.length===f.bytes&&hash(b)===f.sha256,'WORKSPACE_SOURCE_BYTES');if(f.file.endsWith('/migration.sql'))guard(!b.includes(13),'WORKSPACE_SQL_CR');}
+ guard(hash(fs.readFileSync(path.join(WS,'migrations',WS_NAME,'migration.sql')))===WS_SQL,'WORKSPACE_PENDING_BYTES');
+ for(let dir=WS;;dir=path.dirname(dir)){guard(!fs.existsSync(path.join(dir,'.env')),'WORKSPACE_DOTENV');if(path.dirname(dir)===dir)break;}
+ return {manifestSha256:WS_MANIFEST,commit:m.commit,migrationCount:13};
+}
+function cloudReceipt(r){guard(r?.cluster===CLUSTER&&r?.resourceId===RESOURCE&&r?.endpoint===HOST&&r?.account==='967807252336','RECEIPT_WRONG_CLONE');}
+function validateApiReceipt(r,source,api){
+ guard(r.complete===true&&r.mode==='CLONE_ONLY_DEPLOY_ONCE'&&r.scriptSha256===API_HASH&&r.reviewedHelperSha256===HELPER_HASH&&r.rehearsalVerdict==='EXPECTED_FAILURE_CONFIRMED'&&r.releaseVerdict==='BLOCKED','API_RECEIPT_NOT_PASS');cloudReceipt(r.cloud);
+ guard(jh(r.source)===jh(source),'API_RECEIPT_SOURCE');api.validateBaseline(r.before,ROOT+'/frozen-api-25d1339c');const proof=api.validateFailedTransition(r.before,r.after,r.execution,r.failedLog);
+ guard(jh(r.preservation)===jh(proof),'API_RECEIPT_PROOF');const id=proof.failedRowId;guard(uuid(id)&&r.after.ledger.length===544,'API_FAILED_ROW_ID');
+ return {id,name:API_NAME,checksum:API_SQL};
+}
+function exactApiFailure(s,target){
+ guard(s.ledger.length===544,'API_PROBE_LEDGER_COUNT');const open=s.ledger.filter(r=>!r.finished_at&&!r.rolled_back_at),same=s.ledger.filter(r=>r.migration_name===API_NAME);
+ guard(open.length===1&&same.length===1&&open[0].id===target.id&&open[0].migration_name===API_NAME&&open[0].checksum===API_SQL&&open[0].applied_steps_count===0&&open[0].logsIsNull===false,'EXACT_API_PROBE_FAILURE');
+}
+function unchangedPhysical(a,b){for(const k of ['roles','memberships','subscriptions','extensions','columns','constraints','indexes','effectivePrivileges'])guard(jh(a[k])===jh(b[k]),'CHANGED_'+k.toUpperCase());for(const k of ['schema','data'])guard(a[k].sha256===b[k].sha256&&a[k].bytes===b[k].bytes,'CHANGED_'+k.toUpperCase()+'_FINGERPRINT');}
+function commandTime(value,e){const t=new Date(value).getTime(),start=Date.parse(e.startedAt),end=Date.parse(e.completedAt);return value!==null&&Number.isFinite(t)&&Number.isFinite(start)&&Number.isFinite(end)&&end>=start&&t>=start-1000&&t<=end+1000;}
+function validateRollback(a,b,e,target){
+ exactApiFailure(a,target);unchangedPhysical(a,b);guard(e.exitCode===0&&e.signal===null&&e.timedOut===false,'ROLLBACK_COMMAND_FAILED');guard(b.ledger.length===a.ledger.length,'ROLLBACK_LEDGER_COUNT');
+ const old=a.ledger.find(r=>r.id===target.id),row=b.ledger.find(r=>r.id===target.id);guard(row&&b.ledger.filter(r=>r.id===target.id).length===1,'ROLLBACK_ROW_ID');
+ guard(jh(a.ledger.filter(r=>r.id!==target.id))===jh(b.ledger.filter(r=>r.id!==target.id)),'OTHER_LEDGER_CHANGED');
+ const omit=r=>Object.fromEntries(Object.entries(r).filter(([k])=>k!=='rolled_back_at'));guard(jh(omit(old))===jh(omit(row)),'ROLLBACK_IMMUTABLE_FIELDS');
+ guard(old.rolled_back_at===null&&commandTime(row.rolled_back_at,e),'ROLLBACK_TIMESTAMP');guard(!b.ledger.some(r=>!r.finished_at&&!r.rolled_back_at),'UNRESOLVED_ROW_REMAINS');
+ return {unchangedSchema:true,unchangedAllNonLedgerData:true,unchangedRolesAndMemberships:true,unchangedAllOtherLedgerRows:true,unchangedTargetExceptRollback:true,ledgerRowCount:544,rolledBackRowId:target.id,migration:API_NAME,checksum:API_SQL};
+}
+function workspaceBaseline(s){
+ guard(s.identity?.database==='capiro'&&s.identity?.role==='capiro_master'&&s.identity?.read_only==='on'&&s.identity?.tls===true,'WORKSPACE_BASELINE_IDENTITY');
+ guard(s.ledger.length===544&&!s.ledger.some(r=>!r.finished_at&&!r.rolled_back_at),'WORKSPACE_BASELINE_LEDGER');
+ guard(!s.ledger.some(r=>[WS_NAME,WS_SECOND].includes(r.migration_name)),'WORKSPACE_PENDING_ROW_EXISTS');
+ const m=JSON.parse(fs.readFileSync(path.join(ROOT,'frozen-workspace-source-manifest.json'))),applied=new Set(s.ledger.filter(r=>r.finished_at&&!r.rolled_back_at).map(r=>r.migration_name));
+ const pending=m.files.filter(f=>f.file.endsWith('/migration.sql')).map(f=>f.file.split('/')[1]).sort().filter(n=>!applied.has(n));guard(jh(pending)===jh([WS_NAME,WS_SECOND]),'WORKSPACE_PENDING_CHAIN');
+}
+function validateWorkspaceFailure(a,b,e,logs){
+ workspaceBaseline(a);unchangedPhysical(a,b);guard(b.ledger.length===a.ledger.length+1,'WORKSPACE_LEDGER_COUNT');const added=b.ledger.filter(r=>!a.ledger.some(p=>p.id===r.id));guard(added.length===1,'WORKSPACE_ADDED_ROW_COUNT');const r=added[0];
+ guard(uuid(r.id),'WORKSPACE_FAILED_UUID');guard(jh(a.ledger)===jh(b.ledger.filter(p=>p.id!==r.id)),'PRIOR_LEDGER_CHANGED');
+ guard(r.migration_name===WS_NAME&&r.checksum===WS_SQL&&r.finished_at===null&&r.rolled_back_at===null&&r.applied_steps_count===0&&r.logsIsNull===false&&r.logsSha256!==hash(''),'WORKSPACE_FAILED_FIELDS');
+ guard(b.ledger.filter(p=>!p.finished_at&&!p.rolled_back_at).length===1&&b.ledger.filter(p=>p.migration_name===WS_NAME).length===1,'WORKSPACE_OPEN_ROW_COUNT');guard(commandTime(r.started_at,e),'WORKSPACE_FAILED_TIMESTAMP');
+ guard(e.exitCode===1&&e.signal===null&&e.timedOut===false&&e.prismaCodes.includes('P3018')&&e.has42701&&e.hasExpectedMigration&&e.hasExpectedRelation&&e.hasExpectedColumn,'WORKSPACE_EXPECTED_FAILURE');
+ guard(logs.id===r.id&&logs.logsSha256===r.logsSha256&&logs.has42701&&logs.hasExpectedRelation&&logs.hasExpectedColumn,'WORKSPACE_FAILURE_LOG');
+ return {unchangedSchema:true,unchangedAllNonLedgerData:true,unchangedRolesAndMemberships:true,unchangedAllPriorLedgerRows:true,exactlyOneFailedRowAdded:true,ledgerRowCount:545,failedRowId:r.id,migration:WS_NAME,checksum:WS_SQL};
+}
+async function command(h,secret,operation){
+ const isRollback=operation==='--mark-api-probe-rolled-back',url=new URL('postgresql://'+HOST+':5432/capiro');url.username='capiro_master';url.password=secret.password;
+ for(const[k,v]of Object.entries({schema:'public',sslmode:'require',sslaccept:'strict',sslcert:h.PRISMA_CA.replace(/\\/g,'/')}))url.searchParams.set(k,v);guard(url.hostname===HOST&&url.pathname==='/capiro'&&url.searchParams.get('schema')==='public','COMMAND_TARGET');
+ const args=isRollback?[h.CLI,'migrate','resolve','--rolled-back',API_NAME,'--schema',path.join(h.SOURCE,'schema.prisma')]:[h.CLI,'migrate','deploy','--schema',path.join(WS,'schema.prisma')];
+ const value=url.toString(),startedAt=new Date().toISOString();const result=await new Promise(resolve=>cp.execFile(process.execPath,args,{cwd:isRollback?h.SOURCE:WS,env:h.cleanEnv({DATABASE_URL:value}),windowsHide:true,timeout:180000,maxBuffer:4*1024*1024,encoding:'utf8'},(error,stdout,stderr)=>resolve({exitCode:error?(typeof error.code==='number'?error.code:1):0,signal:error?.signal||null,timedOut:!!error?.killed,stdout,stderr})));
+ const completedAt=new Date().toISOString(),clean=s=>h.redact(s,[secret.password,encodeURIComponent(secret.password),value]),stdout=clean(result.stdout),stderr=clean(result.stderr),both=stdout+'\n'+stderr,prefix=isRollback?'api-probe-rollback':'workspace-probe';
+ for(const[k,v]of Object.entries({stdout,stderr}))fs.writeFileSync(path.join(ROOT,prefix+'-'+k+'-sanitized.log'),v,{flag:'wx'});
+ return {exitCode:result.exitCode,signal:result.signal,timedOut:result.timedOut,startedAt,completedAt,stdoutSha256:hash(stdout),stderrSha256:hash(stderr),prismaCodes:[...new Set(both.match(/\bP[0-9]{4}\b/g)||[])],has42701:both.includes('42701'),hasExpectedMigration:both.includes(WS_NAME),hasExpectedRelation:both.includes('ws_hillday_document'),hasExpectedColumn:both.includes('first_page')};
+}
+async function main(){
+ guard(process.argv.length===3&&['--check','--mark-api-probe-rolled-back','--probe-workspace-once'].includes(process.argv[2]),'MODE');const mode=process.argv[2],{api,h}=load(),source=api.verifyFrozen(h),workspaceSource=verifyWorkspace();
+ if(mode==='--check'){console.log(JSON.stringify({localCheck:'PASS',source,workspaceSource,cloudCalls:0,databaseCalls:0}));return;}
+ const isRollback=mode==='--mark-api-probe-rolled-back',prefix=isRollback?'api-probe-rollback':'workspace-probe';
+ for(const suffix of ['.json','.lock','-stdout-sanitized.log','-stderr-sanitized.log'])guard(!fs.existsSync(path.join(ROOT,prefix+suffix)),'PRIOR_ATTEMPT_EXISTS');
+ const scriptSha256=hash(fs.readFileSync(__filename));fs.writeFileSync(path.join(ROOT,prefix+'.lock'),JSON.stringify({mode,scriptSha256,startedAt:new Date().toISOString()})+'\n',{flag:'wx'});
+ const r={mode,scriptSha256,apiScriptSha256:API_HASH,reviewedHelperSha256:HELPER_HASH,source,workspaceSource,startedAt:new Date().toISOString(),complete:false,rehearsalVerdict:'BLOCKED',releaseVerdict:'BLOCKED',mutations:[]};let secret,db;
+ try{
+  const apiRaw=fs.readFileSync(path.join(ROOT,'deploy-once.json')),apiReceipt=JSON.parse(apiRaw);r.apiReceiptSha256=hash(apiRaw);r.target=validateApiReceipt(apiReceipt,source,api);let expected=apiReceipt.after;
+  if(!isRollback){const raw=fs.readFileSync(path.join(ROOT,'api-probe-rollback.json')),rolled=JSON.parse(raw);guard(rolled.complete===true&&rolled.mode==='--mark-api-probe-rolled-back'&&rolled.scriptSha256===scriptSha256&&rolled.apiReceiptSha256===r.apiReceiptSha256&&rolled.rehearsalVerdict==='PASS'&&rolled.releaseVerdict==='BLOCKED','ROLLBACK_RECEIPT_NOT_PASS');cloudReceipt(rolled.cloud);guard(jh(rolled.target)===jh(r.target)&&jh(rolled.source)===jh(source)&&jh(rolled.workspaceSource)===jh(workspaceSource),'ROLLBACK_RECEIPT_PINS');api.assertNoDrift(apiReceipt.after,rolled.before);guard(jh(validateRollback(rolled.before,rolled.after,rolled.execution,r.target))===jh(rolled.preservation),'ROLLBACK_RECEIPT_PROOF');r.rollbackReceiptSha256=hash(raw);expected=rolled.after;}
+  r.cloud=h.cloudGuard();const sec=h.aws(['secretsmanager','get-secret-value','--secret-id',h.SECRET]);guard(sec.ARN===h.SECRET,'SECRET_ARN');secret=JSON.parse(sec.SecretString);db=await h.connect(secret);
+  r.before=await h.snapshot(db,secret,'before_'+prefix);api.assertNoDrift(expected,r.before);
+  if(isRollback)exactApiFailure(r.before,r.target);else{workspaceBaseline(r.before);const rows=(await db.query("SELECT data_type,is_nullable,column_default FROM information_schema.columns WHERE table_schema='public' AND table_name='ws_hillday_document' AND column_name='first_page'")).rows;guard(rows.length===1&&rows[0].data_type==='jsonb'&&rows[0].is_nullable==='YES'&&rows[0].column_default===null,'EXPECTED_WORKSPACE_COLUMN_ABSENT');r.expectedCollision={relation:'ws_hillday_document',column:'first_page',...rows[0]};}
+  guard(jh(api.verifyFrozen(h))===jh(source)&&jh(verifyWorkspace())===jh(workspaceSource),'SOURCE_CHANGED');guard(jh(h.cloudGuard())===jh(r.cloud),'CLOUD_CHANGED');await h.ensureNoOtherClients(db);await db.end();db=null;
+  r.command=isRollback?['node','<pinned Prisma 5.22.0>','migrate','resolve','--rolled-back',API_NAME,'--schema','<frozen API schema>']:['node','<pinned Prisma 5.22.0>','migrate','deploy','--schema','<frozen Workspace schema>'];r.mutations.push({target:CLUSTER,operation:mode,exactRow:isRollback?r.target.id:undefined,migration:isRollback?API_NAME:WS_NAME});
+  r.execution=await command(h,secret,mode);db=await h.connect(secret);r.after=await h.snapshot(db,secret,'after_'+prefix);
+  if(isRollback){r.preservation=validateRollback(r.before,r.after,r.execution,r.target);r.rehearsalVerdict='PASS';}
+  else{const rows=(await db.query('SELECT id,logs FROM public._prisma_migrations WHERE migration_name=$1',[WS_NAME])).rows;guard(rows.length===1,'WORKSPACE_FAILED_LOG_COUNT');const log=String(rows[0].logs||'');r.failedLog={id:rows[0].id,logsSha256:hash(log),has42701:log.includes('42701'),hasExpectedRelation:log.includes('ws_hillday_document'),hasExpectedColumn:log.includes('first_page')};rows[0].logs=null;r.preservation=validateWorkspaceFailure(r.before,r.after,r.execution,r.failedLog);r.rehearsalVerdict='EXPECTED_FAILURE_CONFIRMED';}
+  r.complete=true;
+ }catch(e){r.failure={code:/^[A-Z0-9_]{3,90}$/.test(String(e.code))?e.code:'REDACTED_UNCLASSIFIED_ERROR'};if(e.details)r.failure.details=h.redact(e.details,[secret?.password,secret?.password&&encodeURIComponent(secret.password)]);}
+ finally{if(db){try{await db.query('ROLLBACK')}catch{};try{await db.end()}catch{}}if(secret)secret.password=null;}
+ r.finishedAt=new Date().toISOString();fs.writeFileSync(path.join(ROOT,prefix+'.json'),JSON.stringify(r,null,2)+'\n',{flag:'wx'});console.log(JSON.stringify({complete:r.complete,mode,rehearsalVerdict:r.rehearsalVerdict,releaseVerdict:r.releaseVerdict,execution:r.execution,failure:r.failure,receipt:path.join(ROOT,prefix+'.json')}));if(!r.complete)process.exitCode=1;
+}
+module.exports={load,verifyWorkspace,validateApiReceipt,exactApiFailure,validateRollback,workspaceBaseline,validateWorkspaceFailure};
+if(require.main===module)main().catch(e=>{console.error(JSON.stringify({complete:false,releaseVerdict:'BLOCKED',code:/^[A-Z0-9_]{3,90}$/.test(String(e.code))?e.code:'SETUP_FAILURE'}));process.exitCode=1;});

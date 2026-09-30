@@ -1,0 +1,29 @@
+diff --git a/apps/api/src/business-development/business-development.service.ts b/apps/api/src/business-development/business-development.service.ts
+index bc4b6ba052bdcfcaa1780a166585e30ab550c701..40c5640d1e8b35de1a0a621ae8f0ce32a1ecafe0 100644
+--- a/apps/api/src/business-development/business-development.service.ts
++++ b/apps/api/src/business-development/business-development.service.ts
+@@ -313,6 +314,8 @@ export class BusinessDevelopmentService {
+       ownerUserId?: string;
+       stage?: BizDevStage;
+     },
++    /** Internal fixture-only primary key; public controllers never bind it. */
++    fixturePhysicalId?: string,
+   ): Promise<ProspectRow> {
+     const displayName = input.displayName?.trim();
+     if (!displayName) throw new BadRequestException('displayName is required');
+@@ -396,6 +399,7 @@ export class BusinessDevelopmentService {
+ 
+         const created = await tx.businessDevelopmentProspect.create({
+           data: {
++            ...(fixturePhysicalId ? { id: fixturePhysicalId } : {}),
+             tenantId: ctx.tenantId,
+             canonicalEntityId: input.canonicalEntityId,
+             displayName,
+@@ -431,6 +435,7 @@ export class BusinessDevelopmentService {
+       // Manual unresolved prospect — no name/domain uniqueness by design.
+       const created = await tx.businessDevelopmentProspect.create({
+         data: {
++          ...(fixturePhysicalId ? { id: fixturePhysicalId } : {}),
+           tenantId: ctx.tenantId,
+           displayName,
+           domain: input.domain ?? null,

@@ -1,0 +1,64 @@
+diff --git a/apps/api/src/research-portfolios/research-portfolios.service.ts b/apps/api/src/research-portfolios/research-portfolios.service.ts
+index 62bc972cec1f2185cdd0923588a5ace35f2a6eed..6ec427b742fa16ced250da1ce8a21e1513674879 100644
+--- a/apps/api/src/research-portfolios/research-portfolios.service.ts
++++ b/apps/api/src/research-portfolios/research-portfolios.service.ts
+@@ -164,6 +171,8 @@ export class ResearchPortfoliosService {
+   async create(
+     ctx: TenantContext,
+     input: CreateResearchPortfolioDto,
++    /** Internal fixture-only primary key; public controllers never bind it. */
++    fixturePhysicalId?: string,
+   ): Promise<ResearchPortfolioMutationReceiptDto> {
+     this.validateIdempotencyKey(input.idempotencyKey);
+     const name = this.validateName(input.name);
+@@ -174,6 +183,7 @@ export class ResearchPortfoliosService {
+       await this.requireActiveTenantMember(tx, ctx.tenantId, ctx.userId);
+       const portfolio = await tx.researchPortfolio.create({
+         data: {
++          ...(fixturePhysicalId ? { id: fixturePhysicalId } : {}),
+           tenantId: ctx.tenantId,
+           ownerUserId: ctx.userId,
+           name,
+@@ -204,6 +214,42 @@ export class ResearchPortfoliosService {
+     });
+   }
+ 
++  /** Append exact frozen research facts without manufacturing portfolio members. */
++  async appendFixtureEvent(
++    ctx: TenantContext,
++    portfolioId: string,
++    input: {
++      physicalId: string;
++      logicalId: string;
++      markerSha256: string;
++      facts: Readonly<Record<string, unknown>>;
++    },
++  ) {
++    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
++      const authorized = await this.loadAuthorized(tx, ctx, portfolioId, 'editor');
++      const payload = {
++        meriSyntheticFixture: {
++          logicalId: input.logicalId,
++          markerSha256: input.markerSha256,
++        },
++        facts: input.facts,
++      };
++      return tx.researchPortfolioEvent.create({
++        data: {
++          id: input.physicalId,
++          tenantId: ctx.tenantId,
++          portfolioId,
++          eventKind: 'updated',
++          aggregateRevision: authorized.revision,
++          actorUserId: ctx.userId,
++          idempotencyKey: `meri-fixture:${input.logicalId}`,
++          payloadFingerprint: fingerprint('fixture.event', payload),
++          payload,
++        },
++      });
++    });
++  }
++
+   async update(
+     ctx: TenantContext,
+     id: string,

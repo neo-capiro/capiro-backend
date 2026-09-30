@@ -1,0 +1,58 @@
+'use strict';
+const fs=require('node:fs'),crypto=require('node:crypto');
+const ROOT='C:/dev/cap-meri-foundation-evidence',SCRIPT=ROOT+'/rehearse-workspace-once.cjs',apiScript=ROOT+'/rehearse-api-deploy-once.cjs';
+const w=require(SCRIPT),api=require(apiScript),hash=x=>crypto.createHash('sha256').update(x).digest('hex');
+// Reuse only the reviewed offline fixture definition, never its test runner or any cloud helpers.
+const prior=fs.readFileSync(ROOT+'/test-api-deploy-once-guards.cjs','utf8'),createApiFixture=Function('require',prior.slice(0,prior.indexOf('const tests=[];'))+'\nreturn fixture;')(require);
+const localSource={manifestSha256:'6e2a3266552a450eab0250d48c2dc938e5042e3c72f732aed2464ac405b85501',cliSha256:'ff0102cdfadfecb884c5f0b6e43661f4ef2a31917dbfad3157236ba8e8532388'};
+function fixture(){
+ const f=createApiFixture(),target={id:f.row().id,name:f.row().migration_name,checksum:f.row().checksum};
+ const before=structuredClone(f.after),after=structuredClone(before);after.ledger.find(r=>r.id===target.id).rolled_back_at='2026-09-29T22:01:01.000Z';
+ const execution={exitCode:0,signal:null,timedOut:false,startedAt:'2026-09-29T22:01:00.000Z',completedAt:'2026-09-29T22:01:03.000Z'};
+ const wsBefore=structuredClone(after),wsAfter=structuredClone(wsBefore),id='d9e09c90-3c63-4a00-8dde-562c3d1356d2',logs='42701 column first_page of relation ws_hillday_document already exists';
+ wsAfter.ledger.push({id,migration_name:'20260911160000_hillday_first_page_edits',checksum:'1ce43fc806e400a5e543686711cf2286d8c06d0d01f66874572852169033d10a',started_at:'2026-09-29T22:02:01.000Z',finished_at:null,rolled_back_at:null,applied_steps_count:0,logsIsNull:false,logsSha256:hash(logs)});wsAfter.ledger.sort((a,b)=>a.id.localeCompare(b.id));
+ const wsExecution={exitCode:1,signal:null,timedOut:false,startedAt:'2026-09-29T22:02:00.000Z',completedAt:'2026-09-29T22:02:03.000Z',prismaCodes:['P3018'],has42701:true,hasExpectedMigration:true,hasExpectedRelation:true,hasExpectedColumn:true};
+ const apiReceipt={complete:true,mode:'CLONE_ONLY_DEPLOY_ONCE',scriptSha256:hash(fs.readFileSync(apiScript)),reviewedHelperSha256:'89dee667f7ff4cdab26a1ced6da07f0667ab062a4f811de3efd0cefd0de9a310',rehearsalVerdict:'EXPECTED_FAILURE_CONFIRMED',releaseVerdict:'BLOCKED',source:structuredClone(localSource),cloud:{cluster:'capiro-dev-meri-rehearsal-20260929',resourceId:'cluster-3PE7KKIRXQVJYXSXLBI5M2R7IY',endpoint:'capiro-dev-meri-rehearsal-20260929.cluster-csryw28ai752.us-east-1.rds.amazonaws.com',account:'967807252336'},before:f.before,after:f.after,execution:f.execution,failedLog:f.failedLog,preservation:api.validateFailedTransition(f.before,f.after,f.execution,f.failedLog)};
+ return {before,after,execution,target,apiReceipt,wsBefore,wsAfter,wsExecution,wsLogs:{id,logsSha256:hash(logs),has42701:true,hasExpectedRelation:true,hasExpectedColumn:true},row:()=>after.ledger.find(r=>r.id===target.id),wsRow:()=>wsAfter.ledger.find(r=>r.id===id)};
+}
+const tests=[];
+function test(name,scope,edit,expected){const f=fixture();edit(f);try{if(scope==='rollback')w.validateRollback(f.before,f.after,f.execution,f.target);if(scope==='workspace')w.validateWorkspaceFailure(f.wsBefore,f.wsAfter,f.wsExecution,f.wsLogs);if(scope==='receipt')w.validateApiReceipt(f.apiReceipt,localSource,api);tests.push({name,expected,actual:'ACCEPT',passed:expected==='ACCEPT'});}catch(e){tests.push({name,expected,actual:e.code||e.name,passed:e.code===expected});}}
+test('Valid receipt binds exact newly failed ID','receipt',()=>{},'ACCEPT');
+test('Live endpoint receipt rejected','receipt',f=>{f.apiReceipt.cloud.endpoint='live.cluster.example';},'RECEIPT_WRONG_CLONE');
+test('Wrong clone resource rejected','receipt',f=>{f.apiReceipt.cloud.resourceId='wrong';},'RECEIPT_WRONG_CLONE');
+test('Nonpassing API receipt rejected','receipt',f=>{f.apiReceipt.complete=false;},'API_RECEIPT_NOT_PASS');
+test('Wrong API script pin rejected','receipt',f=>{f.apiReceipt.scriptSha256='wrong';},'API_RECEIPT_NOT_PASS');
+test('Source manifest drift rejected','receipt',f=>{f.apiReceipt.source.manifestSha256='wrong';},'API_RECEIPT_SOURCE');
+test('Fabricated API proof rejected','receipt',f=>{f.apiReceipt.preservation.unchangedSchema=false;},'API_RECEIPT_PROOF');
+test('Exact API rollback transition accepted','rollback',()=>{},'ACCEPT');
+test('Rollback command nonzero rejected','rollback',f=>{f.execution.exitCode=1;},'ROLLBACK_COMMAND_FAILED');
+test('Rollback timeout rejected','rollback',f=>{f.execution.timedOut=true;},'ROLLBACK_COMMAND_FAILED');
+test('Wrong target ID rejected','rollback',f=>{f.target.id='e9e09c90-3c63-4a00-8dde-562c3d1356d2';},'EXACT_API_PROBE_FAILURE');
+test('Additional rollback row rejected','rollback',f=>{f.after.ledger.push({...f.row(),id:'e9e09c90-3c63-4a00-8dde-562c3d1356d2'});},'ROLLBACK_LEDGER_COUNT');
+test('Changed unrelated row rejected','rollback',f=>{f.after.ledger[0].logsSha256=hash('changed');},'OTHER_LEDGER_CHANGED');
+for(const [field,value] of [['logsSha256','wrong'],['logsIsNull',true],['started_at','2026-09-29T20:00:00Z'],['finished_at','2026-09-29T22:01:01Z'],['applied_steps_count',1],['checksum','wrong'],['migration_name','wrong']])test('Rollback preserves '+field,'rollback',f=>{f.row()[field]=value;},'ROLLBACK_IMMUTABLE_FIELDS');
+test('Null rollback timestamp rejected','rollback',f=>{f.row().rolled_back_at=null;},'ROLLBACK_TIMESTAMP');
+test('Rollback outside command window rejected','rollback',f=>{f.row().rolled_back_at='2026-09-29T22:05:00Z';},'ROLLBACK_TIMESTAMP');
+test('Rollback schema change rejected','rollback',f=>{f.after.schema.sha256='wrong';},'CHANGED_SCHEMA_FINGERPRINT');
+test('Rollback data change rejected','rollback',f=>{f.after.data.sha256='wrong';},'CHANGED_DATA_FINGERPRINT');
+test('Rollback roles change rejected','rollback',f=>{f.after.roles[0].rolsuper=!f.after.roles[0].rolsuper;},'CHANGED_ROLES');
+test('Exact Workspace failure accepted','workspace',()=>{},'ACCEPT');
+test('Workspace refuses unresolved API row','workspace',f=>{f.wsBefore.ledger.find(r=>r.id===f.target.id).rolled_back_at=null;},'WORKSPACE_BASELINE_LEDGER');
+test('Workspace refuses wrong TLS baseline','workspace',f=>{f.wsBefore.identity.tls=false;},'WORKSPACE_BASELINE_IDENTITY');
+test('Workspace rejects extra row','workspace',f=>{f.wsAfter.ledger.push({...f.wsRow(),id:'e9e09c90-3c63-4a00-8dde-562c3d1356d2'});},'WORKSPACE_LEDGER_COUNT');
+test('Workspace rejects reused ID','workspace',f=>{f.wsRow().id=f.target.id;},'WORKSPACE_ADDED_ROW_COUNT');
+test('Workspace rejects wrong UUID','workspace',f=>{f.wsRow().id='wrong';},'WORKSPACE_FAILED_UUID');
+test('Workspace preserves API rolled-back history','workspace',f=>{f.wsAfter.ledger.find(r=>r.id===f.target.id).rolled_back_at=null;},'PRIOR_LEDGER_CHANGED');
+for(const [field,value] of [['migration_name','wrong'],['checksum','wrong'],['finished_at','2026-09-29T22:02:01Z'],['rolled_back_at','2026-09-29T22:02:01Z'],['applied_steps_count',1],['logsIsNull',true],['logsSha256',hash('')]])test('Workspace rejects '+field,'workspace',f=>{f.wsRow()[field]=value;},'WORKSPACE_FAILED_FIELDS');
+test('Workspace rejects out-of-window row','workspace',f=>{f.wsRow().started_at='2026-09-29T22:05:00Z';},'WORKSPACE_FAILED_TIMESTAMP');
+test('Workspace rejects unexpected success','workspace',f=>{f.wsExecution.exitCode=0;},'WORKSPACE_EXPECTED_FAILURE');
+test('Workspace rejects P3009','workspace',f=>{f.wsExecution.prismaCodes=['P3009'];},'WORKSPACE_EXPECTED_FAILURE');
+test('Workspace rejects wrong SQLSTATE','workspace',f=>{f.wsExecution.has42701=false;},'WORKSPACE_EXPECTED_FAILURE');
+test('Workspace rejects wrong column','workspace',f=>{f.wsExecution.hasExpectedColumn=false;},'WORKSPACE_EXPECTED_FAILURE');
+test('Workspace rejects log digest mismatch','workspace',f=>{f.wsLogs.logsSha256='wrong';},'WORKSPACE_FAILURE_LOG');
+test('Workspace rejects wrong logged relation','workspace',f=>{f.wsLogs.hasExpectedRelation=false;},'WORKSPACE_FAILURE_LOG');
+test('Workspace schema change rejected','workspace',f=>{f.wsAfter.schema.sha256='wrong';},'CHANGED_SCHEMA_FINGERPRINT');
+test('Workspace data change rejected','workspace',f=>{f.wsAfter.data.sha256='wrong';},'CHANGED_DATA_FINGERPRINT');
+test('Workspace membership change rejected','workspace',f=>{f.wsAfter.memberships.push({parent:'rds_superuser',member:'wrong'});},'CHANGED_MEMBERSHIPS');
+const report={observedAt:new Date().toISOString(),mode:'OFFLINE_SYNTHETIC_GUARD_TESTS',scriptSha256:hash(fs.readFileSync(SCRIPT)),apiScriptSha256:hash(fs.readFileSync(apiScript)),fixtureScriptSha256:hash(prior),cloudCalls:0,databaseCalls:0,businessRowsRead:0,syntheticFingerprints:true,complete:tests.every(t=>t.passed),passed:tests.filter(t=>t.passed).length,total:tests.length,tests};
+fs.writeFileSync(ROOT+'/workspace-rehearsal-guard-tests.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({complete:report.complete,passed:report.passed,total:report.total,scriptSha256:report.scriptSha256,failures:tests.filter(t=>!t.passed)}));if(!report.complete)process.exitCode=1;

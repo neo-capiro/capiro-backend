@@ -1702,6 +1702,7 @@ function daysBetweenDateStrings(fromISO: string, toISO: string): number {
     number,
     number,
   ];
+  // ISO dates use months 1–12; Date.UTC expects months 0–11.
   const from = Date.UTC(fromYear, fromMonth - 1, fromDay);
   const to = Date.UTC(toYear, toMonth - 1, toDay);
   return Math.round((to - from) / 86_400_000);

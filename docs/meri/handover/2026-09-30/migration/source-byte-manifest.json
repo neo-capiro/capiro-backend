@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "archiveOnly": true,
+  "allOriginalBytesUnmodified": true,
+  "referenceSources": [
+    {
+      "originalName": "rehearse-single-migration.cjs",
+      "archivePath": "reference-source/rehearse-single-migration.cjs.txt",
+      "sha256": "89dee667f7ff4cdab26a1ced6da07f0667ab062a4f811de3efd0cefd0de9a310",
+      "bytes": 21568
+    },
+    {
+      "originalName": "rehearse-api-deploy-once.cjs",
+      "archivePath": "reference-source/rehearse-api-deploy-once.cjs.txt",
+      "sha256": "d044ab138eac02c64b3ad797d5b9f35b9730565334b95d1f1605dd7336bc6c5e",
+      "bytes": 12431
+    },
+    {
+      "originalName": "rehearse-workspace-once.cjs",
+      "archivePath": "reference-source/rehearse-workspace-once.cjs.txt",
+      "sha256": "d2ba923e645380e815b89f6c6d6492b49c3e055bb64a78af8e4c9abfc52d34e9",
+      "bytes": 15509
+    },
+    {
+      "originalName": "rehearse-full-reconciliation.cjs",
+      "archivePath": "reference-source/rehearse-full-reconciliation.cjs.txt",
+      "sha256": "8ae7313df4c83c3c3ee58e6dcb2355a0c68d7fedd88b514b6f0e96a0c109df42",
+      "bytes": 43428
+    },
+    {
+      "originalName": "rehearse-integrated-reconciliation.cjs",
+      "archivePath": "reference-source/rehearse-integrated-reconciliation.cjs.txt",
+      "sha256": "f569c531f6d6ea2bc07c4f6b0c0757fe7c9a6495efe7a8bbf53a898bf8e45d5b",
+      "bytes": 21512
+    },
+    {
+      "originalName": "qualify-reconciliation-supplement.cjs",
+      "archivePath": "reference-source/qualify-reconciliation-supplement.cjs.txt",
+      "sha256": "e4c77e1d9b63f3508184ba3f656a0f672100e1af2c8b86ea77b3257efe86a275",
+      "bytes": 19219
+    },
+    {
+      "originalName": "test-full-reconciliation-guards.cjs",
+      "archivePath": "reference-source/test-full-reconciliation-guards.cjs.txt",
+      "sha256": "1f8318fdd957e6977fbd9dba62318148100e58718966016af1ae9e52525b7a47",
+      "bytes": 30070
+    },
+    {
+      "originalName": "test-reconciliation-supplement-guards.cjs",
+      "archivePath": "reference-source/test-reconciliation-supplement-guards.cjs.txt",
+      "sha256": "ad3ba2e424fe3ed1964b60813d8c04d3df7931db7031546ecd637cb648d2c75e",
+      "bytes": 21933
+    },
+    {
+      "originalName": "test-workspace-rehearsal-guards.cjs",
+      "archivePath": "reference-source/test-workspace-rehearsal-guards.cjs.txt",
+      "sha256": "1c17f86a5b54b0acd82ed8e21210d334a4399e6f06afb07a359768aef99620df",
+      "bytes": 8986
+    },
+    {
+      "originalName": "test-api-deploy-once-guards.cjs",
+      "archivePath": "reference-source/test-api-deploy-once-guards.cjs.txt",
+      "sha256": "3caf852d68e946d3e0763eeb46d591be4713da47bf844d17d5e543ef5383dce2",
+      "bytes": 7851
+    }
+  ],
+  "expectedExternalToolVersions": {
+    "prisma": "5.22.0",
+    "pg": "8.23.0",
+    "pgDump": "16"
+  },
+  "historicalTestEvidence": {
+    "fullGuards": {
+      "passed": 152,
+      "total": 152,
+      "actualExit": 0,
+      "reportSha256": "166f7024822d444de3f452dd28095c810ebfda345890ce5c6414a2b64e526967"
+    },
+    "supplementGuards": {
+      "passed": 131,
+      "total": 131,
+      "actualExit": 0,
+      "reportSha256": "532b19ce0b64bcd055c1383861a8a21f5ce2da3e7eee5099b66d82350f221975"
+    }
+  }
+}

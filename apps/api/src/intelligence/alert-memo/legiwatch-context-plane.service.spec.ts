@@ -157,6 +157,7 @@ function harness(opts: { authorized?: boolean; contextOverrides?: Record<string,
   return {
     service: new LegiWatchContextPlaneService(prisma as never, gateway as never),
     gateway,
+    tx,
   };
 }
 
@@ -229,6 +230,27 @@ describe('LegiWatchContextPlaneService Phase 22', () => {
     expect(requested).not.toContain('hearings');
     expect(requested).not.toContain('program_elements');
     expect(requested).toEqual([...LEGIWATCH_CLIENT_CONTEXT_DOMAINS]);
+  });
+
+  test('the wall decision is read off the actor-keyed wall filter, never asserted', async () => {
+    const h = harness();
+    await h.service.resolve({ tenantId: TENANT, userId: USER } as never, input);
+
+    // The envelope is the upstream enforcement: both the retrieval scope and the
+    // packet's ethical-wall flag are derived from this one actor-keyed read.
+    expect(h.tx.client.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId: TENANT,
+          OR: [{ memoryWall: false }, { memoryAccessGrants: { some: { userId: USER } } }],
+        }),
+      }),
+    );
+    expect(h.gateway.requestContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contextRequest: expect.objectContaining({ ethicalWallAllowed: true }),
+      }),
+    );
   });
 
   test('walled or unauthorized client fails before the gateway can retrieve anything', async () => {

@@ -1,0 +1,169 @@
+'use strict';
+// The only mutating mode resolves one exact migration on one isolated clone.
+const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto');
+const {Client}=require('C:/dev/capirov2/node_modules/.pnpm/pg@8.23.0/node_modules/pg');
+const ROOT='C:/dev/cap-meri-foundation-evidence/isolated-migration-rehearsal';
+const REPO='C:/dev/cap-meri-outcomes-validation';
+const SHA='25d1339c0c0e21fe0c3c0148787fad772e5096e8';
+const SOURCE=path.join(ROOT,'frozen-api-25d1339c');
+const CLUSTER='capiro-dev-meri-rehearsal-20260929';
+const RESOURCE='cluster-3PE7KKIRXQVJYXSXLBI5M2R7IY';
+const HOST=CLUSTER+'.cluster-csryw28ai752.us-east-1.rds.amazonaws.com';
+const SECRET='arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/master-P4z1Vo';
+const CLI='C:/dev/capirov2/node_modules/.pnpm/prisma@5.22.0/node_modules/prisma/build/index.js';
+const CLI_HASH='ff0102cdfadfecb884c5f0b6e43661f4ef2a31917dbfad3157236ba8e8532388';
+const DUMP='C:/Program Files/PostgreSQL/16/bin/pg_dump.exe';
+const MIGRATION='20280913011000_legiwatch_record_checks';
+const FAILED_ID='a8d775ac-d74d-4fc4-bd38-fd40b713bc53';
+const CHECKSUM='1b4a32f192f50f54faa8e12ac49b68051b32682fd0e2d6e071f539a122411a1e';
+const EXPECTED_LEDGER_ROWS=542;
+const cfg=JSON.parse(fs.readFileSync('C:/dev/cap-db-incident-evidence/reconciliation/config/clones.json','utf8'));
+const CA=cfg.caCertPath;
+const PRISMA_CA='C:/Users/Administrator/Documents/Codex/2026-09-27/handover-notes-for-project-gates-project/work/rds-us-east-1-rsa2048-g1.pem';
+const hash=x=>crypto.createHash('sha256').update(x).digest('hex');
+const guard=(ok,code)=>{if(!ok)throw Object.assign(new Error(code),{code});};
+const writeNew=(name,data)=>fs.writeFileSync(path.join(ROOT,name),JSON.stringify(data,null,2)+'\n',{flag:'wx'});
+const jsonHash=x=>hash(JSON.stringify(x));
+function aws(args){return JSON.parse(cp.execFileSync('aws',[...args,'--region','us-east-1','--output','json'],{encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:45000,maxBuffer:8*1024*1024}));}
+function cleanEnv(extra={}){
+ const env={};
+ for(const k of ['SystemRoot','WINDIR','PATH','Path','PATHEXT','COMSPEC','TEMP','TMP','LOCALAPPDATA','APPDATA','USERPROFILE'])if(process.env[k])env[k]=process.env[k];
+ return {...env,NO_COLOR:'1',PRISMA_HIDE_UPDATE_MESSAGE:'true',...extra};
+}
+function redact(text,secrets){let value=String(text);for(const secret of secrets.filter(Boolean))value=value.split(secret).join('[REDACTED]');return value.replace(/postgres(?:ql)?:\/\/[^\s"']+/gi,'[REDACTED_DATABASE_URL]');}
+function sourceFiles(){
+ const raw=cp.execFileSync('git',['-C',REPO,'ls-tree','-r',SHA,'--','apps/api/prisma'],{encoding:'utf8'});
+ return raw.trim().split('\n').map(line=>{const m=line.match(/^(\d+) blob ([0-9a-f]{40})\t(.+)$/);return m&&{mode:m[1],blob:m[2],gitPath:m[3],file:m[3].replace('apps/api/prisma/','')};}).filter(x=>x&&(x.file==='schema.prisma'||x.file==='migrations/migration_lock.toml'||/^migrations\/[^/]+\/migration.sql$/.test(x.file)));
+}
+function freezeSource(){
+ fs.mkdirSync(ROOT,{recursive:true});guard(!fs.existsSync(SOURCE),'FROZEN_SOURCE_ALREADY_EXISTS');
+ const entries=sourceFiles();guard(entries.filter(x=>x.file.endsWith('/migration.sql')).length===445,'SOURCE_MIGRATION_COUNT');guard(entries.every(x=>x.mode==='100644'),'SOURCE_FILE_MODE');
+ const output=cp.execFileSync('git',['-C',REPO,'cat-file','--batch'],{input:entries.map(x=>x.blob).join('\n')+'\n',maxBuffer:64*1024*1024});
+ let pos=0;fs.mkdirSync(SOURCE);const files=[];
+ for(const e of entries){const end=output.indexOf(10,pos),header=output.subarray(pos,end).toString('ascii').split(' ');guard(header[0]===e.blob&&header[1]==='blob','GIT_BLOB_HEADER');const bytes=Number(header[2]);pos=end+1;const data=output.subarray(pos,pos+bytes);pos+=bytes+1;guard(data.length===bytes,'GIT_BLOB_LENGTH');if(e.file.endsWith('/migration.sql'))guard(!data.includes(13),'SQL_NOT_LF_EXACT');const target=path.join(SOURCE,e.file);fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,data,{flag:'wx'});files.push({...e,bytes,sha256:hash(data)});}
+ guard(pos===output.length,'GIT_BATCH_TRAILING');
+ writeNew('frozen-source-manifest.json',{commit:SHA,cliVersion:'5.22.0',cliSha256:CLI_HASH,migrationCount:445,files});
+ console.log(JSON.stringify({phase:'frozen',commit:SHA,files:files.length,migrations:445,source:SOURCE}));
+}
+function verifySource(){
+ guard(JSON.parse(fs.readFileSync(path.resolve(CLI,'../../package.json'),'utf8')).version==='5.22.0','PRISMA_VERSION');
+ guard(hash(fs.readFileSync(CLI))===CLI_HASH,'PRISMA_CLI_HASH');
+ guard(cp.execFileSync(DUMP,['--version'],{encoding:'utf8'}).trim()==='pg_dump (PostgreSQL) 16.15','PG_DUMP_VERSION');
+ const manifest=JSON.parse(fs.readFileSync(path.join(ROOT,'frozen-source-manifest.json'),'utf8'));guard(manifest.commit===SHA&&manifest.migrationCount===445,'SOURCE_MANIFEST');
+ const entries=sourceFiles();guard(jsonHash(entries)===jsonHash(manifest.files.map(({mode,blob,gitPath,file})=>({mode,blob,gitPath,file}))), 'SOURCE_BLOB_LIST');
+ const actual=[];function walk(dir){for(const e of fs.readdirSync(dir,{withFileTypes:true})){guard(!e.isSymbolicLink(),'SOURCE_SYMLINK');const target=path.join(dir,e.name);if(e.isDirectory())walk(target);else{guard(e.isFile(),'SOURCE_NONREGULAR');actual.push(path.relative(SOURCE,target).replace(/\\/g,'/'));}}}walk(SOURCE);
+ guard(jsonHash(actual.sort())===jsonHash(manifest.files.map(x=>x.file).sort()),'SOURCE_EXTRA_FILES');
+ for(const e of manifest.files){const data=fs.readFileSync(path.join(SOURCE,e.file));guard(data.length===e.bytes&&hash(data)===e.sha256,'SOURCE_BYTES_CHANGED');}
+ guard(hash(fs.readFileSync(path.join(SOURCE,'migrations',MIGRATION,'migration.sql')))===CHECKSUM,'MIGRATION_CHECKSUM');
+ for(let dir=SOURCE;;dir=path.dirname(dir)){guard(!fs.existsSync(path.join(dir,'.env')),'DOTENV_FOUND');if(path.dirname(dir)===dir)break;}
+ guard(fs.existsSync(CA)&&fs.existsSync(PRISMA_CA),'CA_MISSING');
+ return {manifestSha256:hash(fs.readFileSync(path.join(ROOT,'frozen-source-manifest.json'))),cliSha256:CLI_HASH};
+}
+function cloudGuard(){
+ const identity=aws(['sts','get-caller-identity']);guard(identity.Account==='967807252336'&&identity.Arn==='arn:aws:iam::967807252336:user/hermes-cli','AWS_IDENTITY');
+ const c=aws(['rds','describe-db-clusters','--db-cluster-identifier',CLUSTER]).DBClusters[0];
+ guard(c.DBClusterIdentifier===CLUSTER&&c.DbClusterResourceId===RESOURCE&&c.Endpoint===HOST&&c.Status==='available','CLONE_IDENTITY');
+ guard(c.Engine==='aurora-postgresql'&&c.EngineVersion==='16.11'&&c.MasterUsername==='capiro_master'&&c.Port===5432,'CLONE_ENGINE');
+ guard(c.DBClusterParameterGroup===CLUSTER&&c.DBSubnetGroup==='capiro-dev-data-auroraclustersubnetsf3e9e6ad-qihnujilmfnt','CLONE_PARAMETERS');
+ guard(c.StorageEncrypted&&c.DeletionProtection&&c.KmsKeyId==='arn:aws:kms:us-east-1:967807252336:key/efe8a18d-192e-4f30-8eea-b3f65ae7755e','CLONE_STORAGE');
+ guard(c.VpcSecurityGroups.length===1&&c.VpcSecurityGroups[0].VpcSecurityGroupId==='sg-0d4db7ef29d8e0d93'&&!(c.AssociatedRoles||[]).length,'CLONE_NETWORK');
+ const w=aws(['rds','describe-db-instances','--db-instance-identifier',CLUSTER+'-writer']).DBInstances[0];guard(w.DBClusterIdentifier===CLUSTER&&w.DBInstanceStatus==='available'&&!w.PubliclyAccessible,'WRITER_IDENTITY');
+ const parameters=aws(['rds','describe-db-cluster-parameters','--db-cluster-parameter-group-name',CLUSTER]).Parameters;
+ for(const [name,value] of Object.entries({'cron.launch_active_jobs':'off','shared_preload_libraries':'pg_stat_statements','rds.logical_replication':'0','rds.force_ssl':'1'}))guard(parameters.some(p=>p.ParameterName===name&&p.ParameterValue===value),'BACKGROUND_PARAMETERS');
+ return {account:identity.Account,principal:identity.Arn,cluster:c.DBClusterIdentifier,resourceId:c.DbClusterResourceId,endpoint:c.Endpoint,writer:w.DBInstanceIdentifier,version:c.EngineVersion};
+}
+async function connect(secret){
+ guard(secret.username==='capiro_master','SECRET_USER');guard(HOST==='capiro-dev-meri-rehearsal-20260929.cluster-csryw28ai752.us-east-1.rds.amazonaws.com','HOST_NOT_CLONE');
+ const db=new Client({host:HOST,port:5432,database:'capiro',user:secret.username,password:secret.password,ssl:{ca:fs.readFileSync(CA,'utf8'),rejectUnauthorized:true},options:'-c default_transaction_read_only=on -c timezone=UTC',application_name:'meri_isolated_migration_rehearsal',connectionTimeoutMillis:15000,statement_timeout:120000,query_timeout:125000});await db.connect();return db;
+}
+async function ensureNoOtherClients(db){
+ const rows=(await db.query("SELECT datname,usename,application_name,state,backend_type FROM pg_stat_activity WHERE pid<>pg_backend_pid() AND backend_type='client backend' AND datname='capiro' ORDER BY pid")).rows;
+ guard(rows.length===0,'OTHER_DATABASE_CLIENTS');return rows;
+}
+async function runDump(db,snapshot,kind,secret){
+ const args=['--no-password','--host',HOST,'--port','5432','--username','capiro_master','--dbname','capiro','--format=plain','--restrict-key=MeriIsolatedRehearsal20260929FixedDumpKey','--snapshot',snapshot,'--lock-wait-timeout=5s'];
+ if(kind==='schema')args.push('--schema-only');else args.push('--data-only','--exclude-table-data=public._prisma_migrations');
+ const env=cleanEnv({PGPASSWORD:secret.password,PGSSLMODE:'verify-full',PGSSLROOTCERT:CA,PGAPPNAME:'meri_isolated_fingerprint',PGOPTIONS:'-c default_transaction_read_only=on -c timezone=UTC -c statement_timeout=1800000 -c lock_timeout=5000'});
+ return new Promise((resolve,reject)=>{const digest=crypto.createHash('sha256');let bytes=0,stderr='';const child=cp.spawn(DUMP,args,{cwd:SOURCE,env,stdio:['ignore','pipe','pipe'],windowsHide:true});
+  const progress=setInterval(()=>console.log(JSON.stringify({phase:'fingerprint',kind,bytes})),20000);
+  const timeout=setTimeout(()=>{child.kill();},1900000);
+  child.stdout.on('data',chunk=>{bytes+=chunk.length;digest.update(chunk);});child.stderr.on('data',chunk=>{if(stderr.length<1024*1024)stderr+=chunk.toString();});
+  child.once('error',e=>{clearInterval(progress);clearTimeout(timeout);reject(e);});
+  child.once('close',code=>{clearInterval(progress);clearTimeout(timeout);env.PGPASSWORD='';if(code!==0)return reject(Object.assign(new Error('PG_DUMP_FAILED'),{code:'PG_DUMP_FAILED',details:redact(stderr,[secret.password,encodeURIComponent(secret.password)])}));resolve({kind,exitCode:code,bytes,sha256:digest.digest('hex'),stderrSha256:hash(stderr)});});
+ });
+}
+async function snapshot(db,secret,label){
+ console.log(JSON.stringify({phase:'snapshot_start',label}));await ensureNoOtherClients(db);await db.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+ try{
+  const q=async sql=>(await db.query(sql)).rows;
+  const identity=(await q("SELECT current_database() AS database,current_user AS role,current_setting('transaction_read_only') AS read_only,(SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid()) AS tls,current_setting('shared_preload_libraries') AS preloads,current_setting('rds.logical_replication') AS logical_replication")).at(0);
+  guard(identity.database==='capiro'&&identity.role==='capiro_master'&&identity.read_only==='on'&&identity.tls,'DATABASE_IDENTITY');guard(!/pg_cron|pglogical/i.test(identity.preloads)&&identity.logical_replication==='off','DATABASE_BACKGROUND_WORKERS');
+  const ledger=await q('SELECT id,migration_name,checksum,started_at,finished_at,rolled_back_at,applied_steps_count,logs FROM public._prisma_migrations ORDER BY id');
+  for(const row of ledger){row.logsIsNull=row.logs===null;row.logsSha256=hash(row.logs||'');delete row.logs;}
+  const roles=await q("SELECT rolname,rolsuper,rolinherit,rolcreaterole,rolcreatedb,rolcanlogin,rolreplication,rolbypassrls,rolconnlimit,rolvaliduntil,rolconfig FROM pg_roles ORDER BY rolname");
+  const memberships=await q("SELECT p.rolname AS parent,m.rolname AS member,a.admin_option,a.inherit_option,a.set_option FROM pg_auth_members a JOIN pg_roles p ON p.oid=a.roleid JOIN pg_roles m ON m.oid=a.member ORDER BY 1,2");
+  const subscriptions=await q('SELECT subname,subenabled FROM pg_subscription ORDER BY subname');guard(!subscriptions.some(s=>s.subenabled),'ACTIVE_SUBSCRIPTION');
+  const extensions=await q('SELECT extname,extversion FROM pg_extension ORDER BY extname');guard(!extensions.some(e=>['pg_cron','pglogical'].includes(e.extname)),'BACKGROUND_EXTENSION');
+  const columns=await q("SELECT column_name,data_type,is_nullable,column_default FROM information_schema.columns WHERE table_schema='public' AND table_name='state_bill_record_check' ORDER BY ordinal_position");
+  const constraints=await q("SELECT conname,contype,convalidated,condeferrable,condeferred,pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid=to_regclass('public.state_bill_record_check') ORDER BY conname");
+  const indexes=await q("SELECT indexrelid::regclass::text AS name,indisvalid,indisready,indislive,indisunique,indisprimary,pg_get_indexdef(indexrelid) AS definition FROM pg_index WHERE indrelid=to_regclass('public.state_bill_record_check') ORDER BY indexrelid::regclass::text");
+  const effectivePrivileges=await q("SELECT privilege,has_table_privilege('capiro_app','public.state_bill_record_check',privilege) AS allowed FROM unnest(ARRAY['SELECT','INSERT','UPDATE','DELETE','TRUNCATE']) privilege");
+  const exported=(await q('SELECT pg_export_snapshot() AS snapshot')).at(0).snapshot;guard(/^[0-9A-F-]+$/i.test(exported),'SNAPSHOT_FORMAT');
+  const schema=await runDump(db,exported,'schema',secret);const data=await runDump(db,exported,'data',secret);
+  const result={label,observedAt:new Date().toISOString(),identity,ledger,roles,memberships,subscriptions,extensions,columns,constraints,indexes,effectivePrivileges,schema,data};
+  await db.query('ROLLBACK');await ensureNoOtherClients(db);console.log(JSON.stringify({phase:'snapshot_complete',label,schemaBytes:schema.bytes,dataBytes:data.bytes}));return result;
+ }catch(e){await db.query('ROLLBACK');throw e;}
+}
+function validateBefore(s){
+ guard(s.ledger.length===EXPECTED_LEDGER_ROWS,'LEDGER_COUNT_CHANGED');const open=s.ledger.filter(r=>!r.finished_at&&!r.rolled_back_at);guard(open.length===1&&open[0].id===FAILED_ID&&open[0].migration_name===MIGRATION&&open[0].checksum===CHECKSUM&&open[0].applied_steps_count===0,'EXACT_FAILED_ROW');
+ const expected=JSON.parse(fs.readFileSync('C:/dev/cap-meri-foundation-evidence/migration-closeout-live-readonly.json','utf8'));
+ guard(jsonHash(s.columns)===jsonHash(expected.columns.map(({column_name,data_type,is_nullable,column_default})=>({column_name,data_type,is_nullable,column_default}))),'COLUMN_POSTCONDITIONS');
+ guard(jsonHash(s.constraints)===jsonHash(expected.constraints),'CONSTRAINT_POSTCONDITIONS');guard(jsonHash(s.indexes)===jsonHash(expected.indexes),'INDEX_POSTCONDITIONS');guard(jsonHash(s.effectivePrivileges)===jsonHash(expected.effectivePrivileges),'ACL_POSTCONDITIONS');
+}
+function preservation(before,after,execution){
+ const unchanged=['roles','memberships','subscriptions','extensions','columns','constraints','indexes','effectivePrivileges'];for(const k of unchanged)guard(jsonHash(before[k])===jsonHash(after[k]),'CHANGED_'+k.toUpperCase());
+ for(const k of ['schema','data'])guard(before[k].sha256===after[k].sha256&&before[k].bytes===after[k].bytes,'CHANGED_'+k.toUpperCase()+'_FINGERPRINT');
+ const beforeOther=before.ledger.filter(r=>r.migration_name!==MIGRATION),afterOther=after.ledger.filter(r=>r.migration_name!==MIGRATION);guard(jsonHash(beforeOther)===jsonHash(afterOther),'OTHER_LEDGER_ROWS_CHANGED');
+ const afterTarget=after.ledger.filter(r=>r.migration_name===MIGRATION);guard(afterTarget.length===2&&after.ledger.length===before.ledger.length+1,'TARGET_ROW_COUNT');guard(afterTarget.every(r=>r.checksum===CHECKSUM),'TARGET_CHECKSUM_CHANGED');
+ guard(afterTarget.filter(r=>r.finished_at&&!r.rolled_back_at).length===1,'TARGET_NOT_APPLIED');guard(!after.ledger.some(r=>!r.finished_at&&!r.rolled_back_at),'UNRESOLVED_ROW_REMAINS');
+ const original=afterTarget.find(r=>r.id===FAILED_ID);guard(original&&original.rolled_back_at,'FAILED_ROW_NOT_PRESERVED');
+ const exceptRollback=row=>Object.fromEntries(Object.entries(row).filter(([key])=>key!=='rolled_back_at'));
+ guard(jsonHash(exceptRollback(original))===jsonHash(exceptRollback(before.ledger.find(r=>r.id===FAILED_ID))),'FAILED_ROW_IMMUTABLE_FIELDS_CHANGED');
+ const inserted=afterTarget.find(r=>r.id!==FAILED_ID);
+ guard(inserted&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(inserted.id)&&!before.ledger.some(r=>r.id===inserted.id),'INSERTED_ROW_ID');
+ guard(inserted.rolled_back_at===null&&inserted.applied_steps_count===0&&inserted.logsIsNull===false&&inserted.logsSha256===hash(''),'INSERTED_ROW_FIELDS');
+ const start=new Date(inserted.started_at).getTime(),finish=new Date(inserted.finished_at).getTime(),rolledBack=new Date(original.rolled_back_at).getTime();
+ const commandStart=Date.parse(execution.startedAt),commandEnd=Date.parse(execution.completedAt);
+ guard(Number.isFinite(start)&&start===finish&&start>=commandStart-1000&&start<=commandEnd+1000&&rolledBack>=commandStart-1000&&rolledBack<=commandEnd+1000,'RESOLUTION_TIMESTAMP_WINDOW');
+ return {unchangedSchema:true,unchangedAllNonLedgerData:true,unchangedOtherLedgerRows:true,unchangedRolesAndMemberships:true,beforeTarget:before.ledger.filter(r=>r.migration_name===MIGRATION),afterTarget};
+}
+async function resolveOnly(secret){
+ const url=new URL('postgresql://'+HOST+':5432/capiro');url.username='capiro_master';url.password=secret.password;for(const[k,v]of Object.entries({schema:'public',sslmode:'require',sslaccept:'strict',sslcert:PRISMA_CA.replace(/\\/g,'/')}))url.searchParams.set(k,v);
+ guard(url.hostname===HOST&&url.pathname==='/capiro','PRISMA_TARGET');const value=url.toString();
+ const startedAt=new Date().toISOString();
+ const result=await new Promise(resolve=>cp.execFile(process.execPath,[CLI,'migrate','resolve','--applied',MIGRATION,'--schema',path.join(SOURCE,'schema.prisma')],{cwd:SOURCE,env:cleanEnv({DATABASE_URL:value}),windowsHide:true,timeout:180000,maxBuffer:4*1024*1024,encoding:'utf8'},(error,stdout,stderr)=>resolve({exitCode:error?(typeof error.code==='number'?error.code:1):0,stdout,stderr})));
+ const completedAt=new Date().toISOString();
+ const sanitized=redact(result.stdout+'\n'+result.stderr,[secret.password,encodeURIComponent(secret.password),value]);fs.writeFileSync(path.join(ROOT,'resolve-sanitized.log'),sanitized,{flag:'wx'});
+ return {exitCode:result.exitCode,startedAt,completedAt,outputSha256:hash(sanitized),prismaCodes:[...new Set(sanitized.match(/\bP[0-9]{4}\b/g)||[])]};
+}
+async function main(){
+ guard(process.argv.length===3&&['--freeze','--inspect','--resolve'].includes(process.argv[2]),'MODE');const mode=process.argv[2];if(mode==='--freeze'){freezeSource();return;}
+ guard(fs.existsSync(ROOT),'FREEZE_REQUIRED');const receiptName=mode==='--inspect'?'inspection.json':'resolution.json';guard(!fs.existsSync(path.join(ROOT,receiptName)),'RECEIPT_ALREADY_EXISTS');
+ const report={mode,startedAt:new Date().toISOString(),scriptSha256:hash(fs.readFileSync(__filename)),complete:false,mutations:[]};let secret,db;
+ try{
+  report.source=verifySource();report.cloud=cloudGuard();const sec=aws(['secretsmanager','get-secret-value','--secret-id',SECRET]);guard(sec.ARN===SECRET,'SECRET_ARN');secret=JSON.parse(sec.SecretString);db=await connect(secret);
+  if(mode==='--inspect'){report.before=await snapshot(db,secret,'inspection');validateBefore(report.before);report.complete=true;}
+  else{
+   const baseline=JSON.parse(fs.readFileSync(path.join(ROOT,'inspection.json'),'utf8'));guard(baseline.complete&&baseline.scriptSha256===report.scriptSha256&&jsonHash(baseline.source)===jsonHash(report.source),'INSPECTION_REQUIRED');
+   report.before=await snapshot(db,secret,'before_resolution');validateBefore(report.before);guard(report.before.schema.sha256===baseline.before.schema.sha256&&report.before.data.sha256===baseline.before.data.sha256&&jsonHash(report.before.ledger)===jsonHash(baseline.before.ledger),'INSPECTION_DRIFT');
+   await ensureNoOtherClients(db);await db.end();db=null;
+   report.command=['node','<pinned Prisma 5.22.0 CLI>','migrate','resolve','--applied',MIGRATION,'--schema','<frozen API schema>'];
+   report.mutations.push({target:CLUSTER,operation:'ATTEMPT_EXACT_PRISMA_RESOLVE_APPLIED',migration:MIGRATION});
+   report.execution=await resolveOnly(secret);db=await connect(secret);report.after=await snapshot(db,secret,'after_resolution');guard(report.execution.exitCode===0,'RESOLVE_NONZERO');report.preservation=preservation(report.before,report.after,report.execution);report.complete=true;
+  }
+ }catch(e){report.failure={code:/^[A-Z0-9_]{3,90}$/.test(String(e.code))?e.code:'REDACTED_UNCLASSIFIED_ERROR'};if(e.details)report.failure.details=redact(e.details,[secret?.password,secret?.password&&encodeURIComponent(secret.password)]);}
+ finally{if(db){try{await db.query('ROLLBACK')}catch{};try{await db.end()}catch{}}if(secret)secret.password=null;}
+ report.finishedAt=new Date().toISOString();writeNew(receiptName,report);console.log(JSON.stringify({complete:report.complete,mode,failure:report.failure,receipt:path.join(ROOT,receiptName),mutations:report.mutations,execution:report.execution}));if(!report.complete)process.exitCode=1;
+}
+module.exports={freezeSource,verifySource,validateBefore,preservation};
+if(require.main===module)main().catch(e=>{console.error(JSON.stringify({complete:false,code:/^[A-Z0-9_]{3,90}$/.test(String(e.code))?e.code:'SETUP_FAILURE'}));process.exitCode=1;});

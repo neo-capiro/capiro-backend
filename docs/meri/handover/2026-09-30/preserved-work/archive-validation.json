@@ -1,0 +1,52 @@
+{
+  "observedAt": "2026-09-30T00:15:46.627Z",
+  "verdict": "PASS",
+  "scope": "Archive hash integrity and git patch parsing only",
+  "productTests": "NOT RUN",
+  "cloudOrDbActions": "NONE",
+  "sideEffects": "Only new preserved-work archive files",
+  "files": [
+    {
+      "file": "01-native-business-development.patch",
+      "exitCode": 0,
+      "numstat": "4\t0\tapps/api/src/business-development/business-development.service.ts",
+      "sha256": "f9859c425606fc403246ec2b9b1e40ea9e789603bdc8211fa0bb9b43cd433959"
+    },
+    {
+      "file": "02-native-client-capabilities.patch",
+      "exitCode": 0,
+      "numstat": "8\t1\tapps/api/src/clients/client-capabilities.service.ts",
+      "sha256": "42cdc752bdbc74e7b07b55b6d8a0f0d7c3f6796187c7163cda5f55710f1271da"
+    },
+    {
+      "file": "03-native-client-facilities.patch",
+      "exitCode": 0,
+      "numstat": "8\t1\tapps/api/src/clients/client-facilities.service.ts",
+      "sha256": "a05d0a69b6bb4b2b58ba7a61c905a4c0d15d333eed5d2e9d33e3f02c143d0c97"
+    },
+    {
+      "file": "04-native-engagement.patch",
+      "exitCode": 0,
+      "numstat": "28\t2\tapps/api/src/engagement/engagement.service.ts",
+      "sha256": "e153b7bb8a1705cd2632a418eb30bf4eaa822d85391979422b4aa1f4baec97e1"
+    },
+    {
+      "file": "05-native-action-recommendation.patch",
+      "exitCode": 0,
+      "numstat": "44\t1\tapps/api/src/intelligence/actions/action-recommendation.service.ts",
+      "sha256": "efb462318be5e11b2ebfdf530ca658bf5581c5bb9aa0a841fe1573123fdfcd17"
+    },
+    {
+      "file": "06-native-research-portfolio.patch",
+      "exitCode": 0,
+      "numstat": "39\t0\tapps/api/src/research-portfolios/research-portfolios.service.ts",
+      "sha256": "26304e2e3bc0659a7d76927017bd1f5ffb699a83942df0aaca13f92371b93fe1"
+    },
+    {
+      "file": "07-final-await-probe-draft.patch",
+      "exitCode": 0,
+      "numstat": "501\t0\tapps/api/src/meri/task-links-final-probes.spec.ts",
+      "sha256": "b66e7dea1ce3ce5d137a43ffe664f4355063c0282635d347080feec9d2e88449"
+    }
+  ]
+}

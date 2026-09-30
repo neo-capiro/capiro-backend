@@ -52,6 +52,7 @@ if [ -z "${REHEARSAL_DATABASE_URL:-}" ]; then
 
   log "waiting for postgres to accept connections"
   for _ in $(seq 1 60); do
+    # The entrypoint's temporary Unix-socket server precedes database creation.
     if docker exec "$NAME" pg_isready -h 127.0.0.1 -U capiro -d capiro >/dev/null 2>&1; then break; fi
     sleep 1
   done
@@ -110,6 +111,10 @@ login_query() {
 }
 
 # ── 1. full migration ledger applies from scratch ───────────────────────────
+if [ "$SELF_MANAGED" = "1" ]; then
+  docker exec -i "$NAME" psql -X -U capiro -d capiro -v ON_ERROR_STOP=1 < "$REPO_ROOT/scripts/ci/disposable-capiro-worker-prerequisite.sql"
+  docker exec -i "$NAME" psql -X -U capiro -d capiro -v ON_ERROR_STOP=1 < "$REPO_ROOT/scripts/ci/research-portfolio-append-only-prerequisite.sql"
+fi
 
 log "1. applying the full migration ledger against a zero-state database"
 if [ "$SELF_MANAGED" = "1" ]; then

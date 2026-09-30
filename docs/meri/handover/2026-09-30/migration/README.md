@@ -1,0 +1,55 @@
+# Meri migration handover: archived reference, not an execution package
+
+**Overall status: BLOCKED.** The historical isolated-clone attempt exited **1**. Its complete adjusted data fingerprints matched, but it did not complete qualification. The separate supplemental verifier passed offline checks and independent review; its eight database terminal checks are **NOT RUN**. No live migration recovery or rollout is proven by this archive.
+
+The authoritative shared policy was refreshed through `neo-capiro/capiro-agent-ops/BOOTSTRAP.md` at commit **`fe8adaa858ee2391b42697311ce91cf787e080b8`**. Both `AGENTS.md` and `hermes/OPERATING.md` were read. It states: **“Never mutate shared migration ledgers to recover a rollout.”** Older local proposals, comments, scripts or task approvals do not override that prohibition. These files are evidence/specification, not authorization. Refresh current shared policy again before new work.
+
+## What happened
+
+Source was frozen at Capirov2 commit `25d1339c0c0e21fe0c3c0148787fad772e5096e8` (PR1914's migration guard). The shared API and Workspace migration ledger did not align with current source names/history. Read-only historical-ledger and physical-postcondition audits produced 60 individually reviewed decisions: 58 API and two Workspace, comprising 56 recorded-completion decisions and four normal API migrations. Old completed backfills and retired Meri tables were not to be recreated.
+
+A full-copy isolated clone was used: cluster `capiro-dev-meri-rehearsal-20260929`, resource ID `cluster-3PE7KKIRXQVJYXSXLBI5M2R7IY`, account `967807252336`, region `us-east-1`. Its historical endpoint is recorded in `result-summary.json`. This is historical identity evidence, not a current availability, isolation or permission check. It is not the shared capiro-dev target.
+
+The original integrated attempt recorded 60 command receipts: **58 exit0 commands** (56 applied-completion resolutions and two exact rollback markers), plus **two expected diagnostic-failure commands with exit1**. Its next command, step61, ran the normal API deployment and exited **0**, applying exactly these four migrations:
+
+1. `20280916010000_drop_legiwatch_saved_view`
+2. `20280917010000_drop_legiwatch_watch_presets`
+3. `20280922100000_legiwatch_capture_all_system_wide`
+4. `20281003010000_dedup_client_intel_mapping`
+
+The expected physical change was three proven-empty legacy tables and their helper/attached objects removed, plus one exact function repair. The dedup DELETE had zero targets. The final clone ledger contained **604 rows**: the original 542, 60 successful completion rows, and two clone-only diagnostic-failure rows retained with rollback markers. Full rows, identifiers and catalog snapshots are deliberately excluded from this archive.
+
+The original postcondition validator then raised `UNEXPECTED_SCHEMA_REMOVAL`. Its comparison used catalog display `legiwatch_watch_conditions_valid(conditions jsonb)`, whereas pg_dump used the type-only header `legiwatch_watch_conditions_valid(jsonb)`. Independent offline comparison found exactly 28 intended removed schema blocks, zero additions and one expected changed function. The false positive concerns that one signature representation; it does not authorize broad signature normalization or dropping other objects. The original failed receipt remains immutable and is not relabeled PASS. The original process session21571 finished with exit1; root observed no active clone connection afterward. Its persistent `integrated-full-reconciliation.lock` attempt marker remains retained. Those are historical observations, not permission to remove the marker or evidence about current sessions.
+
+The failure snapshot completed successfully. Before and after adjusted data streams each had **23,995,017,016 bytes**, SHA-256 **`06ce9be52e4c889c045682f6bc884059bcb2c3032ce200a6abdc4b00ed5e3571`**. The adjusted fingerprint excludes only migration-ledger data and the three tables proved empty before retirement. The dump stderr was nonempty, untruncated and hash-identical; its raw text is excluded, so this archive makes no claim about its meaning. Matching data proves the recorded data-only preservation boundary, not successful overall qualification.
+
+## Supplemental verifier and remaining checks
+
+`qualify-reconciliation-supplement.cjs` is archived byte-for-byte at SHA-256 `e4c77e1d9b63f3508184ba3f656a0f672100e1af2c8b86ea77b3257efe86a275`. It binds the original failed receipt, every saved command receipt, step61's actual exit and exact source SQL/helper block. Its correction is confined to the one known catalog-display/dump-header mismatch. It does not amend or replay the original attempt.
+
+Its offline check exited 0 and validated all 60 saved command receipts. Independent negative/regression tests passed **131/131**, exit 0, against unchanged final source; the original full-run guard suite passed **152/152**, exit 0. Hermes/Kimi review passed with process exit 0 and the final supplemental source pin. The Kimi text cited an earlier 121-test report; the final 131-test result is separate, newer evidence. These are historical local results, not reruns by this archive.
+
+Still unrun are API and Workspace status and no-op deploy checks under both the operator and each actual service runtime credential: eight checks total. The proposed supplement requires both source chains already complete before any no-op command, fresh matching 604-row/catalog/security/clone identity, exact exit/output evidence and a new full adjusted data fingerprint. It permits no resolve, seed, reset or migration replay. Any narrowly recognized foreign-service-history status exit1 remains a non-PASS limitation with overall exit1; it cannot be treated as green. Even a supplemental clone PASS would not authorize a shared-ledger change or deployment.
+
+## What is included and excluded
+
+- `reference-source/` contains ten exact reviewed tooling/test sources with `.cjs.txt` names. These are **read-only reference bytes**. Do not rename, import, evaluate or execute them as a recovery procedure. The `.gitattributes` rule prevents Git line-ending normalization from changing their hashes.
+- `source-byte-manifest.json` identifies each original filename, exact SHA-256 and size. No source pins were weakened or rewritten for portability.
+- `result-summary.json` contains explicitly selected result counts, hashes, timestamps, clone identity and verdicts. It contains no raw database rows or dumped schema.
+- `historical-clone-decisions.json` preserves all 60 migration names, Git paths/blobs and exact SQL hashes, with historical classifications. It is not the original runnable manifest and has `executionAllowed: false`.
+- `excluded-private-evidence.json` names important omitted inputs and their known hashes. Raw ledger/catalog/schema snapshots, historical/current ledger rows, full command output, business-data streams, secret/config bindings, authentication state and machine runtime dependencies are excluded. Access to them must remain in an approved protected evidence location, never source control.
+
+Dependency chain: original integrated runner → full library → Workspace helper → API diagnostic helper → single-migration helper. The full and supplemental tests also use the archived Workspace/API test fixture definitions. All of those source files are included. Their hardwired original paths, frozen source manifests, installed Prisma/pg/pg_dump binaries, private evidence, TLS/config paths and runtime bindings are intentionally not made portable. Recreating those paths or substituting mock proof would bypass the provenance boundary. The archive is self-contained for understanding the outcome and reviewing source, not for independently reproducing private evidence or executing a database workflow.
+
+## Safe next steps for a remote agent
+
+1. Refresh shared operating policy through its bootstrap and verify the actual current application branch, both mains and published PR state. This archive's migration source pin and historical hashes do not establish the latest CI or release state.
+2. Run only the local archive integrity check: `node verify-archive.cjs` from this directory. It reads local files, hashes them and syntax-parses reference text without executing it. Its PASS is archive integrity only.
+3. Keep the original failed attempt, all diagnostic rows and source SQL immutable. Do not rerun its 56 completion operations or four migrations, bulk-resolve history, delete foreign-service names, or invoke the old Workspace/Onboard/API Strategy migration wrappers. Those deployed explicit migration paths were previously found capable of rewriting shared history; ordinary inspected serve starts did not do so.
+4. If further isolated-clone qualification is explicitly authorized under current policy, arrange protected access to the original pinned evidence or an independently reviewed fresh evidence procedure. Reverify clone identity/isolation/current state and source pins before any command. This archive cannot supply missing private proof or authorization. A stale or absent clone, changed receipt, pending source migration or nonzero unexpected command is a stop condition.
+5. Shared-database recovery remains prohibited by current policy. Continue read-only diagnosis and policy-compliant engineering; escalate the unresolved recovery method to the policy owner instead of interpreting an old proposed exception as permission. No shared-database mutation plan is approved here.
+6. Before any separately authorized release, establish actual API/Workspace migration readiness and preserve the prescribed local-main → GitHub-main → approved Actions order. Main-triggered API/Workspace/Onboard/Intel/Engagement workflows have deployment effects; some services use pinned images while mutable image tags also feed scheduled tasks. A local lock or idle-session snapshot does not serialize other deployment/DDL operators. Existing historical provenance and effective-ACL anomalies remain disclosed and unchanged. UI may ship only through web-vnext to os.capiro.ai; user-run production canaries remain outside this archive.
+
+The archive creation itself made no clone/database/cloud call, migration, deployment, commit or push. It copied only the selected source bytes and wrote sanitized summaries in this directory. Publication is handled by the parent task after verification.
+
+Credential-scan note: the full guard-test source contains credential-shaped URLs solely inside `secretFixture`/`secretTest`, including the named case “Postgres URL credentials decoded without host retention.” They use an explicitly synthetic offline-only ARN and a `.example` host, call only the pure secret-format parser and assert the host is discarded. They are test constants, not fetched credentials or usable connection material. Keeping these fixtures preserves the reviewed source hash. Secret-store ARNs and historical local paths elsewhere in archived source are locators, not secret values. Any historical source comments referring to a possible live exception are superseded by the current shared-policy prohibition stated above.
