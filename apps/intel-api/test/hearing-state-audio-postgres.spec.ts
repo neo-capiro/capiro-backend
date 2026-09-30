@@ -159,7 +159,13 @@ describe('explicit state audio permission and current demand on PostgreSQL', () 
       data: { revokedAt: new Date() },
     });
     await expect(access.manifest(ctx, hearingId)).rejects.toThrow('unavailable');
-    expect((await store.getDemand(hearingId)).activeSubscriptionCount).toBe(1);
+    // With state capture enabled, demand counts automatic subscriptions like
+    // federal hearings (#1748), so both subscribers still count. Source
+    // authorization is the grant set: only the unrevoked tenant remains.
+    expect((await store.getDemand(hearingId)).activeSubscriptionCount).toBe(2);
+    expect([
+      ...new Set((await approvedPublicCapture(p, hearingId)).map((grant) => grant.tenantId)),
+    ]).toEqual([tenants[1]]);
   });
   it('refuses further media after the final source grant is revoked', async () => {
     await p.hearingMediaPermission.updateMany({
