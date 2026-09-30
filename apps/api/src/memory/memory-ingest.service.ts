@@ -210,20 +210,27 @@ export class MemoryIngestService {
               last_message_at: Date | null;
               msg_count: bigint;
               owner_user_id: string | null;
+              connection_owner_user_id: string | null;
             }>
           >`
         SELECT t.id, t.client_id, t.subject, t.snippet, t.participants_jsonb AS participants,
                t.last_message_at,
                (SELECT count(*) FROM mail_messages m WHERE m.thread_id = t.id) AS msg_count,
-               (t.metadata_jsonb->>'ownerUserId')::uuid AS owner_user_id
+               (t.metadata_jsonb->>'ownerUserId')::uuid AS owner_user_id,
+               c.created_by_user_id AS connection_owner_user_id
         FROM mail_threads t
+        LEFT JOIN engagement_connections c
+          ON c.id = t.connection_id AND c.tenant_id = t.tenant_id
         WHERE t.tenant_id = ${ctx.tenantId}::uuid
       `,
       );
       for (const th of threads) {
         const domains = extractDomains(th.participants);
-        const ownerUserId = th.owner_user_id ?? ctx.userId ?? null;
-        // A thread with no resolvable owner and no client is skipped (cannot scope safely).
+        const interactiveFallback = ctx.clerkUserId.startsWith('system:') ? null : ctx.userId;
+        const ownerUserId =
+          th.owner_user_id ?? th.connection_owner_user_id ?? interactiveFallback ?? null;
+        // A thread with no real owner and no client is skipped (cannot scope safely).
+        // In particular, never assign the refresh job's all-zero system user.
         if (!th.client_id && !ownerUserId) continue;
         await this.store.upsertSystem(
           emailThreadToItem({
@@ -231,7 +238,7 @@ export class MemoryIngestService {
             threadId: th.id,
             subject: th.subject || '(no subject)',
             clientId: th.client_id,
-            ownerUserId: ownerUserId ?? 'system',
+            ownerUserId,
             inScopeDomains: domains,
             messageCount: Number(th.msg_count ?? 0),
             lastMessageAt: (th.last_message_at ?? new Date()).toISOString(),

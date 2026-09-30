@@ -9,7 +9,7 @@
  * rules, readiness counters. A stray rollout label fails this test.
  */
 import { createElement } from 'react';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -77,6 +77,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   for (const client of queryClients.splice(0)) client.clear();
+  vi.restoreAllMocks();
 });
 
 function SettingsLocation() {
@@ -164,6 +165,39 @@ describe('LW-QA-013 — LegiWatch Settings (read/write over real per-user storag
       expect(within(tz).getByText('Eastern').getAttribute('aria-selected')).toBe('true'),
     );
     expect(within(tz).getByText('Pacific').getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('replaces the Saved timer on another save and clears it on unmount', async () => {
+    const schedule = vi.spyOn(window, 'setTimeout');
+    const cancel = vi.spyOn(window, 'clearTimeout');
+    renderSettings();
+    await screen.findByLabelText('LegiWatch settings');
+    fireEvent.click(within(screen.getByLabelText('Preferred timezone')).getByText('Eastern'));
+    await waitFor(() => expect(schedule.mock.calls.filter((call) => call[1] === 2200)).toHaveLength(1));
+    const firstIndex = schedule.mock.calls.findIndex((call) => call[1] === 2200);
+    const firstTimer = schedule.mock.results[firstIndex]?.value;
+    expect(firstTimer).toBeDefined();
+    fireEvent.click(within(screen.getByLabelText('Default hearings view')).getByText('Calendar'));
+    await waitFor(() => expect(schedule.mock.calls.filter((call) => call[1] === 2200)).toHaveLength(2));
+    expect(cancel).toHaveBeenCalledWith(firstTimer);
+    const lastIndex = schedule.mock.calls.findIndex((call, index) => index > firstIndex && call[1] === 2200);
+    const lastTimer = schedule.mock.results[lastIndex]?.value;
+    expect(lastTimer).toBeDefined();
+    cleanup();
+    expect(cancel).toHaveBeenCalledWith(lastTimer);
+  });
+
+  it('does not schedule a Saved timer when a pending save resolves after unmount', async () => {
+    let finishSave!: (result: { data: ReturnType<typeof meDoc> }) => void;
+    apiPatch.mockImplementation(() => new Promise((resolve) => { finishSave = resolve; }));
+    const schedule = vi.spyOn(window, 'setTimeout');
+    renderSettings();
+    await screen.findByLabelText('LegiWatch settings');
+    fireEvent.click(within(screen.getByLabelText('Preferred timezone')).getByText('Eastern'));
+    await waitFor(() => expect(apiPatch).toHaveBeenCalledTimes(1));
+    cleanup();
+    await act(async () => { finishSave({ data: meDoc() }); });
+    expect(schedule.mock.calls.filter((call) => call[1] === 2200)).toHaveLength(0);
   });
 
   it('rapid successive changes do not overwrite one another with a stale document', async () => {

@@ -54,6 +54,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
+      NODE_OPTIONS: --max-old-space-size=6144
       DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro_ci
     steps:
       - uses: actions/checkout@v4
@@ -83,9 +84,12 @@ jobs:
       - name: Build API workspace dependencies
         run: |
           pnpm --filter @capiro/shared build
-          pnpm --filter @capiro/meriv2-core build
           pnpm --filter @capiro/defense-contracts build
           pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/defense-client build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/strategy-verifier build
+          pnpm --filter @capiro/meriv2-core build
 
       - name: Typecheck API
         env:

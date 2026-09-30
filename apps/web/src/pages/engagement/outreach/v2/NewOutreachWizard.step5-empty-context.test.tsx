@@ -202,9 +202,8 @@ describe('Step 5 Context Builder with empty context', () => {
         screen.getByText(/Could not create the protected draft record, so generation was not started/),
       ).toBeTruthy(),
     );
-    expect(
-      screen.getByText(/property audienceType should not exist/),
-    ).toBeTruthy();
+    const generateStep = screen.getByText('Generate & review').closest('div');
+    expect(generateStep?.textContent).toContain('property audienceType should not exist');
 
     // No generation POST was ever made (the preflight blocked it).
     expect(

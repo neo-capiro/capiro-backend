@@ -11,7 +11,7 @@
  * unknowns block is never hidden (none = say so); Escape/backdrop close;
  * browser back restores the underlying worklist state.
  */
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useLwAlert, useLwPacket, useLwWorkState, useLwAssignSelf } from '../lib/api.js';
 import {
   WORK_STATE_LABEL,
@@ -23,7 +23,10 @@ import {
 import { LwPill, LwButton } from '../lib/primitives.js';
 import { LwStateLoading } from '../states/SystemStates.js';
 import { feedHearingDetailHref } from '../lib/feed-hearing-link.js';
-import { VNextMemoComposerDrawer } from './VNextMemoComposerDrawer.js';
+
+const MemoComposerDrawer = lazy(async () => ({
+  default: (await import('./MemoComposerDrawerVNext.js')).MemoComposerDrawer,
+}));
 
 interface PacketDrawerProps {
   scope: string;
@@ -329,8 +332,10 @@ function PacketDrawerContent({
         )}
       </aside>
       {memoOpen && it && memoClientId ? (
-          <VNextMemoComposerDrawer open clientId={memoClientId} clientName={it.clientName ?? 'Client'}
+        <Suspense fallback={<div role="status">Opening memo editor…</div>}>
+          <MemoComposerDrawer open clientId={memoClientId} clientName={it.clientName ?? 'Client'}
             item={it} onClose={() => setMemoOpen(false)} />
+        </Suspense>
       ) : null}
     </>
   );

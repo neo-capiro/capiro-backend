@@ -4,6 +4,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntApp } from 'antd';
 import { ClientIntelV1Page } from './ClientIntelV1Page.js';
 
+vi.mock('@clerk/clerk-react', () => ({
+  useAuth: () => ({ isLoaded: true, orgId: 'tenant-1', userId: 'user-1' }),
+}));
+
 const navigateMock = vi.fn();
 vi.mock('react-router-dom', () => ({
   useNavigate: () => navigateMock,

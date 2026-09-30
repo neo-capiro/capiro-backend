@@ -1,12 +1,7 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import type { PrismaClient } from '@prisma/client';
 import type { EmbeddingProvider } from './embedding-provider.js';
-import {
-  EMBEDDING_DIM,
-  embedAndUpsert,
-  embedText,
-  sha256,
-} from './embedder.js';
+import { EMBEDDING_DIM, embedAndUpsert, embedText, sha256 } from './embedder.js';
 
 function provider(overrides: Partial<EmbeddingProvider> = {}): EmbeddingProvider {
   const vector = Array.from({ length: EMBEDDING_DIM }, (_, i) => i / EMBEDDING_DIM);
@@ -52,7 +47,13 @@ describe('provider-neutral embedder', () => {
     const p = provider();
     const transaction = jest.fn();
     const prisma = {
-      $queryRawUnsafe: jest.fn(async (..._args: unknown[]) => [{ content_hash: sha256(text) }]),
+      $queryRawUnsafe: jest.fn(async (..._args: unknown[]) => [
+        {
+          content_hash: sha256(text),
+          client_id: '22222222-2222-4222-8222-222222222222',
+          owner_user_id: null,
+        },
+      ]),
       $transaction: transaction,
     } as unknown as PrismaClient;
 
@@ -72,6 +73,37 @@ describe('provider-neutral embedder', () => {
 
     expect(p.embed).not.toHaveBeenCalled();
     expect(transaction).not.toHaveBeenCalled();
+  });
+
+  test('repairs client/owner scope without re-embedding unchanged content', async () => {
+    const text = 'stable knowledge text for scope repair';
+    const p = provider();
+    const executeRaw = jest.fn(async (..._args: unknown[]) => 1);
+    const tx = { $executeRawUnsafe: executeRaw };
+    const prisma = {
+      $queryRawUnsafe: jest.fn(async () => [
+        { content_hash: sha256(text), client_id: null, owner_user_id: 'old-owner' },
+      ]),
+      $transaction: jest.fn(async (fn: (value: typeof tx) => Promise<unknown>) => fn(tx)),
+    } as unknown as PrismaClient;
+    await expect(
+      embedAndUpsert(
+        prisma,
+        {
+          tenantId: '11111111-1111-4111-8111-111111111111',
+          clientId: '22222222-2222-4222-8222-222222222222',
+          ownerUserId: null,
+          sourceType: 'memory_item',
+          sourceId: 'memory-1',
+          text,
+        },
+        p,
+      ),
+    ).resolves.toBe('updated');
+    expect(p.embed).not.toHaveBeenCalled();
+    expect(String(executeRaw.mock.calls[0]?.[0])).toContain('SET client_id = $1::uuid');
+    expect(executeRaw.mock.calls[0]?.[1]).toBe('22222222-2222-4222-8222-222222222222');
+    expect(executeRaw.mock.calls[0]?.[2]).toBeNull();
   });
 
   test('persists provider model metadata while preserving tenant/client scope', async () => {

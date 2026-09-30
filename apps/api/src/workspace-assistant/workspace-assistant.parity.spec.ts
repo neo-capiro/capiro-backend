@@ -4,6 +4,21 @@ import type { TenantContext } from '@capiro/shared';
 import { WorkspaceAssistantService, type AssistantResult } from './workspace-assistant.service.js';
 import type { WorkspaceAssistantDto } from './workspace-assistant.dto.js';
 
+// The harness supplies every domain port as a constructor double below. Keep
+// those implementations out of module loading so this suite exercises the real
+// WorkspaceAssistantService without loading the entire API dependency graph.
+// Prompt construction, client/wall checks, provider calls and helpers stay real.
+jest.mock('../meri/meri-tools.service.js', () => ({ MeriToolsService: jest.fn() }));
+jest.mock('../engagement/ai-credential-resolver.service.js', () => ({
+  AiCredentialResolverService: jest.fn(),
+}));
+jest.mock('../context/context-compiler.service.js', () => ({
+  ContextCompilerService: jest.fn(),
+}));
+jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: jest.fn() }));
+jest.mock('../meri/meri-feature-flags.service.js', () => ({ MeriFeatureFlagsService: jest.fn() }));
+jest.mock('./meriv2-orchestrator.client.js', () => ({ MeriV2OrchestratorClient: jest.fn() }));
+
 /**
  * Legacy (apps/api) ↔ MeriV2 in-editor PARITY.
  *
@@ -93,7 +108,17 @@ function harness(opts: HarnessOptions = {}) {
         userId: 'user-9',
         clientId: request.clientId ?? null,
         ref: request.ref ?? {},
-        items: [{ layer: 'firm-identity', id: 'mi-1', type: 'firm-soul', slug: 'firm', chars: 20, rationale: 'r', contentHash: 'h' }],
+        items: [
+          {
+            layer: 'firm-identity',
+            id: 'mi-1',
+            type: 'firm-soul',
+            slug: 'firm',
+            chars: 20,
+            rationale: 'r',
+            contentHash: 'h',
+          },
+        ],
         exclusions: opts.exclusions ?? [],
         rendered:
           opts.rendered ??
@@ -104,7 +129,13 @@ function harness(opts: HarnessOptions = {}) {
                 { layer: 'client-people', type: 'client-people', body: 'GC: Jane Doe' },
               ]
             : [{ layer: 'firm-identity', type: 'firm-soul', body: 'We are defense-focused.' }]
-          ).map((row, index) => ({ id: `mi-${index}`, slug: 's', title: null, contentHash: `h${index}`, ...row })),
+          ).map((row, index) => ({
+            id: `mi-${index}`,
+            slug: 's',
+            title: null,
+            contentHash: `h${index}`,
+            ...row,
+          })),
         traceHash: 'trace-hash-1',
         persisted: opts.packetPersisted ?? true,
         compiledAt: '2026-07-28T00:00:00.000Z',
@@ -257,7 +288,9 @@ describe('legacy in-editor persona and jurisdiction', () => {
     const h = harness();
     await h.service.run(ctx, dto());
     const system = h.modelCalls[0]?.system ?? '';
-    expect(system).toContain("Capiro's in-document operating assistant for government-affairs teams");
+    expect(system).toContain(
+      "Capiro's in-document operating assistant for government-affairs teams",
+    );
     expect(system).toContain('Never assume the jurisdiction');
     expect(system).toContain('federal, state, local, regulatory');
     expect(system).not.toContain('U.S. federal government-affairs (lobbying) firm');
@@ -380,7 +413,15 @@ describe('legacy in-editor returned metadata', () => {
 
   it('reports excluded context sources as degraded', async () => {
     const h = harness({
-      exclusions: [{ layer: 'client-steering', id: 'mi-9', type: 'client-compass', slug: 's', reason: 'revoked' }],
+      exclusions: [
+        {
+          layer: 'client-steering',
+          id: 'mi-9',
+          type: 'client-compass',
+          slug: 's',
+          reason: 'revoked',
+        },
+      ],
     });
     const result = await h.service.run(ctx, dto({ clientId: CLIENT }));
     expect(result.degraded).toBe(true);

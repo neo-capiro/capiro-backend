@@ -8457,14 +8457,15 @@ model ClientFundingOpportunity {
   // Partial on human_decision: only decided rows are indexed, which is a small
   // fraction of a table that is overwhelmingly machine suggestions. Read by the
   // P10 triage inbox as "decided rows for this tenant, soonest action first".
-  @@index([tenantId, humanDecision, nextActionDueAt], map: "client_funding_opportunity_decision_idx")
+  // SQL-owned partial index: client_funding_opportunity_decision_idx.
+  // Its predicate is checked by scripts/ci/verify-funding-indexes.mjs.
   // The GENERIC identity index (P13). Also a PARTIAL unique index — created only
   // in the migration, for the same reason as the two legacy ones: Prisma cannot
   // express `WHERE source_record_key IS NOT NULL`, and without the predicate every
   // row that has not been backfilled yet would collide on NULL.
   //   client_funding_opportunity_generic_uniq
-  //     UNIQUE (tenant_id, client_id, source, source_record_key)
-  //     WHERE source_record_key IS NOT NULL
+  //     UNIQUE (tenant_id, client_id, source, source_record_type, source_record_key)
+  //     WHERE source_record_key IS NOT NULL AND source_record_type IS NOT NULL
   @@index([tenantId, sourceRecordType, sourceRecordKey], map: "client_funding_opportunity_source_record_idx")
   @@map("client_funding_opportunity")
 }
@@ -9165,7 +9166,7 @@ model TangoBudgetAccount {
   id String @id @default(uuid()) @db.Uuid
 
   /// Tango's own row id for this account x fiscal-year pair. The upsert key.
-  tangoAccountRowId Int @unique @map("tango_account_row_id")
+  tangoAccountRowId Int @unique(map: "tango_budget_account_row_id_uniq") @map("tango_account_row_id")
 
   /// Treasury federal account symbol, e.g. "097-0400". The provider's own
   /// identifier for the account, and the ONLY key a Capiro-side mapping may
@@ -9286,7 +9287,7 @@ model TangoProcurementProtest {
   id String @id @default(uuid()) @db.Uuid
 
   /// The provider's own case id. The sync's upsert key.
-  tangoCaseId  String  @unique @map("tango_case_id")
+  tangoCaseId  String  @unique(map: "tango_procurement_protest_case_uniq") @map("tango_case_id")
   /// The docket number a human reads and can look up, e.g. "B-421234.2".
   caseNumber   String? @map("case_number")
   /// 'gao' | 'cofc' as the provider states it. Never normalized into a Capiro
@@ -9356,7 +9357,7 @@ model TangoEntityExclusion {
   id String @id @default(uuid()) @db.Uuid
 
   /// One current observation per entity. The upsert key.
-  uei String @unique
+  uei String @unique(map: "tango_entity_exclusion_uei_uniq")
 
   /// The provider's own flag value, verbatim and untranslated. A boolean here
   /// would throw away the distinction between "the provider said no" and "the
@@ -9402,7 +9403,7 @@ model TangoDibbsSolicitation {
   /// The provider's own row `uuid`. The sync's upsert key, and what keeps
   /// duplicate line items distinct - two rows sharing a solicitation and NSN
   /// are still two rows if the provider issued two uuids.
-  tangoDibbsId String @unique @map("tango_dibbs_id")
+  tangoDibbsId String @unique(map: "tango_dibbs_solicitation_tango_id_uniq") @map("tango_dibbs_id")
 
   /// 'rfq' | 'rfp'. Bounded by tango_dibbs_solicitation_document_type_chk.
   documentType String @map("document_type")
@@ -9484,7 +9485,7 @@ model TangoDibbsAward {
 
   /// The provider's own row `uuid`. Upsert key, and the line-item identity
   /// that keeps two delivery orders of one contract distinct.
-  tangoDibbsId String @unique @map("tango_dibbs_id")
+  tangoDibbsId String @unique(map: "tango_dibbs_award_tango_id_uniq") @map("tango_dibbs_id")
 
   awardNumber          String  @map("award_number")
   deliveryOrderNumber  String? @map("delivery_order_number")
@@ -9558,7 +9559,7 @@ model TangoSbirSolicitation {
   /// that topics key on `topic_id` and solicitations on `solicitation_id`,
   /// neither of which is the `uuid` DIBBS uses. Assuming a shared identity
   /// column across these APIs is the mistake this name exists to prevent.
-  tangoSbirId String @unique @map("tango_sbir_id")
+  tangoSbirId String @unique(map: "tango_sbir_solicitation_tango_id_uniq") @map("tango_sbir_id")
 
   /// The cycle's public number, and the ONLY key a topic carries back here.
   /// NOT NULL because a cycle nothing can be joined to is not usable; the
@@ -9635,7 +9636,7 @@ model TangoSbirTopic {
 
   /// The provider's own `topic_id`. The upsert key, and NOT the same field
   /// name the sibling table keys on - see TangoSbirSolicitation.tangoSbirId.
-  tangoSbirId String @unique @map("tango_sbir_id")
+  tangoSbirId String @unique(map: "tango_sbir_topic_tango_id_uniq") @map("tango_sbir_id")
 
   /// The public topic number, e.g. an "A24-001" style code. Distinct from
   /// `tangoSbirId`: the provider's row id is not the number a human cites.
@@ -9761,7 +9762,7 @@ model TangoOpportunityNotice {
   id String @id @default(uuid()) @db.Uuid
 
   /// The provider's own notice id. The sync's upsert key.
-  tangoNoticeId      String  @unique @map("tango_notice_id")
+  tangoNoticeId      String  @unique(map: "tango_opportunity_notice_notice_id_uniq") @map("tango_notice_id")
   /// The parent opportunity, when the sync knows it. Nullable: a notice can be
   /// observed through a solicitation-number query before its parent is walked.
   tangoOpportunityId String? @map("tango_opportunity_id")
@@ -16220,4 +16221,69 @@ model DefenseReferenceOccurrence {
   @@index([resolvedTargetDocumentId, disposition], map: "defense_reference_occurrences_target_idx")
   @@index([referenceType, disposition], map: "defense_reference_occurrences_type_idx")
   @@map("defense_reference_occurrences")
+}
+
+/// Global public reference data. Tenant exposure is decided by confirmed client
+/// mappings in the read service. SQL owns the hash/fiscal-year CHECK constraints.
+model TangoSubaward {
+  id                       String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  providerKey              String    @unique @map("provider_key")
+  awardKey                 String?   @map("award_key")
+  primeAwardKey            String?   @map("prime_award_key")
+  piid                     String?   @db.VarChar(64)
+  subawardNumber           String?   @map("subaward_number") @db.VarChar(128)
+  subawardType             String?   @map("subaward_type") @db.VarChar(64)
+  subawardAmount           Decimal?  @map("subaward_amount") @db.Decimal(20, 2)
+  actionDate               DateTime? @map("action_date") @db.Date
+  fiscalYear               Int?      @map("fiscal_year")
+  description              String?
+  naicsCode                String?   @map("naics_code") @db.VarChar(12)
+  primeRecipientUei        String?   @map("prime_recipient_uei") @db.VarChar(12)
+  primeRecipientName       String?   @map("prime_recipient_name")
+  primeParentUei           String?   @map("prime_parent_uei") @db.VarChar(12)
+  primeParentName          String?   @map("prime_parent_name")
+  subawardeeUei            String?   @map("subawardee_uei") @db.VarChar(12)
+  subawardeeName           String?   @map("subawardee_name")
+  subawardeeParentUei      String?   @map("subawardee_parent_uei") @db.VarChar(12)
+  subawardeeParentName     String?   @map("subawardee_parent_name")
+  awardingAgency           String?   @map("awarding_agency")
+  awardingOffice           String?   @map("awarding_office")
+  fundingAgency            String?   @map("funding_agency")
+  fundingOffice            String?   @map("funding_office")
+  popCountry               String?   @map("pop_country") @db.VarChar(3)
+  popState                 String?   @map("pop_state") @db.VarChar(8)
+  popCity                  String?   @map("pop_city")
+  popZip                   String?   @map("pop_zip") @db.VarChar(16)
+  popCongressionalDistrict String?   @map("pop_congressional_district") @db.VarChar(8)
+  sourceUrl                String?   @map("source_url")
+  providerModifiedAt       DateTime? @map("provider_modified_at") @db.Timestamptz(6)
+  contentSha256            String    @map("content_sha256") @db.VarChar(64)
+  normalizedJsonb          Json      @map("normalized_jsonb")
+  active                   Boolean   @default(true)
+  firstSyncedAt            DateTime  @default(now()) @map("first_synced_at") @db.Timestamptz(6)
+  lastSyncedAt             DateTime  @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([awardKey], map: "tango_subaward_award_key_idx")
+  @@index([primeRecipientUei], map: "tango_subaward_prime_uei_idx")
+  @@index([subawardeeUei], map: "tango_subaward_recipient_uei_idx")
+  @@index([actionDate(sort: Desc), providerKey], map: "tango_subaward_action_date_idx")
+  @@index([popState, popCongressionalDistrict, actionDate(sort: Desc)], map: "tango_subaward_district_idx")
+  @@index([awardingAgency, actionDate(sort: Desc)], map: "tango_subaward_awarding_agency_idx")
+  @@index([naicsCode, actionDate(sort: Desc)], map: "tango_subaward_naics_idx")
+  @@map("tango_subaward")
+}
+
+/// SQL owns the positive-page and completeness-vocabulary CHECK constraints.
+model TangoSubawardSyncCheckpoint {
+  syncKey       String    @id @map("sync_key") @db.VarChar(64)
+  windowStart   DateTime? @map("window_start") @db.Timestamptz(6)
+  windowEnd     DateTime? @map("window_end") @db.Timestamptz(6)
+  nextPage      Int       @default(1) @map("next_page")
+  completeness  String    @default("complete") @db.VarChar(16)
+  rowsProcessed BigInt    @default(0) @map("rows_processed")
+  updatedAt     DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@map("tango_subaward_sync_checkpoint")
 }

@@ -38,6 +38,10 @@ jobs:
     name: Revised Phase 3 DB-free + regressions
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    # verify:engagement-phase-3 runs Jest, nest build, tsc and the web build
+    # with the inherited heap; Node's ~2 GB default is exhausted by one suite.
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
     steps:
       - uses: actions/checkout@v4
         with:

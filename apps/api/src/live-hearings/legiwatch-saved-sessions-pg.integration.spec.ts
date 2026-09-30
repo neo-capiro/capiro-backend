@@ -38,17 +38,34 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
         null,
     },
     hearingStreamCandidate: {
-      findMany: async ({ where }: { where: { hearingId: { in: string[] } } }) =>
-        (
-          await client.query(
-            `SELECT id, hearing_id AS "hearingId", provider,
-          official_page_url AS "officialPageUrl", capture_policy AS "capturePolicy",
-          priority, updated_at AS "updatedAt" FROM hearing_stream_candidate
-          WHERE hearing_id = ANY($1::text[])
-          ORDER BY priority ASC, updated_at DESC, id ASC`,
-            [where.hearingId.in],
-          )
-        ).rows,
+      findMany: jest.fn(
+        async (args: {
+          where: { hearingId: { in: string[] } };
+          orderBy: Array<Record<string, string>>;
+          select: Record<string, boolean>;
+        }) => {
+          expect(args.orderBy).toEqual([{ priority: 'asc' }, { updatedAt: 'desc' }, { id: 'asc' }]);
+          expect(args.select).toEqual({
+            id: true,
+            hearingId: true,
+            provider: true,
+            officialPageUrl: true,
+            capturePolicy: true,
+            priority: true,
+            updatedAt: true,
+          });
+          return (
+            await client.query(
+              `SELECT id, hearing_id AS "hearingId", provider,
+                  official_page_url AS "officialPageUrl", capture_policy AS "capturePolicy",
+                  priority, updated_at AS "updatedAt"
+             FROM hearing_stream_candidate WHERE hearing_id = ANY($1::text[])
+             ORDER BY priority ASC, updated_at DESC, id ASC`,
+              [args.where.hearingId.in],
+            )
+          ).rows;
+        },
+      ),
     },
   };
   const service = new LegiWatchWave1Service(
@@ -75,9 +92,9 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
         WHERE geographic_jurisdiction='US' OR geographic_jurisdiction IS NULL;
       CREATE TEMP TABLE hearing_stream_candidate (
         hearing_id text, official_page_url text, media_url text,
-        id text DEFAULT md5(random()::text), provider text DEFAULT 'unknown',
-        capture_policy text DEFAULT 'REVIEW_REQUIRED', priority integer DEFAULT 100,
-        updated_at timestamptz DEFAULT now()
+        id text PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        provider text DEFAULT 'senate-isvp', capture_policy text DEFAULT 'REVIEW_REQUIRED',
+        priority integer DEFAULT 100, updated_at timestamptz DEFAULT now()
       );
       CREATE TEMP TABLE committee_source (source_url text);
       CREATE TEMP TABLE intel_live_hearing_session (
@@ -98,7 +115,10 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
         id text, capture_id text, start_ms integer, speaker_label text, text text, sequence integer,
         is_final boolean DEFAULT true
     );
-      CREATE TEMP TABLE public_hearing_speaker (capture_id text, speaker_label text, display_name text);
+      CREATE TEMP TABLE public_hearing_speaker (
+        capture_id text NOT NULL, speaker_label text NOT NULL, display_name text NOT NULL,
+        UNIQUE(capture_id, speaker_label)
+      );
       CREATE TEMP TABLE public_hearing_insight (
         id text, hearing_id text, capture_id text, segment_id text,
         insight_type text, title text, summary text, evidence_text text, sequence integer
@@ -120,7 +140,8 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
     jest.clearAllMocks();
     await client.query(`TRUNCATE committee_hearing, hearing_stream_candidate, committee_source,
       intel_live_hearing_session, intel_transcript_segment, intel_live_summary_card,
-      public_hearing_capture, official_hearing_transcript, public_hearing_transcript_segment, public_hearing_speaker, public_hearing_insight`);
+      public_hearing_capture, official_hearing_transcript, public_hearing_transcript_segment,
+      public_hearing_insight, public_hearing_speaker`);
     await hearing('fauci', 'TESTIMONY OF ANTHONY FAUCI', 'https://congress.gov/hearings/fauci');
     await hearing('other', 'Unrelated proceeding', 'https://senate.gov/hearings/other');
   });
@@ -336,6 +357,45 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
     await client.query(`UPDATE committee_hearing SET visibility='private' WHERE id='fauci'`);
     await session('public-typed', { url: 'https://congress.gov/hearings/fauci' });
     expect((await service.savedSessions(ctx, 'fauci')).sessions).toEqual([]);
+  });
+
+  it('archive playback reads ordered candidates only for the returned hearings', async () => {
+    await client.query(`INSERT INTO hearing_stream_candidate
+      (id, hearing_id, official_page_url, priority, updated_at) VALUES
+      ('old', 'fauci', 'https://www.senate.gov/hearings/old', 1, '2026-07-28T00:00:00Z'),
+      ('z-new', 'fauci', 'https://www.senate.gov/hearings/z-new', 1, '2026-07-29T00:00:00Z'),
+      ('a-new', 'fauci', 'https://www.senate.gov/hearings/a-new', 1, '2026-07-29T00:00:00Z'),
+      ('low-priority', 'fauci', 'https://www.senate.gov/hearings/low', 2, '2026-07-30T00:00:00Z'),
+      ('other-hearing', 'other', 'https://www.senate.gov/hearings/other', 0, '2026-07-30T00:00:00Z')`);
+    const result = await service.searchArchive(ctx, { q: 'Fauci' });
+    expect(result.total).toBe(1);
+    expect(prisma.hearingStreamCandidate.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.hearingStreamCandidate.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { hearingId: { in: ['fauci'] } },
+      }),
+    );
+    const candidates: Array<{ id: string }> =
+      await prisma.hearingStreamCandidate.findMany.mock.results[0]!.value;
+    expect(candidates.map((candidate) => candidate.id)).toEqual([
+      'a-new',
+      'z-new',
+      'old',
+      'low-priority',
+    ]);
+    expect(result.rows).toEqual([
+      expect.objectContaining({
+        id: 'fauci',
+        officialPlaybackUrl: 'https://www.senate.gov/hearings/a-new',
+      }),
+    ]);
+  });
+
+  it('empty archive results do not request playback candidates', async () => {
+    const result = await service.searchArchive(ctx, { q: 'NoMatchingHearingAtAll' });
+    expect(result.total).toBe(0);
+    expect(result.rows).toEqual([]);
+    expect(prisma.hearingStreamCandidate.findMany).not.toHaveBeenCalled();
   });
 
   it('archive search and Transcript Available return the same saved room without changing public counts', async () => {

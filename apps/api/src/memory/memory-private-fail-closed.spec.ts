@@ -99,6 +99,34 @@ describe('Phase 3 (3a) — memory private rows are fail-closed', () => {
     expect(legacyVoice).toBeDefined();
     expect(legacyVoice).toContain("throw new Error('phase26_engagement_context_plane_required')");
     expect(legacyVoice).not.toMatch(/\$queryRaw|return\s/);
+    // Phase 26 retired the raw compiler path. Only an active governed meeting
+    // packet may supply steering, and the requested client must match it.
+    const rawStart = engagement.indexOf('private async loadUserVoiceBlock(');
+    const rawEnd = engagement.indexOf('async generateOutreachDraft(', rawStart);
+    expect(rawStart).toBeGreaterThan(-1);
+    expect(rawEnd).toBeGreaterThan(rawStart);
+    const rawLoader = engagement.slice(rawStart, rawEnd);
+    expect(rawLoader).toContain("throw new Error('phase26_engagement_context_plane_required')");
+    expect(rawLoader).not.toContain('contextCompiler.compile(');
+    const factory = readFileSync(
+      join(SRC_ROOT, 'engagement', 'governed-engagement.factory.ts'),
+      'utf8',
+    );
+    const governedStart = factory.indexOf('methods.loadUserVoiceBlock = async');
+    const governedEnd = factory.indexOf('const generateDraft =', governedStart);
+    expect(governedStart).toBeGreaterThan(-1);
+    expect(governedEnd).toBeGreaterThan(governedStart);
+    const governedLoader = factory.slice(governedStart, governedEnd);
+    expect(governedLoader).toContain('const activeMeeting = currentMeetingGovernedContext()');
+    expect(governedLoader).toMatch(
+      /if \(activeMeeting\)\s*\{\s*if \(\(clientId \?\? null\) !== activeMeeting\.clientId\)\s*\{\s*throw new Error\('phase24_meeting_context_legacy_loader_client_mismatch'\)/,
+    );
+    expect(governedLoader).toContain('return activeMeeting.modelContextBlock');
+    expect(governedLoader).toContain(
+      "throw new Error('phase26_engagement_context_plane_required')",
+    );
+    expect(governedLoader).not.toContain('contextCompiler.compile(');
+    expect(factory).not.toMatch(/FROM memory_items[\s\S]{0,200}'user-voice'/);
     expect(engagement).not.toMatch(/FROM memory_items[\s\S]{0,200}'user-voice'/);
   });
 

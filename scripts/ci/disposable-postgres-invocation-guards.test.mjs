@@ -11,7 +11,7 @@ const funding = path.join(scriptDir, 'bootstrap-funding-opportunities-test-dbs.s
 const phase8 = path.resolve(scriptDir, '../verify-phase8-session2-db.sh');
 const adminUrl = 'postgresql://postgres:postgres@127.0.0.1:5486/postgres?schema=public';
 
-function fixture() {
+function fixture({ safeWorker = false } = {}) {
   const directory = mkdtempSync(path.join(tmpdir(), 'capiro-disposable-invocation-'));
   const log = path.join(directory, 'commands.log');
   for (const [name, code] of [
@@ -20,9 +20,15 @@ function fixture() {
     ['docker', 97],
     ['pnpm', 97],
   ]) {
+    // safeWorker: the external database already holds the restricted worker,
+    // so the read-only capiro_worker verification query answers true.
+    const answer =
+      name === 'psql' && safeWorker
+        ? `[[ "$*" == *"rolname='capiro_worker'"* ]] && printf 't\\n'\n`
+        : '';
     writeFileSync(
       path.join(directory, name),
-      `#!/usr/bin/env bash\nprintf '%s\\n' '${name}' "$*" >> "${log}"\nexit ${code}\n`,
+      `#!/usr/bin/env bash\nprintf '%s\\n' '${name}' "$*" >> "${log}"\n${answer}exit ${code}\n`,
       { mode: 0o755 },
     );
   }
@@ -75,7 +81,7 @@ test('Funding validation-only keeps the fixed databases and executes no database
 });
 
 test('Phase8 external URL path makes no new container prerequisite calls', () => {
-  const local = fixture();
+  const local = fixture({ safeWorker: true });
   const result = spawnSync('bash', [phase8], {
     encoding: 'utf8',
     env: {
@@ -91,6 +97,27 @@ test('Phase8 external URL path makes no new container prerequisite calls', () =>
   const commands = local.commands();
   assert.match(commands, /^psql$/m);
   assert.match(commands, /^npx$/m);
+  assert.doesNotMatch(commands, /^docker$/m);
+  assert.doesNotMatch(
+    commands,
+    /disposable-capiro-worker-prerequisite|research-portfolio-append-only-prerequisite/,
+  );
+});
+
+test('Phase8 external URL without a safe restricted worker stops before migration', () => {
+  const local = fixture();
+  const result = spawnSync('bash', [phase8], {
+    encoding: 'utf8',
+    env: {
+      ...local.env,
+      REHEARSAL_DATABASE_URL: 'postgresql://fake:fake@unowned.invalid:5432/unowned',
+    },
+    timeout: 15000,
+  });
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stderr, /external rehearsal requires an existing safe capiro_worker prerequisite/);
+  const commands = local.commands();
+  assert.doesNotMatch(commands, /^npx$/m);
   assert.doesNotMatch(commands, /^docker$/m);
   assert.doesNotMatch(
     commands,

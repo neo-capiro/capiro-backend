@@ -64,8 +64,22 @@ describe('MemoryIngestService — Phase E (Meri sessions from clio_*)', () => {
             },
           ]);
         }
-        // Every other phase (clients, meetings, mail_threads, memory_items)
-        // returns no rows so those loops are inert.
+        if (sql.includes('FROM mail_threads')) {
+          return Promise.resolve([
+            {
+              id: '88888888-8888-4888-8888-888888888888',
+              client_id: null,
+              subject: 'Unassociated inbox thread',
+              snippet: 'Private summary',
+              participants: [],
+              last_message_at: new Date('2026-07-01T12:00:00.000Z'),
+              msg_count: BigInt(1),
+              owner_user_id: null,
+              connection_owner_user_id: '99999999-9999-4999-8999-999999999999',
+            },
+          ]);
+        }
+        // Every other phase (clients, meetings, memory_items) returns no rows.
         return Promise.resolve([]);
       },
     };
@@ -127,6 +141,17 @@ describe('MemoryIngestService — Phase E (Meri sessions from clio_*)', () => {
     expect(clioItem).toBeDefined();
     expect(clioItem!.clientId).toBe('77777777-7777-7777-7777-777777777777');
     expect(clioItem!.visibility).toBe('tenant');
+  });
+
+  it('uses the connection owner for a private mail projection under system refresh', async () => {
+    const { svc, capturedSql, upserted } = makeService();
+    await svc.backfillCurrentTenant();
+    const email = upserted.find((i) => i.type === 'thread');
+    expect(capturedSql.find((s) => s.includes('FROM mail_threads'))).toContain(
+      'LEFT JOIN engagement_connections',
+    );
+    expect(email?.ownerUserId).toBe('99999999-9999-4999-8999-999999999999');
+    expect(email?.memoryScope).toBe('user_private');
   });
 
   it('emits a user-private meri-session item with clientId=null even when the conversation is client-linked', async () => {

@@ -591,7 +591,9 @@ describe('the release gate cannot shrink below its measured current floors', () 
     ['api-search', { suites: 3, tests: 12 }],
     ['api-saved', { suites: 1, tests: 2 }],
     ['api-detail-workflow-pipeline', { suites: 4, tests: 48 }],
-    ['web', { suites: 46, tests: 137 }],
+    // web: 46 -> 44 suites because the deleted funding-opportunities-v2-keyword
+    // test (1 file + 1 describe) left the scope in d0f126146; tests rose to 146.
+    ['web', { suites: 44, tests: 146 }],
   ];
 
   test.each(floors)('the %s floor is at or above the measured current floor', (app, floor) => {
