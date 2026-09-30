@@ -35,6 +35,11 @@ import {
   upsertCanonicalMemoryItemInTx,
   type CanonicalGovernance,
 } from './memory-canonical-activation.helpers.js';
+import {
+  assertSyntheticCandidateWithdrawalInTx,
+  type SyntheticCandidateWithdrawalGuard,
+} from './synthetic-candidate-withdrawal.helpers.js';
+import { memoryGovernanceCenterEnabled } from './memory-governance-center.switch.js';
 
 /** The shape MeriToolsService.saveMemory already builds via buildSavedMemoryRecord. */
 export interface MemorySaveRequest {
@@ -479,8 +484,59 @@ export class MemoryCandidateService {
     approverUserId: string,
     actorContext?: CandidateActorContext,
   ): Promise<{ memoryId: string }> {
+    return this.approveGuarded(tenantId, candidateId, approverUserId, actorContext);
+  }
+
+  /** Internal fixture port; the ordinary canonical approval and policy still run. */
+  async approveSyntheticFixture(
+    tenantId: string,
+    candidateId: string,
+    approverUserId: string,
+    actorContext: CandidateActorContext,
+    guard: SyntheticCandidateWithdrawalGuard,
+  ): Promise<{ memoryId: string }> {
+    if (!memoryGovernanceCenterEnabled() || !guard) {
+      throw new ForbiddenException('Governed synthetic memory approval is not enabled');
+    }
+    return this.approveGuarded(tenantId, candidateId, approverUserId, actorContext, guard);
+  }
+
+  private async approveGuarded(
+    tenantId: string,
+    candidateId: string,
+    approverUserId: string,
+    actorContext?: CandidateActorContext,
+    fixtureGuard?: SyntheticCandidateWithdrawalGuard,
+  ): Promise<{ memoryId: string }> {
     const activated = await this.prisma.withTenantUser(tenantId, approverUserId, async (tx) => {
       const candidate = await this.lockPendingCandidateInTx(tx, tenantId, candidateId);
+      if (fixtureGuard) {
+        if (!memoryGovernanceCenterEnabled()) {
+          throw new ForbiddenException('Governed synthetic memory approval is not enabled');
+        }
+        if (actorContext?.tenantId !== tenantId || actorContext.userId !== approverUserId) {
+          throw new ForbiddenException('Synthetic memory reviewer context does not match');
+        }
+        const memberships = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT user_id::text AS id FROM tenant_memberships
+          WHERE tenant_id=${tenantId}::uuid AND user_id=${approverUserId}::uuid
+            AND status='active' AND role=${actorContext.role}
+          FOR SHARE
+        `;
+        if (memberships.length !== 1) {
+          throw new ForbiddenException('Synthetic memory reviewer is not a current member');
+        }
+        // The existing fixture identity/content guard is read-only. Run it
+        // under the pending-row lock to close the inspect/approve race; never
+        // fabricate an approved row or bypass canonical approval authorization.
+        await assertSyntheticCandidateWithdrawalInTx(
+          tx,
+          tenantId,
+          candidate.proposedBy,
+          candidateId,
+          fixtureGuard,
+        );
+      }
       await this.authorizeCandidateInTx(
         tx,
         tenantId,
@@ -501,6 +557,9 @@ export class MemoryCandidateService {
             decision: 'approved',
           })
         : null;
+      if (fixtureGuard && !governance) {
+        throw new ForbiddenException('Synthetic memory requires canonical governed activation');
+      }
       const committed = await this.commitToClioMemoryInTx(tx, tenantId, record, governance);
       await this.markDecidedInTx(
         tx,
