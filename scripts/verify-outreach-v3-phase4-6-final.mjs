@@ -2,6 +2,7 @@
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveApprovedPreviewScope } from './outreach-phase6-approved-preview-maintenance.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PHASE3_HEAD = 'b043a995928314f7085b7f9df94bdba02cee9640';
@@ -33,9 +34,15 @@ function output(command, args) {
 }
 
 const head = output('git', ['rev-parse', 'HEAD']);
+const previewMaintenanceBase = resolveApprovedPreviewScope(ROOT, head)?.base;
+// Same scope as the combined verifier: PHASE3_HEAD...HEAD carries thousands of
+// pre-existing whitespace errors from unrelated mainline work.
+const repositoryWhitespaceBase = previewMaintenanceBase ?? 'origin/main';
 const shaIndex = process.argv.indexOf('--sha');
 if (shaIndex !== -1 && process.argv[shaIndex + 1] !== head) {
-  console.error(`OUTREACH_V3_PHASE4_6_FINAL_FAILED:HEAD_MISMATCH:${process.argv[shaIndex + 1]}:${head}`);
+  console.error(
+    `OUTREACH_V3_PHASE4_6_FINAL_FAILED:HEAD_MISMATCH:${process.argv[shaIndex + 1]}:${head}`,
+  );
   process.exit(1);
 }
 
@@ -57,7 +64,11 @@ run('Phase 6 conversational UI', 'node', [
 run('API build', 'pnpm', ['--filter', '@capiro/api', 'build']);
 run('Web full tests', 'pnpm', ['--filter', '@capiro/web', 'test']);
 run('Web build', 'pnpm', ['--filter', '@capiro/web', 'build']);
-run('Combined diff whitespace', 'git', ['diff', '--check', `${PHASE3_HEAD}...${head}`]);
+run('Combined diff whitespace', 'git', [
+  'diff',
+  '--check',
+  `${repositoryWhitespaceBase}...${head}`,
+]);
 
 console.log(`\nOUTREACH_V3_PHASE4_6_FINAL_CODE_COMPLETE:${head}`);
 console.log('DEPLOYED_BROWSER_ACCEPTANCE:PENDING');

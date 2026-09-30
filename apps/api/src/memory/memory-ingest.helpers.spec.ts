@@ -34,6 +34,7 @@ describe('memory ingestion renderers (Phase 2)', () => {
     const item = emailThreadToItem(emailInput());
     expect(item.visibility).toBe('tenant');
     expect(item.clientId).toBe('acme-corp');
+    expect(item.memoryScope).toBe('client');
     expect(vaultPathForItem(item)).toBe('clients/acme-corp/threads/thr-1.md');
   });
 
@@ -42,7 +43,14 @@ describe('memory ingestion renderers (Phase 2)', () => {
     const item = emailThreadToItem(emailInput({ clientId: null }));
     expect(item.visibility).toBe('user');
     expect(item.ownerUserId).toBe('user-7');
+    expect(item.memoryScope).toBe('user_private');
     expect(vaultPathForItem(item)).toBe('users/user-7/threads/thr-1.md');
+  });
+
+  it('fails closed when a non-client email thread has no real owner', () => {
+    expect(() => emailThreadToItem(emailInput({ clientId: null, ownerUserId: null }))).toThrow(
+      'requires a real owner',
+    );
   });
 
   // #4: the scoping decision is RECORDED (audit trail), not re-derived.

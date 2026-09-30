@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runApprovedPreviewMaintenance } from './outreach-phase6-approved-preview-maintenance.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PHASE5_HEAD = '835cdef35cd8ecb23faf1b100ecfc743bcd31128';
@@ -49,6 +50,8 @@ if (shaIndex !== -1) {
   assert(requested === exactHead, `HEAD_MISMATCH:${requested}:${exactHead}`);
 }
 run('Phase 5 ancestry', 'git', ['merge-base', '--is-ancestor', PHASE5_HEAD, exactHead]);
+
+if (runApprovedPreviewMaintenance(ROOT, run, exactHead)) process.exit(0);
 
 const required = [
   'docs/plans/outreach-v3/revised-phase-6-design-to-state-manifest.md',
@@ -122,6 +125,7 @@ const sponsor = read('SponsorDecisionSurface.tsx');
 const targets = read('TargetWorkspace.tsx');
 const delivery = read('DeliveryDecisionSurface.tsx');
 const context = read('ContextReviewSurface.tsx');
+const contextSelection = read('context-selection.ts');
 const strategy = read('StrategyDecisionSurface.tsx');
 
 for (const forbidden of [
@@ -141,6 +145,11 @@ assert(!/localStorage\.setItem\([^)]*campaign/i.test(production), 'BROWSER_CAMPA
 assert(!/useState<OutreachV3CampaignSpec/.test(production), 'DUPLICATE_CAMPAIGN_SPEC');
 
 assert(previewGateProblems(router).length === 0, 'DUAL_PREVIEW_GATE');
+// Current spelling of the same gate (mirrors verify-outreach-v3-phase6-code.mjs).
+assert(
+  /!hasClassicDraft\s*&&\s*previewMode === 'v3'\s*&&\s*isEngagementPreviewActive\(\)/.test(router),
+  'DUAL_PREVIEW_GATE',
+);
 assert(router.includes('<ClassicOutreachWizard {...props} />'), 'CLASSIC_FALLBACK');
 assert(router.includes('initialRecord || props.initialDraftId'), 'CLASSIC_DRAFT_ROUTE');
 assert(route.includes('session={session}'), 'CANONICAL_SESSION_PROJECTION');
@@ -154,6 +163,10 @@ assert(sponsor.includes('Sponsor and target audience are separate'), 'SPONSOR_AU
 assert(!sponsor.includes('ADD_TARGET_REFS'), 'SPONSOR_ADDS_TARGET');
 assert(!sponsor.includes("selectedClientId ? 'client' : 'firm'"), 'SPONSOR_INFERENCE');
 
+// Current wording of the read-only recommendation contract (mirrors
+// verify-outreach-v3-phase6-code.mjs); the behavior is also exercised by
+// TargetWorkspace.spec.tsx below.
+assert(targets.includes('Read-only: this never calls applyCommands'), 'READ_ONLY_RECOMMENDATIONS');
 assert(!targets.includes('void runSearch();'), 'TARGET_STAGE_AUTO_COMMIT');
 assert(targets.includes('Saving to the shared Directory remains'), 'MANUAL_DIRECTORY_DEFAULT');
 assert(targets.includes('getOutreachV3TargetRelationships'), 'RELATIONSHIP_READ');
@@ -177,6 +190,14 @@ assert(
 assert(context.includes('Style is not evidence'), 'GUIDANCE_EVIDENCE_SEPARATION');
 assert(context.includes('Applies to ${scopeTarget} only'), 'TARGET_CONTEXT_SCOPE');
 assert(context.includes("entry.contextClass === 'required_policy'"), 'REQUIRED_POLICY_LOCK');
+// Current form of the group-safe fail-closed contract (mirrors
+// verify-outreach-v3-phase6-code.mjs); context-selection.spec.ts covers it too.
+assert(
+  context.includes('Group-safe') &&
+    contextSelection.includes('group_safe') &&
+    contextSelection.includes('no representation here'),
+  'GROUP_SAFE_FAIL_CLOSED',
+);
 assert(context.includes('never commits'), 'MEMORY_AUTO_COMMIT_COPY');
 
 assert(strategy.includes('Recommendations remain editable'), 'STRATEGY_EDITABLE');

@@ -6,6 +6,9 @@ import type { TenantContext } from '@capiro/shared';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { configureApiHttpApp } from '../bootstrap/configure-api-http-app.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { HearingBriefExportService } from './hearing-brief-export.service.js';
+import { HearingBriefGenerationService } from './hearing-brief-generation.service.js';
+import { HearingSpeakerAttributionService } from './hearing-speaker-attribution.service.js';
 import { LegiWatchWave1Controller } from './legiwatch-wave1.controller.js';
 import { LegiWatchWave1Service } from './legiwatch-wave1.service.js';
 
@@ -60,6 +63,63 @@ describe('LegiWatch Wave 1 committee routes through the real HTTP pipeline', () 
             committeeHearing: {
               findUnique: async () => null,
             },
+          },
+        },
+        // Safe stubs: committee routes never touch brief or speaker services.
+        // These resolve the controller's constructor dependencies; an unexpected
+        // call throws immediately so a future developer adding a committee route
+        // that touches briefs/speakers sees a test failure.
+        {
+          provide: HearingBriefGenerationService,
+          useValue: {
+            generate: jest
+              .fn()
+              .mockRejectedValue(
+                new Error(
+                  'HearingBriefGenerationService called unexpectedly in committee route test',
+                ),
+              ),
+            generateForHearing: jest
+              .fn()
+              .mockRejectedValue(
+                new Error(
+                  'HearingBriefGenerationService called unexpectedly in committee route test',
+                ),
+              ),
+          },
+        },
+        {
+          provide: HearingBriefExportService,
+          useValue: {
+            exportDocx: jest
+              .fn()
+              .mockRejectedValue(
+                new Error('HearingBriefExportService called unexpectedly in committee route test'),
+              ),
+            saveToClient: jest
+              .fn()
+              .mockRejectedValue(
+                new Error('HearingBriefExportService called unexpectedly in committee route test'),
+              ),
+          },
+        },
+        {
+          provide: HearingSpeakerAttributionService,
+          useValue: {
+            resolve: jest
+              .fn()
+              .mockRejectedValue(
+                new Error(
+                  'HearingSpeakerAttributionService called unexpectedly in committee route test',
+                ),
+              ),
+            rename: jest
+              .fn()
+              .mockRejectedValue(
+                new Error(
+                  'HearingSpeakerAttributionService called unexpectedly in committee route test',
+                ),
+              ),
           },
         },
       ],

@@ -1,6 +1,23 @@
 import { NewsCatcherDashboardService } from './news-catcher-dashboard.service.js';
 
 describe('News dashboard authorization-sensitive cache', () => {
+  test('keeps the Clerk actor and tenant bound inside the existing transaction', async () => {
+    const tenantId = '10000000-0000-4000-8000-000000000001';
+    const actorId = 'clerk_owner';
+    const rows = [{ id: 'client', revision: 'revision' }];
+    const queryRaw = jest.fn(async (..._args: unknown[]) => rows);
+    const tx = { $queryRaw: queryRaw };
+    const withTenant = jest.fn(
+      async (_tenant: string, run: (value: typeof tx) => Promise<unknown>) => run(tx),
+    );
+    const service = new NewsCatcherDashboardService({ withTenant } as never);
+    await expect(service.allowedNewsClients(tenantId, actorId)).resolves.toEqual(rows);
+    expect(withTenant).toHaveBeenCalledTimes(1);
+    expect(withTenant).toHaveBeenCalledWith(tenantId, expect.any(Function));
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+    expect(queryRaw.mock.calls[0]?.slice(1)).toEqual([actorId, tenantId]);
+  });
+
   const value = { items: [], generatedAt: '2026-09-14T00:00:00Z', cached: false };
   test('denies unavailable client selection before assembling a provider query', async () => {
     const service = new NewsCatcherDashboardService({} as never),

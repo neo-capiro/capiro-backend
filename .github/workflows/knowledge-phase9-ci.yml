@@ -69,12 +69,17 @@ jobs:
           pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
           pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
 
+      # In-band at 6144 MB: a 1 GB idle limit restarts the worker after every
+      # suite and re-pays the ts-jest program load (~30 s per suite), which
+      # pushed these two directories past the 35-minute job budget.
       - name: Focused Phase 9 Retrieval V2 tests
         env:
           NODE_OPTIONS: --max-old-space-size=6144 --experimental-vm-modules
         run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/retrieval
 
       - name: Knowledge Plane regression tests
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/knowledge
 
       - name: Reject Phase 9 TypeScript errors
@@ -91,10 +96,23 @@ jobs:
           fi
           echo "Full API typecheck exit: $status (unrelated baseline errors, if any, are not attributed to Phase 9)."
 
-      - name: Bootstrap disposable Postgres migration prerequisites
+      # One prerequisite step for the migration replay below: the guarded role and
+      # append-only bootstrap plus the cluster extensions/app role, both scoped to
+      # the fixed disposable service identity.
+      - name: Prepare owned disposable migration prerequisites
         env:
           CI_DISPOSABLE_POSTGRES: '1'
-        run: bash scripts/ci/bootstrap-disposable-postgres-roles.sh
+          CI_POSTGRES_PASSWORD: postgres
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$CI" = true
+          test "$DATABASE_URL" = 'postgresql://postgres:postgres@localhost:5432/capiro'
+          unset PGSERVICE PGSERVICEFILE PGOPTIONS
+          export PGHOST=127.0.0.1 PGHOSTADDR=127.0.0.1 PGPORT=5432 PGDATABASE=capiro PGUSER=postgres PGPASSWORD=postgres
+          bash scripts/ci/bootstrap-disposable-postgres-roles.sh
+          psql --no-psqlrc -v ON_ERROR_STOP=1 -f docker/postgres/init/01-extensions.sql
 
       - name: Deploy full Prisma migration chain to disposable pgvector/Postgres
         run: pnpm --filter @capiro/api exec prisma migrate deploy

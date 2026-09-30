@@ -9,7 +9,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import mammoth from 'mammoth';
 import type { TenantContext } from '@capiro/shared';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
-import type { PrismaService } from '../prisma/prisma.service.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 import { extractPptxSlide } from '../engagement/pptx-extract.js';
 import { extractMeriXlsxSection, MeriXlsxValidationError } from './meri-attachment-document.js';
 import { extractPdfText } from './meri-attachment-extract.js';

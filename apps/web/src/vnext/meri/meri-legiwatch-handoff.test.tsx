@@ -196,7 +196,7 @@ describe('LW-04 LegiWatch → Meri real route and send', () => {
       expect(message().value).toContain('A distinct selected transcript excerpt'),
     );
     expect(screen.getByLabelText('Client scope').textContent).toBe('client-anduril');
-    expect(screen.getByLabelText('Route').textContent).toBe('/meri/new');
+    await waitFor(() => expect(screen.getByLabelText('Route').textContent).toBe('/meri/new'));
     for (const text of [
       'Quoted supporting evidence',
       'Relevant to the selected client',

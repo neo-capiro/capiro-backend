@@ -39,6 +39,8 @@ describe('Outreach V3 reasoning credential boundary', () => {
     ).resolves.toMatchObject({
       provider: 'openai',
       apiKey: 'platform-openai-key',
+      // The resolver applies the shared text-model upgrade policy before
+      // returning credentials, so legacy gpt-5.6 config resolves to Astra.
       model: 'gpt-6-astra',
       usedTenantKey: false,
     });
