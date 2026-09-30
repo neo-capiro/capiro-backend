@@ -174,7 +174,9 @@ export class LegiWatchContextPlaneService {
       budgetUnit: 'tokens',
       persistence: 'required',
       contractVersion: 2,
-      ethicalWallAllowed: true,
+      // Read off the actor's wall-filtered envelope, never asserted. The
+      // compiler re-derives it from the packet's own actor and client as well.
+      ethicalWallAllowed: security.authorizedClientIds.includes(input.clientId),
       ref: {
         operationId: 'legiwatch.generate-report',
         alertId: input.alertId,

@@ -25,6 +25,15 @@ describe('Knowledge Plane Phase 22 LegiWatch architecture contract', () => {
     expect(service).not.toContain('pgvector');
   });
 
+  test('the ethical-wall decision comes from the actor-scoped envelope, never a literal grant', () => {
+    const service = read(join(API_ROOT, 'src/intelligence/alert-memo/legiwatch-context-plane.service.ts'));
+
+    expect(service).not.toMatch(/ethicalWallAllowed\s*:\s*true\b/);
+    expect(service).toContain(
+      'ethicalWallAllowed: security.authorizedClientIds.includes(input.clientId)',
+    );
+  });
+
   test('Context Plane retrieval is wired private client/history context, never the legislative source of truth', () => {
     const service = read(join(API_ROOT, 'src/intelligence/alert-memo/legiwatch-context-plane.service.ts'));
     const retrievalModule = read(join(API_ROOT, 'src/retrieval/retrieval.module.ts'));
