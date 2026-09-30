@@ -276,16 +276,15 @@ function main(): void {
   run(
     'Phase 1 manifests, runtime, route, timer, provider, bootstrap, health, and image-entrypoint tests',
     'pnpm',
-    // One recycled worker instead of --runInBand: the in-band process kept
-    // every suite's modules. On CI a single app-module suite also outgrew the
-    // 4 GB heap the calling workflows set, so the worker gets 6 GB.
+    // In-band on a 6 GB heap. In-band at 4 GB ran out of memory; a 1 GB
+    // idle limit restarts the worker after every suite (~30 s ts-jest reload
+    // each), which pushed this step past Phase 2's 25-minute Phase 1 deadline.
     [
       '--filter',
       '@capiro/api',
       'exec',
       'jest',
-      '--maxWorkers=1',
-      '--workerIdleMemoryLimit=1GB',
+      '--runInBand',
       '--forceExit',
       ...TEST_TARGETS,
     ],

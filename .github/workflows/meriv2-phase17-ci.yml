@@ -17,7 +17,9 @@ concurrency:
 jobs:
   final-release-matrix:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # Includes the complete apps/api suite (four shards), which alone ran for
+    # 44+ minutes before the sharding.
+    timeout-minutes: 150
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -165,10 +167,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base="${{ github.event.pull_request.base.sha }}"
-          if [ -z "$base" ]; then
-            base=$(git merge-base origin/main HEAD 2>/dev/null || git rev-parse HEAD^)
-          fi
+          # pull_request.base.sha is not refreshed as main advances.
+          base=$(git merge-base "origin/${{ github.base_ref || 'main' }}" HEAD 2>/dev/null || git rev-parse HEAD^)
           changed_file_list=$(mktemp)
           trap 'rm -f "$changed_file_list"' EXIT
           git diff --name-only -z --diff-filter=ACMR "$base...HEAD" -- \
@@ -261,10 +261,16 @@ jobs:
           CI_DISPOSABLE_POSTGRES: '1'
         run: pnpm --filter @capiro/api-strategy test
 
+      # The package's `jest --detectOpenHandles --forceExit` implies in-band, and
+      # all ~1,760 apps/api spec files in one process ran out of heap. Run the
+      # same command as four sequential shards, each a fresh process.
       - name: Test API
         env:
           NODE_OPTIONS: --max-old-space-size=6144 --experimental-vm-modules
-        run: pnpm --filter @capiro/api test
+        run: |
+          for shard in 1 2 3 4; do
+            pnpm --filter @capiro/api exec jest --detectOpenHandles --forceExit --shard="$shard/4" || exit 1
+          done
 
       - name: Test Workspace
         run: pnpm --filter @capiro/workspace test

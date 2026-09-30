@@ -21,8 +21,10 @@ jobs:
     name: Revised Phase 1 DB-free closeout
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    # The focused Phase 1 Jest run is in-band over 37 suites, and the nested
+    # Phase 3 regression runs nest build and the web build on this heap.
     env:
-      NODE_OPTIONS: --max-old-space-size=4096
+      NODE_OPTIONS: --max-old-space-size=6144
     steps:
       - uses: actions/checkout@v4
         with:

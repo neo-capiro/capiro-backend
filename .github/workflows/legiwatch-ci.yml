@@ -71,11 +71,11 @@ jobs:
   legiwatch:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    # The enumerated apps/api Jest run repeatedly exceeded Node's default
-    # ~2 GiB heap before it could write its JSON summary. Keep one worker
-    # and a bounded larger heap so the absolute-zero gate is deterministic.
+    # The enumerated apps/api Jest run exceeded both Node's default heap and
+    # 4 GB in-band before it could write its JSON summary. In-band at 6 GB
+    # completes the whole scope in about five minutes.
     env:
-      NODE_OPTIONS: --max-old-space-size=4096
+      NODE_OPTIONS: --max-old-space-size=6144
       DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
       LEGIWATCH_COMMITTEE_TEST_DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro_committee_alerts_ci
       LEGIWATCH_RECORDING_TEST_DATABASE: disposable
@@ -263,11 +263,10 @@ jobs:
       - name: Tests — apps/api LegiWatch scope
         env:
           DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
-        # One recycled worker: in-band, the suites' module graphs accumulated
-        # past the 4 GB heap.
+        # In-band on the 6 GB job heap. A 1 GB idle limit restarts the worker
+        # after every suite (~30 s ts-jest reload each) and overran the job.
         run: >
-          pnpm --filter @capiro/api exec jest --ci --silent --maxWorkers=1
-          --workerIdleMemoryLimit=1GB
+          pnpm --filter @capiro/api exec jest --ci --silent --runInBand
           --json --outputFile=$GITHUB_WORKSPACE/api-summary.json
           --testPathIgnorePatterns=legiwatch-saved-sessions-pg.integration.spec.ts
           --

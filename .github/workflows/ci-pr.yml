@@ -48,7 +48,7 @@ jobs:
       - name: Migration timestamp guard (new migrations only)
         run: >
           node scripts/check-migration-timestamps.mjs
-          --base ${{ github.event.pull_request.base.sha }}
+          --base origin/${{ github.base_ref }}
 
       - name: Test migration entrypoint failure handling
         run: python3 scripts/check-migration-entrypoints.test.py
@@ -59,7 +59,7 @@ jobs:
       - name: Migration history integrity guard (existing migrations)
         run: >
           node scripts/check-migration-integrity.mjs
-          --base ${{ github.event.pull_request.base.sha }}
+          --base origin/${{ github.base_ref }}
       - run: pnpm install --frozen-lockfile
       - name: Test disposable PostgreSQL migration prerequisites
         run: >
@@ -111,7 +111,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base="${{ github.event.pull_request.base.sha }}"
+          # pull_request.base.sha is not refreshed as main advances.
+          base="$(git merge-base "origin/${{ github.base_ref }}" HEAD)"
           changed_file_list=$(mktemp)
           trap 'rm -f "$changed_file_list"' EXIT
           git diff --name-only -z --diff-filter=ACMR "$base...HEAD" -- \
@@ -224,7 +225,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NODE_OPTIONS: --max-old-space-size=6144
-    timeout-minutes: 30
+    # verify:engagement-phase-2 re-runs the complete Phase 1 verifier (install,
+    # Jest, API build, web typecheck and full web suite) before its own gates.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:

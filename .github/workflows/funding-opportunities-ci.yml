@@ -81,7 +81,9 @@ jobs:
           --health-retries 10
 
     env:
-      NODE_OPTIONS: --max-old-space-size=4096
+      # In-band Jest groups, nest build and the web build (tsc + vite) all run
+      # on this heap; 6 GB is the level at which all of them have completed.
+      NODE_OPTIONS: --max-old-space-size=6144
       DATABASE_URL: postgresql://fo_test:fo_test_local@127.0.0.1:5486/fo_v2_test?schema=public
       FUNDING_OPPORTUNITIES_TEST_DATABASE_URL: postgresql://fo_test:fo_test_local@127.0.0.1:5486/fo_v2_test?schema=public
       PSQL_DATABASE_URL: postgresql://fo_test:fo_test_local@127.0.0.1:5486/fo_v2_test
@@ -295,12 +297,10 @@ jobs:
           pnpm --filter @capiro/web typecheck
 
       # ---------------------------------------------------------------- api --
-      # Every module this feature owns, enumerated. `--maxWorkers=1`
-      # with `--workerIdleMemoryLimit=1GB`: one sequential worker; Jest
-      # recycles the worker between suites when its heap exceeds the
-      # limit, avoiding OOM without collapsing to in-band (which lacks
-      # per-suite worker recycling). The migration service is shared and
-      # parallel workers on one Postgres make failures non-deterministic.
+      # Every module this feature owns, enumerated. `--runInBand` on the
+      # 6 GB job heap: the migration service is shared and parallel workers
+      # on one Postgres make failures non-deterministic. A 1 GB idle limit
+      # restarts the worker after every suite (~30 s ts-jest reload each).
       - name: Validate isolated API test paths
         if: steps.scope.outputs.in_scope == 'true'
         shell: bash
@@ -321,10 +321,8 @@ jobs:
 
       - name: Tests — apps/api Funding Opportunities scope
         if: steps.scope.outputs.in_scope == 'true'
-        env:
-          NODE_OPTIONS: --max-old-space-size=4096
         run: >
-          pnpm --filter @capiro/api exec jest --ci --silent --maxWorkers=1 --workerIdleMemoryLimit=1GB
+          pnpm --filter @capiro/api exec jest --ci --silent --runInBand
           --json --outputFile=$GITHUB_WORKSPACE/api-summary.json
           --testPathIgnorePatterns='src/funding-opportunities/(funding-opportunity-v2-search\.sql|funding-opportunity-v2-search\.http\.integration|funding-opportunity-v2-search\.integration|funding-opportunity-saved-search\.http\.integration|funding-opportunity-v2-detail\.http|funding-opportunity-v2-workflow\.http\.integration|funding-opportunity-pipeline\.http\.integration|funding-opportunity-pipeline-source-access\.integration)\.spec\.ts$'
           --

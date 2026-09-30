@@ -27,7 +27,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NODE_OPTIONS: --max-old-space-size=6144
-    timeout-minutes: 55
+    # Phase 4 re-runs Phase 3, which re-runs Engagement Phase 1-3 (Phase 1
+    # twice); the same budget as the Revised Phase 2/3 DB-free jobs.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
         with:

@@ -33,7 +33,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      NODE_OPTIONS: --max-old-space-size=4096
+      # The nested Phase 1/2 verifiers run nest build, the production tsc
+      # project and the web build on this heap; 4 GB is no longer enough.
+      NODE_OPTIONS: --max-old-space-size=6144
       PHASE3_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v4

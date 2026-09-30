@@ -24,8 +24,10 @@ jobs:
     name: Phase 4 target intelligence
     runs-on: ubuntu-latest
     timeout-minutes: 75
+    # The nested Phase 3 -> Engagement Phase 1-3 verifiers run in-band Jest,
+    # nest build and the web build on this heap.
     env:
-      NODE_OPTIONS: --max-old-space-size=4096
+      NODE_OPTIONS: --max-old-space-size=6144
     steps:
       - uses: actions/checkout@v4
         with:

@@ -27,6 +27,13 @@ function resolveWhitespaceBase() {
       encoding: 'utf8',
     }).trim();
     if (mergeBase === originMain) return originMain;
+    // main advanced after this branch last merged it (engagement-phase3.yml
+    // checks out the PR head, not the merge ref). The merge-base still
+    // excludes main's own commits once it contains the accepted Phase 2 head.
+    execFileSync('git', ['merge-base', '--is-ancestor', ACCEPTED_PHASE2_HEAD, mergeBase], {
+      cwd: ROOT,
+    });
+    return mergeBase;
   } catch {
     // The fixed accepted head below remains the safe fallback in shallow or
     // detached checkouts without a usable origin/main ref.

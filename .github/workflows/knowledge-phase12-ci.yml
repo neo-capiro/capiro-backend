@@ -95,10 +95,8 @@ jobs:
           node scripts/verify-phase12-provider-inventory.mjs
           node --test scripts/verify-phase12-provider-inventory.spec.mjs
 
-          base="${{ github.event.pull_request.base.sha }}"
-          if [ -z "$base" ]; then
-            base=$(git merge-base origin/main HEAD 2>/dev/null || git rev-parse HEAD^)
-          fi
+          # pull_request.base.sha is not refreshed as main advances.
+          base=$(git merge-base "origin/${{ github.base_ref || 'main' }}" HEAD 2>/dev/null || git rev-parse HEAD^)
 
           # Reject newly-added coupling. Existing cross-domain defaults and
           # historical fixtures remain visible baseline debt, but do not make

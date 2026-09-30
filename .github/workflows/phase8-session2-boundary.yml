@@ -104,6 +104,16 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      # public.ecr.aws intermittently answers the base-image manifest request
+      # with an unexpected status; the build then uses the pulled local copy.
+      - name: Pull the defense-api image base with retries
+        run: |
+          image=public.ecr.aws/docker/library/node:20.16.0-bookworm-slim
+          for attempt in 1 2 3 4 5; do
+            docker pull "$image" && exit 0
+            sleep $((attempt * 15))
+          done
+          exit 1
       - name: Build defense-api image
         run: docker build -f apps/defense-api/Dockerfile -t capiro-defense-api:ci .
       - name: Non-root container smoke test

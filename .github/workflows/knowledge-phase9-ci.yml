@@ -69,16 +69,18 @@ jobs:
           pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
           pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
 
-      # One worker preserves sequential execution and recycles its heap between suites.
+      # In-band at 6144 MB: a 1 GB idle limit restarts the worker after every
+      # suite and re-pays the ts-jest program load (~30 s per suite), which
+      # pushed these two directories past the 35-minute job budget.
       - name: Focused Phase 9 Retrieval V2 tests
         env:
           NODE_OPTIONS: --max-old-space-size=6144 --experimental-vm-modules
-        run: pnpm --filter @capiro/api exec jest --maxWorkers=1 --workerIdleMemoryLimit=1GB --forceExit src/retrieval
+        run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/retrieval
 
       - name: Knowledge Plane regression tests
         env:
           NODE_OPTIONS: --max-old-space-size=6144
-        run: pnpm --filter @capiro/api exec jest --maxWorkers=1 --workerIdleMemoryLimit=1GB --forceExit src/knowledge
+        run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/knowledge
 
       - name: Reject Phase 9 TypeScript errors
         shell: bash

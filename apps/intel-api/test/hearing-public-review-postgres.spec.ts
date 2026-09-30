@@ -3,6 +3,7 @@ import { writeFileSync } from 'node:fs';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { HearingSessionService } from '../src/hearing/hearing-session.service.js';
+import { STATE_CAPTURE_LINK_ONLY } from '../src/hearing/state-capture-policy.js';
 import { HearingCryptoService } from '../src/hearing/hearing-crypto.service.js';
 import { HearingPublicationService } from '../src/hearing/hearing-publication.service.js';
 import { FolderTrackerService } from '../src/tracker/folders/folder-tracker.service.js';
@@ -119,9 +120,22 @@ describe('canonical server capture reviewed publications on PostgreSQL', () => {
       )[0]?.count,
     ).toBe(1n);
     expect(await p.transcriptSegment.count({ where: { sessionId } })).toBe(0);
-    await expect(sessions.assertCaptureAllowed(tenantId, sessionId, actor)).rejects.toThrow(
-      'CANNOT_CAPTURE',
-    );
+    // This FL proceeding is link-only by default, and that policy is checked
+    // before the review-context guard. Prove both refusals.
+    const stateCapture = process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED;
+    try {
+      process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED = 'false';
+      await expect(sessions.assertCaptureAllowed(tenantId, sessionId, actor)).rejects.toThrow(
+        STATE_CAPTURE_LINK_ONLY,
+      );
+      process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED = 'true';
+      await expect(sessions.assertCaptureAllowed(tenantId, sessionId, actor)).rejects.toThrow(
+        'CANNOT_CAPTURE',
+      );
+    } finally {
+      if (stateCapture === undefined) delete process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED;
+      else process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED = stateCapture;
+    }
     await expect(
       p.liveHearingSession.update({ where: { id: sessionId }, data: { status: 'live' } }),
     ).rejects.toThrow('cannot start another capture');
